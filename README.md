@@ -15,6 +15,7 @@ The technology here is based on the work by  Niessner, Loop, Meyer, and DeRose i
 
 Build instructions for linux
 
+<pre><code>
 * clone the repository :
     git clone git@github.com:PixarAnimationStudios/OpenSubdiv.git
 
@@ -25,7 +26,7 @@ Build instructions for linux
 
 * build the project :
     make
-
+</code></pre>
 
   
 ## Why fast subdivision? ##
@@ -37,10 +38,10 @@ Maya and Pixar's Presto animation system can take 100ms to subdivide a character
 ## Components ##
 
 #### hbr (hierarchical boundary rep) ####
-This base library implements a half edge data structure to store edges, faces, and vertices of a subdivision surface. This code was authored by Julian Fong on the Renderman team. It is the lowest level subdivision libary in renderman. Separate objects are allocated for each vertex and edge (*2) with pointers to neighboring vertices and edges. Hbr is a templated class used by clients to create concrete instances by providing vertex etc classes as template parameters. 
+This base library implements a half edge data structure to store edges, faces, and vertices of a subdivision surface. This code was authored by Julian Fong on the Renderman team. It is the lowest level subdivision libary in renderman. Separate objects are allocated for each vertex and edge (*2) with pointers to neighboring vertices and edges. Hbr is a generic templated API used by clients to create concrete instances by providing the implementation of the vertex class. 
 
 #### far (feature-adaptive rep) ####
-Far uses hbr to create and cache fast run time data structures for table driven subdivision and cubic patches for limit surface evaluation.  Feature-adaptive refinement logic is used to adaptively refine subdivs near features like extrordinary vertices and creases when finding cubic patches to for surface evaluation. Far isn't intended to be used by clients, but is a templated algorthmic base class that clients in higher levels instantiate and use. Subdivision schemes supported:
+Far uses hbr to create and cache fast run time data structures for table driven subdivision of vertices and cubic patches for limit surface evaluation.  Feature-adaptive refinement logic is used to adaptively refine coarse topology near features like extrordinary vertices and creases in order to make the topology amenable to cubic patch evaluation. Far is also a generic templated algorthmic base API that clients in higher levels instantiate and use by providing an implementation of a vertex class. Subdivision schemes supported:
  * Catmull-Clark
  * Loop
  * Bilinear
@@ -53,7 +54,7 @@ Osd contains client level code that uses far to create concrete instances of mes
  * OpenCL kernels
  * CUDA kernels.
 
-The amount of backend specific code is small, ~300 lines of code, so it isn't a large effort to support multiple different ones for different clients.
+The amount of hardware specific computation code is small, ~300 lines of code, so it isn't a large effort to support multiple different ones for different clients.
 
 With support for cubic patch fitting in release 2.0 the results of table driven subdivision will pass to tesselation shaders in glsl to dice the patch dynamically.  In release 1.0 the tables are used to generate polygon mesh CVs at the Nth level of subdivison.
 
