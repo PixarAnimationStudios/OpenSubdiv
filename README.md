@@ -13,7 +13,17 @@ The technology here is based on the work by  Niessner, Loop, Meyer, and DeRose i
 
 ## Quickstart ##
 
-Build instructions for linux
+Basic instructions to get started with the code.
+
+### Dependencies ###
+
+Required :
+* IlmBase 1.0.1 : http://www.openexr.com/downloads.html
+
+Optional :
+* Maya SDK (sample code for Maya viewport 2.0 primitive)
+
+### Build instructions for linux : ###
 
 <pre><code>
 * clone the repository :
@@ -28,7 +38,17 @@ Build instructions for linux
     make
 </code></pre>
 
-  
+### Useful cmake options ###
+
+<pre><code>
+-DCMAKE_BUILD_TYPE=[Debug|Release]
+
+-DILMBASE_LOCATION=[path to IlmBase]
+
+-DMAYA_LOCATION=[path to Maya]
+
+</code></pre>
+
 ## Why fast subdivision? ##
 
 Subdivision surfaces are commonly used for final rendering of character shapes for a smooth and controllable limit surfaces. However, subdivision surfaces in interactive apps are typically drawn as their polygonal control hulls because of performance.  The polygonal control hull is an approximation that is offset from the true limit surface,  Looking at an approximation in the interactive app makes it difficult to see exact contact, like fingers touching a potion bottle or hands touching a cheek.  It also makes it difficult to see poke throughs in cloth simulation if the skin and cloth are both approximations.  This problem is particularly bad when one character is much larger than another and unequal subdiv face sizes cause approximations errors to be magnified.
