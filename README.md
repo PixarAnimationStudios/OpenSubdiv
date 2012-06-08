@@ -32,6 +32,7 @@ Optional :
 * generate Makefiles :
     cd OpenSubdiv
     mkdir build
+    cd build
     cmake ..
 
 * build the project :
@@ -48,6 +49,22 @@ Optional :
 -DMAYA_LOCATION=[path to Maya]
 
 </code></pre>
+
+### Standalone viewer ###
+
+<pre><code>
+* To run viewer:
+    bin/viewer
+* Usage:
+    Left mouse button drag   : orbit camera
+    Middle mouse button drag : dolly camera
+    Right mouse button       : show popup menu
+    n, p                     : next/prev model
+    1, 2, 3, 4, 5, 6, 7      : specify subdivision level
+    w                        : switch display mode
+    q                        : quit
+</code></pre>
+
 
 ## Why fast subdivision? ##
 
