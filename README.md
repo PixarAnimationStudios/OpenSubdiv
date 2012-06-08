@@ -1,4 +1,4 @@
---- OpenSubdiv
+# OpenSubdiv #
 
 OpenSubdiv is a set of open source libraries that implement high performance subdivision surface (subdiv) evaluation on massively parallel CPU and GPU architectures. This codepath is optimized for drawing deforming subdivs with static topology at interactive framerates. OpenSubdiv can amplify a 30,000 polygon base mesh into a smooth limit surface of 500,000 polygons in under 3 milliseconds on Kepler Nvidia hardware.  The architecture features a precomputation step that uses Renderman's hbr library to compute fast run time data structures that are evaluated with backends in any of C++, CUDA, OpenCL, or GLSL.  The resulting limit surface matches Pixar's Renderman to numerical precision. OpenSubdiv also includes support for semi-sharp creases and hierarchical edits on subdivs which both are powerful tools for shaping surfaces.  
 
@@ -94,6 +94,8 @@ There are many things we'd love to do to improve support for subdivs but don't h
 
 The following license text describes the open source policy adopted by Pixar and is included in every source file.
 
+<pre><code>
+
 //
 //     Copyright (C) Pixar. All rights reserved.
 //
@@ -152,6 +154,6 @@ The following license text describes the open source policy adopted by Pixar and
 //
 
 
-
+</code></pre>
 
 
