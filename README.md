@@ -11,7 +11,7 @@ The technology here is based on the work by  Niessner, Loop, Meyer, and DeRose i
   * http://research.microsoft.com/en-us/um/people/cloop/tog2012.pdf
 
 
---- Quickstart
+## Quickstart ##
 
 Build instructions for linux
 
@@ -28,24 +28,24 @@ Build instructions for linux
 
 
   
---- Why fast subdivision?
+## Why fast subdivision? ##
 
 Subdivision surfaces are commonly used for final rendering of character shapes for a smooth and controllable limit surfaces. However, subdivision surfaces in interactive apps are typically drawn as their polygonal control hulls because of performance.  The polygonal control hull is an approximation that is offset from the true limit surface,  Looking at an approximation in the interactive app makes it difficult to see exact contact, like fingers touching a potion bottle or hands touching a cheek.  It also makes it difficult to see poke throughs in cloth simulation if the skin and cloth are both approximations.  This problem is particularly bad when one character is much larger than another and unequal subdiv face sizes cause approximations errors to be magnified.
 
 Maya and Pixar's Presto animation system can take 100ms to subdivide a character of 30,000 polygons to the second level of subdivision (500,000 polygons).  By doing the same thing in 3ms OpenSubdiv allows the user to see the smooth, accurate limit surface at all times. 
 
---- Components
+## Components ##
 
-- hbr (hierarchical boundary rep)
+#### hbr (hierarchical boundary rep) ####
 This base library implements a half edge data structure to store edges, faces, and vertices of a subdivision surface. This code was authored by Julian Fong on the Renderman team. It is the lowest level subdivision libary in renderman. Separate objects are allocated for each vertex and edge (*2) with pointers to neighboring vertices and edges. Hbr is a templated class used by clients to create concrete instances by providing vertex etc classes as template parameters. 
 
-- far (feature-adaptive rep)
+#### far (feature-adaptive rep) ####
 Far uses hbr to create and cache fast run time data structures for table driven subdivision and cubic patches for limit surface evaluation.  Feature-adaptive refinement logic is used to adaptively refine subdivs near features like extrordinary vertices and creases when finding cubic patches to for surface evaluation. Far isn't intended to be used by clients, but is a templated algorthmic base class that clients in higher levels instantiate and use. Subdivision schemes supported:
  * Catmull-Clark
  * Loop
  * Bilinear
 
-- osd (Open Subdiv)
+#### osd (Open Subdiv) ####
 Osd contains client level code that uses far to create concrete instances of meshes and compute patch CVs with different backends for table driven subdivision. We support the following backends in osd:
 
  * C++ with single or multiple threads
@@ -57,7 +57,7 @@ The amount of backend specific code is small, ~300 lines of code, so it isn't a 
 
 With support for cubic patch fitting in release 2.0 the results of table driven subdivision will pass to tesselation shaders in glsl to dice the patch dynamically.  In release 1.0 the tables are used to generate polygon mesh CVs at the Nth level of subdivison.
 
---- Release 1
+## Release 1 ##
 
 The first release of OpenSubdiv is targeting beta for SIGGRAPH 2012.  This release supports uniform table-driven subdivision on the CPU and GPU, but not yet creating cubic patches to dice with tesselation shaders.  In addition to hbr, far, and osd, this release will contain:
  * A reference Maya viewport 2.0 draw override plugin implemented on osd.
@@ -71,7 +71,7 @@ This release will support:
  * Ptex texture drawing
  * Some support for hierarchical edits.
 
---- Release 2
+## Release 2 ##
 
 The second release of OpenSubdiv raises the performance bar to what we believe is the maximum level by computing cubic ppatches that are supported directly in hardware with tesselation shaders.   This fitting process is done adaptively, so areas of the mesh that are all quads and regular aren't subdivided at all, and the detail is clustered close to features that require it like creases, extrordinary points, hierarchical edits, boundaries, corners, etc.  The largest improvement here will be in memory over storing uniform subdivisions.
 
@@ -79,7 +79,7 @@ This release will also complete hierarchical edit support and support for face v
 
 We are targeting release 2 for end of year 2012, hopefully earlier than that.  We have the patch code working in a very rough implementation but need to rewrite that in a development branch for release-ready code. Let us know if you're interested in contributing to that effort! 
 
---- Wish List
+## Wish List ##
 
 There are many things we'd love to do to improve support for subdivs but don't have the resources to.  We hope folks feel welcome to contribute if they have the interest and time.  Some things that could be improved:
   * The precomputation step with hbr can be slow.  Does anyone have thoughts on higher performance with topology rich data structures needed for feature adaptive subdivision?  Maybe a class that packs adjacency into blocks of indices efficiently, or supports multithreading, or even feature-adaptive subdivision on the GPU?
@@ -90,7 +90,7 @@ There are many things we'd love to do to improve support for subdivs but don't h
 
 
 
---- Open Source License
+## Open Source License ##
 
 The following license text describes the open source policy adopted by Pixar and is included in every source file.
 
