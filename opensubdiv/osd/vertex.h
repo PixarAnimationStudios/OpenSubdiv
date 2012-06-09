@@ -1,6 +1,9 @@
 #ifndef GSD_VERTEX_H
 #define GSD_VERTEX_H
 
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 class OsdVertex {
 public:
     OsdVertex() {}
@@ -11,5 +14,10 @@ public:
     void AddVaryingWithWeight(const OsdVertex & i, float weight, void * = 0) {} 
     void Clear(void * = 0) {}
 };
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif // GSD_VERTEX_H
