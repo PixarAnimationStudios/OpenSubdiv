@@ -82,7 +82,7 @@ template <class T, class U=T> class FarCatmarkSubdivisionTables : public FarSubd
 public:
 
     // Memory required to store the indexing tables
-    virtual size_t GetMemoryUsed() const;
+    virtual int GetMemoryUsed() const;
    
     // Compute the positions of refined vertices using the specified kernels
     virtual void Refine( int level, void * data=0 ) const;   
@@ -120,7 +120,7 @@ private:
     typename FarSubdivisionTables<T,U>::template Table<unsigned int>  _F_IT;
 };
 
-template <class T, class U> size_t
+template <class T, class U> int
 FarCatmarkSubdivisionTables<T,U>::GetMemoryUsed() const {
     return FarSubdivisionTables<T,U>::GetMemoryUsed()+
         _F_ITa.GetMemoryUsed()+

@@ -101,7 +101,7 @@ public:
     int GetMaxLevel() const { return (int)(_vertsOffsets.size()); }
 
     // Memory required to store the indexing tables
-    virtual size_t GetMemoryUsed() const;
+    virtual int GetMemoryUsed() const;
     
     // Compute the positions of refined vertices using the specified kernels
     virtual void Refine( int level, void * clientdata=0 ) const=0;
@@ -137,8 +137,8 @@ public:
 	std::vector<Type *> _markers;  // pointers to the first datum at each level
     public:
         // Returns the memory required to store the data in this table.
-        size_t GetMemoryUsed() const {
-            return _data.size() * sizeof(Type);
+        int GetMemoryUsed() const {
+            return (int)_data.size() * sizeof(Type);
         }
 
 	void SetMarker(int level, Type * marker) {
@@ -340,7 +340,7 @@ FarSubdivisionTables<T,U>::GetNumVertices( int level ) const {
 	       GetNumVertexVertices(level);
 }
 
-template <class T, class U> size_t
+template <class T, class U> int
 FarSubdivisionTables<T,U>::GetMemoryUsed() const {
     return _E_IT.GetMemoryUsed()+
            _E_W.GetMemoryUsed()+
