@@ -56,9 +56,13 @@
 #
 #
 
+#-------------------------------------------------------------------------------
 find_package(IlmBase REQUIRED)
+
 find_package(OpenGL)
 find_package(GLEW)
+
+find_package(CUDA)
 
 
 include_directories(
@@ -136,6 +140,23 @@ if( OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE) )
     )	
 endif()
 
+#-------------------------------------------------------------------------------
+# CUDA code & dependencies 
+if( CUDA_FOUND )
+    list(APPEND SOURCE_FILES
+        cudaDispatcher.cpp
+    )
+    list(APPEND PUBLIC_HEADERS
+        cudaDispatcher.h
+    )
+    list(APPEND KERNEL_FILES
+        cudaKernel.cu
+    )
+endif()
+
+
+#-------------------------------------------------------------------------------
+# Kernel Stringification
 # We want to use preprocessor include directives to include GLSL and OpenCL
 # kernel source files in cpp files, but since the sources contain newline
 # characters we would need raw string literals from C++11 to do this directly.
@@ -160,6 +181,7 @@ foreach(kernel_file ${KERNEL_FILES})
     endif()    
 endforeach()
 
+#-------------------------------------------------------------------------------
 source_group("Kernels" FILES ${KERNEL_FILES})
 source_group("Inc" FILES ${INC_FILES})
 
@@ -182,3 +204,5 @@ target_link_libraries(osd
     ${OPENGL_LIBRARY}
     ${PLATFORM_LIBRARIES}
 )
+
+#-------------------------------------------------------------------------------
