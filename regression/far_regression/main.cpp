@@ -95,7 +95,7 @@ struct xyzVV {
     void     AddWithWeight(const xyzVV& src, float weight, void * =0 ) { _pos+=weight*src._pos; }
     void     AddVaryingWithWeight(const xyzVV& , float, void * =0 ) { }
     void     Clear( void * =0 ) { _pos.setValue(0.f, 0.f, 0.f); }
-    void     SetPos(float x, float y, float z) { _pos=Imath::Vec3<float>(x,y,z); }
+    void     SetPosition(float x, float y, float z) { _pos=Imath::Vec3<float>(x,y,z); }
     const Imath::Vec3<float>& GetPos() const { return _pos; }
 
 private:  

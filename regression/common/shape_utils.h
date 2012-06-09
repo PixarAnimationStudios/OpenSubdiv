@@ -58,9 +58,11 @@
 #define SHAPE_UTILS_H
 
 #include <stdio.h>
+#include <string.h>
 
-#include <vector>
 #include <list>
+#include <string>
+#include <vector>
 
 //------------------------------------------------------------------------------                                        
 static char const * sgets( char * s, int size, char ** stream ) {
@@ -316,7 +318,10 @@ enum Scheme {
   kLoop
 };
 
-//------------------------------------------------------------------------------       
+//------------------------------------------------------------------------------
+
+#define INTERLEAVED_VERTS
+
 template <class T> HbrMesh<T> *
 simpleHbr( char const * shapestr, Scheme scheme=kCatmark) {
 
@@ -334,17 +339,14 @@ simpleHbr( char const * shapestr, Scheme scheme=kCatmark) {
     case kCatmark : mesh = new HbrMesh<T>(  &_catmark ); break;
   }
   
-  int numverts = sh->getNverts(), 
-      numfaces = sh->getNfaces();
-  
   T v;
-  for(int i=0;i<numverts; i++ ) {
-    v.SetPos( sh->verts[i*3], sh->verts[i*3+1], sh->verts[i*3+2] );
+  for(int i=0;i<sh->getNverts(); i++ ) {
+    v.SetPosition( sh->verts[i*3], sh->verts[i*3+1], sh->verts[i*3+2] );
     mesh->NewVertex( i, v );
   }
 
   const int * fv=&(sh->faceverts[0]);
-  for(int f=0, ptxidx=0;f<numfaces; f++ ) {
+  for(int f=0, ptxidx=0;f<sh->getNfaces(); f++ ) {
     int nv = sh->nvertsPerFace[f];
   
     if ((scheme==kLoop) and (nv!=3)) {
