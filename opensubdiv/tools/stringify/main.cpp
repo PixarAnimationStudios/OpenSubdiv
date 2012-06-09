@@ -55,15 +55,62 @@
 //     a particular purpose and non-infringement.
 //
 
-#include "../osd/kernelDispatcher.h"
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
 
-#include <GL/glew.h>
 
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
+std::string stringify( std::string const & line ) {
 
-OsdKernelDispatcher::Factory OsdKernelDispatcher::Factory::_instance;
+    bool inconstant=false;
 
-} // end namespace OPENSUBDIV_VERSION
-} // end namespace OpenSubdiv
+    std::stringstream s;
+    for (int i=0; i<(int)line.size(); ++i) {
 
+        // escape double quotes
+        if (line[i]=='"') { 
+            s << '\\' ;
+            inconstant = inconstant ? false : true;
+        }
+        
+        // escape backslash
+        if (inconstant and line[i]=='\\')
+           s << '\\' ;
+
+        s << line[i];
+    }
+
+    return s.str();
+}
+
+int main(int argc, const char **argv) {
+
+    if (argc != 3) {
+        std::cerr << "Usage: quoter input-file output-file" << std::endl;
+        return 1;
+    }
+
+    std::ifstream input;
+    input.open(argv[1]);
+    if (not input.is_open()) {
+        std::cerr << "Can not read from: " << argv[1] << std::endl;
+        return 1;
+    }
+
+    std::ofstream output;
+    output.open(argv[2]);
+    if (not output.is_open()) {
+        std::cerr << "Can not write to: " << argv[2] << std::endl;
+        return 1;
+    }
+
+    std::string line;
+
+    while (not input.eof()) {
+        std::getline(input, line);
+        output << "\"" << stringify(line) << "\\n\"" << std::endl;
+    }
+
+    return 0;
+}

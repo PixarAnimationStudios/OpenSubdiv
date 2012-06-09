@@ -1,5 +1,8 @@
 #include <GL/glew.h>
 
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 static void
 DumpBuffer(GLuint buffer) {
 
@@ -75,3 +78,6 @@ DebugProgram(GLuint program) {
         fclose(fp);
     }
 }
+
+} // end namespace OPENSUBDIV_VERSION
+} // end namespace OpenSubdiv

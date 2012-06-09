@@ -54,14 +54,8 @@
 #     exclude the implied warranties of merchantability, fitness for
 #     a particular purpose and non-infringement.
 #
+#
 
-add_subdirectory(tools/stringify)
-
-add_subdirectory(hbr)
-add_subdirectory(far)
-add_subdirectory(osd)
-
-
-install( FILES version.h
-         DESTINATION include/
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ ) 
+add_executable(stringify
+    main.cpp
+)

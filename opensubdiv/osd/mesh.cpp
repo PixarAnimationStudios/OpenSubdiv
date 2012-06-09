@@ -239,7 +239,5 @@ OsdMesh::GetRefinedPoints(std::vector<float> &refinedPoints) {
 }
 
 } // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
 } // end namespace OpenSubdiv
 

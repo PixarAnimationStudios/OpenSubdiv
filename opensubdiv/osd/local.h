@@ -3,7 +3,8 @@
 
 #include <stdio.h>
 
-#define OSD_STRINGIFY(src) #src
+#define OSD_STRINGIFY(src) OSD_XSTRINGIFY(src)
+#define OSD_XSTRINGIFY(src) #src
 
 #define CHECK_GL_ERROR(...)  \
     if(GLuint err = glGetError()) {   \
