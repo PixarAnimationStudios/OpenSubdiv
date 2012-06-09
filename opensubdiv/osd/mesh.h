@@ -79,39 +79,54 @@ typedef HbrVertex<OsdVertex>   OsdHbrVertex;
 typedef HbrHalfedge<OsdVertex> OsdHbrHalfedge;
 typedef HbrFace<OsdVertex>     OsdHbrFace;
 
-class OsdMesh
-{
+class OsdMesh {
+
 public:
     OsdMesh(int numVertexElements, int numVaryingElements);
+
     virtual ~OsdMesh();
+
 
     bool Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel);
 
+
     void UpdatePoints(const std::vector<float> &points);
+
     void GetRefinedPoints(std::vector<float> &refinedPoints);
+
     void UpdateVaryings(const std::vector<float> &varyings);
+
     void GetRefinedVaryings(std::vector<float> &refinedVaryings);
 
     FarMesh<OsdVertex> *GetFarMesh() { return _mMesh; }
 
+
     void Subdivide();
+
     void Synchronize();
 
     int GetNumVertexElements() const { return _numVertexElements; }
+
     int GetNumVaryingElements() const { return _numVaryingElements; }
+
     GLuint GetVertexBuffer() const { return _vertexBuffer; }
+
     GLuint GetVaryingBuffer() const { return _varyingBuffer; }
+
+    int GetTotalVertices() const { return _mMesh->GetNumVertices(); }
+
+    int GetNumCoarseVertices() const { return _mMesh->GetNumCoarseVertices(); }
 
 protected:
 
-    int GetTotalVertices() const { return _mMesh->GetNumVertices(); }
-    int GetNumCoarseVertices() const { return _mMesh->GetNumCoarseVertices(); }
-
     FarMesh<OsdVertex> *_mMesh;
-    int _numVertexElements, _numVaryingElements;
-    int _level;
+    
+    int _numVertexElements,
+        _numVaryingElements,
+        _level;
 
     GLuint _vertexBuffer, _varyingBuffer;
+    
     OsdKernelDispatcher * _dispatcher;
 };
 

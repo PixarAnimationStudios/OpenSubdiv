@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 
+#define OSD_STRINGIFY(src) #src
+
 #define CHECK_GL_ERROR(...)  \
     if(GLuint err = glGetError()) {   \
     printf("GL error %x :", err); \

@@ -65,88 +65,84 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCpuKernelDispatcher::DeviceTable::~DeviceTable()
-{
-    if(devicePtr) free(devicePtr);
+OsdCpuKernelDispatcher::DeviceTable::~DeviceTable() {
+
+    if (devicePtr) 
+        free(devicePtr);
 }
 
 void
-OsdCpuKernelDispatcher::DeviceTable::Copy(int size, const void *table)
-{
-    if(size > 0){
-        if(devicePtr) free(devicePtr);
+OsdCpuKernelDispatcher::DeviceTable::Copy( int size, const void *table ) {
+
+    if (size > 0) {
+        if (devicePtr) 
+	    free(devicePtr);
         devicePtr = malloc(size);
         memcpy(devicePtr, table, size);
     }
 }
 
-OsdCpuKernelDispatcher::OsdCpuKernelDispatcher(int levels, int numVertexElements, int numVaryingElements) :
-    OsdKernelDispatcher(levels),
-    _vertexBuffer(0),
-    _varyingBuffer(0),
-    _vbo(NULL),
-    _varyingVbo(NULL),
-    _numVertexElements(numVertexElements),
-    _numVaryingElements(numVaryingElements)
-{
+OsdCpuKernelDispatcher::OsdCpuKernelDispatcher( int levels, int numVertexElements, int numVaryingElements ) 
+    : OsdKernelDispatcher(levels), _vertexBuffer(0), _varyingBuffer(0), _vbo(NULL), _varyingVbo(NULL), _numVertexElements(numVertexElements), _numVaryingElements(numVaryingElements) {
     _tables.resize(TABLE_MAX);
 }
 
-OsdCpuKernelDispatcher::~OsdCpuKernelDispatcher()
-{
-    if(_vbo) delete[] _vbo;
-    if(_varyingVbo) delete[] _varyingVbo;
+OsdCpuKernelDispatcher::~OsdCpuKernelDispatcher() {
+
+    if(_vbo) 
+        delete[] _vbo;
+
+    if(_varyingVbo) 
+        delete[] _varyingVbo;
 }
 
 void
-OsdCpuKernelDispatcher::CopyTable(int tableIndex, size_t size, const void *ptr)
-{
+OsdCpuKernelDispatcher::CopyTable(int tableIndex, size_t size, const void *ptr) {
+
     _tables[tableIndex].Copy(size, ptr);
 }
 
 void
-OsdCpuKernelDispatcher::BeginLaunchKernel()
-{
-}
+OsdCpuKernelDispatcher::BeginLaunchKernel() { }
 
 void
-OsdCpuKernelDispatcher::EndLaunchKernel()
-{
-}
+OsdCpuKernelDispatcher::EndLaunchKernel() { }
 
 void
-OsdCpuKernelDispatcher::BindVertexBuffer(GLuint vertexBuffer, GLuint varyingBuffer)
-{
+OsdCpuKernelDispatcher::BindVertexBuffer(GLuint vertexBuffer, GLuint varyingBuffer) {
+
     _vertexBuffer = vertexBuffer;
     _varyingBuffer = varyingBuffer;
 }
 
 void
-OsdCpuKernelDispatcher::UpdateVertexBuffer(size_t size, void *ptr)
-{
+OsdCpuKernelDispatcher::UpdateVertexBuffer(size_t size, void *ptr) {
+
     memcpy(_vbo, ptr, size);
 }
 
 void
-OsdCpuKernelDispatcher::UpdateVaryingBuffer(size_t size, void *ptr)
-{
+OsdCpuKernelDispatcher::UpdateVaryingBuffer(size_t size, void *ptr) {
+
     memcpy(_varyingVbo, ptr, size);
 }
 
 void
-OsdCpuKernelDispatcher::MapVertexBuffer()
-{
+OsdCpuKernelDispatcher::MapVertexBuffer() {
+
     // XXX not efficient for CPU
     // copy vbo content to kernel-buffer
     glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
     glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &_vboSize);
 
-    if(_vbo) delete[] _vbo;
+    if (_vbo) 
+        delete[] _vbo;
+	
     _vbo = new float[_vboSize/sizeof(float)];
 
     // too slow...
     float *buffer = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
-    if(buffer){
+    if (buffer) {
         memcpy(_vbo, buffer, _vboSize);
     }
     glUnmapBuffer(GL_ARRAY_BUFFER);
@@ -154,62 +150,60 @@ OsdCpuKernelDispatcher::MapVertexBuffer()
 }
 
 void
-OsdCpuKernelDispatcher::MapVaryingBuffer()
-{
-    if(_varyingBuffer){
+OsdCpuKernelDispatcher::MapVaryingBuffer() {
+
+    if (_varyingBuffer) {
         glBindBuffer(GL_ARRAY_BUFFER, _varyingBuffer);
         glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &_varyingVboSize);
         
-        if(_varyingVbo) delete[] _varyingVbo;
+        if (_varyingVbo) 
+	    delete[] _varyingVbo;
         _varyingVbo = new float[_varyingVboSize/sizeof(float)];
         
         float *buffer = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
-        if(buffer){
+        if (buffer) 
             memcpy(_varyingVbo, buffer, _varyingVboSize);
-        }
+
         glUnmapBuffer(GL_ARRAY_BUFFER);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 }
 
 void
-OsdCpuKernelDispatcher::UnmapVertexBuffer()
-{ 
+OsdCpuKernelDispatcher::UnmapVertexBuffer() {
+
     // write back kernel-buffer to vbo
     glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
     float *buffer = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-    if(buffer){
+    if (buffer)
         memcpy(buffer, _vbo, _vboSize);
-    }
+
     glUnmapBuffer(GL_ARRAY_BUFFER);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 }
 
 void
-OsdCpuKernelDispatcher::UnmapVaryingBuffer()
-{ 
-    if(_varyingBuffer){
+OsdCpuKernelDispatcher::UnmapVaryingBuffer() { 
+
+    if (_varyingBuffer) {
         // write back kernel-buffer to vbo
         glBindBuffer(GL_ARRAY_BUFFER, _varyingBuffer);
         float *buffer = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-        if(buffer){
+        if (buffer)
             memcpy(buffer, _varyingVbo, _varyingVboSize);
-        }
+
         glUnmapBuffer(GL_ARRAY_BUFFER);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 }
 
 void
-OsdCpuKernelDispatcher::Synchronize()
-{
-}
+OsdCpuKernelDispatcher::Synchronize() { }
 
 void
-OsdCpuKernelDispatcher::ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset,
-                                                     int level, int start, int end, void * data) const
-{
+OsdCpuKernelDispatcher::ApplyCatmarkFaceVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
     VertexDescriptor vd(_numVertexElements, _numVaryingElements);
 
     computeFace(&vd, _vbo, _varyingVbo,
@@ -219,9 +213,8 @@ OsdCpuKernelDispatcher::ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh
 }
 
 void
-OsdCpuKernelDispatcher::ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, 
-                                                     int level, int start, int end, void * data) const
-{
+OsdCpuKernelDispatcher::ApplyCatmarkEdgeVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
     VertexDescriptor vd(_numVertexElements, _numVaryingElements);
 
     computeEdge(&vd, _vbo, _varyingVbo,
@@ -232,9 +225,8 @@ OsdCpuKernelDispatcher::ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh
 }
 
 void
-OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset,
-                                                        int level, int start, int end, void * data) const
-{
+OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelB( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
     VertexDescriptor vd(_numVertexElements, _numVaryingElements);
 
     computeVertexB(&vd, _vbo, _varyingVbo,
@@ -245,9 +237,8 @@ OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelB(FarMesh<OsdVertex> * m
 }
 
 void
-OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset,
-                                                        bool pass, int level, int start, int end, void * data) const
-{
+OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelA( FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const {
+    
     VertexDescriptor vd(_numVertexElements, _numVaryingElements);
 
     computeVertexA(&vd, _vbo, _varyingVbo,
@@ -257,9 +248,8 @@ OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelA(FarMesh<OsdVertex> * m
 }
 
 void
-OsdCpuKernelDispatcher::ApplyLoopEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset,
-                                                  int level, int start, int end, void * data) const
-{
+OsdCpuKernelDispatcher::ApplyLoopEdgeVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
     VertexDescriptor vd(_numVertexElements, _numVaryingElements);
 
     computeEdge(&vd, _vbo, _varyingVbo,
@@ -270,9 +260,8 @@ OsdCpuKernelDispatcher::ApplyLoopEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, i
 }
 
 void
-OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset,
-                                                     int level, int start, int end, void * data) const
-{
+OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelB( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
     VertexDescriptor vd(_numVertexElements, _numVaryingElements);
 
     computeLoopVertexB(&vd, _vbo, _varyingVbo,
@@ -283,9 +272,8 @@ OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelB(FarMesh<OsdVertex> * mesh
 }
 
 void
-OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, 
-                                                     bool pass, int level, int start, int end, void * data) const
-{
+OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelA( FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const {
+    
     VertexDescriptor vd(_numVertexElements, _numVaryingElements);
 
     computeVertexA(&vd, _vbo, _varyingVbo,

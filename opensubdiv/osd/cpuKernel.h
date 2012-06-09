@@ -60,29 +60,27 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-struct VertexDescriptor
-{
-    VertexDescriptor(int numVertexElem, int numVaryingElem) :
-    numVertexElements(numVertexElem), numVaryingElements(numVaryingElem) {}
+struct VertexDescriptor {
 
-    void clear(float *vertex, float *varying) const{
-        for(int i = 0; i < numVertexElements; ++i){
+    VertexDescriptor(int numVertexElem, int numVaryingElem) 
+        : numVertexElements(numVertexElem), numVaryingElements(numVaryingElem) { }
+
+    void Clear(float *vertex, float *varying) const {
+        for (int i = 0; i < numVertexElements; ++i)
             vertex[i] = 0.0f;
-        }
-        for(int i = 0; i < numVaryingElements; ++i){
+
+        for (int i = 0; i < numVaryingElements; ++i)
             varying[i] = 0.0f;
-        }
     }
-    void addWithWeight(float *vertex, const float *src, float weight) const {
-        for(int i = 0; i < numVertexElements; ++i){
+    void AddWithWeight(float *vertex, const float *src, float weight) const {
+        for (int i = 0; i < numVertexElements; ++i)
             vertex[i] += src[i] * weight;
-        }
     }
-    void addVaryingWithWeight(float *varying, const float *src, float weight) const {
-        for(int i = 0; i < numVaryingElements; ++i){
+    void AddVaryingWithWeight(float *varying, const float *src, float weight) const {
+        for (int i = 0; i < numVaryingElements; ++i)
             varying[i] += src[i] * weight;
-        }
     }
+    
     int numVertexElements;
     int numVaryingElements;
 };

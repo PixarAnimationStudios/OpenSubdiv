@@ -67,18 +67,15 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdMesh::OsdMesh(int numVertexElements, int numVaryingElements) :
-      _numVertexElements(numVertexElements),
-      _numVaryingElements(numVaryingElements),
-      _mMesh(NULL),
-      _dispatcher(NULL)
-{
+OsdMesh::OsdMesh(int numVertexElements, int numVaryingElements) 
+    : _numVertexElements(numVertexElements), _numVaryingElements(numVaryingElements), _mMesh(NULL), _dispatcher(NULL) {
+    
     glGenBuffers(1, &_vertexBuffer);
     glGenBuffers(1, &_varyingBuffer);
 }
 
-OsdMesh::~OsdMesh()
-{
+OsdMesh::~OsdMesh() {
+
     if(_dispatcher) delete _dispatcher;
     if(_mMesh) delete _mMesh;
 
@@ -87,11 +84,11 @@ OsdMesh::~OsdMesh()
 }
 
 bool
-OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel)
-{
-    if(_dispatcher) delete _dispatcher;
-    _dispatcher = OsdKernelDispatcher::CreateKernelDispatcher(kernel, level,
-                                                              _numVertexElements, _numVaryingElements);
+OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel) {
+
+    if (_dispatcher)
+        delete _dispatcher;
+    _dispatcher = OsdKernelDispatcher::CreateKernelDispatcher(kernel, level, _numVertexElements, _numVaryingElements);
     if(_dispatcher == NULL){
         OSD_ERROR("Unknown kernel %s\n", kernel.c_str());
         return false;
@@ -99,10 +96,10 @@ OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel)
 
     _level = level;
         
-    // create cctable
+    // create Far mesh
     OSD_DEBUG("Create MeshFactory\n");
+
     FarMeshFactory<OsdVertex> meshFactory(hbrMesh, _level);
-    OSD_DEBUG("Create Mesh\n");
 
     _mMesh = meshFactory.Create(_dispatcher);
     
@@ -118,12 +115,12 @@ OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel)
     _dispatcher->UpdateTable(OsdKernelDispatcher::E_W, table->Get_E_W());
     _dispatcher->UpdateTable(OsdKernelDispatcher::V_W, table->Get_V_W());
 
-    if(const FarCatmarkSubdivisionTables<OsdVertex>* cctable = 
-       dynamic_cast<const FarCatmarkSubdivisionTables<OsdVertex>*>(table)){
+    if ( const FarCatmarkSubdivisionTables<OsdVertex> * cctable = 
+       dynamic_cast<const FarCatmarkSubdivisionTables<OsdVertex>*>(table) ) {
         // catmark
         _dispatcher->UpdateTable(OsdKernelDispatcher::F_IT, cctable->Get_F_IT());
         _dispatcher->UpdateTable(OsdKernelDispatcher::F_ITa, cctable->Get_F_ITa());
-    }else{
+    } else {
         // XXX for glsl shader...
         _dispatcher->CopyTable(OsdKernelDispatcher::F_IT, 0, NULL);
         _dispatcher->CopyTable(OsdKernelDispatcher::F_ITa, 0, NULL);
@@ -149,11 +146,9 @@ OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel)
     return true;
 }
 
-// ------------------------------------------------------------------------------
-
 void
-OsdMesh::UpdatePoints(const std::vector<float> &points)
-{
+OsdMesh::UpdatePoints(const std::vector<float> &points) {
+
     int numCoarseVertices = _mMesh->GetNumCoarseVertices();
     if(numCoarseVertices * _numVertexElements != points.size()) {
         OSD_ERROR("UpdatePoints points size mismatch %d != %d\n", numCoarseVertices, (int)points.size());
@@ -162,11 +157,9 @@ OsdMesh::UpdatePoints(const std::vector<float> &points)
 
     float * updateVertexBuffer = new float[GetNumCoarseVertices() * _numVertexElements];
     float *p = updateVertexBuffer;
-    for(int i = 0; i < numCoarseVertices; ++i){
-        for(int j = 0; j < _numVertexElements; ++j){
+    for (int i = 0; i < numCoarseVertices; ++i)
+        for (int j = 0; j < _numVertexElements; ++j)
             *p++ = points[i*_numVertexElements+j];
-        }
-    }
 
     // send to gpu
     _dispatcher->MapVertexBuffer();
@@ -181,10 +174,10 @@ OsdMesh::UpdatePoints(const std::vector<float> &points)
 }
 
 void
-OsdMesh::UpdateVaryings(const std::vector<float> &varyings)
-{
+OsdMesh::UpdateVaryings(const std::vector<float> &varyings) {
+
     int numCoarseVertices = _mMesh->GetNumCoarseVertices();
-    if(numCoarseVertices * _numVaryingElements != varyings.size()) {
+    if (numCoarseVertices * _numVaryingElements != varyings.size()) {
         OSD_ERROR("UpdateVaryings array size mismatch %d != %d\n", numCoarseVertices, (int)varyings.size());
         return;
     }
@@ -199,8 +192,8 @@ OsdMesh::UpdateVaryings(const std::vector<float> &varyings)
 }
 
 void
-OsdMesh::Subdivide()
-{
+OsdMesh::Subdivide() {
+
     _dispatcher->MapVertexBuffer();
     _dispatcher->MapVaryingBuffer();
     _dispatcher->BeginLaunchKernel();
@@ -210,24 +203,24 @@ OsdMesh::Subdivide()
     _dispatcher->EndLaunchKernel();
     _dispatcher->UnmapVertexBuffer();
     _dispatcher->UnmapVaryingBuffer();
-
-    //DumpBuffer(_varyingBuffer);
 }
 
 void
-OsdMesh::Synchronize()
-{
+OsdMesh::Synchronize() {
+
     _dispatcher->Synchronize();
 }
 
 void
-OsdMesh::GetRefinedPoints(std::vector<float> &refinedPoints)
-{
+OsdMesh::GetRefinedPoints(std::vector<float> &refinedPoints) {
+
     glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
+    
     int size = 0;
     glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+    
     int numTotalVertices = _mMesh->GetNumVertices();
-    if(size != numTotalVertices*_numVertexElements*sizeof(float)){
+    if (size != numTotalVertices*_numVertexElements*sizeof(float)) {
         OSD_ERROR("vertex count mismatch %d != %d\n", (int)(size/_numVertexElements/sizeof(float)), numTotalVertices);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         return;
@@ -235,13 +228,11 @@ OsdMesh::GetRefinedPoints(std::vector<float> &refinedPoints)
 
     refinedPoints.resize(numTotalVertices*_numVertexElements);
     float *p = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
-    if(p){
-        for(int i = 0; i < numTotalVertices; ++i){
-            for(int j = 0; j < _numVertexElements; ++j){
+    if (p)
+        for (int i = 0; i < numTotalVertices; ++i)
+            for (int j = 0; j < _numVertexElements; ++j)
                 refinedPoints[i*_numVertexElements+j] = *p++;
-            }
-        }
-    }
+
     glUnmapBuffer(GL_ARRAY_BUFFER);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     

@@ -69,44 +69,50 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdKernelDispatcher : public FarDispatcher<OsdVertex>
-{
+class OsdKernelDispatcher : public FarDispatcher<OsdVertex> {
+
 public:
-    OsdKernelDispatcher (int maxLevel) : _maxLevel(maxLevel) {}
-    virtual ~OsdKernelDispatcher() {}
+
+    OsdKernelDispatcher (int maxLevel) : _maxLevel(maxLevel) { }
+    virtual ~OsdKernelDispatcher() { }
+
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr) = 0;
 
+
     virtual void BeginLaunchKernel() = 0;
+    
     virtual void EndLaunchKernel() = 0;
 
+
     virtual void BindVertexBuffer(GLuint vertexBuffer, GLuint varyingBuffer) = 0;
+
     virtual void UpdateVertexBuffer(size_t size, void *ptr) = 0;
+
     virtual void UpdateVaryingBuffer(size_t size, void *ptr) = 0;
+
     virtual void MapVertexBuffer() = 0;
+
     virtual void MapVaryingBuffer() = 0;
+
     virtual void UnmapVertexBuffer() = 0;
+
     virtual void UnmapVaryingBuffer() = 0;
 
     virtual void Synchronize() = 0;
 
-    template<class T> void UpdateTable(int tableIndex, const T & table)
-    {
+    template<class T> void UpdateTable(int tableIndex, const T & table) {
+    
         CopyTable(tableIndex, table.GetMemoryUsed(), table[0]);
 
         _tableOffsets[tableIndex].resize(_maxLevel);
-        for(int i = 0; i < _maxLevel; ++i){
+        for (int i = 0; i < _maxLevel; ++i)
             _tableOffsets[tableIndex][i] = table[i] - table[0];
-        }
     }
 
-    static OsdKernelDispatcher *CreateKernelDispatcher(
-        const std::string &kernel,
-        int levels,
-        int numVertexElements,
-        int numVaryingElements) {
-        return Factory::GetInstance().Create(
-            kernel, levels, numVertexElements, numVaryingElements);
+    static OsdKernelDispatcher *CreateKernelDispatcher( const std::string &kernel, int levels, int numVertexElements, int numVaryingElements ) {
+    
+        return Factory::GetInstance().Create( kernel, levels, numVertexElements, numVaryingElements );
     }
 
     enum { E_IT,
@@ -116,37 +122,40 @@ public:
            V_W,
            F_IT,
            F_ITa,
-           TABLE_MAX
-    };
+           TABLE_MAX };
 
 protected:
+
     class Factory {
-    private:
-        typedef OsdKernelDispatcher *(*Creator)(
-            int levels, int numVertexElements, int numVaryingElements);
-        typedef std::map<const std::string, Creator> CreatorMap;
-        CreatorMap _creators;
+
     public:
+        typedef OsdKernelDispatcher *(*Creator)( int levels, int numVertexElements, int numVaryingElements );
+        typedef std::map<const std::string, Creator> CreatorMap;
+
         bool Register(const std::string &kernel, Creator creator) {
             return _creators.insert(CreatorMap::value_type(kernel, creator)).second;
         }
+
         bool Unregister(const std::string &kernel) {
             return _creators.erase(kernel) == 1;
         }
-        OsdKernelDispatcher *Create(
-            const std::string &kernel,
-            int levels,
-            int numVertexElements,
-            int numVaryingElements) {
+
+        OsdKernelDispatcher *Create ( const std::string &kernel, int levels, int numVertexElements, int numVaryingElements ) {
             CreatorMap::const_iterator it = _creators.find(kernel);
             if (it != _creators.end())
                 return (it->second)(levels, numVertexElements, numVaryingElements);
             return NULL;
         }
+	
         static Factory &GetInstance() {
             return _instance;
         }
-        static Factory _instance;
+        
+	static Factory _instance;
+
+    private:
+        
+	CreatorMap _creators;
     };
 
 protected:

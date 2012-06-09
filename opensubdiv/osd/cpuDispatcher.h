@@ -75,39 +75,43 @@ public:
     OsdCpuKernelDispatcher(int levels, int numVertexElements, int numVaryingElements);
     virtual ~OsdCpuKernelDispatcher();
 
-    virtual void ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset,
-                                                int level, int start, int end, void * data) const;
-    virtual void ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset,
-                                                int level, int start, int end, void * data) const;
-    virtual void ApplyCatmarkVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset,
-                                                   int level, int start, int end, void * data) const;
-    virtual void ApplyCatmarkVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset,
-                                                   bool pass, int level, int start, int end, void * data) const;
+    virtual void ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+    
+    virtual void ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+    
+    virtual void ApplyCatmarkVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+    
+    virtual void ApplyCatmarkVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
 
-    virtual void ApplyLoopEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset,
-                                             int level, int start, int end, void * data) const;
-    virtual void ApplyLoopVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset,
-                                                int level, int start, int end, void * data) const;
-    virtual void ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset,
-                                                bool pass, int level, int start, int end, void * data) const;
-
+    virtual void ApplyLoopEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+    
+    virtual void ApplyLoopVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+    
+    virtual void ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr);
 
     virtual void BeginLaunchKernel();
+
     virtual void EndLaunchKernel();
 
     virtual void BindVertexBuffer(GLuint vertexBuffer, GLuint varyingBuffer);
+
     virtual void UpdateVertexBuffer(size_t size, void *ptr);
+
     virtual void UpdateVaryingBuffer(size_t size, void *ptr);
+
     virtual void MapVertexBuffer();
+
     virtual void MapVaryingBuffer();
+
     virtual void UnmapVertexBuffer();
+
     virtual void UnmapVaryingBuffer();
 
     virtual void Synchronize();
 
-    static OsdKernelDispatcher * Create(int levels, int numVertexElements, int numVaryingElements){
+    static OsdKernelDispatcher * Create(int levels, int numVertexElements, int numVaryingElements) {
         return new OsdCpuKernelDispatcher(levels, numVertexElements, numVaryingElements);
     }
     static void Register() {
@@ -116,21 +120,27 @@ public:
 
 protected:
     
-    struct DeviceTable 
-    {
-        DeviceTable() : devicePtr(NULL) {}
-        ~DeviceTable();
+    struct DeviceTable {
+        DeviceTable() : devicePtr(NULL) { }
+       ~DeviceTable();
 
         void Copy(int size, const void *ptr);
-        void *devicePtr;
+        
+	void *devicePtr;
     };
 
     std::vector<DeviceTable> _tables;
 
-    GLuint _vertexBuffer, _varyingBuffer;
-    float *_vbo, *_varyingVbo;
-    int _vboSize, _varyingVboSize;
-    int _numVertexElements, _numVaryingElements;
+    GLuint _vertexBuffer, 
+           _varyingBuffer;
+	   
+    float *_vbo, 
+          *_varyingVbo;
+	  
+    int _vboSize, 
+        _varyingVboSize,
+        _numVertexElements, 
+        _numVaryingElements;
 };
 
 } // end namespace OPENSUBDIV_VERSION
