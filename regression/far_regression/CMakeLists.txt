@@ -55,7 +55,7 @@
 #     a particular purpose and non-infringement.
 #
 
-find_package(IlmBase)
+find_package(IlmBase REQUIRED)
 
 if(NOT ILMBASE_FOUND)
     message(WARNING
@@ -68,7 +68,7 @@ if(NOT ILMBASE_FOUND)
 endif()
 
 include_directories(
-    ${ILMBASE_INCLUDE_DIRECTORY}
+    ${ILMBASE_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/opensubdiv
 )
 

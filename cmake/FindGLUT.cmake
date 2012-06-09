@@ -54,11 +54,132 @@
 #     exclude the implied warranties of merchantability, fitness for
 #     a particular purpose and non-infringement.
 #
+#
 
-add_subdirectory(hbr)
-add_subdirectory(far)
-add_subdirectory(osd)
+# Try to find GLUT library and include path.
+# Once done this will define
+#
+# GLUT_FOUND
+# GLUT_INCLUDE_DIR
+# GLUT_LIBRARIES
+# 
 
-install( FILES version.h
-         DESTINATION include/
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ ) 
+IF (WIN32)
+
+  IF(CYGWIN)
+
+    FIND_PATH( GLUT_INCLUDE_DIR GL/glut.h
+      ${GLUT_LOCATION}/include
+      /usr/include
+    )
+
+    FIND_LIBRARY( GLUT_glut_LIBRARY glut32
+      ${GLUT_LOCATION}/lib
+      ${OPENGL_LIBRARY_DIR}
+      /usr/lib
+      /usr/lib/w32api
+      /usr/local/lib
+      /usr/X11R6/lib
+    )
+
+
+  ELSE(CYGWIN)
+
+	FIND_PATH( GLUT_INCLUDE_DIR GL/glut.h
+		${GLUT_LOCATION}/include
+		${PROJECT_SOURCE_DIR}/extern/glut/include
+		DOC "The directory where GL/glut.h resides")
+	FIND_LIBRARY( GLUT_glut_LIBRARY
+		NAMES glut GLUT glut32 glut32s
+		PATHS
+		${GLUT_LOCATION}/lib
+		${PROJECT_SOURCE_DIR}/extern/glut/bin
+		${PROJECT_SOURCE_DIR}/extern/glut/lib
+		${OPENGL_LIBRARY_DIR}
+		DOC "The GLUT library")
+
+  ENDIF(CYGWIN)
+ELSE (WIN32)
+
+  IF (APPLE)
+# These values for Apple could probably do with improvement.
+    FIND_PATH( GLUT_INCLUDE_DIR glut.h
+      /System/Library/Frameworks/GLUT.framework/Versions/A/Headers
+      ${OPENGL_LIBRARY_DIR}
+    )
+    SET(GLUT_glut_LIBRARY "-framework Glut" CACHE STRING "GLUT library for OSX") 
+    SET(GLUT_cocoa_LIBRARY "-framework Cocoa" CACHE STRING "Cocoa framework for OSX")
+  ELSE (APPLE)
+
+    FIND_PATH( GLUT_INCLUDE_DIR GL/glut.h
+      ${GLUT_LOCATION}/include
+      /usr/include
+      /usr/include/GL
+      /usr/local/include
+      /usr/openwin/share/include
+      /usr/openwin/include
+      /usr/X11R6/include
+      /usr/include/X11
+      /opt/graphics/OpenGL/include
+      /opt/graphics/OpenGL/contrib/libglut
+    )
+
+    FIND_LIBRARY( GLUT_glut_LIBRARY glut
+      ${GLUT_LOCATION}/lib
+      /usr/lib
+      /usr/local/lib
+      /usr/openwin/lib
+      /usr/X11R6/lib
+    )
+
+    FIND_LIBRARY( GLUT_Xi_LIBRARY Xi
+      /usr/lib
+      /usr/local/lib
+      /usr/openwin/lib
+      /usr/X11R6/lib
+    )
+
+    FIND_LIBRARY( GLUT_Xmu_LIBRARY Xmu
+      /usr/lib
+      /usr/local/lib
+      /usr/openwin/lib
+      /usr/X11R6/lib
+    )
+
+  ENDIF (APPLE)
+
+ENDIF (WIN32)
+
+SET( GLUT_FOUND "NO" )
+IF(GLUT_INCLUDE_DIR)
+  IF(GLUT_glut_LIBRARY)
+    # Is -lXi and -lXmu required on all platforms that have it?
+    # If not, we need some way to figure out what platform we are on.
+    SET( GLUT_LIBRARIES
+      ${GLUT_glut_LIBRARY}
+      ${GLUT_Xmu_LIBRARY}
+      ${GLUT_Xi_LIBRARY} 
+      ${GLUT_cocoa_LIBRARY}
+    )
+    SET( GLUT_FOUND "YES" )
+
+    SET (GLUT_LIBRARY ${GLUT_LIBRARIES})
+    SET (GLUT_INCLUDE_PATH ${GLUT_INCLUDE_DIR})
+
+  ENDIF(GLUT_glut_LIBRARY)
+ENDIF(GLUT_INCLUDE_DIR)
+
+INCLUDE(FindPackageHandleStandardArgs)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(GLUT DEFAULT_MSG
+    GLUT_INCLUDE_DIR
+    GLUT_LIBRARIES
+)
+
+
+MARK_AS_ADVANCED(
+  GLUT_INCLUDE_DIR
+  GLUT_glut_LIBRARY
+  GLUT_Xmu_LIBRARY
+  GLUT_Xi_LIBRARY
+)
+  

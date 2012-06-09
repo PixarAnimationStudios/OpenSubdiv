@@ -54,11 +54,65 @@
 #     exclude the implied warranties of merchantability, fitness for
 #     a particular purpose and non-infringement.
 #
+#
 
-add_subdirectory(hbr)
-add_subdirectory(far)
-add_subdirectory(osd)
+# Try to find GLEW library and include path.
+# Once done this will define
+#
+# GLEW_FOUND
+# GLEW_INCLUDE_DIR
+# GLEW_LIBRARIES
+# 
 
-install( FILES version.h
-         DESTINATION include/
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ ) 
+IF (WIN32)
+	FIND_PATH( GLEW_INCLUDE_DIR GL/glew.h
+		$ENV{PROGRAMFILES}/GLEW/include
+		${PROJECT_SOURCE_DIR}/extern/glew/include
+		DOC "The directory where GL/glew.h resides")
+	FIND_LIBRARY( GLEW_LIBRARIES
+		NAMES glew GLEW glew32 glew32s
+		PATHS
+		$ENV{PROGRAMFILES}/GLEW/lib
+		${PROJECT_SOURCE_DIR}/extern/glew/bin
+		${PROJECT_SOURCE_DIR}/extern/glew/lib
+		DOC "The GLEW library")
+ENDIF (WIN32)
+
+IF (${CMAKE_HOST_UNIX})
+	FIND_PATH( GLEW_INCLUDE_DIR GL/glew.h
+                ${GLEW_LOCATION}/include
+		${PROJECT_SOURCE_DIR}/extern/glew/include
+		/usr/include
+		/usr/local/include
+		/sw/include
+		/opt/local/include
+		DOC "The directory where GL/glew.h resides")
+	FIND_LIBRARY( GLEW_LIBRARIES
+		NAMES GLEW glew
+		PATHS
+                ${GLEW_LOCATION}/lib
+		${PROJECT_SOURCE_DIR}/extern/glew/bin
+		/usr/lib64
+		/usr/lib
+		/usr/local/lib64
+		/usr/local/lib
+		/sw/lib
+		/opt/local/lib
+		DOC "The GLEW library")
+ENDIF ()
+
+INCLUDE(FindPackageHandleStandardArgs)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(GLEW DEFAULT_MSG
+    GLEW_INCLUDE_DIR
+    GLEW_LIBRARIES
+)
+
+IF (GLEW_INCLUDE_DIR)
+	SET( GLEW_FOUND 1 CACHE STRING "Set to 1 if GLEW is found, 0 otherwise")
+        SET( ILMBASE_FOUND TRUE )
+ELSE (GLEW_INCLUDE_DIR)
+	SET( GLEW_FOUND 0 CACHE STRING "Set to 1 if GLEW is found, 0 otherwise")
+        SET( ILMBASE_FOUND FALSE )
+ENDIF (GLEW_INCLUDE_DIR)
+
+MARK_AS_ADVANCED( GLEW_FOUND )
