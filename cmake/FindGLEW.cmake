@@ -64,55 +64,50 @@
 # GLEW_LIBRARY
 # 
 
-IF (WIN32)
-	FIND_PATH( GLEW_INCLUDE_DIR GL/glew.h
+include(FindPackageHandleStandardArgs)
+
+if (WIN32)
+	find_path( GLEW_INCLUDE_DIR GL/glew.h
 		$ENV{PROGRAMFILES}/GLEW/include
 		${PROJECT_SOURCE_DIR}/extern/glew/include
 		DOC "The directory where GL/glew.h resides")
-	FIND_LIBRARY( GLEW_LIBRARY
+	find_library( GLEW_LIBRARY
 		NAMES glew GLEW glew32 glew32s
 		PATHS
 		$ENV{PROGRAMFILES}/GLEW/lib
 		${PROJECT_SOURCE_DIR}/extern/glew/bin
 		${PROJECT_SOURCE_DIR}/extern/glew/lib
 		DOC "The GLEW library")
-ENDIF (WIN32)
+endif (WIN32)
 
-IF (${CMAKE_HOST_UNIX})
-	FIND_PATH( GLEW_INCLUDE_DIR GL/glew.h
-                ${GLEW_LOCATION}/include
-		${PROJECT_SOURCE_DIR}/extern/glew/include
-		/usr/include
-		/usr/local/include
-		/sw/include
-		/opt/local/include
-		DOC "The directory where GL/glew.h resides")
-	FIND_LIBRARY( GLEW_LIBRARY
+if (${CMAKE_HOST_UNIX})
+    find_path( GLEW_INCLUDE_DIR GL/glew.h
+        PATHS
+        ${GLEW_LOCATION}/include
+        /usr/include
+        /usr/local/include
+        /sw/include
+        /opt/local/include
+        NO_DEFAULT_PATH
+        DOC "The directory where GL/glew.h resides"
+    )
+	find_library( GLEW_LIBRARY
 		NAMES GLEW glew
 		PATHS
-                ${GLEW_LOCATION}/lib
-		${PROJECT_SOURCE_DIR}/extern/glew/bin
+        ${GLEW_LOCATION}/lib
 		/usr/lib64
 		/usr/lib
 		/usr/local/lib64
 		/usr/local/lib
 		/sw/lib
 		/opt/local/lib
+        NO_DEFAULT_PATH
 		DOC "The GLEW library")
-ENDIF ()
+endif ()
 
-INCLUDE(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(GLEW DEFAULT_MSG
+find_package_handle_standard_args(GLEW DEFAULT_MSG
     GLEW_INCLUDE_DIR
     GLEW_LIBRARY
 )
 
-IF (GLEW_INCLUDE_DIR)
-	SET( GLEW_FOUND 1 CACHE STRING "Set to 1 if GLEW is found, 0 otherwise")
-        SET( ILMBASE_FOUND TRUE )
-ELSE (GLEW_INCLUDE_DIR)
-	SET( GLEW_FOUND 0 CACHE STRING "Set to 1 if GLEW is found, 0 otherwise")
-        SET( ILMBASE_FOUND FALSE )
-ENDIF (GLEW_INCLUDE_DIR)
-
-MARK_AS_ADVANCED( GLEW_FOUND )
+mark_as_advanced( GLEW_FOUND )

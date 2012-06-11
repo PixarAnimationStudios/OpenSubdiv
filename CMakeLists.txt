@@ -97,11 +97,6 @@ set(CMAKE_MODULE_PATH
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 
 add_definitions(
-    # We use tbb as a header-only library, so in order to avoid
-    # linking we disable tbb asserts and threading tools.
-    -DTBB_USE_ASSERT=0
-    -DTBB_USE_THREADING_TOOLS=0
-
     # GLEW gets built as a static library.
     -DGLEW_STATIC
 )
@@ -158,10 +153,6 @@ if(MSVC)
         # vector if checked iterators or iterator debugging is enabled.
         /D_SECURE_SCL=0
         /D_HAS_ITERATOR_DEBUGGING=0
-
-        # Avoid linking with tbb.lib/tbb_debug.lib done through pragmas
-        # in _tbb_windef.h.
-        /D__TBB_NO_IMPLICIT_LINKAGE
     )
 endif(MSVC)
 
