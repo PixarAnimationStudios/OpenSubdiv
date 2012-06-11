@@ -353,8 +353,7 @@ template <class T> void
 createVertices( shape const * sh, HbrMesh<T> * mesh, std::vector<float> & verts ) {
   
     int nverts = sh->getNverts();
-
-    verts.resize(nverts);
+    verts.resize(nverts*3);
 
     T v;
     for(int i=0;i<nverts; i++ ) {
