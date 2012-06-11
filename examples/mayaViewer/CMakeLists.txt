@@ -55,6 +55,86 @@
 #     a particular purpose and non-infringement.
 #
 
-add_subdirectory(glutViewer)
+set(MAYA_FIND_QUIETLY TRUE)
 
-add_subdirectory(mayaViewer)
+find_package(Maya)
+
+if(NOT MAYA_FOUND)
+    message(WARNING
+        "Maya could not be found, so the OpenSubdiv Maya plugin will not "
+        "be available.  If you do have Maya installed and see this message, "
+        "please add your Maya path to cmake/FindMaya.cmake or set it in "
+        "the MAYA_LOCATION environment variable."
+    )
+    return()
+endif()
+
+include_directories(
+    ${PROJECT_SOURCE_DIR}/opensubdiv
+    ${MAYA_INCLUDE_DIRS}
+    ${ILMBASE_INCLUDE_DIR}
+)
+
+set(SOURCE_FILES
+    OpenSubdivDrawOverride.cpp
+    hbrUtil.cpp
+)
+
+set(HEADER_FILES
+)
+
+if(UNIX)
+    set(PLATFORM_COMPILE_FLAGS
+        -D_BOOL
+        -DREQUIRE_IOSTREAM
+    )
+    set(PLATFORM_LIBRARIES
+    )
+    set(PLATFORM_PLUGIN_EXTENSION
+        .so
+    )
+    set(PLATFORM_LINK_FLAGS
+    )
+endif(UNIX)
+
+if(WIN32)
+    set(PLATFORM_COMPILE_FLAGS
+        /D_AFXDLL
+        /DNT_PLUGIN
+        /DREQUIRE_IOSTREAM
+    )
+    set(PLATFORM_LIBRARIES
+    )
+    set(PLATFORM_PLUGIN_EXTENSION
+        .mll
+    )
+    set(PLATFORM_LINK_FLAGS
+        "/export:initializePlugin /export:uninitializePlugin"
+    )
+endif(WIN32)
+
+add_definitions(
+    ${PLATFORM_COMPILE_FLAGS}
+)
+
+add_library(maya_plugin SHARED
+    ${SOURCE_FILES}
+    ${HEADER_FILES}
+)
+
+set_target_properties(maya_plugin
+    PROPERTIES
+    OUTPUT_NAME "mayaViewer"
+    SUFFIX ${PLATFORM_PLUGIN_EXTENSION}
+    LINK_FLAGS "${PLATFORM_LINK_FLAGS}"
+)
+
+target_link_libraries(maya_plugin
+    osd
+    ${MAYA_Foundation_LIBRARY}
+    ${MAYA_OpenMaya_LIBRARY}
+    ${MAYA_OpenMayaRender_LIBRARY}
+    ${MAYA_tbb_LIBRARY}
+    ${PLATFORM_LIBRARIES}
+    GLEW
+)

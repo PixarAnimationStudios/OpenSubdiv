@@ -57,7 +57,6 @@
 
 find_package(IlmBase REQUIRED)
 find_package(OpenGL REQUIRED)
-find_package(GLEW REQUIRED)
 find_package(GLUT REQUIRED)
 find_package(CUDA REQUIRED)
 
@@ -94,6 +93,5 @@ target_link_libraries(glutViewer
     ${ILMBASE_LIBS_DIRECTORY}
     ${OPENGL_LIBRARY}
     ${GLUT_LIBRARIES}
-    ${}
 )
 

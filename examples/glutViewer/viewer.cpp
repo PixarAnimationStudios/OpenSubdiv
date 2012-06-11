@@ -55,11 +55,10 @@
 //     a particular purpose and non-infringement.
 //
 
-
-#include <GL/glew.h>
 #if defined(__APPLE__)
     #include <GLUT/glut.h>
 #else
+    #include <GL/glew.h>
     #include <GL/glut.h>
 #endif
 
@@ -77,7 +76,6 @@
 
     #include <cuda_runtime_api.h>
     #include <cuda_gl_interop.h>
-    #include "cudaInit.h"
 #endif
 
 #include <omp.h>

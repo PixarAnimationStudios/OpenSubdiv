@@ -100,10 +100,10 @@ set(PUBLIC_HEADERS
 # CPU (omp) code & dependencies
 if(APPLE)
     set(PLATFORM_COMPILE_FLAGS
-	-fopenmp
+	    -fopenmp
     )
     set(PLATFORM_LIBRARIES
-	gomp
+	    gomp
     )
 elseif(UNIX)
     set(PLATFORM_COMPILE_FLAGS
@@ -119,7 +119,9 @@ elseif(WIN32 or WIN64)
     )       
 endif()
 
-
+add_definitions(
+    ${PLATFORM_COMPILE_FLAGS}
+)
 
 #-------------------------------------------------------------------------------
 # GL code & dependencies 
