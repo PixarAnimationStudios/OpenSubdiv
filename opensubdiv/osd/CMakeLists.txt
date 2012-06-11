@@ -185,15 +185,7 @@ endforeach()
 source_group("Kernels" FILES ${KERNEL_FILES})
 source_group("Inc" FILES ${INC_FILES})
 
-macro(_add_library target)
-    if(CUDA_FOUND)
-        cuda_add_library(${target} ${ARGN})
-    else()
-        add_library(${target} ${ARGN})
-    endif()
-endmacro()
-
-_add_library(osd SHARED
+_add_library(osd STATIC
     ${SOURCE_FILES}
     ${HEADER_FILES}
     ${KERNEL_FILES}

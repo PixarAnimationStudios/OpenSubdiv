@@ -104,7 +104,7 @@ struct shape {
     int getNverts() const { return (int)verts.size()/3; }
 
     int getNfaces() const { return (int)nvertsPerFace.size(); }
-  
+
     std::vector<float>  verts;
     std::vector<float>  uvs;
     std::vector<int>    nvertsPerFace;  
@@ -228,7 +228,7 @@ shape * shape::parseShape(char const * shapestr, int axis ) {
 
 //------------------------------------------------------------------------------       
 template <class T> 
-void applyTags( HbrMesh<T> * mesh, shape * sh ) {
+void applyTags( HbrMesh<T> * mesh, shape const * sh ) {
 
     for (int i=0; i<(int)sh->tags.size(); ++i) {
         shape::tag * t = sh->tags[i];
@@ -319,13 +319,8 @@ enum Scheme {
 };
 
 //------------------------------------------------------------------------------
-
-#define INTERLEAVED_VERTS
-
 template <class T> HbrMesh<T> *
-simpleHbr( char const * shapestr, Scheme scheme=kCatmark) {
-
-  shape * sh = shape::parseShape( shapestr );
+createMesh( Scheme scheme=kCatmark) {
 
   HbrMesh<T> * mesh = 0;
   
@@ -339,68 +334,128 @@ simpleHbr( char const * shapestr, Scheme scheme=kCatmark) {
     case kCatmark : mesh = new HbrMesh<T>(  &_catmark ); break;
   }
   
+  return mesh;
+}
+
+//------------------------------------------------------------------------------
+template <class T> void
+createVertices( shape const * sh, HbrMesh<T> * mesh ) {
+  
   T v;
   for(int i=0;i<sh->getNverts(); i++ ) {
     v.SetPosition( sh->verts[i*3], sh->verts[i*3+1], sh->verts[i*3+2] );
     mesh->NewVertex( i, v );
   }
+}
 
-  const int * fv=&(sh->faceverts[0]);
-  for(int f=0, ptxidx=0;f<sh->getNfaces(); f++ ) {
-    int nv = sh->nvertsPerFace[f];
+//------------------------------------------------------------------------------
+template <class T> void
+createVertices( shape const * sh, HbrMesh<T> * mesh, std::vector<float> & verts ) {
   
-    if ((scheme==kLoop) and (nv!=3)) {
-        printf("Trying to create a Loop surbd with non-triangle face\n"); 
-        exit(1); 
-    }
- 
-    for(int j=0;j<nv;j++) { 
-        HbrVertex<T> * origin      = mesh->GetVertex( fv[j] );                                                           
-        HbrVertex<T> * destination = mesh->GetVertex( fv[ (j+1)%nv] );
-        HbrHalfedge<T> * opposite  = destination->GetEdge(origin);
+    int nverts = sh->getNverts();
 
-        if(origin==NULL || destination==NULL) { 
-            printf(" An edge was specified that connected a nonexistent vertex\n"); 
-            exit(1); 
-        }
-      
-        if(origin == destination) { 
-            printf(" An edge was specified that connected a vertex to itself\n"); 
-            exit(1); 
-        }
+    verts.resize(nverts);
+
+    T v;
+    for(int i=0;i<nverts; i++ ) {
+        mesh->NewVertex( i, v );
         
-        if(opposite && opposite->GetOpposite() ) { 
-            printf(" A non-manifold edge incident to more than 2 faces was found\n"); 
-            exit(1); 
-        }
-       
-        if(origin->GetEdge(destination)) { 
-            printf(" An edge connecting two vertices was specified more than once."
-                   " It's likely that an incident face was flipped\n"); 
-            exit(1);
-        }
+        verts[i*3  ]=sh->verts[i*3  ];
+        verts[i*3+1]=sh->verts[i*3+1];
+        verts[i*3+2]=sh->verts[i*3+2];
     }
+}
 
-    HbrFace<T> * face = mesh->NewFace(nv, (int *)fv, 0);
+//------------------------------------------------------------------------------
+template <class T> void
+createTopology( shape const * sh, HbrMesh<T> * mesh, Scheme scheme) {
 
-    face->SetPtexIndex(ptxidx);
+      const int * fv=&(sh->faceverts[0]);
+      for(int f=0, ptxidx=0;f<sh->getNfaces(); f++ ) {
+      
+          int nv = sh->nvertsPerFace[f];
 
-    if ( (scheme==kCatmark or scheme==kBilinear) and nv != 4 )
-        ptxidx+=nv;
-    else
-        ptxidx++;
-    
-    fv+=nv;
-  }
+          if ((scheme==kLoop) and (nv!=3)) {
+              printf("Trying to create a Loop surbd with non-triangle face\n"); 
+              exit(1); 
+          }
+
+          for(int j=0;j<nv;j++) { 
+              HbrVertex<T> * origin      = mesh->GetVertex( fv[j] );                                                           
+              HbrVertex<T> * destination = mesh->GetVertex( fv[ (j+1)%nv] );
+              HbrHalfedge<T> * opposite  = destination->GetEdge(origin);
+
+              if(origin==NULL || destination==NULL) { 
+                  printf(" An edge was specified that connected a nonexistent vertex\n"); 
+                  exit(1); 
+              }
+
+              if(origin == destination) { 
+                  printf(" An edge was specified that connected a vertex to itself\n"); 
+                  exit(1); 
+              }
+
+              if(opposite && opposite->GetOpposite() ) { 
+                  printf(" A non-manifold edge incident to more than 2 faces was found\n"); 
+                  exit(1); 
+              }
+
+              if(origin->GetEdge(destination)) { 
+                  printf(" An edge connecting two vertices was specified more than once."
+                         " It's likely that an incident face was flipped\n"); 
+                  exit(1);
+              }
+          }
+
+          HbrFace<T> * face = mesh->NewFace(nv, (int *)fv, 0);
+
+          face->SetPtexIndex(ptxidx);
+
+          if ( (scheme==kCatmark or scheme==kBilinear) and nv != 4 )
+              ptxidx+=nv;
+          else
+              ptxidx++;
+
+          fv+=nv;
+      }
+
+      applyTags<T>( mesh, sh );
+
+      mesh->Finish();
+}
+
+//------------------------------------------------------------------------------
+template <class T> HbrMesh<T> *
+simpleHbr( char const * shapestr, Scheme scheme=kCatmark) {
+
+  shape * sh = shape::parseShape( shapestr );
+
+  HbrMesh<T> * mesh = createMesh<T>(scheme);
   
-  applyTags( mesh, sh );
+  createVertices<T>(sh, mesh);
   
-  mesh->Finish();
+  createTopology<T>(sh, mesh, scheme);
   
   delete sh;
   
   return mesh;
 }
 
+//------------------------------------------------------------------------------
+template <class T> HbrMesh<T> *
+simpleHbr( char const * shapestr, std::vector<float> & verts, Scheme scheme=kCatmark) {
+
+  shape * sh = shape::parseShape( shapestr );
+
+  HbrMesh<T> * mesh = createMesh<T>(scheme);
+  
+  createVertices<T>(sh, mesh, verts);
+  
+  createTopology<T>(sh, mesh, scheme);
+  
+  delete sh;
+  
+  return mesh;
+}
 
 #endif /* SHAPE_UTILS_H */

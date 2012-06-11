@@ -165,6 +165,28 @@ if(MSVC)
     )
 endif(MSVC)
 
+# Macro for adding a cuda executable if cuda is found and a regular
+# executable otherwise.
+macro(_add_executable target)
+    if(CUDA_FOUND)
+        cuda_add_executable(${target} ${ARGN})
+    else()
+        add_executable(${target} ${ARGN})
+    endif()
+endmacro()
+
+# Macro for adding a cuda library if cuda is found and a regular
+# library otherwise.
+macro(_add_library target)
+    if(CUDA_FOUND)
+        cuda_add_library(${target} ${ARGN})
+    else()
+        add_library(${target} ${ARGN})
+    endif()
+endmacro()
+
+
+
 add_subdirectory(opensubdiv)
 
 add_subdirectory(regression)

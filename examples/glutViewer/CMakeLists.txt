@@ -55,4 +55,45 @@
 #     a particular purpose and non-infringement.
 #
 
-add_subdirectory(glutViewer)
+find_package(IlmBase REQUIRED)
+find_package(OpenGL REQUIRED)
+find_package(GLEW REQUIRED)
+find_package(GLUT REQUIRED)
+find_package(CUDA REQUIRED)
+
+include_directories(
+    ${PROJECT_SOURCE_DIR}/opensubdiv
+    ${PROJECT_SOURCE_DIR}/regression
+    ${ILMBASE_INCLUDE_DIR}
+    ${GLUT_INCLUDE_DIR}
+)
+
+
+# Macro for adding a (potentially cuda) executable, and for the Windows
+# platform to also add a custom command that copies certain dlls to the
+# same directory as where the executable is located.
+macro(_add_glut_executable target)
+    _add_executable(${target} ${ARGN})
+    if(WIN32)
+        add_custom_command(
+            TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${PROJECT_SOURCE_DIR}/glut/bin/glut32.dll
+                $<TARGET_FILE_DIR:${target}>
+        )
+    endif()
+endmacro()
+
+
+_add_glut_executable(glutViewer
+   viewer.cpp
+)
+
+target_link_libraries(glutViewer
+    osd
+    ${ILMBASE_LIBS_DIRECTORY}
+    ${OPENGL_LIBRARY}
+    ${GLUT_LIBRARIES}
+    ${}
+)
+
