@@ -197,4 +197,8 @@ target_link_libraries(osd
     ${PLATFORM_LIBRARIES}
 )
 
+install( FILES ${PUBLIC_HEADERS}
+         DESTINATION include/osd
+         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+
 #-------------------------------------------------------------------------------
