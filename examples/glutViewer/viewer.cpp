@@ -66,10 +66,21 @@
 #include <osd/vertex.h>
 #include <osd/mesh.h>
 #include <osd/cpuDispatcher.h>
+#include <osd/glslDispatcher.h>
 
 #include <common/shape_utils.h>
 
 #include "../common/stopwatch.h"
+
+#ifdef OPENSUBDIV_HAS_CUDA
+    #include <osd/cudaDispatcher.h>
+
+    #include <cuda_runtime_api.h>
+    #include <cuda_gl_interop.h>
+    #include "cudaInit.h"
+#endif
+
+#include <omp.h>
 
 #include <vector>
 
@@ -602,6 +613,48 @@ int main(int argc, char ** argv) {
     glutMouseFunc(mouse);
     glutKeyboardFunc(keyboard);
     glutMotionFunc(motion);
+    glewInit();
+    initGL();
+
+    // Register Osd compute kernels
+    OpenSubdiv::OsdCpuKernelDispatcher::Register();
+    OpenSubdiv::OsdGlslKernelDispatcher::Register();
+#if OPENSUBDIV_HAS_CUDA
+    OpenSubdiv::OsdCudaKernelDispatcher::Register();
+#endif
+
+
+    const char *filename = NULL;
+
+    for (int i = 1; i < argc; ++i) {
+             if (!strcmp(argv[i], "-d"))
+            g_level = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "-c"))
+            g_repeatCount = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "-k")) {
+            ++i;
+            g_kernel = argv[i];
+        } else 
+            filename = argv[i];
+    }
+
+#if defined(_WIN32)
+    // somehow it crashes on linux. will investigate later..
+    cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
+#endif
+
+    omp_set_num_threads(1);
+    g_kernel = "omp";
+
+    g_osdmesh = new OpenSubdiv::OsdMesh(6, 0);
+    glGenBuffers(1, &g_indexBuffer);
+
+    modelMenu(0);
+
+    glutIdleFunc(idle);
+    glutMainLoop();
+    
+    quit();
 }
 
 //------------------------------------------------------------------------------
