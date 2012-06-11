@@ -85,19 +85,19 @@ struct VertexDescriptor {
     int numVaryingElements;
 };
 
-extern void computeFace(const VertexDescriptor *vdesc, float * vertex, float * varying,
-                        const int *F_IT, const int *F_ITa, int offset, int start, int end);
-extern void computeEdge(const VertexDescriptor *vdesc, float *vertex, float * varying,
-                        const int *E_IT, const float *E_W, int offset, int start, int end);
-extern void computeVertexA(const VertexDescriptor *vdesc, float *vertex, float * varying,
-                           const int *V_ITa, const float *V_W,
-                           int offset, int start, int end, int pass);
-extern void computeVertexB(const VertexDescriptor *vdesc, float *vertex, float * varying,
-                           const int *V_ITa, const int *V_IT, const float *V_W,
-                           int offset, int start, int end);
-extern void computeLoopVertexB(const VertexDescriptor *vdesc, float *vertex, float * varying,
-                               const int *V_ITa, const int *V_IT, const float *V_W,
-                               int offset, int start, int end);
+extern "C" {
+
+void computeFace(const VertexDescriptor *vdesc, float * vertex, float * varying, const int *F_IT, const int *F_ITa, int offset, int start, int end);
+
+void computeEdge(const VertexDescriptor *vdesc, float *vertex, float * varying, const int *E_IT, const float *E_W, int offset, int start, int end);
+
+void computeVertexA(const VertexDescriptor *vdesc, float *vertex, float * varying, const int *V_ITa, const float *V_W, int offset, int start, int end, int pass);
+
+void computeVertexB(const VertexDescriptor *vdesc, float *vertex, float * varying, const int *V_ITa, const int *V_IT, const float *V_W, int offset, int start, int end);
+
+void computeLoopVertexB(const VertexDescriptor *vdesc, float *vertex, float * varying, const int *V_ITa, const int *V_IT, const float *V_W, int offset, int start, int end);
+
+}
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

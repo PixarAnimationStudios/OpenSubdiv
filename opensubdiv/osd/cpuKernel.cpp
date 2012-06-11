@@ -61,7 +61,7 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-extern void computeFace( const VertexDescriptor *vdesc, float * vertex, float * varying, const int *F_IT, const int *F_ITa, int offset, int start, int end) {
+void computeFace( const VertexDescriptor *vdesc, float * vertex, float * varying, const int *F_IT, const int *F_ITa, int offset, int start, int end) {
     
     int ve = vdesc->numVertexElements;
     int vev = vdesc->numVaryingElements;
@@ -88,7 +88,7 @@ extern void computeFace( const VertexDescriptor *vdesc, float * vertex, float * 
     }
 }
 
-extern void computeEdge( const VertexDescriptor *vdesc, float *vertex, float *varying, const int *E_IT, const float *E_W, int offset, int start, int end) {
+void computeEdge( const VertexDescriptor *vdesc, float *vertex, float *varying, const int *E_IT, const float *E_W, int offset, int start, int end) {
 
     int ve = vdesc->numVertexElements;
     int vev = vdesc->numVaryingElements;
@@ -123,7 +123,7 @@ extern void computeEdge( const VertexDescriptor *vdesc, float *vertex, float *va
     }
 }
 
-extern void computeVertexA(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, const float *V_W, int offset, int start, int end, int pass) {
+void computeVertexA(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, const float *V_W, int offset, int start, int end, int pass) {
 
     int ve = vdesc->numVertexElements;
     int vev = vdesc->numVaryingElements;
@@ -163,7 +163,7 @@ extern void computeVertexA(const VertexDescriptor *vdesc, float *vertex, float *
     }
 }
 
-extern void computeVertexB(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, const int *V_IT, const float *V_W, int offset, int start, int end) {
+void computeVertexB(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, const int *V_IT, const float *V_W, int offset, int start, int end) {
 
     int ve = vdesc->numVertexElements;
     int vev = vdesc->numVaryingElements;
@@ -194,7 +194,7 @@ extern void computeVertexB(const VertexDescriptor *vdesc, float *vertex, float *
     }
 }
 
-extern void computeLoopVertexB(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, const int *V_IT, const float *V_W, int offset, int start, int end) {
+void computeLoopVertexB(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, const int *V_IT, const float *V_W, int offset, int start, int end) {
 
     int ve = vdesc->numVertexElements;
     int vev = vdesc->numVaryingElements;
