@@ -82,19 +82,12 @@ OsdCpuKernelDispatcher::DeviceTable::Copy( int size, const void *table ) {
     }
 }
 
-OsdCpuKernelDispatcher::OsdCpuKernelDispatcher( int levels, int numVertexElements, int numVaryingElements ) 
-    : OsdKernelDispatcher(levels), _vertexBuffer(0), _varyingBuffer(0), _vbo(NULL), _varyingVbo(NULL), _numVertexElements(numVertexElements), _numVaryingElements(numVaryingElements) {
+OsdCpuKernelDispatcher::OsdCpuKernelDispatcher( int levels )
+    : OsdKernelDispatcher(levels) {
     _tables.resize(TABLE_MAX);
 }
 
-OsdCpuKernelDispatcher::~OsdCpuKernelDispatcher() {
-
-    if(_vbo) 
-        delete[] _vbo;
-
-    if(_varyingVbo) 
-        delete[] _varyingVbo;
-}
+OsdCpuKernelDispatcher::~OsdCpuKernelDispatcher() { }
 
 void
 OsdCpuKernelDispatcher::CopyTable(int tableIndex, size_t size, const void *ptr) {
@@ -108,94 +101,24 @@ OsdCpuKernelDispatcher::BeginLaunchKernel() { }
 void
 OsdCpuKernelDispatcher::EndLaunchKernel() { }
 
-void
-OsdCpuKernelDispatcher::BindVertexBuffer(GLuint vertexBuffer, GLuint varyingBuffer) {
-
-    _vertexBuffer = vertexBuffer;
-    _varyingBuffer = varyingBuffer;
+OsdVertexBuffer *
+OsdCpuKernelDispatcher::InitializeVertexBuffer(int numElements, int count)
+{
+    return new OsdCpuVertexBuffer(numElements, count);
 }
 
 void
-OsdCpuKernelDispatcher::UpdateVertexBuffer(size_t size, void *ptr) {
+OsdCpuKernelDispatcher::BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying) {
 
-    memcpy(_vbo, ptr, size);
+    _vertexBuffer = dynamic_cast<OsdCpuVertexBuffer *>(vertex);
+    _varyingBuffer = dynamic_cast<OsdCpuVertexBuffer *>(varying);
 }
 
 void
-OsdCpuKernelDispatcher::UpdateVaryingBuffer(size_t size, void *ptr) {
-
-    memcpy(_varyingVbo, ptr, size);
-}
-
-void
-OsdCpuKernelDispatcher::MapVertexBuffer() {
-
-    // XXX not efficient for CPU
-    // copy vbo content to kernel-buffer
-    glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
-    glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &_vboSize);
-
-    if (_vbo) 
-        delete[] _vbo;
-	
-    _vbo = new float[_vboSize/sizeof(float)];
-
-    // too slow...
-    float *buffer = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
-    if (buffer) {
-        memcpy(_vbo, buffer, _vboSize);
-    }
-    glUnmapBuffer(GL_ARRAY_BUFFER);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
-void
-OsdCpuKernelDispatcher::MapVaryingBuffer() {
-
-    if (_varyingBuffer) {
-        glBindBuffer(GL_ARRAY_BUFFER, _varyingBuffer);
-        glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &_varyingVboSize);
-        
-        if (_varyingVbo) 
-	    delete[] _varyingVbo;
-        _varyingVbo = new float[_varyingVboSize/sizeof(float)];
-        
-        float *buffer = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
-        if (buffer) 
-            memcpy(_varyingVbo, buffer, _varyingVboSize);
-
-        glUnmapBuffer(GL_ARRAY_BUFFER);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-    }
-}
-
-void
-OsdCpuKernelDispatcher::UnmapVertexBuffer() {
-
-    // write back kernel-buffer to vbo
-    glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
-    float *buffer = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-    if (buffer)
-        memcpy(buffer, _vbo, _vboSize);
-
-    glUnmapBuffer(GL_ARRAY_BUFFER);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-}
-
-void
-OsdCpuKernelDispatcher::UnmapVaryingBuffer() { 
-
-    if (_varyingBuffer) {
-        // write back kernel-buffer to vbo
-        glBindBuffer(GL_ARRAY_BUFFER, _varyingBuffer);
-        float *buffer = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-        if (buffer)
-            memcpy(buffer, _varyingVbo, _varyingVboSize);
-
-        glUnmapBuffer(GL_ARRAY_BUFFER);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-    }
+OsdCpuKernelDispatcher::UnbindVertexBuffer()
+{
+    _vertexBuffer = NULL;
+    _varyingBuffer = NULL;
 }
 
 void
@@ -204,20 +127,26 @@ OsdCpuKernelDispatcher::Synchronize() { }
 void
 OsdCpuKernelDispatcher::ApplyCatmarkFaceVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
     
-    VertexDescriptor vd(_numVertexElements, _numVaryingElements);
+    VertexDescriptor vd(_vertexBuffer->GetNumElements(), _varyingBuffer->GetNumElements());
 
-    computeFace(&vd, _vbo, _varyingVbo,
+    computeFace(&vd, _vertexBuffer->GetCpuBuffer(), _varyingBuffer->GetCpuBuffer(),
                 (int*)_tables[F_IT].devicePtr + _tableOffsets[F_IT][level-1],
                 (int*)_tables[F_ITa].devicePtr + _tableOffsets[F_ITa][level-1],
                 offset, start, end);
+
+    float *p = _vertexBuffer->GetCpuBuffer();
+    for(int i = 0; i < 150; i+=3){
+        printf("%f %f %f\n", p[0], p[1], p[2]);
+        p+=3;
+    }
 }
 
 void
 OsdCpuKernelDispatcher::ApplyCatmarkEdgeVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
     
-    VertexDescriptor vd(_numVertexElements, _numVaryingElements);
+    VertexDescriptor vd(_vertexBuffer->GetNumElements(), _varyingBuffer->GetNumElements());
 
-    computeEdge(&vd, _vbo, _varyingVbo,
+    computeEdge(&vd, _vertexBuffer->GetCpuBuffer(), _varyingBuffer->GetCpuBuffer(),
                 (int*)_tables[E_IT].devicePtr + _tableOffsets[E_IT][level-1],
                 (float*)_tables[E_W].devicePtr + _tableOffsets[E_W][level-1],
                 offset, 
@@ -227,9 +156,9 @@ OsdCpuKernelDispatcher::ApplyCatmarkEdgeVerticesKernel( FarMesh<OsdVertex> * mes
 void
 OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelB( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
     
-    VertexDescriptor vd(_numVertexElements, _numVaryingElements);
+    VertexDescriptor vd(_vertexBuffer->GetNumElements(), _varyingBuffer->GetNumElements());
 
-    computeVertexB(&vd, _vbo, _varyingVbo,
+    computeVertexB(&vd, _vertexBuffer->GetCpuBuffer(), _varyingBuffer->GetCpuBuffer(),
                    (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
                    (int*)_tables[V_IT].devicePtr + _tableOffsets[V_IT][level-1],
                    (float*)_tables[V_W].devicePtr + _tableOffsets[V_W][level-1],
@@ -239,9 +168,9 @@ OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelB( FarMesh<OsdVertex> * 
 void
 OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelA( FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const {
     
-    VertexDescriptor vd(_numVertexElements, _numVaryingElements);
+    VertexDescriptor vd(_vertexBuffer->GetNumElements(), _varyingBuffer->GetNumElements());
 
-    computeVertexA(&vd, _vbo, _varyingVbo,
+    computeVertexA(&vd, _vertexBuffer->GetCpuBuffer(), _varyingBuffer->GetCpuBuffer(),
                    (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
                    (float*)_tables[V_W].devicePtr + _tableOffsets[V_W][level-1],
                    offset, start, end, pass);
@@ -250,9 +179,9 @@ OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelA( FarMesh<OsdVertex> * 
 void
 OsdCpuKernelDispatcher::ApplyLoopEdgeVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
     
-    VertexDescriptor vd(_numVertexElements, _numVaryingElements);
+    VertexDescriptor vd(_vertexBuffer->GetNumElements(), _varyingBuffer->GetNumElements());
 
-    computeEdge(&vd, _vbo, _varyingVbo,
+    computeEdge(&vd, _vertexBuffer->GetCpuBuffer(), _varyingBuffer->GetCpuBuffer(),
                 (int*)_tables[E_IT].devicePtr + _tableOffsets[E_IT][level-1],
                 (float*)_tables[E_W].devicePtr + _tableOffsets[E_W][level-1],
                 offset, 
@@ -262,9 +191,9 @@ OsdCpuKernelDispatcher::ApplyLoopEdgeVerticesKernel( FarMesh<OsdVertex> * mesh, 
 void
 OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelB( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
     
-    VertexDescriptor vd(_numVertexElements, _numVaryingElements);
+    VertexDescriptor vd(_vertexBuffer->GetNumElements(), _varyingBuffer->GetNumElements());
 
-    computeLoopVertexB(&vd, _vbo, _varyingVbo,
+    computeLoopVertexB(&vd, _vertexBuffer->GetCpuBuffer(), _varyingBuffer->GetCpuBuffer(),
                        (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
                        (int*)_tables[V_IT].devicePtr + _tableOffsets[V_IT][level-1],
                        (float*)_tables[V_W].devicePtr + _tableOffsets[V_W][level-1],
@@ -274,9 +203,9 @@ OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelB( FarMesh<OsdVertex> * mes
 void
 OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelA( FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const {
     
-    VertexDescriptor vd(_numVertexElements, _numVaryingElements);
+    VertexDescriptor vd(_vertexBuffer->GetNumElements(), _varyingBuffer->GetNumElements());
 
-    computeVertexA(&vd, _vbo, _varyingVbo,
+    computeVertexA(&vd, _vertexBuffer->GetCpuBuffer(), _varyingBuffer->GetCpuBuffer(),
                    (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
                    (float*)_tables[V_W].devicePtr + _tableOffsets[V_W][level-1],
                    offset, start, end, pass);

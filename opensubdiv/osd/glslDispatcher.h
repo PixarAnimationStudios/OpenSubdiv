@@ -65,7 +65,7 @@ namespace OPENSUBDIV_VERSION {
 class OsdGlslKernelDispatcher : public OsdKernelDispatcher {
 
 public:
-    OsdGlslKernelDispatcher(int levels, int numVertexElements, int numVaryingElements);
+    OsdGlslKernelDispatcher(int levels);
     
     virtual ~OsdGlslKernelDispatcher();
 
@@ -92,24 +92,16 @@ public:
     
     virtual void EndLaunchKernel();
 
-    virtual void BindVertexBuffer(GLuint vertexBuffer, GLuint varyingBuffer);
-    
-    virtual void UpdateVertexBuffer(size_t size, void *ptr);
-    
-    virtual void UpdateVaryingBuffer(size_t size, void *ptr);
-    
-    virtual void MapVertexBuffer();
-    
-    virtual void MapVaryingBuffer();
-    
-    virtual void UnmapVertexBuffer();
-    
-    virtual void UnmapVaryingBuffer();
+    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int count);
+
+    virtual void BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
+
+    virtual void UnbindVertexBuffer();
 
     virtual void Synchronize();
 
-    static OsdKernelDispatcher * Create(int levels, int numVertexElements, int numVaryingElements){
-        return new OsdGlslKernelDispatcher(levels, numVertexElements, numVaryingElements);
+    static OsdKernelDispatcher * Create(int levels) {
+        return new OsdGlslKernelDispatcher(levels);
     }
     static void Register() {
         Factory::GetInstance().Register("glsl", Create);

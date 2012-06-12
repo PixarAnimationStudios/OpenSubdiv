@@ -58,6 +58,7 @@
 #define OSD_KERNEL_DISPATCHER_H
 
 #include "vertex.h"
+#include "vertexBuffer.h"
 
 #include "../far/dispatcher.h"
 
@@ -84,20 +85,11 @@ public:
     
     virtual void EndLaunchKernel() = 0;
 
+    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int count) = 0;
 
-    virtual void BindVertexBuffer(GLuint vertexBuffer, GLuint varyingBuffer) = 0;
+    virtual void BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying) = 0;
 
-    virtual void UpdateVertexBuffer(size_t size, void *ptr) = 0;
-
-    virtual void UpdateVaryingBuffer(size_t size, void *ptr) = 0;
-
-    virtual void MapVertexBuffer() = 0;
-
-    virtual void MapVaryingBuffer() = 0;
-
-    virtual void UnmapVertexBuffer() = 0;
-
-    virtual void UnmapVaryingBuffer() = 0;
+    virtual void UnbindVertexBuffer() = 0;
 
     virtual void Synchronize() = 0;
 
@@ -110,9 +102,9 @@ public:
             _tableOffsets[tableIndex][i] = table[i] - table[0];
     }
 
-    static OsdKernelDispatcher *CreateKernelDispatcher( const std::string &kernel, int levels, int numVertexElements, int numVaryingElements ) {
+    static OsdKernelDispatcher *CreateKernelDispatcher( const std::string &kernel, int levels ) {
     
-        return Factory::GetInstance().Create( kernel, levels, numVertexElements, numVaryingElements );
+        return Factory::GetInstance().Create( kernel, levels );
     }
 
     enum { E_IT,
@@ -129,7 +121,7 @@ protected:
     class Factory {
 
     public:
-        typedef OsdKernelDispatcher *(*Creator)( int levels, int numVertexElements, int numVaryingElements );
+        typedef OsdKernelDispatcher *(*Creator)( int levels );
         typedef std::map<const std::string, Creator> CreatorMap;
 
         bool Register(const std::string &kernel, Creator creator) {
@@ -140,10 +132,10 @@ protected:
             return _creators.erase(kernel) == 1;
         }
 
-        OsdKernelDispatcher *Create ( const std::string &kernel, int levels, int numVertexElements, int numVaryingElements ) {
+        OsdKernelDispatcher *Create ( const std::string &kernel, int levels ) {
             CreatorMap::const_iterator it = _creators.find(kernel);
             if (it != _creators.end())
-                return (it->second)(levels, numVertexElements, numVaryingElements);
+                return (it->second)(levels);
             return NULL;
         }
 	

@@ -72,7 +72,7 @@ namespace OPENSUBDIV_VERSION {
 class OsdCpuKernelDispatcher : public OsdKernelDispatcher
 {
 public:
-    OsdCpuKernelDispatcher(int levels, int numVertexElements, int numVaryingElements);
+    OsdCpuKernelDispatcher(int levels);
     virtual ~OsdCpuKernelDispatcher();
 
     virtual void ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
@@ -95,24 +95,16 @@ public:
 
     virtual void EndLaunchKernel();
 
-    virtual void BindVertexBuffer(GLuint vertexBuffer, GLuint varyingBuffer);
+    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int count);
 
-    virtual void UpdateVertexBuffer(size_t size, void *ptr);
+    virtual void BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
 
-    virtual void UpdateVaryingBuffer(size_t size, void *ptr);
-
-    virtual void MapVertexBuffer();
-
-    virtual void MapVaryingBuffer();
-
-    virtual void UnmapVertexBuffer();
-
-    virtual void UnmapVaryingBuffer();
+    virtual void UnbindVertexBuffer();
 
     virtual void Synchronize();
 
-    static OsdKernelDispatcher * Create(int levels, int numVertexElements, int numVaryingElements) {
-        return new OsdCpuKernelDispatcher(levels, numVertexElements, numVaryingElements);
+    static OsdKernelDispatcher * Create(int levels) {
+        return new OsdCpuKernelDispatcher(levels);
     }
     static void Register() {
         Factory::GetInstance().Register("omp", Create);
@@ -129,18 +121,9 @@ protected:
 	void *devicePtr;
     };
 
-    std::vector<DeviceTable> _tables;
+    OsdCpuVertexBuffer *_vertexBuffer, *_varyingBuffer;
 
-    GLuint _vertexBuffer, 
-           _varyingBuffer;
-	   
-    float *_vbo, 
-          *_varyingVbo;
-	  
-    int _vboSize, 
-        _varyingVboSize,
-        _numVertexElements, 
-        _numVaryingElements;
+    std::vector<DeviceTable> _tables;
 };
 
 } // end namespace OPENSUBDIV_VERSION

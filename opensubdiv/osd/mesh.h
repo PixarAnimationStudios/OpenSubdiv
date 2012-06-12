@@ -61,7 +61,8 @@
 #include <vector>
 #include <GL/glew.h>
 
-#include "../osd/vertex.h"
+#include "vertex.h"
+#include "vertexBuffer.h"
 
 #include "../far/mesh.h"
 #include "../hbr/mesh.h"
@@ -82,36 +83,20 @@ typedef HbrFace<OsdVertex>     OsdHbrFace;
 class OsdMesh {
 
 public:
-    OsdMesh(int numVertexElements, int numVaryingElements);
+    OsdMesh();
 
     virtual ~OsdMesh();
 
 
     bool Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel);
 
-
-    void UpdatePoints(const std::vector<float> &points);
-
-    void GetRefinedPoints(std::vector<float> &refinedPoints);
-
-    void UpdateVaryings(const std::vector<float> &varyings);
-
-    void GetRefinedVaryings(std::vector<float> &refinedVaryings);
-
     FarMesh<OsdVertex> *GetFarMesh() { return _mMesh; }
 
+    OsdVertexBuffer *InitializeVertexBuffer(int numElements);
 
-    void Subdivide();
+    void Subdivide(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
 
     void Synchronize();
-
-    int GetNumVertexElements() const { return _numVertexElements; }
-
-    int GetNumVaryingElements() const { return _numVaryingElements; }
-
-    GLuint GetVertexBuffer() const { return _vertexBuffer; }
-
-    GLuint GetVaryingBuffer() const { return _varyingBuffer; }
 
     int GetTotalVertices() const { return _mMesh->GetNumVertices(); }
 
@@ -121,12 +106,8 @@ protected:
 
     FarMesh<OsdVertex> *_mMesh;
     
-    int _numVertexElements,
-        _numVaryingElements,
-        _level;
+    int _level;
 
-    GLuint _vertexBuffer, _varyingBuffer;
-    
     OsdKernelDispatcher * _dispatcher;
 };
 

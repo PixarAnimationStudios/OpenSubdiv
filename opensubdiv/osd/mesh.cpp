@@ -67,11 +67,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdMesh::OsdMesh(int numVertexElements, int numVaryingElements) 
-    : _numVertexElements(numVertexElements), _numVaryingElements(numVaryingElements), _mMesh(NULL), _dispatcher(NULL) {
+OsdMesh::OsdMesh()
+    : _mMesh(NULL), _dispatcher(NULL) {
     
-    glGenBuffers(1, &_vertexBuffer);
-    glGenBuffers(1, &_varyingBuffer);
 }
 
 OsdMesh::~OsdMesh() {
@@ -79,8 +77,6 @@ OsdMesh::~OsdMesh() {
     if(_dispatcher) delete _dispatcher;
     if(_mMesh) delete _mMesh;
 
-    glDeleteBuffers(1, &_vertexBuffer);
-    glDeleteBuffers(1, &_varyingBuffer);
 }
 
 bool
@@ -88,7 +84,7 @@ OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel) {
 
     if (_dispatcher)
         delete _dispatcher;
-    _dispatcher = OsdKernelDispatcher::CreateKernelDispatcher(kernel, level, _numVertexElements, _numVaryingElements);
+    _dispatcher = OsdKernelDispatcher::CreateKernelDispatcher(kernel, level);
     if(_dispatcher == NULL){
         OSD_ERROR("Unknown kernel %s\n", kernel.c_str());
         return false;
@@ -128,114 +124,34 @@ OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel) {
 
     CHECK_GL_ERROR("Mesh, update tables\n");
 
-    // vbo prep
-    int vertexSize = _mMesh->GetNumVertices() * _numVertexElements * sizeof(float);
-    glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, vertexSize, 0, GL_STREAM_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    CHECK_GL_ERROR("Mesh, vertex buffer %d\n", _vertexBuffer);
-
-    int varyingSize = _mMesh->GetNumVertices() * _numVaryingElements * sizeof(float);
-    glBindBuffer(GL_ARRAY_BUFFER, _varyingBuffer);
-    glBufferData(GL_ARRAY_BUFFER, varyingSize, 0, GL_STREAM_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    CHECK_GL_ERROR("Mesh, varying buffer %d\n", _varyingBuffer);
-        
-    _dispatcher->BindVertexBuffer(_vertexBuffer, varyingSize ? _varyingBuffer : 0);
-
     return true;
 }
 
-void
-OsdMesh::UpdatePoints(const std::vector<float> &points) {
-
-    int numCoarseVertices = _mMesh->GetNumCoarseVertices();
-    if(numCoarseVertices * _numVertexElements != points.size()) {
-        OSD_ERROR("UpdatePoints points size mismatch %d != %d\n", numCoarseVertices, (int)points.size());
-        return;
-    }
-
-    float * updateVertexBuffer = new float[GetNumCoarseVertices() * _numVertexElements];
-    float *p = updateVertexBuffer;
-    for (int i = 0; i < numCoarseVertices; ++i)
-        for (int j = 0; j < _numVertexElements; ++j)
-            *p++ = points[i*_numVertexElements+j];
-
-    // send to gpu
-    _dispatcher->MapVertexBuffer();
-
-    // copy _updateVertexBuffer to each kernel's local memory
-    int size = numCoarseVertices * _numVertexElements * sizeof(float);
-    _dispatcher->UpdateVertexBuffer(size, updateVertexBuffer);
-
-    _dispatcher->UnmapVertexBuffer();
-
-    delete[] updateVertexBuffer;
+OsdVertexBuffer *
+OsdMesh::InitializeVertexBuffer(int numElements)
+{
+    if (!_dispatcher) return NULL;
+    return _dispatcher->InitializeVertexBuffer(numElements, GetTotalVertices());
 }
 
 void
-OsdMesh::UpdateVaryings(const std::vector<float> &varyings) {
+OsdMesh::Subdivide(OsdVertexBuffer *vertex, OsdVertexBuffer *varying) {
 
-    int numCoarseVertices = _mMesh->GetNumCoarseVertices();
-    if (numCoarseVertices * _numVaryingElements != varyings.size()) {
-        OSD_ERROR("UpdateVaryings array size mismatch %d != %d\n", numCoarseVertices, (int)varyings.size());
-        return;
-    }
+    _dispatcher->BindVertexBuffer(vertex, varying);
 
-    // send to gpu
-    _dispatcher->MapVaryingBuffer();
-
-    int size = numCoarseVertices * _numVaryingElements * sizeof(float);
-    _dispatcher->UpdateVaryingBuffer(size, (void*)&varyings[0]);
-
-    _dispatcher->UnmapVaryingBuffer();
-}
-
-void
-OsdMesh::Subdivide() {
-
-    _dispatcher->MapVertexBuffer();
-    _dispatcher->MapVaryingBuffer();
     _dispatcher->BeginLaunchKernel();
 
     _mMesh->Subdivide(_level+1);
 
     _dispatcher->EndLaunchKernel();
-    _dispatcher->UnmapVertexBuffer();
-    _dispatcher->UnmapVaryingBuffer();
+
+    _dispatcher->UnbindVertexBuffer();
 }
 
 void
 OsdMesh::Synchronize() {
 
     _dispatcher->Synchronize();
-}
-
-void
-OsdMesh::GetRefinedPoints(std::vector<float> &refinedPoints) {
-
-    glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
-    
-    int size = 0;
-    glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
-    
-    int numTotalVertices = _mMesh->GetNumVertices();
-    if (size != numTotalVertices*_numVertexElements*sizeof(float)) {
-        OSD_ERROR("vertex count mismatch %d != %d\n", (int)(size/_numVertexElements/sizeof(float)), numTotalVertices);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        return;
-    }
-
-    refinedPoints.resize(numTotalVertices*_numVertexElements);
-    float *p = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
-    if (p)
-        for (int i = 0; i < numTotalVertices; ++i)
-            for (int j = 0; j < _numVertexElements; ++j)
-                refinedPoints[i*_numVertexElements+j] = *p++;
-
-    glUnmapBuffer(GL_ARRAY_BUFFER);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    
 }
 
 } // end namespace OPENSUBDIV_VERSION

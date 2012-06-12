@@ -88,12 +88,9 @@ static const char *shaderDefines = ""
 #endif
 ;
 
-OsdGlslKernelDispatcher::OsdGlslKernelDispatcher(int levels, int numVertexElements, int numVaryingElements)
-    : OsdKernelDispatcher(levels),
-      _numVertexElements(numVertexElements),
-      _numVarying(numVaryingElements)
+OsdGlslKernelDispatcher::OsdGlslKernelDispatcher(int levels)
+    : OsdKernelDispatcher(levels)
 {
-    _numVarying = 0; // XXX
     _vertexBuffer = 0;
     _varyingBuffer = 0;
     _prgKernel = 0;
@@ -211,26 +208,36 @@ OsdGlslKernelDispatcher::EndLaunchKernel() {
 
     glDisable(GL_RASTERIZER_DISCARD);
     glUseProgram(0);
+
+    // XXX Unbind table buffer
+}
+
+OsdVertexBuffer *
+OsdGlslKernelDispatcher::InitializeVertexBuffer(int numElements, int count)
+{
+    return new OsdGpuVertexBuffer(numElements, count);
 }
 
 void
-OsdGlslKernelDispatcher::BindVertexBuffer(GLuint vertexBuffer, GLuint varyingBuffer) {
+OsdGlslKernelDispatcher::BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying) {
 
-    glUseProgram(_prgKernel);
+    OsdGpuVertexBuffer *bVertex = dynamic_cast<OsdGpuVertexBuffer *>(vertex);
+    OsdGpuVertexBuffer *bVarying = dynamic_cast<OsdGpuVertexBuffer *>(varying);
 
-    CHECK_GL_ERROR("BindVertexBufferA, glUniform %d\n", _vertexUniform);
-    glUniform1i(_vertexUniform, 0);
-    CHECK_GL_ERROR("BindVertexBufferB, glUniform %d\n", _vertexUniform);
-
-    bindTextureBuffer(_vertexUniform, vertexBuffer, _vertexTexture, GL_RGB32F, 0);
-    _vertexBuffer = vertexBuffer;
-
-    if (varyingBuffer) {
-        bindTextureBuffer(_varyingUniform, varyingBuffer, _varyingTexture, GL_R32F, 0);
-        _varyingBuffer = varyingBuffer;
+    if (bVertex) {
+        _vertexBuffer = bVertex->GetGpuBuffer();
+        bindTextureBuffer(_vertexUniform, _vertexBuffer, _vertexTexture, GL_RGB32F, 0);
     }
 
-#if 0
+    if (bVarying) {
+        _varyingBuffer = bVarying->GetGpuBuffer();
+        bindTextureBuffer(_varyingUniform, _varyingBuffer, _varyingTexture, GL_R32F, 0);
+    }
+
+    glUseProgram(_prgKernel);
+    glUniform1i(_vertexUniform, 0);
+
+#if 0  // experiment to use image store function
     glActiveTexture(GL_TEXTURE0 + 0);
     glBindImageTextureEXT(0, _vertexTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_R32F);
 
@@ -243,41 +250,10 @@ OsdGlslKernelDispatcher::BindVertexBuffer(GLuint vertexBuffer, GLuint varyingBuf
 }
 
 void
-OsdGlslKernelDispatcher::UpdateVertexBuffer(size_t size, void *ptr) {
-
-    glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
-    float * pointer = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-    memcpy(pointer, ptr, size);
-    glUnmapBuffer(GL_ARRAY_BUFFER);
+OsdGlslKernelDispatcher::UnbindVertexBuffer()
+{
 }
 
-void
-OsdGlslKernelDispatcher::UpdateVaryingBuffer(size_t size, void *ptr) {
-
-    if (_varyingBuffer) {
-        glBindBuffer(GL_ARRAY_BUFFER, _varyingBuffer);
-        float * pointer = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-        memcpy(pointer, ptr, size);
-        glUnmapBuffer(GL_ARRAY_BUFFER);
-    }
-}
-
-void
-OsdGlslKernelDispatcher::MapVertexBuffer() {
-}
-
-void
-OsdGlslKernelDispatcher::MapVaryingBuffer() {
-}
-
-void
-OsdGlslKernelDispatcher::UnmapVertexBuffer() { 
-//    UnbindTableBuffer();
-}
-
-void
-OsdGlslKernelDispatcher::UnmapVaryingBuffer() { 
-}
 
 void
 OsdGlslKernelDispatcher::Synchronize() {

@@ -74,7 +74,7 @@ struct DeviceVertex;
 class OsdCudaKernelDispatcher : public OsdKernelDispatcher
 {
 public:
-    OsdCudaKernelDispatcher(int levels, int numVertexElements, int numVaryingElements);
+    OsdCudaKernelDispatcher(int levels);
     virtual ~OsdCudaKernelDispatcher();
 
 
@@ -101,25 +101,16 @@ public:
     
     virtual void EndLaunchKernel();
 
+    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int count);
 
-    virtual void BindVertexBuffer(GLuint vertexBuffer, GLuint varyingBuffer);
+    virtual void BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
     
-    virtual void UpdateVertexBuffer(size_t size, void *ptr);
-    
-    virtual void UpdateVaryingBuffer(size_t size, void *ptr);
-    
-    virtual void MapVertexBuffer();
-    
-    virtual void MapVaryingBuffer();
-    
-    virtual void UnmapVertexBuffer();
-    
-    virtual void UnmapVaryingBuffer();
-    
+    virtual void UnbindVertexBuffer();
+
     virtual void Synchronize();
 
-    static OsdKernelDispatcher * Create(int levels, int numVertexElements, int numVaryingElements){
-        return new OsdCudaKernelDispatcher(levels, numVertexElements, numVaryingElements);
+    static OsdKernelDispatcher * Create(int levels) {
+        return new OsdCudaKernelDispatcher(levels);
     }
     static void Register() {
         Factory::GetInstance().Register("cuda", Create);
