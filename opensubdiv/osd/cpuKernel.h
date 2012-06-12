@@ -67,20 +67,28 @@ struct VertexDescriptor {
     VertexDescriptor(int numVertexElem, int numVaryingElem) 
         : numVertexElements(numVertexElem), numVaryingElements(numVaryingElem) { }
 
-    void Clear(float *vertex, float *varying) const {
-        for (int i = 0; i < numVertexElements; ++i)
-            vertex[i] = 0.0f;
+    void Clear(float *vertex, float *varying, int index) const {
+        if (vertex) {
+            for (int i = 0; i < numVertexElements; ++i)
+                vertex[index*numVertexElements+i] = 0.0f;
+        }
 
-        for (int i = 0; i < numVaryingElements; ++i)
-            varying[i] = 0.0f;
+        if (varying) {
+            for (int i = 0; i < numVaryingElements; ++i)
+                varying[index*numVaryingElements+i] = 0.0f;
+        }
     }
-    void AddWithWeight(float *vertex, const float *src, float weight) const {
+    void AddWithWeight(float *vertex, int dstIndex, int srcIndex, float weight) const {
+        int d = dstIndex * numVertexElements;
+        int s = srcIndex * numVertexElements;
         for (int i = 0; i < numVertexElements; ++i)
-            vertex[i] += src[i] * weight;
+            vertex[d++] += vertex[s++] * weight;
     }
-    void AddVaryingWithWeight(float *varying, const float *src, float weight) const {
+    void AddVaryingWithWeight(float *varying, int dstIndex, int srcIndex, float weight) const {
+        int d = dstIndex * numVaryingElements;
+        int s = srcIndex * numVaryingElements;
         for (int i = 0; i < numVaryingElements; ++i)
-            varying[i] += src[i] * weight;
+            varying[d++] += varying[s++] * weight;
     }
     
     int numVertexElements;

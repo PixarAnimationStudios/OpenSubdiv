@@ -70,6 +70,8 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+class VertexDescriptor;
+
 class OsdCpuKernelDispatcher : public OsdKernelDispatcher
 {
 public:
@@ -102,11 +104,11 @@ public:
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr);
 
-    virtual void BeginLaunchKernel();
+    virtual void OnKernelLaunch() {}
 
-    virtual void EndLaunchKernel();
+    virtual void OnKernelFinish() {}
 
-    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int count);
+    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int numVertices);
 
     virtual void BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
 
@@ -123,18 +125,26 @@ public:
 
 protected:
     
-    struct DeviceTable {
-        DeviceTable() : devicePtr(NULL) { }
-       ~DeviceTable();
+    struct SubdivisionTable {
+        SubdivisionTable() : ptr(NULL) { }
+
+       ~SubdivisionTable();
 
         void Copy(int size, const void *ptr);
         
-	void *devicePtr;
+	void *ptr;
     };
 
-    OsdCpuVertexBuffer *_vertexBuffer, *_varyingBuffer;
+    float *GetVertexBuffer() const { return _currentVertexBuffer ? _currentVertexBuffer->GetCpuBuffer() : NULL; }
 
-    std::vector<DeviceTable> _tables;
+    float *GetVaryingBuffer() const { return _currentVaryingBuffer ? _currentVaryingBuffer->GetCpuBuffer() : NULL; }
+
+    OsdCpuVertexBuffer *_currentVertexBuffer,
+                       *_currentVaryingBuffer;
+
+    VertexDescriptor *_vdesc;
+
+    std::vector<SubdivisionTable> _tables;
 };
 
 } // end namespace OPENSUBDIV_VERSION

@@ -82,9 +82,9 @@ public:
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr) = 0;
 
 
-    virtual void BeginLaunchKernel() = 0;
+    virtual void OnKernelLaunch() = 0;
     
-    virtual void EndLaunchKernel() = 0;
+    virtual void OnKernelFinish() = 0;
 
     virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int count) = 0;
 

@@ -59,6 +59,7 @@
 
 #include "../version.h"
 #include "../osd/kernelDispatcher.h"
+#include "../osd/vertexBuffer.h"
 
 #include <GL/glew.h>
 
@@ -71,6 +72,19 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 struct DeviceVertex;
+
+class OsdCudaVertexBuffer : public OsdGpuVertexBuffer {
+public:
+    OsdCudaVertexBuffer(int numElements, int numVertices);
+    virtual ~OsdCudaVertexBuffer();
+
+    virtual void UpdateData(const float *src, int numVertices);
+    void * Map();
+    void Unmap();
+
+protected:
+    cudaGraphicsResource *_cudaResource;
+};
 
 class OsdCudaKernelDispatcher : public OsdKernelDispatcher
 {
@@ -106,11 +120,11 @@ public:
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr);
 
-    virtual void BeginLaunchKernel();
-    
-    virtual void EndLaunchKernel();
+    virtual void OnKernelLaunch() {}
 
-    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int count);
+    virtual void OnKernelFinish() {}
+
+    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int numVertices);
 
     virtual void BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
     
@@ -138,8 +152,8 @@ protected:
 
     std::vector<DeviceTable> _tables;
 
-    cudaGraphicsResource *_cudaVertexResource, 
-                         *_cudaVaryingResource;
+    OsdCudaVertexBuffer *_currentVertexBuffer,
+                        *_currentVaryingBuffer;
 
     float *_deviceVertices,
           *_deviceVaryings;

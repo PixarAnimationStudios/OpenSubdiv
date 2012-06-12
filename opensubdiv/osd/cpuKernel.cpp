@@ -64,9 +64,6 @@ namespace OPENSUBDIV_VERSION {
 
 void computeFace( const VertexDescriptor *vdesc, float * vertex, float * varying, const int *F_IT, const int *F_ITa, int offset, int start, int end) {
     
-    int ve = vdesc->numVertexElements;
-    int vev = vdesc->numVaryingElements;
-    
 #ifdef _OPENMP
 #pragma omp parallel for
 #endif
@@ -77,22 +74,18 @@ void computeFace( const VertexDescriptor *vdesc, float * vertex, float * varying
         float weight = 1.0f/n;
 
         // XXX: should use local vertex struct variable instead of accumulating directly into global memory.
-        float *dst = &vertex[(offset + i)*ve];
-        float *dstVarying = &varying[(offset + i)*vev];
-        vdesc->Clear(dst, dstVarying);
+        int dstIndex = offset + i;
+        vdesc->Clear(vertex, varying, dstIndex);
 
         for (int j=0; j<n; ++j) {
             int index = F_IT[h+j];
-            vdesc->AddWithWeight(dst, &vertex[index*ve], weight);
-            vdesc->AddVaryingWithWeight(dstVarying, &varying[index*vev], weight);
+            vdesc->AddWithWeight(vertex, dstIndex, index, weight);
+            vdesc->AddVaryingWithWeight(varying, dstIndex, index, weight);
         }
     }
 }
 
 void computeEdge( const VertexDescriptor *vdesc, float *vertex, float *varying, const int *E_IT, const float *E_W, int offset, int start, int end) {
-
-    int ve = vdesc->numVertexElements;
-    int vev = vdesc->numVaryingElements;
 
 #ifdef _OPENMP
 #pragma omp parallel for
@@ -105,29 +98,25 @@ void computeEdge( const VertexDescriptor *vdesc, float *vertex, float *varying, 
         
         float vertWeight = E_W[i*2+0];
         
-        float *dst = &vertex[(offset+i)*ve];
-        float *dstVarying = &varying[(offset+i)*vev];
-        vdesc->Clear(dst, dstVarying);
+        int dstIndex = offset + i;
+        vdesc->Clear(vertex, varying, dstIndex);
         
-        vdesc->AddWithWeight(dst, &vertex[eidx0*ve], vertWeight);
-        vdesc->AddWithWeight(dst, &vertex[eidx1*ve], vertWeight);
+        vdesc->AddWithWeight(vertex, dstIndex, eidx0, vertWeight);
+        vdesc->AddWithWeight(vertex, dstIndex, eidx1, vertWeight);
         
         if (eidx2 != -1) {
             float faceWeight = E_W[i*2+1];
             
-            vdesc->AddWithWeight(dst, &vertex[eidx2*ve], faceWeight);
-            vdesc->AddWithWeight(dst, &vertex[eidx3*ve], faceWeight);
+            vdesc->AddWithWeight(vertex, dstIndex, eidx2, faceWeight);
+            vdesc->AddWithWeight(vertex, dstIndex, eidx3, faceWeight);
         }
 
-        vdesc->AddVaryingWithWeight(dstVarying, &varying[eidx0*vev], 0.5f);
-        vdesc->AddVaryingWithWeight(dstVarying, &varying[eidx1*vev], 0.5f);
+        vdesc->AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
+        vdesc->AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
     }
 }
 
 void computeVertexA(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, const float *V_W, int offset, int start, int end, int pass) {
-
-    int ve = vdesc->numVertexElements;
-    int vev = vdesc->numVaryingElements;
 
 #ifdef _OPENMP
 #pragma omp parallel for
@@ -146,28 +135,24 @@ void computeVertexA(const VertexDescriptor *vdesc, float *vertex, float *varying
         if (weight>0.0f && weight<1.0f && n > 0)
             weight=1.0f-weight;
         
-        float *dst = &vertex[(offset+i)*ve];
-        float *dstVarying = &varying[(offset+i)*vev];
+        int dstIndex = offset + i;
         if(not pass)
-            vdesc->Clear(dst, dstVarying);
+            vdesc->Clear(vertex, varying, dstIndex);
         
         if (eidx0==-1 || (pass==0 && (n==-1)) ) {
-            vdesc->AddWithWeight(dst, &vertex[p*ve], weight);
+            vdesc->AddWithWeight(vertex, dstIndex, p, weight);
         } else {
-            vdesc->AddWithWeight(dst, &vertex[p*ve], weight * 0.75f);
-            vdesc->AddWithWeight(dst, &vertex[eidx0*ve], weight * 0.125f);
-            vdesc->AddWithWeight(dst, &vertex[eidx1*ve], weight * 0.125f);
+            vdesc->AddWithWeight(vertex, dstIndex, p, weight * 0.75f);
+            vdesc->AddWithWeight(vertex, dstIndex, eidx0, weight * 0.125f);
+            vdesc->AddWithWeight(vertex, dstIndex, eidx1, weight * 0.125f);
         }
 
         if (not pass)
-            vdesc->AddVaryingWithWeight(dstVarying, &varying[p*vev], 1.0);
+            vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
     }
 }
 
 void computeVertexB(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, const int *V_IT, const float *V_W, int offset, int start, int end) {
-
-    int ve = vdesc->numVertexElements;
-    int vev = vdesc->numVaryingElements;
 
 #ifdef _OPENMP
 #pragma omp parallel for
@@ -181,24 +166,20 @@ void computeVertexB(const VertexDescriptor *vdesc, float *vertex, float *varying
         float wp = 1.0f/float(n*n);
         float wv = (n-2.0f) * n * wp;
         
-        float *dst = &vertex[(offset+i)*ve];
-        float *dstVarying = &varying[(offset+i)*vev];
-        vdesc->Clear(dst, dstVarying);
+        int dstIndex = offset + i;
+        vdesc->Clear(vertex, varying, dstIndex);
         
-        vdesc->AddWithWeight(dst, &vertex[p*ve], weight * wv);
+        vdesc->AddWithWeight(vertex, dstIndex, p, weight * wv);
 
         for (int j = 0; j < n; ++j) {
-            vdesc->AddWithWeight(dst, &vertex[V_IT[h+j*2]*ve], weight * wp);
-            vdesc->AddWithWeight(dst, &vertex[V_IT[h+j*2+1]*ve], weight * wp);
+            vdesc->AddWithWeight(vertex, dstIndex, V_IT[h+j*2], weight * wp);
+            vdesc->AddWithWeight(vertex, dstIndex, V_IT[h+j*2+1], weight * wp);
         }
-        vdesc->AddVaryingWithWeight(dstVarying, &varying[p*vev], 1.0);
+        vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
     }
 }
 
 void computeLoopVertexB(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, const int *V_IT, const float *V_W, int offset, int start, int end) {
-
-    int ve = vdesc->numVertexElements;
-    int vev = vdesc->numVaryingElements;
 
 #ifdef _OPENMP
 #pragma omp parallel for
@@ -214,23 +195,19 @@ void computeLoopVertexB(const VertexDescriptor *vdesc, float *vertex, float *var
         beta = beta * beta;
         beta = (0.625f - beta) * wp;
         
-        float *dst = &vertex[(offset+i)*ve];
-        float *dstVarying = &varying[(offset+i)*vev];
-        vdesc->Clear(dst, dstVarying);
+        int dstIndex = offset + i;
+        vdesc->Clear(vertex, varying, dstIndex);
         
-        vdesc->AddWithWeight(dst, &vertex[p*ve], weight * (1.0f - (beta * n)));
+        vdesc->AddWithWeight(vertex, dstIndex, p, weight * (1.0f - (beta * n)));
 
         for (int j = 0; j < n; ++j)
-            vdesc->AddWithWeight(dst, &vertex[V_IT[h+j]*ve], weight * beta);
+            vdesc->AddWithWeight(vertex, dstIndex, V_IT[h+j], weight * beta);
 
-        vdesc->AddVaryingWithWeight(dstVarying, &varying[p*vev], 1.0f);
+        vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
     }
 }
 
 void computeBilinearEdge(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *E_IT, int offset, int start, int end) {
-
-    int ve = vdesc->numVertexElements;
-    int vev = vdesc->numVaryingElements;
 
 #ifdef _OPENMP
 #pragma omp parallel for
@@ -239,22 +216,18 @@ void computeBilinearEdge(const VertexDescriptor *vdesc, float *vertex, float *va
         int eidx0 = E_IT[2*i+0];
         int eidx1 = E_IT[2*i+1];
         
-        float *dst = &vertex[(offset+i)*ve];
-        float *dstVarying = &varying[(offset+i)*vev];
-        vdesc->Clear(dst, dstVarying);
+        int dstIndex = offset + i;
+        vdesc->Clear(vertex, varying, dstIndex);
+
+        vdesc->AddWithWeight(vertex, dstIndex, eidx0, 0.5f);
+        vdesc->AddWithWeight(vertex, dstIndex, eidx1, 0.5f);
         
-        vdesc->AddWithWeight(dst, &vertex[eidx0*ve], 0.5f);
-        vdesc->AddWithWeight(dst, &vertex[eidx1*ve], 0.5f);
-        
-        vdesc->AddVaryingWithWeight(dstVarying, &varying[eidx0*vev], 0.5f);
-        vdesc->AddVaryingWithWeight(dstVarying, &varying[eidx1*vev], 0.5f);
+        vdesc->AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
+        vdesc->AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
     }
 }
 
 void computeBilinearVertex(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, int offset, int start, int end) {
-
-    int ve = vdesc->numVertexElements;
-    int vev = vdesc->numVaryingElements;
 
 #ifdef _OPENMP
 #pragma omp parallel for
@@ -262,12 +235,11 @@ void computeBilinearVertex(const VertexDescriptor *vdesc, float *vertex, float *
     for (int i = start; i < end; i++) {
         int p = V_ITa[i];
         
-        float *dst = &vertex[(offset+i)*ve];
-        float *dstVarying = &varying[(offset+i)*vev];
-        vdesc->Clear(dst, dstVarying);
+        int dstIndex = offset + i;
+        vdesc->Clear(vertex, varying, dstIndex);
         
-        vdesc->AddWithWeight(dst, &vertex[p*ve], 1.0f);
-        vdesc->AddVaryingWithWeight(dstVarying, &varying[p*vev], 1.0f);
+        vdesc->AddWithWeight(vertex, dstIndex, p, 1.0f);
+        vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
     }
 }
 

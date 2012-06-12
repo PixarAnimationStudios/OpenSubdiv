@@ -89,11 +89,11 @@ public:
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr);
 
-    virtual void BeginLaunchKernel();
-    
-    virtual void EndLaunchKernel();
+    virtual void OnKernelLaunch();
 
-    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int count);
+    virtual void OnKernelFinish();
+
+    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int numVertices);
 
     virtual void BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
 
@@ -110,42 +110,100 @@ public:
 
 protected:
 
+    class ComputeShader {
+    public:
+        ComputeShader();
+        ~ComputeShader();
+
+        bool Compile(int numVertexElements, int numVaryingElements);
+
+        GLuint GetTableUniform(int table) const {
+            return _tableUniforms[table];
+        }
+        GLuint GetVertexUniform() const { return _vertexUniform; }
+        GLuint GetVaryingUniform() const { return _varyingUniform; }
+
+        void ApplyCatmarkFaceVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
+                                            int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end);
+
+        void ApplyCatmarkEdgeVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
+                                            int E_IT_ofs, int E_W_ofs, int offset, int start, int end);
+
+        void ApplyCatmarkVertexVerticesKernelB(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
+                                               int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end);
+
+        void ApplyCatmarkVertexVerticesKernelA(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
+                                               int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end);
+    
+        void ApplyLoopEdgeVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
+                                         int E_IT_ofs, int E_W_ofs, int offset, int start, int end);
+
+        void ApplyLoopVertexVerticesKernelB(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
+                                            int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end);
+    
+        void ApplyLoopVertexVerticesKernelA(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
+                                            int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end);
+
+        void UseProgram () const {
+            glUseProgram(_program);
+        }
+
+        struct Match {
+        Match(int numVertexElements, int numVaryingElements) :
+            _numVertexElements(numVertexElements), _numVaryingElements(numVaryingElements) {}
+            bool operator() (const ComputeShader &shader) {
+                return (shader._numVertexElements == _numVertexElements
+                        && shader._numVaryingElements == _numVaryingElements);
+            }
+            int _numVertexElements, _numVaryingElements;
+        };
+
+        friend class Match;
+
+    private:
+        void transformGpuBufferData(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, 
+                                    GLint offset, int start, int end) const;
+
+        int _numVertexElements;
+        int _numVaryingElements;
+
+        GLuint _program;
+
+        GLuint _uniformVertexPass;
+        GLuint _uniformIndexStart;
+        GLuint _uniformIndexOffset;
+        
+        GLuint _vertexUniform,
+               _varyingUniform;
+        
+        // shader locations
+        GLuint _subComputeFace, _subComputeEdge, _subComputeVertexA, _subComputeVertexB;
+        GLuint _subComputeLoopVertexB;
+
+        std::vector<GLuint> _tableUniforms;
+        std::vector<GLuint> _tableOffsetUniforms;
+
+    };
+
     void bindTextureBuffer(GLuint sampler, GLuint buffer, GLuint texture, GLenum type, int unit) const;
 
     void unbindTextureBuffer(int unit) const;
 
-    void transformGpuBufferData(GLuint kernel, GLint offset, int start, int end, bool vertexPass=false) const;
-
-    bool compile(const char *shaderSource, const char *shaderDefine);
-
-    GLuint _prgKernel;
-    
-    int _numVertexElements, 
-        _numVarying;
-	
-    GLuint _vertexBuffer, 
-           _varyingBuffer;
+    ComputeShader * _shader;
 
     // texture for vertex
     GLuint _vertexTexture, 
            _varyingTexture;
-	   
-    GLuint _vertexUniform,
-           _varyingUniform;
+    
+    OsdGpuVertexBuffer *_currentVertexBuffer,
+                       *_currentVaryingBuffer;
 
     // table buffers
     std::vector<GLuint> _tableBuffers;
     std::vector<GLuint> _tableTextures;
-    std::vector<GLuint> _tableUniforms;
-    std::vector<GLuint> _tableOffsetUniforms;
 
-    GLuint uniformVertexPass;
-    GLuint uniformIndexStart;
-    GLuint uniformIndexOffset;
-
-    // shader locations
-    GLuint subComputeFace, subComputeEdge, subComputeVertexA, subComputeVertexB;
-    GLuint subComputeLoopVertexB;
+    // static shader registry (XXX tentative..)
+    static std::vector<ComputeShader> shaderRegistry;
 };
 
 } // end namespace OPENSUBDIV_VERSION

@@ -81,7 +81,42 @@ void OsdCudaComputeBilinearVertex(float *vertex, float *varying, int numUserVert
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+OsdCudaVertexBuffer::OsdCudaVertexBuffer(int numElements, int numVertices) :
+    OsdGpuVertexBuffer(numElements, numVertices) {
 
+    // register vbo as cuda resource
+    cudaGraphicsGLRegisterBuffer(&_cudaResource, _vbo, cudaGraphicsMapFlagsNone);
+}
+
+void
+OsdCudaVertexBuffer::UpdateData(const float *src, int numVertices) {
+
+    void *dst = Map();
+    cudaMemcpy(dst, src, _numElements * numVertices * sizeof(float), cudaMemcpyHostToDevice);
+    Unmap();
+}
+
+void *
+OsdCudaVertexBuffer::Map() {
+
+    size_t num_bytes;
+    void *ptr;
+
+    cudaGraphicsMapResources(1, &_cudaResource, 0);
+    cudaGraphicsResourceGetMappedPointer(&ptr, &num_bytes, _cudaResource);
+    return ptr;
+}
+
+void
+OsdCudaVertexBuffer::Unmap() {
+    cudaGraphicsUnmapResources(1, &_cudaResource, 0);
+}
+
+OsdCudaVertexBuffer::~OsdCudaVertexBuffer() {
+    cudaGraphicsUnregisterResource(_cudaResource);
+}
+
+// -------------------------------------------------------------------------------
 OsdCudaKernelDispatcher::DeviceTable::~DeviceTable() {
 
     if (devicePtr) cudaFree(devicePtr);
@@ -95,18 +130,16 @@ OsdCudaKernelDispatcher::DeviceTable::Copy(int size, const void *ptr) {
     cudaMalloc(&devicePtr, size);
     cudaMemcpy(devicePtr, ptr, size, cudaMemcpyHostToDevice);
 }
+// -------------------------------------------------------------------------------
 
 OsdCudaKernelDispatcher::OsdCudaKernelDispatcher(int levels)
-    : OsdKernelDispatcher(levels),
-      _cudaVertexResource(NULL),
-      _cudaVaryingResource(NULL)
+    : OsdKernelDispatcher(levels)
 {
     _tables.resize(TABLE_MAX);
 }
 
 
 OsdCudaKernelDispatcher::~OsdCudaKernelDispatcher() {
-    cudaDeviceReset(); // XXX: necessary?
 }
 
 void
@@ -115,48 +148,52 @@ OsdCudaKernelDispatcher::CopyTable(int tableIndex, size_t size, const void *ptr)
     _tables[tableIndex].Copy(size, ptr);
 }
 
-void
-OsdCudaKernelDispatcher::BeginLaunchKernel() { }
-
-void
-OsdCudaKernelDispatcher::EndLaunchKernel() { }
-
 OsdVertexBuffer *
-OsdCudaKernelDispatcher::InitializeVertexBuffer(int numElements, int count)
+OsdCudaKernelDispatcher::InitializeVertexBuffer(int numElements, int numVertices)
 {
-    return new OsdGpuVertexBuffer(numElements, count);
+    return new OsdCudaVertexBuffer(numElements, numVertices);
 }
 
 void
 OsdCudaKernelDispatcher::BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying) {
 
-    OsdGpuVertexBuffer *bVertex = dynamic_cast<OsdGpuVertexBuffer *>(vertex);
-    OsdGpuVertexBuffer *bVarying = dynamic_cast<OsdGpuVertexBuffer *>(varying);
-    size_t num_bytes;
+    if (vertex)
+        _currentVertexBuffer = dynamic_cast<OsdCudaVertexBuffer *>(vertex);
+    else
+        _currentVertexBuffer = NULL;
 
-    if (bVertex) {
-        cudaGraphicsGLRegisterBuffer(&_cudaVertexResource, bVertex->GetGpuBuffer(), cudaGraphicsMapFlagsWriteDiscard);
-        cudaGraphicsMapResources(1, &_cudaVertexResource, 0);
-        cudaGraphicsResourceGetMappedPointer((void **)&_deviceVertices, &num_bytes, _cudaVertexResource);
+    if (varying)
+        _currentVaryingBuffer = dynamic_cast<OsdCudaVertexBuffer *>(varying);
+    else
+        _currentVaryingBuffer = NULL;
+
+    if (_currentVertexBuffer) {
+        _deviceVertices = (float*)_currentVertexBuffer->Map();
+        // XXX todo remove _numVertexElements
+        _numVertexElements = _currentVertexBuffer->GetNumElements();
+    } else {
+        _numVertexElements = 0;
     }
     
-    if (bVarying) {
-        cudaGraphicsGLRegisterBuffer(&_cudaVaryingResource, bVarying->GetGpuBuffer(), cudaGraphicsMapFlagsWriteDiscard);
-        cudaGraphicsMapResources(1, &_cudaVaryingResource, 0);
-        cudaGraphicsResourceGetMappedPointer((void **)&_deviceVaryings, &num_bytes, _cudaVaryingResource);
+    if (_currentVaryingBuffer) {
+        _deviceVaryings = (float*)_currentVaryingBuffer->Map();
+        _numVaryingElements = _currentVaryingBuffer->GetNumElements();
+    } else {
+        _numVaryingElements = 0;
     }
 }
 
 void
 OsdCudaKernelDispatcher::UnbindVertexBuffer()
 {
-    if (_cudaVertexResource)
-        cudaGraphicsUnmapResources(1, &_cudaVertexResource, 0);
-    if (_cudaVaryingResource)
-        cudaGraphicsUnmapResources(1, &_cudaVertexResource, 0);
+    if (_currentVertexBuffer){
+        _currentVertexBuffer->Unmap();
+    }
+    if (_currentVaryingBuffer)
+        _currentVaryingBuffer->Unmap();
 
-    _cudaVertexResource = NULL;
-    _cudaVaryingResource = NULL;
+    _currentVertexBuffer = NULL;
+    _currentVaryingBuffer = NULL;
 }
 
 void

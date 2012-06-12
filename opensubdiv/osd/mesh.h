@@ -95,7 +95,13 @@ public:
 
     OsdVertexBuffer *InitializeVertexBuffer(int numElements);
 
-    void Subdivide(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
+    // for non-interleaved vertex data
+    void Subdivide(OsdVertexBuffer *vertex, OsdVertexBuffer *varying = NULL);
+
+/*
+    // for interleaved vertex data ?
+    template <class T> void Subdivide(T *vertex) { }
+*/
 
     void Synchronize();
 

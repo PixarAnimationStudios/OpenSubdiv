@@ -102,7 +102,6 @@ OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel) {
     
     OSD_DEBUG("PREP: NumCoarseVertex = %d\n", _mMesh->GetNumCoarseVertices());
     OSD_DEBUG("PREP: NumVertex = %d\n", _mMesh->GetNumVertices());
-    OSD_DEBUG("PREP: NumTables = %d\n", _mMesh->GetNumSubdivisionTables());
 
     const FarSubdivisionTables<OsdVertex>* table = _mMesh->GetSubdivision();
 
@@ -145,11 +144,11 @@ OsdMesh::Subdivide(OsdVertexBuffer *vertex, OsdVertexBuffer *varying) {
 
     _dispatcher->BindVertexBuffer(vertex, varying);
 
-    _dispatcher->BeginLaunchKernel();
+    _dispatcher->OnKernelLaunch();
 
     _mMesh->Subdivide(_level+1);
 
-    _dispatcher->EndLaunchKernel();
+    _dispatcher->OnKernelFinish();
 
     _dispatcher->UnbindVertexBuffer();
 }
