@@ -60,6 +60,7 @@
 
 #include <osd/cpuDispatcher.h>
 #include <osd/mesh.h>
+#include <osd/vertexBuffer.h>
 
 #include "hbrUtil.h"
 
@@ -124,10 +125,10 @@ public:
 
     int GetElementBuffer() const { return _index; }
     int GetNumIndices() const { return _numIndices; }
-    int GetVertexBuffer() const { return _osdmesh->GetVertexBuffer(); }
-    int GetVaryingBuffer() const { return _osdmesh->GetVaryingBuffer(); }
-    int GetVertexStride() const { return _osdmesh->GetNumVertexElements()*sizeof(float); }
-    int GetVaryingStride() const { return _osdmesh->GetNumVaryingElements()*sizeof(float); }
+    int GetVertexBuffer() const { return _vertexBuffer->GetGpuBuffer(); }
+    int GetVaryingBuffer() const { return _varyingBuffer->GetGpuBuffer(); }
+    int GetVertexStride() const { return _vertexBuffer->GetNumElements() * sizeof(float); }
+    int GetVaryingStride() const { return _varyingBuffer->GetNumElements() * sizeof(float); }
     int GetPrimType() const { return _loop ? GL_TRIANGLES : GL_QUADS; }
 
     // XXX
@@ -144,6 +145,7 @@ private:
     bool _loop;
 
     OpenSubdiv::OsdMesh *_osdmesh;
+    OpenSubdiv::OsdVertexBuffer *_vertexBuffer, *_varyingBuffer;
     GLuint _index;
 
     int _numIndices;
@@ -189,8 +191,7 @@ SubdivUserData::SubdivUserData(bool loop) :
     MUserData(false /*don't delete after draw */),
     _loop(loop)
 {
-    _osdmesh = new OpenSubdiv::OsdMesh(6 /*numVertexElements*/, 
-                                       0 /*numVaryingElements*/ );
+    _osdmesh = new OpenSubdiv::OsdMesh();
     glGenBuffers(1, &_index);
 }
 
@@ -288,7 +289,12 @@ SubdivUserData::Populate(MObject mesh)
                                                    edgeCreaseIndices, edgeCreases,
                                                    interpBoundary, _loop);
 
+    if (_osdmesh) delete _osdmesh;
+    if (_vertexBuffer) delete _vertexBuffer;
     _osdmesh->Create(hbrMesh, level, kernel);
+
+    // create vertex buffer
+    _vertexBuffer = _osdmesh->InitializeVertexBuffer(6 /* position + normal */);
 
     delete hbrMesh;
 
@@ -337,7 +343,7 @@ SubdivUserData::UpdatePoints(MObject mesh)
         vertex[i*6+5] = normals[i].z;
     }
 
-    _osdmesh->UpdatePoints(vertex);
+    _vertexBuffer->UpdateData(&vertex.at(0), nPoints);
 
 /* XXX
     float *varying = new float[_osdmesh.GetNumVaryingElements()];
@@ -353,7 +359,7 @@ SubdivUserData::UpdatePoints(MObject mesh)
 */
 
     // subdivide
-    _osdmesh->Subdivide();
+    _osdmesh->Subdivide(_vertexBuffer, NULL);
 }
 
 //---------------------------------------------------------------------------
@@ -468,7 +474,7 @@ void OpenSubdivDrawOverride::draw(const MHWRender::MDrawContext& context, const 
 
     {
         int vertexStride = mesh->GetVertexStride();
-        int varyingStride = mesh->GetVaryingStride();
+//        int varyingStride = mesh->GetVaryingStride();
         //printf("Draw. stride = %d\n", stride);
         glBindBuffer(GL_ARRAY_BUFFER, mesh->GetVertexBuffer());
         glVertexPointer(3, GL_FLOAT, vertexStride, ((char*)(0)));
