@@ -61,14 +61,15 @@
 #include <vector>
 #include <GL/glew.h>
 
-#include "vertex.h"
-#include "vertexBuffer.h"
-
+#include "../version.h"
 #include "../far/mesh.h"
 #include "../hbr/mesh.h"
 #include "../hbr/vertex.h"
 #include "../hbr/face.h"
 #include "../hbr/halfedge.h"
+
+#include "vertex.h"
+#include "vertexBuffer.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

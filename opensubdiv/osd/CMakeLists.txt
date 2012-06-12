@@ -154,6 +154,9 @@ if( CUDA_FOUND )
     list(APPEND KERNEL_FILES
         cudaKernel.cu
     )
+    add_definitions(
+        -DOPENSUBDIV_HAS_CUDA
+    )
 endif()
 
 

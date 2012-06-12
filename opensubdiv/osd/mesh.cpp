@@ -56,6 +56,7 @@
 //
 #include <string.h>
 
+#include "../version.h"
 #include "../osd/mesh.h"
 #include "../osd/local.h"
 #include "../osd/dump.cpp"
@@ -116,6 +117,11 @@ OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel) {
         // catmark
         _dispatcher->UpdateTable(OsdKernelDispatcher::F_IT, cctable->Get_F_IT());
         _dispatcher->UpdateTable(OsdKernelDispatcher::F_ITa, cctable->Get_F_ITa());
+    } else if ( const FarBilinearSubdivisionTables<OsdVertex> * btable = 
+       dynamic_cast<const FarBilinearSubdivisionTables<OsdVertex>*>(table) ) {
+        // bilinear
+        _dispatcher->UpdateTable(OsdKernelDispatcher::F_IT, btable->Get_F_IT());
+        _dispatcher->UpdateTable(OsdKernelDispatcher::F_ITa, btable->Get_F_ITa());
     } else {
         // XXX for glsl shader...
         _dispatcher->CopyTable(OsdKernelDispatcher::F_IT, 0, NULL);

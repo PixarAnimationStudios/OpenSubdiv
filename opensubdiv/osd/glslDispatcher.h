@@ -57,6 +57,7 @@
 #ifndef OSD_GLSL_DISPATCHER_H
 #define OSD_GLSL_DISPATCHER_H
 
+#include "../version.h"
 #include "../osd/kernelDispatcher.h"
 
 namespace OpenSubdiv {

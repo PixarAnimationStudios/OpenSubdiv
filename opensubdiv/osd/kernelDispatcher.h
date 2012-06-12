@@ -60,6 +60,7 @@
 #include "vertex.h"
 #include "vertexBuffer.h"
 
+#include "../version.h"
 #include "../far/dispatcher.h"
 
 #include <GL/glew.h>

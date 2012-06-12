@@ -218,8 +218,8 @@ enum { KERNEL_CPU, KERNEL_OMP, KERNEL_GLSL, KERNEL_CL, KERNEL_CUDA };
 
 //------------------------------------------------------------------------------                                        
 inline void 
-cross(float *n, const float *p0, const float *p1, const float *p2)
-{
+cross(float *n, const float *p0, const float *p1, const float *p2) {
+
     float a[3] = { p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2] };
     float b[3] = { p2[0]-p0[0], p2[1]-p0[1], p2[2]-p0[2] };
     n[0] = a[1]*b[2]-a[2]*b[1];
@@ -235,6 +235,7 @@ cross(float *n, const float *p0, const float *p1, const float *p2)
 //------------------------------------------------------------------------------                                        
 inline void 
 normalize(float * p) {
+
     float dist = sqrtf( p[0]*p[0] + p[1]*p[1]  + p[2]*p[2] );
     p[0]/=dist;
     p[1]/=dist;
@@ -246,9 +247,8 @@ normalize(float * p) {
 static void 
 calcNormals(OpenSubdiv::OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float> & result ) {
 
-    // calc normal vector
+    // calc normal vectors
     int nverts = (int)pos.size()/3;
-    result.resize(nverts, 0.0f);
 
     int nfaces = mesh->GetNumCoarseFaces();
     for (int i = 0; i < nfaces; ++i) {
@@ -279,11 +279,11 @@ updateGeom()
 {
     int nverts = (int)g_positions.size() / 3;
     
-    static std::vector<float> vertex;
+    std::vector<float> vertex;
     vertex.reserve(nverts*6);
     
-    const float *p = &g_positions.at(0);
-    const float *n = &g_normals.at(0);
+    const float *p = &g_positions[0];
+    const float *n = &g_normals[0];
        
     for (int i = 0; i < nverts; ++i) {
         float move = 0.05*cos(p[0]*20+g_frame*0.01);
@@ -313,13 +313,17 @@ updateGeom()
 
 //------------------------------------------------------------------------------
 void
-updateOsdMesh( const char * shape, int level, std::string kernel="omp", Scheme scheme=kCatmark ) { 
+createOsdMesh( const char * shape, int level, std::string kernel="omp", Scheme scheme=kCatmark ) { 
 
     // generate Hbr representation from "obj" description
     OpenSubdiv::OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, g_positions, scheme);
 
+    g_normals.resize(g_positions.size(),0.0f);
+    calcNormals( hmesh, g_positions, g_normals );
 
     // generate Osd mesh from Hbr mesh
+    delete g_osdmesh;
+    g_osdmesh = new OpenSubdiv::OsdMesh(6, 0);
     g_osdmesh->Create(hmesh, level, kernel);
     
     // Hbr mesh can be deleted
@@ -329,12 +333,11 @@ updateOsdMesh( const char * shape, int level, std::string kernel="omp", Scheme s
     const std::vector<int> &indices = g_osdmesh->GetFarMesh()->GetFaceVertices(level);
 
     g_numIndices = indices.size();
+    g_scheme = scheme;
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*g_numIndices, &(indices[0]), GL_STATIC_DRAW);
        
     updateGeom();
-
-    calcNormals( hmesh, g_positions, g_normals );
 }    
 
 //------------------------------------------------------------------------------
@@ -479,7 +482,7 @@ void kernelMenu(int k)
         default: break;
     }
     
-    updateOsdMesh( g_defaultShapes[ g_currentShape ].data, g_level, g_kernel, g_scheme );
+    createOsdMesh( g_defaultShapes[ g_currentShape ].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
 }
 
 //------------------------------------------------------------------------------
@@ -496,7 +499,7 @@ modelMenu(int m)
        
     glutSetWindowTitle( g_defaultShapes[m].name.c_str() );
 
-    updateOsdMesh( g_defaultShapes[m].data, g_level, g_kernel, g_scheme );
+    createOsdMesh( g_defaultShapes[m].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
 }
 
 //------------------------------------------------------------------------------
@@ -505,7 +508,7 @@ levelMenu(int l)
 {
     g_level = l;
 
-    updateOsdMesh( g_defaultShapes[g_currentShape].data, g_level, g_kernel, g_scheme );
+    createOsdMesh( g_defaultShapes[g_currentShape].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
 }
 
 //------------------------------------------------------------------------------
@@ -644,7 +647,6 @@ int main(int argc, char ** argv) {
     omp_set_num_threads(1);
     g_kernel = "omp";
 
-    g_osdmesh = new OpenSubdiv::OsdMesh(6, 0);
     glGenBuffers(1, &g_indexBuffer);
 
     modelMenu(0);

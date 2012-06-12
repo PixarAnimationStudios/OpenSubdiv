@@ -57,6 +57,7 @@
 #ifndef OSD_CUDA_DISPATCHER_H
 #define OSD_CUDA_DISPATCHER_H
 
+#include "../version.h"
 #include "../osd/kernelDispatcher.h"
 
 #include <GL/glew.h>
@@ -76,6 +77,14 @@ class OsdCudaKernelDispatcher : public OsdKernelDispatcher
 public:
     OsdCudaKernelDispatcher(int levels);
     virtual ~OsdCudaKernelDispatcher();
+
+
+    virtual void ApplyBilinearFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+    
+    virtual void ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+    
+    virtual void ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+
 
 
     virtual void ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;

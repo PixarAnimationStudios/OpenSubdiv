@@ -57,6 +57,7 @@
 #ifndef OSD_CPU_DISPATCHER_H
 #define OSD_CPU_DISPATCHER_H
 
+#include "../version.h"
 #include "../osd/kernelDispatcher.h"
 
 #include <GL/glew.h>
@@ -75,6 +76,14 @@ public:
     OsdCpuKernelDispatcher(int levels);
     virtual ~OsdCpuKernelDispatcher();
 
+
+    virtual void ApplyBilinearFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+    
+    virtual void ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+    
+    virtual void ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+
+
     virtual void ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
     
     virtual void ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
@@ -83,11 +92,13 @@ public:
     
     virtual void ApplyCatmarkVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
 
+
     virtual void ApplyLoopEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
     
     virtual void ApplyLoopVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
     
     virtual void ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
+
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr);
 

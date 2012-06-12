@@ -54,6 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+#include "../version.h"
 #include "../osd/cpuDispatcher.h"
 #include "../osd/cpuKernel.h"
 
@@ -123,6 +124,39 @@ OsdCpuKernelDispatcher::UnbindVertexBuffer()
 
 void
 OsdCpuKernelDispatcher::Synchronize() { }
+
+
+void
+OsdCpuKernelDispatcher::ApplyBilinearFaceVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
+    VertexDescriptor vd(_numVertexElements, _numVaryingElements);
+
+    computeFace(&vd, _vbo, _varyingVbo,
+                (int*)_tables[F_IT].devicePtr + _tableOffsets[F_IT][level-1],
+                (int*)_tables[F_ITa].devicePtr + _tableOffsets[F_ITa][level-1],
+                offset, start, end);
+}
+
+void
+OsdCpuKernelDispatcher::ApplyBilinearEdgeVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
+    VertexDescriptor vd(_numVertexElements, _numVaryingElements);
+
+    computeBilinearEdge(&vd, _vbo, _varyingVbo,
+                        (int*)_tables[E_IT].devicePtr + _tableOffsets[E_IT][level-1],
+                        offset, 
+                        start, end);
+}
+
+void
+OsdCpuKernelDispatcher::ApplyBilinearVertexVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
+    VertexDescriptor vd(_numVertexElements, _numVaryingElements);
+
+    computeBilinearVertex(&vd, _vbo, _varyingVbo,
+                          (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
+                          offset, start, end);
+}
 
 void
 OsdCpuKernelDispatcher::ApplyCatmarkFaceVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
