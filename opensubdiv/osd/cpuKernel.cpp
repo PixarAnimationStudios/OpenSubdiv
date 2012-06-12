@@ -56,6 +56,7 @@
 //
 #include <math.h>
 
+#include "../version.h"
 #include "../osd/cpuKernel.h"
 
 namespace OpenSubdiv {

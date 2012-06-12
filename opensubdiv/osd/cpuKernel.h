@@ -57,6 +57,8 @@
 #ifndef OSD_CPU_KERNEL_H
 #define OSD_CPU_KERNEL_H
 
+#include "../version.h"
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

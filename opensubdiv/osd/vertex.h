@@ -1,6 +1,8 @@
 #ifndef GSD_VERTEX_H
 #define GSD_VERTEX_H
 
+#include "../version.h"
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

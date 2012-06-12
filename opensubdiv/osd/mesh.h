@@ -61,6 +61,7 @@
 #include <vector>
 #include <GL/glew.h>
 
+#include "../version.h"
 #include "../osd/vertex.h"
 
 #include "../far/mesh.h"

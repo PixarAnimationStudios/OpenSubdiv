@@ -57,6 +57,7 @@
 #ifndef OSD_CUDA_DISPATCHER_H
 #define OSD_CUDA_DISPATCHER_H
 
+#include "../version.h"
 #include "../osd/kernelDispatcher.h"
 
 #include <GL/glew.h>

@@ -54,23 +54,28 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+#include "../version.h"
 #include "../osd/cudaDispatcher.h"
 
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 
+extern "C" {
+
+void OsdCudaComputeFace(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *F_IT, int *F_ITa, int offset, int start, int end);
+
+void OsdCudaComputeEdge(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *E_IT, float *E_W, int offset, int start, int end);
+
+void OsdCudaComputeVertexA(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, float *V_W, int offset, int start, int end, int pass);
+
+void OsdCudaComputeVertexB(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, int *V_IT, float *V_W, int offset, int start, int end);
+
+void OsdCudaComputeLoopVertexB(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, int *V_IT, float *V_W, int offset, int start, int end);
+
+}
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
-
-extern void OsdCudaComputeFace(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *F_IT, int *F_ITa, int offset, int start, int end);
-
-extern void OsdCudaComputeEdge(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *E_IT, float *E_W, int offset, int start, int end);
-
-extern void OsdCudaComputeVertexA(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, float *V_W, int offset, int start, int end, int pass);
-
-extern void OsdCudaComputeVertexB(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, int *V_IT, float *V_W, int offset, int start, int end);
-
-extern void OsdCudaComputeLoopVertexB(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, int *V_IT, float *V_W, int offset, int start, int end);
 
 
 OsdCudaKernelDispatcher::DeviceTable::~DeviceTable() {

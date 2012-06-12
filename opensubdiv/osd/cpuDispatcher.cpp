@@ -54,6 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+#include "../version.h"
 #include "../osd/cpuDispatcher.h"
 #include "../osd/cpuKernel.h"
 
@@ -200,6 +201,24 @@ OsdCpuKernelDispatcher::UnmapVaryingBuffer() {
 
 void
 OsdCpuKernelDispatcher::Synchronize() { }
+
+
+void
+OsdCpuKernelDispatcher::ApplyBilinearFaceVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
+}
+
+void
+OsdCpuKernelDispatcher::ApplyBilinearEdgeVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
+}
+
+void
+OsdCpuKernelDispatcher::ApplyBilinearVertexVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
+}
+
+
 
 void
 OsdCpuKernelDispatcher::ApplyCatmarkFaceVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {

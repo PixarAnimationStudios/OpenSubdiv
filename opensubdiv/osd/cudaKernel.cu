@@ -495,14 +495,18 @@ computeLoopVertexB(float *fVertex, int numVertexElements, float *fVaryings, int 
 
 // --------------------------------------------------------------------------------------------
 
+#include "../version.h"
+
 #define OPT_KERNEL(NUM_USER_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS, KERNEL, X, Y, ARG) \
     if(numUserVertexElements == NUM_USER_VERTEX_ELEMENTS && \
        numVaryingElements == NUM_VARYING_ELEMENTS) \
        { KERNEL<NUM_USER_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS><<<X,Y>>>ARG; \
          return;  }
 
+extern "C" {
+
 void OsdCudaComputeFace(float *vertex, float *varying,
-                         int numUserVertexElements, int numVaryingElements,
+                        int numUserVertexElements, int numVaryingElements,
                         int *F_IT, int *F_ITa, int offset, int start, int end)
 {
     //computeFace<3, 0><<<512,32>>>(vertex, varying, F_IT, F_ITa, offset, start, end);
@@ -570,4 +574,6 @@ void OsdCudaComputeLoopVertexB(float *vertex, float *varying,
 
     computeLoopVertexB<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
                                     V_ITa, V_IT, V_W, offset, start, end);
+}
+
 }

@@ -56,6 +56,7 @@
 //
 #include <string.h>
 
+#include "../version.h"
 #include "../osd/mesh.h"
 #include "../osd/local.h"
 #include "../osd/dump.cpp"

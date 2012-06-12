@@ -59,6 +59,7 @@
 
 #include "vertex.h"
 
+#include "../version.h"
 #include "../far/dispatcher.h"
 
 #include <GL/glew.h>
