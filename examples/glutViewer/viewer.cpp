@@ -76,6 +76,8 @@
 
     #include <cuda_runtime_api.h>
     #include <cuda_gl_interop.h>
+
+    #include "cudaInit.h"
 #endif
 
 #include <omp.h>
@@ -213,6 +215,7 @@ std::string g_kernel;
 GLuint g_indexBuffer;
 
 OpenSubdiv::OsdMesh * g_osdmesh = 0;
+OpenSubdiv::OsdVertexBuffer * g_vertexBuffer = 0;
 
 enum { KERNEL_CPU, KERNEL_OMP, KERNEL_GLSL, KERNEL_CL, KERNEL_CUDA };
 
@@ -297,11 +300,13 @@ updateGeom()
         n += 3;
     }
 
+    if (!g_vertexBuffer) g_vertexBuffer = g_osdmesh->InitializeVertexBuffer(6);
+    g_vertexBuffer->UpdateData(&vertex[0], nverts);
+
     Stopwatch s;
     s.Start();
 
-    g_osdmesh->UpdatePoints(vertex);
-    g_osdmesh->Subdivide();
+    g_osdmesh->Subdivide(g_vertexBuffer, NULL);
 
     s.Stop();
     g_cpuTime = s.GetElapsed() * 1000.0f;
@@ -309,6 +314,9 @@ updateGeom()
     g_osdmesh->Synchronize();
     s.Stop();
     g_gpuTime = s.GetElapsed() * 1000.0f;
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->GetGpuBuffer());
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 //------------------------------------------------------------------------------
@@ -322,9 +330,13 @@ createOsdMesh( const char * shape, int level, std::string kernel="omp", Scheme s
     calcNormals( hmesh, g_positions, g_normals );
 
     // generate Osd mesh from Hbr mesh
-    delete g_osdmesh;
-    g_osdmesh = new OpenSubdiv::OsdMesh(6, 0);
+    if (g_osdmesh) delete g_osdmesh;
+    g_osdmesh = new OpenSubdiv::OsdMesh();
     g_osdmesh->Create(hmesh, level, kernel);
+    if (g_vertexBuffer) {
+        delete g_vertexBuffer;
+        g_vertexBuffer = NULL;
+    }
     
     // Hbr mesh can be deleted
     delete hmesh;
@@ -372,14 +384,16 @@ display()
     glRotatef(g_ry, 1, 0, 0);
     glRotatef(g_rx, 0, 1, 0);
 
+    GLuint bVertex = g_vertexBuffer->GetGpuBuffer();
 #ifdef VARYING_NORMAL
-    glBindBuffer(GL_ARRAY_BUFFER, g_osdmesh->GetVertexBuffer());
+    GLuint bVarying = g_varyingBuffer->GetGpuBuffer();
+    glBindBuffer(GL_ARRAY_BUFFER, bVertex);
     glVertexPointer(3, GL_FLOAT, 12, ((float*)(0)));
 
-    glBindBuffer(GL_ARRAY_BUFFER, g_osdmesh->GetVaryingBuffer());
+    glBindBuffer(GL_ARRAY_BUFFER, bVarying);
     glNormalPointer(GL_FLOAT, 12, ((float*)(0)));
 #else
-    glBindBuffer(GL_ARRAY_BUFFER, g_osdmesh->GetVertexBuffer());
+    glBindBuffer(GL_ARRAY_BUFFER, bVertex);
     glVertexPointer(3, GL_FLOAT, 24, ((float*)(0)));
     glNormalPointer(GL_FLOAT, 24, ((float*)(12)));
 #endif
@@ -622,6 +636,7 @@ int main(int argc, char ** argv) {
     OpenSubdiv::OsdGlslKernelDispatcher::Register();
 #if OPENSUBDIV_HAS_CUDA
     OpenSubdiv::OsdCudaKernelDispatcher::Register();
+    cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
 #endif
 
 
@@ -638,11 +653,6 @@ int main(int argc, char ** argv) {
         } else 
             filename = argv[i];
     }
-
-#if defined(_WIN32)
-    // somehow it crashes on linux. will investigate later..
-    cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
-#endif
 
     omp_set_num_threads(1);
     g_kernel = "omp";
