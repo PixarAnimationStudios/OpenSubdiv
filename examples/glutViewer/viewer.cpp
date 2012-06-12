@@ -333,6 +333,7 @@ createOsdMesh( const char * shape, int level, std::string kernel="omp", Scheme s
     const std::vector<int> &indices = g_osdmesh->GetFarMesh()->GetFaceVertices(level);
 
     g_numIndices = indices.size();
+    g_scheme = scheme;
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*g_numIndices, &(indices[0]), GL_STATIC_DRAW);
        
@@ -481,7 +482,7 @@ void kernelMenu(int k)
         default: break;
     }
     
-    createOsdMesh( g_defaultShapes[ g_currentShape ].data, g_level, g_kernel, g_scheme );
+    createOsdMesh( g_defaultShapes[ g_currentShape ].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
 }
 
 //------------------------------------------------------------------------------
@@ -498,7 +499,7 @@ modelMenu(int m)
        
     glutSetWindowTitle( g_defaultShapes[m].name.c_str() );
 
-    createOsdMesh( g_defaultShapes[m].data, g_level, g_kernel, g_scheme );
+    createOsdMesh( g_defaultShapes[m].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
 }
 
 //------------------------------------------------------------------------------
@@ -507,7 +508,7 @@ levelMenu(int l)
 {
     g_level = l;
 
-    createOsdMesh( g_defaultShapes[g_currentShape].data, g_level, g_kernel, g_scheme );
+    createOsdMesh( g_defaultShapes[g_currentShape].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
 }
 
 //------------------------------------------------------------------------------
