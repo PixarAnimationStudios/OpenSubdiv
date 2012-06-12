@@ -72,6 +72,10 @@ void OsdCudaComputeVertexB(float *vertex, float *varying, int numUserVertexEleme
 
 void OsdCudaComputeLoopVertexB(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, int *V_IT, float *V_W, int offset, int start, int end);
 
+void OsdCudaComputeBilinearEdge(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *E_IT, int offset, int start, int end);
+
+void OsdCudaComputeBilinearVertex(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, int offset, int start, int end);
+
 }
 
 namespace OpenSubdiv {
@@ -179,8 +183,34 @@ OsdCudaKernelDispatcher::Synchronize() {
 }
 
 void
+OsdCudaKernelDispatcher::ApplyBilinearFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    OsdCudaComputeFace(_deviceVertices, _deviceVaryings,
+                       _numVertexElements-3, _numVaryingElements,
+                       (int*)_tables[F_IT].devicePtr + _tableOffsets[F_IT][level-1],
+                       (int*)_tables[F_ITa].devicePtr + _tableOffsets[F_ITa][level-1],
+                       offset, start, end);
+}
+
+void
+OsdCudaKernelDispatcher::ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+
+    OsdCudaComputeBilinearEdge(_deviceVertices, _deviceVaryings,
+                               _numVertexElements-3, _numVaryingElements,
+                               (int*)_tables[E_IT].devicePtr + _tableOffsets[E_IT][level-1],
+                               offset, start, end);
+}
+
+void
+OsdCudaKernelDispatcher::ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
+    OsdCudaComputeBilinearVertex(_deviceVertices, _deviceVaryings,
+                                 _numVertexElements-3, _numVaryingElements,
+                                 (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
+                                 offset, start, end);
+}
+
+void
 OsdCudaKernelDispatcher::ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
-    // XXX: use static bridge function to avoid nvcc includes many amber headers...
     OsdCudaComputeFace(_deviceVertices, _deviceVaryings,
                        _numVertexElements-3, _numVaryingElements,
                        (int*)_tables[F_IT].devicePtr + _tableOffsets[F_IT][level-1],

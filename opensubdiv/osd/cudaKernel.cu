@@ -491,11 +491,109 @@ computeLoopVertexB(float *fVertex, int numVertexElements, float *fVaryings, int 
     }
 }
                
+// --------------------------------------------------------------------------------------------
+
+template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
+computeBilinearEdge(float *fVertex, float *fVaryings, int *E0_IT, int offset, int start, int end)
+{
+    DeviceVertex<NUM_USER_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_USER_VERTEX_ELEMENTS>*)fVertex;
+    DeviceVarying<NUM_VARYING_ELEMENTS> *varyings = (DeviceVarying<NUM_VARYING_ELEMENTS>*)fVaryings;
+    for(int i = start + threadIdx.x + blockIdx.x*blockDim.x; i < end; i+= blockDim.x * gridDim.x){
+        int eidx0 = E0_IT[2*i+0];
+        int eidx1 = E0_IT[2*i+1];
+        
+        DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
+        dst.clear();
+        
+        dst.addWithWeight(&vertex[eidx0], 0.5f);
+        dst.addWithWeight(&vertex[eidx1], 0.5f);
+        
+        vertex[offset+i] = dst;
+
+        if(NUM_VARYING_ELEMENTS > 0){
+            DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
+            dstVarying.clear();
+            dstVarying.addVaryingWithWeight(&varyings[eidx0], 0.5f);
+            dstVarying.addVaryingWithWeight(&varyings[eidx1], 0.5f);
+            varyings[offset+i] = dstVarying;
+        }
+    }
+}
+
+__global__ void
+computeBilinearEdge(float *fVertex, int numVertexElements, float *fVarying, int numVaryingElements, 
+                    int *E0_IT, int offset, int start, int end)
+{
+    for(int i = start + threadIdx.x + blockIdx.x*blockDim.x; i < end; i+= blockDim.x * gridDim.x){
+        int eidx0 = E0_IT[2*i+0];
+        int eidx1 = E0_IT[2*i+1];
+        
+        float *dstVertex = fVertex + (i+offset)*numVertexElements;
+        clear(dstVertex, numVertexElements);
+        
+        addWithWeight(dstVertex, fVertex + eidx0*numVertexElements, 0.5f, numVertexElements);
+        addWithWeight(dstVertex, fVertex + eidx1*numVertexElements, 0.5f, numVertexElements);
+        
+        if(numVaryingElements > 0){
+            float *dstVarying = fVarying + i*numVaryingElements;
+            clear(dstVarying, numVaryingElements);
+
+            addVaryingWithWeight(dstVarying, fVarying + eidx0*numVaryingElements, 0.5f, numVaryingElements);
+            addVaryingWithWeight(dstVarying, fVarying + eidx1*numVaryingElements, 0.5f, numVaryingElements);
+        }
+    }
+}
+
+template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
+computeBilinearVertex(float *fVertex, float *fVaryings, int *V0_ITa, int offset, int start, int end)
+{
+    DeviceVertex<NUM_USER_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_USER_VERTEX_ELEMENTS>*)fVertex;
+    DeviceVarying<NUM_VARYING_ELEMENTS> *varyings = (DeviceVarying<NUM_VARYING_ELEMENTS>*)fVaryings;
+    for(int i = start + threadIdx.x + blockIdx.x*blockDim.x; i < end; i += blockDim.x * gridDim.x){
+        int p = V0_ITa[i];
+        
+        DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
+        dst.clear();
+        
+        dst.addWithWeight(&vertex[p], 1.0f);
+	vertex[i+offset] = dst;
+
+        if(NUM_VARYING_ELEMENTS > 0){
+            DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
+            dstVarying.clear();
+            dstVarying.addVaryingWithWeight(&varyings[p], 1.0f);
+            varyings[i+offset] = dstVarying;
+        }
+    }
+}
+
+__global__ void
+computeBilinearVertex(float *fVertex, int numVertexElements, float *fVaryings, int numVaryingElements,
+               const int *V0_ITa, int offset, int start, int end)
+{
+    for(int i = start + threadIdx.x + blockIdx.x*blockDim.x; i < end; i += blockDim.x * gridDim.x){
+        int p = V0_ITa[i];
+        
+        float *dstVertex = fVertex + (i+offset)*numVertexElements;
+        clear(dstVertex, numVertexElements);
+        addWithWeight(dstVertex, fVertex + p*numVertexElements, 1.0f, numVertexElements);
+
+        if(numVaryingElements > 0){
+            float *dstVarying = fVaryings + i*numVaryingElements;
+            clear(dstVarying, numVaryingElements);
+            addVaryingWithWeight(dstVarying, fVaryings + p*numVaryingElements, 1.0f, numVaryingElements);
+        }
+    }
+}
+               
 
 
 // --------------------------------------------------------------------------------------------
 
 #include "../version.h"
+
+// XXX: this macro usage is tentative. Since cuda kernel can't be dynamically configured, 
+// still trying to find better way to have optimized kernel..
 
 #define OPT_KERNEL(NUM_USER_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS, KERNEL, X, Y, ARG) \
     if(numUserVertexElements == NUM_USER_VERTEX_ELEMENTS && \
@@ -574,6 +672,34 @@ void OsdCudaComputeLoopVertexB(float *vertex, float *varying,
 
     computeLoopVertexB<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
                                     V_ITa, V_IT, V_W, offset, start, end);
+}
+
+void OsdCudaComputeBilinearEdge(float *vertex, float *varying,
+                                int numUserVertexElements, int numVaryingElements,
+                                int *E_IT, int offset, int start, int end)
+{
+    //computeBilinearEdge<0, 3><<<512,32>>>(vertex, varying, E_IT, offset, start, end);
+    OPT_KERNEL(0, 0, computeBilinearEdge, 512, 32, (vertex, varying, E_IT, offset, start, end));
+    OPT_KERNEL(0, 3, computeBilinearEdge, 512, 32, (vertex, varying, E_IT, offset, start, end));
+    OPT_KERNEL(3, 0, computeBilinearEdge, 512, 32, (vertex, varying, E_IT, offset, start, end));
+    OPT_KERNEL(3, 3, computeBilinearEdge, 512, 32, (vertex, varying, E_IT, offset, start, end));
+
+    computeBilinearEdge<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
+                                     E_IT, offset, start, end);
+}
+
+void OsdCudaComputeBilinearVertex(float *vertex, float *varying, 
+                                  int numUserVertexElements, int numVaryingElements,
+                                  int *V_ITa, int offset, int start, int end)
+{
+//    computeBilinearVertex<0, 3><<<512,32>>>(vertex, varying, V_ITa, offset, start, end);
+    OPT_KERNEL(0, 0, computeBilinearVertex, 512, 32, (vertex, varying, V_ITa, offset, start, end));
+    OPT_KERNEL(0, 3, computeBilinearVertex, 512, 32, (vertex, varying, V_ITa, offset, start, end));
+    OPT_KERNEL(3, 0, computeBilinearVertex, 512, 32, (vertex, varying, V_ITa, offset, start, end));
+    OPT_KERNEL(3, 3, computeBilinearVertex, 512, 32, (vertex, varying, V_ITa, offset, start, end));
+
+    computeBilinearVertex<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
+                                       V_ITa, offset, start, end);
 }
 
 }
