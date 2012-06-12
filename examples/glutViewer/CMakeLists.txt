@@ -58,7 +58,13 @@
 find_package(IlmBase REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
-find_package(CUDA REQUIRED)
+find_package(CUDA)
+
+if(CUDA_FOUND)
+    add_definitions(
+        -DOPENSUBDIV_HAS_CUDA
+    )
+endif()
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
