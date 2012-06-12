@@ -227,5 +227,49 @@ void computeLoopVertexB(const VertexDescriptor *vdesc, float *vertex, float *var
     }
 }
 
+void computeBilinearEdge(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *E_IT, int offset, int start, int end) {
+
+    int ve = vdesc->numVertexElements;
+    int vev = vdesc->numVaryingElements;
+
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+    for (int i = start; i < end; i++) {
+        int eidx0 = E_IT[2*i+0];
+        int eidx1 = E_IT[2*i+1];
+        
+        float *dst = &vertex[(offset+i)*ve];
+        float *dstVarying = &varying[(offset+i)*vev];
+        vdesc->Clear(dst, dstVarying);
+        
+        vdesc->AddWithWeight(dst, &vertex[eidx0*ve], 0.5f);
+        vdesc->AddWithWeight(dst, &vertex[eidx1*ve], 0.5f);
+        
+        vdesc->AddVaryingWithWeight(dstVarying, &varying[eidx0*vev], 0.5f);
+        vdesc->AddVaryingWithWeight(dstVarying, &varying[eidx1*vev], 0.5f);
+    }
+}
+
+void computeBilinearVertex(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, int offset, int start, int end) {
+
+    int ve = vdesc->numVertexElements;
+    int vev = vdesc->numVaryingElements;
+
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+    for (int i = start; i < end; i++) {
+        int p = V_ITa[i];
+        
+        float *dst = &vertex[(offset+i)*ve];
+        float *dstVarying = &varying[(offset+i)*vev];
+        vdesc->Clear(dst, dstVarying);
+        
+        vdesc->AddWithWeight(dst, &vertex[p*ve], 1.0f);
+        vdesc->AddVaryingWithWeight(dstVarying, &varying[p*vev], 1.0f);
+    }
+}
+
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
