@@ -2,7 +2,7 @@
 
 OpenSubdiv is a set of open source libraries that implement high performance subdivision surface (subdiv) evaluation on massively parallel CPU and GPU architectures. This codepath is optimized for drawing deforming subdivs with static topology at interactive framerates. OpenSubdiv can amplify a 30,000 polygon base mesh into a smooth limit surface of 500,000 polygons in under 3 milliseconds on Kepler Nvidia hardware.  The architecture features a precomputation step that uses Renderman's hbr library to compute fast run time data structures that are evaluated with backends in any of C++, CUDA, OpenCL, or GLSL.  The resulting limit surface matches Pixar's Renderman to numerical precision. OpenSubdiv also includes support for semi-sharp creases and hierarchical edits on subdivs which both are powerful tools for shaping surfaces.  
 
-OpenSubdiv is covered by a modified version of the Microsoft Public License (included below), and is free to use for commercial or non-commercial use. All Pixar patents covering algorithms used inside for semi-sharp crease evaluation and texture coordinate interpolation have also been released for public use. Our intent is to encourage high performance accurate subdiv drawing by giving away the "good stuff" that we use internally.   We welcome any involvement in the development or extension of this code, we'd love it in fact.  Please contact us if you're interested.
+OpenSubdiv is covered by the Microsoft Public License (included below), and is free to use for commercial or non-commercial use. All Pixar patents covering algorithms used inside for semi-sharp crease evaluation and texture coordinate interpolation have also been released for public use. Our intent is to encourage high performance accurate subdiv drawing by giving away the "good stuff" that we use internally.   We welcome any involvement in the development or extension of this code, we'd love it in fact.  Please contact us if you're interested.
 
 This is the fifth generation subdiv library in use by Pixar's animation system in a lineage that started with code written by Tony DeRose and Tien Truong for Geri's Game in 1996.  Each generation has been a from-scratch rewrite that has built upon our experience using subdivision surfaces to make animated films.  OpenSubdiv is exactly the same code used in the Presto animation system for films after Brave. This code is live, developments to OpenSubdiv made by Pixar for current and future films will be released as open source at the same time they are rolled out to Pixar animation production.
 
@@ -131,6 +131,9 @@ There are many things we'd love to do to improve support for subdivs but don't h
 ## Open Source License ##
 
 The following license text describes the open source policy adopted by Pixar and is included in every source file.
+
+Note this is simply the Microsoft Public License. For information on this license see
+http://www.microsoft.com/en-us/openness/licenses.aspx.
 
 <pre><code>
 
