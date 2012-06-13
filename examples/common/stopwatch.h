@@ -95,10 +95,10 @@ public:
 #else
     void Start() 
     { 
-        __int64 CreationTime, ExitTime;
+        __int64 CreationTime, ExitTime, KernelTime, UserTime;
         GetProcessTimes(GetCurrentProcess(), (FILETIME*) &CreationTime, (FILETIME*) &ExitTime, 
-                       (FILETIME*) &m_system, (FILETIME*) &m_user);
-        GetSystemTimeAsFileTime((FILETIME*) &m_elapsed); 
+                       (FILETIME*) &KernelTime, (FILETIME*) &UserTime);
+        GetSystemTimeAsFileTime((FILETIME*) &_elapsed); 
     }
 
     void Stop() 
