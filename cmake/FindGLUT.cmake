@@ -133,6 +133,7 @@ ELSE (WIN32)
     )
 
     FIND_LIBRARY( GLUT_Xi_LIBRARY Xi
+      ${GLUT_LOCATION}/lib
       /usr/lib
       /usr/local/lib
       /usr/openwin/lib
@@ -140,6 +141,7 @@ ELSE (WIN32)
     )
 
     FIND_LIBRARY( GLUT_Xmu_LIBRARY Xmu
+      ${GLUT_LOCATION}/lib
       /usr/lib
       /usr/local/lib
       /usr/openwin/lib

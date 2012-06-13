@@ -68,17 +68,20 @@ include(FindPackageHandleStandardArgs)
 
 if (WIN32)
 	find_path( GLEW_INCLUDE_DIR GL/glew.h
+        PATHS
+        ${GLEW_LOCATION}/include
 		$ENV{PROGRAMFILES}/GLEW/include
 		${PROJECT_SOURCE_DIR}/extern/glew/include
 		DOC "The directory where GL/glew.h resides")
 	find_library( GLEW_LIBRARY
 		NAMES glew GLEW glew32 glew32s
 		PATHS
+        ${GLEW_LOCATION}/lib
 		$ENV{PROGRAMFILES}/GLEW/lib
 		${PROJECT_SOURCE_DIR}/extern/glew/bin
 		${PROJECT_SOURCE_DIR}/extern/glew/lib
 		DOC "The GLEW library")
-endif (WIN32)
+endif ()
 
 if (${CMAKE_HOST_UNIX})
     find_path( GLEW_INCLUDE_DIR GL/glew.h

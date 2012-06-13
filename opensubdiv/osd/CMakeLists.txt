@@ -113,7 +113,7 @@ elseif(UNIX)
     set(PLATFORM_LIBRARIES
         gomp
     )
-elseif(WIN32 or WIN64)
+elseif(WIN32)
     set(PLATFORM_COMPILE_FLAGS
         /openmp
     )       
