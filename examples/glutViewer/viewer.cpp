@@ -434,7 +434,7 @@ display()
     drawString(10, 50, "KERNEL = %s", g_kernel.c_str());
     drawString(10, 70, "CPU TIME = %.3f ms", g_cpuTime);
     drawString(10, 90, "GPU TIME = %.3f ms", g_gpuTime);
-    drawString(10, 110, "SUBDIVISION = %s", g_scheme==kLoop ? "LOOP" : "CATMARK");
+    drawString(10, 110, "SUBDIVISION = %s", g_scheme==kBilinear ? "BILINEAR" : (g_scheme == kLoop ? "LOOP" : "CATMARK"));
 
     glFinish();
     glutSwapBuffers();
