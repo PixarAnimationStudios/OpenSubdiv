@@ -125,7 +125,7 @@ shape::tag * shape::tag::parseTag(char const * line) {
     
     const char* cp = &line[2];                              
 
-    char name[15];
+    char name[50];
     while (*cp == ' ') cp++;
     if (sscanf(cp, "%s", &name )!=1) return t;
     while (*cp && *cp != ' ') cp++;                    
