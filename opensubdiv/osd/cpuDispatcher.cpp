@@ -63,6 +63,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef OPENSUBDIV_HAS_OPENMP 
+    #include <omp.h>
+#endif
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -83,8 +87,8 @@ OsdCpuKernelDispatcher::SubdivisionTable::Copy( int size, const void *table ) {
     }
 }
 
-OsdCpuKernelDispatcher::OsdCpuKernelDispatcher( int levels )
-    : OsdKernelDispatcher(levels), _currentVertexBuffer(NULL), _currentVaryingBuffer(NULL), _vdesc(NULL) {
+OsdCpuKernelDispatcher::OsdCpuKernelDispatcher( int levels, int numOmpThreads )
+    : OsdKernelDispatcher(levels), _currentVertexBuffer(NULL), _currentVaryingBuffer(NULL), _vdesc(NULL), _numOmpThreads(numOmpThreads) {
     _tables.resize(TABLE_MAX);
 }
 
@@ -92,6 +96,34 @@ OsdCpuKernelDispatcher::~OsdCpuKernelDispatcher() {
 
     if (_vdesc)
         delete _vdesc;
+}
+
+static OsdCpuKernelDispatcher::OsdKernelDispatcher * 
+Create(int levels) {
+    return new OsdCpuKernelDispatcher(levels);
+}
+
+#ifdef OPENSUBDIV_HAS_OPENMP 
+static OsdCpuKernelDispatcher::OsdKernelDispatcher * 
+CreateOmp(int levels) {
+    return new OsdCpuKernelDispatcher(levels, omp_get_num_procs());
+}
+#endif
+
+void OsdCpuKernelDispatcher::Register() {
+
+    Factory::GetInstance().Register("cpu", Create);
+#ifdef OPENSUBDIV_HAS_OPENMP 
+    Factory::GetInstance().Register("omp", CreateOmp);
+#endif
+
+}
+
+void 
+OsdCpuKernelDispatcher::OnKernelLaunch() {
+#ifdef OPENSUBDIV_HAS_OPENMP 
+    omp_set_num_threads(_numOmpThreads);
+#endif
 }
 
 void

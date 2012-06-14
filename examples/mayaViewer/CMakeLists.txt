@@ -57,8 +57,6 @@
 
 set(MAYA_FIND_QUIETLY TRUE)
 
-find_package(Maya)
-
 if(NOT MAYA_FOUND)
     message(WARNING
         "Maya could not be found, so the OpenSubdiv Maya plugin will not "

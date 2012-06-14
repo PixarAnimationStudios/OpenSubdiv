@@ -59,6 +59,10 @@
 #include "../version.h"
 #include "../osd/cpuKernel.h"
 
+#ifdef OPENSUBDIV_HAS_OPENMP 
+    #include <omp.h>
+#endif
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

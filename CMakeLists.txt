@@ -96,6 +96,11 @@ set(CMAKE_MODULE_PATH
 # reloading of the generated Visual Studio project).
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 
+# Do this once here
+find_package(OpenMP)
+find_package(CUDA)
+find_package(Maya)
+
 add_definitions(
     # GLEW gets built as a static library.
     -DGLEW_STATIC

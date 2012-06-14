@@ -80,8 +80,6 @@
     #include "cudaInit.h"
 #endif
 
-#include <omp.h>
-
 #include <vector>
 
 //------------------------------------------------------------------------------
@@ -321,7 +319,7 @@ updateGeom()
 
 //------------------------------------------------------------------------------
 void
-createOsdMesh( const char * shape, int level, std::string kernel="omp", Scheme scheme=kCatmark ) { 
+createOsdMesh( const char * shape, int level, std::string kernel="cpu", Scheme scheme=kCatmark ) { 
 
     // generate Hbr representation from "obj" description
     OpenSubdiv::OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, g_positions, scheme);
@@ -359,6 +357,10 @@ reshape(int width, int height) {
     g_width = width;
     g_height = height;
 }
+
+#if _MSC_VER
+    #define snprintf _snprintf
+#endif
 
 #define drawString(x, y, fmt, ...)               \
     { char line[1024]; \
@@ -479,13 +481,9 @@ void quit()
 void kernelMenu(int k)
 {
     switch (k) {
-        case KERNEL_CPU : { g_kernel = "omp";
-                            omp_set_num_threads(1);
-                          } break;
+        case KERNEL_CPU : g_kernel = "cpu"; break;
                           
-        case KERNEL_OMP : { g_kernel = "omp";
-                            omp_set_num_threads(omp_get_num_procs());
-                          } break;
+        case KERNEL_OMP : g_kernel = "omp"; break;
                           
         case KERNEL_GLSL: g_kernel = "glsl"; break;
 
@@ -654,8 +652,7 @@ int main(int argc, char ** argv) {
             filename = argv[i];
     }
 
-    omp_set_num_threads(1);
-    g_kernel = "omp";
+    g_kernel = "cpu";
 
     glGenBuffers(1, &g_indexBuffer);
 

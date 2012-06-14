@@ -62,20 +62,16 @@
 
 #include <GL/glew.h>
 
-// Including omp.h makes sure we link against the correct OpenMP run-time
-// library.  This is Windows specific, but we want a given header file to
-// include the same set of files across all platforms if possible.
-#include <omp.h>
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class VertexDescriptor;
+struct VertexDescriptor;
 
 class OsdCpuKernelDispatcher : public OsdKernelDispatcher
 {
 public:
-    OsdCpuKernelDispatcher(int levels);
+    OsdCpuKernelDispatcher(int levels, int numOmpThreads=1);
+    
     virtual ~OsdCpuKernelDispatcher();
 
 
@@ -104,7 +100,7 @@ public:
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr);
 
-    virtual void OnKernelLaunch() {}
+    virtual void OnKernelLaunch();
 
     virtual void OnKernelFinish() {}
 
@@ -116,12 +112,7 @@ public:
 
     virtual void Synchronize();
 
-    static OsdKernelDispatcher * Create(int levels) {
-        return new OsdCpuKernelDispatcher(levels);
-    }
-    static void Register() {
-        Factory::GetInstance().Register("omp", Create);
-    }
+    static void Register();
 
 protected:
     
@@ -144,6 +135,7 @@ protected:
 
     VertexDescriptor *_vdesc;
 
+    int _numOmpThreads;
     std::vector<SubdivisionTable> _tables;
 };
 

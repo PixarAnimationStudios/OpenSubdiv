@@ -58,11 +58,8 @@
 
 #-------------------------------------------------------------------------------
 find_package(IlmBase REQUIRED)
-
 find_package(OpenGL)
 find_package(GLEW)
-
-find_package(CUDA)
 
 
 include_directories(
@@ -97,31 +94,33 @@ set(PUBLIC_HEADERS
 
 
 #-------------------------------------------------------------------------------
-# CPU (omp) code & dependencies
+# platform dependent tweaks
 if(APPLE)
-    set(PLATFORM_COMPILE_FLAGS
-	    -fopenmp
-    )
-    set(PLATFORM_LIBRARIES
-	    gomp
-    )
+
 elseif(UNIX)
     set(PLATFORM_COMPILE_FLAGS
-        -fopenmp
         -fPIC
     )
-    set(PLATFORM_LIBRARIES
-        gomp
-    )
 elseif(WIN32)
-    set(PLATFORM_COMPILE_FLAGS
-        /openmp
-    )       
+
 endif()
 
 add_definitions(
     ${PLATFORM_COMPILE_FLAGS}
 )
+
+#-------------------------------------------------------------------------------
+if( OPENMP_FOUND )
+    add_definitions(
+        -DOPENSUBDIV_HAS_OPENMP
+        ${OpenMP_CXX_FLAGS}
+    )
+    if (CMAKE_COMPILER_IS_GNUCXX)
+        list(APPEND PLATFORM_LIBRARIES
+            gomp
+        )
+    endif()
+endif()
 
 #-------------------------------------------------------------------------------
 # GL code & dependencies 
@@ -140,6 +139,9 @@ if( OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE) )
         ${OPENGL_LIBRARY}
         ${GLEW_LIBRARY}
     )	
+    add_definitions(
+        -DOPENSUBDIV_HAS_GLSL
+    )
 endif()
 
 #-------------------------------------------------------------------------------
@@ -198,7 +200,6 @@ _add_library(osd STATIC
 )
 
 target_link_libraries(osd
-    ${OPENGL_LIBRARY}
     ${PLATFORM_LIBRARIES}
 )
 

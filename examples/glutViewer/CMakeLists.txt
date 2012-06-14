@@ -58,7 +58,13 @@
 find_package(IlmBase REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
-find_package(CUDA)
+
+set(PLATFORM_LIBRARIES 
+    osd
+    ${ILMBASE_LIBS_DIRECTORY}
+    ${OPENGL_LIBRARY}
+    ${GLUT_LIBRARIES}
+)
 
 if(CUDA_FOUND)
     add_definitions(
@@ -73,6 +79,7 @@ include_directories(
     ${GLUT_INCLUDE_DIR}
 )
 
+#-------------------------------------------------------------------------------
 
 # Macro for adding a (potentially cuda) executable, and for the Windows
 # platform to also add a custom command that copies certain dlls to the
@@ -95,9 +102,6 @@ _add_glut_executable(glutViewer
 )
 
 target_link_libraries(glutViewer
-    osd
-    ${ILMBASE_LIBS_DIRECTORY}
-    ${OPENGL_LIBRARY}
-    ${GLUT_LIBRARIES}
+    ${PLATFORM_LIBRARIES}
 )
 

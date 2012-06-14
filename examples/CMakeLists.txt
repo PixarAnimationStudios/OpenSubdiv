@@ -57,4 +57,6 @@
 
 add_subdirectory(glutViewer)
 
-add_subdirectory(mayaViewer)
+if(MAYA_FOUND)
+    add_subdirectory(mayaViewer)
+endif(MAYA_FOUND)
