@@ -149,16 +149,19 @@ protected:
         }
 
         struct Match {
-        Match(int numVertexElements, int numVaryingElements) :
-            _numVertexElements(numVertexElements), _numVaryingElements(numVaryingElements) {}
-            bool operator() (const ComputeShader &shader) {
+            Match(int numVertexElements, int numVaryingElements) :
+                _numVertexElements(numVertexElements), _numVaryingElements(numVaryingElements) { }
+                
+            bool operator() (ComputeShader const & shader) {
                 return (shader._numVertexElements == _numVertexElements
                         && shader._numVaryingElements == _numVaryingElements);
             }
-            int _numVertexElements, _numVaryingElements;
+            
+            int _numVertexElements, 
+                _numVaryingElements;
         };
 
-        friend class Match;
+        friend struct Match;
 
     private:
         void transformGpuBufferData(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, 
