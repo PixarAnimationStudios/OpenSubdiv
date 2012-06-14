@@ -78,20 +78,27 @@ include_directories(
 )
 
 #-------------------------------------------------------------------------------
-
-# Macro for adding a (potentially cuda) executable, and for the Windows
-# platform to also add a custom command that copies certain dlls to the
-# same directory as where the executable is located.
+# Macro for adding a (potentially cuda) executable.
 macro(_add_glut_executable target)
+
     _add_executable(${target} ${ARGN})
+    
     if(WIN32)
-        add_custom_command(
-            TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${PROJECT_SOURCE_DIR}/glut/bin/glut32.dll
-                $<TARGET_FILE_DIR:${target}>
-        )
+        # Windows needs some of its dependency dll's copied into the same
+        # directory as the executable
+        set( LIBRARIES ${ILMBASE_LIBS_DIRECTORY} ${GLUT_LIBRARIES})
+        foreach (LIB ${LIBRARIES} )
+            string(REPLACE ".lib" ".dll" LIB ${LIB})
+            string(REPLACE ".LIB" ".DLL" LIB ${LIB})
+			add_custom_command(
+				TARGET ${target} POST_BUILD
+				COMMAND ${CMAKE_COMMAND} -E copy_if_different
+					${LIB}
+					$<TARGET_FILE_DIR:${target}>
+			)
+        endforeach()
     endif()
+    
 endmacro()
 
 
