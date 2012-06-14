@@ -90,7 +90,6 @@ set(PUBLIC_HEADERS
     kernelDispatcher.h
     mesh.h
     vertex.h
-    vertexBuffer.h
 )
 
 
