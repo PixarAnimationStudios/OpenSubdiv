@@ -55,9 +55,7 @@
 #     a particular purpose and non-infringement.
 #
 
-find_package(IlmBase REQUIRED)
-find_package(OpenGL REQUIRED)
-find_package(GLUT REQUIRED)
+# *** glutViewer ***
 
 set(PLATFORM_LIBRARIES 
     osd

@@ -78,7 +78,7 @@ if (WIN32)
 
     find_library( GLEW_LIBRARY
         NAMES 
-            glew GLEW glew32 glew32s
+            glew GLEW glew32s glew32
         PATHS
             ${GLEW_LOCATION}/lib
             $ENV{PROGRAMFILES}/GLEW/lib

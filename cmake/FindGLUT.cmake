@@ -82,11 +82,11 @@ if (WIN32)
         find_path( GLUT_INCLUDE_DIR GL/glut.h
             ${GLUT_LOCATION}/include
             ${PROJECT_SOURCE_DIR}/extern/glut/include
-            $ENV{PROGRAMFILES}/GLUT/lib
+            $ENV{PROGRAMFILES}/GLUT/include
             ${OPENGL_INCLUDE_DIR}
             DOC "The directory where GL/glut.h resides")
-        find_libary( GLUT_glut_LIBRARY
-            NAMES glut GLUT glut32 glut32s
+        find_library( GLUT_glut_LIBRARY
+            NAMES glut32 glut32s glut 
             PATHS
             ${GLUT_LOCATION}/lib
             ${PROJECT_SOURCE_DIR}/extern/glut/bin

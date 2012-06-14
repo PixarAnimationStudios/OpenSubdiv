@@ -57,11 +57,6 @@
 #
 
 #-------------------------------------------------------------------------------
-find_package(IlmBase REQUIRED)
-find_package(OpenGL)
-find_package(GLEW)
-
-
 include_directories(
     ${ILMBASE_INCLUDE_DIR}
     ${OPENGL_INCLUDE_DIR}
@@ -120,6 +115,11 @@ if( OPENMP_FOUND )
             gomp
         )
     endif()
+else()
+    message(STATUS
+        "* OpenMP was not found : support for OMP parallel compute kernels will be diabled "
+        "in Osd. If your compiler supports OpenMP directives, please refer to the "
+        "FindOpenMP.cmake shared module in your cmake installation.")
 endif()
 
 #-------------------------------------------------------------------------------
@@ -142,6 +142,11 @@ if( OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE) )
     add_definitions(
         -DOPENSUBDIV_HAS_GLSL
     )
+else()
+    message(STATUS
+        "* OpenGL was not found : support for GLSL parallel compute kernels will be diabled "
+        "in Osd. If you have an OpenGL SDK installed(version 4.2 or above), please refer to "
+        "the FindOpenGL.cmake shared module in your cmake installation.")
 endif()
 
 #-------------------------------------------------------------------------------
@@ -159,6 +164,11 @@ if( CUDA_FOUND )
     add_definitions(
         -DOPENSUBDIV_HAS_CUDA
     )
+else()
+    message(STATUS
+        "* CUDA was not found : support for CUDA parallel compute kernels will be diabled "
+        "in Osd. If you have the CUDA SDK installed, please refer to the FindCUDA.cmake "
+        "shared module in your cmake installation.")
 endif()
 
 

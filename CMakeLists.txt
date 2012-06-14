@@ -96,10 +96,19 @@ set(CMAKE_MODULE_PATH
 # reloading of the generated Visual Studio project).
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 
-# Do this once here
+# Check for dependencies
+find_package(IlmBase REQUIRED)
 find_package(OpenMP)
+find_package(OpenGL)
 find_package(CUDA)
+find_package(GLUT)
+
+if (NOT APPLE)
+    find_package(GLEW)
+endif()
+
 find_package(Maya)
+
 
 add_definitions(
     # GLEW gets built as a static library.

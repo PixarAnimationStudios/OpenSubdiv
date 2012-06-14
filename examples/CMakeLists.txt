@@ -55,8 +55,43 @@
 #     a particular purpose and non-infringement.
 #
 
-add_subdirectory(glutViewer)
+if (APPLE)
+    message(STATUS "The OsX platform currently does not support all "
+    "the OpenGL features required by the glutViewer example : skipping.")
+else()
+    if( OPENGL_FOUND AND GLEW_FOUND AND GLUT_FOUND)
+        add_subdirectory(glutViewer)
+    else()
+        set(MISSING "")
+
+        if (NOT OPENGL_FOUND)
+            list(APPEND MISSING OpenGL)
+        endif()
+
+        if (NOT GLEW_FOUND)
+            list(APPEND MISSING glew)
+        endif()
+
+        if (NOT GLUT_FOUND)
+            list(APPEND MISSING glut)
+        endif()
+
+        message(STATUS
+            "The following libraries could not be found : ${MISSING}. The glutViewer "
+            "example will not be available. If you have these libraries installed, "
+            "please specify their path to cmake (by setting the GLEW_LOCATION, GLUT_LOCATION "
+            "entries for instance)"
+        )
+    endif()
+endif()
 
 if(MAYA_FOUND)
     add_subdirectory(mayaViewer)
-endif(MAYA_FOUND)
+else()
+    message(STATUS
+        "Maya could not be found, so the OpenSubdiv mayaViwer plugin will not "
+        "be available. If you do have Maya installed and see this message, "
+        "please add your Maya path to cmake/FindMaya.cmake or set it in "
+        "the MAYA_LOCATION environment variable."
+    )
+endif()

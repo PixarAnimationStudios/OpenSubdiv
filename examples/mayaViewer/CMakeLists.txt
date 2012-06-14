@@ -55,12 +55,14 @@
 #     a particular purpose and non-infringement.
 #
 
+# *** mayaViewer ***
+
 set(MAYA_FIND_QUIETLY TRUE)
 
 if(NOT MAYA_FOUND)
-    message(WARNING
-        "Maya could not be found, so the OpenSubdiv Maya plugin will not "
-        "be available.  If you do have Maya installed and see this message, "
+    message(STATUS
+        "Maya could not be found, so the OpenSubdiv mayaViwer plugin will not "
+        "be available. If you do have Maya installed and see this message, "
         "please add your Maya path to cmake/FindMaya.cmake or set it in "
         "the MAYA_LOCATION environment variable."
     )
