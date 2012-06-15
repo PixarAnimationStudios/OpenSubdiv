@@ -136,7 +136,7 @@ public:
         return new OsdCudaKernelDispatcher(levels);
     }
     static void Register() {
-        Factory::GetInstance().Register("cuda", Create);
+        Factory::GetInstance().Register(Create, kCUDA);
     }
 
 protected:

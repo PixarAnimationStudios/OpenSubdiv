@@ -105,7 +105,7 @@ public:
         return new OsdGlslKernelDispatcher(levels);
     }
     static void Register() {
-        Factory::GetInstance().Register("glsl", Create);
+        Factory::GetInstance().Register(Create, kGLSL);
     }
 
 protected:

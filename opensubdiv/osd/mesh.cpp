@@ -81,13 +81,13 @@ OsdMesh::~OsdMesh() {
 }
 
 bool
-OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel) {
+OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, int kernel) {
 
     if (_dispatcher)
         delete _dispatcher;
-    _dispatcher = OsdKernelDispatcher::CreateKernelDispatcher(kernel, level);
+    _dispatcher = OsdKernelDispatcher::CreateKernelDispatcher(level, kernel);
     if(_dispatcher == NULL){
-        OSD_ERROR("Unknown kernel %s\n", kernel.c_str());
+        OSD_ERROR("Unknown kernel %d\n", kernel);
         return false;
     }
 

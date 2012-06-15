@@ -56,6 +56,16 @@
 //
 #include "../version.h"
 #include "../osd/kernelDispatcher.h"
+#include "../osd/cpuDispatcher.h"
+#if OPENSUBDIV_HAS_CUDA
+#include "../osd/cudaDispatcher.h"
+#endif
+#if OPENSUBDIV_HAS_GLSL
+#include "../osd/glslDispatcher.h"
+#endif
+#if OPENSUBDIV_HAS_CL
+#include "../osd/clDispatcher.h"
+#endif
 
 #include <GL/glew.h>
 
@@ -63,6 +73,28 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 OsdKernelDispatcher::Factory OsdKernelDispatcher::Factory::_instance;
+
+OsdKernelDispatcher::Factory::Factory()
+{
+    _kernelCreators.resize(kMAX);
+
+#if 0
+    OsdCpuKernelDispatcher::Register();
+
+#if OPENSUBDIV_HAS_CUDA
+    OsdCudaKernelDispatcher::Register();
+#endif
+
+#if OPENSUBDIV_HAS_GLSL
+    OsdGlslKernelDispatcher::Register();
+#endif
+
+#if OPENSUBDIV_HAS_CL
+    OsdClKernelDispatcher::Register();
+#endif
+#endif
+
+}
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

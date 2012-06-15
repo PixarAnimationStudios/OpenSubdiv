@@ -208,14 +208,12 @@ Scheme             g_scheme;
 
 int g_numIndices = 0;
 int g_level = 2;
-std::string g_kernel;
+int g_kernel = OpenSubdiv::OsdKernelDispatcher::kCPU;
 
 GLuint g_indexBuffer;
 
 OpenSubdiv::OsdMesh * g_osdmesh = 0;
 OpenSubdiv::OsdVertexBuffer * g_vertexBuffer = 0;
-
-enum { KERNEL_CPU, KERNEL_OMP, KERNEL_GLSL, KERNEL_CL, KERNEL_CUDA };
 
 //------------------------------------------------------------------------------                                        
 inline void 
@@ -319,7 +317,7 @@ updateGeom()
 
 //------------------------------------------------------------------------------
 void
-createOsdMesh( const char * shape, int level, std::string kernel="cpu", Scheme scheme=kCatmark ) { 
+createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark ) { 
 
     // generate Hbr representation from "obj" description
     OpenSubdiv::OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, g_positions, scheme);
@@ -369,6 +367,16 @@ reshape(int width, int height) {
       glWindowPos2f(x, y); \
       while(*p) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *p++); } }
 
+//------------------------------------------------------------------------------
+const char *getKernelName(int kernel)
+{
+    if (kernel == OpenSubdiv::OsdKernelDispatcher::kCPU) return "CPU";
+    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kOPENMP) return "OpenMP";
+    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCUDA) return "Cuda";
+    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kGLSL) return "GLSL";
+    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCL) return "CL";
+    return "Unknown";
+}
 //------------------------------------------------------------------------------
 void 
 display()
@@ -433,7 +441,7 @@ display()
 
     drawString(10, 10, "LEVEL = %d", g_level);
     drawString(10, 30, "# of Vertices = %d", g_osdmesh->GetFarMesh()->GetNumVertices());
-    drawString(10, 50, "KERNEL = %s", g_kernel.c_str());
+    drawString(10, 50, "KERNEL = %s", getKernelName(g_kernel));
     drawString(10, 70, "CPU TIME = %.3f ms", g_cpuTime);
     drawString(10, 90, "GPU TIME = %.3f ms", g_gpuTime);
     drawString(10, 110, "SUBDIVISION = %s", g_scheme==kBilinear ? "BILINEAR" : (g_scheme == kLoop ? "LOOP" : "CATMARK"));
@@ -480,20 +488,7 @@ void quit()
 //------------------------------------------------------------------------------
 void kernelMenu(int k)
 {
-    switch (k) {
-        case KERNEL_CPU : g_kernel = "cpu"; break;
-                          
-        case KERNEL_OMP : g_kernel = "omp"; break;
-                          
-        case KERNEL_GLSL: g_kernel = "glsl"; break;
-
-        case KERNEL_CL  : g_kernel = "cl"; break;
-
-        case KERNEL_CUDA: g_kernel = "cuda"; break;
-        
-        default: break;
-    }
-    
+    g_kernel = k;
     createOsdMesh( g_defaultShapes[ g_currentShape ].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
 }
 
@@ -592,7 +587,6 @@ int main(int argc, char ** argv) {
     glutInitWindowSize(1024, 1024);
     glutCreateWindow("OpenSubdiv test");
 
-
     initializeShapes();
 
     int smenu = glutCreateMenu(modelMenu);
@@ -607,14 +601,27 @@ int main(int argc, char ** argv) {
         glutAddMenuEntry(level, i);
     }
 
-    int kmenu = glutCreateMenu(kernelMenu);
-    glutAddMenuEntry("CPU", KERNEL_CPU);
-    glutAddMenuEntry("OpenMP", KERNEL_OMP);
-    glutAddMenuEntry("GLSL", KERNEL_GLSL);
-    glutAddMenuEntry("OpenCL", KERNEL_CL); 
+    // Register Osd compute kernels
+    OpenSubdiv::OsdCpuKernelDispatcher::Register();
+    OpenSubdiv::OsdGlslKernelDispatcher::Register();
 #if OPENSUBDIV_HAS_CUDA
-    glutAddMenuEntry("CUDA", KERNEL_CUDA);
+    OpenSubdiv::OsdCudaKernelDispatcher::Register();
+
+    // still this function crashes in linux. cudaGetDeviceProperties overrun stack..?
+#if defined(_WIN32)
+    cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
 #endif
+#endif
+
+    int kmenu = glutCreateMenu(kernelMenu);
+    int nKernels = OpenSubdiv::OsdKernelDispatcher::kMAX;
+
+    for(int i = 0; i < nKernels; ++i) {
+        if(OpenSubdiv::OsdKernelDispatcher::HasKernelType(
+               OpenSubdiv::OsdKernelDispatcher::KernelType(i)))
+            glutAddMenuEntry(getKernelName(i), i);
+    }
+
     glutCreateMenu(menu);
     glutAddSubMenu("Level", lmenu);
     glutAddSubMenu("Model", smenu);
@@ -629,31 +636,17 @@ int main(int argc, char ** argv) {
     glewInit();
     initGL();
 
-    // Register Osd compute kernels
-    OpenSubdiv::OsdCpuKernelDispatcher::Register();
-    OpenSubdiv::OsdGlslKernelDispatcher::Register();
-#if OPENSUBDIV_HAS_CUDA
-    OpenSubdiv::OsdCudaKernelDispatcher::Register();
-    cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
-#endif
-
-
     const char *filename = NULL;
 
     for (int i = 1; i < argc; ++i) {
-             if (!strcmp(argv[i], "-d"))
+        if (!strcmp(argv[i], "-d"))
             g_level = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-c"))
             g_repeatCount = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "-k")) {
-            ++i;
-            g_kernel = argv[i];
-        } else 
+        else 
             filename = argv[i];
     }
-
-    g_kernel = "cpu";
-
+    
     glGenBuffers(1, &g_indexBuffer);
 
     modelMenu(0);

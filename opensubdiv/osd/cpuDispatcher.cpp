@@ -110,11 +110,12 @@ CreateOmp(int levels) {
 }
 #endif
 
-void OsdCpuKernelDispatcher::Register() {
+void
+OsdCpuKernelDispatcher::Register() {
 
-    Factory::GetInstance().Register("cpu", Create);
+    Factory::GetInstance().Register(Create, kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP 
-    Factory::GetInstance().Register("omp", CreateOmp);
+    Factory::GetInstance().Register(CreateOmp, kOPENMP);
 #endif
 
 }
