@@ -60,6 +60,11 @@
 #include "../hbr/hierarchicalEdit.h"
 #include "../hbr/vertexEdit.h"
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 template <class T> class HbrFVarEdit;
 
 template <class T>
@@ -139,5 +144,10 @@ private:
     typename HbrHierarchicalEdit<T>::Operation op;
 };
 
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* HBRFVAREDIT_H */

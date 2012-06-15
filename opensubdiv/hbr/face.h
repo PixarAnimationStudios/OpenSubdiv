@@ -71,6 +71,11 @@
 #include "libgprims/stitchInternal.h"
 #endif
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 template <class T> class HbrVertex;
 template <class T> class HbrHalfedge;
 template <class T> class HbrFace;
@@ -349,7 +354,15 @@ private:
     unsigned short destroyed:1;
 };
 
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
+
 #include "../hbr/mesh.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
 template <class T>
 HbrFace<T>::HbrFace()
@@ -770,5 +783,10 @@ public:
     virtual void operator() (HbrFace<T> &face) = 0;
     virtual ~HbrFaceOperator() {}
 };
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* HBRFACE_H */

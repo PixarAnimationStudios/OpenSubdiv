@@ -57,6 +57,11 @@
 #ifndef HBRCORNEREDIT_H
 #define HBRCORNEREDIT_H
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 template <class T> class HbrCornerEdit;
 
 template <class T>
@@ -116,5 +121,10 @@ private:
     const float sharpness;
 };
 
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* HBRCORNEREDIT_H */

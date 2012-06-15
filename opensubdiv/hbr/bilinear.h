@@ -60,6 +60,11 @@
 /*#define HBR_DEBUG */
 #include "../hbr/subdivision.h"
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 template <class T>
 class HbrBilinearSubdivision : public HbrSubdivision<T> {
 public:
@@ -916,5 +921,10 @@ HbrBilinearSubdivision<T>::Subdivide(HbrMesh<T>* mesh, HbrVertex<T>* vertex) {
     }
     return v;    
 }
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* HBRBILINEAR_H */

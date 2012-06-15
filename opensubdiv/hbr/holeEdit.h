@@ -57,6 +57,11 @@
 #ifndef HBRHOLEEDIT_H
 #define HBRHOLEEDIT_H
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 template <class T> class HbrHoleEdit;
 
 template <class T>
@@ -92,5 +97,10 @@ public:
     }    
 };
 
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* HBRHOLEEDIT_H */

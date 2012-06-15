@@ -108,7 +108,7 @@ struct shape {
     std::vector<float>  verts;
     std::vector<float>  uvs;
     std::vector<int>    nvertsPerFace;  
-    std::vector<int>    faceverts;	      
+    std::vector<int>    faceverts;              
     std::vector<int>    faceuvs;
     std::vector<tag *>  tags;
 }; 
@@ -137,28 +137,28 @@ shape::tag * shape::tag::parseTag(char const * line) {
 
     std::vector<int> intargs;
     for (int i=0; i<nints; ++i) {
-	int val;
-	while (*cp == ' ') cp++;
-	if (sscanf(cp, "%d", &val)!=1) return t;
-	intargs.push_back(val);
+        int val;
+        while (*cp == ' ') cp++;
+        if (sscanf(cp, "%d", &val)!=1) return t;
+        intargs.push_back(val);
         while (*cp && *cp != ' ') cp++;                    
     }
 
     std::vector<float> floatargs;
     for (int i=0; i<nfloats; ++i) {
-	float val;
-	while (*cp == ' ') cp++;
-	if (sscanf(cp, "%f", &val)!=1) return t;
-	floatargs.push_back(val);
+        float val;
+        while (*cp == ' ') cp++;
+        if (sscanf(cp, "%f", &val)!=1) return t;
+        floatargs.push_back(val);
         while (*cp && *cp != ' ') cp++;                    
     }
 
     std::vector<std::string> stringargs;
     for (int i=0; i<nstrings; ++i) {
-	char * val;
-	while (*cp == ' ') cp++;
-	if (sscanf(cp, "%s", &val)!=1) return t;
-	stringargs.push_back(val);
+        char * val;
+        while (*cp == ' ') cp++;
+        if (sscanf(cp, "%s", &val)!=1) return t;
+        stringargs.push_back(val);
         while (*cp && *cp != ' ') cp++;                    
     }
 
@@ -219,8 +219,8 @@ shape * shape::parseShape(char const * shapestr, int axis ) {
             case 't' : if(line[1] == ' ') {
                            shape::tag * t = tag::parseTag( line );
                            if (t)
-			       s->tags.push_back(t);
-	               } break;
+                               s->tags.push_back(t);
+                       } break;
         }
     }
     return s;
@@ -228,16 +228,16 @@ shape * shape::parseShape(char const * shapestr, int axis ) {
 
 //------------------------------------------------------------------------------       
 template <class T> 
-void applyTags( HbrMesh<T> * mesh, shape const * sh ) {
+void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
 
     for (int i=0; i<(int)sh->tags.size(); ++i) {
         shape::tag * t = sh->tags[i];
 
         if (t->name=="crease") {
             for (int j=0; j<(int)t->intargs.size()-1; ++j) {
-                HbrVertex<T> * v = mesh->GetVertex( t->intargs[j] ),
-                             * w = mesh->GetVertex( t->intargs[j+1] );
-                HbrHalfedge<T> * e = 0;
+                OpenSubdiv::HbrVertex<T> * v = mesh->GetVertex( t->intargs[j] ),
+                                         * w = mesh->GetVertex( t->intargs[j+1] );
+                OpenSubdiv::HbrHalfedge<T> * e = 0;
                 if( v && w ) { 
                     if( !(e = v->GetEdge(w) ) )
                     e = w->GetEdge(v);
@@ -250,7 +250,7 @@ void applyTags( HbrMesh<T> * mesh, shape const * sh ) {
             }
         } else if (t->name=="corner") {
             for (int j=0; j<(int)t->intargs.size(); ++j) {
-                HbrVertex<T> * v = mesh->GetVertex( t->intargs[j] );
+                OpenSubdiv::HbrVertex<T> * v = mesh->GetVertex( t->intargs[j] );
                 if(v) {
                     int nfloat = (int) t->floatargs.size();
                     v->SetSharpness( std::max(0.0f, ((nfloat > 1) ? t->floatargs[j] : t->floatargs[0])) );
@@ -259,50 +259,52 @@ void applyTags( HbrMesh<T> * mesh, shape const * sh ) {
             }
         } else if (t->name=="hole") {
             for (int j=0; j<(int)t->intargs.size(); ++j) {
-                HbrFace<T> * f = mesh->GetFace( t->intargs[j] );
+                OpenSubdiv::HbrFace<T> * f = mesh->GetFace( t->intargs[j] );
                 if(f) {
                     f->SetHole();
                 } else
                    printf("cannot find face for hole tag (%d)\n", t->intargs[j] );
             }
         } else if (t->name=="interpolateboundary") {
-	    if ((int)t->intargs.size()!=1) {
+            if ((int)t->intargs.size()!=1) {
                 printf("expecting 1 integer for \"interpolateboundary\" tag n. %d\n", i);
                 continue;
             }
-	    switch( t->intargs[0] )
-	    { case 0 : mesh->SetInterpolateBoundaryMethod(HbrMesh<T>::k_InterpolateBoundaryNone); break;
-              case 1 : mesh->SetInterpolateBoundaryMethod(HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner); break;
-	      case 2 : mesh->SetInterpolateBoundaryMethod(HbrMesh<T>::k_InterpolateBoundaryEdgeOnly); break;
-	      default: printf("unknown interpolation boundary : %d\n", t->intargs[0] ); break;
-	    }
+            switch( t->intargs[0] ) { 
+                case 0 : mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryNone); break;
+                case 1 : mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner); break;
+                case 2 : mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly); break;
+                default: printf("unknown interpolation boundary : %d\n", t->intargs[0] ); break;
+            }
         } else if (t->name=="facevaryingpropagatecorners") {
-	    if ((int)t->intargs.size()==1)
-	        mesh->SetFVarPropagateCorners( t->intargs[0] != 0 );
-	    else
-	        printf( "expecting single int argument for \"facevaryingpropagatecorners\"\n" );
+            if ((int)t->intargs.size()==1)
+                mesh->SetFVarPropagateCorners( t->intargs[0] != 0 );
+            else
+                printf( "expecting single int argument for \"facevaryingpropagatecorners\"\n" );
         } else if (t->name=="creasemethod") {
         
-	    HbrCatmarkSubdivision<T> * scheme = 
-	        dynamic_cast<HbrCatmarkSubdivision<T> *>( mesh->GetSubdivision() );
-	
-	    if (not scheme) {
-	        printf("the \"creasemethod\" tag can only be applied to Catmark meshes\n");
-		continue;
-	    }
-	
-	    if ((int)t->stringargs.size()==0) {
-	        printf("the \"creasemethod\" tag expects a string argument\n");
-		continue;
-	    }
-	
+            OpenSubdiv::HbrCatmarkSubdivision<T> * scheme = 
+                dynamic_cast<OpenSubdiv::HbrCatmarkSubdivision<T> *>( mesh->GetSubdivision() );
+        
+            if (not scheme) {
+                printf("the \"creasemethod\" tag can only be applied to Catmark meshes\n");
+                continue;
+            }
+        
+            if ((int)t->stringargs.size()==0) {
+                printf("the \"creasemethod\" tag expects a string argument\n");
+                continue;
+            }
+        
             if( t->stringargs[0]=="normal" )
-                scheme->SetTriangleSubdivisionMethod(HbrCatmarkSubdivision<T>::k_Old);
+                scheme->SetTriangleSubdivisionMethod(
+                    OpenSubdiv::HbrCatmarkSubdivision<T>::k_Old);
             else if( t->stringargs[0]=="chaikin" )
-                scheme->SetTriangleSubdivisionMethod(HbrCatmarkSubdivision<T>::k_New);
-	    else
-	        printf("the \"creasemethod\" tag only accepts \"normal\" or \"chaikin\" as value (%s)\n", t->stringargs[0].c_str());
-	    
+                scheme->SetTriangleSubdivisionMethod(
+                    OpenSubdiv::HbrCatmarkSubdivision<T>::k_New);
+            else
+                printf("the \"creasemethod\" tag only accepts \"normal\" or \"chaikin\" as value (%s)\n", t->stringargs[0].c_str());
+            
         } else if (t->name=="vertexedit" or t->name=="edgeedit") {
             printf("hierarchical edits not supported (yet)\n");
         } else {
@@ -319,19 +321,19 @@ enum Scheme {
 };
 
 //------------------------------------------------------------------------------
-template <class T> HbrMesh<T> *
+template <class T> OpenSubdiv::HbrMesh<T> *
 createMesh( Scheme scheme=kCatmark) {
 
-  HbrMesh<T> * mesh = 0;
+  OpenSubdiv::HbrMesh<T> * mesh = 0;
   
-  static HbrBilinearSubdivision<T> _bilinear;
-  static HbrLoopSubdivision<T>     _loop;
-  static HbrCatmarkSubdivision<T>  _catmark;
+  static OpenSubdiv::HbrBilinearSubdivision<T> _bilinear;
+  static OpenSubdiv::HbrLoopSubdivision<T>     _loop;
+  static OpenSubdiv::HbrCatmarkSubdivision<T>  _catmark;
   
   switch (scheme) {
-    case kBilinear : mesh = new HbrMesh<T>( &_bilinear ); break;
-    case kLoop : mesh = new HbrMesh<T>(  &_loop ); break;
-    case kCatmark : mesh = new HbrMesh<T>(  &_catmark ); break;
+    case kBilinear : mesh = new OpenSubdiv::HbrMesh<T>( &_bilinear ); break;
+    case kLoop     : mesh = new OpenSubdiv::HbrMesh<T>( &_loop     ); break;
+    case kCatmark  : mesh = new OpenSubdiv::HbrMesh<T>( &_catmark  ); break;
   }
   
   return mesh;
@@ -339,7 +341,7 @@ createMesh( Scheme scheme=kCatmark) {
 
 //------------------------------------------------------------------------------
 template <class T> void
-createVertices( shape const * sh, HbrMesh<T> * mesh ) {
+createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh ) {
   
   T v;
   for(int i=0;i<sh->getNverts(); i++ ) {
@@ -350,7 +352,7 @@ createVertices( shape const * sh, HbrMesh<T> * mesh ) {
 
 //------------------------------------------------------------------------------
 template <class T> void
-createVertices( shape const * sh, HbrMesh<T> * mesh, std::vector<float> & verts ) {
+createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<float> & verts ) {
   
     int nverts = sh->getNverts();
     verts.resize(nverts*3);
@@ -367,7 +369,7 @@ createVertices( shape const * sh, HbrMesh<T> * mesh, std::vector<float> & verts 
 
 //------------------------------------------------------------------------------
 template <class T> void
-createTopology( shape const * sh, HbrMesh<T> * mesh, Scheme scheme) {
+createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) {
 
       const int * fv=&(sh->faceverts[0]);
       for(int f=0, ptxidx=0;f<sh->getNfaces(); f++ ) {
@@ -380,9 +382,9 @@ createTopology( shape const * sh, HbrMesh<T> * mesh, Scheme scheme) {
           }
 
           for(int j=0;j<nv;j++) { 
-              HbrVertex<T> * origin      = mesh->GetVertex( fv[j] );                                                           
-              HbrVertex<T> * destination = mesh->GetVertex( fv[ (j+1)%nv] );
-              HbrHalfedge<T> * opposite  = destination->GetEdge(origin);
+              OpenSubdiv::HbrVertex<T> * origin      = mesh->GetVertex( fv[j] );                                                           
+              OpenSubdiv::HbrVertex<T> * destination = mesh->GetVertex( fv[ (j+1)%nv] );
+              OpenSubdiv::HbrHalfedge<T> * opposite  = destination->GetEdge(origin);
 
               if(origin==NULL || destination==NULL) { 
                   printf(" An edge was specified that connected a nonexistent vertex\n"); 
@@ -406,7 +408,7 @@ createTopology( shape const * sh, HbrMesh<T> * mesh, Scheme scheme) {
               }
           }
 
-          HbrFace<T> * face = mesh->NewFace(nv, (int *)fv, 0);
+          OpenSubdiv::HbrFace<T> * face = mesh->NewFace(nv, (int *)fv, 0);
 
           face->SetPtexIndex(ptxidx);
 
@@ -424,12 +426,12 @@ createTopology( shape const * sh, HbrMesh<T> * mesh, Scheme scheme) {
 }
 
 //------------------------------------------------------------------------------
-template <class T> HbrMesh<T> *
+template <class T> OpenSubdiv::HbrMesh<T> *
 simpleHbr( char const * shapestr, Scheme scheme=kCatmark) {
 
   shape * sh = shape::parseShape( shapestr );
 
-  HbrMesh<T> * mesh = createMesh<T>(scheme);
+  OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme);
   
   createVertices<T>(sh, mesh);
   
@@ -441,12 +443,12 @@ simpleHbr( char const * shapestr, Scheme scheme=kCatmark) {
 }
 
 //------------------------------------------------------------------------------
-template <class T> HbrMesh<T> *
+template <class T> OpenSubdiv::HbrMesh<T> *
 simpleHbr( char const * shapestr, std::vector<float> & verts, Scheme scheme=kCatmark) {
 
   shape * sh = shape::parseShape( shapestr );
 
-  HbrMesh<T> * mesh = createMesh<T>(scheme);
+  OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme);
   
   createVertices<T>(sh, mesh, verts);
   

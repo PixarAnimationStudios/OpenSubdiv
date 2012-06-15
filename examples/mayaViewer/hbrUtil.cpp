@@ -74,9 +74,9 @@ OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,
                                       std::vector<float> const & edgeCreases2,
                                       int interpBoundary, bool loop)
 {
-    static HbrBilinearSubdivision<OpenSubdiv::OsdVertex> _bilinear;
-    static HbrLoopSubdivision<OpenSubdiv::OsdVertex> _loop;
-    static HbrCatmarkSubdivision<OpenSubdiv::OsdVertex> _catmark;
+    static OpenSubdiv::HbrBilinearSubdivision<OpenSubdiv::OsdVertex> _bilinear;
+    static OpenSubdiv::HbrLoopSubdivision<OpenSubdiv::OsdVertex> _loop;
+    static OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex> _catmark;
     
     OpenSubdiv::OsdHbrMesh *hbrMesh;
     if (loop)

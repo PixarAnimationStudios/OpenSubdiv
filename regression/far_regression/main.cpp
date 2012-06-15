@@ -104,12 +104,12 @@ private:
 
 //------------------------------------------------------------------------------
 class xyzFV;
-typedef HbrMesh<xyzVV>           xyzmesh;
-typedef HbrFace<xyzVV>           xyzface;        
-typedef HbrVertex<xyzVV>         xyzvertex;      
-typedef HbrHalfedge<xyzVV>       xyzhalfedge;
-typedef HbrFaceOperator<xyzVV>   xyzFaceOperator;
-typedef HbrVertexOperator<xyzVV> xyzVertexOperator;
+typedef OpenSubdiv::HbrMesh<xyzVV>           xyzmesh;
+typedef OpenSubdiv::HbrFace<xyzVV>           xyzface;        
+typedef OpenSubdiv::HbrVertex<xyzVV>         xyzvertex;      
+typedef OpenSubdiv::HbrHalfedge<xyzVV>       xyzhalfedge;
+typedef OpenSubdiv::HbrFaceOperator<xyzVV>   xyzFaceOperator;
+typedef OpenSubdiv::HbrVertexOperator<xyzVV> xyzVertexOperator;
 
 typedef OpenSubdiv::FarMesh<xyzVV>              fMesh;
 typedef OpenSubdiv::FarMeshFactory<xyzVV>       fMeshFactory;

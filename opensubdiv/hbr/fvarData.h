@@ -60,6 +60,11 @@
 #include <string.h>
 #include <cmath>
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 template <class T> class HbrFVarEdit;
 template <class T> class HbrFace;
 
@@ -179,7 +184,15 @@ private:
     float* const data;
 };
 
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
+
 #include "../hbr/fvarEdit.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
 template <class T>
 void
@@ -201,5 +214,10 @@ HbrFVarData<T>::ApplyFVarEdit(const HbrFVarEdit<T>& edit) {
         initialized = true;
     }
 
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* HBRFVARDATA_H */
