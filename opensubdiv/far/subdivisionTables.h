@@ -133,44 +133,57 @@ public:
     // describing a given level (note that "level 1" vertices are obtained by using 
     // the indices starting at "level 0" of the tables)
     template <typename Type> class Table {
-        std::vector<Type> _data;       // table data
-	std::vector<Type *> _markers;  // pointers to the first datum at each level
+        std::vector<Type>   _data;     // table data
+        std::vector<Type *> _markers;  // pointers to the first datum at each level
     public:
+
+        Table(int maxlevel) : _markers(maxlevel) { }
+
         // Returns the memory required to store the data in this table.
         int GetMemoryUsed() const {
             return (int)_data.size() * sizeof(Type);
         }
 
-	void SetMarker(int level, Type * marker) {
-	    _markers[level] = marker;
-	}
+        // Saves a pointer indicating the beginning of data pertaining to "level"
+        // of subdivision
+        void SetMarker(int level, Type * marker) {
+            _markers[level] = marker;
+        }
 
-	void Resize(int size) { 
-	    _data.resize(size); 
-	    _markers[0] = &_data[0]; 
-	}
+        // Resize the table to size (also resets markers)
+        void Resize(int size) { 
+            _data.resize(size); 
+            _markers[0] = &_data[0]; 
+        }
+        
+        // Returns a pointer to the data at the beginning of level "level" of
+        // subdivision
+        Type * operator[](int level) { 
+            assert(level>=0 and level<(int)_markers.size());
+            return _markers[level];
+        }
 
-	Table(int maxlevel) : _markers(maxlevel) { }
-
-	Type * operator[](int level) { 
-	    assert(level>=0 and level<(int)_markers.size());
-	    return _markers[level];
-	}
-
+        // Returns a const pointer to the data at the beginning of level "level"
+        // of subdivision
         const Type * operator[](int level) const {
             return const_cast<Table *>(this)->operator[](level);
         }
     };
     
+    // Returns the edge vertices indexing table
     Table<unsigned int> const & Get_E_IT() const { return _E_IT; } 
 
+    // Returns the edge vertices weights table
     Table<float> const &        Get_E_W() const { return _E_W; }
 
+    // Returns the vertex vertices codex table
     Table<int> const &          Get_V_ITa() const { return _V_ITa; } 
 
+    // Returns the vertex vertices indexing table
     Table<unsigned int> const & Get_V_IT() const { return _V_IT; } 
 
-    Table<float> const &         Get_V_W() const { return _V_W; } 
+    // Returns the vertex vertices weights table
+    Table<float> const &        Get_V_W() const { return _V_W; } 
 
 protected:
     friend class FarMeshFactory<T,U>;
@@ -184,35 +197,41 @@ protected:
     static bool compareVertices( HbrVertex<T> const * x, HbrVertex<T> const * y );
 
     struct VertexKernelBatch {
-        int kernelF;
-        int kernelE;
+        int kernelF; // number of face vertices
+        int kernelE; // number of edge vertices
 
-        std::pair<int,int> kernelB;
-        std::pair<int,int> kernelA1;
-        std::pair<int,int> kernelA2;
+        std::pair<int,int> kernelB;  // first / last vertex vertex batch (kernel B)
+        std::pair<int,int> kernelA1; // first / last vertex vertex batch (kernel A pass 1)
+        std::pair<int,int> kernelA2; // first / last vertex vertex batch (kernel A pass 2)
         
-	VertexKernelBatch() : kernelF(0), kernelE(0) { }
-	
-	void InitVertexKernels(int a, int b) { 
-	    kernelB.first = kernelA1.first = kernelA2.first = a;
-	    kernelB.second = kernelA1.second = kernelA2.second = b;
-	}
-	
-	void AddVertex( int index, int rank ) {
-	    // expand the range of kernel batches based on vertex index and rank
+        VertexKernelBatch() : kernelF(0), kernelE(0) { }
+
+        void InitVertexKernels(int a, int b) { 
+            kernelB.first = kernelA1.first = kernelA2.first = a;
+            kernelB.second = kernelA1.second = kernelA2.second = b;
+        }
+
+        void AddVertex( int index, int rank ) {
+            // expand the range of kernel batches based on vertex index and rank
             if (rank<7) {
-		if (index < kernelB.first) kernelB.first=index;
-		if (index > kernelB.second) kernelB.second=index;
-	    }
+                if (index < kernelB.first) 
+                    kernelB.first=index;
+                if (index > kernelB.second) 
+                    kernelB.second=index;
+            }
             if ((rank>2) and (rank<8)) {
-		if (index < kernelA2.first) kernelA2.first=index;
-		if (index > kernelA2.second) kernelA2.second=index;
-	    }
+                if (index < kernelA2.first) 
+                    kernelA2.first=index;
+                if (index > kernelA2.second) 
+                    kernelA2.second=index;
+            }
             if (rank>6) {
-		if (index < kernelA1.first) kernelA1.first=index;
-		if (index > kernelA1.second) kernelA1.second=index;
-	    }
-	}
+                if (index < kernelA1.first) 
+                    kernelA1.first=index;
+                if (index > kernelA1.second) 
+                    kernelA1.second=index;
+            }
+        }
     };
 
     // Returns the range of vertex indices of each of the 3 batches of VertexPoint
@@ -230,9 +249,9 @@ protected:
     Table<unsigned int> _V_IT;  // indices of adjacent vertices
     Table<float>        _V_W;   // weights
 
-    std::vector<VertexKernelBatch> _batches;
+    std::vector<VertexKernelBatch> _batches; // batches of vertices for kernel execution
  
-    std::vector<int> _vertsOffsets;        // offset to the first vertex of each level
+    std::vector<int> _vertsOffsets; // offset to the first vertex of each level
 private:
 };
 
@@ -273,9 +292,9 @@ FarSubdivisionTables<T,U>::FarSubdivisionTables( FarMesh<T,U> * mesh, int maxlev
 template <class T, class U> int 
 FarSubdivisionTables<T,U>::getMaskRanking( unsigned char mask0, unsigned char mask1 ) {
     static short masks[4][4] = { {    0,    1,    6,    4 },
- 				 { 0xFF,    2,    5,    3 },
- 				 { 0xFF, 0xFF,    9,    7 },
- 				 { 0xFF, 0xFF, 0xFF,    8 } };
+                                 { 0xFF,    2,    5,    3 },
+                                 { 0xFF, 0xFF,    9,    7 },
+                                 { 0xFF, 0xFF, 0xFF,    8 } };
     return masks[mask0][mask1];
 }
 
@@ -324,9 +343,9 @@ FarSubdivisionTables<T,U>::GetNumVertexVertices( int level ) const {
     if (level==0)
         return _mesh->GetNumCoarseVertices();
     else
-	return std::max( _batches[level-1].kernelB.second,
-        	   std::max(_batches[level-1].kernelA1.second, 
-	               _batches[level-1].kernelA2.second));
+        return std::max( _batches[level-1].kernelB.second,
+                   std::max(_batches[level-1].kernelA1.second, 
+                       _batches[level-1].kernelA2.second));
 }
 
 template <class T, class U> int 
@@ -335,9 +354,9 @@ FarSubdivisionTables<T,U>::GetNumVertices( int level ) const {
     if (level==0)
         return GetNumVertexVertices(0);
     else
-	return GetNumFaceVertices(level)+
+        return GetNumFaceVertices(level)+
                GetNumEdgeVertices(level)+
-	       GetNumVertexVertices(level);
+               GetNumVertexVertices(level);
 }
 
 template <class T, class U> int

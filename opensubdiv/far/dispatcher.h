@@ -68,15 +68,15 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-// Compute dispatcher : allows client code to this API to customize parts or the
-// entire computation process. This pattern aims at hiding the logic specific to
+// Compute dispatcher : allows client code to customize parts or the entire
+// computation process. This pattern aims at hiding the logic specific to
 // the subdivision algorithms and expose a simplified access to minimalistic  
-// compute kernels. By default, meshes revert to a default dispatcher that implements
-// single-threaded CPU kernels.
+// compute kernels. By default, meshes revert to a default dispatcher that
+// implements single-threaded CPU kernels.
 //
 // - derive a dispatcher class from this one
 // - override the virtual functions
-// - pass the derived dispatched to the factory (one instance can be shared by many meshes)
+// - pass the derived dispatcher to the factory (one instance can be shared by many meshes)
 // - call the FarMesh::Subdivide() to trigger computations
 //
 // Note : the caller is responsible for deleting a custom dispatcher
