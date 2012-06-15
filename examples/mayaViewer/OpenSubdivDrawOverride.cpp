@@ -281,16 +281,18 @@ SubdivUserData::Populate(MObject mesh)
         edgeCreaseIndices[i*2+1] = vertices[1];
     }
 
-    std::string kernel = "omp";
-
     OpenSubdiv::OsdHbrMesh *hbrMesh = ConvertToHBR(meshFn.numVertices(), numIndices, faceIndices,
                                                    vtxCreaseIndices, vtxCreases,
                                                    std::vector<int>(), std::vector<float>(),
                                                    edgeCreaseIndices, edgeCreases,
                                                    interpBoundary, _loop);
 
-    if (_osdmesh) delete _osdmesh;
     if (_vertexBuffer) delete _vertexBuffer;
+
+    int kernel = OpenSubdiv::OsdKernelDispatcher::kCPU;
+    if (OpenSubdiv::OsdKernelDispatcher::HasKernelType(OpenSubdiv::OsdKernelDispatcher::kOPENMP)) {
+        kernel = OpenSubdiv::OsdKernelDispatcher::kOPENMP;
+    }
     _osdmesh->Create(hbrMesh, level, kernel);
 
     // create vertex buffer

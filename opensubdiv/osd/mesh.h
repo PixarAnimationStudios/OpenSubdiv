@@ -89,7 +89,7 @@ public:
     virtual ~OsdMesh();
 
 
-    bool Create(OsdHbrMesh *hbrMesh, int level, const std::string &kernel);
+    bool Create(OsdHbrMesh *hbrMesh, int level, int kernel);
 
     FarMesh<OsdVertex> *GetFarMesh() { return _mMesh; }
 

@@ -78,6 +78,13 @@ public:
     OsdKernelDispatcher (int maxLevel) : _maxLevel(maxLevel) { }
     virtual ~OsdKernelDispatcher() { }
 
+    enum KernelType { kCPU = 0,
+                      kOPENMP = 1,
+                      kCUDA = 2,
+                      kGLSL = 3,
+                      kCL = 4,
+                      kMAX };
+
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr) = 0;
 
@@ -103,9 +110,16 @@ public:
             _tableOffsets[tableIndex][i] = table[i] - table[0];
     }
 
-    static OsdKernelDispatcher *CreateKernelDispatcher( const std::string &kernel, int levels ) {
-    
-        return Factory::GetInstance().Create( kernel, levels );
+    static OsdKernelDispatcher *CreateKernelDispatcher( int levels, int kernel ) {
+        return Factory::GetInstance().Create( levels, kernel );
+    }
+
+    static int GetNumRegisteredKernels() {
+        return Factory::GetInstance().GetNumRegisteredKernels();
+    }
+
+    static bool HasKernelType(KernelType kernel) {
+        return Factory::GetInstance().HasKernelType(kernel);
     }
 
     enum { E_IT,
@@ -122,33 +136,52 @@ protected:
     class Factory {
 
     public:
+        Factory();
+
         typedef OsdKernelDispatcher *(*Creator)( int levels );
-        typedef std::map<const std::string, Creator> CreatorMap;
 
-        bool Register(const std::string &kernel, Creator creator) {
-            return _creators.insert(CreatorMap::value_type(kernel, creator)).second;
+        int Register(Creator creator) {
+            _kernelCreators.push_back(creator);
+            return (int)_kernelCreators.size() - 1;
         }
 
-        bool Unregister(const std::string &kernel) {
-            return _creators.erase(kernel) == 1;
+        OsdKernelDispatcher *Create ( int levels, int kernel ) {
+            if (kernel >= (int)_kernelCreators.size())
+                return NULL;
+
+            return (_kernelCreators[kernel])(levels);
         }
 
-        OsdKernelDispatcher *Create ( const std::string &kernel, int levels ) {
-            CreatorMap::const_iterator it = _creators.find(kernel);
-            if (it != _creators.end())
-                return (it->second)(levels);
-            return NULL;
+        int GetNumRegisteredKernels() const {
+            return (int)_kernelCreators.size();
         }
-	
+
+        bool HasKernelType(KernelType kernel) const {
+            if ((int)kernel >= _kernelCreators.size()) {
+                return false;
+            }
+            return (_kernelCreators[kernel] != NULL);
+        }
+
         static Factory &GetInstance() {
             return _instance;
         }
         
-	static Factory _instance;
+        static Factory _instance;
+
+    protected:
+        friend class OsdCpuKernelDispatcher;
+        friend class OsdGlslKernelDispatcher;
+        friend class OsdCudaKernelDispatcher;
+        friend class OsdClKernelDispatcher;
+
+        int Register(Creator creator, KernelType kernel) {
+            _kernelCreators.resize(kMAX, NULL);
+            _kernelCreators[kernel] = creator;
+        }
 
     private:
-        
-	CreatorMap _creators;
+        std::vector<Creator> _kernelCreators;
     };
 
 protected:
