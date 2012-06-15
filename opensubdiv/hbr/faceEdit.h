@@ -59,6 +59,11 @@
 
 #include "../hbr/hierarchicalEdit.h"
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 template <class T> class HbrFaceEdit;
 
 template <class T>
@@ -140,5 +145,10 @@ private:
     float* edit;
 };
 
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* HBRFACEEDIT_H */

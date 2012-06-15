@@ -64,6 +64,10 @@
 #include "../hbr/fvarData.h"
 #include "../hbr/face.h"
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
 template <class T> class HbrHalfedge;
 template <class T> class HbrHalfedgeCompare;
@@ -1495,6 +1499,11 @@ public:
     virtual void operator() (HbrVertex<T> &vertex) = 0;
     virtual ~HbrVertexOperator() {}
 };
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* HBRVERTEX_H */
 

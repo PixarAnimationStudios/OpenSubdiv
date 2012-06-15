@@ -57,6 +57,11 @@
 #ifndef HBRALLOCATOR_H
 #define HBRALLOCATOR_H
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 typedef void (*HbrMemStatFunction)(unsigned long bytes);
 
 /**
@@ -190,5 +195,10 @@ HbrAllocator<T>::Deallocate(T * obj) {
     m_freelist = obj;
     m_freecount++;
 }
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* HBRALLOCATOR_H */

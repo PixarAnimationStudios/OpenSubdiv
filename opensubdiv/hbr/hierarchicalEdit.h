@@ -57,6 +57,11 @@
 #ifndef HBRHIERARCHICALEDIT_H
 #define HBRHIERARCHICALEDIT_H
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 template <class T> class HbrHierarchicalEdit;
 template <class T> class HbrFace;
 template <class T> class HbrVertex;
@@ -150,8 +155,16 @@ public:
     }
 };
 
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
+
 #include "../hbr/face.h"
 #include <string.h>
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
 template <class T>
 bool
@@ -181,5 +194,10 @@ HbrHierarchicalEdit<T>::IsRelevantToFace(HbrFace<T>* face) const {
     }
     return true;
 }
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* HBRHIERARCHICALEDIT_H */

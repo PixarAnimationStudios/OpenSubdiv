@@ -57,6 +57,11 @@
 #ifndef HBRSUBDIVISION_H
 #define HBRSUBDIVISION_H
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 template <class T> class HbrFace;
 template <class T> class HbrVertex;
 template <class T> class HbrHalfedge;
@@ -291,4 +296,10 @@ HbrSubdivision<T>::AddCreaseEdgesWithWeight(HbrMesh<T>* mesh, HbrVertex<T>* vert
     CreaseSubdivisionHalfedgeOperator op(vertex, data, mesh->HasVertexEdits(), next, weight);
     vertex->ApplyOperatorSurroundingEdges(op);
 }
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
+
 #endif /* HBRSUBDIVISION_H */

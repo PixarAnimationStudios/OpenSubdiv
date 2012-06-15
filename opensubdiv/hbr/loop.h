@@ -63,6 +63,11 @@
 
 #include "../hbr/subdivision.h"
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 /* #define HBR_DEBUG */
 
 template <class T>
@@ -993,5 +998,10 @@ HbrLoopSubdivision<T>::refineFaceAtMiddle(HbrMesh<T>* mesh, HbrFace<T>* face) {
 	transferEditsToChild(face, child, 3);
     }
 }
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* HBRLOOP_H */

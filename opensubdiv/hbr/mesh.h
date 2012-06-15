@@ -79,6 +79,11 @@
 #include "../hbr/creaseEdit.h"
 #include "../hbr/allocator.h"
 
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 template <class T> class HbrSubdivision;
 
 template <class T> class HbrMesh {
@@ -394,9 +399,17 @@ private:
     
 };
 
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
+
 #include <algorithm>
 #include "../hbr/mesh.h"
 #include "../hbr/halfedge.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
 template <class T>
 HbrMesh<T>::HbrMesh(HbrSubdivision<T>* s, int _fvarcount, const int *_fvarindices, const int *_fvarwidths, int _totalfvarwidth
@@ -1076,5 +1089,10 @@ HbrMesh<T>::FreeTransientData() {
         }
     }
 }
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* HBRMESH_H */
