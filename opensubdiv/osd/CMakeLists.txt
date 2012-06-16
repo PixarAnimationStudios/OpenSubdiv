@@ -145,9 +145,34 @@ if( OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE) )
     )
 else()
     message(STATUS
-        "* OpenGL was not found : support for GLSL parallel compute kernels will be diabled "
+        "* OpenGL was not found : support for GLSL parallel compute kernels will be disabled "
         "in Osd. If you have an OpenGL SDK installed(version 4.2 or above), please refer to "
         "the FindOpenGL.cmake shared module in your cmake installation.")
+endif()
+
+#-------------------------------------------------------------------------------
+# OpenCL code & dependencies 
+if ( OPENCL_FOUND)
+    list(APPEND SOURCE_FILES
+        clDispatcher.cpp
+    )
+    list(APPEND PUBLIC_HEADERS
+        clDispatcher.h
+    )
+    list(APPEND KERNEL_FILES
+        clKernel.cl
+    )
+    list(APPEND PLATFORM_LIBRARIES
+        ${OPENCL_LIBRARIES}
+    )	
+    add_definitions(
+        -DOPENSUBDIV_HAS_OPENCL
+    )
+else()
+    message(STATUS
+        "* OpenCL was not found : support for OpenCL parallel compute kernels will be disabled "
+        "in Osd. If you have the OpenCL SDK installed, please refer to the FindOpenCL.cmake "
+        "in ${PROJECT_SOURCE_DIR}/cmake.")
 endif()
 
 #-------------------------------------------------------------------------------
@@ -170,7 +195,7 @@ if( CUDA_FOUND )
     endif()
 else()
     message(STATUS
-        "* CUDA was not found : support for CUDA parallel compute kernels will be diabled "
+        "* CUDA was not found : support for CUDA parallel compute kernels will be disabled "
         "in Osd. If you have the CUDA SDK installed, please refer to the FindCUDA.cmake "
         "shared module in your cmake installation.")
 endif()

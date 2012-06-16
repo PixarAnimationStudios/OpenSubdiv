@@ -64,11 +64,18 @@ set(PLATFORM_LIBRARIES
     ${GLUT_LIBRARIES}
 )
 
+if(OPENCL_FOUND)
+    add_definitions(
+        -DOPENSUBDIV_HAS_OPENCL
+    )
+endif()
+
 if(CUDA_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_CUDA
     )
 endif()
+
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv

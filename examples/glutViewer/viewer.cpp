@@ -71,6 +71,10 @@
 
 #include "../common/stopwatch.h"
 
+#ifdef OPENSUBDIV_HAS_OPENCL
+    #include <osd/clDispatcher.h>
+#endif
+
 #ifdef OPENSUBDIV_HAS_CUDA
     #include <osd/cudaDispatcher.h>
 
@@ -373,11 +377,16 @@ reshape(int width, int height) {
 //------------------------------------------------------------------------------
 const char *getKernelName(int kernel)
 {
-    if (kernel == OpenSubdiv::OsdKernelDispatcher::kCPU) return "CPU";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kOPENMP) return "OpenMP";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCUDA) return "Cuda";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kGLSL) return "GLSL";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCL) return "CL";
+         if (kernel == OpenSubdiv::OsdKernelDispatcher::kCPU) 
+        return "CPU";
+    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kOPENMP) 
+        return "OpenMP";
+    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCUDA) 
+        return "Cuda";
+    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kGLSL) 
+        return "GLSL";
+    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCL) 
+        return "OpenCL";
     return "Unknown";
 }
 //------------------------------------------------------------------------------
@@ -607,6 +616,11 @@ int main(int argc, char ** argv) {
     // Register Osd compute kernels
     OpenSubdiv::OsdCpuKernelDispatcher::Register();
     OpenSubdiv::OsdGlslKernelDispatcher::Register();
+
+#if OPENSUBDIV_HAS_OPENCL
+    OpenSubdiv::OsdClKernelDispatcher::Register();    
+#endif    
+    
 #if OPENSUBDIV_HAS_CUDA
     OpenSubdiv::OsdCudaKernelDispatcher::Register();
 

@@ -100,6 +100,7 @@ set(CMAKE_SUPPRESS_REGENERATION TRUE)
 find_package(IlmBase REQUIRED)
 find_package(OpenMP)
 find_package(OpenGL)
+find_package(OpenCL)
 find_package(CUDA)
 find_package(GLUT)
 
