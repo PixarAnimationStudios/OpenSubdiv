@@ -92,36 +92,40 @@ public:
     // object can be deleted safely.
     FarMeshFactory(HbrMesh<T> * mesh, int maxlevel);
 
-    // create a table-based mesh representation
+    // Create a table-based mesh representation
     // XXXX : this creator will take the options for adaptive patch meshes
     FarMesh<T,U> * Create( FarDispatcher<T,U> * dispatch=0 );
    
-    // maximum level of subidivision supported by this factory
+    // Maximum level of subidivision supported by this factory
     int GetMaxLevel() const { return _maxlevel; }
 
-    // total number of vertices of a given type up to level
+    // Total number of face vertices up to 'level'
     int GetNumFaceVerticesTotal(int level) const {
         return sumList<HbrVertex<T> *>(_faceVertsList, level);
     }
     
+    // Total number of edge vertices up to 'level'
     int GetNumEdgeVerticesTotal(int level) const {
         return sumList<HbrVertex<T> *>(_edgeVertsList, level);
     }
     
+    // Total number of vertex vertices up to 'level'
     int GetNumVertexVerticesTotal(int level) const {
         return sumList<HbrVertex<T> *>(_vertVertsList, level);
     }
 
+    // Valence summation up to 'level'
     int GetNumAdjacentVertVerticesTotal(int level) const;
    
-    // total number of faces across up to a level
+    // Total number of faces across up to a level
     int GetNumFacesTotal(int level) const {
         return sumList<HbrFace<T> *>(_facesList, level);
     }
     
-    // return the corresponding index of the HbrVertex<T> in the new mesh
+    // Return the corresponding index of the HbrVertex<T> in the new mesh
     int GetVertexID( HbrVertex<T> * v );
 
+    // Returns a the mapping between HbrVertex<T>->GetID() and Far vertices indices
     std::vector<int> const & GetRemappingTable( ) const { return _remapTable; }
 
 private:
@@ -129,7 +133,7 @@ private:
     friend class FarCatmarkSubdivisionTables<T,U>;
     friend class FarLoopSubdivisionTables<T,U>;
 
-    // non-copyable, so these are not implemented:
+    // Non-copyable, so these are not implemented:
     FarMeshFactory( FarMeshFactory const & );
     FarMeshFactory<T,U> & operator=(FarMeshFactory<T,U> const &);
 
@@ -149,14 +153,14 @@ private:
     
     int _maxlevel, 
         _numVertices, 
-	_numFaces;
+        _numFaces;
 
     // per-level counters and offsets for each type of vertex (face,edge,vert)
     std::vector<int> _faceVertIdx,
-	             _edgeVertIdx, 
-		     _vertVertIdx;
+                     _edgeVertIdx, 
+                     _vertVertIdx;
 
-    // number of indices required for the vertex iteration table at each level		 
+    // number of indices required for the vertex iteration table at each level                 
     std::vector<int> _vertVertsListSize;
 
     // remapping table to translate vertex ID's between Hbr indices and the
@@ -165,8 +169,8 @@ private:
 
     // lists of vertices sorted by type and level
     std::vector<std::vector< HbrVertex<T> *> > _faceVertsList, 
-					       _edgeVertsList,
-					       _vertVertsList;
+                                               _edgeVertsList,
+                                               _vertVertsList;
 
     // list of faces sorted by level
     std::vector<std::vector< HbrFace<T> *> > _facesList;
@@ -198,11 +202,11 @@ FarMeshFactory<T,U>::refine( HbrMesh<T> * mesh, int maxlevel ) {
 
     for (int l=0; l<maxlevel; ++l ) {
         int nfaces = mesh->GetNumFaces();
-	for (int i=0; i<nfaces; ++i) {
-	    HbrFace<T> * f = mesh->GetFace(i);
-	    if (f->GetDepth()==l)
-	        f->Refine();
-	}
+        for (int i=0; i<nfaces; ++i) {
+            HbrFace<T> * f = mesh->GetFace(i);
+            if (f->GetDepth()==l)
+                f->Refine();
+        }
     }
 
 }
@@ -233,38 +237,38 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel ) :
 
     std::vector<int> faceCounts(maxlevel+1,0), 
                      edgeCounts(maxlevel+1,0), 
-		     vertCounts(maxlevel+1,0);
+                     vertCounts(maxlevel+1,0);
 
     // First pass (vertices) : count the vertices of each type for each depth 
     // up to maxlevel (values are dependent on topology).
     int maxvertid=-1;
     for (int i=0; i<numVertices; ++i) {
 
-	HbrVertex<T> * v = mesh->GetVertex(i);
-	assert(v);
+        HbrVertex<T> * v = mesh->GetVertex(i);
+        assert(v);
 
         int depth = v->GetFace()->GetDepth();
-	
-	if (depth>maxlevel)
-	    continue;
+        
+        if (depth>maxlevel)
+            continue;
 
-	if (depth==0 )
-	    vertCounts[depth]++;
-	
-	if (v->GetID()>maxvertid) 
-	    maxvertid = v->GetID();
-	
-	if (not v->OnBoundary())
-	    _vertVertsListSize[depth] += v->GetValence();
-	else if (v->GetValence()!=2)
-	    _vertVertsListSize[depth] ++;
-	    
-	if (v->GetParentFace()) 
-	    faceCounts[depth]++;
-	else if (v->GetParentEdge()) 
-	    edgeCounts[depth]++;
-	else if (v->GetParentVertex()) 
-	    vertCounts[depth]++;
+        if (depth==0 )
+            vertCounts[depth]++;
+        
+        if (v->GetID()>maxvertid) 
+            maxvertid = v->GetID();
+        
+        if (not v->OnBoundary())
+            _vertVertsListSize[depth] += v->GetValence();
+        else if (v->GetValence()!=2)
+            _vertVertsListSize[depth] ++;
+            
+        if (v->GetParentFace()) 
+            faceCounts[depth]++;
+        else if (v->GetParentEdge()) 
+            edgeCounts[depth]++;
+        else if (v->GetParentVertex()) 
+            vertCounts[depth]++;
     }
     
     // Per-level offset to the first vertex of each type in the global vertex map
@@ -277,7 +281,7 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel ) :
         _faceVertsList[l].reserve( faceCounts[l] );
         _edgeVertsList[l].reserve( edgeCounts[l] );
         _vertVertsList[l].reserve( vertCounts[l] );
-    }		       
+    }                       
     
     // reset counters
     faceCounts.assign(maxlevel+1,0);
@@ -289,29 +293,29 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel ) :
     // (face, edge, verts...) and populate the remapping table.
     for (int i=0; i<numVertices; ++i) {
 
-	HbrVertex<T> * v = mesh->GetVertex(i);
-	assert(v);
+        HbrVertex<T> * v = mesh->GetVertex(i);
+        assert(v);
 
         int depth = v->GetFace()->GetDepth();
-	
-	if (depth>maxlevel)
-	    continue;
-	
+        
+        if (depth>maxlevel)
+            continue;
+        
         assert( _remapTable[ v->GetID() ] = -1 );
-	
-	if (depth==0) {	
-	    _vertVertsList[ depth ].push_back( v );
-	    _remapTable[ v->GetID() ] = v->GetID();
-	} else if (v->GetParentFace()) {
+        
+        if (depth==0) {        
+            _vertVertsList[ depth ].push_back( v );
+            _remapTable[ v->GetID() ] = v->GetID();
+        } else if (v->GetParentFace()) {
             _remapTable[ v->GetID() ]=_faceVertIdx[depth]+faceCounts[depth]++;
-	    _faceVertsList[ depth ].push_back( v );
-	} else if (v->GetParentEdge()) {
+            _faceVertsList[ depth ].push_back( v );
+        } else if (v->GetParentEdge()) {
             _remapTable[ v->GetID() ]=_edgeVertIdx[depth]+edgeCounts[depth]++;
-	    _edgeVertsList[ depth ].push_back( v );
-	} else if (v->GetParentVertex()) {
+            _edgeVertsList[ depth ].push_back( v );
+        } else if (v->GetParentVertex()) {
             // vertices need to be sorted separately based on compute kernel :
-	    // the remapping step is done just after this
-	    _vertVertsList[ depth ].push_back( v );
+            // the remapping step is done just after this
+            _vertVertsList[ depth ].push_back( v );
         }
     }
     
@@ -321,21 +325,21 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel ) :
     // function 'FarSubdivisionTables<T>::compareVertices' ).   
     for (size_t i=1; i<_vertVertsList.size(); ++i)
         std::sort(_vertVertsList[i].begin(), _vertVertsList[i].end(),
-	    FarSubdivisionTables<T,U>::compareVertices);    
+            FarSubdivisionTables<T,U>::compareVertices);    
 
     // These vertices still need a remapped index
     for (int l=1; l<(maxlevel+1); ++l)
         for (size_t i=0; i<_vertVertsList[l].size(); ++i)
-	    _remapTable[ _vertVertsList[l][i]->GetID() ]=_vertVertIdx[l]+i;
+            _remapTable[ _vertVertsList[l][i]->GetID() ]=_vertVertIdx[l]+i;
 
     
     // Third pass (faces) : populate the face lists.
     int fsize=0;
     for (int i=0; i<numFaces; ++i) {
         HbrFace<T> * f = mesh->GetFace(i); 
-	assert(f);
-	if (f->GetDepth()==0)
-	    fsize += mesh->GetSubdivision()->GetFaceChildrenCount( f->GetNumVertices() );
+        assert(f);
+        if (f->GetDepth()==0)
+            fsize += mesh->GetSubdivision()->GetFaceChildrenCount( f->GetNumVertices() );
     }
 
     _facesList[0].reserve(mesh->GetNumCoarseFaces());
@@ -345,14 +349,14 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel ) :
 
     for (int i=0; i<numFaces; ++i) {
         HbrFace<T> * f = mesh->GetFace(i);
-	if (f->GetDepth()<=maxlevel)
+        if (f->GetDepth()<=maxlevel)
             _facesList[ f->GetDepth() ].push_back(f);
     }
 
     _numFaces = GetNumFacesTotal(maxlevel);
     _numVertices = GetNumFaceVerticesTotal(maxlevel) +
                    GetNumEdgeVerticesTotal(maxlevel) +
-		   GetNumVertexVerticesTotal(maxlevel);
+                   GetNumVertexVerticesTotal(maxlevel);
 }
 
 template <class T, class U> bool 
@@ -388,8 +392,8 @@ FarMeshFactory<T,U>::copyTopology( std::vector<int> & vec, int level ) {
     for (int i=0; i<(int)_facesList[level].size(); ++i) {
         HbrFace<T> * f = _facesList[level][i];
         assert( f and f->GetNumVertices()==nv);
-	for (int j=0; j<f->GetNumVertices(); ++j)
-	    vec[nv*i+j]=_remapTable[f->GetVertex(j)->GetID()];
+        for (int j=0; j<f->GetNumVertices(); ++j)
+            vec[nv*i+j]=_remapTable[f->GetVertex(j)->GetID()];
     }
 }
 
@@ -410,13 +414,13 @@ FarMeshFactory<T,U>::Create( FarDispatcher<T,U> * dispatch ) {
 
     if ( isBilinear( _hbrMesh ) ) {
         result->_subdivision = 
-	    new FarBilinearSubdivisionTables<T,U>( *this, result, _maxlevel );
+            new FarBilinearSubdivisionTables<T,U>( *this, result, _maxlevel );
     } else if ( isCatmark( _hbrMesh ) ) {
         result->_subdivision = 
-	    new FarCatmarkSubdivisionTables<T,U>( *this, result, _maxlevel );
+            new FarCatmarkSubdivisionTables<T,U>( *this, result, _maxlevel );
     } else if ( isLoop(_hbrMesh) ) {
         result->_subdivision = 
-	    new FarLoopSubdivisionTables<T,U>( *this, result, _maxlevel );
+            new FarLoopSubdivisionTables<T,U>( *this, result, _maxlevel );
     } else
         assert(0);
 
@@ -427,7 +431,7 @@ FarMeshFactory<T,U>::Create( FarDispatcher<T,U> * dispatch ) {
     //        class is not an empty placeholder (ex. non-interleaved data)
     result->_vertices.resize( _numVertices );
     for (int i=0; i<result->GetNumCoarseVertices(); ++i)
-	result->_vertices[i] = _hbrMesh->GetVertex(i)->GetData();
+        result->_vertices[i] = _hbrMesh->GetVertex(i)->GetData();
 
     // Populate topology (face verts indices)
     // XXXX : only k_BilinearQuads support for now - adaptive bicubic patches to come

@@ -165,6 +165,9 @@ if( CUDA_FOUND )
     add_definitions(
         -DOPENSUBDIV_HAS_CUDA
     )
+    if (UNIX)
+        list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC )
+    endif()
 else()
     message(STATUS
         "* CUDA was not found : support for CUDA parallel compute kernels will be diabled "

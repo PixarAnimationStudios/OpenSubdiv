@@ -112,7 +112,7 @@ private:
     
 private:
    
-    typename FarSubdivisionTables<T,U>::template Table<int>	   _F_ITa;
+    typename FarSubdivisionTables<T,U>::template Table<int>           _F_ITa;
     typename FarSubdivisionTables<T,U>::template Table<unsigned int>  _F_IT;
 };
 
@@ -155,72 +155,72 @@ FarBilinearSubdivisionTables<T,U>::FarBilinearSubdivisionTables( FarMeshFactory<
 
     for (int level=1; level<=maxlevel; ++level) {
 
-	// pointer to the first vertex corresponding to this level
-	this->_vertsOffsets[level] = factory._vertVertIdx[level-1] + 
+        // pointer to the first vertex corresponding to this level
+        this->_vertsOffsets[level] = factory._vertVertIdx[level-1] + 
                                      factory._vertVertsList[level-1].size();
-				     
+
         typename FarSubdivisionTables<T,U>::VertexKernelBatch * batch = & (this->_batches[level-1]);
 
-	// Face vertices 
-	// "For each vertex, gather all the vertices from the parent face."
+        // Face vertices 
+        // "For each vertex, gather all the vertices from the parent face."
         int offset = 0;
-	int * F_ITa = this->_F_ITa[level-1];
-	unsigned int * F_IT = this->_F_IT[level-1];
-	batch->kernelF = (int)factory._faceVertsList[level].size();
-	for (int i=0; i < batch->kernelF; ++i) {
+        int * F_ITa = this->_F_ITa[level-1];
+        unsigned int * F_IT = this->_F_IT[level-1];
+        batch->kernelF = (int)factory._faceVertsList[level].size();
+        for (int i=0; i < batch->kernelF; ++i) {
 
             HbrVertex<T> * v = factory._faceVertsList[level][i];
-	    assert(v);
+            assert(v);
 
-	    HbrFace<T> * f=v->GetParentFace();
-	    assert(f);
+            HbrFace<T> * f=v->GetParentFace();
+            assert(f);
 
-	    int valence = f->GetNumVertices();
+            int valence = f->GetNumVertices();
 
             F_ITa[2*i+0] = offset;
             F_ITa[2*i+1] = valence;
 
-	    for (int j=0; j<valence; ++j)
-		F_IT[offset++] = remap[f->GetVertex(j)->GetID()];
-	}
+            for (int j=0; j<valence; ++j)
+                F_IT[offset++] = remap[f->GetVertex(j)->GetID()];
+        }
         _F_ITa.SetMarker(level, &F_ITa[2*batch->kernelF]);
         _F_IT.SetMarker(level, &F_IT[offset]);
 
-	// Edge vertices 
+        // Edge vertices 
 
         // "Average the end-points of the parent edge"
-	unsigned int * E_IT = this->_E_IT[level-1];
-	batch->kernelE = (int)factory._edgeVertsList[level].size();
-	for (int i=0; i < batch->kernelE; ++i) {
+        unsigned int * E_IT = this->_E_IT[level-1];
+        batch->kernelE = (int)factory._edgeVertsList[level].size();
+        for (int i=0; i < batch->kernelE; ++i) {
 
-	    HbrVertex<T> * v = factory._edgeVertsList[level][i];
+            HbrVertex<T> * v = factory._edgeVertsList[level][i];
             assert(v);
-	    HbrHalfedge<T> * e = v->GetParentEdge();
-	    assert(e);
+            HbrHalfedge<T> * e = v->GetParentEdge();
+            assert(e);
 
-	    // get the indices 2 vertices from the parent edge
+            // get the indices 2 vertices from the parent edge
             E_IT[2*i+0] = remap[e->GetOrgVertex()->GetID()];
             E_IT[2*i+1] = remap[e->GetDestVertex()->GetID()];
 
-	}
+        }
         this->_E_IT.SetMarker(level, &E_IT[2*batch->kernelE]);
-	
-	// Vertex vertices 
+        
+        // Vertex vertices 
 
         // "Pass down the parent vertex"
         offset = 0;
-	int * V_ITa = this->_V_ITa[level-1];
-	batch->kernelB.first = 0;
-	batch->kernelB.second = (int)factory._vertVertsList[level].size();
-	for (int i=0; i < batch->kernelB.second; ++i) {
+        int * V_ITa = this->_V_ITa[level-1];
+        batch->kernelB.first = 0;
+        batch->kernelB.second = (int)factory._vertVertsList[level].size();
+        for (int i=0; i < batch->kernelB.second; ++i) {
 
             HbrVertex<T> * v = factory._vertVertsList[level][i],
-	        	 * pv = v->GetParentVertex();
-	    assert(v and pv);
+                         * pv = v->GetParentVertex();
+            assert(v and pv);
 
             V_ITa[i] = remap[pv->GetID()];
 
-	}
+        }
         this->_V_ITa.SetMarker(level, &V_ITa[batch->kernelB.second]);
     }
 }
@@ -265,16 +265,16 @@ FarBilinearSubdivisionTables<T,U>::computeFacePoints( int offset, int level, int
 
     for (int i=start; i<end; ++i, ++vdst ) {
         
-	vdst->Clear(clientdata);
-	
-	int h = F_ITa[2*i  ], 
-	    n = F_ITa[2*i+1];
-	float weight = 1.0f/n;
+        vdst->Clear(clientdata);
+        
+        int h = F_ITa[2*i  ], 
+            n = F_ITa[2*i+1];
+        float weight = 1.0f/n;
 
-	for (int j=0; j<n; ++j) {
-	     vdst->AddWithWeight( vsrc[ F_IT[h+j] ], weight, clientdata );
-	     vdst->AddVaryingWithWeight( vsrc[ F_IT[h+j] ], weight, clientdata );
-	}
+        for (int j=0; j<n; ++j) {
+             vdst->AddWithWeight( vsrc[ F_IT[h+j] ], weight, clientdata );
+             vdst->AddVaryingWithWeight( vsrc[ F_IT[h+j] ], weight, clientdata );
+        }
     }
 }
 
@@ -298,10 +298,10 @@ FarBilinearSubdivisionTables<T,U>::computeEdgePoints( int offset,  int level, in
 
         int eidx0 = E_IT[2*i+0],
             eidx1 = E_IT[2*i+1];
-	    
-	vdst->AddWithWeight( vsrc[eidx0], 0.5f, clientdata );
-	vdst->AddWithWeight( vsrc[eidx1], 0.5f, clientdata );
-	
+
+        vdst->AddWithWeight( vsrc[eidx0], 0.5f, clientdata );
+        vdst->AddWithWeight( vsrc[eidx1], 0.5f, clientdata );
+
         vdst->AddVaryingWithWeight( vsrc[eidx0], 0.5f, clientdata );
         vdst->AddVaryingWithWeight( vsrc[eidx1], 0.5f, clientdata );
     }
@@ -324,11 +324,11 @@ FarBilinearSubdivisionTables<T,U>::computeVertexPoints( int offset, int level, i
     for (int i=start; i<end; ++i, ++vdst ) {
 
         vdst->Clear(clientdata);
-	
+
         int p=V_ITa[i];   // index of the parent vertex 
 
-	vdst->AddWithWeight( vsrc[p], 1.0f, clientdata );
-	vdst->AddVaryingWithWeight( vsrc[p], 1.0f, clientdata );
+        vdst->AddWithWeight( vsrc[p], 1.0f, clientdata );
+        vdst->AddVaryingWithWeight( vsrc[p], 1.0f, clientdata );
     }
 }
 

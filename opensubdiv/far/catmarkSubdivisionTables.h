@@ -166,60 +166,60 @@ FarCatmarkSubdivisionTables<T,U>::FarCatmarkSubdivisionTables( FarMeshFactory<T,
 
     for (int level=1; level<=maxlevel; ++level) {
 
-	// pointer to the first vertex corresponding to this level
-	this->_vertsOffsets[level] = factory._vertVertIdx[level-1] + 
+        // pointer to the first vertex corresponding to this level
+        this->_vertsOffsets[level] = factory._vertVertIdx[level-1] + 
                                      factory._vertVertsList[level-1].size();
-				     
+
         typename FarSubdivisionTables<T,U>::VertexKernelBatch * batch = & (this->_batches[level-1]);
 
-	// Face vertices 
-	// "For each vertex, gather all the vertices from the parent face."
+        // Face vertices 
+        // "For each vertex, gather all the vertices from the parent face."
         int offset = 0;
-	int * F_ITa = this->_F_ITa[level-1];
-	unsigned int * F_IT = this->_F_IT[level-1];
-	batch->kernelF = (int)factory._faceVertsList[level].size();
-	for (int i=0; i < batch->kernelF; ++i) {
+        int * F_ITa = this->_F_ITa[level-1];
+        unsigned int * F_IT = this->_F_IT[level-1];
+        batch->kernelF = (int)factory._faceVertsList[level].size();
+        for (int i=0; i < batch->kernelF; ++i) {
 
             HbrVertex<T> * v = factory._faceVertsList[level][i];
-	    assert(v);
+            assert(v);
 
-	    HbrFace<T> * f=v->GetParentFace();
-	    assert(f);
+            HbrFace<T> * f=v->GetParentFace();
+            assert(f);
 
-	    int valence = f->GetNumVertices();
+            int valence = f->GetNumVertices();
 
             F_ITa[2*i+0] = offset;
             F_ITa[2*i+1] = valence;
 
-	    for (int j=0; j<valence; ++j)
-		F_IT[offset++] = remap[f->GetVertex(j)->GetID()];
-	}
+            for (int j=0; j<valence; ++j)
+                F_IT[offset++] = remap[f->GetVertex(j)->GetID()];
+        }
         _F_ITa.SetMarker(level, &F_ITa[2*batch->kernelF]);
         _F_IT.SetMarker(level, &F_IT[offset]);
 
-	// Edge vertices 
+        // Edge vertices 
 
-	// Triangular interpolation mode :
-	// see "smoothtriangle" tag introduced in prman 3.9 and HbrCatmarkSubdivision<T>
-	typename HbrCatmarkSubdivision<T>::TriangleSubdivision triangleMethod = 
+        // Triangular interpolation mode :
+        // see "smoothtriangle" tag introduced in prman 3.9 and HbrCatmarkSubdivision<T>
+        typename HbrCatmarkSubdivision<T>::TriangleSubdivision triangleMethod = 
             dynamic_cast<HbrCatmarkSubdivision<T> *>(factory._hbrMesh->GetSubdivision())->GetTriangleSubdivisionMethod();
 
-	// "For each vertex, gather the 2 vertices from the parent edege and the
-	// 2 child vertices from the faces to the left and right of that edge.
-	// Adjust if edge has a crease or is on a boundary."
-	unsigned int * E_IT = this->_E_IT[level-1];
-	float * E_W = this->_E_W[level-1];
-	batch->kernelE = (int)factory._edgeVertsList[level].size();
-	for (int i=0; i < batch->kernelE; ++i) {
+        // "For each vertex, gather the 2 vertices from the parent edege and the
+        // 2 child vertices from the faces to the left and right of that edge.
+        // Adjust if edge has a crease or is on a boundary."
+        unsigned int * E_IT = this->_E_IT[level-1];
+        float * E_W = this->_E_W[level-1];
+        batch->kernelE = (int)factory._edgeVertsList[level].size();
+        for (int i=0; i < batch->kernelE; ++i) {
 
-	    HbrVertex<T> * v = factory._edgeVertsList[level][i];
+            HbrVertex<T> * v = factory._edgeVertsList[level][i];
             assert(v);
-	    HbrHalfedge<T> * e = v->GetParentEdge();
-	    assert(e);
+            HbrHalfedge<T> * e = v->GetParentEdge();
+            assert(e);
 
             float esharp = e->GetSharpness();
 
-	    // get the indices 2 vertices from the parent edge
+            // get the indices 2 vertices from the parent edge
             E_IT[4*i+0] = remap[e->GetOrgVertex()->GetID()];
             E_IT[4*i+1] = remap[e->GetDestVertex()->GetID()];
 
@@ -228,145 +228,145 @@ FarCatmarkSubdivisionTables<T,U>::FarCatmarkSubdivisionTables( FarMeshFactory<T,
             // in the case of a fractional sharpness, set the adjacent faces vertices
             if (!e->IsBoundary() && esharp <= 1.0f) {
 
-		float leftWeight, rightWeight;
-		HbrFace<T>* rf = e->GetRightFace();
-		HbrFace<T>* lf = e->GetLeftFace();
+                float leftWeight, rightWeight;
+                HbrFace<T>* rf = e->GetRightFace();
+                HbrFace<T>* lf = e->GetLeftFace();
 
-		leftWeight = ( triangleMethod == HbrCatmarkSubdivision<T>::k_New && lf->GetNumVertices() == 3) ? HBR_SMOOTH_TRI_EDGE_WEIGHT : 0.25f;
-		rightWeight = ( triangleMethod == HbrCatmarkSubdivision<T>::k_New && rf->GetNumVertices() == 3) ? HBR_SMOOTH_TRI_EDGE_WEIGHT : 0.25f;
+                leftWeight = ( triangleMethod == HbrCatmarkSubdivision<T>::k_New && lf->GetNumVertices() == 3) ? HBR_SMOOTH_TRI_EDGE_WEIGHT : 0.25f;
+                rightWeight = ( triangleMethod == HbrCatmarkSubdivision<T>::k_New && rf->GetNumVertices() == 3) ? HBR_SMOOTH_TRI_EDGE_WEIGHT : 0.25f;
 
-		faceWeight = 0.5f * (leftWeight + rightWeight);	
-		vertWeight = 0.5f * (1.0f - 2.0f * faceWeight);
+                faceWeight = 0.5f * (leftWeight + rightWeight);
+                vertWeight = 0.5f * (1.0f - 2.0f * faceWeight);
 
-        	faceWeight *= (1.0f - esharp);
+                faceWeight *= (1.0f - esharp);
 
-        	vertWeight = 0.5f * esharp + (1.0f - esharp) * vertWeight;
+                vertWeight = 0.5f * esharp + (1.0f - esharp) * vertWeight;
 
-        	E_IT[4*i+2] = remap[lf->Subdivide()->GetID()];
-        	E_IT[4*i+3] = remap[rf->Subdivide()->GetID()];
+                E_IT[4*i+2] = remap[lf->Subdivide()->GetID()];
+                E_IT[4*i+3] = remap[rf->Subdivide()->GetID()];
             } else {
-        	E_IT[4*i+2] = -1;
-        	E_IT[4*i+3] = -1;
-	    }
-	    E_W[2*i+0] = vertWeight;
-	    E_W[2*i+1] = faceWeight;
-	}
+                E_IT[4*i+2] = -1;
+                E_IT[4*i+3] = -1;
+            }
+            E_W[2*i+0] = vertWeight;
+            E_W[2*i+1] = faceWeight;
+        }
         this->_E_IT.SetMarker(level, &E_IT[4*batch->kernelE]);
         this->_E_W.SetMarker(level, &E_W[2*batch->kernelE]);
-	
-	// Vertex vertices 
+        
+        // Vertex vertices 
 
-	batch->InitVertexKernels( factory._vertVertsList[level].size(), 0 );
+        batch->InitVertexKernels( factory._vertVertsList[level].size(), 0 );
 
         offset = 0;
-	int * V_ITa = this->_V_ITa[level-1];
-	unsigned int * V_IT = this->_V_IT[level-1];
-	float * V_W = this->_V_W[level-1];
-	int nverts = (int)factory._vertVertsList[level].size();
-	for (int i=0; i < nverts; ++i) {
+        int * V_ITa = this->_V_ITa[level-1];
+        unsigned int * V_IT = this->_V_IT[level-1];
+        float * V_W = this->_V_W[level-1];
+        int nverts = (int)factory._vertVertsList[level].size();
+        for (int i=0; i < nverts; ++i) {
 
             HbrVertex<T> * v = factory._vertVertsList[level][i],
-	        	 * pv = v->GetParentVertex();
-	    assert(v and pv);
+                         * pv = v->GetParentVertex();
+            assert(v and pv);
 
             // Look at HbrCatmarkSubdivision<T>::Subdivide for more details about
-	    // the multi-pass interpolation 
+            // the multi-pass interpolation 
             int masks[2], npasses;
-	    float weights[2];
+            float weights[2];
             masks[0] = pv->GetMask(false);
-	    masks[1] = pv->GetMask(true);
+            masks[1] = pv->GetMask(true);
 
             // If the masks are identical, only a single pass is necessary. If the
-	    // vertex is transitionning to another rule, two passes are necessary,
-	    // except when transitionning from k_Dart to k_Smooth : the same
-	    // compute kernel is applied twice. Combining this special case allows
-	    // to batch the compute kernels into fewer calls.
-	    if (masks[0] != masks[1] and (
-		not (masks[0]==HbrVertex<T>::k_Smooth and 
-	             masks[1]==HbrVertex<T>::k_Dart))) {
-		weights[1] = pv->GetFractionalMask();
-		weights[0] = 1.0f - weights[1];
-		npasses = 2;
-	    } else {
-		weights[0] = 1.0f;
-		weights[1] = 0.0f;
-		npasses = 1;
-	    }
+            // vertex is transitionning to another rule, two passes are necessary,
+            // except when transitionning from k_Dart to k_Smooth : the same
+            // compute kernel is applied twice. Combining this special case allows
+            // to batch the compute kernels into fewer calls.
+            if (masks[0] != masks[1] and (
+                not (masks[0]==HbrVertex<T>::k_Smooth and 
+                     masks[1]==HbrVertex<T>::k_Dart))) {
+                weights[1] = pv->GetFractionalMask();
+                weights[0] = 1.0f - weights[1];
+                npasses = 2;
+            } else {
+                weights[0] = 1.0f;
+                weights[1] = 0.0f;
+                npasses = 1;
+            }
 
-	    int rank = this->getMaskRanking(masks[0], masks[1]);
+            int rank = this->getMaskRanking(masks[0], masks[1]);
 
             V_ITa[5*i+0] = offset;
             V_ITa[5*i+1] = 0;
             V_ITa[5*i+2] = remap[ pv->GetID() ];
-	    V_ITa[5*i+3] = -1;
-	    V_ITa[5*i+4] = -1;
+            V_ITa[5*i+3] = -1;
+            V_ITa[5*i+4] = -1;
 
             for (int p=0; p<npasses; ++p)
-        	switch (masks[p]) {
+                switch (masks[p]) {
                     case HbrVertex<T>::k_Smooth :
                     case HbrVertex<T>::k_Dart : {
-			HbrHalfedge<T> *e = pv->GetIncidentEdge(),
-		                       *start = e;
+                        HbrHalfedge<T> *e = pv->GetIncidentEdge(),
+                                       *start = e;
                         // XXXX bug : pv may not return an incident edge - 
-			// this loop may crash on some topologies
-			do {
+                        // this loop may crash on some topologies
+                        do {
                             V_ITa[5*i+1]++;
 
-			    V_IT[offset++] = remap[ e->GetDestVertex()->GetID() ];
- 		            
-			    V_IT[offset++] = remap[ e->GetLeftFace()->Subdivide()->GetID() ];
+                            V_IT[offset++] = remap[ e->GetDestVertex()->GetID() ];
+                             
+                            V_IT[offset++] = remap[ e->GetLeftFace()->Subdivide()->GetID() ];
 
-	        	    e = e->GetPrev()->GetOpposite();
-			} while (e != start);
-			break;
-		    }
-		    case HbrVertex<T>::k_Crease : {
+                            e = e->GetPrev()->GetOpposite();
+                        } while (e != start);
+                        break;
+                    }
+                    case HbrVertex<T>::k_Crease : {
 
-			class GatherCreaseEdgesOperator : public HbrHalfedgeOperator<T> {
-			public:
-        		    HbrVertex<T> * vertex; int eidx[2]; int count; bool next;
+                        class GatherCreaseEdgesOperator : public HbrHalfedgeOperator<T> {
+                        public:
+                            HbrVertex<T> * vertex; int eidx[2]; int count; bool next;
 
-			    GatherCreaseEdgesOperator(HbrVertex<T> * v, bool n) : vertex(v), count(0), next(n) { eidx[0]=-1; eidx[1]=-1; }
+                            GatherCreaseEdgesOperator(HbrVertex<T> * v, bool n) : vertex(v), count(0), next(n) { eidx[0]=-1; eidx[1]=-1; }
 
-			    virtual void operator() (HbrHalfedge<T> &e) {
-				if (e.IsSharp(next) and count < 2) {
-			            HbrVertex<T> * a = e.GetDestVertex();
-				    if (a==vertex)
-					a = e.GetOrgVertex();
-	        		    eidx[count++]=a->GetID();
-				}
-        		    }
-			};
+                            virtual void operator() (HbrHalfedge<T> &e) {
+                                if (e.IsSharp(next) and count < 2) {
+                                    HbrVertex<T> * a = e.GetDestVertex();
+                                    if (a==vertex)
+                                        a = e.GetOrgVertex();
+                                    eidx[count++]=a->GetID();
+                                }
+                            }
+                        };
 
-			GatherCreaseEdgesOperator op( pv, p==1 );
-			pv->ApplyOperatorSurroundingEdges( op );
+                        GatherCreaseEdgesOperator op( pv, p==1 );
+                        pv->ApplyOperatorSurroundingEdges( op );
 
-			assert(V_ITa[5*i+3]==-1 and V_ITa[5*i+4]==-1);
-			assert(op.eidx[0]!=-1 and op.eidx[1]!=-1);
-                	V_ITa[5*i+3] = remap[op.eidx[0]];
-			V_ITa[5*i+4] = remap[op.eidx[1]];
-			break;
+                        assert(V_ITa[5*i+3]==-1 and V_ITa[5*i+4]==-1);
+                        assert(op.eidx[0]!=-1 and op.eidx[1]!=-1);
+                        V_ITa[5*i+3] = remap[op.eidx[0]];
+                        V_ITa[5*i+4] = remap[op.eidx[1]];
+                        break;
                     } 
-		    case HbrVertex<T>::k_Corner :
-                	// in the case of a k_Crease / k_Corner pass combination, we
-			// need to set the valence to -1 to tell the "B" Kernel to
-			// switch to k_Corner rule (as edge indices won't be -1)
-                	if (V_ITa[5*i+1]==0)
-		            V_ITa[5*i+1] = -1;
+                    case HbrVertex<T>::k_Corner :
+                        // in the case of a k_Crease / k_Corner pass combination, we
+                        // need to set the valence to -1 to tell the "B" Kernel to
+                        // switch to k_Corner rule (as edge indices won't be -1)
+                        if (V_ITa[5*i+1]==0)
+                            V_ITa[5*i+1] = -1;
 
-		    default : break;
-		}
+                    default : break;
+                }
 
 
-	    if (rank>7)
-		// the k_Corner and k_Crease single-pass cases apply a weight of 1.0 
-		// but this value is inverted in the kernel
-		V_W[i] = 0.0;
-	    else
-		V_W[i] = weights[0];
+            if (rank>7)
+                // the k_Corner and k_Crease single-pass cases apply a weight of 1.0 
+                // but this value is inverted in the kernel
+                V_W[i] = 0.0;
+            else
+                V_W[i] = weights[0];
 
             batch->AddVertex( i, rank );
-	}
+        }
         this->_V_ITa.SetMarker(level, &V_ITa[5*nverts]);
         this->_V_IT.SetMarker(level, &V_IT[offset]);
         this->_V_W.SetMarker(level, &V_W[nverts]);
@@ -421,16 +421,16 @@ FarCatmarkSubdivisionTables<T,U>::computeFacePoints( int offset, int level, int 
 
     for (int i=start; i<end; ++i, ++vdst ) {
         
-	vdst->Clear(clientdata);
-	
-	int h = F_ITa[2*i  ], 
-	    n = F_ITa[2*i+1];
-	float weight = 1.0f/n;
+        vdst->Clear(clientdata);
+        
+        int h = F_ITa[2*i  ], 
+            n = F_ITa[2*i+1];
+        float weight = 1.0f/n;
 
-	for (int j=0; j<n; ++j) {
-	     vdst->AddWithWeight( vsrc[ F_IT[h+j] ], weight, clientdata );
-	     vdst->AddVaryingWithWeight( vsrc[ F_IT[h+j] ], weight, clientdata );
-	}
+        for (int j=0; j<n; ++j) {
+             vdst->AddWithWeight( vsrc[ F_IT[h+j] ], weight, clientdata );
+             vdst->AddVaryingWithWeight( vsrc[ F_IT[h+j] ], weight, clientdata );
+        }
     }
 }
 
@@ -457,20 +457,20 @@ FarCatmarkSubdivisionTables<T,U>::computeEdgePoints( int offset,  int level, int
             eidx1 = E_IT[4*i+1],
             eidx2 = E_IT[4*i+2],
             eidx3 = E_IT[4*i+3];
-	    
+            
         float vertWeight = E_W[i*2+0];
 
-        // Fully sharp edge : vertWeight = 0.5f	
-	vdst->AddWithWeight( vsrc[eidx0], vertWeight, clientdata );
-	vdst->AddWithWeight( vsrc[eidx1], vertWeight, clientdata );
-	
-	if (eidx2!=-1) {
-	    // Apply fractional sharpness
+        // Fully sharp edge : vertWeight = 0.5f
+        vdst->AddWithWeight( vsrc[eidx0], vertWeight, clientdata );
+        vdst->AddWithWeight( vsrc[eidx1], vertWeight, clientdata );
+        
+        if (eidx2!=-1) {
+            // Apply fractional sharpness
             float faceWeight = E_W[i*2+1];
-	    
-	    vdst->AddWithWeight( vsrc[eidx2], faceWeight, clientdata );
-	    vdst->AddWithWeight( vsrc[eidx3], faceWeight, clientdata );
-	}
+            
+            vdst->AddWithWeight( vsrc[eidx2], faceWeight, clientdata );
+            vdst->AddWithWeight( vsrc[eidx3], faceWeight, clientdata );
+        }
 
         vdst->AddVaryingWithWeight( vsrc[eidx0], 0.5f, clientdata );
         vdst->AddVaryingWithWeight( vsrc[eidx1], 0.5f, clientdata );
@@ -495,34 +495,34 @@ FarCatmarkSubdivisionTables<T,U>::computeVertexPointsA( int offset, bool pass, i
 
     for (int i=start; i<end; ++i, ++vdst ) {
 
-	if (not pass)
-	    vdst->Clear(clientdata);
-	
+        if (not pass)
+            vdst->Clear(clientdata);
+        
         int     n=V_ITa[5*i+1],   // number of vertices in the _VO_IT array (valence)
-	        p=V_ITa[5*i+2],   // index of the parent vertex 
-	    eidx0=V_ITa[5*i+3],   // index of the first crease rule edge
-	    eidx1=V_ITa[5*i+4];   // index of the second crease rule edge
+                p=V_ITa[5*i+2],   // index of the parent vertex 
+            eidx0=V_ITa[5*i+3],   // index of the first crease rule edge
+            eidx1=V_ITa[5*i+4];   // index of the second crease rule edge
 
         float weight = pass ? V_W[i] : 1.0f - V_W[i];
 
         // In the case of fractional weight, the weight must be inverted since 
-	// the value is shared with the k_Smooth kernel (statistically the 
-	// k_Smooth kernel runs much more often than this one)
+        // the value is shared with the k_Smooth kernel (statistically the 
+        // k_Smooth kernel runs much more often than this one)
         if (weight>0.0f and weight<1.0f and n>0)
-	    weight=1.0f-weight;
+            weight=1.0f-weight;
 
         // In the case of a k_Corner / k_Crease combination, the edge indices
-	// won't be null,  so we use a -1 valence to detect that particular case
+        // won't be null,  so we use a -1 valence to detect that particular case
         if (eidx0==-1 or (pass==false and (n==-1)) ) {
             // k_Corner case
-	    vdst->AddWithWeight( vsrc[p], weight, clientdata );
-	} else {
+            vdst->AddWithWeight( vsrc[p], weight, clientdata );
+        } else {
             // k_Crease case
-	    vdst->AddWithWeight( vsrc[p], weight * 0.75f, clientdata );
-	    vdst->AddWithWeight( vsrc[eidx0], weight * 0.125f, clientdata );
-	    vdst->AddWithWeight( vsrc[eidx1], weight * 0.125f, clientdata );
-	}
-	vdst->AddVaryingWithWeight( vsrc[p], 1.0f, clientdata );
+            vdst->AddWithWeight( vsrc[p], weight * 0.75f, clientdata );
+            vdst->AddWithWeight( vsrc[eidx0], weight * 0.125f, clientdata );
+            vdst->AddWithWeight( vsrc[eidx1], weight * 0.125f, clientdata );
+        }
+        vdst->AddVaryingWithWeight( vsrc[p], 1.0f, clientdata );
     }
 }
 
@@ -540,23 +540,23 @@ FarCatmarkSubdivisionTables<T,U>::computeVertexPointsB( int offset, int level, i
     const float * V_W = this->_V_W[level-1];
 
     for (int i=start; i<end; ++i, ++vdst ) {
- 	
-	vdst->Clear(clientdata);
-	
-	int h = V_ITa[5*i  ],	// offset of the vertices in the _V0_IT array
-	    n = V_ITa[5*i+1],	// number of vertices in the _VO_IT array (valence)
-	    p = V_ITa[5*i+2];	// index of the parent vertex 
-	    
+         
+        vdst->Clear(clientdata);
+        
+        int h = V_ITa[5*i  ],     // offset of the vertices in the _V0_IT array
+            n = V_ITa[5*i+1],     // number of vertices in the _VO_IT array (valence)
+            p = V_ITa[5*i+2];     // index of the parent vertex
+            
         float weight = V_W[i],
                   wp = 1.0f/(n*n),
-	          wv = (n-2.0f)*n*wp;
+                  wv = (n-2.0f)*n*wp;
 
         vdst->AddWithWeight( vsrc[p], weight * wv, clientdata );
-	
-	for (int j=0; j<n; ++j) {
-	    vdst->AddWithWeight( vsrc[V_IT[h+j*2  ]], weight * wp, clientdata );
-	    vdst->AddWithWeight( vsrc[V_IT[h+j*2+1]], weight * wp, clientdata );
-	}
+        
+        for (int j=0; j<n; ++j) {
+            vdst->AddWithWeight( vsrc[V_IT[h+j*2  ]], weight * wp, clientdata );
+            vdst->AddWithWeight( vsrc[V_IT[h+j*2+1]], weight * wp, clientdata );
+        }
         vdst->AddVaryingWithWeight( vsrc[p], 1.0f, clientdata );
     }    
 }

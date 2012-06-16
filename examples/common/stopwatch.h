@@ -93,31 +93,29 @@ public:
         return _totalElapsed;
     }   
 #else
+    Stopwatch() {
+        QueryPerformanceFrequency(&_frequency);
+    }
+    
     void Start() 
     { 
-        __int64 CreationTime, ExitTime, KernelTime, UserTime;
-        GetProcessTimes(GetCurrentProcess(), (FILETIME*) &CreationTime, (FILETIME*) &ExitTime, 
-                       (FILETIME*) &KernelTime, (FILETIME*) &UserTime);
-        GetSystemTimeAsFileTime((FILETIME*) &_elapsed); 
+        QueryPerformanceCounter(&_time);
     }
 
     void Stop() 
     { 
-        __int64 CreationTime, ExitTime, KernelTime, UserTime, CurrentTime;
-
-        GetProcessTimes(GetCurrentProcess(), (FILETIME*) &CreationTime, (FILETIME*) &ExitTime, 
-                       (FILETIME*) &KernelTime, (FILETIME*) &UserTime);
-        GetSystemTimeAsFileTime((FILETIME*) &CurrentTime);
-	    _elapsed = CurrentTime - _elapsed;
-        _totalElapsed += _elapsed;
+        LARGE_INTEGER currentTime;
+        QueryPerformanceCounter(&currentTime);
+        _elapsed = currentTime.QuadPart - _time.QuadPart;
+        _totalElapsed+=_elapsed;
     }
 
     double GetElapsed() const {
-        return _elapsed / (1000 * 1000 * 10); 
+        return (double) _elapsed / _frequency.QuadPart;
     }
     
     double GetTotalElapsed() const {
-        return _totalElapsed / (1000 * 1000 * 10); 
+        return (double) _totalElapsed / _frequency.QuadPart;
     }
 #endif
 
@@ -127,6 +125,8 @@ private:
     double _elapsed;
     double _totalElapsed;
 #else
+    LARGE_INTEGER _time,
+    LARGE_INTEGER _frequency;
     __int64 _elapsed;
     __int64 _totalElapsed;
 #endif

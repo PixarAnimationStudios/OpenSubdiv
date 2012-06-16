@@ -90,8 +90,8 @@ public:
 
     enum PatchType {
         k_BilinearTriangles,
-	k_BilinearQuads,
-	k_Triangles,
+        k_BilinearQuads,
+        k_Triangles,
     };
     
     // returns the type of patches described by the face vertices list 
@@ -119,7 +119,7 @@ public:
 private:    
     friend class FarMeshFactory<T,U>;
 
-    FarMesh() : _subdivision(0), _dispatcher(0) {}
+    FarMesh() : _subdivision(0), _dispatcher(0) { }
 
     // non-copyable, so these are not implemented:
     FarMesh(FarMesh<T,U> const &);
@@ -137,6 +137,7 @@ private:
     // list of vertex indices for each face
     std::vector< std::vector<int> > _faceverts;
     
+    // XXX stub for adaptive work
     PatchType _patchtype;
 
     // number of vertices at level 0 of subdivision
