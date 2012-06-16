@@ -235,13 +235,15 @@ FarLoopSubdivisionTables<T,U>::FarLoopSubdivisionTables( FarMeshFactory<T,U> con
                     case HbrVertex<T>::k_Dart : {
                         HbrHalfedge<T> *e = pv->GetIncidentEdge(),
                                        *start = e;
-                        do {
+                        while (e) {
                             V_ITa[5*i+1]++;
 
                             V_IT[offset++] = remap[ e->GetDestVertex()->GetID() ];
 
                             e = e->GetPrev()->GetOpposite();
-                        } while (e != start);
+                            
+                            if (e==start) break;
+                        }
                         break;
                     }
                     case HbrVertex<T>::k_Crease : {

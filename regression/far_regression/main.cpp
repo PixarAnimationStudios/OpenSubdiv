@@ -234,6 +234,7 @@ static void dumpTriFaces( fMesh * mesh, int level ) {
     printf("]\n");  
 }
 
+//------------------------------------------------------------------------------
 static void dumpMesh( fMesh * mesh, int level, Scheme scheme=kCatmark ) {
     printf("{ ");
     dumpVerts(mesh,level);
@@ -243,6 +244,40 @@ static void dumpMesh( fMesh * mesh, int level, Scheme scheme=kCatmark ) {
     case kCatmark : dumpQuadFaces(mesh, level); break;
     }
     printf("},\n");
+}
+
+//------------------------------------------------------------------------------
+// Returns true if a vertex or any of its parents is on a boundary
+bool VertexOnBoundary( xyzvertex const * v ) {
+    
+    if (not v) 
+        return false;
+    
+    if (v->OnBoundary())
+        return true;
+    
+    xyzvertex const * pv = v->GetParentVertex();
+    if (pv)
+        return VertexOnBoundary(pv);
+    else {
+        xyzhalfedge const * pe = v->GetParentEdge();
+        if (pe) {
+              return VertexOnBoundary(pe->GetOrgVertex()) or 
+                     VertexOnBoundary(pe->GetDestVertex());
+        } else {
+            xyzface const * pf = v->GetParentFace(), * rootf = pf;
+            while (pf) {
+                pf = pf->GetParent();
+                if (pf)
+                    rootf=pf;
+            }
+            if (rootf)
+                for (int i=0; i<rootf->GetNumVertices(); ++i)
+                    if (rootf->GetVertex(i)->OnBoundary())
+                        return true;
+        }
+    }
+    return false;
 }
 
 //------------------------------------------------------------------------------
@@ -277,6 +312,13 @@ int checkMesh( char const * msg, xyzmesh * hmesh, int levels, Scheme scheme=kCat
 
         xyzvertex * hv = hmesh->GetVertex(i);
         xyzVV & nv = m->GetVertex( remap[hv->GetID()] );
+
+        // boundary interpolation rules set to "none" produce "undefined" vertices on
+        // boundary vertices : far does not match hbr for those, so skip comparison.
+        if ( hmesh->GetInterpolateBoundaryMethod()==xyzmesh::k_InterpolateBoundaryNone and
+             VertexOnBoundary(hv) )
+             continue;
+            
 
         if ( hv->GetData().GetPos()[0] != nv.GetPos()[0] ) 
             deltaCnt[0]++;
@@ -364,7 +406,8 @@ int main(int argc, char ** argv) {
 #define test_catmark_cube_corner2
 #define test_catmark_cube_corner3
 #define test_catmark_cube_corner4
-#define test_catmark_dart
+#define test_catmark_dart_edgeonly
+#define test_catmark_dart_edgecorner
 #define test_catmark_tent
 #define test_catmark_tent_creases0
 #define test_catmark_tent_creases1
@@ -377,6 +420,7 @@ int main(int argc, char ** argv) {
 #define test_loop_cube_creases1
 
 #define test_bilinear_cube
+
   if (g_debugmode)
       printf("[ ");
   else
@@ -447,9 +491,14 @@ int main(int argc, char ** argv) {
     total += checkMesh( "test_catmark_cube_corner4", simpleHbr<xyzVV>(catmark_cube_corner4), levels ); 
 #endif
 
-#ifdef test_catmark_dart
-#include "../shapes/catmark_dart.h"
-    total += checkMesh( "test_catmark_dart", simpleHbr<xyzVV>(catmark_dart), levels ); 
+#ifdef test_catmark_dart_edgecorner
+#include "../shapes/catmark_dart_edgecorner.h"
+    total += checkMesh( "test_catmark_dart_edgecorner", simpleHbr<xyzVV>(catmark_dart_edgecorner), levels ); 
+#endif
+
+#ifdef test_catmark_dart_edgeonly
+#include "../shapes/catmark_dart_edgeonly.h"
+    total += checkMesh( "test_catmark_dart_edgeonly", simpleHbr<xyzVV>(catmark_dart_edgeonly), levels ); 
 #endif
 
 #ifdef test_catmark_tent

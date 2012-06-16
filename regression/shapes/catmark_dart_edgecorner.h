@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * catmark_dart =
+static char const * catmark_dart_edgecorner =
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "v 0.000000 -2.000000 0.000000\n"
@@ -151,6 +151,6 @@ static char const * catmark_dart =
 "f 14/14/4 23/23/3 24/24/22 15/15/25\n"
 "t crease 2/1/0 8 17 2.0\n"
 "t crease 2/1/0 17 20 2.0\n"
-"t interpolateboundary 1/0/0 2\n"
+"t interpolateboundary 1/0/0 1\n"
 "\n"
 ;

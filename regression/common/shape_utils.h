@@ -420,6 +420,8 @@ createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
           fv+=nv;
       }
 
+      mesh->SetInterpolateBoundaryMethod( OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly );
+
       applyTags<T>( mesh, sh );
 
       mesh->Finish();

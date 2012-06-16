@@ -307,9 +307,7 @@ FarCatmarkSubdivisionTables<T,U>::FarCatmarkSubdivisionTables( FarMeshFactory<T,
                     case HbrVertex<T>::k_Dart : {
                         HbrHalfedge<T> *e = pv->GetIncidentEdge(),
                                        *start = e;
-                        // XXXX bug : pv may not return an incident edge - 
-                        // this loop may crash on some topologies
-                        do {
+                        while (e) {
                             V_ITa[5*i+1]++;
 
                             V_IT[offset++] = remap[ e->GetDestVertex()->GetID() ];
@@ -317,7 +315,9 @@ FarCatmarkSubdivisionTables<T,U>::FarCatmarkSubdivisionTables( FarMeshFactory<T,
                             V_IT[offset++] = remap[ e->GetLeftFace()->Subdivide()->GetID() ];
 
                             e = e->GetPrev()->GetOpposite();
-                        } while (e != start);
+                            
+                            if (e==start) break;
+                        }
                         break;
                     }
                     case HbrVertex<T>::k_Crease : {
