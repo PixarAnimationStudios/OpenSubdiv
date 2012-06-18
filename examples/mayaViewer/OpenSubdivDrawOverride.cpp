@@ -59,6 +59,7 @@
 #include <maya/MTypes.h>
 
 #include <osd/cpuDispatcher.h>
+#include <osd/cudaDispatcher.h>
 #include <osd/mesh.h>
 #include <osd/vertexBuffer.h>
 
@@ -579,6 +580,7 @@ MStatus initializePlugin( MObject obj )
 
     //XXX:cleanup  Need to register other kernel dispatchers.
     OpenSubdiv::OsdCpuKernelDispatcher::Register();
+    OpenSubdiv::OsdCudaKernelDispatcher::Register();
 
     return status;
 }
