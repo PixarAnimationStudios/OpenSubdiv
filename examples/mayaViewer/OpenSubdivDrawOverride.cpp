@@ -580,7 +580,9 @@ MStatus initializePlugin( MObject obj )
 
     //XXX:cleanup  Need to register other kernel dispatchers.
     OpenSubdiv::OsdCpuKernelDispatcher::Register();
+#if OPENSUBDIV_HAS_CUDA
     OpenSubdiv::OsdCudaKernelDispatcher::Register();
+#endif
 
     return status;
 }
