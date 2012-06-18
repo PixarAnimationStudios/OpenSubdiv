@@ -183,7 +183,11 @@ public:
     Table<unsigned int> const & Get_V_IT() const { return _V_IT; } 
 
     // Returns the vertex vertices weights table
-    Table<float> const &        Get_V_W() const { return _V_W; } 
+    Table<float> const &        Get_V_W() const { return _V_W; }
+    
+    // Returns the number of indexing tables needed to represent this particular
+    // subdivision scheme.
+    virtual int GetNumTables() const { return 5; }
 
 protected:
     friend class FarMeshFactory<T,U>;

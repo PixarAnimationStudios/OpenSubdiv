@@ -92,6 +92,10 @@ public:
 
     typename FarSubdivisionTables<T,U>::template Table<int> const & Get_F_ITa( ) const { return _F_ITa; } 
 
+    // Returns the number of indexing tables needed to represent this particular
+    // subdivision scheme.
+    virtual int GetNumTables() const { return 7; }
+
 private:
 
     friend class FarMeshFactory<T,U>;
