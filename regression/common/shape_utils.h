@@ -342,12 +342,12 @@ createMesh( Scheme scheme=kCatmark) {
 //------------------------------------------------------------------------------
 template <class T> void
 createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh ) {
-  
-  T v;
-  for(int i=0;i<sh->getNverts(); i++ ) {
-    v.SetPosition( sh->verts[i*3], sh->verts[i*3+1], sh->verts[i*3+2] );
-    mesh->NewVertex( i, v );
-  }
+
+    T v;
+    for(int i=0;i<sh->getNverts(); i++ ) {
+        v.SetPosition( sh->verts[i*3], sh->verts[i*3+1], sh->verts[i*3+2] );
+        mesh->NewVertex( i, v );
+    }
 }
 
 //------------------------------------------------------------------------------
