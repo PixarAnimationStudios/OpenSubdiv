@@ -157,7 +157,7 @@ protected:
         }
 
         bool HasKernelType(KernelType kernel) const {
-            if ((int)kernel >= _kernelCreators.size()) {
+            if (kernel >= (int)_kernelCreators.size()) {
                 return false;
             }
             return (_kernelCreators[kernel] != NULL);
@@ -178,6 +178,7 @@ protected:
         int Register(Creator creator, KernelType kernel) {
             _kernelCreators.resize(kMAX, NULL);
             _kernelCreators[kernel] = creator;
+            return (int)kernel;
         }
 
     private:
