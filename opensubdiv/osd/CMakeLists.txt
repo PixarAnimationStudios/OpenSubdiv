@@ -79,7 +79,11 @@ set(KERNEL_FILES
 set(INC_FILES
 )
 
-set(PUBLIC_HEADERS
+set(PRIVATE_HEADER_FILES
+    local.h
+)
+
+set(PUBLIC_HEADER_FILES
     cpuDispatcher.h
     cpuKernel.h
     kernelDispatcher.h
@@ -130,7 +134,7 @@ if( OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE) )
     list(APPEND SOURCE_FILES
         glslDispatcher.cpp
     )
-    list(APPEND PUBLIC_HEADERS
+    list(APPEND PUBLIC_HEADER_FILES
         glslDispatcher.h
     )
     list(APPEND KERNEL_FILES
@@ -156,7 +160,7 @@ if ( OPENCL_FOUND)
     list(APPEND SOURCE_FILES
         clDispatcher.cpp
     )
-    list(APPEND PUBLIC_HEADERS
+    list(APPEND PUBLIC_HEADER_FILES
         clDispatcher.h
     )
     list(APPEND KERNEL_FILES
@@ -181,7 +185,7 @@ if( CUDA_FOUND )
     list(APPEND SOURCE_FILES
         cudaDispatcher.cpp
     )
-    list(APPEND PUBLIC_HEADERS
+    list(APPEND PUBLIC_HEADER_FILES
         cudaDispatcher.h
     )
     list(APPEND KERNEL_FILES
@@ -233,7 +237,8 @@ source_group("Inc" FILES ${INC_FILES})
 
 _add_library(osd STATIC
     ${SOURCE_FILES}
-    ${HEADER_FILES}
+    ${PRIVATE_HEADER_FILES}
+    ${PUBLIC_HEADER_FILES}
     ${KERNEL_FILES}
     ${INC_FILES}
 )
@@ -242,7 +247,7 @@ target_link_libraries(osd
     ${PLATFORM_LIBRARIES}
 )
 
-install( FILES ${PUBLIC_HEADERS}
+install( FILES ${PUBLIC_HEADER_FILES}
          DESTINATION include/osd
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
 
