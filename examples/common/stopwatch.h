@@ -125,7 +125,7 @@ private:
     double _elapsed;
     double _totalElapsed;
 #else
-    LARGE_INTEGER _time,
+    LARGE_INTEGER _time;
     LARGE_INTEGER _frequency;
     __int64 _elapsed;
     __int64 _totalElapsed;
