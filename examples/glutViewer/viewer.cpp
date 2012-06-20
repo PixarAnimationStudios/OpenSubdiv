@@ -192,6 +192,7 @@ int   g_frame = 0,
 
 // GLUT GUI variables
 int   g_wire = 0,
+      g_drawNormals = 0,
       g_mbutton;
 
 float g_rx = 0, 
@@ -232,7 +233,7 @@ cross(float *n, const float *p0, const float *p1, const float *p2) {
     n[1] = a[2]*b[0]-a[0]*b[2];
     n[2] = a[0]*b[1]-a[1]*b[0];
     
-    float rn = 1.0f/sqrtf(n[0]*n[0] + n[1] * n[1] + n[2] * n[2]);
+    float rn = 1.0f/sqrtf(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
     n[0] *= rn;
     n[1] *= rn;
     n[2] *= rn;
@@ -267,12 +268,12 @@ calcNormals(OpenSubdiv::OsdHbrMesh * mesh, std::vector<float> const & pos, std::
                 
         float n[3];
         cross( n, p0, p1, p2 );
-        
+
         for (int j = 0; j < f->GetNumVertices(); j++) {
             int idx = f->GetVertex(j)->GetID() * 3;
-            result[ idx  ] += n[0];
-            result[ idx+1] += n[1];
-            result[ idx+2] += n[2];
+            result[idx  ] += n[0];
+            result[idx+1] += n[1];
+            result[idx+2] += n[2];
         }
     }
     for (int i = 0; i < nverts; ++i)
@@ -281,8 +282,8 @@ calcNormals(OpenSubdiv::OsdHbrMesh * mesh, std::vector<float> const & pos, std::
 
 //------------------------------------------------------------------------------
 void 
-updateGeom()
-{
+updateGeom() {
+
     int nverts = (int)g_positions.size() / 3;
     
     std::vector<float> vertex;
@@ -303,7 +304,8 @@ updateGeom()
         n += 3;
     }
 
-    if (!g_vertexBuffer) g_vertexBuffer = g_osdmesh->InitializeVertexBuffer(6);
+    if (!g_vertexBuffer) 
+        g_vertexBuffer = g_osdmesh->InitializeVertexBuffer(6);
     g_vertexBuffer->UpdateData(&vertex[0], nverts);
 
     Stopwatch s;
@@ -375,8 +377,8 @@ reshape(int width, int height) {
       while(*p) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *p++); } }
 
 //------------------------------------------------------------------------------
-const char *getKernelName(int kernel)
-{
+const char *getKernelName(int kernel) {
+
          if (kernel == OpenSubdiv::OsdKernelDispatcher::kCPU) 
         return "CPU";
     else if (kernel == OpenSubdiv::OsdKernelDispatcher::kOPENMP) 
@@ -389,10 +391,48 @@ const char *getKernelName(int kernel)
         return "OpenCL";
     return "Unknown";
 }
+
+//------------------------------------------------------------------------------
+void
+drawNormals() {
+
+    float * data=0;
+    int datasize = g_osdmesh->GetTotalVertices() * g_vertexBuffer->GetNumElements();
+
+    data = new float[datasize];
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->GetGpuBuffer());
+    glGetBufferSubData(GL_ARRAY_BUFFER,0,datasize*sizeof(float),data);
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);    
+    glDisable(GL_LIGHTING);
+    glColor3f(0.0f, 0.0f, 0.5f);
+    glBegin(GL_LINES);
+    
+    int start = g_osdmesh->GetFarMesh()->GetSubdivision()->GetFirstVertexOffset(g_level) *
+                g_vertexBuffer->GetNumElements();
+    
+    for (int i=start; i<datasize; i+=6) {
+        glVertex3f( data[i  ], 
+                    data[i+1], 
+                    data[i+2] );
+
+        float n[3] = { data[i+3], data[i+4], data[i+5] };
+        normalize(n);
+        
+        glVertex3f( data[i  ]+n[0]*0.2f, 
+                    data[i+1]+n[1]*0.2f, 
+                    data[i+2]+n[2]*0.2f );
+    }
+    glEnd();
+    
+    delete [] data;
+}
+
 //------------------------------------------------------------------------------
 void 
-display()
-{
+display() {
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glViewport(0, 0, g_width, g_height);
@@ -425,13 +465,13 @@ display()
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
 
-    if(g_wire == 0){
+    if (g_wire == 0) {
         glColor3f(1.0f, 1.0f, 1.0f);
         
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glDisable(GL_LIGHTING);
         glDrawElements(g_scheme==kLoop ? GL_TRIANGLES : GL_QUADS, g_numIndices, GL_UNSIGNED_INT, NULL);
-    }else{
+    } else {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glEnable(GL_LIGHTING);
         glDrawElements(g_scheme==kLoop ? GL_TRIANGLES : GL_QUADS, g_numIndices, GL_UNSIGNED_INT, NULL);
@@ -444,13 +484,16 @@ display()
         }
         glColor3f(1.0f, 1.0f, 1.0f);
     }
-
+    
+    if (g_drawNormals)
+        drawNormals();
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glDisableClientState(GL_VERTEX_ARRAY);
     glDisableClientState(GL_NORMAL_ARRAY);
 
+    glColor3f(1, 1, 1);
     drawString(10, 10, "LEVEL = %d", g_level);
     drawString(10, 30, "# of Vertices = %d", g_osdmesh->GetFarMesh()->GetNumVertices());
     drawString(10, 50, "KERNEL = %s", getKernelName(g_kernel));
@@ -463,8 +506,8 @@ display()
 }
 
 //------------------------------------------------------------------------------
-void motion(int x, int y)
-{
+void motion(int x, int y) {
+
     if(g_mbutton == 0){
         g_rx += x - g_prev_x;
         g_ry += y - g_prev_y;
@@ -478,36 +521,36 @@ void motion(int x, int y)
 }
 
 //------------------------------------------------------------------------------
-void mouse(int button, int state, int x, int y)
-{
+void mouse(int button, int state, int x, int y) {
+
     g_prev_x = x;
     g_prev_y = y;
     g_mbutton = button;
 }
 
 //------------------------------------------------------------------------------
-void quit()
-{
+void quit() {
+
     if(g_osdmesh) 
         delete g_osdmesh;
 
 #ifdef OPENSUBDIV_HAS_CUDA
-    cudaDeviceReset();;
+    cudaDeviceReset();
 #endif
     exit(0);
 }
 
 //------------------------------------------------------------------------------
-void kernelMenu(int k)
-{
+void kernelMenu(int k) {
+
     g_kernel = k;
     createOsdMesh( g_defaultShapes[ g_currentShape ].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
 }
 
 //------------------------------------------------------------------------------
 void 
-modelMenu(int m)
-{
+modelMenu(int m) {
+
     if (m < 0) 
         m = 0;
         
@@ -523,8 +566,8 @@ modelMenu(int m)
 
 //------------------------------------------------------------------------------
 void 
-levelMenu(int l)
-{
+levelMenu(int l) {
+
     g_level = l;
 
     createOsdMesh( g_defaultShapes[g_currentShape].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
@@ -532,17 +575,18 @@ levelMenu(int l)
 
 //------------------------------------------------------------------------------
 void 
-menu(int m)
-{
+menu(int m) {
+
 }
 
 //------------------------------------------------------------------------------
 void 
-keyboard(unsigned char key, int x, int y)
-{
+keyboard(unsigned char key, int x, int y) {
+
     switch (key) {
         case 'q': quit();
         case 'w': g_wire = (g_wire+1)%3; break;
+        case 'e': g_drawNormals = (g_drawNormals+1)%2; break;
         case '1':
         case '2':
         case '3':
@@ -557,34 +601,36 @@ keyboard(unsigned char key, int x, int y)
 
 //------------------------------------------------------------------------------
 void 
-idle()
-{
+idle() {
+
     g_frame++;
     updateGeom();
     glutPostRedisplay();
 
-    if(g_repeatCount != 0 && g_frame >= g_repeatCount){
+    if(g_repeatCount != 0 && g_frame >= g_repeatCount)
         quit();
-    }
 }
 
 //------------------------------------------------------------------------------
 void 
-initGL()
-{
-    glClearColor(0, 0, 0, 1);
+initGL() {
+
+    glClearColor(0.1, 0.1, 0.1, 1);
     glEnable(GL_LIGHT0);
     glColor3f(1, 1, 1);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
 
     GLfloat color[4] = {1, 1, 1, 1};
-    GLfloat position[4] = {0, 1, 0, 1};
-    GLfloat ambient[4] = {0.2f, 0.2f, 0.2f, 1.0f};
+    GLfloat position[4] = {5, 5, 10, 1};
+    GLfloat ambient[4] = {0.1f, 0.1f, 0.1f, 1.0f};
     GLfloat diffuse[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    GLfloat shininess = 25.0;
 
     glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, color);
     glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, color);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, color);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, &shininess);
     glLightfv(GL_LIGHT0, GL_POSITION, position);
     glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
@@ -632,11 +678,10 @@ int main(int argc, char ** argv) {
     int kmenu = glutCreateMenu(kernelMenu);
     int nKernels = OpenSubdiv::OsdKernelDispatcher::kMAX;
 
-    for(int i = 0; i < nKernels; ++i) {
+    for(int i = 0; i < nKernels; ++i)
         if(OpenSubdiv::OsdKernelDispatcher::HasKernelType(
                OpenSubdiv::OsdKernelDispatcher::KernelType(i)))
             glutAddMenuEntry(getKernelName(i), i);
-    }
 
     glutCreateMenu(menu);
     glutAddSubMenu("Level", lmenu);
