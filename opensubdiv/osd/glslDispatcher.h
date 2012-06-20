@@ -70,6 +70,12 @@ public:
     
     virtual ~OsdGlslKernelDispatcher();
 
+    virtual void ApplyBilinearFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+    
+    virtual void ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+    
+    virtual void ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+
 
     virtual void ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
     
@@ -123,27 +129,34 @@ protected:
         GLuint GetVertexUniform() const { return _vertexUniform; }
         GLuint GetVaryingUniform() const { return _varyingUniform; }
 
-        void ApplyCatmarkFaceVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
-                                            int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end);
 
-        void ApplyCatmarkEdgeVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
-                                            int E_IT_ofs, int E_W_ofs, int offset, int start, int end);
 
-        void ApplyCatmarkVertexVerticesKernelB(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
-                                               int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end);
+        void ApplyBilinearFaceVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end);
 
-        void ApplyCatmarkVertexVerticesKernelA(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
-                                               int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end);
+        void ApplyBilinearEdgeVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int E_IT_ofs, int offset, int start, int end);
+
+        void ApplyBilinearVertexVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int V_ITa_ofs, int offset, int start, int end);
+
+
+
+        void ApplyCatmarkFaceVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end);
+
+        void ApplyCatmarkEdgeVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int E_IT_ofs, int E_W_ofs, int offset, int start, int end);
+
+        void ApplyCatmarkVertexVerticesKernelB(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end);
+
+        void ApplyCatmarkVertexVerticesKernelA(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end);
+
+
     
-        void ApplyLoopEdgeVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
-                                         int E_IT_ofs, int E_W_ofs, int offset, int start, int end);
+        void ApplyLoopEdgeVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int E_IT_ofs, int E_W_ofs, int offset, int start, int end);
 
-        void ApplyLoopVertexVerticesKernelB(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
-                                            int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end);
+        void ApplyLoopVertexVerticesKernelB(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end);
     
-        void ApplyLoopVertexVerticesKernelA(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
-                                            int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end);
+        void ApplyLoopVertexVerticesKernelA(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end);
 
+
+ 
         void UseProgram () const {
             glUseProgram(_program);
         }
@@ -180,8 +193,13 @@ protected:
                _varyingUniform;
         
         // shader locations
-        GLuint _subComputeFace, _subComputeEdge, _subComputeVertexA, _subComputeVertexB;
-        GLuint _subComputeLoopVertexB;
+        GLuint _subComputeFace,           // general face-vertex kernel (all schemes)
+               _subComputeEdge,           // edge-vertex kernel (catmark + loop schemes)
+               _subComputeBilinearEdge,   // edge-vertex kernel (bilinear scheme)
+               _subComputeVertex,         // vertex-vertex kernel (bilinear scheme)
+               _subComputeVertexA,        // vertex-vertex kernel A (catmark + loop schemes)
+               _subComputeCatmarkVertexB, // vertex-vertex kernel B (catmark scheme)
+               _subComputeLoopVertexB;    // vertex-vertex kernel B (loop scheme)
 
         std::vector<GLuint> _tableUniforms;
         std::vector<GLuint> _tableOffsetUniforms;

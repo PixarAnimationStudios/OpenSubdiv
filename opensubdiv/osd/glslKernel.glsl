@@ -234,6 +234,49 @@ void catmarkComputeEdge()
     writeVertex(dst);
 }
 
+// Edge-vertices compute Kernel (bilinear scheme)
+subroutine(computeKernelType)
+void bilinearComputeEdge()
+{
+    int i = gl_VertexID + indexStart;
+
+    Vertex dst;
+    clear(dst);
+
+#ifdef OPT_E0_IT_VEC4
+    ivec2 eidx = texelFetch(_E0_IT, E_IT_ofs/2+i).xy;
+#else
+    ivec2 eidx = ivec2(texelFetch(_E0_IT, E_IT_ofs+2*i+0).x,
+                       texelFetch(_E0_IT, E_IT_ofs+2*i+1).x);
+#endif
+
+    addWithWeight(dst, readVertex(eidx.x), 0.5f);
+    addWithWeight(dst, readVertex(eidx.y), 0.5f);
+
+    addVaryingWithWeight(dst, readVertex(eidx.x), 0.5f);
+    addVaryingWithWeight(dst, readVertex(eidx.y), 0.5f);
+
+    writeVertex(dst);
+}
+
+// Vertex-vertices compute Kernel (bilinear scheme)
+subroutine(computeKernelType)
+void bilinearComputeVertex()
+{
+    int i = gl_VertexID + indexStart;
+
+    Vertex dst;
+    clear(dst);
+
+    int p = texelFetch(_V0_ITa, V_ITa_ofs+i).x;
+
+    addWithWeight(dst, readVertex(p), 1.0f);
+
+    addVaryingWithWeight(dst, readVertex(p), 1.0f);
+
+    writeVertex(dst);
+}
+
 // Vertex-vertices compute Kernels 'A' / k_Crease and k_Corner rules
 subroutine(computeKernelType)
 void catmarkComputeVertexA()

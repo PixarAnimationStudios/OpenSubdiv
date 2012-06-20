@@ -64,8 +64,8 @@
 #include <functional>
 #include <algorithm>
 
-#define OPT_E0_IT_VEC4
-#define OPT_E0_S_VEC2
+//#define OPT_E0_IT_VEC4
+//#define OPT_E0_S_VEC2
 
 #ifdef _MSC_VER
 #define snprintf _snprintf
@@ -290,6 +290,36 @@ OsdGlslKernelDispatcher::unbindTextureBuffer(int unit) const {
     glBindTexture(GL_TEXTURE_BUFFER, 0);
 }
 
+
+void
+OsdGlslKernelDispatcher::ApplyBilinearFaceVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+
+    _shader->ApplyBilinearFaceVerticesKernel(_currentVertexBuffer, _currentVaryingBuffer,
+                                             _tableOffsets[F_IT][level-1],
+                                             _tableOffsets[F_ITa][level-1],
+                                             offset, start, end);
+}
+
+void
+OsdGlslKernelDispatcher::ApplyBilinearEdgeVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
+    _shader->ApplyBilinearEdgeVerticesKernel(_currentVertexBuffer, _currentVaryingBuffer,
+                                             _tableOffsets[E_IT][level-1],
+                                             offset, start, end);
+}
+
+void
+OsdGlslKernelDispatcher::ApplyBilinearVertexVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+    
+    _shader->ApplyBilinearVertexVerticesKernel(_currentVertexBuffer, _currentVaryingBuffer,
+                                               _tableOffsets[V_ITa][level-1],
+                                               offset, start, end);
+}
+
+
 void
 OsdGlslKernelDispatcher::ApplyCatmarkFaceVerticesKernel(
     FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
@@ -299,6 +329,8 @@ OsdGlslKernelDispatcher::ApplyCatmarkFaceVerticesKernel(
                                             _tableOffsets[F_ITa][level-1],
                                             offset, start, end);
 }
+
+
 
 void
 OsdGlslKernelDispatcher::ApplyCatmarkEdgeVerticesKernel(
@@ -330,6 +362,8 @@ OsdGlslKernelDispatcher::ApplyCatmarkVertexVerticesKernelA(
                                                _tableOffsets[V_W][level-1],
                                                offset, pass, start, end);
 }
+
+
 
 void
 OsdGlslKernelDispatcher::ApplyLoopEdgeVerticesKernel(
@@ -437,8 +471,10 @@ OsdGlslKernelDispatcher::ComputeShader::Compile(int numVertexElements, int numVa
 
     _subComputeFace = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeFace");
     _subComputeEdge = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeEdge");
+    _subComputeBilinearEdge = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "bilinearComputeEdge");
+    _subComputeVertex = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "bilinearComputeVertex");
     _subComputeVertexA = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeVertexA");
-    _subComputeVertexB = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeVertexB");
+    _subComputeCatmarkVertexB = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeVertexB");
     _subComputeLoopVertexB = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "loopComputeVertexB");
 
     _uniformVertexPass = glGetUniformLocation(_program, "vertexPass");
@@ -510,6 +546,39 @@ OsdGlslKernelDispatcher::ComputeShader::transformGpuBufferData(OsdGpuVertexBuffe
     glDeleteSync(sync);
 }
 
+
+void
+OsdGlslKernelDispatcher::ComputeShader::ApplyBilinearFaceVerticesKernel(
+    OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
+    int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeFace);
+    glUniform1i(_tableOffsetUniforms[F_IT], F_IT_ofs);
+    glUniform1i(_tableOffsetUniforms[F_ITa], F_ITa_ofs);
+    transformGpuBufferData(vertex, varying, offset, start, end);
+}
+
+void
+OsdGlslKernelDispatcher::ComputeShader::ApplyBilinearEdgeVerticesKernel(
+    OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
+    int E_IT_ofs, int offset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeBilinearEdge);
+    glUniform1i(_tableOffsetUniforms[E_IT], E_IT_ofs);
+    transformGpuBufferData(vertex, varying, offset, start, end);
+}
+
+void
+OsdGlslKernelDispatcher::ComputeShader::ApplyBilinearVertexVerticesKernel(
+    OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
+    int V_ITa_ofs, int offset, int start, int end) {
+    
+    glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeVertex);
+    glUniform1i(_tableOffsetUniforms[V_ITa], V_ITa_ofs);
+    transformGpuBufferData(vertex, varying, offset, start, end);
+}
+
+
 void
 OsdGlslKernelDispatcher::ComputeShader::ApplyCatmarkFaceVerticesKernel(
     OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
@@ -537,7 +606,7 @@ OsdGlslKernelDispatcher::ComputeShader::ApplyCatmarkVertexVerticesKernelB(
     OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
     int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end) {
     
-    glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeVertexB);
+    glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeCatmarkVertexB);
     glUniform1i(_tableOffsetUniforms[V_IT], V_IT_ofs);
     glUniform1i(_tableOffsetUniforms[V_ITa], V_ITa_ofs);
     glUniform1i(_tableOffsetUniforms[V_W], V_W_ofs);
