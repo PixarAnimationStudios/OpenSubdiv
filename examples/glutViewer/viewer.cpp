@@ -624,10 +624,9 @@ int main(int argc, char ** argv) {
 #if OPENSUBDIV_HAS_CUDA
     OpenSubdiv::OsdCudaKernelDispatcher::Register();
 
-    // still this function crashes in linux. cudaGetDeviceProperties overrun stack..?
-#if defined(_WIN32)
+    // Note: This function randomly crashes with linux 5.0-dev driver.
+    // cudaGetDeviceProperties overrun stack..?
     cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
-#endif
 #endif
 
     int kmenu = glutCreateMenu(kernelMenu);
