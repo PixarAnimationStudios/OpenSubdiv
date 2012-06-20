@@ -397,6 +397,15 @@ FarMeshFactory<T,U>::copyTopology( std::vector<int> & vec, int level ) {
     }
 }
 
+template <class T, class U> void
+copyVertex( T & dest, U const & src ) {
+}
+
+template <class T> void
+copyVertex( T & dest, T const & src ) {
+    dest = src;
+}
+
 template <class T, class U> FarMesh<T,U> * 
 FarMeshFactory<T,U>::Create( FarDispatcher<T,U> * dispatch ) {
 
@@ -431,7 +440,7 @@ FarMeshFactory<T,U>::Create( FarDispatcher<T,U> * dispatch ) {
     //        class is not an empty placeholder (ex. non-interleaved data)
     result->_vertices.resize( _numVertices );
     for (int i=0; i<result->GetNumCoarseVertices(); ++i)
-        result->_vertices[i] = _hbrMesh->GetVertex(i)->GetData();
+        copyVertex(result->_vertices[i], _hbrMesh->GetVertex(i)->GetData());
 
     // Populate topology (face verts indices)
     // XXXX : only k_BilinearQuads support for now - adaptive bicubic patches to come

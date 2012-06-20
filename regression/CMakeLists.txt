@@ -56,3 +56,5 @@
 #
 
 add_subdirectory(far_regression)
+
+add_subdirectory(osd_regression)

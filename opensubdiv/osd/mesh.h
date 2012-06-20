@@ -62,14 +62,17 @@
 #include <GL/glew.h>
 
 #include "../version.h"
-#include "../far/mesh.h"
 #include "../hbr/mesh.h"
 #include "../hbr/vertex.h"
 #include "../hbr/face.h"
 #include "../hbr/halfedge.h"
 
-#include "vertex.h"
-#include "vertexBuffer.h"
+#include "../far/mesh.h"
+#include "../far/meshFactory.h"
+
+#include "../osd/vertex.h"
+#include "../osd/vertexBuffer.h"
+#include "../osd/kernelDispatcher.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -88,10 +91,14 @@ public:
 
     virtual ~OsdMesh();
 
+    // Given a valid HbrMesh, create an OsdMesh 
+    //   - cappable of densely refining up to 'level'
+    //   - subdivision kernel one of (kCPU, kOPENMP, kCUDA, kGLSL, kCL)
+    //   - optional "remapping" vector that connects Osd and Hbr vertex indices 
+    //     (for regression)
+    bool Create(OsdHbrMesh *hbrMesh, int level, int kernel, std::vector<int> * remap=0);
 
-    bool Create(OsdHbrMesh *hbrMesh, int level, int kernel);
-
-    FarMesh<OsdVertex> *GetFarMesh() { return _mMesh; }
+    FarMesh<OsdVertex> *GetFarMesh() { return _fMesh; }
 
     OsdVertexBuffer *InitializeVertexBuffer(int numElements);
 
@@ -105,13 +112,15 @@ public:
 
     void Synchronize();
 
-    int GetTotalVertices() const { return _mMesh->GetNumVertices(); }
+    int GetTotalVertices() const { return _fMesh->GetNumVertices(); }
 
-    int GetNumCoarseVertices() const { return _mMesh->GetNumCoarseVertices(); }
+    int GetNumCoarseVertices() const { return _fMesh->GetNumCoarseVertices(); }
 
 protected:
 
-    FarMesh<OsdVertex> *_mMesh;
+    void createTables( FarSubdivisionTables<OsdVertex> const * tables );
+    
+    FarMesh<OsdVertex> *_fMesh;
     
     int _level;
 

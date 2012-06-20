@@ -327,7 +327,7 @@ void
 createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark ) { 
 
     // generate Hbr representation from "obj" description
-    OpenSubdiv::OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, g_positions, scheme);
+    OpenSubdiv::OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, g_positions);
 
     g_normals.resize(g_positions.size(),0.0f);
     calcNormals( hmesh, g_positions, g_normals );

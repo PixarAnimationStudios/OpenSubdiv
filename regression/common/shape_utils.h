@@ -341,30 +341,27 @@ createMesh( Scheme scheme=kCatmark) {
 
 //------------------------------------------------------------------------------
 template <class T> void
-createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh ) {
+createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<float> * verts ) {
 
     T v;
     for(int i=0;i<sh->getNverts(); i++ ) {
         v.SetPosition( sh->verts[i*3], sh->verts[i*3+1], sh->verts[i*3+2] );
         mesh->NewVertex( i, v );
     }
+    
+    if (verts)
+        *verts = sh->verts;
 }
 
 //------------------------------------------------------------------------------
 template <class T> void
 createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<float> & verts ) {
-  
-    int nverts = sh->getNverts();
-    verts.resize(nverts*3);
 
     T v;
-    for(int i=0;i<nverts; i++ ) {
+    for(int i=0;i<sh->getNverts(); i++ )
         mesh->NewVertex( i, v );
-        
-        verts[i*3  ]=sh->verts[i*3  ];
-        verts[i*3+1]=sh->verts[i*3+1];
-        verts[i*3+2]=sh->verts[i*3+2];
-    }
+
+    verts = sh->verts;
 }
 
 //------------------------------------------------------------------------------
@@ -429,13 +426,13 @@ createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
 
 //------------------------------------------------------------------------------
 template <class T> OpenSubdiv::HbrMesh<T> *
-simpleHbr( char const * shapestr, Scheme scheme=kCatmark) {
+simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> * verts=0) {
 
   shape * sh = shape::parseShape( shapestr );
 
   OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme);
   
-  createVertices<T>(sh, mesh);
+  createVertices<T>(sh, mesh, verts);
   
   createTopology<T>(sh, mesh, scheme);
   
@@ -446,7 +443,7 @@ simpleHbr( char const * shapestr, Scheme scheme=kCatmark) {
 
 //------------------------------------------------------------------------------
 template <class T> OpenSubdiv::HbrMesh<T> *
-simpleHbr( char const * shapestr, std::vector<float> & verts, Scheme scheme=kCatmark) {
+simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> & verts) {
 
   shape * sh = shape::parseShape( shapestr );
 

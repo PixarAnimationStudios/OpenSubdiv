@@ -68,25 +68,53 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdMesh::OsdMesh()
-    : _mMesh(NULL), _dispatcher(NULL) {
-    
-}
+OsdMesh::OsdMesh() : _fMesh(NULL), _dispatcher(NULL) { }
 
 OsdMesh::~OsdMesh() {
 
-    if(_dispatcher) delete _dispatcher;
-    if(_mMesh) delete _mMesh;
+    if(_dispatcher) 
+        delete _dispatcher;
+        
+    if(_fMesh) 
+        delete _fMesh;
+}
 
+void
+OsdMesh::createTables( FarSubdivisionTables<OsdVertex> const * tables ) {
+
+    _dispatcher->UpdateTable(OsdKernelDispatcher::E_IT,  tables->Get_E_IT());
+    _dispatcher->UpdateTable(OsdKernelDispatcher::V_IT,  tables->Get_V_IT());
+    _dispatcher->UpdateTable(OsdKernelDispatcher::V_ITa, tables->Get_V_ITa());
+    _dispatcher->UpdateTable(OsdKernelDispatcher::E_W,   tables->Get_E_W());
+    _dispatcher->UpdateTable(OsdKernelDispatcher::V_W,   tables->Get_V_W());
+
+    if ( const FarCatmarkSubdivisionTables<OsdVertex> * cctable = 
+       dynamic_cast<const FarCatmarkSubdivisionTables<OsdVertex>*>(tables) ) {
+        // catmark
+        _dispatcher->UpdateTable(OsdKernelDispatcher::F_IT, cctable->Get_F_IT());
+        _dispatcher->UpdateTable(OsdKernelDispatcher::F_ITa, cctable->Get_F_ITa());
+    } else if ( const FarBilinearSubdivisionTables<OsdVertex> * btable = 
+       dynamic_cast<const FarBilinearSubdivisionTables<OsdVertex>*>(tables) ) {
+        // bilinear
+        _dispatcher->UpdateTable(OsdKernelDispatcher::F_IT, btable->Get_F_IT());
+        _dispatcher->UpdateTable(OsdKernelDispatcher::F_ITa, btable->Get_F_ITa());
+    } else {
+        // XXX for glsl shader...
+        _dispatcher->CopyTable(OsdKernelDispatcher::F_IT, 0, NULL);
+        _dispatcher->CopyTable(OsdKernelDispatcher::F_ITa, 0, NULL);
+    }
+
+    CHECK_GL_ERROR("Mesh, update tables\n");
 }
 
 bool
-OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, int kernel) {
+OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, int kernel, std::vector<int> * remap) {
 
     if (_dispatcher)
         delete _dispatcher;
     _dispatcher = OsdKernelDispatcher::CreateKernelDispatcher(level, kernel);
-    if(_dispatcher == NULL){
+
+    if (not _dispatcher) {
         OSD_ERROR("Unknown kernel %d\n", kernel);
         return false;
     }
@@ -98,36 +126,17 @@ OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, int kernel) {
 
     FarMeshFactory<OsdVertex> meshFactory(hbrMesh, _level);
 
-    _mMesh = meshFactory.Create(_dispatcher);
+    _fMesh = meshFactory.Create(_dispatcher);
     
-    OSD_DEBUG("PREP: NumCoarseVertex = %d\n", _mMesh->GetNumCoarseVertices());
-    OSD_DEBUG("PREP: NumVertex = %d\n", _mMesh->GetNumVertices());
+    OSD_DEBUG("PREP: NumCoarseVertex = %d\n", _fMesh->GetNumCoarseVertices());
+    OSD_DEBUG("PREP: NumVertex = %d\n", _fMesh->GetNumVertices());
 
-    const FarSubdivisionTables<OsdVertex>* table = _mMesh->GetSubdivision();
-
-    _dispatcher->UpdateTable(OsdKernelDispatcher::E_IT, table->Get_E_IT());
-    _dispatcher->UpdateTable(OsdKernelDispatcher::V_IT, table->Get_V_IT());
-    _dispatcher->UpdateTable(OsdKernelDispatcher::V_ITa, table->Get_V_ITa());
-    _dispatcher->UpdateTable(OsdKernelDispatcher::E_W, table->Get_E_W());
-    _dispatcher->UpdateTable(OsdKernelDispatcher::V_W, table->Get_V_W());
-
-    if ( const FarCatmarkSubdivisionTables<OsdVertex> * cctable = 
-       dynamic_cast<const FarCatmarkSubdivisionTables<OsdVertex>*>(table) ) {
-        // catmark
-        _dispatcher->UpdateTable(OsdKernelDispatcher::F_IT, cctable->Get_F_IT());
-        _dispatcher->UpdateTable(OsdKernelDispatcher::F_ITa, cctable->Get_F_ITa());
-    } else if ( const FarBilinearSubdivisionTables<OsdVertex> * btable = 
-       dynamic_cast<const FarBilinearSubdivisionTables<OsdVertex>*>(table) ) {
-        // bilinear
-        _dispatcher->UpdateTable(OsdKernelDispatcher::F_IT, btable->Get_F_IT());
-        _dispatcher->UpdateTable(OsdKernelDispatcher::F_ITa, btable->Get_F_ITa());
-    } else {
-        // XXX for glsl shader...
-        _dispatcher->CopyTable(OsdKernelDispatcher::F_IT, 0, NULL);
-        _dispatcher->CopyTable(OsdKernelDispatcher::F_ITa, 0, NULL);
-    }
-
-    CHECK_GL_ERROR("Mesh, update tables\n");
+    createTables( _fMesh->GetSubdivision() );
+    
+    // copy the remapping table if the client needs to remap vertex indices from
+    // Osd to Hbr for comparison / regression purposes.
+    if (remap)
+        (*remap)=meshFactory.GetRemappingTable();
 
     return true;
 }
@@ -146,7 +155,7 @@ OsdMesh::Subdivide(OsdVertexBuffer *vertex, OsdVertexBuffer *varying) {
 
     _dispatcher->OnKernelLaunch();
 
-    _mMesh->Subdivide(_level+1);
+    _fMesh->Subdivide(_level+1);
 
     _dispatcher->OnKernelFinish();
 
