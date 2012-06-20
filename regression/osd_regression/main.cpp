@@ -259,7 +259,7 @@ int checkMesh( char const * msg, char const * shape, int levels, Scheme scheme=k
     std::vector<int> remap;
 
     { 
-        omesh->Create(hmesh, levels, (int)OpenSubdiv::OsdKernelDispatcher::kOPENMP, &remap);
+        omesh->Create(hmesh, levels, (int)OpenSubdiv::OsdKernelDispatcher::kCPU, &remap);
     
         OpenSubdiv::OsdCpuVertexBuffer * vb = 
             dynamic_cast<OpenSubdiv::OsdCpuVertexBuffer *>(omesh->InitializeVertexBuffer(3));
