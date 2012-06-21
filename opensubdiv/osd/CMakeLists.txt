@@ -93,7 +93,6 @@ set(PUBLIC_HEADER_FILES
     vertexBuffer.h
 )
 
-
 #-------------------------------------------------------------------------------
 # platform dependent tweaks
 if(APPLE)
@@ -151,13 +150,13 @@ if( OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE) )
 else()
     message(STATUS
         "* OpenGL was not found : support for GLSL parallel compute kernels will be disabled "
-        "in Osd. If you have an OpenGL SDK installed(version 4.2 or above), please refer to "
+        "in Osd. If you have an OpenGL SDK installed (version 4.2 or above), please refer to "
         "the FindOpenGL.cmake shared module in your cmake installation.")
 endif()
 
 #-------------------------------------------------------------------------------
 # OpenCL code & dependencies 
-if ( OPENCL_FOUND)
+if ( OPENCL_FOUND )
     list(APPEND SOURCE_FILES
         clDispatcher.cpp
     )
@@ -234,19 +233,39 @@ endforeach()
 
 #-------------------------------------------------------------------------------
 source_group("Kernels" FILES ${KERNEL_FILES})
+
 source_group("Inc" FILES ${INC_FILES})
 
-_add_library(osd STATIC
+_add_library(osd_static STATIC
     ${SOURCE_FILES}
     ${PRIVATE_HEADER_FILES}
     ${PUBLIC_HEADER_FILES}
     ${KERNEL_FILES}
     ${INC_FILES}
 )
+set_target_properties(osd_static PROPERTIES OUTPUT_NAME osd CLEAN_DIRECT_OUTPUT 1)
 
-target_link_libraries(osd
+target_link_libraries(osd_static
     ${PLATFORM_LIBRARIES}
 )
+
+if (NOT WIN32)
+    _add_library(osd_dynamic SHARED
+        ${SOURCE_FILES}
+        ${PRIVATE_HEADER_FILES}
+        ${PUBLIC_HEADER_FILES}
+        ${KERNEL_FILES}
+        ${INC_FILES}
+    )
+
+    set_target_properties(osd_dynamic PROPERTIES OUTPUT_NAME osd CLEAN_DIRECT_OUTPUT 1)
+
+    target_link_libraries(osd_dynamic
+        ${PLATFORM_LIBRARIES}
+    )
+
+endif()
+
 
 install( FILES ${PUBLIC_HEADER_FILES}
          DESTINATION include/osd

@@ -131,7 +131,7 @@ set_target_properties(maya_plugin
 )
 
 target_link_libraries(maya_plugin
-    osd
+    ${OSD_LINK_TARGET}
     ${MAYA_Foundation_LIBRARY}
     ${MAYA_OpenMaya_LIBRARY}
     ${MAYA_OpenMayaRender_LIBRARY}

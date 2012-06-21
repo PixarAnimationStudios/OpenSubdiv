@@ -82,7 +82,7 @@ add_executable(osd_regression
 )
 
 target_link_libraries(osd_regression
-    osd
+    ${OSD_LINK_TARGET}
     ${ILMBASE_LIBS_DIRECTORY}
 )
 
