@@ -58,9 +58,10 @@
 add_subdirectory(tools/stringify)
 
 add_subdirectory(hbr)
-add_subdirectory(far)
-add_subdirectory(osd)
 
+add_subdirectory(far)
+
+add_subdirectory(osd)
 
 install( FILES version.h
          DESTINATION include/

@@ -58,7 +58,7 @@
 # *** glutViewer ***
 
 set(PLATFORM_LIBRARIES 
-    osd
+    ${OSD_LINK_TARGET}
     ${ILMBASE_LIBS_DIRECTORY}
     ${OPENGL_LIBRARY}
     ${GLUT_LIBRARIES}

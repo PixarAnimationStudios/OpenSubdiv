@@ -110,11 +110,18 @@ endif()
 
 find_package(Maya)
 
+# Link examples & regressions dynamically against Osd
+set( OSD_LINK_TARGET osd_dynamic )
 
-add_definitions(
-    # GLEW gets built as a static library.
-    -DGLEW_STATIC
-)
+if (WIN32)
+    add_definitions(
+        # GLEW gets built as a static library in Windows
+        -DGLEW_STATIC
+    )
+    # Link examples & regressions statically against Osd for
+    # Windows until all the kinks can be worked out.
+    set( OSD_LINK_TARGET osd_static )
+endif()
 
 if(MSVC)
     # MSVC is unfortunately not standard conforming with regards to
