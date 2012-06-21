@@ -55,7 +55,12 @@
 //     a particular purpose and non-infringement.
 //
 #include "../version.h"
-#include <GL/glew.h>
+
+#if not defined(__APPLE__)
+    #include <GL/glew.h>
+#else
+    #include <OpenGL/gl.h>
+#endif
 
 #include "../osd/glslDispatcher.h"
 #include "../osd/local.h"

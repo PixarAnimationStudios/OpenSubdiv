@@ -57,6 +57,12 @@
 #ifndef OSD_GLSL_DISPATCHER_H
 #define OSD_GLSL_DISPATCHER_H
 
+#if not defined(__APPLE__)
+    #include <GL/gl.h>
+#else
+    #include <OpenGL/gl.h>
+#endif
+
 #include "../version.h"
 #include "../osd/kernelDispatcher.h"
 

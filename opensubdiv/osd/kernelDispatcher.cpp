@@ -55,18 +55,20 @@
 //     a particular purpose and non-infringement.
 //
 #include "../version.h"
-#include <GL/glew.h>
 
 #include "../osd/kernelDispatcher.h"
 #include "../osd/cpuDispatcher.h"
+
 #if OPENSUBDIV_HAS_CUDA
-#include "../osd/cudaDispatcher.h"
+    #include "../osd/cudaDispatcher.h"
 #endif
+
 #if OPENSUBDIV_HAS_GLSL
-#include "../osd/glslDispatcher.h"
+    #include "../osd/glslDispatcher.h"
 #endif
+
 #if OPENSUBDIV_HAS_CL
-#include "../osd/clDispatcher.h"
+    #include "../osd/clDispatcher.h"
 #endif
 
 
@@ -81,19 +83,19 @@ OsdKernelDispatcher::Factory::Factory()
     _kernelCreators.resize(kMAX);
 
 #if 0
-    OsdCpuKernelDispatcher::Register();
+        OsdCpuKernelDispatcher::Register();
 
-#if OPENSUBDIV_HAS_CUDA
-    OsdCudaKernelDispatcher::Register();
-#endif
+    #if OPENSUBDIV_HAS_CUDA
+        OsdCudaKernelDispatcher::Register();
+    #endif
 
-#if OPENSUBDIV_HAS_GLSL
-    OsdGlslKernelDispatcher::Register();
-#endif
+    #if OPENSUBDIV_HAS_GLSL
+        OsdGlslKernelDispatcher::Register();
+    #endif
 
-#if OPENSUBDIV_HAS_CL
-    OsdClKernelDispatcher::Register();
-#endif
+    #if OPENSUBDIV_HAS_CL
+        OsdClKernelDispatcher::Register();
+    #endif
 #endif
 
 }

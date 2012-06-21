@@ -59,7 +59,6 @@
 
 #include <string>
 #include <vector>
-#include <GL/glu.h>
 
 #include "../version.h"
 #include "../hbr/mesh.h"

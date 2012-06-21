@@ -1,11 +1,12 @@
 #include "../version.h"
 
-#include <GL/glew.h>
+#if not defined(__APPLE__)
+    #include <GL/glew.h>
+#else
+    #include <OpenGL/gl.h>
+#endif
 
 #include "vertexBuffer.h"
-
-#include <GL/gl.h>
-#include <GL/glext.h>
 
 #include <iostream>
 

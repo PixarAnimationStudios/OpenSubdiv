@@ -1,7 +1,14 @@
 #ifndef OSD_VERTEX_BUFFER_H
 #define OSD_VERTEX_BUFFER_H
 
-#include <GL/glu.h>
+#if not defined(__APPLE__)
+    #if defined(_WIN32)
+        #include <windows.h>
+    #endif
+    #include <GL/gl.h>
+#else
+    #include <OpenGL/gl.h>
+#endif
 
 #include <string.h> // memcpy (tobe moved to cpp)
 

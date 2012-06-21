@@ -62,9 +62,9 @@
 #include "../osd/vertexBuffer.h"
 
 #if defined(__APPLE__)
-#include <OpenCL/opencl.h>
+    #include <OpenCL/opencl.h>
 #else
-#include <CL/opencl.h>
+    #include <CL/opencl.h>
 #endif
 
 namespace OpenSubdiv {

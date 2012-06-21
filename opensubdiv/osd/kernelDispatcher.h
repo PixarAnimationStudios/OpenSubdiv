@@ -63,7 +63,6 @@
 #include "../version.h"
 #include "../far/dispatcher.h"
 
-#include <GL/glu.h>
 #include <map>
 #include <string>
 #include <vector>

@@ -59,12 +59,12 @@
 #include "../osd/local.h"
 
 #if defined(_WIN32)
-#include <windows.h>
+    #include <windows.h>
 #elif defined(__APPLE__)
-#include <OpenCL/opencl.h>
+    #include <OpenCL/opencl.h>
 #else
-#include <GL/glx.h>
-#include <CL/opencl.h>
+    #include <GL/glx.h>
+    #include <CL/opencl.h>
 #endif
 
 #ifdef _MSC_VER
