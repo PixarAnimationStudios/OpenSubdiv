@@ -71,6 +71,7 @@ set(SOURCE_FILES
     cpuKernel.cpp
     kernelDispatcher.cpp
     mesh.cpp
+    vertexBuffer.cpp    
 )
 
 set(KERNEL_FILES

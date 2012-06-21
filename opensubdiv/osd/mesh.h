@@ -59,7 +59,7 @@
 
 #include <string>
 #include <vector>
-#include <GL/glew.h>
+#include <GL/glu.h>
 
 #include "../version.h"
 #include "../hbr/mesh.h"

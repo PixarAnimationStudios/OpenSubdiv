@@ -55,6 +55,8 @@
 //     a particular purpose and non-infringement.
 //
 #include "../version.h"
+#include <GL/glew.h>
+
 #include "../osd/kernelDispatcher.h"
 #include "../osd/cpuDispatcher.h"
 #if OPENSUBDIV_HAS_CUDA
@@ -67,7 +69,7 @@
 #include "../osd/clDispatcher.h"
 #endif
 
-#include <GL/glew.h>
+
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

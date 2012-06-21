@@ -55,10 +55,11 @@
 //     a particular purpose and non-infringement.
 //
 #include "../version.h"
+#include <GL/glew.h>
+
 #include "../osd/glslDispatcher.h"
 #include "../osd/local.h"
 
-#include <GL/glew.h>
 #include <stdlib.h>
 #include <string.h>
 #include <functional>
@@ -659,6 +660,13 @@ OsdGlslKernelDispatcher::ComputeShader::ApplyLoopVertexVerticesKernelA(
     glUniform1i(_tableOffsetUniforms[V_W], V_W_ofs);
     transformGpuBufferData(vertex, varying, offset, start, end);
 }
+
+void
+OsdGlslKernelDispatcher::ComputeShader::UseProgram () const
+{
+    glUseProgram(_program);
+}
+
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

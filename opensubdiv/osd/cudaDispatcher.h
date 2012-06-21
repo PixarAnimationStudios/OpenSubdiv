@@ -61,7 +61,7 @@
 #include "../osd/kernelDispatcher.h"
 #include "../osd/vertexBuffer.h"
 
-#include <GL/glew.h>
+#include <GL/glu.h>
 
 #include <utility>
 #include <vector>

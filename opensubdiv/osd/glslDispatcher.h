@@ -155,11 +155,8 @@ protected:
     
         void ApplyLoopVertexVerticesKernelA(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end);
 
-
  
-        void UseProgram () const {
-            glUseProgram(_program);
-        }
+        void UseProgram () const;
 
         struct Match {
             Match(int numVertexElements, int numVaryingElements) :

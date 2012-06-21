@@ -60,7 +60,8 @@
 #include "../version.h"
 #include "../osd/kernelDispatcher.h"
 
-#include <GL/glew.h>
+#include <GL/glu.h>
+
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

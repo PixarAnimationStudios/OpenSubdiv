@@ -55,6 +55,8 @@
 //     a particular purpose and non-infringement.
 //
 
+#include <GL/glew.h>
+
 // Include this first to avoid winsock2.h problems on Windows:
 #include <maya/MTypes.h>
 
@@ -64,8 +66,6 @@
 #include <osd/vertexBuffer.h>
 
 #include "hbrUtil.h"
-
-#include <GL/glew.h>
 
 // Maya API includes
 #include <maya/MDagPath.h>
