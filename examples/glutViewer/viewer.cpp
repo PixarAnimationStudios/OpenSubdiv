@@ -534,6 +534,9 @@ void quit() {
     if(g_osdmesh) 
         delete g_osdmesh;
 
+    if (g_vertexBuffer)
+        delete g_vertexBuffer;
+
 #ifdef OPENSUBDIV_HAS_CUDA
     cudaDeviceReset();
 #endif
