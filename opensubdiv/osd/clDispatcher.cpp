@@ -116,7 +116,7 @@ OsdClVertexBuffer::UpdateData(const float *src, int numVertices) {
     Unmap();
 }
 
-void *
+void
 OsdClVertexBuffer::Map() {
 
     clEnqueueAcquireGLObjects(_clQueue, 1, &_clVbo, 0, 0, 0);

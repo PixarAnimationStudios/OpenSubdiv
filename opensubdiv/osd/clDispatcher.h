@@ -76,7 +76,7 @@ public:
     virtual ~OsdClVertexBuffer();
 
     virtual void UpdateData(const float *src, int numVertices);
-    void * Map();
+    void Map();
     void Unmap();
 
     cl_mem const * GetClBuffer() const { return &_clVbo; }
@@ -157,7 +157,7 @@ protected:
             int _numVertexElements, _numVaryingElements;
         };
 
-        friend class Match;
+        friend struct Match;
 
     protected:
         cl_program _clProgram;
