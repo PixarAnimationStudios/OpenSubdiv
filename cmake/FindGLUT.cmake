@@ -70,7 +70,7 @@ if (WIN32)
           ${GLUT_LOCATION}/include
           /usr/include
         )
-        find_library( GLUT_glut_LIBRARY glut32
+        find_library( GLUT_glut_LIBRARY glut32 freeglut
           ${GLUT_LOCATION}/lib
           ${OPENGL_LIBRARY_DIR}
           /usr/lib
@@ -86,7 +86,7 @@ if (WIN32)
             ${OPENGL_INCLUDE_DIR}
             DOC "The directory where GL/glut.h resides")
         find_library( GLUT_glut_LIBRARY
-            NAMES glut32 glut32s glut 
+            NAMES glut32 glut32s glut freeglut
             PATHS
             ${GLUT_LOCATION}/lib
             ${PROJECT_SOURCE_DIR}/extern/glut/bin
