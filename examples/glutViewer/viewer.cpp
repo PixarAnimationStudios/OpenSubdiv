@@ -293,7 +293,7 @@ updateGeom() {
     const float *n = &g_normals[0];
        
     for (int i = 0; i < nverts; ++i) {
-        float move = 0.05*cos(p[0]*20+g_frame*0.01);
+        float move = 0.05f*cosf(p[0]*20+g_frame*0.01f);
         vertex.push_back(p[0]);
         vertex.push_back(p[1]+move);
         vertex.push_back(p[2]);
@@ -314,11 +314,11 @@ updateGeom() {
     g_osdmesh->Subdivide(g_vertexBuffer, NULL);
 
     s.Stop();
-    g_cpuTime = s.GetElapsed() * 1000.0f;
+    g_cpuTime = float(s.GetElapsed() * 1000.0f);
     s.Start();
     g_osdmesh->Synchronize();
     s.Stop();
-    g_gpuTime = s.GetElapsed() * 1000.0f;
+    g_gpuTime = float(s.GetElapsed() * 1000.0f);
 
     glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->GetGpuBuffer());
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -512,19 +512,19 @@ void motion(int x, int y) {
         g_rx += x - g_prev_x;
         g_ry += y - g_prev_y;
     }else if(g_mbutton == 1){
-        g_dolly -= 0.01*(x - g_prev_x);
-        if(g_dolly <= 0.01) g_dolly = 0.01;
+        g_dolly -= 0.01f*(x - g_prev_x);
+        if(g_dolly <= 0.01) g_dolly = 0.01f;
     }
 
-    g_prev_x = x;
-    g_prev_y = y;
+    g_prev_x = float(x);
+    g_prev_y = float(y);
 }
 
 //------------------------------------------------------------------------------
 void mouse(int button, int state, int x, int y) {
 
-    g_prev_x = x;
-    g_prev_y = y;
+    g_prev_x = float(x);
+    g_prev_y = float(y);
     g_mbutton = button;
 }
 
@@ -618,7 +618,7 @@ idle() {
 void 
 initGL() {
 
-    glClearColor(0.1, 0.1, 0.1, 1);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glEnable(GL_LIGHT0);
     glColor3f(1, 1, 1);
     glEnable(GL_DEPTH_TEST);
