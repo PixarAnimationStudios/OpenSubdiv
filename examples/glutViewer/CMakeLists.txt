@@ -61,6 +61,7 @@ set(PLATFORM_LIBRARIES
     ${OSD_LINK_TARGET}
     ${ILMBASE_LIBS_DIRECTORY}
     ${OPENGL_LIBRARY}
+    ${GLEW_LIBRARY}
     ${GLUT_LIBRARIES}
 )
 
@@ -81,6 +82,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
     ${PROJECT_SOURCE_DIR}/regression
     ${ILMBASE_INCLUDE_DIR}
+    ${GLEW_INCLUDE_DIR}
     ${GLUT_INCLUDE_DIR}
 )
 
