@@ -38,7 +38,7 @@ Optional :
     cd build
     cmake ..
 * build the project :
-make
+    make
 </code></pre>
 
 ### Useful cmake options and environment variables ###
