@@ -992,7 +992,7 @@ HbrMesh<T>::GarbageCollect() {
     // Process the vertices in the same order as they were collected
     // (gcVertices used to be declared as a std::deque, but that was
     // causing unnecessary heap traffic).
-    int numprocessed = gcVertices.size() - gcthreshold / 2;
+    int numprocessed = (int)gcVertices.size() - gcthreshold / 2;
     for (int i = 0; i < numprocessed; ++i) {
         HbrVertex<T>* v = gcVertices[i];
         v->ClearCollected();

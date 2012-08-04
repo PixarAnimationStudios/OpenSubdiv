@@ -192,7 +192,7 @@ public:
             unsigned int width, height;
             image.getSize(width, height);
             unsigned char *p = image.pixels();
-            for(int i=0; i<width*height; i++){
+            for(unsigned int i=0; i<width*height; i++){
                 *p++ = 0;
                 *p++ = 0;
                 *p++ = 0;
@@ -1060,7 +1060,7 @@ OsdPtexMeshData::initializeIndexBuffer()
 {
     // update element array buffer
     const std::vector<int> indices = _osdmesh->GetFarMesh()->GetFaceVertices(_level);
-    _numIndices = indices.size();
+    _numIndices = (int)indices.size();
 
     if (_indexBuffer == 0)
         glGenBuffers(1, &_indexBuffer);
@@ -1337,7 +1337,7 @@ OpenSubdivPtexShaderOverride::draw(MHWRender::MDrawContext &context, const MHWRe
 
             GLint eye = glGetUniformLocation(program, "eyePositionInWorld");
             MPoint e = MPoint(0,0,0) * context.getMatrix(MHWRender::MDrawContext::kWorldViewInverseMtx);
-            glProgramUniform3f(program, eye, e.x, e.y, e.z);
+            glProgramUniform3f(program, eye, (float)e.x, (float)e.y, (float)e.z);
         }
 
         if (_shader->isWireframe()) {

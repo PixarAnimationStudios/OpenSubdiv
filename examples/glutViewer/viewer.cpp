@@ -657,12 +657,12 @@ bindProgram(GLuint program)
     GLint diffuse1 = glGetUniformLocation(program, "lightSource[1].diffuse");
     GLint specular1 = glGetUniformLocation(program, "lightSource[1].specular");
     
-    glProgramUniform4f(program, position, 0.5, 0.2f, 1, 0);
+    glProgramUniform4f(program, position, 0.5, 0.2f, 1.0f, 0.0f);
     glProgramUniform4f(program, ambient, 0.1f, 0.1f, 0.1f, 1.0f);
     glProgramUniform4f(program, diffuse, 0.7f, 0.7f, 0.7f, 1.0f);
     glProgramUniform4f(program, specular, 0.8f, 0.8f, 0.8f, 1.0f);
     
-    glProgramUniform4f(program, position1, -0.8, 0.4f, -1.0, 0);
+    glProgramUniform4f(program, position1, -0.8f, 0.4f, -1.0f, 0.0f);
     glProgramUniform4f(program, ambient1, 0.0f, 0.0f, 0.0f, 1.0f);
     glProgramUniform4f(program, diffuse1, 0.5f, 0.5f, 0.5f, 1.0f);
     glProgramUniform4f(program, specular1, 0.8f, 0.8f, 0.8f, 1.0f);

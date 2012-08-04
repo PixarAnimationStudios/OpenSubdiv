@@ -131,9 +131,9 @@ public:
         // go in the extra edges array.
         if (this >= incidentFace->edges &&
             this < incidentFace->edges + 4) {
-            return this - incidentFace->edges;
+            return int(this - incidentFace->edges);
         } else {
-            return this - incidentFace->extraedges;
+            return int(this - incidentFace->extraedges);
         }
     }
 

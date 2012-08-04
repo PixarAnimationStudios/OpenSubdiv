@@ -303,7 +303,7 @@ SubdivUserData::Populate(MObject mesh)
 
     // update element array buffer
     const std::vector<int> indices = _osdmesh->GetFarMesh()->GetFaceVertices(level);
-    _numIndices = indices.size();
+    _numIndices = (int)indices.size();
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _index);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*_numIndices,
                  &(indices[0]), GL_STATIC_DRAW);

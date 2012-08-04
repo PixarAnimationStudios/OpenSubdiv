@@ -364,12 +364,12 @@ reshape(int width, int height) {
     { char line[1024]; \
       snprintf(line, 1024, fmt, __VA_ARGS__); \
       const char *p = line; \
-      glWindowPos2f(x, y); \
+      glWindowPos2i(x, y); \
       while(*p) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *p++); } }
 
 #define drawString(x, y, str)                 \
     { const char *p = str; \
-      glWindowPos2f(x, y); \
+      glWindowPos2i(x, y); \
       while(*p) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *p++); } }
 
 //------------------------------------------------------------------------------
@@ -592,7 +592,7 @@ createOsdMesh(int level, int kernel) {
     // bind index buffer
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
 
-    g_numIndices = indices.size();
+    g_numIndices = (int)indices.size();
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*g_numIndices, &(indices[0]), GL_STATIC_DRAW);
 
     updateGeom();
