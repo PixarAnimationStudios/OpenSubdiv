@@ -71,7 +71,7 @@ set(SOURCE_FILES
     cpuKernel.cpp
     kernelDispatcher.cpp
     mesh.cpp
-    vertexBuffer.cpp    
+    vertexBuffer.cpp
 )
 
 set(KERNEL_FILES
@@ -96,7 +96,9 @@ set(PUBLIC_HEADER_FILES
 #-------------------------------------------------------------------------------
 # platform dependent tweaks
 if(APPLE)
-
+    set(PLATFORM_COMPILE_FLAGS
+        -fPIC
+    )
 elseif(UNIX)
     set(PLATFORM_COMPILE_FLAGS
         -fPIC
@@ -110,26 +112,31 @@ add_definitions(
 )
 
 #-------------------------------------------------------------------------------
-if( OPENMP_FOUND )
-    add_definitions(
-        -DOPENSUBDIV_HAS_OPENMP
-        ${OpenMP_CXX_FLAGS}
+if( PTEX_FOUND )
+    list(APPEND SOURCE_FILES
+        pTexture.cpp
     )
+    list(APPEND PUBLIC_HEADER_FILES
+        pTexture.h
+    )
+    include_directories( ${PTEX_INCLUDE_DIR} )
+    list(APPEND PLATFORM_LIBRARIES
+        ${PTEX_LIBRARY}
+    )
+endif()
+
+#-------------------------------------------------------------------------------
+if( OPENMP_FOUND )
     if (CMAKE_COMPILER_IS_GNUCXX)
         list(APPEND PLATFORM_LIBRARIES
             gomp
         )
     endif()
-else()
-    message(STATUS
-        "* OpenMP was not found : support for OMP parallel compute kernels will be diabled "
-        "in Osd. If your compiler supports OpenMP directives, please refer to the "
-        "FindOpenMP.cmake shared module in your cmake installation.")
 endif()
 
 #-------------------------------------------------------------------------------
-# GL code & dependencies 
-# note : (GLSL compute kernels require GL 4.2, which excludes APPLE) 
+# GL code & dependencies
+# note : (GLSL compute kernels require GL 4.2, which excludes APPLE)
 if( OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE) )
     list(APPEND SOURCE_FILES
         glslDispatcher.cpp
@@ -143,19 +150,16 @@ if( OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE) )
     list(APPEND PLATFORM_LIBRARIES
         ${OPENGL_LIBRARY}
         ${GLEW_LIBRARY}
-    )	
-    add_definitions(
-        -DOPENSUBDIV_HAS_GLSL
     )
-else()
-    message(STATUS
-        "* OpenGL was not found : support for GLSL parallel compute kernels will be disabled "
-        "in Osd. If you have an OpenGL SDK installed (version 4.2 or above), please refer to "
-        "the FindOpenGL.cmake shared module in your cmake installation.")
+else( OPENGL_FOUND AND APPLE )
+    list(APPEND PLATFORM_LIBRARIES
+        ${OPENGL_LIBRARY}
+        ${ILMBASE_LIBRARIES}
+    )
 endif()
 
 #-------------------------------------------------------------------------------
-# OpenCL code & dependencies 
+# OpenCL code & dependencies
 if ( OPENCL_FOUND )
     list(APPEND SOURCE_FILES
         clDispatcher.cpp
@@ -168,19 +172,11 @@ if ( OPENCL_FOUND )
     )
     list(APPEND PLATFORM_LIBRARIES
         ${OPENCL_LIBRARIES}
-    )	
-    add_definitions(
-        -DOPENSUBDIV_HAS_OPENCL
     )
-else()
-    message(STATUS
-        "* OpenCL was not found : support for OpenCL parallel compute kernels will be disabled "
-        "in Osd. If you have the OpenCL SDK installed, please refer to the FindOpenCL.cmake "
-        "in ${PROJECT_SOURCE_DIR}/cmake.")
 endif()
 
 #-------------------------------------------------------------------------------
-# CUDA code & dependencies 
+# CUDA code & dependencies
 if( CUDA_FOUND )
     list(APPEND SOURCE_FILES
         cudaDispatcher.cpp
@@ -191,17 +187,9 @@ if( CUDA_FOUND )
     list(APPEND KERNEL_FILES
         cudaKernel.cu
     )
-    add_definitions(
-        -DOPENSUBDIV_HAS_CUDA
-    )
     if (UNIX)
         list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC )
     endif()
-else()
-    message(STATUS
-        "* CUDA was not found : support for CUDA parallel compute kernels will be disabled "
-        "in Osd. If you have the CUDA SDK installed, please refer to the FindCUDA.cmake "
-        "shared module in your cmake installation.")
 endif()
 
 
@@ -220,15 +208,15 @@ foreach(kernel_file ${KERNEL_FILES})
 
         string(REGEX REPLACE "(.*)[.].*" "\\1.inc" inc_file ${kernel_file})
         list(APPEND INC_FILES ${inc_file})
-        
+
         add_custom_command(
             OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
             COMMAND stringify ${CMAKE_CURRENT_SOURCE_DIR}/${kernel_file}
                 ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
             DEPENDS stringify ${CMAKE_CURRENT_SOURCE_DIR}/${kernel_file}
         )
-        
-    endif()    
+
+    endif()
 endforeach()
 
 #-------------------------------------------------------------------------------
@@ -236,7 +224,7 @@ source_group("Kernels" FILES ${KERNEL_FILES})
 
 source_group("Inc" FILES ${INC_FILES})
 
-_add_library(osd_static STATIC
+_add_possibly_cuda_library(osd_static STATIC
     ${SOURCE_FILES}
     ${PRIVATE_HEADER_FILES}
     ${PUBLIC_HEADER_FILES}
@@ -250,7 +238,7 @@ target_link_libraries(osd_static
 )
 
 if (NOT WIN32)
-    _add_library(osd_dynamic SHARED
+    _add_possibly_cuda_library(osd_dynamic SHARED
         ${SOURCE_FILES}
         ${PRIVATE_HEADER_FILES}
         ${PUBLIC_HEADER_FILES}

@@ -1,7 +1,9 @@
-#ifndef GSD_VERTEX_H
-#define GSD_VERTEX_H
+#ifndef OSD_VERTEX_H
+#define OSD_VERTEX_H
 
 #include "../version.h"
+#include "../hbr/face.h"
+#include "../hbr/vertexEdit.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -13,8 +15,10 @@ public:
     OsdVertex(const OsdVertex &src) {}
 
     void AddWithWeight(const OsdVertex & i, float weight, void * = 0) {}
-    void AddVaryingWithWeight(const OsdVertex & i, float weight, void * = 0) {} 
+    void AddVaryingWithWeight(const OsdVertex & i, float weight, void * = 0) {}
     void Clear(void * = 0) {}
+    void ApplyVertexEdit(const OpenSubdiv::HbrVertexEdit<OsdVertex> &) { }
+    void ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<OsdVertex> &) { }
 };
 
 } // end namespace OPENSUBDIV_VERSION
@@ -22,4 +26,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif // GSD_VERTEX_H
+#endif // OSD_VERTEX_H

@@ -71,39 +71,39 @@ class Stopwatch {
 public:
 
 #ifndef _WINDOWS
-    void Start() { 
+    void Start() {
         struct timeval l_rtime;
         gettimeofday(&l_rtime,0);
-	    _elapsed = l_rtime.tv_sec + l_rtime.tv_usec/1000000.0;
+        _elapsed = l_rtime.tv_sec + l_rtime.tv_usec/1000000.0;
     }
 
     void Stop() {
         struct timeval l_rtime;
 
         gettimeofday(&l_rtime,0);
-	    _elapsed = (l_rtime.tv_sec + l_rtime.tv_usec/1000000.0) - _elapsed;
+        _elapsed = (l_rtime.tv_sec + l_rtime.tv_usec/1000000.0) - _elapsed;
         _totalElapsed += _elapsed;
     }
 
     double GetElapsed() const {
         return _elapsed;
     }
-    
+
     double GetTotalElapsed() const {
         return _totalElapsed;
-    }   
+    }
 #else
     Stopwatch() {
         QueryPerformanceFrequency(&_frequency);
     }
-    
-    void Start() 
-    { 
+
+    void Start()
+    {
         QueryPerformanceCounter(&_time);
     }
 
-    void Stop() 
-    { 
+    void Stop()
+    {
         LARGE_INTEGER currentTime;
         QueryPerformanceCounter(&currentTime);
         _elapsed = currentTime.QuadPart - _time.QuadPart;
@@ -113,7 +113,7 @@ public:
     double GetElapsed() const {
         return (double) _elapsed / _frequency.QuadPart;
     }
-    
+
     double GetTotalElapsed() const {
         return (double) _totalElapsed / _frequency.QuadPart;
     }

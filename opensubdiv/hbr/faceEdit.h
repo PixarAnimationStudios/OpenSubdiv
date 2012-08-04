@@ -70,7 +70,7 @@ template <class T>
 std::ostream& operator<<(std::ostream& out, const HbrFaceEdit<T>& path) {
     out << "face path = (" << path.faceid << ' ';
     for (int i = 0; i < path.nsubfaces; ++i) {
-	out << static_cast<int>(path.subfaces[i]) << ' ';
+        out << static_cast<int>(path.subfaces[i]) << ' ';
     }
     return out << ")";
 }
@@ -81,35 +81,35 @@ class HbrFaceEdit : public HbrHierarchicalEdit<T> {
 public:
 
     HbrFaceEdit(int _faceid, int _nsubfaces, unsigned char *_subfaces, int _index, int _width, typename HbrHierarchicalEdit<T>::Operation _op, float *_edit)
-	: HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), index(_index), width(_width), op(_op) {
-	edit = new float[width];
-	memcpy(edit, _edit, width * sizeof(float));
+        : HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), index(_index), width(_width), op(_op) {
+        edit = new float[width];
+        memcpy(edit, _edit, width * sizeof(float));
     }
-    
+
     HbrFaceEdit(int _faceid, int _nsubfaces, int *_subfaces, int _index, int _width, typename HbrHierarchicalEdit<T>::Operation _op, float *_edit)
-	: HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), index(_index), width(_width), op(_op) {
-	edit = new float[width];
-	memcpy(edit, _edit, width * sizeof(float));
+        : HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), index(_index), width(_width), op(_op) {
+        edit = new float[width];
+        memcpy(edit, _edit, width * sizeof(float));
     }
 
 #ifdef PRMAN
     HbrFaceEdit(int _faceid, int _nsubfaces, unsigned char *_subfaces, int _index, int _width, typename HbrHierarchicalEdit<T>::Operation _op, RtToken _edit)
-	: HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), index(_index), width(_width), op(_op) {
-	edit = new float[width];
-	RtString* sedit = (RtString*) edit;
-	*sedit = _edit;
+        : HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), index(_index), width(_width), op(_op) {
+        edit = new float[width];
+        RtString* sedit = (RtString*) edit;
+        *sedit = _edit;
     }
-    
+
     HbrFaceEdit(int _faceid, int _nsubfaces, int *_subfaces, int _index, int _width, typename HbrHierarchicalEdit<T>::Operation _op, RtToken _edit)
-	: HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), index(_index), width(_width), op(_op) {
-	edit = new float[width];
-	RtString* sedit = (RtString*) edit;
-	*sedit = _edit;
+        : HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), index(_index), width(_width), op(_op) {
+        edit = new float[width];
+        RtString* sedit = (RtString*) edit;
+        *sedit = _edit;
     }
 #endif
-    
+
     virtual ~HbrFaceEdit() {
-	delete[] edit;
+        delete[] edit;
     }
 
     friend std::ostream& operator<< <T> (std::ostream& out, const HbrFaceEdit<T>& path);
@@ -125,17 +125,17 @@ public:
 
     // Get the type of operation
     typename HbrHierarchicalEdit<T>::Operation GetOperation() const { return op; }
-    
+
     virtual void ApplyEditToFace(HbrFace<T>* face) {
-	if (HbrHierarchicalEdit<T>::GetNSubfaces() == face->GetDepth()) {
-	    int oldUniformIndex = face->GetUniformIndex();
+        if (HbrHierarchicalEdit<T>::GetNSubfaces() == face->GetDepth()) {
+            int oldUniformIndex = face->GetUniformIndex();
 
-	    // Change the face's uniform index
-	    face->SetUniformIndex(face->GetMesh()->NewUniformIndex());
+            // Change the face's uniform index
+            face->SetUniformIndex(face->GetMesh()->NewUniformIndex());
 
-	    // Apply edit
-	    face->GetVertex(0)->GetData().ApplyFaceEdit(oldUniformIndex, face->GetUniformIndex(), *const_cast<const HbrFaceEdit<T>*>(this));
-	}
+            // Apply edit
+            face->GetVertex(0)->GetData().ApplyFaceEdit(oldUniformIndex, face->GetUniformIndex(), *const_cast<const HbrFaceEdit<T>*>(this));
+        }
     }
 
 private:

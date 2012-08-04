@@ -61,6 +61,7 @@
 #if defined(_WIN32)
     #include <windows.h>
 #elif defined(__APPLE__)
+    #include <OpenGL/OpenGL.h>
     #include <OpenCL/opencl.h>
 #else
     #include <GL/glx.h>
@@ -85,9 +86,9 @@ static const char *clSource =
 
 std::vector<OsdClKernelDispatcher::ClKernel> OsdClKernelDispatcher::kernelRegistry;
 
-// XXX: context and queue should be moved to client code
 cl_context OsdClKernelDispatcher::_clContext = NULL;
 cl_command_queue OsdClKernelDispatcher::_clQueue = NULL;
+cl_device_id OsdClKernelDispatcher::_clDevice=NULL;
 
 OsdClVertexBuffer::OsdClVertexBuffer(int numElements, int numVertices,
                                      cl_context clContext, cl_command_queue clQueue) :
@@ -143,7 +144,7 @@ OsdClKernelDispatcher::DeviceTable::Copy(cl_context context, int size, const voi
             clReleaseMemObject(devicePtr);
         devicePtr = clCreateBuffer(context, CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR, size,
                                    const_cast<void*>(table), &ciErrNum);
-        
+
         CL_CHECK_ERROR(ciErrNum, "Table copy %p\n", table);
     }
 }
@@ -230,6 +231,52 @@ OsdClKernelDispatcher::Synchronize() {
 }
 
 void
+OsdClKernelDispatcher::ApplyBilinearFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset,
+                                                    int level, int start, int end, void * data) const {
+
+    ApplyCatmarkFaceVerticesKernel(mesh, offset, level, start, end, data);
+}
+
+void
+OsdClKernelDispatcher::ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset,
+                                                    int level, int start, int end, void * data) const {
+
+    cl_int ciErrNum;
+    size_t globalWorkSize[1] = { end-start };
+    cl_kernel kernel = _clKernel->GetBilinearEdgeKernel();
+
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), GetVertexBuffer());
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), GetVaryingBuffer());
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), &_tables[E_IT].devicePtr);
+    clSetKernelArg(kernel, 3, sizeof(int), &_tableOffsets[E_IT][level-1]);
+    clSetKernelArg(kernel, 4, sizeof(int), &offset);
+    clSetKernelArg(kernel, 5, sizeof(int), &start);
+    clSetKernelArg(kernel, 6, sizeof(int), &end);
+
+    ciErrNum = clEnqueueNDRangeKernel(_clQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, NULL);
+    CL_CHECK_ERROR(ciErrNum, "bilinear edge kernel %d\n", ciErrNum);
+}
+
+void
+OsdClKernelDispatcher::ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset,
+                                                       int level, int start, int end, void * data) const {
+
+    cl_int ciErrNum;
+    size_t globalWorkSize[1] = { end-start };
+    cl_kernel kernel = _clKernel->GetBilinearVertexKernel();
+
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), GetVertexBuffer());
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), GetVaryingBuffer());
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), &_tables[V_ITa].devicePtr);
+    clSetKernelArg(kernel, 3, sizeof(int), &_tableOffsets[V_ITa][level-1]);
+    clSetKernelArg(kernel, 4, sizeof(int), (void*)&offset);
+    clSetKernelArg(kernel, 5, sizeof(int), (void*)&start);
+    clSetKernelArg(kernel, 6, sizeof(int), (void*)&end);
+    ciErrNum = clEnqueueNDRangeKernel(_clQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, NULL);
+    CL_CHECK_ERROR(ciErrNum, "bilinear vertex kernel 1 %d\n", ciErrNum);
+}
+
+void
 OsdClKernelDispatcher::ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset,
                                                     int level, int start, int end, void * data) const {
 
@@ -252,7 +299,7 @@ OsdClKernelDispatcher::ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh,
 }
 
 void
-OsdClKernelDispatcher::ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, 
+OsdClKernelDispatcher::ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset,
                                                     int level, int start, int end, void * data) const {
 
     cl_int ciErrNum;
@@ -268,7 +315,7 @@ OsdClKernelDispatcher::ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh,
     clSetKernelArg(kernel, 6, sizeof(int), &offset);
     clSetKernelArg(kernel, 7, sizeof(int), &start);
     clSetKernelArg(kernel, 8, sizeof(int), &end);
-            
+
     ciErrNum = clEnqueueNDRangeKernel(_clQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, NULL);
     CL_CHECK_ERROR(ciErrNum, "edge kernel %d\n", ciErrNum);
 }
@@ -388,7 +435,7 @@ OsdClKernelDispatcher::ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh,
 }
 
 // XXX: initCL should be removed from libosd
-void 
+void
 OsdClKernelDispatcher::initCL() {
 
     cl_int ciErrNum;
@@ -415,9 +462,8 @@ OsdClKernelDispatcher::initCL() {
         }
     }
     // -------------
-    cl_device_id cdDevice;
-    clGetDeviceIDs(cpPlatform, CL_DEVICE_TYPE_GPU, 1, &cdDevice, NULL);
-    
+    clGetDeviceIDs(cpPlatform, CL_DEVICE_TYPE_GPU, 1, &_clDevice, NULL);
+
 #if defined(_WIN32)
     cl_context_properties props[] = {
         CL_GL_CONTEXT_KHR, (cl_context_properties)wglGetCurrentContext(),
@@ -442,10 +488,10 @@ OsdClKernelDispatcher::initCL() {
 #endif
 
     // XXX context creation should be moved to client code
-    _clContext = clCreateContext(props, 1, &cdDevice, NULL, NULL, &ciErrNum);
+    _clContext = clCreateContext(props, 1, &_clDevice, NULL, NULL, &ciErrNum);
     CL_CHECK_ERROR(ciErrNum, "clCreateContext\n");
 
-    _clQueue = clCreateCommandQueue(_clContext, cdDevice, 0, &ciErrNum);
+    _clQueue = clCreateCommandQueue(_clContext, _clDevice, 0, &ciErrNum);
     CL_CHECK_ERROR(ciErrNum, "clCreateCommandQueue\n");
 }
 
@@ -460,6 +506,8 @@ OsdClKernelDispatcher::uninitCL() {
 // ------------------------------------------------------------------
 
 OsdClKernelDispatcher::ClKernel::ClKernel() :
+    _clBilinearEdge(NULL),
+    _clBilinearVertex(NULL),
     _clCatmarkFace(NULL),
     _clCatmarkEdge(NULL),
     _clCatmarkVertexA(NULL),
@@ -471,6 +519,11 @@ OsdClKernelDispatcher::ClKernel::ClKernel() :
 }
 
 OsdClKernelDispatcher::ClKernel::~ClKernel() {
+
+    if (_clBilinearEdge)
+        clReleaseKernel(_clBilinearEdge);
+    if (_clBilinearVertex)
+        clReleaseKernel(_clBilinearVertex);
 
     if (_clCatmarkFace)
         clReleaseKernel(_clCatmarkFace);
@@ -489,6 +542,15 @@ OsdClKernelDispatcher::ClKernel::~ClKernel() {
         clReleaseKernel(_clLoopVertexB);
 
     if (_clProgram) clReleaseProgram(_clProgram);
+}
+
+static cl_kernel buildKernel(cl_program prog, const char * name) {
+
+    cl_int ciErr;
+    cl_kernel k = clCreateKernel(prog, name, &ciErr);
+    if (ciErr!=CL_SUCCESS)
+        printf("error building kernel '%s'\n", name);
+    return k;
 }
 
 bool
@@ -511,29 +573,23 @@ OsdClKernelDispatcher::ClKernel::Compile(cl_context clContext, int numVertexElem
     ciErrNum = clBuildProgram(_clProgram, 0, NULL, NULL, NULL, NULL);
     if (ciErrNum != CL_SUCCESS) {
         OSD_ERROR("ERROR in clBuildProgram %d\n", ciErrNum);
-        //char cBuildLog[10240];
-        //clGetProgramBuildInfo(_clProgram, cdDevice, CL_PROGRAM_BUILD_LOG,
-        //                      sizeof(cBuildLog), cBuildLog, NULL);
-        //OSD_ERROR(cBuildLog);
+        char cBuildLog[10240];
+        clGetProgramBuildInfo(_clProgram, _clDevice, CL_PROGRAM_BUILD_LOG,
+                              sizeof(cBuildLog), cBuildLog, NULL);
+        OSD_ERROR(cBuildLog);
         return false;
     }
 
     // -------
-
-    _clCatmarkFace = clCreateKernel(_clProgram, "computeFace", &ciErrNum);
-    CL_CHECK_ERROR(ciErrNum, "clCreateKernel face\n");
-    _clCatmarkEdge = clCreateKernel(_clProgram, "computeEdge", &ciErrNum);
-    CL_CHECK_ERROR(ciErrNum, "clCreateKernel edge\n");
-    _clCatmarkVertexA = clCreateKernel(_clProgram, "computeVertexA", &ciErrNum);
-    CL_CHECK_ERROR(ciErrNum, "clCreateKernel vertex a\n");
-    _clCatmarkVertexB = clCreateKernel(_clProgram, "computeVertexB", &ciErrNum);
-    CL_CHECK_ERROR(ciErrNum, "clCreateKernel vertex b\n");
-    _clLoopEdge = clCreateKernel(_clProgram, "computeEdge", &ciErrNum);
-    CL_CHECK_ERROR(ciErrNum, "clCreateKernel edge\n");
-    _clLoopVertexA = clCreateKernel(_clProgram, "computeVertexA", &ciErrNum);
-    CL_CHECK_ERROR(ciErrNum, "clCreateKernel vertex a\n");
-    _clLoopVertexB = clCreateKernel(_clProgram, "computeLoopVertexB", &ciErrNum);
-    CL_CHECK_ERROR(ciErrNum, "clCreateKernel vertex b\n");
+    _clBilinearEdge   = buildKernel(_clProgram, "computeBilinearEdge");
+    _clBilinearVertex = buildKernel(_clProgram, "computeBilinearVertex");
+    _clCatmarkFace    = buildKernel(_clProgram, "computeFace");
+    _clCatmarkEdge    = buildKernel(_clProgram, "computeEdge");
+    _clCatmarkVertexA = buildKernel(_clProgram, "computeVertexA");
+    _clCatmarkVertexB = buildKernel(_clProgram, "computeVertexB");
+    _clLoopEdge       = buildKernel(_clProgram, "computeEdge");
+    _clLoopVertexA    = buildKernel(_clProgram, "computeVertexA");
+    _clLoopVertexB    = buildKernel(_clProgram, "computeLoopVertexB");
 
     return true;
 }

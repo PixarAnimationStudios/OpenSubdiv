@@ -58,6 +58,7 @@
 #if defined(__APPLE__)
     #include <GLUT/glut.h>
 #else
+    #include <stdlib.h>
     #include <GL/glew.h>
     #include <GL/glut.h>
 #endif
@@ -81,17 +82,25 @@
     #include <cuda_runtime_api.h>
     #include <cuda_gl_interop.h>
 
-    #include "cudaInit.h"
+    #include "../common/cudaInit.h"
 #endif
 
+static const char *shaderSource =
+#include "shader.inc"
+;
+
+#include <float.h>
 #include <vector>
+#include <fstream>
+#include <sstream>
 
 //------------------------------------------------------------------------------
 struct SimpleShape {
     std::string  name;
     Scheme       scheme;
     char const * data;
-    
+
+    SimpleShape() { }
     SimpleShape( char const * idata, char const * iname, Scheme ischeme )
         : name(iname), scheme(ischeme), data(idata) { }
 };
@@ -101,7 +110,7 @@ std::vector<SimpleShape> g_defaultShapes;
 int g_currentShape = 0;
 
 
-void 
+void
 initializeShapes( ) {
 
 #include <shapes/bilinear_cube.h>
@@ -161,6 +170,20 @@ initializeShapes( ) {
 #include <shapes/catmark_tent.h>
     g_defaultShapes.push_back(SimpleShape(catmark_tent, "catmark_tent", kCatmark));
 
+#include <shapes/catmark_square_hedit0.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_square_hedit0, "catmark_square_hedit0", kCatmark));
+
+#include <shapes/catmark_square_hedit1.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_square_hedit1, "catmark_square_hedit1", kCatmark));
+
+#include <shapes/catmark_square_hedit2.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_square_hedit2, "catmark_square_hedit2", kCatmark));
+
+#include <shapes/catmark_square_hedit3.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_square_hedit3, "catmark_square_hedit3", kCatmark));
+
+
+
 #include <shapes/loop_cube_creases0.h>
     g_defaultShapes.push_back(SimpleShape(loop_cube_creases0, "loop_cube_creases0", kLoop));
 
@@ -191,17 +214,22 @@ int   g_frame = 0,
       g_repeatCount = 0;
 
 // GLUT GUI variables
-int   g_wire = 0,
+int   g_freeze = 0,
+      g_wire = 0,
+      g_drawCoarseMesh = 1,
       g_drawNormals = 0,
-      g_mbutton;
+      g_drawHUD = 1,
+      g_mbutton[3] = {0, 0, 0};
 
-float g_rx = 0, 
-      g_ry = 0, 
-      g_prev_x = 0, 
+float g_rotate[2] = {0, 0},
+      g_prev_x = 0,
       g_prev_y = 0,
-      g_dolly = 5;
+      g_dolly = 5,
+      g_pan[2] = {0, 0},
+      g_center[3] = {0, 0, 0},
+      g_size = 0;
 
-int   g_width, 
+int   g_width,
       g_height;
 
 // performance
@@ -209,22 +237,33 @@ float g_cpuTime = 0;
 float g_gpuTime = 0;
 
 // geometry
-std::vector<float> g_positions,
+std::vector<float> g_orgPositions,
+                   g_positions,
                    g_normals;
-                   
-Scheme             g_scheme;                   
+
+Scheme             g_scheme;
 
 int g_numIndices = 0;
 int g_level = 2;
 int g_kernel = OpenSubdiv::OsdKernelDispatcher::kCPU;
+float g_moveScale = 1.0f;
 
 GLuint g_indexBuffer;
+GLuint g_quadFillProgram = 0,
+       g_quadLineProgram = 0,
+       g_triFillProgram = 0,
+       g_triLineProgram = 0;
+
+
+std::vector<int> g_coarseEdges;
+std::vector<float> g_coarseEdgeSharpness;
+std::vector<float> g_coarseVertexSharpness;
 
 OpenSubdiv::OsdMesh * g_osdmesh = 0;
 OpenSubdiv::OsdVertexBuffer * g_vertexBuffer = 0;
 
-//------------------------------------------------------------------------------                                        
-inline void 
+//------------------------------------------------------------------------------
+inline void
 cross(float *n, const float *p0, const float *p1, const float *p2) {
 
     float a[3] = { p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2] };
@@ -232,15 +271,15 @@ cross(float *n, const float *p0, const float *p1, const float *p2) {
     n[0] = a[1]*b[2]-a[2]*b[1];
     n[1] = a[2]*b[0]-a[0]*b[2];
     n[2] = a[0]*b[1]-a[1]*b[0];
-    
+
     float rn = 1.0f/sqrtf(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
     n[0] *= rn;
     n[1] *= rn;
     n[2] *= rn;
 }
 
-//------------------------------------------------------------------------------                                        
-inline void 
+//------------------------------------------------------------------------------
+inline void
 normalize(float * p) {
 
     float dist = sqrtf( p[0]*p[0] + p[1]*p[1]  + p[2]*p[2] );
@@ -249,9 +288,25 @@ normalize(float * p) {
     p[2]/=dist;
 }
 
+//------------------------------------------------------------------------------
+inline void
+multMatrix(float *d, const float *a, const float *b) {
 
-//------------------------------------------------------------------------------                                        
-static void 
+    for (int i=0; i<4; ++i)
+    {
+        for (int j=0; j<4; ++j)
+        {
+            d[i*4 + j] =
+                a[i*4 + 0] * b[0*4 + j] +
+                a[i*4 + 1] * b[1*4 + j] +
+                a[i*4 + 2] * b[2*4 + j] +
+                a[i*4 + 3] * b[3*4 + j];
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+static void
 calcNormals(OpenSubdiv::OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float> & result ) {
 
     // calc normal vectors
@@ -259,13 +314,13 @@ calcNormals(OpenSubdiv::OsdHbrMesh * mesh, std::vector<float> const & pos, std::
 
     int nfaces = mesh->GetNumCoarseFaces();
     for (int i = 0; i < nfaces; ++i) {
-    
+
         OpenSubdiv::OsdHbrFace * f = mesh->GetFace(i);
-        
+
         float const * p0 = &pos[f->GetVertex(0)->GetID()*3],
                     * p1 = &pos[f->GetVertex(1)->GetID()*3],
                     * p2 = &pos[f->GetVertex(2)->GetID()*3];
-                
+
         float n[3];
         cross( n, p0, p1, p2 );
 
@@ -281,30 +336,43 @@ calcNormals(OpenSubdiv::OsdHbrMesh * mesh, std::vector<float> const & pos, std::
 }
 
 //------------------------------------------------------------------------------
-void 
+void
 updateGeom() {
 
-    int nverts = (int)g_positions.size() / 3;
-    
+    int nverts = (int)g_orgPositions.size() / 3;
+
     std::vector<float> vertex;
     vertex.reserve(nverts*6);
-    
-    const float *p = &g_positions[0];
+
+    const float *p = &g_orgPositions[0];
     const float *n = &g_normals[0];
-       
+
+    float r = sin(g_frame*0.001f) * g_moveScale;
     for (int i = 0; i < nverts; ++i) {
         float move = 0.05f*cosf(p[0]*20+g_frame*0.01f);
+        float ct = cos(p[2] * r);
+        float st = sin(p[2] * r);
+        g_positions[i*3+0] = p[0]*ct + p[1]*st;
+        g_positions[i*3+1] = -p[0]*st + p[1]*ct;
+        g_positions[i*3+2] = p[2];
+        
+        p += 3;
+    }
+
+    p = &g_positions[0];
+    for (int i = 0; i < nverts; ++i) {
         vertex.push_back(p[0]);
-        vertex.push_back(p[1]+move);
+        vertex.push_back(p[1]);
         vertex.push_back(p[2]);
         vertex.push_back(n[0]);
         vertex.push_back(n[1]);
         vertex.push_back(n[2]);
+        
         p += 3;
         n += 3;
     }
 
-    if (!g_vertexBuffer) 
+    if (!g_vertexBuffer)
         g_vertexBuffer = g_osdmesh->InitializeVertexBuffer(6);
     g_vertexBuffer->UpdateData(&vertex[0], nverts);
 
@@ -324,41 +392,16 @@ updateGeom() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
+//-------------------------------------------------------------------------------
+void
+fitFrame() {
+
+    g_pan[0] = g_pan[1] = 0;
+    g_dolly = g_size;
+}
+
 //------------------------------------------------------------------------------
 void
-createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark ) { 
-
-    // generate Hbr representation from "obj" description
-    OpenSubdiv::OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, g_positions);
-
-    g_normals.resize(g_positions.size(),0.0f);
-    calcNormals( hmesh, g_positions, g_normals );
-
-    // generate Osd mesh from Hbr mesh
-    if (g_osdmesh) delete g_osdmesh;
-    g_osdmesh = new OpenSubdiv::OsdMesh();
-    g_osdmesh->Create(hmesh, level, kernel);
-    if (g_vertexBuffer) {
-        delete g_vertexBuffer;
-        g_vertexBuffer = NULL;
-    }
-    
-    // Hbr mesh can be deleted
-    delete hmesh;
-    
-    // update element array buffer
-    const std::vector<int> &indices = g_osdmesh->GetFarMesh()->GetFaceVertices(level);
-
-    g_numIndices = indices.size();
-    g_scheme = scheme;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*g_numIndices, &(indices[0]), GL_STATIC_DRAW);
-       
-    updateGeom();
-}    
-
-//------------------------------------------------------------------------------
-void 
 reshape(int width, int height) {
 
     g_width = width;
@@ -369,29 +412,55 @@ reshape(int width, int height) {
     #define snprintf _snprintf
 #endif
 
-#define drawString(x, y, fmt, ...)               \
+#define drawString(x, y, ...)               \
     { char line[1024]; \
-      snprintf(line, 1024, fmt, __VA_ARGS__); \
+      snprintf(line, 1024, __VA_ARGS__); \
       char *p = line; \
-      glWindowPos2f(x, y); \
+      glWindowPos2i(x, y); \
       while(*p) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *p++); } }
 
 //------------------------------------------------------------------------------
 const char *getKernelName(int kernel) {
 
-         if (kernel == OpenSubdiv::OsdKernelDispatcher::kCPU) 
+         if (kernel == OpenSubdiv::OsdKernelDispatcher::kCPU)
         return "CPU";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kOPENMP) 
+    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kOPENMP)
         return "OpenMP";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCUDA) 
+    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCUDA)
         return "Cuda";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kGLSL) 
+    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kGLSL)
         return "GLSL";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCL) 
+    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCL)
         return "OpenCL";
     return "Unknown";
 }
 
+//------------------------------------------------------------------------------
+static GLuint compileShader(GLenum shaderType, const char *section, const char *define)
+{
+    const char *sources[3];
+    char sdefine[64];
+    sprintf(sdefine, "#define %s\n", section);
+
+    sources[0] = sdefine;
+    sources[1] = define;
+    sources[2] = shaderSource;
+
+    GLuint shader = glCreateShader(shaderType);
+    glShaderSource(shader, 3, sources, NULL);
+    glCompileShader(shader);
+
+    GLint status;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+    if( status == GL_FALSE ) {
+        GLchar emsg[1024];
+        glGetShaderInfoLog(shader, sizeof(emsg), 0, emsg);
+        fprintf(stderr, "Error compiling GLSL shader (%s): %s\n", section, emsg );
+        exit(0);
+    }
+
+    return shader;
+}
 //------------------------------------------------------------------------------
 void
 drawNormals() {
@@ -404,103 +473,312 @@ drawNormals() {
     glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->GetGpuBuffer());
     glGetBufferSubData(GL_ARRAY_BUFFER,0,datasize*sizeof(float),data);
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);    
     glDisable(GL_LIGHTING);
     glColor3f(0.0f, 0.0f, 0.5f);
     glBegin(GL_LINES);
-    
+
     int start = g_osdmesh->GetFarMesh()->GetSubdivision()->GetFirstVertexOffset(g_level) *
                 g_vertexBuffer->GetNumElements();
-    
+
     for (int i=start; i<datasize; i+=6) {
-        glVertex3f( data[i  ], 
-                    data[i+1], 
+        glVertex3f( data[i  ],
+                    data[i+1],
                     data[i+2] );
 
         float n[3] = { data[i+3], data[i+4], data[i+5] };
         normalize(n);
-        
-        glVertex3f( data[i  ]+n[0]*0.2f, 
-                    data[i+1]+n[1]*0.2f, 
+
+        glVertex3f( data[i  ]+n[0]*0.2f,
+                    data[i+1]+n[1]*0.2f,
                     data[i+2]+n[2]*0.2f );
     }
     glEnd();
-    
+
     delete [] data;
 }
 
+inline void
+setSharpnessColor(float s)
+{
+    //  0.0       2.0       4.0
+    // green --- yellow --- red
+    float r = std::min(1.0f, s * 0.5f);
+    float g = std::min(1.0f, 2.0f - s*0.5f);
+    glColor3f(r, g, 0.0f);
+}
+
+void
+drawCoarseMesh(int mode) {
+
+    glDisable(GL_LIGHTING);
+
+    glLineWidth(2.0f);
+    glBegin(GL_LINES);
+    for(int i=0; i<(int)g_coarseEdges.size(); i+=2) {
+        setSharpnessColor(g_coarseEdgeSharpness[i/2]);
+        glVertex3fv(&g_positions[g_coarseEdges[i]*3]);
+        glVertex3fv(&g_positions[g_coarseEdges[i+1]*3]);
+    }
+    glEnd();
+    glLineWidth(1.0f);
+
+    if (mode == 2) {
+        glPointSize(10.0f);
+        glBegin(GL_POINTS);
+        for(int i=0; i<(int)g_positions.size()/3; ++i) {
+            setSharpnessColor(g_coarseVertexSharpness[i]);
+            glVertex3fv(&g_positions[i*3]);
+        }
+        glEnd();
+        glPointSize(1.0f);
+    }
+
+}
+
 //------------------------------------------------------------------------------
-void 
+GLuint linkProgram(const char *define) {
+
+    GLuint vertexShader         = compileShader(GL_VERTEX_SHADER,
+                                                "VERTEX_SHADER", define);
+    GLuint geometryShader       = compileShader(GL_GEOMETRY_SHADER,
+                                                "GEOMETRY_SHADER", define);
+    GLuint fragmentShader       = compileShader(GL_FRAGMENT_SHADER,
+                                                "FRAGMENT_SHADER", define);
+
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vertexShader);
+    glAttachShader(program, geometryShader);
+    glAttachShader(program, fragmentShader);
+
+    glBindAttribLocation(program, 0, "position");
+    glBindAttribLocation(program, 1, "normal");
+
+    glLinkProgram(program);
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(geometryShader);
+    glDeleteShader(fragmentShader);
+
+    GLint status;
+    glGetProgramiv(program, GL_LINK_STATUS, &status );
+    if( status == GL_FALSE ) {
+        GLchar emsg[1024];
+        glGetProgramInfoLog(program, sizeof(emsg), 0, emsg);
+        fprintf(stderr, "Error linking GLSL program : %s\n", emsg );
+        exit(0);
+    }
+
+    return program;
+}
+
+//------------------------------------------------------------------------------
+void
+createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark ) {
+
+    // generate Hbr representation from "obj" description
+    OpenSubdiv::OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, g_orgPositions);
+
+    g_normals.resize(g_orgPositions.size(),0.0f);
+    g_positions.resize(g_orgPositions.size(),0.0f);
+    calcNormals( hmesh, g_orgPositions, g_normals );
+
+    // save coarse topology (used for coarse mesh drawing)
+    g_coarseEdges.clear();
+    g_coarseEdgeSharpness.clear();
+    g_coarseVertexSharpness.clear();
+    int nf = hmesh->GetNumFaces();
+    for(int i=0; i<nf; ++i) {
+        OpenSubdiv::OsdHbrFace *face = hmesh->GetFace(i);
+        int nv = face->GetNumVertices();
+        for(int j=0; j<nv; ++j) {
+            g_coarseEdges.push_back(face->GetVertex(j)->GetID());
+            g_coarseEdges.push_back(face->GetVertex((j+1)%nv)->GetID());
+            g_coarseEdgeSharpness.push_back(face->GetEdge(j)->GetSharpness());
+        }
+    }
+    int nv = hmesh->GetNumVertices();
+    for(int i=0; i<nv; ++i) {
+        g_coarseVertexSharpness.push_back(hmesh->GetVertex(i)->GetSharpness());
+    }
+
+    // generate Osd mesh from Hbr mesh
+    if (g_osdmesh) delete g_osdmesh;
+    g_osdmesh = new OpenSubdiv::OsdMesh();
+    g_osdmesh->Create(hmesh, level, kernel);
+    if (g_vertexBuffer) {
+        delete g_vertexBuffer;
+        g_vertexBuffer = NULL;
+    }
+
+    // Hbr mesh can be deleted
+    delete hmesh;
+
+    // update element array buffer
+    const std::vector<int> &indices = g_osdmesh->GetFarMesh()->GetFaceVertices(level);
+
+    g_numIndices = (int)indices.size();
+    g_scheme = scheme;
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*g_numIndices, &(indices[0]), GL_STATIC_DRAW);
+
+    // compute model bounding
+    float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};
+    float max[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+    for (size_t i=0; i <g_orgPositions.size()/3; ++i) {
+        for(int j=0; j<3; ++j) {
+            float v = g_orgPositions[i*3+j];
+            min[j] = std::min(min[j], v);
+            max[j] = std::max(max[j], v);
+        }
+    }
+    for (int j=0; j<3; ++j) {
+        g_center[j] = (min[j] + max[j]) * 0.5f;
+        g_size += (max[j]-min[j])*(max[j]-min[j]);
+    }
+    g_size = sqrtf(g_size);
+
+    updateGeom();
+
+}
+
+//------------------------------------------------------------------------------
+void
+bindProgram(GLuint program)
+{
+    glUseProgram(program);
+
+    // shader uniform setting
+    GLint position = glGetUniformLocation(program, "lightSource[0].position");
+    GLint ambient = glGetUniformLocation(program, "lightSource[0].ambient");
+    GLint diffuse = glGetUniformLocation(program, "lightSource[0].diffuse");
+    GLint specular = glGetUniformLocation(program, "lightSource[0].specular");
+    GLint position1 = glGetUniformLocation(program, "lightSource[1].position");
+    GLint ambient1 = glGetUniformLocation(program, "lightSource[1].ambient");
+    GLint diffuse1 = glGetUniformLocation(program, "lightSource[1].diffuse");
+    GLint specular1 = glGetUniformLocation(program, "lightSource[1].specular");
+    
+    glProgramUniform4f(program, position, 0.5, 0.2f, 1, 0);
+    glProgramUniform4f(program, ambient, 0.1f, 0.1f, 0.1f, 1.0f);
+    glProgramUniform4f(program, diffuse, 0.7f, 0.7f, 0.7f, 1.0f);
+    glProgramUniform4f(program, specular, 0.8f, 0.8f, 0.8f, 1.0f);
+    
+    glProgramUniform4f(program, position1, -0.8, 0.4f, -1.0, 0);
+    glProgramUniform4f(program, ambient1, 0.0f, 0.0f, 0.0f, 1.0f);
+    glProgramUniform4f(program, diffuse1, 0.5f, 0.5f, 0.5f, 1.0f);
+    glProgramUniform4f(program, specular1, 0.8f, 0.8f, 0.8f, 1.0f);
+
+    GLint otcMatrix = glGetUniformLocation(program, "objectToClipMatrix");
+    GLint oteMatrix = glGetUniformLocation(program, "objectToEyeMatrix");
+    GLfloat modelView[16], proj[16], mvp[16];
+    glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
+    glGetFloatv(GL_PROJECTION_MATRIX, proj);
+    multMatrix(mvp, modelView, proj);
+    glProgramUniformMatrix4fv(program, otcMatrix, 1, false, mvp);
+    glProgramUniformMatrix4fv(program, oteMatrix, 1, false, modelView);
+}
+
+//------------------------------------------------------------------------------
+void
 display() {
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glViewport(0, 0, g_width, g_height);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glDisable(GL_LIGHTING);
+    glColor3f(1, 1, 1);
+    glBegin(GL_QUADS);
+    glColor3f(0.5f, 0.5f, 0.5f);
+    glVertex3f(-1, -1, 1);
+    glVertex3f( 1, -1, 1);
+    glColor3f(0, 0, 0);
+    glVertex3f( 1,  1, 1);
+    glVertex3f(-1,  1, 1);
+    glEnd();
+
     double aspect = g_width/(double)g_height;
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(45.0, aspect, 0.001, 100.0);
+    gluPerspective(45.0, aspect, 0.01, 500.0);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    glTranslatef(0, 0, -g_dolly);
-    glRotatef(g_ry, 1, 0, 0);
-    glRotatef(g_rx, 0, 1, 0);
+    glTranslatef(-g_pan[0], -g_pan[1], -g_dolly);
+    glRotatef(g_rotate[1], 1, 0, 0);
+    glRotatef(g_rotate[0], 0, 1, 0);
+    glTranslatef(-g_center[0], -g_center[1], -g_center[2]);
+    glRotatef(-90, 1, 0, 0); // z-up model
 
     GLuint bVertex = g_vertexBuffer->GetGpuBuffer();
-#ifdef VARYING_NORMAL
-    GLuint bVarying = g_varyingBuffer->GetGpuBuffer();
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, bVertex);
-    glVertexPointer(3, GL_FLOAT, 12, ((float*)(0)));
 
-    glBindBuffer(GL_ARRAY_BUFFER, bVarying);
-    glNormalPointer(GL_FLOAT, 12, ((float*)(0)));
-#else
-    glBindBuffer(GL_ARRAY_BUFFER, bVertex);
-    glVertexPointer(3, GL_FLOAT, 24, ((float*)(0)));
-    glNormalPointer(GL_FLOAT, 24, ((float*)(12)));
-#endif
-
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_NORMAL_ARRAY);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
 
-    if (g_wire == 0) {
-        glColor3f(1.0f, 1.0f, 1.0f);
-        
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glDisable(GL_LIGHTING);
-        glDrawElements(g_scheme==kLoop ? GL_TRIANGLES : GL_QUADS, g_numIndices, GL_UNSIGNED_INT, NULL);
+    GLenum primType = GL_LINES_ADJACENCY;
+    if (g_scheme == kLoop) {
+        primType = GL_TRIANGLES;
+        bindProgram(g_triFillProgram);
     } else {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        glEnable(GL_LIGHTING);
-        glDrawElements(g_scheme==kLoop ? GL_TRIANGLES : GL_QUADS, g_numIndices, GL_UNSIGNED_INT, NULL);
+        bindProgram(g_quadFillProgram);
+    }
 
-        if(g_wire == 2){
-            glColor3f(0.0f, 0.0f, 0.5f);
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            glDisable(GL_LIGHTING);
-            glDrawElements(g_scheme==kLoop ? GL_TRIANGLES : GL_QUADS, g_numIndices, GL_UNSIGNED_INT, NULL);
-        }
-        glColor3f(1.0f, 1.0f, 1.0f);
+    if (g_wire > 0) {
+        glDrawElements(primType, g_numIndices, GL_UNSIGNED_INT, NULL);
     }
     
+    if (g_wire == 0 || g_wire == 2) {
+        GLuint lineProgram = g_scheme == kLoop ? g_triLineProgram : g_quadLineProgram;
+
+        bindProgram(lineProgram);
+        GLuint fragColor = glGetUniformLocation(lineProgram, "fragColor");
+        if (g_wire == 2) {
+            glProgramUniform4f(lineProgram, fragColor, 0, 0, 0.5, 1);
+        } else {
+            glProgramUniform4f(lineProgram, fragColor, 1, 1, 1, 1);
+        }
+        glDrawElements(primType, g_numIndices, GL_UNSIGNED_INT, NULL);
+    }
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+
+    glUseProgram(0);
+
     if (g_drawNormals)
         drawNormals();
+    
+    if (g_drawCoarseMesh)
+        drawCoarseMesh(g_drawCoarseMesh);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glDisableClientState(GL_VERTEX_ARRAY);
-    glDisableClientState(GL_NORMAL_ARRAY);
 
-    glColor3f(1, 1, 1);
-    drawString(10, 10, "LEVEL = %d", g_level);
-    drawString(10, 30, "# of Vertices = %d", g_osdmesh->GetFarMesh()->GetNumVertices());
-    drawString(10, 50, "KERNEL = %s", getKernelName(g_kernel));
-    drawString(10, 70, "CPU TIME = %.3f ms", g_cpuTime);
-    drawString(10, 90, "GPU TIME = %.3f ms", g_gpuTime);
-    drawString(10, 110, "SUBDIVISION = %s", g_scheme==kBilinear ? "BILINEAR" : (g_scheme == kLoop ? "LOOP" : "CATMARK"));
-
+    if (g_drawHUD) {
+        glColor3f(1, 1, 1);
+        drawString(10, 10, "LEVEL = %d", g_level);
+        drawString(10, 30, "# of Vertices = %d", g_osdmesh->GetFarMesh()->GetNumVertices());
+        drawString(10, 50, "KERNEL = %s", getKernelName(g_kernel));
+        drawString(10, 70, "CPU TIME = %.3f ms", g_cpuTime);
+        drawString(10, 90, "GPU TIME = %.3f ms", g_gpuTime);
+        drawString(10, 110, "SUBDIVISION = %s", g_scheme==kBilinear ? "BILINEAR" : (g_scheme == kLoop ? "LOOP" : "CATMARK"));
+        
+        drawString(10, g_height-30, "w:   toggle wireframe");
+        drawString(10, g_height-50, "e:   display normal vector");
+        drawString(10, g_height-70, "m:   toggle vertex deforming");
+        drawString(10, g_height-90, "h:   display control cage");
+        drawString(10, g_height-110, "n/p: change model");
+        drawString(10, g_height-130, "1-7: subdivision level");
+        drawString(10, g_height-150, "space: freeze/unfreeze time");
+    }
+        
     glFinish();
     glutSwapBuffers();
 }
@@ -508,11 +786,17 @@ display() {
 //------------------------------------------------------------------------------
 void motion(int x, int y) {
 
-    if(g_mbutton == 0){
-        g_rx += x - g_prev_x;
-        g_ry += y - g_prev_y;
-    }else if(g_mbutton == 1){
-        g_dolly -= 0.01f*(x - g_prev_x);
+    if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
+        // orbit
+        g_rotate[0] += x - g_prev_x;
+        g_rotate[1] += y - g_prev_y;
+    } else if (!g_mbutton[0] && g_mbutton[1] && !g_mbutton[2]) {
+        // pan
+        g_pan[0] -= g_dolly*(x - g_prev_x)/g_width;
+        g_pan[1] += g_dolly*(y - g_prev_y)/g_height;
+    } else if (g_mbutton[0] && g_mbutton[1] && !g_mbutton[2]) {
+        // dolly
+        g_dolly -= g_dolly*0.01f*(x - g_prev_x);
         if(g_dolly <= 0.01) g_dolly = 0.01f;
     }
 
@@ -525,13 +809,13 @@ void mouse(int button, int state, int x, int y) {
 
     g_prev_x = float(x);
     g_prev_y = float(y);
-    g_mbutton = button;
+    g_mbutton[button] = !state;
 }
 
 //------------------------------------------------------------------------------
 void quit() {
 
-    if(g_osdmesh) 
+    if(g_osdmesh)
         delete g_osdmesh;
 
     if (g_vertexBuffer)
@@ -551,24 +835,24 @@ void kernelMenu(int k) {
 }
 
 //------------------------------------------------------------------------------
-void 
+void
 modelMenu(int m) {
 
-    if (m < 0) 
+    if (m < 0)
         m = 0;
-        
-    if (m >= (int)g_defaultShapes.size()) 
-        m = g_defaultShapes.size() - 1;
+
+    if (m >= (int)g_defaultShapes.size())
+        m = (int)g_defaultShapes.size() - 1;
 
     g_currentShape = m;
-       
+
     glutSetWindowTitle( g_defaultShapes[m].name.c_str() );
 
     createOsdMesh( g_defaultShapes[m].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
 }
 
 //------------------------------------------------------------------------------
-void 
+void
 levelMenu(int l) {
 
     g_level = l;
@@ -577,19 +861,23 @@ levelMenu(int l) {
 }
 
 //------------------------------------------------------------------------------
-void 
+void
 menu(int m) {
 
 }
 
 //------------------------------------------------------------------------------
-void 
+void
 keyboard(unsigned char key, int x, int y) {
 
     switch (key) {
         case 'q': quit();
+        case ' ': g_freeze = (g_freeze+1)%2; break;
         case 'w': g_wire = (g_wire+1)%3; break;
         case 'e': g_drawNormals = (g_drawNormals+1)%2; break;
+        case 'f': fitFrame(); break;
+        case 'm': g_moveScale = 1.0f - g_moveScale; break;
+        case 'h': g_drawCoarseMesh = (g_drawCoarseMesh+1)%3; break;
         case '1':
         case '2':
         case '3':
@@ -599,23 +887,26 @@ keyboard(unsigned char key, int x, int y) {
         case '7': levelMenu(key-'0'); break;
         case 'n': modelMenu(++g_currentShape); break;
         case 'p': modelMenu(--g_currentShape); break;
+        case 0x1b: g_drawHUD = (g_drawHUD+1)%2; break;
     }
 }
 
 //------------------------------------------------------------------------------
-void 
+void
 idle() {
 
-    g_frame++;
+    if (not g_freeze)
+        g_frame++;
+
     updateGeom();
     glutPostRedisplay();
 
-    if(g_repeatCount != 0 && g_frame >= g_repeatCount)
+    if (g_repeatCount != 0 and g_frame >= g_repeatCount)
         quit();
 }
 
 //------------------------------------------------------------------------------
-void 
+void
 initGL() {
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -626,7 +917,7 @@ initGL() {
 
     GLfloat color[4] = {1, 1, 1, 1};
     GLfloat position[4] = {5, 5, 10, 1};
-    GLfloat ambient[4] = {0.1f, 0.1f, 0.1f, 1.0f};
+    GLfloat ambient[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     GLfloat diffuse[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     GLfloat shininess = 25.0;
 
@@ -637,16 +928,36 @@ initGL() {
     glLightfv(GL_LIGHT0, GL_POSITION, position);
     glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
+
+    g_quadFillProgram = linkProgram("#define PRIM_QUAD\n#define GEOMETRY_OUT_FILL\n");
+    g_quadLineProgram = linkProgram("#define PRIM_QUAD\n#define GEOMETRY_OUT_LINE\n");
+    g_triFillProgram = linkProgram("#define PRIM_TRI\n#define GEOMETRY_OUT_FILL\n");
+    g_triLineProgram = linkProgram("#define PRIM_TRI\n#define GEOMETRY_OUT_LINE\n");
 }
 
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
     glutInit(&argc, argv);
-    
+
     glutInitDisplayMode(GLUT_RGBA |GLUT_DOUBLE | GLUT_DEPTH);
     glutInitWindowSize(1024, 1024);
     glutCreateWindow("OpenSubdiv test");
+
+    std::string str;
+    if (argc > 1) {
+        std::ifstream ifs(argv[1]);
+        if (ifs) {
+            std::stringstream ss;
+            ss << ifs.rdbuf();
+            ifs.close();
+            str = ss.str();
+
+            g_defaultShapes.push_back(SimpleShape(str.c_str(), argv[1], kCatmark));
+        }
+    }
+
+
 
     initializeShapes();
 
@@ -667,9 +978,9 @@ int main(int argc, char ** argv) {
     OpenSubdiv::OsdGlslKernelDispatcher::Register();
 
 #if OPENSUBDIV_HAS_OPENCL
-    OpenSubdiv::OsdClKernelDispatcher::Register();    
-#endif    
-    
+    OpenSubdiv::OsdClKernelDispatcher::Register();
+#endif
+
 #if OPENSUBDIV_HAS_CUDA
     OpenSubdiv::OsdCudaKernelDispatcher::Register();
 
@@ -691,7 +1002,7 @@ int main(int argc, char ** argv) {
     glutAddSubMenu("Model", smenu);
     glutAddSubMenu("Kernel", kmenu);
     glutAttachMenu(GLUT_RIGHT_BUTTON);
-    
+
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
     glutMouseFunc(mouse);
@@ -707,17 +1018,17 @@ int main(int argc, char ** argv) {
             g_level = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-c"))
             g_repeatCount = atoi(argv[++i]);
-        else 
+        else
             filename = argv[i];
     }
-    
+
     glGenBuffers(1, &g_indexBuffer);
 
     modelMenu(0);
 
     glutIdleFunc(idle);
     glutMainLoop();
-    
+
     quit();
 }
 

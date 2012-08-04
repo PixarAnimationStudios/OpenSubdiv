@@ -67,32 +67,32 @@ find_package(PackageHandleStandardArgs)
 
 if (APPLE)
 
-    find_library( OPENCL_LIBRARIES 
+    find_library( OPENCL_LIBRARIES
         NAMES
-            OpenCL 
+            OpenCL
         DOC "OpenCL lib for OSX"
     )
 
-    find_path( OPENCL_INCLUDE_DIRS 
+    find_path( OPENCL_INCLUDE_DIRS
         NAMES
-            OpenCL/cl.h 
+            OpenCL/cl.h
         DOC "Include for OpenCL on OSX"
     )
 
     find_path( _OPENCL_CPP_INCLUDE_DIRS
-        NAMES 
-            OpenCL/cl.hpp 
+        NAMES
+            OpenCL/cl.hpp
         DOC "Include for OpenCL CPP bindings on OSX"
     )
 
 elseif (WIN32)
 
-    find_path( OPENCL_INCLUDE_DIRS 
+    find_path( OPENCL_INCLUDE_DIRS
          NAMES
-             CL/cl.h 
+             CL/cl.h
     )
 
-    find_path( _OPENCL_CPP_INCLUDE_DIRS 
+    find_path( _OPENCL_CPP_INCLUDE_DIRS
         NAMES
             CL/cl.hpp
     )
@@ -103,39 +103,39 @@ elseif (WIN32)
         set(OPENCL_LIB_DIR "$ENV{ATISTREAMSDKROOT}/lib/x86")
     endif()
 
-    find_library( OPENCL_LIBRARIES 
+    find_library( OPENCL_LIBRARIES
         NAMES
-            OpenCL.lib 
-        PATHS 
-            ${OPENCL_LIB_DIR} 
+            OpenCL.lib
+        PATHS
+            ${OPENCL_LIB_DIR}
             ENV OpenCL_LIBPATH
     )
 
     get_filename_component( _OPENCL_INC_CAND ${OPENCL_LIB_DIR}/../../include ABSOLUTE )
 
-    find_path( OPENCL_INCLUDE_DIRS 
+    find_path( OPENCL_INCLUDE_DIRS
         NAMES
-            CL/cl.h 
-        PATHS 
-            "${_OPENCL_INC_CAND}" 
+            CL/cl.h
+        PATHS
+            "${_OPENCL_INC_CAND}"
             ENV OpenCL_INCPATH
     )
 
-    find_path( _OPENCL_CPP_INCLUDE_DIRS 
+    find_path( _OPENCL_CPP_INCLUDE_DIRS
         NAMES
-            CL/cl.hpp 
-        PATHS 
-            "${_OPENCL_INC_CAND}" 
+            CL/cl.hpp
+        PATHS
+            "${_OPENCL_INC_CAND}"
             ENV OpenCL_INCPATH
     )
 
 elseif (UNIX)
 
-    find_library( OPENCL_LIBRARIES 
+    find_library( OPENCL_LIBRARIES
         NAMES
             OpenCL
-        PATHS 
-            ENV LD_LIBRARY_PATH 
+        PATHS
+            ENV LD_LIBRARY_PATH
             ENV OpenCL_LIBPATH
     )
 
@@ -143,29 +143,29 @@ elseif (UNIX)
 
     get_filename_component( _OPENCL_INC_CAND ${OPENCL_LIB_DIR}/../../include ABSOLUTE )
 
-    find_path( OPENCL_INCLUDE_DIRS 
-        NAMES 
-            CL/cl.h 
-        PATHS 
-            ${_OPENCL_INC_CAND} 
-            "/usr/local/cuda/include" 
-            "/opt/AMDAPP/include" 
+    find_path( OPENCL_INCLUDE_DIRS
+        NAMES
+            CL/cl.h
+        PATHS
+            ${_OPENCL_INC_CAND}
+            "/usr/local/cuda/include"
+            "/opt/AMDAPP/include"
             ENV OpenCL_INCPATH
     )
 
-    find_path( _OPENCL_CPP_INCLUDE_DIRS 
+    find_path( _OPENCL_CPP_INCLUDE_DIRS
         NAMES
-            CL/cl.hpp 
-        PATHS 
-            ${_OPENCL_INC_CAND} 
-            "/usr/local/cuda/include" 
-            "/opt/AMDAPP/include" 
+            CL/cl.hpp
+        PATHS
+            ${_OPENCL_INC_CAND}
+            "/usr/local/cuda/include"
+            "/opt/AMDAPP/include"
             ENV OpenCL_INCPATH
     )
 
 else ()
 
-    message( "Could not determine OpenCL platform" ) 
+    message( "Could not determine OpenCL platform" )
 
 endif ()
 

@@ -58,13 +58,14 @@
 #define OSD_CPU_KERNEL_H
 
 #include "../version.h"
+#include <stdio.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 struct VertexDescriptor {
 
-    VertexDescriptor(int numVertexElem, int numVaryingElem) 
+    VertexDescriptor(int numVertexElem, int numVaryingElem)
         : numVertexElements(numVertexElem), numVaryingElements(numVaryingElem) { }
 
     void Clear(float *vertex, float *varying, int index) const {
@@ -90,7 +91,14 @@ struct VertexDescriptor {
         for (int i = 0; i < numVaryingElements; ++i)
             varying[d++] += varying[s++] * weight;
     }
-    
+
+    void ApplyVertexEditAdd(float *vertex, int primVarOffset, int primVarWidth, int editIndex, const float *editValues) const {
+        int d = editIndex * numVertexElements + primVarOffset;
+        for (int i = 0; i < primVarWidth; ++i) {
+            vertex[d++] += editValues[i];
+        }
+    }
+
     int numVertexElements;
     int numVaryingElements;
 };
@@ -110,6 +118,10 @@ void computeLoopVertexB(const VertexDescriptor *vdesc, float *vertex, float * va
 void computeBilinearEdge(const VertexDescriptor *vdesc, float *vertex, float * varying, const int *E_IT, int offset, int start, int end);
 
 void computeBilinearVertex(const VertexDescriptor *vdesc, float *vertex, float * varying, const int *V_ITa, int offset, int start, int end);
+
+void editVertexAdd(const VertexDescriptor *vdesc, float *vertex, int primVarOffset, int primVarWidth, int count, const int *editIndices, const float *editValues);
+
+void editVertexSet(const VertexDescriptor *vdesc, float *vertex, int primVarOffset, int primVarWidth, int count, const int *editIndices, const float *editValues);
 
 }
 

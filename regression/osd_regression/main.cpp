@@ -54,6 +54,15 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
+#if defined(__APPLE__)
+    #include <GLUT/glut.h>
+#else
+    #include <stdlib.h>
+    #include <GL/glew.h>
+    #include <GL/glut.h>
+#endif
+
 #include <stdio.h>
 #include <cassert>
 
@@ -88,7 +97,7 @@
 // - precision is currently held at 1e-6
 //
 // - results cannot be bitwise identical as some vertex interpolations
-//   are not happening in the same order. 
+//   are not happening in the same order.
 //
 // - only vertex interpolation is being tested at the moment.
 //
@@ -108,17 +117,19 @@ struct xyzVV {
     void     AddVaryingWithWeight(const xyzVV& , float, void * =0 ) { }
     void     Clear( void * =0 ) { _pos.setValue(0.f, 0.f, 0.f); }
     void     SetPosition(float x, float y, float z) { _pos=Imath::Vec3<float>(x,y,z); }
+    void     ApplyVertexEdit(const OpenSubdiv::HbrVertexEdit<xyzVV> &) { }
+    void     ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<xyzVV> &) { }
     const Imath::Vec3<float>& GetPos() const { return _pos; }
 
-private:  
+private:
     Imath::Vec3<float> _pos;
 };
 
 //------------------------------------------------------------------------------
 class xyzFV;
 typedef OpenSubdiv::HbrMesh<xyzVV>           xyzmesh;
-typedef OpenSubdiv::HbrFace<xyzVV>           xyzface;        
-typedef OpenSubdiv::HbrVertex<xyzVV>         xyzvertex;      
+typedef OpenSubdiv::HbrFace<xyzVV>           xyzface;
+typedef OpenSubdiv::HbrVertex<xyzVV>         xyzvertex;
 typedef OpenSubdiv::HbrHalfedge<xyzVV>       xyzhalfedge;
 typedef OpenSubdiv::HbrFaceOperator<xyzVV>   xyzFaceOperator;
 typedef OpenSubdiv::HbrVertexOperator<xyzVV> xyzVertexOperator;
@@ -126,20 +137,20 @@ typedef OpenSubdiv::HbrVertexOperator<xyzVV> xyzVertexOperator;
 //------------------------------------------------------------------------------
 // Returns true if a vertex or any of its parents is on a boundary
 bool VertexOnBoundary( xyzvertex const * v ) {
-    
-    if (not v) 
+
+    if (not v)
         return false;
-    
+
     if (v->OnBoundary())
         return true;
-    
+
     xyzvertex const * pv = v->GetParentVertex();
     if (pv)
         return VertexOnBoundary(pv);
     else {
         xyzhalfedge const * pe = v->GetParentEdge();
         if (pe) {
-              return VertexOnBoundary(pe->GetOrgVertex()) or 
+              return VertexOnBoundary(pe->GetOrgVertex()) or
                      VertexOnBoundary(pe->GetDestVertex());
         } else {
             xyzface const * pf = v->GetParentFace(), * rootf = pf;
@@ -159,18 +170,18 @@ bool VertexOnBoundary( xyzvertex const * v ) {
 
 //------------------------------------------------------------------------------
 
-int checkVertexBuffer( xyzmesh * hmesh, 
-                       OpenSubdiv::OsdCpuVertexBuffer * vb, 
+int checkVertexBuffer( xyzmesh * hmesh,
+                       OpenSubdiv::OsdCpuVertexBuffer * vb,
                        std::vector<int> const & remap) {
-    int count=0; 
-    Imath::Vec3<float> deltaAvg(0.0, 0.0, 0.0); 
+    int count=0;
+    Imath::Vec3<float> deltaAvg(0.0, 0.0, 0.0);
     Imath::Vec3<float> deltaCnt(0,0,0);
-                       
+
     int nverts = hmesh->GetNumVertices();
     for (int i=0; i<nverts; ++i) {
 
         xyzvertex * hv = hmesh->GetVertex(i);
-        
+
         float * ov = & vb->GetCpuBuffer()[ remap[ hv->GetID() ] * vb->GetNumElements() ];
 
         // boundary interpolation rules set to "none" produce "undefined" vertices on
@@ -180,11 +191,11 @@ int checkVertexBuffer( xyzmesh * hmesh,
              continue;
 
 
-        if ( hv->GetData().GetPos()[0] != ov[0] ) 
+        if ( hv->GetData().GetPos()[0] != ov[0] )
             deltaCnt[0]++;
-        if ( hv->GetData().GetPos()[1] != ov[1] ) 
+        if ( hv->GetData().GetPos()[1] != ov[1] )
             deltaCnt[1]++;
-        if ( hv->GetData().GetPos()[2] != ov[2] ) 
+        if ( hv->GetData().GetPos()[2] != ov[2] )
             deltaCnt[2]++;
 
         Imath::Vec3<float> delta = hv->GetData().GetPos() - Imath::Vec3<float>(ov[0],ov[1],ov[2]);
@@ -200,7 +211,7 @@ int checkVertexBuffer( xyzmesh * hmesh,
                                                       ov[0],
                                                       ov[1],
                                                       ov[2] );
-           count++;         
+           count++;
         }
     }
 
@@ -211,15 +222,15 @@ int checkVertexBuffer( xyzmesh * hmesh,
     if (deltaCnt[2])
         deltaAvg[2]/=deltaCnt[2];
 
-    printf("    delta ratio : (%d/%d %d/%d %d/%d)\n", (int)deltaCnt.x, nverts, 
-                                                      (int)deltaCnt.y, nverts, 
+    printf("    delta ratio : (%d/%d %d/%d %d/%d)\n", (int)deltaCnt.x, nverts,
+                                                      (int)deltaCnt.y, nverts,
                                                       (int)deltaCnt.x, nverts );
-    printf("    average delta : (%.10f %.10f %.10f)\n", deltaAvg.x, 
+    printf("    average delta : (%.10f %.10f %.10f)\n", deltaAvg.x,
                                                         deltaAvg.y,
                                                         deltaAvg.z );
     if (count==0)
         printf("  success !\n");
-    
+
     return count;
 }
 
@@ -243,14 +254,14 @@ int checkMesh( char const * msg, char const * shape, int levels, Scheme scheme=k
     int result =0;
 
     printf("- %s (scheme=%d)\n", msg, scheme);
-    
+
     xyzmesh * refmesh = simpleHbr<xyzVV>(shape, scheme, 0);
-    
+
     refine( refmesh, levels );
 
 
     std::vector<float> coarseverts;
-    
+
     OpenSubdiv::OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, coarseverts);
 
     OpenSubdiv::OsdMesh * omesh = new OpenSubdiv::OsdMesh();
@@ -258,28 +269,33 @@ int checkMesh( char const * msg, char const * shape, int levels, Scheme scheme=k
 
     std::vector<int> remap;
 
-    { 
+    {
         omesh->Create(hmesh, levels, (int)OpenSubdiv::OsdKernelDispatcher::kCPU, &remap);
-    
-        OpenSubdiv::OsdCpuVertexBuffer * vb = 
+
+        OpenSubdiv::OsdCpuVertexBuffer * vb =
             dynamic_cast<OpenSubdiv::OsdCpuVertexBuffer *>(omesh->InitializeVertexBuffer(3));
-        
-        vb->UpdateData( & coarseverts[0], (int)coarseverts.size() );
-        
+
+        vb->UpdateData( & coarseverts[0], (int)coarseverts.size()/3 );
+
         omesh->Subdivide( vb, NULL );
-    
+
         omesh->Synchronize();
-        
-        checkVertexBuffer(refmesh, vb, remap);        
+
+        checkVertexBuffer(refmesh, vb, remap);
     }
-    
+
     delete hmesh;
-    
+
     return result;
 }
 
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
+
+    // Make sure we have an OpenGL context.
+    glutInit(&argc, argv);
+    glutCreateWindow("osd_regression");
+    glewInit();
 
     int levels=5, total=0;
 
@@ -318,141 +334,141 @@ int main(int argc, char ** argv) {
 
 #ifdef test_catmark_edgeonly
 #include "../shapes/catmark_edgeonly.h"
-    total += checkMesh( "test_catmark_edgeonly", catmark_edgeonly, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_edgeonly", catmark_edgeonly, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_edgecorner
 #include "../shapes/catmark_edgecorner.h"
-    total += checkMesh( "test_catmark_edgeonly", catmark_edgecorner, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_edgeonly", catmark_edgecorner, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_pyramid
 #include "../shapes/catmark_pyramid.h"
-    total += checkMesh( "test_catmark_pyramid", catmark_pyramid, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_pyramid", catmark_pyramid, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_pyramid_creases0
 #include "../shapes/catmark_pyramid_creases0.h"
-    total += checkMesh( "test_catmark_pyramid_creases0", catmark_pyramid_creases0, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_pyramid_creases0", catmark_pyramid_creases0, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_pyramid_creases1
 #include "../shapes/catmark_pyramid_creases1.h"
-    total += checkMesh( "test_catmark_pyramid_creases1", catmark_pyramid_creases1, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_pyramid_creases1", catmark_pyramid_creases1, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_cube
 #include "../shapes/catmark_cube.h"
-    total += checkMesh( "test_catmark_cube", catmark_cube, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_cube", catmark_cube, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_cube_creases0
 #include "../shapes/catmark_cube_creases0.h"
-    total += checkMesh( "test_catmark_cube_creases0", catmark_cube_creases0, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_cube_creases0", catmark_cube_creases0, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_cube_creases1
 #include "../shapes/catmark_cube_creases1.h"
-    total += checkMesh( "test_catmark_cube_creases1", catmark_cube_creases1, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_cube_creases1", catmark_cube_creases1, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_cube_corner0
 #include "../shapes/catmark_cube_corner0.h"
-    total += checkMesh( "test_catmark_cube_corner0", catmark_cube_corner0, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_cube_corner0", catmark_cube_corner0, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_cube_corner1
 #include "../shapes/catmark_cube_corner1.h"
-    total += checkMesh( "test_catmark_cube_corner1", catmark_cube_corner1, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_cube_corner1", catmark_cube_corner1, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_cube_corner2
 #include "../shapes/catmark_cube_corner2.h"
-    total += checkMesh( "test_catmark_cube_corner2", catmark_cube_corner2, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_cube_corner2", catmark_cube_corner2, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_cube_corner3
 #include "../shapes/catmark_cube_corner3.h"
-    total += checkMesh( "test_catmark_cube_corner3", catmark_cube_corner3, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_cube_corner3", catmark_cube_corner3, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_cube_corner4
 #include "../shapes/catmark_cube_corner4.h"
-    total += checkMesh( "test_catmark_cube_corner4", catmark_cube_corner4, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_cube_corner4", catmark_cube_corner4, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_dart_edgecorner
 #include "../shapes/catmark_dart_edgecorner.h"
-    total += checkMesh( "test_catmark_dart_edgecorner", catmark_dart_edgecorner, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_dart_edgecorner", catmark_dart_edgecorner, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_dart_edgeonly
 #include "../shapes/catmark_dart_edgeonly.h"
-    total += checkMesh( "test_catmark_dart_edgeonly", catmark_dart_edgeonly, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_dart_edgeonly", catmark_dart_edgeonly, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_tent
 #include "../shapes/catmark_tent.h"
-    total += checkMesh( "test_catmark_tent", catmark_tent, levels, kCatmark ); 
+    total += checkMesh( "test_catmark_tent", catmark_tent, levels, kCatmark );
 #endif
 
 #ifdef test_catmark_tent_creases0
 #include "../shapes/catmark_tent_creases0.h"
-    total += checkMesh( "test_catmark_tent_creases0", catmark_tent_creases0, levels ); 
+    total += checkMesh( "test_catmark_tent_creases0", catmark_tent_creases0, levels );
 #endif
 
 #ifdef test_catmark_tent_creases1
 #include "../shapes/catmark_tent_creases1.h"
-    total += checkMesh( "test_catmark_tent_creases1", catmark_tent_creases1, levels ); 
+    total += checkMesh( "test_catmark_tent_creases1", catmark_tent_creases1, levels );
 #endif
 
 
 
 #ifdef test_loop_triangle_edgeonly
 #include "../shapes/loop_triangle_edgeonly.h"
-    total += checkMesh( "test_loop_triangle_edgeonly", loop_triangle_edgeonly, levels, kLoop ); 
+    total += checkMesh( "test_loop_triangle_edgeonly", loop_triangle_edgeonly, levels, kLoop );
 #endif
 
 #ifdef test_loop_triangle_edgecorner
 #include "../shapes/loop_triangle_edgecorner.h"
-    total += checkMesh( "test_loop_triangle_edgecorner", loop_triangle_edgecorner, levels, kLoop ); 
+    total += checkMesh( "test_loop_triangle_edgecorner", loop_triangle_edgecorner, levels, kLoop );
 #endif
 
 #ifdef test_loop_saddle_edgeonly
 #include "../shapes/loop_saddle_edgeonly.h"
-    total += checkMesh( "test_loop_saddle_edgeonly", loop_saddle_edgeonly, levels, kLoop ); 
+    total += checkMesh( "test_loop_saddle_edgeonly", loop_saddle_edgeonly, levels, kLoop );
 #endif
 
 #ifdef test_loop_saddle_edgecorner
 #include "../shapes/loop_saddle_edgecorner.h"
-    total += checkMesh( "test_loop_saddle_edgecorner", loop_saddle_edgecorner, levels, kLoop ); 
+    total += checkMesh( "test_loop_saddle_edgecorner", loop_saddle_edgecorner, levels, kLoop );
 #endif
 
 #ifdef test_loop_icosahedron
 #include "../shapes/loop_icosahedron.h"
-    total += checkMesh( "test_loop_icosahedron", loop_icosahedron, levels, kLoop ); 
+    total += checkMesh( "test_loop_icosahedron", loop_icosahedron, levels, kLoop );
 #endif
 
 #ifdef test_loop_cube
 #include "../shapes/loop_cube.h"
-    total += checkMesh( "test_loop_cube", loop_cube, levels, kLoop ); 
+    total += checkMesh( "test_loop_cube", loop_cube, levels, kLoop );
 #endif
 
 #ifdef test_loop_cube_creases0
 #include "../shapes/loop_cube_creases0.h"
-    total += checkMesh( "test_loop_cube_creases0", loop_cube_creases0,levels, kLoop ); 
+    total += checkMesh( "test_loop_cube_creases0", loop_cube_creases0,levels, kLoop );
 #endif
 
 #ifdef test_loop_cube_creases1
 #include "../shapes/loop_cube_creases1.h"
-    total += checkMesh( "test_loop_cube_creases1", loop_cube_creases1, levels, kLoop ); 
+    total += checkMesh( "test_loop_cube_creases1", loop_cube_creases1, levels, kLoop );
 #endif
 
 
 
 #ifdef test_bilinear_cube
 #include "../shapes/bilinear_cube.h"
-    total += checkMesh( "test_bilinear_cube", bilinear_cube, levels, kBilinear ); 
+    total += checkMesh( "test_bilinear_cube", bilinear_cube, levels, kBilinear );
 #endif
 
     if (total==0)

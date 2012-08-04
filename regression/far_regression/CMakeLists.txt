@@ -55,18 +55,6 @@
 #     a particular purpose and non-infringement.
 #
 
-find_package(IlmBase REQUIRED)
-
-if(NOT ILMBASE_FOUND)
-    message(WARNING
-    "IlmBase could not be found, so the OpenSubdiv far library regression "
-	"will not be available.  If you do have IlmBase installed and see this "
-	"message, please add your IlmBase path to cmake/FindIlmBase.cmake or set it "
-	"in the ILMBASE_LOCATION environment variable."
-    )
-    return()
-endif()
-
 include_directories(
     ${ILMBASE_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/opensubdiv
@@ -82,6 +70,6 @@ add_executable(far_regression
 )
 
 target_link_libraries(far_regression
-    ${ILMBASE_LIBS_DIRECTORY}
+    ${ILMBASE_LIBRARIES}
 )
 

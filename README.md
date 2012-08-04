@@ -1,6 +1,6 @@
 # OpenSubdiv #
 
-OpenSubdiv is a set of open source libraries that implement high performance subdivision surface (subdiv) evaluation on massively parallel CPU and GPU architectures. This codepath is optimized for drawing deforming subdivs with static topology at interactive framerates. OpenSubdiv can amplify a 30,000 polygon base mesh into a smooth limit surface of 500,000 polygons in under 3 milliseconds on Kepler Nvidia hardware.  The architecture features a precomputation step that uses Renderman's hbr library to compute fast run time data structures that are evaluated with backends in any of C++, CUDA, OpenCL, or GLSL.  The resulting limit surface matches Pixar's Renderman to numerical precision. OpenSubdiv also includes support for semi-sharp creases and hierarchical edits on subdivs which both are powerful tools for shaping surfaces.  
+OpenSubdiv is a set of open source libraries that implement high performance subdivision surface (subdiv) evaluation on massively parallel CPU and GPU architectures. This codepath is optimized for drawing deforming subdivs with static topology at interactive framerates. OpenSubdiv can amplify a 30,000 polygon base mesh into a smooth limit surface of 500,000 polygons in under 3 milliseconds on Kepler Nvidia hardware.  The architecture features a precomputation step that uses Renderman's hbr library to compute fast run time data structures that are evaluated with backends in any of C++, CUDA, OpenCL, or GLSL.  The resulting limit surface matches Pixar's Renderman to numerical precision. OpenSubdiv also includes support for semi-sharp creases and hierarchical edits on subdivs which both are powerful tools for shaping surfaces.
 
 OpenSubdiv is covered by the Microsoft Public License (included below), and is free to use for commercial or non-commercial use. All Pixar patents covering algorithms used inside for semi-sharp crease evaluation and texture coordinate interpolation have also been released for public use. Our intent is to encourage high performance accurate subdiv drawing by giving away the "good stuff" that we use internally.   We welcome any involvement in the development or extension of this code, we'd love it in fact.  Please contact us if you're interested.
 
@@ -39,7 +39,7 @@ Optional :
     make
 </code></pre>
 
-### Useful cmake options ###
+### Useful cmake options and environment variables ###
 
 <pre><code>
 -DCMAKE_BUILD_TYPE=[Debug|Release]
@@ -48,7 +48,16 @@ Optional :
 
 -DMAYA_LOCATION=[path to Maya]
 
+-DPTEX_LOCATION=[path to Ptex]
+
+-DGLUT_LOCATION=[path to GLUT]
+
+-DGLEW_LOCATION=[path to GLEW]
 </code></pre>
+
+The paths to Maya, Ptex, GLUT, and GLEW can also be specified through the
+following environment variables: MAYA_LOCATION, PTEX_LOCATION, GLUT_LOCATION,
+and GLEW_LOCATION.
 
 ### Standalone viewer ###
 
@@ -70,12 +79,12 @@ Optional :
 
 Subdivision surfaces are commonly used for final rendering of character shapes for a smooth and controllable limit surfaces. However, subdivision surfaces in interactive apps are typically drawn as their polygonal control hulls because of performance.  The polygonal control hull is an approximation that is offset from the true limit surface,  Looking at an approximation in the interactive app makes it difficult to see exact contact, like fingers touching a potion bottle or hands touching a cheek.  It also makes it difficult to see poke throughs in cloth simulation if the skin and cloth are both approximations.  This problem is particularly bad when one character is much larger than another and unequal subdiv face sizes cause approximations errors to be magnified.
 
-Maya and Pixar's Presto animation system can take 100ms to subdivide a character of 30,000 polygons to the second level of subdivision (500,000 polygons).  By doing the same thing in 3ms OpenSubdiv allows the user to see the smooth, accurate limit surface at all times. 
+Maya and Pixar's Presto animation system can take 100ms to subdivide a character of 30,000 polygons to the second level of subdivision (500,000 polygons).  By doing the same thing in 3ms OpenSubdiv allows the user to see the smooth, accurate limit surface at all times.
 
 ## Components ##
 
 #### hbr (hierarchical boundary rep) ####
-This base library implements a half edge data structure to store edges, faces, and vertices of a subdivision surface. This code was authored by Julian Fong on the Renderman team. It is the lowest level subdivision libary in renderman. Separate objects are allocated for each vertex and edge (*2) with pointers to neighboring vertices and edges. Hbr is a generic templated API used by clients to create concrete instances by providing the implementation of the vertex class. 
+This base library implements a half edge data structure to store edges, faces, and vertices of a subdivision surface. This code was authored by Julian Fong on the Renderman team. It is the lowest level subdivision libary in renderman. Separate objects are allocated for each vertex and edge (*2) with pointers to neighboring vertices and edges. Hbr is a generic templated API used by clients to create concrete instances by providing the implementation of the vertex class.
 
 #### far (feature-adaptive rep) ####
 Far uses hbr to create and cache fast run time data structures for table driven subdivision of vertices and cubic patches for limit surface evaluation.  Feature-adaptive refinement logic is used to adaptively refine coarse topology near features like extrordinary vertices and creases in order to make the topology amenable to cubic patch evaluation. Far is also a generic templated algorthmic base API that clients in higher levels instantiate and use by providing an implementation of a vertex class. Subdivision schemes supported:
@@ -115,7 +124,7 @@ The second release of OpenSubdiv raises the performance bar to what we believe i
 
 This release will also complete hierarchical edit support and support for face varying coordinate interpolation.
 
-We are targeting release 2 for end of year 2012, hopefully earlier than that.  We have the patch code working in a very rough implementation but need to rewrite that in a development branch for release-ready code. Let us know if you're interested in contributing to that effort! 
+We are targeting release 2 for end of year 2012, hopefully earlier than that.  We have the patch code working in a very rough implementation but need to rewrite that in a development branch for release-ready code. Let us know if you're interested in contributing to that effort!
 
 ## Wish List ##
 

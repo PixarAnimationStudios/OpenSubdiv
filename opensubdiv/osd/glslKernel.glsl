@@ -68,8 +68,8 @@ uniform samplerBuffer _E0_S;
 uniform samplerBuffer _V0_S;
 
 uniform bool vertexPass;
-uniform int indexOffset = 0;	// index offset for the level
-uniform int indexStart = 0;	 // start index for given batch
+uniform int indexOffset = 0;    // index offset for the level
+uniform int indexStart = 0;      // start index for given batch
 
 uniform int F_IT_ofs;
 uniform int F_ITa_ofs;
@@ -83,8 +83,8 @@ uniform int V_W_ofs;
  +-----+---------------------------------+-----
    n-1 |   Level n   |<batch range>|     |  n+1
  +-----+---------------------------------+-----
-       ^             ^             
-  indexOffset        |               
+       ^             ^
+  indexOffset        |
                  indexStart
 */
 
@@ -107,9 +107,9 @@ uniform samplerBuffer varyingData;   // float[NUM_VARYING]
 out vec3 outPosition;
 out vec3 outNormal;
 #if NUM_VARYING > 0
-out float outVaryingData[NUM_VARYING];	// output feedback (mapped as a subrange of vertices)
+out float outVaryingData[NUM_VARYING];  // output feedback (mapped as a subrange of vertices)
 #endif
-//out vec3 outVaryingData;	// output feedback (mapped as a subrange of vertices)
+//out vec3 outVaryingData;      // output feedback (mapped as a subrange of vertices)
 
 void clear(out Vertex v)
 {
@@ -221,7 +221,7 @@ void catmarkComputeEdge()
 #ifdef OPT_E0_S_VEC2
         float faceWeight = weight.y;
 #else
-        float faceWeight = texelFetch(_E0_S, E_W_ofs/2+i*2+1).x;
+        float faceWeight = texelFetch(_E0_S, E_W_ofs+i*2+1).x;
 #endif
 
         addWithWeight(dst, readVertex(eidx.z), faceWeight);
@@ -292,8 +292,8 @@ void catmarkComputeVertexA()
         ? texelFetch(_V0_S, V_W_ofs+i).x
         : 1.0 - texelFetch(_V0_S, V_W_ofs+i).x;
 
-    // In the case of fractional weight, the weight must be inverted since 
-    // the value is shared with the k_Smooth kernel (statistically the 
+    // In the case of fractional weight, the weight must be inverted since
+    // the value is shared with the k_Smooth kernel (statistically the
     // k_Smooth kernel runs much more often than this one)
     if (weight>0.0 && weight<1.0 && n > 0)
         weight=1.0-weight;
@@ -336,7 +336,7 @@ void catmarkComputeVertexB()
 
     Vertex dst;
     clear(dst);
-    
+
     addWithWeight(dst, readVertex(p), weight * wv);
 
     for(int j = 0; j < n; ++j){
@@ -372,7 +372,7 @@ void loopComputeVertexB()
 
     Vertex dst;
     clear(dst);
-    
+
     addWithWeight(dst, readVertex(p), weight * (1.0-(beta*n)));
 
     for(int j = 0; j < n; ++j){

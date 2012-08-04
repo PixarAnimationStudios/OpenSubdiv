@@ -92,6 +92,60 @@ __global void addVaryingWithWeight(struct Varying *dst, __global struct Varying 
     }
 }
 
+__kernel void computeBilinearEdge(__global struct Vertex *vertex,
+                                   __global struct Varying *varying,
+                                   __global int *E_IT,
+                                   int ofs_E_IT,
+                                   int offset, int start, int end) {
+    E_IT += ofs_E_IT;
+
+    int i = start + get_global_id(0);
+    int eidx0 = E_IT[2*i+0];
+    int eidx1 = E_IT[2*i+1];
+
+    struct Vertex dst;
+    struct Varying dstVarying;
+    clearVertex(&dst);
+    clearVarying(&dstVarying);
+
+    addWithWeight(&dst, &vertex[eidx0], 0.5f);
+    addWithWeight(&dst, &vertex[eidx1], 0.5f);
+
+    vertex[i+offset] = dst;
+
+    if (varying) {
+        addVaryingWithWeight(&dstVarying, &varying[eidx0], 0.5f);
+        addVaryingWithWeight(&dstVarying, &varying[eidx1], 0.5f);
+        varying[i+offset] = dstVarying;
+    }
+}
+
+__kernel void computeBilinearVertex(__global struct Vertex *vertex,
+                                     __global struct Varying *varying,
+                                     __global int *V_ITa,
+                                     int ofs_V_ITa,
+                                     int offset, int start, int end) {
+
+    V_ITa += ofs_V_ITa;
+
+    int i = start + get_global_id(0);
+
+    int p = V_ITa[i];
+
+    struct Vertex dst;
+    clearVertex(&dst);
+    addWithWeight(&dst, &vertex[p], 1.0f);
+
+    vertex[i+offset] = dst;
+
+    if (varying) {
+        struct Varying dstVarying;
+        clearVarying(&dstVarying);
+        addVaryingWithWeight(&dstVarying, &varying[p], 1.0f);
+        varying[i+offset] = dstVarying;
+    }
+}
+
 // ----------------------------------------------------------------------------------------
 
 __kernel void computeFace(__global struct Vertex *vertex,
@@ -107,9 +161,9 @@ __kernel void computeFace(__global struct Vertex *vertex,
     int i = start + get_global_id(0);
     int h = F_ITa[2*i];
     int n = F_ITa[2*i+1];
-    
+
     float weight = 1.0f/n;
-    
+
     struct Vertex dst;
     struct Varying dstVarying;
     clearVertex(&dst);
@@ -136,11 +190,11 @@ __kernel void computeEdge(__global struct Vertex *vertex,
     int i = start + get_global_id(0);
     int eidx0 = E_IT[4*i+0];
     int eidx1 = E_IT[4*i+1];
-    int eidx2 = E_IT[4*i+2]; 
+    int eidx2 = E_IT[4*i+2];
     int eidx3 = E_IT[4*i+3];
-    
+
     float vertWeight = E_W[i*2+0];
-    
+
     // Fully sharp edge : vertWeight = 0.5f;
     struct Vertex dst;
     struct Varying dstVarying;
@@ -149,10 +203,10 @@ __kernel void computeEdge(__global struct Vertex *vertex,
 
     addWithWeight(&dst, &vertex[eidx0], vertWeight);
     addWithWeight(&dst, &vertex[eidx1], vertWeight);
-    
+
     if (eidx2 > -1) {
         float faceWeight = E_W[i*2+1];
-        
+
         addWithWeight(&dst, &vertex[eidx2], faceWeight);
         addWithWeight(&dst, &vertex[eidx3], faceWeight);
     }
@@ -180,15 +234,15 @@ __kernel void computeVertexA(__global struct Vertex *vertex,
     int p     = V_ITa[5*i+2];
     int eidx0 = V_ITa[5*i+3];
     int eidx1 = V_ITa[5*i+4];
-    
+
     float weight = (pass==1) ? V_W[i] : 1.0f - V_W[i];
-    
-    // In the case of fractional weight, the weight must be inverted since 
-    // the value is shared with the k_Smooth kernel (statistically the 
+
+    // In the case of fractional weight, the weight must be inverted since
+    // the value is shared with the k_Smooth kernel (statistically the
     // k_Smooth kernel runs much more often than this one)
     if (weight>0.0f && weight<1.0f && n > 0)
         weight=1.0f-weight;
-    
+
     struct Vertex dst;
     if (not pass)
         clearVertex(&dst);
@@ -227,7 +281,7 @@ __kernel void computeVertexB(__global struct Vertex *vertex,
     int h = V_ITa[5*i];
     int n = V_ITa[5*i+1];
     int p = V_ITa[5*i+2];
-    
+
     float weight = V_W[i];
     float wp = 1.0f/(float)(n*n);
     float wv = (n-2.0f) * n * wp;
@@ -236,7 +290,7 @@ __kernel void computeVertexB(__global struct Vertex *vertex,
     clearVertex(&dst);
 
     addWithWeight(&dst, &vertex[p], weight * wv);
-    
+
     for (int j = 0; j < n; ++j) {
         addWithWeight(&dst, &vertex[V_IT[h+j*2]], weight * wp);
         addWithWeight(&dst, &vertex[V_IT[h+j*2+1]], weight * wp);
@@ -267,7 +321,7 @@ __kernel void computeLoopVertexB(__global struct Vertex *vertex,
     int h = V_ITa[5*i];
     int n = V_ITa[5*i+1];
     int p = V_ITa[5*i+2];
-    
+
     float weight = V_W[i];
     float wp = 1.0f/(float)(n);
     float beta = 0.25f * cos((float)(M_PI) * 2.0f * wp) + 0.375f;
@@ -277,7 +331,7 @@ __kernel void computeLoopVertexB(__global struct Vertex *vertex,
     struct Vertex dst;
     clearVertex(&dst);
     addWithWeight(&dst, &vertex[p], weight * (1.0f - (beta * n)));
-    
+
     for (int j = 0; j < n; ++j) {
         addWithWeight(&dst, &vertex[V_IT[h+j]], weight * beta);
     }

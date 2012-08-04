@@ -92,31 +92,39 @@ public:
 
 
     virtual void ApplyBilinearFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
 
 
 
     virtual void ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyCatmarkVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyCatmarkVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
 
 
 
     virtual void ApplyLoopEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyLoopVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
+
+    virtual void ApplyVertexEdit(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const;
 
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr);
+
+    virtual void AllocateEditTables(int n);
+
+    virtual void UpdateEditTable(int tableIndex, const FarTable<unsigned int> &offsets, const FarTable<float> &values,
+                                 int operation, int primVarOffset, int primVarWidth);
+
 
     virtual void OnKernelLaunch() {}
 
@@ -125,7 +133,7 @@ public:
     virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int numVertices);
 
     virtual void BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
-    
+
     virtual void UnbindVertexBuffer();
 
     virtual void Synchronize();
@@ -138,7 +146,7 @@ public:
     }
 
 protected:
-    struct DeviceTable 
+    struct DeviceTable
     {
         DeviceTable() : devicePtr(NULL) {}
        ~DeviceTable();
@@ -149,6 +157,7 @@ protected:
     };
 
     std::vector<DeviceTable> _tables;
+    std::vector<DeviceTable> _editTables;
 
     OsdCudaVertexBuffer *_currentVertexBuffer,
                         *_currentVaryingBuffer;
@@ -156,7 +165,7 @@ protected:
     float *_deviceVertices,
           *_deviceVaryings;
 
-    int _numVertexElements, 
+    int _numVertexElements,
         _numVaryingElements;
 };
 

@@ -57,6 +57,9 @@
 #ifndef SHAPE_UTILS_H
 #define SHAPE_UTILS_H
 
+#include <hbr/vertexEdit.h>
+#include <hbr/cornerEdit.h>
+
 #include <stdio.h>
 #include <string.h>
 
@@ -64,14 +67,14 @@
 #include <string>
 #include <vector>
 
-//------------------------------------------------------------------------------                                        
+//------------------------------------------------------------------------------
 static char const * sgets( char * s, int size, char ** stream ) {
-    for (int i=0; i<size; ++i) {    
+    for (int i=0; i<size; ++i) {
         if ( (*stream)[i]=='\n' or (*stream)[i]=='\0') {
 
             memcpy(s, *stream, i);
             s[i]='\0';
-            
+
             if ((*stream)[i]=='\0')
                 return 0;
             else {
@@ -83,57 +86,57 @@ static char const * sgets( char * s, int size, char ** stream ) {
     return 0;
 }
 
-//------------------------------------------------------------------------------                                        
+//------------------------------------------------------------------------------
 
 struct shape {
 
     struct tag {
-    
+
         static tag * parseTag( char const * stream );
-    
-        std::string              name;            
+
+        std::string              name;
         std::vector<int>         intargs;
         std::vector<float>       floatargs;
         std::vector<std::string> stringargs;
     };
 
     static shape * parseShape(char const * shapestr, int axis=1);
-  
+
     ~shape();
-  
+
     int getNverts() const { return (int)verts.size()/3; }
 
     int getNfaces() const { return (int)nvertsPerFace.size(); }
 
     std::vector<float>  verts;
     std::vector<float>  uvs;
-    std::vector<int>    nvertsPerFace;  
-    std::vector<int>    faceverts;              
+    std::vector<int>    nvertsPerFace;
+    std::vector<int>    faceverts;
     std::vector<int>    faceuvs;
     std::vector<tag *>  tags;
-}; 
+};
 
-//------------------------------------------------------------------------------                                        
+//------------------------------------------------------------------------------
 shape::~shape() {
     for (int i=0; i<(int)tags.size(); ++i)
         delete tags[i];
 }
 
-//------------------------------------------------------------------------------                                        
+//------------------------------------------------------------------------------
 shape::tag * shape::tag::parseTag(char const * line) {
     tag * t = 0;
-    
-    const char* cp = &line[2];                              
+
+    const char* cp = &line[2];
 
     char name[50];
     while (*cp == ' ') cp++;
-    if (sscanf(cp, "%s", &name )!=1) return t;
-    while (*cp && *cp != ' ') cp++;                    
+    if (sscanf(cp, "%s", name )!=1) return t;
+    while (*cp && *cp != ' ') cp++;
 
     int nints=0, nfloats=0, nstrings=0;
     while (*cp == ' ') cp++;
     if (sscanf(cp, "%d/%d/%d", &nints, &nfloats, &nstrings)!=3) return t;
-    while (*cp && *cp != ' ') cp++;                    
+    while (*cp && *cp != ' ') cp++;
 
     std::vector<int> intargs;
     for (int i=0; i<nints; ++i) {
@@ -141,7 +144,7 @@ shape::tag * shape::tag::parseTag(char const * line) {
         while (*cp == ' ') cp++;
         if (sscanf(cp, "%d", &val)!=1) return t;
         intargs.push_back(val);
-        while (*cp && *cp != ' ') cp++;                    
+        while (*cp && *cp != ' ') cp++;
     }
 
     std::vector<float> floatargs;
@@ -150,16 +153,16 @@ shape::tag * shape::tag::parseTag(char const * line) {
         while (*cp == ' ') cp++;
         if (sscanf(cp, "%f", &val)!=1) return t;
         floatargs.push_back(val);
-        while (*cp && *cp != ' ') cp++;                    
+        while (*cp && *cp != ' ') cp++;
     }
 
     std::vector<std::string> stringargs;
     for (int i=0; i<nstrings; ++i) {
-        char * val;
+        char val[512];
         while (*cp == ' ') cp++;
-        if (sscanf(cp, "%s", &val)!=1) return t;
+        if (sscanf(cp, "%s", val)!=1) return t;
         stringargs.push_back(val);
-        while (*cp && *cp != ' ') cp++;                    
+        while (*cp && *cp != ' ') cp++;
     }
 
     t = new shape::tag;
@@ -167,53 +170,53 @@ shape::tag * shape::tag::parseTag(char const * line) {
     t->intargs = intargs;
     t->floatargs = floatargs;
     t->stringargs = stringargs;
-    
+
     return t;
 }
 
 
-//------------------------------------------------------------------------------                                        
+//------------------------------------------------------------------------------
 shape * shape::parseShape(char const * shapestr, int axis ) {
 
     shape * s = new shape;
 
     char * str=const_cast<char *>(shapestr), line[256];
     bool done = false;
-    while( not done )                             
+    while( not done )
     {   done = sgets(line, sizeof(line), &str)==0;
-        char* end = &line[strlen(line)-1];                                                                                              
-        if (*end == '\n') *end = '\0'; // strip trailing nl              
-        float x, y, z, u, v;                                             
-        switch (line[0]) {                                                     
-            case 'v': switch (line[1]) 
-                      {       case ' ': if(sscanf(line, "v %f %f %f", &x, &y, &z) == 3) 
-                                             s->verts.push_back(x); 
-                                        switch( axis ) {  
-                                            case 0 : s->verts.push_back(-z); 
+        char* end = &line[strlen(line)-1];
+        if (*end == '\n') *end = '\0'; // strip trailing nl
+        float x, y, z, u, v;
+        switch (line[0]) {
+            case 'v': switch (line[1])
+                      {       case ' ': if(sscanf(line, "v %f %f %f", &x, &y, &z) == 3)
+                                             s->verts.push_back(x);
+                                        switch( axis ) {
+                                            case 0 : s->verts.push_back(-z);
                                                      s->verts.push_back(y); break;
-                                            case 1 : s->verts.push_back(y); 
+                                            case 1 : s->verts.push_back(y);
                                                     s->verts.push_back(z); break;
-                                        } break; 
-                              case 't': if(sscanf(line, "vt %f %f", &u, &v) == 2) { 
-                                            s->uvs.push_back(u); 
-                                            s->uvs.push_back(v); 
+                                        } break;
+                              case 't': if(sscanf(line, "vt %f %f", &u, &v) == 2) {
+                                            s->uvs.push_back(u);
+                                            s->uvs.push_back(v);
                                         } break;
                               case 'n' : break; // skip normals for now
                           }
                           break;
             case 'f': if(line[1] == ' ') {
-                              int vi, ti, ni;                                       
-                              const char* cp = &line[2];                              
-                              while (*cp == ' ') cp++;                              
-                              int nverts = 0, nitems=0;                                       
-                              while( (nitems=sscanf(cp, "%d/%d/%d", &vi, &ti, &ni))>0) { 
-                              nverts++;                                
-                                  s->faceverts.push_back(vi-1);                               
-                                  if(nitems >= 1) s->faceuvs.push_back(ti-1);                                 
-                                  while (*cp && *cp != ' ') cp++;                    
-                                  while (*cp == ' ') cp++;                                 
-                              }                                                      
-                              s->nvertsPerFace.push_back(nverts);                      
+                              int vi, ti, ni;
+                              const char* cp = &line[2];
+                              while (*cp == ' ') cp++;
+                              int nverts = 0, nitems=0;
+                              while( (nitems=sscanf(cp, "%d/%d/%d", &vi, &ti, &ni))>0) {
+                              nverts++;
+                                  s->faceverts.push_back(vi-1);
+                                  if(nitems >= 1) s->faceuvs.push_back(ti-1);
+                                  while (*cp && *cp != ' ') cp++;
+                                  while (*cp == ' ') cp++;
+                              }
+                              s->nvertsPerFace.push_back(nverts);
                           }
                           break;
             case 't' : if(line[1] == ' ') {
@@ -226,19 +229,19 @@ shape * shape::parseShape(char const * shapestr, int axis ) {
     return s;
 }
 
-//------------------------------------------------------------------------------       
-template <class T> 
+//------------------------------------------------------------------------------
+template <class T>
 void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
 
     for (int i=0; i<(int)sh->tags.size(); ++i) {
         shape::tag * t = sh->tags[i];
 
         if (t->name=="crease") {
-            for (int j=0; j<(int)t->intargs.size()-1; ++j) {
+            for (int j=0; j<(int)t->intargs.size()-1; j += 2) {
                 OpenSubdiv::HbrVertex<T> * v = mesh->GetVertex( t->intargs[j] ),
                                          * w = mesh->GetVertex( t->intargs[j+1] );
                 OpenSubdiv::HbrHalfedge<T> * e = 0;
-                if( v && w ) { 
+                if( v && w ) {
                     if( !(e = v->GetEdge(w) ) )
                     e = w->GetEdge(v);
                     if(e) {
@@ -270,7 +273,7 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
                 printf("expecting 1 integer for \"interpolateboundary\" tag n. %d\n", i);
                 continue;
             }
-            switch( t->intargs[0] ) { 
+            switch( t->intargs[0] ) {
                 case 0 : mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryNone); break;
                 case 1 : mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner); break;
                 case 2 : mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly); break;
@@ -282,20 +285,20 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
             else
                 printf( "expecting single int argument for \"facevaryingpropagatecorners\"\n" );
         } else if (t->name=="creasemethod") {
-        
-            OpenSubdiv::HbrCatmarkSubdivision<T> * scheme = 
+
+            OpenSubdiv::HbrCatmarkSubdivision<T> * scheme =
                 dynamic_cast<OpenSubdiv::HbrCatmarkSubdivision<T> *>( mesh->GetSubdivision() );
-        
+
             if (not scheme) {
                 printf("the \"creasemethod\" tag can only be applied to Catmark meshes\n");
                 continue;
             }
-        
+
             if ((int)t->stringargs.size()==0) {
                 printf("the \"creasemethod\" tag expects a string argument\n");
                 continue;
             }
-        
+
             if( t->stringargs[0]=="normal" )
                 scheme->SetTriangleSubdivisionMethod(
                     OpenSubdiv::HbrCatmarkSubdivision<T>::k_Old);
@@ -304,12 +307,140 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
                     OpenSubdiv::HbrCatmarkSubdivision<T>::k_New);
             else
                 printf("the \"creasemethod\" tag only accepts \"normal\" or \"chaikin\" as value (%s)\n", t->stringargs[0].c_str());
-            
+
         } else if (t->name=="vertexedit" or t->name=="edgeedit") {
-            printf("hierarchical edits not supported (yet)\n");
+            int nops = 0;
+            int floatstride = 0;
+            int maxfloatwidth = 0;
+            std::vector<typename OpenSubdiv::HbrHierarchicalEdit<T>::Operation > ops;
+            std::vector<std::string> opnames;
+            std::vector<std::string> varnames;
+            std::vector<typename OpenSubdiv::HbrHierarchicalEdit<T>::Operation > opmodifiers;
+            std::vector<int> floatwidths;
+            std::vector<bool> isP;
+            std::vector<int> vvindex;
+
+            for (int j=0; j<(int)t->stringargs.size(); j+=3) {
+                const std::string & opname = t->stringargs[j+2];
+                const std::string & opmodifiername = t->stringargs[j];
+                const std::string & varname = t->stringargs[j+1];
+
+                typename OpenSubdiv::HbrHierarchicalEdit<T>::Operation opmodifier = OpenSubdiv::HbrVertexEdit<T>::Set;
+                if (opmodifiername == "set") {
+                    opmodifier = OpenSubdiv::HbrHierarchicalEdit<T>::Set;
+                } else if (opmodifiername == "add") {
+                    opmodifier = OpenSubdiv::HbrHierarchicalEdit<T>::Add;
+                } else if (opmodifiername == "subtract") {
+                    opmodifier = OpenSubdiv::HbrHierarchicalEdit<T>::Subtract;
+                } else {
+                    printf("invalid modifier %s\n", opmodifiername.c_str());
+                    continue;
+                }
+
+                if (t->name=="vertexedit" && opname=="value" || opname=="sharpness") {
+                    nops++;
+
+                    // only varname="P" is supported here for now.
+                    if (varname != "P") continue;
+
+                    vvindex.push_back(0);
+                    isP.push_back(true);
+                    opnames.push_back(opname);
+                    opmodifiers.push_back(opmodifier);
+                    varnames.push_back(varname);
+
+                    if (opname=="sharpness") {
+                        floatwidths.push_back(1);
+                        floatstride += 1;
+                    } else {
+                        // assuming width of P == 3. should be replaced with 'P 0 3' like declaration
+                        int numElements = 3;
+                        maxfloatwidth = std::max(maxfloatwidth, numElements);
+                        floatwidths.push_back(numElements);
+                        floatstride += numElements;
+                    }
+                } else {
+                    printf("%s tag specifies invalid operation '%s %s' on Subdivmesh\n", t->name.c_str(), opmodifiername.c_str(), opname.c_str());
+                }
+            }
+
+            float *xformed = (float*)alloca(maxfloatwidth * sizeof(float));
+
+            int floatoffset = 0;
+            for(int j=0; j<nops; ++j) {
+                int floatidx = floatoffset;
+                for (int k=0; k < (int)t->intargs.size();) {
+                    int pathlength = t->intargs[k];
+
+                    int faceid = t->intargs[k+1];
+                    int vertexid = t->intargs[k+pathlength];
+                    int nsubfaces = pathlength - 2;
+                    int *subfaces = &t->intargs[k+2];
+                    OpenSubdiv::HbrFace<T> * f = mesh->GetFace(faceid);
+                    if (!f) {
+                        printf("Invalid face %d specified for %s tag on SubdivisionMesh.\n", faceid, t->name.c_str());
+                        goto nexttag;
+                    }
+                    // Found the face. Do some preliminary error checking to make sure the path is
+                    // correct.  First value in path depends on the number of vertices of the face
+                    // which we have in hand
+                    if (nsubfaces && (subfaces[0] < 0 || subfaces[0] >= f->GetNumVertices()) ) {
+                        printf("Invalid path component %d in %s tag on SubdivisionMesh.\n", subfaces[0], t->name.c_str());
+                        goto nexttag;
+                    }
+
+                    // All subsequent values must be less than 4 (FIXME or 3 in the loop case?)
+                    for (int l=1; l<nsubfaces; ++l) {
+                        if (subfaces[l] < 0 || subfaces[l] > 3) {
+                            printf("Invalid path component %d in %s tag on SubdivisionMesh.\n", subfaces[0], t->name.c_str());
+                            goto nexttag;
+                        }
+                    }
+                    if (vertexid < 0 || vertexid > 3) {
+                        printf("Invalid path component (vertexid) %d in %s tag on SubdivisionMesh.\n", vertexid, t->name.c_str());
+                        goto nexttag;
+                    }
+
+                    // Transform all the float values associated with the tag if needed
+                    if(opnames[j] != "sharpness") {
+                        for(int l=0; l<floatwidths[j]; ++l) {
+                            xformed[l] = t->floatargs[l + floatidx];
+                        }
+
+                        // Edits of facevarying data are a different hierarchical edit type altogether
+                        OpenSubdiv::HbrVertexEdit<T> * edit = new OpenSubdiv::HbrVertexEdit<T>(faceid, nsubfaces, subfaces,
+                                                                                               vertexid, vvindex[j], floatwidths[j],
+                                                                                               isP[j], opmodifiers[j], xformed);
+                        mesh->AddHierarchicalEdit(edit);
+                    } else {
+                        if (t->name == "vertexedit") {
+                            OpenSubdiv::HbrCornerEdit<T> * edit = new OpenSubdiv::HbrCornerEdit<T>(faceid, nsubfaces, subfaces,
+                                                                                                   vertexid, opmodifiers[j], t->floatargs[floatidx]);
+                            mesh->AddHierarchicalEdit(edit);
+                        } else {
+                            OpenSubdiv::HbrCreaseEdit<T> * edit = new OpenSubdiv::HbrCreaseEdit<T>(faceid, nsubfaces, subfaces,
+                                                                                                   vertexid, opmodifiers[j], t->floatargs[floatidx]);
+                            mesh->AddHierarchicalEdit(edit);
+                        }
+                    }
+
+                    // Advance to next path
+                    k += pathlength + 1;
+
+                    // Advance to start of float data
+                    floatidx += floatstride;
+                } // End of integer processing loop
+
+                // Next subop
+                floatoffset += floatwidths[j];
+
+            } // End of subop processing loop
+        } else if (t->name=="faceedit") {
+            printf("hierarchical face edits not supported (yet)\n");
         } else {
             printf("Unknown tag : \"%s\" - skipping\n", t->name.c_str());
-        }        
+        }
+nexttag: ;
     }
 }
 
@@ -325,17 +456,17 @@ template <class T> OpenSubdiv::HbrMesh<T> *
 createMesh( Scheme scheme=kCatmark) {
 
   OpenSubdiv::HbrMesh<T> * mesh = 0;
-  
+
   static OpenSubdiv::HbrBilinearSubdivision<T> _bilinear;
   static OpenSubdiv::HbrLoopSubdivision<T>     _loop;
   static OpenSubdiv::HbrCatmarkSubdivision<T>  _catmark;
-  
+
   switch (scheme) {
     case kBilinear : mesh = new OpenSubdiv::HbrMesh<T>( &_bilinear ); break;
     case kLoop     : mesh = new OpenSubdiv::HbrMesh<T>( &_loop     ); break;
     case kCatmark  : mesh = new OpenSubdiv::HbrMesh<T>( &_catmark  ); break;
   }
-  
+
   return mesh;
 }
 
@@ -348,7 +479,7 @@ createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<flo
         v.SetPosition( sh->verts[i*3], sh->verts[i*3+1], sh->verts[i*3+2] );
         mesh->NewVertex( i, v );
     }
-    
+
     if (verts)
         *verts = sh->verts;
 }
@@ -370,37 +501,37 @@ createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
 
       const int * fv=&(sh->faceverts[0]);
       for(int f=0, ptxidx=0;f<sh->getNfaces(); f++ ) {
-      
+
           int nv = sh->nvertsPerFace[f];
 
           if ((scheme==kLoop) and (nv!=3)) {
-              printf("Trying to create a Loop surbd with non-triangle face\n"); 
-              exit(1); 
+              printf("Trying to create a Loop surbd with non-triangle face\n");
+              exit(1);
           }
 
-          for(int j=0;j<nv;j++) { 
-              OpenSubdiv::HbrVertex<T> * origin      = mesh->GetVertex( fv[j] );                                                           
+          for(int j=0;j<nv;j++) {
+              OpenSubdiv::HbrVertex<T> * origin      = mesh->GetVertex( fv[j] );
               OpenSubdiv::HbrVertex<T> * destination = mesh->GetVertex( fv[ (j+1)%nv] );
               OpenSubdiv::HbrHalfedge<T> * opposite  = destination->GetEdge(origin);
 
-              if(origin==NULL || destination==NULL) { 
-                  printf(" An edge was specified that connected a nonexistent vertex\n"); 
-                  exit(1); 
+              if(origin==NULL || destination==NULL) {
+                  printf(" An edge was specified that connected a nonexistent vertex\n");
+                  exit(1);
               }
 
-              if(origin == destination) { 
-                  printf(" An edge was specified that connected a vertex to itself\n"); 
-                  exit(1); 
+              if(origin == destination) {
+                  printf(" An edge was specified that connected a vertex to itself\n");
+                  exit(1);
               }
 
-              if(opposite && opposite->GetOpposite() ) { 
-                  printf(" A non-manifold edge incident to more than 2 faces was found\n"); 
-                  exit(1); 
+              if(opposite && opposite->GetOpposite() ) {
+                  printf(" A non-manifold edge incident to more than 2 faces was found\n");
+                  exit(1);
               }
 
-              if(origin->GetEdge(destination)) { 
+              if(origin->GetEdge(destination)) {
                   printf(" An edge connecting two vertices was specified more than once."
-                         " It's likely that an incident face was flipped\n"); 
+                         " It's likely that an incident face was flipped\n");
                   exit(1);
               }
           }
@@ -431,13 +562,13 @@ simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> * verts=0) {
   shape * sh = shape::parseShape( shapestr );
 
   OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme);
-  
+
   createVertices<T>(sh, mesh, verts);
-  
+
   createTopology<T>(sh, mesh, scheme);
-  
+
   delete sh;
-  
+
   return mesh;
 }
 
@@ -448,13 +579,13 @@ simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> & verts) {
   shape * sh = shape::parseShape( shapestr );
 
   OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme);
-  
+
   createVertices<T>(sh, mesh, verts);
-  
+
   createTopology<T>(sh, mesh, scheme);
-  
+
   delete sh;
-  
+
   return mesh;
 }
 

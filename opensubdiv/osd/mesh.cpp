@@ -54,6 +54,13 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
+#if not defined(__APPLE__)
+    #include <GL/glew.h>
+#else
+    #include <OpenGL/gl3.h>
+#endif
+
 #include <string.h>
 
 #include "../version.h"
@@ -67,15 +74,21 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdMesh::OsdMesh() : _fMesh(NULL), _dispatcher(NULL) { }
+OsdMesh::OsdMesh() : _farMesh(NULL), _dispatcher(NULL) { }
 
 OsdMesh::~OsdMesh() {
 
-    if(_dispatcher) 
+    if(_dispatcher)
         delete _dispatcher;
-        
-    if(_fMesh) 
-        delete _fMesh;
+
+    if(_farMesh)
+        delete _farMesh;
+
+    // delete ptex coordinates
+    for (int i=0; i<(int)_ptexCoordinates.size(); ++i) {
+        if (glIsTexture(_ptexCoordinates[i]))
+            glDeleteTextures(1,&_ptexCoordinates[i]);
+    }
 }
 
 void
@@ -87,12 +100,12 @@ OsdMesh::createTables( FarSubdivisionTables<OsdVertex> const * tables ) {
     _dispatcher->UpdateTable(OsdKernelDispatcher::E_W,   tables->Get_E_W());
     _dispatcher->UpdateTable(OsdKernelDispatcher::V_W,   tables->Get_V_W());
 
-    if ( const FarCatmarkSubdivisionTables<OsdVertex> * cctable = 
+    if ( const FarCatmarkSubdivisionTables<OsdVertex> * cctable =
        dynamic_cast<const FarCatmarkSubdivisionTables<OsdVertex>*>(tables) ) {
         // catmark
         _dispatcher->UpdateTable(OsdKernelDispatcher::F_IT, cctable->Get_F_IT());
         _dispatcher->UpdateTable(OsdKernelDispatcher::F_ITa, cctable->Get_F_ITa());
-    } else if ( const FarBilinearSubdivisionTables<OsdVertex> * btable = 
+    } else if ( const FarBilinearSubdivisionTables<OsdVertex> * btable =
        dynamic_cast<const FarBilinearSubdivisionTables<OsdVertex>*>(tables) ) {
         // bilinear
         _dispatcher->UpdateTable(OsdKernelDispatcher::F_IT, btable->Get_F_IT());
@@ -102,8 +115,20 @@ OsdMesh::createTables( FarSubdivisionTables<OsdVertex> const * tables ) {
         _dispatcher->CopyTable(OsdKernelDispatcher::F_IT, 0, NULL);
         _dispatcher->CopyTable(OsdKernelDispatcher::F_ITa, 0, NULL);
     }
+}
 
-    CHECK_GL_ERROR("Mesh, update tables\n");
+void
+OsdMesh::createEditTables( FarVertexEditTables<OsdVertex> const *editTables ) {
+
+    int numEditBatches = editTables->GetNumBatches();
+
+    _dispatcher->AllocateEditTables(numEditBatches);
+
+    for (int i=0; i<numEditBatches; ++i) {
+        const FarVertexEditTables<OsdVertex>::VertexEdit & edit = editTables->GetBatch(i);
+        _dispatcher->UpdateEditTable(i, edit.Get_Offsets(), edit.Get_Values(),
+                                     edit.GetOperation(), edit.GetPrimvarOffset(), edit.GetPrimvarWidth());
+    }
 }
 
 bool
@@ -119,31 +144,60 @@ OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, int kernel, std::vector<int> * r
     }
 
     _level = level;
-        
+
     // create Far mesh
     OSD_DEBUG("Create MeshFactory\n");
 
     FarMeshFactory<OsdVertex> meshFactory(hbrMesh, _level);
 
-    _fMesh = meshFactory.Create(_dispatcher);
-    
-    OSD_DEBUG("PREP: NumCoarseVertex = %d\n", _fMesh->GetNumCoarseVertices());
-    OSD_DEBUG("PREP: NumVertex = %d\n", _fMesh->GetNumVertices());
+    _farMesh = meshFactory.Create(_dispatcher);
 
-    createTables( _fMesh->GetSubdivision() );
-    
+    OSD_DEBUG("PREP: NumCoarseVertex = %d\n", _farMesh->GetNumCoarseVertices());
+    OSD_DEBUG("PREP: NumVertex = %d\n", _farMesh->GetNumVertices());
+
+    createTables( _farMesh->GetSubdivision() );
+
+    FarVertexEditTables<OsdVertex> const *editTables = _farMesh->GetVertexEdit();
+    if (editTables)
+        createEditTables( editTables );
+
     // copy the remapping table if the client needs to remap vertex indices from
     // Osd to Hbr for comparison / regression purposes.
     if (remap)
         (*remap)=meshFactory.GetRemappingTable();
 
+    // create ptex coordinates if exists in hbr
+    for (int i=0; i<(int)_ptexCoordinates.size(); ++i) {
+        if (glIsTexture(_ptexCoordinates[i]))
+            glDeleteTextures(1,&_ptexCoordinates[i]);
+    }
+    _ptexCoordinates.resize(level, 0);
+    for (int i=0; i<level; ++i) {
+        const std::vector<int> & ptexCoordinates = _farMesh->GetPtexCoordinates(i+1);
+        if (ptexCoordinates.empty())
+            continue;
+
+        int size = (int)ptexCoordinates.size() * sizeof(GLint);
+        const void *data = &ptexCoordinates[0];
+
+        GLuint buffer;
+        glGenBuffers(1, & buffer );
+        glBindBuffer( GL_TEXTURE_BUFFER, buffer );
+        glBufferData( GL_TEXTURE_BUFFER, size, data, GL_STATIC_DRAW);
+        
+        glGenTextures(1, & _ptexCoordinates[i]);
+        glBindTexture( GL_TEXTURE_BUFFER, _ptexCoordinates[i]);
+        glTexBuffer( GL_TEXTURE_BUFFER, GL_RG32I, buffer);
+        glDeleteBuffers(1, & buffer );
+    }
     return true;
 }
 
 OsdVertexBuffer *
-OsdMesh::InitializeVertexBuffer(int numElements)
-{
-    if (!_dispatcher) return NULL;
+OsdMesh::InitializeVertexBuffer(int numElements) {
+
+    if (!_dispatcher)
+        return NULL;
     return _dispatcher->InitializeVertexBuffer(numElements, GetTotalVertices());
 }
 
@@ -154,7 +208,7 @@ OsdMesh::Subdivide(OsdVertexBuffer *vertex, OsdVertexBuffer *varying) {
 
     _dispatcher->OnKernelLaunch();
 
-    _fMesh->Subdivide(_level+1);
+    _farMesh->Subdivide(_level+1);
 
     _dispatcher->OnKernelFinish();
 

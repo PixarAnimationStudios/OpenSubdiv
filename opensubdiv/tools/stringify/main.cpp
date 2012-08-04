@@ -69,11 +69,11 @@ std::string stringify( std::string const & line ) {
     for (int i=0; i<(int)line.size(); ++i) {
 
         // escape double quotes
-        if (line[i]=='"') { 
+        if (line[i]=='"') {
             s << '\\' ;
             inconstant = inconstant ? false : true;
         }
-        
+
         // escape backslash
         if (inconstant and line[i]=='\\')
            s << '\\' ;

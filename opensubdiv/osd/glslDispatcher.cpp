@@ -59,7 +59,7 @@
 #if not defined(__APPLE__)
     #include <GL/glew.h>
 #else
-    #include <OpenGL/gl.h>
+    #include <OpenGL/gl3.h>
 #endif
 
 #include "../osd/glslDispatcher.h"
@@ -97,7 +97,7 @@ static const char *shaderDefines = ""
 ;
 
 std::vector<OsdGlslKernelDispatcher::ComputeShader> OsdGlslKernelDispatcher::shaderRegistry;
-    
+
 OsdGlslKernelDispatcher::OsdGlslKernelDispatcher(int levels)
     : OsdKernelDispatcher(levels)
 {
@@ -200,7 +200,7 @@ OsdGlslKernelDispatcher::BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuff
 
     if (vertex)
         _currentVertexBuffer = dynamic_cast<OsdGpuVertexBuffer *>(vertex);
-    else 
+    else
         _currentVertexBuffer = NULL;
 
     if (varying)
@@ -310,7 +310,7 @@ OsdGlslKernelDispatcher::ApplyBilinearFaceVerticesKernel(
 void
 OsdGlslKernelDispatcher::ApplyBilinearEdgeVerticesKernel(
     FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
-    
+
     _shader->ApplyBilinearEdgeVerticesKernel(_currentVertexBuffer, _currentVaryingBuffer,
                                              _tableOffsets[E_IT][level-1],
                                              offset, start, end);
@@ -319,7 +319,7 @@ OsdGlslKernelDispatcher::ApplyBilinearEdgeVerticesKernel(
 void
 OsdGlslKernelDispatcher::ApplyBilinearVertexVerticesKernel(
     FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
-    
+
     _shader->ApplyBilinearVertexVerticesKernel(_currentVertexBuffer, _currentVaryingBuffer,
                                                _tableOffsets[V_ITa][level-1],
                                                offset, start, end);
@@ -341,7 +341,7 @@ OsdGlslKernelDispatcher::ApplyCatmarkFaceVerticesKernel(
 void
 OsdGlslKernelDispatcher::ApplyCatmarkEdgeVerticesKernel(
     FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
-    
+
     _shader->ApplyCatmarkEdgeVerticesKernel(_currentVertexBuffer, _currentVaryingBuffer,
                                             _tableOffsets[E_IT][level-1],
                                             _tableOffsets[E_W][level-1],
@@ -351,7 +351,7 @@ OsdGlslKernelDispatcher::ApplyCatmarkEdgeVerticesKernel(
 void
 OsdGlslKernelDispatcher::ApplyCatmarkVertexVerticesKernelB(
     FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
-    
+
     _shader->ApplyCatmarkVertexVerticesKernelB(_currentVertexBuffer, _currentVaryingBuffer,
                                                _tableOffsets[V_IT][level-1],
                                                _tableOffsets[V_ITa][level-1],
@@ -362,7 +362,7 @@ OsdGlslKernelDispatcher::ApplyCatmarkVertexVerticesKernelB(
 void
 OsdGlslKernelDispatcher::ApplyCatmarkVertexVerticesKernelA(
     FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const {
-    
+
     _shader->ApplyCatmarkVertexVerticesKernelA(_currentVertexBuffer, _currentVaryingBuffer,
                                                _tableOffsets[V_ITa][level-1],
                                                _tableOffsets[V_W][level-1],
@@ -374,7 +374,7 @@ OsdGlslKernelDispatcher::ApplyCatmarkVertexVerticesKernelA(
 void
 OsdGlslKernelDispatcher::ApplyLoopEdgeVerticesKernel(
     FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
-    
+
     _shader->ApplyLoopEdgeVerticesKernel(_currentVertexBuffer, _currentVaryingBuffer,
                                          _tableOffsets[E_IT][level-1],
                                          _tableOffsets[E_W][level-1],
@@ -384,7 +384,7 @@ OsdGlslKernelDispatcher::ApplyLoopEdgeVerticesKernel(
 void
 OsdGlslKernelDispatcher::ApplyLoopVertexVerticesKernelB(
     FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
-    
+
     _shader->ApplyLoopVertexVerticesKernelB(_currentVertexBuffer, _currentVaryingBuffer,
                                             _tableOffsets[V_IT][level-1],
                                             _tableOffsets[V_ITa][level-1],
@@ -395,7 +395,7 @@ OsdGlslKernelDispatcher::ApplyLoopVertexVerticesKernelB(
 void
 OsdGlslKernelDispatcher::ApplyLoopVertexVerticesKernelA(
     FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const {
-    
+
     _shader->ApplyLoopVertexVerticesKernelA(_currentVertexBuffer, _currentVaryingBuffer,
                                             _tableOffsets[V_ITa][level-1],
                                             _tableOffsets[V_W][level-1],
@@ -411,7 +411,7 @@ OsdGlslKernelDispatcher::ComputeShader::ComputeShader() :
 
 OsdGlslKernelDispatcher::ComputeShader::~ComputeShader()
 {
-    if (_program) 
+    if (_program)
         glDeleteProgram(_program);
 }
 
@@ -439,10 +439,10 @@ OsdGlslKernelDispatcher::ComputeShader::Compile(int numVertexElements, int numVa
     glCompileShader(shader);
     glAttachShader(_program, shader);
 
-    const char *outputs[] = { "outPosition", 
-                              "outNormal", 
-			      "gl_NextBuffer", 
-			      "outVaryingData" };
+    const char *outputs[] = { "outPosition",
+                              "outNormal",
+                              "gl_NextBuffer",
+                              "outVaryingData" };
 
     int nOutputs = numVaryingElements > 0 ? 4 : 2;
 
@@ -463,7 +463,7 @@ OsdGlslKernelDispatcher::ComputeShader::Compile(int numVertexElements, int numVa
 
         glGetProgramInfoLog(_program, 1024, NULL, buffer);
         OSD_ERROR(buffer);
-        
+
         glDeleteProgram(_program);
         _program = 0;
         // XXX ERROR HANDLE
@@ -539,7 +539,7 @@ OsdGlslKernelDispatcher::ComputeShader::transformGpuBufferData(OsdGpuVertexBuffe
     glBeginTransformFeedback(GL_POINTS);
 
     CHECK_GL_ERROR("transformGpuBufferData glBeginTransformFeedback\n");
-    
+
     // draw array -----------------------------------------
     glDrawArrays(GL_POINTS, 0, count);
     CHECK_GL_ERROR("transformGpuBufferData DrawArray (%d)\n", count);
@@ -578,7 +578,7 @@ void
 OsdGlslKernelDispatcher::ComputeShader::ApplyBilinearVertexVerticesKernel(
     OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
     int V_ITa_ofs, int offset, int start, int end) {
-    
+
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeVertex);
     glUniform1i(_tableOffsetUniforms[V_ITa], V_ITa_ofs);
     transformGpuBufferData(vertex, varying, offset, start, end);
@@ -611,7 +611,7 @@ void
 OsdGlslKernelDispatcher::ComputeShader::ApplyCatmarkVertexVerticesKernelB(
     OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
     int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end) {
-    
+
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeCatmarkVertexB);
     glUniform1i(_tableOffsetUniforms[V_IT], V_IT_ofs);
     glUniform1i(_tableOffsetUniforms[V_ITa], V_ITa_ofs);
@@ -623,7 +623,7 @@ void
 OsdGlslKernelDispatcher::ComputeShader::ApplyCatmarkVertexVerticesKernelA(
     OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
     int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end) {
-    
+
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeVertexA);
     glUniform1i(_uniformVertexPass, pass ? 1 : 0);
     glUniform1i(_tableOffsetUniforms[V_ITa], V_ITa_ofs);
@@ -635,7 +635,7 @@ void
 OsdGlslKernelDispatcher::ComputeShader::ApplyLoopEdgeVerticesKernel(
     OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
     int E_IT_ofs, int E_W_ofs, int offset, int start, int end) {
-    
+
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeEdge);
     glUniform1i(_tableOffsetUniforms[E_IT], E_IT_ofs);
     glUniform1i(_tableOffsetUniforms[E_W], E_W_ofs);
@@ -646,7 +646,7 @@ void
 OsdGlslKernelDispatcher::ComputeShader::ApplyLoopVertexVerticesKernelB(
     OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
     int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end) {
-    
+
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeLoopVertexB);
     glUniform1i(_tableOffsetUniforms[V_IT], V_IT_ofs);
     glUniform1i(_tableOffsetUniforms[V_ITa], V_ITa_ofs);
@@ -658,7 +658,7 @@ void
 OsdGlslKernelDispatcher::ComputeShader::ApplyLoopVertexVerticesKernelA(
     OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
     int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end) {
-    
+
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeVertexA);
     glUniform1i(_uniformVertexPass, pass ? 1 : 0);
     glUniform1i(_tableOffsetUniforms[V_ITa], V_ITa_ofs);

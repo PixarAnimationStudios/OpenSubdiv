@@ -103,19 +103,100 @@ find_package(OpenGL)
 find_package(OpenCL)
 find_package(CUDA)
 find_package(GLUT)
+find_package(PTex)
 
 if (NOT APPLE)
-    find_package(GLEW)
+    find_package(GLEW REQUIRED)
 endif()
 
 find_package(Maya)
+
+# Warn about missing dependencies that will cause parts of OpenSubdiv to be
+# disabled.  Also, add preprocessor defines that can be used in the source
+# code to determine if a specific dependency is present or not.
+
+if(OPENMP_FOUND)
+    add_definitions(
+        -DOPENSUBDIV_HAS_OPENMP
+        ${OpenMP_CXX_FLAGS}
+    )
+else()
+    message(WARNING
+        "OpenMP was not found : support for OMP parallel compute kernels "
+        "will be diabled in Osd.  If your compiler supports OpenMP "
+        "directives, please refer to the FindOpenMP.cmake shared module "
+        "in your cmake installation.")
+endif()
+
+# note : (GLSL compute kernels require GL 4.2, which currently excludes APPLE)
+if(OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE))
+    add_definitions(
+        -DOPENSUBDIV_HAS_GLSL
+    )
+else()
+    message(WARNING
+        "OpenGL was not found : support for GLSL parallel compute kernels "
+        "will be disabled in Osd.  If you have an OpenGL SDK installed "
+        "(version 4.2 or above), please refer to the FindOpenGL.cmake "
+        "shared module in your cmake installation.")
+endif()
+
+if(OPENCL_FOUND)
+    add_definitions(
+        -DOPENSUBDIV_HAS_OPENCL
+    )
+else()
+    message(WARNING
+        "OpenCL was not found : support for OpenCL parallel compute kernels "
+        "will be disabled in Osd.  If you have the OpenCL SDK installed, "
+        "please refer to the FindOpenCL.cmake in ${PROJECT_SOURCE_DIR}/cmake.")
+endif()
+
+if(CUDA_FOUND)
+    add_definitions(
+        -DOPENSUBDIV_HAS_CUDA
+    )
+else()
+    message(WARNING
+        "CUDA was not found : support for CUDA parallel compute kernels "
+        "will be disabled in Osd.  If you have the CUDA SDK installed, please "
+        "refer to the FindCUDA.cmake shared module in your cmake installation.")
+endif()
+
+if(PTEX_FOUND)
+    add_definitions(
+        -DOPENSUBDIV_HAS_PTEX
+    )
+else()
+    message(WARNING
+        "Ptex was not found : the OpenSubdiv Ptex example will not be "
+        "available.  If you do have Ptex installed and see this message, "
+        "please add your Ptex path to FindPTex.cmake in "
+        "${PROJECT_SOURCE_DIR}/cmake or set it through the PTEX_LOCATION "
+        "cmake command line argument or environment variable."
+    )
+endif()
+
+if(MAYA_FOUND)
+    add_definitions(
+        -DOPENSUBDIV_HAS_MAYA
+    )
+else()
+    message(WARNING
+        "Maya was not found : the OpenSubdiv mayaViwer plugin will not be "
+        "available.  If you do have Maya installed and see this message, "
+        "please add your Maya path to FindMaya.cmake in "
+        "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
+        "cmake command line argument or environment variable."
+    )
+endif()
 
 # Link examples & regressions dynamically against Osd
 set( OSD_LINK_TARGET osd_dynamic )
 
 if (WIN32)
     add_definitions(
-        # GLEW gets built as a static library in Windows
+        # Link against the static version of GLEW.
         -DGLEW_STATIC
     )
     # Link examples & regressions statically against Osd for
@@ -178,9 +259,11 @@ if(MSVC)
     )
 endif(MSVC)
 
+
+
 # Macro for adding a cuda executable if cuda is found and a regular
 # executable otherwise.
-macro(_add_executable target)
+macro(_add_possibly_cuda_executable target)
     if(CUDA_FOUND)
         cuda_add_executable(${target} ${ARGN})
     else()
@@ -188,9 +271,10 @@ macro(_add_executable target)
     endif()
 endmacro()
 
+
 # Macro for adding a cuda library if cuda is found and a regular
 # library otherwise.
-macro(_add_library target)
+macro(_add_possibly_cuda_library target)
     if(CUDA_FOUND)
         cuda_add_library(${target} ${ARGN})
     else()
@@ -198,6 +282,29 @@ macro(_add_library target)
     endif()
 endmacro()
 
+
+# Macro for adding a (potentially cuda) executable.
+macro(_add_glut_executable target)
+
+    _add_possibly_cuda_executable(${target} ${ARGN})
+
+    if(WIN32)
+        # Windows needs some of its dependency dll's copied into the same
+        # directory as the executable.
+        set( LIBRARIES ${ILMBASE_LIBRARIES} ${GLUT_LIBRARIES})
+        foreach (LIB ${LIBRARIES} )
+            string(REPLACE ".lib" ".dll" DLL ${LIB})
+            string(REPLACE ".LIB" ".DLL" DLL ${DLL})
+            add_custom_command(
+                TARGET ${target} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    ${DLL}
+                    $<TARGET_FILE_DIR:${target}>
+            )
+        endforeach()
+    endif()
+
+endmacro()
 
 
 add_subdirectory(opensubdiv)

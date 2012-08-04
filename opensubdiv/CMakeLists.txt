@@ -65,4 +65,4 @@ add_subdirectory(osd)
 
 install( FILES version.h
          DESTINATION include/
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ ) 
+         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )

@@ -71,44 +71,44 @@ class HbrHierarchicalEdit {
 
 public:
     typedef enum Operation {
-	Set,
-	Add,
-	Subtract
+        Set,
+        Add,
+        Subtract
     } Operation;
 
 protected:
 
     HbrHierarchicalEdit(int _faceid, int _nsubfaces, unsigned char *_subfaces)
-	: faceid(_faceid), nsubfaces(_nsubfaces) {
-	subfaces = new unsigned char[_nsubfaces];
-	for (int i = 0; i < nsubfaces; ++i) {
-	    subfaces[i] = _subfaces[i];
-	}
+        : faceid(_faceid), nsubfaces(_nsubfaces) {
+        subfaces = new unsigned char[_nsubfaces];
+        for (int i = 0; i < nsubfaces; ++i) {
+            subfaces[i] = _subfaces[i];
+        }
     }
 
     HbrHierarchicalEdit(int _faceid, int _nsubfaces, int *_subfaces)
-	: faceid(_faceid), nsubfaces(_nsubfaces) {
-	subfaces = new unsigned char[_nsubfaces];
-	for (int i = 0; i < nsubfaces; ++i) {
-	    subfaces[i] = static_cast<unsigned char>(_subfaces[i]);
-	}
+        : faceid(_faceid), nsubfaces(_nsubfaces) {
+        subfaces = new unsigned char[_nsubfaces];
+        for (int i = 0; i < nsubfaces; ++i) {
+            subfaces[i] = static_cast<unsigned char>(_subfaces[i]);
+        }
     }
 
 public:
     virtual ~HbrHierarchicalEdit() {
-	delete[] subfaces;
+        delete[] subfaces;
     }
 
     bool operator<(const HbrHierarchicalEdit& p) const {
-	if (faceid < p.faceid) return true;
-	if (faceid > p.faceid) return false;
-	int minlength = nsubfaces;
-	if (minlength > p.nsubfaces) minlength = p.nsubfaces;
-	for (int i = 0; i < minlength; ++i) {
-	    if (subfaces[i] < p.subfaces[i]) return true;
-	    if (subfaces[i] > p.subfaces[i]) return false;	    
-	}
-	return (nsubfaces < p.nsubfaces);
+        if (faceid < p.faceid) return true;
+        if (faceid > p.faceid) return false;
+        int minlength = nsubfaces;
+        if (minlength > p.nsubfaces) minlength = p.nsubfaces;
+        for (int i = 0; i < minlength; ++i) {
+            if (subfaces[i] < p.subfaces[i]) return true;
+            if (subfaces[i] > p.subfaces[i]) return false;
+        }
+        return (nsubfaces < p.nsubfaces);
     }
 
     // Return the face id (the first element in the path)
@@ -119,7 +119,7 @@ public:
 
     // Return a subface element in the path
     unsigned char GetSubface(int index) const { return subfaces[index]; }
-    
+
     // Determines whether this hierarchical edit is relevant to the
     // face in question
     bool IsRelevantToFace(HbrFace<T>* face) const;
@@ -128,12 +128,12 @@ public:
     virtual void ApplyEditToFace(HbrFace<T>* /* face */) {}
 
     // Applys edit to vertex. Subclasses may override this method.
-    virtual void ApplyEditToVertex(HbrFace<T>* /* face */, HbrVertex<T>* /* vertex */) {} 
+    virtual void ApplyEditToVertex(HbrFace<T>* /* face */, HbrVertex<T>* /* vertex */) {}
 
 #ifdef PRMAN
     // Gets the effect of this hierarchical edit on the bounding box.
     // Subclasses may override this method
-    virtual void ApplyToBound(struct bbox& /* box */, RtMatrix * /* mx */) {}
+    virtual void ApplyToBound(struct bbox& /* box */, RtMatrix * /* mx */) const {}
 #endif
 
 protected:
@@ -150,7 +150,7 @@ protected:
 template <class T>
 class HbrHierarchicalEditComparator {
 public:
-    bool operator() (const HbrHierarchicalEdit<T>* path1, const HbrHierarchicalEdit<T>* path2) const { 
+    bool operator() (const HbrHierarchicalEdit<T>* path1, const HbrHierarchicalEdit<T>* path2) const {
         return (*path1 < *path2);
     }
 };
@@ -181,7 +181,7 @@ HbrHierarchicalEdit<T>::IsRelevantToFace(HbrFace<T>* face) const {
     if (!p) return false;
 
     if (this == p) return true;
-    
+
     if (faceid != p->faceid) return false;
 
     // If our path length is less than the face depth, it should mean
@@ -190,7 +190,7 @@ HbrHierarchicalEdit<T>::IsRelevantToFace(HbrFace<T>* face) const {
     if (nsubfaces < face->GetDepth()) return false;
 
     if (memcmp(subfaces, p->subfaces, face->GetDepth() * sizeof(unsigned char)) != 0) {
-	return false;
+        return false;
     }
     return true;
 }

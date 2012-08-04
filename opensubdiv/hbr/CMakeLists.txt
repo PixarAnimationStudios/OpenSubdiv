@@ -73,8 +73,8 @@ set(H_FILES
     subdivision.h
     vertexEdit.h
     vertex.h
-)    
+)
 
 install( FILES ${H_FILES}
          DESTINATION include/hbr
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ ) 
+         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )

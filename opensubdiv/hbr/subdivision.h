@@ -69,12 +69,12 @@ template <class T> class HbrMesh;
 template <class T> class HbrSubdivision {
 public:
     HbrSubdivision<T>()
-	: creaseSubdivision(k_CreaseNormal) {}
+        : creaseSubdivision(k_CreaseNormal) {}
 
     virtual ~HbrSubdivision<T>() {}
 
     virtual HbrSubdivision<T>* Clone() const = 0;
-    
+
     // How to subdivide a face
     virtual void Refine(HbrMesh<T>* mesh, HbrFace<T>* face) = 0;
 
@@ -83,7 +83,7 @@ public:
 
     // Refine all faces around a particular vertex
     virtual void RefineAtVertex(HbrMesh<T>* mesh, HbrVertex<T>* vertex);
-    
+
     // Given an edge, try to ensure the edge's opposite exists by
     // forcing refinement up the hierarchy
     virtual void GuaranteeNeighbor(HbrMesh<T>* mesh, HbrHalfedge<T>* edge) = 0;
@@ -97,7 +97,7 @@ public:
     virtual bool HasLimit(HbrMesh<T>* /* mesh */, HbrFace<T>* /* face */) { return true; }
     virtual bool HasLimit(HbrMesh<T>* /* mesh */, HbrHalfedge<T>* /* edge */) { return true; }
     virtual bool HasLimit(HbrMesh<T>* /* mesh */, HbrVertex<T>* /* vertex */) { return true; }
-    
+
     // How to turn faces, edges, and vertices into vertices
     virtual HbrVertex<T>* Subdivide(HbrMesh<T>* mesh, HbrFace<T>* face) = 0;
     virtual HbrVertex<T>* Subdivide(HbrMesh<T>* mesh, HbrHalfedge<T>* edge) = 0;
@@ -105,6 +105,9 @@ public:
 
     // Returns true if the vertex is extraordinary in the subdivision scheme
     virtual bool VertexIsExtraordinary(HbrMesh<T>* /* mesh */, HbrVertex<T>* /* vertex */) { return false; }
+
+    // Returns true if the face is extraordinary in the subdivision scheme
+    virtual bool FaceIsExtraordinary(HbrMesh<T>* /* mesh */, HbrFace<T>* /* face */) { return false; }
 
     // Crease subdivision rules. When subdividing a edge with a crease
     // strength, we get two child subedges, and we need to determine
@@ -115,8 +118,8 @@ public:
     // vertices, and weighs them; for more information consult
     // the Geri's Game paper.
     enum CreaseSubdivision {
-	k_CreaseNormal,
-	k_CreaseChaikin
+        k_CreaseNormal,
+        k_CreaseChaikin
     };
     CreaseSubdivision GetCreaseSubdivisionMethod() const { return creaseSubdivision; }
     void SetCreaseSubdivisionMethod(CreaseSubdivision method) { creaseSubdivision = method; }
@@ -132,7 +135,7 @@ public:
     // Returns the expected number of children faces after subdivision
     // for a face with the given number of vertices.
     virtual int GetFaceChildrenCount(int nvertices) const = 0;
-    
+
 protected:
     CreaseSubdivision creaseSubdivision;
 
@@ -143,7 +146,7 @@ protected:
     // Helper routine for subclasses: for a given vertex with a crease
     // mask, adds contributions from the two crease edges
     void AddCreaseEdgesWithWeight(HbrMesh<T>* mesh, HbrVertex<T>* vertex, bool next, float weight, T* data);
-    
+
 private:
     // Helper class used by AddSurroundingVerticesWithWeight
     class SmoothSubdivisionVertexOperator : public HbrVertexOperator<T> {
@@ -155,7 +158,7 @@ private:
         {
         }
         virtual void operator() (HbrVertex<T> &vertex) {
-            // Must ensure vertex edits have been applied        
+            // Must ensure vertex edits have been applied
             if (m_meshHasEdits) {
                 vertex.GuaranteeNeighbors();
             }
@@ -186,7 +189,7 @@ private:
                 // Must ensure vertex edits have been applied
                 if (m_meshHasEdits) {
                     a->GuaranteeNeighbors();
-                }			
+                }
                 m_data->AddWithWeight(a->GetData(), m_weight);
                 m_count++;
             }
@@ -218,7 +221,7 @@ private:
         HbrMesh<T>* const m_mesh;
         HbrVertex<T>* const m_vertex;
     };
-    
+
 };
 
 template <class T>
@@ -238,48 +241,48 @@ HbrSubdivision<T>::SubdivideCreaseWeight(HbrHalfedge<T>* edge, HbrVertex<T>* ver
     // In all methods, if the parent edge is infinitely sharp, the
     // child edge is also infinitely sharp
     if (sharpness >= HbrHalfedge<T>::k_InfinitelySharp) {
-	subedge->SetSharpness(HbrHalfedge<T>::k_InfinitelySharp);
+        subedge->SetSharpness(HbrHalfedge<T>::k_InfinitelySharp);
     }
 
     // Chaikin's curve subdivision: use 3/4 of the parent sharpness,
     // plus 1/4 of crease sharpnesses incident to vertex
     else if (creaseSubdivision == HbrSubdivision<T>::k_CreaseChaikin) {
 
-	float childsharp = 0.0f;
+        float childsharp = 0.0f;
 
-	// Add 1/4 of the sharpness of all crease edges incident to
-	// the vertex (other than this crease edge)
-	std::list<HbrHalfedge<T>*> edges;
-	vertex->GuaranteeNeighbors();
-	vertex->GetSurroundingEdges(edges);
+        // Add 1/4 of the sharpness of all crease edges incident to
+        // the vertex (other than this crease edge)
+        std::vector<HbrHalfedge<T>*> edges;
+        vertex->GuaranteeNeighbors();
+        vertex->GetSurroundingEdges(edges);
 
-	int n = 0;
-	for (typename std::list<HbrHalfedge<T>*>::iterator ei = edges.begin(); ei != edges.end(); ++ei) {
-	    if (*ei == edge) continue;
-	    if ((*ei)->GetSharpness() > HbrHalfedge<T>::k_Smooth) {
-		childsharp += (*ei)->GetSharpness();
-		n++;
-	    }
-	}
+        int n = 0;
+        for (typename std::vector<HbrHalfedge<T>*>::iterator ei = edges.begin(); ei != edges.end(); ++ei) {
+            if (*ei == edge) continue;
+            if ((*ei)->GetSharpness() > HbrHalfedge<T>::k_Smooth) {
+                childsharp += (*ei)->GetSharpness();
+                n++;
+            }
+        }
 
-	if (n) {
-	    childsharp = childsharp * 0.25f / n;
-	}
-		    
-	// Add 3/4 of the sharpness of this crease edge
-	childsharp += sharpness * 0.75f;
-	childsharp -= 1.0f;
-	if (childsharp < (float) HbrHalfedge<T>::k_Smooth) {
-	    childsharp = (float) HbrHalfedge<T>::k_Smooth;
-	}
-	subedge->SetSharpness(childsharp);
-	
+        if (n) {
+            childsharp = childsharp * 0.25f / n;
+        }
+
+        // Add 3/4 of the sharpness of this crease edge
+        childsharp += sharpness * 0.75f;
+        childsharp -= 1.0f;
+        if (childsharp < (float) HbrHalfedge<T>::k_Smooth) {
+            childsharp = (float) HbrHalfedge<T>::k_Smooth;
+        }
+        subedge->SetSharpness(childsharp);
+
     } else {
-	sharpness -= 1.0f;
-	if (sharpness < (float) HbrHalfedge<T>::k_Smooth) {
-	    sharpness = (float) HbrHalfedge<T>::k_Smooth;
-	}
-	subedge->SetSharpness(sharpness);
+        sharpness -= 1.0f;
+        if (sharpness < (float) HbrHalfedge<T>::k_Smooth) {
+            sharpness = (float) HbrHalfedge<T>::k_Smooth;
+        }
+        subedge->SetSharpness(sharpness);
     }
 }
 

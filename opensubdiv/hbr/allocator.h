@@ -90,7 +90,7 @@ public:
     void SetMemStatsIncrement(void (*increment)(unsigned long bytes)) { m_increment = increment; }
 
     void SetMemStatsDecrement(void (*decrement)(unsigned long bytes)) { m_decrement = decrement; }
-    
+
 private:
     size_t *m_memorystat;
     const int m_blocksize;
@@ -111,10 +111,10 @@ private:
     HbrMemStatFunction m_increment;
     HbrMemStatFunction m_decrement;
 };
-					  
+
 template <typename T>
 HbrAllocator<T>::HbrAllocator(size_t *memorystat, int blocksize, void (*increment)(unsigned long bytes), void (*decrement)(unsigned long bytes), size_t elemsize)
-    : m_memorystat(memorystat), m_blocksize(blocksize), m_elemsize(elemsize), m_blocks(0), m_nblocks(0), m_blockCapacity(0), m_freecount(0), m_increment(increment), m_decrement(decrement) {
+    : m_memorystat(memorystat), m_blocksize(blocksize), m_elemsize((int)elemsize), m_blocks(0), m_nblocks(0), m_blockCapacity(0), m_freecount(0), m_increment(increment), m_decrement(decrement) {
 }
 
 template <typename T>
@@ -125,15 +125,15 @@ HbrAllocator<T>::~HbrAllocator() {
 template <typename T>
 void HbrAllocator<T>::Clear() {
     for (int i = 0; i < m_nblocks; ++i) {
-	// Run the destructors (placement)
-	T* blockptr = m_blocks[i];
-	T* startblock = blockptr;
-	for (int j = 0; j < m_blocksize; ++j) {
-	    blockptr->~T();
-	    blockptr = (T*) ((char*) blockptr + m_elemsize);
-	}
-	free(startblock);
-	if (m_decrement) m_decrement(m_blocksize * m_elemsize);
+        // Run the destructors (placement)
+        T* blockptr = m_blocks[i];
+        T* startblock = blockptr;
+        for (int j = 0; j < m_blocksize; ++j) {
+            blockptr->~T();
+            blockptr = (T*) ((char*) blockptr + m_elemsize);
+        }
+        free(startblock);
+        if (m_decrement) m_decrement(m_blocksize * m_elemsize);
         *m_memorystat -= m_blocksize * m_elemsize;
     }
     free(m_blocks);
@@ -145,40 +145,40 @@ void HbrAllocator<T>::Clear() {
 }
 
 template <typename T>
-T* 
+T*
 HbrAllocator<T>::Allocate() {
     if (!m_freecount) {
 
-	// Allocate a new block
-	T* block = (T*) malloc(m_blocksize * m_elemsize);
-	T* blockptr = block;
-	// Run the constructors on each element using placement new
-	for (int i = 0; i < m_blocksize; ++i) {
-	    new (blockptr) T();
-	    blockptr = (T*) ((char*) blockptr + m_elemsize);
-	}
-	if (m_increment) m_increment(m_blocksize * m_elemsize);
+        // Allocate a new block
+        T* block = (T*) malloc(m_blocksize * m_elemsize);
+        T* blockptr = block;
+        // Run the constructors on each element using placement new
+        for (int i = 0; i < m_blocksize; ++i) {
+            new (blockptr) T();
+            blockptr = (T*) ((char*) blockptr + m_elemsize);
+        }
+        if (m_increment) m_increment(m_blocksize * m_elemsize);
         *m_memorystat += m_blocksize * m_elemsize;
-	
-	// Put the block's entries on the free list
-	blockptr = block;
-	for (int i = 0; i < m_blocksize - 1; ++i) {
-	    T* next = (T*) ((char*) blockptr + m_elemsize);
-	    blockptr->GetNext() = next;
-	    blockptr = next;
-	}
-	blockptr->GetNext() = 0;
-	m_freelist = block;
 
-	// Keep track of the newly allocated block
-	if (m_nblocks + 1 >= m_blockCapacity) {
-	    m_blockCapacity = m_blockCapacity * 2;
-	    if (m_blockCapacity < 1) m_blockCapacity = 1;
-	    m_blocks = (T**) realloc(m_blocks, m_blockCapacity * sizeof(T*));
-	}
-	m_blocks[m_nblocks] = block;
-	m_nblocks++;
-	m_freecount += m_blocksize;
+        // Put the block's entries on the free list
+        blockptr = block;
+        for (int i = 0; i < m_blocksize - 1; ++i) {
+            T* next = (T*) ((char*) blockptr + m_elemsize);
+            blockptr->GetNext() = next;
+            blockptr = next;
+        }
+        blockptr->GetNext() = 0;
+        m_freelist = block;
+
+        // Keep track of the newly allocated block
+        if (m_nblocks + 1 >= m_blockCapacity) {
+            m_blockCapacity = m_blockCapacity * 2;
+            if (m_blockCapacity < 1) m_blockCapacity = 1;
+            m_blocks = (T**) realloc(m_blocks, m_blockCapacity * sizeof(T*));
+        }
+        m_blocks[m_nblocks] = block;
+        m_nblocks++;
+        m_freecount += m_blocksize;
     }
     T* obj = m_freelist;
     m_freelist = obj->GetNext();

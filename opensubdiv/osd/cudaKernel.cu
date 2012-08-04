@@ -141,14 +141,14 @@ computeFace(float *fVertex, float *fVaryings, int *F0_IT, int *F0_ITa, int offse
         int h = F0_ITa[2*i];
         int n = F0_ITa[2*i+1];
         float weight = 1.0f/n;
-        
+
         DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
         dst.clear();
 
         if(NUM_VARYING_ELEMENTS > 0){
             DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
             dstVarying.clear();
-        
+
             for(int j=0; j<n; ++j){
                 int index = F0_IT[h+j];
                 dst.addWithWeight(&vertex[index], weight);
@@ -197,21 +197,21 @@ computeEdge(float *fVertex, float *fVaryings, int *E0_IT, float *E0_S, int offse
     for(int i = start + threadIdx.x + blockIdx.x*blockDim.x; i < end; i+= blockDim.x * gridDim.x){
         int eidx0 = E0_IT[4*i+0];
         int eidx1 = E0_IT[4*i+1];
-        int eidx2 = E0_IT[4*i+2]; 
+        int eidx2 = E0_IT[4*i+2];
         int eidx3 = E0_IT[4*i+3];
-        
+
         float vertWeight = E0_S[i*2+0];
 
         // Fully sharp edge : vertWeight = 0.5f;
         DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
         dst.clear();
-        
+
         dst.addWithWeight(&vertex[eidx0], vertWeight);
         dst.addWithWeight(&vertex[eidx1], vertWeight);
-        
+
         if(eidx2 > -1){
             float faceWeight = E0_S[i*2+1];
-            
+
             dst.addWithWeight(&vertex[eidx2], faceWeight);
             dst.addWithWeight(&vertex[eidx3], faceWeight);
         }
@@ -228,27 +228,27 @@ computeEdge(float *fVertex, float *fVaryings, int *E0_IT, float *E0_S, int offse
 }
 
 __global__ void
-computeEdge(float *fVertex, int numVertexElements, float *fVarying, int numVaryingElements, 
+computeEdge(float *fVertex, int numVertexElements, float *fVarying, int numVaryingElements,
             int *E0_IT, float *E0_S, int offset, int start, int end)
 {
     for(int i = start + threadIdx.x + blockIdx.x*blockDim.x; i < end; i+= blockDim.x * gridDim.x){
         int eidx0 = E0_IT[4*i+0];
         int eidx1 = E0_IT[4*i+1];
-        int eidx2 = E0_IT[4*i+2]; 
+        int eidx2 = E0_IT[4*i+2];
         int eidx3 = E0_IT[4*i+3];
-        
+
         float vertWeight = E0_S[i*2+0];
 
         // Fully sharp edge : vertWeight = 0.5f;
         float *dstVertex = fVertex + (i+offset)*numVertexElements;
         clear(dstVertex, numVertexElements);
-        
+
         addWithWeight(dstVertex, fVertex + eidx0*numVertexElements, vertWeight, numVertexElements);
         addWithWeight(dstVertex, fVertex + eidx1*numVertexElements, vertWeight, numVertexElements);
-        
+
         if(eidx2 > -1){
             float faceWeight = E0_S[i*2+1];
-            
+
             addWithWeight(dstVertex, fVertex + eidx2*numVertexElements, faceWeight, numVertexElements);
             addWithWeight(dstVertex, fVertex + eidx3*numVertexElements, faceWeight, numVertexElements);
         }
@@ -273,22 +273,22 @@ computeVertexA(float *fVertex, float *fVaryings, int *V0_ITa, float *V0_S, int o
         int p     = V0_ITa[5*i+2];
         int eidx0 = V0_ITa[5*i+3];
         int eidx1 = V0_ITa[5*i+4];
-        
+
         float weight = (pass==1) ? V0_S[i] : 1.0f - V0_S[i];
-        
-        // In the case of fractional weight, the weight must be inverted since 
-        // the value is shared with the k_Smooth kernel (statistically the 
+
+        // In the case of fractional weight, the weight must be inverted since
+        // the value is shared with the k_Smooth kernel (statistically the
         // k_Smooth kernel runs much more often than this one)
         if (weight>0.0f && weight<1.0f && n > 0)
             weight=1.0f-weight;
-        
+
         DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
         if (not pass) {
             dst.clear();
         } else {
             dst = vertex[i+offset];
         }
-        
+
         if (eidx0==-1 || (pass==0 && (n==-1)) ) {
             dst.addWithWeight(&vertex[p], weight);
         } else {
@@ -318,11 +318,11 @@ computeVertexA(float *fVertex, int numVertexElements, float *fVaryings, int numV
         int p     = V0_ITa[5*i+2];
         int eidx0 = V0_ITa[5*i+3];
         int eidx1 = V0_ITa[5*i+4];
-        
+
         float weight = (pass==1) ? V0_S[i] : 1.0f - V0_S[i];
-        
-        // In the case of fractional weight, the weight must be inverted since 
-        // the value is shared with the k_Smooth kernel (statistically the 
+
+        // In the case of fractional weight, the weight must be inverted since
+        // the value is shared with the k_Smooth kernel (statistically the
         // k_Smooth kernel runs much more often than this one)
         if (weight>0.0f && weight<1.0f && n > 0)
             weight=1.0f-weight;
@@ -331,7 +331,7 @@ computeVertexA(float *fVertex, int numVertexElements, float *fVaryings, int numV
         if (not pass) {
             clear(dstVertex, numVertexElements);
         }
-        
+
         if (eidx0==-1 || (pass==0 && (n==-1)) ) {
             addWithWeight(dstVertex, fVertex + p*numVertexElements, weight, numVertexElements);
         } else {
@@ -348,7 +348,7 @@ computeVertexA(float *fVertex, int numVertexElements, float *fVaryings, int numV
             }
         }
     }
-    
+
 }
 
 
@@ -364,11 +364,11 @@ computeVertexB(float *fVertex, float *fVaryings,
         int h = V0_ITa[5*i];
         int n = V0_ITa[5*i+1];
         int p = V0_ITa[5*i+2];
-        
+
         float weight = V0_S[i];
         float wp = 1.0f/float(n*n);
         float wv = (n-2.0f) * n * wp;
-        
+
         DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
         dst.clear();
         dst.addWithWeight(&vertex[p], weight * wv);
@@ -381,7 +381,7 @@ computeVertexB(float *fVertex, float *fVaryings,
 //            dst.addWithWeight(&vertex[idx0], weight * wp);
 //            dst.addWithWeight(&vertex[idx1], weight * wp);
         }
-	vertex[i+offset] = dst;
+        vertex[i+offset] = dst;
 
         if(NUM_VARYING_ELEMENTS > 0){
             DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
@@ -400,11 +400,11 @@ computeVertexB(float *fVertex, int numVertexElements, float *fVaryings, int numV
         int h = V0_ITa[5*i];
         int n = V0_ITa[5*i+1];
         int p = V0_ITa[5*i+2];
-        
+
         float weight = V0_S[i];
         float wp = 1.0f/float(n*n);
         float wv = (n-2.0f) * n * wp;
-        
+
         float *dstVertex = fVertex + (i+offset)*numVertexElements;
         clear(dstVertex, numVertexElements);
         addWithWeight(dstVertex, fVertex + p*numVertexElements, weight*wv, numVertexElements);
@@ -421,7 +421,7 @@ computeVertexB(float *fVertex, int numVertexElements, float *fVaryings, int numV
         }
     }
 }
-               
+
 
 // --------------------------------------------------------------------------------------------
 
@@ -434,22 +434,22 @@ computeLoopVertexB(float *fVertex, float *fVaryings, int *V0_ITa, int *V0_IT, fl
         int h = V0_ITa[5*i];
         int n = V0_ITa[5*i+1];
         int p = V0_ITa[5*i+2];
-        
+
         float weight = V0_S[i];
         float wp = 1.0f/float(n);
         float beta = 0.25f * __cosf(float(M_PI) * 2.0f * wp) + 0.375f;
         beta = beta * beta;
         beta = (0.625f - beta) * wp;
-        
+
         DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
         dst.clear();
-        
+
         dst.addWithWeight(&vertex[p], weight * (1.0f - (beta * n)));
 
         for(int j = 0; j < n; ++j){
             dst.addWithWeight(&vertex[V0_IT[h+j]], weight * beta);
         }
-	vertex[i+offset] = dst;
+        vertex[i+offset] = dst;
 
         if(NUM_VARYING_ELEMENTS > 0){
             DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
@@ -468,13 +468,13 @@ computeLoopVertexB(float *fVertex, int numVertexElements, float *fVaryings, int 
         int h = V0_ITa[5*i];
         int n = V0_ITa[5*i+1];
         int p = V0_ITa[5*i+2];
-        
+
         float weight = V0_S[i];
         float wp = 1.0f/float(n);
         float beta = 0.25f * __cosf(float(M_PI) * 2.0f * wp) + 0.375f;
         beta = beta * beta;
         beta = (0.625f - beta) * wp;
-        
+
         float *dstVertex = fVertex + (i+offset)*numVertexElements;
         clear(dstVertex, numVertexElements);
         addWithWeight(dstVertex, fVertex + p*numVertexElements, weight*(1.0f-(beta*n)), numVertexElements);
@@ -490,7 +490,7 @@ computeLoopVertexB(float *fVertex, int numVertexElements, float *fVaryings, int 
         }
     }
 }
-               
+
 // --------------------------------------------------------------------------------------------
 
 template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
@@ -501,13 +501,13 @@ computeBilinearEdge(float *fVertex, float *fVaryings, int *E0_IT, int offset, in
     for(int i = start + threadIdx.x + blockIdx.x*blockDim.x; i < end; i+= blockDim.x * gridDim.x){
         int eidx0 = E0_IT[2*i+0];
         int eidx1 = E0_IT[2*i+1];
-        
+
         DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
         dst.clear();
-        
+
         dst.addWithWeight(&vertex[eidx0], 0.5f);
         dst.addWithWeight(&vertex[eidx1], 0.5f);
-        
+
         vertex[offset+i] = dst;
 
         if(NUM_VARYING_ELEMENTS > 0){
@@ -521,19 +521,19 @@ computeBilinearEdge(float *fVertex, float *fVaryings, int *E0_IT, int offset, in
 }
 
 __global__ void
-computeBilinearEdge(float *fVertex, int numVertexElements, float *fVarying, int numVaryingElements, 
+computeBilinearEdge(float *fVertex, int numVertexElements, float *fVarying, int numVaryingElements,
                     int *E0_IT, int offset, int start, int end)
 {
     for(int i = start + threadIdx.x + blockIdx.x*blockDim.x; i < end; i+= blockDim.x * gridDim.x){
         int eidx0 = E0_IT[2*i+0];
         int eidx1 = E0_IT[2*i+1];
-        
+
         float *dstVertex = fVertex + (i+offset)*numVertexElements;
         clear(dstVertex, numVertexElements);
-        
+
         addWithWeight(dstVertex, fVertex + eidx0*numVertexElements, 0.5f, numVertexElements);
         addWithWeight(dstVertex, fVertex + eidx1*numVertexElements, 0.5f, numVertexElements);
-        
+
         if(numVaryingElements > 0){
             float *dstVarying = fVarying + i*numVaryingElements;
             clear(dstVarying, numVaryingElements);
@@ -551,12 +551,12 @@ computeBilinearVertex(float *fVertex, float *fVaryings, int *V0_ITa, int offset,
     DeviceVarying<NUM_VARYING_ELEMENTS> *varyings = (DeviceVarying<NUM_VARYING_ELEMENTS>*)fVaryings;
     for(int i = start + threadIdx.x + blockIdx.x*blockDim.x; i < end; i += blockDim.x * gridDim.x){
         int p = V0_ITa[i];
-        
+
         DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
         dst.clear();
-        
+
         dst.addWithWeight(&vertex[p], 1.0f);
-	vertex[i+offset] = dst;
+        vertex[i+offset] = dst;
 
         if(NUM_VARYING_ELEMENTS > 0){
             DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
@@ -573,7 +573,7 @@ computeBilinearVertex(float *fVertex, int numVertexElements, float *fVaryings, i
 {
     for(int i = start + threadIdx.x + blockIdx.x*blockDim.x; i < end; i += blockDim.x * gridDim.x){
         int p = V0_ITa[i];
-        
+
         float *dstVertex = fVertex + (i+offset)*numVertexElements;
         clear(dstVertex, numVertexElements);
         addWithWeight(dstVertex, fVertex + p*numVertexElements, 1.0f, numVertexElements);
@@ -585,14 +585,27 @@ computeBilinearVertex(float *fVertex, int numVertexElements, float *fVaryings, i
         }
     }
 }
-               
 
+// --------------------------------------------------------------------------------------------
+
+__global__ void
+editVertexAdd(float *fVertex, int numVertexElements, int primVarOffset, int primVarWidth,
+              int numVertices, const int *editIndices, const float *editValues)
+{
+    for(int i = threadIdx.x + blockIdx.x*blockDim.x; i < numVertices; i += blockDim.x * gridDim.x) {
+        float *dstVertex = fVertex + editIndices[i] * numVertexElements + primVarOffset;
+
+        for(int j = 0; j < primVarWidth; j++) {
+            *dstVertex++ += editValues[j];
+        }
+    }
+}
 
 // --------------------------------------------------------------------------------------------
 
 #include "../version.h"
 
-// XXX: this macro usage is tentative. Since cuda kernel can't be dynamically configured, 
+// XXX: this macro usage is tentative. Since cuda kernel can't be dynamically configured,
 // still trying to find better way to have optimized kernel..
 
 #define OPT_KERNEL(NUM_USER_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS, KERNEL, X, Y, ARG) \
@@ -632,7 +645,7 @@ void OsdCudaComputeEdge(float *vertex, float *varying,
                              E_IT, E_W, offset, start, end);
 }
 
-void OsdCudaComputeVertexA(float *vertex, float *varying, 
+void OsdCudaComputeVertexA(float *vertex, float *varying,
                            int numUserVertexElements, int numVaryingElements,
                            int *V_ITa, float *V_W, int offset, int start, int end, int pass)
 {
@@ -688,7 +701,7 @@ void OsdCudaComputeBilinearEdge(float *vertex, float *varying,
                                      E_IT, offset, start, end);
 }
 
-void OsdCudaComputeBilinearVertex(float *vertex, float *varying, 
+void OsdCudaComputeBilinearVertex(float *vertex, float *varying,
                                   int numUserVertexElements, int numVaryingElements,
                                   int *V_ITa, int offset, int start, int end)
 {
@@ -700,6 +713,13 @@ void OsdCudaComputeBilinearVertex(float *vertex, float *varying,
 
     computeBilinearVertex<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
                                        V_ITa, offset, start, end);
+}
+
+void OsdCudaEditVertexAdd(float *vertex, int numUserVertexElements,
+                          int primVarOffset, int primVarWidth, int numVertices, int *editIndices, float *editValues)
+{
+    editVertexAdd<<<512, 32>>>(vertex, 3+numUserVertexElements, primVarOffset, primVarWidth,
+                               numVertices, editIndices, editValues);
 }
 
 }

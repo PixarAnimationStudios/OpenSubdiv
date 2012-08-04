@@ -69,34 +69,40 @@ class OsdCpuKernelDispatcher : public OsdKernelDispatcher
 {
 public:
     OsdCpuKernelDispatcher(int levels, int numOmpThreads=1);
-    
+
     virtual ~OsdCpuKernelDispatcher();
 
 
     virtual void ApplyBilinearFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
 
 
     virtual void ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyCatmarkVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyCatmarkVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
 
 
     virtual void ApplyLoopEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyLoopVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
 
+    virtual void ApplyVertexEdit(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const;
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr);
+
+    virtual void AllocateEditTables(int n);
+
+    virtual void UpdateEditTable(int tableIndex, const FarTable<unsigned int> &offsets, const FarTable<float> &values,
+                                 int operation, int primVarOffset, int primVarWidth);
 
     virtual void OnKernelLaunch();
 
@@ -113,15 +119,16 @@ public:
     static void Register();
 
 protected:
-    
-    struct SubdivisionTable {
-        SubdivisionTable() : ptr(NULL) { }
 
-       ~SubdivisionTable();
+    // XXX: until far refactoring finishes, use this.
+    struct Table {
+        Table() : ptr(NULL) { }
+
+       ~Table();
 
         void Copy(int size, const void *ptr);
-        
-	void *ptr;
+
+        void *ptr;
     };
 
     float *GetVertexBuffer() const { return _currentVertexBuffer ? _currentVertexBuffer->GetCpuBuffer() : NULL; }
@@ -134,7 +141,8 @@ protected:
     VertexDescriptor *_vdesc;
 
     int _numOmpThreads;
-    std::vector<SubdivisionTable> _tables;
+    std::vector<Table> _tables;
+    std::vector<Table> _editTables;
 };
 
 } // end namespace OPENSUBDIV_VERSION

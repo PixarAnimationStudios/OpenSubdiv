@@ -62,16 +62,19 @@
 # GLUT_FOUND
 # GLUT_INCLUDE_DIR
 # GLUT_LIBRARIES
-# 
+#
 
 if (WIN32)
     if(CYGWIN)
         find_path( GLUT_INCLUDE_DIR GL/glut.h
           ${GLUT_LOCATION}/include
+          $ENV{GLUT_LOCATION}/include
           /usr/include
         )
         find_library( GLUT_glut_LIBRARY glut32 freeglut
           ${GLUT_LOCATION}/lib
+          ${GLUT_LOCATION}/lib/x64
+          $ENV{GLUT_LOCATION}/lib
           ${OPENGL_LIBRARY_DIR}
           /usr/lib
           /usr/lib/w32api
@@ -81,6 +84,7 @@ if (WIN32)
     else()
         find_path( GLUT_INCLUDE_DIR GL/glut.h
             ${GLUT_LOCATION}/include
+            $ENV{GLUT_LOCATION}/include
             ${PROJECT_SOURCE_DIR}/extern/glut/include
             $ENV{PROGRAMFILES}/GLUT/include
             ${OPENGL_INCLUDE_DIR}
@@ -89,6 +93,8 @@ if (WIN32)
             NAMES glut32 glut32s glut freeglut
             PATHS
             ${GLUT_LOCATION}/lib
+            ${GLUT_LOCATION}/lib/x64
+            $ENV{GLUT_LOCATION}/lib
             ${PROJECT_SOURCE_DIR}/extern/glut/bin
             ${PROJECT_SOURCE_DIR}/extern/glut/lib
             $ENV{PROGRAMFILES}/GLUT/lib
@@ -103,11 +109,12 @@ else ()
             /System/Library/Frameworks/GLUT.framework/Versions/A/Headers
             ${OPENGL_LIBRARY_DIR}
         )
-        set(GLUT_glut_LIBRARY "-framework Glut" CACHE STRING "GLUT library for OSX") 
+        set(GLUT_glut_LIBRARY "-framework Glut" CACHE STRING "GLUT library for OSX")
         set(GLUT_cocoa_LIBRARY "-framework Cocoa" CACHE STRING "Cocoa framework for OSX")
     else ()
         find_path( GLUT_INCLUDE_DIR GL/glut.h
             ${GLUT_LOCATION}/include
+            $ENV{GLUT_LOCATION}/include
             /usr/include
             /usr/include/GL
             /usr/local/include
@@ -120,6 +127,7 @@ else ()
         )
         find_library( GLUT_glut_LIBRARY glut
             ${GLUT_LOCATION}/lib
+            $ENV{GLUT_LOCATION}/lib
             /usr/lib
             /usr/local/lib
             /usr/openwin/lib
@@ -127,6 +135,7 @@ else ()
         )
         find_library( GLUT_Xi_LIBRARY Xi
             ${GLUT_LOCATION}/lib
+            $ENV{GLUT_LOCATION}/lib
             /usr/lib
             /usr/local/lib
             /usr/openwin/lib
@@ -134,6 +143,7 @@ else ()
         )
         find_library( GLUT_Xmu_LIBRARY Xmu
             ${GLUT_LOCATION}/lib
+            $ENV{GLUT_LOCATION}/lib
             /usr/lib
             /usr/local/lib
             /usr/openwin/lib
@@ -151,7 +161,7 @@ if(GLUT_INCLUDE_DIR)
     set( GLUT_LIBRARIES
       ${GLUT_glut_LIBRARY}
       ${GLUT_Xmu_LIBRARY}
-      ${GLUT_Xi_LIBRARY} 
+      ${GLUT_Xi_LIBRARY}
       ${GLUT_cocoa_LIBRARY}
     )
     set( GLUT_FOUND "YES" )
@@ -175,4 +185,4 @@ mark_as_advanced(
   GLUT_Xmu_LIBRARY
   GLUT_Xi_LIBRARY
 )
-  
+

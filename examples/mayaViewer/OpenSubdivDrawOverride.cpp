@@ -160,7 +160,7 @@ class OpenSubdivDrawOverride : public MHWRender::MPxDrawOverride
 public:
     static MHWRender::MPxDrawOverride* Creator(const MObject& obj) {
             return new OpenSubdivDrawOverride(obj);
-	}
+        }
 
     virtual ~OpenSubdivDrawOverride();
 
@@ -202,7 +202,7 @@ SubdivUserData::~SubdivUserData()
     glDeleteBuffers(1, &_index);
 }
 
-void 
+void
 SubdivUserData::Populate(MObject mesh)
 {
     MStatus s;
@@ -254,7 +254,7 @@ SubdivUserData::Populate(MObject mesh)
     }
 
     // XXX redundant copy... replace _vertexList with numIndices, etc
-    
+
     // create Osd mesh
     std::vector<int> numIndices, faceIndices, edgeCreaseIndices, vtxCreaseIndices;
     std::vector<float> edgeCreases, vtxCreases;
@@ -307,7 +307,7 @@ SubdivUserData::Populate(MObject mesh)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _index);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*_numIndices,
                  &(indices[0]), GL_STATIC_DRAW);
-                                                          
+
     _cachedTotal = -1;
     UpdatePoints(mesh);
 }
@@ -546,8 +546,8 @@ OpenSubdivCommand::doIt(const MArgList &args)
 // Plugin Registration
 //---------------------------------------------------------------------------
 
-MString	drawDbClassification("drawdb/geometry/mesh");
-MString	drawRegistrantId("OpenSubdivDrawOverridePlugin");
+MString drawDbClassification("drawdb/geometry/mesh");
+MString drawRegistrantId("OpenSubdivDrawOverridePlugin");
 
 MStatus initializePlugin( MObject obj )
 {

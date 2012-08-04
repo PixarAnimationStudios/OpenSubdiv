@@ -71,7 +71,7 @@ template <class T>
 std::ostream& operator<<(std::ostream& out, const HbrFVarEdit<T>& path) {
     out << "vertex path = (" << path.faceid << ' ';
     for (int i = 0; i < path.nsubfaces; ++i) {
-	out << static_cast<int>(path.subfaces[i]) << ' ';
+        out << static_cast<int>(path.subfaces[i]) << ' ';
     }
     return out << static_cast<int>(path.vertexid) << "), edit = (" << path.edit[0] << ',' << path.edit[1] << ',' << path.edit[2] << ')';
 }
@@ -82,24 +82,24 @@ class HbrFVarEdit : public HbrHierarchicalEdit<T> {
 public:
 
     HbrFVarEdit(int _faceid, int _nsubfaces, unsigned char *_subfaces, unsigned char _vertexid, int _index, int _width, int _offset, typename HbrHierarchicalEdit<T>::Operation _op, float *_edit)
-	: HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), vertexid(_vertexid), index(_index), width(_width), offset(_offset), op(_op) {
-	edit = new float[width];
-	memcpy(edit, _edit, width * sizeof(float));
+        : HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), vertexid(_vertexid), index(_index), width(_width), offset(_offset), op(_op) {
+        edit = new float[width];
+        memcpy(edit, _edit, width * sizeof(float));
     }
-    
+
     HbrFVarEdit(int _faceid, int _nsubfaces, int *_subfaces, int _vertexid, int _index, int _width, int _offset, typename HbrHierarchicalEdit<T>::Operation _op, float *_edit)
-	: HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), vertexid(_vertexid), index(_index), width(_width), offset(_offset), op(_op) {
-	edit = new float[width];
-	memcpy(edit, _edit, width * sizeof(float));
+        : HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), vertexid(_vertexid), index(_index), width(_width), offset(_offset), op(_op) {
+        edit = new float[width];
+        memcpy(edit, _edit, width * sizeof(float));
     }
-    
+
     virtual ~HbrFVarEdit() {
-	delete[] edit;
+        delete[] edit;
     }
 
     // Return the vertex id (the last element in the path)
     unsigned char GetVertexID() const { return vertexid; }
-    
+
     friend std::ostream& operator<< <T> (std::ostream& out, const HbrFVarEdit<T>& path);
 
     // Return index into the facevarying data
@@ -110,15 +110,15 @@ public:
 
     // Return offset of the data
     int GetOffset() const { return offset; }
-    
+
     // Get the numerical value of the edit
     const float* GetEdit() const { return edit; }
 
     // Get the type of operation
     typename HbrHierarchicalEdit<T>::Operation GetOperation() const { return op; }
-    
+
     virtual void ApplyEditToFace(HbrFace<T>* face) {
-	if (HbrHierarchicalEdit<T>::GetNSubfaces() == face->GetDepth()) {
+        if (HbrHierarchicalEdit<T>::GetNSubfaces() == face->GetDepth()) {
             // The edit will modify the data and almost certainly
             // create a discontinuity, so allocate storage for a new
             // copy of the existing data specific to the face (or use
@@ -132,7 +132,7 @@ public:
             } else {
                 fvt.ApplyFVarEdit(*const_cast<const HbrFVarEdit<T>*>(this));
             }
-	}
+        }
     }
 
 private:

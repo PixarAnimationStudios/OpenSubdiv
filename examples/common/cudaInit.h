@@ -68,7 +68,7 @@ inline int _ConvertSMVer2Cores_local(int major, int minor)
         int Cores;
     } sSMtoCores;
 
-    sSMtoCores nGpuArchCoresPerSM[] = 
+    sSMtoCores nGpuArchCoresPerSM[] =
     { { 0x10,  8 }, // Tesla Generation (SM 1.0) G80 class
       { 0x11,  8 }, // Tesla Generation (SM 1.1) G8x class
       { 0x12,  8 }, // Tesla Generation (SM 1.2) G9x class
@@ -123,7 +123,7 @@ inline int cutGetMaxGflopsDeviceId()
             // If we find GPU with SM major > 2, search only these
             if ( best_SM_arch > 2 ) {
                 // If our device==dest_SM_arch, choose this, or else pass
-                if (deviceProp.major == best_SM_arch) { 
+                if (deviceProp.major == best_SM_arch) {
                     max_compute_perf  = compute_perf;
                     max_perf_device   = current_device;
                 }

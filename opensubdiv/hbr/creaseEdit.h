@@ -68,7 +68,7 @@ template <class T>
 std::ostream& operator<<(std::ostream& out, const HbrCreaseEdit<T>& path) {
     out << "edge path = (" << path.faceid << ' ';
     for (int i = 0; i < path.nsubfaces; ++i) {
-	out << static_cast<int>(path.subfaces[i]) << ' ';
+        out << static_cast<int>(path.subfaces[i]) << ' ';
     }
     return out << static_cast<int>(path.edgeid) << "), sharpness = " << path.sharpness;
 }
@@ -79,41 +79,41 @@ class HbrCreaseEdit : public HbrHierarchicalEdit<T> {
 public:
 
     HbrCreaseEdit(int _faceid, int _nsubfaces, unsigned char *_subfaces, unsigned char _edgeid, typename HbrHierarchicalEdit<T>::Operation _op, float _sharpness)
-	: HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), edgeid(_edgeid), op(_op), sharpness(_sharpness) {
-    }	
+        : HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), edgeid(_edgeid), op(_op), sharpness(_sharpness) {
+    }
 
     HbrCreaseEdit(int _faceid, int _nsubfaces, int *_subfaces, int _edgeid, typename HbrHierarchicalEdit<T>::Operation _op, float _sharpness)
-	: HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), edgeid(_edgeid), op(_op), sharpness(_sharpness) {
+        : HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), edgeid(_edgeid), op(_op), sharpness(_sharpness) {
     }
-    
+
     virtual ~HbrCreaseEdit() {}
 
     friend std::ostream& operator<< <T> (std::ostream& out, const HbrCreaseEdit<T>& path);
 
     virtual void ApplyEditToFace(HbrFace<T>* face) {
-	if (HbrHierarchicalEdit<T>::GetNSubfaces() == face->GetDepth()) {	
-	    // Modify edge sharpness
-	    float sharp;
-	    if (op == HbrHierarchicalEdit<T>::Set) {
-		sharp = sharpness;
-	    } else if (op == HbrHierarchicalEdit<T>::Add) {
-		sharp = face->GetEdge(edgeid)->GetSharpness() + sharpness;
-	    } else if (op == HbrHierarchicalEdit<T>::Subtract) {
-		sharp = face->GetEdge(edgeid)->GetSharpness() - sharpness;
-	    }
-	    if (sharp < HbrHalfedge<T>::k_Smooth)
-		sharp = HbrHalfedge<T>::k_Smooth;
-	    if (sharp > HbrHalfedge<T>::k_InfinitelySharp)
-		sharp = HbrHalfedge<T>::k_InfinitelySharp;
+        if (HbrHierarchicalEdit<T>::GetNSubfaces() == face->GetDepth()) {
+            // Modify edge sharpness
+            float sharp;
+            if (op == HbrHierarchicalEdit<T>::Set) {
+                sharp = sharpness;
+            } else if (op == HbrHierarchicalEdit<T>::Add) {
+                sharp = face->GetEdge(edgeid)->GetSharpness() + sharpness;
+            } else if (op == HbrHierarchicalEdit<T>::Subtract) {
+                sharp = face->GetEdge(edgeid)->GetSharpness() - sharpness;
+            }
+            if (sharp < HbrHalfedge<T>::k_Smooth)
+                sharp = HbrHalfedge<T>::k_Smooth;
+            if (sharp > HbrHalfedge<T>::k_InfinitelySharp)
+                sharp = HbrHalfedge<T>::k_InfinitelySharp;
             // We have to make sure the neighbor of the edge exists at
             // this point. Otherwise, if it comes into being late, it
             // will clobber the overriden sharpness and we will lose
             // the edit.
             face->GetEdge(edgeid)->GuaranteeNeighbor();
             face->GetEdge(edgeid)->SetSharpness(sharp);
-	}
+        }
     }
-    
+
 private:
     // ID of the edge (you can think of this also as the id of the
     // origin vertex of the two-vertex length edge)

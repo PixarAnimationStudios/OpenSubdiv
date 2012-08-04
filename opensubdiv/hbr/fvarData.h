@@ -76,7 +76,7 @@ template <class T> class HbrFVarData {
 public:
 
     HbrFVarData(float *dataptr)
-	: initialized(false), face(0), data(dataptr) {
+        : initialized(false), face(0), data(dataptr) {
     }
 
     ~HbrFVarData() {
@@ -92,7 +92,7 @@ public:
     const HbrFace<T> * GetFace() const {
         return face;
     }
-    
+
     // Clears the initialized flag
     void Uninitialize() {
         initialized = false;
@@ -108,7 +108,7 @@ public:
     void SetInitialized() {
         initialized = true;
     }
-    
+
     // Return the data from the NgpFVVector
     float* GetData(int item) const { return &data[item]; }
 
@@ -116,8 +116,8 @@ public:
     void Clear(int startindex, int width) {
         memset(data + startindex, 0, width * sizeof(float));
     }
-    
-    // Clears all values of this item    
+
+    // Clears all values of this item
     void ClearAll(int width) {
         initialized = true;
         memset(data, 0, width * sizeof(float));
@@ -127,27 +127,27 @@ public:
     // on this item
     void SetWithWeight(const HbrFVarData& fvvi, int startindex, int width, float weight) {
         float *dst = data + startindex, *src = fvvi.data + startindex;
-	for (int i = 0; i < width; ++i) {
-	    *dst++ = weight * *src++;
-	}
+        for (int i = 0; i < width; ++i) {
+            *dst++ = weight * *src++;
+        }
     }
-    
+
     // Add values of the indicated item (with the indicated weighing)
     // to this item
     void AddWithWeight(const HbrFVarData& fvvi, int startindex, int width, float weight) {
         float *dst = data + startindex, *src = fvvi.data + startindex;
-	for (int i = 0; i < width; ++i) {
-	    *dst++ += weight * *src++;
-	}
+        for (int i = 0; i < width; ++i) {
+            *dst++ += weight * *src++;
+        }
     }
 
     // Add all values of the indicated item (with the indicated
     // weighing) to this item
     void AddWithWeightAll(const HbrFVarData& fvvi, int width, float weight) {
-	float *dst = data, *src = fvvi.data;
-	for (int i = 0; i < width; ++i) {
-	    *dst++ += weight * *src++;
-	}
+        float *dst = data, *src = fvvi.data;
+        for (int i = 0; i < width; ++i) {
+            *dst++ += weight * *src++;
+        }
     }
 
     // Compare all values item against a float buffer. Returns true
@@ -165,7 +165,7 @@ public:
         initialized = true;
         memcpy(data, values, width * sizeof(float));
     }
-    
+
     // Compare this item against another item with tolerance.  Returns
     // true if it compares identical
     bool Compare(const HbrFVarData& fvvi, int startindex, int width, float tolerance=0.0f) const {
@@ -177,7 +177,7 @@ public:
 
     // Modify the data of the item with an edit
     void ApplyFVarEdit(const HbrFVarEdit<T>& edit);
-    
+
 private:
     bool initialized;
     const HbrFace<T> *face;
@@ -197,20 +197,20 @@ namespace OPENSUBDIV_VERSION {
 template <class T>
 void
 HbrFVarData<T>::ApplyFVarEdit(const HbrFVarEdit<T>& edit) {
-	float *dst = data + edit.GetIndex() + edit.GetOffset();
-	const float *src = edit.GetEdit();
-	for (int i = 0; i < edit.GetWidth(); ++i) {
-	    switch(edit.GetOperation()) {
-		case HbrVertexEdit<T>::Set:
-		    *dst++ = *src++;
-		    break;
-		case HbrVertexEdit<T>::Add:
-		    *dst++ += *src++;
-		    break;
-		case HbrVertexEdit<T>::Subtract:
-		    *dst++ -= *src++;
-	    }
-	}
+        float *dst = data + edit.GetIndex() + edit.GetOffset();
+        const float *src = edit.GetEdit();
+        for (int i = 0; i < edit.GetWidth(); ++i) {
+            switch(edit.GetOperation()) {
+                case HbrVertexEdit<T>::Set:
+                    *dst++ = *src++;
+                    break;
+                case HbrVertexEdit<T>::Add:
+                    *dst++ += *src++;
+                    break;
+                case HbrVertexEdit<T>::Subtract:
+                    *dst++ -= *src++;
+            }
+        }
         initialized = true;
     }
 

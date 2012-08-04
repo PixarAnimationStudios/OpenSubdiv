@@ -82,14 +82,14 @@ template <class T, class U=T> class FarLoopSubdivisionTables : public FarSubdivi
 public:
 
     // Compute the positions of refined vertices using the specified kernels
-    virtual void Refine( int level, void * data=0 ) const;   
-    
-    
-private: 
+    virtual void Apply( int level, void * data=0 ) const;
+
+
+private:
 
     friend class FarMeshFactory<T,U>;
     friend class FarDispatcher<T,U>;
-   
+
     // Constructor : build level table at depth 'level'
     FarLoopSubdivisionTables( FarMeshFactory<T,U> const & factory, FarMesh<T,U> * mesh, int level );
 
@@ -100,7 +100,7 @@ private:
     // Compute-kernel applied to vertices resulting from the refinement of a vertex
     // Kernel "A" Handles the k_Smooth and k_Dart rules
     void computeVertexPointsA(int offset, bool pass, int level, int start, int end, void * clientdata) const;
-    
+
     // Compute-kernel applied to vertices resulting from the refinement of a vertex
     // Kernel "B" Handles the k_Crease and k_Corner rules
     void computeVertexPointsB(int offset,int level, int start, int end, void * clientdata) const;
@@ -114,7 +114,7 @@ private:
 // codices detail :
 //
 // _E_ITa[0] : index of the org / dest vertices of the parent edge
-// _E_ITa[1] : 
+// _E_ITa[1] :
 // _E_ITa[2] : index of vertices refined from the faces left / right
 // _E_ITa[3] : of the parent edge
 //
@@ -125,8 +125,8 @@ private:
 // _V_ITa[3] : index of adjacent edge 1 (k_Crease rule)
 //
 template <class T, class U>
-FarLoopSubdivisionTables<T,U>::FarLoopSubdivisionTables( FarMeshFactory<T,U> const & factory, FarMesh<T,U> * mesh, int maxlevel ) 
-    : FarSubdivisionTables<T,U>(mesh, maxlevel) 
+FarLoopSubdivisionTables<T,U>::FarLoopSubdivisionTables( FarMeshFactory<T,U> const & factory, FarMesh<T,U> * mesh, int maxlevel )
+    : FarSubdivisionTables<T,U>(mesh, maxlevel)
 {
     std::vector<int> const & remap = factory._remapTable;
 
@@ -141,13 +141,13 @@ FarLoopSubdivisionTables<T,U>::FarLoopSubdivisionTables( FarMeshFactory<T,U> con
     for (int level=1; level<=maxlevel; ++level) {
 
         // pointer to the first vertex corresponding to this level
-        this->_vertsOffsets[level] = factory._vertVertIdx[level-1] + 
-                                     factory._vertVertsList[level-1].size();
+        this->_vertsOffsets[level] = factory._vertVertIdx[level-1] +
+                                     (int)factory._vertVertsList[level-1].size();
 
         typename FarSubdivisionTables<T,U>::VertexKernelBatch * batch = & (this->_batches[level-1]);
 
-        // Edge vertices 
-        unsigned int * E_IT = this->_E_IT[level-1];
+        // Edge vertices
+        int * E_IT = this->_E_IT[level-1];
         float * E_W = this->_E_W[level-1];
         batch->kernelE = (int)factory._edgeVertsList[level].size();
         for (int i=0; i < batch->kernelE; ++i) {
@@ -182,9 +182,9 @@ FarLoopSubdivisionTables<T,U>::FarLoopSubdivisionTables( FarMeshFactory<T,U> con
         this->_E_IT.SetMarker(level, &E_IT[4*batch->kernelE]);
         this->_E_W.SetMarker(level, &E_W[2*batch->kernelE]);
 
-        // Vertex vertices 
+        // Vertex vertices
 
-        batch->InitVertexKernels( factory._vertVertsList[level].size(), 0 );
+        batch->InitVertexKernels( (int)factory._vertVertsList[level].size(), 0 );
 
         int offset = 0;
         int * V_ITa = this->_V_ITa[level-1];
@@ -198,19 +198,19 @@ FarLoopSubdivisionTables<T,U>::FarLoopSubdivisionTables( FarMeshFactory<T,U> con
             assert(v and pv);
 
             // Look at HbrCatmarkSubdivision<T>::Subdivide for more details about
-            // the multi-pass interpolation 
+            // the multi-pass interpolation
             int masks[2], npasses;
             float weights[2];
             masks[0] = pv->GetMask(false);
             masks[1] = pv->GetMask(true);
 
             // If the masks are identical, only a single pass is necessary. If the
-            // vertex is transitionning to another rule, two passes are necessary,
-            // except when transitionning from k_Dart to k_Smooth : the same
+            // vertex is transitioning to another rule, two passes are necessary,
+            // except when transitioning from k_Dart to k_Smooth : the same
             // compute kernel is applied twice. Combining this special case allows
             // to batch the compute kernels into fewer calls.
             if (masks[0] != masks[1] and (
-                not (masks[0]==HbrVertex<T>::k_Smooth and 
+                not (masks[0]==HbrVertex<T>::k_Smooth and
                      masks[1]==HbrVertex<T>::k_Dart))) {
                 weights[1] = pv->GetFractionalMask();
                 weights[0] = 1.0f - weights[1];
@@ -241,7 +241,7 @@ FarLoopSubdivisionTables<T,U>::FarLoopSubdivisionTables( FarMeshFactory<T,U> con
                             V_IT[offset++] = remap[ e->GetDestVertex()->GetID() ];
 
                             e = e->GetPrev()->GetOpposite();
-                            
+
                             if (e==start) break;
                         }
                         break;
@@ -272,7 +272,7 @@ FarLoopSubdivisionTables<T,U>::FarLoopSubdivisionTables( FarMeshFactory<T,U> con
                         V_ITa[5*i+3] = remap[op.eidx[0]];
                         V_ITa[5*i+4] = remap[op.eidx[1]];
                         break;
-                    } 
+                    }
                     case HbrVertex<T>::k_Corner :
                         // in the case of a k_Crease / k_Corner pass combination, we
                         // need to set the valence to -1 to tell the "B" Kernel to
@@ -284,7 +284,7 @@ FarLoopSubdivisionTables<T,U>::FarLoopSubdivisionTables( FarMeshFactory<T,U> con
                 }
 
             if (rank>7)
-                // the k_Corner and k_Crease single-pass cases apply a weight of 1.0 
+                // the k_Corner and k_Crease single-pass cases apply a weight of 1.0
                 // but this value is inverted in the kernel
                 V_W[i] = 0.0;
             else
@@ -302,11 +302,11 @@ FarLoopSubdivisionTables<T,U>::FarLoopSubdivisionTables( FarMeshFactory<T,U> con
     }
 }
 
-template <class T, class U> void 
-FarLoopSubdivisionTables<T,U>::Refine( int level, void * clientdata ) const
+template <class T, class U> void
+FarLoopSubdivisionTables<T,U>::Apply( int level, void * clientdata ) const
 {
     assert(this->_mesh and level>0);
-    
+
     typename FarSubdivisionTables<T,U>::VertexKernelBatch const * batch = & (this->_batches[level-1]);
 
     FarDispatcher<T,U> const * dispatch = this->_mesh->GetDispatcher();
@@ -323,42 +323,42 @@ FarLoopSubdivisionTables<T,U>::Refine( int level, void * clientdata ) const
         dispatch->ApplyLoopVertexVerticesKernelA(this->_mesh, offset, false, level, batch->kernelA1.first, batch->kernelA1.second, clientdata);
     if (batch->kernelA2.first < batch->kernelA2.second)
         dispatch->ApplyLoopVertexVerticesKernelA(this->_mesh, offset, true, level, batch->kernelA2.first, batch->kernelA2.second, clientdata);
-}  
+}
 
 //
 // Edge-vertices compute Kernel - completely re-entrant
 //
 
-template <class T, class U> void 
+template <class T, class U> void
 FarLoopSubdivisionTables<T,U>::computeEdgePoints( int offset, int level, int start, int end, void * clientdata ) const {
 
     assert(this->_mesh);
-    
+
     U * vsrc = &this->_mesh->GetVertices().at(0),
       * vdst = vsrc + offset + start;
 
-    const unsigned int * E_IT = this->_E_IT[level-1];
+    const int * E_IT = this->_E_IT[level-1];
     const float * E_W = this->_E_W[level-1];
-      
+
     for (int i=start; i<end; ++i, ++vdst ) {
-    
+
         vdst->Clear(clientdata);
-    
+
         int eidx0 = E_IT[4*i+0],
             eidx1 = E_IT[4*i+1],
             eidx2 = E_IT[4*i+2],
             eidx3 = E_IT[4*i+3];
-            
+
         float endPtWeight = E_W[i*2+0];
 
-        // Fully sharp edge : endPtWeight = 0.5f        
+        // Fully sharp edge : endPtWeight = 0.5f
         vdst->AddWithWeight( vsrc[eidx0], endPtWeight, clientdata );
         vdst->AddWithWeight( vsrc[eidx1], endPtWeight, clientdata );
-        
+
         if (eidx2!=-1) {
             // Apply fractional sharpness
             float oppPtWeight = E_W[i*2+1];
-            
+
             vdst->AddWithWeight( vsrc[eidx2], oppPtWeight, clientdata );
             vdst->AddWithWeight( vsrc[eidx3], oppPtWeight, clientdata );
         }
@@ -373,11 +373,11 @@ FarLoopSubdivisionTables<T,U>::computeEdgePoints( int offset, int level, int sta
 //
 
 // multi-pass kernel handling k_Crease and k_Corner rules
-template <class T, class U> void 
+template <class T, class U> void
 FarLoopSubdivisionTables<T,U>::computeVertexPointsA( int offset, bool pass, int level, int start, int end, void * clientdata ) const {
 
     assert(this->_mesh);
-    
+
     U * vsrc = &this->_mesh->GetVertices().at(0),
       * vdst = vsrc + offset + start;
 
@@ -385,19 +385,19 @@ FarLoopSubdivisionTables<T,U>::computeVertexPointsA( int offset, bool pass, int 
     const float * V_W = this->_V_W[level-1];
 
     for (int i=start; i<end; ++i, ++vdst ) {
-    
+
         if (not pass)
             vdst->Clear(clientdata);
 
         int     n=V_ITa[5*i+1], // number of vertices in the _VO_IT array (valence)
-                p=V_ITa[5*i+2], // index of the parent vertex 
+                p=V_ITa[5*i+2], // index of the parent vertex
             eidx0=V_ITa[5*i+3], // index of the first crease rule edge
             eidx1=V_ITa[5*i+4]; // index of the second crease rule edge
 
         float weight = pass ? V_W[i] : 1.0f - V_W[i];
 
-        // In the case of fractional weight, the weight must be inverted since 
-        // the value is shared with the k_Smooth kernel (statistically the 
+        // In the case of fractional weight, the weight must be inverted since
+        // the value is shared with the k_Smooth kernel (statistically the
         // k_Smooth kernel runs much more often than this one)
         if (weight>0.0f and weight<1.0f and n>0)
             weight=1.0f-weight;
@@ -418,11 +418,11 @@ FarLoopSubdivisionTables<T,U>::computeVertexPointsA( int offset, bool pass, int 
 }
 
 // multi-pass kernel handling k_Dart and k_Smooth rules
-template <class T, class U> void 
+template <class T, class U> void
 FarLoopSubdivisionTables<T,U>::computeVertexPointsB( int offset, int level, int start, int end, void * clientdata ) const {
 
     assert(this->_mesh);
-    
+
     U * vsrc = &this->_mesh->GetVertices().at(0),
       * vdst = vsrc + offset + start;
 
@@ -431,13 +431,13 @@ FarLoopSubdivisionTables<T,U>::computeVertexPointsB( int offset, int level, int 
     const float * V_W = this->_V_W[level-1];
 
     for (int i=start; i<end; ++i, ++vdst ) {
-         
+
         vdst->Clear(clientdata);
-         
+
         int h = V_ITa[5*i  ], // offset of the vertices in the _V0_IT array
             n = V_ITa[5*i+1], // number of vertices in the _VO_IT array (valence)
-            p = V_ITa[5*i+2]; // index of the parent vertex 
-            
+            p = V_ITa[5*i+2]; // index of the parent vertex
+
         float weight = V_W[i],
                   wp = 1.0f/n,
                 beta = 0.25f * cosf((float)M_PI * 2.0f * wp) + 0.375f;
@@ -445,12 +445,12 @@ FarLoopSubdivisionTables<T,U>::computeVertexPointsB( int offset, int level, int 
         beta = (0.625f-beta)*wp;
 
         vdst->AddWithWeight( vsrc[p], weight * (1.0f-(beta*n)), clientdata);
-        
+
         for (int j=0; j<n; ++j)
             vdst->AddWithWeight( vsrc[V_IT[h+j]], weight * beta );
 
         vdst->AddVaryingWithWeight( vsrc[p], 1.0f, clientdata );
-    }    
+    }
 }
 
 } // end namespace OPENSUBDIV_VERSION

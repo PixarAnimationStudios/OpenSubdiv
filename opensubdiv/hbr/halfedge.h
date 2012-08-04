@@ -94,7 +94,7 @@ public:
     ~HbrHalfedge();
 
     void Clear();
-    
+
     // Finish the initialization of the halfedge. Should only be
     // called by HbrFace
     void Initialize(HbrHalfedge<T>* opposite, int index, HbrVertex<T>* origin, unsigned int *fvarbits, HbrFace<T>* face);
@@ -136,7 +136,7 @@ public:
             return this - incidentFace->extraedges;
         }
     }
-    
+
     // Returns the incident vertex
     HbrVertex<T>* GetVertex() const {
         return incidentVertex;
@@ -149,16 +149,16 @@ public:
 
     // Changes the origin vertex. Generally not a good idea to do
     void SetOrgVertex(HbrVertex<T>* v) { incidentVertex = v; }
-    
+
     // Returns the destination vertex
     HbrVertex<T>* GetDestVertex() const { return GetNext()->GetOrgVertex(); }
-    
+
     // Returns the incident facet
     HbrFace<T>* GetFace() const { return incidentFace; }
 
     // Returns the mesh to which this edge belongs
     HbrMesh<T>* GetMesh() const { return incidentFace->GetMesh(); }
-    
+
     // Returns the face on the right
     HbrFace<T>* GetRightFace() const { return opposite ? opposite->GetLeftFace() : NULL; }
 
@@ -173,7 +173,7 @@ public:
         int intindex = datum >> 4;
         unsigned int bits = infsharp << ((datum & 15) * 2);
         getFVarInfSharp()[intindex] |= bits;
-	if (opposite) {
+        if (opposite) {
             opposite->getFVarInfSharp()[intindex] |= bits;
         }
     }
@@ -187,7 +187,7 @@ public:
             memcpy(fvarinfsharp, edge->getFVarInfSharp(), fvarbitsSizePerEdge * sizeof(unsigned int));
         }
     }
-    
+
     // Returns whether the edge is infinitely sharp in facevarying for
     // a particular facevarying datum
     bool GetFVarInfiniteSharp(int datum);
@@ -198,7 +198,7 @@ public:
 
     // Get the sharpness relative to facevarying data
     float GetFVarSharpness(int datum, bool ignoreGeometry=false);
-    
+
     // Returns the (raw) sharpness of the edge
     float GetSharpness() const { return sharpness; }
 
@@ -209,7 +209,7 @@ public:
     // subdivision (next = false) or at the next level of subdivision
     // (next = true).
     bool IsSharp(bool next) const { return (next ? (sharpness > 0.0f) : (sharpness >= 1.0f)); }
-    
+
     // Clears the masks of the adjacent edge vertices. Usually called
     // when a change in edge sharpness occurs.
     void ClearMask() { GetOrgVertex()->ClearMask(); GetDestVertex()->ClearMask(); }
@@ -219,38 +219,38 @@ public:
 
     // Make sure the edge has its opposite face
     void GuaranteeNeighbor();
-    
+
     // Remove the reference to subdivided vertex
     void RemoveChild() { vchild = 0; }
 
     // Sharpness constants
     enum Mask {
-	k_Smooth = 0,
-	k_Sharp = 1,
-	k_InfinitelySharp = 10
+        k_Smooth = 0,
+        k_Sharp = 1,
+        k_InfinitelySharp = 10
     };
 
 #ifdef HBRSTITCH
     StitchEdge* GetStitchEdge(int i) {
         StitchEdge **stitchEdge = getStitchEdges();
-	// If the stitch edge exists, the ownership is transferred to
-	// the caller. Make sure the opposite edge loses ownership as
-	// well.
-	if (stitchEdge[i]) {
-	    if (opposite) {
-		opposite->getStitchEdges()[i] = 0;
-	    }
-	    return StitchGetEdge(&stitchEdge[i]);
-	}
-	// If the stitch edge does not exist then we create one now.
-	// Make sure the opposite edge gets a copy of it too
-	else {
-	    StitchGetEdge(&stitchEdge[i]);
-	    if (opposite) {
-		opposite->getStitchEdges()[i] = stitchEdge[i];
-	    }
-	    return stitchEdge[i];
-	}
+        // If the stitch edge exists, the ownership is transferred to
+        // the caller. Make sure the opposite edge loses ownership as
+        // well.
+        if (stitchEdge[i]) {
+            if (opposite) {
+                opposite->getStitchEdges()[i] = 0;
+            }
+            return StitchGetEdge(&stitchEdge[i]);
+        }
+        // If the stitch edge does not exist then we create one now.
+        // Make sure the opposite edge gets a copy of it too
+        else {
+            StitchGetEdge(&stitchEdge[i]);
+            if (opposite) {
+                opposite->getStitchEdges()[i] = stitchEdge[i];
+            }
+            return stitchEdge[i];
+        }
     }
 
     // If stitch edge exists, and this edge has no opposite, destroy
@@ -266,70 +266,70 @@ public:
             }
         }
     }
-    
+
     StitchEdge* GetRayStitchEdge(int i) {
-	return GetStitchEdge(i + 2);
+        return GetStitchEdge(i + 2);
     }
 
     // Splits our split edge between our children. We'd better have
     // subdivided this edge by this point
     void SplitStitchEdge(int i) {
-	StitchEdge* se = GetStitchEdge(i);
-	HbrHalfedge<T>* ea = GetOrgVertex()->Subdivide()->GetEdge(Subdivide());
-	HbrHalfedge<T>* eb = Subdivide()->GetEdge(GetDestVertex()->Subdivide());
+        StitchEdge* se = GetStitchEdge(i);
+        HbrHalfedge<T>* ea = GetOrgVertex()->Subdivide()->GetEdge(Subdivide());
+        HbrHalfedge<T>* eb = Subdivide()->GetEdge(GetDestVertex()->Subdivide());
         StitchEdge **ease = ea->getStitchEdges();
         StitchEdge **ebse = eb->getStitchEdges();
-	if (i >= 2) { // ray tracing stitches
-	    if (!raystitchccw) {
-		StitchSplitEdge(se, &ease[i], &ebse[i], false, 0, 0, 0);
-	    } else {
-		StitchSplitEdge(se, &ebse[i], &ease[i], true, 0, 0, 0);
-	    }
-	    ea->raystitchccw = eb->raystitchccw = raystitchccw;
-	    if (eb->opposite) {
-		eb->opposite->getStitchEdges()[i] = ebse[i];
-		eb->opposite->raystitchccw = raystitchccw;
-	    }
-	    if (ea->opposite) {
-		ea->opposite->getStitchEdges()[i] = ease[i];
-		ea->opposite->raystitchccw = raystitchccw;
-	    }
-	} else {
-	    if (!stitchccw) {
-		StitchSplitEdge(se, &ease[i], &ebse[i], false, 0, 0, 0);
-	    } else {
-		StitchSplitEdge(se, &ebse[i], &ease[i], true, 0, 0, 0);
-	    }
-	    ea->stitchccw = eb->stitchccw = stitchccw;
-	    if (eb->opposite) {
-		eb->opposite->getStitchEdges()[i] = ebse[i];
-		eb->opposite->stitchccw = stitchccw;
-	    }
-	    if (ea->opposite) {
-		ea->opposite->getStitchEdges()[i] = ease[i];
-		ea->opposite->stitchccw = stitchccw;
-	    }
-	}
+        if (i >= 2) { // ray tracing stitches
+            if (!raystitchccw) {
+                StitchSplitEdge(se, &ease[i], &ebse[i], false, 0, 0, 0);
+            } else {
+                StitchSplitEdge(se, &ebse[i], &ease[i], true, 0, 0, 0);
+            }
+            ea->raystitchccw = eb->raystitchccw = raystitchccw;
+            if (eb->opposite) {
+                eb->opposite->getStitchEdges()[i] = ebse[i];
+                eb->opposite->raystitchccw = raystitchccw;
+            }
+            if (ea->opposite) {
+                ea->opposite->getStitchEdges()[i] = ease[i];
+                ea->opposite->raystitchccw = raystitchccw;
+            }
+        } else {
+            if (!stitchccw) {
+                StitchSplitEdge(se, &ease[i], &ebse[i], false, 0, 0, 0);
+            } else {
+                StitchSplitEdge(se, &ebse[i], &ease[i], true, 0, 0, 0);
+            }
+            ea->stitchccw = eb->stitchccw = stitchccw;
+            if (eb->opposite) {
+                eb->opposite->getStitchEdges()[i] = ebse[i];
+                eb->opposite->stitchccw = stitchccw;
+            }
+            if (ea->opposite) {
+                ea->opposite->getStitchEdges()[i] = ease[i];
+                ea->opposite->stitchccw = stitchccw;
+            }
+        }
     }
 
     void SplitRayStitchEdge(int i) {
-	SplitStitchEdge(i + 2);
+        SplitStitchEdge(i + 2);
     }
-    
+
     void SetStitchEdge(int i, StitchEdge* edge) {
         StitchEdge **stitchEdges = getStitchEdges();
-	stitchEdges[i] = edge;
-	if (opposite) {
-	    opposite->getStitchEdges()[i] = edge;
-	}
+        stitchEdges[i] = edge;
+        if (opposite) {
+            opposite->getStitchEdges()[i] = edge;
+        }
     }
 
     void SetRayStitchEdge(int i, StitchEdge* edge) {
         StitchEdge **stitchEdges = getStitchEdges();
-	stitchEdges[i+2] = edge;
-	if (opposite) {
-	    opposite->getStitchEdges()[i+2] = edge;
-	}
+        stitchEdges[i+2] = edge;
+        if (opposite) {
+            opposite->getStitchEdges()[i+2] = edge;
+        }
     }
 
     void* GetStitchData() const {
@@ -340,32 +340,32 @@ public:
     void SetStitchData(void* data) {
         *(incidentFace->stitchDatas + GetIndex()) = data;
         stitchdatavalid = data ? 1 : 0;
-	if (opposite) {
-	    *(opposite->incidentFace->stitchDatas + opposite->GetIndex()) = data;
+        if (opposite) {
+            *(opposite->incidentFace->stitchDatas + opposite->GetIndex()) = data;
             opposite->stitchdatavalid = stitchdatavalid;
-	}
+        }
     }
-    
+
     bool GetStitchCCW(bool raytraced) const { return raytraced ? raystitchccw : stitchccw; }
-    
+
     void ClearStitchCCW(bool raytraced) {
-	if (raytraced) {
-	    raystitchccw = 0;
-	    if (opposite) opposite->raystitchccw = 0;
-	} else {
-	    stitchccw = 0;
-	    if (opposite) opposite->stitchccw = 0;
-	}
+        if (raytraced) {
+            raystitchccw = 0;
+            if (opposite) opposite->raystitchccw = 0;
+        } else {
+            stitchccw = 0;
+            if (opposite) opposite->stitchccw = 0;
+        }
     }
 
     void ToggleStitchCCW(bool raytraced) {
-	if (raytraced) {
-	    raystitchccw = 1 - raystitchccw;
-	    if (opposite) opposite->raystitchccw = raystitchccw;
-	} else {
-	    stitchccw = 1 - stitchccw;
-	    if (opposite) opposite->stitchccw = stitchccw;
-	}
+        if (raytraced) {
+            raystitchccw = 1 - raystitchccw;
+            if (opposite) opposite->raystitchccw = raystitchccw;
+        } else {
+            stitchccw = 1 - stitchccw;
+            if (opposite) opposite->stitchccw = stitchccw;
+        }
     }
 
 #endif
@@ -395,7 +395,7 @@ private:
     unsigned char coarse:1;
     unsigned char lastedge:1;
     unsigned char firstedge:1;
-    
+
     // Returns bitmask indicating whether a given facevarying datum
     // for the edge is infinitely sharp. Each datum has two bits, and
     // if those two bits are set to 3, it means the status has not
@@ -426,14 +426,14 @@ HbrHalfedge<T>::Initialize(HbrHalfedge<T>* opposite, int index, HbrVertex<T>* or
     lastedge = (index == face->GetNumVertices() - 1);
     firstedge = (index == 0);
     if (opposite) {
-	sharpness = opposite->sharpness;
+        sharpness = opposite->sharpness;
 #ifdef HBRSTITCH
         StitchEdge **stitchEdges = getStitchEdges();
-	for (int i = 0; i < face->GetMesh()->GetStitchCount(); ++i) {
-	    stitchEdges[i] = opposite->getStitchEdges()[i];
-	}
-	stitchccw = opposite->stitchccw;
-	raystitchccw = opposite->raystitchccw;
+        for (int i = 0; i < face->GetMesh()->GetStitchCount(); ++i) {
+            stitchEdges[i] = opposite->getStitchEdges()[i];
+        }
+        stitchccw = opposite->stitchccw;
+        raystitchccw = opposite->raystitchccw;
         stitchdatavalid = 0;
         if (stitchEdges && opposite->GetStitchData()) {
             *(incidentFace->stitchDatas + index) = opposite->GetStitchData();
@@ -449,9 +449,9 @@ HbrHalfedge<T>::Initialize(HbrHalfedge<T>* opposite, int index, HbrVertex<T>* or
         sharpness = 0.0f;
 #ifdef HBRSTITCH
         StitchEdge **stitchEdges = getStitchEdges();
-	for (int i = 0; i < face->GetMesh()->GetStitchCount(); ++i) {
-	    stitchEdges[i] = 0;
-	}
+        for (int i = 0; i < face->GetMesh()->GetStitchCount(); ++i) {
+            stitchEdges[i] = 0;
+        }
         stitchccw = 1;
         raystitchccw = 1;
         stitchdatavalid = 0;
@@ -461,7 +461,7 @@ HbrHalfedge<T>::Initialize(HbrHalfedge<T>* opposite, int index, HbrVertex<T>* or
             int fvarbitsSizePerEdge = ((fvarcount + 15) / 16);
             memset(fvarbits, 0xff, fvarbitsSizePerEdge * sizeof(unsigned int));
         }
-    }    
+    }
 }
 
 template <class T>
@@ -473,21 +473,21 @@ template <class T>
 void
 HbrHalfedge<T>::Clear() {
     if (opposite) {
-	opposite->opposite = 0;
-	if (vchild) {
-	    // Transfer ownership of the vchild to the opposite ptr
-	    opposite->vchild = vchild;
+        opposite->opposite = 0;
+        if (vchild) {
+            // Transfer ownership of the vchild to the opposite ptr
+            opposite->vchild = vchild;
             // Done this way just for assertion sanity
             vchild->SetParent(static_cast<HbrHalfedge*>(0));
             vchild->SetParent(opposite);
             vchild = 0;
-	}
-	opposite = 0;
+        }
+        opposite = 0;
     }
     // Orphan the child vertex
     else if (vchild) {
         vchild->SetParent(static_cast<HbrHalfedge*>(0));
-	vchild = 0;
+        vchild = 0;
     }
 }
 
@@ -528,14 +528,14 @@ HbrHalfedge<T>::GetFVarInfiniteSharp(int datum) {
         assert (bits != 2);
         return bits ? true : false;
     }
-    
+
     // If there is no face varying data it can't be infinitely sharp!
     const int fvarwidth = GetMesh()->GetTotalFVarWidth();
     if (!fvarwidth) {
         bits = ~(0x3 << shift);
-	fvarinfsharp[intindex] &= bits;
-	if (opposite) opposite->getFVarInfSharp()[intindex] &= bits;
-	return false;
+        fvarinfsharp[intindex] &= bits;
+        if (opposite) opposite->getFVarInfSharp()[intindex] &= bits;
+        return false;
     }
 
     // If either incident face is missing, it's a geometric boundary
@@ -543,9 +543,9 @@ HbrHalfedge<T>::GetFVarInfiniteSharp(int datum) {
     HbrFace<T>* left = GetLeftFace(), *right = GetRightFace();
     if (!left || !right) {
         bits = ~(0x2 << shift);
-	fvarinfsharp[intindex] &= bits;
-	if (opposite) opposite->getFVarInfSharp()[intindex] &= bits;
-	return true;
+        fvarinfsharp[intindex] &= bits;
+        if (opposite) opposite->getFVarInfSharp()[intindex] &= bits;
+        return true;
     }
 
     // Look for the indices on each face which correspond to the
@@ -555,17 +555,17 @@ HbrHalfedge<T>::GetFVarInfiniteSharp(int datum) {
     e = left->GetFirstEdge();
     nv = left->GetNumVertices();
     for (i = 0; i < nv; ++i) {
-	if (e->GetOrgVertex() == GetOrgVertex()) lorg = i;
-	if (e->GetOrgVertex() == GetDestVertex()) ldst = i;
-	e = e->GetNext();
+        if (e->GetOrgVertex() == GetOrgVertex()) lorg = i;
+        if (e->GetOrgVertex() == GetDestVertex()) ldst = i;
+        e = e->GetNext();
     }
     e = right->GetFirstEdge();
     nv = right->GetNumVertices();
     for (i = 0; i < nv; ++i) {
-	if (e->GetOrgVertex() == GetOrgVertex()) rorg = i;
-	if (e->GetOrgVertex() == GetDestVertex()) rdst = i;
-	e = e->GetNext();	
-    }    
+        if (e->GetOrgVertex() == GetOrgVertex()) rorg = i;
+        if (e->GetOrgVertex() == GetDestVertex()) rdst = i;
+        e = e->GetNext();
+    }
     assert(lorg >= 0 && ldst >= 0 && rorg >= 0 && rdst >= 0);
     // Compare the facevarying data to some tolerance
     const int startindex = GetMesh()->GetFVarIndices()[datum];
@@ -573,8 +573,8 @@ HbrHalfedge<T>::GetFVarInfiniteSharp(int datum) {
     if (!right->GetFVarData(rorg).Compare(left->GetFVarData(lorg), startindex, width, 0.001f) ||
         !right->GetFVarData(rdst).Compare(left->GetFVarData(ldst), startindex, width, 0.001f)) {
         bits = ~(0x2 << shift);
-	fvarinfsharp[intindex] &= bits;
-	if (opposite) opposite->getFVarInfSharp()[intindex] &= bits;
+        fvarinfsharp[intindex] &= bits;
+        if (opposite) opposite->getFVarInfSharp()[intindex] &= bits;
         return true;
     }
 
@@ -602,15 +602,15 @@ HbrHalfedge<T>::GetFVarSharpness(int datum, bool ignoreGeometry) {
     if (infsharp) return k_InfinitelySharp;
 
     if (!ignoreGeometry) {
-	// If it's a geometrically sharp edge it's going to be a
-	// facevarying sharp edge too
-	if (sharpness > k_Smooth) {
-	    return k_InfinitelySharp;
-	}
+        // If it's a geometrically sharp edge it's going to be a
+        // facevarying sharp edge too
+        if (sharpness > k_Smooth) {
+            return k_InfinitelySharp;
+        }
     }
     return k_Smooth;
 }
-    
+
 
 template <class T>
 std::ostream&
@@ -618,14 +618,14 @@ operator<<(std::ostream& out, const HbrHalfedge<T>& edge) {
     if (edge.IsBoundary()) out << "boundary ";
     out << "edge connecting ";
     if (edge.GetOrgVertex())
-	out << *edge.GetOrgVertex();
+        out << *edge.GetOrgVertex();
     else
-	out << "(none)";
+        out << "(none)";
     out << " to ";
     if (edge.GetDestVertex()) {
-	out << *edge.GetDestVertex();
+        out << *edge.GetDestVertex();
     } else {
-	out << "(none)";
+        out << "(none)";
     }
     return out;
 }
@@ -636,7 +636,7 @@ template <class T>
 class HbrHalfedgeCompare {
 public:
     bool operator() (const HbrHalfedge<T>* a, HbrHalfedge<T>* b) const {
-	return (a->GetFace()->GetPath() < b->GetFace()->GetPath());
+        return (a->GetFace()->GetPath() < b->GetFace()->GetPath());
     }
 };
 

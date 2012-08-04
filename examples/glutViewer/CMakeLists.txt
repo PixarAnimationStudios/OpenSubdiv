@@ -57,26 +57,17 @@
 
 # *** glutViewer ***
 
-set(PLATFORM_LIBRARIES 
+set(SHADER_FILES
+     shader.glsl
+)
+
+set(PLATFORM_LIBRARIES
     ${OSD_LINK_TARGET}
-    ${ILMBASE_LIBS_DIRECTORY}
+    ${ILMBASE_LIBRARIES}
     ${OPENGL_LIBRARY}
     ${GLEW_LIBRARY}
     ${GLUT_LIBRARIES}
 )
-
-if(OPENCL_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_OPENCL
-    )
-endif()
-
-if(CUDA_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_CUDA
-    )
-endif()
-
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
@@ -87,33 +78,38 @@ include_directories(
 )
 
 #-------------------------------------------------------------------------------
-# Macro for adding a (potentially cuda) executable.
-macro(_add_glut_executable target)
+# Shader Stringification
+# We want to use preprocessor include directives to include GLSL and OpenCL
+# shader source files in cpp files, but since the sources contain newline
+# characters we would need raw string literals from C++11 to do this directly.
+# To avoid depending on C++11 we instead use a small tool called "line_quote"
+# to generate source files that are suitable for direct inclusion.
+foreach(shader_file ${SHADER_FILES})
 
-    _add_executable(${target} ${ARGN})
-    
-    if(WIN32)
-        # Windows needs some of its dependency dll's copied into the same
-        # directory as the executable
-        set( LIBRARIES ${ILMBASE_LIBS_DIRECTORY} ${GLUT_LIBRARIES})
-        foreach (LIB ${LIBRARIES} )
-            string(REPLACE ".lib" ".dll" LIB ${LIB})
-            string(REPLACE ".LIB" ".DLL" LIB ${LIB})
-			add_custom_command(
-				TARGET ${target} POST_BUILD
-				COMMAND ${CMAKE_COMMAND} -E copy_if_different
-					${LIB}
-					$<TARGET_FILE_DIR:${target}>
-			)
-        endforeach()
-    endif()
-    
-endmacro()
+    string(REGEX REPLACE ".*[.](.*)" "\\1" extension ${shader_file})
 
+    string(REGEX REPLACE "(.*)[.].*" "\\1.inc" inc_file ${shader_file})
+    list(APPEND INC_FILES ${inc_file})
 
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
+        COMMAND stringify ${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}
+            ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
+        DEPENDS stringify ${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}
+    )
+endforeach()
+
+if(APPLE)
 _add_glut_executable(glutViewer
-   viewer.cpp
+    viewer_compat.cpp
 )
+else()
+_add_glut_executable(glutViewer
+    viewer.cpp
+    ${SHADER_FILES}
+    ${INC_FILES}
+)
+endif()
 
 target_link_libraries(glutViewer
     ${PLATFORM_LIBRARIES}

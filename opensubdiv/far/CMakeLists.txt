@@ -63,8 +63,10 @@ set(H_FILES
     meshFactory.h
     mesh.h
     subdivisionTables.h
+    table.h
+    vertexEditTables.h
 )    
 
 install( FILES ${H_FILES}
          DESTINATION include/far
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ ) 
+         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )

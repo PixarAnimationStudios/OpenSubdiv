@@ -77,7 +77,7 @@ OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,
     static OpenSubdiv::HbrBilinearSubdivision<OpenSubdiv::OsdVertex> _bilinear;
     static OpenSubdiv::HbrLoopSubdivision<OpenSubdiv::OsdVertex> _loop;
     static OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex> _catmark;
-    
+
     OpenSubdiv::OsdHbrMesh *hbrMesh;
     if (loop)
         hbrMesh = new OpenSubdiv::OsdHbrMesh(&_loop);
@@ -128,9 +128,9 @@ OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,
             }
         }
 
-        if ( valid ) 
+        if ( valid )
             hbrMesh->NewFace(numVertex, &(vIndex[0]), 0);
-        else 
+        else
             OSD_ERROR("Face %d will be ignored\n", i);
 
         offset += numVertex;
@@ -142,7 +142,7 @@ OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,
     // set edge crease in two different indexing way
     int nEdgeCreases = (int)edgeCreases1.size();
     for (int i = 0; i < nEdgeCreases; ++i) {
-        if( edgeCreases1[i] <= 0. ) 
+        if( edgeCreases1[i] <= 0. )
             continue;
 
         OpenSubdiv::OsdHbrHalfedge * e = hbrMesh->GetFace(edgeCrease1Indices[i*2])->GetEdge(edgeCrease1Indices[i*2+1]);
@@ -154,14 +154,14 @@ OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,
     }
     nEdgeCreases = (int)edgeCreases2.size();
     for (int i = 0; i < nEdgeCreases; ++i) {
-        if( edgeCreases1[i] <= 0. ) 
+        if( edgeCreases1[i] <= 0. )
             continue;
 
         OpenSubdiv::OsdHbrVertex * v0 = hbrMesh->GetVertex(edgeCrease2Indices[i*2]);
         OpenSubdiv::OsdHbrVertex * v1 = hbrMesh->GetVertex(edgeCrease2Indices[i*2+1]);
         OpenSubdiv::OsdHbrHalfedge * e = NULL;
 
-        if ( v0 && v1 ) 
+        if ( v0 && v1 )
             if ( ! (e = v0->GetEdge(v1)) )
                 e = v1->GetEdge(v0);
         if (!e) {
@@ -170,14 +170,14 @@ OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,
         }
         e->SetSharpness( (float)edgeCreases2[i] );
     }
-        
+
     // set corner
     {
         int nVertexCreases = (int)vtxCreases.size();
         for ( int i = 0; i< nVertexCreases; ++i ) {
-            if( vtxCreases[i] <= 0. ) 
+            if( vtxCreases[i] <= 0. )
                 continue;
-            OpenSubdiv::OsdHbrVertex * v = hbrMesh->GetVertex(vtxCreaseIndices[i]); 
+            OpenSubdiv::OsdHbrVertex * v = hbrMesh->GetVertex(vtxCreaseIndices[i]);
             if (!v) {
                 OSD_ERROR("Can't find vertex %d\n", vtxCreaseIndices[i]);
                 continue;

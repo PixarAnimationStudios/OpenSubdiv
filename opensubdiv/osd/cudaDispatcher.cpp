@@ -76,6 +76,8 @@ void OsdCudaComputeBilinearEdge(float *vertex, float *varying, int numUserVertex
 
 void OsdCudaComputeBilinearVertex(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, int offset, int start, int end);
 
+void OsdCudaEditVertexAdd(float *vertex, int numUserVertexElements, int primVarOffset, int primVarWidth, int numVertices, int *editIndices, float *editValues);
+
 }
 
 namespace OpenSubdiv {
@@ -145,7 +147,34 @@ OsdCudaKernelDispatcher::~OsdCudaKernelDispatcher() {
 void
 OsdCudaKernelDispatcher::CopyTable(int tableIndex, size_t size, const void *ptr) {
 
-    _tables[tableIndex].Copy(size, ptr);
+    _tables[tableIndex].Copy((int)size, ptr);
+}
+
+void
+OsdCudaKernelDispatcher::AllocateEditTables(int n) {
+
+    _editTables.resize(n*2);
+    _edits.resize(n);
+}
+
+void
+OsdCudaKernelDispatcher::UpdateEditTable(int tableIndex, const FarTable<unsigned int> &offsets, const FarTable<float> &values,
+                                         int operation, int primVarOffset, int primVarWidth) {
+
+    _editTables[tableIndex*2+0].Copy(offsets.GetMemoryUsed(), offsets[0]);
+    _editTables[tableIndex*2+1].Copy(values.GetMemoryUsed(), values[0]);
+
+    _edits[tableIndex].offsetOffsets.resize(_maxLevel);
+    _edits[tableIndex].valueOffsets.resize(_maxLevel);
+    _edits[tableIndex].numEdits.resize(_maxLevel);
+    for (int i = 0; i < _maxLevel; ++i) {
+        _edits[tableIndex].offsetOffsets[i] = (int)(offsets[i] - offsets[0]);
+        _edits[tableIndex].valueOffsets[i] = (int)(values[i] - values[0]);
+        _edits[tableIndex].numEdits[i] = offsets.GetNumElements(i);
+    }
+    _edits[tableIndex].operation = operation;
+    _edits[tableIndex].primVarOffset = primVarOffset;
+    _edits[tableIndex].primVarWidth = primVarWidth;
 }
 
 OsdVertexBuffer *
@@ -174,7 +203,7 @@ OsdCudaKernelDispatcher::BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuff
     } else {
         _numVertexElements = 0;
     }
-    
+
     if (_currentVaryingBuffer) {
         _deviceVaryings = (float*)_currentVaryingBuffer->Map();
         _numVaryingElements = _currentVaryingBuffer->GetNumElements();
@@ -222,7 +251,7 @@ OsdCudaKernelDispatcher::ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * me
 
 void
 OsdCudaKernelDispatcher::ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
-    
+
     OsdCudaComputeBilinearVertex(_deviceVertices, _deviceVaryings,
                                  _numVertexElements-3, _numVaryingElements,
                                  (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
@@ -297,6 +326,22 @@ OsdCudaKernelDispatcher::ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mes
                           (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
                           (float*)_tables[V_W].devicePtr + _tableOffsets[V_W][level-1],
                           offset, start, end, pass);
+}
+
+void
+OsdCudaKernelDispatcher::ApplyVertexEdit(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const {
+
+    for (int i=0; i<(int)_edits.size(); ++i) {
+        const VertexEditArrayInfo &info = _edits[i];
+
+        if (info.operation == FarVertexEditTables<OsdVertex>::Add) {
+            OsdCudaEditVertexAdd(_deviceVertices, _numVertexElements-3, info.primVarOffset, info.primVarWidth, info.numEdits[level-1],
+                                 (int*)_editTables[i*2+0].devicePtr + info.offsetOffsets[level-1],
+                                 (float*)_editTables[i*2+1].devicePtr + info.valueOffsets[level-1]);
+        } else if (info.operation == FarVertexEditTables<OsdVertex>::Set) {
+            // XXX:
+        }
+    }
 }
 
 } // end namespace OPENSUBDIV_VERSION

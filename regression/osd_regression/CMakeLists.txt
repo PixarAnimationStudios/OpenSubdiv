@@ -55,21 +55,11 @@
 #     a particular purpose and non-infringement.
 #
 
-find_package(IlmBase REQUIRED)
-
-if(NOT ILMBASE_FOUND)
-    message(WARNING
-    "IlmBase could not be found, so the OpenSubdiv osd library regression "
-	"will not be available.  If you do have IlmBase installed and see this "
-	"message, please add your IlmBase path to cmake/FindIlmBase.cmake or set it "
-	"in the ILMBASE_LOCATION environment variable."
-    )
-    return()
-endif()
-
 include_directories(
     ${ILMBASE_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/opensubdiv
+    ${GLEW_INCLUDE_DIR}
+    ${GLUT_INCLUDE_DIR}
 )
 
 set(SOURCE_FILES
@@ -83,6 +73,8 @@ add_executable(osd_regression
 
 target_link_libraries(osd_regression
     ${OSD_LINK_TARGET}
-    ${ILMBASE_LIBS_DIRECTORY}
+    ${ILMBASE_LIBRARIES}
+    ${OPENGL_LIBRARY}
+    ${GLEW_LIBRARY}
+    ${GLUT_LIBRARIES}
 )
-

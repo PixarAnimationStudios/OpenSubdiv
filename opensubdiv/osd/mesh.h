@@ -83,6 +83,8 @@ typedef HbrVertex<OsdVertex>   OsdHbrVertex;
 typedef HbrHalfedge<OsdVertex> OsdHbrHalfedge;
 typedef HbrFace<OsdVertex>     OsdHbrFace;
 
+class OsdPtexIndicesBuffer;
+
 class OsdMesh {
 
 public:
@@ -90,16 +92,18 @@ public:
 
     virtual ~OsdMesh();
 
-    // Given a valid HbrMesh, create an OsdMesh 
-    //   - cappable of densely refining up to 'level'
+    // Given a valid HbrMesh, create an OsdMesh
+    //   - capable of densely refining up to 'level'
     //   - subdivision kernel one of (kCPU, kOPENMP, kCUDA, kGLSL, kCL)
-    //   - optional "remapping" vector that connects Osd and Hbr vertex indices 
+    //   - optional "remapping" vector that connects Osd and Hbr vertex indices
     //     (for regression)
     bool Create(OsdHbrMesh *hbrMesh, int level, int kernel, std::vector<int> * remap=0);
 
-    FarMesh<OsdVertex> *GetFarMesh() { return _fMesh; }
+    FarMesh<OsdVertex> *GetFarMesh() { return _farMesh; }
 
-    OsdVertexBuffer *InitializeVertexBuffer(int numElements);
+    int GetLevel() const { return _level; }
+
+    OsdVertexBuffer * InitializeVertexBuffer(int numElements);
 
     // for non-interleaved vertex data
     void Subdivide(OsdVertexBuffer *vertex, OsdVertexBuffer *varying = NULL);
@@ -111,19 +115,28 @@ public:
 
     void Synchronize();
 
-    int GetTotalVertices() const { return _fMesh->GetNumVertices(); }
+    int GetTotalVertices() const { return _farMesh->GetNumVertices(); }
 
-    int GetNumCoarseVertices() const { return _fMesh->GetNumCoarseVertices(); }
+    int GetNumCoarseVertices() const { return _farMesh->GetNumCoarseVertices(); }
 
+    // Returns the texture buffer containing the ptex face index for each face of
+    // the mesh.
+    GLuint GetPtexCoordinatesTextureBuffer(int level) const { return _ptexCoordinates[level-1]; }
+    
 protected:
 
     void createTables( FarSubdivisionTables<OsdVertex> const * tables );
-    
-    FarMesh<OsdVertex> *_fMesh;
-    
+
+    void createEditTables( FarVertexEditTables<OsdVertex> const * editTables );
+
+    FarMesh<OsdVertex> *_farMesh;
+
     int _level;
 
     OsdKernelDispatcher * _dispatcher;
+
+    std::vector<GLuint> _ptexCoordinates;  // index of the coarse parent face + sub-face coordinates (cf. far)
+
 };
 
 } // end namespace OPENSUBDIV_VERSION

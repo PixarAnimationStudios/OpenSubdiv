@@ -83,14 +83,14 @@ public:
 
     // Memory required to store the indexing tables
     virtual int GetMemoryUsed() const;
-   
-    // Compute the positions of refined vertices using the specified kernels
-    virtual void Refine( int level, void * data=0 ) const;   
-    
-    // Table accessors
-    typename FarSubdivisionTables<T,U>::template Table<unsigned int> const & Get_F_IT( ) const { return _F_IT; } 
 
-    typename FarSubdivisionTables<T,U>::template Table<int> const & Get_F_ITa( ) const { return _F_ITa; } 
+    // Compute the positions of refined vertices using the specified kernels
+    virtual void Apply( int level, void * data=0 ) const;
+
+    // Table accessors
+    FarTable<unsigned int> const & Get_F_IT( ) const { return _F_IT; }
+
+    FarTable<int> const & Get_F_ITa( ) const { return _F_ITa; }
 
     // Returns the number of indexing tables needed to represent this particular
     // subdivision scheme.
@@ -100,7 +100,7 @@ private:
 
     friend class FarMeshFactory<T,U>;
     friend class FarDispatcher<T,U>;
-    
+
     // Constructor : build level table at depth 'level'
     FarBilinearSubdivisionTables( FarMeshFactory<T,U> const & factory, FarMesh<T,U> * mesh, int level );
 
@@ -112,12 +112,12 @@ private:
 
     // Compute-kernel applied to vertices resulting from the refinement of a vertex
     void computeVertexPoints(int offset, int level, int start, int end, void * clientdata) const;
-    
-    
+
+
 private:
-   
-    typename FarSubdivisionTables<T,U>::template Table<int>           _F_ITa;
-    typename FarSubdivisionTables<T,U>::template Table<unsigned int>  _F_IT;
+
+    FarTable<int>           _F_ITa;
+    FarTable<unsigned int>  _F_IT;
 };
 
 template <class T, class U> int
@@ -137,12 +137,12 @@ FarBilinearSubdivisionTables<T,U>::GetMemoryUsed() const {
 // _F_ITa[1] : valence of the face
 //
 // _E_ITa[0] : index of the org / dest vertices of the parent edge
-// _E_ITa[1] : 
+// _E_ITa[1] :
 //
 // _V_ITa[0] : index of the parent vertex
 //
 template <class T, class U>
-FarBilinearSubdivisionTables<T,U>::FarBilinearSubdivisionTables( FarMeshFactory<T,U> const & factory, FarMesh<T,U> * mesh, int maxlevel ) : 
+FarBilinearSubdivisionTables<T,U>::FarBilinearSubdivisionTables( FarMeshFactory<T,U> const & factory, FarMesh<T,U> * mesh, int maxlevel ) :
     FarSubdivisionTables<T,U>(mesh, maxlevel),
     _F_ITa(maxlevel+1),
     _F_IT(maxlevel+1)
@@ -160,12 +160,12 @@ FarBilinearSubdivisionTables<T,U>::FarBilinearSubdivisionTables( FarMeshFactory<
     for (int level=1; level<=maxlevel; ++level) {
 
         // pointer to the first vertex corresponding to this level
-        this->_vertsOffsets[level] = factory._vertVertIdx[level-1] + 
-                                     factory._vertVertsList[level-1].size();
+        this->_vertsOffsets[level] = factory._vertVertIdx[level-1] +
+                                     (int)factory._vertVertsList[level-1].size();
 
         typename FarSubdivisionTables<T,U>::VertexKernelBatch * batch = & (this->_batches[level-1]);
 
-        // Face vertices 
+        // Face vertices
         // "For each vertex, gather all the vertices from the parent face."
         int offset = 0;
         int * F_ITa = this->_F_ITa[level-1];
@@ -190,10 +190,10 @@ FarBilinearSubdivisionTables<T,U>::FarBilinearSubdivisionTables( FarMeshFactory<
         _F_ITa.SetMarker(level, &F_ITa[2*batch->kernelF]);
         _F_IT.SetMarker(level, &F_IT[offset]);
 
-        // Edge vertices 
+        // Edge vertices
 
         // "Average the end-points of the parent edge"
-        unsigned int * E_IT = this->_E_IT[level-1];
+        int * E_IT = this->_E_IT[level-1];
         batch->kernelE = (int)factory._edgeVertsList[level].size();
         for (int i=0; i < batch->kernelE; ++i) {
 
@@ -208,8 +208,8 @@ FarBilinearSubdivisionTables<T,U>::FarBilinearSubdivisionTables( FarMeshFactory<
 
         }
         this->_E_IT.SetMarker(level, &E_IT[2*batch->kernelE]);
-        
-        // Vertex vertices 
+
+        // Vertex vertices
 
         // "Pass down the parent vertex"
         offset = 0;
@@ -230,10 +230,10 @@ FarBilinearSubdivisionTables<T,U>::FarBilinearSubdivisionTables( FarMeshFactory<
 }
 
 template <class T, class U> void
-FarBilinearSubdivisionTables<T,U>::Refine( int level, void * clientdata ) const {
-    
+FarBilinearSubdivisionTables<T,U>::Apply( int level, void * clientdata ) const {
+
     assert(this->_mesh and level>0);
-    
+
     typename FarSubdivisionTables<T,U>::VertexKernelBatch const * batch = & (this->_batches[level-1]);
 
     FarDispatcher<T,U> const * dispatch = this->_mesh->GetDispatcher();
@@ -256,11 +256,11 @@ FarBilinearSubdivisionTables<T,U>::Refine( int level, void * clientdata ) const 
 // Face-vertices compute Kernel - completely re-entrant
 //
 
-template <class T, class U> void 
+template <class T, class U> void
 FarBilinearSubdivisionTables<T,U>::computeFacePoints( int offset, int level, int start, int end, void * clientdata ) const {
 
     assert(this->_mesh);
-    
+
     U * vsrc = &this->_mesh->GetVertices().at(0),
       * vdst = vsrc + offset + start;
 
@@ -268,10 +268,10 @@ FarBilinearSubdivisionTables<T,U>::computeFacePoints( int offset, int level, int
     const unsigned int * F_IT = _F_IT[level-1];
 
     for (int i=start; i<end; ++i, ++vdst ) {
-        
+
         vdst->Clear(clientdata);
-        
-        int h = F_ITa[2*i  ], 
+
+        int h = F_ITa[2*i  ],
             n = F_ITa[2*i+1];
         float weight = 1.0f/n;
 
@@ -286,18 +286,18 @@ FarBilinearSubdivisionTables<T,U>::computeFacePoints( int offset, int level, int
 // Edge-vertices compute Kernel - completely re-entrant
 //
 
-template <class T, class U> void 
+template <class T, class U> void
 FarBilinearSubdivisionTables<T,U>::computeEdgePoints( int offset,  int level, int start, int end, void * clientdata ) const {
 
     assert(this->_mesh);
-    
+
     U * vsrc = &this->_mesh->GetVertices().at(0),
       * vdst = vsrc + offset + start;
 
-    const unsigned int * E_IT = this->_E_IT[level-1];
-      
+    const int * E_IT = this->_E_IT[level-1];
+
     for (int i=start; i<end; ++i, ++vdst ) {
-    
+
         vdst->Clear(clientdata);
 
         int eidx0 = E_IT[2*i+0],
@@ -315,11 +315,11 @@ FarBilinearSubdivisionTables<T,U>::computeEdgePoints( int offset,  int level, in
 // Vertex-vertices compute Kernel - completely re-entrant
 //
 
-template <class T, class U> void 
+template <class T, class U> void
 FarBilinearSubdivisionTables<T,U>::computeVertexPoints( int offset, int level, int start, int end, void * clientdata ) const {
 
     assert(this->_mesh);
-    
+
     U * vsrc = &this->_mesh->GetVertices().at(0),
       * vdst = vsrc + offset + start;
 
@@ -329,7 +329,7 @@ FarBilinearSubdivisionTables<T,U>::computeVertexPoints( int offset, int level, i
 
         vdst->Clear(clientdata);
 
-        int p=V_ITa[i];   // index of the parent vertex 
+        int p=V_ITa[i];   // index of the parent vertex
 
         vdst->AddWithWeight( vsrc[p], 1.0f, clientdata );
         vdst->AddVaryingWithWeight( vsrc[p], 1.0f, clientdata );

@@ -55,43 +55,38 @@
 #     a particular purpose and non-infringement.
 #
 
-if (APPLE)
-    message(STATUS "The OsX platform currently does not support all "
-    "the OpenGL features required by the glutViewer example : skipping.")
-else()
-    if( OPENGL_FOUND AND GLEW_FOUND AND GLUT_FOUND)
-        add_subdirectory(glutViewer)
-    else()
-        set(MISSING "")
-
-        if (NOT OPENGL_FOUND)
-            list(APPEND MISSING OpenGL)
-        endif()
-
-        if (NOT GLEW_FOUND)
-            list(APPEND MISSING glew)
-        endif()
-
-        if (NOT GLUT_FOUND)
-            list(APPEND MISSING glut)
-        endif()
-
-        message(STATUS
-            "The following libraries could not be found : ${MISSING}. The glutViewer "
-            "example will not be available. If you have these libraries installed, "
-            "please specify their path to cmake (by setting the GLEW_LOCATION, GLUT_LOCATION "
-            "entries for instance)"
-        )
+if( OPENGL_FOUND AND (GLEW_FOUND AND GLUT_FOUND) OR (APPLE AND GLUT_FOUND))
+    add_subdirectory(glutViewer)
+    if(PTEX_FOUND AND (NOT APPLE))
+        add_subdirectory(ptexViewer)
     endif()
+else()
+    set(MISSING "")
+
+    if (NOT OPENGL_FOUND)
+        list(APPEND MISSING OpenGL)
+    endif()
+
+    if (NOT GLEW_FOUND)
+        list(APPEND MISSING glew)
+    endif()
+
+    if (NOT GLUT_FOUND)
+        list(APPEND MISSING glut)
+    endif()
+
+    message(WARNING
+        "The following libraries could not be found : ${MISSING}.  "
+        "The glutViewer and ptexViewer examples will not be available.  "
+        "If you have these libraries installed, please specify their "
+        "path to cmake (through the GLEW_LOCATION and GLUT_LOCATION "
+        "command line arguments or environment variables)."
+    )
 endif()
 
 if(MAYA_FOUND)
     add_subdirectory(mayaViewer)
-else()
-    message(STATUS
-        "Maya could not be found, so the OpenSubdiv mayaViwer plugin will not "
-        "be available. If you do have Maya installed and see this message, "
-        "please add your Maya path to cmake/FindMaya.cmake or set it in "
-        "the MAYA_LOCATION environment variable."
-    )
+    if(PTEX_FOUND)
+        add_subdirectory(mayaPtexViewer_siggraph2012)
+    endif()
 endif()

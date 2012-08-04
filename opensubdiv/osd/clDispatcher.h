@@ -93,23 +93,37 @@ public:
     virtual ~OsdClKernelDispatcher();
 
 
+    virtual void ApplyBilinearFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+
+    virtual void ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+
+    virtual void ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+
+
     virtual void ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyCatmarkVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyCatmarkVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
 
 
     virtual void ApplyLoopEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyLoopVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-    
+
     virtual void ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
+
+    virtual void ApplyVertexEdit(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const {}
 
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr);
+
+    virtual void AllocateEditTables(int n) {}
+
+    virtual void UpdateEditTable(int tableIndex, const FarTable<unsigned int> &offsets, const FarTable<float> &values,
+                                 int operation, int primVarOffset, int primVarWidth) {}
 
     virtual void OnKernelLaunch() {}
 
@@ -118,7 +132,7 @@ public:
     virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int count);
 
     virtual void BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
-    
+
     virtual void UnbindVertexBuffer();
 
     virtual void Synchronize();
@@ -139,13 +153,23 @@ protected:
 
         bool Compile(cl_context clContext, int numVertexElements, int numVaryingElements);
 
-        cl_kernel GetCatmarkFaceKernel() const { return _clCatmarkFace; }
-        cl_kernel GetCatmarkEdgeKernel() const { return _clCatmarkEdge; }
+        cl_kernel GetBilinearEdgeKernel() const   { return _clBilinearEdge; }
+
+        cl_kernel GetBilinearVertexKernel() const { return _clBilinearVertex; }
+
+        cl_kernel GetCatmarkFaceKernel() const    { return _clCatmarkFace; }
+
+        cl_kernel GetCatmarkEdgeKernel() const    { return _clCatmarkEdge; }
+
         cl_kernel GetCatmarkVertexKernelA() const { return _clCatmarkVertexA; }
+
         cl_kernel GetCatmarkVertexKernelB() const { return _clCatmarkVertexB; }
-        cl_kernel GetLoopEdgeKernel() const { return _clLoopEdge; }
-        cl_kernel GetLoopVertexKernelA() const { return _clLoopVertexA; }
-        cl_kernel GetLoopVertexKernelB() const { return _clLoopVertexB; }
+
+        cl_kernel GetLoopEdgeKernel() const       { return _clLoopEdge; }
+
+        cl_kernel GetLoopVertexKernelA() const    { return _clLoopVertexA; }
+
+        cl_kernel GetLoopVertexKernelB() const    { return _clLoopVertexB; }
 
         struct Match {
         Match(int numVertexElements, int numVaryingElements) :
@@ -161,12 +185,22 @@ protected:
 
     protected:
         cl_program _clProgram;
-        cl_kernel _clCatmarkFace, _clCatmarkEdge, _clCatmarkVertexA, _clCatmarkVertexB;
-        cl_kernel _clLoopEdge, _clLoopVertexA, _clLoopVertexB;
-        int _numVertexElements, _numVaryingElements;
+
+        cl_kernel _clBilinearEdge,
+                  _clBilinearVertex,
+                  _clCatmarkFace,
+                  _clCatmarkEdge,
+                  _clCatmarkVertexA,
+                  _clCatmarkVertexB,
+                  _clLoopEdge,
+                  _clLoopVertexA,
+                  _clLoopVertexB;
+
+        int _numVertexElements,
+            _numVaryingElements;
     };
 
-    struct DeviceTable 
+    struct DeviceTable
     {
         DeviceTable() : devicePtr(NULL) {}
         ~DeviceTable();
@@ -200,8 +234,9 @@ protected:
     ClKernel * _clKernel;
 
     // XXX: context and queue should be moved to client code
-    static cl_context _clContext;
+    static cl_context       _clContext;
     static cl_command_queue _clQueue;
+    static cl_device_id     _clDevice;
 
     // static shader registry (XXX tentative..)
     static std::vector<ClKernel> kernelRegistry;

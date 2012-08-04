@@ -87,9 +87,14 @@ public:
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr) = 0;
 
+    virtual void AllocateEditTables(int n) = 0;
+
+    virtual void UpdateEditTable(int tableIndex, const FarTable<unsigned int> &offsets, const FarTable<float> &values,
+                                 int operation, int primVarOffset, int primVarWidth) = 0;
+
 
     virtual void OnKernelLaunch() = 0;
-    
+
     virtual void OnKernelFinish() = 0;
 
     virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int count) = 0;
@@ -101,12 +106,12 @@ public:
     virtual void Synchronize() = 0;
 
     template<class T> void UpdateTable(int tableIndex, const T & table) {
-    
+
         CopyTable(tableIndex, table.GetMemoryUsed(), table[0]);
 
         _tableOffsets[tableIndex].resize(_maxLevel);
         for (int i = 0; i < _maxLevel; ++i)
-            _tableOffsets[tableIndex][i] = table[i] - table[0];
+            _tableOffsets[tableIndex][i] = (int)(table[i] - table[0]);
     }
 
     static OsdKernelDispatcher *CreateKernelDispatcher( int levels, int kernel ) {
@@ -123,7 +128,7 @@ public:
 
     enum { E_IT,
            E_W,
-           V_ITa, 
+           V_ITa,
            V_IT,
            V_W,
            F_IT,
@@ -165,7 +170,7 @@ protected:
         static Factory &GetInstance() {
             return _instance;
         }
-        
+
         static Factory _instance;
 
     protected:
@@ -187,6 +192,16 @@ protected:
 protected:
     int _maxLevel;
     std::vector<int> _tableOffsets[TABLE_MAX];
+
+    struct VertexEditArrayInfo {
+        std::vector<int> offsetOffsets;
+        std::vector<int> valueOffsets;
+        std::vector<int> numEdits;
+        int operation;
+        int primVarOffset;
+        int primVarWidth;
+    };
+    std::vector<VertexEditArrayInfo> _edits;
 };
 
 } // end namespace OPENSUBDIV_VERSION

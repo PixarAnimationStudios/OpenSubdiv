@@ -60,7 +60,7 @@
 #include <assert.h>
 #include <iostream>
 #include <iterator>
-#include <list>
+#include <vector>
 #include "../hbr/fvarData.h"
 #include "../hbr/face.h"
 
@@ -81,7 +81,7 @@ template <class T> class HbrVertex {
 public:
     HbrVertex();
     HbrVertex(int vid, const T &data, int fvarwidth) {
-	Initialize(vid, data, fvarwidth);
+        Initialize(vid, data, fvarwidth);
     }
     void Initialize(int vid, const T &data, int fvarwidth);
     ~HbrVertex();
@@ -96,7 +96,7 @@ public:
     // Checks if removal of the indicated incident edge will result
     // in a singular vertex
     bool EdgeRemovalWillMakeSingular(HbrHalfedge<T>* edge) const;
-    
+
     // Sets up vertex flags after the vertex has been bound to a mesh
     void Finish();
 
@@ -106,7 +106,7 @@ public:
     // Compute the valence of this vertex including only edges which
     // are "coarse" (highest level edges)
     int GetCoarseValence() const;
-    
+
     // Return vertex ID
     int GetID() const { return id; }
 
@@ -127,16 +127,16 @@ public:
 
     // Returns new facevarying data matched to the face
     HbrFVarData<T>& NewFVarData(const HbrFace<T>* face);
-    
+
     // Return any incident face attached to the vertex
     HbrFace<T>* GetFace() const;
 
     // Return the mesh to which this vertex belongs
     HbrMesh<T>* GetMesh() const;
-    
+
     // Return an edge connected to dest
     HbrHalfedge<T>* GetEdge(const HbrVertex<T>* dest) const;
-    
+
     // Given an edge, returns the next edge in counterclockwise order
     // around this vertex. Note well: this is only the next halfedge,
     // which means that all edges returned by this function are
@@ -158,8 +158,8 @@ public:
     // currently they are potentially very inefficient and should be
     // avoided.
     HbrVertex<T>* GetQEONext(const HbrVertex<T>* dest) const;
-    HbrVertex<T>* GetQEONext(const HbrHalfedge<T>* edge) const;    
-    HbrVertex<T>* GetQEOPrev(const HbrHalfedge<T>* edge) const;    
+    HbrVertex<T>* GetQEONext(const HbrHalfedge<T>* edge) const;
+    HbrVertex<T>* GetQEOPrev(const HbrHalfedge<T>* edge) const;
     HbrVertex<T>* GetQEOPrev(const HbrVertex<T>* dest) const;
     HbrVertex<T>* GetQELNext(const HbrVertex<T>* dest) const;
 
@@ -189,12 +189,12 @@ public:
 
     // Sets the sharpness of the vertex
     void SetSharpness(float sharp) { sharpness = sharp; ClearMask(); }
-    
+
     // Returns whether the corner is sharp at the current level of
     // subdivision (next = false) or at the next level of subdivision
     // (next = true).
     bool IsSharp(bool next) const { return (next ? (sharpness > 0.0f) : (sharpness >= 1.0f)); }
-    
+
     // Sets the vertex mask if the vertex is sharp to reflect that
     // it's a corner
     void ClearMask() {
@@ -214,7 +214,7 @@ public:
     // adjacent sharp edges. The fractional mask is a value between 0
     // and 1
     float GetFractionalMask() const;
-    
+
     // Returns whether the vertex is singular (has two separate
     // incident halfedge cycles)
     bool IsSingular() const { return nIncidentEdges > 1; }
@@ -222,27 +222,27 @@ public:
     // Collect the ring of edges around this vertex. Note well:
     // not all edges in this list will have an orientation where
     // the origin of the edge is this vertex!
-    void GetSurroundingEdges(std::list<HbrHalfedge<T>*>& edges) const;
+    void GetSurroundingEdges(std::vector<HbrHalfedge<T>*>& edges) const;
 
     // Apply an edge operator to each edge in the ring of edges
     // around this vertex
     void ApplyOperatorSurroundingEdges(HbrHalfedgeOperator<T> &op) const;
-    
+
     // Collect the ring of vertices around this vertex (the ones
-    // that share an edge with this vertex) 
-    void GetSurroundingVertices(std::list<HbrVertex<T>*>& vertices) const;
+    // that share an edge with this vertex)
+    void GetSurroundingVertices(std::vector<HbrVertex<T>*>& vertices) const;
 
     // Apply a vertex operator to each vertex in the ring of vertices
     // around this vertex
     void ApplyOperatorSurroundingVertices(HbrVertexOperator<T> &op) const;
-    
+
     // Applys an operator to the ring of faces around this vertex
     void ApplyOperatorSurroundingFaces(HbrFaceOperator<T> &op) const;
-    
+
     // Returns the parent, which can be a edge, face, or vertex
     HbrHalfedge<T>* GetParentEdge() const { return (parentType == k_ParentEdge ? parent.edge : 0); }
     HbrFace<T>* GetParentFace() const { return (parentType == k_ParentFace ? parent.face : 0); }
-    HbrVertex<T>* GetParentVertex() const { return (parentType == k_ParentVertex ? parent.vertex : 0); }    
+    HbrVertex<T>* GetParentVertex() const { return (parentType == k_ParentVertex ? parent.vertex : 0); }
 
     // Set the parent pointer
     void SetParent(HbrHalfedge<T>* edge) { assert(!edge || !parent.vertex); parentType = k_ParentEdge; parent.edge = edge; }
@@ -254,18 +254,18 @@ public:
 
     // Refines the ring of faces around this vertex
     void Refine();
-    
+
     // Make sure the vertex has all faces in the ring around it
     void GuaranteeNeighbors();
 
     // Indicates that the vertex may have a missing face neighbor and
     // may need to guarantee its neighbors in the future
     void UnGuaranteeNeighbors() {
-	neighborsguaranteed = 0;
-	// Its mask is also invalidated
-	validmask = 0;
+        neighborsguaranteed = 0;
+        // Its mask is also invalidated
+        validmask = 0;
     }
-    
+
     // Remove the reference to subdivided vertex
     void RemoveChild() { vchild = 0; }
 
@@ -277,13 +277,13 @@ public:
     bool IsExtraordinary() const { return extraordinary; }
 
     // Tag the vertex as being extraordinary
-    void SetExtraordinary() { extraordinary = 1; }    
+    void SetExtraordinary() { extraordinary = 1; }
 
     // Returns whether the vertex is volatile (incident to a semisharp
     // edge or semisharp corner)
     bool IsVolatile() { if (!validmask) GetMask(false); return volatil; }
 
-    // Simple bookkeeping needed for garbage collection by HbrMesh    
+    // Simple bookkeeping needed for garbage collection by HbrMesh
     bool IsCollected() const { return collected; }
     void SetCollected() { collected = 1; }
     void ClearCollected() { collected = 0; }
@@ -299,18 +299,18 @@ public:
     // Returns true if the vertex is connected. This means that it has
     // an incident edge
     bool IsConnected() const { return nIncidentEdges > 0; }
-    
+
     // Return an incident edge to this vertex, which happens to be the
     // first halfedge of the cycles.
     HbrHalfedge<T>* GetIncidentEdge() const { return nIncidentEdges ? incidentEdges[0] : 0; }
 
     // Sharpness and mask constants
     enum Mask {
-	k_Smooth = 0,
-	k_Dart = 1,
-	k_Crease = 2,
-	k_Corner = 3,
-	k_InfinitelySharp = 10
+        k_Smooth = 0,
+        k_Dart = 1,
+        k_Crease = 2,
+        k_Corner = 3,
+        k_InfinitelySharp = 10
     };
 
     // Increment the usage counter on the vertex
@@ -325,7 +325,7 @@ public:
     // Used by block allocator
     HbrVertex<T>*& GetNext() { return vchild; }
 
-    // Returns the blind pointer to client data    
+    // Returns the blind pointer to client data
     void *GetClientData() const {
         return clientData;
     }
@@ -336,26 +336,26 @@ public:
     }
 
     enum ParentType {
-	k_ParentNone, k_ParentFace, k_ParentEdge, k_ParentVertex
+        k_ParentNone, k_ParentFace, k_ParentEdge, k_ParentVertex
     };
-    
+
 private:
     // Splits a singular vertex into multiple nonsingular vertices
     void splitSingular();
-        
+
     // Data
     T data;
 
     // Pointer to extra facevarying data. Space for this is allocated
     // by NewFVarData
     HbrFVarData<T> *morefvardata;
-    
+
     // Unique ID of this vertex
     int id;
 
     // Size of incident array
     int nIncidentEdges;
-    
+
     // The number of halfedges which have this vertex as the incident
     // edge. When references == 0, the vertex is safe to delete
     int references;
@@ -367,7 +367,7 @@ private:
     // Number of facevarying data allocated to this vertex in
     // morefvardata
     int nfvardata;
-    
+
     // Sharpness
     float sharpness;
 
@@ -388,7 +388,7 @@ private:
     unsigned short neighborsguaranteed:1;
     // Bookkeeping for HbrMesh
     unsigned short collected:1;
-    
+
     // Whether the vertex has an edit. The edit is owned by a face
     // so this is just a tag that indicates we need to search the
     // vertex's neighboring faces for an edit
@@ -400,7 +400,7 @@ private:
 
     // Parent type - can be face, edge, or vertex
     unsigned short parentType:2;
-    
+
     // List of edge cycles. For "singular" vertices, the corresponding
     // set of adjacent halfedges may consist of several cycles, and we
     // need to account for all of them here. In cases where
@@ -414,9 +414,9 @@ private:
     HbrVertex<T>* vchild;
 
     union {
-	HbrFace<T>* face;
-	HbrHalfedge<T>* edge;
-	HbrVertex<T>* vertex;
+        HbrFace<T>* face;
+        HbrHalfedge<T>* edge;
+        HbrVertex<T>* vertex;
     } parent;
 
     // Blind client data pointer
@@ -458,7 +458,7 @@ HbrVertex<T>::Initialize(int vid, const T &vdata, int fvarwidth) {
     char *buffer = ((char*) this + sizeof(*this));
     incidentEdges = (HbrHalfedge<T>**) buffer;
     buffer += sizeof(HbrHalfedge<T>*);
-    
+
     if (fvarwidth) {
         // Upstream allocator ensured the class was padded by the
         // appropriate size. GetFVarData will return a pointer to this
@@ -477,27 +477,27 @@ template <class T>
 void
 HbrVertex<T>::Destroy() {
     if (!destroyed) {
-	// Vertices are only safe for deletion if the number of incident
-	// edges is exactly zero.
-	assert(references == 0);
+        // Vertices are only safe for deletion if the number of incident
+        // edges is exactly zero.
+        assert(references == 0);
 
-	// Delete parent reference to self
-	if (parentType == k_ParentEdge && parent.edge) {
-	    parent.edge->RemoveChild();
-	    parent.edge = 0;
-	} else if (parentType == k_ParentFace && parent.face) {
-	    parent.face->RemoveChild();
-	    parent.face = 0;
-	} else if (parentType == k_ParentVertex && parent.vertex) {
-	    parent.vertex->RemoveChild();
-	    parent.vertex = 0;
-	}
-    
-	// Orphan the child vertex
-	if (vchild) {
-	    vchild->SetParent(static_cast<HbrVertex*>(0));
-	    vchild = 0;
-	}
+        // Delete parent reference to self
+        if (parentType == k_ParentEdge && parent.edge) {
+            parent.edge->RemoveChild();
+            parent.edge = 0;
+        } else if (parentType == k_ParentFace && parent.face) {
+            parent.face->RemoveChild();
+            parent.face = 0;
+        } else if (parentType == k_ParentVertex && parent.vertex) {
+            parent.vertex->RemoveChild();
+            parent.vertex = 0;
+        }
+
+        // Orphan the child vertex
+        if (vchild) {
+            vchild->SetParent(static_cast<HbrVertex*>(0));
+            vchild = 0;
+        }
         // We're skipping the placement destructors here, in the
         // assumption that HbrFVarData's destructor doesn't actually do
         // anything much
@@ -505,7 +505,7 @@ HbrVertex<T>::Destroy() {
             free(morefvardata);
             nfvardata = 0;
         }
-	destroyed = 1;
+        destroyed = 1;
     }
 }
 
@@ -513,7 +513,7 @@ template <class T>
 void
 HbrVertex<T>::AddIncidentEdge(HbrHalfedge<T>* edge) {
     assert(edge->GetOrgVertex() == this);
-    
+
     // First, maintain the property that all of the incident edges
     // will always be a boundary edge if possible. If any of the
     // incident edges are no longer boundaries at this point then they
@@ -521,119 +521,119 @@ HbrVertex<T>::AddIncidentEdge(HbrHalfedge<T>* edge) {
     int i, newEdgeCount = 0;
     bool edgeFound = false;
     for (i = 0; i < nIncidentEdges; ++i) {
-	if (incidentEdges[i] == edge) {
-	    edgeFound = true;
-	}
-	if (incidentEdges[i]->IsBoundary()) {
-	    incidentEdges[newEdgeCount++] = incidentEdges[i];
-	} else {
-	    // Did this edge suddenly stop being a boundary because
-	    // the newly introduced edge (or something close to it)
-	    // closed a cycle? If so, we don't want to lose a pointer
-	    // to this edge cycle!  So check to see if this cycle is
-	    // complete, and if so, keep it.
-	    HbrHalfedge<T>* start = incidentEdges[i];
-	    HbrHalfedge<T>* edge = start;
-	    bool prevmatch = false;
-	    do {
-		edge = GetNextEdge(edge);
-		// Check all previous incident edges, if already
-		// encountered then we have an edge to this cycle and
-		// don't need to proceed further with this check
-		for (int j = 0; j < i; ++j) {
-		    if (incidentEdges[j] == edge) {
-			prevmatch = true;
-			break;
-		    }
-		}
-	    } while (!prevmatch && edge && edge != start);
-	    if (!prevmatch && edge && edge == start) {
-		
-		incidentEdges[newEdgeCount++] = incidentEdges[i];
-	    }
-	}
+        if (incidentEdges[i] == edge) {
+            edgeFound = true;
+        }
+        if (incidentEdges[i]->IsBoundary()) {
+            incidentEdges[newEdgeCount++] = incidentEdges[i];
+        } else {
+            // Did this edge suddenly stop being a boundary because
+            // the newly introduced edge (or something close to it)
+            // closed a cycle? If so, we don't want to lose a pointer
+            // to this edge cycle!  So check to see if this cycle is
+            // complete, and if so, keep it.
+            HbrHalfedge<T>* start = incidentEdges[i];
+            HbrHalfedge<T>* edge = start;
+            bool prevmatch = false;
+            do {
+                edge = GetNextEdge(edge);
+                // Check all previous incident edges, if already
+                // encountered then we have an edge to this cycle and
+                // don't need to proceed further with this check
+                for (int j = 0; j < i; ++j) {
+                    if (incidentEdges[j] == edge) {
+                        prevmatch = true;
+                        break;
+                    }
+                }
+            } while (!prevmatch && edge && edge != start);
+            if (!prevmatch && edge && edge == start) {
+
+                incidentEdges[newEdgeCount++] = incidentEdges[i];
+            }
+        }
     }
-    
+
     // If we are now left with no incident edges, then this edge
     // becomes the sole incident edge (since we always need somewhere
     // to start, even if it's a uninterrupted cycle [ie it doesn't
     // matter whether the edge is a boundary]). Restore incidentEdges
     // array to point to the end of the object.
     if (newEdgeCount == 0) {
-	if (!(edgeFound && nIncidentEdges == 1)) {
-	    if (nIncidentEdges > 1) {
-		delete [] incidentEdges;
-	    }
+        if (!(edgeFound && nIncidentEdges == 1)) {
+            if (nIncidentEdges > 1) {
+                delete [] incidentEdges;
+            }
             incidentEdges = (HbrHalfedge<T>**) ((char*) this + sizeof(*this));
             incidentEdges[0] = edge;
-	    nIncidentEdges = 1;
-	}
+            nIncidentEdges = 1;
+        }
     }
 
     // Otherwise, we already have a set of incident edges - we only
     // add this edge if it's a boundary edge, which would begin a new
     // cycle.
     else if (edge->IsBoundary()) {
-	if (!edgeFound) {
-	    // Must add the new edge. May need to reallocate here.
-	    if (newEdgeCount + 1 != nIncidentEdges) {
+        if (!edgeFound) {
+            // Must add the new edge. May need to reallocate here.
+            if (newEdgeCount + 1 != nIncidentEdges) {
                 HbrHalfedge<T>** newIncidentEdges = 0;
                 if (newEdgeCount + 1 > 1) {
                     newIncidentEdges = new HbrHalfedge<T>*[newEdgeCount + 1];
                 } else {
                     newIncidentEdges = (HbrHalfedge<T>**) ((char*) this + sizeof(*this));
                 }
-		for (i = 0; i < newEdgeCount; ++i) {
-		    newIncidentEdges[i] = incidentEdges[i];
-		}
+                for (i = 0; i < newEdgeCount; ++i) {
+                    newIncidentEdges[i] = incidentEdges[i];
+                }
                 if (nIncidentEdges > 1) {
                     delete[] incidentEdges;
                 }
-		nIncidentEdges = newEdgeCount + 1;
-		incidentEdges = newIncidentEdges;
-	    }
-	    incidentEdges[newEdgeCount] = edge;
-	} else {
-	    // Edge is already in our list, so we don't need to add it
-	    // again. However, we may need to reallocate due to above
-	    // cleaning of nonboundary edges
-	    if (newEdgeCount != nIncidentEdges) {
+                nIncidentEdges = newEdgeCount + 1;
+                incidentEdges = newIncidentEdges;
+            }
+            incidentEdges[newEdgeCount] = edge;
+        } else {
+            // Edge is already in our list, so we don't need to add it
+            // again. However, we may need to reallocate due to above
+            // cleaning of nonboundary edges
+            if (newEdgeCount != nIncidentEdges) {
                 HbrHalfedge<T>** newIncidentEdges = 0;
                 if (newEdgeCount > 1) {
                     newIncidentEdges = new HbrHalfedge<T>*[newEdgeCount];
                 } else {
                     newIncidentEdges = (HbrHalfedge<T>**) ((char*) this + sizeof(*this));
                 }
-		for (i = 0; i < newEdgeCount; ++i) {
-		    newIncidentEdges[i] = incidentEdges[i];
-		}
+                for (i = 0; i < newEdgeCount; ++i) {
+                    newIncidentEdges[i] = incidentEdges[i];
+                }
                 if (nIncidentEdges > 1) {
                     delete[] incidentEdges;
                 }
-		nIncidentEdges = newEdgeCount;
-		incidentEdges = newIncidentEdges;
-	    }
-	}
+                nIncidentEdges = newEdgeCount;
+                incidentEdges = newIncidentEdges;
+            }
+        }
     }
     else {
-	// Again, we may need to reallocate due to above cleaning of
-	// nonboundary edges
-	if (newEdgeCount != nIncidentEdges) {
+        // Again, we may need to reallocate due to above cleaning of
+        // nonboundary edges
+        if (newEdgeCount != nIncidentEdges) {
             HbrHalfedge<T>** newIncidentEdges = 0;
             if (newEdgeCount > 1) {
                 newIncidentEdges = new HbrHalfedge<T>*[newEdgeCount];
             } else {
                 newIncidentEdges = (HbrHalfedge<T>**) ((char*) this + sizeof(*this));
             }
-	    for (i = 0; i < newEdgeCount; ++i) {
-		newIncidentEdges[i] = incidentEdges[i];
-	    }
+            for (i = 0; i < newEdgeCount; ++i) {
+                newIncidentEdges[i] = incidentEdges[i];
+            }
             if (nIncidentEdges > 1) {
                 delete[] incidentEdges;
             }
-	    nIncidentEdges = newEdgeCount;
-	    incidentEdges = newIncidentEdges;
-	}
+            nIncidentEdges = newEdgeCount;
+            incidentEdges = newIncidentEdges;
+        }
     }
 
     // For non-boundary edges, ensure that the incident edge starting
@@ -664,7 +664,7 @@ HbrVertex<T>::AddIncidentEdge(HbrHalfedge<T>* edge) {
             }
         }
     }
-    
+
     references++;
 }
 
@@ -677,34 +677,34 @@ HbrVertex<T>::RemoveIncidentEdge(HbrHalfedge<T>* edge) {
     references--;
     if (references) {
 
-	HbrHalfedge<T>* next;
+        HbrHalfedge<T>* next;
 
-	// We may need to shuffle our halfedge cycles. First we check
-	// whether the edge being erased begins any edge cycles
-	bool edgeFound = false;
-	next = GetNextEdge(edge);
-	
-	for (i = 0; i < nIncidentEdges; ++i) {
-	    if (incidentEdges[i] == edge) {
+        // We may need to shuffle our halfedge cycles. First we check
+        // whether the edge being erased begins any edge cycles
+        bool edgeFound = false;
+        next = GetNextEdge(edge);
 
-		// Edge cycle found. Replace the edge with the next edge
-		// in the cycle if possible.
-		if (next) {
-		    incidentEdges[i] = next;
-		    // We are done.
-		    return;
-		}
+        for (i = 0; i < nIncidentEdges; ++i) {
+            if (incidentEdges[i] == edge) {
 
-		// If no next edge is found it means the entire cycle
-		// has gone away.
-		edgeFound = true;
-		break;
-	    }
-	}
+                // Edge cycle found. Replace the edge with the next edge
+                // in the cycle if possible.
+                if (next) {
+                    incidentEdges[i] = next;
+                    // We are done.
+                    return;
+                }
 
-	// The edge cycle needs to disappear
-	if (edgeFound) {
-	    assert(nIncidentEdges > 1);
+                // If no next edge is found it means the entire cycle
+                // has gone away.
+                edgeFound = true;
+                break;
+            }
+        }
+
+        // The edge cycle needs to disappear
+        if (edgeFound) {
+            assert(nIncidentEdges > 1);
 
             HbrHalfedge<T>** newIncidentEdges = 0;
             if (nIncidentEdges - 1 > 1) {
@@ -712,69 +712,69 @@ HbrVertex<T>::RemoveIncidentEdge(HbrHalfedge<T>* edge) {
             } else {
                 newIncidentEdges = (HbrHalfedge<T>**) ((char*) this + sizeof(*this));
             }
-	    j = 0;
-	    for (i = 0; i < nIncidentEdges; ++i) {
-		if (incidentEdges[i] != edge) {
-		    newIncidentEdges[j++] = incidentEdges[i];
-		}
-	    }
-	    assert(j == nIncidentEdges - 1);
+            j = 0;
+            for (i = 0; i < nIncidentEdges; ++i) {
+                if (incidentEdges[i] != edge) {
+                    newIncidentEdges[j++] = incidentEdges[i];
+                }
+            }
+            assert(j == nIncidentEdges - 1);
             if (nIncidentEdges > 1) {
                 delete[] incidentEdges;
             }
-	    nIncidentEdges--;
-	    incidentEdges = newIncidentEdges;
-	    return;
-	}
-	// Now deal with the case where we remove an edge
-	// which did not begin a boundary edge cycle. If this
-	// happens then the resulting unbroken cycle does
-	// get broken; in that case we replace the incident
-	// edge with the next one after this.
-	else if (nIncidentEdges == 1 && !incidentEdges[0]->IsBoundary()) {
-	    if (next) {
-		incidentEdges[0] = next;
-	    } else {
-		// hm, what does this mean for us? Not sure at the
-		// moment.
-		std::cout << "Could not split cycle!\n";
-		assert(0);
-	    }
-	}
+            nIncidentEdges--;
+            incidentEdges = newIncidentEdges;
+            return;
+        }
+        // Now deal with the case where we remove an edge
+        // which did not begin a boundary edge cycle. If this
+        // happens then the resulting unbroken cycle does
+        // get broken; in that case we replace the incident
+        // edge with the next one after this.
+        else if (nIncidentEdges == 1 && !incidentEdges[0]->IsBoundary()) {
+            if (next) {
+                incidentEdges[0] = next;
+            } else {
+                // hm, what does this mean for us? Not sure at the
+                // moment.
+                std::cout << "Could not split cycle!\n";
+                assert(0);
+            }
+        }
 
-	// (Is this another case or a specialization of the above?)
-	// When an edge in the middle of a boundary cycle goes away we
-	// need to mark a new cycle.
-	//
-	// If there is no next edge, it means that we didn't
-	// actually split the cycle, we just deleted the last edge
-	// in the cycle. As such nothing needs to occur because
-	// the "split" is already present.
-	
-	else if (!edge->IsBoundary() && next) {
+        // (Is this another case or a specialization of the above?)
+        // When an edge in the middle of a boundary cycle goes away we
+        // need to mark a new cycle.
+        //
+        // If there is no next edge, it means that we didn't
+        // actually split the cycle, we just deleted the last edge
+        // in the cycle. As such nothing needs to occur because
+        // the "split" is already present.
+
+        else if (!edge->IsBoundary() && next) {
             HbrHalfedge<T>** newIncidentEdges = 0;
             if (nIncidentEdges + 1 > 1) {
                 newIncidentEdges = new HbrHalfedge<T>*[nIncidentEdges + 1];
             } else {
                 newIncidentEdges = (HbrHalfedge<T>**) ((char*) this + sizeof(*this));
             }
-	    for (i = 0; i < nIncidentEdges; ++i) {
-		newIncidentEdges[i] = incidentEdges[i];
-	    }
-	    newIncidentEdges[nIncidentEdges] = next;
+            for (i = 0; i < nIncidentEdges; ++i) {
+                newIncidentEdges[i] = incidentEdges[i];
+            }
+            newIncidentEdges[nIncidentEdges] = next;
             if (nIncidentEdges > 1) {
                 delete[] incidentEdges;
             }
-	    nIncidentEdges++;
-	    incidentEdges = newIncidentEdges;
-	}
+            nIncidentEdges++;
+            incidentEdges = newIncidentEdges;
+        }
     } else {
-	// No references left, we can just clear all the cycles
-	if (nIncidentEdges > 1) {
-	    delete[] incidentEdges;
+        // No references left, we can just clear all the cycles
+        if (nIncidentEdges > 1) {
+            delete[] incidentEdges;
             incidentEdges = (HbrHalfedge<T>**) ((char*) this + sizeof(*this));
-	}
-	nIncidentEdges = 0;
+        }
+        nIncidentEdges = 0;
     }
 }
 
@@ -783,20 +783,20 @@ bool
 HbrVertex<T>::EdgeRemovalWillMakeSingular(HbrHalfedge<T>* edge) const {
     // Only edge left, or no incident edges at all (how?)
     if (references <= 1 || nIncidentEdges <= 0) {
-	return false;
+        return false;
     }
     // There are at least two existing cycles. We could maybe consider
     // the case where removal of this edge will actually make one of
     // the edge cycles go away, possibly leaving behind just one, but
     // we'll ignore that possibility for now
     else if (nIncidentEdges > 1) {
-	return true;
+        return true;
     }
      // This is the incident edge starting a single cycle. Removal of
      // the edge will replace the start of the cycle with the next
      // edge, and we keep a single cycle.
     else if (nIncidentEdges == 1 && incidentEdges[0] == edge) {
-	return false;
+        return false;
     }
     // Check the single cycle: was it interrupted? (i.e. a
     // boundary). If not interrupted, then deletion of any edge still
@@ -805,11 +805,11 @@ HbrVertex<T>::EdgeRemovalWillMakeSingular(HbrHalfedge<T>* edge) const {
     // cycle. Otherwise we must split the cycle, which would result in
     // a singular vertex
     else if (!incidentEdges[0]->IsBoundary()) {
-	return false;
+        return false;
     } else if (GetNextEdge(edge)) {
-	return true;
+        return true;
     } else {
-	return false;
+        return false;
     }
 }
 
@@ -818,11 +818,11 @@ void
 HbrVertex<T>::Finish() {
     extraordinary = false;
     if (HbrMesh<T>* mesh = GetMesh()) {
-	if (IsSingular()) splitSingular();
-	assert(!IsSingular());
-	if (mesh->GetSubdivision()) {
-	    extraordinary = mesh->GetSubdivision()->VertexIsExtraordinary(mesh, this);
-	}
+        if (IsSingular()) splitSingular();
+        assert(!IsSingular());
+        if (mesh->GetSubdivision()) {
+            extraordinary = mesh->GetSubdivision()->VertexIsExtraordinary(mesh, this);
+        }
     }
 }
 
@@ -834,8 +834,8 @@ HbrVertex<T>::GetValence() const {
     HbrHalfedge<T>* start = incidentEdges[0];
     HbrHalfedge<T>* edge = start;
     if (edge) do {
-	valence++;
-	edge = GetNextEdge(edge);
+        valence++;
+        edge = GetNextEdge(edge);
     } while (edge && edge != start);
     // In boundary cases, we increment the valence count by
     // one more
@@ -851,10 +851,10 @@ HbrVertex<T>::GetCoarseValence() const {
     HbrHalfedge<T>* start = incidentEdges[0];
     HbrHalfedge<T>* edge = start;
     if (edge) do {
-	if (edge->IsCoarse()) {
-	    valence++;
-	}
-	edge = GetNextEdge(edge);
+        if (edge->IsCoarse()) {
+            valence++;
+        }
+        edge = GetNextEdge(edge);
     } while (edge && edge != start);
     // In boundary cases, we increment the valence count by one more
     // (this assumes the last edge is coarse, which it had better be
@@ -933,14 +933,14 @@ HbrHalfedge<T>*
 HbrVertex<T>::GetEdge(const HbrVertex<T>* dest) const {
     // Here, we generally want to go through all halfedge cycles
     for (int i = 0; i < nIncidentEdges; ++i) {
-	HbrHalfedge<T>* cycle = incidentEdges[i];
-	HbrHalfedge<T>* edge = cycle;	
-	if (edge) do {
-	    if (edge->GetDestVertex() == dest) {
-		return edge;
-	    }
-	    edge = GetNextEdge(edge);
-	} while (edge && edge != cycle);
+        HbrHalfedge<T>* cycle = incidentEdges[i];
+        HbrHalfedge<T>* edge = cycle;
+        if (edge) do {
+            if (edge->GetDestVertex() == dest) {
+                return edge;
+            }
+            edge = GetNextEdge(edge);
+        } while (edge && edge != cycle);
     }
     return 0;
 }
@@ -966,12 +966,12 @@ HbrVertex<T>*
 HbrVertex<T>::GetQEONext(const HbrVertex<T>* dest) const {
     HbrHalfedge<T>* edge = GetEdge(dest);
     if (edge) {
-	return edge->GetPrev()->GetOrgVertex();
+        return edge->GetPrev()->GetOrgVertex();
     }
     HbrHalfedge<T>* start = GetIncidentEdge(), *next;
     edge = start;
     while (edge) {
-	next = GetNextEdge(edge);
+        next = GetNextEdge(edge);
         if (edge->GetDestVertex() == dest) {
             if (!next) {
                 return edge->GetPrev()->GetOrgVertex();
@@ -987,9 +987,9 @@ HbrVertex<T>::GetQEONext(const HbrVertex<T>* dest) const {
             } else {
                 return 0;
             }
-	} else {
-	    edge = next;
-	}
+        } else {
+            edge = next;
+        }
     }
     // Shouldn't get here
     return 0;
@@ -1007,9 +1007,9 @@ HbrVertex<T>*
 HbrVertex<T>::GetQEOPrev(const HbrVertex<T>* dest) const {
     HbrHalfedge<T>* edge = GetEdge(dest);
     if (edge) {
-	if (edge->GetOpposite()) {
-	    return edge->GetOpposite()->GetNext()->GetDestVertex();
-	} else {
+        if (edge->GetOpposite()) {
+            return edge->GetOpposite()->GetNext()->GetDestVertex();
+        } else {
             HbrHalfedge<T>* start = GetIncidentEdge(), *next;
             edge = start;
             while (edge) {
@@ -1034,12 +1034,12 @@ HbrVertex<T>::GetQEOPrev(const HbrVertex<T>* dest) const {
                     edge = next;
                 }
             }
-	    return 0;
-	}
+            return 0;
+        }
     }
     edge = dest->GetEdge(this);
     if (edge) {
-	return edge->GetNext()->GetDestVertex();
+        return edge->GetNext()->GetDestVertex();
     }
     return 0;
 }
@@ -1060,11 +1060,11 @@ HbrVertex<T>*
 HbrVertex<T>::GetQELNext(const HbrVertex<T>* dest) const {
     HbrHalfedge<T>* edge = GetEdge(dest);
     if (edge) {
-	return edge->GetNext()->GetDestVertex();
-    }	
+        return edge->GetNext()->GetDestVertex();
+    }
     edge = dest->GetEdge(this);
     if (edge) {
-	return edge->GetPrev()->GetOrgVertex();
+        return edge->GetPrev()->GetOrgVertex();
     }
     return 0;
 }
@@ -1111,25 +1111,25 @@ HbrVertex<T>::IsFVarCorner(int datum) {
     edge = start;
     bool lastedgewassharp = false;
     while (edge) {
-	if (edge->GetFVarSharpness(datum)) {
-	    if (lastedgewassharp) {
-		return true;
-	    } else {
-		lastedgewassharp = true;
-	    }
-	} else {
-	    lastedgewassharp = false;
-	}
-	nextedge = GetNextEdge(edge);
-	if (nextedge == start) {
-	    return start->GetFVarSharpness(datum) && lastedgewassharp;
-	} else if (!nextedge) {
-	    // Special case for the last edge in a cycle.
-	    edge = edge->GetPrev();
-	    return edge->GetFVarSharpness(datum) && lastedgewassharp;	    
-	} else {
-	    edge = nextedge;
-	}
+        if (edge->GetFVarSharpness(datum)) {
+            if (lastedgewassharp) {
+                return true;
+            } else {
+                lastedgewassharp = true;
+            }
+        } else {
+            lastedgewassharp = false;
+        }
+        nextedge = GetNextEdge(edge);
+        if (nextedge == start) {
+            return start->GetFVarSharpness(datum) && lastedgewassharp;
+        } else if (!nextedge) {
+            // Special case for the last edge in a cycle.
+            edge = edge->GetPrev();
+            return edge->GetFVarSharpness(datum) && lastedgewassharp;
+        } else {
+            edge = nextedge;
+        }
     }
     return false;
 }
@@ -1139,15 +1139,15 @@ unsigned char
 HbrVertex<T>::GetMask(bool next) {
 
     if (validmask) {
-	return (unsigned char)(next ? mask1 : mask0);
+        return (unsigned char)(next ? mask1 : mask0);
     }
 
     mask0 = mask1 = 0;
 
     // Mark volatility
     if (sharpness > k_Smooth && sharpness < k_InfinitelySharp)
-	volatil = 1;
-    
+        volatil = 1;
+
     // If the vertex is tagged as sharp immediately promote its mask
     // to corner
     if (IsSharp(false)) {
@@ -1161,46 +1161,46 @@ HbrVertex<T>::GetMask(bool next) {
     HbrHalfedge<T>* start = GetIncidentEdge(), *edge, *nextedge;
     edge = start;
     while (edge) {
-	float esharp = edge->GetSharpness();
+        float esharp = edge->GetSharpness();
 
-	if (edge->IsSharp(false)) {
+        if (edge->IsSharp(false)) {
             if (mask0 < k_Corner) {
                 mask0++;
             }
-	}
-	if (edge->IsSharp(true)) {
+        }
+        if (edge->IsSharp(true)) {
             if (mask1 < k_Corner) {
                 mask1++;
             }
-	}
-	// If any incident edge is semisharp, mark the vertex as volatile
-	if (esharp > HbrHalfedge<T>::k_Smooth && esharp < HbrHalfedge<T>::k_InfinitelySharp) {
-	    volatil = 1;
-	}	
-	nextedge = GetNextEdge(edge);
-	if (nextedge == start) {
-	    break;
-	} else if (!nextedge) {
-	    // Special case for the last edge in a cycle.
-	    edge = edge->GetPrev();
-	    esharp = edge->GetSharpness();	    
-	    if (edge->IsSharp(false)) {
+        }
+        // If any incident edge is semisharp, mark the vertex as volatile
+        if (esharp > HbrHalfedge<T>::k_Smooth && esharp < HbrHalfedge<T>::k_InfinitelySharp) {
+            volatil = 1;
+        }
+        nextedge = GetNextEdge(edge);
+        if (nextedge == start) {
+            break;
+        } else if (!nextedge) {
+            // Special case for the last edge in a cycle.
+            edge = edge->GetPrev();
+            esharp = edge->GetSharpness();
+            if (edge->IsSharp(false)) {
                 if (mask0 < k_Corner) {
                     mask0++;
                 }
-	    }
-	    if (edge->IsSharp(true)) {
+            }
+            if (edge->IsSharp(true)) {
                 if (mask1 < k_Corner) {
                     mask1++;
                 }
-	    }
-	    if (esharp > HbrHalfedge<T>::k_Smooth && esharp < HbrHalfedge<T>::k_InfinitelySharp) {
-		volatil = 1;
-	    }
-	    break;
-	} else {
-	    edge = nextedge;
-	}
+            }
+            if (esharp > HbrHalfedge<T>::k_Smooth && esharp < HbrHalfedge<T>::k_InfinitelySharp) {
+                volatil = 1;
+            }
+            break;
+        } else {
+            edge = nextedge;
+        }
     }
     validmask = 1;
     return (unsigned char)(next ? mask1 : mask0);
@@ -1215,36 +1215,36 @@ HbrVertex<T>::GetFVarMask(int datum) {
     // If the vertex is tagged as sharp immediately promote its mask
     // to corner
     if (IsSharp(false)) {
-	mask += k_Corner;
+        mask += k_Corner;
     }
 
     // Count the number of surrounding facevarying boundary edges
     HbrHalfedge<T>* start = GetIncidentEdge(), *edge, *nextedge;
     edge = start;
     while (edge) {
-	if (edge->GetFVarSharpness(datum)) {
+        if (edge->GetFVarSharpness(datum)) {
             if (mask < k_Corner) {
                 mask++;
             } else {
                 // Can't get any sharper, so give up early
                 break;
             }
-	}
-	nextedge = GetNextEdge(edge);
-	if (nextedge == start) {
-	    break;
-	} else if (!nextedge) {
-	    // Special case for the last edge in a cycle.
-	    edge = edge->GetPrev();
-	    if (edge->GetFVarSharpness(datum)) {
+        }
+        nextedge = GetNextEdge(edge);
+        if (nextedge == start) {
+            break;
+        } else if (!nextedge) {
+            // Special case for the last edge in a cycle.
+            edge = edge->GetPrev();
+            if (edge->GetFVarSharpness(datum)) {
                 if (mask < k_Corner) {
                     mask++;
                 }
-	    }
-	    break;
-	} else {
-	    edge = nextedge;
-	}
+            }
+            break;
+        } else {
+            edge = nextedge;
+        }
     }
     return mask;
 }
@@ -1256,7 +1256,7 @@ HbrVertex<T>::GetFractionalMask() const {
     float n = 0;
 
     if (sharpness > k_Smooth && sharpness < k_Dart) {
-	mask += sharpness; ++n;
+        mask += sharpness; ++n;
     }
 
     // Add up the strengths of surrounding fractional sharp edges
@@ -1264,22 +1264,22 @@ HbrVertex<T>::GetFractionalMask() const {
     edge = start;
     while (edge) {
         float esharp = edge->GetSharpness();
-	if (esharp > HbrHalfedge<T>::k_Smooth && esharp < HbrHalfedge<T>::k_Sharp) {
-	    mask += esharp; ++n;
-	}
-	next = GetNextEdge(edge);
-	if (next == start) {
-	    break;
-	} else if (!next) {
-	    // Special case for the last edge in a cycle.
+        if (esharp > HbrHalfedge<T>::k_Smooth && esharp < HbrHalfedge<T>::k_Sharp) {
+            mask += esharp; ++n;
+        }
+        next = GetNextEdge(edge);
+        if (next == start) {
+            break;
+        } else if (!next) {
+            // Special case for the last edge in a cycle.
             esharp = edge->GetPrev()->GetSharpness();
             if (esharp > HbrHalfedge<T>::k_Smooth && esharp < HbrHalfedge<T>::k_Sharp) {
                 mask += esharp; ++n;
             }
-	    break;
-	} else {
-	    edge = next;
-	}
+            break;
+        } else {
+            edge = next;
+        }
     }
     assert (n > 0.0f && mask < n);
     return (mask / n);
@@ -1287,21 +1287,21 @@ HbrVertex<T>::GetFractionalMask() const {
 
 template <class T>
 void
-HbrVertex<T>::GetSurroundingEdges(std::list<HbrHalfedge<T>*>& edges) const {
+HbrVertex<T>::GetSurroundingEdges(std::vector<HbrHalfedge<T>*>& edges) const {
     HbrHalfedge<T>* start = GetIncidentEdge(), *edge, *next;
     edge = start;
     while (edge) {
-	edges.push_back(edge);
-	next = GetNextEdge(edge);
-	if (next == start) {
-	    break;
-	} else if (!next) {
-	    // Special case for the last edge in a cycle.
-	    edges.push_back(edge->GetPrev());
-	    break;
-	} else {
-	    edge = next;
-	}
+        edges.push_back(edge);
+        next = GetNextEdge(edge);
+        if (next == start) {
+            break;
+        } else if (!next) {
+            // Special case for the last edge in a cycle.
+            edges.push_back(edge->GetPrev());
+            break;
+        } else {
+            edge = next;
+        }
     }
 }
 
@@ -1312,7 +1312,7 @@ HbrVertex<T>::ApplyOperatorSurroundingEdges(HbrHalfedgeOperator<T> &op) const {
     edge = start;
     while (edge) {
         op(*edge);
-	next = GetNextEdge(edge);
+        next = GetNextEdge(edge);
         if (next == start) {
             break;
         } else if (!next) {
@@ -1326,23 +1326,23 @@ HbrVertex<T>::ApplyOperatorSurroundingEdges(HbrHalfedgeOperator<T> &op) const {
 
 template <class T>
 void
-HbrVertex<T>::GetSurroundingVertices(std::list<HbrVertex<T>*>& vertices) const {
+HbrVertex<T>::GetSurroundingVertices(std::vector<HbrVertex<T>*>& vertices) const {
     HbrHalfedge<T>* start = GetIncidentEdge(), *edge, *next;
     edge = start;
     while (edge) {
-	vertices.push_back(edge->GetDestVertex());
-	next = GetNextEdge(edge);
-	if (next == start) {
-	    break;
-	} else if (!next) {
-	    // Special case for the last edge in a cycle: the last
-	    // vertex on that cycle is not the destination of an
-	    // outgoing halfedge
-	    vertices.push_back(edge->GetPrev()->GetOrgVertex());
-	    break;
-	} else {
-	    edge = next;
-	}
+        vertices.push_back(edge->GetDestVertex());
+        next = GetNextEdge(edge);
+        if (next == start) {
+            break;
+        } else if (!next) {
+            // Special case for the last edge in a cycle: the last
+            // vertex on that cycle is not the destination of an
+            // outgoing halfedge
+            vertices.push_back(edge->GetPrev()->GetOrgVertex());
+            break;
+        } else {
+            edge = next;
+        }
     }
 }
 
@@ -1353,7 +1353,7 @@ HbrVertex<T>::ApplyOperatorSurroundingVertices(HbrVertexOperator<T> &op) const {
     edge = start;
     while (edge) {
         op(*edge->GetDestVertex());
-	next = GetNextEdge(edge);
+        next = GetNextEdge(edge);
         if (next == start) return;
         else if (!next) {
             op(*edge->GetPrev()->GetOrgVertex());
@@ -1371,8 +1371,8 @@ HbrVertex<T>::ApplyOperatorSurroundingFaces(HbrFaceOperator<T> &op) const {
     edge = start;
     while (edge) {
         op(*edge->GetLeftFace());
-	edge = GetNextEdge(edge);
-	if (edge == start) break;
+        edge = GetNextEdge(edge);
+        if (edge == start) break;
     }
 }
 
@@ -1397,31 +1397,31 @@ template <class T>
 void
 HbrVertex<T>::GuaranteeNeighbors() {
     if (!neighborsguaranteed) {
-	HbrMesh<T>* mesh = GetMesh();
-	mesh->GetSubdivision()->GuaranteeNeighbors(mesh, this);
-	neighborsguaranteed = 1;    
+        HbrMesh<T>* mesh = GetMesh();
+        mesh->GetSubdivision()->GuaranteeNeighbors(mesh, this);
+        neighborsguaranteed = 1;
 
-	// At this point we can apply vertex edits because we have all
-	// surrounding faces, and know whether any of them has
-	// necessary edit information (they would have set our
-	// hasvertexedit bit)
-	if (hasvertexedit && !editsapplied) { 
+        // At this point we can apply vertex edits because we have all
+        // surrounding faces, and know whether any of them has
+        // necessary edit information (they would have set our
+        // hasvertexedit bit)
+        if (hasvertexedit && !editsapplied) {
             HbrHalfedge<T>* start = GetIncidentEdge(), *edge;
             edge = start;
             while (edge) {
                 HbrFace<T>* face = edge->GetLeftFace();
-		if (HbrHierarchicalEdit<T>** edits = face->GetHierarchicalEdits()) {
-		    while (HbrHierarchicalEdit<T>* edit = *edits) {
-			if (!edit->IsRelevantToFace(face)) break;
-			edit->ApplyEditToVertex(face, this);
-			edits++;
-		    }
-		}
+                if (HbrHierarchicalEdit<T>** edits = face->GetHierarchicalEdits()) {
+                    while (HbrHierarchicalEdit<T>* edit = *edits) {
+                        if (!edit->IsRelevantToFace(face)) break;
+                        edit->ApplyEditToVertex(face, this);
+                        edits++;
+                    }
+                }
                 edge = GetNextEdge(edge);
                 if (edge == start) break;
             }
-	    editsapplied = 1;
-	}
+            editsapplied = 1;
+        }
     }
 }
 
@@ -1439,43 +1439,43 @@ HbrVertex<T>::splitSingular() {
     HbrHalfedge<T>* e;
 
     // Go through each edge cycle after the first
-    std::list<HbrHalfedge<T>*> edges;
+    std::vector<HbrHalfedge<T>*> edges;
     for (int i = 1; i < nIncidentEdges; ++i) {
 
-	// Create duplicate vertex
-	HbrVertex<T>* w = mesh->NewVertex();
-	w->GetData().AddWithWeight(GetData(), 1.0);
-	w->SetSharpness(GetSharpness());
-	
-	// Walk all edges in this cycle and reattach them to duplicate
-	// vertex
-	HbrHalfedge<T>* start = incidentEdges[i];
-	e = start;
-	edges.clear();
-	do {
-	    edges.push_back(e);
-	    e = GetNextEdge(e);
-	} while (e && e != start);
+        // Create duplicate vertex
+        HbrVertex<T>* w = mesh->NewVertex();
+        w->GetData().AddWithWeight(GetData(), 1.0);
+        w->SetSharpness(GetSharpness());
 
-	for (typename std::list<HbrHalfedge<T>*>::iterator ei = edges.begin(); ei != edges.end(); ++ei) {
-	    e = *ei;
-	    if (e->GetOpposite()) {
-		HbrHalfedge<T>* next = e->GetOpposite()->GetNext();
-		if (next->GetOrgVertex() == this) {
-		    references--;
-		    next->SetOrgVertex(w);
-		    w->AddIncidentEdge(next);
-		}
-	    }
-	    // Check again, because sometimes it's been relinked by
-	    // previous clause already
-	    if (e->GetOrgVertex() == this) {
-		references--;
-		e->SetOrgVertex(w);
-		w->AddIncidentEdge(e);
-	    }
-	}
-	w->Finish();
+        // Walk all edges in this cycle and reattach them to duplicate
+        // vertex
+        HbrHalfedge<T>* start = incidentEdges[i];
+        e = start;
+        edges.clear();
+        do {
+            edges.push_back(e);
+            e = GetNextEdge(e);
+        } while (e && e != start);
+
+        for (typename std::vector<HbrHalfedge<T>*>::iterator ei = edges.begin(); ei != edges.end(); ++ei) {
+            e = *ei;
+            if (e->GetOpposite()) {
+                HbrHalfedge<T>* next = e->GetOpposite()->GetNext();
+                if (next->GetOrgVertex() == this) {
+                    references--;
+                    next->SetOrgVertex(w);
+                    w->AddIncidentEdge(next);
+                }
+            }
+            // Check again, because sometimes it's been relinked by
+            // previous clause already
+            if (e->GetOrgVertex() == this) {
+                references--;
+                e->SetOrgVertex(w);
+                w->AddIncidentEdge(e);
+            }
+        }
+        w->Finish();
     }
 
     e = incidentEdges[0];

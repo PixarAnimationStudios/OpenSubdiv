@@ -137,5 +137,6 @@ target_link_libraries(maya_plugin
     ${MAYA_OpenMayaRender_LIBRARY}
     ${MAYA_tbb_LIBRARY}
     ${PLATFORM_LIBRARIES}
+    ${ILMBASE_LIBRARIES}
     ${GLEW_LIBRARY}
 )

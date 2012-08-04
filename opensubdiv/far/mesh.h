@@ -68,6 +68,7 @@ namespace OPENSUBDIV_VERSION {
 template <class T, class U> class FarMeshFactory;
 template <class T, class U> class FarSubdivisionTables;
 template <class T, class U> class FarDispatcher;
+template <class T, class U> class FarVertexEditTables;
 
 // Core serialized subdivision mesh class.
 //
@@ -79,7 +80,7 @@ template <class T, class U> class FarDispatcher;
 
 template <class T, class U=T> class FarMesh {
 public:
-    
+
     ~FarMesh();
 
     // returns the subdivision method
@@ -93,17 +94,24 @@ public:
         k_BilinearQuads,
         k_Triangles,
     };
-    
-    // returns the type of patches described by the face vertices list 
+
+    // returns the type of patches described by the face vertices list
     PatchType GetPatchType() const { return _patchtype; }
 
     // returns the list of vertices in the mesh (from subdiv level 0 to N)
     std::vector<U> & GetVertices() { return _vertices; }
-    
+
     U & GetVertex(int index) { return _vertices[index]; }
 
     // returns the list of indices of the vertices of the faces in the mesh
     std::vector<int> const & GetFaceVertices(int level) const;
+
+    // returns the ptex coordinates for each face at a given level. The coordinates
+    // are stored as : (int) faceindex / (ushort) u_index / (ushort) v_index
+    std::vector<int> const & GetPtexCoordinates(int level) const;
+
+    // returns vertex edit tables
+    FarVertexEditTables<T,U> const * GetVertexEdit() const { return _vertexEdit; }
 
     // returns the number of coarse vertices held at the beginning of the vertex
     // buffer.
@@ -112,14 +120,14 @@ public:
     // returns the total number of vertices in the mesh across across all depths
     int GetNumVertices() const { return (int)(_vertices.size()); }
 
-    // apply the subdivision tables to compute the positions of the vertices up 
+    // apply the subdivision tables to compute the positions of the vertices up
     // to 'level'
     void Subdivide(int level=-1);
 
-private:    
+private:
     friend class FarMeshFactory<T,U>;
 
-    FarMesh() : _subdivision(0), _dispatcher(0) { }
+    FarMesh() : _subdivision(0), _dispatcher(0), _vertexEdit(0) { }
 
     // non-copyable, so these are not implemented:
     FarMesh(FarMesh<T,U> const &);
@@ -130,13 +138,19 @@ private:
 
     // customizable compute dispatcher class
     FarDispatcher<T,U> * _dispatcher;
-    
+
     // list of vertices (up to N levels of subdivision)
     std::vector<U> _vertices;
 
     // list of vertex indices for each face
     std::vector< std::vector<int> > _faceverts;
-    
+
+    // ptex coordinates for each face
+    std::vector< std::vector<int> > _ptexcoordinates;
+
+    // hierarchical vertex edit tables
+    FarVertexEditTables<T,U> * _vertexEdit;
+
     // XXX stub for adaptive work
     PatchType _patchtype;
 
@@ -146,8 +160,9 @@ private:
 
 template <class T, class U>
 FarMesh<T,U>::~FarMesh()
-{ 
+{
     delete _subdivision;
+    delete _vertexEdit;
 }
 
 template <class T, class U> int
@@ -155,12 +170,20 @@ FarMesh<T,U>::GetNumCoarseVertices() const {
     return _numCoarseVertices;
 }
 
-template <class T, class U> std::vector<int> const & 
+template <class T, class U> std::vector<int> const &
 FarMesh<T,U>::GetFaceVertices(int level) const {
     if ( (level>=0) and (level<(int)_faceverts.size()) )
         return _faceverts[level];
     return _faceverts[0];
 }
+
+template <class T, class U> std::vector<int> const &
+FarMesh<T,U>::GetPtexCoordinates(int level) const {
+    if ( (level>=0) and (level<(int)_faceverts.size()) )
+        return _ptexcoordinates[level];
+    return _ptexcoordinates[0];
+}
+
 
 template <class T, class U> void
 FarMesh<T,U>::Subdivide(int maxlevel) {
@@ -172,8 +195,11 @@ FarMesh<T,U>::Subdivide(int maxlevel) {
     else
         maxlevel = std::min(maxlevel, _subdivision->GetMaxLevel());
 
-    for (int i=1; i<maxlevel; ++i)
-        _subdivision->Refine(i);
+    for (int i=1; i<maxlevel; ++i) {
+        _subdivision->Apply(i);
+        if (_vertexEdit)
+            _vertexEdit->Apply(i);
+    }
 }
 
 } // end namespace OPENSUBDIV_VERSION

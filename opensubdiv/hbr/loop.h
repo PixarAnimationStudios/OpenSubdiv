@@ -74,29 +74,30 @@ template <class T>
 class HbrLoopSubdivision : public HbrSubdivision<T>{
 public:
     HbrLoopSubdivision<T>()
-	: HbrSubdivision<T>() {}
+        : HbrSubdivision<T>() {}
 
     virtual HbrSubdivision<T>* Clone() const {
         return new HbrLoopSubdivision<T>();
     }
-    
+
     virtual void Refine(HbrMesh<T>* mesh, HbrFace<T>* face);
-    virtual HbrFace<T>* RefineFaceAtVertex(HbrMesh<T>* mesh, HbrFace<T>* face, HbrVertex<T>* vertex);    
+    virtual HbrFace<T>* RefineFaceAtVertex(HbrMesh<T>* mesh, HbrFace<T>* face, HbrVertex<T>* vertex);
     virtual void GuaranteeNeighbor(HbrMesh<T>* mesh, HbrHalfedge<T>* edge);
     virtual void GuaranteeNeighbors(HbrMesh<T>* mesh, HbrVertex<T>* vertex);
 
     virtual bool HasLimit(HbrMesh<T>* mesh, HbrFace<T>* face);
     virtual bool HasLimit(HbrMesh<T>* mesh, HbrHalfedge<T>* edge);
     virtual bool HasLimit(HbrMesh<T>* mesh, HbrVertex<T>* vertex);
-    
+
     virtual HbrVertex<T>* Subdivide(HbrMesh<T>* mesh, HbrFace<T>* face);
     virtual HbrVertex<T>* Subdivide(HbrMesh<T>* mesh, HbrHalfedge<T>* edge);
     virtual HbrVertex<T>* Subdivide(HbrMesh<T>* mesh, HbrVertex<T>* vertex);
 
     virtual bool VertexIsExtraordinary(HbrMesh<T>* mesh, HbrVertex<T>* vertex) { return vertex->GetValence() != 6; }
+    virtual bool FaceIsExtraordinary(HbrMesh<T>* /* mesh */, HbrFace<T>* face) { return face->GetNumVertices() != 3; }
 
     virtual int GetFaceChildrenCount(int nvertices) const { return 4; }
-    
+
 private:
 
     // Transfers facevarying data from a parent face to a child face
@@ -121,7 +122,7 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
     // we need to do three edge subdivision rules
     if (index == 3) {
         const int fvarcount = mesh->GetFVarCount();
-	for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 3; ++i) {
             HbrHalfedge<T> *edge = face->GetEdge(i);
             GuaranteeNeighbor(mesh, edge);
             childVertex = child->GetVertex((i + 2) % 3);
@@ -129,11 +130,11 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
             if (!fvIsSmooth) {
                 childVertex->NewFVarData(child);
             }
-	    HbrFVarData<T>& fv = childVertex->GetFVarData(child);
+            HbrFVarData<T>& fv = childVertex->GetFVarData(child);
             int fvarindex = 0;
             for (int fvaritem = 0; fvaritem < fvarcount; ++fvaritem) {
                 const int fvarwidth = mesh->GetFVarWidths()[fvaritem];
-            
+
                 if (fvarinterp == HbrMesh<T>::k_InterpolateBoundaryNone ||
                     face->GetEdge(i)->GetFVarSharpness(fvaritem) || face->GetEdge(i)->IsBoundary()) {
 
@@ -157,13 +158,13 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
                 fvarindex += fvarwidth;
             }
             fv.SetInitialized();
-	}
-	return;
+        }
+        return;
     }
 
     HbrHalfedge<T>* edge;
     HbrVertex<T>* v = face->GetVertex(index);
-    
+
     // Otherwise we proceed with one vertex and two edge subdivision
     // applications. First the vertex subdivision rule. Analyze
     // whether the vertex is on the boundary and whether it's an
@@ -189,14 +190,14 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
 
 
     bool fv0IsSmooth, fv1IsSmooth, fv2IsSmooth;
-    
+
     childVertex = child->GetVertex(index);
     fv0IsSmooth = v->IsFVarAllSmooth();
     if (!fv0IsSmooth) {
         childVertex->NewFVarData(child);
     }
     HbrFVarData<T>& fv0 = childVertex->GetFVarData(child);
-    
+
     edge = face->GetEdge(index);
     GuaranteeNeighbor(mesh, edge);
     assert(edge->GetOrgVertex() == v);
@@ -208,7 +209,7 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
     HbrFVarData<T>& fv1 = childVertex->GetFVarData(child);
 
     edge = edge->GetPrev();
-    GuaranteeNeighbor(mesh, edge);    
+    GuaranteeNeighbor(mesh, edge);
     assert(edge == face->GetEdge((index + 2) % 3));
     assert(edge->GetDestVertex() == v);
     childVertex = child->GetVertex((index + 2) % 3);
@@ -217,13 +218,13 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
         childVertex->NewFVarData(child);
     }
     HbrFVarData<T>& fv2 = childVertex->GetFVarData(child);
-    
+
     const int fvarcount = mesh->GetFVarCount();
     int fvarindex = 0;
     for (int fvaritem = 0; fvaritem < fvarcount; ++fvaritem) {
         bool infcorner = false;
         const int fvarwidth = mesh->GetFVarWidths()[fvaritem];
-        const char fvarmask = v->GetFVarMask(fvaritem);        
+        const char fvarmask = v->GetFVarMask(fvaritem);
         if (fvarinterp == HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner) {
             if (fvarmask >= HbrVertex<T>::k_Corner) {
                 infcorner = true;
@@ -295,11 +296,11 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
                 if (bestface->GetVertex(j) == w) break;
             }
             assert(j != bestface->GetNumVertices());
-            fv0.AddWithWeight(bestface->GetFVarData(j), fvarindex, fvarwidth, 0.125f);	
-        }    
+            fv0.AddWithWeight(bestface->GetFVarData(j), fvarindex, fvarwidth, 0.125f);
+        }
         // Boundary vertex rule (can use FVarSmooth, which is equivalent
         // to checking that it's sharper than a dart)
-        else if (fvarmask != 0) {    
+        else if (fvarmask != 0) {
 
             // Use 0.75 of the current vert
             fv0.SetWithWeight(face->GetFVarData(index), fvarindex, fvarwidth, 0.75f);
@@ -348,7 +349,7 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
             starte = bestedge;
             w = 0;
             if (HbrHalfedge<T>* e = starte) {
-                assert(starte->GetOrgVertex() == v);	
+                assert(starte->GetOrgVertex() == v);
                 do {
                     if (e->GetFVarSharpness(fvaritem) || !e->GetRightFace()) {
                         bestface = e->GetLeftFace();
@@ -365,10 +366,10 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
             }
             assert(j != bestface->GetNumVertices());
             fv0.AddWithWeight(bestface->GetFVarData(j), fvarindex, fvarwidth, 0.125f);
-	
+
         }
         // Smooth rule
-        else if (!fv0IsSmooth || !fv0.IsInitialized()) {        
+        else if (!fv0IsSmooth || !fv0.IsInitialized()) {
             int valence = v->GetValence();
             float invvalence = 1.0f / valence;
             float beta = 0.25f * cosf((float)M_PI * 2.0f * invvalence) + 0.375f;
@@ -383,7 +384,7 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
             HbrHalfedge<T>* start = v->GetIncidentEdge(), *edge;
             edge = start;
             while (edge) {
-                HbrFace<T>* g = edge->GetLeftFace();	    
+                HbrFace<T>* g = edge->GetLeftFace();
 
                 // .. and look for the edge on that face whose origin is
                 // the same as v, and add a contribution from its
@@ -423,23 +424,23 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
                 }
             }
         }
-		
+
 
         // Edge subdivision rule
         edge = edge->GetPrev();
-    
+
         if (fvarinterp == HbrMesh<T>::k_InterpolateBoundaryNone ||
             edge->GetFVarSharpness(fvaritem) || edge->IsBoundary()) {
 
-            // Sharp edge rule						 
+            // Sharp edge rule
             fv2.SetWithWeight(face->GetFVarData((index + 2) % 3), fvarindex, fvarwidth, 0.5f);
             fv2.AddWithWeight(face->GetFVarData(index), fvarindex, fvarwidth, 0.5f);
         } else if (!fv2IsSmooth || !fv2.IsInitialized()) {
-            // Smooth edge subdivision. Add 0.375 of adjacent vertices	
+            // Smooth edge subdivision. Add 0.375 of adjacent vertices
             fv2.SetWithWeight(face->GetFVarData((index + 2) % 3), fvarindex, fvarwidth, 0.375f);
             fv2.AddWithWeight(face->GetFVarData(index), fvarindex, fvarwidth, 0.375f);
             // Add 0.125 of opposite vertices
-            fv2.AddWithWeight(face->GetFVarData((index + 1) % 3), fvarindex, fvarwidth, 0.125f);	
+            fv2.AddWithWeight(face->GetFVarData((index + 1) % 3), fvarindex, fvarwidth, 0.125f);
 
             HbrFace<T>* oppFace = edge->GetRightFace();
             for (int j = 0; j < oppFace->GetNumVertices(); ++j) {
@@ -447,7 +448,7 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
                     fv2.AddWithWeight(oppFace->GetFVarData((j+2)%oppFace->GetNumVertices()), fvarindex, fvarwidth, 0.125f);
                     break;
                 }
-            }	
+            }
         }
 
         fvarindex += fvarwidth;
@@ -463,15 +464,15 @@ HbrLoopSubdivision<T>::transferEditsToChild(HbrFace<T>* face, HbrFace<T>* child,
 
     // Hand down pointers to hierarchical edits
     if (HbrHierarchicalEdit<T>** edits = face->GetHierarchicalEdits()) {
-	while (HbrHierarchicalEdit<T>* edit = *edits) {
-	    if (!edit->IsRelevantToFace(face)) break;
-	    if (edit->GetNSubfaces() > face->GetDepth() &&
-		(edit->GetSubface(face->GetDepth()) == index)) {
-		child->SetHierarchicalEdits(edits);
-		break;
-	    }
-	    edits++;
-	}
+        while (HbrHierarchicalEdit<T>* edit = *edits) {
+            if (!edit->IsRelevantToFace(face)) break;
+            if (edit->GetNSubfaces() > face->GetDepth() &&
+                (edit->GetSubface(face->GetDepth()) == index)) {
+                child->SetHierarchicalEdits(edits);
+                break;
+            }
+            edits++;
+        }
     }
 }
 
@@ -481,56 +482,56 @@ HbrLoopSubdivision<T>::Refine(HbrMesh<T>* mesh, HbrFace<T>* face) {
 
 #ifdef HBR_DEBUG
     std::cerr << "\n\nRefining face " << *face << "\n";
-#endif	
-    
+#endif
+
     assert(face->GetNumVertices() == 3); // or triangulate it?
 
     HbrHalfedge<T>* edge = face->GetFirstEdge();
     HbrHalfedge<T>* prevedge = edge->GetPrev();
     for (int i = 0; i < 3; ++i) {
-	HbrVertex<T>* vertex = edge->GetOrgVertex();
-	if (!face->GetChild(i)) {
+        HbrVertex<T>* vertex = edge->GetOrgVertex();
+        if (!face->GetChild(i)) {
 #ifdef HBR_DEBUG
-	    std::cerr << "Kid " << i << "\n";
+            std::cerr << "Kid " << i << "\n";
 #endif
-	    HbrFace<T>* child;
-	    HbrVertex<T>* vertices[3];
+            HbrFace<T>* child;
+            HbrVertex<T>* vertices[3];
 
-	    vertices[i] = vertex->Subdivide();
-	    vertices[(i + 1) % 3] = edge->Subdivide();
-	    vertices[(i + 2) % 3] = prevedge->Subdivide();
-	    child = mesh->NewFace(3, vertices, face, i);
+            vertices[i] = vertex->Subdivide();
+            vertices[(i + 1) % 3] = edge->Subdivide();
+            vertices[(i + 2) % 3] = prevedge->Subdivide();
+            child = mesh->NewFace(3, vertices, face, i);
 #ifdef HBR_DEBUG
-	    std::cerr << "Creating face " << *child << " during refine\n";
-#endif		    
+            std::cerr << "Creating face " << *child << " during refine\n";
+#endif
 
-	    // Hand down edge sharpness		
-	    float sharpness;
-	    HbrHalfedge<T>* childedge;
+            // Hand down edge sharpness
+            float sharpness;
+            HbrHalfedge<T>* childedge;
 
             childedge = child->GetEdge(i);
-	    if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
+            if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                 HbrSubdivision<T>::SubdivideCreaseWeight(
                     edge, edge->GetDestVertex(), childedge);
             }
             childedge->CopyFVarInfiniteSharpness(edge);
 
             childedge = child->GetEdge((i+2)%3);
-	    if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
-		HbrSubdivision<T>::SubdivideCreaseWeight(
+            if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
+                HbrSubdivision<T>::SubdivideCreaseWeight(
                     prevedge, prevedge->GetOrgVertex(), childedge);
-	    }
+            }
             childedge->CopyFVarInfiniteSharpness(prevedge);
 
-	    if (mesh->GetTotalFVarWidth()) {
-		transferFVarToChild(mesh, face, child, i);
-	    }	    
+            if (mesh->GetTotalFVarWidth()) {
+                transferFVarToChild(mesh, face, child, i);
+            }
 
-	    transferEditsToChild(face, child, i);
+            transferEditsToChild(face, child, i);
 
-	}
-	prevedge = edge;
-	edge = edge->GetNext();	
+        }
+        prevedge = edge;
+        edge = edge->GetNext();
     }
 
     refineFaceAtMiddle(mesh, face);
@@ -545,55 +546,55 @@ HbrLoopSubdivision<T>::RefineFaceAtVertex(HbrMesh<T>* mesh, HbrFace<T>* face, Hb
 #endif
     HbrHalfedge<T>* edge = face->GetFirstEdge();
     HbrHalfedge<T>* prevedge = edge->GetPrev();
-    
+
     for (int i = 0; i < 3; ++i) {
-	if (edge->GetOrgVertex() == vertex) {	
-	    if (!face->GetChild(i)) {
+        if (edge->GetOrgVertex() == vertex) {
+            if (!face->GetChild(i)) {
 #ifdef HBR_DEBUG
-		std::cerr << "Kid " << i << "\n";
+                std::cerr << "Kid " << i << "\n";
 #endif
-		HbrFace<T>* child;
-		HbrVertex<T>* vertices[3];
+                HbrFace<T>* child;
+                HbrVertex<T>* vertices[3];
 
-		vertices[i] = vertex->Subdivide();
-		vertices[(i + 1) % 3] = edge->Subdivide();
-		vertices[(i + 2) % 3] = prevedge->Subdivide();
-		child = mesh->NewFace(3, vertices, face, i);
+                vertices[i] = vertex->Subdivide();
+                vertices[(i + 1) % 3] = edge->Subdivide();
+                vertices[(i + 2) % 3] = prevedge->Subdivide();
+                child = mesh->NewFace(3, vertices, face, i);
 #ifdef HBR_DEBUG
-		std::cerr << "Creating face " << *child << " during refine\n";
-#endif		    
+                std::cerr << "Creating face " << *child << " during refine\n";
+#endif
 
-		// Hand down edge sharpness		
-		float sharpness;
-		HbrHalfedge<T>* childedge;
+                // Hand down edge sharpness
+                float sharpness;
+                HbrHalfedge<T>* childedge;
 
                 childedge = child->GetEdge(i);
-		if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
-		    HbrSubdivision<T>::SubdivideCreaseWeight(
+                if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
+                    HbrSubdivision<T>::SubdivideCreaseWeight(
                         edge, edge->GetDestVertex(), childedge);
-		}
+                }
                 childedge->CopyFVarInfiniteSharpness(edge);
 
                 childedge = child->GetEdge((i+2)%3);
-		if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
-		    HbrSubdivision<T>::SubdivideCreaseWeight(
+                if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
+                    HbrSubdivision<T>::SubdivideCreaseWeight(
                         prevedge, prevedge->GetOrgVertex(), childedge);
-		}
+                }
                 childedge->CopyFVarInfiniteSharpness(prevedge);
 
-		if (mesh->GetTotalFVarWidth()) {
-		    transferFVarToChild(mesh, face, child, i);
-		}
+                if (mesh->GetTotalFVarWidth()) {
+                    transferFVarToChild(mesh, face, child, i);
+                }
 
-		transferEditsToChild(face, child, i);
-	    
-		return child;
-	    } else {
-		return face->GetChild(i);
-	    }
-	}
-	prevedge = edge;
-	edge = edge->GetNext();	
+                transferEditsToChild(face, child, i);
+
+                return child;
+            } else {
+                return face->GetChild(i);
+            }
+        }
+        prevedge = edge;
+        edge = edge->GetNext();
     }
     return 0;
 }
@@ -602,7 +603,7 @@ template <class T>
 void
 HbrLoopSubdivision<T>::GuaranteeNeighbor(HbrMesh<T>* mesh, HbrHalfedge<T>* edge) {
     if (edge->GetOpposite()) {
-	return;
+        return;
     }
 
 #ifdef HBR_DEBUG
@@ -611,7 +612,7 @@ HbrLoopSubdivision<T>::GuaranteeNeighbor(HbrMesh<T>* mesh, HbrHalfedge<T>* edge)
 
     /*
       Imagine the following:
-       
+
                       X
                      / \
                     /   \
@@ -622,7 +623,7 @@ HbrLoopSubdivision<T>::GuaranteeNeighbor(HbrMesh<T>* mesh, HbrHalfedge<T>* edge)
                /    \        \
               X------X--------X
                  1
-    
+
      If the parent of _both_ incident vertices are themselves edges,
      (like the edge marked 3 above), then this edge is in the center
      of the parent face. Refining the parent face in the middle or
@@ -633,41 +634,41 @@ HbrLoopSubdivision<T>::GuaranteeNeighbor(HbrMesh<T>* mesh, HbrHalfedge<T>* edge)
     HbrHalfedge<T>* parentEdge2 = edge->GetDestVertex()->GetParentEdge();
     if (parentEdge1 && parentEdge2) {
 #ifdef HBR_DEBUG
-	std::cerr << "two parent edge situation\n";
+        std::cerr << "two parent edge situation\n";
 #endif
-	HbrFace<T>* parentFace = parentEdge1->GetFace();
-	assert(parentFace == parentEdge2->GetFace());
-	if(parentEdge1->GetOrgVertex() == parentEdge2->GetDestVertex()) {
-	    refineFaceAtMiddle(mesh, parentFace);
-	} else {
-	    RefineFaceAtVertex(mesh, parentFace, parentEdge1->GetOrgVertex());
-	}
-	assert(edge->GetOpposite());
-	return;
+        HbrFace<T>* parentFace = parentEdge1->GetFace();
+        assert(parentFace == parentEdge2->GetFace());
+        if(parentEdge1->GetOrgVertex() == parentEdge2->GetDestVertex()) {
+            refineFaceAtMiddle(mesh, parentFace);
+        } else {
+            RefineFaceAtVertex(mesh, parentFace, parentEdge1->GetOrgVertex());
+        }
+        assert(edge->GetOpposite());
+        return;
     }
 
     // Otherwise we're in the situation of edge 1 or edge 2 in the
     // diagram above.
     if (parentEdge1) {
 #ifdef HBR_DEBUG
-	std::cerr << "parent edge 1 " << *parentEdge1 << "\n";
+        std::cerr << "parent edge 1 " << *parentEdge1 << "\n";
 #endif
-	HbrVertex<T>* parentVertex2 = edge->GetDestVertex()->GetParentVertex();
-	assert(parentVertex2);
-	RefineFaceAtVertex(mesh, parentEdge1->GetLeftFace(), parentVertex2);
-	if (parentEdge1->GetRightFace()) {
-	    RefineFaceAtVertex(mesh, parentEdge1->GetRightFace(), parentVertex2);
-	}
+        HbrVertex<T>* parentVertex2 = edge->GetDestVertex()->GetParentVertex();
+        assert(parentVertex2);
+        RefineFaceAtVertex(mesh, parentEdge1->GetLeftFace(), parentVertex2);
+        if (parentEdge1->GetRightFace()) {
+            RefineFaceAtVertex(mesh, parentEdge1->GetRightFace(), parentVertex2);
+        }
     } else if (parentEdge2) {
 #ifdef HBR_DEBUG
-	std::cerr << "parent edge 2 " << *parentEdge2 << "\n";
+        std::cerr << "parent edge 2 " << *parentEdge2 << "\n";
 #endif
-	HbrVertex<T>* parentVertex1 = edge->GetOrgVertex()->GetParentVertex();
-	assert(parentVertex1);
-	RefineFaceAtVertex(mesh, parentEdge2->GetLeftFace(), parentVertex1);
-	if (parentEdge2->GetRightFace()) {
-	    RefineFaceAtVertex(mesh, parentEdge2->GetRightFace(), parentVertex1);
-	}
+        HbrVertex<T>* parentVertex1 = edge->GetOrgVertex()->GetParentVertex();
+        assert(parentVertex1);
+        RefineFaceAtVertex(mesh, parentEdge2->GetLeftFace(), parentVertex1);
+        if (parentEdge2->GetRightFace()) {
+            RefineFaceAtVertex(mesh, parentEdge2->GetRightFace(), parentVertex1);
+        }
     }
 }
 
@@ -686,50 +687,50 @@ HbrLoopSubdivision<T>::GuaranteeNeighbors(HbrMesh<T>* mesh, HbrVertex<T>* vertex
     // and have 1) refined at both vertices of the parent edge, and 2)
     // have refined their "middle" face (which doesn't live at either
     // vertex).
-    
+
     HbrHalfedge<T>* parentEdge = vertex->GetParentEdge();
     if (parentEdge) {
 #ifdef HBR_DEBUG
-	std::cerr << "parent edge situation " << *parentEdge << "\n";
+        std::cerr << "parent edge situation " << *parentEdge << "\n";
 #endif
-	HbrVertex<T>* dest = parentEdge->GetDestVertex();
-	HbrVertex<T>* org = parentEdge->GetOrgVertex();
-	GuaranteeNeighbor(mesh, parentEdge);
-	HbrFace<T>* parentFace = parentEdge->GetLeftFace();
-	RefineFaceAtVertex(mesh, parentFace, dest);
-	RefineFaceAtVertex(mesh, parentFace, org);
-	refineFaceAtMiddle(mesh, parentFace);
-	parentFace = parentEdge->GetRightFace();
-	// The right face may not necessarily exist even after
-	// GuaranteeNeighbor
-	if (parentFace) {
-	    RefineFaceAtVertex(mesh, parentFace, dest);
-	    RefineFaceAtVertex(mesh, parentFace, org);
-	    refineFaceAtMiddle(mesh, parentFace);	    
-	}
-	return;
-    }    
-    
+        HbrVertex<T>* dest = parentEdge->GetDestVertex();
+        HbrVertex<T>* org = parentEdge->GetOrgVertex();
+        GuaranteeNeighbor(mesh, parentEdge);
+        HbrFace<T>* parentFace = parentEdge->GetLeftFace();
+        RefineFaceAtVertex(mesh, parentFace, dest);
+        RefineFaceAtVertex(mesh, parentFace, org);
+        refineFaceAtMiddle(mesh, parentFace);
+        parentFace = parentEdge->GetRightFace();
+        // The right face may not necessarily exist even after
+        // GuaranteeNeighbor
+        if (parentFace) {
+            RefineFaceAtVertex(mesh, parentFace, dest);
+            RefineFaceAtVertex(mesh, parentFace, org);
+            refineFaceAtMiddle(mesh, parentFace);
+        }
+        return;
+    }
+
     // The second case: the vertex is a child of a vertex. In this case
     // we have to recursively guarantee that the parent's adjacent
     // faces also exist.
     HbrVertex<T>* parentVertex = vertex->GetParentVertex();
     if (parentVertex) {
 #ifdef HBR_DEBUG
-	std::cerr << "parent vertex situation " << *parentVertex << "\n";
+        std::cerr << "parent vertex situation " << *parentVertex << "\n";
 #endif
-	parentVertex->GuaranteeNeighbors();
+        parentVertex->GuaranteeNeighbors();
 
-	// And then we refine all the face neighbors of the parent
-	// vertex
-	HbrHalfedge<T>* start = parentVertex->GetIncidentEdge(), *edge;
-	edge = start;
-	while (edge) {
-	    HbrFace<T>* f = edge->GetLeftFace();
-	    RefineFaceAtVertex(mesh, f, parentVertex);
-	    edge = parentVertex->GetNextEdge(edge);
-	    if (edge == start) break;	    
-	}
+        // And then we refine all the face neighbors of the parent
+        // vertex
+        HbrHalfedge<T>* start = parentVertex->GetIncidentEdge(), *edge;
+        edge = start;
+        while (edge) {
+            HbrFace<T>* f = edge->GetLeftFace();
+            RefineFaceAtVertex(mesh, f, parentVertex);
+            edge = parentVertex->GetNextEdge(edge);
+            if (edge == start) break;
+        }
     }
 }
 
@@ -740,9 +741,9 @@ HbrLoopSubdivision<T>::HasLimit(HbrMesh<T>* mesh, HbrFace<T>* face) {
     if (face->IsHole()) return false;
     // A limit face exists if all the bounding edges have limit curves
     for (int i = 0; i < face->GetNumVertices(); ++i) {
-	if (!HasLimit(mesh, face->GetEdge(i))) {
-	    return false;
-	}
+        if (!HasLimit(mesh, face->GetEdge(i))) {
+            return false;
+        }
     }
     return true;
 }
@@ -750,14 +751,14 @@ HbrLoopSubdivision<T>::HasLimit(HbrMesh<T>* mesh, HbrFace<T>* face) {
 template <class T>
 bool
 HbrLoopSubdivision<T>::HasLimit(HbrMesh<T>* mesh, HbrHalfedge<T>* edge) {
-    // 	A sharp edge has a limit curve if both endpoints have limits.
-    // 	A smooth edge has a limit if both endpoints have limits and
-    // 	the edge isn't on the boundary.
+    //  A sharp edge has a limit curve if both endpoints have limits.
+    //  A smooth edge has a limit if both endpoints have limits and
+    //  the edge isn't on the boundary.
 
     if (edge->GetSharpness() >= HbrHalfedge<T>::k_InfinitelySharp) return true;
-    
+
     if (!HasLimit(mesh, edge->GetOrgVertex()) || !HasLimit(mesh, edge->GetDestVertex())) return false;
-    
+
     return !edge->IsBoundary();
 }
 
@@ -766,21 +767,21 @@ bool
 HbrLoopSubdivision<T>::HasLimit(HbrMesh<T>* mesh, HbrVertex<T>* vertex) {
     vertex->GuaranteeNeighbors();
     switch (vertex->GetMask(false)) {
-	case HbrVertex<T>::k_Smooth:
-	case HbrVertex<T>::k_Dart:
-	    return !vertex->OnBoundary();
-	    break;
-	case HbrVertex<T>::k_Crease:
-	case HbrVertex<T>::k_Corner:
-	default:
-	    if (vertex->IsVolatile()) {
-		// Search for any incident semisharp boundary edge
+        case HbrVertex<T>::k_Smooth:
+        case HbrVertex<T>::k_Dart:
+            return !vertex->OnBoundary();
+            break;
+        case HbrVertex<T>::k_Crease:
+        case HbrVertex<T>::k_Corner:
+        default:
+            if (vertex->IsVolatile()) {
+                // Search for any incident semisharp boundary edge
                 HbrHalfedge<T>* start = vertex->GetIncidentEdge(), *edge, *next;
                 edge = start;
                 while (edge) {
-		    if (edge->IsBoundary() && edge->GetSharpness() < HbrHalfedge<T>::k_InfinitelySharp) {
-			return false;
-		    }
+                    if (edge->IsBoundary() && edge->GetSharpness() < HbrHalfedge<T>::k_InfinitelySharp) {
+                        return false;
+                    }
                     next = vertex->GetNextEdge(edge);
                     if (next == start) {
                         break;
@@ -793,9 +794,9 @@ HbrLoopSubdivision<T>::HasLimit(HbrMesh<T>* mesh, HbrVertex<T>* vertex) {
                     } else {
                         edge = next;
                     }
-		}
-	    }
-	    return true;
+                }
+            }
+            return true;
     }
 }
 
@@ -824,46 +825,46 @@ HbrLoopSubdivision<T>::Subdivide(HbrMesh<T>* mesh, HbrHalfedge<T>* edge) {
     // If there's the possibility of vertex edits on either vertex, we
     // have to make sure the edit has been applied
     if (mesh->HasVertexEdits()) {
-	edge->GetOrgVertex()->GuaranteeNeighbors();
-	edge->GetDestVertex()->GuaranteeNeighbors();
+        edge->GetOrgVertex()->GuaranteeNeighbors();
+        edge->GetDestVertex()->GuaranteeNeighbors();
     }
 
     if (!edge->IsBoundary() && esharp <= 1.0f) {
 
-	// Of the two half-edges, pick one of them consistently such
-	// that the org and dest vertices are also consistent through
-	// multi-threading. It doesn't matter as far as the
-	// theoretical calculation is concerned, but it is desirable
-	// to be consistent about it in the face of the limitations of
-	// floating point commutativity. So we always pick the
-	// half-edge such that its incident face is the smallest of
-	// the two faces, as far as the face paths are concerned.
-	if (edge->GetOpposite() && edge->GetOpposite()->GetFace()->GetPath() < edge->GetFace()->GetPath()) {
-	    edge = edge->GetOpposite();
-	}
-	
-	// Handle both the smooth and fractional sharpness cases.  We
-	// lerp between the sharp case (average of the two end points)
-	// and the unsharp case (3/8 of each of the two end points
-	// plus 1/8 of the two opposite face averages).
+        // Of the two half-edges, pick one of them consistently such
+        // that the org and dest vertices are also consistent through
+        // multi-threading. It doesn't matter as far as the
+        // theoretical calculation is concerned, but it is desirable
+        // to be consistent about it in the face of the limitations of
+        // floating point commutativity. So we always pick the
+        // half-edge such that its incident face is the smallest of
+        // the two faces, as far as the face paths are concerned.
+        if (edge->GetOpposite() && edge->GetOpposite()->GetFace()->GetPath() < edge->GetFace()->GetPath()) {
+            edge = edge->GetOpposite();
+        }
 
-	// Lerp end point weight between non sharp contribution of
-	// 3/8 and the sharp contribution of 0.5.
-	float endPtWeight = 0.375f + esharp * (0.5f - 0.375f);
-	data.AddWithWeight(edge->GetOrgVertex()->GetData(), endPtWeight);
-	data.AddWithWeight(edge->GetDestVertex()->GetData(), endPtWeight);
+        // Handle both the smooth and fractional sharpness cases.  We
+        // lerp between the sharp case (average of the two end points)
+        // and the unsharp case (3/8 of each of the two end points
+        // plus 1/8 of the two opposite face averages).
 
-	// Lerp the opposite pt weights between non sharp contribution
-	// of 1/8 and the sharp contribution of 0.
-	float oppPtWeight = 0.125f * (1 - esharp);
-	HbrHalfedge<T>* ee = edge->GetNext();
-	data.AddWithWeight(ee->GetDestVertex()->GetData(), oppPtWeight);
-	ee = edge->GetOpposite()->GetNext();
-	data.AddWithWeight(ee->GetDestVertex()->GetData(), oppPtWeight);
+        // Lerp end point weight between non sharp contribution of
+        // 3/8 and the sharp contribution of 0.5.
+        float endPtWeight = 0.375f + esharp * (0.5f - 0.375f);
+        data.AddWithWeight(edge->GetOrgVertex()->GetData(), endPtWeight);
+        data.AddWithWeight(edge->GetDestVertex()->GetData(), endPtWeight);
+
+        // Lerp the opposite pt weights between non sharp contribution
+        // of 1/8 and the sharp contribution of 0.
+        float oppPtWeight = 0.125f * (1 - esharp);
+        HbrHalfedge<T>* ee = edge->GetNext();
+        data.AddWithWeight(ee->GetDestVertex()->GetData(), oppPtWeight);
+        ee = edge->GetOpposite()->GetNext();
+        data.AddWithWeight(ee->GetDestVertex()->GetData(), oppPtWeight);
     } else {
-	// Fully sharp edge, just average the two end points
-	data.AddWithWeight(edge->GetOrgVertex()->GetData(), 0.5f);
-	data.AddWithWeight(edge->GetDestVertex()->GetData(), 0.5f);
+        // Fully sharp edge, just average the two end points
+        data.AddWithWeight(edge->GetOrgVertex()->GetData(), 0.5f);
+        data.AddWithWeight(edge->GetDestVertex()->GetData(), 0.5f);
     }
 
     // Varying data is always the average of two end points
@@ -876,7 +877,7 @@ HbrLoopSubdivision<T>::Subdivide(HbrMesh<T>* mesh, HbrHalfedge<T>* edge) {
 
     // Only boundary edges will create extraordinary vertices
     if (edge->IsBoundary()) {
-	v->SetExtraordinary();
+        v->SetExtraordinary();
     }
     return v;
 }
@@ -888,7 +889,7 @@ HbrLoopSubdivision<T>::Subdivide(HbrMesh<T>* mesh, HbrVertex<T>* vertex) {
     // Ensure the ring of faces around this vertex exists before
     // we compute the valence
     vertex->GuaranteeNeighbors();
-    
+
     float valence = static_cast<float>(vertex->GetValence());
     float invvalence = 1.0f / valence;
 
@@ -907,63 +908,63 @@ HbrLoopSubdivision<T>::Subdivide(HbrMesh<T>* mesh, HbrVertex<T>* vertex) {
     // subdivision, then use fractional mask weights to weigh
     // each weighing
     if (masks[0] != masks[1]) {
-	weights[1] = vertex->GetFractionalMask();
-	weights[0] = 1.0f - weights[1];
-	passes = 2;
+        weights[1] = vertex->GetFractionalMask();
+        weights[0] = 1.0f - weights[1];
+        passes = 2;
     } else {
-	weights[0] = 1.0f;
-	weights[1] = 0.0f;
-	passes = 1;
+        weights[0] = 1.0f;
+        weights[1] = 0.0f;
+        passes = 1;
     }
     for (int i = 0; i < passes; ++i) {
-	switch (masks[i]) {
-	    case HbrVertex<T>::k_Smooth:
-	    case HbrVertex<T>::k_Dart: {		
-		float beta = 0.25f * cosf((float)M_PI * 2.0f * invvalence) + 0.375f;
-		beta = beta * beta;
-		beta = (0.625f - beta) * invvalence;
+        switch (masks[i]) {
+            case HbrVertex<T>::k_Smooth:
+            case HbrVertex<T>::k_Dart: {
+                float beta = 0.25f * cosf((float)M_PI * 2.0f * invvalence) + 0.375f;
+                beta = beta * beta;
+                beta = (0.625f - beta) * invvalence;
 
-		data.AddWithWeight(vertex->GetData(), weights[i] * (1 - (beta * valence)));
+                data.AddWithWeight(vertex->GetData(), weights[i] * (1 - (beta * valence)));
 
                 HbrSubdivision<T>::AddSurroundingVerticesWithWeight(
                     mesh, vertex, weights[i] * beta, &data);
                 break;
-	    }
-	    case HbrVertex<T>::k_Crease: {
-		// Compute 3/4 of old vertex value
-		data.AddWithWeight(vertex->GetData(), weights[i] * 0.75f);
+            }
+            case HbrVertex<T>::k_Crease: {
+                // Compute 3/4 of old vertex value
+                data.AddWithWeight(vertex->GetData(), weights[i] * 0.75f);
 
-		// Add 0.125f of the (hopefully only two!) neighbouring
-		// sharp edges
+                // Add 0.125f of the (hopefully only two!) neighbouring
+                // sharp edges
                 HbrSubdivision<T>::AddCreaseEdgesWithWeight(
                     mesh, vertex, i == 1, weights[i] * 0.125f, &data);
-		break;
-	    }
-	    case HbrVertex<T>::k_Corner:
-	    default: {
-		// Just copy the old value
-		data.AddWithWeight(vertex->GetData(), weights[i]);
-		break;
-	    }
-	}
+                break;
+            }
+            case HbrVertex<T>::k_Corner:
+            default: {
+                // Just copy the old value
+                data.AddWithWeight(vertex->GetData(), weights[i]);
+                break;
+            }
+        }
     }
 
-    // Varying data is always just propogated down
+    // Varying data is always just propagated down
     data.AddVaryingWithWeight(vertex->GetData(), 1.0f);
-    
+
 #ifdef HBR_DEBUG
-    std::cerr << "Subdividing at " << *vertex << "\n";    
+    std::cerr << "Subdividing at " << *vertex << "\n";
     std::cerr << "  created " << *v << "\n";
 #endif
     // Inherit extraordinary flag and sharpness
     if (vertex->IsExtraordinary()) v->SetExtraordinary();
     float sharp = vertex->GetSharpness();
     if (sharp >= HbrVertex<T>::k_InfinitelySharp) {
-	v->SetSharpness(HbrVertex<T>::k_InfinitelySharp);
+        v->SetSharpness(HbrVertex<T>::k_InfinitelySharp);
     } else if (sharp > HbrVertex<T>::k_Smooth) {
-	v->SetSharpness(std::max((float) HbrVertex<T>::k_Smooth, sharp - 1.0f));
+        v->SetSharpness(std::max((float) HbrVertex<T>::k_Smooth, sharp - 1.0f));
     } else {
-	v->SetSharpness(HbrVertex<T>::k_Smooth);
+        v->SetSharpness(HbrVertex<T>::k_Smooth);
     }
     return v;
 }
@@ -974,28 +975,28 @@ HbrLoopSubdivision<T>::refineFaceAtMiddle(HbrMesh<T>* mesh, HbrFace<T>* face) {
 
 #ifdef HBR_DEBUG
     std::cerr << "Refining middle face of " << *face << "\n";
-#endif	
-    
-    if (!face->GetChild(3)) {
-	HbrFace<T>* child;
-	HbrVertex<T>* vertices[3];
-
-	// The fourth face is not an obvious child of any vertex. We
-	// assign it index 3 despite there being no fourth vertex in
-	// the triangle. The ordering of vertices here is done to
-	// preserve parametric space as best we can
-	vertices[0] = face->GetEdge(1)->Subdivide();
-	vertices[1] = face->GetEdge(2)->Subdivide();
-	vertices[2] = face->GetEdge(0)->Subdivide();
-	child = mesh->NewFace(3, vertices, face, 3);
-#ifdef HBR_DEBUG
-	std::cerr << "Creating face " << *child << "\n";
 #endif
-	if (mesh->GetTotalFVarWidth()) {
-	    transferFVarToChild(mesh, face, child, 3);
-	}
 
-	transferEditsToChild(face, child, 3);
+    if (!face->GetChild(3)) {
+        HbrFace<T>* child;
+        HbrVertex<T>* vertices[3];
+
+        // The fourth face is not an obvious child of any vertex. We
+        // assign it index 3 despite there being no fourth vertex in
+        // the triangle. The ordering of vertices here is done to
+        // preserve parametric space as best we can
+        vertices[0] = face->GetEdge(1)->Subdivide();
+        vertices[1] = face->GetEdge(2)->Subdivide();
+        vertices[2] = face->GetEdge(0)->Subdivide();
+        child = mesh->NewFace(3, vertices, face, 3);
+#ifdef HBR_DEBUG
+        std::cerr << "Creating face " << *child << "\n";
+#endif
+        if (mesh->GetTotalFVarWidth()) {
+            transferFVarToChild(mesh, face, child, 3);
+        }
+
+        transferEditsToChild(face, child, 3);
     }
 }
 

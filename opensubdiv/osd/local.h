@@ -15,7 +15,7 @@
 #define OSD_ERROR(...) printf(__VA_ARGS__);
 
 //#define OSD_DEBUG(...) printf(__VA_ARGS__);
-#define OSD_DEBUG(...) 
-    
+#define OSD_DEBUG(...)
+
 
 #endif // OSD_LOCAL_H
