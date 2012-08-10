@@ -89,9 +89,6 @@
 
 #include "../common/shape_utils.h"
 
-#include <ImathVec.h>
-
-
 //
 // Regression testing matching Osd to Hbr
 //
@@ -108,23 +105,56 @@
 //------------------------------------------------------------------------------
 // Vertex class implementation
 struct xyzVV {
+
     xyzVV() { }
+
     xyzVV( int /*i*/ ) { }
-    xyzVV( float x, float y, float z ) : _pos(x,y,z) { }
-    xyzVV( const Imath::Vec3<float> & v ) : _pos(v) { }
-    xyzVV( const xyzVV & src ) : _pos(src._pos) { }
+
+    xyzVV( float x, float y, float z ) { _pos[0]=x; _pos[1]=y; _pos[2]=z; }
+
+    xyzVV( const xyzVV & src ) { _pos[0]=src._pos[0]; _pos[1]=src._pos[1]; _pos[2]=src._pos[2]; }
+
    ~xyzVV( ) { }
 
-    void     AddWithWeight(const xyzVV& src, float weight, void * =0 ) { _pos+=weight*src._pos; }
+    void     AddWithWeight(const xyzVV& src, float weight, void * =0 ) { 
+        _pos[0]+=weight*src._pos[0]; 
+        _pos[1]+=weight*src._pos[1]; 
+        _pos[2]+=weight*src._pos[2]; 
+    }
+
     void     AddVaryingWithWeight(const xyzVV& , float, void * =0 ) { }
-    void     Clear( void * =0 ) { _pos.setValue(0.f, 0.f, 0.f); }
-    void     SetPosition(float x, float y, float z) { _pos=Imath::Vec3<float>(x,y,z); }
-    void     ApplyVertexEdit(const OpenSubdiv::HbrVertexEdit<xyzVV> &) { }
+
+    void     Clear( void * =0 ) { _pos[0]=_pos[1]=_pos[2]=0.0f; }
+
+    void     SetPosition(float x, float y, float z) { _pos[0]=x; _pos[1]=y; _pos[2]=z; }
+
+    void     ApplyVertexEdit(const OpenSubdiv::HbrVertexEdit<xyzVV> & edit) {
+                 const float *src = edit.GetEdit();
+                 switch(edit.GetOperation()) {
+                   case OpenSubdiv::HbrHierarchicalEdit<xyzVV>::Set:
+                     _pos[0] = src[0];
+                     _pos[1] = src[1];
+                     _pos[2] = src[2];
+                     break;
+                   case OpenSubdiv::HbrHierarchicalEdit<xyzVV>::Add:
+                     _pos[0] += src[0];
+                     _pos[1] += src[1];
+                     _pos[2] += src[2];
+                     break;
+                   case OpenSubdiv::HbrHierarchicalEdit<xyzVV>::Subtract:
+                     _pos[0] -= src[0];
+                     _pos[1] -= src[1];
+                     _pos[2] -= src[2];
+                     break;
+                 }
+             }
+
     void     ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<xyzVV> &) { }
-    const Imath::Vec3<float>& GetPos() const { return _pos; }
+
+    const float * GetPos() const { return _pos; }
 
 private:
-    Imath::Vec3<float> _pos;
+    float _pos[3];
 };
 
 //------------------------------------------------------------------------------
@@ -176,8 +206,8 @@ int checkVertexBuffer( xyzmesh * hmesh,
                        OpenSubdiv::OsdCpuVertexBuffer * vb,
                        std::vector<int> const & remap) {
     int count=0;
-    Imath::Vec3<float> deltaAvg(0.0, 0.0, 0.0);
-    Imath::Vec3<float> deltaCnt(0,0,0);
+    float deltaAvg[3] = {0.0f, 0.0f, 0.0f},
+          deltaCnt[3] = {0.0f, 0.0f, 0.0f};
 
     int nverts = hmesh->GetNumVertices();
     for (int i=0; i<nverts; ++i) {
@@ -200,11 +230,15 @@ int checkVertexBuffer( xyzmesh * hmesh,
         if ( hv->GetData().GetPos()[2] != ov[2] )
             deltaCnt[2]++;
 
-        Imath::Vec3<float> delta = hv->GetData().GetPos() - Imath::Vec3<float>(ov[0],ov[1],ov[2]);
+        float delta[3] = { hv->GetData().GetPos()[0] - ov[0],
+                           hv->GetData().GetPos()[1] - ov[1],
+                           hv->GetData().GetPos()[2] - ov[2] };
 
-        deltaAvg+=delta;
+        deltaAvg[0]+=delta[0];
+        deltaAvg[1]+=delta[1];
+        deltaAvg[2]+=delta[2];
 
-        float dist = delta.length();
+        float dist = sqrtf( delta[0]*delta[0]+delta[1]*delta[1]+delta[2]*delta[2]);
         if ( dist > PRECISION ) {
             printf("// HbrVertex<T> %d fails : dist=%.10f (%.10f %.10f %.10f)"
                    " (%.10f %.10f %.10f)\n", i, dist, hv->GetData().GetPos()[0],
@@ -224,12 +258,12 @@ int checkVertexBuffer( xyzmesh * hmesh,
     if (deltaCnt[2])
         deltaAvg[2]/=deltaCnt[2];
 
-    printf("    delta ratio : (%d/%d %d/%d %d/%d)\n", (int)deltaCnt.x, nverts,
-                                                      (int)deltaCnt.y, nverts,
-                                                      (int)deltaCnt.x, nverts );
-    printf("    average delta : (%.10f %.10f %.10f)\n", deltaAvg.x,
-                                                        deltaAvg.y,
-                                                        deltaAvg.z );
+    printf("    delta ratio : (%d/%d %d/%d %d/%d)\n", (int)deltaCnt[0], nverts,
+                                                      (int)deltaCnt[1], nverts,
+                                                      (int)deltaCnt[2], nverts );
+    printf("    average delta : (%.10f %.10f %.10f)\n", deltaAvg[0],
+                                                        deltaAvg[1],
+                                                        deltaAvg[2] );
     if (count==0)
         printf("  success !\n");
 

@@ -56,7 +56,6 @@
 #
 
 include_directories(
-    ${ILMBASE_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/opensubdiv
 )
 
@@ -69,7 +68,5 @@ add_executable(far_regression
     ${SOURCE_FILES}
 )
 
-target_link_libraries(far_regression
-    ${ILMBASE_LIBRARIES}
-)
+target_link_libraries(far_regression)
 

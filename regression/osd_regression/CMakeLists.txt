@@ -56,7 +56,6 @@
 #
 
 include_directories(
-    ${ILMBASE_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/opensubdiv
     ${GLEW_INCLUDE_DIR}
     ${GLUT_INCLUDE_DIR}
@@ -73,7 +72,6 @@ add_executable(osd_regression
 
 target_link_libraries(osd_regression
     ${OSD_LINK_TARGET}
-    ${ILMBASE_LIBRARIES}
     ${OPENGL_LIBRARY}
     ${GLEW_LIBRARY}
     ${GLUT_LIBRARIES}

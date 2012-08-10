@@ -76,7 +76,6 @@ endif()
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
     ${MAYA_INCLUDE_DIRS}
-    ${ILMBASE_INCLUDE_DIR}
     ${GLEW_INCLUDE_DIR}
     ${PTEX_INCLUDE_DIR}
 )
@@ -169,7 +168,6 @@ target_link_libraries(maya_ptex_plugin
     ${MAYA_OpenMayaRender_LIBRARY}
     ${MAYA_tbb_LIBRARY}
     ${PLATFORM_LIBRARIES}
-    ${ILMBASE_LIBRARIES}
     ${GLEW_LIBRARY}
     ${PTEX_LIBRARY}
 )

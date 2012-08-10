@@ -97,7 +97,6 @@ set(CMAKE_MODULE_PATH
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 
 # Check for dependencies
-find_package(IlmBase REQUIRED)
 find_package(OpenMP)
 find_package(OpenGL)
 find_package(OpenCL)
@@ -291,7 +290,7 @@ macro(_add_glut_executable target)
     if(WIN32)
         # Windows needs some of its dependency dll's copied into the same
         # directory as the executable.
-        set( LIBRARIES ${ILMBASE_LIBRARIES} ${GLUT_LIBRARIES})
+        set( LIBRARIES ${GLUT_LIBRARIES})
         foreach (LIB ${LIBRARIES} )
             string(REPLACE ".lib" ".dll" DLL ${LIB})
             string(REPLACE ".LIB" ".DLL" DLL ${DLL})

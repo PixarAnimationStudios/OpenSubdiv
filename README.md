@@ -18,7 +18,6 @@ Basic instructions to get started with the code.
 ### Dependencies
 
 Required:
-* IlmBase 1.0.1: http://www.openexr.com/downloads.html
 
 Optional:
 * Maya SDK (sample code for Maya viewport 2.0 primitive)
@@ -50,7 +49,6 @@ make
 
 ````
 -DCMAKE_BUILD_TYPE=[Debug|Release]
--DILMBASE_LOCATION=[path to IlmBase]
 -DMAYA_LOCATION=[path to Maya]
 -DPTEX_LOCATION=[path to Ptex]
 -DGLUT_LOCATION=[path to GLUT]
@@ -88,4 +86,4 @@ There are many things we'd love to do to improve support for subdivs but don't h
   * The reference maya plugin doesn't integrate with Maya shading.  That would be cool.
   * John Lasseter loves looking at film assets in progress on an iPad. If anyone were to get this working on iOS he'd be looking at your code, and the apple geeks in all of us would smile.
   * Alembic support would be wonderful, but we don't use Alembic enough internally to do the work.
-  * The precomputation step with hbr can be slow. Does anyone have thoughts on higher performance with topology rich data structures needed for feature adaptive subdivision? Maybe a class that packs adjacency into blocks of indices efficiently, or supports multithreading, or even feature-adaptive subdivision on the GPU?
+  * The precomputation step with hbr can be slow. Does anyone have thoughts on higher performance with topology rich data structures needed for feature adaptive subdivision? Maybe a class that packs adjacency into blocks of indices efficiently, or supports multithreading ?
