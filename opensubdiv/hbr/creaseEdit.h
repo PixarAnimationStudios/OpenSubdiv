@@ -93,7 +93,7 @@ public:
     virtual void ApplyEditToFace(HbrFace<T>* face) {
         if (HbrHierarchicalEdit<T>::GetNSubfaces() == face->GetDepth()) {
             // Modify edge sharpness
-            float sharp;
+            float sharp=0.0f;
             if (op == HbrHierarchicalEdit<T>::Set) {
                 sharp = sharpness;
             } else if (op == HbrHierarchicalEdit<T>::Add) {
