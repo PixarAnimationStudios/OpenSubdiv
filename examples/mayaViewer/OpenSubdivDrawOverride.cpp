@@ -60,6 +60,7 @@
 // Include this first to avoid winsock2.h problems on Windows:
 #include <maya/MTypes.h>
 
+#include <osd/mutex.h>
 #include <osd/cpuDispatcher.h>
 #include <osd/cudaDispatcher.h>
 #include <osd/mesh.h>

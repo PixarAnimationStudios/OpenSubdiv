@@ -58,6 +58,7 @@
 #define OSD_HBR_UTIL_H
 
 #include <vector>
+#include <osd/mutex.h>
 #include <osd/mesh.h>
 
 extern "C" OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,

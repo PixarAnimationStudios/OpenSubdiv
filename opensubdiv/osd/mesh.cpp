@@ -64,12 +64,22 @@
 #include <string.h>
 
 #include "../version.h"
+
+#include "../osd/mutex.h"
+
+#include "../hbr/mesh.h"
+#include "../hbr/vertex.h"
+#include "../hbr/face.h"
+#include "../hbr/halfedge.h"
+
+#include "../far/mesh.h"
+#include "../far/meshFactory.h"
+
 #include "../osd/mesh.h"
 #include "../osd/local.h"
 #include "../osd/kernelDispatcher.h"
 #include "../osd/cpuDispatcher.h"
 
-#include "../far/meshFactory.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

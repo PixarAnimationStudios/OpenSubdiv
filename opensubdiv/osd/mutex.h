@@ -54,22 +54,30 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_HBR_UTIL_H
-#define OSD_HBR_UTIL_H
 
-#include <vector>
-#include <osd/mutex.h>
-#include <osd/mesh.h>
+#ifndef OSD_MUTEX_H
+#define OSD_MUTEX_H
 
-extern "C" OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,
-                                                 std::vector<int>   const & numIndices,
-                                                 std::vector<int>   const & faceIndices,
-                                                 std::vector<int>   const & vtxCreaseIndices,
-                                                 std::vector<float> const & vtxCreases,
-                                                 std::vector<int>   const & edgeCrease1Indices,
-                                                 std::vector<float> const & edgeCreases1,
-                                                 std::vector<int>   const & edgeCrease2Indices,
-                                                 std::vector<float> const & edgeCreases2,
-                                                 int interpBoundary,
-                                                 bool loop);
-#endif
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
+// XXXX manuelk  : for now we don't actually need this mutex
+// but we will eventually implement a cross-platform one.
+
+class Mutex {
+public:
+
+    void Lock() { };
+
+    void Unlock() { };
+    
+private:    
+};
+
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
+
+#endif // OSD_PTEXTURE_H

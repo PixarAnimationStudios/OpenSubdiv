@@ -61,13 +61,6 @@
 #include <vector>
 
 #include "../version.h"
-#include "../hbr/mesh.h"
-#include "../hbr/vertex.h"
-#include "../hbr/face.h"
-#include "../hbr/halfedge.h"
-
-#include "../far/mesh.h"
-#include "../far/meshFactory.h"
 
 #include "../osd/vertex.h"
 #include "../osd/vertexBuffer.h"
@@ -76,12 +69,17 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdKernelDispatcher;
+template <class T> class HbrMesh;
+template <class T> class HbrVertex;
 
 typedef HbrMesh<OsdVertex>     OsdHbrMesh;
 typedef HbrVertex<OsdVertex>   OsdHbrVertex;
-typedef HbrHalfedge<OsdVertex> OsdHbrHalfedge;
 typedef HbrFace<OsdVertex>     OsdHbrFace;
+typedef HbrHalfedge<OsdVertex> OsdHbrHalfedge;
+
+template <class T, class U> class FarMesh;
+
+class OsdKernelDispatcher;
 
 class OsdPtexIndicesBuffer;
 

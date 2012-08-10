@@ -86,6 +86,7 @@
 #include <maya/MPxVertexBufferGenerator.h>
 #include <maya/MStateManager.h>
 
+#include <osd/mutex.h>
 #include <osd/mesh.h>
 #include <osd/pTexture.h>
 #include <osd/cpuDispatcher.h>

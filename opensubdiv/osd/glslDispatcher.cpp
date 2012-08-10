@@ -62,6 +62,7 @@
     #include <OpenGL/gl3.h>
 #endif
 
+#include "../osd/mutex.h"
 #include "../osd/glslDispatcher.h"
 #include "../osd/local.h"
 

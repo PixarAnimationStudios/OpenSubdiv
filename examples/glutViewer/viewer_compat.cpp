@@ -64,6 +64,7 @@
     #include <GL/glut.h>
 #endif
 
+#include <osd/mutex.h>
 #include <osd/vertex.h>
 #include <osd/mesh.h>
 #include <osd/cpuDispatcher.h>

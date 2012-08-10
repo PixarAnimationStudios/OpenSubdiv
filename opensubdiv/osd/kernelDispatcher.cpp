@@ -56,6 +56,7 @@
 //
 #include "../version.h"
 
+#include "../osd/mutex.h"
 #include "../osd/kernelDispatcher.h"
 #include "../osd/cpuDispatcher.h"
 

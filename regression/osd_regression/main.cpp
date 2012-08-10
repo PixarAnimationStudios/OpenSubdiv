@@ -66,6 +66,8 @@
 #include <stdio.h>
 #include <cassert>
 
+#include <osd/mutex.h>
+
 #include <hbr/mesh.h>
 #include <hbr/face.h>
 #include <hbr/vertex.h>

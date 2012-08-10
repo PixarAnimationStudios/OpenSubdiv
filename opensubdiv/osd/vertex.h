@@ -59,11 +59,12 @@
 #define OSD_VERTEX_H
 
 #include "../version.h"
-#include "../hbr/face.h"
-#include "../hbr/vertexEdit.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
+
+template <class T> class HbrVertexEdit;
+template <class T> class HbrMovingVertexEdit;
 
 class OsdVertex {
 public:
@@ -74,8 +75,8 @@ public:
     void AddWithWeight(const OsdVertex & i, float weight, void * = 0) {}
     void AddVaryingWithWeight(const OsdVertex & i, float weight, void * = 0) {}
     void Clear(void * = 0) {}
-    void ApplyVertexEdit(const OpenSubdiv::HbrVertexEdit<OsdVertex> &) { }
-    void ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<OsdVertex> &) { }
+    void ApplyVertexEdit(const HbrVertexEdit<OsdVertex> &) { }
+    void ApplyMovingVertexEdit(const HbrMovingVertexEdit<OsdVertex> &) { }
 };
 
 } // end namespace OPENSUBDIV_VERSION

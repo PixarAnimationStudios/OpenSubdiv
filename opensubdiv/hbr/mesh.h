@@ -57,19 +57,16 @@
 #ifndef HBRMESH_H
 #define HBRMESH_H
 
+#if PRMAN
+#include "libtarget/TgMalloc.h" // only for alloca
+#include "libtarget/TgThread.h"
+#endif
+
 #include <algorithm>
 #include <cstring>
 #include <vector>
 #include <set>
 #include <iostream>
-
-#if PRMAN
-#include "path-to-TgSpinLock"
-#elif MENV
-#include "bedrock/tf/mutex.h"
-#else
-#include "IlmThreadMutex.h"
-#endif
 
 #include "../hbr/vertex.h"
 #include "../hbr/face.h"
@@ -262,42 +259,14 @@ public:
     void FreeTransientData();
 
 private:
-    // The mutex type depends on where hbr is being used.
-    #if PRMAN
+#if PRMAN
+        // This code is intended to be shared with PRman which provides its own 
+        // TgSpinLock mutex. Other clients are responsible for providing a Mutex
+        // object with public Lock() and Unlock() functions.
         typedef TgSpinLock Mutex;
-    #elif MENV
-        typedef TfMutex Mutex;
-    #else
-        typedef IlmThread::Mutex Mutex;
-    #endif
+#endif
 
-    #if PRMAN or MENV
-    // Helper class used to automatically unlock a mutex
-    // when an instance of this class goes out of scope.
-    class ScopedLock {
-    public:
-         ScopedLock(Mutex *mutex) : _mutex(mutex) {
-             mutex->Lock();
-         }
-
-        ~ScopedLock() {
-            Release();
-        }
-        void Release() {
-            if (_mutex) {
-                _mutex->Unlock();
-            }
-            _mutex = NULL;
-        }
-    private:
-        Mutex *_mutex;
-    };
-    #endif
-
-    // Mutex used to lock access to the "vertices" data member.
-    mutable Mutex m_verticesMutex;
-
-private:
+    mutable Mutex m_mutex;
 
     // Subdivision method used in this mesh
     HbrSubdivision<T>* subdivision;
@@ -492,11 +461,7 @@ HbrMesh<T>::NewVertex(int id, const T &data) {
 
     int arrayindex = id / vsetsize;
     int vertindex = id % vsetsize;
-#if PRMAN or MENV
-    ScopedLock lock(&m_verticesMutex);
-#else
-    IlmThread::Lock lock(m_verticesMutex);
-#endif
+    m_mutex.Lock();
     HbrVertex<T>** vset = 0;
     if (arrayindex >= nvsets) {
         HbrVertex<T>*** nvertices = new HbrVertex<T>**[arrayindex + 1];
@@ -517,11 +482,8 @@ HbrMesh<T>::NewVertex(int id, const T &data) {
         vertices = nvertices;
     }
     vset = vertices[arrayindex];
-#if PRMAN or MENV
-    lock.Release();
-#else
-    lock.release();
-#endif
+    m_mutex.Unlock();
+
     v = vset[vertindex];
     if (v) {
         v->Destroy();
@@ -587,15 +549,13 @@ HbrMesh<T>::GetVertex(int id) const {
     int arrayindex = id / vsetsize;
     int vertindex = id % vsetsize;
 
-#if PRMAN or MENV
-    ScopedLock lock(&m_verticesMutex);
-#else
-    IlmThread::Lock lock(m_verticesMutex);
-#endif
+    m_mutex.Lock();
     if (arrayindex >= nvsets) {
+        m_mutex.Unlock();
         return 0;
     }
     HbrVertex<T>** vset = vertices[arrayindex];
+    m_mutex.Unlock();
     return vset[vertindex];
 }
 
@@ -798,18 +758,10 @@ HbrMesh<T>::DeleteVertex(HbrVertex<T>* vertex) {
         recycleIDs.insert(vertex->GetID());
         int id = vertex->GetID();
         int arrayindex = id / vsetsize;
-#if PRMAN or MENV
-    ScopedLock lock(&m_verticesMutex);
-#else
-    IlmThread::Lock lock(m_verticesMutex);
-#endif
+        m_mutex.Lock();
         int vertindex = id % vsetsize;
         HbrVertex<T>** vset = vertices[arrayindex];
-#if PRMAN or MENV
-    lock.Release();
-#else
-    lock.release();
-#endif
+        m_mutex.Unlock();
         vset[vertindex] = 0;
         vertex->Destroy();
         m_vertexAllocator.Deallocate(vertex);
@@ -820,17 +772,14 @@ template <class T>
 int
 HbrMesh<T>::GetNumVertices() const {
     int count = 0;
-#if PRMAN or MENV
-    ScopedLock lock(&m_verticesMutex);
-#else
-    IlmThread::Lock lock(m_verticesMutex);
-#endif
+    m_mutex.Lock();
     for (int vi = 0; vi < nvsets; ++vi) {
         HbrVertex<T>** vset = vertices[vi];
         for (int i = 0; i < vsetsize; ++i) {
             if (vset[i]) count++;
         }
     }
+    m_mutex.Unlock();
     return count;
 }
 
@@ -838,11 +787,7 @@ template <class T>
 int
 HbrMesh<T>::GetNumDisconnectedVertices() const {
     int disconnected = 0;
-#if PRMAN or MENV
-    ScopedLock lock(&m_verticesMutex);
-#else
-    IlmThread::Lock lock(m_verticesMutex);
-#endif
+    m_mutex.Lock();
     for (int vi = 0; vi < nvsets; ++vi) {
         HbrVertex<T>** vset = vertices[vi];
         for (int i = 0; i < vsetsize; ++i) {
@@ -853,6 +798,7 @@ HbrMesh<T>::GetNumDisconnectedVertices() const {
             }
         }
     }
+    m_mutex.Unlock();
     return disconnected;
 }
 
@@ -891,33 +837,27 @@ HbrMesh<T>::GetFace(int id) const {
 template <class T>
 void
 HbrMesh<T>::GetVertices(std::vector<HbrVertex<T>*>& lvertices) const {
-#if PRMAN or MENV
-    ScopedLock lock(&m_verticesMutex);
-#else
-    IlmThread::Lock lock(m_verticesMutex);
-#endif
+    m_mutex.Lock();
     for (int vi = 0; vi < nvsets; ++vi) {
         HbrVertex<T>** vset = vertices[vi];
         for (int i = 0; i < vsetsize; ++i) {
             if (vset[i]) lvertices.push_back(vset[i]);
         }
     }
+    m_mutex.Unlock();
 }
 
 template <class T>
 void
 HbrMesh<T>::ApplyOperatorAllVertices(HbrVertexOperator<T> &op) const {
-#if PRMAN or MENV
-    ScopedLock lock(&m_verticesMutex);
-#else
-    IlmThread::Lock lock(m_verticesMutex);
-#endif
+    m_mutex.Lock();
     for (int vi = 0; vi < nvsets; ++vi) {
         HbrVertex<T>** vset = vertices[vi];
         for (int i = 0; i < vsetsize; ++i) {
             if (vset[i]) op(*vset[i]);
         }
     }
+    m_mutex.Unlock();
 }
 
 template <class T>
@@ -1068,11 +1008,7 @@ HbrMesh<T>::FreeTransientData() {
         }
     }
     // Reset max vertex ID. Slightly more complicated
-#if PRMAN or MENV
-    ScopedLock lock(&m_verticesMutex);
-#else
-    IlmThread::Lock lock(m_verticesMutex);
-#endif
+    m_mutex.Lock();
     for (i = (nvsets * vsetsize) - 1; i >= 0; --i) {
         int arrayindex = i / vsetsize;
         int vertindex = i % vsetsize;
@@ -1081,6 +1017,7 @@ HbrMesh<T>::FreeTransientData() {
             break;
         }
     }
+    m_mutex.Unlock();
 }
 
 } // end namespace OPENSUBDIV_VERSION

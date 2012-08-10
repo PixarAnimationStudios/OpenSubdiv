@@ -58,7 +58,6 @@
 
 #-------------------------------------------------------------------------------
 include_directories(
-    ${ILMBASE_INCLUDE_DIR}
     ${OPENGL_INCLUDE_DIR}
     ${GLEW_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/opensubdiv
@@ -82,6 +81,7 @@ set(INC_FILES
 
 set(PRIVATE_HEADER_FILES
     local.h
+    mutex.h
 )
 
 set(PUBLIC_HEADER_FILES
@@ -154,7 +154,6 @@ if( OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE) )
 else( OPENGL_FOUND AND APPLE )
     list(APPEND PLATFORM_LIBRARIES
         ${OPENGL_LIBRARY}
-        ${ILMBASE_LIBRARIES}
     )
 endif()
 

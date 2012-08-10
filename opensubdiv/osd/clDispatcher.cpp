@@ -55,6 +55,7 @@
 //     a particular purpose and non-infringement.
 //
 #include "../version.h"
+#include "../osd/mutex.h"
 #include "../osd/clDispatcher.h"
 #include "../osd/local.h"
 
