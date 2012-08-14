@@ -17,9 +17,16 @@ Basic instructions to get started with the code.
 
 ### Dependencies
 
+Cmake will adapt the build based on which dependencies have been successfully discovered and will disable certain features and code examples that are being built accordingly.
+
 Required:
+* GLEW (for now)
 
 Optional:
+* CUDA
+* OpenCL
+* GLUT
+* Ptex
 * Maya SDK (sample code for Maya viewport 2.0 primitive)
 
 ### Build instructions for linux:
@@ -49,10 +56,11 @@ make
 
 ````
 -DCMAKE_BUILD_TYPE=[Debug|Release]
--DMAYA_LOCATION=[path to Maya]
+-DCUDA_TOOLKIT_ROOT_DIR=[path to CUDA]
 -DPTEX_LOCATION=[path to Ptex]
--DGLUT_LOCATION=[path to GLUT]
 -DGLEW_LOCATION=[path to GLEW]
+-DGLUT_LOCATION=[path to GLUT]
+-DMAYA_LOCATION=[path to Maya]
 ````
 
 The paths to Maya, Ptex, GLUT, and GLEW can also be specified through the
