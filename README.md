@@ -19,15 +19,35 @@ Basic instructions to get started with the code.
 
 Cmake will adapt the build based on which dependencies have been successfully discovered and will disable certain features and code examples that are being built accordingly.
 
+Please refer to the documentation of each of the dependency packages for specific build and installation instructions.
+
 Required:
-* GLEW (for now)
+* [cmake](http://www.cmake.org/cmake/resources/software.html)
+* [GLEW](http://sourceforge.net/projects/glew/) (for now)
 
 Optional:
-* CUDA
-* OpenCL
-* GLUT
-* Ptex
-* Maya SDK (sample code for Maya viewport 2.0 primitive)
+* [CUDA](http://developer.nvidia.com/category/zone/cuda-zone)
+* [OpenCL](http://www.khronos.org/opencl/)
+* [GLUT](http://freeglut.sourceforge.net/)
+* [Ptex](https://github.com/wdas/ptex)
+* [Zlib](http://www.zlib.net) (required for Ptex under Windows)
+* [Maya SDK](http://www.autodesk.com/maya/) (sample code for Maya viewport 2.0 primitive)
+
+### Useful cmake options and environment variables
+
+````
+-DCMAKE_BUILD_TYPE=[Debug|Release]
+-DCUDA_TOOLKIT_ROOT_DIR=[path to CUDA]
+-DPTEX_LOCATION=[path to Ptex]
+-DGLEW_LOCATION=[path to GLEW]
+-DGLUT_LOCATION=[path to GLUT]
+-DMAYA_LOCATION=[path to Maya]
+````
+
+The paths to Maya, Ptex, GLUT, and GLEW can also be specified through the
+following environment variables: `MAYA_LOCATION`, `PTEX_LOCATION`, `GLUT_LOCATION`,
+and `GLEW_LOCATION`.
+
 
 ### Build instructions for linux:
 
@@ -51,21 +71,22 @@ __Build the project:__
 ````
 make
 ````
+### Build instructions for windows:
 
-### Useful cmake options and environment variables
+
+__Clone the repository:__
+
+In the GitShell CLI :
 
 ````
--DCMAKE_BUILD_TYPE=[Debug|Release]
--DCUDA_TOOLKIT_ROOT_DIR=[path to CUDA]
--DPTEX_LOCATION=[path to Ptex]
--DGLEW_LOCATION=[path to GLEW]
--DGLUT_LOCATION=[path to GLUT]
--DMAYA_LOCATION=[path to Maya]
+git clone git://github.com/PixarAnimationStudios/OpenSubdiv.git
 ````
+__Generate a VC++ Solution:__
 
-The paths to Maya, Ptex, GLUT, and GLEW can also be specified through the
-following environment variables: `MAYA_LOCATION`, `PTEX_LOCATION`, `GLUT_LOCATION`,
-and `GLEW_LOCATION`.
+* Run cmake's GUI tool
+* Set the source and build directories
+* Add the location of the optional packages as variable entries
+* Click 'configure' and then 'generate'
 
 ### Standalone viewer
 
