@@ -37,6 +37,9 @@ Optional:
 
 ````
 -DCMAKE_BUILD_TYPE=[Debug|Release]
+-DCMAKE_INSTALL_PREFIX=[base path to install OpenSubdiv]
+                       (default: Current directory)
+-DCMAKE_LIBDIR_BASE=[library directory basename (default: lib)]
 -DCUDA_TOOLKIT_ROOT_DIR=[path to CUDA]
 -DPTEX_LOCATION=[path to Ptex]
 -DGLEW_LOCATION=[path to GLEW]

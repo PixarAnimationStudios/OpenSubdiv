@@ -138,3 +138,4 @@ target_link_libraries(maya_plugin
     ${PLATFORM_LIBRARIES}
     ${GLEW_LIBRARY}
 )
+install(TARGETS maya_plugin DESTINATION ${CMAKE_LIBDIR_BASE})

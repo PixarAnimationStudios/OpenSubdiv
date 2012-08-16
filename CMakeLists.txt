@@ -70,8 +70,13 @@ message(STATUS "Compiling ${CMAKE_PROJECT_NAME} version ${OpenSubdiv_VERSION}")
 message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 # Specify the default install path
-SET( CMAKE_INSTALL_PREFIX
-     ${PROJECT_BINARY_DIR}/ )
+if (NOT DEFINED CMAKE_INSTALL_PREFIX)
+    set( CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR} )
+endif (NOT DEFINED CMAKE_INSTALL_PREFIX)
+
+if (NOT DEFINED CMAKE_LIBDIR_BASE)
+    set( CMAKE_LIBDIR_BASE lib )
+endif (NOT DEFINED CMAKE_LIBDIR_BASE)
 
 # Set the directory where the executables will be stored.
 set(EXECUTABLE_OUTPUT_PATH

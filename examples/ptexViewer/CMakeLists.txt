@@ -109,4 +109,4 @@ _add_glut_executable(ptexViewer
 target_link_libraries(ptexViewer
     ${PLATFORM_LIBRARIES}
 )
-
+install(TARGETS ptexViewer DESTINATION bin)
