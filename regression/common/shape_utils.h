@@ -65,6 +65,7 @@
 
 #include <list>
 #include <string>
+#include <sstream>
 #include <vector>
 
 //------------------------------------------------------------------------------
@@ -86,6 +87,14 @@ static char const * sgets( char * s, int size, char ** stream ) {
     return 0;
 }
 
+
+//------------------------------------------------------------------------------
+enum Scheme {
+  kBilinear,
+  kCatmark,
+  kLoop
+};
+
 //------------------------------------------------------------------------------
 
 struct shape {
@@ -93,6 +102,8 @@ struct shape {
     struct tag {
 
         static tag * parseTag( char const * stream );
+        
+        std::string genTag() const;
 
         std::string              name;
         std::vector<int>         intargs;
@@ -101,6 +112,10 @@ struct shape {
     };
 
     static shape * parseShape(char const * shapestr, int axis=1);
+    
+    std::string genShape(char const * name) const;
+ 
+    std::string genRIB() const;
 
     ~shape();
 
@@ -114,6 +129,7 @@ struct shape {
     std::vector<int>    faceverts;
     std::vector<int>    faceuvs;
     std::vector<tag *>  tags;
+    Scheme              scheme;
 };
 
 //------------------------------------------------------------------------------
@@ -174,6 +190,103 @@ shape::tag * shape::tag::parseTag(char const * line) {
     return t;
 }
 
+//------------------------------------------------------------------------------
+std::string shape::tag::genTag() const {
+    std::stringstream t;
+
+    t<<"\"t \""<<name<<"\" ";
+    
+    t<<intargs.size()<<"/"<<floatargs.size()<<"/"<<stringargs.size()<<" ";
+
+    std::copy(intargs.begin(), intargs.end(), std::ostream_iterator<int>(t));
+    t<<" ";
+
+    std::copy(floatargs.begin(), floatargs.end(), std::ostream_iterator<float>(t));
+    t<<" ";
+
+    std::copy(stringargs.begin(), stringargs.end(), std::ostream_iterator<std::string>(t));
+    t<<"\\n\"\n";
+    
+    return t.str();
+}
+
+//------------------------------------------------------------------------------
+std::string shape::genShape(char const * name) const {
+    std::stringstream sh;
+    
+    sh<<"static char const * "<<name<<" = \n";
+    
+    for (int i=0; i<(int)verts.size(); i+=3)
+       sh << "\"v " << verts[i] << " " << verts[i+1] << " " << verts[i+2] <<"\\n\"\n";
+
+    for (int i=0; i<(int)uvs.size(); i+=2)
+       sh << "\"vt " << uvs[i] << " " << uvs[i+1] << "\\n\"\n";
+
+    sh << "\"s off\\n\"\n";
+
+    for (int i=0; i<(int)faceverts.size();) {
+        sh << "\"f ";
+        for (int j=0; j<(int)nvertsPerFace.size();) {
+            int vert = faceverts[i+j];
+            sh << vert << "/" << vert << "/" << vert;
+            if (++j<(int)nvertsPerFace.size())
+                sh << " ";
+        }
+        sh << "\\n\"\n";
+        i+=nvertsPerFace[0];
+    }
+
+    for (int i=0; i<(int)tags.size(); ++i)
+        sh << tags[i]->genTag();
+        
+    return sh.str();
+}
+
+//------------------------------------------------------------------------------
+std::string shape::genRIB() const {
+    std::stringstream rib;
+    
+    rib << "HierarchicalSubdivisionMesh \"catmull-clark\" ";
+    
+    rib << "[";
+    std::copy(nvertsPerFace.begin(), nvertsPerFace.end(), std::ostream_iterator<int>(rib));
+    rib << "] ";
+
+    rib << "[";
+    std::copy(faceverts.begin(), faceverts.end(), std::ostream_iterator<int>(rib));
+    rib << "] ";
+    
+    std::stringstream names, nargs, intargs, floatargs, strargs;
+    for (int i=0; i<(int)tags.size();) {
+        tag * t = tags[i];
+        
+        names << t->name;
+
+        nargs << t->intargs.size() << " " << t->floatargs.size() << " " << t->stringargs.size();
+        
+        std::copy(t->intargs.begin(), t->intargs.end(), std::ostream_iterator<int>(intargs));
+
+        std::copy(t->floatargs.begin(), t->floatargs.end(), std::ostream_iterator<float>(floatargs));
+
+        std::copy(t->stringargs.begin(), t->stringargs.end(), std::ostream_iterator<std::string>(strargs));
+        
+        if (++i<(int)tags.size()) {
+            names << " ";
+            nargs << " ";
+            intargs << " ";
+            floatargs << " ";
+            strargs << " ";
+        }
+    }
+    
+    rib << "["<<names<<"] " << "["<<nargs<<"] " << "["<<intargs<<"] " << "["<<floatargs<<"] " << "["<<strargs<<"] ";
+
+    rib << "\"P\" [";
+    std::copy(verts.begin(), verts.end(), std::ostream_iterator<float>(rib));
+    rib << "] ";
+    
+    return rib.str();
+}
 
 //------------------------------------------------------------------------------
 shape * shape::parseShape(char const * shapestr, int axis ) {
@@ -189,13 +302,14 @@ shape * shape::parseShape(char const * shapestr, int axis ) {
         float x, y, z, u, v;
         switch (line[0]) {
             case 'v': switch (line[1])
-                      {       case ' ': if(sscanf(line, "v %f %f %f", &x, &y, &z) == 3)
+                      {       case ' ': if(sscanf(line, "v %f %f %f", &x, &y, &z) == 3) {
                                              s->verts.push_back(x);
-                                        switch( axis ) {
-                                            case 0 : s->verts.push_back(-z);
-                                                     s->verts.push_back(y); break;
-                                            case 1 : s->verts.push_back(y);
-                                                    s->verts.push_back(z); break;
+                                             switch( axis ) {
+                                                 case 0 : s->verts.push_back(-z);
+                                                          s->verts.push_back(y); break;
+                                                 case 1 : s->verts.push_back(y);
+                                                          s->verts.push_back(z); break;
+                                             } 
                                         } break;
                               case 't': if(sscanf(line, "vt %f %f", &u, &v) == 2) {
                                             s->uvs.push_back(u);
@@ -443,13 +557,6 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
 nexttag: ;
     }
 }
-
-
-enum Scheme {
-  kBilinear,
-  kCatmark,
-  kLoop
-};
 
 //------------------------------------------------------------------------------
 template <class T> OpenSubdiv::HbrMesh<T> *

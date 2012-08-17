@@ -324,7 +324,6 @@ int checkMesh( char const * msg, xyzmesh * hmesh, int levels, Scheme scheme=kCat
     float deltaAvg[3] = {0.0f, 0.0f, 0.0f},
           deltaCnt[3] = {0.0f, 0.0f, 0.0f};
 
-    // subdivide on the Nsd side
     fMeshFactory fact( hmesh, levels );
     fMesh * m = fact.Create( );
     m->Subdivide( );
