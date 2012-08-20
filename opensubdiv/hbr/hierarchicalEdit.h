@@ -161,7 +161,7 @@ using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
 #include "../hbr/face.h"
-#include <string.h>
+#include <cstring>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

@@ -219,18 +219,24 @@ public:
     // incident halfedge cycles)
     bool IsSingular() const { return nIncidentEdges > 1; }
 
-    // Collect the ring of edges around this vertex. Note well:
-    // not all edges in this list will have an orientation where
-    // the origin of the edge is this vertex!
-    void GetSurroundingEdges(std::vector<HbrHalfedge<T>*>& edges) const;
+    // Collect the ring of edges around this vertex. Note well: not
+    // all edges in this list will have an orientation where the
+    // origin of the edge is this vertex!  This function requires an
+    // output iterator; to get the edges into a std::vector, use
+    // GetSurroundingEdges(std::back_inserter(myvector))
+    template <typename OutputIterator>
+    void GetSurroundingEdges(OutputIterator edges) const;
 
     // Apply an edge operator to each edge in the ring of edges
     // around this vertex
     void ApplyOperatorSurroundingEdges(HbrHalfedgeOperator<T> &op) const;
 
-    // Collect the ring of vertices around this vertex (the ones
-    // that share an edge with this vertex)
-    void GetSurroundingVertices(std::vector<HbrVertex<T>*>& vertices) const;
+    // Collect the ring of vertices around this vertex (the ones that
+    // share an edge with this vertex). This function requires an
+    // output iterator; to get the vertices into a std::vector, use
+    // GetSurroundingVertices(std::back_inserter(myvector))
+    template <typename OutputIterator>
+    void GetSurroundingVertices(OutputIterator vertices) const;
 
     // Apply a vertex operator to each vertex in the ring of vertices
     // around this vertex
@@ -1286,18 +1292,19 @@ HbrVertex<T>::GetFractionalMask() const {
 }
 
 template <class T>
+template <typename OutputIterator>
 void
-HbrVertex<T>::GetSurroundingEdges(std::vector<HbrHalfedge<T>*>& edges) const {
+HbrVertex<T>::GetSurroundingEdges(OutputIterator edges) const {
     HbrHalfedge<T>* start = GetIncidentEdge(), *edge, *next;
     edge = start;
     while (edge) {
-        edges.push_back(edge);
+        *edges++ = edge;
         next = GetNextEdge(edge);
         if (next == start) {
             break;
         } else if (!next) {
             // Special case for the last edge in a cycle.
-            edges.push_back(edge->GetPrev());
+            *edges++ = edge->GetPrev();
             break;
         } else {
             edge = next;
@@ -1325,12 +1332,13 @@ HbrVertex<T>::ApplyOperatorSurroundingEdges(HbrHalfedgeOperator<T> &op) const {
 }
 
 template <class T>
+template <typename OutputIterator>
 void
-HbrVertex<T>::GetSurroundingVertices(std::vector<HbrVertex<T>*>& vertices) const {
+HbrVertex<T>::GetSurroundingVertices(OutputIterator vertices) const {
     HbrHalfedge<T>* start = GetIncidentEdge(), *edge, *next;
     edge = start;
     while (edge) {
-        vertices.push_back(edge->GetDestVertex());
+        *vertices++ = edge->GetDestVertex();
         next = GetNextEdge(edge);
         if (next == start) {
             break;
@@ -1338,7 +1346,7 @@ HbrVertex<T>::GetSurroundingVertices(std::vector<HbrVertex<T>*>& vertices) const
             // Special case for the last edge in a cycle: the last
             // vertex on that cycle is not the destination of an
             // outgoing halfedge
-            vertices.push_back(edge->GetPrev()->GetOrgVertex());
+            *vertices++ = edge->GetPrev()->GetOrgVertex();
             break;
         } else {
             edge = next;

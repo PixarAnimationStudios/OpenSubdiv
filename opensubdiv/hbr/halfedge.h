@@ -380,10 +380,9 @@ private:
     HbrHalfedge<T>* opposite;
     HbrFace<T>* incidentFace;
 
-    // Index of incident vertex
     HbrVertex<T>* incidentVertex;
 
-    // Index of child vertex
+    // Child vertex
     HbrVertex<T>* vchild;
     float sharpness;
 

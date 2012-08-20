@@ -254,7 +254,7 @@ HbrSubdivision<T>::SubdivideCreaseWeight(HbrHalfedge<T>* edge, HbrVertex<T>* ver
         // the vertex (other than this crease edge)
         std::vector<HbrHalfedge<T>*> edges;
         vertex->GuaranteeNeighbors();
-        vertex->GetSurroundingEdges(edges);
+        vertex->GetSurroundingEdges(std::back_inserter(edges));
 
         int n = 0;
         for (typename std::vector<HbrHalfedge<T>*>::iterator ei = edges.begin(); ei != edges.end(); ++ei) {

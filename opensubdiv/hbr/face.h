@@ -115,6 +115,33 @@ inline bool operator< (const HbrFacePath& x, const HbrFacePath& y) {
     }
 }
 
+// A simple wrapper around an array of four children. Used to block
+// allocate pointers to children of HbrFace in the common case
+template <class T>
+class HbrFaceChildren {
+public:
+    HbrFace<T> *& operator[](const int index) {
+        return children[index];
+    }
+
+    const HbrFace<T> *& operator[](const int index) const {
+        return children[index];
+    }
+    
+
+private:
+    friend class HbrAllocator<HbrFaceChildren<T> >;
+
+    // Used by block allocator
+    HbrFaceChildren<T>*& GetNext() { return (HbrFaceChildren<T>*&) children; }
+    
+    HbrFaceChildren() {}
+
+    ~HbrFaceChildren() {}
+
+    HbrFace<T> *children[4];
+};
+
 template <class T> class HbrFace {
 
 private:
@@ -161,8 +188,13 @@ public:
 
     // Return the child with the indicated index
     HbrFace<T>* GetChild(int index) const {
-        if (!children || index < 0 || index >= mesh->GetSubdivision()->GetFaceChildrenCount(nvertices)) return 0;
-        return children[index];
+        int nchildren = mesh->GetSubdivision()->GetFaceChildrenCount(nvertices);
+	if (!children.children || index < 0 || index >= nchildren) return 0;
+        if (nchildren > 4) {
+            return children.extrachildren[index];
+        } else {
+            return (*children.children)[index];
+        }
     }
 
     // Subdivide the face into a vertex if needed and return
@@ -265,10 +297,19 @@ public:
         const HbrFace<T>* f = this, *p = GetParent();
         while (p) {
             int nchildren = mesh->GetSubdivision()->GetFaceChildrenCount(p->nvertices);
-            for (int i = 0; i < nchildren; ++i) {
-                if (p->children[i] == f) {
-                    path.remainder.push_back(i);
-                    break;
+            if (nchildren > 4) {
+                for (int i = 0; i < nchildren; ++i) {
+                    if (p->children.extrachildren[i] == f) {
+                        path.remainder.push_back(i);
+                        break;
+                    }
+                }
+            } else {
+                for (int i = 0; i < nchildren; ++i) {
+                    if ((*p->children.children)[i] == f) {
+                        path.remainder.push_back(i);
+                        break;
+                    }
                 }
             }
             f = p;
@@ -312,7 +353,7 @@ private:
     int nvertices;
 
     // Halfedge array for this face
-    // HbrHalfedge::GetIndex() relies on this being size 4
+    // HbrHalfedge::getIndex() relies on this being size 4
     HbrHalfedge<T> edges[4];
 
     // Edge storage if this face is not a triangle or quad
@@ -321,8 +362,13 @@ private:
     // Pointer to parent face
     HbrFace<T>* parent;
 
-    // Children (pointer) array
-    HbrFace<T>** children;
+    // Pointer to children array. If there are four children or less,
+    // we use the HbrFaceChildren pointer, otherwise we use
+    // extrachildren
+    union {
+        HbrFaceChildren<T>* children;
+        HbrFace<T>** extrachildren;
+    } children;
 
     // Subdivided vertex child
     HbrVertex<T>* vchild;
@@ -368,12 +414,13 @@ namespace OPENSUBDIV_VERSION {
 
 template <class T>
 HbrFace<T>::HbrFace()
-    : mesh(0), id(-1), uindex(-1), ptexindex(-1), nvertices(0), extraedges(0), parent(0), children(0), vchild(0), fvarbits(0),
+    : mesh(0), id(-1), uindex(-1), ptexindex(-1), nvertices(0), extraedges(0), parent(0), vchild(0), fvarbits(0),
 #ifdef HBRSTITCH
       stitchEdges(0),
       stitchDatas(0),
 #endif
       edits(0), clientData(0), depth(0), hole(0), coarse(0), protect(0), collected(0), hasVertexEdits(0), initialized(0), destroyed(0) {
+    children.children = 0;
 }
 
 template <class T>
@@ -385,7 +432,7 @@ HbrFace<T>::Initialize(HbrMesh<T>* m, HbrFace<T>* _parent, int childindex, int f
     ptexindex = -1;
     nvertices = nv;
     extraedges = 0;
-    children = 0;
+    children.children = 0;
     vchild = 0;
     fvarbits = 0;
 #ifdef HBRSTITCH
@@ -434,7 +481,7 @@ HbrFace<T>::Initialize(HbrMesh<T>* m, HbrFace<T>* _parent, int childindex, int f
         }
 
         // We also ignore the edge array and allocate extra storage -
-        // this simplifies GetNext and GetPrev math in HbrHalfede
+        // this simplifies GetNext and GetPrev math in HbrHalfedge
         extraedges = new HbrHalfedge<T>[nv];
 
     } else {
@@ -501,16 +548,27 @@ HbrFace<T>::Destroy() {
 #endif
 
         // Remove children's references to self
-        if (children) {
+        if (children.children) {
             int nchildren = mesh->GetSubdivision()->GetFaceChildrenCount(nvertices);
-            for (i = 0; i < nchildren; ++i) {
-                if (children[i]) {
-                    children[i]->parent = 0;
-                    children[i] = 0;
+            if (nchildren > 4) {
+                for (i = 0; i < nchildren; ++i) {
+                    if (children.extrachildren[i]) {
+                        children.extrachildren[i]->parent = 0;
+                        children.extrachildren[i] = 0;
+                    }
+                }
+                delete[] children.extrachildren;
+                children.extrachildren = 0;
+            } else {
+                for (i = 0; i < nchildren; ++i) {
+                    if ((*children.children)[i]) {
+                        (*children.children)[i]->parent = 0;
+                        (*children.children)[i] = 0;
+                    }
+                }
+                mesh->DeleteFaceChildren(children.children);
+                children.children = 0;
             }
-            }
-            delete[] children;
-            children = 0;
         }
 
         // Deleting the incident edges from the vertices in this way is
@@ -542,20 +600,36 @@ HbrFace<T>::Destroy() {
         // Remove parent's reference to self
         if (parent) {
             bool parentHasOtherKids = false;
-            assert(parent->children);
             int nchildren = mesh->GetSubdivision()->GetFaceChildrenCount(parent->nvertices);
-            for (i = 0; i < nchildren; ++i) {
-                if (parent->children[i] == this) {
-                    parent->children[i] = 0;
-                } else if (parent->children[i]) parentHasOtherKids = true;
-            }
-            // After cleaning the parent's reference to self, the parent
-            // may be able to clean itself up
-            if (!parentHasOtherKids) {
-                delete[] parent->children;
-                parent->children = 0;
-                if (parent->GarbageCollectable()) {
-                    mesh->DeleteFace(parent);
+            if (nchildren > 4) {
+                for (i = 0; i < nchildren; ++i) {
+                    if (parent->children.extrachildren[i] == this) {
+                        parent->children.extrachildren[i] = 0;
+                    } else if (parent->children.extrachildren[i]) parentHasOtherKids = true;
+                }
+                // After cleaning the parent's reference to self, the parent
+                // may be able to clean itself up
+                if (!parentHasOtherKids) {
+                    delete[] parent->children.extrachildren;
+                    parent->children.extrachildren = 0;
+                    if (parent->GarbageCollectable()) {
+                        mesh->DeleteFace(parent);
+                    }
+                }
+            } else {
+                for (i = 0; i < nchildren; ++i) {
+                    if ((*parent->children.children)[i] == this) {
+                        (*parent->children.children)[i] = 0;
+                    } else if ((*parent->children.children)[i]) parentHasOtherKids = true;
+                }
+                // After cleaning the parent's reference to self, the parent
+                // may be able to clean itself up
+                if (!parentHasOtherKids) {
+                    mesh->DeleteFaceChildren(parent->children.children);
+                    parent->children.children = 0;
+                    if (parent->GarbageCollectable()) {
+                        mesh->DeleteFace(parent);
+                    }
                 }
             }
             parent = 0;
@@ -622,16 +696,27 @@ HbrFace<T>::GetVertex(int index) const {
 template <class T>
 void
 HbrFace<T>::SetChild(int index, HbrFace<T>* face) {
-        // Construct the children array if it doesn't already exist
-    int i;
-    if (!children) {
-            int nchildren = mesh->GetSubdivision()->GetFaceChildrenCount(nvertices);
-        children = new HbrFace<T>*[nchildren];
-        for (i = 0; i < nchildren; ++i) {
-                children[i] = 0;
+    int nchildren = mesh->GetSubdivision()->GetFaceChildrenCount(nvertices);
+    // Construct the children array if it doesn't already exist
+    if (!children.children) {
+        int i;
+        if (nchildren > 4) {
+            children.extrachildren = new HbrFace<T>*[nchildren];
+            for (i = 0; i < nchildren; ++i) {
+                children.extrachildren[i] = 0;
+            }
+        } else {
+            children.children = mesh->NewFaceChildren();
+            for (i = 0; i < nchildren; ++i) {
+                (*children.children)[i] = 0;
             }
         }
-        children[index] = face;
+    }
+    if (nchildren > 4) {
+        children.extrachildren[index] = face;
+    } else {
+        (*children.children)[index] = face;
+    }
     face->parent = this;
 }
 
@@ -738,7 +823,7 @@ HbrFace<T>::ClearUsage() {
 template <class T>
 bool
 HbrFace<T>::GarbageCollectable() const {
-    if (children || protect) return false;
+    if (children.children || protect) return false;
     for (int i = 0; i < nvertices; ++i) {
         HbrHalfedge<T>* edge = GetEdge(i);
         HbrVertex<T>* vertex = edge->GetOrgVertex();

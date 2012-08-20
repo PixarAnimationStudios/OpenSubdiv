@@ -57,13 +57,14 @@
 #ifndef HBRMESH_H
 #define HBRMESH_H
 
-#if PRMAN
+#ifdef PRMAN
 #include "libtarget/TgMalloc.h" // only for alloca
 #include "libtarget/TgThread.h"
 #endif
 
 #include <algorithm>
 #include <cstring>
+#include <iterator>
 #include <vector>
 #include <set>
 #include <iostream>
@@ -138,14 +139,20 @@ public:
     // Ask for face with the indicated ID
     HbrFace<T>* GetFace(int id) const;
 
-    // Returns a collection of all vertices in the mesh
-    void GetVertices(std::vector<HbrVertex<T>*>& vertices) const;
+    // Returns a collection of all vertices in the mesh. This function
+    // requires an output iterator; to get the vertices into a
+    // std::vector, use GetVertices(std::back_inserter(myvector))
+    template <typename OutputIterator>
+    void GetVertices(OutputIterator vertices) const;
 
     // Applies operator to all vertices
     void ApplyOperatorAllVertices(HbrVertexOperator<T> &op) const;
 
-    // Returns a collection of all faces in the mesh
-    void GetFaces(std::vector<HbrFace<T>*>& faces) const;
+    // Returns a collection of all faces in the mesh.  This function
+    // requires an output iterator; to get the faces into a
+    // std::vector, use GetFaces(std::back_inserter(myvector))
+    template <typename OutputIterator>
+    void GetFaces(OutputIterator faces) const;
 
     // Returns the subdivision method
     HbrSubdivision<T>* GetSubdivision() const { return subdivision; }
@@ -250,16 +257,36 @@ public:
         }
     }
 
-    // Whether the mesh is in "transient" mode, i.e. all
-    // vertices/faces that are created should be deemed temporary
+    // When mode is true, the mesh is put in a "transient" mode,
+    // i.e. all subsequent intermediate vertices/faces that are
+    // created by subdivision are deemed temporary. This transient
+    // data can be entirely freed by a subsequent call to
+    // FreeTransientData(). Essentially, the mesh is checkpointed and
+    // restored. This is useful when space is at a premium and
+    // subdivided results are cached elsewhere. On the other hand,
+    // repeatedly putting the mesh in and out of transient mode and
+    // performing the same evaluations comes at a significant compute
+    // cost.
     void SetTransientMode(bool mode) {
         m_transientMode = mode;
     }
 
+    // Frees transient subdivision data; returns the mesh to a
+    // checkpointed state prior to a call to SetTransientMode.
     void FreeTransientData();
 
+    // Create new face children block for use by HbrFace
+    HbrFaceChildren<T>* NewFaceChildren() {
+        return m_faceChildrenAllocator.Allocate();
+    }
+
+    // Recycle face children block used by HbrFace
+    void DeleteFaceChildren(HbrFaceChildren<T>* facechildren) {
+        m_faceChildrenAllocator.Deallocate(facechildren);
+    }
+
 private:
-#if PRMAN
+#ifdef PRMAN
         // This code is intended to be shared with PRman which provides its own 
         // TgSpinLock mutex. Other clients are responsible for providing a Mutex
         // object with public Lock() and Unlock() functions.
@@ -339,6 +366,9 @@ private:
     const size_t m_vertexSize;
     HbrAllocator<HbrVertex<T> > m_vertexAllocator;
 
+    // Allocator for face children blocks used by HbrFace
+    HbrAllocator<HbrFaceChildren<T> > m_faceChildrenAllocator;
+    
     // Memory used by this mesh alone, plus all its faces and vertices
     size_t m_memory;
 
@@ -405,6 +435,7 @@ HbrMesh<T>::HbrMesh(HbrSubdivision<T>* s, int _fvarcount, const int *_fvarindice
                    sizeof(HbrHalfedge<T>*) + // for incidentEdges[1]
                    totalfvarwidth * sizeof(float) + sizeof(HbrFVarData<T>)),
       m_vertexAllocator(&m_memory, 512, 0, 0, m_vertexSize),
+      m_faceChildrenAllocator(&m_memory, 512, 0, 0),
       m_memory(0),
       m_numCoarseFaces(-1),
       hasVertexEdits(0),
@@ -683,7 +714,7 @@ HbrMesh<T>::Finish() {
     }
 
     std::vector<HbrVertex<T>*> vertexlist;
-    GetVertices(vertexlist);
+    GetVertices(std::back_inserter(vertexlist));
     for (typename std::vector<HbrVertex<T>*>::iterator vi = vertexlist.begin();
          vi != vertexlist.end(); ++vi) {
         HbrVertex<T>* vertex = *vi;
@@ -835,13 +866,14 @@ HbrMesh<T>::GetFace(int id) const {
 }
 
 template <class T>
+template <typename OutputIterator>
 void
-HbrMesh<T>::GetVertices(std::vector<HbrVertex<T>*>& lvertices) const {
+HbrMesh<T>::GetVertices(OutputIterator lvertices) const {
     m_mutex.Lock();
     for (int vi = 0; vi < nvsets; ++vi) {
         HbrVertex<T>** vset = vertices[vi];
         for (int i = 0; i < vsetsize; ++i) {
-            if (vset[i]) lvertices.push_back(vset[i]);
+            if (vset[i]) *lvertices++ = vset[i];
         }
     }
     m_mutex.Unlock();
@@ -861,10 +893,11 @@ HbrMesh<T>::ApplyOperatorAllVertices(HbrVertexOperator<T> &op) const {
 }
 
 template <class T>
+template <typename OutputIterator>
 void
-HbrMesh<T>::GetFaces(std::vector<HbrFace<T>*>& lfaces) const {
+HbrMesh<T>::GetFaces(OutputIterator lfaces) const {
     for (int i = 0; i < nfaces; ++i) {
-        if (faces[i]) lfaces.push_back(faces[i]);
+        if (faces[i]) *lfaces++ = faces[i];
     }
 }
 

@@ -57,7 +57,7 @@
 #ifndef HBRFVARDATA_H
 #define HBRFVARDATA_H
 
-#include <string.h>
+#include <cstring>
 #include <cmath>
 
 #include "../version.h"
