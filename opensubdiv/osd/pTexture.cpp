@@ -996,17 +996,17 @@ OsdPTexture::Create( PtexTexture * reader, unsigned long int targetMemory ) {
     {
         case Ptex::dt_uint16 : type = GL_UNSIGNED_SHORT; break;
         case Ptex::dt_float  : type = GL_FLOAT; break;
-        case Ptex::dt_half   : type = GL_HALF_FLOAT_ARB; break;
+        case Ptex::dt_half   : type = GL_HALF_FLOAT; break;
         default              : type = GL_UNSIGNED_BYTE; break;
     }
 
     switch(reader->numChannels())
     {
-        case 1 : format = GL_LUMINANCE; break;
-        case 2 : format = GL_LUMINANCE_ALPHA; break;
+        case 1 : format = GL_RED; break;
+        case 2 : format = GL_RG; break;
         case 3 : format = GL_RGB; break;
         case 4 : format = GL_RGBA; break;
-        default: format = GL_LUMINANCE; break;
+        default: format = GL_RED; break;
     }
 
     // actual texels texture array
