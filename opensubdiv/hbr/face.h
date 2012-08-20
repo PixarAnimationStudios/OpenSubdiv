@@ -740,13 +740,21 @@ void
 HbrFace<T>::Unrefine() {
     // Delete the children, via the mesh (so that the mesh loses
     // references to the children)
-    if (children) {
+    if (children.children) {
         int nchildren = mesh->GetSubdivision()->GetFaceChildrenCount(nvertices);
-        for (int i = 0; i < nchildren; ++i) {
-            if (children[i]) mesh->DeleteFace(children[i]);
+        if (nchildren > 4) {
+            for (int i = 0; i < nchildren; ++i) {
+                if (children.extrachildren[i]) mesh->DeleteFace(children.extrachildren[i]);
+            }
+            delete[] children.extrachildren;
+            children.extrachildren = 0;
+        } else {
+            for (int i = 0; i < nchildren; ++i) {
+                if ((*children.children)[i]) mesh->DeleteFace((*children.children)[i]);
+            }
+            mesh->DeleteFaceChildren(children.children);
+            children.children = 0;
         }
-        delete[] children;
-        children = 0;
     }
 }
 
