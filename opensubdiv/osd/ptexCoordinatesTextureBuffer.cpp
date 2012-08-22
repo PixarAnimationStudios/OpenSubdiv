@@ -54,93 +54,49 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_MESH_H
-#define OSD_MESH_H
-
-#include <string>
-#include <vector>
-
 #include "../version.h"
 
-#include "../osd/vertex.h"
-#include "../osd/vertexBuffer.h"
-#include "../osd/kernelDispatcher.h"
+#if not defined(__APPLE__)
+    #include <GL/glew.h>
+#else
+    #include <OpenGL/gl3.h>
+#endif
+
+#include "../far/mesh.h"
+#include "../osd/ptexCoordinatesTextureBuffer.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-template <class T> class HbrMesh;
-template <class T> class HbrVertex;
+OsdPtexCoordinatesTextureBuffer::OsdPtexCoordinatesTextureBuffer(FarMesh<OsdVertex> *farMesh, int level) {
 
-typedef HbrMesh<OsdVertex>     OsdHbrMesh;
-typedef HbrVertex<OsdVertex>   OsdHbrVertex;
-typedef HbrFace<OsdVertex>     OsdHbrFace;
-typedef HbrHalfedge<OsdVertex> OsdHbrHalfedge;
+    const std::vector<int> &ptexCoordinates = farMesh->GetPtexCoordinates(level);
 
-template <class T, class U> class FarMesh;
+    // creates buffer even if the ptexCoordinates is empty.
+    int size = (int)ptexCoordinates.size() * sizeof(GLint);
+    GLuint buffer;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_TEXTURE_BUFFER, buffer);
+    glBufferData(GL_TEXTURE_BUFFER, size, &(ptexCoordinates[0]), GL_STATIC_DRAW);
+    
+    glGenTextures(1, &_texture);
+    glBindTexture(GL_TEXTURE_BUFFER, _texture);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, buffer);
+    glDeleteBuffers(1, &buffer);
+    glBindTexture(GL_TEXTURE_BUFFER, 0);
+}
 
-class OsdKernelDispatcher;
-class OsdElementArrayBuffer;
-class OsdPtexCoordinatesTextureBuffer;
+OsdPtexCoordinatesTextureBuffer::~OsdPtexCoordinatesTextureBuffer() {
 
-class OsdMesh {
+    glDeleteTextures(1, &_texture);
+}
 
-public:
-    OsdMesh();
+GLuint
+OsdPtexCoordinatesTextureBuffer::GetGlTexture() const {
 
-    virtual ~OsdMesh();
+    return _texture;
+}
 
-    // Given a valid HbrMesh, create an OsdMesh
-    //   - capable of densely refining up to 'level'
-    //   - subdivision kernel one of (kCPU, kOPENMP, kCUDA, kGLSL, kCL)
-    //   - optional "remapping" vector that connects Osd and Hbr vertex indices
-    //     (for regression)
-    bool Create(OsdHbrMesh *hbrMesh, int level, int kernel, std::vector<int> * remap=0);
-
-    FarMesh<OsdVertex> *GetFarMesh() { return _farMesh; }
-
-    int GetLevel() const { return _level; }
-
-    // creates and initializes vertex buffer. Must call Creates() before calling this function.
-    OsdVertexBuffer * InitializeVertexBuffer(int numElements);
-
-    // creates element indices buffer for given level. Must call Creates() before calling this function.
-    OsdElementArrayBuffer * CreateElementArrayBuffer(int level);
-
-    // creates ptex-coordinates buffer for given level. Must call Creates() before calling this function.
-    OsdPtexCoordinatesTextureBuffer * CreatePtexCoordinatesTextureBuffer(int level);
-
-    // for non-interleaved vertex data
-    void Subdivide(OsdVertexBuffer *vertex, OsdVertexBuffer *varying = NULL);
-
-/*
-    // for interleaved vertex data ?
-    template <class T> void Subdivide(T *vertex) { }
-*/
-
-    void Synchronize();
-
-    int GetTotalVertices() const { return _farMesh->GetNumVertices(); }
-
-    int GetNumCoarseVertices() const { return _farMesh->GetNumCoarseVertices(); }
-
-protected:
-
-    void createTables( FarSubdivisionTables<OsdVertex> const * tables );
-
-    void createEditTables( FarVertexEditTables<OsdVertex> const * editTables );
-
-    FarMesh<OsdVertex> *_farMesh;
-
-    int _level;
-
-    OsdKernelDispatcher * _dispatcher;
-
-};
 
 } // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
 } // end namespace OpenSubdiv
-
-#endif /* OSD_MESH_H */

@@ -68,6 +68,8 @@
 #include <osd/cpuDispatcher.h>
 #include <osd/glslDispatcher.h>
 #include <osd/pTexture.h>
+#include <osd/elementArrayBuffer.h>
+#include <osd/ptexCoordinatesTextureBuffer.h>
 
 #include "../common/stopwatch.h"
 
@@ -135,14 +137,14 @@ Stopwatch g_fpsTimer;
 // geometry
 std::vector<float> g_positions,
                    g_normals;
-int g_numIndices = 0;
 
-GLuint g_indexBuffer;
 GLuint g_program = 0;
 GLuint g_debugProgram = 0;
 
 OpenSubdiv::OsdMesh * g_osdmesh = 0;
 OpenSubdiv::OsdVertexBuffer * g_vertexBuffer = 0;
+OpenSubdiv::OsdElementArrayBuffer * g_elementArrayBuffer = 0;
+OpenSubdiv::OsdPtexCoordinatesTextureBuffer * g_ptexCoordinatesTextureBuffer = 0;
 OpenSubdiv::OsdPTexture * g_osdPTexImage = 0;
 OpenSubdiv::OsdPTexture * g_osdPTexDisplacement = 0;
 OpenSubdiv::OsdPTexture * g_osdPTexOcclusion = 0;
@@ -510,7 +512,7 @@ void linkProgram() {
     glProgramUniform1i(g_program, ptexLevel, 1<<g_level);
     glProgramUniform1i(g_program, texIndices, 0);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_BUFFER, g_osdmesh->GetPtexCoordinatesTextureBuffer(g_level));
+    glBindTexture(GL_TEXTURE_BUFFER, g_ptexCoordinatesTextureBuffer->GetGlTexture());
 
     // color ptex
     GLint texData = glGetUniformLocation(g_program, "textureImage_Data");
@@ -562,9 +564,6 @@ createOsdMesh(int level, int kernel) {
     // Hbr mesh can be deleted
     delete hmesh;
 
-    // update element array buffer
-    const std::vector<int> &indices = g_osdmesh->GetFarMesh()->GetFaceVertices(level);
-
     // generate oOsdPTexture
     if (g_osdPTexDisplacement) delete g_osdPTexDisplacement;
     if (g_osdPTexOcclusion) delete g_osdPTexOcclusion;
@@ -590,12 +589,14 @@ createOsdMesh(int level, int kernel) {
         ptexOcclusion->release();
     }
 
-    // bind index buffer
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
+    // create element array buffer
+    if (g_elementArrayBuffer) delete g_elementArrayBuffer;
+    g_elementArrayBuffer = g_osdmesh->CreateElementArrayBuffer(level);
 
-    g_numIndices = (int)indices.size();
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*g_numIndices, &(indices[0]), GL_STATIC_DRAW);
-
+    // create ptex coordinates buffer
+    if (g_ptexCoordinatesTextureBuffer) delete g_ptexCoordinatesTextureBuffer;
+    g_ptexCoordinatesTextureBuffer = g_osdmesh->CreatePtexCoordinatesTextureBuffer(level);
+    
     updateGeom();
 
     linkProgram();
@@ -722,13 +723,13 @@ display() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_elementArrayBuffer->GetGlBuffer());
 
     glPolygonMode(GL_FRONT_AND_BACK, g_wire==0 ? GL_LINE : GL_FILL);
 
 //    glPatchParameteri(GL_PATCH_VERTICES, 4);
 //    glDrawElements(GL_PATCHES, g_numIndices, GL_UNSIGNED_INT, 0);
-    glDrawElements(GL_LINES_ADJACENCY, g_numIndices, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_LINES_ADJACENCY, g_elementArrayBuffer->GetNumIndices(), GL_UNSIGNED_INT, 0);
 
     glUseProgram(0);
 
@@ -807,6 +808,12 @@ void quit() {
 
     if (g_vertexBuffer)
         delete g_vertexBuffer;
+
+    if (g_elementArrayBuffer)
+        delete g_elementArrayBuffer;
+
+    if (g_ptexCoordinatesTextureBuffer)
+        delete g_ptexCoordinatesTextureBuffer;
 
 #ifdef OPENSUBDIV_HAS_CUDA
     cudaDeviceReset();
@@ -984,8 +991,6 @@ int main(int argc, char ** argv) {
         printf("Usage: %s <color.ptx> [<displacement.ptx>] [<occlusion.ptx>] \n", argv[0]);
         return 1;
     }
-
-    glGenBuffers(1, &g_indexBuffer);
 
     createOsdMesh(g_level, g_kernel);
 

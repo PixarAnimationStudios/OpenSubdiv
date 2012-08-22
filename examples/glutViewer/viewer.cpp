@@ -66,6 +66,7 @@
 #include <osd/mutex.h>
 #include <osd/vertex.h>
 #include <osd/mesh.h>
+#include <osd/elementArrayBuffer.h>
 #include <osd/cpuDispatcher.h>
 #include <osd/glslDispatcher.h>
 
@@ -244,12 +245,10 @@ std::vector<float> g_orgPositions,
 
 Scheme             g_scheme;
 
-int g_numIndices = 0;
 int g_level = 2;
 int g_kernel = OpenSubdiv::OsdKernelDispatcher::kCPU;
 float g_moveScale = 1.0f;
 
-GLuint g_indexBuffer;
 GLuint g_quadFillProgram = 0,
        g_quadLineProgram = 0,
        g_triFillProgram = 0,
@@ -262,6 +261,7 @@ std::vector<float> g_coarseVertexSharpness;
 
 OpenSubdiv::OsdMesh * g_osdmesh = 0;
 OpenSubdiv::OsdVertexBuffer * g_vertexBuffer = 0;
+OpenSubdiv::OsdElementArrayBuffer *g_elementArrayBuffer = 0;
 
 //------------------------------------------------------------------------------
 inline void
@@ -615,12 +615,8 @@ createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark
     delete hmesh;
 
     // update element array buffer
-    const std::vector<int> &indices = g_osdmesh->GetFarMesh()->GetFaceVertices(level);
-
-    g_numIndices = (int)indices.size();
-    g_scheme = scheme;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*g_numIndices, &(indices[0]), GL_STATIC_DRAW);
+    if (g_elementArrayBuffer) delete g_elementArrayBuffer;
+    g_elementArrayBuffer = g_osdmesh->CreateElementArrayBuffer(level);
 
     // compute model bounding
     float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};
@@ -721,7 +717,7 @@ display() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_elementArrayBuffer->GetGlBuffer());
 
     GLenum primType = GL_LINES_ADJACENCY;
     if (g_scheme == kLoop) {
@@ -732,7 +728,7 @@ display() {
     }
 
     if (g_wire > 0) {
-        glDrawElements(primType, g_numIndices, GL_UNSIGNED_INT, NULL);
+        glDrawElements(primType, g_elementArrayBuffer->GetNumIndices(), GL_UNSIGNED_INT, NULL);
     }
     
     if (g_wire == 0 || g_wire == 2) {
@@ -745,7 +741,7 @@ display() {
         } else {
             glProgramUniform4f(lineProgram, fragColor, 1, 1, 1, 1);
         }
-        glDrawElements(primType, g_numIndices, GL_UNSIGNED_INT, NULL);
+        glDrawElements(primType, g_elementArrayBuffer->GetNumIndices(), GL_UNSIGNED_INT, NULL);
     }
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
@@ -821,6 +817,9 @@ void quit() {
 
     if (g_vertexBuffer)
         delete g_vertexBuffer;
+
+    if (g_elementArrayBuffer)
+        delete g_elementArrayBuffer;
 
 #ifdef OPENSUBDIV_HAS_CUDA
     cudaDeviceReset();
@@ -1022,8 +1021,6 @@ int main(int argc, char ** argv) {
         else
             filename = argv[i];
     }
-
-    glGenBuffers(1, &g_indexBuffer);
 
     modelMenu(0);
 

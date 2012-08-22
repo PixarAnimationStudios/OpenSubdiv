@@ -54,93 +54,49 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_MESH_H
-#define OSD_MESH_H
-
-#include <string>
-#include <vector>
-
 #include "../version.h"
 
-#include "../osd/vertex.h"
-#include "../osd/vertexBuffer.h"
-#include "../osd/kernelDispatcher.h"
+#if not defined(__APPLE__)
+    #include <GL/glew.h>
+#else
+    #include <OpenGL/gl3.h>
+#endif
+
+#include "../far/mesh.h"
+#include "../osd/elementArrayBuffer.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-template <class T> class HbrMesh;
-template <class T> class HbrVertex;
+OsdElementArrayBuffer::OsdElementArrayBuffer(FarMesh<OsdVertex> *farMesh, int level) {
 
-typedef HbrMesh<OsdVertex>     OsdHbrMesh;
-typedef HbrVertex<OsdVertex>   OsdHbrVertex;
-typedef HbrFace<OsdVertex>     OsdHbrFace;
-typedef HbrHalfedge<OsdVertex> OsdHbrHalfedge;
+    const std::vector<int> &indices = farMesh->GetFaceVertices(level);
 
-template <class T, class U> class FarMesh;
+    _numIndices = (int)indices.size();
 
-class OsdKernelDispatcher;
-class OsdElementArrayBuffer;
-class OsdPtexCoordinatesTextureBuffer;
+    glGenBuffers(1, &_buffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _buffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*_numIndices, &(indices[0]), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
 
-class OsdMesh {
+OsdElementArrayBuffer::~OsdElementArrayBuffer() {
 
-public:
-    OsdMesh();
+    glDeleteBuffers(1, &_buffer);
+}
 
-    virtual ~OsdMesh();
+int
+OsdElementArrayBuffer::GetNumIndices() const {
 
-    // Given a valid HbrMesh, create an OsdMesh
-    //   - capable of densely refining up to 'level'
-    //   - subdivision kernel one of (kCPU, kOPENMP, kCUDA, kGLSL, kCL)
-    //   - optional "remapping" vector that connects Osd and Hbr vertex indices
-    //     (for regression)
-    bool Create(OsdHbrMesh *hbrMesh, int level, int kernel, std::vector<int> * remap=0);
+    return _numIndices;
+}
 
-    FarMesh<OsdVertex> *GetFarMesh() { return _farMesh; }
+GLuint
+OsdElementArrayBuffer::GetGlBuffer() const {
 
-    int GetLevel() const { return _level; }
+    return _buffer;
+}
 
-    // creates and initializes vertex buffer. Must call Creates() before calling this function.
-    OsdVertexBuffer * InitializeVertexBuffer(int numElements);
-
-    // creates element indices buffer for given level. Must call Creates() before calling this function.
-    OsdElementArrayBuffer * CreateElementArrayBuffer(int level);
-
-    // creates ptex-coordinates buffer for given level. Must call Creates() before calling this function.
-    OsdPtexCoordinatesTextureBuffer * CreatePtexCoordinatesTextureBuffer(int level);
-
-    // for non-interleaved vertex data
-    void Subdivide(OsdVertexBuffer *vertex, OsdVertexBuffer *varying = NULL);
-
-/*
-    // for interleaved vertex data ?
-    template <class T> void Subdivide(T *vertex) { }
-*/
-
-    void Synchronize();
-
-    int GetTotalVertices() const { return _farMesh->GetNumVertices(); }
-
-    int GetNumCoarseVertices() const { return _farMesh->GetNumCoarseVertices(); }
-
-protected:
-
-    void createTables( FarSubdivisionTables<OsdVertex> const * tables );
-
-    void createEditTables( FarVertexEditTables<OsdVertex> const * editTables );
-
-    FarMesh<OsdVertex> *_farMesh;
-
-    int _level;
-
-    OsdKernelDispatcher * _dispatcher;
-
-};
 
 } // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
 } // end namespace OpenSubdiv
-
-#endif /* OSD_MESH_H */
