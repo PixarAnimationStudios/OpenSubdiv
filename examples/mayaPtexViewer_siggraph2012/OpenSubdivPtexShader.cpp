@@ -90,6 +90,8 @@
 #include <osd/mesh.h>
 #include <osd/pTexture.h>
 #include <osd/cpuDispatcher.h>
+#include <osd/elementArrayBuffer.h>
+#include <osd/ptexCoordinatesTextureBuffer.h>
 #include <Ptexture.h>
 #include <PtexUtils.h>
 
@@ -809,6 +811,8 @@ private:
     OpenSubdiv::OsdMesh *_osdmesh;
 //    OpenSubdiv::OsdVertexBuffer *_vertexBuffer;
     OpenSubdiv::OsdVertexBuffer *_positionBuffer, *_normalBuffer;
+    OpenSubdiv::OsdElementArrayBuffer *_elementArrayBuffer;
+    OpenSubdiv::OsdPtexCoordinatesTextureBuffer *_ptexCoordinatesTextureBuffer;
 
     MFloatPointArray _pointArray;
     MFloatVectorArray  _normalArray;
@@ -822,9 +826,6 @@ private:
     int _interpBoundary;
     int _scheme;
 
-    int _numIndices;
-    GLuint _indexBuffer;
-
     bool _needsUpdate;
     bool _needsInitializeOsd;
     bool _needsInitializeIndexBuffer;
@@ -835,11 +836,11 @@ OsdPtexMeshData::OsdPtexMeshData(MObject mesh) :
     _hbrmesh(NULL), _osdmesh(NULL),
 //    _vertexBuffer(NULL),
     _positionBuffer(NULL), _normalBuffer(NULL),
+    _elementArrayBuffer(NULL),
+    _ptexCoordinatesTextureBuffer(NULL),
     _level(0),
     _interpBoundary(0),
     _scheme(0),
-    _numIndices(0),
-    _indexBuffer(0),
     _needsUpdate(false),
     _needsInitializeOsd(false),
     _needsInitializeIndexBuffer(false)
@@ -853,9 +854,8 @@ OsdPtexMeshData::~OsdPtexMeshData()
 //    if (_vertexBuffer) delete _vertexBuffer;
     if (_positionBuffer) delete _positionBuffer;
     if (_normalBuffer) delete _normalBuffer;
-    if (_indexBuffer)
-        glDeleteBuffers(1, &_indexBuffer);
-
+    if (_elementArrayBuffer) delete _elementArrayBuffer;
+    if (_ptexCoordinatesTextureBuffer) delete _ptexCoordinatesTextureBuffer;
 }
 
 void
@@ -1059,15 +1059,13 @@ OsdPtexMeshData::updateGeometry(const MHWRender::MVertexBuffer *points, const MH
 void
 OsdPtexMeshData::initializeIndexBuffer()
 {
-    // update element array buffer
-    const std::vector<int> indices = _osdmesh->GetFarMesh()->GetFaceVertices(_level);
-    _numIndices = (int)indices.size();
+    // create element array buffer
+    if (_elementArrayBuffer) delete _elementArrayBuffer;
+    _elementArrayBuffer = _osdmesh->CreateElementArrayBuffer(_level);
 
-    if (_indexBuffer == 0)
-        glGenBuffers(1, &_indexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*_numIndices,
-                 &(indices[0]), GL_STATIC_DRAW);
+    // create ptex coordinates texture buffer
+    if (_ptexCoordinatesTextureBuffer) delete _ptexCoordinatesTextureBuffer;
+    _ptexCoordinatesTextureBuffer = _osdmesh->CreatePtexCoordinatesTextureBuffer(_level);
 
     _needsInitializeIndexBuffer = false;
 }
@@ -1084,7 +1082,7 @@ OsdPtexMeshData::bindPtexCoordinates(GLuint program) const
     glProgramUniform1i(program, ptexLevel, 1<<_level);
     glProgramUniform1i(program, texIndices, 0);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_BUFFER, _osdmesh->GetPtexCoordinatesTextureBuffer(_level));
+    glBindTexture(GL_TEXTURE_BUFFER, _ptexCoordinatesTextureBuffer->GetGlTexture());
 }
 
 void
@@ -1125,10 +1123,10 @@ OsdPtexMeshData::draw(GLuint program) const
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
 #endif
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _elementArrayBuffer->GetGlBuffer());
 
     CHECK_GL_ERROR("before draw elements\n");
-    glDrawElements(GL_LINES_ADJACENCY, _numIndices, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_LINES_ADJACENCY, _elementArrayBuffer->GetNumIndices(), GL_UNSIGNED_INT, 0);
     
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);

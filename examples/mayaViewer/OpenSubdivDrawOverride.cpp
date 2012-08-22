@@ -65,6 +65,7 @@
 #include <osd/cudaDispatcher.h>
 #include <osd/mesh.h>
 #include <osd/vertexBuffer.h>
+#include <osd/elementArrayBuffer.h>
 
 #include "hbrUtil.h"
 
@@ -125,8 +126,8 @@ public:
     void Populate(MObject mesh);
     void UpdatePoints(MObject mesh);
 
-    int GetElementBuffer() const { return _index; }
-    int GetNumIndices() const { return _numIndices; }
+    int GetElementBuffer() const { return _elementArrayBuffer->GetGlBuffer(); }
+    int GetNumIndices() const { return _elementArrayBuffer->GetNumIndices(); }
     int GetVertexBuffer() const { return _vertexBuffer->GetGpuBuffer(); }
     int GetVaryingBuffer() const { return _varyingBuffer->GetGpuBuffer(); }
     int GetVertexStride() const { return _vertexBuffer->GetNumElements() * sizeof(float); }
@@ -148,9 +149,8 @@ private:
 
     OpenSubdiv::OsdMesh *_osdmesh;
     OpenSubdiv::OsdVertexBuffer *_vertexBuffer, *_varyingBuffer;
-    GLuint _index;
+    OpenSubdiv::OsdElementArrayBuffer *_elementArrayBuffer;
 
-    int _numIndices;
     float _cachedTotal;
 };
 
@@ -191,16 +191,20 @@ bool OpenSubdivDrawOverride::_loop = false;
 
 SubdivUserData::SubdivUserData(bool loop) :
     MUserData(false /*don't delete after draw */),
-    _loop(loop)
+    _loop(loop),
+    _vertexBuffer(NULL),
+    _varyingBuffer(NULL),
+    _elementArrayBuffer(NULL)
 {
     _osdmesh = new OpenSubdiv::OsdMesh();
-    glGenBuffers(1, &_index);
 }
 
 SubdivUserData::~SubdivUserData()
 {
+    if (_vertexBuffer) delete _vertexBuffer;
+    if (_varyingBuffer) delete _varyingBuffer;
+    if (_elementArrayBuffer) delete _elementArrayBuffer;
     delete _osdmesh;
-    glDeleteBuffers(1, &_index);
 }
 
 void
@@ -289,25 +293,22 @@ SubdivUserData::Populate(MObject mesh)
                                                    edgeCreaseIndices, edgeCreases,
                                                    interpBoundary, _loop);
 
-    if (_vertexBuffer) delete _vertexBuffer;
-
     int kernel = OpenSubdiv::OsdKernelDispatcher::kCPU;
     if (OpenSubdiv::OsdKernelDispatcher::HasKernelType(OpenSubdiv::OsdKernelDispatcher::kOPENMP)) {
         kernel = OpenSubdiv::OsdKernelDispatcher::kOPENMP;
     }
     _osdmesh->Create(hbrMesh, level, kernel);
-
-    // create vertex buffer
-    _vertexBuffer = _osdmesh->InitializeVertexBuffer(6 /* position + normal */);
-
     delete hbrMesh;
 
-    // update element array buffer
-    const std::vector<int> indices = _osdmesh->GetFarMesh()->GetFaceVertices(level);
-    _numIndices = (int)indices.size();
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _index);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*_numIndices,
-                 &(indices[0]), GL_STATIC_DRAW);
+    // create vertex buffer
+    if (_vertexBuffer) {
+        delete _vertexBuffer;
+    }
+    _vertexBuffer = _osdmesh->InitializeVertexBuffer(6 /* position + normal */);
+
+    // create element array buffer
+    if (_elementArrayBuffer) delete _elementArrayBuffer;
+    _elementArrayBuffer = _osdmesh->CreateElementArrayBuffer(level);
 
     _cachedTotal = -1;
     UpdatePoints(mesh);

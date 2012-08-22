@@ -80,8 +80,8 @@ typedef HbrHalfedge<OsdVertex> OsdHbrHalfedge;
 template <class T, class U> class FarMesh;
 
 class OsdKernelDispatcher;
-
-class OsdPtexIndicesBuffer;
+class OsdElementArrayBuffer;
+class OsdPtexCoordinatesTextureBuffer;
 
 class OsdMesh {
 
@@ -101,7 +101,14 @@ public:
 
     int GetLevel() const { return _level; }
 
+    // creates and initializes vertex buffer. Must call Creates() before calling this function.
     OsdVertexBuffer * InitializeVertexBuffer(int numElements);
+
+    // creates element indices buffer for given level. Must call Creates() before calling this function.
+    OsdElementArrayBuffer * CreateElementArrayBuffer(int level);
+
+    // creates ptex-coordinates buffer for given level. Must call Creates() before calling this function.
+    OsdPtexCoordinatesTextureBuffer * CreatePtexCoordinatesTextureBuffer(int level);
 
     // for non-interleaved vertex data
     void Subdivide(OsdVertexBuffer *vertex, OsdVertexBuffer *varying = NULL);
@@ -117,10 +124,6 @@ public:
 
     int GetNumCoarseVertices() const { return _farMesh->GetNumCoarseVertices(); }
 
-    // Returns the texture buffer containing the ptex face index for each face of
-    // the mesh.
-    GLuint GetPtexCoordinatesTextureBuffer(int level) const { return _ptexCoordinates[level-1]; }
-    
 protected:
 
     void createTables( FarSubdivisionTables<OsdVertex> const * tables );
@@ -132,8 +135,6 @@ protected:
     int _level;
 
     OsdKernelDispatcher * _dispatcher;
-
-    std::vector<GLuint> _ptexCoordinates;  // index of the coarse parent face + sub-face coordinates (cf. far)
 
 };
 

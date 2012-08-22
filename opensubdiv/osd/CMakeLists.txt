@@ -68,8 +68,10 @@ include_directories(
 set(SOURCE_FILES
     cpuDispatcher.cpp
     cpuKernel.cpp
+    elementArrayBuffer.cpp
     kernelDispatcher.cpp
     mesh.cpp
+    ptexCoordinatesTextureBuffer.cpp
     vertexBuffer.cpp
 )
 
@@ -87,8 +89,10 @@ set(PRIVATE_HEADER_FILES
 set(PUBLIC_HEADER_FILES
     cpuDispatcher.h
     cpuKernel.h
+    elementArrayBuffer.h
     kernelDispatcher.h
     mesh.h
+    ptexCoordinatesTextureBuffer.h
     vertex.h
     vertexBuffer.h
 )

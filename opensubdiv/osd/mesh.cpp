@@ -55,12 +55,6 @@
 //     a particular purpose and non-infringement.
 //
 
-#if not defined(__APPLE__)
-    #include <GL/glew.h>
-#else
-    #include <OpenGL/gl3.h>
-#endif
-
 #include <string.h>
 
 #include "../version.h"
@@ -79,7 +73,8 @@
 #include "../osd/local.h"
 #include "../osd/kernelDispatcher.h"
 #include "../osd/cpuDispatcher.h"
-
+#include "../osd/elementArrayBuffer.h"
+#include "../osd/ptexCoordinatesTextureBuffer.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -94,11 +89,6 @@ OsdMesh::~OsdMesh() {
     if(_farMesh)
         delete _farMesh;
 
-    // delete ptex coordinates
-    for (int i=0; i<(int)_ptexCoordinates.size(); ++i) {
-        if (glIsTexture(_ptexCoordinates[i]))
-            glDeleteTextures(1,&_ptexCoordinates[i]);
-    }
 }
 
 void
@@ -176,30 +166,6 @@ OsdMesh::Create(OsdHbrMesh *hbrMesh, int level, int kernel, std::vector<int> * r
     if (remap)
         (*remap)=meshFactory.GetRemappingTable();
 
-    // create ptex coordinates if exists in hbr
-    for (int i=0; i<(int)_ptexCoordinates.size(); ++i) {
-        if (glIsTexture(_ptexCoordinates[i]))
-            glDeleteTextures(1,&_ptexCoordinates[i]);
-    }
-    _ptexCoordinates.resize(level, 0);
-    for (int i=0; i<level; ++i) {
-        const std::vector<int> & ptexCoordinates = _farMesh->GetPtexCoordinates(i+1);
-        if (ptexCoordinates.empty())
-            continue;
-
-        int size = (int)ptexCoordinates.size() * sizeof(GLint);
-        const void *data = &ptexCoordinates[0];
-
-        GLuint buffer;
-        glGenBuffers(1, & buffer );
-        glBindBuffer( GL_TEXTURE_BUFFER, buffer );
-        glBufferData( GL_TEXTURE_BUFFER, size, data, GL_STATIC_DRAW);
-        
-        glGenTextures(1, & _ptexCoordinates[i]);
-        glBindTexture( GL_TEXTURE_BUFFER, _ptexCoordinates[i]);
-        glTexBuffer( GL_TEXTURE_BUFFER, GL_RG32I, buffer);
-        glDeleteBuffers(1, & buffer );
-    }
     return true;
 }
 
@@ -209,6 +175,22 @@ OsdMesh::InitializeVertexBuffer(int numElements) {
     if (!_dispatcher)
         return NULL;
     return _dispatcher->InitializeVertexBuffer(numElements, GetTotalVertices());
+}
+
+OsdElementArrayBuffer *
+OsdMesh::CreateElementArrayBuffer(int level) {
+
+    if (!_farMesh)
+        return NULL;
+    return new OsdElementArrayBuffer(_farMesh, level);
+}
+
+OsdPtexCoordinatesTextureBuffer *
+OsdMesh::CreatePtexCoordinatesTextureBuffer(int level) {
+
+    if (!_farMesh)
+        return NULL;
+    return new OsdPtexCoordinatesTextureBuffer(_farMesh, level);
 }
 
 void
