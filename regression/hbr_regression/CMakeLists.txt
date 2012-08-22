@@ -63,9 +63,20 @@ add_executable(hbr_regression
    main.cpp
 )
 
+# This is waht we "should" be using but we need to escape the backslash and cmake
+# regex doesn't allow that apparently
+#file(TO_NATIVE_PATH "${PROJECT_SOURCE_DIR}/regression/hbr_regression/baseline/" HBR_BASELINE_DIR)
+
+set(HBR_BASELINE_DIR "${PROJECT_SOURCE_DIR}/regression/hbr_regression/baseline/" )
+
+if (WIN32)
+    string(REGEX REPLACE "/" "\\\\\\\\" HBR_BASELINE_DIR ${HBR_BASELINE_DIR}) 
+endif()
+
 add_definitions(
-    -DHBR_BASELINE_DIR="${PROJECT_SOURCE_DIR}/regression/hbr_regression/baseline/"
+    -DHBR_BASELINE_DIR="${HBR_BASELINE_DIR}"
 )
+
 
 add_executable(hbr_baseline
    baseline.cpp
