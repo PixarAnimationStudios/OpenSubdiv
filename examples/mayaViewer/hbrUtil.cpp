@@ -154,7 +154,7 @@ OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,
     }
     nEdgeCreases = (int)edgeCreases2.size();
     for (int i = 0; i < nEdgeCreases; ++i) {
-        if( edgeCreases1[i] <= 0. )
+        if( edgeCreases2[i] <= 0. )
             continue;
 
         OpenSubdiv::OsdHbrVertex * v0 = hbrMesh->GetVertex(edgeCrease2Indices[i*2]);
