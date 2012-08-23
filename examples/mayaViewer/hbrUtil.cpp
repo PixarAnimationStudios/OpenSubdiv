@@ -72,17 +72,19 @@ OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,
                                       std::vector<float> const & edgeCreases1,
                                       std::vector<int>   const & edgeCrease2Indices, // 2 vertex indices (Maya friendly)
                                       std::vector<float> const & edgeCreases2,
-                                      int interpBoundary, bool loop)
+                                      int interpBoundary, int scheme)
 {
     static OpenSubdiv::HbrBilinearSubdivision<OpenSubdiv::OsdVertex> _bilinear;
     static OpenSubdiv::HbrLoopSubdivision<OpenSubdiv::OsdVertex> _loop;
     static OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex> _catmark;
 
     OpenSubdiv::OsdHbrMesh *hbrMesh;
-    if (loop)
-        hbrMesh = new OpenSubdiv::OsdHbrMesh(&_loop);
-    else
+    if (scheme == 0)
         hbrMesh = new OpenSubdiv::OsdHbrMesh(&_catmark);
+    else if (scheme == 1)
+        hbrMesh = new OpenSubdiv::OsdHbrMesh(&_loop);
+    else 
+        hbrMesh = new OpenSubdiv::OsdHbrMesh(&_bilinear);
 
     OpenSubdiv::OsdVertex v;
     for(int i = 0; i < nVertices; ++i){
@@ -128,10 +130,23 @@ OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,
             }
         }
 
-        if ( valid )
-            hbrMesh->NewFace(numVertex, &(vIndex[0]), 0);
-        else
+        if ( valid ) {
+            if (scheme == 1) { // loop
+                // triangulate
+                int triangle[3];
+                triangle[0] = vIndex[0];
+                for (int j=2; j<numVertex; ++j) {
+                    triangle[1] = vIndex[j-1];
+                    triangle[2] = vIndex[j];
+                    hbrMesh->NewFace(3, triangle, 0);
+                }
+
+            } else {
+                hbrMesh->NewFace(numVertex, &(vIndex[0]), 0);
+            }
+        } else {
             OSD_ERROR("Face %d will be ignored\n", i);
+        }
 
         offset += numVertex;
     }

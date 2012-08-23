@@ -76,8 +76,9 @@ include_directories(
 )
 
 set(SOURCE_FILES
-    OpenSubdivDrawOverride.cpp
+    OpenSubdivShaderOverride.cpp
     hbrUtil.cpp
+    cudaUtil.cpp
 )
 
 set(HEADER_FILES
@@ -87,6 +88,7 @@ if(UNIX)
     set(PLATFORM_COMPILE_FLAGS
         -D_BOOL
         -DREQUIRE_IOSTREAM
+        -DLINUX
     )
     set(PLATFORM_LIBRARIES
     )

@@ -71,5 +71,5 @@ extern "C" OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,
                                                  std::vector<int>   const & edgeCrease2Indices,
                                                  std::vector<float> const & edgeCreases2,
                                                  int interpBoundary,
-                                                 bool loop);
+                                                 int scheme);
 #endif
