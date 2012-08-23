@@ -64,7 +64,7 @@
 #include "../version.h"
 #include "../far/table.h"
 #include "../far/dispatcher.h"
-#include "../hbr/hierarchicalEdit.h"
+#include "../hbr/vertexEdit.h"
 
 template <class T> class HbrFace;
 template <class T> class HbrHalfedge;
@@ -169,10 +169,10 @@ FarVertexEditTables<T,U>::VertexEdit::ApplyVertexEdit(U * vsrc, int level) const
         // consider adding new interface to vertex class without HbrVertexEdit,
         // such as vdst->ApplyVertexEditAdd(const float *), vdst->ApplyVertexEditSet(const float *)
         if (_operation == FarVertexEditTables<T,U>::Set) {
-            HbrVertexEdit<U> vedit(0, 0, 0, 0, 0, _width, false, HbrVertexEdit<U>::Set, const_cast<float*>(&values[i*_width]));
+            HbrVertexEdit<T> vedit(0, 0, 0, 0, 0, _width, false, HbrVertexEdit<T>::Set, const_cast<float*>(&values[i*_width]));
             vdst->ApplyVertexEdit(vedit);
         } else {
-            HbrVertexEdit<U> vedit(0, 0, 0, 0, 0, _width, false, HbrVertexEdit<U>::Add, const_cast<float*>(&values[i*_width]));
+            HbrVertexEdit<T> vedit(0, 0, 0, 0, 0, _width, false, HbrVertexEdit<T>::Add, const_cast<float*>(&values[i*_width]));
             vdst->ApplyVertexEdit(vedit);
         }
     }
