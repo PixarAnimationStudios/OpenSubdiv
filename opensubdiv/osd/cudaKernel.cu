@@ -57,6 +57,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#define USE_BLOCK_OPTIM
+
 template<int N> struct DeviceVertex
 {
     float pos[3];
@@ -132,6 +134,158 @@ __device__ void addVaryingWithWeight(float *dst, float *src, float weight, int c
     for(int i = 0; i < count; ++i) dst[i] += src[i] * weight;
 }
 
+#ifdef USE_BLOCK_OPTIM
+
+template< int NUM_THREADS_PER_VERTEX, int NUM_VARYING_ELEMENTS >
+struct Parallel_varying_vertex
+{
+  // The number of elements of the varying vertex each thread is responsible for.
+  static const int NUM_ELEMENTS_PER_THREAD = (NUM_VARYING_ELEMENTS + NUM_THREADS_PER_VERTEX-1) / NUM_THREADS_PER_VERTEX;
+
+  // The elements.
+  float m_elts[NUM_ELEMENTS_PER_THREAD];
+
+  // Initialize the vertex.
+  __device__ __forceinline__ Parallel_varying_vertex() 
+  {
+    #pragma unroll
+    for( int i = 0 ; i < NUM_ELEMENTS_PER_THREAD ; ++i )
+      m_elts[i] = 0.0f;
+  }
+
+  // Load a vertex.
+  __device__ __forceinline__ void load( const float *ptr, int element )
+  {
+    #pragma unroll
+    for( int i = 0 ; i < NUM_ELEMENTS_PER_THREAD ; ++i )
+    {
+      const int idx = i*NUM_THREADS_PER_VERTEX + element;
+      if( idx < NUM_VARYING_ELEMENTS )
+        m_elts[i] = ptr[idx];
+    }
+  }
+
+  // Store a vertex.
+  __device__ __forceinline__ void store( float *ptr, int element )
+  {
+    #pragma unroll
+    for( int i = 0 ; i < NUM_ELEMENTS_PER_THREAD ; ++i )
+    {
+      const int idx = i*NUM_THREADS_PER_VERTEX + element;
+      if( idx < NUM_VARYING_ELEMENTS )
+        ptr[idx] = m_elts[i];
+    }
+  }
+
+  // Add another vertex.
+  __device__ __forceinline__ void add( const Parallel_varying_vertex &other, float weight, int element )
+  {
+    #pragma unroll
+    for( int i = 0 ; i < NUM_ELEMENTS_PER_THREAD ; ++i )
+      m_elts[i] += other.m_elts[i] * weight;
+  }
+
+  // Add another vertex.
+  __device__ __forceinline__ void add( const Parallel_varying_vertex &v0, const Parallel_varying_vertex &v1, float weight, int element )
+  {
+    #pragma unroll
+    for( int i = 0 ; i < NUM_ELEMENTS_PER_THREAD ; ++i )
+    {
+      m_elts[i] += v0.m_elts[i] * weight;
+      m_elts[i] += v1.m_elts[i] * weight;
+    } 
+  }
+};
+
+template< int NUM_THREADS_PER_VERTEX >
+struct Parallel_varying_vertex<NUM_THREADS_PER_VERTEX, 0>
+{
+  __device__ __forceinline__ void load( const float *ptr, int element )
+  {}
+
+  __device__ __forceinline__ void store( float *ptr, int element )
+  {}
+
+  __device__ __forceinline__ void add( const Parallel_varying_vertex &other, float weight, int element )
+  {}
+
+  __device__ __forceinline__ void add( const Parallel_varying_vertex &v0, const Parallel_varying_vertex &v1, float weight, int element )
+  {}
+};
+
+#endif
+
+#ifdef USE_BLOCK_OPTIM
+
+template< int NUM_THREADS_PER_BLOCK, int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS > 
+__global__ 
+void computeFace( float *fVertex, float *fVaryings, const int *F0_IT, const int2 *F0_ITa, int offset, int start, int end )
+{
+  // The number of vertex elements.
+  const int NUM_VERTEX_ELEMENTS = 3 + NUM_USER_VERTEX_ELEMENTS;
+  // The number of threads per vertex.
+  const int NUM_THREADS_PER_VERTEX = NUM_VERTEX_ELEMENTS; // Start simple.
+  // The number of vertices computed per block.
+  const int NUM_VERTICES_PER_BLOCK = NUM_THREADS_PER_BLOCK / NUM_THREADS_PER_VERTEX;
+  // The number of vertices per grid.
+  const int NUM_VERTICES_PER_GRID = gridDim.x * NUM_VERTICES_PER_BLOCK;
+  // The number of active threads per block (if NUM_THREADS_PER_BLOCK % NUM_THREADS_PER_VERTEX != 0).
+  const int NUM_ACTIVE_THREADS_PER_BLOCK = NUM_VERTICES_PER_BLOCK * NUM_THREADS_PER_VERTEX;
+
+  // Warp decomposition.
+  const int vertex  = threadIdx.x / NUM_THREADS_PER_VERTEX;
+  const int element = threadIdx.x % NUM_THREADS_PER_VERTEX;
+
+  // Is the thread active.
+  const bool is_active = threadIdx.x < NUM_ACTIVE_THREADS_PER_BLOCK;
+
+  // Loop over the items...
+  for( start += blockIdx.x*NUM_VERTICES_PER_BLOCK + vertex ; start < end ; start += NUM_VERTICES_PER_GRID )
+  {
+    // h/n.
+    const int2 hn = is_active ? F0_ITa[start] : make_int2(-1, -1);
+
+    // Compute the weight.
+    float weight = 1.0f / (float) hn.y;
+    
+    // Each thread stores its coordinate of the vertex.
+    float my_elt = 0.0f;
+    // Varying vertex.
+    Parallel_varying_vertex<NUM_THREADS_PER_VERTEX, NUM_VARYING_ELEMENTS> varying;
+
+    // Compute vertices.
+    for( int j = 0 ; j < hn.y ; ++j )
+    {
+      // Index.
+      int idx = is_active ? F0_IT[hn.x+j] : 0;
+
+      // Vertex.
+      const float other_elt = is_active ? fVertex[idx*NUM_VERTEX_ELEMENTS + element] : 0.0f;
+      my_elt += other_elt * weight; 
+
+      // Varying vertex.
+      if( NUM_VARYING_ELEMENTS > 0 && is_active )
+      {
+        Parallel_varying_vertex<NUM_THREADS_PER_VERTEX, NUM_VARYING_ELEMENTS> vtmp;
+        vtmp.load( &fVaryings[idx*NUM_VARYING_ELEMENTS], element );
+        varying.add( vtmp, weight, element );
+      }
+    }
+
+    // Output array.
+    int dst_offset = offset + start;
+
+    // Store the results.
+    if( is_active )
+    {
+      fVertex[dst_offset*NUM_VERTEX_ELEMENTS + element] = my_elt;
+      varying.store( &fVaryings[dst_offset*NUM_VARYING_ELEMENTS], element );
+    }
+  }
+}
+
+#else
+
 template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
 computeFace(float *fVertex, float *fVaryings, int *F0_IT, int *F0_ITa, int offset, int start, int end)
 {
@@ -166,6 +320,8 @@ computeFace(float *fVertex, float *fVaryings, int *F0_IT, int *F0_ITa, int offse
     }
 }
 
+#endif
+
 __global__ void
 computeFace(float *fVertex, int numVertexElements, float *fVaryings, int numVaryingElements,
             int *F0_IT, int *F0_ITa, int offset, int start, int end)
@@ -188,6 +344,78 @@ computeFace(float *fVertex, int numVertexElements, float *fVaryings, int numVary
         }
     }
 }
+
+#ifdef USE_BLOCK_OPTIM
+
+template< int NUM_THREADS_PER_BLOCK, int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS > 
+__global__ 
+void computeEdge( float *fVertex, float *fVaryings, const int4 *E0_IT, const float2 *E0_S, int offset, int start, int end )
+{
+  // The number of vertex elements.
+  const int NUM_VERTEX_ELEMENTS = 3 + NUM_USER_VERTEX_ELEMENTS;
+  // The number of threads per vertex.
+  const int NUM_THREADS_PER_VERTEX = NUM_VERTEX_ELEMENTS; // Start simple.
+  // The number of vertices computed per block.
+  const int NUM_VERTICES_PER_BLOCK = NUM_THREADS_PER_BLOCK / NUM_THREADS_PER_VERTEX;
+  // The number of vertices per grid.
+  const int NUM_VERTICES_PER_GRID = gridDim.x * NUM_VERTICES_PER_BLOCK;
+
+  // The number of active threads per block (if NUM_THREADS_PER_BLOCK % NUM_THREADS_PER_VERTEX != 0).
+  const int NUM_ACTIVE_THREADS_PER_BLOCK = NUM_VERTICES_PER_BLOCK * NUM_THREADS_PER_VERTEX;
+
+  // Warp decomposition.
+  const int vertex  = threadIdx.x / NUM_THREADS_PER_VERTEX;
+  const int element = threadIdx.x % NUM_THREADS_PER_VERTEX;
+
+  // Is the thread active.
+  const bool is_active = threadIdx.x < NUM_ACTIVE_THREADS_PER_BLOCK;
+
+  // Loop over the items...
+  for( start += blockIdx.x*NUM_VERTICES_PER_BLOCK + vertex ; start < end ; start += NUM_VERTICES_PER_GRID )
+  {
+    // Edge indices.
+    const int4 eidx = is_active ? E0_IT[start] : make_int4(-1, -1, -1, -1);
+
+    // Compute the vertex.
+    float my_elt = 0.0f;
+    // The vertex/face weights.
+    float2 w = is_active ? E0_S[start] : make_float2(0.0f, 0.0f);
+
+    // Add vertices.
+    float other_elt0 = is_active ? fVertex[eidx.x*NUM_VERTEX_ELEMENTS + element] : 0.0f;
+    my_elt += other_elt0 * w.x;
+    float other_elt1 = is_active ? fVertex[eidx.y*NUM_VERTEX_ELEMENTS + element] : 0.0f;
+    my_elt += other_elt1 * w.x;
+
+    // Face vertices.
+    if( is_active && eidx.z > -1 )
+    {
+      float other_elt2 = fVertex[eidx.z*NUM_VERTEX_ELEMENTS + element];
+      my_elt += other_elt2 * w.y;
+      float other_elt3 = fVertex[eidx.w*NUM_VERTEX_ELEMENTS + element];
+      my_elt += other_elt3 * w.y;
+    }
+
+    // Output array.
+    int dst_offset = offset + start;
+
+    // Store the results.
+    if( is_active )
+      fVertex[dst_offset*NUM_VERTEX_ELEMENTS + element] = my_elt;
+
+    // Varying vertices.
+    Parallel_varying_vertex<NUM_THREADS_PER_VERTEX, NUM_VARYING_ELEMENTS> v0, v1, v2;
+    if( is_active )
+    {
+      v0.load ( &fVaryings[eidx.x*NUM_VARYING_ELEMENTS], element );
+      v1.load ( &fVaryings[eidx.y*NUM_VARYING_ELEMENTS], element );
+      v2.add  ( v0, v1, 0.5f, element );
+      v2.store( &fVaryings[dst_offset*NUM_VARYING_ELEMENTS], element );
+    }
+  }
+}
+
+#else
 
 template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
 computeEdge(float *fVertex, float *fVaryings, int *E0_IT, float *E0_S, int offset, int start, int end)
@@ -226,6 +454,8 @@ computeEdge(float *fVertex, float *fVaryings, int *E0_IT, float *E0_S, int offse
         }
     }
 }
+
+#endif
 
 __global__ void
 computeEdge(float *fVertex, int numVertexElements, float *fVarying, int numVaryingElements,
@@ -354,6 +584,111 @@ computeVertexA(float *fVertex, int numVertexElements, float *fVaryings, int numV
 
 //texture <int, 1> texV0_IT;
 
+#ifdef USE_BLOCK_OPTIM
+
+template< int NUM_THREADS_PER_BLOCK, int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS > 
+__global__ 
+void computeVertexB( float *fVertex, float *fVaryings, const int *V0_ITa, const int *V0_IT, const float *V0_S, int offset, int start, int end )
+{
+  // The number of vertex elements.
+  const int NUM_VERTEX_ELEMENTS = 3 + NUM_USER_VERTEX_ELEMENTS;
+  // The number of threads per vertex.
+  const int NUM_THREADS_PER_VERTEX = NUM_VERTEX_ELEMENTS; // Start simple.
+  // The number of vertices computed per block.
+  const int NUM_VERTICES_PER_BLOCK = NUM_THREADS_PER_BLOCK / NUM_THREADS_PER_VERTEX;
+  // The number of vertices per grid.
+  const int NUM_VERTICES_PER_GRID = gridDim.x * NUM_VERTICES_PER_BLOCK;
+
+  // The number of active threads per block (if NUM_THREADS_PER_BLOCK % NUM_THREADS_PER_VERTEX != 0).
+  const int NUM_ACTIVE_THREADS_PER_BLOCK = NUM_VERTICES_PER_BLOCK * NUM_THREADS_PER_VERTEX;
+
+  // Use SMEM to load indices.
+  __shared__ int smem[NUM_THREADS_PER_BLOCK];
+
+  // Warp decomposition.
+  const int vertex  = threadIdx.x / NUM_THREADS_PER_VERTEX;
+  const int element = threadIdx.x % NUM_THREADS_PER_VERTEX;
+
+  // Is the thread active.
+  const bool is_active = threadIdx.x < NUM_ACTIVE_THREADS_PER_BLOCK;
+
+  // Shared memory for the vertex.
+  int *vertex_smem = &smem[vertex*NUM_THREADS_PER_VERTEX];
+
+  // Loop over the items...
+  for( start += blockIdx.x*NUM_VERTICES_PER_BLOCK + vertex ; start < end ; start += NUM_VERTICES_PER_GRID )
+  {
+    // Load info. Better coalescing.
+#if 0
+    const int h = is_active ? V0_ITa[5*start + 0] : 0;
+    const int n = is_active ? V0_ITa[5*start + 1] : 0;
+    const int p = is_active ? V0_ITa[5*start + 2] : 0;
+#else
+    if( is_active && element < 3 )
+      smem[threadIdx.x] = V0_ITa[5*start + element];
+    __syncthreads();
+
+    // h/n/p.
+    const int h = is_active ? vertex_smem[0] : -1;
+    const int n = is_active ? vertex_smem[1] : -1;
+    const int p = is_active ? vertex_smem[2] : -1;
+#endif
+
+    // The weight.
+    float weight = V0_S[start];
+    // Compute the weight.
+    float inv_n = 1.0f / (float) n;
+    // Compute factors.
+    float weight_wp = weight * inv_n * inv_n;
+    float weight_wv = weight -  2.0f * inv_n;
+
+    // Each thread stores its coordinate of the vertex.
+    float my_elt = is_active ? fVertex[p*NUM_VERTEX_ELEMENTS + element] * weight_wv : 0.0f;
+
+    #pragma unroll
+    for( int j = 0 ; j < n ; ++j )
+    {
+      // TODO: make sure h is always even!!! Otherwise use #if 0:
+#if 1
+      // Load indices.
+      int2 idx = is_active ? reinterpret_cast<const int2 *>( &V0_IT[h] )[j] : make_int2(0, 0);
+#else
+      int2 idx = make_int2(0, 0);
+      if( is_active )
+      {
+        idx.x = V0_IT[h + 2*j + 0];
+        idx.y = V0_IT[h + 2*j + 1];
+      }
+#endif
+      
+      // Load vertices and update the coordinates.
+      const float other_elt0 = is_active ? fVertex[idx.x*NUM_VERTEX_ELEMENTS + element] : 0.0f;
+      my_elt += other_elt0 * weight_wp; 
+     
+      const float other_elt1 = is_active ? fVertex[idx.y*NUM_VERTEX_ELEMENTS + element] : 0.0f;
+      my_elt += other_elt1 * weight_wp; 
+    }
+
+    // Output array.
+    int dst_offset = offset + start;
+
+    // Store the results.
+    if( is_active )
+      fVertex[dst_offset*NUM_VERTEX_ELEMENTS + element] = my_elt;
+
+    // Varying vertices.
+    Parallel_varying_vertex<NUM_THREADS_PER_VERTEX, NUM_VARYING_ELEMENTS> v;
+    if( is_active )
+    {
+      v.load( &fVaryings[p*NUM_VARYING_ELEMENTS], element );
+      v.store( &fVaryings[dst_offset*NUM_VARYING_ELEMENTS], element );
+    }
+    __syncthreads();
+  }
+}
+
+#else
+
 template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
 computeVertexB(float *fVertex, float *fVaryings,
                     const int *V0_ITa, const int *V0_IT, const float *V0_S, int offset, int start, int end)
@@ -391,6 +726,7 @@ computeVertexB(float *fVertex, float *fVaryings,
         }
     }
 }
+#endif
 
 __global__ void
 computeVertexB(float *fVertex, int numVertexElements, float *fVaryings, int numVaryingElements,
@@ -614,17 +950,32 @@ editVertexAdd(float *fVertex, int numVertexElements, int primVarOffset, int prim
        { KERNEL<NUM_USER_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS><<<X,Y>>>ARG; \
          return;  }
 
+#if defined USE_BLOCK_OPTIM
+#define OPT_KERNEL_0(NUM_USER_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS, KERNEL, X, Y, ARG) \
+    if(numUserVertexElements == NUM_USER_VERTEX_ELEMENTS && \
+       numVaryingElements == NUM_VARYING_ELEMENTS) \
+       { KERNEL<Y, NUM_USER_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS><<<X,Y>>>ARG; \
+         return;  }
+#endif
+
 extern "C" {
 
 void OsdCudaComputeFace(float *vertex, float *varying,
                         int numUserVertexElements, int numVaryingElements,
                         int *F_IT, int *F_ITa, int offset, int start, int end)
 {
+#if defined USE_BLOCK_OPTIM
+    OPT_KERNEL_0(0, 0, computeFace, 2048, 128, (vertex, varying, F_IT, (int2*) F_ITa, offset, start, end));
+    OPT_KERNEL_0(0, 3, computeFace, 2048, 128, (vertex, varying, F_IT, (int2*) F_ITa, offset, start, end));
+    OPT_KERNEL_0(3, 0, computeFace, 2048, 128, (vertex, varying, F_IT, (int2*) F_ITa, offset, start, end));
+    OPT_KERNEL_0(3, 3, computeFace, 2048, 128, (vertex, varying, F_IT, (int2*) F_ITa, offset, start, end));
+#else
     //computeFace<3, 0><<<512,32>>>(vertex, varying, F_IT, F_ITa, offset, start, end);
     OPT_KERNEL(0, 0, computeFace, 512, 32, (vertex, varying, F_IT, F_ITa, offset, start, end));
     OPT_KERNEL(0, 3, computeFace, 512, 32, (vertex, varying, F_IT, F_ITa, offset, start, end));
     OPT_KERNEL(3, 0, computeFace, 512, 32, (vertex, varying, F_IT, F_ITa, offset, start, end));
     OPT_KERNEL(3, 3, computeFace, 512, 32, (vertex, varying, F_IT, F_ITa, offset, start, end));
+#endif
 
     // fallback kernel (slow)
     computeFace<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
@@ -635,11 +986,18 @@ void OsdCudaComputeEdge(float *vertex, float *varying,
                         int numUserVertexElements, int numVaryingElements,
                         int *E_IT, float *E_W, int offset, int start, int end)
 {
+ #if defined USE_BLOCK_OPTIM
+    OPT_KERNEL_0(0, 0, computeEdge, 2048, 256, (vertex, varying, (int4*)E_IT, (float2*)E_W, offset, start, end));
+    OPT_KERNEL_0(0, 3, computeEdge, 2048, 256, (vertex, varying, (int4*)E_IT, (float2*)E_W, offset, start, end));
+    OPT_KERNEL_0(3, 0, computeEdge, 2048, 256, (vertex, varying, (int4*)E_IT, (float2*)E_W, offset, start, end));
+    OPT_KERNEL_0(3, 3, computeEdge, 2048, 256, (vertex, varying, (int4*)E_IT, (float2*)E_W, offset, start, end));
+#else
     //computeEdge<0, 3><<<512,32>>>(vertex, varying, E_IT, E_W, offset, start, end);
     OPT_KERNEL(0, 0, computeEdge, 512, 32, (vertex, varying, E_IT, E_W, offset, start, end));
     OPT_KERNEL(0, 3, computeEdge, 512, 32, (vertex, varying, E_IT, E_W, offset, start, end));
     OPT_KERNEL(3, 0, computeEdge, 512, 32, (vertex, varying, E_IT, E_W, offset, start, end));
     OPT_KERNEL(3, 3, computeEdge, 512, 32, (vertex, varying, E_IT, E_W, offset, start, end));
+#endif
 
     computeEdge<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
                              E_IT, E_W, offset, start, end);
@@ -663,6 +1021,15 @@ void OsdCudaComputeVertexB(float *vertex, float *varying,
                            int numUserVertexElements, int numVaryingElements,
                            int *V_ITa, int *V_IT, float *V_W, int offset, int start, int end)
 {
+#if defined USE_BLOCK_OPTIM
+    OPT_KERNEL_0(0, 0, computeVertexB, 2048, 128, (vertex, varying, V_ITa, V_IT, V_W, offset, start, end));
+    OPT_KERNEL_0(0, 3, computeVertexB, 2048, 128, (vertex, varying, V_ITa, V_IT, V_W, offset, start, end));
+    OPT_KERNEL_0(3, 0, computeVertexB, 2048, 128, (vertex, varying, V_ITa, V_IT, V_W, offset, start, end));
+    OPT_KERNEL_0(3, 3, computeVertexB, 2048, 128, (vertex, varying, V_ITa, V_IT, V_W, offset, start, end));
+
+    computeVertexB<<<512, 128>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
+                                V_ITa, V_IT, V_W, offset, start, end);
+#else
 //    computeVertexB<0, 3><<<512,32>>>(vertex, varying, V_ITa, V_IT, V_W, offset, start, end);
     OPT_KERNEL(0, 0, computeVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, start, end));
     OPT_KERNEL(0, 3, computeVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, start, end));
@@ -671,6 +1038,7 @@ void OsdCudaComputeVertexB(float *vertex, float *varying,
 
     computeVertexB<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
                                 V_ITa, V_IT, V_W, offset, start, end);
+#endif
 }
 
 void OsdCudaComputeLoopVertexB(float *vertex, float *varying,
