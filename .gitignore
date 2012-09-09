@@ -3,6 +3,9 @@
 *.inc
 *.inc.rule
 
+# ignore build files
+/build*
+
 *.pyc
 osdshim_wrap.cpp
 shim.py
