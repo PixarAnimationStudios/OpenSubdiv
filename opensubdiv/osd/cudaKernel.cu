@@ -59,7 +59,7 @@
 
 #define USE_BLOCK_OPTIM
 //#define USE_TEMPLATE_OPTIM
-#define USE_PACKED_OPTIM
+//#define USE_PACKED_OPTIM
 
 template<int N> struct DeviceVertex
 {
