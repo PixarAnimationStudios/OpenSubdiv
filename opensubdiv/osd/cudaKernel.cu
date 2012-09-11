@@ -59,6 +59,7 @@
 
 #define USE_BLOCK_OPTIM
 //#define USE_TEMPLATE_OPTIM
+#define USE_PACKED_OPTIM
 
 template<int N> struct DeviceVertex
 {
@@ -1015,6 +1016,118 @@ computeVertexB(float *fVertex, int numVertexElements, float *fVaryings, int numV
 }
 #endif
 
+
+#ifdef USE_PACKED_OPTIM
+
+// That optimization is based on a technique used in efficient OpenGL code where the vertices are aligned on 
+// memory boundaries and work is shared among several threads. That implementation is faster than all others
+// and can probably give ideas how to further optimized some cases... 
+//
+// It requires vertices to be stored as 8 consecutive floats (glutViewer has to be modified for that to work).
+// The code uses SM35 instructions to share information inside a warp of threads (__shfl).
+
+template< int NUM_THREADS_PER_BLOCK > 
+__global__ 
+void computeVertexB_packed8( float2 *vertices, const int *V0_ITa, const int *V0_IT, const float *V0_S, int offset, int start, int end )
+{
+  // The number of vertex elements.
+  const int NUM_VERTEX_ELEMENTS = 8;
+  // The number of threads per vertex.
+  const int NUM_THREADS_PER_VERTEX = 4; // Start simple.
+  // The number of vertices computed per block.
+  const int NUM_VERTICES_PER_BLOCK = NUM_THREADS_PER_BLOCK / NUM_THREADS_PER_VERTEX;
+  // The number of vertices per grid.
+  const int NUM_VERTICES_PER_GRID = gridDim.x * NUM_VERTICES_PER_BLOCK;
+
+  // Warp decomposition.
+  const int vertex  = threadIdx.x / NUM_THREADS_PER_VERTEX;
+  const int element = threadIdx.x % NUM_THREADS_PER_VERTEX;
+
+  // The ID of the thread in its warp.
+  const int lane_id = threadIdx.x % warpSize;
+  // Warp decomposition.
+  const int warp_segment = NUM_THREADS_PER_VERTEX * (lane_id / NUM_THREADS_PER_VERTEX);
+
+  // Loop over the items...
+  for( start += blockIdx.x*NUM_VERTICES_PER_BLOCK + vertex ; __any(start < end) ; start += NUM_VERTICES_PER_GRID )
+  {
+    // Is it an active thread.
+    const bool is_active = start < end;
+
+    // Load info. Better coalescing.
+    int my_V0_ITa = 0;
+    if( is_active && element < 3 )
+      my_V0_ITa = V0_ITa[5*start + element];
+
+    // h/n/p.
+    const int h = is_active ? __shfl( my_V0_ITa, warp_segment+0 ) : -1;
+    const int n = is_active ? __shfl( my_V0_ITa, warp_segment+1 ) : -1;
+    const int p = is_active ? __shfl( my_V0_ITa, warp_segment+2 ) : -1;
+
+    // The weight.
+    float weight = 0.0f;
+    if( element == 0 )
+      weight = V0_S[start];
+    weight = __shfl( weight, warp_segment );
+
+    // Compute the weight.
+    float inv_n = 1.0f / (float) n;
+
+    // Compute factors.
+    float weight_wp = weight * inv_n * inv_n;
+    float weight_wv = weight -  2.0f * inv_n;
+
+    // Each thread stores its coordinate of the vertex.
+    float2 my_elt = is_active ? vertices[4*p + element] : make_float2(0.0f, 0.0f);
+    my_elt.x *= weight_wv;
+    my_elt.y *= weight_wv;
+
+    for( int j = 0 ; j < n ; j += NUM_THREADS_PER_VERTEX )
+    {
+      // Load indices.
+      int2 idx = is_active && j+element < n ? reinterpret_cast<const int2 *>(&V0_IT[h])[j+element] : make_int2(0, 0);
+      
+      // Run the 4 element loop.
+      #pragma unroll
+      for( int k = 0 ; k < NUM_THREADS_PER_VERTEX ; ++k )
+      {
+        if( j+k < n )
+        {
+          // Bcast the indices.
+          int idx_x = __shfl( idx.x, warp_segment+k );
+          int idx_y = __shfl( idx.y, warp_segment+k );
+ 
+          // Other elements.
+          float2 other_elt0 = make_float2(0.0f, 0.0f);
+          float2 other_elt1 = make_float2(0.0f, 0.0f);
+
+          // Load other elements.
+          if( is_active )
+          {
+            other_elt0 = vertices[4*idx_x + element];
+            other_elt1 = vertices[4*idx_y + element];
+          }
+
+          // Update the coordinates.
+          my_elt.x += other_elt0.x * weight_wp; 
+          my_elt.y += other_elt0.y * weight_wp; 
+          my_elt.x += other_elt1.x * weight_wp; 
+          my_elt.y += other_elt1.y * weight_wp; 
+        }
+      }
+    }
+
+    // Output array.
+    int dst_offset = offset + start;
+
+    // Store the results.
+    if( is_active )
+      vertices[4*dst_offset + element] = my_elt;
+  }
+}
+
+#endif
+
 // --------------------------------------------------------------------------------------------
 
 template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
@@ -1283,6 +1396,15 @@ void OsdCudaComputeVertexB(float *vertex, float *varying,
                            int numUserVertexElements, int numVaryingElements,
                            int *V_ITa, int *V_IT, float *V_W, int offset, int start, int end)
 {
+    //printf( "numUserVertexElements=%d\n", numUserVertexElements );
+#if defined USE_PACKED_OPTIM
+    if( numUserVertexElements == 5 )
+    { 
+      computeVertexB_packed8<256><<<2048, 256>>>( (float2*) vertex, V_ITa, V_IT, V_W, offset, start, end );
+      return;  
+    }
+#endif
+
 #if defined USE_BLOCK_OPTIM
 #if defined USE_TEMPLATE_OPTIM
     OPT_KERNEL_0(0, 0, computeVertexB, 2048, 256, (vertex, varying, V_ITa, V_IT, V_W, offset, start, end));
