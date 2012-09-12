@@ -55,7 +55,7 @@
 #     a particular purpose and non-infringement.
 #
 
-set(H_FILES
+set(PUBLIC_HEADER_FILES
     bilinearSubdivisionTables.h
     catmarkSubdivisionTables.h
     dispatcher.h
@@ -67,6 +67,6 @@ set(H_FILES
     vertexEditTables.h
 )    
 
-install( FILES ${H_FILES}
+install( FILES ${PUBLIC_HEADER_FILES}
          DESTINATION include/far
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
