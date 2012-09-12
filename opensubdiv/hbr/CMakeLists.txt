@@ -55,7 +55,7 @@
 #     a particular purpose and non-infringement.
 #
 
-set(H_FILES
+set(PUBLIC_HEADER_FILES
     allocator.h
     bilinear.h
     catmark.h
@@ -75,6 +75,6 @@ set(H_FILES
     vertex.h
 )
 
-install( FILES ${H_FILES}
+install( FILES ${PUBLIC_HEADER_FILES}
          DESTINATION include/hbr
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
