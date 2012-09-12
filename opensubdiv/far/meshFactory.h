@@ -187,7 +187,7 @@ template <class T, class U>
     template <class Type> int
 FarMeshFactory<T,U>::sumList( std::vector<std::vector<Type> > const & list, int level) {
 
-    level = std::min(level, (int)list.size());
+    level = std::min(level, (int)list.size()-1);
     int total = 0;
     for (int i=0; i<=level; ++i)
         total += (int)list[i].size();
