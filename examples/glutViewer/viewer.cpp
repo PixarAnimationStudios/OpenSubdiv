@@ -618,6 +618,8 @@ createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark
     if (g_elementArrayBuffer) delete g_elementArrayBuffer;
     g_elementArrayBuffer = g_osdmesh->CreateElementArrayBuffer(level);
 
+    g_scheme = scheme;
+
     // compute model bounding
     float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};
     float max[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
