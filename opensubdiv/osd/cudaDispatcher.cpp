@@ -330,17 +330,17 @@ OsdCudaKernelDispatcher::ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mes
 }
 
 void
-OsdCudaKernelDispatcher::ApplyVertexEdit(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const {
+OsdCudaKernelDispatcher::ApplyVertexEdits(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const {
 
     for (int i=0; i<(int)_edits.size(); ++i) {
         const VertexEditArrayInfo &info = _edits[i];
 
-        if (info.operation == FarVertexEditTables<OsdVertex>::Add) {
+        if (info.operation == FarVertexEdit::Add) {
             OsdCudaEditVertexAdd(_deviceVertices, _numVertexElements-3, info.primVarOffset, info.primVarWidth, info.numEdits[level-1],
                                  (int*)_editTables[i*2+0].devicePtr + info.offsetOffsets[level-1],
                                  (float*)_editTables[i*2+1].devicePtr + info.valueOffsets[level-1]);
-        } else if (info.operation == FarVertexEditTables<OsdVertex>::Set) {
-            // XXX:
+        } else if (info.operation == FarVertexEdit::Set) {
+            // XXXX TODO
         }
     }
 }

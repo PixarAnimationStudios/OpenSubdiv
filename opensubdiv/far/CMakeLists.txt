@@ -57,14 +57,18 @@
 
 set(PUBLIC_HEADER_FILES
     bilinearSubdivisionTables.h
+    bilinearSubdivisionTablesFactory.h
     catmarkSubdivisionTables.h
+    catmarkSubdivisionTablesFactory.h
     dispatcher.h
     loopSubdivisionTables.h
+    loopSubdivisionTablesFactory.h
     meshFactory.h
     mesh.h
     subdivisionTables.h
     table.h
     vertexEditTables.h
+    vertexEditTablesFactory.h
 )    
 
 install( FILES ${PUBLIC_HEADER_FILES}

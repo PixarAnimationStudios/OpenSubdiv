@@ -57,23 +57,18 @@
 #ifndef FAR_SUBDIVISION_TABLES_H
 #define FAR_SUBDIVISION_TABLES_H
 
-#include <assert.h>
+#include <cassert>
 #include <utility>
 #include <vector>
 
 #include "../version.h"
 #include "../far/table.h"
 
-template <class T> class HbrFace;
-template <class T> class HbrHalfedge;
-template <class T> class HbrVertex;
-template <class T> class HbrMesh;
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-template <class T, class U> class FarMesh;
-template <class T, class U> class FarMeshFactory;
+template <class U> class FarMesh;
+template <class U> class FarDispatcher;
 
 // Catmull-Clark tables store the indexing tables required in order to compute
 // the refined positions of a mesh without the help of a hierarchical data
@@ -92,11 +87,11 @@ template <class T, class U> class FarMeshFactory;
 
 // For more details see : "Feature Adaptive GPU Rendering of Catmull-Clark
 // Subdivision Surfaces"  p.3 - par. 3.2
-template <class T, class U=T> class FarSubdivisionTables {
+template <class U> class FarSubdivisionTables {
 public:
 
     // Destructor
-    virtual ~FarSubdivisionTables<T,U>() {}
+    virtual ~FarSubdivisionTables<U>() {}
 
     // Return the highest level of subdivision possible with these tables
     int GetMaxLevel() const { return (int)(_vertsOffsets.size()); }
@@ -108,7 +103,7 @@ public:
     virtual void Apply( int level, void * clientdata=0 ) const=0;
 
     // Pointer back to the mesh owning the table
-    FarMesh<T,U> * GetMesh() { return _mesh; }
+    FarMesh<U> * GetMesh() { return _mesh; }
 
     // The index of the first vertex that belongs to the level of subdivision
     // represented by this set of FarCatmarkSubdivisionTables
@@ -148,15 +143,12 @@ public:
     virtual int GetNumTables() const { return 5; }
 
 protected:
-    friend class FarMeshFactory<T,U>;
+    template <class X, class Y> friend class FarMeshFactory;
 
-    FarSubdivisionTables<T,U>( FarMesh<T,U> * mesh, int maxlevel );
+    FarSubdivisionTables<U>( FarMesh<U> * mesh, int maxlevel );
 
     // Returns an integer based on the order in which the kernels are applied
     static int getMaskRanking( unsigned char mask0, unsigned char mask1 );
-
-    // Compares to vertices based on the ranking of their hbr masks combination
-    static bool compareVertices( HbrVertex<T> const * x, HbrVertex<T> const * y );
 
     struct VertexKernelBatch {
         int kernelF; // number of face vertices
@@ -202,7 +194,7 @@ protected:
 
 protected:
     // mesh that owns this subdivisionTable
-    FarMesh<T,U> * _mesh;
+    FarMesh<U> * _mesh;
 
     FarTable<int>          _E_IT;  // vertices from edge refinement
     FarTable<float>        _E_W;   // weigths
@@ -217,8 +209,8 @@ protected:
 private:
 };
 
-template <class T, class U>
-FarSubdivisionTables<T,U>::FarSubdivisionTables( FarMesh<T,U> * mesh, int maxlevel ) :
+template <class U>
+FarSubdivisionTables<U>::FarSubdivisionTables( FarMesh<U> * mesh, int maxlevel ) :
     _mesh(mesh),
     _E_IT(maxlevel+1),
     _E_W(maxlevel+1),
@@ -251,8 +243,8 @@ FarSubdivisionTables<T,U>::FarSubdivisionTables( FarMesh<T,U> * mesh, int maxlev
 // with :
 //     - A : compute kernel applying k_Crease / k_Corner rules
 //     - B : compute kernel applying k_Smooth / k_Dart rules
-template <class T, class U> int
-FarSubdivisionTables<T,U>::getMaskRanking( unsigned char mask0, unsigned char mask1 ) {
+template <class U> int
+FarSubdivisionTables<U>::getMaskRanking( unsigned char mask0, unsigned char mask1 ) {
     static short masks[4][4] = { {    0,    1,    6,    4 },
                                  { 0xFF,    2,    5,    3 },
                                  { 0xFF, 0xFF,    9,    7 },
@@ -260,47 +252,26 @@ FarSubdivisionTables<T,U>::getMaskRanking( unsigned char mask0, unsigned char ma
     return masks[mask0][mask1];
 }
 
-// Compare the weight masks of 2 vertices using the following ordering table.
-//
-// Assuming 2 computer kernels :
-//  - A handles the k_Crease and K_Corner rules
-//  - B handles the K_Smooth and K_Dart rules
-// The vertices should be sorted so as to minimize the number execution calls of
-// these kernels to match the 2 pass interpolation scheme used in Hbr.
-template <class T, class U> bool
-FarSubdivisionTables<T,U>::compareVertices( HbrVertex<T> const * x, HbrVertex<T> const * y ) {
-
-    // Masks of the parent vertex decide for the current vertex.
-    HbrVertex<T> * px=x->GetParentVertex(),
-                 * py=y->GetParentVertex();
-
-    assert( (getMaskRanking(px->GetMask(false), px->GetMask(true) )!=0xFF) and
-            (getMaskRanking(py->GetMask(false), py->GetMask(true) )!=0xFF) );
-
-    return getMaskRanking(px->GetMask(false), px->GetMask(true) ) <
-           getMaskRanking(py->GetMask(false), py->GetMask(true) );
-}
-
-template <class T, class U> int
-FarSubdivisionTables<T,U>::GetFirstVertexOffset( int level ) const {
+template <class U> int
+FarSubdivisionTables<U>::GetFirstVertexOffset( int level ) const {
     assert(level>=0 and level<=(int)_vertsOffsets.size());
     return _vertsOffsets[level];
 }
 
-template <class T, class U> int
-FarSubdivisionTables<T,U>::GetNumFaceVertices( int level ) const {
+template <class U> int
+FarSubdivisionTables<U>::GetNumFaceVertices( int level ) const {
     assert(level>=0 and level<=(int)_batches.size());
     return _batches[level-1].kernelF;
 }
 
-template <class T, class U> int
-FarSubdivisionTables<T,U>::GetNumEdgeVertices( int level ) const {
+template <class U> int
+FarSubdivisionTables<U>::GetNumEdgeVertices( int level ) const {
     assert(level>=0 and level<=(int)_batches.size());
     return _batches[level-1].kernelE;
 }
 
-template <class T, class U> int
-FarSubdivisionTables<T,U>::GetNumVertexVertices( int level ) const {
+template <class U> int
+FarSubdivisionTables<U>::GetNumVertexVertices( int level ) const {
     assert(level>=0 and level<=(int)_batches.size());
     if (level==0)
         return _mesh->GetNumCoarseVertices();
@@ -310,8 +281,8 @@ FarSubdivisionTables<T,U>::GetNumVertexVertices( int level ) const {
                        _batches[level-1].kernelA2.second));
 }
 
-template <class T, class U> int
-FarSubdivisionTables<T,U>::GetNumVertices( int level ) const {
+template <class U> int
+FarSubdivisionTables<U>::GetNumVertices( int level ) const {
     assert(level>=0 and level<=(int)_batches.size());
     if (level==0)
         return GetNumVertexVertices(0);
@@ -321,8 +292,8 @@ FarSubdivisionTables<T,U>::GetNumVertices( int level ) const {
                GetNumVertexVertices(level);
 }
 
-template <class T, class U> int
-FarSubdivisionTables<T,U>::GetMemoryUsed() const {
+template <class U> int
+FarSubdivisionTables<U>::GetMemoryUsed() const {
     return _E_IT.GetMemoryUsed()+
            _E_W.GetMemoryUsed()+
            _V_ITa.GetMemoryUsed()+

@@ -149,6 +149,22 @@ struct xyzVV {
                  }
              }
 
+    void ApplyVertexEdit(OpenSubdiv::FarVertexEdit const & edit) {
+        const float *src = edit.GetEdit();
+        switch(edit.GetOperation()) {
+          case OpenSubdiv::FarVertexEdit::Set:
+            _pos[0] = src[0];
+            _pos[1] = src[1];
+            _pos[2] = src[2];
+            break;
+          case OpenSubdiv::FarVertexEdit::Add:
+            _pos[0] += src[0];
+            _pos[1] += src[1];
+            _pos[2] += src[2];
+            break;
+        }
+    }
+    
     void     ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<xyzVV> &) { }
 
     const float * GetPos() const { return _pos; }
@@ -356,6 +372,10 @@ int main(int argc, char ** argv) {
 #define test_catmark_tent
 #define test_catmark_tent_creases0
 #define test_catmark_tent_creases1
+#define test_catmark_square_hedit0
+#define test_catmark_square_hedit1
+#define test_catmark_square_hedit2
+#define test_catmark_square_hedit3
 
 #define test_loop_triangle_edgeonly
 #define test_loop_triangle_edgecorner
@@ -458,6 +478,25 @@ int main(int argc, char ** argv) {
     total += checkMesh( "test_catmark_tent_creases1", catmark_tent_creases1, levels );
 #endif
 
+#ifdef test_catmark_square_hedit0
+#include "../shapes/catmark_square_hedit0.h"
+    total += checkMesh( "test_catmark_square_hedit0", catmark_square_hedit0, levels );
+#endif
+
+#ifdef test_catmark_square_hedit1
+#include "../shapes/catmark_square_hedit1.h"
+    total += checkMesh( "test_catmark_square_hedit1", catmark_square_hedit1, levels );
+#endif
+
+#ifdef test_catmark_square_hedit2
+#include "../shapes/catmark_square_hedit2.h"
+    total += checkMesh( "test_catmark_square_hedit2", catmark_square_hedit2, levels );
+#endif
+
+#ifdef test_catmark_square_hedit3
+#include "../shapes/catmark_square_hedit3.h"
+    total += checkMesh( "test_catmark_square_hedit3", catmark_square_hedit3, levels );
+#endif
 
 
 #ifdef test_loop_triangle_edgeonly

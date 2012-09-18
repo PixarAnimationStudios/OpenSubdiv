@@ -87,6 +87,12 @@
 #include <maya/MStateManager.h>
 
 #include <osd/mutex.h>
+
+#include <hbr/mesh.h>
+#include <hbr/bilinear.h>
+#include <hbr/catmark.h>
+#include <hbr/loop.h>
+
 #include <osd/mesh.h>
 #include <osd/pTexture.h>
 #include <osd/cpuDispatcher.h>

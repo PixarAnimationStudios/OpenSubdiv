@@ -125,9 +125,9 @@ OsdMesh::createEditTables( FarVertexEditTables<OsdVertex> const *editTables ) {
     _dispatcher->AllocateEditTables(numEditBatches);
 
     for (int i=0; i<numEditBatches; ++i) {
-        const FarVertexEditTables<OsdVertex>::VertexEdit & edit = editTables->GetBatch(i);
-        _dispatcher->UpdateEditTable(i, edit.Get_Offsets(), edit.Get_Values(),
-                                     edit.GetOperation(), edit.GetPrimvarOffset(), edit.GetPrimvarWidth());
+        const FarVertexEditTables<OsdVertex>::VertexEditBatch & edit = editTables->GetBatch(i);
+        _dispatcher->UpdateEditTable(i, edit.GetVertexIndices(), edit.GetValues(),
+                                     edit.GetOperation(), edit.GetPrimvarIndex(), edit.GetPrimvarWidth());
     }
 }
 

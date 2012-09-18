@@ -64,6 +64,10 @@
 #endif
 
 #include <osd/mutex.h>
+
+#include <hbr/mesh.h>
+#include <hbr/face.h>
+
 #include <osd/vertex.h>
 #include <osd/mesh.h>
 #include <osd/elementArrayBuffer.h>

@@ -59,18 +59,19 @@
 
 #include <typeinfo>
 
+#include "../version.h"
+
 #include "../hbr/mesh.h"
 #include "../hbr/bilinear.h"
 #include "../hbr/catmark.h"
 #include "../hbr/loop.h"
 
-#include "../version.h"
-
 #include "../far/mesh.h"
 #include "../far/dispatcher.h"
-#include "../far/bilinearSubdivisionTables.h"
-#include "../far/catmarkSubdivisionTables.h"
-#include "../far/loopSubdivisionTables.h"
+#include "../far/bilinearSubdivisionTablesFactory.h"
+#include "../far/catmarkSubdivisionTablesFactory.h"
+#include "../far/loopSubdivisionTablesFactory.h"
+#include "../far/vertexEditTablesFactory.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -93,8 +94,7 @@ public:
     FarMeshFactory(HbrMesh<T> * mesh, int maxlevel);
 
     // Create a table-based mesh representation
-    // XXXX : this creator will take the options for adaptive patch meshes
-    FarMesh<T,U> * Create( FarDispatcher<T,U> * dispatch=0 );
+    FarMesh<U> * Create( FarDispatcher<U> * dispatch=0 );
 
     // Maximum level of subidivision supported by this factory
     int GetMaxLevel() const { return _maxlevel; }
@@ -129,10 +129,10 @@ public:
     std::vector<int> const & GetRemappingTable( ) const { return _remapTable; }
 
 private:
-    friend class FarBilinearSubdivisionTables<T,U>;
-    friend class FarCatmarkSubdivisionTables<T,U>;
-    friend class FarLoopSubdivisionTables<T,U>;
-    friend class FarVertexEditTables<T,U>;
+    friend struct FarBilinearSubdivisionTablesFactory<T,U>;
+    friend struct FarCatmarkSubdivisionTablesFactory<T,U>;
+    friend struct FarLoopSubdivisionTablesFactory<T,U>;
+    friend struct FarVertexEditTablesFactory<T,U>;
 
     // Non-copyable, so these are not implemented:
     FarMeshFactory( FarMeshFactory const & );
@@ -144,18 +144,17 @@ private:
 
     static bool isLoop(HbrMesh<T> * mesh);
 
-    void copyTopology( std::vector<int> & vec, int level );
-
     void generatePtexCoordinates( std::vector<int> & vec, int level );
 
-    FarVertexEditTables<T,U> * createVertexEdit(FarMesh<T,U> * mesh);
+    void copyTopology( std::vector<int> & vec, int level );
+
+    static  bool compareVertices( HbrVertex<T> const *x, HbrVertex<T> const *y );
 
     static void refine( HbrMesh<T> * mesh, int maxlevel );
 
     template <class Type> static int sumList( std::vector<std::vector<Type> > const & list, int level );
 
-    static bool compareNSubfaces(HbrVertexEdit<T> const *a, HbrVertexEdit<T> const *b);
-
+private:
     HbrMesh<T> * _hbrMesh;
 
     int _maxlevel,
@@ -216,6 +215,27 @@ FarMeshFactory<T,U>::refine( HbrMesh<T> * mesh, int maxlevel ) {
         }
     }
 
+}
+
+// Compare the weight masks of 2 vertices using the following ordering table.
+//
+// Assuming 2 computer kernels :
+//  - A handles the k_Crease and K_Corner rules
+//  - B handles the K_Smooth and K_Dart rules
+// The vertices should be sorted so as to minimize the number execution calls of
+// these kernels to match the 2 pass interpolation scheme used in Hbr.
+template <class T, class U> bool
+FarMeshFactory<T,U>::compareVertices( HbrVertex<T> const * x, HbrVertex<T> const * y ) {
+
+    // Masks of the parent vertex decide for the current vertex.
+    HbrVertex<T> * px=x->GetParentVertex(),
+                 * py=y->GetParentVertex();
+
+    assert( (FarSubdivisionTables<U>::getMaskRanking(px->GetMask(false), px->GetMask(true) )!=0xFF) and
+            (FarSubdivisionTables<U>::getMaskRanking(py->GetMask(false), py->GetMask(true) )!=0xFF) );
+
+    return FarSubdivisionTables<U>::getMaskRanking(px->GetMask(false), px->GetMask(true) ) <
+           FarSubdivisionTables<U>::getMaskRanking(py->GetMask(false), py->GetMask(true) );
 }
 
 // Assumption : the order of the vertices in the HbrMesh could be set in any
@@ -328,11 +348,9 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel ) :
 
     // Sort the the vertices that are the child of a vertex based on their weight
     // mask. The masks combinations are ordered so as to minimize the compute
-    // kernel switching ( more information on this in the HbrVertex<T> comparison
-    // function 'FarSubdivisionTables<T>::compareVertices' ).
+    // kernel switching.
     for (size_t i=1; i<_vertVertsList.size(); ++i)
-        std::sort(_vertVertsList[i].begin(), _vertVertsList[i].end(),
-            FarSubdivisionTables<T,U>::compareVertices);
+        std::sort(_vertVertsList[i].begin(), _vertVertsList[i].end(),compareVertices);
 
     // These vertices still need a remapped index
     for (int l=1; l<(maxlevel+1); ++l)
@@ -403,6 +421,7 @@ FarMeshFactory<T,U>::copyTopology( std::vector<int> & vec, int level ) {
             vec[nv*i+j]=_remapTable[f->GetVertex(j)->GetID()];
     }
 }
+
 template <class T, class U> void
 copyVertex( T & dest, U const & src ) {
 }
@@ -412,7 +431,7 @@ copyVertex( T & dest, T const & src ) {
     dest = src;
 }
 
-// XXX : this currently only supports Catmark / Bilinear schemes.
+// XXXX : this currently only supports Catmark / Bilinear schemes.
 template <class T, class U> void
 FarMeshFactory<T,U>::generatePtexCoordinates( std::vector<int> & vec, int level ) {
 
@@ -462,162 +481,31 @@ FarMeshFactory<T,U>::generatePtexCoordinates( std::vector<int> & vec, int level 
     }
 }
 
-template <class T, class U> bool
-FarMeshFactory<T,U>::compareNSubfaces(HbrVertexEdit<T> const *a, HbrVertexEdit<T> const *b) {
-
-    return a->GetNSubfaces() < b->GetNSubfaces();
-}
-
-template <class T, class U> FarVertexEditTables<T,U> *
-FarMeshFactory<T,U>::createVertexEdit(FarMesh<T,U> *mesh) {
-
-    FarVertexEditTables<T,U> * table = new FarVertexEditTables<T,U>(mesh, _maxlevel);
-
-    std::vector<HbrHierarchicalEdit<T>*> const & hEdits = _hbrMesh->GetHierarchicalEdits();
-
-    std::vector<HbrVertexEdit<T> const *> vertexEdits;
-    vertexEdits.reserve(hEdits.size());
-
-    for (int i=0; i<(int)hEdits.size(); ++i) {
-        HbrVertexEdit<T> *vedit = dynamic_cast<HbrVertexEdit<T> *>(hEdits[i]);
-        if (vedit) {
-            int editlevel = vedit->GetNSubfaces();
-            if (editlevel > _maxlevel)
-                continue;   // far table doesn't contain such level
-
-            vertexEdits.push_back(vedit);
-        }
-    }
-
-    // sort vertex edits by level
-    std::sort(vertexEdits.begin(), vertexEdits.end(), compareNSubfaces);
-
-    // uniquify edits with index and width
-    std::vector<int> batchIndices;
-    std::vector<int> batchSizes;
-    for(int i=0; i<(int)vertexEdits.size(); ++i) {
-        HbrVertexEdit<T> const *vedit = vertexEdits[i];
-
-        // translate operation enum
-        typename FarVertexEditTables<T,U>::Operation operation = (vedit->GetOperation() == HbrHierarchicalEdit<T>::Set) ?
-            FarVertexEditTables<T,U>::Set : FarVertexEditTables<T,U>::Add;
-
-        // determine which batch this edit belongs to (create it if necessary)
-        int batchIndex = -1;
-        for(int i = 0; i<(int)table->_batches.size(); ++i) {
-            if(table->_batches[i]._index == vedit->GetIndex() &&
-               table->_batches[i]._width == vedit->GetWidth() &&
-               table->_batches[i]._operation == operation) {
-                batchIndex = i;
-                break;
-            }
-        }
-        if (batchIndex == -1) {
-            // create new batch
-            batchIndex = (int)table->_batches.size();
-            table->_batches.push_back(typename FarVertexEditTables<T,U>::VertexEdit(vedit->GetIndex(), vedit->GetWidth(), operation));
-            batchSizes.push_back(0);
-        }
-        batchSizes[batchIndex]++;
-        batchIndices.push_back(batchIndex);
-    }
-
-    // allocate batches
-    int numBatches = table->GetNumBatches();
-    for(int i=0; i<numBatches; ++i) {
-        table->_batches[i]._offsets.SetMaxLevel(_maxlevel+1);
-        table->_batches[i]._values.SetMaxLevel(_maxlevel+1);
-        table->_batches[i]._offsets.Resize(batchSizes[i]);
-        table->_batches[i]._values.Resize(batchSizes[i] * table->_batches[i]._width);
-    }
-
-    // resolve vertexedits path to absolute offset and put them into corresponding batch
-    std::vector<int> currentLevels(numBatches);
-    std::vector<int> currentCounts(numBatches);
-    for(int i=0; i<(int)vertexEdits.size(); ++i){
-        HbrVertexEdit<T> const *vedit = vertexEdits[i];
-
-        HbrFace<T> * f = _hbrMesh->GetFace(vedit->GetFaceID());
-
-        int level = vedit->GetNSubfaces();
-        for (int j=0; j<level; ++j)
-            f = f->GetChild(vedit->GetSubface(j));
-
-        // remap vertex ID
-        int vertexID = f->GetVertex(vedit->GetVertexID())->GetID();
-        vertexID = _remapTable[vertexID];
-
-        int batchIndex = batchIndices[i];
-        int & batchLevel = currentLevels[batchIndex];
-        int & batchCount = currentCounts[batchIndex];
-        typename FarVertexEditTables<T,U>::VertexEdit &batch = table->_batches[batchIndex];
-
-        // fill marker for skipped levels if exists
-        while(currentLevels[batchIndex] < level-1) {
-            batch._offsets.SetMarker(batchLevel+1, &batch._offsets[batchLevel][batchCount]);
-            batch._values.SetMarker(batchLevel+1, &batch._values[batchLevel][batchCount*batch._width]);
-            batchLevel++;
-            batchCount = 0;
-        }
-
-        // set absolute vertex offset and edit values
-        const float *values = vedit->GetEdit();
-        bool negate = (vedit->GetOperation() == HbrHierarchicalEdit<T>::Subtract);
-
-        batch._offsets[level-1][batchCount] = vertexID;
-        for(int i=0; i<batch._width; ++i)
-            batch._values[level-1][batchCount * batch._width + i] = negate ? -values[i] : values[i];
-
-        // set marker
-        batchCount++;
-        batch._offsets.SetMarker(level, &batch._offsets[level-1][batchCount]);
-        batch._values.SetMarker(level, &batch._values[level-1][batchCount * batch._width]);
-    }
-    
-    for(int i=0; i<numBatches; ++i) {
-        typename FarVertexEditTables<T,U>::VertexEdit &batch = table->_batches[i];
-        int & batchLevel = currentLevels[i];
-        int & batchCount = currentCounts[i];
-
-        // fill marker for rest levels if exists
-        while(batchLevel < _maxlevel) {
-            batch._offsets.SetMarker(batchLevel+1, &batch._offsets[batchLevel][batchCount]);
-            batch._values.SetMarker(batchLevel+1, &batch._values[batchLevel][batchCount*batch._width]);
-            batchLevel++;
-            batchCount = 0;
-        }
-    }
-
-    return table;
-}
-
-template <class T, class U> FarMesh<T,U> *
-FarMeshFactory<T,U>::Create( FarDispatcher<T,U> * dispatch ) {
+template <class T, class U> FarMesh<U> *
+FarMeshFactory<T,U>::Create( FarDispatcher<U> * dispatch ) {
 
     assert( _hbrMesh );
 
     if (_maxlevel<1)
         return 0;
 
-    FarMesh<T,U> * result = new FarMesh<T,U>();
+    FarMesh<U> * result = new FarMesh<U>();
 
     if (dispatch)
         result->_dispatcher = dispatch;
     else
-        result->_dispatcher = & FarDispatcher<T,U>::_DefaultDispatcher;
+        result->_dispatcher = & FarDispatcher<U>::_DefaultDispatcher;
 
     if ( isBilinear( _hbrMesh ) ) {
-        result->_subdivision =
-            new FarBilinearSubdivisionTables<T,U>( *this, result, _maxlevel );
+        result->_subdivisionTables = FarBilinearSubdivisionTablesFactory<T,U>::Create( this, result, _maxlevel );
     } else if ( isCatmark( _hbrMesh ) ) {
-        result->_subdivision =
-            new FarCatmarkSubdivisionTables<T,U>( *this, result, _maxlevel );
+        result->_subdivisionTables = FarCatmarkSubdivisionTablesFactory<T,U>::Create( this, result, _maxlevel );
     } else if ( isLoop(_hbrMesh) ) {
-        result->_subdivision =
-            new FarLoopSubdivisionTables<T,U>( *this, result, _maxlevel );
+        result->_subdivisionTables = FarLoopSubdivisionTablesFactory<T,U>::Create( this, result, _maxlevel );
     } else
         assert(0);
-
+    assert(result->_subdivisionTables);
+    
     result->_numCoarseVertices = (int)_vertVertsList[0].size();
 
     // Copy the data of the coarse vertices into the vertex buffer.
@@ -629,7 +517,7 @@ FarMeshFactory<T,U>::Create( FarDispatcher<T,U> * dispatch ) {
 
     // Populate topology (face verts indices)
     // XXXX : only k_BilinearQuads support for now - adaptive bicubic patches to come
-    result->_patchtype = FarMesh<T,U>::k_BilinearQuads;
+    result->_patchtype = FarMesh<U>::k_BilinearQuads;
 
     // XXXX : we should let the client control what to copy, most of this may be irrelevant
     result->_faceverts.resize(_maxlevel+1);
@@ -642,9 +530,10 @@ FarMeshFactory<T,U>::Create( FarDispatcher<T,U> * dispatch ) {
 
     // Create VertexEditTables if necessary
     if (_hbrMesh->HasVertexEdits()) {
-        result->_vertexEdit = createVertexEdit(result);
+        result->_vertexEditTables = FarVertexEditTablesFactory<T,U>::Create( this, result, _maxlevel );
+        assert(result->_vertexEditTables);
     }
-
+    
     return result;
 }
 

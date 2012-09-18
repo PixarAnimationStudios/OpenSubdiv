@@ -57,6 +57,10 @@
 #ifndef SHAPE_UTILS_H
 #define SHAPE_UTILS_H
 
+#include <hbr/mesh.h>
+#include <hbr/bilinear.h>
+#include <hbr/loop.h>
+#include <hbr/catmark.h>
 #include <hbr/vertexEdit.h>
 #include <hbr/cornerEdit.h>
 

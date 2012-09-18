@@ -57,13 +57,8 @@
 #ifndef FAR_BILINEAR_SUBDIVISION_TABLES_H
 #define FAR_BILINEAR_SUBDIVISION_TABLES_H
 
-#include "assert.h"
-
+#include <cassert>
 #include <vector>
-#include <utility>
-
-#include "../hbr/mesh.h"
-#include "../hbr/bilinear.h"
 
 #include "../version.h"
 
@@ -77,7 +72,7 @@ namespace OPENSUBDIV_VERSION {
 // structure. The advantage of this representation is its ability to be executed
 // in a massively parallel environment without data dependencies.
 //
-template <class T, class U=T> class FarBilinearSubdivisionTables : public FarSubdivisionTables<T,U> {
+template <class U> class FarBilinearSubdivisionTables : public FarSubdivisionTables<U> {
 
 public:
 
@@ -97,12 +92,10 @@ public:
     virtual int GetNumTables() const { return 7; }
 
 private:
+    template <class X, class Y> friend struct FarBilinearSubdivisionTablesFactory;
+    friend class FarDispatcher<U>;
 
-    friend class FarMeshFactory<T,U>;
-    friend class FarDispatcher<T,U>;
-
-    // Constructor : build level table at depth 'level'
-    FarBilinearSubdivisionTables( FarMeshFactory<T,U> const & factory, FarMesh<T,U> * mesh, int level );
+    FarBilinearSubdivisionTables( FarMesh<U> * mesh, int maxlevel );
 
     // Compute-kernel applied to vertices resulting from the refinement of a face.
     void computeFacePoints(int offset, int level, int start, int end, void * clientdata) const;
@@ -113,130 +106,34 @@ private:
     // Compute-kernel applied to vertices resulting from the refinement of a vertex
     void computeVertexPoints(int offset, int level, int start, int end, void * clientdata) const;
 
-
 private:
 
     FarTable<int>           _F_ITa;
     FarTable<unsigned int>  _F_IT;
 };
 
-template <class T, class U> int
-FarBilinearSubdivisionTables<T,U>::GetMemoryUsed() const {
-    return FarSubdivisionTables<T,U>::GetMemoryUsed()+
+template <class U>
+FarBilinearSubdivisionTables<U>::FarBilinearSubdivisionTables( FarMesh<U> * mesh, int maxlevel ) :
+    FarSubdivisionTables<U>(mesh, maxlevel),
+    _F_ITa(maxlevel+1),
+    _F_IT(maxlevel+1)
+{ }
+
+template <class U> int
+FarBilinearSubdivisionTables<U>::GetMemoryUsed() const {
+    return FarSubdivisionTables<U>::GetMemoryUsed()+
         _F_ITa.GetMemoryUsed()+
         _F_IT.GetMemoryUsed();
 }
 
-// Constructor - generates indexing tables matching the bilinear subdivision scheme.
-//
-// tables codices detail :
-//
-// codices detail :
-//
-// _F_ITa[0] : offset into _F_IT array of vertices making up the face
-// _F_ITa[1] : valence of the face
-//
-// _E_ITa[0] : index of the org / dest vertices of the parent edge
-// _E_ITa[1] :
-//
-// _V_ITa[0] : index of the parent vertex
-//
-template <class T, class U>
-FarBilinearSubdivisionTables<T,U>::FarBilinearSubdivisionTables( FarMeshFactory<T,U> const & factory, FarMesh<T,U> * mesh, int maxlevel ) :
-    FarSubdivisionTables<T,U>(mesh, maxlevel),
-    _F_ITa(maxlevel+1),
-    _F_IT(maxlevel+1)
-{
-    std::vector<int> const & remap = factory._remapTable;
-
-    // Allocate memory for the indexing tables
-    _F_ITa.Resize(factory.GetNumFaceVerticesTotal(maxlevel)*2);
-    _F_IT.Resize(factory.GetNumFacesTotal(maxlevel) - factory.GetNumFacesTotal(0));
-
-    this->_E_IT.Resize(factory.GetNumEdgeVerticesTotal(maxlevel)*2);
-
-    this->_V_ITa.Resize(factory.GetNumVertexVerticesTotal(maxlevel));
-
-    for (int level=1; level<=maxlevel; ++level) {
-
-        // pointer to the first vertex corresponding to this level
-        this->_vertsOffsets[level] = factory._vertVertIdx[level-1] +
-                                     (int)factory._vertVertsList[level-1].size();
-
-        typename FarSubdivisionTables<T,U>::VertexKernelBatch * batch = & (this->_batches[level-1]);
-
-        // Face vertices
-        // "For each vertex, gather all the vertices from the parent face."
-        int offset = 0;
-        int * F_ITa = this->_F_ITa[level-1];
-        unsigned int * F_IT = this->_F_IT[level-1];
-        batch->kernelF = (int)factory._faceVertsList[level].size();
-        for (int i=0; i < batch->kernelF; ++i) {
-
-            HbrVertex<T> * v = factory._faceVertsList[level][i];
-            assert(v);
-
-            HbrFace<T> * f=v->GetParentFace();
-            assert(f);
-
-            int valence = f->GetNumVertices();
-
-            F_ITa[2*i+0] = offset;
-            F_ITa[2*i+1] = valence;
-
-            for (int j=0; j<valence; ++j)
-                F_IT[offset++] = remap[f->GetVertex(j)->GetID()];
-        }
-        _F_ITa.SetMarker(level, &F_ITa[2*batch->kernelF]);
-        _F_IT.SetMarker(level, &F_IT[offset]);
-
-        // Edge vertices
-
-        // "Average the end-points of the parent edge"
-        int * E_IT = this->_E_IT[level-1];
-        batch->kernelE = (int)factory._edgeVertsList[level].size();
-        for (int i=0; i < batch->kernelE; ++i) {
-
-            HbrVertex<T> * v = factory._edgeVertsList[level][i];
-            assert(v);
-            HbrHalfedge<T> * e = v->GetParentEdge();
-            assert(e);
-
-            // get the indices 2 vertices from the parent edge
-            E_IT[2*i+0] = remap[e->GetOrgVertex()->GetID()];
-            E_IT[2*i+1] = remap[e->GetDestVertex()->GetID()];
-
-        }
-        this->_E_IT.SetMarker(level, &E_IT[2*batch->kernelE]);
-
-        // Vertex vertices
-
-        // "Pass down the parent vertex"
-        offset = 0;
-        int * V_ITa = this->_V_ITa[level-1];
-        batch->kernelB.first = 0;
-        batch->kernelB.second = (int)factory._vertVertsList[level].size();
-        for (int i=0; i < batch->kernelB.second; ++i) {
-
-            HbrVertex<T> * v = factory._vertVertsList[level][i],
-                         * pv = v->GetParentVertex();
-            assert(v and pv);
-
-            V_ITa[i] = remap[pv->GetID()];
-
-        }
-        this->_V_ITa.SetMarker(level, &V_ITa[batch->kernelB.second]);
-    }
-}
-
-template <class T, class U> void
-FarBilinearSubdivisionTables<T,U>::Apply( int level, void * clientdata ) const {
+template <class U> void
+FarBilinearSubdivisionTables<U>::Apply( int level, void * clientdata ) const {
 
     assert(this->_mesh and level>0);
 
-    typename FarSubdivisionTables<T,U>::VertexKernelBatch const * batch = & (this->_batches[level-1]);
+    typename FarSubdivisionTables<U>::VertexKernelBatch const * batch = & (this->_batches[level-1]);
 
-    FarDispatcher<T,U> const * dispatch = this->_mesh->GetDispatcher();
+    FarDispatcher<U> const * dispatch = this->_mesh->GetDispatcher();
     assert(dispatch);
 
     int offset = this->GetFirstVertexOffset(level);
@@ -256,8 +153,8 @@ FarBilinearSubdivisionTables<T,U>::Apply( int level, void * clientdata ) const {
 // Face-vertices compute Kernel - completely re-entrant
 //
 
-template <class T, class U> void
-FarBilinearSubdivisionTables<T,U>::computeFacePoints( int offset, int level, int start, int end, void * clientdata ) const {
+template <class U> void
+FarBilinearSubdivisionTables<U>::computeFacePoints( int offset, int level, int start, int end, void * clientdata ) const {
 
     assert(this->_mesh);
 
@@ -286,8 +183,8 @@ FarBilinearSubdivisionTables<T,U>::computeFacePoints( int offset, int level, int
 // Edge-vertices compute Kernel - completely re-entrant
 //
 
-template <class T, class U> void
-FarBilinearSubdivisionTables<T,U>::computeEdgePoints( int offset,  int level, int start, int end, void * clientdata ) const {
+template <class U> void
+FarBilinearSubdivisionTables<U>::computeEdgePoints( int offset,  int level, int start, int end, void * clientdata ) const {
 
     assert(this->_mesh);
 
@@ -315,8 +212,8 @@ FarBilinearSubdivisionTables<T,U>::computeEdgePoints( int offset,  int level, in
 // Vertex-vertices compute Kernel - completely re-entrant
 //
 
-template <class T, class U> void
-FarBilinearSubdivisionTables<T,U>::computeVertexPoints( int offset, int level, int start, int end, void * clientdata ) const {
+template <class U> void
+FarBilinearSubdivisionTables<U>::computeVertexPoints( int offset, int level, int start, int end, void * clientdata ) const {
 
     assert(this->_mesh);
 

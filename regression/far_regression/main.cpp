@@ -96,40 +96,56 @@ struct xyzVV {
 
    ~xyzVV( ) { }
 
-    void     AddWithWeight(const xyzVV& src, float weight, void * =0 ) { 
+    void AddWithWeight(const xyzVV& src, float weight, void * =0 ) { 
         _pos[0]+=weight*src._pos[0]; 
         _pos[1]+=weight*src._pos[1]; 
         _pos[2]+=weight*src._pos[2]; 
     }
 
-    void     AddVaryingWithWeight(const xyzVV& , float, void * =0 ) { }
+    void AddVaryingWithWeight(const xyzVV& , float, void * =0 ) { }
 
-    void     Clear( void * =0 ) { _pos[0]=_pos[1]=_pos[2]=0.0f; }
+    void Clear( void * =0 ) { _pos[0]=_pos[1]=_pos[2]=0.0f; }
 
-    void     SetPosition(float x, float y, float z) { _pos[0]=x; _pos[1]=y; _pos[2]=z; }
+    void SetPosition(float x, float y, float z) { _pos[0]=x; _pos[1]=y; _pos[2]=z; }
 
-    void     ApplyVertexEdit(const OpenSubdiv::HbrVertexEdit<xyzVV> & edit) {
-                 const float *src = edit.GetEdit();
-                 switch(edit.GetOperation()) {
-                   case OpenSubdiv::HbrHierarchicalEdit<xyzVV>::Set:
-                     _pos[0] = src[0];
-                     _pos[1] = src[1];
-                     _pos[2] = src[2];
-                     break;
-                   case OpenSubdiv::HbrHierarchicalEdit<xyzVV>::Add:
-                     _pos[0] += src[0];
-                     _pos[1] += src[1];
-                     _pos[2] += src[2];
-                     break;
-                   case OpenSubdiv::HbrHierarchicalEdit<xyzVV>::Subtract:
-                     _pos[0] -= src[0];
-                     _pos[1] -= src[1];
-                     _pos[2] -= src[2];
-                     break;
-                 }
-             }
+    void ApplyVertexEdit(const OpenSubdiv::HbrVertexEdit<xyzVV> & edit) {
+        const float *src = edit.GetEdit();
+        switch(edit.GetOperation()) {
+          case OpenSubdiv::HbrHierarchicalEdit<xyzVV>::Set:
+            _pos[0] = src[0];
+            _pos[1] = src[1];
+            _pos[2] = src[2];
+            break;
+          case OpenSubdiv::HbrHierarchicalEdit<xyzVV>::Add:
+            _pos[0] += src[0];
+            _pos[1] += src[1];
+            _pos[2] += src[2];
+            break;
+          case OpenSubdiv::HbrHierarchicalEdit<xyzVV>::Subtract:
+            _pos[0] -= src[0];
+            _pos[1] -= src[1];
+            _pos[2] -= src[2];
+            break;
+        }
+    }
 
-    void     ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<xyzVV> &) { }
+    void ApplyVertexEdit(OpenSubdiv::FarVertexEdit const & edit) {
+        const float *src = edit.GetEdit();
+        switch(edit.GetOperation()) {
+          case OpenSubdiv::FarVertexEdit::Set:
+            _pos[0] = src[0];
+            _pos[1] = src[1];
+            _pos[2] = src[2];
+            break;
+          case OpenSubdiv::FarVertexEdit::Add:
+            _pos[0] += src[0];
+            _pos[1] += src[1];
+            _pos[2] += src[2];
+            break;
+        }
+    }
+    
+    void ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<xyzVV> &) { }
 
     const float * GetPos() const { return _pos; }
 

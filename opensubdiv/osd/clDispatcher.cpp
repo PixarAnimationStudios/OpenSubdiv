@@ -75,6 +75,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
 
 #define CL_CHECK_ERROR(x, ...) { if(x != CL_SUCCESS) { printf("ERROR %d : ", x); printf(__VA_ARGS__);} }
 

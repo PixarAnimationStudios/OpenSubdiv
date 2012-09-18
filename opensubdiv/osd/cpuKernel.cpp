@@ -257,5 +257,15 @@ void editVertexAdd(const VertexDescriptor *vdesc, float *vertex, int primVarOffs
     }
 }
 
+void editVertexSet(const VertexDescriptor *vdesc, float *vertex, int primVarOffset, int primVarWidth, int vertexCount, const int *editIndices, const float *editValues) {
+
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+    for (int i = 0; i < vertexCount; i++) {
+        vdesc->ApplyVertexEditSet(vertex, primVarOffset, primVarWidth, editIndices[i], &editValues[i*primVarWidth]);
+    }
+}
+
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
