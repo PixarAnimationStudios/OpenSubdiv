@@ -239,6 +239,7 @@ set_target_properties(osd_static PROPERTIES OUTPUT_NAME osd CLEAN_DIRECT_OUTPUT 
 target_link_libraries(osd_static
     ${PLATFORM_LIBRARIES}
 )
+install( TARGETS osd_static DESTINATION ${CMAKE_LIBDIR_BASE} )
 
 if (NOT WIN32)
     _add_possibly_cuda_library(osd_dynamic SHARED
@@ -254,6 +255,7 @@ if (NOT WIN32)
     target_link_libraries(osd_dynamic
         ${PLATFORM_LIBRARIES}
     )
+    install(TARGETS osd_dynamic DESTINATION ${CMAKE_LIBDIR_BASE})
 
 endif()
 

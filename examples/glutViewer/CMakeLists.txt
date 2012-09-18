@@ -113,3 +113,4 @@ target_link_libraries(glutViewer
     ${PLATFORM_LIBRARIES}
 )
 
+install(TARGETS glutViewer DESTINATION bin)
