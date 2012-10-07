@@ -76,12 +76,16 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-
-// The meshFactory institutes a 2 steps process in the conversion of a mesh from
-// an HbrMesh<T>. The main reason is that client code may want to have access
-// to the remapping table that correlates vertices from both meshes for reasons
-// of their own. This is also useful to the unit-test code which can match the
-// subdivision results of both code paths for correctness.
+/// \brief Instantiates a FarMesh from an HbrMesh.
+///
+/// FarMeshFactory requires a 2 steps process : 
+/// 1. Instantiate a FarMeshFactory object from an HbrMesh
+/// 2. Call "Create" to obtain the FarMesh instance
+///
+/// This tiered factory approach offers client-code the opportunity to access
+/// useful transient information tied to the lifespan of the factory instance.
+/// Specifically, regression code needs to access the remapping tables that
+/// tie HbrMesh vertices to their FarMesh counterparts for comparison.
 
 template <class T, class U=T> class FarMeshFactory {
 
@@ -93,39 +97,39 @@ public:
     // object can be deleted safely.
     FarMeshFactory(HbrMesh<T> * mesh, int maxlevel);
 
-    // Create a table-based mesh representation
+    /// Create a table-based mesh representation
     FarMesh<U> * Create( FarDispatcher<U> * dispatch=0 );
 
-    // Maximum level of subidivision supported by this factory
+    /// Maximum level of subidivision supported by this factory
     int GetMaxLevel() const { return _maxlevel; }
 
-    // Total number of face vertices up to 'level'
+    /// Total number of face vertices up to 'level'
     int GetNumFaceVerticesTotal(int level) const {
         return sumList<HbrVertex<T> *>(_faceVertsList, level);
     }
 
-    // Total number of edge vertices up to 'level'
+    /// Total number of edge vertices up to 'level'
     int GetNumEdgeVerticesTotal(int level) const {
         return sumList<HbrVertex<T> *>(_edgeVertsList, level);
     }
 
-    // Total number of vertex vertices up to 'level'
+    /// Total number of vertex vertices up to 'level'
     int GetNumVertexVerticesTotal(int level) const {
         return sumList<HbrVertex<T> *>(_vertVertsList, level);
     }
 
-    // Valence summation up to 'level'
+    /// Valence summation up to 'level'
     int GetNumAdjacentVertVerticesTotal(int level) const;
 
-    // Total number of faces across up to a level
+    /// Total number of faces across up to a level
     int GetNumFacesTotal(int level) const {
         return sumList<HbrFace<T> *>(_facesList, level);
     }
 
-    // Return the corresponding index of the HbrVertex<T> in the new mesh
+    /// Return the corresponding index of the HbrVertex<T> in the new mesh
     int GetVertexID( HbrVertex<T> * v );
 
-    // Returns a the mapping between HbrVertex<T>->GetID() and Far vertices indices
+    /// Returns a the mapping between HbrVertex<T>->GetID() and Far vertices indices
     std::vector<int> const & GetRemappingTable( ) const { return _remapTable; }
 
 private:

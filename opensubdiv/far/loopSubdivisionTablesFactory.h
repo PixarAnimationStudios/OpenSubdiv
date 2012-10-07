@@ -70,10 +70,13 @@ namespace OPENSUBDIV_VERSION {
 
 template <class T, class U> class FarMeshFactory;
 
-// A specialized factory for FarLoopSubdivisionTables
-// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
-//
+/// \brief A specialized factory for FarLoopSubdivisionTables
+///
+/// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
+///
 template <class T, class U> struct FarLoopSubdivisionTablesFactory {
+
+    /// Creates a FarLoopSubdivisiontables instance.
     static FarLoopSubdivisionTables<U> * Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, int maxlevel );
 };
 

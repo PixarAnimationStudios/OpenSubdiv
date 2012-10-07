@@ -70,76 +70,85 @@ namespace OPENSUBDIV_VERSION {
 template <class U> class FarMesh;
 template <class U> class FarDispatcher;
 
-// Catmull-Clark tables store the indexing tables required in order to compute
-// the refined positions of a mesh without the help of a hierarchical data
-// structure. The advantage of this representation is its ability to be executed
-// in a massively parallel environment without data dependencies.
-//
-// The vertex indexing tables require the vertex buffer to be sorted based on the
-// nature of the parent of a given vertex : either a face, an edge, or a vertex.
-//
-// [...Child of a Face...]|[... Child of an Edge ...]|[... Child of a Vertex ...]
-//
-// Each segment of the buffer is associated the following tables (<T> is the type):
-// _<T>_IT : indices of all the adjacent vertices required by the compute kernels
-// _<T>_W : fractional weight of the vertex (based on sharpness & topology)
-// _<T>_ITa : codex for the two previous tables
-
-// For more details see : "Feature Adaptive GPU Rendering of Catmull-Clark
-// Subdivision Surfaces"  p.3 - par. 3.2
+/// \brief FarSubdivisionTables are a serialized topological data representation.
+///
+/// Subdivision tables store the indexing tables required in order to compute
+/// the refined positions of a mesh without the help of a hierarchical data
+/// structure. The advantage of this representation is its ability to be executed
+/// in a massively parallel environment without data dependencies.
+///
+/// The vertex indexing tables require the vertex buffer to be sorted based on the
+/// nature of the parent of a given vertex : either a face, an edge, or a vertex.
+/// (note : the Loop subdivision scheme does not create vertices as a child of a
+/// face).
+///
+/// Each type of vertex in the buffer is associated the following tables :
+/// - _<T>_IT : indices of all the adjacent vertices required by the compute kernels
+/// - _<T>_W : fractional weight of the vertex (based on sharpness & topology)
+/// - _<T>_ITa : codex for the two previous tables
+/// (where T denotes a face-vertex / edge-vertex / vertex-vertex)
+///
+///
+/// Because each subdivision scheme (Catmark / Loop / Bilinear) introduces variations
+/// in the subdivision rules, a derived class specialization is associated with
+/// each scheme.
+///
+/// For more details see : "Feature Adaptive GPU Rendering of Catmull-Clark
+/// Subdivision Surfaces"  (p.3 - par. 3.2)
+///
 template <class U> class FarSubdivisionTables {
 public:
 
-    // Destructor
+    /// Destructor
     virtual ~FarSubdivisionTables<U>() {}
 
-    // Return the highest level of subdivision possible with these tables
+    /// Return the highest level of subdivision possible with these tables
     int GetMaxLevel() const { return (int)(_vertsOffsets.size()); }
 
-    // Memory required to store the indexing tables
+    /// Memory required to store the indexing tables
     virtual int GetMemoryUsed() const;
 
-    // Compute the positions of refined vertices using the specified kernels
+    /// Compute the positions of refined vertices using the specified kernels
     virtual void Apply( int level, void * clientdata=0 ) const=0;
 
-    // Pointer back to the mesh owning the table
+    /// Pointer back to the mesh owning the table
     FarMesh<U> * GetMesh() { return _mesh; }
 
-    // The index of the first vertex that belongs to the level of subdivision
-    // represented by this set of FarCatmarkSubdivisionTables
+    /// The index of the first vertex that belongs to the level of subdivision
+    /// represented by this set of FarCatmarkSubdivisionTables
     int GetFirstVertexOffset( int level ) const;
 
-    // Number of vertices children of a face at a given level (always 0 for Loop)
+    /// Number of vertices children of a face at a given level (always 0 for Loop)
     int GetNumFaceVertices( int level ) const;
 
-    // Number of vertices children of an edge at a given level
+    /// Number of vertices children of an edge at a given level
     int GetNumEdgeVertices( int level ) const;
 
-    // Number of vertices children of a vertex at a given level
+    /// Number of vertices children of a vertex at a given level
     int GetNumVertexVertices( int level ) const;
 
     // Total number of vertices at a given level
     int GetNumVertices( int level ) const;
 
-    // Indexing tables accessors
+    /// Indexing tables accessors
 
-    // Returns the edge vertices indexing table
+    /// Returns the edge vertices indexing table
     FarTable<int> const &          Get_E_IT() const { return _E_IT; }
 
-    // Returns the edge vertices weights table
+    /// Returns the edge vertices weights table
     FarTable<float> const &        Get_E_W() const { return _E_W; }
 
-    // Returns the vertex vertices codex table
+    /// Returns the vertex vertices codex table
     FarTable<int> const &          Get_V_ITa() const { return _V_ITa; }
 
-    // Returns the vertex vertices indexing table
+    /// Returns the vertex vertices indexing table
     FarTable<unsigned int> const & Get_V_IT() const { return _V_IT; }
 
-    // Returns the vertex vertices weights table
+    /// Returns the vertex vertices weights table
     FarTable<float> const &        Get_V_W() const { return _V_W; }
 
-    // Returns the number of indexing tables needed to represent this particular
-    // subdivision scheme.
+    /// Returns the number of indexing tables needed to represent this particular
+    /// subdivision scheme.
     virtual int GetNumTables() const { return 5; }
 
 protected:

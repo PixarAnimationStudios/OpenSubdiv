@@ -71,25 +71,32 @@ namespace OPENSUBDIV_VERSION {
 template <class U> class FarMesh;
 template <class U> class FarDispatcher;
 
+/// \brief A serialized container for hierarchical edits.
+///
+/// Some of the hierarchical edits are resolved into the vertex weights computed
+/// into the FarSubdivision tables. Certain edits however have to be "post-processed"
+/// after the tables are applied to the vertices and require their HBR representation
+/// to be serialized into a specific container.
+///
 class FarVertexEdit {
 public:
-    // Type of edit operation - equivalent to HbrHiearachicalEdit<T>::Operation
+    /// Type of edit operation - equivalent to HbrHiearachicalEdit<T>::Operation
     enum Operation {
         Set,
         Add
-        // Note : subtract edits are converted to Add edits for better serialization
+        /// Note : subtract edits are converted to Add edits for better serialization
     };
 
-    // Get the type of operation
+    /// Get the type of operation
     Operation GetOperation() const { return _op; }
 
-    // Return index of variable this edit applies to
+    /// Return index of variable this edit applies to
     int GetIndex() const { return _index; }
 
-    // Return width of the variable
+    /// Return width of the variable
     int GetWidth() const { return _width; }
     
-    // Get the numerical value of the edit
+    /// Get the numerical value of the edit
     const float* GetEdit() const { return _edit; }
 
 private:

@@ -70,10 +70,13 @@ namespace OPENSUBDIV_VERSION {
 
 template <class T, class U> class FarMeshFactory;
 
-// A specialized factory for FarCatmarkSubdivisionTables
-// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
-//
+/// \brief A specialized factory for FarCatmarkSubdivisionTables
+///
+/// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
+///
 template <class T, class U> struct FarCatmarkSubdivisionTablesFactory {
+
+    /// Creates a FarCatmarkSubdivisiontables instance.
     static FarCatmarkSubdivisionTables<U> * Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, int maxlevel );
 };
 

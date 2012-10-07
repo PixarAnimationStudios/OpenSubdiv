@@ -68,17 +68,19 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-// Loop tables store the indexing tables required in order to compute
-// the refined positions of a mesh without the help of a hierarchical data
-// structure. The advantage of this representation is its ability to be executed
-// in a massively parallel environment without data dependencies.
-//
+/// \brief Loop subdivision scheme tables.
+///
+/// Loop tables store the indexing tables required in order to compute
+/// the refined positions of a mesh without the help of a hierarchical data
+/// structure. The advantage of this representation is its ability to be executed
+/// in a massively parallel environment without data dependencies.
+///
 
 template <class U> class FarLoopSubdivisionTables : public FarSubdivisionTables<U> {
 
 public:
 
-    // Compute the positions of refined vertices using the specified kernels
+    /// Compute the positions of refined vertices using the specified kernels
     virtual void Apply( int level, void * data=0 ) const;
 
 

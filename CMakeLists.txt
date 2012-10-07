@@ -311,3 +311,5 @@ add_subdirectory(opensubdiv)
 add_subdirectory(regression)
 
 add_subdirectory(examples)
+
+add_subdirectory(documentation)

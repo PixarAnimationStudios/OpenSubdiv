@@ -69,13 +69,16 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-// A specialized factory for FarVertexEditTables
-// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
-//
+/// \brief A specialized factory for FarVertexEditTables
+///
+/// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
+///
 template <class T, class U> struct FarVertexEditTablesFactory {
 
+    /// Compares the number of subfaces in an edit (for sorting purposes)
     static bool compareEdits(HbrVertexEdit<T> const *a, HbrVertexEdit<T> const *b);
 
+    /// Creates a FarVertexEditTables instance.
     static FarVertexEditTables<U> * Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, int maxlevel );
 };
 

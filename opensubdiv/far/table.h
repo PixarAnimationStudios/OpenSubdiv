@@ -62,11 +62,16 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-// Generic multi-level indexing table : the indices across all the subdivision
-// levels are stored in a single std::vector. The table class holds a sequence
-// of markers pointing to the first index at the beginning of the sequence
-// describing a given level (note that "level 1" vertices are obtained by using
-// the indices starting at "level 0" of the tables)
+/// \brief A generic "table" with markers.
+///
+/// Generic multi-level indexing table : the indices across all the subdivision
+/// levels are stored in a flat std::vector. 
+///
+/// The table class also holds a sequence of markers pointing to the first index
+/// at the beginning of the sequence describing a given level.
+/// (note that "level 1" vertices are obtained by using the indices starting at
+/// "level 0" of the tables)
+///
 template <typename Type> class FarTable {
     std::vector<Type>   _data;     // table data
     std::vector<Type *> _markers;  // pointers to the first datum at each level
@@ -76,44 +81,44 @@ public:
 
     FarTable(int maxlevel) : _markers(maxlevel) { }
 
-    // Reset max level and clear data
+    /// Reset max level and clear data
     void SetMaxLevel(int maxlevel) {
         _data.clear();
         _markers.resize(maxlevel);
     }
 
-    // Returns the memory required to store the data in this table.
+    /// Returns the memory required to store the data in this table.
     int GetMemoryUsed() const {
         return (int)_data.size() * sizeof(Type);
     }
 
-    // Returns the number of elements in level "level"
+    /// Returns the number of elements in level "level"
     int GetNumElements(int level) const {
         assert(level>=0 and level<((int)_markers.size()-1));
         return (int)(_markers[level+1] - _markers[level]);
     }
 
-    // Saves a pointer indicating the beginning of data pertaining to "level"
-    // of subdivision
+    /// Saves a pointer indicating the beginning of data pertaining to "level"
+    /// of subdivision
     void SetMarker(int level, Type * marker) {
         _markers[level] = marker;
     }
 
-    // Resize the table to size (also resets markers)
+    /// Resize the table to size (also resets markers)
     void Resize(int size) {
         _data.resize(size);
         _markers[0] = &_data[0];
     }
 
-    // Returns a pointer to the data at the beginning of level "level" of
-    // subdivision
+    /// Returns a pointer to the data at the beginning of level "level" of
+    /// subdivision
     Type * operator[](int level) {
         assert(level>=0 and level<(int)_markers.size());
         return _markers[level];
     }
 
-    // Returns a const pointer to the data at the beginning of level "level"
-    // of subdivision
+    /// Returns a const pointer to the data at the beginning of level "level"
+    /// of subdivision
     const Type * operator[](int level) const {
         return const_cast<FarTable *>(this)->operator[](level);
     }

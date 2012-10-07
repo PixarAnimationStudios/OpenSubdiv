@@ -69,23 +69,23 @@ namespace OPENSUBDIV_VERSION {
 
 template <class U> class FarDispatcher;
 
-// Core serialized subdivision mesh class.
-//
-// In order to support both interleaved & non-interleaved vertex access,
-// classes are dual-templated : T corresponds to the Hbr vertex representation
-// while U correcsponds to this library's vertex representation. In some cases,
-// the actual positions of the vertices are irrelevant, so passing an "empty"
-// vertex class to Hbr is perfectly acceptable and saves some data-copy steps.
+/// \brief Feature Adaptive Mesh class.
+///
+/// FarMesh is a serialized instantiation of an HbrMesh. The HbrMesh contains
+/// all the topological data in a highly interconnected data structure for 
+/// ease of access and modification. When instantiating a FarMesh, the factory
+/// analyzes this data structure and serializes the topology into a linear
+/// buffers that are ready for efficient parallel processing.
 
 template <class U> class FarMesh {
 public:
 
     ~FarMesh();
 
-    // returns the subdivision method
+    /// Returns the subdivision method
     FarSubdivisionTables<U> const * GetSubdivision() const { return _subdivisionTables; }
 
-    // returns the compute dispatcher
+    /// Returns the compute dispatcher
     FarDispatcher<U> const * GetDispatcher() const { return _dispatcher; }
 
     enum PatchType {
@@ -94,33 +94,33 @@ public:
         k_Triangles,
     };
 
-    // returns the type of patches described by the face vertices list
+    /// Returns the type of patches described by the face vertices list
     PatchType GetPatchType() const { return _patchtype; }
 
-    // returns the list of vertices in the mesh (from subdiv level 0 to N)
+    /// Returns the list of vertices in the mesh (from subdiv level 0 to N)
     std::vector<U> & GetVertices() { return _vertices; }
 
     U & GetVertex(int index) { return _vertices[index]; }
 
-    // returns the list of indices of the vertices of the faces in the mesh
+    /// Returns the list of indices of the vertices of the faces in the mesh
     std::vector<int> const & GetFaceVertices(int level) const;
 
-    // returns the ptex coordinates for each face at a given level. The coordinates
-    // are stored as : (int) faceindex / (ushort) u_index / (ushort) v_index
+    /// Returns the ptex coordinates for each face at a given level. The coordinates
+    /// are stored as : (int) faceindex / (ushort) u_index / (ushort) v_index
     std::vector<int> const & GetPtexCoordinates(int level) const;
 
-    // returns vertex edit tables
+    /// Returns vertex edit tables
     FarVertexEditTables<U> const * GetVertexEdit() const { return _vertexEditTables; }
 
-    // returns the number of coarse vertices held at the beginning of the vertex
-    // buffer.
+    /// Returns the number of coarse vertices held at the beginning of the vertex
+    /// buffer.
     int GetNumCoarseVertices() const;
 
-    // returns the total number of vertices in the mesh across across all depths
+    /// Returns the total number of vertices in the mesh across across all depths
     int GetNumVertices() const { return (int)(_vertices.size()); }
 
-    // apply the subdivision tables to compute the positions of the vertices up
-    // to 'level'
+    /// Apply the subdivision tables to compute the positions of the vertices up
+    /// to 'level'
     void Subdivide(int level=-1);
 
 private:

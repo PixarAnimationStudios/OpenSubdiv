@@ -67,28 +67,31 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-// Bilinear tables store the indexing tables required in order to compute
-// the refined positions of a mesh without the help of a hierarchical data
-// structure. The advantage of this representation is its ability to be executed
-// in a massively parallel environment without data dependencies.
-//
+/// \brief Bilinear subdivision scheme tables.
+///
+/// Bilinear tables store the indexing tables required in order to compute
+/// the refined positions of a mesh without the help of a hierarchical data
+/// structure. The advantage of this representation is its ability to be executed
+/// in a massively parallel environment without data dependencies.
+///
 template <class U> class FarBilinearSubdivisionTables : public FarSubdivisionTables<U> {
 
 public:
 
-    // Memory required to store the indexing tables
+    /// Memory required to store the indexing tables
     virtual int GetMemoryUsed() const;
 
-    // Compute the positions of refined vertices using the specified kernels
+    /// Compute the positions of refined vertices using the specified kernels
     virtual void Apply( int level, void * data=0 ) const;
 
-    // Table accessors
+    /// Face-vertices indexing table accessor
     FarTable<unsigned int> const & Get_F_IT( ) const { return _F_IT; }
 
+    /// Face-vertices indexing table accessor
     FarTable<int> const & Get_F_ITa( ) const { return _F_ITa; }
 
-    // Returns the number of indexing tables needed to represent this particular
-    // subdivision scheme.
+    /// Returns the number of indexing tables needed to represent this particular
+    /// subdivision scheme.
     virtual int GetNumTables() const { return 7; }
 
 private:
