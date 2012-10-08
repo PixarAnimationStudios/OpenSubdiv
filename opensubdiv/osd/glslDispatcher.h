@@ -98,7 +98,7 @@ public:
 
     virtual void ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
 
-    virtual void ApplyVertexEdit(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const {}
+    virtual void ApplyVertexEdits(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const {}
 
 
     virtual void CopyTable(int tableIndex, size_t size, const void *ptr);

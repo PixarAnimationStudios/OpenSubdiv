@@ -65,18 +65,27 @@ namespace OPENSUBDIV_VERSION {
 
 template <class T> class HbrVertexEdit;
 template <class T> class HbrMovingVertexEdit;
+class FarVertexEdit;
 
 class OsdVertex {
 public:
     OsdVertex() {}
-    OsdVertex(int index) {}
-    OsdVertex(const OsdVertex &src) {}
 
-    void AddWithWeight(const OsdVertex & i, float weight, void * = 0) {}
+    OsdVertex(int index) {}
+
+    OsdVertex(OsdVertex const & src) {}
+
+    void AddWithWeight(OsdVertex const & i, float weight, void * = 0) {}
+
     void AddVaryingWithWeight(const OsdVertex & i, float weight, void * = 0) {}
+
     void Clear(void * = 0) {}
-    void ApplyVertexEdit(const HbrVertexEdit<OsdVertex> &) { }
-    void ApplyMovingVertexEdit(const HbrMovingVertexEdit<OsdVertex> &) { }
+
+    void ApplyVertexEdit(HbrVertexEdit<OsdVertex> const &) { }
+
+    void ApplyVertexEdit(FarVertexEdit const &) { }
+
+    void ApplyMovingVertexEdit(HbrMovingVertexEdit<OsdVertex> const &) { }
 };
 
 } // end namespace OPENSUBDIV_VERSION

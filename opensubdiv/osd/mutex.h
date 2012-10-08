@@ -80,4 +80,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif // OSD_PTEXTURE_H
+#endif // OSD_MUTEX_H

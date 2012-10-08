@@ -55,22 +55,22 @@
 #     a particular purpose and non-infringement.
 #
 
-set(PUBLIC_HEADER_FILES
-    bilinearSubdivisionTables.h
-    bilinearSubdivisionTablesFactory.h
-    catmarkSubdivisionTables.h
-    catmarkSubdivisionTablesFactory.h
-    dispatcher.h
-    loopSubdivisionTables.h
-    loopSubdivisionTablesFactory.h
-    meshFactory.h
-    mesh.h
-    subdivisionTables.h
-    table.h
-    vertexEditTables.h
-    vertexEditTablesFactory.h
-)    
+find_package(Doxygen)
 
-install( FILES ${PUBLIC_HEADER_FILES}
-         DESTINATION include/far
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+if (DOXYGEN_FOUND)
+
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/OpenSubdiv.doxy ${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy @ONLY)
+
+    add_custom_target(doc
+        ${DOXYGEN_EXECUTABLE} 
+        ${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy  
+        WORKING_DIRECTORY 
+        ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Generating API documentation with Doxygen" VERBATIM
+    )
+else()
+    
+    message(WARNING
+        "Doxyen was not found : support for Doxygen automated API documentation is disabled.")
+        
+endif()

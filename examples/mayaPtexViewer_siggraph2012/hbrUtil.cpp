@@ -55,11 +55,13 @@
 //     a particular purpose and non-infringement.
 //
 #include "hbrUtil.h"
-#include <far/mesh.h>
+
 #include <hbr/mesh.h>
 #include <hbr/bilinear.h>
 #include <hbr/loop.h>
 #include <hbr/catmark.h>
+
+#include <far/mesh.h>
 
 #define OSD_ERROR printf  // XXXX
 

@@ -64,6 +64,10 @@
 #endif
 
 #include <osd/mutex.h>
+
+#include <hbr/mesh.h>
+#include <hbr/face.h>
+
 #include <osd/vertex.h>
 #include <osd/mesh.h>
 #include <osd/elementArrayBuffer.h>
@@ -617,6 +621,8 @@ createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark
     // update element array buffer
     if (g_elementArrayBuffer) delete g_elementArrayBuffer;
     g_elementArrayBuffer = g_osdmesh->CreateElementArrayBuffer(level);
+
+    g_scheme = scheme;
 
     // compute model bounding
     float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};

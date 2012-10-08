@@ -77,7 +77,7 @@ typedef HbrVertex<OsdVertex>   OsdHbrVertex;
 typedef HbrFace<OsdVertex>     OsdHbrFace;
 typedef HbrHalfedge<OsdVertex> OsdHbrHalfedge;
 
-template <class T, class U> class FarMesh;
+template <class U> class FarMesh;
 
 class OsdKernelDispatcher;
 class OsdElementArrayBuffer;

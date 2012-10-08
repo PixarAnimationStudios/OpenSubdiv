@@ -60,7 +60,6 @@
 #include "../osd/cpuDispatcher.h"
 #include "../osd/cpuKernel.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -292,19 +291,18 @@ OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelA( FarMesh<OsdVertex> * mes
 }
 
 void
-OsdCpuKernelDispatcher::ApplyVertexEdit(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const {
-
+OsdCpuKernelDispatcher::ApplyVertexEdits(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const {
     for (int i=0; i<(int)_edits.size(); ++i) {
         const VertexEditArrayInfo &info = _edits[i];
 
-        if (info.operation == FarVertexEditTables<OsdVertex>::Add) {
+        if (info.operation == FarVertexEdit::Add) {
             editVertexAdd(_vdesc, GetVertexBuffer(), info.primVarOffset, info.primVarWidth, info.numEdits[level-1],
                           (int*)_editTables[i*2+0].ptr + info.offsetOffsets[level-1],
                           (float*)_editTables[i*2+1].ptr + info.valueOffsets[level-1]);
-        } else if (info.operation == FarVertexEditTables<OsdVertex>::Set) {
-//XXX:TODO     editVertexSet(_vdesc, GetVertexBuffer(), info.primVarOffset, info.primVarWidth, info.numEdits[level],
-//                          (int*)_editTables[i*2+0].ptr + info.offsetOffsets[level],
-//                          (float*)_editTables[i*2+1].ptr + info.valueOffsets[level]);
+        } else if (info.operation == FarVertexEdit::Set) {
+            editVertexSet(_vdesc, GetVertexBuffer(), info.primVarOffset, info.primVarWidth, info.numEdits[level],
+                          (int*)_editTables[i*2+0].ptr + info.offsetOffsets[level],
+                          (float*)_editTables[i*2+1].ptr + info.valueOffsets[level]);
         }
     }
 }

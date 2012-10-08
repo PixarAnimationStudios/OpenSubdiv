@@ -59,6 +59,9 @@
 
 #include <vector>
 #include <osd/mutex.h>
+
+#include <hbr/mesh.h>
+
 #include <osd/mesh.h>
 
 extern "C" OpenSubdiv::OsdHbrMesh * ConvertToHBR(int nVertices,

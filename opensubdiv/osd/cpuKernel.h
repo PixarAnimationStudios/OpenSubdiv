@@ -58,8 +58,6 @@
 #define OSD_CPU_KERNEL_H
 
 #include "../version.h"
-#include <stdio.h>
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -96,6 +94,13 @@ struct VertexDescriptor {
         int d = editIndex * numVertexElements + primVarOffset;
         for (int i = 0; i < primVarWidth; ++i) {
             vertex[d++] += editValues[i];
+        }
+    }
+
+    void ApplyVertexEditSet(float *vertex, int primVarOffset, int primVarWidth, int editIndex, const float *editValues) const {
+        int d = editIndex * numVertexElements + primVarOffset;
+        for (int i = 0; i < primVarWidth; ++i) {
+            vertex[d++] = editValues[i];
         }
     }
 

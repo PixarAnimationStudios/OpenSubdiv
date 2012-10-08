@@ -61,33 +61,32 @@
 #include <vector>
 
 #include "../version.h"
+#include "../far/subdivisionTables.h"
+#include "../far/vertexEditTables.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-template <class T, class U> class FarMeshFactory;
-template <class T, class U> class FarSubdivisionTables;
-template <class T, class U> class FarDispatcher;
-template <class T, class U> class FarVertexEditTables;
+template <class U> class FarDispatcher;
 
-// Core serialized subdivision mesh class.
-//
-// In order to support both interleaved & non-interleaved vertex access,
-// classes are dual-templated : T corresponds to the Hbr vertex representation
-// while U correcsponds to this library's vertex representation. In some cases,
-// the actual positions of the vertices are irrelevant, so passing an "empty"
-// vertex class to Hbr is perfectly acceptable and saves some data-copy steps.
+/// \brief Feature Adaptive Mesh class.
+///
+/// FarMesh is a serialized instantiation of an HbrMesh. The HbrMesh contains
+/// all the topological data in a highly interconnected data structure for 
+/// ease of access and modification. When instantiating a FarMesh, the factory
+/// analyzes this data structure and serializes the topology into a linear
+/// buffers that are ready for efficient parallel processing.
 
-template <class T, class U=T> class FarMesh {
+template <class U> class FarMesh {
 public:
 
     ~FarMesh();
 
-    // returns the subdivision method
-    FarSubdivisionTables<T,U> const * GetSubdivision() const { return _subdivision; }
+    /// Returns the subdivision method
+    FarSubdivisionTables<U> const * GetSubdivision() const { return _subdivisionTables; }
 
-    // returns the compute dispatcher
-    FarDispatcher<T,U> const * GetDispatcher() const { return _dispatcher; }
+    /// Returns the compute dispatcher
+    FarDispatcher<U> const * GetDispatcher() const { return _dispatcher; }
 
     enum PatchType {
         k_BilinearTriangles,
@@ -95,49 +94,54 @@ public:
         k_Triangles,
     };
 
-    // returns the type of patches described by the face vertices list
+    /// Returns the type of patches described by the face vertices list
     PatchType GetPatchType() const { return _patchtype; }
 
-    // returns the list of vertices in the mesh (from subdiv level 0 to N)
+    /// Returns the list of vertices in the mesh (from subdiv level 0 to N)
     std::vector<U> & GetVertices() { return _vertices; }
 
     U & GetVertex(int index) { return _vertices[index]; }
 
-    // returns the list of indices of the vertices of the faces in the mesh
+    /// Returns the list of indices of the vertices of the faces in the mesh
     std::vector<int> const & GetFaceVertices(int level) const;
 
-    // returns the ptex coordinates for each face at a given level. The coordinates
-    // are stored as : (int) faceindex / (ushort) u_index / (ushort) v_index
+    /// Returns the ptex coordinates for each face at a given level. The coordinates
+    /// are stored as : (int) faceindex / (ushort) u_index / (ushort) v_index
     std::vector<int> const & GetPtexCoordinates(int level) const;
 
-    // returns vertex edit tables
-    FarVertexEditTables<T,U> const * GetVertexEdit() const { return _vertexEdit; }
+    /// Returns vertex edit tables
+    FarVertexEditTables<U> const * GetVertexEdit() const { return _vertexEditTables; }
 
-    // returns the number of coarse vertices held at the beginning of the vertex
-    // buffer.
+    /// Returns the number of coarse vertices held at the beginning of the vertex
+    /// buffer.
     int GetNumCoarseVertices() const;
 
-    // returns the total number of vertices in the mesh across across all depths
+    /// Returns the total number of vertices in the mesh across across all depths
     int GetNumVertices() const { return (int)(_vertices.size()); }
 
-    // apply the subdivision tables to compute the positions of the vertices up
-    // to 'level'
+    /// Apply the subdivision tables to compute the positions of the vertices up
+    /// to 'level'
     void Subdivide(int level=-1);
 
 private:
-    friend class FarMeshFactory<T,U>;
+    // Note : the vertex classes are renamed <X,Y> so as not to shadow the 
+    // declaration of the templated vertex class U.
+    template <class X, class Y> friend class FarMeshFactory;
 
-    FarMesh() : _subdivision(0), _dispatcher(0), _vertexEdit(0) { }
+    FarMesh() : _subdivisionTables(0), _dispatcher(0), _vertexEditTables(0) { }
 
     // non-copyable, so these are not implemented:
-    FarMesh(FarMesh<T,U> const &);
-    FarMesh<T,U> & operator = (FarMesh<T,U> const &);
+    FarMesh(FarMesh<U> const &);
+    FarMesh<U> & operator = (FarMesh<U> const &);
 
     // subdivision method used in this mesh
-    FarSubdivisionTables<T,U> * _subdivision;
+    FarSubdivisionTables<U> * _subdivisionTables;
+
+    // hierarchical vertex edit tables
+    FarVertexEditTables<U> * _vertexEditTables;
 
     // customizable compute dispatcher class
-    FarDispatcher<T,U> * _dispatcher;
+    FarDispatcher<U> * _dispatcher;
 
     // list of vertices (up to N levels of subdivision)
     std::vector<U> _vertices;
@@ -148,9 +152,6 @@ private:
     // ptex coordinates for each face
     std::vector< std::vector<int> > _ptexcoordinates;
 
-    // hierarchical vertex edit tables
-    FarVertexEditTables<T,U> * _vertexEdit;
-
     // XXX stub for adaptive work
     PatchType _patchtype;
 
@@ -158,47 +159,49 @@ private:
     int _numCoarseVertices;
 };
 
-template <class T, class U>
-FarMesh<T,U>::~FarMesh()
+template <class U>
+FarMesh<U>::~FarMesh()
 {
-    delete _subdivision;
-    delete _vertexEdit;
+    delete _subdivisionTables;
+    delete _vertexEditTables;
 }
 
-template <class T, class U> int
-FarMesh<T,U>::GetNumCoarseVertices() const {
+template <class U> int
+FarMesh<U>::GetNumCoarseVertices() const {
     return _numCoarseVertices;
 }
 
-template <class T, class U> std::vector<int> const &
-FarMesh<T,U>::GetFaceVertices(int level) const {
+template <class U> std::vector<int> const &
+FarMesh<U>::GetFaceVertices(int level) const {
     if ( (level>=0) and (level<(int)_faceverts.size()) )
         return _faceverts[level];
     return _faceverts[0];
 }
 
-template <class T, class U> std::vector<int> const &
-FarMesh<T,U>::GetPtexCoordinates(int level) const {
+template <class U> std::vector<int> const &
+FarMesh<U>::GetPtexCoordinates(int level) const {
     if ( (level>=0) and (level<(int)_faceverts.size()) )
         return _ptexcoordinates[level];
     return _ptexcoordinates[0];
 }
 
 
-template <class T, class U> void
-FarMesh<T,U>::Subdivide(int maxlevel) {
+template <class U> void
+FarMesh<U>::Subdivide(int maxlevel) {
 
-    assert(_subdivision);
+    assert(_subdivisionTables);
 
     if ( (maxlevel < 0) )
-        maxlevel=_subdivision->GetMaxLevel();
+        maxlevel=_subdivisionTables->GetMaxLevel();
     else
-        maxlevel = std::min(maxlevel, _subdivision->GetMaxLevel());
+        maxlevel = std::min(maxlevel, _subdivisionTables->GetMaxLevel());
 
     for (int i=1; i<maxlevel; ++i) {
-        _subdivision->Apply(i);
-        if (_vertexEdit)
-            _vertexEdit->Apply(i);
+        
+        _subdivisionTables->Apply(i);
+
+        if (_vertexEditTables)
+            _vertexEditTables->Apply(i);
     }
 }
 
