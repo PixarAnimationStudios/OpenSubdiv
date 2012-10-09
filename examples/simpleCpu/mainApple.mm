@@ -65,7 +65,7 @@ extern int g_width, g_height, g_frame;
     };
 
     NSOpenGLPixelFormat *fmt = [[NSOpenGLPixelFormat alloc]
-                    initWithAttributes:(NSOpenGLPixelFormatAttribute*) attribs];
+                            initWithAttributes:(NSOpenGLPixelFormatAttribute*) attribs];
 
     self = [self initWithFrame:frame pixelFormat:fmt];
     [fmt release];
@@ -112,12 +112,10 @@ extern int g_width, g_height, g_frame;
 int main(int argc, const char *argv[])
 {
     // 
-    // It seems that some ATI cards fall back to software when rendering
-    // geometry shaders but only *sometimes*. Post this notice so it's obvious
-    // that OSD isn't the problem.
+    // It seems that some ATI cards fall back to software when rendering geometry shaders
+    // but only *sometimes*. Post this notice so it's obvious that OSD isn't the problem.
     //
-    // XXX(jcowles): we should only use vertex and fragment shaders to avoid
-    // this potential confusion
+    // XXX(jcowles): we should only use vertex and fragment shaders to avoid this potential confusion
     //
     std::cout << "--------------------------------------------------------------------------------" << std::endl;
     std::cout << "NOTICE: Some Apple hardware runs geometry shaders in software, which will cause" << std::endl;
