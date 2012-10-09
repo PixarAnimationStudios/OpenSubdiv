@@ -44,9 +44,9 @@ multMatrix(float *d, const float *a, const float *b)
 //
 // Create a perspective projection matrix 
 //
-void setPersp( GLdouble fov, GLdouble aspect, GLdouble znear, GLdouble zfar, float* m )
+void setPersp( float fov, float aspect, float znear, float zfar, float* m )
 {
-    float xymax = znear * tan(fov * 3.141592653589793238462 / 360.);
+    float xymax = znear * tanf(fov * 3.141592653589793238462f / 360.f);
     float ymin = -xymax;
     float xmin = -xymax;
 
@@ -62,24 +62,24 @@ void setPersp( GLdouble fov, GLdouble aspect, GLdouble znear, GLdouble zfar, flo
     float h = 2 * znear / height;
 
     m[0]  = w;
-    m[1]  = 0;
-    m[2]  = 0;
-    m[3]  = 0;
+    m[1]  = 0.f;
+    m[2]  = 0.f;
+    m[3]  = 0.f;
 
-    m[4]  = 0;
+    m[4]  = 0.f;
     m[5]  = h;
-    m[6]  = 0;
-    m[7]  = 0;
+    m[6]  = 0.f;
+    m[7]  = 0.f;
 
-    m[8]  = 0;
-    m[9]  = 0;
+    m[8]  = 0.f;
+    m[9]  = 0.f;
     m[10] = q;
     m[11] = -1;
 
-    m[12] = 0;
-    m[13] = 0;
+    m[12] = 0.f;
+    m[13] = 0.f;
     m[14] = qn;
-    m[15] = 0;   
+    m[15] = 0.f;   
 }
 
 //
@@ -99,7 +99,7 @@ translateMatrix(float x, float y, float z, float* m)
 void 
 rotateMatrix(float angle, float x, float y, float z, float* m)
 {
-    float rads = (2*3.14159 / 360.) * angle;
+    float rads = float((2*3.14159 / 360.) * angle);
     float c = cosf(rads);  
     float s = sinf(rads); 
     float xx = x * x;

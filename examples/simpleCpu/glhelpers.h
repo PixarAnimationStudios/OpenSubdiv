@@ -193,8 +193,8 @@ setupForDisplay(int width, int height, float size, float* center)
     setIdentity(g_mvp);
 
     // setup the projection
-    double aspect = width/(double)height;
-    setPersp(45.0, aspect, 0.01, 500.0, g_proj);
+    float aspect = width/(float)height;
+    setPersp(45.0f, aspect, 0.01f, 500.0f, g_proj);
 
     // setup the model view matrix
     translateMatrix(-center[0], -center[1], -center[2], g_modelView);
