@@ -306,7 +306,7 @@ int main(int argc, char ** argv) {
     } else if (g_shapeindex>=0) {
         
         if (g_shapeindex==(int)g_shapes.size()) {
-            for (int i=0; i<g_shapes.size(); ++i)
+            for (size_t i=0; i<g_shapes.size(); ++i)
                  generate( g_shapes[i].data.c_str(), 
                            g_shapes[i].name.c_str(), 
                            levels, 
