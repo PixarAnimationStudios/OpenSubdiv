@@ -130,7 +130,15 @@ a particular purpose and non-infringement.
 // and finally, the cpu dispatcher is how subdivision work is dispatched to the
 // CPU.
 //
+
+
 #include <osd/mutex.h>
+
+#include <hbr/mesh.h>
+#include <hbr/face.h>
+#include <hbr/subdivision.h>
+#include <hbr/catmark.h>
+
 #include <osd/vertex.h>
 #include <osd/mesh.h>
 #include <osd/elementArrayBuffer.h>
