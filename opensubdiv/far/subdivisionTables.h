@@ -151,14 +151,6 @@ public:
     /// subdivision scheme.
     virtual int GetNumTables() const { return 5; }
 
-protected:
-    template <class X, class Y> friend class FarMeshFactory;
-
-    FarSubdivisionTables<U>( FarMesh<U> * mesh, int maxlevel );
-
-    // Returns an integer based on the order in which the kernels are applied
-    static int getMaskRanking( unsigned char mask0, unsigned char mask1 );
-
     struct VertexKernelBatch {
         int kernelF; // number of face vertices
         int kernelE; // number of edge vertices
@@ -196,6 +188,14 @@ protected:
             }
         }
     };
+
+protected:
+    template <class X, class Y> friend class FarMeshFactory;
+
+    FarSubdivisionTables<U>( FarMesh<U> * mesh, int maxlevel );
+
+    // Returns an integer based on the order in which the kernels are applied
+    static int getMaskRanking( unsigned char mask0, unsigned char mask1 );
 
     // Returns the range of vertex indices of each of the 3 batches of VertexPoint
     // compute Kernels (kernel application order is : B / A / A)
