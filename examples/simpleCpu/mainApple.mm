@@ -1,7 +1,8 @@
 #import <Cocoa/Cocoa.h>
 #import <wchar.h>
 #import <iostream>
-
+#import <OpenGL/OpenGL.h>
+#import <OpenGL/glu.h>
 //
 // Hooks back into the example code
 //
