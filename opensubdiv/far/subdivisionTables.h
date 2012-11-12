@@ -159,6 +159,11 @@ protected:
     // Returns an integer based on the order in which the kernels are applied
     static int getMaskRanking( unsigned char mask0, unsigned char mask1 );
 
+#if defined(__clang__)
+    // XXX(jcowles): seems like there is a compiler bug in clang that requires
+    //               this struct to be public
+public:
+#endif
     struct VertexKernelBatch {
         int kernelF; // number of face vertices
         int kernelE; // number of edge vertices
@@ -196,6 +201,9 @@ protected:
             }
         }
     };
+#if defined(__clang__)
+protected:
+#endif
 
     // Returns the range of vertex indices of each of the 3 batches of VertexPoint
     // compute Kernels (kernel application order is : B / A / A)
