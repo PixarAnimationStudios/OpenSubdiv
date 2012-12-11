@@ -156,7 +156,7 @@ static shape * readShape( char const * fname ) {
     size_t size = ftell(handle);
     fseek( handle, 0, SEEK_SET );
 
-    char * shapeStr = new char[size];
+    char * shapeStr = new char[size+1];
 
     if ( fread( shapeStr, size, 1, handle)!=1 ) {
         printf("Error reading \"%s\" - aborting.\n", fname);
@@ -164,6 +164,8 @@ static shape * readShape( char const * fname ) {
     }
 
     fclose(handle);
+    
+    shapeStr[size]='\0';
     
     return shape::parseShape( shapeStr, 1 );
 }
