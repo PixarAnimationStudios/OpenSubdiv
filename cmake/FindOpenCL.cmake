@@ -97,18 +97,15 @@ elseif (WIN32)
             CL/cl.hpp
     )
 
-    if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64" )
-        set(OPENCL_LIB_DIR "$ENV{ATISTREAMSDKROOT}/lib/x86_64")
-    else()
-        set(OPENCL_LIB_DIR "$ENV{ATISTREAMSDKROOT}/lib/x86")
-    endif()
-
     find_library( OPENCL_LIBRARIES
         NAMES
             OpenCL.lib
         PATHS
-            ${OPENCL_LIB_DIR}
             ENV OpenCL_LIBPATH
+            "$ENV{ATISTREAMSDKROOT}/lib/x86_64"
+            "$ENV{ATISTREAMSDKROOT}/lib/x86"
+            "C:/Program Files (x86)/Intel/OpenCL SDK/2.0/lib/x64"
+            "C:/Program Files (x86)/Intel/OpenCL SDK/2.0/lib/x86"
     )
 
     get_filename_component( _OPENCL_INC_CAND ${OPENCL_LIB_DIR}/../../include ABSOLUTE )
