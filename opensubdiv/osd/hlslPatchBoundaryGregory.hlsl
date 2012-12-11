@@ -343,6 +343,30 @@ GregDomainVertex hs_main_patches(
     uint np = abs(patch[ip].valence);
     uint nm = abs(patch[im].valence);
 
+    // Control Vertices based on : 
+    // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation" 
+    // Loop, Schaefer, Ni, Castafio (ACM ToG Siggraph Asia 2009)
+    //
+    //  P3         e3-      e2+         E2
+    //     O--------O--------O--------O
+    //     |        |        |        |
+    //     |        |        |        |
+    //     |        | f3-    | f2+    |
+    //     |        O        O        |
+    // e3+ O------O            O------O e2-
+    //     |     f3+          f2-     |
+    //     |                          |
+    //     |                          |
+    //     |      f0-         f1+     |
+    // e0- O------O            O------O e1+
+    //     |        O        O        |
+    //     |        | f0+    | f1-    |
+    //     |        |        |        |
+    //     |        |        |        |
+    //     O--------O--------O--------O
+    //  P0         e0+      e1-         E1
+    //
+
     float3 Ep = float3(0.0f,0.0f,0.0f);
     float3 Em = float3(0.0f,0.0f,0.0f);
     float3 Fp = float3(0.0f,0.0f,0.0f);

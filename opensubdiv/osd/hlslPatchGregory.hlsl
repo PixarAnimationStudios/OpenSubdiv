@@ -236,6 +236,30 @@ GregDomainVertex hs_main_patches(
     uint prev = uint(g_QuadOffsetBuffer[int(4*(primitiveID+base) + i)]) & 0xff00;
     prev=uint(prev/256);
 
+    // Control Vertices based on : 
+    // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation" 
+    // Loop, Schaefer, Ni, Castafio (ACM ToG Siggraph Asia 2009)
+    //
+    //  P3         e3-      e2+         E2
+    //     O--------O--------O--------O
+    //     |        |        |        |
+    //     |        |        |        |
+    //     |        | f3-    | f2+    |
+    //     |        O        O        |
+    // e3+ O------O            O------O e2-
+    //     |     f3+          f2-     |
+    //     |                          |
+    //     |                          |
+    //     |      f0-         f1+     |
+    // e0- O------O            O------O e1+
+    //     |        O        O        |
+    //     |        | f0+    | f1-    |
+    //     |        |        |        |
+    //     |        |        |        |
+    //     O--------O--------O--------O
+    //  P0         e0+      e1-         E1
+    //
+
     float3 Ep = patch[i].position + patch[i].e0 * csf(n-3, 2*start) + patch[i].e1*csf(n-3, 2*start +1);
     float3 Em = patch[i].position + patch[i].e0 * csf(n-3, 2*prev ) + patch[i].e1*csf(n-3, 2*prev + 1);
 
