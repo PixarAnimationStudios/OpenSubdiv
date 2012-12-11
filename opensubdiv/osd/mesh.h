@@ -54,93 +54,128 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
 #ifndef OSD_MESH_H
 #define OSD_MESH_H
 
-#include <string>
-#include <vector>
-
 #include "../version.h"
 
+#include "../far/mesh.h"
+#include "../far/meshFactory.h"
+
+#include "../hbr/mesh.h"
+
 #include "../osd/vertex.h"
-#include "../osd/vertexBuffer.h"
-#include "../osd/kernelDispatcher.h"
+
+#include <bitset>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-template <class T> class HbrMesh;
-template <class T> class HbrVertex;
+enum OsdMeshBits {
+    MeshAdaptive    = 0,
 
-typedef HbrMesh<OsdVertex>     OsdHbrMesh;
-typedef HbrVertex<OsdVertex>   OsdHbrVertex;
-typedef HbrFace<OsdVertex>     OsdHbrFace;
-typedef HbrHalfedge<OsdVertex> OsdHbrHalfedge;
+    MeshPtexData    = 1,
+    MeshFVarData    = 2,
 
-template <class U> class FarMesh;
+    NUM_MESH_BITS   = 3,
+};
+typedef std::bitset<NUM_MESH_BITS> OsdMeshBitset;
 
-class OsdKernelDispatcher;
-class OsdElementArrayBuffer;
-class OsdPtexCoordinatesTextureBuffer;
-
-class OsdMesh {
+template <class DRAW_CONTEXT>
+class OsdMeshInterface {
+public:
+    typedef DRAW_CONTEXT DrawContext;
+    typedef typename DrawContext::VertexBufferBinding VertexBufferBinding;
 
 public:
-    OsdMesh();
+    OsdMeshInterface() { }
 
-    virtual ~OsdMesh();
+    virtual ~OsdMeshInterface() { }
 
-    // Given a valid HbrMesh, create an OsdMesh
-    //   - capable of densely refining up to 'level'
-    //   - subdivision kernel one of (kCPU, kOPENMP, kCUDA, kGLSL, kCL)
-    //   - optional "remapping" vector that connects Osd and Hbr vertex indices
-    //     (for regression)
-    bool Create(OsdHbrMesh *hbrMesh, int level, int kernel, std::vector<int> * remap=0);
+    virtual int GetNumVertices() const = 0;
 
-    FarMesh<OsdVertex> *GetFarMesh() { return _farMesh; }
+    virtual void UpdateVertexBuffer(float const *vertexData, int numVerts) = 0;
 
-    int GetLevel() const { return _level; }
+    virtual void Refine() = 0;
 
-    // creates and initializes vertex buffer. Must call Creates() before calling this function.
-    OsdVertexBuffer * InitializeVertexBuffer(int numElements);
+    virtual void Synchronize() = 0;
 
-    // creates element indices buffer for given level. Must call Creates() before calling this function.
-    OsdElementArrayBuffer * CreateElementArrayBuffer(int level);
+    virtual DrawContext * GetDrawContext() = 0;
 
-    // creates ptex-coordinates buffer for given level. Must call Creates() before calling this function.
-    OsdPtexCoordinatesTextureBuffer * CreatePtexCoordinatesTextureBuffer(int level);
-
-    // for non-interleaved vertex data
-    void Subdivide(OsdVertexBuffer *vertex, OsdVertexBuffer *varying = NULL);
-
-/*
-    // for interleaved vertex data ?
-    template <class T> void Subdivide(T *vertex) { }
-*/
-
-    void Synchronize();
-
-    int GetTotalVertices() const { return _farMesh->GetNumVertices(); }
-
-    int GetNumCoarseVertices() const { return _farMesh->GetNumCoarseVertices(); }
-
-protected:
-
-    void createTables( FarSubdivisionTables<OsdVertex> const * tables );
-
-    void createEditTables( FarVertexEditTables<OsdVertex> const * editTables );
-
-    FarMesh<OsdVertex> *_farMesh;
-
-    int _level;
-
-    OsdKernelDispatcher * _dispatcher;
-
+    virtual VertexBufferBinding BindVertexBuffer() = 0;
 };
 
-} // end namespace OPENSUBDIV_VERSION
+template <class VERTEX_BUFFER, class COMPUTE_CONTROLLER, class DRAW_CONTEXT>
+class OsdMesh : public OsdMeshInterface<DRAW_CONTEXT> {
+public:
+    typedef VERTEX_BUFFER VertexBuffer;
+    typedef COMPUTE_CONTROLLER ComputeController;
+    typedef typename ComputeController::ComputeContext ComputeContext; 
+    typedef DRAW_CONTEXT DrawContext; 
+    typedef typename DrawContext::VertexBufferBinding VertexBufferBinding;
+
+    OsdMesh(HbrMesh<OsdVertex> * hmesh,
+            int numElements,
+            int level,
+            OsdMeshBitset bits = OsdMeshBitset()) :
+
+            _farMesh(0),
+            _vertexBuffer(0),
+            _computeContext(0),
+            _computeController(0),
+            _drawContext(0)
+    {
+        FarMeshFactory<OsdVertex> meshFactory(hmesh, level, bits.test(MeshAdaptive));
+        _farMesh = meshFactory.Create(bits.test(MeshPtexData),
+                                      bits.test(MeshFVarData));
+
+        int numVertices = _farMesh->GetNumVertices();
+        _vertexBuffer = VertexBuffer::Create(numElements, numVertices);
+        _computeContext = ComputeContext::Create(_farMesh);
+        _computeController = new ComputeController();
+        _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
+                                           bits.test(MeshPtexData),
+                                           bits.test(MeshFVarData));
+    }
+
+    virtual ~OsdMesh() {
+        delete _farMesh;
+        delete _vertexBuffer;
+        delete _computeContext;
+        delete _computeController;
+        delete _drawContext;
+    }
+
+    virtual int GetNumVertices() const { return _farMesh->GetNumVertices(); }
+
+    virtual void UpdateVertexBuffer(float const *vertexData, int numVerts) {
+        _vertexBuffer->UpdateData(vertexData, numVerts);
+    }
+    virtual void Refine() {
+        _computeController->Refine(_computeContext, _vertexBuffer);
+    }
+    virtual void Synchronize() {
+        _computeController->Synchronize();
+    }
+    virtual VertexBufferBinding BindVertexBuffer() {
+        return VertexBufferBinding(0);
+    }
+    virtual DrawContext * GetDrawContext() {
+        return _drawContext;
+    }
+
+private:
+    FarMesh<OsdVertex> *_farMesh;
+    VertexBuffer *_vertexBuffer;
+    ComputeContext *_computeContext;
+    ComputeController *_computeController;
+    DrawContext *_drawContext;
+};
+
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
-} // end namespace OpenSubdiv
+}  // end namespace OpenSubdiv
 
-#endif /* OSD_MESH_H */
+#endif  // OSD_MESH_H

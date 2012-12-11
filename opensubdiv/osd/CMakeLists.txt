@@ -60,19 +60,24 @@
 include_directories(
     ${OPENGL_INCLUDE_DIR}
     ${GLEW_INCLUDE_DIR}
+    ${DXSDK_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/opensubdiv
 )
 
 #-------------------------------------------------------------------------------
 # source & headers
-set(SOURCE_FILES
+set(CPU_SOURCE_FILES
     cpuDispatcher.cpp
     cpuKernel.cpp
-    elementArrayBuffer.cpp
-    kernelDispatcher.cpp
-    mesh.cpp
-    ptexCoordinatesTextureBuffer.cpp
-    vertexBuffer.cpp
+    cpuComputeController.cpp
+    cpuComputeContext.cpp
+    cpuVertexBuffer.cpp
+    error.cpp
+    drawContext.cpp
+    drawRegistry.cpp
+)
+
+set(GPU_SOURCE_FILES
 )
 
 set(KERNEL_FILES
@@ -82,28 +87,28 @@ set(INC_FILES
 )
 
 set(PRIVATE_HEADER_FILES
-    local.h
-    mutex.h
+    debug.h
+    cpuKernel.h
 )
 
 set(PUBLIC_HEADER_FILES
+    computeContext.h
+    computeController.h
+    cpuComputeController.h
     cpuDispatcher.h
-    cpuKernel.h
-    elementArrayBuffer.h
-    kernelDispatcher.h
+    cpuVertexBuffer.h
+    evalContext.h
+    error.h
     mesh.h
-    ptexCoordinatesTextureBuffer.h
+    nonCopyable.h
+    drawContext.h
+    drawRegistry.h
     vertex.h
-    vertexBuffer.h
 )
 
 #-------------------------------------------------------------------------------
 # platform dependent tweaks
-if(APPLE)
-    set(PLATFORM_COMPILE_FLAGS
-        -fPIC
-    )
-elseif(UNIX)
+if(APPLE OR UNIX)
     set(PLATFORM_COMPILE_FLAGS
         -fPIC
     )
@@ -117,12 +122,25 @@ add_definitions(
 
 #-------------------------------------------------------------------------------
 if( PTEX_FOUND )
-    list(APPEND SOURCE_FILES
-        pTexture.cpp
+    list(APPEND CPU_SOURCE_FILES
+        ptexTextureLoader.cpp
     )
-    list(APPEND PUBLIC_HEADER_FILES
-        pTexture.h
-    )
+    if( OPENGL_FOUND )
+        list(APPEND GPU_SOURCE_FILES
+            glPtexTexture.cpp
+        )
+        list(APPEND PUBLIC_HEADER_FILES
+            glPtexTexture.h
+        )
+    endif()
+    if( DXSDK_FOUND )
+        list(APPEND GPU_SOURCE_FILES
+            d3d11PtexTexture.cpp
+        )
+        list(APPEND PUBLIC_HEADER_FILES
+            d3d11PtexTexture.h
+        )
+    endif()
     include_directories( ${PTEX_INCLUDE_DIR} )
     list(APPEND PLATFORM_LIBRARIES
         ${PTEX_LIBRARY}
@@ -131,6 +149,16 @@ endif()
 
 #-------------------------------------------------------------------------------
 if( OPENMP_FOUND )
+    list(APPEND CPU_SOURCE_FILES
+        ompDispatcher.cpp
+        ompKernel.cpp
+        ompComputeController.cpp
+    )
+    list(APPEND PUBLIC_HEADER_FILES
+        ompDispatcher.h
+        ompKernel.h
+        ompComputeController.h
+    )   
     if (CMAKE_COMPILER_IS_GNUCXX)
         list(APPEND PLATFORM_LIBRARIES
             gomp
@@ -140,35 +168,127 @@ endif()
 
 #-------------------------------------------------------------------------------
 # GL code & dependencies
-# note : (GLSL compute kernels require GL 4.2, which excludes APPLE)
-if( OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE) )
-    list(APPEND SOURCE_FILES
-        glslDispatcher.cpp
+if( OPENGL_FOUND )
+    list(APPEND GPU_SOURCE_FILES
+        cpuGLVertexBuffer.cpp
+        glDrawContext.cpp
+        glDrawRegistry.cpp
+        glVertexBuffer.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES
-        glslDispatcher.h
+        cpuGLVertexBuffer.h
+        glDrawContext.h
+        glDrawRegistry.h
+        glVertexBuffer.h
+        glMesh.h
     )
     list(APPEND KERNEL_FILES
-        glslKernel.glsl
+        glslPatchCommon.glsl
+        glslPatchRegular.glsl
+        glslPatchBoundary.glsl
+        glslPatchCorner.glsl
+        glslPatchGregory.glsl
+        glslPatchBoundaryGregory.glsl
+        glslPatchTransition.glsl
     )
-    list(APPEND PLATFORM_LIBRARIES
-        ${OPENGL_LIBRARY}
-        ${GLEW_LIBRARY}
-    )
-else( OPENGL_FOUND AND APPLE )
     list(APPEND PLATFORM_LIBRARIES
         ${OPENGL_LIBRARY}
     )
 endif()
 
 #-------------------------------------------------------------------------------
-# OpenCL code & dependencies
-if ( OPENCL_FOUND )
-    list(APPEND SOURCE_FILES
-        clDispatcher.cpp
+# OpenGL 4.2 dependencies
+# note : (GLSL transform feedback kernels require GL 4.2)
+if( OPENGL_4_2_FOUND )
+    list(APPEND GPU_SOURCE_FILES
+        glslTransformFeedbackComputeController.cpp
+        glslTransformFeedbackComputeContext.cpp
+        glslTransformFeedbackDispatcher.cpp
+        glslTransformFeedbackKernelBundle.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES
+        glslTransformFeedbackComputeContext.h
+        glslTransformFeedbackComputeController.h
+        glslTransformFeedbackDispatcher.h
+        glslTransformFeedbackKernelBundle.h
+    )
+    list(APPEND KERNEL_FILES
+        glslTransformFeedbackKernel.glsl
+    )
+    list(APPEND PLATFORM_LIBRARIES
+        ${GLEW_LIBRARY}
+    )
+endif()
+
+#-------------------------------------------------------------------------------
+# OpenGL 4.3 dependencies
+# note : (GLSL compute shader kernels require GL 4.3)
+if( OPENGL_4_3_FOUND )
+    list(APPEND GPU_SOURCE_FILES
+        glslComputeController.cpp
+        glslComputeContext.cpp
+        glslDispatcher.cpp
+        glslKernelBundle.cpp
+    )
+    list(APPEND PUBLIC_HEADER_FILES
+        glslComputeContext.h
+        glslComputeController.h
+        glslDispatcher.h
+        glslKernelBundle.h
+    )
+    list(APPEND KERNEL_FILES
+        glslComputeKernel.glsl
+    )
+    list(APPEND PLATFORM_LIBRARIES
+        ${GLEW_LIBRARY}
+    )
+endif()
+
+#-------------------------------------------------------------------------------
+# DX11 code & dependencies
+if( DXSDK_FOUND )
+    list(APPEND GPU_SOURCE_FILES
+        cpuD3D11VertexBuffer.cpp
+        d3d11DrawContext.cpp
+        d3d11DrawRegistry.cpp
+        d3d11VertexBuffer.cpp
+    )
+    list(APPEND PUBLIC_HEADER_FILES
+        cpuD3D11VertexBuffer.h
+        d3d11DrawContext.h
+        d3d11DrawRegistry.h
+        d3d11VertexBuffer.h
+        d3d11Mesh.h
+    )
+    list(APPEND KERNEL_FILES
+        hlslPatchCommon.hlsl
+        hlslPatchRegular.hlsl
+        hlslPatchBoundary.hlsl
+        hlslPatchCorner.hlsl
+        hlslPatchGregory.hlsl
+        hlslPatchBoundaryGregory.hlsl
+        hlslPatchTransition.hlsl
+    )
+    list(APPEND PLATFORM_LIBRARIES
+        ${DXSDK_LIBRARIES}
+    )
+endif()
+
+#-------------------------------------------------------------------------------
+# OpenCL code & dependencies
+if ( OPENCL_FOUND )
+    list(APPEND GPU_SOURCE_FILES
+        clComputeController.cpp
+        clComputeContext.cpp
+        clDispatcher.cpp
+        clKernelBundle.cpp
+        clVertexBuffer.cpp
+    )
+    list(APPEND PUBLIC_HEADER_FILES
+        clComputeContext.h
+        clComputeController.h
         clDispatcher.h
+        clVertexBuffer.h
     )
     list(APPEND KERNEL_FILES
         clKernel.cl
@@ -176,20 +296,53 @@ if ( OPENCL_FOUND )
     list(APPEND PLATFORM_LIBRARIES
         ${OPENCL_LIBRARIES}
     )
+
+    if ( OPENGL_FOUND )
+        list(APPEND GPU_SOURCE_FILES
+            clGLVertexBuffer.cpp
+        )
+        list(APPEND PUBLIC_HEADER_FILES
+            clGLVertexBuffer.h
+        )
+    endif()
 endif()
 
 #-------------------------------------------------------------------------------
 # CUDA code & dependencies
 if( CUDA_FOUND )
-    list(APPEND SOURCE_FILES
+    list(APPEND GPU_SOURCE_FILES
         cudaDispatcher.cpp
+        cudaComputeController.cpp
+        cudaComputeContext.cpp
+        cudaVertexBuffer.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES
+        cudaComputeContext.h
+        cudaComputeController.h
         cudaDispatcher.h
+        cudaVertexBuffer.h
     )
     list(APPEND KERNEL_FILES
         cudaKernel.cu
     )
+    if ( OPENGL_FOUND )
+        list(APPEND GPU_SOURCE_FILES
+            cudaGLVertexBuffer.cpp
+        )
+        list(APPEND PUBLIC_HEADER_FILES
+            cudaGLVertexBuffer.h
+        )
+    endif()
+
+    if( DXSDK_FOUND )
+        list(APPEND GPU_SOURCE_FILES
+            cudaD3D11VertexBuffer.cpp
+        )
+        list(APPEND PUBLIC_HEADER_FILES
+            cudaD3D11VertexBuffer.h
+        )
+    endif()        
+
     if (UNIX)
         list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC )
     endif()
@@ -227,34 +380,58 @@ source_group("Kernels" FILES ${KERNEL_FILES})
 
 source_group("Inc" FILES ${INC_FILES})
 
-_add_possibly_cuda_library(osd_static STATIC
-    ${SOURCE_FILES}
+_add_possibly_cuda_library(osd_static_cpu STATIC
+    ${CPU_SOURCE_FILES}
+    ${PRIVATE_HEADER_FILES}
+    ${PUBLIC_HEADER_FILES}
+)
+set_target_properties(osd_static_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
+
+target_link_libraries(osd_static_cpu
+    ${PLATFORM_LIBRARIES}
+)
+
+_add_possibly_cuda_library(osd_static_gpu STATIC
+    ${GPU_SOURCE_FILES}
     ${PRIVATE_HEADER_FILES}
     ${PUBLIC_HEADER_FILES}
     ${KERNEL_FILES}
     ${INC_FILES}
 )
-set_target_properties(osd_static PROPERTIES OUTPUT_NAME osd CLEAN_DIRECT_OUTPUT 1)
+set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
 
-target_link_libraries(osd_static
+target_link_libraries(osd_static_gpu
     ${PLATFORM_LIBRARIES}
 )
 
+
+
 if (NOT WIN32)
-    _add_possibly_cuda_library(osd_dynamic SHARED
-        ${SOURCE_FILES}
+    _add_possibly_cuda_library(osd_dynamic_cpu SHARED
+        ${CPU_SOURCE_FILES}
+        ${PRIVATE_HEADER_FILES}
+        ${PUBLIC_HEADER_FILES}
+    )
+
+    set_target_properties(osd_dynamic_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
+
+    target_link_libraries(osd_dynamic_cpu
+        ${PLATFORM_LIBRARIES}
+    )
+
+    _add_possibly_cuda_library(osd_dynamic_gpu SHARED
+        ${GPU_SOURCE_FILES}
         ${PRIVATE_HEADER_FILES}
         ${PUBLIC_HEADER_FILES}
         ${KERNEL_FILES}
         ${INC_FILES}
     )
 
-    set_target_properties(osd_dynamic PROPERTIES OUTPUT_NAME osd CLEAN_DIRECT_OUTPUT 1)
+    set_target_properties(osd_dynamic_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
 
-    target_link_libraries(osd_dynamic
+    target_link_libraries(osd_dynamic_gpu
         ${PLATFORM_LIBRARIES}
     )
-
 endif()
 
 

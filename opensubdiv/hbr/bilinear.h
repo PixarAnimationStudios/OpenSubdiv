@@ -88,8 +88,8 @@ public:
     virtual HbrVertex<T>* Subdivide(HbrMesh<T>* mesh, HbrHalfedge<T>* edge);
     virtual HbrVertex<T>* Subdivide(HbrMesh<T>* mesh, HbrVertex<T>* vertex);
 
-    virtual bool VertexIsExtraordinary(HbrMesh<T>* /* mesh */, HbrVertex<T>* vertex) { return vertex->GetValence() != 4; }
-    virtual bool FaceIsExtraordinary(HbrMesh<T>* /* mesh */, HbrFace<T>* face) { return face->GetNumVertices() != 4; }
+    virtual bool VertexIsExtraordinary(HbrMesh<T> const * /* mesh */, HbrVertex<T>* vertex) { return vertex->GetValence() != 4; }
+    virtual bool FaceIsExtraordinary(HbrMesh<T> const * /* mesh */, HbrFace<T>* face) { return face->GetNumVertices() != 4; }
 
     virtual int GetFaceChildrenCount(int nvertices) const { return nvertices; }
 

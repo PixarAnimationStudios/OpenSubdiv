@@ -65,7 +65,10 @@ set(PUBLIC_HEADER_FILES
     loopSubdivisionTablesFactory.h
     meshFactory.h
     mesh.h
+    patchTables.h
+    patchTablesFactory.h
     subdivisionTables.h
+    subdivisionTablesFactory.h
     table.h
     vertexEditTables.h
     vertexEditTablesFactory.h

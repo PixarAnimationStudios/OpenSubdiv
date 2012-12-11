@@ -57,6 +57,8 @@
 #ifndef OSD_CUDA_INIT_H
 #define OSD_CUDA_INIT_H
 
+#include <algorithm>
+
 // From "NVIDIA GPU Computing SDK 4.2/C/common/inc/cutil_inline_runtime.h":
 
 // Beginning of GPU Architecture definitions

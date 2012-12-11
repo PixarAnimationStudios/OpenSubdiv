@@ -62,65 +62,153 @@
     #include <GL/glut.h>
 #endif
 
-#include <osd/mutex.h>
+#include "../../regression/common/mutex.h"
+//XXX
+#define HBR_ADAPTIVE
 
 #include <hbr/mesh.h>
 #include <hbr/bilinear.h>
 #include <hbr/catmark.h>
 #include <hbr/face.h>
 
-#include <osd/vertex.h>
-#include <osd/mesh.h>
-#include <osd/cpuDispatcher.h>
-#include <osd/glslDispatcher.h>
-#include <osd/pTexture.h>
-#include <osd/elementArrayBuffer.h>
-#include <osd/ptexCoordinatesTextureBuffer.h>
+#include <osd/glPtexTexture.h>
+#include <osd/glDrawContext.h>
+#include <osd/glDrawRegistry.h>
 
-#include "../common/stopwatch.h"
+#include <osd/cpuDispatcher.h>
+#include <osd/cpuGLVertexBuffer.h>
+#include <osd/cpuComputeContext.h>
+#include <osd/cpuComputeController.h>
+
+#ifdef OPENSUBDIV_HAS_OPENMP
+    #include <osd/ompDispatcher.h>
+    #include <osd/ompComputeController.h>
+#endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     #include <osd/clDispatcher.h>
+    #include <osd/clGLVertexBuffer.h>
+    #include <osd/clComputeContext.h>
+    #include <osd/clComputeController.h>
+
+    #include "../common/clInit.h"
+
+    cl_context g_clContext;
+    cl_command_queue g_clQueue;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
     #include <osd/cudaDispatcher.h>
+    #include <osd/cudaGLVertexBuffer.h>
+    #include <osd/cudaComputeContext.h>
+    #include <osd/cudaComputeController.h>
 
     #include <cuda_runtime_api.h>
     #include <cuda_gl_interop.h>
 
     #include "../common/cudaInit.h"
+
+    bool g_cudaInitialized = false;
 #endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    #include <osd/glslTransformFeedbackDispatcher.h>
+    #include <osd/glslTransformFeedbackComputeContext.h>
+    #include <osd/glslTransformFeedbackComputeController.h>
+    #include <osd/glVertexBuffer.h>
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    #include <osd/glslDispatcher.h>
+    #include <osd/glslComputeContext.h>
+    #include <osd/glslComputeController.h>
+    #include <osd/glVertexBuffer.h>
+#endif
+
+#include <osd/glMesh.h>
+OpenSubdiv::OsdGLMeshInterface *g_mesh;
 
 #include "Ptexture.h"
 #include "PtexUtils.h"
 
-static const char *shaderSource =
-#include "shader.inc"
-;
+#include "../common/stopwatch.h"
+#include "../common/simple_math.h"
+#include "../common/gl_hud.h"
+#include "../common/hdr_reader.h"
+#include "../../regression/common/shape_utils.h"
 
 #include <vector>
+#include <sstream>
+#include <fstream>
 
-//------------------------------------------------------------------------------
+static const char *g_defaultShaderSource =
+#include "shader.inc"
+;
+static const char *g_skyShaderSource =
+#include "skyshader.inc"
+;
+static std::string g_shaderSource;
+static const char *g_shaderFilename = NULL;
+
+typedef OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>     OsdHbrMesh;
+typedef OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex>   OsdHbrVertex;
+typedef OpenSubdiv::HbrFace<OpenSubdiv::OsdVertex>     OsdHbrFace;
+typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
+
+enum KernelType { kCPU = 0,
+                  kOPENMP = 1,
+                  kCUDA = 2,
+                  kCL = 3,
+                  kGLSL = 4,
+                  kGLSLCompute = 5 };
+
+enum HudCheckBox { HUD_CB_ADAPTIVE,
+                   HUD_CB_DISPLAY_COLOR,
+                   HUD_CB_DISPLAY_OCCLUSION,
+                   HUD_CB_DISPLAY_DISPLACEMENT,
+                   HUD_CB_DISPLAY_NORMALMAP,
+                   HUD_CB_DISPLAY_SPECULAR,
+                   HUD_CB_ANIMATE_VERTICES,
+                   HUD_CB_DISPLAY_PATCH_COLOR,
+                   HUD_CB_VIEW_LOD,
+                   HUD_CB_PATCH_CULL,
+                   HUD_CB_IBL };
+    
+//-----------------------------------------------------------------------------
 int   g_frame = 0,
       g_repeatCount = 0;
 
 // GLUT GUI variables
-int   g_wire = 0,
+int   g_fullscreen=0,
+      g_wire = 1,
       g_drawNormals = 0,
       g_mbutton[3] = {0, 0, 0},
       g_level = 2,
-      g_kernel = OpenSubdiv::OsdKernelDispatcher::kCPU,
+      g_tessLevel = 2,
+      g_kernel = kCPU,
       g_scheme = 0,
-      g_gutterWidth = 1,
-      g_ptexDebug = 0,
-      g_gutterDebug = 0;
-float g_moveScale = 1.0f;
+      g_gutterWidth = 1;
+
+float g_moveScale = 0.0f;
+bool  g_adaptive = true,
+      g_displayPatchColor = false,
+      g_patchCull = true,
+      g_screenSpaceTess = true,
+      g_ibl = false;
+
+GLuint g_transformUB = 0,
+       g_transformBinding = 0,
+       g_tessellationUB = 0,
+       g_tessellationBinding = 0,
+       g_lightingUB = 0,
+       g_lightingBinding = 0;
 
 // ptex switch
-int   g_color = 1,
-      g_occlusion = 0,
-      g_displacement = 0;
+bool  g_color = true,
+      g_occlusion = false,
+      g_displacement = false,
+      g_normal = false,
+      g_specular = false;
 
 // camera
 float g_rotate[2] = {0, 0},
@@ -132,78 +220,63 @@ float g_rotate[2] = {0, 0},
       g_size = 0;
 
 // viewport
-int   g_width,
-      g_height;
+int   g_width = 1024,
+      g_height = 1024;
+
+GLhud g_hud;
 
 // performance
 float g_cpuTime = 0;
 float g_gpuTime = 0;
+#define NUM_FPS_TIME_SAMPLES 6
+float g_fpsTimeSamples[NUM_FPS_TIME_SAMPLES] = {0,0,0,0,0,0};
+int   g_currentFpsTimeSample = 0;
 Stopwatch g_fpsTimer;
 
 // geometry
 std::vector<float> g_positions,
                    g_normals;
 
-GLuint g_program = 0;
-GLuint g_debugProgram = 0;
+std::vector<std::vector<float> > g_animPositions;
+std::vector<GLuint> g_animPositionBuffers;
 
-OpenSubdiv::OsdMesh * g_osdmesh = 0;
-OpenSubdiv::OsdVertexBuffer * g_vertexBuffer = 0;
-OpenSubdiv::OsdElementArrayBuffer * g_elementArrayBuffer = 0;
-OpenSubdiv::OsdPtexCoordinatesTextureBuffer * g_ptexCoordinatesTextureBuffer = 0;
-OpenSubdiv::OsdPTexture * g_osdPTexImage = 0;
-OpenSubdiv::OsdPTexture * g_osdPTexDisplacement = 0;
-OpenSubdiv::OsdPTexture * g_osdPTexOcclusion = 0;
-const char * g_ptexColorFile = 0;
-const char * g_ptexDisplacementFile = 0;
-const char * g_ptexOcclusionFile = 0;
+GLuint g_primQuery = 0;
 
-//------------------------------------------------------------------------------
-inline void
-cross(float *n, const float *p0, const float *p1, const float *p2) {
+GLuint g_diffuseEnvironmentMap = 0;
+GLuint g_specularEnvironmentMap = 0;
 
-    float a[3] = { p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2] };
-    float b[3] = { p2[0]-p0[0], p2[1]-p0[1], p2[2]-p0[2] };
-    n[0] = a[1]*b[2]-a[2]*b[1];
-    n[1] = a[2]*b[0]-a[0]*b[2];
-    n[2] = a[0]*b[1]-a[1]*b[0];
+struct Sky {
+    int numIndices;
+    GLuint vertexBuffer;
+    GLuint elementBuffer;
+    GLuint mvpMatrix;
+    GLuint program;
 
-    float rn = 1.0f/sqrtf(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
-    n[0] *= rn;
-    n[1] *= rn;
-    n[2] *= rn;
-}
+    Sky() : numIndices(0), vertexBuffer(0), elementBuffer(0), mvpMatrix(0),
+            program(0) {}
+} g_sky;
 
-//------------------------------------------------------------------------------
-inline void
-normalize(float * p) {
+OpenSubdiv::OsdGLPtexTexture * g_osdPTexImage = 0;
+OpenSubdiv::OsdGLPtexTexture * g_osdPTexDisplacement = 0;
+OpenSubdiv::OsdGLPtexTexture * g_osdPTexOcclusion = 0;
+OpenSubdiv::OsdGLPtexTexture * g_osdPTexSpecular = 0;
+const char * g_ptexColorFilename;
 
-    float dist = sqrtf( p[0]*p[0] + p[1]*p[1]  + p[2]*p[2] );
-    p[0]/=dist;
-    p[1]/=dist;
-    p[2]/=dist;
-}
-
-//------------------------------------------------------------------------------
-inline void
-multMatrix(float *d, const float *a, const float *b) {
-
-    for (int i=0; i<4; ++i)
-    {
-        for (int j=0; j<4; ++j)
-        {
-            d[i*4 + j] =
-                a[i*4 + 0] * b[0*4 + j] +
-                a[i*4 + 1] * b[1*4 + j] +
-                a[i*4 + 2] * b[2*4 + j] +
-                a[i*4 + 3] * b[3*4 + j];
-        }
+static void
+checkGLErrors(std::string const & where = "")
+{
+    GLuint err;
+    while ((err = glGetError()) != GL_NO_ERROR) {
+        /*
+        std::cerr << "GL error: "
+                  << (where.empty() ? "" : where + " ")
+                  << err << "\n";
+        */
     }
 }
-
 //------------------------------------------------------------------------------
 static void
-calcNormals(OpenSubdiv::OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float> & result ) {
+calcNormals(OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float> & result ) {
 
     // calc normal vectors
     int nverts = (int)pos.size()/3;
@@ -211,7 +284,7 @@ calcNormals(OpenSubdiv::OsdHbrMesh * mesh, std::vector<float> const & pos, std::
     int nfaces = mesh->GetNumCoarseFaces();
     for (int i = 0; i < nfaces; ++i) {
 
-        OpenSubdiv::OsdHbrFace * f = mesh->GetFace(i);
+        OsdHbrFace * f = mesh->GetFace(i);
 
         float const * p0 = &pos[f->GetVertex(0)->GetID()*3],
                     * p1 = &pos[f->GetVertex(1)->GetID()*3],
@@ -237,42 +310,60 @@ updateGeom() {
 
     int nverts = (int)g_positions.size() / 3;
 
-    std::vector<float> vertex;
-    vertex.reserve(nverts*6);
+    if (g_moveScale and g_adaptive and g_animPositionBuffers.size()) {
+        // baked animation only works with adaptive for now
+        // (since non-adaptive requires normals)
+        int nkey = (int)g_animPositionBuffers.size();
 
-    const float *p = &g_positions[0];
-    const float *n = &g_normals[0];
+#if 1
+        glBindBuffer(GL_COPY_READ_BUFFER, g_animPositionBuffers[g_frame%nkey]);
+        glBindBuffer(GL_COPY_WRITE_BUFFER, g_mesh->BindVertexBuffer());
+        glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
+                            0, 0, nverts * 3 * sizeof(float));
+        glBindBuffer(GL_COPY_READ_BUFFER, 0);
+        glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
+        
+#else
+        g_mesh->UpdateVertexBuffer(&g_animPositions[g_frame%nkey][0], nverts);
+#endif
 
-    for (int i = 0; i < nverts; ++i) {
-        float move = g_size*0.005f*cosf(p[0]*100/g_size+g_frame*0.01f);
-        vertex.push_back(p[0]);
-        vertex.push_back(p[1]+g_moveScale*move);
-        vertex.push_back(p[2]);
-        vertex.push_back(n[0]);
-        vertex.push_back(n[1]);
-        vertex.push_back(n[2]);
-        p += 3;
-        n += 3;
+    } else {
+        std::vector<float> vertex;
+        vertex.reserve(nverts*6);
+
+        const float *p = &g_positions[0];
+        const float *n = &g_normals[0];
+
+        for (int i = 0; i < nverts; ++i) {
+            float move = g_size*0.005f*cosf(p[0]*100/g_size+g_frame*0.01f);
+            vertex.push_back(p[0]);
+            vertex.push_back(p[1]+g_moveScale*move);
+            vertex.push_back(p[2]);
+            p += 3;
+            if (g_adaptive == false) {
+                vertex.push_back(n[0]);
+                vertex.push_back(n[1]);
+                vertex.push_back(n[2]);
+                n += 3;
+            }
+        }
+
+        g_mesh->UpdateVertexBuffer(&vertex[0], nverts);
     }
-
-    if (!g_vertexBuffer)
-        g_vertexBuffer = g_osdmesh->InitializeVertexBuffer(6);
-    g_vertexBuffer->UpdateData(&vertex[0], nverts);
 
     Stopwatch s;
     s.Start();
 
-    g_osdmesh->Subdivide(g_vertexBuffer, NULL);
+    g_mesh->Refine();
 
     s.Stop();
     g_cpuTime = float(s.GetElapsed() * 1000.0f);
     s.Start();
-    g_osdmesh->Synchronize();
+
+    g_mesh->Synchronize();
+
     s.Stop();
     g_gpuTime = float(s.GetElapsed() * 1000.0f);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->GetGpuBuffer());
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 //-------------------------------------------------------------------------------
@@ -363,333 +454,794 @@ reshape(int width, int height) {
 
     g_width = width;
     g_height = height;
+
+    g_hud.Rebuild(width, height);
 }
-
-#if _MSC_VER
-    #define snprintf _snprintf
-#endif
-
-#define drawFmtString(x, y, fmt, ...)         \
-    { char line[1024]; \
-      snprintf(line, 1024, fmt, __VA_ARGS__); \
-      const char *p = line; \
-      glWindowPos2i(x, y); \
-      while(*p) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *p++); } }
-
-#define drawString(x, y, str)                 \
-    { const char *p = str; \
-      glWindowPos2i(x, y); \
-      while(*p) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *p++); } }
 
 //------------------------------------------------------------------------------
 const char *getKernelName(int kernel) {
 
-         if (kernel == OpenSubdiv::OsdKernelDispatcher::kCPU)
+         if (kernel == kCPU)
         return "CPU";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kOPENMP)
+    else if (kernel == kOPENMP)
         return "OpenMP";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCUDA)
+    else if (kernel == kCUDA)
         return "Cuda";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kGLSL)
+    else if (kernel == kGLSL)
         return "GLSL";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCL)
+    else if (kernel == kCL)
         return "OpenCL";
     return "Unknown";
 }
 
 //------------------------------------------------------------------------------
-static GLuint compileShader(GLenum shaderType, const char *section)
+static GLuint compileShader(GLenum shaderType,
+                            OpenSubdiv::OsdDrawShaderSource const & common,
+                            OpenSubdiv::OsdDrawShaderSource const & source)
 {
-    const char *sources[2];
-    char define[1024];
-    sprintf(define,
-            "#define %s\n"
-            "#define USE_PTEX_COLOR %d\n"
-            "#define USE_PTEX_OCCLUSION %d\n"
-            "#define USE_PTEX_DISPLACEMENT %d\n",
-            section, g_color, g_occlusion, g_displacement);
+    const char *sources[4];
+    std::stringstream definitions;
+    for (int i=0; i<(int)common.defines.size(); ++i) {
+        definitions << "#define "
+                    << common.defines[i].first << " "
+                    << common.defines[i].second << "\n";
+    }
+    for (int i=0; i<(int)source.defines.size(); ++i) {
+        definitions << "#define "
+                    << source.defines[i].first << " "
+                    << source.defines[i].second << "\n";
+    }
+    std::string defString = definitions.str();
 
-    sources[0] = define;
-    sources[1] = shaderSource;
+    sources[0] = defString.c_str();
+    sources[1] = source.version.c_str();
+    sources[2] = common.source.c_str();
+    sources[3] = source.source.c_str();
 
     GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 2, sources, NULL);
+    glShaderSource(shader, 4, sources, NULL);
     glCompileShader(shader);
 
     GLint status;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
     if( status == GL_FALSE ) {
-        GLchar emsg[1024];
+        GLchar emsg[40960];
         glGetShaderInfoLog(shader, sizeof(emsg), 0, emsg);
-        fprintf(stderr, "Error compiling GLSL shader (%s): %s\n", section, emsg );
-        exit(0);
+        fprintf(stderr, "Error compiling GLSL shader: %s\n", emsg );
+        fprintf(stderr, "Defines: %s\n", defString.c_str());
+        return 0;
     }
 
     return shader;
 }
 
-void bindPTexture(OpenSubdiv::OsdPTexture *osdPTex, GLuint data, GLuint packing, GLuint pages, int samplerUnit)
+int bindPTexture(GLint program, OpenSubdiv::OsdGLPtexTexture *osdPTex,
+                 GLuint data, GLuint packing, GLuint pages, int samplerUnit)
 {
-    glProgramUniform1i(g_program, data, samplerUnit + 0);
+    glProgramUniform1i(program, data, samplerUnit + 0);
     glActiveTexture(GL_TEXTURE0 + samplerUnit + 0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, osdPTex->GetTexelsTexture());
 
-    glProgramUniform1i(g_program, packing, samplerUnit + 1);
+    glProgramUniform1i(program, packing, samplerUnit + 1);
     glActiveTexture(GL_TEXTURE0 + samplerUnit + 1);
     glBindTexture(GL_TEXTURE_BUFFER, osdPTex->GetLayoutTextureBuffer());
 
-    glProgramUniform1i(g_program, pages, samplerUnit + 2);
+    glProgramUniform1i(program, pages, samplerUnit + 2);
     glActiveTexture(GL_TEXTURE0 + samplerUnit + 2);
     glBindTexture(GL_TEXTURE_BUFFER, osdPTex->GetPagesTextureBuffer());
 
     glActiveTexture(GL_TEXTURE0);
-}
 
-void linkDebugProgram() {
-
-    if (g_debugProgram)
-        glDeleteProgram(g_debugProgram);
-
-    GLuint vertexShader = compileShader(GL_VERTEX_SHADER,
-                                          "PTEX_DEBUG_VERTEX_SHADER");
-    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER,
-                                          "PTEX_DEBUG_FRAGMENT_SHADER");
-
-    g_debugProgram = glCreateProgram();
-    glAttachShader(g_debugProgram, vertexShader);
-    glAttachShader(g_debugProgram, fragmentShader);
-    glLinkProgram(g_debugProgram);
-    glDeleteShader(fragmentShader);
-
-    GLint status;
-    glGetProgramiv(g_debugProgram, GL_LINK_STATUS, &status );
-    if( status == GL_FALSE ) {
-        GLchar emsg[1024];
-        glGetProgramInfoLog(g_debugProgram, sizeof(emsg), 0, emsg);
-        fprintf(stderr, "Error linking GLSL program : %s\n", emsg );
-        exit(0);
-    }
-
-    GLint texData = glGetUniformLocation(g_debugProgram, "ptexDebugData");
-    glProgramUniform1i(g_debugProgram, texData, 0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, g_osdPTexImage->GetTexelsTexture());
-}
-
-void linkProgram() {
-
-    if (g_program)
-        glDeleteProgram(g_program);
-
-    GLuint vertexShader         = compileShader(GL_VERTEX_SHADER,
-                                                "VERTEX_SHADER");
-    GLuint geometryShader       = compileShader(GL_GEOMETRY_SHADER,
-                                                "GEOMETRY_SHADER");
-    GLuint fragmentShader       = compileShader(GL_FRAGMENT_SHADER,
-                                                "FRAGMENT_SHADER");
-
-    g_program = glCreateProgram();
-    glAttachShader(g_program, vertexShader);
-    glAttachShader(g_program, geometryShader);
-    glAttachShader(g_program, fragmentShader);
-
-    glBindAttribLocation(g_program, 0, "position");
-    glBindAttribLocation(g_program, 1, "normal");
-
-    glLinkProgram(g_program);
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(geometryShader);
-    glDeleteShader(fragmentShader);
-
-    GLint status;
-    glGetProgramiv(g_program, GL_LINK_STATUS, &status );
-    if( status == GL_FALSE ) {
-        GLchar emsg[1024];
-        glGetProgramInfoLog(g_program, sizeof(emsg), 0, emsg);
-        fprintf(stderr, "Error linking GLSL program : %s\n", emsg );
-        exit(0);
-    }
-
-    // bind ptexture
-    GLint texIndices = glGetUniformLocation(g_program, "ptexIndices");
-    GLint ptexLevel = glGetUniformLocation(g_program, "ptexLevel");
-
-    glProgramUniform1i(g_program, ptexLevel, 1<<g_level);
-    glProgramUniform1i(g_program, texIndices, 0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_BUFFER, g_ptexCoordinatesTextureBuffer->GetGlTexture());
-
-    // color ptex
-    GLint texData = glGetUniformLocation(g_program, "textureImage_Data");
-    GLint texPacking = glGetUniformLocation(g_program, "textureImage_Packing");
-    GLint texPages = glGetUniformLocation(g_program, "textureImage_Pages");
-    bindPTexture(g_osdPTexImage, texData, texPacking, texPages, 1);
-
-    // displacement ptex
-    if (g_displacement) {
-        texData = glGetUniformLocation(g_program, "textureDisplace_Data");
-        texPacking = glGetUniformLocation(g_program, "textureDisplace_Packing");
-        texPages = glGetUniformLocation(g_program, "textureDisplace_Pages");
-        bindPTexture(g_osdPTexDisplacement, texData, texPacking, texPages, 4);
-    }
-
-    // occlusion ptex
-    if (g_occlusion) {
-        texData = glGetUniformLocation(g_program, "textureOcclusion_Data");
-        texPacking = glGetUniformLocation(g_program, "textureOcclusion_Packing");
-        texPages = glGetUniformLocation(g_program, "textureOcclusion_Pages");
-        bindPTexture(g_osdPTexOcclusion, texData, texPacking, texPages, 7);
-    }
-
+    return samplerUnit + 3;
 }
 
 //------------------------------------------------------------------------------
+
+union Effect {
+
+    struct {
+        int color:1;
+        int occlusion:1;
+        int displacement:1;
+        int normal:1;
+        int specular:1;
+        int patchCull:1;
+        int screenSpaceTess:1;
+        int ibl:1;
+        unsigned int wire:2;
+    };
+    int value;
+
+    bool operator < (const Effect &e) const {
+        return value < e.value;
+    }
+};
+
+typedef std::pair<OpenSubdiv::OsdPatchDescriptor, Effect> EffectDesc;
+
+class EffectDrawRegistry : public OpenSubdiv::OsdGLDrawRegistry<EffectDesc> {
+
+protected:
+    virtual ConfigType *
+    _CreateDrawConfig(DescType const & desc, SourceConfigType const * sconfig);
+
+    virtual SourceConfigType *
+    _CreateDrawSourceConfig(DescType const & desc);
+};
+
+EffectDrawRegistry::SourceConfigType *
+EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
+{
+    Effect effect = desc.second;
+
+    SourceConfigType * sconfig =
+        BaseRegistry::_CreateDrawSourceConfig(desc.first);
+    sconfig->commonShader.AddDefine("USE_PTEX_COORD");
+
+    if (effect.patchCull)
+        sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
+    if (effect.screenSpaceTess)
+        sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
+
+    bool quad = true;
+    if (desc.first.type != OpenSubdiv::kNonPatch) {
+
+        quad = false;
+        sconfig->tessEvalShader.source = g_shaderSource + sconfig->tessEvalShader.source;
+        sconfig->tessEvalShader.version = "#version 410\n";
+        if (effect.displacement and (not effect.normal))
+            sconfig->geometryShader.AddDefine("FLAT_NORMALS");
+        if (effect.displacement)
+            sconfig->tessEvalShader.AddDefine("USE_PTEX_DISPLACEMENT");
+    } else {
+        sconfig->vertexShader.source = g_shaderSource;
+        sconfig->vertexShader.version = "#version 410\n";
+        sconfig->vertexShader.AddDefine("VERTEX_SHADER");
+        if (effect.displacement) {
+            sconfig->geometryShader.AddDefine("USE_PTEX_DISPLACEMENT");
+            sconfig->geometryShader.AddDefine("FLAT_NORMALS");
+        }
+    }
+    assert(sconfig);
+
+    sconfig->geometryShader.source = g_shaderSource;
+    sconfig->geometryShader.version = "#version 410\n";
+    sconfig->geometryShader.AddDefine("GEOMETRY_SHADER");
+
+    sconfig->fragmentShader.source = g_shaderSource;
+    sconfig->fragmentShader.version = "#version 410\n";
+    sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
+    if (effect.color)
+        sconfig->fragmentShader.AddDefine("USE_PTEX_COLOR");
+    if (effect.occlusion)
+        sconfig->fragmentShader.AddDefine("USE_PTEX_OCCLUSION");
+    if (effect.normal)
+        sconfig->fragmentShader.AddDefine("USE_PTEX_NORMAL");
+    if (effect.specular)
+        sconfig->fragmentShader.AddDefine("USE_PTEX_SPECULAR");
+    if (effect.ibl)
+        sconfig->fragmentShader.AddDefine("USE_IBL");
+
+    if (quad) {
+        sconfig->geometryShader.AddDefine("PRIM_QUAD");
+        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
+    } else {
+        sconfig->geometryShader.AddDefine("PRIM_TRI");
+        sconfig->fragmentShader.AddDefine("PRIM_TRI");
+    }
+    if (effect.wire == 0) {
+        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
+        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_WIRE");
+    } else if (effect.wire == 1) {
+        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
+        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_FILL");
+    } else if (effect.wire == 2) {
+        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
+        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_LINE");
+    } 
+
+    return sconfig;
+}
+
+EffectDrawRegistry::ConfigType *
+EffectDrawRegistry::_CreateDrawConfig(
+        DescType const & desc,
+        SourceConfigType const * sconfig)
+{
+    ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig);
+    assert(config);
+
+    // XXXdyu can use layout(binding=) with GLSL 4.20 and beyond
+    g_transformBinding = 0;
+    glUniformBlockBinding(config->program,
+        glGetUniformBlockIndex(config->program, "Transform"),
+        g_transformBinding);
+
+    g_tessellationBinding = 1;
+    glUniformBlockBinding(config->program,
+        glGetUniformBlockIndex(config->program, "Tessellation"),
+        g_tessellationBinding);
+
+    g_lightingBinding = 2;
+    glUniformBlockBinding(config->program,
+        glGetUniformBlockIndex(config->program, "Lighting"),
+        g_lightingBinding);
+
+    GLint loc;
+    if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
+        glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
+    }
+    if ((loc = glGetUniformLocation(config->program, "g_ValenceBuffer")) != -1) {
+        glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
+    }
+    if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
+        glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
+    }
+    if ((loc = glGetUniformLocation(config->program, "g_patchLevelBuffer")) != -1) {
+        glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
+    }
+    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
+        glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
+    }
+
+    return config;
+}
+
+EffectDrawRegistry effectRegistry;
+
+EffectDrawRegistry::ConfigType *
+getInstance(Effect effect, OpenSubdiv::OsdPatchDescriptor const & patchDesc) {
+
+    EffectDesc desc;
+    desc.first = patchDesc;
+    desc.second = effect;
+
+    EffectDrawRegistry::ConfigType * config =
+        effectRegistry.GetDrawConfig(desc);
+    assert(config);
+
+    return config;
+}
+
+//------------------------------------------------------------------------------
+OpenSubdiv::OsdGLPtexTexture *
+createPtex(const char *filename) {
+    Ptex::String ptexError;
+    printf("Loading ptex : %s\n", filename);
+    PtexTexture *ptex = PtexTexture::open(filename, ptexError, true);
+    if (ptex == NULL) {
+        printf("Error in reading %s\n", ptex);
+        exit(1);
+    }
+    OpenSubdiv::OsdGLPtexTexture *osdPtex = OpenSubdiv::OsdGLPtexTexture::Create(
+        ptex, /*targetMemory =*/0, /*gutterWidth =*/g_gutterWidth, /*pageMargin = */g_gutterWidth*8);
+
+    ptex->release();
+    return osdPtex;
+}
+
 void
 createOsdMesh(int level, int kernel) {
 
     Ptex::String ptexError;
-    PtexTexture *ptexColor = PtexTexture::open(g_ptexColorFile, ptexError, true);
+    PtexTexture *ptexColor = PtexTexture::open(g_ptexColorFilename, ptexError, true);
+    if (ptexColor == NULL) {
+        printf("Error in reading %s\n", g_ptexColorFilename);
+        exit(1);
+    }
 
     // generate Hbr representation from ptex
-    OpenSubdiv::OsdHbrMesh * hmesh = createPTexGeo<OpenSubdiv::OsdVertex>(ptexColor);
+    OsdHbrMesh * hmesh = createPTexGeo<OpenSubdiv::OsdVertex>(ptexColor);
     if(hmesh == NULL) return;
 
     g_normals.resize(g_positions.size(),0.0f);
     calcNormals( hmesh, g_positions, g_normals );
 
-    // generate Osd mesh from Hbr mesh
-    if (g_osdmesh) delete g_osdmesh;
-    g_osdmesh = new OpenSubdiv::OsdMesh();
-    g_osdmesh->Create(hmesh, level, kernel);
-    if (g_vertexBuffer) {
-        delete g_vertexBuffer;
-        g_vertexBuffer = NULL;
+    delete g_mesh;
+    g_mesh = NULL;
+
+    // Adaptive refinement currently supported only for catmull-clark scheme
+    bool doAdaptive = (g_adaptive!=0 and g_scheme==0);
+
+    OpenSubdiv::OsdMeshBitset bits;
+    bits.set(OpenSubdiv::MeshAdaptive, doAdaptive);
+    bits.set(OpenSubdiv::MeshPtexData, true);
+
+    int numVertexElements = g_adaptive ? 3 : 6;
+
+    if (kernel == kCPU) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuGLVertexBuffer,
+                                         OpenSubdiv::OsdCpuComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(hmesh, numVertexElements, level, bits);
+#ifdef OPENSUBDIV_HAS_OPENMP
+    } else if (kernel == kOPENMP) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuGLVertexBuffer,
+                                         OpenSubdiv::OsdOmpComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(hmesh, numVertexElements, level, bits);
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+    } else if(kernel == kCL) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCLGLVertexBuffer,
+                                         OpenSubdiv::OsdCLComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(hmesh, numVertexElements, level, bits, g_clContext, g_clQueue);
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    } else if(kernel == kCUDA) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCudaGLVertexBuffer,
+                                         OpenSubdiv::OsdCudaComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(hmesh, numVertexElements, level, bits);
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    } else if(kernel == kGLSL) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdGLVertexBuffer,
+                                         OpenSubdiv::OsdGLSLTransformFeedbackComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(hmesh, numVertexElements, level, bits);
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    } else if(kernel == kGLSLCompute) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdGLVertexBuffer,
+                                         OpenSubdiv::OsdGLSLComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(hmesh, numVertexElements, level, bits);
+#endif
+    } else {
+        printf("Unsupported kernel %s\n", getKernelName(kernel));
     }
 
-    // Hbr mesh can be deleted
     delete hmesh;
-
-    // generate oOsdPTexture
-    if (g_osdPTexDisplacement) delete g_osdPTexDisplacement;
-    if (g_osdPTexOcclusion) delete g_osdPTexOcclusion;
-    g_osdPTexDisplacement = NULL;
-    g_osdPTexOcclusion = NULL;
-
-    OpenSubdiv::OsdPTexture::SetGutterWidth(g_gutterWidth);
-    OpenSubdiv::OsdPTexture::SetPageMargin(g_gutterWidth*8);
-    OpenSubdiv::OsdPTexture::SetGutterDebug(g_gutterDebug);
-
-    if (g_osdPTexImage) delete g_osdPTexImage;
-    g_osdPTexImage = OpenSubdiv::OsdPTexture::Create(ptexColor, 0 /*targetmemory*/);
-    ptexColor->release();
-
-    if (g_ptexDisplacementFile) {
-        PtexTexture *ptexDisplacement = PtexTexture::open(g_ptexDisplacementFile, ptexError, true);
-        g_osdPTexDisplacement = OpenSubdiv::OsdPTexture::Create(ptexDisplacement, 0);
-        ptexDisplacement->release();
-    }
-    if (g_ptexOcclusionFile) {
-        PtexTexture *ptexOcclusion = PtexTexture::open(g_ptexOcclusionFile, ptexError, true);
-        g_osdPTexOcclusion = OpenSubdiv::OsdPTexture::Create(ptexOcclusion, 0);
-        ptexOcclusion->release();
-    }
-
-    // create element array buffer
-    if (g_elementArrayBuffer) delete g_elementArrayBuffer;
-    g_elementArrayBuffer = g_osdmesh->CreateElementArrayBuffer(level);
-
-    // create ptex coordinates buffer
-    if (g_ptexCoordinatesTextureBuffer) delete g_ptexCoordinatesTextureBuffer;
-    g_ptexCoordinatesTextureBuffer = g_osdmesh->CreatePtexCoordinatesTextureBuffer(level);
     
-    updateGeom();
-
-    linkProgram();
-    linkDebugProgram();
-}
-
-//------------------------------------------------------------------------------
-void
-drawNormals() {
-
-    float * data=0;
-    int datasize = g_osdmesh->GetTotalVertices() * g_vertexBuffer->GetNumElements();
-
-    data = new float[datasize];
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->GetGpuBuffer());
-    glGetBufferSubData(GL_ARRAY_BUFFER,0,datasize*sizeof(float),data);
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glDisable(GL_LIGHTING);
-    glColor3f(0.0f, 0.0f, 0.5f);
-    glBegin(GL_LINES);
-
-    int start = g_osdmesh->GetFarMesh()->GetSubdivision()->GetFirstVertexOffset(g_level) *
-                g_vertexBuffer->GetNumElements();
-
-    for (int i=start; i<datasize; i+=6) {
-        glVertex3f( data[i  ],
-                    data[i+1],
-                    data[i+2] );
-
-        float n[3] = { data[i+3], data[i+4], data[i+5] };
-        normalize(n);
-
-        glVertex3f( data[i  ]+n[0]*0.2f,
-                    data[i+1]+n[1]*0.2f,
-                    data[i+2]+n[2]*0.2f );
+    if (glGetError() != GL_NO_ERROR){
+        printf ("GLERROR\n");
     }
-    glEnd();
 
-    delete [] data;
+    updateGeom();
+}
+
+void
+createSky() {
+    const int U_DIV = 20;
+    const int V_DIV = 20;
+
+    std::vector<float> vbo;
+    std::vector<int> indices;
+    for (int u = 0; u <= U_DIV; ++u) {
+        for (int v = 0; v < V_DIV; ++v) {
+            float s = float(2*M_PI*float(u)/U_DIV);
+            float t = float(M_PI*float(v)/(V_DIV-1));
+            vbo.push_back(-sin(t)*sin(s));
+            vbo.push_back(cos(t));
+            vbo.push_back(-sin(t)*cos(s));
+            vbo.push_back(u/float(U_DIV));
+            vbo.push_back(v/float(V_DIV));
+
+            if (v > 0 && u > 0) {
+                indices.push_back((u-1)*V_DIV+v-1);
+                indices.push_back(u*V_DIV+v-1);
+                indices.push_back((u-1)*V_DIV+v);
+                indices.push_back((u-1)*V_DIV+v);
+                indices.push_back(u*V_DIV+v-1);
+                indices.push_back(u*V_DIV+v);
+            }
+        }
+    }
+
+    glGenBuffers(1, &g_sky.vertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, g_sky.vertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*vbo.size(), &vbo[0], GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glGenBuffers(1, &g_sky.elementBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_sky.elementBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int)*indices.size(), &indices[0], GL_STATIC_DRAW);
+
+    g_sky.numIndices = (int)indices.size();
+
+    g_sky.program = glCreateProgram();
+
+    OpenSubdiv::OsdDrawShaderSource common, vertexShader, fragmentShader;
+    vertexShader.source = g_skyShaderSource;
+    vertexShader.version = "#version 410\n";
+    vertexShader.AddDefine("SKY_VERTEX_SHADER");
+    fragmentShader.source = g_skyShaderSource;
+    fragmentShader.version = "#version 410\n";
+    fragmentShader.AddDefine("SKY_FRAGMENT_SHADER");
+    GLuint vs = compileShader(GL_VERTEX_SHADER, 
+                              common, vertexShader);
+    GLuint fs = compileShader(GL_FRAGMENT_SHADER,
+                              common, fragmentShader);
+
+    glAttachShader(g_sky.program, vs);
+    glAttachShader(g_sky.program, fs);
+    glLinkProgram(g_sky.program);
+
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
+    GLint environmentMap = glGetUniformLocation(g_sky.program, "environmentMap");
+    if (g_specularEnvironmentMap)
+        glProgramUniform1i(g_sky.program, environmentMap, 6);
+    else
+        glProgramUniform1i(g_sky.program, environmentMap, 5);
+
+    g_sky.mvpMatrix = glGetUniformLocation(g_sky.program, "ModelViewProjectionMatrix");
+}
+
+//------------------------------------------------------------------------------
+static GLuint
+bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
+{
+    OpenSubdiv::OsdPatchDescriptor const & desc = patch.desc;
+
+    EffectDrawRegistry::ConfigType *
+        config = getInstance(effect, desc);
+
+    GLuint program = config->program;
+
+    glUseProgram(program);
+
+    // Update and bind transform state
+    struct Transform {
+        float ModelViewMatrix[16];
+        float ProjectionMatrix[16];
+        float ModelViewProjectionMatrix[16];
+        float ModelViewInverseMatrix[16];
+    } transformData;
+    glGetFloatv(GL_MODELVIEW_MATRIX, transformData.ModelViewMatrix);
+    glGetFloatv(GL_PROJECTION_MATRIX, transformData.ProjectionMatrix);
+    multMatrix(transformData.ModelViewProjectionMatrix,
+               transformData.ModelViewMatrix,
+               transformData.ProjectionMatrix);
+    inverseMatrix(transformData.ModelViewInverseMatrix, transformData.ModelViewMatrix);
+
+    if (! g_transformUB) {
+        glGenBuffers(1, &g_transformUB);
+        glBindBuffer(GL_UNIFORM_BUFFER, g_transformUB);
+        glBufferData(GL_UNIFORM_BUFFER,
+                sizeof(transformData), NULL, GL_STATIC_DRAW);
+    };
+    glBindBuffer(GL_UNIFORM_BUFFER, g_transformUB);
+    glBufferSubData(GL_UNIFORM_BUFFER,
+                0, sizeof(transformData), &transformData);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+    glBindBufferBase(GL_UNIFORM_BUFFER, g_transformBinding, g_transformUB);
+
+    // Update and bind tessellation state
+    struct Tessellation {
+        float TessLevel;
+        int GregoryQuadOffsetBase;
+        int LevelBase;
+    } tessellationData;
+
+    tessellationData.TessLevel = static_cast<float>(1 << g_tessLevel);
+    tessellationData.GregoryQuadOffsetBase = patch.gregoryQuadOffsetBase;
+    tessellationData.LevelBase = patch.levelBase;
+
+    if (! g_tessellationUB) {
+        glGenBuffers(1, &g_tessellationUB);
+        glBindBuffer(GL_UNIFORM_BUFFER, g_tessellationUB);
+        glBufferData(GL_UNIFORM_BUFFER,
+                sizeof(tessellationData), NULL, GL_STATIC_DRAW);
+    };
+    glBindBuffer(GL_UNIFORM_BUFFER, g_tessellationUB);
+    glBufferSubData(GL_UNIFORM_BUFFER,
+                0, sizeof(tessellationData), &tessellationData);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+    glBindBufferBase(GL_UNIFORM_BUFFER, g_tessellationBinding, g_tessellationUB);
+
+    // Update and bind lighting state
+    struct Lighting {
+        struct Light {
+            float position[4];
+            float ambient[4];
+            float diffuse[4];
+            float specular[4];
+        } lightSource[2];
+    } lightingData = {
+        0.5, 0.2f, 1.0f, 0.0f,
+        0.1f, 0.1f, 0.1f, 1.0f,
+        0.7f, 0.7f, 0.7f, 1.0f,
+        0.8f, 0.8f, 0.8f, 1.0f,
+        
+        -0.8f, 0.4f, -1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 1.0f,
+        0.8f, 0.8f, 0.8f, 1.0f,
+    };
+    if (! g_lightingUB) {
+        glGenBuffers(1, &g_lightingUB);
+        glBindBuffer(GL_UNIFORM_BUFFER, g_lightingUB);
+        glBufferData(GL_UNIFORM_BUFFER,
+                sizeof(lightingData), NULL, GL_STATIC_DRAW);
+    };
+    glBindBuffer(GL_UNIFORM_BUFFER, g_lightingUB);
+    glBufferSubData(GL_UNIFORM_BUFFER,
+                0, sizeof(lightingData), &lightingData);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+    glBindBufferBase(GL_UNIFORM_BUFFER, g_lightingBinding, g_lightingUB);
+
+    //-----------------
+    int sampler = 7;
+
+    // color ptex
+    GLint texData = glGetUniformLocation(program, "textureImage_Data");
+    GLint texPacking = glGetUniformLocation(program, "textureImage_Packing");
+    GLint texPages = glGetUniformLocation(program, "textureImage_Pages");
+    sampler = bindPTexture(program, g_osdPTexImage, texData, texPacking, texPages, sampler);
+
+    // displacement ptex
+    if (g_displacement || g_normal) {
+        texData = glGetUniformLocation(program, "textureDisplace_Data");
+        texPacking = glGetUniformLocation(program, "textureDisplace_Packing");
+        texPages = glGetUniformLocation(program, "textureDisplace_Pages");
+        sampler = bindPTexture(program, g_osdPTexDisplacement, texData, texPacking, texPages, sampler);
+    }
+
+    // occlusion ptex
+    if (g_occlusion) {
+        texData = glGetUniformLocation(program, "textureOcclusion_Data");
+        texPacking = glGetUniformLocation(program, "textureOcclusion_Packing");
+        texPages = glGetUniformLocation(program, "textureOcclusion_Pages");
+        sampler = bindPTexture(program, g_osdPTexOcclusion, texData, texPacking, texPages, sampler);
+    }
+
+    // specular ptex
+    if (g_specular) {
+        texData = glGetUniformLocation(program, "textureSpecular_Data");
+        texPacking = glGetUniformLocation(program, "textureSpecular_Packing");
+        texPages = glGetUniformLocation(program, "textureSpecular_Pages");
+        sampler = bindPTexture(program, g_osdPTexSpecular, texData, texPacking, texPages, sampler);
+    }
+
+    // other textures
+    if (g_ibl) {
+        if (g_diffuseEnvironmentMap) {
+            glProgramUniform1i(program, glGetUniformLocation(program, "diffuseEnvironmentMap"), 5);
+            glActiveTexture(GL_TEXTURE5);
+            glBindTexture(GL_TEXTURE_2D, g_diffuseEnvironmentMap);
+            sampler++;
+        }
+        if (g_specularEnvironmentMap) {
+            glProgramUniform1i(program, glGetUniformLocation(program, "specularEnvironmentMap"), 6);
+            glActiveTexture(GL_TEXTURE6);
+            glBindTexture(GL_TEXTURE_2D, g_specularEnvironmentMap);
+            sampler++;
+        }
+        glActiveTexture(GL_TEXTURE0);
+    }
+
+    // checkGLErrors("bindProgram leave");
+
+    return program;
 }
 
 //------------------------------------------------------------------------------
 void
-drawPtexLayout(int page) {
+drawModel() {
+    GLuint bVertex = g_mesh->BindVertexBuffer();
+    glBindBuffer(GL_ARRAY_BUFFER, bVertex);
 
-    glUseProgram(g_debugProgram);
+    if (g_adaptive) {
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    } else {
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
+    }
 
-    GLint width, height, depth;
-    glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_WIDTH, &width);
-    glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_HEIGHT, &height);
-    glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_DEPTH, &depth);
+    OpenSubdiv::OsdPatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
+    GLenum primType = GL_LINES_ADJACENCY;
 
-    GLint pageUniform = glGetUniformLocation(g_debugProgram, "ptexDebugPage");
-    glProgramUniform1i(g_debugProgram, pageUniform, page);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->patchIndexBuffer);
 
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluOrtho2D(-1, 1, -1, 1);
+    // patch drawing
+    for (int i=0; i<(int)patches.size(); ++i) {
+        OpenSubdiv::OsdPatchArray const & patch = patches[i];
+
+        OpenSubdiv::OsdPatchType patchType = patch.desc.type;
+        int patchPattern = patch.desc.pattern;
+        int patchRotation = patch.desc.rotation;
+
+        if (g_mesh->GetDrawContext()->IsAdaptive()) {
+
+            primType = GL_PATCHES;
+            glPatchParameteri(GL_PATCH_VERTICES, patch.patchSize);
+
+            if (g_mesh->GetDrawContext()->vertexTextureBuffer) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_BUFFER, 
+                    g_mesh->GetDrawContext()->vertexTextureBuffer);
+                glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, bVertex);
+            }
+
+            if (g_mesh->GetDrawContext()->vertexValenceTextureBuffer) {
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_BUFFER, 
+                    g_mesh->GetDrawContext()->vertexValenceTextureBuffer);
+            }
+
+            if (g_mesh->GetDrawContext()->quadOffsetTextureBuffer) {
+                glActiveTexture(GL_TEXTURE2);
+                glBindTexture(GL_TEXTURE_BUFFER, 
+                    g_mesh->GetDrawContext()->quadOffsetTextureBuffer);
+            }
+            if (g_mesh->GetDrawContext()->patchLevelTextureBuffer) {
+                glActiveTexture(GL_TEXTURE3);
+                glBindTexture(GL_TEXTURE_BUFFER, 
+                    g_mesh->GetDrawContext()->patchLevelTextureBuffer);
+            }
+            if (g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer) {
+                glActiveTexture(GL_TEXTURE4);
+                glBindTexture(GL_TEXTURE_BUFFER,
+                    g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer);
+            }
+            glActiveTexture(GL_TEXTURE0);
+        } else {
+            if (g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer) {
+                glActiveTexture(GL_TEXTURE4);
+                glBindTexture(GL_TEXTURE_BUFFER,
+                    g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer);
+            }
+            glActiveTexture(GL_TEXTURE0);
+        }
+
+        Effect effect;
+        effect.value = 0;
+        effect.color = g_color;
+        effect.occlusion = g_occlusion;
+        effect.displacement = g_displacement;
+        effect.normal = g_normal;
+        effect.specular = g_specular;
+        effect.patchCull = g_patchCull;
+        effect.screenSpaceTess = g_screenSpaceTess;
+        effect.ibl = g_ibl;
+        effect.wire = g_wire;
+
+        GLuint program = bindProgram(effect, patch);
+
+        GLint nonAdaptiveLevel = glGetUniformLocation(program, "nonAdaptiveLevel");
+        if (nonAdaptiveLevel != -1) {
+            glProgramUniform1i(program, nonAdaptiveLevel, g_level);
+        }
+
+        GLuint overrideColorEnable = glGetUniformLocation(program, "overrideColorEnable");
+        GLuint overrideColor = glGetUniformLocation(program, "overrideColor");
+        switch(patchType) {
+        case OpenSubdiv::kRegular:
+            glProgramUniform4f(program, overrideColor, 1.0f, 1.0f, 1.0f, 1);
+            break;
+        case OpenSubdiv::kBoundary:
+            glProgramUniform4f(program, overrideColor, 0.8f, 0.0f, 0.0f, 1);
+            break;
+        case OpenSubdiv::kCorner:
+            glProgramUniform4f(program, overrideColor, 0, 1.0, 0, 1);
+            break;
+        case OpenSubdiv::kGregory:
+            glProgramUniform4f(program, overrideColor, 1.0f, 1.0f, 0.0f, 1);
+            break;
+        case OpenSubdiv::kBoundaryGregory:
+            glProgramUniform4f(program, overrideColor, 1.0f, 0.5f, 0.0f, 1);
+            break;
+        case OpenSubdiv::kTransitionRegular:
+            switch (patchPattern) {
+            case 0:
+                glProgramUniform4f(program, overrideColor, 0, 1.0f, 1.0f, 1);
+                break;
+            case 1:
+                glProgramUniform4f(program, overrideColor, 0, 0.5f, 1.0f, 1);
+                break;
+            case 2:
+                glProgramUniform4f(program, overrideColor, 0, 0.5f, 0.5f, 1);
+                break;
+            case 3:
+                glProgramUniform4f(program, overrideColor, 0.5f, 0, 1.0f, 1);
+                break;
+            case 4:
+                glProgramUniform4f(program, overrideColor, 1.0f, 0.5f, 1.0f, 1);
+                break;
+            }
+            break;
+        case OpenSubdiv::kTransitionBoundary:
+            glProgramUniform4f(program, overrideColor, 0, 0, 0.5f, 1);
+            break;
+        case OpenSubdiv::kTransitionCorner:
+            glProgramUniform4f(program, overrideColor, 0, 0, 0.5f, 1);
+            break;
+        default:
+            glProgramUniform4f(program, overrideColor, 0.4f, 0.4f, 0.8f, 1);
+            break;
+        }
+
+        if (g_displayPatchColor or g_wire == 2) {
+            glProgramUniform1i(program, overrideColorEnable, 1);
+        } else {
+            glProgramUniform1i(program, overrideColorEnable, 0);
+        }
+
+        if (g_wire == 0) {
+            glDisable(GL_CULL_FACE);
+        }
+        glDrawElements(primType,
+                       patch.numIndices, GL_UNSIGNED_INT,
+                       (void *)(patch.firstIndex * sizeof(unsigned int)));
+        if (g_wire == 0) {
+            glEnable(GL_CULL_FACE);
+        }
+    }
+    if (g_adaptive) {
+        glDisableVertexAttribArray(0);
+    } else {
+        glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+void
+drawSky() {
+    
+    glUseProgram(g_sky.program);
+
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+    glRotatef(g_rotate[1], 1, 0, 0);
+    glRotatef(g_rotate[0], 0, 1, 0);
+    glScalef(g_size, g_size, g_size);
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glBegin(GL_TRIANGLE_STRIP);
-    glVertex3f(0, 0, 0);
-    glVertex3f(0, 1, 0);
-    glVertex3f(1, 0, 0);
-    glVertex3f(1, 1, 0);
-    glEnd();
+    float modelView[16], projection[16], mvp[16];
+    glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
+    glGetFloatv(GL_PROJECTION_MATRIX, projection);
+    multMatrix(mvp, modelView, projection);
+    glProgramUniformMatrix4fv(g_sky.program, g_sky.mvpMatrix, 1, GL_FALSE, mvp);
 
-    glUseProgram(0);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
 
-    drawFmtString(g_width/2, g_height - 10, "Size = %dx%d, Page = %d/%d", width, height, page, depth);
-}
+    glBindBuffer(GL_ARRAY_BUFFER, g_sky.vertexBuffer);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 5, 0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 5, (void*)(sizeof(GLfloat)*3));
 
-//------------------------------------------------------------------------------
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_sky.elementBuffer);
+    glDrawElements(GL_TRIANGLES, g_sky.numIndices, GL_UNSIGNED_INT, 0);
+
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+ }
+
 void
 display() {
 
+    Stopwatch s;
+    s.Start();
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    // primitive counting
+    glBeginQuery(GL_PRIMITIVES_GENERATED, g_primQuery);
+
     glViewport(0, 0, g_width, g_height);
+
     double aspect = g_width/(double)g_height;
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(45.0, aspect, g_size*0.001f, g_size+g_dolly);
+
+    if (g_ibl) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        drawSky();
+    }
+
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glTranslatef(-g_pan[0], -g_pan[1], -g_dolly);
@@ -697,88 +1249,68 @@ display() {
     glRotatef(g_rotate[0], 0, 1, 0);
     glTranslatef(-g_center[0], -g_center[1], -g_center[2]);
 
-    glUseProgram(g_program);
-
-    {
-        // shader uniform setting
-        GLint position = glGetUniformLocation(g_program, "lightSource[0].position");
-        GLint ambient = glGetUniformLocation(g_program, "lightSource[0].ambient");
-        GLint diffuse = glGetUniformLocation(g_program, "lightSource[0].diffuse");
-        GLint specular = glGetUniformLocation(g_program, "lightSource[0].specular");
-
-        glProgramUniform4f(g_program, position, 0, 0.2f, 1, 0);
-        glProgramUniform4f(g_program, ambient, 0.4f, 0.4f, 0.4f, 1.0f);
-        glProgramUniform4f(g_program, diffuse, 0.3f, 0.3f, 0.3f, 1.0f);
-        glProgramUniform4f(g_program, specular, 0.2f, 0.2f, 0.2f, 1.0f);
-
-        GLint otcMatrix = glGetUniformLocation(g_program, "objectToClipMatrix");
-        GLint oteMatrix = glGetUniformLocation(g_program, "objectToEyeMatrix");
-        GLfloat modelView[16], proj[16], mvp[16];
-        glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
-        glGetFloatv(GL_PROJECTION_MATRIX, proj);
-        multMatrix(mvp, modelView, proj);
-        glProgramUniformMatrix4fv(g_program, otcMatrix, 1, false, mvp);
-        glProgramUniformMatrix4fv(g_program, oteMatrix, 1, false, modelView);
-    }
-
-    GLuint bVertex = g_vertexBuffer->GetGpuBuffer();
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER, bVertex);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_elementArrayBuffer->GetGlBuffer());
-
-    glPolygonMode(GL_FRONT_AND_BACK, g_wire==0 ? GL_LINE : GL_FILL);
-
-//    glPatchParameteri(GL_PATCH_VERTICES, 4);
-//    glDrawElements(GL_PATCHES, g_numIndices, GL_UNSIGNED_INT, 0);
-    glDrawElements(GL_LINES_ADJACENCY, g_elementArrayBuffer->GetNumIndices(), GL_UNSIGNED_INT, 0);
+    drawModel();
 
     glUseProgram(0);
 
-    if (g_drawNormals)
-        drawNormals();
+    glEndQuery(GL_PRIMITIVES_GENERATED);
 
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-    if (g_ptexDebug)
-        drawPtexLayout(g_ptexDebug-1);
-
-    glColor3f(1, 1, 1);
-    drawFmtString(10, 10, "LEVEL = %d", g_level);
-    drawFmtString(10, 30, "# of Vertices = %d", g_osdmesh->GetFarMesh()->GetNumVertices());
-    drawFmtString(10, 50, "KERNEL = %s", getKernelName(g_kernel));
-    drawFmtString(10, 70, "CPU TIME = %.3f ms", g_cpuTime);
-    drawFmtString(10, 90, "GPU TIME = %.3f ms", g_gpuTime);
-    g_fpsTimer.Stop();
-    drawFmtString(10, 110, "FPS = %3.1f", 1.0/g_fpsTimer.GetElapsed());
-    g_fpsTimer.Start();
-    drawFmtString(10, 130, "SUBDIVISION = %s", g_scheme==0 ? "CATMARK" : "BILINEAR");
-
-    drawString(10, g_height-10, "a:   ambient occlusion on/off");
-    drawString(10, g_height-30, "c:   color on/off");
-    drawString(10, g_height-50, "d:   displacement on/off");
-    drawString(10, g_height-70, "e:   show normal vector");
-    drawString(10, g_height-90, "f:   fit frame");
-    drawString(10, g_height-110, "w:   toggle wireframe");
-    drawString(10, g_height-130, "m:   toggle vertex moving");
-    drawString(10, g_height-150, "s:   bilinear / catmark");
-    drawString(10, g_height-170, "1-7: subdivision level");
-
-
+    s.Stop();
+    float drawCpuTime = float(s.GetElapsed() * 1000.0f);
+    s.Start();
     glFinish();
+    s.Stop();
+    float drawGpuTime = float(s.GetElapsed() * 1000.0f);
+
+    GLuint numPrimsGenerated = 0;
+    glGetQueryObjectuiv(g_primQuery, GL_QUERY_RESULT, &numPrimsGenerated);
+
+    if (g_hud.IsVisible()) {
+        g_fpsTimer.Stop();
+        double fps = 1.0/g_fpsTimer.GetElapsed();
+        g_fpsTimer.Start();
+
+        // Avereage fps over a defined number of time samples for
+        // easier reading in the HUD
+        g_fpsTimeSamples[g_currentFpsTimeSample++] = float(fps);
+        if (g_currentFpsTimeSample >= NUM_FPS_TIME_SAMPLES)
+            g_currentFpsTimeSample = 0;
+        double averageFps = 0;
+        for (int i=0; i< NUM_FPS_TIME_SAMPLES; ++i) {
+            averageFps += g_fpsTimeSamples[i]/(float)NUM_FPS_TIME_SAMPLES;
+        }
+
+        
+
+        g_hud.DrawString(10, -180, "Tess level (+/-): %d", g_tessLevel);
+	if (numPrimsGenerated > 1000000) {
+	  g_hud.DrawString(10, -160, "Primitives      : %3.1f million", (float)numPrimsGenerated/1000000.0);
+	} else if (numPrimsGenerated > 1000) {
+	  g_hud.DrawString(10, -160, "Primitives      : %3.1f thousand", (float)numPrimsGenerated/1000.0);
+	} else {
+	  g_hud.DrawString(10, -160, "Primitives      : %d", numPrimsGenerated);
+	}
+        g_hud.DrawString(10, -140, "Vertices        : %d", g_mesh->GetNumVertices());
+        g_hud.DrawString(10, -120, "Scheme          : %s", g_scheme == 0 ? "CATMARK" : "LOOP");
+        g_hud.DrawString(10, -100, "GPU Kernel      : %.3f ms", g_gpuTime);
+        g_hud.DrawString(10, -80,  "CPU Kernel      : %.3f ms", g_cpuTime);
+        g_hud.DrawString(10, -60,  "GPU Draw        : %.3f ms", drawGpuTime);
+        g_hud.DrawString(10, -40,  "CPU Draw        : %.3f ms", drawCpuTime);
+        g_hud.DrawString(10, -20,  "FPS             : %3.1f", averageFps);
+    }
+
+    g_hud.Flush();
+
     glutSwapBuffers();
+    glFinish();
+
+    // checkGLErrors("draw end");
 }
 
 //------------------------------------------------------------------------------
 void mouse(int button, int state, int x, int y) {
+
+    if (button == 0 && state == 1 && g_hud.MouseClick(x, y)) return;
 
     g_prev_x = float(x);
     g_prev_y = float(y);
@@ -796,7 +1328,8 @@ void motion(int x, int y) {
         // pan
         g_pan[0] -= g_dolly*(x - g_prev_x)/g_width;
         g_pan[1] += g_dolly*(y - g_prev_y)/g_height;
-    } else if (g_mbutton[0] && g_mbutton[1] && !g_mbutton[2]) {
+    } else if ((g_mbutton[0] && g_mbutton[1] && !g_mbutton[2]) or
+               (!g_mbutton[0] && !g_mbutton[1] && g_mbutton[2])) {
         // dolly
         g_dolly -= g_dolly*0.01f*(x - g_prev_x);
         if(g_dolly <= 0.01) g_dolly = 0.01f;
@@ -809,79 +1342,163 @@ void motion(int x, int y) {
 //------------------------------------------------------------------------------
 void quit() {
 
-    if(g_osdmesh)
-        delete g_osdmesh;
+    if (g_osdPTexImage) delete g_osdPTexImage;
+    if (g_osdPTexDisplacement) delete g_osdPTexDisplacement;
+    if (g_osdPTexOcclusion) delete g_osdPTexOcclusion;
+    if (g_osdPTexSpecular) delete g_osdPTexSpecular;
 
-    if (g_vertexBuffer)
-        delete g_vertexBuffer;
+    glDeleteQueries(1, &g_primQuery);
 
-    if (g_elementArrayBuffer)
-        delete g_elementArrayBuffer;
-
-    if (g_ptexCoordinatesTextureBuffer)
-        delete g_ptexCoordinatesTextureBuffer;
+    if(g_mesh)
+        delete g_mesh;
 
 #ifdef OPENSUBDIV_HAS_CUDA
     cudaDeviceReset();
 #endif
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+    uninitCL(g_clContext, g_clQueue);
+#endif
+
+    if (g_animPositionBuffers.size())
+        glDeleteBuffers((int)g_animPositionBuffers.size(), &g_animPositionBuffers[0]);
+    if (g_diffuseEnvironmentMap) glDeleteTextures(1, &g_diffuseEnvironmentMap);
+    if (g_specularEnvironmentMap) glDeleteTextures(1, &g_specularEnvironmentMap);
+
+    if (g_sky.program) glDeleteProgram(g_sky.program);
+    if (g_sky.vertexBuffer) glDeleteBuffers(1, &g_sky.vertexBuffer);
+    if (g_sky.elementBuffer) glDeleteBuffers(1, &g_sky.elementBuffer);
+
     exit(0);
 }
 
 //------------------------------------------------------------------------------
-void kernelMenu(int k) {
-
+static void
+callbackWireframe(int b)
+{
+    g_wire = b;
+}
+static void
+callbackKernel(int k)
+{
     g_kernel = k;
     createOsdMesh(g_level, g_kernel);
 }
-
-//------------------------------------------------------------------------------
-void
-levelMenu(int l) {
-
-    g_level = l;
-    createOsdMesh(g_level, g_kernel);
-}
-
-//------------------------------------------------------------------------------
-void
-schemeMenu(int s) {
-
+static void
+callbackScheme(int s)
+{
     g_scheme = s;
     createOsdMesh(g_level, g_kernel);
 }
+static void
+callbackLevel(int l)
+{
+    g_level = l;
+    createOsdMesh(g_level, g_kernel);
+}
+static void
+callbackCheckBox(bool checked, int button)
+{
+    bool rebuild = false;
+
+    switch(button) {
+    case HUD_CB_ADAPTIVE:
+        g_adaptive = checked;
+        rebuild = true;
+        break;
+    case HUD_CB_DISPLAY_COLOR:
+        g_color = checked;
+        break;
+    case HUD_CB_DISPLAY_OCCLUSION:
+        g_occlusion = checked;
+        break;
+    case HUD_CB_DISPLAY_DISPLACEMENT:
+        g_displacement = checked;
+        break;
+    case HUD_CB_DISPLAY_NORMALMAP:
+        g_normal = checked;
+        break;
+    case HUD_CB_DISPLAY_SPECULAR:
+        g_specular = checked;
+        break;
+    case HUD_CB_ANIMATE_VERTICES:
+        g_moveScale = checked ? 1.0f : 0.0f;
+        break;
+    case HUD_CB_DISPLAY_PATCH_COLOR:
+        g_displayPatchColor = checked;
+        break;
+    case HUD_CB_VIEW_LOD:
+        g_screenSpaceTess = checked;
+        break;
+    case HUD_CB_PATCH_CULL:
+        g_patchCull = checked;
+        break;
+    case HUD_CB_IBL:
+        g_ibl = checked;
+        break;
+    }
+
+    if (rebuild)
+        createOsdMesh(g_level, g_kernel);
+}
+//-------------------------------------------------------------------------------
+void
+reloadShaderFile() {
+    if (not g_shaderFilename) return;
+
+    std::ifstream ifs(g_shaderFilename);
+    if (not ifs) return;
+    printf("Load shader %s\n", g_shaderFilename);
+
+    std::stringstream ss;
+    ss << ifs.rdbuf();
+    ifs.close();
+
+    g_shaderSource = ss.str();
+
+    effectRegistry.Reset();
+}
 
 //------------------------------------------------------------------------------
-void
-menu(int m) {
+static void toggleFullScreen() {
 
-    // top menu
+    static int x,y,w,h;
+    
+    g_fullscreen = !g_fullscreen;
+    
+    if (g_fullscreen) {
+        x = glutGet((GLenum)GLUT_WINDOW_X);
+        y = glutGet((GLenum)GLUT_WINDOW_Y);
+        w = glutGet((GLenum)GLUT_WINDOW_WIDTH);
+        h = glutGet((GLenum)GLUT_WINDOW_HEIGHT);
+        
+        glutFullScreen( );
+        
+        reshape( glutGet(GLUT_SCREEN_WIDTH),
+                 glutGet(GLUT_SCREEN_HEIGHT) );
+    } else {
+        glutReshapeWindow(w, h);
+        glutPositionWindow(x,y);
+        reshape( w, h );
+    }
 }
 
 //------------------------------------------------------------------------------
 void
 keyboard(unsigned char key, int x, int y) {
 
+    if (g_hud.KeyDown(key)) return;
+
     switch (key) {
         case 'q': quit();
-        case 'w': g_wire = (g_wire+1)%2; break;
         case 'e': g_drawNormals = (g_drawNormals+1)%2; break;
         case 'f': fitFrame(); break;
-        case 'a': if (g_osdPTexOcclusion) g_occlusion = !g_occlusion; linkProgram(); break;
-        case 'd': if (g_osdPTexDisplacement) g_displacement = !g_displacement; linkProgram();break;
-        case 'c': g_color = !g_color; linkProgram(); break;
-        case 's': schemeMenu(!g_scheme); break;
-        case 'm': g_moveScale = 1.0f - g_moveScale; break;
-        case 'p': g_ptexDebug++; break;
-        case 'o': g_ptexDebug = std::max(0, g_ptexDebug-1); break;
+        case '\t': toggleFullScreen(); break;
         case 'g': g_gutterWidth = (g_gutterWidth+1)%8; createOsdMesh(g_level, g_kernel); break;
-        case 'h': g_gutterDebug = !g_gutterDebug; createOsdMesh(g_level, g_kernel); break;
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7': levelMenu(key-'0'); break;
+        case 'r': reloadShaderFile(); createOsdMesh(g_level, g_kernel); break;
+        case '+':
+        case '=': g_tessLevel++; break;
+        case '-': g_tessLevel = std::max(1, g_tessLevel-1); break;
     }
 }
 
@@ -906,6 +1523,7 @@ initGL() {
     glColor3f(1, 1, 1);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
+    glEnable(GL_CULL_FACE);
 
     GLfloat color[4] = {1, 1, 1, 1};
     GLfloat position[4] = {5, 5, 10, 1};
@@ -923,7 +1541,60 @@ initGL() {
 }
 
 //------------------------------------------------------------------------------
+void usage(const char *program) {
+    printf("Usage: %s [options] <color.ptx> [<displacement.ptx>] [occlusion.ptx>] "
+           "[specular.ptx] [pose.obj]...\n", program);
+    printf("Options:  -l level                : subdivision level\n");
+    printf("          -c count                : frame count until exit (for profiler)\n");
+    printf("          -d <diffseEnvMap.hdr>   : diffuse environment map for IBL\n");
+    printf("          -e <specularEnvMap.hdr> : specular environment map for IBL\n");
+    printf("          -s <shaderfile.glsl>    : custom shader file\n");
+
+}
+//------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
+
+    std::vector<std::string> animobjs;
+    const char *diffuseEnvironmentMap = NULL, *specularEnvironmentMap = NULL;
+    const char *colorFilename = NULL, *displacementFilename = NULL,
+        *occlusionFilename = NULL, *specularFilename = NULL;
+
+    for (int i = 1; i < argc; ++i) {
+        if (strstr(argv[i], ".obj")) {
+            animobjs.push_back(argv[i]);
+        } else if (!strcmp(argv[i], "-l"))
+            g_level = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "-c"))
+            g_repeatCount = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "-d"))
+            diffuseEnvironmentMap = argv[++i];
+        else if (!strcmp(argv[i], "-e"))
+            specularEnvironmentMap = argv[++i];
+        else if (!strcmp(argv[i], "-s"))
+            g_shaderFilename = argv[++i];
+        else if (colorFilename == NULL)
+            colorFilename = argv[i];
+        else if (displacementFilename == NULL) {
+            displacementFilename = argv[i];
+            g_displacement = 1;
+            g_normal = 1;
+        } else if (occlusionFilename == NULL) {
+            occlusionFilename = argv[i];
+            g_occlusion = 1;
+        } else if (specularFilename == NULL) {
+            specularFilename = argv[i];
+            g_specular = 1;
+        }
+    }
+
+    g_shaderSource = g_defaultShaderSource;
+    reloadShaderFile();
+
+    g_ptexColorFilename = colorFilename;
+    if (g_ptexColorFilename == NULL) {
+        usage(argv[0]);
+        return 1;
+    }
 
     glutInit(&argc, argv);
 
@@ -931,45 +1602,19 @@ int main(int argc, char ** argv) {
     glutInitWindowSize(1024, 1024);
     glutCreateWindow("OpenSubdiv ptexViewer");
 
-    int lmenu = glutCreateMenu(levelMenu);
-    for(int i = 1; i < 8; ++i){
-        char level[16];
-        sprintf(level, "Level %d\n", i);
-        glutAddMenuEntry(level, i);
+#ifdef OPENSUBDIV_HAS_OPENCL
+    // Initialize OpenCL
+    if (initCL(&g_clContext, &g_clQueue) == false) {
+        printf("Error in initializing OpenCL\n");
+        exit(1);
     }
-    int smenu = glutCreateMenu(schemeMenu);
-    glutAddMenuEntry("Catmark", 0);
-    glutAddMenuEntry("Bilinear", 1);
-
-    // Register Osd compute kernels
-    OpenSubdiv::OsdCpuKernelDispatcher::Register();
-    OpenSubdiv::OsdGlslKernelDispatcher::Register();
-
-#if OPENSUBDIV_HAS_OPENCL
-    OpenSubdiv::OsdClKernelDispatcher::Register();
 #endif
 
 #if OPENSUBDIV_HAS_CUDA
-    OpenSubdiv::OsdCudaKernelDispatcher::Register();
-
     // Note: This function randomly crashes with linux 5.0-dev driver.
     // cudaGetDeviceProperties overrun stack..?
     cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
 #endif
-
-    int kmenu = glutCreateMenu(kernelMenu);
-    int nKernels = OpenSubdiv::OsdKernelDispatcher::kMAX;
-
-    for(int i = 0; i < nKernels; ++i)
-        if(OpenSubdiv::OsdKernelDispatcher::HasKernelType(
-               OpenSubdiv::OsdKernelDispatcher::KernelType(i)))
-            glutAddMenuEntry(getKernelName(i), i);
-
-    glutCreateMenu(menu);
-    glutAddSubMenu("Level", lmenu);
-    glutAddSubMenu("Scheme", smenu);
-    glutAddSubMenu("Kernel", kmenu);
-    glutAttachMenu(GLUT_RIGHT_BUTTON);
 
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
@@ -978,34 +1623,162 @@ int main(int argc, char ** argv) {
     glutMotionFunc(motion);
     glewInit();
     initGL();
+    g_hud.Init(g_width, g_height);
 
-    for (int i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "-d"))
-            g_level = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "-c"))
-            g_repeatCount = atoi(argv[++i]);
-        else if (g_ptexColorFile == NULL)
-            g_ptexColorFile = argv[i];
-        else if (g_ptexDisplacementFile == NULL)
-            g_ptexDisplacementFile = argv[i];
-        else if (g_ptexOcclusionFile == NULL)
-            g_ptexOcclusionFile = argv[i];
+    g_hud.AddRadioButton(0, "CPU (K)", true, 10, 10, callbackKernel, kCPU, 'k');
+#ifdef OPENSUBDIV_HAS_OPENMP
+    g_hud.AddRadioButton(0, "OPENMP", false, 10, 30, callbackKernel, kOPENMP, 'k');
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    g_hud.AddRadioButton(0, "CUDA",   false, 10, 50, callbackKernel, kCUDA, 'k');
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+    g_hud.AddRadioButton(0, "OPENCL", false, 10, 70, callbackKernel, kCL, 'k');
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    g_hud.AddRadioButton(0, "GLSL Transform Feedback",   false, 10, 90, callbackKernel, kGLSL, 'k');
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    // Must also check at run time for OpenGL 4.3
+    if (GLEW_VERSION_4_3) {
+        g_hud.AddRadioButton(0, "GLSL Compute",   false, 10, 110, callbackKernel, kGLSLCompute, 'k');
+    }
+#endif
 
+    g_hud.AddRadioButton(1, "Wire (W)",       (g_wire==0), 100, 10, callbackWireframe, 0, 'w');
+    g_hud.AddRadioButton(1, "Shaded",         (g_wire==1), 100, 30, callbackWireframe, 1, 'w');
+    g_hud.AddRadioButton(1, "Wire on Shaded", (g_wire==2), 100, 50, callbackWireframe, 2, 'w');
+
+    g_hud.AddCheckBox("Color (C)", g_color, 250, 10, callbackCheckBox, HUD_CB_DISPLAY_COLOR, 'c');
+    if (occlusionFilename != NULL) 
+        g_hud.AddCheckBox("Ambient Occlusion (A)", g_occlusion,
+                          250, 30, callbackCheckBox, HUD_CB_DISPLAY_OCCLUSION, 'a');
+    if (displacementFilename != NULL) {
+        g_hud.AddCheckBox("Displacement (D)", g_displacement,
+                          250, 50, callbackCheckBox, HUD_CB_DISPLAY_DISPLACEMENT, 'd');
+        g_hud.AddCheckBox("Normal (N)", g_normal,
+                          250, 70, callbackCheckBox, HUD_CB_DISPLAY_NORMALMAP, 'n');
+    }
+    if (specularFilename != NULL)
+        g_hud.AddCheckBox("Specular (S)", g_specular,
+                          250, 90, callbackCheckBox, HUD_CB_DISPLAY_SPECULAR, 's');
+
+    if (diffuseEnvironmentMap || specularEnvironmentMap) {
+        g_hud.AddCheckBox("IBL (I)", g_ibl, 250, 110, callbackCheckBox, HUD_CB_IBL, 'i');
     }
 
-    if (g_ptexColorFile == NULL) {
-        printf("Usage: %s <color.ptx> [<displacement.ptx>] [<occlusion.ptx>] \n", argv[0]);
-        return 1;
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
+                      450, 10, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
+    g_hud.AddCheckBox("Patch Color (P)",  g_displayPatchColor,
+                      450, 30, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');
+    g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
+                      450, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
+                      450, 70, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
+
+    g_hud.AddCheckBox("Adaptive (`)", g_adaptive, 10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
+
+    for (int i = 1; i < 8; ++i) {
+        char level[16];
+        sprintf(level, "Lv. %d", i);
+        g_hud.AddRadioButton(3, level, i==2, 10, 150+i*20, callbackLevel, i, '0'+i);
     }
 
+    g_hud.AddRadioButton(4, "CATMARK", true, -220, 10, callbackScheme, 0);
+    g_hud.AddRadioButton(4, "BILINEAR", false, -220, 30, callbackScheme, 1);
+
+    // create mesh from ptex metadata
     createOsdMesh(g_level, g_kernel);
+
+    // load ptex files
+    if (colorFilename)
+        g_osdPTexImage = createPtex(colorFilename);
+    if (displacementFilename)
+        g_osdPTexDisplacement = createPtex(displacementFilename);
+    if (occlusionFilename)
+        g_osdPTexOcclusion = createPtex(occlusionFilename);
+    if (specularFilename)
+        g_osdPTexSpecular = createPtex(specularFilename);
+
+    // load animation obj sequences (optional)
+    if (not animobjs.empty()) {
+        g_animPositionBuffers.resize(animobjs.size());
+        glGenBuffers((int)animobjs.size(), &g_animPositionBuffers[0]);
+
+        for (int i = 0; i < (int)animobjs.size(); ++i) {
+            std::ifstream ifs(animobjs[i].c_str());
+            if (ifs) {
+                std::stringstream ss;
+                ss << ifs.rdbuf();
+                ifs.close();
+                
+                printf("Reading %s\r", animobjs[i].c_str());
+                std::string str = ss.str();
+                shape *shape = shape::parseShape(str.c_str());
+
+                if (shape->verts.size() != g_positions.size()) {
+                    printf("Error: vertex count doesn't match.\n");
+                    quit();
+                }
+
+                g_animPositions.push_back(shape->verts);
+
+                glBindBuffer(GL_ARRAY_BUFFER, g_animPositionBuffers[i]);
+                glBufferData(GL_ARRAY_BUFFER, shape->verts.size()*sizeof(float), &shape->verts[0], GL_STATIC_DRAW);
+
+                delete shape;
+            } else {
+                printf("Error in reading %s\n", animobjs[i].c_str());
+                quit();
+            }
+
+        }
+        printf("\n");
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
+    if (diffuseEnvironmentMap) {
+        HdrInfo info;
+        unsigned char * image = loadHdr(diffuseEnvironmentMap, &info, /*convertToFloat=*/true);
+        if (image) {
+            glGenTextures(1, &g_diffuseEnvironmentMap);
+            glBindTexture(GL_TEXTURE_2D, g_diffuseEnvironmentMap);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, info.width, info.height,
+                         0, GL_RGBA, GL_FLOAT, image);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glBindTexture(GL_TEXTURE_2D, 0);
+            free(image);
+        }
+    }
+    if (specularEnvironmentMap) {
+        HdrInfo info;
+        unsigned char * image = loadHdr(specularEnvironmentMap, &info, /*convertToFloat=*/true);
+        if (image) {
+            glGenTextures(1, &g_specularEnvironmentMap);
+            glBindTexture(GL_TEXTURE_2D, g_specularEnvironmentMap);
+            glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, info.width, info.height,
+                         0, GL_RGBA, GL_FLOAT, image);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glBindTexture(GL_TEXTURE_2D, 0);
+            free(image);
+        }
+    }
+    if (diffuseEnvironmentMap || specularEnvironmentMap) {
+        createSky();
+    }
 
     fitFrame();
 
+    glGenQueries(1, &g_primQuery);
     glutIdleFunc(idle);
     glutMainLoop();
 
     quit();
 }
-
-//------------------------------------------------------------------------------

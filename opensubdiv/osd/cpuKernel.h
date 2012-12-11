@@ -54,85 +54,65 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
 #ifndef OSD_CPU_KERNEL_H
 #define OSD_CPU_KERNEL_H
 
 #include "../version.h"
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-struct VertexDescriptor {
+struct OsdVertexDescriptor;
 
-    VertexDescriptor(int numVertexElem, int numVaryingElem)
-        : numVertexElements(numVertexElem), numVaryingElements(numVaryingElem) { }
+void OsdCpuComputeFace(const OsdVertexDescriptor *vdesc,
+                       float * vertex, float * varying,
+                       const int *F_IT, const int *F_ITa,
+                       int offset, int start, int end);
 
-    void Clear(float *vertex, float *varying, int index) const {
-        if (vertex) {
-            for (int i = 0; i < numVertexElements; ++i)
-                vertex[index*numVertexElements+i] = 0.0f;
-        }
+void OsdCpuComputeEdge(const OsdVertexDescriptor *vdesc,
+                       float *vertex, float * varying,
+                       const int *E_IT, const float *E_ITa,
+                       int offset, int start, int end);
 
-        if (varying) {
-            for (int i = 0; i < numVaryingElements; ++i)
-                varying[index*numVaryingElements+i] = 0.0f;
-        }
-    }
-    void AddWithWeight(float *vertex, int dstIndex, int srcIndex, float weight) const {
-        int d = dstIndex * numVertexElements;
-        int s = srcIndex * numVertexElements;
-        for (int i = 0; i < numVertexElements; ++i)
-            vertex[d++] += vertex[s++] * weight;
-    }
-    void AddVaryingWithWeight(float *varying, int dstIndex, int srcIndex, float weight) const {
-        int d = dstIndex * numVaryingElements;
-        int s = srcIndex * numVaryingElements;
-        for (int i = 0; i < numVaryingElements; ++i)
-            varying[d++] += varying[s++] * weight;
-    }
+void OsdCpuComputeVertexA(const OsdVertexDescriptor *vdesc,
+                          float *vertex, float * varying,
+                          const int *V_ITa, const float *V_IT,
+                          int offset, int start, int end, int pass);
 
-    void ApplyVertexEditAdd(float *vertex, int primVarOffset, int primVarWidth, int editIndex, const float *editValues) const {
-        int d = editIndex * numVertexElements + primVarOffset;
-        for (int i = 0; i < primVarWidth; ++i) {
-            vertex[d++] += editValues[i];
-        }
-    }
+void OsdCpuComputeVertexB(const OsdVertexDescriptor *vdesc,
+                          float *vertex, float * varying,
+                          const int *V_ITa, const int *V_IT, const float *V_W,
+                          int offset, int start, int end);
 
-    void ApplyVertexEditSet(float *vertex, int primVarOffset, int primVarWidth, int editIndex, const float *editValues) const {
-        int d = editIndex * numVertexElements + primVarOffset;
-        for (int i = 0; i < primVarWidth; ++i) {
-            vertex[d++] = editValues[i];
-        }
-    }
+void OsdCpuComputeLoopVertexB(const OsdVertexDescriptor *vdesc,
+                              float *vertex, float * varying,
+                              const int *V_ITa, const int *V_IT,
+                              const float *V_W,
+                              int offset, int start, int end);
 
-    int numVertexElements;
-    int numVaryingElements;
-};
+void OsdCpuComputeBilinearEdge(const OsdVertexDescriptor *vdesc,
+                               float *vertex, float * varying,
+                               const int *E_IT,
+                               int offset, int start, int end);
 
-extern "C" {
+void OsdCpuComputeBilinearVertex(const OsdVertexDescriptor *vdesc,
+                                 float *vertex, float * varying,
+                                 const int *V_ITa,
+                                 int offset, int start, int end);
 
-void computeFace(const VertexDescriptor *vdesc, float * vertex, float * varying, const int *F_IT, const int *F_ITa, int offset, int start, int end);
+void OsdCpuEditVertexAdd(const OsdVertexDescriptor *vdesc, float *vertex,
+                         int primVarOffset, int primVarWidth, int count,
+                         const int *editIndices, const float *editValues);
 
-void computeEdge(const VertexDescriptor *vdesc, float *vertex, float * varying, const int *E_IT, const float *E_W, int offset, int start, int end);
+void OsdCpuEditVertexSet(const OsdVertexDescriptor *vdesc, float *vertex,
+                         int primVarOffset, int primVarWidth, int count,
+                         const int *editIndices, const float *editValues);
 
-void computeVertexA(const VertexDescriptor *vdesc, float *vertex, float * varying, const int *V_ITa, const float *V_W, int offset, int start, int end, int pass);
 
-void computeVertexB(const VertexDescriptor *vdesc, float *vertex, float * varying, const int *V_ITa, const int *V_IT, const float *V_W, int offset, int start, int end);
-
-void computeLoopVertexB(const VertexDescriptor *vdesc, float *vertex, float * varying, const int *V_ITa, const int *V_IT, const float *V_W, int offset, int start, int end);
-
-void computeBilinearEdge(const VertexDescriptor *vdesc, float *vertex, float * varying, const int *E_IT, int offset, int start, int end);
-
-void computeBilinearVertex(const VertexDescriptor *vdesc, float *vertex, float * varying, const int *V_ITa, int offset, int start, int end);
-
-void editVertexAdd(const VertexDescriptor *vdesc, float *vertex, int primVarOffset, int primVarWidth, int count, const int *editIndices, const float *editValues);
-
-void editVertexSet(const VertexDescriptor *vdesc, float *vertex, int primVarOffset, int primVarWidth, int count, const int *editIndices, const float *editValues);
-
-}
-
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
-} // end namespace OpenSubdiv
+}  // end namespace OpenSubdiv
 
-#endif /* OSD_CPU_KERNEL_H */
+#endif  // OSD_CPU_KERNEL_H

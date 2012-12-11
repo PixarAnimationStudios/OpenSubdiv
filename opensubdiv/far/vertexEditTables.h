@@ -54,16 +54,17 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
 #ifndef FAR_VERTEX_EDIT_TABLES_H
 #define FAR_VERTEX_EDIT_TABLES_H
-
-#include <assert.h>
-#include <utility>
-#include <vector>
 
 #include "../version.h"
 
 #include "../far/table.h"
+
+#include <assert.h>
+#include <utility>
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -121,7 +122,7 @@ public:
     // Note : Subtract type edits are converted into Adds in order to save kernel calls.
 
     // Compute the positions of edited vertices
-    void Apply(int level, void * clientdata=0) const;
+    void Apply(int level, FarDispatcher<U> const * dispatch, void * clientdata=0) const;
 
     int GetNumBatches() const {
         return (int)_batches.size();
@@ -153,7 +154,7 @@ public:
         int GetPrimvarWidth() const { return _primvarWidth; } 
 
     private:
-        template <class X, class Y> friend struct FarVertexEditTablesFactory;
+        template <class X, class Y> friend class FarVertexEditTablesFactory;
         friend class FarDispatcher<U>;
 
         FarTable<unsigned int>    _vertIndices;  // absolute vertex index array for edits
@@ -169,7 +170,7 @@ public:
     }
 
 private:
-    template <class X, class Y> friend struct FarVertexEditTablesFactory;
+    template <class X, class Y> friend class FarVertexEditTablesFactory;
     friend class FarDispatcher<U>;
 
     // Compute-kernel that applies the edits
@@ -178,6 +179,11 @@ private:
     // mesh that owns this vertexEditTable
     FarMesh<U> * _mesh;
 
+#if defined(__GNUC__)
+    // XXX(dyu): seems like there is a compiler bug in g++ that requires
+    //               this struct to be public
+public:
+#endif
     std::vector<VertexEditBatch> _batches;
 };
 
@@ -213,12 +219,9 @@ FarVertexEditTables<U>::FarVertexEditTables( FarMesh<U> * mesh, int maxlevel) :
 
 
 template <class U> void
-FarVertexEditTables<U>::Apply( int level, void * clientdata ) const {
+FarVertexEditTables<U>::Apply( int level, FarDispatcher<U> const * dispatch, void * clientdata ) const {
 
     assert(this->_mesh and level>0);
-
-    FarDispatcher<U> const * dispatch = this->_mesh->GetDispatcher();
-    assert(dispatch);
 
     dispatch->ApplyVertexEdits(this->_mesh, 0, level, clientdata);
 }

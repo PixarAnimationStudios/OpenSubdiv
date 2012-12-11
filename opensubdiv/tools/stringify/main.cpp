@@ -74,12 +74,19 @@ std::string stringify( std::string const & line ) {
             inconstant = inconstant ? false : true;
         }
 
+        if (line[i]=='\\' and line[i+1]=='\0') {
+            s << "\"";
+            return s.str();
+        }
+
         // escape backslash
         if (inconstant and line[i]=='\\')
            s << '\\' ;
 
         s << line[i];
     }
+
+    s << "\\n\"";
 
     return s.str();
 }
@@ -109,7 +116,7 @@ int main(int argc, const char **argv) {
 
     while (not input.eof()) {
         std::getline(input, line);
-        output << "\"" << stringify(line) << "\\n\"" << std::endl;
+        output << "\"" << stringify(line) << std::endl;
     }
 
     return 0;

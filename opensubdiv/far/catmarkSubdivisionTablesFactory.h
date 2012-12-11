@@ -54,6 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
 #ifndef FAR_CATMARK_SUBDIVISION_TABLES_FACTORY_H
 #define FAR_CATMARK_SUBDIVISION_TABLES_FACTORY_H
 
@@ -64,6 +65,7 @@
 
 #include "../far/catmarkSubdivisionTables.h"
 #include "../far/meshFactory.h"
+#include "../far/subdivisionTablesFactory.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -74,37 +76,45 @@ template <class T, class U> class FarMeshFactory;
 ///
 /// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
 ///
-template <class T, class U> struct FarCatmarkSubdivisionTablesFactory {
+template <class T, class U> class FarCatmarkSubdivisionTablesFactory {
+protected:
+    template <class X, class Y> friend class FarMeshFactory;
 
     /// Creates a FarCatmarkSubdivisiontables instance.
-    static FarCatmarkSubdivisionTables<U> * Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, int maxlevel );
+    static FarCatmarkSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh );
 };
 
+// This factory walks the Hbr vertices and accumulates the weights and adjacency
+// (valance) information specific to the catmark subdivision scheme. The results
+// are stored in a FarCatmarkSubdivisionTable<U>.
 template <class T, class U> FarCatmarkSubdivisionTables<U> * 
-FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, int maxlevel ) {
+FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh ) {
 
-    assert( factory and mesh );
+    assert( meshFactory and farMesh );
 
-    FarCatmarkSubdivisionTables<U> * result = new FarCatmarkSubdivisionTables<U>(mesh, maxlevel);
+    int maxlevel = meshFactory->GetMaxLevel();
+    
+    std::vector<int> & remap = meshFactory->getRemappingTable();
+    
+    FarSubdivisionTablesFactory<T,U> tablesFactory( meshFactory->GetHbrMesh(), maxlevel, remap );
 
-    std::vector<int> const & remap = factory->_remapTable;
+    FarCatmarkSubdivisionTables<U> * result = new FarCatmarkSubdivisionTables<U>(farMesh, maxlevel);
 
     // Allocate memory for the indexing tables
-    result->_F_ITa.Resize(factory->GetNumFaceVerticesTotal(maxlevel)*2);
-    result->_F_IT.Resize(factory->GetNumFacesTotal(maxlevel) - factory->GetNumFacesTotal(0));
+    result->_F_ITa.Resize(tablesFactory.GetNumFaceVerticesTotal(maxlevel)*2);
+    result->_F_IT.Resize(tablesFactory.GetFaceVertsValenceSum());
 
-    result->_E_IT.Resize(factory->GetNumEdgeVerticesTotal(maxlevel)*4);
-    result->_E_W.Resize(factory->GetNumEdgeVerticesTotal(maxlevel)*2);
+    result->_E_IT.Resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*4);
+    result->_E_W.Resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*2);
 
-    result->_V_ITa.Resize(factory->GetNumVertexVerticesTotal(maxlevel)*5);
-    result->_V_IT.Resize(factory->GetNumAdjacentVertVerticesTotal(maxlevel)*2);
-    result->_V_W.Resize(factory->GetNumVertexVerticesTotal(maxlevel));
+    result->_V_ITa.Resize(tablesFactory.GetNumVertexVerticesTotal(maxlevel)*5);
+    result->_V_IT.Resize(tablesFactory.GetVertVertsValenceSum()*2);
+    result->_V_W.Resize(tablesFactory.GetNumVertexVerticesTotal(maxlevel));
 
     for (int level=1; level<=maxlevel; ++level) {
 
         // pointer to the first vertex corresponding to this level
-        result->_vertsOffsets[level] = factory->_vertVertIdx[level-1] +
-                                     (int)factory->_vertVertsList[level-1].size();
+        result->_vertsOffsets[level] = tablesFactory._vertVertIdx[level-1] + (int)tablesFactory._vertVertsList[level-1].size();
 
         typename FarSubdivisionTables<U>::VertexKernelBatch * batch = & (result->_batches[level-1]);
 
@@ -113,10 +123,10 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * fac
         int offset = 0;
         int * F_ITa = result->_F_ITa[level-1];
         unsigned int * F_IT = result->_F_IT[level-1];
-        batch->kernelF = (int)factory->_faceVertsList[level].size();
+        batch->kernelF = (int)tablesFactory._faceVertsList[level].size();
         for (int i=0; i < batch->kernelF; ++i) {
 
-            HbrVertex<T> * v = factory->_faceVertsList[level][i];
+            HbrVertex<T> * v = tablesFactory._faceVertsList[level][i];
             assert(v);
 
             HbrFace<T> * f=v->GetParentFace();
@@ -138,17 +148,17 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * fac
         // Triangular interpolation mode :
         // see "smoothtriangle" tag introduced in prman 3.9 and HbrCatmarkSubdivision<T>
         typename HbrCatmarkSubdivision<T>::TriangleSubdivision triangleMethod =
-            dynamic_cast<HbrCatmarkSubdivision<T> *>(factory->_hbrMesh->GetSubdivision())->GetTriangleSubdivisionMethod();
+            dynamic_cast<HbrCatmarkSubdivision<T> *>(meshFactory->GetHbrMesh()->GetSubdivision())->GetTriangleSubdivisionMethod();
 
         // "For each vertex, gather the 2 vertices from the parent edege and the
         // 2 child vertices from the faces to the left and right of that edge.
         // Adjust if edge has a crease or is on a boundary."
         int * E_IT = result->_E_IT[level-1];
         float * E_W = result->_E_W[level-1];
-        batch->kernelE = (int)factory->_edgeVertsList[level].size();
+        batch->kernelE = (int)tablesFactory._edgeVertsList[level].size();
         for (int i=0; i < batch->kernelE; ++i) {
 
-            HbrVertex<T> * v = factory->_edgeVertsList[level][i];
+            HbrVertex<T> * v = tablesFactory._edgeVertsList[level][i];
             assert(v);
             HbrHalfedge<T> * e = v->GetParentEdge();
             assert(e);
@@ -192,16 +202,16 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * fac
 
         // Vertex vertices
 
-        batch->InitVertexKernels( (int)factory->_vertVertsList[level].size(), 0 );
+        batch->InitVertexKernels( (int)tablesFactory._vertVertsList[level].size(), 0 );
 
         offset = 0;
         int * V_ITa = result->_V_ITa[level-1];
         unsigned int * V_IT = result->_V_IT[level-1];
         float * V_W = result->_V_W[level-1];
-        int nverts = (int)factory->_vertVertsList[level].size();
+        int nverts = (int)tablesFactory._vertVertsList[level].size();
         for (int i=0; i < nverts; ++i) {
 
-            HbrVertex<T> * v = factory->_vertVertsList[level][i],
+            HbrVertex<T> * v = tablesFactory._vertVertsList[level][i],
                          * pv = v->GetParentVertex();
             assert(v and pv);
 
@@ -229,7 +239,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * fac
                 npasses = 1;
             }
 
-            int rank = result->getMaskRanking(masks[0], masks[1]);
+            int rank = FarSubdivisionTablesFactory<T,U>::GetMaskRanking(masks[0], masks[1]);
 
             V_ITa[5*i+0] = offset;
             V_ITa[5*i+1] = 0;
@@ -293,7 +303,6 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * fac
                     default : break;
                 }
 
-
             if (rank>7)
                 // the k_Corner and k_Crease single-pass cases apply a weight of 1.0
                 // but this value is inverted in the kernel
@@ -307,9 +316,11 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * fac
         result->_V_IT.SetMarker(level, &V_IT[offset]);
         result->_V_W.SetMarker(level, &V_W[nverts]);
 
-        batch->kernelB.second++;
-        batch->kernelA1.second++;
-        batch->kernelA2.second++;
+        if (nverts>0) {
+            batch->kernelB.second++;
+            batch->kernelA1.second++;
+            batch->kernelA2.second++;
+        }
     }
     return result;
 }

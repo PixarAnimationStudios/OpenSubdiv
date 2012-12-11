@@ -73,10 +73,17 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
     ${MAYA_INCLUDE_DIRS}
     ${GLEW_INCLUDE_DIR}
+    ${CUDA_INCLUDE_DIRS}
+)
+
+set(SHADER_FILES
+     shader.glsl
 )
 
 set(SOURCE_FILES
     OpenSubdivShaderOverride.cpp
+    OpenSubdivShader.cpp
+    osdMeshData.cpp
     hbrUtil.cpp
     cudaUtil.cpp
 )
@@ -115,6 +122,29 @@ if(WIN32)
     )
 endif(WIN32)
 
+#-------------------------------------------------------------------------------
+# Shader Stringification
+# We want to use preprocessor include directives to include GLSL and OpenCL
+# shader source files in cpp files, but since the sources contain newline
+# characters we would need raw string literals from C++11 to do this directly.
+# To avoid depending on C++11 we instead use a small tool called "line_quote"
+# to generate source files that are suitable for direct inclusion.
+foreach(shader_file ${SHADER_FILES})
+
+    string(REGEX REPLACE ".*[.](.*)" "\\1" extension ${shader_file})
+
+    string(REGEX REPLACE "(.*)[.].*" "\\1.inc" inc_file ${shader_file})
+    list(APPEND INC_FILES ${inc_file})
+
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
+        COMMAND stringify ${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}
+            ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
+        DEPENDS stringify ${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}
+    )
+endforeach()
+
+
 add_definitions(
     ${PLATFORM_COMPILE_FLAGS}
 )
@@ -122,11 +152,14 @@ add_definitions(
 add_library(maya_plugin SHARED
     ${SOURCE_FILES}
     ${HEADER_FILES}
+    ${SHADER_FILES}
+    ${INC_FILES}
 )
 
 set_target_properties(maya_plugin
     PROPERTIES
-    OUTPUT_NAME "mayaViewer"
+    OUTPUT_NAME "MayaViewer"
+    PREFIX "osd"
     SUFFIX ${PLATFORM_PLUGIN_EXTENSION}
     LINK_FLAGS "${PLATFORM_LINK_FLAGS}"
 )

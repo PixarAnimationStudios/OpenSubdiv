@@ -95,6 +95,9 @@ extern int g_width, g_height, g_frame;
     // run the example code
     display();
     
+    // make sure GL state is clean
+    assert(glGetError() == GL_NO_ERROR);
+    
     [[self openGLContext] flushBuffer]; 
 }
 

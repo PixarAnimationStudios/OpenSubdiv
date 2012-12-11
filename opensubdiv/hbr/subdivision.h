@@ -104,10 +104,10 @@ public:
     virtual HbrVertex<T>* Subdivide(HbrMesh<T>* mesh, HbrVertex<T>* vertex) = 0;
 
     // Returns true if the vertex is extraordinary in the subdivision scheme
-    virtual bool VertexIsExtraordinary(HbrMesh<T>* /* mesh */, HbrVertex<T>* /* vertex */) { return false; }
+    virtual bool VertexIsExtraordinary(HbrMesh<T> const * /* mesh */, HbrVertex<T>* /* vertex */) { return false; }
 
     // Returns true if the face is extraordinary in the subdivision scheme
-    virtual bool FaceIsExtraordinary(HbrMesh<T>* /* mesh */, HbrFace<T>* /* face */) { return false; }
+    virtual bool FaceIsExtraordinary(HbrMesh<T> const * /* mesh */, HbrFace<T>* /* face */) { return false; }
 
     // Crease subdivision rules. When subdividing a edge with a crease
     // strength, we get two child subedges, and we need to determine

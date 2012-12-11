@@ -400,6 +400,49 @@ private:
     unsigned short hasVertexEdits:1;
     unsigned short initialized:1;
     unsigned short destroyed:1;
+
+#ifdef HBR_ADAPTIVE
+public:
+    enum PatchType {  kUnknown=0,
+                         kFull=1,
+                          kEnd=2,
+                      kGregory=3 };
+                     
+    enum TransitionType { kTransition0=0,
+                          kTransition1=1,
+                          kTransition2=2,
+                          kTransition3=3,
+                          kTransition4=4,
+                                 kNone=5 };
+ 
+    struct AdaptiveFlags {
+        unsigned patchType:2;
+        unsigned transitionType:3;
+        unsigned rots:2; 
+        unsigned brots:2; 
+        unsigned bverts:2; 
+        unsigned isCritical:1;
+        unsigned isExtraordinary:1;
+        unsigned isTagged:1;
+        
+        AdaptiveFlags() : patchType(0), transitionType(5), rots(0), brots(0), bverts(0), isCritical(0), isExtraordinary(0), isTagged(0) { }
+    };
+    
+    AdaptiveFlags _adaptiveFlags;
+
+    bool isTransitionPatch() const {
+        return (_adaptiveFlags.transitionType!=kNone);
+    }
+        
+    bool hasTaggedVertices() {
+        int nv = GetNumVertices();
+        for (int i=0; i<nv; ++i) {
+            if (GetVertex(i)->_adaptiveFlags.wasTagged)
+                return true;
+        }
+        return false;
+    }           
+#endif
 };
 
 } // end namespace OPENSUBDIV_VERSION

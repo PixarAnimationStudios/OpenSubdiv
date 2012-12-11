@@ -108,6 +108,10 @@ if (NOT APPLE)
     find_package(GLEW REQUIRED)
 endif()
 
+if (WIN32)
+   find_package(DXSDK)
+endif()
+
 find_package(Maya)
 
 # Warn about missing dependencies that will cause parts of OpenSubdiv to be
@@ -127,16 +131,29 @@ else()
         "in your cmake installation.")
 endif()
 
-# note : (GLSL compute kernels require GL 4.2, which currently excludes APPLE)
-if(OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE))
+# note : (GLSL transform feedback kernels require GL 4.2)
+if(GLEW_FOUND AND OPENGL_4_2_FOUND)
     add_definitions(
-        -DOPENSUBDIV_HAS_GLSL
+        -DOPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     )
 else()
     message(WARNING
-        "OpenGL was not found : support for GLSL parallel compute kernels "
+        "OpenGL 4.2 was not found : support for GLSL transform feedback kernels "
         "will be disabled in Osd.  If you have an OpenGL SDK installed "
         "(version 4.2 or above), please refer to the FindOpenGL.cmake "
+        "shared module in your cmake installation.")
+endif()
+
+# note : (GLSL compute shader kernels require GL 4.3)
+if(GLEW_FOUND AND OPENGL_4_3_FOUND)
+    add_definitions(
+        -DOPENSUBDIV_HAS_GLSL_COMPUTE
+    )
+else()
+    message(WARNING
+        "OpenGL 4.3 was not found : support for GLSL compute shader kernels "
+        "will be disabled in Osd.  If you have an OpenGL SDK installed "
+        "(version 4.3 or above), please refer to the FindOpenGL.cmake "
         "shared module in your cmake installation.")
 endif()
 
@@ -191,7 +208,7 @@ else()
 endif()
 
 # Link examples & regressions dynamically against Osd
-set( OSD_LINK_TARGET osd_dynamic )
+set( OSD_LINK_TARGET osd_dynamic_cpu osd_dynamic_gpu )
 
 if (WIN32)
     add_definitions(
@@ -200,7 +217,22 @@ if (WIN32)
     )
     # Link examples & regressions statically against Osd for
     # Windows until all the kinks can be worked out.
-    set( OSD_LINK_TARGET osd_static )
+    set( OSD_LINK_TARGET osd_static_cpu osd_static_gpu )
+
+    if (DXSDK_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_DX11SDK
+        )
+    else()
+        message(WARNING
+            "DirectX11 SDK was not found. "
+            "If you do have DXSDK installed and see this message, "
+            "please add your sdk path to FindDirectX.cmake in "
+            "${PROJECT_SOURCE_DIR}/cmake or set it through the "
+            "DXSDK_LOCATION cmake command line argument or "
+            "environment variable."
+        )
+    endif()
 endif()
 
 if(MSVC)

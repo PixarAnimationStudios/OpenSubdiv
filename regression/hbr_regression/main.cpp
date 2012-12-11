@@ -57,7 +57,7 @@
 
 #include <stdio.h>
 
-#include <osd/mutex.h>
+#include "../common/mutex.h"
 
 #include <hbr/mesh.h>
 #include <hbr/face.h>

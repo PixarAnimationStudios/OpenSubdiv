@@ -139,9 +139,9 @@ compileShader(GLenum shaderType, const char *section, const char *define)
 GLuint 
 linkProgram(const char *define) 
 {
+    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, "VERTEX_SHADER", define);
     GLuint geometryShader = compileShader(GL_GEOMETRY_SHADER, "GEOMETRY_SHADER", define);
     GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, "FRAGMENT_SHADER", define);
-    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, "VERTEX_SHADER", define);
 
     GLuint program = glCreateProgram();
     glAttachShader(program, vertexShader);
@@ -179,8 +179,8 @@ initGL()
     glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LEQUAL);
     
-    g_quadFillProgram = linkProgram("#version 330\n#define PRIM_QUAD\n#define GEOMETRY_OUT_FILL\n");
-    g_quadLineProgram = linkProgram("#version 330\n#define PRIM_QUAD\n#define GEOMETRY_OUT_LINE\n");
+    g_quadFillProgram = linkProgram("#define PRIM_QUAD\n#define GEOMETRY_OUT_FILL\n");
+    g_quadLineProgram = linkProgram("#define PRIM_QUAD\n#define GEOMETRY_OUT_LINE\n");
 }
 
 void

@@ -54,34 +54,31 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#include <math.h>
 
-#include "../version.h"
 #include "../osd/cpuKernel.h"
+#include "../osd/vertexDescriptor.h"
 
-#ifdef OPENSUBDIV_HAS_OPENMP
-    #include <omp.h>
-#endif
+#include <math.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-void computeFace( const VertexDescriptor *vdesc, float * vertex, float * varying, const int *F_IT, const int *F_ITa, int offset, int start, int end) {
+void OsdCpuComputeFace(
+    const OsdVertexDescriptor *vdesc, float * vertex, float * varying,
+    const int *F_IT, const int *F_ITa, int offset, int start, int end) {
 
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
     for (int i = start; i < end; i++) {
         int h = F_ITa[2*i];
         int n = F_ITa[2*i+1];
 
         float weight = 1.0f/n;
 
-        // XXX: should use local vertex struct variable instead of accumulating directly into global memory.
+        // XXX: should use local vertex struct variable instead of
+        // accumulating directly into global memory.
         int dstIndex = offset + i;
         vdesc->Clear(vertex, varying, dstIndex);
 
-        for (int j=0; j<n; ++j) {
+        for (int j = 0; j < n; ++j) {
             int index = F_IT[h+j];
             vdesc->AddWithWeight(vertex, dstIndex, index, weight);
             vdesc->AddVaryingWithWeight(varying, dstIndex, index, weight);
@@ -89,11 +86,10 @@ void computeFace( const VertexDescriptor *vdesc, float * vertex, float * varying
     }
 }
 
-void computeEdge( const VertexDescriptor *vdesc, float *vertex, float *varying, const int *E_IT, const float *E_W, int offset, int start, int end) {
+void OsdCpuComputeEdge(
+    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    const int *E_IT, const float *E_W, int offset, int start, int end) {
 
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
     for (int i = start; i < end; i++) {
         int eidx0 = E_IT[4*i+0];
         int eidx1 = E_IT[4*i+1];
@@ -120,30 +116,30 @@ void computeEdge( const VertexDescriptor *vdesc, float *vertex, float *varying, 
     }
 }
 
-void computeVertexA(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, const float *V_W, int offset, int start, int end, int pass) {
+void OsdCpuComputeVertexA(
+    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    const int *V_ITa, const float *V_W,
+    int offset, int start, int end, int pass) {
 
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
     for (int i = start; i < end; i++) {
         int n     = V_ITa[5*i+1];
         int p     = V_ITa[5*i+2];
         int eidx0 = V_ITa[5*i+3];
         int eidx1 = V_ITa[5*i+4];
 
-        float weight = (pass==1) ? V_W[i] : 1.0f - V_W[i];
+        float weight = (pass == 1) ? V_W[i] : 1.0f - V_W[i];
 
         // In the case of fractional weight, the weight must be inverted since
         // the value is shared with the k_Smooth kernel (statistically the
         // k_Smooth kernel runs much more often than this one)
-        if (weight>0.0f && weight<1.0f && n > 0)
-            weight=1.0f-weight;
+        if (weight > 0.0f && weight < 1.0f && n > 0)
+            weight = 1.0f - weight;
 
         int dstIndex = offset + i;
-        if(not pass)
+        if (not pass)
             vdesc->Clear(vertex, varying, dstIndex);
 
-        if (eidx0==-1 || (pass==0 && (n==-1)) ) {
+        if (eidx0 == -1 || (pass == 0 && (n == -1))) {
             vdesc->AddWithWeight(vertex, dstIndex, p, weight);
         } else {
             vdesc->AddWithWeight(vertex, dstIndex, p, weight * 0.75f);
@@ -156,18 +152,18 @@ void computeVertexA(const VertexDescriptor *vdesc, float *vertex, float *varying
     }
 }
 
-void computeVertexB(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, const int *V_IT, const float *V_W, int offset, int start, int end) {
+void OsdCpuComputeVertexB(
+    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    const int *V_ITa, const int *V_IT, const float *V_W,
+    int offset, int start, int end) {
 
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
     for (int i = start; i < end; i++) {
         int h = V_ITa[5*i];
         int n = V_ITa[5*i+1];
         int p = V_ITa[5*i+2];
 
         float weight = V_W[i];
-        float wp = 1.0f/float(n*n);
+        float wp = 1.0f/static_cast<float>(n*n);
         float wv = (n-2.0f) * n * wp;
 
         int dstIndex = offset + i;
@@ -183,19 +179,19 @@ void computeVertexB(const VertexDescriptor *vdesc, float *vertex, float *varying
     }
 }
 
-void computeLoopVertexB(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, const int *V_IT, const float *V_W, int offset, int start, int end) {
+void OsdCpuComputeLoopVertexB(
+    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    const int *V_ITa, const int *V_IT, const float *V_W,
+    int offset, int start, int end) {
 
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
     for (int i = start; i < end; i++) {
         int h = V_ITa[5*i];
         int n = V_ITa[5*i+1];
         int p = V_ITa[5*i+2];
 
         float weight = V_W[i];
-        float wp = 1.0f/float(n);
-        float beta = 0.25f * cosf(float(M_PI) * 2.0f * wp) + 0.375f;
+        float wp = 1.0f/static_cast<float>(n);
+        float beta = 0.25f * cosf(static_cast<float>(M_PI) * 2.0f * wp) + 0.375f;
         beta = beta * beta;
         beta = (0.625f - beta) * wp;
 
@@ -211,11 +207,10 @@ void computeLoopVertexB(const VertexDescriptor *vdesc, float *vertex, float *var
     }
 }
 
-void computeBilinearEdge(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *E_IT, int offset, int start, int end) {
+void OsdCpuComputeBilinearEdge(
+    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    const int *E_IT, int offset, int start, int end) {
 
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
     for (int i = start; i < end; i++) {
         int eidx0 = E_IT[2*i+0];
         int eidx1 = E_IT[2*i+1];
@@ -231,11 +226,10 @@ void computeBilinearEdge(const VertexDescriptor *vdesc, float *vertex, float *va
     }
 }
 
-void computeBilinearVertex(const VertexDescriptor *vdesc, float *vertex, float *varying, const int *V_ITa, int offset, int start, int end) {
+void OsdCpuComputeBilinearVertex(
+    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    const int *V_ITa, int offset, int start, int end) {
 
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
     for (int i = start; i < end; i++) {
         int p = V_ITa[i];
 
@@ -247,25 +241,27 @@ void computeBilinearVertex(const VertexDescriptor *vdesc, float *vertex, float *
     }
 }
 
-void editVertexAdd(const VertexDescriptor *vdesc, float *vertex, int primVarOffset, int primVarWidth, int vertexCount, const int *editIndices, const float *editValues) {
+void OsdCpuEditVertexAdd(
+    const OsdVertexDescriptor *vdesc, float *vertex,
+    int primVarOffset, int primVarWidth, int vertexCount,
+    const int *editIndices, const float *editValues) {
 
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
     for (int i = 0; i < vertexCount; i++) {
-        vdesc->ApplyVertexEditAdd(vertex, primVarOffset, primVarWidth, editIndices[i], &editValues[i*primVarWidth]);
+        vdesc->ApplyVertexEditAdd(vertex, primVarOffset, primVarWidth,
+                                  editIndices[i], &editValues[i*primVarWidth]);
     }
 }
 
-void editVertexSet(const VertexDescriptor *vdesc, float *vertex, int primVarOffset, int primVarWidth, int vertexCount, const int *editIndices, const float *editValues) {
+void OsdCpuEditVertexSet(
+    const OsdVertexDescriptor *vdesc, float *vertex,
+    int primVarOffset, int primVarWidth, int vertexCount,
+    const int *editIndices, const float *editValues) {
 
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
     for (int i = 0; i < vertexCount; i++) {
-        vdesc->ApplyVertexEditSet(vertex, primVarOffset, primVarWidth, editIndices[i], &editValues[i*primVarWidth]);
+        vdesc->ApplyVertexEditSet(vertex, primVarOffset, primVarWidth,
+                                  editIndices[i], &editValues[i*primVarWidth]);
     }
 }
 
-} // end namespace OPENSUBDIV_VERSION
-} // end namespace OpenSubdiv
+}  // end namespace OPENSUBDIV_VERSION
+}  // end namespace OpenSubdiv

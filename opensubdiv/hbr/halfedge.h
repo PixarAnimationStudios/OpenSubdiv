@@ -414,6 +414,25 @@ private:
         return incidentFace->stitchEdges + GetMesh()->GetStitchCount() * GetIndex();
     }
 #endif
+
+#ifdef HBR_ADAPTIVE
+public:
+    struct adaptiveFlags {
+        unsigned isTransition:1;
+        unsigned isTriangleHead:1;
+        unsigned isWatertightCritical:1;
+        
+        adaptiveFlags() : isTransition(0),isTriangleHead(0),isWatertightCritical(0) { }
+    };
+    
+    adaptiveFlags _adaptiveFlags;
+    
+    bool IsTransition() const { return _adaptiveFlags.isTransition; }
+
+    bool IsTriangleHead() const { return _adaptiveFlags.isTriangleHead; }
+
+    bool IsWatertightCritical() const { return _adaptiveFlags.isWatertightCritical; }
+#endif
 };
 
 template <class T>

@@ -54,16 +54,18 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
 #ifndef FAR_LOOP_SUBDIVISION_TABLES_FACTORY_H
 #define FAR_LOOP_SUBDIVISION_TABLES_FACTORY_H
-
-#include <cassert>
-#include <vector>
 
 #include "../version.h"
 
 #include "../far/loopSubdivisionTables.h"
 #include "../far/meshFactory.h"
+#include "../far/subdivisionTablesFactory.h"
+
+#include <cassert>
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -74,44 +76,53 @@ template <class T, class U> class FarMeshFactory;
 ///
 /// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
 ///
-template <class T, class U> struct FarLoopSubdivisionTablesFactory {
+template <class T, class U> class FarLoopSubdivisionTablesFactory {
+protected:
+    template <class X, class Y> friend class FarMeshFactory;
 
     /// Creates a FarLoopSubdivisiontables instance.
-    static FarLoopSubdivisionTables<U> * Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, int maxlevel );
+    static FarLoopSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh );
 };
 
+// This factory walks the Hbr vertices and accumulates the weights and adjacency
+// (valance) information specific to the loop subdivision scheme. The results
+// are stored in a FarLoopSubdivisionTable<U>.
 template <class T, class U> FarLoopSubdivisionTables<U> * 
-FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, int maxlevel ) {
+FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh ) {
 
-    assert( factory and mesh );
+    assert( meshFactory and farMesh );
 
-    FarLoopSubdivisionTables<U> * result = new FarLoopSubdivisionTables<U>(mesh, maxlevel);
+    int maxlevel = meshFactory->GetMaxLevel();
+    
+    std::vector<int> & remap = meshFactory->getRemappingTable();
+    
+    FarSubdivisionTablesFactory<T,U> tablesFactory( meshFactory->GetHbrMesh(),  maxlevel, remap );
 
-    std::vector<int> const & remap = factory->_remapTable;
+    FarLoopSubdivisionTables<U> * result = new FarLoopSubdivisionTables<U>(farMesh, maxlevel);
 
     // Allocate memory for the indexing tables
-    result->_E_IT.Resize(factory->GetNumEdgeVerticesTotal(maxlevel)*4);
-    result->_E_W.Resize(factory->GetNumEdgeVerticesTotal(maxlevel)*2);
+    result->_E_IT.Resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*4);
+    result->_E_W.Resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*2);
 
-    result->_V_ITa.Resize(factory->GetNumVertexVerticesTotal(maxlevel)*5);
-    result->_V_IT.Resize(factory->GetNumAdjacentVertVerticesTotal(maxlevel));
-    result->_V_W.Resize(factory->GetNumVertexVerticesTotal(maxlevel));
+    result->_V_ITa.Resize(tablesFactory.GetNumVertexVerticesTotal(maxlevel)*5);
+    result->_V_IT.Resize(tablesFactory.GetVertVertsValenceSum());
+    result->_V_W.Resize(tablesFactory.GetNumVertexVerticesTotal(maxlevel));
 
     for (int level=1; level<=maxlevel; ++level) {
 
         // pointer to the first vertex corresponding to this level
-        result->_vertsOffsets[level] = factory->_vertVertIdx[level-1] +
-                                     (int)factory->_vertVertsList[level-1].size();
+        result->_vertsOffsets[level] = tablesFactory._vertVertIdx[level-1] + 
+                                       (int)tablesFactory._vertVertsList[level-1].size();
 
         typename FarSubdivisionTables<U>::VertexKernelBatch * batch = & (result->_batches[level-1]);
 
         // Edge vertices
         int * E_IT = result->_E_IT[level-1];
         float * E_W = result->_E_W[level-1];
-        batch->kernelE = (int)factory->_edgeVertsList[level].size();
+        batch->kernelE = (int)tablesFactory._edgeVertsList[level].size();
         for (int i=0; i < batch->kernelE; ++i) {
 
-            HbrVertex<T> * v = factory->_edgeVertsList[level][i];
+            HbrVertex<T> * v = tablesFactory._edgeVertsList[level][i];
             assert(v);
             HbrHalfedge<T> * e = v->GetParentEdge();
             assert(e);
@@ -143,16 +154,16 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factor
 
         // Vertex vertices
 
-        batch->InitVertexKernels( (int)factory->_vertVertsList[level].size(), 0 );
+        batch->InitVertexKernels( (int)tablesFactory._vertVertsList[level].size(), 0 );
 
         int offset = 0;
         int * V_ITa = result->_V_ITa[level-1];
         unsigned int * V_IT = result->_V_IT[level-1];
         float * V_W = result->_V_W[level-1];
-        int nverts = (int)factory->_vertVertsList[level].size();
+        int nverts = (int)tablesFactory._vertVertsList[level].size();
         for (int i=0; i < nverts; ++i) {
 
-            HbrVertex<T> * v = factory->_vertVertsList[level][i],
+            HbrVertex<T> * v = tablesFactory._vertVertsList[level][i],
                          * pv = v->GetParentVertex();
             assert(v and pv);
 
@@ -180,7 +191,7 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factor
                 npasses = 1;
             }
 
-            int rank = result->getMaskRanking(masks[0], masks[1]);
+            int rank = FarSubdivisionTablesFactory<T,U>::GetMaskRanking(masks[0], masks[1]);
 
             V_ITa[5*i+0] = offset;
             V_ITa[5*i+1] = 0;
@@ -255,9 +266,11 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factor
         result->_V_IT.SetMarker(level, &V_IT[offset]);
         result->_V_W.SetMarker(level, &V_W[nverts]);
 
-        batch->kernelB.second++;
-        batch->kernelA1.second++;
-        batch->kernelA2.second++;
+        if (nverts>0) {
+            batch->kernelB.second++;
+            batch->kernelA1.second++;
+            batch->kernelA2.second++;
+        }
     }
     return result;
 }

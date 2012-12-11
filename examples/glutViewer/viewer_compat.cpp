@@ -66,9 +66,6 @@
 
 #include <osd/mutex.h>
 
-#include <hbr/mesh.h>
-#include <hbr/face.h>
-
 #include <osd/vertex.h>
 #include <osd/mesh.h>
 #include <osd/cpuDispatcher.h>
@@ -451,7 +448,7 @@ drawNormals() {
     glColor3f(0.0f, 0.0f, 0.5f);
     glBegin(GL_LINES);
 
-    int start = g_osdmesh->GetFarMesh()->GetSubdivision()->GetFirstVertexOffset(g_level) *
+    int start = g_osdmesh->GetFarMesh()->GetSubdivisionTables()->GetFirstVertexOffset(g_level) *
                 g_vertexBuffer->GetNumElements();
 
     for (int i=start; i<datasize; i+=6) {

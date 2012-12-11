@@ -54,15 +54,18 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
 #ifndef FAR_MESH_H
 #define FAR_MESH_H
 
+#include "../version.h"
+
+#include "../far/subdivisionTables.h"
+#include "../far/patchTables.h"
+#include "../far/vertexEditTables.h"
+
 #include <cassert>
 #include <vector>
-
-#include "../version.h"
-#include "../far/subdivisionTables.h"
-#include "../far/vertexEditTables.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -83,19 +86,7 @@ public:
     ~FarMesh();
 
     /// Returns the subdivision method
-    FarSubdivisionTables<U> const * GetSubdivision() const { return _subdivisionTables; }
-
-    /// Returns the compute dispatcher
-    FarDispatcher<U> const * GetDispatcher() const { return _dispatcher; }
-
-    enum PatchType {
-        k_BilinearTriangles,
-        k_BilinearQuads,
-        k_Triangles,
-    };
-
-    /// Returns the type of patches described by the face vertices list
-    PatchType GetPatchType() const { return _patchtype; }
+    FarSubdivisionTables<U> const * GetSubdivisionTables() const { return _subdivisionTables; }
 
     /// Returns the list of vertices in the mesh (from subdiv level 0 to N)
     std::vector<U> & GetVertices() { return _vertices; }
@@ -109,12 +100,20 @@ public:
     /// are stored as : (int) faceindex / (ushort) u_index / (ushort) v_index
     std::vector<int> const & GetPtexCoordinates(int level) const;
 
+    /// Returns the fvar data for each face at a given level. The data
+    /// is stored as a run of totalFVarWidth floats per-vertex per-face
+    /// e.g.: for UV data it has the structure of float[p][4][2] where 
+    /// p=primitiveID and totalFVarWidth=2:
+    ///      [ [ uv uv uv uv ] [ uv uv uv uv ] [ ... ] ]
+    ///            prim 0           prim 1
+    std::vector<float> const & GetFVarData(int level) const;
+    int GetTotalFVarWidth() const { return _totalFVarWidth; }
+
+    /// Returns patch tables
+    FarPatchTables const * GetPatchTables() const { return _patchTables; }
+
     /// Returns vertex edit tables
     FarVertexEditTables<U> const * GetVertexEdit() const { return _vertexEditTables; }
-
-    /// Returns the number of coarse vertices held at the beginning of the vertex
-    /// buffer.
-    int GetNumCoarseVertices() const;
 
     /// Returns the total number of vertices in the mesh across across all depths
     int GetNumVertices() const { return (int)(_vertices.size()); }
@@ -128,7 +127,7 @@ private:
     // declaration of the templated vertex class U.
     template <class X, class Y> friend class FarMeshFactory;
 
-    FarMesh() : _subdivisionTables(0), _dispatcher(0), _vertexEditTables(0) { }
+    FarMesh() : _subdivisionTables(0), _patchTables(0), _vertexEditTables(0) { }
 
     // non-copyable, so these are not implemented:
     FarMesh(FarMesh<U> const &);
@@ -137,11 +136,11 @@ private:
     // subdivision method used in this mesh
     FarSubdivisionTables<U> * _subdivisionTables;
 
+    // tables of vertex indices for feature adaptive patches
+    FarPatchTables * _patchTables;
+
     // hierarchical vertex edit tables
     FarVertexEditTables<U> * _vertexEditTables;
-
-    // customizable compute dispatcher class
-    FarDispatcher<U> * _dispatcher;
 
     // list of vertices (up to N levels of subdivision)
     std::vector<U> _vertices;
@@ -152,23 +151,17 @@ private:
     // ptex coordinates for each face
     std::vector< std::vector<int> > _ptexcoordinates;
 
-    // XXX stub for adaptive work
-    PatchType _patchtype;
-
-    // number of vertices at level 0 of subdivision
-    int _numCoarseVertices;
+    // fvar data for each face
+    std::vector< std::vector<float> > _fvarData;
+    int _totalFVarWidth;    // from hbrMesh
 };
 
 template <class U>
 FarMesh<U>::~FarMesh()
 {
     delete _subdivisionTables;
+    delete _patchTables;
     delete _vertexEditTables;
-}
-
-template <class U> int
-FarMesh<U>::GetNumCoarseVertices() const {
-    return _numCoarseVertices;
 }
 
 template <class U> std::vector<int> const &
@@ -185,6 +178,13 @@ FarMesh<U>::GetPtexCoordinates(int level) const {
     return _ptexcoordinates[0];
 }
 
+template <class U> std::vector<float> const &
+FarMesh<U>::GetFVarData(int level) const {
+    if ( (level>=0) and (level<(int)_faceverts.size()) )
+        return _fvarData[level];
+    return _fvarData[0];
+}
+
 
 template <class U> void
 FarMesh<U>::Subdivide(int maxlevel) {
@@ -196,12 +196,14 @@ FarMesh<U>::Subdivide(int maxlevel) {
     else
         maxlevel = std::min(maxlevel, _subdivisionTables->GetMaxLevel());
 
+    FarDispatcher<U> * dispatch = &FarDispatcher<U>::_DefaultDispatcher;
+
     for (int i=1; i<maxlevel; ++i) {
         
-        _subdivisionTables->Apply(i);
+        _subdivisionTables->Apply(i, dispatch);
 
         if (_vertexEditTables)
-            _vertexEditTables->Apply(i);
+            _vertexEditTables->Apply(i, dispatch);
     }
 }
 

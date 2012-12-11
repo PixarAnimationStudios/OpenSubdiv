@@ -133,7 +133,7 @@ FarDispatcher<U>::Refine( FarMesh<U> * mesh, int maxlevel, void * data) const {
 
     assert(mesh);
 
-    FarSubdivisionTables<U> const * tables = mesh->GetSubdivision();
+    FarSubdivisionTables<U> const * tables = mesh->GetSubdivisionTables();
 
     FarVertexEditTables<U> const * edits = mesh->GetVertexEdit();
 
@@ -145,18 +145,18 @@ FarDispatcher<U>::Refine( FarMesh<U> * mesh, int maxlevel, void * data) const {
     for (int i=1; i<maxlevel; ++i) {
     
         // compute vertex & varying interpolation on all vertices
-        tables->Apply(i, data);
+        tables->Apply(i, this, data);
         
         // apply hierarchical edits
         if (edits)
-            edits->Apply(i, data);
+            edits->Apply(i, this, data);
     }
 }
 
 template <class U> void
 FarDispatcher<U>::ApplyBilinearFaceVerticesKernel(FarMesh<U> * mesh, int offset, int level, int start, int end, void * clientdata) const {
     FarBilinearSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivision());
+        dynamic_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
     assert(subdivision);
     subdivision->computeFacePoints(offset, level, start, end, clientdata);
 }
@@ -164,7 +164,7 @@ FarDispatcher<U>::ApplyBilinearFaceVerticesKernel(FarMesh<U> * mesh, int offset,
 template <class U> void
 FarDispatcher<U>::ApplyBilinearEdgeVerticesKernel(FarMesh<U> * mesh, int offset, int level, int start, int end, void * clientdata) const {
     FarBilinearSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivision());
+        dynamic_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
     assert(subdivision);
     subdivision->computeEdgePoints(offset, level, start, end, clientdata);
 }
@@ -172,7 +172,7 @@ FarDispatcher<U>::ApplyBilinearEdgeVerticesKernel(FarMesh<U> * mesh, int offset,
 template <class U> void
 FarDispatcher<U>::ApplyBilinearVertexVerticesKernel(FarMesh<U> * mesh, int offset, int level, int start, int end, void * clientdata) const {
     FarBilinearSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivision());
+        dynamic_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
     assert(subdivision);
     subdivision->computeVertexPoints(offset, level, start, end, clientdata);
 }
@@ -180,7 +180,7 @@ FarDispatcher<U>::ApplyBilinearVertexVerticesKernel(FarMesh<U> * mesh, int offse
 template <class U> void
 FarDispatcher<U>::ApplyCatmarkFaceVerticesKernel(FarMesh<U> * mesh, int offset, int level, int start, int end, void * clientdata) const {
     FarCatmarkSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivision());
+        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
     assert(subdivision);
     subdivision->computeFacePoints(offset, level, start, end, clientdata);
 }
@@ -188,7 +188,7 @@ FarDispatcher<U>::ApplyCatmarkFaceVerticesKernel(FarMesh<U> * mesh, int offset, 
 template <class U> void
 FarDispatcher<U>::ApplyCatmarkEdgeVerticesKernel(FarMesh<U> * mesh, int offset, int level, int start, int end, void * clientdata) const {
     FarCatmarkSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivision());
+        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
     assert(subdivision);
     subdivision->computeEdgePoints(offset, level, start, end, clientdata);
 }
@@ -196,7 +196,7 @@ FarDispatcher<U>::ApplyCatmarkEdgeVerticesKernel(FarMesh<U> * mesh, int offset, 
 template <class U> void
 FarDispatcher<U>::ApplyCatmarkVertexVerticesKernelB(FarMesh<U> * mesh, int offset, int level, int start, int end, void * clientdata) const {
     FarCatmarkSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivision());
+        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
     assert(subdivision);
     subdivision->computeVertexPointsB(offset, level, start, end, clientdata);
 }
@@ -204,7 +204,7 @@ FarDispatcher<U>::ApplyCatmarkVertexVerticesKernelB(FarMesh<U> * mesh, int offse
 template <class U> void
 FarDispatcher<U>::ApplyCatmarkVertexVerticesKernelA(FarMesh<U> * mesh, int offset, bool pass, int level, int start, int end, void * clientdata) const {
     FarCatmarkSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivision());
+        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
     assert(subdivision);
     subdivision->computeVertexPointsA(offset, pass, level, start, end, clientdata);
 }
@@ -212,7 +212,7 @@ FarDispatcher<U>::ApplyCatmarkVertexVerticesKernelA(FarMesh<U> * mesh, int offse
 template <class U> void
 FarDispatcher<U>::ApplyLoopEdgeVerticesKernel(FarMesh<U> * mesh, int offset, int level, int start, int end, void * clientdata) const {
     FarLoopSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivision());
+        dynamic_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
     assert(subdivision);
     subdivision->computeEdgePoints(offset, level, start, end, clientdata);
 }
@@ -220,7 +220,7 @@ FarDispatcher<U>::ApplyLoopEdgeVerticesKernel(FarMesh<U> * mesh, int offset, int
 template <class U> void
 FarDispatcher<U>::ApplyLoopVertexVerticesKernelB(FarMesh<U> * mesh, int offset, int level, int start, int end, void * clientdata) const {
     FarLoopSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivision());
+        dynamic_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
     assert(subdivision);
     subdivision->computeVertexPointsB(offset, level, start, end, clientdata);
 }
@@ -228,7 +228,7 @@ FarDispatcher<U>::ApplyLoopVertexVerticesKernelB(FarMesh<U> * mesh, int offset, 
 template <class U> void
 FarDispatcher<U>::ApplyLoopVertexVerticesKernelA(FarMesh<U> * mesh, int offset, bool pass, int level, int start, int end, void * clientdata) const {
     FarLoopSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivision());
+        dynamic_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
     assert(subdivision);
     subdivision->computeVertexPointsA(offset, pass, level, start, end, clientdata);
 }

@@ -427,6 +427,19 @@ private:
 
     // Blind client data pointer
     void * clientData;
+
+#ifdef HBR_ADAPTIVE
+public:
+    struct adaptiveFlags {
+        unsigned subdivisions:4;
+        unsigned isTagged:1;
+        unsigned wasTagged:1;
+        
+        adaptiveFlags() : subdivisions(0), isTagged(0), wasTagged(0) { }
+    };
+    
+    adaptiveFlags _adaptiveFlags;
+#endif
 };
 
 template <class T>

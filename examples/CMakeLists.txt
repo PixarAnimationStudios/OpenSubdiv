@@ -85,9 +85,15 @@ else()
     )
 endif()
 
+if(DXSDK_FOUND)
+   add_subdirectory(dxViewer)
+endif()
+
 if(MAYA_FOUND)
     add_subdirectory(mayaViewer)
     if(PTEX_FOUND)
-        add_subdirectory(mayaPtexViewer_siggraph2012)
+        add_subdirectory(mayaPtexViewer)
     endif()
 endif()
+
+add_subdirectory(mutex)

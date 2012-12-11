@@ -54,296 +54,351 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#include "../version.h"
-#include "../osd/mutex.h"
+
 #include "../osd/cudaDispatcher.h"
+#include "../osd/cudaComputeContext.h"
 
 #include <cuda_runtime.h>
-#include <cuda_gl_interop.h>
 
 extern "C" {
 
-void OsdCudaComputeFace(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *F_IT, int *F_ITa, int offset, int start, int end);
+void OsdCudaComputeFace(float *vertex, float *varying,
+                        int numUserVertexElements, int numVaryingElements,
+                        int *F_IT, int *F_ITa, int offset, int start, int end);
 
-void OsdCudaComputeEdge(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *E_IT, float *E_W, int offset, int start, int end);
+void OsdCudaComputeEdge(float *vertex, float *varying,
+                        int numUserVertexElements, int numVaryingElements,
+                        int *E_IT, float *E_W, int offset, int start, int end);
 
-void OsdCudaComputeVertexA(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, float *V_W, int offset, int start, int end, int pass);
+void OsdCudaComputeVertexA(float *vertex, float *varying,
+                           int numUserVertexElements, int numVaryingElements,
+                           int *V_ITa, float *V_W, int offset,
+                           int start, int end, int pass);
 
-void OsdCudaComputeVertexB(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, int *V_IT, float *V_W, int offset, int start, int end);
+void OsdCudaComputeVertexB(float *vertex, float *varying,
+                           int numUserVertexElements, int numVaryingElements,
+                           int *V_ITa, int *V_IT, float *V_W, int offset,
+                           int start, int end);
 
-void OsdCudaComputeLoopVertexB(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, int *V_IT, float *V_W, int offset, int start, int end);
+void OsdCudaComputeLoopVertexB(float *vertex, float *varying,
+                               int numUserVertexElements,
+                               int numVaryingElements,
+                               int *V_ITa, int *V_IT, float *V_W, int offset,
+                               int start, int end);
 
-void OsdCudaComputeBilinearEdge(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *E_IT, int offset, int start, int end);
+void OsdCudaComputeBilinearEdge(float *vertex, float *varying,
+                                int numUserVertexElements,
+                                int numVaryingElements,
+                                int *E_IT, int offset, int start, int end);
 
-void OsdCudaComputeBilinearVertex(float *vertex, float *varying, int numUserVertexElements, int numVaryingElements, int *V_ITa, int offset, int start, int end);
+void OsdCudaComputeBilinearVertex(float *vertex, float *varying,
+                                  int numUserVertexElements,
+                                  int numVaryingElements,
+                                  int *V_ITa, int offset, int start, int end);
 
-void OsdCudaEditVertexAdd(float *vertex, int numUserVertexElements, int primVarOffset, int primVarWidth, int numVertices, int *editIndices, float *editValues);
+void OsdCudaEditVertexAdd(float *vertex, int numUserVertexElements,
+                          int primVarOffset, int primVarWidth,
+                          int numVertices, int *editIndices, float *editValues);
 
 }
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCudaVertexBuffer::OsdCudaVertexBuffer(int numElements, int numVertices) :
-    OsdGpuVertexBuffer(numElements, numVertices) {
+// -----------------------------------------------------------------------------
 
-    // register vbo as cuda resource
-    cudaGraphicsGLRegisterBuffer(&_cudaResource, _vbo, cudaGraphicsMapFlagsNone);
+OsdCudaKernelDispatcher::OsdCudaKernelDispatcher() {
 }
-
-void
-OsdCudaVertexBuffer::UpdateData(const float *src, int numVertices) {
-
-    void *dst = Map();
-    cudaMemcpy(dst, src, _numElements * numVertices * sizeof(float), cudaMemcpyHostToDevice);
-    Unmap();
-}
-
-void *
-OsdCudaVertexBuffer::Map() {
-
-    size_t num_bytes;
-    void *ptr;
-
-    cudaGraphicsMapResources(1, &_cudaResource, 0);
-    cudaGraphicsResourceGetMappedPointer(&ptr, &num_bytes, _cudaResource);
-    return ptr;
-}
-
-void
-OsdCudaVertexBuffer::Unmap() {
-    cudaGraphicsUnmapResources(1, &_cudaResource, 0);
-}
-
-OsdCudaVertexBuffer::~OsdCudaVertexBuffer() {
-    cudaGraphicsUnregisterResource(_cudaResource);
-}
-
-// -------------------------------------------------------------------------------
-OsdCudaKernelDispatcher::DeviceTable::~DeviceTable() {
-
-    if (devicePtr) cudaFree(devicePtr);
-}
-
-void
-OsdCudaKernelDispatcher::DeviceTable::Copy(int size, const void *ptr) {
-
-    if (devicePtr)
-        cudaFree(devicePtr);
-    cudaMalloc(&devicePtr, size);
-    cudaMemcpy(devicePtr, ptr, size, cudaMemcpyHostToDevice);
-}
-// -------------------------------------------------------------------------------
-
-OsdCudaKernelDispatcher::OsdCudaKernelDispatcher(int levels)
-    : OsdKernelDispatcher(levels)
-{
-    _tables.resize(TABLE_MAX);
-}
-
 
 OsdCudaKernelDispatcher::~OsdCudaKernelDispatcher() {
 }
 
 void
-OsdCudaKernelDispatcher::CopyTable(int tableIndex, size_t size, const void *ptr) {
+OsdCudaKernelDispatcher::Refine(FarMesh<OsdVertex> * mesh,
+                                OsdCudaComputeContext *context) {
 
-    _tables[tableIndex].Copy((int)size, ptr);
+    FarDispatcher<OsdVertex>::Refine(mesh, /*maxlevel =*/ -1, context);
+}
+
+OsdCudaKernelDispatcher *
+OsdCudaKernelDispatcher::GetInstance() {
+
+    static OsdCudaKernelDispatcher instance;
+    return &instance;
 }
 
 void
-OsdCudaKernelDispatcher::AllocateEditTables(int n) {
+OsdCudaKernelDispatcher::ApplyBilinearFaceVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    _editTables.resize(n*2);
-    _edits.resize(n);
+    OsdCudaComputeContext * context =
+        static_cast<OsdCudaComputeContext*>(clientdata);
+    assert(context);
+
+    const OsdCudaTable * F_IT = context->GetTable(Table::F_IT);
+    const OsdCudaTable * F_ITa = context->GetTable(Table::F_ITa);
+    assert(F_IT);
+    assert(F_ITa);
+
+    OsdCudaComputeFace(
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetCurrentVertexNumElements()-3,
+        context->GetCurrentVaryingNumElements(),
+        static_cast<int*>(F_IT->GetCudaMemory()) + F_IT->GetMarker(level-1),
+        static_cast<int*>(F_ITa->GetCudaMemory()) + F_ITa->GetMarker(level-1),
+        offset, start, end);
 }
 
 void
-OsdCudaKernelDispatcher::UpdateEditTable(int tableIndex, const FarTable<unsigned int> &offsets, const FarTable<float> &values,
-                                         int operation, int primVarOffset, int primVarWidth) {
+OsdCudaKernelDispatcher::ApplyBilinearEdgeVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    _editTables[tableIndex*2+0].Copy(offsets.GetMemoryUsed(), offsets[0]);
-    _editTables[tableIndex*2+1].Copy(values.GetMemoryUsed(), values[0]);
+    OsdCudaComputeContext * context =
+        static_cast<OsdCudaComputeContext*>(clientdata);
+    assert(context);
 
-    _edits[tableIndex].offsetOffsets.resize(_maxLevel);
-    _edits[tableIndex].valueOffsets.resize(_maxLevel);
-    _edits[tableIndex].numEdits.resize(_maxLevel);
-    for (int i = 0; i < _maxLevel; ++i) {
-        _edits[tableIndex].offsetOffsets[i] = (int)(offsets[i] - offsets[0]);
-        _edits[tableIndex].valueOffsets[i] = (int)(values[i] - values[0]);
-        _edits[tableIndex].numEdits[i] = offsets.GetNumElements(i);
-    }
-    _edits[tableIndex].operation = operation;
-    _edits[tableIndex].primVarOffset = primVarOffset;
-    _edits[tableIndex].primVarWidth = primVarWidth;
-}
+    const OsdCudaTable * E_IT = context->GetTable(Table::E_IT);
+    assert(E_IT);
 
-OsdVertexBuffer *
-OsdCudaKernelDispatcher::InitializeVertexBuffer(int numElements, int numVertices)
-{
-    return new OsdCudaVertexBuffer(numElements, numVertices);
+    OsdCudaComputeBilinearEdge(
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetCurrentVertexNumElements()-3,
+        context->GetCurrentVaryingNumElements(),
+        static_cast<int*>(E_IT->GetCudaMemory()) + E_IT->GetMarker(level-1),
+        offset, start, end);
 }
 
 void
-OsdCudaKernelDispatcher::BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying) {
+OsdCudaKernelDispatcher::ApplyBilinearVertexVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    if (vertex)
-        _currentVertexBuffer = dynamic_cast<OsdCudaVertexBuffer *>(vertex);
-    else
-        _currentVertexBuffer = NULL;
+    OsdCudaComputeContext * context =
+        static_cast<OsdCudaComputeContext*>(clientdata);
+    assert(context);
 
-    if (varying)
-        _currentVaryingBuffer = dynamic_cast<OsdCudaVertexBuffer *>(varying);
-    else
-        _currentVaryingBuffer = NULL;
+    const OsdCudaTable * V_ITa = context->GetTable(Table::V_ITa);
+    assert(V_ITa);
 
-    if (_currentVertexBuffer) {
-        _deviceVertices = (float*)_currentVertexBuffer->Map();
-        // XXX todo remove _numVertexElements
-        _numVertexElements = _currentVertexBuffer->GetNumElements();
-    } else {
-        _numVertexElements = 0;
-    }
-
-    if (_currentVaryingBuffer) {
-        _deviceVaryings = (float*)_currentVaryingBuffer->Map();
-        _numVaryingElements = _currentVaryingBuffer->GetNumElements();
-    } else {
-        _numVaryingElements = 0;
-    }
+    OsdCudaComputeBilinearVertex(
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetCurrentVertexNumElements()-3,
+        context->GetCurrentVaryingNumElements(),
+        static_cast<int*>(V_ITa->GetCudaMemory()) + V_ITa->GetMarker(level-1),
+        offset, start, end);
 }
 
 void
-OsdCudaKernelDispatcher::UnbindVertexBuffer()
-{
-    if (_currentVertexBuffer){
-        _currentVertexBuffer->Unmap();
-    }
-    if (_currentVaryingBuffer)
-        _currentVaryingBuffer->Unmap();
+OsdCudaKernelDispatcher::ApplyCatmarkFaceVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    _currentVertexBuffer = NULL;
-    _currentVaryingBuffer = NULL;
+    OsdCudaComputeContext * context =
+        static_cast<OsdCudaComputeContext*>(clientdata);
+    assert(context);
+
+    const OsdCudaTable * F_IT = context->GetTable(Table::F_IT);
+    const OsdCudaTable * F_ITa = context->GetTable(Table::F_ITa);
+    assert(F_IT);
+    assert(F_ITa);
+
+    OsdCudaComputeFace(
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetCurrentVertexNumElements()-3,
+        context->GetCurrentVaryingNumElements(),
+        static_cast<int*>(F_IT->GetCudaMemory()) + F_IT->GetMarker(level-1),
+        static_cast<int*>(F_ITa->GetCudaMemory()) + F_ITa->GetMarker(level-1),
+        offset, start, end);
 }
 
 void
-OsdCudaKernelDispatcher::Synchronize() {
+OsdCudaKernelDispatcher::ApplyCatmarkEdgeVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    cudaThreadSynchronize();
+    OsdCudaComputeContext * context =
+        static_cast<OsdCudaComputeContext*>(clientdata);
+    assert(context);
+
+    const OsdCudaTable * E_IT = context->GetTable(Table::E_IT);
+    const OsdCudaTable * E_W = context->GetTable(Table::E_W);
+    assert(E_IT);
+    assert(E_W);
+
+    OsdCudaComputeEdge(
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetCurrentVertexNumElements()-3,
+        context->GetCurrentVaryingNumElements(),
+        static_cast<int*>(E_IT->GetCudaMemory()) + E_IT->GetMarker(level-1),
+        static_cast<float*>(E_W->GetCudaMemory()) + E_W->GetMarker(level-1),
+        offset, start, end);
 }
 
 void
-OsdCudaKernelDispatcher::ApplyBilinearFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
-    OsdCudaComputeFace(_deviceVertices, _deviceVaryings,
-                       _numVertexElements-3, _numVaryingElements,
-                       (int*)_tables[F_IT].devicePtr + _tableOffsets[F_IT][level-1],
-                       (int*)_tables[F_ITa].devicePtr + _tableOffsets[F_ITa][level-1],
-                       offset, start, end);
+OsdCudaKernelDispatcher::ApplyCatmarkVertexVerticesKernelB(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
+
+    OsdCudaComputeContext * context =
+        static_cast<OsdCudaComputeContext*>(clientdata);
+    assert(context);
+
+    const OsdCudaTable * V_ITa = context->GetTable(Table::V_ITa);
+    const OsdCudaTable * V_IT = context->GetTable(Table::V_IT);
+    const OsdCudaTable * V_W = context->GetTable(Table::V_W);
+    assert(V_ITa);
+    assert(V_IT);
+    assert(V_W);
+
+    OsdCudaComputeVertexB(
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetCurrentVertexNumElements()-3,
+        context->GetCurrentVaryingNumElements(),
+        static_cast<int*>(V_ITa->GetCudaMemory()) + V_ITa->GetMarker(level-1),
+        static_cast<int*>(V_IT->GetCudaMemory()) + V_IT->GetMarker(level-1),
+        static_cast<float*>(V_W->GetCudaMemory()) + V_W->GetMarker(level-1),
+        offset, start, end);
 }
 
 void
-OsdCudaKernelDispatcher::ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+OsdCudaKernelDispatcher::ApplyCatmarkVertexVerticesKernelA(
+    FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
+    int start, int end, void * clientdata) const {
 
-    OsdCudaComputeBilinearEdge(_deviceVertices, _deviceVaryings,
-                               _numVertexElements-3, _numVaryingElements,
-                               (int*)_tables[E_IT].devicePtr + _tableOffsets[E_IT][level-1],
-                               offset, start, end);
+    OsdCudaComputeContext * context =
+        static_cast<OsdCudaComputeContext*>(clientdata);
+    assert(context);
+
+    const OsdCudaTable * V_ITa = context->GetTable(Table::V_ITa);
+    const OsdCudaTable * V_W = context->GetTable(Table::V_W);
+    assert(V_ITa);
+    assert(V_W);
+
+    OsdCudaComputeVertexA(
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetCurrentVertexNumElements()-3,
+        context->GetCurrentVaryingNumElements(),
+        static_cast<int*>(V_ITa->GetCudaMemory()) + V_ITa->GetMarker(level-1),
+        static_cast<float*>(V_W->GetCudaMemory()) + V_W->GetMarker(level-1),
+        offset, start, end, pass);
 }
 
 void
-OsdCudaKernelDispatcher::ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+OsdCudaKernelDispatcher::ApplyLoopEdgeVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    OsdCudaComputeBilinearVertex(_deviceVertices, _deviceVaryings,
-                                 _numVertexElements-3, _numVaryingElements,
-                                 (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
-                                 offset, start, end);
+    OsdCudaComputeContext * context =
+        static_cast<OsdCudaComputeContext*>(clientdata);
+    assert(context);
+
+    const OsdCudaTable * E_IT = context->GetTable(Table::E_IT);
+    const OsdCudaTable * E_W = context->GetTable(Table::E_W);
+    assert(E_IT);
+    assert(E_W);
+
+    OsdCudaComputeEdge(
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetCurrentVertexNumElements()-3,
+        context->GetCurrentVaryingNumElements(),
+        static_cast<int*>(E_IT->GetCudaMemory()) + E_IT->GetMarker(level-1),
+        static_cast<float*>(E_W->GetCudaMemory()) + E_W->GetMarker(level-1),
+        offset, start, end);
 }
 
 void
-OsdCudaKernelDispatcher::ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
-    OsdCudaComputeFace(_deviceVertices, _deviceVaryings,
-                       _numVertexElements-3, _numVaryingElements,
-                       (int*)_tables[F_IT].devicePtr + _tableOffsets[F_IT][level-1],
-                       (int*)_tables[F_ITa].devicePtr + _tableOffsets[F_ITa][level-1],
-                       offset, start, end);
+OsdCudaKernelDispatcher::ApplyLoopVertexVerticesKernelB(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
+
+    OsdCudaComputeContext * context =
+        static_cast<OsdCudaComputeContext*>(clientdata);
+    assert(context);
+
+    const OsdCudaTable * V_ITa = context->GetTable(Table::V_ITa);
+    const OsdCudaTable * V_IT = context->GetTable(Table::V_IT);
+    const OsdCudaTable * V_W = context->GetTable(Table::V_W);
+    assert(V_ITa);
+    assert(V_IT);
+    assert(V_W);
+
+    OsdCudaComputeLoopVertexB(
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetCurrentVertexNumElements()-3,
+        context->GetCurrentVaryingNumElements(),
+        static_cast<int*>(V_ITa->GetCudaMemory()) + V_ITa->GetMarker(level-1),
+        static_cast<int*>(V_IT->GetCudaMemory()) + V_IT->GetMarker(level-1),
+        static_cast<float*>(V_W->GetCudaMemory()) + V_W->GetMarker(level-1),
+        offset, start, end);
 }
 
 void
-OsdCudaKernelDispatcher::ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+OsdCudaKernelDispatcher::ApplyLoopVertexVerticesKernelA(
+    FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
+    int start, int end, void * clientdata) const {
 
-    OsdCudaComputeEdge(_deviceVertices, _deviceVaryings,
-                       _numVertexElements-3, _numVaryingElements,
-                       (int*)_tables[E_IT].devicePtr + _tableOffsets[E_IT][level-1],
-                       (float*)_tables[E_W].devicePtr + _tableOffsets[E_W][level-1],
-                       offset, start, end);
+    OsdCudaComputeContext * context =
+        static_cast<OsdCudaComputeContext*>(clientdata);
+    assert(context);
+
+    const OsdCudaTable * V_ITa = context->GetTable(Table::V_ITa);
+    const OsdCudaTable * V_W = context->GetTable(Table::V_W);
+    assert(V_ITa);
+    assert(V_W);
+
+    OsdCudaComputeVertexA(
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetCurrentVertexNumElements()-3,
+        context->GetCurrentVaryingNumElements(),
+        static_cast<int*>(V_ITa->GetCudaMemory()) + V_ITa->GetMarker(level-1),
+        static_cast<float*>(V_W->GetCudaMemory()) + V_W->GetMarker(level-1),
+        offset, start, end, pass);
 }
 
 void
-OsdCudaKernelDispatcher::ApplyCatmarkVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+OsdCudaKernelDispatcher::ApplyVertexEdits(
+    FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const {
 
-    OsdCudaComputeVertexB(_deviceVertices, _deviceVaryings,
-                          _numVertexElements-3, _numVaryingElements,
-                          (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
-                          (int*)_tables[V_IT].devicePtr + _tableOffsets[V_IT][level-1],
-                          (float*)_tables[V_W].devicePtr + _tableOffsets[V_W][level-1],
-                          offset, start, end);
-}
+    OsdCudaComputeContext * context =
+        static_cast<OsdCudaComputeContext*>(clientdata);
+    assert(context);
 
-void
-OsdCudaKernelDispatcher::ApplyCatmarkVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const {
+    int numEditTables = context->GetNumEditTables();
+    for (int i=0; i < numEditTables; ++i) {
 
-    OsdCudaComputeVertexA(_deviceVertices, _deviceVaryings,
-                          _numVertexElements-3, _numVaryingElements,
-                          (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
-                          (float*)_tables[V_W].devicePtr + _tableOffsets[V_W][level-1],
-                          offset, start, end, pass);
-}
+        const OsdCudaHEditTable * edit = context->GetEditTable(i);
+        assert(edit);
 
-void
-OsdCudaKernelDispatcher::ApplyLoopEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+        const OsdCudaTable * primvarIndices = edit->GetPrimvarIndices();
+        const OsdCudaTable * editValues = edit->GetEditValues();
 
-    OsdCudaComputeEdge(_deviceVertices, _deviceVaryings,
-                       _numVertexElements-3, _numVaryingElements,
-                       (int*)_tables[E_IT].devicePtr + _tableOffsets[E_IT][level-1],
-                       (float*)_tables[E_W].devicePtr + _tableOffsets[E_W][level-1],
-                       offset, start, end);
-}
-
-void
-OsdCudaKernelDispatcher::ApplyLoopVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
-
-    OsdCudaComputeLoopVertexB(_deviceVertices, _deviceVaryings,
-                              _numVertexElements-3, _numVaryingElements,
-                              (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
-                              (int*)_tables[V_IT].devicePtr + _tableOffsets[V_IT][level-1],
-                              (float*)_tables[V_W].devicePtr + _tableOffsets[V_W][level-1],
-                              offset, start, end);
-}
-
-void
-OsdCudaKernelDispatcher::ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const {
-    OsdCudaComputeVertexA(_deviceVertices, _deviceVaryings,
-                          _numVertexElements-3, _numVaryingElements,
-                          (int*)_tables[V_ITa].devicePtr + _tableOffsets[V_ITa][level-1],
-                          (float*)_tables[V_W].devicePtr + _tableOffsets[V_W][level-1],
-                          offset, start, end, pass);
-}
-
-void
-OsdCudaKernelDispatcher::ApplyVertexEdits(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const {
-
-    for (int i=0; i<(int)_edits.size(); ++i) {
-        const VertexEditArrayInfo &info = _edits[i];
-
-        if (info.operation == FarVertexEdit::Add) {
-            OsdCudaEditVertexAdd(_deviceVertices, _numVertexElements-3, info.primVarOffset, info.primVarWidth, info.numEdits[level-1],
-                                 (int*)_editTables[i*2+0].devicePtr + info.offsetOffsets[level-1],
-                                 (float*)_editTables[i*2+1].devicePtr + info.valueOffsets[level-1]);
-        } else if (info.operation == FarVertexEdit::Set) {
-            // XXXX TODO
+        if (edit->GetOperation() == FarVertexEdit::Add) {
+            OsdCudaEditVertexAdd(
+                context->GetCurrentVertexBuffer(),
+                context->GetCurrentVertexNumElements()-3,
+                edit->GetPrimvarOffset(), edit->GetPrimvarWidth(),
+                primvarIndices->GetNumElements(level-1),
+                static_cast<int*>(primvarIndices->GetCudaMemory())
+                + primvarIndices->GetMarker(level-1),
+                static_cast<float*>(editValues->GetCudaMemory())
+                + editValues->GetMarker(level-1));
+        } else if (edit->GetOperation() == FarVertexEdit::Set) {
+             // XXXX TODO
         }
     }
 }
 
-} // end namespace OPENSUBDIV_VERSION
-} // end namespace OpenSubdiv
+}  // end namespace OPENSUBDIV_VERSION
+}  // end namespace OpenSubdiv

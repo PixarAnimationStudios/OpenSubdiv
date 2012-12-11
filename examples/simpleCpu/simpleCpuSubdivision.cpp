@@ -132,17 +132,17 @@ a particular purpose and non-infringement.
 //
 
 
-#include <osd/mutex.h>
+// XXX: Fixme 
+#include "../../regression/common/mutex.h"
 
-#include <hbr/mesh.h>
-#include <hbr/face.h>
-#include <hbr/subdivision.h>
-#include <hbr/catmark.h>
+#include <far/meshFactory.h>
 
 #include <osd/vertex.h>
-#include <osd/mesh.h>
-#include <osd/elementArrayBuffer.h>
+#include <osd/glDrawContext.h>
 #include <osd/cpuDispatcher.h>
+#include <osd/cpuGLVertexBuffer.h>
+#include <osd/cpuComputeController.h>
+#include <osd/cpuComputeContext.h>
 
 // 
 // ### Global Variables & Declarations
@@ -165,9 +165,16 @@ float g_center[3] = {0.0f, 0.0f, 0.0f},
 //
 // The OSD state: a mesh, vertex buffer and element array
 //
-OpenSubdiv::OsdMesh * g_osdmesh = 0;
-OpenSubdiv::OsdVertexBuffer* g_vertexBuffer = 0;
-OpenSubdiv::OsdElementArrayBuffer *g_elementArrayBuffer = 0;
+OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> * g_farmesh = 0;
+OpenSubdiv::OsdCpuGLVertexBuffer * g_vertexBuffer = 0;
+OpenSubdiv::OsdGLDrawContext * g_drawContext = 0;
+OpenSubdiv::OsdCpuComputeContext * g_osdComputeContext = 0;
+OpenSubdiv::OsdCpuComputeController * g_osdComputeController = 0;
+
+typedef OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>     OsdHbrMesh;
+typedef OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex>   OsdHbrVertex;
+typedef OpenSubdiv::HbrFace<OpenSubdiv::OsdVertex>     OsdHbrFace;
+typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
 //
 // The coarse mesh positions and normals are saved externally and deformed
@@ -182,10 +189,10 @@ std::vector<float> g_orgPositions,
 //
 void idle();
 void reshape(int width, int height);
-void createOsdMesh(int level, int kernel);
+void createOsdContext(int level);
 void display();
 void updateGeom();
-static void calcNormals(OpenSubdiv::OsdHbrMesh * mesh, 
+static void calcNormals(OsdHbrMesh * mesh, 
                         std::vector<float> const & pos, 
                         std::vector<float> & result );
 
@@ -206,14 +213,14 @@ void initOsd()
     // for construction when it is requested via the kCPU enumeration inside the
     // function createOsdMesh.
     //
-    OpenSubdiv::OsdCpuKernelDispatcher::Register();
+//    OpenSubdiv::OsdCpuKernelDispatcher::Register();
+    g_osdComputeController = new OpenSubdiv::OsdCpuComputeController();
 
     //
     // The following method will populate the g_osdMesh object, which will 
     // contain the precomputed subdivision tables.
     //
-    createOsdMesh(g_level, 
-                  OpenSubdiv::OsdKernelDispatcher::kCPU);
+    createOsdContext(g_level);
 
 }
 
@@ -225,13 +232,13 @@ void initOsd()
 // which gets called at the end of this function and on frame change.
 //
 void
-createOsdMesh(int level, int kernel) 
+createOsdContext(int level)
 {
     // 
     // Setup an OsdHbr mesh based on the desired subdivision scheme
     //
     static OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>  _catmark;
-    OpenSubdiv::OsdHbrMesh * hmesh(new OpenSubdiv::OsdHbrMesh(&_catmark));
+    OsdHbrMesh *hmesh(new OsdHbrMesh(&_catmark));
 
     //
     // Now that we have a mesh, we need to add verticies and define the topology.
@@ -287,9 +294,9 @@ createOsdMesh(int level, int kernel)
         // the topology that is about to be created below.
         //
         for (unsigned j = 0; j < VERTS_PER_FACE; j++) {
-            OpenSubdiv::OsdHbrVertex * origin      = hmesh->GetVertex(faces[i+j]);
-            OpenSubdiv::OsdHbrVertex * destination = hmesh->GetVertex(faces[i+((j+1)%VERTS_PER_FACE)]);
-            OpenSubdiv::OsdHbrHalfedge * opposite  = destination->GetEdge(origin);
+            OsdHbrVertex * origin      = hmesh->GetVertex(faces[i+j]);
+            OsdHbrVertex * destination = hmesh->GetVertex(faces[i+((j+1)%VERTS_PER_FACE)]);
+            OsdHbrHalfedge * opposite  = destination->GetEdge(origin);
 
             if(origin==NULL || destination==NULL) {
                 std::cerr << 
@@ -324,7 +331,7 @@ createOsdMesh(int level, int kernel)
         // Now, create current face given the number of verts per face and the 
         // face index data.
         //
-        OpenSubdiv::OsdHbrFace * face = hmesh->NewFace(VERTS_PER_FACE, faces+i, 0);
+        OsdHbrFace * face = hmesh->NewFace(VERTS_PER_FACE, faces+i, 0);
 
         //
         // If you had ptex data, you would set it here, for example
@@ -338,9 +345,9 @@ createOsdMesh(int level, int kernel)
     // default boundary interpolation mode along with a corner sharpness. See 
     // the API and the renderman spec for the full list of available operations.
     //
-    hmesh->SetInterpolateBoundaryMethod( OpenSubdiv::OsdHbrMesh::k_InterpolateBoundaryEdgeOnly );
+    hmesh->SetInterpolateBoundaryMethod( OsdHbrMesh::k_InterpolateBoundaryEdgeOnly );
     
-    OpenSubdiv::OsdHbrVertex * v = hmesh->GetVertex(0);
+    OsdHbrVertex * v = hmesh->GetVertex(0);
     v->SetSharpness(2.7f);
 
     //
@@ -365,18 +372,25 @@ createOsdMesh(int level, int kernel)
     // Again, no vertex positions are being stored here, the point data will be 
     // sent to the mesh in updateGeom().
     //
-    g_osdmesh = new OpenSubdiv::OsdMesh();
-    g_osdmesh->Create(hmesh, level, kernel);
+    OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex> meshFactory(hmesh, level);
+
+    g_farmesh = meshFactory.Create();
+
+    g_osdComputeContext = OpenSubdiv::OsdCpuComputeContext::Create(g_farmesh);
+
     delete hmesh;
 
     // 
-    // Initialize the index and vertex buffers
+    // Initialize draw context and vertex buffer
     //
-    g_elementArrayBuffer = g_osdmesh->CreateElementArrayBuffer(level);
-    g_vertexBuffer = g_osdmesh->InitializeVertexBuffer(6 /* 3 floats for position, 
+    g_vertexBuffer = 
+        OpenSubdiv::OsdCpuGLVertexBuffer::Create(6,  /* 3 floats for position, 
                                                             +
                                                             3 floats for normal*/
-                                                        );
+                                                 g_farmesh->GetNumVertices());
+
+    g_drawContext =
+        OpenSubdiv::OsdGLDrawContext::Create(g_farmesh, g_vertexBuffer);
 
     // 
     // Setup camera positioning based on object bounds. This really has nothing
@@ -398,12 +412,12 @@ createOsdMesh(int level, int kernel)
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->GetGpuBuffer());
+    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->BindVBO());
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_elementArrayBuffer->GetGlBuffer());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_drawContext->patchIndexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
@@ -464,13 +478,13 @@ updateGeom()
     // a call to Synchronize() will allow you to block until the worker threads
     // complete.
     //
-    g_osdmesh->Subdivide(g_vertexBuffer, NULL);
+    g_osdComputeController->Refine(g_osdComputeContext, g_vertexBuffer);
 
     //
     // The call to Synchronize() is not actually necessary, it's being used
     // here only for illustration. 
     //
-    g_osdmesh->Synchronize();
+    // g_osdComputeController->Synchronize();
 }
 
 //
@@ -480,7 +494,7 @@ updateGeom()
 // how to inspect the coarse mesh, give an HbrMesh pointer.
 //
 static void
-calcNormals(OpenSubdiv::OsdHbrMesh * mesh, 
+calcNormals(OsdHbrMesh * mesh, 
             std::vector<float> const & pos,
             std::vector<float> & result ) 
 {
@@ -494,7 +508,7 @@ calcNormals(OpenSubdiv::OsdHbrMesh * mesh,
 
     for (int i = 0; i < nfaces; ++i) {
 
-        OpenSubdiv::OsdHbrFace * f = mesh->GetFace(i);
+        OsdHbrFace * f = mesh->GetFace(i);
 
         float const * p0 = &pos[f->GetVertex(0)->GetID()*3],
                     * p1 = &pos[f->GetVertex(1)->GetID()*3],
@@ -530,23 +544,29 @@ display()
     //
     // Bind the GL vertex and index buffers
     //
-    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->GetGpuBuffer());
+    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->BindVBO());
 
-    //
-    // Bind the solid shaded program and draw elements based on the buffer contents
-    //
-    bindProgram(g_quadFillProgram);
-    glDrawElements(GL_LINES_ADJACENCY, g_elementArrayBuffer->GetNumIndices(),
-                    GL_UNSIGNED_INT, NULL);
+    OpenSubdiv::OsdPatchArrayVector const & patches = g_drawContext->patchArrays;
+    for (int i=0; i<(int)patches.size(); ++i) {
+        OpenSubdiv::OsdPatchArray const & patch = patches[i];
 
-    //
-    // Draw the wire frame over the solid shaded mesh
-    //
-    bindProgram(g_quadLineProgram);
-    glUniform4f(glGetUniformLocation(g_quadLineProgram, "fragColor"), 
-                       0, 0, 0.5, 1);
-    glDrawElements(GL_LINES_ADJACENCY, g_elementArrayBuffer->GetNumIndices(),
-                    GL_UNSIGNED_INT, NULL);
+        //
+        // Bind the solid shaded program and draw elements based on the buffer contents
+        //
+        bindProgram(g_quadFillProgram);
+
+        glDrawElements(GL_LINES_ADJACENCY, patch.numIndices,
+                       GL_UNSIGNED_INT, NULL);
+
+        //
+        // Draw the wire frame over the solid shaded mesh
+        //
+        bindProgram(g_quadLineProgram);
+        glUniform4f(glGetUniformLocation(g_quadLineProgram, "fragColor"), 
+                    0, 0, 0.5, 1);
+        glDrawElements(GL_LINES_ADJACENCY, patch.numIndices,
+                       GL_UNSIGNED_INT, NULL);
+    }
 
     //
     // This isn't strictly necessary, but unbind the GL state
@@ -560,7 +580,7 @@ display()
     //
     //glColor3f(1, 1, 1);
     drawString(10, 10, "LEVEL = %d", g_level);
-    drawString(10, 30, "# of Vertices = %d", g_osdmesh->GetFarMesh()->GetNumVertices());
+    drawString(10, 30, "# of Vertices = %d", g_farmesh->GetNumVertices());
     drawString(10, 50, "KERNEL = CPU");
     drawString(10, 70, "SUBDIVISION = %s", "CATMARK");
 

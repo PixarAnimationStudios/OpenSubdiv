@@ -70,7 +70,7 @@ static char const * catmark_edgeonly =
 "vn 0.0 0.0 0.0\n"
 "vn 0.0 0.0 0.0\n"
 "s off\n"
-"f 4/4/4 3/3/3 2/2/2 1/1/1\n"
+"f 1/1/1 2/2/2 3/3/3 4/4/4\n"
 "t interpolateboundary 1/0/0 2\n"
 "\n"
 ;

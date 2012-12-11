@@ -59,7 +59,7 @@
 #include <typeinfo>
 #include <iostream>
 
-#include <osd/mutex.h>
+#include "../common/mutex.h"
 
 #include <hbr/mesh.h>
 #include <hbr/face.h>
@@ -221,7 +221,7 @@ static void usage(char const * appname) {
     printf("    Valid shapes :\n");
     for (int i=0; i<(int)g_shapes.size(); ++i)
         printf("        %d : %s\n", i, g_shapes[i].name.c_str());
-    printf("        %d : all shapes\n", g_shapes.size());
+    printf("        %ld : all shapes\n", g_shapes.size());
 }
 
 int g_shapeindex=-1;
@@ -241,7 +241,7 @@ static void parseArgs(int argc, char ** argv) {
             if (i<(argc-1))
                 g_shapeindex =  atoi( argv[++i] );
             if ( g_shapeindex<0 or g_shapeindex>(int)g_shapes.size()) {
-                printf("-shape : index must be within [%d %d]\n", 0, g_shapes.size());
+                printf("-shape : index must be within [%ld %ld]\n", 0L, g_shapes.size());
                 exit(0);
             }
         } else if (not strcmp(argv[i],"-scheme")) {
@@ -249,7 +249,7 @@ static void parseArgs(int argc, char ** argv) {
             const char * scheme = NULL;
             
             if (i<(argc-1))
-                argv[++i];
+                scheme = argv[++i];
             
             if (not strcmp(scheme,"bilinear"))
                 g_scheme = kBilinear;
@@ -258,7 +258,7 @@ static void parseArgs(int argc, char ** argv) {
             else if (not strcmp(scheme,"loop"))
                 g_scheme = kLoop;
             else {
-                printf("-scheme : must be one of (\"bilinear\", \"catmark\", \"loop\")\n", 0, g_shapes.size());
+                printf("-scheme : must be one of (\"bilinear\", \"catmark\", \"loop\")\n");
                 exit(0);
             }
         } else {
@@ -306,7 +306,7 @@ int main(int argc, char ** argv) {
     } else if (g_shapeindex>=0) {
         
         if (g_shapeindex==(int)g_shapes.size()) {
-            for (size_t i=0; i<g_shapes.size(); ++i)
+            for (int i=0; i<(int)g_shapes.size(); ++i)
                  generate( g_shapes[i].data.c_str(), 
                            g_shapes[i].name.c_str(), 
                            levels, 

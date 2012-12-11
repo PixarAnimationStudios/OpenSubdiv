@@ -57,13 +57,7 @@
 
 #include <stdio.h>
 
-#include <osd/mutex.h>
-
-#include <hbr/mesh.h>
-#include <hbr/face.h>
-#include <hbr/vertex.h>
-#include <hbr/halfedge.h>
-#include <hbr/catmark.h>
+#include "../common/mutex.h"
 
 #include <far/meshFactory.h>
 
@@ -238,8 +232,8 @@ static void dumpXYZMesh( xyzmesh * mesh, int level, Scheme /* loop */ =kCatmark 
 static void dumpVerts( fMesh * mesh, int level ) {
     std::vector<xyzVV> & verts = mesh->GetVertices();
 
-    int firstvert = mesh->GetSubdivision()->GetFirstVertexOffset(level),
-    numverts = mesh->GetSubdivision()->GetNumVertices(level);
+    int firstvert = mesh->GetSubdivisionTables()->GetFirstVertexOffset(level),
+         numverts = mesh->GetSubdivisionTables()->GetNumVertices(level);
 
     printf("\t'verts':[\t");
     for (int i=firstvert; i<(firstvert+numverts); ++i) {
@@ -256,7 +250,7 @@ static void dumpVerts( fMesh * mesh, int level ) {
 static void dumpQuadFaces( fMesh * mesh, int level ) {
     std::vector<int> const & fverts = mesh->GetFaceVertices(level);
 
-    int ofs = mesh->GetSubdivision()->GetFirstVertexOffset(level);
+    int ofs = mesh->GetSubdivisionTables()->GetFirstVertexOffset(level);
 
     printf("\t'faces':[\t");
     for (size_t i=0; i<(fverts.size()); i+=4) {
@@ -274,7 +268,7 @@ static void dumpQuadFaces( fMesh * mesh, int level ) {
 static void dumpTriFaces( fMesh * mesh, int level ) {
     std::vector<int> const & fverts = mesh->GetFaceVertices(level);
 
-    int ofs = mesh->GetSubdivision()->GetFirstVertexOffset(level);
+    int ofs = mesh->GetSubdivisionTables()->GetFirstVertexOffset(level);
 
     printf("\t'faces':[\t");
     for (size_t i=0; i<(fverts.size()); i+=3) {

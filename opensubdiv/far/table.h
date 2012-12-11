@@ -54,37 +54,47 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
 #ifndef FAR_TABLE_H
 #define FAR_TABLE_H
 
 #include "../version.h"
 
+#include <vector>
+#include <cassert>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-/// \brief A generic "table" with markers.
-///
-/// Generic multi-level indexing table : the indices across all the subdivision
-/// levels are stored in a flat std::vector. 
-///
-/// The table class also holds a sequence of markers pointing to the first index
-/// at the beginning of the sequence describing a given level.
-/// (note that "level 1" vertices are obtained by using the indices starting at
-/// "level 0" of the tables)
-///
+    typedef std::vector<int> FarTableMarkers;
+
+// Generic multi-level indexing table : the indices across all the subdivision
+// levels are stored in a single std::vector. The table class holds a sequence
+// of markers pointing to the first index at the beginning of the sequence
+// describing a given level (note that "level 1" vertices are obtained by using
+// the indices starting at "level 0" of the tables)
 template <typename Type> class FarTable {
     std::vector<Type>   _data;     // table data
-    std::vector<Type *> _markers;  // pointers to the first datum at each level
+    FarTableMarkers     _markers;  // offsets to the first datum at each level
 public:
-
     FarTable() { }
 
     FarTable(int maxlevel) : _markers(maxlevel) { }
 
-    /// Reset max level and clear data
+    // Reset max level and clear data
     void SetMaxLevel(int maxlevel) {
+        _markers.resize(maxlevel, 0);
         _data.clear();
-        _markers.resize(maxlevel);
+    }
+
+    /// True if there is no data in the table
+    bool IsEmpty() const {
+        return _data.empty();
+    };
+
+    /// Returns the number of entries in the table.
+    int GetSize() const {
+        return (int)_data.size();
     }
 
     /// Returns the memory required to store the data in this table.
@@ -95,32 +105,37 @@ public:
     /// Returns the number of elements in level "level"
     int GetNumElements(int level) const {
         assert(level>=0 and level<((int)_markers.size()-1));
-        return (int)(_markers[level+1] - _markers[level]);
+        return _markers[level+1] - _markers[level];
     }
 
     /// Saves a pointer indicating the beginning of data pertaining to "level"
     /// of subdivision
     void SetMarker(int level, Type * marker) {
-        _markers[level] = marker;
+        _markers[level] = (int)(marker - &_data[0]);
     }
 
     /// Resize the table to size (also resets markers)
     void Resize(int size) {
         _data.resize(size);
-        _markers[0] = &_data[0];
+        _markers[0] = 0;
     }
 
     /// Returns a pointer to the data at the beginning of level "level" of
     /// subdivision
     Type * operator[](int level) {
         assert(level>=0 and level<(int)_markers.size());
-        return _markers[level];
+        return &_data[0] + _markers[level];
     }
 
     /// Returns a const pointer to the data at the beginning of level "level"
     /// of subdivision
     const Type * operator[](int level) const {
         return const_cast<FarTable *>(this)->operator[](level);
+    }
+
+    /// Returns the level markers as an std::vector<int> 
+    const FarTableMarkers & GetMarkers() const {
+        return _markers;
     }
 };
 

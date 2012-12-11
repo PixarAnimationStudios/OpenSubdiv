@@ -55,259 +55,258 @@
 //     a particular purpose and non-infringement.
 //
 
-#include "../version.h"
-#include "../osd/mutex.h"
 #include "../osd/cpuDispatcher.h"
 #include "../osd/cpuKernel.h"
+#include "../osd/cpuComputeContext.h"
 
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef OPENSUBDIV_HAS_OPENMP
-    #include <omp.h>
-#endif
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCpuKernelDispatcher::Table::~Table() {
-
-    if (ptr)
-        free(ptr);
-}
-
-void
-OsdCpuKernelDispatcher::Table::Copy( int size, const void *table ) {
-
-    if (size > 0) {
-        if (ptr)
-            free(ptr);
-        ptr = malloc(size);
-        memcpy(ptr, table, size);
-    }
-}
-
-OsdCpuKernelDispatcher::OsdCpuKernelDispatcher( int levels, int numOmpThreads )
-    : OsdKernelDispatcher(levels), _currentVertexBuffer(NULL), _currentVaryingBuffer(NULL), _vdesc(NULL), _numOmpThreads(numOmpThreads) {
-    _tables.resize(TABLE_MAX);
+OsdCpuKernelDispatcher::OsdCpuKernelDispatcher() {
 }
 
 OsdCpuKernelDispatcher::~OsdCpuKernelDispatcher() {
 
-    if (_vdesc)
-        delete _vdesc;
-}
-
-static OsdCpuKernelDispatcher::OsdKernelDispatcher *
-Create(int levels) {
-    return new OsdCpuKernelDispatcher(levels);
-}
-
-#ifdef OPENSUBDIV_HAS_OPENMP
-static OsdCpuKernelDispatcher::OsdKernelDispatcher *
-CreateOmp(int levels) {
-    return new OsdCpuKernelDispatcher(levels, omp_get_num_procs());
-}
-#endif
-
-void
-OsdCpuKernelDispatcher::Register() {
-
-    Factory::GetInstance().Register(Create, kCPU);
-#ifdef OPENSUBDIV_HAS_OPENMP
-    Factory::GetInstance().Register(CreateOmp, kOPENMP);
-#endif
-
 }
 
 void
-OsdCpuKernelDispatcher::OnKernelLaunch() {
-#ifdef OPENSUBDIV_HAS_OPENMP
-    omp_set_num_threads(_numOmpThreads);
-#endif
+OsdCpuKernelDispatcher::Refine(FarMesh<OsdVertex> * mesh,
+                               OsdCpuComputeContext *context) const {
+
+    FarDispatcher<OsdVertex>::Refine(mesh, /*maxlevel =*/ -1, context);
+}
+
+OsdCpuKernelDispatcher *
+OsdCpuKernelDispatcher::GetInstance() {
+
+    static OsdCpuKernelDispatcher instance;
+    return &instance;
 }
 
 void
-OsdCpuKernelDispatcher::CopyTable(int tableIndex, size_t size, const void *ptr) {
+OsdCpuKernelDispatcher::ApplyBilinearFaceVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    _tables[tableIndex].Copy((int)size, ptr);
+    OsdCpuComputeContext * context =
+        static_cast<OsdCpuComputeContext*>(clientdata);
+    assert(context);
+
+    OsdCpuComputeFace(
+        context->GetVertexDescriptor(),
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        (const int*)context->GetTablePtr(Table::F_IT, level-1),
+        (const int*)context->GetTablePtr(Table::F_ITa, level-1),
+        offset, start, end);
 }
 
 void
-OsdCpuKernelDispatcher::AllocateEditTables(int n) {
+OsdCpuKernelDispatcher::ApplyBilinearEdgeVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    _editTables.resize(n*2);
-    _edits.resize(n);
+    OsdCpuComputeContext * context =
+        static_cast<OsdCpuComputeContext*>(clientdata);
+    assert(context);
+
+    OsdCpuComputeBilinearEdge(
+        context->GetVertexDescriptor(),
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        (const int*)context->GetTablePtr(Table::E_IT, level-1),
+        offset, start, end);
 }
 
 void
-OsdCpuKernelDispatcher::UpdateEditTable(int tableIndex, const FarTable<unsigned int> &offsets, const FarTable<float> &values,
-                                        int operation, int primVarOffset, int primVarWidth) {
+OsdCpuKernelDispatcher::ApplyBilinearVertexVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    _editTables[tableIndex*2+0].Copy(offsets.GetMemoryUsed(), offsets[0]);
-    _editTables[tableIndex*2+1].Copy(values.GetMemoryUsed(), values[0]);
+    OsdCpuComputeContext * context =
+        static_cast<OsdCpuComputeContext*>(clientdata);
+    assert(context);
 
-    _edits[tableIndex].offsetOffsets.resize(_maxLevel);
-    _edits[tableIndex].valueOffsets.resize(_maxLevel);
-    _edits[tableIndex].numEdits.resize(_maxLevel);
-    for (int i = 0; i < _maxLevel; ++i) {
-        _edits[tableIndex].offsetOffsets[i] = (int)(offsets[i] - offsets[0]);
-        _edits[tableIndex].valueOffsets[i] = (int)(values[i] - values[0]);
-        _edits[tableIndex].numEdits[i] = offsets.GetNumElements(i);
-    }
-    _edits[tableIndex].operation = operation;
-    _edits[tableIndex].primVarOffset = primVarOffset;
-    _edits[tableIndex].primVarWidth = primVarWidth;
-}
-
-OsdVertexBuffer *
-OsdCpuKernelDispatcher::InitializeVertexBuffer(int numElements, int numVertices)
-{
-    return new OsdCpuVertexBuffer(numElements, numVertices);
+    OsdCpuComputeBilinearVertex(
+        context->GetVertexDescriptor(),
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        (const int*)context->GetTablePtr(Table::V_ITa, level-1),
+        offset, start, end);
 }
 
 void
-OsdCpuKernelDispatcher::BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying) {
+OsdCpuKernelDispatcher::ApplyCatmarkFaceVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    if (vertex)
-        _currentVertexBuffer = dynamic_cast<OsdCpuVertexBuffer *>(vertex);
-    else
-        _currentVertexBuffer = NULL;
+    OsdCpuComputeContext * context =
+        static_cast<OsdCpuComputeContext*>(clientdata);
+    assert(context);
 
-    if (varying)
-        _currentVaryingBuffer = dynamic_cast<OsdCpuVertexBuffer *>(varying);
-    else
-        _currentVaryingBuffer = NULL;
-
-    _vdesc = new VertexDescriptor(_currentVertexBuffer ? _currentVertexBuffer->GetNumElements() : 0,
-                                  _currentVaryingBuffer ? _currentVaryingBuffer->GetNumElements() : 0);
+    OsdCpuComputeFace(
+        context->GetVertexDescriptor(),
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        (const int*)context->GetTablePtr(Table::F_IT, level-1),
+        (const int*)context->GetTablePtr(Table::F_ITa, level-1),
+        offset, start, end);
 }
 
 void
-OsdCpuKernelDispatcher::UnbindVertexBuffer()
-{
-    delete _vdesc;
-    _vdesc = NULL;
+OsdCpuKernelDispatcher::ApplyCatmarkEdgeVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    _currentVertexBuffer = NULL;
-    _currentVaryingBuffer = NULL;
+    OsdCpuComputeContext * context =
+        static_cast<OsdCpuComputeContext*>(clientdata);
+    assert(context);
+
+    OsdCpuComputeEdge(
+        context->GetVertexDescriptor(),
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        (const int*)context->GetTablePtr(Table::E_IT, level-1),
+        (const float*)context->GetTablePtr(Table::E_W, level-1),
+        offset, start, end);
 }
 
 void
-OsdCpuKernelDispatcher::Synchronize() { }
+OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelB(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
+    OsdCpuComputeContext * context =
+        static_cast<OsdCpuComputeContext*>(clientdata);
+    assert(context);
 
-void
-OsdCpuKernelDispatcher::ApplyBilinearFaceVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
-
-    computeFace(_vdesc, GetVertexBuffer(), GetVaryingBuffer(),
-                (int*)_tables[F_IT].ptr + _tableOffsets[F_IT][level-1],
-                (int*)_tables[F_ITa].ptr + _tableOffsets[F_ITa][level-1],
-                offset, start, end);
+    OsdCpuComputeVertexB(
+        context->GetVertexDescriptor(),
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        (const int*)context->GetTablePtr(Table::V_ITa, level-1),
+        (const int*)context->GetTablePtr(Table::V_IT, level-1),
+        (const float*)context->GetTablePtr(Table::V_W, level-1),
+        offset, start, end);
 }
 
 void
-OsdCpuKernelDispatcher::ApplyBilinearEdgeVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelA(
+    FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
+    int start, int end, void * clientdata) const {
 
-    computeBilinearEdge(_vdesc, GetVertexBuffer(), GetVaryingBuffer(),
-                        (int*)_tables[E_IT].ptr + _tableOffsets[E_IT][level-1],
-                        offset,
-                        start, end);
+    OsdCpuComputeContext * context =
+        static_cast<OsdCpuComputeContext*>(clientdata);
+    assert(context);
+
+    OsdCpuComputeVertexA(
+        context->GetVertexDescriptor(),
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        (const int*)context->GetTablePtr(Table::V_ITa, level-1),
+        (const float*)context->GetTablePtr(Table::V_W, level-1),
+        offset, start, end, pass);
 }
 
 void
-OsdCpuKernelDispatcher::ApplyBilinearVertexVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+OsdCpuKernelDispatcher::ApplyLoopEdgeVerticesKernel(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    computeBilinearVertex(_vdesc, GetVertexBuffer(), GetVaryingBuffer(),
-                          (int*)_tables[V_ITa].ptr + _tableOffsets[V_ITa][level-1],
-                          offset, start, end);
+    OsdCpuComputeContext * context =
+        static_cast<OsdCpuComputeContext*>(clientdata);
+    assert(context);
+
+    OsdCpuComputeEdge(
+        context->GetVertexDescriptor(),
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        (const int*)context->GetTablePtr(Table::E_IT, level-1),
+        (const float*)context->GetTablePtr(Table::E_W, level-1),
+        offset, start, end);
 }
 
 void
-OsdCpuKernelDispatcher::ApplyCatmarkFaceVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelB(
+    FarMesh<OsdVertex> * mesh, int offset, int level,
+    int start, int end, void * clientdata) const {
 
-    computeFace(_vdesc, GetVertexBuffer(), GetVaryingBuffer(),
-                (int*)_tables[F_IT].ptr + _tableOffsets[F_IT][level-1],
-                (int*)_tables[F_ITa].ptr + _tableOffsets[F_ITa][level-1],
-                offset, start, end);
+    OsdCpuComputeContext * context =
+        static_cast<OsdCpuComputeContext*>(clientdata);
+    assert(context);
+
+    OsdCpuComputeLoopVertexB(
+        context->GetVertexDescriptor(),
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        (const int*)context->GetTablePtr(Table::V_ITa, level-1),
+        (const int*)context->GetTablePtr(Table::V_IT, level-1),
+        (const float*)context->GetTablePtr(Table::V_W, level-1),
+        offset, start, end);
 }
 
 void
-OsdCpuKernelDispatcher::ApplyCatmarkEdgeVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelA(
+    FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
+    int start, int end, void * clientdata) const {
 
-    computeEdge(_vdesc, GetVertexBuffer(), GetVaryingBuffer(),
-                (int*)_tables[E_IT].ptr + _tableOffsets[E_IT][level-1],
-                (float*)_tables[E_W].ptr + _tableOffsets[E_W][level-1],
-                offset,
-                start, end);
+    OsdCpuComputeContext * context =
+        static_cast<OsdCpuComputeContext*>(clientdata);
+    assert(context);
+
+    OsdCpuComputeVertexA(
+        context->GetVertexDescriptor(),
+        context->GetCurrentVertexBuffer(),
+        context->GetCurrentVaryingBuffer(),
+        (const int*)context->GetTablePtr(Table::V_ITa, level-1),
+        (const float*)context->GetTablePtr(Table::V_W, level-1),
+        offset, start, end, pass);
 }
 
 void
-OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelB( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+OsdCpuKernelDispatcher::ApplyVertexEdits(
+    FarMesh<OsdVertex> *mesh, int offset, int level, void *clientdata) const {
 
-    computeVertexB(_vdesc, GetVertexBuffer(), GetVaryingBuffer(),
-                   (int*)_tables[V_ITa].ptr + _tableOffsets[V_ITa][level-1],
-                   (int*)_tables[V_IT].ptr + _tableOffsets[V_IT][level-1],
-                   (float*)_tables[V_W].ptr + _tableOffsets[V_W][level-1],
-                   offset, start, end);
-}
+    OsdCpuComputeContext * context =
+        static_cast<OsdCpuComputeContext*>(clientdata);
+    assert(context);
 
-void
-OsdCpuKernelDispatcher::ApplyCatmarkVertexVerticesKernelA( FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const {
+    int numEdits = context->GetNumEditTables();
 
-    computeVertexA(_vdesc, GetVertexBuffer(), GetVaryingBuffer(),
-                   (int*)_tables[V_ITa].ptr + _tableOffsets[V_ITa][level-1],
-                   (float*)_tables[V_W].ptr + _tableOffsets[V_W][level-1],
-                   offset, start, end, pass);
-}
+    for (int i = 0; i < numEdits; ++i) {
 
-void
-OsdCpuKernelDispatcher::ApplyLoopEdgeVerticesKernel( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+        const FarVertexEditTables<OsdVertex>::VertexEditBatch * edit =
+            context->GetEditTable(i);
+        assert(edit);
 
-    computeEdge(_vdesc, GetVertexBuffer(), GetVaryingBuffer(),
-                (int*)_tables[E_IT].ptr + _tableOffsets[E_IT][level-1],
-                (float*)_tables[E_W].ptr + _tableOffsets[E_W][level-1],
-                offset,
-                start, end);
-}
+        const FarTable<unsigned int> &primvarIndices = edit->GetVertexIndices();
+        const FarTable<float> &editValues = edit->GetValues();
 
-void
-OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelB( FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const {
+        // XXX: how about edits for varying...?
 
-    computeLoopVertexB(_vdesc, GetVertexBuffer(), GetVaryingBuffer(),
-                       (int*)_tables[V_ITa].ptr + _tableOffsets[V_ITa][level-1],
-                       (int*)_tables[V_IT].ptr + _tableOffsets[V_IT][level-1],
-                       (float*)_tables[V_W].ptr + _tableOffsets[V_W][level-1],
-                       offset, start, end);
-}
-
-void
-OsdCpuKernelDispatcher::ApplyLoopVertexVerticesKernelA( FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const {
-
-    computeVertexA(_vdesc, GetVertexBuffer(), GetVaryingBuffer(),
-                   (int*)_tables[V_ITa].ptr + _tableOffsets[V_ITa][level-1],
-                   (float*)_tables[V_W].ptr + _tableOffsets[V_W][level-1],
-                   offset, start, end, pass);
-}
-
-void
-OsdCpuKernelDispatcher::ApplyVertexEdits(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const {
-    for (int i=0; i<(int)_edits.size(); ++i) {
-        const VertexEditArrayInfo &info = _edits[i];
-
-        if (info.operation == FarVertexEdit::Add) {
-            editVertexAdd(_vdesc, GetVertexBuffer(), info.primVarOffset, info.primVarWidth, info.numEdits[level-1],
-                          (int*)_editTables[i*2+0].ptr + info.offsetOffsets[level-1],
-                          (float*)_editTables[i*2+1].ptr + info.valueOffsets[level-1]);
-        } else if (info.operation == FarVertexEdit::Set) {
-            editVertexSet(_vdesc, GetVertexBuffer(), info.primVarOffset, info.primVarWidth, info.numEdits[level],
-                          (int*)_editTables[i*2+0].ptr + info.offsetOffsets[level],
-                          (float*)_editTables[i*2+1].ptr + info.valueOffsets[level]);
+        if (edit->GetOperation() == FarVertexEdit::Add) {
+            OsdCpuEditVertexAdd(context->GetVertexDescriptor(),
+                                context->GetCurrentVertexBuffer(),
+                                edit->GetPrimvarIndex(),
+                                edit->GetPrimvarWidth(),
+                                primvarIndices.GetNumElements(level-1),
+                                (const int*)primvarIndices[level-1],
+                                (const float*)editValues[level-1]);
+        } else if (edit->GetOperation() == FarVertexEdit::Set) {
+            OsdCpuEditVertexSet(context->GetVertexDescriptor(),
+                                context->GetCurrentVertexBuffer(),
+                                edit->GetPrimvarIndex(),
+                                edit->GetPrimvarWidth(),
+                                primvarIndices.GetNumElements(level-1),
+                                (const int*)primvarIndices[level-1],
+                                (const float*)editValues[level-1]);
         }
     }
 }
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace OPENSUBDIV_VERSION
 
-} // end namespace OpenSubdiv
-
+}  // end namespace OpenSubdiv

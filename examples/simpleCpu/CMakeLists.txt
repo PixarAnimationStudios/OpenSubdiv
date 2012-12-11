@@ -101,8 +101,6 @@ if(APPLE)
 _add_glut_executable(simpleCpu
     mainApple.mm
     simpleCpuSubdivision.cpp
-    ${SHADER_FILES}
-    ${INC_FILES}
 )
 else()
 _add_glut_executable(simpleCpu

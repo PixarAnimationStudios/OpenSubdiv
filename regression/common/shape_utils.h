@@ -118,6 +118,8 @@ struct shape {
     static shape * parseShape(char const * shapestr, int axis=1);
     
     std::string genShape(char const * name) const;
+
+    std::string genObj(char const * name) const;
  
     std::string genRIB() const;
 
@@ -129,9 +131,11 @@ struct shape {
 
     std::vector<float>  verts;
     std::vector<float>  uvs;
+    std::vector<float>  normals;
     std::vector<int>    nvertsPerFace;
     std::vector<int>    faceverts;
     std::vector<int>    faceuvs;
+    std::vector<int>    facenormals;
     std::vector<tag *>  tags;
     Scheme              scheme;
 };
@@ -226,18 +230,54 @@ std::string shape::genShape(char const * name) const {
     for (int i=0; i<(int)uvs.size(); i+=2)
        sh << "\"vt " << uvs[i] << " " << uvs[i+1] << "\\n\"\n";
 
+    for (int i=0; i<(int)normals.size(); i+=3)
+       sh << "\"vn " << normals[i] << " " << normals[i+1] << " " << normals[i+2] <<"\\n\"\n";
+
     sh << "\"s off\\n\"\n";
 
-    for (int i=0; i<(int)faceverts.size();) {
+    for (int i=0, idx=0; i<(int)nvertsPerFace.size();++i) {
         sh << "\"f ";
-        for (int j=0; j<(int)nvertsPerFace.size();) {
-            int vert = faceverts[i+j];
-            sh << vert << "/" << vert << "/" << vert;
-            if (++j<(int)nvertsPerFace.size())
-                sh << " ";
+        for (int j=0; j<nvertsPerFace[i];++j) {
+            int vert = faceverts[idx+j]+1,
+                uv = (int)faceuvs.size()>0 ? faceuvs[idx+j]+1 : vert,
+                normal = (int)facenormals.size()>0 ? facenormals[idx+j]+1 : vert;
+            sh << vert << "/" << uv << "/" << normal << " ";
         }
         sh << "\\n\"\n";
-        i+=nvertsPerFace[0];
+        idx+=nvertsPerFace[i];
+    }
+
+    for (int i=0; i<(int)tags.size(); ++i)
+        sh << tags[i]->genTag();
+        
+    return sh.str();
+}
+
+//------------------------------------------------------------------------------
+std::string shape::genObj(char const * name) const {
+    std::stringstream sh;
+            
+    sh<<"# This file uses centimeters as units for non-parametric coordinates.\n\n";
+    
+    for (int i=0; i<(int)verts.size(); i+=3)
+       sh << "v " << verts[i] << " " << verts[i+1] << " " << verts[i+2] <<"\n";
+
+    for (int i=0; i<(int)uvs.size(); i+=2)
+       sh << "vt " << uvs[i] << " " << uvs[i+1] << "\n";
+
+    for (int i=0; i<(int)normals.size(); i+=3)
+       sh << "vn " << normals[i] << " " << normals[i+1] << " " << normals[i+2] <<"\n";
+
+    for (int i=0, idx=0; i<(int)nvertsPerFace.size();++i) {
+        sh << "f ";
+        for (int j=0; j<nvertsPerFace[i];++j) {
+            int vert = faceverts[idx+j]+1,
+                uv = (int)faceuvs.size()>0 ? faceuvs[idx+j]+1 : vert,
+                normal = (int)facenormals.size()>0 ? facenormals[idx+j]+1 : vert;
+            sh << vert << "/" << uv << "/" << normal << " ";
+        }
+        sh << "\n";
+        idx+=nvertsPerFace[i];
     }
 
     for (int i=0; i<(int)tags.size(); ++i)
@@ -319,7 +359,12 @@ shape * shape::parseShape(char const * shapestr, int axis ) {
                                             s->uvs.push_back(u);
                                             s->uvs.push_back(v);
                                         } break;
-                              case 'n' : break; // skip normals for now
+                              case 'n' : if(sscanf(line, "vn %f %f %f", &x, &y, &z) == 3) {
+                                            s->normals.push_back(x);
+                                            s->normals.push_back(y);
+                                            s->normals.push_back(z);
+                                         }
+                                         break; // skip normals for now
                           }
                           break;
             case 'f': if(line[1] == ' ') {
@@ -328,9 +373,10 @@ shape * shape::parseShape(char const * shapestr, int axis ) {
                               while (*cp == ' ') cp++;
                               int nverts = 0, nitems=0;
                               while( (nitems=sscanf(cp, "%d/%d/%d", &vi, &ti, &ni))>0) {
-                              nverts++;
+                                  nverts++;
                                   s->faceverts.push_back(vi-1);
                                   if(nitems >= 1) s->faceuvs.push_back(ti-1);
+                                  if(nitems >= 2) s->facenormals.push_back(ni-1);
                                   while (*cp && *cp != ' ') cp++;
                                   while (*cp == ' ') cp++;
                               }
@@ -455,7 +501,7 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
                     continue;
                 }
 
-                if (t->name=="vertexedit" && opname=="value" || opname=="sharpness") {
+                if ((t->name=="vertexedit" && opname=="value") || opname=="sharpness") {
                     nops++;
 
                     // only varname="P" is supported here for now.
@@ -563,6 +609,39 @@ nexttag: ;
 }
 
 //------------------------------------------------------------------------------
+template <class T> std::string   
+hbrToObj( OpenSubdiv::HbrMesh<T> * mesh ) {
+
+    std::stringstream sh;
+
+    sh<<"# This file uses centimeters as units for non-parametric coordinates.\n\n";
+    
+    int nv = mesh->GetNumVertices();
+    for (int i=0; i<nv; ++i) {
+       const float * pos = mesh->GetVertex(i)->GetData().GetPos();
+       sh << "v " << pos[0] << " " << pos[1] << " " << pos[2] <<"\n";
+    }
+    
+    int nf = mesh->GetNumFaces();
+    for (int i=0; i<nf; ++i) {
+    
+        sh << "f ";
+        
+        OpenSubdiv::HbrFace<T> * f = mesh->GetFace(i);
+        
+        for (int j=0; j<f->GetNumVertices(); ++j) {
+            int vert = f->GetVertex(j)->GetID()+1;
+            sh << vert << "/" << vert << "/" << vert << " ";
+        }
+        sh << "\n";
+    }
+
+    sh << "\n";
+
+    return sh.str();
+}
+
+//------------------------------------------------------------------------------
 template <class T> OpenSubdiv::HbrMesh<T> *
 createMesh( Scheme scheme=kCatmark) {
 
@@ -590,9 +669,6 @@ createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<flo
         v.SetPosition( sh->verts[i*3], sh->verts[i*3+1], sh->verts[i*3+2] );
         mesh->NewVertex( i, v );
     }
-
-    if (verts)
-        *verts = sh->verts;
 }
 
 //------------------------------------------------------------------------------
@@ -602,102 +678,145 @@ createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<flo
     T v;
     for(int i=0;i<sh->getNverts(); i++ )
         mesh->NewVertex( i, v );
+}
 
-    verts = sh->verts;
+//------------------------------------------------------------------------------
+template <class T> void
+copyVertexPositions( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<float> & verts ) {
+
+    int nverts = mesh->GetNumVertices();
+    
+    verts.resize( nverts * 3 );
+    
+    std::copy(sh->verts.begin(), sh->verts.end(), verts.begin());
+    
+    // Sometimes Hbr dupes some vertices during Mesh::Finish()
+    if (nverts > sh->getNverts()) {
+    
+        for (int i=sh->getNverts(); i<nverts; ++i) {
+        
+            OpenSubdiv::HbrVertex<T> * v = mesh->GetVertex(i);
+            
+            OpenSubdiv::HbrFace<T> * f = v->GetIncidentEdge()->GetFace();
+            
+            int vidx = -1;
+            for (int j=0; j<f->GetNumVertices(); ++j)
+                if (f->GetVertex(j)==v) {
+                    vidx = j;
+                    break;
+                }
+            assert(vidx>-1);
+        
+            const int * shfaces = &sh->faceverts[0];
+            for (int j=0; j<f->GetID(); ++j)
+                shfaces += sh->nvertsPerFace[j];
+        
+            int shvert = shfaces[vidx];
+            
+            verts[i*3+0] = sh->verts[shvert*3+0];
+            verts[i*3+1] = sh->verts[shvert*3+1];
+            verts[i*3+2] = sh->verts[shvert*3+2];
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
 template <class T> void
 createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) {
 
-      const int * fv=&(sh->faceverts[0]);
-      for(int f=0, ptxidx=0;f<sh->getNfaces(); f++ ) {
+    const int * fv=&(sh->faceverts[0]);
+    for(int f=0, ptxidx=0;f<sh->getNfaces(); f++ ) {
 
-          int nv = sh->nvertsPerFace[f];
+        int nv = sh->nvertsPerFace[f];
 
-          if ((scheme==kLoop) and (nv!=3)) {
-              printf("Trying to create a Loop surbd with non-triangle face\n");
-              exit(1);
-          }
+        if ((scheme==kLoop) and (nv!=3)) {
+            printf("Trying to create a Loop surbd with non-triangle face\n");
+            exit(1);
+        }
 
-          for(int j=0;j<nv;j++) {
-              OpenSubdiv::HbrVertex<T> * origin      = mesh->GetVertex( fv[j] );
-              OpenSubdiv::HbrVertex<T> * destination = mesh->GetVertex( fv[ (j+1)%nv] );
-              OpenSubdiv::HbrHalfedge<T> * opposite  = destination->GetEdge(origin);
+        for(int j=0;j<nv;j++) {
+            OpenSubdiv::HbrVertex<T> * origin      = mesh->GetVertex( fv[j] );
+            OpenSubdiv::HbrVertex<T> * destination = mesh->GetVertex( fv[ (j+1)%nv] );
+            OpenSubdiv::HbrHalfedge<T> * opposite  = destination->GetEdge(origin);
 
-              if(origin==NULL || destination==NULL) {
-                  printf(" An edge was specified that connected a nonexistent vertex\n");
-                  exit(1);
-              }
+            if(origin==NULL || destination==NULL) {
+                printf(" An edge was specified that connected a nonexistent vertex\n");
+                exit(1);
+            }
 
-              if(origin == destination) {
-                  printf(" An edge was specified that connected a vertex to itself\n");
-                  exit(1);
-              }
+            if(origin == destination) {
+                printf(" An edge was specified that connected a vertex to itself\n");
+                exit(1);
+            }
 
-              if(opposite && opposite->GetOpposite() ) {
-                  printf(" A non-manifold edge incident to more than 2 faces was found\n");
-                  exit(1);
-              }
+            if(opposite && opposite->GetOpposite() ) {
+                printf(" A non-manifold edge incident to more than 2 faces was found\n");
+                exit(1);
+            }
 
-              if(origin->GetEdge(destination)) {
-                  printf(" An edge connecting two vertices was specified more than once."
-                         " It's likely that an incident face was flipped\n");
-                  exit(1);
-              }
-          }
+            if(origin->GetEdge(destination)) {
+                printf(" An edge connecting two vertices was specified more than once."
+                       " It's likely that an incident face was flipped\n");
+                exit(1);
+            }
+        }
 
-          OpenSubdiv::HbrFace<T> * face = mesh->NewFace(nv, (int *)fv, 0);
+        OpenSubdiv::HbrFace<T> * face = mesh->NewFace(nv, (int *)fv, 0);
 
-          face->SetPtexIndex(ptxidx);
+        face->SetPtexIndex(ptxidx);
 
-          if ( (scheme==kCatmark or scheme==kBilinear) and nv != 4 )
-              ptxidx+=nv;
-          else
-              ptxidx++;
+        if ( (scheme==kCatmark or scheme==kBilinear) and nv != 4 )
+            ptxidx+=nv;
+        else
+            ptxidx++;
 
-          fv+=nv;
-      }
+        fv+=nv;
+    }
 
-      mesh->SetInterpolateBoundaryMethod( OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly );
+    mesh->SetInterpolateBoundaryMethod( OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly );
 
-      applyTags<T>( mesh, sh );
+    applyTags<T>( mesh, sh );
 
-      mesh->Finish();
+    mesh->Finish();
 }
 
 //------------------------------------------------------------------------------
 template <class T> OpenSubdiv::HbrMesh<T> *
 simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> * verts=0) {
 
-  shape * sh = shape::parseShape( shapestr );
+    shape * sh = shape::parseShape( shapestr );
 
-  OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme);
+    OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme);
 
-  createVertices<T>(sh, mesh, verts);
+    createVertices<T>(sh, mesh, verts);
 
-  createTopology<T>(sh, mesh, scheme);
+    createTopology<T>(sh, mesh, scheme);
 
-  delete sh;
+    if(verts)
+        copyVertexPositions<T>(sh,mesh,*verts);
 
-  return mesh;
+    delete sh;
+
+    return mesh;
 }
 
 //------------------------------------------------------------------------------
 template <class T> OpenSubdiv::HbrMesh<T> *
 simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> & verts) {
 
-  shape * sh = shape::parseShape( shapestr );
+    shape * sh = shape::parseShape( shapestr );
 
-  OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme);
+    OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme);
 
-  createVertices<T>(sh, mesh, verts);
+    createVertices<T>(sh, mesh, verts);
 
-  createTopology<T>(sh, mesh, scheme);
+    createTopology<T>(sh, mesh, scheme);
 
-  delete sh;
+    copyVertexPositions<T>(sh,mesh,verts);
 
-  return mesh;
+    delete sh;
+
+    return mesh;
 }
 
 #endif /* SHAPE_UTILS_H */

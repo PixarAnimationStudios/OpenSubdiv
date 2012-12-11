@@ -59,6 +59,7 @@
 
 set(SHADER_FILES
      shader.glsl
+     skyshader.glsl
 )
 
 set(PLATFORM_LIBRARIES
@@ -102,6 +103,9 @@ endforeach()
 #-------------------------------------------------------------------------------
 _add_glut_executable(ptexViewer
    viewer.cpp
+   ../common/hud.cpp
+   ../common/gl_hud.cpp
+   ../common/hdr_reader.cpp
    ${SHADER_FILES}
    ${INC_FILES}
 )

@@ -244,7 +244,7 @@ __kernel void computeVertexA(__global struct Vertex *vertex,
         weight=1.0f-weight;
 
     struct Vertex dst;
-    if (not pass)
+    if (! pass)
         clearVertex(&dst);
     else
         dst = vertex[i+offset];
@@ -258,7 +258,7 @@ __kernel void computeVertexA(__global struct Vertex *vertex,
     }
     vertex[i+offset] = dst;
 
-    if (not pass && varying) {
+    if (! pass && varying) {
         struct Varying dstVarying;
         clearVarying(&dstVarying);
         addVaryingWithWeight(&dstVarying, &varying[p], 1.0f);
@@ -343,4 +343,25 @@ __kernel void computeLoopVertexB(__global struct Vertex *vertex,
         addVaryingWithWeight(&dstVarying, &varying[p], 1.0f);
         varying[i+offset] = dstVarying;
     }
+}
+
+__kernel void editVertexAdd(__global struct Vertex *vertex,
+                            __global int *editIndices,
+                            __global float *editValues,
+                            int ofs_editIndices,
+                            int ofs_editValues,
+                            int primVarOffset,
+                            int primVarWidth) {
+
+    editIndices += ofs_editIndices;
+    editValues += ofs_editValues;
+
+    int i = get_global_id(0);
+    int v = editIndices[i];
+    struct Vertex dst = vertex[v];
+
+    for (int j = 0; j < primVarWidth; ++j) {
+        dst.v[j+primVarOffset] += editValues[j];
+    }
+    vertex[v] = dst;
 }

@@ -54,15 +54,16 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
 #ifndef FAR_CATMARK_SUBDIVISION_TABLES_H
 #define FAR_CATMARK_SUBDIVISION_TABLES_H
-
-#include <cassert>
-#include <vector>
 
 #include "../version.h"
 
 #include "../far/subdivisionTables.h"
+
+#include <cassert>
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -82,7 +83,7 @@ public:
     virtual int GetMemoryUsed() const;
 
     /// Compute the positions of refined vertices using the specified kernels
-    virtual void Apply( int level, void * data=0 ) const;
+    virtual void Apply( int level, FarDispatcher<U> const *dispatch, void * data=0 ) const;
 
     /// Face-vertices indexing table accessor
     FarTable<unsigned int> const & Get_F_IT( ) const { return _F_IT; }
@@ -95,7 +96,7 @@ public:
     virtual int GetNumTables() const { return 7; }
 
 private:
-    template <class X, class Y> friend struct FarCatmarkSubdivisionTablesFactory;
+    template <class X, class Y> friend class FarCatmarkSubdivisionTablesFactory;
     friend class FarDispatcher<U>;
 
     // Private constructor called by factory
@@ -136,14 +137,11 @@ FarCatmarkSubdivisionTables<U>::GetMemoryUsed() const {
 }
 
 template <class U> void
-FarCatmarkSubdivisionTables<U>::Apply( int level, void * clientdata ) const {
+FarCatmarkSubdivisionTables<U>::Apply( int level, FarDispatcher<U> const *dispatch, void * clientdata ) const {
 
     assert(this->_mesh and level>0);
 
     typename FarSubdivisionTables<U>::VertexKernelBatch const * batch = & (this->_batches[level-1]);
-
-    FarDispatcher<U> const * dispatch = this->_mesh->GetDispatcher();
-    assert(dispatch);
 
     int offset = this->GetFirstVertexOffset(level);
     if (batch->kernelF>0)

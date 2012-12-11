@@ -54,17 +54,18 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
 #ifndef FAR_VERTEX_EDIT_TABLES_FACTORY_H
 #define FAR_VERTEX_EDIT_TABLES_FACTORY_H
-
-#include <cassert>
-#include <vector>
 
 #include "../version.h"
 
 #include "../hbr/vertexEdit.h"
 
 #include "../far/vertexEditTables.h"
+
+#include <cassert>
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -73,7 +74,10 @@ namespace OPENSUBDIV_VERSION {
 ///
 /// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
 ///
-template <class T, class U> struct FarVertexEditTablesFactory {
+template <class T, class U> class FarVertexEditTablesFactory {
+
+protected:
+    template <class X, class Y> friend class FarMeshFactory;
 
     /// Compares the number of subfaces in an edit (for sorting purposes)
     static bool compareEdits(HbrVertexEdit<T> const *a, HbrVertexEdit<T> const *b);

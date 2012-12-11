@@ -1,0 +1,240 @@
+
+//
+//      Common utilities for map file attributes
+//
+global proc 
+AEopenSubdivPtexShader_fileBrowser( string $nodeAttr )
+{
+    string $attr     = `match "[^.]+$" $nodeAttr`;
+    string $uiAttr   = `interToUI $attr`;
+    string $imgFilters = "PNG (*.png);;TIFF (*.tif);;JPEG (*.jpg);;All files (*.*)";
+
+    string $result[] = `fileDialog2 -caption ("Choose "+$uiAttr)
+                                    -fileMode 1
+                                    -fileFilter $imgFilters
+                                    -selectFileFilter "All files"
+                                    `;
+
+    string $filename = "";
+    if (size($result) > 0)
+    {
+        $filename = $result[0];
+        setAttr $nodeAttr -type "string" $filename;
+    }
+}
+
+proc
+buildMapRow( string $nodeAttr )
+{
+    string $attr     = `match "[^.]+$" $nodeAttr`;
+    string $fileField = ($attr+"_fileField");
+    string $browserBtn = ($attr+"_browserBtn");
+
+    setUITemplate -pst attributeEditorTemplate;
+    rowLayout -nc 3 -h 25;
+        text -label `interToUI $attr`;
+        textField $fileField;
+        symbolButton -image "navButtonBrowse.png" $browserBtn;
+        setParent ..;
+    setUITemplate -ppt;
+}
+
+
+//
+//      Custom controls for adding file browser to map attributes
+//
+
+//
+//      colorFile
+//
+global proc 
+AEopenSubdivPtexShader_colorFileNew( string $nodeAttr )
+{
+    // build row with text field and file browser button
+    buildMapRow( $nodeAttr );
+    AEopenSubdivPtexShader_colorFileReplace $nodeAttr;
+}
+
+global proc 
+AEopenSubdivPtexShader_colorFileReplace (string $nodeAttr)
+{
+    string $attr     = `match "[^.]+$" $nodeAttr`;
+    string $fileField = ($attr+"_fileField");
+    string $browserBtn = ($attr+"_browserBtn");
+
+    connectControl -fileName $fileField $nodeAttr;
+    button -e -c
+        ("AEopenSubdivPtexShader_fileBrowser \"" + $nodeAttr + "\"" ) $browserBtn;
+}
+
+//
+//      displacementFile
+//
+global proc 
+AEopenSubdivPtexShader_displacementFileNew( string $nodeAttr )
+{
+    // build row with text field and file browser button
+    buildMapRow( $nodeAttr );
+    AEopenSubdivPtexShader_displacementFileReplace $nodeAttr;
+}
+
+global proc 
+AEopenSubdivPtexShader_displacementFileReplace (string $nodeAttr)
+{
+    string $attr     = `match "[^.]+$" $nodeAttr`;
+    string $fileField = ($attr+"_fileField");
+    string $browserBtn = ($attr+"_browserBtn");
+
+    connectControl -fileName $fileField $nodeAttr;
+    button -e -c
+        ("AEopenSubdivPtexShader_fileBrowser \"" + $nodeAttr + "\"" ) $browserBtn;
+}
+
+
+//
+//      occlusionFile
+//
+global proc 
+AEopenSubdivPtexShader_occlusionFileNew( string $nodeAttr )
+{
+    // build row with text field and file browser button
+    buildMapRow( $nodeAttr );
+    AEopenSubdivPtexShader_occlusionFileReplace $nodeAttr;
+}
+
+global proc 
+AEopenSubdivPtexShader_occlusionFileReplace (string $nodeAttr)
+{
+    string $attr     = `match "[^.]+$" $nodeAttr`;
+    string $fileField = ($attr+"_fileField");
+    string $browserBtn = ($attr+"_browserBtn");
+
+    connectControl -fileName $fileField $nodeAttr;
+    button -e -c
+        ("AEopenSubdivPtexShader_fileBrowser \"" + $nodeAttr + "\"" ) $browserBtn;
+}
+
+
+//
+//      diffuseEnvironmentMap
+//
+global proc 
+AEopenSubdivPtexShader_diffuseEnvironmentMapNew( string $nodeAttr )
+{
+    // build row with text field and file browser button
+    buildMapRow( $nodeAttr );
+    AEopenSubdivPtexShader_diffuseEnvironmentMapReplace $nodeAttr;
+}
+
+global proc 
+AEopenSubdivPtexShader_diffuseEnvironmentMapReplace (string $nodeAttr)
+{
+    string $attr     = `match "[^.]+$" $nodeAttr`;
+    string $fileField = ($attr+"_fileField");
+    string $browserBtn = ($attr+"_browserBtn");
+
+    connectControl -fileName $fileField $nodeAttr;
+    button -e -c
+        ("AEopenSubdivPtexShader_fileBrowser \"" + $nodeAttr + "\"" ) $browserBtn;
+}
+
+
+//
+//      specularEnvironmentMap
+//
+global proc 
+AEopenSubdivPtexShader_specularEnvironmentMapNew( string $nodeAttr )
+{
+    // build row with text field and file browser button
+    buildMapRow( $nodeAttr );
+    AEopenSubdivPtexShader_specularEnvironmentMapReplace $nodeAttr;
+}
+
+global proc 
+AEopenSubdivPtexShader_specularEnvironmentMapReplace (string $nodeAttr)
+{
+    string $attr     = `match "[^.]+$" $nodeAttr`;
+    string $fileField = ($attr+"_fileField");
+    string $browserBtn = ($attr+"_browserBtn");
+
+    connectControl -fileName $fileField $nodeAttr;
+    button -e -c
+        ("AEopenSubdivPtexShader_fileBrowser \"" + $nodeAttr + "\"" ) $browserBtn;
+}
+
+
+global proc 
+AEopenSubdivPtexShaderTemplate(string $nodeName)
+{
+    // swatch rendering not implemented yet
+    // AEswatchDisplay $nodeName;
+
+    editorTemplate -beginScrollLayout;
+
+        editorTemplate -beginLayout "Subdivision" -collapse false;
+            editorTemplate -addControl "adaptive";
+            editorTemplate -addControl "scheme";
+            editorTemplate -addControl "kernel";
+            editorTemplate -addControl "level";
+            editorTemplate -addControl "tessFactor";
+            editorTemplate -addControl "interpolateBoundary";
+        editorTemplate -endLayout;
+
+        editorTemplate -beginLayout "PTex" -collapse false;
+            editorTemplate -callCustom "AEopenSubdivPtexShader_colorFileNew" 
+                                       "AEopenSubdivPtexShader_colorFileReplace"
+                                       "colorFile";
+            editorTemplate -callCustom "AEopenSubdivPtexShader_displacementFileNew" 
+                                       "AEopenSubdivPtexShader_displacementFileReplace"
+                                       "displacementFile";
+            editorTemplate -callCustom "AEopenSubdivPtexShader_occlusionFileNew" 
+                                       "AEopenSubdivPtexShader_occlusionFileReplace"
+                                       "occlusionFile";
+        editorTemplate -endLayout;
+
+        editorTemplate -beginLayout "Shader" -collapse false;
+            editorTemplate -addControl "wireframe";
+            editorTemplate -addControl "shaderSource";
+            editorTemplate -beginNoOptimize;
+                editorTemplate -addControl "enableColor";
+                editorTemplate -addControl "enableDisplacement";
+                editorTemplate -addControl "enableOcclusion";
+                editorTemplate -addControl "enableNormal";
+            editorTemplate -endNoOptimize;
+
+            editorTemplate -addSeparator;
+            editorTemplate -addControl "diffuse";
+            editorTemplate -addControl "ambient";
+            editorTemplate -addControl "specular";
+
+            editorTemplate -addSeparator;
+            editorTemplate -addControl "fresnelBias";
+            editorTemplate -addControl "fresnelScale";
+            editorTemplate -addControl "fresnelPower";
+            editorTemplate -addControl "light";
+        editorTemplate -endLayout;
+        
+        editorTemplate -beginLayout "Environment" -collapse false;
+            editorTemplate -callCustom "AEopenSubdivPtexShader_diffuseEnvironmentMapNew" 
+                                       "AEopenSubdivPtexShader_diffuseEnvironmentMapReplace"
+                                       "diffuseEnvironmentMap";
+            editorTemplate -callCustom "AEopenSubdivPtexShader_specularEnvironmentMapNew" 
+                                       "AEopenSubdivPtexShader_specularEnvironmentMapReplace"
+                                       "specularEnvironmentMap";
+        editorTemplate -endLayout;
+
+        // include/call base class/node attributes
+        AEdependNodeTemplate $nodeName;
+
+        editorTemplate -addExtraControls;
+    editorTemplate -endScrollLayout;
+
+    editorTemplate -suppress "outColor";
+    editorTemplate -suppress "outTransparency";
+    editorTemplate -suppress "outMatteOpacity";
+    editorTemplate -suppress "outGlowColor";
+    editorTemplate -suppress "enableHwShading";
+    editorTemplate -suppress "varyingParameters";
+    editorTemplate -suppress "uniformParameters";
+}
+

@@ -54,15 +54,17 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
 #ifndef FAR_SUBDIVISION_TABLES_H
 #define FAR_SUBDIVISION_TABLES_H
+
+#include "../version.h"
+
+#include "../far/table.h"
 
 #include <cassert>
 #include <utility>
 #include <vector>
-
-#include "../version.h"
-#include "../far/table.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -109,7 +111,7 @@ public:
     virtual int GetMemoryUsed() const;
 
     /// Compute the positions of refined vertices using the specified kernels
-    virtual void Apply( int level, void * clientdata=0 ) const=0;
+    virtual void Apply( int level, FarDispatcher<U> const *dispatch, void * data=0 ) const=0;
 
     /// Pointer back to the mesh owning the table
     FarMesh<U> * GetMesh() { return _mesh; }
@@ -155,9 +157,6 @@ protected:
     template <class X, class Y> friend class FarMeshFactory;
 
     FarSubdivisionTables<U>( FarMesh<U> * mesh, int maxlevel );
-
-    // Returns an integer based on the order in which the kernels are applied
-    static int getMaskRanking( unsigned char mask0, unsigned char mask1 );
 
 #if defined(__clang__)
     // XXX(jcowles): seems like there is a compiler bug in clang that requires
@@ -223,6 +222,8 @@ protected:
     std::vector<VertexKernelBatch> _batches; // batches of vertices for kernel execution
 
     std::vector<int> _vertsOffsets; // offset to the first vertex of each level
+    
+    unsigned int _numCoarseVertices;
 private:
 };
 
@@ -235,38 +236,10 @@ FarSubdivisionTables<U>::FarSubdivisionTables( FarMesh<U> * mesh, int maxlevel )
     _V_IT(maxlevel+1),
     _V_W(maxlevel+1),
     _batches(maxlevel),
-    _vertsOffsets(maxlevel+1,0)
+    _vertsOffsets(maxlevel+1,0),
+    _numCoarseVertices(0)
 {
     assert( maxlevel > 0 );
-}
-
-// The ranking matrix defines the order of execution for the various combinations
-// of Corner, Crease, Dart and Smooth topological configurations. This matrix is
-// somewhat arbitrary as it is possible to perform some permutations in the
-// ordering without adverse effects, but it does try to minimize kernel switching
-// during the exececution of Apply(). This table is identical for both the Loop
-// and Catmull-Clark schemes.
-//
-// The matrix is derived from this table :
-// Rules     +----+----+----+----+----+----+----+----+----+----+
-//   Pass 0  | Dt | Sm | Sm | Dt | Sm | Dt | Sm | Cr | Co | Cr |
-//   Pass 1  |    |    |    | Co | Co | Cr | Cr | Co |    |    |
-// Kernel    +----+----+----+----+----+----+----+----+----+----+
-//   Pass 0  | B  | B  | B  | B  | B  | B  | B  | A  | A  | A  |
-//   Pass 1  |    |    |    | A  | A  | A  | A  | A  |    |    |
-//           +----+----+----+----+----+----+----+----+----+----+
-// Rank      | 0  | 1  | 2  | 3  | 4  | 5  | 6  | 7  | 8  | 9  |
-//           +----+----+----+----+----+----+----+----+----+----+
-// with :
-//     - A : compute kernel applying k_Crease / k_Corner rules
-//     - B : compute kernel applying k_Smooth / k_Dart rules
-template <class U> int
-FarSubdivisionTables<U>::getMaskRanking( unsigned char mask0, unsigned char mask1 ) {
-    static short masks[4][4] = { {    0,    1,    6,    4 },
-                                 { 0xFF,    2,    5,    3 },
-                                 { 0xFF, 0xFF,    9,    7 },
-                                 { 0xFF, 0xFF, 0xFF,    8 } };
-    return masks[mask0][mask1];
 }
 
 template <class U> int
@@ -291,7 +264,7 @@ template <class U> int
 FarSubdivisionTables<U>::GetNumVertexVertices( int level ) const {
     assert(level>=0 and level<=(int)_batches.size());
     if (level==0)
-        return _mesh->GetNumCoarseVertices();
+        return _numCoarseVertices;
     else
         return std::max( _batches[level-1].kernelB.second,
                    std::max(_batches[level-1].kernelA1.second,

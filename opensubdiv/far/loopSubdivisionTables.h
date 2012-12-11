@@ -54,16 +54,17 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+
 #ifndef FAR_LOOP_SUBDIVISION_TABLES_H
 #define FAR_LOOP_SUBDIVISION_TABLES_H
-
-#include <cassert>
-#include <cmath>
-#include <vector>
 
 #include "../version.h"
 
 #include "../far/subdivisionTables.h"
+
+#include <cassert>
+#include <cmath>
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -81,11 +82,11 @@ template <class U> class FarLoopSubdivisionTables : public FarSubdivisionTables<
 public:
 
     /// Compute the positions of refined vertices using the specified kernels
-    virtual void Apply( int level, void * data=0 ) const;
+    virtual void Apply( int level, FarDispatcher<U> const *dispatch, void * data=0 ) const;
 
 
 private:
-    template <class X, class Y> friend struct FarLoopSubdivisionTablesFactory;
+    template <class X, class Y> friend class FarLoopSubdivisionTablesFactory;
     friend class FarDispatcher<U>;
 
     FarLoopSubdivisionTables( FarMesh<U> * mesh, int maxlevel );
@@ -109,14 +110,11 @@ FarLoopSubdivisionTables<U>::FarLoopSubdivisionTables( FarMesh<U> * mesh, int ma
 
 
 template <class U> void
-FarLoopSubdivisionTables<U>::Apply( int level, void * clientdata ) const
+FarLoopSubdivisionTables<U>::Apply( int level, FarDispatcher<U> const *dispatch, void * clientdata ) const
 {
     assert(this->_mesh and level>0);
 
     typename FarSubdivisionTables<U>::VertexKernelBatch const * batch = & (this->_batches[level-1]);
-
-    FarDispatcher<U> const * dispatch = this->_mesh->GetDispatcher();
-    assert(dispatch);
 
     int offset = this->GetFirstVertexOffset(level);
     if (batch->kernelE>0)

@@ -58,120 +58,76 @@
 #define OSD_CUDA_DISPATCHER_H
 
 #include "../version.h"
-#include "../osd/kernelDispatcher.h"
-#include "../osd/vertexBuffer.h"
 
-#include <utility>
-#include <vector>
-
-struct cudaGraphicsResource;
+#include "../osd/vertex.h"
+#include "../far/dispatcher.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-struct DeviceVertex;
+class OsdCudaComputeContext;
 
-class OsdCudaVertexBuffer : public OsdGpuVertexBuffer {
+class OsdCudaKernelDispatcher : public FarDispatcher<OsdVertex> {
 public:
-    OsdCudaVertexBuffer(int numElements, int numVertices);
-    virtual ~OsdCudaVertexBuffer();
-
-    virtual void UpdateData(const float *src, int numVertices);
-    void * Map();
-    void Unmap();
-
-protected:
-    cudaGraphicsResource *_cudaResource;
-};
-
-class OsdCudaKernelDispatcher : public OsdKernelDispatcher
-{
-public:
-    OsdCudaKernelDispatcher(int levels);
+    OsdCudaKernelDispatcher();
     virtual ~OsdCudaKernelDispatcher();
 
+    void Refine(FarMesh<OsdVertex> * mesh, OsdCudaComputeContext *context);
 
-    virtual void ApplyBilinearFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-
-
-    virtual void ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
-
-
-
-    virtual void ApplyLoopEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyLoopVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
-
-    virtual void ApplyVertexEdits(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const;
-
-
-    virtual void CopyTable(int tableIndex, size_t size, const void *ptr);
-
-    virtual void AllocateEditTables(int n);
-
-    virtual void UpdateEditTable(int tableIndex, const FarTable<unsigned int> &offsets, const FarTable<float> &values,
-                                 int operation, int primVarOffset, int primVarWidth);
-
-
-    virtual void OnKernelLaunch() {}
-
-    virtual void OnKernelFinish() {}
-
-    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int numVertices);
-
-    virtual void BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
-
-    virtual void UnbindVertexBuffer();
-
-    virtual void Synchronize();
-
-    static OsdKernelDispatcher * Create(int levels) {
-        return new OsdCudaKernelDispatcher(levels);
-    }
-    static void Register() {
-        Factory::GetInstance().Register(Create, kCUDA);
-    }
+    static OsdCudaKernelDispatcher * GetInstance();
 
 protected:
-    struct DeviceTable
-    {
-        DeviceTable() : devicePtr(NULL) {}
-       ~DeviceTable();
+    virtual void ApplyBilinearFaceVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-        void Copy(int size, const void *ptr);
+    virtual void ApplyBilinearEdgeVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-        void *devicePtr;
-    };
+    virtual void ApplyBilinearVertexVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-    std::vector<DeviceTable> _tables;
-    std::vector<DeviceTable> _editTables;
 
-    OsdCudaVertexBuffer *_currentVertexBuffer,
-                        *_currentVaryingBuffer;
+    virtual void ApplyCatmarkFaceVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-    float *_deviceVertices,
-          *_deviceVaryings;
+    virtual void ApplyCatmarkEdgeVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-    int _numVertexElements,
-        _numVaryingElements;
+    virtual void ApplyCatmarkVertexVerticesKernelB(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyCatmarkVertexVerticesKernelA(
+        FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
+        int start, int end, void * clientdata) const;
+
+
+    virtual void ApplyLoopEdgeVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyLoopVertexVerticesKernelB(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyLoopVertexVerticesKernelA(
+        FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyVertexEdits(
+        FarMesh<OsdVertex> *mesh, int offset, int level,
+        void * clientdata) const;
+
 };
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
-} // end namespace OpenSubdiv
+}  // end namespace OpenSubdiv
 
-#endif // OSD_CUDA_DISPATCHER_H
+#endif  // OSD_CUDA_DISPATCHER_H

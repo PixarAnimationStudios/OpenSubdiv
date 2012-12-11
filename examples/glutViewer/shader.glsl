@@ -55,25 +55,22 @@
 //     a particular purpose and non-infringement.
 //
 
-#version 400
-
 //--------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------
 #ifdef VERTEX_SHADER
 
-layout (location=0) in vec3 position;
+layout (location=0) in vec4 position;
 layout (location=1) in vec3 normal;
 
-out vec3 vPosition;
-out vec3 vNormal;
-out vec4 vColor;
+out block {
+    OutputVertex v;
+} output;
 
 void main()
 {
-    vPosition = position;
-    vNormal = normal;
-    vColor = vec4(1, 1, 1, 1);
+    output.v.position = ModelViewMatrix * position;
+    output.v.normal = (ModelViewMatrix * vec4(normal, 0.0)).xyz;
 }
 
 #endif
@@ -85,89 +82,151 @@ void main()
 
 #ifdef PRIM_QUAD
 
-layout(lines_adjacency) in;
+    layout(lines_adjacency) in;
 
-#ifdef GEOMETRY_OUT_FILL
-layout(triangle_strip, max_vertices = 4) out;
-#endif
+    layout(triangle_strip, max_vertices = 4) out;
 
-#ifdef GEOMETRY_OUT_LINE
-layout(line_strip, max_vertices = 5) out;
-#endif
+    #define EDGE_VERTS 4
 
-in vec3 vPosition[4];
-in vec3 vNormal[4];
+    in block {
+        OutputVertex v;
+    } input[4];
 
-#else // PRIM_TRI
+#endif // PRIM_QUAD
 
-layout(triangles) in;
+#ifdef  PRIM_TRI
 
-#ifdef GEOMETRY_OUT_FILL
-layout(triangle_strip, max_vertices = 3) out;
-#endif
+    layout(triangles) in;
 
-#ifdef GEOMETRY_OUT_LINE
-layout(line_strip, max_vertices = 4) out;
-#endif
+    layout(triangle_strip, max_vertices = 3) out;
 
-in vec3 vPosition[3];
-in vec3 vNormal[3];
+    #define EDGE_VERTS 3
 
-#endif // PRIM_TRI/QUAD
+    in block {
+        OutputVertex v;
+    } input[3];
 
+#endif // PRIM_TRI
 
-uniform mat4 objectToClipMatrix;
-uniform mat4 objectToEyeMatrix;
+#ifdef PRIM_POINT
 
-flat out vec3 gFacetNormal;
-out vec3 Peye;
-out vec3 Neye;
-out vec4 Cout;
+    layout(points) in;
+    layout(points, max_vertices = 1) out;
 
-void emit(int index)
+    in block {
+        OutputVertex v;
+    } input[1];
+
+#endif // PRIM_POINT
+
+out block {
+    OutputVertex v;
+} output;
+
+void emit(int index, vec3 normal)
 {
-    Peye = vPosition[index];
-    gl_Position = objectToClipMatrix * vec4(vPosition[index], 1);
-    Neye = (objectToEyeMatrix * vec4(vNormal[index], 0)).xyz;
+    output.v.position = input[index].v.position;
+#ifdef SMOOTH_NORMALS
+    output.v.normal = input[index].v.normal;
+#else
+    output.v.normal = normal;
+#endif
+    gl_Position = ProjectionMatrix * input[index].v.position;
     EmitVertex();
 }
+
+#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
+const float VIEWPORT_SCALE = 1024.0; // XXXdyu
+
+float edgeDistance(vec4 p, vec4 p0, vec4 p1)
+{
+    return VIEWPORT_SCALE *
+        abs((p.x - p0.x) * (p1.y - p0.y) -
+            (p.y - p0.y) * (p1.x - p0.x)) / length(p1.xy - p0.xy);
+}
+
+void emit(int index, vec3 normal, vec4 edgeVerts[EDGE_VERTS])
+{
+    output.v.edgeDistance[0] =
+        edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
+    output.v.edgeDistance[1] =
+        edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
+#ifdef PRIM_TRI
+    output.v.edgeDistance[2] =
+        edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
+#endif
+#ifdef PRIM_QUAD
+    output.v.edgeDistance[2] =
+        edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[3]);
+    output.v.edgeDistance[3] =
+        edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
+#endif
+
+    emit(index, normal);
+}
+#endif
 
 void main()
 {
     gl_PrimitiveID = gl_PrimitiveIDIn;
+
+#ifdef PRIM_POINT
+    emit(0, vec3(0));
+#endif
     
 #ifdef PRIM_QUAD
-#ifdef GEOMETRY_OUT_FILL
-    vec3 A = vPosition[0] - vPosition[1];
-    vec3 B = vPosition[3] - vPosition[1];
-    vec3 C = vPosition[2] - vPosition[1];
+    vec3 A = (input[0].v.position - input[1].v.position).xyz;
+    vec3 B = (input[3].v.position - input[1].v.position).xyz;
+    vec3 C = (input[2].v.position - input[1].v.position).xyz;
+    vec3 n0 = normalize(cross(B, A));
 
-    gFacetNormal = (objectToEyeMatrix*vec4(normalize(cross(B, A)), 0)).xyz;
-    emit(0);
-    emit(1);
-    emit(3);
-//    gFacetNormal = (objectToEyeMatrix*vec4(normalize(cross(C, B)), 0)).xyz;
-    emit(2);
-#else  // GEOMETRY_OUT_LINE
-    emit(0);
-    emit(1);
-    emit(2);
-    emit(3);
-    emit(0);
+#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
+    vec4 edgeVerts[EDGE_VERTS];
+    edgeVerts[0] = ProjectionMatrix * input[0].v.position;
+    edgeVerts[1] = ProjectionMatrix * input[1].v.position;
+    edgeVerts[2] = ProjectionMatrix * input[2].v.position;
+    edgeVerts[3] = ProjectionMatrix * input[3].v.position;
+
+    edgeVerts[0].xy /= edgeVerts[0].w;
+    edgeVerts[1].xy /= edgeVerts[1].w;
+    edgeVerts[2].xy /= edgeVerts[2].w;
+    edgeVerts[3].xy /= edgeVerts[3].w;
+
+    emit(0, n0, edgeVerts);
+    emit(1, n0, edgeVerts);
+    emit(3, n0, edgeVerts);
+    emit(2, n0, edgeVerts);
+#else
+    emit(0, n0);
+    emit(1, n0);
+    emit(3, n0);
+    emit(2, n0);
 #endif
 #endif // PRIM_QUAD
 
 #ifdef PRIM_TRI
-    vec3 A = vPosition[1] - vPosition[0];
-    vec3 B = vPosition[2] - vPosition[0];
-    gFacetNormal = (objectToEyeMatrix*vec4(normalize(cross(B, A)), 0)).xyz;
+    vec3 A = (input[1].v.position - input[0].v.position).xyz;
+    vec3 B = (input[2].v.position - input[0].v.position).xyz;
+    vec3 n0 = normalize(cross(B, A));
 
-    emit(0);
-    emit(1);
-    emit(2);
-#ifdef GEOMETRY_OUT_LINE
-    emit(0);
-#endif //GEOMETRY_OUT_LINE
+#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
+    vec4 edgeVerts[EDGE_VERTS];
+    edgeVerts[0] = ProjectionMatrix * input[0].v.position;
+    edgeVerts[1] = ProjectionMatrix * input[1].v.position;
+    edgeVerts[2] = ProjectionMatrix * input[2].v.position;
+
+    edgeVerts[0].xy /= edgeVerts[0].w;
+    edgeVerts[1].xy /= edgeVerts[1].w;
+    edgeVerts[2].xy /= edgeVerts[2].w;
+
+    emit(0, n0, edgeVerts);
+    emit(1, n0, edgeVerts);
+    emit(2, n0, edgeVerts);
+#else
+    emit(0, n0);
+    emit(1, n0);
+    emit(2, n0);
+#endif
 #endif // PRIM_TRI
 
     EndPrimitive();
@@ -180,10 +239,9 @@ void main()
 //--------------------------------------------------------------
 #ifdef FRAGMENT_SHADER
 
-flat in vec3 gFacetNormal;
-in vec3 Neye;
-in vec3 Peye;
-in vec4 Cout;
+in block {
+    OutputVertex v;
+} input;
 
 #define NUM_LIGHTS 2
 
@@ -194,13 +252,17 @@ struct LightSource {
     vec4 specular;
 };
 
-uniform LightSource lightSource[NUM_LIGHTS];
+layout(std140) uniform Lighting {
+    LightSource lightSource[NUM_LIGHTS];
+};
+
+uniform vec4 diffuseColor = vec4(1);
+uniform vec4 ambientColor = vec4(1);
 
 vec4
 lighting(vec3 Peye, vec3 Neye)
 {
     vec4 color = vec4(0);
-    vec4 material = vec4(0.4, 0.4, 0.8, 1);
 
     for (int i = 0; i < NUM_LIGHTS; ++i) {
 
@@ -215,8 +277,8 @@ lighting(vec3 Peye, vec3 Neye)
         float d = max(0.0, dot(n, l));
         float s = pow(max(0.0, dot(n, h)), 500.0f);
 
-        color += lightSource[i].ambient * material
-            + d * lightSource[i].diffuse * material
+        color += lightSource[i].ambient * ambientColor
+            + d * lightSource[i].diffuse * diffuseColor
             + s * lightSource[i].specular;
     }
 
@@ -224,22 +286,53 @@ lighting(vec3 Peye, vec3 Neye)
     return color;
 }
 
-#ifdef GEOMETRY_OUT_LINE
+#ifdef PRIM_POINT
 uniform vec4 fragColor;
 void
 main()
 {
     gl_FragColor = fragColor;
 }
+#endif
 
-#else
+vec4
+edgeColor(vec4 Cfill, vec4 edgeDistance)
+{
+#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
+#ifdef PRIM_TRI
+    float d =
+        min(input.v.edgeDistance[0], min(input.v.edgeDistance[1], input.v.edgeDistance[2]));
+#endif
+#ifdef PRIM_QUAD
+    float d =
+        min(min(input.v.edgeDistance[0], input.v.edgeDistance[1]),
+            min(input.v.edgeDistance[2], input.v.edgeDistance[3]));
+#endif
+    vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
+    float p = exp2(-2 * d * d);
 
+#if defined(GEOMETRY_OUT_WIRE)
+    if (p < 0.25) discard;
+#endif
+
+    Cfill.rgb = mix(Cfill.rgb, Cedge.rgb, p);
+#endif
+    return Cfill;
+}
+
+#if defined(PRIM_QUAD) || defined(PRIM_TRI)
 void
 main()
 {
-    vec3 N = (gl_FrontFacing ? gFacetNormal : -gFacetNormal);
-    gl_FragColor = lighting(Peye, N);
+    vec3 N = (gl_FrontFacing ? input.v.normal : -input.v.normal);
+    vec4 Cf = lighting(input.v.position.xyz, N);
+
+#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
+    Cf = edgeColor(Cf, input.v.edgeDistance);
+#endif
+
+    gl_FragColor = Cf;
 }
-#endif // GEOMETRY_OUT_LINE
+#endif
 
 #endif

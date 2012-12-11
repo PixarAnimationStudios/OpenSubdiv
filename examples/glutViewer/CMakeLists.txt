@@ -104,6 +104,8 @@ _add_glut_executable(glutViewer
 else()
 _add_glut_executable(glutViewer
     viewer.cpp
+    ../common/hud.cpp
+    ../common/gl_hud.cpp
     ${SHADER_FILES}
     ${INC_FILES}
 )

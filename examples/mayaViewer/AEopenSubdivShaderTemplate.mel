@@ -1,0 +1,124 @@
+
+//
+//      Common utilities for map file attributes
+//
+global proc 
+AEopenSubdivShader_fileBrowser( string $nodeAttr )
+{
+    string $attr     = `match "[^.]+$" $nodeAttr`;
+    string $uiAttr   = `interToUI $attr`;
+    string $imgFilters = "PNG (*.png);;TIFF (*.tif);;JPEG (*.jpg);;All files (*.*)";
+
+    string $result[] = `fileDialog2 -caption ("Choose "+$uiAttr)
+                                    -fileMode 1
+                                    -fileFilter $imgFilters
+                                    -selectFileFilter "All files"
+                                    `;
+
+    string $filename = "";
+    if (size($result) > 0)
+    {
+        $filename = $result[0];
+        setAttr $nodeAttr -type "string" $filename;
+    }
+}
+
+proc
+buildMapRow( string $nodeAttr )
+{
+    string $attr     = `match "[^.]+$" $nodeAttr`;
+    string $fileField = ($attr+"_fileField");
+    string $browserBtn = ($attr+"_browserBtn");
+
+    setUITemplate -pst attributeEditorTemplate;
+    rowLayout -nc 3 -h 25;
+        text -label `interToUI $attr`;
+        textField $fileField;
+        symbolButton -image "navButtonBrowse.png" $browserBtn;
+        setParent ..;
+    setUITemplate -ppt;
+}
+
+
+//
+//      Custom controls for adding file browser to map attributes
+//
+
+//
+//      diffuseMap
+//
+global proc 
+AEopenSubdivShader_diffuseMapNew( string $nodeAttr )
+{
+    // build row with text field and file browser button
+    buildMapRow( $nodeAttr );
+    AEopenSubdivShader_diffuseMapReplace $nodeAttr;
+}
+
+global proc 
+AEopenSubdivShader_diffuseMapReplace (string $nodeAttr)
+{
+    string $attr     = `match "[^.]+$" $nodeAttr`;
+    string $fileField = ($attr+"_fileField");
+    string $browserBtn = ($attr+"_browserBtn");
+
+    connectControl -fileName $fileField $nodeAttr;
+    button -e -c
+        ("AEopenSubdivShader_fileBrowser \"" + $nodeAttr + "\"" ) $browserBtn;
+}
+
+
+
+global proc 
+AEopenSubdivShaderTemplate(string $nodeName)
+{
+    // swatch rendering not implemented yet
+    // AEswatchDisplay $nodeName;
+
+    editorTemplate -beginScrollLayout;
+
+        editorTemplate -beginLayout "Subdivision" -collapse false;
+            editorTemplate -addControl "adaptive";
+            editorTemplate -addControl "scheme";
+            editorTemplate -addControl "kernel";
+            editorTemplate -addControl "level";
+            editorTemplate -addControl "tessFactor";
+            editorTemplate -addControl "interpolateBoundary";
+            editorTemplate -addControl "interpolateUVBoundary";
+        editorTemplate -endLayout;
+
+        editorTemplate -beginLayout "Appearance" -collapse false;
+            editorTemplate -addControl "wireframe";
+            editorTemplate -addSeparator;
+            editorTemplate -addControl "diffuse";
+            editorTemplate -addControl "ambient";
+            editorTemplate -addControl "specular";
+            editorTemplate -addControl "shininess";
+        editorTemplate -endLayout;
+
+        editorTemplate -beginLayout "Texture" -collapse false;
+            editorTemplate -callCustom "AEopenSubdivShader_diffuseMapNew" 
+                                       "AEopenSubdivShader_diffuseMapReplace"
+                                       "diffuseMap";
+            editorTemplate -addControl "uvSet";
+        editorTemplate -endLayout;
+
+        editorTemplate -beginLayout "Shader" -collapse true;
+            editorTemplate -addControl "shaderSource";
+        editorTemplate -endLayout;
+
+        // include/call base class/node attributes
+        AEdependNodeTemplate $nodeName;
+
+        editorTemplate -addExtraControls;
+    editorTemplate -endScrollLayout;
+
+    editorTemplate -suppress "outColor";
+    editorTemplate -suppress "outTransparency";
+    editorTemplate -suppress "outMatteOpacity";
+    editorTemplate -suppress "outGlowColor";
+    editorTemplate -suppress "enableHwShading";
+    editorTemplate -suppress "varyingParameters";
+    editorTemplate -suppress "uniformParameters";
+}
+

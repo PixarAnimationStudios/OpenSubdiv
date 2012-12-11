@@ -67,6 +67,9 @@ template <class T> class HbrVertexEdit;
 template <class T> class HbrMovingVertexEdit;
 class FarVertexEdit;
 
+//!
+/*! 
+ */
 class OsdVertex {
 public:
     OsdVertex() {}
@@ -88,9 +91,9 @@ public:
     void ApplyMovingVertexEdit(HbrMovingVertexEdit<OsdVertex> const &) { }
 };
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
-} // end namespace OpenSubdiv
+}  // end namespace OpenSubdiv
 
-#endif // OSD_VERTEX_H
+#endif  // OSD_VERTEX_H

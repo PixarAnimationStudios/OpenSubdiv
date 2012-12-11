@@ -720,6 +720,10 @@ HbrMesh<T>::Finish() {
         HbrVertex<T>* vertex = *vi;
         if (vertex->IsConnected()) vertex->Finish();
     }
+    // Finish may have added new vertices
+    vertexlist.clear();
+    GetVertices(std::back_inserter(vertexlist));
+
     // If interpolateboundary is on, process boundary edges
     if (interpboundarymethod == k_InterpolateBoundaryEdgeOnly || interpboundarymethod == k_InterpolateBoundaryEdgeAndCorner) {
         for (i = 0; i < nfaces; ++i) {

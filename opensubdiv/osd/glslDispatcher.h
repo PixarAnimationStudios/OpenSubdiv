@@ -54,192 +54,80 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_GLSL_DISPATCHER_H
-#define OSD_GLSL_DISPATCHER_H
-
-#if not defined(__APPLE__)
-    #include <GL/gl.h>
-#else
-    #include <OpenGL/gl3.h>
-#endif
+#ifndef OSD_GLSL_COMPUTE_DISPATCHER_H
+#define OSD_GLSL_COMPUTE_DISPATCHER_H
 
 #include "../version.h"
-#include "../osd/kernelDispatcher.h"
+
+#include "../osd/vertex.h"
+#include "../far/dispatcher.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdGlslKernelDispatcher : public OsdKernelDispatcher {
+class OsdGLSLComputeContext;
+
+class OsdGLSLComputeKernelDispatcher
+    : public FarDispatcher<OsdVertex> {
 
 public:
-    OsdGlslKernelDispatcher(int levels);
+    OsdGLSLComputeKernelDispatcher();
 
-    virtual ~OsdGlslKernelDispatcher();
+    virtual ~OsdGLSLComputeKernelDispatcher();
 
-    virtual void ApplyBilinearFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
+    void Refine(FarMesh<OsdVertex> * mesh, OsdGLSLComputeContext *context);
 
-    virtual void ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-
-    virtual void ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
-
-
-    virtual void ApplyLoopEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyLoopVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
-
-    virtual void ApplyVertexEdits(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const {}
-
-
-    virtual void CopyTable(int tableIndex, size_t size, const void *ptr);
-
-    virtual void AllocateEditTables(int n) {}
-
-    virtual void UpdateEditTable(int tableIndex, const FarTable<unsigned int> &offsets, const FarTable<float> &values,
-                                 int operation, int primVarOffset, int primVarWidth) {}
-
-    virtual void OnKernelLaunch();
-
-    virtual void OnKernelFinish();
-
-    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int numVertices);
-
-    virtual void BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
-
-    virtual void UnbindVertexBuffer();
-
-    virtual void Synchronize();
-
-    static OsdKernelDispatcher * Create(int levels) {
-        return new OsdGlslKernelDispatcher(levels);
-    }
-    static void Register() {
-        Factory::GetInstance().Register(Create, kGLSL);
-    }
+    static OsdGLSLComputeKernelDispatcher * GetInstance();
 
 protected:
+    virtual void ApplyBilinearFaceVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-    class ComputeShader {
-    public:
-        ComputeShader();
-        ~ComputeShader();
+    virtual void ApplyBilinearEdgeVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-        bool Compile(int numVertexElements, int numVaryingElements);
+    virtual void ApplyBilinearVertexVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-        GLuint GetTableUniform(int table) const {
-            return _tableUniforms[table];
-        }
-        GLuint GetVertexUniform() const { return _vertexUniform; }
-        GLuint GetVaryingUniform() const { return _varyingUniform; }
+    virtual void ApplyCatmarkFaceVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
+    virtual void ApplyCatmarkEdgeVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
+    virtual void ApplyCatmarkVertexVerticesKernelB(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-        void ApplyBilinearFaceVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end);
+    virtual void ApplyCatmarkVertexVerticesKernelA(
+        FarMesh<OsdVertex> * mesh, int offset, bool pass,
+        int level, int start, int end, void * clientdata) const;
 
-        void ApplyBilinearEdgeVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int E_IT_ofs, int offset, int start, int end);
+    virtual void ApplyLoopEdgeVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-        void ApplyBilinearVertexVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int V_ITa_ofs, int offset, int start, int end);
+    virtual void ApplyLoopVertexVerticesKernelB(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
+    virtual void ApplyLoopVertexVerticesKernelA(
+        FarMesh<OsdVertex> * mesh, int offset, bool pass,
+        int level, int start, int end, void * clientdata) const;
 
-
-        void ApplyCatmarkFaceVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end);
-
-        void ApplyCatmarkEdgeVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int E_IT_ofs, int E_W_ofs, int offset, int start, int end);
-
-        void ApplyCatmarkVertexVerticesKernelB(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end);
-
-        void ApplyCatmarkVertexVerticesKernelA(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end);
-
-
-
-        void ApplyLoopEdgeVerticesKernel(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int E_IT_ofs, int E_W_ofs, int offset, int start, int end);
-
-        void ApplyLoopVertexVerticesKernelB(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end);
-
-        void ApplyLoopVertexVerticesKernelA(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying, int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end);
-
-
-        void UseProgram () const;
-
-        struct Match {
-            Match(int numVertexElements, int numVaryingElements) :
-                _numVertexElements(numVertexElements), _numVaryingElements(numVaryingElements) { }
-
-            bool operator() (ComputeShader const & shader) {
-                return (shader._numVertexElements == _numVertexElements
-                        && shader._numVaryingElements == _numVaryingElements);
-            }
-
-            int _numVertexElements,
-                _numVaryingElements;
-        };
-
-        friend struct Match;
-
-    private:
-        void transformGpuBufferData(OsdGpuVertexBuffer *vertex, OsdGpuVertexBuffer *varying,
-                                    GLint offset, int start, int end) const;
-
-        int _numVertexElements;
-        int _numVaryingElements;
-
-        GLuint _program;
-
-        GLuint _uniformVertexPass;
-        GLuint _uniformIndexStart;
-        GLuint _uniformIndexOffset;
-
-        GLuint _vertexUniform,
-               _varyingUniform;
-
-        // shader locations
-        GLuint _subComputeFace,           // general face-vertex kernel (all schemes)
-               _subComputeEdge,           // edge-vertex kernel (catmark + loop schemes)
-               _subComputeBilinearEdge,   // edge-vertex kernel (bilinear scheme)
-               _subComputeVertex,         // vertex-vertex kernel (bilinear scheme)
-               _subComputeVertexA,        // vertex-vertex kernel A (catmark + loop schemes)
-               _subComputeCatmarkVertexB, // vertex-vertex kernel B (catmark scheme)
-               _subComputeLoopVertexB;    // vertex-vertex kernel B (loop scheme)
-
-        std::vector<GLuint> _tableUniforms;
-        std::vector<GLuint> _tableOffsetUniforms;
-
-    };
-
-    void bindTextureBuffer(GLuint sampler, GLuint buffer, GLuint texture, GLenum type, int unit) const;
-
-    void unbindTextureBuffer(int unit) const;
-
-    ComputeShader * _shader;
-
-    // texture for vertex
-    GLuint _vertexTexture,
-           _varyingTexture;
-
-    OsdGpuVertexBuffer *_currentVertexBuffer,
-                       *_currentVaryingBuffer;
-
-    // table buffers
-    std::vector<GLuint> _tableBuffers;
-    std::vector<GLuint> _tableTextures;
-
-    // static shader registry (XXX tentative..)
-    static std::vector<ComputeShader> shaderRegistry;
+    virtual void ApplyVertexEdits(
+        FarMesh<OsdVertex> *mesh, int offset, int level,
+        void * clientdata) const;
 };
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
-} // end namespace OpenSubdiv
+}  // end namespace OpenSubdiv
 
-#endif // OSD_GLSL_DISPATCHER_H
+#endif  // OSD_GLSL_COMPUTE_DISPATCHER_H

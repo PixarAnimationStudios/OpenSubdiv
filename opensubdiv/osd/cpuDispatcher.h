@@ -58,96 +58,77 @@
 #define OSD_CPU_DISPATCHER_H
 
 #include "../version.h"
-#include "../osd/kernelDispatcher.h"
+
+#include "../osd/vertex.h"
+#include "../far/dispatcher.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-struct VertexDescriptor;
+class OsdCpuComputeContext;
 
-class OsdCpuKernelDispatcher : public OsdKernelDispatcher
-{
+class OsdCpuKernelDispatcher : public FarDispatcher<OsdVertex> {
 public:
-    OsdCpuKernelDispatcher(int levels, int numOmpThreads=1);
+    OsdCpuKernelDispatcher();
 
     virtual ~OsdCpuKernelDispatcher();
 
+    void Refine(FarMesh<OsdVertex> * mesh, OsdCpuComputeContext *context) const;
 
-    virtual void ApplyBilinearFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyBilinearEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyBilinearVertexVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-
-    virtual void ApplyCatmarkFaceVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyCatmarkEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
-
-
-    virtual void ApplyLoopEdgeVerticesKernel(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyLoopVertexVerticesKernelB(FarMesh<OsdVertex> * mesh, int offset, int level, int start, int end, void * data) const;
-
-    virtual void ApplyLoopVertexVerticesKernelA(FarMesh<OsdVertex> * mesh, int offset, bool pass, int level, int start, int end, void * data) const;
-
-    virtual void ApplyVertexEdits(FarMesh<OsdVertex> *mesh, int offset, int level, void * clientdata) const;
-
-    virtual void CopyTable(int tableIndex, size_t size, const void *ptr);
-
-    virtual void AllocateEditTables(int n);
-
-    virtual void UpdateEditTable(int tableIndex, const FarTable<unsigned int> &offsets, const FarTable<float> &values,
-                                 int operation, int primVarOffset, int primVarWidth);
-
-    virtual void OnKernelLaunch();
-
-    virtual void OnKernelFinish() {}
-
-    virtual OsdVertexBuffer *InitializeVertexBuffer(int numElements, int numVertices);
-
-    virtual void BindVertexBuffer(OsdVertexBuffer *vertex, OsdVertexBuffer *varying);
-
-    virtual void UnbindVertexBuffer();
-
-    virtual void Synchronize();
-
-    static void Register();
+    static OsdCpuKernelDispatcher * GetInstance();
 
 protected:
+    virtual void ApplyBilinearFaceVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-    // XXX: until far refactoring finishes, use this.
-    struct Table {
-        Table() : ptr(NULL) { }
+    virtual void ApplyBilinearEdgeVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-       ~Table();
+    virtual void ApplyBilinearVertexVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-        void Copy(int size, const void *ptr);
 
-        void *ptr;
-    };
+    virtual void ApplyCatmarkFaceVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-    float *GetVertexBuffer() const { return _currentVertexBuffer ? _currentVertexBuffer->GetCpuBuffer() : NULL; }
+    virtual void ApplyCatmarkEdgeVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-    float *GetVaryingBuffer() const { return _currentVaryingBuffer ? _currentVaryingBuffer->GetCpuBuffer() : NULL; }
+    virtual void ApplyCatmarkVertexVerticesKernelB(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-    OsdCpuVertexBuffer *_currentVertexBuffer,
-                       *_currentVaryingBuffer;
+    virtual void ApplyCatmarkVertexVerticesKernelA(
+        FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
+        int start, int end, void * clientdata) const;
 
-    VertexDescriptor *_vdesc;
 
-    int _numOmpThreads;
-    std::vector<Table> _tables;
-    std::vector<Table> _editTables;
+    virtual void ApplyLoopEdgeVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyLoopVertexVerticesKernelB(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyLoopVertexVerticesKernelA(
+        FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyVertexEdits(
+        FarMesh<OsdVertex> *mesh, int offset, int level,
+        void * clientdata) const;
+
 };
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
-} // end namespace OpenSubdiv
+}  // end namespace OpenSubdiv
 
-#endif /* OSD_CPU_DISPATCHER_H */
+#endif  // OSD_CPU_DISPATCHER_H

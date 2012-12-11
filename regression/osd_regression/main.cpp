@@ -66,18 +66,15 @@
 #include <stdio.h>
 #include <cassert>
 
-#include <osd/mutex.h>
+#include "../common/mutex.h"
 
-#include <hbr/mesh.h>
-#include <hbr/face.h>
-#include <hbr/vertex.h>
-#include <hbr/halfedge.h>
-#include <hbr/catmark.h>
+#include <far/meshFactory.h>
 
 #include <osd/vertex.h>
-#include <osd/mesh.h>
+#include <osd/cpuVertexBuffer.h>
 #include <osd/cpuDispatcher.h>
-#include <osd/glslDispatcher.h>
+#include <osd/cpuComputeController.h>
+#include <osd/cpuComputeContext.h>
 
 #ifdef OPENSUBDIV_HAS_CUDA
     #include <osd/cudaDispatcher.h>
@@ -182,6 +179,10 @@ typedef OpenSubdiv::HbrHalfedge<xyzVV>       xyzhalfedge;
 typedef OpenSubdiv::HbrFaceOperator<xyzVV>   xyzFaceOperator;
 typedef OpenSubdiv::HbrVertexOperator<xyzVV> xyzVertexOperator;
 
+typedef OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>     OsdHbrMesh;
+typedef OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex>   OsdHbrVertex;
+typedef OpenSubdiv::HbrFace<OpenSubdiv::OsdVertex>     OsdHbrFace;
+typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 //------------------------------------------------------------------------------
 // Returns true if a vertex or any of its parents is on a boundary
 bool VertexOnBoundary( xyzvertex const * v ) {
@@ -230,7 +231,7 @@ int checkVertexBuffer( xyzmesh * hmesh,
 
         xyzvertex * hv = hmesh->GetVertex(i);
 
-        float * ov = & vb->GetCpuBuffer()[ remap[ hv->GetID() ] * vb->GetNumElements() ];
+        float * ov = & vb->BindCpuBuffer()[ remap[ hv->GetID() ] * vb->GetNumElements() ];
 
         // boundary interpolation rules set to "none" produce "undefined" vertices on
         // boundary vertices : far does not match hbr for those, so skip comparison.
@@ -314,24 +315,25 @@ int checkMesh( char const * msg, char const * shape, int levels, Scheme scheme=k
 
     std::vector<float> coarseverts;
 
-    OpenSubdiv::OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, coarseverts);
+    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, coarseverts);
 
-    OpenSubdiv::OsdMesh * omesh = new OpenSubdiv::OsdMesh();
+    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farmesh;
+    OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex> meshFactory(hmesh, levels);
 
+    farmesh = meshFactory.Create();
 
-    std::vector<int> remap;
+    static OpenSubdiv::OsdCpuComputeController *controller =
+        new OpenSubdiv::OsdCpuComputeController();
 
+    OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh);
+    
+    std::vector<int> remap = meshFactory.GetRemappingTable();
     {
-        omesh->Create(hmesh, levels, (int)OpenSubdiv::OsdKernelDispatcher::kCPU, &remap);
-
-        OpenSubdiv::OsdCpuVertexBuffer * vb =
-            dynamic_cast<OpenSubdiv::OsdCpuVertexBuffer *>(omesh->InitializeVertexBuffer(3));
+        OpenSubdiv::OsdCpuVertexBuffer * vb = OpenSubdiv::OsdCpuVertexBuffer::Create(3, farmesh->GetNumVertices());
 
         vb->UpdateData( & coarseverts[0], (int)coarseverts.size()/3 );
 
-        omesh->Subdivide( vb, NULL );
-
-        omesh->Synchronize();
+        controller->Refine( context, vb );
 
         checkVertexBuffer(refmesh, vb, remap);
     }
@@ -350,9 +352,6 @@ int main(int argc, char ** argv) {
     glewInit();
 
     int levels=5, total=0;
-
-    // Register Osd compute kernels
-    OpenSubdiv::OsdCpuKernelDispatcher::Register();
 
 #define test_catmark_edgeonly
 #define test_catmark_edgecorner
