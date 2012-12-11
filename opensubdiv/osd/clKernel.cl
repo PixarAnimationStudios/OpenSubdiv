@@ -55,6 +55,10 @@
 //     a particular purpose and non-infringement.
 //
 
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846  // fix for OSX 10.8 (M_PI is in the Khronos standard...)
+#endif
+
 struct Vertex
 {
     float v[NUM_VERTEX_ELEMENTS];
