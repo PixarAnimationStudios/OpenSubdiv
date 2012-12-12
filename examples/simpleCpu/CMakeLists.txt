@@ -98,17 +98,19 @@ foreach(shader_file ${SHADER_FILES})
 endforeach()
 
 if(APPLE)
-_add_glut_executable(simpleCpu
-    mainApple.mm
-    simpleCpuSubdivision.cpp
-)
+    _add_glut_executable(simpleCpu
+        mainApple.mm
+        simpleCpuSubdivision.cpp
+        ${SHADER_FILES}
+        ${INC_FILES}
+    )
 else()
-_add_glut_executable(simpleCpu
-    simpleCpuSubdivision.cpp
-    mainGlut.cpp
-    ${SHADER_FILES}
-    ${INC_FILES}
-)
+    _add_glut_executable(simpleCpu
+        simpleCpuSubdivision.cpp
+        mainGlut.cpp
+        ${SHADER_FILES}
+        ${INC_FILES}
+    )
 endif()
 
 target_link_libraries(simpleCpu
