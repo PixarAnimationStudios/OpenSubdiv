@@ -80,16 +80,24 @@ if (WIN32)
             "C:/Program Files/Microsoft DirectX SDK*/Include"
     )
 
-    find_path(DXSDK_LIBRARY_DIR
+    if ("${CMAKE_GENERATOR}" MATCHES "[Ww]in64")
+        set(ARCH x64)
+    else()
+        set(ARCH x86)
+    endif()
+
+    find_path(LIBRARY_DIR
             d3d11.lib
         PATHS
-            ${DXSDK_LOCATION}/Lib/x64
-            $ENV{DXSDK_LOCATION}/Lib/x64
-            ${DXSDK_ROOT}/Lib/x64
-            $ENV{DXSDK_ROOT}/Lib/x64
-            "C:/Program Files (x86)/Microsoft DirectX SDK*/Lib/x64"
-            "C:/Program Files/Microsoft DirectX SDK*/Lib/x64"
+            ${DXSDK_LOCATION}/Lib/${ARCH}
+            $ENV{DXSDK_LOCATION}/Lib/${ARCH}
+            ${DXSDK_ROOT}/Lib/${ARCH}
+            $ENV{DXSDK_ROOT}/Lib/${ARCH}
+            "C:/Program Files (x86)/Microsoft DirectX SDK*/Lib/${ARCH}"
+            "C:/Program Files/Microsoft DirectX SDK*/Lib/${ARCH}"
     )
+
+    set(DXSDK_LIBRARY_DIR ${LIBRARY_DIR})
 
     foreach(DX_LIB d3d11 d3dcompiler)
 
