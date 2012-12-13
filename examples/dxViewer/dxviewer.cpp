@@ -99,6 +99,14 @@
     bool g_cudaInitialized = false;
 #endif
 
+#undef OPENSUBDIV_HAS_DIRECTCOMPUTE // XXX: dyu DirectCompute needs work...
+#ifdef OPENSUBDIV_HAS_DIRECTCOMPUTE
+#include <osd/d3d11Dispatcher.h>
+#include <osd/d3d11VertexBuffer.h>
+#include <osd/d3d11ComputeContext.h>
+#include <osd/d3d11ComputeController.h>
+#endif
+
 #include <osd/d3d11Mesh.h>
 OpenSubdiv::OsdD3D11MeshInterface *g_mesh;
 
@@ -126,7 +134,8 @@ typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 enum KernelType { kCPU = 0,
                   kOPENMP = 1,
                   kCUDA = 2,
-                  kCL = 3 };
+                  kCL = 3,
+                  kDirectCompute = 4 };
 
 struct SimpleShape {
     std::string  name;
@@ -147,7 +156,7 @@ int   g_frame = 0,
 
 // GUI variables
 int   g_freeze = 0,
-      g_wire = 0,
+      g_wire = 2,
       g_adaptive = 1,
       g_drawCageEdges = 1,
       g_drawCageVertices = 0,
@@ -445,6 +454,8 @@ getKernelName(int kernel) {
         return "Cuda";
     else if (kernel == kCL)
         return "OpenCL";
+    else if (kernel == kDirectCompute)
+        return "DirectCompute";
     return "Unknown";
 }
 
@@ -509,6 +520,12 @@ createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark
     } else if (g_kernel == kCUDA) {
         g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCudaD3D11VertexBuffer,
                                          OpenSubdiv::OsdCudaComputeController,
+                                         OpenSubdiv::OsdD3D11DrawContext>(hmesh, 6, level, bits, g_pd3dDeviceContext);
+#endif
+#ifdef OPENSUBDIV_HAS_DIRECTCOMPUTE
+    } else if (g_kernel == kDirectCompute) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdD3D11VertexBuffer,
+                                         OpenSubdiv::OsdD3D11ComputeController,
                                          OpenSubdiv::OsdD3D11DrawContext>(hmesh, 6, level, bits, g_pd3dDeviceContext);
 #endif
     } else {
@@ -1127,16 +1144,19 @@ initHUD()
 #ifdef OPENSUBDIV_HAS_OPENCL
     g_hud->AddRadioButton(0, "OPENCL", false, 10, 70, callbackKernel, kCL, 'K');
 #endif
+#ifdef OPENSUBDIV_HAS_DIRECTCOMPUTE
+    g_hud->AddRadioButton(0, "DirectCompute", false, 10, 90, callbackKernel, kDirectCompute, 'K');
+#endif
 
-    g_hud->AddRadioButton(1, "Wire (W)",    true,  200, 10, callbackWireframe, 0, 'W');
-    g_hud->AddRadioButton(1, "Shaded",      false, 200, 30, callbackWireframe, 1, 'W');
-    g_hud->AddRadioButton(1, "Wire+Shaded", false, 200, 50, callbackWireframe, 2, 'W');
+    g_hud->AddRadioButton(1, "Wire (W)",    g_wire == 0,  200, 10, callbackWireframe, 0, 'W');
+    g_hud->AddRadioButton(1, "Shaded",      g_wire == 1, 200, 30, callbackWireframe, 1, 'W');
+    g_hud->AddRadioButton(1, "Wire+Shaded", g_wire == 2, 200, 50, callbackWireframe, 2, 'W');
 
 //    g_hud->AddCheckBox("Cage Edges (H)",    true,  350, 10, callbackDisplayCageEdges, 0, 'H');
 //    g_hud->AddCheckBox("Cage Verts (J)", false, 350, 30, callbackDisplayCageVertices, 0, 'J');
-    g_hud->AddCheckBox("Patch CVs (L)", false, 350, 50, callbackDisplayPatchCVs, 0, 'l');
+    g_hud->AddCheckBox("Patch CVs (L)", false, 350, 50, callbackDisplayPatchCVs, 0, 'L');
 //    g_hud->AddCheckBox("Show normal vector (E)", false, 350, 10, callbackDisplayNormal, 0, 'E');
-    g_hud->AddCheckBox("Animate vertices (M)", true, 350, 70, callbackAnimate, 0, 'M');
+    g_hud->AddCheckBox("Animate vertices (M)", g_moveScale != 0, 350, 70, callbackAnimate, 0, 'M');
     g_hud->AddCheckBox("Patch Color (P)",   true, 350, 90, callbackDisplayPatchColor, 0, 'p');
     g_hud->AddCheckBox("Freeze (spc)", false, 350, 130, callbackFreeze, 0, ' ');
 

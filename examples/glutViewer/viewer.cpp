@@ -172,7 +172,7 @@ int   g_frame = 0,
 // GUI variables
 int   g_fullscreen=0,
       g_freeze = 0,
-      g_wire = 0,
+      g_wire = 2,
       g_adaptive = 1,
       g_drawCageEdges = 1,
       g_drawCageVertices = 0,
@@ -1441,15 +1441,15 @@ initHUD()
     }
 #endif
 
-    g_hud.AddRadioButton(1, "Wire (W)",    true,  200, 10, callbackWireframe, 0, 'w');
-    g_hud.AddRadioButton(1, "Shaded",      false, 200, 30, callbackWireframe, 1, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", false, 200, 50, callbackWireframe, 2, 'w');
+    g_hud.AddRadioButton(1, "Wire (W)",    g_wire == 0,  200, 10, callbackWireframe, 0, 'w');
+    g_hud.AddRadioButton(1, "Shaded",      g_wire == 1, 200, 30, callbackWireframe, 1, 'w');
+    g_hud.AddRadioButton(1, "Wire+Shaded", g_wire == 2, 200, 50, callbackWireframe, 2, 'w');
 
     g_hud.AddCheckBox("Cage Edges (H)",    true,  350, 10, callbackDisplayCageEdges, 0, 'h');
     g_hud.AddCheckBox("Cage Verts (J)", false, 350, 30, callbackDisplayCageVertices, 0, 'j');
     g_hud.AddCheckBox("Patch CVs (L)", false, 350, 50, callbackDisplayPatchCVs, 0, 'l');
     g_hud.AddCheckBox("Show normal vector (E)", false, 350, 70, callbackDisplayNormal, 0, 'e');
-    g_hud.AddCheckBox("Animate vertices (M)", true, 350, 90, callbackAnimate, 0, 'm');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 350, 90, callbackAnimate, 0, 'm');
     g_hud.AddCheckBox("Patch Color (P)",   true, 350, 110, callbackDisplayPatchColor, 0, 'p');
     g_hud.AddCheckBox("Freeze (spc)", false, 350, 130, callbackFreeze, 0, ' ');
 
