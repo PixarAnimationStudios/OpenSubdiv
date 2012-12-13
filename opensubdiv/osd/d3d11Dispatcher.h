@@ -54,58 +54,75 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_D3D11_VERTEX_BUFFER_H
-#define OSD_D3D11_VERTEX_BUFFER_H
+#ifndef OSD_D3D11_COMPUTE_DISPATCHER_H
+#define OSD_D3D11_COMPUTE_DISPATCHER_H
 
 #include "../version.h"
 
-struct ID3D11Buffer;
-struct ID3D11Device;
-struct ID3D11DeviceContext;
-struct ID3D11UnorderedAccessView;
+#include "../osd/vertex.h"
+#include "../far/dispatcher.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-/// \brief Concrete vertex buffer class for DirectX subvision and DirectX drawing.
-/// OsdD3D11VertexBuffer implements OsdD3D11VertexBufferInterface. An instance
-/// of this buffer class can be passed to OsdD3D11ComputeController.
-class OsdD3D11VertexBuffer {
+class OsdD3D11ComputeContext;
+
+class OsdD3D11ComputeKernelDispatcher
+    : public FarDispatcher<OsdVertex> {
+
 public:
-    /// Creator. Returns NULL if error.
-    static OsdD3D11VertexBuffer * Create(int numElements, int numVertices,
-                                         ID3D11Device *device);
+    OsdD3D11ComputeKernelDispatcher();
 
-    /// Destructor.
-    virtual ~OsdD3D11VertexBuffer();
+    virtual ~OsdD3D11ComputeKernelDispatcher();
 
-    /// This method is meant to be used in client code in order to provide
-    /// coarse vertices data to Osd.
-    void UpdateData(const float *src, int numVertices, void *param);
+    void Refine(FarMesh<OsdVertex> * mesh, OsdD3D11ComputeContext *context);
 
-    /// Returns how many elements defined in this vertex buffer.
-    int GetNumElements() const;
-
-    /// Returns how many vertices allocated in this vertex buffer.
-    int GetNumVertices() const;
-
-    /// Returns the D3D11 buffer object.
-    ID3D11Buffer *BindD3D11Buffer(ID3D11DeviceContext *deviceContext);
-    ID3D11UnorderedAccessView *BindD3D11UAV(ID3D11DeviceContext *deviceContext);
+    static OsdD3D11ComputeKernelDispatcher * GetInstance();
 
 protected:
-    /// Constructor.
-    OsdD3D11VertexBuffer(int numElements, int numVertices, ID3D11Device *device);
+    virtual void ApplyBilinearFaceVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-    // Allocates D3D11 buffer
-    bool allocate(ID3D11Device *device);
+    virtual void ApplyBilinearEdgeVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
 
-private:
-    int _numElements;
-    int _numVertices;
-    ID3D11Buffer *_buffer;
-    ID3D11Buffer *_uploadBuffer;
-    ID3D11UnorderedAccessView *_uav;
+    virtual void ApplyBilinearVertexVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyCatmarkFaceVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyCatmarkEdgeVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyCatmarkVertexVerticesKernelB(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyCatmarkVertexVerticesKernelA(
+        FarMesh<OsdVertex> * mesh, int offset, bool pass,
+        int level, int start, int end, void * clientdata) const;
+
+    virtual void ApplyLoopEdgeVerticesKernel(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyLoopVertexVerticesKernelB(
+        FarMesh<OsdVertex> * mesh, int offset, int level,
+        int start, int end, void * clientdata) const;
+
+    virtual void ApplyLoopVertexVerticesKernelA(
+        FarMesh<OsdVertex> * mesh, int offset, bool pass,
+        int level, int start, int end, void * clientdata) const;
+
+    virtual void ApplyVertexEdits(
+        FarMesh<OsdVertex> *mesh, int offset, int level,
+        void * clientdata) const;
 };
 
 }  // end namespace OPENSUBDIV_VERSION
@@ -113,4 +130,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_D3D11_VERTEX_BUFFER_H
+#endif  // OSD_D3D11_COMPUTE_DISPATCHER_H

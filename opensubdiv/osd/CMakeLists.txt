@@ -249,18 +249,27 @@ endif()
 if( DXSDK_FOUND )
     list(APPEND GPU_SOURCE_FILES
         cpuD3D11VertexBuffer.cpp
+        d3d11ComputeContext.cpp
+        d3d11ComputeController.cpp
+        d3d11Dispatcher.cpp
         d3d11DrawContext.cpp
         d3d11DrawRegistry.cpp
+        d3d11KernelBundle.cpp
         d3d11VertexBuffer.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES
         cpuD3D11VertexBuffer.h
+        d3d11ComputeContext.h
+        d3d11ComputeController.h
+        d3d11Dispatcher.h
         d3d11DrawContext.h
         d3d11DrawRegistry.h
+        d3d11KernelBundle.h
         d3d11VertexBuffer.h
         d3d11Mesh.h
     )
     list(APPEND KERNEL_FILES
+        hlslComputeKernel.hlsl
         hlslPatchCommon.hlsl
         hlslPatchRegular.hlsl
         hlslPatchBoundary.hlsl

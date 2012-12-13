@@ -54,63 +54,73 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_D3D11_VERTEX_BUFFER_H
-#define OSD_D3D11_VERTEX_BUFFER_H
 
-#include "../version.h"
+#include "../osd/d3d11ComputeController.h"
+#include "../osd/d3d11ComputeContext.h"
+#include "../osd/d3d11Dispatcher.h"
+#include "../osd/d3d11KernelBundle.h"
 
-struct ID3D11Buffer;
-struct ID3D11Device;
-struct ID3D11DeviceContext;
-struct ID3D11UnorderedAccessView;
+#include <D3D11.h>
+
+#include <algorithm>
+#include <cassert>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-/// \brief Concrete vertex buffer class for DirectX subvision and DirectX drawing.
-/// OsdD3D11VertexBuffer implements OsdD3D11VertexBufferInterface. An instance
-/// of this buffer class can be passed to OsdD3D11ComputeController.
-class OsdD3D11VertexBuffer {
-public:
-    /// Creator. Returns NULL if error.
-    static OsdD3D11VertexBuffer * Create(int numElements, int numVertices,
-                                         ID3D11Device *device);
+#define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }
 
-    /// Destructor.
-    virtual ~OsdD3D11VertexBuffer();
+OsdD3D11ComputeController::OsdD3D11ComputeController(
+    ID3D11DeviceContext *deviceContext)
+     : _deviceContext(deviceContext), _query(0) {
+}
 
-    /// This method is meant to be used in client code in order to provide
-    /// coarse vertices data to Osd.
-    void UpdateData(const float *src, int numVertices, void *param);
+OsdD3D11ComputeController::~OsdD3D11ComputeController() {
 
-    /// Returns how many elements defined in this vertex buffer.
-    int GetNumElements() const;
+    for (std::vector<OsdD3D11ComputeKernelBundle*>::iterator it =
+             _kernelRegistry.begin();
+         it != _kernelRegistry.end(); ++it) {
+        delete *it;
+    }
+    SAFE_RELEASE(_query);
+}
 
-    /// Returns how many vertices allocated in this vertex buffer.
-    int GetNumVertices() const;
+void
+OsdD3D11ComputeController::Synchronize() {
 
-    /// Returns the D3D11 buffer object.
-    ID3D11Buffer *BindD3D11Buffer(ID3D11DeviceContext *deviceContext);
-    ID3D11UnorderedAccessView *BindD3D11UAV(ID3D11DeviceContext *deviceContext);
+    if (! _query) {
+        ID3D11Device *device = NULL;
+        _deviceContext->GetDevice(&device);
+        assert(device);
 
-protected:
-    /// Constructor.
-    OsdD3D11VertexBuffer(int numElements, int numVertices, ID3D11Device *device);
+        D3D11_QUERY_DESC desc;
+        desc.Query = D3D11_QUERY_EVENT;
+        desc.MiscFlags = 0;
+        device->CreateQuery(&desc, &_query);
+    }
+    _deviceContext->Flush();
+    _deviceContext->End(_query);
+    while (S_OK != _deviceContext->GetData(_query, NULL, 0, 0));
+}
 
-    // Allocates D3D11 buffer
-    bool allocate(ID3D11Device *device);
+OsdD3D11ComputeKernelBundle *
+OsdD3D11ComputeController::getKernels(int numVertexElements,
+                                     int numVaryingElements) {
 
-private:
-    int _numElements;
-    int _numVertices;
-    ID3D11Buffer *_buffer;
-    ID3D11Buffer *_uploadBuffer;
-    ID3D11UnorderedAccessView *_uav;
-};
+    std::vector<OsdD3D11ComputeKernelBundle*>::iterator it =
+        std::find_if(_kernelRegistry.begin(), _kernelRegistry.end(),
+                     OsdD3D11ComputeKernelBundle::Match(numVertexElements,
+                                                numVaryingElements));
+    if (it != _kernelRegistry.end()) {
+        return *it;
+    } else {
+        OsdD3D11ComputeKernelBundle *kernelBundle =
+            new OsdD3D11ComputeKernelBundle(_deviceContext);
+        _kernelRegistry.push_back(kernelBundle);
+        kernelBundle->Compile(numVertexElements, numVaryingElements);
+        return kernelBundle;
+    }
+}
 
 }  // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
 }  // end namespace OpenSubdiv
-
-#endif  // OSD_D3D11_VERTEX_BUFFER_H

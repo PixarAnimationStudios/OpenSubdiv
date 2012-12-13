@@ -54,58 +54,74 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_D3D11_VERTEX_BUFFER_H
-#define OSD_D3D11_VERTEX_BUFFER_H
+
+#ifndef OSD_D3D11_COMPUTE_CONTROLLER_H
+#define OSD_D3D11_COMPUTE_CONTROLLER_H
 
 #include "../version.h"
 
-struct ID3D11Buffer;
-struct ID3D11Device;
+#include "../osd/d3d11ComputeContext.h"
+#include "../osd/d3d11Dispatcher.h"
+
+#include <vector>
+
 struct ID3D11DeviceContext;
-struct ID3D11UnorderedAccessView;
+struct ID3D11Query;
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-/// \brief Concrete vertex buffer class for DirectX subvision and DirectX drawing.
-/// OsdD3D11VertexBuffer implements OsdD3D11VertexBufferInterface. An instance
-/// of this buffer class can be passed to OsdD3D11ComputeController.
-class OsdD3D11VertexBuffer {
+class OsdD3D11ComputeKernelBundle;
+
+/// \brief Compute controller for launching D3D11Compute transform feedback
+/// subdivision kernels.
+/// OsdD3D11ComputeController is a compute controller class to launch
+/// D3D11Compute transfrom feedback subdivision kernels. It requires
+/// OsdD3D11VertexBufferInterface as arguments of Refine function.
+class OsdD3D11ComputeController {
 public:
-    /// Creator. Returns NULL if error.
-    static OsdD3D11VertexBuffer * Create(int numElements, int numVertices,
-                                         ID3D11Device *device);
+    typedef OsdD3D11ComputeContext ComputeContext;
+
+    /// Constructor.
+    OsdD3D11ComputeController(ID3D11DeviceContext *deviceContext);
 
     /// Destructor.
-    virtual ~OsdD3D11VertexBuffer();
+    ~OsdD3D11ComputeController();
 
-    /// This method is meant to be used in client code in order to provide
-    /// coarse vertices data to Osd.
-    void UpdateData(const float *src, int numVertices, void *param);
+    /// Launch subdivision kernels and apply to given vertex buffers.
+    /// vertexBuffer will be interpolated with vertex interpolation and
+    /// varyingBuffer will be interpolated with varying interpolation.
+    /// vertexBuffer and varyingBuffer should implement
+    /// OsdD3D11VertexBufferInterface.
+    template<class VERTEX_BUFFER, class VARYING_BUFFER>
+    void Refine(OsdD3D11ComputeContext *context,
+                VERTEX_BUFFER *vertexBuffer,
+                VARYING_BUFFER *varyingBuffer) {
 
-    /// Returns how many elements defined in this vertex buffer.
-    int GetNumElements() const;
+        int numVertexElements = vertexBuffer ? vertexBuffer->GetNumElements() : 0;
+        int numVaryingElements = varyingBuffer ? varyingBuffer->GetNumElements() : 0;
 
-    /// Returns how many vertices allocated in this vertex buffer.
-    int GetNumVertices() const;
+        context->SetKernelBundle(getKernels(numVertexElements, numVaryingElements));
+        context->Bind(vertexBuffer, varyingBuffer);
+        OsdD3D11ComputeKernelDispatcher::GetInstance()->Refine(context->GetFarMesh(), context);
+        context->Unbind();
+    }
 
-    /// Returns the D3D11 buffer object.
-    ID3D11Buffer *BindD3D11Buffer(ID3D11DeviceContext *deviceContext);
-    ID3D11UnorderedAccessView *BindD3D11UAV(ID3D11DeviceContext *deviceContext);
+    template<class VERTEX_BUFFER>
+    void Refine(OsdD3D11ComputeContext *context, VERTEX_BUFFER *vertexBuffer) {
+        Refine(context, vertexBuffer, (VERTEX_BUFFER*)NULL);
+    }
 
-protected:
-    /// Constructor.
-    OsdD3D11VertexBuffer(int numElements, int numVertices, ID3D11Device *device);
-
-    // Allocates D3D11 buffer
-    bool allocate(ID3D11Device *device);
+    /// Waits until all running subdivision kernels finish.
+    void Synchronize();
 
 private:
-    int _numElements;
-    int _numVertices;
-    ID3D11Buffer *_buffer;
-    ID3D11Buffer *_uploadBuffer;
-    ID3D11UnorderedAccessView *_uav;
+    OsdD3D11ComputeKernelBundle * getKernels(int numVertexElements,
+                                             int numVaryingElements);
+
+    ID3D11DeviceContext *_deviceContext;
+    ID3D11Query *_query;
+    std::vector<OsdD3D11ComputeKernelBundle *> _kernelRegistry;
 };
 
 }  // end namespace OPENSUBDIV_VERSION
@@ -113,4 +129,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_D3D11_VERTEX_BUFFER_H
+#endif  // OSD_D3D11_COMPUTE_CONTROLLER_H
