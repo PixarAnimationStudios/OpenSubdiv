@@ -217,7 +217,7 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
 
     D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
     ZeroMemory(&srvd, sizeof(srvd));
-    srvd.Format = DXGI_FORMAT_R32_UINT;
+    srvd.Format = DXGI_FORMAT_R32_SINT;
     srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
     srvd.Buffer.FirstElement = 0;
     srvd.Buffer.NumElements = totalPatchLevels;
@@ -333,7 +333,7 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
 
         D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
         ZeroMemory(&srvd, sizeof(srvd));
-        srvd.Format = DXGI_FORMAT_R32_UINT;
+        srvd.Format = DXGI_FORMAT_R32_SINT;
         srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
         srvd.Buffer.FirstElement = 0;
         srvd.Buffer.NumElements = UINT(valenceTable.size());
@@ -373,7 +373,7 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
 
         D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
         ZeroMemory(&srvd, sizeof(srvd));
-        srvd.Format = DXGI_FORMAT_R32_UINT;
+        srvd.Format = DXGI_FORMAT_R32_SINT;
         srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
         srvd.Buffer.FirstElement = 0;
         srvd.Buffer.NumElements = UINT(quadOffsetTable.size());
