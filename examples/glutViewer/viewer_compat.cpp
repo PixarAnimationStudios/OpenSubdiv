@@ -61,42 +61,85 @@
 #else
     #include <stdlib.h>
     #include <GL/glew.h>
+    #if defined(WIN32)
+        #include <GL/wglew.h>
+    #endif
     #include <GL/glut.h>
 #endif
 
-#include <osd/mutex.h>
+#include "../../regression/common/mutex.h" // XXX
 
+#include <osd/error.h>
 #include <osd/vertex.h>
-#include <osd/mesh.h>
-#include <osd/cpuDispatcher.h>
+#include <osd/glDrawContext.h>
+#include <osd/glDrawRegistry.h>
 
-#ifdef OPENSUBDIV_HAS_GLSL
-    #include <osd/glslDispatcher.h>
+#include <osd/cpuDispatcher.h>
+#include <osd/cpuGLVertexBuffer.h>
+#include <osd/cpuComputeContext.h>
+#include <osd/cpuComputeController.h>
+
+#ifdef OPENSUBDIV_HAS_OPENMP
+    #include <osd/ompDispatcher.h>
+    #include <osd/ompComputeController.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     #include <osd/clDispatcher.h>
+    #include <osd/clGLVertexBuffer.h>
+    #include <osd/clComputeContext.h>
+    #include <osd/clComputeController.h>
+
+    #include "../common/clInit.h"
+
+    cl_context g_clContext;
+    cl_command_queue g_clQueue;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
     #include <osd/cudaDispatcher.h>
+    #include <osd/cudaGLVertexBuffer.h>
+    #include <osd/cudaComputeContext.h>
+    #include <osd/cudaComputeController.h>
 
     #include <cuda_runtime_api.h>
     #include <cuda_gl_interop.h>
 
     #include "../common/cudaInit.h"
+
+    bool g_cudaInitialized = false;
 #endif
 
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    #include <osd/glslTransformFeedbackDispatcher.h>
+    #include <osd/glslTransformFeedbackComputeContext.h>
+    #include <osd/glslTransformFeedbackComputeController.h>
+    #include <osd/glVertexBuffer.h>
+#endif
+
+#include <osd/glMesh.h>
+OpenSubdiv::OsdGLMeshInterface *g_mesh;
+
 #include <common/shape_utils.h>
-
 #include "../common/stopwatch.h"
+#include "../common/simple_math.h"
 
-#include <float.h>
+#include <cfloat>
 #include <vector>
 #include <fstream>
 #include <sstream>
 
-//------------------------------------------------------------------------------
+typedef OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>     OsdHbrMesh;
+typedef OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex>   OsdHbrVertex;
+typedef OpenSubdiv::HbrFace<OpenSubdiv::OsdVertex>     OsdHbrFace;
+typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
+
+enum KernelType { kCPU = 0,
+                  kOPENMP = 1,
+                  kCUDA = 2,
+                  kCL = 3,
+                  kGLSL = 4 };
+
 struct SimpleShape {
     std::string  name;
     Scheme       scheme;
@@ -111,12 +154,70 @@ std::vector<SimpleShape> g_defaultShapes;
 
 int g_currentShape = 0;
 
+int   g_frame = 0,
+      g_repeatCount = 0;
 
-void
+// GLUT GUI variables
+int   g_fullscreen=0,
+      g_freeze = 0,
+      g_wire = 2,
+      g_drawCageEdges = 1,
+      g_drawCageVertices = 0,
+      g_drawNormals = 0,
+      g_drawHUD = 1,
+      g_mbutton[3] = {0, 0, 0};
+
+float g_rotate[2] = {0, 0},
+      g_prev_x = 0,
+      g_prev_y = 0,
+      g_dolly = 5,
+      g_pan[2] = {0, 0},
+      g_center[3] = {0, 0, 0},
+      g_size = 0;
+
+int   g_width = 1024,
+      g_height = 1024;
+
+// performance
+float g_cpuTime = 0;
+float g_gpuTime = 0;
+Stopwatch g_fpsTimer;
+
+// geometry
+std::vector<float> g_orgPositions,
+                   g_positions,
+                   g_normals;
+
+Scheme             g_scheme;
+
+int g_level = 2;
+int g_kernel = kCPU;
+float g_moveScale = 0.0f;
+
+
+std::vector<int> g_coarseEdges;
+std::vector<float> g_coarseEdgeSharpness;
+std::vector<float> g_coarseVertexSharpness;
+
+static void
+checkGLErrors(std::string const & where = "")
+{
+    GLuint err;
+    while ((err = glGetError()) != GL_NO_ERROR) {
+        /*
+        std::cerr << "GL error: "
+                  << (where.empty() ? "" : where + " ")
+                  << err << "\n";
+        */
+    }
+}
+
+//------------------------------------------------------------------------------
+static void
 initializeShapes( ) {
 
 #include <shapes/bilinear_cube.h>
-    g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
+//    g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
 
 #include <shapes/catmark_cube_corner0.h>
     g_defaultShapes.push_back(SimpleShape(catmark_cube_corner0, "catmark_cube_corner0", kCatmark));
@@ -154,6 +255,18 @@ initializeShapes( ) {
 #include <shapes/catmark_edgeonly.h>
     g_defaultShapes.push_back(SimpleShape(catmark_edgeonly, "catmark_edgeonly", kCatmark));
 
+#include <shapes/catmark_gregory_test1.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_gregory_test1, "catmark_gregory_test1", kCatmark));
+
+#include <shapes/catmark_gregory_test2.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_gregory_test2, "catmark_gregory_test2", kCatmark));
+
+#include <shapes/catmark_gregory_test3.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_gregory_test3, "catmark_gregory_test3", kCatmark));
+
+#include <shapes/catmark_gregory_test4.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_gregory_test4, "catmark_gregory_test4", kCatmark));
+
 #include <shapes/catmark_pyramid_creases0.h>
     g_defaultShapes.push_back(SimpleShape(catmark_pyramid_creases0, "catmark_pyramid_creases0", kCatmark));
 
@@ -172,6 +285,12 @@ initializeShapes( ) {
 #include <shapes/catmark_tent.h>
     g_defaultShapes.push_back(SimpleShape(catmark_tent, "catmark_tent", kCatmark));
 
+#include <shapes/catmark_torus.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_torus, "catmark_torus", kCatmark));
+
+#include <shapes/catmark_torus_creases0.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_torus_creases0, "catmark_torus_creases0", kCatmark));
+
 #include <shapes/catmark_square_hedit0.h>
     g_defaultShapes.push_back(SimpleShape(catmark_square_hedit0, "catmark_square_hedit0", kCatmark));
 
@@ -183,6 +302,29 @@ initializeShapes( ) {
 
 #include <shapes/catmark_square_hedit3.h>
     g_defaultShapes.push_back(SimpleShape(catmark_square_hedit3, "catmark_square_hedit3", kCatmark));
+
+
+
+#ifndef WIN32 // exceeds max string literal (65535 chars)
+#include <shapes/catmark_bishop.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_bishop, "catmark_bishop", kCatmark));
+#endif
+
+#ifndef WIN32 // exceeds max string literal (65535 chars)
+#include <shapes/catmark_car.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_car, "catmark_car", kCatmark));
+#endif
+
+#include <shapes/catmark_helmet.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_helmet, "catmark_helmet", kCatmark));
+
+#include <shapes/catmark_pawn.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_pawn, "catmark_pawn", kCatmark));
+
+#ifndef WIN32 // exceeds max string literal (65535 chars)
+#include <shapes/catmark_rook.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_rook, "catmark_rook", kCatmark));
+#endif
 
 
 
@@ -212,99 +354,8 @@ initializeShapes( ) {
 }
 
 //------------------------------------------------------------------------------
-int   g_frame = 0,
-      g_repeatCount = 0;
-
-// GLUT GUI variables
-int   g_freeze = 0,
-      g_wire = 0,
-      g_drawCoarseMesh = 1,
-      g_drawNormals = 0,
-      g_drawHUD = 1,
-      g_mbutton[3] = {0, 0, 0};
-
-float g_rotate[2] = {0, 0},
-      g_prev_x = 0,
-      g_prev_y = 0,
-      g_dolly = 5,
-      g_pan[2] = {0, 0},
-      g_center[3] = {0, 0, 0},
-      g_size = 0;
-
-int   g_width,
-      g_height;
-
-// performance
-float g_cpuTime = 0;
-float g_gpuTime = 0;
-
-// geometry
-std::vector<float> g_orgPositions,
-                   g_positions,
-                   g_normals;
-
-Scheme             g_scheme;
-
-int g_numIndices = 0;
-int g_level = 2;
-int g_kernel = OpenSubdiv::OsdKernelDispatcher::kCPU;
-float g_moveScale = 1.0f;
-
-GLuint g_indexBuffer;
-
-std::vector<int> g_coarseEdges;
-std::vector<float> g_coarseEdgeSharpness;
-std::vector<float> g_coarseVertexSharpness;
-
-OpenSubdiv::OsdMesh * g_osdmesh = 0;
-OpenSubdiv::OsdVertexBuffer * g_vertexBuffer = 0;
-
-//------------------------------------------------------------------------------
-inline void
-cross(float *n, const float *p0, const float *p1, const float *p2) {
-
-    float a[3] = { p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2] };
-    float b[3] = { p2[0]-p0[0], p2[1]-p0[1], p2[2]-p0[2] };
-    n[0] = a[1]*b[2]-a[2]*b[1];
-    n[1] = a[2]*b[0]-a[0]*b[2];
-    n[2] = a[0]*b[1]-a[1]*b[0];
-
-    float rn = 1.0f/sqrtf(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
-    n[0] *= rn;
-    n[1] *= rn;
-    n[2] *= rn;
-}
-
-//------------------------------------------------------------------------------
-inline void
-normalize(float * p) {
-
-    float dist = sqrtf( p[0]*p[0] + p[1]*p[1]  + p[2]*p[2] );
-    p[0]/=dist;
-    p[1]/=dist;
-    p[2]/=dist;
-}
-
-//------------------------------------------------------------------------------
-inline void
-multMatrix(float *d, const float *a, const float *b) {
-
-    for (int i=0; i<4; ++i)
-    {
-        for (int j=0; j<4; ++j)
-        {
-            d[i*4 + j] =
-                a[i*4 + 0] * b[0*4 + j] +
-                a[i*4 + 1] * b[1*4 + j] +
-                a[i*4 + 2] * b[2*4 + j] +
-                a[i*4 + 3] * b[3*4 + j];
-        }
-    }
-}
-
-//------------------------------------------------------------------------------
 static void
-calcNormals(OpenSubdiv::OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float> & result ) {
+calcNormals(OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float> & result ) {
 
     // calc normal vectors
     int nverts = (int)pos.size()/3;
@@ -312,7 +363,7 @@ calcNormals(OpenSubdiv::OsdHbrMesh * mesh, std::vector<float> const & pos, std::
     int nfaces = mesh->GetNumCoarseFaces();
     for (int i = 0; i < nfaces; ++i) {
 
-        OpenSubdiv::OsdHbrFace * f = mesh->GetFace(i);
+        OsdHbrFace * f = mesh->GetFace(i);
 
         float const * p0 = &pos[f->GetVertex(0)->GetID()*3],
                     * p1 = &pos[f->GetVertex(1)->GetID()*3],
@@ -333,7 +384,7 @@ calcNormals(OpenSubdiv::OsdHbrMesh * mesh, std::vector<float> const & pos, std::
 }
 
 //------------------------------------------------------------------------------
-void
+static void
 updateGeom() {
 
     int nverts = (int)g_orgPositions.size() / 3;
@@ -369,28 +420,134 @@ updateGeom() {
         n += 3;
     }
 
-    if (!g_vertexBuffer)
-        g_vertexBuffer = g_osdmesh->InitializeVertexBuffer(6);
-    g_vertexBuffer->UpdateData(&vertex[0], nverts);
+    g_mesh->UpdateVertexBuffer(&vertex[0], nverts);
 
     Stopwatch s;
     s.Start();
 
-    g_osdmesh->Subdivide(g_vertexBuffer, NULL);
+    g_mesh->Refine();
 
     s.Stop();
     g_cpuTime = float(s.GetElapsed() * 1000.0f);
     s.Start();
-    g_osdmesh->Synchronize();
+
+    g_mesh->Synchronize();
+
     s.Stop();
     g_gpuTime = float(s.GetElapsed() * 1000.0f);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->GetGpuBuffer());
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-//-------------------------------------------------------------------------------
-void
+//------------------------------------------------------------------------------
+static const char *
+getKernelName(int kernel) {
+
+         if (kernel == kCPU)
+        return "CPU";
+    else if (kernel == kOPENMP)
+        return "OpenMP";
+    else if (kernel == kCUDA)
+        return "Cuda";
+    else if (kernel == kGLSL)
+        return "GLSL TransformFeedback";
+    else if (kernel == kCL)
+        return "OpenCL";
+    return "Unknown";
+}
+
+//------------------------------------------------------------------------------
+static void
+createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark ) {
+
+    // generate Hbr representation from "obj" description
+    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, g_orgPositions);
+
+    g_normals.resize(g_orgPositions.size(),0.0f);
+    g_positions.resize(g_orgPositions.size(),0.0f);
+    calcNormals( hmesh, g_orgPositions, g_normals );
+
+    // save coarse topology (used for coarse mesh drawing)
+    g_coarseEdges.clear();
+    g_coarseEdgeSharpness.clear();
+    g_coarseVertexSharpness.clear();
+    int nf = hmesh->GetNumFaces();
+    for(int i=0; i<nf; ++i) {
+        OsdHbrFace *face = hmesh->GetFace(i);
+        int nv = face->GetNumVertices();
+        for(int j=0; j<nv; ++j) {
+            g_coarseEdges.push_back(face->GetVertex(j)->GetID());
+            g_coarseEdges.push_back(face->GetVertex((j+1)%nv)->GetID());
+            g_coarseEdgeSharpness.push_back(face->GetEdge(j)->GetSharpness());
+        }
+    }
+    int nv = hmesh->GetNumVertices();
+    for(int i=0; i<nv; ++i) {
+        g_coarseVertexSharpness.push_back(hmesh->GetVertex(i)->GetSharpness());
+    }
+
+    delete g_mesh;
+    g_mesh = NULL;
+
+    g_scheme = scheme;
+
+    OpenSubdiv::OsdMeshBitset bits;
+    bits.set(OpenSubdiv::MeshAdaptive, false);
+
+    if (kernel == kCPU) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuGLVertexBuffer,
+                                         OpenSubdiv::OsdCpuComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(hmesh, 6, level, bits);
+#ifdef OPENSUBDIV_HAS_OPENMP
+    } else if (kernel == kOPENMP) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuGLVertexBuffer,
+                                         OpenSubdiv::OsdOmpComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(hmesh, 6, level, bits);
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+    } else if(kernel == kCL) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCLGLVertexBuffer,
+                                         OpenSubdiv::OsdCLComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(hmesh, 6, level, bits, g_clContext, g_clQueue);
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    } else if(kernel == kCUDA) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCudaGLVertexBuffer,
+                                         OpenSubdiv::OsdCudaComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(hmesh, 6, level, bits);
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    } else if(kernel == kGLSL) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdGLVertexBuffer,
+                                         OpenSubdiv::OsdGLSLTransformFeedbackComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(hmesh, 6, level, bits);
+#endif
+    } else {
+        printf("Unsupported kernel %s\n", getKernelName(kernel));
+    }
+
+    // Hbr mesh can be deleted
+    delete hmesh;
+
+    // compute model bounding
+    float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};
+    float max[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+    for (size_t i=0; i <g_orgPositions.size()/3; ++i) {
+        for(int j=0; j<3; ++j) {
+            float v = g_orgPositions[i*3+j];
+            min[j] = std::min(min[j], v);
+            max[j] = std::max(max[j], v);
+        }
+    }
+    for (int j=0; j<3; ++j) {
+        g_center[j] = (min[j] + max[j]) * 0.5f;
+        g_size += (max[j]-min[j])*(max[j]-min[j]);
+    }
+    g_size = sqrtf(g_size);
+
+    updateGeom();
+}
+
+//------------------------------------------------------------------------------
+static void
 fitFrame() {
 
     g_pan[0] = g_pan[1] = 0;
@@ -398,12 +555,6 @@ fitFrame() {
 }
 
 //------------------------------------------------------------------------------
-void
-reshape(int width, int height) {
-
-    g_width = width;
-    g_height = height;
-}
 
 #if _MSC_VER
     #define snprintf _snprintf
@@ -417,25 +568,10 @@ reshape(int width, int height) {
       while(*p) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *p++); } }
 
 //------------------------------------------------------------------------------
-const char *getKernelName(int kernel) {
-
-         if (kernel == OpenSubdiv::OsdKernelDispatcher::kCPU)
-        return "CPU";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kOPENMP)
-        return "OpenMP";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCUDA)
-        return "Cuda";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kGLSL)
-        return "GLSL";
-    else if (kernel == OpenSubdiv::OsdKernelDispatcher::kCL)
-        return "OpenCL";
-    return "Unknown";
-}
-
-//------------------------------------------------------------------------------
 void
 drawNormals() {
 
+#if 0
     float * data=0;
     int datasize = g_osdmesh->GetTotalVertices() * g_vertexBuffer->GetNumElements();
 
@@ -466,9 +602,10 @@ drawNormals() {
     glEnd();
 
     delete [] data;
+#endif
 }
 
-inline void
+static inline void
 setSharpnessColor(float s)
 {
     //  0.0       2.0       4.0
@@ -478,11 +615,10 @@ setSharpnessColor(float s)
     glColor3f(r, g, 0.0f);
 }
 
-void
-drawCoarseMesh(int mode) {
+static void
+drawCageEdges() {
 
     glDisable(GL_LIGHTING);
-
     glLineWidth(2.0f);
     glBegin(GL_LINES);
     for(int i=0; i<(int)g_coarseEdges.size(); i+=2) {
@@ -492,93 +628,28 @@ drawCoarseMesh(int mode) {
     }
     glEnd();
     glLineWidth(1.0f);
+} 
 
-    if (mode == 2) {
-        glPointSize(10.0f);
-        glBegin(GL_POINTS);
-        for(int i=0; i<(int)g_positions.size()/3; ++i) {
-            setSharpnessColor(g_coarseVertexSharpness[i]);
-            glVertex3fv(&g_positions[i*3]);
-        }
-        glEnd();
-        glPointSize(1.0f);
+static void
+drawCageVertices() {
+
+    glDisable(GL_LIGHTING);
+    glPointSize(10.0f);
+    glBegin(GL_POINTS);
+    for(int i=0; i<(int)g_positions.size()/3; ++i) {
+        setSharpnessColor(g_coarseVertexSharpness[i]);
+        glVertex3fv(&g_positions[i*3]);
     }
-
+    glEnd();
+    glPointSize(1.0f);
 }
 
 //------------------------------------------------------------------------------
-void
-createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark ) {
-
-    // generate Hbr representation from "obj" description
-    OpenSubdiv::OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, g_orgPositions);
-
-    g_normals.resize(g_orgPositions.size(),0.0f);
-    g_positions.resize(g_orgPositions.size(),0.0f);
-    calcNormals( hmesh, g_orgPositions, g_normals );
-
-    // save coarse topology (used for coarse mesh drawing)
-    g_coarseEdges.clear();
-    g_coarseEdgeSharpness.clear();
-    g_coarseVertexSharpness.clear();
-    int nf = hmesh->GetNumFaces();
-    for(int i=0; i<nf; ++i) {
-        OpenSubdiv::OsdHbrFace *face = hmesh->GetFace(i);
-        int nv = face->GetNumVertices();
-        for(int j=0; j<nv; ++j) {
-            g_coarseEdges.push_back(face->GetVertex(j)->GetID());
-            g_coarseEdges.push_back(face->GetVertex((j+1)%nv)->GetID());
-            g_coarseEdgeSharpness.push_back(face->GetEdge(j)->GetSharpness());
-        }
-    }
-    int nv = hmesh->GetNumVertices();
-    for(int i=0; i<nv; ++i) {
-        g_coarseVertexSharpness.push_back(hmesh->GetVertex(i)->GetSharpness());
-    }
-
-    // generate Osd mesh from Hbr mesh
-    if (g_osdmesh) delete g_osdmesh;
-    g_osdmesh = new OpenSubdiv::OsdMesh();
-    g_osdmesh->Create(hmesh, level, kernel);
-    if (g_vertexBuffer) {
-        delete g_vertexBuffer;
-        g_vertexBuffer = NULL;
-    }
-
-    // Hbr mesh can be deleted
-    delete hmesh;
-
-    // update element array buffer
-    const std::vector<int> &indices = g_osdmesh->GetFarMesh()->GetFaceVertices(level);
-
-    g_numIndices = indices.size();
-    g_scheme = scheme;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*g_numIndices, &(indices[0]), GL_STATIC_DRAW);
-
-    // compute model bounding
-    float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};
-    float max[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
-    for (size_t i=0; i <g_orgPositions.size()/3; ++i) {
-        for(int j=0; j<3; ++j) {
-            float v = g_orgPositions[i*3+j];
-            min[j] = std::min(min[j], v);
-            max[j] = std::max(max[j], v);
-        }
-    }
-    for (int j=0; j<3; ++j) {
-        g_center[j] = (min[j] + max[j]) * 0.5f;
-        g_size += (max[j]-min[j])*(max[j]-min[j]);
-    }
-    g_size = sqrtf(g_size);
-
-    updateGeom();
-
-}
-
-//------------------------------------------------------------------------------
-void
+static void
 display() {
+
+    Stopwatch s;
+    s.Start();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -610,25 +681,26 @@ display() {
     glTranslatef(-g_pan[0], -g_pan[1], -g_dolly);
     glRotatef(g_rotate[1], 1, 0, 0);
     glRotatef(g_rotate[0], 0, 1, 0);
-    glTranslatef(-g_center[0], -g_center[1], -g_center[2]);
+    glTranslatef(-g_center[0], -g_center[2], g_center[1]); // z-up model
     glRotatef(-90, 1, 0, 0); // z-up model
 
-    GLuint bVertex = g_vertexBuffer->GetGpuBuffer();
     glEnableClientState(GL_VERTEX_ARRAY);
     glEnableClientState(GL_NORMAL_ARRAY);
-    glBindBuffer(GL_ARRAY_BUFFER, bVertex);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVertexBuffer());
 
     glVertexPointer(3, GL_FLOAT, sizeof (GLfloat) * 6, 0);
     glNormalPointer(GL_FLOAT, sizeof (GLfloat) * 6, (float*)12);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->patchIndexBuffer);
+    int numIndices = g_mesh->GetDrawContext()->patchArrays[0].numIndices;
 
     GLenum primType = g_scheme == kLoop ? GL_TRIANGLES : GL_QUADS;
 
     glEnable(GL_LIGHTING);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     if (g_wire > 0) {
-        glDrawElements(primType, g_numIndices, GL_UNSIGNED_INT, NULL);
+        glDrawElements(primType, numIndices, GL_UNSIGNED_INT, NULL);
     }
     glDisable(GL_LIGHTING);
     
@@ -639,44 +711,66 @@ display() {
         } else {
             glColor4f(1, 1, 1, 1);
         }
-        glDrawElements(primType, g_numIndices, GL_UNSIGNED_INT, NULL);
+        glDrawElements(primType, numIndices, GL_UNSIGNED_INT, NULL);
     }
     glDisableClientState(GL_VERTEX_ARRAY);
     glDisableClientState(GL_NORMAL_ARRAY);
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
     if (g_drawNormals)
         drawNormals();
     
-    if (g_drawCoarseMesh)
-        drawCoarseMesh(g_drawCoarseMesh);
+    if (g_drawCageEdges)
+        drawCageEdges();
+
+    if (g_drawCageVertices)
+        drawCageVertices();
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    s.Stop();
+    float drawCpuTime = float(s.GetElapsed() * 1000.0f);
+    s.Start();
+    glFinish();
+    s.Stop();
+    float drawGpuTime = float(s.GetElapsed() * 1000.0f);
 
     if (g_drawHUD) {
+        g_fpsTimer.Stop();
+        double fps = 1.0/g_fpsTimer.GetElapsed();
+        g_fpsTimer.Start();
+
         glColor3f(1, 1, 1);
-        drawString(10, 10, "LEVEL = %d", g_level);
-        drawString(10, 30, "# of Vertices = %d", g_osdmesh->GetFarMesh()->GetNumVertices());
-        drawString(10, 50, "KERNEL = %s", getKernelName(g_kernel));
-        drawString(10, 70, "CPU TIME = %.3f ms", g_cpuTime);
-        drawString(10, 90, "GPU TIME = %.3f ms", g_gpuTime);
-        drawString(10, 110, "SUBDIVISION = %s", g_scheme==kBilinear ? "BILINEAR" : (g_scheme == kLoop ? "LOOP" : "CATMARK"));
+        drawString(10, 10,  "LEVEL = %d", g_level);
+        drawString(10, 30,  "# of Vertices = %d", g_mesh->GetNumVertices());
+        drawString(10, 50,  "KERNEL = %s", getKernelName(g_kernel));
+        drawString(10, 70,  "FPS        = %3.1f", fps);
+        drawString(10, 90,  "GPU Draw   = %.3f ms", drawGpuTime);
+        drawString(10, 110, "CPU Draw   = %.3f ms", drawCpuTime);
+        drawString(10, 130, "GPU Kernel = %.3f ms", g_gpuTime);
+        drawString(10, 150, "CPU Kernel = %.3f ms", g_cpuTime);
+        drawString(10, 170, "SUBDIVISION = %s", g_scheme==kBilinear ? "BILINEAR" : (g_scheme == kLoop ? "LOOP" : "CATMARK"));
         
         drawString(10, g_height-30, "w:   toggle wireframe");
         drawString(10, g_height-50, "e:   display normal vector");
         drawString(10, g_height-70, "m:   toggle vertex deforming");
-        drawString(10, g_height-90, "h:   display control cage");
-        drawString(10, g_height-110, "n/p: change model");
-        drawString(10, g_height-130, "1-7: subdivision level");
-        drawString(10, g_height-150, "space: freeze/unfreeze time");
+        drawString(10, g_height-90, "h:   display cage edges");
+        drawString(10, g_height-110, "j:   display cage verts");
+        drawString(10, g_height-130, "n/p: change model");
+        drawString(10, g_height-150, "1-7: subdivision level");
+        drawString(10, g_height-170, "space: freeze/unfreeze time");
     }
 
     glFinish();
     glutSwapBuffers();
+    glFinish();
+
+    checkGLErrors("display leave");
 }
 
 //------------------------------------------------------------------------------
-void motion(int x, int y) {
+static void
+motion(int x, int y) {
 
     if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
         // orbit
@@ -686,7 +780,8 @@ void motion(int x, int y) {
         // pan
         g_pan[0] -= g_dolly*(x - g_prev_x)/g_width;
         g_pan[1] += g_dolly*(y - g_prev_y)/g_height;
-    } else if (g_mbutton[0] && g_mbutton[1] && !g_mbutton[2]) {
+    } else if ((g_mbutton[0] && g_mbutton[1] && !g_mbutton[2]) or
+               (!g_mbutton[0] && !g_mbutton[1] && g_mbutton[2])) {
         // dolly
         g_dolly -= g_dolly*0.01f*(x - g_prev_x);
         if(g_dolly <= 0.01) g_dolly = 0.01f;
@@ -697,7 +792,8 @@ void motion(int x, int y) {
 }
 
 //------------------------------------------------------------------------------
-void mouse(int button, int state, int x, int y) {
+static void
+mouse(int button, int state, int x, int y) {
 
     g_prev_x = float(x);
     g_prev_y = float(y);
@@ -705,24 +801,51 @@ void mouse(int button, int state, int x, int y) {
 }
 
 //------------------------------------------------------------------------------
-void quit() {
+static void
+quit() {
 
-    if(g_osdmesh)
-        delete g_osdmesh;
-
-    if (g_vertexBuffer)
-        delete g_vertexBuffer;
+    if (g_mesh)
+        delete g_mesh;
 
 #ifdef OPENSUBDIV_HAS_CUDA
     cudaDeviceReset();
 #endif
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+    uninitCL(g_clContext, g_clQueue);
+#endif
+
     exit(0);
+}
+
+//------------------------------------------------------------------------------
+static void
+reshape(int width, int height) {
+
+    g_width = width;
+    g_height = height;
 }
 
 //------------------------------------------------------------------------------
 void kernelMenu(int k) {
 
     g_kernel = k;
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+    if (g_kernel == kCL and g_clContext == NULL) {
+        if (initCL(&g_clContext, &g_clQueue) == false) {
+            printf("Error in initializing OpenCL\n");
+            exit(1);
+        }
+    }
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    if (g_kernel == kCUDA and g_cudaInitialized == false) {
+        g_cudaInitialized = true;
+        cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
+    }
+#endif
+
     createOsdMesh( g_defaultShapes[ g_currentShape ].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
 }
 
@@ -759,7 +882,31 @@ menu(int m) {
 }
 
 //------------------------------------------------------------------------------
-void
+static void toggleFullScreen() {
+
+    static int x,y,w,h;
+    
+    g_fullscreen = !g_fullscreen;
+    
+    if (g_fullscreen) {
+        x = glutGet((GLenum)GLUT_WINDOW_X);
+        y = glutGet((GLenum)GLUT_WINDOW_Y);
+        w = glutGet((GLenum)GLUT_WINDOW_WIDTH);
+        h = glutGet((GLenum)GLUT_WINDOW_HEIGHT);
+        
+        glutFullScreen( );
+        
+        reshape( glutGet(GLUT_SCREEN_WIDTH),
+                 glutGet(GLUT_SCREEN_HEIGHT) );
+    } else {
+        glutReshapeWindow(w, h);
+        glutPositionWindow(x,y);
+        reshape( w, h );
+    }
+}
+
+//------------------------------------------------------------------------------
+static void
 keyboard(unsigned char key, int x, int y) {
 
     switch (key) {
@@ -768,8 +915,10 @@ keyboard(unsigned char key, int x, int y) {
         case 'w': g_wire = (g_wire+1)%3; break;
         case 'e': g_drawNormals = (g_drawNormals+1)%2; break;
         case 'f': fitFrame(); break;
+        case '\t': toggleFullScreen(); break;
         case 'm': g_moveScale = 1.0f - g_moveScale; break;
-        case 'h': g_drawCoarseMesh = (g_drawCoarseMesh+1)%3; break;
+        case 'h': g_drawCageEdges = !g_drawCageEdges; break;
+        case 'j': g_drawCageVertices = !g_drawCageVertices; break;
         case '1':
         case '2':
         case '3':
@@ -784,21 +933,7 @@ keyboard(unsigned char key, int x, int y) {
 }
 
 //------------------------------------------------------------------------------
-void
-idle() {
-
-    if (not g_freeze)
-        g_frame++;
-
-    updateGeom();
-    glutPostRedisplay();
-
-    if (g_repeatCount != 0 and g_frame >= g_repeatCount)
-        quit();
-}
-
-//------------------------------------------------------------------------------
-void
+static void
 initGL() {
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -823,6 +958,20 @@ initGL() {
 }
 
 //------------------------------------------------------------------------------
+static void
+idle() {
+
+    if (not g_freeze)
+        g_frame++;
+
+    updateGeom();
+    glutPostRedisplay();
+
+    if (g_repeatCount != 0 and g_frame >= g_repeatCount)
+        quit();
+}
+
+//------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
     glutInit(&argc, argv);
@@ -844,8 +993,6 @@ int main(int argc, char ** argv) {
         }
     }
 
-
-
     initializeShapes();
 
     int smenu = glutCreateMenu(modelMenu);
@@ -860,32 +1007,20 @@ int main(int argc, char ** argv) {
         glutAddMenuEntry(level, i);
     }
 
-    // Register Osd compute kernels
-    OpenSubdiv::OsdCpuKernelDispatcher::Register();
-
-#if OPENSUBDIV_HAS_GLSL
-    OpenSubdiv::OsdGlslKernelDispatcher::Register();
-#endif
-
-#if OPENSUBDIV_HAS_OPENCL
-    OpenSubdiv::OsdClKernelDispatcher::Register();
-#endif
-
-#if OPENSUBDIV_HAS_CUDA
-    OpenSubdiv::OsdCudaKernelDispatcher::Register();
-
-    // Note: This function randomly crashes with linux 5.0-dev driver.
-    // cudaGetDeviceProperties overrun stack..?
-    cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
-#endif
-
     int kmenu = glutCreateMenu(kernelMenu);
-    int nKernels = OpenSubdiv::OsdKernelDispatcher::kMAX;
-
-    for(int i = 0; i < nKernels; ++i)
-        if(OpenSubdiv::OsdKernelDispatcher::HasKernelType(
-               OpenSubdiv::OsdKernelDispatcher::KernelType(i)))
-            glutAddMenuEntry(getKernelName(i), i);
+    glutAddMenuEntry(getKernelName(kCPU), kCPU);
+#ifdef OPENSUBDIV_HAS_OPENMP
+    glutAddMenuEntry(getKernelName(kOPENMP), kOPENMP);
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+    glutAddMenuEntry(getKernelName(kCL), kCL);
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    glutAddMenuEntry(getKernelName(kCUDA), kCUDA);
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    glutAddMenuEntry(getKernelName(kGLSL), kGLSL);
+#endif
 
     glutCreateMenu(menu);
     glutAddSubMenu("Level", lmenu);
@@ -913,8 +1048,6 @@ int main(int argc, char ** argv) {
         else
             filename = argv[i];
     }
-
-    glGenBuffers(1, &g_indexBuffer);
 
     modelMenu(0);
 

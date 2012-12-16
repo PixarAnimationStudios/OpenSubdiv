@@ -439,6 +439,7 @@ if (NOT WIN32)
     set_target_properties(osd_dynamic_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
 
     target_link_libraries(osd_dynamic_gpu
+        osd_dynamic_cpu
         ${PLATFORM_LIBRARIES}
     )
 endif()

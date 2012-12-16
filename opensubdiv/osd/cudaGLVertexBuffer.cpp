@@ -55,7 +55,11 @@
 //     a particular purpose and non-infringement.
 //
 
-#include <GL/glew.h>
+#if not defined(__APPLE__)
+    #include <GL/glew.h>
+#else
+    #include <OpenGL/gl3.h>
+#endif
 
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
