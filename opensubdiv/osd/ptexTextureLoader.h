@@ -151,6 +151,10 @@ public:
         return _txn * _bpp;
     }
 
+    int GetGutterWidth() const { return _gutterWidth; }
+    
+    int GetPageMargin() const { return _pageMargin; }
+
     void OptimizeResolution( unsigned long int memrec );
 
     void OptimizePacking( int maxnumpages );

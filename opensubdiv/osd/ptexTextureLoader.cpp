@@ -217,25 +217,26 @@ struct OsdPtexTextureLoader::page {
 
                 blocks.push_back( b );
 
-                int w = gutterWidth;
+                int w = gutterWidth,
+                    w2 = 2*w;
 
                 b->u=i->u + w;
                 b->v=i->v + w;
 
                 // add new slot to the right
-                if (i->ures > (b->current.u()+2*w)) {
-                    slots.push_front( slot( i->u+b->current.u()+2*w,
+                if (i->ures > (b->current.u()+w2)) {
+                    slots.push_front( slot( i->u+b->current.u()+w2,
                                             i->v,
-                                            i->ures-b->current.u()-2*w,
-                                            b->current.v()+2*w));
+                                            i->ures-b->current.u()-w2,
+                                            b->current.v()+w2));
                 }
 
                 // add new slot to the bottom
-                if (i->vres > (b->current.v()+2*w)) {
+                if (i->vres > (b->current.v()+w2)) {
                     slots.push_back( slot( i->u,
-                                           i->v+b->current.v()+2*w,
+                                           i->v+b->current.v()+w2,
                                            i->ures,
-                                           i->vres-b->current.v()-2*w ));
+                                           i->vres-b->current.v()-w2 ));
                 }
 
                 slots.erase( i );
@@ -295,8 +296,7 @@ OsdPtexTextureLoader::OptimizeResolution( unsigned long int memrec )
 
     if (txrec==_txc)
         return;
-    else
-    {
+    else {
         unsigned long int txcur = _txc;
 
         if (_blocks.size()==0)
@@ -307,18 +307,18 @@ OsdPtexTextureLoader::OptimizeResolution( unsigned long int memrec )
             blocks[i] = &(_blocks[i]);
 
         // reducing footprint ----------------------------------------
-        if (txrec < _txc)
-        {
+        if (txrec < _txc) {
+
             // blocks that have already been resized heavily will be considered last
             std::sort(blocks.begin(), blocks.end(), block::downsizePredicate );
 
-            while ( (txcur>0) && (txcur>txrec) )
-            {
+            while ( (txcur>0) && (txcur>txrec) ) {
+
                 unsigned long int txsaved = txcur;
 
                 // start stealing from largest to smallest down
-                for (int i=(int)blocks.size()-1; i>=0; --i)
-                {
+                for (int i=(int)blocks.size()-1; i>=0; --i) {
+
                     block * b = blocks[i];
 
                     // we have already hit rock bottom resolution... skip this block
@@ -352,13 +352,13 @@ OsdPtexTextureLoader::OptimizeResolution( unsigned long int memrec )
             // blocks that have already been resized heavily will be considered first
             std::sort(blocks.begin(), blocks.end(), block::upsizePredicate );
 
-            while ( (txcur < _txn) && (txcur < txrec) )
-            {
+            while ( (txcur < _txn) && (txcur < txrec) ) {
+
                 unsigned long int txsaved = txcur;
 
                 // start adding back to the largest faces first
-                for (int i=0; i<(int)blocks.size(); ++i)
-                {
+                for (int i=0; i<(int)blocks.size(); ++i) {
+
                     block * b = blocks[i];
 
                     // already at native resolution... nothing to be done
@@ -409,11 +409,16 @@ OsdPtexTextureLoader::OptimizePacking( int maxnumpages )
     // page size is set to the largest edge of the largest block : this is the
     // smallest possible page size, which should minimize the texels wasted on
     // the "last page" when the smallest blocks are being packed.
-    _pagesize = blocks[0]->current.ulog2 > blocks[0]->current.vlog2 ?
-                blocks[0]->current.u() : blocks[0]->current.v();
+    _pagesize = 0;
+    // also, find the max native edge length which will be used to allocate temporary
+    // buffers of guttering
+    for (unsigned long int i=0; i<blocks.size(); ++i) {
+        _pagesize = std::max(_pagesize, (unsigned short)blocks[i]->current.u());
+        _pagesize = std::max(_pagesize, (unsigned short)blocks[i]->current.v());
+    }
 
-    // at least 2*GUTTER_WIDTH of margin required for each page to fit
-    _pagesize += _pageMargin;
+    // note: at least 2*GUTTER_WIDTH of margin required for each page to fit
+    _pagesize += GetPageMargin();
 
     // grow the pagesize to make sure the optimization will not exceed the maximum
     // number of pages allowed
@@ -434,14 +439,14 @@ OsdPtexTextureLoader::OptimizePacking( int maxnumpages )
         // traverse existing pages for a suitable slot ---------------
         bool added=false;
         for( unsigned long int p=firstslot; p<_pages.size(); ++p )
-            if( (added=_pages[p]->addBlock( b, _gutterWidth )) ) {
+            if( (added=_pages[p]->addBlock( b, GetGutterWidth() )) ) {
                 break;
             }
 
         // if none was found : start new page
         if( !added ) {
             page * p = new page( _pagesize );
-            p->addBlock(b, _gutterWidth);
+            p->addBlock(b, GetGutterWidth());
             _pages.push_back( p );
         }
 
@@ -469,7 +474,7 @@ resampleBorder(PtexTexture * ptex, int face, int edgeId, unsigned char *result, 
 
     // order of the result will be flipped to match adjacent pixel order
     for(int i=0;i<srcLength; ++i) {
-        int u, v;
+        int u = 0, v = 0;
         if(edgeId==Ptex::e_bottom) {
             u = edgeLength-1-(i+srcOffset);
             v = 0;
@@ -485,6 +490,7 @@ resampleBorder(PtexTexture * ptex, int face, int edgeId, unsigned char *result, 
         }
         data->getPixel(u, v, &border[i*bpp]);
     }
+
     // nearest resample to fit dstLength
     for(int i=0;i<dstLength;++i) {
         for(int j=0; j<bpp; j++) {
@@ -527,7 +533,6 @@ sampleNeighbor(PtexTexture * ptex, unsigned char *border, int face, int edge, in
             resampleBorder(ptex, adjface, ae, border, edge, length/2, bpp);
             const Ptex::FaceInfo &sfi1 = ptex->getFaceInfo(adjface);
             adjface = sfi1.adjface((ae+3)%4);
-            const Ptex::FaceInfo &sfi2 = ptex->getFaceInfo(adjface);
             ae = (sfi1.adjedge((ae+3)%4)+3)%4;
             resampleBorder(ptex, adjface, ae, border+(length/2*bpp), edge, length/2, bpp);
 
@@ -620,36 +625,35 @@ averageCorner(PtexTexture *ptex, float *accumPixel, int numchannels, int face, i
 // sample neighbor pixels and populate around blocks
 static void
 guttering(PtexTexture *_ptex, OsdPtexTextureLoader::block *b, unsigned char *pptr,
-          int _bpp, int _pagesize, int stride, int gwidth)
+          int bpp, int pagesize, int stride, int gwidth)
 {
-    const Ptex::FaceInfo &fi = _ptex->getFaceInfo(b->idx);
-    unsigned char * border = new unsigned char[_pagesize * _bpp];
+    unsigned char * border = new unsigned char[pagesize * bpp];
 
     for(int w=0; w<gwidth; ++w) {
         for(int edge=0; edge<4; edge++) {
 
             int len = (edge==0 or edge==2) ? b->current.u() : b->current.v();
             // XXX: for now, sample same edge regardless of gutter depth
-            sampleNeighbor(_ptex, border, b->idx, edge, len, _bpp);
+            sampleNeighbor(_ptex, border, b->idx, edge, len, bpp);
 
             unsigned char *s = border, *d;
             for(int j=0;j<len;++j) {
                 d = pptr;
                 switch(edge) {
                 case Ptex::e_bottom:
-                    d += stride*(b->v-1-w) + _bpp*(b->u+j);
+                    d += stride*(b->v-1-w) + bpp*(b->u+j);
                     break;
                 case Ptex::e_right:
-                    d += stride*(b->v+j) + _bpp*(b->u+b->current.u()+w);
+                    d += stride*(b->v+j) + bpp*(b->u+b->current.u()+w);
                     break;
                 case Ptex::e_top:
-                    d += stride*(b->v+b->current.v()+w) + _bpp*(b->u+len-j-1);
+                    d += stride*(b->v+b->current.v()+w) + bpp*(b->u+len-j-1);
                     break;
                 case Ptex::e_left:
-                    d += stride*(b->v+len-j-1) + _bpp*(b->u-1-w);
+                    d += stride*(b->v+len-j-1) + bpp*(b->u-1-w);
                     break;
                 }
-                for(int k=0; k<_bpp; k++)
+                for(int k=0; k<bpp; k++)
                     *d++ = *s++;
             }
         }
@@ -671,7 +675,7 @@ guttering(PtexTexture *_ptex, OsdPtexTextureLoader::block *b, unsigned char *ppt
             // .. over (gwidth+1)x(gwidth+1) pixels for each corner
             for(int u=0; u<=gwidth; ++u) {
                 for(int v=0; v<=gwidth; ++v) {
-                    unsigned char *d = pptr + (dv+u)*stride + (du+v)*_bpp;
+                    unsigned char *d = pptr + (dv+u)*stride + (du+v)*bpp;
                     Ptex::ConvertFromFloat(d, accumPixel, _ptex->dataType(), numchannels);
                 }
             }
@@ -718,8 +722,8 @@ OsdPtexTextureLoader::GenerateBuffers( )
         for (page::blist::iterator b=p->blocks.begin(); b!=p->blocks.end(); ++b) {
             _ptex->getData( (*b)->idx, pptr + stride*(*b)->v + _bpp*(*b)->u, stride, (*b)->current );
 
-            if(_gutterWidth > 0)
-                guttering(_ptex, *b, pptr, _bpp, _pagesize, stride, _gutterWidth);
+            if(GetGutterWidth() > 0)
+                guttering(_ptex, *b, pptr, _bpp, _pagesize, stride, GetGutterWidth());
         }
 
         pptr += pagestride;
