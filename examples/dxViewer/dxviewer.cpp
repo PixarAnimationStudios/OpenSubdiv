@@ -99,13 +99,10 @@
     bool g_cudaInitialized = false;
 #endif
 
-#undef OPENSUBDIV_HAS_DIRECTCOMPUTE // XXX: dyu DirectCompute needs work...
-#ifdef OPENSUBDIV_HAS_DIRECTCOMPUTE
 #include <osd/d3d11Dispatcher.h>
 #include <osd/d3d11VertexBuffer.h>
 #include <osd/d3d11ComputeContext.h>
 #include <osd/d3d11ComputeController.h>
-#endif
 
 #include <osd/d3d11Mesh.h>
 OpenSubdiv::OsdD3D11MeshInterface *g_mesh;
@@ -522,12 +519,10 @@ createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark
                                          OpenSubdiv::OsdCudaComputeController,
                                          OpenSubdiv::OsdD3D11DrawContext>(hmesh, 6, level, bits, g_pd3dDeviceContext);
 #endif
-#ifdef OPENSUBDIV_HAS_DIRECTCOMPUTE
     } else if (g_kernel == kDirectCompute) {
         g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdD3D11VertexBuffer,
                                          OpenSubdiv::OsdD3D11ComputeController,
                                          OpenSubdiv::OsdD3D11DrawContext>(hmesh, 6, level, bits, g_pd3dDeviceContext);
-#endif
     } else {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
     }
@@ -1144,9 +1139,7 @@ initHUD()
 #ifdef OPENSUBDIV_HAS_OPENCL
     g_hud->AddRadioButton(0, "OPENCL", false, 10, 70, callbackKernel, kCL, 'K');
 #endif
-#ifdef OPENSUBDIV_HAS_DIRECTCOMPUTE
     g_hud->AddRadioButton(0, "DirectCompute", false, 10, 90, callbackKernel, kDirectCompute, 'K');
-#endif
 
     g_hud->AddRadioButton(1, "Wire (W)",    g_wire == 0,  200, 10, callbackWireframe, 0, 'W');
     g_hud->AddRadioButton(1, "Shaded",      g_wire == 1, 200, 30, callbackWireframe, 1, 'W');
