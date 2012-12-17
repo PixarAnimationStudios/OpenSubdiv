@@ -346,7 +346,7 @@ OsdD3D11ComputeKernelBundle::ApplyCatmarkVertexVerticesKernelB(
     args.indexEnd = end;
     args.V_IT_ofs = V_IT_ofs;
     args.V_ITa_ofs = V_ITa_ofs;
-    args.V_ITa_ofs = V_W_ofs;
+    args.V_W_ofs = V_W_ofs;
     dispatchCompute(_kernelComputeCatmarkVertexB, args);
 }
 
