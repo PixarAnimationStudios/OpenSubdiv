@@ -69,7 +69,7 @@
 
 struct ControlVertex {
     vec4 position;
-    vec4 patchCoord; // u, v, level, faceID
+    centroid vec4 patchCoord; // u, v, level, faceID
     ivec4 ptexInfo;  // U offset, V offset, 2^ptexlevel', rotation
     ivec3 clipFlag;
 #if OSD_NUM_VARYINGS > 0
@@ -81,7 +81,7 @@ struct OutputVertex {
     vec4 position;
     vec3 normal;
     vec3 tangent;
-    vec4 patchCoord; // u, v, level, faceID
+    centroid vec4 patchCoord; // u, v, level, faceID
     noperspective vec4 edgeDistance;
 #if OSD_NUM_VARYINGS > 0
     float varyings[OSD_NUM_VARYINGS];
@@ -108,7 +108,7 @@ struct GregEvalVertex {
     vec3 Em;
     vec3 Fp;
     vec3 Fm;
-    vec4 patchCoord;
+    centroid vec4 patchCoord;
     ivec4 ptexInfo;
 #if OSD_NUM_VARYINGS > 0
     float varyings[OSD_NUM_VARYINGS];
