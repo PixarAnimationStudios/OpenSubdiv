@@ -111,7 +111,9 @@ OsdD3D11VertexBuffer::UpdateData(const float *src, int numVertices,
 
     pd3dDeviceContext->Unmap(_uploadBuffer, 0);
 
-    pd3dDeviceContext->CopyResource(_buffer, _uploadBuffer);
+    D3D11_BOX srcBox = { 0, 0, 0, size, 1, 1 };
+    pd3dDeviceContext->CopySubresourceRegion(_buffer, 0, 0, 0, 0,
+                                             _uploadBuffer, 0, &srcBox);
 }
 
 int
