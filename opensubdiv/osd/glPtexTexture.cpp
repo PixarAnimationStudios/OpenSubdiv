@@ -55,10 +55,10 @@
 //     a particular purpose and non-infringement.
 //
 
-#if not defined(__APPLE__)
-    #include <GL/glew.h>
-#else
+#if defined(__APPLE__)
     #include <OpenGL/gl3.h>
+#else
+    #include <GL/glew.h>
 #endif
 
 #include "../osd/glPtexTexture.h"

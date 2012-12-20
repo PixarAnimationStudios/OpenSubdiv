@@ -51,13 +51,20 @@
 #ifndef OSD_GL_DRAW_CONTEXT_H
 #define OSD_GL_DRAW_CONTEXT_H
 
-#if not defined(__APPLE__)
+#if defined(__APPLE__)
+    #include "TargetConditionals.h"
+    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
+        #include <OpenGLES/ES2/gl.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
+#elif defined(ANDROID)
+    #include <GLES2/gl2.h>
+#else
     #if defined(_WIN32)
         #include <windows.h>
     #endif
     #include <GL/gl.h>
-#else
-    #include <OpenGL/gl3.h>
 #endif
 
 #include "../version.h"
@@ -97,6 +104,11 @@ public:
     }
 
     GLuint patchIndexBuffer;
+
+#if defined(GL_ES_VERSION_2_0)
+    GLuint patchTrianglesIndexBuffer;
+#endif
+
     GLuint ptexCoordinateTextureBuffer;
     GLuint fvarDataTextureBuffer;
 

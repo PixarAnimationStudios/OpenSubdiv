@@ -58,10 +58,20 @@
 #ifndef OSD_GLSL_TRANSFORM_FEEDBACK_COMPUTE_CONTEXT_H
 #define OSD_GLSL_TRANSFORM_FEEDBACK_COMPUTE_CONTEXT_H
 
-#if not defined(__APPLE__)
-    #include <GL/gl.h>
+#if defined(__APPLE__)
+    #include "TargetConditionals.h"
+    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
+        #include <OpenGLES/ES2/gl.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
+#elif defined(ANDROID)
+    #include <GLES2/gl2.h>
 #else
-    #include <OpenGL/gl3.h>
+    #if defined(_WIN32)
+        #include <windows.h>
+    #endif
+    #include <GL/gl.h>
 #endif
 
 #include "../version.h"

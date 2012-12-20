@@ -55,6 +55,22 @@
 //     a particular purpose and non-infringement.
 //
 
+#if defined(__APPLE__)
+    #include "TargetConditionals.h"
+    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
+        #include <OpenGLES/ES2/gl.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
+#elif defined(ANDROID)
+    #include <GLES2/gl2.h>
+#else
+    #if defined(_WIN32)
+        #include <windows.h>
+    #endif
+    #include <GL/glew.h>
+#endif
+
 #include "../osd/cpuGLVertexBuffer.h"
 
 #include <string.h>
@@ -141,9 +157,11 @@ OsdCpuGLVertexBuffer::map() {
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
 
     _cpuBuffer = new float[size];
+#if defined(GL_VERSION_2_1)
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
     glGetBufferSubData(GL_ARRAY_BUFFER, 0, size * sizeof(float), _cpuBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, prev);
+#endif
 }
 
 void

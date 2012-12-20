@@ -49,10 +49,20 @@
 //     (E) The software is licensed "as-is." You bear the risk of
 //     using it. The contributors give no express warranties,
 
-#if not defined(__APPLE__)
-    #include <GL/glew.h>
+#if defined(__APPLE__)
+    #include "TargetConditionals.h"
+    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
+        #include <OpenGLES/ES2/gl.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
+#elif defined(ANDROID)
+    #include <GLES2/gl2.h>
 #else
-    #include <OpenGL/gl3.h>
+    #if defined(_WIN32)
+        #include <windows.h>
+    #endif
+    #include <GL/glew.h>
 #endif
 
 #include "../far/dispatcher.h"
@@ -72,20 +82,13 @@ OsdGLDrawContext::OsdGLDrawContext() :
 
 OsdGLDrawContext::~OsdGLDrawContext()
 {
-    if (patchIndexBuffer)
-        glDeleteBuffers(1, &patchIndexBuffer);
-    if (vertexTextureBuffer)
-        glDeleteTextures(1, &vertexTextureBuffer);
-    if (vertexValenceTextureBuffer)
-        glDeleteTextures(1, &vertexValenceTextureBuffer);
-    if (quadOffsetTextureBuffer)
-        glDeleteTextures(1, &quadOffsetTextureBuffer);
-    if (patchLevelTextureBuffer)
-        glDeleteTextures(1, &patchLevelTextureBuffer);
-    if (ptexCoordinateTextureBuffer)
-        glDeleteTextures(1, &ptexCoordinateTextureBuffer);
-    if (fvarDataTextureBuffer)
-        glDeleteTextures(1, &fvarDataTextureBuffer);
+    glDeleteBuffers(1, &patchIndexBuffer);
+    glDeleteTextures(1, &vertexTextureBuffer);
+    glDeleteTextures(1, &vertexValenceTextureBuffer);
+    glDeleteTextures(1, &quadOffsetTextureBuffer);
+    glDeleteTextures(1, &patchLevelTextureBuffer);
+    glDeleteTextures(1, &ptexCoordinateTextureBuffer);
+    glDeleteTextures(1, &fvarDataTextureBuffer);
 }
 
 bool
@@ -120,6 +123,34 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                      numIndices * sizeof(unsigned int), &(indices[0]), GL_STATIC_DRAW);
 
+#if defined(GL_ES_VERSION_2_0)
+        // OpenGLES 2 supports only triangle topologies for filled
+        // primitives i.e. not QUADS or PATCHES or LINES_ADJACENCY
+        // For the convenience of clients build build a triangles
+        // index buffer by splitting quads.
+        int numQuads = indices.size() / 4;
+        int numTrisIndices = numQuads * 6;
+
+        std::vector<short> trisIndices;
+        trisIndices.reserve(numTrisIndices);
+        for (int i=0; i<numQuads; ++i) {
+            const int * quad = &indices[i*4];
+            trisIndices.push_back(short(quad[0]));
+            trisIndices.push_back(short(quad[1]));
+            trisIndices.push_back(short(quad[2]));
+
+            trisIndices.push_back(short(quad[2]));
+            trisIndices.push_back(short(quad[3]));
+            trisIndices.push_back(short(quad[0]));
+        }
+
+        // Allocate and fill triangles index buffer.
+        glGenBuffers(1, &patchTrianglesIndexBuffer);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchTrianglesIndexBuffer);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                     numTrisIndices * sizeof(short), &(trisIndices[0]), GL_STATIC_DRAW);
+#endif
+
         OsdPatchArray array;
         array.desc.type = kNonPatch;
         array.patchSize = loop ? 3 : 4;
@@ -130,6 +161,7 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
 
         // Allocate ptex coordinate buffer if requested (for non-adaptive)
         if (requirePtexCoordinates) {
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
             GLuint ptexCoordinateBuffer = 0;
             glGenTextures(1, &ptexCoordinateTextureBuffer);
             glGenBuffers(1, &ptexCoordinateBuffer);
@@ -145,10 +177,12 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
             glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, ptexCoordinateBuffer);
             glDeleteBuffers(1, &ptexCoordinateBuffer);
             glBindTexture(GL_TEXTURE_BUFFER, 0);
+#endif
         }
 
         // Allocate fvar data buffer if requested (for non-adaptive)
         if (requireFVarData) {
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
             GLuint fvarDataBuffer = 0;
             glGenTextures(1, &fvarDataTextureBuffer);
             glGenBuffers(1, &fvarDataBuffer);
@@ -163,6 +197,7 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
             glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, fvarDataBuffer);
             glDeleteBuffers(1, &fvarDataBuffer);
             glBindTexture(GL_TEXTURE_BUFFER, 0);
+#endif
         }
 
         return true;
@@ -210,30 +245,36 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     glBufferData(GL_ELEMENT_ARRAY_BUFFER,
         totalPatchIndices * sizeof(unsigned int), NULL, GL_STATIC_DRAW);
 
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
     GLuint patchLevelBuffer = 0;
     glGenBuffers(1, &patchLevelBuffer);
     glBindBuffer(GL_TEXTURE_BUFFER, patchLevelBuffer);
     glBufferData(GL_TEXTURE_BUFFER,
         totalPatchLevels * sizeof(unsigned char), NULL, GL_STATIC_DRAW);
+#endif
 
     // Allocate ptex coordinate buffer if requested
     GLuint ptexCoordinateBuffer = 0;
     if (requirePtexCoordinates) {
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
         glGenTextures(1, &ptexCoordinateTextureBuffer);
         glGenBuffers(1, &ptexCoordinateBuffer);
         glBindBuffer(GL_ARRAY_BUFFER, ptexCoordinateBuffer);
         glBufferData(GL_ARRAY_BUFFER,
             totalPatchLevels * sizeof(int) * 2, NULL, GL_STATIC_DRAW);
+#endif
     }
 
     // Allocate fvar data buffer if requested
     GLuint fvarDataBuffer = 0;
     if (requireFVarData) {
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
         glGenTextures(1, &fvarDataTextureBuffer);
         glGenBuffers(1, &fvarDataBuffer);
         glBindBuffer(GL_UNIFORM_BUFFER, fvarDataBuffer);
         glBufferData(GL_UNIFORM_BUFFER,
             totalPatchLevels * sizeof(float) * farMesh->GetTotalFVarWidth()*4, NULL, GL_STATIC_DRAW);
+#endif
     }
 
     int indexBase = 0;
@@ -305,6 +346,7 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         }
     }
 
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
     // finalize level texture buffer
     glGenTextures(1, &patchLevelTextureBuffer);
     glBindTexture(GL_TEXTURE_BUFFER, patchLevelTextureBuffer);
@@ -325,15 +367,19 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, fvarDataBuffer);
         glDeleteBuffers(1, &fvarDataBuffer);
     }
+#endif
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
     glBindBuffer(GL_TEXTURE_BUFFER, 0);
+#endif
 
     // allocate and initialize additional buffer data
     FarPatchTables::VertexValenceTable const &
         valenceTable = patchTables->GetVertexValenceTable();
 
     if (not valenceTable.empty()) {
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
         GLuint buffer = 0;
         glGenBuffers(1, &buffer);
         glBindBuffer(GL_TEXTURE_BUFFER, buffer);
@@ -351,12 +397,14 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
 
         glBindBuffer(GL_TEXTURE_BUFFER, 0);
+#endif
     }
 
     FarPatchTables::QuadOffsetTable const &
         quadOffsetTable = patchTables->GetQuadOffsetTable();
 
     if (not quadOffsetTable.empty()) {
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
         GLuint buffer = 0;
         glGenBuffers(1, &buffer);
         glBindBuffer(GL_TEXTURE_BUFFER, buffer);
@@ -370,6 +418,7 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         glDeleteBuffers(1, &buffer);
 
         glBindBuffer(GL_TEXTURE_BUFFER, 0);
+#endif
     }
 
     return true;
@@ -423,13 +472,16 @@ OsdGLDrawContext::_AppendPatchArray(
         }
     }
 
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
     glBufferSubData(GL_TEXTURE_BUFFER,
                     array.levelBase * sizeof(unsigned char),
                     levels.size() * sizeof(unsigned char),
                     &levels[0]);
     *levelBase += (int)levels.size();
+#endif
 
     if (ptexCoordinateTextureBuffer) {
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
         assert(ptexTable.size()/2 == levels.size());
 
         // populate ptex coordinates
@@ -437,9 +489,11 @@ OsdGLDrawContext::_AppendPatchArray(
                         array.levelBase * sizeof(int) * 2,
                         (int)ptexTable.size() * sizeof(int),
                         &ptexTable[0]);
+#endif
     }
 
     if (fvarDataTextureBuffer) {
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
         assert(fvarTable.size()/(fvarDataWidth*4) == levels.size());
 
         // populate fvar data
@@ -447,6 +501,7 @@ OsdGLDrawContext::_AppendPatchArray(
                         array.levelBase * sizeof(float) * fvarDataWidth*4,
                         (int)fvarTable.size() * sizeof(float),
                         &fvarTable[0]);
+#endif
     }
 }
 

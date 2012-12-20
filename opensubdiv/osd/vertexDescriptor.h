@@ -58,6 +58,7 @@
 #define OSD_CPU_VERTEX_DESCRIPTOR_H
 
 #include "../version.h"
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

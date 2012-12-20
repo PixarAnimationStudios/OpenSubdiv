@@ -60,7 +60,7 @@
 #elif defined(__APPLE__)
     #include <OpenGL/OpenGL.h>
 #else
-    #include <GL/glx.h>
+    #include <GL/gl.h>
 #endif
 
 #include "../osd/clKernelBundle.h"

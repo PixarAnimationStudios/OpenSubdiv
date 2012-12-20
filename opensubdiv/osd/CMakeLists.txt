@@ -58,11 +58,20 @@
 
 #-------------------------------------------------------------------------------
 include_directories(
-    ${OPENGL_INCLUDE_DIR}
-    ${GLEW_INCLUDE_DIR}
     ${DXSDK_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/opensubdiv
 )
+
+if( OPENGL_FOUND )
+    include_directories(
+        ${OPENGL_INCLUDE_DIR}
+        ${GLEW_INCLUDE_DIR}
+    )
+elseif( OPENGLES_FOUND )
+    include_directories(
+        ${OPENGLES_INCLUDE_DIR}
+    )
+endif()
 
 #-------------------------------------------------------------------------------
 # source & headers
@@ -94,6 +103,7 @@ set(PRIVATE_HEADER_FILES
 set(PUBLIC_HEADER_FILES
     computeContext.h
     computeController.h
+    cpuComputeContext.h
     cpuComputeController.h
     cpuDispatcher.h
     cpuVertexBuffer.h
@@ -104,6 +114,7 @@ set(PUBLIC_HEADER_FILES
     drawContext.h
     drawRegistry.h
     vertex.h
+    vertexDescriptor.h
 )
 
 #-------------------------------------------------------------------------------
@@ -168,7 +179,7 @@ endif()
 
 #-------------------------------------------------------------------------------
 # GL code & dependencies
-if( OPENGL_FOUND )
+if( OPENGL_FOUND OR OPENGLES_FOUND )
     list(APPEND GPU_SOURCE_FILES
         cpuGLVertexBuffer.cpp
         glDrawContext.cpp
@@ -182,17 +193,20 @@ if( OPENGL_FOUND )
         glVertexBuffer.h
         glMesh.h
     )
-    list(APPEND KERNEL_FILES
-        glslPatchCommon.glsl
-        glslPatchRegular.glsl
-        glslPatchBoundary.glsl
-        glslPatchCorner.glsl
-        glslPatchGregory.glsl
-        glslPatchBoundaryGregory.glsl
-        glslPatchTransition.glsl
-    )
+    if ( OPENGL_FOUND )
+        list(APPEND KERNEL_FILES
+            glslPatchCommon.glsl
+            glslPatchRegular.glsl
+            glslPatchBoundary.glsl
+            glslPatchCorner.glsl
+            glslPatchGregory.glsl
+            glslPatchBoundaryGregory.glsl
+            glslPatchTransition.glsl
+        )
+    endif()
     list(APPEND PLATFORM_LIBRARIES
         ${OPENGL_LIBRARY}
+        ${OPENGLES_LIBRARIES}
     )
 endif()
 
@@ -415,7 +429,7 @@ target_link_libraries(osd_static_gpu
 
 
 
-if (NOT WIN32)
+if (NOT WIN32 AND NOT IOS)
     _add_possibly_cuda_library(osd_dynamic_cpu SHARED
         ${CPU_SOURCE_FILES}
         ${PRIVATE_HEADER_FILES}
@@ -448,5 +462,11 @@ endif()
 install( FILES ${PUBLIC_HEADER_FILES}
          DESTINATION include/osd
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+
+if (ANDROID)
+    install( FILES Android.mk 
+             DESTINATION ${LIBRARY_OUTPUT_PATH_ROOT}
+             PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+endif()
 
 #-------------------------------------------------------------------------------

@@ -49,10 +49,20 @@
 //     (E) The software is licensed "as-is." You bear the risk of
 //     using it. The contributors give no express warranties,
 
-#if not defined(__APPLE__)
-    #include <GL/glew.h>
+#if defined(__APPLE__)
+    #include "TargetConditionals.h"
+    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
+        #include <OpenGLES/ES2/gl.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
+#elif defined(ANDROID)
+    #include <GLES2/gl2.h>
 #else
-    #include <OpenGL/gl3.h>
+    #if defined(_WIN32)
+        #include <windows.h>
+    #endif
+    #include <GL/glew.h>
 #endif
 
 #include "../osd/glDrawRegistry.h"
@@ -68,6 +78,7 @@ OsdGLDrawConfig::~OsdGLDrawConfig()
     glDeleteProgram(program);
 }
 
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
 static const char *commonShaderSource =
 #include "glslPatchCommon.inc"
 ;
@@ -89,6 +100,7 @@ static const char *boundaryGregoryShaderSource =
 static const char *transitionShaderSource =
 #include "glslPatchTransition.inc"
 ;
+#endif
 
 OsdGLDrawRegistryBase::~OsdGLDrawRegistryBase() {}
 
@@ -97,6 +109,7 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdPatchDescriptor const & desc)
 {
     OsdGLDrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     sconfig->commonShader.source = commonShaderSource;
     {
         std::ostringstream ss;
@@ -228,6 +241,7 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdPatchDescriptor const & desc)
         sconfig = NULL;
         break;
     }
+#endif
 
     return sconfig;
 }
@@ -307,10 +321,14 @@ OsdGLDrawRegistryBase::_CreateDrawConfig(
                 sconfig->commonShader, sconfig->tessEvalShader);
 #endif
 
-    GLuint geometryShader =
+    GLuint geometryShader = 0;
+
+#if defined(GL_ARB_geometry_shader4) || defined(GL_VERSION_3_1)
+    geometryShader =
         sconfig->geometryShader.source.empty() ? 0 :
         _CompileShader(GL_GEOMETRY_SHADER,
                 sconfig->commonShader, sconfig->geometryShader);
+#endif
 
     GLuint fragmentShader =
         sconfig->fragmentShader.source.empty() ? 0 :

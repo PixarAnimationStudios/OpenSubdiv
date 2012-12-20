@@ -99,12 +99,13 @@ set(CMAKE_SUPPRESS_REGENERATION TRUE)
 # Check for dependencies
 find_package(OpenMP)
 find_package(OpenGL)
+find_package(OpenGLES)
 find_package(OpenCL)
 find_package(CUDA)
 find_package(GLUT)
 find_package(PTex)
 
-if (NOT APPLE)
+if (NOT APPLE AND NOT ANDROID)
     find_package(GLEW REQUIRED)
 endif()
 
@@ -155,6 +156,12 @@ else()
         "will be disabled in Osd.  If you have an OpenGL SDK installed "
         "(version 4.3 or above), please refer to the FindOpenGL.cmake "
         "shared module in your cmake installation.")
+endif()
+
+if(OPENGLES_FOUND)
+    add_definitions(
+        -DOPENSUBDIV_HAS_OPENGLES
+    )
 endif()
 
 if(OPENCL_FOUND)
@@ -340,7 +347,9 @@ endmacro()
 
 add_subdirectory(opensubdiv)
 
-add_subdirectory(regression)
+if(NOT ANDROID AND NOT IOS) # XXXdyu
+    add_subdirectory(regression)
+endif()
 
 add_subdirectory(examples)
 

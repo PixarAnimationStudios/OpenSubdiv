@@ -55,10 +55,20 @@
 //     a particular purpose and non-infringement.
 //
 
-#if not defined(__APPLE__)
-    #include <GL/glew.h>
+#if defined(__APPLE__)
+    #include "TargetConditionals.h"
+    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
+        #include <OpenGLES/ES2/gl.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
+#elif defined(ANDROID)
+    #include <GLES2/gl2.h>
 #else
-    #include <OpenGL/gl3.h>
+    #if defined(_WIN32)
+        #include <windows.h>
+    #endif
+    #include <GL/glew.h>
 #endif
 
 #include "../osd/glVertexBuffer.h"
@@ -85,7 +95,7 @@ OsdGLVertexBuffer::Create(int numElements, int numVertices) {
         new OsdGLVertexBuffer(numElements, numVertices);
     if (instance->allocate()) return instance;
     delete instance;
-    return NULL;
+    return 0;
 }
 
 void

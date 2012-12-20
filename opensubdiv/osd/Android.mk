@@ -54,17 +54,26 @@
 #     exclude the implied warranties of merchantability, fitness for
 #     a particular purpose and non-infringement.
 #
+#
 
-if(NOT ANDROID AND NOT IOS) # XXXdyu
-    add_subdirectory(tools/stringify)
-endif()
+# This file is used by the Android NDK to allow OpenSubdiv libraries
+# to be imported by client modules.
 
-add_subdirectory(hbr)
+LOCAL_PATH:= $(call my-dir)
 
-add_subdirectory(far)
+include $(CLEAR_VARS)
 
-add_subdirectory(osd)
+LOCAL_MODULE = OpenSubdivOsdCPU
+LOCAL_SRC_FILES = libs/armeabi-v7a/libosdCPU.so
+LOCAL_EXPORT_C_INCLUDES = $(LOCAL_PATH)/include
 
-install( FILES version.h
-         DESTINATION include/
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+include $(PREBUILT_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
+
+LOCAL_MODULE = OpenSubdivOsdGPU
+LOCAL_SRC_FILES = libs/armeabi-v7a/libosdGPU.so
+LOCAL_EXPORT_C_INCLUDES = $(LOCAL_PATH)/include
+
+include $(PREBUILT_SHARED_LIBRARY)
+
