@@ -129,6 +129,67 @@ w                        : switch display mode
 q                        : quit
 ````
 
+### Build instructions (iOS/Android)
+
+OpenSubdiv may also be used for mobile app development.
+
+Support for the CPU and GPU APIs used by OpenSubdiv is more limited on today's mobile operating systems.  For example, the most widely support graphics API is OpenGL ES 2.0 which doesn't yet provide the support for tessellation shaders needed to fully implement GPU accellerated Feature Adaptive Subdivision.
+
+OpenSubdiv can still be used to compute uniform refinement of subdivision surfaces for display on these platforms, realizing all of the benefits of a consistent interpretation of subdivision schemes and tags.
+
+The easiest way to get started using OpenSubdiv for mobile is to use CMake's support for cross-compiling:
+
+* [CMake Cross Compiling](http://www.cmake.org/Wiki/CMake_Cross_Compiling)
+
+## iOS
+
+You will need a current version of Apple's Xcode and iOS SDK (tested with iOS 6.0.1 and Xcode 4.5.2):
+
+* [Xcode](https://developer.apple.com/xcode/)
+
+and a CMake toolchain for iOS:
+
+* [iOS CMake](https://code.google.com/p/ios-cmake/)
+
+You can then use CMake to configure and generate an Xcode project:
+
+....
+mkdir build-ios
+cd build-ios
+cmake -DCMAKE_TOOLCHAIN_FILE=[path to iOS.cmake] -GXcode ..
+
+xcodebuild -target install -configuration Debug
+....
+
+You can open the resulting Xcode project directly, or include as a sub-project in the Xcode project for your app.
+
+## Android NDK
+
+You will need a current version of the Android NDK (tested with Android 4.2.1 and android-ndk-r8b):
+
+* [Android NDK](http://developer.android.com/tools/sdk/ndk/index.html)
+
+and a CMake toolchain for Android:
+
+* [Android CMake](https://code.google.com/p/android-cmake/)
+
+You can then use CMake to configure and build OpenSubdiv:
+
+....
+mkdir build-ndk
+cd build-ndk
+cmake -DCMAKE_TOOLCHAIN_FILE=[path to android.cmake] -DLIBRARY_OUTPUT_PATH_ROOT=`pwd`/modules/OpenSubdiv ..
+
+make install
+....
+
+The resulting NDK module can be imported by other NDK modules by including it in your module search path:
+
+....
+export NDK_MODULE_PATH=[path to build-ndk/modules]
+....
+
+
 ## Wish List
 
 There are many things we'd love to do to improve support for subdivs but don't have the resources to. In particular, we would welcome contributions for the following items :
