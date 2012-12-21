@@ -153,13 +153,13 @@ and a CMake toolchain for iOS:
 
 You can then use CMake to configure and generate an Xcode project:
 
-''''
+````
 mkdir build-ios
 cd build-ios
 cmake -DCMAKE_TOOLCHAIN_FILE=[path to iOS.cmake] -GXcode ..
 
 xcodebuild -target install -configuration Debug
-''''
+````
 
 You can open the resulting Xcode project directly, or include as a sub-project in the Xcode project for your app.
 
@@ -175,19 +175,19 @@ and a CMake toolchain for Android:
 
 You can then use CMake to configure and build OpenSubdiv:
 
-''''
+````
 mkdir build-ndk
 cd build-ndk
 cmake -DCMAKE_TOOLCHAIN_FILE=[path to android.cmake] -DLIBRARY_OUTPUT_PATH_ROOT=`pwd`/modules/OpenSubdiv ..
 
 make install
-''''
+````
 
 The resulting NDK module can be imported by other NDK modules by including it in your module search path:
 
-''''
+````
 export NDK_MODULE_PATH=[path to build-ndk/modules]
-''''
+````
 
 
 ## Wish List
