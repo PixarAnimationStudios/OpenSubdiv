@@ -73,6 +73,12 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 SET( CMAKE_INSTALL_PREFIX
      ${PROJECT_BINARY_DIR}/ )
 
+# Allow install path to be overridden for cross-compile builds
+if(LIBRARY_OUTPUT_PATH_ROOT)
+    SET( CMAKE_INSTALL_PREFIX
+         ${LIBRARY_OUTPUT_PATH_ROOT}/ )
+endif()
+
 # Set the directory where the executables will be stored.
 set(EXECUTABLE_OUTPUT_PATH
     ${PROJECT_BINARY_DIR}/bin
@@ -105,7 +111,7 @@ find_package(CUDA)
 find_package(GLUT)
 find_package(PTex)
 
-if (NOT APPLE AND NOT ANDROID)
+if (NOT APPLE AND OPENGL_FOUND)
     find_package(GLEW REQUIRED)
 endif()
 
