@@ -137,21 +137,20 @@ float GetTessLevel(int patchLevel)
 #endif
 }
 
+float GetPostProjectionSphereExtent(vec3 center, float diameter)
+{
+    vec4 p = ProjectionMatrix * vec4(center, 1.0);
+    return abs(diameter * ProjectionMatrix[1][1] / p.w);
+}
+
 float TessAdaptive(vec3 p0, vec3 p1, int patchLevel)
 {
     // Adaptive factor can be any computation that depends only on arg values.
-#if 1
-    // This implements a projected screen space metric
-    vec4 pp0 = ProjectionMatrix * vec4(p0, 1.0);
-    vec4 pp1 = ProjectionMatrix * vec4(p1, 1.0);
-    pp0.xyz /= pp0.w;
-    pp1.xyz /= pp1.w;
-    return (TessLevel * distance(pp0.xy, pp1.xy));
-#else
-    // This implements a view distance metric (possibly more stable)
-    vec3 viewMidPoint = 0.5 * (p0 + p1);
-    return (GetTessLevel(patchLevel) / distance(vec3(0,0,0), viewMidPoint));
-#endif
+    // Project the diameter of the edge's bounding sphere instead of using the
+    // length of the projected edge itself to avoid problems near silhouettes.
+    vec3 center = (p0 + p1) / 2.0;
+    float diameter = distance(p0, p1);
+    return max(1.0, TessLevel * GetPostProjectionSphereExtent(center, diameter));
 }
 
 #ifndef OSD_DISPLACEMENT_CALLBACK
