@@ -109,16 +109,17 @@ bindProgram(GLuint program)
 static GLuint 
 compileShader(GLenum shaderType, const char *section, const char *define)
 {
-    const char *sources[3];
+    const char *sources[4];
     char sdefine[64];
     sprintf(sdefine, "#define %s\n", section);
 
-    sources[0] = define;
-    sources[1] = sdefine;
-    sources[2] = shaderSource;
+    sources[0] = "#version 330\n";
+    sources[1] = define;
+    sources[2] = sdefine;
+    sources[3] = shaderSource;
 
     GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 3, sources, NULL);
+    glShaderSource(shader, 4, sources, NULL);
     glCompileShader(shader);
 
     GLint status;

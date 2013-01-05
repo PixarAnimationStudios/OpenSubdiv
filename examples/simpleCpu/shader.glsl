@@ -55,7 +55,7 @@
 //     a particular purpose and non-infringement.
 //
 
-#version 330
+//#version 330
 
 //--------------------------------------------------------------
 // Vertex Shader
