@@ -1,6 +1,6 @@
 This folder defines a small demo application that uses PyQt and newish version of PyOpenGL.
 
-![Screenshot](http://raw.github.com/prideout/OpenSubdiv/master/python/demo/screenshot.png)
+![Screenshot](http://github.com/prideout/OpenSubdiv/raw/master/python/demo/screenshot.png)
 
 - **main.py**         All calls to the OSD wrapper go here.  This creates a `QApplication` and periodically pushes new VBO data into the renderer. (see below)
 - **demo.py**         Defines the renderer; implements `draw` and `init`.  All OpenGL calls are made in this file, and there's no dependency on Qt or OSD.
