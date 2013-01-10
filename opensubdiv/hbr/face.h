@@ -167,7 +167,7 @@ public:
     // Return the first halfedge of the face
     HbrHalfedge<T>* GetFirstEdge() const {
         if (nvertices > 4) {
-            return const_cast<HbrHalfedge<T>*>(&extraedges[0]);
+            return (HbrHalfedge<T>*)(extraedges);
         } else {
             return const_cast<HbrHalfedge<T>*>(&edges[0]);
         }
@@ -180,8 +180,14 @@ public:
     // Return the vertex with the indicated index
     HbrVertex<T>* GetVertex(int index) const;
 
+    // Return the ID of the vertex with the indicated index
+    int GetVertexID(int index) const;
+
     // Return the parent of this face
-    HbrFace<T>* GetParent() const { return parent; }
+    HbrFace<T>* GetParent() const {
+        if (parent == -1) return NULL;
+        return mesh->GetFace(parent);
+    }
 
     // Set the child
     void SetChild(int index, HbrFace<T>* face);
@@ -189,7 +195,7 @@ public:
     // Return the child with the indicated index
     HbrFace<T>* GetChild(int index) const {
         int nchildren = mesh->GetSubdivision()->GetFaceChildrenCount(nvertices);
-	if (!children.children || index < 0 || index >= nchildren) return 0;
+        if (!children.children || index < 0 || index >= nchildren) return 0;
         if (nchildren > 4) {
             return children.extrachildren[index];
         } else {
@@ -201,7 +207,7 @@ public:
     HbrVertex<T>* Subdivide();
 
     // Remove the reference to subdivided vertex
-    void RemoveChild() { vchild = 0; }
+    void RemoveChild() { vchild = -1; }
 
     // "Hole" flags used by subdivision to drop faces
     bool IsHole() const { return hole; }
@@ -265,7 +271,12 @@ public:
     void SetHierarchicalEdits(HbrHierarchicalEdit<T>** edits);
 
     // Return the list of hierarchical edits associated with this face
-    HbrHierarchicalEdit<T>** GetHierarchicalEdits() const { return edits; }
+    HbrHierarchicalEdit<T>** GetHierarchicalEdits() const {
+        if (editOffset == -1) {
+            return NULL;
+        }
+        return mesh->GetHierarchicalEditsAtOffset(editOffset);
+    }
 
     // Whether the face has certain types of edits (not necessarily
     // local - could apply to a subface)
@@ -289,7 +300,7 @@ public:
     void SetPtexIndex(int i) { ptexindex = i; }
 
     // Used by block allocator
-    HbrFace<T>*& GetNext() { return parent; }
+    HbrFace<T>*& GetNext() { return (HbrFace<T>*&) mesh; }
 
     HbrFacePath GetPath() const {
         HbrFacePath path;
@@ -326,14 +337,16 @@ public:
 
     // Returns the blind pointer to client data
     void *GetClientData() const {
-        return clientData;
+        return mesh->GetFaceClientData(id);
     }
 
     // Sets the blind pointer to client data
     void SetClientData(void *data) {
-        clientData = data;
+        mesh->SetFaceClientData(id, data);
     }
 
+    // Gets the list of vertices which are in the support for the face.
+    void GetSupportingVertices(std::vector<int> &support);
 
 private:
 
@@ -353,14 +366,10 @@ private:
     int nvertices;
 
     // Halfedge array for this face
-    // HbrHalfedge::getIndex() relies on this being size 4
     HbrHalfedge<T> edges[4];
 
     // Edge storage if this face is not a triangle or quad
-    HbrHalfedge<T>* extraedges;
-
-    // Pointer to parent face
-    HbrFace<T>* parent;
+    char* extraedges;
 
     // Pointer to children array. If there are four children or less,
     // we use the HbrFaceChildren pointer, otherwise we use
@@ -370,23 +379,22 @@ private:
         HbrFace<T>** extrachildren;
     } children;
 
-    // Subdivided vertex child
-    HbrVertex<T>* vchild;
-
     // Bits used by halfedges to track facevarying sharpnesses
     unsigned int *fvarbits;
 
 #ifdef HBRSTITCH
-    // Pointers to stitch edges and data used by the half edges.
+    // Pointers to stitch edges used by the half edges.
     StitchEdge **stitchEdges;
-    void **stitchDatas;
 #endif
 
-    // Pointer to a list of hierarchical edits applicable to this face
-    HbrHierarchicalEdit<T>** edits;
+    // Index of parent face
+    int parent;
 
-    // Blind client data pointer
-    void * clientData;
+    // Index of subdivided vertex child
+    int vchild;
+
+    // Offset to the mesh' list of hierarchical edits applicable to this face
+    int editOffset;
 
     // Depth of the face in the mesh hierarchy - coarse faces are
     // level 0. (Hmmm.. is it safe to assume that we'll never
@@ -441,7 +449,7 @@ public:
                 return true;
         }
         return false;
-    }           
+    }    
 #endif
 };
 
@@ -457,12 +465,11 @@ namespace OPENSUBDIV_VERSION {
 
 template <class T>
 HbrFace<T>::HbrFace()
-    : mesh(0), id(-1), uindex(-1), ptexindex(-1), nvertices(0), extraedges(0), parent(0), vchild(0), fvarbits(0),
+    : mesh(0), id(-1), uindex(-1), ptexindex(-1), nvertices(0), extraedges(0), fvarbits(0), parent(-1), vchild(-1), 
 #ifdef HBRSTITCH
       stitchEdges(0),
-      stitchDatas(0),
 #endif
-      edits(0), clientData(0), depth(0), hole(0), coarse(0), protect(0), collected(0), hasVertexEdits(0), initialized(0), destroyed(0) {
+      editOffset(-1), depth(0), hole(0), coarse(0), protect(0), collected(0), hasVertexEdits(0), initialized(0), destroyed(0) {
     children.children = 0;
 }
 
@@ -476,14 +483,12 @@ HbrFace<T>::Initialize(HbrMesh<T>* m, HbrFace<T>* _parent, int childindex, int f
     nvertices = nv;
     extraedges = 0;
     children.children = 0;
-    vchild = 0;
+    vchild = -1;
     fvarbits = 0;
 #ifdef HBRSTITCH
     stitchEdges = 0;
-    stitchDatas = 0;
 #endif
-    clientData = 0;
-    edits = 0;
+    editOffset = -1;
     depth = _depth;
     hole = 0;
     coarse = 0;
@@ -504,14 +509,10 @@ HbrFace<T>::Initialize(HbrMesh<T>* m, HbrFace<T>* _parent, int childindex, int f
         // edges and facevarying data.
 #ifdef HBRSTITCH
         if (mesh->GetStitchCount()) {
-            stitchEdges = new StitchEdge*[mesh->GetStitchCount() * nv];
-            stitchDatas = new void*[nv];
-            for (i = 0; i < mesh->GetStitchCount() * nv; ++i) {
-                stitchEdges[i] = 0;
-            }
-            for (i = 0; i < nv; ++i) {
-                stitchDatas[i] = 0;
-            }
+            const size_t buffersize = nv * (mesh->GetStitchCount() * sizeof(StitchEdge*));
+            char *buffer = (char *) malloc(buffersize);
+            memset(buffer, 0, buffersize);
+            stitchEdges = (StitchEdge**) buffer;
         }
 #endif
         if (fvarcount) {
@@ -525,7 +526,12 @@ HbrFace<T>::Initialize(HbrMesh<T>* m, HbrFace<T>* _parent, int childindex, int f
 
         // We also ignore the edge array and allocate extra storage -
         // this simplifies GetNext and GetPrev math in HbrHalfedge
-        extraedges = new HbrHalfedge<T>[nv];
+        const size_t edgesize = sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*);
+        extraedges = (char *) malloc(nv * edgesize);
+        for (i = 0; i < nv; ++i) {
+            HbrHalfedge<T>* edge = (HbrHalfedge<T>*)(extraedges + i * edgesize);
+            new (edge) HbrHalfedge<T>();
+        }
 
     } else {
         // Under four vertices: upstream allocation for the class has
@@ -534,16 +540,10 @@ HbrFace<T>::Initialize(HbrMesh<T>* m, HbrFace<T>* _parent, int childindex, int f
         char *buffer = ((char *) this + sizeof(*this));
 #ifdef HBRSTITCH
         if (mesh->GetStitchCount()) {
+            const size_t buffersize = 4 * (mesh->GetStitchCount() * sizeof(StitchEdge*));
+            memset(buffer, 0, buffersize);
             stitchEdges = (StitchEdge**) buffer;
-            buffer += 4 * mesh->GetStitchCount() * sizeof(StitchEdge*);
-            stitchDatas = (void**) buffer;
-            for (i = 0; i < mesh->GetStitchCount() * 4; ++i) {
-                stitchEdges[i] = 0;
-            }
-            for (i = 0; i < 4; ++i) {
-                stitchDatas[i] = 0;
-            }
-            buffer += 4 * sizeof(void*);
+            buffer += buffersize;
         }
 #endif
         if (fvarcount) {
@@ -562,17 +562,33 @@ HbrFace<T>::Initialize(HbrMesh<T>* m, HbrFace<T>* _parent, int childindex, int f
     // vertices.
     int next;
     unsigned int *curfvarbits = fvarbits;
+    HbrHalfedge<T>* edge;
+    size_t edgesize;
+    if (nv > 4) {
+        edge = (HbrHalfedge<T>*)(extraedges);
+        edgesize = sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*);
+    } else {
+        edge = edges;
+        edgesize = sizeof(HbrHalfedge<T>);
+    }
     for (i = 0, next = 1; i < nv; ++i, ++next) {
         if (next == nv) next = 0;
-        HbrHalfedge<T>* opposite = vertices[next]->GetEdge(vertices[i]);
-        GetEdge(i)->Initialize(opposite, i, vertices[i], curfvarbits, this);
-        if (opposite) opposite->SetOpposite(GetEdge(i));
+        HbrHalfedge<T>* opposite = vertices[next]->GetEdge(vertices[i]->GetID());
+        edge->Initialize(opposite, i, vertices[i], curfvarbits, this);
+        if (opposite) opposite->SetOpposite(edge);
         if (fvarbits) {
             curfvarbits = curfvarbits + fvarbitsSizePerEdge;
         }
+        edge = (HbrHalfedge<T>*)((char *) edge + edgesize);
+    }
+    if (nv > 4) {
+        edge = (HbrHalfedge<T>*)(extraedges);
+    } else {
+        edge = edges;
     }
     for (i = 0; i < nv; ++i) {
-        vertices[i]->AddIncidentEdge(GetEdge(i));
+        vertices[i]->AddIncidentEdge(edge);
+        edge = (HbrHalfedge<T>*)((char *) edge + edgesize);        
     }
 }
 
@@ -596,7 +612,7 @@ HbrFace<T>::Destroy() {
             if (nchildren > 4) {
                 for (i = 0; i < nchildren; ++i) {
                     if (children.extrachildren[i]) {
-                        children.extrachildren[i]->parent = 0;
+                        children.extrachildren[i]->parent = -1;
                         children.extrachildren[i] = 0;
                     }
                 }
@@ -605,7 +621,7 @@ HbrFace<T>::Destroy() {
             } else {
                 for (i = 0; i < nchildren; ++i) {
                     if ((*children.children)[i]) {
-                        (*children.children)[i]->parent = 0;
+                        (*children.children)[i]->parent = -1;
                         (*children.children)[i] = 0;
                     }
                 }
@@ -620,96 +636,109 @@ HbrFace<T>::Destroy() {
         // finding/incident edge replacement in the vertex code.
         // We also take this time to clean up any orphaned stitches
         // still belonging to the edges.
+        HbrHalfedge<T>* edge;
+        size_t edgesize;
+        if (nvertices > 4) {
+            edge = (HbrHalfedge<T>*)(extraedges);
+            edgesize = sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*);
+        } else {
+            edge = edges;
+            edgesize = sizeof(HbrHalfedge<T>);
+        }
         for (i = 0; i < nvertices; ++i) {
-            HbrHalfedge<T> *edge = GetEdge(i);
 #ifdef HBRSTITCH
             edge->DestroyStitchEdges(stitchCount);
 #endif
-            HbrVertex<T>* vertex = edge->GetOrgVertex();
+            HbrVertex<T>* vertex = mesh->GetVertex(edge->GetOrgVertexID());
             if (fvarbits) {
                 HbrFVarData<T>& fvt = vertex->GetFVarData(this);
-                if (fvt.GetFace() == this) {
-                    fvt.SetFace(0);
+                if (fvt.GetFaceID() == GetID()) {
+                    fvt.SetFaceID(-1);
                 }
             }
             vertex->RemoveIncidentEdge(edge);
             vertex->UnGuaranteeNeighbors();
+            edge = (HbrHalfedge<T>*)((char *) edge + edgesize);
         }
         if (extraedges) {
-            delete[] extraedges;
+            edge = (HbrHalfedge<T>*)(extraedges);            
+            for (i = 0; i < nvertices; ++i) {
+                edge->~HbrHalfedge<T>();
+                edge = (HbrHalfedge<T>*)((char *) edge + edgesize);
+            }
+            free(extraedges);
             extraedges = 0;
         }
 
         // Remove parent's reference to self
-        if (parent) {
+        HbrFace<T> *parentFace = GetParent();
+        if (parentFace) {
             bool parentHasOtherKids = false;
-            int nchildren = mesh->GetSubdivision()->GetFaceChildrenCount(parent->nvertices);
+            int nchildren = mesh->GetSubdivision()->GetFaceChildrenCount(parentFace->nvertices);
             if (nchildren > 4) {
                 for (i = 0; i < nchildren; ++i) {
-                    if (parent->children.extrachildren[i] == this) {
-                        parent->children.extrachildren[i] = 0;
-                    } else if (parent->children.extrachildren[i]) parentHasOtherKids = true;
+                    if (parentFace->children.extrachildren[i] == this) {
+                        parentFace->children.extrachildren[i] = 0;
+                    } else if (parentFace->children.extrachildren[i]) parentHasOtherKids = true;
                 }
                 // After cleaning the parent's reference to self, the parent
                 // may be able to clean itself up
                 if (!parentHasOtherKids) {
-                    delete[] parent->children.extrachildren;
-                    parent->children.extrachildren = 0;
-                    if (parent->GarbageCollectable()) {
-                        mesh->DeleteFace(parent);
+                    delete[] parentFace->children.extrachildren;
+                    parentFace->children.extrachildren = 0;
+                    if (parentFace->GarbageCollectable()) {
+                        mesh->DeleteFace(parentFace);
                     }
                 }
             } else {
                 for (i = 0; i < nchildren; ++i) {
-                    if ((*parent->children.children)[i] == this) {
-                        (*parent->children.children)[i] = 0;
-                    } else if ((*parent->children.children)[i]) parentHasOtherKids = true;
+                    if ((*parentFace->children.children)[i] == this) {
+                        (*parentFace->children.children)[i] = 0;
+                    } else if ((*parentFace->children.children)[i]) parentHasOtherKids = true;
                 }
                 // After cleaning the parent's reference to self, the parent
                 // may be able to clean itself up
                 if (!parentHasOtherKids) {
-                    mesh->DeleteFaceChildren(parent->children.children);
-                    parent->children.children = 0;
-                    if (parent->GarbageCollectable()) {
-                        mesh->DeleteFace(parent);
+                    mesh->DeleteFaceChildren(parentFace->children.children);
+                    parentFace->children.children = 0;
+                    if (parentFace->GarbageCollectable()) {
+                        mesh->DeleteFace(parentFace);
                     }
                 }
             }
-            parent = 0;
+            parent = -1;
         }
 
         // Orphan the child vertex
-        if (vchild) {
-            vchild->SetParent(static_cast<HbrFace*>(0));
-            vchild = 0;
+        if (vchild != -1) {
+            HbrVertex<T> *vchildVert = mesh->GetVertex(vchild);
+            vchildVert->SetParent(static_cast<HbrFace*>(0));
+            vchild = -1;
         }
 
         if (nvertices > 4 && fvarbits) {
             free(fvarbits);
 #ifdef HBRSTITCH
             if (stitchEdges) {
-                delete[] stitchEdges;
-            }
-            if (stitchDatas) {
-                delete[] stitchDatas;
+                free(stitchEdges);
             }
 #endif
         }
         fvarbits = 0;
 #ifdef HBRSTITCH
         stitchEdges = 0;
-        stitchDatas = 0;
 #endif
 
         // Make sure the four edges intrinsic to face are properly cleared
         // if they were used
         if (nvertices <= 4) {
             for (i = 0; i < nvertices; ++i) {
-                GetEdge(i)->Clear();
+                edges[i].Clear();
             }
         }
         nvertices = 0;
         initialized = 0;
+        mesh = 0;
         destroyed = 1;
     }
 }
@@ -719,7 +748,8 @@ HbrHalfedge<T>*
 HbrFace<T>::GetEdge(int index) const {
     assert(index >= 0 && index < nvertices);
     if (nvertices > 4) {
-        return extraedges + index;
+        const size_t edgesize = sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*);
+        return (HbrHalfedge<T>*)(extraedges + index * edgesize);
     } else {
         return const_cast<HbrHalfedge<T>*>(edges + index);
     }
@@ -730,15 +760,33 @@ HbrVertex<T>*
 HbrFace<T>::GetVertex(int index) const {
     assert(index >= 0 && index < nvertices);
     if (nvertices > 4) {
-        return extraedges[index].GetOrgVertex();
+        const size_t edgesize = sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*);        
+        HbrHalfedge<T>* edge = (HbrHalfedge<T>*)(extraedges +
+            index * edgesize);
+        return mesh->GetVertex(edge->GetOrgVertexID());
     } else {
-        return edges[index].GetOrgVertex();
+        return mesh->GetVertex(edges[index].GetOrgVertexID());
+    }
+}
+
+template <class T>
+int
+HbrFace<T>::GetVertexID(int index) const {
+    assert(index >= 0 && index < nvertices);    
+    if (nvertices > 4) {
+        const size_t edgesize = sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*);        
+        HbrHalfedge<T>* edge = (HbrHalfedge<T>*)(extraedges +
+            index * edgesize);
+        return edge->GetOrgVertexID();
+    } else {
+        return edges[index].GetOrgVertexID();
     }
 }
 
 template <class T>
 void
 HbrFace<T>::SetChild(int index, HbrFace<T>* face) {
+    assert(id != -1);
     int nchildren = mesh->GetSubdivision()->GetFaceChildrenCount(nvertices);
     // Construct the children array if it doesn't already exist
     if (!children.children) {
@@ -760,16 +808,17 @@ HbrFace<T>::SetChild(int index, HbrFace<T>* face) {
     } else {
         (*children.children)[index] = face;
     }
-    face->parent = this;
+    face->parent = this->id;
 }
 
 template <class T>
 HbrVertex<T>*
 HbrFace<T>::Subdivide() {
-    if (vchild) return vchild;
-    vchild = mesh->GetSubdivision()->Subdivide(mesh, this);
-    vchild->SetParent(this);
-    return vchild;
+    if (vchild != -1) return mesh->GetVertex(vchild);
+    HbrVertex<T>* vchildVert = mesh->GetSubdivision()->Subdivide(mesh, this);
+    vchild = vchildVert->GetID();
+    vchildVert->SetParent(this);
+    return vchildVert;
 }
 
 template <class T>
@@ -817,25 +866,44 @@ template <class T>
 void
 HbrFace<T>::MarkUsage() {
     // Must increment the usage on all vertices which are in the
-    // support for this face
+    // support for this face. Note well: this will increment vertices
+    // more than once. This doesn't really matter as long as
+    // ClearUsage also does the same number of decrements. If we
+    // really were concerned about ensuring single increments, we can
+    // use GetSupportingVertices, but that's slower.
     HbrVertex<T>* v;
-    HbrHalfedge<T>* e = GetFirstEdge(), *ee, *eee, *start;
+    HbrHalfedge<T>* e, *ee, *eee, *start;
+    size_t edgesize, eedgesize;
+    if (nvertices > 4) {
+        e = (HbrHalfedge<T>*)(extraedges);
+        edgesize = sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*);
+    } else {
+        e = edges;
+        edgesize = sizeof(HbrHalfedge<T>);
+    }
     for (int i = 0; i < nvertices; ++i) {
-        v = e->GetOrgVertex();
+        v = mesh->GetVertex(e->GetOrgVertexID());
         v->GuaranteeNeighbors();
         start = v->GetIncidentEdge();
         ee = start;
         do {
             HbrFace<T>* f = ee->GetLeftFace();
-            eee = f->GetFirstEdge();
-            for (int j = 0; j < f->GetNumVertices(); ++j) {
-                eee->GetOrgVertex()->IncrementUsage();
-                eee = eee->GetNext();
+            int nv = f->GetNumVertices();
+            if (nv > 4) {
+                eee = (HbrHalfedge<T>*)(f->extraedges);
+                eedgesize = sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*);
+            } else {
+                eee = f->edges;
+                eedgesize = sizeof(HbrHalfedge<T>);
+            }
+            for (int j = 0; j < nv; ++j) {
+                mesh->GetVertex(eee->GetOrgVertexID())->IncrementUsage();
+                eee = (HbrHalfedge<T>*)((char *) eee + eedgesize);
             }
             ee = v->GetNextEdge(ee);
             if (ee == start) break;
         } while (ee);
-        e = e->GetNext();
+        e = (HbrHalfedge<T>*)((char *) e + edgesize);
     }
 }
 
@@ -843,30 +911,44 @@ template <class T>
 void
 HbrFace<T>::ClearUsage() {
     bool gc = false;
-
     // Must mark all vertices which may affect this face
     HbrVertex<T>* v, *vv;
-    HbrHalfedge<T>* e = GetFirstEdge(), *ee, *eee, *start;
+    HbrHalfedge<T>* e, *ee, *eee, *start;
+    size_t edgesize, eedgesize;
+    if (nvertices > 4) {
+        e = (HbrHalfedge<T>*)(extraedges);
+        edgesize = sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*);
+    } else {
+        e = edges;
+        edgesize = sizeof(HbrHalfedge<T>);
+    }
     for (int i = 0; i < nvertices; ++i) {
-        v = e->GetOrgVertex();
+        v = mesh->GetVertex(e->GetOrgVertexID());
         start = v->GetIncidentEdge();
         ee = start;
         do {
             HbrFace<T>* f = ee->GetLeftFace();
-            eee = f->GetFirstEdge();
-            for (int j = 0; j < f->GetNumVertices(); ++j) {
-                vv = eee->GetOrgVertex();
-                vv->DecrementUsage();
-                if (!vv->IsUsed()) {
-                    mesh->AddGarbageCollectableVertex(vv);
+            int nv = f->GetNumVertices();
+            if (nv > 4) {
+                eee = (HbrHalfedge<T>*)(f->extraedges);
+                eedgesize = sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*);
+            } else {
+                eee = f->edges;
+                eedgesize = sizeof(HbrHalfedge<T>);
+            }
+            for (int j = 0; j < nv; ++j) {
+                HbrVertex<T>* vert = mesh->GetVertex(eee->GetOrgVertexID());
+                vert->DecrementUsage();
+                if (!vert->IsUsed()) {
+                    mesh->AddGarbageCollectableVertex(vert);
                     gc = true;
                 }
-                eee = eee->GetNext();
+                eee = (HbrHalfedge<T>*)((char *) eee + eedgesize);
             }
             ee = v->GetNextEdge(ee);
             if (ee == start) break;
         } while (ee);
-        e = e->GetNext();
+        e = (HbrHalfedge<T>*)((char *) e + edgesize);
     }
     if (gc) mesh->GarbageCollect();
 }
@@ -877,7 +959,7 @@ HbrFace<T>::GarbageCollectable() const {
     if (children.children || protect) return false;
     for (int i = 0; i < nvertices; ++i) {
         HbrHalfedge<T>* edge = GetEdge(i);
-        HbrVertex<T>* vertex = edge->GetOrgVertex();
+        HbrVertex<T>* vertex = edge->GetOrgVertex(mesh);
         if (vertex->IsUsed()) return false;
         if (!GetParent() && vertex->EdgeRemovalWillMakeSingular(edge)) {
             return false;
@@ -888,14 +970,61 @@ HbrFace<T>::GarbageCollectable() const {
 
 template <class T>
 void
-HbrFace<T>::SetHierarchicalEdits(HbrHierarchicalEdit<T>** _edits) {
-    edits = _edits;
+HbrFace<T>::SetHierarchicalEdits(HbrHierarchicalEdit<T>** edits) {
+    HbrHierarchicalEdit<T>** faceedits = edits;
+    HbrHierarchicalEdit<T>** baseedit = mesh->GetHierarchicalEditsAtOffset(0);
+    editOffset = faceedits - baseedit;
 
     // Walk the list of edits and look for any which apply locally.
-    while (HbrHierarchicalEdit<T>* edit = *_edits) {
+    while (HbrHierarchicalEdit<T>* edit = *faceedits) {
         if (!edit->IsRelevantToFace(this)) break;
         edit->ApplyEditToFace(this);
-        _edits++;
+        faceedits++;
+    }
+}
+
+template <class T>
+void
+HbrFace<T>::GetSupportingVertices(std::vector<int> &support) {
+    support.reserve(16);
+    HbrVertex<T>* v;    
+    HbrHalfedge<T>* e, *ee, *eee, *start;
+    size_t edgesize, eedgesize;
+    if (nvertices > 4) {
+        e = (HbrHalfedge<T>*)(extraedges);
+        edgesize = sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*);
+    } else {
+        e = edges;
+        edgesize = sizeof(HbrHalfedge<T>);
+    }
+    for (int i = 0; i < nvertices; ++i) {
+        v = mesh->GetVertex(e->GetOrgVertexID());
+        v->GuaranteeNeighbors();
+        start = v->GetIncidentEdge();
+        ee = start;
+        do {
+            HbrFace<T>* f = ee->GetLeftFace();
+            int nv = f->GetNumVertices();
+            if (nv > 4) {
+                eee = (HbrHalfedge<T>*)(f->extraedges);
+                eedgesize = sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*);
+            } else {
+                eee = f->edges;
+                eedgesize = sizeof(HbrHalfedge<T>);
+            }
+            for (int j = 0; j < nv; ++j) {
+                int id = eee->GetOrgVertexID();
+                std::vector<int>::iterator vi =
+                    std::lower_bound(support.begin(), support.end(), id);
+                if (vi == support.end() || *vi != id) {
+                    support.insert(vi, id);
+                }
+                eee = (HbrHalfedge<T>*)((char *) eee + eedgesize);
+            }
+            ee = v->GetNextEdge(ee);
+            if (ee == start) break;
+        } while (ee);
+        e = (HbrHalfedge<T>*)((char *) e + edgesize);
     }
 }
 

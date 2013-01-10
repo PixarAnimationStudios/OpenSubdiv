@@ -98,6 +98,11 @@ set(CMAKE_MODULE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake
 )
 
+# Disable spurrious offsetof warning in gcc builds
+if(CMAKE_COMPILER_IS_GNUCC)
+   add_definitions("-Wno-invalid-offsetof")
+endif()
+
 # Ignore rules that will re-run cmake (this will avoid constant
 # reloading of the generated Visual Studio project).
 set(CMAKE_SUPPRESS_REGENERATION TRUE)

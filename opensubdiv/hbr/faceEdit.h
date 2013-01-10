@@ -128,10 +128,13 @@ public:
 
     virtual void ApplyEditToFace(HbrFace<T>* face) {
         if (HbrHierarchicalEdit<T>::GetNSubfaces() == face->GetDepth()) {
+
             int oldUniformIndex = face->GetUniformIndex();
 
-            // Change the face's uniform index
+            // Any face below level 0 needs a new uniform index
+            if (face->GetDepth() > 0) {
             face->SetUniformIndex(face->GetMesh()->NewUniformIndex());
+            }
 
             // Apply edit
             face->GetVertex(0)->GetData().ApplyFaceEdit(oldUniformIndex, face->GetUniformIndex(), *const_cast<const HbrFaceEdit<T>*>(this));

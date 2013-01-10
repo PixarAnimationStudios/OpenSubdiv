@@ -124,7 +124,7 @@ public:
             // copy of the existing data specific to the face (or use
             // one that already exists) and modify that
             HbrFVarData<T> &fvt = face->GetVertex(vertexid)->GetFVarData(face);
-            if (fvt.GetFace() != face) {
+            if (fvt.GetFaceID() != face->GetID()) {
                 // This is the generic fvt, allocate a new copy and edit it
                 HbrFVarData<T> &newfvt = face->GetVertex(vertexid)->NewFVarData(face);
                 newfvt.SetAllData(face->GetMesh()->GetTotalFVarWidth(), fvt.GetData(0));
