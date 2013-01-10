@@ -1096,7 +1096,7 @@ display() {
                     }
                     break;
                 case OpenSubdiv::kTransitionBoundary: {
-		        float p = patchPattern * 0.2f;
+                        float p = patchPattern * 0.2f;
                         glProgramUniform4f(program, diffuseColor, 0.0f, p, 0.75f, 1);
                     } break;
                 case OpenSubdiv::kTransitionCorner:

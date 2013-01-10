@@ -103,7 +103,7 @@ OsdGLSLTransformFeedbackKernelBundle::~OsdGLSLTransformFeedbackKernelBundle() {
 bool
 OsdGLSLTransformFeedbackKernelBundle::Compile(int numVertexElements, int numVaryingElements) {
 
-    assert(numVertexElements >= 3);	// at least xyz required (for performance reason)
+    assert(numVertexElements >= 3); // at least xyz required (for performance reason)
 
     _numVertexElements = numVertexElements;
     _numVaryingElements = numVaryingElements;

@@ -107,7 +107,7 @@ struct Vertex
 #endif
 };
 
-uniform samplerBuffer vertex;	     // vec3 position, + vertexdata[NUM_USER_VERTEX_ELEMENTS]
+uniform samplerBuffer vertex;        // vec3 position, + vertexdata[NUM_USER_VERTEX_ELEMENTS]
 #if NUM_VARYING_ELEMENTS > 0
 uniform samplerBuffer varyingData;   // float[NUM_VARYING_ELEMENTS]
 #endif

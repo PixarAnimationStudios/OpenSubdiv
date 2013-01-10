@@ -1283,13 +1283,13 @@ display() {
         
 
         g_hud.DrawString(10, -180, "Tess level (+/-): %d", g_tessLevel);
-	if (numPrimsGenerated > 1000000) {
-	  g_hud.DrawString(10, -160, "Primitives      : %3.1f million", (float)numPrimsGenerated/1000000.0);
-	} else if (numPrimsGenerated > 1000) {
-	  g_hud.DrawString(10, -160, "Primitives      : %3.1f thousand", (float)numPrimsGenerated/1000.0);
-	} else {
-	  g_hud.DrawString(10, -160, "Primitives      : %d", numPrimsGenerated);
-	}
+        if (numPrimsGenerated > 1000000) {
+            g_hud.DrawString(10, -160, "Primitives      : %3.1f million", (float)numPrimsGenerated/1000000.0);
+        } else if (numPrimsGenerated > 1000) {
+            g_hud.DrawString(10, -160, "Primitives      : %3.1f thousand", (float)numPrimsGenerated/1000.0);
+        } else {
+            g_hud.DrawString(10, -160, "Primitives      : %d", numPrimsGenerated);
+        }
         g_hud.DrawString(10, -140, "Vertices        : %d", g_mesh->GetNumVertices());
         g_hud.DrawString(10, -120, "Scheme          : %s", g_scheme == 0 ? "CATMARK" : "LOOP");
         g_hud.DrawString(10, -100, "GPU Kernel      : %.3f ms", g_gpuTime);

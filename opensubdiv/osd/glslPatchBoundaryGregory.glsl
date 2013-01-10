@@ -381,7 +381,7 @@ void main()
 
         Fp = (csf(np-3,2)*input[i].v.position + s1*Ep + s2*Em_ip + input[i].v.r[start])/3.0f; 
         s1 = 3.0f-2.0f*cos(2.0f*M_PI/n)-cos(2.0f*M_PI/nm);
-        Fm = (csf(nm-3,2)*input[i].v.position + s1*Em + s2*Ep_im - input[i].v.r[prev])/3.0f;	
+        Fm = (csf(nm-3,2)*input[i].v.position + s1*Em + s2*Ep_im - input[i].v.r[prev])/3.0f;
 
         if (input[im].v.valence < 0) {
             s1=3-2*csf(n-3,2)-csf(np-3,2);

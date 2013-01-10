@@ -156,7 +156,7 @@ OpenSubdivPtexShaderOverride::attrChangedCB(MNodeMessage::AttributeMessage msg, 
     // We only care if the plug is outMesh and the action is "evaluate"
     if ( msg & MNodeMessage::kAttributeEval ) {
         OsdPtexMeshData *meshData = (OsdPtexMeshData*)clientData;
-		MFnDependencyNode depNodeFn(meshData->getDagPath().node());
+        MFnDependencyNode depNodeFn(meshData->getDagPath().node());
         if ( plug == depNodeFn.attribute("outMesh")) {
             meshData->setMeshTopoDirty();
         }
