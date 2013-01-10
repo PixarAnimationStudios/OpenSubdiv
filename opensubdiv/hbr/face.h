@@ -973,7 +973,7 @@ void
 HbrFace<T>::SetHierarchicalEdits(HbrHierarchicalEdit<T>** edits) {
     HbrHierarchicalEdit<T>** faceedits = edits;
     HbrHierarchicalEdit<T>** baseedit = mesh->GetHierarchicalEditsAtOffset(0);
-    editOffset = faceedits - baseedit;
+    editOffset = int(faceedits - baseedit);
 
     // Walk the list of edits and look for any which apply locally.
     while (HbrHierarchicalEdit<T>* edit = *faceedits) {

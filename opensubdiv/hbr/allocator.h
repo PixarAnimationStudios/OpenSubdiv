@@ -62,7 +62,7 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-typedef void (*HbrMemStatFunction)(unsigned long bytes);
+typedef void (*HbrMemStatFunction)(size_t bytes);
 
 /**
  * HbrAllocator - derived from UtBlockAllocator.h, but embedded in
@@ -73,7 +73,7 @@ template <typename T> class HbrAllocator {
 public:
 
     /// Constructor
-    HbrAllocator(size_t *memorystat, int blocksize, void (*increment)(unsigned long bytes), void (*decrement)(unsigned long bytes), size_t elemsize = sizeof(T));
+    HbrAllocator(size_t *memorystat, int blocksize, void (*increment)(size_t bytes), void (*decrement)(size_t bytes), size_t elemsize = sizeof(T));
 
     /// Destructor
     ~HbrAllocator();
@@ -87,9 +87,9 @@ public:
     /// Clear the allocator, deleting all allocated objects.
     void Clear();
 
-    void SetMemStatsIncrement(void (*increment)(unsigned long bytes)) { m_increment = increment; }
+    void SetMemStatsIncrement(void (*increment)(size_t bytes)) { m_increment = increment; }
 
-    void SetMemStatsDecrement(void (*decrement)(unsigned long bytes)) { m_decrement = decrement; }
+    void SetMemStatsDecrement(void (*decrement)(size_t bytes)) { m_decrement = decrement; }
 
 private:
     size_t *m_memorystat;
@@ -113,7 +113,7 @@ private:
 };
 
 template <typename T>
-HbrAllocator<T>::HbrAllocator(size_t *memorystat, int blocksize, void (*increment)(unsigned long bytes), void (*decrement)(unsigned long bytes), size_t elemsize)
+HbrAllocator<T>::HbrAllocator(size_t *memorystat, int blocksize, void (*increment)(size_t bytes), void (*decrement)(size_t bytes), size_t elemsize)
     : m_memorystat(memorystat), m_blocksize(blocksize), m_elemsize((int)elemsize), m_blocks(0), m_nblocks(0), m_blockCapacity(0), m_freecount(0), m_increment(increment), m_decrement(decrement) {
 }
 

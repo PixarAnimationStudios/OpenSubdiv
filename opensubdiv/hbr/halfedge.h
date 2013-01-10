@@ -444,8 +444,8 @@ private:
             // quad) in the edges array.  If there are more than that,
             // they _all_ go in the faces' extraedges array.
             HbrFace<T>* incidentFace = *(HbrFace<T>**)((char *) this + sizeof(HbrHalfedge<T>));
-            return ((char *) this - incidentFace->extraedges) /
-                (sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*));
+            return int(((char *) this - incidentFace->extraedges) /
+                (sizeof(HbrHalfedge<T>) + sizeof(HbrFace<T>*)));
         }
     }
 
