@@ -58,6 +58,7 @@
 if( OPENGL_FOUND AND (GLEW_FOUND AND GLUT_FOUND) OR (APPLE AND GLUT_FOUND))
     add_subdirectory(glutViewer)
     add_subdirectory(simpleCpu)
+    add_subdirectory(evalTest)
     if(PTEX_FOUND AND (NOT APPLE))
         add_subdirectory(ptexViewer)
     endif()
