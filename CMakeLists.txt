@@ -99,7 +99,7 @@ set(CMAKE_MODULE_PATH
 )
 
 # Disable spurrious offsetof warning in gcc builds and clang
-if (CMAKE_COMPILER_IS_GNUC OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+if (CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
    add_definitions("-Wno-invalid-offsetof")
 endif()
 
