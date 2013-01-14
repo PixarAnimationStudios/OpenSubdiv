@@ -141,21 +141,17 @@ GLuint
 linkProgram(const char *define) 
 {
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, "VERTEX_SHADER", define);
-    GLuint geometryShader = compileShader(GL_GEOMETRY_SHADER, "GEOMETRY_SHADER", define);
     GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, "FRAGMENT_SHADER", define);
 
     GLuint program = glCreateProgram();
     glAttachShader(program, vertexShader);
-    glAttachShader(program, geometryShader);
     glAttachShader(program, fragmentShader);
 
     glBindAttribLocation(program, 0, "position");
-    glBindAttribLocation(program, 1, "normal");
 
     glLinkProgram(program);
 
     glDeleteShader(vertexShader);
-    glDeleteShader(geometryShader);
     glDeleteShader(fragmentShader);
 
     GLint status;

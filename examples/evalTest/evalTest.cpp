@@ -154,7 +154,7 @@ a particular purpose and non-infringement.
 int g_width = 0,
     g_height = 0,
     g_frame = 0,
-    g_level = 4;
+    g_level = 7;
 
 //
 // A center point for the view matrix and the object size for framing
@@ -170,6 +170,8 @@ OpenSubdiv::OsdCpuGLVertexBuffer * g_vertexBuffer = 0;
 OpenSubdiv::OsdGLDrawContext * g_drawContext = 0;
 OpenSubdiv::OsdCpuComputeContext * g_osdComputeContext = 0;
 OpenSubdiv::OsdCpuComputeController * g_osdComputeController = 0;
+//#include <osd/glMesh.h>
+//OpenSubdiv::OsdGLMeshInterface *g_mesh = 0;;
 
 typedef OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>     OsdHbrMesh;
 typedef OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex>   OsdHbrVertex;
@@ -177,11 +179,10 @@ typedef OpenSubdiv::HbrFace<OpenSubdiv::OsdVertex>     OsdHbrFace;
 typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
 //
-// The coarse mesh positions and normals are saved externally and deformed
+// The coarse mesh positions and saved externally and deformed
 // during playback.
 //
-std::vector<float> g_orgPositions,
-                   g_normals;
+std::vector<float> g_orgPositions;
 
 // 
 // Forward declarations. These functions will be described below as they are 
@@ -189,12 +190,9 @@ std::vector<float> g_orgPositions,
 //
 void idle();
 void reshape(int width, int height);
-void createOsdContext(int level);
+void createOsdMesh(int level);
 void display();
 void updateGeom();
-static void calcNormals(OsdHbrMesh * mesh, 
-                        std::vector<float> const & pos, 
-                        std::vector<float> & result );
 
 //
 // ### The main program entry point
@@ -206,23 +204,173 @@ static void calcNormals(OsdHbrMesh * mesh,
 //
 void initOsd() 
 {
+    // Initialize OpenGL in glhelpers.h, specify true for "adaptive" so the 
+    // glsl shaders for simple adaptive subdivision will be compiled and linked
     initGL();
+
     // 
     // Dispatchers are created from a kernel enumeration via the factory pattern,
     // calling register here ensures that the CPU dispatcher will be available
     // for construction when it is requested via the kCPU enumeration inside the
     // function createOsdMesh.
     //
-//    OpenSubdiv::OsdCpuKernelDispatcher::Register();
     g_osdComputeController = new OpenSubdiv::OsdCpuComputeController();
 
-    //
-    // The following method will populate the g_osdMesh object, which will 
-    // contain the precomputed subdivision tables.
-    //
-    createOsdContext(g_level);
-
+    createOsdMesh(g_level);
 }
+
+
+class OsdEvalContext : OpenSubdiv::OsdNonCopyable<OsdEvalContext> {
+public:
+  explicit OsdEvalContext(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farmesh)
+        : _farMesh(farmesh) {}
+    virtual ~OsdEvalContext() {}
+
+  OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *GetFarMesh() { return _farMesh; }
+
+
+  /*
+  GetPatch(faceID) {
+    if (regular) {
+    }
+      
+  }
+  Eval(int faceID,  float u,  float v, float *return, const OsdVertexBuffer &buf) {
+    // gimme 16 indices into the vertex buffer and remap u and v for me into the local parameter space of the patch.
+    // XXX do something a little different for boundary and corner.
+    16indices indices = GetPatch(faceID, &u, &v);
+    u = remap(u);
+    v = remap(v);
+
+    EvalBSpline(u,v , cp, WorldPos, Tangent, BiTangent);
+
+    
+  }
+  */
+
+  OpenSubdiv::FarTable<unsigned int> _patchTable;
+
+
+private:
+  OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *_farMesh;
+};
+
+
+static void
+_AppendPatchArray(
+        int *indexBase, int *levelBase, int level,
+        OpenSubdiv::FarPatchTables::PTable const & ptable, int patchSize,
+        OpenSubdiv::FarPatchTables::PtexCoordinateTable const & ptexTable,
+        OpenSubdiv::FarPatchTables::FVarDataTable const & fvarTable, int fvarDataWidth,
+        OpenSubdiv::OsdPatchDescriptor const & desc, int gregoryQuadOffsetBase)
+{
+    if (ptable.IsEmpty()) {
+        return;
+    } 
+
+    const OpenSubdiv::FarTableMarkers &markers = ptable.GetMarkers();
+
+    std::cout << "_AppendPatchArray called with " << ptable.GetSize() << 
+      "  mem=" << ptable.GetMemoryUsed() << " markers=" << markers.size() 
+	      << " patchSize=" << patchSize << " level=" << level << std::endl;
+
+    std::cout << "Iterating over patchTable of size " << ptable.GetSize() << std::endl;
+
+    std::cout << "numElements in level is " << ptable.GetNumElements(level) << std::endl;
+    // interate over patches at the given subdivision level
+    const unsigned int *indexData = ptable[level];
+    int numElements = ptable.GetNumElements(level);
+    int j=0;
+    for (int i=0; i<numElements; ++i) {
+      std::cout << " " << indexData[i];
+      if (++j >= 16) {
+	j = 0;
+	std::cout << "\n";
+      }
+    }
+    std::cout << "\n";
+
+
+      //      std::cout << " " << ptable[i] << std::endl;
+
+
+    /* 
+    OsdPatchArray array;
+    array.desc = desc;
+    array.patchSize = patchSize;
+    array.firstIndex = *indexBase;
+    array.numIndices = ptable.GetSize();
+    array.levelBase = *levelBase;
+    array.gregoryQuadOffsetBase = gregoryQuadOffsetBase;
+
+    int numSubPatches = 1;
+    if (desc.type == OpenSubdiv::kTransitionRegular or
+        desc.type == OpenSubdiv::kTransitionBoundary or
+        desc.type == OpenSubdiv::kTransitionCorner) {
+        int subPatchCounts[] = { 3, 4, 4, 4, 2 };
+        numSubPatches = subPatchCounts[desc.pattern];
+    }
+
+    for (int subpatch = 0; subpatch < numSubPatches; ++subpatch) {
+        array.desc.subpatch = subpatch;
+        patchArrays.push_back(array);
+    }
+
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
+        array.firstIndex * sizeof(unsigned int),
+        array.numIndices * sizeof(unsigned int),
+        ptable[0]);
+    *indexBase += array.numIndices;
+    */
+
+    std::vector<unsigned char> levels;
+    levels.reserve(ptable.GetSize());
+    std::cout << "levels size = " << levels.size() << std::endl;
+
+    for (int i = 0; i < (int) ptable.GetMarkers().size()-1; ++i) {
+      int numPrims = ptable.GetNumElements(i)/patchSize;
+      std::cout << "\ti=" << i << "  numPrims=" << numPrims << std::endl;
+
+        for (int j = 0; j < numPrims; ++j) {
+            levels.push_back(i);
+        }
+    }
+
+    /*
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
+    glBufferSubData(GL_TEXTURE_BUFFER,
+                    array.levelBase * sizeof(unsigned char),
+                    levels.size() * sizeof(unsigned char),
+                    &levels[0]);
+    *levelBase += (int)levels.size();
+#endif
+
+    if (ptexCoordinateTextureBuffer) {
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
+        assert(ptexTable.size()/2 == levels.size());
+
+        // populate ptex coordinates
+        glBufferSubData(GL_ARRAY_BUFFER,
+                        array.levelBase * sizeof(int) * 2,
+                        (int)ptexTable.size() * sizeof(int),
+                        &ptexTable[0]);
+#endif
+    }
+
+    if (fvarDataTextureBuffer) {
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
+        assert(fvarTable.size()/(fvarDataWidth*4) == levels.size());
+
+        // populate fvar data
+        glBufferSubData(GL_UNIFORM_BUFFER,
+                        array.levelBase * sizeof(float) * fvarDataWidth*4,
+                        (int)fvarTable.size() * sizeof(float),
+                        &fvarTable[0]);
+#endif
+    }
+    */
+}
+
 
 //
 // ### Construct the OSD Mesh 
@@ -232,7 +380,7 @@ void initOsd()
 // which gets called at the end of this function and on frame change.
 //
 void
-createOsdContext(int level)
+createOsdMesh(int level)
 {
     // 
     // Setup an OsdHbr mesh based on the desired subdivision scheme
@@ -356,38 +504,58 @@ createOsdContext(int level)
     //
     hmesh->Finish();
 
-    //
-    // Setup some raw vectors of data. Remember that the actual point values were
-    // not stored in the OsdVertex, so we keep track of them here instead
-    //
-    g_normals.resize(g_orgPositions.size(),0.0f);
-    calcNormals( hmesh, g_orgPositions, g_normals );
-
     // 
     // At this point, we no longer need the topological structure of the mesh, 
-    // so we bake it down into subdivision tables by converting the HBR mesh 
-    // into an OSD mesh. Note that this is just storing the initial subdivision
-    // tables, which will be used later during the actual subdivision process.
+    // so we bake it down into subdivision tables and cubic patches by converting 
+    // the HBR mesh  into an OSD mesh. Note that this is just storing the initial 
+    // subdivision tables, which will be used later during the actual subdivision 
+    // process.
     //
     // Again, no vertex positions are being stored here, the point data will be 
     // sent to the mesh in updateGeom().
     //
-    OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex> meshFactory(hmesh, level);
 
-    g_farmesh = meshFactory.Create();
+    // Create an OpenSubdiv mesh that uses a single thread on the CPU to compute,
+    // has 3 elements per vertex (3 floats for position), is defined by the topology
+    // in hmesh to level subdivisions, and has a bitset that indicates osd should use
+    // adaptive subdivision.
+    //
+    OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex> meshFactory(hmesh, level, true);
+
+    g_farmesh = meshFactory.Create(false /*ptex data*/,  false /*fvar data*/);
+
+    // hmesh is no longer needed
+    delete hmesh;
+
+    OpenSubdiv::FarPatchTables const * patchTables = 
+      g_farmesh->GetPatchTables();
+
+    std::cout << "patchTables regular patches getsize=" << patchTables->GetFullRegularPatches().GetSize() << " ringsize=" << patchTables->GetRegularPatchRingsize()  << std::endl;
+
+    int indexBase = 0;
+    int levelBase = 0;
+    int maxValence = patchTables->GetMaxValence();
+
+    _AppendPatchArray(&indexBase, &levelBase,
+		      level,
+		      patchTables->GetFullRegularPatches(),
+		      patchTables->GetRegularPatchRingsize(),
+		      patchTables->GetFullRegularPtexCoordinates(),
+		      patchTables->GetFullRegularFVarData(),
+		      g_farmesh->GetTotalFVarWidth(),
+		      OpenSubdiv::OsdPatchDescriptor(OpenSubdiv::kRegular, 0, 0, 0, 0), 0);
+    
+    
+
 
     g_osdComputeContext = OpenSubdiv::OsdCpuComputeContext::Create(g_farmesh);
 
-    delete hmesh;
-
     // 
-    // Initialize draw context and vertex buffer
+    // Initialize vertex buffer
     //
     g_vertexBuffer = 
-        OpenSubdiv::OsdCpuGLVertexBuffer::Create(6,  /* 3 floats for position, 
-                                                            +
-                                                            3 floats for normal*/
-                                                 g_farmesh->GetNumVertices());
+      OpenSubdiv::OsdCpuGLVertexBuffer::Create(3,  /* 3 floats for position*/ 
+					       g_farmesh->GetNumVertices());
 
     g_drawContext =
         OpenSubdiv::OsdGLDrawContext::Create(g_farmesh, g_vertexBuffer);
@@ -406,17 +574,15 @@ createOsdContext(int level)
 
     //
     // The OsdVertexBuffer provides GL identifiers which can be bound in the 
-    // standard way. Here we setup a single VAO and enable points and normals 
-    // as attributes on the vertex buffer and set the index buffer.
+    // standard way. Here we setup a single VAO and enable points
+    // as an attribute on the vertex buffer and set the index buffer.
     //
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->BindVBO());
     glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_drawContext->patchIndexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -437,14 +603,13 @@ updateGeom()
     vertex.reserve(nverts*6);
 
     const float *p = &g_orgPositions[0];
-    const float *n = &g_normals[0];
 
     //
     // Apply a simple deformer to the coarse mesh. We save the deformed points 
-    // and normals into a separate buffer to avoid accumulation of error. This 
+    // into a separate buffer to avoid accumulation of error. This 
     // loop really has nothing to do with OSD.
     // 
-    float r = sin(g_frame*0.001f);
+    float r = sin(g_frame*0.01f);
     for (int i = 0; i < nverts; ++i) {
         float move = 0.05f*cosf(p[0]*20+g_frame*0.01f);
         float ct = cos(p[2] * r);
@@ -454,20 +619,11 @@ updateGeom()
         vertex.push_back(-p[0]*st + p[1]*ct);
         vertex.push_back(p[2]);
 
-        //
-        // To be completely accurate, we should deform the normals here too, but
-        // the original undeformed normals are sufficient for this example 
-        //
-        vertex.push_back(n[0]);
-        vertex.push_back(n[1]);
-        vertex.push_back(n[2]);
- 
         p += 3;
-        n += 3;
     }
 
     //
-    // Send the animated coarse positions and normals to the vertex buffer.
+    // Send the animated coarse positions to the vertex buffer.
     //
     g_vertexBuffer->UpdateData(&vertex[0], nverts);
 
@@ -484,48 +640,7 @@ updateGeom()
     // The call to Synchronize() is not actually necessary, it's being used
     // here only for illustration. 
     //
-    // g_osdComputeController->Synchronize();
-}
-
-//
-// ### Calculate Face Normals
-
-// A helper function to calculate face normals. It is included here to illustrate
-// how to inspect the coarse mesh, give an HbrMesh pointer.
-//
-static void
-calcNormals(OsdHbrMesh * mesh, 
-            std::vector<float> const & pos,
-            std::vector<float> & result ) 
-{
-    //
-    // Get the number of vertices and faces. Notice the naming convention is 
-    // different between coarse Vertices and Faces. This may change in the 
-    // future (it an artifact of the original renderman code).
-    //
-    int nverts = mesh->GetNumVertices();
-    int nfaces = mesh->GetNumCoarseFaces();
-
-    for (int i = 0; i < nfaces; ++i) {
-
-        OsdHbrFace * f = mesh->GetFace(i);
-
-        float const * p0 = &pos[f->GetVertex(0)->GetID()*3],
-                    * p1 = &pos[f->GetVertex(1)->GetID()*3],
-                    * p2 = &pos[f->GetVertex(2)->GetID()*3];
-
-        float n[3];
-        cross( n, p0, p1, p2 );
-
-        for (int j = 0; j < f->GetNumVertices(); j++) {
-            int idx = f->GetVertex(j)->GetID() * 3;
-            result[idx  ] += n[0];
-            result[idx+1] += n[1];
-            result[idx+2] += n[2];
-        }
-    }
-    for (int i = 0; i < nverts; ++i)
-        normalize(&result[i*3]);
+    // g_mesh->Synchronize();
 }
 
 
@@ -545,8 +660,10 @@ display()
     // Bind the GL vertex and index buffers
     //
     glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->BindVBO());
+    
+    OpenSubdiv::OsdPatchArrayVector const & patches = 
+      g_drawContext->patchArrays;
 
-    OpenSubdiv::OsdPatchArrayVector const & patches = g_drawContext->patchArrays;
     for (int i=0; i<(int)patches.size(); ++i) {
         OpenSubdiv::OsdPatchArray const & patch = patches[i];
 
@@ -555,17 +672,9 @@ display()
         //
         bindProgram(g_quadFillProgram);
 
-        glDrawElements(GL_LINES_ADJACENCY, patch.numIndices,
-                       GL_UNSIGNED_INT, NULL);
-
-        //
-        // Draw the wire frame over the solid shaded mesh
-        //
-        bindProgram(g_quadLineProgram);
-        glUniform4f(glGetUniformLocation(g_quadLineProgram, "fragColor"), 
-                    0, 0, 0.5, 1);
-        glDrawElements(GL_LINES_ADJACENCY, patch.numIndices,
-                       GL_UNSIGNED_INT, NULL);
+        glDrawElements(GL_POINTS, patch.numIndices,
+                       GL_UNSIGNED_INT, 
+                       (void *)(patch.firstIndex * sizeof(unsigned int)));
     }
 
     //
