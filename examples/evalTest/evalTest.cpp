@@ -144,6 +144,8 @@ a particular purpose and non-infringement.
 #include <osd/cpuComputeController.h>
 #include <osd/cpuComputeContext.h>
 
+using namespace OpenSubdiv;
+
 // 
 // ### Global Variables & Declarations
 //
@@ -222,8 +224,7 @@ void initOsd()
 
 class OsdEvalContext : OpenSubdiv::OsdNonCopyable<OsdEvalContext> {
 public:
-  explicit OsdEvalContext(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farmesh)
-        : _farMesh(farmesh) {}
+  explicit OsdEvalContext(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farmesh);
     virtual ~OsdEvalContext() {}
 
   OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *GetFarMesh() { return _farMesh; }
@@ -256,32 +257,24 @@ private:
 };
 
 
-static void
-_AppendPatchArray(
-        int *indexBase, int *levelBase, int level,
-        OpenSubdiv::FarPatchTables::PTable const & ptable, int patchSize,
-        OpenSubdiv::FarPatchTables::PtexCoordinateTable const & ptexTable,
-        OpenSubdiv::FarPatchTables::FVarDataTable const & fvarTable, int fvarDataWidth,
-        OpenSubdiv::OsdPatchDescriptor const & desc, int gregoryQuadOffsetBase)
+OsdEvalContext::OsdEvalContext(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farmesh)
+    : _farMesh(farmesh)
 {
-    if (ptable.IsEmpty()) {
+
+    const FarPatchTables *patchTables = farmesh->GetPatchTables();
+    
+    if (not patchTables) {
         return;
-    } 
+    }
 
-    const OpenSubdiv::FarTableMarkers &markers = ptable.GetMarkers();
+    const FarTable<unsigned int> &ptable = patchTables->GetFullRegularPatches();
 
-    std::cout << "_AppendPatchArray called with " << ptable.GetSize() << 
-      "  mem=" << ptable.GetMemoryUsed() << " markers=" << markers.size() 
-	      << " patchSize=" << patchSize << " level=" << level << std::endl;
-
-    std::cout << "Iterating over patchTable of size " << ptable.GetSize() << std::endl;
-
-    std::cout << "numElements in level is " << ptable.GetNumElements(level) << std::endl;
-    // interate over patches at the given subdivision level
-    const unsigned int *indexData = ptable[level];
-    int numElements = ptable.GetNumElements(level);
+    // Iterate over all patches in this table.  Don't worry about markers here,
+    // those would tell use what level of subdivision the patch was created on.
+    // Just iterate over all patches, this is in blocks of 16 unsigned ints per patch.
+    const unsigned int *indexData = ptable[0];
     int j=0;
-    for (int i=0; i<numElements; ++i) {
+    for (int i=0; i<ptable.GetSize(); ++i) {
       std::cout << " " << indexData[i];
       if (++j >= 16) {
 	j = 0;
@@ -290,85 +283,6 @@ _AppendPatchArray(
     }
     std::cout << "\n";
 
-
-      //      std::cout << " " << ptable[i] << std::endl;
-
-
-    /* 
-    OsdPatchArray array;
-    array.desc = desc;
-    array.patchSize = patchSize;
-    array.firstIndex = *indexBase;
-    array.numIndices = ptable.GetSize();
-    array.levelBase = *levelBase;
-    array.gregoryQuadOffsetBase = gregoryQuadOffsetBase;
-
-    int numSubPatches = 1;
-    if (desc.type == OpenSubdiv::kTransitionRegular or
-        desc.type == OpenSubdiv::kTransitionBoundary or
-        desc.type == OpenSubdiv::kTransitionCorner) {
-        int subPatchCounts[] = { 3, 4, 4, 4, 2 };
-        numSubPatches = subPatchCounts[desc.pattern];
-    }
-
-    for (int subpatch = 0; subpatch < numSubPatches; ++subpatch) {
-        array.desc.subpatch = subpatch;
-        patchArrays.push_back(array);
-    }
-
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-        array.firstIndex * sizeof(unsigned int),
-        array.numIndices * sizeof(unsigned int),
-        ptable[0]);
-    *indexBase += array.numIndices;
-    */
-
-    std::vector<unsigned char> levels;
-    levels.reserve(ptable.GetSize());
-    std::cout << "levels size = " << levels.size() << std::endl;
-
-    for (int i = 0; i < (int) ptable.GetMarkers().size()-1; ++i) {
-      int numPrims = ptable.GetNumElements(i)/patchSize;
-      std::cout << "\ti=" << i << "  numPrims=" << numPrims << std::endl;
-
-        for (int j = 0; j < numPrims; ++j) {
-            levels.push_back(i);
-        }
-    }
-
-    /*
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-    glBufferSubData(GL_TEXTURE_BUFFER,
-                    array.levelBase * sizeof(unsigned char),
-                    levels.size() * sizeof(unsigned char),
-                    &levels[0]);
-    *levelBase += (int)levels.size();
-#endif
-
-    if (ptexCoordinateTextureBuffer) {
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-        assert(ptexTable.size()/2 == levels.size());
-
-        // populate ptex coordinates
-        glBufferSubData(GL_ARRAY_BUFFER,
-                        array.levelBase * sizeof(int) * 2,
-                        (int)ptexTable.size() * sizeof(int),
-                        &ptexTable[0]);
-#endif
-    }
-
-    if (fvarDataTextureBuffer) {
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-        assert(fvarTable.size()/(fvarDataWidth*4) == levels.size());
-
-        // populate fvar data
-        glBufferSubData(GL_UNIFORM_BUFFER,
-                        array.levelBase * sizeof(float) * fvarDataWidth*4,
-                        (int)fvarTable.size() * sizeof(float),
-                        &fvarTable[0]);
-#endif
-    }
-    */
 }
 
 
@@ -527,26 +441,9 @@ createOsdMesh(int level)
     // hmesh is no longer needed
     delete hmesh;
 
-    OpenSubdiv::FarPatchTables const * patchTables = 
-      g_farmesh->GetPatchTables();
 
-    std::cout << "patchTables regular patches getsize=" << patchTables->GetFullRegularPatches().GetSize() << " ringsize=" << patchTables->GetRegularPatchRingsize()  << std::endl;
-
-    int indexBase = 0;
-    int levelBase = 0;
-    int maxValence = patchTables->GetMaxValence();
-
-    _AppendPatchArray(&indexBase, &levelBase,
-		      level,
-		      patchTables->GetFullRegularPatches(),
-		      patchTables->GetRegularPatchRingsize(),
-		      patchTables->GetFullRegularPtexCoordinates(),
-		      patchTables->GetFullRegularFVarData(),
-		      g_farmesh->GetTotalFVarWidth(),
-		      OpenSubdiv::OsdPatchDescriptor(OpenSubdiv::kRegular, 0, 0, 0, 0), 0);
+    OsdEvalContext evalContext(g_farmesh);
     
-    
-
 
     g_osdComputeContext = OpenSubdiv::OsdCpuComputeContext::Create(g_farmesh);
 
