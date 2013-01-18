@@ -73,7 +73,6 @@ set(PLATFORM_LIBRARIES
     ${OSD_LINK_TARGET}
     ${OPENGL_LIBRARY}
     ${GLEW_LIBRARY}
-    ${GLUT_LIBRARIES}
 )
 
 include_directories(
@@ -91,7 +90,6 @@ set(SOURCE_FILES
     OpenSubdivShader.cpp
     osdMeshData.cpp
     hbrUtil.cpp
-    cudaUtil.cpp
 )
 
 set(HEADER_FILES
@@ -127,6 +125,16 @@ if(WIN32)
         "/export:initializePlugin /export:uninitializePlugin"
     )
 endif(WIN32)
+
+#-------------------------------------------------------------------------------
+# CUDA code & dependencies
+if( CUDA_FOUND )
+    list(APPEND SOURCE_FILES
+        cudaUtil.cpp
+    )
+    include_directories( ${CUDA_INCLUDE_DIRS} 
+    )
+endif()
 
 #-------------------------------------------------------------------------------
 # Shader Stringification

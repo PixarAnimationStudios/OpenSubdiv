@@ -91,7 +91,6 @@ set(SOURCE_FILES
     OpenSubdivPtexShader.cpp
     osdPtexMeshData.cpp
     hbrUtil.cpp
-    cudaUtil.cpp
 )
 
 set(HEADER_FILES
@@ -127,6 +126,16 @@ if(WIN32)
         "/export:initializePlugin /export:uninitializePlugin"
     )
 endif(WIN32)
+
+#-------------------------------------------------------------------------------
+# CUDA code & dependencies
+if( CUDA_FOUND )
+    list(APPEND SOURCE_FILES
+        cudaUtil.cpp
+    )
+    include_directories( ${CUDA_INCLUDE_DIRS} 
+    )
+endif()
 
 #-------------------------------------------------------------------------------
 # Shader Stringification
