@@ -55,47 +55,18 @@
 #     a particular purpose and non-infringement.
 #
 
-if( OPENGL_FOUND AND (GLEW_FOUND AND GLUT_FOUND) OR (APPLE AND GLUT_FOUND))
-    add_subdirectory(glutViewer)
-    add_subdirectory(simpleCpu)
-    add_subdirectory(evalTest)
-    add_subdirectory(ptexCoord)
-    if(PTEX_FOUND AND (NOT APPLE))
-        add_subdirectory(ptexViewer)
-    endif()
-else()
-    set(MISSING "")
+include_directories(
+    ${PROJECT_SOURCE_DIR}/opensubdiv
+)
 
-    if (NOT OPENGL_FOUND)
-        list(APPEND MISSING OpenGL)
-    endif()
+set(SOURCE_FILES
+    ptexCoord.cpp
+)
 
-    if (NOT GLEW_FOUND)
-        list(APPEND MISSING glew)
-    endif()
 
-    if (NOT GLUT_FOUND)
-        list(APPEND MISSING glut)
-    endif()
+add_executable(ptexCoord
+    ${SOURCE_FILES}
+)
 
-    message(WARNING
-        "The following libraries could not be found : ${MISSING}.  "
-        "The glutViewer and ptexViewer examples will not be available.  "
-        "If you have these libraries installed, please specify their "
-        "path to cmake (through the GLEW_LOCATION and GLUT_LOCATION "
-        "command line arguments or environment variables)."
-    )
-endif()
+target_link_libraries(ptexCoord)
 
-if(DXSDK_FOUND)
-   add_subdirectory(dxViewer)
-endif()
-
-if(MAYA_FOUND)
-    add_subdirectory(mayaViewer)
-    if(PTEX_FOUND)
-        add_subdirectory(mayaPtexViewer)
-    endif()
-endif()
-
-add_subdirectory(mutex)
