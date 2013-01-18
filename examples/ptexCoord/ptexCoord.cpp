@@ -11,31 +11,41 @@
 #endif
 
 // XXXdyu-api
+/*** XXX not required?
 #include <version.h>
+
 namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
+    namespace OPENSUBDIV_VERSION {
 
-class Mutex {
-public:
-    void Lock() {}
-    void Unlock() {}
-};
+        class Mutex {
+            public:
+                void Lock() {}
+                void Unlock() {}
+            };
 
-}
-using namespace OPENSUBDIV_VERSION;
-}
+        }
+    using namespace OPENSUBDIV_VERSION;
+    }
+***/
+
+
+
+#include <far/mesh.h>
+#include <far/meshFactory.h>
+
+#include <hbr/mesh.h>
+#include <hbr/vertex.h>
+#include <hbr/catmark.h>
+#include <hbr/subdivision.h>
 
 #include <osd/error.h>
 #include <osd/vertex.h>
-#include <osd/glDrawContext.h>
-#include <osd/glDrawRegistry.h>
 
 #include <osd/cpuDispatcher.h>
-#include <osd/cpuGLVertexBuffer.h>
+//#include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
 #include <osd/cpuComputeController.h>
 
-#include <osd/glMesh.h>
 
 // XXXdyu-api
 typedef OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>     OsdHbrMesh;
@@ -47,7 +57,7 @@ typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 class MyPatch {
 
     float Eval( float u, float v) {
-        
+        return 0;
     }
 
     
@@ -294,13 +304,4 @@ main(int argc, char **argv)
     std::cerr << "Prism\n";
     buildPrism();
     std::cerr << "\n";
-
-    /*
-    glutReshapeFunc(reshape);
-    glutDisplayFunc(display);
-    glutMouseFunc(mouse);
-    glutMotionFunc(motion);
-    glutKeyboardFunc(keyboard);
-    glutMainLoop();
-    */
 }
