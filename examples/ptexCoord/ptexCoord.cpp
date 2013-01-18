@@ -42,9 +42,12 @@ namespace OpenSubdiv {
 #include <osd/vertex.h>
 
 #include <osd/cpuDispatcher.h>
-//#include <osd/cpuGLVertexBuffer.h>
+
 #include <osd/cpuComputeContext.h>
 #include <osd/cpuComputeController.h>
+
+
+#include "patchCommon.h"
 
 
 // XXXdyu-api
@@ -56,10 +59,15 @@ typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
 class MyPatch {
 
+    MyPatch(float *CVs) {
+        for (int i=0; i<4; ++i)
+            _cvs[i] = CVs[i];
+    }
     float Eval( float u, float v) {
         return 0;
     }
 
+    
     
     //  Packed patch control vertices
     //   0  1  2  3 
@@ -67,9 +75,6 @@ class MyPatch {
     //   8  9 10 11
     //  12 13 14 15
     float _cvs[16];
-
-    
-
 };
  
 
