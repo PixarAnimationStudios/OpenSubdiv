@@ -74,7 +74,7 @@ OsdCLGLVertexBuffer::OsdCLGLVertexBuffer(int numElements,
                                          int numVertices,
                                          cl_context clContext)
     : _numElements(numElements), _numVertices(numVertices),
-      _vbo(0), _clMemory(0), _clQueue(0), _clMapped(false) {
+      _vbo(0), _clQueue(0), _clMemory(0), _clMapped(false) {
 
 }
 
