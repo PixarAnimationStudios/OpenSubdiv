@@ -59,22 +59,27 @@
 
 set(MAYA_FIND_QUIETLY TRUE)
 
-if(NOT MAYA_FOUND)
+if(NOT MAYA_FOUND OR NOT PTEX_FOUND)
     message(STATUS
-        "Maya could not be found, so the OpenSubdiv mayaViwer plugin will not "
-        "be available. If you do have Maya installed and see this message, "
+        "Maya or Ptex could not be found, so the OpenSubdiv mayaPtexViwer plugin "
+		"will not be available. If you do have Maya installed and see this message, "
         "please add your Maya path to cmake/FindMaya.cmake or set it in "
         "the MAYA_LOCATION environment variable."
     )
     return()
 endif()
 
+set(PLATFORM_LIBRARIES
+    ${OSD_LINK_TARGET}
+    ${OPENGL_LIBRARY}
+    ${GLEW_LIBRARY}
+)
+
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
     ${MAYA_INCLUDE_DIRS}
     ${GLEW_INCLUDE_DIR}
     ${PTEX_INCLUDE_DIR}
-    ${CUDA_INCLUDE_DIRS}
 )
 
 set(SHADER_FILES
@@ -166,13 +171,10 @@ set_target_properties(maya_ptex_plugin
 )
 
 target_link_libraries(maya_ptex_plugin
-    ${OSD_LINK_TARGET}
     ${MAYA_Foundation_LIBRARY}
     ${MAYA_OpenMaya_LIBRARY}
     ${MAYA_OpenMayaRender_LIBRARY}
     ${MAYA_OpenMayaUI_LIBRARY}
     ${MAYA_tbb_LIBRARY}
     ${PLATFORM_LIBRARIES}
-    ${GLEW_LIBRARY}
-    ${PTEX_LIBRARY}
 )

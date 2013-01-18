@@ -55,8 +55,13 @@
 //     a particular purpose and non-infringement.
 //
 
-// glew.h must be included before OSD and Maya includes
-#include <GL/glew.h>
+#if defined(__APPLE__)
+    #include <maya/OpenMayaMac.h>
+#else
+    // Include GLEW before Maya and OSD includes
+    #include <GL/glew.h>
+#endif
+
 
 #include "../common/maya_util.h"
 #include "OpenSubdivShader.h"

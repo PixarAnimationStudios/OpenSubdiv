@@ -69,11 +69,17 @@ if(NOT MAYA_FOUND)
     return()
 endif()
 
+set(PLATFORM_LIBRARIES
+    ${OSD_LINK_TARGET}
+    ${OPENGL_LIBRARY}
+    ${GLEW_LIBRARY}
+    ${GLUT_LIBRARIES}
+)
+
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
     ${MAYA_INCLUDE_DIRS}
     ${GLEW_INCLUDE_DIR}
-    ${CUDA_INCLUDE_DIRS}
 )
 
 set(SHADER_FILES
@@ -165,12 +171,10 @@ set_target_properties(maya_plugin
 )
 
 target_link_libraries(maya_plugin
-    ${OSD_LINK_TARGET}
     ${MAYA_Foundation_LIBRARY}
     ${MAYA_OpenMaya_LIBRARY}
     ${MAYA_OpenMayaRender_LIBRARY}
     ${MAYA_OpenMayaUI_LIBRARY}
     ${MAYA_tbb_LIBRARY}
     ${PLATFORM_LIBRARIES}
-    ${GLEW_LIBRARY}
 )

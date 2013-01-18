@@ -55,8 +55,12 @@
 //     a particular purpose and non-infringement.
 //
 
-/* Include GLEW before Maya and OSD includes */
-#include <GL/glew.h>
+#if defined(__APPLE__)
+    #include <maya/OpenMayaMac.h>
+#else
+    // Include GLEW before Maya and OSD includes
+    #include <GL/glew.h>
+#endif
 
 #include <maya/MFnMesh.h>
 #include <maya/MItMeshPolygon.h>
@@ -182,7 +186,6 @@ OsdMeshData::buildUVList( MFnMesh& meshFn, std::vector<float>& uvList )
     // for each face-vertex copy UVs into list, adjusting for renderman orientation
     for ( polyIt.reset(); !polyIt.isDone(); polyIt.next() ) 
     { 
-        int          faceIdx      = polyIt.index(); 
         unsigned int numPolyVerts = polyIt.polygonVertexCount();
 
         for ( unsigned int faceVertIdx = 0; 
@@ -222,8 +225,6 @@ OsdMeshData::rebuildHbrMeshIfNeeded(OpenSubdivShader *shader)
     _kernel     = shader->getKernel();
     _adaptive   = shader->isAdaptive();
     _uvSet      = shader->getUVSet();
-
-    int level = (_level < 1) ? 1 : _level;
 
     // Get Maya vertex topology and crease data
     MIntArray vertexCount;

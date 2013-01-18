@@ -54,7 +54,6 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#include <GL/glew.h>
 
 #ifdef OPENSUBDIV_HAS_CUDA
 
