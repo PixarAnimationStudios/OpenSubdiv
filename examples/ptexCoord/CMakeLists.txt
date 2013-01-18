@@ -61,6 +61,7 @@ include_directories(
 
 set(SOURCE_FILES
     ptexCoord.cpp
+    patchCommon.cpp
 )
 
 

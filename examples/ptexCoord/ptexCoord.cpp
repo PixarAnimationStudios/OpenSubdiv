@@ -46,7 +46,19 @@ typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
 class MyPatch {
 
-    float _cvs[16]
+    float Eval( float u, float v) {
+        
+    }
+
+    
+    //  Packed patch control vertices
+    //   0  1  2  3 
+    //   4  5  6  7
+    //   8  9 10 11
+    //  12 13 14 15
+    float _cvs[16];
+
+    
 
 };
  
