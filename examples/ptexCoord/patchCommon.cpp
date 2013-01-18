@@ -55,7 +55,8 @@
 //     a particular purpose and non-infringement.
 //
 
-#extension GL_EXT_gpu_shader4 : require
+#include "vecTypes.h"
+#include <algorithm>
 
 //----------------------------------------------------------
 // Patches.Common
@@ -65,11 +66,11 @@
 #define OSD_NUM_VARYINGS 0
 #endif
 
-#define M_PI 3.14159265359f
+//#define M_PI 3.14159265359f
 
 struct ControlVertex {
     vec4 position;
-    centroid vec4 patchCoord; // u, v, level, faceID
+    vec4 patchCoord; // u, v, level, faceID
     ivec4 ptexInfo;  // U offset, V offset, 2^ptexlevel', rotation
     ivec3 clipFlag;
 #if OSD_NUM_VARYINGS > 0
@@ -81,8 +82,8 @@ struct OutputVertex {
     vec4 position;
     vec3 normal;
     vec3 tangent;
-    centroid vec4 patchCoord; // u, v, level, faceID
-    noperspective vec4 edgeDistance;
+    vec4 patchCoord; // u, v, level, faceID
+    vec4 edgeDistance;
 #if OSD_NUM_VARYINGS > 0
     float varyings[OSD_NUM_VARYINGS];
 #endif
@@ -95,7 +96,7 @@ struct GregControlVertex {
     int  valence;
     vec3 e0;
     vec3 e1;
-    uint zerothNeighbor;
+    unsigned int zerothNeighbor;
     vec3 org;
 #if OSD_MAX_VALENCE > 0
     vec3 r[OSD_MAX_VALENCE];
@@ -108,13 +109,14 @@ struct GregEvalVertex {
     vec3 Em;
     vec3 Fp;
     vec3 Fm;
-    centroid vec4 patchCoord;
+    vec4 patchCoord;
     ivec4 ptexInfo;
 #if OSD_NUM_VARYINGS > 0
     float varyings[OSD_NUM_VARYINGS];
 #endif
 };
 
+/*XXX
 layout(std140) uniform Transform {
     mat4 ModelViewMatrix;
     mat4 ProjectionMatrix;
@@ -127,9 +129,13 @@ layout(std140) uniform Tessellation {
     int GregoryQuadOffsetBase;
     int LevelBase;
 };
+*/
 
 float GetTessLevel(int patchLevel)
 {
+    // XXX
+    float TessLevel = 1;
+    
 #if OSD_ENABLE_SCREENSPACE_TESSELLATION
     return TessLevel;
 #else
@@ -139,8 +145,13 @@ float GetTessLevel(int patchLevel)
 
 float GetPostProjectionSphereExtent(vec3 center, float diameter)
 {
-    vec4 p = ProjectionMatrix * vec4(center, 1.0);
-    return abs(diameter * ProjectionMatrix[1][1] / p.w);
+    // XXX
+    mat4x4 ProjectionMatrix;
+
+    // XXX
+    // vec4 p = ProjectionMatrix * vec4(center, 1.0);
+//    return abs(diameter * ProjectionMatrix[1][1] / p.w);
+    return 0;
 }
 
 float TessAdaptive(vec3 p0, vec3 p1, int patchLevel)
@@ -150,7 +161,10 @@ float TessAdaptive(vec3 p0, vec3 p1, int patchLevel)
     // length of the projected edge itself to avoid problems near silhouettes.
     vec3 center = (p0 + p1) / 2.0;
     float diameter = distance(p0, p1);
-    return max(1.0, TessLevel * GetPostProjectionSphereExtent(center, diameter));
+    //return max(1.0, TessLevel * GetPostProjectionSphereExtent(center, diameter));
+    // XXX
+    float TessLevel = 1.0;
+    return std::max((float)1.0, TessLevel);
 }
 
 #ifndef OSD_DISPLACEMENT_CALLBACK
@@ -242,7 +256,7 @@ float TessAdaptive(vec3 p0, vec3 p1, int patchLevel)
 // Patches.Coefficients
 //----------------------------------------------------------
 // Regular
-uniform mat4 Q = mat4(
+mat4x4 Q = mat4x4(
     1.f/6.f, 2.f/3.f, 1.f/6.f, 0.f,
     0.f,     2.f/3.f, 1.f/3.f, 0.f,
     0.f,     1.f/3.f, 2.f/3.f, 0.f,
@@ -250,15 +264,17 @@ uniform mat4 Q = mat4(
 );
 
 // Boundary
-uniform mat4x3 B = mat4x3( 
+/* XXX
+mat4x3 B = mat4x3( 
     1.0f,    0.0f,    0.0f,
     2.f/3.f, 1.f/3.f, 0.0f,
     1.f/3.f, 2.f/3.f, 0.0f,
     1.f/6.f, 2.f/3.f, 1.f/6.f
 );
+*/
 
 // Corner
-uniform mat4 R = mat4( 
+mat4x4 R = mat4x4( 
     1.f/6.f, 2.f/3.f, 1.f/6.f, 0.0f,
     0.0f,    2.f/3.f, 1.f/3.f, 0.0f,
     0.0f,    1.f/3.f, 2.f/3.f, 0.0f,
@@ -266,12 +282,12 @@ uniform mat4 R = mat4(
 );
 
 #if OSD_MAX_VALENCE<=10
-uniform float ef[7] = {
+float ef[7] = {
     0.813008, 0.500000, 0.363636, 0.287505,
     0.238692, 0.204549, 0.179211
 };
 #else
-uniform float ef[27] = {
+float ef[27] = {
     0.812816, 0.500000, 0.363644, 0.287514,
     0.238688, 0.204544, 0.179229, 0.159657,
     0.144042, 0.131276, 0.120632, 0.111614,
@@ -282,7 +298,7 @@ uniform float ef[27] = {
 };
 #endif
 
-float csf(uint n, uint j)
+float csf(unsigned int n, unsigned int j)
 {
     if (j%2 == 0) {
         return cos((2.0f * M_PI * float(float(j-0)/2.0f))/(float(n)+3.0f));
@@ -292,7 +308,7 @@ float csf(uint n, uint j)
 }
 
 void
-Univar4x4(in float u, out float B[4], out float D[4])
+Univar4x4(float u, float *B, float *D)
 {
     float t = u;
     float s = 1.0f - u;
@@ -336,13 +352,14 @@ EvalBSpline(vec2 uv, vec4 cp[16])
             vec3 A = cp[4*i + j].xyz;
 #endif
 */
-            vec3 A = cp[4*i + j].xyz;
+            const vec4 &val = cp[4*i + j];
+            vec3 A = vec3(val[0], val[1], val[2]);
 
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
         }
     }
-    vec3 val = vec3(0);
+    vec3 val = vec3(0, 0, 0);
 
     Univar4x4(uv.y, B, D);
 
@@ -350,13 +367,13 @@ EvalBSpline(vec2 uv, vec4 cp[16])
         val += B[i] * BUCP[i];
     }
 
-    return vec4(val, 1);
+    return vec4(val[0], val[1], val[2], 1);
 }
 
 void EvalBSpline(vec2 uv, vec3 cp[16],
-                 out vec3 position,
-                 out vec3 utangent,
-                 out vec3 vtangent)
+                 vec3 &position,
+                 vec3 &utangent,
+                 vec3 &vtangent)
 {
     float B[4], D[4];
 
@@ -365,8 +382,8 @@ void EvalBSpline(vec2 uv, vec3 cp[16],
     vec3 BUCP[4], DUCP[4];
 
     for (int i=0; i<4; ++i) {
-        BUCP[i] = vec3(0);
-        DUCP[i] = vec3(0);
+        BUCP[i] = vec3(0,0,0);
+        DUCP[i] = vec3(0,0,0);
 
         for (int j=0; j<4; ++j) {
 #if ROTATE == 1
@@ -383,9 +400,9 @@ void EvalBSpline(vec2 uv, vec3 cp[16],
         }
     }
 
-    position = vec3(0);
-    utangent = vec3(0);
-    vtangent = vec3(0);
+    position = vec3(0,0,0);
+    utangent = vec3(0,0,0);
+    vtangent = vec3(0,0,0);
 
     Univar4x4(uv.y, B, D);
 
@@ -462,7 +479,7 @@ vec4 EvalGregory(vec2 uv, GregEvalVertex ev[4])
         BUCP[i] =  vec3(0, 0, 0);
         DUCP[i] =  vec3(0, 0, 0);
 
-        for (uint j=0; j<4; ++j) {
+        for (unsigned int j=0; j<4; ++j) {
             // reverse face front
             vec3 A = q[i + 4*j];
 
@@ -471,12 +488,12 @@ vec4 EvalGregory(vec2 uv, GregEvalVertex ev[4])
         }
     }
 
-    vec3 WorldPos  = vec3(0);
+    vec3 WorldPos  = vec3(0,0,0);
 
     Univar4x4(v, B, D);
 
-    for (uint i=0; i<4; ++i) {
+    for (unsigned int i=0; i<4; ++i) {
         WorldPos  += B[i] * BUCP[i];
     }
-    return vec4(WorldPos, 1);
+    return vec4(WorldPos[0], WorldPos[1], WorldPos[2], 1);
 }
