@@ -329,7 +329,7 @@ Univar4x4(float u, float *B, float *D)
 }
 
 vec4
-EvalBSpline(vec2 uv, vec4 cp[16])
+EvalBSpline(const vec2 &uv, const vec4 *cp)
 {
     float B[4], D[4];
 

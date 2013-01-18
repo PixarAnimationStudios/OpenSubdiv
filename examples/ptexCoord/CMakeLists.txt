@@ -55,6 +55,9 @@
 #     a particular purpose and non-infringement.
 #
 
+
+
+
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
 )
@@ -68,5 +71,7 @@ add_executable(ptexCoord
     ${SOURCE_FILES}
 )
 
-target_link_libraries(ptexCoord)
+target_link_libraries(ptexCoord
+    ${OSD_LINK_TARGET}
+)
 
