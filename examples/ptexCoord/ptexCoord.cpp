@@ -209,18 +209,46 @@ buildMesh(float *vertexData, int numVertices,
     std::cout << "Made " << patches.size() << " patches\n";
 
 
-    // Now compute control point positions and shading data on the refined surface.
+    // Now compute control point positions and shading data on the
+    // refined surface.
+    //
+    // First, create OpenSubdiv compute objects 
 
     OpenSubdiv::OsdCpuComputeContext *osdComputeContext =
         OpenSubdiv::OsdCpuComputeContext::Create(farMesh);
-    OpenSubdiv::OsdCpuComputeController osdComputeController();
-//    OpenSubdiv::OsdCpuVertexBuffer *osdVertexBuffer = 
-//        OpenSubdiv::OsdCpuVertexBuffer::Create(
-//            3 /* 3 floats for position*/ , farMesh->GetNumVertices());
+    OpenSubdiv::OsdCpuComputeController osdComputeController;
+    OpenSubdiv::OsdCpuVertexBuffer *osdVertexBuffer = 
+        OpenSubdiv::OsdCpuVertexBuffer::Create(
+            3 /* 3 floats for position*/ , farMesh->GetNumVertices());
     
 
+    //
+    // Send the animated coarse positions to the vertex buffer.
+    //
+    osdVertexBuffer->UpdateData(vertexData, numVertices);
 
-//    delete osdVertexBuffer;
+    
+    //
+    // Dispatch subdivision work based on the coarse vertex buffer. At this 
+    // point, the assigned dispatcher will queue up work, potentially in many
+    // worker threads. If the subdivided data is required for further processing
+    // a call to Synchronize() will allow you to block until the worker threads
+    // complete.
+    //
+    osdComputeController.Refine(osdComputeContext, osdVertexBuffer);
+
+
+    //
+    // Is the call to Synchronize() needed here?
+    //
+    osdComputeController.Synchronize();
+    
+    float *points = osdVertexBuffer->BindCpuBuffer();
+
+    
+
+    
+    delete osdVertexBuffer;
 }
 
 static void

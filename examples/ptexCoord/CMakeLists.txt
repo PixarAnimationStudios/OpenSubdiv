@@ -73,5 +73,8 @@ add_executable(ptexCoord
 
 target_link_libraries(ptexCoord
     ${OSD_LINK_TARGET}
+    ${OPENGL_LIBRARY}
+    ${GLEW_LIBRARY}
+    ${GLUT_LIBRARIES}    
 )
 
