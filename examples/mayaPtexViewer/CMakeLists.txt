@@ -102,8 +102,6 @@ if(UNIX)
         -DREQUIRE_IOSTREAM
         -DLINUX
     )
-    set(PLATFORM_LIBRARIES
-    )
     set(PLATFORM_PLUGIN_EXTENSION
         .so
     )
@@ -116,8 +114,6 @@ if(WIN32)
         /D_AFXDLL
         /DNT_PLUGIN
         /DREQUIRE_IOSTREAM
-    )
-    set(PLATFORM_LIBRARIES
     )
     set(PLATFORM_PLUGIN_EXTENSION
         .mll
