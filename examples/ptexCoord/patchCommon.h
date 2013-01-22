@@ -370,14 +370,21 @@ EvalBSpline(const vec2 &uv, const vec4 *cp)
     return vec4(val[0], val[1], val[2], 1);
 }
 
-void EvalBSpline(vec2 uv, vec3 cp[16],
+void EvalBSpline(float u,
+                 float v,
+                   // all vertex positions for the subdiv
+                 vec3 *vertexBuffer, 
+                   // vector of 16 indices into vertexBuffer
+                 const unsigned int *indices,     
                  vec3 &position,
                  vec3 &utangent,
                  vec3 &vtangent)
 {
     float B[4], D[4];
 
-    Univar4x4(uv.x, B, D);
+    Univar4x4(u, B, D);
+
+    vec3 *cp = vertexBuffer;
 
     vec3 BUCP[4], DUCP[4];
 
@@ -387,13 +394,13 @@ void EvalBSpline(vec2 uv, vec3 cp[16],
 
         for (int j=0; j<4; ++j) {
 #if ROTATE == 1
-            vec3 A = cp[4*(3-j) + (3-i)];
+            vec3 A = cp[indices[4*(3-j) + (3-i)]];
 #elif ROTATE == 2
-            vec3 A = cp[4*i + (3-j)];
+            vec3 A = cp[indices[4*i + (3-j)]];
 #elif ROTATE == 3
-            vec3 A = cp[4*j + i];
+            vec3 A = cp[indices[4*j + i]];
 #else
-            vec3 A = cp[4*i + j];
+            vec3 A = cp[indices[4*i + j]];
 #endif
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
@@ -404,7 +411,7 @@ void EvalBSpline(vec2 uv, vec3 cp[16],
     utangent = vec3(0,0,0);
     vtangent = vec3(0,0,0);
 
-    Univar4x4(uv.y, B, D);
+    Univar4x4(v, B, D);
 
     for (int i=0; i<4; ++i) {
         position += B[i] * BUCP[i];

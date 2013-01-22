@@ -57,20 +57,17 @@ typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
 class MyPatch {
 public:
+
+    // Note that MyPatch retains a pointer to CVs and depends
+    // on it remaining allocated.
     MyPatch(const unsigned int *CVs) {
-        for (int i=0; i<4; ++i) {
-            _cvs[i] = CVs[i];
-        }
+        _cvs = CVs;
     }
 
-    void UpdatePoints(vec3 *sourceVertexBuffer) {
-        for (int i=0; i<4; ++i) {
-            _pts[i] = sourceVertexBuffer[_cvs[i]];
-        }
-    }
-    
-    void Eval( const vec2 &uv, vec3 *position, vec3 *utangent, vec3 *vtangent) {
-        EvalBSpline(uv, _pts, *position, *utangent, *vtangent);
+    void Eval( float u, float v, vec3 *vertexBuffer, 
+               vec3 *position,  vec3 *utangent, vec3 *vtangent) {
+        EvalBSpline(u, v, vertexBuffer, _cvs,
+                    *position, *utangent, *vtangent);
     }
 
     
@@ -80,8 +77,7 @@ public:
     //   4  5  6  7
     //   8  9 10 11
     //  12 13 14 15
-    int _cvs[16];
-    vec3 _pts[16];
+    const unsigned int *_cvs; // 
 };
  
 
@@ -127,7 +123,7 @@ buildMesh(float *vertexData, int numVertices,
 
     // Do feature adaptive refinement on the subdiv to generate cubic
     // patches
-    int level = 10;
+    int level = 2;
 
     std::cout << "1\n";
     // true for adaptive
@@ -231,9 +227,9 @@ buildMesh(float *vertexData, int numVertices,
     //
     // Dispatch subdivision work based on the coarse vertex buffer. At this 
     // point, the assigned dispatcher will queue up work, potentially in many
-    // worker threads. If the subdivided data is required for further processing
-    // a call to Synchronize() will allow you to block until the worker threads
-    // complete.
+    // worker threads. If the subdivided data is required for further
+    // processing a call to Synchronize() will allow you to block until
+    // the worker threads complete.
     //
     osdComputeController.Refine(osdComputeContext, osdVertexBuffer);
 
@@ -245,7 +241,20 @@ buildMesh(float *vertexData, int numVertices,
     
     float *points = osdVertexBuffer->BindCpuBuffer();
 
-    
+    for (int i=0; i< patches.size(); ++i) {
+        for (float u=0; u<1.0; u+=0.1) {
+            std::cout << "\t";            
+            for (float v=0; v<1.0; v+=0.1) {
+                vec3 position, utangent, vtangent;
+                patches[i].Eval(u, v, (vec3*)points,
+                                &position, &utangent, &vtangent);
+                std::cout << "(" << position[0] << "," <<
+                    position[1] << "," <<  position[2] << "), \n";
+            }
+            std::cout << "\n";
+        }
+        std::cout << "\n";
+    }
 
     
     delete osdVertexBuffer;
