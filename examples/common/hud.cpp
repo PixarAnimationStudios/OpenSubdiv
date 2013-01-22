@@ -277,7 +277,6 @@ Hud::drawChar(std::vector<float> &vboSource, int x, int y, float r, float g, flo
 int
 Hud::drawString(std::vector<float> &vboSource, int x, int y, float r, float g, float b, const char *c) const
 {
-    int numchar = (int)strlen(c);
     while(*c) {
         int ch = (*c) & 0x7f;
         x = drawChar(vboSource, x, y, r, g, b, ch);

@@ -365,17 +365,17 @@ EffectDrawRegistry g_effectRegistry;
 OpenSubdivShader::OpenSubdivShader()
     : _level(3),
       _tessFactor(2),
+      _adaptive(true),
+      _wireframe(false),
       _scheme(OsdMeshData::kCatmark),
       _kernel(OsdMeshData::kCPU),
       _interpolateBoundary(OsdMeshData::kInterpolateBoundaryNone),
-      _adaptive(true),
-      _wireframe(false),
       _interpolateUVBoundary(OsdMeshData::kInterpolateBoundaryNone),
+      _shaderSource( defaultShaderSource ),
       _hbrMeshDirty(true),
       _adaptiveDirty(true),
       _diffuseMapDirty(true),
-      _shaderSourceDirty(false),
-      _shaderSource( defaultShaderSource )
+      _shaderSourceDirty(false)
 {
 }
 
@@ -676,7 +676,7 @@ OpenSubdivShader::draw(const MHWRender::MDrawContext &mDrawContext,
     for (size_t i = 0; i < patches.size(); ++i) {
         OpenSubdiv::OsdPatchArray const & patch = patches[i];
 
-        GLint surfaceProgram = bindProgram(mDrawContext, osdDrawContext, patch);
+        bindProgram(mDrawContext, osdDrawContext, patch);
 
         if (patch.desc.type != OpenSubdiv::kNonPatch) {
             glPatchParameteri(GL_PATCH_VERTICES, patch.patchSize);

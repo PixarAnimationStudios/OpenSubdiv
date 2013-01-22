@@ -362,26 +362,26 @@ EffectDrawRegistry effectRegistry;
 OpenSubdivPtexShader::OpenSubdivPtexShader()
     : _level(3),
       _tessFactor(2),
+      _adaptive(true),
+      _wireframe(false),
       _scheme(OsdPtexMeshData::kCatmark),
       _kernel(OsdPtexMeshData::kCPU),
       _interpolateBoundary(OsdPtexMeshData::kInterpolateBoundaryNone),
-      _adaptive(true),
-      _wireframe(false),
-      _ptexColor(NULL), 
-      _ptexDisplacement(NULL), 
-      _ptexOcclusion(NULL),
       _enableColor(true),
       _enableDisplacement(true),
       _enableOcclusion(true),
       _enableNormal(true),
+      _ptexColor(NULL), 
+      _ptexDisplacement(NULL), 
+      _ptexOcclusion(NULL),
+      _shaderSource( defaultShaderSource ),
       _adaptiveDirty(false),
       _diffEnvMapDirty(true),
       _specEnvMapDirty(true),
       _ptexColorDirty(true),
       _ptexDisplacementDirty(true),
       _ptexOcclusionDirty(true),
-      _shaderSourceDirty(false),
-      _shaderSource( defaultShaderSource )
+      _shaderSourceDirty(false)
 {
 }
 
@@ -1110,10 +1110,6 @@ OpenSubdivPtexShader::bindProgram(const MHWRender::MDrawContext &     mDrawConte
         GLint texPages = glGetUniformLocation(program, "textureOcclusion_Pages");
         glProgramUniform1i(program, texPages, OCC_TEXTURE_UNIT + 2);
     }
-
-
-    MHWRender::MRenderer *theRenderer = MHWRender::MRenderer::theRenderer();
-    MHWRender::MTextureManager *theTextureManager = theRenderer->getTextureManager();
 
     // diffuse environment map
     if (effectRegistry.getDiffuseEnvironmentId() != 0) {

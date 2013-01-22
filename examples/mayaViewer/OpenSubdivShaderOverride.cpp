@@ -407,7 +407,6 @@ public:
         const MComponentDataIndexing &targetIndexing) const
     {
 #endif
-        const MVertexBufferDescriptor &desc = vertexBuffer.descriptor();
 
         MFnMesh meshFn(dagPath);
         int nVertices = meshFn.numVertices();
