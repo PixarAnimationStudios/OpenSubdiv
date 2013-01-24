@@ -164,6 +164,14 @@ int g_width = 0,
 float g_center[3] = {0.0f, 0.0f, 0.0f},
       g_size = 0.0f;
 
+
+//
+// The coarse mesh positions are saved externally and deformed
+// during playback.
+//
+std::vector<float> g_orgPositions;
+
+
 //
 // The OSD state: a mesh, vertex buffer and element array
 //
@@ -502,6 +510,8 @@ OsdEvalContext::UpdateData(float *vertexData)
 }
 
 
+OsdEvalContext *g_evalContext = NULL;
+
 //
 // ### Construct the OSD Mesh 
 
@@ -531,7 +541,6 @@ createOsdMesh(int level)
                         0.000000f, -1.414214f, -1.000000f,
                         1.414214f, 0.000000f, -1.000000f
                         };
-    std::vector<float> orgPositions;
 
     //
     // The cube faces are also in-lined, here they are specified as quads
@@ -552,9 +561,9 @@ createOsdMesh(int level)
     // defining the mesh topology.
     //
     for (unsigned i = 0; i < sizeof(verts)/sizeof(float); i += 3) {
-        orgPositions.push_back(verts[i+0]);
-        orgPositions.push_back(verts[i+1]);
-        orgPositions.push_back(verts[i+2]);
+        g_orgPositions.push_back(verts[i+0]);
+        g_orgPositions.push_back(verts[i+1]);
+        g_orgPositions.push_back(verts[i+2]);
         
         OpenSubdiv::OsdVertex vert;
         hmesh->NewVertex(i/3, vert);
@@ -635,43 +644,32 @@ createOsdMesh(int level)
     //
     hmesh->Finish();
 
-    // 
-    // At this point, we no longer need the topological structure of the mesh, 
-    // so we bake it down into subdivision tables and cubic patches by converting 
-    // the HBR mesh  into an OSD mesh. Note that this is just storing the initial 
-    // subdivision tables, which will be used later during the actual subdivision 
-    // process.
-    //
-    // Again, no vertex positions are being stored here, the point data will be 
-    // sent to the mesh in updateGeom().
-    //
-
-    // Create an OpenSubdiv mesh that uses a single thread on the CPU to compute,
     // has 3 elements per vertex (3 floats for position), is defined by the topology
     // in hmesh to level subdivisions, and has a bitset that indicates osd should use
     // adaptive subdivision.
     //
     OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex> meshFactory(hmesh, level, true);
 
-    _farMesh = meshFactory.Create(false /*ptex data*/,  false /*fvar data*/);
+    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMesh = 
+        meshFactory.Create(false /*ptex data*/,  false /*fvar data*/);
 
     // hmesh is no longer needed
     delete hmesh;
 
 
-    OsdEvalContext evalContext(farmesh, 3);
+    g_evalContext = new OsdEvalContext(farMesh, 3);
 
     // 
     // Setup camera positioning based on object bounds. This really has nothing
     // to do with OSD.
     //
-    computeCenterAndSize(orgPositions, g_center, &g_size);
+    computeCenterAndSize(g_orgPositions, g_center, &g_size);
 
     //
     // Finally, make an explicit call to updateGeom() to force creation of the 
     // initial buffer objects for the first draw call.
     //
-    evalContext->UpdateData(&orgPositions[0]);
+    g_evalContext->UpdateData(&g_orgPositions[0]);
 
     //
     // The OsdVertexBuffer provides GL identifiers which can be bound in the 
@@ -681,11 +679,11 @@ createOsdMesh(int level)
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->BindVBO());
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_drawContext->patchIndexBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+//    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->BindVBO());
+//    glEnableVertexAttribArray(0);
+//    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
+//    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_drawContext->patchIndexBuffer);
+//    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 //
@@ -724,24 +722,10 @@ updateGeom()
     }
 
     //
-    // Send the animated coarse positions to the vertex buffer.
+    // Send the animated coarse positions to the eval context,
+    // it'll do the refinement
     //
-    g_vertexBuffer->UpdateData(&vertex[0], nverts);
-
-    //
-    // Dispatch subdivision work based on the coarse vertex buffer. At this 
-    // point, the assigned dispatcher will queue up work, potentially in many
-    // worker threads. If the subdivided data is required for further processing
-    // a call to Synchronize() will allow you to block until the worker threads
-    // complete.
-    //
-    g_osdComputeController->Refine(g_osdComputeContext, g_vertexBuffer);
-
-    //
-    // The call to Synchronize() is not actually necessary, it's being used
-    // here only for illustration. 
-    //
-    // g_mesh->Synchronize();
+    g_evalContext->UpdateData(&vertex[0]);
 }
 
 
@@ -760,6 +744,7 @@ display()
     //
     // Bind the GL vertex and index buffers
     //
+/*    
     glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->BindVBO());
     
     OpenSubdiv::OsdPatchArrayVector const & patches = 
@@ -777,7 +762,7 @@ display()
                        GL_UNSIGNED_INT, 
                        (void *)(patch.firstIndex * sizeof(unsigned int)));
     }
-
+*/
     //
     // This isn't strictly necessary, but unbind the GL state
     //
