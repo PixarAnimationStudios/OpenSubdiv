@@ -59,16 +59,16 @@ project(OpenSubdiv)
 
 cmake_minimum_required(VERSION 2.8)
 
+# XXXX manuelk - API version is managed from opensubdiv/version.h - we should remove this
 set(OpenSubdiv_VERSION_MAJOR 0)
 set(OpenSubdiv_VERSION_MINOR 1)
 set(OpenSubdiv_VERSION_PATCH 0)
-
-set(OpenSubdiv_VERSION
-    ${OpenSubdiv_VERSION_MAJOR}.${OpenSubdiv_VERSION_MINOR}.${OpenSubdiv_VERSION_PATCH})
+set(OpenSubdiv_VERSION ${OpenSubdiv_VERSION_MAJOR}.${OpenSubdiv_VERSION_MINOR}.${OpenSubdiv_VERSION_PATCH})
 
 message(STATUS "Compiling ${CMAKE_PROJECT_NAME} version ${OpenSubdiv_VERSION}")
 message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
+#-------------------------------------------------------------------------------
 # Specify the default install path
 SET( CMAKE_INSTALL_PREFIX
      ${PROJECT_BINARY_DIR}/ )
@@ -98,19 +98,99 @@ set(CMAKE_MODULE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake
 )
 
-#add_definitions(-Wall)
-
-# Disable spurrious offsetof warning in gcc builds and clang
-if (CMAKE_COMPILER_IS_GNUCC OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-   add_definitions("-Wno-invalid-offsetof")
+#-------------------------------------------------------------------------------
+# Detect Clang (until a cmake version provides built-in variables)
+if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+    set(CMAKE_COMPILER_IS_CLANGCC 1)
 endif()
+
+
+# Disable spurrious warnings in gcc builds and clang
+if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC)
+
+    # Turn on all warnings
+    add_definitions(-Wall)
+
+    # HBR uses the offsetof macro on a templated struct, which appears
+    # to spurriously set off this warning in both gccc and Clang
+    add_definitions(-Wno-invalid-offsetof)
+    
+    # FAR and OSD have templated virtual function implementations that trigger
+    # a lot of hidden virtual function overloads (some of them spurrious).
+    # Disable those for now in Clang.
+    if(CMAKE_COMPILER_IS_CLANGCC)
+        add_definitions(-Wno-overloaded-virtual)
+    endif()
+
+elseif(MSVC)
+
+    # Turn on all warnings
+    add_definitions(/Wall)
+    
+    # MSVC is unfortunately not standard conforming with regards to
+    # the alternative names for logical and bitwise operators:
+    # http://stackoverflow.com/questions/555505/c-alternative-tokens
+    # http://stackoverflow.com/questions/6006526/c-writing-or-instead-of
+    #
+    # This can be solved by including iso646.h, but that is a rather
+    # unsatisfactory solution since we then always have to remember to
+    # include this header file.  Instead we define these operators
+    # ourselves as command line arguments to cl.exe.
+    #
+    # An alternative would be to compile with the /Za option
+    # (but unfortunately that breaks other code):
+    # http://msdn.microsoft.com/en-us/library/0k0w269d.aspx
+    add_definitions(
+                    /Dand=&&
+                    /Dand_eq=&=
+                    /Dbitand=&
+                    /Dbitor=|
+                    /Dcompl=~
+                    /Dnot=!
+                    /Dnot_eq=!=
+                    /Dor=||
+                    /Dor_eq=|=
+                    # nvcc does not seem to like a caret being the last character
+                    # in a command line defined preprocessor symbol, so add an
+                    # empty trailing comment to avoid this.
+                    /Dxor=^/**/
+                    /Dxor_eq=^=
+                    )
+    
+    add_definitions(
+                    /W3     # Use warning level recommended for production purposes.
+                    /WX     # Treat all compiler warnings as errors.
+                    
+                    # Make sure WinDef.h does not define min and max macros which
+                    # will conflict with std::min() and std::max().
+                    /DNOMINMAX
+                    
+                    # Make sure the constants in <math.h> get defined.
+                    /D_USE_MATH_DEFINES
+                    
+                    # Do not enforce MSVC's safe CRT replacements.
+                    /D_CRT_SECURE_NO_WARNINGS
+                    
+                    # Disable checked iterators and iterator debugging.  Visual Studio
+                    # 2008 does not implement std::vector::data(), so we need to take the
+                    # address of std::vector::operator[](0) to get the memory location of
+                    # a vector's underlying data storage.  This does not work for an empty
+                    # vector if checked iterators or iterator debugging is enabled.
+                    /D_SECURE_SCL=0
+                    /D_HAS_ITERATOR_DEBUGGING=0
+                    )
+endif()
+
+#-------------------------------------------------------------------------------
 
 # Ignore rules that will re-run cmake (this will avoid constant
 # reloading of the generated Visual Studio project).
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 
 # Check for dependencies
-find_package(OpenMP)
+if(NOT NO_OMP)
+    find_package(OpenMP)
+endif()
 find_package(OpenGL)
 find_package(OpenGLES)
 find_package(OpenCL)
@@ -255,62 +335,9 @@ if (WIN32)
     endif()
 endif()
 
-if(MSVC)
-    # MSVC is unfortunately not standard conforming with regards to
-    # the alternative names for logical and bitwise operators:
-    # http://stackoverflow.com/questions/555505/c-alternative-tokens
-    # http://stackoverflow.com/questions/6006526/c-writing-or-instead-of
-    #
-    # This can be solved by including iso646.h, but that is a rather
-    # unsatisfactory solution since we then always have to remember to
-    # include this header file.  Instead we define these operators
-    # ourselves as command line arguments to cl.exe.
-    #
-    # An alternative would be to compile with the /Za option
-    # (but unfortunately that breaks other code):
-    # http://msdn.microsoft.com/en-us/library/0k0w269d.aspx
-    add_definitions(
-        /Dand=&&
-        /Dand_eq=&=
-        /Dbitand=&
-        /Dbitor=|
-        /Dcompl=~
-        /Dnot=!
-        /Dnot_eq=!=
-        /Dor=||
-        /Dor_eq=|=
-        # nvcc does not seem to like a caret being the last character
-        # in a command line defined preprocessor symbol, so add an
-        # empty trailing comment to avoid this.
-        /Dxor=^/**/
-        /Dxor_eq=^=
-    )
 
-    add_definitions(
-        /W3     # Use warning level recommended for production purposes.
-        /WX     # Treat all compiler warnings as errors.
-
-        # Make sure WinDef.h does not define min and max macros which
-        # will conflict with std::min() and std::max().
-        /DNOMINMAX
-
-        # Make sure the constants in <math.h> get defined.
-        /D_USE_MATH_DEFINES
-
-        # Do not enforce MSVC's safe CRT replacements.
-        /D_CRT_SECURE_NO_WARNINGS
-
-        # Disable checked iterators and iterator debugging.  Visual Studio
-        # 2008 does not implement std::vector::data(), so we need to take the
-        # address of std::vector::operator[](0) to get the memory location of
-        # a vector's underlying data storage.  This does not work for an empty
-        # vector if checked iterators or iterator debugging is enabled.
-        /D_SECURE_SCL=0
-        /D_HAS_ITERATOR_DEBUGGING=0
-    )
-endif(MSVC)
-
-
+#-------------------------------------------------------------------------------
+# General-use macros
 
 # Macro for adding a cuda executable if cuda is found and a regular
 # executable otherwise.
@@ -357,6 +384,8 @@ macro(_add_glut_executable target)
 
 endmacro()
 
+#-------------------------------------------------------------------------------
+# Build targets
 
 add_subdirectory(opensubdiv)
 

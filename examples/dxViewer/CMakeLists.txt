@@ -73,6 +73,7 @@ include_directories(
 )
 
 set(SOURCE_FILES
+    ../common/font_image.cpp
     ../common/hud.cpp
     ../common/d3d11_hud.cpp
     dxViewer.cpp

@@ -58,8 +58,10 @@
 #if defined(__APPLE__)
     #include <maya/OpenMayaMac.h>
 #else
-    // Include GLEW before Maya and OSD includes
     #include <GL/glew.h>
+    #if defined(WIN32)
+        #include <GL/wglew.h>
+    #endif
 #endif
 
 
