@@ -237,7 +237,7 @@ GLhud::Flush()
 
     glUseProgram(_program);
     float proj[16];
-    ortho(proj, 0, 0, GetWidth(), GetHeight());
+    ortho(proj, 0, 0, float(GetWidth()), float(GetHeight()));
     glUniformMatrix4fv(_mvpMatrix, 1, GL_FALSE, proj);
 
     {
