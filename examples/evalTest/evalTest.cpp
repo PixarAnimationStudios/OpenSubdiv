@@ -175,12 +175,6 @@ typedef OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex>   OsdHbrVertex;
 typedef OpenSubdiv::HbrFace<OpenSubdiv::OsdVertex>     OsdHbrFace;
 typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
-//
-// The coarse mesh positions and saved externally and deformed
-// during playback.
-//
-std::vector<float> g_orgPositions;
-
 // 
 // Forward declarations. These functions will be described below as they are 
 // defined.
@@ -346,10 +340,18 @@ public:
 
 class OsdEvalContext : OpenSubdiv::OsdNonCopyable<OsdEvalContext> {
 public:
-  explicit OsdEvalContext(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farmesh);
-    virtual ~OsdEvalContext() {}
 
-  OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *GetFarMesh() { return _farMesh; }
+    explicit OsdEvalContext(
+        OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farmesh,
+        unsigned int elementsPerVertex);
+    
+    virtual ~OsdEvalContext();
+
+    // vertexData contains one float for each "elementsPerVertex",
+    // for each vertex.  For position it'd be three floats for each vertex.
+    void UpdateData(float *vertexData);
+
+     OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *GetFarMesh() { return _farMesh; }
 
 
   /*
@@ -371,16 +373,31 @@ public:
   }
   */
 
-  OpenSubdiv::FarTable<unsigned int> _patchTable;
+    OpenSubdiv::FarTable<unsigned int> _patchTable;
 
 
 private:
-  OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *_farMesh;
+    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *_farMesh;
+    std::vector<MyPatch> _patches;
+
+    // ElementsPerVertex would be 3 for xyz position, 6 for xyz
+    // position + xyz normal, or more for shading data.  Here elements
+    // represents the data specified per vertex and interpolated on the
+    // surface, e.g. vertex varying
+    //
+    unsigned int _elementsPerVertex;
+
+    OpenSubdiv::OsdCpuComputeContext *_osdComputeContext;
+    OpenSubdiv::OsdCpuComputeController _osdComputeController;
+    OpenSubdiv::OsdCpuVertexBuffer *_osdVertexBuffer;
 };
 
 
-OsdEvalContext::OsdEvalContext(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMesh)
-    : _farMesh(farMesh)
+OsdEvalContext::OsdEvalContext(
+    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMesh,
+    unsigned int elementsPerVertex)
+    : _farMesh(farMesh),
+      _elementsPerVertex(elementsPerVertex)
 {
 
     const FarPatchTables *patchTables = farMesh->GetPatchTables();
@@ -399,7 +416,6 @@ OsdEvalContext::OsdEvalContext(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMe
     const OpenSubdiv::FarTable<unsigned int> &ptable =
         patchTables->GetFullRegularPatches();
 
-    std::vector<MyPatch> patches;
     
     // Iterate over all patches in this table.  Don't worry about markers here,
     // those would tell use what level of subdivision the patch was created on.
@@ -413,32 +429,45 @@ OsdEvalContext::OsdEvalContext(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMe
         // of 16 control point indices stored in
         // the patch table.
         MyPatch patch(vertIndices + i);
-        patches.push_back(patch);
+        _patches.push_back(patch);
     }
 
     
+    std::cout << "Made " << _patches.size() << " patches\n";
 
-    std::cout << "Made " << patches.size() << " patches\n";
+    // Now create OpenSubdiv compute objects that will be used
+    // later for limit surface computation
+
+    _osdComputeContext = OpenSubdiv::OsdCpuComputeContext::Create(_farMesh);
+    _osdVertexBuffer =
+        OpenSubdiv::OsdCpuVertexBuffer::Create(
+            3 /* 3 floats for position*/ , _farMesh->GetNumVertices());
+}
 
 
+
+OsdEvalContext::~OsdEvalContext()
+{
+    if (_osdComputeContext)
+        delete _osdComputeContext;
+
+    if (_osdVertexBuffer) 
+        delete _osdVertexBuffer;
+}
+
+
+
+void
+OsdEvalContext::UpdateData(float *vertexData)
+{
     // Now compute control point positions and shading data on the
     // refined surface.
     //
-    // First, create OpenSubdiv compute objects 
-
-    OpenSubdiv::OsdCpuComputeContext *osdComputeContext =
-        OpenSubdiv::OsdCpuComputeContext::Create(_farMesh);
-    OpenSubdiv::OsdCpuComputeController osdComputeController;
-    OpenSubdiv::OsdCpuVertexBuffer *osdVertexBuffer = 
-        OpenSubdiv::OsdCpuVertexBuffer::Create(
-            3 /* 3 floats for position*/ , _farMesh->GetNumVertices());
-    
 
     //
     // Send the animated coarse positions to the vertex buffer.
     //
-    osdVertexBuffer->UpdateData(vertexData, numVertices);
-
+    _osdVertexBuffer->UpdateData(vertexData, _farMesh->GetNumVertices());
     
     //
     // Dispatch subdivision work based on the coarse vertex buffer. At this 
@@ -447,33 +476,29 @@ OsdEvalContext::OsdEvalContext(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMe
     // processing a call to Synchronize() will allow you to block until
     // the worker threads complete.
     //
-    osdComputeController.Refine(osdComputeContext, osdVertexBuffer);
-
+    _osdComputeController.Refine(_osdComputeContext, _osdVertexBuffer);
 
     //
-    // Is the call to Synchronize() needed here?
+    // Is the call to Synchronize() needed here in order to call BindCpuBuffer?
     //
-    osdComputeController.Synchronize();
+    _osdComputeController.Synchronize();
     
-    float *points = osdVertexBuffer->BindCpuBuffer();
+    float *points = _osdVertexBuffer->BindCpuBuffer();
 
-    for (int i=0; i< patches.size(); ++i) {
+    for (int i=0; i< _patches.size(); ++i) {
         for (float u=0; u<1.0; u+=0.1) {
             std::cout << "\t";            
             for (float v=0; v<1.0; v+=0.1) {
                 simpleVec3 position, utangent, vtangent;
-                patches[i].Eval(u, v, (simpleVec3*)points,
+                _patches[i].Eval(u, v, (simpleVec3*)points,
                                 &position, &utangent, &vtangent);
-                std::cout << "(" << position[0] << "," <<
-                    position[1] << "," <<  position[2] << "), \n";
+                std::cout << "(" << position.x << "," <<
+                    position.y << "," <<  position.z << "), \n";
             }
             std::cout << "\n";
         }
         std::cout << "\n";
     }
-
-    
-    delete osdVertexBuffer;
 }
 
 
@@ -506,6 +531,7 @@ createOsdMesh(int level)
                         0.000000f, -1.414214f, -1.000000f,
                         1.414214f, 0.000000f, -1.000000f
                         };
+    std::vector<float> orgPositions;
 
     //
     // The cube faces are also in-lined, here they are specified as quads
@@ -526,9 +552,9 @@ createOsdMesh(int level)
     // defining the mesh topology.
     //
     for (unsigned i = 0; i < sizeof(verts)/sizeof(float); i += 3) {
-        g_orgPositions.push_back(verts[i+0]);
-        g_orgPositions.push_back(verts[i+1]);
-        g_orgPositions.push_back(verts[i+2]);
+        orgPositions.push_back(verts[i+0]);
+        orgPositions.push_back(verts[i+1]);
+        orgPositions.push_back(verts[i+2]);
         
         OpenSubdiv::OsdVertex vert;
         hmesh->NewVertex(i/3, vert);
@@ -627,25 +653,25 @@ createOsdMesh(int level)
     //
     OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex> meshFactory(hmesh, level, true);
 
-    farmesh = meshFactory.Create(false /*ptex data*/,  false /*fvar data*/);
+    _farMesh = meshFactory.Create(false /*ptex data*/,  false /*fvar data*/);
 
     // hmesh is no longer needed
     delete hmesh;
 
 
-    OsdEvalContext evalContext(farmesh);
+    OsdEvalContext evalContext(farmesh, 3);
 
     // 
     // Setup camera positioning based on object bounds. This really has nothing
     // to do with OSD.
     //
-    computeCenterAndSize(g_orgPositions, g_center, &g_size);
+    computeCenterAndSize(orgPositions, g_center, &g_size);
 
     //
     // Finally, make an explicit call to updateGeom() to force creation of the 
     // initial buffer objects for the first draw call.
     //
-    updateGeom();
+    evalContext->UpdateData(&orgPositions[0]);
 
     //
     // The OsdVertexBuffer provides GL identifiers which can be bound in the 
