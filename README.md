@@ -50,6 +50,7 @@ Optional:
 -DGLEW_LOCATION=[path to GLEW]
 -DGLUT_LOCATION=[path to GLUT]
 -DMAYA_LOCATION=[path to Maya]
+-DNO_OMP=1 // disable OpenMP
 ````
 
 The paths to Maya, Ptex, GLUT, and GLEW can also be specified through the

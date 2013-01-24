@@ -55,7 +55,12 @@
 //     a particular purpose and non-infringement.
 //
 
-#include <GL/glew.h>
+#if not defined(__APPLE__)
+    #include <GL/glew.h>
+    #if defined(WIN32)
+        #include <GL/wglew.h>
+    #endif
+#endif
 
 #include <maya/MFnTypedAttribute.h>
 #include <maya/MFnNumericAttribute.h>

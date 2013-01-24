@@ -55,7 +55,12 @@
 //     a particular purpose and non-infringement.
 //
 
-#include <GL/glew.h>
+#if not defined(__APPLE__)
+    #include <GL/glew.h>
+    #if defined(WIN32)
+        #include <GL/wglew.h>
+    #endif
+#endif
 
 // Include this first to avoid winsock2.h problems on Windows:
 #include <maya/MTypes.h>
@@ -371,7 +376,6 @@ public:
         const MComponentDataIndexing &targetIndexing) const
     {
 #endif
-        const MVertexBufferDescriptor &desc = vertexBuffer.descriptor();
 
         MFnMesh meshFn(dagPath);
         int nVertices = meshFn.numVertices();
