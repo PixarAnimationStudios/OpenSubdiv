@@ -58,6 +58,7 @@
 #define OSD_CUDA_INIT_H
 
 #include <algorithm>
+#include <cstdio>
 
 // From "NVIDIA GPU Computing SDK 4.2/C/common/inc/cutil_inline_runtime.h":
 

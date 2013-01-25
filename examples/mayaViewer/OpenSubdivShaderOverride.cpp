@@ -60,8 +60,15 @@
 //      Viewport 2.0 override for OpenSubdivShader, implementing
 //      custom shading for OpenSubdiv patches.
 
-/* Include GLEW before Maya and OSD includes */
-#include <GL/glew.h>
+#if defined(__APPLE__)
+    #include <maya/OpenMayaMac.h>
+#else
+    #include <GL/glew.h>
+    #if defined(WIN32)
+        #include <GL/wglew.h>
+    #endif
+#endif
+
 
 // Include this first to avoid winsock2.h problems on Windows:
 #include <maya/MTypes.h>
@@ -402,7 +409,6 @@ public:
         const MComponentDataIndexing &targetIndexing) const
     {
 #endif
-        const MVertexBufferDescriptor &desc = vertexBuffer.descriptor();
 
         MFnMesh meshFn(dagPath);
         int nVertices = meshFn.numVertices();
@@ -444,7 +450,9 @@ initializePlugin(MObject obj)
                          "drawdb/shader/surface/OpenSubdivShader:"
                          "swatch/"+swatchName);
 
+#if not defined(__APPLE__)
     glewInit();
+#endif
 
     g_cpuComputeController = new OpenSubdiv::OsdCpuComputeController();
 

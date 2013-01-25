@@ -84,6 +84,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 OsdCLKernelBundle::OsdCLKernelBundle() :
+    _clProgram(NULL),
     _clBilinearEdge(NULL),
     _clBilinearVertex(NULL),
     _clCatmarkFace(NULL),
@@ -92,8 +93,8 @@ OsdCLKernelBundle::OsdCLKernelBundle() :
     _clCatmarkVertexB(NULL),
     _clLoopEdge(NULL),
     _clLoopVertexA(NULL),
-    _clLoopVertexB(NULL),
-    _clProgram(NULL) {
+    _clLoopVertexB(NULL)
+ {
 }
 
 OsdCLKernelBundle::~OsdCLKernelBundle() {

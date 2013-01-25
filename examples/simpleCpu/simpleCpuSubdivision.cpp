@@ -331,7 +331,7 @@ createOsdContext(int level)
         // Now, create current face given the number of verts per face and the 
         // face index data.
         //
-        OsdHbrFace * face = hmesh->NewFace(VERTS_PER_FACE, faces+i, 0);
+        /* OsdHbrFace * face = */ hmesh->NewFace(VERTS_PER_FACE, faces+i, 0);
 
         //
         // If you had ptex data, you would set it here, for example
@@ -446,7 +446,7 @@ updateGeom()
     // 
     float r = sin(g_frame*0.001f);
     for (int i = 0; i < nverts; ++i) {
-        float move = 0.05f*cosf(p[0]*20+g_frame*0.01f);
+        //float move = 0.05f*cosf(p[0]*20+g_frame*0.01f);
         float ct = cos(p[2] * r);
         float st = sin(p[2] * r);
         

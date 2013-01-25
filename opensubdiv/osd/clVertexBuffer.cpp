@@ -65,7 +65,7 @@ namespace OPENSUBDIV_VERSION {
 OsdCLVertexBuffer::OsdCLVertexBuffer(int numElements, int numVertices,
                                      cl_context clContext)
     : _numElements(numElements), _numVertices(numVertices),
-      _clMemory(NULL), _clQueue(NULL) {
+      _clQueue(NULL), _clMemory(NULL) {
 
 }
 

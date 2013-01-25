@@ -76,7 +76,7 @@ template <class T> class HbrFVarData {
 public:
 
     HbrFVarData()
-        : initialized(0), faceid( 0 ) {
+        : faceid(0), initialized(0) {
     }
 
     ~HbrFVarData() {

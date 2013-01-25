@@ -262,18 +262,16 @@ OpenSubdiv::OsdGLPtexTexture * g_osdPTexOcclusion = 0;
 OpenSubdiv::OsdGLPtexTexture * g_osdPTexSpecular = 0;
 const char * g_ptexColorFilename;
 
-static void
+/*static void
 checkGLErrors(std::string const & where = "")
 {
     GLuint err;
     while ((err = glGetError()) != GL_NO_ERROR) {
-        /*
         std::cerr << "GL error: "
                   << (where.empty() ? "" : where + " ")
                   << err << "\n";
-        */
     }
-}
+}*/
 //------------------------------------------------------------------------------
 static void
 calcNormals(OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float> & result ) {
@@ -710,7 +708,7 @@ createPtex(const char *filename) {
     printf("Loading ptex : %s\n", filename);
     PtexTexture *ptex = PtexTexture::open(filename, ptexError, true);
     if (ptex == NULL) {
-        printf("Error in reading %s\n", ptex);
+        printf("Error in reading %s\n", filename);
         exit(1);
     }
     OpenSubdiv::OsdGLPtexTexture *osdPtex = OpenSubdiv::OsdGLPtexTexture::Create(
@@ -938,15 +936,15 @@ bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
             float specular[4];
         } lightSource[2];
     } lightingData = {
-        0.5, 0.2f, 1.0f, 0.0f,
-        0.1f, 0.1f, 0.1f, 1.0f,
-        0.7f, 0.7f, 0.7f, 1.0f,
-        0.8f, 0.8f, 0.8f, 1.0f,
-        
-        -0.8f, 0.4f, -1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f,
-        0.5f, 0.5f, 0.5f, 1.0f,
-        0.8f, 0.8f, 0.8f, 1.0f,
+       {{  { 0.5,  0.2f, 1.0f, 0.0f },
+           { 0.1f, 0.1f, 0.1f, 1.0f },
+           { 0.7f, 0.7f, 0.7f, 1.0f },
+           { 0.8f, 0.8f, 0.8f, 1.0f } },
+ 
+         { { -0.8f, 0.4f, -1.0f, 0.0f },
+           {  0.0f, 0.0f,  0.0f, 1.0f },
+           {  0.5f, 0.5f,  0.5f, 1.0f },
+           {  0.8f, 0.8f,  0.8f, 1.0f } }}
     };
     if (! g_lightingUB) {
         glGenBuffers(1, &g_lightingUB);
@@ -1043,7 +1041,7 @@ drawModel() {
 
         OpenSubdiv::OsdPatchType patchType = patch.desc.type;
         int patchPattern = patch.desc.pattern;
-        int patchRotation = patch.desc.rotation;
+        //int patchRotation = patch.desc.rotation;
 
         if (g_mesh->GetDrawContext()->IsAdaptive()) {
 

@@ -57,7 +57,14 @@
 #ifndef GL_HUD_H
 #define GL_HUD_H
 
-#include <GL/gl.h>
+#if defined(ANDROID)
+    #include <GLES2/gl2.h>
+#else
+    #if defined(_WIN32)
+        #include <windows.h>
+    #endif
+    #include <GL/gl.h>
+#endif
 #include "hud.h"
 
 class GLhud : public Hud
@@ -76,6 +83,10 @@ private:
     GLuint _fontTexture;
     GLuint _vbo, _staticVbo;
     int _staticVboSize;
+
+    GLint _program;
+    GLint _mvpMatrix;
+    GLint _aPosition, _aColor, _aUV;
 };
 
 #endif // GL_HUD_H

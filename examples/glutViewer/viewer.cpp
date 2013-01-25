@@ -244,7 +244,7 @@ static void
 initializeShapes( ) {
 
 #include <shapes/bilinear_cube.h>
-//    g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
+    g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
 
 #include <shapes/catmark_cube_corner0.h>
     g_defaultShapes.push_back(SimpleShape(catmark_cube_corner0, "catmark_cube_corner0", kCatmark));
@@ -424,7 +424,7 @@ updateGeom() {
 
     float r = sin(g_frame*0.001f) * g_moveScale;
     for (int i = 0; i < nverts; ++i) {
-        float move = 0.05f*cosf(p[0]*20+g_frame*0.01f);
+        //float move = 0.05f*cosf(p[0]*20+g_frame*0.01f);
         float ct = cos(p[2] * r);
         float st = sin(p[2] * r);
         g_positions[i*3+0] = p[0]*ct + p[1]*st;
@@ -899,15 +899,15 @@ bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
             float specular[4];
         } lightSource[2];
     } lightingData = {
-        0.5, 0.2f, 1.0f, 0.0f,
-        0.1f, 0.1f, 0.1f, 1.0f,
-        0.7f, 0.7f, 0.7f, 1.0f,
-        0.8f, 0.8f, 0.8f, 1.0f,
-        
-        -0.8f, 0.4f, -1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f,
-        0.5f, 0.5f, 0.5f, 1.0f,
-        0.8f, 0.8f, 0.8f, 1.0f,
+       {{  { 0.5,  0.2f, 1.0f, 0.0f },
+           { 0.1f, 0.1f, 0.1f, 1.0f },
+           { 0.7f, 0.7f, 0.7f, 1.0f },
+           { 0.8f, 0.8f, 0.8f, 1.0f } },
+ 
+         { { -0.8f, 0.4f, -1.0f, 0.0f },
+           {  0.0f, 0.0f,  0.0f, 1.0f },
+           {  0.5f, 0.5f,  0.5f, 1.0f },
+           {  0.8f, 0.8f,  0.8f, 1.0f } }}
     };
     if (! g_lightingUB) {
         glGenBuffers(1, &g_lightingUB);

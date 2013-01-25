@@ -54,9 +54,15 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#include <GL/glew.h>
 
 #ifdef OPENSUBDIV_HAS_CUDA
+
+#if not defined(__APPLE__)
+    #include <GL/glew.h>
+    #if defined(WIN32)
+        #include <GL/wglew.h>
+    #endif
+#endif
 
 #include <cuda_runtime_api.h>
 #include <cuda_gl_interop.h>

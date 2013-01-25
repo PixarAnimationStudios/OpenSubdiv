@@ -87,9 +87,11 @@ SET(MAYA_VERSION_2012 TRUE)
 ## add one to this list to match your install if none match
 
 IF(APPLE)
-  FIND_PATH(MAYA_BASE_DIR include/maya/MFn.h PATH
+  FIND_PATH(MAYA_BASE_DIR ../../devkit/include/maya/MFn.h PATH
         ${MAYA_LOCATION}
         $ENV{MAYA_LOCATION}
+        "/Applications/Autodesk/maya2014/Maya.app/Contents"
+        "/Applications/Autodesk/maya2013.5/Maya.app/Contents"
         "/Applications/Autodesk/maya2013/Maya.app/Contents"
         "/Applications/Autodesk/maya2012.17/Maya.app/Contents"
         "/Applications/Autodesk/maya2012/Maya.app/Contents"
@@ -132,6 +134,10 @@ IF(WIN32)
   FIND_PATH(MAYA_BASE_DIR include/maya/MFn.h PATH
         ${MAYA_LOCATION}
         $ENV{MAYA_LOCATION}
+        "C:/Program Files/Autodesk/Maya2013.5-x64"
+        "C:/Program Files/Autodesk/Maya2013.5"
+        "C:/Program Files (x86)/Autodesk/Maya2013.5"
+        "C:/Autodesk/maya-2013.5x64"
         "C:/Program Files/Autodesk/Maya2013-x64"
         "C:/Program Files/Autodesk/Maya2013"
         "C:/Program Files (x86)/Autodesk/Maya2013"
@@ -237,8 +243,4 @@ FIND_PROGRAM(MAYA_EXECUTABLE maya
 # all listed variables are TRUE
 INCLUDE(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(Maya DEFAULT_MSG ${MAYA_LIBRARIES} MAYA_EXECUTABLE  MAYA_INCLUDE_DIRS)
-
-IF(NOT MAYA_FOUND AND NOT MAYA_FIND_QUIETLY)
-  MESSAGE("Remember that currently there's support only for Maya 2012. ")
-ENDIF()
 
