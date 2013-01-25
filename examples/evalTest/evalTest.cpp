@@ -171,6 +171,12 @@ float g_center[3] = {0.0f, 0.0f, 0.0f},
 //
 std::vector<float> g_orgPositions;
 
+// Global cache of subdivided positions and triangle mesh
+std::vector<float> g_refinedPositions;
+std::vector<unsigned int> g_refinedTriangleIndices;
+
+GLuint g_refinedPositionsBuf;
+GLuint g_refinedTriangleIndicesBuf;
 
 //
 // The OSD state: a mesh, vertex buffer and element array
@@ -359,6 +365,10 @@ public:
     // for each vertex.  For position it'd be three floats for each vertex.
     void UpdateData(float *vertexData);
 
+    void TessellateIntoTriangles(
+        std::vector<unsigned int> *elementArray,
+        std::vector<float> *vertices);
+    
      OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *GetFarMesh() { return _farMesh; }
 
 
@@ -431,8 +441,6 @@ OsdEvalContext::OsdEvalContext(
     // per patch.
     const unsigned int *vertIndices = ptable[0];
     for (int i=0; i<ptable.GetSize(); i+=16) {
-        std::cout << "patch at index " << i << "\n";
-
         // Create a patch object from the next block
         // of 16 control point indices stored in
         // the patch table.
@@ -487,25 +495,75 @@ OsdEvalContext::UpdateData(float *vertexData)
     _osdComputeController.Refine(_osdComputeContext, _osdVertexBuffer);
 
     //
-    // Is the call to Synchronize() needed here in order to call BindCpuBuffer?
+    // Is the call to Synchronize() needed here in order to call BindCpuBuffer
+    // later?
     //
     _osdComputeController.Synchronize();
-    
+}
+
+
+void
+OsdEvalContext::TessellateIntoTriangles(
+    std::vector<unsigned int> *elementArray,
+    std::vector<float> *vertices)
+{
     float *points = _osdVertexBuffer->BindCpuBuffer();
 
+    unsigned int N = 7;
+    unsigned int N1 = N+1;    
+    float delta = 1.0/(float)N;
+
     for (int i=0; i< _patches.size(); ++i) {
-        for (float u=0; u<1.0; u+=0.1) {
-            std::cout << "\t";            
-            for (float v=0; v<1.0; v+=0.1) {
+
+        // Add points for this patch first, record the starting
+        // index of the points for this patch within vertices
+        // before adding point positions
+        int baseIndex = vertices->size()/3;
+        
+        for (float u=0; u<=1.0; u+=delta) {
+            for (float v=0; v<=1.0; v+=delta) {                
                 simpleVec3 position, utangent, vtangent;
                 _patches[i].Eval(u, v, (simpleVec3*)points,
-                                &position, &utangent, &vtangent);
-                std::cout << "(" << position.x << "," <<
-                    position.y << "," <<  position.z << "), \n";
+                                 &position, &utangent, &vtangent);
+                vertices->push_back(position.x);
+                vertices->push_back(position.y);
+                vertices->push_back(position.z);
+                elementArray->push_back(elementArray->size());
+                if (i==0) {
+                    std::cout << "\tPoint " << position.x << ", " << position.y << ", " << position.z << std::endl;
+                }
             }
-            std::cout << "\n";
         }
-        std::cout << "\n";
+
+        if (i==0)
+            std::cout << "Num points = " << vertices->size()/3 << "\n";
+
+        // Now add indexing for triangles
+/*        
+        for (unsigned int u=baseIndex; u< N*N + baseIndex; u+=N1) {
+            for (unsigned int v=0; v< N; ++v) {
+                // Add the indices for two triangles that get their
+                // point positions from the vertices array
+                elementArray->push_back(u      + v    );
+                elementArray->push_back(u + N1 + v    );
+                elementArray->push_back(u + N1 + v + 1);
+
+                elementArray->push_back(u      + v);
+                elementArray->push_back(u + N1 + v + 1);
+                elementArray->push_back(u      + v + 1);
+
+                if (i==0) {
+                    std::cout << "triIndices: ";
+                    for (int j=0; j<6; ++j) {
+                        std::cout << " " << (*elementArray)[elementArray->size() - (6-j)]; 
+                    }
+                    std::cout << "\n";
+                }                
+            }
+            if (i==0)
+                std::cout << "\n";
+        }
+*/        
     }
 }
 
@@ -522,16 +580,60 @@ OsdEvalContext *g_evalContext = NULL;
 void
 createOsdMesh(int level)
 {
+    std::cout << "Start createOsdMesh\n";
+    
     // 
     // Setup an OsdHbr mesh based on the desired subdivision scheme
     //
     static OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>  _catmark;
     OsdHbrMesh *hmesh(new OsdHbrMesh(&_catmark));
 
+/*    
     //
     // Now that we have a mesh, we need to add verticies and define the topology.
     // Here, we've declared the raw vertex data in-line, for simplicity
     //
+    float verts[] =   { 0.00f, 0.00f, 0.0f,
+                        0.33f, 0.00f, 0.0f,
+                        0.66f, 0.00f, 0.0f,
+                        1.00f, 0.00f, 0.0f,
+
+                        0.00f, 0.33f, 0.0f,
+                        0.33f, 0.33f, 0.0f,
+                        0.66f, 0.33f, 0.0f,
+                        1.00f, 0.33f, 0.0f,
+
+                        0.00f, 0.66f, 0.0f,
+                        0.33f, 0.66f, 0.0f,
+                        0.66f, 0.66f, 0.0f,
+                        1.00f, 0.66f, 0.0f,
+
+                        0.00f, 1.00f, 0.0f,
+                        0.33f, 1.00f, 0.0f,
+                        0.66f, 1.00f, 0.0f,
+                        1.00f, 1.00f, 0.0f};
+
+    //
+    // The cube faces are also in-lined, here they are specified as quads
+    //
+    int faces[] = {
+                        0,1,5,4,
+                        1,2,6,5,
+                        2,3,7,6,
+
+                        4,5,9,8,
+                        5,6,10,9,
+                        6,7,11,10,
+
+                        8,9,13,12,
+                        9,10,14,13,
+                        10,11,15,14                       
+                        };
+*/                        
+
+
+    
+
     float verts[] = {    0.000000f, -1.414214f, 1.000000f,
                         1.414214f, 0.000000f, 1.000000f,
                         -1.414214f, 0.000000f, 1.000000f,
@@ -553,6 +655,8 @@ createOsdMesh(int level)
                         1,7,5,3,
                         6,0,2,4
                         };
+                        
+
     //
     // Record the original vertex positions and add verts to the mesh.
     //
@@ -634,7 +738,7 @@ createOsdMesh(int level)
     // the API and the renderman spec for the full list of available operations.
     //
     hmesh->SetInterpolateBoundaryMethod( OsdHbrMesh::k_InterpolateBoundaryEdgeOnly );
-    
+   
     OsdHbrVertex * v = hmesh->GetVertex(0);
     v->SetSharpness(2.7f);
 
@@ -672,6 +776,24 @@ createOsdMesh(int level)
     g_evalContext->UpdateData(&g_orgPositions[0]);
 
     //
+    std::cout << "about to tessellate\n";
+    g_evalContext->TessellateIntoTriangles( &g_refinedTriangleIndices,
+                                            &g_refinedPositions);
+    std::cout << "done tessellating\n";
+
+    for (int i=0; i<g_refinedTriangleIndices.size(); ++i) {
+        std::cout << g_refinedTriangleIndices[i]<<"\n ";
+    }
+
+    std::cout << "total triangle indices = " << g_refinedTriangleIndices.size() << " Last one is " <<  g_refinedTriangleIndices[g_refinedTriangleIndices.size()-1] << "\n";
+
+    for (int i=0; i<g_refinedPositions.size(); ++i) {
+        std::cout << g_refinedPositions[i]<<"\n ";
+    }
+
+    std::cout << "total refined positions = " << g_refinedPositions.size()/3 << "\n";
+
+    //
     // The OsdVertexBuffer provides GL identifiers which can be bound in the 
     // standard way. Here we setup a single VAO and enable points
     // as an attribute on the vertex buffer and set the index buffer.
@@ -679,11 +801,24 @@ createOsdMesh(int level)
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
-//    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->BindVBO());
-//    glEnableVertexAttribArray(0);
-//    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
-//    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_drawContext->patchIndexBuffer);
-//    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glGenBuffers(1, &g_refinedPositionsBuf);
+    glGenBuffers(1, &g_refinedTriangleIndicesBuf);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  g_refinedTriangleIndicesBuf);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                 g_refinedTriangleIndices.size() * sizeof(unsigned int),
+                 &(g_refinedTriangleIndices[0]), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);    
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_refinedPositionsBuf);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
+    glBufferData(GL_ARRAY_BUFFER, g_refinedPositions.size() * sizeof(float) * 3,
+                 NULL, GL_STATIC_DRAW);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    std::cout << "End createOsdMesh\n";    
 }
 
 //
@@ -696,10 +831,11 @@ createOsdMesh(int level)
 void
 updateGeom() 
 {
+    std::cout << "Start updateGeom\n";    
     int nverts = (int)g_orgPositions.size() / 3;
 
     std::vector<float> vertex;
-    vertex.reserve(nverts*6);
+    vertex.reserve(nverts*3);
 
     const float *p = &g_orgPositions[0];
 
@@ -710,7 +846,7 @@ updateGeom()
     // 
     float r = sin(g_frame*0.01f);
     for (int i = 0; i < nverts; ++i) {
-        float move = 0.05f*cosf(p[0]*20+g_frame*0.01f);
+        float move = 0.05f*cosf(p[0]*20+g_frame*0.1f);
         float ct = cos(p[2] * r);
         float st = sin(p[2] * r);
         
@@ -724,8 +860,16 @@ updateGeom()
     //
     // Send the animated coarse positions to the eval context,
     // it'll do the refinement
-    //
+    //    
     g_evalContext->UpdateData(&vertex[0]);
+
+    // re-get our refined triangle mesh
+    g_refinedTriangleIndices.clear();
+    g_refinedPositions.clear();         
+    g_evalContext->TessellateIntoTriangles( &g_refinedTriangleIndices,
+                                            &g_refinedPositions);
+
+    std::cout << "End updateGeom\n";        
 }
 
 
@@ -739,35 +883,42 @@ updateGeom()
 void
 display() 
 {
+    std::cout << "Start display\n";
     setupForDisplay(g_width, g_height, g_size, g_center);
 
     //
     // Bind the GL vertex and index buffers
     //
-/*    
-    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->BindVBO());
+    // Bind the GL vertex buffer and send newly
+    // refined points down the pipe
+    glBindBuffer(GL_ARRAY_BUFFER, g_refinedPositionsBuf);
+    glBufferSubData(GL_ARRAY_BUFFER, 0,
+                    g_refinedPositions.size() * sizeof(float) * 3,
+                    &g_refinedPositions[0]);
+
+
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_refinedTriangleIndicesBuf);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                 g_refinedTriangleIndices.size() * sizeof(unsigned int),
+                 &(g_refinedTriangleIndices[0]), GL_STATIC_DRAW);
+
+
+//    glDrawElements(GL_TRIANGLES, g_refinedTriangleIndices.size()/3,
+//                   GL_UNSIGNED_INT, NULL);
+
+    glDrawElements(GL_POINTS, g_refinedTriangleIndices.size(),
+                   GL_UNSIGNED_INT, NULL);
     
-    OpenSubdiv::OsdPatchArrayVector const & patches = 
-      g_drawContext->patchArrays;
 
-    for (int i=0; i<(int)patches.size(); ++i) {
-        OpenSubdiv::OsdPatchArray const & patch = patches[i];
 
-        //
-        // Bind the solid shaded program and draw elements based on the buffer contents
-        //
-        bindProgram(g_quadFillProgram);
-
-        glDrawElements(GL_POINTS, patch.numIndices,
-                       GL_UNSIGNED_INT, 
-                       (void *)(patch.firstIndex * sizeof(unsigned int)));
-    }
-*/
     //
     // This isn't strictly necessary, but unbind the GL state
     //
     glUseProgram(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);    
+
     //glDisableClientState(GL_VERTEX_ARRAY);
 
     //
@@ -775,7 +926,7 @@ display()
     //
     //glColor3f(1, 1, 1);
     drawString(10, 10, "LEVEL = %d", g_level);
-    drawString(10, 30, "# of Vertices = %d", g_farmesh->GetNumVertices());
+    drawString(10, 30, "# of Vertices = %d", g_refinedPositions.size()/3);
     drawString(10, 50, "KERNEL = CPU");
     drawString(10, 70, "SUBDIVISION = %s", "CATMARK");
 
@@ -783,6 +934,8 @@ display()
     // Finish the current frame
     //
     glFinish();
+
+    std::cout << "End display\n";    
 }
 
 
