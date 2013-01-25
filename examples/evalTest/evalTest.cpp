@@ -509,7 +509,7 @@ OsdEvalContext::TessellateIntoTriangles(
 {
     float *points = _osdVertexBuffer->BindCpuBuffer();
 
-    unsigned int N = 7;
+    unsigned int N = 1;
     unsigned int N1 = N+1;    
     float delta = 1.0/(float)N;
 
@@ -528,18 +528,16 @@ OsdEvalContext::TessellateIntoTriangles(
                 vertices->push_back(position.x);
                 vertices->push_back(position.y);
                 vertices->push_back(position.z);
-                elementArray->push_back(elementArray->size());
-                if (i==0) {
+                if (i==10) {
                     std::cout << "\tPoint " << position.x << ", " << position.y << ", " << position.z << std::endl;
                 }
             }
         }
 
-        if (i==0)
+        if (i==10)
             std::cout << "Num points = " << vertices->size()/3 << "\n";
 
         // Now add indexing for triangles
-/*        
         for (unsigned int u=baseIndex; u< N*N + baseIndex; u+=N1) {
             for (unsigned int v=0; v< N; ++v) {
                 // Add the indices for two triangles that get their
@@ -552,18 +550,18 @@ OsdEvalContext::TessellateIntoTriangles(
                 elementArray->push_back(u + N1 + v + 1);
                 elementArray->push_back(u      + v + 1);
 
-                if (i==0) {
+                if (i==10) {
                     std::cout << "triIndices: ";
                     for (int j=0; j<6; ++j) {
                         std::cout << " " << (*elementArray)[elementArray->size() - (6-j)]; 
                     }
                     std::cout << "\n";
-                }                
+                }
+
             }
-            if (i==0)
+            if (i==10)
                 std::cout << "\n";
         }
-*/        
     }
 }
 
@@ -814,7 +812,7 @@ createOsdMesh(int level)
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
     glBufferData(GL_ARRAY_BUFFER, g_refinedPositions.size() * sizeof(float) * 3,
-                 NULL, GL_STATIC_DRAW);
+                 NULL, GL_STREAM_DRAW);
     
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -846,7 +844,7 @@ updateGeom()
     // 
     float r = sin(g_frame*0.01f);
     for (int i = 0; i < nverts; ++i) {
-        float move = 0.05f*cosf(p[0]*20+g_frame*0.1f);
+        float move = 0.05f*cosf(p[0]*20+g_frame*0.001f);
         float ct = cos(p[2] * r);
         float st = sin(p[2] * r);
         
@@ -899,15 +897,11 @@ display()
 
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_refinedTriangleIndicesBuf);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 g_refinedTriangleIndices.size() * sizeof(unsigned int),
-                 &(g_refinedTriangleIndices[0]), GL_STATIC_DRAW);
-
 
 //    glDrawElements(GL_TRIANGLES, g_refinedTriangleIndices.size()/3,
 //                   GL_UNSIGNED_INT, NULL);
 
-    glDrawElements(GL_POINTS, g_refinedTriangleIndices.size(),
+    glDrawElements(GL_LINES, g_refinedTriangleIndices.size()/2,
                    GL_UNSIGNED_INT, NULL);
     
 
