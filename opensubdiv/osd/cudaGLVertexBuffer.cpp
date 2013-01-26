@@ -65,6 +65,7 @@
 #include <cuda_gl_interop.h>
 
 #include "../osd/cudaGLVertexBuffer.h"
+#include "../osd/error.h"
 
 #include <cassert>
 
@@ -88,6 +89,7 @@ OsdCudaGLVertexBuffer::Create(int numElements, int numVertices) {
     OsdCudaGLVertexBuffer *instance =
         new OsdCudaGLVertexBuffer(numElements, numVertices);
     if (instance->allocate()) return instance;
+    OsdError(OSD_CUDA_GL_ERROR,"OsdCudaGLVertexBuffer::Create failed.\n");
     delete instance;
     return NULL;
 }
@@ -131,14 +133,12 @@ OsdCudaGLVertexBuffer::allocate() {
 
     int size = _numElements * _numVertices * sizeof(float);
     GLint prev = 0;
-
+    
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
     glGenBuffers(1, &_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
     glBufferData(GL_ARRAY_BUFFER, size, 0, GL_STREAM_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, prev);
-
-    if (glGetError() != GL_NO_ERROR) return false;
 
     // register vbo as cuda resource
     cudaError_t err = cudaGraphicsGLRegisterBuffer(

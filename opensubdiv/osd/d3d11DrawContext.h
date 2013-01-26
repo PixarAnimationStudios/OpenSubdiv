@@ -87,6 +87,9 @@ public:
            ID3D11DeviceContext *pd3d11DeviceContext,
            bool requirePtexCoordinates = false,
            bool requireFVarData = false) {
+        
+        if (not vertexBuffer)
+            return NULL;
 
         OsdD3D11DrawContext * instance = new OsdD3D11DrawContext();
         if (instance->allocate(farMesh,

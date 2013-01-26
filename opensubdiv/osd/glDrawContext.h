@@ -93,6 +93,9 @@ public:
            bool requirePtexCoordinates=false,
            bool requireFVarData=false) {
 
+        if (not vertexBuffer) 
+            return NULL;
+
         OsdGLDrawContext * instance = new OsdGLDrawContext();
         if (instance->allocate(farMesh,
                                vertexBuffer->BindVBO(),
