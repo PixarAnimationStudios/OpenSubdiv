@@ -199,3 +199,30 @@ setupForDisplay(int width, int height, float size, float* center)
     translateMatrix(0, 0, -size, g_modelView);
 }
 
+
+static void
+checkGLErrors(std::string const & where = "")
+{
+    GLuint err;
+    while ((err = glGetError()) != GL_NO_ERROR) {
+        std::cout << "Where = " << where << std::endl;
+        
+        if (err == GL_INVALID_ENUM) {
+            std::cout << "GL_INVALID_ENUM\n";
+        } else 
+        if (err == GL_INVALID_VALUE) {
+            std::cout << "GL_INVALID_VALUE\n";
+        } else 
+        if (err == GL_INVALID_OPERATION) {
+            std::cout << "GL_INVALID_OPERATION\n";
+        } else
+        if (err == GL_INVALID_OPERATION) {
+            std::cout << "GL_INVALID_OPERATION\n";
+        } else
+        if (err == GL_OUT_OF_MEMORY) {
+            std::cout << "GL_OUT_OF_MEMORY\n";
+        } else {
+            std::cout << "Some other gl error                           \n";
+        }
+    }
+}

@@ -136,7 +136,7 @@ a particular purpose and non-infringement.
 #include "../../regression/common/mutex.h"
 
 #include <far/meshFactory.h>
-
+ 
 #include <osd/vertex.h>
 #include <osd/glDrawContext.h>
 #include <osd/cpuDispatcher.h>
@@ -816,6 +816,7 @@ createOsdMesh(int level)
     
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+    checkGLErrors("End createOsdMesh");    
     std::cout << "End createOsdMesh\n";    
 }
 
@@ -895,14 +896,16 @@ display()
                     &g_refinedPositions[0]);
 
 
-
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_refinedTriangleIndicesBuf);
 
 //    glDrawElements(GL_TRIANGLES, g_refinedTriangleIndices.size()/3,
 //                   GL_UNSIGNED_INT, NULL);
 
-    glDrawElements(GL_LINES, g_refinedTriangleIndices.size()/2,
-                   GL_UNSIGNED_INT, NULL);
+//    glDrawElements(GL_LINES, g_refinedTriangleIndices.size()/2,
+//                   GL_UNSIGNED_INT, NULL);
+
+    glDrawElements(GL_POINTS, g_refinedTriangleIndices.size()/3,
+                   GL_UNSIGNED_INT, NULL);    
     
 
 
@@ -929,6 +932,7 @@ display()
     //
     glFinish();
 
+    checkGLErrors("End display");
     std::cout << "End display\n";    
 }
 
