@@ -944,8 +944,6 @@ bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
     }
     glActiveTexture(GL_TEXTURE0);
 
-    checkGLErrors("bindProgram leave");
-
     return program;
 }
 
