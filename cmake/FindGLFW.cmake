@@ -56,25 +56,25 @@
 #
 #
 
-# Try to find GLUT library and include path.
+# Try to find GLFW library and include path.
 # Once done this will define
 #
-# GLUT_FOUND
-# GLUT_INCLUDE_DIR
-# GLUT_LIBRARIES
+# GLFW_FOUND
+# GLFW_INCLUDE_DIR
+# GLFW_LIBRARIES
 #
 
 if (WIN32)
     if(CYGWIN)
-        find_path( GLUT_INCLUDE_DIR GL/glut.h
-          ${GLUT_LOCATION}/include
-          $ENV{GLUT_LOCATION}/include
+        find_path( GLFW_INCLUDE_DIR GL/glfw.h
+          ${GLFW_LOCATION}/include
+          $ENV{GLFW_LOCATION}/include
           /usr/include
         )
-        find_library( GLUT_glut_LIBRARY glut32 freeglut
-          ${GLUT_LOCATION}/lib
-          ${GLUT_LOCATION}/lib/x64
-          $ENV{GLUT_LOCATION}/lib
+        find_library( GLFW_glfw_LIBRARY glfw32
+          ${GLFW_LOCATION}/lib
+          ${GLFW_LOCATION}/lib/x64
+          $ENV{GLFW_LOCATION}/lib
           ${OPENGL_LIBRARY_DIR}
           /usr/lib
           /usr/lib/w32api
@@ -82,39 +82,47 @@ if (WIN32)
           /usr/X11R6/lib
         )
     else()
-        find_path( GLUT_INCLUDE_DIR GL/glut.h
-            ${GLUT_LOCATION}/include
-            $ENV{GLUT_LOCATION}/include
-            ${PROJECT_SOURCE_DIR}/extern/glut/include
-            $ENV{PROGRAMFILES}/GLUT/include
+        find_path( GLFW_INCLUDE_DIR GL/glfw.h
+            ${GLFW_LOCATION}/include
+            $ENV{GLFW_LOCATION}/include
+            ${PROJECT_SOURCE_DIR}/extern/glfw/include
+            $ENV{PROGRAMFILES}/GLFW/include
             ${OPENGL_INCLUDE_DIR}
-            DOC "The directory where GL/glut.h resides")
-        find_library( GLUT_glut_LIBRARY
-            NAMES glut32 glut32s glut freeglut
+            DOC "The directory where GL/glfw.h resides")
+        find_library( GLFW_glfw_LIBRARY
+            NAMES glfw32 glfw32s glfw
             PATHS
-            ${GLUT_LOCATION}/lib
-            ${GLUT_LOCATION}/lib/x64
-            $ENV{GLUT_LOCATION}/lib
-            ${PROJECT_SOURCE_DIR}/extern/glut/bin
-            ${PROJECT_SOURCE_DIR}/extern/glut/lib
-            $ENV{PROGRAMFILES}/GLUT/lib
+            ${GLFW_LOCATION}/lib
+            ${GLFW_LOCATION}/lib/x64
+            ${GLFW_LOCATION}/lib-msvc110
+            $ENV{GLFW_LOCATION}/lib
+            ${PROJECT_SOURCE_DIR}/extern/glfw/bin
+            ${PROJECT_SOURCE_DIR}/extern/glfw/lib
+            $ENV{PROGRAMFILES}/GLFW/lib
             ${OPENGL_LIBRARY_DIR}
-            DOC "The GLUT library")
+            DOC "The GLFW library")
 
     endif()
 else ()
     if (APPLE)
         # These values for Apple could probably do with improvement.
-        find_path( GLUT_INCLUDE_DIR glut.h
-            /System/Library/Frameworks/GLUT.framework/Versions/A/Headers
-            ${OPENGL_LIBRARY_DIR}
+        find_path( GLFW_INCLUDE_DIR GL/glfw.h
+            ${GLFW_LOCATION}/include
+            /usr/local/include
         )
-        set(GLUT_glut_LIBRARY "-framework Glut" CACHE STRING "GLUT library for OSX")
-        set(GLUT_cocoa_LIBRARY "-framework Cocoa" CACHE STRING "Cocoa framework for OSX")
+        find_library( GLFW_glfw_LIBRARY glfw
+            NAMES glfw
+            PATHS
+            ${GLFW_LOCATION}/lib
+            ${GLFW_LOCATION}/lib/cocoa
+            /usr/local/lib
+        )
+        set(GLFW_cocoa_LIBRARY "-framework Cocoa" CACHE STRING "Cocoa framework for OSX")
+        set(GLFW_iokit_LIBRARY "-framework IOKit" CACHE STRING "IOKit framework for OSX")
     else ()
-        find_path( GLUT_INCLUDE_DIR GL/glut.h
-            ${GLUT_LOCATION}/include
-            $ENV{GLUT_LOCATION}/include
+        find_path( GLFW_INCLUDE_DIR GL/glfw.h
+            ${GLFW_LOCATION}/include
+            $ENV{GLFW_LOCATION}/include
             /usr/include
             /usr/include/GL
             /usr/local/include
@@ -123,27 +131,13 @@ else ()
             /usr/X11R6/include
             /usr/include/X11
             /opt/graphics/OpenGL/include
-            /opt/graphics/OpenGL/contrib/libglut
+            /opt/graphics/OpenGL/contrib/libglfw
         )
-        find_library( GLUT_glut_LIBRARY glut
-            ${GLUT_LOCATION}/lib
-            $ENV{GLUT_LOCATION}/lib
-            /usr/lib
-            /usr/local/lib
-            /usr/openwin/lib
-            /usr/X11R6/lib
-        )
-        find_library( GLUT_Xi_LIBRARY Xi
-            ${GLUT_LOCATION}/lib
-            $ENV{GLUT_LOCATION}/lib
-            /usr/lib
-            /usr/local/lib
-            /usr/openwin/lib
-            /usr/X11R6/lib
-        )
-        find_library( GLUT_Xmu_LIBRARY Xmu
-            ${GLUT_LOCATION}/lib
-            $ENV{GLUT_LOCATION}/lib
+        find_library( GLFW_glfw_LIBRARY glfw
+            ${GLFW_LOCATION}/lib
+            $ENV{GLFW_LOCATION}/lib
+            ${GLFW_LOCATION}/lib/x11
+            $ENV{GLFW_LOCATION}/lib/x11
             /usr/lib
             /usr/local/lib
             /usr/openwin/lib
@@ -152,37 +146,33 @@ else ()
     endif (APPLE)
 endif (WIN32)
 
-set( GLUT_FOUND "NO" )
+set( GLFW_FOUND "NO" )
 
-if(GLUT_INCLUDE_DIR)
-  if(GLUT_glut_LIBRARY)
-    # Is -lXi and -lXmu required on all platforms that have it?
-    # If not, we need some way to figure out what platform we are on.
-    set( GLUT_LIBRARIES
-      ${GLUT_glut_LIBRARY}
-      ${GLUT_Xmu_LIBRARY}
-      ${GLUT_Xi_LIBRARY}
-      ${GLUT_cocoa_LIBRARY}
+if(GLFW_INCLUDE_DIR)
+  if(GLFW_glfw_LIBRARY)
+    set( GLFW_LIBRARIES
+      ${GLFW_glfw_LIBRARY}
+      ${GLFW_cocoa_LIBRARY}
+      ${GLFW_iokit_LIBRARY}
     )
-    set( GLUT_FOUND "YES" )
+    set( GLFW_FOUND "YES" )
 
-    set (GLUT_LIBRARY ${GLUT_LIBRARIES})
-    set (GLUT_INCLUDE_PATH ${GLUT_INCLUDE_DIR})
+    set (GLFW_LIBRARY ${GLFW_LIBRARIES})
+    set (GLFW_INCLUDE_PATH ${GLFW_INCLUDE_DIR})
 
-  endif(GLUT_glut_LIBRARY)
-endif(GLUT_INCLUDE_DIR)
+  endif(GLFW_glfw_LIBRARY)
+endif(GLFW_INCLUDE_DIR)
 
 include(FindPackageHandleStandardArgs)
 
-find_package_handle_standard_args(GLUT DEFAULT_MSG
-    GLUT_INCLUDE_DIR
-    GLUT_LIBRARIES
+find_package_handle_standard_args(GLFW DEFAULT_MSG
+    GLFW_INCLUDE_DIR
+    GLFW_LIBRARIES
 )
 
 mark_as_advanced(
-  GLUT_INCLUDE_DIR
-  GLUT_glut_LIBRARY
-  GLUT_Xmu_LIBRARY
-  GLUT_Xi_LIBRARY
+  GLFW_INCLUDE_DIR
+  GLFW_glfw_LIBRARY
+  GLFW_cocoa_LIBRARY
 )
 

@@ -195,7 +195,7 @@ find_package(OpenGL)
 find_package(OpenGLES)
 find_package(OpenCL)
 find_package(CUDA)
-find_package(GLUT)
+find_package(GLFW)
 find_package(PTex)
 
 if (NOT APPLE AND OPENGL_FOUND)
@@ -362,14 +362,14 @@ endmacro()
 
 
 # Macro for adding a (potentially cuda) executable.
-macro(_add_glut_executable target)
+macro(_add_glfw_executable target)
 
     _add_possibly_cuda_executable(${target} ${ARGN})
 
     if(WIN32)
         # Windows needs some of its dependency dll's copied into the same
         # directory as the executable.
-        set( LIBRARIES ${GLUT_LIBRARIES})
+        set( LIBRARIES ${GLFW_LIBRARIES})
         foreach (LIB ${LIBRARIES} )
             string(REPLACE ".lib" ".dll" DLL ${LIB})
             string(REPLACE ".LIB" ".DLL" DLL ${DLL})

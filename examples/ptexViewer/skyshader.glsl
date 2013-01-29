@@ -84,6 +84,7 @@ main()
 uniform sampler2D environmentMap;
 
 in vec2 outTexCoord;
+out vec4 outColor;
 
 vec4 getEnvironmentHDR(sampler2D sampler, vec2 uv)
 {
@@ -95,7 +96,7 @@ vec4 getEnvironmentHDR(sampler2D sampler, vec2 uv)
 void
 main()
 {
-    gl_FragColor = getEnvironmentHDR(environmentMap, outTexCoord);
+    outColor = getEnvironmentHDR(environmentMap, outTexCoord);
 }
 
 #endif

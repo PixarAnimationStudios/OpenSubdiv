@@ -266,8 +266,8 @@ _CompileShader(
     }
     std::string defString = definitions.str();
 
-    sources[0] = defString.c_str();
-    sources[1] = source.version.c_str();
+    sources[0] = source.version.c_str();
+    sources[1] = defString.c_str();
     sources[2] = common.source.c_str();
     sources[3] = source.source.c_str();
 

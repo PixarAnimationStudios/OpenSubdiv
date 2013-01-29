@@ -55,12 +55,11 @@
 #     a particular purpose and non-infringement.
 #
 
-# *** ptexViewer ***
+# *** glViewer ***
 
 set(SHADER_FILES
      shader.glsl
      shader_gl3.glsl
-     skyshader.glsl
 )
 
 set(PLATFORM_LIBRARIES
@@ -68,19 +67,13 @@ set(PLATFORM_LIBRARIES
     ${OPENGL_LIBRARY}
     ${GLEW_LIBRARY}
     ${GLFW_LIBRARIES}
-    ${PTEX_LIBRARY}
 )
-
-if (APPLE)
-    list(APPEND PLATFORM_LIBRARIES -lz)
-endif()
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
     ${PROJECT_SOURCE_DIR}/regression
     ${GLEW_INCLUDE_DIR}
     ${GLFW_INCLUDE_DIR}
-    ${PTEX_INCLUDE_DIR}
 )
 
 #-------------------------------------------------------------------------------
@@ -105,18 +98,16 @@ foreach(shader_file ${SHADER_FILES})
     )
 endforeach()
 
-#-------------------------------------------------------------------------------
-_add_glfw_executable(ptexViewer
-   viewer.cpp
-   ../common/font_image.cpp
-   ../common/hud.cpp
-   ../common/gl_hud.cpp
-   ../common/hdr_reader.cpp
-   ${SHADER_FILES}
-   ${INC_FILES}
+_add_glfw_executable(glViewer
+    viewer.cpp
+    ../common/font_image.cpp
+    ../common/hud.cpp
+    ../common/gl_hud.cpp
+    ${SHADER_FILES}
+    ${INC_FILES}
 )
 
-target_link_libraries(ptexViewer
+target_link_libraries(glViewer
     ${PLATFORM_LIBRARIES}
 )
 

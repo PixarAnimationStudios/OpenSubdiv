@@ -86,6 +86,21 @@ if (WIN32)
             /usr/local/lib
             /usr/X11R6/lib
             DOC "The Ptex library")
+elseif (APPLE)
+    find_path( PTEX_INCLUDE_DIR
+        NAMES
+            Ptexture.h
+        PATHS
+            ${PTEX_LOCATION}/include
+            $ENV{PTEX_LOCATION}/include
+            DOC "The directory where Ptexture.h resides")
+    find_library( PTEX_LIBRARY
+        NAMES
+            libPtex.a
+        PATHS
+            ${PTEX_LOCATION}/lib
+            $ENV{PTEX_LOCATION}/lib
+            DOC "The Ptex Library")
 else ()
     find_path( PTEX_INCLUDE_DIR
         NAMES

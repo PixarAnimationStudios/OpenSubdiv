@@ -54,16 +54,23 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#if defined(ANDROID)
+
+#if defined(__APPLE__)
+    #include "TargetConditionals.h"
+    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
+        #include <OpenGLES/ES2/gl.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
+#elif defined(ANDROID)
     #include <GLES2/gl2.h>
 #else
     #if defined(_WIN32)
         #include <windows.h>
     #endif
-    #if not defined(__APPLE__)
-        #include <GL/glew.h>
-    #endif
+    #include <GL/glew.h>
 #endif
+
 #include <string.h>
 #include <stdio.h>
 #include "gl_hud.h"
@@ -71,33 +78,61 @@
 #include "simple_math.h"
 
 static const char *s_VS =
+#if defined(GL_VERSION_3_1)
+    "#version 150\n"
+    "in vec2 position;\n"
+    "in vec3 color;\n"
+    "in vec2 uv;\n"
+    "out vec4 fragColor;\n"
+    "out vec2 fragUV;\n"
+    "uniform mat4 ModelViewProjectionMatrix;\n"
+    "void main() {\n"
+    "  fragColor = vec4(color, 1);\n"
+    "  fragUV = uv;\n"
+    "  gl_Position = ModelViewProjectionMatrix * "
+    "                  vec4(position.x, position.y, 0, 1);\n"
+    "}\n";
+#else
     "attribute vec2 position;\n"
     "attribute vec3 color;\n"
     "attribute vec2 uv;\n"
     "varying vec4 fragColor;\n"
     "varying vec2 fragUV;\n"
     "uniform mat4 ModelViewProjectionMatrix;\n"
-    "void main()\n"
-    "{\n"
-    "  fragColor = vec4(1, 0, 0, 1);\n"
+    "void main() {\n"
+    "  fragColor = vec4(color, 1);\n"
     "  fragUV = uv;\n"
     "  gl_Position = ModelViewProjectionMatrix * "
     "                  vec4(position.x, position.y, 0, 1);\n"
     "}\n";
+#endif
 
 static const char *s_FS =
-    "precision mediump float;\n"
+#if defined(GL_VERSION_3_1)
+    "#version 150\n"
+    "in vec4 fragColor;\n"
+    "in vec2 fragUV;\n"
+    "out vec4 color;\n"
+    "uniform sampler2D fontTexture;\n"
+    "void main() {\n"
+    "  vec4 c = texture(fontTexture, fragUV);\n"
+    "  if (c.a == 0.0) discard;\n"
+    "  color = c*fragColor;\n"
+    "}\n";
+#else
     "varying vec4 fragColor;\n"
     "varying vec2 fragUV;\n"
-    "uniform sampler2D texture;\n"
+    "uniform sampler2D fontTexture;\n"
     "void main()\n"
     "{\n"
-    "  vec4 c = texture2D(texture, fragUV);\n"
+    "  vec4 c = texture2D(fontTexture, fragUV);\n"
     "  if (c.a == 0.0) discard;\n"
-    "  gl_FragColor = c;\n"
+    "  gl_FragColor = c*fragColor;\n"
     "}\n";
+#endif
 
-GLhud::GLhud() : _fontTexture(0), _vbo(0), _staticVbo(0), _program(0),
+GLhud::GLhud() : _fontTexture(0), _vbo(0), _staticVbo(0),
+                 _vao(0), _staticVao(0), _program(0),
                  _aPosition(0), _aColor(0), _aUV(0)
 {
 }
@@ -112,6 +147,10 @@ GLhud::~GLhud()
         glDeleteBuffers(1, &_vbo);
     if (_staticVbo)
         glDeleteBuffers(1, &_staticVbo);
+    if (_vao)
+        glDeleteVertexArrays(1, &_vao);
+    if (_staticVao)
+        glDeleteVertexArrays(1, &_staticVao);
 }
 
 static GLuint compileShader(GLenum shaderType, const char *source)
@@ -143,6 +182,9 @@ GLhud::Init(int width, int height)
     glGenBuffers(1, &_vbo);
     glGenBuffers(1, &_staticVbo);
 
+    glGenVertexArrays(1, &_vao);
+    glGenVertexArrays(1, &_staticVao);
+
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, s_VS);
     GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, s_FS);
 
@@ -170,6 +212,34 @@ GLhud::Init(int width, int height)
     _aPosition = glGetAttribLocation(_program, "position");
     _aColor = glGetAttribLocation(_program, "color");
     _aUV = glGetAttribLocation(_program, "uv");
+
+    glBindVertexArray(_vao);
+    glEnableVertexAttribArray(_aPosition);
+    glEnableVertexAttribArray(_aColor);
+    glEnableVertexAttribArray(_aUV);
+    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+    glVertexAttribPointer(_aPosition, 2, GL_FLOAT, GL_FALSE,
+                          sizeof(GLfloat)*7, (void*)0);
+    glVertexAttribPointer(_aColor, 3, GL_FLOAT, GL_FALSE,
+                          sizeof(GLfloat)*7, (void*)(sizeof(GLfloat)*2));
+    glVertexAttribPointer(_aUV, 2, GL_FLOAT, GL_FALSE,
+                          sizeof(GLfloat)*7, (void*)(sizeof(GLfloat)*5));
+
+    glBindVertexArray(_staticVao);
+    glEnableVertexAttribArray(_aPosition);
+    glEnableVertexAttribArray(_aColor);
+    glEnableVertexAttribArray(_aUV);
+    glBindBuffer(GL_ARRAY_BUFFER, _staticVbo);
+    glVertexAttribPointer(_aPosition, 2, GL_FLOAT, GL_FALSE,
+                          sizeof(GLfloat)*7, (void*)0);
+    glVertexAttribPointer(_aColor, 3, GL_FLOAT, GL_FALSE,
+                          sizeof(GLfloat)*7, (void*)(sizeof(GLfloat)*2));
+    glVertexAttribPointer(_aUV, 2, GL_FLOAT, GL_FALSE,
+                          sizeof(GLfloat)*7, (void*)(sizeof(GLfloat)*5));
+
+    glBindVertexArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void
@@ -225,6 +295,7 @@ GLhud::Flush()
         return false;
 
     // update dynamic text
+    glBindVertexArray(_vao);
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
     glBufferData(GL_ARRAY_BUFFER, getVboSource().size() * sizeof(float),
                  &getVboSource()[0], GL_STATIC_DRAW);
@@ -244,35 +315,12 @@ GLhud::Flush()
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, _fontTexture);
 
-        glEnableVertexAttribArray(_aPosition);
-        glEnableVertexAttribArray(_aColor);
-        glEnableVertexAttribArray(_aUV);
-
-        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-        glVertexAttribPointer(_aPosition, 2, GL_FLOAT, GL_FALSE,
-                              sizeof(GLfloat)*7, (void*)0);
-        glVertexAttribPointer(_aColor, 3, GL_FLOAT, GL_FALSE,
-                              sizeof(GLfloat)*7, (void*)(sizeof(GLfloat)*2));
-        glVertexAttribPointer(_aUV, 2, GL_FLOAT, GL_FALSE,
-                              sizeof(GLfloat)*7, (void*)(sizeof(GLfloat)*5));
-
+        glBindVertexArray(_vao);
         glDrawArrays(GL_TRIANGLES, 0, numVertices);
 
-        glBindBuffer(GL_ARRAY_BUFFER, _staticVbo);
-        glVertexAttribPointer(_aPosition, 2, GL_FLOAT, GL_FALSE,
-                              sizeof(GLfloat)*7, (void*)0);
-        glVertexAttribPointer(_aColor, 3, GL_FLOAT, GL_FALSE,
-                              sizeof(GLfloat)*7, (void*)(sizeof(GLfloat)*2));
-        glVertexAttribPointer(_aUV, 2, GL_FLOAT, GL_FALSE,
-                              sizeof(GLfloat)*7, (void*)(sizeof(GLfloat)*5));
-
+        glBindVertexArray(_staticVao);
         glDrawArrays(GL_TRIANGLES, 0, _staticVboSize/7);
 
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-        glDisableVertexAttribArray(_aPosition);
-        glDisableVertexAttribArray(_aColor);
-        glDisableVertexAttribArray(_aUV);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 

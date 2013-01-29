@@ -99,6 +99,8 @@ genTextureBuffer(GLenum format, GLsizeiptr size, GLvoid const * data) {
     glBindTexture(GL_TEXTURE_BUFFER, result);
     glTexBuffer(GL_TEXTURE_BUFFER, format, buffer);
 
+    // need to reset texture binding before deleting the source buffer.
+    glBindTexture(GL_TEXTURE_BUFFER, 0);
     glDeleteBuffers(1, &buffer);
 
     return result;

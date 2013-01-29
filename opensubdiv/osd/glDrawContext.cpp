@@ -175,8 +175,9 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
 
             glBindTexture(GL_TEXTURE_BUFFER, ptexCoordinateTextureBuffer);
             glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, ptexCoordinateBuffer);
-            glDeleteBuffers(1, &ptexCoordinateBuffer);
             glBindTexture(GL_TEXTURE_BUFFER, 0);
+            glDeleteBuffers(1, &ptexCoordinateBuffer);
+
 #endif
         }
 

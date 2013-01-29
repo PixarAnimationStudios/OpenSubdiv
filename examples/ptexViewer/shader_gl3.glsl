@@ -54,27 +54,19 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#line 57
+
+layout(std140) uniform Transform {
+    mat4 ModelViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 ModelViewProjectionMatrix;
+    mat4 ModelViewInverseMatrix;
+};
 
 //--------------------------------------------------------------
 // Common
 //--------------------------------------------------------------
 uniform isamplerBuffer g_ptexIndicesBuffer;
 uniform int nonAdaptiveLevel;
-
-vec4 GeneratePatchCoord(vec2 localUV)  // for non-adpative
-{
-    ivec2 ptexIndex = texelFetch(g_ptexIndicesBuffer, gl_PrimitiveID).xy;
-    int faceID = abs(ptexIndex.x);
-    int lv = 1 << nonAdaptiveLevel;
-    if (ptexIndex.x < 0) lv >>= 1;
-
-    int u = ptexIndex.y >> 16;
-    int v = (ptexIndex.y & 0xffff);
-    vec2 uv = localUV;
-    uv = (uv * vec2(1.0)/lv) + vec2(u, v)/lv;
-    return vec4(uv.x, uv.y, lv+0.5, faceID+0.5);
-}
 
 vec4 PTexLookup(vec4 patchCoord,
                 sampler2DArray data,
@@ -122,14 +114,13 @@ vec4 displacement(vec4 position, vec3 normal, vec4 patchCoord)
 layout (location=0) in vec4 position;
 layout (location=1) in vec3 normal;
 
-out block {
-    OutputVertex v;
-} output;
+out vec4 vPosition;
+out vec3 vNormal;
 
 void main()
 {
-    output.v.position = ModelViewMatrix * position;
-    output.v.normal = (ModelViewMatrix * vec4(normal, 0)).xyz;
+    vPosition = ModelViewMatrix * position;
+    vNormal = (ModelViewMatrix * vec4(normal, 0)).xyz;
 }
 
 #endif
@@ -149,9 +140,8 @@ void main()
 
     #define EDGE_VERTS 4
 
-    in block {
-        OutputVertex v;
-    } input[4];
+    in vec4 vPosition[4];
+    in vec3 vNormal[4];
 
 #endif // PRIM_QUAD
 
@@ -163,25 +153,25 @@ void main()
 
     #define EDGE_VERTS 3
 
-    in block {
-        OutputVertex v;
-    } input[3];
+    in vec4 vPosition[3];
+    in vec3 vNormal[3];
 
 #endif // PRIM_TRI
 
-out block {
-    OutputVertex v;
-} output;
+out vec4 gPosition;
+out vec4 gPatchCoord;
+out vec3 gNormal;
+noperspective out vec4 gEdgeDistance;
 
 // --------------------------------------
 
 void emit(int index, vec4 position, vec3 normal, vec4 patchCoord)
 {
-    output.v.position = position;
-    output.v.patchCoord = patchCoord;
-    output.v.normal = normal;
+    gPosition = position;
+    gPatchCoord = patchCoord;
+    gNormal = normal;
 
-    gl_Position = ProjectionMatrix * output.v.position;
+    gl_Position = ProjectionMatrix * gPosition;
     EmitVertex();
 }
 
@@ -194,27 +184,43 @@ float edgeDistance(vec4 p, vec4 p0, vec4 p1)
             (p.y - p0.y) * (p1.x - p0.x)) / length(p1.xy - p0.xy);
 }
 
+#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 void emit(int index, vec4 position, vec3 normal, vec4 patchCoord, vec4 edgeVerts[EDGE_VERTS])
 {
-    output.v.edgeDistance[0] =
+    gEdgeDistance[0] =
         edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
-    output.v.edgeDistance[1] =
+    gEdgeDistance[1] =
         edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
 #ifdef PRIM_TRI
-    output.v.edgeDistance[2] =
+    gEdgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
 #endif
 #ifdef PRIM_QUAD
-    output.v.edgeDistance[2] =
+    gEdgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[3]);
-    output.v.edgeDistance[3] =
+    gEdgeDistance[3] =
         edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
 #endif
 
     emit(index, position, normal, patchCoord);
 }
+#endif
 
 // --------------------------------------
+
+vec4 GeneratePatchCoord(vec2 localUV)  // for non-adpative
+{
+    ivec2 ptexIndex = texelFetch(g_ptexIndicesBuffer, gl_PrimitiveID).xy;
+    int faceID = abs(ptexIndex.x);
+    int lv = 1 << nonAdaptiveLevel;
+    if (ptexIndex.x < 0) lv >>= 1;
+
+    int u = ptexIndex.y >> 16;
+    int v = (ptexIndex.y & 0xffff);
+    vec2 uv = localUV;
+    uv = (uv * vec2(1.0)/lv) + vec2(u, v)/lv;
+    return vec4(uv.x, uv.y, lv+0.5, faceID+0.5);
+}
 
 void main()
 {
@@ -232,15 +238,15 @@ void main()
     patchCoord[3] = GeneratePatchCoord(vec2(0, 1));
 
 #ifdef USE_PTEX_DISPLACEMENT
-    position[0] = displacement(input[0].v.position, input[0].v.normal, patchCoord[0]);
-    position[1] = displacement(input[1].v.position, input[1].v.normal, patchCoord[1]);
-    position[2] = displacement(input[2].v.position, input[2].v.normal, patchCoord[2]);
-    position[3] = displacement(input[3].v.position, input[3].v.normal, patchCoord[3]);
+    position[0] = displacement(vPosition[0], vNormal[0], patchCoord[0]);
+    position[1] = displacement(vPosition[1], vNormal[1], patchCoord[1]);
+    position[2] = displacement(vPosition[2], vNormal[2], patchCoord[2]);
+    position[3] = displacement(vPosition[3], vNormal[3], patchCoord[3]);
 #else
-    position[0] = input[0].v.position;
-    position[1] = input[1].v.position;
-    position[2] = input[2].v.position;
-    position[3] = input[3].v.position;
+    position[0] = vPosition[0];
+    position[1] = vPosition[1];
+    position[2] = vPosition[2];
+    position[3] = vPosition[3];
 #endif
 
 #ifdef FLAT_NORMALS
@@ -253,18 +259,18 @@ void main()
     normal[2] = normal[0];
     normal[3] = normal[0];
 #else
-    normal[0] = input[0].v.normal;
-    normal[1] = input[1].v.normal;
-    normal[2] = input[2].v.normal;
-    normal[3] = input[3].v.normal;
+    normal[0] = vNormal[0];
+    normal[1] = vNormal[1];
+    normal[2] = vNormal[2];
+    normal[3] = vNormal[3];
 #endif
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
     vec4 edgeVerts[EDGE_VERTS];
-    edgeVerts[0] = ProjectionMatrix * input[0].v.position;
-    edgeVerts[1] = ProjectionMatrix * input[1].v.position;
-    edgeVerts[2] = ProjectionMatrix * input[2].v.position;
-    edgeVerts[3] = ProjectionMatrix * input[3].v.position;
+    edgeVerts[0] = ProjectionMatrix * vPosition[0];
+    edgeVerts[1] = ProjectionMatrix * vPosition[1];
+    edgeVerts[2] = ProjectionMatrix * vPosition[2];
+    edgeVerts[3] = ProjectionMatrix * vPosition[3];
 
     edgeVerts[0].xy /= edgeVerts[0].w;
     edgeVerts[1].xy /= edgeVerts[1].w;
@@ -276,6 +282,7 @@ void main()
     emit(3, position[3], normal[3], patchCoord[3], edgeVerts);
     emit(2, position[2], normal[2], patchCoord[2], edgeVerts);
 #else
+    gEdgeDistance = vec4(0);
     emit(0, position[0], normal[0], patchCoord[0]);
     emit(1, position[1], normal[1], patchCoord[1]);
     emit(3, position[3], normal[3], patchCoord[3]);
@@ -289,18 +296,18 @@ void main()
     vec3 normal[3];
 
     // patch coords are computed in tessellation shader
-    patchCoord[0] = input[0].v.patchCoord;
-    patchCoord[1] = input[1].v.patchCoord;
-    patchCoord[2] = input[2].v.patchCoord;
+    patchCoord[0] = vPatchCoord[0];
+    patchCoord[1] = vPatchCoord[1];
+    patchCoord[2] = vPatchCoord[2];
 
 #ifdef USE_PTEX_DISPLACEMENT
-    position[0] = displacement(input[0].v.position, input[0].v.normal, patchCoord[0]);
-    position[1] = displacement(input[1].v.position, input[1].v.normal, patchCoord[1]);
-    position[2] = displacement(input[2].v.position, input[2].v.normal, patchCoord[2]);
+    position[0] = displacement(vPosition[0], vNormal[0], patchCoord[0]);
+    position[1] = displacement(vPosition[1], vNormal[1], patchCoord[1]);
+    position[2] = displacement(vPosition[2], vNormal[2], patchCoord[2]);
 #else
-    position[0] = input[0].v.position;
-    position[1] = input[1].v.position;
-    position[2] = input[2].v.position;
+    position[0] = vPosition[0];
+    position[1] = vPosition[1];
+    position[2] = vPosition[2];
 #endif
 
 #ifdef FLAT_NORMALS  // emit flat normals for displaced surface
@@ -310,16 +317,16 @@ void main()
     normal[1] = normal[0];
     normal[2] = normal[0];
 #else
-    normal[0] = input[0].v.normal;
-    normal[1] = input[1].v.normal;
-    normal[2] = input[2].v.normal;
+    normal[0] = gNormal[0];
+    normal[1] = gNormal[1];
+    normal[2] = gNormal[2];
 #endif
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
     vec4 edgeVerts[EDGE_VERTS];
-    edgeVerts[0] = ProjectionMatrix * input[0].v.position;
-    edgeVerts[1] = ProjectionMatrix * input[1].v.position;
-    edgeVerts[2] = ProjectionMatrix * input[2].v.position;
+    edgeVerts[0] = ProjectionMatrix * vPosition[0];
+    edgeVerts[1] = ProjectionMatrix * vPosition[1];
+    edgeVerts[2] = ProjectionMatrix * vPosition[2];
 
     edgeVerts[0].xy /= edgeVerts[0].w;
     edgeVerts[1].xy /= edgeVerts[1].w;
@@ -329,6 +336,7 @@ void main()
     emit(1, position[1], normal[1], patchCoord[1], edgeVerts);
     emit(2, position[2], normal[2], patchCoord[2], edgeVerts);
 #else
+    gEdgeDistance = vec4(0);
     emit(0, position[0], normal[0], patchCoord[0]);
     emit(1, position[1], normal[1], patchCoord[1]);
     emit(2, position[2], normal[2], patchCoord[2]);
@@ -344,9 +352,10 @@ void main()
 //--------------------------------------------------------------
 #ifdef FRAGMENT_SHADER
 
-in block {
-    OutputVertex v;
-} input;
+in vec4 gPosition;
+in vec3 gNormal;
+in vec4 gPatchCoord;
+noperspective in vec4 gEdgeDistance;
 
 out vec4 outColor;
 
@@ -386,7 +395,7 @@ layout(std140) uniform Lighting {
 uniform bool overrideColorEnable = false;
 uniform vec4 overrideColor;
 
-#if USE_PTEX_NORMAL
+#ifdef USE_PTEX_NORMAL
 uniform sampler2DArray textureDisplace_Data;
 uniform samplerBuffer textureDisplace_Packing;
 uniform isamplerBuffer textureDisplace_Pages;
@@ -449,7 +458,7 @@ lighting(vec3 Peye, vec3 Neye)
     vec4 color = vec4(0);
 
 #ifdef USE_PTEX_OCCLUSION
-    float occ = PTexLookup(input.v.patchCoord,
+    float occ = PTexLookup(gPatchCoord,
                            textureOcclusion_Data,
                            textureOcclusion_Packing,
                            textureOcclusion_Pages).x;
@@ -487,12 +496,12 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
     float d =
-        min(input.v.edgeDistance[0], min(input.v.edgeDistance[1], input.v.edgeDistance[2]));
+        min(gEdgeDistance[0], min(gEdgeDistance[1], gEdgeDistance[2]));
 #endif
 #ifdef PRIM_QUAD
     float d =
-        min(min(input.v.edgeDistance[0], input.v.edgeDistance[1]),
-            min(input.v.edgeDistance[2], input.v.edgeDistance[3]));
+        min(min(gEdgeDistance[0], gEdgeDistance[1]),
+            min(gEdgeDistance[2], gEdgeDistance[3]));
 #endif
     vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
     float p = exp2(-2 * d * d);
@@ -509,8 +518,8 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
 void
 main()
 {
-#if USE_PTEX_COLOR
-    vec4 texColor = PTexLookup(input.v.patchCoord,
+#ifdef USE_PTEX_COLOR
+    vec4 texColor = PTexLookup(gPatchCoord,
                                textureImage_Data,
                                textureImage_Packing,
                                textureImage_Pages);
@@ -519,24 +528,26 @@ main()
     vec4 texColor = vec4(1);
 #endif
 
-#if USE_PTEX_NORMAL
-    vec3 normal = perturbNormalFromDisplacement(input.v.position.xyz,
-                                                input.v.normal,
-                                                input.v.patchCoord);
+#ifdef USE_PTEX_NORMAL
+    vec3 normal = perturbNormalFromDisplacement(gPosition.xyz,
+                                                gNormal,
+                                                gPatchCoord);
 #else
-    vec3 normal = input.v.normal;
+    vec3 normal = gNormal;
 #endif
 
+#if 0
     if (overrideColorEnable) {
         texColor = overrideColor;
-        vec4 Cf = texColor * lighting(input.v.position.xyz, normal);
-        outColor = edgeColor(Cf, input.v.edgeDistance);
+        vec4 Cf = texColor * lighting(gPosition.xyz, normal);
+        outColor = edgeColor(Cf, gEdgeDistance);
         return;
     }
+#endif
 
-#if USE_IBL
+#ifdef USE_IBL
 #ifdef USE_PTEX_OCCLUSION
-    float occ = PTexLookup(input.v.patchCoord,
+    float occ = PTexLookup(gPatchCoord,
                            textureOcclusion_Data,
                            textureOcclusion_Packing,
                            textureOcclusion_Pages).x;
@@ -545,7 +556,7 @@ main()
 #endif
 
 #ifdef USE_PTEX_SPECULAR
-    float specular = PTexLookup(input.v.patchCoord,
+    float specular = PTexLookup(gPatchCoord,
                                 textureSpecular_Data,
                                 textureSpecular_Packing,
                                 textureSpecular_Pages).x;
@@ -555,7 +566,7 @@ main()
 
     vec4 a = vec4(0, 0, 0, 1); //ambientColor;
     vec4 d = getEnvironmentHDR(diffuseEnvironmentMap, normal) * 1.4;
-    vec3 eye = normalize(input.v.position.xyz - vec3(0,0,0));
+    vec3 eye = normalize(gPosition.xyz - vec3(0,0,0));
     vec3 reflect = reflect(eye, normal);
     vec4 s = getEnvironmentHDR(specularEnvironmentMap, reflect);
     const float fresnelBias = 0;
@@ -569,10 +580,10 @@ main()
 
     vec4 Cf = (a + d) * texColor + s * 0.5;
 #else
-    vec4 Cf = texColor * lighting(input.v.position.xyz, normal);
+    vec4 Cf = texColor * lighting(gPosition.xyz, normal);
 #endif
 
-    outColor = edgeColor(Cf, input.v.edgeDistance);
+    outColor = edgeColor(Cf, gEdgeDistance);
 }
 
 #endif
