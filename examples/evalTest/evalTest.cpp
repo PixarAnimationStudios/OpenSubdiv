@@ -156,7 +156,7 @@ using namespace OpenSubdiv;
 int g_width = 0,
     g_height = 0,
     g_frame = 0,
-    g_level = 7;
+    g_level = 10;
 
 //
 // A center point for the view matrix and the object size for framing
@@ -272,15 +272,15 @@ struct simpleVec3
 inline simpleVec3 operator*( simpleVec3  const & v, float const & s ) { return simpleVec3( v.x * s, v.y * s, v.z * s ); }
 inline simpleVec3 operator*( float const & s, simpleVec3 const &v ) { return simpleVec3( v.x * s, v.y * s, v.z * s ); }
 
-void EvalBSpline(float u,
-                 float v,
-                   // all vertex positions for the subdiv
-                 simpleVec3 *vertexBuffer, 
-                   // vector of 16 indices into vertexBuffer
-                 const unsigned int *indices,     
-                 simpleVec3 &position,
-                 simpleVec3 &utangent,
-                 simpleVec3 &vtangent)
+void EvalBezier(float u,
+                float v,
+                // all vertex positions for the subdiv
+                simpleVec3 *vertexBuffer, 
+                // vector of 16 indices into vertexBuffer
+                const unsigned int *indices,     
+                simpleVec3 &position,
+                simpleVec3 &utangent,
+                simpleVec3 &vtangent)
 {
     float B[4], D[4];
 
@@ -324,6 +324,70 @@ void EvalBSpline(float u,
 
 
 
+void
+EvalCubicBSpline(float u, float B[4], float BU[4])
+{
+    float t = u;
+    float s = 1.0 - u;
+
+    float C0 =                     s * (0.5f * s);
+    float C1 = t * (s + 0.5f * t) + s * (0.5f * s + t);
+    float C2 = t * (    0.5f * t);
+
+    B[0] =                                     1.f/3.f * s                * C0;
+    B[1] = (2.f/3.f * s +           t) * C0 + (2.f/3.f * s + 1.f/3.f * t) * C1;
+    B[2] = (1.f/3.f * s + 2.f/3.f * t) * C1 + (          s + 2.f/3.f * t) * C2;
+    B[3] =                1.f/3.f * t  * C2;
+
+    BU[0] =    - C0;
+    BU[1] = C0 - C1;
+    BU[2] = C1 - C2;
+    BU[3] = C2;
+}
+
+void
+EvalBSpline(float u, float v,
+            // all vertex positions for the subdiv
+            simpleVec3 *vertexBuffer, 
+            // vector of 16 indices into vertexBuffer
+            const unsigned int *indices,                 
+            simpleVec3 *position, simpleVec3 *utangent, simpleVec3 *vtangent)
+{
+    float B[4], D[4];
+
+    EvalCubicBSpline(u, B, D);
+
+    simpleVec3 BUCP[4], DUCP[4];
+
+    simpleVec3 *cp = vertexBuffer;
+
+    for (int i=0; i<4; ++i) {
+        BUCP[i] = simpleVec3(0,0,0);
+        DUCP[i] = simpleVec3(0,0,0);
+
+        for (int j=0; j<4; ++j) {
+            simpleVec3 A = cp[indices[i + j*4]];
+
+            BUCP[i] += A * B[j];
+            DUCP[i] += A * D[j];
+        }
+    }
+
+    *position = simpleVec3(0,0,0);
+    *utangent = simpleVec3(0,0,0);
+    *vtangent = simpleVec3(0,0,0);
+
+    EvalCubicBSpline(v, B, D);
+
+    for (int i=0; i<4; ++i) {
+        *position += B[i] * BUCP[i];
+        *utangent += B[i] * DUCP[i];
+        *vtangent += D[i] * BUCP[i];
+    }
+}
+
+
+
 class MyPatch {
 public:
 
@@ -336,7 +400,7 @@ public:
     void Eval( float u, float v, simpleVec3 *vertexBuffer, 
                simpleVec3 *position,  simpleVec3 *utangent, simpleVec3 *vtangent) {
         EvalBSpline(u, v, vertexBuffer, _cvs,
-                    *position, *utangent, *vtangent);
+                    position, utangent, vtangent);
     }
 
     
@@ -350,6 +414,65 @@ public:
 };
  
 
+
+
+static bool
+TestPatchEvaluation()
+{
+
+    // This method creates a 4x4 cubic patch with limit
+    // surface from 0->1 in x and y
+
+  float positions[16*3] =   {
+        -1.0f, -1.0f, 0.0f,
+        0.00f, -1.0f, 0.0f,
+        1.00f, -1.0f, 0.0f,
+        2.00f, -1.0f, 0.0f,
+        
+        -1.0f, 0.00f, 0.0f,
+        0.00f, 0.00f, 0.0f,
+        1.00f, 0.00f, 0.0f,
+        2.00f, 0.00f, 0.0f,
+        
+        -1.0f, 1.00f, 0.0f,
+        0.00f, 1.00f, 0.0f,
+        1.00f, 1.00f, 0.0f,
+        2.00f, 1.00f, 0.0f,
+        
+        -1.0f, 2.00f, 0.0f,
+        0.00f, 2.00f, 0.0f,
+        1.00f, 2.00f, 0.0f,
+        2.00f, 2.00f, 0.0f};
+
+  unsigned int faceIndices[16] = {
+      0,1,2,3,
+      4,5,6,7,
+      8,9,10,11,
+      12,13,14,15};
+
+    MyPatch patch(faceIndices);
+
+    for (float u=0; u<=1.0; u+= 0.2) {
+        for (float v=0; v<=1.0; v+= 0.2) {
+            simpleVec3 position;
+            simpleVec3 uTangent;
+            simpleVec3 vTangent;
+            patch.Eval(u, v, (simpleVec3*)positions,
+                       &position, &uTangent, &vTangent);
+            
+            std::cout << u << "," << v << "( " <<
+                position.x << ", " <<
+                position.y << ", " <<
+                position.z << "), ";
+        }
+        std::cout << "\n";
+    }
+
+    return true;
+}
+        
+        
+        
 
 
 class OsdEvalContext : OpenSubdiv::OsdNonCopyable<OsdEvalContext> {
@@ -395,6 +518,25 @@ public:
 
 
 private:
+
+
+    void _AppendPatchArray(const OpenSubdiv::FarTable<unsigned int> &ptable) {
+        // Iterate over all patches in this table.  Don't worry about
+        // markers here, those would tell use what level of
+        // subdivision the patch was created on.  
+        // Just iterate over all patches, this is in blocks of 16 unsigned ints
+        // per patch.
+        const unsigned int *vertIndices = ptable[0];
+        for (int i=0; i<ptable.GetSize(); i+=16) {
+            // Create a patch object from the next block
+            // of 16 control point indices stored in
+            // the patch table.
+            MyPatch patch(vertIndices + i);
+            _patches.push_back(patch);
+        }
+    }
+       
+    
     OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *_farMesh;
     std::vector<MyPatch> _patches;
 
@@ -430,24 +572,23 @@ OsdEvalContext::OsdEvalContext(
     // Iterate over the patches generated by feature
     // adaptive refinement and create MyPatch objects.
     //
-    
-    const OpenSubdiv::FarTable<unsigned int> &ptable =
-        patchTables->GetFullRegularPatches();
+    _AppendPatchArray(patchTables->GetFullRegularPatches());
+//    _AppendPatchArray(patchTables->GetFullBoundaryPatches());
+//    _AppendPatchArray(patchTables->GetFullCornerPatches());
+    _AppendPatchArray(patchTables->GetFullGregoryPatches());
+//    _AppendPatchArray(patchTables->GetFullBoundaryGregoryPatches());
 
-    
-    // Iterate over all patches in this table.  Don't worry about markers here,
-    // those would tell use what level of subdivision the patch was created on.
-    // Just iterate over all patches, this is in blocks of 16 unsigned ints
-    // per patch.
-    const unsigned int *vertIndices = ptable[0];
-    for (int i=0; i<ptable.GetSize(); i+=16) {
-        // Create a patch object from the next block
-        // of 16 control point indices stored in
-        // the patch table.
-        MyPatch patch(vertIndices + i);
-        _patches.push_back(patch);
-    }
+    for (int p=0; p<5; ++p) {
+        _AppendPatchArray(patchTables->GetTransitionRegularPatches(p));
+        
+//        for (int r=0; r<4; ++r) {           
+//            _AppendPatchArray(patchTables->GetTransitionBoundaryPatches(p, r));
+//            _AppendPatchArray(patchTables->GetTransitionCornerPatches(p, r));
+//        }
+     }        
 
+                   
+    
     
     std::cout << "Made " << _patches.size() << " patches\n";
 
@@ -459,7 +600,6 @@ OsdEvalContext::OsdEvalContext(
         OpenSubdiv::OsdCpuVertexBuffer::Create(
             3 /* 3 floats for position*/ , _farMesh->GetNumVertices());
 }
-
 
 
 OsdEvalContext::~OsdEvalContext()
@@ -509,11 +649,13 @@ OsdEvalContext::TessellateIntoTriangles(
 {
     float *points = _osdVertexBuffer->BindCpuBuffer();
 
-    unsigned int N = 1;
+    unsigned int N = 5;
     unsigned int N1 = N+1;    
     float delta = 1.0/(float)N;
 
-    for (int i=0; i< _patches.size(); ++i) {
+    unsigned int debugPatch = -1;
+    
+    for (unsigned int i=0; i< _patches.size(); ++i) {
 
         // Add points for this patch first, record the starting
         // index of the points for this patch within vertices
@@ -528,13 +670,13 @@ OsdEvalContext::TessellateIntoTriangles(
                 vertices->push_back(position.x);
                 vertices->push_back(position.y);
                 vertices->push_back(position.z);
-                if (i==10) {
+                if (i==debugPatch) {
                     std::cout << "\tPoint " << position.x << ", " << position.y << ", " << position.z << std::endl;
                 }
             }
         }
 
-        if (i==10)
+        if (i==debugPatch)
             std::cout << "Num points = " << vertices->size()/3 << "\n";
 
         // Now add indexing for triangles
@@ -550,7 +692,14 @@ OsdEvalContext::TessellateIntoTriangles(
                 elementArray->push_back(u + N1 + v + 1);
                 elementArray->push_back(u      + v + 1);
 
-                if (i==10) {
+                if ((u+N1+v+1)  > vertices->size()) {
+                    std::cout << "ERROR: " <<
+                        u << "," <<
+                        N1 << "," <<
+                        v << "," <<
+                        vertices->size() << "\n";
+                }
+                if (i==debugPatch) {
                     std::cout << "triIndices: ";
                     for (int j=0; j<6; ++j) {
                         std::cout << " " << (*elementArray)[elementArray->size() - (6-j)]; 
@@ -559,8 +708,10 @@ OsdEvalContext::TessellateIntoTriangles(
                 }
 
             }
-            if (i==10)
+            if (i==debugPatch)
                 std::cout << "\n";
+
+
         }
     }
 }
@@ -579,6 +730,9 @@ void
 createOsdMesh(int level)
 {
     std::cout << "Start createOsdMesh\n";
+
+
+    TestPatchEvaluation();
     
     // 
     // Setup an OsdHbr mesh based on the desired subdivision scheme
@@ -586,52 +740,13 @@ createOsdMesh(int level)
     static OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>  _catmark;
     OsdHbrMesh *hmesh(new OsdHbrMesh(&_catmark));
 
-/*    
+
     //
-    // Now that we have a mesh, we need to add verticies and define the topology.
+    // Now that we have a mesh, we need to add verticies and define the
+    // topology.
+    //
     // Here, we've declared the raw vertex data in-line, for simplicity
     //
-    float verts[] =   { 0.00f, 0.00f, 0.0f,
-                        0.33f, 0.00f, 0.0f,
-                        0.66f, 0.00f, 0.0f,
-                        1.00f, 0.00f, 0.0f,
-
-                        0.00f, 0.33f, 0.0f,
-                        0.33f, 0.33f, 0.0f,
-                        0.66f, 0.33f, 0.0f,
-                        1.00f, 0.33f, 0.0f,
-
-                        0.00f, 0.66f, 0.0f,
-                        0.33f, 0.66f, 0.0f,
-                        0.66f, 0.66f, 0.0f,
-                        1.00f, 0.66f, 0.0f,
-
-                        0.00f, 1.00f, 0.0f,
-                        0.33f, 1.00f, 0.0f,
-                        0.66f, 1.00f, 0.0f,
-                        1.00f, 1.00f, 0.0f};
-
-    //
-    // The cube faces are also in-lined, here they are specified as quads
-    //
-    int faces[] = {
-                        0,1,5,4,
-                        1,2,6,5,
-                        2,3,7,6,
-
-                        4,5,9,8,
-                        5,6,10,9,
-                        6,7,11,10,
-
-                        8,9,13,12,
-                        9,10,14,13,
-                        10,11,15,14                       
-                        };
-*/                        
-
-
-    
-
     float verts[] = {    0.000000f, -1.414214f, 1.000000f,
                         1.414214f, 0.000000f, 1.000000f,
                         -1.414214f, 0.000000f, 1.000000f,
@@ -721,7 +836,8 @@ createOsdMesh(int level)
         // Now, create current face given the number of verts per face and the 
         // face index data.
         //
-        OsdHbrFace * face = hmesh->NewFace(VERTS_PER_FACE, faces+i, 0);
+//        OsdHbrFace * face = hmesh->NewFace(VERTS_PER_FACE, faces+i, 0);
+        hmesh->NewFace(VERTS_PER_FACE, faces+i, 0);        
 
         //
         // If you had ptex data, you would set it here, for example
@@ -779,17 +895,18 @@ createOsdMesh(int level)
                                             &g_refinedPositions);
     std::cout << "done tessellating\n";
 
-    for (int i=0; i<g_refinedTriangleIndices.size(); ++i) {
-        std::cout << g_refinedTriangleIndices[i]<<"\n ";
-    }
+//    for (unsigned int i=0; i<g_refinedTriangleIndices.size(); ++i) {
+//        std::cout << g_refinedTriangleIndices[i]<<"\n ";
+//    }
 
     std::cout << "total triangle indices = " << g_refinedTriangleIndices.size() << " Last one is " <<  g_refinedTriangleIndices[g_refinedTriangleIndices.size()-1] << "\n";
 
-    for (int i=0; i<g_refinedPositions.size(); ++i) {
-        std::cout << g_refinedPositions[i]<<"\n ";
-    }
+//    for (unsigned int i=0; i<g_refinedPositions.size(); ++i) {
+//        std::cout << g_refinedPositions[i]<<"\n ";
+//    } 
 
     std::cout << "total refined positions = " << g_refinedPositions.size()/3 << "\n";
+
 
     //
     // The OsdVertexBuffer provides GL identifiers which can be bound in the 
@@ -830,7 +947,7 @@ createOsdMesh(int level)
 void
 updateGeom() 
 {
-    std::cout << "Start updateGeom\n";    
+//    std::cout << "Start updateGeom\n";    
     int nverts = (int)g_orgPositions.size() / 3;
 
     std::vector<float> vertex;
@@ -845,7 +962,7 @@ updateGeom()
     // 
     float r = sin(g_frame*0.01f);
     for (int i = 0; i < nverts; ++i) {
-        float move = 0.05f*cosf(p[0]*20+g_frame*0.001f);
+//        float move = 0.05f*cosf(p[0]*20+g_frame*0.001f);
         float ct = cos(p[2] * r);
         float st = sin(p[2] * r);
         
@@ -868,7 +985,7 @@ updateGeom()
     g_evalContext->TessellateIntoTriangles( &g_refinedTriangleIndices,
                                             &g_refinedPositions);
 
-    std::cout << "End updateGeom\n";        
+//    std::cout << "End updateGeom\n";        
 }
 
 
@@ -882,7 +999,7 @@ updateGeom()
 void
 display() 
 {
-    std::cout << "Start display\n";
+//    std::cout << "Start display\n";
     setupForDisplay(g_width, g_height, g_size, g_center);
 
     //
@@ -898,12 +1015,15 @@ display()
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_refinedTriangleIndicesBuf);
 
-//    glDrawElements(GL_TRIANGLES, g_refinedTriangleIndices.size()/3,
-//                   GL_UNSIGNED_INT, NULL);
+    glColor3f(0.5, 0.5, 0.5);    
+    glDrawElements(GL_TRIANGLES, g_refinedTriangleIndices.size()/3,
+                   GL_UNSIGNED_INT, NULL);
 
+//    glColor3f(0.2, 0.2, 0.2);            
 //    glDrawElements(GL_LINES, g_refinedTriangleIndices.size()/2,
 //                   GL_UNSIGNED_INT, NULL);
 
+    glColor3f(1.0, 1.0, 1.0);        
     glDrawElements(GL_POINTS, g_refinedTriangleIndices.size()/3,
                    GL_UNSIGNED_INT, NULL);    
     
@@ -922,8 +1042,8 @@ display()
     // Draw the HUD/status text
     //
     //glColor3f(1, 1, 1);
-    drawString(10, 10, "LEVEL = %d", g_level);
-    drawString(10, 30, "# of Vertices = %d", g_refinedPositions.size()/3);
+    drawString(10, 10, "LEVEL = %d", (int)g_level);
+    drawString(10, 30, "# of Vertices = %d", (int)g_refinedPositions.size()/3);
     drawString(10, 50, "KERNEL = CPU");
     drawString(10, 70, "SUBDIVISION = %s", "CATMARK");
 
@@ -933,7 +1053,7 @@ display()
     glFinish();
 
     checkGLErrors("End display");
-    std::cout << "End display\n";    
+//    std::cout << "End display\n";    
 }
 
 
