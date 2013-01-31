@@ -166,7 +166,6 @@ else ()
 
 endif ()
 
-find_package_handle_standard_args(OpenCL DEFAULT_MSG OPENCL_LIBRARIES OPENCL_INCLUDE_DIRS)
 
 if(_OPENCL_CPP_INCLUDE_DIRS)
 
@@ -175,7 +174,39 @@ if(_OPENCL_CPP_INCLUDE_DIRS)
     list( APPEND OPENCL_INCLUDE_DIRS ${_OPENCL_CPP_INCLUDE_DIRS} )
 
     list( REMOVE_DUPLICATES OPENCL_INCLUDE_DIRS )
+    
+    if(EXISTS "${OPENCL_INCLUDE_DIRS}/CL/cl.h")
+    
+        file(STRINGS "${OPENCL_INCLUDE_DIRS}/CL/cl.h" LINES REGEX "^#define CL_VERSION_.*$")
+
+        foreach(LINE ${LINES})
+        
+            string(REGEX MATCHALL "[0-9]+" VERSION ${LINE})
+            
+            #string(SUBSTRING ${VERSION} 1 2 FOO)
+            
+            list(GET VERSION 0 MAJOR)
+            list(GET VERSION 1 MINOR)
+            set(VERSION ${MAJOR}.${MINOR})
+            
+            if (NOT OPENCL_VERSION OR OPENCL_VERSION VERSION_LESS ${VERSION})
+                 set(OPENCL_VERSION ${VERSION})
+            endif()
+
+        endforeach()
+                   
+    endif()
 
 endif(_OPENCL_CPP_INCLUDE_DIRS)
+
+include(FindPackageHandleStandardArgs)
+
+find_package_handle_standard_args(OpenCL 
+    REQUIRED_VARS
+        OPENCL_LIBRARIES 
+        OPENCL_INCLUDE_DIRS
+    VERSION_VAR
+        OPENCL_VERSION
+)
 
 mark_as_advanced( OPENCL_INCLUDE_DIRS )

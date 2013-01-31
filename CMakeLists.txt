@@ -59,12 +59,6 @@ project(OpenSubdiv)
 
 cmake_minimum_required(VERSION 2.8)
 
-# XXXX manuelk - API version is managed from opensubdiv/version.h - we should remove this
-set(OpenSubdiv_VERSION_MAJOR 0)
-set(OpenSubdiv_VERSION_MINOR 1)
-set(OpenSubdiv_VERSION_PATCH 0)
-set(OpenSubdiv_VERSION ${OpenSubdiv_VERSION_MAJOR}.${OpenSubdiv_VERSION_MINOR}.${OpenSubdiv_VERSION_PATCH})
-
 message(STATUS "Compiling ${CMAKE_PROJECT_NAME} version ${OpenSubdiv_VERSION}")
 message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
@@ -193,10 +187,10 @@ if(NOT NO_OMP)
 endif()
 find_package(OpenGL)
 find_package(OpenGLES)
-find_package(OpenCL)
-find_package(CUDA)
-find_package(GLFW)
-find_package(PTex)
+find_package(OpenCL 1.1)
+find_package(CUDA 4.0)
+find_package(GLFW 2.7.0)
+find_package(PTex 2.0)
 
 if (NOT APPLE AND OPENGL_FOUND)
     find_package(GLEW REQUIRED)
@@ -206,7 +200,7 @@ if (WIN32)
    find_package(DXSDK)
 endif()
 
-find_package(Maya)
+find_package(Maya 201200)
 
 # Warn about missing dependencies that will cause parts of OpenSubdiv to be
 # disabled.  Also, add preprocessor defines that can be used in the source
@@ -223,6 +217,10 @@ else()
         "will be diabled in Osd.  If your compiler supports OpenMP "
         "directives, please refer to the FindOpenMP.cmake shared module "
         "in your cmake installation.")
+endif()
+
+if(GLFW_FOUND AND (GLFW_VERSION VERSION_EQUAL 3.0 OR GLFW_VERSION VERSION_GREATER 3.0))
+    add_definitions( -DGLFW_VERSION_3 )
 endif()
 
 # note : (GLSL transform feedback kernels require GL 4.2)

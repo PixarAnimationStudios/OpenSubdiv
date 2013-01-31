@@ -59,13 +59,18 @@
     #include <OpenGL/gl3.h>
     #define GLFW_INCLUDE_GL3
     #define GLFW_NO_GLU
-    #include <GL/glfw.h>
 #else
     #include <stdlib.h>
     #include <GL/glew.h>
     #if defined(WIN32)
         #include <GL/wglew.h>
     #endif
+#endif
+
+#if defined(GLFW_VERSION_3)
+    #include <GL/glfw3.h>
+    GLFWwindow* g_window=0;
+#else
     #include <GL/glfw.h>
 #endif
 
@@ -1357,15 +1362,17 @@ display() {
     }
 
     glFinish();
-    glfwSwapBuffers();
-    glFinish();
 
     checkGLErrors("display leave");
 }
 
 //------------------------------------------------------------------------------
 static void
+#if GLFW_VERSION_MAJOR>=3
+motion(GLFWwindow *, int x, int y) {
+#else
 motion(int x, int y) {
+#endif
 
     if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
         // orbit
@@ -1388,8 +1395,11 @@ motion(int x, int y) {
 
 //------------------------------------------------------------------------------
 static void
+#if GLFW_VERSION_MAJOR>=3
+mouse(GLFWwindow *, int button, int state) {
+#else
 mouse(int button, int state) {
-
+#endif
 
     if (button == 0 && state == GLFW_PRESS && g_hud.MouseClick(g_prev_x, g_prev_y))
         return;
@@ -1425,7 +1435,11 @@ uninitGL() {
 
 //------------------------------------------------------------------------------
 static void
+#if GLFW_VERSION_MAJOR>=3
+reshape(GLFWwindow *, int width, int height) {
+#else
 reshape(int width, int height) {
+#endif
 
     g_width = width;
     g_height = height;
@@ -1460,7 +1474,11 @@ static void toggleFullScreen() {
 
 //------------------------------------------------------------------------------
 static void
+#if GLFW_VERSION_MAJOR>=3
+keyboard(GLFWwindow *, int key, int event) {
+#else
 keyboard(int key, int event) {
+#endif
 
     if (event == GLFW_RELEASE) return;
     if (g_hud.KeyDown(tolower(key))) return;
@@ -1670,6 +1688,30 @@ callbackError(OpenSubdiv::OsdErrorType err, const char *message)
 }
 
 //------------------------------------------------------------------------------
+static void
+setGLCoreProfile()
+{
+#if GLFW_VERSION_MAJOR>=3
+    #define glfwOpenWindowHint glfwWindowHint
+    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
+    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
+#endif
+
+#if GLFW_VERSION_MAJOR>=2 and GLFW_VERSION_MINOR >=7
+    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#if not defined(__APPLE__)
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
+    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#else
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
+#endif
+#endif
+    
+}
+
+//------------------------------------------------------------------------------
 int main(int argc, char ** argv)
 {
     bool fullscreen = false;
@@ -1695,26 +1737,43 @@ int main(int argc, char ** argv)
     initializeShapes();
     OsdSetErrorCallback(callbackError);
 
-    glfwInit();
+    if (not glfwInit()) {
+        printf("Failed to initialize GLFW\n");
+        return 1;
+    }
+
+    static const char windowTitle[] = "OpenSubdiv glViewer";
+    
 #define CORE_PROFILE
 #ifdef CORE_PROFILE
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
+    setGLCoreProfile();
 #endif
-#endif
-    if (glfwOpenWindow(g_width, g_height, 8, 8, 8, 8, 24, 8,
-                       fullscreen ? GLFW_FULLSCREEN : GLFW_WINDOW) == GL_FALSE) {
-        printf("Fail to open window.\n");
+    
+#if GLFW_VERSION_MAJOR>=3
+    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle, 
+                                       fullscreen ? glfwGetPrimaryMonitor() : NULL, NULL))) {
+        printf("Failed to open window.\n");
         glfwTerminate();
         return 1;
     }
-    glfwSetWindowTitle("OpenSubdiv glViewer");
+    glfwMakeContextCurrent(g_window);
+    glfwSetKeyCallback(g_window, keyboard);
+    glfwSetCursorPosCallback(g_window, motion);
+    glfwSetMouseButtonCallback(g_window, mouse);
+    glfwSetWindowSizeCallback(g_window, reshape);
+#else
+    if (glfwOpenWindow(g_width, g_height, 8, 8, 8, 8, 24, 8,
+                       fullscreen ? GLFW_FULLSCREEN : GLFW_WINDOW) == GL_FALSE) {
+        printf("Failed to open window.\n");
+        glfwTerminate();
+        return 1;
+    }
+    glfwSetWindowTitle(windowTitle);
+    glfwSetKeyCallback(keyboard);
+    glfwSetMousePosCallback(motion);
+    glfwSetMouseButtonCallback(mouse);
+    glfwSetWindowSizeCallback(reshape);
+#endif
 
 #if not defined(__APPLE__)
 #ifdef CORE_PROFILE
@@ -1722,7 +1781,7 @@ int main(int argc, char ** argv)
     glewExperimental = true;
 #endif
     if (GLenum r = glewInit() != GLEW_OK) {
-        printf("Fail to initialize glew. error = %d\n", r);
+        printf("Failed to initialize glew. Error = %s\n", glewGetErrorString(r));
         exit(1);
     }
 #ifdef CORE_PROFILE
@@ -1741,14 +1800,18 @@ int main(int argc, char ** argv)
     initHUD();
     callbackModel(g_currentShape);
 
-    glfwSetKeyCallback(keyboard);
-    glfwSetMousePosCallback(motion);
-    glfwSetMouseButtonCallback(mouse);
-    glfwSetWindowSizeCallback(reshape);
-
     while (g_running) {
         idle();
         display();
+        
+#if GLFW_VERSION_MAJOR>=3
+        glfwPollEvents();
+        glfwSwapBuffers(g_window);
+#else
+        glfwSwapBuffers();
+#endif
+        
+        glFinish();
     }
 
     uninitGL();

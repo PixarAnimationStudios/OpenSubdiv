@@ -130,11 +130,29 @@ else ()
             DOC "The Ptex library")
 endif ()
 
+if (PTEX_INCLUDE_DIR AND EXISTS "${PTEX_INCLUDE_DIR}/Ptexture.h" )
+
+    file(STRINGS "${PTEX_INCLUDE_DIR}/Ptexture.h" TMP REGEX "^#define PtexAPIVersion.*$")
+    string(REGEX MATCHALL "[0-9]+" API ${TMP})
+    
+    file(STRINGS "${PTEX_INCLUDE_DIR}/Ptexture.h" TMP REGEX "^#define PtexFileMajorVersion.*$")
+    string(REGEX MATCHALL "[0-9]+" MAJOR ${TMP})
+
+    file(STRINGS "${PTEX_INCLUDE_DIR}/Ptexture.h" TMP REGEX "^#define PtexFileMinorVersion.*$")
+    string(REGEX MATCHALL "[0-9]+" MINOR ${TMP})
+
+    set(PTEX_VERSION ${API}.${MAJOR}.${MINOR})
+
+endif()
+
 include(FindPackageHandleStandardArgs)
 
-find_package_handle_standard_args(PTEX DEFAULT_MSG
-    PTEX_INCLUDE_DIR
-    PTEX_LIBRARY
+find_package_handle_standard_args(PTex 
+    REQUIRED_VARS
+        PTEX_INCLUDE_DIR
+        PTEX_LIBRARY
+    VERSION_VAR
+        PTEX_VERSION
 )
 
 mark_as_advanced(
