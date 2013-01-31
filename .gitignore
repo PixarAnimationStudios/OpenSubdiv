@@ -1,3 +1,4 @@
 
 # ignore stringified kernels
 *.inc
+*.inc.rule
