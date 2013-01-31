@@ -247,6 +247,9 @@ GLhud::Rebuild(int width, int height)
 {
     Hud::Rebuild(width, height);
 
+    if (not _staticVbo)
+        return;
+
     std::vector<float> vboSource;
     // add UI elements
     for (std::vector<RadioButton>::const_iterator it = getRadioButtons().begin();
