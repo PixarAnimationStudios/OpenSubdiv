@@ -59,6 +59,16 @@ project(OpenSubdiv)
 
 cmake_minimum_required(VERSION 2.8)
 
+#-------------------------------------------------------------------------------
+# Obtain OpenSubdiv API version from version.h file
+if(EXISTS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h")
+    file(STRINGS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h" 
+        OpenSubdiv_VERSION REGEX "^#define OPENSUBDIV_VERSION .*$")
+    string(REPLACE "#define OPENSUBDIV_VERSION " "" OpenSubdiv_VERSION ${OpenSubdiv_VERSION})
+endif()
+
+#-------------------------------------------------------------------------------
+
 message(STATUS "Compiling ${CMAKE_PROJECT_NAME} version ${OpenSubdiv_VERSION}")
 message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
