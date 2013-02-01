@@ -390,19 +390,85 @@ EvalBSpline(float u, float v,
 
 class MyPatch {
 public:
+    
+    // Enum describing the number and arrangment of control vertices
+    // in the patch.
+    //
+    // Regular patches will have 16 CVs, boundary = 12, corner = 9,
+    // gregory = 4.       
+    enum PatchType {
+        Regular,
+        Boundary,
+        Corner,
+        Gregory
+    };
 
     // Note that MyPatch retains a pointer to CVs and depends
     // on it remaining allocated.
-    MyPatch(const unsigned int *CVs) {
-        _cvs = CVs;
-    }
+    MyPatch(const unsigned int *CVs, PatchType patchType) {
+        
+        _patchType = patchType;
+        
+        // These tables map the 9, 12, or 16 input control points onto the
+        // canonical 16 control points for a regular patch.
+        const int pRegular[16] = 
+            {0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+        const int pBoundary[16] =
+            {0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+        const int pCorner[16] =         
+            {0, 1, 2, 2, 0, 1, 2, 2, 3, 4, 5, 5, 6, 7, 8, 8 };            
+        
+        const int *p=NULL;
+        switch (_patchType) {
+        case Regular:  p=pRegular;  break;
+        case Boundary: p=pBoundary; break;
+        case Corner:   p=pCorner;   break;
+        case Gregory: return; // XXX not yet implemented
+        }
 
+        // These tables account for patch rotation 
+        const int r0[16] =
+            { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+/*        
+        const int r1[16] =
+            { 12, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3 };
+        const int r2[16] =
+            { 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
+        const int r3[16] =
+            { 3, 7, 11, 15, 2, 6, 10, 14, 1, 5, 9, 13, 0, 4, 8, 12 };
+*/            
+
+        // XXX deal with rotation here
+        const int *r = r0;
+
+        // Expand and rotate control points using remapping tables
+        // above.  Now the CVs will be expressed as a consistent 16 cv
+        // arrangment for EvalBSpline use in Eval.
+        //
+        for (int i=0;i<16; ++i) {
+            _cvs[i] = CVs[p[r[i]]];
+        }        
+
+    }
     void Eval( float u, float v, simpleVec3 *vertexBuffer, 
-               simpleVec3 *position,  simpleVec3 *utangent, simpleVec3 *vtangent) {
-        EvalBSpline(u, v, vertexBuffer, _cvs,
-                    position, utangent, vtangent);
+               simpleVec3 *position,  simpleVec3 *utangent,
+               simpleVec3 *vtangent) {
+        if (_patchType != Gregory) {
+            EvalBSpline(u, v, vertexBuffer, _cvs,
+                        position, utangent, vtangent);
+        }
     }
 
+    static int RingSizeForPatchType(PatchType patchType) {
+        switch (patchType) {
+        case Regular:  return 16;
+        case Boundary: return 12;
+        case Corner:   return 9; 
+        case Gregory:  return 4; 
+        }
+    }   
+    
+private:
     
     
     //  Packed patch control vertices
@@ -410,7 +476,9 @@ public:
     //   4  5  6  7
     //   8  9 10 11
     //  12 13 14 15
-    const unsigned int *_cvs; // 
+    unsigned int _cvs[16]; 
+
+    PatchType _patchType;
 };
  
 
@@ -422,8 +490,8 @@ TestPatchEvaluation()
 
     // This method creates a 4x4 cubic patch with limit
     // surface from 0->1 in x and y
-
-  float positions[16*3] =   {
+    
+    float positions[16*3] =   {
         -1.0f, -1.0f, 0.0f,
         0.00f, -1.0f, 0.0f,
         1.00f, -1.0f, 0.0f,
@@ -444,13 +512,13 @@ TestPatchEvaluation()
         1.00f, 2.00f, 0.0f,
         2.00f, 2.00f, 0.0f};
 
-  unsigned int faceIndices[16] = {
-      0,1,2,3,
-      4,5,6,7,
-      8,9,10,11,
-      12,13,14,15};
+    unsigned int faceIndices[16] = {
+        0,1,2,3,
+        4,5,6,7,
+        8,9,10,11,
+        12,13,14,15};
 
-    MyPatch patch(faceIndices);
+    MyPatch patch(faceIndices, MyPatch::Regular);
 
     for (float u=0; u<=1.0; u+= 0.2) {
         for (float v=0; v<=1.0; v+= 0.2) {
@@ -519,19 +587,32 @@ public:
 
 private:
 
-
-    void _AppendPatchArray(const OpenSubdiv::FarTable<unsigned int> &ptable) {
+    // Create evaluation patches given a table describing a bunch of
+    // patches, and the "ringSize" or number of CVs per patch.
+    //
+    // Regular patches will have ringSize = 16,  boundary = 12,
+    // corner = 9, gregory = 4.
+    // 
+    void _AppendPatchArray(
+        const OpenSubdiv::FarTable<unsigned int> &ptable,
+        MyPatch::PatchType patchType) {
+        
         // Iterate over all patches in this table.  Don't worry about
         // markers here, those would tell use what level of
-        // subdivision the patch was created on.  
-        // Just iterate over all patches, this is in blocks of 16 unsigned ints
-        // per patch.
+        // subdivision the patch was created on.
+        //
+        // Just iterate over all patches, this is in blocks of
+        // 16, 12, 9, or 4 unsigned ints per patch depending
+        // on patchType
+        //
         const unsigned int *vertIndices = ptable[0];
-        for (int i=0; i<ptable.GetSize(); i+=16) {
+        int ringSize = MyPatch::RingSizeForPatchType(patchType);
+            
+        for (int i=0; i<ptable.GetSize(); i+=ringSize) {
             // Create a patch object from the next block
             // of 16 control point indices stored in
             // the patch table.
-            MyPatch patch(vertIndices + i);
+            MyPatch patch(vertIndices + i, patchType);
             _patches.push_back(patch);
         }
     }
@@ -572,19 +653,25 @@ OsdEvalContext::OsdEvalContext(
     // Iterate over the patches generated by feature
     // adaptive refinement and create MyPatch objects.
     //
-    _AppendPatchArray(patchTables->GetFullRegularPatches());
-//    _AppendPatchArray(patchTables->GetFullBoundaryPatches());
-//    _AppendPatchArray(patchTables->GetFullCornerPatches());
-    _AppendPatchArray(patchTables->GetFullGregoryPatches());
-//    _AppendPatchArray(patchTables->GetFullBoundaryGregoryPatches());
+    _AppendPatchArray(patchTables->GetFullRegularPatches(), MyPatch::Regular);
+    
+    _AppendPatchArray(patchTables->GetFullBoundaryPatches(), MyPatch::Boundary);
+    _AppendPatchArray(patchTables->GetFullCornerPatches(), MyPatch::Corner);
+    
+    _AppendPatchArray(patchTables->GetFullGregoryPatches(), MyPatch::Gregory);
+    _AppendPatchArray(patchTables->GetFullBoundaryGregoryPatches(),
+                      MyPatch::Gregory);
 
     for (int p=0; p<5; ++p) {
-        _AppendPatchArray(patchTables->GetTransitionRegularPatches(p));
+        _AppendPatchArray(patchTables->GetTransitionRegularPatches(p),
+                          MyPatch::Regular);
         
-//        for (int r=0; r<4; ++r) {           
-//            _AppendPatchArray(patchTables->GetTransitionBoundaryPatches(p, r));
-//            _AppendPatchArray(patchTables->GetTransitionCornerPatches(p, r));
-//        }
+        for (int r=0; r<4; ++r) {           
+            _AppendPatchArray(patchTables->GetTransitionBoundaryPatches(p, r),
+                              MyPatch::Boundary);
+            _AppendPatchArray(patchTables->GetTransitionCornerPatches(p, r),
+                              MyPatch::Corner);
+        }
      }        
 
                    
