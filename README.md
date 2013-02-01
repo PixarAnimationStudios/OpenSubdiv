@@ -35,7 +35,7 @@ Required:
 Optional:
 * [CUDA](http://developer.nvidia.com/category/zone/cuda-zone)
 * [OpenCL](http://www.khronos.org/opencl/)
-* [GLUT](http://freeglut.sourceforge.net/)
+* [GLFW](http://www.glfw.org/)
 * [Ptex](https://github.com/wdas/ptex)
 * [Zlib](http://www.zlib.net) (required for Ptex under Windows)
 * [Maya SDK](http://www.autodesk.com/maya/) (sample code for Maya viewport 2.0 primitive)
@@ -48,13 +48,13 @@ Optional:
 -DCUDA_TOOLKIT_ROOT_DIR=[path to CUDA]
 -DPTEX_LOCATION=[path to Ptex]
 -DGLEW_LOCATION=[path to GLEW]
--DGLUT_LOCATION=[path to GLUT]
+-DGLFW_LOCATION=[path to GLFW]
 -DMAYA_LOCATION=[path to Maya]
 -DNO_OMP=1 // disable OpenMP
 ````
 
-The paths to Maya, Ptex, GLUT, and GLEW can also be specified through the
-following environment variables: `MAYA_LOCATION`, `PTEX_LOCATION`, `GLUT_LOCATION`,
+The paths to Maya, Ptex, GLFW, and GLEW can also be specified through the
+following environment variables: `MAYA_LOCATION`, `PTEX_LOCATION`, `GLFW_LOCATION`,
 and `GLEW_LOCATION`.
 
 
@@ -88,7 +88,7 @@ Here is an example cmake configuration script for a full typical windows-based b
 "c:/Program Files (x86)/CMake 2.8/bin/cmake.exe" \
     -G "Visual Studio 10 Win64" \
     -D "GLEW_LOCATION:string=c:/Program Files/glew-1.9.0" \
-    -D "GLUT_LOCATION:string=c:/Program Files/freeglut-2.8.0" \
+    -D "GLFW_LOCATION:string=c:/Program Files/glfw-2.7.7.bin.WIN64" \
     -D "OPENCL_INCLUDE_DIRS:string=c:/ProgramData/NVIDIA Corporation/NVIDIA GPU Computing SDK 4.2/OpenCL/common/inc" \
     -D "_OPENCL_CPP_INCLUDE_DIRS:string=c:/ProgramData/NVIDIA Corporation/NVIDIA GPU Computing SDK 4.2/OpenCL/common/inc" \
     -D "OPENCL_LIBRARIES:string=c:/ProgramData/NVIDIA Corporation/NVIDIA GPU Computing SDK 4.2/OpenCL/common/lib/x64/OpenCL.lib" \
