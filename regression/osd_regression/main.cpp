@@ -60,7 +60,13 @@
 #else
     #include <stdlib.h>
     #include <GL/glew.h>
-    #include <GL/glut.h>
+#endif
+
+#if defined(GLFW_VERSION_3)
+    #include <GL/glfw3.h>
+    GLFWwindow* g_window=0;
+#else
+    #include <GL/glfw.h>
 #endif
 
 #include <stdio.h>
@@ -346,10 +352,29 @@ int checkMesh( char const * msg, char const * shape, int levels, Scheme scheme=k
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
-    // Make sure we have an OpenGL context.
-    glutInit(&argc, argv);
-    glutCreateWindow("osd_regression");
+    // Make sure we have an OpenGL context : create dummy GLFW window
+    if (not glfwInit()) {
+        printf("Failed to initialize GLFW\n");
+        return 1;
+    }
+
+    static const char windowTitle[] = "OpenSubdiv glViewer";
+    
+    int width=10, height=10;
+    
+#if GLFW_VERSION_MAJOR>=3
+    if (not (g_window=glfwCreateWindow(width, height, windowTitle, NULL, NULL))) {
+#else
+    if (glfwOpenWindow(width, height, 8, 8, 8, 8, 24, 8,GLFW_WINDOW) == GL_FALSE) {
+#endif
+        printf("Failed to open window.\n");
+        glfwTerminate();
+        return 1;
+    }
+    
+#if not defined(__APPLE__)
     glewInit();
+#endif
 
     int levels=5, total=0;
 
@@ -544,6 +569,8 @@ int main(int argc, char ** argv) {
 #include "../shapes/bilinear_cube.h"
     total += checkMesh( "test_bilinear_cube", bilinear_cube, levels, kBilinear );
 #endif
+
+    glfwTerminate();
 
     if (total==0)
       printf("All tests passed.\n");

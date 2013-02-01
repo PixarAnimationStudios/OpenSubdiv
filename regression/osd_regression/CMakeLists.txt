@@ -58,104 +58,24 @@
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
     ${GLEW_INCLUDE_DIR}
-    ${GLUT_INCLUDE_DIR}
+    ${GLFW_INCLUDE_DIR}
 )
 
 set(SOURCE_FILES
     main.cpp
 )
 
+set(PLATFORM_LIBRARIES
+    ${OSD_LINK_TARGET}
+    ${OPENGL_LIBRARY}
+    ${GLEW_LIBRARY}
+    ${GLFW_LIBRARIES}
+)
 
 add_executable(osd_regression
     ${SOURCE_FILES}
 )
 
-#-------------------------------------------------------------------------------
-if( PTEX_FOUND )
-    list(APPEND SOURCE_FILES
-        pTexture.cpp
-    )
-    list(APPEND PUBLIC_HEADER_FILES
-        pTexture.h
-    )
-    include_directories( ${PTEX_INCLUDE_DIR} )
-    list(APPEND PLATFORM_LIBRARIES
-        ${PTEX_LIBRARY}
-    )
-endif()
-
-#-------------------------------------------------------------------------------
-if( OPENMP_FOUND )
-    if (CMAKE_COMPILER_IS_GNUCXX)
-        list(APPEND PLATFORM_LIBRARIES
-            gomp
-        )
-    endif()
-endif()
-
-#-------------------------------------------------------------------------------
-# GL code & dependencies
-# note : (GLSL compute kernels require GL 4.2, which excludes APPLE)
-if( OPENGL_FOUND AND GLEW_FOUND AND (NOT APPLE) )
-    list(APPEND SOURCE_FILES
-        glslDispatcher.cpp
-    )
-    list(APPEND PUBLIC_HEADER_FILES
-        glslDispatcher.h
-    )
-    list(APPEND KERNEL_FILES
-        glslKernel.glsl
-    )
-    list(APPEND PLATFORM_LIBRARIES
-        ${OPENGL_LIBRARY}
-        ${GLEW_LIBRARY}
-    )
-else( OPENGL_FOUND AND APPLE )
-    list(APPEND PLATFORM_LIBRARIES
-        ${OPENGL_LIBRARY}
-    )
-endif()
-
-#-------------------------------------------------------------------------------
-# OpenCL code & dependencies
-if ( OPENCL_FOUND )
-    list(APPEND SOURCE_FILES
-        clDispatcher.cpp
-    )
-    list(APPEND PUBLIC_HEADER_FILES
-        clDispatcher.h
-    )
-    list(APPEND KERNEL_FILES
-        clKernel.cl
-    )
-    list(APPEND PLATFORM_LIBRARIES
-        ${OPENCL_LIBRARIES}
-    )
-    include_directories(${OPENCL_INCLUDE_DIRS})
-endif()
-
-#-------------------------------------------------------------------------------
-# CUDA code & dependencies
-if( CUDA_FOUND )
-    list(APPEND SOURCE_FILES
-        cudaDispatcher.cpp
-    )
-    list(APPEND PUBLIC_HEADER_FILES
-        cudaDispatcher.h
-    )
-    list(APPEND KERNEL_FILES
-        cudaKernel.cu
-    )
-    if (UNIX)
-        list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC )
-    endif()
-endif()
-
-
-
 target_link_libraries(osd_regression
-    ${OSD_LINK_TARGET}
-    ${OPENGL_LIBRARY}
-    ${GLEW_LIBRARY}
-    ${GLUT_LIBRARIES}
+    ${PLATFORM_LIBRARIES}
 )
