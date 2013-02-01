@@ -109,6 +109,7 @@ if (WIN32)
                 glfw32 
                 glfw32s 
                 glfw
+                glfw3
             PATHS
                 ${GLFW_LOCATION}/lib
                 ${GLFW_LOCATION}/lib/x64
