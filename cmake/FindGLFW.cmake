@@ -211,7 +211,7 @@ if(GLFW_INCLUDE_DIR)
     endif()
     
     # static builds of glfw require Xrandr
-    if( UNIX AND GLFW_FOUND)
+    if( NOT WIN32 AND NOT APPLE AND GLFW_FOUND)
         list(APPEND GLFW_LIBRARIES -lXrandr -lXxf86vm)
     endif()
 endif(GLFW_INCLUDE_DIR)
