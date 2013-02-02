@@ -99,9 +99,6 @@ public:
 
     /// Waits until all running subdivision kernels finish.
     void Synchronize();
-
-private:
-    int _numThreads;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

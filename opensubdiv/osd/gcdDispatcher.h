@@ -57,6 +57,8 @@
 #ifndef OSD_GCD_DISPATCHER_H
 #define OSD_GCD_DISPATCHER_H
 
+#include <dispatch/dispatch.h>
+
 #include "../version.h"
 
 #include "../osd/vertex.h"
@@ -124,6 +126,9 @@ protected:
     virtual void ApplyVertexEdits(
         FarMesh<OsdVertex> *mesh, int offset, int level,
         void * clientdata) const;
+
+private:
+    dispatch_queue_t _gcd_queue;
 
 };
 

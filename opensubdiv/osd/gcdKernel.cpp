@@ -65,10 +65,11 @@ namespace OPENSUBDIV_VERSION {
 
 void OsdGcdComputeFace(
     const OsdVertexDescriptor *vdesc, float * vertex, float * varying,
-    const int *F_IT, const int *F_ITa, int offset, int start, int end) {
+    const int *F_IT, const int *F_ITa, int offset, int start, int end,
+    dispatch_queue_t gcdq) {
 
-#pragma omp parallel for
-    for (int i = start; i < end; i++) {
+    dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
+        int i = start+blockIdx;
         int h = F_ITa[2*i];
         int n = F_ITa[2*i+1];
 
@@ -84,15 +85,16 @@ void OsdGcdComputeFace(
             vdesc->AddWithWeight(vertex, dstIndex, index, weight);
             vdesc->AddVaryingWithWeight(varying, dstIndex, index, weight);
         }
-    }
+    });
 }
 
 void OsdGcdComputeEdge(
     const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
-    const int *E_IT, const float *E_W, int offset, int start, int end) {
+    const int *E_IT, const float *E_W, int offset, int start, int end,
+    dispatch_queue_t gcdq) {
 
-#pragma omp parallel for
-    for (int i = start; i < end; i++) {
+    dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
+        int i = start+blockIdx;
         int eidx0 = E_IT[4*i+0];
         int eidx1 = E_IT[4*i+1];
         int eidx2 = E_IT[4*i+2];
@@ -115,16 +117,17 @@ void OsdGcdComputeEdge(
 
         vdesc->AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
         vdesc->AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
-    }
+    });
 }
 
 void OsdGcdComputeVertexA(
     const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
     const int *V_ITa, const float *V_W,
-    int offset, int start, int end, int pass) {
+    int offset, int start, int end, int pass,
+    dispatch_queue_t gcdq) {
 
-#pragma omp parallel for
-    for (int i = start; i < end; i++) {
+    dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
+        int i = start+blockIdx;
         int n     = V_ITa[5*i+1];
         int p     = V_ITa[5*i+2];
         int eidx0 = V_ITa[5*i+3];
@@ -152,16 +155,17 @@ void OsdGcdComputeVertexA(
 
         if (not pass)
             vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
-    }
+    });
 }
 
 void OsdGcdComputeVertexB(
     const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
     const int *V_ITa, const int *V_IT, const float *V_W,
-    int offset, int start, int end) {
+    int offset, int start, int end,
+    dispatch_queue_t gcdq) {
 
-#pragma omp parallel for
-    for (int i = start; i < end; i++) {
+    dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
+        int i = start+blockIdx;
         int h = V_ITa[5*i];
         int n = V_ITa[5*i+1];
         int p = V_ITa[5*i+2];
@@ -180,16 +184,17 @@ void OsdGcdComputeVertexB(
             vdesc->AddWithWeight(vertex, dstIndex, V_IT[h+j*2+1], weight * wp);
         }
         vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
-    }
+    });
 }
 
 void OsdGcdComputeLoopVertexB(
     const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
     const int *V_ITa, const int *V_IT, const float *V_W,
-    int offset, int start, int end) {
+    int offset, int start, int end,
+    dispatch_queue_t gcdq) {
 
-#pragma omp parallel for
-    for (int i = start; i < end; i++) {
+    dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
+        int i = start+blockIdx;
         int h = V_ITa[5*i];
         int n = V_ITa[5*i+1];
         int p = V_ITa[5*i+2];
@@ -209,15 +214,16 @@ void OsdGcdComputeLoopVertexB(
             vdesc->AddWithWeight(vertex, dstIndex, V_IT[h+j], weight * beta);
 
         vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
-    }
+    });
 }
 
 void OsdGcdComputeBilinearEdge(
     const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
-    const int *E_IT, int offset, int start, int end) {
+    const int *E_IT, int offset, int start, int end,
+    dispatch_queue_t gcdq) {
 
-#pragma omp parallel for
-    for (int i = start; i < end; i++) {
+    dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
+        int i = start+blockIdx;
         int eidx0 = E_IT[2*i+0];
         int eidx1 = E_IT[2*i+1];
 
@@ -229,15 +235,16 @@ void OsdGcdComputeBilinearEdge(
 
         vdesc->AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
         vdesc->AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
-    }
+    });
 }
 
 void OsdGcdComputeBilinearVertex(
     const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
-    const int *V_ITa, int offset, int start, int end) {
+    const int *V_ITa, int offset, int start, int end,
+    dispatch_queue_t gcdq) {
 
-#pragma omp parallel for
-    for (int i = start; i < end; i++) {
+    dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
+        int i = start+blockIdx;
         int p = V_ITa[i];
 
         int dstIndex = offset + i;
@@ -245,31 +252,33 @@ void OsdGcdComputeBilinearVertex(
 
         vdesc->AddWithWeight(vertex, dstIndex, p, 1.0f);
         vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
-    }
+    });
 }
 
 void OsdGcdEditVertexAdd(
     const OsdVertexDescriptor *vdesc, float *vertex,
     int primVarOffset, int primVarWidth, int vertexCount,
-    const int *editIndices, const float *editValues) {
+    const int *editIndices, const float *editValues,
+    dispatch_queue_t gcdq) {
 
-#pragma omp parallel for
-    for (int i = 0; i < vertexCount; i++) {
+    dispatch_apply(vertexCount, gcdq, ^(size_t blockIdx){
+        int i = blockIdx;
         vdesc->ApplyVertexEditAdd(vertex, primVarOffset, primVarWidth,
                                   editIndices[i], &editValues[i*primVarWidth]);
-    }
+    });
 }
 
 void OsdGcdEditVertexSet(
     const OsdVertexDescriptor *vdesc, float *vertex,
     int primVarOffset, int primVarWidth, int vertexCount,
-    const int *editIndices, const float *editValues) {
+    const int *editIndices, const float *editValues,
+    dispatch_queue_t gcdq) {
 
-#pragma omp parallel for
-    for (int i = 0; i < vertexCount; i++) {
+    dispatch_apply(vertexCount, gcdq, ^(size_t blockIdx){
+        int i = blockIdx;
         vdesc->ApplyVertexEditSet(vertex, primVarOffset, primVarWidth,
                                   editIndices[i], &editValues[i*primVarWidth]);
-    }
+    });
 }
 
 

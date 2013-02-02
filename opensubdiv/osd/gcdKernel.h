@@ -57,6 +57,7 @@
 #ifndef OSD_GCD_KERNEL_H
 #define OSD_GCD_KERNEL_H
 
+#include <dispatch/dispatch.h>
 #include "../version.h"
 
 namespace OpenSubdiv {
@@ -67,46 +68,55 @@ struct OsdVertexDescriptor;
 void OsdGcdComputeFace(const OsdVertexDescriptor *vdesc,
                        float * vertex, float * varying,
                        const int *F_IT, const int *F_ITa,
-                       int offset, int start, int end);
+                       int offset, int start, int end,
+                       dispatch_queue_t gcdq);
 
 void OsdGcdComputeEdge(const OsdVertexDescriptor *vdesc,
                        float *vertex, float * varying,
                        const int *E_IT, const float *E_ITa,
-                       int offset, int start, int end);
+                       int offset, int start, int end,
+                       dispatch_queue_t gcdq);
 
 void OsdGcdComputeVertexA(const OsdVertexDescriptor *vdesc,
                           float *vertex, float * varying,
                           const int *V_ITa, const float *V_IT,
-                          int offset, int start, int end, int pass);
+                          int offset, int start, int end, int pass,
+                          dispatch_queue_t gcdq);
 
 void OsdGcdComputeVertexB(const OsdVertexDescriptor *vdesc,
                           float *vertex, float * varying,
                           const int *V_ITa, const int *V_IT, const float *V_W,
-                          int offset, int start, int end);
+                          int offset, int start, int end,
+                          dispatch_queue_t gcdq);
 
 void OsdGcdComputeLoopVertexB(const OsdVertexDescriptor *vdesc,
                               float *vertex, float * varying,
                               const int *V_ITa, const int *V_IT,
                               const float *V_W,
-                              int offset, int start, int end);
+                              int offset, int start, int end,
+                              dispatch_queue_t gcdq);
 
 void OsdGcdComputeBilinearEdge(const OsdVertexDescriptor *vdesc,
                                float *vertex, float * varying,
                                const int *E_IT,
-                               int offset, int start, int end);
+                               int offset, int start, int end,
+                               dispatch_queue_t gcdq);
 
 void OsdGcdComputeBilinearVertex(const OsdVertexDescriptor *vdesc,
                                  float *vertex, float * varying,
                                  const int *V_ITa,
-                                 int offset, int start, int end);
+                                 int offset, int start, int end,
+                                 dispatch_queue_t gcdq);
 
 void OsdGcdEditVertexAdd(const OsdVertexDescriptor *vdesc, float *vertex,
                          int primVarOffset, int primVarWidth, int count,
-                         const int *editIndices, const float *editValues);
+                         const int *editIndices, const float *editValues,
+                         dispatch_queue_t gcdq);
 
 void OsdGcdEditVertexSet(const OsdVertexDescriptor *vdesc, float *vertex,
                          int primVarOffset, int primVarWidth, int count,
-                         const int *editIndices, const float *editValues);
+                         const int *editIndices, const float *editValues,
+                         dispatch_queue_t gcdq);
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

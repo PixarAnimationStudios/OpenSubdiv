@@ -66,6 +66,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 OsdGcdKernelDispatcher::OsdGcdKernelDispatcher() {
+    _gcd_queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
 }
 
 OsdGcdKernelDispatcher::~OsdGcdKernelDispatcher() {
@@ -100,7 +101,8 @@ OsdGcdKernelDispatcher::ApplyBilinearFaceVerticesKernel(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTablePtr(Table::F_IT, level-1),
         (const int*)context->GetTablePtr(Table::F_ITa, level-1),
-        offset, start, end);
+        offset, start, end,
+        _gcd_queue);
 }
 
 void
@@ -117,7 +119,8 @@ OsdGcdKernelDispatcher::ApplyBilinearEdgeVerticesKernel(
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTablePtr(Table::E_IT, level-1),
-        offset, start, end);
+        offset, start, end,
+        _gcd_queue);
 }
 
 void
@@ -134,7 +137,8 @@ OsdGcdKernelDispatcher::ApplyBilinearVertexVerticesKernel(
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTablePtr(Table::V_ITa, level-1),
-        offset, start, end);
+        offset, start, end,
+        _gcd_queue);
 }
 
 void
@@ -152,7 +156,8 @@ OsdGcdKernelDispatcher::ApplyCatmarkFaceVerticesKernel(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTablePtr(Table::F_IT, level-1),
         (const int*)context->GetTablePtr(Table::F_ITa, level-1),
-        offset, start, end);
+        offset, start, end,
+        _gcd_queue);
 }
 
 void
@@ -170,7 +175,8 @@ OsdGcdKernelDispatcher::ApplyCatmarkEdgeVerticesKernel(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTablePtr(Table::E_IT, level-1),
         (const float*)context->GetTablePtr(Table::E_W, level-1),
-        offset, start, end);
+        offset, start, end,
+        _gcd_queue);
 }
 
 void
@@ -189,7 +195,8 @@ OsdGcdKernelDispatcher::ApplyCatmarkVertexVerticesKernelB(
         (const int*)context->GetTablePtr(Table::V_ITa, level-1),
         (const int*)context->GetTablePtr(Table::V_IT, level-1),
         (const float*)context->GetTablePtr(Table::V_W, level-1),
-        offset, start, end);
+        offset, start, end,
+        _gcd_queue);
 }
 
 void
@@ -207,7 +214,8 @@ OsdGcdKernelDispatcher::ApplyCatmarkVertexVerticesKernelA(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTablePtr(Table::V_ITa, level-1),
         (const float*)context->GetTablePtr(Table::V_W, level-1),
-        offset, start, end, pass);
+        offset, start, end, pass,
+        _gcd_queue);
 }
 
 void
@@ -225,7 +233,8 @@ OsdGcdKernelDispatcher::ApplyLoopEdgeVerticesKernel(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTablePtr(Table::E_IT, level-1),
         (const float*)context->GetTablePtr(Table::E_W, level-1),
-        offset, start, end);
+        offset, start, end,
+        _gcd_queue);
 }
 
 void
@@ -244,7 +253,8 @@ OsdGcdKernelDispatcher::ApplyLoopVertexVerticesKernelB(
         (const int*)context->GetTablePtr(Table::V_ITa, level-1),
         (const int*)context->GetTablePtr(Table::V_IT, level-1),
         (const float*)context->GetTablePtr(Table::V_W, level-1),
-        offset, start, end);
+        offset, start, end,
+        _gcd_queue);
 }
 
 void
@@ -262,7 +272,8 @@ OsdGcdKernelDispatcher::ApplyLoopVertexVerticesKernelA(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTablePtr(Table::V_ITa, level-1),
         (const float*)context->GetTablePtr(Table::V_W, level-1),
-        offset, start, end, pass);
+        offset, start, end, pass,
+        _gcd_queue);
 }
 
 void
@@ -293,7 +304,8 @@ OsdGcdKernelDispatcher::ApplyVertexEdits(
                                 edit->GetPrimvarWidth(),
                                 primvarIndices.GetNumElements(level-1),
                                 (const int*)primvarIndices[level-1],
-                                (const float*)editValues[level-1]);
+                                (const float*)editValues[level-1],
+                                _gcd_queue);
         } else if (edit->GetOperation() == FarVertexEdit::Set) {
             OsdGcdEditVertexSet(context->GetVertexDescriptor(),
                                 context->GetCurrentVertexBuffer(),
@@ -301,7 +313,8 @@ OsdGcdKernelDispatcher::ApplyVertexEdits(
                                 edit->GetPrimvarWidth(),
                                 primvarIndices.GetNumElements(level-1),
                                 (const int*)primvarIndices[level-1],
-                                (const float*)editValues[level-1]);
+                                (const float*)editValues[level-1],
+                                _gcd_queue);
         }
     }
 }
