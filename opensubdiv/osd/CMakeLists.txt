@@ -178,6 +178,25 @@ if( OPENMP_FOUND )
 endif()
 
 #-------------------------------------------------------------------------------
+if( GCD_FOUND )
+    list(APPEND CPU_SOURCE_FILES
+        gcdDispatcher.cpp
+        gcdKernel.cpp
+        gcdComputeController.cpp
+    )
+    list(APPEND PUBLIC_HEADER_FILES
+        gcdDispatcher.h
+        gcdKernel.h
+        gcdComputeController.h
+    )   
+    #if (CMAKE_COMPILER_IS_GNUCXX)
+    #    list(APPEND PLATFORM_LIBRARIES
+    #        gomp
+    #    )
+    #endif()
+endif()
+
+#-------------------------------------------------------------------------------
 # GL code & dependencies
 if( OPENGL_FOUND OR OPENGLES_FOUND )
     list(APPEND GPU_SOURCE_FILES
