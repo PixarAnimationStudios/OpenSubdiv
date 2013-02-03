@@ -72,24 +72,18 @@ void OsdGcdComputeFace(
     const int *F_IT, const int *F_ITa, int offset, int start, int end,
     dispatch_queue_t gcdq) {
 
-    dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
-        int i = start+blockIdx;
-        int h = F_ITa[2*i];
-        int n = F_ITa[2*i+1];
-
-        float weight = 1.0f/n;
-
-        // XXX: should use local vertex struct variable instead of
-        // accumulating directly into global memory.
-        int dstIndex = offset + i;
-        vdesc->Clear(vertex, varying, dstIndex);
-
-        for (int j = 0; j < n; ++j) {
-            int index = F_IT[h+j];
-            vdesc->AddWithWeight(vertex, dstIndex, index, weight);
-            vdesc->AddVaryingWithWeight(varying, dstIndex, index, weight);
-        }
+    const int workSize = end-start;
+    dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
+        const int start_i = start + blockIdx*GCD_WORK_STRIDE;
+        const int end_i = start_i + GCD_WORK_STRIDE;
+        OsdCpuComputeFace(vdesc, vertex, varying, F_IT, F_ITa, offset,
+            start_i, end_i);
     });
+    const int start_e = end - workSize%GCD_WORK_STRIDE;
+    const int end_e = end;
+    if (start_e < end_e)
+        OsdCpuComputeFace(vdesc, vertex, varying, F_IT, F_ITa, offset,
+            start_e, end_e);
 }
 
 void OsdGcdComputeEdge(
