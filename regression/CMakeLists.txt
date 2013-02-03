@@ -59,7 +59,7 @@ add_subdirectory(hbr_regression)
 
 add_subdirectory(far_regression)
 
-if(OPENGL_FOUND AND GLEW_FOUND AND GLFW_FOUND)
+if(OPENGL_FOUND AND (GLEW_FOUND OR APPLE) AND GLFW_FOUND)
     add_subdirectory(osd_regression)
 else()
     set(MISSING "")
