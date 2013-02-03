@@ -56,12 +56,16 @@
 //
 
 #include "../osd/gcdKernel.h"
+#include "../osd/cpuKernel.h"
 #include "../osd/vertexDescriptor.h"
 
 #include <math.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
+
+const int GCD_WORK_STRIDE = 32;
+
 
 void OsdGcdComputeFace(
     const OsdVertexDescriptor *vdesc, float * vertex, float * varying,
@@ -93,31 +97,18 @@ void OsdGcdComputeEdge(
     const int *E_IT, const float *E_W, int offset, int start, int end,
     dispatch_queue_t gcdq) {
 
-    dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
-        int i = start+blockIdx;
-        int eidx0 = E_IT[4*i+0];
-        int eidx1 = E_IT[4*i+1];
-        int eidx2 = E_IT[4*i+2];
-        int eidx3 = E_IT[4*i+3];
-
-        float vertWeight = E_W[i*2+0];
-
-        int dstIndex = offset + i;
-        vdesc->Clear(vertex, varying, dstIndex);
-
-        vdesc->AddWithWeight(vertex, dstIndex, eidx0, vertWeight);
-        vdesc->AddWithWeight(vertex, dstIndex, eidx1, vertWeight);
-
-        if (eidx2 != -1) {
-            float faceWeight = E_W[i*2+1];
-
-            vdesc->AddWithWeight(vertex, dstIndex, eidx2, faceWeight);
-            vdesc->AddWithWeight(vertex, dstIndex, eidx3, faceWeight);
-        }
-
-        vdesc->AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
-        vdesc->AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
+    const int workSize = end-start;
+    dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
+        const int start_i = start + blockIdx*GCD_WORK_STRIDE;
+        const int end_i = start_i + GCD_WORK_STRIDE;
+        OsdCpuComputeEdge(vdesc, vertex, varying, E_IT, E_W, offset,
+            start_i, end_i);
     });
+    const int start_e = end - workSize%GCD_WORK_STRIDE;
+    const int end_e = end;
+    if (start_e < end_e)
+        OsdCpuComputeEdge(vdesc, vertex, varying, E_IT, E_W, offset,
+            start_e, end_e);
 }
 
 void OsdGcdComputeVertexA(
@@ -126,36 +117,18 @@ void OsdGcdComputeVertexA(
     int offset, int start, int end, int pass,
     dispatch_queue_t gcdq) {
 
-    dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
-        int i = start+blockIdx;
-        int n     = V_ITa[5*i+1];
-        int p     = V_ITa[5*i+2];
-        int eidx0 = V_ITa[5*i+3];
-        int eidx1 = V_ITa[5*i+4];
-
-        float weight = (pass == 1) ? V_W[i] : 1.0f - V_W[i];
-
-        // In the case of fractional weight, the weight must be inverted since
-        // the value is shared with the k_Smooth kernel (statistically the
-        // k_Smooth kernel runs much more often than this one)
-        if (weight > 0.0f && weight < 1.0f && n > 0)
-            weight = 1.0f - weight;
-
-        int dstIndex = offset + i;
-        if (not pass)
-            vdesc->Clear(vertex, varying, dstIndex);
-
-        if (eidx0 == -1 || (pass == 0 && (n == -1))) {
-            vdesc->AddWithWeight(vertex, dstIndex, p, weight);
-        } else {
-            vdesc->AddWithWeight(vertex, dstIndex, p, weight * 0.75f);
-            vdesc->AddWithWeight(vertex, dstIndex, eidx0, weight * 0.125f);
-            vdesc->AddWithWeight(vertex, dstIndex, eidx1, weight * 0.125f);
-        }
-
-        if (not pass)
-            vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
+    const int workSize = end-start;
+    dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
+        const int start_i = start + blockIdx*GCD_WORK_STRIDE;
+        const int end_i = start_i + GCD_WORK_STRIDE;
+        OsdCpuComputeVertexA(vdesc, vertex, varying, V_ITa, V_W, offset,
+            start_i, end_i, pass);
     });
+    const int start_e = end - workSize%GCD_WORK_STRIDE;
+    const int end_e = end;
+    if (start_e < end_e)
+        OsdCpuComputeVertexA(vdesc, vertex, varying, V_ITa, V_W, offset,
+            start_e, end_e, pass);
 }
 
 void OsdGcdComputeVertexB(
@@ -164,27 +137,18 @@ void OsdGcdComputeVertexB(
     int offset, int start, int end,
     dispatch_queue_t gcdq) {
 
-    dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
-        int i = start+blockIdx;
-        int h = V_ITa[5*i];
-        int n = V_ITa[5*i+1];
-        int p = V_ITa[5*i+2];
-
-        float weight = V_W[i];
-        float wp = 1.0f/static_cast<float>(n*n);
-        float wv = (n-2.0f) * n * wp;
-
-        int dstIndex = offset + i;
-        vdesc->Clear(vertex, varying, dstIndex);
-
-        vdesc->AddWithWeight(vertex, dstIndex, p, weight * wv);
-
-        for (int j = 0; j < n; ++j) {
-            vdesc->AddWithWeight(vertex, dstIndex, V_IT[h+j*2], weight * wp);
-            vdesc->AddWithWeight(vertex, dstIndex, V_IT[h+j*2+1], weight * wp);
-        }
-        vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
+    const int workSize = end-start;
+    dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
+        const int start_i = start + blockIdx*GCD_WORK_STRIDE;
+        const int end_i = start_i + GCD_WORK_STRIDE;
+        OsdCpuComputeVertexB(vdesc, vertex, varying, V_ITa, V_IT, V_W, offset,
+            start_i, end_i);
     });
+    const int start_e = end - workSize%GCD_WORK_STRIDE;
+    const int end_e = end;
+    if (start_e < end_e)
+        OsdCpuComputeVertexB(vdesc, vertex, varying, V_ITa, V_IT, V_W, offset,
+            start_e, end_e);
 }
 
 void OsdGcdComputeLoopVertexB(
