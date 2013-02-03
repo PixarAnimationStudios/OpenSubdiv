@@ -178,6 +178,20 @@ if( OPENMP_FOUND )
 endif()
 
 #-------------------------------------------------------------------------------
+if( GCD_FOUND )
+    list(APPEND CPU_SOURCE_FILES
+        gcdDispatcher.cpp
+        gcdKernel.cpp
+        gcdComputeController.cpp
+    )
+    list(APPEND PUBLIC_HEADER_FILES
+        gcdDispatcher.h
+        gcdKernel.h
+        gcdComputeController.h
+    )   
+endif()
+
+#-------------------------------------------------------------------------------
 # GL code & dependencies
 if( OPENGL_FOUND OR OPENGLES_FOUND )
     list(APPEND GPU_SOURCE_FILES
