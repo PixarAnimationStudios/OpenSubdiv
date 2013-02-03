@@ -117,12 +117,6 @@ protected:
     /// Allocates VBO for this buffer. Returns true if success.
     bool allocate();
 
-    /// Acquires cpu memory buffer from GL.
-    void map();
-
-    /// Releases cpu memory and copy them back to GL.
-    void unmap();
-
 private:
     int _numElements;
     int _numVertices;

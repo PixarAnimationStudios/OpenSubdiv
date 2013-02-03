@@ -85,8 +85,7 @@ OsdCpuGLVertexBuffer::OsdCpuGLVertexBuffer(int numElements, int numVertices)
 
 OsdCpuGLVertexBuffer::~OsdCpuGLVertexBuffer() {
 
-    if (_cpuBuffer)
-        delete[] _cpuBuffer;
+    delete[] _cpuBuffer;
     glDeleteBuffers(1, &_vbo);
 }
 
@@ -102,8 +101,7 @@ OsdCpuGLVertexBuffer::Create(int numElements, int numVertices) {
 void
 OsdCpuGLVertexBuffer::UpdateData(const float *src, int numVertices) {
 
-    map();
-    memcpy(_cpuBuffer, src, GetNumElements() * numVertices * sizeof(float));
+    memcpy(_cpuBuffer, src, _numElements * numVertices * sizeof(float));
 }
 
 int
@@ -120,20 +118,25 @@ OsdCpuGLVertexBuffer::GetNumVertices() const {
 
 float*
 OsdCpuGLVertexBuffer::BindCpuBuffer() {
-
-    map();
     return _cpuBuffer;
 }
 
 GLuint
 OsdCpuGLVertexBuffer::BindVBO() {
+    int size = _numElements * _numVertices * sizeof(float);
+    GLint prev = 0;
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
 
-    unmap();
+    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+    glBufferData(GL_ARRAY_BUFFER, size, _cpuBuffer, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, prev);
+
     return _vbo;
 }
 
 bool
 OsdCpuGLVertexBuffer::allocate() {
+    _cpuBuffer = new float[_numElements * _numVertices];
     int size = _numElements * _numVertices * sizeof(float);
     GLint prev = 0;
 
@@ -145,39 +148,6 @@ OsdCpuGLVertexBuffer::allocate() {
 
     if (glGetError() == GL_NO_ERROR) return true;
     return false;
-}
-
-void
-OsdCpuGLVertexBuffer::map() {
-
-    if (_cpuBuffer) return;
-
-    int size = _numElements * _numVertices;
-    GLint prev = 0;
-    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
-
-    _cpuBuffer = new float[size];
-#if defined(GL_VERSION_2_1)
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glGetBufferSubData(GL_ARRAY_BUFFER, 0, size * sizeof(float), _cpuBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, prev);
-#endif
-}
-
-void
-OsdCpuGLVertexBuffer::unmap() {
-
-    if (_cpuBuffer == NULL) return;
-    int size = _numElements * _numVertices * sizeof(float);
-    GLint prev = 0;
-    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
-
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, size, _cpuBuffer, GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, prev);
-
-    delete[] _cpuBuffer;
-    _cpuBuffer = NULL;
 }
 
 }  // end namespace OPENSUBDIV_VERSION
