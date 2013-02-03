@@ -376,14 +376,12 @@ static void parseArgs(int argc, char ** argv) {
 
             if (not strcmp(backend, "all")) {
               g_Backend = -1;
-              printf("backend : ALL\n");
             } else {
               bool found = false;
               for (int i = 0; i < kBackendCount; ++i) {
                 if (not strcmp(backend, BACKEND_NAMES[i])) {
                   g_Backend = i;
                   found = true;
-                  printf("backend : %s\n", BACKEND_NAMES[i]);
                   break;
                 }
               }
@@ -401,35 +399,10 @@ static void parseArgs(int argc, char ** argv) {
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char ** argv) {
+int checkBackend(int backend, int levels) {
 
-    parseArgs(argc, argv);
-
-    // Make sure we have an OpenGL context : create dummy GLFW window
-    if (not glfwInit()) {
-        printf("Failed to initialize GLFW\n");
-        return 1;
-    }
-
-    static const char windowTitle[] = "OpenSubdiv glViewer";
-    
-    int width=10, height=10;
-    
-#if GLFW_VERSION_MAJOR>=3
-    if (not (g_window=glfwCreateWindow(width, height, windowTitle, NULL, NULL))) {
-#else
-    if (glfwOpenWindow(width, height, 8, 8, 8, 8, 24, 8,GLFW_WINDOW) == GL_FALSE) {
-#endif
-        printf("Failed to open window.\n");
-        glfwTerminate();
-        return 1;
-    }
-    
-#if not defined(__APPLE__)
-    glewInit();
-#endif
-
-    int levels=5, total=0;
+    printf("*** checking backend : %s\n", BACKEND_NAMES[backend]);
+    int total = 0;
 
 #define test_catmark_edgeonly
 #define test_catmark_edgecorner
@@ -463,7 +436,6 @@ int main(int argc, char ** argv) {
 
 #define test_bilinear_cube
 
-    printf("precision : %f\n",PRECISION);
 
 #ifdef test_catmark_edgeonly
 #include "../shapes/catmark_edgeonly.h"
@@ -622,6 +594,49 @@ int main(int argc, char ** argv) {
 #include "../shapes/bilinear_cube.h"
     total += checkMesh( "test_bilinear_cube", bilinear_cube, levels, kBilinear );
 #endif
+
+    return total;
+}
+
+//------------------------------------------------------------------------------
+int main(int argc, char ** argv) {
+
+    parseArgs(argc, argv);
+
+    // Make sure we have an OpenGL context : create dummy GLFW window
+    if (not glfwInit()) {
+        printf("Failed to initialize GLFW\n");
+        return 1;
+    }
+
+    static const char windowTitle[] = "OpenSubdiv glViewer";
+    
+    int width=10, height=10;
+    
+#if GLFW_VERSION_MAJOR>=3
+    if (not (g_window=glfwCreateWindow(width, height, windowTitle, NULL, NULL))) {
+#else
+    if (glfwOpenWindow(width, height, 8, 8, 8, 8, 24, 8,GLFW_WINDOW) == GL_FALSE) {
+#endif
+        printf("Failed to open window.\n");
+        glfwTerminate();
+        return 1;
+    }
+    
+#if not defined(__APPLE__)
+    glewInit();
+#endif
+
+    printf("precision : %f\n",PRECISION);
+
+    int levels=5, total=0;
+
+    if (g_Backend == -1) {
+        for (int i = 0; i < kBackendCount; ++i)
+            total += checkBackend (i, levels);
+    } else {
+        total += checkBackend (g_Backend, levels);
+    }
 
     glfwTerminate();
 
