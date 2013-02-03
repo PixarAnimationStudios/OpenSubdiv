@@ -189,11 +189,6 @@ if( GCD_FOUND )
         gcdKernel.h
         gcdComputeController.h
     )   
-    #if (CMAKE_COMPILER_IS_GNUCXX)
-    #    list(APPEND PLATFORM_LIBRARIES
-    #        gomp
-    #    )
-    #endif()
 endif()
 
 #-------------------------------------------------------------------------------
