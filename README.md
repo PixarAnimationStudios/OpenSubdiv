@@ -193,6 +193,16 @@ export NDK_MODULE_PATH=[path to build-ndk/modules]
 ````
 
 
+## Regression tests
+
+OpenSubdiv builds a number of regression test executables for testing:
+
+* hbr_regression: Regression testing matching HBR (low-level hierarchical boundary rep) to a pre-generated data set.
+* far_regression: Matching FAR (feature-adaptive rep using tables) against HBR results.
+* osd_regression: Matching full OSD subdivision against HBR results. Currently checks single threaded CPU kernel only.
+
+
+
 ## Wish List
 
 There are many things we'd love to do to improve support for subdivs but don't have the resources to. In particular, we would welcome contributions for the following items :
