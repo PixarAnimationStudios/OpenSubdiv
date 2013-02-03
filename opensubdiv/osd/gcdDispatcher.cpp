@@ -59,9 +59,6 @@
 #include "../osd/gcdKernel.h"
 #include "../osd/cpuComputeContext.h"
 
-//#include <stdlib.h>
-//#include <string.h>
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

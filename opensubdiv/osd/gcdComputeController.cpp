@@ -68,7 +68,6 @@ OsdGcdComputeController::OsdGcdComputeController() {
 
 void
 OsdGcdComputeController::Synchronize() {
-    // XXX: 
 }
 
 }  // end namespace OPENSUBDIV_VERSION
