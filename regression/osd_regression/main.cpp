@@ -106,6 +106,21 @@
 #define PRECISION 1e-6
 
 //------------------------------------------------------------------------------
+enum BackendType {
+    kBackendCPU = 0, // raw CPU
+    kBackendCPUGL = 1, // CPU with GL-backed buffer
+    kBackendCL = 2, // OpenCL
+    kBackendCount
+};
+static const char* BACKEND_NAMES[kBackendCount] = {
+    "CPU",
+    "CPUGL",
+    "CL",
+};
+
+static int g_Backend = 0;
+
+//------------------------------------------------------------------------------
 // Vertex class implementation
 struct xyzVV {
 
@@ -350,7 +365,45 @@ int checkMesh( char const * msg, char const * shape, int levels, Scheme scheme=k
 }
 
 //------------------------------------------------------------------------------
+static void parseArgs(int argc, char ** argv) {
+    for (int i=1; i<argc; ++i) {
+        if (not strcmp(argv[i],"-backend")) {
+        
+            const char * backend = NULL;
+            
+            if (i<(argc-1))
+                backend = argv[++i];
+
+            if (not strcmp(backend, "all")) {
+              g_Backend = -1;
+              printf("backend : ALL\n");
+            } else {
+              bool found = false;
+              for (int i = 0; i < kBackendCount; ++i) {
+                if (not strcmp(backend, BACKEND_NAMES[i])) {
+                  g_Backend = i;
+                  found = true;
+                  printf("backend : %s\n", BACKEND_NAMES[i]);
+                  break;
+                }
+              }
+              if (not found) {
+                printf("-backend : must be 'all' or one of: ");
+                for (int i = 0; i < kBackendCount; ++i) {
+                  printf("%s ", BACKEND_NAMES[i]);
+                }
+                printf("\n");
+                exit(0);
+              }
+            }
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
+
+    parseArgs(argc, argv);
 
     // Make sure we have an OpenGL context : create dummy GLFW window
     if (not glfwInit()) {
