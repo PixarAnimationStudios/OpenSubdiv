@@ -51,6 +51,7 @@ Optional:
 -DGLFW_LOCATION=[path to GLFW]
 -DMAYA_LOCATION=[path to Maya]
 -DNO_OMP=1 // disable OpenMP
+-DNO_GCD=1 // disable GrandCentralDispatch on OSX
 ````
 
 The paths to Maya, Ptex, GLFW, and GLEW can also be specified through the

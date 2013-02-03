@@ -89,6 +89,11 @@
     #include <osd/ompComputeController.h>
 #endif
 
+#ifdef OPENSUBDIV_HAS_GCD
+    #include <osd/gcdDispatcher.h>
+    #include <osd/gcdComputeController.h>
+#endif
+
 #ifdef OPENSUBDIV_HAS_OPENCL
     #include <osd/clDispatcher.h>
     #include <osd/clGLVertexBuffer.h>
@@ -157,10 +162,11 @@ typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
 enum KernelType { kCPU = 0,
                   kOPENMP = 1,
-                  kCUDA = 2,
-                  kCL = 3,
-                  kGLSL = 4,
-                  kGLSLCompute = 5 };
+                  kGCD = 2,
+                  kCUDA = 3,
+                  kCL = 4,
+                  kGLSL = 5,
+                  kGLSLCompute = 6 };
 
 struct SimpleShape {
     std::string  name;
@@ -567,6 +573,8 @@ getKernelName(int kernel) {
         return "CPU";
     else if (kernel == kOPENMP)
         return "OpenMP";
+    else if (kernel == kGCD)
+        return "GCD";
     else if (kernel == kCUDA)
         return "Cuda";
     else if (kernel == kGLSL)
@@ -632,6 +640,12 @@ createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark
     } else if (kernel == kOPENMP) {
         g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuGLVertexBuffer,
                                          OpenSubdiv::OsdOmpComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(hmesh, 6, level, bits);
+#endif
+#ifdef OPENSUBDIV_HAS_GCD
+    } else if (kernel == kGCD) {
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuGLVertexBuffer,
+                                         OpenSubdiv::OsdGcdComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(hmesh, 6, level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
@@ -1603,6 +1617,9 @@ initHUD()
     g_hud.AddRadioButton(0, "CPU (K)", true, 10, 10, callbackKernel, kCPU, 'k');
 #ifdef OPENSUBDIV_HAS_OPENMP
     g_hud.AddRadioButton(0, "OPENMP", false, 10, 30, callbackKernel, kOPENMP, 'k');
+#endif
+#ifdef OPENSUBDIV_HAS_GCD
+    g_hud.AddRadioButton(0, "GCD", false, 10, 30, callbackKernel, kGCD, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     g_hud.AddRadioButton(0, "CUDA",   false, 10, 50, callbackKernel, kCUDA, 'k');
