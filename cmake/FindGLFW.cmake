@@ -132,6 +132,8 @@ else ()
             PATHS
                 ${GLFW_LOCATION}/lib
                 ${GLFW_LOCATION}/lib/cocoa
+                $ENV{GLFW_LOCATION}/lib
+                $ENV{GLFW_LOCATION}/lib/cocoa
                 /usr/local/lib
         )
         set(GLFW_cocoa_LIBRARY "-framework Cocoa" CACHE STRING "Cocoa framework for OSX")
