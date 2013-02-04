@@ -1810,9 +1810,7 @@ int main(int argc, char ** argv)
     initGL();
     linkDefaultProgram();
 
-#ifdef WIN32
-    wglSwapIntervalEXT(0);
-#endif
+    glfwSwapInterval(0);
 
     initHUD();
     callbackModel(g_currentShape);
