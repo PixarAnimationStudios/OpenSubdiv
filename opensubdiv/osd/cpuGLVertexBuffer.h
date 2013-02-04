@@ -122,6 +122,7 @@ private:
     int _numVertices;
     GLuint _vbo;
     float *_cpuBuffer;
+    bool _dataDirty;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

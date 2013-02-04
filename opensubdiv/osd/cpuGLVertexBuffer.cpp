@@ -80,7 +80,7 @@ namespace OPENSUBDIV_VERSION {
 
 OsdCpuGLVertexBuffer::OsdCpuGLVertexBuffer(int numElements, int numVertices)
     : _numElements(numElements), _numVertices(numVertices),
-      _vbo(0), _cpuBuffer(0) {
+      _vbo(0), _cpuBuffer(0), _dataDirty(true) {
 }
 
 OsdCpuGLVertexBuffer::~OsdCpuGLVertexBuffer() {
@@ -102,6 +102,7 @@ void
 OsdCpuGLVertexBuffer::UpdateData(const float *src, int numVertices) {
 
     memcpy(_cpuBuffer, src, _numElements * numVertices * sizeof(float));
+    _dataDirty = true;
 }
 
 int
@@ -118,11 +119,15 @@ OsdCpuGLVertexBuffer::GetNumVertices() const {
 
 float*
 OsdCpuGLVertexBuffer::BindCpuBuffer() {
+    _dataDirty = true; // caller might modify data
     return _cpuBuffer;
 }
 
 GLuint
 OsdCpuGLVertexBuffer::BindVBO() {
+    if (not _dataDirty)
+        return _vbo;
+
     int size = _numElements * _numVertices * sizeof(float);
     GLint prev = 0;
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
@@ -131,12 +136,14 @@ OsdCpuGLVertexBuffer::BindVBO() {
     glBufferData(GL_ARRAY_BUFFER, size, _cpuBuffer, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, prev);
 
+    _dataDirty = false;
     return _vbo;
 }
 
 bool
 OsdCpuGLVertexBuffer::allocate() {
     _cpuBuffer = new float[_numElements * _numVertices];
+    _dataDirty = true;
     int size = _numElements * _numVertices * sizeof(float);
     GLint prev = 0;
 
