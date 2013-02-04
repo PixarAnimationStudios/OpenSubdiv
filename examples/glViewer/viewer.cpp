@@ -807,9 +807,7 @@ drawCageEdges() {
     glVertexAttribPointer(g_defaultProgram.attrColor,
                           3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (void*)12);
 
-    glLineWidth(2.0f);
     glDrawArrays(GL_LINES, 0, (int)g_coarseEdges.size());
-    glLineWidth(1.0f);
 
     glBindVertexArray(0);
     glUseProgram(0);
