@@ -55,46 +55,65 @@
 #     a particular purpose and non-infringement.
 #
 
-if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
-    add_subdirectory(glViewer)
-#    add_subdirectory(simpleCpu)
-#    add_subdirectory(evalTest)     
-    if(PTEX_FOUND)
-        add_subdirectory(ptexViewer)
-    endif()
+# *** evalTest ***
+
+set(SHADER_FILES
+    shader.glsl
+)
+
+set(PLATFORM_LIBRARIES
+    ${OSD_LINK_TARGET}
+    ${OPENGL_LIBRARY}
+    ${GLEW_LIBRARY}
+    ${GLUT_LIBRARIES}
+)
+
+include_directories(
+    ${PROJECT_SOURCE_DIR}/opensubdiv
+    ${PROJECT_SOURCE_DIR}/regression
+    ${GLEW_INCLUDE_DIR}
+    ${GLUT_INCLUDE_DIR}
+)
+
+#-------------------------------------------------------------------------------
+# Shader Stringification
+# We want to use preprocessor include directives to include GLSL and OpenCL
+# shader source files in cpp files, but since the sources contain newline
+# characters we would need raw string literals from C++11 to do this directly.
+# To avoid depending on C++11 we instead use a small tool called "line_quote"
+# to generate source files that are suitable for direct inclusion.
+foreach(shader_file ${SHADER_FILES})
+
+    string(REGEX REPLACE ".*[.](.*)" "\\1" extension ${shader_file})
+
+    string(REGEX REPLACE "(.*)[.].*" "\\1.inc" inc_file ${shader_file})
+    list(APPEND INC_FILES ${inc_file})
+
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
+        COMMAND stringify ${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}
+            ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
+        DEPENDS stringify ${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}
+    )
+endforeach()
+
+if(APPLE)
+    _add_glut_executable(evalTest
+        mainApple.mm
+        evalTest.cpp
+        ${SHADER_FILES}
+        ${INC_FILES}
+    )
 else()
-    set(MISSING "")
-
-    if (NOT OPENGL_FOUND)
-        list(APPEND MISSING OpenGL)
-    endif()
-
-    if (NOT GLEW_FOUND)
-        list(APPEND MISSING glew)
-    endif()
-
-    if (NOT GLFW_FOUND)
-        list(APPEND MISSING glfw)
-    endif()
-
-    message(WARNING
-        "The following libraries could not be found : ${MISSING}.  "
-        "The glViewer and ptexViewer examples will not be available.  "
-        "If you have these libraries installed, please specify their "
-        "path to cmake (through the GLEW_LOCATION and GLFW_LOCATION "
-        "command line arguments or environment variables)."
+    _add_glut_executable(evalTest
+        evalTest.cpp
+        mainGlut.cpp
+        ${SHADER_FILES}
+        ${INC_FILES}
     )
 endif()
 
-if(DXSDK_FOUND)
-   add_subdirectory(dxViewer)
-endif()
+target_link_libraries(evalTest
+    ${PLATFORM_LIBRARIES}
+)
 
-if(MAYA_FOUND)
-    add_subdirectory(mayaViewer)
-    if(PTEX_FOUND)
-        add_subdirectory(mayaPtexViewer)
-    endif()
-endif()
-
-add_subdirectory(mutex)
