@@ -189,7 +189,7 @@ int   g_frame = 0,
 int   g_fullscreen = 0,
       g_freeze = 0,
       g_wire = 2,
-      g_adaptive = 1,
+      g_adaptive = 0,
       g_drawCageEdges = 1,
       g_drawCageVertices = 0,
       g_drawPatchCVs = 0,
@@ -284,15 +284,21 @@ compileShader(GLenum shaderType, const char *source)
     GLuint shader = glCreateShader(shaderType);
     glShaderSource(shader, 1, &source, NULL);
     glCompileShader(shader);
-
+    checkGLErrors("compileShader");
     return shader;
 }
 
 static bool
 linkDefaultProgram()
 {
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+    #define GLSL_VERSION_DEFINE "#version 400\n"
+#else
+    #define GLSL_VERSION_DEFINE "#version 150\n"
+#endif
+    
     static const char *vsSrc =
-        "#version 410\n"
+        GLSL_VERSION_DEFINE
         "in vec3 position;\n"
         "in vec3 color;\n"
         "out vec4 fragColor;\n"
@@ -304,7 +310,7 @@ linkDefaultProgram()
         "}\n";
 
     static const char *fsSrc =
-        "#version 410\n"
+        GLSL_VERSION_DEFINE
         "in vec4 fragColor;\n"
         "out vec4 color;\n"
         "void main() {\n"
@@ -314,6 +320,7 @@ linkDefaultProgram()
     GLuint program = glCreateProgram();
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vsSrc);
     GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fsSrc);
+
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
 
@@ -807,9 +814,7 @@ drawCageEdges() {
     glVertexAttribPointer(g_defaultProgram.attrColor,
                           3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (void*)12);
 
-    glLineWidth(2.0f);
     glDrawArrays(GL_LINES, 0, (int)g_coarseEdges.size());
-    glLineWidth(1.0f);
 
     glBindVertexArray(0);
     glUseProgram(0);
@@ -1714,7 +1719,6 @@ setGLCoreProfile()
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
 #endif
 
-#if GLFW_VERSION_MAJOR>=2 and GLFW_VERSION_MINOR >=7
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #if not defined(__APPLE__)
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
@@ -1723,7 +1727,6 @@ setGLCoreProfile()
 #else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
 #endif
     
 }
