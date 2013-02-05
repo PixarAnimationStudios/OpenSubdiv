@@ -201,6 +201,8 @@ find_package(OpenCL 1.1)
 find_package(CUDA 4.0)
 find_package(GLFW 2.7.0)
 find_package(PTex 2.0)
+find_package(PythonInterp)
+find_package(SWIG)
 
 if (NOT APPLE AND OPENGL_FOUND)
     find_package(GLEW REQUIRED)
@@ -321,6 +323,30 @@ else()
         "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
         "cmake command line argument or environment variable."
     )
+endif()
+
+if(PYTHON_FOUND AND SWIG_FOUND)
+    execute_process(
+        COMMAND
+        ${PYTHON_EXECUTABLE} -c "import numpy; print numpy.get_include()"
+        OUTPUT_VARIABLE NUMPY_INCLUDE_PATH
+        RESULT_VARIABLE NUMPY_ERR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if(NUMPY_ERR)
+        message(WARNING "Unable to import numpy.")
+    else()
+        add_custom_command(
+            COMMENT "Building Python bindings with distutils"
+            TARGET ${target} POST_BUILD
+            WORKING_DIRECTORY python
+            DEPENDS opensubdiv
+            COMMAND ${PYTHON_EXECUTABLE} setup.py build osddir='${LIBRARY_OUTPUT_PATH}'
+        )
+        install(CODE "execute_process("
+            "WORKING_DIRECTORY python "
+            "COMMAND ${PYTHON_EXECUTABLE} setup.py install")
+    endif()
 endif()
 
 # Link examples & regressions dynamically against Osd
