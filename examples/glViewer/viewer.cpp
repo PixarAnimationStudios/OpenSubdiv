@@ -1652,9 +1652,8 @@ initHUD()
     g_hud.AddCheckBox("Patch Color (P)",   true, 350, 110, callbackDisplayPatchColor, 0, 'p');
     g_hud.AddCheckBox("Freeze (spc)", false, 350, 130, callbackFreeze, 0, ' ');
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    g_hud.AddCheckBox("Adaptive (`)", true, 10, 150, callbackAdaptive, 0, '`');
-#endif
+    if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
+        g_hud.AddCheckBox("Adaptive (`)", g_adaptive, 10, 150, callbackAdaptive, 0, '`');
 
     for (int i = 1; i < 11; ++i) {
         char level[16];

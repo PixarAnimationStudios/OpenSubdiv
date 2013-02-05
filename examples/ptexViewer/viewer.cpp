@@ -206,7 +206,7 @@ int   g_fullscreen=0,
       g_running = 1;
 
 float g_moveScale = 0.0f;
-bool  g_adaptive = true,
+bool  g_adaptive = 0,
       g_displayPatchColor = false,
       g_patchCull = true,
       g_screenSpaceTess = true,
@@ -1496,8 +1496,10 @@ callbackCheckBox(bool checked, int button)
 
     switch(button) {
     case HUD_CB_ADAPTIVE:
-        g_adaptive = checked;
-        rebuild = true;
+        if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation()) {
+            g_adaptive = checked;
+            rebuild = true;
+        }
         break;
     case HUD_CB_DISPLAY_COLOR:
         g_color = checked;
@@ -1712,10 +1714,6 @@ int main(int argc, char ** argv) {
 
     OsdSetErrorCallback(callbackError);
 
-#if not (defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0))
-    g_adaptive = 0;
-#endif
-
     g_shaderSource = g_defaultShaderSource;
     reloadShaderFile();
 
@@ -1777,6 +1775,9 @@ int main(int argc, char ** argv) {
     glGetError();
 #endif
 #endif
+
+    // activate feature adaptive tessellation if OSD supports it
+    g_adaptive = OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation();
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     // Initialize OpenCL
@@ -1846,9 +1847,9 @@ int main(int argc, char ** argv) {
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
                       450, 70, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    g_hud.AddCheckBox("Adaptive (`)", g_adaptive, 10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
-#endif
+    if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
+        g_hud.AddCheckBox("Adaptive (`)", g_adaptive, 10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
+
 
     for (int i = 1; i < 8; ++i) {
         char level[16];
