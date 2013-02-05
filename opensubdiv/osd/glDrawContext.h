@@ -120,6 +120,9 @@ public:
     GLuint quadOffsetTextureBuffer;
     GLuint patchLevelTextureBuffer;
 
+    /// true if the GL version detected supports shader tessellation
+    static bool SupportsAdaptiveTessellation();
+
 private:
     bool allocate(FarMesh<OsdVertex> *farMesh,
                   GLuint vbo, int numElements,

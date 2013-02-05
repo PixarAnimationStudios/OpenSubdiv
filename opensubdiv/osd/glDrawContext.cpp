@@ -92,6 +92,19 @@ OsdGLDrawContext::~OsdGLDrawContext()
 }
 
 bool
+OsdGLDrawContext::SupportsAdaptiveTessellation()
+{
+// Compile-time check of GL version
+#if (defined(GL_ARB_tessellation_shader) or defined(GL_VERSION_4_0)) and defined(GLEW_VERSION_4_0)
+    // Run-time check of GL version with GLEW
+    if (GLEW_VERSION_4_0) {
+        return true;
+    }
+#endif
+    return false;
+}
+
+bool
 OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
                            GLuint vbo,
                            int numElements,

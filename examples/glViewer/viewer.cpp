@@ -351,9 +351,6 @@ linkDefaultProgram()
 static void
 initializeShapes( ) {
 
-#include <shapes/bilinear_cube.h>
-    g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
-
 #include <shapes/catmark_cube_corner0.h>
     g_defaultShapes.push_back(SimpleShape(catmark_cube_corner0, "catmark_cube_corner0", kCatmark));
 
@@ -461,6 +458,9 @@ initializeShapes( ) {
     g_defaultShapes.push_back(SimpleShape(catmark_rook, "catmark_rook", kCatmark));
 #endif
 
+
+#include <shapes/bilinear_cube.h>
+    g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
 
 
 #include <shapes/loop_cube_creases0.h>
@@ -630,11 +630,7 @@ createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark
     g_scheme = scheme;
 
     // Adaptive refinement currently supported only for catmull-clark scheme
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     bool doAdaptive = (g_adaptive!=0 and g_scheme==kCatmark);
-#else
-    bool doAdaptive = false;
-#endif
 
     OpenSubdiv::OsdMeshBitset bits;
     bits.set(OpenSubdiv::MeshAdaptive, doAdaptive);
@@ -1585,9 +1581,11 @@ callbackFreeze(bool checked, int f)
 static void
 callbackAdaptive(bool checked, int a)
 {
-    g_adaptive = checked;
+    if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation()) {
+        g_adaptive = checked;
 
-    createOsdMesh( g_defaultShapes[g_currentShape].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
+        createOsdMesh( g_defaultShapes[g_currentShape].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
+    }
 }
 
 static void
@@ -1809,6 +1807,9 @@ int main(int argc, char ** argv)
     glGetError();
 #endif
 #endif
+
+    // activate feature adaptive tessellation if OSD supports it
+    g_adaptive = OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation();
 
     initGL();
     linkDefaultProgram();
