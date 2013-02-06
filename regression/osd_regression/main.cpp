@@ -120,18 +120,19 @@
 
 //------------------------------------------------------------------------------
 enum BackendType {
-    kBackendCPU = 0, // raw CPU
+    kBackendCPU   = 0, // raw CPU
     kBackendCPUGL = 1, // CPU with GL-backed buffer
-    kBackendCL = 2, // OpenCL
+    kBackendCL    = 2, // OpenCL
     kBackendCount
 };
-static const char* BACKEND_NAMES[kBackendCount] = {
+
+static const char* g_BackendNames[kBackendCount] = {
     "CPU",
     "CPUGL",
     "CL",
 };
 
-static int g_Backend = 0;
+static int g_Backend = -1;
 
 //------------------------------------------------------------------------------
 // Vertex class implementation
@@ -205,6 +206,7 @@ private:
 };
 
 //------------------------------------------------------------------------------
+
 class xyzFV;
 typedef OpenSubdiv::HbrMesh<xyzVV>           xyzmesh;
 typedef OpenSubdiv::HbrFace<xyzVV>           xyzface;
@@ -217,9 +219,11 @@ typedef OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>     OsdHbrMesh;
 typedef OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex>   OsdHbrVertex;
 typedef OpenSubdiv::HbrFace<OpenSubdiv::OsdVertex>     OsdHbrFace;
 typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
+
 //------------------------------------------------------------------------------
 // Returns true if a vertex or any of its parents is on a boundary
-bool VertexOnBoundary( xyzvertex const * v ) {
+bool 
+VertexOnBoundary( xyzvertex const * v ) {
 
     if (not v)
         return false;
@@ -252,10 +256,9 @@ bool VertexOnBoundary( xyzvertex const * v ) {
 }
 
 //------------------------------------------------------------------------------
-int checkVertexBuffer( xyzmesh * hmesh,
-                       const float * vbData,
-                       int numElements,
-                       std::vector<int> const & remap) {
+int 
+checkVertexBuffer( xyzmesh * hmesh, const float * vbData, int numElements, std::vector<int> const & remap) {
+
     int count=0;
     float deltaAvg[3] = {0.0f, 0.0f, 0.0f},
           deltaCnt[3] = {0.0f, 0.0f, 0.0f};
@@ -322,7 +325,8 @@ int checkVertexBuffer( xyzmesh * hmesh,
 }
 
 //------------------------------------------------------------------------------
-static void refine( xyzmesh * mesh, int maxlevel ) {
+static void 
+refine( xyzmesh * mesh, int maxlevel ) {
 
     for (int l=0; l<maxlevel; ++l ) {
         int nfaces = mesh->GetNumFaces();
@@ -332,68 +336,86 @@ static void refine( xyzmesh * mesh, int maxlevel ) {
                 f->Refine();
         }
     }
-
 }
 
 //------------------------------------------------------------------------------
-int checkMeshCPU (
-    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
-    const std::vector<float>& coarseverts,
-    xyzmesh * refmesh,
-    const std::vector<int>& remap)
-{
+static int 
+checkMeshCPU( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
+              const std::vector<float>& coarseverts,
+              xyzmesh * refmesh,
+              const std::vector<int>& remap) {
+                  
     static OpenSubdiv::OsdCpuComputeController *controller = new OpenSubdiv::OsdCpuComputeController();
+    
     OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh);
+    
     OpenSubdiv::OsdCpuVertexBuffer * vb = OpenSubdiv::OsdCpuVertexBuffer::Create(3, farmesh->GetNumVertices());
+    
     vb->UpdateData( & coarseverts[0], (int)coarseverts.size()/3 );
+    
     controller->Refine( context, vb );
+    
     return checkVertexBuffer(refmesh, vb->BindCpuBuffer(), vb->GetNumElements(), remap);
 }
 
-int checkMeshCPUGL (
-    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
-    const std::vector<float>& coarseverts,
-    xyzmesh * refmesh,
-    const std::vector<int>& remap)
-{
+//------------------------------------------------------------------------------
+static int 
+checkMeshCPUGL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
+                const std::vector<float>& coarseverts,
+                xyzmesh * refmesh,
+                const std::vector<int>& remap) {
+                    
     static OpenSubdiv::OsdCpuComputeController *controller = new OpenSubdiv::OsdCpuComputeController();
+    
     OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh);
+    
     OpenSubdiv::OsdCpuGLVertexBuffer * vb = OpenSubdiv::OsdCpuGLVertexBuffer::Create(3, farmesh->GetNumVertices());
+    
     vb->UpdateData( & coarseverts[0], (int)coarseverts.size()/3 );
+    
     controller->Refine( context, vb );
+    
     return checkVertexBuffer(refmesh, vb->BindCpuBuffer(), vb->GetNumElements(), remap);
 }
 
-int checkMeshCL (
-    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
-    const std::vector<float>& coarseverts,
-    xyzmesh * refmesh,
-    const std::vector<int>& remap)
-{
-    #ifdef OPENSUBDIV_HAS_OPENCL
+//------------------------------------------------------------------------------
+static int 
+checkMeshCL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
+             const std::vector<float>& coarseverts,
+             xyzmesh * refmesh,
+             const std::vector<int>& remap ) {
+
+#ifdef OPENSUBDIV_HAS_OPENCL
 
     static OpenSubdiv::OsdCLComputeController *controller = new OpenSubdiv::OsdCLComputeController(g_clContext, g_clQueue);
+    
     OpenSubdiv::OsdCLComputeContext *context = OpenSubdiv::OsdCLComputeContext::Create(farmesh, g_clContext);
+    
     OpenSubdiv::OsdCLGLVertexBuffer * vb = OpenSubdiv::OsdCLGLVertexBuffer::Create(3, farmesh->GetNumVertices(), g_clContext);
+    
     vb->UpdateData( & coarseverts[0], (int)coarseverts.size()/3, g_clQueue );
+    
     controller->Refine( context, vb );
 
     // read data back from CL buffer
     size_t dataSize = vb->GetNumVertices() * vb->GetNumElements();
     float* data = new float[dataSize];
+    
     clEnqueueReadBuffer (g_clQueue, vb->BindCLBuffer(g_clQueue), CL_TRUE, 0, dataSize * sizeof(float), data, 0, NULL, NULL);
+    
     int result = checkVertexBuffer(refmesh, data, vb->GetNumElements(), remap);
+    
     delete[] data;
+    
     return result;
-
-    #else
-
+#else
     return 0;
-    #endif
+#endif
 }
 
 //------------------------------------------------------------------------------
-int checkMesh( char const * msg, char const * shape, int levels, Scheme scheme, int backend ) {
+static int 
+checkMesh( char const * msg, char const * shape, int levels, Scheme scheme, int backend ) {
 
     int result =0;
 
@@ -408,17 +430,16 @@ int checkMesh( char const * msg, char const * shape, int levels, Scheme scheme, 
 
     OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, coarseverts);
 
-    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farmesh;
     OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex> meshFactory(hmesh, levels);
 
-    farmesh = meshFactory.Create();
+    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> * farmesh = meshFactory.Create();
 
     std::vector<int> remap = meshFactory.GetRemappingTable();
 
     switch (backend) {
-    case kBackendCPU: result = checkMeshCPU(farmesh, coarseverts, refmesh, remap); break;
-    case kBackendCPUGL: result = checkMeshCPUGL(farmesh, coarseverts, refmesh, remap); break;
-    case kBackendCL: result = checkMeshCL(farmesh, coarseverts, refmesh, remap); break;
+        case kBackendCPU   : result = checkMeshCPU(farmesh, coarseverts, refmesh, remap); break;
+        case kBackendCPUGL : result = checkMeshCPUGL(farmesh, coarseverts, refmesh, remap); break;
+        case kBackendCL    : result = checkMeshCL(farmesh, coarseverts, refmesh, remap); break;
     }
 
     delete hmesh;
@@ -427,54 +448,20 @@ int checkMesh( char const * msg, char const * shape, int levels, Scheme scheme, 
 }
 
 //------------------------------------------------------------------------------
-static void parseArgs(int argc, char ** argv) {
-    for (int i=1; i<argc; ++i) {
-        if (not strcmp(argv[i],"-backend")) {
-        
-            const char * backend = NULL;
-            
-            if (i<(argc-1))
-                backend = argv[++i];
-
-            if (not strcmp(backend, "all")) {
-              g_Backend = -1;
-            } else {
-              bool found = false;
-              for (int i = 0; i < kBackendCount; ++i) {
-                if (not strcmp(backend, BACKEND_NAMES[i])) {
-                  g_Backend = i;
-                  found = true;
-                  break;
-                }
-              }
-              if (not found) {
-                printf("-backend : must be 'all' or one of: ");
-                for (int i = 0; i < kBackendCount; ++i) {
-                  printf("%s ", BACKEND_NAMES[i]);
-                }
-                printf("\n");
-                exit(0);
-              }
-            }
-        }
-    }
-}
-
-//------------------------------------------------------------------------------
 int checkBackend(int backend, int levels) {
 
-    printf("*** checking backend : %s\n", BACKEND_NAMES[backend]);
+    printf("*** checking backend : %s\n", g_BackendNames[backend]);
 
     if (backend == kBackendCL) {
-        #ifdef OPENSUBDIV_HAS_OPENCL
+#ifdef OPENSUBDIV_HAS_OPENCL
         if (initCL(&g_clContext, &g_clQueue) == false) {
             printf("  Cannot initialize OpenCL, skipping...\n");
             return 0;
         }
-        #else
+#else
         printf("  No OpenCL available, skipping...\n");
         return 0;
-        #endif
+#endif
     }
 
     int total = 0;
@@ -670,17 +657,78 @@ int checkBackend(int backend, int levels) {
     total += checkMesh( "test_bilinear_cube", bilinear_cube, levels, kBilinear, backend );
 #endif
 
+
     if (backend == kBackendCL) {
-        #ifdef OPENSUBDIV_HAS_OPENCL
+#ifdef OPENSUBDIV_HAS_OPENCL
         uninitCL(g_clContext, g_clQueue);
-        #endif
+#endif
     }
 
     return total;
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char ** argv) {
+static void
+usage(char ** argv) {
+    printf("%s [<options>]\n\n", argv[0]);
+    printf("    Options :\n");
+    
+    printf("        -compute <backend>\n");
+    printf("        Compute backend applied (");
+    for (int i=0; i < kBackendCount; ++i)
+        printf("%s ", g_BackendNames[i]);
+    printf(").\n");
+    
+    printf("        -help / -h\n");
+    printf("        Displays usage information.");
+      
+}
+
+//------------------------------------------------------------------------------
+static void 
+parseArgs(int argc, char ** argv) {
+
+    for (int i=1; i<argc; ++i) {
+        if (not strcmp(argv[i],"-compute")) {
+        
+            const char * backend = NULL;
+            
+            if (i<(argc-1))
+                backend = argv[++i];
+
+            if (not strcmp(backend, "all")) {
+              g_Backend = -1;
+            } else {
+              bool found = false;
+              for (int i = 0; i < kBackendCount; ++i) {
+                if (not strcmp(backend, g_BackendNames[i])) {
+                  g_Backend = i;
+                  found = true;
+                  break;
+                }
+              }
+              if (not found) {
+                printf("-compute : must be 'all' or one of: ");
+                for (int i = 0; i < kBackendCount; ++i)
+                    printf("%s ", g_BackendNames[i]);
+                printf("\n");
+                exit(0);
+              }
+            }
+        } else if ( (not strcmp(argv[i],"-help")) or
+                    (not strcmp(argv[i],"-h")) ) {
+            usage(argv);
+            exit(1);
+        } else {
+            usage(argv);
+            exit(0);
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+int 
+main(int argc, char ** argv) {
 
     // Run with no args tests default (CPU) backend.
     // "-backend all" tests all available backends.
@@ -699,16 +747,24 @@ int main(int argc, char ** argv) {
     
 #if GLFW_VERSION_MAJOR>=3
     if (not (g_window=glfwCreateWindow(width, height, windowTitle, NULL, NULL))) {
-#else
-    if (glfwOpenWindow(width, height, 8, 8, 8, 8, 24, 8,GLFW_WINDOW) == GL_FALSE) {
-#endif
         printf("Failed to open window.\n");
         glfwTerminate();
         return 1;
     }
+    glfwMakeContextCurrent(g_window);
+#else
+    if (glfwOpenWindow(width, height, 8, 8, 8, 8, 24, 8,GLFW_WINDOW) == GL_FALSE) {
+        printf("Failed to open window.\n");
+        glfwTerminate();
+        return 1;
+    }
+#endif
     
 #if not defined(__APPLE__)
-    glewInit();
+    if (GLenum r = glewInit() != GLEW_OK) {
+        printf("Failed to initialize glew. error = %d\n", r);
+        exit(1);
+    }
 #endif
 
     printf("precision : %f\n",PRECISION);
