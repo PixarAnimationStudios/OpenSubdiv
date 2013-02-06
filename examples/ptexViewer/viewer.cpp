@@ -70,6 +70,7 @@
 #if defined(GLFW_VERSION_3)
     #include <GL/glfw3.h>
     GLFWwindow* g_window=0;
+    GLFWmonitor* g_primary=0;
 #else
     #include <GL/glfw.h>
 #endif
@@ -1736,8 +1737,30 @@ int main(int argc, char ** argv) {
 #endif
 
 #if GLFW_VERSION_MAJOR>=3
+
+    if (fullscreen) {
+    
+        g_primary = glfwGetPrimaryMonitor();
+
+        // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
+        // settle for the first one in the list    
+        if (not g_primary) {
+            int count=0;
+            GLFWmonitor ** monitors = glfwGetMonitors(&count);
+
+            if (count)
+                g_primary = monitors[0];
+        }
+        
+        if (g_primary) {
+            GLFWvidmode vidmode = glfwGetVideoMode(g_primary);
+            g_width = vidmode.width;
+            g_height = vidmode.height;
+        }
+    }
+
     if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle, 
-                                       fullscreen ? glfwGetPrimaryMonitor() : NULL, NULL))) {
+                                       fullscreen and g_primary ? g_primary : NULL, NULL))) {
         printf("Failed to open window.\n");
         glfwTerminate();
         return 1;
