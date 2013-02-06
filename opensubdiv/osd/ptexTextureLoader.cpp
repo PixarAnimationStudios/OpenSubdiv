@@ -459,8 +459,8 @@ OsdPtexTextureLoader::OptimizePacking( int maxnumpages )
 
 // resample border texels for guttering
 //
-static void
-resampleBorder(PtexTexture * ptex, int face, int edgeId, unsigned char *result, int edge,
+static int
+resampleBorder(PtexTexture * ptex, int face, int edgeId, unsigned char *result,
                int dstLength, int bpp, float srcStart=0.0f, float srcEnd=1.0f)
 {
     const Ptex::FaceInfo & pf = ptex->getFaceInfo(face);
@@ -469,6 +469,9 @@ resampleBorder(PtexTexture * ptex, int face, int edgeId, unsigned char *result, 
     int edgeLength = (edgeId==0||edgeId==2) ? pf.res.u() : pf.res.v();
     int srcOffset = (int)(srcStart*edgeLength);
     int srcLength = (int)((srcEnd-srcStart)*edgeLength);
+
+    // if dstLength < 0, returns as original resolution without scaling
+    if (dstLength < 0) dstLength = srcLength;
 
     unsigned char *border = new unsigned char[bpp*srcLength];
 
@@ -499,6 +502,8 @@ resampleBorder(PtexTexture * ptex, int face, int edgeId, unsigned char *result, 
     }
 
     delete[] border;
+
+    return srcLength;
 }
 
 // flip order of pixel buffer
@@ -530,11 +535,11 @@ sampleNeighbor(PtexTexture * ptex, unsigned char *border, int face, int edge, in
               | adj face |       |
               +----------+-------+
             */
-            resampleBorder(ptex, adjface, ae, border, edge, length/2, bpp);
+            resampleBorder(ptex, adjface, ae, border, length/2, bpp);
             const Ptex::FaceInfo &sfi1 = ptex->getFaceInfo(adjface);
             adjface = sfi1.adjface((ae+3)%4);
             ae = (sfi1.adjedge((ae+3)%4)+3)%4;
-            resampleBorder(ptex, adjface, ae, border+(length/2*bpp), edge, length/2, bpp);
+            resampleBorder(ptex, adjface, ae, border+(length/2*bpp), length/2, bpp);
 
         } else if (fi.isSubface() && !ptex->getFaceInfo(adjface).isSubface()) {
             /* subface -> nonsubface (0.5:1).   two possible configuration
@@ -551,9 +556,9 @@ sampleNeighbor(PtexTexture * ptex, unsigned char *border, int face, int edge, in
             int f = ptex->getFaceInfo(Bf).adjface((Be+1)%4);
             int e = ptex->getFaceInfo(Bf).adjedge((Be+1)%4);
             if(f == adjface && e == ae) // case 1
-                resampleBorder(ptex, adjface, ae, border, edge, length, bpp, 0.0, 0.5);
+                resampleBorder(ptex, adjface, ae, border, length, bpp, 0.0, 0.5);
             else  // case 2
-                resampleBorder(ptex, adjface, ae, border, edge, length, bpp, 0.5, 1.0);
+                resampleBorder(ptex, adjface, ae, border, length, bpp, 0.5, 1.0);
 
         } else {
             /*  ordinary case (1:1 match)
@@ -563,7 +568,7 @@ sampleNeighbor(PtexTexture * ptex, unsigned char *border, int face, int edge, in
                 |    adj face      |
                 +----------+-------+
             */
-            resampleBorder(ptex, adjface, ae, border, edge, length, bpp);
+            resampleBorder(ptex, adjface, ae, border, length, bpp);
         }
     } else {
         /* border edge. duplicate itself
@@ -571,33 +576,109 @@ sampleNeighbor(PtexTexture * ptex, unsigned char *border, int face, int edge, in
            |       face      |
            +-------edge------+
         */
-        resampleBorder(ptex, face, edge, border, edge, length, bpp);
+        resampleBorder(ptex, face, edge, border, length, bpp);
         flipBuffer(border, length, bpp);
     }
 }
 
-// average corner pixels by traversing all adjacent faces around vertex
+// get corner pixel by traversing all adjacent faces around vertex
 //
 static bool
-averageCorner(PtexTexture *ptex, float *accumPixel, int numchannels, int face, int edge)
+getCornerPixel(PtexTexture *ptex, float *resultPixel, int numchannels,
+              int face, int edge, int bpp, unsigned char *lineBuffer)
 {
     const Ptex::FaceInfo &fi = ptex->getFaceInfo(face);
 
     int adjface = fi.adjface(edge);
 
-    // don't average T-vertex.
-    if (fi.isSubface() && !ptex->getFaceInfo(adjface).isSubface())
-        return false;
+    /*
+       see http://ptex.us/adjdata.html Figure 2 for the reason of conditions edge==1 and 3
+    */
 
-    int valence = 0;
+    if (fi.isSubface() && edge == 3) {
+        /*
+          in T-vertex case, this function sets 'D' pixel value to *resultPixel and returns false
+                gutter line
+                |
+          +------+-------+
+          |      |       |
+          |     D|C      |<-- gutter line
+          |      *-------+
+          |     B|A [2]  |
+          |      |[3] [1]|
+          |      |  [0]  |
+          +------+-------+
+        */
+        if (!ptex->getFaceInfo(adjface).isSubface()) {
+            int length = resampleBorder(ptex,
+                                        adjface,
+                                        fi.adjedge(edge),
+                                        lineBuffer,
+                                        /*dstLength=*/-1,
+                                        bpp,
+                                        0.0f, 1.0f);
+            /* then lineBuffer contains
+
+               |-------DB-------|
+               0       ^        length-1
+                       length/2-1
+             */
+            Ptex::ConvertToFloat(resultPixel,
+                                 lineBuffer + bpp*(length/2-1),
+                                 ptex->dataType(),
+                                 numchannels);
+            return true;
+        }
+    }
+    if (fi.isSubface() && edge == 1) {
+        /*      gutter line
+                |
+          +------+-------+
+          |      |  [3]  |
+          |      |[0] [2]|
+          |     B|A [1]  |
+          |      *-------+
+          |     D|C      |<-- gutter line
+          |      |       |
+          +------+-------+
+
+             note: here we're focusing on vertex A which corresponds to the edge 1,
+                   but the edge 0 is an adjacent edge to get D pixel.
+        */
+        int adjface2 = fi.adjface(0);
+        if (!ptex->getFaceInfo(adjface2).isSubface()) {
+            int length = resampleBorder(ptex,
+                                        adjface2,
+                                        fi.adjedge(0),
+                                        lineBuffer,
+                                        /*dstLength=*/-1,
+                                        bpp,
+                                        0.0f, 1.0f);
+            /* then lineBuffer contains
+
+               |-------BD-------|
+               0        ^       length-1
+                        length/2
+             */
+            Ptex::ConvertToFloat(resultPixel,
+                                 lineBuffer + bpp*(length/2),
+                                 ptex->dataType(),
+                                 numchannels);
+            return true;
+        }
+    }
+
     int currentFace = face;
     int currentEdge = edge;
     int uv[4][2] = {{0,0}, {1,0}, {1,1}, {0,1}};
     float *pixel = (float*)alloca(sizeof(float)*numchannels);
+    float *accumPixel = (float*)alloca(sizeof(float)*numchannels);
 
-    // clear result buffer
+    // clear accum pixel
     memset(accumPixel, 0, sizeof(float)*numchannels);
 
+    bool clockWise = true;
+    int valence = 0;
     do {
         valence++;
         Ptex::FaceInfo info = ptex->getFaceInfo(currentFace);
@@ -605,21 +686,47 @@ averageCorner(PtexTexture *ptex, float *accumPixel, int numchannels, int face, i
                         uv[currentEdge][0] * (info.res.u()-1),
                         uv[currentEdge][1] * (info.res.v()-1),
                         pixel, 0, numchannels);
-        for(int j=0; j<numchannels; ++j) {
+        for (int j = 0; j < numchannels; ++j) {
             accumPixel[j] += pixel[j];
+            if (valence == 3) {
+                resultPixel[j] = pixel[j];
+            }
         }
 
         // next face
-        currentFace = info.adjface(currentEdge);
-        currentEdge = info.adjedge(currentEdge);
-        currentEdge = (currentEdge+1)%4;
-    } while(currentFace != -1 && currentFace != face);
+        if (clockWise) {
+            currentFace = info.adjface(currentEdge);
+            currentEdge = info.adjedge(currentEdge);
+            currentEdge = (currentEdge+1)%4;
+        } else {
+            currentFace = info.adjface((currentEdge+3)%4);
+            currentEdge = info.adjedge((currentEdge+3)%4);
+        }
 
-    for(int j=0; j<numchannels; ++j) {
-        accumPixel[j] /= valence;
+        if (currentFace == -1) {
+            // border case.
+            if (clockWise) {
+                // reset position and restart counter clock wise
+                Ptex::FaceInfo sinfo = ptex->getFaceInfo(face);
+                currentFace = sinfo.adjface((edge+3)%4);
+                currentEdge = sinfo.adjedge((edge+3)%4);
+                clockWise = false;
+            } else {
+                // end
+                break;
+            }
+        }
+    } while(currentFace != face);
+
+    if (valence == 4) {
+        return true;
     }
 
-    return true;
+    // non-4 valence. let's average and return false;
+    for (int j = 0; j < numchannels; ++j) {
+        resultPixel[j] = accumPixel[j]/valence;
+    }
+    return false;
 }
 
 // sample neighbor pixels and populate around blocks
@@ -627,16 +734,16 @@ static void
 guttering(PtexTexture *_ptex, OsdPtexTextureLoader::block *b, unsigned char *pptr,
           int bpp, int pagesize, int stride, int gwidth)
 {
-    unsigned char * border = new unsigned char[pagesize * bpp];
+    unsigned char * lineBuffer = new unsigned char[pagesize * bpp];
 
     for(int w=0; w<gwidth; ++w) {
         for(int edge=0; edge<4; edge++) {
 
             int len = (edge==0 or edge==2) ? b->current.u() : b->current.v();
             // XXX: for now, sample same edge regardless of gutter depth
-            sampleNeighbor(_ptex, border, b->idx, edge, len, bpp);
+            sampleNeighbor(_ptex, lineBuffer, b->idx, edge, len, bpp);
 
-            unsigned char *s = border, *d;
+            unsigned char *s = lineBuffer, *d;
             for(int j=0;j<len;++j) {
                 d = pptr;
                 switch(edge) {
@@ -658,29 +765,82 @@ guttering(PtexTexture *_ptex, OsdPtexTextureLoader::block *b, unsigned char *ppt
             }
         }
     }
-    delete[] border;
 
-    // average corner pixels
+    // fix corner pixels
     int numchannels = _ptex->numChannels();
     float *accumPixel = new float[numchannels];
     int uv[4][2] = {{-1,-1}, {1,-1}, {1,1}, {-1,1}};
-    for(int edge=0; edge<4; edge++) {
+    for (int edge=0; edge<4; edge++) {
 
-        if(averageCorner(_ptex, accumPixel, numchannels, b->idx, edge)) {
-            // set accumPixel to 4 corner
-            int du = (b->u+gwidth*uv[edge][0]);
-            int dv = (b->v+gwidth*uv[edge][1]);
-            if(edge==1||edge==2) du += b->current.u()-gwidth-1;
-            if(edge==2||edge==3) dv += b->current.v()-gwidth-1;
+        int du = (b->u+gwidth*uv[edge][0]);
+        int dv = (b->v+gwidth*uv[edge][1]);
+
+        /*  There are 3 cases when filling a corner pixel on gutter.
+            
+            case 1: Regular 4 valence
+                    We already have correct 'B' and 'C' pixels by edge resampling above.
+                    so here only one more pixel 'D' is needed,
+                    and it will be placed on the gutter corner.
+               +-----+-----+
+               |     |     |<-current
+               |    B|A    |
+               +-----*-----+
+               |    D|C    |
+               |     |     |
+               +-----+-----+
+
+            case 2: T-vertex case (note that this doesn't mean 3 valence)
+                    If the current face comes from non-quad root face, there could be a T-vertex
+                    on its corner. Just like case 1, need to fill border corner with pixel 'D'.
+               +-----+-----+
+               |     |     |<-current
+               |    B|A    |
+               |     *-----+
+               |    D|C    |
+               |     |     |
+               +-----+-----+
+
+            case 3: Other than 4 valence case (everything else, including boundary)
+                    Since guttering pixels are placed on the border of each ptex faces,
+                    It's not possible to store more than 4 pixels at a coner for a reasonable
+                    interpolation.
+                    In this case, we need to average all corner pixels and overwrite with an
+                    averaged value, so that every face vertex picks the same value.
+               +---+---+
+               |   |   |<-current
+               |  B|A  |
+               +---*---|
+               | D/E\C |
+               | /   \ |
+               |/     \| 
+               +-------+
+         */
+
+        if (getCornerPixel(_ptex, accumPixel, numchannels, b->idx, edge, bpp, lineBuffer)) {
+            // case 1 and case 2
+            if (edge==1||edge==2) du += b->current.u()-gwidth;
+            if (edge==2||edge==3) dv += b->current.v()-gwidth;
+            for (int u=0; u<gwidth; ++u) {
+                for (int v=0; v<gwidth; ++v) {
+                    unsigned char *d = pptr + (dv+u)*stride + (du+v)*bpp;
+                    Ptex::ConvertFromFloat(d, accumPixel, _ptex->dataType(), numchannels);
+                }
+            }
+        } else {
+            // case 3
+            if (edge==1||edge==2) du += b->current.u()-gwidth-1;
+            if (edge==2||edge==3) dv += b->current.v()-gwidth-1;
+            // set accumPixel to 4 corners
             // .. over (gwidth+1)x(gwidth+1) pixels for each corner
-            for(int u=0; u<=gwidth; ++u) {
-                for(int v=0; v<=gwidth; ++v) {
+            for (int u=0; u<=gwidth; ++u) {
+                for (int v=0; v<=gwidth; ++v) {
                     unsigned char *d = pptr + (dv+u)*stride + (du+v)*bpp;
                     Ptex::ConvertFromFloat(d, accumPixel, _ptex->dataType(), numchannels);
                 }
             }
         }
     }
+    delete[] lineBuffer;
     delete[] accumPixel;
 }
 
