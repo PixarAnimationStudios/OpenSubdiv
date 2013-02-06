@@ -94,7 +94,13 @@
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
+    #include <osd/clComputeContext.h>
+    #include <osd/clComputeController.h>
     #include <osd/clDispatcher.h>
+    #include <osd/clGLVertexBuffer.h>
+    static cl_context g_clContext;
+    static cl_command_queue g_clQueue;
+    #include "../../examples/common/clInit.h" // XXXX TODO move file out of examples
 #endif
 
 #include "../common/shape_utils.h"
@@ -116,13 +122,13 @@
 enum BackendType {
     kBackendCPU = 0, // raw CPU
     kBackendCPUGL = 1, // CPU with GL-backed buffer
-    //kBackendCL = 2, // OpenCL
+    kBackendCL = 2, // OpenCL
     kBackendCount
 };
 static const char* BACKEND_NAMES[kBackendCount] = {
     "CPU",
     "CPUGL",
-    //"CL",
+    "CL",
 };
 
 static int g_Backend = 0;
@@ -246,9 +252,9 @@ bool VertexOnBoundary( xyzvertex const * v ) {
 }
 
 //------------------------------------------------------------------------------
-template <typename VB>
 int checkVertexBuffer( xyzmesh * hmesh,
-                       VB * vb,
+                       const float * vbData,
+                       int numElements,
                        std::vector<int> const & remap) {
     int count=0;
     float deltaAvg[3] = {0.0f, 0.0f, 0.0f},
@@ -259,7 +265,7 @@ int checkVertexBuffer( xyzmesh * hmesh,
 
         xyzvertex * hv = hmesh->GetVertex(i);
 
-        float * ov = & vb->BindCpuBuffer()[ remap[ hv->GetID() ] * vb->GetNumElements() ];
+        const float * ov = & vbData[ remap[ hv->GetID() ] * numElements ];
 
         // boundary interpolation rules set to "none" produce "undefined" vertices on
         // boundary vertices : far does not match hbr for those, so skip comparison.
@@ -341,7 +347,7 @@ int checkMeshCPU (
     OpenSubdiv::OsdCpuVertexBuffer * vb = OpenSubdiv::OsdCpuVertexBuffer::Create(3, farmesh->GetNumVertices());
     vb->UpdateData( & coarseverts[0], (int)coarseverts.size()/3 );
     controller->Refine( context, vb );
-    return checkVertexBuffer(refmesh, vb, remap);
+    return checkVertexBuffer(refmesh, vb->BindCpuBuffer(), vb->GetNumElements(), remap);
 }
 
 int checkMeshCPUGL (
@@ -355,7 +361,35 @@ int checkMeshCPUGL (
     OpenSubdiv::OsdCpuGLVertexBuffer * vb = OpenSubdiv::OsdCpuGLVertexBuffer::Create(3, farmesh->GetNumVertices());
     vb->UpdateData( & coarseverts[0], (int)coarseverts.size()/3 );
     controller->Refine( context, vb );
-    return checkVertexBuffer(refmesh, vb, remap);
+    return checkVertexBuffer(refmesh, vb->BindCpuBuffer(), vb->GetNumElements(), remap);
+}
+
+int checkMeshCL (
+    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
+    const std::vector<float>& coarseverts,
+    xyzmesh * refmesh,
+    const std::vector<int>& remap)
+{
+    #ifdef OPENSUBDIV_HAS_OPENCL
+
+    static OpenSubdiv::OsdCLComputeController *controller = new OpenSubdiv::OsdCLComputeController(g_clContext, g_clQueue);
+    OpenSubdiv::OsdCLComputeContext *context = OpenSubdiv::OsdCLComputeContext::Create(farmesh, g_clContext);
+    OpenSubdiv::OsdCLGLVertexBuffer * vb = OpenSubdiv::OsdCLGLVertexBuffer::Create(3, farmesh->GetNumVertices(), g_clContext);
+    vb->UpdateData( & coarseverts[0], (int)coarseverts.size()/3, g_clQueue );
+    controller->Refine( context, vb );
+
+    // read data back from CL buffer
+    size_t dataSize = vb->GetNumVertices() * vb->GetNumElements();
+    float* data = new float[dataSize];
+    clEnqueueReadBuffer (g_clQueue, vb->BindCLBuffer(g_clQueue), CL_TRUE, 0, dataSize * sizeof(float), data, 0, NULL, NULL);
+    int result = checkVertexBuffer(refmesh, data, vb->GetNumElements(), remap);
+    delete[] data;
+    return result;
+
+    #else
+
+    return 0;
+    #endif
 }
 
 //------------------------------------------------------------------------------
@@ -384,6 +418,7 @@ int checkMesh( char const * msg, char const * shape, int levels, Scheme scheme, 
     switch (backend) {
     case kBackendCPU: result = checkMeshCPU(farmesh, coarseverts, refmesh, remap); break;
     case kBackendCPUGL: result = checkMeshCPUGL(farmesh, coarseverts, refmesh, remap); break;
+    case kBackendCL: result = checkMeshCL(farmesh, coarseverts, refmesh, remap); break;
     }
 
     delete hmesh;
@@ -429,6 +464,19 @@ static void parseArgs(int argc, char ** argv) {
 int checkBackend(int backend, int levels) {
 
     printf("*** checking backend : %s\n", BACKEND_NAMES[backend]);
+
+    if (backend == kBackendCL) {
+        #ifdef OPENSUBDIV_HAS_OPENCL
+        if (initCL(&g_clContext, &g_clQueue) == false) {
+            printf("  Cannot initialize OpenCL, skipping...\n");
+            return 0;
+        }
+        #else
+        printf("  No OpenCL available, skipping...\n");
+        return 0;
+        #endif
+    }
+
     int total = 0;
 
 #define test_catmark_edgeonly
@@ -622,12 +670,21 @@ int checkBackend(int backend, int levels) {
     total += checkMesh( "test_bilinear_cube", bilinear_cube, levels, kBilinear, backend );
 #endif
 
+    if (backend == kBackendCL) {
+        #ifdef OPENSUBDIV_HAS_OPENCL
+        uninitCL(g_clContext, g_clQueue);
+        #endif
+    }
+
     return total;
 }
 
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
+    // Run with no args tests default (CPU) backend.
+    // "-backend all" tests all available backends.
+    // "-backend <name>" tests one backend.
     parseArgs(argc, argv);
 
     // Make sure we have an OpenGL context : create dummy GLFW window
