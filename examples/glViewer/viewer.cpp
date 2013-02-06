@@ -1653,7 +1653,7 @@ initHUD()
     g_hud.AddCheckBox("Freeze (spc)", false, 350, 130, callbackFreeze, 0, ' ');
 
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
-        g_hud.AddCheckBox("Adaptive (`)", g_adaptive, 10, 150, callbackAdaptive, 0, '`');
+        g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0, 10, 150, callbackAdaptive, 0, '`');
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
@@ -1765,8 +1765,15 @@ int main(int argc, char ** argv)
 #ifdef CORE_PROFILE
     setGLCoreProfile();
 #endif
-    
+
 #if GLFW_VERSION_MAJOR>=3
+	
+	if (fullscreen) {
+	    GLFWvidmode vidmode = glfwGetVideoMode( glfwGetPrimaryMonitor() );
+		g_width = vidmode.width;
+		g_height = vidmode.height;
+	}
+
     if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle, 
                                        fullscreen ? glfwGetPrimaryMonitor() : NULL, NULL))) {
         printf("Failed to open window.\n");
