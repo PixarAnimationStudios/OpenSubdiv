@@ -58,6 +58,8 @@
 #
 
 from distutils.core import setup, Command, Extension
+from distutils.command.build import build
+
 import numpy
 import os, os.path
 
@@ -79,7 +81,6 @@ def import_build_folder():
 
 osd_shim = Extension(
     'osd._shim',
-    runtime_library_dirs = [osd_lib_path],
     include_dirs = osd_include_dirs,
     library_dirs = ['../build/lib', np_library_dir],
     libraries = ['osdCPU', 'npymath'],
@@ -145,14 +146,17 @@ class DocCommand(Command):
 
 class BuildCommand(build):
     description = "Builds the Python bindings"
-    user_options = [
+    user_options = build.user_options + [
         ('osddir=', 'o',
          'directory that contains libosdCPU.a etc')]
     def initialize_options(self):
+        build.initialize_options(self)
         self.osddir = None
     def finalize_options(self):
+        build.finalize_options(self)
         if self.osddir is None:
             self.osddir = '../build/lib'
+        osd_shim.runtime_library_dirs = [self.osddir]
     def run(self):
         build.run(self)
 

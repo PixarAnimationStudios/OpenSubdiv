@@ -201,7 +201,7 @@ find_package(OpenCL 1.1)
 find_package(CUDA 4.0)
 find_package(GLFW 2.7.0)
 find_package(PTex 2.0)
-find_package(PythonInterp)
+find_package(PythonInterp 2.6)
 find_package(SWIG)
 
 if (NOT APPLE AND OPENGL_FOUND)
@@ -325,7 +325,8 @@ else()
     )
 endif()
 
-if(PYTHON_FOUND AND SWIG_FOUND)
+if(PYTHONINTERP_FOUND AND SWIG_FOUND)
+    message(STATUS "Python and SWIG found.  Looking for numpy...")
     execute_process(
         COMMAND
         ${PYTHON_EXECUTABLE} -c "import numpy; print numpy.get_include()"
@@ -336,16 +337,19 @@ if(PYTHON_FOUND AND SWIG_FOUND)
     if(NUMPY_ERR)
         message(WARNING "Unable to import numpy.")
     else()
+        message(STATUS "Numpy package has been located, Python bindings will be built.")
         add_custom_command(
-            COMMENT "Building Python bindings with distutils"
-            TARGET ${target} POST_BUILD
+            OUTPUT ${PROJECT_BINARY_DIR}/python
+            COMMAND ${PYTHON_EXECUTABLE} setup.py build --osddir=${LIBRARY_OUTPUT_PATH} --build-base=${PROJECT_BINARY_DIR}/python
             WORKING_DIRECTORY python
-            DEPENDS opensubdiv
-            COMMAND ${PYTHON_EXECUTABLE} setup.py build osddir='${LIBRARY_OUTPUT_PATH}'
+            DEPENDS osd_static_cpu osd_dynamic_cpu
+            COMMENT "Building Python bindings with distutils"
         )
+        add_custom_target(python ALL
+            DEPENDS ${PROJECT_BINARY_DIR}/python)
         install(CODE "execute_process("
             "WORKING_DIRECTORY python "
-            "COMMAND ${PYTHON_EXECUTABLE} setup.py install")
+            "COMMAND ${PYTHON_EXECUTABLE} setup.py build --osddir=${LIBRARY_OUTPUT_PATH} --build-base=/home/prideout/git/OpenSubdiv/build/python install")
     endif()
 endif()
 
