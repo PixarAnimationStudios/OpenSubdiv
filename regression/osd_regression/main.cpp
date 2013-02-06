@@ -60,6 +60,11 @@
 #else
     #include <stdlib.h>
     #include <GL/glew.h>
+    #if defined(_WIN32)
+        // XXX Must include windows.h here or GLFW pollutes the global namespace
+        #define WIN32_LEAN_AND_MEAN
+        #include <windows.h>
+    #endif
 #endif
 
 #if defined(GLFW_VERSION_3)
