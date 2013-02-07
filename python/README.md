@@ -1,17 +1,13 @@
 # Instructions
 
 The OpenSubdiv Python wrapper has been tested with Python 2.6 and Python 2.7.
-Make sure you have the numpy module installed before you begin.
+Make sure you install SWIG and numpy before you begin.
 
-First, try building the extension with:
+CMake builds the extension like this:
 
-    ./setup.py build osddir='../build/lib'
+    ./setup.py build --osddir='../build/lib' --build-platlib='../build/python'
 
-You'll need to replace `../build/lib` with the folder that has `libosdCPU.a` et al.
-
-This creates a build folder with a platform-specific subfolder, such as:
-
-    ./build/lib.macosx-10.8-intel-2.7
+If you invoke this manually, you'll need to replace `../build/lib` with the folder that has `libosdCPU.a`.
 
 Next, try out the unit tests:
 
@@ -41,3 +37,4 @@ After installing the module, you can generate and view the Sphinx-generated docu
 - Instead of using OsdCpuVertexBuffer, create a "NumpyCpuVertexBuffer" that wraps a numpy array
 - Add an API that looks very similar to the RIB parameters for RiHierarchicalSubdiv
 - Remove all the caveats that are listed in the Sphinx docs :)
+- Sphinx documentation should be CMake-ified.

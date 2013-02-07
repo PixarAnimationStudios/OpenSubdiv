@@ -66,23 +66,12 @@ import os, os.path
 np_include_dir = numpy.get_include()
 np_library_dir = os.path.join(np_include_dir, '../lib')
 osd_include_dirs = ['../opensubdiv', '../regression']
-
-def import_build_folder():
-    import sys, distutils.util, os.path
-    build_dir = "build/lib.{0}-{1}.{2}".format(
-        distutils.util.get_platform(),
-        *sys.version_info)
-    if not os.path.exists(build_dir):
-        print "Folder does not exist: " + build_dir
-        print "Perhaps you need to run:"
-        print "    python setup.py build"
-    else:
-        sys.path.insert(0, build_dir)
+osddir = '../build/lib'
 
 osd_shim = Extension(
     'osd._shim',
     include_dirs = osd_include_dirs,
-    library_dirs = ['../build/lib', np_library_dir],
+    library_dirs = [osddir, np_library_dir],
     libraries = ['osdCPU', 'npymath'],
     swig_opts = ['-c++'],
     sources = [
@@ -95,6 +84,21 @@ osd_shim.extra_compile_args = \
 
 os.environ['ARCHFLAGS'] = '-arch ' + os.uname()[4]
 
+def setBuildFolder(folder):
+    osddir = folder
+    osd_shim.runtime_library_dirs = [folder]
+    osd_shim.library_dirs = [folder, np_library_dir]
+
+def importBuildFolder():
+    import os.path
+    builddir = os.path.join(osddir, "../python")
+    if not os.path.exists(builddir):
+        print "Folder does not exist: " + builddir
+        print "Perhaps you need to run:"
+        print "    python setup.py build"
+    else:
+        sys.path.insert(0, builddir)
+
 class TestCommand(Command):
     description = "runs unit tests"
     user_options = []
@@ -103,7 +107,7 @@ class TestCommand(Command):
     def finalize_options(self):
         pass
     def run(self):
-        import_build_folder()
+        importBuildFolder()
         import unittest, test
         suite = unittest.defaultTestLoader.loadTestsFromModule(test)
         unittest.TextTestRunner(verbosity=2).run(suite)
@@ -116,8 +120,9 @@ class DemoCommand(Command):
     def finalize_options(self):
         pass
     def run(self):
-        import_build_folder()
+        importBuildFolder()
         import demo
+        os.chdir('demo')
         demo.main()
 
 class InteractiveCommand(Command):
@@ -128,8 +133,9 @@ class InteractiveCommand(Command):
     def finalize_options(self):
         pass
     def run(self):
-        import_build_folder()
+        importBuildFolder()
         import demo
+        os.chdir('demo')
         demo.interactive()
 
 class DocCommand(Command):
@@ -156,7 +162,7 @@ class BuildCommand(build):
         build.finalize_options(self)
         if self.osddir is None:
             self.osddir = '../build/lib'
-        osd_shim.runtime_library_dirs = [self.osddir]
+        setBuildFolder(self.osddir)
     def run(self):
         build.run(self)
 

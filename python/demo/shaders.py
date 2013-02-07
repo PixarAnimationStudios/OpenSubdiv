@@ -57,7 +57,7 @@
 
 from OpenGL.GL import *
 
-ProgramFiles = ['demo/simple.glsl']
+ProgramFiles = ['simple.glsl']
 
 Programs = {
     "BareBones" : {

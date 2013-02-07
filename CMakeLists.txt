@@ -337,19 +337,25 @@ if(PYTHONINTERP_FOUND AND SWIG_FOUND)
     if(NUMPY_ERR)
         message(WARNING "Unable to import numpy.")
     else()
-        message(STATUS "Numpy package has been located, Python bindings will be built.")
+        message(STATUS "Numpy package has been located.")
+        set(PYCMD ${PYTHON_EXECUTABLE} setup.py build )
+        list(APPEND PYCMD --osddir=${LIBRARY_OUTPUT_PATH} )
+        list(APPEND PYCMD --build-platlib=${PROJECT_BINARY_DIR}/python )
+        list(APPEND PYCMD --build-temp=${PROJECT_BINARY_DIR}/temp )
         add_custom_command(
-            OUTPUT ${PROJECT_BINARY_DIR}/python
-            COMMAND ${PYTHON_EXECUTABLE} setup.py build --osddir=${LIBRARY_OUTPUT_PATH} --build-base=${PROJECT_BINARY_DIR}/python
-            WORKING_DIRECTORY python
+            OUTPUT ${PROJECT_BINARY_DIR}/python/osd
+            COMMAND ${PYCMD}
+            WORKING_DIRECTORY ../python
             DEPENDS osd_static_cpu osd_dynamic_cpu
             COMMENT "Building Python bindings with distutils"
         )
         add_custom_target(python ALL
-            DEPENDS ${PROJECT_BINARY_DIR}/python)
-        install(CODE "execute_process("
-            "WORKING_DIRECTORY python "
-            "COMMAND ${PYTHON_EXECUTABLE} setup.py build --osddir=${LIBRARY_OUTPUT_PATH} --build-base=/home/prideout/git/OpenSubdiv/build/python install")
+            DEPENDS ${PROJECT_BINARY_DIR}/python/osd
+        )
+        install(CODE "execute_process(
+                      WORKING_DIRECTORY ../python 
+                      COMMAND ${PYCMD} install --user)"
+        )
     endif()
 endif()
 
