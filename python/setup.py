@@ -112,32 +112,6 @@ class TestCommand(Command):
         suite = unittest.defaultTestLoader.loadTestsFromModule(test)
         unittest.TextTestRunner(verbosity=2).run(suite)
 
-class DemoCommand(Command):
-    description = "runs a little PyQt demo of the Python wrapper"
-    user_options = []
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def run(self):
-        importBuildFolder()
-        import demo
-        os.chdir('demo')
-        demo.main()
-
-class InteractiveCommand(Command):
-    description = "runs a little PyQt demo of the Python wrapper"
-    user_options = []
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def run(self):
-        importBuildFolder()
-        import demo
-        os.chdir('demo')
-        demo.interactive()
-
 class DocCommand(Command):
     description = "Generate HTML documentation with Sphinx"
     user_options = []
@@ -173,9 +147,7 @@ setup(name = "OpenSubdiv",
       cmdclass = {
         'build': BuildCommand,
         'test': TestCommand,
-        'doc':  DocCommand,
-        'interactive': InteractiveCommand,
-        'demo': DemoCommand},
+        'doc':  DocCommand},
       include_dirs = [np_include_dir], 
       ext_modules = [osd_shim],
       description = 'Python Bindings to the Pixar Subdivision Library')

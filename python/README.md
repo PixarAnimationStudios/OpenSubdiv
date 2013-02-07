@@ -5,11 +5,15 @@ Make sure you install SWIG and numpy before you begin.
 
 CMake builds the extension like this:
 
-    ./setup.py build --osddir='../build/lib' --build-platlib='../build/python'
+    ./setup.py build --osddir='../build/lib' \
+                     --build-platlib='../build/python' \
+                     --build-temp='../build/temp'
 
 If you invoke this manually, you'll need to replace `../build/lib` with the folder that has `libosdCPU.a`.
 
-Next, try out the unit tests:
+The demo that uses PyQt and PyOpenGL can be found in `../examples/python`.
+
+You can run some unit tests like so:
 
     ./setup.py test
 
@@ -17,15 +21,7 @@ You can clean, build, and test in one go like this:
 
     ./setup.py clean --all build test
 
-If you'd like, you can try out an OpenGL demo.  For this, you need to have PyQt and PyOpenGL installed.
-
-    ./setup.py install --user demo
-
-You can also install the module globally with:
-
-    sudo ./setup.py install
-
-After installing the module, you can generate and view the Sphinx-generated documentation like so:
+You can generate and view the Sphinx-generated documentation like so:
 
     ./setup.py doc
     open ./doc/_build/html/index.html
