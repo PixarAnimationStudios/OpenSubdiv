@@ -57,7 +57,7 @@ Subdivider Class
 Enumerations
 ==============
 
-.. autoclass:: osd.InterpolateBoundary
+.. autoclass:: osd.BoundaryMode
    :members:
 
 .. autoclass:: osd.Sharpness
