@@ -70,7 +70,7 @@ class Subdivider(object):
     :param topo: Finalized mesh topology.
     :type topo: :class:`osd.Topology`
     :param vertexLayout: Describes the data structure composing each vertex.
-    :type vertexLayout: record-style numpy data type_ object
+    :type vertexLayout: numpy dtype_ object or short-hand string
     :param indexType: Integer type for the indices returned from `getRefinedTopology`.
     :type indexType: single numpy type_
     :param levels: Number of subdivisions.
@@ -80,11 +80,11 @@ class Subdivider(object):
        composed of ``numpy.float32``, and ``indexType`` must be
        ``numpy.uint32``.
 
-    .. _types: http://docs.scipy.org/doc/numpy/user/basics.types.html
     .. _type: http://docs.scipy.org/doc/numpy/user/basics.types.html
+    .. _dtype: http://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html
     '''
 
-    def __init__(self, topo, vertexLayout, indexType, levels):
+    def __init__(self, topology, vertexLayout, indexType, levels):
         if levels < 2:
             raise TopoError("Subdivision levels must be 2 or greater")
         if type(vertexLayout) != numpy.dtype:
@@ -92,7 +92,7 @@ class Subdivider(object):
         self.vertexLayout = vertexLayout
         self.indexType = indexType
         self.levels = levels
-        self.shim = shim.Subdivider(topo.shim, vertexLayout, indexType, levels)
+        self.shim = shim.Subdivider(topology.shim, vertexLayout, indexType, levels)
 
     # Calls UpdateData on the vertexBuffer.
     def setCoarseVertices(self, coarseVerts, listType = None):

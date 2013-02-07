@@ -90,10 +90,9 @@ def main():
               (1,7,5,3),  # 4
               (6,0,2,4) ] # 5
 
-    dtype = np.dtype([
-            ('Px', np.float32),
-            ('Py', np.float32),
-            ('Pz', np.float32)])
+    dtype = [ ('x', np.float32),
+              ('y', np.float32),
+              ('z', np.float32) ]
 
     topo = osd.Topology(faces)
     topo.boundaryMode = osd.BoundaryMode.EDGE_ONLY
@@ -105,7 +104,7 @@ def main():
 
     subdivider = osd.Subdivider(
         topo,
-        vertexLayout = dtype,
+        vertexLayout = 'f4, f4, f4',
         indexType = np.uint32,
         levels = 4)
     subdivider.setCoarseVertices(verts)

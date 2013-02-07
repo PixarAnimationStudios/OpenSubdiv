@@ -10,29 +10,35 @@ The Python module for OpenSubdiv does not provide one-to-one wrapping of the nat
 
 We do not yet support rendering or GPU-accelerated subdivision from Python, but a demo is provided that renders a subdivided surface using ``PyOpenGL`` and ``QGLWidget``.  The demo uses a "modern" OpenGL context (Core Profile).
 
-These bindings leverage numpy_ arrays for passing data.  The numpy library is a de facto standard for encapsulating large swaths of typed data in Python.  However, for special attributes (such as sharpness), the OpenSubdiv wrapper exposes Pythonic interfaces, using properties and list accessors.  For example::
+These bindings leverage numpy_ arrays for passing data.  The numpy library is the de facto standard for encapsulating large swaths of typed data in Python.  However, for special attributes (such as sharpness), the OpenSubdiv wrapper exposes Pythonic interfaces, using properties and list accessors.  For example::
 
-   import osd
-   import numpy as np
-   faceList = np.array([[0,1,2,3],[0,1,6,7]])
-   topo = osd.Topology(faceList)
-   topo.vertices[2].sharpness = 1.3
-   topo.faces[0].edges[3].sharpness = 0.6
+    import osd
+    import numpy as np
+    faceList = np.array([[0,1,2,3],[0,1,6,7]])
+    topo = osd.Topology(faceList)
+    topo.vertices[2].sharpness = 1.3
+    topo.faces[0].edges[3].sharpness = 0.6
 
-After constructing a :class:`osd.Topology` object, clients should finalize it and pass it into a :class:`osd.Subdivider` instance::
+After constructing a :class:`osd.Topology` object, simply finalize it and pass it into a :class:`osd.Subdivider` instance::
 
     topo.finalize()
     subdivider = osd.Subdivider(
-        topo,
-        vertexLayout = [np.float32] * 3,
+        topology = topo,
+        vertexLayout = np.dtype('f4, f4, f4'),
         indexType = np.uint32,
         levels = 4)
 
 The final step is to perform actual refinement.  This often occurs inside an animation loop or callback function::
 
-    subdivider.setCage(positions)
+    subdivider.setCoarseVertices(positions)
     subdivider.refine()
     pts = subdivider.getRefinedVertices()
+    
+Only uniform subdivision is supported from Python, which means the topology of the subdivided mesh will never change::
+
+    indices = subdivider.getRefinedQuads()
+
+This returns a flat list of indices (four per quad) using the integer type that was specified as the ``indexType`` argument in the constructor.
 
 .. _numpy: http://www.numpy.org
 

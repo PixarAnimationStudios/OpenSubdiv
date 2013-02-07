@@ -76,8 +76,9 @@ class Topology(object):
     valence, clients can pass in a single integer for
     ``valences``.
 
-    If desired, simple Python lists can be used in lieu of numpy
-    arrays.
+    If desired, simple Python lists can be passed in rather than numpy
+    arrays.  However they will get converted into numpy arrays
+    internally.
 
     .. note:: Input data is always copied to internal storage,
        rather than referenced.
