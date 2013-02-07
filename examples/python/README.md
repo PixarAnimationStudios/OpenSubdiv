@@ -1,6 +1,6 @@
-This folder defines a small demo application that required PyQt, PyOpenGL, and the Python bindings for OpenSubdiv (which in turn require numpy and SWIG).
+This folder defines a small demo application that requires PyQt, PyOpenGL, and the Python bindings for OpenSubdiv (which in turn require numpy and SWIG).
 
-![Screenshot](http://raw.github.com/prideout/OpenSubdiv/master/python/demo/screenshot.png)
+![Screenshot](http://raw.github.com/PixarAnimationStudios/OpenSubdiv/master/examples/python/screenshot.png)
 
 - **main.py**         This what you invoke from the command line.  All calls to the `osd` module go here.  Creates a `QApplication` and periodically pushes new VBO data into the renderer. (see below)
 - **renderer.py**     Defines the renderer; implements `draw` and `init`.  All OpenGL calls are made in this file, and there's no dependency on Qt or `osd`.
