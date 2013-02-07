@@ -975,21 +975,23 @@ EffectDrawRegistry::_CreateDrawConfig(
     ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig);
     assert(config);
 
+    GLuint uboIndex;
+
     // XXXdyu can use layout(binding=) with GLSL 4.20 and beyond
     g_transformBinding = 0;
-    glUniformBlockBinding(config->program,
-        glGetUniformBlockIndex(config->program, "Transform"),
-        g_transformBinding);
+    uboIndex = glGetUniformBlockIndex(config->program, "Transform");
+    if (uboIndex != GL_INVALID_INDEX)
+        glUniformBlockBinding(config->program, uboIndex, g_transformBinding);
 
     g_tessellationBinding = 1;
-    glUniformBlockBinding(config->program,
-        glGetUniformBlockIndex(config->program, "Tessellation"),
-        g_tessellationBinding);
+    uboIndex = glGetUniformBlockIndex(config->program, "Tessellation");
+    if (uboIndex != GL_INVALID_INDEX)
+        glUniformBlockBinding(config->program, uboIndex, g_tessellationBinding);
 
     g_lightingBinding = 2;
-    glUniformBlockBinding(config->program,
-        glGetUniformBlockIndex(config->program, "Lighting"),
-        g_lightingBinding);
+    uboIndex = glGetUniformBlockIndex(config->program, "Lighting");
+    if (uboIndex != GL_INVALID_INDEX)
+        glUniformBlockBinding(config->program, uboIndex, g_lightingBinding);
 
     GLint loc;
 #if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
@@ -1835,9 +1837,7 @@ int main(int argc, char ** argv)
     initGL();
     linkDefaultProgram();
 
-#ifdef WIN32
-    wglSwapIntervalEXT(0);
-#endif
+    glfwSwapInterval(0);
 
     initHUD();
     callbackModel(g_currentShape);
