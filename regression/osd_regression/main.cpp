@@ -56,7 +56,9 @@
 //
 
 #if defined(__APPLE__)
-    #include <GLUT/glut.h>
+    #include <OpenGL/gl3.h>
+    #define GLFW_INCLUDE_GL3
+    #define GLFW_NO_GLU
 #else
     #include <stdlib.h>
     #include <GL/glew.h>

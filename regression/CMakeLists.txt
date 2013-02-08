@@ -73,7 +73,7 @@ else()
     endif()
 
     if (NOT GLFW_FOUND)
-        list(APPEND MISSING glut)
+        list(APPEND MISSING glfw)
     endif()
 
     message(WARNING

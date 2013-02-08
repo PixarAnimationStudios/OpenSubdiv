@@ -1556,29 +1556,9 @@ reloadShaderFile() {
 }
 
 //------------------------------------------------------------------------------
-static void toggleFullScreen() {
-
-#if 0
-    static int x,y,w,h;
-    
-    g_fullscreen = !g_fullscreen;
-    
-    if (g_fullscreen) {
-        x = glutGet((GLenum)GLUT_WINDOW_X);
-        y = glutGet((GLenum)GLUT_WINDOW_Y);
-        w = glutGet((GLenum)GLUT_WINDOW_WIDTH);
-        h = glutGet((GLenum)GLUT_WINDOW_HEIGHT);
-        
-        glutFullScreen( );
-        
-        reshape( glutGet(GLUT_SCREEN_WIDTH),
-                 glutGet(GLUT_SCREEN_HEIGHT) );
-    } else {
-        glutReshapeWindow(w, h);
-        glutPositionWindow(x,y);
-        reshape( w, h );
-    }
-#endif
+static void 
+toggleFullScreen() {
+    // XXXX manuelk : to re-implement from glut
 }
 
 //------------------------------------------------------------------------------
