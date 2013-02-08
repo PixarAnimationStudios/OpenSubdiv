@@ -201,6 +201,8 @@ find_package(OpenCL 1.1)
 find_package(CUDA 4.0)
 find_package(GLFW 2.7.0)
 find_package(PTex 2.0)
+find_package(PythonInterp 2.6)
+find_package(SWIG 1.3.40)
 
 if (NOT APPLE AND OPENGL_FOUND)
     find_package(GLEW REQUIRED)
@@ -321,6 +323,40 @@ else()
         "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
         "cmake command line argument or environment variable."
     )
+endif()
+
+if(PYTHONINTERP_FOUND AND SWIG_FOUND)
+    message(STATUS "Python and SWIG found.  Looking for numpy...")
+    execute_process(
+        COMMAND
+        ${PYTHON_EXECUTABLE} -c "import numpy; print numpy.get_include()"
+        OUTPUT_VARIABLE NUMPY_INCLUDE_PATH
+        RESULT_VARIABLE NUMPY_ERR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if(NUMPY_ERR)
+        message(WARNING "Unable to import numpy.")
+    else()
+        message(STATUS "Numpy package has been located.")
+        set(PYCMD ${PYTHON_EXECUTABLE} setup.py build )
+        list(APPEND PYCMD --osddir=${LIBRARY_OUTPUT_PATH} )
+        list(APPEND PYCMD --build-platlib=${PROJECT_BINARY_DIR}/python )
+        list(APPEND PYCMD --build-temp=${PROJECT_BINARY_DIR}/temp )
+        add_custom_command(
+            OUTPUT ${PROJECT_BINARY_DIR}/python/osd
+            COMMAND ${PYCMD}
+            WORKING_DIRECTORY ../python
+            DEPENDS osd_static_cpu osd_dynamic_cpu
+            COMMENT "Building Python bindings with distutils"
+        )
+        add_custom_target(python ALL
+            DEPENDS ${PROJECT_BINARY_DIR}/python/osd
+        )
+        install(CODE "execute_process(
+                      WORKING_DIRECTORY ../python 
+                      COMMAND ${PYCMD} install --user)"
+        )
+    endif()
 endif()
 
 # Link examples & regressions dynamically against Osd
