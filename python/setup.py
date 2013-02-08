@@ -89,6 +89,9 @@ def setBuildFolder(folder):
     osd_shim.runtime_library_dirs = [folder]
     osd_shim.library_dirs = [folder, np_library_dir]
 
+def setCompilerFlags(flags):
+    osd_shim.extra_compile_args = flags.split() + osd_shim.extra_compile_args
+
 def importBuildFolder():
     import os.path
     builddir = os.path.join(osddir, "../python")
@@ -126,17 +129,25 @@ class DocCommand(Command):
 
 class BuildCommand(build):
     description = "Builds the Python bindings"
-    user_options = build.user_options + [
-        ('osddir=', 'o',
-         'directory that contains libosdCPU.a etc')]
+    user_options = build.user_options[:]
+    user_options.extend([('osddir=', 'o', 'directory that contains libosdCPU.a etc')])
+    user_options.extend([('cxxflags=','c', 'compiler flags')])
+    user_options.extend([('swigopts=','s', 'swig command options')])
     def initialize_options(self):
         build.initialize_options(self)
         self.osddir = None
+        self.cxxflags = None
+        self.swigopts = None
     def finalize_options(self):
         build.finalize_options(self)
         if self.osddir is None:
             self.osddir = '../build/lib'
         setBuildFolder(self.osddir)
+        if self.cxxflags is None:
+            self.cxxflags = [(-Wall)]
+        setCompilerFlags(self.cxxflags)
+        if self.swigopts:
+            osd_shim.swig_opts+=[self.swigopts]
     def run(self):
         build.run(self)
 

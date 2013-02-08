@@ -109,27 +109,29 @@ if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 endif()
 
 
+set(OSD_COMPILER_FLAGS)
+
 # Disable spurrious warnings in gcc builds and clang
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC)
 
     # Turn on all warnings
-    add_definitions(-Wall)
+    list(APPEND OSD_COMPILER_FLAGS -Wall)
 
     # HBR uses the offsetof macro on a templated struct, which appears
     # to spurriously set off this warning in both gccc and Clang
-    add_definitions(-Wno-invalid-offsetof)
+    list(APPEND OSD_COMPILER_FLAGS -Wno-invalid-offsetof)
     
     # FAR and OSD have templated virtual function implementations that trigger
     # a lot of hidden virtual function overloads (some of them spurrious).
     # Disable those for now in Clang.
     if(CMAKE_COMPILER_IS_CLANGCC)
-        add_definitions(-Wno-overloaded-virtual)
+        list(APPEND OSD_COMPILER_FLAGS -Wno-overloaded-virtual)
     endif()
 
 elseif(MSVC)
 
     # Turn on all warnings
-    add_definitions(/Wall)
+    list(APPEND OSD_COMPILER_FLAGS /Wall)
     
     # MSVC is unfortunately not standard conforming with regards to
     # the alternative names for logical and bitwise operators:
@@ -144,7 +146,7 @@ elseif(MSVC)
     # An alternative would be to compile with the /Za option
     # (but unfortunately that breaks other code):
     # http://msdn.microsoft.com/en-us/library/0k0w269d.aspx
-    add_definitions(
+    list(APPEND OSD_COMPILER_FLAGS
                     /Dand=&&
                     /Dand_eq=&=
                     /Dbitand=&
@@ -161,7 +163,8 @@ elseif(MSVC)
                     /Dxor_eq=^=
                     )
     
-    add_definitions(
+
+    list(APPEND OSD_COMPILER_FLAGS
                     /W3     # Use warning level recommended for production purposes.
                     /WX     # Treat all compiler warnings as errors.
                     
@@ -183,7 +186,16 @@ elseif(MSVC)
                     /D_SECURE_SCL=0
                     /D_HAS_ITERATOR_DEBUGGING=0
                     )
+
+    # Turn off a duplicate LIBCMT linker warning 
+    set(CMAKE_EXE_LINKER_FLAGS 
+        "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrt.lib")
+    set(CMAKE_SHARED_LINKER_FLAGS 
+        "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrt.lib")
+
 endif()
+
+add_definitions(${OSD_COMPILER_FLAGS})
 
 #-------------------------------------------------------------------------------
 
@@ -342,6 +354,23 @@ if(PYTHONINTERP_FOUND AND SWIG_FOUND)
         list(APPEND PYCMD --osddir=${LIBRARY_OUTPUT_PATH} )
         list(APPEND PYCMD --build-platlib=${PROJECT_BINARY_DIR}/python )
         list(APPEND PYCMD --build-temp=${PROJECT_BINARY_DIR}/temp )
+        
+        # grab all compiler definitions and add '-D'
+        get_directory_property( TMP DIRECTORY ${CMAKE_SOURCE_DIR} COMPILE_DEFINITIONS )
+        foreach(FLAG ${TMP})
+            list(APPEND SWIG_COMPILE_FLAGS "-D${FLAG}")
+        endforeach()
+        
+        # append platform specific compiler flags
+        list(APPEND SWIG_COMPILE_FLAGS ${OSD_COMPILER_FLAGS})
+        list(APPEND PYCMD --cxxflags="${SWIG_COMPILE_FLAGS}" )
+        
+        # add Swig -builtin optimization build flag 
+        if(SWIG_VERSION VERSION_GREATER 2.0.4)
+            list(APPEND SWIG_OPTS "-builtin")
+        endif()
+        list(APPEND PYCMD --swigopts="${SWIG_OPTS}" )
+        
         add_custom_command(
             OUTPUT ${PROJECT_BINARY_DIR}/python/osd
             COMMAND ${PYCMD}
@@ -357,6 +386,12 @@ if(PYTHONINTERP_FOUND AND SWIG_FOUND)
                       COMMAND ${PYCMD} install --user)"
         )
     endif()
+else()
+    message(WARNING
+        "Python / Swig not found : pythong bindings and examples will no be "
+	"available. If you do have Python and Swig installed and see this "
+	"message, please check the default FindPython.cmake module."
+    )
 endif()
 
 # Link examples & regressions dynamically against Osd
