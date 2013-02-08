@@ -55,8 +55,6 @@
 #     a particular purpose and non-infringement.
 #
 
-find_package(Doxygen)
-
 if (DOXYGEN_FOUND)
 
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/OpenSubdiv.doxy ${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy @ONLY)

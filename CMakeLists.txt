@@ -215,6 +215,7 @@ find_package(GLFW 2.7.0)
 find_package(PTex 2.0)
 find_package(PythonInterp 2.6)
 find_package(SWIG 1.3.40)
+find_package(Doxygen)
 
 if (NOT APPLE AND OPENGL_FOUND)
     find_package(GLEW REQUIRED)
@@ -482,4 +483,6 @@ endif()
 
 add_subdirectory(examples)
 
-add_subdirectory(documentation)
+if (DOXYGEN_FOUND)
+    add_subdirectory(documentation)
+endif()
