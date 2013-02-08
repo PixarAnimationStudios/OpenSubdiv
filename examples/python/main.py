@@ -90,10 +90,6 @@ def main():
               (1,7,5,3),  # 4
               (6,0,2,4) ] # 5
 
-    dtype = [ ('x', np.float32),
-              ('y', np.float32),
-              ('z', np.float32) ]
-
     topo = osd.Topology(faces)
     topo.boundaryMode = osd.BoundaryMode.EDGE_ONLY
     for v in (2, 3, 4, 5):
