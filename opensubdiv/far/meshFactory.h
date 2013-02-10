@@ -450,7 +450,7 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
                     for (int k=0; k<nv; ++k)
                         nextverts.insert( f->GetVertex(k) );
                 }
-                if (not (childedge = childvert->GetNextEdge(childedge)))
+                if ((childedge = childvert->GetNextEdge(childedge)) == 0)
                     break;
             }
         }
