@@ -83,7 +83,7 @@ public:
     }
 
     HbrCornerEdit(int _faceid, int _nsubfaces, int *_subfaces, int _vertexid, typename HbrHierarchicalEdit<T>::Operation _op, float _sharpness)
-        : HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), vertexid(_vertexid), op(_op), sharpness(_sharpness) {
+        : HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), vertexid(static_cast<unsigned char>(_vertexid)), op(_op), sharpness(_sharpness) {
     }
 
     virtual ~HbrCornerEdit() {}
