@@ -94,7 +94,7 @@ public:
         if (HbrHierarchicalEdit<T>::GetNSubfaces() == face->GetDepth()) {
             // Modify vertex sharpness. Note that we could actually do
             // this in ApplyEditToVertex as well!
-            float sharp;
+            float sharp = 0.0f;
             if (op == HbrHierarchicalEdit<T>::Set) {
                 sharp = sharpness;
             } else if (op == HbrHierarchicalEdit<T>::Add) {
