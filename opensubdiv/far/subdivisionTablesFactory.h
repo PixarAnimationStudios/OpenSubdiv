@@ -231,7 +231,7 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
         if (depth>maxlevel)
             continue;
 
-        assert( remapTable[ v->GetID() ] = -1 );
+        assert( remapTable[ v->GetID() ] == -1 );
 
         if (depth==0) {
             _vertVertsList[ depth ].push_back( v );
