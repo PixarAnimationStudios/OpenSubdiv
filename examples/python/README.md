@@ -2,7 +2,7 @@ This folder defines a small demo application that requires PyQt, PyOpenGL, and t
 
 ![Screenshot](http://github.com/PixarAnimationStudios/OpenSubdiv/raw/master/python/doc/screenshot.png)
 
-- **main.py**         This what you invoke from the command line.  All calls to the `osd` module go here.  Creates a `QApplication` and periodically pushes new VBO data into the renderer. (see below)
+- **main.py**         This is what you invoke from the command line.  All calls to the `osd` module go here.  Creates a `QApplication` and periodically pushes new VBO data into the renderer. (see below)
 - **renderer.py**     Defines the renderer; implements `draw` and `init`.  All OpenGL calls are made in this file, and there's no dependency on Qt or `osd`.
 - **canvas.py**       Inherits from `QGLWidget` and calls out to the renderer object (see above)
 - **shaders.py**      Implements a miniature FX format by extracting named strings from a file and pasting them together
