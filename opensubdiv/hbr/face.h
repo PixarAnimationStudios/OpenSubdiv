@@ -489,7 +489,7 @@ HbrFace<T>::Initialize(HbrMesh<T>* m, HbrFace<T>* _parent, int childindex, int f
     stitchEdges = 0;
 #endif
     editOffset = -1;
-    depth = _depth;
+    depth = static_cast<unsigned char>(_depth);
     hole = 0;
     coarse = 0;
     protect = 0;

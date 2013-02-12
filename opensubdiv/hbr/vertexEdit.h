@@ -88,7 +88,7 @@ public:
     }
 
     HbrVertexEdit(int _faceid, int _nsubfaces, int *_subfaces, int _vertexid, int _index, int _width, bool _isP, typename HbrHierarchicalEdit<T>::Operation _op, float *_edit)
-        : HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), vertexid(_vertexid), index(_index), width(_width), isP(_isP), op(_op) {
+        : HbrHierarchicalEdit<T>(_faceid, _nsubfaces, _subfaces), vertexid(static_cast<unsigned char>(_vertexid)), index(_index), width(_width), isP(_isP), op(_op) {
         edit = new float[width];
         memcpy(edit, _edit, width * sizeof(float));
     }
