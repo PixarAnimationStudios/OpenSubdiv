@@ -169,7 +169,8 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
 
             // Look at HbrCatmarkSubdivision<T>::Subdivide for more details about
             // the multi-pass interpolation
-            int masks[2], npasses;
+            unsigned char masks[2];
+            int npasses;
             float weights[2];
             masks[0] = pv->GetMask(false);
             masks[1] = pv->GetMask(true);

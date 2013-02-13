@@ -406,8 +406,8 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
                                          * w = mesh->GetVertex( t->intargs[j+1] );
                 OpenSubdiv::HbrHalfedge<T> * e = 0;
                 if( v && w ) {
-                    if( !(e = v->GetEdge(w) ) )
-                    e = w->GetEdge(v);
+                    if((e = v->GetEdge(w)) == 0)
+                        e = w->GetEdge(v);
                     if(e) {
                         int nfloat = (int) t->floatargs.size();
                         e->SetSharpness( std::max(0.0f, ((nfloat > 1) ? t->floatargs[j] : t->floatargs[0])) );
