@@ -173,8 +173,7 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
         HbrVertex<T> * v = mesh->GetVertex(i);
         assert(v);
 
-        if (not v->IsConnected())
-            continue;
+        assert(v->IsConnected());
 
         int depth = v->GetFace()->GetDepth();
 
@@ -223,8 +222,7 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
         HbrVertex<T> * v = mesh->GetVertex(i);
         assert(v);
 
-        if (not v->IsConnected())
-            continue;
+        assert(v->IsConnected());
 
         int depth = v->GetFace()->GetDepth();
 

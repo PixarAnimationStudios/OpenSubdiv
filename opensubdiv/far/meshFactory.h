@@ -221,7 +221,7 @@ FarMeshFactory<T,U>::sumList( std::vector<std::vector<Type> > const & list, int 
 template <class T, class U> void
 FarMeshFactory<T,U>::refine( HbrMesh<T> * mesh, int maxlevel ) {
 
-    for (int l=0, firstface=0; l<maxlevel; ++l ) {
+    for (int level=0, firstface=0; level<maxlevel; ++level ) {
 
         int nfaces = mesh->GetNumFaces();
         
@@ -229,8 +229,31 @@ FarMeshFactory<T,U>::refine( HbrMesh<T> * mesh, int maxlevel ) {
         
             HbrFace<T> * f = mesh->GetFace(i);
 
-            if (f->GetDepth()==l)
-                f->Refine();
+            if (f->GetDepth()==level) {
+
+                if (not f->IsHole()) {
+                    f->Refine();
+                } else {                
+
+                    // Hole faces need to maintain the 1-ring of vertices so we
+                    // have to create an extra row of children faces around the
+                    // hole.
+                    HbrHalfedge<T> * e = f->GetFirstEdge();
+                    for (int i=0; i<f->GetNumVertices(); ++i) {
+                        assert(e);
+                        if ((not e->IsBoundary()) and (not e->GetOpposite()->GetFace()->IsHole())) {
+                        
+                            // RefineFaceAtVertex only creates a single child face
+                            // centered on the passed vertex
+                            HbrSubdivision<T> * s = mesh->GetSubdivision();
+                            s->RefineFaceAtVertex(mesh,f,e->GetOrgVertex());
+                            s->RefineFaceAtVertex(mesh,f,e->GetDestVertex());
+                        }
+                        
+                        e = e->GetNext();
+                    }
+                }
+            }
         }
         
         // Hbr allocates faces sequentially, so there is no need to iterate over
@@ -450,7 +473,7 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
                     for (int k=0; k<nv; ++k)
                         nextverts.insert( f->GetVertex(k) );
                 }
-                if ((childedge = childvert->GetNextEdge(childedge)) == 0)
+                if (not (childedge = childvert->GetNextEdge(childedge)))
                     break;
             }
         }
@@ -506,7 +529,7 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adapt
         for (int i=0; i<_numFaces; ++i) {
             HbrFace<T> * f = mesh->GetFace(i);
             assert(f);
-            if (f->GetDepth()==0)
+            if (f->GetDepth()==0 and (not f->IsHole()))
                 fsize += mesh->GetSubdivision()->GetFaceChildrenCount( f->GetNumVertices() );
         }
 
@@ -517,7 +540,7 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adapt
         
         for (int i=0; i<_numFaces; ++i) {
             HbrFace<T> * f = mesh->GetFace(i);
-            if (f->GetDepth()<=maxlevel)
+            if (f->GetDepth()<=maxlevel and (not f->IsHole()))
                 _facesList[ f->GetDepth() ].push_back(f);
         }
     }

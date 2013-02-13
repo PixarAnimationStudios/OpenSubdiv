@@ -211,7 +211,7 @@ public:
 
     // "Hole" flags used by subdivision to drop faces
     bool IsHole() const { return hole; }
-    void SetHole() { hole = 1; }
+    void SetHole(bool h=1) { hole = h; }
 
     // Coarse faces are the top level faces of a mesh. This will be
     // set by mesh->Finish()

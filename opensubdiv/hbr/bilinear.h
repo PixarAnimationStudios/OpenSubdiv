@@ -437,6 +437,9 @@ HbrBilinearSubdivision<T>::transferEditsToChild(HbrFace<T>* face, HbrFace<T>* ch
             edits++;
         }
     }
+
+    // Hand down hole tag
+    child->SetHole(face->IsHole());
 }
 
 

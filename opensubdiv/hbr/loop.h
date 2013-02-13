@@ -474,6 +474,9 @@ HbrLoopSubdivision<T>::transferEditsToChild(HbrFace<T>* face, HbrFace<T>* child,
             edits++;
         }
     }
+
+    // Hand down hole tag
+    child->SetHole(face->IsHole());
 }
 
 template <class T>

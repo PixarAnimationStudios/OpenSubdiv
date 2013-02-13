@@ -265,6 +265,9 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
 
         if (mesh->GetSubdivision()->FaceIsExtraordinary(mesh,f))
             continue;
+            
+        if (f->IsHole())
+            continue;
            
         bool isTagged=0, wasTagged=0, isConnected=0, isWatertightCritical=0, isExtraordinary=0;
         int  triangleHeads=0, boundaryVerts=0;

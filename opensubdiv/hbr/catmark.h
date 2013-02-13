@@ -459,6 +459,9 @@ HbrCatmarkSubdivision<T>::transferEditsToChild(HbrFace<T>* face, HbrFace<T>* chi
             edits++;
         }
     }
+    
+    // Hand down hole tag
+    child->SetHole(face->IsHole());
 }
 
 
