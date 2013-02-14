@@ -170,9 +170,9 @@ elseif(MSVC)
 
                     # these warnings are being triggered from inside VC's header files
                     # warning C4350: behavior change: 'member1' called instead of 'member2'
-                    /wd 4350
+                    /wd4350
                     # warning C4548: expression before comma has no effect; expected expression with side-effect
-                    /wd 4548
+                    /wd4548
                     
                     # Make sure WinDef.h does not define min and max macros which
                     # will conflict with std::min() and std::max().
