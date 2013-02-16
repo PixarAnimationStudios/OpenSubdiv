@@ -1469,6 +1469,16 @@ reshape(int width, int height) {
 }
 
 //------------------------------------------------------------------------------
+#if GLFW_VERSION_MAJOR>=3
+int windowClose(GLFWwindow*) {
+#else
+int windowClose() {
+#endif
+    g_running = false;
+    return GL_TRUE;
+}
+
+//------------------------------------------------------------------------------
 static void 
 toggleFullScreen() {
     // XXXX manuelk : to re-implement from glut
@@ -1799,6 +1809,9 @@ int main(int argc, char ** argv)
     glfwSetMouseButtonCallback(mouse);
     glfwSetWindowSizeCallback(reshape);
 #endif
+
+    // kill the app when the window is closed
+    glfwSetWindowCloseCallback(windowClose);
 
 #if not defined(__APPLE__)
 #ifdef CORE_PROFILE
