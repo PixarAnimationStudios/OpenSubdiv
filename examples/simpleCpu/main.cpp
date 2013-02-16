@@ -98,8 +98,11 @@ int main(int argc, char ** argv)
         printf("Failed to initialize GLFW\n");
         return 1;
     }
-
+    
+#define CORE_PROFILE
+#ifdef CORE_PROFILE
     setGLCoreProfile();
+#endif
 
     #if GLFW_VERSION_MAJOR>=3
         if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle, NULL, NULL))) {
