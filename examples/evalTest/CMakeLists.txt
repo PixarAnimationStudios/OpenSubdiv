@@ -65,14 +65,14 @@ set(PLATFORM_LIBRARIES
     ${OSD_LINK_TARGET}
     ${OPENGL_LIBRARY}
     ${GLEW_LIBRARY}
-    ${GLUT_LIBRARIES}
+    ${GLFW_LIBRARIES}
 )
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
     ${PROJECT_SOURCE_DIR}/regression
     ${GLEW_INCLUDE_DIR}
-    ${GLUT_INCLUDE_DIR}
+    ${GLFW_INCLUDE_DIR}
 )
 
 #-------------------------------------------------------------------------------
@@ -98,14 +98,14 @@ foreach(shader_file ${SHADER_FILES})
 endforeach()
 
 if(APPLE)
-    _add_glut_executable(evalTest
+    _add_glfw_executable(evalTest
         mainApple.mm
         evalTest.cpp
         ${SHADER_FILES}
         ${INC_FILES}
     )
 else()
-    _add_glut_executable(evalTest
+    _add_glfw_executable(evalTest
         evalTest.cpp
         mainGlut.cpp
         ${SHADER_FILES}

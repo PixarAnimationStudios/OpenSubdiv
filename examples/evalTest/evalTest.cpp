@@ -205,7 +205,7 @@ void updateGeom();
 
 // register the Osd CPU kernel, 
 // call createOsdMesh (see below), init glew and one-time GL state and enter the
-// main glut loop.
+// main glfw loop.
 //
 void initOsd() 
 {
@@ -1102,7 +1102,7 @@ display()
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_refinedTriangleIndicesBuf);
 
-    glColor3f(0.5, 0.5, 0.5);    
+//    glColor3f(0.5, 0.5, 0.5);    
     glDrawElements(GL_TRIANGLES, g_refinedTriangleIndices.size()/3,
                    GL_UNSIGNED_INT, NULL);
 
@@ -1110,7 +1110,7 @@ display()
 //    glDrawElements(GL_LINES, g_refinedTriangleIndices.size()/2,
 //                   GL_UNSIGNED_INT, NULL);
 
-    glColor3f(1.0, 1.0, 1.0);        
+//    glColor3f(1.0, 1.0, 1.0);        
     glDrawElements(GL_POINTS, g_refinedTriangleIndices.size()/3,
                    GL_UNSIGNED_INT, NULL);    
     

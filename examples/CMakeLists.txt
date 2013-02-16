@@ -57,8 +57,8 @@
 
 if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
     add_subdirectory(glViewer)
-#    add_subdirectory(simpleCpu)
-#    add_subdirectory(evalTest)     
+    add_subdirectory(simpleCpu)
+    add_subdirectory(evalTest)     
     if(PTEX_FOUND AND (NOT APPLE))
         # the ptexViewer example requires GL functionality not available on OSX
         add_subdirectory(ptexViewer)
