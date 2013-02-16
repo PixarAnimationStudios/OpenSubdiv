@@ -143,7 +143,7 @@ int main(int argc, char ** argv)
     initOsd();
     
     //
-    // Start the main glut drawing loop
+    // Start the main drawing loop
     //
     while (g_running) {
         idle();
