@@ -97,21 +97,12 @@ foreach(shader_file ${SHADER_FILES})
     )
 endforeach()
 
-if(APPLE)
-    _add_glfw_executable(simpleCpu
-        mainApple.mm
-        simpleCpuSubdivision.cpp
-        ${SHADER_FILES}
-        ${INC_FILES}
-    )
-else()
-    _add_glfw_executable(simpleCpu
-        simpleCpuSubdivision.cpp
-        mainGlfw.cpp
-        ${SHADER_FILES}
-        ${INC_FILES}
-    )
-endif()
+_add_glfw_executable(simpleCpu
+    main.cpp
+    simpleCpuSubdivision.cpp
+    ${SHADER_FILES}
+    ${INC_FILES}
+)
 
 target_link_libraries(simpleCpu
     ${PLATFORM_LIBRARIES}
