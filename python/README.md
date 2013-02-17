@@ -1,4 +1,4 @@
-># Instructions
+# Instructions
 
 The OpenSubdiv Python wrapper has been tested with Python 2.6 and Python 2.7.
 Make sure you install SWIG and numpy before you begin.
