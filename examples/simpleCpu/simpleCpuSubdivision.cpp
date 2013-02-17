@@ -202,7 +202,7 @@ static void calcNormals(OsdHbrMesh * mesh,
 
 // register the Osd CPU kernel, 
 // call createOsdMesh (see below), init glew and one-time GL state and enter the
-// main glut loop.
+// main drawing loop.
 //
 void initOsd() 
 {
@@ -469,6 +469,7 @@ updateGeom()
     //
     // Send the animated coarse positions and normals to the vertex buffer.
     //
+    std::cout << vertex.size() << " - " << nverts << std::endl;
     g_vertexBuffer->UpdateData(&vertex[0], nverts);
 
     //

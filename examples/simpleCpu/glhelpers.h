@@ -17,10 +17,16 @@
 //
 #if defined(__APPLE__)
     #include <OpenGL/gl3.h>
+    #define GLFW_INCLUDE_GL3
+    #define GLFW_NO_GLU
+    #include <stdio.h>
 #else
     #include <stdlib.h>
+    #include <stdio.h>
     #include <GL/glew.h>
-    #include <GL/glut.h>
+    #if defined(WIN32)
+        #include <GL/wglew.h>
+    #endif
 #endif
 
 #include "algebra.h"
@@ -37,24 +43,7 @@
     #define snprintf _snprintf
 #endif
 
-#if defined(__APPLE__)
 #define drawString(x, y, ...); 
-/*               \
-    GLUT on OSX means gl 2.1, so forgoe the text drawing until we have a better solution
-    { char line[1024]; \
-      snprintf(line, 1024, __VA_ARGS__); \
-      char *p = line; \
-      glWindowPos2f(x, y); \
-      while(*p) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *p++); } }
-      */
-#else
-#define drawString(x, y, ...)               \
-    { char line[1024]; \
-      snprintf(line, 1024, __VA_ARGS__); \
-      char *p = line; \
-      glWindowPos2i(x, y); \
-      while(*p) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *p++); } }
-#endif
 
 //
 // These are standard OpenGL shader program handles. One for wire frame and one
