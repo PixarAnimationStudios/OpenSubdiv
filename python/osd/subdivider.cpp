@@ -76,7 +76,7 @@ shim::Subdivider::Subdivider(
         g_osdComputeController = new OpenSubdiv::OsdCpuComputeController();
     }
 
-    size_t numFloatsPerVertex = 0;
+    int numFloatsPerVertex = 0;
     Layout::const_iterator it;
     for (it = refinedLayout.begin(); it != refinedLayout.end(); ++it) {
         if (*it != float32) {

@@ -1,4 +1,4 @@
-# Instructions
+># Instructions
 
 The OpenSubdiv Python wrapper has been tested with Python 2.6 and Python 2.7.
 Make sure you install SWIG and numpy before you begin.
@@ -29,6 +29,7 @@ You can generate and view the Sphinx-generated documentation like so:
 # To Do Items
 
 - Add support for face varying data by augmenting _FaceAdapter in adapters.py
+  - Subdivider should expose a `quads` property that allows access to `hole` etc
   - Exercise this in the demo by getting it down to GPU (maybe do "discard" for certain faces)
 - Instead of using OsdCpuVertexBuffer, create a "NumpyCpuVertexBuffer" that wraps a numpy array
 - Add an API that looks very similar to the RIB parameters for RiHierarchicalSubdiv

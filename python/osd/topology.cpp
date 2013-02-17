@@ -196,7 +196,7 @@ shim::Topology::setBoundaryMode(BoundaryMode::e bm)
 int
 shim::Topology::getNumVertices() const
 {
-    return self->numVertices;
+    return (int) self->numVertices;
 }
 
 float
@@ -226,11 +226,7 @@ shim::Topology::getFaceHole(int faceIndex) const
 void
 shim::Topology::setFaceHole(int faceIndex, bool isHole)
 {
-    if (!isHole) {
-        cerr << "Unsetting holeness is not supported." << endl;
-        return;
-    }
-    self->faces[faceIndex]->SetHole();
+    self->faces[faceIndex]->SetHole(isHole);
 }
 
 int
