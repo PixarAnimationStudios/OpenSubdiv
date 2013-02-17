@@ -381,7 +381,7 @@ if(PYTHONINTERP_FOUND AND SWIG_FOUND)
         add_custom_command(
             OUTPUT ${PROJECT_BINARY_DIR}/python/osd
             COMMAND ${PYCMD}
-            WORKING_DIRECTORY ../python
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python
             DEPENDS osd_static_cpu osd_dynamic_cpu
             COMMENT "Building Python bindings with distutils"
         )
