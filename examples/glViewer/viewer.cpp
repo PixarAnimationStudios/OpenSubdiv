@@ -1796,6 +1796,7 @@ int main(int argc, char ** argv)
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
     glfwSetWindowSizeCallback(g_window, reshape);
+    glfwSetWindowCloseCallback(g_window, windowClose);
 #else
     if (glfwOpenWindow(g_width, g_height, 8, 8, 8, 8, 24, 8,
                        fullscreen ? GLFW_FULLSCREEN : GLFW_WINDOW) == GL_FALSE) {
@@ -1808,10 +1809,9 @@ int main(int argc, char ** argv)
     glfwSetMousePosCallback(motion);
     glfwSetMouseButtonCallback(mouse);
     glfwSetWindowSizeCallback(reshape);
+    glfwSetWindowCloseCallback(windowClose);
 #endif
 
-    // kill the app when the window is closed
-    glfwSetWindowCloseCallback(windowClose);
 
 #if not defined(__APPLE__)
 #ifdef CORE_PROFILE

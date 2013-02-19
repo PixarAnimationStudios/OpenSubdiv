@@ -112,6 +112,7 @@ int main(int argc, char ** argv)
         }
         glfwMakeContextCurrent(g_window);
         glfwSetWindowSizeCallback(g_window, reshape);
+        glfwSetWindowCloseCallback(g_window, windowClose);
     #else
         if (glfwOpenWindow(g_width, g_height, 8, 8, 8, 8, 24, 8, GLFW_WINDOW) == GL_FALSE) {
             printf("Failed to open window.\n");
@@ -120,9 +121,9 @@ int main(int argc, char ** argv)
         }
         glfwSetWindowTitle(windowTitle);
         glfwSetWindowSizeCallback(reshape);
+        glfwSetWindowCloseCallback(windowClose);
     #endif
 
-    glfwSetWindowCloseCallback(windowClose);
     
 
 #if not defined(__APPLE__)
