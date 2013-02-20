@@ -71,10 +71,12 @@
 
 #include <osd/cpuDispatcher.h>
 #include <osd/cpuComputeController.h>
+extern OpenSubdiv::OsdCpuComputeController * g_cpuComputeController;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
 #include <osd/ompDispatcher.h>
 #include <osd/ompComputeController.h>
+extern OpenSubdiv::OsdOmpComputeController * g_ompComputeController;
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
@@ -82,11 +84,13 @@
 #include <osd/clComputeController.h>
 extern cl_context g_clContext;
 extern cl_command_queue g_clQueue;
+extern OpenSubdiv::OsdCLComputeController * g_clComputeController;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
 #include <osd/cudaDispatcher.h>
 #include <osd/cudaComputeController.h>
+extern OpenSubdiv::OsdCudaComputeController * g_cudaComputeController;
 #endif
 
 #include <vector>
@@ -328,24 +332,33 @@ OsdMeshData::initializeMesh()
     if (_kernel == kCPU) {
         _mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuGLVertexBuffer,
                                          OpenSubdiv::OsdCpuComputeController,
-                                         OpenSubdiv::OsdGLDrawContext>(_hbrmesh, 3, _level, bits);
+                                         OpenSubdiv::OsdGLDrawContext>(
+                                                g_cpuComputeController,
+                                                _hbrmesh, 3, _level, bits);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (_kernel == kOPENMP) {
         _mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuGLVertexBuffer,
                                          OpenSubdiv::OsdOmpComputeController,
-                                         OpenSubdiv::OsdGLDrawContext>(_hbrmesh, 3, _level, bits);
+                                         OpenSubdiv::OsdGLDrawContext>(
+                                                g_ompComputeController,
+                                                _hbrmesh, 3, _level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if(_kernel == kCUDA) {
         _mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCudaGLVertexBuffer,
                                          OpenSubdiv::OsdCudaComputeController,
-                                         OpenSubdiv::OsdGLDrawContext>(_hbrmesh, 3, _level, bits);
+                                         OpenSubdiv::OsdGLDrawContext>(
+                                                g_cudaComputeController,
+                                                _hbrmesh, 3, _level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(_kernel == kCL) {
         _mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCLGLVertexBuffer,
                                          OpenSubdiv::OsdCLComputeController,
-                                         OpenSubdiv::OsdGLDrawContext>(_hbrmesh, 3, _level, bits, g_clContext, g_clQueue);
+                                         OpenSubdiv::OsdGLDrawContext>(
+                                                g_clComputeController,
+                                                _hbrmesh, 3, _level, bits,
+                                                g_clContext, g_clQueue);
 #endif
     }
 

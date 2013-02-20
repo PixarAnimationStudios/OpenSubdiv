@@ -79,7 +79,8 @@ public:
     typedef OsdD3D11DrawContext DrawContext; 
     typedef typename DrawContext::VertexBufferBinding VertexBufferBinding;
 
-    OsdMesh(HbrMesh<OsdVertex> * hmesh,
+    OsdMesh(ComputeController * computeController,
+            HbrMesh<OsdVertex> * hmesh,
             int numElements,
             int level,
             OsdMeshBitset bits,
@@ -88,7 +89,7 @@ public:
             _farMesh(0),
             _vertexBuffer(0),
             _computeContext(0),
-            _computeController(0),
+            _computeController(computeController),
             _drawContext(0),
             _pd3d11DeviceContext(d3d11DeviceContext)
     {
@@ -102,7 +103,6 @@ public:
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices, pd3d11Device);
         _computeContext = ComputeContext::Create(_farMesh);
-        _computeController = new ComputeController();
         _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
                                            _pd3d11DeviceContext,
                                            bits.test(MeshPtexData),
@@ -113,7 +113,6 @@ public:
         delete _farMesh;
         delete _vertexBuffer;
         delete _computeContext;
-        delete _computeController;
         delete _drawContext;
     }
 
@@ -154,7 +153,8 @@ public:
     typedef OsdD3D11DrawContext DrawContext; 
     typedef DrawContext::VertexBufferBinding VertexBufferBinding;
 
-    OsdMesh(HbrMesh<OsdVertex> * hmesh,
+    OsdMesh(ComputeController * computeController,
+            HbrMesh<OsdVertex> * hmesh,
             int numElements,
             int level,
             OsdMeshBitset bits,
@@ -163,7 +163,7 @@ public:
             _farMesh(0),
             _vertexBuffer(0),
             _computeContext(0),
-            _computeController(0),
+            _computeController(computeController),
             _drawContext(0),
             _pd3d11DeviceContext(d3d11DeviceContext)
     {
@@ -177,7 +177,6 @@ public:
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices, pd3d11Device);
         _computeContext = ComputeContext::Create(_farMesh, _pd3d11DeviceContext);
-        _computeController = new ComputeController(_pd3d11DeviceContext);
         _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
                                            _pd3d11DeviceContext,
                                            bits.test(MeshPtexData),
@@ -188,7 +187,6 @@ public:
         delete _farMesh;
         delete _vertexBuffer;
         delete _computeContext;
-        delete _computeController;
         delete _drawContext;
     }
 
@@ -239,7 +237,8 @@ public:
     typedef OsdD3D11DrawContext DrawContext; 
     typedef typename DrawContext::VertexBufferBinding VertexBufferBinding; 
 
-    OsdMesh(HbrMesh<OsdVertex> * hmesh,
+    OsdMesh(ComputeController * computeController,
+            HbrMesh<OsdVertex> * hmesh,
             int numElements,
             int level,
             OsdMeshBitset bits,
@@ -250,7 +249,7 @@ public:
             _farMesh(0),
             _vertexBuffer(0),
             _computeContext(0),
-            _computeController(0),
+            _computeController(computeController),
             _drawContext(0),
             _clContext(clContext),
             _clQueue(clQueue),
@@ -266,7 +265,6 @@ public:
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = typename VertexBuffer::Create(numElements, numVertices, _clContext, pd3d11Device);
         _computeContext = ComputeContext::Create(_farMesh, _clContext);
-        _computeController = new ComputeController(_clContext, _clQueue);
         _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
                                            _pd3d11DeviceContext,
                                            bits.test(MeshPtexData),
@@ -277,7 +275,6 @@ public:
         delete _farMesh;
         delete _vertexBuffer;
         delete _computeContext;
-        delete _computeController;
         delete _drawContext;
     }
 

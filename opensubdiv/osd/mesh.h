@@ -115,7 +115,8 @@ public:
     typedef DRAW_CONTEXT DrawContext; 
     typedef typename DrawContext::VertexBufferBinding VertexBufferBinding;
 
-    OsdMesh(HbrMesh<OsdVertex> * hmesh,
+    OsdMesh(ComputeController * computeController,
+            HbrMesh<OsdVertex> * hmesh,
             int numElements,
             int level,
             OsdMeshBitset bits = OsdMeshBitset()) :
@@ -123,7 +124,7 @@ public:
             _farMesh(0),
             _vertexBuffer(0),
             _computeContext(0),
-            _computeController(0),
+            _computeController(computeController),
             _drawContext(0)
     {
         FarMeshFactory<OsdVertex> meshFactory(hmesh, level, bits.test(MeshAdaptive));
@@ -133,7 +134,6 @@ public:
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices);
         _computeContext = ComputeContext::Create(_farMesh);
-        _computeController = new ComputeController();
         _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
                                            bits.test(MeshPtexData),
                                            bits.test(MeshFVarData));
@@ -143,7 +143,6 @@ public:
         delete _farMesh;
         delete _vertexBuffer;
         delete _computeContext;
-        delete _computeController;
         delete _drawContext;
     }
 
