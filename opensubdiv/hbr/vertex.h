@@ -275,6 +275,9 @@ public:
         validmask = 0;
     }
 
+    // True if the edge has a subdivided child vertex
+    bool HasChild() const { return vchild!=-1; }
+
     // Remove the reference to subdivided vertex
     void RemoveChild() { vchild = -1; }
 

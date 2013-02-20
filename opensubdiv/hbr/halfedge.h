@@ -252,6 +252,9 @@ public:
 
     // Make sure the edge has its opposite face
     void GuaranteeNeighbor();
+    
+    // True if the edge has a subdivided child vertex
+    bool HasChild() const { return vchild!=-1; }
 
     // Remove the reference to subdivided vertex
     void RemoveChild() { vchild = -1; }
@@ -480,6 +483,19 @@ public:
     };
     
     adaptiveFlags _adaptiveFlags;
+    
+    bool IsInsideHole() const {
+
+        HbrFace<T> * left = GetLeftFace();       
+        if (left and (not left->IsHole()))
+            return false;
+        
+        HbrFace<T> * right = GetRightFace();
+        if (right and (not right->IsHole()))
+            return false;
+                        
+        return true;
+    }
     
     bool IsTransition() const { return _adaptiveFlags.isTransition; }
 

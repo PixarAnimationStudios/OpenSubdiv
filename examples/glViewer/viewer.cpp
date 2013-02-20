@@ -403,6 +403,9 @@ initializeShapes( ) {
 #include <shapes/catmark_hole_test1.h>
     g_defaultShapes.push_back(SimpleShape(catmark_hole_test1, "catmark_hole_test1", kCatmark));
 
+#include <shapes/catmark_hole_test2.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_hole_test2, "catmark_hole_test2", kCatmark));
+
 #include <shapes/catmark_pyramid_creases0.h>
     g_defaultShapes.push_back(SimpleShape(catmark_pyramid_creases0, "catmark_pyramid_creases0", kCatmark));
 

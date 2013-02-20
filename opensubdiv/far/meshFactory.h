@@ -241,7 +241,7 @@ FarMeshFactory<T,U>::refine( HbrMesh<T> * mesh, int maxlevel ) {
                     HbrHalfedge<T> * e = f->GetFirstEdge();
                     for (int i=0; i<f->GetNumVertices(); ++i) {
                         assert(e);
-                        if ((not e->IsBoundary()) and (not e->GetOpposite()->GetFace()->IsHole())) {
+                        if (e->GetRightFace() and (not e->GetRightFace()->IsHole())) {
                         
                             // RefineFaceAtVertex only creates a single child face
                             // centered on the passed vertex
@@ -340,29 +340,35 @@ template <class T, class U> void
 FarMeshFactory<T,U>::refineVertexNeighbors(HbrVertex<T> * v) {
     
     assert(v);
-    
+
     HbrHalfedge<T> * start = v->GetIncidentEdge(),
                    * next=start;
     do {
-        if (next->GetRightFace())
-            next->GetRightFace()->_adaptiveFlags.isTagged=true;
 
-        if (next->GetLeftFace())
-            next->GetLeftFace()->_adaptiveFlags.isTagged=true;
+        HbrFace<T> * lft = next->GetLeftFace(),
+                   * rgt = next->GetRightFace();
 
-        HbrHalfedge<T> * istart = next, 
-                       * inext = istart;
-        do {
-            inext->GetOrgVertex()->Refine();
-            inext = inext->GetNext();
-        } while (istart != inext);
+        if (not ((lft and lft->IsHole()) and 
+                 (rgt and rgt->IsHole()) ) ) {
+        
+            if (rgt)
+                rgt->_adaptiveFlags.isTagged=true;
 
+            if (lft)
+                lft->_adaptiveFlags.isTagged=true;
+
+            HbrHalfedge<T> * istart = next, 
+                           * inext = istart;
+            do {
+                if (not inext->IsInsideHole()  )
+                    inext->GetOrgVertex()->Refine();
+                inext = inext->GetNext();
+            } while (istart != inext);
+        } 
         next = v->GetNextEdge( next );
     } while (next and next!=start);
 }
 
-// XXXX manuelk : std::sets are slow. 
-// with the "isTagged" flag on verts we can prob. ditch verts / nextverts !!!
 template <class T> struct VertCompare {
     bool operator()(HbrVertex<T> const * v1, HbrVertex<T> const * v2 ) const {
         //return v1->GetID() < v2->GetID();
@@ -399,6 +405,10 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
     
     for (int i=0; i<ncoarsefaces; ++i) {
         HbrFace<T> * f = mesh->GetFace(i);
+        
+        if (f->IsHole())
+            continue;
+        
         for (int j=0; j<f->GetNumVertices(); ++j) {
             
             HbrHalfedge<T> * e = f->GetEdge(j);
@@ -429,39 +439,44 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
 
         verts = nextverts;
         nextverts.clear();
-        
+
         // Refine vertices
         for (typename VertSet::iterator i=verts.begin(); i!=verts.end(); ++i) {
 
             HbrVertex<T> * v = *i;
             assert(v);
-            
+
             if (level>0)
                 v->_adaptiveFlags.isTagged=true;
             else
                 v->_adaptiveFlags.wasTagged=true;
-            
+
             refineVertexNeighbors(v);
-            
+
             // Tag non-BSpline vertices for refinement
             if (not vertexIsBSpline(v, true))
                 nextverts.insert(v->Subdivide());
-            
+
             // Refine edges with creases or edits
             int valence = v->GetValence();
             _maxValence = std::max(_maxValence, valence);
 
             HbrHalfedge<T> * e = v->GetIncidentEdge();
             for (int j=0; j<valence; ++j) {
-                if (e->IsSharp(false) and (not e->IsBoundary())) {
-                    nextverts.insert( e->Subdivide() );
-                    nextverts.insert( e->GetOrgVertex()->Subdivide() );
-                    nextverts.insert( e->GetDestVertex()->Subdivide() );
+
+                // Skip edges that have already been processed (HasChild())
+                if ((not e->HasChild()) and e->IsSharp(false) and (not e->IsBoundary())) {
+                
+                    if (not e->IsInsideHole()) {
+                        nextverts.insert( e->Subdivide() );
+                        nextverts.insert( e->GetOrgVertex()->Subdivide() );
+                        nextverts.insert( e->GetDestVertex()->Subdivide() );
+                    }
                 }
                 HbrHalfedge<T> * next = v->GetNextEdge(e);
                 e = next ? next : e->GetPrev();
             }
-            
+
             // Flag verts with hierarchical edits for neighbor refinement at the next level
             HbrVertex<T> * childvert = v->Subdivide();
             HbrHalfedge<T> * childedge = childvert->GetIncidentEdge();

@@ -212,7 +212,7 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
 
         HbrFace<T> * f = mesh->GetFace(i);
 
-        if (f->_adaptiveFlags.isTagged) {
+        if (f->_adaptiveFlags.isTagged and (not f->IsHole())) {
             HbrVertex<T> * v = f->Subdivide();
             assert(v);
             v->_adaptiveFlags.wasTagged=true;
@@ -241,23 +241,31 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
             if (not (left and right))
                 continue;
             
-            if (left->_adaptiveFlags.isTagged ^ right->_adaptiveFlags.isTagged) {
+            // a tagged edge w/ no children is inside a hole
+            if (e->HasChild() and (left->_adaptiveFlags.isTagged ^ right->_adaptiveFlags.isTagged)) {
+                
                 e->_adaptiveFlags.isTransition = true;
                 
                 HbrVertex<T> * child = e->Subdivide();
-                assert( child );
+                assert(child);
                 
                 // These edges will require extra rows of CVs to maintain water-tightness
-                HbrHalfedge<T> * org = child->GetEdge(e->GetOrgVertex()->Subdivide()),
-                               * dst = child->GetEdge(e->GetDestVertex()->Subdivide());
-                assert( org and dst );
+                // Note : vertices inside holes have no children
+                if (e->GetOrgVertex()->HasChild()) {
+                    HbrHalfedge<T> * org = child->GetEdge(e->GetOrgVertex()->Subdivide());
+                    if (org)
+                        org->_adaptiveFlags.isWatertightCritical=true;
+                }
 
-                org->_adaptiveFlags.isWatertightCritical=true;
-                dst->_adaptiveFlags.isWatertightCritical=true;
+                if (e->GetDestVertex()->HasChild()) {
+                    HbrHalfedge<T> * dst = child->GetEdge(e->GetDestVertex()->Subdivide());
+                    if (dst)
+                        dst->_adaptiveFlags.isWatertightCritical=true;
+                }
             }
         }
     }
-    
+
     // Second pass : count boundaries / identify transition constellation
     for (int i=0; i<nfaces; ++i) {
 
