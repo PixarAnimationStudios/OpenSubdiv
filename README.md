@@ -204,7 +204,9 @@ OpenSubdiv builds a number of regression test executables for testing:
 * far_regression: Matching FAR (feature-adaptive rep using tables) against HBR results.
 * osd_regression: Matching full OSD subdivision against HBR results. Currently checks single threaded CPU kernel only.
 
+## Contributing
 
+In order for us to accept code submissions (merge git pull-requests), contributors need to sign the "Contributor License Agreement" (found in the code repository or [here](https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/OpenSubdivCLA.pdf)) and you can either email or fax it to Pixar.
 
 ## Wish List
 
