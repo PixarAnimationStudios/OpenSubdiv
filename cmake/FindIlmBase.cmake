@@ -95,6 +95,7 @@ SET(LIBRARY_PATHS
     /Library/Frameworks
     /usr/local/lib
     /usr/lib
+    /usr/lib/x86_64-linux-gnu
     /sw/lib
     /opt/local/lib
     /opt/csw/lib

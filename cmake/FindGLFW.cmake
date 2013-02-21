@@ -157,6 +157,7 @@ else ()
                 ${GLFW_LOCATION}/lib/x11
                 $ENV{GLFW_LOCATION}/lib/x11
                 /usr/lib
+		/usr/lib/x86_64-linux-gnu
                 /usr/local/lib
                 /usr/openwin/lib
                 /usr/X11R6/lib
