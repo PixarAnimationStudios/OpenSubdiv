@@ -231,7 +231,9 @@ foreach(MAYA_LIB
             "Maya's ${MAYA_LIB} library path"
     )
 
-    list(APPEND ${MAYA_LIBRARIES} MAYA_${MAYA_LIB}_LIBRARY)
+    if (MAYA_${MAYA_LIB}_LIBRARY)
+        list(APPEND ${MAYA_LIBRARIES} MAYA_${MAYA_LIB}_LIBRARY)
+    endif()
 endforeach(MAYA_LIB)
 
 find_program(MAYA_EXECUTABLE maya

@@ -180,6 +180,5 @@ target_link_libraries(maya_ptex_plugin
     ${MAYA_OpenMaya_LIBRARY}
     ${MAYA_OpenMayaRender_LIBRARY}
     ${MAYA_OpenMayaUI_LIBRARY}
-    ${MAYA_tbb_LIBRARY}
     ${PLATFORM_LIBRARIES}
 )
