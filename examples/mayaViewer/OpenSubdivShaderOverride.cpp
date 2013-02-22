@@ -408,23 +408,30 @@ public:
         return false;
     }
 
-#if MAYA_API_VERSION >= 201400
+#if MAYA_API_VERSION >= 201350
     virtual void createVertexStream(
-        const MObject &object,
+#if MAYA_API_VERSION >= 201400
+        const MObject &object, 
+#else
+        const MDagPath &dagPath, 
+#endif        
               MVertexBuffer &vertexBuffer,
         const MComponentDataIndexing &targetIndexing,
         const MComponentDataIndexing &,
         const MVertexBufferArray &) const
     {
-        MFnMesh meshFn(object);
-#elif MAYA_API_VERSION >= 201350
+#else
     virtual void createVertexStream(
         const MDagPath &dagPath, MVertexBuffer &vertexBuffer,
         const MComponentDataIndexing &targetIndexing) const
     {
-        MFnMesh meshFn(dagPath);
 #endif
 
+#if MAYA_API_VERSION >= 201400
+        MFnMesh meshFn(object);
+#else
+        MFnMesh meshFn(dagPath);
+#endif
         int nVertices = meshFn.numVertices();
         MFloatPointArray points;
         meshFn.getPoints(points);
