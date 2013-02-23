@@ -370,7 +370,8 @@ public:
 #if MAYA_API_VERSION >= 201400
     virtual bool getSourceStreams(const MObject &object,
                                   MStringArray &) const
-#else    virtual bool getSourceStreams(const MDagPath &dagPath,
+#else
+    virtual bool getSourceStreams(const MDagPath &dagPath,
                                   MStringArray &) const
 #endif
     {
