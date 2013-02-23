@@ -418,7 +418,7 @@ OsdPtexTextureLoader::OptimizePacking( int maxnumpages )
     }
 
     // note: at least 2*GUTTER_WIDTH of margin required for each page to fit
-    _pagesize += GetPageMargin();
+    _pagesize += (unsigned short)GetPageMargin();
 
     // grow the pagesize to make sure the optimization will not exceed the maximum
     // number of pages allowed
@@ -439,7 +439,7 @@ OsdPtexTextureLoader::OptimizePacking( int maxnumpages )
         // traverse existing pages for a suitable slot ---------------
         bool added=false;
         for( unsigned long int p=firstslot; p<_pages.size(); ++p )
-            if( (added=_pages[p]->addBlock( b, GetGutterWidth() )) ) {
+            if( (added=_pages[p]->addBlock( b, GetGutterWidth() )) == true ) {
                 break;
             }
 
