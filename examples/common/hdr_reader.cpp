@@ -77,7 +77,7 @@ readLine(unsigned char *line, int length, FILE *fp)
             if (c > 128) {
                 // runlength
                 c &= 127;
-                int value = getc(fp);
+                unsigned char value = (unsigned char)getc(fp);
                 while (c--) {
                     line[x*4+i] = value;
                     x++;
@@ -85,7 +85,8 @@ readLine(unsigned char *line, int length, FILE *fp)
             } else {
                 // non- runlength
                 while (c--) {
-                    line[x*4+i] = getc(fp);
+                    unsigned char value = (unsigned char)getc(fp);
+                    line[x*4+i] = value;
                     x++;
                 }
             }
