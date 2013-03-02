@@ -206,6 +206,8 @@ public:
     // Subdivide the face into a vertex if needed and return
     HbrVertex<T>* Subdivide();
 
+    bool HasChildVertex() const { return vchild!=-1; }
+
     // Remove the reference to subdivided vertex
     void RemoveChild() { vchild = -1; }
 

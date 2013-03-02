@@ -462,6 +462,9 @@ template <class T>
 void
 HbrLoopSubdivision<T>::transferEditsToChild(HbrFace<T>* face, HbrFace<T>* child, int index) {
 
+    // Hand down hole tag
+    child->SetHole(face->IsHole());
+ 
     // Hand down pointers to hierarchical edits
     if (HbrHierarchicalEdit<T>** edits = face->GetHierarchicalEdits()) {
         while (HbrHierarchicalEdit<T>* edit = *edits) {
@@ -474,9 +477,6 @@ HbrLoopSubdivision<T>::transferEditsToChild(HbrFace<T>* face, HbrFace<T>* child,
             edits++;
         }
     }
-
-    // Hand down hole tag
-    child->SetHole(face->IsHole());
 }
 
 template <class T>

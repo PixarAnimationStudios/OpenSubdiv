@@ -63,6 +63,7 @@
 #include <hbr/catmark.h>
 #include <hbr/vertexEdit.h>
 #include <hbr/cornerEdit.h>
+#include <hbr/holeEdit.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -600,7 +601,66 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
 
             } // End of subop processing loop
         } else if (t->name=="faceedit") {
-            printf("hierarchical face edits not supported (yet)\n");
+        
+            int nint = (int)t->intargs.size();
+            for (int k=0; k<nint; ) {
+                int pathlength = t->intargs[k];
+                
+                if (k+pathlength>=nint) {
+                    printf("Invalid path length for %s tag on SubdivisionMesh", t->name.c_str());
+                    goto nexttag;
+                }
+                
+                int faceid = t->intargs[k+1];
+                int nsubfaces = pathlength - 1;
+                int *subfaces = &t->intargs[k+2];
+                OpenSubdiv::HbrFace<T> * f = mesh->GetFace(faceid);
+                if (!f) {
+                    printf("Invalid face %d specified for %s tag on SubdivisionMesh.\n", faceid, t->name.c_str());
+                    goto nexttag;
+                }
+                
+                // Found the face. Do some preliminary error checking to make sure the path is
+                // correct.  First value in path depends on the number of vertices of the face
+                // which we have in hand
+                if (nsubfaces && (subfaces[0] < 0 || subfaces[0] >= f->GetNumVertices()) ) {
+                    printf("Invalid path component %d in %s tag on SubdivisionMesh.\n", subfaces[0], t->name.c_str());
+                    goto nexttag;
+                }
+                
+                // All subsequent values must be less than 4 (FIXME or 3 in the loop case?)
+                for (int l=1; l<nsubfaces; ++l) {
+                    if (subfaces[l] < 0 || subfaces[l] > 3) {
+                        printf("Invalid path component %d in %s tag on SubdivisionMesh.\n", subfaces[0], t->name.c_str());
+                        goto nexttag;
+                    }
+                }
+                
+                // Now loop over string ops
+                int nstring = (int)t->stringargs.size();
+                for (int l = 0; l < nstring; ) {
+                    if ( t->stringargs[l] == "hole" ) {
+                        // Construct the edit
+                        OpenSubdiv::HbrHoleEdit<T> * edit = new OpenSubdiv::HbrHoleEdit<T>(faceid, nsubfaces, subfaces);
+                        mesh->AddHierarchicalEdit(edit);
+                        ++l;
+                    } else if ( t->stringargs[l] == "attributes" ) {
+                        // see NgpSubdivMesh.cpp:4341
+                        printf("\"attributes\" face tag not supported yet.\n");
+                        goto nexttag;
+                    } else if ( t->stringargs[l] == "set" || t->stringargs[l] == "add" ) {
+                        // see NgpSubdivMesh.cpp:4341
+                        printf("\"set\" and \"add\" face tag not supported yet.\n");
+                        goto nexttag;
+                    } else {
+                        printf("Faceedit tag specifies invalid operation '%s' on Subdivmesh.\n", t->stringargs[l].c_str());
+                        goto nexttag;
+                    }
+                }
+                // Advance to next path
+                k += pathlength + 1;
+            } // end face path loop
+        
         } else {
             printf("Unknown tag : \"%s\" - skipping\n", t->name.c_str());
         }
