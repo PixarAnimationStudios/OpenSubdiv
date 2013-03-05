@@ -394,9 +394,18 @@ OsdMeshData::updateGeometry(const MHWRender::MVertexBuffer *points)
 
     glBindBuffer(GL_COPY_READ_BUFFER, mayaPositionVBO);
     glBindBuffer(GL_COPY_WRITE_BUFFER, _mesh->BindVertexBuffer());
-    glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, size);
-    _mesh->Refine();
 
+    if (_kernel == kCPU || _kernel == kOPENMP) {
+        // copy back to cpu memory
+        // XXX: should reconsider update API to be able to populate directly
+        float *buffer = new float[nCoarsePoints*3];
+        glGetBufferSubData(GL_COPY_READ_BUFFER, 0, size, buffer);
+        _mesh->UpdateVertexBuffer(buffer, nCoarsePoints);
+        delete[] buffer;
+    } else {
+        glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, size);
+    }
+    _mesh->Refine();
     glBindBuffer(GL_COPY_READ_BUFFER, 0);
     glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
 
