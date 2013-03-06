@@ -138,7 +138,7 @@ public:
     }
 
     // Create face from a list of vertex IDs
-    HbrFace<T>* NewFace(int nvertices, int *vtx, int uindex);
+    HbrFace<T>* NewFace(int nvertices, const int *vtx, int uindex);
 
     // Create face from a list of vertices
     HbrFace<T>* NewFace(int nvertices, HbrVertex<T>** vtx, HbrFace<T>* parent, int childindex);
@@ -623,7 +623,7 @@ HbrMesh<T>::NewVertex() {
 
 template <class T>
 HbrFace<T>*
-HbrMesh<T>::NewFace(int nv, int *vtx, int uindex) {
+HbrMesh<T>::NewFace(int nv, const int *vtx, int uindex) {
     HbrVertex<T>** facevertices = reinterpret_cast<HbrVertex<T>**>(alloca(sizeof(HbrVertex<T>*) * nv));
     int i;
     for (i = 0; i < nv; ++i) {
