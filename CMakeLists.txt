@@ -161,7 +161,7 @@ elseif(MSVC)
                     # empty trailing comment to avoid this.
                     /Dxor=^/**/
                     /Dxor_eq=^=
-                    )
+    )
     
 
     list(APPEND OSD_COMPILER_FLAGS
@@ -189,15 +189,20 @@ elseif(MSVC)
                     # address of std::vector::operator[](0) to get the memory location of
                     # a vector's underlying data storage.  This does not work for an empty
                     # vector if checked iterators or iterator debugging is enabled.
-                    /D_SECURE_SCL=0
-                    /D_HAS_ITERATOR_DEBUGGING=0
-                    )
+                     
+		    # XXXX manuelk : we can't force SECURE_SCL to 0 or client code has
+		    # problems linking against OSD if their build is not also
+		    # overriding SSCL to the same value.
+		    # See : http://msdn.microsoft.com/en-us/library/vstudio/hh697468.aspx
+                    #/D_SECURE_SCL=0
+                    #/D_HAS_ITERATOR_DEBUGGING=0
+    )
 
     # Turn off a duplicate LIBCMT linker warning 
     set(CMAKE_EXE_LINKER_FLAGS 
-        "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrt.lib")
+        "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
     set(CMAKE_SHARED_LINKER_FLAGS 
-        "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrt.lib")
+        "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
 
 endif()
 
