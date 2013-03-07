@@ -589,8 +589,6 @@ getCornerPixel(PtexTexture *ptex, float *resultPixel, int numchannels,
 {
     const Ptex::FaceInfo &fi = ptex->getFaceInfo(face);
 
-    int adjface = fi.adjface(edge);
-
     /*
        see http://ptex.us/adjdata.html Figure 2 for the reason of conditions edge==1 and 3
     */
@@ -609,7 +607,8 @@ getCornerPixel(PtexTexture *ptex, float *resultPixel, int numchannels,
           |      |  [0]  |
           +------+-------+
         */
-        if (!ptex->getFaceInfo(adjface).isSubface()) {
+        int adjface = fi.adjface(edge);
+        if (adjface != -1 and !ptex->getFaceInfo(adjface).isSubface()) {
             int length = resampleBorder(ptex,
                                         adjface,
                                         fi.adjedge(edge),
@@ -645,10 +644,10 @@ getCornerPixel(PtexTexture *ptex, float *resultPixel, int numchannels,
              note: here we're focusing on vertex A which corresponds to the edge 1,
                    but the edge 0 is an adjacent edge to get D pixel.
         */
-        int adjface2 = fi.adjface(0);
-        if (!ptex->getFaceInfo(adjface2).isSubface()) {
+        int adjface = fi.adjface(0);
+        if (adjface != -1 and !ptex->getFaceInfo(adjface).isSubface()) {
             int length = resampleBorder(ptex,
-                                        adjface2,
+                                        adjface,
                                         fi.adjedge(0),
                                         lineBuffer,
                                         /*dstLength=*/-1,
