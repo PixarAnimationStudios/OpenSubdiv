@@ -64,7 +64,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 void
-OsdCLTable::createCLBuffer(int size, const void *ptr, cl_context clContext)
+OsdCLTable::createCLBuffer(size_t size, const void *ptr, cl_context clContext)
 {
     cl_int ciErrNum;
     _devicePtr = clCreateBuffer(

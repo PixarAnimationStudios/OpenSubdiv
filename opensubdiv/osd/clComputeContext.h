@@ -90,7 +90,7 @@ public:
     cl_mem GetDevicePtr() const;
 
 private:
-    void createCLBuffer(int size, const void *ptr, cl_context clContext);
+    void createCLBuffer(size_t size, const void *ptr, cl_context clContext);
     cl_mem _devicePtr;
 };
 
