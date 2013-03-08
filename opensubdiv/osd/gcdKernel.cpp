@@ -84,7 +84,7 @@ void OsdGcdComputeFace(
     const int end_e = end;
     if (start_e < end_e)
         OsdCpuComputeFace(vdesc, vertex, varying, F_IT, F_ITa,
-                          vertexOffset, tableOffset, start_i, end_i);
+                          vertexOffset, tableOffset, start_e, end_e);
 }
 
 void OsdGcdComputeEdge(
@@ -104,7 +104,7 @@ void OsdGcdComputeEdge(
     const int end_e = end;
     if (start_e < end_e)
         OsdCpuComputeEdge(vdesc, vertex, varying, E_IT, E_W,
-                          vertexOffset, tableOffset, start_i, end_i);
+                          vertexOffset, tableOffset, start_e, end_e);
 }
 
 void OsdGcdComputeVertexA(
@@ -222,11 +222,12 @@ void OsdGcdEditVertexAdd(
     int primVarOffset, int primVarWidth,
     int vertexOffset, int tableOffset,
     int start, int end,
-    const int *editIndices, const float *editValues,
+    const unsigned int *editIndices, const float *editValues,
     dispatch_queue_t gcdq) {
 
+    int vertexCount = end - start;
     dispatch_apply(vertexCount, gcdq, ^(size_t blockIdx){
-        int i = blockIdx + tableOffset;
+        int i = start + blockIdx + tableOffset;
         vdesc->ApplyVertexEditAdd(vertex, primVarOffset, primVarWidth,
                                   editIndices[i] + vertexOffset,
                                   &editValues[i*primVarWidth]);
@@ -238,11 +239,12 @@ void OsdGcdEditVertexSet(
     int primVarOffset, int primVarWidth,
     int vertexOffset, int tableOffset,
     int start, int end,
-    const int *editIndices, const float *editValues,
+    const unsigned int *editIndices, const float *editValues,
     dispatch_queue_t gcdq) {
 
+    int vertexCount = end - start;
     dispatch_apply(vertexCount, gcdq, ^(size_t blockIdx){
-        int i = blockIdx + tableOffset;
+        int i = start + blockIdx + tableOffset;
         vdesc->ApplyVertexEditSet(vertex, primVarOffset, primVarWidth,
                                   editIndices[i] + vertexOffset,
                                   &editValues[i*primVarWidth]);

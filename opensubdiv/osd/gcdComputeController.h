@@ -62,6 +62,8 @@
 #include "../far/dispatcher.h"
 #include "../osd/cpuComputeContext.h"
 
+#include <dispatch/dispatch.h>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -135,6 +137,9 @@ protected:
 
 
     void ApplyVertexEdits(FarKernelBatch const &batch, void * clientdata) const;
+
+private:
+    dispatch_queue_t _gcd_queue;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

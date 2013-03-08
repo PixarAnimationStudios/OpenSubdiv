@@ -119,14 +119,14 @@ void OsdGcdEditVertexAdd(const OsdVertexDescriptor *vdesc, float *vertex,
                          int primVarOffset, int primVarWidth,
                          int vertexOffset, int tableOffset,
                          int start, int end,
-                         const int *editIndices, const float *editValues,
+                         const unsigned int *editIndices, const float *editValues,
                          dispatch_queue_t gcdq);
 
 void OsdGcdEditVertexSet(const OsdVertexDescriptor *vdesc, float *vertex,
                          int primVarOffset, int primVarWidth,
                          int vertexOffset, int tableOffset,
                          int start, int end,
-                         const int *editIndices, const float *editValues,
+                         const unsigned int *editIndices, const float *editValues,
                          dispatch_queue_t gcdq);
 
 }  // end namespace OPENSUBDIV_VERSION

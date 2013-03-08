@@ -370,7 +370,7 @@ checkMeshCPUGL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
     
     OpenSubdiv::OsdCpuGLVertexBuffer * vb = OpenSubdiv::OsdCpuGLVertexBuffer::Create(3, farmesh->GetNumVertices());
     
-    vb->UpdateData( & coarseverts[0], (int)coarseverts.size()/3 );
+    vb->UpdateData( & coarseverts[0], 0, (int)coarseverts.size()/3 );
     
     controller->Refine( context, farmesh->GetKernelBatches(), vb );
     
