@@ -60,6 +60,7 @@
 #include "../common/mutex.h"
 
 #include <far/meshFactory.h>
+#include <far/dispatcher.h>
 
 #include "../common/shape_utils.h"
 
@@ -336,7 +337,7 @@ int checkMesh( char const * msg, xyzmesh * hmesh, int levels, Scheme scheme=kCat
 
     fMeshFactory fact( hmesh, levels );
     fMesh * m = fact.Create( );
-    m->Subdivide( );
+    OpenSubdiv::FarComputeController<xyzVV>::_DefaultController.Refine(m);
 
     if (g_debugmode) {
         for (int i=1; i<=levels; ++i)

@@ -59,18 +59,67 @@
 
 #include "../version.h"
 
-#include "../far/table.h"
 #include "../far/subdivisionTables.h"
 #include "../far/vertexEditTables.h"
-#include "../osd/computeContext.h"
+#include "../osd/vertex.h"
 #include "../osd/vertexDescriptor.h"
+#include "../osd/nonCopyable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 struct OsdVertexDescriptor;
 
-class OsdCpuComputeContext : public OsdComputeContext {
+// ----------------------------------------------------------------------------
+
+class OsdCpuTable : OsdNonCopyable<OsdCpuTable> {
+public:
+    template<typename T>
+    explicit OsdCpuTable(const std::vector<T> &table) {
+        createCpuBuffer(table.size() * sizeof(T), &table[0]);
+    }
+
+    virtual ~OsdCpuTable();
+
+    void * GetBuffer() const;
+
+private:
+    void createCpuBuffer(size_t size, const void *ptr);
+
+    unsigned char *_table;
+};
+
+// ----------------------------------------------------------------------------
+
+class OsdCpuHEditTable : OsdNonCopyable<OsdCpuHEditTable> {
+public:
+    OsdCpuHEditTable(const FarVertexEditTables<OsdVertex>::
+                      VertexEditBatch &batch);
+
+    virtual ~OsdCpuHEditTable();
+
+    const OsdCpuTable * GetPrimvarIndices() const;
+
+    const OsdCpuTable * GetEditValues() const;
+
+    int GetOperation() const;
+
+    int GetPrimvarOffset() const;
+
+    int GetPrimvarWidth() const;
+
+private:
+    OsdCpuTable *_primvarIndicesTable;
+    OsdCpuTable *_editValuesTable;
+
+    int _operation;
+    int _primvarOffset;
+    int _primvarWidth;
+};
+
+// ----------------------------------------------------------------------------
+
+class OsdCpuComputeContext : OsdNonCopyable<OsdCpuComputeContext> {
 public:
     static OsdCpuComputeContext * Create(FarMesh<OsdVertex> *farmesh);
 
@@ -95,14 +144,13 @@ public:
         _vdesc = 0;
     }
 
-    const void * GetTablePtr(int tableIndex, int level) const;
+    const OsdCpuTable * GetTable(int tableIndex) const;
 
     OsdVertexDescriptor * GetVertexDescriptor() const;
 
     int GetNumEditTables() const;
 
-    const FarVertexEditTables<OsdVertex>::VertexEditBatch *
-        GetEditTable(int tableIndex) const;
+    const OsdCpuHEditTable * GetEditTable(int tableIndex) const;
 
     float * GetCurrentVertexBuffer() const;
 
@@ -112,9 +160,8 @@ protected:
     explicit OsdCpuComputeContext(FarMesh<OsdVertex> *farMesh);
 
 private:
-    // XXX: shared pointer with farmesh?
-    FarSubdivisionTables<OsdVertex> const *_tables;
-    FarVertexEditTables<OsdVertex> const *_editTables;
+    std::vector<OsdCpuTable*> _tables;
+    std::vector<OsdCpuHEditTable*> _editTables;
 
     float *_currentVertexBuffer, *_currentVaryingBuffer;
 

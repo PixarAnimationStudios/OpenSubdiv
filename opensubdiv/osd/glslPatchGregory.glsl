@@ -183,8 +183,8 @@ void main()
 
     output[ID].v.position = input[ID].v.position;
 
-    uint start = texelFetchBuffer(g_QuadOffsetBuffer, int(4*(gl_PrimitiveID+base) + i)).x & 0x00ff;
-    uint prev = uint(texelFetchBuffer(g_QuadOffsetBuffer, int(4*(gl_PrimitiveID+base) + i)).x) & 0xff00;
+    uint start = texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x & 0x00ff;
+    uint prev = uint(texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0xff00;
     prev=uint(prev/256);
 
     // Control Vertices based on : 
@@ -217,11 +217,11 @@ void main()
     uint np = input[ip].v.valence;
     uint nm = input[im].v.valence;
 
-    uint prev_p = uint(texelFetchBuffer(g_QuadOffsetBuffer, int(4*(gl_PrimitiveID+base) + ip)).x)&0xff00;
+    uint prev_p = uint(texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + ip)).x)&0xff00;
     prev_p=uint(prev_p/256);
     vec3 Em_ip = input[ip].v.position + input[ip].v.e0*csf(np-3,2*prev_p) +input[ip].v.e1*csf(np-3, 2*prev_p+1);
 
-    uint start_m = texelFetchBuffer(g_QuadOffsetBuffer, int(4*(gl_PrimitiveID+base) + im)).x&0x00ff;
+    uint start_m = texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + im)).x&0x00ff;
     vec3 Ep_im = input[im].v.position + input[im].v.e0*csf(nm-3, 2*start_m) + input[im].v.e1*csf(nm-3, 2*start_m+1);
 
     float s1 = 3 - 2*csf(n-3,2)-csf(np-3,2);

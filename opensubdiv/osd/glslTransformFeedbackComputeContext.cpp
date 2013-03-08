@@ -71,33 +71,16 @@
     #include <GL/glew.h>
 #endif
 
+#include "../far/mesh.h"
+#include "../far/subdivisionTables.h"
 #include "../osd/glslTransformFeedbackComputeContext.h"
-#include "../osd/glslTransformFeedbackDispatcher.h"
 #include "../osd/glslTransformFeedbackKernelBundle.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdGLSLTransformFeedbackTable::OsdGLSLTransformFeedbackTable(const FarTable<int> &farTable, GLenum type)
-    : _buffer(0), _texture(0), _marker(farTable.GetMarkers()) {
-
-    createTextureBuffer(farTable.GetMemoryUsed(), farTable[0], type);
-}
-
-OsdGLSLTransformFeedbackTable::OsdGLSLTransformFeedbackTable(const FarTable<unsigned int> &farTable, GLenum type)
-    : _buffer(0), _texture(0), _marker(farTable.GetMarkers()) {
-
-    createTextureBuffer(farTable.GetMemoryUsed(), farTable[0], type);
-}
-
-OsdGLSLTransformFeedbackTable::OsdGLSLTransformFeedbackTable(const FarTable<float> &farTable, GLenum type)
-    : _buffer(0), _texture(0), _marker(farTable.GetMarkers()) {
-
-    createTextureBuffer(farTable.GetMemoryUsed(), farTable[0], type);
-}
-
 void
-OsdGLSLTransformFeedbackTable::createTextureBuffer(int size, const void *ptr, GLenum type) {
+OsdGLSLTransformFeedbackTable::createTextureBuffer(size_t size, const void *ptr, GLenum type) {
 
     glGenBuffers(1, &_buffer);
     glGenTextures(1, &_texture);
@@ -129,18 +112,6 @@ GLuint
 OsdGLSLTransformFeedbackTable::GetTexture() const {
 
     return _texture;
-}
-
-int
-OsdGLSLTransformFeedbackTable::GetMarker(int level) const {
-
-    return _marker[level];
-}
-
-int
-OsdGLSLTransformFeedbackTable::GetNumElements(int level) const {
-
-    return _marker[level+1] - _marker[level];
 }
 
 // ----------------------------------------------------------------------------
@@ -192,9 +163,9 @@ OsdGLSLTransformFeedbackHEditTable::GetPrimvarWidth() const {
 
 // ----------------------------------------------------------------------------
 
-OsdGLSLTransformFeedbackComputeContext::OsdGLSLTransformFeedbackComputeContext(FarMesh<OsdVertex> *farMesh)
-    : OsdComputeContext(farMesh),
-      _vertexTexture(0), _varyingTexture(0) {
+OsdGLSLTransformFeedbackComputeContext::OsdGLSLTransformFeedbackComputeContext(
+    FarMesh<OsdVertex> *farMesh) :
+    _vertexTexture(0), _varyingTexture(0) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
         farMesh->GetSubdivisionTables();
@@ -208,19 +179,12 @@ OsdGLSLTransformFeedbackComputeContext::OsdGLSLTransformFeedbackComputeContext(F
     _tables[Table::E_W]   = new OsdGLSLTransformFeedbackTable(farTables->Get_E_W(), GL_R32F);
     _tables[Table::V_W]   = new OsdGLSLTransformFeedbackTable(farTables->Get_V_W(), GL_R32F);
 
-    if ( const FarCatmarkSubdivisionTables<OsdVertex> * ccTables =
-         dynamic_cast<const FarCatmarkSubdivisionTables<OsdVertex>*>(farTables) ) {
-
-        // catmark
-        _tables[Table::F_IT]  = new OsdGLSLTransformFeedbackTable(ccTables->Get_F_IT(), GL_R32UI);
-        _tables[Table::F_ITa] = new OsdGLSLTransformFeedbackTable(ccTables->Get_F_ITa(), GL_R32I);
-    } else if ( const FarBilinearSubdivisionTables<OsdVertex> * bTables =
-                dynamic_cast<const FarBilinearSubdivisionTables<OsdVertex>*>(farTables) ) {
-
-        // bilinear
-        _tables[Table::F_IT]  = new OsdGLSLTransformFeedbackTable(bTables->Get_F_IT(), GL_R32UI);
-        _tables[Table::F_ITa] = new OsdGLSLTransformFeedbackTable(bTables->Get_F_ITa(), GL_R32I);
+    if (farTables->GetNumTables() > 5) {
+        // catmark, bilinear
+        _tables[Table::F_IT]  = new OsdGLSLTransformFeedbackTable(farTables->Get_F_IT(), GL_R32UI);
+        _tables[Table::F_ITa] = new OsdGLSLTransformFeedbackTable(farTables->Get_F_ITa(), GL_R32I);
     } else {
+        // loop
         _tables[Table::F_IT] = NULL;
         _tables[Table::F_ITa] = NULL;
     }

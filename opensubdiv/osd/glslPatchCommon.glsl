@@ -124,9 +124,12 @@ layout(std140) uniform Transform {
 
 layout(std140) uniform Tessellation {
     float TessLevel;
-    int GregoryQuadOffsetBase;
-    int LevelBase;
 };
+
+//layout(std140) uniform PrimitiveBufferOffset {
+uniform    int GregoryQuadOffsetBase;
+uniform    int LevelBase;
+//};
 
 float GetTessLevel(int patchLevel)
 {

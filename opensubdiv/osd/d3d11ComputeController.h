@@ -60,8 +60,8 @@
 
 #include "../version.h"
 
+#include "../far/dispatcher.h"
 #include "../osd/d3d11ComputeContext.h"
-#include "../osd/d3d11Dispatcher.h"
 
 #include <vector>
 
@@ -95,6 +95,7 @@ public:
     /// OsdD3D11VertexBufferInterface.
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Refine(OsdD3D11ComputeContext *context,
+                FarKernelBatchVector const &batches,
                 VERTEX_BUFFER *vertexBuffer,
                 VARYING_BUFFER *varyingBuffer) {
 
@@ -103,22 +104,58 @@ public:
 
         context->SetKernelBundle(getKernels(numVertexElements, numVaryingElements));
         context->Bind(vertexBuffer, varyingBuffer);
-        OsdD3D11ComputeKernelDispatcher::GetInstance()->Refine(context->GetFarMesh(), context);
+        FarDispatcher::Refine(this,
+                              batches,
+                              -1,
+                              context);
         context->Unbind();
     }
 
     template<class VERTEX_BUFFER>
-    void Refine(OsdD3D11ComputeContext *context, VERTEX_BUFFER *vertexBuffer) {
-        Refine(context, vertexBuffer, (VERTEX_BUFFER*)NULL);
+    void Refine(OsdD3D11ComputeContext *context,
+                FarKernelBatchVector const &batches,
+                VERTEX_BUFFER *vertexBuffer) {
+        Refine(context, batches, vertexBuffer, (VERTEX_BUFFER*)NULL);
     }
 
     /// Waits until all running subdivision kernels finish.
     void Synchronize();
 
-private:
+protected:
+    friend class FarDispatcher;
+    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+
+    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const;
+
+
+    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const;
+
+
+    void ApplyVertexEdits(FarKernelBatch const &batch, void * clientdata) const;
+
     OsdD3D11ComputeKernelBundle * getKernels(int numVertexElements,
                                              int numVaryingElements);
 
+private:
     ID3D11DeviceContext *_deviceContext;
     ID3D11Query *_query;
     std::vector<OsdD3D11ComputeKernelBundle *> _kernelRegistry;

@@ -59,9 +59,9 @@
 
 #include "../version.h"
 
-#include "../far/table.h"
 #include "../far/vertexEditTables.h"
-#include "../osd/computeContext.h"
+#include "../osd/vertex.h"
+#include "../osd/nonCopyable.h"
 
 #include <D3D11.h>
 
@@ -81,25 +81,21 @@ class OsdD3D11ComputeKernelBundle;
 
 class OsdD3D11ComputeTable : OsdNonCopyable<OsdD3D11ComputeTable> {
 public:
-    OsdD3D11ComputeTable(const FarTable<int> &farTable, ID3D11DeviceContext *deviceContext);
-    OsdD3D11ComputeTable(const FarTable<unsigned int> &farTable, ID3D11DeviceContext *deviceContext);
-    OsdD3D11ComputeTable(const FarTable<float> &farTable, ID3D11DeviceContext *deviceContext);
+    template<typename T>
+        OsdD3D11ComputeTable(const std::vector<T> &table, ID3D11DeviceContext *deviceContext, DXGI_FORMAT format) {
+        createBuffer((int)table.size() * sizeof(T), &table[0], format, (int)table.size(), deviceContext);
+    }
 
     virtual ~OsdD3D11ComputeTable();
 
     ID3D11Buffer * GetBuffer() const;
     ID3D11ShaderResourceView * GetSRV() const;
 
-    int GetMarker(int level) const;
-
-    int GetNumElements(int level) const;
-
 private:
     void createBuffer(int size, const void *ptr, DXGI_FORMAT format, int numElements, ID3D11DeviceContext *deviceContext);
 
     ID3D11Buffer * _buffer;
     ID3D11ShaderResourceView * _srv;
-    FarTableMarkers _marker;
 };
 
 // ----------------------------------------------------------------------------
@@ -132,9 +128,10 @@ private:
 
 // ----------------------------------------------------------------------------
 
-class OsdD3D11ComputeContext : public OsdComputeContext {
+class OsdD3D11ComputeContext : public OsdNonCopyable<OsdD3D11ComputeContext> {
 public:
-    static OsdD3D11ComputeContext * Create(FarMesh<OsdVertex> *farmesh, ID3D11DeviceContext *deviceContext);
+    static OsdD3D11ComputeContext * Create(FarMesh<OsdVertex> *farmesh,
+                                           ID3D11DeviceContext *deviceContext);
 
     virtual ~OsdD3D11ComputeContext();
 

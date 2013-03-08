@@ -221,35 +221,36 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     isAdaptive = true;
 
     // Determine buffer sizes
-    int totalPatchIndices = 
-        patchTables->GetFullRegularPatches().GetSize() +
-        patchTables->GetFullBoundaryPatches().GetSize() +
-        patchTables->GetFullCornerPatches().GetSize() +
-        patchTables->GetFullGregoryPatches().GetSize() +
-        patchTables->GetFullBoundaryGregoryPatches().GetSize();
+    size_t totalPatchIndices = 
+        patchTables->GetFullRegularPatches().first.size() +
+        patchTables->GetFullBoundaryPatches().first.size() +
+        patchTables->GetFullCornerPatches().first.size() +
+        patchTables->GetFullGregoryPatches().first.size() +
+        patchTables->GetFullBoundaryGregoryPatches().first.size();
 
-    int totalPatchLevels = 
-        patchTables->GetFullRegularPatches().GetSize()/patchTables->GetRegularPatchRingsize() +
-        patchTables->GetFullBoundaryPatches().GetSize()/patchTables->GetBoundaryPatchRingsize() +
-        patchTables->GetFullCornerPatches().GetSize()/patchTables->GetCornerPatchRingsize() +
-        patchTables->GetFullGregoryPatches().GetSize()/patchTables->GetGregoryPatchRingsize() +
-        patchTables->GetFullBoundaryGregoryPatches().GetSize()/patchTables->GetGregoryPatchRingsize();
+    // XXX: use .second instead
+    size_t totalPatchLevels = 
+        patchTables->GetFullRegularPatches().first.size()/patchTables->GetRegularPatchRingsize() +
+        patchTables->GetFullBoundaryPatches().first.size()/patchTables->GetBoundaryPatchRingsize() +
+        patchTables->GetFullCornerPatches().first.size()/patchTables->GetCornerPatchRingsize() +
+        patchTables->GetFullGregoryPatches().first.size()/patchTables->GetGregoryPatchRingsize() +
+        patchTables->GetFullBoundaryGregoryPatches().first.size()/patchTables->GetGregoryPatchRingsize();
 
     for (unsigned char p=0; p<5; ++p) {
         totalPatchIndices +=
-            patchTables->GetTransitionRegularPatches(p).GetSize();
+            patchTables->GetTransitionRegularPatches(p).first.size();
 
         totalPatchLevels +=
-            patchTables->GetTransitionRegularPatches(p).GetSize()/patchTables->GetRegularPatchRingsize();
+            patchTables->GetTransitionRegularPatches(p).first.size()/patchTables->GetRegularPatchRingsize();
 
         for (unsigned char r=0; r<4; ++r) {
             totalPatchIndices +=
-                patchTables->GetTransitionBoundaryPatches(p, r).GetSize() +
-                patchTables->GetTransitionCornerPatches(p, r).GetSize();
+                patchTables->GetTransitionBoundaryPatches(p, r).first.size() +
+                patchTables->GetTransitionCornerPatches(p, r).first.size();
 
             totalPatchLevels +=
-                patchTables->GetTransitionBoundaryPatches(p, r).GetSize()/patchTables->GetBoundaryPatchRingsize() +
-                patchTables->GetTransitionCornerPatches(p, r).GetSize()/patchTables->GetCornerPatchRingsize();
+                patchTables->GetTransitionBoundaryPatches(p, r).first.size()/patchTables->GetBoundaryPatchRingsize() +
+                patchTables->GetTransitionCornerPatches(p, r).first.size()/patchTables->GetCornerPatchRingsize();
         }
     }
 
@@ -333,7 +334,7 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
                         farMesh->GetTotalFVarWidth(),
                         OsdPatchDescriptor(kBoundaryGregory, 0, 0,
                                            static_cast<unsigned char>(maxValence), static_cast<unsigned char>(numElements)),
-                        (int)patchTables->GetFullGregoryPatches().GetSize());
+                        (int)patchTables->GetFullGregoryPatches().first.size());
 
     for (unsigned char p=0; p<5; ++p) {
         _AppendPatchArray(&indexBase, &levelBase,
@@ -447,7 +448,7 @@ OsdGLDrawContext::_AppendPatchArray(
         FarPatchTables::FVarDataTable const & fvarTable, int fvarDataWidth,
         OsdPatchDescriptor const & desc, int gregoryQuadOffsetBase)
 {
-    if (ptable.IsEmpty()) {
+    if (ptable.first.empty()) {
         return;
     } 
 
@@ -455,7 +456,7 @@ OsdGLDrawContext::_AppendPatchArray(
     array.desc = desc;
     array.patchSize = patchSize;
     array.firstIndex = *indexBase;
-    array.numIndices = ptable.GetSize();
+    array.numIndices = (int)ptable.first.size();
     array.levelBase = *levelBase;
     array.gregoryQuadOffsetBase = gregoryQuadOffsetBase;
 
@@ -475,29 +476,22 @@ OsdGLDrawContext::_AppendPatchArray(
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
         array.firstIndex * sizeof(unsigned int),
         array.numIndices * sizeof(unsigned int),
-        ptable[0]);
+        &ptable.first[0]);
     *indexBase += array.numIndices;
 
-    std::vector<unsigned char> levels;
-    levels.reserve(ptable.GetSize());
-    for (int i = 0; i < (int) ptable.GetMarkers().size()-1; ++i) {
-        int numPrims = ptable.GetNumElements(i)/array.patchSize;
-        for (int j = 0; j < numPrims; ++j) {
-            levels.push_back(static_cast<unsigned char>(i));
-        }
-    }
-
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
+    int numElements = array.numIndices/array.patchSize;
+    assert(numElements == (int)ptable.second.size());
     glBufferSubData(GL_TEXTURE_BUFFER,
                     array.levelBase * sizeof(unsigned char),
-                    levels.size() * sizeof(unsigned char),
-                    &levels[0]);
-    *levelBase += (int)levels.size();
+                    numElements * sizeof(unsigned char),
+                    &ptable.second[0]);
+    *levelBase += numElements;
 #endif
 
     if (ptexCoordinateTextureBuffer) {
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-        assert(ptexTable.size()/2 == levels.size());
+        assert((int)ptexTable.size()/2 == numElements);
 
         // populate ptex coordinates
         glBufferSubData(GL_ARRAY_BUFFER,
@@ -509,7 +503,7 @@ OsdGLDrawContext::_AppendPatchArray(
 
     if (fvarDataTextureBuffer) {
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-        assert(fvarTable.size()/(fvarDataWidth*4) == levels.size());
+        assert((int)fvarTable.size()/(fvarDataWidth*4) == numElements);
 
         // populate fvar data
         glBufferSubData(GL_UNIFORM_BUFFER,

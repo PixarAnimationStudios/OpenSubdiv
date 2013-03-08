@@ -59,9 +59,9 @@
 
 #include "../version.h"
 
-#include "../far/table.h"
 #include "../far/vertexEditTables.h"
-#include "../osd/computeContext.h"
+#include "../osd/vertex.h"
+#include "../osd/nonCopyable.h"
 
 #if defined(__APPLE__)
     #include <OpenCL/opencl.h>
@@ -80,22 +80,18 @@ class OsdCLKernelBundle;
 
 class OsdCLTable : OsdNonCopyable<OsdCLTable> {
 public:
-    OsdCLTable(const FarTable<int> &farTable, cl_context clContext);
-    OsdCLTable(const FarTable<unsigned int> &farTable, cl_context clContext);
-    OsdCLTable(const FarTable<float> &farTable, cl_context clContext);
+    template<typename T>
+        OsdCLTable(const std::vector<T> &table, cl_context clContext) {
+        createCLBuffer(table.size() * sizeof(T), &table[0], clContext);
+    }
 
     virtual ~OsdCLTable();
 
     cl_mem GetDevicePtr() const;
 
-    int GetMarker(int level) const;
-
-    int GetNumElements(int level) const;
-
 private:
     void createCLBuffer(int size, const void *ptr, cl_context clContext);
     cl_mem _devicePtr;
-    FarTableMarkers _marker;
 };
 
 // ----------------------------------------------------------------------------
@@ -128,7 +124,7 @@ private:
 
 // ----------------------------------------------------------------------------
 
-class OsdCLComputeContext : public OsdComputeContext {
+class OsdCLComputeContext : public OsdNonCopyable<OsdCLComputeContext> {
 public:
     static OsdCLComputeContext * Create(FarMesh<OsdVertex> *farmesh,
                                         cl_context clContext);

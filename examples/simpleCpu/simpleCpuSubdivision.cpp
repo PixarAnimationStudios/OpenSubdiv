@@ -139,7 +139,6 @@ a particular purpose and non-infringement.
 
 #include <osd/vertex.h>
 #include <osd/glDrawContext.h>
-#include <osd/cpuDispatcher.h>
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeController.h>
 #include <osd/cpuComputeContext.h>
@@ -479,7 +478,9 @@ updateGeom()
     // a call to Synchronize() will allow you to block until the worker threads
     // complete.
     //
-    g_osdComputeController->Refine(g_osdComputeContext, g_vertexBuffer);
+    g_osdComputeController->Refine(g_osdComputeContext,
+                                   g_farmesh->GetKernelBatches(),
+                                   g_vertexBuffer);
 
     //
     // The call to Synchronize() is not actually necessary, it's being used

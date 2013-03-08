@@ -76,9 +76,9 @@
 
 #include "../version.h"
 
-#include "../far/table.h"
 #include "../far/vertexEditTables.h"
-#include "../osd/computeContext.h"
+#include "../osd/vertex.h"
+#include "../osd/nonCopyable.h"
 
 #include <vector>
 
@@ -91,23 +91,19 @@ class OsdGLSLTransformFeedbackKernelBundle;
 
 class OsdGLSLTransformFeedbackTable : OsdNonCopyable<OsdGLSLTransformFeedbackTable> {
 public:
-    OsdGLSLTransformFeedbackTable(const FarTable<int> &farTable, GLenum type);
-    OsdGLSLTransformFeedbackTable(const FarTable<unsigned int> &farTable, GLenum type);
-    OsdGLSLTransformFeedbackTable(const FarTable<float> &farTable, GLenum type);
+    template<typename T>
+    OsdGLSLTransformFeedbackTable(const std::vector<T> &table, GLenum type) {
+        createTextureBuffer(table.size() * sizeof(unsigned int), &table[0], type);
+    }
 
     virtual ~OsdGLSLTransformFeedbackTable();
 
     GLuint GetTexture() const;
 
-    int GetMarker(int level) const;
-
-    int GetNumElements(int level) const;
-
 private:
-    void createTextureBuffer(int size, const void *ptr, GLenum type);
+    void createTextureBuffer(size_t size, const void *ptr, GLenum type);
 
     GLuint _buffer, _texture;
-    FarTableMarkers _marker;
 };
 
 // ----------------------------------------------------------------------------
@@ -140,7 +136,7 @@ private:
 
 // ----------------------------------------------------------------------------
 
-class OsdGLSLTransformFeedbackComputeContext : public OsdComputeContext {
+class OsdGLSLTransformFeedbackComputeContext {
 public:
     static OsdGLSLTransformFeedbackComputeContext * Create(FarMesh<OsdVertex> *farmesh);
 

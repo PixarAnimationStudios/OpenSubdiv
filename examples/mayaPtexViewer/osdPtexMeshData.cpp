@@ -66,18 +66,15 @@
 
 #include "osdPtexMeshData.h"
 
-#include <osd/cpuDispatcher.h>
 #include <osd/cpuComputeController.h>
 extern OpenSubdiv::OsdCpuComputeController *g_cpuComputeController;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-#include <osd/ompDispatcher.h>
 #include <osd/ompComputeController.h>
 extern OpenSubdiv::OsdOmpComputeController *g_ompComputeController;
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-#include <osd/clDispatcher.h>
 #include <osd/clComputeController.h>
 extern cl_context g_clContext;
 extern cl_command_queue g_clQueue;
@@ -85,7 +82,6 @@ extern OpenSubdiv::OsdCLComputeController *g_clComputeController;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-#include <osd/cudaDispatcher.h>
 #include <osd/cudaComputeController.h>
 extern OpenSubdiv::OsdCudaComputeController *g_cudaComputeController;
 #endif
@@ -322,19 +318,20 @@ OsdPtexMeshData::updateGeometry(const MHWRender::MVertexBuffer *points,
     GLuint mayaPositionVBO = *static_cast<GLuint*>(points->resourceHandle());
     GLuint mayaNormalVBO = normals ? *static_cast<GLuint*>(normals->resourceHandle()) : NULL;
     int size = nCoarsePoints * 3 * sizeof(float);
+    OpenSubdiv::FarKernelBatchVector const &batches = _farmesh->GetKernelBatches();
 
     if (_kernel == kCPU || _kernel == kOPENMP) {
         float *d_pos = _cpuPositionBuffer->BindCpuBuffer();
         glBindBuffer(GL_ARRAY_BUFFER, mayaPositionVBO);
         glGetBufferSubData(GL_ARRAY_BUFFER, 0, size, d_pos);
-        g_cpuComputeController->Refine(_cpuComputeContext, _cpuPositionBuffer);
+        g_cpuComputeController->Refine(_cpuComputeContext, batches, _cpuPositionBuffer);
 
         if (not _adaptive) {
             d_pos = _cpuNormalBuffer->BindCpuBuffer();
             glBindBuffer(GL_ARRAY_BUFFER, mayaNormalVBO);
             glGetBufferSubData(GL_ARRAY_BUFFER, 0, size, d_pos);
 
-            g_cpuComputeController->Refine(_cpuComputeContext, _cpuNormalBuffer);
+            g_cpuComputeController->Refine(_cpuComputeContext, batches, _cpuNormalBuffer);
         }
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -345,7 +342,7 @@ OsdPtexMeshData::updateGeometry(const MHWRender::MVertexBuffer *points,
         glBindBuffer(GL_COPY_WRITE_BUFFER, _cudaPositionBuffer->BindVBO());
         glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
                             0, 0, size);
-        g_cudaComputeController->Refine(_cudaComputeContext, _cudaPositionBuffer);
+        g_cudaComputeController->Refine(_cudaComputeContext, batches, _cudaPositionBuffer);
 
         if (not _adaptive) {
             glBindBuffer(GL_COPY_READ_BUFFER, mayaNormalVBO);
@@ -353,7 +350,7 @@ OsdPtexMeshData::updateGeometry(const MHWRender::MVertexBuffer *points,
             glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
                                 0, 0, size);
 
-            g_cudaComputeController->Refine(_cudaComputeContext, _cudaNormalBuffer);
+            g_cudaComputeController->Refine(_cudaComputeContext, batches, _cudaNormalBuffer);
         }
 
         glBindBuffer(GL_COPY_READ_BUFFER, 0);
@@ -365,14 +362,14 @@ OsdPtexMeshData::updateGeometry(const MHWRender::MVertexBuffer *points,
         glBindBuffer(GL_COPY_WRITE_BUFFER, _clPositionBuffer->BindVBO());
         glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
                             0, 0, size);
-        g_clComputeController->Refine(_clComputeContext, _clPositionBuffer);
+        g_clComputeController->Refine(_clComputeContext, batches, _clPositionBuffer);
 
         if (not _adaptive) {
             glBindBuffer(GL_COPY_READ_BUFFER, mayaNormalVBO);
             glBindBuffer(GL_COPY_WRITE_BUFFER, _clNormalBuffer->BindVBO());
             glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
                                 0, 0, size);
-            g_clComputeController->Refine(_clComputeContext, _clNormalBuffer);
+            g_clComputeController->Refine(_clComputeContext, batches, _clNormalBuffer);
         }
 
         glBindBuffer(GL_COPY_READ_BUFFER, 0);

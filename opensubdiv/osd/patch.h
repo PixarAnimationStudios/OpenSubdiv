@@ -54,80 +54,69 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_CUDA_DISPATCHER_H
-#define OSD_CUDA_DISPATCHER_H
 
-#include "../version.h"
+#ifndef OSD_PATCH_H
+#define OSD_PATCH_H
 
-#include "../osd/vertex.h"
-#include "../far/dispatcher.h"
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdCudaComputeContext;
+enum OsdPatchType {
+    kNonPatch = 0,
 
-class OsdCudaKernelDispatcher : public FarDispatcher<OsdVertex> {
-public:
-    OsdCudaKernelDispatcher();
-    virtual ~OsdCudaKernelDispatcher();
+    kRegular = 1,
+    kBoundary = 2,
+    kCorner = 3,
+    kGregory = 4,
+    kBoundaryGregory = 5,
 
-    void Refine(FarMesh<OsdVertex> * mesh, OsdCudaComputeContext *context);
-
-    static OsdCudaKernelDispatcher * GetInstance();
-
-protected:
-    virtual void ApplyBilinearFaceVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyBilinearEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyBilinearVertexVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-
-    virtual void ApplyCatmarkFaceVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelB(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelA(
-        FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
-        int start, int end, void * clientdata) const;
-
-
-    virtual void ApplyLoopEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyLoopVertexVerticesKernelB(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyLoopVertexVerticesKernelA(
-        FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyVertexEdits(
-        FarMesh<OsdVertex> *mesh, int offset, int level,
-        void * clientdata) const;
-
+    kTransitionRegular = 6,
+    kTransitionBoundary = 7,
+    kTransitionCorner = 8,
 };
 
-}  // end namespace OPENSUBDIV_VERSION
+struct OsdPatchDescriptor {
+    OsdPatchDescriptor() :
+        type(kNonPatch), pattern(0), rotation(0), subpatch(0),
+        maxValence(0), numElements(0) {}
+
+    OsdPatchDescriptor(
+        OsdPatchType type,
+        unsigned char pattern,
+        unsigned char rotation,
+        unsigned char maxValence,
+        unsigned char numElements) :
+        type(type), pattern(pattern), rotation(rotation), subpatch(0),
+        maxValence(maxValence), numElements(numElements) {}
+
+    OsdPatchType type:4;         //  0-8
+    unsigned char pattern:3;     //  0-4
+    unsigned char rotation:2;    //  0-3
+    unsigned char subpatch:2;    //  0-3
+    unsigned char maxValence:5;  //  0-29
+    unsigned char numElements:5; //  0-31
+};
+
+bool operator< (OsdPatchDescriptor const & a,
+                OsdPatchDescriptor const & b);
+
+
+struct OsdPatchArray {
+    OsdPatchDescriptor desc;
+    int patchSize;
+    int firstIndex;
+    int numIndices;
+    int levelBase;
+    int gregoryQuadOffsetBase;
+};
+
+typedef std::vector<OsdPatchArray> OsdPatchArrayVector;
+
+} // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
-}  // end namespace OpenSubdiv
+} // end namespace OpenSubdiv
 
-#endif  // OSD_CUDA_DISPATCHER_H
+#endif /* OSD_PATCH_H_ */

@@ -124,11 +124,9 @@ private:
     };
 
     typedef Pointers<unsigned int*> IndexPointers;
+    typedef Pointers<unsigned char*> LevelPointers;
     typedef Pointers<int *> PtexPointers;
     typedef Pointers<float *> FVarPointers;
-
-    // Sets the FarTable level markers for the given level using index pointers
-    void setMarkers(int level, FarPatchTables * result, IndexPointers const & fptrs, IndexPointers const * tptrs);
 
     struct Counters {
         int R_C,                  // regular patch 
@@ -462,62 +460,54 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
     }
 }
 
-// Sets the FarTable markers when all the patches of a given level are processed
-template <class T> void 
-FarPatchTablesFactory<T>::setMarkers(int level, FarPatchTables * result, IndexPointers const & fptrs, IndexPointers const * tptrs) {
-
-    result->_full._R_IT.SetMarker(level, fptrs.R_P);
-    result->_full._B_IT.SetMarker(level, fptrs.B_P[0]);
-    result->_full._C_IT.SetMarker(level, fptrs.C_P[0]);
-    result->_full._G_IT.SetMarker(level, fptrs.G_P[0]);
-    result->_full._G_B_IT.SetMarker(level, fptrs.G_P[1]);
-    
-    for (unsigned char i=0; i<5; ++i) {
-        result->_transition[i]._R_IT.SetMarker(level, tptrs[i].R_P);
-        for (unsigned char j=0; j<4; ++j) {
-            result->_transition[i]._B_IT[j].SetMarker(level, tptrs[i].B_P[j]);
-            result->_transition[i]._C_IT[j].SetMarker(level, tptrs[i].C_P[j]);
-        }
-    }
-}
-
 template <class T> FarPatchTables *
 FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtexCoordinate,
                                                                 bool requireFVarData ) {
 
     assert(getMesh() and getNumFaces()>0);
 
-    FarPatchTables * result = new FarPatchTables(maxlevel, maxvalence);
+    FarPatchTables * result = new FarPatchTables(maxvalence);
     
     static const unsigned int remapRegular        [16] = {5,6,10,9,4,0,1,2,3,7,11,15,14,13,12,8};
     static const unsigned int remapRegularBoundary[12] = {1,2,6,5,0,3,7,11,10,9,8,4};
     static const unsigned int remapRegularCorner  [ 9] = {1,2,5,4,0,8,7,6,3};
 
     IndexPointers fptrs, tptrs[5];
+    LevelPointers fptrsLv, tptrsLv[5];
     PtexPointers fptrsPtx, tptrsPtx[5];
     FVarPointers fptrsFvd, tptrsFvd[5];
 
     // Allocate all index tables 
 
     // Full Patches
-    result->_full._R_IT.Resize(_fullCtr.R_C*16);
-    fptrs.R_P = result->_full._R_IT[0];
+    result->_full._R_IT.first.resize(_fullCtr.R_C*16);
+    result->_full._R_IT.second.resize(_fullCtr.R_C);
+    fptrs.R_P = &result->_full._R_IT.first[0];
+    fptrsLv.R_P = &result->_full._R_IT.second[0];
 
     // Full Boundary Patches
-    result->_full._B_IT.Resize(_fullCtr.B_C[0]*12);
-    fptrs.B_P[0] = result->_full._B_IT[0];
+    result->_full._B_IT.first.resize(_fullCtr.B_C[0]*12);
+    result->_full._B_IT.second.resize(_fullCtr.B_C[0]);
+    fptrs.B_P[0] = &result->_full._B_IT.first[0];
+    fptrsLv.B_P[0] = &result->_full._B_IT.second[0];
 
     // Full Corner Patches
-    result->_full._C_IT.Resize(_fullCtr.C_C[0]*9);
-    fptrs.C_P[0] = result->_full._C_IT[0];
+    result->_full._C_IT.first.resize(_fullCtr.C_C[0]*9);
+    result->_full._C_IT.second.resize(_fullCtr.C_C[0]);
+    fptrs.C_P[0] = &result->_full._C_IT.first[0];
+    fptrsLv.C_P[0] = &result->_full._C_IT.second[0];
 
     // Full Gregory patches
-    result->_full._G_IT.Resize(_fullCtr.G_C[0]*4);
-    fptrs.G_P[0] = result->_full._G_IT[0];
+    result->_full._G_IT.first.resize(_fullCtr.G_C[0]*4);
+    result->_full._G_IT.second.resize(_fullCtr.G_C[0]);
+    fptrs.G_P[0] = &result->_full._G_IT.first[0];
+    fptrsLv.G_P[0] = &result->_full._G_IT.second[0];
 
     // Full Gregory Boundary patches
-    result->_full._G_B_IT.Resize(_fullCtr.G_C[1]*4);
-    fptrs.G_P[1] = result->_full._G_B_IT[0];
+    result->_full._G_B_IT.first.resize(_fullCtr.G_C[1]*4);
+    result->_full._G_B_IT.second.resize(_fullCtr.G_C[1]);
+    fptrs.G_P[1] = &result->_full._G_B_IT.first[0];
+    fptrsLv.G_P[1] = &result->_full._G_B_IT.second[0];
 
     // Quad-offsets tables (for Gregory patches)
     FarPatchTables::QuadOffsetTable quad_G_C0;
@@ -529,20 +519,25 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
     FarPatchTables::QuadOffsetTable::value_type *quad_G_C0_P = &quad_G_C0[0];
     FarPatchTables::QuadOffsetTable::value_type *quad_G_C1_P = &quad_G_C1[0];
 
-
     // Transition Patches
     for (int i=0; i<5; ++i) {
 
-        result->_transition[i]._R_IT.Resize(_transitionCtr[i].R_C*16);
-        tptrs[i].R_P = result->_transition[i]._R_IT[0];
+        result->_transition[i]._R_IT.first.resize(_transitionCtr[i].R_C*16);
+        result->_transition[i]._R_IT.second.resize(_transitionCtr[i].R_C);
+        tptrs[i].R_P = &result->_transition[i]._R_IT.first[0];
+        tptrsLv[i].R_P = &result->_transition[i]._R_IT.second[0];
 
         for (int j=0; j<4; ++j) {
 
-          result->_transition[i]._B_IT[j].Resize(_transitionCtr[i].B_C[j]*12);
-          tptrs[i].B_P[j] = result->_transition[i]._B_IT[j][0];
+          result->_transition[i]._B_IT[j].first.resize(_transitionCtr[i].B_C[j]*12);
+          result->_transition[i]._B_IT[j].second.resize(_transitionCtr[i].B_C[j]);
+          tptrs[i].B_P[j] = &result->_transition[i]._B_IT[j].first[0];
+          tptrsLv[i].B_P[j] = &result->_transition[i]._B_IT[j].second[0];
 
-          result->_transition[i]._C_IT[j].Resize(_transitionCtr[i].C_C[j]*9);
-          tptrs[i].C_P[j] = result->_transition[i]._C_IT[j][0];
+          result->_transition[i]._C_IT[j].first.resize(_transitionCtr[i].C_C[j]*9);
+          result->_transition[i]._C_IT[j].second.resize(_transitionCtr[i].C_C[j]);
+          tptrs[i].C_P[j] = &result->_transition[i]._C_IT[j].first[0];
+          tptrsLv[i].C_P[j] = &result->_transition[i]._C_IT[j].second[0];
         }
     }
 
@@ -621,7 +616,6 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
         int depth = f->GetDepth();
         if (depth!=currentDepth) {
             assert(depth==currentDepth+1);
-            setMarkers(depth, result, fptrs, tptrs);
             currentDepth = depth;
         }
         
@@ -636,6 +630,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                         case 0 : {   // Regular Patch (16 CVs)
                                      getOneRing(f, 16, remapRegular, fptrs.R_P);
                                      fptrs.R_P+=16;
+                                     *fptrsLv.R_P++ = depth;
                                      fptrsPtx.R_P = computePtexCoordinate(f, fptrsPtx.R_P, /*isAdaptive=*/true);
                                      fptrsFvd.R_P = computeFVarData(f, fvarWidth, fptrsFvd.R_P, /*isAdaptive=*/true);
                                  } break;
@@ -644,6 +639,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                                      f->_adaptiveFlags.brots = (f->_adaptiveFlags.rots+1)%4;
                                      getOneRing(f, 12, remapRegularBoundary, fptrs.B_P[0]);
                                      fptrs.B_P[0]+=12;
+                                     *fptrsLv.B_P[0]++ = depth;
                                      fptrsPtx.B_P[0] = computePtexCoordinate(f, fptrsPtx.B_P[0], /*isAdaptive=*/true);
                                      fptrsFvd.B_P[0] = computeFVarData(f, fvarWidth, fptrsFvd.B_P[0], /*isAdaptive=*/true);
                                  } break;
@@ -652,6 +648,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                                      f->_adaptiveFlags.brots = (f->_adaptiveFlags.rots+1)%4;
                                      getOneRing(f, 9, remapRegularCorner, fptrs.C_P[0]);
                                      fptrs.C_P[0]+=9;
+                                     *fptrsLv.C_P[0]++ = depth;
                                      fptrsPtx.C_P[0] = computePtexCoordinate(f, fptrsPtx.C_P[0], /*isAdaptive=*/true);
                                      fptrsFvd.C_P[0] = computeFVarData(f, fvarWidth, fptrsFvd.C_P[0], /*isAdaptive=*/true);
                                  } break;
@@ -667,6 +664,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                     for (int j=0; j<4; ++j)
                         fptrs.G_P[0][j] = _remapTable[f->GetVertex(j)->GetID()];
                     fptrs.G_P[0]+=4;
+                    *fptrsLv.G_P[0]++ = depth;
                     getQuadOffsets(f, quad_G_C0_P);
                     quad_G_C0_P += 4;
                     fptrsPtx.G_P[0] = computePtexCoordinate(f, fptrsPtx.G_P[0], /*isAdaptive=*/true);
@@ -677,6 +675,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                     for (int j=0; j<4; ++j)
                         fptrs.G_P[1][j] = _remapTable[f->GetVertex(j)->GetID()];
                     fptrs.G_P[1]+=4;
+                    *fptrsLv.G_P[1]++ = depth;
                     getQuadOffsets(f, quad_G_C1_P);
                     quad_G_C1_P += 4;
                     fptrsPtx.G_P[1] = computePtexCoordinate(f, fptrsPtx.G_P[1], /*isAdaptive=*/true);
@@ -698,6 +697,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                     case 0 : {   // Regular Transition Patch (16 CVs)
                                  getOneRing(f, 16, remapRegular, tptrs[tcase].R_P);
                                  tptrs[tcase].R_P+=16;
+                                 *tptrsLv[tcase].R_P++ = depth;
                                  tptrsPtx[tcase].R_P = computePtexCoordinate(f, tptrsPtx[tcase].R_P, /*isAdaptive=*/true);
                                  tptrsFvd[tcase].R_P = computeFVarData(f, fvarWidth, tptrsFvd[tcase].R_P, /*isAdaptive=*/true);
                              } break;
@@ -706,6 +706,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                                  unsigned rot = f->_adaptiveFlags.brots;
                                  getOneRing(f, 12, remapRegularBoundary, tptrs[tcase].B_P[rot]);
                                  tptrs[tcase].B_P[rot]+=12;
+                                 *tptrsLv[tcase].B_P[rot]++ = depth;
                                  tptrsPtx[tcase].B_P[rot] = computePtexCoordinate(f, tptrsPtx[tcase].B_P[rot], /*isAdaptive=*/true);
                                  tptrsFvd[tcase].B_P[rot] = computeFVarData(f, fvarWidth, tptrsFvd[tcase].B_P[rot], /*isAdaptive=*/true);
                              } break;
@@ -714,6 +715,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                                  unsigned rot = f->_adaptiveFlags.brots;
                                  getOneRing(f, 9, remapRegularCorner, tptrs[tcase].C_P[rot]);
                                  tptrs[tcase].C_P[rot]+=9;
+                                 *tptrsLv[tcase].C_P[rot]++ = depth;
                                  tptrsPtx[tcase].C_P[rot] = computePtexCoordinate(f, tptrsPtx[tcase].C_P[rot], /*isAdaptive=*/true);
                                  tptrsFvd[tcase].C_P[rot] = computeFVarData(f, fvarWidth, tptrsFvd[tcase].C_P[rot], /*isAdaptive=*/true);
                              } break;
@@ -723,7 +725,6 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                 assert(false);
         }
     }
-    setMarkers(currentDepth+1, result, fptrs, tptrs);
 
     // Build Gregory patches vertex valence indices table
     if ((_fullCtr.G_C[0] > 0) or (_fullCtr.G_C[1] > 0)) {
@@ -814,6 +815,23 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
     result->_quadOffsetTable.resize((_fullCtr.G_C[0]+_fullCtr.G_C[1])*4);
     std::copy(quad_G_C0.begin(), quad_G_C0.end(), result->_quadOffsetTable.begin());
     std::copy(quad_G_C1.begin(), quad_G_C1.end(), result->_quadOffsetTable.begin()+_fullCtr.G_C[0]*4);
+
+    // Set patch counts
+    FarPatchCount patchCount;
+    patchCount.nonPatch        = 0;
+    patchCount.regular         = (int)result->_full._R_IT.first.size()/16;
+    patchCount.boundary        = (int)result->_full._B_IT.first.size()/12;
+    patchCount.corner          = (int)result->_full._C_IT.first.size()/9;
+    patchCount.gregory         = (int)result->_full._G_IT.first.size()/4;
+    patchCount.boundaryGregory = (int)result->_full._G_B_IT.first.size()/4;
+    for (int j=0; j<5; ++j) {
+        patchCount.transitionRegular[j] = (int)result->_transition[j]._R_IT.first.size()/16;
+        for (int k=0; k<4; ++k) {
+            patchCount.transitionBoundary[j][k] = (int)result->_transition[j]._B_IT[k].first.size()/12;
+            patchCount.transitionCorner[j][k] = (int)result->_transition[j]._C_IT[k].first.size()/9;
+        }
+    }
+    result->_patchCounts.push_back(patchCount);
 
     return result;
 }

@@ -63,14 +63,13 @@
 #include "../far/subdivisionTables.h"
 #include "../far/patchTables.h"
 #include "../far/vertexEditTables.h"
+#include "../far/kernelBatch.h"
 
 #include <cassert>
 #include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
-
-template <class U> class FarDispatcher;
 
 /// \brief Feature Adaptive Mesh class.
 ///
@@ -118,14 +117,13 @@ public:
     /// Returns the total number of vertices in the mesh across across all depths
     int GetNumVertices() const { return (int)(_vertices.size()); }
 
-    /// Apply the subdivision tables to compute the positions of the vertices up
-    /// to 'level'
-    void Subdivide(int level=-1);
+    const FarKernelBatchVector & GetKernelBatches() const { return _batches; }
 
 private:
     // Note : the vertex classes are renamed <X,Y> so as not to shadow the 
     // declaration of the templated vertex class U.
     template <class X, class Y> friend class FarMeshFactory;
+    template <class X, class Y> friend class FarMultiMeshFactory;
 
     FarMesh() : _subdivisionTables(0), _patchTables(0), _vertexEditTables(0) { }
 
@@ -141,6 +139,9 @@ private:
 
     // hierarchical vertex edit tables
     FarVertexEditTables<U> * _vertexEditTables;
+
+    // kernel execution batches
+    FarKernelBatchVector _batches;
 
     // list of vertices (up to N levels of subdivision)
     std::vector<U> _vertices;
@@ -183,28 +184,6 @@ FarMesh<U>::GetFVarData(int level) const {
     if ( (level>=0) and (level<(int)_faceverts.size()) )
         return _fvarData[level];
     return _fvarData[0];
-}
-
-
-template <class U> void
-FarMesh<U>::Subdivide(int maxlevel) {
-
-    assert(_subdivisionTables);
-
-    if ( (maxlevel < 0) )
-        maxlevel=_subdivisionTables->GetMaxLevel();
-    else
-        maxlevel = std::min(maxlevel, _subdivisionTables->GetMaxLevel());
-
-    FarDispatcher<U> * dispatch = &FarDispatcher<U>::_DefaultDispatcher;
-
-    for (int i=1; i<maxlevel; ++i) {
-        
-        _subdivisionTables->Apply(i, dispatch);
-
-        if (_vertexEditTables)
-            _vertexEditTables->Apply(i, dispatch);
-    }
 }
 
 } // end namespace OPENSUBDIV_VERSION

@@ -59,9 +59,9 @@
 
 #include "../version.h"
 
-#include "../far/table.h"
 #include "../far/vertexEditTables.h"
-#include "../osd/computeContext.h"
+#include "../osd/vertex.h"
+#include "../osd/nonCopyable.h"
 
 #include <vector>
 
@@ -72,23 +72,19 @@ namespace OPENSUBDIV_VERSION {
 
 class OsdCudaTable : OsdNonCopyable<OsdCudaTable> {
 public:
-    explicit OsdCudaTable(const FarTable<int> &farTable);
-    explicit OsdCudaTable(const FarTable<unsigned int> &farTable);
-    explicit OsdCudaTable(const FarTable<float> &farTable);
+    template<typename T>
+    explicit OsdCudaTable(const std::vector<T> &table) {
+        createCudaBuffer(table.size() * sizeof(T), &table[0]);
+    }
 
     virtual ~OsdCudaTable();
 
     void * GetCudaMemory() const;
 
-    int GetMarker(int level) const;
-
-    int GetNumElements(int level) const;
-
 private:
-    void createCudaBuffer(int size, const void *ptr);
+    void createCudaBuffer(size_t size, const void *ptr);
 
     void *_devicePtr;
-    FarTableMarkers _marker;
 };
 
 // ----------------------------------------------------------------------------
@@ -121,7 +117,7 @@ private:
 
 // ----------------------------------------------------------------------------
 
-class OsdCudaComputeContext : public OsdComputeContext {
+class OsdCudaComputeContext : public OsdNonCopyable<OsdCudaComputeContext> {
 public:
     static OsdCudaComputeContext * Create(FarMesh<OsdVertex> *farmesh);
 

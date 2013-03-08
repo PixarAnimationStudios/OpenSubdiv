@@ -48,51 +48,89 @@
 //     with this license.
 //     (E) The software is licensed "as-is." You bear the risk of
 //     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
-//
-#ifndef OSD_COMPUTE_CONTEXT_H
-#define OSD_COMPUTE_CONTEXT_H
 
-#include "../osd/vertex.h"
-#include "../osd/nonCopyable.h"
+#include "../osd/sortedDrawContext.h"
+
+#include <cassert>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-template <class T> class FarMesh;
+OsdSortedDrawContext::OsdSortedDrawContext(FarPatchCountVector const &patchCounts,
+                                           OsdPatchArrayVector const &patchArrays) {
+    _patchCounts = patchCounts;
+    _patchArrays = patchArrays;
+    _patchDrawRangesDirty = true;
+    _primFidelity.clear();
+    _primFidelity.resize(patchCounts.size());
+}
 
-    // XXX:temp. any other better place for these enum?
-    namespace Table {
-    enum  { V_ITa,
-            V_IT,
-            V_W,
-            E_IT,
-            E_W,
-            F_IT,
-            F_ITa,
-            TABLE_MAX }; }
+void
+OsdSortedDrawContext::SetPrimFidelity(int primIndex, Fidelity f) {
 
-class OsdComputeContext : OsdNonCopyable<OsdComputeContext> {
-public:
-    virtual ~OsdComputeContext() {}
+    assert(primIndex >= 0 && primIndex <= (int)_primFidelity.size());
+    _primFidelity[primIndex] = f;
+    _patchDrawRangesDirty = true;
+}
 
-    FarMesh<OsdVertex> *GetFarMesh() { return _farMesh; }
+OsdPatchDrawRangeVector const &
+OsdSortedDrawContext::GetPatchDrawRanges(OsdPatchDescriptor desc) {
+    if (_patchDrawRangesDirty) {
+        _ComputePatchDrawRanges();
+        _patchDrawRangesDirty = false;
+    }
+    return _patchDrawRanges[desc];
+}
 
-protected:
-    explicit OsdComputeContext(FarMesh<OsdVertex> *farmesh)
-        : _farMesh(farmesh) {}
+void
+OsdSortedDrawContext::_ComputePatchDrawRanges() {
 
-private:
-    FarMesh<OsdVertex> *_farMesh;
-};
+    _patchDrawRanges.clear();
 
-}  // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
+    for (size_t i = 0; i < _patchArrays.size(); ++i) {
+        OsdPatchArray const &patch = _patchArrays[i];
+        OsdPatchDescriptor desc = patch.desc;
 
-}  // end namespace OpenSubdiv
+        int offset = patch.firstIndex;
+        for (size_t j = 0; j < _patchCounts.size(); ++j) {
 
-#endif  // OSD_COMPUTE_CONTEXT_H
+            FarPatchCount const &counts = _patchCounts[j];
+            int length = 0;
+            switch (desc.type) {
+            case kRegular:
+                length = counts.regular*16;
+                break;
+            case kBoundary:
+                length = counts.boundary*12;
+                break;
+            case kCorner:
+                length = counts.corner*9;
+                break;
+            case kGregory:
+                length = counts.gregory*4;
+                break;
+            case kBoundaryGregory:
+                length = counts.boundaryGregory*4;
+                break;
+            case kTransitionRegular:
+                length = counts.transitionRegular[desc.pattern]*16;
+                break;
+            case kTransitionBoundary:
+                length = counts.transitionBoundary[desc.pattern][desc.rotation]*12;
+                break;
+            case kTransitionCorner:
+                length = counts.transitionCorner[desc.pattern][desc.rotation]*9;
+                break;
+            }
+            if (_primFidelity[j] != 0 and length > 0) {
+                _patchDrawRanges[desc].push_back(OsdPatchDrawRange(offset, length));
+            }
+            offset += length;
+        }
+    }
+}
+
+} // end namespace OPENSUBDIV_VERSION
+} // end namespace OpenSubdiv
+
+

@@ -81,14 +81,14 @@ protected:
     template <class X, class Y> friend class FarMeshFactory;
 
     /// Creates a FarBilinearSubdivisiontables instance.
-    static FarBilinearSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh );
+    static FarBilinearSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector *batches );
 };
 
 // This factory walks the Hbr vertices and accumulates the weights and adjacency
 // (valance) information specific to the bilinear subdivision scheme. The results
 // are stored in a FarBilinearSubdivisionTable<U>
 template <class T, class U> FarBilinearSubdivisionTables<U> * 
-FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh ) {
+FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector * batches ) {
 
     assert( meshFactory and farMesh );
      
@@ -101,28 +101,49 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
     FarBilinearSubdivisionTables<U> * result = new FarBilinearSubdivisionTables<U>(farMesh, maxlevel);
 
     // Allocate memory for the indexing tables
-    result->_F_ITa.Resize(tablesFactory.GetNumFaceVerticesTotal(maxlevel)*2);
-    result->_F_IT.Resize(tablesFactory.GetFaceVertsValenceSum());
+    result->_F_ITa.resize(tablesFactory.GetNumFaceVerticesTotal(maxlevel)*2);
+    result->_F_IT.resize(tablesFactory.GetFaceVertsValenceSum());
 
-    result->_E_IT.Resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*2);
+    result->_E_IT.resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*2);
 
-    result->_V_ITa.Resize(tablesFactory.GetNumVertexVerticesTotal(maxlevel));
+    result->_V_ITa.resize((tablesFactory.GetNumVertexVerticesTotal(maxlevel)
+                           - tablesFactory.GetNumVertexVerticesTotal(0))); // subtract corase cage vertices
+
+    // Prepare batch table
+    batches->reserve(maxlevel*5);
+
+    int F_IT_offset = 0;
+    int faceTableOffset = 0;
+    int edgeTableOffset = 0;
+    int vertTableOffset = 0;
+
+    int * F_ITa = &result->_F_ITa[0];
+    unsigned int * F_IT = &result->_F_IT[0];
+    int * E_IT = &result->_E_IT[0];
+    int * V_ITa = &result->_V_ITa[0];
 
     for (int level=1; level<=maxlevel; ++level) {
 
         // pointer to the first vertex corresponding to this level
-        result->_vertsOffsets[level] = tablesFactory._vertVertIdx[level-1] + 
-                                       (int)tablesFactory._vertVertsList[level-1].size();
-
-        typename FarSubdivisionTables<U>::VertexKernelBatch * batch = & (result->_batches[level-1]);
+        int vertexOffset = tablesFactory._vertVertIdx[level-1] +
+                           (int)tablesFactory._vertVertsList[level-1].size();
+        result->_vertsOffsets[level] = vertexOffset;
 
         // Face vertices
         // "For each vertex, gather all the vertices from the parent face."
-        int offset = 0;
-        int * F_ITa = result->_F_ITa[level-1];
-        unsigned int * F_IT = result->_F_IT[level-1];
-        batch->kernelF = (int)tablesFactory._faceVertsList[level].size();
-        for (int i=0; i < batch->kernelF; ++i) {
+        int nFaceVertices = (int)tablesFactory._faceVertsList[level].size();
+        if (nFaceVertices > 0)
+            batches->push_back(FarKernelBatch(level,
+                                              BILINEAR_FACE_VERTEX,
+                                              /*tableIndex=*/0,
+                                              /*start=*/0,
+                                              /*end=*/nFaceVertices,
+                                              faceTableOffset,
+                                              vertexOffset));
+        vertexOffset += nFaceVertices;
+        faceTableOffset += nFaceVertices;
+
+        for (int i=0; i < nFaceVertices; ++i) {
 
             HbrVertex<T> * v = tablesFactory._faceVertsList[level][i];
             assert(v);
@@ -132,21 +153,29 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
 
             int valence = f->GetNumVertices();
 
-            F_ITa[2*i+0] = offset;
+            F_ITa[2*i+0] = F_IT_offset;
             F_ITa[2*i+1] = valence;
 
             for (int j=0; j<valence; ++j)
-                F_IT[offset++] = remap[f->GetVertex(j)->GetID()];
+                F_IT[F_IT_offset++] = remap[f->GetVertex(j)->GetID()];
         }
-        result->_F_ITa.SetMarker(level, &F_ITa[2*batch->kernelF]);
-        result->_F_IT.SetMarker(level, &F_IT[offset]);
+        F_ITa += nFaceVertices*2;
 
         // Edge vertices
 
         // "Average the end-points of the parent edge"
-        int * E_IT = result->_E_IT[level-1];
-        batch->kernelE = (int)tablesFactory._edgeVertsList[level].size();
-        for (int i=0; i < batch->kernelE; ++i) {
+        int nEdgeVertices = (int)tablesFactory._edgeVertsList[level].size();
+        if (nEdgeVertices > 0)
+            batches->push_back(FarKernelBatch(level,
+                                              BILINEAR_EDGE_VERTEX,
+                                              /*tableIndex=*/0,
+                                              /*start=*/0,
+                                              /*end=*/nEdgeVertices,
+                                              edgeTableOffset,
+                                              vertexOffset));
+        vertexOffset += nEdgeVertices;
+        edgeTableOffset += nEdgeVertices;
+        for (int i=0; i < nEdgeVertices; ++i) {
 
             HbrVertex<T> * v = tablesFactory._edgeVertsList[level][i];
             assert(v);
@@ -158,16 +187,23 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
             E_IT[2*i+1] = remap[e->GetDestVertex()->GetID()];
 
         }
-        result->_E_IT.SetMarker(level, &E_IT[2*batch->kernelE]);
+        E_IT += nEdgeVertices*2;
 
         // Vertex vertices
 
         // "Pass down the parent vertex"
-        offset = 0;
-        int * V_ITa = result->_V_ITa[level-1];
-        batch->kernelB.first = 0;
-        batch->kernelB.second = (int)tablesFactory._vertVertsList[level].size();
-        for (int i=0; i < batch->kernelB.second; ++i) {
+        int nVertVertices = (int)tablesFactory._vertVertsList[level].size();
+        batches->push_back(FarKernelBatch(level,
+                                          BILINEAR_VERT_VERTEX,
+                                          /*tableIndex=*/0,
+                                          /*start=*/0,
+                                          /*end=*/nVertVertices,
+                                          vertTableOffset,
+                                          vertexOffset));
+        vertexOffset += nVertVertices;
+        vertTableOffset += nVertVertices;
+        
+        for (int i=0; i < nVertVertices; ++i) {
 
             HbrVertex<T> * v = tablesFactory._vertVertsList[level][i],
                          * pv = v->GetParentVertex();
@@ -176,7 +212,7 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
             V_ITa[i] = remap[pv->GetID()];
 
         }
-        result->_V_ITa.SetMarker(level, &V_ITa[batch->kernelB.second]);
+        V_ITa += nVertVertices;
     }
     return result;
 }

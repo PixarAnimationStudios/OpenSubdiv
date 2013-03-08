@@ -55,10 +55,12 @@
 //     a particular purpose and non-infringement.
 //
 
+#include "../far/mesh.h"
+#include "../far/subdivisionTables.h"
 #include "../osd/debug.h"
 #include "../osd/error.h"
+#include "../osd/table.h"
 #include "../osd/d3d11ComputeContext.h"
-#include "../osd/d3d11Dispatcher.h"
 #include "../osd/d3d11KernelBundle.h"
 
 #include <D3D11.h>
@@ -67,24 +69,6 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }
-
-OsdD3D11ComputeTable::OsdD3D11ComputeTable(const FarTable<int> &farTable, ID3D11DeviceContext *deviceContext)
-    : _buffer(0), _srv(0), _marker(farTable.GetMarkers()) {
-
-    createBuffer(farTable.GetMemoryUsed(), farTable[0], DXGI_FORMAT_R32_SINT, farTable.GetSize(), deviceContext);
-}
-
-OsdD3D11ComputeTable::OsdD3D11ComputeTable(const FarTable<unsigned int> &farTable, ID3D11DeviceContext *deviceContext)
-    : _buffer(0), _srv(0), _marker(farTable.GetMarkers()) {
-
-    createBuffer(farTable.GetMemoryUsed(), farTable[0], DXGI_FORMAT_R32_SINT, farTable.GetSize(), deviceContext);
-}
-
-OsdD3D11ComputeTable::OsdD3D11ComputeTable(const FarTable<float> &farTable, ID3D11DeviceContext *deviceContext)
-    : _buffer(0), _srv(0), _marker(farTable.GetMarkers()) {
-
-    createBuffer(farTable.GetMemoryUsed(), farTable[0], DXGI_FORMAT_R32_FLOAT, farTable.GetSize(), deviceContext);
-}
 
 void
 OsdD3D11ComputeTable::createBuffer(int size, const void *ptr, DXGI_FORMAT format, int numElements, ID3D11DeviceContext *deviceContext) {
@@ -144,24 +128,12 @@ OsdD3D11ComputeTable::GetSRV() const {
     return _srv;
 }
 
-int
-OsdD3D11ComputeTable::GetMarker(int level) const {
-
-    return _marker[level];
-}
-
-int
-OsdD3D11ComputeTable::GetNumElements(int level) const {
-
-    return _marker[level+1] - _marker[level];
-}
-
 // ----------------------------------------------------------------------------
 
 OsdD3D11ComputeHEditTable::OsdD3D11ComputeHEditTable(
     const FarVertexEditTables<OsdVertex>::VertexEditBatch &batch, ID3D11DeviceContext *deviceContext)
-    : _primvarIndicesTable(new OsdD3D11ComputeTable(batch.GetVertexIndices(), deviceContext)),
-      _editValuesTable(new OsdD3D11ComputeTable(batch.GetValues(), deviceContext)) {
+    : _primvarIndicesTable(new OsdD3D11ComputeTable(batch.GetVertexIndices(), deviceContext, DXGI_FORMAT_R32_UINT)),
+      _editValuesTable(new OsdD3D11ComputeTable(batch.GetValues(), deviceContext, DXGI_FORMAT_R32_FLOAT)) {
 
     _operation = batch.GetOperation();
     _primvarOffset = batch.GetPrimvarIndex();
@@ -208,8 +180,7 @@ OsdD3D11ComputeHEditTable::GetPrimvarWidth() const {
 
 OsdD3D11ComputeContext::OsdD3D11ComputeContext(
     FarMesh<OsdVertex> *farMesh, ID3D11DeviceContext *deviceContext)
-    : OsdComputeContext(farMesh),
-      _deviceContext(deviceContext),
+    : _deviceContext(deviceContext),
       _currentVertexBufferUAV(0), _currentVaryingBufferUAV(0) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
@@ -221,24 +192,15 @@ OsdD3D11ComputeContext::OsdD3D11ComputeContext(
     // bindShaderStorageBuffer()...
     _tables.resize(7, 0);
 
-    _tables[Table::E_IT]  = new OsdD3D11ComputeTable(farTables->Get_E_IT(), deviceContext);
-    _tables[Table::V_IT]  = new OsdD3D11ComputeTable(farTables->Get_V_IT(), deviceContext);
-    _tables[Table::V_ITa] = new OsdD3D11ComputeTable(farTables->Get_V_ITa(), deviceContext);
-    _tables[Table::E_W]   = new OsdD3D11ComputeTable(farTables->Get_E_W(), deviceContext);
-    _tables[Table::V_W]   = new OsdD3D11ComputeTable(farTables->Get_V_W(), deviceContext);
+    _tables[Table::E_IT]  = new OsdD3D11ComputeTable(farTables->Get_E_IT(), deviceContext, DXGI_FORMAT_R32_SINT);
+    _tables[Table::V_IT]  = new OsdD3D11ComputeTable(farTables->Get_V_IT(), deviceContext, DXGI_FORMAT_R32_UINT);
+    _tables[Table::V_ITa] = new OsdD3D11ComputeTable(farTables->Get_V_ITa(), deviceContext, DXGI_FORMAT_R32_SINT);
+    _tables[Table::E_W]   = new OsdD3D11ComputeTable(farTables->Get_E_W(), deviceContext, DXGI_FORMAT_R32_FLOAT);
+    _tables[Table::V_W]   = new OsdD3D11ComputeTable(farTables->Get_V_W(), deviceContext, DXGI_FORMAT_R32_FLOAT);
 
-    if (const FarCatmarkSubdivisionTables<OsdVertex> * ccTables =
-         dynamic_cast<const FarCatmarkSubdivisionTables<OsdVertex>*>(farTables)) {
-
-        // catmark
-        _tables[Table::F_IT]  = new OsdD3D11ComputeTable(ccTables->Get_F_IT(), deviceContext);
-        _tables[Table::F_ITa] = new OsdD3D11ComputeTable(ccTables->Get_F_ITa(), deviceContext);
-    } else if (const FarBilinearSubdivisionTables<OsdVertex> * bTables =
-                dynamic_cast<const FarBilinearSubdivisionTables<OsdVertex>*>(farTables)) {
-
-        // bilinear
-        _tables[Table::F_IT]  = new OsdD3D11ComputeTable(bTables->Get_F_IT(), deviceContext);
-        _tables[Table::F_ITa] = new OsdD3D11ComputeTable(bTables->Get_F_ITa(), deviceContext);
+    if (farTables->GetNumTables() > 5) {
+        _tables[Table::F_IT]  = new OsdD3D11ComputeTable(farTables->Get_F_IT(), deviceContext, DXGI_FORMAT_R32_UINT);
+        _tables[Table::F_ITa] = new OsdD3D11ComputeTable(farTables->Get_F_ITa(), deviceContext, DXGI_FORMAT_R32_SINT);
     } else {
         _tables[Table::F_IT] = NULL;
         _tables[Table::F_ITa] = NULL;

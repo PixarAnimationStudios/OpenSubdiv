@@ -115,7 +115,9 @@ shim::Subdivider::setCoarseVertices(const HeterogeneousBuffer& cage)
 void
 shim::Subdivider::refine()
 {
-    g_osdComputeController->Refine(self->computeContext, self->vertexBuffer);
+    g_osdComputeController->Refine(self->computeContext,
+                                   self->farmesh->GetKernelBatches(),
+                                   self->vertexBuffer);
 }
 
 void

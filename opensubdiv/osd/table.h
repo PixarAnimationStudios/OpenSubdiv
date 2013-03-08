@@ -54,87 +54,26 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_GCD_DISPATCHER_H
-#define OSD_GCD_DISPATCHER_H
-
-#include <dispatch/dispatch.h>
-
-#include "../version.h"
-
-#include "../osd/vertex.h"
-#include "../far/dispatcher.h"
+#ifndef OSD_TABLE_H
+#define OSD_TABLE_H
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdCpuComputeContext;
+namespace Table {
+    enum  { V_ITa,
+            V_IT,
+            V_W,
+            E_IT,
+            E_W,
+            F_IT,
+            F_ITa,
+            TABLE_MAX };
+}
 
-class OsdGcdKernelDispatcher : public FarDispatcher<OsdVertex>
-{
-public:
-    OsdGcdKernelDispatcher();
-
-    virtual ~OsdGcdKernelDispatcher();
-
-    void Refine(FarMesh<OsdVertex> * mesh, OsdCpuComputeContext *context) const;
-
-    static OsdGcdKernelDispatcher * GetInstance();
-
-protected:
-    virtual void ApplyBilinearFaceVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyBilinearEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyBilinearVertexVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-
-    virtual void ApplyCatmarkFaceVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelB(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelA(
-        FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
-        int start, int end, void * clientdata) const;
-
-
-    virtual void ApplyLoopEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyLoopVertexVerticesKernelB(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyLoopVertexVerticesKernelA(
-        FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyVertexEdits(
-        FarMesh<OsdVertex> *mesh, int offset, int level,
-        void * clientdata) const;
-
-private:
-    dispatch_queue_t _gcd_queue;
-
-};
-
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
-} // end namespace OpenSubdiv
+}  // end namespace OpenSubdiv
 
-#endif // OSD_GCD_DISPATCHER_H
+#endif  // OSD_TABLE_H

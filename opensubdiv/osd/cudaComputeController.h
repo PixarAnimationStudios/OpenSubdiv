@@ -59,8 +59,8 @@
 
 #include "../version.h"
 
+#include "../far/dispatcher.h"
 #include "../osd/cudaComputeContext.h"
-#include "../osd/cudaDispatcher.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -86,22 +86,58 @@ public:
     /// OsdCudaVertexBufferInterface.
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Refine(OsdCudaComputeContext *context,
+                FarKernelBatchVector const &batches,
                 VERTEX_BUFFER *vertexBuffer,
                 VARYING_BUFFER *varyingBuffer) {
 
         context->Bind(vertexBuffer, varyingBuffer);
-        OsdCudaKernelDispatcher::GetInstance()->Refine(context->GetFarMesh(),
-                                                       context);
+        FarDispatcher::Refine(this,
+                              batches,
+                              -1,
+                              context);
         context->Unbind();
     }
 
     template<class VERTEX_BUFFER>
-    void Refine(OsdCudaComputeContext *context, VERTEX_BUFFER *vertexBuffer) {
-        Refine(context, vertexBuffer, (VERTEX_BUFFER*)0);
+    void Refine(OsdCudaComputeContext *context,
+                FarKernelBatchVector const &batches,
+                VERTEX_BUFFER *vertexBuffer) {
+        Refine(context, batches, vertexBuffer, (VERTEX_BUFFER*)0);
     }
 
     /// Waits until all running subdivision kernels finish.
     void Synchronize();
+
+protected:
+    friend class FarDispatcher;
+    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+
+    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const;
+
+
+    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const;
+
+
+    void ApplyVertexEdits(FarKernelBatch const &batch, void * clientdata) const;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

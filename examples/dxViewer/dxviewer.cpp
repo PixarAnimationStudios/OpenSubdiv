@@ -64,21 +64,18 @@
 #include <osd/d3d11DrawContext.h>
 #include <osd/d3d11DrawRegistry.h>
 
-#include <osd/cpuDispatcher.h>
 #include <osd/cpuD3D11VertexBuffer.h>
 #include <osd/cpuComputeContext.h>
 #include <osd/cpuComputeController.h>
 OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-    #include <osd/ompDispatcher.h>
     #include <osd/ompComputeController.h>
     OpenSubdiv::OsdOmpComputeController * g_ompComputeController = NULL;
 #endif
 
 #undef OPENSUBDIV_HAS_OPENCL    // XXX: dyu OpenCL D3D11 interop needs work...
 #ifdef OPENSUBDIV_HAS_OPENCL
-    #include <osd/clDispatcher.h>
     #include <osd/clD3D11VertexBuffer.h>
     #include <osd/clComputeContext.h>
     #include <osd/clComputeController.h>
@@ -91,7 +88,6 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-    #include <osd/cudaDispatcher.h>
     #include <osd/cudaD3D11VertexBuffer.h>
     #include <osd/cudaComputeContext.h>
     #include <osd/cudaComputeController.h>
@@ -103,7 +99,6 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
     OpenSubdiv::OsdCudaComputeController * g_cudaComputeController = NULL;
 #endif
 
-#include <osd/d3d11Dispatcher.h>
 #include <osd/d3d11VertexBuffer.h>
 #include <osd/d3d11ComputeContext.h>
 #include <osd/d3d11ComputeController.h>
@@ -427,7 +422,7 @@ updateGeom() {
         n += 3;
     }
 
-    g_mesh->UpdateVertexBuffer(&vertex[0], nverts);
+    g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
 
     Stopwatch s;
     s.Start();

@@ -54,17 +54,53 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_EVAL_CONTEXT_H
-#define OSD_EVAL_CONTEXT_H
+
+#ifndef OSD_SORTED_DRAW_CONTEXT_H
+#define OSD_SORTED_DRAW_CONTEXT_H
 
 #include "../version.h"
+#include "../far/patchTables.h"
+#include "../osd/patch.h"
+
+#include <utility>
+#include <string>
+#include <map>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdEvalContext {
-public:
+struct OsdPatchDrawRange {
+    OsdPatchDrawRange(int first, int count) :
+        firstIndex(first), numIndices(count) {}
+    int firstIndex;
+    int numIndices;
+};
 
+typedef std::vector<OsdPatchDrawRange> OsdPatchDrawRangeVector;
+
+class OsdSortedDrawContext {
+public:
+    // multi-prim draw methods
+    enum Fidelity { // XXX: better name?
+        kInvisible,
+        kLow,
+        kHigh
+    };
+
+    OsdSortedDrawContext(FarPatchCountVector const &patchCounts, OsdPatchArrayVector const &patchArrays);
+
+    void SetPrimFidelity(int primIndex, Fidelity f); // XXX: better name?
+
+    OsdPatchDrawRangeVector const & GetPatchDrawRanges(OsdPatchDescriptor desc);
+
+private:
+    void _ComputePatchDrawRanges();
+
+    FarPatchCountVector _patchCounts;
+    OsdPatchArrayVector _patchArrays;
+    std::map<OsdPatchDescriptor, OsdPatchDrawRangeVector>  _patchDrawRanges;
+    std::vector<unsigned char> _primFidelity;
+    bool _patchDrawRangesDirty;
 };
 
 } // end namespace OPENSUBDIV_VERSION
@@ -72,4 +108,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* OSD_EVAL_CONTEXT_H */
+#endif /* OSD_SORTED_DRAW_CONTEXT_H */

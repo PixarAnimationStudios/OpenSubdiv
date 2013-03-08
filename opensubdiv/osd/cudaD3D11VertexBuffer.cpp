@@ -91,11 +91,11 @@ OsdCudaD3D11VertexBuffer::Create(int numElements, int numVertices,
 }
 
 void
-OsdCudaD3D11VertexBuffer::UpdateData(const float *src, int numVertices,
-                                     void *param) {
+OsdCudaD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, void *param) {
 
     map();
-    cudaMemcpy(_cudaBuffer, src, _numElements * numVertices * sizeof(float),
+    cudaMemcpy((float*)_cudaBuffer + _numElements * startVertex,
+               src, _numElements * numVertices * sizeof(float),
                cudaMemcpyHostToDevice);
 }
 

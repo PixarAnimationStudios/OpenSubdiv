@@ -82,9 +82,10 @@ OsdCpuVertexBuffer::Create(int numElements, int numVertices) {
 }
 
 void
-OsdCpuVertexBuffer::UpdateData(const float *src, int numVertices) {
+OsdCpuVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
 
-    memcpy(_cpuBuffer, src, GetNumElements() * numVertices * sizeof(float));
+    memcpy(_cpuBuffer + startVertex * _numElements,
+           src, GetNumElements() * numVertices * sizeof(float));
 }
 
 int

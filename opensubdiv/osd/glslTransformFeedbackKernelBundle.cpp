@@ -69,6 +69,7 @@
 #include "../osd/debug.h"
 #include "../osd/error.h"
 #include "../osd/glslTransformFeedbackKernelBundle.h"
+#include "../osd/table.h"
 
 #include <cassert>
 
@@ -173,9 +174,10 @@ OsdGLSLTransformFeedbackKernelBundle::Compile(int numVertexElements, int numVary
     _subComputeCatmarkVertexB = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeVertexB");
     _subComputeLoopVertexB = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "loopComputeVertexB");
 
-    _uniformVertexPass = glGetUniformLocation(_program, "vertexPass");
-    _uniformIndexStart = glGetUniformLocation(_program, "indexStart");
-    _uniformIndexOffset = glGetUniformLocation(_program, "indexOffset");
+    _uniformVertexPass   = glGetUniformLocation(_program, "vertexPass");
+    _uniformVertexOffset = glGetUniformLocation(_program, "vertexOffset");
+    _uniformTableOffset  = glGetUniformLocation(_program, "tableOffset");
+    _uniformIndexStart   = glGetUniformLocation(_program, "indexStart");
 
     _uniformTables[Table::F_IT]  = glGetUniformLocation(_program, "_F0_IT");
     _uniformTables[Table::F_ITa] = glGetUniformLocation(_program, "_F0_ITa");
@@ -184,21 +186,11 @@ OsdGLSLTransformFeedbackKernelBundle::Compile(int numVertexElements, int numVary
     _uniformTables[Table::V_ITa] = glGetUniformLocation(_program, "_V0_ITa");
     _uniformTables[Table::E_W]   = glGetUniformLocation(_program, "_E0_S");
     _uniformTables[Table::V_W]   = glGetUniformLocation(_program, "_V0_S");
-    _uniformTableOffsets[Table::F_IT]  = glGetUniformLocation(_program, "F_IT_ofs");
-    _uniformTableOffsets[Table::F_ITa] = glGetUniformLocation(_program, "F_ITa_ofs");
-    _uniformTableOffsets[Table::E_IT]  = glGetUniformLocation(_program, "E_IT_ofs");
-    _uniformTableOffsets[Table::V_IT]  = glGetUniformLocation(_program, "V_IT_ofs");
-    _uniformTableOffsets[Table::V_ITa] = glGetUniformLocation(_program, "V_ITa_ofs");
-    _uniformTableOffsets[Table::E_W]   = glGetUniformLocation(_program, "E_W_ofs");
-    _uniformTableOffsets[Table::V_W]   = glGetUniformLocation(_program, "V_W_ofs");
 
     // set unfiorm locations for edit
     _subEditAdd               = glGetSubroutineIndex(_program,
                                                      GL_VERTEX_SHADER, "editAdd");
 
-    _uniformEditNumVertices   = glGetUniformLocation(_program, "editNumVertices");
-    _uniformEditIndicesOffset = glGetUniformLocation(_program, "editIndices_ofs");
-    _uniformEditValuesOffset  = glGetUniformLocation(_program, "editValues_ofs");
     _uniformEditPrimVarOffset = glGetUniformLocation(_program, "editPrimVarOffset");
     _uniformEditPrimVarWidth  = glGetUniformLocation(_program, "editPrimVarWidth");
 
@@ -213,14 +205,15 @@ void
 OsdGLSLTransformFeedbackKernelBundle::transformGpuBufferData(
     GLuint vertexBuffer, int numVertexElements,
     GLuint varyingBuffer, int numVaryingElements,
-    GLint offset, int start, int end) const {
+    int vertexOffset, int tableOffset, int start, int end) const {
 
     int count = end - start;
     if (count <= 0) return;
 
     // set batch range
     glUniform1i(_uniformIndexStart, start);
-    glUniform1i(_uniformIndexOffset, offset);
+    glUniform1i(_uniformVertexOffset, vertexOffset);
+    glUniform1i(_uniformTableOffset, tableOffset);
     // XXX: end is not used here now
     OSD_DEBUG_CHECK_GL_ERROR("Uniform index set at offset=%d. start=%d\n",
                              offset, start);
@@ -229,13 +222,13 @@ OsdGLSLTransformFeedbackKernelBundle::transformGpuBufferData(
     if (vertexBuffer) {
         int vertexStride = numVertexElements*sizeof(float);
         glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 0, vertexBuffer,
-                          (start+offset)*vertexStride, count*vertexStride);
+                          (start + vertexOffset)*vertexStride, count*vertexStride);
     }
 
     if (varyingBuffer){
         int varyingStride = numVaryingElements*sizeof(float);
         glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 1, varyingBuffer,
-                          (start+offset)*varyingStride, count*varyingStride);
+                          (start + vertexOffset)*varyingStride, count*varyingStride);
     }
 
     OSD_DEBUG_CHECK_GL_ERROR("transformGpuBufferData glBindBufferRange\n");
@@ -262,40 +255,36 @@ void
 OsdGLSLTransformFeedbackKernelBundle::ApplyBilinearFaceVerticesKernel(
     GLuint vertexBuffer, int numVertexElements,
     GLuint varyingBuffer, int numVaryingElements,
-    int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeFace);
-    glUniform1i(_uniformTableOffsets[Table::F_IT], F_IT_ofs);
-    glUniform1i(_uniformTableOffsets[Table::F_ITa], F_ITa_ofs);
     transformGpuBufferData(vertexBuffer, numVertexElements,
                            varyingBuffer, numVaryingElements,
-                           offset, start, end);
+                           vertexOffset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyBilinearEdgeVerticesKernel(
     GLuint vertexBuffer, int numVertexElements,
     GLuint varyingBuffer, int numVaryingElements,
-    int E_IT_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeBilinearEdge);
-    glUniform1i(_uniformTableOffsets[Table::E_IT], E_IT_ofs);
     transformGpuBufferData(vertexBuffer, numVertexElements,
                            varyingBuffer, numVaryingElements,
-                           offset, start, end);
+                           vertexOffset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyBilinearVertexVerticesKernel(
     GLuint vertexBuffer, int numVertexElements,
     GLuint varyingBuffer, int numVaryingElements,
-    int V_ITa_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeVertex);
-    glUniform1i(_uniformTableOffsets[Table::V_ITa], V_ITa_ofs);
     transformGpuBufferData(vertexBuffer, numVertexElements,
                            varyingBuffer, numVaryingElements,
-                           offset, start, end);
+                           vertexOffset, tableOffset, start, end);
 }
 
 
@@ -303,120 +292,104 @@ void
 OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkFaceVerticesKernel(
     GLuint vertexBuffer, int numVertexElements,
     GLuint varyingBuffer, int numVaryingElements,
-    int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeFace);
-    glUniform1i(_uniformTableOffsets[Table::F_IT], F_IT_ofs);
-    glUniform1i(_uniformTableOffsets[Table::F_ITa], F_ITa_ofs);
     transformGpuBufferData(vertexBuffer, numVertexElements,
                            varyingBuffer, numVaryingElements,
-                           offset, start, end);
+                           vertexOffset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkEdgeVerticesKernel(
     GLuint vertexBuffer, int numVertexElements,
     GLuint varyingBuffer, int numVaryingElements,
-    int E_IT_ofs, int E_W_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeEdge);
-    glUniform1i(_uniformTableOffsets[Table::E_IT], E_IT_ofs);
-    glUniform1i(_uniformTableOffsets[Table::E_W], E_W_ofs);
     transformGpuBufferData(vertexBuffer, numVertexElements,
                            varyingBuffer, numVaryingElements,
-                           offset, start, end);
+                           vertexOffset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkVertexVerticesKernelB(
     GLuint vertexBuffer, int numVertexElements,
     GLuint varyingBuffer, int numVaryingElements,
-    int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeCatmarkVertexB);
-    glUniform1i(_uniformTableOffsets[Table::V_IT], V_IT_ofs);
-    glUniform1i(_uniformTableOffsets[Table::V_ITa], V_ITa_ofs);
-    glUniform1i(_uniformTableOffsets[Table::V_W], V_W_ofs);
     transformGpuBufferData(vertexBuffer, numVertexElements,
                            varyingBuffer, numVaryingElements,
-                           offset, start, end);
+                           vertexOffset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkVertexVerticesKernelA(
     GLuint vertexBuffer, int numVertexElements,
     GLuint varyingBuffer, int numVaryingElements,
-    int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end, bool pass) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeVertexA);
     glUniform1i(_uniformVertexPass, pass ? 1 : 0);
-    glUniform1i(_uniformTableOffsets[Table::V_ITa], V_ITa_ofs);
-    glUniform1i(_uniformTableOffsets[Table::V_W], V_W_ofs);
     transformGpuBufferData(vertexBuffer, numVertexElements,
                            varyingBuffer, numVaryingElements,
-                           offset, start, end);
+                           vertexOffset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyLoopEdgeVerticesKernel(
     GLuint vertexBuffer, int numVertexElements,
     GLuint varyingBuffer, int numVaryingElements,
-    int E_IT_ofs, int E_W_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeEdge);
-    glUniform1i(_uniformTableOffsets[Table::E_IT], E_IT_ofs);
-    glUniform1i(_uniformTableOffsets[Table::E_W], E_W_ofs);
     transformGpuBufferData(vertexBuffer, numVertexElements,
                            varyingBuffer, numVaryingElements,
-                           offset, start, end);
+                           vertexOffset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyLoopVertexVerticesKernelB(
     GLuint vertexBuffer, int numVertexElements,
     GLuint varyingBuffer, int numVaryingElements,
-    int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeLoopVertexB);
-    glUniform1i(_uniformTableOffsets[Table::V_IT], V_IT_ofs);
-    glUniform1i(_uniformTableOffsets[Table::V_ITa], V_ITa_ofs);
-    glUniform1i(_uniformTableOffsets[Table::V_W], V_W_ofs);
     transformGpuBufferData(vertexBuffer, numVertexElements,
                            varyingBuffer, numVaryingElements,
-                           offset, start, end);
+                           vertexOffset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyLoopVertexVerticesKernelA(
     GLuint vertexBuffer, int numVertexElements,
     GLuint varyingBuffer, int numVaryingElements,
-    int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end, bool pass) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeVertexA);
     glUniform1i(_uniformVertexPass, pass ? 1 : 0);
-    glUniform1i(_uniformTableOffsets[Table::V_ITa], V_ITa_ofs);
-    glUniform1i(_uniformTableOffsets[Table::V_W], V_W_ofs);
     transformGpuBufferData(vertexBuffer, numVertexElements,
                            varyingBuffer, numVaryingElements,
-                           offset, start, end);
+                           vertexOffset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyEditAdd(
     GLuint vertexBuffer, int numVertexElements,
     GLuint varyingBuffer, int numVaryingElements,
-    int numEditVertices,
-    int editIndices_ofs, int editValues_ofs,
-    int primvarOffset, int primvarWidth) {
-
+    int primvarOffset, int primvarWidth,
+    int vertexOffset, int tableOffset, int start, int end) {
+    
+    if (end - start <= 0) return;
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subEditAdd);
-    glUniform1i(_uniformEditIndicesOffset, editIndices_ofs);
-    glUniform1i(_uniformEditValuesOffset, editValues_ofs);
-    glUniform1i(_uniformEditNumVertices, numEditVertices);
     glUniform1i(_uniformEditPrimVarOffset, primvarOffset);
     glUniform1i(_uniformEditPrimVarWidth, primvarWidth);
 
-    glDrawArrays(GL_POINTS, 0, numVertexElements);
+    glUniform1i(_uniformIndexStart, start);
+    glUniform1i(_uniformVertexOffset, vertexOffset);
+    glUniform1i(_uniformTableOffset, tableOffset);
+    glDrawArrays(GL_POINTS, 0, end - start);
 }
 
 void

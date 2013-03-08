@@ -110,6 +110,18 @@ struct OsdVertexDescriptor {
     int numVaryingElements;
 };
 
+struct OsdVertexBufferDescriptor {
+    OsdVertexBufferDescriptor()
+    : vertexOffset(0), stride(0), elementOffset(0) { }
+
+    OsdVertexBufferDescriptor(int vertexOffset_, int stride_, int elementOffset_)
+    : vertexOffset(vertexOffset_), stride(stride_), elementOffset(elementOffset_) { }
+
+    int vertexOffset;
+    int stride;
+    int elementOffset;
+};
+
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 

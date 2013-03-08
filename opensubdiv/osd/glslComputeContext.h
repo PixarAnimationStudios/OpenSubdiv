@@ -75,9 +75,9 @@
 
 #include "../version.h"
 
-#include "../far/table.h"
 #include "../far/vertexEditTables.h"
-#include "../osd/computeContext.h"
+#include "../osd/vertex.h"
+#include "../osd/nonCopyable.h"
 
 #include <vector>
 
@@ -90,23 +90,19 @@ class OsdGLSLComputeKernelBundle;
 
 class OsdGLSLComputeTable : OsdNonCopyable<OsdGLSLComputeTable> {
 public:
-    OsdGLSLComputeTable(const FarTable<int> &farTable);
-    OsdGLSLComputeTable(const FarTable<unsigned int> &farTable);
-    OsdGLSLComputeTable(const FarTable<float> &farTable);
+    template<typename T>
+    explicit OsdGLSLComputeTable(const std::vector<T> &table) {
+        createBuffer(table.size() * sizeof(unsigned int), &table[0]);
+    }
 
     virtual ~OsdGLSLComputeTable();
 
     GLuint GetBuffer() const;
 
-    int GetMarker(int level) const;
-
-    int GetNumElements(int level) const;
-
 private:
-    void createBuffer(int size, const void *ptr);
+    void createBuffer(size_t size, const void *ptr);
 
     GLuint _buffer;
-    FarTableMarkers _marker;
 };
 
 // ----------------------------------------------------------------------------
@@ -139,7 +135,7 @@ private:
 
 // ----------------------------------------------------------------------------
 
-class OsdGLSLComputeContext : public OsdComputeContext {
+class OsdGLSLComputeContext {
 public:
     static OsdGLSLComputeContext * Create(FarMesh<OsdVertex> *farmesh);
 

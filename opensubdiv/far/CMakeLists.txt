@@ -61,15 +61,16 @@ set(PUBLIC_HEADER_FILES
     catmarkSubdivisionTables.h
     catmarkSubdivisionTablesFactory.h
     dispatcher.h
+    kernelBatchTable.h
     loopSubdivisionTables.h
     loopSubdivisionTablesFactory.h
     meshFactory.h
     mesh.h
+    multiMeshFactory.h
     patchTables.h
     patchTablesFactory.h
     subdivisionTables.h
     subdivisionTablesFactory.h
-    table.h
     vertexEditTables.h
     vertexEditTablesFactory.h
 )    

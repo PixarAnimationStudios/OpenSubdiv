@@ -119,11 +119,11 @@ public:
 
     virtual int GetNumVertices() const { return _farMesh->GetNumVertices(); }
 
-    virtual void UpdateVertexBuffer(float const *vertexData, int numVerts) {
-        _vertexBuffer->UpdateData(vertexData, numVerts);
+    virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
+        _vertexBuffer->UpdateData(vertexData, startVertex, numVerts);
     }
     virtual void Refine() {
-        _computeController->Refine(_computeContext, _vertexBuffer);
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer);
     }
     virtual void Synchronize() {
         _computeController->Synchronize();
@@ -191,11 +191,11 @@ public:
 
     virtual int GetNumVertices() const { return _farMesh->GetNumVertices(); }
 
-    virtual void UpdateVertexBuffer(float const *vertexData, int numVerts) {
-        _vertexBuffer->UpdateData(vertexData, numVerts, _clQueue);
+    virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
+        _vertexBuffer->UpdateData(vertexData, startVertex, numVerts, _clQueue);
     }
     virtual void Refine() {
-        _computeController->Refine(_computeContext, _vertexBuffer);
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer);
     }
     virtual void Synchronize() {
         _computeController->Synchronize();

@@ -97,13 +97,13 @@ __global void addVaryingWithWeight(struct Varying *dst, __global struct Varying 
 }
 
 __kernel void computeBilinearEdge(__global struct Vertex *vertex,
-                                   __global struct Varying *varying,
-                                   __global int *E_IT,
-                                   int ofs_E_IT,
-                                   int offset, int start, int end) {
-    E_IT += ofs_E_IT;
+                                  __global struct Varying *varying,
+                                  __global int *E_IT,
+                                  int vertexOffset, int tableOffset,
+                                  int start, int end) {
 
-    int i = start + get_global_id(0);
+    int i = start + get_global_id(0) + tableOffset;
+    int vid = start + get_global_id(0) + vertexOffset;
     int eidx0 = E_IT[2*i+0];
     int eidx1 = E_IT[2*i+1];
 
@@ -115,24 +115,23 @@ __kernel void computeBilinearEdge(__global struct Vertex *vertex,
     addWithWeight(&dst, &vertex[eidx0], 0.5f);
     addWithWeight(&dst, &vertex[eidx1], 0.5f);
 
-    vertex[i+offset] = dst;
+    vertex[vid] = dst;
 
     if (varying) {
         addVaryingWithWeight(&dstVarying, &varying[eidx0], 0.5f);
         addVaryingWithWeight(&dstVarying, &varying[eidx1], 0.5f);
-        varying[i+offset] = dstVarying;
+        varying[vid] = dstVarying;
     }
 }
 
 __kernel void computeBilinearVertex(__global struct Vertex *vertex,
-                                     __global struct Varying *varying,
-                                     __global int *V_ITa,
-                                     int ofs_V_ITa,
-                                     int offset, int start, int end) {
+                                    __global struct Varying *varying,
+                                    __global int *V_ITa,
+                                    int vertexOffset, int tableOffset,
+                                    int start, int end) {
 
-    V_ITa += ofs_V_ITa;
-
-    int i = start + get_global_id(0);
+    int i = start + get_global_id(0) + tableOffset;
+    int vid = start + get_global_id(0) + vertexOffset;
 
     int p = V_ITa[i];
 
@@ -140,13 +139,13 @@ __kernel void computeBilinearVertex(__global struct Vertex *vertex,
     clearVertex(&dst);
     addWithWeight(&dst, &vertex[p], 1.0f);
 
-    vertex[i+offset] = dst;
+    vertex[vid] = dst;
 
     if (varying) {
         struct Varying dstVarying;
         clearVarying(&dstVarying);
         addVaryingWithWeight(&dstVarying, &varying[p], 1.0f);
-        varying[i+offset] = dstVarying;
+        varying[vid] = dstVarying;
     }
 }
 
@@ -156,13 +155,11 @@ __kernel void computeFace(__global struct Vertex *vertex,
                           __global struct Varying *varying,
                           __global int *F_IT,
                           __global int *F_ITa,
-                          int ofs_F_IT, int ofs_F_ITa,
-                          int offset, int start, int end) {
+                          int vertexOffset, int tableOffset,
+                          int start, int end) {
 
-    F_IT += ofs_F_IT;
-    F_ITa += ofs_F_ITa;
-
-    int i = start + get_global_id(0);
+    int i = start + get_global_id(0) + tableOffset;
+    int vid = start + get_global_id(0) + vertexOffset;
     int h = F_ITa[2*i];
     int n = F_ITa[2*i+1];
 
@@ -177,21 +174,19 @@ __kernel void computeFace(__global struct Vertex *vertex,
         addWithWeight(&dst, &vertex[index], weight);
         if(varying) addVaryingWithWeight(&dstVarying, &varying[index], weight);
     }
-    vertex[i+offset] = dst;
-    if(varying) varying[i+offset] = dstVarying;
+    vertex[vid] = dst;
+    if (varying) varying[vid] = dstVarying;
 }
 
 __kernel void computeEdge(__global struct Vertex *vertex,
                           __global struct Varying *varying,
                           __global int *E_IT,
                           __global float *E_W,
-                          int ofs_E_IT, int ofs_E_W,
-                          int offset, int start, int end) {
+                          int vertexOffset, int tableOffset,
+                          int start, int end) {
 
-    E_IT += ofs_E_IT;
-    E_W += ofs_E_W;
-
-    int i = start + get_global_id(0);
+    int i = start + get_global_id(0) + tableOffset;
+    int vid = start + get_global_id(0) + vertexOffset;
     int eidx0 = E_IT[4*i+0];
     int eidx1 = E_IT[4*i+1];
     int eidx2 = E_IT[4*i+2];
@@ -215,12 +210,12 @@ __kernel void computeEdge(__global struct Vertex *vertex,
         addWithWeight(&dst, &vertex[eidx3], faceWeight);
     }
 
-    vertex[i+offset] = dst;
+    vertex[vid] = dst;
 
     if (varying) {
         addVaryingWithWeight(&dstVarying, &varying[eidx0], 0.5f);
         addVaryingWithWeight(&dstVarying, &varying[eidx1], 0.5f);
-        varying[i+offset] = dstVarying;
+        varying[vid] = dstVarying;
     }
 }
 
@@ -228,12 +223,11 @@ __kernel void computeVertexA(__global struct Vertex *vertex,
                              __global struct Varying *varying,
                              __global int *V_ITa,
                              __global float *V_W,
-                             int ofs_V_ITa, int ofs_V_W,
-                             int offset, int start, int end, int pass) {
-    V_ITa += ofs_V_ITa;
-    V_W += ofs_V_W;
+                             int vertexOffset, int tableOffset,
+                             int start, int end, int pass) {
 
-    int i = start + get_global_id(0);
+    int i = start + get_global_id(0) + tableOffset;
+    int vid = start + get_global_id(0) + vertexOffset;
     int n     = V_ITa[5*i+1];
     int p     = V_ITa[5*i+2];
     int eidx0 = V_ITa[5*i+3];
@@ -251,7 +245,7 @@ __kernel void computeVertexA(__global struct Vertex *vertex,
     if (! pass)
         clearVertex(&dst);
     else
-        dst = vertex[i+offset];
+        dst = vertex[vid];
 
     if (eidx0==-1 || (pass==0 && (n==-1)) ) {
         addWithWeight(&dst, &vertex[p], weight);
@@ -260,13 +254,13 @@ __kernel void computeVertexA(__global struct Vertex *vertex,
         addWithWeight(&dst, &vertex[eidx0], weight * 0.125f);
         addWithWeight(&dst, &vertex[eidx1], weight * 0.125f);
     }
-    vertex[i+offset] = dst;
+    vertex[vid] = dst;
 
     if (! pass && varying) {
         struct Varying dstVarying;
         clearVarying(&dstVarying);
         addVaryingWithWeight(&dstVarying, &varying[p], 1.0f);
-        varying[i+offset] = dstVarying;
+        varying[vid] = dstVarying;
     }
 }
 
@@ -275,13 +269,11 @@ __kernel void computeVertexB(__global struct Vertex *vertex,
                              __global int *V_ITa,
                              __global int *V_IT,
                              __global float *V_W,
-                             int ofs_V_ITa, int ofs_V_IT, int ofs_V_W,
-                             int offset, int start, int end) {
-    V_ITa += ofs_V_ITa;
-    V_IT += ofs_V_IT;
-    V_W += ofs_V_W;
+                             int vertexOffset, int tableOffset,
+                             int start, int end) {
 
-    int i = start + get_global_id(0);
+    int i = start + get_global_id(0) + tableOffset;
+    int vid = start + get_global_id(0) + vertexOffset;
     int h = V_ITa[5*i];
     int n = V_ITa[5*i+1];
     int p = V_ITa[5*i+2];
@@ -299,13 +291,13 @@ __kernel void computeVertexB(__global struct Vertex *vertex,
         addWithWeight(&dst, &vertex[V_IT[h+j*2]], weight * wp);
         addWithWeight(&dst, &vertex[V_IT[h+j*2+1]], weight * wp);
     }
-    vertex[i+offset] = dst;
+    vertex[vid] = dst;
 
     if (varying) {
         struct Varying dstVarying;
         clearVarying(&dstVarying);
         addVaryingWithWeight(&dstVarying, &varying[p], 1.0f);
-        varying[i+offset] = dstVarying;
+        varying[vid] = dstVarying;
     }
 }
 
@@ -314,14 +306,11 @@ __kernel void computeLoopVertexB(__global struct Vertex *vertex,
                                  __global int *V_ITa,
                                  __global int *V_IT,
                                  __global float *V_W,
-                                 int ofs_V_ITa, int ofs_V_IT, int ofs_V_W,
-                                 int offset, int start, int end) {
+                                 int vertexOffset, int tableOffset,
+                                 int start, int end) {
 
-    V_ITa += ofs_V_ITa;
-    V_IT += ofs_V_IT;
-    V_W += ofs_V_W;
-
-    int i = start + get_global_id(0);
+    int i = start + get_global_id(0) + tableOffset;
+    int vid = start + get_global_id(0) + vertexOffset;
     int h = V_ITa[5*i];
     int n = V_ITa[5*i+1];
     int p = V_ITa[5*i+2];
@@ -339,33 +328,31 @@ __kernel void computeLoopVertexB(__global struct Vertex *vertex,
     for (int j = 0; j < n; ++j) {
         addWithWeight(&dst, &vertex[V_IT[h+j]], weight * beta);
     }
-    vertex[i+offset] = dst;
+    vertex[vid] = dst;
 
     if (varying) {
         struct Varying dstVarying;
         clearVarying(&dstVarying);
         addVaryingWithWeight(&dstVarying, &varying[p], 1.0f);
-        varying[i+offset] = dstVarying;
+        varying[vid] = dstVarying;
     }
 }
 
 __kernel void editVertexAdd(__global struct Vertex *vertex,
                             __global int *editIndices,
                             __global float *editValues,
-                            int ofs_editIndices,
-                            int ofs_editValues,
                             int primVarOffset,
-                            int primVarWidth) {
+                            int primVarWidth,
+                            int vertexOffset, int tableOffset,
+                            int start, int end) {
 
-    editIndices += ofs_editIndices;
-    editValues += ofs_editValues;
-
-    int i = get_global_id(0);
+    int i = start + get_global_id(0) + tableOffset;
     int v = editIndices[i];
+    int eid = start + get_global_id(0);
     struct Vertex dst = vertex[v];
 
     for (int j = 0; j < primVarWidth; ++j) {
-        dst.v[j+primVarOffset] += editValues[j];
+        dst.v[j+primVarOffset] += editValues[eid*primVarWidth + j];
     }
     vertex[v] = dst;
 }

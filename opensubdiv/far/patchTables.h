@@ -59,9 +59,51 @@
 #define FAR_PTACH_TABLES_H
 
 #include "../version.h"
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
+
+struct FarPatchCount {
+    int nonPatch;                 // reserved for uniform and loop
+    int regular;
+    int boundary;
+    int corner;
+    int gregory;
+    int boundaryGregory;
+    int transitionRegular[5];
+    int transitionBoundary[5][4];
+    int transitionCorner[5][4];
+
+    FarPatchCount() {
+        nonPatch = regular = boundary = corner = gregory = boundaryGregory = 0;
+        for (int i = 0; i < 5; ++i) {
+            transitionRegular[i] = 0;
+            for (int j = 0; j < 4; ++j) {
+                transitionBoundary[i][j] = 0;
+                transitionCorner[i][j] = 0;
+            }
+        }
+    }
+
+    void Append(FarPatchCount const &p) {
+        nonPatch += p.nonPatch;
+        regular += p.regular;
+        boundary += p.boundary;
+        corner += p.corner;
+        gregory += p.gregory;
+        boundaryGregory += p.boundaryGregory;
+        for (int i = 0; i < 5; ++i) {
+            transitionRegular[i] += p.transitionRegular[i];
+            for (int j = 0; j < 4; ++j) {
+                transitionBoundary[i][j] += p.transitionBoundary[i][j];
+                transitionCorner[i][j] += p.transitionCorner[i][j];
+            }
+        }
+    }
+};
+
+typedef std::vector<FarPatchCount> FarPatchCountVector;
 
 /// \brief Container for patch vertex indices tables
 ///
@@ -71,8 +113,8 @@ namespace OPENSUBDIV_VERSION {
 class FarPatchTables {
 
 public:
-    typedef FarTable<unsigned int> PTable;
-
+    typedef std::pair<std::vector<unsigned int>,
+                      std::vector<unsigned char> > PTable; // index table - level table pair
     typedef std::vector<int> VertexValenceTable;
 
     typedef std::vector<unsigned int> QuadOffsetTable;
@@ -163,15 +205,16 @@ public:
     /// Returns max vertex valence
     int GetMaxValence() const { return _maxValence; }
 
+    /// Returns PatchCounts
+    FarPatchCountVector const & GetPatchCounts() const { return _patchCounts; }
+
 private:
 
     template <class T> friend class FarPatchTablesFactory;
+    template <class T, class U> friend class FarMultiMeshFactory;
 
     // Private constructor
-    FarPatchTables( int maxlevel, int maxvalence ) : _full(maxlevel+1), _maxValence(maxvalence) {
-        for (unsigned char i=0; i<5; ++i)
-            _transition[i].SetMaxLevel(maxlevel+1);
-    }
+    FarPatchTables( int maxvalence ) : _maxValence(maxvalence) { }
 
     // FarTables for full / end patches
     struct Patches {
@@ -192,13 +235,6 @@ private:
                             _C_FVD,
                             _G_FVD,
                             _G_B_FVD;
-        
-        Patches(int maxlevel) : _R_IT(maxlevel), 
-                                _B_IT(maxlevel),
-                                _C_IT(maxlevel),
-                                _G_IT(maxlevel),
-                                _G_B_IT(maxlevel)
-        { }
     };
     
     // FarTables for transition patches
@@ -214,14 +250,6 @@ private:
         FVarDataTable       _R_FVD,
                             _B_FVD[4],
                             _C_FVD[4];
-               
-        void SetMaxLevel(int maxlevel) {
-            _R_IT.SetMaxLevel(maxlevel);
-            for (unsigned char i=0; i<4; ++i) {
-                _B_IT[i].SetMaxLevel(maxlevel);
-                _C_IT[i].SetMaxLevel(maxlevel);                
-            }
-        }       
     };
 
     Patches _full;
@@ -233,6 +261,8 @@ private:
     QuadOffsetTable _quadOffsetTable;
 
     int _maxValence;
+
+    FarPatchCountVector _patchCounts;
 };
 
 } // end namespace OPENSUBDIV_VERSION

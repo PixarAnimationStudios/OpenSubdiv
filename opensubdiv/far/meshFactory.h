@@ -768,11 +768,11 @@ FarMeshFactory<T,U>::Create( bool requirePtexCoordinate,       // XXX yuck.
     FarMesh<U> * result = new FarMesh<U>();
     
     if ( isBilinear( GetHbrMesh() ) ) {
-        result->_subdivisionTables = FarBilinearSubdivisionTablesFactory<T,U>::Create(this, result);
+        result->_subdivisionTables = FarBilinearSubdivisionTablesFactory<T,U>::Create(this, result, &result->_batches);
     } else if ( isCatmark( GetHbrMesh() ) ) {
-        result->_subdivisionTables = FarCatmarkSubdivisionTablesFactory<T,U>::Create(this, result);
+        result->_subdivisionTables = FarCatmarkSubdivisionTablesFactory<T,U>::Create(this, result, &result->_batches);
     } else if ( isLoop(GetHbrMesh()) ) {
-        result->_subdivisionTables = FarLoopSubdivisionTablesFactory<T,U>::Create(this, result);
+        result->_subdivisionTables = FarLoopSubdivisionTablesFactory<T,U>::Create(this, result, &result->_batches);
     } else
         assert(0);
     assert(result->_subdivisionTables);
@@ -828,7 +828,7 @@ FarMeshFactory<T,U>::Create( bool requirePtexCoordinate,       // XXX yuck.
     
     // Create VertexEditTables if necessary
     if (GetHbrMesh()->HasVertexEdits()) {
-        result->_vertexEditTables = FarVertexEditTablesFactory<T,U>::Create( this, result, GetMaxLevel() );
+        result->_vertexEditTables = FarVertexEditTablesFactory<T,U>::Create( this, result, &result->_batches, GetMaxLevel() );
         assert(result->_vertexEditTables);
     }
     

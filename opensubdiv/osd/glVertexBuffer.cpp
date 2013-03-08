@@ -99,15 +99,12 @@ OsdGLVertexBuffer::Create(int numElements, int numVertices) {
 }
 
 void
-OsdGLVertexBuffer::UpdateData(const float *src, int numVertices) {
-
-    GLint prev = 0;
-    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
+OsdGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
 
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
     int size = numVertices * _numElements * sizeof(float);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size, src);
-    glBindBuffer(GL_ARRAY_BUFFER, prev);
+    glBufferSubData(GL_ARRAY_BUFFER, startVertex * _numElements, size, src);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 int

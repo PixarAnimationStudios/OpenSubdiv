@@ -83,11 +83,12 @@ OsdCudaVertexBuffer::Create(int numElements, int numVertices) {
 }
 
 void
-OsdCudaVertexBuffer::UpdateData(const float *src, int numVertices) {
+OsdCudaVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
 
     size_t size = _numElements * numVertices * sizeof(float);
 
-    cudaMemcpy(_cudaMem, src, size, cudaMemcpyHostToDevice);
+    cudaMemcpy((float*)_cudaMem + _numElements * startVertex,
+               src, size, cudaMemcpyHostToDevice);
 }
 
 int

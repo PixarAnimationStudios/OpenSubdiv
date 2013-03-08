@@ -213,24 +213,15 @@ OsdD3D11ComputeKernelBundle::Compile(int numVertexElements,
 // must match constant buffer declaration in hlslComputeKernel.hlsl
 __declspec(align(16))
 struct OsdD3D11ComputeKernelBundle::KernelCB {
-    int indexOffset;    // index offset for the level
-    int indexStart;     // start index for given batch
-    int indexEnd;       // end index for given batch
-
+    int vertexOffset;   // vertex index offset for the batch
+    int tableOffset;    // offset of subdivision table
+    int indexStart;     // start index relative to tableOffset
+    int indexEnd;       // end index relative to tableOffset
     BOOL vertexPass;    // 4-byte bool
-    int F_IT_ofs;
-    int F_ITa_ofs;
-    int E_IT_ofs;
-    int V_IT_ofs;
-    int V_ITa_ofs;
-    int E_W_ofs;
-    int V_W_ofs;
 
-    int editIndices_ofs;
-    int editValues_ofs;
+// vertex edit kernel
     int editPrimVarOffset;
     int editPrimVarWidth;
-    int editNumVertices;
 };
 
 void
@@ -268,163 +259,150 @@ OsdD3D11ComputeKernelBundle::dispatchCompute(
 
 void
 OsdD3D11ComputeKernelBundle::ApplyBilinearFaceVerticesKernel(
-    int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     KernelCB args;
     ZeroMemory(&args, sizeof(args));
-    args.indexOffset = offset;
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
     args.indexStart = start;
     args.indexEnd = end;
-    args.F_IT_ofs = F_IT_ofs;
-    args.F_ITa_ofs = F_ITa_ofs;
     dispatchCompute(_kernelComputeFace, args);
 }
 
 void
 OsdD3D11ComputeKernelBundle::ApplyBilinearEdgeVerticesKernel(
-    int E_IT_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     KernelCB args;
     ZeroMemory(&args, sizeof(args));
-    args.indexOffset = offset;
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
     args.indexStart = start;
     args.indexEnd = end;
-    args.E_IT_ofs = E_IT_ofs;
     dispatchCompute(_kernelComputeBilinearEdge, args);
 }
 
 void
 OsdD3D11ComputeKernelBundle::ApplyBilinearVertexVerticesKernel(
-    int V_ITa_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     KernelCB args;
     ZeroMemory(&args, sizeof(args));
-    args.indexOffset = offset;
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
     args.indexStart = start;
     args.indexEnd = end;
-    args.V_ITa_ofs = V_ITa_ofs;
     dispatchCompute(_kernelComputeVertex, args);
 }
 
 
 void
 OsdD3D11ComputeKernelBundle::ApplyCatmarkFaceVerticesKernel(
-    int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     KernelCB args;
     ZeroMemory(&args, sizeof(args));
-    args.indexOffset = offset;
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
     args.indexStart = start;
     args.indexEnd = end;
-    args.F_IT_ofs = F_IT_ofs;
-    args.F_ITa_ofs = F_ITa_ofs;
     dispatchCompute(_kernelComputeFace, args);
 }
 
 void
 OsdD3D11ComputeKernelBundle::ApplyCatmarkEdgeVerticesKernel(
-    int E_IT_ofs, int E_W_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     KernelCB args;
     ZeroMemory(&args, sizeof(args));
-    args.indexOffset = offset;
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
     args.indexStart = start;
     args.indexEnd = end;
-    args.E_IT_ofs = E_IT_ofs;
-    args.E_W_ofs = E_W_ofs;
     dispatchCompute(_kernelComputeEdge, args);
 }
 
 void
 OsdD3D11ComputeKernelBundle::ApplyCatmarkVertexVerticesKernelB(
-    int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     KernelCB args;
     ZeroMemory(&args, sizeof(args));
-    args.indexOffset = offset;
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
     args.indexStart = start;
     args.indexEnd = end;
-    args.V_IT_ofs = V_IT_ofs;
-    args.V_ITa_ofs = V_ITa_ofs;
-    args.V_W_ofs = V_W_ofs;
     dispatchCompute(_kernelComputeCatmarkVertexB, args);
 }
 
 void
 OsdD3D11ComputeKernelBundle::ApplyCatmarkVertexVerticesKernelA(
-    int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end, bool pass) {
 
     KernelCB args;
     ZeroMemory(&args, sizeof(args));
-    args.indexOffset = offset;
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
     args.indexStart = start;
     args.indexEnd = end;
     args.vertexPass = pass ? 1 : 0;
-    args.V_ITa_ofs = V_ITa_ofs;
-    args.V_W_ofs = V_W_ofs;
     dispatchCompute(_kernelComputeVertexA, args);
 }
 
 void
 OsdD3D11ComputeKernelBundle::ApplyLoopEdgeVerticesKernel(
-    int E_IT_ofs, int E_W_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     KernelCB args;
     ZeroMemory(&args, sizeof(args));
-    args.indexOffset = offset;
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
     args.indexStart = start;
     args.indexEnd = end;
-    args.E_IT_ofs = E_IT_ofs;
-    args.E_W_ofs = E_W_ofs;
     dispatchCompute(_kernelComputeEdge, args);
 }
 
 void
 OsdD3D11ComputeKernelBundle::ApplyLoopVertexVerticesKernelB(
-    int V_IT_ofs, int V_ITa_ofs, int V_W_ofs, int offset, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end) {
 
     KernelCB args;
     ZeroMemory(&args, sizeof(args));
-    args.indexOffset = offset;
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
     args.indexStart = start;
     args.indexEnd = end;
-    args.V_IT_ofs = V_IT_ofs;
-    args.V_ITa_ofs = V_ITa_ofs;
-    args.V_W_ofs = V_W_ofs;
     dispatchCompute(_kernelComputeLoopVertexB, args);
 }
 
 void
 OsdD3D11ComputeKernelBundle::ApplyLoopVertexVerticesKernelA(
-    int V_ITa_ofs, int V_W_ofs, int offset, bool pass, int start, int end) {
+    int vertexOffset, int tableOffset, int start, int end, bool pass) {
 
     KernelCB args;
     ZeroMemory(&args, sizeof(args));
-    args.indexOffset = offset;
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
     args.indexStart = start;
     args.indexEnd = end;
     args.vertexPass = pass ? 1 : 0;
-    args.V_ITa_ofs = V_ITa_ofs;
-    args.V_W_ofs = V_W_ofs;
     dispatchCompute(_kernelComputeVertexA, args);
 }
 
 void
 OsdD3D11ComputeKernelBundle::ApplyEditAdd(
-    int numEditVertices,
-    int editIndices_ofs, int editValues_ofs,
-    int primvarOffset, int primvarWidth) {
+    int primvarOffset, int primvarWidth,
+    int vertexOffset, int tableOffset, int start, int end) {
 
     KernelCB args;
     ZeroMemory(&args, sizeof(args));
-    args.indexOffset = 0;
-    args.indexStart = 0;
-    args.indexEnd = numEditVertices;
-    args.editIndices_ofs = editIndices_ofs;
-    args.editValues_ofs = editValues_ofs;
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
+    args.indexStart = start;
+    args.indexEnd = end;
     args.editPrimVarOffset = primvarOffset;
     args.editPrimVarWidth = primvarWidth;
-    args.editNumVertices = numEditVertices;
     dispatchCompute(_kernelEditAdd, args);
 }
 

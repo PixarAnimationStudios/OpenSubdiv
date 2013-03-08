@@ -71,35 +71,17 @@
     #include <GL/glew.h>
 #endif
 
+#include "../far/mesh.h"
 #include "../osd/debug.h"
 #include "../osd/error.h"
 #include "../osd/glslComputeContext.h"
-#include "../osd/glslDispatcher.h"
 #include "../osd/glslKernelBundle.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdGLSLComputeTable::OsdGLSLComputeTable(const FarTable<int> &farTable)
-    : _buffer(0), _marker(farTable.GetMarkers()) {
-
-    createBuffer(farTable.GetMemoryUsed(), farTable[0]);
-}
-
-OsdGLSLComputeTable::OsdGLSLComputeTable(const FarTable<unsigned int> &farTable)
-    : _buffer(0), _marker(farTable.GetMarkers()) {
-
-    createBuffer(farTable.GetMemoryUsed(), farTable[0]);
-}
-
-OsdGLSLComputeTable::OsdGLSLComputeTable(const FarTable<float> &farTable)
-    : _buffer(0), _marker(farTable.GetMarkers()) {
-
-    createBuffer(farTable.GetMemoryUsed(), farTable[0]);
-}
-
 void
-OsdGLSLComputeTable::createBuffer(int size, const void *ptr) {
+OsdGLSLComputeTable::createBuffer(size_t size, const void *ptr) {
 
     GLint prev = 0;
     glGenBuffers(1, &_buffer);
@@ -122,18 +104,6 @@ GLuint
 OsdGLSLComputeTable::GetBuffer() const {
 
     return _buffer;
-}
-
-int
-OsdGLSLComputeTable::GetMarker(int level) const {
-
-    return _marker[level];
-}
-
-int
-OsdGLSLComputeTable::GetNumElements(int level) const {
-
-    return _marker[level+1] - _marker[level];
 }
 
 // ----------------------------------------------------------------------------
@@ -188,8 +158,7 @@ OsdGLSLComputeHEditTable::GetPrimvarWidth() const {
 
 OsdGLSLComputeContext::OsdGLSLComputeContext(
     FarMesh<OsdVertex> *farMesh)
-    : OsdComputeContext(farMesh),
-      _vertexTexture(0), _varyingTexture(0) {
+    : _vertexTexture(0), _varyingTexture(0) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
         farMesh->GetSubdivisionTables();
@@ -206,19 +175,12 @@ OsdGLSLComputeContext::OsdGLSLComputeContext(
     _tables[Table::E_W]   = new OsdGLSLComputeTable(farTables->Get_E_W());
     _tables[Table::V_W]   = new OsdGLSLComputeTable(farTables->Get_V_W());
 
-    if (const FarCatmarkSubdivisionTables<OsdVertex> * ccTables =
-         dynamic_cast<const FarCatmarkSubdivisionTables<OsdVertex>*>(farTables)) {
-
-        // catmark
-        _tables[Table::F_IT]  = new OsdGLSLComputeTable(ccTables->Get_F_IT());
-        _tables[Table::F_ITa] = new OsdGLSLComputeTable(ccTables->Get_F_ITa());
-    } else if (const FarBilinearSubdivisionTables<OsdVertex> * bTables =
-                dynamic_cast<const FarBilinearSubdivisionTables<OsdVertex>*>(farTables)) {
-
-        // bilinear
-        _tables[Table::F_IT]  = new OsdGLSLComputeTable(bTables->Get_F_IT());
-        _tables[Table::F_ITa] = new OsdGLSLComputeTable(bTables->Get_F_ITa());
+    if (farTables->GetNumTables() > 5) {
+        // catmark, bilinear
+        _tables[Table::F_IT]  = new OsdGLSLComputeTable(farTables->Get_F_IT());
+        _tables[Table::F_ITa] = new OsdGLSLComputeTable(farTables->Get_F_ITa());
     } else {
+        // loop
         _tables[Table::F_IT] = NULL;
         _tables[Table::F_ITa] = NULL;
     }

@@ -96,13 +96,13 @@ OsdCLGLVertexBuffer::Create(int numElements, int numVertices, cl_context clConte
 }
 
 void
-OsdCLGLVertexBuffer::UpdateData(const float *src, int numVertices,
-                                cl_command_queue queue) {
+OsdCLGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue queue) {
 
     size_t size = numVertices * _numElements * sizeof(float);
+    size_t offset = startVertex * _numElements * sizeof(float);
 
     map(queue);
-    clEnqueueWriteBuffer(queue, _clMemory, true, 0, size, src, 0, NULL, NULL);
+    clEnqueueWriteBuffer(queue, _clMemory, true, offset, size, src, 0, NULL, NULL);
 }
 
 int

@@ -87,20 +87,17 @@
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
 
-#include <osd/cpuDispatcher.h>
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
 #include <osd/cpuComputeController.h>
 OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-    #include <osd/ompDispatcher.h>
     #include <osd/ompComputeController.h>
     OpenSubdiv::OsdOmpComputeController * g_ompComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    #include <osd/clDispatcher.h>
     #include <osd/clGLVertexBuffer.h>
     #include <osd/clComputeContext.h>
     #include <osd/clComputeController.h>
@@ -113,7 +110,6 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-    #include <osd/cudaDispatcher.h>
     #include <osd/cudaGLVertexBuffer.h>
     #include <osd/cudaComputeContext.h>
     #include <osd/cudaComputeController.h>
@@ -128,7 +124,6 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    #include <osd/glslTransformFeedbackDispatcher.h>
     #include <osd/glslTransformFeedbackComputeContext.h>
     #include <osd/glslTransformFeedbackComputeController.h>
     #include <osd/glVertexBuffer.h>
@@ -136,7 +131,6 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    #include <osd/glslDispatcher.h>
     #include <osd/glslComputeContext.h>
     #include <osd/glslComputeController.h>
     #include <osd/glVertexBuffer.h>
@@ -380,7 +374,7 @@ updateGeom() {
             }
         }
 
-        g_mesh->UpdateVertexBuffer(&vertex[0], nverts);
+        g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
     }
 
     Stopwatch s;
@@ -1024,13 +1018,9 @@ bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
     // Update and bind tessellation state
     struct Tessellation {
         float TessLevel;
-        int GregoryQuadOffsetBase;
-        int LevelBase;
     } tessellationData;
 
     tessellationData.TessLevel = static_cast<float>(1 << g_tessLevel);
-    tessellationData.GregoryQuadOffsetBase = patch.gregoryQuadOffsetBase;
-    tessellationData.LevelBase = patch.levelBase;
 
     if (! g_tessellationUB) {
         glGenBuffers(1, &g_tessellationUB);
@@ -1295,6 +1285,13 @@ drawModel() {
         if (g_wire == 0) {
             glDisable(GL_CULL_FACE);
         }
+
+        GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
+        GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
+
+        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.gregoryQuadOffsetBase);
+        glProgramUniform1i(program, uniformLevelBase, patch.levelBase);
+
         glDrawElements(primType,
                        patch.numIndices, GL_UNSIGNED_INT,
                        (void *)(patch.firstIndex * sizeof(unsigned int)));
