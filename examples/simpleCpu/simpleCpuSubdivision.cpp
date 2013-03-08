@@ -469,7 +469,7 @@ updateGeom()
     // Send the animated coarse positions and normals to the vertex buffer.
     //
     std::cout << vertex.size() << " - " << nverts << std::endl;
-    g_vertexBuffer->UpdateData(&vertex[0], nverts);
+    g_vertexBuffer->UpdateData(&vertex[0], 0, nverts);
 
     //
     // Dispatch subdivision work based on the coarse vertex buffer. At this 
