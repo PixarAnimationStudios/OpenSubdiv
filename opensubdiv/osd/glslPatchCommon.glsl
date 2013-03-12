@@ -120,6 +120,9 @@ layout(std140) uniform Transform {
     mat4 ProjectionMatrix;
     mat4 ModelViewProjectionMatrix;
     mat4 ModelViewInverseMatrix;
+#ifdef OSD_USER_TRANSFORM_UNIFORMS
+    OSD_USER_TRANSFORM_UNIFORMS
+#endif
 };
 
 layout(std140) uniform Tessellation {

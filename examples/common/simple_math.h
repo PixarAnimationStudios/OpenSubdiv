@@ -277,4 +277,22 @@ apply(float *v, const float *m)
     v[3] = r[3];
 }
 
+inline void
+pickMatrix(float *m, float x, float y, float width, float height, const int *viewport)
+{
+    float sx, sy;
+    float tx, ty;
+
+    sx = viewport[2] / width;
+    sy = viewport[3] / height;
+    tx = (viewport[2] + 2.0f * (viewport[0] - x)) / width;
+    ty = (viewport[3] + 2.0f * (viewport[1] - y)) / height;
+
+    identity(m);
+    m[0] = sx;
+    m[5] = sy;
+    m[12] = tx;
+    m[13] = ty;
+}
+
 #endif // SIMPLE_MATH_H
