@@ -61,6 +61,7 @@ set(SHADER_FILES
      shader.glsl
      shader_gl3.glsl
      skyshader.glsl
+     imageshader.glsl
 )
 
 set(PLATFORM_LIBRARIES

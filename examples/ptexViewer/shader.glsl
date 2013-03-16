@@ -61,6 +61,8 @@
 //--------------------------------------------------------------
 uniform isamplerBuffer g_ptexIndicesBuffer;
 uniform int nonAdaptiveLevel;
+uniform float displacementScale = 1.0;
+uniform float bumpScale = 1.0;
 
 vec4 GeneratePatchCoord(vec2 localUV)  // for non-adpative
 {
@@ -110,7 +112,7 @@ vec4 displacement(vec4 position, vec3 normal, vec4 patchCoord)
                             textureDisplace_Data,
                             textureDisplace_Packing,
                             textureDisplace_Pages).x;
-    return position + vec4(disp * normal, 0);
+    return position + vec4(disp * normal, 0) * displacementScale;
 }
 #endif
 
@@ -419,9 +421,9 @@ perturbNormalFromDisplacement(vec3 position, vec3 normal, vec4 patchCoord)
     vec4 STll = patchCoord;
     vec4 STlr = patchCoord + d * vec4(texDx.x, texDx.y, 0, 0);
     vec4 STul = patchCoord + d * vec4(texDy.x, texDy.y, 0, 0);
-    float Hll = PTexLookup(STll, textureDisplace_Data, textureDisplace_Packing, textureDisplace_Pages).x;
-    float Hlr = PTexLookup(STlr, textureDisplace_Data, textureDisplace_Packing, textureDisplace_Pages).x;
-    float Hul = PTexLookup(STul, textureDisplace_Data, textureDisplace_Packing, textureDisplace_Pages).x;
+    float Hll = PTexLookup(STll, textureDisplace_Data, textureDisplace_Packing, textureDisplace_Pages).x * bumpScale;
+    float Hlr = PTexLookup(STlr, textureDisplace_Data, textureDisplace_Packing, textureDisplace_Pages).x * bumpScale;
+    float Hul = PTexLookup(STul, textureDisplace_Data, textureDisplace_Packing, textureDisplace_Pages).x * bumpScale;
     float dBs = (Hlr - Hll)/d;
     float dBt = (Hul - Hll)/d;
 #endif
@@ -444,7 +446,7 @@ vec4 getEnvironmentHDR(sampler2D sampler, vec3 dir)
 }
 
 vec4
-lighting(vec3 Peye, vec3 Neye)
+lighting(vec4 texColor, vec3 Peye, vec3 Neye)
 {
     vec4 color = vec4(0);
 
@@ -469,11 +471,11 @@ lighting(vec3 Peye, vec3 Neye)
         vec3 h = normalize(l + vec3(0,0,1));    // directional viewer
 
         float d = max(0.0, dot(n, l));
-        float s = 0.0; //pow(max(0.0, dot(n, h)), 16.0f);
+        float s = pow(max(0.0, dot(n, h)), 64.0f);
 
         color += (1.0-occ) * ((lightSource[i].ambient +
-                               d * lightSource[i].diffuse +
-                               s * lightSource[i].specular));
+                               d * lightSource[i].diffuse) * texColor + 
+                              s * lightSource[i].specular);
     }
 
     color.a = 1;
@@ -529,7 +531,7 @@ main()
 
     if (overrideColorEnable) {
         texColor = overrideColor;
-        vec4 Cf = texColor * lighting(input.v.position.xyz, normal);
+        vec4 Cf = lighting(texColor, input.v.position.xyz, normal);
         outColor = edgeColor(Cf, input.v.edgeDistance);
         return;
     }
@@ -569,7 +571,7 @@ main()
 
     vec4 Cf = (a + d) * texColor + s * 0.5;
 #else
-    vec4 Cf = texColor * lighting(input.v.position.xyz, normal);
+    vec4 Cf = lighting(texColor, input.v.position.xyz, normal);
 #endif
 
     outColor = edgeColor(Cf, input.v.edgeDistance);
