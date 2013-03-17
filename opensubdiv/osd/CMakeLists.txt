@@ -321,7 +321,7 @@ if ( OPENCL_FOUND )
     list(APPEND PLATFORM_LIBRARIES
         ${OPENCL_LIBRARIES}
     )
-
+    include_directories( ${OPENCL_INCLUDE_DIRS} )
     if ( OPENGL_FOUND )
         list(APPEND GPU_SOURCE_FILES
             clGLVertexBuffer.cpp
