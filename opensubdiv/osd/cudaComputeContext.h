@@ -63,6 +63,7 @@
 #include "../osd/vertex.h"
 #include "../osd/nonCopyable.h"
 
+#include <stdlib.h>
 #include <vector>
 
 namespace OpenSubdiv {

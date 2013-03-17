@@ -65,6 +65,8 @@
 #include "../osd/vertexDescriptor.h"
 #include "../osd/nonCopyable.h"
 
+#include <stdlib.h>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
