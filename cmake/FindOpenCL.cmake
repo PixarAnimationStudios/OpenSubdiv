@@ -59,7 +59,7 @@
 # Once done this will define
 #
 #  OPENCL_FOUND - System has OPENCL
-#  OPENCL_INCLUDE_DIR - The OPENCL include directory
+#  OPENCL_INCLUDE_DIRS - The OPENCL include directory
 #  OPENCL_LIBRARIES - The libraries needed to use OPENCL
 
 
