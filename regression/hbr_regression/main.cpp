@@ -187,7 +187,7 @@ static int checkMesh( shaperec const & r, int levels ) {
 
     xyzmesh * mesh = simpleHbr<xyzVV>(r.data.c_str(), r.scheme, 0);
 
-    int firstface=0, lastface=mesh->GetNumFaces(), nfaces,
+    int firstface=0, lastface=mesh->GetNumFaces(),
         firstvert=0, lastvert=mesh->GetNumVertices(), nverts;    
     
     printf("- %s (scheme=%d)\n", r.name.c_str(), r.scheme);
@@ -211,7 +211,7 @@ static int checkMesh( shaperec const & r, int levels ) {
         
         firstface = lastface;
         lastface = mesh->GetNumFaces();
-        nfaces = lastface - firstface;
+        //nfaces = lastface - firstface;
 
         firstvert = lastvert;
         lastvert = mesh->GetNumVertices();
