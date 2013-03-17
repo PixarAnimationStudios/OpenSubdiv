@@ -1011,12 +1011,12 @@ drawStroke(int x, int y)
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-motion(GLFWwindow *, int x, int y) {
+motion(GLFWwindow * w, int x, int y) {
 #else
 motion(int x, int y) {
 #endif
 
-    if (glfwGetKey(GLFW_KEY_LALT)) {
+    if (glfwGetKey(w,GLFW_KEY_LALT)) {
         if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
             // orbit
             g_rotate[0] += x - g_prev_x;
@@ -1045,7 +1045,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state) {
+mouse(GLFWwindow * w, int button, int state) {
 #else
 mouse(int button, int state) {
 #endif
@@ -1057,7 +1057,7 @@ mouse(int button, int state) {
         g_mbutton[button] = (state == GLFW_PRESS);
     }
 
-    if (not glfwGetKey(GLFW_KEY_LALT)) {
+    if (not glfwGetKey(w, GLFW_KEY_LALT)) {
         if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
             drawStroke(g_prev_x, g_prev_y);
         }
@@ -1092,13 +1092,15 @@ reshape(int width, int height) {
 
 //------------------------------------------------------------------------------
 #if GLFW_VERSION_MAJOR>=3
-int windowClose(GLFWwindow*) {
+void windowClose(GLFWwindow*) {
+    g_running = false;
+}
 #else
 int windowClose() {
-#endif
     g_running = false;
     return GL_TRUE;
 }
+#endif
 
 //------------------------------------------------------------------------------
 static void 

@@ -67,13 +67,15 @@ reshape(int width, int height) {
 }
 
 #if GLFW_VERSION_MAJOR>=3
-int windowClose(GLFWwindow*) {
+void windowClose(GLFWwindow*) {
+    g_running = false;
+}
 #else
 int windowClose() {
-#endif
     g_running = false;
     return GL_TRUE;
 }
+#endif
 
 // 
 // Idle is called between frames, here we advance the frame number and update
