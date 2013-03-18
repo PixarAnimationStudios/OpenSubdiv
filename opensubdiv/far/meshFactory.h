@@ -104,6 +104,16 @@ public:
     /// Analyzes the HbrMesh and stores transient data used to create the 
     /// adaptive patch representation. Once the new rep has been instantiated
     /// with 'Create', this factory object can be deleted safely.
+    ///
+    /// @param mesh     The HbrMesh describing the topology (this mesh *WILL* be
+    ///                 modified by this factory).
+    ///
+    /// @param maxlevel In uniform subdivision mode : number of levels of subdivision.
+    ///                 In feature adaptive mode : maximum level of isolation 
+    ///                 around extraordinary topological features.
+    ///
+    /// @param adaptive Switch between uniform and feature adaptive mode
+    ///
     FarMeshFactory(HbrMesh<T> * mesh, int maxlevel, bool adaptive=false);
 
     /// Create a table-based mesh representation
