@@ -370,15 +370,15 @@ updateGeom() {
 
     int nverts = (int)g_positions.size() / 3;
 
-    if (g_moveScale and g_adaptive and g_animPositions.size()) {
+    if (g_moveScale and g_adaptive and not g_animPositions.empty()) {
         // baked animation only works with adaptive for now
         // (since non-adaptive requires normals)
         int nkey = (int)g_animPositions.size();
-        const int fps = 24.0;
+        const float fps = 24.0f;
 
-        float p = fmodf(g_animTime * fps, nkey);
+        float p = fmodf(g_animTime * fps, (float)nkey);
         int key = (int)p;
-        int b = p - key;
+        float b = p - key;
 
         std::vector<float> vertex;
         vertex.reserve(nverts*3);
@@ -1621,7 +1621,11 @@ display() {
     multMatrix(transformData.ModelViewProjectionMatrix, transformData.ModelViewMatrix, transformData.ProjectionMatrix);
     inverseMatrix(transformData.ModelViewInverseMatrix, transformData.ModelViewMatrix);
 
+    glEnable(GL_DEPTH_TEST);
+
     drawModel();
+
+    glDisable(GL_DEPTH_TEST);
 
     glUseProgram(0);
 
@@ -1641,7 +1645,7 @@ display() {
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
-        float elapsed = g_fpsTimer.GetElapsed();
+        float elapsed = (float)g_fpsTimer.GetElapsed();
         g_animTime += elapsed;
         double fps = 1.0/elapsed;
         g_fpsTimer.Start();
@@ -2037,9 +2041,9 @@ int main(int argc, char ** argv) {
         else if (!strcmp(argv[i], "-y"))
             g_yup = true;
         else if (!strcmp(argv[i], "--disp"))
-            g_displacementScale = atof(argv[++i]);
+            g_displacementScale = (float)atof(argv[++i]);
         else if (!strcmp(argv[i], "--bump"))
-            g_bumpScale = atof(argv[++i]);
+            g_bumpScale = (float)atof(argv[++i]);
         else if (colorFilename == NULL)
             colorFilename = argv[i];
         else if (displacementFilename == NULL) {
