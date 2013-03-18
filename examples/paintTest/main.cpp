@@ -1223,9 +1223,9 @@ initGL()
     std::vector<float> values;
     for(int yy = 0; yy < reso; ++yy) {
         for (int xx = 0; xx < reso; ++xx) {
-            float r = sqrt((xx-reso*0.5f)*(xx-reso*0.5f)+
-                           (yy-reso*0.5f)*(yy-reso*0.5f))/(reso*0.5f);
-            float v = 0.5f*std::max(0.0f, exp(-r*r)-0.4f);
+            float r = sqrtf((xx-reso*0.5f)*(xx-reso*0.5f)+
+                            (yy-reso*0.5f)*(yy-reso*0.5f))/(reso*0.5f);
+            float v = 0.5f*std::max(0.0f, expf(-r*r)-0.4f);
             values.push_back(v);
             values.push_back(v);
             values.push_back(v);
