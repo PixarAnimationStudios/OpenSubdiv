@@ -466,7 +466,7 @@ createOsdMesh() {
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    g_pageSize = std::min(512, (int)sqrt(1024*1024*1024/64/numPtexFace));
+    g_pageSize = std::min(512, (int)sqrt((float)1024*1024*1024/64/numPtexFace));
 
     int pageSize = g_pageSize;
 
@@ -899,7 +899,7 @@ drawStroke(int x, int y)
     int viewport[4] = {0, 0, g_width, g_height};
     float pick[16], pers[16];
     perspective(pers, 45.0f, (float)aspect, 0.01f, 500.0f);
-    pickMatrix(pick, x, g_height-y, g_brushSize*0.5, g_brushSize*0.5, viewport);
+    pickMatrix(pick, (float)x, (float)g_height-y, g_brushSize*0.5f, g_brushSize*0.5f, viewport);
     multMatrix(g_transformData.ProjectionMatrix, pers, pick);
     multMatrix(g_transformData.ModelViewProjectionMatrix,
                g_transformData.ModelViewMatrix,
@@ -1016,7 +1016,11 @@ motion(GLFWwindow * w, int x, int y) {
 motion(int x, int y) {
 #endif
 
+#if GLFW_VERSION_MAJOR>=3
     if (glfwGetKey(w,GLFW_KEY_LALT)) {
+#else
+    if (glfwGetKey(GLFW_KEY_LALT)) {
+#endif
         if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
             // orbit
             g_rotate[0] += x - g_prev_x;
@@ -1057,7 +1061,11 @@ mouse(int button, int state) {
         g_mbutton[button] = (state == GLFW_PRESS);
     }
 
+#if GLFW_VERSION_MAJOR>=3
     if (not glfwGetKey(w, GLFW_KEY_LALT)) {
+#else
+    if (not glfwGetKey(GLFW_KEY_LALT)) {
+#endif
         if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
             drawStroke(g_prev_x, g_prev_y);
         }
@@ -1173,8 +1181,8 @@ initHUD()
     g_hud.AddRadioButton(1, "Shaded",      g_wire == 1, 200, 30, callbackWireframe, 1, 'w');
     g_hud.AddRadioButton(1, "Wire+Shaded", g_wire == 2, 200, 50, callbackWireframe, 2, 'w');
 
-    g_hud.AddCheckBox("Color (C)",  g_displayColor, 350, 10, callbackDisplay, 0, 'c');
-    g_hud.AddCheckBox("Displacement (D)",  g_displayDisplacement, 350, 30, callbackDisplay, 1, 'd');
+    g_hud.AddCheckBox("Color (C)",  g_displayColor != 0, 350, 10, callbackDisplay, 0, 'c');
+    g_hud.AddCheckBox("Displacement (D)",  g_displayDisplacement != 0, 350, 30, callbackDisplay, 1, 'd');
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
@@ -1215,9 +1223,9 @@ initGL()
     std::vector<float> values;
     for(int yy = 0; yy < reso; ++yy) {
         for (int xx = 0; xx < reso; ++xx) {
-            float r = sqrt((xx-reso*0.5)*(xx-reso*0.5)+
-                           (yy-reso*0.5)*(yy-reso*0.5))/(reso*0.5);
-            float v = 0.5*std::max(0.0, exp(-r*r)-0.4);
+            float r = sqrt((xx-reso*0.5f)*(xx-reso*0.5f)+
+                           (yy-reso*0.5f)*(yy-reso*0.5f))/(reso*0.5f);
+            float v = 0.5f*std::max(0.0f, exp(-r*r)-0.4f);
             values.push_back(v);
             values.push_back(v);
             values.push_back(v);
