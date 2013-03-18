@@ -150,8 +150,8 @@ a particular purpose and non-infringement.
 // The screen width & height; current frame for animation; and the desired 
 // subdivision level.
 //
-int g_width = 0,
-    g_height = 0,
+int g_width = 1024,
+    g_height = 1024,
     g_frame = 0,
     g_level = 4;
 
@@ -468,7 +468,7 @@ updateGeom()
     //
     // Send the animated coarse positions and normals to the vertex buffer.
     //
-    std::cout << vertex.size() << " - " << nverts << std::endl;
+    //std::cout << vertex.size() << " - " << nverts << std::endl;
     g_vertexBuffer->UpdateData(&vertex[0], 0, nverts);
 
     //

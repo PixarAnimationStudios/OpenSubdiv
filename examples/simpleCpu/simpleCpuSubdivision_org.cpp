@@ -146,8 +146,8 @@ a particular purpose and non-infringement.
 // The screen width & height; current frame for animation; and the desired 
 // subdivision level.
 //
-int g_width = 0,
-    g_height = 0,
+int g_width = 1024,
+    g_height = 1024,
     g_frame = 0,
     g_level = 4;
 
@@ -176,7 +176,6 @@ std::vector<float> g_orgPositions,
 // defined.
 //
 void idle();
-void reshape(int width, int height);
 void createOsdMesh(int level, int kernel);
 void display();
 void updateGeom();
