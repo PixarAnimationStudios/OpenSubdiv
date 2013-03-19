@@ -61,7 +61,7 @@ set(PUBLIC_HEADER_FILES
     catmarkSubdivisionTables.h
     catmarkSubdivisionTablesFactory.h
     dispatcher.h
-    kernelBatchTable.h
+    kernelBatch.h
     loopSubdivisionTables.h
     loopSubdivisionTablesFactory.h
     meshFactory.h
