@@ -581,6 +581,18 @@ void reshape() {
     reshape(g_width, g_height);
 #endif
 }
+
+#if GLFW_VERSION_MAJOR>=3
+void windowClose(GLFWwindow*) {
+    g_running = false;
+}
+#else
+int windowClose() {
+    g_running = false;
+    return GL_TRUE;
+}
+#endif
+
 //------------------------------------------------------------------------------
 const char *getKernelName(int kernel) {
 
@@ -2147,8 +2159,10 @@ int main(int argc, char ** argv) {
 
 #if GLFW_VERSION_MAJOR>=3
     glfwSetWindowSizeCallback(g_window, reshape);
+    glfwSetWindowCloseCallback(g_window, windowClose);
 #else
     glfwSetWindowSizeCallback(reshape);
+    glfwSetWindowCloseCallback(windowClose);
 #endif
 
     // activate feature adaptive tessellation if OSD supports it
