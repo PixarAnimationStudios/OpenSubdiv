@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * catmark_dart_edgeonly =
+static const std::string catmark_dart_edgeonly =
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "v 0.000000 -2.000000 0.000000\n"

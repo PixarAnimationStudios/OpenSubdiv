@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * catmark_gregory_test3 =
+static const std::string catmark_gregory_test3 =
 "v 1.000000 1.000000 -0.000000\n"
 "v 1.000000 0.000000 0.000000\n"
 "v 1.000000 -1.000000 0.000000\n"

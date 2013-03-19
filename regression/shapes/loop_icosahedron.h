@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * loop_icosahedron =
+static const std::string loop_icosahedron =
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "v 0.850651 0.000000 -0.525731\n"

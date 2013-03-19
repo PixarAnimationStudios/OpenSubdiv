@@ -311,10 +311,10 @@ enum HudCheckBox { HUD_CB_DRAW_AT_ONCE,
 struct SimpleShape {
     std::string  name;
     Scheme       scheme;
-    char const * data;
+    std::string  data;
 
     SimpleShape() { }
-    SimpleShape( char const * idata, char const * iname, Scheme ischeme )
+    SimpleShape( std::string const & idata, char const * iname, Scheme ischeme )
         : name(iname), scheme(ischeme), data(idata) { }
 };
 
@@ -865,7 +865,7 @@ rebuildFar()
         g_vertexOffsets.push_back(vertexOffset);
 
         OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMesh = createFarMesh(
-            g_defaultShapes[ shape ].data, g_level, adaptive, scheme);
+            g_defaultShapes[ shape ].data.c_str(), g_level, adaptive, scheme);
         farMeshes.push_back(farMesh);
 
         vertexOffset += farMesh->GetNumVertices();

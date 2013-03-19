@@ -169,10 +169,10 @@ int g_pageSize = 512;
 struct SimpleShape {
     std::string  name;
     Scheme       scheme;
-    char const * data;
+    std::string  data;
 
     SimpleShape() { }
-    SimpleShape( char const * idata, char const * iname, Scheme ischeme )
+    SimpleShape( std::string const & idata, char const * iname, Scheme ischeme )
         : name(iname), scheme(ischeme), data(idata) { }
 };
 
@@ -294,16 +294,11 @@ initializeShapes( ) {
 #include <shapes/catmark_square_hedit4.h>
     g_defaultShapes.push_back(SimpleShape(catmark_square_hedit4, "catmark_square_hedit4", kCatmark));
 
-
-#ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_bishop.h>
     g_defaultShapes.push_back(SimpleShape(catmark_bishop, "catmark_bishop", kCatmark));
-#endif
 
-#ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_car.h>
     g_defaultShapes.push_back(SimpleShape(catmark_car, "catmark_car", kCatmark));
-#endif
 
 #include <shapes/catmark_helmet.h>
     g_defaultShapes.push_back(SimpleShape(catmark_helmet, "catmark_helmet", kCatmark));
@@ -311,10 +306,8 @@ initializeShapes( ) {
 #include <shapes/catmark_pawn.h>
     g_defaultShapes.push_back(SimpleShape(catmark_pawn, "catmark_pawn", kCatmark));
 
-#ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_rook.h>
     g_defaultShapes.push_back(SimpleShape(catmark_rook, "catmark_rook", kCatmark));
-#endif
 
 }
 
@@ -371,7 +364,7 @@ genTextureBuffer(GLenum format, GLsizeiptr size, GLvoid const * data) {
 
 static void
 createOsdMesh() {
-    const char *shape = g_defaultShapes[g_currentShape].data;
+    const char *shape = g_defaultShapes[g_currentShape].data.c_str();
     int level = g_level;
     Scheme scheme = g_defaultShapes[g_currentShape].scheme;
 

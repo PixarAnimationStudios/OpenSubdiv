@@ -414,20 +414,20 @@ checkMeshCL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
 
 //------------------------------------------------------------------------------
 static int 
-checkMesh( char const * msg, char const * shape, int levels, Scheme scheme, int backend ) {
+checkMesh( char const * msg, std::string const & shape, int levels, Scheme scheme, int backend ) {
 
     int result =0;
 
     printf("- %s (scheme=%d)\n", msg, scheme);
 
-    xyzmesh * refmesh = simpleHbr<xyzVV>(shape, scheme, 0);
+    xyzmesh * refmesh = simpleHbr<xyzVV>(shape.c_str(), scheme, 0);
 
     refine( refmesh, levels );
 
 
     std::vector<float> coarseverts;
 
-    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, coarseverts);
+    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape.c_str(), scheme, coarseverts);
 
     OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex> meshFactory(hmesh, levels);
 

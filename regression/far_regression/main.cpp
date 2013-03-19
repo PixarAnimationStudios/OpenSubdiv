@@ -481,161 +481,161 @@ int main(int argc, char ** argv) {
 
 #ifdef test_catmark_edgeonly
 #include "../shapes/catmark_edgeonly.h"
-    total += checkMesh( "test_catmark_edgeonly", simpleHbr<xyzVV>(catmark_edgeonly, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_edgeonly", simpleHbr<xyzVV>(catmark_edgeonly.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_edgecorner
 #include "../shapes/catmark_edgecorner.h"
-    total += checkMesh( "test_catmark_edgeonly", simpleHbr<xyzVV>(catmark_edgecorner, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_edgeonly", simpleHbr<xyzVV>(catmark_edgecorner.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_pyramid
 #include "../shapes/catmark_pyramid.h"
-    total += checkMesh( "test_catmark_pyramid", simpleHbr<xyzVV>(catmark_pyramid, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_pyramid", simpleHbr<xyzVV>(catmark_pyramid.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_pyramid_creases0
 #include "../shapes/catmark_pyramid_creases0.h"
-    total += checkMesh( "test_catmark_pyramid_creases0", simpleHbr<xyzVV>(catmark_pyramid_creases0, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_pyramid_creases0", simpleHbr<xyzVV>(catmark_pyramid_creases0.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_pyramid_creases1
 #include "../shapes/catmark_pyramid_creases1.h"
-    total += checkMesh( "test_catmark_pyramid_creases1", simpleHbr<xyzVV>(catmark_pyramid_creases1, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_pyramid_creases1", simpleHbr<xyzVV>(catmark_pyramid_creases1.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_cube
 #include "../shapes/catmark_cube.h"
-    total += checkMesh( "test_catmark_cube", simpleHbr<xyzVV>(catmark_cube, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_cube", simpleHbr<xyzVV>(catmark_cube.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_cube_creases0
 #include "../shapes/catmark_cube_creases0.h"
-    total += checkMesh( "test_catmark_cube_creases0", simpleHbr<xyzVV>(catmark_cube_creases0, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_cube_creases0", simpleHbr<xyzVV>(catmark_cube_creases0.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_cube_creases1
 #include "../shapes/catmark_cube_creases1.h"
-    total += checkMesh( "test_catmark_cube_creases1", simpleHbr<xyzVV>(catmark_cube_creases1, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_cube_creases1", simpleHbr<xyzVV>(catmark_cube_creases1.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_cube_corner0
 #include "../shapes/catmark_cube_corner0.h"
-    total += checkMesh( "test_catmark_cube_corner0", simpleHbr<xyzVV>(catmark_cube_corner0, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_cube_corner0", simpleHbr<xyzVV>(catmark_cube_corner0.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_cube_corner1
 #include "../shapes/catmark_cube_corner1.h"
-    total += checkMesh( "test_catmark_cube_corner1", simpleHbr<xyzVV>(catmark_cube_corner1, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_cube_corner1", simpleHbr<xyzVV>(catmark_cube_corner1.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_cube_corner2
 #include "../shapes/catmark_cube_corner2.h"
-    total += checkMesh( "test_catmark_cube_corner2", simpleHbr<xyzVV>(catmark_cube_corner2, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_cube_corner2", simpleHbr<xyzVV>(catmark_cube_corner2.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_cube_corner3
 #include "../shapes/catmark_cube_corner3.h"
-    total += checkMesh( "test_catmark_cube_corner3", simpleHbr<xyzVV>(catmark_cube_corner3, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_cube_corner3", simpleHbr<xyzVV>(catmark_cube_corner3.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_cube_corner4
 #include "../shapes/catmark_cube_corner4.h"
-    total += checkMesh( "test_catmark_cube_corner4", simpleHbr<xyzVV>(catmark_cube_corner4, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_cube_corner4", simpleHbr<xyzVV>(catmark_cube_corner4.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_dart_edgecorner
 #include "../shapes/catmark_dart_edgecorner.h"
-    total += checkMesh( "test_catmark_dart_edgecorner", simpleHbr<xyzVV>(catmark_dart_edgecorner, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_dart_edgecorner", simpleHbr<xyzVV>(catmark_dart_edgecorner.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_dart_edgeonly
 #include "../shapes/catmark_dart_edgeonly.h"
-    total += checkMesh( "test_catmark_dart_edgeonly", simpleHbr<xyzVV>(catmark_dart_edgeonly, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_dart_edgeonly", simpleHbr<xyzVV>(catmark_dart_edgeonly.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_tent
 #include "../shapes/catmark_tent.h"
-    total += checkMesh( "test_catmark_tent", simpleHbr<xyzVV>(catmark_tent, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_tent", simpleHbr<xyzVV>(catmark_tent.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_tent_creases0
 #include "../shapes/catmark_tent_creases0.h"
-    total += checkMesh( "test_catmark_tent_creases0", simpleHbr<xyzVV>(catmark_tent_creases0, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_tent_creases0", simpleHbr<xyzVV>(catmark_tent_creases0.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_tent_creases1
 #include "../shapes/catmark_tent_creases1.h"
-    total += checkMesh( "test_catmark_tent_creases1", simpleHbr<xyzVV>(catmark_tent_creases1, kCatmark, NULL), levels );
+    total += checkMesh( "test_catmark_tent_creases1", simpleHbr<xyzVV>(catmark_tent_creases1.c_str(), kCatmark, NULL), levels );
 #endif
 
 #ifdef test_catmark_square_hedit0
 #include "../shapes/catmark_square_hedit0.h"
-    total += checkMesh( "test_catmark_square_hedit0", simpleHbr<xyzVV>(catmark_square_hedit0, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_square_hedit0", simpleHbr<xyzVV>(catmark_square_hedit0.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_square_hedit1
 #include "../shapes/catmark_square_hedit1.h"
-    total += checkMesh( "test_catmark_square_hedit1", simpleHbr<xyzVV>(catmark_square_hedit1, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_square_hedit1", simpleHbr<xyzVV>(catmark_square_hedit1.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_square_hedit2
 #include "../shapes/catmark_square_hedit2.h"
-    total += checkMesh( "test_catmark_square_hedit2", simpleHbr<xyzVV>(catmark_square_hedit2, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_square_hedit2", simpleHbr<xyzVV>(catmark_square_hedit2.c_str(), kCatmark, 0), levels );
 #endif
 
 #ifdef test_catmark_square_hedit3
 #include "../shapes/catmark_square_hedit3.h"
-    total += checkMesh( "test_catmark_square_hedit3", simpleHbr<xyzVV>(catmark_square_hedit3, kCatmark, 0), levels );
+    total += checkMesh( "test_catmark_square_hedit3", simpleHbr<xyzVV>(catmark_square_hedit3.c_str(), kCatmark, 0), levels );
 #endif
 
 
 
 #ifdef test_loop_triangle_edgeonly
 #include "../shapes/loop_triangle_edgeonly.h"
-    total += checkMesh( "test_loop_triangle_edgeonly", simpleHbr<xyzVV>(loop_triangle_edgeonly, kLoop, 0), levels, kLoop );
+    total += checkMesh( "test_loop_triangle_edgeonly", simpleHbr<xyzVV>(loop_triangle_edgeonly.c_str(), kLoop, 0), levels, kLoop );
 #endif
 
 #ifdef test_loop_triangle_edgecorner
 #include "../shapes/loop_triangle_edgecorner.h"
-    total += checkMesh( "test_loop_triangle_edgecorner", simpleHbr<xyzVV>(loop_triangle_edgecorner, kLoop, 0), levels, kLoop );
+    total += checkMesh( "test_loop_triangle_edgecorner", simpleHbr<xyzVV>(loop_triangle_edgecorner.c_str(), kLoop, 0), levels, kLoop );
 #endif
 
 #ifdef test_loop_saddle_edgeonly
 #include "../shapes/loop_saddle_edgeonly.h"
-    total += checkMesh( "test_loop_saddle_edgeonly", simpleHbr<xyzVV>(loop_saddle_edgeonly, kLoop, 0), levels, kLoop );
+    total += checkMesh( "test_loop_saddle_edgeonly", simpleHbr<xyzVV>(loop_saddle_edgeonly.c_str(), kLoop, 0), levels, kLoop );
 #endif
 
 #ifdef test_loop_saddle_edgecorner
 #include "../shapes/loop_saddle_edgecorner.h"
-    total += checkMesh( "test_loop_saddle_edgecorner", simpleHbr<xyzVV>(loop_saddle_edgecorner, kLoop, 0), levels, kLoop );
+    total += checkMesh( "test_loop_saddle_edgecorner", simpleHbr<xyzVV>(loop_saddle_edgecorner.c_str(), kLoop, 0), levels, kLoop );
 #endif
 
 #ifdef test_loop_icosahedron
 #include "../shapes/loop_icosahedron.h"
-    total += checkMesh( "test_loop_icosahedron", simpleHbr<xyzVV>(loop_icosahedron, kLoop, 0), levels, kLoop );
+    total += checkMesh( "test_loop_icosahedron", simpleHbr<xyzVV>(loop_icosahedron.c_str(), kLoop, 0), levels, kLoop );
 #endif
 
 #ifdef test_loop_cube
 #include "../shapes/loop_cube.h"
-    total += checkMesh( "test_loop_cube", simpleHbr<xyzVV>(loop_cube, kLoop, 0), levels, kLoop );
+    total += checkMesh( "test_loop_cube", simpleHbr<xyzVV>(loop_cube.c_str(), kLoop, 0), levels, kLoop );
 #endif
 
 #ifdef test_loop_cube_creases0
 #include "../shapes/loop_cube_creases0.h"
-    total += checkMesh( "test_loop_cube_creases0", simpleHbr<xyzVV>(loop_cube_creases0, kLoop, 0), levels, kLoop );
+    total += checkMesh( "test_loop_cube_creases0", simpleHbr<xyzVV>(loop_cube_creases0.c_str(), kLoop, 0), levels, kLoop );
 #endif
 
 #ifdef test_loop_cube_creases1
 #include "../shapes/loop_cube_creases1.h"
-    total += checkMesh( "test_loop_cube_creases1", simpleHbr<xyzVV>(loop_cube_creases1, kLoop, 0), levels, kLoop );
+    total += checkMesh( "test_loop_cube_creases1", simpleHbr<xyzVV>(loop_cube_creases1.c_str(), kLoop, 0), levels, kLoop );
 #endif
 
 
 
 #ifdef test_bilinear_cube
 #include "../shapes/bilinear_cube.h"
-    total += checkMesh( "test_bilinear_cube", simpleHbr<xyzVV>(bilinear_cube, kBilinear, 0), levels, kBilinear );
+    total += checkMesh( "test_bilinear_cube", simpleHbr<xyzVV>(bilinear_cube.c_str(), kBilinear, 0), levels, kBilinear );
 #endif
 
 

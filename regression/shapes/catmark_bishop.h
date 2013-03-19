@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * catmark_bishop =
+static const std::string catmark_bishop = std::string(
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "v 0.960000 -1.744745 0.025000\n"
@@ -974,6 +974,7 @@ static char const * catmark_bishop =
 "v 0.844250 -1.793171 0.237500\n"
 "v 0.837584 -1.744754 0.377500\n"
 "v 0.853969 -1.769816 0.237500\n"
+    ) + std::string(
 "f 2/2/2 1/1/1 24/24/24 25/25/25\n"
 "f 2/2/2 25/25/25 26/26/26 3/3/3\n"
 "f 26/26/26 27/27/27 4/4/4 3/3/3\n"
@@ -2166,4 +2167,4 @@ static char const * catmark_bishop =
 "t crease 2/1/0 490 512 6.000000 \n"
 "t crease 2/1/0 489 511 6.000000 \n"
 "t crease 2/1/0 511 534 6.000000 \n"
-;
+);

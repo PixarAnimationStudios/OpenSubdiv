@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * catmark_gregory_test2 =
+static const std::string catmark_gregory_test2 =
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "mtllib crazy_plane2.mtl\n"
