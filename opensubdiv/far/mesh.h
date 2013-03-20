@@ -117,6 +117,9 @@ public:
     /// Returns the total number of vertices in the mesh across across all depths
     int GetNumVertices() const { return (int)(_vertices.size()); }
 
+    /// Returns an ordered vector of batches of compute kernels. The kernels
+    /// describe the sequence of computations required to apply the subdivision
+    /// scheme to the vertices in the mesh.    
     const FarKernelBatchVector & GetKernelBatches() const { return _batches; }
 
 private:
