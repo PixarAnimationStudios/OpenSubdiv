@@ -171,11 +171,11 @@ float TessAdaptive(vec3 p0, vec3 p1, int patchLevel)
     {                                                                   \
         ivec2 ptexIndex = texelFetchBuffer(g_ptexIndicesBuffer,         \
                                            gl_PrimitiveID + LevelBase).xy; \
-        int lv = 1 << (patchLevel - int(ptexIndex.x & 1));              \
-        int faceID = ptexIndex.x >> 3;                                  \
-        int u = ptexIndex.y >> 16;                                      \
-        int v = (ptexIndex.y & 0xffff);                                 \
-        int rotation = (ptexIndex.x >> 1) & 0x3;                        \
+        int faceID = ptexIndex.x;                                       \
+        int lv = 1 << (ptexIndex.y & 0xf);                              \
+        int u = (ptexIndex.y >> 17) & 0x3ff;                            \
+        int v = (ptexIndex.y >> 7) & 0x3ff;                             \
+        int rotation = (ptexIndex.y >> 5) & 0x3;                        \
         output[ID].v.patchCoord.w = faceID+0.5;                         \
         output[ID].v.ptexInfo = ivec4(u, v, lv, rotation);              \
     }

@@ -1242,13 +1242,13 @@ display() {
 
         if (patch.desc.subpatch == 0) {
             if (patchType == OpenSubdiv::kTransitionRegular)
-                transitionPatchTypeCount[0][patchPattern][patchRotation] += patch.numIndices / patch.patchSize;
+                transitionPatchTypeCount[0][patchPattern][patchRotation] += patch.numIndices / patch.desc.GetPatchSize();
             else if (patchType == OpenSubdiv::kTransitionBoundary)
-                transitionPatchTypeCount[1][patchPattern][patchRotation] += patch.numIndices / patch.patchSize;
+                transitionPatchTypeCount[1][patchPattern][patchRotation] += patch.numIndices / patch.desc.GetPatchSize();
             else if (patchType == OpenSubdiv::kTransitionBoundary)
-                transitionPatchTypeCount[2][patchPattern][patchRotation] += patch.numIndices / patch.patchSize;
+                transitionPatchTypeCount[2][patchPattern][patchRotation] += patch.numIndices / patch.desc.GetPatchSize();
             else
-                patchTypeCount[patchType] += patch.numIndices / patch.patchSize;
+                patchTypeCount[patchType] += patch.numIndices / patch.desc.GetPatchSize();
         }
 
         GLenum primType;
@@ -1256,7 +1256,7 @@ display() {
         if (g_mesh->GetDrawContext()->IsAdaptive()) {
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
             primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, patch.patchSize);
+            glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
 #endif
 
         } else {

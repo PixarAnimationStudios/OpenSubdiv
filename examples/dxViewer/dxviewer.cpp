@@ -912,7 +912,7 @@ display()
 
         if (g_mesh->GetDrawContext()->IsAdaptive()) {
 
-            switch (patch.patchSize) {
+            switch (patch.desc.GetPatchSize()) {
             case 4:
                 topology = D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST; 
                 break;

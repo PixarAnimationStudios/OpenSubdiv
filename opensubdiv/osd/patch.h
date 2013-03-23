@@ -91,7 +91,28 @@ struct OsdPatchDescriptor {
         type(type), pattern(pattern), rotation(rotation), subpatch(0),
         maxValence(maxValence), numElements(numElements) {}
 
+    short GetPatchSize() const {
+        switch (type) {
+            case kNonPatch : return (loop ? 3:4);
+            
+            case kRegular  : 
+            case kTransitionRegular : return 16;
+            
+            case kBoundary : 
+            case kTransitionBoundary : return 12;
+            
+            case kCorner : 
+            case kTransitionCorner : return 9;
+            
+            case kGregory :
+            case kBoundaryGregory : return 4;
+            
+            default : return -1;
+        }
+    }
+
     OsdPatchType type:4;         //  0-8
+    unsigned char loop:1;        //  0-1
     unsigned char pattern:3;     //  0-4
     unsigned char rotation:2;    //  0-3
     unsigned char subpatch:2;    //  0-3
@@ -104,11 +125,11 @@ bool operator< (OsdPatchDescriptor const & a,
 
 
 struct OsdPatchArray {
+
     OsdPatchDescriptor desc;
-    int patchSize;
-    int firstIndex;
-    int numIndices;
-    int levelBase;
+    int firstIndex; // index of first vertex in patch indices array
+    int numIndices; // number of vertex indices in indices array
+    int levelBase;  // XXX ???
     int gregoryQuadOffsetBase;
 };
 

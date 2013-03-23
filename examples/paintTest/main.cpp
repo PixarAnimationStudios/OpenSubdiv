@@ -802,7 +802,7 @@ display() {
         OpenSubdiv::OsdPatchArray const & patch = patches[i];
 
         GLenum primType = GL_PATCHES;
-        glPatchParameteri(GL_PATCH_VERTICES, patch.patchSize);
+        glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
 
         Effect effect;
         effect.color = g_displayColor;
@@ -973,7 +973,7 @@ drawStroke(int x, int y)
         OpenSubdiv::OsdPatchArray const & patch = patches[i];
 
         GLenum primType = GL_PATCHES;
-        glPatchParameteri(GL_PATCH_VERTICES, patch.patchSize);
+        glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
 
         Effect effect;
         effect.color = 0;

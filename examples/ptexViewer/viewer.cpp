@@ -1407,7 +1407,7 @@ drawModel() {
         if (g_mesh->GetDrawContext()->IsAdaptive()) {
 
             primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, patch.patchSize);
+            glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
 
             if (g_mesh->GetDrawContext()->vertexTextureBuffer) {
                 glActiveTexture(GL_TEXTURE0);

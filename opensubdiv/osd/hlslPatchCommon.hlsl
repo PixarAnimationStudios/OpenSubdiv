@@ -168,14 +168,14 @@ float TessAdaptive(float3 p0, float3 p1, int patchLevel)
 
 #define OSD_DECLARE_PTEX_INDICES_BUFFER Buffer<int2> g_ptexIndicesBuffer : register( t4 );
 
-#define OSD_COMPUTE_PTEX_COORD_HULL_SHADER                              \
+#define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
     {                                                                   \
         int2 ptexIndex = g_ptexIndicesBuffer[ID + LevelBase].xy;        \
-        int lv = 1 << (patchLevel - int(ptexIndex.x & 1));              \
-        int faceID = ptexIndex.x >> 3;                                  \
-        int u = ptexIndex.y >> 16;                                      \
-        int v = (ptexIndex.y & 0xffff);                                 \
-        int rotation = (ptexIndex.x >> 1) & 0x3;                        \
+        int faceID = ptexIndex.x;                                       \
+        int lv = 1 << (ptexIndex.y & 0xf);                              \
+        int u = (ptexIndex.y >> 17) & 0x3ff;                            \
+        int v = (ptexIndex.y >> 7) & 0x3ff;                             \
+        int rotation = (ptexIndex.y >> 5) & 0x3;                        \
         output.patchCoord.w = faceID+0.5;                               \
         output.ptexInfo = int4(u, v, lv, rotation);                     \
     }

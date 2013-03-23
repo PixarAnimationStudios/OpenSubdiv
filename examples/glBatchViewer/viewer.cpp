@@ -1290,7 +1290,7 @@ display() {
         if (g_mesh->GetDrawContext()->IsAdaptive()) {
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
             primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, patch.patchSize);
+            glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
 #endif
         } else {
             if (g_scheme == kLoop) {
@@ -1324,7 +1324,7 @@ display() {
 
             for (size_t j = 0; j < drawRanges.size(); ++j) {
 
-                int primitiveOffset = (drawRanges[j].firstIndex - patch.firstIndex)/patch.patchSize;
+                int primitiveOffset = (drawRanges[j].firstIndex - patch.firstIndex)/patch.desc.GetPatchSize();
                 if (patch.desc.type == OpenSubdiv::kGregory || patch.desc.type == OpenSubdiv::kBoundaryGregory){
                     glProgramUniform1i(program, uniformGregoryQuadOffset, patch.gregoryQuadOffsetBase + primitiveOffset*4);
                 }

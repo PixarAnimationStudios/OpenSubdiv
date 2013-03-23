@@ -55,8 +55,8 @@
 //     a particular purpose and non-infringement.
 //
 
-#ifndef FAR_PTACH_TABLES_FACTORY_H
-#define FAR_PTACH_TABLES_FACTORY_H
+#ifndef FAR_PATCH_TABLES_FACTORY_H
+#define FAR_PATCH_TABLES_FACTORY_H
 
 #include "../version.h"
 
@@ -125,7 +125,7 @@ private:
 
     typedef Pointers<unsigned int*> IndexPointers;
     typedef Pointers<unsigned char*> LevelPointers;
-    typedef Pointers<int *> PtexPointers;
+    typedef Pointers<FarPtexCoord *> PtexPointers;
     typedef Pointers<float *> FVarPointers;
 
     struct Counters {
@@ -137,8 +137,8 @@ private:
         Counters() { memset(this, 0, sizeof(Counters)); }
     };
 
-    Counters _fullCtr,
-             _transitionCtr[5];
+    Counters _fullCtr,            // counters for full patches
+             _transitionCtr[5];   // counters for transition patches
              
     HbrMesh<T> const * _mesh;
 
@@ -543,30 +543,30 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
 
     // Allocate ptex coordinate table if necessary
     if (requirePtexCoordinate) {
-        result->_full._R_PTX.resize(_fullCtr.R_C*2);
+        result->_full._R_PTX.resize(_fullCtr.R_C);
         fptrsPtx.R_P = &result->_full._R_PTX[0];
 
-        result->_full._B_PTX.resize(_fullCtr.B_C[0]*2);
+        result->_full._B_PTX.resize(_fullCtr.B_C[0]);
         fptrsPtx.B_P[0] = &result->_full._B_PTX[0];
 
-        result->_full._C_PTX.resize(_fullCtr.C_C[0]*2);
+        result->_full._C_PTX.resize(_fullCtr.C_C[0]);
         fptrsPtx.C_P[0] = &result->_full._C_PTX[0];
 
-        result->_full._G_PTX.resize(_fullCtr.G_C[0]*2);
+        result->_full._G_PTX.resize(_fullCtr.G_C[0]);
         fptrsPtx.G_P[0] = &result->_full._G_PTX[0];
 
-        result->_full._G_B_PTX.resize(_fullCtr.G_C[1]*2);
+        result->_full._G_B_PTX.resize(_fullCtr.G_C[1]);
         fptrsPtx.G_P[1] = &result->_full._G_B_PTX[0];
 
         for (int i=0; i < 5; ++i) {
-            result->_transition[i]._R_PTX.resize(_transitionCtr[i].R_C*2);
+            result->_transition[i]._R_PTX.resize(_transitionCtr[i].R_C);
             tptrsPtx[i].R_P = &result->_transition[i]._R_PTX[0];
 
             for (int j=0; j < 4; ++j) {
-                result->_transition[i]._B_PTX[j].resize(_transitionCtr[i].B_C[j]*2);
+                result->_transition[i]._B_PTX[j].resize(_transitionCtr[i].B_C[j]);
                 tptrsPtx[i].B_P[j] = &result->_transition[i]._B_PTX[j][0];
 
-                result->_transition[i]._C_PTX[j].resize(_transitionCtr[i].C_C[j]*2);
+                result->_transition[i]._C_PTX[j].resize(_transitionCtr[i].C_C[j]);
                 tptrsPtx[i].C_P[j] = &result->_transition[i]._C_PTX[j][0];
             }
         }
@@ -631,7 +631,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                                      getOneRing(f, 16, remapRegular, fptrs.R_P);
                                      fptrs.R_P+=16;
                                      *fptrsLv.R_P++ = depth;
-                                     fptrsPtx.R_P = computePtexCoordinate(f, fptrsPtx.R_P, /*isAdaptive=*/true);
+                                     fptrsPtx.R_P = computePtexCoordinate(f, fptrsPtx.R_P);
                                      fptrsFvd.R_P = computeFVarData(f, fvarWidth, fptrsFvd.R_P, /*isAdaptive=*/true);
                                  } break;
 
@@ -640,7 +640,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                                      getOneRing(f, 12, remapRegularBoundary, fptrs.B_P[0]);
                                      fptrs.B_P[0]+=12;
                                      *fptrsLv.B_P[0]++ = depth;
-                                     fptrsPtx.B_P[0] = computePtexCoordinate(f, fptrsPtx.B_P[0], /*isAdaptive=*/true);
+                                     fptrsPtx.B_P[0] = computePtexCoordinate(f, fptrsPtx.B_P[0]);
                                      fptrsFvd.B_P[0] = computeFVarData(f, fvarWidth, fptrsFvd.B_P[0], /*isAdaptive=*/true);
                                  } break;
 
@@ -649,7 +649,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                                      getOneRing(f, 9, remapRegularCorner, fptrs.C_P[0]);
                                      fptrs.C_P[0]+=9;
                                      *fptrsLv.C_P[0]++ = depth;
-                                     fptrsPtx.C_P[0] = computePtexCoordinate(f, fptrsPtx.C_P[0], /*isAdaptive=*/true);
+                                     fptrsPtx.C_P[0] = computePtexCoordinate(f, fptrsPtx.C_P[0]);
                                      fptrsFvd.C_P[0] = computeFVarData(f, fvarWidth, fptrsFvd.C_P[0], /*isAdaptive=*/true);
                                  } break;
 
@@ -667,7 +667,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                     *fptrsLv.G_P[0]++ = depth;
                     getQuadOffsets(f, quad_G_C0_P);
                     quad_G_C0_P += 4;
-                    fptrsPtx.G_P[0] = computePtexCoordinate(f, fptrsPtx.G_P[0], /*isAdaptive=*/true);
+                    fptrsPtx.G_P[0] = computePtexCoordinate(f, fptrsPtx.G_P[0]);
                     fptrsFvd.G_P[0] = computeFVarData(f, fvarWidth, fptrsFvd.G_P[0], /*isAdaptive=*/true);
                 } else {
                 
@@ -678,7 +678,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                     *fptrsLv.G_P[1]++ = depth;
                     getQuadOffsets(f, quad_G_C1_P);
                     quad_G_C1_P += 4;
-                    fptrsPtx.G_P[1] = computePtexCoordinate(f, fptrsPtx.G_P[1], /*isAdaptive=*/true);
+                    fptrsPtx.G_P[1] = computePtexCoordinate(f, fptrsPtx.G_P[1]);
                     fptrsFvd.G_P[1] = computeFVarData(f, fvarWidth, fptrsFvd.G_P[1], /*isAdaptive=*/true);
                 }
             } else {
@@ -698,7 +698,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                                  getOneRing(f, 16, remapRegular, tptrs[tcase].R_P);
                                  tptrs[tcase].R_P+=16;
                                  *tptrsLv[tcase].R_P++ = depth;
-                                 tptrsPtx[tcase].R_P = computePtexCoordinate(f, tptrsPtx[tcase].R_P, /*isAdaptive=*/true);
+                                 tptrsPtx[tcase].R_P = computePtexCoordinate(f, tptrsPtx[tcase].R_P);
                                  tptrsFvd[tcase].R_P = computeFVarData(f, fvarWidth, tptrsFvd[tcase].R_P, /*isAdaptive=*/true);
                              } break;
 
@@ -707,7 +707,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                                  getOneRing(f, 12, remapRegularBoundary, tptrs[tcase].B_P[rot]);
                                  tptrs[tcase].B_P[rot]+=12;
                                  *tptrsLv[tcase].B_P[rot]++ = depth;
-                                 tptrsPtx[tcase].B_P[rot] = computePtexCoordinate(f, tptrsPtx[tcase].B_P[rot], /*isAdaptive=*/true);
+                                 tptrsPtx[tcase].B_P[rot] = computePtexCoordinate(f, tptrsPtx[tcase].B_P[rot]);
                                  tptrsFvd[tcase].B_P[rot] = computeFVarData(f, fvarWidth, tptrsFvd[tcase].B_P[rot], /*isAdaptive=*/true);
                              } break;
 
@@ -716,7 +716,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
                                  getOneRing(f, 9, remapRegularCorner, tptrs[tcase].C_P[rot]);
                                  tptrs[tcase].C_P[rot]+=9;
                                  *tptrsLv[tcase].C_P[rot]++ = depth;
-                                 tptrsPtx[tcase].C_P[rot] = computePtexCoordinate(f, tptrsPtx[tcase].C_P[rot], /*isAdaptive=*/true);
+                                 tptrsPtx[tcase].C_P[rot] = computePtexCoordinate(f, tptrsPtx[tcase].C_P[rot]);
                                  tptrsFvd[tcase].C_P[rot] = computeFVarData(f, fvarWidth, tptrsFvd[tcase].C_P[rot], /*isAdaptive=*/true);
                              } break;
                 }
@@ -1030,4 +1030,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_VERTEX_EDIT_TABLES_H */
+#endif /* FAR_PATCH_TABLES_FACTORY_H */

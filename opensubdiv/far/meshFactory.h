@@ -187,7 +187,7 @@ private:
     int refineAdaptive( HbrMesh<T> * mesh, int maxIsolate );
     
     // Generates local sub-face coordinates for Ptex textures
-    void generatePtexCoordinates( std::vector<int> & vec, int level );
+    void generatePtexCoordinates( std::vector<FarPtexCoord> & vec, int level );
 
     // Generates local sub-face face-varying UV coordinates 
     void generateFVarData( std::vector<float> & vec, int level );
@@ -628,8 +628,8 @@ copyVertex( T & dest, T const & src ) {
 // int 2 :
 //   [ u (16 bits) ] [ v (16 bits) ]
 //
-template <class T> int *
-computePtexCoordinate(HbrFace<T> const *f, int *coord, bool isAdaptive) {
+template <class T> FarPtexCoord *
+computePtexCoordinate(HbrFace<T> const *f, FarPtexCoord *coord) {
 
     short u,v;
     unsigned short ofs = 1, depth;
@@ -637,7 +637,8 @@ computePtexCoordinate(HbrFace<T> const *f, int *coord, bool isAdaptive) {
 
     if (coord == NULL) return NULL;
 
-    int rots = f->_adaptiveFlags.rots;
+    // save the rotation state of the coarse face
+    unsigned char rots = f->_adaptiveFlags.rots;
 
     // track upwards towards coarse parent face, accumulating u,v indices
     HbrFace<T> const * p = f->GetParent();
@@ -665,37 +666,30 @@ computePtexCoordinate(HbrFace<T> const *f, int *coord, bool isAdaptive) {
         p = f->GetParent();
     }
 
-    // bit0 : non-quad bit
-    // bit1,2 : rotation bit
-    if (isAdaptive)
-        coord[0] = (f->GetPtexIndex() << 3) | (rots << 1) | (nonquad ? 1 : 0);
-    else
-        coord[0] = nonquad ? -f->GetPtexIndex() : f->GetPtexIndex();
-    coord[1] = (int)u << 16;
-    coord[1] += v;
+    coord->Set( f->GetPtexIndex(), u, v, rots, depth, nonquad );
 
-    return coord+2;
+    return ++coord;
 }
 
 // This currently only supports the Catmark / Bilinear schemes. Loop 
 template <class T, class U> void
-FarMeshFactory<T,U>::generatePtexCoordinates( std::vector<int> & vec, int level ) {
+FarMeshFactory<T,U>::generatePtexCoordinates( std::vector<FarPtexCoord> & vec, int level ) {
 
     assert( _hbrMesh );
 
     if (_facesList[0].empty() or _facesList[level][0]->GetPtexIndex() == -1) 
         return;
 
-    vec.resize( _facesList[level].size()*2, -1 );
+    vec.resize( _facesList[level].size() );
 
-    int *p = &vec[0];
+    FarPtexCoord * p = &vec[0];
 
     for (int i=0; i<(int)_facesList[level].size(); ++i) {
 
         HbrFace<T> const * f = _facesList[level][i];
         assert(f);
 
-        p = computePtexCoordinate(f, p, /*isAdaptive=*/false);
+        p = computePtexCoordinate(f, p);
     }
 }
 

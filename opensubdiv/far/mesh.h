@@ -97,7 +97,7 @@ public:
 
     /// Returns the ptex coordinates for each face at a given level. The coordinates
     /// are stored as : (int) faceindex / (ushort) u_index / (ushort) v_index
-    std::vector<int> const & GetPtexCoordinates(int level) const;
+    std::vector<FarPtexCoord> const & GetPtexCoordinates(int level) const;
 
     /// Returns the fvar data for each face at a given level. The data
     /// is stored as a run of totalFVarWidth floats per-vertex per-face
@@ -116,6 +116,9 @@ public:
 
     /// Returns the total number of vertices in the mesh across across all depths
     int GetNumVertices() const { return (int)(_vertices.size()); }
+
+    /// True if the mesh tables support the feature-adaptive mode.
+    bool SupportsFeatureAdaptive() const { return _patchTables!=NULL; }
 
     /// Returns an ordered vector of batches of compute kernels. The kernels
     /// describe the sequence of computations required to apply the subdivision
@@ -153,7 +156,7 @@ private:
     std::vector< std::vector<int> > _faceverts;
 
     // ptex coordinates for each face
-    std::vector< std::vector<int> > _ptexcoordinates;
+    std::vector< std::vector<FarPtexCoord> > _ptexcoordinates;
 
     // fvar data for each face
     std::vector< std::vector<float> > _fvarData;
@@ -175,7 +178,7 @@ FarMesh<U>::GetFaceVertices(int level) const {
     return _faceverts[0];
 }
 
-template <class U> std::vector<int> const &
+template <class U> std::vector<FarPtexCoord> const &
 FarMesh<U>::GetPtexCoordinates(int level) const {
     if ( (level>=0) and (level<(int)_faceverts.size()) )
         return _ptexcoordinates[level];

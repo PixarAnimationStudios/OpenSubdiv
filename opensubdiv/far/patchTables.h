@@ -55,8 +55,8 @@
 //     a particular purpose and non-infringement.
 //
 
-#ifndef FAR_PTACH_TABLES_H
-#define FAR_PTACH_TABLES_H
+#ifndef FAR_PATCH_TABLES_H
+#define FAR_PATCH_TABLES_H
 
 #include "../version.h"
 #include <vector>
@@ -64,6 +64,55 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+/// \brief Flattened ptex coordinates indexing system
+///
+/// Bitfield layout :
+///
+///   level:4      - the subdivision level of the patch
+///   nonquad:1;   - whether the patch is the child of a non-quad face
+///   rotation:2;  - patch rotations necessary to match CCW face-winding
+///   v:10;        - log2 value of u parameter at first patch corner
+///   u:10;        - log2 value of v parameter at first patch corner
+///   reserved1:5; - padding
+///
+/// Note : the bitfield is not expanded in the struct due to differences in how
+///        compilers pack bit-fields and endian-ness.
+///
+struct FarPtexCoord {
+    unsigned int faceIndex:32; // Ptex face index
+    unsigned int bitField:32;  // Patch description bits
+    
+    /// Sets teh values of the bit fields
+    ///
+    /// @param faceid ptex face index
+    ///
+    /// @param u value of the u parameter for the first corner of the face
+    /// @param v value of the v parameter for the first corner of the face
+    ///
+    /// @params rots rotations required to reproduce CCW face-winding
+    /// @params depth subdivision level of the patch
+    /// @params nonquad true if the root face is not a quad
+    ///
+    void Set( unsigned int faceid, 
+              short u, short v,
+              unsigned char rots, unsigned char depth, bool nonquad ) {
+                    
+        faceIndex = faceid;
+        bitField = (u << 17) |
+                   (v << 7) |
+                   (rots << 5) |
+                   ((nonquad ? 1:0) << 4) |
+                   (nonquad ? depth+1 : depth);
+    }
+    
+    /// Resets the values to 0
+    void Clear() {
+        faceIndex = bitField = 0;
+    }
+};
+
+/// \brief Indices for multi-mesh patch arrays
+// XXXX manuelk : we should probably derive FarMultiPatchTables for multi-meshes
 struct FarPatchCount {
     int nonPatch;                 // reserved for uniform and loop
     int regular;
@@ -75,6 +124,7 @@ struct FarPatchCount {
     int transitionBoundary[5][4];
     int transitionCorner[5][4];
 
+    /// Constructor.
     FarPatchCount() {
         nonPatch = regular = boundary = corner = gregory = boundaryGregory = 0;
         for (int i = 0; i < 5; ++i) {
@@ -86,6 +136,7 @@ struct FarPatchCount {
         }
     }
 
+    /// Adds the indices from another patchTable.
     void Append(FarPatchCount const &p) {
         nonPatch += p.nonPatch;
         regular += p.regular;
@@ -100,7 +151,7 @@ struct FarPatchCount {
                 transitionCorner[i][j] += p.transitionCorner[i][j];
             }
         }
-    }
+    }    
 };
 
 typedef std::vector<FarPatchCount> FarPatchCountVector;
@@ -113,13 +164,16 @@ typedef std::vector<FarPatchCount> FarPatchCountVector;
 class FarPatchTables {
 
 public:
-    typedef std::pair<std::vector<unsigned int>,
-                      std::vector<unsigned char> > PTable; // index table - level table pair
+    /// Patch table : (vert indices, patch level) pairs
+    typedef std::pair<std::vector<unsigned int>, 
+                      std::vector<unsigned char> > PTable; 
+                      
     typedef std::vector<int> VertexValenceTable;
 
     typedef std::vector<unsigned int> QuadOffsetTable;
 
-    typedef std::vector<int> PtexCoordinateTable;
+    typedef std::vector<FarPtexCoord> PtexCoordinateTable;
+    
     typedef std::vector<float> FVarDataTable;
 
 
@@ -164,7 +218,7 @@ public:
     /// Ringsize of Boundary Patches in table.
     static int GetCornerPatchRingsize() { return 9; }
 
-    /// Ringsize of Gregory Patches in table.
+    /// Ringsize of Gregory (and Gregory Boundary) Patches in table.
     static int GetGregoryPatchRingsize() { return 4; }
 
 
@@ -202,6 +256,12 @@ public:
 
     FVarDataTable const & GetTransitionCornerFVarData(unsigned char pattern, unsigned char rot) const { return _transition[pattern]._C_FVD[rot]; }
 
+    /// Returns the total number of patches stored in the tables
+    size_t GetNumPatches() const;
+    
+    /// Returns the total number of control vertex indices in the tables
+    size_t GetNumControlVertices() const;
+
     /// Returns max vertex valence
     int GetMaxValence() const { return _maxValence; }
 
@@ -218,19 +278,19 @@ private:
 
     // FarTables for full / end patches
     struct Patches {
-        PTable _R_IT,   // regular patches
-               _B_IT,   // boundary patches
-               _C_IT,   // corner patches
-               _G_IT,   // gregory patches
-               _G_B_IT; // gregory boundary patches
+        PTable _R_IT,   // regular patches vertex indices table
+               _B_IT,   // boundary 
+               _C_IT,   // corner
+               _G_IT,   // gregory 
+               _G_B_IT; // gregory 
 
-        PtexCoordinateTable _R_PTX,
+        PtexCoordinateTable _R_PTX, // regular patches ptex indices table
                             _B_PTX,
                             _C_PTX,
                             _G_PTX,
                             _G_B_PTX;
         
-        FVarDataTable       _R_FVD,
+        FVarDataTable       _R_FVD, // regular patches face-varying indices table
                             _B_FVD,
                             _C_FVD,
                             _G_FVD,
@@ -252,22 +312,77 @@ private:
                             _C_FVD[4];
     };
 
-    Patches _full;
+    Patches _full; // full patches tables
     
-    TPatches _transition[5];
+    TPatches _transition[5]; // transition patches tables
 
-    VertexValenceTable _vertexValenceTable;
+    // XXXX manuelk : Greg. patch tables need to be localized to Gregory CVs only.
 
-    QuadOffsetTable _quadOffsetTable;
+    // vertex valence table (for Gregory patches)
+    VertexValenceTable _vertexValenceTable; 
 
+    // quad offsets table (for Gregory patches)
+    QuadOffsetTable _quadOffsetTable; 
+
+    // highest vertex valence allowed in the mesh (used for Gregory 
+    // vertexValance & quadOffset talbes)
     int _maxValence;
-
-    FarPatchCountVector _patchCounts;
+    
+    // vector of counters for aggregated patch tables used by multi-meshes
+    FarPatchCountVector _patchCounts; 
 };
+
+// Returns the total number of patches stored in the tables
+inline size_t 
+FarPatchTables::GetNumPatches() const {
+
+    // We can use directly the size of the levels table ("second") because
+    // there is 1 value per patch 
+    size_t count = _full._R_IT.second.size()  + 
+                   _full._B_IT.second.size() +
+                   _full._C_IT.second.size() +
+                   _full._G_IT.second.size()  + 
+                   _full._G_B_IT.second.size();
+
+    for (int i = 0; i < 5; ++i) {
+        count += _transition[i]._R_IT.second.size();
+        for (int j = 0; j < 4; ++j) {
+            count += _transition[i]._B_IT[j].second.size()+
+                     _transition[i]._C_IT[j].second.size();
+        }
+    }
+
+    return count;
+}
+
+// Returns the total number of control vertex indices in the tables
+inline size_t 
+FarPatchTables::GetNumControlVertices() const {
+
+    // The "first" table of a PTable contains the vertex indices of each
+    // patch, so we can directly use those to tally our count.
+    size_t count = _full._R_IT.first.size() + 
+                   _full._B_IT.first.size() +
+                   _full._C_IT.first.size() +
+                   _full._G_IT.first.size() + 
+                   _full._G_B_IT.first.size();
+
+    for (int i = 0; i < 5; ++i) {
+        count += _transition[i]._R_IT.first.size();
+        for (int j = 0; j < 4; ++j) {
+            count += _transition[i]._B_IT[j].first.size()+
+                     _transition[i]._C_IT[j].first.size();
+        }
+    }
+
+    return count;
+}
+
+
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_VERTEX_EDIT_TABLES_H */
+#endif /* FAR_PATCH_TABLES */
