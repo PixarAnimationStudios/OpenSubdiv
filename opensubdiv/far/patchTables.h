@@ -59,6 +59,8 @@
 #define FAR_PATCH_TABLES_H
 
 #include "../version.h"
+
+#include <stdlib.h>
 #include <vector>
 
 namespace OpenSubdiv {
