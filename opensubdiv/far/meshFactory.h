@@ -632,7 +632,8 @@ template <class T> FarPtexCoord *
 computePtexCoordinate(HbrFace<T> const *f, FarPtexCoord *coord) {
 
     short u,v;
-    unsigned short ofs = 1, depth;
+    unsigned short ofs = 1;
+    unsigned char depth;
     bool nonquad = false;
 
     if (coord == NULL) return NULL;
