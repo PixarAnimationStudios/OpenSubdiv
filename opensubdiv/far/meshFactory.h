@@ -620,14 +620,6 @@ copyVertex( T & dest, T const & src ) {
 
 
 // Computes per-face or per-patch local ptex texture coordinates.
-//
-// int 1 :
-//   Adaptive : [face index (13 bits)] [rotation (2bits)] [non-quad (1bit)]
-//
-//   Non-adaptive : [non-quad (sign bit)] [face index)]
-// int 2 :
-//   [ u (16 bits) ] [ v (16 bits) ]
-//
 template <class T> FarPtexCoord *
 computePtexCoordinate(HbrFace<T> const *f, FarPtexCoord *coord) {
 
