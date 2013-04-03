@@ -18,6 +18,12 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
 - DirectX 11 support 
 
 
+## Git Flow
+
+We have adopted the git flow branching model. It is not necessary to use the git-flow extensions, though you may find them useful! But it will be helpful to read about the git flow branching model in order to understand the organization of branches and tags that you will find in the repository.
+
+* [git-flow extensions](https://github.com/nvie/gitflow) 
+
 ## Quickstart
 
 Basic instructions to get started with the code.
