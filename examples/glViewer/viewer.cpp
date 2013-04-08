@@ -1423,7 +1423,7 @@ display() {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-motion(GLFWwindow *, int x, int y) {
+motion(GLFWwindow *, double x, double y) {
 #else
 motion(int x, int y) {
 #endif

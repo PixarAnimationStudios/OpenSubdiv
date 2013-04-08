@@ -1004,7 +1004,7 @@ drawStroke(int x, int y)
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-motion(GLFWwindow * w, int x, int y) {
+motion(GLFWwindow * w, double x, double y) {
 #else
 motion(int x, int y) {
 #endif
