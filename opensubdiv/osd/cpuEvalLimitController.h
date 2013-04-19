@@ -55,109 +55,84 @@
 //     a particular purpose and non-infringement.
 //
 
-#ifndef OSD_PATCH_H
-#define OSD_PATCH_H
+#ifndef OSD_CPU_EVAL_LIMIT_CONTROLLER_H
+#define OSD_CPU_EVAL_LIMIT_CONTROLLER_H
 
-#include <vector>
+#include "../version.h"
+
+#include "../osd/evalLimitContext.h"
+#include "../osd/cpuEvalLimitContext.h"
+#include "../osd/vertexDescriptor.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-enum OsdPatchType {
-    kNonPatch = 0,
+/// \brief CPU controler for limit surface evaluation.
+///
+/// A CPU-driven controller that can be called to evaluate samples on the limit
+/// surface for a given EvalContext.
+///
+class OsdCpuEvalLimitController {
 
-    kRegular = 1,
-    kBoundary = 2,
-    kCorner = 3,
-    kGregory = 4,
-    kBoundaryGregory = 5,
+public:
+    /// Constructor.
+    OsdCpuEvalLimitController();
 
-    kTransitionRegular = 6,
-    kTransitionBoundary = 7,
-    kTransitionCorner = 8,
-};
+    /// Destructor.
+    ~OsdCpuEvalLimitController();
+    
+    /// \brief Represents a location on the limit surface
+    struct OsdEvalCoords {
+        int face;   // Ptex unique face ID
+        float u,v;  // local u,v
+    };
+    
+    /// \brief Vertex interpolation of samples at the limit
+    ///
+    /// Evaluates "vertex" interpolation of a sample on the surface limit.
+    ///
+    /// Warning : this function is re-entrant but it breaks the Osd API pattern
+    /// by requiring the client code to bind and unbind the vertex buffers to
+    /// the EvalLimitContext. 
+    ///
+    /// Ex :
+    /// \code
+    /// evalCtxt->BindVertexBuffers( ... );
+    ///
+    /// parallel_for( int index=0; i<nsamples; ++index ) {
+    ///    evalCtrlr->EvalLimitSample( coord, evalCtxt, index );
+    /// }
+    ///
+    /// evalCtxt->UnbindVertexBuffers();
+    /// \endcode
+    ///
+    /// @param coords location on the limit surface to be evaluated
+    ///
+    /// @param context the EvalLimitContext that the controller will evaluate
+    ///
+    /// @param index the index of the vertex in the output buffers bound to the 
+    ///              context
+    ///
+    template<class VERTEX_BUFFER, class OUTPUT_BUFFER>
+    int EvalLimitSample( OpenSubdiv::OsdEvalCoords const & coords, 
+                         OsdCpuEvalLimitContext * context,
+                         unsigned int index
+                       ) {    
 
-/// \brief A bitfield-based descriptor for feature adaptive patches
-struct OsdPatchDescriptor {
-    OsdPatchDescriptor() :
-        type(kNonPatch), pattern(0), rotation(0), subpatch(0),
-        maxValence(0), numElements(0) {}
-
-    /// \brief Constructor
-    ///
-    /// @param type Patch type enum (see OsdPatchType)
-    ///
-    /// @param pattern Transition pattern. One of 5 patterns (see : "Feature Adaptive 
-    ///                GPU Rendering of Catmull-Clark Subdivision Surfaces")
-    ///
-    /// @param rotation Number of CCW parametric rotations of the patch.
-    ///
-    /// @param maxValence The maximum vertex valence (set for the entire mesh)
-    ///
-    /// @param numElements Stride of the data in the vertex buffer (used for drawing)
-    ///
-    OsdPatchDescriptor(
-        OsdPatchType type,
-        unsigned char pattern,
-        unsigned char rotation,
-        unsigned char maxValence,
-        unsigned char numElements) :
-        type(type), pattern(pattern), rotation(rotation), subpatch(0),
-        maxValence(maxValence), numElements(numElements) {}
-
-    /// Returns the number of control vertices expected for a patch of this type
-    short GetPatchSize() const {
-        switch (type) {
-            case kNonPatch : return (loop ? 3:4);
+        if (not context)
+            return 0;
             
-            case kRegular  : 
-            case kTransitionRegular : return 16;
-            
-            case kBoundary : 
-            case kTransitionBoundary : return 12;
-            
-            case kCorner : 
-            case kTransitionCorner : return 9;
-            
-            case kGregory :
-            case kBoundaryGregory : return 4;
-            
-            default : return -1;
-        }
+        int n = _EvalLimitSample( coords, context, index );
+        
+        return n;
     }
 
-    OsdPatchType type:4;         //  0-8
-    unsigned char loop:1;        //  0-1
-    unsigned char pattern:3;     //  0-4
-    unsigned char rotation:2;    //  0-3
-    unsigned char subpatch:2;    //  0-3
-    unsigned char maxValence:5;  //  0-29
-    unsigned char numElements:5; //  0-31
-};
+private:
 
+    int _EvalLimitSample( OpenSubdiv::OsdEvalCoords const & coords, 
+                          OsdCpuEvalLimitContext const * context,
+                          unsigned int index );
 
-bool operator< (OsdPatchDescriptor const & a,
-                OsdPatchDescriptor const & b);
-
-
-/// \brief A container to aggregate patches of the same type.
-struct OsdPatchArray {
-
-    OsdPatchDescriptor desc;
-    int firstIndex; // index of first vertex in patch indices array
-    int numIndices; // number of vertex indices in indices array
-    int levelBase;  // XXX ???
-    int gregoryVertexValenceBase;
-    int gregoryQuadOffsetBase;
-};
-
-typedef std::vector<OsdPatchArray> OsdPatchArrayVector;
-
-/// Unique patch identifier 
-struct OsdPatchHandle {
-    unsigned int array,        // OsdPatchArray containing the patch
-                 vertexOffset, // Offset to the first CV of the patch
-                 serialIndex;  // Serialized Index of the patch
 };
 
 } // end namespace OPENSUBDIV_VERSION
@@ -165,4 +140,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* OSD_PATCH_H_ */
+#endif /* OSD_CPU_EVAL_LIMIT_CONTROLLER_H */

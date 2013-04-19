@@ -167,11 +167,28 @@ struct OsdVertexDescriptor {
     int numVaryingElements;
 };
 
+/// \brief Describes vertex elements in interleaved data buffers
 struct OsdVertexBufferDescriptor {
 
     /// Default Constructor
-    OsdVertexBufferDescriptor()
-    :  offset(0), length(0), stride(0) { }
+    OsdVertexBufferDescriptor() : offset(0), length(0), stride(0) { }
+
+    /// Constructor
+    OsdVertexBufferDescriptor(int o, int l, int s) : offset(o), length(l), stride(s) { }
+
+    /// True if the descriptor values are internally consistent
+    bool IsValid() const {
+        return (offset<length) and (stride>=length);
+    }
+    
+    /// True if the 'other' descriptor can be used as a destination for
+    /// data evaluations.
+    bool CanEval( OsdVertexBufferDescriptor const & other ) const {
+        return IsValid() and 
+               other.IsValid() and 
+               (length==other.length) and 
+               (other.length <= (stride-offset));
+    }
 
     int offset;  // offset to desired element data
     int length;  // number or length of the data

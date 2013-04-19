@@ -79,8 +79,12 @@ set(CPU_SOURCE_FILES
     cpuKernel.cpp
     cpuComputeController.cpp
     cpuComputeContext.cpp
+    cpuEvalLimitContext.cpp
+    cpuEvalLimitController.cpp
+    cpuEvalLimitKernel.cpp
     cpuVertexBuffer.cpp
     error.cpp
+    evalLimitContext.cpp
     drawContext.cpp
     drawRegistry.cpp
     sortedDrawContext.cpp
@@ -98,14 +102,18 @@ set(INC_FILES
 set(PRIVATE_HEADER_FILES
     debug.h
     cpuKernel.h
+    cpuEvalLimitKernel.h
 )
 
 set(PUBLIC_HEADER_FILES
     computeController.h
     cpuComputeContext.h
     cpuComputeController.h
+    cpuEvalLimitContext.h
+    cpuEvalLimitController.h
     cpuVertexBuffer.h
     error.h
+    evalLimitContext.h
     mesh.h
     nonCopyable.h
     drawContext.h
