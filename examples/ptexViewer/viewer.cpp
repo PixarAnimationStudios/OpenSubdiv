@@ -1714,7 +1714,8 @@ mouse(int button, int state) {
 //------------------------------------------------------------------------------
 static void 
 #if GLFW_VERSION_MAJOR>=3
-motion(GLFWwindow *, double x, double y) {
+motion(GLFWwindow *, double dx, double dy) {
+    int x=(int)dx, y=(int)dy;
 #else
 motion(int x, int y) {
 #endif
