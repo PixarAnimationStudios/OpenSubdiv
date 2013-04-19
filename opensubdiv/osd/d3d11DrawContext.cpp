@@ -146,9 +146,9 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     // adaptive patches
     isAdaptive = true;
 
-    size_t totalPatchIndices = patchTables->GetNumControlVertices();
+    int totalPatchIndices = (int)patchTables->GetNumControlVertices();
     
-    size_t totalPatchLevels = patchTables->GetNumPatches();
+    int totalPatchLevels = (int)patchTables->GetNumPatches();
 
     // Allocate and fill index buffer.
     D3D11_BUFFER_DESC bd;
