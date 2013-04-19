@@ -97,10 +97,10 @@ struct FarPtexCoord {
         ///
         void Set( short u, short v, unsigned char rots, unsigned char depth, bool nonquad ) {
             field = (u << 17) |
-                       (v << 7) |
-                       (rots << 5) |
-                       ((nonquad ? 1:0) << 4) |
-                       (nonquad ? depth+1 : depth);
+                    (v << 7) |
+                    (rots << 5) |
+                    ((nonquad ? 1:0) << 4) |
+                    (nonquad ? depth+1 : depth);
         }
 
         /// Returns the log2 value of the u parameter at the top left corner of

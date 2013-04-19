@@ -215,39 +215,9 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     // adaptive patches
     isAdaptive = true;
 
-    // Determine buffer sizes
-    size_t totalPatchIndices = 
-        patchTables->GetFullRegularPatches().first.size() +
-        patchTables->GetFullBoundaryPatches().first.size() +
-        patchTables->GetFullCornerPatches().first.size() +
-        patchTables->GetFullGregoryPatches().first.size() +
-        patchTables->GetFullBoundaryGregoryPatches().first.size();
-
-    // XXX: use .second instead
-    size_t totalPatchLevels = 
-        patchTables->GetFullRegularPatches().first.size()/patchTables->GetRegularPatchRingsize() +
-        patchTables->GetFullBoundaryPatches().first.size()/patchTables->GetBoundaryPatchRingsize() +
-        patchTables->GetFullCornerPatches().first.size()/patchTables->GetCornerPatchRingsize() +
-        patchTables->GetFullGregoryPatches().first.size()/patchTables->GetGregoryPatchRingsize() +
-        patchTables->GetFullBoundaryGregoryPatches().first.size()/patchTables->GetGregoryPatchRingsize();
-
-    for (unsigned char p=0; p<5; ++p) {
-        totalPatchIndices +=
-            patchTables->GetTransitionRegularPatches(p).first.size();
-
-        totalPatchLevels +=
-            patchTables->GetTransitionRegularPatches(p).first.size()/patchTables->GetRegularPatchRingsize();
-
-        for (unsigned char r=0; r<4; ++r) {
-            totalPatchIndices +=
-                patchTables->GetTransitionBoundaryPatches(p, r).first.size() +
-                patchTables->GetTransitionCornerPatches(p, r).first.size();
-
-            totalPatchLevels +=
-                patchTables->GetTransitionBoundaryPatches(p, r).first.size()/patchTables->GetBoundaryPatchRingsize() +
-                patchTables->GetTransitionCornerPatches(p, r).first.size()/patchTables->GetCornerPatchRingsize();
-        }
-    }
+    size_t totalPatchIndices = patchTables->GetNumControlVertices();
+    
+    size_t totalPatchLevels = patchTables->GetNumPatches();
 
     // Allocate and fill index buffer.
     glGenBuffers(1, &patchIndexBuffer);

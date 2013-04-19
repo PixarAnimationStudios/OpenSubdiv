@@ -146,38 +146,9 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     // adaptive patches
     isAdaptive = true;
 
-    // Determine buffer sizes
-    int totalPatchIndices = 
-        (int)patchTables->GetFullRegularPatches().first.size() +
-        (int)patchTables->GetFullBoundaryPatches().first.size() +
-        (int)patchTables->GetFullCornerPatches().first.size() +
-        (int)patchTables->GetFullGregoryPatches().first.size() +
-        (int)patchTables->GetFullBoundaryGregoryPatches().first.size();
-
-    int totalPatchLevels =
-        (int)patchTables->GetFullRegularPatches().first.size()/patchTables->GetRegularPatchRingsize() +
-        (int)patchTables->GetFullBoundaryPatches().first.size()/patchTables->GetBoundaryPatchRingsize() +
-        (int)patchTables->GetFullCornerPatches().first.size()/patchTables->GetCornerPatchRingsize() +
-        (int)patchTables->GetFullGregoryPatches().first.size()/patchTables->GetGregoryPatchRingsize() +
-        (int)patchTables->GetFullBoundaryGregoryPatches().first.size()/patchTables->GetGregoryPatchRingsize();
-
-    for (int p=0; p<5; ++p) {
-        totalPatchIndices +=
-            (int)patchTables->GetTransitionRegularPatches(p).first.size();
-
-        totalPatchLevels +=
-            (int)patchTables->GetTransitionRegularPatches(p).first.size()/patchTables->GetRegularPatchRingsize();
-
-        for (int r=0; r<4; ++r) {
-            totalPatchIndices +=
-                (int)patchTables->GetTransitionBoundaryPatches(p, r).first.size() +
-                (int)patchTables->GetTransitionCornerPatches(p, r).first.size();
-
-            totalPatchLevels +=
-                (int)patchTables->GetTransitionBoundaryPatches(p, r).first.size()/patchTables->GetBoundaryPatchRingsize() +
-                (int)patchTables->GetTransitionCornerPatches(p, r).first.size()/patchTables->GetCornerPatchRingsize();
-        }
-    }
+    size_t totalPatchIndices = patchTables->GetNumControlVertices();
+    
+    size_t totalPatchLevels = patchTables->GetNumPatches();
 
     // Allocate and fill index buffer.
     D3D11_BUFFER_DESC bd;
