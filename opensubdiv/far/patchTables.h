@@ -91,9 +91,9 @@ struct FarPtexCoord {
         /// @param u value of the u parameter for the first corner of the face
         /// @param v value of the v parameter for the first corner of the face
         ///
-        /// @params rots rotations required to reproduce CCW face-winding
-        /// @params depth subdivision level of the patch
-        /// @params nonquad true if the root face is not a quad
+        /// @param rots rotations required to reproduce CCW face-winding
+        /// @param depth subdivision level of the patch
+        /// @param nonquad true if the root face is not a quad
         ///
         void Set( short u, short v, unsigned char rots, unsigned char depth, bool nonquad ) {
             field = (u << 17) |
@@ -132,9 +132,9 @@ struct FarPtexCoord {
     /// @param u value of the u parameter for the first corner of the face
     /// @param v value of the v parameter for the first corner of the face
     ///
-    /// @params rots rotations required to reproduce CCW face-winding
-    /// @params depth subdivision level of the patch
-    /// @params nonquad true if the root face is not a quad
+    /// @param rots rotations required to reproduce CCW face-winding
+    /// @param depth subdivision level of the patch
+    /// @param nonquad true if the root face is not a quad
     ///
     void Set( unsigned int faceid, short u, short v, unsigned char rots, unsigned char depth, bool nonquad ) {
         faceIndex = faceid;
