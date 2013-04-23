@@ -57,7 +57,7 @@
 
 project(OpenSubdiv)
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.6)
 
 #-------------------------------------------------------------------------------
 # Obtain OpenSubdiv API version from version.h file
