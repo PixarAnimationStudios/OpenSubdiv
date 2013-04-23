@@ -110,7 +110,7 @@ struct OsdVertexDescriptor {
 
     /// Applies "dst += src*weight" to "varying" primvar data in a vertex buffer.
     ///
-    /// @param vertex The VaryingData buffer
+    /// @param varying The VaryingData buffer
     ///
     /// @param dstIndex Index of the destination vertex.
     ///

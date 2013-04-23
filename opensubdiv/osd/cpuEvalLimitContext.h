@@ -90,9 +90,9 @@ public:
     ///
     /// @param outQ output vertex data
     ///
-    /// @param outDQu optional output derivative along "u" of the vertex data
+    /// @param outdQu optional output derivative along "u" of the vertex data
     ///
-    /// @param outDQv optional output derivative along "v" of the vertex data
+    /// @param outdQv optional output derivative along "v" of the vertex data
     ///
     template<class VERTEX_BUFFER, class OUTPUT_BUFFER>
     void BindVertexBuffers( OsdVertexBufferDescriptor const & inDesc, VERTEX_BUFFER *inQ,
