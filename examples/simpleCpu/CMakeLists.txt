@@ -108,3 +108,5 @@ target_link_libraries(simpleCpu
     ${PLATFORM_LIBRARIES}
 )
 
+install(TARGETS simpleCpu DESTINATION ${CMAKE_BINDIR_BASE})
+

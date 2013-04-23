@@ -468,8 +468,13 @@ endif()
 
 
 install( FILES ${PUBLIC_HEADER_FILES}
-         DESTINATION include/osd
+         DESTINATION ${CMAKE_INCDIR_BASE}/osd
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+
+install( TARGETS osd_static_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
+install( TARGETS osd_static_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
+install( TARGETS osd_dynamic_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
+install( TARGETS osd_dynamic_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
 
 if (ANDROID)
     install( FILES Android.mk 

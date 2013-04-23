@@ -87,3 +87,5 @@ add_executable(osd_regression
 target_link_libraries(osd_regression
     ${PLATFORM_LIBRARIES}
 )
+
+install(TARGETS osd_regression DESTINATION ${CMAKE_BINDIR_BASE})

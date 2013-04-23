@@ -63,7 +63,7 @@ if (DOXYGEN_FOUND)
         ${DOXYGEN_EXECUTABLE} 
         ${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy  
         WORKING_DIRECTORY 
-        ${CMAKE_CURRENT_BINARY_DIR}
+        ${CMAKE_INSTALL_PREFIX}/include
         COMMENT "Generating API documentation with Doxygen" VERBATIM
     )
 else()

@@ -74,13 +74,29 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 #-------------------------------------------------------------------------------
 # Specify the default install path
-SET( CMAKE_INSTALL_PREFIX
-     ${PROJECT_BINARY_DIR}/ )
+if (NOT DEFINED CMAKE_INSTALL_PREFIX)
+    SET( CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/ )
+endif()
+
+if (NOT DEFINED CMAKE_INCDIR_BASE)
+    set( CMAKE_INCDIR_BASE include )
+endif()
+
+if (NOT DEFINED CMAKE_BINDIR_BASE)
+    set( CMAKE_BINDIR_BASE bin )
+endif()
+
+if (NOT DEFINED CMAKE_LIBDIR_BASE)
+    set( CMAKE_LIBDIR_BASE lib )
+endif()
+
+if (NOT DEFINED CMAKE_PLUGINDIR_BASE)
+    set( CMAKE_PLUGINDIR_BASE plugin )
+endif()
 
 # Allow install path to be overridden for cross-compile builds
 if(LIBRARY_OUTPUT_PATH_ROOT)
-    SET( CMAKE_INSTALL_PREFIX
-         ${LIBRARY_OUTPUT_PATH_ROOT}/ )
+    SET( CMAKE_INSTALL_PREFIX ${LIBRARY_OUTPUT_PATH_ROOT}/ )
 endif()
 
 # Set the directory where the executables will be stored.

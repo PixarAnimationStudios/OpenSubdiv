@@ -111,3 +111,4 @@ target_link_libraries(dxViewer
     ${PLATFORM_LIBRARIES}
 )
 
+install(TARGETS dxViewer DESTINATION ${CMAKE_BINDIR_BASE})

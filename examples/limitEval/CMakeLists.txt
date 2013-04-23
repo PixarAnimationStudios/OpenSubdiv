@@ -82,3 +82,4 @@ target_link_libraries(limitEval
     ${PLATFORM_LIBRARIES}
 )
 
+install(TARGETS limitEval DESTINATION ${CMAKE_BINDIR_BASE})

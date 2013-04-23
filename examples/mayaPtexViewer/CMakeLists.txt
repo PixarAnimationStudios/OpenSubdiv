@@ -182,3 +182,5 @@ target_link_libraries(maya_ptex_plugin
     ${MAYA_OpenMayaUI_LIBRARY}
     ${PLATFORM_LIBRARIES}
 )
+
+install(TARGETS maya_ptex_plugin DESTINATION ${CMAKE_PLUGINDIR_BASE})

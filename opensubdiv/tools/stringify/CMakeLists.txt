@@ -59,3 +59,5 @@
 add_executable(stringify
     main.cpp
 )
+
+install(TARGETS stringify DESTINATION ${CMAKE_BINDIR_BASE})

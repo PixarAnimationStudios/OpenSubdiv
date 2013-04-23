@@ -111,3 +111,4 @@ target_link_libraries(paintTest
     ${PLATFORM_LIBRARIES}
 )
 
+install(TARGETS paintTest DESTINATION ${CMAKE_BINDIR_BASE})

@@ -181,3 +181,5 @@ target_link_libraries(maya_plugin
     ${MAYA_OpenMayaUI_LIBRARY}
     ${PLATFORM_LIBRARIES}
 )
+
+install(TARGETS maya_plugin DESTINATION ${CMAKE_PLUGINDIR_BASE})
