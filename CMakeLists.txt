@@ -118,6 +118,12 @@ set(CMAKE_MODULE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake
 )
 
+list(APPEND CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 #-------------------------------------------------------------------------------
 # Detect Clang (until a cmake version provides built-in variables)
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
