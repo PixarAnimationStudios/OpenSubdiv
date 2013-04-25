@@ -116,6 +116,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
     // Prepare batch table
     batches->reserve(maxlevel*5);
 
+    int vertexOffset = 0;
     int F_IT_offset = 0;
     int V_IT_offset = 0;
     int faceTableOffset = 0;
@@ -133,7 +134,8 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
     for (int level=1; level<=maxlevel; ++level) {
 
         // pointer to the first vertex corresponding to this level
-        int vertexOffset = tablesFactory._vertVertIdx[level-1] + (int)tablesFactory._vertVertsList[level-1].size();
+        vertexOffset = tablesFactory._vertVertIdx[level-1] +
+            (int)tablesFactory._vertVertsList[level-1].size();
         result->_vertsOffsets[level] = vertexOffset;
 
         // Face vertices
@@ -357,8 +359,8 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
             batchFactory.AppendCatmarkBatches(batches, level, vertTableOffset, vertexOffset);
         vertexOffset += nVertVertices;
         vertTableOffset += nVertVertices;
-        result->_numTotalVertices = vertexOffset;
     }
+    result->_vertsOffsets[maxlevel+1] = vertexOffset;
     return result;
 }
 

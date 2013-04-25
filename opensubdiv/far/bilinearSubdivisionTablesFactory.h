@@ -112,6 +112,7 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
     // Prepare batch table
     batches->reserve(maxlevel*5);
 
+    int vertexOffset = 0;
     int F_IT_offset = 0;
     int faceTableOffset = 0;
     int edgeTableOffset = 0;
@@ -125,8 +126,8 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
     for (int level=1; level<=maxlevel; ++level) {
 
         // pointer to the first vertex corresponding to this level
-        int vertexOffset = tablesFactory._vertVertIdx[level-1] +
-                           (int)tablesFactory._vertVertsList[level-1].size();
+        vertexOffset = tablesFactory._vertVertIdx[level-1] +
+            (int)tablesFactory._vertVertsList[level-1].size();
         result->_vertsOffsets[level] = vertexOffset;
 
         // Face vertices
@@ -214,6 +215,7 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
         }
         V_ITa += nVertVertices;
     }
+    result->_vertsOffsets[maxlevel+1] = vertexOffset;
     return result;
 }
 

@@ -102,7 +102,7 @@ public:
     virtual ~FarSubdivisionTables<U>() {}
 
     /// Return the highest level of subdivision possible with these tables
-    int GetMaxLevel() const { return (int)(_vertsOffsets.size()); }
+    int GetMaxLevel() const { return (int)(_vertsOffsets.size()-1); }
 
     /// Memory required to store the indexing tables
     int GetMemoryUsed() const;
@@ -114,8 +114,11 @@ public:
     /// represented by this set of FarCatmarkSubdivisionTables
     int GetFirstVertexOffset( int level ) const;
 
-    // Total number of vertices at a given level
+    /// Number of vertices at a given level
     int GetNumVertices( int level ) const;
+
+    /// Total number of vertices at a given level
+    int GetNumVerticesTotal( int level ) const;
 
     /// Indexing tables accessors
 
@@ -164,34 +167,32 @@ protected:
     std::vector<float>        _V_W;   // weights
 
     std::vector<int> _vertsOffsets; // offset to the first vertex of each level
-    
-    unsigned int _numCoarseVertices;
-
-    unsigned int _numTotalVertices;
 };
 
 template <class U>
 FarSubdivisionTables<U>::FarSubdivisionTables( FarMesh<U> * mesh, int maxlevel ) :
     _mesh(mesh),
-    _vertsOffsets(maxlevel+1,0),
-    _numCoarseVertices(0)
+    _vertsOffsets(maxlevel+2, 0)
 {
     assert( maxlevel > 0 );
 }
 
 template <class U> int
 FarSubdivisionTables<U>::GetFirstVertexOffset( int level ) const {
-    assert(level>=0 and level<=(int)_vertsOffsets.size());
+    assert(level>=0 and level<(int)_vertsOffsets.size());
     return _vertsOffsets[level];
 }
 
 template <class U> int
 FarSubdivisionTables<U>::GetNumVertices( int level ) const {
-    assert(level>=0 and level<=((int)_vertsOffsets.size()+1));
-    if (level <= (int)_vertsOffsets.size()) 
-        return _vertsOffsets[level+1];
-    else
-        return _numTotalVertices;
+    assert(level>=0 and level<((int)_vertsOffsets.size()-1));
+    return _vertsOffsets[level+1] - _vertsOffsets[level];
+}
+
+template <class U> int
+FarSubdivisionTables<U>::GetNumVerticesTotal( int level ) const {
+    assert(level>=0 and level<((int)_vertsOffsets.size()-1));
+    return _vertsOffsets[level+1];
 }
 
 template <class U> int

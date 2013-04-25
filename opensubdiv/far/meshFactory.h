@@ -774,9 +774,6 @@ FarMeshFactory<T,U>::Create( bool requirePtexCoordinate,       // XXX yuck.
         assert(0);
     assert(result->_subdivisionTables);
 
-    const_cast<FarSubdivisionTables<U> *>(result->GetSubdivisionTables())->_numCoarseVertices=GetNumCoarseVertices();
-    
-
     // If the vertex classes aren't place-holders, copy the data of the coarse
     // vertices into the vertex buffer.
     result->_vertices.resize( _numVertices );

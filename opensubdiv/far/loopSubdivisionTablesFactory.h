@@ -113,6 +113,7 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
     // Prepare batch table
     batches->reserve(maxlevel*5);
 
+    int vertexOffset = 0;
     int V_IT_offset = 0;
     int edgeTableOffset = 0;
     int vertTableOffset = 0;
@@ -126,7 +127,7 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
     for (int level=1; level<=maxlevel; ++level) {
 
         // pointer to the first vertex corresponding to this level
-        int vertexOffset = tablesFactory._vertVertIdx[level-1] + 
+        vertexOffset = tablesFactory._vertVertIdx[level-1] + 
             (int)tablesFactory._vertVertsList[level-1].size();
         result->_vertsOffsets[level] = vertexOffset;
 
@@ -288,8 +289,8 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
         batchFactory.AppendLoopBatches(batches, level, vertTableOffset, vertexOffset);
         vertexOffset += nVertVertices;
         vertTableOffset += nVertVertices;
-        result->_numTotalVertices = vertexOffset;
     }
+    result->_vertsOffsets[maxlevel+1] = vertexOffset;
     return result;
 }
 
