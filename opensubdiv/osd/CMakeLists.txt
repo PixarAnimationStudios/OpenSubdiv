@@ -435,7 +435,8 @@ target_link_libraries(osd_static_gpu
     ${PLATFORM_LIBRARIES}
 )
 
-
+install( TARGETS osd_static_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
+install( TARGETS osd_static_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
 
 if (NOT WIN32 AND NOT IOS)
     _add_possibly_cuda_library(osd_dynamic_cpu SHARED
@@ -464,6 +465,9 @@ if (NOT WIN32 AND NOT IOS)
         osd_dynamic_cpu
         ${PLATFORM_LIBRARIES}
     )
+    
+    install( TARGETS osd_dynamic_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
+    install( TARGETS osd_dynamic_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
 endif()
 
 
@@ -471,10 +475,6 @@ install( FILES ${PUBLIC_HEADER_FILES}
          DESTINATION ${CMAKE_INCDIR_BASE}/osd
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
 
-install( TARGETS osd_static_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
-install( TARGETS osd_static_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
-install( TARGETS osd_dynamic_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
-install( TARGETS osd_dynamic_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
 
 if (ANDROID)
     install( FILES Android.mk 
