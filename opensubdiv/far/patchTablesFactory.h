@@ -482,32 +482,32 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
     // Full Patches
     result->_full._R_IT.first.resize(_fullCtr.R_C*16);
     result->_full._R_IT.second.resize(_fullCtr.R_C);
-    fptrs.R_P = &result->_full._R_IT.first[0];
-    fptrsLv.R_P = &result->_full._R_IT.second[0];
+    fptrs.R_P = result->_full._R_IT.first.empty() ? 0 : &result->_full._R_IT.first[0];
+    fptrsLv.R_P = result->_full._R_IT.second.empty() ? 0 : &result->_full._R_IT.second[0];
 
     // Full Boundary Patches
     result->_full._B_IT.first.resize(_fullCtr.B_C[0]*12);
     result->_full._B_IT.second.resize(_fullCtr.B_C[0]);
-    fptrs.B_P[0] = &result->_full._B_IT.first[0];
-    fptrsLv.B_P[0] = &result->_full._B_IT.second[0];
+    fptrs.B_P[0] = result->_full._B_IT.first.empty() ? 0 : &result->_full._B_IT.first[0];
+    fptrsLv.B_P[0] = result->_full._B_IT.second.empty() ? 0 : &result->_full._B_IT.second[0];
 
     // Full Corner Patches
     result->_full._C_IT.first.resize(_fullCtr.C_C[0]*9);
     result->_full._C_IT.second.resize(_fullCtr.C_C[0]);
-    fptrs.C_P[0] = &result->_full._C_IT.first[0];
-    fptrsLv.C_P[0] = &result->_full._C_IT.second[0];
+    fptrs.C_P[0] = result->_full._C_IT.first.empty() ? 0 : &result->_full._C_IT.first[0];
+    fptrsLv.C_P[0] = result->_full._C_IT.second.empty() ? 0 : &result->_full._C_IT.second[0];
 
     // Full Gregory patches
     result->_full._G_IT.first.resize(_fullCtr.G_C[0]*4);
     result->_full._G_IT.second.resize(_fullCtr.G_C[0]);
-    fptrs.G_P[0] = &result->_full._G_IT.first[0];
-    fptrsLv.G_P[0] = &result->_full._G_IT.second[0];
+    fptrs.G_P[0] = result->_full._G_IT.first.empty() ? 0 : &result->_full._G_IT.first[0];
+    fptrsLv.G_P[0] = result->_full._G_IT.second.empty() ? 0 : &result->_full._G_IT.second[0];
 
     // Full Gregory Boundary patches
     result->_full._G_B_IT.first.resize(_fullCtr.G_C[1]*4);
     result->_full._G_B_IT.second.resize(_fullCtr.G_C[1]);
-    fptrs.G_P[1] = &result->_full._G_B_IT.first[0];
-    fptrsLv.G_P[1] = &result->_full._G_B_IT.second[0];
+    fptrs.G_P[1] = result->_full._G_B_IT.first.empty() ? 0 : &result->_full._G_B_IT.first[0];
+    fptrsLv.G_P[1] = result->_full._G_B_IT.second.empty() ? 0 : &result->_full._G_B_IT.second[0];
 
     // Quad-offsets tables (for Gregory patches)
     FarPatchTables::QuadOffsetTable quad_G_C0;
@@ -516,58 +516,58 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
     FarPatchTables::QuadOffsetTable quad_G_C1;
     quad_G_C1.resize(_fullCtr.G_C[1]*4);
 
-    FarPatchTables::QuadOffsetTable::value_type *quad_G_C0_P = &quad_G_C0[0];
-    FarPatchTables::QuadOffsetTable::value_type *quad_G_C1_P = &quad_G_C1[0];
+    FarPatchTables::QuadOffsetTable::value_type *quad_G_C0_P = quad_G_C0.empty() ? 0 : &quad_G_C0[0];
+    FarPatchTables::QuadOffsetTable::value_type *quad_G_C1_P = quad_G_C1.empty() ? 0 : &quad_G_C1[0];
 
     // Transition Patches
     for (int i=0; i<5; ++i) {
 
         result->_transition[i]._R_IT.first.resize(_transitionCtr[i].R_C*16);
         result->_transition[i]._R_IT.second.resize(_transitionCtr[i].R_C);
-        tptrs[i].R_P = &result->_transition[i]._R_IT.first[0];
-        tptrsLv[i].R_P = &result->_transition[i]._R_IT.second[0];
+        tptrs[i].R_P = result->_transition[i]._R_IT.first.empty() ? 0 : &result->_transition[i]._R_IT.first[0];
+        tptrsLv[i].R_P = result->_transition[i]._R_IT.second.empty() ? 0 : &result->_transition[i]._R_IT.second[0];
 
         for (int j=0; j<4; ++j) {
 
           result->_transition[i]._B_IT[j].first.resize(_transitionCtr[i].B_C[j]*12);
           result->_transition[i]._B_IT[j].second.resize(_transitionCtr[i].B_C[j]);
-          tptrs[i].B_P[j] = &result->_transition[i]._B_IT[j].first[0];
-          tptrsLv[i].B_P[j] = &result->_transition[i]._B_IT[j].second[0];
+          tptrs[i].B_P[j] = result->_transition[i]._B_IT[j].first.empty() ? 0 : &result->_transition[i]._B_IT[j].first[0];
+          tptrsLv[i].B_P[j] = result->_transition[i]._B_IT[j].second.empty() ? 0 : &result->_transition[i]._B_IT[j].second[0];
 
           result->_transition[i]._C_IT[j].first.resize(_transitionCtr[i].C_C[j]*9);
           result->_transition[i]._C_IT[j].second.resize(_transitionCtr[i].C_C[j]);
-          tptrs[i].C_P[j] = &result->_transition[i]._C_IT[j].first[0];
-          tptrsLv[i].C_P[j] = &result->_transition[i]._C_IT[j].second[0];
+          tptrs[i].C_P[j] = result->_transition[i]._C_IT[j].first.empty() ? 0 : &result->_transition[i]._C_IT[j].first[0];
+          tptrsLv[i].C_P[j] = result->_transition[i]._C_IT[j].second.empty() ? 0 : &result->_transition[i]._C_IT[j].second[0];
         }
     }
 
     // Allocate ptex coordinate table if necessary
     if (requirePtexCoordinate) {
         result->_full._R_PTX.resize(_fullCtr.R_C);
-        fptrsPtx.R_P = &result->_full._R_PTX[0];
+        fptrsPtx.R_P = result->_full._R_PTX.empty() ? 0 : &result->_full._R_PTX[0];
 
         result->_full._B_PTX.resize(_fullCtr.B_C[0]);
-        fptrsPtx.B_P[0] = &result->_full._B_PTX[0];
+        fptrsPtx.B_P[0] = result->_full._B_PTX.empty() ? 0 : &result->_full._B_PTX[0];
 
         result->_full._C_PTX.resize(_fullCtr.C_C[0]);
-        fptrsPtx.C_P[0] = &result->_full._C_PTX[0];
+        fptrsPtx.C_P[0] = result->_full._C_PTX.empty() ? 0 : &result->_full._C_PTX[0];
 
         result->_full._G_PTX.resize(_fullCtr.G_C[0]);
-        fptrsPtx.G_P[0] = &result->_full._G_PTX[0];
+        fptrsPtx.G_P[0] = result->_full._G_PTX.empty() ? 0 : &result->_full._G_PTX[0];
 
         result->_full._G_B_PTX.resize(_fullCtr.G_C[1]);
-        fptrsPtx.G_P[1] = &result->_full._G_B_PTX[0];
+        fptrsPtx.G_P[1] = result->_full._G_B_PTX.empty() ? 0 : &result->_full._G_B_PTX[0];
 
         for (int i=0; i < 5; ++i) {
             result->_transition[i]._R_PTX.resize(_transitionCtr[i].R_C);
-            tptrsPtx[i].R_P = &result->_transition[i]._R_PTX[0];
+            tptrsPtx[i].R_P = result->_transition[i]._R_PTX.empty() ? 0 : &result->_transition[i]._R_PTX[0];
 
             for (int j=0; j < 4; ++j) {
                 result->_transition[i]._B_PTX[j].resize(_transitionCtr[i].B_C[j]);
-                tptrsPtx[i].B_P[j] = &result->_transition[i]._B_PTX[j][0];
+                tptrsPtx[i].B_P[j] = result->_transition[i]._B_PTX[j].empty() ? 0 : &result->_transition[i]._B_PTX[j][0];
 
                 result->_transition[i]._C_PTX[j].resize(_transitionCtr[i].C_C[j]);
-                tptrsPtx[i].C_P[j] = &result->_transition[i]._C_PTX[j][0];
+                tptrsPtx[i].C_P[j] = result->_transition[i]._C_PTX[j].empty() ? 0 : &result->_transition[i]._C_PTX[j][0];
             }
         }
     }
@@ -576,30 +576,30 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
     if (requireFVarData) {
         int width = 4*getMesh()->GetTotalFVarWidth();
         result->_full._R_FVD.resize(_fullCtr.R_C*width);
-        fptrsFvd.R_P = &result->_full._R_FVD[0];
+        fptrsFvd.R_P = result->_full._R_FVD.empty() ? 0 : &result->_full._R_FVD[0];
 
         result->_full._B_FVD.resize(_fullCtr.B_C[0]*width);
-        fptrsFvd.B_P[0] = &result->_full._B_FVD[0];
+        fptrsFvd.B_P[0] = result->_full._B_FVD.empty() ? 0 : &result->_full._B_FVD[0];
 
         result->_full._C_FVD.resize(_fullCtr.C_C[0]*width);
-        fptrsFvd.C_P[0] = &result->_full._C_FVD[0];
+        fptrsFvd.C_P[0] = result->_full._C_FVD.empty() ? 0 : &result->_full._C_FVD[0];
 
         result->_full._G_FVD.resize(_fullCtr.G_C[0]*width);
-        fptrsFvd.G_P[0] = &result->_full._G_FVD[0];
+        fptrsFvd.G_P[0] = result->_full._G_FVD.empty() ? 0 : &result->_full._G_FVD[0];
 
         result->_full._G_B_FVD.resize(_fullCtr.G_C[1]*width);
-        fptrsFvd.G_P[1] = &result->_full._G_B_FVD[0];
+        fptrsFvd.G_P[1] = result->_full._G_B_FVD.empty() ? 0 : &result->_full._G_B_FVD[0];
 
         for (int i=0; i < 5; ++i) {
             result->_transition[i]._R_FVD.resize(_transitionCtr[i].R_C*width);
-            tptrsFvd[i].R_P = &result->_transition[i]._R_FVD[0];
+            tptrsFvd[i].R_P = result->_transition[i]._R_FVD.empty() ? 0 : &result->_transition[i]._R_FVD[0];
 
             for (int j=0; j < 4; ++j) {
                 result->_transition[i]._B_FVD[j].resize(_transitionCtr[i].B_C[j]*width);
-                tptrsFvd[i].B_P[j] = &result->_transition[i]._B_FVD[j][0];
+                tptrsFvd[i].B_P[j] = result->_transition[i]._B_FVD[j].empty() ? 0 : &result->_transition[i]._B_FVD[j][0];
 
                 result->_transition[i]._C_FVD[j].resize(_transitionCtr[i].C_C[j]*width);
-                tptrsFvd[i].C_P[j] = &result->_transition[i]._C_FVD[j][0];
+                tptrsFvd[i].C_P[j] = result->_transition[i]._C_FVD[j].empty() ? 0 : &result->_transition[i]._C_FVD[j][0];
             }
         }
     }
