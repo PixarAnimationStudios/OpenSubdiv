@@ -118,10 +118,10 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
     int edgeTableOffset = 0;
     int vertTableOffset = 0;
 
-    int * F_ITa = &result->_F_ITa[0];
-    unsigned int * F_IT = &result->_F_IT[0];
-    int * E_IT = &result->_E_IT[0];
-    int * V_ITa = &result->_V_ITa[0];
+    int * F_ITa = result->_F_ITa.empty() ? 0 : &result->_F_ITa[0];
+    unsigned int * F_IT = result->_F_IT.empty() ? 0 : &result->_F_IT[0];
+    int * E_IT = result->_E_IT.empty() ? 0 : &result->_E_IT[0];
+    int * V_ITa = result->_V_ITa.empty() ? 0 : &result->_V_ITa[0];
 
     for (int level=1; level<=maxlevel; ++level) {
 
