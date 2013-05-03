@@ -118,11 +118,11 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
     int edgeTableOffset = 0;
     int vertTableOffset = 0;
 
-    int * E_IT = &result->_E_IT[0];
-    float * E_W = &result->_E_W[0];
-    int * V_ITa = &result->_V_ITa[0];
-    unsigned int * V_IT = &result->_V_IT[0];
-    float * V_W = &result->_V_W[0];
+    int * E_IT = result->_E_IT.empty() ? 0 : &result->_E_IT[0];
+    float * E_W = result->_E_W.empty() ? 0 : &result->_E_W[0];
+    int * V_ITa = result->_V_ITa.empty() ? 0 : &result->_V_ITa[0];
+    unsigned int * V_IT = result->_V_IT.empty() ? 0 : &result->_V_IT[0];
+    float * V_W = result->_V_W.empty() ? 0 : &result->_V_W[0];
 
     for (int level=1; level<=maxlevel; ++level) {
 
