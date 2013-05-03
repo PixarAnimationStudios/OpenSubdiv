@@ -444,6 +444,7 @@ int main(int argc, char ** argv) {
 
 #define test_catmark_edgeonly
 #define test_catmark_edgecorner
+#define test_catmark_flap
 #define test_catmark_pyramid
 #define test_catmark_pyramid_creases0
 #define test_catmark_pyramid_creases1
@@ -552,6 +553,11 @@ int main(int argc, char ** argv) {
 #ifdef test_catmark_dart_edgeonly
 #include "../shapes/catmark_dart_edgeonly.h"
     total += checkMesh( "test_catmark_dart_edgeonly", simpleHbr<xyzVV>(catmark_dart_edgeonly.c_str(), kCatmark, 0), levels );
+#endif
+
+#ifdef test_catmark_flap
+#include "../shapes/catmark_flap.h"
+    total += checkMesh( "test_catmark_flap", simpleHbr<xyzVV>(catmark_flap.c_str(), kCatmark, 0), levels);
 #endif
 
 #ifdef test_catmark_tent

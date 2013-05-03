@@ -262,7 +262,10 @@ static void parseArgs(int argc, char ** argv) {
                 exit(0);
             }
         } else {
-            g_objfile = argv[++i];
+            if (i<(argc=1))
+                g_objfile = argv[++i];
+            else
+                usage(argv[0]);
         }
     }
 }

@@ -467,6 +467,7 @@ int checkBackend(int backend, int levels) {
 
 #define test_catmark_edgeonly
 #define test_catmark_edgecorner
+#define test_catmark_flap
 #define test_catmark_pyramid
 #define test_catmark_pyramid_creases0
 #define test_catmark_pyramid_creases1
@@ -506,6 +507,11 @@ int checkBackend(int backend, int levels) {
 #ifdef test_catmark_edgecorner
 #include "../shapes/catmark_edgecorner.h"
     total += checkMesh( "test_catmark_edgeonly", catmark_edgecorner, levels, kCatmark, backend );
+#endif
+
+#ifdef test_catmark_flap
+#include "../shapes/catmark_flap.h"
+    total += checkMesh( "test_catmark_flap", catmark_flap, levels, kCatmark, backend );
 #endif
 
 #ifdef test_catmark_pyramid

@@ -386,7 +386,7 @@ template <class T> struct VertCompare {
     }
 };
 
-// Refines an Hbr mesh adaptively around extraordinary features
+// Refines an Hbr Catmark mesh adaptively around extraordinary features
 template <class T, class U> int
 FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
 
@@ -418,8 +418,9 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
         
         if (f->IsHole())
             continue;
-        
-        for (int j=0; j<f->GetNumVertices(); ++j) {
+
+        int nv = f->GetNumVertices();
+        for (int j=0; j<nv; ++j) {
             
             HbrHalfedge<T> * e = f->GetEdge(j);
             assert(e);
@@ -438,6 +439,24 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
                 HbrVertex<T> * v = f->GetVertex(j);
                 v->_adaptiveFlags.isTagged=true;
                 nextverts.insert(v);
+            }
+            
+            // Quad-faces with 2 non-consecutive boundaries need to be flagged
+            // as "non-patch"
+            //
+            //  O ******** O ******** O ******** O
+            //  *          |          |          *     *** boundary edge
+            //  *          |   needs  |          *
+            //  *          |   flag   |          *     --- regular edge
+            //  *          |          |          *
+            //  O ******** O ******** O ******** O
+            //
+            if ( e->IsBoundary() and (not f->_adaptiveFlags.isTagged) and nv==4 ) {
+                if (e->GetPrev() and (not e->GetPrev()->IsBoundary()) and
+                    e->GetNext() and (not e->GetNext()->IsBoundary()) and
+                    e->GetNext() and e->GetNext()->GetNext() and e->GetNext()->GetNext()->IsBoundary()) {
+                    f->_adaptiveFlags.isTagged=true;
+                }
             }
         }
     }
