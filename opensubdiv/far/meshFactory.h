@@ -117,8 +117,30 @@ public:
     FarMeshFactory(HbrMesh<T> * mesh, int maxlevel, bool adaptive=false);
 
     /// Create a table-based mesh representation
+    ///
+    /// @param requirePtexCoordinate create a ptex coordinate table
+    ///
+    /// @param requireFVarData create a face-varying table
+    ///
+    /// @return a pointer to the FarMesh created
+    ///
     FarMesh<U> * Create( bool requirePtexCoordinate=false,       // XXX yuck.
                          bool requireFVarData=false );
+
+    /// Computes the minimum number of adaptive feature isolation levels required
+    /// in order for the limit surface to be an accurate representation of the 
+    /// shape given all the tags and edits.
+    ///
+    /// @param mesh           The HbrMesh describing the topology 
+    ///
+    /// @param nfaces         The number of faces in the HbrMesh 
+    ///
+    /// @param cornerIsolate  The level of isolation desired for patch corners
+    ///
+    /// @return               The minimum level of isolation of extraordinary
+    ///                       topological features.
+    ///
+    static int ComputeMinIsolation( HbrMesh<T> const * mesh, int nfaces, int cornerIsolate=5 );
 
     /// The Hbr mesh that this factory is converting
     HbrMesh<T> const * GetHbrMesh() const { return _hbrMesh; }
@@ -127,17 +149,33 @@ public:
     int GetMaxLevel() const { return _maxlevel; }
 
     /// The number of coarse vertices found in the HbrMesh before refinement
+    ///
+    /// @return The number of coarse vertices
+    ///
     int GetNumCoarseVertices() const { return _numCoarseVertices; }
 
-    /// Total number of faces across up to a level
+    /// Total number of faces up to a given level of subdivision
+    ///
+    /// @param level  The number of faces up to 'level' of subdivision
+    ///
+    /// @return       The summation of the number of faces
+    ///
     int GetNumFacesTotal(int level) const {
         return sumList<HbrFace<T> *>(_facesList, level);
     }
 
-    /// Return the corresponding index of the HbrVertex<T> in the new mesh
+    /// Returns the corresponding index of the HbrVertex<T> in the new FarMesh
+    ///
+    /// @param v  the vertex
+    ///
+    /// @return   the remapped index of the vertex in the FarMesh
+    ///
     int GetVertexID( HbrVertex<T> * v );
 
     /// Returns a the mapping between HbrVertex<T>->GetID() and Far vertices indices
+    ///
+    /// @return the table that maps HbrMesh to FarMesh vertex indices
+    ///
     std::vector<int> const & GetRemappingTable( ) const { return _remapTable; }
 
 private:
@@ -173,9 +211,6 @@ private:
     std::vector<int> & getRemappingTable( ) { return _remapTable; }
 
     template <class Type> static int sumList( std::vector<std::vector<Type> > const & list, int level );
-
-    // Returns the highest level of subdivision required to adaptively refine the mesh
-    static int computeAdaptiveMaxLevel( HbrMesh<T> * mesh, int nfaces, int maxIsolate );
 
     // Calls Hbr to refines the neighbors of v
     static void refineVertexNeighbors(HbrVertex<T> * v);
@@ -274,45 +309,63 @@ FarMeshFactory<T,U>::refine( HbrMesh<T> * mesh, int maxlevel ) {
 
 // Scan the faces of a mesh and compute the max level of subdivision required
 template <class T, class U> int 
-FarMeshFactory<T,U>::computeAdaptiveMaxLevel( HbrMesh<T> * mesh, int nfaces, int maxIsolate ) {
+FarMeshFactory<T,U>::ComputeMinIsolation( HbrMesh<T> const * mesh, int nfaces, int cornerIsolate ) {
 
     assert(mesh);
 
-    int editmax=0; 
-    float sharpmax=0.0f;    
 
-    for( unsigned int i=0 ; i<(unsigned int)nfaces ; ++i ) {
+    int editmax=0; 
+    float sharpmax=0.0f;
+    
+    
+    float cornerSharp=0.0; 
+    if (mesh->GetInterpolateBoundaryMethod()<HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner)
+        cornerSharp = (float) cornerIsolate;
+
+    // Check vertex sharpness
+    int nverts = mesh->GetNumVertices();
+    for (int i=0; i<nverts; ++i) {
+        HbrVertex<T> * v = mesh->GetVertex(i);
+        if (not v->OnBoundary())
+            sharpmax = std::max( sharpmax, v->GetSharpness() );
+        else {
+            sharpmax = std::max( sharpmax, cornerSharp );
+        }
+    }
+
+    // Check edge sharpness and hierarchical edits
+    for (int i=0 ; i<nfaces ; ++i) {
     
         HbrFace<T> * f = mesh->GetFace(i);
-        assert( f->IsCoarse() );
+        
+        // We don't need to check non-coarse faces
+        if (not f->IsCoarse())
+            continue;
 
         // Check for edits
         if (f->HasVertexEdits()) {
 
             HbrVertexEdit<T> ** edits = (HbrVertexEdit<T>**)f->GetHierarchicalEdits();
 
-            while (HbrVertexEdit<T> * edit = *edits++)
+            while (HbrVertexEdit<T> * edit = *edits++) {
                 editmax = std::max( editmax , edit->GetNSubfaces() );
+            }
         }
 
         // Check for sharpness
-        for (int j=0; j<f->GetNumVertices(); ++j) {
+        int nv = f->GetNumVertices();
+        for (int j=0; j<nv; ++j) {
             
             HbrHalfedge<T> * e = f->GetEdge(j);
             if (not e->IsBoundary())
                 sharpmax = std::max( sharpmax, f->GetEdge(j)->GetSharpness() );
-            
-            HbrVertex<T> * v = f->GetVertex(j);
-            if (not v->OnBoundary())
-                sharpmax = std::max( sharpmax, f->GetVertex(j)->GetSharpness() );
         }
     }
 
-    int maxlevel = std::max( maxIsolate+1, (int)ceil(sharpmax)+1 );
-        maxlevel = std::max( maxlevel, editmax+1 );
-        maxlevel = std::min( maxlevel, (int)HbrHalfedge<T>::k_InfinitelySharp );
-        
-    return maxlevel;
+    int result = std::max( (int)ceil(sharpmax)+1, editmax+1 );
+    
+    // Cap the result to "infinitely sharp" (10)
+    return std::min( result, (int)HbrHalfedge<T>::k_InfinitelySharp );
 }
 
 // True if a vertex is a regular boundary
@@ -393,10 +446,7 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
     int ncoarsefaces = mesh->GetNumCoarseFaces(),
         ncoarseverts = mesh->GetNumVertices();
 
-    // XXX manuelk : disabling guesstimate of the max. isolate level for now
-    //int maxlevel = computeAdaptiveMaxLevel(mesh, ncoarsefaces, maxIsolate);    
     int maxlevel = maxIsolate+1;    
-
     
     // First pass : tag coarse vertices & faces that need refinement
 
@@ -419,6 +469,8 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
         if (f->IsHole())
             continue;
 
+        bool extraordinary = mesh->GetSubdivision()->FaceIsExtraordinary(mesh,f);
+
         int nv = f->GetNumVertices();
         for (int j=0; j<nv; ++j) {
             
@@ -435,7 +487,7 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
             }
             
             // Tag extraordinary (non-quad) faces for refinement
-            if (mesh->GetSubdivision()->FaceIsExtraordinary(mesh,f) or f->HasVertexEdits()) {
+            if (extraordinary or f->HasVertexEdits()) {
                 HbrVertex<T> * v = f->GetVertex(j);
                 v->_adaptiveFlags.isTagged=true;
                 nextverts.insert(v);
