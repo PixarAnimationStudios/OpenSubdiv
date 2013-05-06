@@ -176,7 +176,7 @@ out block {
 
 // --------------------------------------
 
-void emit(int index, vec4 position, vec3 normal, vec4 patchCoord)
+void emit(vec4 position, vec3 normal, vec4 patchCoord)
 {
     output.v.position = position;
     output.v.patchCoord = patchCoord;
@@ -212,7 +212,7 @@ void emit(int index, vec4 position, vec3 normal, vec4 patchCoord, vec4 edgeVerts
         edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
 #endif
 
-    emit(index, position, normal, patchCoord);
+    emit(position, normal, patchCoord);
 }
 
 // --------------------------------------
@@ -277,10 +277,10 @@ void main()
     emit(3, position[3], normal[3], patchCoord[3], edgeVerts);
     emit(2, position[2], normal[2], patchCoord[2], edgeVerts);
 #else
-    emit(0, position[0], normal[0], patchCoord[0]);
-    emit(1, position[1], normal[1], patchCoord[1]);
-    emit(3, position[3], normal[3], patchCoord[3]);
-    emit(2, position[2], normal[2], patchCoord[2]);
+    emit(position[0], normal[0], patchCoord[0]);
+    emit(position[1], normal[1], patchCoord[1]);
+    emit(position[3], normal[3], patchCoord[3]);
+    emit(position[2], normal[2], patchCoord[2]);
 #endif
 #endif // PRIM_QUAD
 
@@ -330,9 +330,9 @@ void main()
     emit(1, position[1], normal[1], patchCoord[1], edgeVerts);
     emit(2, position[2], normal[2], patchCoord[2], edgeVerts);
 #else
-    emit(0, position[0], normal[0], patchCoord[0]);
-    emit(1, position[1], normal[1], patchCoord[1]);
-    emit(2, position[2], normal[2], patchCoord[2]);
+    emit(position[0], normal[0], patchCoord[0]);
+    emit(position[1], normal[1], patchCoord[1]);
+    emit(position[2], normal[2], patchCoord[2]);
 #endif
 #endif // PRIM_TRI
 
