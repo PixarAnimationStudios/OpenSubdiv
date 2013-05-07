@@ -747,6 +747,7 @@ main(int argc, char ** argv) {
     int width=10, height=10;
     
 #if GLFW_VERSION_MAJOR>=3
+    static const char windowTitle[] = "OpenSubdiv OSD regression";
     if (not (g_window=glfwCreateWindow(width, height, windowTitle, NULL, NULL))) {
         printf("Failed to open window.\n");
         glfwTerminate();
