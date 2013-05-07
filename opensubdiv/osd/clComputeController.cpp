@@ -59,7 +59,6 @@
 #include "../osd/clComputeContext.h"
 #include "../osd/clKernelBundle.h"
 #include "../osd/error.h"
-#include "../osd/table.h"
 
 #if defined(_WIN32)
     #include <windows.h>
@@ -145,7 +144,7 @@ OsdCLComputeController::ApplyBilinearEdgeVerticesKernel(
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
     cl_mem varyingBuffer = context->GetCurrentVaryingBuffer();
-    cl_mem E_IT = context->GetTable(Table::E_IT)->GetDevicePtr();
+    cl_mem E_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::E_IT)->GetDevicePtr();
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &vertexBuffer);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &varyingBuffer);
@@ -174,7 +173,7 @@ OsdCLComputeController::ApplyBilinearVertexVerticesKernel(
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
     cl_mem varyingBuffer = context->GetCurrentVaryingBuffer();
-    cl_mem V_ITa = context->GetTable(Table::V_ITa)->GetDevicePtr();
+    cl_mem V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetDevicePtr();
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &vertexBuffer);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &varyingBuffer);
@@ -203,8 +202,8 @@ OsdCLComputeController::ApplyCatmarkFaceVerticesKernel(
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
     cl_mem varyingBuffer = context->GetCurrentVaryingBuffer();
-    cl_mem F_IT = context->GetTable(Table::F_IT)->GetDevicePtr();
-    cl_mem F_ITa = context->GetTable(Table::F_ITa)->GetDevicePtr();
+    cl_mem F_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::F_IT)->GetDevicePtr();
+    cl_mem F_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::F_ITa)->GetDevicePtr();
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &vertexBuffer);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &varyingBuffer);
@@ -235,8 +234,8 @@ OsdCLComputeController::ApplyCatmarkEdgeVerticesKernel(
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
     cl_mem varyingBuffer = context->GetCurrentVaryingBuffer();
-    cl_mem E_IT = context->GetTable(Table::E_IT)->GetDevicePtr();
-    cl_mem E_W = context->GetTable(Table::E_W)->GetDevicePtr();
+    cl_mem E_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::E_IT)->GetDevicePtr();
+    cl_mem E_W = context->GetTable(FarSubdivisionTables<OsdVertex>::E_W)->GetDevicePtr();
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &vertexBuffer);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &varyingBuffer);
@@ -267,9 +266,9 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelB(
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
     cl_mem varyingBuffer = context->GetCurrentVaryingBuffer();
-    cl_mem V_ITa = context->GetTable(Table::V_ITa)->GetDevicePtr();
-    cl_mem V_IT = context->GetTable(Table::V_IT)->GetDevicePtr();
-    cl_mem V_W = context->GetTable(Table::V_W)->GetDevicePtr();
+    cl_mem V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetDevicePtr();
+    cl_mem V_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::V_IT)->GetDevicePtr();
+    cl_mem V_W = context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetDevicePtr();
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &vertexBuffer);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &varyingBuffer);
@@ -302,8 +301,8 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelA1(
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
     cl_mem varyingBuffer = context->GetCurrentVaryingBuffer();
-    cl_mem V_ITa = context->GetTable(Table::V_ITa)->GetDevicePtr();
-    cl_mem V_W = context->GetTable(Table::V_W)->GetDevicePtr();
+    cl_mem V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetDevicePtr();
+    cl_mem V_W = context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetDevicePtr();
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &vertexBuffer);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &varyingBuffer);
@@ -336,8 +335,8 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelA2(
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
     cl_mem varyingBuffer = context->GetCurrentVaryingBuffer();
-    cl_mem V_ITa = context->GetTable(Table::V_ITa)->GetDevicePtr();
-    cl_mem V_W = context->GetTable(Table::V_W)->GetDevicePtr();
+    cl_mem V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetDevicePtr();
+    cl_mem V_W = context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetDevicePtr();
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &vertexBuffer);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &varyingBuffer);
@@ -369,8 +368,8 @@ OsdCLComputeController::ApplyLoopEdgeVerticesKernel(
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
     cl_mem varyingBuffer = context->GetCurrentVaryingBuffer();
-    cl_mem E_IT = context->GetTable(Table::E_IT)->GetDevicePtr();
-    cl_mem E_W = context->GetTable(Table::E_W)->GetDevicePtr();
+    cl_mem E_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::E_IT)->GetDevicePtr();
+    cl_mem E_W = context->GetTable(FarSubdivisionTables<OsdVertex>::E_W)->GetDevicePtr();
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &vertexBuffer);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &varyingBuffer);
@@ -401,9 +400,9 @@ OsdCLComputeController::ApplyLoopVertexVerticesKernelB(
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
     cl_mem varyingBuffer = context->GetCurrentVaryingBuffer();
-    cl_mem V_ITa = context->GetTable(Table::V_ITa)->GetDevicePtr();
-    cl_mem V_IT = context->GetTable(Table::V_IT)->GetDevicePtr();
-    cl_mem V_W = context->GetTable(Table::V_W)->GetDevicePtr();
+    cl_mem V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetDevicePtr();
+    cl_mem V_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::V_IT)->GetDevicePtr();
+    cl_mem V_W = context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetDevicePtr();
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &vertexBuffer);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &varyingBuffer);
@@ -436,8 +435,8 @@ OsdCLComputeController::ApplyLoopVertexVerticesKernelA1(
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
     cl_mem varyingBuffer = context->GetCurrentVaryingBuffer();
-    cl_mem V_ITa = context->GetTable(Table::V_ITa)->GetDevicePtr();
-    cl_mem V_W = context->GetTable(Table::V_W)->GetDevicePtr();
+    cl_mem V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetDevicePtr();
+    cl_mem V_W = context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetDevicePtr();
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &vertexBuffer);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &varyingBuffer);
@@ -470,8 +469,8 @@ OsdCLComputeController::ApplyLoopVertexVerticesKernelA2(
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
     cl_mem varyingBuffer = context->GetCurrentVaryingBuffer();
-    cl_mem V_ITa = context->GetTable(Table::V_ITa)->GetDevicePtr();
-    cl_mem V_W = context->GetTable(Table::V_W)->GetDevicePtr();
+    cl_mem V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetDevicePtr();
+    cl_mem V_W = context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetDevicePtr();
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &vertexBuffer);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &varyingBuffer);

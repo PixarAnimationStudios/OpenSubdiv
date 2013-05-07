@@ -58,7 +58,6 @@
 #include "../far/mesh.h"
 #include "../osd/clComputeContext.h"
 #include "../osd/clKernelBundle.h"
-#include "../osd/table.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -144,15 +143,15 @@ OsdCLComputeContext::OsdCLComputeContext(FarMesh<OsdVertex> *farMesh,
     // allocate 5 or 7 tables
     _tables.resize(farTables->GetNumTables(), 0);
 
-    _tables[Table::E_IT]  = new OsdCLTable(farTables->Get_E_IT(), clContext);
-    _tables[Table::V_IT]  = new OsdCLTable(farTables->Get_V_IT(), clContext);
-    _tables[Table::V_ITa] = new OsdCLTable(farTables->Get_V_ITa(), clContext);
-    _tables[Table::E_W]   = new OsdCLTable(farTables->Get_E_W(), clContext);
-    _tables[Table::V_W]   = new OsdCLTable(farTables->Get_V_W(), clContext);
+    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdCLTable(farTables->Get_E_IT(), clContext);
+    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdCLTable(farTables->Get_V_IT(), clContext);
+    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdCLTable(farTables->Get_V_ITa(), clContext);
+    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdCLTable(farTables->Get_E_W(), clContext);
+    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdCLTable(farTables->Get_V_W(), clContext);
 
     if (farTables->GetNumTables() > 5) {
-        _tables[Table::F_IT]  = new OsdCLTable(farTables->Get_F_IT(), clContext);
-        _tables[Table::F_ITa] = new OsdCLTable(farTables->Get_F_ITa(), clContext);
+        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdCLTable(farTables->Get_F_IT(), clContext);
+        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdCLTable(farTables->Get_F_ITa(), clContext);
     }
 
     // create hedit tables

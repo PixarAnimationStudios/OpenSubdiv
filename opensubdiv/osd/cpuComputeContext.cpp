@@ -64,7 +64,6 @@
 #include "../osd/cpuKernel.h"
 #include "../osd/vertexDescriptor.h"
 #include "../osd/error.h"
-#include "../osd/table.h"
 
 #include <cstring>
 
@@ -74,19 +73,20 @@ namespace OPENSUBDIV_VERSION {
 void
 OsdCpuTable::createCpuBuffer(size_t size, const void *ptr) {
 
-    _table = new unsigned char[size];
-    memcpy(_table, ptr, size);
+    _devicePtr = new unsigned char[size];
+    memcpy(_devicePtr, ptr, size);
 }
 
 OsdCpuTable::~OsdCpuTable() {
 
-    if (_table) delete[] _table;
+    if (_devicePtr) 
+        delete [] (unsigned char *)_devicePtr;
 }
 
 void *
 OsdCpuTable::GetBuffer() const {
 
-    return _table;
+    return _devicePtr;
 }
 
 // ----------------------------------------------------------------------------
@@ -145,15 +145,15 @@ OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> *farMesh) {
     // allocate 5 or 7 tables
     _tables.resize(farTables->GetNumTables(), 0);
 
-    _tables[Table::E_IT]  = new OsdCpuTable(farTables->Get_E_IT());
-    _tables[Table::V_IT]  = new OsdCpuTable(farTables->Get_V_IT());
-    _tables[Table::V_ITa] = new OsdCpuTable(farTables->Get_V_ITa());
-    _tables[Table::E_W]   = new OsdCpuTable(farTables->Get_E_W());
-    _tables[Table::V_W]   = new OsdCpuTable(farTables->Get_V_W());
+    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdCpuTable(farTables->Get_E_IT());
+    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdCpuTable(farTables->Get_V_IT());
+    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdCpuTable(farTables->Get_V_ITa());
+    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdCpuTable(farTables->Get_E_W());
+    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdCpuTable(farTables->Get_V_W());
 
     if (farTables->GetNumTables() > 5) {
-        _tables[Table::F_IT]  = new OsdCpuTable(farTables->Get_F_IT());
-        _tables[Table::F_ITa] = new OsdCpuTable(farTables->Get_F_ITa());
+        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdCpuTable(farTables->Get_F_IT());
+        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdCpuTable(farTables->Get_F_ITa());
     }
 
     // create hedit tables

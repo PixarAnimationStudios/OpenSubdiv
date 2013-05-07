@@ -57,7 +57,6 @@
 
 #include "../far/mesh.h"
 #include "../osd/cudaComputeContext.h"
-#include "../osd/table.h"
 
 #include <cuda_runtime.h>
 
@@ -137,15 +136,15 @@ OsdCudaComputeContext::OsdCudaComputeContext(FarMesh<OsdVertex> *farMesh) {
     // allocate 5 or 7 tables
     _tables.resize(farTables->GetNumTables(), 0);
 
-    _tables[Table::E_IT]  = new OsdCudaTable(farTables->Get_E_IT());
-    _tables[Table::V_IT]  = new OsdCudaTable(farTables->Get_V_IT());
-    _tables[Table::V_ITa] = new OsdCudaTable(farTables->Get_V_ITa());
-    _tables[Table::E_W]   = new OsdCudaTable(farTables->Get_E_W());
-    _tables[Table::V_W]   = new OsdCudaTable(farTables->Get_V_W());
+    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdCudaTable(farTables->Get_E_IT());
+    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdCudaTable(farTables->Get_V_IT());
+    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdCudaTable(farTables->Get_V_ITa());
+    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdCudaTable(farTables->Get_E_W());
+    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdCudaTable(farTables->Get_V_W());
 
     if (farTables->GetNumTables() > 5) {
-        _tables[Table::F_IT]  = new OsdCudaTable(farTables->Get_F_IT());
-        _tables[Table::F_ITa] = new OsdCudaTable(farTables->Get_F_ITa());
+        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdCudaTable(farTables->Get_F_IT());
+        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdCudaTable(farTables->Get_F_ITa());
     }
 
     // create hedit tables

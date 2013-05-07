@@ -119,7 +119,6 @@ set(PUBLIC_HEADER_FILES
     drawContext.h
     drawRegistry.h
     patch.h
-    table.h
     sortedDrawContext.h
     vertex.h
     vertexDescriptor.h

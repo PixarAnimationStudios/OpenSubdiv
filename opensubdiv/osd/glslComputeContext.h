@@ -101,7 +101,7 @@ public:
 private:
     void createBuffer(size_t size, const void *ptr);
 
-    GLuint _buffer;
+    GLuint _devicePtr;
 };
 
 

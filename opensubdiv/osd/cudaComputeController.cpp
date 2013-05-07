@@ -57,7 +57,6 @@
 
 #include "../osd/cudaComputeContext.h"
 #include "../osd/cudaComputeController.h"
-#include "../osd/table.h"
 
 #include <cuda_runtime.h>
 #include <string.h>
@@ -122,8 +121,8 @@ OsdCudaComputeController::ApplyBilinearFaceVerticesKernel(
         static_cast<OsdCudaComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCudaTable * F_IT = context->GetTable(Table::F_IT);
-    const OsdCudaTable * F_ITa = context->GetTable(Table::F_ITa);
+    const OsdCudaTable * F_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::F_IT);
+    const OsdCudaTable * F_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::F_ITa);
     assert(F_IT);
     assert(F_ITa);
 
@@ -145,7 +144,7 @@ OsdCudaComputeController::ApplyBilinearEdgeVerticesKernel(
         static_cast<OsdCudaComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCudaTable * E_IT = context->GetTable(Table::E_IT);
+    const OsdCudaTable * E_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::E_IT);
     assert(E_IT);
 
     OsdCudaComputeBilinearEdge(
@@ -165,7 +164,7 @@ OsdCudaComputeController::ApplyBilinearVertexVerticesKernel(
         static_cast<OsdCudaComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCudaTable * V_ITa = context->GetTable(Table::V_ITa);
+    const OsdCudaTable * V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa);
     assert(V_ITa);
 
     OsdCudaComputeBilinearVertex(
@@ -185,8 +184,8 @@ OsdCudaComputeController::ApplyCatmarkFaceVerticesKernel(
         static_cast<OsdCudaComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCudaTable * F_IT = context->GetTable(Table::F_IT);
-    const OsdCudaTable * F_ITa = context->GetTable(Table::F_ITa);
+    const OsdCudaTable * F_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::F_IT);
+    const OsdCudaTable * F_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::F_ITa);
     assert(F_IT);
     assert(F_ITa);
 
@@ -208,8 +207,8 @@ OsdCudaComputeController::ApplyCatmarkEdgeVerticesKernel(
         static_cast<OsdCudaComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCudaTable * E_IT = context->GetTable(Table::E_IT);
-    const OsdCudaTable * E_W = context->GetTable(Table::E_W);
+    const OsdCudaTable * E_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::E_IT);
+    const OsdCudaTable * E_W = context->GetTable(FarSubdivisionTables<OsdVertex>::E_W);
     assert(E_IT);
     assert(E_W);
 
@@ -231,9 +230,9 @@ OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelB(
         static_cast<OsdCudaComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCudaTable * V_ITa = context->GetTable(Table::V_ITa);
-    const OsdCudaTable * V_IT = context->GetTable(Table::V_IT);
-    const OsdCudaTable * V_W = context->GetTable(Table::V_W);
+    const OsdCudaTable * V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa);
+    const OsdCudaTable * V_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::V_IT);
+    const OsdCudaTable * V_W = context->GetTable(FarSubdivisionTables<OsdVertex>::V_W);
     assert(V_ITa);
     assert(V_IT);
     assert(V_W);
@@ -257,8 +256,8 @@ OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelA1(
         static_cast<OsdCudaComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCudaTable * V_ITa = context->GetTable(Table::V_ITa);
-    const OsdCudaTable * V_W = context->GetTable(Table::V_W);
+    const OsdCudaTable * V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa);
+    const OsdCudaTable * V_W = context->GetTable(FarSubdivisionTables<OsdVertex>::V_W);
     assert(V_ITa);
     assert(V_W);
 
@@ -280,8 +279,8 @@ OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelA2(
         static_cast<OsdCudaComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCudaTable * V_ITa = context->GetTable(Table::V_ITa);
-    const OsdCudaTable * V_W = context->GetTable(Table::V_W);
+    const OsdCudaTable * V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa);
+    const OsdCudaTable * V_W = context->GetTable(FarSubdivisionTables<OsdVertex>::V_W);
     assert(V_ITa);
     assert(V_W);
 
@@ -303,8 +302,8 @@ OsdCudaComputeController::ApplyLoopEdgeVerticesKernel(
         static_cast<OsdCudaComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCudaTable * E_IT = context->GetTable(Table::E_IT);
-    const OsdCudaTable * E_W = context->GetTable(Table::E_W);
+    const OsdCudaTable * E_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::E_IT);
+    const OsdCudaTable * E_W = context->GetTable(FarSubdivisionTables<OsdVertex>::E_W);
     assert(E_IT);
     assert(E_W);
 
@@ -326,9 +325,9 @@ OsdCudaComputeController::ApplyLoopVertexVerticesKernelB(
         static_cast<OsdCudaComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCudaTable * V_ITa = context->GetTable(Table::V_ITa);
-    const OsdCudaTable * V_IT = context->GetTable(Table::V_IT);
-    const OsdCudaTable * V_W = context->GetTable(Table::V_W);
+    const OsdCudaTable * V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa);
+    const OsdCudaTable * V_IT = context->GetTable(FarSubdivisionTables<OsdVertex>::V_IT);
+    const OsdCudaTable * V_W = context->GetTable(FarSubdivisionTables<OsdVertex>::V_W);
     assert(V_ITa);
     assert(V_IT);
     assert(V_W);
@@ -352,8 +351,8 @@ OsdCudaComputeController::ApplyLoopVertexVerticesKernelA1(
         static_cast<OsdCudaComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCudaTable * V_ITa = context->GetTable(Table::V_ITa);
-    const OsdCudaTable * V_W = context->GetTable(Table::V_W);
+    const OsdCudaTable * V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa);
+    const OsdCudaTable * V_W = context->GetTable(FarSubdivisionTables<OsdVertex>::V_W);
     assert(V_ITa);
     assert(V_W);
 
@@ -375,8 +374,8 @@ OsdCudaComputeController::ApplyLoopVertexVerticesKernelA2(
         static_cast<OsdCudaComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCudaTable * V_ITa = context->GetTable(Table::V_ITa);
-    const OsdCudaTable * V_W = context->GetTable(Table::V_W);
+    const OsdCudaTable * V_ITa = context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa);
+    const OsdCudaTable * V_W = context->GetTable(FarSubdivisionTables<OsdVertex>::V_W);
     assert(V_ITa);
     assert(V_W);
 

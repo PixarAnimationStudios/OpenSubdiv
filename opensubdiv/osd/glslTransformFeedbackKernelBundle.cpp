@@ -69,7 +69,9 @@
 #include "../osd/debug.h"
 #include "../osd/error.h"
 #include "../osd/glslTransformFeedbackKernelBundle.h"
-#include "../osd/table.h"
+#include "../osd/vertex.h"
+
+#include "../far/subdivisionTables.h"
 
 #include <cassert>
 
@@ -179,13 +181,13 @@ OsdGLSLTransformFeedbackKernelBundle::Compile(int numVertexElements, int numVary
     _uniformTableOffset  = glGetUniformLocation(_program, "tableOffset");
     _uniformIndexStart   = glGetUniformLocation(_program, "indexStart");
 
-    _uniformTables[Table::F_IT]  = glGetUniformLocation(_program, "_F0_IT");
-    _uniformTables[Table::F_ITa] = glGetUniformLocation(_program, "_F0_ITa");
-    _uniformTables[Table::E_IT]  = glGetUniformLocation(_program, "_E0_IT");
-    _uniformTables[Table::V_IT]  = glGetUniformLocation(_program, "_V0_IT");
-    _uniformTables[Table::V_ITa] = glGetUniformLocation(_program, "_V0_ITa");
-    _uniformTables[Table::E_W]   = glGetUniformLocation(_program, "_E0_S");
-    _uniformTables[Table::V_W]   = glGetUniformLocation(_program, "_V0_S");
+    _uniformTables[FarSubdivisionTables<OsdVertex>::F_IT]  = glGetUniformLocation(_program, "_F0_IT");
+    _uniformTables[FarSubdivisionTables<OsdVertex>::F_ITa] = glGetUniformLocation(_program, "_F0_ITa");
+    _uniformTables[FarSubdivisionTables<OsdVertex>::E_IT]  = glGetUniformLocation(_program, "_E0_IT");
+    _uniformTables[FarSubdivisionTables<OsdVertex>::V_IT]  = glGetUniformLocation(_program, "_V0_IT");
+    _uniformTables[FarSubdivisionTables<OsdVertex>::V_ITa] = glGetUniformLocation(_program, "_V0_ITa");
+    _uniformTables[FarSubdivisionTables<OsdVertex>::E_W]   = glGetUniformLocation(_program, "_E0_S");
+    _uniformTables[FarSubdivisionTables<OsdVertex>::V_W]   = glGetUniformLocation(_program, "_V0_S");
 
     // set unfiorm locations for edit
     _subEditAdd               = glGetSubroutineIndex(_program,

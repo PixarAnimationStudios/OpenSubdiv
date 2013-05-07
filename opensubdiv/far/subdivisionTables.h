@@ -96,7 +96,21 @@ template <class U> class FarMesh;
 /// Subdivision Surfaces"  (p.3 - par. 3.2)
 ///
 template <class U> class FarSubdivisionTables {
+
 public:
+    enum TableType {
+        F_ITa, // face-vertices adjacency indexing table
+        F_IT,  // face-vertices indexing table
+        
+        E_IT,  // edge-vertices adjacency indexing table
+        E_W,   // edge-vertices weights
+        
+        V_ITa, // vertex-vertices adjacency indexing table
+        V_IT,  // vertex-vertices indexing table
+        V_W,   // vertex-vertices weights
+        
+        TABLE_TYPES_COUNT  // number of different types of tables
+    };
 
     /// Destructor
     virtual ~FarSubdivisionTables<U>() {}

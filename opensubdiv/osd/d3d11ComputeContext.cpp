@@ -59,7 +59,6 @@
 #include "../far/subdivisionTables.h"
 #include "../osd/debug.h"
 #include "../osd/error.h"
-#include "../osd/table.h"
 #include "../osd/d3d11ComputeContext.h"
 #include "../osd/d3d11KernelBundle.h"
 
@@ -192,18 +191,18 @@ OsdD3D11ComputeContext::OsdD3D11ComputeContext(
     // bindShaderStorageBuffer()...
     _tables.resize(7, 0);
 
-    _tables[Table::E_IT]  = new OsdD3D11ComputeTable(farTables->Get_E_IT(), deviceContext, DXGI_FORMAT_R32_SINT);
-    _tables[Table::V_IT]  = new OsdD3D11ComputeTable(farTables->Get_V_IT(), deviceContext, DXGI_FORMAT_R32_UINT);
-    _tables[Table::V_ITa] = new OsdD3D11ComputeTable(farTables->Get_V_ITa(), deviceContext, DXGI_FORMAT_R32_SINT);
-    _tables[Table::E_W]   = new OsdD3D11ComputeTable(farTables->Get_E_W(), deviceContext, DXGI_FORMAT_R32_FLOAT);
-    _tables[Table::V_W]   = new OsdD3D11ComputeTable(farTables->Get_V_W(), deviceContext, DXGI_FORMAT_R32_FLOAT);
+    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdD3D11ComputeTable(farTables->Get_E_IT(), deviceContext, DXGI_FORMAT_R32_SINT);
+    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdD3D11ComputeTable(farTables->Get_V_IT(), deviceContext, DXGI_FORMAT_R32_UINT);
+    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdD3D11ComputeTable(farTables->Get_V_ITa(), deviceContext, DXGI_FORMAT_R32_SINT);
+    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdD3D11ComputeTable(farTables->Get_E_W(), deviceContext, DXGI_FORMAT_R32_FLOAT);
+    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdD3D11ComputeTable(farTables->Get_V_W(), deviceContext, DXGI_FORMAT_R32_FLOAT);
 
     if (farTables->GetNumTables() > 5) {
-        _tables[Table::F_IT]  = new OsdD3D11ComputeTable(farTables->Get_F_IT(), deviceContext, DXGI_FORMAT_R32_UINT);
-        _tables[Table::F_ITa] = new OsdD3D11ComputeTable(farTables->Get_F_ITa(), deviceContext, DXGI_FORMAT_R32_SINT);
+        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdD3D11ComputeTable(farTables->Get_F_IT(), deviceContext, DXGI_FORMAT_R32_UINT);
+        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdD3D11ComputeTable(farTables->Get_F_ITa(), deviceContext, DXGI_FORMAT_R32_SINT);
     } else {
-        _tables[Table::F_IT] = NULL;
-        _tables[Table::F_ITa] = NULL;
+        _tables[FarSubdivisionTables<OsdVertex>::F_IT] = NULL;
+        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = NULL;
     }
 
     // create hedit tables
@@ -340,20 +339,20 @@ OsdD3D11ComputeContext::bindShaderStorageBuffers() {
         _deviceContext->CSSetUnorderedAccessViews(1, 1, &_currentVaryingBufferUAV, 0); // u1
 
     // XXX: should be better handling for loop subdivision.
-    if (_tables[Table::F_IT]) {
+    if (_tables[FarSubdivisionTables<OsdVertex>::F_IT]) {
         ID3D11ShaderResourceView *SRViews[] = {
-            _tables[Table::F_IT]->GetSRV(),
-            _tables[Table::F_ITa]->GetSRV(),
+            _tables[FarSubdivisionTables<OsdVertex>::F_IT]->GetSRV(),
+            _tables[FarSubdivisionTables<OsdVertex>::F_ITa]->GetSRV(),
         };
         _deviceContext->CSSetShaderResources(2, 2, SRViews); // t2-t3
     }
 
     ID3D11ShaderResourceView *SRViews[] = {
-        _tables[Table::E_IT]->GetSRV(),
-        _tables[Table::V_IT]->GetSRV(),
-        _tables[Table::V_ITa]->GetSRV(),
-        _tables[Table::E_W]->GetSRV(),
-        _tables[Table::V_W]->GetSRV(),
+        _tables[FarSubdivisionTables<OsdVertex>::E_IT]->GetSRV(),
+        _tables[FarSubdivisionTables<OsdVertex>::V_IT]->GetSRV(),
+        _tables[FarSubdivisionTables<OsdVertex>::V_ITa]->GetSRV(),
+        _tables[FarSubdivisionTables<OsdVertex>::E_W]->GetSRV(),
+        _tables[FarSubdivisionTables<OsdVertex>::V_W]->GetSRV(),
     };
     _deviceContext->CSSetShaderResources(4, 5, SRViews); // t4-t8
 }

@@ -100,7 +100,8 @@ public:
 private:
     void createTextureBuffer(size_t size, const void *ptr, GLenum type);
 
-    GLuint _buffer, _texture;
+    GLuint _devicePtr, 
+           _texture;
 };
 
 class OsdGLSLTransformFeedbackHEditTable : OsdNonCopyable<OsdGLSLTransformFeedbackHEditTable> {

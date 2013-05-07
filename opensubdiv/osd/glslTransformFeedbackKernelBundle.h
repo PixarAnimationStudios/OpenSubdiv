@@ -74,8 +74,9 @@
 #endif
 
 #include "../version.h"
-#include "../osd/table.h"
 #include "../osd/nonCopyable.h"
+#include "../osd/vertex.h"
+#include "../far/subdivisionTables.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -187,7 +188,7 @@ namespace OPENSUBDIV_VERSION {
         GLuint _program;
 
         // uniform locations
-        GLuint _uniformTables[Table::TABLE_MAX];
+        GLuint _uniformTables[FarSubdivisionTables<OsdVertex>::TABLE_TYPES_COUNT];
         GLuint _uniformVertexPass;
         GLuint _uniformVertexOffset;
         GLuint _uniformTableOffset;

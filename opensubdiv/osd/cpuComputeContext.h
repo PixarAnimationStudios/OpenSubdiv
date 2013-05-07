@@ -86,7 +86,7 @@ public:
 private:
     void createCpuBuffer(size_t size, const void *ptr);
 
-    unsigned char *_table;
+    void *_devicePtr;
 };
 
 class OsdCpuHEditTable : OsdNonCopyable<OsdCpuHEditTable> {

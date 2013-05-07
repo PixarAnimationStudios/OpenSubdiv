@@ -74,7 +74,6 @@
 #include "../osd/glslComputeController.h"
 #include "../osd/glslComputeContext.h"
 #include "../osd/glslKernelBundle.h"
-#include "../osd/table.h"
 
 #include <algorithm>
 #include <cassert>
