@@ -70,28 +70,42 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 /// \brief Compute controller for launching OpenMP subdivision kernels.
-/// OsdOmpComputeController is a compute controller class to launch
-/// OpenMP threaded subdivision kernels. It requires OsdCpuVertexBufferInterface
+///
+/// OsdOmpComputeController is a compute controller class to launch OpenMP
+/// threaded subdivision kernels. It requires OsdCpuVertexBufferInterface
 /// as arguments of Refine function.
+///
+/// Controller entities execute requests from Context instances that they share
+/// common interfaces with. Controllers are attached to discrete compute devices
+/// and share the devices resources with Context entities.
+///
 class OsdOmpComputeController {
 public:
     typedef OsdCpuComputeContext ComputeContext;
 
     /// Constructor.
-    /// numThreads specifies how many threads to be used in openmp parallel
-    /// execution. numThreads=-1 means to use available number of processors.
+    ///
+    /// @param numThreads specifies how many openmp parallel threads to use.
+    ///                   -1 attempts to use all available processors.
+    ///
     explicit OsdOmpComputeController(int numThreads=-1);
 
     /// Launch subdivision kernels and apply to given vertex buffers.
-    /// vertexBuffer will be interpolated with vertex interpolation and
-    /// varyingBuffer will be interpolated with varying interpolation.
-    /// vertexBuffer and varyingBuffer should implement 
-    /// OsdCpuVertexBufferInterface.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
+    /// @param  varyingBuffer varying-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Refine(OsdCpuComputeContext *context,
-                FarKernelBatchVector const &batches,
-                VERTEX_BUFFER *vertexBuffer,
-                VARYING_BUFFER *varyingBuffer) {
+                FarKernelBatchVector const & batches,
+                VERTEX_BUFFER * vertexBuffer,
+                VARYING_BUFFER * varyingBuffer) {
 
         omp_set_num_threads(_numThreads);
 
@@ -103,6 +117,15 @@ public:
         context->Unbind();
     }
 
+    /// Launch subdivision kernels and apply to given vertex buffers.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER>
     void Refine(OsdCpuComputeContext *context,
                 FarKernelBatchVector const &batches,

@@ -66,9 +66,15 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 /// \brief Compute controller for launching CPU subdivision kernels.
+///
 /// OsdCpuComputeController is a compute controller class to launch
 /// single threaded CPU subdivision kernels. It requires
 /// OsdCpuVertexBufferInterface as arguments of Refine function.
+///
+/// Controller entities execute requests from Context instances that they share
+/// common interfaces with. Controllers are attached to discrete compute devices
+/// and share the devices resources with Context entities.
+///
 class OsdCpuComputeController {
 public:
     typedef OsdCpuComputeContext ComputeContext;
@@ -80,10 +86,16 @@ public:
     ~OsdCpuComputeController();
 
     /// Launch subdivision kernels and apply to given vertex buffers.
-    /// vertexBuffer will be interpolated with vertex interpolation and
-    /// varyingBuffer will be interpolated with varying interpolation.
-    /// vertexBuffer and varyingBuffer should implement
-    /// OsdCpuVertexBufferInterface.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
+    /// @param  varyingBuffer varying-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Refine(OsdCpuComputeContext *context,
                 FarKernelBatchVector const & batches,
@@ -98,6 +110,15 @@ public:
         context->Unbind();
     }
 
+    /// Launch subdivision kernels and apply to given vertex buffers.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER>
     void Refine(OsdCpuComputeContext *context,
                 FarKernelBatchVector const & batches,
@@ -105,6 +126,7 @@ public:
         Refine(context, batches, vertexBuffer, (VERTEX_BUFFER*)0);
     }
 
+    /// Waits until all running subdivision kernels finish.
     void Synchronize();
 
 protected:

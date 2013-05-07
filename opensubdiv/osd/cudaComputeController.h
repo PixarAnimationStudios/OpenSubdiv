@@ -66,9 +66,15 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 /// \brief Compute controller for launching CUDA subdivision kernels.
+///
 /// OsdCudaComputeController is a compute controller class to launch
 /// Cuda subdivision kernels. It requires OsdCudaVertexBufferInterface
 /// as arguments of Refine function.
+///
+/// Controller entities execute requests from Context instances that they share
+/// common interfaces with. Controllers are attached to discrete compute devices
+/// and share the devices resources with Context entities.
+///
 class OsdCudaComputeController {
 public:
     typedef OsdCudaComputeContext ComputeContext;
@@ -80,10 +86,16 @@ public:
     ~OsdCudaComputeController();
 
     /// Launch subdivision kernels and apply to given vertex buffers.
-    /// vertexBuffer will be interpolated with vertex interpolation and
-    /// varyingBuffer will be interpolated with varying interpolation.
-    /// vertexBuffer and varyingBuffer should implement
-    /// OsdCudaVertexBufferInterface.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
+    /// @param  varyingBuffer varying-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Refine(OsdCudaComputeContext *context,
                 FarKernelBatchVector const &batches,
@@ -98,6 +110,15 @@ public:
         context->Unbind();
     }
 
+    /// Launch subdivision kernels and apply to given vertex buffers.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER>
     void Refine(OsdCudaComputeContext *context,
                 FarKernelBatchVector const &batches,

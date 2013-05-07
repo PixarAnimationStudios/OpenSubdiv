@@ -54,7 +54,6 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-
 #ifndef OSD_GLSL_COMPUTE_CONTROLLER_H
 #define OSD_GLSL_COMPUTE_CONTROLLER_H
 
@@ -72,9 +71,15 @@ class OsdGLSLComputeKernelBundle;
 
 /// \brief Compute controller for launching GLSLCompute transform feedback
 /// subdivision kernels.
+///
 /// OsdGLSLComputeController is a compute controller class to launch
 /// GLSLCompute transfrom feedback subdivision kernels. It requires
 /// OsdGLVertexBufferInterface as arguments of Refine function.
+///
+/// Controller entities execute requests from Context instances that they share
+/// common interfaces with. Controllers are attached to discrete compute devices
+/// and share the devices resources with Context entities.
+///
 class OsdGLSLComputeController {
 public:
     typedef OsdGLSLComputeContext ComputeContext;
@@ -86,10 +91,16 @@ public:
     ~OsdGLSLComputeController();
 
     /// Launch subdivision kernels and apply to given vertex buffers.
-    /// vertexBuffer will be interpolated with vertex interpolation and
-    /// varyingBuffer will be interpolated with varying interpolation.
-    /// vertexBuffer and varyingBuffer should implement
-    /// OsdGLVertexBufferInterface.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
+    /// @param  varyingBuffer varying-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Refine(OsdGLSLComputeContext *context,
                 FarKernelBatchVector const &batches,
@@ -108,6 +119,15 @@ public:
         context->Unbind();
     }
 
+    /// Launch subdivision kernels and apply to given vertex buffers.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER>
     void Refine(OsdGLSLComputeContext *context,
                 FarKernelBatchVector const &batches,

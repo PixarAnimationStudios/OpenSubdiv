@@ -54,7 +54,6 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-
 #ifndef OSD_D3D11_COMPUTE_CONTROLLER_H
 #define OSD_D3D11_COMPUTE_CONTROLLER_H
 
@@ -75,24 +74,39 @@ class OsdD3D11ComputeKernelBundle;
 
 /// \brief Compute controller for launching D3D11Compute transform feedback
 /// subdivision kernels.
+///
 /// OsdD3D11ComputeController is a compute controller class to launch
 /// D3D11Compute transfrom feedback subdivision kernels. It requires
 /// OsdD3D11VertexBufferInterface as arguments of Refine function.
+///
+/// Controller entities execute requests from Context instances that they share
+/// common interfaces with. Controllers are attached to discrete compute devices
+/// and share the devices resources with Context entities.
+///
 class OsdD3D11ComputeController {
 public:
     typedef OsdD3D11ComputeContext ComputeContext;
 
     /// Constructor.
+    ///
+    /// @param deviceContext  a valid instanciated D3D11 device context
+    ///
     OsdD3D11ComputeController(ID3D11DeviceContext *deviceContext);
 
     /// Destructor.
     ~OsdD3D11ComputeController();
 
     /// Launch subdivision kernels and apply to given vertex buffers.
-    /// vertexBuffer will be interpolated with vertex interpolation and
-    /// varyingBuffer will be interpolated with varying interpolation.
-    /// vertexBuffer and varyingBuffer should implement
-    /// OsdD3D11VertexBufferInterface.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
+    /// @param  varyingBuffer varying-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Refine(OsdD3D11ComputeContext *context,
                 FarKernelBatchVector const &batches,
@@ -111,6 +125,15 @@ public:
         context->Unbind();
     }
 
+    /// Launch subdivision kernels and apply to given vertex buffers.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER>
     void Refine(OsdD3D11ComputeContext *context,
                 FarKernelBatchVector const &batches,
