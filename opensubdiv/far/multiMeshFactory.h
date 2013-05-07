@@ -332,25 +332,32 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
     for (size_t i = 0; i < meshes.size(); ++i) {
         for (int j = 0; j < (int)meshes[i]->_batches.size(); ++j) {
             FarKernelBatch batch = meshes[i]->_batches[j];
-            batch.vertexOffset += vertexOffsets[i];
+            batch._vertexOffset += vertexOffsets[i];
             
-            if (batch.kernelType == CATMARK_FACE_VERTEX or
-                batch.kernelType == BILINEAR_FACE_VERTEX) {
-                batch.tableOffset += fvOffsets[i];
-            } else if (batch.kernelType == CATMARK_EDGE_VERTEX or
-                       batch.kernelType == LOOP_EDGE_VERTEX or
-                       batch.kernelType == BILINEAR_EDGE_VERTEX) {
-                batch.tableOffset += evOffsets[i];
-            } else if (batch.kernelType == CATMARK_VERT_VERTEX_A1 or
-                       batch.kernelType == CATMARK_VERT_VERTEX_A2 or
-                       batch.kernelType == CATMARK_VERT_VERTEX_B or
-                       batch.kernelType == LOOP_VERT_VERTEX_A1 or
-                       batch.kernelType == LOOP_VERT_VERTEX_A2 or
-                       batch.kernelType == LOOP_VERT_VERTEX_B or
-                       batch.kernelType == BILINEAR_VERT_VERTEX) {
-                batch.tableOffset += vvOffsets[i];
-            } else if (batch.kernelType == HIERARCHICAL_EDIT) {
-                batch.tableIndex += editTableIndexOffset;
+            if (batch._kernelType == FarKernelBatch::CATMARK_FACE_VERTEX or
+                batch._kernelType == FarKernelBatch::BILINEAR_FACE_VERTEX) {
+                
+                batch._tableOffset += fvOffsets[i];
+                
+            } else if (batch._kernelType == FarKernelBatch::CATMARK_EDGE_VERTEX or
+                       batch._kernelType == FarKernelBatch::LOOP_EDGE_VERTEX or
+                       batch._kernelType == FarKernelBatch::BILINEAR_EDGE_VERTEX) {
+                       
+                batch._tableOffset += evOffsets[i];
+                
+            } else if (batch._kernelType == FarKernelBatch::CATMARK_VERT_VERTEX_A1 or
+                       batch._kernelType == FarKernelBatch::CATMARK_VERT_VERTEX_A2 or
+                       batch._kernelType == FarKernelBatch::CATMARK_VERT_VERTEX_B or
+                       batch._kernelType == FarKernelBatch::LOOP_VERT_VERTEX_A1 or
+                       batch._kernelType == FarKernelBatch::LOOP_VERT_VERTEX_A2 or
+                       batch._kernelType == FarKernelBatch::LOOP_VERT_VERTEX_B or
+                       batch._kernelType == FarKernelBatch::BILINEAR_VERT_VERTEX) {
+                       
+                batch._tableOffset += vvOffsets[i];
+                
+            } else if (batch._kernelType == FarKernelBatch::HIERARCHICAL_EDIT) {
+            
+                batch._tableIndex += editTableIndexOffset;
             }
             batches.push_back(batch);
         }

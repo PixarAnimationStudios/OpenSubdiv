@@ -81,6 +81,14 @@ protected:
     template <class X, class Y> friend class FarMeshFactory;
 
     /// Creates a FarBilinearSubdivisiontables instance.
+    ///
+    /// @param meshFactory  a valid FarMeshFactory instance
+    ///
+    /// @param farMesh
+    ///
+    /// @param batches      a vector of Kernel refinement batches : the factory 
+    ///                     will reserve and append refinement tasks
+    ///
     static FarBilinearSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector *batches );
 };
 
@@ -134,13 +142,13 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
         // "For each vertex, gather all the vertices from the parent face."
         int nFaceVertices = (int)tablesFactory._faceVertsList[level].size();
         if (nFaceVertices > 0)
-            batches->push_back(FarKernelBatch(level,
-                                              BILINEAR_FACE_VERTEX,
-                                              /*tableIndex=*/0,
-                                              /*start=*/0,
-                                              /*end=*/nFaceVertices,
-                                              faceTableOffset,
-                                              vertexOffset));
+            batches->push_back(FarKernelBatch( FarKernelBatch::BILINEAR_FACE_VERTEX,
+                                               level,
+                                               /*tableIndex=*/0,
+                                               /*start=*/0,
+                                               /*end=*/nFaceVertices,
+                                               faceTableOffset,
+                                               vertexOffset) );
         vertexOffset += nFaceVertices;
         faceTableOffset += nFaceVertices;
 
@@ -167,13 +175,13 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
         // "Average the end-points of the parent edge"
         int nEdgeVertices = (int)tablesFactory._edgeVertsList[level].size();
         if (nEdgeVertices > 0)
-            batches->push_back(FarKernelBatch(level,
-                                              BILINEAR_EDGE_VERTEX,
-                                              /*tableIndex=*/0,
-                                              /*start=*/0,
-                                              /*end=*/nEdgeVertices,
-                                              edgeTableOffset,
-                                              vertexOffset));
+            batches->push_back(FarKernelBatch( FarKernelBatch::BILINEAR_EDGE_VERTEX,
+                                               level,
+                                               /*tableIndex=*/0,
+                                               /*start=*/0,
+                                               /*end=*/nEdgeVertices,
+                                               edgeTableOffset,
+                                               vertexOffset) );
         vertexOffset += nEdgeVertices;
         edgeTableOffset += nEdgeVertices;
         for (int i=0; i < nEdgeVertices; ++i) {
@@ -194,13 +202,13 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
 
         // "Pass down the parent vertex"
         int nVertVertices = (int)tablesFactory._vertVertsList[level].size();
-        batches->push_back(FarKernelBatch(level,
-                                          BILINEAR_VERT_VERTEX,
-                                          /*tableIndex=*/0,
-                                          /*start=*/0,
-                                          /*end=*/nVertVertices,
-                                          vertTableOffset,
-                                          vertexOffset));
+        batches->push_back(FarKernelBatch( FarKernelBatch::BILINEAR_VERT_VERTEX,
+                                           level,
+                                           /*tableIndex=*/0,
+                                           /*start=*/0,
+                                           /*end=*/nVertVertices,
+                                           vertTableOffset,
+                                           vertexOffset));
         vertexOffset += nVertVertices;
         vertTableOffset += nVertVertices;
         

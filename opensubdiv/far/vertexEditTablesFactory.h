@@ -82,6 +82,7 @@ protected:
 
     /// Compares the number of subfaces in an edit (for sorting purposes)
     static bool compareEdits(HbrVertexEdit<T> const *a, HbrVertexEdit<T> const *b);
+    
     static void insertHEditBatch(FarKernelBatchVector *batches, int batchIndex, int batchLevel, int batchCount, int tableOffset);
 
     /// Creates a FarVertexEditTables instance.
@@ -98,11 +99,14 @@ template <class T, class U> void
 FarVertexEditTablesFactory<T,U>::insertHEditBatch(FarKernelBatchVector *batches, int batchIndex, int batchLevel, int batchCount, int tableOffset) {
 
     FarKernelBatchVector::iterator it = batches->begin();
-    while(it != batches->end()) {
-        if (it->level > batchLevel+1) break;
+
+    while (it != batches->end()) {
+        if (it->GetLevel() > batchLevel+1) 
+            break;
         ++it;
     }
-    batches->insert(it, FarKernelBatch(batchLevel+1, HIERARCHICAL_EDIT, batchIndex, 0, batchCount, tableOffset, 0));
+    
+    batches->insert(it, FarKernelBatch( FarKernelBatch::HIERARCHICAL_EDIT, batchLevel+1, batchIndex, 0, batchCount, tableOffset, 0) );
 }
 
 template <class T, class U> FarVertexEditTables<U> * 

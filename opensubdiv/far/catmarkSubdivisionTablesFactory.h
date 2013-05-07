@@ -65,6 +65,7 @@
 
 #include "../far/catmarkSubdivisionTables.h"
 #include "../far/meshFactory.h"
+#include "../far/kernelBatchFactory.h"
 #include "../far/subdivisionTablesFactory.h"
 
 namespace OpenSubdiv {
@@ -81,6 +82,14 @@ protected:
     template <class X, class Y> friend class FarMeshFactory;
 
     /// Creates a FarCatmarkSubdivisiontables instance.
+    ///
+    /// @param meshFactory  a valid FarMeshFactory instance
+    ///
+    /// @param farMesh
+    ///
+    /// @param batches      a vector of Kernel refinement batches : the factory 
+    ///                     will reserve and append refinement tasks
+    ///
     static FarCatmarkSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector *batches  );
 };
 
@@ -144,13 +153,13 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
 
         // add a batch for face vertices
         if (nFaceVertices > 0)  // in torus case, nfacevertices could be zero
-            batches->push_back(FarKernelBatch(level,
-                                              CATMARK_FACE_VERTEX,
-                                              0,
-                                              0,
-                                              nFaceVertices,
-                                              faceTableOffset,
-                                              vertexOffset));
+            batches->push_back(FarKernelBatch( FarKernelBatch::CATMARK_FACE_VERTEX,
+                                               level,
+                                               0,
+                                               0,
+                                               nFaceVertices,
+                                               faceTableOffset,
+                                               vertexOffset) );
 
         vertexOffset += nFaceVertices;
         faceTableOffset += nFaceVertices;
@@ -187,13 +196,13 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
 
         // add a batch for edge vertices
         if (nEdgeVertices > 0)
-            batches->push_back(FarKernelBatch(level,
-                                              CATMARK_EDGE_VERTEX,
-                                              0,
-                                              0,
-                                              nEdgeVertices,
-                                              edgeTableOffset,
-                                              vertexOffset));
+            batches->push_back(FarKernelBatch( FarKernelBatch::CATMARK_EDGE_VERTEX,
+                                               level,
+                                               0,
+                                               0,
+                                               nEdgeVertices,
+                                               edgeTableOffset,
+                                               vertexOffset) );
 
         vertexOffset += nEdgeVertices;
         edgeTableOffset += nEdgeVertices;
@@ -356,7 +365,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
 
         // add batches for vert vertices
         if (nVertVertices > 0)
-            batchFactory.AppendCatmarkBatches(batches, level, vertTableOffset, vertexOffset);
+            batchFactory.AppendCatmarkBatches(level, vertTableOffset, vertexOffset, batches);
         vertexOffset += nVertVertices;
         vertTableOffset += nVertVertices;
     }

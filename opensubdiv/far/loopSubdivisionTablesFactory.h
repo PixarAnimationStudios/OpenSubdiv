@@ -62,6 +62,7 @@
 
 #include "../far/loopSubdivisionTables.h"
 #include "../far/meshFactory.h"
+#include "../far/kernelBatchFactory.h"
 #include "../far/subdivisionTablesFactory.h"
 
 #include <cassert>
@@ -81,6 +82,14 @@ protected:
     template <class X, class Y> friend class FarMeshFactory;
 
     /// Creates a FarLoopSubdivisiontables instance.
+    ///
+    /// @param meshFactory  a valid FarMeshFactory instance
+    ///
+    /// @param farMesh
+    ///
+    /// @param batches      a vector of Kernel refinement batches : the factory 
+    ///                     will reserve and append refinement tasks
+    ///
     static FarLoopSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector * batches );
 };
 
@@ -134,13 +143,13 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
         // Edge vertices
         int nEdgeVertices = (int)tablesFactory._edgeVertsList[level].size();
         if (nEdgeVertices > 0) 
-            batches->push_back(FarKernelBatch(level,
-                                              LOOP_EDGE_VERTEX,
-                                              0,
-                                              0,
-                                              nEdgeVertices,
-                                              edgeTableOffset,
-                                              vertexOffset));
+            batches->push_back(FarKernelBatch( FarKernelBatch::LOOP_EDGE_VERTEX,
+                                               level,
+                                               0,
+                                               0,
+                                               nEdgeVertices,
+                                               edgeTableOffset,
+                                               vertexOffset) );
         vertexOffset += nEdgeVertices;
         edgeTableOffset += nEdgeVertices;
 
@@ -286,7 +295,7 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
         V_ITa += nVertVertices*5;
         V_W += nVertVertices;
 
-        batchFactory.AppendLoopBatches(batches, level, vertTableOffset, vertexOffset);
+        batchFactory.AppendLoopBatches(level, vertTableOffset, vertexOffset, batches);
         vertexOffset += nVertVertices;
         vertTableOffset += nVertVertices;
     }

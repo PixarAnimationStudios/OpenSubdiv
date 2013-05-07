@@ -64,135 +64,166 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-enum KernelType {
-    CATMARK_FACE_VERTEX,
-    CATMARK_EDGE_VERTEX,
-    CATMARK_VERT_VERTEX_A1,
-    CATMARK_VERT_VERTEX_A2,
-    CATMARK_VERT_VERTEX_B,
-    LOOP_EDGE_VERTEX,
-    LOOP_VERT_VERTEX_A1,
-    LOOP_VERT_VERTEX_A2,
-    LOOP_VERT_VERTEX_B,
-    BILINEAR_FACE_VERTEX,
-    BILINEAR_EDGE_VERTEX,
-    BILINEAR_VERT_VERTEX,
-    HIERARCHICAL_EDIT,
-};
 
-struct FarKernelBatch {
-    FarKernelBatch(int level_,
-                   int kernelType_,
-                   int tableIndex_,
-                   int start_,
-                   int end_,
-                   int tableOffset_,
-                   int vertexOffset_) :
-        level(level_),
-        kernelType(kernelType_),
-        tableIndex(tableIndex_),
-        start(start_),
-        end(end_),
-        tableOffset(tableOffset_),
-        vertexOffset(vertexOffset_) {
+/// \brief A GP Compute Kernel descriptor.
+///
+/// Vertex refinement through subdivision schemes requires the successive
+/// application of dedicated compute kernels. OpenSubdiv groups these vertices
+/// in batches based on their topology in order to minimize the number of kernel
+/// switches to process a given primitive.
+/// 
+///       [Subdivision table for kernel k]
+///         ------+---------------------------------+-----
+///               |   Prim p, Level n               |
+///        ------+---------------------------------+-----
+///              |             |<batch range>|     |
+///        ------+---------------------------------+-----
+///              ^             ^             ^     
+///        tableOffset       start          end
+///                            .             .
+///                            .             .
+///                            .             .
+///      [VBO]                 .             .
+///        ------+---------------------------------+-----
+///              |   Prim p, Kernel k, Level n     |
+///        ------+---------------------------------+-----
+///              |             |<batch range>|     | 
+///        ------+---------------------------------+-----
+///              ^             ^             ^
+///        vertexOffset      start          end
+///
+class FarKernelBatch {
+
+public:
+
+    enum KernelType {
+        CATMARK_FACE_VERTEX,
+        CATMARK_EDGE_VERTEX,
+        CATMARK_VERT_VERTEX_A1,
+        CATMARK_VERT_VERTEX_A2,
+        CATMARK_VERT_VERTEX_B,
+        LOOP_EDGE_VERTEX,
+        LOOP_VERT_VERTEX_A1,
+        LOOP_VERT_VERTEX_A2,
+        LOOP_VERT_VERTEX_B,
+        BILINEAR_FACE_VERTEX,
+        BILINEAR_EDGE_VERTEX,
+        BILINEAR_VERT_VERTEX,
+        HIERARCHICAL_EDIT,
+    };
+
+    /// Constructor.
+    /// 
+    /// @param kernelType    the type of compute kernel kernel
+    ///
+    /// @param level         the level of subdivision of the vertices in the batch
+    ///
+    /// @param tableIndex    edit index (for the hierarchical edit kernels only)
+    ///
+    /// @param start         index of the first vertex in the batch
+    ///
+    /// @param end           index of the last vertex in the batch
+    ///
+    /// @param tableOffset   XXXX
+    ///
+    /// @param vertexOffset  XXXX
+    ///
+    FarKernelBatch( KernelType kernelType,
+                    int level,
+                    int tableIndex,
+                    int start,
+                    int end,
+                    int tableOffset,
+                    int vertexOffset) :
+        _kernelType(kernelType),
+        _level(level),
+        _tableIndex(tableIndex),
+        _start(start),
+        _end(end),
+        _tableOffset(tableOffset),
+        _vertexOffset(vertexOffset) {
     }
 
-    /*
-      [Subdivision table for kernel k]
-        ------+---------------------------------+-----
-              |   Prim p, Level n               |
-        ------+---------------------------------+-----
-              |             |<batch range>|     |
-        ------+---------------------------------+-----
-              ^             ^             ^     
-        tableOffset       start          end
-                            .             .
-                            .             .
-                            .             .
-      [VBO]                 .             .
-        ------+---------------------------------+-----
-              |   Prim p, Kernel k, Level n     |
-        ------+---------------------------------+-----
-              |             |<batch range>|     | 
-        ------+---------------------------------+-----
-              ^             ^             ^
-        vertexOffset      start          end
-    */
+    /// Returns the type of kernel to apply to the vertices in the batch.
+    KernelType GetKernelType() const {
+        return _kernelType;
+    }
 
-    int level;
-    int kernelType;
-    int tableIndex;  // edit index (for the h-edit kernel only)
 
-    int start;
-    int end;
-    int tableOffset;
-    int vertexOffset;
+    /// Returns the subdivision level of the vertices in the batch
+    int GetLevel() const {
+        return _level;
+    }
+
+
+    
+    /// Returns the index of the first vertex in the batch
+    int GetStart() const {
+        return _start;
+    }
+
+    /// Returns the index of the first vertex in the batch
+    const int * GetStartPtr() const {
+        return & _start;
+    }
+
+
+    
+    /// Returns the index of the last vertex in the batch
+    int GetEnd() const {
+        return _end;
+    }
+
+    /// Returns the index of the last vertex in the batch
+    const int * GetEndPtr() const {
+        return & _end;
+    }
+
+
+
+    /// Returns the edit index (for the hierarchical edit kernels only)
+    int GetTableIndex() const {
+        return _tableIndex;
+    }
+    
+
+
+    /// Returns
+    int GetTableOffset() const {
+        return _tableOffset;
+    }
+
+    /// Returns
+    const int * GetTableOffsetPtr() const {
+        return & _tableOffset;
+    }
+
+
+
+    /// Returns
+    int GetVertexOffset() const {
+        return _vertexOffset;
+    }
+
+    /// Returns
+    const int * GetVertexOffsetPtr() const {
+        return & _vertexOffset;
+    }
+
+private:
+    friend class FarKernelBatchFactory;
+    template <class X, class Y> friend class FarMultiMeshFactory;
+
+    KernelType _kernelType;
+    int _level;
+    int _tableIndex;
+    int _start;
+    int _end;
+    int _tableOffset;
+    int _vertexOffset;
 };
 
 typedef std::vector<FarKernelBatch> FarKernelBatchVector;
-
-struct FarVertexKernelBatchFactory {
-    FarVertexKernelBatchFactory(int a, int b) {
-        kernelB.first = kernelA1.first = kernelA2.first = a;
-        kernelB.second = kernelA1.second = kernelA2.second = b;
-    }
-    
-    void AddVertex( int index, int rank ) {
-        // expand the range of kernel batches based on vertex index and rank
-        if (rank<7) {
-            if (index < kernelB.first)
-                kernelB.first=index;
-            if (index > kernelB.second)
-                kernelB.second=index;
-        }
-        if ((rank>2) and (rank<8)) {
-            if (index < kernelA2.first)
-                kernelA2.first=index;
-            if (index > kernelA2.second)
-                kernelA2.second=index;
-        }
-        if (rank>6) {
-            if (index < kernelA1.first)
-                kernelA1.first=index;
-            if (index > kernelA1.second)
-                kernelA1.second=index;
-        }
-    }
-
-    void AppendCatmarkBatches(FarKernelBatchVector *result, int level, int tableOffset, int vertexOffset) {
-        if (kernelB.second >= kernelB.first)
-            result->push_back(FarKernelBatch(level, CATMARK_VERT_VERTEX_B, 0,
-                                             kernelB.first, kernelB.second+1,
-                                             tableOffset, vertexOffset));
-        if (kernelA1.second >= kernelA1.first)
-            result->push_back(FarKernelBatch(level, CATMARK_VERT_VERTEX_A1, 0,
-                                             kernelA1.first, kernelA1.second+1,
-                                             tableOffset, vertexOffset));
-        if (kernelA2.second >= kernelA2.first)
-            result->push_back(FarKernelBatch(level, CATMARK_VERT_VERTEX_A2, 0,
-                                             kernelA2.first, kernelA2.second+1,
-                                             tableOffset, vertexOffset));
-    }
-
-    void AppendLoopBatches(FarKernelBatchVector *result, int level, int tableOffset, int vertexOffset) {
-        if (kernelB.second >= kernelB.first)
-            result->push_back(FarKernelBatch(level, LOOP_VERT_VERTEX_B, 0,
-                                             kernelB.first, kernelB.second+1,
-                                             tableOffset, vertexOffset));
-        if (kernelA1.second >= kernelA1.first)
-            result->push_back(FarKernelBatch(level, LOOP_VERT_VERTEX_A1, 0,
-                                             kernelA1.first, kernelA1.second+1,
-                                             tableOffset, vertexOffset));
-        if (kernelA2.second >= kernelA2.first)
-            result->push_back(FarKernelBatch(level, LOOP_VERT_VERTEX_A2, 0,
-                                             kernelA2.first, kernelA2.second+1,
-                                             tableOffset, vertexOffset));
-    }
-
-    std::pair<int,int> kernelB;  // first / last vertex vertex batch (kernel B)
-    std::pair<int,int> kernelA1; // first / last vertex vertex batch (kernel A pass 1)
-    std::pair<int,int> kernelA2; // first / last vertex vertex batch (kernel A pass 2)
-};
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

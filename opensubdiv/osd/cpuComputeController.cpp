@@ -84,7 +84,7 @@ OsdCpuComputeController::ApplyBilinearFaceVerticesKernel(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTable(Table::F_IT)->GetBuffer(),
         (const int*)context->GetTable(Table::F_ITa)->GetBuffer(),
-        batch.vertexOffset, batch.tableOffset, batch.start, batch.end);
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
@@ -100,7 +100,7 @@ OsdCpuComputeController::ApplyBilinearEdgeVerticesKernel(
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTable(Table::E_IT)->GetBuffer(),
-        batch.vertexOffset, batch.tableOffset, batch.start, batch.end);
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
@@ -116,7 +116,7 @@ OsdCpuComputeController::ApplyBilinearVertexVerticesKernel(
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
-        batch.vertexOffset, batch.tableOffset, batch.start, batch.end);
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
@@ -133,7 +133,7 @@ OsdCpuComputeController::ApplyCatmarkFaceVerticesKernel(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTable(Table::F_IT)->GetBuffer(),
         (const int*)context->GetTable(Table::F_ITa)->GetBuffer(),
-        batch.vertexOffset, batch.tableOffset, batch.start, batch.end);
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
@@ -150,7 +150,7 @@ OsdCpuComputeController::ApplyCatmarkEdgeVerticesKernel(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTable(Table::E_IT)->GetBuffer(),
         (const float*)context->GetTable(Table::E_W)->GetBuffer(),
-        batch.vertexOffset, batch.tableOffset, batch.start, batch.end);
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
@@ -168,7 +168,7 @@ OsdCpuComputeController::ApplyCatmarkVertexVerticesKernelB(
         (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
         (const int*)context->GetTable(Table::V_IT)->GetBuffer(),
         (const float*)context->GetTable(Table::V_W)->GetBuffer(),
-        batch.vertexOffset, batch.tableOffset, batch.start, batch.end);
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
@@ -185,7 +185,7 @@ OsdCpuComputeController::ApplyCatmarkVertexVerticesKernelA1(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
         (const float*)context->GetTable(Table::V_W)->GetBuffer(),
-        batch.vertexOffset, batch.tableOffset, batch.start, batch.end, false);
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
 }
 
 void
@@ -202,7 +202,7 @@ OsdCpuComputeController::ApplyCatmarkVertexVerticesKernelA2(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
         (const float*)context->GetTable(Table::V_W)->GetBuffer(),
-        batch.vertexOffset, batch.tableOffset, batch.start, batch.end, true);
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
 }
 
 void
@@ -219,7 +219,7 @@ OsdCpuComputeController::ApplyLoopEdgeVerticesKernel(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTable(Table::E_IT)->GetBuffer(),
         (const float*)context->GetTable(Table::E_W)->GetBuffer(),
-        batch.vertexOffset, batch.tableOffset, batch.start, batch.end);
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
@@ -237,7 +237,7 @@ OsdCpuComputeController::ApplyLoopVertexVerticesKernelB(
         (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
         (const int*)context->GetTable(Table::V_IT)->GetBuffer(),
         (const float*)context->GetTable(Table::V_W)->GetBuffer(),
-        batch.vertexOffset, batch.tableOffset, batch.start, batch.end);
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
@@ -254,7 +254,7 @@ OsdCpuComputeController::ApplyLoopVertexVerticesKernelA1(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
         (const float*)context->GetTable(Table::V_W)->GetBuffer(),
-        batch.vertexOffset, batch.tableOffset, batch.start, batch.end, false);
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
 }
 
 void
@@ -271,7 +271,7 @@ OsdCpuComputeController::ApplyLoopVertexVerticesKernelA2(
         context->GetCurrentVaryingBuffer(),
         (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
         (const float*)context->GetTable(Table::V_W)->GetBuffer(),
-        batch.vertexOffset, batch.tableOffset, batch.start, batch.end, true);
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
 }
 
 void
@@ -282,7 +282,7 @@ OsdCpuComputeController::ApplyVertexEdits(
         static_cast<OsdCpuComputeContext*>(clientdata);
     assert(context);
 
-    const OsdCpuHEditTable *edit = context->GetEditTable(batch.tableIndex);
+    const OsdCpuHEditTable *edit = context->GetEditTable(batch.GetTableIndex());
     assert(edit);
 
     const OsdCpuTable * primvarIndices = edit->GetPrimvarIndices();
@@ -293,10 +293,10 @@ OsdCpuComputeController::ApplyVertexEdits(
                             context->GetCurrentVertexBuffer(),
                             edit->GetPrimvarOffset(),
                             edit->GetPrimvarWidth(),
-                            batch.vertexOffset,
-                            batch.tableOffset,
-                            batch.start,
-                            batch.end,
+                            batch.GetVertexOffset(), 
+                            batch.GetTableOffset(), 
+                            batch.GetStart(), 
+                            batch.GetEnd(),
                             static_cast<unsigned int*>(primvarIndices->GetBuffer()),
                             static_cast<float*>(editValues->GetBuffer()));
     } else if (edit->GetOperation() == FarVertexEdit::Set) {
@@ -304,10 +304,10 @@ OsdCpuComputeController::ApplyVertexEdits(
                             context->GetCurrentVertexBuffer(),
                             edit->GetPrimvarOffset(),
                             edit->GetPrimvarWidth(),
-                            batch.vertexOffset,
-                            batch.tableOffset,
-                            batch.start,
-                            batch.end,
+                            batch.GetVertexOffset(), 
+                            batch.GetTableOffset(), 
+                            batch.GetStart(), 
+                            batch.GetEnd(),
                             static_cast<unsigned int*>(primvarIndices->GetBuffer()),
                             static_cast<float*>(editValues->GetBuffer()));
     }
