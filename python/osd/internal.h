@@ -57,7 +57,6 @@
 
 #include <Python.h>
 #include <numpy/arrayobject.h>
-#include <common/mutex.h>
 #include <far/meshFactory.h>
 #include <osd/vertex.h>
 #include <osd/cpuComputeContext.h>

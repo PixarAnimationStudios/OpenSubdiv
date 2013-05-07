@@ -57,8 +57,6 @@
 
 #include <stdio.h>
 
-#include "../common/mutex.h"
-
 #include <far/meshFactory.h>
 #include <far/dispatcher.h>
 

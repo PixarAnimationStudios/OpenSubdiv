@@ -79,8 +79,6 @@
 #include <stdio.h>
 #include <cassert>
 
-#include "../common/mutex.h"
-
 #include <far/meshFactory.h>
 
 #include <osd/vertex.h>

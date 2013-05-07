@@ -57,8 +57,6 @@
 #ifndef EXAMPLES_MAYAPTEXVIEWER_OSDPTEXMESHDATA_H_
 #define EXAMPLES_MAYAPTEXVIEWER_OSDPTEXMESHDATA_H_
 
-#include "../../regression/common/mutex.h"  // XXX
-
 #include <far/meshFactory.h>
 #include <osd/error.h>
 #include <osd/vertex.h>

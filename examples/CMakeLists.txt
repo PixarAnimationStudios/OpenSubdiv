@@ -104,5 +104,3 @@ if(MAYA_FOUND AND (NOT APPLE))
         add_subdirectory(mayaPtexViewer)
     endif()
 endif()
-
-add_subdirectory(mutex)

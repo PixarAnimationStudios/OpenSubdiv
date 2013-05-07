@@ -57,8 +57,6 @@
 #include <D3D11.h>
 #include <D3Dcompiler.h>
 
-#include "../../regression/common/mutex.h" // XXX: Fixme
-
 #include <osd/error.h>
 #include <osd/vertex.h>
 #include <osd/d3d11DrawContext.h>

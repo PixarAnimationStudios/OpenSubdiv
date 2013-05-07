@@ -124,15 +124,12 @@ a particular purpose and non-infringement.
 //
 // ### OpenSubdiv Includes
 
-// The mutex header provides a cross platform mutex implementation; the vertex 
-// and mesh headers provide abstract representations of verts and meshes; the
+// The vertex and mesh headers provide abstract representations
+// of verts and meshes; the
 // element array buffer provides an abstract representation of an index buffer; 
 // and finally, the cpu dispatcher is how subdivision work is dispatched to the
 // CPU.
 //
-
-
-#include <osd/mutex.h>
 
 #include <osd/vertex.h>
 #include <osd/mesh.h>

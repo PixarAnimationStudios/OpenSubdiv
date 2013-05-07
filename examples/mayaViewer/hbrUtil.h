@@ -57,8 +57,6 @@
 #ifndef EXAMPLES_MAYAVIEWER_HBRUTIL_H_
 #define EXAMPLES_MAYAVIEWER_HBRUTIL_H_
 
-#include "../../regression/common/mutex.h"  // XXX
-
 #include <far/meshFactory.h>  // need to define HBR_ADAPTIVE
 #include <hbr/mesh.h>
 #include <osd/vertex.h>

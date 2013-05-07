@@ -57,8 +57,6 @@
 #ifndef EXAMPLES_MAYAVIEWER_OSDMESHDATA_H_
 #define EXAMPLES_MAYAVIEWER_OSDMESHDATA_H_
 
-#include "../../regression/common/mutex.h"  // XXX
-
 #include <osd/error.h>
 #include <osd/vertex.h>
 #include <osd/glMesh.h>
