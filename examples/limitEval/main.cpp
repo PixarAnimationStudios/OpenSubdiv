@@ -430,7 +430,9 @@ updateGeom() {
             color[1] = 0.0f;
             color[2] = g_coords[i].v;
             
-#pragma omp atomic
+#ifdef OPENSUBDIV_HAS_OPENMP
+            #pragma omp atomic
+#endif
             g_nsamplesFound += n;
         }
     }

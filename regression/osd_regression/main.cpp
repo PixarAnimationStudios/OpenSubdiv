@@ -746,8 +746,6 @@ main(int argc, char ** argv) {
         return 1;
     }
 
-    static const char windowTitle[] = "OpenSubdiv glViewer";
-    
     int width=10, height=10;
     
 #if GLFW_VERSION_MAJOR>=3

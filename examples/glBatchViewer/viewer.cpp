@@ -1016,7 +1016,7 @@ EffectDrawRegistry::_CreateDrawConfig(
     g_levelBaseMap[config->program] = glGetUniformLocation(config->program, "LevelBase");
 
     GLint loc;
-#if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
+#if not (defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1))
     glUseProgram(config->program);
     if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
         glUniform1i(loc, 0); // GL_TEXTURE0
@@ -1087,6 +1087,7 @@ bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
 
 void applyPatchColor(GLuint program, int patchType, int patchPattern)
 {
+#if (defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1))
     GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
     if (g_displayPatchColor) {
         switch(patchType) {
@@ -1138,6 +1139,7 @@ void applyPatchColor(GLuint program, int patchType, int patchPattern)
     } else {
         glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
     }
+#endif
 }
 //------------------------------------------------------------------------------
 static void
@@ -1283,8 +1285,10 @@ display() {
     for (int i=0; i<(int)patches.size(); ++i) {
         OpenSubdiv::OsdPatchArray const & patch = patches[i];
 
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         OpenSubdiv::OsdPatchType patchType = patch.desc.type;
         int patchPattern = patch.desc.pattern;
+#endif
 
         GLenum primType;
         if (g_mesh->GetDrawContext()->IsAdaptive()) {
@@ -1300,11 +1304,9 @@ display() {
             }
         }
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         GLuint program = bindProgram(GetEffect(), patch);
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         applyPatchColor(program, patchType, patchPattern);
-#else
-        bindProgram(GetEffect(), patch);
 #endif
 
         if (g_wire == 0) {
@@ -1313,8 +1315,8 @@ display() {
         GLuint uniformGregoryQuadOffset = g_gregoryQuadOffsetBaseMap[program];
         GLuint uniformLevelBase = g_levelBaseMap[program];
         if (g_drawAtOnce or (not g_adaptive)) {
-            glProgramUniform1i(program, uniformGregoryQuadOffset, patch.gregoryQuadOffsetBase);
-            glProgramUniform1i(program, uniformLevelBase, patch.levelBase);
+            glUniform1i(uniformGregoryQuadOffset, patch.gregoryQuadOffsetBase);
+            glUniform1i(uniformLevelBase, patch.levelBase);
 
             glDrawElements(primType,
                            patch.numIndices, GL_UNSIGNED_INT,
@@ -1326,9 +1328,9 @@ display() {
 
                 int primitiveOffset = (drawRanges[j].firstIndex - patch.firstIndex)/patch.desc.GetPatchSize();
                 if (patch.desc.type == OpenSubdiv::kGregory || patch.desc.type == OpenSubdiv::kBoundaryGregory){
-                    glProgramUniform1i(program, uniformGregoryQuadOffset, patch.gregoryQuadOffsetBase + primitiveOffset*4);
+                    glUniform1i(uniformGregoryQuadOffset, patch.gregoryQuadOffsetBase + primitiveOffset*4);
                 }
-                glProgramUniform1i(program, uniformLevelBase, patch.levelBase + primitiveOffset);
+                glUniform1i(uniformLevelBase, patch.levelBase + primitiveOffset);
 
                 glDrawElements(primType, drawRanges[j].numIndices, GL_UNSIGNED_INT,
                                (void *)(drawRanges[j].firstIndex * sizeof(unsigned int)));
