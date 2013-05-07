@@ -796,14 +796,21 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
 
             int outputVertexID = _remapTable[v->GetID()];
             int offset = outputVertexID * perVertexValenceSize;
+            
+            // feature adaptive refinement can generate un-connected face-vertices
+            // that have a valence of 0
+            if (not v->IsConnected()) {
+                assert( v->GetParentFace() );                
+                table[offset] = 0;
+                continue;
+            }
+
             // "offset+1" : the first table entry is the vertex valence, which
             // is gathered by the operator (see note below)
-            
             GatherNeighborsOperator op( table, offset+1, v, _remapTable );
             v->ApplyOperatorSurroundingVertices( op );
             
             // Valence sign bit used to mark boundary vertices
-            
             table[offset] = v->OnBoundary() ? -op.valence : op.valence;
             
             // Note : some topologies can cause v to be singular at certain
