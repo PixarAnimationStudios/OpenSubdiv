@@ -87,8 +87,6 @@ namespace OPENSUBDIV_VERSION {
 
 class OsdGLSLTransformFeedbackKernelBundle;
 
-// ----------------------------------------------------------------------------
-
 class OsdGLSLTransformFeedbackTable : OsdNonCopyable<OsdGLSLTransformFeedbackTable> {
 public:
     template<typename T>
@@ -105,8 +103,6 @@ private:
 
     GLuint _buffer, _texture;
 };
-
-// ----------------------------------------------------------------------------
 
 class OsdGLSLTransformFeedbackHEditTable : OsdNonCopyable<OsdGLSLTransformFeedbackHEditTable> {
 public:
@@ -134,14 +130,34 @@ private:
     int _primvarWidth;
 };
 
-// ----------------------------------------------------------------------------
-
+///
+/// \brief GLSL (transform-feedback) Refine Context
+///
+/// The GLSL (transform-feedback) implementation of the Refine module contextual functionality. 
+///
+/// Contexts interface the serialized topological data pertaining to the 
+/// geometric primitives with the capabilities of the selected discrete 
+/// compute device.
+///
 class OsdGLSLTransformFeedbackComputeContext {
 public:
+    /// Creates an OsdGLSLTransformFeedbackComputeContext instance
+    ///
+    /// @param farmesh the FarMesh used for this Context.
+    ///
     static OsdGLSLTransformFeedbackComputeContext * Create(FarMesh<OsdVertex> *farmesh);
 
+    /// Destructor
     virtual ~OsdGLSLTransformFeedbackComputeContext();
 
+    /// Binds a vertex and a varying data buffers to the context. Binding ensures
+    /// that data buffers are properly inter-operated between Contexts and 
+    /// Controllers operating across multiple devices.
+    ///
+    /// @param a buffer containing vertex-interpolated primvar data
+    ///
+    /// @param a buffer containing varying-interpolated primvar data
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
 
@@ -154,20 +170,32 @@ public:
         bindTextures();
     }
 
+    /// Unbinds any previously bound vertex and varying data buffers.
     void Unbind() {
         _currentVertexBuffer = 0;
         _currentVaryingBuffer = 0;
         unbindTextures();
     }
 
+    /// Returns one of the vertex refinement tables.
+    ///
+    /// @param tableIndex the type of table
+    ///
     const OsdGLSLTransformFeedbackTable * GetTable(int tableIndex) const;
 
+    /// Returns the number of hierarchical edit tables
     int GetNumEditTables() const;
 
+    /// Returns a specific hierarchical edit table
+    ///
+    /// @param tableIndex the index of the table
+    ///
     const OsdGLSLTransformFeedbackHEditTable * GetEditTable(int tableIndex) const;
 
+    /// Returns a handle to the vertex-interpolated buffer
     GLuint GetCurrentVertexBuffer() const;
 
+    /// Returns a handle to the varying-interpolated buffer
     GLuint GetCurrentVaryingBuffer() const;
 
     int GetNumCurrentVertexElements() const;
@@ -197,13 +225,14 @@ private:
     std::vector<OsdGLSLTransformFeedbackTable*> _tables;
     std::vector<OsdGLSLTransformFeedbackHEditTable*> _editTables;
 
-    GLuint _vertexTexture;
-    GLuint _varyingTexture;
+    GLuint _vertexTexture,
+           _varyingTexture;
 
-    int _numVertexElements;
-    int _numVaryingElements;
+    int _numVertexElements,
+        _numVaryingElements;
 
-    GLuint _currentVertexBuffer, _currentVaryingBuffer;
+    GLuint _currentVertexBuffer, 
+           _currentVaryingBuffer;
 
     OsdGLSLTransformFeedbackKernelBundle * _kernelBundle;
 };

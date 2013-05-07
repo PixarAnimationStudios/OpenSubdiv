@@ -73,7 +73,7 @@ namespace OPENSUBDIV_VERSION {
 
 /// \brief A specialized factory for FarVertexEditTables
 ///
-/// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
+/// This factory is private to Far and should not be used by client code.
 ///
 template <class T, class U> class FarVertexEditTablesFactory {
 

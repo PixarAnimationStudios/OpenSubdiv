@@ -95,7 +95,7 @@ namespace OPENSUBDIV_VERSION {
 /// useful transient information tied to the lifespan of the factory instance.
 /// Specifically, regression code needs to access the remapping tables that
 /// tie HbrMesh vertices to their FarMesh counterparts for comparison.
-
+///
 template <class T, class U=T> class FarMeshFactory {
 
 public:

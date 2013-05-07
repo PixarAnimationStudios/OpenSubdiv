@@ -72,14 +72,32 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-template <class T, class U=T> class FarMultiMeshFactory {
-    typedef std::vector<FarMesh<U> const *> FarMeshVector;
+/// \brief A specialized factory for batching meshes
+///
+/// Because meshes require multiple draw calls in order to process the different
+/// types of patches, it is useful to have the ability of grouping the tables of
+/// multiple meshes into a single set of tables. This factory builds upon the
+/// specialized Far factories in order to provide this batching functionality.
+///
+template <class T, class U=T> class FarMultiMeshFactory  {
 
 public:
+
+    typedef std::vector<FarMesh<U> const *> FarMeshVector;
+
+    /// Constructor.
     FarMultiMeshFactory() {}
+    
+    /// Splices a vector of Far meshes into a single Far mesh
+    ///
+    /// @param meshes  a vector of Far meshes to splice
+    ///
+    /// @return        the resulting spliced Far mesh
+    ///
     FarMesh<U> * Create(std::vector<FarMesh<U> const *> const &meshes);
 
 private:
+
     // splice subdivision tables
     FarSubdivisionTables<U> * spliceSubdivisionTables(FarMesh<U> *farmesh, FarMeshVector const &meshes);
 
@@ -95,6 +113,7 @@ private:
     int _maxlevel;
     int _maxvalence;
 };
+
 
 template <class T, class U> FarMesh<U> *
 FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes) {

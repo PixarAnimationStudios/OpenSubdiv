@@ -74,7 +74,7 @@ template <class T, class U> class  FarLoopSubdivisionTablesFactory;
 
 /// \brief A specialized factory for FarSubdivisionTables
 ///
-/// 
+/// This factory is private to Far and should not be used by client code.
 ///
 template <class T, class U> class FarSubdivisionTablesFactory {
 

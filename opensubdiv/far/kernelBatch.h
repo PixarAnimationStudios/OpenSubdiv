@@ -73,10 +73,10 @@ namespace OPENSUBDIV_VERSION {
 /// switches to process a given primitive.
 /// 
 ///       [Subdivision table for kernel k]
-///         ------+---------------------------------+-----
-///               |   Prim p, Level n               |
 ///        ------+---------------------------------+-----
-///              |             |<batch range>|     |
+///              |   Prim p, Level n               |
+///        ------+---------------------------------+-----
+///              |             | batch range |     |
 ///        ------+---------------------------------+-----
 ///              ^             ^             ^     
 ///        tableOffset       start          end
@@ -87,7 +87,7 @@ namespace OPENSUBDIV_VERSION {
 ///        ------+---------------------------------+-----
 ///              |   Prim p, Kernel k, Level n     |
 ///        ------+---------------------------------+-----
-///              |             |<batch range>|     | 
+///              |             | batch range |     | 
 ///        ------+---------------------------------+-----
 ///              ^             ^             ^
 ///        vertexOffset      start          end

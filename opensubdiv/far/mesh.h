@@ -78,7 +78,7 @@ namespace OPENSUBDIV_VERSION {
 /// ease of access and modification. When instantiating a FarMesh, the factory
 /// analyzes this data structure and serializes the topology into a linear
 /// buffers that are ready for efficient parallel processing.
-
+///
 template <class U> class FarMesh {
 public:
 
@@ -90,6 +90,10 @@ public:
     /// Returns the list of vertices in the mesh (from subdiv level 0 to N)
     std::vector<U> & GetVertices() { return _vertices; }
 
+    /// Returns a reference to the vertex at the given index
+    ///
+    /// @param index the index fo the vertex
+    ///
     U & GetVertex(int index) { return _vertices[index]; }
 
     /// Returns the list of indices of the vertices of the faces in the mesh
@@ -106,6 +110,8 @@ public:
     ///      [ [ uv uv uv uv ] [ uv uv uv uv ] [ ... ] ]
     ///            prim 0           prim 1
     std::vector<float> const & GetFVarData(int level) const;
+    
+    /// Returns the width of the interleaved face-varying data
     int GetTotalFVarWidth() const { return _totalFVarWidth; }
 
     /// Returns patch tables

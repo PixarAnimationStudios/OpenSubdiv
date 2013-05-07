@@ -77,8 +77,6 @@ namespace OPENSUBDIV_VERSION {
 
 class OsdD3D11ComputeKernelBundle;
 
-// ----------------------------------------------------------------------------
-
 class OsdD3D11ComputeTable : OsdNonCopyable<OsdD3D11ComputeTable> {
 public:
     template<typename T>
@@ -97,8 +95,6 @@ private:
     ID3D11Buffer * _buffer;
     ID3D11ShaderResourceView * _srv;
 };
-
-// ----------------------------------------------------------------------------
 
 class OsdD3D11ComputeHEditTable : OsdNonCopyable<OsdD3D11ComputeHEditTable> {
 public:
@@ -126,15 +122,35 @@ private:
     int _primvarWidth;
 };
 
-// ----------------------------------------------------------------------------
-
+///
+/// \brief D3D Refine Context
+///
+/// The D3D implementation of the Refine module contextual functionality. 
+///
+/// Contexts interface the serialized topological data pertaining to the 
+/// geometric primitives with the capabilities of the selected discrete 
+/// compute device.
+///
 class OsdD3D11ComputeContext : public OsdNonCopyable<OsdD3D11ComputeContext> {
 public:
+    /// Creates an OsdD3D11ComputeContext instance
+    ///
+    /// @param farmesh the FarMesh used for this Context.
+    ///
     static OsdD3D11ComputeContext * Create(FarMesh<OsdVertex> *farmesh,
                                            ID3D11DeviceContext *deviceContext);
 
+    /// Destructor
     virtual ~OsdD3D11ComputeContext();
 
+    /// Binds a vertex and a varying data buffers to the context. Binding ensures
+    /// that data buffers are properly inter-operated between Contexts and 
+    /// Controllers operating across multiple devices.
+    ///
+    /// @param a buffer containing vertex-interpolated primvar data
+    ///
+    /// @param a buffer containing varying-interpolated primvar data
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
 
@@ -147,6 +163,7 @@ public:
         bindShaderStorageBuffers();
     }
 
+    /// Unbinds any previously bound vertex and varying data buffers.
     void Unbind() {
         _currentVertexBufferUAV = 0;
         _currentVaryingBufferUAV = 0;
@@ -154,14 +171,25 @@ public:
         unbindShaderStorageBuffers();
     }
 
+    /// Returns one of the vertex refinement tables.
+    ///
+    /// @param tableIndex the type of table
+    ///
     const OsdD3D11ComputeTable * GetTable(int tableIndex) const;
 
+    /// Returns the number of hierarchical edit tables
     int GetNumEditTables() const;
 
+    /// Returns a specific hierarchical edit table
+    ///
+    /// @param tableIndex the index of the table
+    ///
     const OsdD3D11ComputeHEditTable * GetEditTable(int tableIndex) const;
 
+    /// Returns a handle to the vertex-interpolated buffer
     ID3D11UnorderedAccessView * GetCurrentVertexBufferUAV() const;
 
+    /// Returns a handle to the varying-interpolated buffer
     ID3D11UnorderedAccessView * GetCurrentVaryingBufferUAV() const;
 
     int GetNumCurrentVertexElements() const;
@@ -196,8 +224,8 @@ private:
     int _numVertexElements;
     int _numVaryingElements;
 
-    ID3D11UnorderedAccessView * _currentVertexBufferUAV;
-    ID3D11UnorderedAccessView * _currentVaryingBufferUAV;
+    ID3D11UnorderedAccessView * _currentVertexBufferUAV,
+                              * _currentVaryingBufferUAV;
 
     OsdD3D11ComputeKernelBundle * _kernelBundle;
 };

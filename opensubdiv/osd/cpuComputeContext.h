@@ -72,8 +72,6 @@ namespace OPENSUBDIV_VERSION {
 
 struct OsdVertexDescriptor;
 
-// ----------------------------------------------------------------------------
-
 class OsdCpuTable : OsdNonCopyable<OsdCpuTable> {
 public:
     template<typename T>
@@ -90,8 +88,6 @@ private:
 
     unsigned char *_table;
 };
-
-// ----------------------------------------------------------------------------
 
 class OsdCpuHEditTable : OsdNonCopyable<OsdCpuHEditTable> {
 public:
@@ -119,14 +115,35 @@ private:
     int _primvarWidth;
 };
 
-// ----------------------------------------------------------------------------
-
+///
+/// \brief CPU Refine Context
+///
+/// The CPU implementation of the Refine module contextual functionality. 
+///
+/// Contexts interface the serialized topological data pertaining to the 
+/// geometric primitives with the capabilities of the selected discrete 
+/// compute device.
+///
 class OsdCpuComputeContext : OsdNonCopyable<OsdCpuComputeContext> {
+
 public:
+    /// Creates an OsdCpuComputeContext instance
+    ///
+    /// @param farmesh the FarMesh used for this Context.
+    ///
     static OsdCpuComputeContext * Create(FarMesh<OsdVertex> *farmesh);
 
+    /// Destructor
     virtual ~OsdCpuComputeContext();
 
+    /// Binds a vertex and a varying data buffers to the context. Binding ensures
+    /// that data buffers are properly inter-operated between Contexts and 
+    /// Controllers operating across multiple devices.
+    ///
+    /// @param a buffer containing vertex-interpolated primvar data
+    ///
+    /// @param a buffer containing varying-interpolated primvar data
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
 
@@ -138,6 +155,7 @@ public:
         _vdesc = new OsdVertexDescriptor(numVertexElements, numVaryingElements);
     }
 
+    /// Unbinds any previously bound vertex and varying data buffers.
     void Unbind() {
         _currentVertexBuffer = 0;
         _currentVaryingBuffer = 0;
@@ -146,16 +164,31 @@ public:
         _vdesc = 0;
     }
 
+    /// Returns one of the vertex refinement tables.
+    ///
+    /// @param tableIndex the type of table
+    ///
     const OsdCpuTable * GetTable(int tableIndex) const;
 
+    /// Returns an OsdVertexDescriptor if vertex buffers have been bound.
+    ///
+    /// @return a descriptor for the format of the vertex data currently bound
+    ///
     OsdVertexDescriptor * GetVertexDescriptor() const;
 
+    /// Returns the number of hierarchical edit tables
     int GetNumEditTables() const;
 
+    /// Returns a specific hierarchical edit table
+    ///
+    /// @param tableIndex the index of the table
+    ///
     const OsdCpuHEditTable * GetEditTable(int tableIndex) const;
 
+    /// Returns a pointer to the vertex-interpolated data
     float * GetCurrentVertexBuffer() const;
 
+    /// Returns a pointer to the varying-interpolated data
     float * GetCurrentVaryingBuffer() const;
 
 protected:
@@ -165,7 +198,8 @@ private:
     std::vector<OsdCpuTable*> _tables;
     std::vector<OsdCpuHEditTable*> _editTables;
 
-    float *_currentVertexBuffer, *_currentVaryingBuffer;
+    float *_currentVertexBuffer, 
+          *_currentVaryingBuffer;
 
     OsdVertexDescriptor *_vdesc;
 };

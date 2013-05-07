@@ -77,6 +77,7 @@ template <class U> class FarMesh;
 /// to be serialized into a specific container.
 ///
 class FarVertexEdit {
+
 public:
     /// Type of edit operation - equivalent to HbrHiearachicalEdit<T>::Operation
     enum Operation {

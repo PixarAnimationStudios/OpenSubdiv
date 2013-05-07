@@ -69,8 +69,6 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-// ----------------------------------------------------------------------------
-
 class OsdCudaTable : OsdNonCopyable<OsdCudaTable> {
 public:
     template<typename T>
@@ -87,8 +85,6 @@ private:
 
     void *_devicePtr;
 };
-
-// ----------------------------------------------------------------------------
 
 class OsdCudaHEditTable : OsdNonCopyable<OsdCudaHEditTable> {
 public:
@@ -116,14 +112,35 @@ private:
     int _primvarWidth;
 };
 
-// ----------------------------------------------------------------------------
-
+///
+/// \brief CUDA Refine Context
+///
+/// The CUDA implementation of the Refine module contextual functionality. 
+///
+/// Contexts interface the serialized topological data pertaining to the 
+/// geometric primitives with the capabilities of the selected discrete 
+/// compute device.
+///
 class OsdCudaComputeContext : public OsdNonCopyable<OsdCudaComputeContext> {
+
 public:
+    /// Creates an OsdCudaComputeContext instance
+    ///
+    /// @param farmesh the FarMesh used for this Context.
+    ///
     static OsdCudaComputeContext * Create(FarMesh<OsdVertex> *farmesh);
 
+    /// Destructor
     virtual ~OsdCudaComputeContext();
 
+    /// Binds a vertex and a varying data buffers to the context. Binding ensures
+    /// that data buffers are properly inter-operated between Contexts and 
+    /// Controllers operating across multiple devices.
+    ///
+    /// @param a buffer containing vertex-interpolated primvar data
+    ///
+    /// @param a buffer containing varying-interpolated primvar data
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
 
@@ -144,17 +161,28 @@ public:
         }
     }
 
+    /// Unbinds any previously bound vertex and varying data buffers.
     void Unbind() {
         _currentVertexBuffer = 0;
         _currentVaryingBuffer = 0;
     }
 
+    /// Returns one of the vertex refinement tables.
+    ///
+    /// @param tableIndex the type of table
+    ///
     const OsdCudaTable * GetTable(int tableIndex) const;
 
+    /// Returns the number of hierarchical edit tables
     int GetNumEditTables() const;
 
+    /// Returns a specific hierarchical edit table
+    ///
+    /// @param tableIndex the index of the table
+    ///
     const OsdCudaHEditTable * GetEditTable(int tableIndex) const;
 
+    /// Returns a pointer to the vertex-interpolated data
     float * GetCurrentVertexBuffer() const;
 
     float * GetCurrentVaryingBuffer() const;
@@ -170,8 +198,9 @@ private:
     std::vector<OsdCudaTable*> _tables;
     std::vector<OsdCudaHEditTable*> _editTables;
 
-    /* cuda buffer */
-    float *_currentVertexBuffer, *_currentVaryingBuffer;
+    
+    float *_currentVertexBuffer, // cuda buffers
+          *_currentVaryingBuffer;
 
     int _numVertexElements, _numVaryingElements;
 };

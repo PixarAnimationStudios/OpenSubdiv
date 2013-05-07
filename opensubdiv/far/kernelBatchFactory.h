@@ -118,7 +118,7 @@ public:
     ///
     /// @param vertexOffset  XXXX
     ///
-    /// @result              the expanded batch vector
+    /// @param result        the expanded batch vector
     ///
     void AppendCatmarkBatches(int level, int tableOffset, int vertexOffset, FarKernelBatchVector *result);
 
@@ -132,7 +132,7 @@ public:
     ///
     /// @param vertexOffset  XXXX
     ///
-    /// @result              the expanded batch vector
+    /// @param result        the expanded batch vector
     ///
     void AppendLoopBatches(int level, int tableOffset, int vertexOffset, FarKernelBatchVector *result);
 

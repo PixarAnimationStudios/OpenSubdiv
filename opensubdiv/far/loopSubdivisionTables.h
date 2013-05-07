@@ -76,7 +76,6 @@ namespace OPENSUBDIV_VERSION {
 /// structure. The advantage of this representation is its ability to be executed
 /// in a massively parallel environment without data dependencies.
 ///
-
 template <class U> class FarLoopSubdivisionTables : public FarSubdivisionTables<U> {
 
 public:
