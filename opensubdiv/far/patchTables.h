@@ -60,7 +60,8 @@
 
 #include "../version.h"
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <cassert>
 #include <vector>
 
 namespace OpenSubdiv {
@@ -238,15 +239,19 @@ public:
     public:
         /// Default constructor.
         Descriptor() :
-            _type(NON_PATCH), _pattern(NON_TRANSITION), _rotation(0) { }
+            _type(NON_PATCH), _pattern(NON_TRANSITION), _rotation(0),
+            _maxValence(0), _subpatch(0), _numElements(0)  { }
             
         /// Constructor
-        Descriptor(int type, int pattern, unsigned char rotation) :
-            _type((Type)type), _pattern((TransitionPattern)pattern), _rotation(rotation) { }
+        Descriptor(int type, int pattern, unsigned char rotation,
+                   unsigned char maxValence=0, unsigned char subpatch=0, unsigned char numElements=0) :
+            _type((Type)type), _pattern((TransitionPattern)pattern), _rotation(rotation),
+            _maxValence(maxValence), _subpatch(subpatch), _numElements(numElements) { }
 
         /// Copy Constructor
         Descriptor( Descriptor const & d ) :
-            _type(d.GetType()), _pattern(d.GetPattern()), _rotation(d.GetRotation()) { }
+            _type(d.GetType()), _pattern(d.GetPattern()), _rotation(d.GetRotation()),
+            _maxValence(d.GetMaxValence()), _subpatch(d.GetSubPatch()), _numElements(d.GetNumElements()) { }
         
         /// Returns the type of the patch
         Type GetType() const {
@@ -268,6 +273,21 @@ public:
         
         short GetNumControlVertices() const {
             return GetNumControlVertices( this->GetType() );
+        }
+
+        /// Returns the subpatch id (used in osd context)
+        unsigned char GetSubPatch() const {
+            return _subpatch;
+        }
+
+        /// Returns the max valence (used in osd context)
+        unsigned char GetMaxValence() const {
+            return _maxValence;
+        }
+
+        /// Returns the number of vertex elements (used in osd context)
+        unsigned char GetNumElements() const {
+            return _numElements;
         }
         
         /// Iterates through the patches in the following preset order
@@ -292,10 +312,10 @@ public:
         Descriptor & operator ++ ();
         
         /// Allows ordering of patches by type
-        bool operator < ( Descriptor const other );
+        bool operator < ( Descriptor const other ) const;
 
         /// True if the descriptors are identical
-        bool operator == ( Descriptor const other );
+        bool operator == ( Descriptor const other ) const;
         
         /// Descriptor Iterator 
         class iterator;
@@ -315,6 +335,9 @@ public:
         Type              _type:4;
         TransitionPattern _pattern:3;
         unsigned char     _rotation:2;
+        unsigned char     _maxValence:5;  // not used in far
+        unsigned char     _subpatch:2;    // not used in far
+        unsigned char     _numElements:5; // not used in far
     };
 
     /// \brief Descriptor iterator class 
@@ -326,9 +349,9 @@ public:
             
             iterator & operator ++ () { ++pos; return *this; }
             
-            bool operator == ( iterator const & other ) { return (pos==other.pos); }
+            bool operator == ( iterator const & other ) const { return (pos==other.pos); }
 
-            bool operator != ( iterator const & other ) { return not (*this==other); }
+            bool operator != ( iterator const & other ) const { return not (*this==other); }
             
             Descriptor * operator -> () { return &pos; }
             
@@ -342,8 +365,8 @@ public:
     class PatchArray {
     
     public:
-        PatchArray( Descriptor const & desc, unsigned int vertIndex, unsigned int patchIndex, unsigned int npatches ) :
-            _desc(desc), _vertIndex(vertIndex), _patchIndex(patchIndex), _npatches(npatches) { }
+        PatchArray( Descriptor desc, unsigned int vertIndex, unsigned int patchIndex, unsigned int npatches, unsigned int quadOffsetIndex ) :
+            _desc(desc), _vertIndex(vertIndex), _patchIndex(patchIndex), _npatches(npatches), _quadOffsetIndex(quadOffsetIndex) { }
     
         Descriptor GetDescriptor() const {
             return _desc;
@@ -360,14 +383,19 @@ public:
         unsigned int GetNumPatches() const {
             return _npatches;
         }
+
+        unsigned int GetQuadOffsetIndex() const {
+            return _quadOffsetIndex;
+        }
     
     private:
         template <class T> friend class FarPatchTablesFactory;
         
         Descriptor _desc;
-        unsigned int _vertIndex,  // absolute index to the first control vertex of the first patch in the PTable
-                     _patchIndex, // absolute index of the first patch in the array
-                     _npatches;   // number of patches in the array
+        unsigned int _vertIndex,       // absolute index to the first control vertex of the first patch in the PTable
+                     _patchIndex,      // absolute index of the first patch in the array
+                     _npatches,        // number of patches in the array
+                     _quadOffsetIndex; // absolute index of the first quad offset entry
     };
     
     typedef std::vector<PatchArray> PatchArrayVector;
@@ -380,6 +408,10 @@ public:
         return const_cast<FarPatchTables *>(this)->findPatchArray( desc ); 
     }
 
+    PatchArrayVector const & GetAllPatchArrays() const {
+        return _patchArrays;
+    }
+
     /// Returns a vertex valence table used by Gregory patches
     VertexValenceTable const & GetVertexValenceTable() const { return _vertexValenceTable; }
 
@@ -390,7 +422,7 @@ public:
     PtexCoordinateTable const & GetPtexCoordinatesTable() const { return _ptexTable; }
 
     /// Returns an FVarDataTable for each type of patch
-    FVarDataTable const & GetFFVarDataTable() const { return _fvarTable; }
+    FVarDataTable const & GetFVarDataTable() const { return _fvarTable; }
 
     /// Ringsize of Regular Patches in table.
     static int GetRegularPatchRingsize() { return 16; }
@@ -438,7 +470,7 @@ private:
     FVarDataTable _fvarTable;
 
     // highest vertex valence allowed in the mesh (used for Gregory 
-    // vertexValance & quadOffset talbes)
+    // vertexValance & quadOffset tables)
     int _maxValence;
 };
 
@@ -505,23 +537,24 @@ FarPatchTables::Descriptor::operator ++ () {
 
 // Allows ordering of patches by type
 inline bool 
-FarPatchTables::Descriptor::operator < ( Descriptor const other ) {
-    if (_pattern==NON_TRANSITION) {
-        return _type < other._type;
-    } else {
-        if (_pattern==other._pattern)
-            return _rotation < other._rotation;
-        else
-            return _pattern < other._pattern;
-    }
+FarPatchTables::Descriptor::operator < ( Descriptor const other ) const {
+    return _type < other._type or ((_type == other._type) and
+          (_pattern < other._pattern or ((_pattern == other._pattern) and
+          (_rotation < other._rotation or ((_rotation == other._rotation) and
+          (_subpatch < other._subpatch or ((_subpatch == other._subpatch) and
+          (_maxValence < other._maxValence or ((_maxValence == other._maxValence) and
+          (_numElements < other._numElements))))))))));
 } 
 
 // True if the descriptors are identical
-bool 
-FarPatchTables::Descriptor::operator == ( Descriptor const other ) {
-    return  _pattern == other._pattern and
-               _type == other._type    and
-           _rotation == other._rotation;
+inline bool
+FarPatchTables::Descriptor::operator == ( Descriptor const other ) const {
+    return     _pattern == other._pattern    and
+                  _type == other._type       and
+              _rotation == other._rotation   and
+              _subpatch == other._subpatch   and
+            _maxValence == other._maxValence and
+           _numElements == other._numElements;
 }
 
 // Returns a pointer to the array of patches matching the descriptor

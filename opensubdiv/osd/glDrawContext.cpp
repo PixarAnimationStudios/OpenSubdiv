@@ -75,8 +75,7 @@ namespace OPENSUBDIV_VERSION {
 
 OsdGLDrawContext::OsdGLDrawContext() :
     patchIndexBuffer(0), ptexCoordinateTextureBuffer(0), fvarDataTextureBuffer(0),
-    vertexTextureBuffer(0), vertexValenceTextureBuffer(0), quadOffsetTextureBuffer(0),
-    patchLevelTextureBuffer(0)
+    vertexTextureBuffer(0), vertexValenceTextureBuffer(0), quadOffsetTextureBuffer(0)
 {
 }
 
@@ -86,7 +85,6 @@ OsdGLDrawContext::~OsdGLDrawContext()
     glDeleteTextures(1, &vertexTextureBuffer);
     glDeleteTextures(1, &vertexValenceTextureBuffer);
     glDeleteTextures(1, &quadOffsetTextureBuffer);
-    glDeleteTextures(1, &patchLevelTextureBuffer);
     glDeleteTextures(1, &ptexCoordinateTextureBuffer);
     glDeleteTextures(1, &fvarDataTextureBuffer);
 }
@@ -108,14 +106,13 @@ bool
 OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
                            GLuint vbo,
                            int numElements,
-                           bool requirePtexCoordinates,
                            bool requireFVarData)
 {
     FarPatchTables const * patchTables = farMesh->GetPatchTables();
 
     if (not patchTables) {
         // uniform patches
-        isAdaptive = false;
+        _isAdaptive = false;
 
         // XXX: farmesh should have FarDensePatchTable for dense mesh indices.
         //      instead of GetFaceVertices().
@@ -159,6 +156,7 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
                      numTrisIndices * sizeof(short), &(trisIndices[0]), GL_STATIC_DRAW);
 #endif
 
+/*
         OsdPatchArray array;
         array.desc.type = kNonPatch;
         array.desc.loop = dynamic_cast<const FarLoopSubdivisionTables<OsdVertex>*>(tables) != NULL;
@@ -166,28 +164,27 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         array.numIndices = numIndices;
 
         patchArrays.push_back(array);
+*/
 
-        // Allocate ptex coordinate buffer if requested (for non-adaptive)
-        if (requirePtexCoordinates) {
+        // Allocate ptex coordinate buffer
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-            GLuint ptexCoordinateBuffer = 0;
-            glGenTextures(1, &ptexCoordinateTextureBuffer);
-            glGenBuffers(1, &ptexCoordinateBuffer);
-            glBindBuffer(GL_TEXTURE_BUFFER, ptexCoordinateBuffer);
+        GLuint ptexCoordinateBuffer = 0;
+        glGenTextures(1, &ptexCoordinateTextureBuffer);
+        glGenBuffers(1, &ptexCoordinateBuffer);
+        glBindBuffer(GL_TEXTURE_BUFFER, ptexCoordinateBuffer);
 
-            const std::vector<FarPtexCoord> &ptexCoordinates =
-                farMesh->GetPtexCoordinates(level-1);
-            int size = (int)ptexCoordinates.size() * sizeof(FarPtexCoord);
+        const std::vector<FarPtexCoord> &ptexCoordinates =
+            farMesh->GetPtexCoordinates(level-1);
+        int size = (int)ptexCoordinates.size() * sizeof(FarPtexCoord);
 
-            glBufferData(GL_TEXTURE_BUFFER, size, &(ptexCoordinates[0]), GL_STATIC_DRAW);
-
-            glBindTexture(GL_TEXTURE_BUFFER, ptexCoordinateTextureBuffer);
-            glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, ptexCoordinateBuffer);
-            glBindTexture(GL_TEXTURE_BUFFER, 0);
-            glDeleteBuffers(1, &ptexCoordinateBuffer);
+        glBufferData(GL_TEXTURE_BUFFER, size, &(ptexCoordinates[0]), GL_STATIC_DRAW);
+        
+        glBindTexture(GL_TEXTURE_BUFFER, ptexCoordinateTextureBuffer);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, ptexCoordinateBuffer);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+        glDeleteBuffers(1, &ptexCoordinateBuffer);
 
 #endif
-        }
 
         // Allocate fvar data buffer if requested (for non-adaptive)
         if (requireFVarData) {
@@ -213,126 +210,89 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     }
 
     // adaptive patches
-    isAdaptive = true;
+    _isAdaptive = true;
 
-    size_t totalPatchIndices = patchTables->GetNumControlVertices();
-    
-    size_t totalPatchLevels = patchTables->GetNumPatches();
+    int maxValence = patchTables->GetMaxValence();
+
+    // create patch arrays for drawing (while duplicating subpatches for transition patch arrays)
+    {
+        static int subPatchCounts[] = { 1, 3, 4, 4, 4, 2 }; // number of subpatches for patterns
+
+        FarPatchTables::PatchArrayVector const & srcPatchArrays = patchTables->GetAllPatchArrays();
+
+        int numTotalPatchArrays = 0;
+        for (int i = 0; i < (int)srcPatchArrays.size(); ++i) {
+            FarPatchTables::TransitionPattern pattern = srcPatchArrays[i].GetDescriptor().GetPattern();
+            numTotalPatchArrays += subPatchCounts[(int)pattern];
+        }
+
+        // allocate drawing patch arrays
+        patchArrays.reserve(numTotalPatchArrays);
+        for (int i = 0; i < (int)srcPatchArrays.size(); ++i) {
+            FarPatchTables::TransitionPattern pattern = srcPatchArrays[i].GetDescriptor().GetPattern();
+            int numSubPatches = subPatchCounts[(int)pattern];
+
+            FarPatchTables::PatchArray const &parray = srcPatchArrays[i];
+            FarPatchTables::Descriptor srcDesc = parray.GetDescriptor();
+
+            for (int j = 0; j < numSubPatches; ++j) {
+                FarPatchTables::Descriptor desc(srcDesc.GetType(),
+                                                srcDesc.GetPattern(),
+                                                srcDesc.GetRotation(),
+                                                maxValence,
+                                                j,
+                                                numElements);
+
+                patchArrays.push_back(FarPatchTables::PatchArray(desc, parray.GetVertIndex(),
+                                                                 parray.GetPatchIndex(),
+                                                                 parray.GetNumPatches(),
+                                                                 parray.GetQuadOffsetIndex()));
+            }
+        }
+    }
+
+    FarPatchTables::PTable const & ptables = patchTables->GetPatchTable();
 
     // Allocate and fill index buffer.
     glGenBuffers(1, &patchIndexBuffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchIndexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-        totalPatchIndices * sizeof(unsigned int), NULL, GL_STATIC_DRAW);
+                 ptables.size() * sizeof(unsigned int), &ptables[0], GL_STATIC_DRAW);
 
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-    GLuint patchLevelBuffer = 0;
-    glGenBuffers(1, &patchLevelBuffer);
-    glBindBuffer(GL_TEXTURE_BUFFER, patchLevelBuffer);
-    glBufferData(GL_TEXTURE_BUFFER,
-        totalPatchLevels * sizeof(unsigned char), NULL, GL_STATIC_DRAW);
-#endif
+    FarPatchTables::PtexCoordinateTable const & ptexCoordTables = patchTables->GetPtexCoordinatesTable();
 
     // Allocate ptex coordinate buffer if requested
     GLuint ptexCoordinateBuffer = 0;
-    if (requirePtexCoordinates) {
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-        glGenTextures(1, &ptexCoordinateTextureBuffer);
-        glGenBuffers(1, &ptexCoordinateBuffer);
-        glBindBuffer(GL_ARRAY_BUFFER, ptexCoordinateBuffer);
-        glBufferData(GL_ARRAY_BUFFER,
-            totalPatchLevels * sizeof(FarPtexCoord), NULL, GL_STATIC_DRAW);
+    glGenTextures(1, &ptexCoordinateTextureBuffer);
+    glGenBuffers(1, &ptexCoordinateBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, ptexCoordinateBuffer);
+    glBufferData(GL_ARRAY_BUFFER,
+                 ptexCoordTables.size() * sizeof(FarPtexCoord), &ptexCoordTables[0], GL_STATIC_DRAW);
 #endif
-    }
 
     // Allocate fvar data buffer if requested
     GLuint fvarDataBuffer = 0;
     if (requireFVarData) {
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
+        FarPatchTables::FVarDataTable const & fvarTables = patchTables->GetFVarDataTable();
+
         glGenTextures(1, &fvarDataTextureBuffer);
         glGenBuffers(1, &fvarDataBuffer);
         glBindBuffer(GL_UNIFORM_BUFFER, fvarDataBuffer);
         glBufferData(GL_UNIFORM_BUFFER,
-            totalPatchLevels * sizeof(float) * farMesh->GetTotalFVarWidth()*4, NULL, GL_STATIC_DRAW);
+                     fvarTables.size() * sizeof(float), &fvarTables[0], GL_STATIC_DRAW);
 #endif
     }
 
-    int indexBase = 0;
-    int levelBase = 0;
-    int maxValence = patchTables->GetMaxValence();
-
-    _AppendPatchArray(&indexBase, &levelBase,
-                        patchTables->GetFullRegularPatches(),
-                        patchTables->GetFullRegularPtexCoordinates(),
-                        patchTables->GetFullRegularFVarData(),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kRegular, 0, 0, 0, 0), 0);
-    _AppendPatchArray(&indexBase, &levelBase,
-                        patchTables->GetFullBoundaryPatches(),
-                        patchTables->GetFullBoundaryPtexCoordinates(),
-                        patchTables->GetFullBoundaryFVarData(),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kBoundary, 0, 0, 0, 0), 0);
-    _AppendPatchArray(&indexBase, &levelBase,
-                        patchTables->GetFullCornerPatches(),
-                        patchTables->GetFullCornerPtexCoordinates(),
-                        patchTables->GetFullCornerFVarData(),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kCorner, 0, 0, 0, 0), 0);
-    _AppendPatchArray(&indexBase, &levelBase,
-                        patchTables->GetFullGregoryPatches(),
-                        patchTables->GetFullGregoryPtexCoordinates(),
-                        patchTables->GetFullGregoryFVarData(),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kGregory, 0, 0,
-                                           static_cast<unsigned char>(maxValence), static_cast<unsigned char>(numElements)),
-                        0);
-    _AppendPatchArray(&indexBase, &levelBase,
-                        patchTables->GetFullBoundaryGregoryPatches(),
-                        patchTables->GetFullBoundaryGregoryPtexCoordinates(),
-                        patchTables->GetFullBoundaryGregoryFVarData(),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kBoundaryGregory, 0, 0,
-                                           static_cast<unsigned char>(maxValence), static_cast<unsigned char>(numElements)),
-                        (int)patchTables->GetFullGregoryPatches().first.size());
-
-    for (unsigned char p=0; p<5; ++p) {
-        _AppendPatchArray(&indexBase, &levelBase,
-                        patchTables->GetTransitionRegularPatches(p),
-                        patchTables->GetTransitionRegularPtexCoordinates(p),
-                        patchTables->GetTransitionRegularFVarData(p),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kTransitionRegular, p, 0, 0, 0), 0);
-        for (unsigned char r=0; r<4; ++r) {
-            _AppendPatchArray(&indexBase, &levelBase,
-                        patchTables->GetTransitionBoundaryPatches(p, r),
-                        patchTables->GetTransitionBoundaryPtexCoordinates(p, r),
-                        patchTables->GetTransitionBoundaryFVarData(p, r),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kTransitionBoundary, p, r, 0, 0), 0);
-            _AppendPatchArray(&indexBase, &levelBase,
-                        patchTables->GetTransitionCornerPatches(p, r),
-                        patchTables->GetTransitionCornerPtexCoordinates(p, r),
-                        patchTables->GetTransitionCornerFVarData(p, r),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kTransitionCorner, p, r, 0, 0), 0);
-        }
-    }
-
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-    // finalize level texture buffer
-    glGenTextures(1, &patchLevelTextureBuffer);
-    glBindTexture(GL_TEXTURE_BUFFER, patchLevelTextureBuffer);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_R8I, patchLevelBuffer);
-    glDeleteBuffers(1, &patchLevelBuffer);
 
     // finalize ptex coordinate texture buffer
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    if (requirePtexCoordinates) {
-        glBindTexture(GL_TEXTURE_BUFFER, ptexCoordinateTextureBuffer);
-        glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, ptexCoordinateBuffer);
-        glDeleteBuffers(1, &ptexCoordinateBuffer);
-    }
+    glBindTexture(GL_TEXTURE_BUFFER, ptexCoordinateTextureBuffer);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, ptexCoordinateBuffer);
+    glDeleteBuffers(1, &ptexCoordinateBuffer);
+
     // finalize fvar data texture buffer
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
     if (requireFVarData) {
@@ -395,79 +355,6 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     }
 
     return true;
-}
-
-void
-OsdGLDrawContext::_AppendPatchArray(
-        int *indexBase, int *levelBase,
-        FarPatchTables::PTable const & ptable,
-        FarPatchTables::PtexCoordinateTable const & ptexTable,
-        FarPatchTables::FVarDataTable const & fvarTable, int fvarDataWidth,
-        OsdPatchDescriptor const & desc, int gregoryQuadOffsetBase)
-{
-    if (ptable.first.empty()) {
-        return;
-    } 
-
-    OsdPatchArray array;
-    array.desc = desc;
-    array.firstIndex = *indexBase;
-    array.numIndices = (int)ptable.first.size();
-    array.levelBase = *levelBase;
-    array.gregoryQuadOffsetBase = gregoryQuadOffsetBase;
-
-    int numSubPatches = 1;
-    if (desc.type == OpenSubdiv::kTransitionRegular or
-        desc.type == OpenSubdiv::kTransitionBoundary or
-        desc.type == OpenSubdiv::kTransitionCorner) {
-        static int subPatchCounts[] = { 3, 4, 4, 4, 2 };
-        numSubPatches = subPatchCounts[desc.pattern];
-    }
-
-    for (int subpatch = 0; subpatch < numSubPatches; ++subpatch) {
-        array.desc.subpatch = subpatch;
-        patchArrays.push_back(array);
-    }
-
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-        array.firstIndex * sizeof(unsigned int),
-        array.numIndices * sizeof(unsigned int),
-        &ptable.first[0]);
-    *indexBase += array.numIndices;
-
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-    int numElements = array.numIndices/array.desc.GetPatchSize();
-    assert(numElements == (int)ptable.second.size());
-    glBufferSubData(GL_TEXTURE_BUFFER,
-                    array.levelBase * sizeof(unsigned char),
-                    numElements * sizeof(unsigned char),
-                    &ptable.second[0]);
-    *levelBase += numElements;
-#endif
-
-    if (ptexCoordinateTextureBuffer) {
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-        assert((int)ptexTable.size() == numElements);
-
-        // populate ptex coordinates
-        glBufferSubData(GL_ARRAY_BUFFER,
-                        array.levelBase * sizeof(FarPtexCoord),
-                        (int)ptexTable.size() * sizeof(FarPtexCoord),
-                        &ptexTable[0]);
-#endif
-    }
-
-    if (fvarDataTextureBuffer) {
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-        assert((int)fvarTable.size()/(fvarDataWidth*4) == numElements);
-
-        // populate fvar data
-        glBufferSubData(GL_UNIFORM_BUFFER,
-                        array.levelBase * sizeof(float) * fvarDataWidth*4,
-                        (int)fvarTable.size() * sizeof(float),
-                        &fvarTable[0]);
-#endif
-    }
 }
 
 } // end namespace OPENSUBDIV_VERSION

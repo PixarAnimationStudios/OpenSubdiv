@@ -59,7 +59,7 @@
 #define OSD_DRAW_CONTEXT_H
 
 #include "../version.h"
-#include "../osd/patch.h"
+#include "../far/patchTables.h"
 
 #include <utility>
 #include <string>
@@ -69,14 +69,14 @@ namespace OPENSUBDIV_VERSION {
 
 class OsdDrawContext {
 public:
-    OsdDrawContext() : isAdaptive(false) {}
+    OsdDrawContext() : _isAdaptive(false) {}
     virtual ~OsdDrawContext();
 
-    bool IsAdaptive() const { return isAdaptive; }
+    bool IsAdaptive() const { return _isAdaptive; }
 
-    OsdPatchArrayVector patchArrays;
-    bool isAdaptive;
-
+    FarPatchTables::PatchArrayVector patchArrays;
+protected:
+    bool _isAdaptive;
 };
 
 } // end namespace OPENSUBDIV_VERSION

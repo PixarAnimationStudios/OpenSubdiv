@@ -118,14 +118,11 @@ public:
 
     /// Create a table-based mesh representation
     ///
-    /// @param requirePtexCoordinate create a ptex coordinate table
-    ///
     /// @param requireFVarData create a face-varying table
     ///
     /// @return a pointer to the FarMesh created
     ///
-    FarMesh<U> * Create( bool requirePtexCoordinate=false,       // XXX yuck.
-                         bool requireFVarData=false );
+    FarMesh<U> * Create( bool requireFVarData=false );       // XXX yuck.
 
     /// Computes the minimum number of adaptive feature isolation levels required
     /// in order for the limit surface to be an accurate representation of the 
@@ -824,8 +821,7 @@ FarMeshFactory<T,U>::generateFVarData( std::vector<float> & vec, int level ) {
 }
 
 template <class T, class U> FarMesh<U> *
-FarMeshFactory<T,U>::Create( bool requirePtexCoordinate,       // XXX yuck.
-                             bool requireFVarData ) {
+FarMeshFactory<T,U>::Create( bool requireFVarData ) {
 
     assert( GetHbrMesh() );
 
@@ -860,8 +856,7 @@ FarMeshFactory<T,U>::Create( bool requirePtexCoordinate,       // XXX yuck.
         FarPatchTablesFactory<T> factory(GetHbrMesh(), _numFaces, _remapTable);
 
         // XXXX: currently PatchGregory shader supports up to 29 valence
-        result->_patchTables = factory.Create(GetMaxLevel()+1, _maxValence, requirePtexCoordinate,
-                                                                            requireFVarData);
+        result->_patchTables = factory.Create(GetMaxLevel()+1, _maxValence, requireFVarData);
         assert( result->_patchTables );
 
         if (requireFVarData) {
@@ -875,12 +870,10 @@ FarMeshFactory<T,U>::Create( bool requirePtexCoordinate,       // XXX yuck.
         for (int l=1; l<=GetMaxLevel(); ++l)
             generateQuadsTopology(result->_faceverts[l], l);
 
-        if (requirePtexCoordinate) {
-            // Generate Ptex coordinates
-            result->_ptexcoordinates.resize(GetMaxLevel()+1);
-            for (int l=1; l<=GetMaxLevel(); ++l)
-                generatePtexCoordinates(result->_ptexcoordinates[l], l);
-        }
+        // Generate Ptex coordinates
+        result->_ptexcoordinates.resize(GetMaxLevel()+1);
+        for (int l=1; l<=GetMaxLevel(); ++l)
+            generatePtexCoordinates(result->_ptexcoordinates[l], l);
 
         if (requireFVarData) {
             // Generate fvar data

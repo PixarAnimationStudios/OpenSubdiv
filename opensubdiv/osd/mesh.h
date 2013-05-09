@@ -128,14 +128,12 @@ public:
             _drawContext(0)
     {
         FarMeshFactory<OsdVertex> meshFactory(hmesh, level, bits.test(MeshAdaptive));
-        _farMesh = meshFactory.Create(bits.test(MeshPtexData),
-                                      bits.test(MeshFVarData));
+        _farMesh = meshFactory.Create(bits.test(MeshFVarData));
 
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices);
         _computeContext = ComputeContext::Create(_farMesh);
         _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
-                                           bits.test(MeshPtexData),
                                            bits.test(MeshFVarData));
     }
 

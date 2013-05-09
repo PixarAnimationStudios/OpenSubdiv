@@ -99,7 +99,7 @@ struct OsdGLDrawSourceConfig : public OsdDrawSourceConfig {
 
 class OsdGLDrawRegistryBase {
 public:
-    typedef OsdPatchDescriptor DescType;
+    typedef FarPatchTables::Descriptor DescType;
     typedef OsdGLDrawConfig ConfigType;
     typedef OsdGLDrawSourceConfig SourceConfigType;
 
@@ -116,7 +116,7 @@ protected:
     _CreateDrawSourceConfig(DescType const & desc);
 };
 
-template <class DESC_TYPE = OsdPatchDescriptor,
+template <class DESC_TYPE = FarPatchTables::Descriptor,
           class CONFIG_TYPE = OsdGLDrawConfig,
           class SOURCE_CONFIG_TYPE = OsdGLDrawSourceConfig >
 class OsdGLDrawRegistry : public OsdGLDrawRegistryBase {

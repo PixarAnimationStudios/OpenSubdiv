@@ -54,17 +54,6 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-bool operator< (OsdPatchDescriptor const & a,
-                OsdPatchDescriptor const & b)
-{
-    return a.type < b.type or ((a.type == b.type) and
-          (a.pattern < b.pattern or ((a.pattern == b.pattern) and
-          (a.rotation < b.rotation or ((a.rotation == b.rotation) and
-          (a.subpatch < b.subpatch or ((a.subpatch == b.subpatch) and 
-          (a.maxValence < b.maxValence or ((a.maxValence == b.maxValence) and
-          (a.numElements < b.numElements))))))))));
-}
-
 OsdDrawContext::~OsdDrawContext() {}
 
 } // end namespace OPENSUBDIV_VERSION

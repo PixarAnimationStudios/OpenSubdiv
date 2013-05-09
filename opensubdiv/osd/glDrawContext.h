@@ -90,7 +90,6 @@ public:
     static OsdGLDrawContext *
     Create(FarMesh<OsdVertex> *farMesh,
            VERTEX_BUFFER *vertexBuffer,
-           bool requirePtexCoordinates=false,
            bool requireFVarData=false) {
 
         if (not vertexBuffer) 
@@ -100,7 +99,6 @@ public:
         if (instance->allocate(farMesh,
                                vertexBuffer->BindVBO(),
                                vertexBuffer->GetNumElements(),
-                               requirePtexCoordinates,
                                requireFVarData)) return instance;
         delete instance;
         return NULL;
@@ -118,7 +116,6 @@ public:
     GLuint vertexTextureBuffer;
     GLuint vertexValenceTextureBuffer;
     GLuint quadOffsetTextureBuffer;
-    GLuint patchLevelTextureBuffer;
 
     /// true if the GL version detected supports shader tessellation
     static bool SupportsAdaptiveTessellation();
@@ -126,16 +123,7 @@ public:
 private:
     bool allocate(FarMesh<OsdVertex> *farMesh,
                   GLuint vbo, int numElements,
-                  bool requirePtexCoordinates,
                   bool requireFVarData);
-
-    void _AppendPatchArray(
-                int *indexBase, int *levelBase,
-                FarPatchTables::PTable const & ptable,
-                FarPatchTables::PtexCoordinateTable const & ptexTable,
-                FarPatchTables::FVarDataTable const & fvarTable, int fvarDataWidth,
-                OsdPatchDescriptor const & desc,
-                int gregoryQuadOffsetBase);
 };
 
 } // end namespace OPENSUBDIV_VERSION

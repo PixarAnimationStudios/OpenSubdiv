@@ -79,15 +79,14 @@ set(CPU_SOURCE_FILES
     cpuKernel.cpp
     cpuComputeController.cpp
     cpuComputeContext.cpp
-    cpuEvalLimitContext.cpp
-    cpuEvalLimitController.cpp
-    cpuEvalLimitKernel.cpp
+#    cpuEvalLimitContext.cpp
+#    cpuEvalLimitController.cpp
+#    cpuEvalLimitKernel.cpp
     cpuVertexBuffer.cpp
     error.cpp
-    evalLimitContext.cpp
+#    evalLimitContext.cpp
     drawContext.cpp
     drawRegistry.cpp
-    sortedDrawContext.cpp
 )
 
 set(GPU_SOURCE_FILES

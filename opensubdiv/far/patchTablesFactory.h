@@ -93,14 +93,11 @@ protected:
     ///
     /// @param maxvalence Maximum vertex valence in the mesh
     ///
-    /// @param requirePtexCoordinate Flag for generating ptex coordinate
-    ///
     /// @param requireFVarData Flag for generating face-varying data
     ///
     /// @return a new instance of FarPatchTables
     ///
-    FarPatchTables * Create( int maxlevel, int maxvalence, bool requirePtexCoordinate=false,
-                                                           bool requireFVarData=false );
+    FarPatchTables * Create( int maxlevel, int maxvalence, bool requireFVarData=false );
 
 private:
 
@@ -145,6 +142,7 @@ private:
                 case FarPatchTables::GREGORY_BOUNDARY : return G[1];
                 default : assert(0);
             }
+            return R;
         }
         
         // Counts the number of arrays required to store each type of patch used
@@ -172,10 +170,9 @@ private:
     void pushPatchArray( FarPatchTables::Descriptor desc,
                          FarPatchTables::PatchArrayVector & parray,
                          Counter & counter,                                 
-                         int * voffset, int * poffset );                     
+                         int * voffset, int * poffset, int * qoffset );
 
-    Counter _fullCtr,          // counters for full patches
-            _transitionCtr[5]; // counters for transition patches
+    Counter _patchCtr[6];  // counters for full and transition patches
              
     HbrMesh<T> const * _mesh;
 
@@ -375,17 +372,17 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
                     switch (boundaryVerts) {
                     
                         case 0 : {   // Regular patch
-                                     _fullCtr.R++;
+                                     _patchCtr[0].R++;
                                  } break; 
                         
                         case 2 : {   // Boundary patch
                                      f->_adaptiveFlags.rots=computeBoundaryPatchRotation(f);
-                                     _fullCtr.B[0]++;
+                                     _patchCtr[0].B[0]++;
                                  } break;
                         
                         case 3 : {   // Corner patch
                                      f->_adaptiveFlags.rots=computeCornerPatchRotation(f);
-                                     _fullCtr.C[0]++;
+                                     _patchCtr[0].C[0]++;
                                  } break;
                         
                         default : break;
@@ -398,12 +395,12 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
                     switch (boundaryVerts) {
                     
                         case 0 : {   // Regular Gregory patch
-                                     _fullCtr.G[0]++;
+                                     _patchCtr[0].G[0]++;
                                  } break; 
  
                         
                         default : { // Boundary Gregory patch
-                                     _fullCtr.G[1]++;
+                                     _patchCtr[0].G[1]++;
                                   } break;
                     }
                 }
@@ -464,7 +461,7 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
                     switch (boundaryVerts) {
                     
                         case 0 : {   // regular patch
-                                     _transitionCtr[tidx].R++;
+                                     _patchCtr[tidx+1].R++;
                                  } break; 
                         
                         case 2 : {   // boundary patch
@@ -474,7 +471,7 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
                                      
                                      f->_adaptiveFlags.rots=rot; // override the transition rotation
                                      
-                                     _transitionCtr[tidx].B[f->_adaptiveFlags.brots]++;
+                                     _patchCtr[tidx+1].B[f->_adaptiveFlags.brots]++;
                                  } break;
                         
                         case 3 : {   // corner patch
@@ -484,7 +481,7 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
                                      
                                      f->_adaptiveFlags.rots=rot; // override the transition rotation
                                      
-                                     _transitionCtr[tidx].C[f->_adaptiveFlags.brots]++;
+                                     _patchCtr[tidx+1].C[f->_adaptiveFlags.brots]++;
                                  } break;
                         
                         default : assert(0); break;
@@ -500,10 +497,10 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
 template <class T> int 
 FarPatchTablesFactory<T>::getNumPatchArrays() const {
 
-    int result = _fullCtr.GetNumPatchArrays();
+    int result = 0;
     
-    for (int i=0; i<5; ++i)
-        result += _transitionCtr[i].GetNumPatchArrays();
+    for (int i=0; i<6; ++i)
+        result += _patchCtr[i].GetNumPatchArrays();
         
     return result;
 }
@@ -512,21 +509,21 @@ template <class T> void
 FarPatchTablesFactory<T>::pushPatchArray( FarPatchTables::Descriptor desc, 
                                           FarPatchTables::PatchArrayVector & parray, 
                                           FarPatchTablesFactory<T>::Counter & counter, 
-                                          int * voffset, int * poffset ) {
+                                          int * voffset, int * poffset, int * qoffset ) {
 
     int npatches = counter.GetValue( desc );
     
     if (npatches>0) {
-        parray.push_back( FarPatchTables::PatchArray(desc, *voffset, *poffset, npatches) );
+        parray.push_back( FarPatchTables::PatchArray(desc, *voffset, *poffset, npatches, *qoffset) );
 
         *voffset += npatches * desc.GetNumControlVertices();
         *poffset += npatches;
+        *qoffset += (desc.GetType() == FarPatchTables::GREGORY) ? npatches * 4 : 0;
     }
 }
 
 template <class T> FarPatchTables *
-FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtexCoordinate,
-                                                                bool requireFVarData ) {
+FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVarData ) {
 
     static const unsigned int remapRegular        [16] = {5,6,10,9,4,0,1,2,3,7,11,15,14,13,12,8};
     static const unsigned int remapRegularBoundary[12] = {1,2,6,5,0,3,7,11,10,9,8,4};
@@ -543,33 +540,32 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
     FarPatchTables::PatchArrayVector & parray = result->_patchArrays;
     parray.reserve( getNumPatchArrays() );
 
-    int voffset=0, poffset=0;
+    int voffset=0, poffset=0, qoffset=0;
 
 
     for (Descriptor::iterator it=Descriptor::begin(); it!=Descriptor::end(); ++it) {
-        pushPatchArray( *it, parray, _fullCtr, &voffset, &poffset );
+        pushPatchArray( *it, parray, _patchCtr[it->GetPattern()], &voffset, &poffset, &qoffset );
     }
 
     int nverts = result->GetNumControlVertices(),
         npatches = result->GetNumPatches(),
         fvarwidth = getMesh()->GetTotalFVarWidth();
 
-    // Reserve memory for the tables
-    result->_patches.reserve( nverts );
+    // Allocate memory for the index tables
+    result->_patches.resize( nverts );
 
-    if (requirePtexCoordinate) {
-        result->_ptexTable.resize( npatches );
-    }
+    // Allocate memory for the ptex coord tables
+    result->_ptexTable.resize( npatches );
 
     if (requireFVarData) {
         result->_fvarTable.resize( npatches * 4 * fvarwidth );
     }
 
     FarPatchTables::QuadOffsetTable quad_G_C0; // Quad-offsets tables (for Gregory patches)
-    quad_G_C0.resize(_fullCtr.G[0]*4);
+    quad_G_C0.resize(_patchCtr[0].G[0]*4);
 
     FarPatchTables::QuadOffsetTable quad_G_C1;
-    quad_G_C1.resize(_fullCtr.G[1]*4);
+    quad_G_C1.resize(_patchCtr[0].G[1]*4);
 
     FarPatchTables::QuadOffsetTable::value_type *quad_G_C0_P = quad_G_C0.empty() ? 0 : &quad_G_C0[0];
     FarPatchTables::QuadOffsetTable::value_type *quad_G_C1_P = quad_G_C1.empty() ? 0 : &quad_G_C1[0];
@@ -587,7 +583,8 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
 
         iptrs[(int)pa->GetDescriptor().GetPattern()].GetValue( *it ) = &result->_patches[pa->GetVertIndex()];
         pptrs[(int)pa->GetDescriptor().GetPattern()].GetValue( *it ) = &result->_ptexTable[pa->GetPatchIndex()];
-        fptrs[(int)pa->GetDescriptor().GetPattern()].GetValue( *it ) = &result->_fvarTable[pa->GetPatchIndex() * 4 * fvarwidth];
+        if (requireFVarData)
+            fptrs[(int)pa->GetDescriptor().GetPattern()].GetValue( *it ) = &result->_fvarTable[pa->GetPatchIndex() * 4 * fvarwidth];
     }
  
     // Populate patch index tables with vertex indices
@@ -661,12 +658,14 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
             
             int tcase = f->_adaptiveFlags.transitionType;
             assert( tcase>=HbrFace<T>::kTransition0 and tcase<=HbrFace<T>::kTransition4 );
+            ++tcase;  // TransitionPattern begin with NON_TRANSITION
 
             if (not f->_adaptiveFlags.isExtraordinary and f->_adaptiveFlags.bverts!=1) {
 
                 switch (f->_adaptiveFlags.bverts) {
                     case 0 : {   // Regular Transition Patch (16 CVs)
                                  getOneRing(f, 16, remapRegular, iptrs[tcase].R);
+
                                  iptrs[tcase].R+=16;
                                  pptrs[tcase].R = computePtexCoordinate(f, pptrs[tcase].R);
                                  fptrs[tcase].R = computeFVarData(f, fvarwidth, fptrs[tcase].R, /*isAdaptive=*/true);
@@ -694,6 +693,103 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requirePtex
         }
     }
      
+    // Build Gregory patches vertex valence indices table
+    if ((_patchCtr[0].G[0] > 0) or (_patchCtr[0].G[1] > 0)) {
+
+        // MAX_VALENCE is a property of hardware shaders and needs to be matched in OSD
+        const int perVertexValenceSize = 2*maxvalence + 1;
+
+        const int nverts = getMesh()->GetNumVertices();
+
+        FarPatchTables::VertexValenceTable & table = result->_vertexValenceTable;
+        table.resize(nverts * perVertexValenceSize);
+
+        class GatherNeighborsOperator : public HbrVertexOperator<T> {
+        public:
+            HbrVertex<T> * center;
+            FarPatchTables::VertexValenceTable & table;
+            int offset, valence;
+            std::vector<int> const & remap;
+
+            GatherNeighborsOperator(FarPatchTables::VertexValenceTable & itable, int ioffset, HbrVertex<T> * v, std::vector<int> const & iremap) : 
+                center(v), table(itable), offset(ioffset), valence(0), remap(iremap) { }
+
+            // Operator iterates over neighbor vertices of v and accumulates
+            // pairs of indices the neighbor and diagonal vertices
+            //
+            //          Regular case
+            //                                           Boundary case
+            //      o ------- o      D3 o
+            //   D0        N0 |         |
+            //                |         |             o ------- o      D2 o
+            //                |         |          D0        N0 |         |
+            //                |         |                       |         |
+            //      o ------- o ------- o                       |         |
+            //   N1 |       V |      N3                         |         |
+            //      |         |                       o ------- o ------- o
+            //      |         |                    N1          V       N2
+            //      |         |
+            //      o         o ------- o
+            //   D1         N2        D2
+            //
+            virtual void operator() (HbrVertex<T> &v) {
+
+                table[offset++] = remap[v.GetID()];
+
+                HbrVertex<T> * diagonal=&v;
+
+                HbrHalfedge<T> * e = center->GetEdge(&v);
+                if ( e ) {
+                    // If v is on a boundary, there may not be a diagonal vertex
+                    diagonal = e->GetNext()->GetDestVertex();
+                }
+                //else {
+                //    diagonal = v.GetQEONext( center );
+                //}
+
+                table[offset++] = remap[diagonal->GetID()];
+
+                ++valence;
+            }
+        };
+
+        for (int i=0; i<nverts; ++i) {
+            HbrVertex<T> * v = getMesh()->GetVertex(i);
+
+            int outputVertexID = _remapTable[v->GetID()];
+            int offset = outputVertexID * perVertexValenceSize;
+
+            // feature adaptive refinement can generate un-connected face-vertices
+            // that have a valence of 0
+            if (not v->IsConnected()) {
+                assert( v->GetParentFace() );
+                table[offset] = 0;
+                continue;
+            }
+
+            // "offset+1" : the first table entry is the vertex valence, which
+            // is gathered by the operator (see note below)
+            GatherNeighborsOperator op( table, offset+1, v, _remapTable );
+            v->ApplyOperatorSurroundingVertices( op );
+
+            // Valence sign bit used to mark boundary vertices
+            table[offset] = v->OnBoundary() ? -op.valence : op.valence;
+
+            // Note : some topologies can cause v to be singular at certain
+            // levels of adaptive refinement, which prevents us from using
+            // the GetValence() function. Fortunately, the GatherNeighbors
+            // operator above just performed a similar traversal, so it is
+            // very convenient to use it to accumulate the actionable valence.
+        }
+    } else {
+        result->_vertexValenceTable.clear();
+    }
+
+    // Combine quad offset buffers
+    result->_quadOffsetTable.resize((_patchCtr[0].G[0]+_patchCtr[0].G[1])*4);
+    std::copy(quad_G_C0.begin(), quad_G_C0.end(), result->_quadOffsetTable.begin());
+    std::copy(quad_G_C1.begin(), quad_G_C1.end(), result->_quadOffsetTable.begin()+_patchCtr[0].G[0]*4);
+
     return result;
 }
 
