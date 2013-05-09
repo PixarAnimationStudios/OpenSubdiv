@@ -147,7 +147,7 @@ struct FarPtexCoord {
         bitField.Clear();
     }    
 };
-
+/*
 /// \brief Indices for multi-mesh patch arrays
 // XXXX manuelk : we should probably derive FarMultiPatchTables for multi-meshes
 struct FarPatchCount {
@@ -192,7 +192,7 @@ struct FarPatchCount {
 };
 
 typedef std::vector<FarPatchCount> FarPatchCountVector;
-
+*/
 /// \brief Container for patch vertex indices tables
 ///
 /// FarPatchTables contain the lists of vertices for each patch of an adaptive
@@ -201,33 +201,184 @@ typedef std::vector<FarPatchCount> FarPatchCountVector;
 class FarPatchTables {
 
 public:
-    /// Patch table : (vert indices, patch level) pairs
-    typedef std::pair<std::vector<unsigned int>, 
-                      std::vector<unsigned char> > PTable; 
-                      
-    typedef std::vector<int> VertexValenceTable;
+    typedef std::vector<unsigned int>  PTable;
+    typedef std::vector<int>           VertexValenceTable;
+    typedef std::vector<unsigned int>  QuadOffsetTable;
+    typedef std::vector<FarPtexCoord>  PtexCoordinateTable;
+    typedef std::vector<float>         FVarDataTable;
 
-    typedef std::vector<unsigned int> QuadOffsetTable;
+    enum Type {
+        NON_PATCH = 0, // undefined
+        
+        QUADS,         // quads-only mesh
+        TRIANGLES,     // triangles-only mesh
+        POLYGONS,      // general polygon mesh
+ 
+        LOOP,          // Loop patch  (unsupported)
 
-    typedef std::vector<FarPtexCoord> PtexCoordinateTable;
+        REGULAR,
+        BOUNDARY,
+        CORNER,
+        GREGORY,
+        GREGORY_BOUNDARY
+    };
     
-    typedef std::vector<float> FVarDataTable;
+    enum TransitionPattern {
+        NON_TRANSITION = 0,
+        PATTERN0,
+        PATTERN1,
+        PATTERN2,
+        PATTERN3,
+        PATTERN4,
+    };
+   
+    /// \brief Describes the type of a patch
+    class Descriptor {
+    
+    public:
+        /// Default constructor.
+        Descriptor() :
+            _type(NON_PATCH), _pattern(NON_TRANSITION), _rotation(0) { }
+            
+        /// Constructor
+        Descriptor(int type, int pattern, unsigned char rotation) :
+            _type((Type)type), _pattern((TransitionPattern)pattern), _rotation(rotation) { }
 
+        /// Copy Constructor
+        Descriptor( Descriptor const & d ) :
+            _type(d.GetType()), _pattern(d.GetPattern()), _rotation(d.GetRotation()) { }
+        
+        /// Returns the type of the patch
+        Type GetType() const {
+            return _type;
+        }
+        
+        /// Returns the transition pattern of the patch if any (5 types)
+        TransitionPattern GetPattern() const {
+            return _pattern;
+        }
+        
+        /// Returns the rotation of the patch (4 rotations)
+        unsigned char GetRotation() const {
+            return _rotation;
+        }
+                
+        /// Returns the number of control vertices expected for a patch of this type
+        static short GetNumControlVertices( Type t );
+        
+        short GetNumControlVertices() const {
+            return GetNumControlVertices( this->GetType() );
+        }
+        
+        /// Iterates through the patches in the following preset order
+        ///
+        /// NON_TRANSITION ( REGULAR 
+        ///                  BOUNDARY
+        ///                  CORNER
+        ///                  GREGORY
+        ///                  GREGORY_BOUNDARY )
+        ///
+        /// PATTERN0 ( REGULAR 
+        ///            BOUNDARY ROT0 ROT1 ROT2 ROT3
+        ///            CORNER   ROT0 ROT1 ROT2 ROT3 )
+        ///
+        /// PATTERN1 ( REGULAR 
+        ///            BOUNDARY ROT0 ROT1 ROT2 ROT3
+        ///            CORNER   ROT0 ROT1 ROT2 ROT3 )
+        /// ...           
+        ///
+        /// NON_TRANSITION NON_PATCH ROT0 (end)
+        ///
+        Descriptor & operator ++ ();
+        
+        /// Allows ordering of patches by type
+        bool operator < ( Descriptor const other );
 
-    /// Returns a FarTable containing the vertex indices for all the Full Regular patches
-    PTable const & GetFullRegularPatches() const { return _full._R_IT; }
+        /// True if the descriptors are identical
+        bool operator == ( Descriptor const other );
+        
+        /// Descriptor Iterator 
+        class iterator;
 
-    /// Returns a FarTable containing the vertex indices for all the Full Boundary patches
-    PTable const & GetFullBoundaryPatches() const { return _full._B_IT; }
+        static iterator begin() {
+            return iterator( Descriptor(REGULAR, NON_TRANSITION, 0) );
+        }
 
-    /// Returns a FarTable containing the vertex indices for all the Full Corner patches
-    PTable const & GetFullCornerPatches() const { return _full._C_IT; }
+        static iterator end() {
+            return iterator( Descriptor() );
+        }
+        
+    private:
+        template <class T> friend class FarPatchTablesFactory;
+        friend class iterator;
+        
+        Type              _type:4;
+        TransitionPattern _pattern:3;
+        unsigned char     _rotation:2;
+    };
 
-    /// Returns a FarTable containing the vertex indices for all the Full Gregory Regular patches
-    PTable const & GetFullGregoryPatches() const { return _full._G_IT; }
+    /// \brief Descriptor iterator class 
+    class Descriptor::iterator {
+        public:
+            iterator() {}
 
-    /// Returns a FarTable containing the vertex indices for all the Full Gregory Boundary patches
-    PTable const & GetFullBoundaryGregoryPatches() const { return _full._G_B_IT; }
+            iterator(Descriptor desc) : pos(desc) { }
+            
+            iterator & operator ++ () { ++pos; return *this; }
+            
+            bool operator == ( iterator const & other ) { return (pos==other.pos); }
+
+            bool operator != ( iterator const & other ) { return not (*this==other); }
+            
+            Descriptor * operator -> () { return &pos; }
+            
+            Descriptor & operator * () { return pos; }
+
+        private:
+            Descriptor pos;
+    };
+
+    /// \brief Describes an array of patches of the same type
+    class PatchArray {
+    
+    public:
+        PatchArray( Descriptor const & desc, unsigned int vertIndex, unsigned int patchIndex, unsigned int npatches ) :
+            _desc(desc), _vertIndex(vertIndex), _patchIndex(patchIndex), _npatches(npatches) { }
+    
+        Descriptor GetDescriptor() const {
+            return _desc;
+        }
+        
+        unsigned int GetVertIndex() const { 
+            return _vertIndex;
+        }
+        
+        unsigned int GetPatchIndex() const {
+            return _patchIndex;
+        }
+        
+        unsigned int GetNumPatches() const {
+            return _npatches;
+        }
+    
+    private:
+        template <class T> friend class FarPatchTablesFactory;
+        
+        Descriptor _desc;
+        unsigned int _vertIndex,  // absolute index to the first control vertex of the first patch in the PTable
+                     _patchIndex, // absolute index of the first patch in the array
+                     _npatches;   // number of patches in the array
+    };
+    
+    typedef std::vector<PatchArray> PatchArrayVector;
+
+    /// Get the table of patch control vertices
+    PTable const & GetPatchTable() const { return _patches; }
+
+    /// Returns a pointer to the array of patches matching the descriptor
+    PatchArray * GetPatchArray( Descriptor desc ) const { 
+        return const_cast<FarPatchTables *>(this)->findPatchArray( desc ); 
+    }
 
     /// Returns a vertex valence table used by Gregory patches
     VertexValenceTable const & GetVertexValenceTable() const { return _vertexValenceTable; }
@@ -235,16 +386,11 @@ public:
     /// Returns a quad offsets table used by Gregory patches
     QuadOffsetTable const & GetQuadOffsetTable() const { return _quadOffsetTable; }
 
+    /// Returns a PtexCoordinateTable for each type of patch
+    PtexCoordinateTable const & GetPtexCoordinatesTable() const { return _ptexTable; }
 
-    /// Returns a FarTable containing the vertex indices for all the Transition Regular patches
-    PTable const & GetTransitionRegularPatches(unsigned char pattern) const { return _transition[pattern]._R_IT; }
-
-    /// Returns a FarTable containing the vertex indices for all the Transition Boundary patches
-    PTable const & GetTransitionBoundaryPatches(unsigned char pattern, unsigned char rot) const { return _transition[pattern]._B_IT[rot]; }
-
-    /// Returns a FarTable containing the vertex indices for all the Transition Corner patches
-    PTable const & GetTransitionCornerPatches(unsigned char pattern, unsigned char rot) const { return _transition[pattern]._C_IT[rot]; }
-
+    /// Returns an FVarDataTable for each type of patch
+    FVarDataTable const & GetFFVarDataTable() const { return _fvarTable; }
 
     /// Ringsize of Regular Patches in table.
     static int GetRegularPatchRingsize() { return 16; }
@@ -258,161 +404,160 @@ public:
     /// Ringsize of Gregory (and Gregory Boundary) Patches in table.
     static int GetGregoryPatchRingsize() { return 4; }
 
-
-    /// Returns a PtexCoordinateTable for each type of patch
-    PtexCoordinateTable const & GetFullRegularPtexCoordinates() const { return _full._R_PTX; }
-
-    PtexCoordinateTable const & GetFullBoundaryPtexCoordinates() const { return _full._B_PTX; }
-
-    PtexCoordinateTable const & GetFullCornerPtexCoordinates() const { return _full._C_PTX; }
-
-    PtexCoordinateTable const & GetFullGregoryPtexCoordinates() const { return _full._G_PTX; }
-
-    PtexCoordinateTable const & GetFullBoundaryGregoryPtexCoordinates() const { return _full._G_B_PTX; }
-
-    PtexCoordinateTable const & GetTransitionRegularPtexCoordinates(unsigned char pattern) const { return _transition[pattern]._R_PTX; }
-
-    PtexCoordinateTable const & GetTransitionBoundaryPtexCoordinates(unsigned char pattern, unsigned char rot) const { return _transition[pattern]._B_PTX[rot]; }
-
-    PtexCoordinateTable const & GetTransitionCornerPtexCoordinates(unsigned char pattern, unsigned char rot) const { return _transition[pattern]._C_PTX[rot]; }
-
-    /// Returns an FVarDataTable for each type of patch
-    FVarDataTable const & GetFullRegularFVarData() const { return _full._R_FVD; }
-
-    FVarDataTable const & GetFullBoundaryFVarData() const { return _full._B_FVD; }
-
-    FVarDataTable const & GetFullCornerFVarData() const { return _full._C_FVD; }
-
-    FVarDataTable const & GetFullGregoryFVarData() const { return _full._G_FVD; }
-
-    FVarDataTable const & GetFullBoundaryGregoryFVarData() const { return _full._G_B_FVD; }
-
-    FVarDataTable const & GetTransitionRegularFVarData(unsigned char pattern) const { return _transition[pattern]._R_FVD; }
-
-    FVarDataTable const & GetTransitionBoundaryFVarData(unsigned char pattern, unsigned char rot) const { return _transition[pattern]._B_FVD[rot]; }
-
-    FVarDataTable const & GetTransitionCornerFVarData(unsigned char pattern, unsigned char rot) const { return _transition[pattern]._C_FVD[rot]; }
-
     /// Returns the total number of patches stored in the tables
-    size_t GetNumPatches() const;
+    int GetNumPatches() const;
     
     /// Returns the total number of control vertex indices in the tables
-    size_t GetNumControlVertices() const;
+    int GetNumControlVertices() const;
 
     /// Returns max vertex valence
     int GetMaxValence() const { return _maxValence; }
-
-    /// Returns PatchCounts
-    FarPatchCountVector const & GetPatchCounts() const { return _patchCounts; }
-
 private:
 
     template <class T> friend class FarPatchTablesFactory;
     template <class T, class U> friend class FarMultiMeshFactory;
 
+    PatchArray * findPatchArray( Descriptor desc );
+
     // Private constructor
     FarPatchTables( int maxvalence ) : _maxValence(maxvalence) { }
 
-    // FarTables for full / end patches
-    struct Patches {
-        PTable _R_IT,   // regular patches vertex indices table
-               _B_IT,   // boundary 
-               _C_IT,   // corner
-               _G_IT,   // gregory 
-               _G_B_IT; // gregory 
+    // Vector of descriptors for arrays of patches
+    PatchArrayVector _patchArrays;
 
-        PtexCoordinateTable _R_PTX, // regular patches ptex indices table
-                            _B_PTX,
-                            _C_PTX,
-                            _G_PTX,
-                            _G_B_PTX;
-        
-        FVarDataTable       _R_FVD, // regular patches face-varying indices table
-                            _B_FVD,
-                            _C_FVD,
-                            _G_FVD,
-                            _G_B_FVD;
-    };
+
     
-    // FarTables for transition patches
-    struct TPatches {
-        PTable _R_IT,    // regular patches
-               _B_IT[4], // boundary patches (4 rotations)
-               _C_IT[4]; // corner patches (4 rotations)
+    PTable _patches; // Indices of the control vertices of the patches
 
-        PtexCoordinateTable _R_PTX,
-                            _B_PTX[4],
-                            _C_PTX[4];
-               
-        FVarDataTable       _R_FVD,
-                            _B_FVD[4],
-                            _C_FVD[4];
-    };
-
-    Patches _full; // full patches tables
+    VertexValenceTable _vertexValenceTable; // vertex valence table (for Gregory patches)
     
-    TPatches _transition[5]; // transition patches tables
+    QuadOffsetTable _quadOffsetTable; // quad offsets table (for Gregory patches)
+    
+    PtexCoordinateTable _ptexTable;
 
-    // XXXX manuelk : Greg. patch tables need to be localized to Gregory CVs only.
-
-    // vertex valence table (for Gregory patches)
-    VertexValenceTable _vertexValenceTable; 
-
-    // quad offsets table (for Gregory patches)
-    QuadOffsetTable _quadOffsetTable; 
+    FVarDataTable _fvarTable;
 
     // highest vertex valence allowed in the mesh (used for Gregory 
     // vertexValance & quadOffset talbes)
     int _maxValence;
-    
-    // vector of counters for aggregated patch tables used by multi-meshes
-    FarPatchCountVector _patchCounts; 
 };
 
-// Returns the total number of patches stored in the tables
-inline size_t 
-FarPatchTables::GetNumPatches() const {
 
-    // We can use directly the size of the levels table ("second") because
-    // there is 1 value per patch 
-    size_t count = _full._R_IT.second.size()  + 
-                   _full._B_IT.second.size() +
-                   _full._C_IT.second.size() +
-                   _full._G_IT.second.size()  + 
-                   _full._G_B_IT.second.size();
+// Returns the number of control vertices expected for a patch of this type
+inline short 
+FarPatchTables::Descriptor::GetNumControlVertices( FarPatchTables::Type type ) {
+    switch (type) {
+        case REGULAR           : return FarPatchTables::GetRegularPatchRingsize();
+        case QUADS             : return 4;
+        case GREGORY           :
+        case GREGORY_BOUNDARY  : return FarPatchTables::GetGregoryPatchRingsize();
+        case BOUNDARY          : return FarPatchTables::GetBoundaryPatchRingsize();
+        case CORNER            : return FarPatchTables::GetCornerPatchRingsize();
+        case TRIANGLES         : return 3;
+        default : return -1;
+    }
+}
 
-    for (int i = 0; i < 5; ++i) {
-        count += _transition[i]._R_IT.second.size();
-        for (int j = 0; j < 4; ++j) {
-            count += _transition[i]._B_IT[j].second.size()+
-                     _transition[i]._C_IT[j].second.size();
+// Iterates in order through the patch types, patterns and rotation in a preset order
+inline FarPatchTables::Descriptor & 
+FarPatchTables::Descriptor::operator ++ () {
+
+    if (GetPattern()==NON_TRANSITION) {
+        if (GetType()==GREGORY_BOUNDARY) {
+            _type=REGULAR;
+            ++_pattern;
+        } else
+            ++_type;
+    } else {
+
+        switch (GetType()) {
+            case REGULAR  : ++_type; 
+                            _rotation=0; 
+                            break;
+
+            case BOUNDARY : if (GetRotation()==3) {
+                                ++_type; 
+                                _rotation=0;
+                            } else {
+                                ++_rotation;
+                            }; break;
+
+            case CORNER   : if (GetRotation()==3) {
+                                  if (GetPattern()!=PATTERN4) {
+                                      _type=REGULAR;
+                                      _rotation=0;
+                                      ++_pattern;
+                                  } else {
+                                      *this = Descriptor();
+                                  }
+                              } else {
+                                  ++_rotation;
+                              }; break;
+            
+            case NON_PATCH : break;
+            
+            default:
+                assert(0);
         }
     }
+    return *this;
+}
 
-    return count;
+// Allows ordering of patches by type
+inline bool 
+FarPatchTables::Descriptor::operator < ( Descriptor const other ) {
+    if (_pattern==NON_TRANSITION) {
+        return _type < other._type;
+    } else {
+        if (_pattern==other._pattern)
+            return _rotation < other._rotation;
+        else
+            return _pattern < other._pattern;
+    }
+} 
+
+// True if the descriptors are identical
+bool 
+FarPatchTables::Descriptor::operator == ( Descriptor const other ) {
+    return  _pattern == other._pattern and
+               _type == other._type    and
+           _rotation == other._rotation;
+}
+
+// Returns a pointer to the array of patches matching the descriptor
+inline FarPatchTables::PatchArray *
+FarPatchTables::findPatchArray( FarPatchTables::Descriptor desc ) {
+
+    for (int i=0; i<(int)_patchArrays.size(); ++i) {
+        if (_patchArrays[i].GetDescriptor()==desc)
+            return &_patchArrays[i];
+    }
+    return 0;
+}
+
+// Returns the total number of patches stored in the tables
+inline int
+FarPatchTables::GetNumPatches() const {
+
+    int result=0;
+    for (int i=0; i<(int)_patchArrays.size(); ++i) {
+        result += _patchArrays[i].GetNumPatches();
+    }
+
+    return result;
 }
 
 // Returns the total number of control vertex indices in the tables
-inline size_t 
+inline int 
 FarPatchTables::GetNumControlVertices() const {
 
-    // The "first" table of a PTable contains the vertex indices of each
-    // patch, so we can directly use those to tally our count.
-    size_t count = _full._R_IT.first.size() + 
-                   _full._B_IT.first.size() +
-                   _full._C_IT.first.size() +
-                   _full._G_IT.first.size() + 
-                   _full._G_B_IT.first.size();
-
-    for (int i = 0; i < 5; ++i) {
-        count += _transition[i]._R_IT.first.size();
-        for (int j = 0; j < 4; ++j) {
-            count += _transition[i]._B_IT[j].first.size()+
-                     _transition[i]._C_IT[j].first.size();
-        }
+    int result=0;
+    for (int i=0; i<(int)_patchArrays.size(); ++i) {
+        result += _patchArrays[i].GetDescriptor().GetNumControlVertices() * 
+                  _patchArrays[i].GetNumPatches();
     }
 
-    return count;
+    return result;
 }
 
 
