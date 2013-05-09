@@ -577,8 +577,8 @@ FarPatchTables::Descriptor::operator ++ () {
 // Allows ordering of patches by type
 inline bool 
 FarPatchTables::Descriptor::operator < ( Descriptor const other ) const {
-    return _type < other._type or ((_type == other._type) and
-          (_pattern < other._pattern or ((_pattern == other._pattern) and
+    return _pattern < other._pattern or ((_pattern == other._pattern) and
+          (_type < other._type or ((_type == other._type) and
           (_rotation < other._rotation or ((_rotation == other._rotation) and
           (_subpatch < other._subpatch or ((_subpatch == other._subpatch) and
           (_maxValence < other._maxValence or ((_maxValence == other._maxValence) and
