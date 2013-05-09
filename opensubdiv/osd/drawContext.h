@@ -75,7 +75,10 @@ public:
     bool IsAdaptive() const { return _isAdaptive; }
 
     FarPatchTables::PatchArrayVector patchArrays;
+
 protected:
+    void createPatchArrays(FarPatchTables const * patchTables, int numElements);
+
     bool _isAdaptive;
 };
 

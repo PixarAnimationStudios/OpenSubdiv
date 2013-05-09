@@ -212,44 +212,7 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     // adaptive patches
     _isAdaptive = true;
 
-    int maxValence = patchTables->GetMaxValence();
-
-    // create patch arrays for drawing (while duplicating subpatches for transition patch arrays)
-    {
-        static int subPatchCounts[] = { 1, 3, 4, 4, 4, 2 }; // number of subpatches for patterns
-
-        FarPatchTables::PatchArrayVector const & srcPatchArrays = patchTables->GetAllPatchArrays();
-
-        int numTotalPatchArrays = 0;
-        for (int i = 0; i < (int)srcPatchArrays.size(); ++i) {
-            FarPatchTables::TransitionPattern pattern = srcPatchArrays[i].GetDescriptor().GetPattern();
-            numTotalPatchArrays += subPatchCounts[(int)pattern];
-        }
-
-        // allocate drawing patch arrays
-        patchArrays.reserve(numTotalPatchArrays);
-        for (int i = 0; i < (int)srcPatchArrays.size(); ++i) {
-            FarPatchTables::TransitionPattern pattern = srcPatchArrays[i].GetDescriptor().GetPattern();
-            int numSubPatches = subPatchCounts[(int)pattern];
-
-            FarPatchTables::PatchArray const &parray = srcPatchArrays[i];
-            FarPatchTables::Descriptor srcDesc = parray.GetDescriptor();
-
-            for (int j = 0; j < numSubPatches; ++j) {
-                FarPatchTables::Descriptor desc(srcDesc.GetType(),
-                                                srcDesc.GetPattern(),
-                                                srcDesc.GetRotation(),
-                                                maxValence,
-                                                j,
-                                                numElements);
-
-                patchArrays.push_back(FarPatchTables::PatchArray(desc, parray.GetVertIndex(),
-                                                                 parray.GetPatchIndex(),
-                                                                 parray.GetNumPatches(),
-                                                                 parray.GetQuadOffsetIndex()));
-            }
-        }
-    }
+    createPatchArrays(patchTables, numElements);
 
     FarPatchTables::PTable const & ptables = patchTables->GetPatchTable();
 
@@ -258,23 +221,22 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchIndexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                  ptables.size() * sizeof(unsigned int), &ptables[0], GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     FarPatchTables::PtexCoordinateTable const & ptexCoordTables = patchTables->GetPtexCoordinatesTable();
 
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
     // Allocate ptex coordinate buffer if requested
     GLuint ptexCoordinateBuffer = 0;
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
     glGenTextures(1, &ptexCoordinateTextureBuffer);
     glGenBuffers(1, &ptexCoordinateBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, ptexCoordinateBuffer);
     glBufferData(GL_ARRAY_BUFFER,
                  ptexCoordTables.size() * sizeof(FarPtexCoord), &ptexCoordTables[0], GL_STATIC_DRAW);
-#endif
 
     // Allocate fvar data buffer if requested
     GLuint fvarDataBuffer = 0;
     if (requireFVarData) {
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
         FarPatchTables::FVarDataTable const & fvarTables = patchTables->GetFVarDataTable();
 
         glGenTextures(1, &fvarDataTextureBuffer);
@@ -282,10 +244,8 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         glBindBuffer(GL_UNIFORM_BUFFER, fvarDataBuffer);
         glBufferData(GL_UNIFORM_BUFFER,
                      fvarTables.size() * sizeof(float), &fvarTables[0], GL_STATIC_DRAW);
-#endif
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
     }
-
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
 
     // finalize ptex coordinate texture buffer
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -294,25 +254,17 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     glDeleteBuffers(1, &ptexCoordinateBuffer);
 
     // finalize fvar data texture buffer
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
     if (requireFVarData) {
         glBindTexture(GL_TEXTURE_BUFFER, fvarDataTextureBuffer);
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, fvarDataBuffer);
         glDeleteBuffers(1, &fvarDataBuffer);
     }
-#endif
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-    glBindBuffer(GL_TEXTURE_BUFFER, 0);
-#endif
 
     // allocate and initialize additional buffer data
     FarPatchTables::VertexValenceTable const &
         valenceTable = patchTables->GetVertexValenceTable();
 
     if (not valenceTable.empty()) {
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
         GLuint buffer = 0;
         glGenBuffers(1, &buffer);
         glBindBuffer(GL_TEXTURE_BUFFER, buffer);
@@ -328,16 +280,12 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         glGenTextures(1, &vertexTextureBuffer);
         glBindTexture(GL_TEXTURE_BUFFER, vertexTextureBuffer);
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
-
-        glBindBuffer(GL_TEXTURE_BUFFER, 0);
-#endif
     }
 
     FarPatchTables::QuadOffsetTable const &
         quadOffsetTable = patchTables->GetQuadOffsetTable();
 
     if (not quadOffsetTable.empty()) {
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
         GLuint buffer = 0;
         glGenBuffers(1, &buffer);
         glBindBuffer(GL_TEXTURE_BUFFER, buffer);
@@ -349,10 +297,9 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         glBindTexture(GL_TEXTURE_BUFFER, quadOffsetTextureBuffer);
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, buffer);
         glDeleteBuffers(1, &buffer);
-
-        glBindBuffer(GL_TEXTURE_BUFFER, 0);
-#endif
     }
+    glBindBuffer(GL_TEXTURE_BUFFER, 0);
+#endif
 
     return true;
 }

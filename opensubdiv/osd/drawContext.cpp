@@ -56,6 +56,48 @@ namespace OPENSUBDIV_VERSION {
 
 OsdDrawContext::~OsdDrawContext() {}
 
+void
+OsdDrawContext::createPatchArrays(FarPatchTables const * patchTables, int numElements) {
+
+    int maxValence = patchTables->GetMaxValence();
+
+    // create patch arrays for drawing (while duplicating subpatches for transition patch arrays)
+    static int subPatchCounts[] = { 1, 3, 4, 4, 4, 2 }; // number of subpatches for patterns
+
+    FarPatchTables::PatchArrayVector const & srcPatchArrays = patchTables->GetAllPatchArrays();
+
+    int numTotalPatchArrays = 0;
+    for (int i = 0; i < (int)srcPatchArrays.size(); ++i) {
+        FarPatchTables::TransitionPattern pattern = srcPatchArrays[i].GetDescriptor().GetPattern();
+        numTotalPatchArrays += subPatchCounts[(int)pattern];
+    }
+
+    // allocate drawing patch arrays
+    patchArrays.reserve(numTotalPatchArrays);
+    for (int i = 0; i < (int)srcPatchArrays.size(); ++i) {
+        FarPatchTables::TransitionPattern pattern = srcPatchArrays[i].GetDescriptor().GetPattern();
+        int numSubPatches = subPatchCounts[(int)pattern];
+
+        FarPatchTables::PatchArray const &parray = srcPatchArrays[i];
+        FarPatchTables::Descriptor srcDesc = parray.GetDescriptor();
+
+        for (int j = 0; j < numSubPatches; ++j) {
+            FarPatchTables::Descriptor desc(srcDesc.GetType(),
+                                            srcDesc.GetPattern(),
+                                            srcDesc.GetRotation(),
+                                            maxValence,
+                                            j,
+                                            numElements);
+
+            patchArrays.push_back(FarPatchTables::PatchArray(desc,
+                                                             parray.GetVertIndex(),
+                                                             parray.GetPatchIndex(),
+                                                             parray.GetNumPatches(),
+                                                             parray.GetQuadOffsetIndex()));
+        }
+    }
+}
+
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
 
