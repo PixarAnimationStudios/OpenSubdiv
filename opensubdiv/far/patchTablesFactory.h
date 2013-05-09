@@ -122,8 +122,10 @@ private:
     // Number of faces in the Hbr mesh (cached for speed)
     int getNumFaces() const { return _nfaces; }
 
+    // The number of patch arrays in the mesh
     int getNumPatchArrays() const;
 
+    // A convenience container for the different types of feature adaptive patches
     template<class TYPE> struct PatchTypes {
         TYPE R,       // regular patch 
              B[4],    // boundary patch (4 rotations)
@@ -133,40 +135,21 @@ private:
         PatchTypes() { memset(this, 0, sizeof(PatchTypes<TYPE>)); }
         
         // Returns the number of patches based on the patch type in the descriptor
-        TYPE & GetValue( FarPatchTables::Descriptor desc ) {
-            switch (desc.GetType()) {
-                case FarPatchTables::REGULAR          : return R;
-                case FarPatchTables::BOUNDARY         : return B[desc.GetRotation()];
-                case FarPatchTables::CORNER           : return C[desc.GetRotation()];
-                case FarPatchTables::GREGORY          : return G[0];
-                case FarPatchTables::GREGORY_BOUNDARY : return G[1];
-                default : assert(0);
-            }
-            return R;
-        }
+        TYPE & getValue( FarPatchTables::Descriptor desc );
         
         // Counts the number of arrays required to store each type of patch used
         // in the primitive
-        int GetNumPatchArrays() const {
-
-            int result=0;
-
-            if (R) ++result;
-            for (int i=0; i<4; ++i) {
-                if (B[i]) ++result;
-                if (C[i]) ++result;
-                if ((i<2) and G[i]) ++result;
-            }
-            return result;
-        }
+        int getNumPatchArrays() const;
     };
 
-    // Prepare some pointers 
-    typedef PatchTypes<unsigned int*>  IndexPointers;
+    // Useful typedefs 
+    typedef PatchTypes<unsigned int*>  CVPointers;
     typedef PatchTypes<FarPtexCoord *> PtexPointers;
     typedef PatchTypes<float *>        FVarPointers;
     typedef PatchTypes<int>            Counter;
     
+    // Creates a PatchArray and appends it to a vector and keeps track of both
+    // vertex and patch offsets
     void pushPatchArray( FarPatchTables::Descriptor desc,
                          FarPatchTables::PatchArrayVector & parray,
                          Counter & counter,                                 
@@ -494,13 +477,41 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
     }
 }
 
+template <class T> 
+    template <class TYPE> TYPE & 
+FarPatchTablesFactory<T>::PatchTypes<TYPE>::getValue( FarPatchTables::Descriptor desc ) {
+    switch (desc.GetType()) {
+        case FarPatchTables::REGULAR          : return R;
+        case FarPatchTables::BOUNDARY         : return B[desc.GetRotation()];
+        case FarPatchTables::CORNER           : return C[desc.GetRotation()];
+        case FarPatchTables::GREGORY          : return G[0];
+        case FarPatchTables::GREGORY_BOUNDARY : return G[1];
+        default : assert(0);
+    }
+}
+
+template <class T> 
+    template <class TYPE> int
+FarPatchTablesFactory<T>::PatchTypes<TYPE>::getNumPatchArrays() const {
+
+    int result=0;
+
+    if (R) ++result;
+    for (int i=0; i<4; ++i) {
+        if (B[i]) ++result;
+        if (C[i]) ++result;
+        if ((i<2) and G[i]) ++result;
+    }
+    return result;
+}
+
 template <class T> int 
 FarPatchTablesFactory<T>::getNumPatchArrays() const {
 
     int result = 0;
     
     for (int i=0; i<6; ++i)
-        result += _patchCtr[i].GetNumPatchArrays();
+        result += _patchCtr[i].getNumPatchArrays();
         
     return result;
 }
@@ -511,7 +522,7 @@ FarPatchTablesFactory<T>::pushPatchArray( FarPatchTables::Descriptor desc,
                                           FarPatchTablesFactory<T>::Counter & counter, 
                                           int * voffset, int * poffset, int * qoffset ) {
 
-    int npatches = counter.GetValue( desc );
+    int npatches = counter.getValue( desc );
     
     if (npatches>0) {
         parray.push_back( FarPatchTables::PatchArray(desc, *voffset, *poffset, npatches, *qoffset) );
@@ -551,7 +562,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
         npatches = result->GetNumPatches(),
         fvarwidth = getMesh()->GetTotalFVarWidth();
 
-    // Allocate memory for the index tables
+    // Reserve memory for the tables
     result->_patches.resize( nverts );
 
     // Allocate memory for the ptex coord tables
@@ -570,7 +581,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
     FarPatchTables::QuadOffsetTable::value_type *quad_G_C0_P = quad_G_C0.empty() ? 0 : &quad_G_C0[0];
     FarPatchTables::QuadOffsetTable::value_type *quad_G_C1_P = quad_G_C1.empty() ? 0 : &quad_G_C1[0];
 
-    IndexPointers iptrs[6];
+    CVPointers    iptrs[6];
     PtexPointers  pptrs[6];
     FVarPointers  fptrs[6];
 
@@ -581,10 +592,10 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
         if (not pa)
             continue;
 
-        iptrs[(int)pa->GetDescriptor().GetPattern()].GetValue( *it ) = &result->_patches[pa->GetVertIndex()];
-        pptrs[(int)pa->GetDescriptor().GetPattern()].GetValue( *it ) = &result->_ptexTable[pa->GetPatchIndex()];
+        iptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_patches[pa->GetVertIndex()];
+        pptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_ptexTable[pa->GetPatchIndex()];
         if (requireFVarData)
-            fptrs[(int)pa->GetDescriptor().GetPattern()].GetValue( *it ) = &result->_fvarTable[pa->GetPatchIndex() * 4 * fvarwidth];
+            fptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_fvarTable[pa->GetPatchIndex() * 4 * fvarwidth];
     }
  
     // Populate patch index tables with vertex indices

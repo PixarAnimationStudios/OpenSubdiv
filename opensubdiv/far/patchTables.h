@@ -209,15 +209,16 @@ public:
     typedef std::vector<float>         FVarDataTable;
 
     enum Type {
-        NON_PATCH = 0, // undefined
-        
-        QUADS,         // quads-only mesh
-        TRIANGLES,     // triangles-only mesh
-        POLYGONS,      // general polygon mesh
+        NON_PATCH = 0,   // undefined
  
-        LOOP,          // Loop patch  (unsupported)
+        POLYGONS,        // general polygon mesh
+ 
+        QUADS,           // bilinear quads-only patches
+        TRIANGLES,       // bilinear triangles-only mesh
+ 
+        LOOP,            // Loop patch  (unsupported)
 
-        REGULAR,
+        REGULAR,         // feature-adaptive bicubic patches
         BOUNDARY,
         CORNER,
         GREGORY,
@@ -234,6 +235,23 @@ public:
     };
    
     /// \brief Describes the type of a patch
+    ///
+    /// Uniquely identifies all the types of patches in a mesh :
+    ///
+    /// * Raw polygon meshes are identified as POLYGONS and can contain faces
+    ///   with arbitrary number of vertices
+    ///
+    /// * Uniformly subdivided meshes contain bilinear patches of either QUADS
+    ///   or TRIANGLES
+    ///
+    /// * Adaptively subdivided meshes contain bicubic patches of types REGULAR,
+    ///   BOUNDARY, CORNER, GREGORY, GREGORY_BOUNDARY. These bicubic patches are
+    ///   also further distinguished by a transition pattern as well as a rotational
+    ///   orientation.
+    ///
+    /// An iterator class is provided as a convenience to enumerate over the set
+    /// of valid feature adaptive patch descriptors.
+    ///
     class Descriptor {
     
     public:
@@ -268,9 +286,12 @@ public:
             return _rotation;
         }
                 
-        /// Returns the number of control vertices expected for a patch of this type
+        /// Returns the number of control vertices expected for a patch of the
+        /// type described
         static short GetNumControlVertices( Type t );
         
+        /// Returns the number of control vertices expected for a patch of the 
+        /// type described
         short GetNumControlVertices() const {
             return GetNumControlVertices( this->GetType() );
         }
@@ -320,10 +341,12 @@ public:
         /// Descriptor Iterator 
         class iterator;
 
+        /// Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
         static iterator begin() {
             return iterator( Descriptor(REGULAR, NON_TRANSITION, 0) );
         }
 
+        /// Returns an iterator to the end of the list of patch types (NON_PATCH)
         static iterator end() {
             return iterator( Descriptor() );
         }
@@ -343,18 +366,25 @@ public:
     /// \brief Descriptor iterator class 
     class Descriptor::iterator {
         public:
+            /// Constructor
             iterator() {}
 
+            /// Copy Constructor
             iterator(Descriptor desc) : pos(desc) { }
             
+            /// Iteration increment operator
             iterator & operator ++ () { ++pos; return *this; }
             
+            /// True of the two descriptors are identical
             bool operator == ( iterator const & other ) const { return (pos==other.pos); }
 
+            /// True if the two descriptors are different
             bool operator != ( iterator const & other ) const { return not (*this==other); }
             
+            /// Dereferencing operator
             Descriptor * operator -> () { return &pos; }
             
+            /// Dereferencing operator
             Descriptor & operator * () { return pos; }
 
         private:
@@ -365,21 +395,28 @@ public:
     class PatchArray {
     
     public:
+        /// Constructor.
         PatchArray( Descriptor desc, unsigned int vertIndex, unsigned int patchIndex, unsigned int npatches, unsigned int quadOffsetIndex ) :
             _desc(desc), _vertIndex(vertIndex), _patchIndex(patchIndex), _npatches(npatches), _quadOffsetIndex(quadOffsetIndex) { }
-    
+
+        /// Returns a patch descriptor defining the type of patches in the array
         Descriptor GetDescriptor() const {
             return _desc;
         }
         
+        /// Returns the index of the first control vertex of the first patch 
+        /// of this array in the global PTable
         unsigned int GetVertIndex() const { 
             return _vertIndex;
         }
         
+        /// Returns the global index of the first patch in this array (Used to
+        /// access ptex / fvar table data)
         unsigned int GetPatchIndex() const {
             return _patchIndex;
         }
         
+        /// Returns the number of patches in the array
         unsigned int GetNumPatches() const {
             return _npatches;
         }
@@ -391,7 +428,8 @@ public:
     private:
         template <class T> friend class FarPatchTablesFactory;
         
-        Descriptor _desc;
+        Descriptor _desc;              // type of patches in the array
+        
         unsigned int _vertIndex,       // absolute index to the first control vertex of the first patch in the PTable
                      _patchIndex,      // absolute index of the first patch in the array
                      _npatches,        // number of patches in the array
@@ -404,10 +442,11 @@ public:
     PTable const & GetPatchTable() const { return _patches; }
 
     /// Returns a pointer to the array of patches matching the descriptor
-    PatchArray * GetPatchArray( Descriptor desc ) const { 
+    PatchArray const * GetPatchArray( Descriptor desc ) const { 
         return const_cast<FarPatchTables *>(this)->findPatchArray( desc ); 
     }
 
+    /// Returns all arrays of patches
     PatchArrayVector const & GetAllPatchArrays() const {
         return _patchArrays;
     }
@@ -449,6 +488,7 @@ private:
     template <class T> friend class FarPatchTablesFactory;
     template <class T, class U> friend class FarMultiMeshFactory;
 
+    // Returns the array of patches of type "desc", or NULL if there aren't any in the primitive
     PatchArray * findPatchArray( Descriptor desc );
 
     // Private constructor
@@ -457,17 +497,16 @@ private:
     // Vector of descriptors for arrays of patches
     PatchArrayVector _patchArrays;
 
-
     
-    PTable _patches; // Indices of the control vertices of the patches
+    PTable              _patches;            // Indices of the control vertices of the patches
 
-    VertexValenceTable _vertexValenceTable; // vertex valence table (for Gregory patches)
+    VertexValenceTable  _vertexValenceTable; // vertex valence table (for Gregory patches)
     
-    QuadOffsetTable _quadOffsetTable; // quad offsets table (for Gregory patches)
+    QuadOffsetTable     _quadOffsetTable;    // quad offsets table (for Gregory patches)
     
     PtexCoordinateTable _ptexTable;
 
-    FVarDataTable _fvarTable;
+    FVarDataTable       _fvarTable;
 
     // highest vertex valence allowed in the mesh (used for Gregory 
     // vertexValance & quadOffset tables)
