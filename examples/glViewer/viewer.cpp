@@ -906,7 +906,7 @@ enum Effect {
     kPoint = 6,
 };
 
-typedef std::pair<OpenSubdiv::FarPatchTables::Descriptor, Effect> EffectDesc;
+typedef std::pair<OpenSubdiv::OsdDrawContext::PatchDescriptor, Effect> EffectDesc;
 
 class EffectDrawRegistry : public OpenSubdiv::OsdGLDrawRegistry<EffectDesc> {
 
@@ -1075,7 +1075,7 @@ GetEffect()
 
 //------------------------------------------------------------------------------
 static GLuint
-bindProgram(Effect effect, OpenSubdiv::FarPatchTables::PatchArray const & patch)
+bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 {
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
     EffectDrawRegistry::ConfigType *
@@ -1206,7 +1206,7 @@ display() {
     
     glBindVertexArray(g_vao);
 
-    OpenSubdiv::FarPatchTables::PatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
+    OpenSubdiv::OsdDrawContext::PatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
 
     // cv drawing
 /*
@@ -1233,9 +1233,9 @@ display() {
     glBeginQuery(GL_PRIMITIVES_GENERATED, g_primQuery);
 
     for (int i=0; i<(int)patches.size(); ++i) {
-        OpenSubdiv::FarPatchTables::PatchArray const & patch = patches[i];
+        OpenSubdiv::OsdDrawContext::PatchArray const & patch = patches[i];
 
-        OpenSubdiv::FarPatchTables::Descriptor desc = patch.GetDescriptor();
+        OpenSubdiv::OsdDrawContext::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
         int patchPattern = desc.GetPattern();
         int patchRotation = desc.GetRotation();

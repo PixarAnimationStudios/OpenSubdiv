@@ -103,57 +103,52 @@ OsdGLDrawContext::SupportsAdaptiveTessellation()
 }
 
 bool
-OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
-                           GLuint vbo,
-                           int numElements,
-                           bool requireFVarData)
+OsdGLDrawContext::allocateUniform(FarMesh<OsdVertex> *farMesh,
+                                  GLuint vbo,
+                                  int numElements,
+                                  bool requireFVarData)
 {
-    FarPatchTables const * patchTables = farMesh->GetPatchTables();
 
-    if (not patchTables) {
-        // uniform patches
-        _isAdaptive = false;
+    // XXX: farmesh should have FarDensePatchTable for dense mesh indices.
+    //      instead of GetFaceVertices().
+    const FarSubdivisionTables<OsdVertex> *tables = farMesh->GetSubdivisionTables();
+    int level = tables->GetMaxLevel();
+    const std::vector<int> &indices = farMesh->GetFaceVertices(level-1);
 
-        // XXX: farmesh should have FarDensePatchTable for dense mesh indices.
-        //      instead of GetFaceVertices().
-        const FarSubdivisionTables<OsdVertex> *tables = farMesh->GetSubdivisionTables();
-        int level = tables->GetMaxLevel();
-        const std::vector<int> &indices = farMesh->GetFaceVertices(level-1);
+    int numIndices = (int)indices.size();
 
-        int numIndices = (int)indices.size();
-
-        // Allocate and fill index buffer.
-        glGenBuffers(1, &patchIndexBuffer);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchIndexBuffer);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                     numIndices * sizeof(unsigned int), &(indices[0]), GL_STATIC_DRAW);
+    // Allocate and fill index buffer.
+    glGenBuffers(1, &patchIndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchIndexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                 numIndices * sizeof(unsigned int), &(indices[0]), GL_STATIC_DRAW);
 
 #if defined(GL_ES_VERSION_2_0)
-        // OpenGLES 2 supports only triangle topologies for filled
-        // primitives i.e. not QUADS or PATCHES or LINES_ADJACENCY
-        // For the convenience of clients build build a triangles
-        // index buffer by splitting quads.
-        int numQuads = indices.size() / 4;
-        int numTrisIndices = numQuads * 6;
+    // OpenGLES 2 supports only triangle topologies for filled
+    // primitives i.e. not QUADS or PATCHES or LINES_ADJACENCY
+    // For the convenience of clients build build a triangles
+    // index buffer by splitting quads.
+    int numQuads = indices.size() / 4;
+    int numTrisIndices = numQuads * 6;
 
-        std::vector<short> trisIndices;
-        trisIndices.reserve(numTrisIndices);
-        for (int i=0; i<numQuads; ++i) {
-            const int * quad = &indices[i*4];
-            trisIndices.push_back(short(quad[0]));
-            trisIndices.push_back(short(quad[1]));
-            trisIndices.push_back(short(quad[2]));
+    std::vector<short> trisIndices;
+    trisIndices.reserve(numTrisIndices);
+    for (int i=0; i<numQuads; ++i) {
+        const int * quad = &indices[i*4];
+        trisIndices.push_back(short(quad[0]));
+        trisIndices.push_back(short(quad[1]));
+        trisIndices.push_back(short(quad[2]));
 
-            trisIndices.push_back(short(quad[2]));
-            trisIndices.push_back(short(quad[3]));
-            trisIndices.push_back(short(quad[0]));
-        }
+        trisIndices.push_back(short(quad[2]));
+        trisIndices.push_back(short(quad[3]));
+        trisIndices.push_back(short(quad[0]));
+    }
 
-        // Allocate and fill triangles index buffer.
-        glGenBuffers(1, &patchTrianglesIndexBuffer);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchTrianglesIndexBuffer);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                     numTrisIndices * sizeof(short), &(trisIndices[0]), GL_STATIC_DRAW);
+    // Allocate and fill triangles index buffer.
+    glGenBuffers(1, &patchTrianglesIndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchTrianglesIndexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                 numTrisIndices * sizeof(short), &(trisIndices[0]), GL_STATIC_DRAW);
 #endif
 
 /*
@@ -166,47 +161,62 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         patchArrays.push_back(array);
 */
 
-        // Allocate ptex coordinate buffer
+    // Allocate ptex coordinate buffer
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-        GLuint ptexCoordinateBuffer = 0;
-        glGenTextures(1, &ptexCoordinateTextureBuffer);
-        glGenBuffers(1, &ptexCoordinateBuffer);
-        glBindBuffer(GL_TEXTURE_BUFFER, ptexCoordinateBuffer);
+    GLuint ptexCoordinateBuffer = 0;
+    glGenTextures(1, &ptexCoordinateTextureBuffer);
+    glGenBuffers(1, &ptexCoordinateBuffer);
+    glBindBuffer(GL_TEXTURE_BUFFER, ptexCoordinateBuffer);
 
-        const std::vector<FarPtexCoord> &ptexCoordinates =
-            farMesh->GetPtexCoordinates(level-1);
-        int size = (int)ptexCoordinates.size() * sizeof(FarPtexCoord);
+    const std::vector<FarPtexCoord> &ptexCoordinates =
+        farMesh->GetPtexCoordinates(level-1);
+    int size = (int)ptexCoordinates.size() * sizeof(FarPtexCoord);
 
-        glBufferData(GL_TEXTURE_BUFFER, size, &(ptexCoordinates[0]), GL_STATIC_DRAW);
+    glBufferData(GL_TEXTURE_BUFFER, size, &(ptexCoordinates[0]), GL_STATIC_DRAW);
         
-        glBindTexture(GL_TEXTURE_BUFFER, ptexCoordinateTextureBuffer);
-        glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, ptexCoordinateBuffer);
-        glBindTexture(GL_TEXTURE_BUFFER, 0);
-        glDeleteBuffers(1, &ptexCoordinateBuffer);
+    glBindTexture(GL_TEXTURE_BUFFER, ptexCoordinateTextureBuffer);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, ptexCoordinateBuffer);
+    glBindTexture(GL_TEXTURE_BUFFER, 0);
+    glDeleteBuffers(1, &ptexCoordinateBuffer);
 
 #endif
 
-        // Allocate fvar data buffer if requested (for non-adaptive)
-        if (requireFVarData) {
+    // Allocate fvar data buffer if requested (for non-adaptive)
+    if (requireFVarData) {
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-            GLuint fvarDataBuffer = 0;
-            glGenTextures(1, &fvarDataTextureBuffer);
-            glGenBuffers(1, &fvarDataBuffer);
-            glBindBuffer(GL_TEXTURE_BUFFER, fvarDataBuffer);
+        GLuint fvarDataBuffer = 0;
+        glGenTextures(1, &fvarDataTextureBuffer);
+        glGenBuffers(1, &fvarDataBuffer);
+        glBindBuffer(GL_TEXTURE_BUFFER, fvarDataBuffer);
 
-            const std::vector<float> &fvarData = farMesh->GetFVarData(level-1);
-            int size = (int)fvarData.size() * sizeof(float);
+        const std::vector<float> &fvarData = farMesh->GetFVarData(level-1);
+        int size = (int)fvarData.size() * sizeof(float);
 
-            glBufferData(GL_TEXTURE_BUFFER, size, &(fvarData[0]), GL_STATIC_DRAW);
+        glBufferData(GL_TEXTURE_BUFFER, size, &(fvarData[0]), GL_STATIC_DRAW);
 
-            glBindTexture(GL_TEXTURE_BUFFER, fvarDataTextureBuffer);
-            glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, fvarDataBuffer);
-            glDeleteBuffers(1, &fvarDataBuffer);
-            glBindTexture(GL_TEXTURE_BUFFER, 0);
+        glBindTexture(GL_TEXTURE_BUFFER, fvarDataTextureBuffer);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, fvarDataBuffer);
+        glDeleteBuffers(1, &fvarDataBuffer);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
 #endif
-        }
+    }
 
-        return true;
+    return true;
+}
+bool
+OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
+                           GLuint vbo,
+                           int numElements,
+                           bool requireFVarData)
+{
+    FarPatchTables const * patchTables = farMesh->GetPatchTables();
+
+    if (not patchTables) {
+        // uniform patches
+        _isAdaptive = false;
+
+        // XXX: this function will be retired once uniform patches are integrated into patcharray.
+        return allocateUniform(farMesh, vbo, numElements, requireFVarData);
     }
 
     // adaptive patches
@@ -303,6 +313,8 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
 
     return true;
 }
+
+
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

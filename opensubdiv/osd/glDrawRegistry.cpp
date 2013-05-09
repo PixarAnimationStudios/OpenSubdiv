@@ -105,7 +105,7 @@ static const char *transitionShaderSource =
 OsdGLDrawRegistryBase::~OsdGLDrawRegistryBase() {}
 
 OsdGLDrawSourceConfig *
-OsdGLDrawRegistryBase::_CreateDrawSourceConfig(FarPatchTables::Descriptor const & desc)
+OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdDrawContext::PatchDescriptor const & desc)
 {
     OsdGLDrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
@@ -293,7 +293,7 @@ _CompileShader(
 
 OsdGLDrawConfig *
 OsdGLDrawRegistryBase::_CreateDrawConfig(
-        FarPatchTables::Descriptor const & desc,
+        OsdDrawContext::PatchDescriptor const & desc,
         OsdGLDrawSourceConfig const * sconfig) 
 {
     assert(sconfig);

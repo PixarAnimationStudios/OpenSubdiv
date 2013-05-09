@@ -124,6 +124,10 @@ private:
     bool allocate(FarMesh<OsdVertex> *farMesh,
                   GLuint vbo, int numElements,
                   bool requireFVarData);
+
+    bool allocateUniform(FarMesh<OsdVertex> *farMesh,
+                         GLuint vbo, int numElements,
+                         bool requireFVarData);
 };
 
 } // end namespace OPENSUBDIV_VERSION

@@ -69,12 +69,111 @@ namespace OPENSUBDIV_VERSION {
 
 class OsdDrawContext {
 public:
+    class PatchDescriptor {
+    public:
+        PatchDescriptor(FarPatchTables::Descriptor farDesc, unsigned char maxValence,
+                    unsigned char subPatch, unsigned char numElements) :
+            _farDesc(farDesc), _maxValence(maxValence), _subPatch(subPatch), _numElements(numElements) { }
+
+
+        /// Returns the type of the patch
+        FarPatchTables::Type GetType() const {
+            return _farDesc.GetType();
+        }
+
+        /// Returns the transition pattern of the patch if any (5 types)
+        FarPatchTables::TransitionPattern GetPattern() const {
+            return _farDesc.GetPattern();
+        }
+
+        /// Returns the rotation of the patch (4 rotations)
+        unsigned char GetRotation() const {
+            return _farDesc.GetRotation();
+        }
+
+        /// Returns the number of control vertices expected for a patch of the
+        /// type described
+        int GetNumControlVertices() const {
+            return _farDesc.GetNumControlVertices();
+        }
+
+        /// Returns the max valence
+        int GetMaxValence() const {
+            return _maxValence;
+        }
+
+        /// Returns the subpatch id
+        int GetSubPatch() const {
+            return _subPatch;
+        }
+
+        /// Returns the number of vertex elements
+        int GetNumElements() const {
+            return _numElements;
+        }
+
+        /// Allows ordering of patches by type
+        bool operator < ( PatchDescriptor const other ) const;
+
+        /// True if the descriptors are identical
+        bool operator == ( PatchDescriptor const other ) const;
+
+    private:
+        FarPatchTables::Descriptor _farDesc;
+        unsigned char _maxValence;
+        unsigned char _subPatch;
+        unsigned char _numElements;
+    };
+
+    class PatchArray {
+    public:
+        PatchArray(PatchDescriptor desc, FarPatchTables::PatchArray::ArrayRange const & range) :
+            _desc(desc), _range(range) { }
+
+        /// Returns a patch descriptor defining the type of patches in the array
+        PatchDescriptor GetDescriptor() const {
+            return _desc;
+        }
+
+        /// Returns a array range struct
+        FarPatchTables::PatchArray::ArrayRange const & GetArrayRange() const {
+            return _range;
+        }
+
+        /// Returns the index of the first control vertex of the first patch
+        /// of this array in the global PTable
+        unsigned int GetVertIndex() const {
+            return _range.vertIndex;
+        }
+
+        /// Returns the global index of the first patch in this array (Used to
+        /// access ptex / fvar table data)
+        unsigned int GetPatchIndex() const {
+            return _range.patchIndex;
+        }
+
+        /// Returns the number of patches in the array
+        unsigned int GetNumPatches() const {
+            return _range.npatches;
+        }
+
+        unsigned int GetQuadOffsetIndex() const {
+            return _range.quadOffsetIndex;
+        }
+
+    private:
+        PatchDescriptor _desc;
+        FarPatchTables::PatchArray::ArrayRange _range;
+    };
+
+    typedef std::vector<PatchArray> PatchArrayVector;
+
     OsdDrawContext() : _isAdaptive(false) {}
     virtual ~OsdDrawContext();
 
     bool IsAdaptive() const { return _isAdaptive; }
 
-    FarPatchTables::PatchArrayVector patchArrays;
+    PatchArrayVector patchArrays;
 
 protected:
     void createPatchArrays(FarPatchTables const * patchTables, int numElements);

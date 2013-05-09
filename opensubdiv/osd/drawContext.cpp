@@ -56,6 +56,25 @@ namespace OPENSUBDIV_VERSION {
 
 OsdDrawContext::~OsdDrawContext() {}
 
+// Allows ordering of patches by type
+bool
+OsdDrawContext::PatchDescriptor::operator < ( PatchDescriptor const other ) const {
+
+    return _farDesc < other._farDesc or (_farDesc == other._farDesc and
+          (_subPatch < other._subPatch or ((_subPatch == other._subPatch) and
+          (_maxValence < other._maxValence or ((_maxValence == other._maxValence) and
+          (_numElements < other._numElements))))));
+}
+
+// True if the descriptors are identical
+bool
+OsdDrawContext::PatchDescriptor::operator == ( PatchDescriptor const other ) const {
+    return _farDesc == other._farDesc and
+           _subPatch == other._subPatch and
+           _maxValence == other._maxValence and
+           _numElements == other._numElements;
+}
+
 void
 OsdDrawContext::createPatchArrays(FarPatchTables const * patchTables, int numElements) {
 
@@ -82,18 +101,9 @@ OsdDrawContext::createPatchArrays(FarPatchTables const * patchTables, int numEle
         FarPatchTables::Descriptor srcDesc = parray.GetDescriptor();
 
         for (int j = 0; j < numSubPatches; ++j) {
-            FarPatchTables::Descriptor desc(srcDesc.GetType(),
-                                            srcDesc.GetPattern(),
-                                            srcDesc.GetRotation(),
-                                            maxValence,
-                                            j,
-                                            numElements);
+            PatchDescriptor desc(srcDesc, maxValence, j, numElements);
 
-            patchArrays.push_back(FarPatchTables::PatchArray(desc,
-                                                             parray.GetVertIndex(),
-                                                             parray.GetPatchIndex(),
-                                                             parray.GetNumPatches(),
-                                                             parray.GetQuadOffsetIndex()));
+            patchArrays.push_back(PatchArray(desc, parray.GetArrayRange()));
         }
     }
 }
