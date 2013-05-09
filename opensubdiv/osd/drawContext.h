@@ -157,6 +157,11 @@ public:
             return _range.npatches;
         }
 
+        /// Returns the number of patch indices in the array
+        unsigned int GetNumIndices() const {
+            return _range.npatches * _desc.GetNumControlVertices();
+        }
+
         unsigned int GetQuadOffsetIndex() const {
             return _range.quadOffsetIndex;
         }

@@ -1226,7 +1226,7 @@ display() {
 */
 
     // patch drawing
-    int patchCount[10][5][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
+    int patchCount[10][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
     memset(patchCount, 0, sizeof(patchCount));
 
     // primitive counting
@@ -1329,9 +1329,7 @@ display() {
             glDisable(GL_CULL_FACE);
         }
 
-        int numIndices = patch.GetNumPatches() * patch.GetDescriptor().GetNumControlVertices();
-
-        glDrawElements(primType, numIndices, GL_UNSIGNED_INT,
+        glDrawElements(primType, patch.GetNumIndices(), GL_UNSIGNED_INT,
                        (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
         if (g_wire == 0) {
             glEnable(GL_CULL_FACE);
