@@ -149,7 +149,7 @@ public:
     typedef OsdUtilMeshBatchBase<DRAW_CONTEXT> Base;
     
     // XXX: not happy with retaining compute controller..
-    OsdUtilMeshBatch(COMPUTE_CONTROLLER *computeController,
+    OsdUtilMeshBatch(ComputeController *computeController,
                      const std::vector<FarMesh<OsdVertex> const * > &meshVector, int batchIndex);
 
     virtual ~OsdUtilMeshBatch();
@@ -190,8 +190,6 @@ private:
     VertexBuffer *_vertexBuffer, *_varyingBuffer;
     DrawContext *_drawContext;
 };
-
-//typedef std::vector<OsdUtilMeshBatch*> OsdUtilMeshBatchPtrVector;
 
 // -----------------------------------------------------------------------------
 template <typename DRAW_CONTEXT>
@@ -294,7 +292,7 @@ OsdUtilMeshBatchBase<DRAW_CONTEXT>::GetPatchArrays(const OsdUtilMeshHandle &mesh
 // -----------------------------------------------------------------------------
 template <typename VERTEX_BUFFER, typename DRAW_CONTEXT, typename COMPUTE_CONTROLLER>
 OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>::
-    OsdUtilMeshBatch(COMPUTE_CONTROLLER *computeController,
+    OsdUtilMeshBatch(ComputeController *computeController,
                      const std::vector<FarMesh<OsdVertex> const * > &meshVector, int batchIndex) :
          OsdUtilMeshBatchBase<DRAW_CONTEXT>(meshVector, batchIndex),
              _computeController(computeController),

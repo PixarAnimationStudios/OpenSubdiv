@@ -131,6 +131,7 @@
 #include <far/meshFactory.h>
 
 #include <osd_util/batch.h>
+#include <osd_util/batch_cl.h>
 #include <osd_util/drawItem.h>
 #include <osd_util/drawController.h>
 #include "delegate.h"
@@ -290,7 +291,7 @@ int g_screenSpaceTess = 1;
 int g_kernel = kCPU;
 #define MAX_MODELS 600
 int g_modelCount = 4;
-int g_moveModels = 0;
+int g_moveModels = 4;
 
 GLuint g_queries[2] = {0, 0};
 
@@ -354,12 +355,18 @@ updateGeom(bool forceAll) {
     g_cpuTime = float(s.GetElapsed() * 1000.0f);
     s.Start();
 
-    Controller<OpenSubdiv::OsdCpuComputeController>::GetInstance()->Synchronize();
+    if (g_kernel == kCPU) Controller<OpenSubdiv::OsdCpuComputeController>::GetInstance()->Synchronize();
+#ifdef OPENSUBDIV_HAS_OPENMP
+    else if (g_kernel == kOPENMP) Controller<OpenSubdiv::OsdOmpComputeController>::GetInstance()->Synchronize();
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+    else if (g_kernel == kCL) Controller<OpenSubdiv::OsdCLComputeController>::GetInstance()->Synchronize();
+#endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    Controller<OpenSubdiv::OsdCudaComputeController>::GetInstance()->Synchronize();
+    else if (g_kernel == kCUDA) Controller<OpenSubdiv::OsdCudaComputeController>::GetInstance()->Synchronize();
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    Controller<OpenSubdiv::OsdGLSLTransformFeedbackComputeController>::GetInstance()->Synchronize();
+    else if (g_kernel == kGLSL) Controller<OpenSubdiv::OsdGLSLTransformFeedbackComputeController>::GetInstance()->Synchronize();
 #endif
 
     s.Stop();
@@ -439,12 +446,28 @@ rebuild()
     g_batch = NULL;
 
     // create multimesh batch
-    if (g_kernel == kCPU || g_kernel == kOPENMP) {
+    if (g_kernel == kCPU) {
         g_batch = new OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
                                                    MyDrawContext,
                                                    OpenSubdiv::OsdCpuComputeController>(
             Controller<OpenSubdiv::OsdCpuComputeController>::GetInstance(),
             farMeshes, 0);
+#ifdef OPENSUBDIV_HAS_OPENMP
+    } else if (g_kernel == kOPENMP) {
+        g_batch = new OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
+                                                   MyDrawContext,
+                                                   OpenSubdiv::OsdOmpComputeController>(
+            Controller<OpenSubdiv::OsdOmpComputeController>::GetInstance(),
+            farMeshes, 0);
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+    } else if (g_kernel == kCL) {
+        g_batch = new OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCLGLVertexBuffer,
+                                                   MyDrawContext,
+                                                   OpenSubdiv::OsdCLComputeController>(
+            Controller<OpenSubdiv::OsdCLComputeController>::GetInstance(),
+            farMeshes, 0);
+#endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
         g_batch = new OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCudaGLVertexBuffer,
@@ -595,6 +618,7 @@ display() {
     }
 
     checkGLErrors("display leave");
+    glFinish();
 }
 
 //------------------------------------------------------------------------------
