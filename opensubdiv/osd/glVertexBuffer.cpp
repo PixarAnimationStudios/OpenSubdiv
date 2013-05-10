@@ -103,7 +103,7 @@ OsdGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices
 
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
     int size = numVertices * _numElements * sizeof(float);
-    glBufferSubData(GL_ARRAY_BUFFER, startVertex * _numElements, size, src);
+    glBufferSubData(GL_ARRAY_BUFFER, startVertex * _numElements * sizeof(float), size, src);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
