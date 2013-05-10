@@ -373,7 +373,43 @@ public:
     class PatchArray {
     
     public:
+        /// Constructor.
+        ///
+        /// @param vertIndex        absolute index to the first control vertex
+        ///                         of the first patch in the PTable
+        ///
+        /// @param patchIndex       absolute index of the first patch in the 
+        ///                         array
+        ///
+        /// @param npatches         number of patches in the array
+        ///
+        /// @param quadOffsetIndex  absolute index of the first quad offset
+        ///                         entry
+        ///
+        PatchArray( Descriptor desc, unsigned int vertIndex, unsigned int patchIndex, unsigned int npatches, unsigned int quadOffsetIndex ) :
+            _desc(desc), _range(vertIndex, patchIndex, npatches, quadOffsetIndex) { }
+
+        /// Returns a patch descriptor defining the type of patches in the array
+        Descriptor GetDescriptor() const {
+            return _desc;
+        }
+
+        /// \brief Describes the range of patches in a PatchArray
         struct ArrayRange {
+        
+            /// Constructor
+            ///
+            /// @param vertIndex        absolute index to the first control vertex
+            ///                         of the first patch in the PTable
+            ///
+            /// @param patchIndex       absolute index of the first patch in the 
+            ///                         array
+            ///
+            /// @param npatches         number of patches in the array
+            ///
+            /// @param quadOffsetIndex  absolute index of the first quad offset
+            ///                         entry
+            ///
             ArrayRange( unsigned int vertIndex, unsigned int patchIndex, unsigned int npatches, unsigned int quadOffsetIndex ) :
                 vertIndex(vertIndex), patchIndex(patchIndex), npatches(npatches), quadOffsetIndex(quadOffsetIndex) { }
 
@@ -382,15 +418,6 @@ public:
                          npatches,        // number of patches in the array
                          quadOffsetIndex; // absolute index of the first quad offset entry
         };
-
-        /// Constructor.
-        PatchArray( Descriptor desc, unsigned int vertIndex, unsigned int patchIndex, unsigned int npatches, unsigned int quadOffsetIndex ) :
-            _desc(desc), _range(vertIndex, patchIndex, npatches, quadOffsetIndex) { }
-
-        /// Returns a patch descriptor defining the type of patches in the array
-        Descriptor GetDescriptor() const {
-            return _desc;
-        }
 
         /// Returns a array range struct
         ArrayRange const & GetArrayRange() const {
