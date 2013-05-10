@@ -54,19 +54,34 @@
 #     exclude the implied warranties of merchantability, fitness for
 #     a particular purpose and non-infringement.
 #
+#
 
-if(OPENGL_FOUND OR OPENCL_FOUND OR DXSDK_FOUND OR CUDA_FOUND)
-    add_subdirectory(tools/stringify)
+#-------------------------------------------------------------------------------
+include_directories(
+    ${PROJECT_SOURCE_DIR}/opensubdiv
+)
+
+#-------------------------------------------------------------------------------
+# source & headers
+
+set(PUBLIC_HEADER_FILES
+    batch.h
+    meshHandle.h
+    drawItem.h
+    drawController.h
+)
+
+#-------------------------------------------------------------------------------
+# platform dependent tweaks
+
+install( FILES ${PUBLIC_HEADER_FILES}
+         DESTINATION include/osd_util
+         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+
+if (ANDROID)
+    install( FILES Android.mk 
+             DESTINATION ${LIBRARY_OUTPUT_PATH_ROOT}
+             PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
 endif()
 
-add_subdirectory(hbr)
-
-add_subdirectory(far)
-
-add_subdirectory(osd)
-
-add_subdirectory(osd_util)
-
-install( FILES version.h
-         DESTINATION include/
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+#-------------------------------------------------------------------------------
