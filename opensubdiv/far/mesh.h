@@ -123,6 +123,9 @@ public:
     /// Returns the total number of vertices in the mesh across across all depths
     int GetNumVertices() const { return (int)(_vertices.size()); }
 
+    /// Returns the total number of vertices in the mesh across across all depths
+    int GetNumPtexFaces() const { return _numPtexFaces; }
+
     /// True if the mesh tables support the feature-adaptive mode.
     bool SupportsFeatureAdaptive() const { return _patchTables!=NULL; }
 
@@ -167,6 +170,8 @@ private:
     // fvar data for each face
     std::vector< std::vector<float> > _fvarData;
     int _totalFVarWidth;    // from hbrMesh
+
+    int _numPtexFaces;
 };
 
 template <class U>

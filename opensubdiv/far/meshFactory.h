@@ -238,7 +238,8 @@ private:
         _numVertices,
         _numCoarseVertices,
         _numFaces,
-        _maxValence;
+        _maxValence,
+        _numPtexFaces;
 
     // remapping table to translate vertex ID's between Hbr indices and the
     // order of the same vertices in the tables
@@ -597,9 +598,11 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adapt
     _numCoarseVertices(-1),
     _numFaces(-1),
     _maxValence(4),
+    _numPtexFaces(-1),
     _facesList(maxlevel+1)
 {
     _numCoarseVertices = mesh->GetNumVertices();
+    _numPtexFaces = getNumPtexFaces(mesh);
     
     // Subdivide the Hbr mesh up to maxlevel.
     //
@@ -754,6 +757,19 @@ FarMeshFactory<T,U>::generatePtexCoordinates( std::vector<FarPtexCoord> & vec, i
     }
 }
 
+template <class T> int
+getNumPtexFaces(HbrMesh<T> const * hmesh) {
+
+    HbrFace<T> * lastface = hmesh->GetFace(hmesh->GetNumFaces()-1);
+    assert(lastface);
+
+    int result = lastface->GetPtexIndex();
+
+    result += (hmesh->GetSubdivision()->FaceIsExtraordinary(hmesh, lastface) ?
+                  lastface->GetNumVertices() : 1);
+
+    return result;
+}
 
 template <class T> float *
 computeFVarData(HbrFace<T> const *f, const int width, float *coord, bool isAdaptive) {
@@ -883,6 +899,8 @@ FarMeshFactory<T,U>::Create( bool requireFVarData ) {
                 generateFVarData(result->_fvarData[l], l);
         }
     }
+
+    result->_numPtexFaces = _numPtexFaces;
     
     // Create VertexEditTables if necessary
     if (GetHbrMesh()->HasVertexEdits()) {

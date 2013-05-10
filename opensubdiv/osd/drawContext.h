@@ -112,6 +112,11 @@ public:
             return _numElements;
         }
 
+        /// Set the number of vertex elements
+        void SetNumElements(int numElements) {
+            _numElements = numElements;
+        }
+
         /// Allows ordering of patches by type
         bool operator < ( PatchDescriptor const other ) const;
 
@@ -133,6 +138,11 @@ public:
         /// Returns a patch descriptor defining the type of patches in the array
         PatchDescriptor GetDescriptor() const {
             return _desc;
+        }
+
+        /// Update a patch descriptor
+        void SetDescriptor(PatchDescriptor desc) {
+            _desc = desc;
         }
 
         /// Returns a array range struct
@@ -162,8 +172,14 @@ public:
             return _range.npatches * _desc.GetNumControlVertices();
         }
 
+        /// Returns the offset of quad offset table
         unsigned int GetQuadOffsetIndex() const {
             return _range.quadOffsetIndex;
+        }
+
+        /// Set num patches (used at batch glomming)
+        void SetNumPatches(int npatches) {
+            _range.npatches = npatches;
         }
 
     private:
@@ -178,6 +194,11 @@ public:
 
     bool IsAdaptive() const { return _isAdaptive; }
 
+    static void ConvertPatchArrays(FarPatchTables::PatchArrayVector const &farPatchArrays,
+                                   OsdDrawContext::PatchArrayVector &osdPatchArrays,
+                                   int maxValence, int numElements);
+
+public:  // XXX: move to private member
     PatchArrayVector patchArrays;
 
 protected:

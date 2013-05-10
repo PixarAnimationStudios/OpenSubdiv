@@ -222,7 +222,7 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     // adaptive patches
     _isAdaptive = true;
 
-    createPatchArrays(patchTables, numElements);
+    ConvertPatchArrays(patchTables->GetAllPatchArrays(), patchArrays, patchTables->GetMaxValence(), numElements);
 
     FarPatchTables::PTable const & ptables = patchTables->GetPatchTable();
 

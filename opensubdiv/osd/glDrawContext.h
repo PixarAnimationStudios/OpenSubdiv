@@ -120,7 +120,7 @@ public:
     /// true if the GL version detected supports shader tessellation
     static bool SupportsAdaptiveTessellation();
 
-private:
+protected:
     bool allocate(FarMesh<OsdVertex> *farMesh,
                   GLuint vbo, int numElements,
                   bool requireFVarData);
