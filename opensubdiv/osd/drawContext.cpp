@@ -56,26 +56,6 @@ namespace OPENSUBDIV_VERSION {
 
 OsdDrawContext::~OsdDrawContext() {}
 
-// Allows ordering of patches by type
-bool
-OsdDrawContext::PatchDescriptor::operator < ( PatchDescriptor const other ) const
-{
-    return _farDesc < other._farDesc or (_farDesc == other._farDesc and
-          (_subPatch < other._subPatch or ((_subPatch == other._subPatch) and
-          (_maxValence < other._maxValence or ((_maxValence == other._maxValence) and
-          (_numElements < other._numElements))))));
-}
-
-// True if the descriptors are identical
-bool
-OsdDrawContext::PatchDescriptor::operator == ( PatchDescriptor const other ) const
-{
-    return _farDesc == other._farDesc and
-           _subPatch == other._subPatch and
-           _maxValence == other._maxValence and
-           _numElements == other._numElements;
-}
-
 void
 OsdDrawContext::ConvertPatchArrays(FarPatchTables::PatchArrayVector const &farPatchArrays,
                                    OsdDrawContext::PatchArrayVector &osdPatchArrays,
