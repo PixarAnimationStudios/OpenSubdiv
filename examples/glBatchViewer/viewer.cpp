@@ -457,7 +457,7 @@ rebuild()
     } else if (g_kernel == kGLSL) {
         g_batch = new OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdGLVertexBuffer,
                                                    MyDrawContext,
-                                                   OpenSubdiv:OsdGLSLTransformFeedbackComputeController>(
+                                                   OpenSubdiv::OsdGLSLTransformFeedbackComputeController>(
             Controller<OpenSubdiv::OsdGLSLTransformFeedbackComputeController>::GetInstance(),
             farMeshes, 0);
 #endif
