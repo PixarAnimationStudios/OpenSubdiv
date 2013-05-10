@@ -80,10 +80,15 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 struct OsdGLDrawConfig : public OsdDrawConfig {
-    OsdGLDrawConfig() : program(0) {}
+    OsdGLDrawConfig() :
+        program(0),
+        levelBaseUniform(-1),
+        gregoryQuadOffsetBaseUniform(-1) {}
     virtual ~OsdGLDrawConfig();
 
     GLuint program;
+    GLint levelBaseUniform;
+    GLint gregoryQuadOffsetBaseUniform;
 };
 
 struct OsdGLDrawSourceConfig : public OsdDrawSourceConfig {
@@ -128,7 +133,6 @@ public:
     typedef SOURCE_CONFIG_TYPE SourceConfigType;
 
     typedef std::map<DescType, ConfigType *> ConfigMap;
-    typedef std::map<DescType, SourceConfigType *> SourceConfigMap;
 
 public:
     virtual ~OsdGLDrawRegistry() {
@@ -141,11 +145,6 @@ public:
             delete i->second;
         }
         _configMap.clear();
-        for (typename SourceConfigMap::iterator
-                i = _sourceConfigMap.begin(); i != _sourceConfigMap.end(); ++i) {
-            delete i->second;
-        }
-        _sourceConfigMap.clear();
     }
 
     // fetch shader config
@@ -156,22 +155,9 @@ public:
             return it->second;
         } else {
             ConfigType * config =
-                _CreateDrawConfig(desc, GetDrawSourceConfig(desc));
+                _CreateDrawConfig(desc, _CreateDrawSourceConfig(desc));
             _configMap[desc] = config;
             return config;
-        }
-    }
-
-    // fetch text and related defines for patch descriptor
-    SourceConfigType *
-    GetDrawSourceConfig(DescType const & desc) {
-        typename SourceConfigMap::iterator it = _sourceConfigMap.find(desc);
-        if (it != _sourceConfigMap.end()) {
-            return it->second;
-        } else {
-            SourceConfigType * sconfig = _CreateDrawSourceConfig(desc);
-            _sourceConfigMap[desc] = sconfig;
-            return sconfig;
         }
     }
 
@@ -187,7 +173,6 @@ protected:
 
 private:
     ConfigMap _configMap;
-    SourceConfigMap _sourceConfigMap;
 };
 
 } // end namespace OPENSUBDIV_VERSION
