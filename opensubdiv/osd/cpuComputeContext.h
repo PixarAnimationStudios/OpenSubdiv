@@ -131,7 +131,7 @@ public:
     ///
     /// @param farmesh the FarMesh used for this Context.
     ///
-    static OsdCpuComputeContext * Create(FarMesh<OsdVertex> *farmesh);
+    static OsdCpuComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
 
     /// Destructor
     virtual ~OsdCpuComputeContext();
@@ -192,7 +192,7 @@ public:
     float * GetCurrentVaryingBuffer() const;
 
 protected:
-    explicit OsdCpuComputeContext(FarMesh<OsdVertex> *farMesh);
+    explicit OsdCpuComputeContext(FarMesh<OsdVertex> const *farMesh);
 
 private:
     std::vector<OsdCpuTable*> _tables;

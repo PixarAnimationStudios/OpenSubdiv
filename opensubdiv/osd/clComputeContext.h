@@ -136,7 +136,7 @@ public:
     ///
     /// @param farmesh the FarMesh used for this Context.
     ///
-    static OsdCLComputeContext * Create(FarMesh<OsdVertex> *farmesh,
+    static OsdCLComputeContext * Create(FarMesh<OsdVertex> const *farmesh,
                                         cl_context clContext);
 
     /// Destructor
@@ -197,7 +197,7 @@ public:
     void SetCommandQueue(cl_command_queue queue);
 
 protected:
-    explicit OsdCLComputeContext(FarMesh<OsdVertex> *farMesh,
+    explicit OsdCLComputeContext(FarMesh<OsdVertex> const *farMesh,
                                  cl_context clContext);
 
 private:

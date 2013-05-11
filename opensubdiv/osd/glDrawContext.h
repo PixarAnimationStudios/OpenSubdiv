@@ -83,25 +83,22 @@ class OsdGLDrawContext : public OsdDrawContext {
 public:
     typedef GLuint VertexBufferBinding;
 
-    OsdGLDrawContext();
     virtual ~OsdGLDrawContext();
 
+    /// Create a OsdGLDraContext from FarMesh
+    ///
+    static OsdGLDrawContext *Create(FarMesh<OsdVertex> const *farMesh,
+                                    bool requireFVarData=false);
+
+    /// Create a OsdGLDraContext from FarPatchTables
+    ///
+    static OsdGLDrawContext *Create(FarPatchTables const *patchTables,
+                                    bool requireFVarData=false);
+
+    /// Set vbo as a vertex texture (for gregory patch drawing)
     template<class VERTEX_BUFFER>
-    static OsdGLDrawContext *
-    Create(FarMesh<OsdVertex> *farMesh,
-           VERTEX_BUFFER *vertexBuffer,
-           bool requireFVarData=false) {
-
-        if (not vertexBuffer) 
-            return NULL;
-
-        OsdGLDrawContext * instance = new OsdGLDrawContext();
-        if (instance->allocate(farMesh,
-                               vertexBuffer->BindVBO(),
-                               vertexBuffer->GetNumElements(),
-                               requireFVarData)) return instance;
-        delete instance;
-        return NULL;
+    void UpdateVertexTexture(VERTEX_BUFFER *vbo) {
+        updateVertexTexture(vbo->BindVBO(), vbo->GetNumElements());
     }
 
     GLuint patchIndexBuffer;
@@ -121,13 +118,17 @@ public:
     static bool SupportsAdaptiveTessellation();
 
 protected:
-    bool allocate(FarMesh<OsdVertex> *farMesh,
-                  GLuint vbo, int numElements,
+    OsdGLDrawContext();
+
+    // allocate buffers from patchTables
+    bool allocate(FarPatchTables const *patchTables,
                   bool requireFVarData);
 
-    bool allocateUniform(FarMesh<OsdVertex> *farMesh,
-                         GLuint vbo, int numElements,
+    // XXX: will retire soon
+    bool allocateUniform(FarMesh<OsdVertex> const *farMesh,
                          bool requireFVarData);
+
+    void updateVertexTexture(GLuint vbo, int numElements);
 };
 
 } // end namespace OPENSUBDIV_VERSION

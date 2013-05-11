@@ -147,7 +147,7 @@ public:
     ///
     /// @param farmesh the FarMesh used for this Context.
     ///
-    static OsdGLSLComputeContext * Create(FarMesh<OsdVertex> *farmesh);
+    static OsdGLSLComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
 
     /// Destructor
     virtual ~OsdGLSLComputeContext();
@@ -236,7 +236,7 @@ public:
     void UnbindEditShaderStorageBuffers();
 
 protected:
-    explicit OsdGLSLComputeContext(FarMesh<OsdVertex> *farMesh);
+    explicit OsdGLSLComputeContext(FarMesh<OsdVertex> const *farMesh);
 
     void bindShaderStorageBuffers();
 

@@ -178,7 +178,7 @@ OsdD3D11ComputeHEditTable::GetPrimvarWidth() const {
 // ----------------------------------------------------------------------------
 
 OsdD3D11ComputeContext::OsdD3D11ComputeContext(
-    FarMesh<OsdVertex> *farMesh, ID3D11DeviceContext *deviceContext)
+    FarMesh<OsdVertex> const *farMesh, ID3D11DeviceContext *deviceContext)
     : _deviceContext(deviceContext),
       _currentVertexBufferUAV(0), _currentVaryingBufferUAV(0) {
 
@@ -294,7 +294,7 @@ OsdD3D11ComputeContext::SetDeviceContext(ID3D11DeviceContext *deviceContext) {
 }
 
 OsdD3D11ComputeContext *
-OsdD3D11ComputeContext::Create(FarMesh<OsdVertex> *farmesh, ID3D11DeviceContext *deviceContext) {
+OsdD3D11ComputeContext::Create(FarMesh<OsdVertex> const *farmesh, ID3D11DeviceContext *deviceContext) {
 
     return new OsdD3D11ComputeContext(farmesh, deviceContext);
 }

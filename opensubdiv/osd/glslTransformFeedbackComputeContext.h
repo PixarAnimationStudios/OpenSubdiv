@@ -145,7 +145,7 @@ public:
     ///
     /// @param farmesh the FarMesh used for this Context.
     ///
-    static OsdGLSLTransformFeedbackComputeContext * Create(FarMesh<OsdVertex> *farmesh);
+    static OsdGLSLTransformFeedbackComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
 
     /// Destructor
     virtual ~OsdGLSLTransformFeedbackComputeContext();
@@ -211,7 +211,7 @@ public:
     void UnbindEditTextures();
 
 protected:
-    explicit OsdGLSLTransformFeedbackComputeContext(FarMesh<OsdVertex> *farMesh);
+    explicit OsdGLSLTransformFeedbackComputeContext(FarMesh<OsdVertex> const *farMesh);
 
     void bindTexture(GLuint sampler, GLuint texture, int unit);
 

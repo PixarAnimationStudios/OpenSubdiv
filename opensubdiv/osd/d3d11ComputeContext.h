@@ -137,7 +137,7 @@ public:
     ///
     /// @param farmesh the FarMesh used for this Context.
     ///
-    static OsdD3D11ComputeContext * Create(FarMesh<OsdVertex> *farmesh,
+    static OsdD3D11ComputeContext * Create(FarMesh<OsdVertex> const *farmesh,
                                            ID3D11DeviceContext *deviceContext);
 
     /// Destructor
@@ -209,7 +209,7 @@ public:
     void UnbindEditShaderStorageBuffers();
 
 protected:
-    explicit OsdD3D11ComputeContext(FarMesh<OsdVertex> *farMesh, ID3D11DeviceContext *deviceContext);
+    explicit OsdD3D11ComputeContext(FarMesh<OsdVertex> const *farMesh, ID3D11DeviceContext *deviceContext);
 
     void bindShaderStorageBuffers();
 

@@ -131,9 +131,26 @@ OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, OsdCLComputeController>::
          OsdUtilMeshBatchBase<DRAW_CONTEXT>(meshVector, batchIndex),
              _computeController(computeController),
              _computeContext(NULL), _vertexBuffer(NULL), _varyingBuffer(NULL), _drawContext(NULL) {
-        
+
+    std::vector<FarPatchTables::PatchArrayVector> multiFarPatchArray;
+    FarMesh <OsdVertex> *farMultiMesh = Base::createMultiMesh(meshVector, multiFarPatchArray);
+
+    FarPatchTables const * patchTables = farMultiMesh->GetPatchTables();
+    bool adaptive = (patchTables != 0);
+
     // create compute contexts
-    _computeContext = ComputeContext::Create(Base::_GetFarMesh(), _computeController->GetContext());
+    _computeContext = ComputeContext::Create(farMultiMesh, _computeController->GetContext());
+
+    // create drawcontext
+    if (patchTables)
+        _drawContext = DrawContext::Create(patchTables, /*fvar=*/false);
+    else
+        _drawContext = DrawContext::Create(farMultiMesh, /*fvar=*/false);  // XXX: will be retired
+
+    // temporary function. will be refactored
+    Base::createPatchArrays(multiFarPatchArray, patchTables->GetMaxValence(), adaptive, meshVector);
+
+    delete farMultiMesh;
 }
 
 template <typename VERTEX_BUFFER, typename DRAW_CONTEXT>
@@ -150,13 +167,11 @@ OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, OsdCLComputeController>::Initializ
 
     delete _vertexBuffer;
     delete _varyingBuffer;
-    delete _drawContext;
 
-    int numVerts = Base::_GetFarMesh()->GetNumVertices();
-    _vertexBuffer = numVertexElements ? VertexBuffer::Create(numVertexElements, numVerts, _computeController->GetContext()) : NULL;
-    _varyingBuffer = numVaryingElements ? VertexBuffer::Create(numVaryingElements, numVerts, _computeController->GetContext()) : NULL;
-    _drawContext = DrawContext::Create(Base::_GetFarMesh(), _vertexBuffer, /*fvar=*/false);
-    assert(_drawContext);
+    _vertexBuffer = numVertexElements ? VertexBuffer::Create(numVertexElements, Base::GetNumVertices(), _computeController->GetContext()) : NULL;
+    _varyingBuffer = numVaryingElements ? VertexBuffer::Create(numVaryingElements, Base::GetNumVertices(), _computeController->GetContext()) : NULL;
+
+    _drawContext->UpdateVertexTexture(_vertexBuffer);
 
     // update patch arrays
     Base::updatePatchArrays(numVertexElements);

@@ -80,6 +80,33 @@ MyDrawContext::~MyDrawContext() {
     glDeleteVertexArrays(1, &vao);
 }
 
+MyDrawContext*
+MyDrawContext::Create(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> const *farMesh, bool requireFVarData)
+{
+    MyDrawContext *instance = new MyDrawContext();
+
+    OpenSubdiv::FarPatchTables const * patchTables = farMesh->GetPatchTables();
+    if (patchTables) {
+        return Create(patchTables, requireFVarData);
+    }
+    if (instance->allocateUniform(farMesh, requireFVarData))
+        return instance;
+
+    delete instance;
+    return NULL;
+}
+
+MyDrawContext*
+MyDrawContext::Create(OpenSubdiv::FarPatchTables const *patchTables, bool requireFVarData)
+{
+    MyDrawContext *instance = new MyDrawContext();
+
+    if (instance->allocate(patchTables, requireFVarData))
+        return instance;
+    delete instance;
+    return NULL;
+}
+
 // ----------------------------------------------------------------------------
 
 void

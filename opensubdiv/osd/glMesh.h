@@ -104,8 +104,8 @@ public:
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices);
         _computeContext = ComputeContext::Create(_farMesh);
-        _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
-                                           bits.test(MeshFVarData));
+        _drawContext = DrawContext::Create(_farMesh, bits.test(MeshFVarData));
+        _drawContext->UpdateVertexTexture(_vertexBuffer);
     }
 
     virtual ~OsdMesh() {
@@ -174,8 +174,8 @@ public:
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices, _clContext);
         _computeContext = ComputeContext::Create(_farMesh, _clContext);
-        _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
-                                           bits.test(MeshFVarData));
+        _drawContext = DrawContext::Create(_farMesh, bits.test(MeshFVarData));
+        _drawContext->UpdateVertexTexture(_vertexBuffer);
     }
 
     virtual ~OsdMesh() {

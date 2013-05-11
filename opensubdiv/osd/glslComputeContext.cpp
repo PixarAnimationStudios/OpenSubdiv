@@ -157,7 +157,7 @@ OsdGLSLComputeHEditTable::GetPrimvarWidth() const {
 // ----------------------------------------------------------------------------
 
 OsdGLSLComputeContext::OsdGLSLComputeContext(
-    FarMesh<OsdVertex> *farMesh)
+    FarMesh<OsdVertex> const *farMesh)
     : _vertexTexture(0), _varyingTexture(0) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
@@ -264,7 +264,7 @@ OsdGLSLComputeContext::SetKernelBundle(
 }
 
 OsdGLSLComputeContext *
-OsdGLSLComputeContext::Create(FarMesh<OsdVertex> *farmesh) {
+OsdGLSLComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
 
     return new OsdGLSLComputeContext(farmesh);
 }

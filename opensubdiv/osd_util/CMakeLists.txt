@@ -66,7 +66,7 @@ include_directories(
 
 set(PUBLIC_HEADER_FILES
     batch.h
-    batch_cl.h
+    batchCL.h
     meshHandle.h
     drawItem.h
     drawController.h

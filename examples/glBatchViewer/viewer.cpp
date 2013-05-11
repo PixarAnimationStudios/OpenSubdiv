@@ -131,7 +131,7 @@
 #include <far/meshFactory.h>
 
 #include <osd_util/batch.h>
-#include <osd_util/batch_cl.h>
+#include <osd_util/batchCL.h>
 #include <osd_util/drawItem.h>
 #include <osd_util/drawController.h>
 #include "delegate.h"

@@ -137,7 +137,7 @@ OsdCpuHEditTable::GetPrimvarWidth() const {
     return _primvarWidth;
 }
 
-OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> *farMesh) {
+OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> const *farMesh) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
         farMesh->GetSubdivisionTables();
@@ -221,7 +221,7 @@ OsdCpuComputeContext::GetCurrentVaryingBuffer() const {
 }
 
 OsdCpuComputeContext *
-OsdCpuComputeContext::Create(FarMesh<OsdVertex> *farmesh) {
+OsdCpuComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
 
     return new OsdCpuComputeContext(farmesh);
 }

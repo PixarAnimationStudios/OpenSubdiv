@@ -89,6 +89,34 @@ OsdGLDrawContext::~OsdGLDrawContext()
     glDeleteTextures(1, &fvarDataTextureBuffer);
 }
 
+OsdGLDrawContext *
+OsdGLDrawContext::Create(FarMesh<OsdVertex> const *farMesh, bool requireFVarData)
+{
+    FarPatchTables const * patchTables = farMesh->GetPatchTables();
+    if (patchTables)
+        return Create(patchTables, requireFVarData);
+
+    // XXX: allocateUniform will be retired once uniform patches are
+    //      integrated into patcharray.
+    OsdGLDrawContext * instance = new OsdGLDrawContext();
+    if (instance->allocateUniform(farMesh, requireFVarData))
+        return instance;
+
+    delete instance;
+    return NULL;
+}
+
+OsdGLDrawContext *
+OsdGLDrawContext::Create(FarPatchTables const *patchTables, bool requireFVarData)
+{
+    OsdGLDrawContext * instance = new OsdGLDrawContext();
+    if (instance->allocate(patchTables, requireFVarData))
+        return instance;
+
+    delete instance;
+    return NULL;
+}
+
 bool
 OsdGLDrawContext::SupportsAdaptiveTessellation()
 {
@@ -103,11 +131,10 @@ OsdGLDrawContext::SupportsAdaptiveTessellation()
 }
 
 bool
-OsdGLDrawContext::allocateUniform(FarMesh<OsdVertex> *farMesh,
-                                  GLuint vbo,
-                                  int numElements,
+OsdGLDrawContext::allocateUniform(FarMesh<OsdVertex> const *farMesh,
                                   bool requireFVarData)
 {
+    _isAdaptive = false;
 
     // XXX: farmesh should have FarDensePatchTable for dense mesh indices.
     //      instead of GetFaceVertices().
@@ -203,26 +230,34 @@ OsdGLDrawContext::allocateUniform(FarMesh<OsdVertex> *farMesh,
 
     return true;
 }
-bool
-OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
-                           GLuint vbo,
-                           int numElements,
-                           bool requireFVarData)
+
+template <typename T>
+GLuint createTextureBuffer(T const &data, GLint format)
 {
-    FarPatchTables const * patchTables = farMesh->GetPatchTables();
+    GLuint buffer = 0, texture = 0;
 
-    if (not patchTables) {
-        // uniform patches
-        _isAdaptive = false;
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
+    glGenTextures(1, &texture);
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(typename T::value_type),
+                 &data[0], GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        // XXX: this function will be retired once uniform patches are integrated into patcharray.
-        return allocateUniform(farMesh, vbo, numElements, requireFVarData);
-    }
+    glBindTexture(GL_TEXTURE_BUFFER, texture);
+    glTexBuffer(GL_TEXTURE_BUFFER, format, buffer);
+    glDeleteBuffers(1, &buffer);
+#endif
 
-    // adaptive patches
+    return texture;
+}
+
+bool
+OsdGLDrawContext::allocate(FarPatchTables const *patchTables, bool requireFVarData)
+{
     _isAdaptive = true;
 
-    ConvertPatchArrays(patchTables->GetAllPatchArrays(), patchArrays, patchTables->GetMaxValence(), numElements);
+    ConvertPatchArrays(patchTables->GetAllPatchArrays(), patchArrays, patchTables->GetMaxValence(), 0);
 
     FarPatchTables::PTable const & ptables = patchTables->GetPatchTable();
 
@@ -233,87 +268,61 @@ OsdGLDrawContext::allocate(FarMesh<OsdVertex> *farMesh,
                  ptables.size() * sizeof(unsigned int), &ptables[0], GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-    FarPatchTables::PtexCoordinateTable const & ptexCoordTables = patchTables->GetPtexCoordinatesTable();
+    FarPatchTables::PtexCoordinateTable const &
+        ptexCoordTables = patchTables->GetPtexCoordinatesTable();
 
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-    // Allocate ptex coordinate buffer if requested
-    GLuint ptexCoordinateBuffer = 0;
-    glGenTextures(1, &ptexCoordinateTextureBuffer);
-    glGenBuffers(1, &ptexCoordinateBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, ptexCoordinateBuffer);
-    glBufferData(GL_ARRAY_BUFFER,
-                 ptexCoordTables.size() * sizeof(FarPtexCoord), &ptexCoordTables[0], GL_STATIC_DRAW);
+    // create ptex coordinate buffer
+    if (not ptexCoordTables.empty())
+        ptexCoordinateTextureBuffer = createTextureBuffer(ptexCoordTables, GL_RG32I);
 
-    // Allocate fvar data buffer if requested
-    GLuint fvarDataBuffer = 0;
-    if (requireFVarData) {
-        FarPatchTables::FVarDataTable const & fvarTables = patchTables->GetFVarDataTable();
+    FarPatchTables::FVarDataTable const &
+        fvarTables = patchTables->GetFVarDataTable();
 
-        glGenTextures(1, &fvarDataTextureBuffer);
-        glGenBuffers(1, &fvarDataBuffer);
-        glBindBuffer(GL_UNIFORM_BUFFER, fvarDataBuffer);
-        glBufferData(GL_UNIFORM_BUFFER,
-                     fvarTables.size() * sizeof(float), &fvarTables[0], GL_STATIC_DRAW);
-        glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    }
-
-    // finalize ptex coordinate texture buffer
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindTexture(GL_TEXTURE_BUFFER, ptexCoordinateTextureBuffer);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, ptexCoordinateBuffer);
-    glDeleteBuffers(1, &ptexCoordinateBuffer);
-
-    // finalize fvar data texture buffer
-    if (requireFVarData) {
-        glBindTexture(GL_TEXTURE_BUFFER, fvarDataTextureBuffer);
-        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, fvarDataBuffer);
-        glDeleteBuffers(1, &fvarDataBuffer);
-    }
+    // create fvar data buffer if requested
+    if (requireFVarData and not fvarTables.empty())
+        fvarDataTextureBuffer = createTextureBuffer(fvarTables, GL_R32F);
 
     // allocate and initialize additional buffer data
+
     FarPatchTables::VertexValenceTable const &
         valenceTable = patchTables->GetVertexValenceTable();
 
+    // create vertex valence buffer and vertex texture
     if (not valenceTable.empty()) {
-        GLuint buffer = 0;
-        glGenBuffers(1, &buffer);
-        glBindBuffer(GL_TEXTURE_BUFFER, buffer);
-        glBufferData(GL_TEXTURE_BUFFER,
-                valenceTable.size() * sizeof(unsigned int),
-                &valenceTable[0], GL_STATIC_DRAW);
-
-        glGenTextures(1, &vertexValenceTextureBuffer);
-        glBindTexture(GL_TEXTURE_BUFFER, vertexValenceTextureBuffer);
-        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, buffer);
-        glDeleteBuffers(1, &buffer);
-
+        vertexValenceTextureBuffer = createTextureBuffer(valenceTable, GL_R32I);
+        
+        // also create vertex texture buffer (will be updated in UpdateVertexTexture())
         glGenTextures(1, &vertexTextureBuffer);
-        glBindTexture(GL_TEXTURE_BUFFER, vertexTextureBuffer);
-        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
     }
 
+    // create quad offset table buffer
     FarPatchTables::QuadOffsetTable const &
         quadOffsetTable = patchTables->GetQuadOffsetTable();
 
-    if (not quadOffsetTable.empty()) {
-        GLuint buffer = 0;
-        glGenBuffers(1, &buffer);
-        glBindBuffer(GL_TEXTURE_BUFFER, buffer);
-        glBufferData(GL_TEXTURE_BUFFER,
-                quadOffsetTable.size() * sizeof(unsigned int),
-                &quadOffsetTable[0], GL_STATIC_DRAW);
+    if (not quadOffsetTable.empty())
+        quadOffsetTextureBuffer = createTextureBuffer(quadOffsetTable, GL_R32I);
 
-        glGenTextures(1, &quadOffsetTextureBuffer);
-        glBindTexture(GL_TEXTURE_BUFFER, quadOffsetTextureBuffer);
-        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, buffer);
-        glDeleteBuffers(1, &buffer);
-    }
     glBindBuffer(GL_TEXTURE_BUFFER, 0);
-#endif
 
     return true;
 }
 
+void
+OsdGLDrawContext::updateVertexTexture(GLuint vbo, int numVertexElements)
+{
+    glBindTexture(GL_TEXTURE_BUFFER, vertexTextureBuffer);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
+    glBindTexture(GL_TEXTURE_BUFFER, 0);
+
+    // XXX: consider moving this proc to base class
+    // updating num elements in descriptor with new vbo specs
+    for (int i = 0; i < (int)patchArrays.size(); ++i) {
+        PatchArray &parray = patchArrays[i];
+        PatchDescriptor desc = parray.GetDescriptor();
+        desc.SetNumElements(numVertexElements);
+        parray.SetDescriptor(desc);
+    }
+}
 
 
 } // end namespace OPENSUBDIV_VERSION

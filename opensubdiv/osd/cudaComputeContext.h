@@ -128,7 +128,7 @@ public:
     ///
     /// @param farmesh the FarMesh used for this Context.
     ///
-    static OsdCudaComputeContext * Create(FarMesh<OsdVertex> *farmesh);
+    static OsdCudaComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
 
     /// Destructor
     virtual ~OsdCudaComputeContext();
@@ -192,7 +192,7 @@ public:
     int GetCurrentVaryingNumElements() const;
 
 protected:
-    explicit OsdCudaComputeContext(FarMesh<OsdVertex> *farMesh);
+    explicit OsdCudaComputeContext(FarMesh<OsdVertex> const *farMesh);
 
 private:
     std::vector<OsdCudaTable*> _tables;

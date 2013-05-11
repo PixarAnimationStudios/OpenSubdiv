@@ -69,25 +69,12 @@ class MyDrawContext : public OpenSubdiv::OsdGLDrawContext {
 public:
     virtual ~MyDrawContext();
 
-    template<class VERTEX_BUFFER>
-    static MyDrawContext *
-    Create(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMesh,
-           VERTEX_BUFFER *vertexBuffer,
-           bool requireFVarData=false) {
+    static MyDrawContext *Create(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> const *farMesh,
+                                 bool requireFVarData=false);
 
-        if (not vertexBuffer) 
-            return NULL;
-
-        MyDrawContext * instance = new MyDrawContext();
-        if (instance->allocate(farMesh,
-                               vertexBuffer->BindVBO(),
-                               vertexBuffer->GetNumElements(),
-                               requireFVarData)) return instance;
-        delete instance;
-        return NULL;
-    }
+    static MyDrawContext *Create(OpenSubdiv::FarPatchTables const *patchTables,
+                                 bool requireFVarData=false);
 //private:
-
     GLuint vao;
 
 private:
