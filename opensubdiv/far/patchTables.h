@@ -261,7 +261,7 @@ public:
             
         /// Constructor
         Descriptor(int type, int pattern, unsigned char rotation) :
-            _type((Type)type), _pattern((TransitionPattern)pattern), _rotation(rotation) { }
+            _type(type), _pattern(pattern), _rotation(rotation) { }
 
         /// Copy Constructor
         Descriptor( Descriptor const & d ) :
@@ -269,12 +269,12 @@ public:
         
         /// Returns the type of the patch
         Type GetType() const {
-            return _type;
+            return (Type)_type;
         }
         
         /// Returns the transition pattern of the patch if any (5 types)
         TransitionPattern GetPattern() const {
-            return _pattern;
+            return (TransitionPattern)_pattern;
         }
         
         /// Returns the rotation of the patch (4 rotations)
@@ -336,9 +336,9 @@ public:
         template <class T> friend class FarPatchTablesFactory;
         friend class iterator;
         
-        Type              _type:4;
-        TransitionPattern _pattern:3;
-        unsigned char     _rotation:2;
+        unsigned int  _type:4;
+        unsigned int  _pattern:3;
+        unsigned int  _rotation:2;
     };
 
     /// \brief Descriptor iterator class 

@@ -488,6 +488,8 @@ FarPatchTablesFactory<T>::PatchTypes<TYPE>::getValue( FarPatchTables::Descriptor
         case FarPatchTables::GREGORY_BOUNDARY : return G[1];
         default : assert(0);
     }
+    // can't be reached (suppress compiler warning)
+    return R;
 }
 
 template <class T> 
@@ -519,7 +521,7 @@ FarPatchTablesFactory<T>::getNumPatchArrays() const {
 template <class T> void
 FarPatchTablesFactory<T>::pushPatchArray( FarPatchTables::Descriptor desc, 
                                           FarPatchTables::PatchArrayVector & parray, 
-                                          FarPatchTablesFactory<T>::Counter & counter, 
+                                          typename FarPatchTablesFactory<T>::Counter & counter, 
                                           int * voffset, int * poffset, int * qoffset ) {
 
     int npatches = counter.getValue( desc );
