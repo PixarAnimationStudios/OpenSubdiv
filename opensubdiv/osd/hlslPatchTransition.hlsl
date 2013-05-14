@@ -132,15 +132,12 @@ void vs_main_patches( in InputVertex input,
 // Patches.HullTransition
 //----------------------------------------------------------
 
-Buffer<int> g_patchLevelBuffer : register( t3 );
-OSD_DECLARE_PTEX_INDICES_BUFFER;
-
 HS_CONSTANT_TRANSITION_FUNC_OUT HSConstFunc(
     InputPatch<HullVertex, PATCH_INPUT_SIZE> patch,
     uint primitiveID : SV_PrimitiveID)
 {
     HS_CONSTANT_TRANSITION_FUNC_OUT output;
-    int patchLevel = g_patchLevelBuffer[primitiveID + LevelBase];
+    int patchLevel = GetPatchLevel(primitiveID);
 
 #ifdef TRIANGLE
     OSD_PATCH_CULL_TRIANGLE(PATCH_INPUT_SIZE);
@@ -629,7 +626,7 @@ HullVertex hs_main_patches(
     HullVertex output;
     output.position = float4(pos, 1.0);
 
-    int patchLevel = g_patchLevelBuffer[primitiveID + LevelBase];
+    int patchLevel = GetPatchLevel(primitiveID);
     // +0.5 to avoid interpolation error of integer value
     output.patchCoord = float4(0, 0,
                                patchLevel+0.5,
@@ -876,7 +873,9 @@ void ds_main_patches(
 
     OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER;
 
+#ifdef ROTATE
     OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(ROTATE);
+#endif
 
     OSD_DISPLACEMENT_CALLBACK;
 

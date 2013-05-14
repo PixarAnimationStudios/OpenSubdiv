@@ -518,8 +518,8 @@ display() {
 
     // set effect
     g_effect.wire = g_wire;
-    g_effect.screenSpaceTess = g_screenSpaceTess;
-    g_effect.displayPatchColor = g_displayPatchColor;
+    g_effect.screenSpaceTess = (g_screenSpaceTess != 0);
+    g_effect.displayPatchColor = (g_displayPatchColor != 0);
 
     // prepare view matrix
     float aspect = g_width/(float)g_height;
@@ -542,8 +542,8 @@ display() {
     Stopwatch s;
     s.Start();
 
-    OpenSubdiv::OsdUtilDrawItem<MyEffect*, MyDrawContext>::Collection items;
-    OpenSubdiv::OsdUtilDrawItem<MyEffect*, MyDrawContext>::Collection cachedDrawItems;
+    OpenSubdiv::OsdUtilDrawItem<MyEffect, MyDrawContext>::Collection items;
+    OpenSubdiv::OsdUtilDrawItem<MyEffect, MyDrawContext>::Collection cachedDrawItems;
 
     const OpenSubdiv::OsdUtilMeshHandle::Collection & handles = g_batch->GetMeshHandles();
     items.reserve(handles.size());
@@ -551,8 +551,8 @@ display() {
          it != handles.end(); ++it) {
         // Here, client can pack arbitrary mesh and effect into drawItems.
 
-        items.push_back(OpenSubdiv::OsdUtilDrawItem<MyEffect*, MyDrawContext>(
-                            g_batch, &g_effect, g_batch->GetPatchArrays(*it)));
+        items.push_back(OpenSubdiv::OsdUtilDrawItem<MyEffect, MyDrawContext>(
+                            g_batch, g_effect, g_batch->GetPatchArrays(*it)));
     }
 
     if (g_batching) {
@@ -597,7 +597,7 @@ display() {
     GLuint timeElapsed = 0;
     glGetQueryObjectuiv(g_queries[0], GL_QUERY_RESULT, &numPrimsGenerated);
     glGetQueryObjectuiv(g_queries[1], GL_QUERY_RESULT, &timeElapsed);
-    float drawGpuTime = timeElapsed / 1000.0 / 1000.0;
+    float drawGpuTime = timeElapsed / 1000.0f / 1000.0f;
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();

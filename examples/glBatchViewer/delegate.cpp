@@ -146,17 +146,17 @@ MyDrawDelegate::UnbindBatch(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *bat
 }
 
 void
-MyDrawDelegate::BindEffect(MyEffect *effect) {
+MyDrawDelegate::BindEffect(MyEffect &effect) {
     // cross-patch state
     // bind ptex etc
 }
 
 void
-MyDrawDelegate::UnbindEffect(MyEffect *effect) {
+MyDrawDelegate::UnbindEffect(MyEffect &effect) {
 }
 
 void
-MyDrawDelegate::DrawElements(MyEffect *effect, OpenSubdiv::OsdDrawContext::PatchArray const &patchArray) {
+MyDrawDelegate::DrawElements(MyEffect &effect, OpenSubdiv::OsdDrawContext::PatchArray const &patchArray) {
 
     // bind patchType-wise effect state
     // can be skipped (if config is not changed)
@@ -171,7 +171,7 @@ MyDrawDelegate::DrawElements(MyEffect *effect, OpenSubdiv::OsdDrawContext::Patch
     }
     
     // apply patch color
-    effect->BindDrawConfig(config, patchArray.GetDescriptor());
+    effect.BindDrawConfig(config, patchArray.GetDescriptor());
     
     glUniform1i(config->levelBaseUniform, patchArray.GetPatchIndex());
     if (patchArray.GetDescriptor().GetType() == OpenSubdiv::FarPatchTables::GREGORY ||
@@ -190,7 +190,7 @@ MyDrawDelegate::DrawElements(MyEffect *effect, OpenSubdiv::OsdDrawContext::Patch
 }
 
 MyDrawConfig *
-MyDrawDelegate::GetDrawConfig(MyEffect *effectHandle, OpenSubdiv::OsdDrawContext::PatchDescriptor desc) {
+MyDrawDelegate::GetDrawConfig(MyEffect &effect, OpenSubdiv::OsdDrawContext::PatchDescriptor desc) {
 
-    return _effectRegistry.GetDrawConfig(effectHandle->GetEffectDescriptor(), desc);
+    return _effectRegistry.GetDrawConfig(effect.GetEffectDescriptor(), desc);
 }

@@ -86,15 +86,15 @@ class MyDrawDelegate {
 public:
     void BindBatch(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch);
     void UnbindBatch(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch);
-    void BindEffect(MyEffect *effect);
-    void UnbindEffect(MyEffect *effect);
-    void DrawElements(MyEffect *effect, OpenSubdiv::OsdDrawContext::PatchArray const &patchArray);
+    void BindEffect(MyEffect &effect);
+    void UnbindEffect(MyEffect &effect);
+    void DrawElements(MyEffect &effect, OpenSubdiv::OsdDrawContext::PatchArray const &patchArray);
 
     void ResetNumDrawCalls() { _numDrawCalls = 0; }
     int GetNumDrawCalls() const { return _numDrawCalls; }
 
 private:
-    MyDrawConfig *GetDrawConfig(MyEffect *effectHandle, OpenSubdiv::OsdDrawContext::PatchDescriptor desc);
+    MyDrawConfig *GetDrawConfig(MyEffect &effect, OpenSubdiv::OsdDrawContext::PatchDescriptor desc);
 
     MyEffectRegistry _effectRegistry;
     int _numDrawCalls;

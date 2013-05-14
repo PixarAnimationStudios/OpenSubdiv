@@ -224,7 +224,7 @@ OsdD3D11DrawContext::allocate(FarPatchTables const *patchTables,
 
     D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
     ZeroMemory(&srvd, sizeof(srvd));
-    srvd.Format = DXGI_FORMAT_R32G32_UINT;
+    srvd.Format = DXGI_FORMAT_R32_UINT;   // XXX: this should be DXGI_FORMAT_R32G32_UINT?
     srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
     srvd.Buffer.FirstElement = 0;
     srvd.Buffer.NumElements = totalPatches;

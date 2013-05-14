@@ -103,6 +103,8 @@ struct MyDrawConfig : public OpenSubdiv::OsdGLDrawConfig {
 
 class MyEffect { // formerly EffectHandle
 public:
+    MyEffect() : displayPatchColor(false), screenSpaceTess(false), wire(0) {}
+
     EffectDesc GetEffectDescriptor() const {
         EffectDesc desc;
 
@@ -119,12 +121,20 @@ public:
     void SetTessLevel(float tessLevel);
     void SetLighting();
 
+    bool operator == (const MyEffect &other) const {
+        return (displayPatchColor == other.displayPatchColor) and
+               (screenSpaceTess == other.screenSpaceTess) and
+               (wire == other.wire);
+    }
+    bool operator != (const MyEffect &other) const {
+        return !(*this == other);
+    }
+
     enum {
         kWire, kFill, kLine
     };
 
     bool displayPatchColor;  // runtime switchable
-
     bool screenSpaceTess;    // need recompile (should be considered in effect descriptor)
     int wire;                // need recompile
 };

@@ -92,8 +92,11 @@ public:
 
     /// Set vbo as a vertex texture (for gregory patch drawing)
     template<class VERTEX_BUFFER>
-    void UpdateVertexTexture(VERTEX_BUFFER *vbo) {
-        updateVertexTexture(vbo->BindVBO(), vbo->GetNumVertices(), vbo->GetNumElements());
+    void UpdateVertexTexture(VERTEX_BUFFER *vbo, ID3D11DeviceContext *pd3d11DeviceContext) {
+        updateVertexTexture(vbo->BindD3D11Buffer(pd3d11DeviceContext),
+                            pd3d11DeviceContext,
+                            vbo->GetNumVertices(),
+                            vbo->GetNumElements());
     }
 
     ID3D11Buffer             *patchIndexBuffer;
