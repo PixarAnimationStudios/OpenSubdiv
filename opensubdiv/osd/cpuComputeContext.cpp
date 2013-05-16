@@ -181,7 +181,7 @@ OsdCpuComputeContext::~OsdCpuComputeContext() {
     for (size_t i = 0; i < _editTables.size(); ++i) {
         delete _editTables[i];
     }
-    if (_vdesc) delete _vdesc;
+    delete _vdesc;
 }
 
 const OsdCpuTable *

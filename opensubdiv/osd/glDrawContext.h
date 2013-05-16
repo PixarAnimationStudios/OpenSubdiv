@@ -85,21 +85,26 @@ public:
 
     virtual ~OsdGLDrawContext();
 
-    /// Create a OsdGLDraContext from FarMesh
+    /// \brienf Create an OsdGLDraContext from FarPatchTables
     ///
-    static OsdGLDrawContext *Create(FarMesh<OsdVertex> const *farMesh,
-                                    bool requireFVarData=false);
-
-    /// Create a OsdGLDraContext from FarPatchTables
+    /// @param patchTables      a valid set of FarPatchTables
     ///
-    static OsdGLDrawContext *Create(FarPatchTables const *patchTables,
-                                    bool requireFVarData=false);
+    /// @param requireFVarData  set to true to enable face-varying data to be 
+    ///                         carried over from the Far data structures.
+    ///
+    static OsdGLDrawContext * Create(FarPatchTables const * patchTables, bool requireFVarData);
 
     /// Set vbo as a vertex texture (for gregory patch drawing)
+    ///
+    /// @param vbo  the vertex buffer object to update
+    ///
     template<class VERTEX_BUFFER>
     void UpdateVertexTexture(VERTEX_BUFFER *vbo) {
         updateVertexTexture(vbo->BindVBO(), vbo->GetNumElements());
     }
+
+    /// true if the GL version detected supports shader tessellation
+    static bool SupportsAdaptiveTessellation();
 
     GLuint patchIndexBuffer;
 
@@ -114,19 +119,11 @@ public:
     GLuint vertexValenceTextureBuffer;
     GLuint quadOffsetTextureBuffer;
 
-    /// true if the GL version detected supports shader tessellation
-    static bool SupportsAdaptiveTessellation();
-
 protected:
     OsdGLDrawContext();
 
     // allocate buffers from patchTables
-    bool allocate(FarPatchTables const *patchTables,
-                  bool requireFVarData);
-
-    // XXX: will retire soon
-    bool allocateUniform(FarMesh<OsdVertex> const *farMesh,
-                         bool requireFVarData);
+    bool create(FarPatchTables const *patchTables, bool requireFVarData);
 
     void updateVertexTexture(GLuint vbo, int numElements);
 };

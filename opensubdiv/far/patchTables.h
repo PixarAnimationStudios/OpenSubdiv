@@ -148,52 +148,7 @@ struct FarPtexCoord {
         bitField.Clear();
     }    
 };
-/*
-/// \brief Indices for multi-mesh patch arrays
-// XXXX manuelk : we should probably derive FarMultiPatchTables for multi-meshes
-struct FarPatchCount {
-    int nonPatch;                 // reserved for uniform and loop
-    int regular;
-    int boundary;
-    int corner;
-    int gregory;
-    int boundaryGregory;
-    int transitionRegular[5];
-    int transitionBoundary[5][4];
-    int transitionCorner[5][4];
 
-    /// Constructor.
-    FarPatchCount() {
-        nonPatch = regular = boundary = corner = gregory = boundaryGregory = 0;
-        for (int i = 0; i < 5; ++i) {
-            transitionRegular[i] = 0;
-            for (int j = 0; j < 4; ++j) {
-                transitionBoundary[i][j] = 0;
-                transitionCorner[i][j] = 0;
-            }
-        }
-    }
-
-    /// Adds the indices from another patchTable.
-    void Append(FarPatchCount const &p) {
-        nonPatch += p.nonPatch;
-        regular += p.regular;
-        boundary += p.boundary;
-        corner += p.corner;
-        gregory += p.gregory;
-        boundaryGregory += p.boundaryGregory;
-        for (int i = 0; i < 5; ++i) {
-            transitionRegular[i] += p.transitionRegular[i];
-            for (int j = 0; j < 4; ++j) {
-                transitionBoundary[i][j] += p.transitionBoundary[i][j];
-                transitionCorner[i][j] += p.transitionCorner[i][j];
-            }
-        }
-    }    
-};
-
-typedef std::vector<FarPatchCount> FarPatchCountVector;
-*/
 /// \brief Container for patch vertex indices tables
 ///
 /// FarPatchTables contain the lists of vertices for each patch of an adaptive
@@ -464,10 +419,28 @@ public:
     }
 
     /// Returns all arrays of patches
-    PatchArrayVector const & GetAllPatchArrays() const {
+    PatchArrayVector const & GetPatchArrayVector() const {
         return _patchArrays;
     }
+    
+    /// Returns a pointer to the vertex indices of uniformly subdivided faces
+    ///
+    /// @param level  the level of subdivision of the faces
+    ///
+    /// @return       a pointer to the first vertex index or NULL if the mesh
+    ///               is not uniformly subdivided or the level cannot be found.
+    ///
+    unsigned int const * GetFaceVertices(int level) const;
 
+    /// Returns the number of faces in a uniformly subdivided mesh at a given level
+    ///
+    /// @param level  the level of subdivision of the faces
+    ///
+    /// @return       the number of faces in the mesh given the subdivision level
+    ///               or -1 if the mesh is not uniform or the level incorrect.
+    ///
+    int GetNumFaces(int level) const;
+    
     /// Returns a vertex valence table used by Gregory patches
     VertexValenceTable const & GetVertexValenceTable() const { return _vertexValenceTable; }
 
@@ -478,6 +451,11 @@ public:
     PtexCoordinateTable const & GetPtexCoordinatesTable() const { return _ptexTable; }
 
     /// Returns an FVarDataTable for each type of patch
+    /// The data is stored as a run of totalFVarWidth floats per-vertex per-face
+    /// e.g.: for UV data it has the structure of float[p][4][2] where 
+    /// p=primitiveID and totalFVarWidth=2:
+    ///      [ [ uv uv uv uv ] [ uv uv uv uv ] [ ... ] ]
+    ///            prim 0           prim 1
     FVarDataTable const & GetFVarDataTable() const { return _fvarTable; }
 
     /// Ringsize of Regular Patches in table.
@@ -500,6 +478,10 @@ public:
 
     /// Returns max vertex valence
     int GetMaxValence() const { return _maxValence; }
+    
+    /// True if the patches are of feature adaptive types
+    bool IsFeatureAdaptive() const;
+    
 private:
 
     template <class T> friend class FarPatchTablesFactory;
@@ -511,9 +493,8 @@ private:
     // Private constructor
     FarPatchTables( int maxvalence ) : _maxValence(maxvalence) { }
 
-    // Vector of descriptors for arrays of patches
-    PatchArrayVector _patchArrays;
-
+    
+    PatchArrayVector    _patchArrays;        // Vector of descriptors for arrays of patches
     
     PTable              _patches;            // Indices of the control vertices of the patches
 
@@ -530,7 +511,11 @@ private:
     int _maxValence;
 };
 
-
+inline bool 
+FarPatchTables::IsFeatureAdaptive() const { 
+    return ((not _vertexValenceTable.empty()) and (not _quadOffsetTable.empty())); 
+}
+ 
 // Returns the number of control vertices expected for a patch of this type
 inline short 
 FarPatchTables::Descriptor::GetNumControlVertices( FarPatchTables::Type type ) {
@@ -589,6 +574,38 @@ FarPatchTables::Descriptor::operator ++ () {
         }
     }
     return *this;
+}
+
+// Returns a pointer to the vertex indices of uniformly subdivided faces
+inline unsigned int const * 
+FarPatchTables::GetFaceVertices(int level) const {
+
+    if (IsFeatureAdaptive())
+        return NULL;
+    
+    PatchArrayVector const & parrays = GetPatchArrayVector();
+    
+    if ( (level-1) < (int)parrays.size() ) {
+        return &GetPatchTable()[ parrays[level-1].GetVertIndex() ];
+    }
+    
+    return NULL;
+}
+
+// Returns the number of faces in a uniformly subdivided mesh at a given level
+inline int
+FarPatchTables::GetNumFaces(int level) const {
+
+    if (IsFeatureAdaptive())
+        return -1;
+    
+    PatchArrayVector const & parrays = GetPatchArrayVector();
+    
+    if ( (level-1) < (int)parrays.size() ) {
+        return parrays[level-1].GetNumPatches();
+    }
+    
+    return -1;
 }
 
 // Allows ordering of patches by type

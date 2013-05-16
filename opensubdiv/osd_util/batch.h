@@ -255,7 +255,7 @@ OsdUtilMeshBatchBase<DRAW_CONTEXT>::createPatchArrays(std::vector<FarPatchTables
 
         // XXX: temporary for uniform
         int maxLevel = meshVector[i]->GetSubdivisionTables()->GetMaxLevel();
-        int numQuads = adaptive ? 0 : (int)meshVector[i]->GetFaceVertices(maxLevel-1).size()/4;
+        int numQuads = adaptive ? 0 : (int)meshVector[i]->GetPatchTables()->GetNumFaces(maxLevel-1);
         _quadCounts.push_back(numQuads);
 
         vertexOffset += numVertices;

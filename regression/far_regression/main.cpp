@@ -157,7 +157,8 @@ typedef OpenSubdiv::HbrVertexOperator<xyzVV> xyzVertexOperator;
 
 typedef OpenSubdiv::FarMesh<xyzVV>              fMesh;
 typedef OpenSubdiv::FarMeshFactory<xyzVV>       fMeshFactory;
-typedef OpenSubdiv::FarSubdivisionTables<xyzVV> fMeshSubdivision;
+typedef OpenSubdiv::FarSubdivisionTables<xyzVV> fSubdivision;
+typedef OpenSubdiv::FarPatchTables              fPatches;
 
 static bool g_debugmode = false;
 static bool g_dumphbr = false;
@@ -247,12 +248,15 @@ static void dumpVerts( fMesh * mesh, int level ) {
 
 //------------------------------------------------------------------------------
 static void dumpQuadFaces( fMesh * mesh, int level ) {
-    std::vector<int> const & fverts = mesh->GetFaceVertices(level);
+    
+    unsigned int const * fverts = mesh->GetPatchTables()->GetFaceVertices(level);
+
+    int nverts = mesh->GetPatchTables()->GetNumFaces(level) * 4;
 
     int ofs = mesh->GetSubdivisionTables()->GetFirstVertexOffset(level);
 
     printf("\t'faces':[\t");
-    for (size_t i=0; i<(fverts.size()); i+=4) {
+    for (int i=0; i<nverts; i+=4) {
         printf("[%6d, %6d, %6d, %6d], ", fverts[i  ]-ofs,
                                          fverts[i+1]-ofs,
                                          fverts[i+2]-ofs,
@@ -265,12 +269,15 @@ static void dumpQuadFaces( fMesh * mesh, int level ) {
 
 //------------------------------------------------------------------------------
 static void dumpTriFaces( fMesh * mesh, int level ) {
-    std::vector<int> const & fverts = mesh->GetFaceVertices(level);
+
+    unsigned int const * fverts = mesh->GetPatchTables()->GetFaceVertices(level);
+
+    int nverts = mesh->GetPatchTables()->GetNumFaces(level) * 3;
 
     int ofs = mesh->GetSubdivisionTables()->GetFirstVertexOffset(level);
 
     printf("\t'faces':[\t");
-    for (size_t i=0; i<(fverts.size()); i+=3) {
+    for (int i=0; i<nverts; i+=3) {
         printf("[%6d, %6d, %6d], ", fverts[i]-ofs, fverts[i+1]-ofs, fverts[i+2]-ofs );
         if (i!=0 and (i+4)%32==0)
             printf("\n\t\t\t");

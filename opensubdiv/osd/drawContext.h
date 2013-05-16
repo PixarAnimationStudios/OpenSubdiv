@@ -167,7 +167,7 @@ public:
         /// @param desc   Patch descriptor defines the type, pattern, rotation of
         ///               the patches in the array
         ///
-        /// @param range  The 
+        /// @param range  The range of vertex indices
         ///
         PatchArray(PatchDescriptor desc, FarPatchTables::PatchArray::ArrayRange const & range) :
             _desc(desc), _range(range) { }

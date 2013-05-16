@@ -181,6 +181,7 @@ private:
     friend class FarLoopSubdivisionTablesFactory<T,U>;
     friend class FarSubdivisionTablesFactory<T,U>;
     friend class FarVertexEditTablesFactory<T,U>;
+    friend class FarPatchTablesFactory<T>;
 
     // Non-copyable, so these are not implemented:
     FarMeshFactory( FarMeshFactory const & );
@@ -212,23 +213,17 @@ private:
     // Calls Hbr to refines the neighbors of v
     static void refineVertexNeighbors(HbrVertex<T> * v);
 
-    // Densely refine the Hbr mesh
+    // Uniformly refine the Hbr mesh
     static void refine( HbrMesh<T> * mesh, int maxlevel );
 
     // Adaptively refine the Hbr mesh
     int refineAdaptive( HbrMesh<T> * mesh, int maxIsolate );
     
-    // Generates local sub-face coordinates for Ptex textures
-    void generatePtexCoordinates( std::vector<FarPtexCoord> & vec, int level );
-
-    // Generates local sub-face face-varying UV coordinates 
-    void generateFVarData( std::vector<float> & vec, int level );
-
-    // Generates non-adaptive quad topology 
-    // XXXX manuelk we should introduce an equivalent to FarPatchTables for 
-    // non-adaptive stuff
-    void generateQuadsTopology( std::vector<int> & vec, int level );
-
+    typedef std::vector<std::vector< HbrFace<T> *> > FacesList;
+    
+    // Returns sorted vectors of HbrFace<T> pointers sorted by level
+    FacesList const & GetFaceList() const { return _facesList; }
+    
 private:
     HbrMesh<T> * _hbrMesh;
 
@@ -245,8 +240,7 @@ private:
     // order of the same vertices in the tables
     std::vector<int> _remapTable;
 
-    // list of faces sorted by level
-    std::vector<std::vector< HbrFace<T> *> > _facesList;
+    FacesList _facesList;
 };
 
 template <class T, class U>
@@ -303,6 +297,8 @@ FarMeshFactory<T,U>::refine( HbrMesh<T> * mesh, int maxlevel ) {
         // faces that have already been refined.
         firstface = nfaces;
     }
+
+    mesh->SetSubdivisionMethod(HbrMesh<T>::k_SubdivisionMethodUniform);
 }
 
 // Scan the faces of a mesh and compute the max level of subdivision required
@@ -494,12 +490,12 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
             // Quad-faces with 2 non-consecutive boundaries need to be flagged
             // as "non-patch"
             //
-            //  O ******** O ******** O ******** O
-            //  *          |          |          *     *** boundary edge
-            //  *          |   needs  |          *
-            //  *          |   flag   |          *     --- regular edge
-            //  *          |          |          *
-            //  O ******** O ******** O ******** O
+            //  o ........ o ........ o ........ o
+            //  .          |          |          .     ... b.undary edge
+            //  .          |   needs  |          .
+            //  .          |   flag   |          .     --- regular edge
+            //  .          |          |          .
+            //  o ........ o ........ o ........ o
             //
             if ( e->IsBoundary() and (not f->_adaptiveFlags.isTagged) and nv==4 ) {
                 if (e->GetPrev() and (not e->GetPrev()->IsBoundary()) and
@@ -583,6 +579,9 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
             }
         }
     }
+    
+    mesh->SetSubdivisionMethod(HbrMesh<T>::k_SubdivisionMethodFeatureAdaptive);
+    
     return maxlevel-1;
 }
 
@@ -620,7 +619,6 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adapt
     if (not adaptive) {
 
         // Populate the face lists
-        
         int fsize=0;
         for (int i=0; i<_numFaces; ++i) {
             HbrFace<T> * f = mesh->GetFace(i);
@@ -658,29 +656,6 @@ FarMeshFactory<T,U>::isLoop(HbrMesh<T> const * mesh) {
 }
 
 template <class T, class U> void
-FarMeshFactory<T,U>::generateQuadsTopology( std::vector<int> & vec, int level ) {
-
-    assert( GetHbrMesh() );
-
-    int nv=-1;
-    if ( isCatmark(GetHbrMesh()) or isBilinear(GetHbrMesh()) )
-        nv=4;
-    else if ( isLoop(GetHbrMesh()) )
-        nv=3;
-
-    assert(nv>0);
-
-    vec.resize( nv * _facesList[level].size(), -1 );
-
-    for (int i=0; i<(int)_facesList[level].size(); ++i) {
-        HbrFace<T> * f = _facesList[level][i];
-        assert( f and f->GetNumVertices()==nv);
-        for (int j=0; j<f->GetNumVertices(); ++j)
-            vec[nv*i+j]=_remapTable[f->GetVertex(j)->GetID()];
-    }
-}
-
-template <class T, class U> void
 copyVertex( T & dest, U const & src ) {
 }
 
@@ -689,6 +664,19 @@ copyVertex( T & dest, T const & src ) {
     dest = src;
 }
 
+template <class T> int
+getNumPtexFaces(HbrMesh<T> const * hmesh) {
+
+    HbrFace<T> * lastface = hmesh->GetFace(hmesh->GetNumFaces()-1);
+    assert(lastface);
+
+    int result = lastface->GetPtexIndex();
+
+    result += (hmesh->GetSubdivision()->FaceIsExtraordinary(hmesh, lastface) ?
+                  lastface->GetNumVertices() : 1);
+
+    return result;
+}
 
 // Computes per-face or per-patch local ptex texture coordinates.
 template <class T> FarPtexCoord *
@@ -735,42 +723,6 @@ computePtexCoordinate(HbrFace<T> const *f, FarPtexCoord *coord) {
     return ++coord;
 }
 
-// This currently only supports the Catmark / Bilinear schemes. Loop 
-template <class T, class U> void
-FarMeshFactory<T,U>::generatePtexCoordinates( std::vector<FarPtexCoord> & vec, int level ) {
-
-    assert( _hbrMesh );
-
-    if (_facesList[0].empty() or _facesList[level][0]->GetPtexIndex() == -1) 
-        return;
-
-    vec.resize( _facesList[level].size() );
-
-    FarPtexCoord * p = &vec[0];
-
-    for (int i=0; i<(int)_facesList[level].size(); ++i) {
-
-        HbrFace<T> const * f = _facesList[level][i];
-        assert(f);
-
-        p = computePtexCoordinate(f, p);
-    }
-}
-
-template <class T> int
-getNumPtexFaces(HbrMesh<T> const * hmesh) {
-
-    HbrFace<T> * lastface = hmesh->GetFace(hmesh->GetNumFaces()-1);
-    assert(lastface);
-
-    int result = lastface->GetPtexIndex();
-
-    result += (hmesh->GetSubdivision()->FaceIsExtraordinary(hmesh, lastface) ?
-                  lastface->GetNumVertices() : 1);
-
-    return result;
-}
-
 template <class T> float *
 computeFVarData(HbrFace<T> const *f, const int width, float *coord, bool isAdaptive) {
 
@@ -811,31 +763,6 @@ computeFVarData(HbrFace<T> const *f, const int width, float *coord, bool isAdapt
     return coord;
 }
 
-// This currently only supports the Catmark / Bilinear schemes. Loop 
-template <class T, class U> void
-FarMeshFactory<T,U>::generateFVarData( std::vector<float> & vec, int level ) {
-
-    assert( _hbrMesh );
-
-    if (_facesList[0].empty())
-        return;
-
-    // initialize coordinate vector: numFaces*4verts*numFVarDatumPerVert
-    int totalFVarWidth = _hbrMesh->GetTotalFVarWidth();
-    vec.resize( _facesList[level].size()*4 * totalFVarWidth, -1.0 );
-
-    // pointer will be advanced through vector as we go through faces
-    float *p = &vec[0];
-
-    for (int i=0; i<(int)_facesList[level].size(); ++i) {
-
-        HbrFace<T> const * f = _facesList[level][i];
-        assert(f);
-
-        p = computeFVarData(f, totalFVarWidth, p, /*isAdaptive=*/false);
-    }
-}
-
 template <class T, class U> FarMesh<U> *
 FarMeshFactory<T,U>::Create( bool requireFVarData ) {
 
@@ -864,7 +791,6 @@ FarMeshFactory<T,U>::Create( bool requireFVarData ) {
         for (int i=0; i<GetNumCoarseVertices(); ++i)
             copyVertex(result->_vertices[i], GetHbrMesh()->GetVertex(i)->GetData());
     }
-    
 
     // Create the element indices tables (patches for adaptive, quads for non-adaptive)
     if (isAdaptive()) {
@@ -873,35 +799,18 @@ FarMeshFactory<T,U>::Create( bool requireFVarData ) {
 
         // XXXX: currently PatchGregory shader supports up to 29 valence
         result->_patchTables = factory.Create(GetMaxLevel()+1, _maxValence, requireFVarData);
-        assert( result->_patchTables );
-
-        if (requireFVarData) {
-            result->_totalFVarWidth = _hbrMesh->GetTotalFVarWidth();
-        }
 
     } else {
-
-        // XXXX : we should let the client control what to copy, most of this may be irrelevant
-        result->_faceverts.resize(GetMaxLevel()+1);
-        for (int l=1; l<=GetMaxLevel(); ++l)
-            generateQuadsTopology(result->_faceverts[l], l);
-
-        // Generate Ptex coordinates
-        result->_ptexcoordinates.resize(GetMaxLevel()+1);
-        for (int l=1; l<=GetMaxLevel(); ++l)
-            generatePtexCoordinates(result->_ptexcoordinates[l], l);
-
-        if (requireFVarData) {
-            // Generate fvar data
-            result->_totalFVarWidth = _hbrMesh->GetTotalFVarWidth();
-            result->_fvarData.resize(GetMaxLevel()+1);
-            for (int l=1; l<=GetMaxLevel(); ++l)
-                generateFVarData(result->_fvarData[l], l);
-        }
+        result->_patchTables = FarPatchTablesFactory<T>::Create(GetHbrMesh(), _facesList, _remapTable, requireFVarData );
     }
+    assert( result->_patchTables );
 
     result->_numPtexFaces = _numPtexFaces;
     
+    if (requireFVarData) {
+        result->_totalFVarWidth = _hbrMesh->GetTotalFVarWidth();
+    }
+
     // Create VertexEditTables if necessary
     if (GetHbrMesh()->HasVertexEdits()) {
         result->_vertexEditTables = FarVertexEditTablesFactory<T,U>::Create( this, result, &result->_batches, GetMaxLevel() );

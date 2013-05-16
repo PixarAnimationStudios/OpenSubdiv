@@ -116,9 +116,6 @@ private:
                                                  int *voffset, int *poffset, int *qoffset,
                                                  std::vector<int> const &vertexOffsets);
 
-    // splice quad indices
-    void spliceQuads(FarMesh<U> *result, FarMeshVector const &meshes);
-
     // splice hierarchical edit tables
     FarVertexEditTables<U> * spliceVertexEditTables(FarMesh<U> *farmesh, FarMeshVector const &meshes);
 
@@ -167,11 +164,7 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
     result->_subdivisionTables = spliceSubdivisionTables(result, meshes);
 
     // splice patch/quad index tables
-    if ( adaptive ) {
-        result->_patchTables = splicePatchTables(meshes);
-    } else {
-        spliceQuads(result, meshes);
-    }
+    result->_patchTables = splicePatchTables(meshes);
 
     // splice vertex edit tables
     result->_vertexEditTables = spliceVertexEditTables(result, meshes);
@@ -405,23 +398,6 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
     }
     return result;
 }        
-
-template <class T, class U> void
-FarMultiMeshFactory<T, U>::spliceQuads(FarMesh<U> *result, FarMeshVector const &meshes) {
-
-    result->_faceverts.clear();
-    result->_faceverts.resize(_maxlevel+1);
-
-    // apply vertex offset and concatenate quad indices
-    for (int l = 0; l <= _maxlevel; ++l) {
-        int vertexOffset = 0;
-        for (size_t i = 0; i < meshes.size(); ++i) {
-            copyWithOffset(std::back_inserter(result->_faceverts[l]),
-                           meshes[i]->_faceverts[l], vertexOffset);
-            vertexOffset += meshes[i]->GetNumVertices();
-        }
-    }
-}
 
 template <class T, class U> FarPatchTables::PTable::iterator
 FarMultiMeshFactory<T, U>::splicePatch(FarPatchTables::Descriptor desc,
