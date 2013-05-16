@@ -291,7 +291,7 @@ int g_screenSpaceTess = 1;
 int g_kernel = kCPU;
 #define MAX_MODELS 600
 int g_modelCount = 4;
-int g_moveModels = 4;
+int g_moveModels = g_modelCount;
 
 GLuint g_queries[2] = {0, 0};
 
@@ -313,8 +313,6 @@ checkGLErrors(std::string const & where = "")
 
 static void
 updateGeom(bool forceAll) {
-
-    const OpenSubdiv::OsdUtilMeshHandle::Collection & handles = g_batch->GetMeshHandles();
 
     float r = (float)sin(g_totalTime);
 
@@ -343,7 +341,7 @@ updateGeom(bool forceAll) {
             p += 3;
         }
         
-        g_batch->UpdateCoarseVertices(handles[j], &vertex[0], nverts);
+        g_batch->UpdateCoarseVertices(j, &vertex[0], nverts);
     }
 
     Stopwatch s;
@@ -447,33 +445,33 @@ rebuild()
 
     // create multimesh batch
     if (g_kernel == kCPU) {
-        g_batch = new OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
-                                                   MyDrawContext,
-                                                   OpenSubdiv::OsdCpuComputeController>(
+        g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
+                                               MyDrawContext,
+                                               OpenSubdiv::OsdCpuComputeController>::Create(
             Controller<OpenSubdiv::OsdCpuComputeController>::GetInstance(),
             farMeshes, 0);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (g_kernel == kOPENMP) {
-        g_batch = new OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
-                                                   MyDrawContext,
-                                                   OpenSubdiv::OsdOmpComputeController>(
+        g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
+                                               MyDrawContext,
+                                               OpenSubdiv::OsdOmpComputeController>::Create(
             Controller<OpenSubdiv::OsdOmpComputeController>::GetInstance(),
             farMeshes, 0);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if (g_kernel == kCL) {
-        g_batch = new OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCLGLVertexBuffer,
-                                                   MyDrawContext,
-                                                   OpenSubdiv::OsdCLComputeController>(
+        g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCLGLVertexBuffer,
+                                               MyDrawContext,
+                                               OpenSubdiv::OsdCLComputeController>::Create(
             Controller<OpenSubdiv::OsdCLComputeController>::GetInstance(),
             farMeshes, 0);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
-        g_batch = new OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCudaGLVertexBuffer,
-                                                   MyDrawContext,
-                                                   OpenSubdiv::OsdCudaComputeController>(
-            Controller<OpenSubdiv::OsdCudaComputeController>::GetInstance(),
+        g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCudaGLVertexBuffer,
+                                               MyDrawContext,
+                                               OpenSubdiv::OsdCudaComputeController>::Create(
+                Controller<OpenSubdiv::OsdCudaComputeController>::GetInstance(),
             farMeshes, 0);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
@@ -545,14 +543,14 @@ display() {
     OpenSubdiv::OsdUtilDrawItem<MyEffect, MyDrawContext>::Collection items;
     OpenSubdiv::OsdUtilDrawItem<MyEffect, MyDrawContext>::Collection cachedDrawItems;
 
-    const OpenSubdiv::OsdUtilMeshHandle::Collection & handles = g_batch->GetMeshHandles();
-    items.reserve(handles.size());
-    for (OpenSubdiv::OsdUtilMeshHandle::Collection::const_iterator it = handles.begin();
-         it != handles.end(); ++it) {
+    int numModels = g_modelCount*g_modelCount;
+    items.reserve(numModels);
+
+    for (int i = 0; i < numModels; ++i) {
         // Here, client can pack arbitrary mesh and effect into drawItems.
 
         items.push_back(OpenSubdiv::OsdUtilDrawItem<MyEffect, MyDrawContext>(
-                            g_batch, g_effect, g_batch->GetPatchArrays(*it)));
+                            g_batch, g_effect, g_batch->GetPatchArrays(i)));
     }
 
     if (g_batching) {
