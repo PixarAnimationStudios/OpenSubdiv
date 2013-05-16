@@ -114,7 +114,7 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
     result->_E_W.resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*2);
 
     result->_V_ITa.resize((tablesFactory.GetNumVertexVerticesTotal(maxlevel)
-                           - tablesFactory.GetNumVertexVerticesTotal(0))*5); // subtract corase cage vertices
+                           - tablesFactory.GetNumVertexVerticesTotal(0))*5); // subtract coarse cage vertices
     result->_V_IT.resize(tablesFactory.GetVertVertsValenceSum());
     result->_V_W.resize(tablesFactory.GetNumVertexVerticesTotal(maxlevel)
                         - tablesFactory.GetNumVertexVerticesTotal(0));

@@ -786,8 +786,8 @@ FarMeshFactory<T,U>::Create( bool requireFVarData ) {
 
     // If the vertex classes aren't place-holders, copy the data of the coarse
     // vertices into the vertex buffer.
-    result->_vertices.resize( _numVertices );
     if (sizeof(U)>1) {
+        result->_vertices.resize( _numVertices );
         for (int i=0; i<GetNumCoarseVertices(); ++i)
             copyVertex(result->_vertices[i], GetHbrMesh()->GetVertex(i)->GetData());
     }

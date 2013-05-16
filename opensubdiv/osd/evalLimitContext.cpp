@@ -63,9 +63,7 @@ namespace OPENSUBDIV_VERSION {
 
 OsdEvalLimitContext::OsdEvalLimitContext(FarMesh<OsdVertex> const * farmesh) {
 
-    _adaptive = farmesh->SupportsFeatureAdaptive();
-
-    
+    _adaptive = farmesh->GetPatchTables()->IsFeatureAdaptive();
 }
 
 OsdEvalLimitContext::~OsdEvalLimitContext() {

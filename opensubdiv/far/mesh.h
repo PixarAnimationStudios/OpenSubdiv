@@ -91,7 +91,7 @@ public:
     FarPatchTables const * GetPatchTables() const { return _patchTables; }
 
     /// Returns the total number of vertices in the mesh across across all depths
-    int GetNumVertices() const { return (int)(_vertices.size()); }
+    int GetNumVertices() const { return GetSubdivisionTables()->GetNumVertices(); }
 
     /// Returns the list of vertices in the mesh (from subdiv level 0 to N)
     std::vector<U> & GetVertices() { return _vertices; }
