@@ -192,6 +192,16 @@ copyWithOffset(IT dst_iterator, V const &src, int start, int count, int offset) 
 }
 
 template <typename V, typename IT> static IT
+copyWithPtexFaceOffset(IT dst_iterator, V const &src, int start, int count, int offset) {
+    for (typename V::const_iterator it = src.begin()+start; it != src.begin()+start+count; ++it) {
+        typename V::value_type ptexCoord = *it;
+        ptexCoord.faceIndex += offset;
+        *dst_iterator++ = ptexCoord;
+    }
+    return dst_iterator;
+}
+
+template <typename V, typename IT> static IT
 copyWithOffsetF_ITa(IT dst_iterator, V const &src, int offset) {
     for (typename V::const_iterator it = src.begin(); it != src.end();) {
         *dst_iterator++ = *it++ + offset;   // offset to F_IT
@@ -538,6 +548,23 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
             Q1_IT = std::copy(ptables->_quadOffsetTable.begin()+nGregoryQuads,
                               ptables->_quadOffsetTable.end(),
                               Q1_IT);
+        }
+    }
+
+    // merge ptexCoord table
+    for (FarPatchTables::Descriptor::iterator it = FarPatchTables::Descriptor::begin(); it != FarPatchTables::Descriptor::end(); ++it) {
+        int ptexFaceOffset = 0;
+        for (size_t i = 0; i < meshes.size(); ++i) {
+            FarPatchTables const *ptables = meshes[i]->GetPatchTables();
+            FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
+            if (not parray) continue;
+
+            copyWithPtexFaceOffset(std::back_inserter(result->_ptexTable),
+                                   ptables->_ptexTable,
+                                   parray->GetPatchIndex(),
+                                   parray->GetNumPatches(), ptexFaceOffset);
+
+            ptexFaceOffset += meshes[i]->GetNumPtexFaces();
         }
     }
 
