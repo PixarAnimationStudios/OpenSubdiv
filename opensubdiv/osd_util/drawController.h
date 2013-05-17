@@ -115,7 +115,7 @@ namespace OsdUtil {
 
     // ------------------------------------------------------------------------
     struct PatchArrayCombiner {
-        typedef std::vector<std::pair<OsdDrawContext::PatchDescriptor, OsdDrawContext::PatchArrayVector> > Dictionary;
+        typedef std::map<OsdDrawContext::PatchDescriptor, OsdDrawContext::PatchArrayVector> Dictionary;
 
         struct PatchArrayComparator {
             bool operator() (OsdDrawContext::PatchArray const &a, OsdDrawContext::PatchArray const &b) {
@@ -153,22 +153,14 @@ namespace OsdUtil {
             }
 
             result.push_back(item);
-            dictionary.clear();
-        }
 
-        void allocate(OsdDrawContext::PatchArrayVector const &srcPatchArrays) {
-            for (OsdDrawContext::PatchArrayVector::const_iterator it = srcPatchArrays.begin(); it != srcPatchArrays.end(); ++it) {
-                dictionary.push_back(Dictionary::value_type(it->GetDescriptor(), OsdDrawContext::PatchArrayVector()));
+            for (Dictionary::iterator it = dictionary.begin(); it != dictionary.end(); ++it) {
+                it->second.clear();
             }
         }
 
         void append(OsdDrawContext::PatchArray const &patchArray) {
-            for (Dictionary::iterator it = dictionary.begin(); it != dictionary.end(); ++it) {
-                if (patchArray.GetDescriptor() == it->first) {
-                    it->second.push_back(patchArray);
-                    return;
-                }
-            }
+            dictionary[patchArray.GetDescriptor()].push_back(patchArray);
         }
         Dictionary dictionary;
         
@@ -199,9 +191,6 @@ namespace OsdUtil {
                 
                 currentBatch = batch;
                 currentEffect = effect;
-
-                // prepare new patch dictionary
-                combiner.allocate(batch->GetDrawContext()->patchArrays);
             }
 
             // merge consecutive items if possible. This operation changes drawing order.
@@ -213,7 +202,6 @@ namespace OsdUtil {
             for (OsdDrawContext::PatchArrayVector::const_iterator itp = patchArrays.begin(); itp != patchArrays.end(); ++itp) {
                 if (itp->GetNumPatches() == 0) continue;
                 // insert patchArrays into dictionary
-                // linear search is faster in this case so we don't use std::map.
                 combiner.append(*itp);
             }
         }
