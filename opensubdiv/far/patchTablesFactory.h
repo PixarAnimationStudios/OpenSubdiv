@@ -177,10 +177,10 @@ private:
     };
 
     // Useful typedefs 
-    typedef PatchTypes<unsigned int*>  CVPointers;
-    typedef PatchTypes<FarPtexCoord *> PtexPointers;
-    typedef PatchTypes<float *>        FVarPointers;
-    typedef PatchTypes<int>            Counter;
+    typedef PatchTypes<unsigned int*>   CVPointers;
+    typedef PatchTypes<FarPatchParam *> ParamPointers;
+    typedef PatchTypes<float *>         FVarPointers;
+    typedef PatchTypes<int>             Counter;
     
     // Creates a PatchArray and appends it to a vector and keeps track of both
     // vertex and patch offsets
@@ -260,7 +260,7 @@ FarPatchTablesFactory<T>::allocateTables( FarPatchTables * tables, int fvarwidth
     tables->_patches.resize( nverts );
 
     // Allocate memory for the ptex coord tables
-    tables->_ptexTable.resize( npatches );
+    tables->_paramTable.resize( npatches );
 
     if (fvarwidth>0) {
         tables->_fvarTable.resize( npatches * 4 * fvarwidth );
@@ -303,9 +303,9 @@ FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & fli
 
     allocateTables( result, fvarwidth ); 
 
-    unsigned int * iptr = &result->_patches[0];
-    FarPtexCoord * pptr = &result->_ptexTable[0];
-    float        * fptr = requireFVarData ? &result->_fvarTable[0] : 0;
+    unsigned int  * iptr = &result->_patches[0];
+    FarPatchParam * pptr = &result->_paramTable[0];
+    float         * fptr = requireFVarData ? &result->_fvarTable[0] : 0;
     
     for (int level=firstArray; level<(int)flist.size(); ++level) {
 
@@ -317,7 +317,7 @@ FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & fli
                 *iptr++ = remapTable[f->GetVertex(j)->GetID()];
             }
             
-            pptr = computePtexCoordinate(f, pptr);
+            pptr = computePatchParam(f, pptr);
             
             if (requireFVarData)
                 fptr = computeFVarData(f, fvarwidth, fptr, /*isAdaptive=*/false);
@@ -687,7 +687,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
     // Setup convenience pointers at the beginning of each patch array for each
     // table (patches, ptex, fvar)
     CVPointers    iptrs[6];
-    PtexPointers  pptrs[6];
+    ParamPointers pptrs[6];
     FVarPointers  fptrs[6];
 
     for (Descriptor::iterator it=Descriptor::begin(); it!=Descriptor::end(); ++it) {
@@ -698,7 +698,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
             continue;
 
         iptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_patches[pa->GetVertIndex()];
-        pptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_ptexTable[pa->GetPatchIndex()];
+        pptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_paramTable[pa->GetPatchIndex()];
         if (requireFVarData)
             fptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_fvarTable[pa->GetPatchIndex() * 4 * fvarwidth];
     }
@@ -719,7 +719,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
                         case 0 : {   // Regular Patch (16 CVs)
                                      getOneRing(f, 16, remapRegular, iptrs[0].R);
                                      iptrs[0].R+=16;
-                                     pptrs[0].R = computePtexCoordinate(f, pptrs[0].R);
+                                     pptrs[0].R = computePatchParam(f, pptrs[0].R);
                                      fptrs[0].R = computeFVarData(f, fvarwidth, fptrs[0].R, /*isAdaptive=*/true);
                                  } break;
 
@@ -727,7 +727,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
                                      f->_adaptiveFlags.brots = (f->_adaptiveFlags.rots+1)%4;
                                      getOneRing(f, 12, remapRegularBoundary, iptrs[0].B[0]);
                                      iptrs[0].B[0]+=12;
-                                     pptrs[0].B[0] = computePtexCoordinate(f, pptrs[0].B[0]);
+                                     pptrs[0].B[0] = computePatchParam(f, pptrs[0].B[0]);
                                      fptrs[0].B[0] = computeFVarData(f, fvarwidth, fptrs[0].B[0], /*isAdaptive=*/true);
                                  } break;
 
@@ -735,7 +735,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
                                      f->_adaptiveFlags.brots = (f->_adaptiveFlags.rots+1)%4;
                                      getOneRing(f, 9, remapRegularCorner, iptrs[0].C[0]);
                                      iptrs[0].C[0]+=9;
-                                     pptrs[0].C[0] = computePtexCoordinate(f, pptrs[0].C[0]);
+                                     pptrs[0].C[0] = computePatchParam(f, pptrs[0].C[0]);
                                      fptrs[0].C[0] = computeFVarData(f, fvarwidth, fptrs[0].C[0], /*isAdaptive=*/true);
                                  } break;
 
@@ -752,7 +752,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
                     iptrs[0].G[0]+=4;
                     getQuadOffsets(f, quad_G_C0_P);
                     quad_G_C0_P += 4;
-                    pptrs[0].G[0] = computePtexCoordinate(f, pptrs[0].G[0]);
+                    pptrs[0].G[0] = computePatchParam(f, pptrs[0].G[0]);
                     fptrs[0].G[0] = computeFVarData(f, fvarwidth, fptrs[0].G[0], /*isAdaptive=*/true);
                 } else {
                 
@@ -762,7 +762,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
                     iptrs[0].G[1]+=4;
                     getQuadOffsets(f, quad_G_C1_P);
                     quad_G_C1_P += 4;
-                    pptrs[0].G[1] = computePtexCoordinate(f, pptrs[0].G[1]);
+                    pptrs[0].G[1] = computePatchParam(f, pptrs[0].G[1]);
                     fptrs[0].G[1] = computeFVarData(f, fvarwidth, fptrs[0].G[1], /*isAdaptive=*/true);
                 }
             } else {
@@ -783,7 +783,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
                                  getOneRing(f, 16, remapRegular, iptrs[tcase].R);
 
                                  iptrs[tcase].R+=16;
-                                 pptrs[tcase].R = computePtexCoordinate(f, pptrs[tcase].R);
+                                 pptrs[tcase].R = computePatchParam(f, pptrs[tcase].R);
                                  fptrs[tcase].R = computeFVarData(f, fvarwidth, fptrs[tcase].R, /*isAdaptive=*/true);
                              } break;
 
@@ -791,7 +791,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
                                  unsigned rot = f->_adaptiveFlags.brots;
                                  getOneRing(f, 12, remapRegularBoundary, iptrs[tcase].B[rot]);
                                  iptrs[tcase].B[rot]+=12;
-                                 pptrs[tcase].B[rot] = computePtexCoordinate(f, pptrs[tcase].B[rot]);
+                                 pptrs[tcase].B[rot] = computePatchParam(f, pptrs[tcase].B[rot]);
                                  fptrs[tcase].B[rot] = computeFVarData(f, fvarwidth, fptrs[tcase].B[rot], /*isAdaptive=*/true);
                              } break;
 
@@ -799,7 +799,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
                                  unsigned rot = f->_adaptiveFlags.brots;
                                  getOneRing(f, 9, remapRegularCorner, iptrs[tcase].C[rot]);
                                  iptrs[tcase].C[rot]+=9;
-                                 pptrs[tcase].C[rot] = computePtexCoordinate(f, pptrs[tcase].C[rot]);
+                                 pptrs[tcase].C[rot] = computePatchParam(f, pptrs[tcase].C[rot]);
                                  fptrs[tcase].C[rot] = computeFVarData(f, fvarwidth, fptrs[tcase].C[rot], /*isAdaptive=*/true);
                              } break;
                 }

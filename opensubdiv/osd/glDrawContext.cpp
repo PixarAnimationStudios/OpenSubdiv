@@ -226,8 +226,8 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
 
 
     // create ptex coordinate buffer
-    FarPatchTables::PtexCoordinateTable const &
-        ptexCoordTables = patchTables->GetPtexCoordinatesTable();
+    FarPatchTables::PatchParamTable const &
+        ptexCoordTables = patchTables->GetPatchParamTable();
 
     if (not ptexCoordTables.empty())
         ptexCoordinateTextureBuffer = createTextureBuffer(ptexCoordTables, GL_RG32I);

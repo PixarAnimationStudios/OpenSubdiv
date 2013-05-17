@@ -60,94 +60,14 @@
 
 #include "../version.h"
 
+#include "../far/patchParam.h"
+
 #include <cstdlib>
 #include <cassert>
 #include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
-
-/// \brief Flattened ptex coordinates indexing system
-///
-/// Bitfield layout :
-///
-///   level:4      - the subdivision level of the patch
-///   nonquad:1;   - whether the patch is the child of a non-quad face
-///   rotation:2;  - patch rotations necessary to match CCW face-winding
-///   v:10;        - log2 value of u parameter at first patch corner
-///   u:10;        - log2 value of v parameter at first patch corner
-///   reserved1:5; - padding
-///
-/// Note : the bitfield is not expanded in the struct due to differences in how
-///        GPU & CPU compilers pack bit-fields and endian-ness.
-///
-struct FarPtexCoord {
-    unsigned int faceIndex:32; // Ptex face index
-    
-    struct BitField {
-        unsigned int field:32;
-        
-        /// Sets the values of the bit fields
-        ///
-        /// @param u value of the u parameter for the first corner of the face
-        /// @param v value of the v parameter for the first corner of the face
-        ///
-        /// @param rots rotations required to reproduce CCW face-winding
-        /// @param depth subdivision level of the patch
-        /// @param nonquad true if the root face is not a quad
-        ///
-        void Set( short u, short v, unsigned char rots, unsigned char depth, bool nonquad ) {
-            field = (u << 17) |
-                    (v << 7) |
-                    (rots << 5) |
-                    ((nonquad ? 1:0) << 4) |
-                    (nonquad ? depth+1 : depth);
-        }
-
-        /// Returns the log2 value of the u parameter at the top left corner of
-        /// the patch
-        unsigned short GetU() const { return (field >> 17) & 0x3ff; }
-
-        /// Returns the log2 value of the v parameter at the top left corner of
-        /// the patch
-        unsigned short GetV() const { return (field >> 7) & 0x3ff; }
-
-        /// Returns the rotation of the patch (the number of CCW parameter winding)
-        unsigned char GetRotation() const { return (field >> 5) & 0x3; }
-
-        /// True if the parent coarse face is a non-quad
-        bool NonQuadRoot() const { return (field >> 4) & 0x1; }
-
-        /// Returns the level of subdivision of the patch 
-        unsigned char GetDepth() const { return (field & 0xf); }
-
-        /// Resets the values to 0
-        void Clear() { field = 0; }
-                
-    } bitField;
-
-    /// Sets the values of the bit fields
-    ///
-    /// @param faceid ptex face index
-    ///
-    /// @param u value of the u parameter for the first corner of the face
-    /// @param v value of the v parameter for the first corner of the face
-    ///
-    /// @param rots rotations required to reproduce CCW face-winding
-    /// @param depth subdivision level of the patch
-    /// @param nonquad true if the root face is not a quad
-    ///
-    void Set( unsigned int faceid, short u, short v, unsigned char rots, unsigned char depth, bool nonquad ) {
-        faceIndex = faceid;
-        bitField.Set(u,v,rots,depth,nonquad);
-    }
-    
-    /// Resets everything to 0
-    void Clear() { 
-        faceIndex = 0;
-        bitField.Clear();
-    }    
-};
 
 /// \brief Container for patch vertex indices tables
 ///
@@ -160,7 +80,7 @@ public:
     typedef std::vector<unsigned int>  PTable;
     typedef std::vector<int>           VertexValenceTable;
     typedef std::vector<unsigned int>  QuadOffsetTable;
-    typedef std::vector<FarPtexCoord>  PtexCoordinateTable;
+    typedef std::vector<FarPatchParam> PatchParamTable;
     typedef std::vector<float>         FVarDataTable;
 
     enum Type {
@@ -388,7 +308,7 @@ public:
         }
         
         /// Returns the global index of the first patch in this array (Used to
-        /// access ptex / fvar table data)
+        /// access param / fvar table data)
         unsigned int GetPatchIndex() const {
             return _range.patchIndex;
         }
@@ -458,8 +378,8 @@ public:
     /// Returns a quad offsets table used by Gregory patches
     QuadOffsetTable const & GetQuadOffsetTable() const { return _quadOffsetTable; }
 
-    /// Returns a PtexCoordinateTable for each type of patch
-    PtexCoordinateTable const & GetPtexCoordinatesTable() const { return _ptexTable; }
+    /// Returns a PatchParamTable for each type of patch
+    PatchParamTable const & GetPatchParamTable() const { return _paramTable; }
 
     /// Returns an FVarDataTable for each type of patch
     /// The data is stored as a run of totalFVarWidth floats per-vertex per-face
@@ -513,7 +433,7 @@ private:
     
     QuadOffsetTable     _quadOffsetTable;    // quad offsets table (for Gregory patches)
     
-    PtexCoordinateTable _ptexTable;
+    PatchParamTable     _paramTable;
 
     FVarDataTable       _fvarTable;
 

@@ -91,7 +91,7 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
     
         FarPatchTables::PatchHandle const & handle = patchHandles[i];
 
-        FarPtexCoord::BitField bits = context->GetPatchBitFields()[ handle.serialIndex ];
+        FarPatchParam::BitField bits = context->GetPatchBitFields()[ handle.serialIndex ];
 
         float frac = 1.0f / float( 1 << bits.GetDepth() );
         

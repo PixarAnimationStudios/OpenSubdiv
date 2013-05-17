@@ -639,10 +639,10 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
             FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
             if (not parray) continue;
 
-            copyWithPtexFaceOffset(std::back_inserter(result->_ptexTable),
-                                   ptables->_ptexTable,
-                                   parray->GetPatchIndex(),
-                                   parray->GetNumPatches(), ptexFaceOffset);
+            copyWithPtexFaceOffset(std::back_inserter(result->_paramTable),
+                                                      result->_paramTable,
+                                                      parray->GetPatchIndex(),
+                                                      parray->GetNumPatches(), ptexFaceOffset);
 
             ptexFaceOffset += meshes[i]->GetNumPtexFaces();
         }
