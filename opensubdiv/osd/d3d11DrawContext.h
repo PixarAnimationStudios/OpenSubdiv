@@ -48,6 +48,12 @@
 //     with this license.
 //     (E) The software is licensed "as-is." You bear the risk of
 //     using it. The contributors give no express warranties,
+//     guarantees or conditions. You may have additional consumer
+//     rights under your local laws which this license cannot change.
+//     To the extent permitted under your local laws, the contributors
+//     exclude the implied warranties of merchantability, fitness for
+//     a particular purpose and non-infringement.
+//
 #ifndef OSD_D3D11L_DRAW_CONTEXT_H
 #define OSD_D3D11L_DRAW_CONTEXT_H
 
@@ -73,6 +79,17 @@ struct ID3D11DeviceContext;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+/// \brief D3D11 specialized DrawContext class
+///
+/// OsdD3D11DrawContext implements the OSD drawing interface with Microsoft(c)
+/// DirectX D3D11 API.
+/// Some functionality may be disabled depending on compile and run-time driver
+/// support.
+///
+/// Contexts interface the serialized topological data pertaining to the 
+/// geometric primitives with the capabilities of the selected discrete 
+/// compute device.
+///
 class OsdD3D11DrawContext : public OsdDrawContext {
 public:
     typedef ID3D11Buffer * VertexBufferBinding;
