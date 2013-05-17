@@ -1226,7 +1226,7 @@ display() {
 */
 
     // patch drawing
-    int patchCount[10][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
+    int patchCount[11][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
     memset(patchCount, 0, sizeof(patchCount));
 
     // primitive counting

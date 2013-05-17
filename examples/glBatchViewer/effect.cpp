@@ -184,9 +184,10 @@ MyEffect::BindDrawConfig(MyDrawConfig *config, OpenSubdiv::OsdDrawContext::Patch
     GLint diffuseColor = config->diffuseColorUniform;
 
     if (displayPatchColor) {
-        GLfloat patchColor[10][4] = {
+        GLfloat patchColor[11][4] = {
             { 1.0f, 1.0f, 1.0f, 1.0f },  // NON_PATCH
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // POLYGON
+            { 1.0f, 1.0f, 1.0f, 1.0f },  // POINTS
+            { 1.0f, 1.0f, 1.0f, 1.0f },  // LINES
             { 1.0f, 1.0f, 1.0f, 1.0f },  // QUADS
             { 1.0f, 1.0f, 1.0f, 1.0f },  // TRIANGLES
             { 1.0f, 1.0f, 1.0f, 1.0f },  // LOOP

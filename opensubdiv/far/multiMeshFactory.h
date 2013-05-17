@@ -178,7 +178,7 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
     result->_vertexEditTables = spliceVertexEditTables(result, meshes);
 
     // count total num vertices, numptex faces
-    int numVertices = 0, numPtexFaces;
+    int numVertices = 0, numPtexFaces = 0;
     for (size_t i = 0; i < meshes.size(); ++i) {
         numVertices += meshes[i]->GetNumVertices();
         numPtexFaces += meshes[i]->GetNumPtexFaces();
@@ -640,7 +640,7 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
             if (not parray) continue;
 
             copyWithPtexFaceOffset(std::back_inserter(result->_paramTable),
-                                                      result->_paramTable,
+                                                      ptables->_paramTable,
                                                       parray->GetPatchIndex(),
                                                       parray->GetNumPatches(), ptexFaceOffset);
 

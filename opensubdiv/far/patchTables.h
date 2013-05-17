@@ -86,7 +86,8 @@ public:
     enum Type {
         NON_PATCH = 0,   // undefined
  
-        POLYGONS,        // general polygon mesh
+        POINTS,          // points  (useful for cage drawing)
+        LINES,           // lines   (useful for cage drawing)
  
         QUADS,           // bilinear quads-only patches
         TRIANGLES,       // bilinear triangles-only mesh
@@ -341,6 +342,31 @@ public:
                      serialIndex;  // Serialized Index of the patch
     };
 
+
+    /// Constructor
+    ///
+    /// @param patchArrays      Vector of descriptors and ranges for arrays of patches
+    ///
+    /// @param indices          Indices of the control vertices of the patches
+    ///
+    /// @param vertexValences   Vertex valance table
+    ///
+    /// @param quadOffsets      Quad offset table
+    ///
+    /// @param ptexCoords       Ptex coordinate table
+    ///
+    /// @param fvarData         Face varying data table
+    ///
+    /// @param maxValence       Highest vertex valence allowed in the mesh
+    ///
+    FarPatchTables(PatchArrayVector const & patchArrays,
+                   PTable const & patches,
+                   VertexValenceTable const * vertexValences,
+                   QuadOffsetTable const * quadOffsets,
+                   PatchParamTable const * patchParams,
+                   FVarDataTable const * fvarData,
+                   int maxValence);
+
     /// Get the table of patch control vertices
     PTable const & GetPatchTable() const { return _patches; }
 
@@ -442,6 +468,30 @@ private:
     int _maxValence;
 };
 
+// Constructor
+inline
+FarPatchTables::FarPatchTables(PatchArrayVector const & patchArrays,
+                               PTable const & patches,
+                               VertexValenceTable const * vertexValences,
+                               QuadOffsetTable const * quadOffsets,
+                               PatchParamTable const * patchParams,
+                               FVarDataTable const * fvarData,
+                               int maxValence) :
+    _patchArrays(patchArrays),
+    _patches(patches),
+    _maxValence(maxValence) {
+
+    // copy other tables if exist
+    if (vertexValences)
+        _vertexValenceTable = *vertexValences;
+    if (quadOffsets)
+        _quadOffsetTable = *quadOffsets;
+    if (patchParams)
+        _paramTable = *patchParams;
+    if (fvarData)
+        _fvarTable = *fvarData;
+}
+
 inline bool 
 FarPatchTables::IsFeatureAdaptive() const { 
     return ((not _vertexValenceTable.empty()) and (not _quadOffsetTable.empty())); 
@@ -458,6 +508,8 @@ FarPatchTables::Descriptor::GetNumControlVertices( FarPatchTables::Type type ) {
         case BOUNDARY          : return FarPatchTables::GetBoundaryPatchRingsize();
         case CORNER            : return FarPatchTables::GetCornerPatchRingsize();
         case TRIANGLES         : return 3;
+        case LINES             : return 2;
+        case POINTS            : return 1;
         default : return -1;
     }
 }
