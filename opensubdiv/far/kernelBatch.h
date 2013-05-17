@@ -128,6 +128,8 @@ public:
     ///
     /// @param vertexOffset  XXXX
     ///
+    /// @param meshIndex     XXXX
+    ///
     FarKernelBatch( KernelType kernelType,
                     int level,
                     int tableIndex,

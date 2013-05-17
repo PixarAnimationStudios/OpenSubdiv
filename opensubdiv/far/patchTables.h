@@ -253,6 +253,9 @@ public:
     public:
         /// Constructor.
         ///
+        /// @param desc             descriptor information for the patches in 
+        ///                         the array
+        ///
         /// @param vertIndex        absolute index to the first control vertex
         ///                         of the first patch in the PTable
         ///

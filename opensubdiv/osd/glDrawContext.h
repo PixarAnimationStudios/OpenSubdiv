@@ -101,7 +101,7 @@ public:
 
     virtual ~OsdGLDrawContext();
 
-    /// \brienf Create an OsdGLDraContext from FarPatchTables
+    /// \brief Create an OsdGLDraContext from FarPatchTables
     ///
     /// @param patchTables      a valid set of FarPatchTables
     ///

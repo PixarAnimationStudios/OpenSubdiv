@@ -146,9 +146,11 @@ public:
     /// that data buffers are properly inter-operated between Contexts and 
     /// Controllers operating across multiple devices.
     ///
-    /// @param a buffer containing vertex-interpolated primvar data
+    /// @param vertex   a buffer containing vertex-interpolated primvar data
     ///
-    /// @param a buffer containing varying-interpolated primvar data
+    /// @param varying  a buffer containing varying-interpolated primvar data
+    ///
+    /// @param clQueue  OpenCL command queue associated with the primvar data
     ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
         void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying, cl_command_queue clQueue) {
