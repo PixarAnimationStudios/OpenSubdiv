@@ -96,18 +96,26 @@ public:
 
     virtual ~OsdD3D11DrawContext();
 
-    /// Create a OsdD3D11DrawContext from FarMesh
-    static OsdD3D11DrawContext *Create(FarMesh<OsdVertex> const *farMesh,
-                                       ID3D11DeviceContext *pd3d11DeviceContext,
-                                       bool requireFVarData=false);
-
-    /// Create a OsdD3D11DrawContext from FarPatchTables
+    /// \brienf Create an OsdD3D11DrawContext from FarPatchTables
+    ///
+    /// @param patchTables          a valid set of FarPatchTables
+    ///
+    /// @param pd3d11DeviceContext  a device context
+    ///
+    /// @param requireFVarData      set to true to enable face-varying data to be 
+    ///                             carried over from the Far data structures.
+    ///
     ///
     static OsdD3D11DrawContext *Create(FarPatchTables const *patchTables,
                                        ID3D11DeviceContext *pd3d11DeviceContext,
                                        bool requireFVarData=false);
 
     /// Set vbo as a vertex texture (for gregory patch drawing)
+    ///
+    /// @param vbo                  the vertex buffer object to update
+    ///
+    /// @param pd3d11DeviceContext  a device context
+    ///
     template<class VERTEX_BUFFER>
     void UpdateVertexTexture(VERTEX_BUFFER *vbo, ID3D11DeviceContext *pd3d11DeviceContext) {
         updateVertexTexture(vbo->BindD3D11Buffer(pd3d11DeviceContext),
@@ -133,14 +141,9 @@ private:
     OsdD3D11DrawContext();
 
     // allocate buffers from patchTables
-    bool allocate(FarPatchTables const *patchTables,
-                  ID3D11DeviceContext *pd3d11DeviceContext,
-                  bool requireFVarData);
-
-    // XXX: will retire soon
-    bool allocateUniform(FarMesh<OsdVertex> const *farMesh,
-                         ID3D11DeviceContext *pd3d11DeviceContext,
-                         bool requireFVarData);
+    bool create(FarPatchTables const *patchTables,
+                ID3D11DeviceContext *pd3d11DeviceContext,
+                bool requireFVarData);
 
     void updateVertexTexture(ID3D11Buffer *vbo,
                              ID3D11DeviceContext *pd3d11DeviceContext,

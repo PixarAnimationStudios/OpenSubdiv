@@ -61,6 +61,7 @@
 
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
+#include "../osd/vertexDescriptor.h"
 #include "../osd/nonCopyable.h"
 
 #include <D3D11.h>

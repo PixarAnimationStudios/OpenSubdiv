@@ -89,89 +89,22 @@ OsdD3D11DrawContext::~OsdD3D11DrawContext()
 };
 
 OsdD3D11DrawContext *
-OsdD3D11DrawContext::Create(FarMesh<OsdVertex> const *farMesh,
-                            ID3D11DeviceContext *pd3d11DeviceContext,
-                            bool requireFVarData)
-{
-    FarPatchTables const * patchTables = farMesh->GetPatchTables();
-    if (patchTables)
-        return Create(patchTables, pd3d11DeviceContext, requireFVarData);
-
-    // XXX: allocateUniform will be retired once uniform patches are
-    //      integrated into patcharray.
-    OsdD3D11DrawContext * instance = new OsdD3D11DrawContext();
-    if (instance->allocateUniform(farMesh, pd3d11DeviceContext, requireFVarData))
-        return instance;
-
-    delete instance;
-    return NULL;
-}
-
-OsdD3D11DrawContext *
 OsdD3D11DrawContext::Create(FarPatchTables const *patchTables,
                             ID3D11DeviceContext *pd3d11DeviceContext,
                             bool requireFVarData)
 {
-    OsdD3D11DrawContext * instance = new OsdD3D11DrawContext();
-    if (instance->allocate(patchTables, pd3d11DeviceContext, requireFVarData))
-        return instance;
+    OsdD3D11DrawContext * result = new OsdD3D11DrawContext();
+    if (result->create(patchTables, pd3d11DeviceContext, requireFVarData))
+        return result;
 
-    delete instance;
+    delete result;
     return NULL;
 }
 
 bool
-OsdD3D11DrawContext::allocateUniform(FarMesh<OsdVertex> const *farMesh,
-                                     ID3D11DeviceContext *pd3d11DeviceContext,
-                                     bool requireFVarData)
-{
-    ID3D11Device *pd3d11Device = NULL;
-    pd3d11DeviceContext->GetDevice(&pd3d11Device);
-    assert(pd3d11Device);
-
-    // uniform patches
-    _isAdaptive = false;
-
-    // XXX: farmesh should have FarDensePatchTable for dense mesh indices.
-    //      instead of GetFaceVertices().
-    const FarSubdivisionTables<OsdVertex> *tables = farMesh->GetSubdivisionTables();
-    int level = tables->GetMaxLevel();
-    const std::vector<int> &indices = farMesh->GetFaceVertices(level-1);
-
-    int numIndices = (int)indices.size();
-
-    // Allocate and fill index buffer.
-    D3D11_BUFFER_DESC bd;
-    bd.ByteWidth = numIndices * sizeof(int);
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    bd.CPUAccessFlags = 0;
-    bd.MiscFlags = 0;
-    bd.StructureByteStride = sizeof(int);
-    D3D11_SUBRESOURCE_DATA initData;
-    initData.pSysMem = &indices[0];
-    HRESULT hr = pd3d11Device->CreateBuffer(&bd, &initData, &patchIndexBuffer);
-    if (FAILED(hr)) {
-        return false;
-    }
-
-/*
-    OsdPatchArray array;
-    array.desc.type = kNonPatch;
-    array.desc.loop = dynamic_cast<const FarLoopSubdivisionTables<OsdVertex>*>(tables) != NULL;
-    array.firstIndex = 0;
-    array.numIndices = numIndices;
-    
-    patchArrays.push_back(array);
-*/
-
-    return true;
-}
-
-bool
-OsdD3D11DrawContext::allocate(FarPatchTables const *patchTables,
-                              ID3D11DeviceContext *pd3d11DeviceContext,
-                              bool requireFVarData)
+OsdD3D11DrawContext::create(FarPatchTables const *patchTables,
+                            ID3D11DeviceContext *pd3d11DeviceContext,
+                            bool requireFVarData)
 {
     // adaptive patches
     _isAdaptive = true;
@@ -180,7 +113,7 @@ OsdD3D11DrawContext::allocate(FarPatchTables const *patchTables,
     pd3d11DeviceContext->GetDevice(&pd3d11Device);
     assert(pd3d11Device);
 
-    ConvertPatchArrays(patchTables->GetAllPatchArrays(), patchArrays, patchTables->GetMaxValence(), 0);
+    ConvertPatchArrays(patchTables->GetPatchArrayVector(), patchArrays, patchTables->GetMaxValence(), 0);
 
     FarPatchTables::PTable const & ptables = patchTables->GetPatchTable();
     FarPatchTables::PatchParamTable const & ptexCoordTables = patchTables->GetPatchParamTable();
@@ -238,7 +171,7 @@ OsdD3D11DrawContext::allocate(FarPatchTables const *patchTables,
         return false;
     }
     unsigned int * ptexBuffer = (unsigned int *) mappedResource.pData;
-    memcpy(ptexBuffer, &ptexCoordTables[0], totalPatches * sizeof(FarPtexCoord));
+    memcpy(ptexBuffer, &ptexCoordTables[0], totalPatches * sizeof(FarPatchParam));
     pd3d11DeviceContext->Unmap(ptexCoordinateBuffer, 0);
 
     // create vertex valence buffer and vertex texture

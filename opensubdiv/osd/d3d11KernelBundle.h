@@ -60,6 +60,7 @@
 #include "../version.h"
 
 #include "../osd/nonCopyable.h"
+#include "../osd/vertexDescriptor.h"
 
 struct ID3D11Buffer;
 struct ID3D11ClassInstance;

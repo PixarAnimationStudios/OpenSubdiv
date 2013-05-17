@@ -101,7 +101,7 @@ public:
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices, pd3d11Device);
         _computeContext = ComputeContext::Create(_farMesh);
-        _drawContext = DrawContext::Create(_farMesh,
+        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(),
                                            _pd3d11DeviceContext,
                                            bits.test(MeshFVarData));
         assert(_drawContext);
@@ -175,7 +175,7 @@ public:
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices, pd3d11Device);
         _computeContext = ComputeContext::Create(_farMesh, _pd3d11DeviceContext);
-        _drawContext = DrawContext::Create(_farMesh,
+        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(),
                                            _pd3d11DeviceContext,
                                            bits.test(MeshFVarData));
         _drawContext->UpdateVertexTexture(_vertexBuffer, _pd3d11DeviceContext);
