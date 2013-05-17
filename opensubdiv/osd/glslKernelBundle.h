@@ -54,7 +54,6 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-
 #ifndef OSD_GLSL_COMPUTE_KERNEL_BUNDLE_H
 #define OSD_GLSL_COMPUTE_KERNEL_BUNDLE_H
 

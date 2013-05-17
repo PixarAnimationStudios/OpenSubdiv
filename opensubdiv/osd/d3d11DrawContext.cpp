@@ -183,7 +183,7 @@ OsdD3D11DrawContext::allocate(FarPatchTables const *patchTables,
     ConvertPatchArrays(patchTables->GetAllPatchArrays(), patchArrays, patchTables->GetMaxValence(), 0);
 
     FarPatchTables::PTable const & ptables = patchTables->GetPatchTable();
-    FarPatchTables::PtexCoordinateTable const & ptexCoordTables = patchTables->GetPtexCoordinatesTable();
+    FarPatchTables::PatchParamTable const & ptexCoordTables = patchTables->GetPatchParamTable();
     int totalPatchIndices = (int)ptables.size();
     int totalPatches = (int)ptexCoordTables.size();
 

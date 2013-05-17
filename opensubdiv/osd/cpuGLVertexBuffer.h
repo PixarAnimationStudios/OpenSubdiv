@@ -54,7 +54,6 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-
 #ifndef OSD_CPU_GL_VERTEX_BUFFER_H
 #define OSD_CPU_GL_VERTEX_BUFFER_H
 
@@ -79,11 +78,15 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+///
 /// \brief Concrete vertex buffer class for cpu subvision and OpenGL drawing.
+///
 /// OsdCpuGLVertexBuffer implements OsdCpuVertexBufferInterface and 
 /// OsdGLVertexBufferInterface.
-/// The buffer interop between Cpu and GL is handled
-/// automatically when a client calls BindCpuBuffer and BindVBO methods.
+///
+/// The buffer interop between Cpu and GL is handled automatically when a
+/// client calls BindCpuBuffer and BindVBO methods.
+///
 class OsdCpuGLVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
@@ -92,8 +95,8 @@ public:
     /// Destructor.
     ~OsdCpuGLVertexBuffer();
 
-    /// This method is meant to be used in client code in order to provide
-    /// coarse vertices data to Osd.
+    /// This method is meant to be used in client code in order to provide coarse
+    /// vertices data to Osd.
     void UpdateData(const float *src, int startVertex, int numVertices);
 
     /// Returns how many elements defined in this vertex buffer.

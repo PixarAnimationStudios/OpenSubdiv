@@ -48,7 +48,12 @@
 //     with this license.
 //     (E) The software is licensed "as-is." You bear the risk of
 //     using it. The contributors give no express warranties,
-
+//     guarantees or conditions. You may have additional consumer
+//     rights under your local laws which this license cannot change.
+//     To the extent permitted under your local laws, the contributors
+//     exclude the implied warranties of merchantability, fitness for
+//     a particular purpose and non-infringement.
+//
 #ifndef OSD_DRAW_REGISTRY_H
 #define OSD_DRAW_REGISTRY_H
 

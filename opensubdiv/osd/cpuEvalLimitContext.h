@@ -152,7 +152,7 @@ public:
     }
     
     /// Returns the vector of per-patch parametric data
-    const std::vector<FarPtexCoord::BitField> & GetPatchBitFields() const {
+    const std::vector<FarPatchParam::BitField> & GetPatchBitFields() const {
         return _patchBitFields;
     }
 
@@ -220,12 +220,12 @@ public:
             FarPatchTables::PatchArrayVector const & patchArrays =
                 patchTables.GetPatchArrayVector();
 
-            FarPatchTables::PtexCoordinateTable const & ptxTable =
-                patchTables.GetPtexCoordinatesTable();
+            FarPatchTables::PatchParamTable const & paramTable =
+                patchTables.GetPatchParamTable();
 
             int nfaces =0;
                            
-            assert( not ptxTable.empty() );
+            assert( not paramTable.empty() );
                 
             for (int arrayid = 0; arrayid < (int)patchArrays.size(); ++arrayid) {
 
@@ -235,7 +235,7 @@ public:
 
                  for (unsigned int j=0; j < pa.GetNumPatches(); ++j) {
 
-                    int faceId = ptxTable[pa.GetPatchIndex()+j].faceIndex;
+                    int faceId = paramTable[pa.GetPatchIndex()+j].faceIndex;
 
                     Handle handle = { arrayid, j*ringsize, (unsigned int)mmap.size() };
 
@@ -290,9 +290,9 @@ protected:
 private:
 
     // Topology data for a mesh
-    FarPatchTables::PatchArrayVector    _patchArrays;    // patch descriptor for each patch in the mesh
-    FarPatchTables::PTable              _patches;        // patch control vertices
-    std::vector<FarPtexCoord::BitField> _patchBitFields; // per-patch parametric info
+    FarPatchTables::PatchArrayVector     _patchArrays;    // patch descriptor for each patch in the mesh
+    FarPatchTables::PTable               _patches;        // patch control vertices
+    std::vector<FarPatchParam::BitField> _patchBitFields; // per-patch parametric info
     
     FarPatchTables::VertexValenceTable   _vertexValenceBuffer; // extra Gregory patch data buffers
     FarPatchTables::QuadOffsetTable      _quadOffsetBuffer;

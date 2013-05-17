@@ -92,6 +92,11 @@ struct OsdVertexDescriptor {
     void Reset() {
         numVertexElements = numVaryingElements = 0;
     }
+    
+    /// Returns the total number of elements (vertex + varying)
+    int GetNumElements() const {
+        return numVertexElements + numVaryingElements;
+    }
 
     bool operator == (OsdVertexDescriptor const & other) {
         return (numVertexElements == other.numVertexElements and

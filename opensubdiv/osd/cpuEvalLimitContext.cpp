@@ -98,12 +98,12 @@ OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmes
     
     _patchBitFields.reserve(npatches);
 
-     FarPatchTables::PtexCoordinateTable const & ptxTable =
-         patchTables->GetPtexCoordinatesTable();
+     FarPatchTables::PatchParamTable const & ptxTable =
+         patchTables->GetPatchParamTable();
 
      if ( not ptxTable.empty() ) {
 
-        FarPtexCoord const * pptr = &ptxTable[0];
+        FarPatchParam const * pptr = &ptxTable[0];
 
         for (int arrayId = 0; arrayId < (int)_patchArrays.size(); ++arrayId) {
 

@@ -48,6 +48,12 @@
 //     with this license.
 //     (E) The software is licensed "as-is." You bear the risk of
 //     using it. The contributors give no express warranties,
+//     guarantees or conditions. You may have additional consumer
+//     rights under your local laws which this license cannot change.
+//     To the extent permitted under your local laws, the contributors
+//     exclude the implied warranties of merchantability, fitness for
+//     a particular purpose and non-infringement.
+//
 #ifndef OSD_GL_DRAW_CONTEXT_H
 #define OSD_GL_DRAW_CONTEXT_H
 
@@ -79,6 +85,16 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+/// \brief OpenGL specialized DrawContext class
+///
+/// OsdGLDrawContext implements the OSD drawing interface with the OpenGL API.
+/// Some functionality may be disabled depending on compile and run-time driver
+/// support.
+///
+/// Contexts interface the serialized topological data pertaining to the 
+/// geometric primitives with the capabilities of the selected discrete 
+/// compute device.
+///
 class OsdGLDrawContext : public OsdDrawContext {
 public:
     typedef GLuint VertexBufferBinding;

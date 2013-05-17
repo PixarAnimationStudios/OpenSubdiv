@@ -679,8 +679,8 @@ getNumPtexFaces(HbrMesh<T> const * hmesh) {
 }
 
 // Computes per-face or per-patch local ptex texture coordinates.
-template <class T> FarPtexCoord *
-computePtexCoordinate(HbrFace<T> const *f, FarPtexCoord *coord) {
+template <class T> FarPatchParam *
+computePatchParam(HbrFace<T> const *f, FarPatchParam *coord) {
 
     short u,v;
     unsigned short ofs = 1;
