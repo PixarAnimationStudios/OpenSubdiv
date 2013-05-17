@@ -134,7 +134,9 @@ class OsdCLComputeContext : public OsdNonCopyable<OsdCLComputeContext> {
 public:
     /// Creates an OsdCLComputeContext instance
     ///
-    /// @param farmesh the FarMesh used for this Context.
+    /// @param farmesh    the FarMesh used for this Context.
+    ///
+    /// @param clContext  a valid active OpenCL context
     ///
     static OsdCLComputeContext * Create(FarMesh<OsdVertex> const *farmesh,
                                         cl_context clContext);

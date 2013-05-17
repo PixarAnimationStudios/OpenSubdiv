@@ -350,13 +350,13 @@ public:
     ///
     /// @param patchArrays      Vector of descriptors and ranges for arrays of patches
     ///
-    /// @param indices          Indices of the control vertices of the patches
+    /// @param patches          Indices of the control vertices of the patches
     ///
     /// @param vertexValences   Vertex valance table
     ///
     /// @param quadOffsets      Quad offset table
     ///
-    /// @param ptexCoords       Ptex coordinate table
+    /// @param patchParams      Local patch parameterization
     ///
     /// @param fvarData         Face varying data table
     ///
