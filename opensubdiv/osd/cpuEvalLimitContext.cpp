@@ -116,7 +116,7 @@ OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmes
     }
     
 
-    _patchMap = new OsdCpuEvalLimitContext::PatchMap( *patchTables );
+    _patchMap = new FarPatchTables::PatchMap( *patchTables );
 }
 
 OsdCpuEvalLimitContext::~OsdCpuEvalLimitContext() {

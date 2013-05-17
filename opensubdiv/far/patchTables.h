@@ -65,6 +65,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <vector>
+#include <map>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -346,6 +347,39 @@ public:
     };
 
 
+    /// \brief Maps sub-patches to coarse faces
+    class PatchMap {
+    
+    public:
+        // Constructor
+        PatchMap( FarPatchTables const & patchTables );
+        
+        /// \brief Returns the number and list of patch indices for a given face.
+        ///
+        /// PatchMaps map coarse faces to their childrn feature adaptive patches. 
+        /// Coarse faces are indexed using their ptex face ID to resolve parametric
+        /// ambiguity on non-quad faces. Note : this "map" is actually a vector, so
+        /// queries are O(1) order.
+        ///
+        /// @param faceid    the face index to search for
+        ///
+        /// @param npatches  the number of children patches found for the faceid
+        ///
+        /// @param patches   a set of pointers to the individual patch handles
+        ///
+        bool GetChildPatchesHandles( int faceid, int * npatches, PatchHandle const ** patches ) const;
+        
+    private:
+        typedef std::multimap<unsigned int, PatchHandle> MultiMap;
+
+        // Patch handle allowing location of individual patch data inside patch
+        // arrays or in serialized form
+        std::vector<PatchHandle> _handles;
+        
+        // offset to the first handle of the child patches for each coarse face
+        std::vector<unsigned int> _offsets; 
+    };
+
     /// Constructor
     ///
     /// @param patchArrays      Vector of descriptors and ranges for arrays of patches
@@ -560,6 +594,84 @@ FarPatchTables::Descriptor::operator ++ () {
         }
     }
     return *this;
+}
+
+// Constructor
+inline
+FarPatchTables::PatchMap::PatchMap( FarPatchTables const & patchTables ) {
+
+    // Create a PatchHandle for each patch in the primitive
+
+    int npatches = (int)patchTables.GetNumPatches();
+    _handles.reserve(npatches);
+
+    FarPatchTables::PatchArrayVector const & patchArrays =
+        patchTables.GetPatchArrayVector();
+
+    FarPatchTables::PatchParamTable const & paramTable =
+        patchTables.GetPatchParamTable();
+    assert( not paramTable.empty() );
+
+    int nfaces =0;
+    MultiMap mmap;
+
+    for (int arrayid = 0; arrayid < (int)patchArrays.size(); ++arrayid) {
+
+        FarPatchTables::PatchArray const & pa = patchArrays[arrayid];
+
+         int ringsize = pa.GetDescriptor().GetNumControlVertices();
+
+         for (unsigned int j=0; j < pa.GetNumPatches(); ++j) {
+
+            int faceId = paramTable[pa.GetPatchIndex()+j].faceIndex;
+
+            PatchHandle handle = { arrayid, j*ringsize, (unsigned int)mmap.size() };
+
+            mmap.insert( std::pair<unsigned int, PatchHandle>(faceId, handle));
+
+            nfaces = std::max(nfaces, faceId);
+        }
+    }
+    ++nfaces;
+
+    _handles.resize( mmap.size() );
+    _offsets.reserve( nfaces );
+    _offsets.push_back(0);
+
+    // Serialize the multi-map
+
+    unsigned int handlesIdx = 0, faceId=mmap.begin()->first;
+
+    for (MultiMap::const_iterator it=mmap.begin(); it!=mmap.end(); ++it, ++handlesIdx) {
+
+        assert(it->first >= faceId);
+
+        if (it->first != faceId) {
+
+            faceId = it->first;
+
+            // position the offset marker to the new face                    
+            _offsets.push_back( handlesIdx );
+        }
+
+        // copy the patch id into the table
+        _handles[handlesIdx] = it->second;
+    }
+}
+
+// Returns the number and list of patch indices for a given face.
+inline bool 
+FarPatchTables::PatchMap::GetChildPatchesHandles( int faceid, int * npatches, PatchHandle const ** patches ) const {
+
+    if (_handles.empty() or _offsets.empty() or (faceid>=(int)_offsets.size()))
+        return false;
+
+    *npatches = (faceid==(int)_offsets.size()-1 ? 
+        (unsigned int)_handles.size()-1 : _offsets[faceid+1]) - _offsets[faceid] + 1;
+
+    *patches = &_handles[ _offsets[faceid] ];
+
+    return true;
 }
 
 // Returns a pointer to the vertex indices of uniformly subdivided faces
