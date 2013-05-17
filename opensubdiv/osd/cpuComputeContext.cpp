@@ -168,7 +168,6 @@ OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> const *farMesh) {
             _editTables.push_back(new OsdCpuHEditTable(edit));
         }
     }
-    _vdesc = 0;
     _currentVertexBuffer = 0;
     _currentVaryingBuffer = 0;
 }
@@ -181,19 +180,12 @@ OsdCpuComputeContext::~OsdCpuComputeContext() {
     for (size_t i = 0; i < _editTables.size(); ++i) {
         delete _editTables[i];
     }
-    delete _vdesc;
 }
 
 const OsdCpuTable *
 OsdCpuComputeContext::GetTable(int tableIndex) const {
 
     return _tables[tableIndex];
-}
-
-OsdVertexDescriptor *
-OsdCpuComputeContext::GetVertexDescriptor() const {
-
-    return _vdesc;
 }
 
 int

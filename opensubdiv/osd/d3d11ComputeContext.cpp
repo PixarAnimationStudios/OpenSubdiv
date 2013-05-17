@@ -258,18 +258,6 @@ OsdD3D11ComputeContext::GetCurrentVaryingBufferUAV() const {
     return _currentVaryingBufferUAV;
 }
 
-int
-OsdD3D11ComputeContext::GetNumCurrentVertexElements() const {
-
-    return _numVertexElements;
-}
-
-int
-OsdD3D11ComputeContext::GetNumCurrentVaryingElements() const {
-    
-    return _numVaryingElements;
-}
-
 OsdD3D11ComputeKernelBundle *
 OsdD3D11ComputeContext::GetKernelBundle() const {
 

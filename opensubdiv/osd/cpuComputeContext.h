@@ -152,16 +152,14 @@ public:
 
         int numVertexElements = vertex ? vertex->GetNumElements() : 0;
         int numVaryingElements = varying ? varying->GetNumElements() : 0;
-        _vdesc = new OsdVertexDescriptor(numVertexElements, numVaryingElements);
+        _vdesc.Set(numVertexElements, numVaryingElements);
     }
 
     /// Unbinds any previously bound vertex and varying data buffers.
     void Unbind() {
         _currentVertexBuffer = 0;
         _currentVaryingBuffer = 0;
-
-        delete _vdesc;
-        _vdesc = 0;
+        _vdesc.Reset();
     }
 
     /// Returns one of the vertex refinement tables.
@@ -174,7 +172,9 @@ public:
     ///
     /// @return a descriptor for the format of the vertex data currently bound
     ///
-    OsdVertexDescriptor * GetVertexDescriptor() const;
+    OsdVertexDescriptor const & GetVertexDescriptor() const {
+        return _vdesc;
+    }
 
     /// Returns the number of hierarchical edit tables
     int GetNumEditTables() const;
@@ -201,7 +201,7 @@ private:
     float *_currentVertexBuffer, 
           *_currentVaryingBuffer;
 
-    OsdVertexDescriptor *_vdesc;
+    OsdVertexDescriptor _vdesc;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

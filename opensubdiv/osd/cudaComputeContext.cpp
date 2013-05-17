@@ -201,18 +201,6 @@ OsdCudaComputeContext::GetCurrentVaryingBuffer() const {
     return _currentVaryingBuffer;
 }
 
-int
-OsdCudaComputeContext::GetCurrentVertexNumElements() const {
-
-    return _numVertexElements;
-}
-
-int
-OsdCudaComputeContext::GetCurrentVaryingNumElements() const {
-
-    return _numVaryingElements;
-}
-
 OsdCudaComputeContext *
 OsdCudaComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
 

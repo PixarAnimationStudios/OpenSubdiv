@@ -243,18 +243,6 @@ OsdGLSLTransformFeedbackComputeContext::GetCurrentVaryingBuffer() const {
     return _currentVaryingBuffer;
 }
 
-int
-OsdGLSLTransformFeedbackComputeContext::GetNumCurrentVertexElements() const {
-
-    return _numVertexElements;
-}
-
-int
-OsdGLSLTransformFeedbackComputeContext::GetNumCurrentVaryingElements() const {
-    
-    return _numVaryingElements;
-}
-
 OsdGLSLTransformFeedbackKernelBundle *
 OsdGLSLTransformFeedbackComputeContext::GetKernelBundle() const {
 

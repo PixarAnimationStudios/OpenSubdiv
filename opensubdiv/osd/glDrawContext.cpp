@@ -155,50 +155,26 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
                  ptables.size() * sizeof(unsigned int), &ptables[0], GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     
-    int patchOffset=0;
-    
-    // Process PatchArrays
-    if (IsAdaptive()) {
-        OsdDrawContext::ConvertPatchArrays(patchTables->GetPatchArrayVector(),
-            patchArrays, patchTables->GetMaxValence(), 0);
+    OsdDrawContext::ConvertPatchArrays(patchTables->GetPatchArrayVector(),
+        patchArrays, patchTables->GetMaxValence(), 0);
 
-        // allocate and initialize additional buffer data
-        FarPatchTables::VertexValenceTable const &
-            valenceTable = patchTables->GetVertexValenceTable();
-
-        // create vertex valence buffer and vertex texture
-        if (not valenceTable.empty()) {
-            vertexValenceTextureBuffer = createTextureBuffer(valenceTable, GL_R32I);
-
-            // also create vertex texture buffer (will be updated in UpdateVertexTexture())
-            glGenTextures(1, &vertexTextureBuffer);
-        }
-
-        // create quad offset table buffer
-        FarPatchTables::QuadOffsetTable const &
-            quadOffsetTable = patchTables->GetQuadOffsetTable();
-
-        if (not quadOffsetTable.empty())
-            quadOffsetTextureBuffer = createTextureBuffer(quadOffsetTable, GL_R32I);
-            
-    } else {
-    
-        // Create a single OsdPatchArray from the FarPatchTables::PatchArray
-        // corresponding to the highest level of subdivision
-        
-        // XXXX manuelk : client code will want control over this
-        FarPatchTables::PatchArray const & fpa = 
-            *(patchTables->GetPatchArrayVector().rbegin());
-
-        OsdDrawContext::PatchDescriptor desc( 
-            fpa.GetDescriptor(), patchTables->GetMaxValence(), 0, 0);
-
-        patchArrays.push_back( 
-            OsdDrawContext::PatchArray( desc, fpa.GetArrayRange() ) );
-
-        patchOffset = fpa.GetPatchIndex();
-
+/*    
 #if defined(GL_ES_VERSION_2_0)
+        // XXX: farmesh should have FarDensePatchTable for dense mesh indices.
+        //      instead of GetFaceVertices().
+        const FarSubdivisionTables<OsdVertex> *tables = farMesh->GetSubdivisionTables();
+        int level = tables->GetMaxLevel();
+        const std::vector<int> &indices = farMesh->GetFaceVertices(level-1);
+
+        int numIndices = (int)indices.size();
+
+        // Allocate and fill index buffer.
+        glGenBuffers(1, &patchIndexBuffer);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchIndexBuffer);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                     numIndices * sizeof(unsigned int), &(indices[0]), GL_STATIC_DRAW);
+
+
         // OpenGLES 2 supports only triangle topologies for filled
         // primitives i.e. not QUADS or PATCHES or LINES_ADJACENCY
         // For the convenience of clients build build a triangles
@@ -225,21 +201,44 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                      numTrisIndices * sizeof(short), &(trisIndices[0]), GL_STATIC_DRAW);
 #endif
+*/    
+    
+    // allocate and initialize additional buffer data
+
+    // create vertex valence buffer and vertex texture
+    FarPatchTables::VertexValenceTable const &
+        valenceTable = patchTables->GetVertexValenceTable();
+
+    if (not valenceTable.empty()) {
+        vertexValenceTextureBuffer = createTextureBuffer(valenceTable, GL_R32I);
+
+        // also create vertex texture buffer (will be updated in UpdateVertexTexture())
+        glGenTextures(1, &vertexTextureBuffer);
     }
+
+
+    // create quad offset table buffer
+    FarPatchTables::QuadOffsetTable const &
+        quadOffsetTable = patchTables->GetQuadOffsetTable();
+
+    if (not quadOffsetTable.empty())
+        quadOffsetTextureBuffer = createTextureBuffer(quadOffsetTable, GL_R32I);
+
 
     // create ptex coordinate buffer
     FarPatchTables::PtexCoordinateTable const &
         ptexCoordTables = patchTables->GetPtexCoordinatesTable();
 
     if (not ptexCoordTables.empty())
-        ptexCoordinateTextureBuffer = createTextureBuffer(ptexCoordTables, GL_RG32I, patchOffset);
+        ptexCoordinateTextureBuffer = createTextureBuffer(ptexCoordTables, GL_RG32I);
+
 
     // create fvar data buffer if requested
     FarPatchTables::FVarDataTable const &
         fvarTables = patchTables->GetFVarDataTable();
 
     if (requireFVarData and not fvarTables.empty())
-        fvarDataTextureBuffer = createTextureBuffer(fvarTables, GL_R32F, patchOffset);
+        fvarDataTextureBuffer = createTextureBuffer(fvarTables, GL_R32F);
 
     glBindBuffer(GL_TEXTURE_BUFFER, 0);
 

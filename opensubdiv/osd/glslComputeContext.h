@@ -77,6 +77,7 @@
 
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
+#include "../osd/vertexDescriptor.h"
 #include "../osd/nonCopyable.h"
 
 #include <vector>
@@ -142,6 +143,7 @@ private:
 /// compute device.
 ///
 class OsdGLSLComputeContext {
+
 public:
     /// Creates an OsdGLSLComputeContext instance
     ///
@@ -166,8 +168,8 @@ public:
         _currentVertexBuffer = vertex ? vertex->BindVBO() : 0;
         _currentVaryingBuffer = varying ? varying->BindVBO() : 0;
 
-        _numVertexElements = vertex ? vertex->GetNumElements() : 0;
-        _numVaryingElements = varying ? varying->GetNumElements() : 0;
+        _vdesc.numVertexElements = vertex ? vertex->GetNumElements() : 0;
+        _vdesc.numVaryingElements = varying ? varying->GetNumElements() : 0;
 
         bindShaderStorageBuffers();
     }
@@ -201,9 +203,13 @@ public:
     /// Returns a handle to the varying-interpolated buffer
     GLuint GetCurrentVaryingBuffer() const;
 
-    int GetNumCurrentVertexElements() const;
-
-    int GetNumCurrentVaryingElements() const;
+    /// Returns an OsdVertexDescriptor if vertex buffers have been bound.
+    ///
+    /// @return a descriptor for the format of the vertex data currently bound
+    ///
+    OsdVertexDescriptor const & GetVertexDescriptor() const {
+        return _vdesc;
+    }
 
     OsdGLSLComputeKernelBundle * GetKernelBundle() const;
 
@@ -249,8 +255,7 @@ private:
     GLuint _vertexTexture,
            _varyingTexture;
 
-    int _numVertexElements,
-        _numVaryingElements;
+    OsdVertexDescriptor _vdesc;
 
     GLuint _currentVertexBuffer, 
            _currentVaryingBuffer;

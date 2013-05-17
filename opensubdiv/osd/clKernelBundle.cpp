@@ -140,8 +140,7 @@ OsdCLKernelBundle::Compile(cl_context clContext,
 
     cl_int ciErrNum;
 
-    _numVertexElements = numVertexElements;
-    _numVaryingElements = numVaryingElements;
+    _vdesc.Set( numVertexElements, numVaryingElements );
 
     char constantDefine[256];
     snprintf(constantDefine, sizeof(constantDefine),

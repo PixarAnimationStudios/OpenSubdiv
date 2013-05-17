@@ -238,18 +238,6 @@ OsdGLSLComputeContext::GetCurrentVaryingBuffer() const {
     return _currentVaryingBuffer;
 }
 
-int
-OsdGLSLComputeContext::GetNumCurrentVertexElements() const {
-
-    return _numVertexElements;
-}
-
-int
-OsdGLSLComputeContext::GetNumCurrentVaryingElements() const {
-    
-    return _numVaryingElements;
-}
-
 OsdGLSLComputeKernelBundle *
 OsdGLSLComputeContext::GetKernelBundle() const {
 
