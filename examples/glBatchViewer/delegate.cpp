@@ -169,7 +169,9 @@ MyDrawDelegate::DrawElements(MyEffect &effect, OpenSubdiv::OsdDrawContext::Patch
 
     if (true /* if config is different from previous call */) {
         glUseProgram(program);
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         glPatchParameteri(GL_PATCH_VERTICES, patchArray.GetDescriptor().GetNumControlVertices());
+#endif
         // bind patchArray state and draw
     }
     
@@ -186,8 +188,10 @@ MyDrawDelegate::DrawElements(MyEffect &effect, OpenSubdiv::OsdDrawContext::Patch
         glDrawElements(GL_LINES_ADJACENCY, patchArray.GetNumIndices(), GL_UNSIGNED_INT,
                        (void*)(patchArray.GetVertIndex()*sizeof(GLuint)));
     } else {
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         glDrawElements(GL_PATCHES, patchArray.GetNumIndices(), GL_UNSIGNED_INT,
                        (void*)(patchArray.GetVertIndex()*sizeof(GLuint)));
+#endif
     }
     _numDrawCalls++;
 }

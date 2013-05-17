@@ -170,6 +170,8 @@ MyEffectRegistry::_CreateDrawConfig(DescType const & desc, SourceConfigType cons
 //    g_gregoryQuadOffsetBaseMap[program] = glGetUniformLocation(program, "GregoryQuadOffsetBase");
 //    g_levelBaseMap[program] = glGetUniformLocation(program, "LevelBase");
 
+// currently, these are used only in conjunction with tessellation shaders
+#if defined(GL_EXT_direct_state_access) || defined(GL_VERSION_4_1)
     GLint loc;
     if ((loc = glGetUniformLocation(program, "g_VertexBuffer")) != -1) {
         glProgramUniform1i(program, loc, 0); // GL_TEXTURE0
@@ -183,6 +185,7 @@ MyEffectRegistry::_CreateDrawConfig(DescType const & desc, SourceConfigType cons
     if ((loc = glGetUniformLocation(program, "g_ptexIndicesBuffer")) != -1) {
         glProgramUniform1i(program, loc, 3); // GL_TEXTURE3
     }
+#endif
 
     config->diffuseColorUniform = glGetUniformLocation(program, "diffuseColor");
 

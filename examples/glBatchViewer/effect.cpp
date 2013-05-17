@@ -177,6 +177,8 @@ MyEffect::BindDrawConfig(MyDrawConfig *config, OpenSubdiv::OsdDrawContext::Patch
 
     // bind uniforms
 
+// currently, these are used only in conjunction with tessellation shaders
+#if defined(GL_EXT_direct_state_access) || defined(GL_VERSION_4_1)
     int patchType = desc.GetType();
     int patchPattern = desc.GetPattern();
 
@@ -220,5 +222,6 @@ MyEffect::BindDrawConfig(MyDrawConfig *config, OpenSubdiv::OsdDrawContext::Patch
             }
         }
     }
+#endif
 }
 

@@ -566,7 +566,9 @@ display() {
 
     // primitive counting
     glBeginQuery(GL_PRIMITIVES_GENERATED, g_queries[0]);
+#if defined(GL_VERSION_3_3)
     glBeginQuery(GL_TIME_ELAPSED, g_queries[1]);
+#endif
     g_drawDelegate.ResetNumDrawCalls();
 
     if (g_wire == 0) glDisable(GL_CULL_FACE);
@@ -580,7 +582,9 @@ display() {
     if (g_wire == 0) glEnable(GL_CULL_FACE);
 
     glEndQuery(GL_PRIMITIVES_GENERATED);
+#if defined(GL_VERSION_3_3)
     glEndQuery(GL_TIME_ELAPSED);
+#endif
 
     s.Stop();
     float drawCpuTime = float(s.GetElapsed() * 1000.0f);
@@ -590,7 +594,9 @@ display() {
     GLuint numPrimsGenerated = 0;
     GLuint timeElapsed = 0;
     glGetQueryObjectuiv(g_queries[0], GL_QUERY_RESULT, &numPrimsGenerated);
+#if defined(GL_VERSION_3_3)
     glGetQueryObjectuiv(g_queries[1], GL_QUERY_RESULT, &timeElapsed);
+#endif
     float drawGpuTime = timeElapsed / 1000.0f / 1000.0f;
 
     if (g_hud.IsVisible()) {
