@@ -102,8 +102,8 @@ OsdGLDrawContext::SupportsAdaptiveTessellation()
     return false;
 }
 
-template <typename T>
-GLuint createTextureBuffer(T const &data, GLint format, int offset=0)
+template <typename T> static GLuint 
+createTextureBuffer(T const &data, GLint format, int offset=0)
 {
     GLuint buffer = 0, texture = 0;
 
