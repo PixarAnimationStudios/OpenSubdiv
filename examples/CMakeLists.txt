@@ -63,7 +63,7 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
     add_subdirectory(limitEval)
     if(NOT APPLE)
         # the paintTest example requires GL functionality not available on OSX
-#        add_subdirectory(paintTest)
+        add_subdirectory(paintTest)
     endif()
     if(PTEX_FOUND AND (NOT APPLE))
         # the ptexViewer example requires GL functionality not available on OSX
