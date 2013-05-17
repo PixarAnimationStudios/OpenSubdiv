@@ -1247,18 +1247,20 @@ display() {
 
         GLenum primType;
 
-        if (g_mesh->GetDrawContext()->IsAdaptive()) {
+        switch(patchType) {
+        case OpenSubdiv::FarPatchTables::QUADS:
+            primType = GL_LINES_ADJACENCY;
+            break;
+        case OpenSubdiv::FarPatchTables::TRIANGLES:
+            primType = GL_TRIANGLES;
+            break;
+        default:
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
             primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, patch.GetDescriptor().GetNumControlVertices());
+            glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
+#else
+            primType = GL_POINTS;
 #endif
-
-        } else {
-            if (g_scheme == kLoop) {
-                primType = GL_TRIANGLES;
-            } else {
-                primType = GL_LINES_ADJACENCY; // GL_QUADS is deprecated
-            }
         }
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)

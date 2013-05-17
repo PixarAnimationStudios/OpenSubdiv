@@ -1382,64 +1382,57 @@ drawModel() {
 #endif
 
     OpenSubdiv::OsdDrawContext::PatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
-    GLenum primType = GL_LINES_ADJACENCY;
-
     glBindVertexArray(g_vao);
 
     // patch drawing
     for (int i=0; i<(int)patches.size(); ++i) {
         OpenSubdiv::OsdDrawContext::PatchArray const & patch = patches[i];
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         OpenSubdiv::OsdDrawContext::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
         int patchPattern = desc.GetPattern() - 1;
 
-        if (g_mesh->GetDrawContext()->IsAdaptive()) {
-
+        GLenum primType;
+        switch(patchType) {
+        case OpenSubdiv::FarPatchTables::QUADS:
+            primType = GL_LINES_ADJACENCY;
+            break;
+        case OpenSubdiv::FarPatchTables::TRIANGLES:
+            primType = GL_TRIANGLES;
+            break;
+        default:
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
             primType = GL_PATCHES;
             glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
-
-            if (g_mesh->GetDrawContext()->vertexTextureBuffer) {
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_BUFFER, 
-                    g_mesh->GetDrawContext()->vertexTextureBuffer);
-                glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, bVertex);
-            }
-
-            if (g_mesh->GetDrawContext()->vertexValenceTextureBuffer) {
-                glActiveTexture(GL_TEXTURE1);
-                glBindTexture(GL_TEXTURE_BUFFER, 
-                    g_mesh->GetDrawContext()->vertexValenceTextureBuffer);
-            }
-
-            if (g_mesh->GetDrawContext()->quadOffsetTextureBuffer) {
-                glActiveTexture(GL_TEXTURE2);
-                glBindTexture(GL_TEXTURE_BUFFER, 
-                    g_mesh->GetDrawContext()->quadOffsetTextureBuffer);
-            }
-            if (g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer) {
-                glActiveTexture(GL_TEXTURE3);
-                glBindTexture(GL_TEXTURE_BUFFER,
-                    g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer);
-            }
-            glActiveTexture(GL_TEXTURE0);
-        } else {
-            if (g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer) {
-                glActiveTexture(GL_TEXTURE3);
-                glBindTexture(GL_TEXTURE_BUFFER,
-                    g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer);
-            }
-            glActiveTexture(GL_TEXTURE0);
-        }
 #else
+            primType = GL_POINTS;
+#endif
+        }
+
+        if (g_mesh->GetDrawContext()->vertexTextureBuffer) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_BUFFER, 
+                          g_mesh->GetDrawContext()->vertexTextureBuffer);
+            glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, bVertex);
+        }
+
+        if (g_mesh->GetDrawContext()->vertexValenceTextureBuffer) {
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_BUFFER, 
+                          g_mesh->GetDrawContext()->vertexValenceTextureBuffer);
+        }
+
+        if (g_mesh->GetDrawContext()->quadOffsetTextureBuffer) {
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_BUFFER, 
+                          g_mesh->GetDrawContext()->quadOffsetTextureBuffer);
+        }
         if (g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer) {
-            glActiveTexture(GL_TEXTURE4);
+            glActiveTexture(GL_TEXTURE3);
             glBindTexture(GL_TEXTURE_BUFFER,
                           g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer);
         }
         glActiveTexture(GL_TEXTURE0);
-#endif
 
         Effect effect;
         effect.value = 0;
