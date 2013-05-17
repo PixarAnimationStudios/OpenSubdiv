@@ -801,7 +801,7 @@ FarMeshFactory<T,U>::Create( bool requireFVarData ) {
         result->_patchTables = factory.Create(GetMaxLevel()+1, _maxValence, requireFVarData);
 
     } else {
-        result->_patchTables = FarPatchTablesFactory<T>::Create(GetHbrMesh(), _facesList, _remapTable, requireFVarData );
+        result->_patchTables = FarPatchTablesFactory<T>::Create(GetHbrMesh(), _facesList, _remapTable, -1, requireFVarData );
     }
     assert( result->_patchTables );
 
