@@ -174,6 +174,7 @@ public:
     struct PatchMap {
     public:
         
+        typedef FarPatchTables::PatchHandle Handle;
         
         /// \brief Returns the number and list of patch indices for a given face.
         ///
@@ -188,7 +189,7 @@ public:
         ///
         /// @param patches a set of pointers to the individual patch handles
         ///
-        bool GetChildPatchesHandles( int faceid, int * npatches, OsdPatchHandle const ** patches ) const {
+        bool GetChildPatchesHandles( int faceid, int * npatches, Handle const ** patches ) const {
 
             if (_handles.empty() or _offsets.empty() or (faceid>=(int)_offsets.size()))
                 return false;
@@ -204,7 +205,7 @@ public:
     
         friend class OsdCpuEvalLimitContext;
                
-        typedef std::multimap<unsigned int, OsdPatchHandle> MultiMap;
+        typedef std::multimap<unsigned int, Handle> MultiMap;
         
         // Constructor
         PatchMap( FarPatchTables const & patchTables ) {
@@ -236,9 +237,9 @@ public:
 
                     int faceId = ptxTable[pa.GetPatchIndex()+j].faceIndex;
 
-                    OsdPatchHandle handle = { arrayid, j*ringsize, (unsigned int)mmap.size() };
+                    Handle handle = { arrayid, j*ringsize, (unsigned int)mmap.size() };
 
-                    mmap.insert( std::pair<unsigned int, OsdPatchHandle>(faceId, handle));
+                    mmap.insert( std::pair<unsigned int, Handle>(faceId, handle));
 
                     nfaces = std::max(nfaces, faceId);
                 }
@@ -272,7 +273,7 @@ public:
 
         // Patch handle allowing location of individual patch data inside patch
         // arrays or in serialized form
-        std::vector<OsdPatchHandle> _handles;
+        std::vector<Handle> _handles;
         
         // offset to the first handle of the child patches for each coarse face
         std::vector<unsigned int> _offsets; 

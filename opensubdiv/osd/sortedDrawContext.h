@@ -60,7 +60,6 @@
 
 #include "../version.h"
 #include "../far/patchTables.h"
-#include "../osd/patch.h"
 
 #include <utility>
 #include <string>

@@ -117,7 +117,6 @@ set(PUBLIC_HEADER_FILES
     nonCopyable.h
     drawContext.h
     drawRegistry.h
-    patch.h
     sortedDrawContext.h
     vertex.h
     vertexDescriptor.h

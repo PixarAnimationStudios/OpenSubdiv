@@ -296,6 +296,7 @@ public:
         unsigned int  _rotation:2;
     };
 
+
     /// \brief Descriptor iterator class 
     class Descriptor::iterator {
         public:
@@ -323,6 +324,7 @@ public:
         private:
             Descriptor pos;
     };
+
 
     /// \brief Describes an array of patches of the same type
     class PatchArray {
@@ -409,6 +411,15 @@ public:
     };
     
     typedef std::vector<PatchArray> PatchArrayVector;
+
+
+    /// Unique patch identifier within a PatchArrayVector
+    struct PatchHandle {
+    
+        unsigned int array,        // OsdPatchArray containing the patch
+                     vertexOffset, // Offset to the first CV of the patch
+                     serialIndex;  // Serialized Index of the patch
+    };
 
     /// Get the table of patch control vertices
     PTable const & GetPatchTable() const { return _patches; }

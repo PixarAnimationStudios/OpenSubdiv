@@ -59,8 +59,6 @@
 
 #include "../version.h"
 
-#include "../osd/patch.h"
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

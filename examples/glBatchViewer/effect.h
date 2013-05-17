@@ -73,7 +73,6 @@
     #include <GL/gl.h>
 #endif
 
-#include <osd/patch.h>
 #include <osd/glDrawRegistry.h>
 
 union EffectDesc {

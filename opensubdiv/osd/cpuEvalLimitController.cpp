@@ -57,6 +57,7 @@
 
 #include "../osd/cpuEvalLimitController.h"
 #include "../osd/cpuEvalLimitKernel.h"
+#include "../far/patchTables.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -74,10 +75,10 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
                                              unsigned int index ) {
     
     int npatches=0; 
-    OsdPatchHandle const * patchHandles;
+    FarPatchTables::PatchHandle const * patchHandles;
     
     // Get the list of all children patches of the face described in coords
-    if (not context->GetPatchesMap()->GetChildPatchesHandles( coords.face, &npatches, &patchHandles))
+    if (not context->GetPatchesMap()->GetChildPatchesHandles(coords.face, &npatches, &patchHandles))
         return 0;
     
     // Position lookup pointers at the indexed vertex
@@ -88,7 +89,7 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
 
     for (int i=0; i<npatches; ++i) {
     
-        OsdPatchHandle const & handle = patchHandles[i];
+        FarPatchTables::PatchHandle const & handle = patchHandles[i];
 
         FarPtexCoord::BitField bits = context->GetPatchBitFields()[ handle.serialIndex ];
 
