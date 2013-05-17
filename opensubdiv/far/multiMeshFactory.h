@@ -116,14 +116,6 @@ private:
                                                  int *voffset, int *poffset, int *qoffset,
                                                  std::vector<int> const &vertexOffsets);
 
-    // splice patch array (for uniform)
-    FarPatchTables::PTable::iterator spliceUniformPatch(FarPatchTables::Descriptor desc,
-                                                        FarMeshVector const &meshes,
-                                                        FarPatchTables::PatchArrayVector &result,
-                                                        FarPatchTables::PTable::iterator dstIndexIt,
-                                                        int *voffset, int *poffset,
-                                                        std::vector<int> const &vertexOffsets);
-
     // splice hierarchical edit tables
     FarVertexEditTables<U> * spliceVertexEditTables(FarMesh<U> *farmesh, FarMeshVector const &meshes);
 
@@ -476,56 +468,6 @@ FarMultiMeshFactory<T, U>::splicePatch(FarPatchTables::Descriptor desc,
     return dstIndexIt;
 }
 
-template <class T, class U> FarPatchTables::PTable::iterator
-FarMultiMeshFactory<T, U>::spliceUniformPatch(FarPatchTables::Descriptor desc,
-                                              FarMeshVector const &meshes,
-                                              FarPatchTables::PatchArrayVector &result,
-                                              FarPatchTables::PTable::iterator dstIndexIt,
-                                              int *voffset, int *poffset,
-                                              std::vector<int> const &vertexOffsets)
-{
-    for (size_t i = 0; i < meshes.size(); ++i) {
-        FarPatchTables const *patchTables = meshes[i]->GetPatchTables();
-        FarPatchTables::PatchArrayVector const &patchArrays = patchTables->GetPatchArrayVector();
-
-        // reverse search to find highest level's patch table
-        // XXX: add utility function to patch table and refactor with splicePatch() function
-        for (FarPatchTables::PatchArrayVector::const_reverse_iterator it = patchArrays.rbegin(); it != patchArrays.rend(); ++it) {
-            if (it->GetDescriptor() == desc) {
-
-                // create new patcharray with offset
-                int vindex = it->GetVertIndex();
-                int npatch = it->GetNumPatches();
-                int nvertex = npatch * desc.GetNumControlVertices();
-
-                FarPatchTables::PatchArray patchArray(desc,
-                                                      *voffset,
-                                                      *poffset,
-                                                      npatch,
-                                                      0);
-                // append patch array
-                result.push_back(patchArray);
-                _multiPatchArrays[i].push_back(patchArray);
-
-                // increment offset
-                *voffset += nvertex;
-                *poffset += npatch;
-
-                // copy index arrays [vindex, vindex+nvertex]
-                dstIndexIt = copyWithOffset(dstIndexIt,
-                                            patchTables->GetPatchTable(),
-                                            vindex,
-                                            nvertex,
-                                            vertexOffsets[i]);
-
-                break;
-            }
-        }
-    }
-    return dstIndexIt;
-}
-
-
 template <class T, class U> FarPatchTables *
 FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
 
@@ -586,14 +528,9 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
     int voffset = 0, poffset = 0, qoffset = 0;
     FarPatchTables::PTable::iterator dstIndexIt = result->_patches.begin();
 
-    // splice uniform patches
-    dstIndexIt = spliceUniformPatch(FarPatchTables::Descriptor(FarPatchTables::QUADS, 0, 0),
-        meshes, result->_patchArrays, dstIndexIt, &voffset, &poffset, vertexOffsets);
-    dstIndexIt = spliceUniformPatch(FarPatchTables::Descriptor(FarPatchTables::TRIANGLES, 0, 0),
-        meshes, result->_patchArrays, dstIndexIt, &voffset, &poffset, vertexOffsets);
-
-    // splice adaptive patches
-    for (FarPatchTables::Descriptor::iterator it = FarPatchTables::Descriptor::begin(); it != FarPatchTables::Descriptor::end(); ++it) {
+    // splice patches : iterate from POINTS
+    for (FarPatchTables::Descriptor::iterator it(FarPatchTables::Descriptor(FarPatchTables::POINTS, FarPatchTables::NON_TRANSITION, 0));
+         it != FarPatchTables::Descriptor::end(); ++it) {
         dstIndexIt = splicePatch(*it, meshes, result->_patchArrays, dstIndexIt, &voffset, &poffset, &qoffset, vertexOffsets);
     }
 
@@ -632,7 +569,8 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
     }
 
     // merge ptexCoord table
-    for (FarPatchTables::Descriptor::iterator it = FarPatchTables::Descriptor::begin(); it != FarPatchTables::Descriptor::end(); ++it) {
+    for (FarPatchTables::Descriptor::iterator it(FarPatchTables::Descriptor(FarPatchTables::POINTS, FarPatchTables::NON_TRANSITION, 0));
+         it != FarPatchTables::Descriptor::end(); ++it) {
         int ptexFaceOffset = 0;
         for (size_t i = 0; i < meshes.size(); ++i) {
             FarPatchTables const *ptables = meshes[i]->GetPatchTables();
