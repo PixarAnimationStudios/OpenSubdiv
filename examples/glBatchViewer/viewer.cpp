@@ -446,39 +446,35 @@ rebuild()
     // create multimesh batch
     if (g_kernel == kCPU) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
-                                               MyDrawContext,
-                                               OpenSubdiv::OsdCpuComputeController>::Create(
+            MyDrawContext, OpenSubdiv::OsdCpuComputeController>::Create(
             Controller<OpenSubdiv::OsdCpuComputeController>::GetInstance(),
             farMeshes, 0);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (g_kernel == kOPENMP) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
-                                               MyDrawContext,
-                                               OpenSubdiv::OsdOmpComputeController>::Create(
+            MyDrawContext,
+            OpenSubdiv::OsdOmpComputeController>::Create(
             Controller<OpenSubdiv::OsdOmpComputeController>::GetInstance(),
             farMeshes, 0);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if (g_kernel == kCL) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCLGLVertexBuffer,
-                                               MyDrawContext,
-                                               OpenSubdiv::OsdCLComputeController>::Create(
+            MyDrawContext, OpenSubdiv::OsdCLComputeController>::Create(
             Controller<OpenSubdiv::OsdCLComputeController>::GetInstance(),
             farMeshes, 0);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCudaGLVertexBuffer,
-                                               MyDrawContext,
-                                               OpenSubdiv::OsdCudaComputeController>::Create(
-                Controller<OpenSubdiv::OsdCudaComputeController>::GetInstance(),
+            MyDrawContext, OpenSubdiv::OsdCudaComputeController>::Create(
+            Controller<OpenSubdiv::OsdCudaComputeController>::GetInstance(),
             farMeshes, 0);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if (g_kernel == kGLSL) {
-        g_batch = new OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdGLVertexBuffer,
-                                                   MyDrawContext,
-                                                   OpenSubdiv::OsdGLSLTransformFeedbackComputeController>(
+        g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdGLVertexBuffer,
+            MyDrawContext, OpenSubdiv::OsdGLSLTransformFeedbackComputeController>::Create(
             Controller<OpenSubdiv::OsdGLSLTransformFeedbackComputeController>::GetInstance(),
             farMeshes, 0);
 #endif
