@@ -89,7 +89,7 @@ OsdD3D11VertexBuffer::Create(int numElements, int numVertices,
 }
 
 void
-OsdD3D11VertexBuffer::UpdateData(const float *src, int numVertices,
+OsdD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices,
                                  void *param) {
 
     ID3D11DeviceContext * pd3dDeviceContext =
@@ -107,7 +107,7 @@ OsdD3D11VertexBuffer::UpdateData(const float *src, int numVertices,
 
     int size = GetNumElements() * numVertices * sizeof(float);
 
-    memcpy(resource.pData, src, size);
+    memcpy((float*)resource.pData + startVertex * _numElements, src, size);
 
     pd3dDeviceContext->Unmap(_uploadBuffer, 0);
 

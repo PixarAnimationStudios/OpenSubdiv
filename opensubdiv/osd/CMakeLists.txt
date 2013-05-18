@@ -76,14 +76,18 @@ endif()
 #-------------------------------------------------------------------------------
 # source & headers
 set(CPU_SOURCE_FILES
-    cpuDispatcher.cpp
     cpuKernel.cpp
     cpuComputeController.cpp
     cpuComputeContext.cpp
+    cpuEvalLimitContext.cpp
+    cpuEvalLimitController.cpp
+    cpuEvalLimitKernel.cpp
     cpuVertexBuffer.cpp
     error.cpp
+    evalLimitContext.cpp
     drawContext.cpp
     drawRegistry.cpp
+    sortedDrawContext.cpp
 )
 
 set(GPU_SOURCE_FILES
@@ -98,21 +102,24 @@ set(INC_FILES
 set(PRIVATE_HEADER_FILES
     debug.h
     cpuKernel.h
+    cpuEvalLimitKernel.h
 )
 
 set(PUBLIC_HEADER_FILES
-    computeContext.h
     computeController.h
     cpuComputeContext.h
     cpuComputeController.h
-    cpuDispatcher.h
+    cpuEvalLimitContext.h
+    cpuEvalLimitController.h
     cpuVertexBuffer.h
-    evalContext.h
     error.h
+    evalLimitContext.h
     mesh.h
     nonCopyable.h
     drawContext.h
     drawRegistry.h
+    patch.h
+    sortedDrawContext.h
     vertex.h
     vertexDescriptor.h
 )
@@ -161,12 +168,10 @@ endif()
 #-------------------------------------------------------------------------------
 if( OPENMP_FOUND )
     list(APPEND CPU_SOURCE_FILES
-        ompDispatcher.cpp
         ompKernel.cpp
         ompComputeController.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES
-        ompDispatcher.h
         ompKernel.h
         ompComputeController.h
     )   
@@ -180,12 +185,10 @@ endif()
 #-------------------------------------------------------------------------------
 if( GCD_FOUND )
     list(APPEND CPU_SOURCE_FILES
-        gcdDispatcher.cpp
         gcdKernel.cpp
         gcdComputeController.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES
-        gcdDispatcher.h
         gcdKernel.h
         gcdComputeController.h
     )   
@@ -231,13 +234,11 @@ if( OPENGL_4_2_FOUND )
     list(APPEND GPU_SOURCE_FILES
         glslTransformFeedbackComputeController.cpp
         glslTransformFeedbackComputeContext.cpp
-        glslTransformFeedbackDispatcher.cpp
         glslTransformFeedbackKernelBundle.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES
         glslTransformFeedbackComputeContext.h
         glslTransformFeedbackComputeController.h
-        glslTransformFeedbackDispatcher.h
         glslTransformFeedbackKernelBundle.h
     )
     list(APPEND KERNEL_FILES
@@ -255,13 +256,11 @@ if( OPENGL_4_3_FOUND )
     list(APPEND GPU_SOURCE_FILES
         glslComputeController.cpp
         glslComputeContext.cpp
-        glslDispatcher.cpp
         glslKernelBundle.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES
         glslComputeContext.h
         glslComputeController.h
-        glslDispatcher.h
         glslKernelBundle.h
     )
     list(APPEND KERNEL_FILES
@@ -279,7 +278,6 @@ if( DXSDK_FOUND )
         cpuD3D11VertexBuffer.cpp
         d3d11ComputeContext.cpp
         d3d11ComputeController.cpp
-        d3d11Dispatcher.cpp
         d3d11DrawContext.cpp
         d3d11DrawRegistry.cpp
         d3d11KernelBundle.cpp
@@ -289,7 +287,6 @@ if( DXSDK_FOUND )
         cpuD3D11VertexBuffer.h
         d3d11ComputeContext.h
         d3d11ComputeController.h
-        d3d11Dispatcher.h
         d3d11DrawContext.h
         d3d11DrawRegistry.h
         d3d11KernelBundle.h
@@ -317,14 +314,12 @@ if ( OPENCL_FOUND )
     list(APPEND GPU_SOURCE_FILES
         clComputeController.cpp
         clComputeContext.cpp
-        clDispatcher.cpp
         clKernelBundle.cpp
         clVertexBuffer.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES
         clComputeContext.h
         clComputeController.h
-        clDispatcher.h
         clVertexBuffer.h
     )
     list(APPEND KERNEL_FILES
@@ -333,7 +328,7 @@ if ( OPENCL_FOUND )
     list(APPEND PLATFORM_LIBRARIES
         ${OPENCL_LIBRARIES}
     )
-
+    include_directories( ${OPENCL_INCLUDE_DIRS} )
     if ( OPENGL_FOUND )
         list(APPEND GPU_SOURCE_FILES
             clGLVertexBuffer.cpp
@@ -348,7 +343,6 @@ endif()
 # CUDA code & dependencies
 if( CUDA_FOUND )
     list(APPEND GPU_SOURCE_FILES
-        cudaDispatcher.cpp
         cudaComputeController.cpp
         cudaComputeContext.cpp
         cudaVertexBuffer.cpp
@@ -356,7 +350,6 @@ if( CUDA_FOUND )
     list(APPEND PUBLIC_HEADER_FILES
         cudaComputeContext.h
         cudaComputeController.h
-        cudaDispatcher.h
         cudaVertexBuffer.h
     )
     list(APPEND KERNEL_FILES
@@ -381,7 +374,7 @@ if( CUDA_FOUND )
     endif()        
 
     if (UNIX)
-        list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC )
+        list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC --gpu-architecture compute_11 )
     endif()
 endif()
 
@@ -441,7 +434,8 @@ target_link_libraries(osd_static_gpu
     ${PLATFORM_LIBRARIES}
 )
 
-
+install( TARGETS osd_static_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
+install( TARGETS osd_static_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
 
 if (NOT WIN32 AND NOT IOS)
     _add_possibly_cuda_library(osd_dynamic_cpu SHARED
@@ -470,12 +464,16 @@ if (NOT WIN32 AND NOT IOS)
         osd_dynamic_cpu
         ${PLATFORM_LIBRARIES}
     )
+    
+    install( TARGETS osd_dynamic_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
+    install( TARGETS osd_dynamic_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
 endif()
 
 
 install( FILES ${PUBLIC_HEADER_FILES}
-         DESTINATION include/osd
+         DESTINATION ${CMAKE_INCDIR_BASE}/osd
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+
 
 if (ANDROID)
     install( FILES Android.mk 

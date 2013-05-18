@@ -59,9 +59,9 @@
 
 #include "../version.h"
 
-#include "../far/table.h"
 #include "../far/vertexEditTables.h"
-#include "../osd/computeContext.h"
+#include "../osd/vertex.h"
+#include "../osd/nonCopyable.h"
 
 #if defined(__APPLE__)
     #include <OpenCL/opencl.h>
@@ -76,29 +76,23 @@ namespace OPENSUBDIV_VERSION {
 
 class OsdCLKernelBundle;
 
-// ----------------------------------------------------------------------------
 
 class OsdCLTable : OsdNonCopyable<OsdCLTable> {
 public:
-    OsdCLTable(const FarTable<int> &farTable, cl_context clContext);
-    OsdCLTable(const FarTable<unsigned int> &farTable, cl_context clContext);
-    OsdCLTable(const FarTable<float> &farTable, cl_context clContext);
+    template<typename T>
+        OsdCLTable(const std::vector<T> &table, cl_context clContext) {
+        createCLBuffer(table.size() * sizeof(T), &table[0], clContext);
+    }
 
     virtual ~OsdCLTable();
 
     cl_mem GetDevicePtr() const;
 
-    int GetMarker(int level) const;
-
-    int GetNumElements(int level) const;
-
 private:
-    void createCLBuffer(int size, const void *ptr, cl_context clContext);
+    void createCLBuffer(size_t size, const void *ptr, cl_context clContext);
     cl_mem _devicePtr;
-    FarTableMarkers _marker;
 };
 
-// ----------------------------------------------------------------------------
 
 class OsdCLHEditTable : OsdNonCopyable<OsdCLHEditTable> {
 public:
@@ -126,15 +120,36 @@ private:
     int _primvarWidth;
 };
 
-// ----------------------------------------------------------------------------
+///
+/// \brief OpenCL Refine Context
+///
+/// The OpenCL implementation of the Refine module contextual functionality. 
+///
+/// Contexts interface the serialized topological data pertaining to the 
+/// geometric primitives with the capabilities of the selected discrete 
+/// compute device.
+///
+class OsdCLComputeContext : public OsdNonCopyable<OsdCLComputeContext> {
 
-class OsdCLComputeContext : public OsdComputeContext {
 public:
+    /// Creates an OsdCLComputeContext instance
+    ///
+    /// @param farmesh the FarMesh used for this Context.
+    ///
     static OsdCLComputeContext * Create(FarMesh<OsdVertex> *farmesh,
                                         cl_context clContext);
 
+    /// Destructor
     virtual ~OsdCLComputeContext();
 
+    /// Binds a vertex and a varying data buffers to the context. Binding ensures
+    /// that data buffers are properly inter-operated between Contexts and 
+    /// Controllers operating across multiple devices.
+    ///
+    /// @param a buffer containing vertex-interpolated primvar data
+    ///
+    /// @param a buffer containing varying-interpolated primvar data
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
         void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying, cl_command_queue clQueue) {
 
@@ -144,6 +159,7 @@ public:
         _clQueue = clQueue;
     }
 
+    /// Unbinds any previously bound vertex and varying data buffers.
     void Unbind() {
         _currentVertexBuffer = NULL;
         _currentVaryingBuffer = NULL;
@@ -151,14 +167,25 @@ public:
         _kernelBundle = NULL;
     }
 
+    /// Returns one of the vertex refinement tables.
+    ///
+    /// @param tableIndex the type of table
+    ///
     const OsdCLTable * GetTable(int tableIndex) const;
 
+    /// Returns the number of hierarchical edit tables
     int GetNumEditTables() const;
 
+    /// Returns a specific hierarchical edit table
+    ///
+    /// @param tableIndex the index of the table
+    ///
     const OsdCLHEditTable * GetEditTable(int tableIndex) const;
 
+    /// Returns a CL handle to the vertex-interpolated data
     cl_mem GetCurrentVertexBuffer() const;
 
+    /// Returns a CL handle to the varying-interpolated data
     cl_mem GetCurrentVaryingBuffer() const;
 
     OsdCLKernelBundle * GetKernelBundle() const;
@@ -177,7 +204,8 @@ private:
     std::vector<OsdCLTable*> _tables;
     std::vector<OsdCLHEditTable*> _editTables;
 
-    cl_mem _currentVertexBuffer, _currentVaryingBuffer;
+    cl_mem _currentVertexBuffer, 
+           _currentVaryingBuffer;
 
     cl_command_queue _clQueue;
 

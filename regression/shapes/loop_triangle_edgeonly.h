@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * loop_triangle_edgeonly =
+static const std::string loop_triangle_edgeonly =
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "mtllib triangle.mtl\n"

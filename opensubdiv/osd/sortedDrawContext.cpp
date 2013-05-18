@@ -48,93 +48,89 @@
 //     with this license.
 //     (E) The software is licensed "as-is." You bear the risk of
 //     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
-//
-#ifndef OSD_GCD_DISPATCHER_H
-#define OSD_GCD_DISPATCHER_H
 
-#include <dispatch/dispatch.h>
+#include "../osd/sortedDrawContext.h"
 
-#include "../version.h"
-
-#include "../osd/vertex.h"
-#include "../far/dispatcher.h"
+#include <cassert>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdCpuComputeContext;
+OsdSortedDrawContext::OsdSortedDrawContext(FarPatchCountVector const &patchCounts,
+                                           OsdPatchArrayVector const &patchArrays) {
+    _patchCounts = patchCounts;
+    _patchArrays = patchArrays;
+    _patchDrawRangesDirty = true;
+    _primFidelity.clear();
+    _primFidelity.resize(patchCounts.size());
+}
 
-class OsdGcdKernelDispatcher : public FarDispatcher<OsdVertex>
-{
-public:
-    OsdGcdKernelDispatcher();
+void
+OsdSortedDrawContext::SetPrimFidelity(int primIndex, Fidelity f) {
 
-    virtual ~OsdGcdKernelDispatcher();
+    assert(primIndex >= 0 && primIndex <= (int)_primFidelity.size());
+    _primFidelity[primIndex] = f;
+    _patchDrawRangesDirty = true;
+}
 
-    void Refine(FarMesh<OsdVertex> * mesh, OsdCpuComputeContext *context) const;
+OsdPatchDrawRangeVector const &
+OsdSortedDrawContext::GetPatchDrawRanges(OsdPatchDescriptor desc) {
+    if (_patchDrawRangesDirty) {
+        _ComputePatchDrawRanges();
+        _patchDrawRangesDirty = false;
+    }
+    return _patchDrawRanges[desc];
+}
 
-    static OsdGcdKernelDispatcher * GetInstance();
+void
+OsdSortedDrawContext::_ComputePatchDrawRanges() {
 
-protected:
-    virtual void ApplyBilinearFaceVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
+    _patchDrawRanges.clear();
 
-    virtual void ApplyBilinearEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
+    for (size_t i = 0; i < _patchArrays.size(); ++i) {
+        OsdPatchArray const &patch = _patchArrays[i];
+        OsdPatchDescriptor desc = patch.desc;
 
-    virtual void ApplyBilinearVertexVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
+        int offset = patch.firstIndex;
+        for (size_t j = 0; j < _patchCounts.size(); ++j) {
 
-
-    virtual void ApplyCatmarkFaceVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelB(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelA(
-        FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
-        int start, int end, void * clientdata) const;
-
-
-    virtual void ApplyLoopEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyLoopVertexVerticesKernelB(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyLoopVertexVerticesKernelA(
-        FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyVertexEdits(
-        FarMesh<OsdVertex> *mesh, int offset, int level,
-        void * clientdata) const;
-
-private:
-    dispatch_queue_t _gcd_queue;
-
-};
+            FarPatchCount const &counts = _patchCounts[j];
+            int length = 0;
+            switch (desc.type) {
+            case kRegular:
+                length = counts.regular*16;
+                break;
+            case kBoundary:
+                length = counts.boundary*12;
+                break;
+            case kCorner:
+                length = counts.corner*9;
+                break;
+            case kGregory:
+                length = counts.gregory*4;
+                break;
+            case kBoundaryGregory:
+                length = counts.boundaryGregory*4;
+                break;
+            case kTransitionRegular:
+                length = counts.transitionRegular[desc.pattern]*16;
+                break;
+            case kTransitionBoundary:
+                length = counts.transitionBoundary[desc.pattern][desc.rotation]*12;
+                break;
+            case kTransitionCorner:
+                length = counts.transitionCorner[desc.pattern][desc.rotation]*9;
+                break;
+            }
+            if (_primFidelity[j] != 0 and length > 0) {
+                _patchDrawRanges[desc].push_back(OsdPatchDrawRange(offset, length));
+            }
+            offset += length;
+        }
+    }
+}
 
 } // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
 } // end namespace OpenSubdiv
 
-#endif // OSD_GCD_DISPATCHER_H
+

@@ -54,14 +54,13 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-
 #ifndef OSD_D3D11_COMPUTE_CONTROLLER_H
 #define OSD_D3D11_COMPUTE_CONTROLLER_H
 
 #include "../version.h"
 
+#include "../far/dispatcher.h"
 #include "../osd/d3d11ComputeContext.h"
-#include "../osd/d3d11Dispatcher.h"
 
 #include <vector>
 
@@ -75,26 +74,42 @@ class OsdD3D11ComputeKernelBundle;
 
 /// \brief Compute controller for launching D3D11Compute transform feedback
 /// subdivision kernels.
+///
 /// OsdD3D11ComputeController is a compute controller class to launch
 /// D3D11Compute transfrom feedback subdivision kernels. It requires
 /// OsdD3D11VertexBufferInterface as arguments of Refine function.
+///
+/// Controller entities execute requests from Context instances that they share
+/// common interfaces with. Controllers are attached to discrete compute devices
+/// and share the devices resources with Context entities.
+///
 class OsdD3D11ComputeController {
 public:
     typedef OsdD3D11ComputeContext ComputeContext;
 
     /// Constructor.
+    ///
+    /// @param deviceContext  a valid instanciated D3D11 device context
+    ///
     OsdD3D11ComputeController(ID3D11DeviceContext *deviceContext);
 
     /// Destructor.
     ~OsdD3D11ComputeController();
 
     /// Launch subdivision kernels and apply to given vertex buffers.
-    /// vertexBuffer will be interpolated with vertex interpolation and
-    /// varyingBuffer will be interpolated with varying interpolation.
-    /// vertexBuffer and varyingBuffer should implement
-    /// OsdD3D11VertexBufferInterface.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
+    /// @param  varyingBuffer varying-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Refine(OsdD3D11ComputeContext *context,
+                FarKernelBatchVector const &batches,
                 VERTEX_BUFFER *vertexBuffer,
                 VARYING_BUFFER *varyingBuffer) {
 
@@ -103,22 +118,67 @@ public:
 
         context->SetKernelBundle(getKernels(numVertexElements, numVaryingElements));
         context->Bind(vertexBuffer, varyingBuffer);
-        OsdD3D11ComputeKernelDispatcher::GetInstance()->Refine(context->GetFarMesh(), context);
+        FarDispatcher::Refine(this,
+                              batches,
+                              -1,
+                              context);
         context->Unbind();
     }
 
+    /// Launch subdivision kernels and apply to given vertex buffers.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER>
-    void Refine(OsdD3D11ComputeContext *context, VERTEX_BUFFER *vertexBuffer) {
-        Refine(context, vertexBuffer, (VERTEX_BUFFER*)NULL);
+    void Refine(OsdD3D11ComputeContext *context,
+                FarKernelBatchVector const &batches,
+                VERTEX_BUFFER *vertexBuffer) {
+        Refine(context, batches, vertexBuffer, (VERTEX_BUFFER*)NULL);
     }
 
     /// Waits until all running subdivision kernels finish.
     void Synchronize();
 
-private:
+protected:
+    friend class FarDispatcher;
+    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+
+    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const;
+
+
+    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const;
+
+
+    void ApplyVertexEdits(FarKernelBatch const &batch, void * clientdata) const;
+
     OsdD3D11ComputeKernelBundle * getKernels(int numVertexElements,
                                              int numVaryingElements);
 
+private:
     ID3D11DeviceContext *_deviceContext;
     ID3D11Query *_query;
     std::vector<OsdD3D11ComputeKernelBundle *> _kernelRegistry;

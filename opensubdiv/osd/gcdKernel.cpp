@@ -69,90 +69,92 @@ const int GCD_WORK_STRIDE = 32;
 
 void OsdGcdComputeFace(
     const OsdVertexDescriptor *vdesc, float * vertex, float * varying,
-    const int *F_IT, const int *F_ITa, int offset, int start, int end,
+    const int *F_IT, const int *F_ITa,
+    int vertexOffset, int tableOffset, int start, int end,
     dispatch_queue_t gcdq) {
 
     const int workSize = end-start;
     dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
         const int start_i = start + blockIdx*GCD_WORK_STRIDE;
         const int end_i = start_i + GCD_WORK_STRIDE;
-        OsdCpuComputeFace(vdesc, vertex, varying, F_IT, F_ITa, offset,
-            start_i, end_i);
+        OsdCpuComputeFace(vdesc, vertex, varying, F_IT, F_ITa,
+                          vertexOffset, tableOffset, start_i, end_i);
     });
     const int start_e = end - workSize%GCD_WORK_STRIDE;
     const int end_e = end;
     if (start_e < end_e)
-        OsdCpuComputeFace(vdesc, vertex, varying, F_IT, F_ITa, offset,
-            start_e, end_e);
+        OsdCpuComputeFace(vdesc, vertex, varying, F_IT, F_ITa,
+                          vertexOffset, tableOffset, start_e, end_e);
 }
 
 void OsdGcdComputeEdge(
     const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
-    const int *E_IT, const float *E_W, int offset, int start, int end,
+    const int *E_IT, const float *E_W,
+    int vertexOffset, int tableOffset, int start, int end,
     dispatch_queue_t gcdq) {
 
     const int workSize = end-start;
     dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
         const int start_i = start + blockIdx*GCD_WORK_STRIDE;
         const int end_i = start_i + GCD_WORK_STRIDE;
-        OsdCpuComputeEdge(vdesc, vertex, varying, E_IT, E_W, offset,
-            start_i, end_i);
+        OsdCpuComputeEdge(vdesc, vertex, varying, E_IT, E_W,
+                          vertexOffset, tableOffset, start_i, end_i);
     });
     const int start_e = end - workSize%GCD_WORK_STRIDE;
     const int end_e = end;
     if (start_e < end_e)
-        OsdCpuComputeEdge(vdesc, vertex, varying, E_IT, E_W, offset,
-            start_e, end_e);
+        OsdCpuComputeEdge(vdesc, vertex, varying, E_IT, E_W,
+                          vertexOffset, tableOffset, start_e, end_e);
 }
 
 void OsdGcdComputeVertexA(
     const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
     const int *V_ITa, const float *V_W,
-    int offset, int start, int end, int pass,
+    int vertexOffset, int tableOffset, int start, int end, int pass,
     dispatch_queue_t gcdq) {
 
     const int workSize = end-start;
     dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
         const int start_i = start + blockIdx*GCD_WORK_STRIDE;
         const int end_i = start_i + GCD_WORK_STRIDE;
-        OsdCpuComputeVertexA(vdesc, vertex, varying, V_ITa, V_W, offset,
-            start_i, end_i, pass);
+        OsdCpuComputeVertexA(vdesc, vertex, varying, V_ITa, V_W,
+                             vertexOffset, tableOffset, start_i, end_i, pass);
     });
     const int start_e = end - workSize%GCD_WORK_STRIDE;
     const int end_e = end;
     if (start_e < end_e)
-        OsdCpuComputeVertexA(vdesc, vertex, varying, V_ITa, V_W, offset,
-            start_e, end_e, pass);
+        OsdCpuComputeVertexA(vdesc, vertex, varying, V_ITa, V_W,
+                             vertexOffset, tableOffset, start_e, end_e, pass);
 }
 
 void OsdGcdComputeVertexB(
     const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
     const int *V_ITa, const int *V_IT, const float *V_W,
-    int offset, int start, int end,
+    int vertexOffset, int tableOffset, int start, int end,
     dispatch_queue_t gcdq) {
 
     const int workSize = end-start;
     dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
         const int start_i = start + blockIdx*GCD_WORK_STRIDE;
         const int end_i = start_i + GCD_WORK_STRIDE;
-        OsdCpuComputeVertexB(vdesc, vertex, varying, V_ITa, V_IT, V_W, offset,
-            start_i, end_i);
+        OsdCpuComputeVertexB(vdesc, vertex, varying, V_ITa, V_IT, V_W,
+                             vertexOffset, tableOffset, start_i, end_i);
     });
     const int start_e = end - workSize%GCD_WORK_STRIDE;
     const int end_e = end;
     if (start_e < end_e)
-        OsdCpuComputeVertexB(vdesc, vertex, varying, V_ITa, V_IT, V_W, offset,
-            start_e, end_e);
+        OsdCpuComputeVertexB(vdesc, vertex, varying, V_ITa, V_IT, V_W,
+                             vertexOffset, tableOffset, start_e, end_e);
 }
 
 void OsdGcdComputeLoopVertexB(
     const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
     const int *V_ITa, const int *V_IT, const float *V_W,
-    int offset, int start, int end,
+    int vertexOffset, int tableOffset, int start, int end,
     dispatch_queue_t gcdq) {
 
     dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
-        int i = start+blockIdx;
+        int i = start+blockIdx+tableOffset;
         int h = V_ITa[5*i];
         int n = V_ITa[5*i+1];
         int p = V_ITa[5*i+2];
@@ -163,7 +165,7 @@ void OsdGcdComputeLoopVertexB(
         beta = beta * beta;
         beta = (0.625f - beta) * wp;
 
-        int dstIndex = offset + i;
+        int dstIndex = vertexOffset + i - tableOffset;
         vdesc->Clear(vertex, varying, dstIndex);
 
         vdesc->AddWithWeight(vertex, dstIndex, p, weight * (1.0f - (beta * n)));
@@ -177,15 +179,16 @@ void OsdGcdComputeLoopVertexB(
 
 void OsdGcdComputeBilinearEdge(
     const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
-    const int *E_IT, int offset, int start, int end,
+    const int *E_IT,
+    int vertexOffset, int tableOffset, int start, int end,
     dispatch_queue_t gcdq) {
 
     dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
-        int i = start+blockIdx;
+        int i = start+blockIdx+tableOffset;
         int eidx0 = E_IT[2*i+0];
         int eidx1 = E_IT[2*i+1];
 
-        int dstIndex = offset + i;
+        int dstIndex = vertexOffset + i - tableOffset;
         vdesc->Clear(vertex, varying, dstIndex);
 
         vdesc->AddWithWeight(vertex, dstIndex, eidx0, 0.5f);
@@ -198,14 +201,15 @@ void OsdGcdComputeBilinearEdge(
 
 void OsdGcdComputeBilinearVertex(
     const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
-    const int *V_ITa, int offset, int start, int end,
+    const int *V_ITa,
+    int vertexOffset, int tableOffset, int start, int end,
     dispatch_queue_t gcdq) {
 
     dispatch_apply(end-start, gcdq, ^(size_t blockIdx){
-        int i = start+blockIdx;
+        int i = start+blockIdx+tableOffset;
         int p = V_ITa[i];
 
-        int dstIndex = offset + i;
+        int dstIndex = vertexOffset + i - tableOffset;
         vdesc->Clear(vertex, varying, dstIndex);
 
         vdesc->AddWithWeight(vertex, dstIndex, p, 1.0f);
@@ -215,27 +219,35 @@ void OsdGcdComputeBilinearVertex(
 
 void OsdGcdEditVertexAdd(
     const OsdVertexDescriptor *vdesc, float *vertex,
-    int primVarOffset, int primVarWidth, int vertexCount,
-    const int *editIndices, const float *editValues,
+    int primVarOffset, int primVarWidth,
+    int vertexOffset, int tableOffset,
+    int start, int end,
+    const unsigned int *editIndices, const float *editValues,
     dispatch_queue_t gcdq) {
 
+    int vertexCount = end - start;
     dispatch_apply(vertexCount, gcdq, ^(size_t blockIdx){
-        int i = blockIdx;
+        int i = start + blockIdx + tableOffset;
         vdesc->ApplyVertexEditAdd(vertex, primVarOffset, primVarWidth,
-                                  editIndices[i], &editValues[i*primVarWidth]);
+                                  editIndices[i] + vertexOffset,
+                                  &editValues[i*primVarWidth]);
     });
 }
 
 void OsdGcdEditVertexSet(
     const OsdVertexDescriptor *vdesc, float *vertex,
-    int primVarOffset, int primVarWidth, int vertexCount,
-    const int *editIndices, const float *editValues,
+    int primVarOffset, int primVarWidth,
+    int vertexOffset, int tableOffset,
+    int start, int end,
+    const unsigned int *editIndices, const float *editValues,
     dispatch_queue_t gcdq) {
 
+    int vertexCount = end - start;
     dispatch_apply(vertexCount, gcdq, ^(size_t blockIdx){
-        int i = blockIdx;
+        int i = start + blockIdx + tableOffset;
         vdesc->ApplyVertexEditSet(vertex, primVarOffset, primVarWidth,
-                                  editIndices[i], &editValues[i*primVarWidth]);
+                                  editIndices[i] + vertexOffset,
+                                  &editValues[i*primVarWidth]);
     });
 }
 

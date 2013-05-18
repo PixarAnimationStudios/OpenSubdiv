@@ -94,7 +94,7 @@ public:
 
     /// This method is meant to be used in client code in order to provide
     /// coarse vertices data to Osd.
-    void UpdateData(const float *src, int numVertices);
+    void UpdateData(const float *src, int startVertex, int numVertices);
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;

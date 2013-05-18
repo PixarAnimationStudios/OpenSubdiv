@@ -59,8 +59,8 @@
 
 #include "../version.h"
 
+#include "../far/dispatcher.h"
 #include "../osd/cpuComputeContext.h"
-#include "../osd/ompDispatcher.h"
 
 #ifdef OPENSUBDIV_HAS_OPENMP
     #include <omp.h>
@@ -70,45 +70,103 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 /// \brief Compute controller for launching OpenMP subdivision kernels.
-/// OsdOmpComputeController is a compute controller class to launch
-/// OpenMP threaded subdivision kernels. It requires OsdCpuVertexBufferInterface
+///
+/// OsdOmpComputeController is a compute controller class to launch OpenMP
+/// threaded subdivision kernels. It requires OsdCpuVertexBufferInterface
 /// as arguments of Refine function.
+///
+/// Controller entities execute requests from Context instances that they share
+/// common interfaces with. Controllers are attached to discrete compute devices
+/// and share the devices resources with Context entities.
+///
 class OsdOmpComputeController {
 public:
     typedef OsdCpuComputeContext ComputeContext;
 
     /// Constructor.
-    /// numThreads specifies how many threads to be used in openmp parallel
-    /// execution. numThreads=-1 means to use available number of processors.
+    ///
+    /// @param numThreads specifies how many openmp parallel threads to use.
+    ///                   -1 attempts to use all available processors.
+    ///
     explicit OsdOmpComputeController(int numThreads=-1);
 
     /// Launch subdivision kernels and apply to given vertex buffers.
-    /// vertexBuffer will be interpolated with vertex interpolation and
-    /// varyingBuffer will be interpolated with varying interpolation.
-    /// vertexBuffer and varyingBuffer should implement 
-    /// OsdCpuVertexBufferInterface.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
+    /// @param  varyingBuffer varying-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Refine(OsdCpuComputeContext *context,
-                VERTEX_BUFFER *vertexBuffer,
-                VARYING_BUFFER *varyingBuffer) {
+                FarKernelBatchVector const & batches,
+                VERTEX_BUFFER * vertexBuffer,
+                VARYING_BUFFER * varyingBuffer) {
 
         omp_set_num_threads(_numThreads);
 
         context->Bind(vertexBuffer, varyingBuffer);
-        OsdOmpKernelDispatcher::GetInstance()->Refine(context->GetFarMesh(),
-                                                      context);
+        FarDispatcher::Refine(this,
+                              batches,
+                              -1,
+                              context);
         context->Unbind();
     }
 
+    /// Launch subdivision kernels and apply to given vertex buffers.
+    ///
+    /// @param  context       the OsdCpuContext to apply refinement operations to
+    ///
+    /// @param  batches       vector of batches of vertices organized by operative 
+    ///                       kernel
+    ///
+    /// @param  vertexBuffer  vertex-interpolated data buffer
+    ///
     template<class VERTEX_BUFFER>
-    void Refine(OsdCpuComputeContext *context, VERTEX_BUFFER *vertexBuffer) {
-        Refine(context, vertexBuffer, (VERTEX_BUFFER*)0);
+    void Refine(OsdCpuComputeContext *context,
+                FarKernelBatchVector const &batches,
+                VERTEX_BUFFER *vertexBuffer) {
+        Refine(context, batches, vertexBuffer, (VERTEX_BUFFER*)0);
     }
 
     /// Waits until all running subdivision kernels finish.
     void Synchronize();
 
-private:
+protected:
+    friend class FarDispatcher;
+
+    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+
+    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const;
+
+
+    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const;
+
+    void ApplyVertexEdits(FarKernelBatch const &batch, void * clientdata) const;
+
     int _numThreads;
 };
 

@@ -62,9 +62,8 @@
 #endif
 
 #include "../osd/glslTransformFeedbackComputeController.h"
-#include "../osd/glslTransformFeedbackKernelBundle.h"
 #include "../osd/glslTransformFeedbackComputeContext.h"
-#include "../osd/glslTransformFeedbackDispatcher.h"
+#include "../osd/glslTransformFeedbackKernelBundle.h"
 
 #include <algorithm>
 #include <cassert>
@@ -106,6 +105,257 @@ OsdGLSLTransformFeedbackComputeController::getKernels(int numVertexElements,
         kernelBundle->Compile(numVertexElements, numVaryingElements);
         return kernelBundle;
     }
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyBilinearFaceVerticesKernel(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyBilinearFaceVerticesKernel(
+        context->GetCurrentVertexBuffer(),
+        context->GetNumCurrentVertexElements(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetNumCurrentVaryingElements(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyBilinearEdgeVerticesKernel(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyBilinearEdgeVerticesKernel(
+        context->GetCurrentVertexBuffer(),
+        context->GetNumCurrentVertexElements(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetNumCurrentVaryingElements(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyBilinearVertexVerticesKernel(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyBilinearVertexVerticesKernel(
+        context->GetCurrentVertexBuffer(),
+        context->GetNumCurrentVertexElements(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetNumCurrentVaryingElements(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyCatmarkFaceVerticesKernel(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyCatmarkFaceVerticesKernel(
+        context->GetCurrentVertexBuffer(),
+        context->GetNumCurrentVertexElements(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetNumCurrentVaryingElements(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyCatmarkEdgeVerticesKernel(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyCatmarkEdgeVerticesKernel(
+        context->GetCurrentVertexBuffer(),
+        context->GetNumCurrentVertexElements(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetNumCurrentVaryingElements(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelB(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyCatmarkVertexVerticesKernelB(
+        context->GetCurrentVertexBuffer(),
+        context->GetNumCurrentVertexElements(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetNumCurrentVaryingElements(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelA1(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyCatmarkVertexVerticesKernelA(
+        context->GetCurrentVertexBuffer(),
+        context->GetNumCurrentVertexElements(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetNumCurrentVaryingElements(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelA2(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyCatmarkVertexVerticesKernelA(
+        context->GetCurrentVertexBuffer(),
+        context->GetNumCurrentVertexElements(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetNumCurrentVaryingElements(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyLoopEdgeVerticesKernel(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyLoopEdgeVerticesKernel(
+        context->GetCurrentVertexBuffer(),
+        context->GetNumCurrentVertexElements(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetNumCurrentVaryingElements(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelB(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyLoopVertexVerticesKernelB(
+        context->GetCurrentVertexBuffer(),
+        context->GetNumCurrentVertexElements(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetNumCurrentVaryingElements(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelA1(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyLoopVertexVerticesKernelA(
+        context->GetCurrentVertexBuffer(),
+        context->GetNumCurrentVertexElements(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetNumCurrentVaryingElements(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelA2(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyLoopVertexVerticesKernelA(
+        context->GetCurrentVertexBuffer(),
+        context->GetNumCurrentVertexElements(),
+        context->GetCurrentVaryingBuffer(),
+        context->GetNumCurrentVaryingElements(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyVertexEdits(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLTransformFeedbackComputeContext * context =
+        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    const OsdGLSLTransformFeedbackHEditTable * edit = context->GetEditTable(batch.GetTableIndex());
+    assert(edit);
+
+    context->BindEditTextures(batch.GetTableIndex());
+
+    int primvarOffset = edit->GetPrimvarOffset();
+    int primvarWidth = edit->GetPrimvarWidth();
+
+    if (edit->GetOperation() == FarVertexEdit::Add) {
+        kernelBundle->ApplyEditAdd(
+            context->GetCurrentVertexBuffer(),
+            context->GetNumCurrentVertexElements(),
+            context->GetCurrentVaryingBuffer(),
+            context->GetNumCurrentVaryingElements(),
+            primvarOffset, primvarWidth,
+            batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+    } else {
+        // XXX: edit SET is not implemented yet.
+    }
+    
+    context->UnbindEditTextures();
 }
 
 }  // end namespace OPENSUBDIV_VERSION

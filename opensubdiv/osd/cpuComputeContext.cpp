@@ -65,14 +65,109 @@
 #include "../osd/vertexDescriptor.h"
 #include "../osd/error.h"
 
+#include <cstring>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> *farMesh)
-    : OsdComputeContext(farMesh) {
+void
+OsdCpuTable::createCpuBuffer(size_t size, const void *ptr) {
 
-    _tables = farMesh->GetSubdivisionTables();
-    _editTables = farMesh->GetVertexEdit();
+    _devicePtr = new unsigned char[size];
+    memcpy(_devicePtr, ptr, size);
+}
+
+OsdCpuTable::~OsdCpuTable() {
+
+    if (_devicePtr) 
+        delete [] (unsigned char *)_devicePtr;
+}
+
+void *
+OsdCpuTable::GetBuffer() const {
+
+    return _devicePtr;
+}
+
+// ----------------------------------------------------------------------------
+
+OsdCpuHEditTable::OsdCpuHEditTable(
+    const FarVertexEditTables<OsdVertex>::VertexEditBatch &batch)
+    : _primvarIndicesTable(new OsdCpuTable(batch.GetVertexIndices())),
+      _editValuesTable(new OsdCpuTable(batch.GetValues())) {
+
+    _operation = batch.GetOperation();
+    _primvarOffset = batch.GetPrimvarIndex();
+    _primvarWidth = batch.GetPrimvarWidth();
+}
+
+OsdCpuHEditTable::~OsdCpuHEditTable() {
+
+    delete _primvarIndicesTable;
+    delete _editValuesTable;
+}
+
+const OsdCpuTable *
+OsdCpuHEditTable::GetPrimvarIndices() const {
+
+    return _primvarIndicesTable;
+}
+
+const OsdCpuTable *
+OsdCpuHEditTable::GetEditValues() const {
+
+    return _editValuesTable;
+}
+
+int
+OsdCpuHEditTable::GetOperation() const {
+
+    return _operation;
+}
+
+int
+OsdCpuHEditTable::GetPrimvarOffset() const {
+
+    return _primvarOffset;
+}
+
+int
+OsdCpuHEditTable::GetPrimvarWidth() const {
+
+    return _primvarWidth;
+}
+
+OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> *farMesh) {
+
+    FarSubdivisionTables<OsdVertex> const * farTables =
+        farMesh->GetSubdivisionTables();
+
+    // allocate 5 or 7 tables
+    _tables.resize(farTables->GetNumTables(), 0);
+
+    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdCpuTable(farTables->Get_E_IT());
+    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdCpuTable(farTables->Get_V_IT());
+    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdCpuTable(farTables->Get_V_ITa());
+    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdCpuTable(farTables->Get_E_W());
+    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdCpuTable(farTables->Get_V_W());
+
+    if (farTables->GetNumTables() > 5) {
+        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdCpuTable(farTables->Get_F_IT());
+        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdCpuTable(farTables->Get_F_ITa());
+    }
+
+    // create hedit tables
+    FarVertexEditTables<OsdVertex> const *editTables = farMesh->GetVertexEdit();
+    if (editTables) {
+        int numEditBatches = editTables->GetNumBatches();
+        _editTables.reserve(numEditBatches);
+        for (int i = 0; i < numEditBatches; ++i) {
+            const FarVertexEditTables<OsdVertex>::VertexEditBatch & edit =
+                editTables->GetBatch(i);
+
+            _editTables.push_back(new OsdCpuHEditTable(edit));
+        }
+    }
     _vdesc = 0;
     _currentVertexBuffer = 0;
     _currentVaryingBuffer = 0;
@@ -80,38 +175,19 @@ OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> *farMesh)
 
 OsdCpuComputeContext::~OsdCpuComputeContext() {
 
+    for (size_t i = 0; i < _tables.size(); ++i) {
+        delete _tables[i];
+    }
+    for (size_t i = 0; i < _editTables.size(); ++i) {
+        delete _editTables[i];
+    }
     if (_vdesc) delete _vdesc;
 }
 
-const void *
-OsdCpuComputeContext::GetTablePtr(int tableIndex, int level) const {
+const OsdCpuTable *
+OsdCpuComputeContext::GetTable(int tableIndex) const {
 
-    if (tableIndex == Table::E_IT) {
-        return _tables->Get_E_IT()[level];
-    } else if (tableIndex == Table::E_W) {
-        return _tables->Get_E_W()[level];
-    } else if (tableIndex == Table::V_ITa) {
-        return _tables->Get_V_ITa()[level];
-    } else if (tableIndex == Table::V_IT) {
-        return _tables->Get_V_IT()[level];
-    } else if (tableIndex == Table::V_W) {
-        return _tables->Get_V_W()[level];
-    } else {
-        const FarCatmarkSubdivisionTables<OsdVertex> * ccTables =
-            dynamic_cast<const FarCatmarkSubdivisionTables<OsdVertex>*>(_tables);
-        const FarBilinearSubdivisionTables<OsdVertex> * bTables =
-            dynamic_cast<const FarBilinearSubdivisionTables<OsdVertex>*>(_tables);
-
-        if (tableIndex == Table::F_IT) {
-            if (ccTables) return ccTables->Get_F_IT()[level];
-            else if (bTables) return bTables->Get_F_IT()[level];
-        } else if (tableIndex == Table::F_ITa) {
-            if (ccTables) return ccTables->Get_F_ITa()[level];
-            else if (bTables) return bTables->Get_F_ITa()[level];
-        }
-    }
-    OsdError(OSD_INTERNAL_CODING_ERROR);
-    return 0;
+    return _tables[tableIndex];
 }
 
 OsdVertexDescriptor *
@@ -123,17 +199,13 @@ OsdCpuComputeContext::GetVertexDescriptor() const {
 int
 OsdCpuComputeContext::GetNumEditTables() const {
 
-    if (_editTables)
-        return _editTables->GetNumBatches();
-    return 0;
+    return static_cast<int>(_editTables.size());
 }
 
-const FarVertexEditTables<OsdVertex>::VertexEditBatch *
+const OsdCpuHEditTable *
 OsdCpuComputeContext::GetEditTable(int tableIndex) const {
 
-    if (_editTables)
-        return &_editTables->GetBatch(tableIndex);
-    return 0;
+    return _editTables[tableIndex];
 }
 
 float *

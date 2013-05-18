@@ -124,22 +124,17 @@ a particular purpose and non-infringement.
 //
 // ### OpenSubdiv Includes
 
-// The mutex header provides a cross platform mutex implementation; the vertex 
-// and mesh headers provide abstract representations of verts and meshes; the
+// The vertex and mesh headers provide abstract representations
+// of verts and meshes; the
 // element array buffer provides an abstract representation of an index buffer; 
 // and finally, the cpu dispatcher is how subdivision work is dispatched to the
 // CPU.
 //
 
-
-// XXX: Fixme 
-#include "../../regression/common/mutex.h"
-
 #include <far/meshFactory.h>
 
 #include <osd/vertex.h>
 #include <osd/glDrawContext.h>
-#include <osd/cpuDispatcher.h>
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeController.h>
 #include <osd/cpuComputeContext.h>
@@ -151,8 +146,8 @@ a particular purpose and non-infringement.
 // The screen width & height; current frame for animation; and the desired 
 // subdivision level.
 //
-int g_width = 0,
-    g_height = 0,
+int g_width = 1024,
+    g_height = 1024,
     g_frame = 0,
     g_level = 4;
 
@@ -469,8 +464,8 @@ updateGeom()
     //
     // Send the animated coarse positions and normals to the vertex buffer.
     //
-    std::cout << vertex.size() << " - " << nverts << std::endl;
-    g_vertexBuffer->UpdateData(&vertex[0], nverts);
+    //std::cout << vertex.size() << " - " << nverts << std::endl;
+    g_vertexBuffer->UpdateData(&vertex[0], 0, nverts);
 
     //
     // Dispatch subdivision work based on the coarse vertex buffer. At this 
@@ -479,7 +474,9 @@ updateGeom()
     // a call to Synchronize() will allow you to block until the worker threads
     // complete.
     //
-    g_osdComputeController->Refine(g_osdComputeContext, g_vertexBuffer);
+    g_osdComputeController->Refine(g_osdComputeContext,
+                                   g_farmesh->GetKernelBatches(),
+                                   g_vertexBuffer);
 
     //
     // The call to Synchronize() is not actually necessary, it's being used

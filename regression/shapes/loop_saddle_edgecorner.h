@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * loop_saddle_edgecorner =
+static const std::string loop_saddle_edgecorner =
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "mtllib saddle.mtl\n"

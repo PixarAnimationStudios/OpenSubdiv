@@ -79,26 +79,21 @@
 #include <stdio.h>
 #include <cassert>
 
-#include "../common/mutex.h"
-
 #include <far/meshFactory.h>
 
 #include <osd/vertex.h>
 #include <osd/cpuVertexBuffer.h>
-#include <osd/cpuDispatcher.h>
 #include <osd/cpuComputeController.h>
 #include <osd/cpuComputeContext.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 
 #ifdef OPENSUBDIV_HAS_CUDA
-    #include <osd/cudaDispatcher.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     #include <osd/clComputeContext.h>
     #include <osd/clComputeController.h>
-    #include <osd/clDispatcher.h>
     #include <osd/clGLVertexBuffer.h>
     static cl_context g_clContext;
     static cl_command_queue g_clQueue;
@@ -353,9 +348,9 @@ checkMeshCPU( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
     
     OpenSubdiv::OsdCpuVertexBuffer * vb = OpenSubdiv::OsdCpuVertexBuffer::Create(3, farmesh->GetNumVertices());
     
-    vb->UpdateData( & coarseverts[0], (int)coarseverts.size()/3 );
+    vb->UpdateData( & coarseverts[0], 0, (int)coarseverts.size()/3 );
     
-    controller->Refine( context, vb );
+    controller->Refine( context, farmesh->GetKernelBatches(), vb );
     
     return checkVertexBuffer(refmesh, vb->BindCpuBuffer(), vb->GetNumElements(), remap);
 }
@@ -373,9 +368,9 @@ checkMeshCPUGL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
     
     OpenSubdiv::OsdCpuGLVertexBuffer * vb = OpenSubdiv::OsdCpuGLVertexBuffer::Create(3, farmesh->GetNumVertices());
     
-    vb->UpdateData( & coarseverts[0], (int)coarseverts.size()/3 );
+    vb->UpdateData( & coarseverts[0], 0, (int)coarseverts.size()/3 );
     
-    controller->Refine( context, vb );
+    controller->Refine( context, farmesh->GetKernelBatches(), vb );
     
     return checkVertexBuffer(refmesh, vb->BindCpuBuffer(), vb->GetNumElements(), remap);
 }
@@ -395,9 +390,9 @@ checkMeshCL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
     
     OpenSubdiv::OsdCLGLVertexBuffer * vb = OpenSubdiv::OsdCLGLVertexBuffer::Create(3, farmesh->GetNumVertices(), g_clContext);
     
-    vb->UpdateData( & coarseverts[0], (int)coarseverts.size()/3, g_clQueue );
+    vb->UpdateData( & coarseverts[0], 0, (int)coarseverts.size()/3, g_clQueue );
     
-    controller->Refine( context, vb );
+    controller->Refine( context, farmesh->GetKernelBatches(), vb );
 
     // read data back from CL buffer
     size_t dataSize = vb->GetNumVertices() * vb->GetNumElements();
@@ -417,20 +412,20 @@ checkMeshCL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
 
 //------------------------------------------------------------------------------
 static int 
-checkMesh( char const * msg, char const * shape, int levels, Scheme scheme, int backend ) {
+checkMesh( char const * msg, std::string const & shape, int levels, Scheme scheme, int backend ) {
 
     int result =0;
 
     printf("- %s (scheme=%d)\n", msg, scheme);
 
-    xyzmesh * refmesh = simpleHbr<xyzVV>(shape, scheme, 0);
+    xyzmesh * refmesh = simpleHbr<xyzVV>(shape.c_str(), scheme, 0);
 
     refine( refmesh, levels );
 
 
     std::vector<float> coarseverts;
 
-    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, coarseverts);
+    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape.c_str(), scheme, coarseverts);
 
     OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex> meshFactory(hmesh, levels);
 
@@ -470,6 +465,7 @@ int checkBackend(int backend, int levels) {
 
 #define test_catmark_edgeonly
 #define test_catmark_edgecorner
+#define test_catmark_flap
 #define test_catmark_pyramid
 #define test_catmark_pyramid_creases0
 #define test_catmark_pyramid_creases1
@@ -509,6 +505,11 @@ int checkBackend(int backend, int levels) {
 #ifdef test_catmark_edgecorner
 #include "../shapes/catmark_edgecorner.h"
     total += checkMesh( "test_catmark_edgeonly", catmark_edgecorner, levels, kCatmark, backend );
+#endif
+
+#ifdef test_catmark_flap
+#include "../shapes/catmark_flap.h"
+    total += checkMesh( "test_catmark_flap", catmark_flap, levels, kCatmark, backend );
 #endif
 
 #ifdef test_catmark_pyramid
@@ -743,11 +744,10 @@ main(int argc, char ** argv) {
         return 1;
     }
 
-    static const char windowTitle[] = "OpenSubdiv glViewer";
-    
     int width=10, height=10;
     
 #if GLFW_VERSION_MAJOR>=3
+    static const char windowTitle[] = "OpenSubdiv OSD regression";
     if (not (g_window=glfwCreateWindow(width, height, windowTitle, NULL, NULL))) {
         printf("Failed to open window.\n");
         glfwTerminate();

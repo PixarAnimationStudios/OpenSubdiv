@@ -681,7 +681,7 @@ OpenSubdivShader::draw(const MHWRender::MDrawContext &mDrawContext,
         bindProgram(mDrawContext, osdDrawContext, patch);
 
         if (patch.desc.type != OpenSubdiv::kNonPatch) {
-            glPatchParameteri(GL_PATCH_VERTICES, patch.patchSize);
+            glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
 
             glDrawElements(GL_PATCHES,
                            patch.numIndices, GL_UNSIGNED_INT,

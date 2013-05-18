@@ -61,24 +61,15 @@ interface IComputeKernel {
 IComputeKernel kernel;
 
 cbuffer KernelCB : register( b0 ) {
-    int indexOffset;    // index offset for the level
-    int indexStart;     // start index for given batch
-    int indexEnd;       // end index for given batch
-
+    int vertexOffset;   // vertex index offset for the batch
+    int tableOffset;    // offset of subdivision table
+    int indexStart;     // start index relative to tableOffset
+    int indexEnd;       // end index relative to tableOffset
     bool vertexPass;
-    int F_IT_ofs;
-    int F_ITa_ofs;
-    int E_IT_ofs;
-    int V_IT_ofs;
-    int V_ITa_ofs;
-    int E_W_ofs;
-    int V_W_ofs;
 
-    int editIndices_ofs;
-    int editValues_ofs;
+// vertex edit kernel
     int editPrimVarOffset;
     int editPrimVarWidth;
-    int editNumVertices;
 };
 
 /*
@@ -86,7 +77,7 @@ cbuffer KernelCB : register( b0 ) {
    n-1 |   Level n   |<batch range>|     |  n+1
  +-----+---------------------------------+-----
        ^             ^             ^
-  indexOffset        |             |
+  vertexOffset       |             |
                  indexStart     indexEnd
 */
 
@@ -185,20 +176,22 @@ void runKernel( uint3 ID )
 {
     int i = int(ID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
-    int h = _F_ITa[F_ITa_ofs+2*i];
-    int n = _F_ITa[F_ITa_ofs+2*i+1];
+    int h = _F_ITa[2*i];
+    int n = _F_ITa[2*i+1];
 
     float weight = 1.0/n;
 
     Vertex dst;
     clear(dst);
     for(int j=0; j<n; ++j){
-        int index = _F_IT[F_IT_ofs+h+j];
+        int index = _F_IT[h+j];
         addWithWeight(dst, readVertex(index), weight);
         addVaryingWithWeight(dst, readVertex(index), weight);
     }
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 };
 
@@ -209,24 +202,26 @@ void runKernel( uint3 ID )
 {
     int i = int(ID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
     Vertex dst;
     clear(dst);
 
-    int eidx0 = _E_IT[E_IT_ofs+4*i+0];
-    int eidx1 = _E_IT[E_IT_ofs+4*i+1];
-    int eidx2 = _E_IT[E_IT_ofs+4*i+2];
-    int eidx3 = _E_IT[E_IT_ofs+4*i+3];
+    int eidx0 = _E_IT[4*i+0];
+    int eidx1 = _E_IT[4*i+1];
+    int eidx2 = _E_IT[4*i+2];
+    int eidx3 = _E_IT[4*i+3];
     int4 eidx = int4(eidx0, eidx1, eidx2, eidx3);
 
-    float vertWeight = _E_W[E_W_ofs+i*2+0];
+    float vertWeight = _E_W[i*2+0];
 
     // Fully sharp edge : vertWeight = 0.5f;
     addWithWeight(dst, readVertex(eidx.x), vertWeight);
     addWithWeight(dst, readVertex(eidx.y), vertWeight);
 
     if(eidx.z != -1){
-        float faceWeight = _E_W[E_W_ofs+i*2+1];
+        float faceWeight = _E_W[i*2+1];
 
         addWithWeight(dst, readVertex(eidx.z), faceWeight);
         addWithWeight(dst, readVertex(eidx.w), faceWeight);
@@ -235,7 +230,7 @@ void runKernel( uint3 ID )
     addVaryingWithWeight(dst, readVertex(eidx.x), 0.5f);
     addVaryingWithWeight(dst, readVertex(eidx.y), 0.5f);
 
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 };
 
@@ -246,12 +241,14 @@ void runKernel( uint3 ID )
 {
     int i = int(ID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
     Vertex dst;
     clear(dst);
 
-    int2 eidx = int2(_E_IT[E_IT_ofs+2*i+0],
-                     _E_IT[E_IT_ofs+2*i+1]);
+    int2 eidx = int2(_E_IT[2*i+0],
+                     _E_IT[2*i+1]);
 
     addWithWeight(dst, readVertex(eidx.x), 0.5f);
     addWithWeight(dst, readVertex(eidx.y), 0.5f);
@@ -259,7 +256,7 @@ void runKernel( uint3 ID )
     addVaryingWithWeight(dst, readVertex(eidx.x), 0.5f);
     addVaryingWithWeight(dst, readVertex(eidx.y), 0.5f);
 
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 };
 
@@ -270,17 +267,19 @@ void runKernel( uint3 ID )
 {
     int i = int(ID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
     Vertex dst;
     clear(dst);
 
-    int p = _V_ITa[V_ITa_ofs+i];
+    int p = _V_ITa[i];
 
     addWithWeight(dst, readVertex(p), 1.0f);
 
     addVaryingWithWeight(dst, readVertex(p), 1.0f);
 
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 };
 
@@ -291,15 +290,17 @@ void runKernel( uint3 ID )
 {
     int i = int(ID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
-    int n     = _V_ITa[V_ITa_ofs+5*i+1];
-    int p     = _V_ITa[V_ITa_ofs+5*i+2];
-    int eidx0 = _V_ITa[V_ITa_ofs+5*i+3];
-    int eidx1 = _V_ITa[V_ITa_ofs+5*i+4];
+    int n     = _V_ITa[5*i+1];
+    int p     = _V_ITa[5*i+2];
+    int eidx0 = _V_ITa[5*i+3];
+    int eidx1 = _V_ITa[5*i+4];
 
     float weight = vertexPass
-        ? _V_W[V_W_ofs+i]
-        : 1.0 - _V_W[V_W_ofs+i];
+        ? _V_W[i]
+        : 1.0 - _V_W[i];
 
     // In the case of fractional weight, the weight must be inverted since
     // the value is shared with the k_Smooth kernel (statistically the
@@ -311,7 +312,7 @@ void runKernel( uint3 ID )
     if(! vertexPass)
         clear(dst);
     else
-        dst = readVertex(i + indexOffset);
+        dst = readVertex(vid);
 
     if (eidx0==-1 || (vertexPass==false && (n==-1)) ) {
         addWithWeight(dst, readVertex(p), weight);
@@ -323,7 +324,7 @@ void runKernel( uint3 ID )
     if(! vertexPass)
         addVaryingWithWeight(dst, readVertex(p), 1);
 
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 };
 
@@ -334,12 +335,14 @@ void runKernel( uint3 ID )
 {
     int i = int(ID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
-    int h = _V_ITa[V_ITa_ofs+5*i];
-    int n = _V_ITa[V_ITa_ofs+5*i+1];
-    int p = _V_ITa[V_ITa_ofs+5*i+2];
+    int h = _V_ITa[5*i];
+    int n = _V_ITa[5*i+1];
+    int p = _V_ITa[5*i+2];
 
-    float weight = _V_W[V_W_ofs+i];
+    float weight = _V_W[i];
     float wp = 1.0/float(n*n);
     float wv = (n-2.0) * n * wp;
 
@@ -349,11 +352,11 @@ void runKernel( uint3 ID )
     addWithWeight(dst, readVertex(p), weight * wv);
 
     for(int j = 0; j < n; ++j){
-        addWithWeight(dst, readVertex(_V_IT[V_IT_ofs+h+j*2]), weight * wp);
-        addWithWeight(dst, readVertex(_V_IT[V_IT_ofs+h+j*2+1]), weight * wp);
+        addWithWeight(dst, readVertex(_V_IT[h+j*2]), weight * wp);
+        addWithWeight(dst, readVertex(_V_IT[h+j*2+1]), weight * wp);
     }
     addVaryingWithWeight(dst, readVertex(p), 1);
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 };
 
@@ -365,12 +368,14 @@ void runKernel( uint3 ID )
     float PI = 3.14159265358979323846264;
     int i = int(ID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
-    int h = _V_ITa[V_ITa_ofs+5*i];
-    int n = _V_ITa[V_ITa_ofs+5*i+1];
-    int p = _V_ITa[V_ITa_ofs+5*i+2];
+    int h = _V_ITa[5*i];
+    int n = _V_ITa[5*i+1];
+    int p = _V_ITa[5*i+2];
 
-    float weight = _V_W[V_W_ofs+i];
+    float weight = _V_W[i];
     float wp = 1.0/n;
     float beta = 0.25 * cos(PI*2.0f*wp)+0.375f;
     beta = beta * beta;
@@ -382,10 +387,10 @@ void runKernel( uint3 ID )
     addWithWeight(dst, readVertex(p), weight * (1.0-(beta*n)));
 
     for(int j = 0; j < n; ++j){
-        addWithWeight(dst, readVertex(_V_IT[V_IT_ofs+h+j]), weight * beta);
+        addWithWeight(dst, readVertex(_V_IT[h+j]), weight * beta);
     }
     addVaryingWithWeight(dst, readVertex(p), 1);
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 };
 
@@ -393,21 +398,22 @@ class EditAdd : IComputeKernel {
 int placeholder;
 void runKernel( uint3 ID )
 {
-    int i = int(ID.x);
-    if (i >= editNumVertices) return;
+    int i = int(ID.x) + indexStart;
+    if (i >= indexEnd) return;
+    i += tableOffset;
 
-    int v = _editIndices[editIndices_ofs+i];
-    Vertex dst = readVertex(v);
+    int v = _editIndices[i];
+    Vertex dst = readVertex(v + vertexOffset);
 
     // seemingly we can't iterate dynamically over vertexData[n]
     // due to mysterious glsl runtime limitation...?
     for (int j = 0; j < NUM_VERTEX_ELEMENTS; ++j) {
-        float editValue = _editValues[editValues_ofs+min(j, editPrimVarWidth)];
+        float editValue = _editValues[i*editPrimVarOffset+min(j, editPrimVarWidth)];
         editValue *= float(j >= editPrimVarOffset);
         editValue *= float(j < (editPrimVarWidth + editPrimVarOffset));
         dst.vertexData[j] += editValue;
     }
-    writeVertex(v, dst);
+    writeVertex(v + vertexOffset, dst);
 }
 };
 

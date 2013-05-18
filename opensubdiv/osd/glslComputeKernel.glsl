@@ -59,25 +59,18 @@
 subroutine void computeKernelType();
 subroutine uniform computeKernelType computeKernel;
 
-uniform int indexOffset = 0;    // index offset for the level
-uniform int indexStart = 0;     // start index for given batch
-uniform int indexEnd = 0;       // end index for given batch
-
+uniform int vertexOffset = 0;   // vertex index offset for the batch
+uniform int tableOffset = 0;    // offset of subdivision table
+uniform int indexStart = 0;     // start index relative to tableOffset
+uniform int indexEnd = 0;       // end index relative to tableOffset
 uniform bool vertexPass;
-uniform int F_IT_ofs;
-uniform int F_ITa_ofs;
-uniform int E_IT_ofs;
-uniform int V_IT_ofs;
-uniform int V_ITa_ofs;
-uniform int E_W_ofs;
-uniform int V_W_ofs;
 
 /*
  +-----+---------------------------------+-----
    n-1 |   Level n   |<batch range>|     |  n+1
  +-----+---------------------------------+-----
        ^             ^             ^
-  indexOffset        |             |
+  vertexOffset       |             |
                  indexStart     indexEnd
 */
 
@@ -176,46 +169,50 @@ void catmarkComputeFace()
 {
     int i = int(gl_GlobalInvocationID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
-    int h = _F_ITa[F_ITa_ofs+2*i];
-    int n = _F_ITa[F_ITa_ofs+2*i+1];
+    int h = _F_ITa[2*i];
+    int n = _F_ITa[2*i+1];
 
     float weight = 1.0/n;
 
     Vertex dst;
     clear(dst);
     for(int j=0; j<n; ++j){
-        int index = _F_IT[F_IT_ofs+h+j];
+        int index = _F_IT[h+j];
         addWithWeight(dst, readVertex(index), weight);
         addVaryingWithWeight(dst, readVertex(index), weight);
     }
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 
-// Edge-vertices compute Kernel
+// Edge-vertices compute Kernepl
 subroutine(computeKernelType)
 void catmarkComputeEdge()
 {
     int i = int(gl_GlobalInvocationID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
     Vertex dst;
     clear(dst);
 
-    int eidx0 = _E_IT[E_IT_ofs+4*i+0];
-    int eidx1 = _E_IT[E_IT_ofs+4*i+1];
-    int eidx2 = _E_IT[E_IT_ofs+4*i+2];
-    int eidx3 = _E_IT[E_IT_ofs+4*i+3];
+    int eidx0 = _E_IT[4*i+0];
+    int eidx1 = _E_IT[4*i+1];
+    int eidx2 = _E_IT[4*i+2];
+    int eidx3 = _E_IT[4*i+3];
     ivec4 eidx = ivec4(eidx0, eidx1, eidx2, eidx3);
 
-    float vertWeight = _E_W[E_W_ofs+i*2+0];
+    float vertWeight = _E_W[i*2+0];
 
     // Fully sharp edge : vertWeight = 0.5f;
     addWithWeight(dst, readVertex(eidx.x), vertWeight);
     addWithWeight(dst, readVertex(eidx.y), vertWeight);
 
     if(eidx.z != -1){
-        float faceWeight = _E_W[E_W_ofs+i*2+1];
+        float faceWeight = _E_W[i*2+1];
 
         addWithWeight(dst, readVertex(eidx.z), faceWeight);
         addWithWeight(dst, readVertex(eidx.w), faceWeight);
@@ -224,7 +221,7 @@ void catmarkComputeEdge()
     addVaryingWithWeight(dst, readVertex(eidx.x), 0.5f);
     addVaryingWithWeight(dst, readVertex(eidx.y), 0.5f);
 
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 
 // Edge-vertices compute Kernel (bilinear scheme)
@@ -233,12 +230,14 @@ void bilinearComputeEdge()
 {
     int i = int(gl_GlobalInvocationID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
     Vertex dst;
     clear(dst);
 
-    ivec2 eidx = ivec2(_E_IT[E_IT_ofs+2*i+0],
-                       _E_IT[E_IT_ofs+2*i+1]);
+    ivec2 eidx = ivec2(_E_IT[2*i+0],
+                       _E_IT[2*i+1]);
 
     addWithWeight(dst, readVertex(eidx.x), 0.5f);
     addWithWeight(dst, readVertex(eidx.y), 0.5f);
@@ -246,7 +245,7 @@ void bilinearComputeEdge()
     addVaryingWithWeight(dst, readVertex(eidx.x), 0.5f);
     addVaryingWithWeight(dst, readVertex(eidx.y), 0.5f);
 
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 
 // Vertex-vertices compute Kernel (bilinear scheme)
@@ -255,17 +254,19 @@ void bilinearComputeVertex()
 {
     int i = int(gl_GlobalInvocationID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
     Vertex dst;
     clear(dst);
 
-    int p = _V_ITa[V_ITa_ofs+i];
+    int p = _V_ITa[i];
 
     addWithWeight(dst, readVertex(p), 1.0f);
 
     addVaryingWithWeight(dst, readVertex(p), 1.0f);
 
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 
 // Vertex-vertices compute Kernels 'A' / k_Crease and k_Corner rules
@@ -274,15 +275,15 @@ void catmarkComputeVertexA()
 {
     int i = int(gl_GlobalInvocationID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
-    int n     = _V_ITa[V_ITa_ofs+5*i+1];
-    int p     = _V_ITa[V_ITa_ofs+5*i+2];
-    int eidx0 = _V_ITa[V_ITa_ofs+5*i+3];
-    int eidx1 = _V_ITa[V_ITa_ofs+5*i+4];
+    int n     = _V_ITa[5*i+1];
+    int p     = _V_ITa[5*i+2];
+    int eidx0 = _V_ITa[5*i+3];
+    int eidx1 = _V_ITa[5*i+4];
 
-    float weight = vertexPass
-        ? _V_W[V_W_ofs+i]
-        : 1.0 - _V_W[V_W_ofs+i];
+    float weight = vertexPass ? _V_W[i] : 1.0 - _V_W[i];
 
     // In the case of fractional weight, the weight must be inverted since
     // the value is shared with the k_Smooth kernel (statistically the
@@ -294,7 +295,7 @@ void catmarkComputeVertexA()
     if(! vertexPass)
         clear(dst);
     else
-        dst = readVertex(i + indexOffset);
+        dst = readVertex(vid);
 
     if (eidx0==-1 || (vertexPass==false && (n==-1)) ) {
         addWithWeight(dst, readVertex(p), weight);
@@ -306,7 +307,7 @@ void catmarkComputeVertexA()
     if(! vertexPass)
         addVaryingWithWeight(dst, readVertex(p), 1);
 
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 
 // Vertex-vertices compute Kernels 'B' / k_Dart and k_Smooth rules
@@ -315,12 +316,14 @@ void catmarkComputeVertexB()
 {
     int i = int(gl_GlobalInvocationID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
-    int h = _V_ITa[V_ITa_ofs+5*i];
-    int n = _V_ITa[V_ITa_ofs+5*i+1];
-    int p = _V_ITa[V_ITa_ofs+5*i+2];
+    int h = _V_ITa[5*i];
+    int n = _V_ITa[5*i+1];
+    int p = _V_ITa[5*i+2];
 
-    float weight = _V_W[V_W_ofs+i];
+    float weight = _V_W[i];
     float wp = 1.0/float(n*n);
     float wv = (n-2.0) * n * wp;
 
@@ -330,11 +333,11 @@ void catmarkComputeVertexB()
     addWithWeight(dst, readVertex(p), weight * wv);
 
     for(int j = 0; j < n; ++j){
-        addWithWeight(dst, readVertex(_V_IT[V_IT_ofs+h+j*2]), weight * wp);
-        addWithWeight(dst, readVertex(_V_IT[V_IT_ofs+h+j*2+1]), weight * wp);
+        addWithWeight(dst, readVertex(_V_IT[h+j*2]), weight * wp);
+        addWithWeight(dst, readVertex(_V_IT[h+j*2+1]), weight * wp);
     }
     addVaryingWithWeight(dst, readVertex(p), 1);
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 
 // Vertex-vertices compute Kernels 'B' / k_Dart and k_Smooth rules
@@ -344,12 +347,14 @@ void loopComputeVertexB()
     float PI = 3.14159265358979323846264;
     int i = int(gl_GlobalInvocationID.x) + indexStart;
     if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
 
-    int h = _V_ITa[V_ITa_ofs+5*i];
-    int n = _V_ITa[V_ITa_ofs+5*i+1];
-    int p = _V_ITa[V_ITa_ofs+5*i+2];
+    int h = _V_ITa[5*i];
+    int n = _V_ITa[5*i+1];
+    int p = _V_ITa[5*i+2];
 
-    float weight = _V_W[V_W_ofs+i];
+    float weight = _V_W[i];
     float wp = 1.0/n;
     float beta = 0.25 * cos(PI*2.0f*wp)+0.375f;
     beta = beta * beta;
@@ -361,37 +366,35 @@ void loopComputeVertexB()
     addWithWeight(dst, readVertex(p), weight * (1.0-(beta*n)));
 
     for(int j = 0; j < n; ++j){
-        addWithWeight(dst, readVertex(_V_IT[V_IT_ofs+h+j]), weight * beta);
+        addWithWeight(dst, readVertex(_V_IT[h+j]), weight * beta);
     }
     addVaryingWithWeight(dst, readVertex(p), 1);
-    writeVertex(i + indexOffset, dst);
+    writeVertex(vid, dst);
 }
 
 // vertex edit kernel
-uniform int editIndices_ofs;
-uniform int editValues_ofs;
 uniform int editPrimVarOffset;
 uniform int editPrimVarWidth;
-uniform int editNumVertices;
 
 subroutine(computeKernelType)
 void editAdd()
 {
-    int i = int(gl_GlobalInvocationID.x);
-    if (i >= editNumVertices) return;
+    int i = int(gl_GlobalInvocationID.x) + indexStart;
+    if (i >= indexEnd) return;
+    i += tableOffset;
 
-    int v = _editIndices[editIndices_ofs+i];
-    Vertex dst = readVertex(v);
+    int v = _editIndices[i];
+    Vertex dst = readVertex(v + vertexOffset);
 
     // seemingly we can't iterate dynamically over vertexData[n]
     // due to mysterious glsl runtime limitation...?
     for (int j = 0; j < NUM_VERTEX_ELEMENTS; ++j) {
-        float editValue = _editValues[editValues_ofs+min(j, editPrimVarWidth)];
+        float editValue = _editValues[i*editPrimVarOffset + min(j, editPrimVarWidth)];
         editValue *= float(j >= editPrimVarOffset);
         editValue *= float(j < (editPrimVarWidth + editPrimVarOffset));
         dst.vertexData[j] += editValue;
     }
-    writeVertex(v, dst);
+    writeVertex(v + vertexOffset, dst);
 }
 
 void main()

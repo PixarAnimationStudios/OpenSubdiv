@@ -75,9 +75,9 @@
 
 #include "../version.h"
 
-#include "../far/table.h"
 #include "../far/vertexEditTables.h"
-#include "../osd/computeContext.h"
+#include "../osd/vertex.h"
+#include "../osd/nonCopyable.h"
 
 #include <vector>
 
@@ -86,30 +86,24 @@ namespace OPENSUBDIV_VERSION {
 
 class OsdGLSLComputeKernelBundle;
 
-// ----------------------------------------------------------------------------
 
 class OsdGLSLComputeTable : OsdNonCopyable<OsdGLSLComputeTable> {
 public:
-    OsdGLSLComputeTable(const FarTable<int> &farTable);
-    OsdGLSLComputeTable(const FarTable<unsigned int> &farTable);
-    OsdGLSLComputeTable(const FarTable<float> &farTable);
+    template<typename T>
+    explicit OsdGLSLComputeTable(const std::vector<T> &table) {
+        createBuffer(table.size() * sizeof(unsigned int), &table[0]);
+    }
 
     virtual ~OsdGLSLComputeTable();
 
     GLuint GetBuffer() const;
 
-    int GetMarker(int level) const;
-
-    int GetNumElements(int level) const;
-
 private:
-    void createBuffer(int size, const void *ptr);
+    void createBuffer(size_t size, const void *ptr);
 
-    GLuint _buffer;
-    FarTableMarkers _marker;
+    GLuint _devicePtr;
 };
 
-// ----------------------------------------------------------------------------
 
 class OsdGLSLComputeHEditTable : OsdNonCopyable<OsdGLSLComputeHEditTable> {
 public:
@@ -137,14 +131,35 @@ private:
     int _primvarWidth;
 };
 
-// ----------------------------------------------------------------------------
 
-class OsdGLSLComputeContext : public OsdComputeContext {
+///
+/// \brief GLSL-Compute Refine Context
+///
+/// The GLSL-Compute implementation of the Refine module contextual functionality. 
+///
+/// Contexts interface the serialized topological data pertaining to the 
+/// geometric primitives with the capabilities of the selected discrete 
+/// compute device.
+///
+class OsdGLSLComputeContext {
 public:
+    /// Creates an OsdGLSLComputeContext instance
+    ///
+    /// @param farmesh the FarMesh used for this Context.
+    ///
     static OsdGLSLComputeContext * Create(FarMesh<OsdVertex> *farmesh);
 
+    /// Destructor
     virtual ~OsdGLSLComputeContext();
 
+    /// Binds a vertex and a varying data buffers to the context. Binding ensures
+    /// that data buffers are properly inter-operated between Contexts and 
+    /// Controllers operating across multiple devices.
+    ///
+    /// @param a buffer containing vertex-interpolated primvar data
+    ///
+    /// @param a buffer containing varying-interpolated primvar data
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
 
@@ -157,6 +172,7 @@ public:
         bindShaderStorageBuffers();
     }
 
+    /// Unbinds any previously bound vertex and varying data buffers.
     void Unbind() {
         _currentVertexBuffer = 0;
         _currentVaryingBuffer = 0;
@@ -164,14 +180,25 @@ public:
         unbindShaderStorageBuffers();
     }
 
+    /// Returns one of the vertex refinement tables.
+    ///
+    /// @param tableIndex the type of table
+    ///
     const OsdGLSLComputeTable * GetTable(int tableIndex) const;
 
+    /// Returns the number of hierarchical edit tables
     int GetNumEditTables() const;
 
+    /// Returns a specific hierarchical edit table
+    ///
+    /// @param tableIndex the index of the table
+    ///
     const OsdGLSLComputeHEditTable * GetEditTable(int tableIndex) const;
 
+    /// Returns a handle to the vertex-interpolated buffer
     GLuint GetCurrentVertexBuffer() const;
 
+    /// Returns a handle to the varying-interpolated buffer
     GLuint GetCurrentVaryingBuffer() const;
 
     int GetNumCurrentVertexElements() const;
@@ -219,13 +246,14 @@ private:
     std::vector<OsdGLSLComputeTable*> _tables;
     std::vector<OsdGLSLComputeHEditTable*> _editTables;
 
-    GLuint _vertexTexture;
-    GLuint _varyingTexture;
+    GLuint _vertexTexture,
+           _varyingTexture;
 
-    int _numVertexElements;
-    int _numVaryingElements;
+    int _numVertexElements,
+        _numVaryingElements;
 
-    GLuint _currentVertexBuffer, _currentVaryingBuffer;
+    GLuint _currentVertexBuffer, 
+           _currentVaryingBuffer;
 
     OsdGLSLComputeKernelBundle * _kernelBundle;
 };

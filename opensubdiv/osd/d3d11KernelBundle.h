@@ -60,7 +60,6 @@
 
 #include "../version.h"
 
-#include "../osd/computeContext.h"
 #include "../osd/nonCopyable.h"
 
 struct ID3D11Buffer;
@@ -81,42 +80,37 @@ namespace OPENSUBDIV_VERSION {
         bool Compile(int numVertexElements, int numVaryingElements);
 
         void ApplyBilinearFaceVerticesKernel(
-            int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyBilinearEdgeVerticesKernel(
-            int E_IT_ofs, int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyBilinearVertexVerticesKernel(
-            int V_ITa_ofs, int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyCatmarkFaceVerticesKernel(
-            int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyCatmarkEdgeVerticesKernel(
-            int E_IT_ofs, int E_W_ofs, int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyCatmarkVertexVerticesKernelB(
-            int V_IT_ofs, int V_ITa_ofs, int V_W_ofs,
-            int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyCatmarkVertexVerticesKernelA(
-            int V_ITa_ofs, int V_W_ofs,
-            int offset, bool pass, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end, bool pass);
 
         void ApplyLoopEdgeVerticesKernel(
-            int E_IT_ofs, int E_W_ofs, int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyLoopVertexVerticesKernelB(
-            int V_IT_ofs, int V_ITa_ofs, int V_W_ofs,
-            int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyLoopVertexVerticesKernelA(
-            int V_ITa_ofs, int V_W_ofs,
-            int offset, bool pass, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end, bool pass);
 
-        void ApplyEditAdd(int numEditVertices,
-                          int editIndices_ofs, int editValues_ofs,
-                          int primvarOffset, int primvarWidth);
+        void ApplyEditAdd(int primvarOffset, int primvarWidth,
+                          int vertexOffset, int tableOffset, int start, int end);
 
         struct Match {
         Match(int numVertexElements, int numVaryingElements) :

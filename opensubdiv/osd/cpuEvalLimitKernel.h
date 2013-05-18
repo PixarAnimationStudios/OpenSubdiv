@@ -54,22 +54,43 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_EVAL_CONTEXT_H
-#define OSD_EVAL_CONTEXT_H
+
+#ifndef OSD_CPU_EVAL_LIMIT_KERNEL_H
+#define OSD_CPU_EVAL_LIMIT_KERNEL_H
 
 #include "../version.h"
+
+#include "../osd/vertexDescriptor.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdEvalContext {
-public:
+void
+evalBSpline(float u, float v, 
+            unsigned int const * vertexIndices,
+            OsdVertexBufferDescriptor const & inDesc,
+            float const * inQ, 
+            OsdVertexBufferDescriptor const & outDesc,
+            float * outQ, 
+            float * outDQU,
+            float * outDQV );
 
-};
+void
+evalGregory(float u, float v,
+            int const * vertexValenceBuffer,
+            unsigned int const  * quadOffsetBuffer,
+            int maxValence,
+            unsigned int const * vertexIndices,
+            OsdVertexBufferDescriptor const & inDesc,
+            float const * inQ, 
+            OsdVertexBufferDescriptor const & outDesc,
+            float * outQ, 
+            float * outDQU,
+            float * outDQV );
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
-} // end namespace OpenSubdiv
+}  // end namespace OpenSubdiv
 
-#endif /* OSD_EVAL_CONTEXT_H */
+#endif  /* OSD_CPU_EVAL_LIMIT_KERNEL_H */

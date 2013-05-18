@@ -61,6 +61,7 @@ set(SHADER_FILES
      shader.glsl
      shader_gl3.glsl
      skyshader.glsl
+     imageshader.glsl
 )
 
 set(PLATFORM_LIBRARIES
@@ -120,3 +121,4 @@ target_link_libraries(ptexViewer
     ${PLATFORM_LIBRARIES}
 )
 
+install(TARGETS ptexViewer DESTINATION ${CMAKE_BINDIR_BASE})

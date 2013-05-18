@@ -57,7 +57,7 @@
 
 project(OpenSubdiv)
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.6)
 
 #-------------------------------------------------------------------------------
 # Obtain OpenSubdiv API version from version.h file
@@ -74,13 +74,29 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 #-------------------------------------------------------------------------------
 # Specify the default install path
-SET( CMAKE_INSTALL_PREFIX
-     ${PROJECT_BINARY_DIR}/ )
+if (NOT DEFINED CMAKE_INSTALL_PREFIX)
+    SET( CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/ )
+endif()
+
+if (NOT DEFINED CMAKE_INCDIR_BASE)
+    set( CMAKE_INCDIR_BASE include )
+endif()
+
+if (NOT DEFINED CMAKE_BINDIR_BASE)
+    set( CMAKE_BINDIR_BASE bin )
+endif()
+
+if (NOT DEFINED CMAKE_LIBDIR_BASE)
+    set( CMAKE_LIBDIR_BASE lib )
+endif()
+
+if (NOT DEFINED CMAKE_PLUGINDIR_BASE)
+    set( CMAKE_PLUGINDIR_BASE plugin )
+endif()
 
 # Allow install path to be overridden for cross-compile builds
 if(LIBRARY_OUTPUT_PATH_ROOT)
-    SET( CMAKE_INSTALL_PREFIX
-         ${LIBRARY_OUTPUT_PATH_ROOT}/ )
+    SET( CMAKE_INSTALL_PREFIX ${LIBRARY_OUTPUT_PATH_ROOT}/ )
 endif()
 
 # Set the directory where the executables will be stored.
@@ -101,6 +117,12 @@ set(LIBRARY_OUTPUT_PATH
 set(CMAKE_MODULE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake
 )
+
+list(APPEND CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 #-------------------------------------------------------------------------------
 # Detect Clang (until a cmake version provides built-in variables)

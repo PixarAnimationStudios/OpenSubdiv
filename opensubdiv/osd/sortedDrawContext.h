@@ -54,80 +54,58 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_D3D11_COMPUTE_DISPATCHER_H
-#define OSD_D3D11_COMPUTE_DISPATCHER_H
+
+#ifndef OSD_SORTED_DRAW_CONTEXT_H
+#define OSD_SORTED_DRAW_CONTEXT_H
 
 #include "../version.h"
+#include "../far/patchTables.h"
+#include "../osd/patch.h"
 
-#include "../osd/vertex.h"
-#include "../far/dispatcher.h"
+#include <utility>
+#include <string>
+#include <map>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdD3D11ComputeContext;
-
-class OsdD3D11ComputeKernelDispatcher
-    : public FarDispatcher<OsdVertex> {
-
-public:
-    OsdD3D11ComputeKernelDispatcher();
-
-    virtual ~OsdD3D11ComputeKernelDispatcher();
-
-    void Refine(FarMesh<OsdVertex> * mesh, OsdD3D11ComputeContext *context);
-
-    static OsdD3D11ComputeKernelDispatcher * GetInstance();
-
-protected:
-    virtual void ApplyBilinearFaceVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyBilinearEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyBilinearVertexVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkFaceVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelB(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelA(
-        FarMesh<OsdVertex> * mesh, int offset, bool pass,
-        int level, int start, int end, void * clientdata) const;
-
-    virtual void ApplyLoopEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyLoopVertexVerticesKernelB(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyLoopVertexVerticesKernelA(
-        FarMesh<OsdVertex> * mesh, int offset, bool pass,
-        int level, int start, int end, void * clientdata) const;
-
-    virtual void ApplyVertexEdits(
-        FarMesh<OsdVertex> *mesh, int offset, int level,
-        void * clientdata) const;
+struct OsdPatchDrawRange {
+    OsdPatchDrawRange(int first, int count) :
+        firstIndex(first), numIndices(count) {}
+    int firstIndex;
+    int numIndices;
 };
 
-}  // end namespace OPENSUBDIV_VERSION
+typedef std::vector<OsdPatchDrawRange> OsdPatchDrawRangeVector;
+
+class OsdSortedDrawContext {
+public:
+    // multi-prim draw methods
+    enum Fidelity { // XXX: better name?
+        kInvisible,
+        kLow,
+        kHigh
+    };
+
+    OsdSortedDrawContext(FarPatchCountVector const &patchCounts, OsdPatchArrayVector const &patchArrays);
+
+    void SetPrimFidelity(int primIndex, Fidelity f); // XXX: better name?
+
+    OsdPatchDrawRangeVector const & GetPatchDrawRanges(OsdPatchDescriptor desc);
+
+private:
+    void _ComputePatchDrawRanges();
+
+    FarPatchCountVector _patchCounts;
+    OsdPatchArrayVector _patchArrays;
+    std::map<OsdPatchDescriptor, OsdPatchDrawRangeVector>  _patchDrawRanges;
+    std::vector<unsigned char> _primFidelity;
+    bool _patchDrawRangesDirty;
+};
+
+} // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
-}  // end namespace OpenSubdiv
+} // end namespace OpenSubdiv
 
-#endif  // OSD_D3D11_COMPUTE_DISPATCHER_H
+#endif /* OSD_SORTED_DRAW_CONTEXT_H */

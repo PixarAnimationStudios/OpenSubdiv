@@ -54,45 +54,22 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_COMPUTE_CONTEXT_H
-#define OSD_COMPUTE_CONTEXT_H
 
-#include "../osd/vertex.h"
-#include "../osd/nonCopyable.h"
+#include "../osd/evalLimitContext.h"
+#include "../osd/vertexDescriptor.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-template <class T> class FarMesh;
+OsdEvalLimitContext::OsdEvalLimitContext(FarMesh<OsdVertex> const * farmesh) {
 
-    // XXX:temp. any other better place for these enum?
-    namespace Table {
-    enum  { V_ITa,
-            V_IT,
-            V_W,
-            E_IT,
-            E_W,
-            F_IT,
-            F_ITa,
-            TABLE_MAX }; }
+    _adaptive = farmesh->SupportsFeatureAdaptive();
 
-class OsdComputeContext : OsdNonCopyable<OsdComputeContext> {
-public:
-    virtual ~OsdComputeContext() {}
+    
+}
 
-    FarMesh<OsdVertex> *GetFarMesh() { return _farMesh; }
+OsdEvalLimitContext::~OsdEvalLimitContext() {
+}
 
-protected:
-    explicit OsdComputeContext(FarMesh<OsdVertex> *farmesh)
-        : _farMesh(farmesh) {}
-
-private:
-    FarMesh<OsdVertex> *_farMesh;
-};
-
-}  // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
-}  // end namespace OpenSubdiv
-
-#endif  // OSD_COMPUTE_CONTEXT_H
+} // end namespace OPENSUBDIV_VERSION
+} // end namespace OpenSubdiv

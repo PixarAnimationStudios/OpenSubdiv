@@ -71,24 +71,17 @@ uniform isamplerBuffer _editIndices;
 uniform samplerBuffer _editValues;
 layout(size1x32) uniform imageBuffer _vertexBufferImage;
 
+uniform int vertexOffset = 0;   // vertex index offset for the batch
+uniform int tableOffset = 0;    // offset of subdivision table
+uniform int indexStart = 0;     // start index relative to tableOffset
 uniform bool vertexPass;
-uniform int indexOffset = 0;    // index offset for the level
-uniform int indexStart = 0;      // start index for given batch
-
-uniform int F_IT_ofs;
-uniform int F_ITa_ofs;
-uniform int E_IT_ofs;
-uniform int V_IT_ofs;
-uniform int V_ITa_ofs;
-uniform int E_W_ofs;
-uniform int V_W_ofs;
 
 /*
  +-----+---------------------------------+-----
    n-1 |   Level n   |<batch range>|     |  n+1
  +-----+---------------------------------+-----
        ^             ^
-  indexOffset        |
+  vertexOffset       |
                  indexStart
 */
 
@@ -211,16 +204,16 @@ void addVaryingWithWeight(inout Vertex v, Vertex src, float weight)
 subroutine(computeKernelType)
 void catmarkComputeFace()
 {
-    int i = gl_VertexID + indexStart;
-    int h = texelFetch(_F0_ITa, F_ITa_ofs+2*i).x;
-    int n = texelFetch(_F0_ITa, F_ITa_ofs+2*i+1).x;
+    int i = gl_VertexID + indexStart + tableOffset;
+    int h = texelFetch(_F0_ITa, 2*i).x;
+    int n = texelFetch(_F0_ITa, 2*i+1).x;
 
     float weight = 1.0/n;
 
     Vertex dst;
     clear(dst);
     for(int j=0; j<n; ++j){
-        int index = texelFetch(_F0_IT, F_IT_ofs+h+j).x;
+        int index = texelFetch(_F0_IT, h+j).x;
         addWithWeight(dst, readVertex(index), weight);
         addVaryingWithWeight(dst, readVertex(index), weight);
     }
@@ -231,26 +224,26 @@ void catmarkComputeFace()
 subroutine(computeKernelType)
 void catmarkComputeEdge()
 {
-    int i = gl_VertexID + indexStart;
+    int i = gl_VertexID + indexStart + tableOffset;
 
     Vertex dst;
     clear(dst);
 
 #ifdef OPT_E0_IT_VEC4
-    ivec4 eidx = texelFetch(_E0_IT, E_IT_ofs/4+i);
+    ivec4 eidx = texelFetch(_E0_IT, i);
 #else
-    int eidx0 = texelFetch(_E0_IT, E_IT_ofs+4*i+0).x;
-    int eidx1 = texelFetch(_E0_IT, E_IT_ofs+4*i+1).x;
-    int eidx2 = texelFetch(_E0_IT, E_IT_ofs+4*i+2).x;
-    int eidx3 = texelFetch(_E0_IT, E_IT_ofs+4*i+3).x;
+    int eidx0 = texelFetch(_E0_IT, 4*i+0).x;
+    int eidx1 = texelFetch(_E0_IT, 4*i+1).x;
+    int eidx2 = texelFetch(_E0_IT, 4*i+2).x;
+    int eidx3 = texelFetch(_E0_IT, 4*i+3).x;
     ivec4 eidx = ivec4(eidx0, eidx1, eidx2, eidx3);
 #endif
 
 #ifdef OPT_E0_S_VEC2
-    vec2 weight = texelFetch(_E0_S, E_W_ofs/2+i).xy;
+    vec2 weight = texelFetch(_E0_S, i).xy;
     float vertWeight = weight.x;
 #else
-    float vertWeight = texelFetch(_E0_S, E_W_ofs+i*2+0).x;
+    float vertWeight = texelFetch(_E0_S, i*2+0).x;
 #endif
 
     // Fully sharp edge : vertWeight = 0.5f;
@@ -261,7 +254,7 @@ void catmarkComputeEdge()
 #ifdef OPT_E0_S_VEC2
         float faceWeight = weight.y;
 #else
-        float faceWeight = texelFetch(_E0_S, E_W_ofs+i*2+1).x;
+        float faceWeight = texelFetch(_E0_S, i*2+1).x;
 #endif
 
         addWithWeight(dst, readVertex(eidx.z), faceWeight);
@@ -278,16 +271,16 @@ void catmarkComputeEdge()
 subroutine(computeKernelType)
 void bilinearComputeEdge()
 {
-    int i = gl_VertexID + indexStart;
+    int i = gl_VertexID + indexStart + tableOffset;
 
     Vertex dst;
     clear(dst);
 
 #ifdef OPT_E0_IT_VEC4
-    ivec2 eidx = texelFetch(_E0_IT, E_IT_ofs/2+i).xy;
+    ivec2 eidx = texelFetch(_E0_IT, i).xy;
 #else
-    ivec2 eidx = ivec2(texelFetch(_E0_IT, E_IT_ofs+2*i+0).x,
-                       texelFetch(_E0_IT, E_IT_ofs+2*i+1).x);
+    ivec2 eidx = ivec2(texelFetch(_E0_IT, 2*i+0).x,
+                       texelFetch(_E0_IT, 2*i+1).x);
 #endif
 
     addWithWeight(dst, readVertex(eidx.x), 0.5f);
@@ -303,12 +296,12 @@ void bilinearComputeEdge()
 subroutine(computeKernelType)
 void bilinearComputeVertex()
 {
-    int i = gl_VertexID + indexStart;
+    int i = gl_VertexID + indexStart + tableOffset;
 
     Vertex dst;
     clear(dst);
 
-    int p = texelFetch(_V0_ITa, V_ITa_ofs+i).x;
+    int p = texelFetch(_V0_ITa, i).x;
 
     addWithWeight(dst, readVertex(p), 1.0f);
 
@@ -321,16 +314,17 @@ void bilinearComputeVertex()
 subroutine(computeKernelType)
 void catmarkComputeVertexA()
 {
-    int i = gl_VertexID + indexStart;
+    int i = gl_VertexID + indexStart + tableOffset;
+    int vid = gl_VertexID + indexStart + vertexOffset;
 
-    int n     = texelFetch(_V0_ITa, V_ITa_ofs+5*i+1).x;
-    int p     = texelFetch(_V0_ITa, V_ITa_ofs+5*i+2).x;
-    int eidx0 = texelFetch(_V0_ITa, V_ITa_ofs+5*i+3).x;
-    int eidx1 = texelFetch(_V0_ITa, V_ITa_ofs+5*i+4).x;
+    int n     = texelFetch(_V0_ITa, 5*i+1).x;
+    int p     = texelFetch(_V0_ITa, 5*i+2).x;
+    int eidx0 = texelFetch(_V0_ITa, 5*i+3).x;
+    int eidx1 = texelFetch(_V0_ITa, 5*i+4).x;
 
     float weight = vertexPass
-        ? texelFetch(_V0_S, V_W_ofs+i).x
-        : 1.0 - texelFetch(_V0_S, V_W_ofs+i).x;
+        ? texelFetch(_V0_S, i).x
+        : 1.0 - texelFetch(_V0_S, i).x;
 
     // In the case of fractional weight, the weight must be inverted since
     // the value is shared with the k_Smooth kernel (statistically the
@@ -342,7 +336,7 @@ void catmarkComputeVertexA()
     if(! vertexPass)
         clear(dst);
     else
-        dst = readVertex(i + indexOffset);
+        dst = readVertex(vid);
 
     if (eidx0==-1 || (vertexPass==false && (n==-1)) ) {
         addWithWeight(dst, readVertex(p), weight);
@@ -361,16 +355,16 @@ void catmarkComputeVertexA()
 subroutine(computeKernelType)
 void catmarkComputeVertexB()
 {
-    int i = gl_VertexID + indexStart;
+    int i = gl_VertexID + indexStart + tableOffset;
 
-    int h = texelFetch(_V0_ITa, V_ITa_ofs+5*i).x;
+    int h = texelFetch(_V0_ITa, 5*i).x;
 #ifdef OPT_CATMARK_V_IT_VEC2
     int h2 = h/2;
 #endif
-    int n = texelFetch(_V0_ITa, V_ITa_ofs+5*i+1).x;
-    int p = texelFetch(_V0_ITa, V_ITa_ofs+5*i+2).x;
+    int n = texelFetch(_V0_ITa, 5*i+1).x;
+    int p = texelFetch(_V0_ITa, 5*i+2).x;
 
-    float weight = texelFetch(_V0_S, V_W_ofs+i).x;
+    float weight = texelFetch(_V0_S, i).x;
     float wp = 1.0/float(n*n);
     float wv = (n-2.0) * n * wp;
 
@@ -381,12 +375,12 @@ void catmarkComputeVertexB()
 
     for(int j = 0; j < n; ++j){
 #ifdef OPT_CATMARK_V_IT_VEC2
-        ivec2 v0it = texelFetch(_V0_IT, V_IT_ofs/2+h2+j).xy;
+        ivec2 v0it = texelFetch(_V0_IT, h2+j).xy;
         addWithWeight(dst, readVertex(v0it.x), weight * wp);
         addWithWeight(dst, readVertex(v0it.y), weight * wp);
 #else
-        addWithWeight(dst, readVertex(texelFetch(_V0_IT, V_IT_ofs+h+j*2).x), weight * wp);
-        addWithWeight(dst, readVertex(texelFetch(_V0_IT, V_IT_ofs+h+j*2+1).x), weight * wp);
+        addWithWeight(dst, readVertex(texelFetch(_V0_IT, h+j*2).x), weight * wp);
+        addWithWeight(dst, readVertex(texelFetch(_V0_IT, h+j*2+1).x), weight * wp);
 #endif
     }
     addVaryingWithWeight(dst, readVertex(p), 1);
@@ -398,13 +392,13 @@ subroutine(computeKernelType)
 void loopComputeVertexB()
 {
     float PI = 3.14159265358979323846264;
-    int i = gl_VertexID + indexStart;
+    int i = gl_VertexID + indexStart + tableOffset;
 
-    int h = texelFetch(_V0_ITa, V_ITa_ofs+5*i).x;
-    int n = texelFetch(_V0_ITa, V_ITa_ofs+5*i+1).x;
-    int p = texelFetch(_V0_ITa, V_ITa_ofs+5*i+2).x;
+    int h = texelFetch(_V0_ITa, 5*i).x;
+    int n = texelFetch(_V0_ITa, 5*i+1).x;
+    int p = texelFetch(_V0_ITa, 5*i+2).x;
 
-    float weight = texelFetch(_V0_S, V_W_ofs+i).x;
+    float weight = texelFetch(_V0_S, i).x;
     float wp = 1.0/n;
     float beta = 0.25 * cos(PI*2.0f*wp)+0.375f;
     beta = beta * beta;
@@ -416,26 +410,23 @@ void loopComputeVertexB()
     addWithWeight(dst, readVertex(p), weight * (1.0-(beta*n)));
 
     for(int j = 0; j < n; ++j){
-        addWithWeight(dst, readVertex(texelFetch(_V0_IT, V_IT_ofs+h+j).x), weight * beta);
+        addWithWeight(dst, readVertex(texelFetch(_V0_IT, h+j).x), weight * beta);
     }
     addVaryingWithWeight(dst, readVertex(p), 1);
     writeVertex(dst);
 }
 
 // vertex edit kernel
-uniform int editIndices_ofs;
-uniform int editValues_ofs;
 uniform int editPrimVarOffset;
 uniform int editPrimVarWidth;
-uniform int editNumVertices;
 
 subroutine(computeKernelType)
 void editAdd()
 {
-    int i = gl_VertexID;
+    int i = gl_VertexID + indexStart + tableOffset;
 
-    int v = texelFetch(_editIndices, editIndices_ofs+i).x;
-    Vertex dst = readVertex(v);
+    int v = texelFetch(_editIndices, i).x;
+    Vertex dst = readVertex(v + vertexOffset);
 
     // this is tricky. _editValues array contains editPrimVarWidth count of values.
     // i.e. if the vertex edit is just for pos Y, editPrimVarOffset = 1 and
@@ -445,7 +436,7 @@ void editAdd()
 
     for (int j = 0; j < 3; ++j) {
         int index = min(j-editPrimVarOffset, editPrimVarWidth-1);
-        float editValue = texelFetch(_editValues, editValues_ofs+index).x;
+        float editValue = texelFetch(_editValues, i*editPrimVarOffset + index).x;
         editValue *= float(j >= editPrimVarOffset);
         editValue *= float(j < (editPrimVarWidth + editPrimVarOffset));
 
@@ -458,13 +449,13 @@ void editAdd()
 #if NUM_USER_VERTEX_ELEMENTS > 0
     for (int j = 0; j < NUM_USER_VERTEX_ELEMENTS; ++j) {
         int index = min(j-editPrimVarOffset, editPrimVarWidth-1);
-        float editValue = texelFetch(_editValues, editValues_ofs+index).x;
+        float editValue = texelFetch(_editValues, i*editPrimVarOffset + index).x;
         editValue *= float((j+3) >= editPrimVarOffset);
         editValue *= float((j+3) < (editPrimVarWidth + editPrimVarOffset));
         dst.vertexData[j] += editValue;
     }
 #endif
-    writeVertexByImageStore(dst, v);
+    writeVertexByImageStore(dst, v + vertexOffset);
 }
 
 

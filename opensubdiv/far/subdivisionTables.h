@@ -60,8 +60,6 @@
 
 #include "../version.h"
 
-#include "../far/table.h"
-
 #include <cassert>
 #include <utility>
 #include <vector>
@@ -70,7 +68,6 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 template <class U> class FarMesh;
-template <class U> class FarDispatcher;
 
 /// \brief FarSubdivisionTables are a serialized topological data representation.
 ///
@@ -99,19 +96,30 @@ template <class U> class FarDispatcher;
 /// Subdivision Surfaces"  (p.3 - par. 3.2)
 ///
 template <class U> class FarSubdivisionTables {
+
 public:
+    enum TableType {
+        F_ITa, // face-vertices adjacency indexing table
+        F_IT,  // face-vertices indexing table
+        
+        E_IT,  // edge-vertices adjacency indexing table
+        E_W,   // edge-vertices weights
+        
+        V_ITa, // vertex-vertices adjacency indexing table
+        V_IT,  // vertex-vertices indexing table
+        V_W,   // vertex-vertices weights
+        
+        TABLE_TYPES_COUNT  // number of different types of tables
+    };
 
     /// Destructor
     virtual ~FarSubdivisionTables<U>() {}
 
     /// Return the highest level of subdivision possible with these tables
-    int GetMaxLevel() const { return (int)(_vertsOffsets.size()); }
+    int GetMaxLevel() const { return (int)(_vertsOffsets.size()-1); }
 
     /// Memory required to store the indexing tables
-    virtual int GetMemoryUsed() const;
-
-    /// Compute the positions of refined vertices using the specified kernels
-    virtual void Apply( int level, FarDispatcher<U> const *dispatch, void * data=0 ) const=0;
+    int GetMemoryUsed() const;
 
     /// Pointer back to the mesh owning the table
     FarMesh<U> * GetMesh() { return _mesh; }
@@ -120,34 +128,34 @@ public:
     /// represented by this set of FarCatmarkSubdivisionTables
     int GetFirstVertexOffset( int level ) const;
 
-    /// Number of vertices children of a face at a given level (always 0 for Loop)
-    int GetNumFaceVertices( int level ) const;
-
-    /// Number of vertices children of an edge at a given level
-    int GetNumEdgeVertices( int level ) const;
-
-    /// Number of vertices children of a vertex at a given level
-    int GetNumVertexVertices( int level ) const;
-
-    // Total number of vertices at a given level
+    /// Number of vertices at a given level
     int GetNumVertices( int level ) const;
+
+    /// Total number of vertices at a given level
+    int GetNumVerticesTotal( int level ) const;
 
     /// Indexing tables accessors
 
+    /// Returns the face vertices codex table
+    std::vector<int> const &          Get_F_ITa( ) const { return _F_ITa; }
+
+    /// Returns the face vertices indexing table
+    std::vector<unsigned int> const & Get_F_IT( ) const { return _F_IT; }
+
     /// Returns the edge vertices indexing table
-    FarTable<int> const &          Get_E_IT() const { return _E_IT; }
+    std::vector<int> const &          Get_E_IT() const { return _E_IT; }
 
     /// Returns the edge vertices weights table
-    FarTable<float> const &        Get_E_W() const { return _E_W; }
+    std::vector<float> const &        Get_E_W() const { return _E_W; }
 
     /// Returns the vertex vertices codex table
-    FarTable<int> const &          Get_V_ITa() const { return _V_ITa; }
+    std::vector<int> const &          Get_V_ITa() const { return _V_ITa; }
 
     /// Returns the vertex vertices indexing table
-    FarTable<unsigned int> const & Get_V_IT() const { return _V_IT; }
+    std::vector<unsigned int> const & Get_V_IT() const { return _V_IT; }
 
     /// Returns the vertex vertices weights table
-    FarTable<float> const &        Get_V_W() const { return _V_W; }
+    std::vector<float> const &        Get_V_W() const { return _V_W; }
 
     /// Returns the number of indexing tables needed to represent this particular
     /// subdivision scheme.
@@ -155,140 +163,61 @@ public:
 
 protected:
     template <class X, class Y> friend class FarMeshFactory;
+    template <class X, class Y> friend class FarMultiMeshFactory;
 
     FarSubdivisionTables<U>( FarMesh<U> * mesh, int maxlevel );
 
-#if defined(__clang__)
-    // XXX(jcowles): seems like there is a compiler bug in clang that requires
-    //               this struct to be public
-public:
-#endif
-    struct VertexKernelBatch {
-        int kernelF; // number of face vertices
-        int kernelE; // number of edge vertices
-
-        std::pair<int,int> kernelB;  // first / last vertex vertex batch (kernel B)
-        std::pair<int,int> kernelA1; // first / last vertex vertex batch (kernel A pass 1)
-        std::pair<int,int> kernelA2; // first / last vertex vertex batch (kernel A pass 2)
-
-        VertexKernelBatch() : kernelF(0), kernelE(0) { }
-
-        void InitVertexKernels(int a, int b) {
-            kernelB.first = kernelA1.first = kernelA2.first = a;
-            kernelB.second = kernelA1.second = kernelA2.second = b;
-        }
-
-        void AddVertex( int index, int rank ) {
-            // expand the range of kernel batches based on vertex index and rank
-            if (rank<7) {
-                if (index < kernelB.first)
-                    kernelB.first=index;
-                if (index > kernelB.second)
-                    kernelB.second=index;
-            }
-            if ((rank>2) and (rank<8)) {
-                if (index < kernelA2.first)
-                    kernelA2.first=index;
-                if (index > kernelA2.second)
-                    kernelA2.second=index;
-            }
-            if (rank>6) {
-                if (index < kernelA1.first)
-                    kernelA1.first=index;
-                if (index > kernelA1.second)
-                    kernelA1.second=index;
-            }
-        }
-    };
-#if defined(__clang__)
-protected:
-#endif
-
-    // Returns the range of vertex indices of each of the 3 batches of VertexPoint
-    // compute Kernels (kernel application order is : B / A / A)
-    std::vector<VertexKernelBatch> & getKernelBatches() const { return _batches; }
-
-protected:
     // mesh that owns this subdivisionTable
     FarMesh<U> * _mesh;
 
-    FarTable<int>          _E_IT;  // vertices from edge refinement
-    FarTable<float>        _E_W;   // weigths
+    std::vector<int>          _F_ITa; // vertices from face refinement
+    std::vector<unsigned int> _F_IT;  // indices of face vertices
 
-    FarTable<int>          _V_ITa; // vertices from vertex refinement
-    FarTable<unsigned int> _V_IT;  // indices of adjacent vertices
-    FarTable<float>        _V_W;   // weights
+    std::vector<int>          _E_IT;  // vertices from edge refinement
+    std::vector<float>        _E_W;   // weigths
 
-    std::vector<VertexKernelBatch> _batches; // batches of vertices for kernel execution
+    std::vector<int>          _V_ITa; // vertices from vertex refinement
+    std::vector<unsigned int> _V_IT;  // indices of adjacent vertices
+    std::vector<float>        _V_W;   // weights
 
     std::vector<int> _vertsOffsets; // offset to the first vertex of each level
-    
-    unsigned int _numCoarseVertices;
-private:
 };
 
 template <class U>
 FarSubdivisionTables<U>::FarSubdivisionTables( FarMesh<U> * mesh, int maxlevel ) :
     _mesh(mesh),
-    _E_IT(maxlevel+1),
-    _E_W(maxlevel+1),
-    _V_ITa(maxlevel+1),
-    _V_IT(maxlevel+1),
-    _V_W(maxlevel+1),
-    _batches(maxlevel),
-    _vertsOffsets(maxlevel+1,0),
-    _numCoarseVertices(0)
+    _vertsOffsets(maxlevel+2, 0)
 {
     assert( maxlevel > 0 );
 }
 
 template <class U> int
 FarSubdivisionTables<U>::GetFirstVertexOffset( int level ) const {
-    assert(level>=0 and level<=(int)_vertsOffsets.size());
+    assert(level>=0 and level<(int)_vertsOffsets.size());
     return _vertsOffsets[level];
 }
 
 template <class U> int
-FarSubdivisionTables<U>::GetNumFaceVertices( int level ) const {
-    assert(level>=0 and level<=(int)_batches.size());
-    return _batches[level-1].kernelF;
-}
-
-template <class U> int
-FarSubdivisionTables<U>::GetNumEdgeVertices( int level ) const {
-    assert(level>=0 and level<=(int)_batches.size());
-    return _batches[level-1].kernelE;
-}
-
-template <class U> int
-FarSubdivisionTables<U>::GetNumVertexVertices( int level ) const {
-    assert(level>=0 and level<=(int)_batches.size());
-    if (level==0)
-        return _numCoarseVertices;
-    else
-        return std::max( _batches[level-1].kernelB.second,
-                   std::max(_batches[level-1].kernelA1.second,
-                       _batches[level-1].kernelA2.second));
-}
-
-template <class U> int
 FarSubdivisionTables<U>::GetNumVertices( int level ) const {
-    assert(level>=0 and level<=(int)_batches.size());
-    if (level==0)
-        return GetNumVertexVertices(0);
-    else
-        return GetNumFaceVertices(level)+
-               GetNumEdgeVertices(level)+
-               GetNumVertexVertices(level);
+    assert(level>=0 and level<((int)_vertsOffsets.size()-1));
+    return _vertsOffsets[level+1] - _vertsOffsets[level];
+}
+
+template <class U> int
+FarSubdivisionTables<U>::GetNumVerticesTotal( int level ) const {
+    assert(level>=0 and level<((int)_vertsOffsets.size()-1));
+    return _vertsOffsets[level+1];
 }
 
 template <class U> int
 FarSubdivisionTables<U>::GetMemoryUsed() const {
-    return _E_IT.GetMemoryUsed()+
-           _E_W.GetMemoryUsed()+
-           _V_ITa.GetMemoryUsed()+
-           _V_IT.GetMemoryUsed()+
-           _V_W.GetMemoryUsed();
+    return (int)(_F_ITa.size() * sizeof(int) +
+                 _F_IT.size() * sizeof(unsigned int) +
+                 _E_IT.size() * sizeof(int) +
+                 _E_W.size() * sizeof(float) +
+                 _V_ITa.size() * sizeof(int) +
+                 _V_IT.size() * sizeof(unsigned int) +
+                 _V_W.size() * sizeof(float));
 }
 
 } // end namespace OPENSUBDIV_VERSION

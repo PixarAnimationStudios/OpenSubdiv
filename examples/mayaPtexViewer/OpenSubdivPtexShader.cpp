@@ -767,7 +767,7 @@ OpenSubdivPtexShader::draw(const MHWRender::MDrawContext &mDrawContext,
         GLint surfaceProgram = bindProgram(mDrawContext, osdDrawContext, patch);
 
         if (patch.desc.type != OpenSubdiv::kNonPatch) {
-            glPatchParameteri(GL_PATCH_VERTICES, patch.patchSize);
+            glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
 
             if (osdDrawContext->vertexTextureBuffer) {
                 glActiveTexture(GL_TEXTURE0);

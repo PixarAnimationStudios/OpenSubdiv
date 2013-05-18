@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * catmark_hole_test2 =
+static const std::string catmark_hole_test2 =
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "v -0.250000 -0.000000 0.250000\n"
@@ -153,9 +153,3 @@ static char const * catmark_hole_test2 =
 "t interpolateboundary 1/0/0 1\n"
 "t crease 2/1/0 6 7 7.5\n"
 ;
-
-
-
-
-
-

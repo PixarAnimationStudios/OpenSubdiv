@@ -58,7 +58,7 @@
 
 struct shaperec {
 
-    shaperec(char const * iname, char const * idata, Scheme ischeme) :
+    shaperec(char const * iname, std::string const & idata, Scheme ischeme) :
         name(iname), data(idata), scheme(ischeme) { }
     
     std::string name,
@@ -81,6 +81,7 @@ static std::vector<shaperec> g_shapes;
 #include "../shapes/catmark_dart_edgeonly.h"
 #include "../shapes/catmark_edgecorner.h"
 #include "../shapes/catmark_edgeonly.h"
+#include "../shapes/catmark_flap.h"
 #include "../shapes/catmark_pyramid_creases0.h"
 #include "../shapes/catmark_pyramid_creases1.h"
 #include "../shapes/catmark_pyramid.h"
@@ -115,6 +116,7 @@ static void initShapes() {
     g_shapes.push_back( shaperec("catmark_dart_edgeonly",    catmark_dart_edgeonly,    kCatmark ) );
     g_shapes.push_back( shaperec("catmark_edgecorner",       catmark_edgecorner,       kCatmark ) );
     g_shapes.push_back( shaperec("catmark_edgeonly",         catmark_edgeonly,         kCatmark ) );
+    g_shapes.push_back( shaperec("catmark_flap",             catmark_flap,             kCatmark ) );
     g_shapes.push_back( shaperec("catmark_pyramid_creases0", catmark_pyramid_creases0, kCatmark ) );
     g_shapes.push_back( shaperec("catmark_pyramid_creases1", catmark_pyramid_creases1, kCatmark ) );
     g_shapes.push_back( shaperec("catmark_pyramid",          catmark_pyramid,          kCatmark ) );

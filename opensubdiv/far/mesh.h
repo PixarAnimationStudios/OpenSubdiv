@@ -63,14 +63,13 @@
 #include "../far/subdivisionTables.h"
 #include "../far/patchTables.h"
 #include "../far/vertexEditTables.h"
+#include "../far/kernelBatch.h"
 
 #include <cassert>
 #include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
-
-template <class U> class FarDispatcher;
 
 /// \brief Feature Adaptive Mesh class.
 ///
@@ -79,7 +78,7 @@ template <class U> class FarDispatcher;
 /// ease of access and modification. When instantiating a FarMesh, the factory
 /// analyzes this data structure and serializes the topology into a linear
 /// buffers that are ready for efficient parallel processing.
-
+///
 template <class U> class FarMesh {
 public:
 
@@ -91,6 +90,10 @@ public:
     /// Returns the list of vertices in the mesh (from subdiv level 0 to N)
     std::vector<U> & GetVertices() { return _vertices; }
 
+    /// Returns a reference to the vertex at the given index
+    ///
+    /// @param index the index fo the vertex
+    ///
     U & GetVertex(int index) { return _vertices[index]; }
 
     /// Returns the list of indices of the vertices of the faces in the mesh
@@ -98,7 +101,7 @@ public:
 
     /// Returns the ptex coordinates for each face at a given level. The coordinates
     /// are stored as : (int) faceindex / (ushort) u_index / (ushort) v_index
-    std::vector<int> const & GetPtexCoordinates(int level) const;
+    std::vector<FarPtexCoord> const & GetPtexCoordinates(int level) const;
 
     /// Returns the fvar data for each face at a given level. The data
     /// is stored as a run of totalFVarWidth floats per-vertex per-face
@@ -107,6 +110,8 @@ public:
     ///      [ [ uv uv uv uv ] [ uv uv uv uv ] [ ... ] ]
     ///            prim 0           prim 1
     std::vector<float> const & GetFVarData(int level) const;
+    
+    /// Returns the width of the interleaved face-varying data
     int GetTotalFVarWidth() const { return _totalFVarWidth; }
 
     /// Returns patch tables
@@ -118,14 +123,19 @@ public:
     /// Returns the total number of vertices in the mesh across across all depths
     int GetNumVertices() const { return (int)(_vertices.size()); }
 
-    /// Apply the subdivision tables to compute the positions of the vertices up
-    /// to 'level'
-    void Subdivide(int level=-1);
+    /// True if the mesh tables support the feature-adaptive mode.
+    bool SupportsFeatureAdaptive() const { return _patchTables!=NULL; }
+
+    /// Returns an ordered vector of batches of compute kernels. The kernels
+    /// describe the sequence of computations required to apply the subdivision
+    /// scheme to the vertices in the mesh.    
+    const FarKernelBatchVector & GetKernelBatches() const { return _batches; }
 
 private:
     // Note : the vertex classes are renamed <X,Y> so as not to shadow the 
     // declaration of the templated vertex class U.
     template <class X, class Y> friend class FarMeshFactory;
+    template <class X, class Y> friend class FarMultiMeshFactory;
 
     FarMesh() : _subdivisionTables(0), _patchTables(0), _vertexEditTables(0) { }
 
@@ -142,6 +152,9 @@ private:
     // hierarchical vertex edit tables
     FarVertexEditTables<U> * _vertexEditTables;
 
+    // kernel execution batches
+    FarKernelBatchVector _batches;
+
     // list of vertices (up to N levels of subdivision)
     std::vector<U> _vertices;
 
@@ -149,7 +162,7 @@ private:
     std::vector< std::vector<int> > _faceverts;
 
     // ptex coordinates for each face
-    std::vector< std::vector<int> > _ptexcoordinates;
+    std::vector< std::vector<FarPtexCoord> > _ptexcoordinates;
 
     // fvar data for each face
     std::vector< std::vector<float> > _fvarData;
@@ -171,7 +184,7 @@ FarMesh<U>::GetFaceVertices(int level) const {
     return _faceverts[0];
 }
 
-template <class U> std::vector<int> const &
+template <class U> std::vector<FarPtexCoord> const &
 FarMesh<U>::GetPtexCoordinates(int level) const {
     if ( (level>=0) and (level<(int)_faceverts.size()) )
         return _ptexcoordinates[level];
@@ -183,28 +196,6 @@ FarMesh<U>::GetFVarData(int level) const {
     if ( (level>=0) and (level<(int)_faceverts.size()) )
         return _fvarData[level];
     return _fvarData[0];
-}
-
-
-template <class U> void
-FarMesh<U>::Subdivide(int maxlevel) {
-
-    assert(_subdivisionTables);
-
-    if ( (maxlevel < 0) )
-        maxlevel=_subdivisionTables->GetMaxLevel();
-    else
-        maxlevel = std::min(maxlevel, _subdivisionTables->GetMaxLevel());
-
-    FarDispatcher<U> * dispatch = &FarDispatcher<U>::_DefaultDispatcher;
-
-    for (int i=1; i<maxlevel; ++i) {
-        
-        _subdivisionTables->Apply(i, dispatch);
-
-        if (_vertexEditTables)
-            _vertexEditTables->Apply(i, dispatch);
-    }
 }
 
 } // end namespace OPENSUBDIV_VERSION

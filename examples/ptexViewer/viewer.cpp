@@ -87,20 +87,17 @@
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
 
-#include <osd/cpuDispatcher.h>
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
 #include <osd/cpuComputeController.h>
 OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-    #include <osd/ompDispatcher.h>
     #include <osd/ompComputeController.h>
     OpenSubdiv::OsdOmpComputeController * g_ompComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    #include <osd/clDispatcher.h>
     #include <osd/clGLVertexBuffer.h>
     #include <osd/clComputeContext.h>
     #include <osd/clComputeController.h>
@@ -113,7 +110,6 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-    #include <osd/cudaDispatcher.h>
     #include <osd/cudaGLVertexBuffer.h>
     #include <osd/cudaComputeContext.h>
     #include <osd/cudaComputeController.h>
@@ -128,7 +124,6 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    #include <osd/glslTransformFeedbackDispatcher.h>
     #include <osd/glslTransformFeedbackComputeContext.h>
     #include <osd/glslTransformFeedbackComputeController.h>
     #include <osd/glVertexBuffer.h>
@@ -136,7 +131,6 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    #include <osd/glslDispatcher.h>
     #include <osd/glslComputeContext.h>
     #include <osd/glslComputeController.h>
     #include <osd/glVertexBuffer.h>
@@ -169,6 +163,9 @@ static const char *g_defaultShaderSource =
 static const char *g_skyShaderSource =
 #include "skyshader.inc"
 ;
+static const char *g_imageShaderSource =
+#include "imageshader.inc"
+;
 static std::string g_shaderSource;
 static const char *g_shaderFilename = NULL;
 
@@ -194,7 +191,8 @@ enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_DISPLAY_PATCH_COLOR,
                    HUD_CB_VIEW_LOD,
                    HUD_CB_PATCH_CULL,
-                   HUD_CB_IBL };
+                   HUD_CB_IBL,
+                   HUD_CB_BLOOM };
     
 //-----------------------------------------------------------------------------
 int   g_frame = 0,
@@ -212,12 +210,17 @@ int   g_fullscreen=0,
       g_gutterWidth = 1,
       g_running = 1;
 
-float g_moveScale = 0.0f;
-bool  g_adaptive = 0,
+float g_moveScale = 0.0f,
+      g_displacementScale = 1.0f,
+      g_bumpScale = 1.0f;
+
+bool  g_adaptive = false,
+      g_yup = false,
       g_displayPatchColor = false,
       g_patchCull = true,
       g_screenSpaceTess = true,
-      g_ibl = false;
+      g_ibl = false,
+      g_bloom = true;
 
 GLuint g_transformUB = 0,
        g_transformBinding = 0,
@@ -263,6 +266,7 @@ float g_gpuTime = 0;
 float g_fpsTimeSamples[NUM_FPS_TIME_SAMPLES] = {0,0,0,0,0,0};
 int   g_currentFpsTimeSample = 0;
 Stopwatch g_fpsTimer;
+float g_animTime = 0;
 
 // geometry
 std::vector<float> g_positions,
@@ -288,6 +292,30 @@ struct Sky {
     Sky() : numIndices(0), vertexBuffer(0), elementBuffer(0), mvpMatrix(0),
             program(0) {}
 } g_sky;
+
+struct ImageShader {
+    GLuint blurProgram;
+    GLuint hipassProgram;
+    GLuint compositeProgram;
+
+    GLuint frameBuffer;
+    GLuint frameBufferTexture;
+    GLuint frameBufferDepthTexture;
+
+    GLuint smallFrameBuffer[2];
+    GLuint smallFrameBufferTexture[2];
+
+    GLuint smallWidth, smallHeight;
+
+    GLuint vao;
+    GLuint vbo;
+
+    ImageShader() : blurProgram(0), hipassProgram(0), compositeProgram(0),
+                    frameBuffer(0), frameBufferTexture(0), frameBufferDepthTexture(0) {
+        smallFrameBuffer[0] = smallFrameBuffer[1] = 0;
+        smallFrameBufferTexture[0] = smallFrameBufferTexture[1] = 0;
+    }
+} g_imageShader;
 
 OpenSubdiv::OsdGLPtexTexture * g_osdPTexImage = 0;
 OpenSubdiv::OsdGLPtexTexture * g_osdPTexDisplacement = 0;
@@ -342,22 +370,37 @@ updateGeom() {
 
     int nverts = (int)g_positions.size() / 3;
 
-    if (g_moveScale and g_adaptive and g_animPositionBuffers.size()) {
+    if (g_moveScale and g_adaptive and not g_animPositions.empty()) {
         // baked animation only works with adaptive for now
         // (since non-adaptive requires normals)
-        int nkey = (int)g_animPositionBuffers.size();
+        int nkey = (int)g_animPositions.size();
+        const float fps = 24.0f;
 
-#if 1
-        glBindBuffer(GL_COPY_READ_BUFFER, g_animPositionBuffers[g_frame%nkey]);
-        glBindBuffer(GL_COPY_WRITE_BUFFER, g_mesh->BindVertexBuffer());
-        glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
-                            0, 0, nverts * 3 * sizeof(float));
-        glBindBuffer(GL_COPY_READ_BUFFER, 0);
-        glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
-        
-#else
-        g_mesh->UpdateVertexBuffer(&g_animPositions[g_frame%nkey][0], nverts);
-#endif
+        float p = fmodf(g_animTime * fps, (float)nkey);
+        int key = (int)p;
+        float b = p - key;
+
+        std::vector<float> vertex;
+        vertex.reserve(nverts*3);
+        for (int i = 0; i < nverts*3; ++i) {
+            float p0 = g_animPositions[key][i];
+            float p1 = g_animPositions[(key+1)%nkey][i];
+            vertex.push_back(p0*(1-b) + p1*b);
+        }
+        g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
+
+/*
+        if (g_kernel != kCPU && g_kernel != kOPENMP) {
+            glBindBuffer(GL_COPY_READ_BUFFER, g_animPositionBuffers[g_frame%nkey]);
+            glBindBuffer(GL_COPY_WRITE_BUFFER, g_mesh->BindVertexBuffer());
+            glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
+                                0, 0, nverts * 3 * sizeof(float));
+            glBindBuffer(GL_COPY_READ_BUFFER, 0);
+            glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
+        } else {
+            g_mesh->UpdateVertexBuffer(&g_animPositions[g_frame%nkey][0], 0, nverts);
+        }
+*/
 
     } else {
         std::vector<float> vertex;
@@ -380,7 +423,7 @@ updateGeom() {
             }
         }
 
-        g_mesh->UpdateVertexBuffer(&vertex[0], nverts);
+        g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
     }
 
     Stopwatch s;
@@ -492,7 +535,63 @@ reshape(int width, int height) {
     g_height = height;
 
     g_hud.Rebuild(width, height);
+
+    // resize framebuffers
+    glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    
+    glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferDepthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, width, height, 0,
+                 GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.frameBuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                           GL_TEXTURE_2D, g_imageShader.frameBufferTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                           GL_TEXTURE_2D, g_imageShader.frameBufferDepthTexture, 0);
+
+    const int d = 4;
+    g_imageShader.smallWidth = width/d;
+    g_imageShader.smallHeight = height/d;
+    for (int i = 0; i < 2; ++i) {
+        glBindTexture(GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width/d, height/d, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, 0);
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.smallFrameBuffer[i]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[i], 0);
+    }
+        
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if(status != GL_FRAMEBUFFER_COMPLETE)
+        assert(false);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    checkGLErrors("Reshape");
 }
+
+void reshape() {
+#if GLFW_VERSION_MAJOR>=3
+    reshape(g_window, g_width, g_height);
+#else
+    reshape(g_width, g_height);
+#endif
+}
+
+#if GLFW_VERSION_MAJOR>=3
+void windowClose(GLFWwindow*) {
+    g_running = false;
+}
+#else
+int windowClose() {
+    g_running = false;
+    return GL_TRUE;
+}
+#endif
 
 //------------------------------------------------------------------------------
 const char *getKernelName(int kernel) {
@@ -995,6 +1094,154 @@ createSky() {
     g_sky.mvpMatrix = glGetUniformLocation(g_sky.program, "ModelViewProjectionMatrix");
 }
 
+GLuint
+compileImageShader(const char *define) {
+
+    GLuint program = glCreateProgram();
+
+    OpenSubdiv::OsdDrawShaderSource common, vertexShader, fragmentShader;
+    vertexShader.source = g_imageShaderSource;
+    vertexShader.version = "#version 410\n";
+    vertexShader.AddDefine("IMAGE_VERTEX_SHADER");
+    fragmentShader.source = g_imageShaderSource;
+    fragmentShader.version = "#version 410\n";
+    fragmentShader.AddDefine("IMAGE_FRAGMENT_SHADER");
+    fragmentShader.AddDefine(define);
+
+    GLuint vs = compileShader(GL_VERTEX_SHADER,
+                              common, vertexShader);
+    GLuint fs = compileShader(GL_FRAGMENT_SHADER,
+                              common, fragmentShader);
+
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
+    GLint colorMap = glGetUniformLocation(program, "colorMap");
+    if (colorMap != -1)
+        glProgramUniform1i(program, colorMap, 0);  // GL_TEXTURE0
+    GLint depthMap = glGetUniformLocation(program, "depthMap");
+    if (depthMap != -1)
+        glProgramUniform1i(program, depthMap, 1);  // GL_TEXTURE1
+
+    return program;
+}
+
+void
+createImageShader() {
+
+    g_imageShader.blurProgram = compileImageShader("BLUR");
+    g_imageShader.hipassProgram = compileImageShader("HIPASS");
+    g_imageShader.compositeProgram = compileImageShader("COMPOSITE");
+
+    glGenVertexArrays(1, &g_imageShader.vao);
+    glBindVertexArray(g_imageShader.vao);
+    glGenBuffers(1, &g_imageShader.vbo);
+    float pos[] = { -1, -1, 1, -1, -1,  1, 1,  1 };
+    glGenBuffers(1, &g_imageShader.vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, g_imageShader.vbo);
+    glBufferData(GL_ARRAY_BUFFER,
+                 sizeof(pos), pos, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, g_imageShader.vbo);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void
+applyImageShader() {
+
+    int w = g_imageShader.smallWidth, h = g_imageShader.smallHeight;
+    const float hoffsets[10] = {
+        -2.0f / w, 0,
+        -1.0f / w, 0,
+        0, 0,
+        +1.0f / w, 0,
+        +2.0f / w, 0,
+    };
+    const float voffsets[10] = {
+        0, -2.0f / h,
+        0, -1.0f / h,
+        0, 0,
+        0, +1.0f / h,
+        0, +2.0f / h,
+    };
+    const float weights[5] = {
+        1.0f / 16.0f,
+        4.0f / 16.0f,
+        6.0f / 16.0f,
+        4.0f / 16.0f,
+        1.0f / 16.0f,
+    };
+
+    checkGLErrors("image shader begin");
+    glBindVertexArray(g_imageShader.vao);
+
+    GLint uniformAlpha = glGetUniformLocation(g_imageShader.compositeProgram, "alpha");
+
+    if (g_bloom) {
+        // XXX: fix me
+        GLint uniformOffsets = glGetUniformLocation(g_imageShader.blurProgram, "Offsets");
+        GLint uniformWeights = glGetUniformLocation(g_imageShader.blurProgram, "Weights");
+
+        // down sample
+        glUseProgram(g_imageShader.hipassProgram);
+        glViewport(0, 0, g_imageShader.smallWidth, g_imageShader.smallHeight);
+        glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.smallFrameBuffer[0]);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+        // horizontal blur pass
+        glUseProgram(g_imageShader.blurProgram);
+        glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.smallFrameBuffer[1]);
+        glBindTexture(GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[0]);
+        glUniform2fv(uniformOffsets, 5, hoffsets);
+        glUniform1fv(uniformWeights, 5, weights);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+        // vertical blur pass
+        glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.smallFrameBuffer[0]);
+        glBindTexture(GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[1]);
+        glUniform2fv(uniformOffsets, 5, voffsets);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
+
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glViewport(0, 0, g_width, g_height);
+
+    // blit full-res
+    glUseProgram(g_imageShader.compositeProgram);
+    glUniform1f(uniformAlpha, 1);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    if (g_bloom) {
+        glUseProgram(g_imageShader.compositeProgram);
+        glUniform1f(uniformAlpha, 0.5);
+        glBlendFunc(GL_ONE, GL_ONE);
+        glEnable(GL_BLEND);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[0]);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glDisable(GL_BLEND);
+    }
+
+    glBindVertexArray(0);
+    glUseProgram(0);
+
+    checkGLErrors("image shader");
+}
+
 //------------------------------------------------------------------------------
 static GLuint
 bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
@@ -1024,13 +1271,9 @@ bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
     // Update and bind tessellation state
     struct Tessellation {
         float TessLevel;
-        int GregoryQuadOffsetBase;
-        int LevelBase;
     } tessellationData;
 
     tessellationData.TessLevel = static_cast<float>(1 << g_tessLevel);
-    tessellationData.GregoryQuadOffsetBase = patch.gregoryQuadOffsetBase;
-    tessellationData.LevelBase = patch.levelBase;
 
     if (! g_tessellationUB) {
         glGenBuffers(1, &g_tessellationUB);
@@ -1054,15 +1297,15 @@ bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
             float specular[4];
         } lightSource[2];
     } lightingData = {
-       {{  { 0.5,  0.2f, 1.0f, 0.0f },
+       {{  { 0.6f, 1.0f, 0.6f, 0.0f },
            { 0.1f, 0.1f, 0.1f, 1.0f },
-           { 0.7f, 0.7f, 0.7f, 1.0f },
-           { 0.8f, 0.8f, 0.8f, 1.0f } },
+           { 1.7f, 1.3f, 1.1f, 1.0f },
+           { 1.0f, 1.0f, 1.0f, 1.0f } },
  
-         { { -0.8f, 0.4f, -1.0f, 0.0f },
+         { { -0.8f, 0.6f, -0.7f, 0.0f },
            {  0.0f, 0.0f,  0.0f, 1.0f },
-           {  0.5f, 0.5f,  0.5f, 1.0f },
-           {  0.8f, 0.8f,  0.8f, 1.0f } }}
+           {  0.8f, 0.8f,  1.5f, 1.0f },
+           {  0.4f, 0.4f,  0.4f, 1.0f } }}
     };
     if (! g_lightingUB) {
         glGenBuffers(1, &g_lightingUB);
@@ -1164,7 +1407,7 @@ drawModel() {
         if (g_mesh->GetDrawContext()->IsAdaptive()) {
 
             primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, patch.patchSize);
+            glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
 
             if (g_mesh->GetDrawContext()->vertexTextureBuffer) {
                 glActiveTexture(GL_TEXTURE0);
@@ -1235,6 +1478,12 @@ drawModel() {
 #endif
         }
 
+        GLint displacementScale = glGetUniformLocation(program, "displacementScale");
+        if (displacementScale != -1)
+            glUniform1f(displacementScale, g_displacementScale);
+        GLint bumpScale = glGetUniformLocation(program, "bumpScale");
+        if (bumpScale != -1)
+            glUniform1f(bumpScale, g_bumpScale);
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         GLuint overrideColorEnable = glGetUniformLocation(program, "overrideColorEnable");
@@ -1295,6 +1544,13 @@ drawModel() {
         if (g_wire == 0) {
             glDisable(GL_CULL_FACE);
         }
+
+        GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
+        GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
+
+        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.gregoryQuadOffsetBase);
+        glProgramUniform1i(program, uniformLevelBase, patch.levelBase);
+
         glDrawElements(primType,
                        patch.numIndices, GL_UNSIGNED_INT,
                        (void *)(patch.firstIndex * sizeof(unsigned int)));
@@ -1347,6 +1603,8 @@ drawSky() {
 void
 display() {
 
+    glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.frameBuffer);
+
     Stopwatch s;
     s.Start();
 
@@ -1366,6 +1624,8 @@ display() {
     translate(transformData.ModelViewMatrix, -g_pan[0], -g_pan[1], -g_dolly);
     rotate(transformData.ModelViewMatrix, g_rotate[1], 1, 0, 0);
     rotate(transformData.ModelViewMatrix, g_rotate[0], 0, 1, 0);
+    if (g_yup)
+        rotate(transformData.ModelViewMatrix, -90, 1, 0, 0);
     translate(transformData.ModelViewMatrix, -g_center[0], -g_center[1], -g_center[2]);
     perspective(transformData.ProjectionMatrix, 45.0f, (float)aspect, g_size*0.001f,
                 g_size+g_dolly);
@@ -1373,11 +1633,17 @@ display() {
     multMatrix(transformData.ModelViewProjectionMatrix, transformData.ModelViewMatrix, transformData.ProjectionMatrix);
     inverseMatrix(transformData.ModelViewInverseMatrix, transformData.ModelViewMatrix);
 
+    glEnable(GL_DEPTH_TEST);
+
     drawModel();
+
+    glDisable(GL_DEPTH_TEST);
 
     glUseProgram(0);
 
     glEndQuery(GL_PRIMITIVES_GENERATED);
+
+    applyImageShader();
 
     s.Stop();
     float drawCpuTime = float(s.GetElapsed() * 1000.0f);
@@ -1391,7 +1657,9 @@ display() {
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
-        double fps = 1.0/g_fpsTimer.GetElapsed();
+        float elapsed = (float)g_fpsTimer.GetElapsed();
+        g_animTime += elapsed;
+        double fps = 1.0/elapsed;
         g_fpsTimer.Start();
 
         // Avereage fps over a defined number of time samples for
@@ -1446,7 +1714,8 @@ mouse(int button, int state) {
 //------------------------------------------------------------------------------
 static void 
 #if GLFW_VERSION_MAJOR>=3
-motion(GLFWwindow *, int x, int y) {
+motion(GLFWwindow *, double dx, double dy) {
+    int x=(int)dx, y=(int)dy;
 #else
 motion(int x, int y) {
 #endif
@@ -1517,6 +1786,20 @@ void uninitGL() {
     if (g_sky.program) glDeleteProgram(g_sky.program);
     if (g_sky.vertexBuffer) glDeleteBuffers(1, &g_sky.vertexBuffer);
     if (g_sky.elementBuffer) glDeleteBuffers(1, &g_sky.elementBuffer);
+
+    glDeleteFramebuffers(1, &g_imageShader.frameBuffer);
+    glDeleteTextures(1, &g_imageShader.frameBufferTexture);
+    glDeleteTextures(1, &g_imageShader.frameBufferDepthTexture);
+
+    glDeleteFramebuffers(2, g_imageShader.smallFrameBuffer);
+    glDeleteTextures(2, g_imageShader.smallFrameBufferTexture);
+
+    glDeleteProgram(g_imageShader.blurProgram);
+    glDeleteProgram(g_imageShader.hipassProgram);
+    glDeleteProgram(g_imageShader.compositeProgram);
+
+    glDeleteVertexArrays(1, &g_imageShader.vao);
+    glDeleteBuffers(1, &g_imageShader.vbo);
 }
 
 //------------------------------------------------------------------------------
@@ -1572,6 +1855,7 @@ callbackCheckBox(bool checked, int button)
         break;
     case HUD_CB_ANIMATE_VERTICES:
         g_moveScale = checked ? 1.0f : 0.0f;
+        g_animTime = 0;
         break;
     case HUD_CB_DISPLAY_PATCH_COLOR:
         g_displayPatchColor = checked;
@@ -1584,6 +1868,9 @@ callbackCheckBox(bool checked, int button)
         break;
     case HUD_CB_IBL:
         g_ibl = checked;
+        break;
+    case HUD_CB_BLOOM:
+        g_bloom = checked;
         break;
     }
 
@@ -1635,6 +1922,7 @@ keyboard(int key, int event) {
         case '+':
         case '=': g_tessLevel++; break;
         case '-': g_tessLevel = std::max(1, g_tessLevel-1); break;
+        case GLFW_KEY_ESC: g_hud.SetVisible(!g_hud.IsVisible()); break;
     }
 }
 
@@ -1661,6 +1949,35 @@ initGL() {
     glGenQueries(1, &g_primQuery);
     glGenVertexArrays(1, &g_vao);
     glGenVertexArrays(1, &g_skyVAO);
+
+    glGenFramebuffers(1, &g_imageShader.frameBuffer);
+    glGenTextures(1, &g_imageShader.frameBufferTexture);
+    glGenTextures(1, &g_imageShader.frameBufferDepthTexture);
+
+    glGenFramebuffers(2, g_imageShader.smallFrameBuffer);
+    glGenTextures(2, g_imageShader.smallFrameBufferTexture);
+
+    glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferDepthTexture);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    for (int i = 0; i < 2; ++i) {
+        glBindTexture(GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[i]);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+    
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 //------------------------------------------------------------------------------
@@ -1672,6 +1989,9 @@ void usage(const char *program) {
     printf("          -d <diffseEnvMap.hdr>   : diffuse environment map for IBL\n");
     printf("          -e <specularEnvMap.hdr> : specular environment map for IBL\n");
     printf("          -s <shaderfile.glsl>    : custom shader file\n");
+    printf("          -y                      : Y-up model\n");
+    printf("          --disp <scale>          : Displacment scale\n");
+    printf("          --bump <scale>          : Bump normal scale\n");
 
 }
 
@@ -1731,6 +2051,12 @@ int main(int argc, char ** argv) {
             g_shaderFilename = argv[++i];
         else if (!strcmp(argv[i], "-f"))
             fullscreen = true;
+        else if (!strcmp(argv[i], "-y"))
+            g_yup = true;
+        else if (!strcmp(argv[i], "--disp"))
+            g_displacementScale = (float)atof(argv[++i]);
+        else if (!strcmp(argv[i], "--bump"))
+            g_bumpScale = (float)atof(argv[++i]);
         else if (colorFilename == NULL)
             colorFilename = argv[i];
         else if (displacementFilename == NULL) {
@@ -1762,7 +2088,7 @@ int main(int argc, char ** argv) {
         return 1;
     }
     
-    static const char windowTitle[] = "OpenSubdiv glViewer";
+    static const char windowTitle[] = "OpenSubdiv ptexViewer";
     
 #define CORE_PROFILE
 #ifdef CORE_PROFILE
@@ -1802,7 +2128,6 @@ int main(int argc, char ** argv) {
     glfwSetKeyCallback(g_window, keyboard);
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
-    glfwSetWindowSizeCallback(g_window, reshape);
 #else
     if (glfwOpenWindow(g_width, g_height, 8, 8, 8, 8, 24, 8,
                        fullscreen ? GLFW_FULLSCREEN : GLFW_WINDOW) == GL_FALSE) {
@@ -1814,7 +2139,6 @@ int main(int argc, char ** argv) {
     glfwSetKeyCallback(keyboard);
     glfwSetMousePosCallback(motion);
     glfwSetMouseButtonCallback(mouse);
-    glfwSetWindowSizeCallback(reshape);
 #endif
 
 #if not defined(__APPLE__)
@@ -1830,6 +2154,16 @@ int main(int argc, char ** argv) {
     // clear GL errors which was generated during glewInit()
     glGetError();
 #endif
+#endif
+
+    initGL();
+
+#if GLFW_VERSION_MAJOR>=3
+    glfwSetWindowSizeCallback(g_window, reshape);
+    glfwSetWindowCloseCallback(g_window, windowClose);
+#else
+    glfwSetWindowSizeCallback(reshape);
+    glfwSetWindowCloseCallback(windowClose);
 #endif
 
     // activate feature adaptive tessellation if OSD supports it
@@ -1849,7 +2183,6 @@ int main(int argc, char ** argv) {
     cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
 #endif
 
-    initGL();
     g_hud.Init(g_width, g_height);
 
     g_hud.AddRadioButton(0, "CPU (K)", true, 10, 10, callbackKernel, kCPU, 'k');
@@ -1902,6 +2235,7 @@ int main(int argc, char ** argv) {
                       450, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
                       450, 70, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
+    g_hud.AddCheckBox("Bloom (Y)", g_bloom, 450, 90, callbackCheckBox, HUD_CB_BLOOM, 'y');
 
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive, 10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
@@ -1931,8 +2265,8 @@ int main(int argc, char ** argv) {
 
     // load animation obj sequences (optional)
     if (not animobjs.empty()) {
-        g_animPositionBuffers.resize(animobjs.size());
-        glGenBuffers((int)animobjs.size(), &g_animPositionBuffers[0]);
+//        g_animPositionBuffers.resize(animobjs.size());
+//        glGenBuffers((int)animobjs.size(), &g_animPositionBuffers[0]);
 
         for (int i = 0; i < (int)animobjs.size(); ++i) {
             std::ifstream ifs(animobjs[i].c_str());
@@ -1952,8 +2286,8 @@ int main(int argc, char ** argv) {
 
                 g_animPositions.push_back(shape->verts);
 
-                glBindBuffer(GL_ARRAY_BUFFER, g_animPositionBuffers[i]);
-                glBufferData(GL_ARRAY_BUFFER, shape->verts.size()*sizeof(float), &shape->verts[0], GL_STATIC_DRAW);
+//                glBindBuffer(GL_ARRAY_BUFFER, g_animPositionBuffers[i]);
+//                glBufferData(GL_ARRAY_BUFFER, shape->verts.size()*sizeof(float), &shape->verts[0], GL_STATIC_DRAW);
 
                 delete shape;
             } else {
@@ -2003,6 +2337,7 @@ int main(int argc, char ** argv) {
     if (diffuseEnvironmentMap || specularEnvironmentMap) {
         createSky();
     }
+    createImageShader();
 
     fitFrame();
 

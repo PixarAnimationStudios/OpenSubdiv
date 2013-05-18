@@ -75,9 +75,9 @@
 #endif
 
 #include "../version.h"
-
-#include "../osd/computeContext.h"
 #include "../osd/nonCopyable.h"
+#include "../osd/vertex.h"
+#include "../far/subdivisionTables.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -91,42 +91,37 @@ namespace OPENSUBDIV_VERSION {
         bool Compile(int numVertexElements, int numVaryingElements);
 
         void ApplyBilinearFaceVerticesKernel(
-            int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyBilinearEdgeVerticesKernel(
-            int E_IT_ofs, int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyBilinearVertexVerticesKernel(
-            int V_ITa_ofs, int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyCatmarkFaceVerticesKernel(
-            int F_IT_ofs, int F_ITa_ofs, int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyCatmarkEdgeVerticesKernel(
-            int E_IT_ofs, int E_W_ofs, int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyCatmarkVertexVerticesKernelB(
-            int V_IT_ofs, int V_ITa_ofs, int V_W_ofs,
-            int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyCatmarkVertexVerticesKernelA(
-            int V_ITa_ofs, int V_W_ofs,
-            int offset, bool pass, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end, bool pass);
 
         void ApplyLoopEdgeVerticesKernel(
-            int E_IT_ofs, int E_W_ofs, int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyLoopVertexVerticesKernelB(
-            int V_IT_ofs, int V_ITa_ofs, int V_W_ofs,
-            int offset, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end);
 
         void ApplyLoopVertexVerticesKernelA(
-            int V_ITa_ofs, int V_W_ofs,
-            int offset, bool pass, int start, int end);
+            int vertexOffset, int tableOffset, int start, int end, bool pass);
 
-        void ApplyEditAdd(int numEditVertices,
-                          int editIndices_ofs, int editValues_ofs,
-                          int primvarOffset, int primvarWidth);
+        void ApplyEditAdd(int primvarOffset, int primvarWidth,
+                          int vertexOffset, int tableOffset, int start, int end);
 
         void UseProgram() const;
 
@@ -148,22 +143,19 @@ namespace OPENSUBDIV_VERSION {
         friend struct Match;
 
     protected:
-        void dispatchCompute(GLint offset, int start, int end) const;
+        void dispatchCompute(int vertexOffset, int tableOffset, int start, int end) const;
 
         GLuint _program;
 
         // uniform locations for compute
-        GLuint _tableUniforms[Table::TABLE_MAX];
-        GLuint _tableOffsetUniforms[Table::TABLE_MAX];
+        GLuint _tableUniforms[FarSubdivisionTables<OsdVertex>::TABLE_TYPES_COUNT];
         GLuint _uniformVertexPass;
+        GLuint _uniformVertexOffset;
+        GLuint _uniformTableOffset;
         GLuint _uniformIndexStart;
         GLuint _uniformIndexEnd;
-        GLuint _uniformIndexOffset;
 
         // uniform locations for vertex edit
-        GLuint _uniformEditIndicesOffset;
-        GLuint _uniformEditValuesOffset;
-        GLuint _uniformEditNumVertices;
         GLuint _uniformEditPrimVarOffset;
         GLuint _uniformEditPrimVarWidth;
 

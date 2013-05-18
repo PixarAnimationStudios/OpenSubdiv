@@ -68,6 +68,17 @@ struct OsdVertexDescriptor {
         : numVertexElements(numVertexElem),
         numVaryingElements(numVaryingElem) { }
 
+    /// Resets the contents of vertex & varying primvar data buffers for a given
+    /// vertex.
+    ///
+    /// @param vertex  The float array containing the vertex-interpolated primvar 
+    ///                data that needs to be reset.
+    ///
+    /// @param varying The float array containing the varying-interpolated primvar
+    ///                data that needs to be reset.
+    ///
+    /// @param index   Vertex index in the buffer.
+    ///
     void Clear(float *vertex, float *varying, int index) const {
         if (vertex) {
             for (int i = 0; i < numVertexElements; ++i)
@@ -79,12 +90,34 @@ struct OsdVertexDescriptor {
                 varying[index*numVaryingElements+i] = 0.0f;
         }
     }
+
+    /// Applies "dst += src*weight" to "vertex" primvar data in a vertex buffer.
+    ///
+    /// @param vertex The VertexData buffer
+    ///
+    /// @param dstIndex Index of the destination vertex.
+    ///
+    /// @param srcIndex Index of the origin vertex.
+    ///
+    /// @param weight Weight applied to the primvar data.
+    ///
     void AddWithWeight(float *vertex, int dstIndex, int srcIndex, float weight) const {
         int d = dstIndex * numVertexElements;
         int s = srcIndex * numVertexElements;
         for (int i = 0; i < numVertexElements; ++i)
             vertex[d++] += vertex[s++] * weight;
     }
+
+    /// Applies "dst += src*weight" to "varying" primvar data in a vertex buffer.
+    ///
+    /// @param varying The VaryingData buffer
+    ///
+    /// @param dstIndex Index of the destination vertex.
+    ///
+    /// @param srcIndex Index of the source vertex.
+    ///
+    /// @param weight Weight applied to the primvar data.
+    ///
     void AddVaryingWithWeight(float *varying, int dstIndex, int srcIndex, float weight) const {
         int d = dstIndex * numVaryingElements;
         int s = srcIndex * numVaryingElements;
@@ -92,6 +125,18 @@ struct OsdVertexDescriptor {
             varying[d++] += varying[s++] * weight;
     }
 
+    /// Applies an "add" vertex edit
+    ///
+    /// @param vertex The primvar data buffer.
+    ///
+    /// @param primVarOffset Offset to the primvar datum.
+    ///
+    /// @param primVarWidth Length of the primvar datum.
+    ///
+    /// @param editIndex The location of the vertex in the buffer.
+    ///
+    /// @param editValues The values to add to the primvar datum.
+    ///
     void ApplyVertexEditAdd(float *vertex, int primVarOffset, int primVarWidth, int editIndex, const float *editValues) const {
         int d = editIndex * numVertexElements + primVarOffset;
         for (int i = 0; i < primVarWidth; ++i) {
@@ -99,6 +144,18 @@ struct OsdVertexDescriptor {
         }
     }
 
+    /// Applies a "set" vertex edit
+    ///
+    /// @param vertex The primvar data buffer.
+    ///
+    /// @param primVarOffset Offset to the primvar datum.
+    ///
+    /// @param primVarWidth Length of the primvar datum.
+    ///
+    /// @param editIndex The location of the vertex in the buffer.
+    ///
+    /// @param editValues The values to add to the primvar datum.
+    ///
     void ApplyVertexEditSet(float *vertex, int primVarOffset, int primVarWidth, int editIndex, const float *editValues) const {
         int d = editIndex * numVertexElements + primVarOffset;
         for (int i = 0; i < primVarWidth; ++i) {
@@ -108,6 +165,34 @@ struct OsdVertexDescriptor {
 
     int numVertexElements;
     int numVaryingElements;
+};
+
+/// \brief Describes vertex elements in interleaved data buffers
+struct OsdVertexBufferDescriptor {
+
+    /// Default Constructor
+    OsdVertexBufferDescriptor() : offset(0), length(0), stride(0) { }
+
+    /// Constructor
+    OsdVertexBufferDescriptor(int o, int l, int s) : offset(o), length(l), stride(s) { }
+
+    /// True if the descriptor values are internally consistent
+    bool IsValid() const {
+        return (offset<length) and (stride>=length);
+    }
+    
+    /// True if the 'other' descriptor can be used as a destination for
+    /// data evaluations.
+    bool CanEval( OsdVertexBufferDescriptor const & other ) const {
+        return IsValid() and 
+               other.IsValid() and 
+               (length==other.length) and 
+               (other.length <= (stride-offset));
+    }
+
+    int offset;  // offset to desired element data
+    int length;  // number or length of the data
+    int stride;  // stride to the next element
 };
 
 } // end namespace OPENSUBDIV_VERSION

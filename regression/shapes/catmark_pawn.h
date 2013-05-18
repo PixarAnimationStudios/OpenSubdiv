@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * catmark_pawn =
+static const std::string catmark_pawn =
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "v 1.747780 -1.275885 0.524901\n"

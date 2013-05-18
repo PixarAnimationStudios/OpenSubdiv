@@ -90,10 +90,9 @@ OsdCpuD3D11VertexBuffer::Create(int numElements, int numVertices, ID3D11Device *
 }
 
 void
-OsdCpuD3D11VertexBuffer::UpdateData(const float *src, int numVertices,
-                                    void *param) {
+OsdCpuD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, void *param) {
 
-    memcpy(_cpuBuffer, src, _numElements * numVertices * sizeof(float));
+    memcpy(_cpuBuffer + startVertex * _numElements, src, _numElements * numVertices * sizeof(float));
 }
 
 int

@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * catmark_tent_creases1 =
+static const std::string catmark_tent_creases1 =
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "v 0.000000 -1.697056 0.000000\n"

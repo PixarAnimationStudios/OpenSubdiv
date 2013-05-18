@@ -82,3 +82,5 @@ add_executable(hbr_baseline
    baseline.cpp
 )
 
+install(TARGETS hbr_baseline DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS hbr_regression DESTINATION ${CMAKE_BINDIR_BASE})

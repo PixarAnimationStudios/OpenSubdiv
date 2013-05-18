@@ -63,6 +63,7 @@
 #include "../hbr/vertexEdit.h"
 
 #include "../far/vertexEditTables.h"
+#include "../far/kernelBatch.h"
 
 #include <cassert>
 #include <vector>
@@ -72,7 +73,7 @@ namespace OPENSUBDIV_VERSION {
 
 /// \brief A specialized factory for FarVertexEditTables
 ///
-/// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
+/// This factory is private to Far and should not be used by client code.
 ///
 template <class T, class U> class FarVertexEditTablesFactory {
 
@@ -81,9 +82,11 @@ protected:
 
     /// Compares the number of subfaces in an edit (for sorting purposes)
     static bool compareEdits(HbrVertexEdit<T> const *a, HbrVertexEdit<T> const *b);
+    
+    static void insertHEditBatch(FarKernelBatchVector *batches, int batchIndex, int batchLevel, int batchCount, int tableOffset);
 
     /// Creates a FarVertexEditTables instance.
-    static FarVertexEditTables<U> * Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, int maxlevel );
+    static FarVertexEditTables<U> * Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, FarKernelBatchVector *batches, int maxlevel );
 };
 
 template <class T, class U> bool
@@ -92,13 +95,26 @@ FarVertexEditTablesFactory<T,U>::compareEdits(HbrVertexEdit<T> const *a, HbrVert
     return a->GetNSubfaces() < b->GetNSubfaces();
 }
 
+template <class T, class U> void
+FarVertexEditTablesFactory<T,U>::insertHEditBatch(FarKernelBatchVector *batches, int batchIndex, int batchLevel, int batchCount, int tableOffset) {
+
+    FarKernelBatchVector::iterator it = batches->begin();
+
+    while (it != batches->end()) {
+        if (it->GetLevel() > batchLevel+1) 
+            break;
+        ++it;
+    }
+    
+    batches->insert(it, FarKernelBatch( FarKernelBatch::HIERARCHICAL_EDIT, batchLevel+1, batchIndex, 0, batchCount, tableOffset, 0) );
+}
 
 template <class T, class U> FarVertexEditTables<U> * 
-FarVertexEditTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, int maxlevel ) {
+FarVertexEditTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, FarKernelBatchVector *batches, int maxlevel ) {
 
     assert( factory and mesh );
 
-    FarVertexEditTables<U> * result = new FarVertexEditTables<U>(mesh, maxlevel);
+    FarVertexEditTables<U> * result = new FarVertexEditTables<U>(mesh);
 
     std::vector<HbrHierarchicalEdit<T>*> const & hEdits = factory->_hbrMesh->GetHierarchicalEdits();
 
@@ -154,15 +170,14 @@ FarVertexEditTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, Fa
     // Second pass : populate the batches
     int numBatches = result->GetNumBatches();
     for(int i=0; i<numBatches; ++i) {
-        result->_batches[i]._vertIndices.SetMaxLevel(maxlevel+1);
-        result->_batches[i]._edits.SetMaxLevel(maxlevel+1);        
-        result->_batches[i]._vertIndices.Resize(batchSizes[i]);
-        result->_batches[i]._edits.Resize(batchSizes[i] * result->_batches[i].GetPrimvarWidth());
+        result->_batches[i]._vertIndices.resize(batchSizes[i]);
+        result->_batches[i]._edits.resize(batchSizes[i] * result->_batches[i].GetPrimvarWidth());
     }
 
     // Resolve vertexedits path to absolute offset and put them into corresponding batch
     std::vector<int> currentLevels(numBatches);
     std::vector<int> currentCounts(numBatches);
+    std::vector<int> currentOffsets(numBatches);
     for(int i=0; i<(int)vertexEdits.size(); ++i){
         HbrVertexEdit<T> const *vedit = vertexEdits[i];
 
@@ -182,16 +197,17 @@ FarVertexEditTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, Fa
         int & batchCount = currentCounts[batchIndex];
         typename FarVertexEditTables<U>::VertexEditBatch &batch = result->_batches[batchIndex];
 
-        // Fill marker for skipped levels if exists
-        while(currentLevels[batchIndex] < level-1) {
-            batch._vertIndices.SetMarker(batchLevel+1, &batch._vertIndices[batchLevel][batchCount]);
-            batch._edits.SetMarker(batchLevel+1, &batch._edits[batchLevel][batchCount*batch.GetPrimvarWidth()]);
-            batchLevel++;
-            batchCount = 0;
+        // insert a batch into batch array
+        if (batchLevel != level-1 && batchCount != currentOffsets[batchIndex]) {
+            // if the batch isn't empty, emit kernelBatch
+            insertHEditBatch(batches, batchIndex, batchLevel, batchCount-currentOffsets[batchIndex], currentOffsets[batchIndex]);
+
+            batchLevel = level-1;
+            currentOffsets[batchIndex] = batchCount;
         }
 
         // Set absolute vertex index
-        batch._vertIndices[level-1][batchCount] = vertexID;
+        batch._vertIndices[batchCount] = vertexID;
 
         // Copy edit values : Subtract edits are optimized into Add edits (fewer batches)
         const float *edit = vedit->GetEdit();
@@ -199,25 +215,17 @@ FarVertexEditTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, Fa
         bool negate = (vedit->GetOperation() == HbrHierarchicalEdit<T>::Subtract);
         
         for(int i=0; i<batch.GetPrimvarWidth(); ++i)
-            batch._edits[level-1][batchCount * batch.GetPrimvarWidth() + i] = negate ? -edit[i] : edit[i];
+            batch._edits[batchCount * batch.GetPrimvarWidth() + i] = negate ? -edit[i] : edit[i];
 
-        // Set table markers
         batchCount++;
-        batch._vertIndices.SetMarker(level, &batch._vertIndices[level-1][batchCount]);
-        batch._edits.SetMarker(level, &batch._edits[level-1][batchCount * batch.GetPrimvarWidth()]);
     }
     
     for(int i=0; i<numBatches; ++i) {
-        typename FarVertexEditTables<U>::VertexEditBatch &batch = result->_batches[i];
         int & batchLevel = currentLevels[i];
         int & batchCount = currentCounts[i];
 
-        // fill marker for rest levels if exists
-        while(batchLevel < maxlevel) {
-            batch._vertIndices.SetMarker(batchLevel+1, &batch._vertIndices[batchLevel][batchCount]);
-            batch._edits.SetMarker(batchLevel+1, &batch._edits[batchLevel][batchCount*batch.GetPrimvarWidth()]);
-            batchLevel++;
-            batchCount = 0;
+        if (batchCount > 0) {
+            insertHEditBatch(batches, i, batchLevel, batchCount-currentOffsets[i], currentOffsets[i]);
         }
     }
 

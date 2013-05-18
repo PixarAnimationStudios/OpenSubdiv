@@ -263,4 +263,36 @@ transpose(float *m)
     std::swap(m[11],m[14]);
 }
 
+inline void
+apply(float *v, const float *m)
+{
+    float r[4];
+    r[0] = v[0] * m[0] + v[1] * m[4] + v[2] * m[8] + v[3] * m[12];
+    r[1] = v[1] * m[1] + v[1] * m[5] + v[2] * m[9] + v[3] * m[13];
+    r[2] = v[2] * m[2] + v[1] * m[6] + v[2] * m[10] + v[3] * m[14];
+    r[3] = v[3] * m[3] + v[1] * m[7] + v[2] * m[11] + v[3] * m[14];
+    v[0] = r[0];
+    v[1] = r[1];
+    v[2] = r[2];
+    v[3] = r[3];
+}
+
+inline void
+pickMatrix(float *m, float x, float y, float width, float height, const int *viewport)
+{
+    float sx, sy;
+    float tx, ty;
+
+    sx = viewport[2] / width;
+    sy = viewport[3] / height;
+    tx = (viewport[2] + 2.0f * (viewport[0] - x)) / width;
+    ty = (viewport[3] + 2.0f * (viewport[1] - y)) / height;
+
+    identity(m);
+    m[0] = sx;
+    m[5] = sy;
+    m[12] = tx;
+    m[13] = ty;
+}
+
 #endif // SIMPLE_MATH_H

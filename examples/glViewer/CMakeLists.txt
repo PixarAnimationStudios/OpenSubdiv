@@ -111,3 +111,4 @@ target_link_libraries(glViewer
     ${PLATFORM_LIBRARIES}
 )
 
+install(TARGETS glViewer DESTINATION ${CMAKE_BINDIR_BASE})

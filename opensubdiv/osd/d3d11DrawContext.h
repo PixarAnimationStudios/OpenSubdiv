@@ -128,7 +128,7 @@ private:
     void _AppendPatchArray(
             unsigned int *indexBuffer, int *indexBase,
             unsigned int *levelBuffer, int *levelBase,
-            FarPatchTables::PTable const & ptable, int patchSize,
+            FarPatchTables::PTable const & ptable,
             FarPatchTables::PtexCoordinateTable const & ptexTable,
             FarPatchTables::FVarDataTable const & fvarTable, int fvarDataWidth,
             OsdPatchDescriptor const & desc,

@@ -73,7 +73,6 @@
 
 #include "../osd/glslComputeController.h"
 #include "../osd/glslComputeContext.h"
-#include "../osd/glslDispatcher.h"
 #include "../osd/glslKernelBundle.h"
 
 #include <algorithm>
@@ -117,6 +116,208 @@ OsdGLSLComputeController::getKernels(int numVertexElements,
         kernelBundle->Compile(numVertexElements, numVaryingElements);
         return kernelBundle;
     }
+}
+
+void
+OsdGLSLComputeController::ApplyBilinearFaceVerticesKernel(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyBilinearFaceVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLComputeController::ApplyBilinearEdgeVerticesKernel(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyBilinearEdgeVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLComputeController::ApplyBilinearVertexVerticesKernel(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyBilinearVertexVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLComputeController::ApplyCatmarkFaceVerticesKernel(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyCatmarkFaceVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+
+
+void
+OsdGLSLComputeController::ApplyCatmarkEdgeVerticesKernel(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyCatmarkEdgeVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelB(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyCatmarkVertexVerticesKernelB(
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelA1(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyCatmarkVertexVerticesKernelA(
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
+}
+
+void
+OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelA2(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyCatmarkVertexVerticesKernelA(
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
+}
+
+void
+OsdGLSLComputeController::ApplyLoopEdgeVerticesKernel(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyLoopEdgeVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLComputeController::ApplyLoopVertexVerticesKernelB(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyLoopVertexVerticesKernelB(
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLComputeController::ApplyLoopVertexVerticesKernelA1(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyLoopVertexVerticesKernelA(
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
+}
+
+void
+OsdGLSLComputeController::ApplyLoopVertexVerticesKernelA2(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    kernelBundle->ApplyLoopVertexVerticesKernelA(
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
+}
+
+void
+OsdGLSLComputeController::ApplyVertexEdits(
+    FarKernelBatch const &batch, void * clientdata) const {
+
+    OsdGLSLComputeContext * context =
+        static_cast<OsdGLSLComputeContext*>(clientdata);
+    assert(context);
+
+    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+
+    const OsdGLSLComputeHEditTable * edit = context->GetEditTable(batch.GetTableIndex());
+    assert(edit);
+
+    context->BindEditShaderStorageBuffers(batch.GetTableIndex());
+
+    int primvarOffset = edit->GetPrimvarOffset();
+    int primvarWidth = edit->GetPrimvarWidth();
+    
+    if (edit->GetOperation() == FarVertexEdit::Add) {
+        kernelBundle->ApplyEditAdd( primvarOffset, 
+                                    primvarWidth,
+                                    batch.GetVertexOffset(), 
+                                    batch.GetTableOffset(), 
+                                    batch.GetStart(), 
+                                    batch.GetEnd());
+    } else {
+        // XXX: edit SET is not implemented yet.
+    }
+    
+    context->UnbindEditShaderStorageBuffers();
 }
 
 }  // end namespace OPENSUBDIV_VERSION

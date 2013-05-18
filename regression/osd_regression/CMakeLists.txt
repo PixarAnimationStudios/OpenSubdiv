@@ -72,6 +72,14 @@ set(PLATFORM_LIBRARIES
     ${GLFW_LIBRARIES}
 )
 
+if ( OPENCL_FOUND )
+    list(APPEND PLATFORM_LIBRARIES
+        ${OPENCL_LIBRARIES}
+    )
+    include_directories( ${OPENCL_INCLUDE_DIRS} )
+endif()
+
+
 add_executable(osd_regression
     ${SOURCE_FILES}
 )
@@ -79,3 +87,5 @@ add_executable(osd_regression
 target_link_libraries(osd_regression
     ${PLATFORM_LIBRARIES}
 )
+
+install(TARGETS osd_regression DESTINATION ${CMAKE_BINDIR_BASE})

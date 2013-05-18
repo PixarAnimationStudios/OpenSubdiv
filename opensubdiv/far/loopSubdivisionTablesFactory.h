@@ -62,6 +62,7 @@
 
 #include "../far/loopSubdivisionTables.h"
 #include "../far/meshFactory.h"
+#include "../far/kernelBatchFactory.h"
 #include "../far/subdivisionTablesFactory.h"
 
 #include <cassert>
@@ -81,14 +82,22 @@ protected:
     template <class X, class Y> friend class FarMeshFactory;
 
     /// Creates a FarLoopSubdivisiontables instance.
-    static FarLoopSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh );
+    ///
+    /// @param meshFactory  a valid FarMeshFactory instance
+    ///
+    /// @param farMesh
+    ///
+    /// @param batches      a vector of Kernel refinement batches : the factory 
+    ///                     will reserve and append refinement tasks
+    ///
+    static FarLoopSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector * batches );
 };
 
 // This factory walks the Hbr vertices and accumulates the weights and adjacency
 // (valance) information specific to the loop subdivision scheme. The results
 // are stored in a FarLoopSubdivisionTable<U>.
 template <class T, class U> FarLoopSubdivisionTables<U> * 
-FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh ) {
+FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector * batches ) {
 
     assert( meshFactory and farMesh );
 
@@ -101,26 +110,50 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
     FarLoopSubdivisionTables<U> * result = new FarLoopSubdivisionTables<U>(farMesh, maxlevel);
 
     // Allocate memory for the indexing tables
-    result->_E_IT.Resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*4);
-    result->_E_W.Resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*2);
+    result->_E_IT.resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*4);
+    result->_E_W.resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*2);
 
-    result->_V_ITa.Resize(tablesFactory.GetNumVertexVerticesTotal(maxlevel)*5);
-    result->_V_IT.Resize(tablesFactory.GetVertVertsValenceSum());
-    result->_V_W.Resize(tablesFactory.GetNumVertexVerticesTotal(maxlevel));
+    result->_V_ITa.resize((tablesFactory.GetNumVertexVerticesTotal(maxlevel)
+                           - tablesFactory.GetNumVertexVerticesTotal(0))*5); // subtract corase cage vertices
+    result->_V_IT.resize(tablesFactory.GetVertVertsValenceSum());
+    result->_V_W.resize(tablesFactory.GetNumVertexVerticesTotal(maxlevel)
+                        - tablesFactory.GetNumVertexVerticesTotal(0));
+
+    // Prepare batch table
+    batches->reserve(maxlevel*5);
+
+    int vertexOffset = 0;
+    int V_IT_offset = 0;
+    int edgeTableOffset = 0;
+    int vertTableOffset = 0;
+
+    int * E_IT = result->_E_IT.empty() ? 0 : &result->_E_IT[0];
+    float * E_W = result->_E_W.empty() ? 0 : &result->_E_W[0];
+    int * V_ITa = result->_V_ITa.empty() ? 0 : &result->_V_ITa[0];
+    unsigned int * V_IT = result->_V_IT.empty() ? 0 : &result->_V_IT[0];
+    float * V_W = result->_V_W.empty() ? 0 : &result->_V_W[0];
 
     for (int level=1; level<=maxlevel; ++level) {
 
         // pointer to the first vertex corresponding to this level
-        result->_vertsOffsets[level] = tablesFactory._vertVertIdx[level-1] + 
-                                       (int)tablesFactory._vertVertsList[level-1].size();
-
-        typename FarSubdivisionTables<U>::VertexKernelBatch * batch = & (result->_batches[level-1]);
+        vertexOffset = tablesFactory._vertVertIdx[level-1] + 
+            (int)tablesFactory._vertVertsList[level-1].size();
+        result->_vertsOffsets[level] = vertexOffset;
 
         // Edge vertices
-        int * E_IT = result->_E_IT[level-1];
-        float * E_W = result->_E_W[level-1];
-        batch->kernelE = (int)tablesFactory._edgeVertsList[level].size();
-        for (int i=0; i < batch->kernelE; ++i) {
+        int nEdgeVertices = (int)tablesFactory._edgeVertsList[level].size();
+        if (nEdgeVertices > 0) 
+            batches->push_back(FarKernelBatch( FarKernelBatch::LOOP_EDGE_VERTEX,
+                                               level,
+                                               0,
+                                               0,
+                                               nEdgeVertices,
+                                               edgeTableOffset,
+                                               vertexOffset) );
+        vertexOffset += nEdgeVertices;
+        edgeTableOffset += nEdgeVertices;
+
+        for (int i=0; i < nEdgeVertices; ++i) {
 
             HbrVertex<T> * v = tablesFactory._edgeVertsList[level][i];
             assert(v);
@@ -149,19 +182,15 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
             E_W[2*i+0] = endPtWeight;
             E_W[2*i+1] = oppPtWeight;
         }
-        result->_E_IT.SetMarker(level, &E_IT[4*batch->kernelE]);
-        result->_E_W.SetMarker(level, &E_W[2*batch->kernelE]);
+        E_IT += 4 * nEdgeVertices;
+        E_W += 2 * nEdgeVertices;
 
         // Vertex vertices
 
-        batch->InitVertexKernels( (int)tablesFactory._vertVertsList[level].size(), 0 );
+        FarVertexKernelBatchFactory batchFactory((int)tablesFactory._vertVertsList[level].size(), 0);
 
-        int offset = 0;
-        int * V_ITa = result->_V_ITa[level-1];
-        unsigned int * V_IT = result->_V_IT[level-1];
-        float * V_W = result->_V_W[level-1];
-        int nverts = (int)tablesFactory._vertVertsList[level].size();
-        for (int i=0; i < nverts; ++i) {
+        int nVertVertices = (int)tablesFactory._vertVertsList[level].size();
+        for (int i=0; i < nVertVertices; ++i) {
 
             HbrVertex<T> * v = tablesFactory._vertVertsList[level][i],
                          * pv = v->GetParentVertex();
@@ -194,7 +223,7 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
 
             int rank = FarSubdivisionTablesFactory<T,U>::GetMaskRanking(masks[0], masks[1]);
 
-            V_ITa[5*i+0] = offset;
+            V_ITa[5*i+0] = V_IT_offset;
             V_ITa[5*i+1] = 0;
             V_ITa[5*i+2] = remap[ pv->GetID() ];
             V_ITa[5*i+3] = -1;
@@ -209,7 +238,7 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
                         while (e) {
                             V_ITa[5*i+1]++;
 
-                            V_IT[offset++] = remap[ e->GetDestVertex()->GetID() ];
+                            V_IT[V_IT_offset++] = remap[ e->GetDestVertex()->GetID() ];
 
                             e = e->GetPrev()->GetOpposite();
 
@@ -261,18 +290,16 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
             else
                 V_W[i] = weights[0];
 
-            batch->AddVertex( i, rank );
+            batchFactory.AddVertex( i, rank );
         }
-        result->_V_ITa.SetMarker(level, &V_ITa[5*nverts]);
-        result->_V_IT.SetMarker(level, &V_IT[offset]);
-        result->_V_W.SetMarker(level, &V_W[nverts]);
+        V_ITa += nVertVertices*5;
+        V_W += nVertVertices;
 
-        if (nverts>0) {
-            batch->kernelB.second++;
-            batch->kernelA1.second++;
-            batch->kernelA2.second++;
-        }
+        batchFactory.AppendLoopBatches(level, vertTableOffset, vertexOffset, batches);
+        vertexOffset += nVertVertices;
+        vertTableOffset += nVertVertices;
     }
+    result->_vertsOffsets[maxlevel+1] = vertexOffset;
     return result;
 }
 

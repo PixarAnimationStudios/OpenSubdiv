@@ -57,28 +57,23 @@
 #include <D3D11.h>
 #include <D3Dcompiler.h>
 
-#include "../../regression/common/mutex.h" // XXX: Fixme
-
 #include <osd/error.h>
 #include <osd/vertex.h>
 #include <osd/d3d11DrawContext.h>
 #include <osd/d3d11DrawRegistry.h>
 
-#include <osd/cpuDispatcher.h>
 #include <osd/cpuD3D11VertexBuffer.h>
 #include <osd/cpuComputeContext.h>
 #include <osd/cpuComputeController.h>
 OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-    #include <osd/ompDispatcher.h>
     #include <osd/ompComputeController.h>
     OpenSubdiv::OsdOmpComputeController * g_ompComputeController = NULL;
 #endif
 
 #undef OPENSUBDIV_HAS_OPENCL    // XXX: dyu OpenCL D3D11 interop needs work...
 #ifdef OPENSUBDIV_HAS_OPENCL
-    #include <osd/clDispatcher.h>
     #include <osd/clD3D11VertexBuffer.h>
     #include <osd/clComputeContext.h>
     #include <osd/clComputeController.h>
@@ -91,7 +86,6 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-    #include <osd/cudaDispatcher.h>
     #include <osd/cudaD3D11VertexBuffer.h>
     #include <osd/cudaComputeContext.h>
     #include <osd/cudaComputeController.h>
@@ -103,7 +97,6 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
     OpenSubdiv::OsdCudaComputeController * g_cudaComputeController = NULL;
 #endif
 
-#include <osd/d3d11Dispatcher.h>
 #include <osd/d3d11VertexBuffer.h>
 #include <osd/d3d11ComputeContext.h>
 #include <osd/d3d11ComputeController.h>
@@ -142,10 +135,10 @@ enum KernelType { kCPU = 0,
 struct SimpleShape {
     std::string  name;
     Scheme       scheme;
-    char const * data;
+    std::string  data;
 
     SimpleShape() { }
-    SimpleShape( char const * idata, char const * iname, Scheme ischeme )
+    SimpleShape( std::string const & idata, char const * iname, Scheme ischeme )
         : name(iname), scheme(ischeme), data(idata) { }
 };
 
@@ -223,9 +216,6 @@ bool g_bDone;
 static void
 initializeShapes( ) {
 
-#include <shapes/bilinear_cube.h>
-//    g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
-
 #include <shapes/catmark_cube_corner0.h>
     g_defaultShapes.push_back(SimpleShape(catmark_cube_corner0, "catmark_cube_corner0", kCatmark));
 
@@ -274,6 +264,12 @@ initializeShapes( ) {
 #include <shapes/catmark_gregory_test4.h>
     g_defaultShapes.push_back(SimpleShape(catmark_gregory_test4, "catmark_gregory_test4", kCatmark));
 
+#include <shapes/catmark_hole_test1.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_hole_test1, "catmark_hole_test1", kCatmark));
+
+#include <shapes/catmark_hole_test2.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_hole_test2, "catmark_hole_test2", kCatmark));
+
 #include <shapes/catmark_pyramid_creases0.h>
     g_defaultShapes.push_back(SimpleShape(catmark_pyramid_creases0, "catmark_pyramid_creases0", kCatmark));
 
@@ -310,17 +306,14 @@ initializeShapes( ) {
 #include <shapes/catmark_square_hedit3.h>
     g_defaultShapes.push_back(SimpleShape(catmark_square_hedit3, "catmark_square_hedit3", kCatmark));
 
+#include <shapes/catmark_square_hedit4.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_square_hedit4, "catmark_square_hedit4", kCatmark));
 
-
-#ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_bishop.h>
     g_defaultShapes.push_back(SimpleShape(catmark_bishop, "catmark_bishop", kCatmark));
-#endif
 
-#ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_car.h>
     g_defaultShapes.push_back(SimpleShape(catmark_car, "catmark_car", kCatmark));
-#endif
 
 #include <shapes/catmark_helmet.h>
     g_defaultShapes.push_back(SimpleShape(catmark_helmet, "catmark_helmet", kCatmark));
@@ -328,11 +321,11 @@ initializeShapes( ) {
 #include <shapes/catmark_pawn.h>
     g_defaultShapes.push_back(SimpleShape(catmark_pawn, "catmark_pawn", kCatmark));
 
-#ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_rook.h>
     g_defaultShapes.push_back(SimpleShape(catmark_rook, "catmark_rook", kCatmark));
-#endif
 
+#include <shapes/bilinear_cube.h>
+    g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
 
 
 #include <shapes/loop_cube_creases0.h>
@@ -427,7 +420,7 @@ updateGeom() {
         n += 3;
     }
 
-    g_mesh->UpdateVertexBuffer(&vertex[0], nverts);
+    g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
 
     Stopwatch s;
     s.Start();
@@ -463,10 +456,10 @@ getKernelName(int kernel) {
 
 //------------------------------------------------------------------------------
 static void
-createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark ) {
+createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kCatmark ) {
 
     // generate Hbr representation from "obj" description
-    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, g_orgPositions);
+    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape.c_str(), scheme, g_orgPositions);
 
     g_normals.resize(g_orgPositions.size(),0.0f);
     g_positions.resize(g_orgPositions.size(),0.0f);
@@ -917,7 +910,7 @@ display()
 
         if (g_mesh->GetDrawContext()->IsAdaptive()) {
 
-            switch (patch.patchSize) {
+            switch (patch.desc.GetPatchSize()) {
             case 4:
                 topology = D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST; 
                 break;

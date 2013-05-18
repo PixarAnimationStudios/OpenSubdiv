@@ -55,86 +55,67 @@
 //     a particular purpose and non-infringement.
 //
 
-#ifndef MUTEX_H
-#define MUTEX_H
+//--------------------------------------------------------------
+// image vertex shader
+//--------------------------------------------------------------
+#ifdef IMAGE_VERTEX_SHADER
 
+layout (location=0) in vec2 position;
+out vec2 outUV;
 
-#if defined(_WINDOWS)
-
-    #include <Windows.h>
-
-    class Mutex {
-    public:
-
-        Mutex(int spincount=0) {
-            if (spincount)
-                InitializeCriticalSectionAndSpinCount(&_cs, spincount);
-            else
-                InitializeCriticalSection(&_cs);
-        }
-
-        void Lock() {
-            EnterCriticalSection(&_cs);
-        }
-
-        bool Try() { 
-            return TryEnterCriticalSection(&_cs)!=0; 
-        }
-
-        void Unlock() {
-            LeaveCriticalSection(&_cs);
-        }
-
-    private:
-        Mutex(Mutex const &); 
-        Mutex & operator=(Mutex const &);
-
-        CRITICAL_SECTION _cs;
-    };
-
-#elif defined(__APPLE__) or defined(__linux)
-
-    #include <pthread.h>
-    #include <assert.h>
-
-    class Mutex {
-    public:
-
-        Mutex(int spincount=0) : _spincount(spincount) {
-            assert( pthread_mutex_init(&_mutex,NULL) );
-        }
-
-        ~Mutex() {
-            assert( pthread_mutex_destroy(&_mutex)==0 );
-        }
-
-        void Lock() {
-            if (_spincount) {
-                int spincount = _spincount;
-                while (spincount--)
-                    if (pthread_mutex_trylock(&_mutex) == 0) 
-                        return;
-                
-            }
-            assert( pthread_mutex_lock(&_mutex)==0 );
-        }
-        
-        bool Try() {
-            return (pthread_mutex_trylock(&_mutex) == 0);
-        }
-
-        void Unlock() {
-            assert(pthread_mutex_unlock(&_mutex)==0);
-        }
-
-    private:
-        Mutex(Mutex const &); 
-        Mutex & operator=(Mutex const &);
-        
-        pthread_mutex_t _mutex;
-        const int _spincount;
-    };
+void
+main()
+{
+    outUV = vec2(position.xy*0.5) + vec2(0.5);
+    gl_Position = vec4(position.x, position.y, 0, 1);
+}
 
 #endif
 
-#endif // MUTEX_H
+//--------------------------------------------------------------
+// image fragment shader
+//--------------------------------------------------------------
+#ifdef IMAGE_FRAGMENT_SHADER
+
+uniform sampler2D colorMap;
+uniform sampler2D depthMap;
+in vec2 outUV;
+out vec4 outColor;
+
+#ifdef BLUR
+#define NUM_BLUR_SAMPLES 7
+uniform vec2 Offsets[NUM_BLUR_SAMPLES];
+uniform float Weights[NUM_BLUR_SAMPLES];
+
+void main()
+{
+    outColor = vec4(0);
+    for (int i = 0; i < NUM_BLUR_SAMPLES; ++i) {
+        float w = Weights[i];
+        vec2 o = Offsets[i];
+        outColor += w * texture(colorMap, outUV + o);
+    }
+}
+#endif
+
+#ifdef HIPASS
+uniform float Threshold = 0.95;
+const vec3 Black = vec3(0, 0, 0);
+
+void main()
+{
+    vec3 c = texture(colorMap, outUV).rgb;
+    float gray = dot(c, c);
+    outColor = vec4(gray > Threshold ? c : Black, 1);
+}
+#endif
+
+#ifdef COMPOSITE
+uniform float alpha = 1.0;
+void main()
+{
+    outColor = alpha * texture(colorMap, outUV);
+}
+#endif
+
+#endif

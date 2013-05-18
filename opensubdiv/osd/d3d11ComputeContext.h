@@ -59,9 +59,9 @@
 
 #include "../version.h"
 
-#include "../far/table.h"
 #include "../far/vertexEditTables.h"
-#include "../osd/computeContext.h"
+#include "../osd/vertex.h"
+#include "../osd/nonCopyable.h"
 
 #include <D3D11.h>
 
@@ -77,32 +77,24 @@ namespace OPENSUBDIV_VERSION {
 
 class OsdD3D11ComputeKernelBundle;
 
-// ----------------------------------------------------------------------------
-
 class OsdD3D11ComputeTable : OsdNonCopyable<OsdD3D11ComputeTable> {
 public:
-    OsdD3D11ComputeTable(const FarTable<int> &farTable, ID3D11DeviceContext *deviceContext);
-    OsdD3D11ComputeTable(const FarTable<unsigned int> &farTable, ID3D11DeviceContext *deviceContext);
-    OsdD3D11ComputeTable(const FarTable<float> &farTable, ID3D11DeviceContext *deviceContext);
+    template<typename T>
+        OsdD3D11ComputeTable(const std::vector<T> &table, ID3D11DeviceContext *deviceContext, DXGI_FORMAT format) {
+        createBuffer((int)table.size() * sizeof(T), &table[0], format, (int)table.size(), deviceContext);
+    }
 
     virtual ~OsdD3D11ComputeTable();
 
     ID3D11Buffer * GetBuffer() const;
     ID3D11ShaderResourceView * GetSRV() const;
 
-    int GetMarker(int level) const;
-
-    int GetNumElements(int level) const;
-
 private:
     void createBuffer(int size, const void *ptr, DXGI_FORMAT format, int numElements, ID3D11DeviceContext *deviceContext);
 
     ID3D11Buffer * _buffer;
     ID3D11ShaderResourceView * _srv;
-    FarTableMarkers _marker;
 };
-
-// ----------------------------------------------------------------------------
 
 class OsdD3D11ComputeHEditTable : OsdNonCopyable<OsdD3D11ComputeHEditTable> {
 public:
@@ -130,14 +122,35 @@ private:
     int _primvarWidth;
 };
 
-// ----------------------------------------------------------------------------
-
-class OsdD3D11ComputeContext : public OsdComputeContext {
+///
+/// \brief D3D Refine Context
+///
+/// The D3D implementation of the Refine module contextual functionality. 
+///
+/// Contexts interface the serialized topological data pertaining to the 
+/// geometric primitives with the capabilities of the selected discrete 
+/// compute device.
+///
+class OsdD3D11ComputeContext : public OsdNonCopyable<OsdD3D11ComputeContext> {
 public:
-    static OsdD3D11ComputeContext * Create(FarMesh<OsdVertex> *farmesh, ID3D11DeviceContext *deviceContext);
+    /// Creates an OsdD3D11ComputeContext instance
+    ///
+    /// @param farmesh the FarMesh used for this Context.
+    ///
+    static OsdD3D11ComputeContext * Create(FarMesh<OsdVertex> *farmesh,
+                                           ID3D11DeviceContext *deviceContext);
 
+    /// Destructor
     virtual ~OsdD3D11ComputeContext();
 
+    /// Binds a vertex and a varying data buffers to the context. Binding ensures
+    /// that data buffers are properly inter-operated between Contexts and 
+    /// Controllers operating across multiple devices.
+    ///
+    /// @param a buffer containing vertex-interpolated primvar data
+    ///
+    /// @param a buffer containing varying-interpolated primvar data
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
 
@@ -150,6 +163,7 @@ public:
         bindShaderStorageBuffers();
     }
 
+    /// Unbinds any previously bound vertex and varying data buffers.
     void Unbind() {
         _currentVertexBufferUAV = 0;
         _currentVaryingBufferUAV = 0;
@@ -157,14 +171,25 @@ public:
         unbindShaderStorageBuffers();
     }
 
+    /// Returns one of the vertex refinement tables.
+    ///
+    /// @param tableIndex the type of table
+    ///
     const OsdD3D11ComputeTable * GetTable(int tableIndex) const;
 
+    /// Returns the number of hierarchical edit tables
     int GetNumEditTables() const;
 
+    /// Returns a specific hierarchical edit table
+    ///
+    /// @param tableIndex the index of the table
+    ///
     const OsdD3D11ComputeHEditTable * GetEditTable(int tableIndex) const;
 
+    /// Returns a handle to the vertex-interpolated buffer
     ID3D11UnorderedAccessView * GetCurrentVertexBufferUAV() const;
 
+    /// Returns a handle to the varying-interpolated buffer
     ID3D11UnorderedAccessView * GetCurrentVaryingBufferUAV() const;
 
     int GetNumCurrentVertexElements() const;
@@ -199,8 +224,8 @@ private:
     int _numVertexElements;
     int _numVaryingElements;
 
-    ID3D11UnorderedAccessView * _currentVertexBufferUAV;
-    ID3D11UnorderedAccessView * _currentVaryingBufferUAV;
+    ID3D11UnorderedAccessView * _currentVertexBufferUAV,
+                              * _currentVaryingBufferUAV;
 
     OsdD3D11ComputeKernelBundle * _kernelBundle;
 };

@@ -77,7 +77,7 @@ public:
     /// Destructor.
     virtual ~OsdCudaD3D11VertexBuffer();
 
-    void UpdateData(const float *src, int numVertices, void *param);
+    void UpdateData(const float *src, int startVertex, int numVertices, void *param);
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;

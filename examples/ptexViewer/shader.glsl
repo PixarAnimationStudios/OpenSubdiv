@@ -61,18 +61,19 @@
 //--------------------------------------------------------------
 uniform isamplerBuffer g_ptexIndicesBuffer;
 uniform int nonAdaptiveLevel;
+uniform float displacementScale = 1.0;
+uniform float bumpScale = 1.0;
 
 vec4 GeneratePatchCoord(vec2 localUV)  // for non-adpative
 {
-    ivec2 ptexIndex = texelFetch(g_ptexIndicesBuffer, gl_PrimitiveID).xy;
-    int faceID = abs(ptexIndex.x);
-    int lv = 1 << nonAdaptiveLevel;
-    if (ptexIndex.x < 0) lv >>= 1;
-
-    int u = ptexIndex.y >> 16;
-    int v = (ptexIndex.y & 0xffff);
+    ivec2 ptexIndex = texelFetchBuffer(g_ptexIndicesBuffer, gl_PrimitiveID).xy;
+    int faceID = ptexIndex.x;
+    int lv = 1 << (ptexIndex.y & 0xf);
+    int u = (ptexIndex.y >> 17) & 0x3ff;
+    int v = (ptexIndex.y >> 7) & 0x3ff;
     vec2 uv = localUV;
     uv = (uv * vec2(1.0)/lv) + vec2(u, v)/lv;
+    
     return vec4(uv.x, uv.y, lv+0.5, faceID+0.5);
 }
 
@@ -110,7 +111,7 @@ vec4 displacement(vec4 position, vec3 normal, vec4 patchCoord)
                             textureDisplace_Data,
                             textureDisplace_Packing,
                             textureDisplace_Pages).x;
-    return position + vec4(disp * normal, 0);
+    return position + vec4(disp * normal, 0) * displacementScale;
 }
 #endif
 
@@ -175,7 +176,7 @@ out block {
 
 // --------------------------------------
 
-void emit(int index, vec4 position, vec3 normal, vec4 patchCoord)
+void emit(vec4 position, vec3 normal, vec4 patchCoord)
 {
     output.v.position = position;
     output.v.patchCoord = patchCoord;
@@ -211,7 +212,7 @@ void emit(int index, vec4 position, vec3 normal, vec4 patchCoord, vec4 edgeVerts
         edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
 #endif
 
-    emit(index, position, normal, patchCoord);
+    emit(position, normal, patchCoord);
 }
 
 // --------------------------------------
@@ -276,10 +277,10 @@ void main()
     emit(3, position[3], normal[3], patchCoord[3], edgeVerts);
     emit(2, position[2], normal[2], patchCoord[2], edgeVerts);
 #else
-    emit(0, position[0], normal[0], patchCoord[0]);
-    emit(1, position[1], normal[1], patchCoord[1]);
-    emit(3, position[3], normal[3], patchCoord[3]);
-    emit(2, position[2], normal[2], patchCoord[2]);
+    emit(position[0], normal[0], patchCoord[0]);
+    emit(position[1], normal[1], patchCoord[1]);
+    emit(position[3], normal[3], patchCoord[3]);
+    emit(position[2], normal[2], patchCoord[2]);
 #endif
 #endif // PRIM_QUAD
 
@@ -329,9 +330,9 @@ void main()
     emit(1, position[1], normal[1], patchCoord[1], edgeVerts);
     emit(2, position[2], normal[2], patchCoord[2], edgeVerts);
 #else
-    emit(0, position[0], normal[0], patchCoord[0]);
-    emit(1, position[1], normal[1], patchCoord[1]);
-    emit(2, position[2], normal[2], patchCoord[2]);
+    emit(position[0], normal[0], patchCoord[0]);
+    emit(position[1], normal[1], patchCoord[1]);
+    emit(position[2], normal[2], patchCoord[2]);
 #endif
 #endif // PRIM_TRI
 
@@ -419,9 +420,9 @@ perturbNormalFromDisplacement(vec3 position, vec3 normal, vec4 patchCoord)
     vec4 STll = patchCoord;
     vec4 STlr = patchCoord + d * vec4(texDx.x, texDx.y, 0, 0);
     vec4 STul = patchCoord + d * vec4(texDy.x, texDy.y, 0, 0);
-    float Hll = PTexLookup(STll, textureDisplace_Data, textureDisplace_Packing, textureDisplace_Pages).x;
-    float Hlr = PTexLookup(STlr, textureDisplace_Data, textureDisplace_Packing, textureDisplace_Pages).x;
-    float Hul = PTexLookup(STul, textureDisplace_Data, textureDisplace_Packing, textureDisplace_Pages).x;
+    float Hll = PTexLookup(STll, textureDisplace_Data, textureDisplace_Packing, textureDisplace_Pages).x * bumpScale;
+    float Hlr = PTexLookup(STlr, textureDisplace_Data, textureDisplace_Packing, textureDisplace_Pages).x * bumpScale;
+    float Hul = PTexLookup(STul, textureDisplace_Data, textureDisplace_Packing, textureDisplace_Pages).x * bumpScale;
     float dBs = (Hlr - Hll)/d;
     float dBt = (Hul - Hll)/d;
 #endif
@@ -444,7 +445,7 @@ vec4 getEnvironmentHDR(sampler2D sampler, vec3 dir)
 }
 
 vec4
-lighting(vec3 Peye, vec3 Neye)
+lighting(vec4 texColor, vec3 Peye, vec3 Neye)
 {
     vec4 color = vec4(0);
 
@@ -469,11 +470,11 @@ lighting(vec3 Peye, vec3 Neye)
         vec3 h = normalize(l + vec3(0,0,1));    // directional viewer
 
         float d = max(0.0, dot(n, l));
-        float s = 0.0; //pow(max(0.0, dot(n, h)), 16.0f);
+        float s = pow(max(0.0, dot(n, h)), 64.0f);
 
         color += (1.0-occ) * ((lightSource[i].ambient +
-                               d * lightSource[i].diffuse +
-                               s * lightSource[i].specular));
+                               d * lightSource[i].diffuse) * texColor + 
+                              s * lightSource[i].specular);
     }
 
     color.a = 1;
@@ -529,7 +530,7 @@ main()
 
     if (overrideColorEnable) {
         texColor = overrideColor;
-        vec4 Cf = texColor * lighting(input.v.position.xyz, normal);
+        vec4 Cf = lighting(texColor, input.v.position.xyz, normal);
         outColor = edgeColor(Cf, input.v.edgeDistance);
         return;
     }
@@ -569,7 +570,7 @@ main()
 
     vec4 Cf = (a + d) * texColor + s * 0.5;
 #else
-    vec4 Cf = texColor * lighting(input.v.position.xyz, normal);
+    vec4 Cf = lighting(texColor, input.v.position.xyz, normal);
 #endif
 
     outColor = edgeColor(Cf, input.v.edgeDistance);

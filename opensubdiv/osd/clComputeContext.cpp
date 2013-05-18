@@ -55,34 +55,15 @@
 //     a particular purpose and non-infringement.
 //
 
+#include "../far/mesh.h"
 #include "../osd/clComputeContext.h"
-#include "../osd/clDispatcher.h"
 #include "../osd/clKernelBundle.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCLTable::OsdCLTable(const FarTable<int> &farTable, cl_context clContext)
-    : _devicePtr(NULL), _marker(farTable.GetMarkers()) {
-
-    createCLBuffer(farTable.GetMemoryUsed(), farTable[0], clContext);
-}
-
-OsdCLTable::OsdCLTable(const FarTable<unsigned int> &farTable,
-                       cl_context clContext)
-    : _devicePtr(NULL), _marker(farTable.GetMarkers()) {
-
-    createCLBuffer(farTable.GetMemoryUsed(), farTable[0], clContext);
-}
-
-OsdCLTable::OsdCLTable(const FarTable<float> &farTable, cl_context clContext)
-    : _devicePtr(NULL), _marker(farTable.GetMarkers()) {
-
-    createCLBuffer(farTable.GetMemoryUsed(), farTable[0], clContext);
-}
-
 void
-OsdCLTable::createCLBuffer(int size, const void *ptr, cl_context clContext)
+OsdCLTable::createCLBuffer(size_t size, const void *ptr, cl_context clContext)
 {
     cl_int ciErrNum;
     _devicePtr = clCreateBuffer(
@@ -99,18 +80,6 @@ cl_mem
 OsdCLTable::GetDevicePtr() const {
 
     return _devicePtr;
-}
-
-int
-OsdCLTable::GetMarker(int level) const {
-
-    return _marker[level];
-}
-
-int
-OsdCLTable::GetNumElements(int level) const {
-
-    return _marker[level+1] - _marker[level];
 }
 
 // -----------------------------------------------------------------------------
@@ -166,7 +135,7 @@ OsdCLHEditTable::GetPrimvarWidth() const {
 
 OsdCLComputeContext::OsdCLComputeContext(FarMesh<OsdVertex> *farMesh,
                                           cl_context clContext)
-    : OsdComputeContext(farMesh), _clQueue(NULL), _kernelBundle(NULL) {
+    : _clQueue(NULL), _kernelBundle(NULL) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
         farMesh->GetSubdivisionTables();
@@ -174,25 +143,15 @@ OsdCLComputeContext::OsdCLComputeContext(FarMesh<OsdVertex> *farMesh,
     // allocate 5 or 7 tables
     _tables.resize(farTables->GetNumTables(), 0);
 
-    _tables[Table::E_IT]  = new OsdCLTable(farTables->Get_E_IT(), clContext);
-    _tables[Table::V_IT]  = new OsdCLTable(farTables->Get_V_IT(), clContext);
-    _tables[Table::V_ITa] = new OsdCLTable(farTables->Get_V_ITa(), clContext);
-    _tables[Table::E_W]   = new OsdCLTable(farTables->Get_E_W(), clContext);
-    _tables[Table::V_W]   = new OsdCLTable(farTables->Get_V_W(), clContext);
+    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdCLTable(farTables->Get_E_IT(), clContext);
+    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdCLTable(farTables->Get_V_IT(), clContext);
+    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdCLTable(farTables->Get_V_ITa(), clContext);
+    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdCLTable(farTables->Get_E_W(), clContext);
+    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdCLTable(farTables->Get_V_W(), clContext);
 
-    if (const FarCatmarkSubdivisionTables<OsdVertex> * ccTables =
-         dynamic_cast<const FarCatmarkSubdivisionTables<OsdVertex>*>(farTables)) {
-
-        // catmark
-        _tables[Table::F_IT]  = new OsdCLTable(ccTables->Get_F_IT(), clContext);
-        _tables[Table::F_ITa] = new OsdCLTable(ccTables->Get_F_ITa(), clContext);
-
-    } else if (const FarBilinearSubdivisionTables<OsdVertex> * bTables =
-                dynamic_cast<const FarBilinearSubdivisionTables<OsdVertex>*>(farTables)) {
-
-        // bilinear
-        _tables[Table::F_IT]  = new OsdCLTable(bTables->Get_F_IT(), clContext);
-        _tables[Table::F_ITa] = new OsdCLTable(bTables->Get_F_ITa(), clContext);
+    if (farTables->GetNumTables() > 5) {
+        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdCLTable(farTables->Get_F_IT(), clContext);
+        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdCLTable(farTables->Get_F_ITa(), clContext);
     }
 
     // create hedit tables

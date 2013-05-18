@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * catmark_rook =
+static const std::string catmark_rook = std::string(
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "v 2.960378 -1.741258 0.020000\n"
@@ -997,6 +997,7 @@ static char const * catmark_rook =
 "f 212/212/212 189/189/189 188/188/188 211/211/211\n"
 "f 190/190/190 189/189/189 212/212/212 213/213/213\n"
 "f 214/214/214 191/191/191 190/190/190 213/213/213\n"
+    ) + std::string(
 "f 215/215/215 192/192/192 191/191/191 214/214/214\n"
 "f 216/216/216 193/193/193 192/192/192 215/215/215\n"
 "f 217/217/217 194/194/194 193/193/193 216/216/216\n"
@@ -1882,4 +1883,4 @@ static char const * catmark_rook =
 "t crease 2/1/0 657 658 7.900000 \n"
 "t crease 2/1/0 631 656 7.900000 \n"
 "t crease 2/1/0 628 629 7.900000 \n"
-;
+);

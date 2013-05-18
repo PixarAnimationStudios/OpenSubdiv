@@ -69,18 +69,15 @@
 
 #include "osdMeshData.h"
 
-#include <osd/cpuDispatcher.h>
 #include <osd/cpuComputeController.h>
 extern OpenSubdiv::OsdCpuComputeController * g_cpuComputeController;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-#include <osd/ompDispatcher.h>
 #include <osd/ompComputeController.h>
 extern OpenSubdiv::OsdOmpComputeController * g_ompComputeController;
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-#include <osd/clDispatcher.h>
 #include <osd/clComputeController.h>
 extern cl_context g_clContext;
 extern cl_command_queue g_clQueue;
@@ -88,7 +85,6 @@ extern OpenSubdiv::OsdCLComputeController * g_clComputeController;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-#include <osd/cudaDispatcher.h>
 #include <osd/cudaComputeController.h>
 extern OpenSubdiv::OsdCudaComputeController * g_cudaComputeController;
 #endif
@@ -400,7 +396,7 @@ OsdMeshData::updateGeometry(const MHWRender::MVertexBuffer *points)
         // XXX: should reconsider update API to be able to populate directly
         float *buffer = new float[nCoarsePoints*3];
         glGetBufferSubData(GL_COPY_READ_BUFFER, 0, size, buffer);
-        _mesh->UpdateVertexBuffer(buffer, nCoarsePoints);
+        _mesh->UpdateVertexBuffer(buffer, 0, nCoarsePoints);
         delete[] buffer;
     } else {
         glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, size);

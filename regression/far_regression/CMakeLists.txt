@@ -70,3 +70,5 @@ add_executable(far_regression
 
 target_link_libraries(far_regression)
 
+install(TARGETS far_regression DESTINATION ${CMAKE_BINDIR_BASE})
+

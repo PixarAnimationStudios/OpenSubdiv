@@ -90,14 +90,13 @@ OsdCLD3D11VertexBuffer::Create(int numElements, int numVertices,
 }
 
 void
-OsdCLD3D11VertexBuffer::UpdateData(const float *src, int numVertices, void *param) {
+OsdCLD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue queue) {
 
-    cl_command_queue queue = *(cl_command_queue*)param;
-
-    size_t size = _numVertices * _numElements * sizeof(float);
+    size_t size = numVertices * _numElements * sizeof(float);
+    size_t offset = startVertex * _numElements * sizeof(float);
 
     map(queue);
-    clEnqueueWriteBuffer(queue, _clMemory, true, 0, size, src, 0, NULL, NULL);
+    clEnqueueWriteBuffer(queue, _clMemory, true, offset, size, src, 0, NULL, NULL);
 }
 
 cl_mem

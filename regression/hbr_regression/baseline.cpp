@@ -59,8 +59,6 @@
 #include <typeinfo>
 #include <iostream>
 
-#include "../common/mutex.h"
-
 #include <hbr/mesh.h>
 #include <hbr/face.h>
 #include <hbr/vertex.h>
@@ -148,13 +146,13 @@ static void generate( char const * shapeStr, char const * name, int levels, Sche
     
     xyzmesh * mesh = simpleHbr<xyzVV>(shapeStr, scheme, 0);
     
-    int nvf = 4;
-    if ( typeid(*(mesh->GetSubdivision())) ==
-        typeid( OpenSubdiv::HbrLoopSubdivision<xyzVV>) )
-        nvf = 3;
+    //int nvf = 4;
+    //if ( typeid(*(mesh->GetSubdivision())) ==
+    //    typeid( OpenSubdiv::HbrLoopSubdivision<xyzVV>) )
+    //    nvf = 3;
     
-    int firstface=0, lastface=mesh->GetNumFaces(), nfaces,
-        firstvert=0, lastvert=mesh->GetNumVertices(), nverts;
+    int firstface=0, lastface=mesh->GetNumFaces(),
+        firstvert=0, lastvert=mesh->GetNumVertices();
     
     for (int l=0; l<levels; ++l ) {
     
@@ -177,11 +175,11 @@ static void generate( char const * shapeStr, char const * name, int levels, Sche
         
         firstface = lastface;
         lastface = mesh->GetNumFaces();
-        nfaces = lastface - firstface;
+        //nfaces = lastface - firstface;
 
         firstvert = lastvert;
         lastvert = mesh->GetNumVertices();
-        nverts = lastvert - firstvert;
+        //nverts = lastvert - firstvert;
 
         //fprintf(handle, "static char const * %s = \n", fname.str().c_str());
         fprintf(handle, "# This file uses centimeters as units for non-parametric coordinates.\n");
@@ -262,7 +260,10 @@ static void parseArgs(int argc, char ** argv) {
                 exit(0);
             }
         } else {
-            g_objfile = argv[++i];
+            if (i<(argc=1))
+                g_objfile = argv[++i];
+            else
+                usage(argv[0]);
         }
     }
 }

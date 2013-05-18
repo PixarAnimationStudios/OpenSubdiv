@@ -80,26 +80,22 @@
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
 
-#include <osd/cpuDispatcher.h>
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
 #include <osd/cpuComputeController.h>
 OpenSubdiv::OsdCpuComputeController *g_cpuComputeController = NULL;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-    #include <osd/ompDispatcher.h>
     #include <osd/ompComputeController.h>
     OpenSubdiv::OsdOmpComputeController *g_ompComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GCD
-    #include <osd/gcdDispatcher.h>
     #include <osd/gcdComputeController.h>
     OpenSubdiv::OsdGcdComputeController *g_gcdComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    #include <osd/clDispatcher.h>
     #include <osd/clGLVertexBuffer.h>
     #include <osd/clComputeContext.h>
     #include <osd/clComputeController.h>
@@ -112,7 +108,6 @@ OpenSubdiv::OsdCpuComputeController *g_cpuComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-    #include <osd/cudaDispatcher.h>
     #include <osd/cudaGLVertexBuffer.h>
     #include <osd/cudaComputeContext.h>
     #include <osd/cudaComputeController.h>
@@ -127,7 +122,6 @@ OpenSubdiv::OsdCpuComputeController *g_cpuComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    #include <osd/glslTransformFeedbackDispatcher.h>
     #include <osd/glslTransformFeedbackComputeContext.h>
     #include <osd/glslTransformFeedbackComputeController.h>
     #include <osd/glVertexBuffer.h>
@@ -135,7 +129,6 @@ OpenSubdiv::OsdCpuComputeController *g_cpuComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    #include <osd/glslDispatcher.h>
     #include <osd/glslComputeContext.h>
     #include <osd/glslComputeController.h>
     #include <osd/glVertexBuffer.h>
@@ -179,10 +172,10 @@ enum KernelType { kCPU = 0,
 struct SimpleShape {
     std::string  name;
     Scheme       scheme;
-    char const * data;
+    std::string  data;
 
     SimpleShape() { }
-    SimpleShape( char const * idata, char const * iname, Scheme ischeme )
+    SimpleShape( std::string const & idata, char const * iname, Scheme ischeme )
         : name(iname), scheme(ischeme), data(idata) { }
 };
 
@@ -452,16 +445,11 @@ initializeShapes( ) {
 #include <shapes/catmark_square_hedit4.h>
     g_defaultShapes.push_back(SimpleShape(catmark_square_hedit4, "catmark_square_hedit4", kCatmark));
 
-
-#ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_bishop.h>
     g_defaultShapes.push_back(SimpleShape(catmark_bishop, "catmark_bishop", kCatmark));
-#endif
 
-#ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_car.h>
     g_defaultShapes.push_back(SimpleShape(catmark_car, "catmark_car", kCatmark));
-#endif
 
 #include <shapes/catmark_helmet.h>
     g_defaultShapes.push_back(SimpleShape(catmark_helmet, "catmark_helmet", kCatmark));
@@ -469,11 +457,8 @@ initializeShapes( ) {
 #include <shapes/catmark_pawn.h>
     g_defaultShapes.push_back(SimpleShape(catmark_pawn, "catmark_pawn", kCatmark));
 
-#ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_rook.h>
     g_defaultShapes.push_back(SimpleShape(catmark_rook, "catmark_rook", kCatmark));
-#endif
-
 
 #include <shapes/bilinear_cube.h>
     g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
@@ -571,7 +556,7 @@ updateGeom() {
         n += 3;
     }
 
-    g_mesh->UpdateVertexBuffer(&vertex[0], nverts);
+    g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
 
     Stopwatch s;
     s.Start();
@@ -611,11 +596,11 @@ getKernelName(int kernel) {
 
 //------------------------------------------------------------------------------
 static void
-createOsdMesh( const char * shape, int level, int kernel, Scheme scheme=kCatmark ) {
+createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kCatmark ) {
 
     checkGLErrors("create osd enter");
     // generate Hbr representation from "obj" description
-    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, g_orgPositions);
+    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape.c_str(), scheme, g_orgPositions);
 
     g_normals.resize(g_orgPositions.size(),0.0f);
     g_positions.resize(g_orgPositions.size(),0.0f);
@@ -1117,13 +1102,9 @@ bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
     // Update and bind tessellation state
     struct Tessellation {
         float TessLevel;
-        int GregoryQuadOffsetBase;
-        int LevelBase;
     } tessellationData;
 
     tessellationData.TessLevel = static_cast<float>(1 << g_tessLevel);
-    tessellationData.GregoryQuadOffsetBase = patch.gregoryQuadOffsetBase;
-    tessellationData.LevelBase = patch.levelBase;
 
     if (! g_tessellationUB) {
         glGenBuffers(1, &g_tessellationUB);
@@ -1261,13 +1242,13 @@ display() {
 
         if (patch.desc.subpatch == 0) {
             if (patchType == OpenSubdiv::kTransitionRegular)
-                transitionPatchTypeCount[0][patchPattern][patchRotation] += patch.numIndices / patch.patchSize;
+                transitionPatchTypeCount[0][patchPattern][patchRotation] += patch.numIndices / patch.desc.GetPatchSize();
             else if (patchType == OpenSubdiv::kTransitionBoundary)
-                transitionPatchTypeCount[1][patchPattern][patchRotation] += patch.numIndices / patch.patchSize;
+                transitionPatchTypeCount[1][patchPattern][patchRotation] += patch.numIndices / patch.desc.GetPatchSize();
             else if (patchType == OpenSubdiv::kTransitionBoundary)
-                transitionPatchTypeCount[2][patchPattern][patchRotation] += patch.numIndices / patch.patchSize;
+                transitionPatchTypeCount[2][patchPattern][patchRotation] += patch.numIndices / patch.desc.GetPatchSize();
             else
-                patchTypeCount[patchType] += patch.numIndices / patch.patchSize;
+                patchTypeCount[patchType] += patch.numIndices / patch.desc.GetPatchSize();
         }
 
         GLenum primType;
@@ -1275,7 +1256,7 @@ display() {
         if (g_mesh->GetDrawContext()->IsAdaptive()) {
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
             primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, patch.patchSize);
+            glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
 #endif
 
         } else {
@@ -1340,6 +1321,10 @@ display() {
         } else {
             glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
         }
+        GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
+        GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
+        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.gregoryQuadOffsetBase);
+        glProgramUniform1i(program, uniformLevelBase, patch.levelBase);
 #else
         bindProgram(GetEffect(), patch);
 #endif
@@ -1438,7 +1423,8 @@ display() {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-motion(GLFWwindow *, int x, int y) {
+motion(GLFWwindow *, double dx, double dy) {
+    int x=(int)dx, y=(int)dy;
 #else
 motion(int x, int y) {
 #endif
@@ -1538,13 +1524,15 @@ reshape(int width, int height) {
 
 //------------------------------------------------------------------------------
 #if GLFW_VERSION_MAJOR>=3
-int windowClose(GLFWwindow*) {
+void windowClose(GLFWwindow*) {
+    g_running = false;
+}
 #else
 int windowClose() {
-#endif
     g_running = false;
     return GL_TRUE;
 }
+#endif
 
 //------------------------------------------------------------------------------
 static void 

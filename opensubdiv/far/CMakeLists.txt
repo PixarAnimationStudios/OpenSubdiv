@@ -61,19 +61,21 @@ set(PUBLIC_HEADER_FILES
     catmarkSubdivisionTables.h
     catmarkSubdivisionTablesFactory.h
     dispatcher.h
+    kernelBatch.h
+    kernelBatchFactory.h
     loopSubdivisionTables.h
     loopSubdivisionTablesFactory.h
     meshFactory.h
     mesh.h
+    multiMeshFactory.h
     patchTables.h
     patchTablesFactory.h
     subdivisionTables.h
     subdivisionTablesFactory.h
-    table.h
     vertexEditTables.h
     vertexEditTablesFactory.h
 )    
 
 install( FILES ${PUBLIC_HEADER_FILES}
-         DESTINATION include/far
+         DESTINATION ${CMAKE_INCDIR_BASE}/far
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )

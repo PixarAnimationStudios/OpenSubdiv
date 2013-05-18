@@ -59,70 +59,16 @@
 #define OSD_DRAW_CONTEXT_H
 
 #include "../version.h"
+#include "../osd/patch.h"
 
 #include <utility>
 #include <string>
-#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-////////////////////////////////////////////////////////////
-
-enum OsdPatchType {
-    kNonPatch = 0,
-
-    kRegular = 1,
-    kBoundary = 2,
-    kCorner = 3,
-    kGregory = 4,
-    kBoundaryGregory = 5,
-
-    kTransitionRegular = 6,
-    kTransitionBoundary = 7,
-    kTransitionCorner = 8,
-};
-
-struct OsdPatchDescriptor {
-    OsdPatchDescriptor() :
-        type(kNonPatch), pattern(0), rotation(0), subpatch(0),
-        maxValence(0), numElements(0) {}
-
-    OsdPatchDescriptor(
-        OsdPatchType type,
-        unsigned char pattern,
-        unsigned char rotation,
-        unsigned char maxValence,
-        unsigned char numElements) :
-        type(type), pattern(pattern), rotation(rotation), subpatch(0),
-        maxValence(maxValence), numElements(numElements) {}
-
-    OsdPatchType type:4;         //  0-8
-    unsigned char pattern:3;     //  0-4
-    unsigned char rotation:2;    //  0-3
-    unsigned char subpatch:2;    //  0-3
-    unsigned char maxValence:5;  //  0-29
-    unsigned char numElements:5; //  0-31
-};
-
-bool operator< (OsdPatchDescriptor const & a,
-                OsdPatchDescriptor const & b);
-
-
-struct OsdPatchArray {
-    OsdPatchDescriptor desc;
-    int patchSize;
-    int firstIndex;
-    int numIndices;
-    int levelBase;
-    int gregoryQuadOffsetBase;
-};
-
-typedef std::vector<OsdPatchArray> OsdPatchArrayVector;
-
-////////////////////////////////////////////////////////////
-
-struct OsdDrawContext {
+class OsdDrawContext {
+public:
     OsdDrawContext() : isAdaptive(false) {}
     virtual ~OsdDrawContext();
 
@@ -130,6 +76,7 @@ struct OsdDrawContext {
 
     OsdPatchArrayVector patchArrays;
     bool isAdaptive;
+
 };
 
 } // end namespace OPENSUBDIV_VERSION

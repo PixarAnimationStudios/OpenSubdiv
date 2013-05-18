@@ -39,8 +39,8 @@ setGLCoreProfile()
 
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
@@ -67,13 +67,15 @@ reshape(int width, int height) {
 }
 
 #if GLFW_VERSION_MAJOR>=3
-int windowClose(GLFWwindow*) {
+void windowClose(GLFWwindow*) {
+    g_running = false;
+}
 #else
 int windowClose() {
-#endif
     g_running = false;
     return GL_TRUE;
 }
+#endif
 
 // 
 // Idle is called between frames, here we advance the frame number and update

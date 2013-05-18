@@ -116,11 +116,6 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         int level = tables->GetMaxLevel();
         const std::vector<int> &indices = farMesh->GetFaceVertices(level-1);
 
-        // XXX: farmesh or FarSubdivisionTables should have a virtual method
-        // to determine loop or not
-        bool loop =
-            dynamic_cast<const FarLoopSubdivisionTables<OsdVertex>*>(tables) != NULL;
-
         int numIndices = (int)indices.size();
 
         // Allocate and fill index buffer.
@@ -140,7 +135,7 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
 
         OsdPatchArray array;
         array.desc.type = kNonPatch;
-        array.patchSize = loop ? 3 : 4;
+        array.desc.loop = dynamic_cast<const FarLoopSubdivisionTables<OsdVertex>*>(tables) != NULL;
         array.firstIndex = 0;
         array.numIndices = numIndices;
 
@@ -151,38 +146,9 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     // adaptive patches
     isAdaptive = true;
 
-    // Determine buffer sizes
-    int totalPatchIndices = 
-        patchTables->GetFullRegularPatches().GetSize() +
-        patchTables->GetFullBoundaryPatches().GetSize() +
-        patchTables->GetFullCornerPatches().GetSize() +
-        patchTables->GetFullGregoryPatches().GetSize() +
-        patchTables->GetFullBoundaryGregoryPatches().GetSize();
-
-    int totalPatchLevels =
-        patchTables->GetFullRegularPatches().GetSize()/patchTables->GetRegularPatchRingsize() +
-        patchTables->GetFullBoundaryPatches().GetSize()/patchTables->GetBoundaryPatchRingsize() +
-        patchTables->GetFullCornerPatches().GetSize()/patchTables->GetCornerPatchRingsize() +
-        patchTables->GetFullGregoryPatches().GetSize()/patchTables->GetGregoryPatchRingsize() +
-        patchTables->GetFullBoundaryGregoryPatches().GetSize()/patchTables->GetGregoryPatchRingsize();
-
-    for (int p=0; p<5; ++p) {
-        totalPatchIndices +=
-            patchTables->GetTransitionRegularPatches(p).GetSize();
-
-        totalPatchLevels +=
-            patchTables->GetTransitionRegularPatches(p).GetSize()/patchTables->GetRegularPatchRingsize();
-
-        for (int r=0; r<4; ++r) {
-            totalPatchIndices +=
-                patchTables->GetTransitionBoundaryPatches(p, r).GetSize() +
-                patchTables->GetTransitionCornerPatches(p, r).GetSize();
-
-            totalPatchLevels +=
-                patchTables->GetTransitionBoundaryPatches(p, r).GetSize()/patchTables->GetBoundaryPatchRingsize() +
-                patchTables->GetTransitionCornerPatches(p, r).GetSize()/patchTables->GetCornerPatchRingsize();
-        }
-    }
+    int totalPatchIndices = (int)patchTables->GetNumControlVertices();
+    
+    int totalPatchLevels = (int)patchTables->GetNumPatches();
 
     // Allocate and fill index buffer.
     D3D11_BUFFER_DESC bd;
@@ -239,7 +205,6 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     _AppendPatchArray(indexBuffer, &indexBase,
                         levelBuffer, &levelBase,
                         patchTables->GetFullRegularPatches(),
-                        patchTables->GetRegularPatchRingsize(),
                         patchTables->GetFullRegularPtexCoordinates(),
                         patchTables->GetFullRegularFVarData(),
                         farMesh->GetTotalFVarWidth(),
@@ -247,7 +212,6 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     _AppendPatchArray(indexBuffer, &indexBase,
                         levelBuffer, &levelBase,
                         patchTables->GetFullBoundaryPatches(),
-                        patchTables->GetBoundaryPatchRingsize(),
                         patchTables->GetFullBoundaryPtexCoordinates(),
                         patchTables->GetFullBoundaryFVarData(),
                         farMesh->GetTotalFVarWidth(),
@@ -255,7 +219,6 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     _AppendPatchArray(indexBuffer, &indexBase,
                         levelBuffer, &levelBase,
                         patchTables->GetFullCornerPatches(),
-                        patchTables->GetCornerPatchRingsize(),
                         patchTables->GetFullCornerPtexCoordinates(),
                         patchTables->GetFullCornerFVarData(),
                         farMesh->GetTotalFVarWidth(),
@@ -263,7 +226,6 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     _AppendPatchArray(indexBuffer, &indexBase,
                         levelBuffer, &levelBase,
                         patchTables->GetFullGregoryPatches(),
-                        patchTables->GetGregoryPatchRingsize(),
                         patchTables->GetFullGregoryPtexCoordinates(),
                         patchTables->GetFullGregoryFVarData(),
                         farMesh->GetTotalFVarWidth(),
@@ -272,19 +234,17 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     _AppendPatchArray(indexBuffer, &indexBase,
                         levelBuffer, &levelBase,
                         patchTables->GetFullBoundaryGregoryPatches(),
-                        patchTables->GetGregoryPatchRingsize(),
                         patchTables->GetFullBoundaryGregoryPtexCoordinates(),
                         patchTables->GetFullBoundaryGregoryFVarData(),
                         farMesh->GetTotalFVarWidth(),
                         OsdPatchDescriptor(kBoundaryGregory, 0, 0,
                                            maxValence, numElements),
-                        (int)patchTables->GetFullGregoryPatches().GetSize());
+                        (int)patchTables->GetFullGregoryPatches().first.size());
 
     for (int p=0; p<5; ++p) {
         _AppendPatchArray(indexBuffer, &indexBase,
                         levelBuffer, &levelBase,
                         patchTables->GetTransitionRegularPatches(p),
-                        patchTables->GetRegularPatchRingsize(),
                         patchTables->GetTransitionRegularPtexCoordinates(p),
                         patchTables->GetTransitionRegularFVarData(p),
                         farMesh->GetTotalFVarWidth(),
@@ -293,7 +253,6 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
             _AppendPatchArray(indexBuffer, &indexBase,
                         levelBuffer, &levelBase,
                         patchTables->GetTransitionBoundaryPatches(p, r),
-                        patchTables->GetBoundaryPatchRingsize(),
                         patchTables->GetTransitionBoundaryPtexCoordinates(p, r),
                         patchTables->GetTransitionBoundaryFVarData(p, r),
                         farMesh->GetTotalFVarWidth(),
@@ -301,7 +260,6 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
             _AppendPatchArray(indexBuffer, &indexBase,
                         levelBuffer, &levelBase,
                         patchTables->GetTransitionCornerPatches(p, r),
-                        patchTables->GetCornerPatchRingsize(),
                         patchTables->GetTransitionCornerPtexCoordinates(p, r),
                         patchTables->GetTransitionCornerFVarData(p, r),
                         farMesh->GetTotalFVarWidth(),
@@ -390,21 +348,20 @@ void
 OsdD3D11DrawContext::_AppendPatchArray(
         unsigned int *indexBuffer, int *indexBase,
         unsigned int *levelBuffer, int *levelBase,
-        FarPatchTables::PTable const & ptable, int patchSize,
+        FarPatchTables::PTable const & ptable,
         FarPatchTables::PtexCoordinateTable const & ptexTable,
         FarPatchTables::FVarDataTable const & fvarTable, int fvarDataWidth,
         OsdPatchDescriptor const & desc,
         int gregoryQuadOffsetBase)
 {
-    if (ptable.IsEmpty()) {
+    if (ptable.first.empty()) {
         return;
     } 
 
     OsdPatchArray array;
     array.desc = desc;
-    array.patchSize = patchSize;
     array.firstIndex = *indexBase;
-    array.numIndices = ptable.GetSize();
+    array.numIndices = (int)ptable.first.size();
     array.levelBase = *levelBase;
     array.gregoryQuadOffsetBase = gregoryQuadOffsetBase;
 
@@ -422,21 +379,16 @@ OsdD3D11DrawContext::_AppendPatchArray(
     }
 
     memcpy(indexBuffer + array.firstIndex,
-           ptable[0], array.numIndices * sizeof(unsigned int));
+           &ptable.first[0], array.numIndices * sizeof(unsigned int));
     *indexBase += array.numIndices;
 
-    std::vector<unsigned int> levels;
-    levels.reserve(ptable.GetSize());
-    for (int i = 0; i < (int) ptable.GetMarkers().size()-1; ++i) {
-        int numPrims = ptable.GetNumElements(i)/array.patchSize;
-        for (int j = 0; j < numPrims; ++j) {
-            levels.push_back(i);
-        }
-    }
+    int numElements = array.numIndices/array.desc.GetPatchSize();
+    assert(numElements == (int)ptable.second.size());
 
     memcpy(levelBuffer + array.levelBase,
-           &levels[0], levels.size() * sizeof(unsigned int));
-    *levelBase += (int)levels.size();
+           &ptable.second[0], numElements * sizeof(unsigned char));
+
+    *levelBase += numElements;
 }
 
 } // end namespace OPENSUBDIV_VERSION

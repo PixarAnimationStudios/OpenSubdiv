@@ -109,13 +109,15 @@ shim::Subdivider::setCoarseVertices(const HeterogeneousBuffer& cage)
 {
     float* pFloats = (float*) &cage.Buffer[0];
     int numFloats = cage.Buffer.size() / sizeof(float);
-    self->vertexBuffer->UpdateData(pFloats, numFloats);
+    self->vertexBuffer->UpdateData(pFloats, /*start vertex*/ 0, numFloats);
 }
 
 void
 shim::Subdivider::refine()
 {
-    g_osdComputeController->Refine(self->computeContext, self->vertexBuffer);
+    g_osdComputeController->Refine(self->computeContext,
+                                   self->farMesh->GetKernelBatches(),
+                                   self->vertexBuffer);
 }
 
 void

@@ -54,80 +54,26 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_CUDA_DISPATCHER_H
-#define OSD_CUDA_DISPATCHER_H
-
-#include "../version.h"
-
-#include "../osd/vertex.h"
-#include "../far/dispatcher.h"
-
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
-
-class OsdCudaComputeContext;
-
-class OsdCudaKernelDispatcher : public FarDispatcher<OsdVertex> {
-public:
-    OsdCudaKernelDispatcher();
-    virtual ~OsdCudaKernelDispatcher();
-
-    void Refine(FarMesh<OsdVertex> * mesh, OsdCudaComputeContext *context);
-
-    static OsdCudaKernelDispatcher * GetInstance();
-
-protected:
-    virtual void ApplyBilinearFaceVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyBilinearEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyBilinearVertexVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-
-    virtual void ApplyCatmarkFaceVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelB(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyCatmarkVertexVerticesKernelA(
-        FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
-        int start, int end, void * clientdata) const;
-
-
-    virtual void ApplyLoopEdgeVerticesKernel(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyLoopVertexVerticesKernelB(
-        FarMesh<OsdVertex> * mesh, int offset, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyLoopVertexVerticesKernelA(
-        FarMesh<OsdVertex> * mesh, int offset, bool pass, int level,
-        int start, int end, void * clientdata) const;
-
-    virtual void ApplyVertexEdits(
-        FarMesh<OsdVertex> *mesh, int offset, int level,
-        void * clientdata) const;
-
-};
-
-}  // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
-}  // end namespace OpenSubdiv
-
-#endif  // OSD_CUDA_DISPATCHER_H
+static const std::string catmark_flap =
+"# This file uses centimeters as units for non-parametric coordinates.\n"
+"v -0.110026 1.92157 -1.57017 \n"
+"v -0.0688233 1.81063 -1.5982 \n"
+"v -1.39787e-007 1.79114 -1.57387 \n"
+"v -4.40002e-018 1.90219 -1.54412 \n"
+"v 0.0688228 1.81062 -1.5983 \n"
+"v 0.0765256 1.82442 -1.71797 \n"
+"v 0.110026 1.9216 -1.57025 \n"
+"v 0.119883 1.95726 -1.70576 \n"
+"vt 0.805211 0.695402 \n"
+"vt 0.817349 0.720173 \n"
+"vt 0.912184 0.729578 \n"
+"vt 0.928781 0.70908 \n"
+"vt 0.898818 0.720746 \n"
+"vt 0.876799 0.716673 \n"
+"vt 0.909555 0.697071 \n"
+"vt 0.884052 0.693003 \n"
+"f 4/4 3/3 5/5 7/7 \n"
+"f 7/7 5/5 6/6 8/8 \n"
+"f 2/2 3/3 4/4 1/1 \n"
+"\n"
+;

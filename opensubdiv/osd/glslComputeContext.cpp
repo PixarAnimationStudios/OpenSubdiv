@@ -71,40 +71,22 @@
     #include <GL/glew.h>
 #endif
 
+#include "../far/mesh.h"
 #include "../osd/debug.h"
 #include "../osd/error.h"
 #include "../osd/glslComputeContext.h"
-#include "../osd/glslDispatcher.h"
 #include "../osd/glslKernelBundle.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdGLSLComputeTable::OsdGLSLComputeTable(const FarTable<int> &farTable)
-    : _buffer(0), _marker(farTable.GetMarkers()) {
-
-    createBuffer(farTable.GetMemoryUsed(), farTable[0]);
-}
-
-OsdGLSLComputeTable::OsdGLSLComputeTable(const FarTable<unsigned int> &farTable)
-    : _buffer(0), _marker(farTable.GetMarkers()) {
-
-    createBuffer(farTable.GetMemoryUsed(), farTable[0]);
-}
-
-OsdGLSLComputeTable::OsdGLSLComputeTable(const FarTable<float> &farTable)
-    : _buffer(0), _marker(farTable.GetMarkers()) {
-
-    createBuffer(farTable.GetMemoryUsed(), farTable[0]);
-}
-
 void
-OsdGLSLComputeTable::createBuffer(int size, const void *ptr) {
+OsdGLSLComputeTable::createBuffer(size_t size, const void *ptr) {
 
     GLint prev = 0;
-    glGenBuffers(1, &_buffer);
+    glGenBuffers(1, &_devicePtr);
     glGetIntegerv(GL_SHADER_STORAGE_BUFFER_BINDING, &prev);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, _buffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, _devicePtr);
     glBufferData(GL_SHADER_STORAGE_BUFFER, size, ptr, GL_STATIC_DRAW);
 /*
   CHECK_GL_ERROR("UpdateTable tableIndex %d, size %ld, buffer =%d\n",
@@ -115,25 +97,13 @@ OsdGLSLComputeTable::createBuffer(int size, const void *ptr) {
 
 OsdGLSLComputeTable::~OsdGLSLComputeTable() {
 
-    glDeleteBuffers(1, &_buffer);
+    glDeleteBuffers(1, &_devicePtr);
 }
 
 GLuint
 OsdGLSLComputeTable::GetBuffer() const {
 
-    return _buffer;
-}
-
-int
-OsdGLSLComputeTable::GetMarker(int level) const {
-
-    return _marker[level];
-}
-
-int
-OsdGLSLComputeTable::GetNumElements(int level) const {
-
-    return _marker[level+1] - _marker[level];
+    return _devicePtr;
 }
 
 // ----------------------------------------------------------------------------
@@ -188,8 +158,7 @@ OsdGLSLComputeHEditTable::GetPrimvarWidth() const {
 
 OsdGLSLComputeContext::OsdGLSLComputeContext(
     FarMesh<OsdVertex> *farMesh)
-    : OsdComputeContext(farMesh),
-      _vertexTexture(0), _varyingTexture(0) {
+    : _vertexTexture(0), _varyingTexture(0) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
         farMesh->GetSubdivisionTables();
@@ -200,27 +169,20 @@ OsdGLSLComputeContext::OsdGLSLComputeContext(
     // bindShaderStorageBuffer()...
     _tables.resize(7, 0);
 
-    _tables[Table::E_IT]  = new OsdGLSLComputeTable(farTables->Get_E_IT());
-    _tables[Table::V_IT]  = new OsdGLSLComputeTable(farTables->Get_V_IT());
-    _tables[Table::V_ITa] = new OsdGLSLComputeTable(farTables->Get_V_ITa());
-    _tables[Table::E_W]   = new OsdGLSLComputeTable(farTables->Get_E_W());
-    _tables[Table::V_W]   = new OsdGLSLComputeTable(farTables->Get_V_W());
+    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdGLSLComputeTable(farTables->Get_E_IT());
+    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdGLSLComputeTable(farTables->Get_V_IT());
+    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdGLSLComputeTable(farTables->Get_V_ITa());
+    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdGLSLComputeTable(farTables->Get_E_W());
+    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdGLSLComputeTable(farTables->Get_V_W());
 
-    if (const FarCatmarkSubdivisionTables<OsdVertex> * ccTables =
-         dynamic_cast<const FarCatmarkSubdivisionTables<OsdVertex>*>(farTables)) {
-
-        // catmark
-        _tables[Table::F_IT]  = new OsdGLSLComputeTable(ccTables->Get_F_IT());
-        _tables[Table::F_ITa] = new OsdGLSLComputeTable(ccTables->Get_F_ITa());
-    } else if (const FarBilinearSubdivisionTables<OsdVertex> * bTables =
-                dynamic_cast<const FarBilinearSubdivisionTables<OsdVertex>*>(farTables)) {
-
-        // bilinear
-        _tables[Table::F_IT]  = new OsdGLSLComputeTable(bTables->Get_F_IT());
-        _tables[Table::F_ITa] = new OsdGLSLComputeTable(bTables->Get_F_ITa());
+    if (farTables->GetNumTables() > 5) {
+        // catmark, bilinear
+        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdGLSLComputeTable(farTables->Get_F_IT());
+        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdGLSLComputeTable(farTables->Get_F_ITa());
     } else {
-        _tables[Table::F_IT] = NULL;
-        _tables[Table::F_ITa] = NULL;
+        // loop
+        _tables[FarSubdivisionTables<OsdVertex>::F_IT] = NULL;
+        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = NULL;
     }
 
     // create hedit tables
@@ -339,23 +301,23 @@ OsdGLSLComputeContext::bindShaderStorageBuffers() {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _currentVaryingBuffer);
 
     // XXX: should be better handling for loop subdivision.
-    if (_tables[Table::F_IT]) {
+    if (_tables[FarSubdivisionTables<OsdVertex>::F_IT]) {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2,
-                         _tables[Table::F_IT]->GetBuffer());
+                         _tables[FarSubdivisionTables<OsdVertex>::F_IT]->GetBuffer());
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3,
-                         _tables[Table::F_ITa]->GetBuffer());
+                         _tables[FarSubdivisionTables<OsdVertex>::F_ITa]->GetBuffer());
     }
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4,
-                     _tables[Table::E_IT]->GetBuffer());
+                     _tables[FarSubdivisionTables<OsdVertex>::E_IT]->GetBuffer());
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5,
-                     _tables[Table::V_IT]->GetBuffer());
+                     _tables[FarSubdivisionTables<OsdVertex>::V_IT]->GetBuffer());
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6,
-                     _tables[Table::V_ITa]->GetBuffer());
+                     _tables[FarSubdivisionTables<OsdVertex>::V_ITa]->GetBuffer());
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7,
-                     _tables[Table::E_W]->GetBuffer());
+                     _tables[FarSubdivisionTables<OsdVertex>::E_W]->GetBuffer());
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8,
-                     _tables[Table::V_W]->GetBuffer());
+                     _tables[FarSubdivisionTables<OsdVertex>::V_W]->GetBuffer());
 }
 
 void
@@ -363,7 +325,7 @@ OsdGLSLComputeContext::unbindShaderStorageBuffers() {
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
-    if (_tables[Table::F_IT]) {
+    if (_tables[FarSubdivisionTables<OsdVertex>::F_IT]) {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
     }

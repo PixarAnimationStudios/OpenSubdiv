@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * catmark_square_hedit2 =
+static const std::string catmark_square_hedit2 =
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "v -1 -1 0\n"

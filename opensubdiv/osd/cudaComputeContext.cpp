@@ -56,9 +56,6 @@
 //
 
 #include "../far/mesh.h"
-#include "../far/dispatcher.h"
-#include "../far/catmarkSubdivisionTables.h"
-#include "../far/bilinearSubdivisionTables.h"
 #include "../osd/cudaComputeContext.h"
 
 #include <cuda_runtime.h>
@@ -66,26 +63,8 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCudaTable::OsdCudaTable(const FarTable<int> &farTable)
-    : _devicePtr(NULL), _marker(farTable.GetMarkers()) {
-
-    createCudaBuffer(farTable.GetMemoryUsed(), farTable[0]);
-}
-
-OsdCudaTable::OsdCudaTable(const FarTable<unsigned int> &farTable)
-    : _devicePtr(NULL), _marker(farTable.GetMarkers()) {
-
-    createCudaBuffer(farTable.GetMemoryUsed(), farTable[0]);
-}
-
-OsdCudaTable::OsdCudaTable(const FarTable<float> &farTable)
-    : _devicePtr(NULL), _marker(farTable.GetMarkers()) {
-
-    createCudaBuffer(farTable.GetMemoryUsed(), farTable[0]);
-}
-
 void
-OsdCudaTable::createCudaBuffer(int size, const void *ptr) {
+OsdCudaTable::createCudaBuffer(size_t size, const void *ptr) {
     cudaMalloc(&_devicePtr, size);
     cudaMemcpy(_devicePtr, ptr, size, cudaMemcpyHostToDevice);
 }
@@ -99,18 +78,6 @@ void *
 OsdCudaTable::GetCudaMemory() const {
 
     return _devicePtr;
-}
-
-int
-OsdCudaTable::GetMarker(int level) const {
-
-    return _marker[level];
-}
-
-int
-OsdCudaTable::GetNumElements(int level) const {
-
-    return _marker[level+1] - _marker[level];
 }
 
 // ----------------------------------------------------------------------------
@@ -161,8 +128,7 @@ OsdCudaHEditTable::GetPrimvarWidth() const {
     return _primvarWidth;
 }
 
-OsdCudaComputeContext::OsdCudaComputeContext(FarMesh<OsdVertex> *farMesh)
-    : OsdComputeContext(farMesh) {
+OsdCudaComputeContext::OsdCudaComputeContext(FarMesh<OsdVertex> *farMesh) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
         farMesh->GetSubdivisionTables();
@@ -170,22 +136,15 @@ OsdCudaComputeContext::OsdCudaComputeContext(FarMesh<OsdVertex> *farMesh)
     // allocate 5 or 7 tables
     _tables.resize(farTables->GetNumTables(), 0);
 
-    _tables[Table::E_IT]  = new OsdCudaTable(farTables->Get_E_IT());
-    _tables[Table::V_IT]  = new OsdCudaTable(farTables->Get_V_IT());
-    _tables[Table::V_ITa] = new OsdCudaTable(farTables->Get_V_ITa());
-    _tables[Table::E_W]   = new OsdCudaTable(farTables->Get_E_W());
-    _tables[Table::V_W]   = new OsdCudaTable(farTables->Get_V_W());
+    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdCudaTable(farTables->Get_E_IT());
+    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdCudaTable(farTables->Get_V_IT());
+    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdCudaTable(farTables->Get_V_ITa());
+    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdCudaTable(farTables->Get_E_W());
+    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdCudaTable(farTables->Get_V_W());
 
-    if (const FarCatmarkSubdivisionTables<OsdVertex> * ccTables =
-        dynamic_cast<const FarCatmarkSubdivisionTables<OsdVertex>*>(farTables)) {
-        // catmark
-        _tables[Table::F_IT]  = new OsdCudaTable(ccTables->Get_F_IT());
-        _tables[Table::F_ITa] = new OsdCudaTable(ccTables->Get_F_ITa());
-    } else if (const FarBilinearSubdivisionTables<OsdVertex> * bTables =
-                dynamic_cast<const FarBilinearSubdivisionTables<OsdVertex>*>(farTables)) {
-        // bilinear
-        _tables[Table::F_IT]  = new OsdCudaTable(bTables->Get_F_IT());
-        _tables[Table::F_ITa] = new OsdCudaTable(bTables->Get_F_ITa());
+    if (farTables->GetNumTables() > 5) {
+        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdCudaTable(farTables->Get_F_IT());
+        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdCudaTable(farTables->Get_F_ITa());
     }
 
     // create hedit tables

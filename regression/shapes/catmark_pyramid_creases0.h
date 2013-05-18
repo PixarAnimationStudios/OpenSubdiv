@@ -54,7 +54,7 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-static char const * catmark_pyramid_creases0 =
+static const std::string catmark_pyramid_creases0 =
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "\n"
 "v 0.0 0.0 2.0\n"

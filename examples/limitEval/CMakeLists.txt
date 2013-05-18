@@ -55,5 +55,31 @@
 #     a particular purpose and non-infringement.
 #
 
-add_library(example_mutex mutex.cpp mutex.h)
+# *** glViewer ***
 
+set(PLATFORM_LIBRARIES
+    ${OSD_LINK_TARGET}
+    ${GLEW_LIBRARY}
+    ${GLFW_LIBRARIES}
+)
+
+include_directories(
+    ${PROJECT_SOURCE_DIR}/opensubdiv
+    ${PROJECT_SOURCE_DIR}/regression
+    ${GLEW_INCLUDE_DIR}
+    ${GLFW_INCLUDE_DIR}
+)
+
+add_executable(limitEval
+    main.cpp
+    ../common/font_image.cpp
+    ../common/hud.cpp
+    ../common/gl_hud.cpp
+    ${INC_FILES}
+)
+
+target_link_libraries(limitEval
+    ${PLATFORM_LIBRARIES}
+)
+
+install(TARGETS limitEval DESTINATION ${CMAKE_BINDIR_BASE})
