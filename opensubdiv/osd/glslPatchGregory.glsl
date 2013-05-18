@@ -68,17 +68,17 @@ layout (location=0) in vec4 position;
 
 out block {
     GregControlVertex v;
-} output;
+} oOutput;
 
 void main()
 {
      int vID = gl_VertexID;
 
-     output.v.hullPosition = (ModelViewMatrix * position).xyz;
+     oOutput.v.hullPosition = (ModelViewMatrix * position).xyz;
      OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
 
      uint valence = uint(texelFetchBuffer(g_ValenceBuffer,int(vID * (2 * OSD_MAX_VALENCE + 1))).x);
-     output.v.valence = int(valence);
+     oOutput.v.valence = int(valence);
 
      vec3 f[OSD_MAX_VALENCE]; 
      vec3 pos = position.xyz;
@@ -126,28 +126,28 @@ void main()
         f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0 + diagonal) / (float(valence)+5.0);
 
         opos += f[i];
-        output.v.r[i] = (neighbor_p-neighbor_m)/3.0 + (diagonal - diagonal_m)/6.0;
+        oOutput.v.r[i] = (neighbor_p-neighbor_m)/3.0 + (diagonal - diagonal_m)/6.0;
     }
 
     opos /= valence;
-    output.v.position = vec4(opos, 1.0f).xyz;
+    oOutput.v.position = vec4(opos, 1.0f).xyz;
 
 #if OSD_NUM_VARYINGS > 0
     for (int i = 0; i < OSD_NUM_VARYINGS; ++i)
-        output.v.varyings[i] = varyings[i];
+        oOutput.v.varyings[i] = varyings[i];
 #endif
 
     vec3 e;
-    output.v.e0 = vec3(0,0,0);
-    output.v.e1 = vec3(0,0,0);
+    oOutput.v.e0 = vec3(0,0,0);
+    oOutput.v.e1 = vec3(0,0,0);
     for(uint i=0; i<valence; ++i) {
         uint im = (i + valence -1) % valence;
         e = 0.5 * (f[i] + f[im]);
-        output.v.e0 += csf(valence-3, 2*i) *e;
-        output.v.e1 += csf(valence-3, 2*i + 1)*e;
+        oOutput.v.e0 += csf(valence-3, 2*i) *e;
+        oOutput.v.e1 += csf(valence-3, 2*i + 1)*e;
     }
-    output.v.e0 *= ef[valence - 3];
-    output.v.e1 *= ef[valence - 3];
+    oOutput.v.e0 *= ef[valence - 3];
+    oOutput.v.e1 *= ef[valence - 3];
 }
 #endif
 
@@ -162,11 +162,11 @@ uniform isamplerBuffer g_QuadOffsetBuffer;
 
 in block {
     GregControlVertex v;
-} input[];
+} iInput[];
 
 out block {
     GregEvalVertex v;
-} output[];
+} oOutput[];
 
 uniform isamplerBuffer g_patchLevelBuffer;
 OSD_DECLARE_PTEX_INDICES_BUFFER;
@@ -178,10 +178,10 @@ void main()
     uint i = gl_InvocationID;
     uint ip = (i+1)%4;
     uint im = (i+3)%4;
-    uint n = uint(input[i].v.valence);
+    uint n = uint(iInput[i].v.valence);
     int base = GregoryQuadOffsetBase;
 
-    output[ID].v.position = input[ID].v.position;
+    oOutput[ID].v.position = iInput[ID].v.position;
 
     uint start = texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x & 0x00ff;
     uint prev = uint(texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0xff00;
@@ -211,34 +211,34 @@ void main()
     //  P0         e0+      e1-         E1
     //
 
-    vec3 Ep = input[i].v.position + input[i].v.e0 * csf(n-3, 2*start) + input[i].v.e1*csf(n-3, 2*start +1);
-    vec3 Em = input[i].v.position + input[i].v.e0 * csf(n-3, 2*prev ) + input[i].v.e1*csf(n-3, 2*prev + 1);
+    vec3 Ep = iInput[i].v.position + iInput[i].v.e0 * csf(n-3, 2*start) + iInput[i].v.e1*csf(n-3, 2*start +1);
+    vec3 Em = iInput[i].v.position + iInput[i].v.e0 * csf(n-3, 2*prev ) + iInput[i].v.e1*csf(n-3, 2*prev + 1);
 
-    uint np = input[ip].v.valence;
-    uint nm = input[im].v.valence;
+    uint np = iInput[ip].v.valence;
+    uint nm = iInput[im].v.valence;
 
     uint prev_p = uint(texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + ip)).x)&0xff00;
     prev_p=uint(prev_p/256);
-    vec3 Em_ip = input[ip].v.position + input[ip].v.e0*csf(np-3,2*prev_p) +input[ip].v.e1*csf(np-3, 2*prev_p+1);
+    vec3 Em_ip = iInput[ip].v.position + iInput[ip].v.e0*csf(np-3,2*prev_p) +iInput[ip].v.e1*csf(np-3, 2*prev_p+1);
 
     uint start_m = texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + im)).x&0x00ff;
-    vec3 Ep_im = input[im].v.position + input[im].v.e0*csf(nm-3, 2*start_m) + input[im].v.e1*csf(nm-3, 2*start_m+1);
+    vec3 Ep_im = iInput[im].v.position + iInput[im].v.e0*csf(nm-3, 2*start_m) + iInput[im].v.e1*csf(nm-3, 2*start_m+1);
 
     float s1 = 3 - 2*csf(n-3,2)-csf(np-3,2);
     float s2 = 2*csf(n-3,2);
 
-    vec3 Fp = (csf(np-3,2)*input[i].v.position + s1*Ep + s2*Em_ip + input[i].v.r[start])/3.0;
+    vec3 Fp = (csf(np-3,2)*iInput[i].v.position + s1*Ep + s2*Em_ip + iInput[i].v.r[start])/3.0;
 
     s1 = 3.0 -2.0*cos(2.0*M_PI/float(n)) - cos(2*M_PI/float(nm));
-    vec3 Fm = (csf(nm-3,2)*input[i].v.position + s1*Em +s2*Ep_im - input[i].v.r[prev])/3.0;
+    vec3 Fm = (csf(nm-3,2)*iInput[i].v.position + s1*Em +s2*Ep_im - iInput[i].v.r[prev])/3.0;
 
-    output[ID].v.Ep = Ep;
-    output[ID].v.Em = Em;
-    output[ID].v.Fp = Fp;
-    output[ID].v.Fm = Fm;
+    oOutput[ID].v.Ep = Ep;
+    oOutput[ID].v.Em = Em;
+    oOutput[ID].v.Fp = Fp;
+    oOutput[ID].v.Fm = Fm;
 
     int patchLevel = texelFetchBuffer(g_patchLevelBuffer, gl_PrimitiveID + LevelBase).x;
-    output[ID].v.patchCoord = vec4(0, 0,
+    oOutput[ID].v.patchCoord = vec4(0, 0,
                                    patchLevel+0.5,
                                    gl_PrimitiveID+LevelBase+0.5);
 
@@ -249,13 +249,13 @@ void main()
 
 #if OSD_ENABLE_SCREENSPACE_TESSELLATION
         gl_TessLevelOuter[0] =
-            TessAdaptive(input[0].v.hullPosition.xyz, input[1].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(iInput[0].v.hullPosition.xyz, iInput[1].v.hullPosition.xyz, patchLevel);
         gl_TessLevelOuter[1] =
-            TessAdaptive(input[0].v.hullPosition.xyz, input[3].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(iInput[0].v.hullPosition.xyz, iInput[3].v.hullPosition.xyz, patchLevel);
         gl_TessLevelOuter[2] =
-            TessAdaptive(input[2].v.hullPosition.xyz, input[3].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(iInput[2].v.hullPosition.xyz, iInput[3].v.hullPosition.xyz, patchLevel);
         gl_TessLevelOuter[3] =
-            TessAdaptive(input[1].v.hullPosition.xyz, input[2].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(iInput[1].v.hullPosition.xyz, iInput[2].v.hullPosition.xyz, patchLevel);
         gl_TessLevelInner[0] =
             max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
         gl_TessLevelInner[1] =
@@ -282,11 +282,11 @@ layout(cw) in;
 
 in block {
     GregEvalVertex v;
-} input[];
+} iInput[];
 
 out block {
     OutputVertex v;
-} output;
+} oOutput;
 
 void main()
 {
@@ -295,29 +295,29 @@ void main()
 
     vec3 p[20];
 
-    p[0] = input[0].v.position;
-    p[1] = input[0].v.Ep;
-    p[2] = input[0].v.Em;
-    p[3] = input[0].v.Fp;
-    p[4] = input[0].v.Fm;
+    p[0] = iInput[0].v.position;
+    p[1] = iInput[0].v.Ep;
+    p[2] = iInput[0].v.Em;
+    p[3] = iInput[0].v.Fp;
+    p[4] = iInput[0].v.Fm;
 
-    p[5] = input[1].v.position;
-    p[6] = input[1].v.Ep;
-    p[7] = input[1].v.Em;
-    p[8] = input[1].v.Fp;
-    p[9] = input[1].v.Fm;
+    p[5] = iInput[1].v.position;
+    p[6] = iInput[1].v.Ep;
+    p[7] = iInput[1].v.Em;
+    p[8] = iInput[1].v.Fp;
+    p[9] = iInput[1].v.Fm;
 
-    p[10] = input[2].v.position;
-    p[11] = input[2].v.Ep;
-    p[12] = input[2].v.Em;
-    p[13] = input[2].v.Fp;
-    p[14] = input[2].v.Fm;
+    p[10] = iInput[2].v.position;
+    p[11] = iInput[2].v.Ep;
+    p[12] = iInput[2].v.Em;
+    p[13] = iInput[2].v.Fp;
+    p[14] = iInput[2].v.Fm;
 
-    p[15] = input[3].v.position;
-    p[16] = input[3].v.Ep;
-    p[17] = input[3].v.Em;
-    p[18] = input[3].v.Fp;
-    p[19] = input[3].v.Fm;
+    p[15] = iInput[3].v.position;
+    p[16] = iInput[3].v.Ep;
+    p[17] = iInput[3].v.Em;
+    p[18] = iInput[3].v.Fp;
+    p[19] = iInput[3].v.Fm;
 
     vec3 q[16];
 
@@ -381,18 +381,18 @@ void main()
 
     vec3 normal = normalize(cross(BiTangent, Tangent));
 
-    output.v.position = ModelViewMatrix * vec4(WorldPos, 1.0);
-    output.v.normal = normal;
-    output.v.tangent = BiTangent;
+    oOutput.v.position = ModelViewMatrix * vec4(WorldPos, 1.0);
+    oOutput.v.normal = normal;
+    oOutput.v.tangent = BiTangent;
 
-    output.v.patchCoord = input[0].v.patchCoord;
-    output.v.patchCoord.xy = vec2(v, u);
+    oOutput.v.patchCoord = iInput[0].v.patchCoord;
+    oOutput.v.patchCoord.xy = vec2(v, u);
 
     OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    gl_Position = ProjectionMatrix * output.v.position;
+    gl_Position = ProjectionMatrix * oOutput.v.position;
 }
 
 #endif
@@ -408,11 +408,11 @@ layout (location=2) in vec4 color;
 
 out block {
     OutputVertex v;
-} output;
+} oOutput;
 
 void main() {
     gl_Position = ModelViewProjectionMatrix * position;
-    output.v.color = color;
+    oOutput.v.color = color;
 }
 
 #endif
@@ -424,9 +424,9 @@ void main() {
 
 in block {
     OutputVertex v;
-} input;
+} iInput;
 
 void main() {
-    gl_FragColor = input.v.color;
+    gl_FragColor = iInput.v.color;
 }
 #endif

@@ -65,15 +65,15 @@ layout (location=0) in vec4 position;
 
 out block {
     ControlVertex v;
-} output;
+} oOutput;
 
 void main() {
-    output.v.position = ModelViewMatrix * position;
+    oOutput.v.position = ModelViewMatrix * position;
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
 
 #if OSD_NUM_VARYINGS > 0
     for (int i = 0; i < OSD_NUM_VARYINGS; ++i)
-        output.v.varyings[i] = varyings[i];
+        oOutput.v.varyings[i] = varyings[i];
 #endif
 }
 
@@ -88,11 +88,11 @@ layout(vertices = 16) out;
 
 in block {
     ControlVertex v;
-} input[];
+} iInput[];
 
 out block {
     ControlVertex v;
-} output[];
+} oOutput[];
 
 uniform isamplerBuffer g_patchLevelBuffer;
 OSD_DECLARE_PTEX_INDICES_BUFFER;
@@ -109,7 +109,7 @@ void main()
         H[l] = vec3(0,0,0);
         for (int k=0; k<3; k++) {
             float c = B[i][2-k];
-            H[l] += c*input[l*3 + k].v.position.xyz;
+            H[l] += c*iInput[l*3 + k].v.position.xyz;
         }
     }
 
@@ -118,11 +118,11 @@ void main()
         pos += B[j][k]*H[k];
     }
 
-    output[ID].v.position = vec4(pos, 1.0);
+    oOutput[ID].v.position = vec4(pos, 1.0);
 
     int patchLevel = texelFetchBuffer(g_patchLevelBuffer, gl_PrimitiveID + LevelBase).x;
     // +0.5 to avoid interpolation error of integer value
-    output[ID].v.patchCoord = vec4(0, 0,
+    oOutput[ID].v.patchCoord = vec4(0, 0,
                                    patchLevel+0.5,
                                    gl_PrimitiveID+LevelBase+0.5);
 
@@ -133,16 +133,16 @@ void main()
 
 #if OSD_ENABLE_SCREENSPACE_TESSELLATION
         gl_TessLevelOuter[0] =
-            TessAdaptive(input[2].v.position.xyz, input[5].v.position.xyz, patchLevel);
+            TessAdaptive(iInput[2].v.position.xyz, iInput[5].v.position.xyz, patchLevel);
 
         gl_TessLevelOuter[1] =
-            TessAdaptive(input[1].v.position.xyz, input[2].v.position.xyz, patchLevel);
+            TessAdaptive(iInput[1].v.position.xyz, iInput[2].v.position.xyz, patchLevel);
 
         gl_TessLevelOuter[2] =
-            TessAdaptive(input[4].v.position.xyz, input[5].v.position.xyz, patchLevel);
+            TessAdaptive(iInput[4].v.position.xyz, iInput[5].v.position.xyz, patchLevel);
 
         gl_TessLevelOuter[3] =
-            TessAdaptive(input[1].v.position.xyz, input[4].v.position.xyz, patchLevel);
+            TessAdaptive(iInput[1].v.position.xyz, iInput[4].v.position.xyz, patchLevel);
 
         gl_TessLevelInner[0] =
             max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
@@ -171,11 +171,11 @@ layout(equal_spacing) in;
 
 in block {
     ControlVertex v;
-} input[];
+} iInput[];
 
 out block {
     OutputVertex v;
-} output;
+} oOutput;
 
 void main()
 {
@@ -193,7 +193,7 @@ void main()
         DUCP[i] = vec3(0.0f, 0.0f, 0.0f);
 
         for (int j=0; j<4; ++j) {
-            vec3 A = input[4*i + j].v.position.xyz;
+            vec3 A = iInput[4*i + j].v.position.xyz;
 
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
@@ -214,14 +214,14 @@ void main()
 
     vec3 normal = normalize(cross(Tangent, BiTangent));
 
-    output.v.position = vec4(WorldPos, 1.0f);
-    output.v.normal = normal;
+    oOutput.v.position = vec4(WorldPos, 1.0f);
+    oOutput.v.normal = normal;
 
     BiTangent = -BiTangent;  // BiTangent will be used in following macro
-    output.v.tangent = BiTangent;
+    oOutput.v.tangent = BiTangent;
 
-    output.v.patchCoord = input[0].v.patchCoord;
-    output.v.patchCoord.xy = vec2(1.0-v, u);
+    oOutput.v.patchCoord = iInput[0].v.patchCoord;
+    oOutput.v.patchCoord.xy = vec2(1.0-v, u);
 
     OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
 
@@ -245,11 +245,11 @@ layout (location=2) in vec4 color;
 
 out block {
     OutputVertex v;
-} output;
+} oOutput;
 
 void main() {
     gl_Position = ModelViewProjectionMatrix * position;
-    output.v.color = color;
+    oOutput.v.color = color;
 }
 
 #endif
@@ -261,9 +261,9 @@ void main() {
 
 in block {
     OutputVertex v;
-} input;
+} iInput;
 
 void main() {
-    gl_FragColor = input.v.color;
+    gl_FragColor = iInput.v.color;
 }
 #endif
