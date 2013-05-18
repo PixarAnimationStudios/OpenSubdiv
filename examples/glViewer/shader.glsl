@@ -65,12 +65,12 @@ layout (location=1) in vec3 normal;
 
 out block {
     OutputVertex v;
-} output;
+} oOutput;
 
 void main()
 {
-    output.v.position = ModelViewMatrix * position;
-    output.v.normal = (ModelViewMatrix * vec4(normal, 0.0)).xyz;
+    oOutput.v.position = ModelViewMatrix * position;
+    oOutput.v.normal = (ModelViewMatrix * vec4(normal, 0.0)).xyz;
 }
 
 #endif
@@ -90,7 +90,7 @@ void main()
 
     in block {
         OutputVertex v;
-    } input[4];
+    } iInput[4];
 
 #endif // PRIM_QUAD
 
@@ -104,7 +104,7 @@ void main()
 
     in block {
         OutputVertex v;
-    } input[3];
+    } iInput[3];
 
 #endif // PRIM_TRI
 
@@ -115,23 +115,23 @@ void main()
 
     in block {
         OutputVertex v;
-    } input[1];
+    } iInput[1];
 
 #endif // PRIM_POINT
 
 out block {
     OutputVertex v;
-} output;
+} oOutput;
 
 void emit(int index, vec3 normal)
 {
-    output.v.position = input[index].v.position;
+    oOutput.v.position = iInput[index].v.position;
 #ifdef SMOOTH_NORMALS
-    output.v.normal = input[index].v.normal;
+    oOutput.v.normal = iInput[index].v.normal;
 #else
-    output.v.normal = normal;
+    oOutput.v.normal = normal;
 #endif
-    gl_Position = ProjectionMatrix * input[index].v.position;
+    gl_Position = ProjectionMatrix * iInput[index].v.position;
     EmitVertex();
 }
 
@@ -147,18 +147,18 @@ float edgeDistance(vec4 p, vec4 p0, vec4 p1)
 
 void emit(int index, vec3 normal, vec4 edgeVerts[EDGE_VERTS])
 {
-    output.v.edgeDistance[0] =
+    oOutput.v.edgeDistance[0] =
         edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
-    output.v.edgeDistance[1] =
+    oOutput.v.edgeDistance[1] =
         edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
 #ifdef PRIM_TRI
-    output.v.edgeDistance[2] =
+    oOutput.v.edgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
 #endif
 #ifdef PRIM_QUAD
-    output.v.edgeDistance[2] =
+    oOutput.v.edgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[3]);
-    output.v.edgeDistance[3] =
+    oOutput.v.edgeDistance[3] =
         edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
 #endif
 
@@ -175,17 +175,17 @@ void main()
 #endif
     
 #ifdef PRIM_QUAD
-    vec3 A = (input[0].v.position - input[1].v.position).xyz;
-    vec3 B = (input[3].v.position - input[1].v.position).xyz;
-    vec3 C = (input[2].v.position - input[1].v.position).xyz;
+    vec3 A = (iInput[0].v.position - iInput[1].v.position).xyz;
+    vec3 B = (iInput[3].v.position - iInput[1].v.position).xyz;
+    vec3 C = (iInput[2].v.position - iInput[1].v.position).xyz;
     vec3 n0 = normalize(cross(B, A));
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
     vec4 edgeVerts[EDGE_VERTS];
-    edgeVerts[0] = ProjectionMatrix * input[0].v.position;
-    edgeVerts[1] = ProjectionMatrix * input[1].v.position;
-    edgeVerts[2] = ProjectionMatrix * input[2].v.position;
-    edgeVerts[3] = ProjectionMatrix * input[3].v.position;
+    edgeVerts[0] = ProjectionMatrix * iInput[0].v.position;
+    edgeVerts[1] = ProjectionMatrix * iInput[1].v.position;
+    edgeVerts[2] = ProjectionMatrix * iInput[2].v.position;
+    edgeVerts[3] = ProjectionMatrix * iInput[3].v.position;
 
     edgeVerts[0].xy /= edgeVerts[0].w;
     edgeVerts[1].xy /= edgeVerts[1].w;
@@ -205,15 +205,15 @@ void main()
 #endif // PRIM_QUAD
 
 #ifdef PRIM_TRI
-    vec3 A = (input[1].v.position - input[0].v.position).xyz;
-    vec3 B = (input[2].v.position - input[0].v.position).xyz;
+    vec3 A = (iInput[1].v.position - iInput[0].v.position).xyz;
+    vec3 B = (iInput[2].v.position - iInput[0].v.position).xyz;
     vec3 n0 = normalize(cross(B, A));
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
     vec4 edgeVerts[EDGE_VERTS];
-    edgeVerts[0] = ProjectionMatrix * input[0].v.position;
-    edgeVerts[1] = ProjectionMatrix * input[1].v.position;
-    edgeVerts[2] = ProjectionMatrix * input[2].v.position;
+    edgeVerts[0] = ProjectionMatrix * iInput[0].v.position;
+    edgeVerts[1] = ProjectionMatrix * iInput[1].v.position;
+    edgeVerts[2] = ProjectionMatrix * iInput[2].v.position;
 
     edgeVerts[0].xy /= edgeVerts[0].w;
     edgeVerts[1].xy /= edgeVerts[1].w;
@@ -241,7 +241,7 @@ void main()
 
 in block {
     OutputVertex v;
-} input;
+} iInput;
 
 out vec4 outColor;
 
@@ -303,12 +303,12 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
     float d =
-        min(input.v.edgeDistance[0], min(input.v.edgeDistance[1], input.v.edgeDistance[2]));
+        min(iInput.v.edgeDistance[0], min(iInput.v.edgeDistance[1], iInput.v.edgeDistance[2]));
 #endif
 #ifdef PRIM_QUAD
     float d =
-        min(min(input.v.edgeDistance[0], input.v.edgeDistance[1]),
-            min(input.v.edgeDistance[2], input.v.edgeDistance[3]));
+        min(min(iInput.v.edgeDistance[0], iInput.v.edgeDistance[1]),
+            min(iInput.v.edgeDistance[2], iInput.v.edgeDistance[3]));
 #endif
     vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
     float p = exp2(-2 * d * d);
@@ -326,11 +326,11 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
 void
 main()
 {
-    vec3 N = (gl_FrontFacing ? input.v.normal : -input.v.normal);
-    vec4 Cf = lighting(input.v.position.xyz, N);
+    vec3 N = (gl_FrontFacing ? iInput.v.normal : -iInput.v.normal);
+    vec4 Cf = lighting(iInput.v.position.xyz, N);
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-    Cf = edgeColor(Cf, input.v.edgeDistance);
+    Cf = edgeColor(Cf, iInput.v.edgeDistance);
 #endif
 
     outColor = Cf;
