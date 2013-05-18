@@ -94,10 +94,10 @@ in block {
 
 out block {
     ControlVertex v;
-} oOutput[];
+} oOutput[] ;
 
 uniform isamplerBuffer g_patchLevelBuffer;
-OSD_DECLARE_PTEX_INDICES_BUFFER;
+OSD_DECLARE_PTEX_INDICES_BUFFER
 
 #define ID gl_InvocationID
 
