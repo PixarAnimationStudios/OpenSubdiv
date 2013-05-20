@@ -87,7 +87,6 @@ set(CPU_SOURCE_FILES
     evalLimitContext.cpp
     drawContext.cpp
     drawRegistry.cpp
-    sortedDrawContext.cpp
 )
 
 set(GPU_SOURCE_FILES
@@ -118,8 +117,6 @@ set(PUBLIC_HEADER_FILES
     nonCopyable.h
     drawContext.h
     drawRegistry.h
-    patch.h
-    sortedDrawContext.h
     vertex.h
     vertexDescriptor.h
 )

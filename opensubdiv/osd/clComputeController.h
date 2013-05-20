@@ -149,6 +149,12 @@ public:
     /// Waits until all running subdivision kernels finish.
     void Synchronize();
 
+    /// Returns CL context
+    cl_context GetContext() const { return _clContext; }
+
+    /// Returns CL command queue
+    cl_command_queue GetCommandQueue() const { return _clQueue; }
+
 protected:
     friend class FarDispatcher;
 

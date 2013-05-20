@@ -131,7 +131,7 @@ public:
     ///
     /// @param farmesh the FarMesh used for this Context.
     ///
-    static OsdCpuComputeContext * Create(FarMesh<OsdVertex> *farmesh);
+    static OsdCpuComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
 
     /// Destructor
     virtual ~OsdCpuComputeContext();
@@ -140,9 +140,9 @@ public:
     /// that data buffers are properly inter-operated between Contexts and 
     /// Controllers operating across multiple devices.
     ///
-    /// @param a buffer containing vertex-interpolated primvar data
+    /// @param vertex   a buffer containing vertex-interpolated primvar data
     ///
-    /// @param a buffer containing varying-interpolated primvar data
+    /// @param varying  a buffer containing varying-interpolated primvar data
     ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
@@ -152,16 +152,14 @@ public:
 
         int numVertexElements = vertex ? vertex->GetNumElements() : 0;
         int numVaryingElements = varying ? varying->GetNumElements() : 0;
-        _vdesc = new OsdVertexDescriptor(numVertexElements, numVaryingElements);
+        _vdesc.Set(numVertexElements, numVaryingElements);
     }
 
     /// Unbinds any previously bound vertex and varying data buffers.
     void Unbind() {
         _currentVertexBuffer = 0;
         _currentVaryingBuffer = 0;
-
-        delete _vdesc;
-        _vdesc = 0;
+        _vdesc.Reset();
     }
 
     /// Returns one of the vertex refinement tables.
@@ -174,7 +172,9 @@ public:
     ///
     /// @return a descriptor for the format of the vertex data currently bound
     ///
-    OsdVertexDescriptor * GetVertexDescriptor() const;
+    OsdVertexDescriptor const & GetVertexDescriptor() const {
+        return _vdesc;
+    }
 
     /// Returns the number of hierarchical edit tables
     int GetNumEditTables() const;
@@ -192,7 +192,7 @@ public:
     float * GetCurrentVaryingBuffer() const;
 
 protected:
-    explicit OsdCpuComputeContext(FarMesh<OsdVertex> *farMesh);
+    explicit OsdCpuComputeContext(FarMesh<OsdVertex> const *farMesh);
 
 private:
     std::vector<OsdCpuTable*> _tables;
@@ -201,7 +201,7 @@ private:
     float *_currentVertexBuffer, 
           *_currentVaryingBuffer;
 
-    OsdVertexDescriptor *_vdesc;
+    OsdVertexDescriptor _vdesc;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

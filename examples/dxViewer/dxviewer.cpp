@@ -601,7 +601,7 @@ enum Effect {
     kPoint = 6,
 };
 
-typedef std::pair<OpenSubdiv::OsdPatchDescriptor,Effect> EffectDesc;
+typedef std::pair<OpenSubdiv::OsdDrawContext::PatchDescriptor, Effect> EffectDesc;
 
 class EffectDrawRegistry : public OpenSubdiv::OsdD3D11DrawRegistry<EffectDesc> {
 
@@ -631,17 +631,16 @@ EffectDrawRegistry::_CreateDrawSourceConfig(
     sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
 
     bool smoothNormals = false;
-    if (desc.first.type != OpenSubdiv::kNonPatch) {
-
+    if (desc.first.GetType() == OpenSubdiv::FarPatchTables::QUADS ||
+        desc.first.GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
+        sconfig->vertexShader.source = shaderSource;
+        sconfig->vertexShader.target = "vs_5_0";
+        sconfig->vertexShader.entry = "vs_main";
+    } else {
         if (effect == kQuadWire) effect = kTriWire;
         if (effect == kQuadFill) effect = kTriFill;
         if (effect == kQuadLine) effect = kTriLine;
         smoothNormals = true;
-
-    } else {
-        sconfig->vertexShader.source = shaderSource;
-        sconfig->vertexShader.target = "vs_5_0";
-        sconfig->vertexShader.entry = "vs_main";
     }
     assert(sconfig);
 
@@ -742,9 +741,9 @@ GetEffect()
 
 //------------------------------------------------------------------------------
 static void
-bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
+bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 {
-    EffectDesc effectDesc(patch.desc, effect);
+    EffectDesc effectDesc(patch.GetDescriptor(), effect);
 
     // input layout
     const D3D11_INPUT_ELEMENT_DESC hInElementDesc[] = {
@@ -826,8 +825,8 @@ bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
         Tessellation * pData = ( Tessellation* )MappedResource.pData;
 
         pData->TessLevel = static_cast<float>(1 << g_tessLevel);
-        pData->GregoryQuadOffsetBase = patch.gregoryQuadOffsetBase;
-        pData->LevelBase = patch.levelBase;
+        pData->GregoryQuadOffsetBase = patch.GetQuadOffsetIndex();
+        pData->LevelBase = patch.GetPatchIndex();
 
         g_pd3dDeviceContext->Unmap( g_pcbTessellation, 0 );
     }
@@ -856,9 +855,9 @@ bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
     if (g_mesh->GetDrawContext()->quadOffsetBufferSRV) {
         g_pd3dDeviceContext->HSSetShaderResources(2, 1, &g_mesh->GetDrawContext()->quadOffsetBufferSRV);
     }
-    if (g_mesh->GetDrawContext()->patchLevelBufferSRV) {
-        g_pd3dDeviceContext->HSSetShaderResources(3, 1, &g_mesh->GetDrawContext()->patchLevelBufferSRV);
-        g_pd3dDeviceContext->DSSetShaderResources(3, 1, &g_mesh->GetDrawContext()->patchLevelBufferSRV);
+    if (g_mesh->GetDrawContext()->ptexCoordinateBufferSRV) {
+        g_pd3dDeviceContext->HSSetShaderResources(3, 1, &g_mesh->GetDrawContext()->ptexCoordinateBufferSRV);
+        g_pd3dDeviceContext->DSSetShaderResources(3, 1, &g_mesh->GetDrawContext()->ptexCoordinateBufferSRV);
     }
 }
 
@@ -882,35 +881,37 @@ display()
     UINT hOffsets = 0;
     g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &buffer, &hStrides, &hOffsets);
 
-    OpenSubdiv::OsdPatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
+    OpenSubdiv::OsdDrawContext::PatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
 
     g_pd3dDeviceContext->IASetIndexBuffer(g_mesh->GetDrawContext()->patchIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
     // cv drawing
+#if 0
     if (g_drawPatchCVs) {
 
-        bindProgram(kPoint, OpenSubdiv::OsdPatchArray());
+        bindProgram(kPoint, OpenSubdiv::OsdDrawContext::PatchArray());
 
         g_pd3dDeviceContext->IASetPrimitiveTopology(
                                 D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 
         for (int i=0; i<(int)patches.size(); ++i) {
-            OpenSubdiv::OsdPatchArray const & patch = patches[i];
+            OpenSubdiv::OsdDrawContext::PatchArray const & patch = patches[i];
 
-            g_pd3dDeviceContext->DrawIndexed(patch.numIndices,
-                                             patch.firstIndex, 0);
+            g_pd3dDeviceContext->DrawIndexed(patch.GetNumIndices(),
+                                             patch.GetVertIndex(), 0);
         }
     }
+#endif
 
     // patch drawing
     for (int i=0; i<(int)patches.size(); ++i) {
-        OpenSubdiv::OsdPatchArray const & patch = patches[i];
+        OpenSubdiv::OsdDrawContext::PatchArray const & patch = patches[i];
 
         D3D11_PRIMITIVE_TOPOLOGY topology;
 
         if (g_mesh->GetDrawContext()->IsAdaptive()) {
 
-            switch (patch.desc.GetPatchSize()) {
+            switch (patch.GetDescriptor().GetNumControlVertices()) {
             case 4:
                 topology = D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST; 
                 break;
@@ -941,7 +942,7 @@ display()
         g_pd3dDeviceContext->IASetPrimitiveTopology(topology);
 
         g_pd3dDeviceContext->DrawIndexed(
-                                    patch.numIndices, patch.firstIndex, 0);
+                                    patch.GetNumIndices(), patch.GetVertIndex(), 0);
     }
 
     if (g_hud->IsVisible()) {

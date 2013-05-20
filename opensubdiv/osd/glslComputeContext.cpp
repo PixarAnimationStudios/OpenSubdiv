@@ -157,7 +157,7 @@ OsdGLSLComputeHEditTable::GetPrimvarWidth() const {
 // ----------------------------------------------------------------------------
 
 OsdGLSLComputeContext::OsdGLSLComputeContext(
-    FarMesh<OsdVertex> *farMesh)
+    FarMesh<OsdVertex> const *farMesh)
     : _vertexTexture(0), _varyingTexture(0) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
@@ -238,18 +238,6 @@ OsdGLSLComputeContext::GetCurrentVaryingBuffer() const {
     return _currentVaryingBuffer;
 }
 
-int
-OsdGLSLComputeContext::GetNumCurrentVertexElements() const {
-
-    return _numVertexElements;
-}
-
-int
-OsdGLSLComputeContext::GetNumCurrentVaryingElements() const {
-    
-    return _numVaryingElements;
-}
-
 OsdGLSLComputeKernelBundle *
 OsdGLSLComputeContext::GetKernelBundle() const {
 
@@ -264,7 +252,7 @@ OsdGLSLComputeContext::SetKernelBundle(
 }
 
 OsdGLSLComputeContext *
-OsdGLSLComputeContext::Create(FarMesh<OsdVertex> *farmesh) {
+OsdGLSLComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
 
     return new OsdGLSLComputeContext(farmesh);
 }

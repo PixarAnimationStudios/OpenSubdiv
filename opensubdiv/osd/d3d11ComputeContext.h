@@ -61,6 +61,7 @@
 
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
+#include "../osd/vertexDescriptor.h"
 #include "../osd/nonCopyable.h"
 
 #include <D3D11.h>
@@ -137,7 +138,7 @@ public:
     ///
     /// @param farmesh the FarMesh used for this Context.
     ///
-    static OsdD3D11ComputeContext * Create(FarMesh<OsdVertex> *farmesh,
+    static OsdD3D11ComputeContext * Create(FarMesh<OsdVertex> const *farmesh,
                                            ID3D11DeviceContext *deviceContext);
 
     /// Destructor
@@ -157,8 +158,8 @@ public:
         _currentVertexBufferUAV = vertex ? vertex->BindD3D11UAV(_deviceContext) : 0;
         _currentVaryingBufferUAV = varying ? varying->BindD3D11UAV(_deviceContext) : 0;
 
-        _numVertexElements = vertex ? vertex->GetNumElements() : 0;
-        _numVaryingElements = varying ? varying->GetNumElements() : 0;
+        _vdesc.numVertexElements = vertex ? vertex->GetNumElements() : 0;
+        _vdesc.numVaryingElements = varying ? varying->GetNumElements() : 0;
 
         bindShaderStorageBuffers();
     }
@@ -192,9 +193,13 @@ public:
     /// Returns a handle to the varying-interpolated buffer
     ID3D11UnorderedAccessView * GetCurrentVaryingBufferUAV() const;
 
-    int GetNumCurrentVertexElements() const;
-
-    int GetNumCurrentVaryingElements() const;
+    /// Returns an OsdVertexDescriptor if vertex buffers have been bound.
+    ///
+    /// @return a descriptor for the format of the vertex data currently bound
+    ///
+    OsdVertexDescriptor const & GetVertexDescriptor() const {
+        return _vdesc;
+    }
 
     OsdD3D11ComputeKernelBundle * GetKernelBundle() const;
 
@@ -209,7 +214,7 @@ public:
     void UnbindEditShaderStorageBuffers();
 
 protected:
-    explicit OsdD3D11ComputeContext(FarMesh<OsdVertex> *farMesh, ID3D11DeviceContext *deviceContext);
+    explicit OsdD3D11ComputeContext(FarMesh<OsdVertex> const *farMesh, ID3D11DeviceContext *deviceContext);
 
     void bindShaderStorageBuffers();
 
@@ -221,8 +226,7 @@ private:
 
     ID3D11DeviceContext *_deviceContext;
 
-    int _numVertexElements;
-    int _numVaryingElements;
+    OsdVertexDescriptor _vdesc;
 
     ID3D11UnorderedAccessView * _currentVertexBufferUAV,
                               * _currentVaryingBufferUAV;

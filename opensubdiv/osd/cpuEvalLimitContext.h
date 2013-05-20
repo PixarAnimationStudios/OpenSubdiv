@@ -61,6 +61,7 @@
 
 #include "../osd/evalLimitContext.h"
 #include "../osd/vertexDescriptor.h"
+#include "../far/patchTables.h"
 
 #include <map>
 #include <stdio.h>
@@ -147,18 +148,18 @@ public:
     }
     
     /// Returns the vector of patch arrays
-    const OsdPatchArrayVector & GetPatchArrayVector() const {
+    const FarPatchTables::PatchArrayVector & GetPatchArrayVector() const {
         return _patchArrays;
     }
     
     /// Returns the vector of per-patch parametric data
-    const std::vector<FarPtexCoord::BitField> & GetPatchBitFields() const {
+    const std::vector<FarPatchParam::BitField> & GetPatchBitFields() const {
         return _patchBitFields;
     }
 
     /// The ordered array of control vertex indices for all the patches
     const std::vector<unsigned int> & GetControlVertices() const {
-        return _patchBuffer;
+        return _patches;
     }
 
     /// XXXX
@@ -170,154 +171,8 @@ public:
         return &_quadOffsetBuffer[0];
     }
 
-    /// Maps coarse-face ptex coordinates to children patches
-    struct PatchMap {
-    public:
-        
-        
-        /// \brief Returns the number and list of patch indices for a given face.
-        ///
-        /// PatchMaps map coarse faces to their childrn feature adaptive patches. 
-        /// Coarse faces are indexed using their ptex face ID to resolve parametric
-        /// ambiguity on non-quad faces. Note : this "map" is actually a vector, so
-        /// queries are O(1) order.
-        ///
-        /// @param faceid the ptex face index to search for
-        ///
-        /// @param npatches the number of children patches found for the faceid
-        ///
-        /// @param patches a set of pointers to the individual patch handles
-        ///
-        bool GetChildPatchesHandles( int faceid, int * npatches, OsdPatchHandle const ** patches ) const {
-
-            if (_handles.empty() or _offsets.empty() or (faceid>=(int)_offsets.size()))
-                return false;
-            
-            *npatches = (faceid==(int)_offsets.size()-1 ? (unsigned int)_handles.size()-1 : _offsets[faceid+1]) - _offsets[faceid] + 1;
-            
-            *patches = &_handles[ _offsets[faceid] ];
-            
-            return true;
-        }
-    
-    private:
-    
-        friend class OsdCpuEvalLimitContext;
-               
-        typedef std::multimap<unsigned int, OsdPatchHandle> MultiMap;
-        
-        // Inserts the patches from the array into the multimap
-        int _AddPatchArray( int arrayid, int ringsize,
-                            FarPatchTables::PtexCoordinateTable const & ptxtable,
-                            int & nfaces, MultiMap & mmap ) {
-            
-            if (ptxtable.empty())
-                return 0;
-            
-            for (int i=0; i<(int)ptxtable.size(); ++i) {
-
-                int faceId = ptxtable[i].faceIndex;
-                
-                OsdPatchHandle handle = { arrayid, i*ringsize, (unsigned int)mmap.size() };
-                
-                mmap.insert( std::pair<unsigned int, OsdPatchHandle>(faceId, handle) );
-                
-                nfaces = std::max(nfaces, faceId);
-            }
-            
-            return 1;
-        }
-
-        // Constructor
-        PatchMap( FarPatchTables const & patchTables ) {
-                  
-            int npatches = (int)patchTables.GetNumPatches();
-            
-            _handles.reserve(npatches);
-            
-            MultiMap mmap;
-            
-            // Insert all the patch arrays into the map
-            int arrayId=0, nfaces=0;
-            
-            arrayId+=_AddPatchArray( arrayId, 
-                                     patchTables.GetRegularPatchRingsize(),
-                                     patchTables.GetFullRegularPtexCoordinates(), 
-                                     nfaces, mmap );
-
-            arrayId+=_AddPatchArray( arrayId, 
-                                     patchTables.GetBoundaryPatchRingsize(),
-                                     patchTables.GetFullBoundaryPtexCoordinates(), 
-                                     nfaces, mmap );
-                                     
-            arrayId+=_AddPatchArray( arrayId, 
-                                     patchTables.GetCornerPatchRingsize(),
-                                     patchTables.GetFullCornerPtexCoordinates(), 
-                                     nfaces, mmap );
-                                     
-            arrayId+=_AddPatchArray( arrayId, 
-                                     patchTables.GetGregoryPatchRingsize(), 
-                                     patchTables.GetFullGregoryPtexCoordinates(), 
-                                     nfaces, mmap );
-            
-            for (unsigned char pattern=0; pattern<5; ++pattern) {
-            
-                arrayId+=_AddPatchArray( arrayId, 
-                                         patchTables.GetRegularPatchRingsize(), 
-                                         patchTables.GetTransitionRegularPtexCoordinates(pattern), 
-                                         nfaces, mmap );
-
-                for (unsigned char rot=0; rot<4; ++rot) {
-                
-                    arrayId+=_AddPatchArray( arrayId, 
-                                             patchTables.GetBoundaryPatchRingsize(),
-                                             patchTables.GetTransitionBoundaryPtexCoordinates(pattern, rot), 
-                                             nfaces, mmap );
-                                             
-                    arrayId+=_AddPatchArray( arrayId, 
-                                             patchTables.GetCornerPatchRingsize(),
-                                             patchTables.GetTransitionCornerPtexCoordinates(pattern, rot), 
-                                             nfaces, mmap );
-                }
-            }
-
-            ++nfaces;
-
-            _handles.resize( mmap.size() );
-            
-            _offsets.reserve( nfaces );
-            _offsets.push_back(0);
-
-            unsigned int handlesIdx = 0, faceId=mmap.begin()->first;
-
-            // Serialize the multi-map
-            for (MultiMap::const_iterator it=mmap.begin(); it!=mmap.end(); ++it, ++handlesIdx) {
-                        
-                assert(it->first >= faceId);
-                
-                if (it->first != faceId) {
-
-                    faceId = it->first;
-                    
-                    // position the offset marker to the new face                    
-                    _offsets.push_back( handlesIdx );
-                }
-                
-                // copy the patch id into the table
-                _handles[handlesIdx] = it->second;
-            }
-        }
-
-        // Patch handle allowing location of individual patch data inside patch
-        // arrays or in serialized form
-        std::vector<OsdPatchHandle> _handles;
-        
-        // offset to the first handle of the child patches for each coarse face
-        std::vector<unsigned int> _offsets; 
-    };
-
     /// Returns a map object that can connect a faceId to a list of children patches
-    const PatchMap * GetPatchesMap() const {
+    const FarPatchTables::PatchMap * GetPatchesMap() const {
         return _patchMap;
     }
 
@@ -326,21 +181,15 @@ protected:
 
 private:
 
-    //--------------------------------------------------------------------------
-    int _AppendPatchArray( OsdPatchDescriptor const & desc,
-                           FarPatchTables::PTable const & pT, 
-                           FarPatchTables::PtexCoordinateTable const & ptxT );
-
-
     // Topology data for a mesh
-    OsdPatchArrayVector                 _patchArrays;    // patch descriptor for each patch in the mesh
-    std::vector<FarPtexCoord::BitField> _patchBitFields; // per-patch parametric info
-    std::vector<unsigned int>           _patchBuffer;    // list of control vertices
+    FarPatchTables::PatchArrayVector     _patchArrays;    // patch descriptor for each patch in the mesh
+    FarPatchTables::PTable               _patches;        // patch control vertices
+    std::vector<FarPatchParam::BitField> _patchBitFields; // per-patch parametric info
     
-    std::vector<int>           _vertexValenceBuffer;     // extra Gregory patch data buffers
-    std::vector<unsigned int>  _quadOffsetBuffer;
+    FarPatchTables::VertexValenceTable   _vertexValenceBuffer; // extra Gregory patch data buffers
+    FarPatchTables::QuadOffsetTable      _quadOffsetBuffer;
 
-    PatchMap * _patchMap;
+    FarPatchTables::PatchMap * _patchMap; // map of the sub-patches given a face index
 
     OsdVertexBufferDescriptor _inDesc,
                               _outDesc;

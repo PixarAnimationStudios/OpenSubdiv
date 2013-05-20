@@ -164,9 +164,13 @@ float TessAdaptive(float3 p0, float3 p1, int patchLevel)
 #define OSD_DISPLACEMENT_CALLBACK
 #endif
 
-#ifdef USE_PTEX_COORD
+Buffer<int2> g_ptexIndicesBuffer : register( t3 );
 
-#define OSD_DECLARE_PTEX_INDICES_BUFFER Buffer<int2> g_ptexIndicesBuffer : register( t4 );
+int GetPatchLevel(int primitiveID)
+{
+    int2 ptexIndex = g_ptexIndicesBuffer[primitiveID + LevelBase].xy;
+    return ptexIndex.y & 0xf;
+}
 
 #define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
     {                                                                   \
@@ -179,6 +183,8 @@ float TessAdaptive(float3 p0, float3 p1, int patchLevel)
         output.patchCoord.w = faceID+0.5;                               \
         output.ptexInfo = int4(u, v, lv, rotation);                     \
     }
+
+#define OSD_COMPUTE_PTEX_COORD_HULL_SHADER
 
 #define OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER                            \
     {                                                                   \
@@ -206,13 +212,6 @@ float TessAdaptive(float3 p0, float3 p1, int patchLevel)
             output.tangent = normalize(BiTangent);              \
         }                                                       \
     }
-
-#else
-#define OSD_DECLARE_PTEX_INDICES_BUFFER
-#define OSD_COMPUTE_PTEX_COORD_HULL_SHADER
-#define OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER
-#define OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(ROTATE)
-#endif  // USE_PTEX_COORD
 
 #ifdef OSD_ENABLE_PATCH_CULL
 

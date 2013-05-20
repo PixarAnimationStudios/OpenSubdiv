@@ -156,10 +156,10 @@ shim::Subdivider::getRefinedQuads(Buffer* refinedQuads)
     }
 
     int level = tables->GetMaxLevel();
-    const std::vector<int> &indices = self->farMesh->GetFaceVertices(level-1);
-    int numInts = (int) indices.size();
+    unsigned int const * indices = self->farMesh->GetPatchTables()->GetFaceVertices(level-1);
+    int numInts = self->farMesh->GetPatchTables()->GetNumFaces(level-1)*4;
 
-    unsigned char* srcBegin = (unsigned char*) &indices[0];
-    unsigned char* srcEnd = srcBegin + numInts * 4;
+    unsigned char const * srcBegin = reinterpret_cast<unsigned char const *>(indices);
+    unsigned char const * srcEnd = srcBegin + numInts * 4;
     refinedQuads->assign(srcBegin, srcEnd);
 }

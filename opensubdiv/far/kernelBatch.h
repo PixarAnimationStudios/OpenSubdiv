@@ -128,20 +128,24 @@ public:
     ///
     /// @param vertexOffset  XXXX
     ///
+    /// @param meshIndex     XXXX
+    ///
     FarKernelBatch( KernelType kernelType,
                     int level,
                     int tableIndex,
                     int start,
                     int end,
                     int tableOffset,
-                    int vertexOffset) :
+                    int vertexOffset,
+                    int meshIndex=0) :
         _kernelType(kernelType),
         _level(level),
         _tableIndex(tableIndex),
         _start(start),
         _end(end),
         _tableOffset(tableOffset),
-        _vertexOffset(vertexOffset) {
+        _vertexOffset(vertexOffset),
+        _meshIndex(meshIndex) {
     }
 
     /// Returns the type of kernel to apply to the vertices in the batch.
@@ -210,6 +214,12 @@ public:
         return & _vertexOffset;
     }
 
+
+    /// Returns the mesh index (used in batching)
+    int GetMeshIndex() const {
+        return _meshIndex;
+    }
+
 private:
     friend class FarKernelBatchFactory;
     template <class X, class Y> friend class FarMultiMeshFactory;
@@ -221,6 +231,7 @@ private:
     int _end;
     int _tableOffset;
     int _vertexOffset;
+    int _meshIndex;
 };
 
 typedef std::vector<FarKernelBatch> FarKernelBatchVector;

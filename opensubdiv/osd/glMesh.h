@@ -54,7 +54,6 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-
 #ifndef OSD_GL_MESH_H
 #define OSD_GL_MESH_H
 
@@ -99,15 +98,13 @@ public:
             _drawContext(0)
     {
         FarMeshFactory<OsdVertex> meshFactory(hmesh, level, bits.test(MeshAdaptive));
-        _farMesh = meshFactory.Create(bits.test(MeshPtexData),
-                                      bits.test(MeshFVarData));
+        _farMesh = meshFactory.Create(bits.test(MeshFVarData));
 
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices);
         _computeContext = ComputeContext::Create(_farMesh);
-        _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
-                                           bits.test(MeshPtexData),
-                                           bits.test(MeshFVarData));
+        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(), bits.test(MeshFVarData));
+        _drawContext->UpdateVertexTexture(_vertexBuffer);
     }
 
     virtual ~OsdMesh() {
@@ -171,15 +168,13 @@ public:
             _clQueue(clQueue)
     {
         FarMeshFactory<OsdVertex> meshFactory(hmesh, level, bits.test(MeshAdaptive));
-        _farMesh = meshFactory.Create(bits.test(MeshPtexData),
-                                      bits.test(MeshFVarData));
+        _farMesh = meshFactory.Create(bits.test(MeshFVarData));
 
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices, _clContext);
         _computeContext = ComputeContext::Create(_farMesh, _clContext);
-        _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
-                                           bits.test(MeshPtexData),
-                                           bits.test(MeshFVarData));
+        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(), bits.test(MeshFVarData));
+        _drawContext->UpdateVertexTexture(_vertexBuffer);
     }
 
     virtual ~OsdMesh() {

@@ -48,6 +48,12 @@
 //     with this license.
 //     (E) The software is licensed "as-is." You bear the risk of
 //     using it. The contributors give no express warranties,
+//     guarantees or conditions. You may have additional consumer
+//     rights under your local laws which this license cannot change.
+//     To the extent permitted under your local laws, the contributors
+//     exclude the implied warranties of merchantability, fitness for
+//     a particular purpose and non-infringement.
+//
 #ifndef OSD_GL_DRAW_CONTEXT_H
 #define OSD_GL_DRAW_CONTEXT_H
 
@@ -79,32 +85,42 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+/// \brief OpenGL specialized DrawContext class
+///
+/// OsdGLDrawContext implements the OSD drawing interface with the OpenGL API.
+/// Some functionality may be disabled depending on compile and run-time driver
+/// support.
+///
+/// Contexts interface the serialized topological data pertaining to the 
+/// geometric primitives with the capabilities of the selected discrete 
+/// compute device.
+///
 class OsdGLDrawContext : public OsdDrawContext {
 public:
     typedef GLuint VertexBufferBinding;
 
-    OsdGLDrawContext();
     virtual ~OsdGLDrawContext();
 
+    /// \brief Create an OsdGLDraContext from FarPatchTables
+    ///
+    /// @param patchTables      a valid set of FarPatchTables
+    ///
+    /// @param requireFVarData  set to true to enable face-varying data to be 
+    ///                         carried over from the Far data structures.
+    ///
+    static OsdGLDrawContext * Create(FarPatchTables const * patchTables, bool requireFVarData);
+
+    /// Set vbo as a vertex texture (for gregory patch drawing)
+    ///
+    /// @param vbo  the vertex buffer object to update
+    ///
     template<class VERTEX_BUFFER>
-    static OsdGLDrawContext *
-    Create(FarMesh<OsdVertex> *farMesh,
-           VERTEX_BUFFER *vertexBuffer,
-           bool requirePtexCoordinates=false,
-           bool requireFVarData=false) {
-
-        if (not vertexBuffer) 
-            return NULL;
-
-        OsdGLDrawContext * instance = new OsdGLDrawContext();
-        if (instance->allocate(farMesh,
-                               vertexBuffer->BindVBO(),
-                               vertexBuffer->GetNumElements(),
-                               requirePtexCoordinates,
-                               requireFVarData)) return instance;
-        delete instance;
-        return NULL;
+    void UpdateVertexTexture(VERTEX_BUFFER *vbo) {
+        updateVertexTexture(vbo->BindVBO(), vbo->GetNumElements());
     }
+
+    /// true if the GL version detected supports shader tessellation
+    static bool SupportsAdaptiveTessellation();
 
     GLuint patchIndexBuffer;
 
@@ -118,24 +134,14 @@ public:
     GLuint vertexTextureBuffer;
     GLuint vertexValenceTextureBuffer;
     GLuint quadOffsetTextureBuffer;
-    GLuint patchLevelTextureBuffer;
 
-    /// true if the GL version detected supports shader tessellation
-    static bool SupportsAdaptiveTessellation();
+protected:
+    OsdGLDrawContext();
 
-private:
-    bool allocate(FarMesh<OsdVertex> *farMesh,
-                  GLuint vbo, int numElements,
-                  bool requirePtexCoordinates,
-                  bool requireFVarData);
+    // allocate buffers from patchTables
+    bool create(FarPatchTables const *patchTables, bool requireFVarData);
 
-    void _AppendPatchArray(
-                int *indexBase, int *levelBase,
-                FarPatchTables::PTable const & ptable,
-                FarPatchTables::PtexCoordinateTable const & ptexTable,
-                FarPatchTables::FVarDataTable const & fvarTable, int fvarDataWidth,
-                OsdPatchDescriptor const & desc,
-                int gregoryQuadOffsetBase);
+    void updateVertexTexture(GLuint vbo, int numElements);
 };
 
 } // end namespace OPENSUBDIV_VERSION

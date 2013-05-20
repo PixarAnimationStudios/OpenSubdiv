@@ -76,155 +76,159 @@
 #include "../version.h"
 #include "../osd/nonCopyable.h"
 #include "../osd/vertex.h"
+#include "../osd/vertexDescriptor.h"
 #include "../far/subdivisionTables.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-    class OsdGLSLTransformFeedbackKernelBundle
-        : OsdNonCopyable<OsdGLSLTransformFeedbackKernelBundle> {
-    public:
-        OsdGLSLTransformFeedbackKernelBundle();
-        ~OsdGLSLTransformFeedbackKernelBundle();
+class OsdGLSLTransformFeedbackKernelBundle : OsdNonCopyable<OsdGLSLTransformFeedbackKernelBundle> {
+public:
+    /// Constructor
+    OsdGLSLTransformFeedbackKernelBundle();
+    
+    ~OsdGLSLTransformFeedbackKernelBundle();
 
-        bool Compile(int numVertexElements, int numVaryingElements);
+    bool Compile(int numVertexElements, int numVaryingElements);
 
-        void ApplyBilinearFaceVerticesKernel(
-            GLuint vertexBuffer, int numVertexElements,
-            GLuint varyingBuffer, int numVaryingElements,
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyBilinearFaceVerticesKernel(
+        GLuint vertexBuffer, int numVertexElements,
+        GLuint varyingBuffer, int numVaryingElements,
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyBilinearEdgeVerticesKernel(
-            GLuint vertexBuffer, int numVertexElements,
-            GLuint varyingBuffer, int numVaryingElements,
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyBilinearEdgeVerticesKernel(
+        GLuint vertexBuffer, int numVertexElements,
+        GLuint varyingBuffer, int numVaryingElements,
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyBilinearVertexVerticesKernel(
-            GLuint vertexBuffer, int numVertexElements,
-            GLuint varyingBuffer, int numVaryingElements,
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyBilinearVertexVerticesKernel(
+        GLuint vertexBuffer, int numVertexElements,
+        GLuint varyingBuffer, int numVaryingElements,
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyCatmarkFaceVerticesKernel(
-            GLuint vertexBuffer, int numVertexElements,
-            GLuint varyingBuffer, int numVaryingElements,
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyCatmarkFaceVerticesKernel(
+        GLuint vertexBuffer, int numVertexElements,
+        GLuint varyingBuffer, int numVaryingElements,
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyCatmarkEdgeVerticesKernel(
-            GLuint vertexBuffer, int numVertexElements,
-            GLuint varyingBuffer, int numVaryingElements,
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyCatmarkEdgeVerticesKernel(
+        GLuint vertexBuffer, int numVertexElements,
+        GLuint varyingBuffer, int numVaryingElements,
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyCatmarkVertexVerticesKernelB(
-            GLuint vertexBuffer, int numVertexElements,
-            GLuint varyingBuffer, int numVaryingElements,
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyCatmarkVertexVerticesKernelB(
+        GLuint vertexBuffer, int numVertexElements,
+        GLuint varyingBuffer, int numVaryingElements,
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyCatmarkVertexVerticesKernelA(
-            GLuint vertexBuffer, int numVertexElements,
-            GLuint varyingBuffer, int numVaryingElements,
-            int vertexOffset, int tableOffset, int start, int end, bool pass);
+    void ApplyCatmarkVertexVerticesKernelA(
+        GLuint vertexBuffer, int numVertexElements,
+        GLuint varyingBuffer, int numVaryingElements,
+        int vertexOffset, int tableOffset, int start, int end, bool pass);
 
-        void ApplyLoopEdgeVerticesKernel(
-            GLuint vertexBuffer, int numVertexElements,
-            GLuint varyingBuffer, int numVaryingElements,
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyLoopEdgeVerticesKernel(
+        GLuint vertexBuffer, int numVertexElements,
+        GLuint varyingBuffer, int numVaryingElements,
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyLoopVertexVerticesKernelB(
-            GLuint vertexBuffer, int numVertexElements,
-            GLuint varyingBuffer, int numVaryingElements,
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyLoopVertexVerticesKernelB(
+        GLuint vertexBuffer, int numVertexElements,
+        GLuint varyingBuffer, int numVaryingElements,
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyLoopVertexVerticesKernelA(
-            GLuint vertexBuffer, int numVertexElements,
-            GLuint varyingBuffer, int numVaryingElements,
-            int vertexOffset, int tableOffset, int start, int end, bool pass);
+    void ApplyLoopVertexVerticesKernelA(
+        GLuint vertexBuffer, int numVertexElements,
+        GLuint varyingBuffer, int numVaryingElements,
+        int vertexOffset, int tableOffset, int start, int end, bool pass);
 
-        void ApplyEditAdd(
-            GLuint vertexBuffer, int numVertexElements,
-            GLuint varyingBuffer, int numVaryingElements,
-            int primvarOffset, int primvarWidth,
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyEditAdd(
+        GLuint vertexBuffer, int numVertexElements,
+        GLuint varyingBuffer, int numVaryingElements,
+        int primvarOffset, int primvarWidth,
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void UseProgram() const;
+    void UseProgram() const;
 
-        GLuint GetTableUniformLocation(int tableIndex) const {
-            return _uniformTables[tableIndex];
+    GLuint GetTableUniformLocation(int tableIndex) const {
+        return _uniformTables[tableIndex];
+    }
+    GLuint GetVertexUniformLocation() const {
+        return _uniformVertexBuffer;
+    }
+    GLuint GetVaryingUniformLocation() const {
+        return _uniformVaryingBuffer;
+    }
+    GLuint GetEditIndicesUniformLocation() const {
+        return _uniformEditIndices;
+    }
+    GLuint GetEditValuesUniformLocation() const {
+        return _uniformEditValues;
+    }
+    GLuint GetVertexBufferImageUniformLocation() const {
+        return _uniformVertexBufferImage;
+    }
+
+    struct Match {
+
+        /// Constructor
+        Match(int numVertexElements, int numVaryingElements)
+            : vdesc(numVertexElements, numVaryingElements) {
         }
-        GLuint GetVertexUniformLocation() const {
-            return _uniformVertexBuffer;
-        }
-        GLuint GetVaryingUniformLocation() const {
-            return _uniformVaryingBuffer;
-        }
-        GLuint GetEditIndicesUniformLocation() const {
-            return _uniformEditIndices;
-        }
-        GLuint GetEditValuesUniformLocation() const {
-            return _uniformEditValues;
-        }
-        GLuint GetVertexBufferImageUniformLocation() const {
-            return _uniformVertexBufferImage;
+
+        bool operator() (OsdGLSLTransformFeedbackKernelBundle const *kernel) {
+            return vdesc == kernel->_vdesc;
         }
 
-        struct Match {
-        Match(int numVertexElements, int numVaryingElements) :
-            _numVertexElements(numVertexElements),
-                _numVaryingElements(numVaryingElements) {}
-            bool operator() (const OsdGLSLTransformFeedbackKernelBundle *kernel) {
-                return (kernel->_numVertexElements == _numVertexElements
-                        && kernel->_numVaryingElements == _numVaryingElements);
-            }
-            int _numVertexElements, _numVaryingElements;
-        };
-
-        friend struct Match;
-
-    protected:
-        void transformGpuBufferData(
-            GLuint vertexBuffer, int numVertexElements,
-            GLuint varyingBuffer, int numVaryingElements,
-            int vertexOffset, int tableOffset, int start, int end) const;
-
-        GLuint _program;
-
-        // uniform locations
-        GLuint _uniformTables[FarSubdivisionTables<OsdVertex>::TABLE_TYPES_COUNT];
-        GLuint _uniformVertexPass;
-        GLuint _uniformVertexOffset;
-        GLuint _uniformTableOffset;
-        GLuint _uniformIndexStart;
-
-        GLuint _uniformVertexBuffer;
-        GLuint _uniformVaryingBuffer;
-
-        GLuint _uniformEditPrimVarOffset;
-        GLuint _uniformEditPrimVarWidth;
-
-        GLuint _uniformEditIndices;
-        GLuint _uniformEditValues;
-        GLuint _uniformVertexBufferImage;
-
-        // subroutines
-        // general face-vertex kernel (all schemes)
-        GLuint _subComputeFace;
-        // edge-vertex kernel (catmark + loop schemes)
-        GLuint _subComputeEdge;
-        // edge-vertex kernel (bilinear scheme)
-        GLuint _subComputeBilinearEdge;
-        // vertex-vertex kernel (bilinear scheme)
-        GLuint _subComputeVertex;
-        // vertex-vertex kernel A (catmark + loop schemes)
-        GLuint _subComputeVertexA;
-        // vertex-vertex kernel B (catmark scheme)
-        GLuint _subComputeCatmarkVertexB;
-        // vertex-vertex kernel B (loop scheme)
-        GLuint _subComputeLoopVertexB;
-        // hedit kernel (add)
-        GLuint _subEditAdd;
-
-        int _numVertexElements,
-            _numVaryingElements;
+        OsdVertexDescriptor vdesc;
     };
+
+    friend struct Match;
+
+protected:
+    void transformGpuBufferData(
+        GLuint vertexBuffer, int numVertexElements,
+        GLuint varyingBuffer, int numVaryingElements,
+        int vertexOffset, int tableOffset, int start, int end) const;
+
+    GLuint _program;
+
+    // uniform locations
+    GLuint _uniformTables[FarSubdivisionTables<OsdVertex>::TABLE_TYPES_COUNT];
+    GLuint _uniformVertexPass;
+    GLuint _uniformVertexOffset;
+    GLuint _uniformTableOffset;
+    GLuint _uniformIndexStart;
+
+    GLuint _uniformVertexBuffer;
+    GLuint _uniformVaryingBuffer;
+
+    GLuint _uniformEditPrimVarOffset;
+    GLuint _uniformEditPrimVarWidth;
+
+    GLuint _uniformEditIndices;
+    GLuint _uniformEditValues;
+    GLuint _uniformVertexBufferImage;
+
+    // subroutines
+
+    GLuint _subComputeFace; // general face-vertex kernel (all schemes)
+
+    GLuint _subComputeEdge; // edge-vertex kernel (catmark + loop schemes)
+
+    GLuint _subComputeBilinearEdge; // edge-vertex kernel (bilinear scheme)
+
+    GLuint _subComputeVertex; // vertex-vertex kernel (bilinear scheme)
+
+    GLuint _subComputeVertexA; // vertex-vertex kernel A (catmark + loop schemes)
+
+    GLuint _subComputeCatmarkVertexB;// vertex-vertex kernel B (catmark scheme)
+
+    GLuint _subComputeLoopVertexB; // vertex-vertex kernel B (loop scheme)
+
+    GLuint _subEditAdd; // hedit kernel (add)
+
+    OsdVertexDescriptor _vdesc;
+};
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

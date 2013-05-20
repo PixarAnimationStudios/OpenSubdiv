@@ -460,6 +460,19 @@ private:
     // Faces which are transient
     std::vector<HbrFace<T>*> m_transientFaces;
 
+#ifdef HBR_ADAPTIVE
+public:
+    enum SubdivisionMethod {
+        k_SubdivisionMethodNone,
+        k_SubdivisionMethodUniform,
+        k_SubdivisionMethodFeatureAdaptive
+    };
+    void SetSubdivisionMethod(SubdivisionMethod method) { _subdivisionMethod=method; }
+    SubdivisionMethod GetSubdivisionMethod() const { return _subdivisionMethod; }
+    
+private:
+    SubdivisionMethod _subdivisionMethod;
+#endif
 };
 
 } // end namespace OPENSUBDIV_VERSION

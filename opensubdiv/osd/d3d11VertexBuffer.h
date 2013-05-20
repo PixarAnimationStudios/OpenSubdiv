@@ -67,20 +67,24 @@ struct ID3D11UnorderedAccessView;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+///
 /// \brief Concrete vertex buffer class for DirectX subvision and DirectX drawing.
+///
 /// OsdD3D11VertexBuffer implements OsdD3D11VertexBufferInterface. An instance
 /// of this buffer class can be passed to OsdD3D11ComputeController.
+///
 class OsdD3D11VertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static OsdD3D11VertexBuffer * Create(int numElements, int numVertices,
+    static OsdD3D11VertexBuffer * Create(int numElements, 
+                                         int numVertices, 
                                          ID3D11Device *device);
 
     /// Destructor.
     virtual ~OsdD3D11VertexBuffer();
 
-    /// This method is meant to be used in client code in order to provide
-    /// coarse vertices data to Osd.
+    /// This method is meant to be used in client code in order to provide coarse
+    /// vertices data to Osd.
     void UpdateData(const float *src, int startVertex, int numVertices, void *param);
 
     /// Returns how many elements defined in this vertex buffer.
@@ -91,11 +95,15 @@ public:
 
     /// Returns the D3D11 buffer object.
     ID3D11Buffer *BindD3D11Buffer(ID3D11DeviceContext *deviceContext);
+
+    /// Returns the D3D11 UAV
     ID3D11UnorderedAccessView *BindD3D11UAV(ID3D11DeviceContext *deviceContext);
 
 protected:
     /// Constructor.
-    OsdD3D11VertexBuffer(int numElements, int numVertices, ID3D11Device *device);
+    OsdD3D11VertexBuffer(int numElements, 
+                         int numVertices, 
+                         ID3D11Device *device);
 
     // Allocates D3D11 buffer
     bool allocate(ID3D11Device *device);

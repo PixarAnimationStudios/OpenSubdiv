@@ -163,9 +163,14 @@ float TessAdaptive(vec3 p0, vec3 p1, int patchLevel)
 #define OSD_DISPLACEMENT_CALLBACK
 #endif
 
-#ifdef USE_PTEX_COORD
+uniform isamplerBuffer g_ptexIndicesBuffer;
 
-#define OSD_DECLARE_PTEX_INDICES_BUFFER uniform isamplerBuffer g_ptexIndicesBuffer;
+int GetPatchLevel()
+{
+    ivec2 ptexIndex = texelFetchBuffer(g_ptexIndicesBuffer,
+                                       gl_PrimitiveID + LevelBase).xy;
+    return (ptexIndex.y & 0xf);
+}
 
 #define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
     {                                                                   \
@@ -206,13 +211,6 @@ float TessAdaptive(vec3 p0, vec3 p1, int patchLevel)
             output.v.tangent = normalize(BiTangent);            \
         }                                                       \
     }
-
-#else
-#define OSD_DECLARE_PTEX_INDICES_BUFFER
-#define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER
-#define OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER
-#define OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(ROTATE)
-#endif  // USE_PTEX_COORD
 
 #ifdef OSD_ENABLE_PATCH_CULL
 

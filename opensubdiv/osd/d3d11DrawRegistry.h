@@ -48,6 +48,12 @@
 //     with this license.
 //     (E) The software is licensed "as-is." You bear the risk of
 //     using it. The contributors give no express warranties,
+//     guarantees or conditions. You may have additional consumer
+//     rights under your local laws which this license cannot change.
+//     To the extent permitted under your local laws, the contributors
+//     exclude the implied warranties of merchantability, fitness for
+//     a particular purpose and non-infringement.
+//
 #ifndef OSD_D3D11_DRAW_REGISTRY_H
 #define OSD_D3D11_DRAW_REGISTRY_H
 
@@ -101,7 +107,7 @@ struct OsdD3D11DrawSourceConfig {
 
 class OsdD3D11DrawRegistryBase {
 public:
-    typedef OsdPatchDescriptor DescType;
+    typedef OsdDrawContext::PatchDescriptor DescType;
     typedef OsdD3D11DrawConfig ConfigType;
     typedef OsdD3D11DrawSourceConfig SourceConfigType;
 
@@ -122,7 +128,7 @@ protected:
     _CreateDrawSourceConfig(DescType const & desc, ID3D11Device * pd3dDevice);
 };
 
-template <class DESC_TYPE = OsdPatchDescriptor,
+template <class DESC_TYPE = OsdDrawContext::PatchDescriptor,
           class CONFIG_TYPE = OsdD3D11DrawConfig,
           class SOURCE_CONFIG_TYPE = OsdD3D11DrawSourceConfig >
 class OsdD3D11DrawRegistry : public OsdD3D11DrawRegistryBase {
@@ -134,7 +140,6 @@ public:
     typedef SOURCE_CONFIG_TYPE SourceConfigType;
 
     typedef std::map<DescType, ConfigType *> ConfigMap;
-    typedef std::map<DescType, SourceConfigType *> SourceConfigMap;
 
 public:
     virtual ~OsdD3D11DrawRegistry() {
@@ -147,11 +152,6 @@ public:
             delete i->second;
         }
         _configMap.clear();
-        for (typename SourceConfigMap::iterator
-                i = _sourceConfigMap.begin(); i != _sourceConfigMap.end(); ++i) {
-            delete i->second;
-        }
-        _sourceConfigMap.clear();
     }
 
     // fetch shader config
@@ -167,25 +167,12 @@ public:
         } else {
             ConfigType * config =
                 _CreateDrawConfig(desc,
-                                  GetDrawSourceConfig(desc, pd3dDevice),
+                                  _CreateDrawSourceConfig(desc, pd3dDevice),
                                   pd3dDevice,
                                   ppInputLayout,
                                   pInputElementDescs, numInputElements);
             _configMap[desc] = config;
             return config;
-        }
-    }
-
-    // fetch text and related defines for patch descriptor
-    SourceConfigType *
-    GetDrawSourceConfig(DescType const & desc, ID3D11Device * pd3dDevice) {
-        typename SourceConfigMap::iterator it = _sourceConfigMap.find(desc);
-        if (it != _sourceConfigMap.end()) {
-            return it->second;
-        } else {
-            SourceConfigType * sconfig = _CreateDrawSourceConfig(desc, pd3dDevice);
-            _sourceConfigMap[desc] = sconfig;
-            return sconfig;
         }
     }
 
@@ -205,7 +192,6 @@ protected:
 
 private:
     ConfigMap _configMap;
-    SourceConfigMap _sourceConfigMap;
 };
 
 } // end namespace OPENSUBDIV_VERSION

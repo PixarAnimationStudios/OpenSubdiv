@@ -48,89 +48,35 @@
 //     with this license.
 //     (E) The software is licensed "as-is." You bear the risk of
 //     using it. The contributors give no express warranties,
+//     guarantees or conditions. You may have additional consumer
+//     rights under your local laws which this license cannot change.
+//     To the extent permitted under your local laws, the contributors
+//     exclude the implied warranties of merchantability, fitness for
+//     a particular purpose and non-infringement.
+//
+#ifndef OSD_UTIL_MESH_HANDLE_H
+#define OSD_UTIL_MESH_HANDLE_H
 
-#include "../osd/sortedDrawContext.h"
-
-#include <cassert>
+#include "../version.h"
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdSortedDrawContext::OsdSortedDrawContext(FarPatchCountVector const &patchCounts,
-                                           OsdPatchArrayVector const &patchArrays) {
-    _patchCounts = patchCounts;
-    _patchArrays = patchArrays;
-    _patchDrawRangesDirty = true;
-    _primFidelity.clear();
-    _primFidelity.resize(patchCounts.size());
-}
+struct OsdUtilMeshHandle {
+public:
+    typedef std::vector<OsdUtilMeshHandle> Collection;
 
-void
-OsdSortedDrawContext::SetPrimFidelity(int primIndex, Fidelity f) {
+    OsdUtilMeshHandle(int batchIndex_, int meshIndex_) :
+        batchIndex(batchIndex_), meshIndex(meshIndex_) {}
 
-    assert(primIndex >= 0 && primIndex <= (int)_primFidelity.size());
-    _primFidelity[primIndex] = f;
-    _patchDrawRangesDirty = true;
-}
+    int batchIndex;
+    int meshIndex;
+};
 
-OsdPatchDrawRangeVector const &
-OsdSortedDrawContext::GetPatchDrawRanges(OsdPatchDescriptor desc) {
-    if (_patchDrawRangesDirty) {
-        _ComputePatchDrawRanges();
-        _patchDrawRangesDirty = false;
-    }
-    return _patchDrawRanges[desc];
-}
+}  // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
 
-void
-OsdSortedDrawContext::_ComputePatchDrawRanges() {
+}  // end namespace OpenSubdiv
 
-    _patchDrawRanges.clear();
-
-    for (size_t i = 0; i < _patchArrays.size(); ++i) {
-        OsdPatchArray const &patch = _patchArrays[i];
-        OsdPatchDescriptor desc = patch.desc;
-
-        int offset = patch.firstIndex;
-        for (size_t j = 0; j < _patchCounts.size(); ++j) {
-
-            FarPatchCount const &counts = _patchCounts[j];
-            int length = 0;
-            switch (desc.type) {
-            case kRegular:
-                length = counts.regular*16;
-                break;
-            case kBoundary:
-                length = counts.boundary*12;
-                break;
-            case kCorner:
-                length = counts.corner*9;
-                break;
-            case kGregory:
-                length = counts.gregory*4;
-                break;
-            case kBoundaryGregory:
-                length = counts.boundaryGregory*4;
-                break;
-            case kTransitionRegular:
-                length = counts.transitionRegular[desc.pattern]*16;
-                break;
-            case kTransitionBoundary:
-                length = counts.transitionBoundary[desc.pattern][desc.rotation]*12;
-                break;
-            case kTransitionCorner:
-                length = counts.transitionCorner[desc.pattern][desc.rotation]*9;
-                break;
-            }
-            if (_primFidelity[j] != 0 and length > 0) {
-                _patchDrawRanges[desc].push_back(OsdPatchDrawRange(offset, length));
-            }
-            offset += length;
-        }
-    }
-}
-
-} // end namespace OPENSUBDIV_VERSION
-} // end namespace OpenSubdiv
-
-
+#endif  /* OSD_UTIL_MESH_HANDLE_H */

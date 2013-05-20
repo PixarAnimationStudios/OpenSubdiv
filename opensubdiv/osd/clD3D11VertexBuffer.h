@@ -68,24 +68,27 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+///
 /// \brief Concrete vertex buffer class for OpenCL subvision and DirectX
 /// drawing.
+///
 /// OsdD3D11VertexBuffer implements OsdCLVertexBufferInterface and
 /// OsdD3D11VertexBufferInterface.
-/// An instance of this buffer class can be passed to
-/// OsdD3D11ComputeController.
+///
+/// An instance of this buffer class can be passed to OsdD3D11ComputeController.
+///
 class OsdCLD3D11VertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static OsdCLD3D11VertexBuffer * Create(int numElements, int numVertices,
+    static OsdCLD3D11VertexBuffer * Create(int numElements, 
+                                           int numVertices,
                                            cl_context clContext,
                                            ID3D11Device *device);
-
     /// Destructor.
     virtual ~OsdCLD3D11VertexBuffer();
 
-    /// This method is meant to be used in client code in order to provide
-    /// coarse vertices data to Osd.
+    /// This method is meant to be used in client code in order to provide coarse
+    /// vertices data to Osd.
     void UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue clQueue);
 
     /// Returns how many elements defined in this vertex buffer.
@@ -102,8 +105,10 @@ public:
 
 protected:
     /// Constructor.
-    OsdCLD3D11VertexBuffer(int numElements, int numVertices,
-                           cl_context clContext, ID3D11Device *device);
+    OsdCLD3D11VertexBuffer(int numElements, 
+                           int numVertices, 
+                           cl_context clContext, 
+                           ID3D11Device *device);
 
     /// Allocates this buffer and registers as a cl resource.
     /// Returns true if success.
