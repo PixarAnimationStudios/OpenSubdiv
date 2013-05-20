@@ -429,7 +429,7 @@ if(PYTHONINTERP_FOUND AND SWIG_FOUND)
     endif()
 else()
     message(WARNING
-        "Python / Swig not found : pythong bindings and examples will no be "
+        "Python / Swig not found : python bindings and examples will not be "
 	"available. If you do have Python and Swig installed and see this "
 	"message, please check the default FindPython.cmake module."
     )
