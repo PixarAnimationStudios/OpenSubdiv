@@ -61,6 +61,7 @@
 
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
+#include "../osd/vertexDescriptor.h"
 #include "../osd/nonCopyable.h"
 
 #include <stdlib.h>
@@ -128,7 +129,7 @@ public:
     ///
     /// @param farmesh the FarMesh used for this Context.
     ///
-    static OsdCudaComputeContext * Create(FarMesh<OsdVertex> *farmesh);
+    static OsdCudaComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
 
     /// Destructor
     virtual ~OsdCudaComputeContext();
@@ -137,27 +138,27 @@ public:
     /// that data buffers are properly inter-operated between Contexts and 
     /// Controllers operating across multiple devices.
     ///
-    /// @param a buffer containing vertex-interpolated primvar data
+    /// @param vertex   a buffer containing vertex-interpolated primvar data
     ///
-    /// @param a buffer containing varying-interpolated primvar data
+    /// @param varying  a buffer containing varying-interpolated primvar data
     ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
 
         if (vertex) {
             _currentVertexBuffer = static_cast<float*>(vertex->BindCudaBuffer());
-            _numVertexElements = vertex->GetNumElements();
+            _vdesc.numVertexElements = vertex->GetNumElements();
         } else {
             _currentVertexBuffer = 0;
-            _numVertexElements = 0;
+            _vdesc.numVertexElements = 0;
         }
 
         if (varying) {
             _currentVaryingBuffer = static_cast<float*>(varying->BindCudaBuffer());
-            _numVertexElements = varying->GetNumElements();
+            _vdesc.numVertexElements = varying->GetNumElements();
         } else {
             _currentVaryingBuffer = 0;
-            _numVaryingElements = 0;
+            _vdesc.numVaryingElements = 0;
         }
     }
 
@@ -185,14 +186,20 @@ public:
     /// Returns a pointer to the vertex-interpolated data
     float * GetCurrentVertexBuffer() const;
 
+    /// Returns a pointer to the varying-interpolated data
     float * GetCurrentVaryingBuffer() const;
 
-    int GetCurrentVertexNumElements() const;
+    /// Returns an OsdVertexDescriptor if vertex buffers have been bound.
+    ///
+    /// @return a descriptor for the format of the vertex data currently bound
+    ///
+    OsdVertexDescriptor const & GetVertexDescriptor() const {
+        return _vdesc;
+    }
 
-    int GetCurrentVaryingNumElements() const;
 
 protected:
-    explicit OsdCudaComputeContext(FarMesh<OsdVertex> *farMesh);
+    explicit OsdCudaComputeContext(FarMesh<OsdVertex> const *farMesh);
 
 private:
     std::vector<OsdCudaTable*> _tables;
@@ -202,7 +209,7 @@ private:
     float *_currentVertexBuffer, // cuda buffers
           *_currentVaryingBuffer;
 
-    int _numVertexElements, _numVaryingElements;
+    OsdVertexDescriptor _vdesc;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

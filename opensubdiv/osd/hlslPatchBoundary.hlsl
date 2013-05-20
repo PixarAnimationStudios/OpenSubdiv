@@ -102,15 +102,12 @@ void vs_main_patches( in InputVertex input,
 // Patches.HullRegular
 //----------------------------------------------------------
 
-Buffer<int> g_patchLevelBuffer : register( t3 );
-OSD_DECLARE_PTEX_INDICES_BUFFER;
-
 HS_CONSTANT_FUNC_OUT HSConstFunc(
     InputPatch<HullVertex, 12> patch,
     uint primitiveID : SV_PrimitiveID)
 {
     HS_CONSTANT_FUNC_OUT output;
-    int patchLevel = g_patchLevelBuffer[primitiveID + LevelBase];
+    int patchLevel = GetPatchLevel(primitiveID);
 
     OSD_PATCH_CULL(12);
 
@@ -169,7 +166,7 @@ HullVertex hs_main_patches(
     HullVertex output;
     output.position = float4(pos, 1.0);
 
-    int patchLevel = g_patchLevelBuffer[primitiveID + LevelBase];
+    int patchLevel = GetPatchLevel(primitiveID);
     // +0.5 to avoid interpolation error of integer value
     output.patchCoord = float4(0, 0,
                                patchLevel+0.5,

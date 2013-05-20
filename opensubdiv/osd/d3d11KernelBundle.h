@@ -54,13 +54,13 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-
 #ifndef OSD_D3D11_COMPUTE_KERNEL_BUNDLE_H
 #define OSD_D3D11_COMPUTE_KERNEL_BUNDLE_H
 
 #include "../version.h"
 
 #include "../osd/nonCopyable.h"
+#include "../osd/vertexDescriptor.h"
 
 struct ID3D11Buffer;
 struct ID3D11ClassInstance;
@@ -71,94 +71,99 @@ struct ID3D11DeviceContext;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-    class OsdD3D11ComputeKernelBundle
-        : OsdNonCopyable<OsdD3D11ComputeKernelBundle> {
-    public:
-        OsdD3D11ComputeKernelBundle(ID3D11DeviceContext *deviceContext);
-        ~OsdD3D11ComputeKernelBundle();
+class OsdD3D11ComputeKernelBundle : OsdNonCopyable<OsdD3D11ComputeKernelBundle> {
 
-        bool Compile(int numVertexElements, int numVaryingElements);
+public:
+    /// Constructor
+    OsdD3D11ComputeKernelBundle(ID3D11DeviceContext *deviceContext);
+    
+    /// Destructor
+    ~OsdD3D11ComputeKernelBundle();
 
-        void ApplyBilinearFaceVerticesKernel(
-            int vertexOffset, int tableOffset, int start, int end);
+    bool Compile(int numVertexElements, int numVaryingElements);
 
-        void ApplyBilinearEdgeVerticesKernel(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyBilinearFaceVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyBilinearVertexVerticesKernel(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyBilinearEdgeVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyCatmarkFaceVerticesKernel(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyBilinearVertexVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyCatmarkEdgeVerticesKernel(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyCatmarkFaceVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyCatmarkVertexVerticesKernelB(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyCatmarkEdgeVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyCatmarkVertexVerticesKernelA(
-            int vertexOffset, int tableOffset, int start, int end, bool pass);
+    void ApplyCatmarkVertexVerticesKernelB(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyLoopEdgeVerticesKernel(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyCatmarkVertexVerticesKernelA(
+        int vertexOffset, int tableOffset, int start, int end, bool pass);
 
-        void ApplyLoopVertexVerticesKernelB(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyLoopEdgeVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyLoopVertexVerticesKernelA(
-            int vertexOffset, int tableOffset, int start, int end, bool pass);
+    void ApplyLoopVertexVerticesKernelB(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyEditAdd(int primvarOffset, int primvarWidth,
-                          int vertexOffset, int tableOffset, int start, int end);
+    void ApplyLoopVertexVerticesKernelA(
+        int vertexOffset, int tableOffset, int start, int end, bool pass);
 
-        struct Match {
-        Match(int numVertexElements, int numVaryingElements) :
-            _numVertexElements(numVertexElements),
-                _numVaryingElements(numVaryingElements) {}
-            bool operator() (const OsdD3D11ComputeKernelBundle *kernel) {
-                return (kernel->_numVertexElements == _numVertexElements
-                        && kernel->_numVaryingElements == _numVaryingElements);
-            }
-            int _numVertexElements, _numVaryingElements;
-        };
+    void ApplyEditAdd(int primvarOffset, int primvarWidth,
+                      int vertexOffset, int tableOffset, int start, int end);
 
-        friend struct Match;
+    struct Match {
 
-    protected:
-        struct KernelCB;
-        void dispatchCompute(ID3D11ClassInstance * kernel, KernelCB const & args);
+        /// Constructor
+        Match(int numVertexElements, int numVaryingElements)
+            : vdesc(numVertexElements, numVaryingElements) {
+        }
 
-        ID3D11DeviceContext * _deviceContext;
+        bool operator() (OsdD3D11ComputeKernelBundle const *kernel) {
+            return vdesc == kernel->_vdesc;
+        }
 
-        ID3D11ComputeShader * _computeShader;
-        ID3D11ClassLinkage * _classLinkage;
-
-        // constant buffer
-        ID3D11Buffer * _kernelCB;
-
-        // general face-vertex kernel (all schemes)
-        ID3D11ClassInstance * _kernelComputeFace;
-        // edge-vertex kernel (catmark + loop schemes)
-        ID3D11ClassInstance * _kernelComputeEdge;
-        // edge-vertex kernel (bilinear scheme)
-        ID3D11ClassInstance * _kernelComputeBilinearEdge;
-        // vertex-vertex kernel (bilinear scheme)
-        ID3D11ClassInstance * _kernelComputeVertex;
-        // vertex-vertex kernel A (catmark + loop schemes)
-        ID3D11ClassInstance * _kernelComputeVertexA;
-        // vertex-vertex kernel B (catmark scheme)
-        ID3D11ClassInstance * _kernelComputeCatmarkVertexB;
-        // vertex-vertex kernel B (loop scheme)
-        ID3D11ClassInstance * _kernelComputeLoopVertexB;
-        // hedit kernel (add)
-        ID3D11ClassInstance * _kernelEditAdd;
-
-        int _numVertexElements,
-            _numVaryingElements;
-
-        int _workGroupSize;
+        OsdVertexDescriptor vdesc;
     };
+
+    friend struct Match;
+
+protected:
+    struct KernelCB;
+    void dispatchCompute(ID3D11ClassInstance * kernel, KernelCB const & args);
+
+    ID3D11DeviceContext * _deviceContext;
+
+    ID3D11ComputeShader * _computeShader;
+    ID3D11ClassLinkage * _classLinkage;
+
+
+    ID3D11Buffer * _kernelCB; // constant buffer
+
+
+    ID3D11ClassInstance * _kernelComputeFace; // general face-vertex kernel (all schemes)
+
+    ID3D11ClassInstance * _kernelComputeEdge; // edge-vertex kernel (catmark + loop schemes)
+
+    ID3D11ClassInstance * _kernelComputeBilinearEdge; // edge-vertex kernel (bilinear scheme)
+
+    ID3D11ClassInstance * _kernelComputeVertex; // vertex-vertex kernel (bilinear scheme)
+
+    ID3D11ClassInstance * _kernelComputeVertexA; // vertex-vertex kernel A (catmark + loop schemes)
+
+    ID3D11ClassInstance * _kernelComputeCatmarkVertexB; // vertex-vertex kernel B (catmark scheme)
+
+    ID3D11ClassInstance * _kernelComputeLoopVertexB; // vertex-vertex kernel B (loop scheme)
+
+    ID3D11ClassInstance * _kernelEditAdd; // hedit kernel (add)
+
+    int _workGroupSize;
+
+    OsdVertexDescriptor _vdesc;
+};
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

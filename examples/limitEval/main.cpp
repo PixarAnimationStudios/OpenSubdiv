@@ -469,7 +469,7 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
     OsdFarMeshFactory factory( hmesh, level, /*adaptive*/ true);    
     
     delete g_fmesh;
-    g_fmesh = factory.Create( /*ptex*/ true, /*fvar*/ false);
+    g_fmesh = factory.Create(/*fvar*/ false);
     
     int nverts = g_fmesh->GetNumVertices();
     

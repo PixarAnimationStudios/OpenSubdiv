@@ -128,7 +128,7 @@ OsdCudaHEditTable::GetPrimvarWidth() const {
     return _primvarWidth;
 }
 
-OsdCudaComputeContext::OsdCudaComputeContext(FarMesh<OsdVertex> *farMesh) {
+OsdCudaComputeContext::OsdCudaComputeContext(FarMesh<OsdVertex> const *farMesh) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
         farMesh->GetSubdivisionTables();
@@ -201,20 +201,8 @@ OsdCudaComputeContext::GetCurrentVaryingBuffer() const {
     return _currentVaryingBuffer;
 }
 
-int
-OsdCudaComputeContext::GetCurrentVertexNumElements() const {
-
-    return _numVertexElements;
-}
-
-int
-OsdCudaComputeContext::GetCurrentVaryingNumElements() const {
-
-    return _numVaryingElements;
-}
-
 OsdCudaComputeContext *
-OsdCudaComputeContext::Create(FarMesh<OsdVertex> *farmesh) {
+OsdCudaComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
 
     return new OsdCudaComputeContext(farmesh);
 }

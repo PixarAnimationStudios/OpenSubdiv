@@ -65,7 +65,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 void OsdOmpComputeFace(
-    const OsdVertexDescriptor *vdesc, float * vertex, float * varying,
+    OsdVertexDescriptor const &vdesc, float * vertex, float * varying,
     const int *F_IT, const int *F_ITa, int offset, int tableOffset, int start, int end) {
 
 #pragma omp parallel for
@@ -78,18 +78,18 @@ void OsdOmpComputeFace(
         // XXX: should use local vertex struct variable instead of
         // accumulating directly into global memory.
         int dstIndex = offset + i - tableOffset;
-        vdesc->Clear(vertex, varying, dstIndex);
+        vdesc.Clear(vertex, varying, dstIndex);
 
         for (int j = 0; j < n; ++j) {
             int index = F_IT[h+j];
-            vdesc->AddWithWeight(vertex, dstIndex, index, weight);
-            vdesc->AddVaryingWithWeight(varying, dstIndex, index, weight);
+            vdesc.AddWithWeight(vertex, dstIndex, index, weight);
+            vdesc.AddVaryingWithWeight(varying, dstIndex, index, weight);
         }
     }
 }
 
 void OsdOmpComputeEdge(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    OsdVertexDescriptor const &vdesc, float *vertex, float *varying,
     const int *E_IT, const float *E_W, int offset, int tableOffset, int start, int end) {
 
 #pragma omp parallel for
@@ -102,25 +102,25 @@ void OsdOmpComputeEdge(
         float vertWeight = E_W[i*2+0];
 
         int dstIndex = offset + i - tableOffset;
-        vdesc->Clear(vertex, varying, dstIndex);
+        vdesc.Clear(vertex, varying, dstIndex);
 
-        vdesc->AddWithWeight(vertex, dstIndex, eidx0, vertWeight);
-        vdesc->AddWithWeight(vertex, dstIndex, eidx1, vertWeight);
+        vdesc.AddWithWeight(vertex, dstIndex, eidx0, vertWeight);
+        vdesc.AddWithWeight(vertex, dstIndex, eidx1, vertWeight);
 
         if (eidx2 != -1) {
             float faceWeight = E_W[i*2+1];
 
-            vdesc->AddWithWeight(vertex, dstIndex, eidx2, faceWeight);
-            vdesc->AddWithWeight(vertex, dstIndex, eidx3, faceWeight);
+            vdesc.AddWithWeight(vertex, dstIndex, eidx2, faceWeight);
+            vdesc.AddWithWeight(vertex, dstIndex, eidx3, faceWeight);
         }
 
-        vdesc->AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
-        vdesc->AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
+        vdesc.AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
+        vdesc.AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
     }
 }
 
 void OsdOmpComputeVertexA(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    OsdVertexDescriptor const &vdesc, float *vertex, float *varying,
     const int *V_ITa, const float *V_W,
     int offset, int tableOffset, int start, int end, int pass) {
 
@@ -141,23 +141,23 @@ void OsdOmpComputeVertexA(
 
         int dstIndex = offset + i - tableOffset;
         if (not pass)
-            vdesc->Clear(vertex, varying, dstIndex);
+            vdesc.Clear(vertex, varying, dstIndex);
 
         if (eidx0 == -1 || (pass == 0 && (n == -1))) {
-            vdesc->AddWithWeight(vertex, dstIndex, p, weight);
+            vdesc.AddWithWeight(vertex, dstIndex, p, weight);
         } else {
-            vdesc->AddWithWeight(vertex, dstIndex, p, weight * 0.75f);
-            vdesc->AddWithWeight(vertex, dstIndex, eidx0, weight * 0.125f);
-            vdesc->AddWithWeight(vertex, dstIndex, eidx1, weight * 0.125f);
+            vdesc.AddWithWeight(vertex, dstIndex, p, weight * 0.75f);
+            vdesc.AddWithWeight(vertex, dstIndex, eidx0, weight * 0.125f);
+            vdesc.AddWithWeight(vertex, dstIndex, eidx1, weight * 0.125f);
         }
 
         if (not pass)
-            vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
+            vdesc.AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
     }
 }
 
 void OsdOmpComputeVertexB(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    OsdVertexDescriptor const &vdesc, float *vertex, float *varying,
     const int *V_ITa, const int *V_IT, const float *V_W,
     int offset, int tableOffset, int start, int end) {
 
@@ -172,20 +172,20 @@ void OsdOmpComputeVertexB(
         float wv = (n-2.0f) * n * wp;
 
         int dstIndex = offset + i - tableOffset;
-        vdesc->Clear(vertex, varying, dstIndex);
+        vdesc.Clear(vertex, varying, dstIndex);
 
-        vdesc->AddWithWeight(vertex, dstIndex, p, weight * wv);
+        vdesc.AddWithWeight(vertex, dstIndex, p, weight * wv);
 
         for (int j = 0; j < n; ++j) {
-            vdesc->AddWithWeight(vertex, dstIndex, V_IT[h+j*2], weight * wp);
-            vdesc->AddWithWeight(vertex, dstIndex, V_IT[h+j*2+1], weight * wp);
+            vdesc.AddWithWeight(vertex, dstIndex, V_IT[h+j*2], weight * wp);
+            vdesc.AddWithWeight(vertex, dstIndex, V_IT[h+j*2+1], weight * wp);
         }
-        vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
+        vdesc.AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
     }
 }
 
 void OsdOmpComputeLoopVertexB(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    OsdVertexDescriptor const &vdesc, float *vertex, float *varying,
     const int *V_ITa, const int *V_IT, const float *V_W,
     int vertexOffset, int tableOffset, int start, int end) {
 
@@ -202,19 +202,19 @@ void OsdOmpComputeLoopVertexB(
         beta = (0.625f - beta) * wp;
 
         int dstIndex = i + vertexOffset - tableOffset;
-        vdesc->Clear(vertex, varying, dstIndex);
+        vdesc.Clear(vertex, varying, dstIndex);
 
-        vdesc->AddWithWeight(vertex, dstIndex, p, weight * (1.0f - (beta * n)));
+        vdesc.AddWithWeight(vertex, dstIndex, p, weight * (1.0f - (beta * n)));
 
         for (int j = 0; j < n; ++j)
-            vdesc->AddWithWeight(vertex, dstIndex, V_IT[h+j], weight * beta);
+            vdesc.AddWithWeight(vertex, dstIndex, V_IT[h+j], weight * beta);
 
-        vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
+        vdesc.AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
     }
 }
 
 void OsdOmpComputeBilinearEdge(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    OsdVertexDescriptor const &vdesc, float *vertex, float *varying,
     const int *E_IT, int vertexOffset, int tableOffset, int start, int end) {
 
 #pragma omp parallel for
@@ -223,18 +223,18 @@ void OsdOmpComputeBilinearEdge(
         int eidx1 = E_IT[2*i+1];
 
         int dstIndex = i + vertexOffset - tableOffset;
-        vdesc->Clear(vertex, varying, dstIndex);
+        vdesc.Clear(vertex, varying, dstIndex);
 
-        vdesc->AddWithWeight(vertex, dstIndex, eidx0, 0.5f);
-        vdesc->AddWithWeight(vertex, dstIndex, eidx1, 0.5f);
+        vdesc.AddWithWeight(vertex, dstIndex, eidx0, 0.5f);
+        vdesc.AddWithWeight(vertex, dstIndex, eidx1, 0.5f);
 
-        vdesc->AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
-        vdesc->AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
+        vdesc.AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
+        vdesc.AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
     }
 }
 
 void OsdOmpComputeBilinearVertex(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    OsdVertexDescriptor const &vdesc, float *vertex, float *varying,
     const int *V_ITa, int vertexOffset, int tableOffset, int start, int end) {
 
 #pragma omp parallel for
@@ -242,42 +242,42 @@ void OsdOmpComputeBilinearVertex(
         int p = V_ITa[i];
 
         int dstIndex = i + vertexOffset - tableOffset;
-        vdesc->Clear(vertex, varying, dstIndex);
+        vdesc.Clear(vertex, varying, dstIndex);
 
-        vdesc->AddWithWeight(vertex, dstIndex, p, 1.0f);
-        vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
+        vdesc.AddWithWeight(vertex, dstIndex, p, 1.0f);
+        vdesc.AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
     }
 }
 
 void OsdOmpEditVertexAdd(
-    const OsdVertexDescriptor *vdesc, float *vertex,
+    OsdVertexDescriptor const &vdesc, float *vertex,
     int primVarOffset, int primVarWidth, int vertexOffset, int tableOffset,
     int start, int end,
     const unsigned int *editIndices, const float *editValues) {
 
 #pragma omp parallel for
     for (int i = start+tableOffset; i < end+tableOffset; i++) {
-        vdesc->ApplyVertexEditAdd(vertex,
-                                  primVarOffset,
-                                  primVarWidth,
-                                  editIndices[i] + vertexOffset,
-                                  &editValues[i*primVarWidth]);
+        vdesc.ApplyVertexEditAdd(vertex,
+                                 primVarOffset,
+                                 primVarWidth,
+                                 editIndices[i] + vertexOffset,
+                                 &editValues[i*primVarWidth]);
     }
 }
 
 void OsdOmpEditVertexSet(
-    const OsdVertexDescriptor *vdesc, float *vertex,
+    OsdVertexDescriptor const &vdesc, float *vertex,
     int primVarOffset, int primVarWidth, int vertexOffset, int tableOffset,
     int start, int end,
     const unsigned int *editIndices, const float *editValues) {
 
 #pragma omp parallel for
     for (int i = start+tableOffset; i < end+tableOffset; i++) {
-        vdesc->ApplyVertexEditSet(vertex,
-                                  primVarOffset,
-                                  primVarWidth,
-                                  editIndices[i] + vertexOffset,
-                                  &editValues[i*primVarWidth]);
+        vdesc.ApplyVertexEditSet(vertex,
+                                 primVarOffset,
+                                 primVarWidth,
+                                 editIndices[i] + vertexOffset,
+                                 &editValues[i*primVarWidth]);
     }
 }
 

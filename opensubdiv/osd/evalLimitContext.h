@@ -62,7 +62,6 @@
 #include "../far/mesh.h"
 
 #include "../osd/nonCopyable.h"
-#include "../osd/patch.h"
 #include "../osd/vertex.h"
 
 namespace OpenSubdiv {

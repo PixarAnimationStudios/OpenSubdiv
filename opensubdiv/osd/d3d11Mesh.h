@@ -54,7 +54,6 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-
 #ifndef OSD_D3D11MESH_H
 #define OSD_D3D11MESH_H
 
@@ -94,8 +93,7 @@ public:
             _pd3d11DeviceContext(d3d11DeviceContext)
     {
         FarMeshFactory<OsdVertex> meshFactory(hmesh, level, bits.test(MeshAdaptive));
-        _farMesh = meshFactory.Create(bits.test(MeshPtexData),
-                                      bits.test(MeshFVarData));
+        _farMesh = meshFactory.Create(bits.test(MeshFVarData));
 
         ID3D11Device * pd3d11Device;
         _pd3d11DeviceContext->GetDevice(&pd3d11Device);
@@ -103,10 +101,11 @@ public:
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices, pd3d11Device);
         _computeContext = ComputeContext::Create(_farMesh);
-        _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
+        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(),
                                            _pd3d11DeviceContext,
-                                           bits.test(MeshPtexData),
                                            bits.test(MeshFVarData));
+        assert(_drawContext);
+        _drawContext->UpdateVertexTexture(_vertexBuffer, _pd3d11DeviceContext);
     }
 
     virtual ~OsdMesh() {
@@ -168,8 +167,7 @@ public:
             _pd3d11DeviceContext(d3d11DeviceContext)
     {
         FarMeshFactory<OsdVertex> meshFactory(hmesh, level, bits.test(MeshAdaptive));
-        _farMesh = meshFactory.Create(bits.test(MeshPtexData),
-                                      bits.test(MeshFVarData));
+        _farMesh = meshFactory.Create(bits.test(MeshFVarData));
 
         ID3D11Device * pd3d11Device;
         _pd3d11DeviceContext->GetDevice(&pd3d11Device);
@@ -177,10 +175,10 @@ public:
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices, pd3d11Device);
         _computeContext = ComputeContext::Create(_farMesh, _pd3d11DeviceContext);
-        _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
+        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(),
                                            _pd3d11DeviceContext,
-                                           bits.test(MeshPtexData),
                                            bits.test(MeshFVarData));
+        _drawContext->UpdateVertexTexture(_vertexBuffer, _pd3d11DeviceContext);
     }
 
     virtual ~OsdMesh() {

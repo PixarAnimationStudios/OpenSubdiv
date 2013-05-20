@@ -119,9 +119,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyBilinearFaceVerticesKernel(
 
     kernelBundle->ApplyBilinearFaceVerticesKernel(
         context->GetCurrentVertexBuffer(),
-        context->GetNumCurrentVertexElements(),
+        context->GetVertexDescriptor().numVertexElements,
         context->GetCurrentVaryingBuffer(),
-        context->GetNumCurrentVaryingElements(),
+        context->GetVertexDescriptor().numVaryingElements,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -137,9 +137,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyBilinearEdgeVerticesKernel(
 
     kernelBundle->ApplyBilinearEdgeVerticesKernel(
         context->GetCurrentVertexBuffer(),
-        context->GetNumCurrentVertexElements(),
+        context->GetVertexDescriptor().numVertexElements,
         context->GetCurrentVaryingBuffer(),
-        context->GetNumCurrentVaryingElements(),
+        context->GetVertexDescriptor().numVaryingElements,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -155,9 +155,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyBilinearVertexVerticesKernel(
 
     kernelBundle->ApplyBilinearVertexVerticesKernel(
         context->GetCurrentVertexBuffer(),
-        context->GetNumCurrentVertexElements(),
+        context->GetVertexDescriptor().numVertexElements,
         context->GetCurrentVaryingBuffer(),
-        context->GetNumCurrentVaryingElements(),
+        context->GetVertexDescriptor().numVaryingElements,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -173,9 +173,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyCatmarkFaceVerticesKernel(
 
     kernelBundle->ApplyCatmarkFaceVerticesKernel(
         context->GetCurrentVertexBuffer(),
-        context->GetNumCurrentVertexElements(),
+        context->GetVertexDescriptor().numVertexElements,
         context->GetCurrentVaryingBuffer(),
-        context->GetNumCurrentVaryingElements(),
+        context->GetVertexDescriptor().numVaryingElements,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -193,9 +193,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyCatmarkEdgeVerticesKernel(
 
     kernelBundle->ApplyCatmarkEdgeVerticesKernel(
         context->GetCurrentVertexBuffer(),
-        context->GetNumCurrentVertexElements(),
+        context->GetVertexDescriptor().numVertexElements,
         context->GetCurrentVaryingBuffer(),
-        context->GetNumCurrentVaryingElements(),
+        context->GetVertexDescriptor().numVaryingElements,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -211,9 +211,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelB(
 
     kernelBundle->ApplyCatmarkVertexVerticesKernelB(
         context->GetCurrentVertexBuffer(),
-        context->GetNumCurrentVertexElements(),
+        context->GetVertexDescriptor().numVertexElements,
         context->GetCurrentVaryingBuffer(),
-        context->GetNumCurrentVaryingElements(),
+        context->GetVertexDescriptor().numVaryingElements,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -229,9 +229,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelA1(
 
     kernelBundle->ApplyCatmarkVertexVerticesKernelA(
         context->GetCurrentVertexBuffer(),
-        context->GetNumCurrentVertexElements(),
+        context->GetVertexDescriptor().numVertexElements,
         context->GetCurrentVaryingBuffer(),
-        context->GetNumCurrentVaryingElements(),
+        context->GetVertexDescriptor().numVaryingElements,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
 }
 
@@ -247,9 +247,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelA2(
 
     kernelBundle->ApplyCatmarkVertexVerticesKernelA(
         context->GetCurrentVertexBuffer(),
-        context->GetNumCurrentVertexElements(),
+        context->GetVertexDescriptor().numVertexElements,
         context->GetCurrentVaryingBuffer(),
-        context->GetNumCurrentVaryingElements(),
+        context->GetVertexDescriptor().numVaryingElements,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
 }
 
@@ -265,9 +265,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyLoopEdgeVerticesKernel(
 
     kernelBundle->ApplyLoopEdgeVerticesKernel(
         context->GetCurrentVertexBuffer(),
-        context->GetNumCurrentVertexElements(),
+        context->GetVertexDescriptor().numVertexElements,
         context->GetCurrentVaryingBuffer(),
-        context->GetNumCurrentVaryingElements(),
+        context->GetVertexDescriptor().numVaryingElements,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -283,9 +283,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelB(
 
     kernelBundle->ApplyLoopVertexVerticesKernelB(
         context->GetCurrentVertexBuffer(),
-        context->GetNumCurrentVertexElements(),
+        context->GetVertexDescriptor().numVertexElements,
         context->GetCurrentVaryingBuffer(),
-        context->GetNumCurrentVaryingElements(),
+        context->GetVertexDescriptor().numVaryingElements,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -301,9 +301,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelA1(
 
     kernelBundle->ApplyLoopVertexVerticesKernelA(
         context->GetCurrentVertexBuffer(),
-        context->GetNumCurrentVertexElements(),
+        context->GetVertexDescriptor().numVertexElements,
         context->GetCurrentVaryingBuffer(),
-        context->GetNumCurrentVaryingElements(),
+        context->GetVertexDescriptor().numVaryingElements,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
 }
 
@@ -319,9 +319,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelA2(
 
     kernelBundle->ApplyLoopVertexVerticesKernelA(
         context->GetCurrentVertexBuffer(),
-        context->GetNumCurrentVertexElements(),
+        context->GetVertexDescriptor().numVertexElements,
         context->GetCurrentVaryingBuffer(),
-        context->GetNumCurrentVaryingElements(),
+        context->GetVertexDescriptor().numVaryingElements,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
 }
 
@@ -346,9 +346,9 @@ OsdGLSLTransformFeedbackComputeController::ApplyVertexEdits(
     if (edit->GetOperation() == FarVertexEdit::Add) {
         kernelBundle->ApplyEditAdd(
             context->GetCurrentVertexBuffer(),
-            context->GetNumCurrentVertexElements(),
+            context->GetVertexDescriptor().numVertexElements,
             context->GetCurrentVaryingBuffer(),
-            context->GetNumCurrentVaryingElements(),
+            context->GetVertexDescriptor().numVaryingElements,
             primvarOffset, primvarWidth,
             batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
     } else {

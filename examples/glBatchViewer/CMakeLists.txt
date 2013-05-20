@@ -100,6 +100,9 @@ endforeach()
 
 _add_glfw_executable(glBatchViewer
     viewer.cpp
+    delegate.cpp
+    effect.cpp
+    effectRegistry.cpp
     ../common/font_image.cpp
     ../common/hud.cpp
     ../common/gl_hud.cpp

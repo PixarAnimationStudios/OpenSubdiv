@@ -54,58 +54,89 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+#ifndef EFFECT_H
+#define EFFECT_H
 
-#ifndef OSD_SORTED_DRAW_CONTEXT_H
-#define OSD_SORTED_DRAW_CONTEXT_H
+#if defined(__APPLE__)
+    #include "TargetConditionals.h"
+    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
+        #include <OpenGLES/ES2/gl.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
+#elif defined(ANDROID)
+    #include <GLES2/gl2.h>
+#else
+    #if defined(_WIN32)
+        #include <windows.h>
+    #endif
+    #include <GL/gl.h>
+#endif
 
-#include "../version.h"
-#include "../far/patchTables.h"
-#include "../osd/patch.h"
+#include <osd/glDrawRegistry.h>
 
-#include <utility>
-#include <string>
-#include <map>
+union EffectDesc {
+public:
+    struct {
+        unsigned int wire:2;
+        unsigned int screenSpaceTess:1;
+    };
+    int value;
 
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
+    bool operator < (const EffectDesc &e) const {
+        return value < e.value;
+    }
 
-struct OsdPatchDrawRange {
-    OsdPatchDrawRange(int first, int count) :
-        firstIndex(first), numIndices(count) {}
-    int firstIndex;
-    int numIndices;
+    int GetWire() const { return wire; }
+    bool GetScreenSpaceTess() const { return screenSpaceTess; }
 };
 
-typedef std::vector<OsdPatchDrawRange> OsdPatchDrawRangeVector;
+struct MyDrawConfig : public OpenSubdiv::OsdGLDrawConfig {
 
-class OsdSortedDrawContext {
+    MyDrawConfig() : 
+        diffuseColorUniform(-1) {}
+    virtual ~MyDrawConfig() {}
+
+    GLint diffuseColorUniform;
+};
+
+class MyEffect { // formerly EffectHandle
 public:
-    // multi-prim draw methods
-    enum Fidelity { // XXX: better name?
-        kInvisible,
-        kLow,
-        kHigh
+    MyEffect() : displayPatchColor(false), screenSpaceTess(false), wire(0) {}
+
+    EffectDesc GetEffectDescriptor() const {
+        EffectDesc desc;
+
+        desc.value = 0;
+        desc.wire = wire;
+        desc.screenSpaceTess = screenSpaceTess;
+
+        return desc;
+    }
+
+    void BindDrawConfig(MyDrawConfig *config, OpenSubdiv::OsdDrawContext::PatchDescriptor desc);
+
+    void SetMatrix(const float *modelview, const float *projection);
+    void SetTessLevel(float tessLevel);
+    void SetLighting();
+
+    bool operator == (const MyEffect &other) const {
+        return (displayPatchColor == other.displayPatchColor) and
+               (screenSpaceTess == other.screenSpaceTess) and
+               (wire == other.wire);
+    }
+    bool operator != (const MyEffect &other) const {
+        return !(*this == other);
+    }
+
+    enum {
+        kWire, kFill, kLine
     };
 
-    OsdSortedDrawContext(FarPatchCountVector const &patchCounts, OsdPatchArrayVector const &patchArrays);
-
-    void SetPrimFidelity(int primIndex, Fidelity f); // XXX: better name?
-
-    OsdPatchDrawRangeVector const & GetPatchDrawRanges(OsdPatchDescriptor desc);
-
-private:
-    void _ComputePatchDrawRanges();
-
-    FarPatchCountVector _patchCounts;
-    OsdPatchArrayVector _patchArrays;
-    std::map<OsdPatchDescriptor, OsdPatchDrawRangeVector>  _patchDrawRanges;
-    std::vector<unsigned char> _primFidelity;
-    bool _patchDrawRangesDirty;
+    bool displayPatchColor;  // runtime switchable
+    bool screenSpaceTess;    // need recompile (should be considered in effect descriptor)
+    int wire;                // need recompile
 };
 
-} // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
 
-} // end namespace OpenSubdiv
-
-#endif /* OSD_SORTED_DRAW_CONTEXT_H */
+#endif  /* EFFECT_H */

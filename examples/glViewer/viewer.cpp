@@ -906,7 +906,7 @@ enum Effect {
     kPoint = 6,
 };
 
-typedef std::pair<OpenSubdiv::OsdPatchDescriptor,Effect> EffectDesc;
+typedef std::pair<OpenSubdiv::OsdDrawContext::PatchDescriptor, Effect> EffectDesc;
 
 class EffectDrawRegistry : public OpenSubdiv::OsdGLDrawRegistry<EffectDesc> {
 
@@ -935,17 +935,16 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     const char *glslVersion = "#version 330\n";
 #endif
 
-    if (desc.first.type != OpenSubdiv::kNonPatch) {
-
+    if (desc.first.GetType() == OpenSubdiv::FarPatchTables::QUADS or
+        desc.first.GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
+        sconfig->vertexShader.source = shaderSource;
+        sconfig->vertexShader.version = glslVersion;
+        sconfig->vertexShader.AddDefine("VERTEX_SHADER");
+    } else {
         if (effect == kQuadWire) effect = kTriWire;
         if (effect == kQuadFill) effect = kTriFill;
         if (effect == kQuadLine) effect = kTriLine;
         sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
-
-    } else {
-        sconfig->vertexShader.source = shaderSource;
-        sconfig->vertexShader.version = glslVersion;
-        sconfig->vertexShader.AddDefine("VERTEX_SHADER");
     }
     assert(sconfig);
 
@@ -1041,7 +1040,7 @@ EffectDrawRegistry::_CreateDrawConfig(
     if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
         glUniform1i(loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_patchLevelBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
         glUniform1i(loc, 3); // GL_TEXTURE3
     }
 #else
@@ -1054,7 +1053,7 @@ EffectDrawRegistry::_CreateDrawConfig(
     if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_patchLevelBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
     }
 #endif
@@ -1076,9 +1075,9 @@ GetEffect()
 
 //------------------------------------------------------------------------------
 static GLuint
-bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
+bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 {
-    EffectDesc effectDesc(patch.desc, effect);
+    EffectDesc effectDesc(patch.GetDescriptor(), effect);
     EffectDrawRegistry::ConfigType *
         config = effectRegistry.GetDrawConfig(effectDesc);
 
@@ -1166,10 +1165,10 @@ bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
         glBindTexture(GL_TEXTURE_BUFFER,
             g_mesh->GetDrawContext()->quadOffsetTextureBuffer);
     }
-    if (g_mesh->GetDrawContext()->patchLevelTextureBuffer) {
+    if (g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer) {
         glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->patchLevelTextureBuffer);
+            g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer);
     }
     glActiveTexture(GL_TEXTURE0);
 
@@ -1207,64 +1206,61 @@ display() {
     
     glBindVertexArray(g_vao);
 
-    OpenSubdiv::OsdPatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
+    OpenSubdiv::OsdDrawContext::PatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
 
     // cv drawing
+/*
     if (g_drawPatchCVs) {
         glPointSize(3.0);
 
-        bindProgram(kPoint, OpenSubdiv::OsdPatchArray());
+        bindProgram(kPoint, OpenSubdiv::FarPatchTables::PatchArray());
 
         for (int i=0; i<(int)patches.size(); ++i) {
-            OpenSubdiv::OsdPatchArray const & patch = patches[i];
+            OpenSubdiv::FarPatchTables::PatchArray const & patch = patches[i];
 
             glDrawElements(GL_POINTS,
                            patch.numIndices, GL_UNSIGNED_INT,
                            (void *)(patch.firstIndex * sizeof(unsigned int)));
         }
     }
+*/
 
     // patch drawing
-    int patchTypeCount[9]; // enum OsdPatchType (osd/drawCountext.h)
-    int transitionPatchTypeCount[3][5][4];
-    memset(patchTypeCount, 0, sizeof(patchTypeCount));
-    memset(transitionPatchTypeCount, 0, sizeof(transitionPatchTypeCount));
+    int patchCount[11][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
+    memset(patchCount, 0, sizeof(patchCount));
 
     // primitive counting
     glBeginQuery(GL_PRIMITIVES_GENERATED, g_primQuery);
 
     for (int i=0; i<(int)patches.size(); ++i) {
-        OpenSubdiv::OsdPatchArray const & patch = patches[i];
+        OpenSubdiv::OsdDrawContext::PatchArray const & patch = patches[i];
 
-        OpenSubdiv::OsdPatchType patchType = patch.desc.type;
-        int patchPattern = patch.desc.pattern;
-        int patchRotation = patch.desc.rotation;
+        OpenSubdiv::OsdDrawContext::PatchDescriptor desc = patch.GetDescriptor();
+        OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
+        int patchPattern = desc.GetPattern();
+        int patchRotation = desc.GetRotation();
+        int subPatch = desc.GetSubPatch();
 
-        if (patch.desc.subpatch == 0) {
-            if (patchType == OpenSubdiv::kTransitionRegular)
-                transitionPatchTypeCount[0][patchPattern][patchRotation] += patch.numIndices / patch.desc.GetPatchSize();
-            else if (patchType == OpenSubdiv::kTransitionBoundary)
-                transitionPatchTypeCount[1][patchPattern][patchRotation] += patch.numIndices / patch.desc.GetPatchSize();
-            else if (patchType == OpenSubdiv::kTransitionBoundary)
-                transitionPatchTypeCount[2][patchPattern][patchRotation] += patch.numIndices / patch.desc.GetPatchSize();
-            else
-                patchTypeCount[patchType] += patch.numIndices / patch.desc.GetPatchSize();
+        if (subPatch == 0) {
+            patchCount[patchType][patchPattern][patchRotation] += patch.GetNumPatches();
         }
 
         GLenum primType;
 
-        if (g_mesh->GetDrawContext()->IsAdaptive()) {
+        switch(patchType) {
+        case OpenSubdiv::FarPatchTables::QUADS:
+            primType = GL_LINES_ADJACENCY;
+            break;
+        case OpenSubdiv::FarPatchTables::TRIANGLES:
+            primType = GL_TRIANGLES;
+            break;
+        default:
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
             primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
+            glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
+#else
+            primType = GL_POINTS;
 #endif
-
-        } else {
-            if (g_scheme == kLoop) {
-                primType = GL_TRIANGLES;
-            } else {
-                primType = GL_LINES_ADJACENCY; // GL_QUADS is deprecated
-            }
         }
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
@@ -1272,24 +1268,29 @@ display() {
 
         GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
         if (g_displayPatchColor) {
-            switch(patchType) {
-                case OpenSubdiv::kRegular:
+            if (patchPattern == OpenSubdiv::FarPatchTables::NON_TRANSITION) {
+                switch(patchType) {
+                case OpenSubdiv::FarPatchTables::REGULAR:
                     glProgramUniform4f(program, diffuseColor, 1.0f, 1.0f, 1.0f, 1);
                     break;
-                case OpenSubdiv::kBoundary:
+                case OpenSubdiv::FarPatchTables::BOUNDARY:
                     glProgramUniform4f(program, diffuseColor, 0.8f, 0.0f, 0.0f, 1);
                     break;
-                case OpenSubdiv::kCorner:
+                case OpenSubdiv::FarPatchTables::CORNER:
                     glProgramUniform4f(program, diffuseColor, 0, 1.0, 0, 1);
                     break;
-                case OpenSubdiv::kGregory:
+                case OpenSubdiv::FarPatchTables::GREGORY:
                     glProgramUniform4f(program, diffuseColor, 1.0f, 1.0f, 0.0f, 1);
                     break;
-                case OpenSubdiv::kBoundaryGregory:
+                case OpenSubdiv::FarPatchTables::GREGORY_BOUNDARY:
                     glProgramUniform4f(program, diffuseColor, 1.0f, 0.5f, 0.0f, 1);
                     break;
-                case OpenSubdiv::kTransitionRegular:
-                    switch (patchPattern) {
+                default:
+                    break;
+                }
+            } else { // patchPattern != NON_TRANSITION
+                if (patchType == OpenSubdiv::FarPatchTables::REGULAR) {
+                    switch (patchPattern-1) {
                     case 0:
                         glProgramUniform4f(program, diffuseColor, 0, 1.0f, 1.0f, 1);
                         break;
@@ -1306,25 +1307,22 @@ display() {
                         glProgramUniform4f(program, diffuseColor, 1.0f, 0.5f, 1.0f, 1);
                         break;
                     }
-                    break;
-                case OpenSubdiv::kTransitionBoundary: {
-                        float p = patchPattern * 0.2f;
-                        glProgramUniform4f(program, diffuseColor, 0.0f, p, 0.75f, 1);
-                    } break;
-                case OpenSubdiv::kTransitionCorner:
+                } else if (patchType == OpenSubdiv::FarPatchTables::BOUNDARY) {
+                    float p = (patchPattern-1) * 0.2f;
+                    glProgramUniform4f(program, diffuseColor, 0.0f, p, 0.75f, 1);
+                } else if (patchType == OpenSubdiv::FarPatchTables::CORNER) {
                     glProgramUniform4f(program, diffuseColor, 0.25f, 0.25f, 0.25f, 1);
-                    break;
-                default:
+                } else {
                     glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
-                    break;
+                }
             }
         } else {
             glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
         }
         GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
         GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
-        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.gregoryQuadOffsetBase);
-        glProgramUniform1i(program, uniformLevelBase, patch.levelBase);
+        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.GetQuadOffsetIndex());
+        glProgramUniform1i(program, uniformLevelBase, patch.GetPatchIndex());
 #else
         bindProgram(GetEffect(), patch);
 #endif
@@ -1332,9 +1330,9 @@ display() {
         if (g_wire == 0) {
             glDisable(GL_CULL_FACE);
         }
-        glDrawElements(primType,
-                       patch.numIndices, GL_UNSIGNED_INT,
-                       (void *)(patch.firstIndex * sizeof(unsigned int)));
+
+        glDrawElements(primType, patch.GetNumIndices(), GL_UNSIGNED_INT,
+                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
         if (g_wire == 0) {
             glEnable(GL_CULL_FACE);
         }
@@ -1372,35 +1370,35 @@ display() {
 
         int x = -280;
         g_hud.DrawString(x, -360, "NonPatch         : %d",
-                         patchTypeCount[OpenSubdiv::kNonPatch]);
+                         patchCount[OpenSubdiv::FarPatchTables::QUADS][0][0]);
         g_hud.DrawString(x, -340, "Regular          : %d",
-                         patchTypeCount[OpenSubdiv::kRegular]);
+                         patchCount[OpenSubdiv::FarPatchTables::REGULAR][0][0]);
         g_hud.DrawString(x, -320, "Boundary         : %d",
-                         patchTypeCount[OpenSubdiv::kBoundary]);
+                         patchCount[OpenSubdiv::FarPatchTables::BOUNDARY][0][0]);
         g_hud.DrawString(x, -300, "Corner           : %d",
-                         patchTypeCount[OpenSubdiv::kCorner]);
+                         patchCount[OpenSubdiv::FarPatchTables::CORNER][0][0]);
         g_hud.DrawString(x, -280, "Gregory          : %d",
-                         patchTypeCount[OpenSubdiv::kGregory]);
+                         patchCount[OpenSubdiv::FarPatchTables::GREGORY][0][0]);
         g_hud.DrawString(x, -260, "Boundary Gregory : %d",
-                         patchTypeCount[OpenSubdiv::kBoundaryGregory]);
+                         patchCount[OpenSubdiv::FarPatchTables::GREGORY_BOUNDARY][0][0]);
         g_hud.DrawString(x, -240, "Trans. Regular   : %d %d %d %d %d",
-                         transitionPatchTypeCount[0][0][0],
-                         transitionPatchTypeCount[0][1][0],
-                         transitionPatchTypeCount[0][2][0],
-                         transitionPatchTypeCount[0][3][0],
-                         transitionPatchTypeCount[0][4][0]);
+                         patchCount[OpenSubdiv::FarPatchTables::REGULAR][OpenSubdiv::FarPatchTables::PATTERN0][0],
+                         patchCount[OpenSubdiv::FarPatchTables::REGULAR][OpenSubdiv::FarPatchTables::PATTERN1][0],
+                         patchCount[OpenSubdiv::FarPatchTables::REGULAR][OpenSubdiv::FarPatchTables::PATTERN2][0],
+                         patchCount[OpenSubdiv::FarPatchTables::REGULAR][OpenSubdiv::FarPatchTables::PATTERN3][0],
+                         patchCount[OpenSubdiv::FarPatchTables::REGULAR][OpenSubdiv::FarPatchTables::PATTERN4][0]);
         for (int i=0; i < 5; i++) 
             g_hud.DrawString(x, -220+i*20, "Trans. Boundary%d : %d %d %d %d", i,
-                             transitionPatchTypeCount[1][i][0],
-                             transitionPatchTypeCount[1][i][1],
-                             transitionPatchTypeCount[1][i][2],
-                             transitionPatchTypeCount[1][i][3]);
+                             patchCount[OpenSubdiv::FarPatchTables::BOUNDARY][i+1][0],
+                             patchCount[OpenSubdiv::FarPatchTables::BOUNDARY][i+1][1],
+                             patchCount[OpenSubdiv::FarPatchTables::BOUNDARY][i+1][2],
+                             patchCount[OpenSubdiv::FarPatchTables::BOUNDARY][i+1][3]);
         for (int i=0; i < 5; i++)
             g_hud.DrawString(x, -100+i*20, "Trans. Corner%d  : %d %d %d %d", i,
-                             transitionPatchTypeCount[2][i][0],
-                             transitionPatchTypeCount[2][i][1],
-                             transitionPatchTypeCount[2][i][2],
-                             transitionPatchTypeCount[2][i][3]);
+                             patchCount[OpenSubdiv::FarPatchTables::CORNER][i+1][0],
+                             patchCount[OpenSubdiv::FarPatchTables::CORNER][i+1][1],
+                             patchCount[OpenSubdiv::FarPatchTables::CORNER][i+1][2],
+                             patchCount[OpenSubdiv::FarPatchTables::CORNER][i+1][3]);
 
         g_hud.DrawString(10, -180, "Tess level : %d", g_tessLevel);
         g_hud.DrawString(10, -160, "Primitives : %d", numPrimsGenerated);

@@ -54,7 +54,6 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-
 #ifndef OSD_GLSL_COMPUTE_KERNEL_BUNDLE_H
 #define OSD_GLSL_COMPUTE_KERNEL_BUNDLE_H
 
@@ -75,112 +74,115 @@
 #endif
 
 #include "../version.h"
+#include "../far/subdivisionTables.h"
 #include "../osd/nonCopyable.h"
 #include "../osd/vertex.h"
-#include "../far/subdivisionTables.h"
+#include "../osd/vertexDescriptor.h"
+
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-    class OsdGLSLComputeKernelBundle
-        : OsdNonCopyable<OsdGLSLComputeKernelBundle> {
-    public:
-        OsdGLSLComputeKernelBundle();
-        ~OsdGLSLComputeKernelBundle();
+class OsdGLSLComputeKernelBundle : OsdNonCopyable<OsdGLSLComputeKernelBundle> {
+public:
+    OsdGLSLComputeKernelBundle();
+    ~OsdGLSLComputeKernelBundle();
 
-        bool Compile(int numVertexElements, int numVaryingElements);
+    bool Compile(int numVertexElements, int numVaryingElements);
 
-        void ApplyBilinearFaceVerticesKernel(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyBilinearFaceVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyBilinearEdgeVerticesKernel(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyBilinearEdgeVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyBilinearVertexVerticesKernel(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyBilinearVertexVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyCatmarkFaceVerticesKernel(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyCatmarkFaceVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyCatmarkEdgeVerticesKernel(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyCatmarkEdgeVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyCatmarkVertexVerticesKernelB(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyCatmarkVertexVerticesKernelB(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyCatmarkVertexVerticesKernelA(
-            int vertexOffset, int tableOffset, int start, int end, bool pass);
+    void ApplyCatmarkVertexVerticesKernelA(
+        int vertexOffset, int tableOffset, int start, int end, bool pass);
 
-        void ApplyLoopEdgeVerticesKernel(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyLoopEdgeVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyLoopVertexVerticesKernelB(
-            int vertexOffset, int tableOffset, int start, int end);
+    void ApplyLoopVertexVerticesKernelB(
+        int vertexOffset, int tableOffset, int start, int end);
 
-        void ApplyLoopVertexVerticesKernelA(
-            int vertexOffset, int tableOffset, int start, int end, bool pass);
+    void ApplyLoopVertexVerticesKernelA(
+        int vertexOffset, int tableOffset, int start, int end, bool pass);
 
-        void ApplyEditAdd(int primvarOffset, int primvarWidth,
-                          int vertexOffset, int tableOffset, int start, int end);
+    void ApplyEditAdd(int primvarOffset, int primvarWidth,
+                      int vertexOffset, int tableOffset, int start, int end);
 
-        void UseProgram() const;
+    void UseProgram() const;
 
-        GLuint GetTableUniformLocation(int tableIndex) const {
-            return _tableUniforms[tableIndex];
+    GLuint GetTableUniformLocation(int tableIndex) const {
+        return _tableUniforms[tableIndex];
+    }
+
+    struct Match {
+
+        /// Constructor
+        Match(int numVertexElements, int numVaryingElements)
+            : vdesc(numVertexElements, numVaryingElements) {
         }
 
-        struct Match {
-        Match(int numVertexElements, int numVaryingElements) :
-            _numVertexElements(numVertexElements),
-                _numVaryingElements(numVaryingElements) {}
-            bool operator() (const OsdGLSLComputeKernelBundle *kernel) {
-                return (kernel->_numVertexElements == _numVertexElements
-                        && kernel->_numVaryingElements == _numVaryingElements);
-            }
-            int _numVertexElements, _numVaryingElements;
-        };
+        bool operator() (OsdGLSLComputeKernelBundle const *kernel) {
+            return vdesc == kernel->_vdesc;
+        }
 
-        friend struct Match;
-
-    protected:
-        void dispatchCompute(int vertexOffset, int tableOffset, int start, int end) const;
-
-        GLuint _program;
-
-        // uniform locations for compute
-        GLuint _tableUniforms[FarSubdivisionTables<OsdVertex>::TABLE_TYPES_COUNT];
-        GLuint _uniformVertexPass;
-        GLuint _uniformVertexOffset;
-        GLuint _uniformTableOffset;
-        GLuint _uniformIndexStart;
-        GLuint _uniformIndexEnd;
-
-        // uniform locations for vertex edit
-        GLuint _uniformEditPrimVarOffset;
-        GLuint _uniformEditPrimVarWidth;
-
-        // general face-vertex kernel (all schemes)
-        GLuint _subComputeFace;
-        // edge-vertex kernel (catmark + loop schemes)
-        GLuint _subComputeEdge;
-        // edge-vertex kernel (bilinear scheme)
-        GLuint _subComputeBilinearEdge;
-        // vertex-vertex kernel (bilinear scheme)
-        GLuint _subComputeVertex;
-        // vertex-vertex kernel A (catmark + loop schemes)
-        GLuint _subComputeVertexA;
-        // vertex-vertex kernel B (catmark scheme)
-        GLuint _subComputeCatmarkVertexB;
-        // vertex-vertex kernel B (loop scheme)
-        GLuint _subComputeLoopVertexB;
-        // hedit kernel (add)
-        GLuint _subEditAdd;
-
-        int _numVertexElements,
-            _numVaryingElements;
-
-        int _workGroupSize;
+        OsdVertexDescriptor vdesc;
     };
+
+    friend struct Match;
+
+protected:
+    void dispatchCompute(int vertexOffset, int tableOffset, int start, int end) const;
+
+    GLuint _program;
+
+    // uniform locations for compute
+    GLuint _tableUniforms[FarSubdivisionTables<OsdVertex>::TABLE_TYPES_COUNT];
+    GLuint _uniformVertexPass;
+    GLuint _uniformVertexOffset;
+    GLuint _uniformTableOffset;
+    GLuint _uniformIndexStart;
+    GLuint _uniformIndexEnd;
+
+    // uniform locations for vertex edit
+    GLuint _uniformEditPrimVarOffset;
+    GLuint _uniformEditPrimVarWidth;
+
+    
+    GLuint _subComputeFace; // general face-vertex kernel (all schemes)
+
+    GLuint _subComputeEdge; // edge-vertex kernel (catmark + loop schemes)
+
+    GLuint _subComputeBilinearEdge; // edge-vertex kernel (bilinear scheme)
+
+    GLuint _subComputeVertex; // vertex-vertex kernel (bilinear scheme)
+
+    GLuint _subComputeVertexA; // vertex-vertex kernel A (catmark + loop schemes)
+
+    GLuint _subComputeCatmarkVertexB; // vertex-vertex kernel B (catmark scheme)
+
+    GLuint _subComputeLoopVertexB; // vertex-vertex kernel B (loop scheme)
+
+    GLuint _subEditAdd; // hedit kernel (add)
+
+    int _workGroupSize;
+
+    OsdVertexDescriptor _vdesc;
+};
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

@@ -70,9 +70,7 @@ OsdD3D11DrawContext::OsdD3D11DrawContext() :
     vertexValenceBuffer(NULL),
     vertexValenceBufferSRV(NULL),
     quadOffsetBuffer(NULL),
-    quadOffsetBufferSRV(NULL),
-    patchLevelBuffer(NULL),
-    patchLevelBufferSRV(NULL)
+    quadOffsetBufferSRV(NULL)
 {
 }
 
@@ -88,67 +86,39 @@ OsdD3D11DrawContext::~OsdD3D11DrawContext()
     if (vertexValenceBufferSRV) vertexValenceBufferSRV->Release();
     if (quadOffsetBuffer) quadOffsetBuffer->Release();
     if (quadOffsetBufferSRV) quadOffsetBufferSRV->Release();
-    if (patchLevelBuffer) patchLevelBuffer->Release();
-    if (patchLevelBufferSRV) patchLevelBufferSRV->Release();
 };
 
-bool
-OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
-              ID3D11Buffer *vertexBuffer,
-              int numElements,
-              ID3D11DeviceContext *pd3d11DeviceContext,
-              bool requirePtexCoordinates,
-              bool requireFVarData)
+OsdD3D11DrawContext *
+OsdD3D11DrawContext::Create(FarPatchTables const *patchTables,
+                            ID3D11DeviceContext *pd3d11DeviceContext,
+                            bool requireFVarData)
 {
+    OsdD3D11DrawContext * result = new OsdD3D11DrawContext();
+    if (result->create(patchTables, pd3d11DeviceContext, requireFVarData))
+        return result;
+
+    delete result;
+    return NULL;
+}
+
+bool
+OsdD3D11DrawContext::create(FarPatchTables const *patchTables,
+                            ID3D11DeviceContext *pd3d11DeviceContext,
+                            bool requireFVarData)
+{
+    // adaptive patches
+    _isAdaptive = true;
+
     ID3D11Device *pd3d11Device = NULL;
     pd3d11DeviceContext->GetDevice(&pd3d11Device);
     assert(pd3d11Device);
 
-    FarPatchTables const * patchTables = farMesh->GetPatchTables();
+    ConvertPatchArrays(patchTables->GetPatchArrayVector(), patchArrays, patchTables->GetMaxValence(), 0);
 
-    if (not patchTables) {
-        // uniform patches
-        isAdaptive = false;
-
-        // XXX: farmesh should have FarDensePatchTable for dense mesh indices.
-        //      instead of GetFaceVertices().
-        const FarSubdivisionTables<OsdVertex> *tables = farMesh->GetSubdivisionTables();
-        int level = tables->GetMaxLevel();
-        const std::vector<int> &indices = farMesh->GetFaceVertices(level-1);
-
-        int numIndices = (int)indices.size();
-
-        // Allocate and fill index buffer.
-        D3D11_BUFFER_DESC bd;
-        bd.ByteWidth = numIndices * sizeof(int);
-        bd.Usage = D3D11_USAGE_DEFAULT;
-        bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-        bd.CPUAccessFlags = 0;
-        bd.MiscFlags = 0;
-        bd.StructureByteStride = sizeof(int);
-        D3D11_SUBRESOURCE_DATA initData;
-        initData.pSysMem = &indices[0];
-        HRESULT hr = pd3d11Device->CreateBuffer(&bd, &initData, &patchIndexBuffer);
-        if (FAILED(hr)) {
-            return false;
-        }
-
-        OsdPatchArray array;
-        array.desc.type = kNonPatch;
-        array.desc.loop = dynamic_cast<const FarLoopSubdivisionTables<OsdVertex>*>(tables) != NULL;
-        array.firstIndex = 0;
-        array.numIndices = numIndices;
-
-        patchArrays.push_back(array);
-        return true;
-    }
-
-    // adaptive patches
-    isAdaptive = true;
-
-    int totalPatchIndices = (int)patchTables->GetNumControlVertices();
-    
-    int totalPatchLevels = (int)patchTables->GetNumPatches();
+    FarPatchTables::PTable const & ptables = patchTables->GetPatchTable();
+    FarPatchTables::PatchParamTable const & ptexCoordTables = patchTables->GetPatchParamTable();
+    int totalPatchIndices = (int)ptables.size();
+    int totalPatches = (int)ptexCoordTables.size();
 
     // Allocate and fill index buffer.
     D3D11_BUFFER_DESC bd;
@@ -169,108 +139,42 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         return false;
     }
     unsigned int * indexBuffer = (unsigned int *) mappedResource.pData;
+    memcpy(indexBuffer, &ptables[0], totalPatchIndices * sizeof(unsigned int));
 
-    bd.ByteWidth = totalPatchLevels * sizeof(unsigned int);
+    pd3d11DeviceContext->Unmap(patchIndexBuffer, 0);
+
+    // create ptex coordinate buffer
+    bd.ByteWidth = totalPatches * sizeof(unsigned int);
     bd.Usage = D3D11_USAGE_DYNAMIC;
     bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     bd.MiscFlags = 0;
     bd.StructureByteStride = sizeof(unsigned int);
-    hr = pd3d11Device->CreateBuffer(&bd, NULL, &patchLevelBuffer);
+    hr = pd3d11Device->CreateBuffer(&bd, NULL, &ptexCoordinateBuffer);
     if (FAILED(hr)) {
         return false;
     }
 
     D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
     ZeroMemory(&srvd, sizeof(srvd));
-    srvd.Format = DXGI_FORMAT_R32_SINT;
+    srvd.Format = DXGI_FORMAT_R32_UINT;   // XXX: this should be DXGI_FORMAT_R32G32_UINT?
     srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
     srvd.Buffer.FirstElement = 0;
-    srvd.Buffer.NumElements = totalPatchLevels;
-    hr = pd3d11Device->CreateShaderResourceView(patchLevelBuffer, &srvd, &patchLevelBufferSRV);
+    srvd.Buffer.NumElements = totalPatches;
+    hr = pd3d11Device->CreateShaderResourceView(ptexCoordinateBuffer, &srvd, &ptexCoordinateBufferSRV);
     if (FAILED(hr)) {
         return false;
     }
 
-    hr = pd3d11DeviceContext->Map(patchLevelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+    hr = pd3d11DeviceContext->Map(ptexCoordinateBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
     if (FAILED(hr)) {
         return false;
     }
-    unsigned int * levelBuffer = (unsigned int *) mappedResource.pData;
+    unsigned int * ptexBuffer = (unsigned int *) mappedResource.pData;
+    memcpy(ptexBuffer, &ptexCoordTables[0], totalPatches * sizeof(FarPatchParam));
+    pd3d11DeviceContext->Unmap(ptexCoordinateBuffer, 0);
 
-    int indexBase = 0;
-    int levelBase = 0;
-    int maxValence = patchTables->GetMaxValence();
-
-    _AppendPatchArray(indexBuffer, &indexBase,
-                        levelBuffer, &levelBase,
-                        patchTables->GetFullRegularPatches(),
-                        patchTables->GetFullRegularPtexCoordinates(),
-                        patchTables->GetFullRegularFVarData(),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kRegular, 0, 0, 0, 0), 0);
-    _AppendPatchArray(indexBuffer, &indexBase,
-                        levelBuffer, &levelBase,
-                        patchTables->GetFullBoundaryPatches(),
-                        patchTables->GetFullBoundaryPtexCoordinates(),
-                        patchTables->GetFullBoundaryFVarData(),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kBoundary, 0, 0, 0, 0), 0);
-    _AppendPatchArray(indexBuffer, &indexBase,
-                        levelBuffer, &levelBase,
-                        patchTables->GetFullCornerPatches(),
-                        patchTables->GetFullCornerPtexCoordinates(),
-                        patchTables->GetFullCornerFVarData(),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kCorner, 0, 0, 0, 0), 0);
-    _AppendPatchArray(indexBuffer, &indexBase,
-                        levelBuffer, &levelBase,
-                        patchTables->GetFullGregoryPatches(),
-                        patchTables->GetFullGregoryPtexCoordinates(),
-                        patchTables->GetFullGregoryFVarData(),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kGregory, 0, 0,
-                                           maxValence, numElements), 0);
-    _AppendPatchArray(indexBuffer, &indexBase,
-                        levelBuffer, &levelBase,
-                        patchTables->GetFullBoundaryGregoryPatches(),
-                        patchTables->GetFullBoundaryGregoryPtexCoordinates(),
-                        patchTables->GetFullBoundaryGregoryFVarData(),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kBoundaryGregory, 0, 0,
-                                           maxValence, numElements),
-                        (int)patchTables->GetFullGregoryPatches().first.size());
-
-    for (int p=0; p<5; ++p) {
-        _AppendPatchArray(indexBuffer, &indexBase,
-                        levelBuffer, &levelBase,
-                        patchTables->GetTransitionRegularPatches(p),
-                        patchTables->GetTransitionRegularPtexCoordinates(p),
-                        patchTables->GetTransitionRegularFVarData(p),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kTransitionRegular, p, 0, 0, 0), 0);
-        for (int r=0; r<4; ++r) {
-            _AppendPatchArray(indexBuffer, &indexBase,
-                        levelBuffer, &levelBase,
-                        patchTables->GetTransitionBoundaryPatches(p, r),
-                        patchTables->GetTransitionBoundaryPtexCoordinates(p, r),
-                        patchTables->GetTransitionBoundaryFVarData(p, r),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kTransitionBoundary, p, r, 0, 0), 0);
-            _AppendPatchArray(indexBuffer, &indexBase,
-                        levelBuffer, &levelBase,
-                        patchTables->GetTransitionCornerPatches(p, r),
-                        patchTables->GetTransitionCornerPtexCoordinates(p, r),
-                        patchTables->GetTransitionCornerFVarData(p, r),
-                        farMesh->GetTotalFVarWidth(),
-                        OsdPatchDescriptor(kTransitionCorner, p, r, 0, 0), 0);
-        }
-    }
-
-    pd3d11DeviceContext->Unmap(patchIndexBuffer, 0);
-    pd3d11DeviceContext->Unmap(patchLevelBuffer, 0);
-
-    // allocate and initialize additional buffer data
+    // create vertex valence buffer and vertex texture
     FarPatchTables::VertexValenceTable const &
         valenceTable = patchTables->GetVertexValenceTable();
 
@@ -296,16 +200,6 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
         srvd.Buffer.FirstElement = 0;
         srvd.Buffer.NumElements = UINT(valenceTable.size());
         hr = pd3d11Device->CreateShaderResourceView(vertexValenceBuffer, &srvd, &vertexValenceBufferSRV);
-        if (FAILED(hr)) {
-            return false;
-        }
-
-        ZeroMemory(&srvd, sizeof(srvd));
-        srvd.Format = DXGI_FORMAT_R32_FLOAT;
-        srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-        srvd.Buffer.FirstElement = 0;
-        srvd.Buffer.NumElements = 6 * farMesh->GetNumVertices(); // XXX: dyu
-        hr = pd3d11Device->CreateShaderResourceView(vertexBuffer, &srvd, &vertexBufferSRV);
         if (FAILED(hr)) {
             return false;
         }
@@ -344,51 +238,36 @@ OsdD3D11DrawContext::allocate(FarMesh<OsdVertex> *farMesh,
     return true;
 }
 
+
 void
-OsdD3D11DrawContext::_AppendPatchArray(
-        unsigned int *indexBuffer, int *indexBase,
-        unsigned int *levelBuffer, int *levelBase,
-        FarPatchTables::PTable const & ptable,
-        FarPatchTables::PtexCoordinateTable const & ptexTable,
-        FarPatchTables::FVarDataTable const & fvarTable, int fvarDataWidth,
-        OsdPatchDescriptor const & desc,
-        int gregoryQuadOffsetBase)
+OsdD3D11DrawContext::updateVertexTexture(ID3D11Buffer *vbo,
+                                         ID3D11DeviceContext *pd3d11DeviceContext,
+                                         int numVertices,
+                                         int numVertexElements)
 {
-    if (ptable.first.empty()) {
+    ID3D11Device *pd3d11Device = NULL;
+    pd3d11DeviceContext->GetDevice(&pd3d11Device);
+    assert(pd3d11Device);
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
+    ZeroMemory(&srvd, sizeof(srvd));
+    srvd.Format = DXGI_FORMAT_R32_FLOAT;
+    srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+    srvd.Buffer.FirstElement = 0;
+    srvd.Buffer.NumElements = numVertices * numVertexElements;
+    HRESULT hr = pd3d11Device->CreateShaderResourceView(vbo, &srvd, &vertexBufferSRV);
+    if (FAILED(hr)) {
         return;
-    } 
-
-    OsdPatchArray array;
-    array.desc = desc;
-    array.firstIndex = *indexBase;
-    array.numIndices = (int)ptable.first.size();
-    array.levelBase = *levelBase;
-    array.gregoryQuadOffsetBase = gregoryQuadOffsetBase;
-
-    int numSubPatches = 1;
-    if (desc.type == OpenSubdiv::kTransitionRegular or
-        desc.type == OpenSubdiv::kTransitionBoundary or
-        desc.type == OpenSubdiv::kTransitionCorner) {
-        int subPatchCounts[] = { 3, 4, 4, 4, 2 };
-        numSubPatches = subPatchCounts[desc.pattern];
     }
 
-    for (int subpatch = 0; subpatch < numSubPatches; ++subpatch) {
-        array.desc.subpatch = subpatch;
-        patchArrays.push_back(array);
+    // XXX: consider moving this proc to base class
+    // updating num elements in descriptor with new vbo specs
+    for (int i = 0; i < (int)patchArrays.size(); ++i) {
+        PatchArray &parray = patchArrays[i];
+        PatchDescriptor desc = parray.GetDescriptor();
+        desc.SetNumElements(numVertexElements);
+        parray.SetDescriptor(desc);
     }
-
-    memcpy(indexBuffer + array.firstIndex,
-           &ptable.first[0], array.numIndices * sizeof(unsigned int));
-    *indexBase += array.numIndices;
-
-    int numElements = array.numIndices/array.desc.GetPatchSize();
-    assert(numElements == (int)ptable.second.size());
-
-    memcpy(levelBuffer + array.levelBase,
-           &ptable.second[0], numElements * sizeof(unsigned char));
-
-    *levelBase += numElements;
 }
 
 } // end namespace OPENSUBDIV_VERSION

@@ -142,6 +142,13 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC)
     # HBR uses the offsetof macro on a templated struct, which appears
     # to spurriously set off this warning in both gccc and Clang
     list(APPEND OSD_COMPILER_FLAGS -Wno-invalid-offsetof)
+
+    # HBR uses unions as an optimization for its memory allocation.
+    # Type casting between union members breaks strict aliasing rules from
+    # gcc 4.4.1 versions onwards. We disable the warning but keep aliasing
+    # optimization.
+    list(APPEND OSD_COMPILER_FLAGS -Wno-strict-aliasing)
+
     
     # FAR and OSD have templated virtual function implementations that trigger
     # a lot of hidden virtual function overloads (some of them spurrious).

@@ -66,21 +66,26 @@ struct ID3D11DeviceContext;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+///
 /// \brief Concrete vertex buffer class for Cpu subvision and DirectX drawing.
+///
 /// OsdCpuD3D11VertexBuffer implements OsdCpuVertexBufferInterface and
 /// OsdD3D11VertexBufferInterface.
+///
 /// An instance of this buffer class can be passed to OsdCpuComputeController.
+///
 class OsdCpuD3D11VertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static OsdCpuD3D11VertexBuffer * Create(int numElements, int numVertices,
+    static OsdCpuD3D11VertexBuffer * Create(int numElements, 
+                                            int numVertices, 
                                             ID3D11Device *device);
 
     /// Destructor.
     virtual ~OsdCpuD3D11VertexBuffer();
 
-    /// This method is meant to be used in client code in order to provide
-    /// coarse vertices data to Osd.
+    /// This method is meant to be used in client code in order to provide coarse
+    /// vertices data to Osd.
     void UpdateData(const float *src, int startVertex, int numVertices, void *param);
 
     /// Returns how many elements defined in this vertex buffer.
@@ -97,7 +102,8 @@ public:
 
 protected:
     /// Constructor.
-    OsdCpuD3D11VertexBuffer(int numElements, int numVertices,
+    OsdCpuD3D11VertexBuffer(int numElements, 
+                            int numVertices,
                             ID3D11Device *device);
 
     bool allocate(ID3D11Device *device);

@@ -137,7 +137,7 @@ OsdCpuHEditTable::GetPrimvarWidth() const {
     return _primvarWidth;
 }
 
-OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> *farMesh) {
+OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> const *farMesh) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
         farMesh->GetSubdivisionTables();
@@ -168,7 +168,6 @@ OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> *farMesh) {
             _editTables.push_back(new OsdCpuHEditTable(edit));
         }
     }
-    _vdesc = 0;
     _currentVertexBuffer = 0;
     _currentVaryingBuffer = 0;
 }
@@ -181,19 +180,12 @@ OsdCpuComputeContext::~OsdCpuComputeContext() {
     for (size_t i = 0; i < _editTables.size(); ++i) {
         delete _editTables[i];
     }
-    if (_vdesc) delete _vdesc;
 }
 
 const OsdCpuTable *
 OsdCpuComputeContext::GetTable(int tableIndex) const {
 
     return _tables[tableIndex];
-}
-
-OsdVertexDescriptor *
-OsdCpuComputeContext::GetVertexDescriptor() const {
-
-    return _vdesc;
 }
 
 int
@@ -221,7 +213,7 @@ OsdCpuComputeContext::GetCurrentVaryingBuffer() const {
 }
 
 OsdCpuComputeContext *
-OsdCpuComputeContext::Create(FarMesh<OsdVertex> *farmesh) {
+OsdCpuComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
 
     return new OsdCpuComputeContext(farmesh);
 }

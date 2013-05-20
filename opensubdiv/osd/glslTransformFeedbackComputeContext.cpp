@@ -164,7 +164,7 @@ OsdGLSLTransformFeedbackHEditTable::GetPrimvarWidth() const {
 // ----------------------------------------------------------------------------
 
 OsdGLSLTransformFeedbackComputeContext::OsdGLSLTransformFeedbackComputeContext(
-    FarMesh<OsdVertex> *farMesh) :
+    FarMesh<OsdVertex> const *farMesh) :
     _vertexTexture(0), _varyingTexture(0) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
@@ -243,18 +243,6 @@ OsdGLSLTransformFeedbackComputeContext::GetCurrentVaryingBuffer() const {
     return _currentVaryingBuffer;
 }
 
-int
-OsdGLSLTransformFeedbackComputeContext::GetNumCurrentVertexElements() const {
-
-    return _numVertexElements;
-}
-
-int
-OsdGLSLTransformFeedbackComputeContext::GetNumCurrentVaryingElements() const {
-    
-    return _numVaryingElements;
-}
-
 OsdGLSLTransformFeedbackKernelBundle *
 OsdGLSLTransformFeedbackComputeContext::GetKernelBundle() const {
 
@@ -268,7 +256,7 @@ OsdGLSLTransformFeedbackComputeContext::SetKernelBundle(OsdGLSLTransformFeedback
 }
 
 OsdGLSLTransformFeedbackComputeContext *
-OsdGLSLTransformFeedbackComputeContext::Create(FarMesh<OsdVertex> *farmesh) {
+OsdGLSLTransformFeedbackComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
 
     return new OsdGLSLTransformFeedbackComputeContext(farmesh);
 }

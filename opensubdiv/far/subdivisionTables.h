@@ -99,15 +99,15 @@ template <class U> class FarSubdivisionTables {
 
 public:
     enum TableType {
-        F_ITa, // face-vertices adjacency indexing table
-        F_IT,  // face-vertices indexing table
-        
         E_IT,  // edge-vertices adjacency indexing table
         E_W,   // edge-vertices weights
         
         V_ITa, // vertex-vertices adjacency indexing table
         V_IT,  // vertex-vertices indexing table
         V_W,   // vertex-vertices weights
+        
+        F_ITa, // face-vertices adjacency indexing table
+        F_IT,  // face-vertices indexing table
         
         TABLE_TYPES_COUNT  // number of different types of tables
     };
@@ -128,10 +128,14 @@ public:
     /// represented by this set of FarCatmarkSubdivisionTables
     int GetFirstVertexOffset( int level ) const;
 
-    /// Number of vertices at a given level
+    /// Returns the total number of vertex adressed by the tables (this is the
+    /// length that a vertex buffer object should be allocating
+    int GetNumVertices( ) const;
+
+    /// Returns the number of vertices at a given level
     int GetNumVertices( int level ) const;
 
-    /// Total number of vertices at a given level
+    /// Returns the summation of the number of vertices up to a given level
     int GetNumVerticesTotal( int level ) const;
 
     /// Indexing tables accessors
@@ -195,6 +199,17 @@ template <class U> int
 FarSubdivisionTables<U>::GetFirstVertexOffset( int level ) const {
     assert(level>=0 and level<(int)_vertsOffsets.size());
     return _vertsOffsets[level];
+}
+
+template <class U> int
+FarSubdivisionTables<U>::GetNumVertices( ) const {
+    if (_vertsOffsets.empty()) {
+        return 0;
+    } else {
+        // _vertsOffsets contains an extra offset at the end that is the position
+        // of the first vertex 1 level above that of the tables
+        return *_vertsOffsets.rbegin();
+    }
 }
 
 template <class U> int

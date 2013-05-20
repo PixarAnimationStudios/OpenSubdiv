@@ -84,94 +84,43 @@ OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmes
     FarPatchTables const * patchTables = farmesh->GetPatchTables();
     assert(patchTables);
 
-    _patchMap = new OsdCpuEvalLimitContext::PatchMap( *patchTables );
+    // copy the data from the FarTables
+    _patches = patchTables->GetPatchTable();
 
-    size_t  npatches = patchTables->GetNumPatches(),
-           nvertices = patchTables->GetNumControlVertices();
-
-    _patchArrays.reserve(npatches);
-
-    _patchBitFields.reserve(npatches);
+    _patchArrays = patchTables->GetPatchArrayVector();
     
-    _patchBuffer.reserve(nvertices);
-
-
-    // Full regular patches
-    _AppendPatchArray(OsdPatchDescriptor(kRegular, 0, 0, 0, 0),
-                      patchTables->GetFullRegularPatches(),
-                      patchTables->GetFullRegularPtexCoordinates());
-
-    _AppendPatchArray(OsdPatchDescriptor(kBoundary, 0, 0, 0, 0),
-                      patchTables->GetFullBoundaryPatches(),
-                      patchTables->GetFullBoundaryPtexCoordinates());
-
-    _AppendPatchArray(OsdPatchDescriptor(kCorner, 0, 0, 0, 0),
-                      patchTables->GetFullCornerPatches(),
-                      patchTables->GetFullCornerPtexCoordinates());
-
-    _AppendPatchArray(OsdPatchDescriptor(kGregory, 0, 0, patchTables->GetMaxValence(), 0),
-                      patchTables->GetFullGregoryPatches(),
-                      patchTables->GetFullGregoryPtexCoordinates());
-
-    _AppendPatchArray(OsdPatchDescriptor(kBoundaryGregory, 0, 0, patchTables->GetMaxValence(), 0),
-                      patchTables->GetFullBoundaryGregoryPatches(),
-                      patchTables->GetFullBoundaryGregoryPtexCoordinates());
-
     _vertexValenceBuffer = patchTables->GetVertexValenceTable();
-    _quadOffsetBuffer = patchTables->GetQuadOffsetTable();
-
-    // Transition patches
-    for (int p=0; p<5; ++p) {
     
-        _AppendPatchArray(OsdPatchDescriptor(kTransitionRegular, p, 0, 0, 0),
-                          patchTables->GetTransitionRegularPatches(p),
-                          patchTables->GetTransitionRegularPtexCoordinates(p));
+    _quadOffsetBuffer = patchTables->GetQuadOffsetTable();
+    
+    // Copy the bitfields, the faceId will be the key to our map
+    int npatches = patchTables->GetNumPatches();
+    
+    _patchBitFields.reserve(npatches);
 
-        for (int r=0; r<4; ++r) {
-            _AppendPatchArray(OsdPatchDescriptor(kTransitionBoundary, p, r, 0, 0),
-                              patchTables->GetTransitionBoundaryPatches(p, r),
-                              patchTables->GetTransitionBoundaryPtexCoordinates(p, r));
+     FarPatchTables::PatchParamTable const & ptxTable =
+         patchTables->GetPatchParamTable();
 
-            _AppendPatchArray(OsdPatchDescriptor(kTransitionCorner, p, r, 0, 0),
-                              patchTables->GetTransitionCornerPatches(p, r),
-                              patchTables->GetTransitionCornerPtexCoordinates(p, r));
+     if ( not ptxTable.empty() ) {
+
+        FarPatchParam const * pptr = &ptxTable[0];
+
+        for (int arrayId = 0; arrayId < (int)_patchArrays.size(); ++arrayId) {
+
+            FarPatchTables::PatchArray const & pa = _patchArrays[arrayId];
+
+            for (unsigned int j=0; j < pa.GetNumPatches(); ++j) {
+                _patchBitFields.push_back( pptr++->bitField );
+            }
         }
     }
+    
 
+    _patchMap = new FarPatchTables::PatchMap( *patchTables );
 }
 
 OsdCpuEvalLimitContext::~OsdCpuEvalLimitContext() {
     delete _patchMap;
-}
-
-int
-OsdCpuEvalLimitContext::_AppendPatchArray(
-    OsdPatchDescriptor const & desc,
-    FarPatchTables::PTable const & pTable,
-    FarPatchTables::PtexCoordinateTable const & ptxTable )
-{
-    if (pTable.first.empty() or ptxTable.empty())
-        return 0;
-
-    OsdPatchArray array;
-    array.desc = desc;
-    array.firstIndex = (int)_patchBuffer.size();
-    array.numIndices = (int)pTable.first.size();
-    array.gregoryQuadOffsetBase = 0;
-    //array.gregoryVertexValenceBase = gregoryQuadOffsetBase;
-
-    // copy patch array descriptor
-    _patchArrays.push_back(array);
-    
-    // copy patches bitfields
-    for (int i=0; i<(int)ptxTable.size(); ++i) {
-        _patchBitFields.push_back( ptxTable[i].bitField );
-    }
-
-    // copy control vertices indices
-    _patchBuffer.insert( _patchBuffer.end(), pTable.first.begin(), pTable.first.end());
-    
-    return 1;
 }
 
 } // end namespace OPENSUBDIV_VERSION

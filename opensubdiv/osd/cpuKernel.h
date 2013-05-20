@@ -54,7 +54,6 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-
 #ifndef OSD_CPU_KERNEL_H
 #define OSD_CPU_KERNEL_H
 
@@ -66,57 +65,57 @@ namespace OPENSUBDIV_VERSION {
 
 struct OsdVertexDescriptor;
 
-void OsdCpuComputeFace(const OsdVertexDescriptor *vdesc,
+void OsdCpuComputeFace(OsdVertexDescriptor const &vdesc,
                        float * vertex, float * varying,
                        const int *F_IT, const int *F_ITa,
                        int vertexOffset, int tableOffset,
                        int start, int end);
 
-void OsdCpuComputeEdge(const OsdVertexDescriptor *vdesc,
+void OsdCpuComputeEdge(OsdVertexDescriptor const &vdesc,
                        float *vertex, float * varying,
                        const int *E_IT, const float *E_ITa,
                        int vertexOffset, int tableOffset,
                        int start, int end);
 
-void OsdCpuComputeVertexA(const OsdVertexDescriptor *vdesc,
+void OsdCpuComputeVertexA(OsdVertexDescriptor const &vdesc,
                           float *vertex, float * varying,
                           const int *V_ITa, const float *V_IT,
                           int vertexOffset, int tableOffset,
                           int start, int end, int pass);
 
-void OsdCpuComputeVertexB(const OsdVertexDescriptor *vdesc,
+void OsdCpuComputeVertexB(OsdVertexDescriptor const &vdesc,
                           float *vertex, float * varying,
                           const int *V_ITa, const int *V_IT, const float *V_W,
                           int vertexOffset, int tableOffset,
                           int start, int end);
 
-void OsdCpuComputeLoopVertexB(const OsdVertexDescriptor *vdesc,
+void OsdCpuComputeLoopVertexB(OsdVertexDescriptor const &vdesc,
                               float *vertex, float * varying,
                               const int *V_ITa, const int *V_IT,
                               const float *V_W,
                               int vertexOffset, int tableOffset,
                               int start, int end);
 
-void OsdCpuComputeBilinearEdge(const OsdVertexDescriptor *vdesc,
+void OsdCpuComputeBilinearEdge(OsdVertexDescriptor const &vdesc,
                                float *vertex, float * varying,
                                const int *E_IT,
                                int vertexOffset, int tableOffset,
                                int start, int end);
 
-void OsdCpuComputeBilinearVertex(const OsdVertexDescriptor *vdesc,
+void OsdCpuComputeBilinearVertex(OsdVertexDescriptor const &vdesc,
                                  float *vertex, float * varying,
                                  const int *V_ITa,
                                  int vertexOffset, int tableOffset,
                                  int start, int end);
 
-void OsdCpuEditVertexAdd(const OsdVertexDescriptor *vdesc, float *vertex,
+void OsdCpuEditVertexAdd(OsdVertexDescriptor const &vdesc, float *vertex,
                          int primVarOffset, int primVarWidth,
                          int vertexOffset, int tableOffset,
                          int start, int end,
                          const unsigned int *editIndices,
                          const float *editValues);
 
-void OsdCpuEditVertexSet(const OsdVertexDescriptor *vdesc, float *vertex,
+void OsdCpuEditVertexSet(OsdVertexDescriptor const &vdesc, float *vertex,
                          int primVarOffset, int primVarWidth,
                          int vertexOffset, int tableOffset,
                          int start, int end,

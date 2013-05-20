@@ -64,9 +64,44 @@ namespace OPENSUBDIV_VERSION {
 
 struct OsdVertexDescriptor {
 
+    /// Constructor
+    OsdVertexDescriptor() : numVertexElements(0), numVaryingElements(0) {}
+
+    /// Constructor
+    ///
+    /// @param numVertexElem   number of vertex-interpolated data elements (floats)
+    ///
+    /// @param numVaryingElem  number of varying-interpolated data elements (floats)
+    ///
     OsdVertexDescriptor(int numVertexElem, int numVaryingElem)
         : numVertexElements(numVertexElem),
         numVaryingElements(numVaryingElem) { }
+
+    /// Sets descriptor
+    ///
+    /// @param numVertexElem   number of vertex-interpolated data elements (floats)
+    ///
+    /// @param numVaryingElem  number of varying-interpolated data elements (floats)
+    ///
+    void Set(int numVertexElem, int numVaryingElem) {
+        numVertexElements = numVertexElem;
+        numVaryingElements = numVaryingElem;
+    }
+    
+    /// Resets the descriptor
+    void Reset() {
+        numVertexElements = numVaryingElements = 0;
+    }
+    
+    /// Returns the total number of elements (vertex + varying)
+    int GetNumElements() const {
+        return numVertexElements + numVaryingElements;
+    }
+
+    bool operator == (OsdVertexDescriptor const & other) {
+        return (numVertexElements == other.numVertexElements and
+                numVaryingElements == other.numVaryingElements);
+    }
 
     /// Resets the contents of vertex & varying primvar data buffers for a given
     /// vertex.
@@ -90,7 +125,7 @@ struct OsdVertexDescriptor {
                 varying[index*numVaryingElements+i] = 0.0f;
         }
     }
-
+    
     /// Applies "dst += src*weight" to "vertex" primvar data in a vertex buffer.
     ///
     /// @param vertex The VertexData buffer
