@@ -957,7 +957,7 @@ createOsdMesh(int level, int kernel) {
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if(kernel == kGLSL) {
-        if (not g_glslComputeController) {
+        if (not g_glslTransformFeedbackComputeController) {
             g_glslTransformFeedbackComputeController = new OpenSubdiv::OsdGLSLTransformFeedbackComputeController();
         }
         g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdGLVertexBuffer,
