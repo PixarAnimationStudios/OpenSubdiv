@@ -385,7 +385,8 @@ createOsdContext(int level)
                                                  g_farmesh->GetNumVertices());
 
     g_drawContext =
-        OpenSubdiv::OsdGLDrawContext::Create(g_farmesh->GetPatchTables(), g_vertexBuffer);
+        OpenSubdiv::OsdGLDrawContext::Create(g_farmesh->GetPatchTables(), false);
+    g_drawContext->UpdateVertexTexture(g_vertexBuffer);
 
     // 
     // Setup camera positioning based on object bounds. This really has nothing
