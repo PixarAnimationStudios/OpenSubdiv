@@ -54,24 +54,51 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_UTIL_MESH_HANDLE_H
-#define OSD_UTIL_MESH_HANDLE_H
+#ifndef OSDUTIL_DRAW_ITEM_H
+#define OSDUTIL_DRAW_ITEM_H
 
 #include "../version.h"
-#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-struct OsdUtilMeshHandle {
+template <typename DRAW_CONTEXT> class OsdUtilMeshBatchBase;
+
+// ----------------------------------------------------------------------------
+//   (glommable) draw item
+// ----------------------------------------------------------------------------
+template <typename EFFECT_HANDLE, typename DRAW_CONTEXT>
+class OsdUtilDrawItem {
 public:
-    typedef std::vector<OsdUtilMeshHandle> Collection;
+    typedef EFFECT_HANDLE EffectHandle;
+    typedef DRAW_CONTEXT DrawContext;
+    typedef OsdUtilMeshBatchBase<DRAW_CONTEXT> BatchBase;
+    typedef std::vector<OsdUtilDrawItem<EFFECT_HANDLE, DRAW_CONTEXT> > Collection;
+    
+    // contructors
+    // creates empty draw item
+    OsdUtilDrawItem(OsdUtilMeshBatchBase<DRAW_CONTEXT> *batch,
+                    EffectHandle effect) : 
+        _batch(batch), _effect(effect) {}
 
-    OsdUtilMeshHandle(int batchIndex_, int meshIndex_) :
-        batchIndex(batchIndex_), meshIndex(meshIndex_) {}
-
-    int batchIndex;
-    int meshIndex;
+    // creates draw item with given patcharray
+    OsdUtilDrawItem(OsdUtilMeshBatchBase<DRAW_CONTEXT> *batch,
+                    EffectHandle effect,
+                    OsdDrawContext::PatchArrayVector const &patchArrays) : 
+        _batch(batch), _effect(effect), _patchArrays(patchArrays) {}
+        
+    // accessors will be called by draw controller
+    BatchBase * GetBatch() const { return _batch; }
+    EffectHandle const & GetEffect() const { return _effect; }
+    EffectHandle & GetEffect() { return _effect; }
+    OsdDrawContext::PatchArrayVector const &GetPatchArrays() const { return _patchArrays; }
+    OsdDrawContext::PatchArrayVector &GetPatchArrays() { return _patchArrays; }
+    
+private:
+    // data members
+    BatchBase *_batch;
+    EffectHandle _effect;
+    OsdDrawContext::PatchArrayVector _patchArrays;
 };
 
 }  // end namespace OPENSUBDIV_VERSION
@@ -79,4 +106,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  /* OSD_UTIL_MESH_HANDLE_H */
+#endif  /* OSDUTIL_DRAW_ITEM_H */

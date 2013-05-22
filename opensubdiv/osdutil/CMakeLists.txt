@@ -67,7 +67,6 @@ include_directories(
 set(PUBLIC_HEADER_FILES
     batch.h
     batchCL.h
-    meshHandle.h
     drawItem.h
     drawController.h
 )
@@ -76,7 +75,7 @@ set(PUBLIC_HEADER_FILES
 # platform dependent tweaks
 
 install( FILES ${PUBLIC_HEADER_FILES}
-         DESTINATION include/osd_util
+         DESTINATION include/osdutil
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
 
 if (ANDROID)

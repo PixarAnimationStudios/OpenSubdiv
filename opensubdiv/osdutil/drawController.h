@@ -54,8 +54,8 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_UTIL_DRAW_CONTROLLER_H
-#define OSD_UTIL_DRAW_CONTROLLER_H
+#ifndef OSDUTIL_DRAW_CONTROLLER_H
+#define OSDUTIL_DRAW_CONTROLLER_H
 
 #include "../version.h"
 
@@ -65,9 +65,11 @@ namespace OPENSUBDIV_VERSION {
 /*
   concept DrawDelegate
   {
-    void BindBatch(OsdUtilMeshBatchBase<DRAW_CONTEXT> *batch);
-    void BindEffect(EFFECT *effect);
-    void DrawElements(EFFECT *effect, OsdDrawContext::PatchArray const &patchArray);
+    void Begin();
+    void End();
+    void Bind(OsdUtilMeshBatchBase<DRAW_CONTEXT> *batch, EffectHandle effect);
+    void DrawElements(OsdDrawContext::PatchArray const &patchArray);
+    bool IsCombinable(EffectHandle &a, EffectHandle &b)
   }
 */
 
@@ -81,36 +83,23 @@ namespace OsdUtil {
 
         typedef typename DRAW_ITEM_COLLECTION::value_type DrawItem;
 
-        // XXX: Are these caches needed in this class? user delegate can do that?
-        bool first = true;
-        typename DrawItem::BatchBase *currentBatch = NULL;
-        typename DrawItem::EffectHandle currentEffect; // XXX: initial value for pointer?
+        delegate->Begin();
     
         // iterate over DrawItemCollection
         for (typename DRAW_ITEM_COLLECTION::const_iterator it = items.begin(); it != items.end(); ++it) {
-            typename DrawItem::BatchBase *batch = it->GetBatch();
-            typename DrawItem::EffectHandle effect = it->GetEffect();
-            if (first || currentBatch != batch) {
-                if (not first) delegate->UnbindBatch(currentBatch);
-                delegate->BindBatch(batch);
-                currentBatch = batch;
-            }
-            if (first || currentEffect != effect) {
-                if (not first) delegate->UnbindEffect(currentEffect);
-                delegate->BindEffect(effect);
-                currentEffect = effect;
-            }
+
+            delegate->Bind(it->GetBatch(), it->GetEffect());
 
             // iterate over sub items within a draw item
             OsdDrawContext::PatchArrayVector const &patchArrays = it->GetPatchArrays();
             for (OsdDrawContext::PatchArrayVector::const_iterator pit = patchArrays.begin(); pit != patchArrays.end(); ++pit) {
-                delegate->DrawElements(currentEffect, *pit);
+                delegate->DrawElements(*pit);
             }
 
-            first = false;
+            delegate->Unbind(it->GetBatch(), it->GetEffect());
         }
-        if (not first) delegate->UnbindEffect(currentEffect);
-        if (not first) delegate->UnbindBatch(currentBatch);
+
+        delegate->End();
     }
 
     // ------------------------------------------------------------------------
@@ -125,8 +114,8 @@ namespace OsdUtil {
         };
 
         // XXX: reconsider this function
-        template <typename DRAW_ITEM_COLLECTION, typename BATCH, typename EFFECT>
-        void emit(DRAW_ITEM_COLLECTION &result, BATCH *batch, EFFECT effect) {
+        template <typename DRAW_ITEM_COLLECTION, typename BATCH, typename EFFECT_HANDLE>
+        void emit(DRAW_ITEM_COLLECTION &result, BATCH *batch, EFFECT_HANDLE &effect) {
 
             if (dictionary.empty()) return;
             
@@ -169,28 +158,32 @@ namespace OsdUtil {
     // ------------------------------------------------------------------------
     // OptimizeDrawItem
     // ------------------------------------------------------------------------
-    template <typename DRAW_ITEM_COLLECTION>
+    template <typename DRAW_ITEM_COLLECTION, typename DRAW_DELEGATE>
     void OptimizeDrawItem(DRAW_ITEM_COLLECTION const &items,
-                          DRAW_ITEM_COLLECTION &result) {
+                          DRAW_ITEM_COLLECTION &result,
+                          DRAW_DELEGATE *delegate) {
 
         typedef typename DRAW_ITEM_COLLECTION::value_type DrawItem;
 
-        typename DrawItem::BatchBase *currentBatch = NULL;
-        typename DrawItem::EffectHandle currentEffect; // XXX: initial value?
-
+        if (items.empty()) return;
         result.reserve(items.size());
+
+        typename DrawItem::BatchBase *currentBatch = items[0].GetBatch();
+        typename DrawItem::EffectHandle const *currentEffect = &(items[0].GetEffect());
 
         PatchArrayCombiner combiner;
         for (typename DRAW_ITEM_COLLECTION::const_iterator it = items.begin(); it != items.end(); ++it) {
             typename DrawItem::BatchBase *batch = it->GetBatch();
-            typename DrawItem::EffectHandle effect = it->GetEffect();
+            typename DrawItem::EffectHandle const &effect = it->GetEffect();
 
-            if (currentBatch != batch || currentEffect != effect) {
+            if (currentBatch != batch or
+                (not delegate->IsCombinable(*currentEffect, effect))) {
+
                 // emit cached draw item
-                combiner.emit(result, currentBatch, currentEffect);
+                combiner.emit(result, currentBatch, *currentEffect);
                 
                 currentBatch = batch;
-                currentEffect = effect;
+                currentEffect = &effect;
             }
 
             // merge consecutive items if possible. This operation changes drawing order.
@@ -207,7 +200,7 @@ namespace OsdUtil {
         }
         
         // pick up after
-        combiner.emit(result, currentBatch, currentEffect);
+        combiner.emit(result, currentBatch, *currentEffect);
     }
 };
 
@@ -217,4 +210,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  /* OSD_UTIL_DRAW_CONTROLLER_H */
+#endif  /* OSDUTIL_DRAW_CONTROLLER_H */

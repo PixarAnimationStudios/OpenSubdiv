@@ -60,7 +60,7 @@
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
-#include <osd_util/batch.h>
+#include <osdutil/batch.h>
 
 #include "effect.h"
 #include "effectRegistry.h"
@@ -74,30 +74,39 @@ public:
 
     static MyDrawContext *Create(OpenSubdiv::FarPatchTables const *patchTables,
                                  bool requireFVarData=false);
-//private:
-    GLuint vao;
+
+    GLuint GetVertexArray() const { return _vao; }
 
 private:
     MyDrawContext();
 
+    GLuint _vao;
 };
 
 class MyDrawDelegate {
 public:
-    void BindBatch(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch);
-    void UnbindBatch(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch);
-    void BindEffect(MyEffect &effect);
-    void UnbindEffect(MyEffect &effect);
-    void DrawElements(MyEffect &effect, OpenSubdiv::OsdDrawContext::PatchArray const &patchArray);
+    typedef MyEffect * EffectHandle;
+
+    void Bind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch, EffectHandle const &effect);
+    void Unbind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch, EffectHandle const &effect);
+
+    void Begin();
+    void End();
+
+    void DrawElements(OpenSubdiv::OsdDrawContext::PatchArray const &patchArray);
+
+    bool IsCombinable(EffectHandle const &a, EffectHandle const &b) const;
 
     void ResetNumDrawCalls() { _numDrawCalls = 0; }
     int GetNumDrawCalls() const { return _numDrawCalls; }
 
 private:
-    MyDrawConfig *GetDrawConfig(MyEffect &effect, OpenSubdiv::OsdDrawContext::PatchDescriptor desc);
+    MyDrawConfig *GetDrawConfig(EffectHandle &effect, OpenSubdiv::OsdDrawContext::PatchDescriptor desc);
 
     MyEffectRegistry _effectRegistry;
     int _numDrawCalls;
+    OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *_currentBatch;
+    EffectHandle _currentEffect;
 };
 
 #endif  /* DELEGATE_H */

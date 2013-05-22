@@ -73,11 +73,11 @@
 #include "delegate.h"
 
 MyDrawContext::MyDrawContext() {
-    glGenVertexArrays(1, &vao);
+    glGenVertexArrays(1, &_vao);
 }
 
 MyDrawContext::~MyDrawContext() {
-    glDeleteVertexArrays(1, &vao);
+    glDeleteVertexArrays(1, &_vao);
 }
 
 MyDrawContext*
@@ -113,57 +113,68 @@ MyDrawContext::Create(OpenSubdiv::FarPatchTables const *patchTables, bool requir
 // ----------------------------------------------------------------------------
 
 void
-MyDrawDelegate::BindBatch(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch) {
+MyDrawDelegate::Bind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch, EffectHandle const &effect) {
 
-    MyDrawContext *drawContext = batch->GetDrawContext();
+    if (batch != _currentBatch) {
+        // bind batch
+        _currentBatch = batch;
+        MyDrawContext *drawContext = batch->GetDrawContext();
 
-    // bind vao
-    glBindVertexArray(drawContext->vao);
+        // bind vao
+        glBindVertexArray(drawContext->GetVertexArray());
 
-    // bind vbo state
-    // glBindVertexArray(batch->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, batch->BindVertexBuffer());
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, drawContext->patchIndexBuffer);
+        // bind vbo state
+        // glBindVertexArray(batch->vao);
+        glBindBuffer(GL_ARRAY_BUFFER, batch->BindVertexBuffer());
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, drawContext->patchIndexBuffer);
 
-    // vertex attrib
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
+        // vertex attrib
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
 
-    // bind other builtin texture buffers
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_BUFFER, drawContext->vertexTextureBuffer);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_BUFFER, drawContext->vertexValenceTextureBuffer);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_BUFFER, drawContext->quadOffsetTextureBuffer);
-    glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_BUFFER, drawContext->ptexCoordinateTextureBuffer);
+        // bind other builtin texture buffers
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_BUFFER, drawContext->vertexTextureBuffer);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_BUFFER, drawContext->vertexValenceTextureBuffer);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_BUFFER, drawContext->quadOffsetTextureBuffer);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_BUFFER, drawContext->ptexCoordinateTextureBuffer);
+    }
+    if (effect != _currentEffect) {
+        _currentEffect = effect;
+
+        // bind effect
+    }
 }
 
 void
-MyDrawDelegate::UnbindBatch(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch) {
+MyDrawDelegate::Unbind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch, EffectHandle const &effect) {
+    // does nothing
+}
 
+void
+MyDrawDelegate::Begin() {
+    _currentBatch = NULL;
+    _currentEffect = NULL;
+}
+
+void
+MyDrawDelegate::End() {
+    _currentBatch = NULL;
+    _currentEffect = NULL;
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 void
-MyDrawDelegate::BindEffect(MyEffect &effect) {
-    // cross-patch state
-    // bind ptex etc
-}
-
-void
-MyDrawDelegate::UnbindEffect(MyEffect &effect) {
-}
-
-void
-MyDrawDelegate::DrawElements(MyEffect &effect, OpenSubdiv::OsdDrawContext::PatchArray const &patchArray) {
+MyDrawDelegate::DrawElements(OpenSubdiv::OsdDrawContext::PatchArray const &patchArray) {
 
     // bind patchType-wise effect state
     // can be skipped (if config is not changed)
-    MyDrawConfig *config = GetDrawConfig(effect, patchArray.GetDescriptor());
+    MyDrawConfig *config = GetDrawConfig(_currentEffect, patchArray.GetDescriptor());
 
     GLuint program = config->program;
 
@@ -176,7 +187,7 @@ MyDrawDelegate::DrawElements(MyEffect &effect, OpenSubdiv::OsdDrawContext::Patch
     }
     
     // apply patch color
-    effect.BindDrawConfig(config, patchArray.GetDescriptor());
+    _currentEffect->BindDrawConfig(config, patchArray.GetDescriptor());
     
     glUniform1i(config->levelBaseUniform, patchArray.GetPatchIndex());
     if (patchArray.GetDescriptor().GetType() == OpenSubdiv::FarPatchTables::GREGORY ||
@@ -196,8 +207,13 @@ MyDrawDelegate::DrawElements(MyEffect &effect, OpenSubdiv::OsdDrawContext::Patch
     _numDrawCalls++;
 }
 
-MyDrawConfig *
-MyDrawDelegate::GetDrawConfig(MyEffect &effect, OpenSubdiv::OsdDrawContext::PatchDescriptor desc) {
+bool
+MyDrawDelegate::IsCombinable(EffectHandle const &a, EffectHandle const &b) const {
+    return a == b;
+}
 
-    return _effectRegistry.GetDrawConfig(effect.GetEffectDescriptor(), desc);
+MyDrawConfig *
+MyDrawDelegate::GetDrawConfig(EffectHandle &effect, OpenSubdiv::OsdDrawContext::PatchDescriptor desc) {
+
+    return _effectRegistry.GetDrawConfig(effect->GetEffectDescriptor(), desc);
 }

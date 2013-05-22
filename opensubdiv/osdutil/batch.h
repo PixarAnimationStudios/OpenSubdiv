@@ -54,8 +54,8 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#ifndef OSD_UTIL_MESH_BATCH_H
-#define OSD_UTIL_MESH_BATCH_H
+#ifndef OSDUTIL_MESH_BATCH_H
+#define OSDUTIL_MESH_BATCH_H
 
 #include "../version.h"
 #include "../far/multiMeshFactory.h"
@@ -107,9 +107,6 @@ public:
     OsdDrawContext::PatchArrayVector const & GetPatchArrays(int meshIndex) const
         { return _entries[meshIndex].patchArrays; }
 
-    // vertex buffer initializer
-    virtual void InitializeVertexBuffers(int numVertexElements, int numVaryingElements) = 0;
-
     // update APIs
     virtual void UpdateCoarseVertices(int meshIndex, const float *ptrs, int numVertices) = 0;
     virtual void FinalizeUpdate() = 0;
@@ -121,14 +118,17 @@ public:
     int GetNumPtexFaces() const { return _numPtexFaces; }
 
 protected:
-    OsdUtilMeshBatchBase(OsdUtilMeshBatchEntryVector const & entries, int numVertices, int numPtexFaces, int batchIndex);
+    OsdUtilMeshBatchBase(OsdUtilMeshBatchEntryVector const & entries,
+                         int numVertices,
+                         int numPtexFaces,
+                         int numVertexElements,
+                         int batchIndex);
 
     void setKernelBatches(FarKernelBatchVector const &batches);
     void setMeshDirty(int meshIndex);
     void resetMeshDirty();
-    void updatePatchArrays(int numVertexElements);
 
-    void populateKernelBatches(FarKernelBatchVector &result);
+    void populateDirtyKernelBatches(FarKernelBatchVector &result);
 
 private:
     // compute batch
@@ -138,7 +138,7 @@ private:
     OsdUtilMeshBatchEntryVector _entries;
 
     // update flags
-    std::vector<bool>          _dirtyFlags;
+    std::vector<bool>          _dirtyFlags;   // same size as _entries
 
     int _numVertices;
     int _numPtexFaces;
@@ -163,6 +163,8 @@ public:
     // XXX: not happy with retaining compute controller..
     static OsdUtilMeshBatch *Create(ComputeController *computeController,
                                     std::vector<FarMesh<OsdVertex> const * > const &meshVector,
+                                    int numVertexElements,
+                                    int numVaryingElements,
                                     int batchIndex);
 
     // constructor (for client defined arbitrary patches)
@@ -170,11 +172,11 @@ public:
                                     OsdUtilMeshBatchEntryVector const &entries,
                                     int numVertices,
                                     int numPtexFaces,
+                                    int numVertexElements,
+                                    int numVaryingElements,
                                     int batchIndex);
 
     virtual ~OsdUtilMeshBatch();
-
-    virtual void InitializeVertexBuffers(int numVertexElements, int numVaryingElements);
 
     virtual typename DrawContext::VertexBufferBinding BindVertexBuffer() { return _vertexBuffer->BindVBO(); }
 
@@ -195,7 +197,7 @@ public:
             return;
 
         FarKernelBatchVector batches;
-        Base::populateKernelBatches(batches);
+        Base::populateDirtyKernelBatches(batches);
         Base::resetMeshDirty();
 
         _computeController->Refine(_computeContext, batches, _vertexBuffer);
@@ -209,11 +211,17 @@ private:
     OsdUtilMeshBatch(ComputeController *computeController,
                      OsdUtilMeshBatchEntryVector const &entries,
                      FarMesh<OsdVertex> const *farMultiMesh,
+                     int numVertexElements,
+                     int numVaryingElements,
                      int batchIndex);
 
     OsdUtilMeshBatch(FarPatchTables const *patchTables,
                      OsdUtilMeshBatchEntryVector const &entries,
-                     int numVertices, int numPtexFaces, int batchIndex);
+                     int numVertices,
+                     int numPtexFaces,
+                     int numVertexElements,
+                     int numVaryingElements,
+                     int batchIndex);
 
     ComputeController *_computeController;
     ComputeContext *_computeContext;
@@ -224,8 +232,21 @@ private:
 
 // -----------------------------------------------------------------------------
 template <typename DRAW_CONTEXT>
-    OsdUtilMeshBatchBase<DRAW_CONTEXT>::OsdUtilMeshBatchBase(OsdUtilMeshBatchEntryVector const & entries, int numVertices, int numPtexFaces, int batchIndex) :
+OsdUtilMeshBatchBase<DRAW_CONTEXT>::OsdUtilMeshBatchBase(OsdUtilMeshBatchEntryVector const & entries,
+                                                         int numVertices,
+                                                         int numPtexFaces,
+                                                         int numVertexElements,
+                                                         int batchIndex) :
     _entries(entries), _numVertices(numVertices), _numPtexFaces(numPtexFaces), _batchIndex(batchIndex) {
+
+    // update patcharrays in entries
+    for (int i = 0; i < (int)_entries.size(); ++i) {
+        for (int j = 0; j < (int)_entries[i].patchArrays.size(); ++j) {
+            OsdDrawContext::PatchDescriptor desc = _entries[i].patchArrays[j].GetDescriptor();
+            desc.SetNumElements(numVertexElements);
+            _entries[i].patchArrays[j].SetDescriptor(desc);
+        }
+    }
 
     // init dirty flags
     _dirtyFlags.resize(entries.size());
@@ -254,18 +275,7 @@ OsdUtilMeshBatchBase<DRAW_CONTEXT>::setKernelBatches(FarKernelBatchVector const 
 }
 
 template <typename DRAW_CONTEXT> void
-OsdUtilMeshBatchBase<DRAW_CONTEXT>::updatePatchArrays(int numVertexElements) {
-    for (int i = 0; i < (int)_entries.size(); ++i) {
-        for (int j = 0; j < (int)_entries[i].patchArrays.size(); ++j) {
-            OsdDrawContext::PatchDescriptor desc = _entries[i].patchArrays[j].GetDescriptor();
-            desc.SetNumElements(numVertexElements);
-            _entries[i].patchArrays[j].SetDescriptor(desc);
-        }
-    }
-}
-
-template <typename DRAW_CONTEXT> void
-OsdUtilMeshBatchBase<DRAW_CONTEXT>::populateKernelBatches(FarKernelBatchVector &result) {
+OsdUtilMeshBatchBase<DRAW_CONTEXT>::populateDirtyKernelBatches(FarKernelBatchVector &result) {
 
     result.clear();
     for (FarKernelBatchVector::const_iterator it = _allKernelBatches.begin();
@@ -297,7 +307,7 @@ createEntries(OsdUtilMeshBatchEntryVector &result,
               int maxValence,
               std::vector<FarMesh<OsdVertex> const * > const & meshVector) {
 
-    // create osd patch array per mesh (note: numVertexElements will be updated later on InitializeVertexBuffers)
+    // create osd patch array per mesh (note: numVertexElements will be updated later)
     int numEntries = (int)multiFarPatchArray.size();
     result.resize(numEntries);
     for (int i = 0; i < numEntries; ++i) {
@@ -326,10 +336,13 @@ OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>::
 OsdUtilMeshBatch(ComputeController *computeController,
                  OsdUtilMeshBatchEntryVector const &entries,
                  FarMesh<OsdVertex> const *farMultiMesh,
+                 int numVertexElements,
+                 int numVaryingElements,
                  int batchIndex) :
     OsdUtilMeshBatchBase<DRAW_CONTEXT>(entries,
                                        farMultiMesh->GetNumVertices(),
                                        farMultiMesh->GetNumPtexFaces(),
+                                       numVertexElements,
                                        batchIndex),
              _computeController(computeController),
              _computeContext(NULL), _vertexBuffer(NULL), _varyingBuffer(NULL), _drawContext(NULL) {
@@ -342,8 +355,11 @@ OsdUtilMeshBatch(ComputeController *computeController,
 
     FarPatchTables const * patchTables = farMultiMesh->GetPatchTables();
 
-    // create drawcontext
+    _vertexBuffer = numVertexElements ? VertexBuffer::Create(numVertexElements, Base::GetNumVertices()) : NULL;
+    _varyingBuffer = numVaryingElements ? VertexBuffer::Create(numVaryingElements, Base::GetNumVertices()) : NULL;
+
     _drawContext = DrawContext::Create(patchTables, /*fvar=*/false);
+    _drawContext->UpdateVertexTexture(_vertexBuffer);
 }
 
 // Constructor from patch table
@@ -351,16 +367,23 @@ template <typename VERTEX_BUFFER, typename DRAW_CONTEXT, typename COMPUTE_CONTRO
 OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>::
 OsdUtilMeshBatch(FarPatchTables const *patchTables,
                  OsdUtilMeshBatchEntryVector const &entries,
-                 int numVertices, int numPtexFaces, int batchIndex) :
+                 int numVertices, int numPtexFaces,
+                 int numVertexElements,
+                 int numVaryingElements,
+                 int batchIndex) :
     OsdUtilMeshBatchBase<DRAW_CONTEXT>(entries,
                                        numVertices,
                                        numPtexFaces,
+                                       numVertexElements,
                                        batchIndex),
         _computeController(NULL), _computeContext(NULL),
         _vertexBuffer(NULL), _varyingBuffer(NULL), _drawContext(NULL) {
 
-    // create drawcontext
+    _vertexBuffer = numVertexElements ? VertexBuffer::Create(numVertexElements, numVertices) : NULL;
+    _varyingBuffer = numVaryingElements ? VertexBuffer::Create(numVaryingElements, numVertices) : NULL;
+
     _drawContext = DrawContext::Create(patchTables, /*fvar=*/false);
+    _drawContext->UpdateVertexTexture(_vertexBuffer);
 }
 
 template <typename VERTEX_BUFFER, typename DRAW_CONTEXT, typename COMPUTE_CONTROLLER>
@@ -375,7 +398,10 @@ OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>::~OsdUtilMeshB
 template <typename VERTEX_BUFFER, typename DRAW_CONTEXT, typename COMPUTE_CONTROLLER>
 OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER> *
 OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>::Create(ComputeController *computeController,
-                     const std::vector<FarMesh<OsdVertex> const * > &meshVector, int batchIndex)
+                                                                          const std::vector<FarMesh<OsdVertex> const * > &meshVector,
+                                                                          int numVertexElements,
+                                                                          int numVaryingElements,
+                                                                          int batchIndex)
 {
     std::vector<FarPatchTables::PatchArrayVector> multiFarPatchArray;
     FarMesh <OsdVertex> *farMultiMesh = createMultiMesh(meshVector, multiFarPatchArray);
@@ -388,7 +414,7 @@ OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>::Create(Comput
 
     OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER> *batch =
         new OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>(
-            computeController, entries, farMultiMesh, batchIndex);
+            computeController, entries, farMultiMesh, numVertexElements, numVaryingElements, batchIndex);
 
     delete farMultiMesh;
 
@@ -398,28 +424,18 @@ OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>::Create(Comput
 template <typename VERTEX_BUFFER, typename DRAW_CONTEXT, typename COMPUTE_CONTROLLER>
 OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER> *
 OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>::Create(FarPatchTables const *patchTables,
-                     OsdUtilMeshBatchEntryVector const &entries, int numVertices, int numPtexFaces, int batchIndex)
+                                                                          OsdUtilMeshBatchEntryVector const &entries,
+                                                                          int numVertices,
+                                                                          int numPtexFaces,
+                                                                          int numVertexElements,
+                                                                          int numVaryingElements,
+                                                                          int batchIndex)
 {
     OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER> *batch =
         new OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>(
-            patchTables, entries, numVertices, numPtexFaces, batchIndex);
+            patchTables, entries, numVertices, numPtexFaces, numVertexElements, numVaryingElements, batchIndex);
 
     return batch;
-}
-
-template <typename VERTEX_BUFFER, typename DRAW_CONTEXT, typename COMPUTE_CONTROLLER> void
-OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>::InitializeVertexBuffers(int numVertexElements, int numVaryingElements) {
-
-    delete _vertexBuffer;
-    delete _varyingBuffer;
-
-    _vertexBuffer = numVertexElements ? VertexBuffer::Create(numVertexElements, Base::GetNumVertices()) : NULL;
-    _varyingBuffer = numVaryingElements ? VertexBuffer::Create(numVaryingElements, Base::GetNumVertices()) : NULL;
-
-    _drawContext->UpdateVertexTexture(_vertexBuffer);
-
-    // update patch arrays
-    Base::updatePatchArrays(numVertexElements);
 }
 
 }  // end namespace OPENSUBDIV_VERSION
@@ -427,4 +443,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  /* OSD_UTIL_MESH_BATCH_H */
+#endif  /* OSDUTIL_MESH_BATCH_H */

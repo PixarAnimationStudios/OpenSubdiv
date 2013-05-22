@@ -65,7 +65,7 @@ add_subdirectory(far)
 
 add_subdirectory(osd)
 
-add_subdirectory(osd_util)
+add_subdirectory(osdutil)
 
 install( FILES version.h
          DESTINATION include/
