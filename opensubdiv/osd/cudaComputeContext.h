@@ -73,8 +73,13 @@ namespace OPENSUBDIV_VERSION {
 class OsdCudaTable : OsdNonCopyable<OsdCudaTable> {
 public:
     template<typename T>
-    explicit OsdCudaTable(const std::vector<T> &table) {
-        createCudaBuffer(table.size() * sizeof(T), &table[0]);
+    static OsdCudaTable * Create(const std::vector<T> &table) {
+        OsdCudaTable *result = new OsdCudaTable();
+        if (not result->createCudaBuffer(table.size() * sizeof(T), &table[0])) {
+            delete result;
+            return NULL;
+        }
+        return result;
     }
 
     virtual ~OsdCudaTable();
@@ -82,15 +87,17 @@ public:
     void * GetCudaMemory() const;
 
 private:
-    void createCudaBuffer(size_t size, const void *ptr);
+    OsdCudaTable() : _devicePtr(NULL) {}
+
+    bool createCudaBuffer(size_t size, const void *ptr);
 
     void *_devicePtr;
 };
 
 class OsdCudaHEditTable : OsdNonCopyable<OsdCudaHEditTable> {
 public:
-    OsdCudaHEditTable(const FarVertexEditTables<OsdVertex>::
-                      VertexEditBatch &batch);
+    static OsdCudaHEditTable * Create(const FarVertexEditTables<OsdVertex>::
+                                      VertexEditBatch &batch);
 
     virtual ~OsdCudaHEditTable();
 
@@ -105,6 +112,8 @@ public:
     int GetPrimvarWidth() const;
 
 private:
+    OsdCudaHEditTable();
+
     OsdCudaTable *_primvarIndicesTable;
     OsdCudaTable *_editValuesTable;
 
@@ -199,7 +208,9 @@ public:
 
 
 protected:
-    explicit OsdCudaComputeContext(FarMesh<OsdVertex> const *farMesh);
+    OsdCudaComputeContext();
+
+    bool initialize(FarMesh<OsdVertex> const *farMesh);
 
 private:
     std::vector<OsdCudaTable*> _tables;
