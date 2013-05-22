@@ -9,15 +9,6 @@ The current version is "Release Candidate 1.0" (12/05/2012) and we hope to have 
 For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://graphics.pixar.com).
 
 
-## What's New in Release Candidate 1.0 ?
-
-- [Feature Adaptive GPU Rendering of Catmull-Clark Surfaces](http://research.microsoft.com/en-us/um/people/cloop/tog2012.pdf). 
-
-- New API architecture : we are planning to lock on to this new framework as the basis for backward compatibility, which we will enforce from Release 1.0 onward. Subsequent releases of OpenSubdiv should not break client code.
-
-- DirectX 11 support 
-
-
 ## Git Flow
 
 We have adopted the git flow branching model. It is not necessary to use the git-flow extensions, though you may find them useful! But it will be helpful to read about the git flow branching model in order to understand the organization of branches and tags that you will find in the repository.
