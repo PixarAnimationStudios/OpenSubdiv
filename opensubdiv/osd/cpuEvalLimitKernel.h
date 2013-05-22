@@ -75,11 +75,31 @@ evalBSpline(float u, float v,
             float * outDQV );
 
 void
+evalBoundary(float u, float v, 
+             unsigned int const * vertexIndices,
+             OsdVertexBufferDescriptor const & inDesc,
+             float const * inQ,
+             OsdVertexBufferDescriptor const & outDesc,
+             float * outQ,
+             float * outDQU,
+             float * outDQV );
+
+void
+evalCorner(float u, float v, 
+           unsigned int const * vertexIndices,
+           OsdVertexBufferDescriptor const & inDesc,
+           float const * inQ,
+           OsdVertexBufferDescriptor const & outDesc,
+           float * outQ,
+           float * outDQU,
+           float * outDQV );
+
+void
 evalGregory(float u, float v,
+            unsigned int const * vertexIndices,
             int const * vertexValenceBuffer,
             unsigned int const  * quadOffsetBuffer,
             int maxValence,
-            unsigned int const * vertexIndices,
             OsdVertexBufferDescriptor const & inDesc,
             float const * inQ, 
             OsdVertexBufferDescriptor const & outDesc,

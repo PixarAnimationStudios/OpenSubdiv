@@ -176,6 +176,10 @@ public:
         return _patchMap;
     }
 
+    int GetMaxValence() const {
+        return _maxValence;
+    }
+
 protected:
     explicit OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmesh);
 
@@ -193,6 +197,8 @@ private:
 
     OsdVertexBufferDescriptor _inDesc,
                               _outDesc;
+    
+    int _maxValence;
     
     float * _inQ,      // input vertex data
           * _outQ,     // output vertex data

@@ -93,6 +93,8 @@ OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmes
     
     _quadOffsetBuffer = patchTables->GetQuadOffsetTable();
     
+    _maxValence = patchTables->GetMaxValence();
+    
     // Copy the bitfields, the faceId will be the key to our map
     int npatches = patchTables->GetNumPatches();
     

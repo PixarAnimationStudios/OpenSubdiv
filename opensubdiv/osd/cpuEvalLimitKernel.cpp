@@ -74,22 +74,24 @@ evalCubicBSpline(float u, float B[4], float BU[4])
     float t = u;
     float s = 1.0f - u;
 
-    float C0 =                      s * (0.5f * s);
-    float C1 = t * (s + 0.5f * t) + s * (0.5f * s + t);
-    float C2 = t * (    0.5f * t);
+    float A0 =                      s * (0.5f * s);
+    float A1 = t * (s + 0.5f * t) + s * (0.5f * s + t);
+    float A2 = t * (    0.5f * t);
 
-    B[0] =                                     1.f/3.f * s                * C0;
-    B[1] = (2.f/3.f * s +           t) * C0 + (2.f/3.f * s + 1.f/3.f * t) * C1;
-    B[2] = (1.f/3.f * s + 2.f/3.f * t) * C1 + (          s + 2.f/3.f * t) * C2;
-    B[3] =                1.f/3.f * t  * C2;
+    B[0] =                                     1.f/3.f * s                * A0;
+    B[1] = (2.f/3.f * s +           t) * A0 + (2.f/3.f * s + 1.f/3.f * t) * A1;
+    B[2] = (1.f/3.f * s + 2.f/3.f * t) * A1 + (          s + 2.f/3.f * t) * A2;
+    B[3] =                1.f/3.f * t  * A2;
 
     if (BU) {
-        BU[0] =    - C0;
-        BU[1] = C0 - C1;
-        BU[2] = C1 - C2;
-        BU[3] = C2;
+        BU[0] =    - A0;
+        BU[1] = A0 - A1;
+        BU[2] = A1 - A2;
+        BU[3] = A2;
     }
 }
+
+
 
 void
 evalBSpline(float u, float v, 
@@ -106,7 +108,6 @@ evalBSpline(float u, float v,
 
     bool evalDeriv = (outDQU or outDQV);
 
-    // XXX these dynamic allocs won't work w/ VC++
     float B[4], D[4],
           *BU=(float*)alloca(inDesc.length*4*sizeof(float)),
           *DU=(float*)alloca(inDesc.length*4*sizeof(float));
@@ -158,6 +159,252 @@ evalBSpline(float u, float v,
     }    
 }             
 
+
+
+void
+evalBoundary(float u, float v, 
+             unsigned int const * vertexIndices,
+             OsdVertexBufferDescriptor const & inDesc,
+             float const * inQ,
+             OsdVertexBufferDescriptor const & outDesc,
+             float * outQ,
+             float * outDQU,
+             float * outDQV ) {
+
+    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
+
+    bool evalDeriv = (outDQU or outDQV);
+
+    float B[4], D[4],
+          *BU=(float*)alloca(inDesc.length*4*sizeof(float)),
+          *DU=(float*)alloca(inDesc.length*4*sizeof(float));
+    
+    memset(BU, 0, inDesc.length*4*sizeof(float));
+    memset(DU, 0, inDesc.length*4*sizeof(float));
+
+    evalCubicBSpline(u, B, evalDeriv ? D : 0);
+
+    float const * inOffset = inQ + inDesc.offset;
+
+    // mirror the missing row of vertices
+    float *EU=(float*)alloca(inDesc.length*4*sizeof(float));
+    static int V0[4] = { 0, 1, 2, 3 }, V1[4] = { 4, 5, 6, 7 };
+    for (int i=0; i<4; ++i) {
+        float const * in0 = inOffset + vertexIndices[V0[i]]*inDesc.stride,
+                    * in1 = inOffset + vertexIndices[V1[i]]*inDesc.stride;
+        for (int k=0; k<inDesc.stride; ++k) {
+            EU[i*inDesc.length+k] = 2.0f*in0[k] - in1[k];
+        }
+    }
+    
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+        
+            // swap the missing row of verts with our mirrored ones
+            float const * in = j==0 ? &EU[i*inDesc.stride] : 
+                inOffset + vertexIndices[i+(j-1)*4]*inDesc.stride;
+            
+            for (int k=0; k<inDesc.length; ++k) {
+            
+                BU[i*inDesc.length+k] += in[k] * B[j];
+                
+                if (evalDeriv)
+                    DU[i*inDesc.length+k] += in[k] * D[j];                
+            }
+        }
+    }
+
+    evalCubicBSpline(v, B, evalDeriv ? D : 0);
+
+    float * Q = outQ + outDesc.offset,
+          * dQU = outDQU + outDesc.offset,
+          * dQV = outDQV + outDesc.offset;
+
+    // clear result 
+    memset(Q, 0, inDesc.length*sizeof(float));
+    if (evalDeriv) {
+        memset(dQU, 0, inDesc.length*sizeof(float));
+        memset(dQV, 0, inDesc.length*sizeof(float));
+    }
+
+    for (int i=0; i<4; ++i) {
+        for (int k=0; k<inDesc.length; ++k) {
+            Q[k] += BU[inDesc.length*i+k] * B[i];
+            
+            if (evalDeriv) {
+                dQU[k] += DU[inDesc.length*i+k] * B[i];
+                dQV[k] += BU[inDesc.length*i+k] * D[i];
+            }
+        }
+    }    
+}
+
+
+
+void
+evalCorner(float u, float v, 
+           unsigned int const * vertexIndices,
+           OsdVertexBufferDescriptor const & inDesc,
+           float const * inQ,
+           OsdVertexBufferDescriptor const & outDesc,
+           float * outQ,
+           float * outDQU,
+           float * outDQV ) {
+
+    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
+
+    int length = inDesc.length;
+
+    bool evalDeriv = (outDQU or outDQV);
+
+    float B[4], D[4],
+          *BU=(float*)alloca(length*4*sizeof(float)),
+          *DU=(float*)alloca(length*4*sizeof(float));
+    
+    memset(BU, 0, length*4*sizeof(float));
+    memset(DU, 0, length*4*sizeof(float));
+
+
+    evalCubicBSpline(u, B, evalDeriv ? D : 0);
+
+    float const *inOffset = inQ + inDesc.offset;
+
+    // mirror the missing vertices (M)
+    float *M = (float*)alloca(length*7*sizeof(float));
+
+    float const *v0 = inOffset + vertexIndices[0]*inDesc.stride,
+                *v1 = inOffset + vertexIndices[1]*inDesc.stride,
+                *v2 = inOffset + vertexIndices[2]*inDesc.stride,
+                *v3 = inOffset + vertexIndices[3]*inDesc.stride,
+                *v4 = inOffset + vertexIndices[4]*inDesc.stride,
+                *v5 = inOffset + vertexIndices[5]*inDesc.stride,
+                *v6 = inOffset + vertexIndices[6]*inDesc.stride,
+                *v7 = inOffset + vertexIndices[7]*inDesc.stride,
+                *v8 = inOffset + vertexIndices[8]*inDesc.stride;
+
+
+    //  M0 - M1 - M2  - M3
+    //   |    |    |     |
+    //  M4 - V0 - V1  - V2
+    //   |    |    |     |
+    //  M5 - V3 - V4  - V5
+    //   |    |    |     |
+    //  M6 - V6 - V7  - V8
+    for (int k=0; k<inDesc.stride; ++k) {
+        M[1*length+k] = 2.0f*v0[k] - v3[k];
+        M[2*length+k] = 2.0f*v1[k] - v4[k];
+        M[3*length+k] = 2.0f*v2[k] - v5[k];
+        
+        M[4*length+k] = 2.0f*v0[k] - v1[k];
+        M[5*length+k] = 2.0f*v3[k] - v4[k];
+        M[6*length+k] = 2.0f*v6[k] - v7[k];
+        
+        M[0*length+k] = 2.0f*M[1*length+k] - M[2*length+k];
+    }
+
+/*
+    //  M0 - M1  - M2 - M3
+    //   |    |     |    |
+    //  V0 - V1  - V2 - M4
+    //   |    |     |    |
+    //  V3 - V4  - V5 - M5
+    //   |    |     |    |
+    //  V6 - V7  - V8 - M6
+    for (int k=0; k<inDesc.stride; ++k) {
+        M[0*length+k] = 2.0f*v0[k] - v3[k];
+        M[1*length+k] = 2.0f*v1[k] - v4[k];
+        M[2*length+k] = 2.0f*v2[k] - v5[k];
+        
+        M[4*length+k] = 2.0f*v2[k] - v1[k];
+        M[5*length+k] = 2.0f*v5[k] - v4[k];
+        M[6*length+k] = 2.0f*v8[k] - v7[k];
+        
+        M[3*length+k] = 2.0f*M[2*length+k] - M[1*length+k];
+    }
+    
+    for (int k=0; k<inDesc.stride; ++k) {
+        M[1*length+k] = 2.0f*v0[k] - v3[k];
+        M[2*length+k] = 2.0f*v1[k] - v2[k];
+        M[3*length+k] = 2.0f*v4[k] - v5[k];
+        
+        M[4*length+k] = 2.0f*v0[k] - v1[k];
+        M[5*length+k] = 2.0f*v3[k] - v2[k];
+        M[6*length+k] = 2.0f*v8[k] - v7[k];
+        
+        M[0*length+k] = 2.0f*M[1*length+k] - M[2*length+k];
+    }
+
+    for (int k=0; k<inDesc.stride; ++k) {
+        M[0*length+k] = 2.0f*v0[k] - v3[k];
+        M[1*length+k] = 2.0f*v1[k] - v2[k];
+        M[2*length+k] = 2.0f*v4[k] - v5[k];
+        
+        M[4*length+k] = 2.0f*v4[k] - v1[k];
+        M[5*length+k] = 2.0f*v5[k] - v2[k];
+        M[6*length+k] = 2.0f*v7[k] - v6[k];
+        
+        M[3*length+k] = 2.0f*M[2*length+k] - M[1*length+k];
+    }
+*/    
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+        
+            float const * in = NULL;
+            
+            if (j==0) {
+                in = &M[i*inDesc.stride];
+            } else if (i==0) {
+                in = &M[(j+3)*inDesc.stride];
+            } else {
+                in = inOffset + vertexIndices[(i-1)*1+(j-1)*3]*inDesc.stride;
+            }
+/*
+            if (j==0) {
+                in = &M[i*inDesc.stride];
+            } else if (i==3) {
+                in = &M[(j+3)*inDesc.stride];
+            } else {
+                in = inOffset + vertexIndices[(i-1)*3+(j-1)*1]*inDesc.stride;
+            }
+*/
+
+            assert(in);
+                        
+            for (int k=0; k<length; ++k) {
+            
+                BU[i*length+k] += in[k] * B[j];
+                
+                if (evalDeriv)
+                    DU[i*length+k] += in[k] * D[j];                
+            }
+        }
+    }
+
+    evalCubicBSpline(v, B, evalDeriv ? D : 0);
+
+    float * Q = outQ + outDesc.offset,
+          * dQU = outDQU + outDesc.offset,
+          * dQV = outDQV + outDesc.offset;
+
+    // clear result 
+    memset(Q, 0, length*sizeof(float));
+    if (evalDeriv) {
+        memset(dQU, 0, length*sizeof(float));
+        memset(dQV, 0, length*sizeof(float));
+    }
+
+    for (int i=0; i<4; ++i) {
+        for (int k=0; k<length; ++k) {
+            Q[k] += BU[length*i+k] * B[i];
+            
+            if (evalDeriv) {
+                dQU[k] += DU[length*i+k] * B[i];
+                dQV[k] += BU[length*i+k] * D[i];
+            }
+        }
+    }    
+}
+
 inline void
 univar4x4(float u, float B[4], float D[4])
 {
@@ -194,10 +441,10 @@ csf(unsigned int n, unsigned int j)
 
 void
 evalGregory(float u, float v,
+            unsigned int const * vertexIndices,
             int const * vertexValenceBuffer,
             unsigned int const  * quadOffsetBuffer,
             int maxValence,
-            unsigned int const * vertexIndices,
             OsdVertexBufferDescriptor const & inDesc,
             float const * inQ, 
             OsdVertexBufferDescriptor const & outDesc,
@@ -218,11 +465,14 @@ evalGregory(float u, float v,
 
     int valences[4], length=inDesc.length;
     
-    float const * inQo = inQ + inDesc.offset;
+    float const * inOffset = inQ + inDesc.offset;
     
-    float  *r=(float*)alloca(length*4*maxValence*sizeof(float)), *rp=r,
-          *e0=(float*)alloca(length*4*sizeof(float)),
-          *e1=(float*)alloca(length*4*sizeof(float));
+    float  *r  = (float*)alloca((maxValence+2)*4*length*sizeof(float)), 
+           *rp = r,
+           *e0 = r + length*4*maxValence,
+           *e1 = e0 + length*4;
+
+    memset(r, 0, (maxValence+2)*4*length*sizeof(float));
           
     float *opos=(float*)alloca(length*4*sizeof(float));
     
@@ -237,7 +487,7 @@ evalGregory(float u, float v,
         float  *f=(float*)alloca(maxValence*length*sizeof(float)), *fp=f, 
                *Q=(float*)alloca(length*sizeof(float)),
               *oQ=(float*)alloca(length*sizeof(float));
-        memcpy(Q, inQo + vertexID*inDesc.stride, length*sizeof(float));
+        memcpy(Q, inOffset + vertexID*inDesc.stride, length*sizeof(float));
         memset(oQ, 0, length*sizeof(float));
         
               
@@ -251,17 +501,17 @@ evalGregory(float u, float v,
             int idx_neighbor_m = valenceTable[2*im + 0 + 1];
             int idx_diagonal_m = valenceTable[2*im + 1 + 1];
 
-            float const * neighbor   = inQo + idx_neighbor   * inDesc.stride;
-            float const * diagonal   = inQo + idx_diagonal   * inDesc.stride;
-            float const * neighbor_p = inQo + idx_neighbor_p * inDesc.stride;
-            float const * neighbor_m = inQo + idx_neighbor_m * inDesc.stride;
-            float const * diagonal_m = inQo + idx_diagonal_m * inDesc.stride;
+            float const * neighbor   = inOffset + idx_neighbor   * inDesc.stride;
+            float const * diagonal   = inOffset + idx_diagonal   * inDesc.stride;
+            float const * neighbor_p = inOffset + idx_neighbor_p * inDesc.stride;
+            float const * neighbor_m = inOffset + idx_neighbor_m * inDesc.stride;
+            float const * diagonal_m = inOffset + idx_diagonal_m * inDesc.stride;
             
-            for (int k=0; k<length; ++k, ++fp, ++rp) {
+            for (int k=0; k<length; ++k, ++fp) {
                 *fp = (Q[k]*float(valence) + (neighbor_p[k]+neighbor[k])*2.0f + diagonal[k])/(float(valence)+5.0f);
                 oQ[k] += *fp;
                 // XXXX manuelk rp indexing is clunky
-                *rp = (neighbor_p[k]-neighbor_m[k])/3.0f + (diagonal[k]-diagonal_m[k])/6.0f;
+                rp[i*length+k] = (neighbor_p[k]-neighbor_m[k])/3.0f + (diagonal[k]-diagonal_m[k])/6.0f;
             }
             
         }
@@ -288,6 +538,30 @@ evalGregory(float u, float v,
     
     // tess control
     
+    // Control Vertices based on : 
+    // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation" 
+    // Loop, Schaefer, Ni, Castafio (ACM ToG Siggraph Asia 2009)
+    //
+    //  P3         e3-      e2+         E2
+    //     O--------O--------O--------O
+    //     |        |        |        |
+    //     |        |        |        |
+    //     |        | f3-    | f2+    |
+    //     |        O        O        |
+    // e3+ O------O            O------O e2-
+    //     |     f3+          f2-     |
+    //     |                          |
+    //     |                          |
+    //     |      f0-         f1+     |
+    // e0- O------O            O------O e1+
+    //     |        O        O        |
+    //     |        | f0+    | f1-    |
+    //     |        |        |        |
+    //     |        |        |        |
+    //     O--------O--------O--------O
+    //  P0         e0+      e1-         E1
+    //
+
     float *Ep=(float*)alloca(length*4*sizeof(float)), 
           *Em=(float*)alloca(length*4*sizeof(float)), 
           *Fp=(float*)alloca(length*4*sizeof(float)), 
@@ -380,8 +654,6 @@ evalGregory(float u, float v,
 
     univar4x4(u, B, evalDeriv ? D : 0);
 
-    float const * inOffset = inQ + inDesc.offset;
-
     for (int i=0; i<4; ++i) {
         for (int j=0; j<4; ++j) {
         
@@ -413,11 +685,11 @@ evalGregory(float u, float v,
 
     for (int i=0; i<4; ++i) {
         for (int k=0; k<inDesc.length; ++k) {
-            Q[k] += BU[i] * B[i];
+            Q[k] += BU[inDesc.length*i+k] * B[i];
             
             if (evalDeriv) {
-                dQU[k] += DU[i] * B[i];
-                dQV[k] += BU[i] * D[i];
+                dQU[k] += DU[inDesc.length*i+k] * B[i];
+                dQV[k] += BU[inDesc.length*i+k] * D[i];
             }
         }
     }    

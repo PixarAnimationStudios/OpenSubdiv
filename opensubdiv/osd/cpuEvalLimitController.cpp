@@ -133,30 +133,37 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
         // Based on patch type - go execute interpolation
         switch( parray.GetDescriptor().GetType() ) {
 
-            case FarPatchTables::REGULAR  : { 
-                                              evalBSpline( v, u, cvs,
+            case FarPatchTables::REGULAR  : { evalBSpline( v, u, cvs,
                                                            context->GetInputDesc(),
                                                            inQ,
                                                            context->GetOutputDesc(),
-                                                           outQ, outdQu, outdQv); 
+                                                           outQ, outdQu, outdQv);
                                               return 1; }
             
-            case FarPatchTables::BOUNDARY : { return 0; }
+            case FarPatchTables::BOUNDARY : { evalBoundary( v, u, cvs,
+                                                            context->GetInputDesc(),
+                                                            inQ,
+                                                            context->GetOutputDesc(),
+                                                            outQ, outdQu, outdQv);
+                                               return 1; }
             
-            case FarPatchTables::CORNER   : { return 0; }
+            case FarPatchTables::CORNER   : { evalCorner( v, u, cvs,
+                                                          context->GetInputDesc(),
+                                                          inQ,
+                                                          context->GetOutputDesc(),
+                                                          outQ, outdQu, outdQv);
+                                              return 1; }
  
             
-            case FarPatchTables::GREGORY  : { /*evalGregory(v, u, cvs,
-                                                            unsigned int const  * quadOffsetBuffer,
-                                                            int maxValence,
-                                                            unsigned int const * vertexIndices,
-                                                            OsdVertexBufferDescriptor const & inDesc,
-                                                            float const * inQ,
-                                                            OsdVertexBufferDescriptor const & outDesc,
-                                                            float * outQ,
-                                                            float * outDQU,
-                                                            float * outDQV );*/
-                                              return 0; }
+            case FarPatchTables::GREGORY  : { evalGregory(v, u, cvs,
+                                                            context->GetVertexValenceBuffer(),
+                                                            context->GetQuadOffsetBuffer() + parray.GetQuadOffsetIndex(),
+                                                            context->GetMaxValence(),
+                                                            context->GetInputDesc(),
+                                                            inQ,
+                                                            context->GetOutputDesc(),
+                                                            outQ, outdQu, outdQv);
+                                              return 1; }
 
             case FarPatchTables::GREGORY_BOUNDARY : { return 0; }
 
