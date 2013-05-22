@@ -63,10 +63,21 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-void
+bool
 OsdCudaTable::createCudaBuffer(size_t size, const void *ptr) {
-    cudaMalloc(&_devicePtr, size);
-    cudaMemcpy(_devicePtr, ptr, size, cudaMemcpyHostToDevice);
+
+    cudaError_t err = cudaMalloc(&_devicePtr, size);
+    if (err != cudaSuccess) {
+        return false;
+    }
+
+    err = cudaMemcpy(_devicePtr, ptr, size, cudaMemcpyHostToDevice);
+    if (err != cudaSuccess) {
+        cudaFree(_devicePtr);
+        _devicePtr = NULL;
+        return false;
+    }
+    return true;
 }
 
 OsdCudaTable::~OsdCudaTable() {
@@ -82,20 +93,34 @@ OsdCudaTable::GetCudaMemory() const {
 
 // ----------------------------------------------------------------------------
 
-OsdCudaHEditTable::OsdCudaHEditTable(
-    const FarVertexEditTables<OsdVertex>::VertexEditBatch &batch)
-    : _primvarIndicesTable(new OsdCudaTable(batch.GetVertexIndices())),
-      _editValuesTable(new OsdCudaTable(batch.GetValues())) {
-
-    _operation = batch.GetOperation();
-    _primvarOffset = batch.GetPrimvarIndex();
-    _primvarWidth = batch.GetPrimvarWidth();
+OsdCudaHEditTable::OsdCudaHEditTable() 
+    : _primvarIndicesTable(NULL), _editValuesTable(NULL) {
 }
 
 OsdCudaHEditTable::~OsdCudaHEditTable() {
 
     delete _primvarIndicesTable;
     delete _editValuesTable;
+}
+
+OsdCudaHEditTable *
+OsdCudaHEditTable::Create(const FarVertexEditTables<OsdVertex>::
+                          VertexEditBatch &batch) {
+
+    OsdCudaHEditTable *result = new OsdCudaHEditTable();
+
+    result->_operation = batch.GetOperation();
+    result->_primvarOffset = batch.GetPrimvarIndex();
+    result->_primvarWidth = batch.GetPrimvarWidth();
+    result->_primvarIndicesTable = OsdCudaTable::Create(batch.GetVertexIndices());
+    result->_editValuesTable = OsdCudaTable::Create(batch.GetValues());
+
+    if (result->_primvarIndicesTable == NULL or
+        result->_editValuesTable == NULL) {
+        delete result;
+        return NULL;
+    }
+    return result;
 }
 
 const OsdCudaTable *
@@ -128,7 +153,24 @@ OsdCudaHEditTable::GetPrimvarWidth() const {
     return _primvarWidth;
 }
 
-OsdCudaComputeContext::OsdCudaComputeContext(FarMesh<OsdVertex> const *farMesh) {
+// ----------------------------------------------------------------------------
+
+OsdCudaComputeContext::OsdCudaComputeContext() :
+    _currentVertexBuffer(NULL), _currentVaryingBuffer(NULL) {
+}
+
+OsdCudaComputeContext::~OsdCudaComputeContext() {
+
+    for (size_t i = 0; i < _tables.size(); ++i) {
+        delete _tables[i];
+    }
+    for (size_t i = 0; i < _editTables.size(); ++i) {
+        delete _editTables[i];
+    }
+}
+
+bool
+OsdCudaComputeContext::initialize(FarMesh<OsdVertex> const *farMesh) {
 
     FarSubdivisionTables<OsdVertex> const * farTables =
         farMesh->GetSubdivisionTables();
@@ -136,15 +178,22 @@ OsdCudaComputeContext::OsdCudaComputeContext(FarMesh<OsdVertex> const *farMesh) 
     // allocate 5 or 7 tables
     _tables.resize(farTables->GetNumTables(), 0);
 
-    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdCudaTable(farTables->Get_E_IT());
-    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdCudaTable(farTables->Get_V_IT());
-    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdCudaTable(farTables->Get_V_ITa());
-    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdCudaTable(farTables->Get_E_W());
-    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdCudaTable(farTables->Get_V_W());
+    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = OsdCudaTable::Create(farTables->Get_E_IT());
+    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = OsdCudaTable::Create(farTables->Get_V_IT());
+    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = OsdCudaTable::Create(farTables->Get_V_ITa());
+    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = OsdCudaTable::Create(farTables->Get_E_W());
+    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = OsdCudaTable::Create(farTables->Get_V_W());
 
     if (farTables->GetNumTables() > 5) {
-        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdCudaTable(farTables->Get_F_IT());
-        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdCudaTable(farTables->Get_F_ITa());
+        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = OsdCudaTable::Create(farTables->Get_F_IT());
+        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = OsdCudaTable::Create(farTables->Get_F_ITa());
+    }
+
+    // error check
+    for (size_t i = 0; i < _tables.size(); ++i) {
+        if (_tables[i] == NULL) {
+            return false;
+        }
     }
 
     // create hedit tables
@@ -156,19 +205,16 @@ OsdCudaComputeContext::OsdCudaComputeContext(FarMesh<OsdVertex> const *farMesh) 
             const FarVertexEditTables<OsdVertex>::VertexEditBatch & edit =
                 editTables->GetBatch(i);
 
-            _editTables.push_back(new OsdCudaHEditTable(edit));
+            _editTables.push_back(OsdCudaHEditTable::Create(edit));
         }
     }
-}
 
-OsdCudaComputeContext::~OsdCudaComputeContext() {
-
-    for (size_t i = 0; i < _tables.size(); ++i) {
-        delete _tables[i];
-    }
+    // error check
     for (size_t i = 0; i < _editTables.size(); ++i) {
-        delete _editTables[i];
+        if (_editTables[i] == NULL) return false;
     }
+
+    return true;
 }
 
 const OsdCudaTable *
@@ -204,7 +250,13 @@ OsdCudaComputeContext::GetCurrentVaryingBuffer() const {
 OsdCudaComputeContext *
 OsdCudaComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
 
-    return new OsdCudaComputeContext(farmesh);
+    OsdCudaComputeContext *result = new OsdCudaComputeContext();
+
+    if (result->initialize(farmesh) == false) {
+        delete result;
+        return NULL;
+    }
+    return result;
 }
 
 }  // end namespace OPENSUBDIV_VERSION
