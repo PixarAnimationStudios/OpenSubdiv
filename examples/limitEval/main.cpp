@@ -587,6 +587,10 @@ linkDefaultProgram()
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
 
+    glBindAttribLocation(program, 0, "position");
+    glBindAttribLocation(program, 1, "color");
+    glBindFragDataLocation(program, 0, "color");
+
     glLinkProgram(program);
 
     GLint status;
