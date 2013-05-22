@@ -105,16 +105,22 @@ public:
     /// adaptive patch representation. Once the new rep has been instantiated
     /// with 'Create', this factory object can be deleted safely.
     ///
-    /// @param mesh     The HbrMesh describing the topology (this mesh *WILL* be
-    ///                 modified by this factory).
+    /// @param mesh        The HbrMesh describing the topology (this mesh *WILL* be
+    ///                    modified by this factory).
     ///
-    /// @param maxlevel In uniform subdivision mode : number of levels of subdivision.
-    ///                 In feature adaptive mode : maximum level of isolation 
-    ///                 around extraordinary topological features.
+    /// @param maxlevel    In uniform subdivision mode : number of levels of
+    ///                    subdivision. In feature adaptive mode : maximum 
+    ///                    level of isolation around extraordinary topological
+    ///                    features.
+    ///
+    /// @param firstLevel  First level of subdivision to use when building the
+    ///                    FarMesh. The default -1 only generates a single patch
+    ///                    array for the highest level of subdivision)
+    ///                    Note : firstLevel is only applicable if adaptive is false
     ///
     /// @param adaptive Switch between uniform and feature adaptive mode
     ///
-    FarMeshFactory(HbrMesh<T> * mesh, int maxlevel, bool adaptive=false);
+    FarMeshFactory(HbrMesh<T> * mesh, int maxlevel, bool adaptive=false, int firstLevel=-1);
 
     /// Create a table-based mesh representation
     ///
@@ -122,7 +128,7 @@ public:
     ///
     /// @return a pointer to the FarMesh created
     ///
-    FarMesh<U> * Create( bool requireFVarData=false );       // XXX yuck.
+    FarMesh<U> * Create( bool requireFVarData=false );
 
     /// Computes the minimum number of adaptive feature isolation levels required
     /// in order for the limit surface to be an accurate representation of the 
@@ -230,6 +236,7 @@ private:
     bool _adaptive;
 
     int _maxlevel,
+        _firstlevel,
         _numVertices,
         _numCoarseVertices,
         _numFaces,
@@ -589,10 +596,11 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
 // random order, so the builder runs 2 passes over the entire vertex list to
 // gather the counters needed to generate the indexing tables.
 template <class T, class U>
-FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adaptive ) :
+FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adaptive, int firstlevel ) :
     _hbrMesh(mesh),
     _adaptive(adaptive),
     _maxlevel(maxlevel),
+    _firstlevel(firstlevel),
     _numVertices(-1),
     _numCoarseVertices(-1),
     _numFaces(-1),
@@ -801,7 +809,7 @@ FarMeshFactory<T,U>::Create( bool requireFVarData ) {
         result->_patchTables = factory.Create(GetMaxLevel()+1, _maxValence, requireFVarData);
 
     } else {
-        result->_patchTables = FarPatchTablesFactory<T>::Create(GetHbrMesh(), _facesList, _remapTable, -1, requireFVarData );
+        result->_patchTables = FarPatchTablesFactory<T>::Create(GetHbrMesh(), _facesList, _remapTable, _firstlevel, requireFVarData );
     }
     assert( result->_patchTables );
 
