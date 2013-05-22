@@ -87,6 +87,12 @@ public:
     /// Returns the subdivision method
     FarSubdivisionTables<U> const * GetSubdivisionTables() const { return _subdivisionTables; }
 
+    /// Returns patch tables
+    FarPatchTables const * GetPatchTables() const { return _patchTables; }
+
+    /// Returns the total number of vertices in the mesh across across all depths
+    int GetNumVertices() const { return GetSubdivisionTables()->GetNumVertices(); }
+
     /// Returns the list of vertices in the mesh (from subdiv level 0 to N)
     std::vector<U> & GetVertices() { return _vertices; }
 
@@ -96,35 +102,17 @@ public:
     ///
     U & GetVertex(int index) { return _vertices[index]; }
 
-    /// Returns the list of indices of the vertices of the faces in the mesh
-    std::vector<int> const & GetFaceVertices(int level) const;
-
-    /// Returns the ptex coordinates for each face at a given level. The coordinates
-    /// are stored as : (int) faceindex / (ushort) u_index / (ushort) v_index
-    std::vector<FarPtexCoord> const & GetPtexCoordinates(int level) const;
-
-    /// Returns the fvar data for each face at a given level. The data
-    /// is stored as a run of totalFVarWidth floats per-vertex per-face
-    /// e.g.: for UV data it has the structure of float[p][4][2] where 
-    /// p=primitiveID and totalFVarWidth=2:
-    ///      [ [ uv uv uv uv ] [ uv uv uv uv ] [ ... ] ]
-    ///            prim 0           prim 1
-    std::vector<float> const & GetFVarData(int level) const;
-    
     /// Returns the width of the interleaved face-varying data
     int GetTotalFVarWidth() const { return _totalFVarWidth; }
-
-    /// Returns patch tables
-    FarPatchTables const * GetPatchTables() const { return _patchTables; }
 
     /// Returns vertex edit tables
     FarVertexEditTables<U> const * GetVertexEdit() const { return _vertexEditTables; }
 
     /// Returns the total number of vertices in the mesh across across all depths
-    int GetNumVertices() const { return (int)(_vertices.size()); }
+    int GetNumPtexFaces() const { return _numPtexFaces; }
 
     /// True if the mesh tables support the feature-adaptive mode.
-    bool SupportsFeatureAdaptive() const { return _patchTables!=NULL; }
+    bool IsFeatureAdaptive() const { return _patchTables->IsFeatureAdaptive(); }
 
     /// Returns an ordered vector of batches of compute kernels. The kernels
     /// describe the sequence of computations required to apply the subdivision
@@ -158,15 +146,9 @@ private:
     // list of vertices (up to N levels of subdivision)
     std::vector<U> _vertices;
 
-    // list of vertex indices for each face
-    std::vector< std::vector<int> > _faceverts;
+    int _totalFVarWidth;    // width of the face-varying data 
 
-    // ptex coordinates for each face
-    std::vector< std::vector<FarPtexCoord> > _ptexcoordinates;
-
-    // fvar data for each face
-    std::vector< std::vector<float> > _fvarData;
-    int _totalFVarWidth;    // from hbrMesh
+    int _numPtexFaces;
 };
 
 template <class U>
@@ -175,27 +157,6 @@ FarMesh<U>::~FarMesh()
     delete _subdivisionTables;
     delete _patchTables;
     delete _vertexEditTables;
-}
-
-template <class U> std::vector<int> const &
-FarMesh<U>::GetFaceVertices(int level) const {
-    if ( (level>=0) and (level<(int)_faceverts.size()) )
-        return _faceverts[level];
-    return _faceverts[0];
-}
-
-template <class U> std::vector<FarPtexCoord> const &
-FarMesh<U>::GetPtexCoordinates(int level) const {
-    if ( (level>=0) and (level<(int)_faceverts.size()) )
-        return _ptexcoordinates[level];
-    return _ptexcoordinates[0];
-}
-
-template <class U> std::vector<float> const &
-FarMesh<U>::GetFVarData(int level) const {
-    if ( (level>=0) and (level<(int)_faceverts.size()) )
-        return _fvarData[level];
-    return _fvarData[0];
 }
 
 } // end namespace OPENSUBDIV_VERSION

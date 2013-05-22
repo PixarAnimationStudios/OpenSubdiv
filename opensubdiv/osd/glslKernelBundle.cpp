@@ -95,11 +95,9 @@ OsdGLSLComputeKernelBundle::~OsdGLSLComputeKernelBundle() {
 }
 
 bool
-OsdGLSLComputeKernelBundle::Compile(int numVertexElements,
-                                    int numVaryingElements) {
+OsdGLSLComputeKernelBundle::Compile(int numVertexElements, int numVaryingElements) {
 
-    _numVertexElements = numVertexElements;
-    _numVaryingElements = numVaryingElements;
+    _vdesc.Set(numVertexElements, numVaryingElements );
 
     if (_program) {
         glDeleteProgram(_program);

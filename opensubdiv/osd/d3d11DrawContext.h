@@ -48,6 +48,12 @@
 //     with this license.
 //     (E) The software is licensed "as-is." You bear the risk of
 //     using it. The contributors give no express warranties,
+//     guarantees or conditions. You may have additional consumer
+//     rights under your local laws which this license cannot change.
+//     To the extent permitted under your local laws, the contributors
+//     exclude the implied warranties of merchantability, fitness for
+//     a particular purpose and non-infringement.
+//
 #ifndef OSD_D3D11L_DRAW_CONTEXT_H
 #define OSD_D3D11L_DRAW_CONTEXT_H
 
@@ -73,39 +79,55 @@ struct ID3D11DeviceContext;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+/// \brief D3D11 specialized DrawContext class
+///
+/// OsdD3D11DrawContext implements the OSD drawing interface with Microsoft(c)
+/// DirectX D3D11 API.
+/// Some functionality may be disabled depending on compile and run-time driver
+/// support.
+///
+/// Contexts interface the serialized topological data pertaining to the 
+/// geometric primitives with the capabilities of the selected discrete 
+/// compute device.
+///
 class OsdD3D11DrawContext : public OsdDrawContext {
 public:
     typedef ID3D11Buffer * VertexBufferBinding;
 
-    OsdD3D11DrawContext();
     virtual ~OsdD3D11DrawContext();
 
-    template<class VERTEX_BUFFER>
-    static OsdD3D11DrawContext *
-    Create(FarMesh<OsdVertex> *farMesh,
-           VERTEX_BUFFER *vertexBuffer,
-           ID3D11DeviceContext *pd3d11DeviceContext,
-           bool requirePtexCoordinates = false,
-           bool requireFVarData = false) {
-        
-        if (not vertexBuffer)
-            return NULL;
+    /// \brienf Create an OsdD3D11DrawContext from FarPatchTables
+    ///
+    /// @param patchTables          a valid set of FarPatchTables
+    ///
+    /// @param pd3d11DeviceContext  a device context
+    ///
+    /// @param requireFVarData      set to true to enable face-varying data to be 
+    ///                             carried over from the Far data structures.
+    ///
+    ///
+    static OsdD3D11DrawContext *Create(FarPatchTables const *patchTables,
+                                       ID3D11DeviceContext *pd3d11DeviceContext,
+                                       bool requireFVarData=false);
 
-        OsdD3D11DrawContext * instance = new OsdD3D11DrawContext();
-        if (instance->allocate(farMesh,
-                        vertexBuffer->BindD3D11Buffer(pd3d11DeviceContext),
-                        vertexBuffer->GetNumElements(),
-                        pd3d11DeviceContext,
-                        requirePtexCoordinates,
-                        requireFVarData)) return instance;
-        delete instance;
-        return NULL;
+    /// Set vbo as a vertex texture (for gregory patch drawing)
+    ///
+    /// @param vbo                  the vertex buffer object to update
+    ///
+    /// @param pd3d11DeviceContext  a device context
+    ///
+    template<class VERTEX_BUFFER>
+    void UpdateVertexTexture(VERTEX_BUFFER *vbo, ID3D11DeviceContext *pd3d11DeviceContext) {
+        updateVertexTexture(vbo->BindD3D11Buffer(pd3d11DeviceContext),
+                            pd3d11DeviceContext,
+                            vbo->GetNumVertices(),
+                            vbo->GetNumElements());
     }
 
     ID3D11Buffer             *patchIndexBuffer;
 
     ID3D11Buffer             *ptexCoordinateBuffer;
-    ID3D11Buffer             *ptexCoordinateBufferSRV;
+    ID3D11ShaderResourceView *ptexCoordinateBufferSRV;
     ID3D11Buffer             *fvarDataBuffer;
     ID3D11Buffer             *fvarDataBufferSRV;
 
@@ -114,25 +136,21 @@ public:
     ID3D11ShaderResourceView *vertexValenceBufferSRV;
     ID3D11Buffer             *quadOffsetBuffer;
     ID3D11ShaderResourceView *quadOffsetBufferSRV;
-    ID3D11Buffer             *patchLevelBuffer;
-    ID3D11ShaderResourceView *patchLevelBufferSRV;
 
 private:
-    bool allocate(FarMesh<OsdVertex> *farmesh,
-                  ID3D11Buffer *vertexBuffer,
-                  int numElements,
-                  ID3D11DeviceContext *pd3d11DeviceContext,
-                  bool requirePtexCoordinates,
-                  bool requireFVarData);
+    OsdD3D11DrawContext();
 
-    void _AppendPatchArray(
-            unsigned int *indexBuffer, int *indexBase,
-            unsigned int *levelBuffer, int *levelBase,
-            FarPatchTables::PTable const & ptable,
-            FarPatchTables::PtexCoordinateTable const & ptexTable,
-            FarPatchTables::FVarDataTable const & fvarTable, int fvarDataWidth,
-            OsdPatchDescriptor const & desc,
-            int gregoryQuadOffsetBase);
+    // allocate buffers from patchTables
+    bool create(FarPatchTables const *patchTables,
+                ID3D11DeviceContext *pd3d11DeviceContext,
+                bool requireFVarData);
+
+    void updateVertexTexture(ID3D11Buffer *vbo,
+                             ID3D11DeviceContext *pd3d11DeviceContext,
+                             int numVertices,
+                             int numElements);
+
+    int _numVertices;
 };
 
 } // end namespace OPENSUBDIV_VERSION

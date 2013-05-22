@@ -177,15 +177,13 @@ void vs_main_patches( in InputVertex input,
 //----------------------------------------------------------
 
 Buffer<int> g_QuadOffsetBuffer : register( t2 );
-Buffer<int> g_patchLevelBuffer : register( t3 );
-OSD_DECLARE_PTEX_INDICES_BUFFER;
 
 HS_CONSTANT_FUNC_OUT HSConstFunc(
     InputPatch<GregHullVertex, 4> patch,
     uint primitiveID : SV_PrimitiveID)
 {
     HS_CONSTANT_FUNC_OUT output;
-    int patchLevel = g_patchLevelBuffer[primitiveID + LevelBase];
+    int patchLevel = GetPatchLevel(primitiveID);
 
     OSD_PATCH_CULL(4);
 
@@ -286,7 +284,7 @@ GregDomainVertex hs_main_patches(
     output.Fp = Fp;
     output.Fm = Fm;
 
-    int patchLevel = g_patchLevelBuffer[primitiveID + LevelBase];
+    int patchLevel = GetPatchLevel(primitiveID);
     output.patchCoord = float4(0, 0,
                                patchLevel+0.5,
                                primitiveID+LevelBase+0.5);

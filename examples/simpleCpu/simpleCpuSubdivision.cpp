@@ -385,7 +385,8 @@ createOsdContext(int level)
                                                  g_farmesh->GetNumVertices());
 
     g_drawContext =
-        OpenSubdiv::OsdGLDrawContext::Create(g_farmesh, g_vertexBuffer);
+        OpenSubdiv::OsdGLDrawContext::Create(g_farmesh->GetPatchTables(), false);
+    g_drawContext->UpdateVertexTexture(g_vertexBuffer);
 
     // 
     // Setup camera positioning based on object bounds. This really has nothing
@@ -544,16 +545,16 @@ display()
     //
     glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->BindVBO());
 
-    OpenSubdiv::OsdPatchArrayVector const & patches = g_drawContext->patchArrays;
+    OpenSubdiv::OsdDrawContext::PatchArrayVector const & patches = g_drawContext->patchArrays;
     for (int i=0; i<(int)patches.size(); ++i) {
-        OpenSubdiv::OsdPatchArray const & patch = patches[i];
+        OpenSubdiv::OsdDrawContext::PatchArray const & patch = patches[i];
 
         //
         // Bind the solid shaded program and draw elements based on the buffer contents
         //
         bindProgram(g_quadFillProgram);
 
-        glDrawElements(GL_LINES_ADJACENCY, patch.numIndices,
+        glDrawElements(GL_LINES_ADJACENCY, patch.GetNumIndices(),
                        GL_UNSIGNED_INT, NULL);
 
         //
@@ -562,7 +563,7 @@ display()
         bindProgram(g_quadLineProgram);
         glUniform4f(glGetUniformLocation(g_quadLineProgram, "fragColor"), 
                     0, 0, 0.5, 1);
-        glDrawElements(GL_LINES_ADJACENCY, patch.numIndices,
+        glDrawElements(GL_LINES_ADJACENCY, patch.GetNumIndices(),
                        GL_UNSIGNED_INT, NULL);
     }
 

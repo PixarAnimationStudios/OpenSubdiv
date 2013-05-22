@@ -108,8 +108,8 @@ OsdGLSLTransformFeedbackKernelBundle::Compile(int numVertexElements, int numVary
 
     assert(numVertexElements >= 3); // at least xyz required (for performance reason)
 
-    _numVertexElements = numVertexElements;
-    _numVaryingElements = numVaryingElements;
+    _vdesc.Set(numVertexElements, numVaryingElements);
+    
     _program = glCreateProgram();
 
     GLuint shader = glCreateShader(GL_VERTEX_SHADER);

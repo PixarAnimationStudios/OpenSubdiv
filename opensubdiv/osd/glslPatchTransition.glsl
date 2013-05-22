@@ -110,9 +110,6 @@ out block {
     ControlVertex v;
 } output[];
 
-uniform isamplerBuffer g_patchLevelBuffer;
-OSD_DECLARE_PTEX_INDICES_BUFFER;
-
 #define ID gl_InvocationID
 
 void main()
@@ -180,7 +177,7 @@ void main()
 
     output[ID].v.position = vec4(pos, 1.0);
 
-    int patchLevel = texelFetchBuffer(g_patchLevelBuffer, gl_PrimitiveID + LevelBase).x;
+    int patchLevel = GetPatchLevel();
     output[ID].v.patchCoord = vec4(0, 0,
                                    patchLevel+0.5,
                                    gl_PrimitiveID+LevelBase+0.5);

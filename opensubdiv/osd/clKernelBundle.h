@@ -60,6 +60,7 @@
 #include "../version.h"
 
 #include "../osd/nonCopyable.h"
+#include "../osd/vertexDescriptor.h"
 
 #if defined(__APPLE__)
     #include <OpenCL/opencl.h>
@@ -72,6 +73,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 class OsdCLKernelBundle : OsdNonCopyable<OsdCLKernelBundle> {
+
 public:
     OsdCLKernelBundle();
     ~OsdCLKernelBundle();
@@ -100,14 +102,17 @@ public:
     cl_kernel GetVertexEditAdd() const        { return _clVertexEditAdd; }
 
     struct Match {
-    Match(int numVertexElements, int numVaryingElements) :
-        _numVertexElements(numVertexElements),
-        _numVaryingElements(numVaryingElements) {}
-        bool operator() (const OsdCLKernelBundle *kernel) {
-            return (kernel->_numVertexElements == _numVertexElements
-                    && kernel->_numVaryingElements == _numVaryingElements);
+    
+        /// Constructor
+        Match(int numVertexElements, int numVaryingElements)
+            : vdesc(numVertexElements, numVaryingElements) {
         }
-        int _numVertexElements, _numVaryingElements;
+        
+        bool operator() (OsdCLKernelBundle const *kernel) {
+            return vdesc == kernel->_vdesc;
+        }
+        
+        OsdVertexDescriptor vdesc;
     };
 
     friend struct Match;
@@ -126,8 +131,7 @@ protected:
               _clLoopVertexB,
               _clVertexEditAdd;
 
-    int _numVertexElements,
-        _numVaryingElements;
+    OsdVertexDescriptor _vdesc;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

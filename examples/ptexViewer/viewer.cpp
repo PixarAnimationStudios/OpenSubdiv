@@ -699,7 +699,7 @@ union Effect {
     }
 };
 
-typedef std::pair<OpenSubdiv::OsdPatchDescriptor, Effect> EffectDesc;
+typedef std::pair<OpenSubdiv::OsdDrawContext::PatchDescriptor, Effect> EffectDesc;
 
 class EffectDrawRegistry : public OpenSubdiv::OsdGLDrawRegistry<EffectDesc> {
 
@@ -732,16 +732,7 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 #endif
 
     bool quad = true;
-    if (desc.first.type != OpenSubdiv::kNonPatch) {
-
-        quad = false;
-        sconfig->tessEvalShader.source = g_shaderSource + sconfig->tessEvalShader.source;
-        sconfig->tessEvalShader.version = glslVersion;
-        if (effect.displacement and (not effect.normal))
-            sconfig->geometryShader.AddDefine("FLAT_NORMALS");
-        if (effect.displacement)
-            sconfig->tessEvalShader.AddDefine("USE_PTEX_DISPLACEMENT");
-    } else {
+    if (desc.first.GetType() == OpenSubdiv::FarPatchTables::QUADS) {
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
@@ -749,6 +740,14 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
             sconfig->geometryShader.AddDefine("USE_PTEX_DISPLACEMENT");
             sconfig->geometryShader.AddDefine("FLAT_NORMALS");
         }
+    } else {
+        quad = false;
+        sconfig->tessEvalShader.source = g_shaderSource + sconfig->tessEvalShader.source;
+        sconfig->tessEvalShader.version = glslVersion;
+        if (effect.displacement and (not effect.normal))
+            sconfig->geometryShader.AddDefine("FLAT_NORMALS");
+        if (effect.displacement)
+            sconfig->tessEvalShader.AddDefine("USE_PTEX_DISPLACEMENT");
     }
     assert(sconfig);
 
@@ -829,11 +828,8 @@ EffectDrawRegistry::_CreateDrawConfig(
     if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_patchLevelBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
-    }
     if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
+        glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
     }
 #else
     glUseProgram(config->program);
@@ -846,11 +842,8 @@ EffectDrawRegistry::_CreateDrawConfig(
     if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
         glUniform1i(loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_patchLevelBuffer")) != -1) {
-        glUniform1i(loc, 3); // GL_TEXTURE3
-    }
     if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
-        glUniform1i(loc, 4); // GL_TEXTURE4
+        glUniform1i(loc, 4); // GL_TEXTURE3
     }
 #endif
 
@@ -860,11 +853,9 @@ EffectDrawRegistry::_CreateDrawConfig(
 EffectDrawRegistry effectRegistry;
 
 EffectDrawRegistry::ConfigType *
-getInstance(Effect effect, OpenSubdiv::OsdPatchDescriptor const & patchDesc) {
+getInstance(Effect effect, OpenSubdiv::OsdDrawContext::PatchDescriptor const & patchDesc) {
 
-    EffectDesc desc;
-    desc.first = patchDesc;
-    desc.second = effect;
+    EffectDesc desc(patchDesc, effect);
 
     EffectDrawRegistry::ConfigType * config =
         effectRegistry.GetDrawConfig(desc);
@@ -966,7 +957,7 @@ createOsdMesh(int level, int kernel) {
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if(kernel == kGLSL) {
-        if (not g_glslComputeController) {
+        if (not g_glslTransformFeedbackComputeController) {
             g_glslTransformFeedbackComputeController = new OpenSubdiv::OsdGLSLTransformFeedbackComputeController();
         }
         g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdGLVertexBuffer,
@@ -1244,9 +1235,9 @@ applyImageShader() {
 
 //------------------------------------------------------------------------------
 static GLuint
-bindProgram(Effect effect, OpenSubdiv::OsdPatchArray const & patch)
+bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 {
-    OpenSubdiv::OsdPatchDescriptor const & desc = patch.desc;
+    OpenSubdiv::OsdDrawContext::PatchDescriptor const & desc = patch.GetDescriptor();
 
     EffectDrawRegistry::ConfigType *
         config = getInstance(effect, desc);
@@ -1390,70 +1381,58 @@ drawModel() {
     g_mesh->BindVertexBuffer();
 #endif
 
-    OpenSubdiv::OsdPatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
-    GLenum primType = GL_LINES_ADJACENCY;
-
+    OpenSubdiv::OsdDrawContext::PatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
     glBindVertexArray(g_vao);
 
     // patch drawing
     for (int i=0; i<(int)patches.size(); ++i) {
-        OpenSubdiv::OsdPatchArray const & patch = patches[i];
+        OpenSubdiv::OsdDrawContext::PatchArray const & patch = patches[i];
 
+        OpenSubdiv::OsdDrawContext::PatchDescriptor desc = patch.GetDescriptor();
+        OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
+        int patchPattern = desc.GetPattern() - 1;
+
+        GLenum primType;
+        switch(patchType) {
+        case OpenSubdiv::FarPatchTables::QUADS:
+            primType = GL_LINES_ADJACENCY;
+            break;
+        case OpenSubdiv::FarPatchTables::TRIANGLES:
+            primType = GL_TRIANGLES;
+            break;
+        default:
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        OpenSubdiv::OsdPatchType patchType = patch.desc.type;
-        int patchPattern = patch.desc.pattern;
-        //int patchRotation = patch.desc.rotation;
-
-        if (g_mesh->GetDrawContext()->IsAdaptive()) {
-
             primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
-
-            if (g_mesh->GetDrawContext()->vertexTextureBuffer) {
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_BUFFER, 
-                    g_mesh->GetDrawContext()->vertexTextureBuffer);
-                glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, bVertex);
-            }
-
-            if (g_mesh->GetDrawContext()->vertexValenceTextureBuffer) {
-                glActiveTexture(GL_TEXTURE1);
-                glBindTexture(GL_TEXTURE_BUFFER, 
-                    g_mesh->GetDrawContext()->vertexValenceTextureBuffer);
-            }
-
-            if (g_mesh->GetDrawContext()->quadOffsetTextureBuffer) {
-                glActiveTexture(GL_TEXTURE2);
-                glBindTexture(GL_TEXTURE_BUFFER, 
-                    g_mesh->GetDrawContext()->quadOffsetTextureBuffer);
-            }
-            if (g_mesh->GetDrawContext()->patchLevelTextureBuffer) {
-                glActiveTexture(GL_TEXTURE3);
-                glBindTexture(GL_TEXTURE_BUFFER, 
-                    g_mesh->GetDrawContext()->patchLevelTextureBuffer);
-            }
-            if (g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer) {
-                glActiveTexture(GL_TEXTURE4);
-                glBindTexture(GL_TEXTURE_BUFFER,
-                    g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer);
-            }
-            glActiveTexture(GL_TEXTURE0);
-        } else {
-            if (g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer) {
-                glActiveTexture(GL_TEXTURE4);
-                glBindTexture(GL_TEXTURE_BUFFER,
-                    g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer);
-            }
-            glActiveTexture(GL_TEXTURE0);
-        }
+            glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
 #else
+            primType = GL_POINTS;
+#endif
+        }
+
+        if (g_mesh->GetDrawContext()->vertexTextureBuffer) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_BUFFER, 
+                          g_mesh->GetDrawContext()->vertexTextureBuffer);
+            glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, bVertex);
+        }
+
+        if (g_mesh->GetDrawContext()->vertexValenceTextureBuffer) {
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_BUFFER, 
+                          g_mesh->GetDrawContext()->vertexValenceTextureBuffer);
+        }
+
+        if (g_mesh->GetDrawContext()->quadOffsetTextureBuffer) {
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_BUFFER, 
+                          g_mesh->GetDrawContext()->quadOffsetTextureBuffer);
+        }
         if (g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer) {
-            glActiveTexture(GL_TEXTURE4);
+            glActiveTexture(GL_TEXTURE3);
             glBindTexture(GL_TEXTURE_BUFFER,
                           g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer);
         }
         glActiveTexture(GL_TEXTURE0);
-#endif
 
         Effect effect;
         effect.value = 0;
@@ -1488,50 +1467,40 @@ drawModel() {
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         GLuint overrideColorEnable = glGetUniformLocation(program, "overrideColorEnable");
         GLuint overrideColor = glGetUniformLocation(program, "overrideColor");
-        switch(patchType) {
-        case OpenSubdiv::kRegular:
-            glProgramUniform4f(program, overrideColor, 1.0f, 1.0f, 1.0f, 1);
-            break;
-        case OpenSubdiv::kBoundary:
-            glProgramUniform4f(program, overrideColor, 0.8f, 0.0f, 0.0f, 1);
-            break;
-        case OpenSubdiv::kCorner:
-            glProgramUniform4f(program, overrideColor, 0, 1.0, 0, 1);
-            break;
-        case OpenSubdiv::kGregory:
-            glProgramUniform4f(program, overrideColor, 1.0f, 1.0f, 0.0f, 1);
-            break;
-        case OpenSubdiv::kBoundaryGregory:
-            glProgramUniform4f(program, overrideColor, 1.0f, 0.5f, 0.0f, 1);
-            break;
-        case OpenSubdiv::kTransitionRegular:
-            switch (patchPattern) {
-            case 0:
-                glProgramUniform4f(program, overrideColor, 0, 1.0f, 1.0f, 1);
-                break;
-            case 1:
-                glProgramUniform4f(program, overrideColor, 0, 0.5f, 1.0f, 1);
-                break;
-            case 2:
-                glProgramUniform4f(program, overrideColor, 0, 0.5f, 0.5f, 1);
-                break;
-            case 3:
-                glProgramUniform4f(program, overrideColor, 0.5f, 0, 1.0f, 1);
-                break;
-            case 4:
-                glProgramUniform4f(program, overrideColor, 1.0f, 0.5f, 1.0f, 1);
-                break;
+
+        GLfloat patchColor[10][4] = {
+            { 1.0f, 1.0f, 1.0f, 1.0f },  // NON_PATCH
+            { 1.0f, 1.0f, 1.0f, 1.0f },  // POLYGON
+            { 1.0f, 1.0f, 1.0f, 1.0f },  // QUADS
+            { 1.0f, 1.0f, 1.0f, 1.0f },  // TRIANGLES
+            { 1.0f, 1.0f, 1.0f, 1.0f },  // LOOP
+            { 1.0f, 1.0f, 1.0f, 1.0f },  // REGULAR
+            { 0.8f, 0.0f, 0.0f, 1.0f },  // BOUNDARY
+            { 0.0f, 1.0f, 0.0f, 1.0f },  // CORNER
+            { 1.0f, 1.0f, 0.0f, 1.0f },  // GREGORY
+            { 1.0f, 0.5f, 0.0f, 1.0f },  // GREGORY_BOUNDARY
+        };
+        GLfloat regularTransitionColor[6][4] = {
+            { 1.0f, 1.0f, 1.0f, 1.0f },  // NON_TRANSITION
+            { 0.0f, 1.0f, 1.0f, 1.0f },  // PATTERN0
+            { 0.0f, 0.5f, 1.0f, 1.0f },  // PATTERN1
+            { 0.0f, 0.5f, 0.5f, 1.0f },  // PATTERN2
+            { 0.5f, 0.0f, 1.0f, 1.0f },  // PATTERN3
+            { 1.0f, 0.5f, 1.0f, 1.0f },  // PATTERN4
+        };
+
+        if (patchPattern == OpenSubdiv::FarPatchTables::NON_TRANSITION) {
+            glProgramUniform4fv(program, overrideColor, 1, patchColor[patchType]);
+        } else {
+            if (patchType == OpenSubdiv::FarPatchTables::REGULAR) {
+                glProgramUniform4fv(program, overrideColor, 1, regularTransitionColor[patchPattern]);
+            } else if (patchType == OpenSubdiv::FarPatchTables::BOUNDARY) {
+                glProgramUniform4f(program, overrideColor, 0, 0, 0.5f, 1);
+            } else if (patchType == OpenSubdiv::FarPatchTables::CORNER) {
+                glProgramUniform4f(program, overrideColor, 0, 0, 0.5f, 1);
+            } else {
+                glProgramUniform4f(program, overrideColor, 0.4f, 0.4f, 0.8f, 1);
             }
-            break;
-        case OpenSubdiv::kTransitionBoundary:
-            glProgramUniform4f(program, overrideColor, 0, 0, 0.5f, 1);
-            break;
-        case OpenSubdiv::kTransitionCorner:
-            glProgramUniform4f(program, overrideColor, 0, 0, 0.5f, 1);
-            break;
-        default:
-            glProgramUniform4f(program, overrideColor, 0.4f, 0.4f, 0.8f, 1);
-            break;
         }
 
         if (g_displayPatchColor or g_wire == 2) {
@@ -1548,12 +1517,12 @@ drawModel() {
         GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
         GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
 
-        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.gregoryQuadOffsetBase);
-        glProgramUniform1i(program, uniformLevelBase, patch.levelBase);
+        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.GetQuadOffsetIndex());
+        glProgramUniform1i(program, uniformLevelBase, patch.GetPatchIndex());
 
         glDrawElements(primType,
-                       patch.numIndices, GL_UNSIGNED_INT,
-                       (void *)(patch.firstIndex * sizeof(unsigned int)));
+                       patch.GetNumIndices(), GL_UNSIGNED_INT,
+                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
         if (g_wire == 0) {
             glEnable(GL_CULL_FACE);
         }

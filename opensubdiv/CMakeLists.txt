@@ -65,6 +65,8 @@ add_subdirectory(far)
 
 add_subdirectory(osd)
 
+add_subdirectory(osdutil)
+
 install( FILES version.h
          DESTINATION include/
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )

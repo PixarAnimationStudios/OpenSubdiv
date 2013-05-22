@@ -68,22 +68,27 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+///
 /// \brief Concrete vertex buffer class for OpenCL subvision and OpenGL drawing.
+///
 /// OsdCLGLVertexBuffer implements OsdCLVertexBufferInterface and
 /// OsdGLVertexBufferInterface.
-/// The buffer interop between OpenCL and GL is handled
-/// automatically when a client calls BindCLBuffer and BindVBO methods.
+///
+/// The buffer interop between OpenCL and GL is handled automatically when a
+/// client calls BindCLBuffer and BindVBO methods.
+///
 class OsdCLGLVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static OsdCLGLVertexBuffer * Create(int numElements, int numVertices,
+    static OsdCLGLVertexBuffer * Create(int numElements, 
+                                        int numVertices, 
                                         cl_context clContext);
 
     /// Destructor.
     ~OsdCLGLVertexBuffer();
 
-    /// This method is meant to be used in client code in order to provide
-    /// coarse vertices data to Osd.
+    /// This method is meant to be used in client code in order to provide coarse
+    /// vertices data to Osd.
     void UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue clQueue);
 
     /// Returns how many elements defined in this vertex buffer.

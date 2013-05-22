@@ -68,7 +68,7 @@ const int GCD_WORK_STRIDE = 32;
 
 
 void OsdGcdComputeFace(
-    const OsdVertexDescriptor *vdesc, float * vertex, float * varying,
+    OsdVertexDescriptor const &vdesc, float * vertex, float * varying,
     const int *F_IT, const int *F_ITa,
     int vertexOffset, int tableOffset, int start, int end,
     dispatch_queue_t gcdq) {
@@ -88,7 +88,7 @@ void OsdGcdComputeFace(
 }
 
 void OsdGcdComputeEdge(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    OsdVertexDescriptor const &vdesc, float * vertex, float * varying,
     const int *E_IT, const float *E_W,
     int vertexOffset, int tableOffset, int start, int end,
     dispatch_queue_t gcdq) {
@@ -108,7 +108,7 @@ void OsdGcdComputeEdge(
 }
 
 void OsdGcdComputeVertexA(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    OsdVertexDescriptor const &vdesc, float * vertex, float * varying,
     const int *V_ITa, const float *V_W,
     int vertexOffset, int tableOffset, int start, int end, int pass,
     dispatch_queue_t gcdq) {
@@ -128,7 +128,7 @@ void OsdGcdComputeVertexA(
 }
 
 void OsdGcdComputeVertexB(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    OsdVertexDescriptor const &vdesc, float * vertex, float * varying,
     const int *V_ITa, const int *V_IT, const float *V_W,
     int vertexOffset, int tableOffset, int start, int end,
     dispatch_queue_t gcdq) {
@@ -148,7 +148,7 @@ void OsdGcdComputeVertexB(
 }
 
 void OsdGcdComputeLoopVertexB(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    OsdVertexDescriptor const &vdesc, float * vertex, float * varying,
     const int *V_ITa, const int *V_IT, const float *V_W,
     int vertexOffset, int tableOffset, int start, int end,
     dispatch_queue_t gcdq) {
@@ -166,19 +166,19 @@ void OsdGcdComputeLoopVertexB(
         beta = (0.625f - beta) * wp;
 
         int dstIndex = vertexOffset + i - tableOffset;
-        vdesc->Clear(vertex, varying, dstIndex);
+        vdesc.Clear(vertex, varying, dstIndex);
 
-        vdesc->AddWithWeight(vertex, dstIndex, p, weight * (1.0f - (beta * n)));
+        vdesc.AddWithWeight(vertex, dstIndex, p, weight * (1.0f - (beta * n)));
 
         for (int j = 0; j < n; ++j)
-            vdesc->AddWithWeight(vertex, dstIndex, V_IT[h+j], weight * beta);
+            vdesc.AddWithWeight(vertex, dstIndex, V_IT[h+j], weight * beta);
 
-        vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
+        vdesc.AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
     });
 }
 
 void OsdGcdComputeBilinearEdge(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    OsdVertexDescriptor const &vdesc, float * vertex, float * varying,
     const int *E_IT,
     int vertexOffset, int tableOffset, int start, int end,
     dispatch_queue_t gcdq) {
@@ -189,18 +189,18 @@ void OsdGcdComputeBilinearEdge(
         int eidx1 = E_IT[2*i+1];
 
         int dstIndex = vertexOffset + i - tableOffset;
-        vdesc->Clear(vertex, varying, dstIndex);
+        vdesc.Clear(vertex, varying, dstIndex);
 
-        vdesc->AddWithWeight(vertex, dstIndex, eidx0, 0.5f);
-        vdesc->AddWithWeight(vertex, dstIndex, eidx1, 0.5f);
+        vdesc.AddWithWeight(vertex, dstIndex, eidx0, 0.5f);
+        vdesc.AddWithWeight(vertex, dstIndex, eidx1, 0.5f);
 
-        vdesc->AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
-        vdesc->AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
+        vdesc.AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
+        vdesc.AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
     });
 }
 
 void OsdGcdComputeBilinearVertex(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    OsdVertexDescriptor const &vdesc, float * vertex, float * varying,
     const int *V_ITa,
     int vertexOffset, int tableOffset, int start, int end,
     dispatch_queue_t gcdq) {
@@ -210,15 +210,15 @@ void OsdGcdComputeBilinearVertex(
         int p = V_ITa[i];
 
         int dstIndex = vertexOffset + i - tableOffset;
-        vdesc->Clear(vertex, varying, dstIndex);
+        vdesc.Clear(vertex, varying, dstIndex);
 
-        vdesc->AddWithWeight(vertex, dstIndex, p, 1.0f);
-        vdesc->AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
+        vdesc.AddWithWeight(vertex, dstIndex, p, 1.0f);
+        vdesc.AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
     });
 }
 
 void OsdGcdEditVertexAdd(
-    const OsdVertexDescriptor *vdesc, float *vertex,
+    OsdVertexDescriptor const &vdesc, float * vertex,
     int primVarOffset, int primVarWidth,
     int vertexOffset, int tableOffset,
     int start, int end,
@@ -228,14 +228,14 @@ void OsdGcdEditVertexAdd(
     int vertexCount = end - start;
     dispatch_apply(vertexCount, gcdq, ^(size_t blockIdx){
         int i = start + blockIdx + tableOffset;
-        vdesc->ApplyVertexEditAdd(vertex, primVarOffset, primVarWidth,
+        vdesc.ApplyVertexEditAdd(vertex, primVarOffset, primVarWidth,
                                   editIndices[i] + vertexOffset,
                                   &editValues[i*primVarWidth]);
     });
 }
 
 void OsdGcdEditVertexSet(
-    const OsdVertexDescriptor *vdesc, float *vertex,
+    OsdVertexDescriptor const &vdesc, float * vertex,
     int primVarOffset, int primVarWidth,
     int vertexOffset, int tableOffset,
     int start, int end,
@@ -245,7 +245,7 @@ void OsdGcdEditVertexSet(
     int vertexCount = end - start;
     dispatch_apply(vertexCount, gcdq, ^(size_t blockIdx){
         int i = start + blockIdx + tableOffset;
-        vdesc->ApplyVertexEditSet(vertex, primVarOffset, primVarWidth,
+        vdesc.ApplyVertexEditSet(vertex, primVarOffset, primVarWidth,
                                   editIndices[i] + vertexOffset,
                                   &editValues[i*primVarWidth]);
     });

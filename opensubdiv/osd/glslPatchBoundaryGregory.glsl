@@ -273,9 +273,6 @@ out block {
     GregEvalVertex v;
 } output[];
 
-uniform isamplerBuffer g_patchLevelBuffer;
-OSD_DECLARE_PTEX_INDICES_BUFFER;
-
 #define ID gl_InvocationID
 
 void main()
@@ -402,7 +399,7 @@ void main()
     output[ID].v.Fp = Fp;
     output[ID].v.Fm = Fm;
 
-    int patchLevel = texelFetchBuffer(g_patchLevelBuffer, gl_PrimitiveID + LevelBase).x;
+    int patchLevel = GetPatchLevel();
     output[ID].v.patchCoord = vec4(0, 0,
                                    patchLevel+0.5f,
                                    gl_PrimitiveID+LevelBase+0.5f);

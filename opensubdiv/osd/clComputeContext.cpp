@@ -133,7 +133,7 @@ OsdCLHEditTable::GetPrimvarWidth() const {
 
 // ----------------------------------------------------------------------------
 
-OsdCLComputeContext::OsdCLComputeContext(FarMesh<OsdVertex> *farMesh,
+OsdCLComputeContext::OsdCLComputeContext(FarMesh<OsdVertex> const *farMesh,
                                           cl_context clContext)
     : _clQueue(NULL), _kernelBundle(NULL) {
 
@@ -232,7 +232,7 @@ OsdCLComputeContext::GetCommandQueue() const {
 }
 
 OsdCLComputeContext *
-OsdCLComputeContext::Create(FarMesh<OsdVertex> *farmesh, cl_context clContext) {
+OsdCLComputeContext::Create(FarMesh<OsdVertex> const *farmesh, cl_context clContext) {
 
     return new OsdCLComputeContext(farmesh, clContext);
 }

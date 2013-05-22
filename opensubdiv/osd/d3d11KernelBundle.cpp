@@ -115,8 +115,7 @@ bool
 OsdD3D11ComputeKernelBundle::Compile(int numVertexElements,
                                      int numVaryingElements) {
 
-    _numVertexElements = numVertexElements;
-    _numVaryingElements = numVaryingElements;
+    _vdesc.Set( numVertexElements, numVaryingElements );
 
     DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
 #ifdef _DEBUG

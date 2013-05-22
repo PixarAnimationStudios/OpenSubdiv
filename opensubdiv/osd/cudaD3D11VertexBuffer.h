@@ -68,15 +68,26 @@ struct ID3D11DeviceContext;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+/// \brief Concrete vertex buffer class for cuda subvision and D3D11 drawing.
+///
+/// OsdCudaD3D11VertexBuffer implements OsdCudaVertexBufferInterface and
+/// OsdD3D11VertexBufferInterface.
+///
+/// The buffer interop between Cuda and D3D is handled automatically when a 
+/// client calls BindCudaBuffer and BindVBO methods.
+///
 class OsdCudaD3D11VertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static OsdCudaD3D11VertexBuffer * Create(int numElements, int numVertices,
+    static OsdCudaD3D11VertexBuffer * Create(int numElements, 
+                                             int numVertices, 
                                              ID3D11Device *device);
 
     /// Destructor.
     virtual ~OsdCudaD3D11VertexBuffer();
 
+    /// This method is meant to be used in client code in order to provide coarse
+    /// vertices data to Osd.
     void UpdateData(const float *src, int startVertex, int numVertices, void *param);
 
     /// Returns how many elements defined in this vertex buffer.
@@ -94,7 +105,8 @@ public:
 
 protected:
     /// Constructor.
-    OsdCudaD3D11VertexBuffer(int numElements, int numVertices,
+    OsdCudaD3D11VertexBuffer(int numElements, 
+                             int numVertices,
                              ID3D11Device *device);
 
     bool allocate(ID3D11Device *device);

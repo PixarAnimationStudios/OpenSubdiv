@@ -59,7 +59,6 @@
 //--------------------------------------------------------------
 // Common
 //--------------------------------------------------------------
-uniform isamplerBuffer g_ptexIndicesBuffer;
 uniform int nonAdaptiveLevel;
 uniform float displacementScale = 1.0;
 uniform float bumpScale = 1.0;

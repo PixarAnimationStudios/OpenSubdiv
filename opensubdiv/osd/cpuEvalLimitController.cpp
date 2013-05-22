@@ -57,6 +57,7 @@
 
 #include "../osd/cpuEvalLimitController.h"
 #include "../osd/cpuEvalLimitKernel.h"
+#include "../far/patchTables.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -72,13 +73,12 @@ int
 OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & coords, 
                                              OsdCpuEvalLimitContext const *context,
                                              unsigned int index ) {
-
     
     int npatches=0; 
-    OsdPatchHandle const * patchHandles;
+    FarPatchTables::PatchHandle const * patchHandles;
     
     // Get the list of all children patches of the face described in coords
-    if (not context->GetPatchesMap()->GetChildPatchesHandles( coords.face, &npatches, &patchHandles))
+    if (not context->GetPatchesMap()->GetChildPatchesHandles(coords.face, &npatches, &patchHandles))
         return 0;
     
     // Position lookup pointers at the indexed vertex
@@ -89,9 +89,9 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
 
     for (int i=0; i<npatches; ++i) {
     
-        OsdPatchHandle const & handle = patchHandles[i];
+        FarPatchTables::PatchHandle const & handle = patchHandles[i];
 
-        FarPtexCoord::BitField bits = context->GetPatchBitFields()[ handle.serialIndex ];
+        FarPatchParam::BitField bits = context->GetPatchBitFields()[ handle.serialIndex ];
 
         float frac = 1.0f / float( 1 << bits.GetDepth() );
         
@@ -106,9 +106,9 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
 
         assert( handle.array < context->GetPatchArrayVector().size() );
 
-        OsdPatchArray const & parray = context->GetPatchArrayVector()[ handle.array ];
+        FarPatchTables::PatchArray const & parray = context->GetPatchArrayVector()[ handle.array ];
 
-        unsigned int const * cvs = &context->GetControlVertices()[ parray.firstIndex + handle.vertexOffset ];
+        unsigned int const * cvs = &context->GetControlVertices()[ parray.GetVertIndex() + handle.vertexOffset ];
 
         // normalize u,v coordinates
         float u = (coords.u - pu) / frac,
@@ -116,57 +116,49 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
 
         assert( (u>=0.0f) and (u<=1.0f) and (v>=0.0f) and (v<=1.0f) );
 
+        typedef FarPatchTables::Descriptor PD;
+
+        // Rotate u,v to compensate for transition pattern orientation
+        if ( parray.GetDescriptor().GetPattern()!=FarPatchTables::NON_TRANSITION ) {
+            switch( bits.GetRotation() ) {
+                 case 0 : break;
+                 case 1 : { float tmp=v; v=1.0f-u; u=tmp; } break;
+                 case 2 : { u=1.0f-u; v=1.0f-v; } break;
+                 case 3 : { float tmp=u; u=1.0f-v; v=tmp; } break;
+                 default:
+                     assert(0);
+            }
+        }
+
         // Based on patch type - go execute interpolation
-        switch( parray.desc.type ) {
+        switch( parray.GetDescriptor().GetType() ) {
 
-            case kRegular :
-                                      evalBSpline( v, u, cvs,
-                                                   context->GetInputDesc(),
-                                                   inQ,
-                                                   context->GetOutputDesc(),
-                                                   outQ, outdQu, outdQv); return 1;
+            case FarPatchTables::REGULAR  : { 
+                                              evalBSpline( v, u, cvs,
+                                                           context->GetInputDesc(),
+                                                           inQ,
+                                                           context->GetOutputDesc(),
+                                                           outQ, outdQu, outdQv); 
+                                              return 1; }
+            
+            case FarPatchTables::BOUNDARY : { return 0; }
+            
+            case FarPatchTables::CORNER   : { return 0; }
+ 
+            
+            case FarPatchTables::GREGORY  : { /*evalGregory(v, u, cvs,
+                                                            unsigned int const  * quadOffsetBuffer,
+                                                            int maxValence,
+                                                            unsigned int const * vertexIndices,
+                                                            OsdVertexBufferDescriptor const & inDesc,
+                                                            float const * inQ,
+                                                            OsdVertexBufferDescriptor const & outDesc,
+                                                            float * outQ,
+                                                            float * outDQU,
+                                                            float * outDQV );*/
+                                              return 0; }
 
-            case kBoundary : return 0;
-
-            case kCorner : return 0;
-
-            case kGregory :           /*evalGregory(v, u, cvs,
-                                                  unsigned int const  * quadOffsetBuffer,
-                                                  int maxValence,
-                                                  unsigned int const * vertexIndices,
-                                                  OsdVertexBufferDescriptor const & inDesc,
-                                                  float const * inQ,
-                                                  OsdVertexBufferDescriptor const & outDesc,
-                                                  float * outQ,
-                                                  float * outDQU,
-                                                  float * outDQV );*/ return 0;
-
-
-            return 0;
-
-            case kBoundaryGregory : return 0;
-
-
-            case kTransitionRegular : 
-                                      switch( bits.GetRotation() ) {
-                                          case 0 : break;
-                                          case 1 : { float tmp=v; v=1.0f-u; u=tmp; } break;
-                                          case 2 : { u=1.0f-u; v=1.0f-v; } break;
-                                          case 3 : { float tmp=u; u=1.0f-v; v=tmp; } break;
-                                          default:
-                                              assert(0);
-                                      }
-
-                                      evalBSpline( v, u, cvs,
-                                                   context->GetInputDesc(),
-                                                   inQ,
-                                                   context->GetOutputDesc(),
-                                                   outQ, outdQu, outdQv); return 1;
-
-            case kTransitionBoundary: return 0;
-
-            case kTransitionCorner : return 0;
-
+            case FarPatchTables::GREGORY_BOUNDARY : { return 0; }
 
             default: 
                 assert(0);
