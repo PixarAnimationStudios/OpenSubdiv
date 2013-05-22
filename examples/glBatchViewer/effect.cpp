@@ -72,6 +72,7 @@
 
 #include "effect.h"
 #include "../common/simple_math.h"
+#include "../common/patchColors.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -179,48 +180,13 @@ MyEffect::BindDrawConfig(MyDrawConfig *config, OpenSubdiv::OsdDrawContext::Patch
 
 // currently, these are used only in conjunction with tessellation shaders
 #if defined(GL_EXT_direct_state_access) || defined(GL_VERSION_4_1)
-    int patchType = desc.GetType();
-    int patchPattern = desc.GetPattern();
 
     GLint program = config->program;
     GLint diffuseColor = config->diffuseColorUniform;
 
     if (displayPatchColor) {
-        GLfloat patchColor[11][4] = {
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // NON_PATCH
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // POINTS
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // LINES
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // QUADS
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // TRIANGLES
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // LOOP
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // REGULAR
-            { 0.8f, 0.0f, 0.0f, 1.0f },  // BOUNDARY
-            { 0.0f, 1.0f, 0.0f, 1.0f },  // CORNER
-            { 1.0f, 1.0f, 0.0f, 1.0f },  // GREGORY
-            { 1.0f, 0.5f, 0.0f, 1.0f },  // GREGORY_BOUNDARY
-        };
-        GLfloat regularTransitionColor[6][4] = {
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // NON_TRANSITION
-            { 0.0f, 1.0f, 1.0f, 1.0f },  // PATTERN0
-            { 0.0f, 0.5f, 1.0f, 1.0f },  // PATTERN1
-            { 0.0f, 0.5f, 0.5f, 1.0f },  // PATTERN2
-            { 0.5f, 0.0f, 1.0f, 1.0f },  // PATTERN3
-            { 1.0f, 0.5f, 1.0f, 1.0f },  // PATTERN4
-        };
-
-        if (patchPattern == OpenSubdiv::FarPatchTables::NON_TRANSITION) {
-            glProgramUniform4fv(program, diffuseColor, 1, patchColor[patchType]);
-        } else {
-            if (patchType == OpenSubdiv::FarPatchTables::REGULAR) {
-                glProgramUniform4fv(program, diffuseColor, 1, regularTransitionColor[patchPattern]);
-            } else if (patchType == OpenSubdiv::FarPatchTables::BOUNDARY) {
-                glProgramUniform4f(program, diffuseColor, 0, 0, 0.5f, 1);
-            } else if (patchType == OpenSubdiv::FarPatchTables::CORNER) {
-                glProgramUniform4f(program, diffuseColor, 0, 0, 0.5f, 1);
-            } else {
-                glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
-            }
-        }
+        float const * color = getAdaptivePatchColor( desc );
+        glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
     }
 #endif
 }

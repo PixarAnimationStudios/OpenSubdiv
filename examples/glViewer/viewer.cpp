@@ -142,6 +142,7 @@ OpenSubdiv::OsdGLMeshInterface *g_mesh;
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/gl_hud.h"
+#include "../common/patchColors.h"
 
 static const char *shaderSource =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
@@ -1267,58 +1268,14 @@ display() {
         GLuint program = bindProgram(GetEffect(), patch);
 
         GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
+        
         if (g_displayPatchColor) {
-            if (patchPattern == OpenSubdiv::FarPatchTables::NON_TRANSITION) {
-                switch(patchType) {
-                case OpenSubdiv::FarPatchTables::REGULAR:
-                    glProgramUniform4f(program, diffuseColor, 1.0f, 1.0f, 1.0f, 1);
-                    break;
-                case OpenSubdiv::FarPatchTables::BOUNDARY:
-                    glProgramUniform4f(program, diffuseColor, 0.8f, 0.0f, 0.0f, 1);
-                    break;
-                case OpenSubdiv::FarPatchTables::CORNER:
-                    glProgramUniform4f(program, diffuseColor, 0, 1.0, 0, 1);
-                    break;
-                case OpenSubdiv::FarPatchTables::GREGORY:
-                    glProgramUniform4f(program, diffuseColor, 1.0f, 1.0f, 0.0f, 1);
-                    break;
-                case OpenSubdiv::FarPatchTables::GREGORY_BOUNDARY:
-                    glProgramUniform4f(program, diffuseColor, 1.0f, 0.5f, 0.0f, 1);
-                    break;
-                default:
-                    break;
-                }
-            } else { // patchPattern != NON_TRANSITION
-                if (patchType == OpenSubdiv::FarPatchTables::REGULAR) {
-                    switch (patchPattern-1) {
-                    case 0:
-                        glProgramUniform4f(program, diffuseColor, 0, 1.0f, 1.0f, 1);
-                        break;
-                    case 1:
-                        glProgramUniform4f(program, diffuseColor, 0, 0.5f, 1.0f, 1);
-                        break;
-                    case 2:
-                        glProgramUniform4f(program, diffuseColor, 0, 0.5f, 0.5f, 1);
-                        break;
-                    case 3:
-                        glProgramUniform4f(program, diffuseColor, 0.5f, 0, 1.0f, 1);
-                        break;
-                    case 4:
-                        glProgramUniform4f(program, diffuseColor, 1.0f, 0.5f, 1.0f, 1);
-                        break;
-                    }
-                } else if (patchType == OpenSubdiv::FarPatchTables::BOUNDARY) {
-                    float p = (patchPattern-1) * 0.2f;
-                    glProgramUniform4f(program, diffuseColor, 0.0f, p, 0.75f, 1);
-                } else if (patchType == OpenSubdiv::FarPatchTables::CORNER) {
-                    glProgramUniform4f(program, diffuseColor, 0.25f, 0.25f, 0.25f, 1);
-                } else {
-                    glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
-                }
-            }
+            float const * color = getAdaptivePatchColor( desc );
+            glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
         } else {
             glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
         }
+        
         GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
         GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
         glProgramUniform1i(program, uniformGregoryQuadOffset, patch.GetQuadOffsetIndex());
