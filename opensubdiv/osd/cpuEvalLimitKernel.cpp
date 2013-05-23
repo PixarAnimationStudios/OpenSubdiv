@@ -186,22 +186,43 @@ evalBoundary(float u, float v,
 
     float const * inOffset = inQ + inDesc.offset;
 
-    // mirror the missing row of vertices
-    float *EU=(float*)alloca(inDesc.length*4*sizeof(float));
-    static int V0[4] = { 0, 1, 2, 3 }, V1[4] = { 4, 5, 6, 7 };
-    for (int i=0; i<4; ++i) {
-        float const * in0 = inOffset + vertexIndices[V0[i]]*inDesc.stride,
-                    * in1 = inOffset + vertexIndices[V1[i]]*inDesc.stride;
-        for (int k=0; k<inDesc.stride; ++k) {
-            EU[i*inDesc.length+k] = 2.0f*in0[k] - in1[k];
-        }
+
+    // mirror the missing vertices (M)
+    //
+    //  M0 -- M1 -- M2 -- M3 (corner)
+    //   |     |     |     |
+    //   |     |     |     |
+    //  v0 -- v1 -- v2 -- v3    M : mirrored
+    //   |.....|.....|.....|
+    //   |.....|.....|.....|
+    //  v4 -- v5 -- v6 -- v7    v : original Cv
+    //   |.....|.....|.....|
+    //   |.....|.....|.....|
+    //  v8 -- v9 -- v10-- v11
+    
+    float *M = (float*)alloca(inDesc.length*4*sizeof(float));
+
+    float const *v0 = inOffset + vertexIndices[0]*inDesc.stride,
+                *v1 = inOffset + vertexIndices[1]*inDesc.stride,
+                *v2 = inOffset + vertexIndices[2]*inDesc.stride,
+                *v3 = inOffset + vertexIndices[3]*inDesc.stride,
+                *v4 = inOffset + vertexIndices[4]*inDesc.stride,
+                *v5 = inOffset + vertexIndices[5]*inDesc.stride,
+                *v6 = inOffset + vertexIndices[6]*inDesc.stride,
+                *v7 = inOffset + vertexIndices[7]*inDesc.stride;
+
+    for (int k=0; k<inDesc.stride; ++k) {
+        M[0*inDesc.length+k] = 2.0f*v0[k] - v4[k];  // M0 = 2*v0 - v3
+        M[1*inDesc.length+k] = 2.0f*v1[k] - v5[k];  // M0 = 2*v1 - v4
+        M[2*inDesc.length+k] = 2.0f*v2[k] - v6[k];  // M1 = 2*v2 - v5
+        M[3*inDesc.length+k] = 2.0f*v3[k] - v7[k];  // M4 = 2*v2 - v1
     }
     
     for (int i=0; i<4; ++i) {
         for (int j=0; j<4; ++j) {
         
             // swap the missing row of verts with our mirrored ones
-            float const * in = j==0 ? &EU[i*inDesc.stride] : 
+            float const * in = j==0 ? &M[i*inDesc.stride] :
                 inOffset + vertexIndices[i+(j-1)*4]*inDesc.stride;
             
             for (int k=0; k<inDesc.length; ++k) {
@@ -270,6 +291,18 @@ evalCorner(float u, float v,
     float const *inOffset = inQ + inDesc.offset;
 
     // mirror the missing vertices (M)
+    //
+    //  M0 -- M1 -- M2 -- M3 (corner)
+    //   |     |     |     |
+    //   |     |     |     |
+    //  v0 -- v1 -- v2 -- M4    M : mirrored
+    //   |.....|.....|     |
+    //   |.....|.....|     |
+    //  v3.--.v4.--.v5 -- M5    v : original Cv
+    //   |.....|.....|     |
+    //   |.....|.....|     |
+    //  v6 -- v7 -- v8 -- M6
+    
     float *M = (float*)alloca(length*7*sizeof(float));
 
     float const *v0 = inOffset + vertexIndices[0]*inDesc.stride,
@@ -278,95 +311,34 @@ evalCorner(float u, float v,
                 *v3 = inOffset + vertexIndices[3]*inDesc.stride,
                 *v4 = inOffset + vertexIndices[4]*inDesc.stride,
                 *v5 = inOffset + vertexIndices[5]*inDesc.stride,
-                *v6 = inOffset + vertexIndices[6]*inDesc.stride,
                 *v7 = inOffset + vertexIndices[7]*inDesc.stride,
                 *v8 = inOffset + vertexIndices[8]*inDesc.stride;
 
-
-    //  M0 - M1 - M2  - M3
-    //   |    |    |     |
-    //  M4 - V0 - V1  - V2
-    //   |    |    |     |
-    //  M5 - V3 - V4  - V5
-    //   |    |    |     |
-    //  M6 - V6 - V7  - V8
     for (int k=0; k<inDesc.stride; ++k) {
-        M[1*length+k] = 2.0f*v0[k] - v3[k];
-        M[2*length+k] = 2.0f*v1[k] - v4[k];
-        M[3*length+k] = 2.0f*v2[k] - v5[k];
-        
-        M[4*length+k] = 2.0f*v0[k] - v1[k];
-        M[5*length+k] = 2.0f*v3[k] - v4[k];
-        M[6*length+k] = 2.0f*v6[k] - v7[k];
-        
-        M[0*length+k] = 2.0f*M[1*length+k] - M[2*length+k];
-    }
+        M[0*length+k] = 2.0f*v0[k] - v3[k];  // M0 = 2*v0 - v3
+        M[1*length+k] = 2.0f*v1[k] - v4[k];  // M0 = 2*v1 - v4
+        M[2*length+k] = 2.0f*v2[k] - v5[k];  // M1 = 2*v2 - v5
 
-/*
-    //  M0 - M1  - M2 - M3
-    //   |    |     |    |
-    //  V0 - V1  - V2 - M4
-    //   |    |     |    |
-    //  V3 - V4  - V5 - M5
-    //   |    |     |    |
-    //  V6 - V7  - V8 - M6
-    for (int k=0; k<inDesc.stride; ++k) {
-        M[0*length+k] = 2.0f*v0[k] - v3[k];
-        M[1*length+k] = 2.0f*v1[k] - v4[k];
-        M[2*length+k] = 2.0f*v2[k] - v5[k];
+        M[4*length+k] = 2.0f*v2[k] - v1[k];  // M4 = 2*v2 - v1
+        M[5*length+k] = 2.0f*v5[k] - v4[k];  // M5 = 2*v5 - v4
+        M[6*length+k] = 2.0f*v8[k] - v7[k];  // M6 = 2*v8 - v7
         
-        M[4*length+k] = 2.0f*v2[k] - v1[k];
-        M[5*length+k] = 2.0f*v5[k] - v4[k];
-        M[6*length+k] = 2.0f*v8[k] - v7[k];
-        
+        // M3 = 2*M2 - M1
         M[3*length+k] = 2.0f*M[2*length+k] - M[1*length+k];
     }
-    
-    for (int k=0; k<inDesc.stride; ++k) {
-        M[1*length+k] = 2.0f*v0[k] - v3[k];
-        M[2*length+k] = 2.0f*v1[k] - v2[k];
-        M[3*length+k] = 2.0f*v4[k] - v5[k];
-        
-        M[4*length+k] = 2.0f*v0[k] - v1[k];
-        M[5*length+k] = 2.0f*v3[k] - v2[k];
-        M[6*length+k] = 2.0f*v8[k] - v7[k];
-        
-        M[0*length+k] = 2.0f*M[1*length+k] - M[2*length+k];
-    }
 
-    for (int k=0; k<inDesc.stride; ++k) {
-        M[0*length+k] = 2.0f*v0[k] - v3[k];
-        M[1*length+k] = 2.0f*v1[k] - v2[k];
-        M[2*length+k] = 2.0f*v4[k] - v5[k];
-        
-        M[4*length+k] = 2.0f*v4[k] - v1[k];
-        M[5*length+k] = 2.0f*v5[k] - v2[k];
-        M[6*length+k] = 2.0f*v7[k] - v6[k];
-        
-        M[3*length+k] = 2.0f*M[2*length+k] - M[1*length+k];
-    }
-*/    
     for (int i=0; i<4; ++i) {
         for (int j=0; j<4; ++j) {
         
             float const * in = NULL;
-            
-            if (j==0) {
-                in = &M[i*inDesc.stride];
-            } else if (i==0) {
-                in = &M[(j+3)*inDesc.stride];
-            } else {
-                in = inOffset + vertexIndices[(i-1)*1+(j-1)*3]*inDesc.stride;
-            }
-/*
-            if (j==0) {
+
+            if (j==0) { // (2)
                 in = &M[i*inDesc.stride];
             } else if (i==3) {
                 in = &M[(j+3)*inDesc.stride];
             } else {
-                in = inOffset + vertexIndices[(i-1)*3+(j-1)*1]*inDesc.stride;
+                in = inOffset + vertexIndices[i+(j-1)*3]*inDesc.stride;
             }
-*/
 
             assert(in);
                         
