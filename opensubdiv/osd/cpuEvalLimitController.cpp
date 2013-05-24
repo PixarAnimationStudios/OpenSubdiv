@@ -153,17 +153,27 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
                                               return 1; }
  
             
-            case FarPatchTables::GREGORY  : { /* evalGregory(v, u, cvs,
-                                                            context->GetVertexValenceBuffer(),
-                                                            context->GetQuadOffsetBuffer() + parray.GetQuadOffsetIndex(),
-                                                            context->GetMaxValence(),
-                                                            context->GetInputDesc(),
-                                                            inQ,
-                                                            context->GetOutputDesc(),
-                                                            outQ, outdQu, outdQv); */
-                                              return 0; }
+            case FarPatchTables::GREGORY  : { evalGregory(v, u, cvs,
+                                                          context->GetVertexValenceBuffer(),                             
+                                                          context->GetQuadOffsetBuffer() + parray.GetQuadOffsetIndex() + handle.vertexOffset,  
+                                                          context->GetMaxValence(),
+                                                          context->GetInputDesc(),                                       
+                                                          inQ,                                                           
+                                                          context->GetOutputDesc(),                                      
+                                                          outQ, outdQu, outdQv);                                         
+                                              return 1; }
 
-            case FarPatchTables::GREGORY_BOUNDARY : { return 0; }
+            case FarPatchTables::GREGORY_BOUNDARY : { 
+                                              evalGregoryBoundary(v, u, cvs,
+                                                                  context->GetVertexValenceBuffer(),
+                                                                  context->GetQuadOffsetBuffer() + parray.GetQuadOffsetIndex() + handle.vertexOffset,
+                                                                  context->GetMaxValence(),
+                                                                  context->GetInputDesc(),
+                                                                  inQ,
+                                                                  context->GetOutputDesc(),
+                                                                  outQ, outdQu, outdQv);
+            
+                                              return 1; }
 
             default: 
                 assert(0);

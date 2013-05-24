@@ -107,6 +107,19 @@ evalGregory(float u, float v,
             float * outDQU,
             float * outDQV );
 
+void
+evalGregoryBoundary(float u, float v,
+                    unsigned int const * vertexIndices,
+                    int const * vertexValenceBuffer,
+                    unsigned int const  * quadOffsetBuffer,
+                    int maxValence,
+                    OsdVertexBufferDescriptor const & inDesc,
+                    float const * inQ,
+                    OsdVertexBufferDescriptor const & outDesc,
+                    float * outQ,
+                    float * outDQU,
+                    float * outDQV );
+
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
