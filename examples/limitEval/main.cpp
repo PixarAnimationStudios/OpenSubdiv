@@ -343,9 +343,9 @@ getNumPtexFaces( OsdHbrMesh const * hmesh, int nfaces ) {
     int result = lastface->GetPtexIndex();
     
     result += (hmesh->GetSubdivision()->FaceIsExtraordinary(hmesh, lastface) ? 
-                  lastface->GetNumVertices() : 0);
+                  lastface->GetNumVertices() : 1);
 
-    return ++result;
+    return result;
 }
 
 //------------------------------------------------------------------------------
@@ -414,7 +414,8 @@ updateGeom() {
     // outside of the parallel loop
     g_evalCtx->BindVertexBuffers( g_idesc, g_samplesVB, g_odesc, g_Q, g_dQu, g_dQv );
 
-#ifdef OPENSUBDIV_HAS_OPENMP
+#define USE_OPENMP
+#if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
     #pragma omp parallel for
 #endif
     for (int i=0; i<(int)g_coords.size(); ++i) {
@@ -430,7 +431,7 @@ updateGeom() {
             color[1] = 0.0f;
             color[2] = g_coords[i].v;
             
-#ifdef OPENSUBDIV_HAS_OPENMP
+#if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
             #pragma omp atomic
 #endif
             g_nsamplesFound += n;
