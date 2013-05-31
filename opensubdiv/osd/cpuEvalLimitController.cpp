@@ -93,7 +93,12 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
 
         FarPatchParam::BitField bits = context->GetPatchBitFields()[ handle.serialIndex ];
 
-        float frac = 1.0f / float( 1 << bits.GetDepth() );
+        float frac;
+        if (bits.NonQuadRoot()) {
+            frac = 1.0f / float( 1 << (bits.GetDepth()-1) );
+        } else {
+            frac = 1.0f / float( 1 << bits.GetDepth() );
+        }
         
         // Are the coordinates within the parametric space covered by the patch ?
         float pu = (float)bits.GetU()*frac;
@@ -175,7 +180,7 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
             
                                               return 1; }
 
-            default: 
+            default:
                 assert(0);
         }        
     }
