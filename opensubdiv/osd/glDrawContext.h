@@ -122,20 +122,55 @@ public:
     /// true if the GL version detected supports shader tessellation
     static bool SupportsAdaptiveTessellation();
 
-    GLuint patchIndexBuffer;
+    /// Returns the GL texture buffer containing the patch control vertices array
+    GLuint GetPatchIndexBuffer() const {
+        return _patchIndexBuffer;
+    }
 
 #if defined(GL_ES_VERSION_2_0)
-    GLuint patchTrianglesIndexBuffer;
+    /// Returns the GL a VBO containing a triangulated version of the mesh
+    GLuint GetPatchTrianglesIndexBUffer() const {
+        return _patchTrianglesIndexBuffer;
+    }
 #endif
 
-    GLuint ptexCoordinateTextureBuffer;
-    GLuint fvarDataTextureBuffer;
+    /// Returns the GL texture buffer containing the patch local parameterization
+    /// data
+    GLuint GetPatchParamTextureBuffer() const {
+        return _patchParamTextureBuffer;
+    }
 
-    GLuint vertexTextureBuffer;
-    GLuint vertexValenceTextureBuffer;
-    GLuint quadOffsetTextureBuffer;
+    /// Returns the GL texture buffer containing the vertex data
+    GLuint GetVertexTextureBuffer() const {
+        return _vertexTextureBuffer;
+    }
+
+    /// Returns the GL texture buffer containing patch vertex valence data (only
+    /// used by Gregory patches)
+    GLuint GetVertexValenceTextureBuffer() const {
+        return _vertexValenceTextureBuffer;
+    }
+
+    /// Returns the GL texture buffer containing patch quad offsets data (only
+    /// used by Gregory patches)
+    GLuint GetQuadOffsetsTextureBuffer() const {
+        return _quadOffsetsTextureBuffer;
+    }
 
 protected:
+    GLuint _patchIndexBuffer;
+
+#if defined(GL_ES_VERSION_2_0)
+    GLuint _patchTrianglesIndexBuffer;
+#endif
+
+    GLuint _patchParamTextureBuffer;
+    GLuint _fvarDataTextureBuffer;
+
+    GLuint _vertexTextureBuffer;
+    GLuint _vertexValenceTextureBuffer;
+    GLuint _quadOffsetsTextureBuffer;
+
     OsdGLDrawContext();
 
     // allocate buffers from patchTables

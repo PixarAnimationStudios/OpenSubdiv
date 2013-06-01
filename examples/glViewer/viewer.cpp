@@ -745,7 +745,7 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
     // -------- VAO 
     glBindVertexArray(g_vao);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->patchIndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->GetPatchIndexBuffer());
     glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVertexBuffer());
 
     glEnableVertexAttribArray(0);
@@ -1151,25 +1151,25 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 
     glBindBufferBase(GL_UNIFORM_BUFFER, g_lightingBinding, g_lightingUB);
 
-    if (g_mesh->GetDrawContext()->vertexTextureBuffer) {
+    if (g_mesh->GetDrawContext()->GetVertexTextureBuffer()) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->vertexTextureBuffer);
+            g_mesh->GetDrawContext()->GetVertexTextureBuffer());
     }
-    if (g_mesh->GetDrawContext()->vertexValenceTextureBuffer) {
+    if (g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer()) {
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->vertexValenceTextureBuffer);
+            g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer());
     }
-    if (g_mesh->GetDrawContext()->quadOffsetTextureBuffer) {
+    if (g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer()) {
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->quadOffsetTextureBuffer);
+            g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer());
     }
-    if (g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer) {
+    if (g_mesh->GetDrawContext()->GetPatchParamTextureBuffer()) {
         glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer);
+            g_mesh->GetDrawContext()->GetPatchParamTextureBuffer());
     }
     glActiveTexture(GL_TEXTURE0);
 

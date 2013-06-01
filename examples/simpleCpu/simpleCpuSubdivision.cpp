@@ -413,7 +413,7 @@ createOsdContext(int level)
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_drawContext->patchIndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_drawContext->GetPatchIndexBuffer());
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 

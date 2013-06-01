@@ -1004,7 +1004,7 @@ createOsdMesh(int level, int kernel) {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
     }
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->patchIndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->GetPatchIndexBuffer());
 
     glBindVertexArray(0);
 }
@@ -1409,28 +1409,26 @@ drawModel() {
 #endif
         }
 
-        if (g_mesh->GetDrawContext()->vertexTextureBuffer) {
+        if (g_mesh->GetDrawContext()->GetVertexTextureBuffer()) {
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_BUFFER, 
-                          g_mesh->GetDrawContext()->vertexTextureBuffer);
+            glBindTexture(GL_TEXTURE_BUFFER,
+                g_mesh->GetDrawContext()->GetVertexTextureBuffer());
             glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, bVertex);
         }
-
-        if (g_mesh->GetDrawContext()->vertexValenceTextureBuffer) {
+        if (g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer()) {
             glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_BUFFER, 
-                          g_mesh->GetDrawContext()->vertexValenceTextureBuffer);
+            glBindTexture(GL_TEXTURE_BUFFER,
+                g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer());
         }
-
-        if (g_mesh->GetDrawContext()->quadOffsetTextureBuffer) {
+        if (g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer()) {
             glActiveTexture(GL_TEXTURE2);
-            glBindTexture(GL_TEXTURE_BUFFER, 
-                          g_mesh->GetDrawContext()->quadOffsetTextureBuffer);
+            glBindTexture(GL_TEXTURE_BUFFER,
+                g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer());
         }
-        if (g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer) {
+        if (g_mesh->GetDrawContext()->GetPatchParamTextureBuffer()) {
             glActiveTexture(GL_TEXTURE3);
             glBindTexture(GL_TEXTURE_BUFFER,
-                          g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer);
+                g_mesh->GetDrawContext()->GetPatchParamTextureBuffer());
         }
         glActiveTexture(GL_TEXTURE0);
 
