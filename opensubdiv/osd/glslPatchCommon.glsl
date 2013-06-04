@@ -82,6 +82,7 @@ struct OutputVertex {
     vec3 normal;
     vec3 tangent;
     centroid vec4 patchCoord; // u, v, level, faceID
+    centroid vec2 tessCoord; // tesscoord.st
     noperspective vec4 edgeDistance;
 #if OSD_NUM_VARYINGS > 0
     float varyings[OSD_NUM_VARYINGS];
@@ -191,6 +192,7 @@ int GetPatchLevel()
         ivec2 p = input[0].v.ptexInfo.xy;                               \
         int lv = input[0].v.ptexInfo.z;                                 \
         int rot = input[0].v.ptexInfo.w;                                \
+        output.v.tessCoord.xy = uv;                                     \
         uv.xy = float(rot==0)*uv.xy                                     \
             + float(rot==1)*vec2(1.0-uv.y, uv.x)                        \
             + float(rot==2)*vec2(1.0-uv.x, 1.0-uv.y)                    \

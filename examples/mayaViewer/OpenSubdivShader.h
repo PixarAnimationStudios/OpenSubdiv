@@ -123,7 +123,7 @@ private:
     GLuint bindTexture(const MString& filename, int textureUnit);
     GLuint bindProgram(const MHWRender::MDrawContext &     mDrawContext,
                              OpenSubdiv::OsdGLDrawContext *osdDrawContext,
-                       const OpenSubdiv::OsdPatchArray &   patch);
+                       const OpenSubdiv::OsdDrawContext::PatchArray &   patch);
 
     // OSD attributes
     static MObject aLevel;

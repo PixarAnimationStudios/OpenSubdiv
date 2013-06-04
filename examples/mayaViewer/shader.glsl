@@ -170,7 +170,8 @@ void emitAdaptive(int index, vec3 normal, vec2 uvs[4])
 #endif
     
     // Bi-linear interpolation within the patch
-    vec2 st = input[index].v.patchCoord.st;
+    output.v.patchCoord = input[index].v.patchCoord;
+    vec2 st = input[index].v.tessCoord;
     output.v.patchCoord.st =
         vec2( mix( mix(uvs[0].x, uvs[1].x, st.s ), mix(uvs[3].x, uvs[2].x, st.s ), st.t),
               mix( mix(uvs[0].y, uvs[1].y, st.s ), mix(uvs[3].y, uvs[2].y, st.s ), st.t)  );

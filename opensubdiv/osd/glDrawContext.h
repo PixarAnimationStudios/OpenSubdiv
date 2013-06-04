@@ -157,6 +157,11 @@ public:
         return _quadOffsetsTextureBuffer;
     }
 
+    /// Returns the GL texture buffer containing fvar data
+    GLuint GetFvarDataTextureBuffer() const {
+        return _fvarDataTextureBuffer;
+    }
+
 protected:
     GLuint _patchIndexBuffer;
 
