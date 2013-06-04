@@ -55,9 +55,40 @@
 //     a particular purpose and non-infringement.
 //
 
-#ifndef OPENSUBDIV_VERSION_H
-#define OPENSUBDIV_VERSION_H
+#include "patchColors.h"
 
-#define OPENSUBDIV_VERSION v1_2_2
+float const * getAdaptivePatchColor(OpenSubdiv::OsdDrawContext::PatchDescriptor const & desc) {
 
-#endif /* OPENSUBDIV_VERSION_H */
+    static float _colors[4][5][4] = {{{1.0f,  1.0f,  1.0f,  1.0f},   // regular
+                                      {0.8f,  0.0f,  0.0f,  1.0f},   // boundary
+                                      {0.0f,  1.0f,  0.0f,  1.0f},   // corner
+                                      {1.0f,  1.0f,  0.0f,  1.0f},   // gregory
+                                      {1.0f,  0.5f,  0.0f,  1.0f}},  // gregory boundary
+
+                                     {{0.0f,  1.0f,  1.0f,  1.0f},   // regular pattern 0
+                                      {0.0f,  0.5f,  1.0f,  1.0f},   // regular pattern 1
+                                      {0.0f,  0.5f,  0.5f,  1.0f},   // regular pattern 2
+                                      {0.5f,  0.0f,  1.0f,  1.0f},   // regular pattern 3
+                                      {1.0f,  0.5f,  1.0f,  1.0f}},  // regular pattern 4
+ 
+                                     {{0.0f,  0.0f,  0.75f, 1.0f},   // boundary pattern 0
+                                      {0.0f,  0.2f,  0.75f, 1.0f},   // boundary pattern 1
+                                      {0.0f,  0.4f,  0.75f, 1.0f},   // boundary pattern 2
+                                      {0.0f,  0.6f,  0.75f, 1.0f},   // boundary pattern 3
+                                      {0.0f,  0.8f,  0.75f, 1.0f}},  // boundary pattern 4
+ 
+                                     {{0.25f, 0.25f, 0.25f, 1.0f},   // corner pattern 0
+                                      {0.25f, 0.25f, 0.25f, 1.0f},   // corner pattern 1
+                                      {0.25f, 0.25f, 0.25f, 1.0f},   // corner pattern 2
+                                      {0.25f, 0.25f, 0.25f, 1.0f},   // corner pattern 3
+                                      {0.25f, 0.25f, 0.25f, 1.0f}}}; // corner pattern 4
+
+    typedef OpenSubdiv::FarPatchTables FPT;
+
+    if (desc.GetPattern()==FPT::NON_TRANSITION) {
+        return _colors[0][(int)(desc.GetType()-FPT::REGULAR)];
+    } else {
+        return _colors[(int)(desc.GetType()-FPT::REGULAR)+1][(int)desc.GetPattern()-1];
+    }
+}
+

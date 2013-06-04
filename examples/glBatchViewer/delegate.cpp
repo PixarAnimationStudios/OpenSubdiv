@@ -126,7 +126,7 @@ MyDrawDelegate::Bind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch, Eff
         // bind vbo state
         // glBindVertexArray(batch->vao);
         glBindBuffer(GL_ARRAY_BUFFER, batch->BindVertexBuffer());
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, drawContext->patchIndexBuffer);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, drawContext->GetPatchIndexBuffer());
 
         // vertex attrib
         glEnableVertexAttribArray(0);
@@ -134,13 +134,13 @@ MyDrawDelegate::Bind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch, Eff
 
         // bind other builtin texture buffers
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_BUFFER, drawContext->vertexTextureBuffer);
+        glBindTexture(GL_TEXTURE_BUFFER, drawContext->GetVertexTextureBuffer());
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_BUFFER, drawContext->vertexValenceTextureBuffer);
+        glBindTexture(GL_TEXTURE_BUFFER, drawContext->GetVertexValenceTextureBuffer());
         glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_BUFFER, drawContext->quadOffsetTextureBuffer);
+        glBindTexture(GL_TEXTURE_BUFFER, drawContext->GetQuadOffsetsTextureBuffer());
         glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_BUFFER, drawContext->ptexCoordinateTextureBuffer);
+        glBindTexture(GL_TEXTURE_BUFFER, drawContext->GetPatchParamTextureBuffer());
     }
     if (effect != _currentEffect) {
         _currentEffect = effect;

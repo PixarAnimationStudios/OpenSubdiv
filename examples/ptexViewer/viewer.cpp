@@ -146,6 +146,7 @@ OpenSubdiv::OsdGLMeshInterface *g_mesh;
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/gl_hud.h"
+#include "../common/patchColors.h"
 #include "../common/hdr_reader.h"
 #include "../../regression/common/shape_utils.h"
 
@@ -1003,7 +1004,7 @@ createOsdMesh(int level, int kernel) {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
     }
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->patchIndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->GetPatchIndexBuffer());
 
     glBindVertexArray(0);
 }
@@ -1390,7 +1391,6 @@ drawModel() {
 
         OpenSubdiv::OsdDrawContext::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
-        int patchPattern = desc.GetPattern() - 1;
 
         GLenum primType;
         switch(patchType) {
@@ -1409,28 +1409,26 @@ drawModel() {
 #endif
         }
 
-        if (g_mesh->GetDrawContext()->vertexTextureBuffer) {
+        if (g_mesh->GetDrawContext()->GetVertexTextureBuffer()) {
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_BUFFER, 
-                          g_mesh->GetDrawContext()->vertexTextureBuffer);
+            glBindTexture(GL_TEXTURE_BUFFER,
+                g_mesh->GetDrawContext()->GetVertexTextureBuffer());
             glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, bVertex);
         }
-
-        if (g_mesh->GetDrawContext()->vertexValenceTextureBuffer) {
+        if (g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer()) {
             glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_BUFFER, 
-                          g_mesh->GetDrawContext()->vertexValenceTextureBuffer);
+            glBindTexture(GL_TEXTURE_BUFFER,
+                g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer());
         }
-
-        if (g_mesh->GetDrawContext()->quadOffsetTextureBuffer) {
+        if (g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer()) {
             glActiveTexture(GL_TEXTURE2);
-            glBindTexture(GL_TEXTURE_BUFFER, 
-                          g_mesh->GetDrawContext()->quadOffsetTextureBuffer);
+            glBindTexture(GL_TEXTURE_BUFFER,
+                g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer());
         }
-        if (g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer) {
+        if (g_mesh->GetDrawContext()->GetPatchParamTextureBuffer()) {
             glActiveTexture(GL_TEXTURE3);
             glBindTexture(GL_TEXTURE_BUFFER,
-                          g_mesh->GetDrawContext()->ptexCoordinateTextureBuffer);
+                g_mesh->GetDrawContext()->GetPatchParamTextureBuffer());
         }
         glActiveTexture(GL_TEXTURE0);
 
@@ -1468,40 +1466,8 @@ drawModel() {
         GLuint overrideColorEnable = glGetUniformLocation(program, "overrideColorEnable");
         GLuint overrideColor = glGetUniformLocation(program, "overrideColor");
 
-        GLfloat patchColor[10][4] = {
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // NON_PATCH
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // POLYGON
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // QUADS
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // TRIANGLES
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // LOOP
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // REGULAR
-            { 0.8f, 0.0f, 0.0f, 1.0f },  // BOUNDARY
-            { 0.0f, 1.0f, 0.0f, 1.0f },  // CORNER
-            { 1.0f, 1.0f, 0.0f, 1.0f },  // GREGORY
-            { 1.0f, 0.5f, 0.0f, 1.0f },  // GREGORY_BOUNDARY
-        };
-        GLfloat regularTransitionColor[6][4] = {
-            { 1.0f, 1.0f, 1.0f, 1.0f },  // NON_TRANSITION
-            { 0.0f, 1.0f, 1.0f, 1.0f },  // PATTERN0
-            { 0.0f, 0.5f, 1.0f, 1.0f },  // PATTERN1
-            { 0.0f, 0.5f, 0.5f, 1.0f },  // PATTERN2
-            { 0.5f, 0.0f, 1.0f, 1.0f },  // PATTERN3
-            { 1.0f, 0.5f, 1.0f, 1.0f },  // PATTERN4
-        };
-
-        if (patchPattern == OpenSubdiv::FarPatchTables::NON_TRANSITION) {
-            glProgramUniform4fv(program, overrideColor, 1, patchColor[patchType]);
-        } else {
-            if (patchType == OpenSubdiv::FarPatchTables::REGULAR) {
-                glProgramUniform4fv(program, overrideColor, 1, regularTransitionColor[patchPattern]);
-            } else if (patchType == OpenSubdiv::FarPatchTables::BOUNDARY) {
-                glProgramUniform4f(program, overrideColor, 0, 0, 0.5f, 1);
-            } else if (patchType == OpenSubdiv::FarPatchTables::CORNER) {
-                glProgramUniform4f(program, overrideColor, 0, 0, 0.5f, 1);
-            } else {
-                glProgramUniform4f(program, overrideColor, 0.4f, 0.4f, 0.8f, 1);
-            }
-        }
+        float const * color = getAdaptivePatchColor( desc );
+        glProgramUniform4f(program, overrideColor, color[0], color[1], color[2], color[3]);
 
         if (g_displayPatchColor or g_wire == 2) {
             glProgramUniform1i(program, overrideColorEnable, 1);

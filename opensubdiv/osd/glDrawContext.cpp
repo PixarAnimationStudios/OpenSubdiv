@@ -74,19 +74,19 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 OsdGLDrawContext::OsdGLDrawContext() :
-    patchIndexBuffer(0), ptexCoordinateTextureBuffer(0), fvarDataTextureBuffer(0),
-    vertexTextureBuffer(0), vertexValenceTextureBuffer(0), quadOffsetTextureBuffer(0)
+    _patchIndexBuffer(0), _patchParamTextureBuffer(0), _fvarDataTextureBuffer(0),
+    _vertexTextureBuffer(0), _vertexValenceTextureBuffer(0), _quadOffsetsTextureBuffer(0)
 {
 }
 
 OsdGLDrawContext::~OsdGLDrawContext()
 {
-    glDeleteBuffers(1, &patchIndexBuffer);
-    glDeleteTextures(1, &vertexTextureBuffer);
-    glDeleteTextures(1, &vertexValenceTextureBuffer);
-    glDeleteTextures(1, &quadOffsetTextureBuffer);
-    glDeleteTextures(1, &ptexCoordinateTextureBuffer);
-    glDeleteTextures(1, &fvarDataTextureBuffer);
+    glDeleteBuffers(1, &_patchIndexBuffer);
+    glDeleteTextures(1, &_vertexTextureBuffer);
+    glDeleteTextures(1, &_vertexValenceTextureBuffer);
+    glDeleteTextures(1, &_quadOffsetsTextureBuffer);
+    glDeleteTextures(1, &_patchParamTextureBuffer);
+    glDeleteTextures(1, &_fvarDataTextureBuffer);
 }
 
 bool
@@ -149,8 +149,8 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
     // Process PTable
     FarPatchTables::PTable const & ptables = patchTables->GetPatchTable();
 
-    glGenBuffers(1, &patchIndexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchIndexBuffer);
+    glGenBuffers(1, &_patchIndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _patchIndexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                  ptables.size() * sizeof(unsigned int), &ptables[0], GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -169,8 +169,8 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
         int numIndices = (int)indices.size();
 
         // Allocate and fill index buffer.
-        glGenBuffers(1, &patchIndexBuffer);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchIndexBuffer);
+        glGenBuffers(1, &_patchIndexBuffer);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _patchIndexBuffer);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                      numIndices * sizeof(unsigned int), &(indices[0]), GL_STATIC_DRAW);
 
@@ -210,10 +210,10 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
         valenceTable = patchTables->GetVertexValenceTable();
 
     if (not valenceTable.empty()) {
-        vertexValenceTextureBuffer = createTextureBuffer(valenceTable, GL_R32I);
+        _vertexValenceTextureBuffer = createTextureBuffer(valenceTable, GL_R32I);
 
         // also create vertex texture buffer (will be updated in UpdateVertexTexture())
-        glGenTextures(1, &vertexTextureBuffer);
+        glGenTextures(1, &_vertexTextureBuffer);
     }
 
 
@@ -222,15 +222,15 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
         quadOffsetTable = patchTables->GetQuadOffsetTable();
 
     if (not quadOffsetTable.empty())
-        quadOffsetTextureBuffer = createTextureBuffer(quadOffsetTable, GL_R32I);
+        _quadOffsetsTextureBuffer = createTextureBuffer(quadOffsetTable, GL_R32I);
 
 
     // create ptex coordinate buffer
     FarPatchTables::PatchParamTable const &
-        ptexCoordTables = patchTables->GetPatchParamTable();
+        patchParamTables = patchTables->GetPatchParamTable();
 
-    if (not ptexCoordTables.empty())
-        ptexCoordinateTextureBuffer = createTextureBuffer(ptexCoordTables, GL_RG32I);
+    if (not patchParamTables.empty())
+        _patchParamTextureBuffer = createTextureBuffer(patchParamTables, GL_RG32I);
 
 
     // create fvar data buffer if requested
@@ -238,7 +238,7 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
         fvarTables = patchTables->GetFVarDataTable();
 
     if (requireFVarData and not fvarTables.empty())
-        fvarDataTextureBuffer = createTextureBuffer(fvarTables, GL_R32F);
+        _fvarDataTextureBuffer = createTextureBuffer(fvarTables, GL_R32F);
 
     glBindBuffer(GL_TEXTURE_BUFFER, 0);
 
@@ -248,7 +248,7 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
 void
 OsdGLDrawContext::updateVertexTexture(GLuint vbo, int numVertexElements)
 {
-    glBindTexture(GL_TEXTURE_BUFFER, vertexTextureBuffer);
+    glBindTexture(GL_TEXTURE_BUFFER, _vertexTextureBuffer);
     glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
     glBindTexture(GL_TEXTURE_BUFFER, 0);
 

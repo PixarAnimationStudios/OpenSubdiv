@@ -93,7 +93,12 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
 
         FarPatchParam::BitField bits = context->GetPatchBitFields()[ handle.serialIndex ];
 
-        float frac = 1.0f / float( 1 << bits.GetDepth() );
+        float frac;
+        if (bits.NonQuadRoot()) {
+            frac = 1.0f / float( 1 << (bits.GetDepth()-1) );
+        } else {
+            frac = 1.0f / float( 1 << bits.GetDepth() );
+        }
         
         // Are the coordinates within the parametric space covered by the patch ?
         float pu = (float)bits.GetU()*frac;
@@ -118,49 +123,64 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
 
         typedef FarPatchTables::Descriptor PD;
 
-        // Rotate u,v to compensate for transition pattern orientation
-        if ( parray.GetDescriptor().GetPattern()!=FarPatchTables::NON_TRANSITION ) {
-            switch( bits.GetRotation() ) {
-                 case 0 : break;
-                 case 1 : { float tmp=v; v=1.0f-u; u=tmp; } break;
-                 case 2 : { u=1.0f-u; v=1.0f-v; } break;
-                 case 3 : { float tmp=u; u=1.0f-v; v=tmp; } break;
-                 default:
-                     assert(0);
-            }
+        // Rotate u,v to compensate for transition pattern and boundary orientations
+        switch( bits.GetRotation() ) {
+             case 0 : break;
+             case 1 : { float tmp=v; v=1.0f-u; u=tmp; } break;
+             case 2 : { u=1.0f-u; v=1.0f-v; } break;
+             case 3 : { float tmp=u; u=1.0f-v; v=tmp; } break;
+             default:
+                 assert(0);
         }
 
         // Based on patch type - go execute interpolation
         switch( parray.GetDescriptor().GetType() ) {
 
-            case FarPatchTables::REGULAR  : { 
-                                              evalBSpline( v, u, cvs,
+            case FarPatchTables::REGULAR  : { evalBSpline( v, u, cvs,
                                                            context->GetInputDesc(),
                                                            inQ,
                                                            context->GetOutputDesc(),
-                                                           outQ, outdQu, outdQv); 
+                                                           outQ, outdQu, outdQv);
                                               return 1; }
             
-            case FarPatchTables::BOUNDARY : { return 0; }
+            case FarPatchTables::BOUNDARY : { evalBoundary( v, u, cvs,
+                                                            context->GetInputDesc(),
+                                                            inQ,
+                                                            context->GetOutputDesc(),
+                                                            outQ, outdQu, outdQv);
+                                               return 1; }
             
-            case FarPatchTables::CORNER   : { return 0; }
+            case FarPatchTables::CORNER   : { evalCorner( v, u, cvs,
+                                                          context->GetInputDesc(),
+                                                          inQ,
+                                                          context->GetOutputDesc(),
+                                                          outQ, outdQu, outdQv);
+                                              return 1; }
  
             
-            case FarPatchTables::GREGORY  : { /*evalGregory(v, u, cvs,
-                                                            unsigned int const  * quadOffsetBuffer,
-                                                            int maxValence,
-                                                            unsigned int const * vertexIndices,
-                                                            OsdVertexBufferDescriptor const & inDesc,
-                                                            float const * inQ,
-                                                            OsdVertexBufferDescriptor const & outDesc,
-                                                            float * outQ,
-                                                            float * outDQU,
-                                                            float * outDQV );*/
-                                              return 0; }
+            case FarPatchTables::GREGORY  : { evalGregory(v, u, cvs,
+                                                          context->GetVertexValenceBuffer(),                             
+                                                          context->GetQuadOffsetBuffer() + parray.GetQuadOffsetIndex() + handle.vertexOffset,  
+                                                          context->GetMaxValence(),
+                                                          context->GetInputDesc(),                                       
+                                                          inQ,                                                           
+                                                          context->GetOutputDesc(),                                      
+                                                          outQ, outdQu, outdQv);                                         
+                                              return 1; }
 
-            case FarPatchTables::GREGORY_BOUNDARY : { return 0; }
+            case FarPatchTables::GREGORY_BOUNDARY : { 
+                                              evalGregoryBoundary(v, u, cvs,
+                                                                  context->GetVertexValenceBuffer(),
+                                                                  context->GetQuadOffsetBuffer() + parray.GetQuadOffsetIndex() + handle.vertexOffset,
+                                                                  context->GetMaxValence(),
+                                                                  context->GetInputDesc(),
+                                                                  inQ,
+                                                                  context->GetOutputDesc(),
+                                                                  outQ, outdQu, outdQv);
+            
+                                              return 1; }
 
-            default: 
+            default:
                 assert(0);
         }        
     }

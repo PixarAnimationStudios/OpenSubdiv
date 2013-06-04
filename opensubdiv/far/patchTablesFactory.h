@@ -650,7 +650,7 @@ FarPatchTablesFactory<T>::pushPatchArray( FarPatchTables::Descriptor desc,
 
         *voffset += npatches * desc.GetNumControlVertices();
         *poffset += npatches;
-        *qoffset += (desc.GetType() == FarPatchTables::GREGORY) ? npatches * 4 : 0;
+        *qoffset += (desc.GetType() == FarPatchTables::GREGORY) ? npatches * desc.GetNumControlVertices() : 0;
     }
 }
 

@@ -111,6 +111,7 @@ _add_glfw_executable(ptexViewer
    viewer.cpp
    ../common/font_image.cpp
    ../common/hud.cpp
+   ../common/patchColors.cpp
    ../common/gl_hud.cpp
    ../common/hdr_reader.cpp
    ${SHADER_FILES}

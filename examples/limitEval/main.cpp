@@ -274,8 +274,6 @@ initializeShapes( ) {
 }
 
 //------------------------------------------------------------------------------
-OsdCpuVertexBuffer * g_samplesVB=0;
-
 int g_nsamples=1000,
     g_nsamplesFound=0;
 
@@ -343,12 +341,15 @@ getNumPtexFaces( OsdHbrMesh const * hmesh, int nfaces ) {
     int result = lastface->GetPtexIndex();
     
     result += (hmesh->GetSubdivision()->FaceIsExtraordinary(hmesh, lastface) ? 
-                  lastface->GetNumVertices() : 0);
+                  lastface->GetNumVertices() : 1);
 
-    return ++result;
+    return result;
 }
 
 //------------------------------------------------------------------------------
+OsdCpuVertexBuffer * g_vertexData=0,
+                   * g_varyingData=0;
+
 OsdCpuComputeContext * g_computeCtx = 0;
 
 OsdCpuComputeController g_computeCtrl;
@@ -392,9 +393,9 @@ updateGeom() {
     Stopwatch s;
     s.Start();
     
-    g_samplesVB->UpdateData( &g_positions[0], 0, nverts);
+    g_vertexData->UpdateData( &g_positions[0], 0, nverts);
     
-    g_computeCtrl.Refine( g_computeCtx, g_fmesh->GetKernelBatches(), g_samplesVB );
+    g_computeCtrl.Refine( g_computeCtx, g_fmesh->GetKernelBatches(), g_vertexData );
 
     s.Stop();
     g_computeTime = float(s.GetElapsed() * 1000.0f);
@@ -412,9 +413,10 @@ updateGeom() {
 
     // Bind/Unbind of the vertex buffers to the context needs to happen 
     // outside of the parallel loop
-    g_evalCtx->BindVertexBuffers( g_idesc, g_samplesVB, g_odesc, g_Q, g_dQu, g_dQv );
+    g_evalCtx->BindVertexBuffers( g_idesc, g_vertexData, g_odesc, g_Q, g_dQu, g_dQv );
 
-#ifdef OPENSUBDIV_HAS_OPENMP
+#define USE_OPENMP
+#if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
     #pragma omp parallel for
 #endif
     for (int i=0; i<(int)g_coords.size(); ++i) {
@@ -430,7 +432,7 @@ updateGeom() {
             color[1] = 0.0f;
             color[2] = g_coords[i].v;
             
-#ifdef OPENSUBDIV_HAS_OPENMP
+#if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
             #pragma omp atomic
 #endif
             g_nsamplesFound += n;
@@ -476,8 +478,12 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
 
     
     // Create v-buffer & populate w/ positions
-    delete g_samplesVB;
-    g_samplesVB = OsdCpuVertexBuffer::Create(3, nverts);
+    delete g_vertexData;
+    g_vertexData = OsdCpuVertexBuffer::Create(3, nverts);
+
+    // Create v-buffer & populate w/ colors
+    delete g_varyingData;
+    g_varyingData = OsdCpuVertexBuffer::Create(3, nverts);
 
 
         
@@ -485,7 +491,7 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
     delete g_computeCtx;
     g_computeCtx = OsdCpuComputeContext::Create(g_fmesh);
     
-    g_computeCtrl.Refine( g_computeCtx, g_fmesh->GetKernelBatches(), g_samplesVB );
+    g_computeCtrl.Refine( g_computeCtx, g_fmesh->GetKernelBatches(), g_vertexData );
     
 
     
@@ -586,6 +592,10 @@ linkDefaultProgram()
 
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
+
+    glBindAttribLocation(program, 0, "position");
+    glBindAttribLocation(program, 1, "color");
+    glBindFragDataLocation(program, 0, "color");
 
     glLinkProgram(program);
 

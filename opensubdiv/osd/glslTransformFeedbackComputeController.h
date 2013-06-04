@@ -107,6 +107,8 @@ public:
                 VERTEX_BUFFER *vertexBuffer,
                 VARYING_BUFFER *varyingBuffer) {
 
+        if (batches.empty()) return;
+
         int numVertexElements = vertexBuffer ? vertexBuffer->GetNumElements() : 0;
         int numVaryingElements = varyingBuffer ? varyingBuffer->GetNumElements() : 0;
 

@@ -105,12 +105,15 @@ public:
     /// evalCtxt->UnbindVertexBuffers();
     /// \endcode
     ///
-    /// @param coords location on the limit surface to be evaluated
+    /// @param coords   location on the limit surface to be evaluated
     ///
-    /// @param context the EvalLimitContext that the controller will evaluate
+    /// @param context  the EvalLimitContext that the controller will evaluate
     ///
-    /// @param index the index of the vertex in the output buffers bound to the 
-    ///              context
+    /// @param index    the index of the vertex in the output buffers bound to the 
+    ///                 context
+    ///
+    /// @return the number of samples found (0 if the location was tagged as a hole
+    ///         or the coordinate was invalid)
     ///
     template<class VERTEX_BUFFER, class OUTPUT_BUFFER>
     int EvalLimitSample( OpenSubdiv::OsdEvalCoords const & coords, 

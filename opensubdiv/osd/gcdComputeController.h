@@ -102,6 +102,8 @@ public:
                 VERTEX_BUFFER *vertexBuffer,
                 VARYING_BUFFER *varyingBuffer) {
 
+        if (batches.empty()) return;
+
         context->Bind(vertexBuffer, varyingBuffer);
         FarDispatcher::Refine(this,
                               batches,

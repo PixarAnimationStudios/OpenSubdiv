@@ -54,10 +54,13 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+#ifndef COMMON_PATCH_COLORS_H
+#define COMMON_PATCH_COLORS_H
 
-#ifndef OPENSUBDIV_VERSION_H
-#define OPENSUBDIV_VERSION_H
+#include <osd/drawContext.h>
 
-#define OPENSUBDIV_VERSION v1_2_2
+// returns a unique color for each type of feature-adaptive patches
+float const * getAdaptivePatchColor(OpenSubdiv::OsdDrawContext::PatchDescriptor const & desc);
 
-#endif /* OPENSUBDIV_VERSION_H */
+
+#endif /* COMMON_PATCH_COLORS_H */
