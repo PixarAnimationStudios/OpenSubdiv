@@ -55,6 +55,7 @@
 //     a particular purpose and non-infringement.
 //
 
+#include "../osd/error.h"
 #include "../osd/ptexTextureLoader.h"
 
 #include <Ptexture.h>
@@ -680,6 +681,13 @@ getCornerPixel(PtexTexture *ptex, float *resultPixel, int numchannels,
     int valence = 0;
     do {
         valence++;
+        
+        if (valence > 255) {
+            OsdWarning("High valence detected in %s : invalid adjacency around "
+                       "face %d", ptex->path(), face);
+            break;
+        }
+        
         Ptex::FaceInfo info = ptex->getFaceInfo(currentFace);
         ptex->getPixel(currentFace,
                         uv[currentEdge][0] * (info.res.u()-1),

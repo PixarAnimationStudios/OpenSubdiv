@@ -59,8 +59,6 @@
 
 #include "../version.h"
 
-#include <stdarg.h>
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -80,13 +78,46 @@ typedef enum {
     OSD_D3D11_BUFFER_MAP_ERROR,
 } OsdErrorType;
 
+
+
 typedef void (*OsdErrorCallbackFunc)(OsdErrorType err, const char *message);
 
+/// Sets the error callback function (default is "printf")
+///
+/// @param func function pointer to the callback function
+///
 void OsdSetErrorCallback(OsdErrorCallbackFunc func);
 
+/// Sends an OSD error 
+///
+/// @param err the error type
+///
 void OsdError(OsdErrorType err);
 
+/// Sends an OSD error with a message
+///
+/// @param err     the error type
+///
+/// @param format  the format of the message (followed by arguments)
+///
 void OsdError(OsdErrorType err, const char *format, ...);
+
+
+/// Sets the warning callback function (default is "printf")
+typedef void (*OsdWarningCallbackFunc)(const char *message);
+
+/// Sets the warning callback function (default is "printf")
+///
+/// @param func function pointer to the callback function
+///
+void OsdSetWarningCallback(OsdWarningCallbackFunc func);
+
+/// Sends an OSD warning message
+///
+/// @param format  the format of the message (followed by arguments)
+///
+void OsdWarning(const char *format, ...);
+
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
