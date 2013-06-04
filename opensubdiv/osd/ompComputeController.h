@@ -107,6 +107,8 @@ public:
                 VERTEX_BUFFER * vertexBuffer,
                 VARYING_BUFFER * varyingBuffer) {
 
+        if (batches.empty()) return;
+
         omp_set_num_threads(_numThreads);
 
         context->Bind(vertexBuffer, varyingBuffer);
