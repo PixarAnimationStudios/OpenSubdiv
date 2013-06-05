@@ -66,8 +66,6 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-#ifdef OPENSUBDIV_HAS_OPENCL
-
 // ----------------------------------------------------------------------------
 // OsdUtilMeshBatch OpenCL specialized class
 //
@@ -236,8 +234,6 @@ OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, OsdCLComputeController>::Create(Co
 
     return batch;
 }
-
-#endif  /* OPENSUBDIV_HAS_OPENCL */
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
