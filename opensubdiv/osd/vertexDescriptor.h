@@ -116,13 +116,12 @@ struct OsdVertexDescriptor {
     ///
     void Clear(float *vertex, float *varying, int index) const {
         if (vertex) {
-            for (int i = 0; i < numVertexElements; ++i)
-                vertex[index*numVertexElements+i] = 0.0f;
+            memset(vertex+index*numVertexElements, 0, sizeof(float)*numVertexElements);               
         }
 
         if (varying) {
-            for (int i = 0; i < numVaryingElements; ++i)
-                varying[index*numVaryingElements+i] = 0.0f;
+            memset(varying+index*numVaryingElements, 0, sizeof(float)*numVaryingElements);       
+               
         }
     }
     
@@ -136,9 +135,12 @@ struct OsdVertexDescriptor {
     ///
     /// @param weight Weight applied to the primvar data.
     ///
+    inline 
     void AddWithWeight(float *vertex, int dstIndex, int srcIndex, float weight) const {
         int d = dstIndex * numVertexElements;
-        int s = srcIndex * numVertexElements;
+        int s = srcIndex * numVertexElements;       
+#pragma ivdep  
+#pragma vector aligned 
         for (int i = 0; i < numVertexElements; ++i)
             vertex[d++] += vertex[s++] * weight;
     }
@@ -153,9 +155,12 @@ struct OsdVertexDescriptor {
     ///
     /// @param weight Weight applied to the primvar data.
     ///
+    inline
     void AddVaryingWithWeight(float *varying, int dstIndex, int srcIndex, float weight) const {
         int d = dstIndex * numVaryingElements;
         int s = srcIndex * numVaryingElements;
+#pragma ivdep       
+#pragma vector aligned
         for (int i = 0; i < numVaryingElements; ++i)
             varying[d++] += varying[s++] * weight;
     }
