@@ -705,7 +705,8 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
 
         iptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_patches[pa->GetVertIndex()];
         pptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_paramTable[pa->GetPatchIndex()];
-        if (requireFVarData)
+        
+        if (fvarwidth>0)
             fptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_fvarTable[pa->GetPatchIndex() * 4 * fvarwidth];
     }
  
