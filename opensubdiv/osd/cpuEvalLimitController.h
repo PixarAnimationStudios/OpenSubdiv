@@ -118,9 +118,7 @@ public:
     template<class VERTEX_BUFFER, class OUTPUT_BUFFER>
     int EvalLimitSample( OpenSubdiv::OsdEvalCoords const & coords, 
                          OsdCpuEvalLimitContext * context,
-                         unsigned int index
-                       ) {    
-
+                         unsigned int index ) {    
         if (not context)
             return 0;
             

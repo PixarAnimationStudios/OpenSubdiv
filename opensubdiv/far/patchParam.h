@@ -58,6 +58,8 @@
 #ifndef FAR_PATCH_PARAM_H
 #define FAR_PATCH_PARAM_H
 
+#include <cassert>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -121,6 +123,29 @@ struct FarPatchParam {
         /// Returns the level of subdivision of the patch 
         unsigned char GetDepth() const { return (field & 0xf); }
 
+        /// If the (u,v) pair is within the parameteric space of the sub-patch 
+        /// described by the bitfield, then (u,v) is normalized to this sub-
+        /// parametric space. If the (u,v) pair was outside of the parametric
+        /// range, then it is unchanged and false is returned.
+        ///
+        /// @param u  u parameter
+        ///
+        /// @param v  v parameter
+        ///
+        /// @return   true if the given (u,v) pair was within the sub-patch parametric
+        ///           space, false if the pair was outside the sub-patch range.
+        ///
+        bool Normalize( float & u, float & v ) const;
+        
+        /// Rotate (u,v) pair to compensate for transition pattern and boundary
+        /// orientations.
+        ///
+        /// @param u  u parameter
+        ///
+        /// @param v  v parameter
+        ///
+        void Rotate( float & u, float & v ) const;
+
         /// Resets the values to 0
         void Clear() { field = 0; }
                 
@@ -148,6 +173,44 @@ struct FarPatchParam {
         bitField.Clear();
     }    
 };
+
+inline bool 
+FarPatchParam::BitField::Normalize( float & u, float & v ) const {
+
+    float frac;
+    if (NonQuadRoot()) {
+        frac = 1.0f / float( 1 << (GetDepth()-1) );
+    } else {
+        frac = 1.0f / float( 1 << GetDepth() );
+    }
+
+    // Are the coordinates within the parametric space covered by the patch ?
+    float pu = (float)GetU()*frac;
+    if ( u<pu or u>(pu+frac) )
+        return false;
+
+    float pv = (float)GetV()*frac;
+    if ( v<pv or v>(pv+frac) )
+        return false;
+
+    // normalize u,v coordinates
+    u = (u - pu) / frac,
+    v = (v - pv) / frac;
+    
+    return true;
+}
+
+inline void 
+FarPatchParam::BitField::Rotate( float & u, float & v ) const {
+    switch( GetRotation() ) {
+         case 0 : break;
+         case 1 : { float tmp=v; v=1.0f-u; u=tmp; } break;
+         case 2 : { u=1.0f-u; v=1.0f-v; } break;
+         case 3 : { float tmp=u; u=1.0f-v; v=tmp; } break;
+         default:
+             assert(0);
+    }
+}
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

@@ -68,7 +68,6 @@ OsdCpuEvalLimitController::OsdCpuEvalLimitController() {
 OsdCpuEvalLimitController::~OsdCpuEvalLimitController() {
 }
 
-
 int 
 OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & coords, 
                                              OsdCpuEvalLimitContext const *context,
@@ -81,109 +80,118 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
     if (not context->GetPatchesMap()->GetChildPatchesHandles(coords.face, &npatches, &patchHandles))
         return 0;
     
-    // Position lookup pointers at the indexed vertex
-    float const * inQ = context->GetInputVertexData();
-    float * outQ = context->GetOutputVertexData() + index * context->GetOutputDesc().stride;
-    float * outdQu = context->GetOutputVertexDataUDerivative() + index * context->GetOutputDesc().stride;
-    float * outdQv = context->GetOutputVertexDataVDerivative() + index * context->GetOutputDesc().stride;
-
+    OsdCpuEvalLimitContext::EvalData const & data = context->GetVertexData();
+    
     for (int i=0; i<npatches; ++i) {
     
         FarPatchTables::PatchHandle const & handle = patchHandles[i];
 
         FarPatchParam::BitField bits = context->GetPatchBitFields()[ handle.serialIndex ];
-
-        float frac;
-        if (bits.NonQuadRoot()) {
-            frac = 1.0f / float( 1 << (bits.GetDepth()-1) );
-        } else {
-            frac = 1.0f / float( 1 << bits.GetDepth() );
-        }
-        
-        // Are the coordinates within the parametric space covered by the patch ?
-        float pu = (float)bits.GetU()*frac;
-        if ( (coords.u < pu) or (coords.u > pu+frac) )
-            continue;
-        
-        float pv = (float)bits.GetV()*frac;
-        if ( (coords.v < pv) or (coords.v > pv+frac) )
-            continue;
-
         assert( handle.array < context->GetPatchArrayVector().size() );
+
+        float u=coords.u,
+              v=coords.v;
+        
+        // check if the patch contains the point      
+        if (not bits.Normalize(u,v))
+            continue;
+
+        assert( (u>=0.0f) and (u<=1.0f) and (v>=0.0f) and (v<=1.0f) );
+
+        bits.Rotate(u, v);
 
         FarPatchTables::PatchArray const & parray = context->GetPatchArrayVector()[ handle.array ];
 
         unsigned int const * cvs = &context->GetControlVertices()[ parray.GetVertIndex() + handle.vertexOffset ];
 
-        // normalize u,v coordinates
-        float u = (coords.u - pu) / frac,
-              v = (coords.v - pv) / frac;
+        OsdCpuEvalLimitContext::EvalData const & vertexData  = context->GetVertexData(), 
+                                               & varyingData = context->GetVaryingData();
 
-        assert( (u>=0.0f) and (u<=1.0f) and (v>=0.0f) and (v<=1.0f) );
-
-        typedef FarPatchTables::Descriptor PD;
-
-        // Rotate u,v to compensate for transition pattern and boundary orientations
-        switch( bits.GetRotation() ) {
-             case 0 : break;
-             case 1 : { float tmp=v; v=1.0f-u; u=tmp; } break;
-             case 2 : { u=1.0f-u; v=1.0f-v; } break;
-             case 3 : { float tmp=u; u=1.0f-v; v=tmp; } break;
-             default:
-                 assert(0);
-        }
+        // Position lookup pointers at the indexed vertex
+        float const * inQ = vertexData.GetInputData();
+        float * outQ = const_cast<float *>(vertexData.GetOutputData(index));
+        float * outdQu = const_cast<float *>(vertexData.GetOutputDU(index));
+        float * outdQv = const_cast<float *>(vertexData.GetOutputDV(index));
 
         // Based on patch type - go execute interpolation
         switch( parray.GetDescriptor().GetType() ) {
 
-            case FarPatchTables::REGULAR  : { evalBSpline( v, u, cvs,
-                                                           context->GetInputDesc(),
-                                                           inQ,
-                                                           context->GetOutputDesc(),
-                                                           outQ, outdQu, outdQv);
-                                              return 1; }
+            case FarPatchTables::REGULAR  : if (vertexData.IsBound()) {
+                                                evalBSpline( v, u, cvs,
+                                                             data.GetInputDesc(),
+                                                             inQ,
+                                                             data.GetOutputDesc(),
+                                                             outQ, outdQu, outdQv );
+                                            } break;
             
-            case FarPatchTables::BOUNDARY : { evalBoundary( v, u, cvs,
-                                                            context->GetInputDesc(),
+            case FarPatchTables::BOUNDARY : if (vertexData.IsBound()) {
+                                                evalBoundary( v, u, cvs,
+                                                              data.GetInputDesc(),
+                                                              inQ,
+                                                              data.GetOutputDesc(),
+                                                              outQ, outdQu, outdQv );
+                                            } break;
+            
+            case FarPatchTables::CORNER   : if (vertexData.IsBound()) {
+                                                evalCorner( v, u, cvs,
+                                                            data.GetInputDesc(),
                                                             inQ,
-                                                            context->GetOutputDesc(),
+                                                            data.GetOutputDesc(),
                                                             outQ, outdQu, outdQv);
-                                               return 1; }
-            
-            case FarPatchTables::CORNER   : { evalCorner( v, u, cvs,
-                                                          context->GetInputDesc(),
-                                                          inQ,
-                                                          context->GetOutputDesc(),
-                                                          outQ, outdQu, outdQv);
-                                              return 1; }
+                                            } break;
  
             
-            case FarPatchTables::GREGORY  : { evalGregory(v, u, cvs,
-                                                          context->GetVertexValenceBuffer(),                             
-                                                          context->GetQuadOffsetBuffer() + parray.GetQuadOffsetIndex() + handle.vertexOffset,  
-                                                          context->GetMaxValence(),
-                                                          context->GetInputDesc(),                                       
-                                                          inQ,                                                           
-                                                          context->GetOutputDesc(),                                      
-                                                          outQ, outdQu, outdQv);                                         
-                                              return 1; }
+            case FarPatchTables::GREGORY  : if (vertexData.IsBound()) {
+                                                evalGregory( v, u, cvs,
+                                                             context->GetVertexValenceBuffer(),
+                                                             context->GetQuadOffsetBuffer() + parray.GetQuadOffsetIndex() + handle.vertexOffset,  
+                                                             context->GetMaxValence(),
+                                                             data.GetInputDesc(),
+                                                             inQ,
+                                                             data.GetOutputDesc(),
+                                                             outQ, outdQu, outdQv);
+                                            } break;
 
-            case FarPatchTables::GREGORY_BOUNDARY : { 
-                                              evalGregoryBoundary(v, u, cvs,
-                                                                  context->GetVertexValenceBuffer(),
-                                                                  context->GetQuadOffsetBuffer() + parray.GetQuadOffsetIndex() + handle.vertexOffset,
-                                                                  context->GetMaxValence(),
-                                                                  context->GetInputDesc(),
-                                                                  inQ,
-                                                                  context->GetOutputDesc(),
-                                                                  outQ, outdQu, outdQv);
-            
-                                              return 1; }
+            case FarPatchTables::GREGORY_BOUNDARY :
+                                            if (vertexData.IsBound()) {
+                                                evalGregoryBoundary(v, u, cvs,
+                                                                    context->GetVertexValenceBuffer(),
+                                                                    context->GetQuadOffsetBuffer() + parray.GetQuadOffsetIndex() + handle.vertexOffset,
+                                                                    context->GetMaxValence(),
+                                                                    data.GetInputDesc(),
+                                                                    inQ,
+                                                                    data.GetOutputDesc(),
+                                                                    outQ, outdQu, outdQv);
+                                            } break;
 
             default:
                 assert(0);
-        }        
+        }
+        if (varyingData.IsBound()) {
+        
+            static int indices[5][4] = { {5, 6,10, 9},  // regular
+                                         {1, 2, 6, 5},  // boundary
+                                         {1, 2, 5, 4},  // corner
+                                         {0, 1, 2, 3},  // gregory
+                                         {0, 1, 2, 3} };// gregory boundary
+ 
+            int type = (int)(parray.GetDescriptor().GetType() - FarPatchTables::REGULAR);
+            
+            unsigned int zeroRing[4] = { cvs[indices[type][0]],
+                                         cvs[indices[type][1]],  
+                                         cvs[indices[type][2]],  
+                                         cvs[indices[type][3]]  };
+        
+            evalVarying( v, u, zeroRing,
+                         varyingData.GetInputDesc(),
+                         varyingData.GetInputData(),
+                         varyingData.GetOutputDesc(),
+                         const_cast<float *>(varyingData.GetOutputData(index)) );
+
+        }
+        return 1;
     }
+    
     return 0;
 }
 

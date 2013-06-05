@@ -68,9 +68,39 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+void
+evalVarying(float u, float v,
+            unsigned int const * vertexIndices,
+            OsdVertexBufferDescriptor const & inDesc,
+            float const * inQ, 
+            OsdVertexBufferDescriptor const & outDesc,
+            float * outQ) {
+
+    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
+
+    float const * inOffset = inQ + inDesc.offset;
+
+    float * Q = outQ + outDesc.offset;
+    
+    memset(Q, 0, inDesc.length*sizeof(float));
+
+    float ou = 1.0f - u, 
+          ov = 1.0f - v,
+          w[4] = { ov*ou, v*ou, v*u, ov*u };
+
+    for (int i=0; i<4; ++i) {
+
+        float const * in = inOffset + vertexIndices[i]*inDesc.stride;
+
+        for (int k=0; k<inDesc.length; ++k) {
+            Q[k] += w[i] * in[k];
+        }
+    }
+}
+        
+
 inline void
-evalCubicBSpline(float u, float B[4], float BU[4])
-{
+evalCubicBSpline(float u, float B[4], float BU[4]) {
     float t = u;
     float s = 1.0f - u;
 

@@ -213,7 +213,7 @@ struct OsdVertexBufferDescriptor {
 
     /// True if the descriptor values are internally consistent
     bool IsValid() const {
-        return (offset<length) and (stride>=length);
+        return (length>0) and (offset<length) and (stride>=length);
     }
     
     /// True if the 'other' descriptor can be used as a destination for
@@ -223,6 +223,11 @@ struct OsdVertexBufferDescriptor {
                other.IsValid() and 
                (length==other.length) and 
                (other.length <= (stride-offset));
+    }
+
+    /// Resets the descriptor to default
+    void Reset() {
+        offset = length = stride = 0;
     }
 
     int offset;  // offset to desired element data

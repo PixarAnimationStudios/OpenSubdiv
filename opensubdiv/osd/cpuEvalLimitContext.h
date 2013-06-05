@@ -80,8 +80,82 @@ public:
     /// Destructor
     virtual ~OsdCpuEvalLimitContext();
 
+    /// Limit evaluation data descriptor
+    class EvalData {
+    public:
+        OsdVertexBufferDescriptor const & GetInputDesc() const {
+            return _inDesc;
+        }
 
-    /// Binds the data buffers.
+        float const * GetInputData() const {
+            return _inQ;
+        }
+        
+        OsdVertexBufferDescriptor const & GetOutputDesc() const {
+            return _outDesc;
+        }
+        
+        float const * GetOutputData(int index=0) const {
+            return _outQ + index * _outDesc.stride;
+        }
+        
+        float const * GetOutputDU(int index=0) const {
+            return _outdQu + index * _outDesc.stride;
+        }
+
+        float const * GetOutputDV(int index=0) const {
+            return _outdQv + index * _outDesc.stride;
+        }
+        
+        bool IsBound() const {
+            return _inQ and _outQ;
+        }
+
+    private:
+        friend class OsdCpuEvalLimitContext;
+        
+        OsdVertexBufferDescriptor _inDesc; // input data
+        float * _inQ;     
+        
+        OsdVertexBufferDescriptor _outDesc; // output data
+        float * _outQ,    
+              * _outdQu,   // U derivative of output data
+              * _outdQv;   // V derivative of output data
+              
+        /// Binds the data buffers.
+        ///
+        /// @param inDesc vertex / varying data descriptor shared by all input data buffers
+        ///
+        /// @param inQ input subidivision data
+        ///
+        /// @param outDesc vertex buffer data descriptor shared by all output data buffers
+        ///
+        /// @param outQ output vertex data
+        ///
+        /// @param outdQu optional output derivative along "u" of the vertex data
+        ///
+        /// @param outdQv optional output derivative along "v" of the vertex data
+        ///
+        template<class INPUT_BUFFER, class OUTPUT_BUFFER>
+        void Bind( OsdVertexBufferDescriptor const & inDesc, INPUT_BUFFER *inQ,
+                   OsdVertexBufferDescriptor const & outDesc, OUTPUT_BUFFER *outQ, 
+                                                              OUTPUT_BUFFER *outdQu=0,
+                                                              OUTPUT_BUFFER *outdQv=0);
+        
+        /// Resets the descriptors & pointers
+        void Unbind();
+    };
+    
+    EvalData const & GetVertexData() const {
+        return _vertexData;
+    }
+
+    EvalData const & GetVaryingData() const {
+        return _varyingData;
+    }
+
+
+    /// Binds the vertex-interpolated data buffers.
     ///
     /// @param inDesc vertex buffer data descriptor shared by all input data buffers
     ///
@@ -100,52 +174,35 @@ public:
                             OsdVertexBufferDescriptor const & outDesc, OUTPUT_BUFFER *outQ, 
                                                                        OUTPUT_BUFFER *outdQu=0, 
                                                                        OUTPUT_BUFFER *outdQv=0) {
-        _inDesc = inDesc;
-        _inQ = inQ ? inQ->BindCpuBuffer() : 0;
- 
-        _outDesc = outDesc;
-        _outQ   = outQ ? outQ->BindCpuBuffer() : 0 ;
-        _outdQu = outdQu ? outdQu->BindCpuBuffer() : 0 ;
-        _outdQv = outdQv ? outdQv->BindCpuBuffer() : 0 ;
+        _vertexData.Bind( inDesc, inQ, outDesc, outQ, outdQu, outdQv );
     }
 
-    /// Unbind the data buffers
-    void UnbindVertexBuffers() {
-        _inQ    = 0;
-        _outQ   = 0;
-        _outdQu = 0;
-        _outdQv = 0;
+    /// Unbind the vertex data buffers
+    void UnbindVertexBuffers();
+
+    /// Binds the varying-interpolated data buffers.
+    ///
+    /// @param inDesc varying buffer data descriptor shared by all input data buffers
+    ///
+    /// @param inQ input varying data
+    ///
+    /// @param outDesc varying buffer data descriptor shared by all output data buffers
+    ///
+    /// @param outQ output varying data
+    ///
+    /// @param outdQu optional output derivative along "u" of the varying data
+    ///
+    /// @param outdQv optional output derivative along "v" of the varying data
+    ///
+    template<class VARYING_BUFFER, class OUTPUT_BUFFER>
+    void BindVaryingBuffers( OsdVertexBufferDescriptor const & inDesc, VARYING_BUFFER *inQ,
+                             OsdVertexBufferDescriptor const & outDesc, OUTPUT_BUFFER *outQ) {
+        _varyingData.Bind( inDesc, inQ, outDesc, outQ );
     }
 
-    /// Returns the input vertex buffer descriptor
-    const OsdVertexBufferDescriptor & GetInputDesc() const {
-        return _inDesc;
-    }
+    /// Unbind the varying data buffers
+    void UnbindVaryingBuffers();
 
-    /// Returns the output vertex buffer descriptor
-    const OsdVertexBufferDescriptor & GetOutputDesc() const {
-        return _outDesc;
-    }
-
-    /// Returns the input vertex buffer data
-    float const * GetInputVertexData() const {
-        return _inQ;
-    }
-
-    /// Returns the output vertex buffer data
-    float * GetOutputVertexData() const {
-        return _outQ;
-    }
-
-    /// Returns the U derivative of the output vertex buffer data
-    float * GetOutputVertexDataUDerivative() const {
-        return _outdQu;
-    }
-
-    /// Returns the V derivative of the output vertex buffer data
-    float * GetOutputVertexDataVDerivative() const {
-        return _outdQv;
-    }
     
     /// Returns the vector of patch arrays
     const FarPatchTables::PatchArrayVector & GetPatchArrayVector() const {
@@ -162,11 +219,12 @@ public:
         return _patches;
     }
 
-    /// XXXX
+    /// Returns the vertex-valence buffer used for Gregory patch computations
     const int * GetVertexValenceBuffer() const {
         return &_vertexValenceBuffer[0];
     }
 
+    /// Returns the Quad-Offsets buffer used for Gregory patch computations
     const unsigned int *GetQuadOffsetBuffer() const {
         return &_quadOffsetBuffer[0];
     }
@@ -176,6 +234,7 @@ public:
         return _patchMap;
     }
 
+    /// Returns the highest valence of the vertices in the buffers
     int GetMaxValence() const {
         return _maxValence;
     }
@@ -195,16 +254,30 @@ private:
 
     FarPatchTables::PatchMap * _patchMap; // map of the sub-patches given a face index
 
-    OsdVertexBufferDescriptor _inDesc,
-                              _outDesc;
-    
+    EvalData _vertexData,
+             _varyingData;
+
     int _maxValence;
-    
-    float * _inQ,      // input vertex data
-          * _outQ,     // output vertex data
-          * _outdQu,   // U derivative of output vertex data
-          * _outdQv;   // V derivative of output vertex data
 };
+
+template<class INPUT_BUFFER, class OUTPUT_BUFFER> void 
+OsdCpuEvalLimitContext::EvalData::Bind( OsdVertexBufferDescriptor const & inDesc,
+                                        INPUT_BUFFER *inQ,
+                                        OsdVertexBufferDescriptor const & outDesc,
+                                        OUTPUT_BUFFER *outQ,
+                                        OUTPUT_BUFFER *outdQu,
+                                        OUTPUT_BUFFER *outdQv) {
+    _inDesc = inDesc;
+    _inQ = inQ ? inQ->BindCpuBuffer() : 0;
+
+    _outDesc = outDesc;
+    _outQ = outQ ? outQ->BindCpuBuffer() : 0 ;
+    _outdQu = outdQu ? outdQu->BindCpuBuffer() : 0 ;
+    _outdQv = outdQv ? outdQv->BindCpuBuffer() : 0 ;
+}
+        
+
+
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

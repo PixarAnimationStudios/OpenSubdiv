@@ -78,6 +78,26 @@ OsdCpuEvalLimitContext::Create(FarMesh<OsdVertex> const * farmesh) {
     return new OsdCpuEvalLimitContext(farmesh);
 }
 
+void
+OsdCpuEvalLimitContext::EvalData::Unbind() {
+
+    _inDesc.Reset();
+    _inQ=0;
+    
+    _outDesc.Reset();
+    _outQ = _outdQu = _outdQv = 0;
+}
+
+void
+OsdCpuEvalLimitContext::UnbindVertexBuffers() {
+    _vertexData.Unbind();
+}
+
+void
+OsdCpuEvalLimitContext::UnbindVaryingBuffers() {
+    _varyingData.Unbind();
+}
+
 OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmesh) :
     OsdEvalLimitContext(farmesh) {
     

@@ -127,7 +127,8 @@ struct SimpleShape {
 std::vector<SimpleShape> g_defaultShapes;
 
 std::vector<float> g_orgPositions,
-                   g_positions;
+                   g_positions,
+                   g_varyingColors;
 
 int g_currentShape = 0,
     g_level = 3,
@@ -137,12 +138,16 @@ std::vector<int>   g_coarseEdges;
 std::vector<float> g_coarseEdgeSharpness;
 std::vector<float> g_coarseVertexSharpness;
 
+enum DrawMode { kUV=0,
+                kVARYING=1 };
+
 int   g_running = 1,
       g_width = 1024,
       g_height = 1024,
       g_fullscreen = 0,
       g_drawCageEdges = 1,
-      g_drawCageVertices = 0,
+      g_drawCageVertices = 1,
+      g_drawMode = kUV,
       g_prev_x = 0,
       g_prev_y = 0,
       g_mbutton[3] = {0, 0, 0},
@@ -286,29 +291,6 @@ GLuint g_cageEdgeVAO = 0,
 GLhud g_hud;
 
 //------------------------------------------------------------------------------
-static void
-createCoarseMesh( OsdHbrMesh * const hmesh, int nfaces ) {
-    // save coarse topology (used for coarse mesh drawing)
-    g_coarseEdges.clear();
-    g_coarseEdgeSharpness.clear();
-    g_coarseVertexSharpness.clear();
-
-    for(int i=0; i<nfaces; ++i) {
-        OsdHbrFace *face = hmesh->GetFace(i);
-        int nv = face->GetNumVertices();
-        for(int j=0; j<nv; ++j) {
-            g_coarseEdges.push_back(face->GetVertex(j)->GetID());
-            g_coarseEdges.push_back(face->GetVertex((j+1)%nv)->GetID());
-            g_coarseEdgeSharpness.push_back(face->GetEdge(j)->GetSharpness());
-        }
-    }
-    int nv = hmesh->GetNumVertices();
-    for(int i=0; i<nv; ++i) {
-        g_coarseVertexSharpness.push_back(hmesh->GetVertex(i)->GetSharpness());
-    }
-}
-
-//------------------------------------------------------------------------------
 static int
 createRandomSamples( int nfaces, int nsamples, std::vector<OsdEvalCoords> & coords ) {
 
@@ -330,6 +312,51 @@ createRandomSamples( int nfaces, int nsamples, std::vector<OsdEvalCoords> & coor
         
     return (int)coords.size();
 }
+
+//------------------------------------------------------------------------------
+static int
+createRandomVaryingColors( int nverts, std::vector<float> & colors ) {
+
+    colors.resize( nverts * 3 );
+
+    // large Pell prime number
+    srand( static_cast<int>(2147483647) );
+    
+    for (int i=0; i<nverts; ++i) {
+        colors[i*3+0] = (float)rand()/(float)RAND_MAX;
+        colors[i*3+1] = (float)rand()/(float)RAND_MAX;
+        colors[i*3+2] = (float)rand()/(float)RAND_MAX;
+    }
+        
+    return (int)colors.size();
+}
+
+//------------------------------------------------------------------------------
+static void
+createCoarseMesh( OsdHbrMesh * const hmesh, int nfaces ) {
+    // save coarse topology (used for coarse mesh drawing)
+    g_coarseEdges.clear();
+    g_coarseEdgeSharpness.clear();
+    g_coarseVertexSharpness.clear();
+
+    for(int i=0; i<nfaces; ++i) {
+        OsdHbrFace *face = hmesh->GetFace(i);
+        int nv = face->GetNumVertices();
+        for(int j=0; j<nv; ++j) {
+            g_coarseEdges.push_back(face->GetVertex(j)->GetID());
+            g_coarseEdges.push_back(face->GetVertex((j+1)%nv)->GetID());
+            g_coarseEdgeSharpness.push_back(face->GetEdge(j)->GetSharpness());
+        }
+    }
+    int nv = hmesh->GetNumVertices();
+    for(int i=0; i<nv; ++i) {
+        g_coarseVertexSharpness.push_back(hmesh->GetVertex(i)->GetSharpness());
+    }
+    
+    // assign a randomly generated color for each vertex ofthe mesh
+    createRandomVaryingColors(nv, g_varyingColors);
+}
+
 
 //------------------------------------------------------------------------------
 static int
@@ -359,7 +386,8 @@ OsdCpuEvalLimitContext * g_evalCtx = 0;
 OsdCpuEvalLimitController g_evalCtrl;
 
 OsdVertexBufferDescriptor g_idesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 3 ), 
-                          g_odesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6 );
+                          g_odesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6 ),
+                          g_vdesc( /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6 );
 
 std::vector<OsdEvalCoords> g_coords;
 
@@ -395,7 +423,7 @@ updateGeom() {
     
     g_vertexData->UpdateData( &g_positions[0], 0, nverts);
     
-    g_computeCtrl.Refine( g_computeCtx, g_fmesh->GetKernelBatches(), g_vertexData );
+    g_computeCtrl.Refine( g_computeCtx, g_fmesh->GetKernelBatches(), g_vertexData, g_varyingData );
 
     s.Stop();
     g_computeTime = float(s.GetElapsed() * 1000.0f);
@@ -406,14 +434,19 @@ updateGeom() {
     s.Start();
     
     // Reset the output buffer
-    float * cpubuff = g_Q->BindCpuBuffer();
-    memset( cpubuff, 0, g_Q->GetNumVertices()*g_Q->GetNumElements()*sizeof(float) );
 
     g_nsamplesFound=0;
 
     // Bind/Unbind of the vertex buffers to the context needs to happen 
     // outside of the parallel loop
     g_evalCtx->BindVertexBuffers( g_idesc, g_vertexData, g_odesc, g_Q, g_dQu, g_dQv );
+
+    // The varying data ends-up interleaved in the same g_Q output buffer because
+    // g_Q has a stride of 6 and g_vdesc sets the offset to 3, while g_odesc sets
+    // the offset to 0
+    if (g_drawMode==kVARYING) {
+        g_evalCtx->BindVaryingBuffers( g_idesc, g_varyingData, g_vdesc, g_Q );
+    } 
 
 #define USE_OPENMP
 #if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
@@ -425,13 +458,15 @@ updateGeom() {
 
         if (n) {
 
-            // point colors
-            float * color = cpubuff + i * 6 + 3;
-
-            color[0] = g_coords[i].u;
-            color[1] = 0.0f;
-            color[2] = g_coords[i].v;
-            
+        // point colors
+        switch (g_drawMode) {
+            case kUV : { float * color = g_Q->BindCpuBuffer() + i * 6 + 3;
+                         color[0] = g_coords[i].u;
+                         color[1] = 0.0f;
+                         color[2] = g_coords[i].v; } break;
+            case kVARYING :
+            default : break;
+       }
 #if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
             #pragma omp atomic
 #endif
@@ -465,8 +500,6 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
 
     createCoarseMesh(hmesh, nfaces);
 
-
-
     // Create FAR mesh
     OsdFarMeshFactory factory( hmesh, level, /*adaptive*/ true);    
     
@@ -483,15 +516,20 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
 
     // Create v-buffer & populate w/ colors
     delete g_varyingData;
-    g_varyingData = OsdCpuVertexBuffer::Create(3, nverts);
+    
+    if (g_drawMode==kVARYING) {
+        g_varyingData = OsdCpuVertexBuffer::Create(3, nverts);
 
-
+        g_varyingData->UpdateData( &g_varyingColors[0], 0, nverts);
+    } else {
+        g_varyingData = 0;
+    }
         
     // Create a Compute context, used to "pose" the vertices
     delete g_computeCtx;
     g_computeCtx = OsdCpuComputeContext::Create(g_fmesh);
     
-    g_computeCtrl.Refine( g_computeCtx, g_fmesh->GetKernelBatches(), g_vertexData );
+    g_computeCtrl.Refine( g_computeCtx, g_fmesh->GetKernelBatches(), g_vertexData, g_varyingData );
     
 
     
@@ -686,7 +724,20 @@ drawCageVertices() {
     vbo.reserve(numPoints*6);
     float r, g, b;
     for (int i = 0; i < numPoints; ++i) {
-        setSharpnessColor(g_coarseVertexSharpness[i], &r, &g, &b);
+
+        switch (g_drawMode) {
+
+            case kVARYING : { r=g_varyingColors[i*3+0];
+                              g=g_varyingColors[i*3+1];
+                              b=g_varyingColors[i*3+2]; 
+                            } break;
+
+            case kUV      : { setSharpnessColor(g_coarseVertexSharpness[i], &r, &g, &b);
+                            } break;
+
+            default : break;
+        }
+        
         vbo.push_back(g_positions[i*3+0]);
         vbo.push_back(g_positions[i*3+1]);
         vbo.push_back(g_positions[i*3+2]);
@@ -959,12 +1010,40 @@ callbackFreeze(bool checked, int f)
 
 //------------------------------------------------------------------------------
 static void
+callbackDisplayCageVertices(bool checked, int d)
+{
+    g_drawCageVertices = checked;
+}
+
+//------------------------------------------------------------------------------
+static void
+callbackDisplayCageEdges(bool checked, int d)
+{
+    g_drawCageEdges = checked;
+}
+
+//------------------------------------------------------------------------------
+static void
+callbackDisplayVaryingColors(int mode)
+{
+    g_drawMode = mode;
+    createOsdMesh( g_defaultShapes[g_currentShape].data, g_level, g_defaultShapes[ g_currentShape ].scheme );
+}
+
+
+//------------------------------------------------------------------------------
+static void
 initHUD()
 {
     g_hud.Init(g_width, g_height);
 
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 350, 20, callbackAnimate, 0, 'm');
-    g_hud.AddCheckBox("Freeze (spc)", false, 350, 40, callbackFreeze, 0, ' ');
+    g_hud.AddCheckBox("Cage Edges (H)", true, 350, 10, callbackDisplayCageEdges, 0, 'h');
+    g_hud.AddCheckBox("Cage Verts (J)", true, 350, 30, callbackDisplayCageVertices, 0, 'j');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 350, 50, callbackAnimate, 0, 'm');
+    g_hud.AddCheckBox("Freeze (spc)", false, 350, 70, callbackFreeze, 0, ' ');
+    
+    g_hud.AddRadioButton(0, "(u,v)", true, 200, 10, callbackDisplayVaryingColors, kUV, 'k');
+    g_hud.AddRadioButton(0, "varying", false, 200, 30, callbackDisplayVaryingColors, kVARYING, 'k');
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
