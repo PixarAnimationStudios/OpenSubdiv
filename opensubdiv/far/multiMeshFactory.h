@@ -378,6 +378,7 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
     for (size_t i = 0; i < meshes.size(); ++i) {
         for (int j = 0; j < (int)meshes[i]->_batches.size(); ++j) {
             FarKernelBatch batch = meshes[i]->_batches[j];
+            batch._meshIndex = i;
             batch._vertexOffset += vertexOffsets[i];
             
             if (batch._kernelType == FarKernelBatch::CATMARK_FACE_VERTEX or
