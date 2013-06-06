@@ -188,7 +188,7 @@ struct SimpleShape {
 
 std::vector<SimpleShape> g_defaultShapes;
 
-int g_currentShape = 32;
+int g_currentShape = 29;
 
 int   g_frame = 0,
       g_freeze = 0,
@@ -449,12 +449,6 @@ initializeShapes( ) {
 #include <shapes/catmark_gregory_test4.h>
     g_defaultShapes.push_back(SimpleShape(catmark_gregory_test4, "catmark_gregory_test4", kCatmark));
 
-#include <shapes/catmark_hole_test1.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_hole_test1, "catmark_hole_test1", kCatmark));
-
-#include <shapes/catmark_hole_test2.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_hole_test2, "catmark_hole_test2", kCatmark));
-
 #include <shapes/catmark_pyramid_creases0.h>
     g_defaultShapes.push_back(SimpleShape(catmark_pyramid_creases0, "catmark_pyramid_creases0", kCatmark));
 
@@ -491,14 +485,17 @@ initializeShapes( ) {
 #include <shapes/catmark_square_hedit3.h>
     g_defaultShapes.push_back(SimpleShape(catmark_square_hedit3, "catmark_square_hedit3", kCatmark));
 
-#include <shapes/catmark_square_hedit4.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_square_hedit4, "catmark_square_hedit4", kCatmark));
 
+
+#ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_bishop.h>
     g_defaultShapes.push_back(SimpleShape(catmark_bishop, "catmark_bishop", kCatmark));
+#endif
 
+#ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_car.h>
     g_defaultShapes.push_back(SimpleShape(catmark_car, "catmark_car", kCatmark));
+#endif
 
 #include <shapes/catmark_helmet.h>
     g_defaultShapes.push_back(SimpleShape(catmark_helmet, "catmark_helmet", kCatmark));
@@ -506,8 +503,11 @@ initializeShapes( ) {
 #include <shapes/catmark_pawn.h>
     g_defaultShapes.push_back(SimpleShape(catmark_pawn, "catmark_pawn", kCatmark));
 
+#ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_rook.h>
     g_defaultShapes.push_back(SimpleShape(catmark_rook, "catmark_rook", kCatmark));
+#endif
+
 
 #include <shapes/bilinear_cube.h>
     g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
@@ -579,7 +579,7 @@ updateGeom(MeshData *pData) {
     const float *p = &pData->m_orgPositions[0];
     const float *n = &pData->m_normals[0];
 
-    float r = sin(g_frame*0.001f) * g_moveScale;
+    float r = sin(g_frame*0.01f) * g_moveScale;
     for (int i = 0; i < nverts; ++i) {
         //float move = 0.05f*cosf(p[0]*20+g_frame*0.01f);
         float ct = cos(p[2] * r);
@@ -1521,24 +1521,23 @@ idle() {
     Stopwatch s;
     s.Start();
 
-    if (not g_freeze)
+    if (not g_freeze) {
         g_frame++;
         
 
-    if(g_kernel != kTBB) {    
-        for(unsigned int i=0; i<g_mesh_list.size(); i++)
-            updateGeom(g_mesh_list[i]);
-    }        
+        if(g_kernel != kTBB) {    
+            for(unsigned int i=0; i<g_mesh_list.size(); i++)
+                updateGeom(g_mesh_list[i]);
+        }        
 #ifdef OPENSUBDIV_HAS_TBB    
-    else {        
-
-        
-        TBBBody my_body;
-        tbb::blocked_range<int> range(0, g_mesh_list.size());   
-        tbb::parallel_for(range, my_body);
-    }
+        else {            
+            TBBBody my_body;
+            tbb::blocked_range<int> range(0, g_mesh_list.size());   
+            tbb::parallel_for(range, my_body);
+        }
 #endif    
-
+    }
+    
     if (g_repeatCount != 0 and g_frame >= g_repeatCount)
         g_running = 0;
         
