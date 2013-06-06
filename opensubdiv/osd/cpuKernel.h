@@ -57,6 +57,13 @@
 #ifndef OSD_CPU_KERNEL_H
 #define OSD_CPU_KERNEL_H
 
+#ifdef __INTEL_COMPILER
+#define __ALIGN_DATA __declspec(align(32))
+#else
+#define __ALIGN_DATA 
+#endif
+
+#include <string.h>
 #include <math.h>
 #include "../version.h"
 #include "../osd/vertexDescriptor.h"
@@ -75,8 +82,8 @@ void ComputeFaceKernel(float     *vertex,
                              int  start, 
                              int  end) {
 
-    __declspec(align(32)) float result [numVertexElements];
-    __declspec(align(32)) float result1[numVertexElements];                
+    __ALIGN_DATA float result [numVertexElements];
+    __ALIGN_DATA float result1[numVertexElements];                
     float *src, *des;        
     for (int i = start + tableOffset; i < end + tableOffset; i++) {
         int h = F_ITa[2*i];
@@ -120,8 +127,8 @@ void ComputeEdgeKernel(      float *vertex,
                              int    start, 
                              int    end) 
 {
-    __declspec(align(32)) float result[numVertexElements];    
-    __declspec(align(32)) float result1[numVertexElements]; 
+    __ALIGN_DATA float result[numVertexElements];    
+    __ALIGN_DATA float result1[numVertexElements]; 
     
     float *src, *src2, *des;
     for (int i = start + tableOffset; i < end + tableOffset; i++) {
@@ -173,8 +180,8 @@ void ComputeVertexAKernel(      float *vertex,
                                 int start,
                                 int end,
                                 int pass) {
-    __declspec(align(32)) float result [numVertexElements];
-    __declspec(align(32)) float result1[numVertexElements];        
+    __ALIGN_DATA float result [numVertexElements];
+    __ALIGN_DATA float result1[numVertexElements];        
     float *src, *src2, *src3, *des;        
     for (int i = start + tableOffset; i < end + tableOffset; i++) {
         int n     = V_ITa[5*i+1];
@@ -246,8 +253,8 @@ void ComputeVertexBKernel(      float *vertex,
                                   int  tableOffset, 
                                   int  start,
                                   int  end) {
-    __declspec(align(32)) float result [numVertexElements];
-    __declspec(align(32)) float result1[numVertexElements];        
+    __ALIGN_DATA float result [numVertexElements];
+    __ALIGN_DATA float result1[numVertexElements];        
     float *src, *src1, *src2, *des;  
     for (int i = start + tableOffset; i < end + tableOffset; i++) {
         int h = V_ITa[5*i];
@@ -301,8 +308,8 @@ void ComputeLoopVertexBKernel(      float *vertex,
                                       int  tableOffset, 
                                       int  start, 
                                       int  end) {
-    __declspec(align(32)) float result [numVertexElements];
-    __declspec(align(32)) float result1[numVertexElements];        
+    __ALIGN_DATA float result [numVertexElements];
+    __ALIGN_DATA float result1[numVertexElements];        
     float *src, *des;  
     for (int i = start + tableOffset; i < end + tableOffset; i++) {
         int h = V_ITa[5*i];
@@ -354,7 +361,7 @@ void ComputeBilinearEdgeKernel(    float *vertex,
                                      int  start, 
                                      int  end) 
 {
-    __declspec(align(32)) float result [numVertexElements];        
+    __ALIGN_DATA float result [numVertexElements];        
     float *src1, *src2, *des;      
     for (int i = start + tableOffset; i < end + tableOffset; i++) {
         int eidx0 = E_IT[2*i+0];

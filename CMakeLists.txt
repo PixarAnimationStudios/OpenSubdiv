@@ -149,6 +149,8 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC)
     # optimization.
     list(APPEND OSD_COMPILER_FLAGS -Wno-strict-aliasing)
 
+    #cpuKernel.h uses Intel vectorization pragma which is not supported by GCC
+    list(APPEND OSD_COMPILER_FLAGS -Wno-unknown-pragmas)
     
     # FAR and OSD have templated virtual function implementations that trigger
     # a lot of hidden virtual function overloads (some of them spurrious).
@@ -258,8 +260,8 @@ find_package(OpenCL 1.1)
 find_package(CUDA 4.0)
 find_package(GLFW 2.7.0)
 find_package(PTex 2.0)
-find_package(PythonInterp 2.6)
-find_package(SWIG 1.3.40)
+#find_package(PythonInterp 2.6)
+#find_package(SWIG 1.3.40)
 find_package(Doxygen)
 
 if (NOT APPLE AND OPENGL_FOUND)
@@ -289,6 +291,7 @@ if(OPENMP_FOUND)
         -DOPENSUBDIV_HAS_OPENMP
         ${OpenMP_CXX_FLAGS}
     )
+    SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}" )
 else()
     message(WARNING
         "OpenMP was not found : support for OMP parallel compute kernels "
@@ -297,7 +300,7 @@ else()
         "in your cmake installation.")
 endif()
 
-if(TBB_FOUND AND  ${CMAKE_CXX_COMPILER} MATCHES icpc)
+if(TBB_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_TBB
         ${TBB_CXX_FLAGS}

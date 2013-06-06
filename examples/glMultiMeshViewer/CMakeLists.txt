@@ -77,31 +77,6 @@ include_directories(
 )
 
 #-------------------------------------------------------------------------------
-if( TBB_FOUND )
-    add_definitions(
-        -std=c++0x
-    )
-
-    list(APPEND CPU_SOURCE_FILES
-        tbbKernel.cpp
-        tbbComputeController.cpp
-    )
-    list(APPEND PUBLIC_HEADER_FILES
-        tbbKernel.h
-        tbbComputeController.h
-    )   
-    if (CMAKE_COMPILER_IS_GNUCXX)
-        list(APPEND PLATFORM_LIBRARIES
-            gomp
-        )
-    endif()
-  
-    list(APPEND PLATFORM_LIBRARIES
-        ${TBB_LIBRARIES}
-    )    
-endif()
-
-#-------------------------------------------------------------------------------
 # Shader Stringification
 # We want to use preprocessor include directives to include GLSL and OpenCL
 # shader source files in cpp files, but since the sources contain newline

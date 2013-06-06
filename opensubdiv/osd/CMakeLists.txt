@@ -180,6 +180,27 @@ if( OPENMP_FOUND )
 endif()
 
 #-------------------------------------------------------------------------------
+if( TBB_FOUND )
+    list(APPEND CPU_SOURCE_FILES
+        tbbKernel.cpp
+        tbbComputeController.cpp
+    )
+    list(APPEND PUBLIC_HEADER_FILES
+        tbbKernel.h
+        tbbComputeController.h
+    )   
+    if (CMAKE_COMPILER_IS_GNUCXX)
+        list(APPEND PLATFORM_LIBRARIES
+            gomp
+        )
+    endif()
+  
+    list(APPEND PLATFORM_LIBRARIES
+        ${TBB_LIBRARIES}
+    )    
+endif()
+
+#-------------------------------------------------------------------------------
 if( GCD_FOUND )
     list(APPEND CPU_SOURCE_FILES
         gcdKernel.cpp

@@ -82,7 +82,7 @@ void OsdCpuComputeFace(
             // XXX: should use local vertex struct variable instead of
             // accumulating directly into global memory.
             int dstIndex = i + vertexOffset - tableOffset;
-            vdesc->Clear(vertex, varying, dstIndex);
+            vdesc.Clear(vertex, varying, dstIndex);
 
             for (int j = 0; j < n; ++j) {
                 int index = F_IT[h+j];

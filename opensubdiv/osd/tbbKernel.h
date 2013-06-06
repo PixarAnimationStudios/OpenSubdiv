@@ -64,57 +64,57 @@ namespace OPENSUBDIV_VERSION {
 
 struct OsdVertexDescriptor;
 
-void OsdTbbComputeFace(const OsdVertexDescriptor *vdesc,
+void OsdTbbComputeFace(const OsdVertexDescriptor &vdesc,
                        float * vertex, float * varying,
                        const int *F_IT, const int *F_ITa,
                        int vertexOffset, int tableOffset,
                        int start, int end);
 
-void OsdTbbComputeEdge(const OsdVertexDescriptor *vdesc,
+void OsdTbbComputeEdge(const OsdVertexDescriptor &vdesc,
                        float *vertex, float * varying,
                        const int *E_IT, const float *E_ITa,
                        int vertexOffset, int tableOffset,
                        int start, int end);
 
-void OsdTbbComputeVertexA(const OsdVertexDescriptor *vdesc,
+void OsdTbbComputeVertexA(const OsdVertexDescriptor &vdesc,
                           float *vertex, float * varying,
                           const int *V_ITa, const float *V_IT,
                           int vertexOffset, int tableOffset,
                           int start, int end, int pass);
 
-void OsdTbbComputeVertexB(const OsdVertexDescriptor *vdesc,
+void OsdTbbComputeVertexB(const OsdVertexDescriptor &vdesc,
                           float *vertex, float * varying,
                           const int *V_ITa, const int *V_IT, const float *V_W,
                           int vertexOffset, int tableOffset,
                           int start, int end);
 
-void OsdTbbComputeLoopVertexB(const OsdVertexDescriptor *vdesc,
+void OsdTbbComputeLoopVertexB(const OsdVertexDescriptor &vdesc,
                               float *vertex, float * varying,
                               const int *V_ITa, const int *V_IT,
                               const float *V_W,
                               int vertexOffset, int tableOffset,
                               int start, int end);
 
-void OsdTbbComputeBilinearEdge(const OsdVertexDescriptor *vdesc,
+void OsdTbbComputeBilinearEdge(const OsdVertexDescriptor &vdesc,
                                float *vertex, float * varying,
                                const int *E_IT,
                                int vertexOffset, int tableOffset,
                                int start, int end);
 
-void OsdTbbComputeBilinearVertex(const OsdVertexDescriptor *vdesc,
+void OsdTbbComputeBilinearVertex(const OsdVertexDescriptor &vdesc,
                                  float *vertex, float * varying,
                                  const int *V_ITa,
                                  int vertexOffset, int tableOffset,
                                  int start, int end);
 
-void OsdTbbEditVertexAdd(const OsdVertexDescriptor *vdesc, float *vertex,
+void OsdTbbEditVertexAdd(const OsdVertexDescriptor &vdesc, float *vertex,
                          int primVarOffset, int primVarWidth,
                          int vertexOffset, int tableOffset,
                          int start, int end,
                          const unsigned int *editIndices,
                          const float *editValues);
 
-void OsdTbbEditVertexSet(const OsdVertexDescriptor *vdesc, float *vertex,
+void OsdTbbEditVertexSet(const OsdVertexDescriptor &vdesc, float *vertex,
                          int primVarOffset, int primVarWidth,
                          int vertexOffset, int tableOffset,
                          int start, int end,

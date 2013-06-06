@@ -57,6 +57,8 @@
 #ifndef OSD_GL_DRAW_REGISTRY_H
 #define OSD_GL_DRAW_REGISTRY_H
 
+#pragma warning disable 1125
+
 #if defined(__APPLE__)
     #include "TargetConditionals.h"
     #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR

@@ -84,6 +84,7 @@ struct OutputVertex {
     centroid vec4 patchCoord; // u, v, level, faceID
     centroid vec2 tessCoord; // tesscoord.st
     noperspective vec4 edgeDistance;
+    vec4 color;
 #if OSD_NUM_VARYINGS > 0
     float varyings[OSD_NUM_VARYINGS];
 #endif

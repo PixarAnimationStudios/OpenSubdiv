@@ -135,11 +135,11 @@ public:
 };
 
 void OsdTbbComputeFace(
-    const OsdVertexDescriptor *vdesc, float * vertex, float * varying,
+    OsdVertexDescriptor const &vdesc, float * vertex, float * varying,
     const int *F_IT, const int *F_ITa, int vertexOffset, int tableOffset,
     int start, int end) {
 
-    TBBFaceKernel kernel(vdesc, vertex, varying, F_IT, F_ITa, 
+    TBBFaceKernel kernel(&vdesc, vertex, varying, F_IT, F_ITa, 
                          vertexOffset, tableOffset);
     tbb::blocked_range<int> range(start, end, grain_size);   
     tbb::parallel_for(range, kernel);
@@ -222,11 +222,11 @@ public:
 
 
 void OsdTbbComputeEdge(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    const OsdVertexDescriptor &vdesc, float *vertex, float *varying,
     const int *E_IT, const float *E_W, int vertexOffset, int tableOffset,
     int start, int end) {
     tbb::blocked_range<int> range(start, end, grain_size);   
-    TBBEdgeKernel kernel(vdesc, vertex, varying, E_IT, E_W, 
+    TBBEdgeKernel kernel(&vdesc, vertex, varying, E_IT, E_W, 
                          vertexOffset, tableOffset);    
     tbb::parallel_for(range, kernel);
 }
@@ -317,11 +317,11 @@ public:
 };
 
 void OsdTbbComputeVertexA(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    const OsdVertexDescriptor &vdesc, float *vertex, float *varying,
     const int *V_ITa, const float *V_W, int vertexOffset, int tableOffset,
     int start, int end, int pass) {
     tbb::blocked_range<int> range(start, end, grain_size);      
-    TBBVertexKernelA kernel(vdesc, vertex, varying, V_ITa, V_W, 
+    TBBVertexKernelA kernel(&vdesc, vertex, varying, V_ITa, V_W, 
                             vertexOffset, tableOffset, pass);    
     tbb::parallel_for(range, kernel);
 }
@@ -335,7 +335,6 @@ class TBBVertexKernelB {
     const float  *V_W; 
     int           vertexOffset;
     int           tableOffset;
-    int           pass;
     
 public:    
     void operator() (const tbb::blocked_range<int> &r) const {
@@ -381,22 +380,21 @@ public:
         this->V_W    = other.V_W;
         this->vertexOffset = other.vertexOffset;
         this->tableOffset  = other.tableOffset;
-        this->pass         = other.pass;
     }
     
     TBBVertexKernelB(const OsdVertexDescriptor *vdesc_in,
                      float                     *vertex_in,
                      float                     *varying_in,
-                     const int                 *V_IT_in,
                      const int                 *V_ITa_in,
+                     const int                 *V_IT_in,
                      const float               *V_W_in,
                      int                        vertexOffset_in,
                      int                        tableOffset_in) :
                      vdesc  (vdesc_in),
                      vertex (vertex_in),
                      varying(varying_in),
-                     V_IT   (V_IT_in),
                      V_ITa  (V_ITa_in),
+                     V_IT   (V_IT_in),
                      V_W    (V_W_in),
                      vertexOffset(vertexOffset_in),
                      tableOffset(tableOffset_in)
@@ -404,12 +402,12 @@ public:
 };
 
 void OsdTbbComputeVertexB(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    const OsdVertexDescriptor &vdesc, float *vertex, float *varying,
     const int *V_ITa, const int *V_IT, const float *V_W,
     int vertexOffset, int tableOffset, int start, int end) {
 
     tbb::blocked_range<int> range(start, end, grain_size);     
-    TBBVertexKernelB kernel(vdesc, vertex, varying, V_IT, V_ITa, V_W, 
+    TBBVertexKernelB kernel(&vdesc, vertex, varying, V_ITa, V_IT, V_W, 
                             vertexOffset, tableOffset);        
     tbb::parallel_for(range, kernel);
 }
@@ -472,30 +470,30 @@ public:
     }
     
     TBBLoopVertexKernelB(const OsdVertexDescriptor *vdesc_in,
-                        float                     *vertex_in,
-                        float                     *varying_in,
-                        const int                 *V_ITa_in,
-                        const int                 *V_IT_in,                        
-                        const float               *V_W_in,
-                        int                        vertexOffset_in,
-                        int                        tableOffset_in) :
-                        vdesc  (vdesc_in),
-                        vertex (vertex_in),
-                        varying(varying_in),
-                        V_ITa  (V_ITa_in),
-                        V_IT   (V_IT_in),                        
-                        V_W    (V_W_in),
-                        vertexOffset(vertexOffset_in),
-                        tableOffset(tableOffset_in)
+                         float                     *vertex_in,
+                         float                     *varying_in,
+                         const int                 *V_ITa_in,
+                         const int                 *V_IT_in,                        
+                         const float               *V_W_in,
+                         int                        vertexOffset_in,
+                         int                        tableOffset_in) :
+                         vdesc  (vdesc_in),
+                         vertex (vertex_in),
+                         varying(varying_in),
+                         V_ITa  (V_ITa_in),
+                         V_IT   (V_IT_in),                        
+                         V_W    (V_W_in),
+                         vertexOffset(vertexOffset_in),
+                         tableOffset(tableOffset_in)
     {};    
 };
 
 void OsdTbbComputeLoopVertexB(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    const OsdVertexDescriptor &vdesc, float *vertex, float *varying,
     const int *V_ITa, const int *V_IT, const float *V_W,
     int vertexOffset, int tableOffset, int start, int end) {
     tbb::blocked_range<int> range(start, end, grain_size);      
-    TBBLoopVertexKernelB kernel(vdesc, vertex, varying, V_ITa, V_IT, V_W, 
+    TBBLoopVertexKernelB kernel(&vdesc, vertex, varying, V_ITa, V_IT, V_W, 
                                 vertexOffset, tableOffset);        
     
     tbb::parallel_for(range, kernel);
@@ -547,25 +545,25 @@ public:
     }
     
     TBBBilinearEdgeKernel(const OsdVertexDescriptor *vdesc_in,
-                         float                     *vertex_in,
-                         float                     *varying_in,
-                         const int                 *E_IT_in,
-                         int                        vertexOffset_in,
-                         int                        tableOffset_in) :
-                         vdesc  (vdesc_in),
-                         vertex (vertex_in),
-                         varying(varying_in),
-                         E_IT   (E_IT_in),                        
-                         vertexOffset(vertexOffset_in),
-                         tableOffset(tableOffset_in)
+                          float                     *vertex_in,
+                          float                     *varying_in,
+                          const int                 *E_IT_in,
+                          int                        vertexOffset_in,
+                          int                        tableOffset_in) :
+                          vdesc  (vdesc_in),
+                          vertex (vertex_in),
+                          varying(varying_in),
+                          E_IT   (E_IT_in),                        
+                          vertexOffset(vertexOffset_in),
+                          tableOffset(tableOffset_in)
     {};    
 };
 
 void OsdTbbComputeBilinearEdge(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    const OsdVertexDescriptor &vdesc, float *vertex, float *varying,
     const int *E_IT, int vertexOffset, int tableOffset, int start, int end) {
     tbb::blocked_range<int> range(start, end, grain_size);      
-    TBBBilinearEdgeKernel kernel(vdesc, vertex, varying, E_IT, vertexOffset, tableOffset);            
+    TBBBilinearEdgeKernel kernel(&vdesc, vertex, varying, E_IT, vertexOffset, tableOffset);            
     tbb::parallel_for(range, kernel);    
 }
 
@@ -623,40 +621,40 @@ public:
 };
 
 void OsdTbbComputeBilinearVertex(
-    const OsdVertexDescriptor *vdesc, float *vertex, float *varying,
+    const OsdVertexDescriptor &vdesc, float *vertex, float *varying,
     const int *V_ITa, int vertexOffset, int tableOffset, int start, int end) {
     tbb::blocked_range<int> range(start, end, grain_size);      
-    TBBBilinearVertexKernel kernel(vdesc, vertex, varying, V_ITa, vertexOffset, tableOffset);            
+    TBBBilinearVertexKernel kernel(&vdesc, vertex, varying, V_ITa, vertexOffset, tableOffset);            
     tbb::parallel_for(range, kernel);        
 }
 
 void OsdTbbEditVertexAdd(
-    const OsdVertexDescriptor *vdesc, float *vertex,
+    const OsdVertexDescriptor &vdesc, float *vertex,
     int primVarOffset, int primVarWidth, int vertexOffset, int tableOffset,
     int start, int end,
     const unsigned int *editIndices, const float *editValues) {
     
     for (int i = start+tableOffset; i < end+tableOffset; i++) {
-        vdesc->ApplyVertexEditAdd(vertex,
-                                  primVarOffset,
-                                  primVarWidth,
-                                  editIndices[i] + vertexOffset,
-                                  &editValues[i*primVarWidth]);
+        vdesc.ApplyVertexEditAdd(vertex,
+                                 primVarOffset,
+                                 primVarWidth,
+                                 editIndices[i] + vertexOffset,
+                                 &editValues[i*primVarWidth]);
     }   
 }
 
 void OsdTbbEditVertexSet(
-    const OsdVertexDescriptor *vdesc, float *vertex,
+    const OsdVertexDescriptor &vdesc, float *vertex,
     int primVarOffset, int primVarWidth, int vertexOffset, int tableOffset,
     int start, int end,
     const unsigned int *editIndices, const float *editValues) {
 
     for (int i = start+tableOffset; i < end+tableOffset; i++) {
-        vdesc->ApplyVertexEditSet(vertex,
-                                  primVarOffset,
-                                  primVarWidth,
-                                  editIndices[i] + vertexOffset,
-                                  &editValues[i*primVarWidth]);
+        vdesc.ApplyVertexEditSet(vertex,
+                                 primVarOffset,
+                                 primVarWidth,
+                                 editIndices[i] + vertexOffset,
+                                 &editValues[i*primVarWidth]);
     }
 }
 
