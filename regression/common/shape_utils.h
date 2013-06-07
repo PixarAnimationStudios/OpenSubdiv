@@ -129,6 +129,8 @@ struct shape {
     int getNverts() const { return (int)verts.size()/3; }
 
     int getNfaces() const { return (int)nvertsPerFace.size(); }
+    
+    bool hasUV() const { return not (uvs.empty() or faceuvs.empty()); }
 
     std::vector<float>  verts;
     std::vector<float>  uvs;
@@ -866,7 +868,7 @@ createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
 template <class T> void
 createFaceVaryingUV( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh) {
 
-    if (sh->uvs.empty() or sh->faceuvs.empty())
+    if (not sh->hasUV())
         return;
 
     for (int i=0, idx=0; i<sh->getNfaces(); ++i ) {
@@ -899,7 +901,7 @@ simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> * verts=0, bo
 
     shape * sh = shape::parseShape( shapestr );
 
-    int fvarwidth = fvar ? 2 : 0;
+    int fvarwidth = fvar and sh->hasUV() ? 2 : 0;
 
     OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme, fvarwidth);
 
@@ -924,7 +926,7 @@ simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> & verts, bool
 
     shape * sh = shape::parseShape( shapestr );
 
-    int fvarwidth = fvar ? 2 : 0;
+    int fvarwidth = fvar and sh->hasUV() ? 2 : 0;
 
     OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme, fvarwidth);
 
