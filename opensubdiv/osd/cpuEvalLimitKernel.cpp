@@ -69,12 +69,12 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 void
-evalVarying(float u, float v,
-            unsigned int const * vertexIndices,
-            OsdVertexBufferDescriptor const & inDesc,
-            float const * inQ, 
-            OsdVertexBufferDescriptor const & outDesc,
-            float * outQ) {
+evalBilinear(float u, float v,
+             unsigned int const * vertexIndices,
+             OsdVertexBufferDescriptor const & inDesc,
+             float const * inQ,
+             OsdVertexBufferDescriptor const & outDesc,
+             float * outQ) {
 
     assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
 

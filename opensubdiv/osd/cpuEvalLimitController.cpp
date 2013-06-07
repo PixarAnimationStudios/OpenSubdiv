@@ -104,9 +104,8 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
 
         unsigned int const * cvs = &context->GetControlVertices()[ parray.GetVertIndex() + handle.vertexOffset ];
 
-        OsdCpuEvalLimitContext::EvalData const & vertexData  = context->GetVertexData(), 
-                                               & varyingData = context->GetVaryingData();
-
+        OsdCpuEvalLimitContext::EvalVertexData const & vertexData = context->GetVertexData();
+        
         // Position lookup pointers at the indexed vertex
         float const * inQ = vertexData.GetInputData();
         float * outQ = const_cast<float *>(vertexData.GetOutputData(index));
@@ -167,6 +166,8 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
             default:
                 assert(0);
         }
+
+        OsdCpuEvalLimitContext::EvalData const & varyingData = context->GetVaryingData();
         if (varyingData.IsBound()) {
         
             static int indices[5][4] = { {5, 6,10, 9},  // regular
@@ -182,13 +183,37 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
                                          cvs[indices[type][2]],  
                                          cvs[indices[type][3]]  };
         
-            evalVarying( v, u, zeroRing,
-                         varyingData.GetInputDesc(),
-                         varyingData.GetInputData(),
-                         varyingData.GetOutputDesc(),
-                         const_cast<float *>(varyingData.GetOutputData(index)) );
+            evalBilinear( v, u, zeroRing,
+                          varyingData.GetInputDesc(),
+                          varyingData.GetInputData(),
+                          varyingData.GetOutputDesc(),
+                          const_cast<float *>(varyingData.GetOutputData(index)) );
 
         }
+
+        // Note : currently we only support bilinear boundary interpolation rules
+        // for face-varying data. Although Hbr supports 3 addition smooth rule sets,
+        // the feature-adaptive patch interpolation code currently does not support
+        // them, and neither does this EvalContext
+        OsdCpuEvalLimitContext::EvalData const & faceVaryingData = context->GetFaceVaryingData();
+        if (faceVaryingData.GetOutputData()) {
+            
+            FarPatchTables::FVarDataTable const & fvarData = context->GetFVarData();
+            
+            if (not fvarData.empty()) {
+            
+                float const * fvar = &fvarData[ handle.serialIndex * 4 * context->GetFVarWidth() ];
+                
+                static unsigned int zeroRing[4] = {0,1,2,3};
+
+                evalBilinear( v, u, zeroRing,
+                              faceVaryingData.GetInputDesc(),
+                              fvar,
+                              faceVaryingData.GetOutputDesc(),
+                              const_cast<float *>(faceVaryingData.GetOutputData(index)) );
+            }
+        }
+
         return 1;
     }
     

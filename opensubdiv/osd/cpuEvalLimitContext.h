@@ -71,11 +71,18 @@ namespace OPENSUBDIV_VERSION {
 
 class OsdCpuEvalLimitContext : public OsdEvalLimitContext {
 public:
+
     /// \brief Factory
     /// Returns an EvalLimitContext from the given farmesh.
     /// Note : the farmesh is expected to be feature-adaptive and have ptex
     ///        coordinates tables.
-    static OsdCpuEvalLimitContext * Create(FarMesh<OsdVertex> const * farmesh);
+    /// 
+    /// @param farmesh          a pointer to an initialized farmesh
+    ///
+    /// @param requireFVarData  flag for generating face-varying data
+    ///
+    static OsdCpuEvalLimitContext * Create(FarMesh<OsdVertex> const * farmesh, 
+                                           bool requireFVarData=false);
 
     /// Destructor
     virtual ~OsdCpuEvalLimitContext();
@@ -99,12 +106,14 @@ public:
             return _outQ + index * _outDesc.stride;
         }
         
-        float const * GetOutputDU(int index=0) const {
-            return _outdQu + index * _outDesc.stride;
+        template <class BUFFER>
+        void BindInputData( BUFFER * inQ ) {
+            _inQ = inQ ? inQ->BindCpuBuffer() : 0;
         }
 
-        float const * GetOutputDV(int index=0) const {
-            return _outdQv + index * _outDesc.stride;
+        template <class BUFFER>
+        void BindOutputData( BUFFER * outQ ) {
+            _outQ = outQ ? outQ->BindCpuBuffer() : 0;
         }
         
         bool IsBound() const {
@@ -114,46 +123,47 @@ public:
     private:
         friend class OsdCpuEvalLimitContext;
         
+        EvalData() : _inQ(0), _outQ(0) { }
+
         OsdVertexBufferDescriptor _inDesc; // input data
         float * _inQ;     
         
         OsdVertexBufferDescriptor _outDesc; // output data
-        float * _outQ,    
-              * _outdQu,   // U derivative of output data
-              * _outdQv;   // V derivative of output data
-              
-        /// Binds the data buffers.
-        ///
-        /// @param inDesc vertex / varying data descriptor shared by all input data buffers
-        ///
-        /// @param inQ input subidivision data
-        ///
-        /// @param outDesc vertex buffer data descriptor shared by all output data buffers
-        ///
-        /// @param outQ output vertex data
-        ///
-        /// @param outdQu optional output derivative along "u" of the vertex data
-        ///
-        /// @param outdQv optional output derivative along "v" of the vertex data
-        ///
-        template<class INPUT_BUFFER, class OUTPUT_BUFFER>
-        void Bind( OsdVertexBufferDescriptor const & inDesc, INPUT_BUFFER *inQ,
-                   OsdVertexBufferDescriptor const & outDesc, OUTPUT_BUFFER *outQ, 
-                                                              OUTPUT_BUFFER *outdQu=0,
-                                                              OUTPUT_BUFFER *outdQv=0);
-        
+        float * _outQ;    
+
         /// Resets the descriptors & pointers
         void Unbind();
     };
     
-    EvalData const & GetVertexData() const {
-        return _vertexData;
-    }
+    /// Limit evaluation data descriptor with derivatives
+    class EvalVertexData : public EvalData {
+    public:
+        float const * GetOutputDU(int index=0) const {
+            return _outdQu + index * _outDesc.stride;
+        }
 
-    EvalData const & GetVaryingData() const {
-        return _varyingData;
-    }
+        float const * GetOutputDV(int index=0) const {
+            return _outdQv + index * _outDesc.stride;
+        }
 
+        template <class BUFFER>
+        void BindOutputDerivData( BUFFER * outdQu, BUFFER * outdQv ) {
+            _outdQu = outdQu ? outdQu->BindCpuBuffer() : 0;
+            _outdQv = outdQv ? outdQv->BindCpuBuffer() : 0;
+        }
+        
+    private:
+        friend class OsdCpuEvalLimitContext;
+        
+        EvalVertexData() : _outdQu(0), _outdQv(0) { }
+        
+        /// Resets the descriptors & pointers
+        void Unbind();
+        
+        float * _outdQu,   // U derivative of output data
+              * _outdQv;   // V derivative of output data
+    };
+    
 
     /// Binds the vertex-interpolated data buffers.
     ///
@@ -174,11 +184,23 @@ public:
                             OsdVertexBufferDescriptor const & outDesc, OUTPUT_BUFFER *outQ, 
                                                                        OUTPUT_BUFFER *outdQu=0, 
                                                                        OUTPUT_BUFFER *outdQv=0) {
-        _vertexData.Bind( inDesc, inQ, outDesc, outQ, outdQu, outdQv );
+        _vertexData._inDesc = inDesc;
+        _vertexData.BindInputData( inQ );
+        _vertexData._outDesc = outDesc;
+        _vertexData.BindOutputData( outQ );
+        _vertexData.BindOutputDerivData( outdQu, outdQv );
     }
 
     /// Unbind the vertex data buffers
     void UnbindVertexBuffers();
+
+    /// Returns an Eval data descriptor of the vertex-interpolated data currently
+    /// bound to this EvalLimitContext.
+    EvalVertexData const & GetVertexData() const {
+        return _vertexData;
+    }
+
+
 
     /// Binds the varying-interpolated data buffers.
     ///
@@ -190,18 +212,58 @@ public:
     ///
     /// @param outQ output varying data
     ///
-    /// @param outdQu optional output derivative along "u" of the varying data
-    ///
-    /// @param outdQv optional output derivative along "v" of the varying data
-    ///
     template<class VARYING_BUFFER, class OUTPUT_BUFFER>
     void BindVaryingBuffers( OsdVertexBufferDescriptor const & inDesc, VARYING_BUFFER *inQ,
                              OsdVertexBufferDescriptor const & outDesc, OUTPUT_BUFFER *outQ) {
-        _varyingData.Bind( inDesc, inQ, outDesc, outQ );
+        _varyingData._inDesc = inDesc;
+        _varyingData.BindInputData( inQ );
+        _varyingData._outDesc = outDesc;
+        _varyingData.BindOutputData( outQ );
     }
 
     /// Unbind the varying data buffers
     void UnbindVaryingBuffers();
+
+    /// Returns an Eval data descriptor of the varying-interpolated data currently
+    /// bound to this EvalLimitContext.
+    EvalData const & GetVaryingData() const {
+        return _varyingData;
+    }
+
+
+
+    /// Binds the face-varying-interpolated data buffers.
+    ///
+    /// Note : currently we only support bilinear boundary interpolation rules
+    /// for face-varying data. Although Hbr supports 3 addition smooth rule sets,
+    /// the feature-adaptive patch interpolation code currently does not support
+    /// them, and neither does this EvalContext
+    ///
+    /// @param inDesc varying buffer data descriptor shared by all input data buffers
+    ///
+    /// @param inQ input varying data
+    ///
+    /// @param outDesc varying buffer data descriptor shared by all output data buffers
+    ///
+    /// @param outQ output varying data
+    ///
+    template<class OUTPUT_BUFFER>
+    void BindFaceVaryingBuffers( OsdVertexBufferDescriptor const & inDesc,
+                                 OsdVertexBufferDescriptor const & outDesc, OUTPUT_BUFFER *outQ) {
+        _faceVaryingData._inDesc = inDesc;
+        _faceVaryingData._outDesc = outDesc;
+        _faceVaryingData.BindOutputData( outQ );
+    }
+
+    /// Unbind the varying data buffers
+    void UnbindFaceVaryingBuffers();
+
+    /// Returns an Eval data descriptor of the face-varying-interpolated data 
+    /// currently bound to this EvalLimitContext.
+    EvalData const & GetFaceVaryingData() const {
+        return _faceVaryingData;
+    }
+
 
     
     /// Returns the vector of patch arrays
@@ -228,6 +290,16 @@ public:
     const unsigned int *GetQuadOffsetBuffer() const {
         return &_quadOffsetBuffer[0];
     }
+    
+    /// Returns the face-varying data patch table
+    FarPatchTables::FVarDataTable const & GetFVarData() const {
+        return _fvarData;
+    }
+    
+    /// Returns the number of floats in a datum of the face-varying data table
+    int GetFVarWidth() const {
+        return _fvarwidth;
+    }
 
     /// Returns a map object that can connect a faceId to a list of children patches
     const FarPatchTables::PatchMap * GetPatchesMap() const {
@@ -240,7 +312,7 @@ public:
     }
 
 protected:
-    explicit OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmesh);
+    explicit OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmesh, bool requireFVarData);
 
 private:
 
@@ -252,31 +324,17 @@ private:
     FarPatchTables::VertexValenceTable   _vertexValenceBuffer; // extra Gregory patch data buffers
     FarPatchTables::QuadOffsetTable      _quadOffsetBuffer;
 
+    FarPatchTables::FVarDataTable        _fvarData;
+
     FarPatchTables::PatchMap * _patchMap; // map of the sub-patches given a face index
 
-    EvalData _vertexData,
-             _varyingData;
+    EvalVertexData _vertexData;      // vertex-interpolated data descriptor
+    EvalData       _varyingData,     // varying-interpolated data descriptor 
+                   _faceVaryingData; // face-varying-interpolated data descriptor 
 
-    int _maxValence;
+    int _maxValence, 
+        _fvarwidth;
 };
-
-template<class INPUT_BUFFER, class OUTPUT_BUFFER> void 
-OsdCpuEvalLimitContext::EvalData::Bind( OsdVertexBufferDescriptor const & inDesc,
-                                        INPUT_BUFFER *inQ,
-                                        OsdVertexBufferDescriptor const & outDesc,
-                                        OUTPUT_BUFFER *outQ,
-                                        OUTPUT_BUFFER *outdQu,
-                                        OUTPUT_BUFFER *outdQv) {
-    _inDesc = inDesc;
-    _inQ = inQ ? inQ->BindCpuBuffer() : 0;
-
-    _outDesc = outDesc;
-    _outQ = outQ ? outQ->BindCpuBuffer() : 0 ;
-    _outdQu = outdQu ? outdQu->BindCpuBuffer() : 0 ;
-    _outdQv = outdQv ? outdQv->BindCpuBuffer() : 0 ;
-}
-        
-
 
 
 } // end namespace OPENSUBDIV_VERSION

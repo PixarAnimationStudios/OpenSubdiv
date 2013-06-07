@@ -67,7 +67,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 OsdCpuEvalLimitContext *
-OsdCpuEvalLimitContext::Create(FarMesh<OsdVertex> const * farmesh) {
+OsdCpuEvalLimitContext::Create(FarMesh<OsdVertex> const * farmesh, bool requireFVarData) {
 
     assert(farmesh);
     
@@ -75,7 +75,7 @@ OsdCpuEvalLimitContext::Create(FarMesh<OsdVertex> const * farmesh) {
     if (not farmesh->GetPatchTables())
         return NULL;
                                           
-    return new OsdCpuEvalLimitContext(farmesh);
+    return new OsdCpuEvalLimitContext(farmesh, requireFVarData);
 }
 
 void
@@ -85,7 +85,15 @@ OsdCpuEvalLimitContext::EvalData::Unbind() {
     _inQ=0;
     
     _outDesc.Reset();
-    _outQ = _outdQu = _outdQv = 0;
+    _outQ = 0;
+}
+
+void
+OsdCpuEvalLimitContext::EvalVertexData::Unbind() {
+
+    EvalData::Unbind();
+   
+    _outdQu = _outdQv = 0;
 }
 
 void
@@ -98,7 +106,12 @@ OsdCpuEvalLimitContext::UnbindVaryingBuffers() {
     _varyingData.Unbind();
 }
 
-OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmesh) :
+void
+OsdCpuEvalLimitContext::UnbindFaceVaryingBuffers() {
+    _faceVaryingData.Unbind();
+}
+
+OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmesh, bool requireFVarData) :
     OsdEvalLimitContext(farmesh) {
     
     FarPatchTables const * patchTables = farmesh->GetPatchTables();
@@ -137,6 +150,12 @@ OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmes
         }
     }
     
+    if (requireFVarData) {
+        _fvarwidth = farmesh->GetTotalFVarWidth();
+        if (_fvarwidth>0) {
+            _fvarData = patchTables->GetFVarDataTable();
+        }
+    }
 
     _patchMap = new FarPatchTables::PatchMap( *patchTables );
 }

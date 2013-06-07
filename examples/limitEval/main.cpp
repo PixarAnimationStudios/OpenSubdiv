@@ -139,7 +139,8 @@ std::vector<float> g_coarseEdgeSharpness;
 std::vector<float> g_coarseVertexSharpness;
 
 enum DrawMode { kUV=0,
-                kVARYING=1 };
+                kVARYING=1,
+                kFACEVARYING=2 };
 
 int   g_running = 1,
       g_width = 1024,
@@ -387,7 +388,9 @@ OsdCpuEvalLimitController g_evalCtrl;
 
 OsdVertexBufferDescriptor g_idesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 3 ), 
                           g_odesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6 ),
-                          g_vdesc( /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6 );
+                          g_vdesc( /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6 ),
+                          g_fvidesc( /*offset*/ 0, /*legnth*/ 2, /*stride*/ 2 ),
+                          g_fvodesc( /*offset*/ 3, /*legnth*/ 2, /*stride*/ 6 );
 
 std::vector<OsdEvalCoords> g_coords;
 
@@ -444,9 +447,15 @@ updateGeom() {
     // The varying data ends-up interleaved in the same g_Q output buffer because
     // g_Q has a stride of 6 and g_vdesc sets the offset to 3, while g_odesc sets
     // the offset to 0
-    if (g_drawMode==kVARYING) {
-        g_evalCtx->BindVaryingBuffers( g_idesc, g_varyingData, g_vdesc, g_Q );
-    } 
+    switch (g_drawMode) {
+        case kVARYING     : g_evalCtx->BindVaryingBuffers( g_idesc, g_varyingData, g_vdesc, g_Q ); break;
+
+        case kFACEVARYING : g_evalCtx->BindFaceVaryingBuffers( g_fvidesc, g_fvodesc, g_Q );
+
+        case kUV :
+
+        default : g_evalCtx->UnbindVaryingBuffers(); break;
+    }
 
 #define USE_OPENMP
 #if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
@@ -457,16 +466,19 @@ updateGeom() {
         int n = g_evalCtrl.EvalLimitSample<OsdCpuVertexBuffer,OsdCpuGLVertexBuffer>( g_coords[i], g_evalCtx, i );
 
         if (n) {
+            // point colors
+            switch (g_drawMode) {
+                case kUV : { float * color = g_Q->BindCpuBuffer() + i * 6 + 3;
+                             color[0] = g_coords[i].u;
+                             color[1] = 0.0f;
+                             color[2] = g_coords[i].v; } break;
 
-        // point colors
-        switch (g_drawMode) {
-            case kUV : { float * color = g_Q->BindCpuBuffer() + i * 6 + 3;
-                         color[0] = g_coords[i].u;
-                         color[1] = 0.0f;
-                         color[2] = g_coords[i].v; } break;
-            case kVARYING :
-            default : break;
-       }
+                case kVARYING : break;
+
+                case kFACEVARYING : { g_Q->BindCpuBuffer()[i*6 + 5] = 0.1f;
+                                    } break;
+                default : break;
+           }
 #if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
             #pragma omp atomic
 #endif
@@ -488,7 +500,7 @@ static void
 createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
 
     // Create HBR mesh
-    OsdHbrMesh * hmesh = simpleHbr<OsdVertex>(shape.c_str(), scheme, g_orgPositions);
+    OsdHbrMesh * hmesh = simpleHbr<OsdVertex>(shape.c_str(), scheme, g_orgPositions, true);
 
     g_positions.resize(g_orgPositions.size(),0.0f);
 
@@ -504,7 +516,7 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
     OsdFarMeshFactory factory( hmesh, level, /*adaptive*/ true);    
     
     delete g_fmesh;
-    g_fmesh = factory.Create(/*fvar*/ false);
+    g_fmesh = factory.Create(/*fvar*/ true);
     
     int nverts = g_fmesh->GetNumVertices();
     
@@ -514,17 +526,13 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
     delete g_vertexData;
     g_vertexData = OsdCpuVertexBuffer::Create(3, nverts);
 
-    // Create v-buffer & populate w/ colors
-    delete g_varyingData;
-    
+    // Create primvar v-buffer & populate w/ colors or (u,v) data
+    delete g_varyingData; g_varyingData = 0;
     if (g_drawMode==kVARYING) {
         g_varyingData = OsdCpuVertexBuffer::Create(3, nverts);
-
         g_varyingData->UpdateData( &g_varyingColors[0], 0, nverts);
-    } else {
-        g_varyingData = 0;
     }
-        
+            
     // Create a Compute context, used to "pose" the vertices
     delete g_computeCtx;
     g_computeCtx = OsdCpuComputeContext::Create(g_fmesh);
@@ -535,7 +543,7 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
     
     // Create eval context & data buffers
     delete g_evalCtx;
-    g_evalCtx = OsdCpuEvalLimitContext::Create(g_fmesh);
+    g_evalCtx = OsdCpuEvalLimitContext::Create(g_fmesh, /*requireFVarData*/ true);
 
     delete g_Q;
     g_Q = OsdCpuGLVertexBuffer::Create(6,nsamples);
@@ -780,7 +788,7 @@ drawSamples() {
     glBindVertexArray(g_samplesVAO);
 
     glPointSize(1.0f);
-    glDrawArrays( GL_POINTS, 0,  (int)g_coords.size() );
+    glDrawArrays( GL_POINTS, 0, g_nsamplesFound);
     glPointSize(1.0f);
 
     glBindVertexArray(0);
@@ -1044,6 +1052,7 @@ initHUD()
     
     g_hud.AddRadioButton(0, "(u,v)", true, 200, 10, callbackDisplayVaryingColors, kUV, 'k');
     g_hud.AddRadioButton(0, "varying", false, 200, 30, callbackDisplayVaryingColors, kVARYING, 'k');
+    g_hud.AddRadioButton(0, "face-varying", false, 200, 50, callbackDisplayVaryingColors, kFACEVARYING, 'k');
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
