@@ -547,12 +547,15 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
 
     delete g_Q;
     g_Q = OsdCpuGLVertexBuffer::Create(6,nsamples);
+    memset( g_Q->BindCpuBuffer(), 0, nsamples*6*sizeof(float));
 
     delete g_dQu;
     g_dQu = OsdCpuGLVertexBuffer::Create(6,nsamples);
+    memset( g_dQu->BindCpuBuffer(), 0, nsamples*6*sizeof(float));
 
     delete g_dQv;
     g_dQv = OsdCpuGLVertexBuffer::Create(6,nsamples);
+    memset( g_dQv->BindCpuBuffer(), 0, nsamples*6*sizeof(float));
         
     updateGeom();
 
