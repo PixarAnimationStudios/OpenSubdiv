@@ -883,8 +883,8 @@ createFaceVaryingUV( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh) {
 
             OpenSubdiv::HbrFVarData<T> & fvt = e->GetOrgVertex()->GetFVarData(f);
             
-            float const * fvdata = &sh->uvs[ sh->faceuvs[idx++] ];
-            
+            float const * fvdata = &sh->uvs[ sh->faceuvs[idx++]*2 ];
+
             if (not fvt.IsInitialized()) {
                 fvt.SetAllData(2, fvdata);
             } else if (not fvt.CompareAll(2, fvdata)) {

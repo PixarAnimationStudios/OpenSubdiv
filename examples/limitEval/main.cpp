@@ -475,8 +475,8 @@ updateGeom() {
 
                 case kVARYING : break;
 
-                case kFACEVARYING : { g_Q->BindCpuBuffer()[i*6 + 5] = 0.1f;
-                                    } break;
+                case kFACEVARYING : break;
+                
                 default : break;
            }
 #if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
