@@ -73,8 +73,6 @@ static const std::string catmark_square_hedit0 =
 "v -0.333333 1 0\n"
 "v 0.333333 1 0\n"
 "v 1 1 0\n"
-"vt 0.0 0.0\n"
-"vn 0.0 0.0 0.0\n"
 "s off\n"
 "f 1/1/1 2/1/1 6/1/1 5/1/1\n"
 "f 2/1/1 3/1/1 7/1/1 6/1/1\n"

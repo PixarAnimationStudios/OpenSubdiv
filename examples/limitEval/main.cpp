@@ -849,7 +849,12 @@ display() {
         g_hud.DrawString(10, -60,  "GPU Draw   : %.3f ms", drawGpuTime);
         g_hud.DrawString(10, -40,  "CPU Draw   : %.3f ms", drawCpuTime);
         g_hud.DrawString(10, -20,  "FPS        : %3.1f", fps);
-
+        
+        if (g_drawMode==kFACEVARYING and g_evalCtx->GetFVarData().empty()) {
+            static char msg[21] = "No Face-Varying Data";
+            g_hud.DrawString(g_width/2-20/2*8, g_height/2, msg);
+        }
+        
         g_hud.Flush();
     }
 
