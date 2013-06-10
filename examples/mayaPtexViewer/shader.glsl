@@ -94,11 +94,11 @@ vec4 PTexLookup(vec4 patchCoord,
 
 #ifdef USE_PTEX_DISPLACEMENT
 
-#define OSD_DISPLACEMENT_CALLBACK               \
-    output.v.position =                         \
-        displacement(output.v.position,         \
-                     output.v.normal,           \
-                     output.v.patchCoord);
+#define OSD_DISPLACEMENT_CALLBACK              \
+    outpt.v.position =                         \
+        displacement(outpt.v.position,         \
+                     outpt.v.normal,           \
+                     outpt.v.patchCoord);
 
 uniform sampler2DArray textureDisplace_Data;
 uniform samplerBuffer textureDisplace_Packing;
@@ -124,12 +124,12 @@ layout (location=1) in vec3 normal;
 
 out block {
     OutputVertex v;
-} output;
+} outpt;
 
 void main()
 {
-    output.v.position = vec4(position, 1);
-    output.v.normal = normal;
+    outpt.v.position = vec4(position, 1);
+    outpt.v.normal = normal;
 }
 
 #endif // VERTEX_SHADER
@@ -153,7 +153,7 @@ void main()
 
     in block {
         OutputVertex v;
-    } input[4];
+    } inpt[4];
 
 #endif // PRIM_QUAD
 
@@ -171,23 +171,23 @@ void main()
 
     in block {
         OutputVertex v;
-    } input[3];
+    } inpt[3];
 
 #endif // PRIM_TRI
 
 out block {
     OutputVertex v;
-} output;
+} outpt;
 
 void emit(int index, vec4 position, vec3 normal, vec4 patchCoord)
 {
-    output.v.position = position;
-    output.v.normal = normal;
-    output.v.patchCoord = patchCoord;
+    outpt.v.position = position;
+    outpt.v.normal = normal;
+    outpt.v.patchCoord = patchCoord;
 
-    output.v.tangent = input[index].v.tangent;
+    outpt.v.tangent = inpt[index].v.tangent;
 
-    gl_Position = ProjectionMatrix * output.v.position;
+    gl_Position = ProjectionMatrix * outpt.v.position;
     EmitVertex();
 }
 
@@ -210,15 +210,15 @@ void main()
     patchCoord[3] = GeneratePatchCoord(vec2(0, 1));
 
 #ifdef USE_PTEX_DISPLACEMENT
-    position[0] = displacement(input[0].v.position, input[0].v.normal, patchCoord[0]);
-    position[1] = displacement(input[1].v.position, input[1].v.normal, patchCoord[1]);
-    position[2] = displacement(input[2].v.position, input[2].v.normal, patchCoord[2]);
-    position[3] = displacement(input[3].v.position, input[3].v.normal, patchCoord[3]);
+    position[0] = displacement(inpt[0].v.position, inpt[0].v.normal, patchCoord[0]);
+    position[1] = displacement(inpt[1].v.position, inpt[1].v.normal, patchCoord[1]);
+    position[2] = displacement(inpt[2].v.position, inpt[2].v.normal, patchCoord[2]);
+    position[3] = displacement(inpt[3].v.position, inpt[3].v.normal, patchCoord[3]);
 #else
-    position[0] = input[0].v.position;
-    position[1] = input[1].v.position;
-    position[2] = input[2].v.position;
-    position[3] = input[3].v.position;
+    position[0] = inpt[0].v.position;
+    position[1] = inpt[1].v.position;
+    position[2] = inpt[2].v.position;
+    position[3] = inpt[3].v.position;
 #endif
 
 #ifdef FLAT_NORMALS
@@ -231,10 +231,10 @@ void main()
     normal[2] = normal[0];
     normal[3] = normal[0];
 #else
-    normal[0] = input[0].v.normal;
-    normal[1] = input[1].v.normal;
-    normal[2] = input[2].v.normal;
-    normal[3] = input[3].v.normal;
+    normal[0] = inpt[0].v.normal;
+    normal[1] = inpt[1].v.normal;
+    normal[2] = inpt[2].v.normal;
+    normal[3] = inpt[3].v.normal;
 #endif
 
     emit(0, position[0], normal[0], patchCoord[0]);
@@ -257,18 +257,18 @@ void main()
     vec3 normal[3];
 
     // patch coords are computed in tessellation shader
-    patchCoord[0] = input[0].v.patchCoord;
-    patchCoord[1] = input[1].v.patchCoord;
-    patchCoord[2] = input[2].v.patchCoord;
+    patchCoord[0] = inpt[0].v.patchCoord;
+    patchCoord[1] = inpt[1].v.patchCoord;
+    patchCoord[2] = inpt[2].v.patchCoord;
 
 #ifdef USE_PTEX_DISPLACEMENT
-    position[0] = displacement(input[0].v.position, input[0].v.normal, patchCoord[0]);
-    position[1] = displacement(input[1].v.position, input[1].v.normal, patchCoord[1]);
-    position[2] = displacement(input[2].v.position, input[2].v.normal, patchCoord[2]);
+    position[0] = displacement(inpt[0].v.position, inpt[0].v.normal, patchCoord[0]);
+    position[1] = displacement(inpt[1].v.position, inpt[1].v.normal, patchCoord[1]);
+    position[2] = displacement(inpt[2].v.position, inpt[2].v.normal, patchCoord[2]);
 #else
-    position[0] = input[0].v.position;
-    position[1] = input[1].v.position;
-    position[2] = input[2].v.position;
+    position[0] = inpt[0].v.position;
+    position[1] = inpt[1].v.position;
+    position[2] = inpt[2].v.position;
 #endif
 
 #ifdef FLAT_NORMALS  // emit flat normals for displaced surface
@@ -278,9 +278,9 @@ void main()
     normal[1] = normal[0];
     normal[2] = normal[0];
 #else
-    normal[0] = input[0].v.normal;
-    normal[1] = input[1].v.normal;
-    normal[2] = input[2].v.normal;
+    normal[0] = inpt[0].v.normal;
+    normal[1] = inpt[1].v.normal;
+    normal[2] = inpt[2].v.normal;
 #endif
 
     emit(0, position[0], normal[0], patchCoord[0]);
@@ -303,7 +303,7 @@ void main()
 
 in block {
     OutputVertex v;
-} input;
+} inpt;
 
 uniform int ptexFaceOffset;
 
@@ -398,7 +398,7 @@ void
 main()
 {
 #ifdef USE_PTEX_COLOR
-    vec4 texColor = PTexLookup(input.v.patchCoord,
+    vec4 texColor = PTexLookup(inpt.v.patchCoord,
                                textureImage_Data,
                                textureImage_Packing,
                                textureImage_Pages);
@@ -407,16 +407,16 @@ main()
 #endif
 
 #if USE_PTEX_NORMAL
-    vec3 objN = perturbNormalFromDisplacement(input.v.position.xyz,
-                                              input.v.normal,
-                                              input.v.patchCoord);
+    vec3 objN = perturbNormalFromDisplacement(inpt.v.position.xyz,
+                                              inpt.v.normal,
+                                              inpt.v.patchCoord);
 #else
-    vec3 objN = input.v.normal;
+    vec3 objN = inpt.v.normal;
 #endif
 
 
 #ifdef USE_PTEX_OCCLUSION
-    float occ = PTexLookup(input.v.patchCoord,
+    float occ = PTexLookup(inpt.v.patchCoord,
                            textureOcclusion_Data,
                            textureOcclusion_Packing,
                            textureOcclusion_Pages).x;
@@ -432,7 +432,7 @@ main()
     vec4 d = vec4(1);
 #endif
 
-    vec3 eye = normalize(input.v.position.xyz - eyePositionInWorld);
+    vec3 eye = normalize(inpt.v.position.xyz - eyePositionInWorld);
 
 #ifdef USE_SPECULAR_ENV_MAP
     vec3 reflect = reflect(eye, objN);

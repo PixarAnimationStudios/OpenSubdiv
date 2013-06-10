@@ -64,15 +64,15 @@ layout (location=0) in vec4 position;
 
 out block {
     ControlVertex v;
-} output;
+} outpt;
 
 void main() {
-    output.v.position = ModelViewMatrix * position;
+    outpt.v.position = ModelViewMatrix * position;
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
 
 #if OSD_NUM_VARYINGS > 0
     for (int i = 0; i < OSD_NUM_VARYINGS; ++i)
-        output.v.varyings[i] = varyings[i];
+        outpt.v.varyings[i] = varyings[i];
 #endif
 }
 
@@ -87,11 +87,11 @@ layout(vertices = 16) out;
 
 in block {
     ControlVertex v;
-} input[];
+} inpt[];
 
 out block {
     ControlVertex v;
-} output[];
+} outpt[];
 
 #define ID gl_InvocationID
 
@@ -106,8 +106,8 @@ void main()
         for (int k=0; k<4; k++) {
             float c = Q[i][k];
             // XXX: fix this in patchMeshFactory.
-//            H[l] += c*input[l*4 + k].v.position.xyz;
-            H[l] += c*input[l + k*4].v.position.xyz;
+//            H[l] += c*inpt[l*4 + k].v.position.xyz;
+            H[l] += c*inpt[l + k*4].v.position.xyz;
         }
     }
 
@@ -116,14 +116,14 @@ void main()
         pos += Q[j][k]*H[k];
     }
 
-    output[ID].v.position = vec4(pos, 1.0);
+    outpt[ID].v.position = vec4(pos, 1.0);
 
     int patchLevel = GetPatchLevel();
 
     // +0.5 to avoid interpolation error of integer value
-    output[ID].v.patchCoord = vec4(0, 0,
-                                   patchLevel+0.5,
-                                   gl_PrimitiveID+LevelBase+0.5);
+    outpt[ID].v.patchCoord = vec4(0, 0,
+                                  patchLevel+0.5,
+                                  gl_PrimitiveID+LevelBase+0.5);
 
     OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
 
@@ -132,13 +132,13 @@ void main()
 
 #ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
         gl_TessLevelOuter[0] =
-            TessAdaptive(input[5].v.position.xyz, input[9].v.position.xyz, patchLevel);
+            TessAdaptive(inpt[5].v.position.xyz, inpt[9].v.position.xyz, patchLevel);
         gl_TessLevelOuter[1] =
-            TessAdaptive(input[5].v.position.xyz, input[6].v.position.xyz, patchLevel);
+            TessAdaptive(inpt[5].v.position.xyz, inpt[6].v.position.xyz, patchLevel);
         gl_TessLevelOuter[2] =
-            TessAdaptive(input[6].v.position.xyz, input[10].v.position.xyz, patchLevel);
+            TessAdaptive(inpt[6].v.position.xyz, inpt[10].v.position.xyz, patchLevel);
         gl_TessLevelOuter[3] =
-            TessAdaptive(input[9].v.position.xyz, input[10].v.position.xyz, patchLevel);
+            TessAdaptive(inpt[9].v.position.xyz, inpt[10].v.position.xyz, patchLevel);
         gl_TessLevelInner[0] =
             max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
         gl_TessLevelInner[1] =
@@ -166,11 +166,11 @@ layout(equal_spacing) in;
 
 in block {
     ControlVertex v;
-} input[];
+} inpt[];
 
 out block {
     OutputVertex v;
-} output;
+} outpt;
 
 void main()
 {
@@ -179,17 +179,17 @@ void main()
 
     vec3 WorldPos, Tangent, BiTangent;
     vec3 cp[16];
-    for(int i = 0; i < 16; ++i) cp[i] = input[i].v.position.xyz;
+    for(int i = 0; i < 16; ++i) cp[i] = inpt[i].v.position.xyz;
     EvalBSpline(gl_TessCoord.xy, cp, WorldPos, Tangent, BiTangent);
 
     vec3 normal = normalize(cross(Tangent, BiTangent));
 
-    output.v.position = vec4(WorldPos, 1.0f);
-    output.v.normal = normal;
-    output.v.tangent = Tangent;
+    outpt.v.position = vec4(WorldPos, 1.0f);
+    outpt.v.normal = normal;
+    outpt.v.tangent = Tangent;
 
-    output.v.patchCoord = input[0].v.patchCoord;
-    output.v.patchCoord.xy = vec2(u, v);
+    outpt.v.patchCoord = inpt[0].v.patchCoord;
+    outpt.v.patchCoord.xy = vec2(u, v);
 
     OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
 
@@ -211,11 +211,11 @@ layout (location=2) in vec4 color;
 
 out block {
     OutputVertex v;
-} output;
+} outpt;
 
 void main() {
     gl_Position = ModelViewProjectionMatrix * position;
-    output.v.color = color;
+    outpt.v.color = color;
 }
 
 #endif
@@ -227,9 +227,9 @@ void main() {
 
 in block {
     OutputVertex v;
-} input;
+} inpt;
 
 void main() {
-    gl_FragColor = input.v.color;
+    gl_FragColor = inpt.v.color;
 }
 #endif

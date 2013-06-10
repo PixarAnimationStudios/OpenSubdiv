@@ -180,35 +180,35 @@ uniform isamplerBuffer g_ptexIndicesBuffer;
         int u = (ptexIndex.y >> 17) & 0x3ff;                            \
         int v = (ptexIndex.y >> 7) & 0x3ff;                             \
         int rotation = (ptexIndex.y >> 5) & 0x3;                        \
-        output[ID].v.patchCoord.w = faceID+0.5;                         \
-        output[ID].v.ptexInfo = ivec4(u, v, lv, rotation);              \
+        outpt[ID].v.patchCoord.w = faceID+0.5;                          \
+        outpt[ID].v.ptexInfo = ivec4(u, v, lv, rotation);               \
     }
 
 #define OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER                          \
     {                                                                   \
-        vec2 uv = output.v.patchCoord.xy;                               \
-        ivec2 p = input[0].v.ptexInfo.xy;                               \
-        int lv = input[0].v.ptexInfo.z;                                 \
-        int rot = input[0].v.ptexInfo.w;                                \
-        output.v.tessCoord.xy = uv;                                     \
+        vec2 uv = outpt.v.patchCoord.xy;                                \
+        ivec2 p = inpt[0].v.ptexInfo.xy;                                \
+        int lv = inpt[0].v.ptexInfo.z;                                  \
+        int rot = inpt[0].v.ptexInfo.w;                                 \
+        outpt.v.tessCoord.xy = uv;                                      \
         uv.xy = float(rot==0)*uv.xy                                     \
             + float(rot==1)*vec2(1.0-uv.y, uv.x)                        \
             + float(rot==2)*vec2(1.0-uv.x, 1.0-uv.y)                    \
             + float(rot==3)*vec2(uv.y, 1.0-uv.x);                       \
-        output.v.patchCoord.xy = (uv * vec2(1.0)/lv) + vec2(p.x, p.y)/lv; \
+        outpt.v.patchCoord.xy = (uv * vec2(1.0)/lv) + vec2(p.x, p.y)/lv; \
     }
 
 #define OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(ROTATE)             \
     {                                                           \
-        int rot = (input[0].v.ptexInfo.w + 4 - ROTATE)%4;       \
+        int rot = (inpt[0].v.ptexInfo.w + 4 - ROTATE)%4;        \
         if (rot == 1) {                                         \
-            output.v.tangent = -normalize(Tangent);             \
+            outpt.v.tangent = -normalize(Tangent);              \
         } else if (rot == 2) {                                  \
-            output.v.tangent = -normalize(BiTangent);           \
+            outpt.v.tangent = -normalize(BiTangent);            \
         } else if (rot == 3) {                                  \
-            output.v.tangent = normalize(Tangent);              \
+            outpt.v.tangent = normalize(Tangent);               \
         } else {                                                \
-            output.v.tangent = normalize(BiTangent);            \
+            outpt.v.tangent = normalize(BiTangent);             \
         }                                                       \
     }
 
@@ -218,12 +218,12 @@ uniform isamplerBuffer g_ptexIndicesBuffer;
     vec4 clipPos = ModelViewProjectionMatrix * P;               \
     bvec3 clip0 = lessThan(clipPos.xyz, vec3(clipPos.w));       \
     bvec3 clip1 = greaterThan(clipPos.xyz, -vec3(clipPos.w));   \
-    output.v.clipFlag = ivec3(clip0) + 2*ivec3(clip1);          \
+    outpt.v.clipFlag = ivec3(clip0) + 2*ivec3(clip1);           \
 
 #define OSD_PATCH_CULL(N)                            \
     ivec3 clipFlag = ivec3(0);                       \
     for(int i = 0; i < N; ++i) {                     \
-        clipFlag |= input[i].v.clipFlag;             \
+        clipFlag |= inpt[i].v.clipFlag;              \
     }                                                \
     if (clipFlag != ivec3(3) ) {                     \
         gl_TessLevelInner[0] = 0;                    \
