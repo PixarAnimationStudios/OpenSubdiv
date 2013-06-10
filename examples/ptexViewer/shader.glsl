@@ -171,6 +171,7 @@ void main()
 
 out block {
     OutputVertex v;
+    noperspective out vec4 edgeDistance;
 } outpt;
 
 // --------------------------------------
@@ -196,18 +197,18 @@ float edgeDistance(vec4 p, vec4 p0, vec4 p1)
 
 void emit(int index, vec4 position, vec3 normal, vec4 patchCoord, vec4 edgeVerts[EDGE_VERTS])
 {
-    outpt.v.edgeDistance[0] =
+    outpt.edgeDistance[0] =
         edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
-    outpt.v.edgeDistance[1] =
+    outpt.edgeDistance[1] =
         edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
 #ifdef PRIM_TRI
-    outpt.v.edgeDistance[2] =
+    outpt.edgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
 #endif
 #ifdef PRIM_QUAD
-    outpt.v.edgeDistance[2] =
+    outpt.edgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[3]);
-    outpt.v.edgeDistance[3] =
+    outpt.edgeDistance[3] =
         edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
 #endif
 
@@ -346,6 +347,7 @@ void main()
 
 in block {
     OutputVertex v;
+    noperspective in vec4 edgeDistance;
 } inpt;
 
 out vec4 outColor;
@@ -487,12 +489,12 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
     float d =
-        min(inpt.v.edgeDistance[0], min(inpt.v.edgeDistance[1], inpt.v.edgeDistance[2]));
+        min(inpt.edgeDistance[0], min(inpt.edgeDistance[1], inpt.edgeDistance[2]));
 #endif
 #ifdef PRIM_QUAD
     float d =
-        min(min(inpt.v.edgeDistance[0], inpt.v.edgeDistance[1]),
-            min(inpt.v.edgeDistance[2], inpt.v.edgeDistance[3]));
+        min(min(inpt.edgeDistance[0], inpt.edgeDistance[1]),
+            min(inpt.edgeDistance[2], inpt.edgeDistance[3]));
 #endif
     vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
     float p = exp2(-2 * d * d);
@@ -530,7 +532,7 @@ main()
     if (overrideColorEnable) {
         texColor = overrideColor;
         vec4 Cf = lighting(texColor, inpt.v.position.xyz, normal);
-        outColor = edgeColor(Cf, inpt.v.edgeDistance);
+        outColor = edgeColor(Cf, inpt.edgeDistance);
         return;
     }
 
@@ -572,7 +574,7 @@ main()
     vec4 Cf = lighting(texColor, inpt.v.position.xyz, normal);
 #endif
 
-    outColor = edgeColor(Cf, inpt.v.edgeDistance);
+    outColor = edgeColor(Cf, inpt.edgeDistance);
 }
 
 #endif

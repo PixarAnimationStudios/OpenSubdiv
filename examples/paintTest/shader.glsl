@@ -101,6 +101,7 @@ vec4 displacement(vec4 position, vec3 normal, vec4 patchCoord)
 
 out block {
     OutputVertex v;
+    noperspective out vec4 edgeDistance;
 } outpt;
 
 void emit(int index, vec4 position, vec3 normal, vec4 patchCoord)
@@ -124,11 +125,11 @@ float edgeDistance(vec4 p, vec4 p0, vec4 p1)
 
 void emit(int index, vec4 position, vec3 normal, vec4 patchCoord, vec4 edgeVerts[EDGE_VERTS])
 {
-    outpt.v.edgeDistance[0] =
+    outpt.edgeDistance[0] =
         edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
-    outpt.v.edgeDistance[1] =
+    outpt.edgeDistance[1] =
         edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
-    outpt.v.edgeDistance[2] =
+    outpt.edgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
     emit(index, position, normal, patchCoord);
 }
@@ -193,6 +194,7 @@ void main()
 
 in block {
     OutputVertex v;
+    noperspective in vec4 edgeDistance;
 } inpt;
 
 out vec4 outColor;
@@ -281,7 +283,7 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
 {
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
     float d =
-        min(inpt.v.edgeDistance[0], min(inpt.v.edgeDistance[1], inpt.v.edgeDistance[2]));
+        min(inpt.edgeDistance[0], min(inpt.edgeDistance[1], inpt.edgeDistance[2]));
     vec4 Cedge = vec4(0.5, 0.5, 0.5, 1.0);
     float p = exp2(-2 * d * d);
 
@@ -306,7 +308,7 @@ main()
 
     vec4 Cf = vec4(1.0);
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-    Cf = edgeColor(Cf, inpt.v.edgeDistance);
+    Cf = edgeColor(Cf, inpt.edgeDistance);
 #endif
 
 #ifdef USE_PTEX_COLOR

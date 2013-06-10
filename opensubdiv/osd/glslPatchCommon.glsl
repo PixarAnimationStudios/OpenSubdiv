@@ -85,7 +85,6 @@ struct OutputVertex {
     vec3 tangent;
     centroid vec4 patchCoord; // u, v, level, faceID
     centroid vec2 tessCoord; // tesscoord.st
-    noperspective vec4 edgeDistance;
 #if OSD_NUM_VARYINGS > 0
     float varyings[OSD_NUM_VARYINGS];
 #endif
