@@ -63,6 +63,10 @@
 #define OSD_NUM_VARYINGS 0
 #endif
 
+#ifndef ROTATE
+#define ROTATE 0
+#endif
+
 #define M_PI 3.14159265359f
 
 struct ControlVertex {
@@ -164,12 +168,8 @@ float TessAdaptive(vec3 p0, vec3 p1, int patchLevel)
 
 uniform isamplerBuffer g_ptexIndicesBuffer;
 
-int GetPatchLevel()
-{
-    ivec2 ptexIndex = texelFetch(g_ptexIndicesBuffer,
-                                 gl_PrimitiveID + LevelBase).xy;
-    return (ptexIndex.y & 0xf);
-}
+#define GetPatchLevel()                                                 \
+        (texelFetch(g_ptexIndicesBuffer, gl_PrimitiveID + LevelBase).y & 0xf)
 
 #define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
     {                                                                   \
@@ -270,12 +270,12 @@ uniform mat4 R = mat4(
 );
 
 #if OSD_MAX_VALENCE<=10
-uniform float ef[7] = {
+uniform float ef[7] = float[](
     0.813008, 0.500000, 0.363636, 0.287505,
     0.238692, 0.204549, 0.179211
-};
+);
 #else
-uniform float ef[27] = {
+uniform float ef[27] = float[](
     0.812816, 0.500000, 0.363644, 0.287514,
     0.238688, 0.204544, 0.179229, 0.159657,
     0.144042, 0.131276, 0.120632, 0.111614,
@@ -283,7 +283,7 @@ uniform float ef[27] = {
     0.0814022, 0.0772401, 0.0734867, 0.0700842,
     0.0669851, 0.0641504, 0.0615475, 0.0591488,
     0.0569311, 0.0548745, 0.0529621
-};
+);
 #endif
 
 float csf(uint n, uint j)
