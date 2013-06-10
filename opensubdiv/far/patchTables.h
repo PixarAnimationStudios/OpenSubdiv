@@ -531,7 +531,23 @@ FarPatchTables::FarPatchTables(PatchArrayVector const & patchArrays,
 
 inline bool 
 FarPatchTables::IsFeatureAdaptive() const { 
-    return ((not _vertexValenceTable.empty()) and (not _quadOffsetTable.empty())); 
+
+    // the vertex valence table is only used by Gregory patches, so the PatchTables
+    // contain feature adaptive patches if this is not empty.
+    if (not _vertexValenceTable.empty())
+        return true;
+
+    PatchArrayVector const & parrays = GetPatchArrayVector();
+
+    // otherwise, we have to check each patch array
+    for (int i=0; i<(int)parrays.size(); ++i) {
+    
+        if (parrays[i].GetDescriptor().GetType() >= REGULAR and
+            parrays[i].GetDescriptor().GetType() <= GREGORY_BOUNDARY)
+            return true;
+        
+    }
+    return false;
 }
  
 // Returns the number of control vertices expected for a patch of this type
