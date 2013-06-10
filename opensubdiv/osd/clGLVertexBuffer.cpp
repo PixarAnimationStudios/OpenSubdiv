@@ -57,13 +57,9 @@
 //     a particular purpose and non-infringement.
 //
 
-#if defined(__APPLE__)
-    #include <OpenGL/gl3.h>
-#else
-    #include <GL/glew.h>
-#endif
-
 #include "../osd/clGLVertexBuffer.h"
+
+#include "../osd/opengl.h"
 
 #include <cassert>
 

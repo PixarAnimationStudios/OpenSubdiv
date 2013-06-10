@@ -55,12 +55,6 @@
 //     a particular purpose and non-infringement.
 //
 
-#if defined(__APPLE__)
-    #include <OpenGL/gl3.h>
-#else
-    #include <GL/glew.h>
-#endif
-
 #include <stdio.h>
 #ifdef _MSC_VER
 #define snprintf _snprintf
@@ -72,6 +66,8 @@
 #include "../osd/vertex.h"
 
 #include "../far/subdivisionTables.h"
+
+#include "../osd/opengl.h"
 
 #include <cassert>
 

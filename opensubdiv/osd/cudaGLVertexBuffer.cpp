@@ -55,17 +55,13 @@
 //     a particular purpose and non-infringement.
 //
 
-#if defined(__APPLE__)
-    #include <OpenGL/gl3.h>
-#else
-    #include <GL/glew.h>
-#endif
+#include "../osd/cudaGLVertexBuffer.h"
+#include "../osd/error.h"
+
+#include "../osd/opengl.h"
 
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
-
-#include "../osd/cudaGLVertexBuffer.h"
-#include "../osd/error.h"
 
 #include <cassert>
 

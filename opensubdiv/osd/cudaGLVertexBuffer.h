@@ -59,6 +59,11 @@
 
 #include "../version.h"
 
+#include "../osd/opengl.h"
+
+#include <cuda_runtime.h>
+#include <cuda_gl_interop.h>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

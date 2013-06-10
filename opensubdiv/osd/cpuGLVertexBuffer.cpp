@@ -55,23 +55,9 @@
 //     a particular purpose and non-infringement.
 //
 
-#if defined(__APPLE__)
-    #include "TargetConditionals.h"
-    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
-        #include <OpenGLES/ES2/gl.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-#elif defined(ANDROID)
-    #include <GLES2/gl2.h>
-#else
-    #if defined(_WIN32)
-        #include <windows.h>
-    #endif
-    #include <GL/glew.h>
-#endif
-
 #include "../osd/cpuGLVertexBuffer.h"
+
+#include "../osd/opengl.h"
 
 #include <string.h>
 

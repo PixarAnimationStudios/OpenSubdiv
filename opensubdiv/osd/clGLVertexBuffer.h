@@ -59,6 +59,8 @@
 
 #include "../version.h"
 
+#include "../osd/opengl.h"
+
 #if defined(__APPLE__)
     #include <OpenCL/opencl.h>
 #else
