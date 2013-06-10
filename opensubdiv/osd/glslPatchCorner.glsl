@@ -127,7 +127,7 @@ void main()
     if (ID == 0) {
         OSD_PATCH_CULL(9);
 
-#if OSD_ENABLE_SCREENSPACE_TESSELLATION
+#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
         gl_TessLevelOuter[0] =
             TessAdaptive(input[2].v.position.xyz, input[5].v.position.xyz, patchLevel);
 

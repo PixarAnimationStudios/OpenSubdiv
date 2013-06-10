@@ -184,8 +184,7 @@ void main()
     if (ID == 0) {
         OSD_PATCH_CULL(16);
 
-#if OSD_ENABLE_SCREENSPACE_TESSELLATION
-#line 1000
+#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
         // These tables map the 9, 12, or 16 input control points onto the
         // canonical 16 control points for a regular patch.
 #if defined BOUNDARY
@@ -206,7 +205,6 @@ void main()
         const int r[16] = int[]( 3, 7, 11, 15, 2, 6, 10, 14, 1, 5, 9, 13, 0, 4, 8, 12 );
 #endif
 
-#line 2000
         // Expand and rotate control points using remapping tables above
         vec3 pv0 = input[p[r[0]]].v.position.xyz;
         vec3 pv1 = input[p[r[1]]].v.position.xyz;
