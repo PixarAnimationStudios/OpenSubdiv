@@ -285,8 +285,8 @@ void main()
 
     output[ID].v.position = input[ID].v.position;
 
-    uint start = texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x & 0x00ff;
-    uint prev = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0xff00;
+    uint start = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0x00ffu;
+    uint prev = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0xff00u;
     prev=uint(prev/256);
     uint np = abs(input[ip].v.valence);
     uint nm = abs(input[im].v.valence);
@@ -320,7 +320,7 @@ void main()
     vec3 Fp = vec3(0.0f,0.0f,0.0f);
     vec3 Fm = vec3(0.0f,0.0f,0.0f);
 
-    uint prev_p = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + ip)).x)&0xff00;
+    uint prev_p = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + ip)).x) & 0xff00u;
     prev_p=uint(prev_p/256);
     vec3 Em_ip;
 
@@ -331,7 +331,7 @@ void main()
         Em_ip = input[ip].v.position + input[ip].v.e0*csf(np-3,2*prev_p) + input[ip].v.e1*csf(np-3,2*prev_p+1);
     }
 
-    uint start_m = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + im)).x)&0x00ff;
+    uint start_m = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + im)).x) & 0x00ffu;
     vec3 Ep_im;
 
     if (input[im].v.valence < -2) {
