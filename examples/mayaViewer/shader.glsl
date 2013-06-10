@@ -152,8 +152,8 @@ void emitUniform(int index, vec3 normal)
     int uvOffset = gl_PrimitiveID * 4;
 
     output.v.patchCoord.st = 
-        vec2( texelFetchBuffer( g_uvFVarBuffer, (uvOffset+index)*2   ).s,
-              texelFetchBuffer( g_uvFVarBuffer, (uvOffset+index)*2+1 ).s );
+        vec2( texelFetch( g_uvFVarBuffer, (uvOffset+index)*2   ).s,
+              texelFetch( g_uvFVarBuffer, (uvOffset+index)*2+1 ).s );
 
     gl_Position = ProjectionMatrix * input[index].v.position;
 
@@ -200,17 +200,17 @@ void main()
     int uvOffset = (gl_PrimitiveID+LevelBase) * 4;
 
     vec2 uvs[4];
-    uvs[0] = vec2( texelFetchBuffer( g_uvFVarBuffer, (uvOffset+0)*2   ).s,
-                   texelFetchBuffer( g_uvFVarBuffer, (uvOffset+0)*2+1 ).s );
+    uvs[0] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+0)*2   ).s,
+                   texelFetch( g_uvFVarBuffer, (uvOffset+0)*2+1 ).s );
      
-    uvs[1] = vec2( texelFetchBuffer( g_uvFVarBuffer, (uvOffset+1)*2   ).s,
-                   texelFetchBuffer( g_uvFVarBuffer, (uvOffset+1)*2+1 ).s );
+    uvs[1] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+1)*2   ).s,
+                   texelFetch( g_uvFVarBuffer, (uvOffset+1)*2+1 ).s );
      
-    uvs[2] = vec2( texelFetchBuffer( g_uvFVarBuffer, (uvOffset+2)*2   ).s,
-                   texelFetchBuffer( g_uvFVarBuffer, (uvOffset+2)*2+1 ).s );
+    uvs[2] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+2)*2   ).s,
+                   texelFetch( g_uvFVarBuffer, (uvOffset+2)*2+1 ).s );
      
-    uvs[3] = vec2( texelFetchBuffer( g_uvFVarBuffer, (uvOffset+3)*2   ).s,
-                   texelFetchBuffer( g_uvFVarBuffer, (uvOffset+3)*2+1 ).s );
+    uvs[3] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+3)*2   ).s,
+                   texelFetch( g_uvFVarBuffer, (uvOffset+3)*2+1 ).s );
 #endif
 
     vec3 n0 = vec3(0);

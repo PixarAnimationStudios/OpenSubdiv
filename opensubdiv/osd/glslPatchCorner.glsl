@@ -55,7 +55,6 @@
 //     a particular purpose and non-infringement.
 //
 
-#extension GL_EXT_gpu_shader4 : require
 //----------------------------------------------------------
 // Patches.TessVertex
 //----------------------------------------------------------

@@ -55,9 +55,6 @@
 //     a particular purpose and non-infringement.
 //
 
-#extension GL_EXT_gpu_shader4 : require
-#line 2
-
 //----------------------------------------------------------
 // Patches.Coefficients
 //----------------------------------------------------------

@@ -65,7 +65,7 @@ uniform float bumpScale = 1.0;
 
 vec4 GeneratePatchCoord(vec2 localUV)  // for non-adpative
 {
-    ivec2 ptexIndex = texelFetchBuffer(g_ptexIndicesBuffer, gl_PrimitiveID).xy;
+    ivec2 ptexIndex = texelFetch(g_ptexIndicesBuffer, gl_PrimitiveID).xy;
     int faceID = ptexIndex.x;
     int lv = 1 << (ptexIndex.y & 0xf);
     int u = (ptexIndex.y >> 17) & 0x3ff;

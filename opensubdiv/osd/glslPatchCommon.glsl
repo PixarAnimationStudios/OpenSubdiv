@@ -55,8 +55,6 @@
 //     a particular purpose and non-infringement.
 //
 
-#extension GL_EXT_gpu_shader4 : require
-
 //----------------------------------------------------------
 // Patches.Common
 //----------------------------------------------------------
@@ -168,15 +166,15 @@ uniform isamplerBuffer g_ptexIndicesBuffer;
 
 int GetPatchLevel()
 {
-    ivec2 ptexIndex = texelFetchBuffer(g_ptexIndicesBuffer,
-                                       gl_PrimitiveID + LevelBase).xy;
+    ivec2 ptexIndex = texelFetch(g_ptexIndicesBuffer,
+                                 gl_PrimitiveID + LevelBase).xy;
     return (ptexIndex.y & 0xf);
 }
 
 #define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
     {                                                                   \
-        ivec2 ptexIndex = texelFetchBuffer(g_ptexIndicesBuffer,         \
-                                           gl_PrimitiveID + LevelBase).xy; \
+        ivec2 ptexIndex = texelFetch(g_ptexIndicesBuffer,               \
+                                     gl_PrimitiveID + LevelBase).xy;    \
         int faceID = ptexIndex.x;                                       \
         int lv = 1 << (ptexIndex.y & 0xf);                              \
         int u = (ptexIndex.y >> 17) & 0x3ff;                            \
