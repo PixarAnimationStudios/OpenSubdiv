@@ -165,7 +165,6 @@ layout(equal_spacing) in;
 
 in block {
     ControlVertex v;
-    int clipFlag;
 } inpt[];
 
 out block {
