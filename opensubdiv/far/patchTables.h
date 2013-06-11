@@ -64,6 +64,7 @@
 
 #include <cstdlib>
 #include <cassert>
+#include <algorithm>
 #include <vector>
 #include <map>
 
@@ -370,7 +371,20 @@ public:
         bool GetChildPatchesHandles( int faceid, int * npatches, PatchHandle const ** patches ) const;
         
     private:
-        typedef std::multimap<unsigned int, PatchHandle> MultiMap;
+
+        // private struct used to build the map
+        struct HandleKey {
+
+            unsigned int faceid;
+            float u, v;
+            PatchHandle handle;
+
+            bool operator < (HandleKey const &other) const {
+                if (faceid < other.faceid)
+                    return true;
+                return false;
+            }
+        };
 
         // Patch handle allowing location of individual patch data inside patch
         // arrays or in serialized form
@@ -618,8 +632,8 @@ FarPatchTables::PatchMap::PatchMap( FarPatchTables const & patchTables ) {
 
     // Create a PatchHandle for each patch in the primitive
 
-    int npatches = (int)patchTables.GetNumPatches();
-    _handles.reserve(npatches);
+    int npatches = (int)patchTables.GetNumPatches(),
+        nfaces = 0;
 
     FarPatchTables::PatchArrayVector const & patchArrays =
         patchTables.GetPatchArrayVector();
@@ -628,50 +642,61 @@ FarPatchTables::PatchMap::PatchMap( FarPatchTables const & patchTables ) {
         patchTables.GetPatchParamTable();
     assert( not paramTable.empty() );
 
-    int nfaces =0;
-    MultiMap mmap;
+    // iterate over PatchArrayVector and store handles & patches in a temporary vector
+    std::vector<HandleKey> keys(npatches);
 
-    for (int arrayid = 0; arrayid < (int)patchArrays.size(); ++arrayid) {
+    for (int arrayid=0, current=0; arrayid<(int)patchArrays.size(); ++arrayid) {
 
         FarPatchTables::PatchArray const & pa = patchArrays[arrayid];
 
-         int ringsize = pa.GetDescriptor().GetNumControlVertices();
+        int ringsize = pa.GetDescriptor().GetNumControlVertices();
+        
+        for (unsigned int j=0; j < pa.GetNumPatches(); ++j) {
 
-         for (unsigned int j=0; j < pa.GetNumPatches(); ++j) {
+            FarPatchParam const & param = paramTable[pa.GetPatchIndex()+j];
 
-            int faceId = paramTable[pa.GetPatchIndex()+j].faceIndex;
-
-            PatchHandle handle = { arrayid, j*ringsize, (unsigned int)mmap.size() };
-
-            mmap.insert( std::pair<unsigned int, PatchHandle>(faceId, handle));
+            HandleKey & key = keys[current];
+            
+            int faceId = param.faceIndex;
+            
+            key.faceid             = faceId;
+            key.handle.array        = arrayid;
+            key.handle.vertexOffset = j*ringsize;
+            key.handle.serialIndex  = (unsigned int)current;
 
             nfaces = std::max(nfaces, faceId);
+
+            ++current;
         }
     }
     ++nfaces;
+    
+    // and sort each patch by face & parameter
+    std::sort(keys.begin(), keys.end());
 
-    _handles.resize( mmap.size() );
+    // copy the serialized array into our final vector
+    _handles.resize( npatches );
+    
     _offsets.reserve( nfaces );
     _offsets.push_back(0);
-
-    // Serialize the multi-map
-
-    unsigned int handlesIdx = 0, faceId=mmap.begin()->first;
-
-    for (MultiMap::const_iterator it=mmap.begin(); it!=mmap.end(); ++it, ++handlesIdx) {
-
-        assert(it->first >= faceId);
-
-        if (it->first != faceId) {
-
-            faceId = it->first;
+    
+    unsigned int faceid=keys[0].faceid;
+    
+    for (int i=0; i < npatches; ++i) {
+    
+        HandleKey const & key = keys[i];
+        
+        assert( key.faceid >= faceid );
+        
+        if (key.faceid!=faceid) {
+            faceid = key.faceid;
 
             // position the offset marker to the new face                    
-            _offsets.push_back( handlesIdx );
+            _offsets.push_back(i);
         }
 
         // copy the patch id into the table
-        _handles[handlesIdx] = it->second;
+        _handles[i] = key.handle;
     }
 }
 
@@ -682,10 +707,14 @@ FarPatchTables::PatchMap::GetChildPatchesHandles( int faceid, int * npatches, Pa
     if (_handles.empty() or _offsets.empty() or (faceid>=(int)_offsets.size()))
         return false;
 
-    *npatches = (faceid==(int)_offsets.size()-1 ? 
-        (unsigned int)_handles.size()-1 : _offsets[faceid+1]) - _offsets[faceid] + 1;
-
-    *patches = &_handles[ _offsets[faceid] ];
+    if (npatches) {
+        *npatches = (faceid==(int)_offsets.size()-1 ? 
+            (unsigned int)_handles.size()-1 : _offsets[faceid+1]) - _offsets[faceid]+1;
+    }
+    
+    if (patches) {
+        *patches = &_handles[ _offsets[faceid] ];
+    }
 
     return true;
 }
@@ -752,13 +781,8 @@ FarPatchTables::findPatchArray( FarPatchTables::Descriptor desc ) {
 // Returns the total number of patches stored in the tables
 inline int
 FarPatchTables::GetNumPatches() const {
-
-    int result=0;
-    for (int i=0; i<(int)_patchArrays.size(); ++i) {
-        result += _patchArrays[i].GetNumPatches();
-    }
-
-    return result;
+    // there is one PatchParam record for each patch in the mesh
+    return (int)GetPatchParamTable().size();
 }
 
 // Returns the total number of control vertex indices in the tables

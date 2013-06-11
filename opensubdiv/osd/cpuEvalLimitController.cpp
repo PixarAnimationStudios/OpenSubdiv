@@ -81,13 +81,14 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
         return 0;
     
     OsdCpuEvalLimitContext::EvalData const & data = context->GetVertexData();
-    
+
     for (int i=0; i<npatches; ++i) {
     
         FarPatchTables::PatchHandle const & handle = patchHandles[i];
+        assert( handle.array < context->GetPatchArrayVector().size() );
 
         FarPatchParam::BitField bits = context->GetPatchBitFields()[ handle.serialIndex ];
-        assert( handle.array < context->GetPatchArrayVector().size() );
+
 
         float u=coords.u,
               v=coords.v;
@@ -192,9 +193,9 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
         }
 
         // Note : currently we only support bilinear boundary interpolation rules
-        // for face-varying data. Although Hbr supports 3 addition smooth rule sets,
-        // the feature-adaptive patch interpolation code currently does not support
-        // them, and neither does this EvalContext
+        // for face-varying data. Although Hbr supports 3 additional smooth rule
+        // sets, the feature-adaptive patch interpolation code currently does not
+        // support them, and neither does this EvalContext.
         OsdCpuEvalLimitContext::EvalData const & faceVaryingData = context->GetFaceVaryingData();
         if (faceVaryingData.GetOutputData()) {
             

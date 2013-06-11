@@ -119,6 +119,10 @@ struct FarPatchParam {
 
         /// True if the parent coarse face is a non-quad
         bool NonQuadRoot() const { return (field >> 4) & 0x1; }
+        
+        /// Returns the fratcion of normalized parametric space covered by the 
+        /// sub-patch.
+        float GetParamFraction() const;
 
         /// Returns the level of subdivision of the patch 
         unsigned char GetDepth() const { return (field & 0xf); }
@@ -171,18 +175,22 @@ struct FarPatchParam {
     void Clear() { 
         faceIndex = 0;
         bitField.Clear();
-    }    
+    }
 };
+
+inline float 
+FarPatchParam::BitField::GetParamFraction( ) const {
+    if (NonQuadRoot()) {
+        return 1.0f / float( 1 << (GetDepth()-1) );
+    } else {
+        return 1.0f / float( 1 << GetDepth() );
+    }
+}
 
 inline bool 
 FarPatchParam::BitField::Normalize( float & u, float & v ) const {
 
-    float frac;
-    if (NonQuadRoot()) {
-        frac = 1.0f / float( 1 << (GetDepth()-1) );
-    } else {
-        frac = 1.0f / float( 1 << GetDepth() );
-    }
+    float frac = GetParamFraction();
 
     // Are the coordinates within the parametric space covered by the patch ?
     float pu = (float)GetU()*frac;
