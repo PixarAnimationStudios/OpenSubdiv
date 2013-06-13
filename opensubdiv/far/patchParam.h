@@ -58,6 +58,8 @@
 #ifndef FAR_PATCH_PARAM_H
 #define FAR_PATCH_PARAM_H
 
+#include "../version.h"
+
 #include <cassert>
 
 namespace OpenSubdiv {
