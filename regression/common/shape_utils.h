@@ -862,6 +862,12 @@ createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
     applyTags<T>( mesh, sh );
 
     mesh->Finish();
+    
+    // check for disconnected vertices
+    if (mesh->GetNumDisconnectedVertices()) {
+        printf("The specified subdivmesh contains disconnected surface components.\n");
+        exit(1);
+    }
 }
 
 //------------------------------------------------------------------------------
