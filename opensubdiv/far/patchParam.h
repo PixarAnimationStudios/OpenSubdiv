@@ -127,19 +127,13 @@ struct FarPatchParam {
         /// Returns the level of subdivision of the patch 
         unsigned char GetDepth() const { return (field & 0xf); }
 
-        /// If the (u,v) pair is within the parameteric space of the sub-patch 
-        /// described by the bitfield, then (u,v) is normalized to this sub-
-        /// parametric space. If the (u,v) pair was outside of the parametric
-        /// range, then it is unchanged and false is returned.
+        /// The (u,v) pair is normalized to this sub-parametric space. 
         ///
         /// @param u  u parameter
         ///
         /// @param v  v parameter
         ///
-        /// @return   true if the given (u,v) pair was within the sub-patch parametric
-        ///           space, false if the pair was outside the sub-patch range.
-        ///
-        bool Normalize( float & u, float & v ) const;
+        void Normalize( float & u, float & v ) const;
         
         /// Rotate (u,v) pair to compensate for transition pattern and boundary
         /// orientations.
@@ -187,25 +181,18 @@ FarPatchParam::BitField::GetParamFraction( ) const {
     }
 }
 
-inline bool 
+inline void
 FarPatchParam::BitField::Normalize( float & u, float & v ) const {
 
     float frac = GetParamFraction();
 
-    // Are the coordinates within the parametric space covered by the patch ?
+    // top left corner
     float pu = (float)GetU()*frac;
-    if ( u<pu or u>(pu+frac) )
-        return false;
-
     float pv = (float)GetV()*frac;
-    if ( v<pv or v>(pv+frac) )
-        return false;
 
     // normalize u,v coordinates
     u = (u - pu) / frac,
     v = (v - pv) / frac;
-    
-    return true;
 }
 
 inline void 

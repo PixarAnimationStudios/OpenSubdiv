@@ -468,7 +468,7 @@ updateGeom() {
         if (n) {
             // point colors
             switch (g_drawMode) {
-                case kUV : { float * color = g_Q->BindCpuBuffer() + i * 6 + 3;
+                case kUV : { float * color = g_Q->BindCpuBuffer() + i*g_Q->GetNumElements()  + 3;
                              color[0] = g_coords[i].u;
                              color[1] = 0.0f;
                              color[2] = g_coords[i].v; } break;
@@ -483,6 +483,10 @@ updateGeom() {
             #pragma omp atomic
 #endif
             g_nsamplesFound += n;
+        } else {
+            // "hide" unfound samples (hole tags...) as a black dot at the origin
+            float * sample = g_Q->BindCpuBuffer() + i*g_Q->GetNumElements();
+            memset(sample, 0, g_Q->GetNumElements() * sizeof(float));
         }
     }
     
@@ -791,7 +795,7 @@ drawSamples() {
     glBindVertexArray(g_samplesVAO);
 
     glPointSize(1.0f);
-    glDrawArrays( GL_POINTS, 0, g_nsamplesFound);
+    glDrawArrays( GL_POINTS, 0, (int)g_coords.size());
     glPointSize(1.0f);
 
     glBindVertexArray(0);

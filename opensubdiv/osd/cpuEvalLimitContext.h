@@ -62,6 +62,7 @@
 #include "../osd/evalLimitContext.h"
 #include "../osd/vertexDescriptor.h"
 #include "../far/patchTables.h"
+#include "../far/patchMap.h"
 
 #include <map>
 #include <stdio.h>
@@ -84,7 +85,6 @@ public:
     static OsdCpuEvalLimitContext * Create(FarMesh<OsdVertex> const * farmesh, 
                                            bool requireFVarData=false);
 
-    /// Destructor
     virtual ~OsdCpuEvalLimitContext();
 
     /// Limit evaluation data descriptor
@@ -301,9 +301,9 @@ public:
         return _fvarwidth;
     }
 
-    /// Returns a map object that can connect a faceId to a list of children patches
-    const FarPatchTables::PatchMap * GetPatchesMap() const {
-        return _patchMap;
+    /// Returns a map that can connect a faceId to a list of children patches
+    FarPatchMap const & GetPatchMap() const {
+        return *_patchMap;
     }
 
     /// Returns the highest valence of the vertices in the buffers
@@ -326,7 +326,7 @@ private:
 
     FarPatchTables::FVarDataTable        _fvarData;
 
-    FarPatchTables::PatchMap * _patchMap; // map of the sub-patches given a face index
+    FarPatchMap * _patchMap;         // map of the sub-patches given a face index
 
     EvalVertexData _vertexData;      // vertex-interpolated data descriptor
     EvalData       _varyingData,     // varying-interpolated data descriptor 

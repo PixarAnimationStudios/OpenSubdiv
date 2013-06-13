@@ -69,6 +69,7 @@ set(PUBLIC_HEADER_FILES
     mesh.h
     multiMeshFactory.h
     patchParam.h
+    patchMap.h
     patchTables.h
     patchTablesFactory.h
     subdivisionTables.h
