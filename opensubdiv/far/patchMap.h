@@ -183,7 +183,7 @@ FarPatchMap::QuadNode::SetChild(unsigned char quadrant, int idx, bool isLeaf) {
 inline FarPatchMap::QuadNode * 
 FarPatchMap::addChild( QuadTree & quadtree, QuadNode * parent, int quadrant ) {
     quadtree.push_back(QuadNode());
-    int idx = quadtree.size()-1;
+    int idx = (int)quadtree.size()-1;
     parent->SetChild(quadrant, idx, false);
     return &(quadtree[idx]);
 }
