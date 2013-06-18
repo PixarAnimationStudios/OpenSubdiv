@@ -71,7 +71,11 @@
         #define W32_LEAN_AND_MEAN
         #include <windows.h>
     #endif
-    #include <GL/glew.h>
+    #if defined(OSD_USES_GLEW)
+        #include <GL/glew.h>
+    #else
+        #include <GL/gl.h>
+    #endif
 #endif
 
 #endif  // OSD_OPENGL_H
