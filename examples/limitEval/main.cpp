@@ -442,19 +442,19 @@ updateGeom() {
 
     // Bind/Unbind of the vertex buffers to the context needs to happen 
     // outside of the parallel loop
-    g_evalCtx->BindVertexBuffers( g_idesc, g_vertexData, g_odesc, g_Q, g_dQu, g_dQv );
+    g_evalCtx->GetVertexData().Bind( g_idesc, g_vertexData, g_odesc, g_Q, g_dQu, g_dQv );
 
     // The varying data ends-up interleaved in the same g_Q output buffer because
     // g_Q has a stride of 6 and g_vdesc sets the offset to 3, while g_odesc sets
     // the offset to 0
     switch (g_drawMode) {
-        case kVARYING     : g_evalCtx->BindVaryingBuffers( g_idesc, g_varyingData, g_vdesc, g_Q ); break;
+        case kVARYING     : g_evalCtx->GetVaryingData().Bind( g_idesc, g_varyingData, g_vdesc, g_Q ); break;
 
-        case kFACEVARYING : g_evalCtx->BindFaceVaryingBuffers( g_fvidesc, g_fvodesc, g_Q );
+        case kFACEVARYING : g_evalCtx->GetFaceVaryingData().Bind( g_fvidesc, g_fvodesc, g_Q );
 
         case kUV :
 
-        default : g_evalCtx->UnbindVaryingBuffers(); break;
+        default : g_evalCtx->GetVaryingData().Unbind(); break;
     }
 
 #define USE_OPENMP
@@ -490,7 +490,15 @@ updateGeom() {
         }
     }
     
-    g_evalCtx->UnbindVertexBuffers();
+    g_evalCtx->GetVertexData().Unbind();
+
+    switch (g_drawMode) {
+        case kVARYING     : g_evalCtx->GetVaryingData().Unbind(); break;
+
+        case kFACEVARYING : g_evalCtx->GetFaceVaryingData().Unbind(); break;
+
+        default : break;
+    }
     
     g_Q->BindVBO();
 

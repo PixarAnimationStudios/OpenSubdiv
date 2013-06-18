@@ -130,7 +130,7 @@ public:
 private:
 
     int _EvalLimitSample( OpenSubdiv::OsdEvalCoords const & coords, 
-                          OsdCpuEvalLimitContext const * context,
+                          OsdCpuEvalLimitContext * context,
                           unsigned int index );
 
 };

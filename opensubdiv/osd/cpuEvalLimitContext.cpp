@@ -78,39 +78,6 @@ OsdCpuEvalLimitContext::Create(FarMesh<OsdVertex> const * farmesh, bool requireF
     return new OsdCpuEvalLimitContext(farmesh, requireFVarData);
 }
 
-void
-OsdCpuEvalLimitContext::EvalData::Unbind() {
-
-    _inDesc.Reset();
-    _inQ=0;
-    
-    _outDesc.Reset();
-    _outQ = 0;
-}
-
-void
-OsdCpuEvalLimitContext::EvalVertexData::Unbind() {
-
-    EvalData::Unbind();
-   
-    _outdQu = _outdQv = 0;
-}
-
-void
-OsdCpuEvalLimitContext::UnbindVertexBuffers() {
-    _vertexData.Unbind();
-}
-
-void
-OsdCpuEvalLimitContext::UnbindVaryingBuffers() {
-    _varyingData.Unbind();
-}
-
-void
-OsdCpuEvalLimitContext::UnbindFaceVaryingBuffers() {
-    _faceVaryingData.Unbind();
-}
-
 OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmesh, bool requireFVarData) :
     OsdEvalLimitContext(farmesh) {
     
@@ -122,9 +89,9 @@ OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmes
 
     _patchArrays = patchTables->GetPatchArrayVector();
     
-    _vertexValenceBuffer = patchTables->GetVertexValenceTable();
+    _vertexValenceTable = patchTables->GetVertexValenceTable();
     
-    _quadOffsetBuffer = patchTables->GetQuadOffsetTable();
+    _quadOffsetTable = patchTables->GetQuadOffsetTable();
     
     _maxValence = patchTables->GetMaxValence();
     
@@ -163,6 +130,37 @@ OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmes
 
 OsdCpuEvalLimitContext::~OsdCpuEvalLimitContext() {
     delete _patchMap;
+}
+
+void 
+OsdCpuEvalLimitContext::VertexData::Unbind() {
+
+    inDesc.Reset();
+    in.Unbind();
+
+    outDesc.Reset();
+    out.Unbind();
+    outDu.Unbind();
+    outDv.Unbind();
+}
+
+void 
+OsdCpuEvalLimitContext::VaryingData::Unbind() {
+
+    inDesc.Reset();
+    in.Unbind();
+
+    outDesc.Reset();
+    out.Unbind();
+}
+
+void 
+OsdCpuEvalLimitContext::FaceVaryingData::Unbind() {
+
+    inDesc.Reset();
+
+    outDesc.Reset();
+    out.Unbind();
 }
 
 } // end namespace OPENSUBDIV_VERSION
