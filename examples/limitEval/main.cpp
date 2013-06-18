@@ -1136,12 +1136,29 @@ setGLCoreProfile()
 }
 
 //------------------------------------------------------------------------------
-int main(int, char**) {
+int main(int argc, char **argv) {
 
     bool fullscreen = false;
 
+    std::string str;
+    for (int i = 1; i < argc; ++i) {
+        if (!strcmp(argv[i], "-f"))
+            fullscreen = true;
+        else {
+            std::ifstream ifs(argv[1]);
+            if (ifs) {
+                std::stringstream ss;
+                ss << ifs.rdbuf();
+                ifs.close();
+                str = ss.str();
+                g_defaultShapes.push_back(SimpleShape(str.c_str(), argv[1], kCatmark));
+            }
+        }
+    }
+    
     OsdSetErrorCallback(callbackError);
     
+
     initializeShapes();
 
     if (not glfwInit()) {
