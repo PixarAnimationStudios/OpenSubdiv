@@ -55,7 +55,6 @@
 //     a particular purpose and non-infringement.
 //
 
-#extension GL_EXT_gpu_shader4 : require
 //----------------------------------------------------------
 // Patches.TessVertexBoundaryGregory
 //----------------------------------------------------------
@@ -68,22 +67,22 @@ layout (location=0) in vec4 position;
 
 out block {
     GregControlVertex v;
-} output;
+} outpt;
 
 void main()
 {
      int vID = gl_VertexID;
 
-     output.v.hullPosition = (ModelViewMatrix * position).xyz;
+     outpt.v.hullPosition = (ModelViewMatrix * position).xyz;
      OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
 
-     int valence = texelFetchBuffer(g_ValenceBuffer,int(vID * (2 * OSD_MAX_VALENCE + 1))).x;
-     output.v.valence = int(valence);
+     int valence = texelFetch(g_ValenceBuffer,int(vID * (2 * OSD_MAX_VALENCE + 1))).x;
+     outpt.v.valence = int(valence);
      uint ivalence = uint(abs(valence));
 
      vec3 f[OSD_MAX_VALENCE]; 
      vec3 pos = position.xyz;
-     output.v.org = position.xyz;
+     outpt.v.org = position.xyz;
      vec3 opos = vec3(0,0,0);
 
      int boundaryEdgeNeighbors[2];
@@ -96,8 +95,8 @@ void main()
         uint ip=(i+1)%ivalence; 
 
         bool isBoundaryNeighbor = false;
-        uint idx_neighbor = uint(texelFetchBuffer(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 0 + 1)).x);
-        int valenceNeighbor = texelFetchBuffer(g_ValenceBuffer,int(idx_neighbor * (2 * OSD_MAX_VALENCE + 1))).x;
+        uint idx_neighbor = uint(texelFetch(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 0 + 1)).x);
+        int valenceNeighbor = texelFetch(g_ValenceBuffer,int(idx_neighbor * (2 * OSD_MAX_VALENCE + 1))).x;
 
         if (valenceNeighbor < 0) {
             isBoundaryNeighbor = true;
@@ -116,51 +115,51 @@ void main()
         }
 
         vec3 neighbor =
-            vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+1)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+2)).x);
+            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor)).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+1)).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+2)).x);
 
-        uint idx_diagonal = uint(texelFetchBuffer(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 1 + 1)).x);
+        uint idx_diagonal = uint(texelFetch(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 1 + 1)).x);
 
         vec3 diagonal =
-            vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
+            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
 
-        uint idx_neighbor_p = uint(texelFetchBuffer(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*ip + 0 + 1)).x);
+        uint idx_neighbor_p = uint(texelFetch(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*ip + 0 + 1)).x);
 
         vec3 neighbor_p =
-            vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p+1)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p+2)).x);
+            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p)).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p+1)).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p+2)).x);
 
-        uint idx_neighbor_m = uint(texelFetchBuffer(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 0 + 1)).x);
+        uint idx_neighbor_m = uint(texelFetch(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 0 + 1)).x);
 
         vec3 neighbor_m =
-            vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m+1)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m+2)).x);
+            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m)).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m+1)).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m+2)).x);
 
-        uint idx_diagonal_m = uint(texelFetchBuffer(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 1 + 1)).x);
+        uint idx_diagonal_m = uint(texelFetch(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 1 + 1)).x);
 
         vec3 diagonal_m =
-            vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)).x);
+            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m)).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)).x);
 
         f[i] = (pos * float(ivalence) + (neighbor_p + neighbor)*2.0f + diagonal) / (float(ivalence)+5.0f);
 
         opos += f[i];
-        output.v.r[i] = (neighbor_p-neighbor_m)/3.0f + (diagonal - diagonal_m)/6.0f;
+        outpt.v.r[i] = (neighbor_p-neighbor_m)/3.0f + (diagonal - diagonal_m)/6.0f;
     }
 
     opos /= ivalence;
-    output.v.position = vec4(opos, 1.0f).xyz;
-    output.v.zerothNeighbor = zerothNeighbor;
+    outpt.v.position = vec4(opos, 1.0f).xyz;
+    outpt.v.zerothNeighbor = zerothNeighbor;
 
 #if OSD_NUM_VARYINGS > 0
     for (int i = 0; i < OSD_NUM_VARYINGS; ++i)
-        output.v.varyings[i] = varyings[i];
+        outpt.v.varyings[i] = varyings[i];
 #endif
 
 
@@ -169,39 +168,39 @@ void main()
     }
 
     vec3 e;
-    output.v.e0 = vec3(0,0,0);
-    output.v.e1 = vec3(0,0,0);
+    outpt.v.e0 = vec3(0,0,0);
+    outpt.v.e1 = vec3(0,0,0);
 
     for(uint i=0; i<ivalence; ++i) {
         uint im = (i + ivalence -1) % ivalence;
         e = 0.5f * (f[i] + f[im]);
-        output.v.e0 += csf(ivalence-3, 2*i) *e;
-        output.v.e1 += csf(ivalence-3, 2*i + 1)*e;
+        outpt.v.e0 += csf(ivalence-3, 2*i) *e;
+        outpt.v.e1 += csf(ivalence-3, 2*i + 1)*e;
     }
-    output.v.e0 *= ef[ivalence - 3];
-    output.v.e1 *= ef[ivalence - 3];
+    outpt.v.e0 *= ef[ivalence - 3];
+    outpt.v.e1 *= ef[ivalence - 3];
 
     if (valence < 0) {
         if (ivalence > 2) {
-            output.v.position = (
-                vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
-                     texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
-                     texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) +
-                vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
-                     texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
-                     texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) +
+            outpt.v.position = (
+                vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
+                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
+                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) +
+                vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
+                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
+                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) +
                 4.0f * pos)/6.0f;        
         } else {
-            output.v.position = pos;                    
+            outpt.v.position = pos;                    
         }
 
-        output.v.e0 = ( 
-            vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) -
-            vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) 
+        outpt.v.e0 = ( 
+            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) -
+            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
+                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) 
             )/6.0;
 
         float k = float(float(ivalence) - 1.0f);    //k is the number of faces
@@ -212,20 +211,20 @@ void main()
         float beta_0 = s/(3.0f*k + c); 
 
 
-        int idx_diagonal = texelFetchBuffer(g_ValenceBuffer,int((vID) * (2*OSD_MAX_VALENCE+1) + 2*zerothNeighbor + 1 + 1)).x;
+        int idx_diagonal = texelFetch(g_ValenceBuffer,int((vID) * (2*OSD_MAX_VALENCE+1) + 2*zerothNeighbor + 1 + 1)).x;
         idx_diagonal = abs(idx_diagonal);
         vec3 diagonal =
-                vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
-                     texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
-                     texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
+                vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
+                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
+                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
 
-        output.v.e1 = gamma * pos + 
-            alpha_0k * vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
-                            texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
-                            texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) +
-            alpha_0k * vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
-                            texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
-                            texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) +
+        outpt.v.e1 = gamma * pos + 
+            alpha_0k * vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
+                            texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
+                            texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) +
+            alpha_0k * vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
+                            texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
+                            texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) +
             beta_0 * diagonal;
 
         for (uint x=1; x<ivalence - 1; ++x) {
@@ -233,25 +232,25 @@ void main()
             float alpha = (4.0f*sin((M_PI * float(x))/k))/(3.0f*k+c);
             float beta = (sin((M_PI * float(x))/k) + sin((M_PI * float(x+1))/k))/(3.0f*k+c);
 
-            int idx_neighbor = texelFetchBuffer(g_ValenceBuffer, int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 0 + 1)).x;
+            int idx_neighbor = texelFetch(g_ValenceBuffer, int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 0 + 1)).x;
             idx_neighbor = abs(idx_neighbor);
 
             vec3 neighbor =
-                vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor)).x,
-                     texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+1)).x,
-                     texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+2)).x);
+                vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor)).x,
+                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+1)).x,
+                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+2)).x);
 
-            idx_diagonal = texelFetchBuffer(g_ValenceBuffer, int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 1 + 1)).x;
+            idx_diagonal = texelFetch(g_ValenceBuffer, int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 1 + 1)).x;
 
             diagonal =
-                vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
-                     texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
-                     texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
+                vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
+                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
+                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
 
-            output.v.e1 += alpha * neighbor + beta * diagonal;                         
+            outpt.v.e1 += alpha * neighbor + beta * diagonal;                         
         }
 
-        output.v.e1 /= 3.0f;
+        outpt.v.e1 /= 3.0f;
     } 
 }
 #endif
@@ -267,11 +266,11 @@ uniform isamplerBuffer g_QuadOffsetBuffer;
 
 in block {
     GregControlVertex v;
-} input[];
+} inpt[];
 
 out block {
     GregEvalVertex v;
-} output[];
+} outpt[];
 
 #define ID gl_InvocationID
 
@@ -280,17 +279,17 @@ void main()
     uint i = gl_InvocationID;
     uint ip = (i+1)%4;
     uint im = (i+3)%4;
-    uint n = uint(abs(input[i].v.valence));
-    uint ivalence = abs(input[i].v.valence);
+    uint n = uint(abs(inpt[i].v.valence));
+    uint ivalence = abs(inpt[i].v.valence);
     int base = GregoryQuadOffsetBase;
 
-    output[ID].v.position = input[ID].v.position;
+    outpt[ID].v.position = inpt[ID].v.position;
 
-    uint start = texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x & 0x00ff;
-    uint prev = uint(texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0xff00;
+    uint start = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0x00ffu;
+    uint prev = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0xff00u;
     prev=uint(prev/256);
-    uint np = abs(input[ip].v.valence);
-    uint nm = abs(input[im].v.valence);
+    uint np = abs(inpt[ip].v.valence);
+    uint nm = abs(inpt[im].v.valence);
 
     // Control Vertices based on : 
     // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation" 
@@ -321,103 +320,103 @@ void main()
     vec3 Fp = vec3(0.0f,0.0f,0.0f);
     vec3 Fm = vec3(0.0f,0.0f,0.0f);
 
-    uint prev_p = uint(texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + ip)).x)&0xff00;
+    uint prev_p = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + ip)).x) & 0xff00u;
     prev_p=uint(prev_p/256);
     vec3 Em_ip;
 
-    if (input[ip].v.valence < -2) {
-        uint j = (np + prev_p - input[ip].v.zerothNeighbor) % np;
-        Em_ip = input[ip].v.position + cos((M_PI*j)/float(np-1))*input[ip].v.e0 + sin((M_PI*j)/float(np-1))*input[ip].v.e1;
+    if (inpt[ip].v.valence < -2) {
+        uint j = (np + prev_p - inpt[ip].v.zerothNeighbor) % np;
+        Em_ip = inpt[ip].v.position + cos((M_PI*j)/float(np-1))*inpt[ip].v.e0 + sin((M_PI*j)/float(np-1))*inpt[ip].v.e1;
     } else {
-        Em_ip = input[ip].v.position + input[ip].v.e0*csf(np-3,2*prev_p) + input[ip].v.e1*csf(np-3,2*prev_p+1);
+        Em_ip = inpt[ip].v.position + inpt[ip].v.e0*csf(np-3,2*prev_p) + inpt[ip].v.e1*csf(np-3,2*prev_p+1);
     }
 
-    uint start_m = uint(texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + im)).x)&0x00ff;
+    uint start_m = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + im)).x) & 0x00ffu;
     vec3 Ep_im;
 
-    if (input[im].v.valence < -2) {
-        uint j = (nm + start_m - input[im].v.zerothNeighbor) % nm;
-        Ep_im = input[im].v.position + cos((M_PI*j)/float(nm-1))*input[im].v.e0 + sin((M_PI*j)/float(nm-1))*input[im].v.e1;
+    if (inpt[im].v.valence < -2) {
+        uint j = (nm + start_m - inpt[im].v.zerothNeighbor) % nm;
+        Ep_im = inpt[im].v.position + cos((M_PI*j)/float(nm-1))*inpt[im].v.e0 + sin((M_PI*j)/float(nm-1))*inpt[im].v.e1;
     } else {
-        Ep_im = input[im].v.position + input[im].v.e0*csf(nm-3,2*start_m) + input[im].v.e1*csf(nm-3,2*start_m+1);
+        Ep_im = inpt[im].v.position + inpt[im].v.e0*csf(nm-3,2*start_m) + inpt[im].v.e1*csf(nm-3,2*start_m+1);
     }
 
-    if (input[i].v.valence < 0) {
+    if (inpt[i].v.valence < 0) {
         n = (n-1)*2;
     }
-    if (input[im].v.valence < 0) {
+    if (inpt[im].v.valence < 0) {
         nm = (nm-1)*2;
     }  
-    if (input[ip].v.valence < 0) {
+    if (inpt[ip].v.valence < 0) {
         np = (np-1)*2;
     }
 
-    if (input[i].v.valence > 2) {
-        Ep = input[i].v.position + (input[i].v.e0*csf(n-3,2*start) + input[i].v.e1*csf(n-3,2*start+1));
-        Em = input[i].v.position + (input[i].v.e0*csf(n-3,2*prev) +  input[i].v.e1*csf(n-3,2*prev+1)); 
+    if (inpt[i].v.valence > 2) {
+        Ep = inpt[i].v.position + (inpt[i].v.e0*csf(n-3,2*start) + inpt[i].v.e1*csf(n-3,2*start+1));
+        Em = inpt[i].v.position + (inpt[i].v.e0*csf(n-3,2*prev) +  inpt[i].v.e1*csf(n-3,2*prev+1)); 
 
         float s1=3-2*csf(n-3,2)-csf(np-3,2);
         float s2=2*csf(n-3,2);
 
-        Fp = (csf(np-3,2)*input[i].v.position + s1*Ep + s2*Em_ip + input[i].v.r[start])/3.0f; 
+        Fp = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f; 
         s1 = 3.0f-2.0f*cos(2.0f*M_PI/n)-cos(2*M_PI/nm);
-        Fm = (csf(nm-3,2)*input[i].v.position + s1*Em + s2*Ep_im - input[i].v.r[prev])/3.0f;
+        Fm = (csf(nm-3,2)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
 
-    } else if (input[i].v.valence < -2) {
-        uint j = (ivalence + start - input[i].v.zerothNeighbor) % ivalence;
+    } else if (inpt[i].v.valence < -2) {
+        uint j = (ivalence + start - inpt[i].v.zerothNeighbor) % ivalence;
 
-        Ep = input[i].v.position + cos((M_PI*j)/float(ivalence-1))*input[i].v.e0 + sin((M_PI*j)/float(ivalence-1))*input[i].v.e1;
-        j = (ivalence + prev - input[i].v.zerothNeighbor) % ivalence;
-        Em = input[i].v.position + cos((M_PI*j)/float(ivalence-1))*input[i].v.e0 + sin((M_PI*j)/float(ivalence-1))*input[i].v.e1;
+        Ep = inpt[i].v.position + cos((M_PI*j)/float(ivalence-1))*inpt[i].v.e0 + sin((M_PI*j)/float(ivalence-1))*inpt[i].v.e1;
+        j = (ivalence + prev - inpt[i].v.zerothNeighbor) % ivalence;
+        Em = inpt[i].v.position + cos((M_PI*j)/float(ivalence-1))*inpt[i].v.e0 + sin((M_PI*j)/float(ivalence-1))*inpt[i].v.e1;
 
-        vec3 Rp = ((-2.0f * input[i].v.org - 1.0f * input[im].v.org) + (2.0f * input[ip].v.org + 1.0f * input[(i+2)%4].v.org))/3.0f;
-        vec3 Rm = ((-2.0f * input[i].v.org - 1.0f * input[ip].v.org) + (2.0f * input[im].v.org + 1.0f * input[(i+2)%4].v.org))/3.0f;
+        vec3 Rp = ((-2.0f * inpt[i].v.org - 1.0f * inpt[im].v.org) + (2.0f * inpt[ip].v.org + 1.0f * inpt[(i+2)%4].v.org))/3.0f;
+        vec3 Rm = ((-2.0f * inpt[i].v.org - 1.0f * inpt[ip].v.org) + (2.0f * inpt[im].v.org + 1.0f * inpt[(i+2)%4].v.org))/3.0f;
 
         float s1=3-2*csf(n-3,2)-csf(np-3,2);
         float s2=2*csf(n-3,2);
 
-        Fp = (csf(np-3,2)*input[i].v.position + s1*Ep + s2*Em_ip + input[i].v.r[start])/3.0f; 
+        Fp = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f; 
         s1 = 3.0f-2.0f*cos(2.0f*M_PI/n)-cos(2.0f*M_PI/nm);
-        Fm = (csf(nm-3,2)*input[i].v.position + s1*Em + s2*Ep_im - input[i].v.r[prev])/3.0f;
+        Fm = (csf(nm-3,2)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
 
-        if (input[im].v.valence < 0) {
+        if (inpt[im].v.valence < 0) {
             s1=3-2*csf(n-3,2)-csf(np-3,2);
-            Fp = Fm = (csf(np-3,2)*input[i].v.position + s1*Ep + s2*Em_ip + input[i].v.r[start])/3.0f;
-        } else if (input[ip].v.valence < 0) {
+            Fp = Fm = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f;
+        } else if (inpt[ip].v.valence < 0) {
             s1 = 3.0f-2.0f*cos(2.0f*M_PI/n)-cos(2.0f*M_PI/nm);
-            Fm = Fp = (csf(nm-3,2)*input[i].v.position + s1*Em + s2*Ep_im - input[i].v.r[prev])/3.0f;
+            Fm = Fp = (csf(nm-3,2)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
         }
 
-    } else if (input[i].v.valence == -2) {
-        Ep = (2.0f * input[i].v.org + input[ip].v.org)/3.0f;
-        Em = (2.0f * input[i].v.org + input[im].v.org)/3.0f;
-        Fp = Fm = (4.0f * input[i].v.org + input[(i+2)%n].v.org + 2.0f * input[ip].v.org + 2.0f * input[im].v.org)/9.0f;
+    } else if (inpt[i].v.valence == -2) {
+        Ep = (2.0f * inpt[i].v.org + inpt[ip].v.org)/3.0f;
+        Em = (2.0f * inpt[i].v.org + inpt[im].v.org)/3.0f;
+        Fp = Fm = (4.0f * inpt[i].v.org + inpt[(i+2)%n].v.org + 2.0f * inpt[ip].v.org + 2.0f * inpt[im].v.org)/9.0f;
     }
 
-    output[ID].v.Ep = Ep;
-    output[ID].v.Em = Em;
-    output[ID].v.Fp = Fp;
-    output[ID].v.Fm = Fm;
+    outpt[ID].v.Ep = Ep;
+    outpt[ID].v.Em = Em;
+    outpt[ID].v.Fp = Fp;
+    outpt[ID].v.Fm = Fm;
 
     int patchLevel = GetPatchLevel();
-    output[ID].v.patchCoord = vec4(0, 0,
-                                   patchLevel+0.5f,
-                                   gl_PrimitiveID+LevelBase+0.5f);
+    outpt[ID].v.patchCoord = vec4(0, 0,
+                                  patchLevel+0.5f,
+                                  gl_PrimitiveID+LevelBase+0.5f);
 
     OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
 
     if (ID == 0) {
         OSD_PATCH_CULL(4);
 
-#if OSD_ENABLE_SCREENSPACE_TESSELLATION
+#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
         gl_TessLevelOuter[0] =
-            TessAdaptive(input[0].v.hullPosition.xyz, input[1].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[1].v.hullPosition.xyz, patchLevel);
         gl_TessLevelOuter[1] =
-            TessAdaptive(input[0].v.hullPosition.xyz, input[3].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz, patchLevel);
         gl_TessLevelOuter[2] =
-            TessAdaptive(input[2].v.hullPosition.xyz, input[3].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[2].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz, patchLevel);
         gl_TessLevelOuter[3] =
-            TessAdaptive(input[1].v.hullPosition.xyz, input[2].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[1].v.hullPosition.xyz, inpt[2].v.hullPosition.xyz, patchLevel);
         gl_TessLevelInner[0] =
             max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
         gl_TessLevelInner[1] =
@@ -444,11 +443,11 @@ layout(cw) in;
 
 in block {
     GregEvalVertex v;
-} input[];
+} inpt[];
 
 out block {
     OutputVertex v;
-} output;
+} outpt;
 
 void main()
 {
@@ -457,29 +456,29 @@ void main()
 
     vec3 p[20];
 
-    p[0] = input[0].v.position;
-    p[1] = input[0].v.Ep;
-    p[2] = input[0].v.Em;
-    p[3] = input[0].v.Fp;
-    p[4] = input[0].v.Fm;
+    p[0] = inpt[0].v.position;
+    p[1] = inpt[0].v.Ep;
+    p[2] = inpt[0].v.Em;
+    p[3] = inpt[0].v.Fp;
+    p[4] = inpt[0].v.Fm;
 
-    p[5] = input[1].v.position;
-    p[6] = input[1].v.Ep;
-    p[7] = input[1].v.Em;
-    p[8] = input[1].v.Fp;
-    p[9] = input[1].v.Fm;
+    p[5] = inpt[1].v.position;
+    p[6] = inpt[1].v.Ep;
+    p[7] = inpt[1].v.Em;
+    p[8] = inpt[1].v.Fp;
+    p[9] = inpt[1].v.Fm;
 
-    p[10] = input[2].v.position;
-    p[11] = input[2].v.Ep;
-    p[12] = input[2].v.Em;
-    p[13] = input[2].v.Fp;
-    p[14] = input[2].v.Fm;
+    p[10] = inpt[2].v.position;
+    p[11] = inpt[2].v.Ep;
+    p[12] = inpt[2].v.Em;
+    p[13] = inpt[2].v.Fp;
+    p[14] = inpt[2].v.Fm;
 
-    p[15] = input[3].v.position;
-    p[16] = input[3].v.Ep;
-    p[17] = input[3].v.Em;
-    p[18] = input[3].v.Fp;
-    p[19] = input[3].v.Fm;
+    p[15] = inpt[3].v.position;
+    p[16] = inpt[3].v.Ep;
+    p[17] = inpt[3].v.Em;
+    p[18] = inpt[3].v.Fp;
+    p[19] = inpt[3].v.Fm;
 
     vec3 q[16];
 
@@ -543,11 +542,11 @@ void main()
 
     vec3 normal = normalize(cross(BiTangent, Tangent));
 
-    output.v.position = ModelViewMatrix * vec4(WorldPos, 1.0f);
-    output.v.normal = normal;
-    output.v.patchCoord = input[0].v.patchCoord;
-    output.v.patchCoord.xy = vec2(v, u);
-    output.v.tangent = normalize(BiTangent);
+    outpt.v.position = ModelViewMatrix * vec4(WorldPos, 1.0f);
+    outpt.v.normal = normal;
+    outpt.v.patchCoord = inpt[0].v.patchCoord;
+    outpt.v.patchCoord.xy = vec2(v, u);
+    outpt.v.tangent = normalize(BiTangent);
 
     OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
 
@@ -569,11 +568,11 @@ layout (location=2) in vec4 color;
 
 out block {
     OutputVertex v;
-} output;
+} outpt;
 
 void main() {
     gl_Position = ModelViewProjectionMatrix * position;
-    output.v.color = color;
+    outpt.v.color = color;
 }
 
 #endif
@@ -585,9 +584,9 @@ void main() {
 
 in block {
     OutputVertex v;
-} input;
+} inpt;
 
 void main() {
-    gl_FragColor = input.v.color;
+    gl_FragColor = inpt.v.color;
 }
 #endif

@@ -58,6 +58,7 @@
 #define OSD_DRAW_CONTEXT_H
 
 #include "../version.h"
+
 #include "../far/patchTables.h"
 
 #include <utility>

@@ -66,10 +66,17 @@ include_directories(
 
 set(PUBLIC_HEADER_FILES
     batch.h
-    batchCL.h
     drawItem.h
     drawController.h
 )
+
+#-------------------------------------------------------------------------------
+# OpenCL code & dependencies
+if ( OPENCL_FOUND )
+    list(APPEND PUBLIC_HEADER_FILES
+        batchCL.h
+    )
+endif()
 
 #-------------------------------------------------------------------------------
 # platform dependent tweaks

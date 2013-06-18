@@ -156,6 +156,9 @@ private:
 
     // The number of patch arrays in the mesh
     int getNumPatchArrays() const;
+    
+    // The number of patches in the mesh
+    static int getNumPatches( FarPatchTables::PatchArrayVector const & parrays );
 
     // Reserves tables based on the contents of the PatchArrayVector
     static void allocateTables( FarPatchTables * tables, int fvarwidth );
@@ -254,7 +257,7 @@ template <class T> void
 FarPatchTablesFactory<T>::allocateTables( FarPatchTables * tables, int fvarwidth ) {
 
     int nverts = tables->GetNumControlVertices(),
-        npatches = tables->GetNumPatches();
+        npatches = getNumPatches(tables->GetPatchArrayVector());
 
     if (nverts==0 or npatches==0)
         return;
@@ -637,6 +640,17 @@ FarPatchTablesFactory<T>::getNumPatchArrays() const {
     return result;
 }
 
+template <class T> int 
+FarPatchTablesFactory<T>::getNumPatches( FarPatchTables::PatchArrayVector const & parrays ) {
+
+    int result=0;
+    for (int i=0; i<(int)parrays.size(); ++i) {
+        result += parrays[i].GetNumPatches();
+    }
+
+    return result;
+}
+
 template <class T> void
 FarPatchTablesFactory<T>::pushPatchArray( FarPatchTables::Descriptor desc, 
                                           FarPatchTables::PatchArrayVector & parray, 
@@ -705,7 +719,8 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
 
         iptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_patches[pa->GetVertIndex()];
         pptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_paramTable[pa->GetPatchIndex()];
-        if (requireFVarData)
+        
+        if (fvarwidth>0)
             fptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_fvarTable[pa->GetPatchIndex() * 4 * fvarwidth];
     }
  

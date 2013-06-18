@@ -55,9 +55,6 @@
 //     a particular purpose and non-infringement.
 //
 
-#extension GL_EXT_gpu_shader4 : require
-#line 2
-
 //----------------------------------------------------------
 // Patches.Coefficients
 //----------------------------------------------------------
@@ -81,15 +78,15 @@ layout (location=0) in vec4 position;
 
 out block {
     ControlVertex v;
-} output;
+} outpt;
 
 void main() {
-    output.v.position = ModelViewMatrix * position;
+    outpt.v.position = ModelViewMatrix * position;
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
 
 #if OSD_NUM_VARYINGS > 0
     for (int i = 0; i < OSD_NUM_VARYINGS; ++i)
-        output.v.varyings[i] = varyings[i];
+        outpt.v.varyings[i] = varyings[i];
 #endif
 }
 
@@ -104,11 +101,11 @@ layout(vertices = 16) out;
 
 in block {
     ControlVertex v;
-} input[];
+} inpt[];
 
 out block {
     ControlVertex v;
-} output[];
+} outpt[];
 
 #define ID gl_InvocationID
 
@@ -128,7 +125,7 @@ void main()
         H[l] = vec3(0,0,0);
         for (int k=0; k<4; k++) {
             float c = Q[i][k];
-            H[l] += c*input[l*4 + k].v.position.xyz;
+            H[l] += c*inpt[l*4 + k].v.position.xyz;
         }
     }
 
@@ -146,7 +143,7 @@ void main()
         H[l] = vec3(0,0,0);
         for (int k=0; k<3; k++) {
             float c = B[i][2-k];
-            H[l] += c*input[l*3 + k].v.position.xyz;
+            H[l] += c*inpt[l*3 + k].v.position.xyz;
         }
     }
 
@@ -164,7 +161,7 @@ void main()
         H[l] = vec3(0,0,0);
         for (int k=0; k<4; k++) {
             float c = Q[i][k];
-            H[l] += c*input[l*4 + k].v.position.xyz;
+            H[l] += c*inpt[l*4 + k].v.position.xyz;
         }
     }
 
@@ -175,21 +172,20 @@ void main()
 
 #endif
 
-    output[ID].v.position = vec4(pos, 1.0);
+    outpt[ID].v.position = vec4(pos, 1.0);
 
     int patchLevel = GetPatchLevel();
-    output[ID].v.patchCoord = vec4(0, 0,
-                                   patchLevel+0.5,
-                                   gl_PrimitiveID+LevelBase+0.5);
+    outpt[ID].v.patchCoord = vec4(0, 0,
+                                  patchLevel+0.5,
+                                  gl_PrimitiveID+LevelBase+0.5);
 
     OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
 
     if (ID == 0) {
         OSD_PATCH_CULL(16);
 
-#if OSD_ENABLE_SCREENSPACE_TESSELLATION
-#line 1000
-        // These tables map the 9, 12, or 16 input control points onto the
+#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
+        // These tables map the 9, 12, or 16 inpt control points onto the
         // canonical 16 control points for a regular patch.
 #if defined BOUNDARY
         const int p[16] = int[]( 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 );
@@ -209,27 +205,26 @@ void main()
         const int r[16] = int[]( 3, 7, 11, 15, 2, 6, 10, 14, 1, 5, 9, 13, 0, 4, 8, 12 );
 #endif
 
-#line 2000
         // Expand and rotate control points using remapping tables above
-        vec3 pv0 = input[p[r[0]]].v.position.xyz;
-        vec3 pv1 = input[p[r[1]]].v.position.xyz;
-        vec3 pv2 = input[p[r[2]]].v.position.xyz;
-        vec3 pv3 = input[p[r[3]]].v.position.xyz;
+        vec3 pv0 = inpt[p[r[0]]].v.position.xyz;
+        vec3 pv1 = inpt[p[r[1]]].v.position.xyz;
+        vec3 pv2 = inpt[p[r[2]]].v.position.xyz;
+        vec3 pv3 = inpt[p[r[3]]].v.position.xyz;
 
-        vec3 pv4 = input[p[r[4]]].v.position.xyz;
-        vec3 pv5 = input[p[r[5]]].v.position.xyz;
-        vec3 pv6 = input[p[r[6]]].v.position.xyz;
-        vec3 pv7 = input[p[r[7]]].v.position.xyz;
+        vec3 pv4 = inpt[p[r[4]]].v.position.xyz;
+        vec3 pv5 = inpt[p[r[5]]].v.position.xyz;
+        vec3 pv6 = inpt[p[r[6]]].v.position.xyz;
+        vec3 pv7 = inpt[p[r[7]]].v.position.xyz;
 
-        vec3 pv8 = input[p[r[8]]].v.position.xyz;
-        vec3 pv9 = input[p[r[9]]].v.position.xyz;
-        vec3 pv10 = input[p[r[10]]].v.position.xyz;
-        vec3 pv11 = input[p[r[11]]].v.position.xyz;
+        vec3 pv8 = inpt[p[r[8]]].v.position.xyz;
+        vec3 pv9 = inpt[p[r[9]]].v.position.xyz;
+        vec3 pv10 = inpt[p[r[10]]].v.position.xyz;
+        vec3 pv11 = inpt[p[r[11]]].v.position.xyz;
 
-        vec3 pv12 = input[p[r[12]]].v.position.xyz;
-        vec3 pv13 = input[p[r[13]]].v.position.xyz;
-        vec3 pv14 = input[p[r[14]]].v.position.xyz;
-        vec3 pv15 = input[p[r[15]]].v.position.xyz;
+        vec3 pv12 = inpt[p[r[12]]].v.position.xyz;
+        vec3 pv13 = inpt[p[r[13]]].v.position.xyz;
+        vec3 pv14 = inpt[p[r[14]]].v.position.xyz;
+        vec3 pv15 = inpt[p[r[15]]].v.position.xyz;
 
         // Each edge of a transition patch is adjacent to one or two 
         // patches at the next refined level of subdivision.
@@ -605,11 +600,11 @@ void main()
 
 in block {
     ControlVertex v;
-} input[];
+} inpt[];
 
 out block {
     OutputVertex v;
-} output;
+} outpt;
 
 void main()
 {
@@ -739,25 +734,25 @@ void main()
 
     vec3 WorldPos, Tangent, BiTangent;
     vec3 cp[16];
-    for(int i = 0; i < 16; ++i) cp[i] = input[i].v.position.xyz;
+    for(int i = 0; i < 16; ++i) cp[i] = inpt[i].v.position.xyz;
     EvalBSpline(UV, cp, WorldPos, Tangent, BiTangent);
 
     vec3 normal = normalize(cross(BiTangent, Tangent));
 
-    output.v.position = vec4(WorldPos, 1.0f);
-    output.v.normal = normal;
-    output.v.tangent = BiTangent;
+    outpt.v.position = vec4(WorldPos, 1.0f);
+    outpt.v.normal = normal;
+    outpt.v.tangent = BiTangent;
 
-    output.v.patchCoord = input[0].v.patchCoord;
+    outpt.v.patchCoord = inpt[0].v.patchCoord;
 
 #if ROTATE == 1
-    output.v.patchCoord.xy = vec2(UV.x, 1.0-UV.y);
+    outpt.v.patchCoord.xy = vec2(UV.x, 1.0-UV.y);
 #elif ROTATE == 2
-    output.v.patchCoord.xy = vec2(1.0-UV.y, 1.0-UV.x);
+    outpt.v.patchCoord.xy = vec2(1.0-UV.y, 1.0-UV.x);
 #elif ROTATE == 3
-    output.v.patchCoord.xy = vec2(1.0-UV.x, UV.y);
+    outpt.v.patchCoord.xy = vec2(1.0-UV.x, UV.y);
 #else
-    output.v.patchCoord.xy = vec2(UV.y, UV.x);
+    outpt.v.patchCoord.xy = vec2(UV.y, UV.x);
 #endif
 
     OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
@@ -782,11 +777,11 @@ layout (location=2) in vec4 color;
 
 out block {
     OutputVertex v;
-} output;
+} outpt;
 
 void main() {
     gl_Position = ModelViewProjectionMatrix * position;
-    output.v.color = color;
+    outpt.v.color = color;
 }
 
 #endif
@@ -798,9 +793,9 @@ void main() {
 
 in block {
     OutputVertex v;
-} input;
+} inpt;
 
 void main() {
-    gl_FragColor = input.v.color;
+    gl_FragColor = inpt.v.color;
 }
 #endif

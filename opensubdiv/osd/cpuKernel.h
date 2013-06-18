@@ -58,6 +58,7 @@
 #define OSD_CPU_KERNEL_H
 
 #include "../version.h"
+
 #include "../osd/vertexDescriptor.h"
 
 namespace OpenSubdiv {

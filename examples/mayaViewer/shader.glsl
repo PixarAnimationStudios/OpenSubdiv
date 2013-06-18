@@ -65,11 +65,11 @@ layout (location=0) in vec4 position;
 
 out block {
     OutputVertex v;
-} output;
+} outpt;
 
 void main()
 {
-    output.v.position = ModelViewMatrix * position;
+    outpt.v.position = ModelViewMatrix * position;
 }
 
 #endif // VERTEX_SHADER
@@ -95,7 +95,7 @@ uniform samplerBuffer g_uvFVarBuffer;
 
     in block {
         OutputVertex v;
-    } input[4];
+    } inpt[4];
 
 #endif // PRIM_QUAD
 
@@ -113,7 +113,7 @@ uniform samplerBuffer g_uvFVarBuffer;
 
     in block {
         OutputVertex v;
-    } input[3];
+    } inpt[3];
 
 #endif // PRIM_TRI
 
@@ -124,21 +124,21 @@ uniform samplerBuffer g_uvFVarBuffer;
 
     in block {
         OutputVertex v;
-    } input[1];
+    } inpt[1];
 
 #endif // PRIM_POINT
 
 out block {
     OutputVertex v;
-} output;
+} outpt;
 
 void emitUniform(int index, vec3 normal)
 {
-    output.v.position = input[index].v.position;
+    outpt.v.position = inpt[index].v.position;
 #ifdef SMOOTH_NORMALS
-    output.v.normal = input[index].v.normal;
+    outpt.v.normal = inpt[index].v.normal;
 #else
-    output.v.normal = normal;
+    outpt.v.normal = normal;
 #endif
 
     // We fetch each uv component separately since the texture buffer
@@ -151,31 +151,32 @@ void emitUniform(int index, vec3 normal)
     //            prim 0           prim 1
     int uvOffset = gl_PrimitiveID * 4;
 
-    output.v.patchCoord.st = 
-        vec2( texelFetchBuffer( g_uvFVarBuffer, (uvOffset+index)*2   ).s,
-              texelFetchBuffer( g_uvFVarBuffer, (uvOffset+index)*2+1 ).s );
+    outpt.v.patchCoord.st = 
+        vec2( texelFetch( g_uvFVarBuffer, (uvOffset+index)*2   ).s,
+              texelFetch( g_uvFVarBuffer, (uvOffset+index)*2+1 ).s );
 
-    gl_Position = ProjectionMatrix * input[index].v.position;
+    gl_Position = ProjectionMatrix * inpt[index].v.position;
 
     EmitVertex();
 }
 
 void emitAdaptive(int index, vec3 normal, vec2 uvs[4])
 {
-    output.v.position = input[index].v.position;
+    outpt.v.position = inpt[index].v.position;
 #ifdef SMOOTH_NORMALS
-    output.v.normal = input[index].v.normal;
+    outpt.v.normal = inpt[index].v.normal;
 #else
-    output.v.normal = normal;
+    outpt.v.normal = normal;
 #endif
     
     // Bi-linear interpolation within the patch
-    vec2 st = input[index].v.patchCoord.st;
-    output.v.patchCoord.st =
+    outpt.v.patchCoord = inpt[index].v.patchCoord;
+    vec2 st = inpt[index].v.tessCoord;
+    outpt.v.patchCoord.st =
         vec2( mix( mix(uvs[0].x, uvs[1].x, st.s ), mix(uvs[3].x, uvs[2].x, st.s ), st.t),
               mix( mix(uvs[0].y, uvs[1].y, st.s ), mix(uvs[3].y, uvs[2].y, st.s ), st.t)  );
               
-    gl_Position = ProjectionMatrix * input[index].v.position;
+    gl_Position = ProjectionMatrix * inpt[index].v.position;
 
     EmitVertex();
 }
@@ -199,17 +200,17 @@ void main()
     int uvOffset = (gl_PrimitiveID+LevelBase) * 4;
 
     vec2 uvs[4];
-    uvs[0] = vec2( texelFetchBuffer( g_uvFVarBuffer, (uvOffset+0)*2   ).s,
-                   texelFetchBuffer( g_uvFVarBuffer, (uvOffset+0)*2+1 ).s );
+    uvs[0] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+0)*2   ).s,
+                   texelFetch( g_uvFVarBuffer, (uvOffset+0)*2+1 ).s );
      
-    uvs[1] = vec2( texelFetchBuffer( g_uvFVarBuffer, (uvOffset+1)*2   ).s,
-                   texelFetchBuffer( g_uvFVarBuffer, (uvOffset+1)*2+1 ).s );
+    uvs[1] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+1)*2   ).s,
+                   texelFetch( g_uvFVarBuffer, (uvOffset+1)*2+1 ).s );
      
-    uvs[2] = vec2( texelFetchBuffer( g_uvFVarBuffer, (uvOffset+2)*2   ).s,
-                   texelFetchBuffer( g_uvFVarBuffer, (uvOffset+2)*2+1 ).s );
+    uvs[2] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+2)*2   ).s,
+                   texelFetch( g_uvFVarBuffer, (uvOffset+2)*2+1 ).s );
      
-    uvs[3] = vec2( texelFetchBuffer( g_uvFVarBuffer, (uvOffset+3)*2   ).s,
-                   texelFetchBuffer( g_uvFVarBuffer, (uvOffset+3)*2+1 ).s );
+    uvs[3] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+3)*2   ).s,
+                   texelFetch( g_uvFVarBuffer, (uvOffset+3)*2+1 ).s );
 #endif
 
     vec3 n0 = vec3(0);
@@ -220,8 +221,8 @@ void main()
 
 #elif defined ( PRIM_TRI)
 
-    vec3 A = (input[1].v.position - input[0].v.position).xyz;
-    vec3 B = (input[2].v.position - input[0].v.position).xyz;
+    vec3 A = (inpt[1].v.position - inpt[0].v.position).xyz;
+    vec3 B = (inpt[2].v.position - inpt[0].v.position).xyz;
     n0 = normalize(cross(B, A));
     #ifdef FVAR_ADAPTIVE
         emitAdaptive(0, n0, uvs);
@@ -244,9 +245,9 @@ void main()
 
 #elif defined ( PRIM_QUAD )
 
-    vec3 A = (input[0].v.position - input[1].v.position).xyz;
-    vec3 B = (input[3].v.position - input[1].v.position).xyz;
-    //vec3 C = (input[2].v.position - input[1].v.position).xyz;
+    vec3 A = (inpt[0].v.position - inpt[1].v.position).xyz;
+    vec3 B = (inpt[3].v.position - inpt[1].v.position).xyz;
+    //vec3 C = (inpt[2].v.position - inpt[1].v.position).xyz;
     n0 = normalize(cross(B, A));
 
 #ifdef GEOMETRY_OUT_FILL
@@ -278,7 +279,7 @@ uniform sampler2D diffuseMap;
 
 in block {
     OutputVertex v;
-} input;
+} inpt;
 
 #define NUM_LIGHTS 2
 
@@ -348,12 +349,12 @@ main()
 void
 main()
 {
-    vec3 N = (gl_FrontFacing ? input.v.normal : -input.v.normal);
+    vec3 N = (gl_FrontFacing ? inpt.v.normal : -inpt.v.normal);
 #ifdef USE_DIFFUSE_MAP
-    vec4 texColor = texture(diffuseMap, input.v.patchCoord.st);
-    gl_FragColor = lighting(input.v.position.xyz, N, texColor);
+    vec4 texColor = texture(diffuseMap, inpt.v.patchCoord.st);
+    gl_FragColor = lighting(inpt.v.position.xyz, N, texColor);
 #else
-    gl_FragColor = lighting(input.v.position.xyz, N, vec4(1.0));
+    gl_FragColor = lighting(inpt.v.position.xyz, N, vec4(1.0));
 #endif
 }
 #endif // GEOMETRY_OUT_LINE

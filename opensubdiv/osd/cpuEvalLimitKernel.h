@@ -65,6 +65,14 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 void
+evalBilinear(float u, float v,
+             unsigned int const * vertexIndices,
+             OsdVertexBufferDescriptor const & inDesc,
+             float const * inQ,
+             OsdVertexBufferDescriptor const & outDesc,
+             float * outQ);
+
+void
 evalBSpline(float u, float v, 
             unsigned int const * vertexIndices,
             OsdVertexBufferDescriptor const & inDesc,

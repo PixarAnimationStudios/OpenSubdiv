@@ -131,7 +131,9 @@
 #include <far/meshFactory.h>
 
 #include <osdutil/batch.h>
-#include <osdutil/batchCL.h>
+#ifdef OPENSUBDIV_HAS_OPENCL
+    #include <osdutil/batchCL.h>
+#endif
 #include <osdutil/drawItem.h>
 #include <osdutil/drawController.h>
 #include "delegate.h"

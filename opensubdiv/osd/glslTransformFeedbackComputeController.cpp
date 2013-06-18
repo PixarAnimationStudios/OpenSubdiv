@@ -55,15 +55,11 @@
 //     a particular purpose and non-infringement.
 //
 
-#if defined(__APPLE__)
-    #include <OpenGL/gl3.h>
-#else
-    #include <GL/glew.h>
-#endif
-
 #include "../osd/glslTransformFeedbackComputeController.h"
 #include "../osd/glslTransformFeedbackComputeContext.h"
 #include "../osd/glslTransformFeedbackKernelBundle.h"
+
+#include "../osd/opengl.h"
 
 #include <algorithm>
 #include <cassert>

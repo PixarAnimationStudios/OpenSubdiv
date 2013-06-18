@@ -55,14 +55,16 @@
 //     a particular purpose and non-infringement.
 //
 
-#extension GL_EXT_gpu_shader4 : require
-
 //----------------------------------------------------------
 // Patches.Common
 //----------------------------------------------------------
 
 #ifndef OSD_NUM_VARYINGS
 #define OSD_NUM_VARYINGS 0
+#endif
+
+#ifndef ROTATE
+#define ROTATE 0
 #endif
 
 #define M_PI 3.14159265359f
@@ -82,7 +84,7 @@ struct OutputVertex {
     vec3 normal;
     vec3 tangent;
     centroid vec4 patchCoord; // u, v, level, faceID
-    noperspective vec4 edgeDistance;
+    centroid vec2 tessCoord; // tesscoord.st
 #if OSD_NUM_VARYINGS > 0
     float varyings[OSD_NUM_VARYINGS];
 #endif
@@ -136,7 +138,7 @@ uniform    int LevelBase;
 
 float GetTessLevel(int patchLevel)
 {
-#if OSD_ENABLE_SCREENSPACE_TESSELLATION
+#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
     return TessLevel;
 #else
     return TessLevel / pow(2, patchLevel-1);
@@ -165,50 +167,47 @@ float TessAdaptive(vec3 p0, vec3 p1, int patchLevel)
 
 uniform isamplerBuffer g_ptexIndicesBuffer;
 
-int GetPatchLevel()
-{
-    ivec2 ptexIndex = texelFetchBuffer(g_ptexIndicesBuffer,
-                                       gl_PrimitiveID + LevelBase).xy;
-    return (ptexIndex.y & 0xf);
-}
+#define GetPatchLevel()                                                 \
+        (texelFetch(g_ptexIndicesBuffer, gl_PrimitiveID + LevelBase).y & 0xf)
 
 #define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
     {                                                                   \
-        ivec2 ptexIndex = texelFetchBuffer(g_ptexIndicesBuffer,         \
-                                           gl_PrimitiveID + LevelBase).xy; \
+        ivec2 ptexIndex = texelFetch(g_ptexIndicesBuffer,               \
+                                     gl_PrimitiveID + LevelBase).xy;    \
         int faceID = ptexIndex.x;                                       \
         int lv = 1 << (ptexIndex.y & 0xf);                              \
         int u = (ptexIndex.y >> 17) & 0x3ff;                            \
         int v = (ptexIndex.y >> 7) & 0x3ff;                             \
         int rotation = (ptexIndex.y >> 5) & 0x3;                        \
-        output[ID].v.patchCoord.w = faceID+0.5;                         \
-        output[ID].v.ptexInfo = ivec4(u, v, lv, rotation);              \
+        outpt[ID].v.patchCoord.w = faceID+0.5;                          \
+        outpt[ID].v.ptexInfo = ivec4(u, v, lv, rotation);               \
     }
 
 #define OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER                          \
     {                                                                   \
-        vec2 uv = output.v.patchCoord.xy;                               \
-        ivec2 p = input[0].v.ptexInfo.xy;                               \
-        int lv = input[0].v.ptexInfo.z;                                 \
-        int rot = input[0].v.ptexInfo.w;                                \
+        vec2 uv = outpt.v.patchCoord.xy;                                \
+        ivec2 p = inpt[0].v.ptexInfo.xy;                                \
+        int lv = inpt[0].v.ptexInfo.z;                                  \
+        int rot = inpt[0].v.ptexInfo.w;                                 \
+        outpt.v.tessCoord.xy = uv;                                      \
         uv.xy = float(rot==0)*uv.xy                                     \
             + float(rot==1)*vec2(1.0-uv.y, uv.x)                        \
             + float(rot==2)*vec2(1.0-uv.x, 1.0-uv.y)                    \
             + float(rot==3)*vec2(uv.y, 1.0-uv.x);                       \
-        output.v.patchCoord.xy = (uv * vec2(1.0)/lv) + vec2(p.x, p.y)/lv; \
+        outpt.v.patchCoord.xy = (uv * vec2(1.0)/lv) + vec2(p.x, p.y)/lv; \
     }
 
 #define OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(ROTATE)             \
     {                                                           \
-        int rot = (input[0].v.ptexInfo.w + 4 - ROTATE)%4;       \
+        int rot = (inpt[0].v.ptexInfo.w + 4 - ROTATE)%4;        \
         if (rot == 1) {                                         \
-            output.v.tangent = -normalize(Tangent);             \
+            outpt.v.tangent = -normalize(Tangent);              \
         } else if (rot == 2) {                                  \
-            output.v.tangent = -normalize(BiTangent);           \
+            outpt.v.tangent = -normalize(BiTangent);            \
         } else if (rot == 3) {                                  \
-            output.v.tangent = normalize(Tangent);              \
+            outpt.v.tangent = normalize(Tangent);               \
         } else {                                                \
-            output.v.tangent = normalize(BiTangent);            \
+            outpt.v.tangent = normalize(BiTangent);             \
         }                                                       \
     }
 
@@ -218,12 +217,12 @@ int GetPatchLevel()
     vec4 clipPos = ModelViewProjectionMatrix * P;               \
     bvec3 clip0 = lessThan(clipPos.xyz, vec3(clipPos.w));       \
     bvec3 clip1 = greaterThan(clipPos.xyz, -vec3(clipPos.w));   \
-    output.v.clipFlag = ivec3(clip0) + 2*ivec3(clip1);          \
+    outpt.v.clipFlag = ivec3(clip0) + 2*ivec3(clip1);           \
 
 #define OSD_PATCH_CULL(N)                            \
     ivec3 clipFlag = ivec3(0);                       \
     for(int i = 0; i < N; ++i) {                     \
-        clipFlag |= input[i].v.clipFlag;             \
+        clipFlag |= inpt[i].v.clipFlag;              \
     }                                                \
     if (clipFlag != ivec3(3) ) {                     \
         gl_TessLevelInner[0] = 0;                    \
@@ -270,12 +269,12 @@ uniform mat4 R = mat4(
 );
 
 #if OSD_MAX_VALENCE<=10
-uniform float ef[7] = {
+uniform float ef[7] = float[](
     0.813008, 0.500000, 0.363636, 0.287505,
     0.238692, 0.204549, 0.179211
-};
+);
 #else
-uniform float ef[27] = {
+uniform float ef[27] = float[](
     0.812816, 0.500000, 0.363644, 0.287514,
     0.238688, 0.204544, 0.179229, 0.159657,
     0.144042, 0.131276, 0.120632, 0.111614,
@@ -283,7 +282,7 @@ uniform float ef[27] = {
     0.0814022, 0.0772401, 0.0734867, 0.0700842,
     0.0669851, 0.0641504, 0.0615475, 0.0591488,
     0.0569311, 0.0548745, 0.0529621
-};
+);
 #endif
 
 float csf(uint n, uint j)

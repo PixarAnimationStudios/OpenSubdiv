@@ -67,7 +67,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 OsdCpuEvalLimitContext *
-OsdCpuEvalLimitContext::Create(FarMesh<OsdVertex> const * farmesh) {
+OsdCpuEvalLimitContext::Create(FarMesh<OsdVertex> const * farmesh, bool requireFVarData) {
 
     assert(farmesh);
     
@@ -75,10 +75,10 @@ OsdCpuEvalLimitContext::Create(FarMesh<OsdVertex> const * farmesh) {
     if (not farmesh->GetPatchTables())
         return NULL;
                                           
-    return new OsdCpuEvalLimitContext(farmesh);
+    return new OsdCpuEvalLimitContext(farmesh, requireFVarData);
 }
 
-OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmesh) :
+OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmesh, bool requireFVarData) :
     OsdEvalLimitContext(farmesh) {
     
     FarPatchTables const * patchTables = farmesh->GetPatchTables();
@@ -89,9 +89,9 @@ OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmes
 
     _patchArrays = patchTables->GetPatchArrayVector();
     
-    _vertexValenceBuffer = patchTables->GetVertexValenceTable();
+    _vertexValenceTable = patchTables->GetVertexValenceTable();
     
-    _quadOffsetBuffer = patchTables->GetQuadOffsetTable();
+    _quadOffsetTable = patchTables->GetQuadOffsetTable();
     
     _maxValence = patchTables->GetMaxValence();
     
@@ -117,12 +117,50 @@ OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmes
         }
     }
     
-
-    _patchMap = new FarPatchTables::PatchMap( *patchTables );
+    // Copy the face-varying table if necessary    
+    if (requireFVarData) {
+        _fvarwidth = farmesh->GetTotalFVarWidth();
+        if (_fvarwidth>0) {
+            _fvarData = patchTables->GetFVarDataTable();
+        }
+    }
+    
+    _patchMap = new FarPatchMap( *patchTables );
 }
 
 OsdCpuEvalLimitContext::~OsdCpuEvalLimitContext() {
     delete _patchMap;
+}
+
+void 
+OsdCpuEvalLimitContext::VertexData::Unbind() {
+
+    inDesc.Reset();
+    in.Unbind();
+
+    outDesc.Reset();
+    out.Unbind();
+    outDu.Unbind();
+    outDv.Unbind();
+}
+
+void 
+OsdCpuEvalLimitContext::VaryingData::Unbind() {
+
+    inDesc.Reset();
+    in.Unbind();
+
+    outDesc.Reset();
+    out.Unbind();
+}
+
+void 
+OsdCpuEvalLimitContext::FaceVaryingData::Unbind() {
+
+    inDesc.Reset();
+
+    outDesc.Reset();
+    out.Unbind();
 }
 
 } // end namespace OPENSUBDIV_VERSION

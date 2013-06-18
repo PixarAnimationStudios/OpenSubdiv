@@ -693,7 +693,7 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if(kernel == kGLSL) {
-        if (not g_glslComputeController) {
+        if (not g_glslTransformFeedbackComputeController) {
             g_glslTransformFeedbackComputeController = new OpenSubdiv::OsdGLSLTransformFeedbackComputeController();
         }
         g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdGLVertexBuffer,
@@ -1269,7 +1269,7 @@ display() {
 
         GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
         
-        if (g_displayPatchColor) {
+        if (g_displayPatchColor and primType == GL_PATCHES) {
             float const * color = getAdaptivePatchColor( desc );
             glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
         } else {
@@ -1670,7 +1670,7 @@ initHUD()
     }
 
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        g_hud.AddRadioButton(4, g_defaultShapes[i].name.c_str(), i==0, -220, 10+i*16, callbackModel, i, 'n');
+        g_hud.AddRadioButton(4, g_defaultShapes[i].name.c_str(), i==g_currentShape, -220, 10+i*16, callbackModel, i, 'n');
     }
 }
 

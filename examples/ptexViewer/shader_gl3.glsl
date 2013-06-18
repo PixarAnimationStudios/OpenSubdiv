@@ -86,11 +86,11 @@ vec4 PTexLookup(vec4 patchCoord,
 
 #ifdef USE_PTEX_DISPLACEMENT
 
-#define OSD_DISPLACEMENT_CALLBACK                   \
-    output.v.position =                         \
-        displacement(output.v.position,         \
-                     output.v.normal,           \
-                     output.v.patchCoord);
+#define OSD_DISPLACEMENT_CALLBACK              \
+    outpt.v.position =                         \
+        displacement(outpt.v.position,         \
+                     outpt.v.normal,           \
+                     outpt.v.patchCoord);
 
 uniform sampler2DArray textureDisplace_Data;
 uniform samplerBuffer textureDisplace_Packing;

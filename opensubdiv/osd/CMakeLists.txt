@@ -115,6 +115,7 @@ set(PUBLIC_HEADER_FILES
     evalLimitContext.h
     mesh.h
     nonCopyable.h
+    opengl.h
     drawContext.h
     drawRegistry.h
     vertex.h

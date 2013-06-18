@@ -131,13 +131,11 @@ static const char *defaultShaderSource =
 // Draw styles for EffectDrawRegistry
 enum Effect 
 {
-    kQuadFill = 0,
-    kQuadLine = 1,
-    kTriFill = 2,
-    kTriLine = 3,
-    kPoint = 4,
+    kFill = 0,
+    kLine = 1,
+    kPoint = 2,
 };
-typedef std::pair<OpenSubdiv::OsdPatchDescriptor, Effect> EffectDesc;
+typedef std::pair<OpenSubdiv::OsdDrawContext::PatchDescriptor, Effect> EffectDesc;
 
 // #### Override of OpenSubdiv::OsdGLDrawRegistry 
 //
@@ -214,17 +212,20 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     SourceConfigType * sconfig =
         BaseRegistry::_CreateDrawSourceConfig(desc.first);
 
-    if (desc.first.type != OpenSubdiv::kNonPatch) {
-        // Per-vertex descriptors are use for uniform refinement
-        if (effect == kQuadFill) effect = kTriFill;
-        if (effect == kQuadLine) effect = kTriLine;
-        sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
-
-    } else {
+    bool quad = false;
+    if (desc.first.GetType() == OpenSubdiv::FarPatchTables::QUADS) {
         // Configuration for adaptive refinement
         sconfig->vertexShader.version = "#version 410\n";
         sconfig->vertexShader.source = _shaderSource;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
+        quad = true;
+    } else if (desc.first.GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
+        sconfig->vertexShader.version = "#version 410\n";
+        sconfig->vertexShader.source = _shaderSource;
+        sconfig->vertexShader.AddDefine("VERTEX_SHADER");
+    } else {
+        // adaptive patches
+        sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
     }
     assert(sconfig);
 
@@ -254,29 +255,20 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
     // Set up directives according to draw style
+    if (quad) {
+        sconfig->geometryShader.AddDefine("PRIM_QUAD");
+        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
+    } else {
+        sconfig->geometryShader.AddDefine("PRIM_TRI");
+        sconfig->fragmentShader.AddDefine("PRIM_TRI");
+    }
     switch (effect) {
-    case kQuadFill:
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
+    case kFill:
         sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
-        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
         sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_FILL");
         break;
-    case kQuadLine:
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
+    case kLine:
         sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_LINE");
-        break;
-    case kTriFill:
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_FILL");
-        break;
-    case kTriLine:
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_LINE");
         break;
     case kPoint:
@@ -344,7 +336,7 @@ EffectDrawRegistry::_CreateDrawConfig(
     if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 2);  // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_patchLevelBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 3);  // GL_TEXTURE3
     }
     if ((loc = glGetUniformLocation(config->program, "g_uvFVarBuffer")) != -1) {
@@ -668,31 +660,36 @@ OpenSubdivShader::draw(const MHWRender::MDrawContext &mDrawContext,
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 3, 0);
     glEnableVertexAttribArray(0);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, osdDrawContext->patchIndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, osdDrawContext->GetPatchIndexBuffer());
 
     // Get list of patches from OSD
-    OpenSubdiv::OsdPatchArrayVector const & patches =
+    OpenSubdiv::OsdDrawContext::PatchArrayVector const & patches =
         osdDrawContext->patchArrays;
 
     // Draw patches
     for (size_t i = 0; i < patches.size(); ++i) {
-        OpenSubdiv::OsdPatchArray const & patch = patches[i];
+        OpenSubdiv::OsdDrawContext::PatchArray const & patch = patches[i];
 
-        bindProgram(mDrawContext, osdDrawContext, patch);
+        GLuint program = bindProgram(mDrawContext, osdDrawContext, patch);
 
-        if (patch.desc.type != OpenSubdiv::kNonPatch) {
-            glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
+        GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
+        GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
+        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.GetQuadOffsetIndex());
+        glProgramUniform1i(program, uniformLevelBase, patch.GetPatchIndex());
 
-            glDrawElements(GL_PATCHES,
-                           patch.numIndices, GL_UNSIGNED_INT,
-                           reinterpret_cast<void *>(patch.firstIndex *
-                                                    sizeof(unsigned int)));
-        } else {
-            glDrawElements(_scheme == OsdMeshData::kLoop ? GL_TRIANGLES : GL_LINES_ADJACENCY,
-                           patch.numIndices, GL_UNSIGNED_INT,
-                           reinterpret_cast<void *>(patch.firstIndex *
-                                                    sizeof(unsigned int)));
+        GLenum primType = GL_PATCHES;
+        if (patch.GetDescriptor().GetType() == OpenSubdiv::FarPatchTables::QUADS) {
+            primType = GL_LINES_ADJACENCY;
+        } else if (patch.GetDescriptor().GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
+            primType = GL_TRIANGLES;
+        } else if (patch.GetDescriptor().GetType() >= OpenSubdiv::FarPatchTables::REGULAR) {
+            glPatchParameteri(GL_PATCH_VERTICES, patch.GetDescriptor().GetNumControlVertices());
         }
+        glDrawElements(primType,
+                       patch.GetNumIndices(), GL_UNSIGNED_INT,
+                       reinterpret_cast<void *>(patch.GetVertIndex() *
+                                                sizeof(unsigned int)));
+
         CHECK_GL_ERROR("post draw\n");
     }
 
@@ -782,14 +779,14 @@ OpenSubdivShader::updateRegistry()
 GLuint
 OpenSubdivShader::bindProgram(const MHWRender::MDrawContext &     mDrawContext,
                                     OpenSubdiv::OsdGLDrawContext *osdDrawContext,
-                              const OpenSubdiv::OsdPatchArray &   patch)
+                              const OpenSubdiv::OsdDrawContext::PatchArray &   patch)
 {
 
     CHECK_GL_ERROR("bindProgram begin\n");
 
     // Primitives are triangles for Loop subdivision, quads otherwise
-    Effect effect = (_scheme == OsdMeshData::kLoop) ? kTriFill : kQuadFill;
-    EffectDesc effectDesc( patch.desc, effect );
+    Effect effect = kFill;
+    EffectDesc effectDesc( patch.GetDescriptor(), effect );
 
     // Build shader
     EffectDrawRegistry::ConfigType *
@@ -828,13 +825,9 @@ OpenSubdivShader::bindProgram(const MHWRender::MDrawContext &     mDrawContext,
     // Update and bind tessellation state
     struct Tessellation {
         float TessLevel;
-        int GregoryQuadOffsetBase;
-        int LevelBase;
     } tessellationData;
 
     tessellationData.TessLevel = static_cast<float>(1 << _tessFactor);
-    tessellationData.GregoryQuadOffsetBase = patch.gregoryQuadOffsetBase;
-    tessellationData.LevelBase = patch.levelBase;
 
     if (!g_tessellationUB) {
         glGenBuffers(1, &g_tessellationUB);
@@ -932,30 +925,30 @@ OpenSubdivShader::bindProgram(const MHWRender::MDrawContext &     mDrawContext,
     //      GL texture buffers. These are managed by the DrawContext 
     //      and must be bound for use by the program in addition to 
     //      any buffers used by the client/application shading code.
-    if (osdDrawContext->vertexTextureBuffer) {
+    if (osdDrawContext->GetVertexTextureBuffer()) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_BUFFER,
-                      osdDrawContext->vertexTextureBuffer);
+                      osdDrawContext->GetVertexTextureBuffer());
     }
-    if (osdDrawContext->vertexValenceTextureBuffer) {
+    if (osdDrawContext->GetVertexValenceTextureBuffer()) {
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_BUFFER,
-                      osdDrawContext->vertexValenceTextureBuffer);
+                      osdDrawContext->GetVertexValenceTextureBuffer());
     }
-    if (osdDrawContext->quadOffsetTextureBuffer) {
+    if (osdDrawContext->GetQuadOffsetsTextureBuffer()) {
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_BUFFER,
-                      osdDrawContext->quadOffsetTextureBuffer);
+                      osdDrawContext->GetQuadOffsetsTextureBuffer());
     }
-    if (osdDrawContext->patchLevelTextureBuffer) {
+    if (osdDrawContext->GetPatchParamTextureBuffer()) {
         glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_BUFFER,
-                      osdDrawContext->patchLevelTextureBuffer);
+                      osdDrawContext->GetPatchParamTextureBuffer());
     }
-    if (osdDrawContext->fvarDataTextureBuffer) {
-        glActiveTexture( GL_TEXTURE4 );
-        glBindTexture(  GL_TEXTURE_BUFFER, 
-                      osdDrawContext->fvarDataTextureBuffer );
+    if (osdDrawContext->GetFvarDataTextureBuffer()) {
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_BUFFER, 
+                      osdDrawContext->GetFvarDataTextureBuffer() );
     }
 
     glActiveTexture(GL_TEXTURE0);

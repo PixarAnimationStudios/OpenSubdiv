@@ -54,89 +54,24 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+#ifndef OSD_OPENGL_H
+#define OSD_OPENGL_H
 
-//--------------------------------------------------------------
-// Vertex Shader
-//--------------------------------------------------------------
-#ifdef VERTEX_SHADER
-
-layout (location=0) in vec3 position;
-layout (location=1) in vec3 normal;
-
-uniform mat4 objectToClipMatrix;
-uniform mat4 objectToEyeMatrix;
-
-out vec3 vPosition;
-out vec3 vNormalEye;
-
-void main()
-{
-    // vertex position in object space
-    vPosition = position;
-
-    // vertex position in clip space
-    gl_Position = objectToClipMatrix * vec4(position, 1);
-
-    // surface normal in eye space
-    vNormalEye = (objectToEyeMatrix * vec4(normal, 0)).xyz;
-}
-
+#if defined(__APPLE__)
+    #include "TargetConditionals.h"
+    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
+        #include <OpenGLES/ES2/gl.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
+#elif defined(ANDROID)
+    #include <GLES2/gl2.h>
+#else
+    #if defined(_WIN32)
+        #define W32_LEAN_AND_MEAN
+        #include <windows.h>
+    #endif
+    #include <GL/glew.h>
 #endif
 
-//--------------------------------------------------------------
-// Fragment Shader
-//--------------------------------------------------------------
-#ifdef FRAGMENT_SHADER
-
-layout (location=0) out vec4 FragColor;
-in vec3 vNormalEye;
-in vec3 vPosition;
-
-#define NUM_LIGHTS 2
-
-struct LightSource {
-    vec4 position;
-    vec4 ambient;
-    vec4 diffuse;
-    vec4 specular;
-};
-
-uniform LightSource lightSource[NUM_LIGHTS];
-
-vec4
-lighting(vec3 Peye, vec3 Neye)
-{
-    vec4 color = vec4(0);
-    vec4 material = vec4(0.4, 0.4, 0.8, 1);
-
-    for (int i = 0; i < NUM_LIGHTS; ++i) {
-
-        vec4 Plight = lightSource[i].position;
-
-        vec3 l = (Plight.w == 0.0)
-                    ? normalize(Plight.xyz) : normalize(Plight.xyz - Peye);
-
-        vec3 n = normalize(Neye);
-        vec3 h = normalize(l + vec3(0,0,1));    // directional viewer
-
-        float d = max(0.0, dot(n, l));
-        float s = pow(max(0.0, dot(n, h)), 500.0f);
-
-        color += lightSource[i].ambient * material
-            + d * lightSource[i].diffuse * material
-            + s * lightSource[i].specular;
-    }
-
-    color.a = 1;
-    return color;
-}
-
-void
-main()
-{
-    vec3 N = (gl_FrontFacing ? vNormalEye : -vNormalEye);
-    FragColor = lighting(vPosition, N);
-    FragColor = vec4(1,0,0,1);  
-}
-
-#endif
+#endif  // OSD_OPENGL_H

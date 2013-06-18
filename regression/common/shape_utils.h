@@ -129,6 +129,8 @@ struct shape {
     int getNverts() const { return (int)verts.size()/3; }
 
     int getNfaces() const { return (int)nvertsPerFace.size(); }
+    
+    bool hasUV() const { return not (uvs.empty() or faceuvs.empty()); }
 
     std::vector<float>  verts;
     std::vector<float>  uvs;
@@ -703,7 +705,7 @@ hbrToObj( OpenSubdiv::HbrMesh<T> * mesh ) {
 
 //------------------------------------------------------------------------------
 template <class T> OpenSubdiv::HbrMesh<T> *
-createMesh( Scheme scheme=kCatmark) {
+createMesh( Scheme scheme=kCatmark, int fvarwidth=0) {
 
   OpenSubdiv::HbrMesh<T> * mesh = 0;
 
@@ -711,10 +713,32 @@ createMesh( Scheme scheme=kCatmark) {
   static OpenSubdiv::HbrLoopSubdivision<T>     _loop;
   static OpenSubdiv::HbrCatmarkSubdivision<T>  _catmark;
 
+  static int indices[1] = { 0 },
+             widths[1] = { 2 };
+
+  int const   fvarcount   = fvarwidth > 0 ? 1 : 0,
+            * fvarindices = fvarwidth > 0 ? indices : NULL,
+            * fvarwidths  = fvarwidth > 0 ? widths : NULL;
+
+
   switch (scheme) {
-    case kBilinear : mesh = new OpenSubdiv::HbrMesh<T>( &_bilinear ); break;
-    case kLoop     : mesh = new OpenSubdiv::HbrMesh<T>( &_loop     ); break;
-    case kCatmark  : mesh = new OpenSubdiv::HbrMesh<T>( &_catmark  ); break;
+    case kBilinear : mesh = new OpenSubdiv::HbrMesh<T>( &_bilinear, 
+                                                        fvarcount,
+                                                        fvarindices,
+                                                        fvarwidths,
+                                                        fvarwidth ); break;
+
+    case kLoop     : mesh = new OpenSubdiv::HbrMesh<T>( &_loop,
+                                                        fvarcount,
+                                                        fvarindices,
+                                                        fvarwidths,
+                                                        fvarwidth ); break;
+                                                        
+    case kCatmark  : mesh = new OpenSubdiv::HbrMesh<T>( &_catmark,
+                                                        fvarcount,
+                                                        fvarindices,
+                                                        fvarwidths,
+                                                        fvarwidth ); break;
   }
 
   return mesh;
@@ -838,21 +862,63 @@ createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
     applyTags<T>( mesh, sh );
 
     mesh->Finish();
+    
+    // check for disconnected vertices
+    if (mesh->GetNumDisconnectedVertices()) {
+        printf("The specified subdivmesh contains disconnected surface components.\n");
+        exit(1);
+    }
+}
+
+//------------------------------------------------------------------------------
+template <class T> void
+createFaceVaryingUV( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh) {
+
+    if (not sh->hasUV())
+        return;
+
+    for (int i=0, idx=0; i<sh->getNfaces(); ++i ) {
+    
+        OpenSubdiv::HbrFace<T> * f = mesh->GetFace(i);
+        
+        int nv = sh->nvertsPerFace[i];
+        
+        OpenSubdiv::HbrHalfedge<T> * e = f->GetFirstEdge();
+        
+        for (int j=0; j<nv; ++j, e=e->GetNext()) {
+
+            OpenSubdiv::HbrFVarData<T> & fvt = e->GetOrgVertex()->GetFVarData(f);
+            
+            float const * fvdata = &sh->uvs[ sh->faceuvs[idx++]*2 ];
+
+            if (not fvt.IsInitialized()) {
+                fvt.SetAllData(2, fvdata);
+            } else if (not fvt.CompareAll(2, fvdata)) {
+                OpenSubdiv::HbrFVarData<T> & nfvt = e->GetOrgVertex()->NewFVarData(f);
+                nfvt.SetAllData(2, fvdata);
+            }
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
 template <class T> OpenSubdiv::HbrMesh<T> *
-simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> * verts=0) {
+simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> * verts=0, bool fvar=false) {
 
     shape * sh = shape::parseShape( shapestr );
 
-    OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme);
+    int fvarwidth = fvar and sh->hasUV() ? 2 : 0;
+
+    OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme, fvarwidth);
 
     createVertices<T>(sh, mesh, verts);
 
     createTopology<T>(sh, mesh, scheme);
+    
+    if (fvar)
+        createFaceVaryingUV<T>(sh, mesh);
 
-    if(verts)
+    if (verts)
         copyVertexPositions<T>(sh,mesh,*verts);
 
     delete sh;
@@ -862,15 +928,20 @@ simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> * verts=0) {
 
 //------------------------------------------------------------------------------
 template <class T> OpenSubdiv::HbrMesh<T> *
-simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> & verts) {
+simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> & verts, bool fvar=false) {
 
     shape * sh = shape::parseShape( shapestr );
 
-    OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme);
+    int fvarwidth = fvar and sh->hasUV() ? 2 : 0;
+
+    OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme, fvarwidth);
 
     createVertices<T>(sh, mesh, verts);
 
     createTopology<T>(sh, mesh, scheme);
+
+    if (fvar)
+        createFaceVaryingUV<T>(sh, mesh);
 
     copyVertexPositions<T>(sh,mesh,verts);
 

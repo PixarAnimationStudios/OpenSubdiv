@@ -58,6 +58,10 @@
 #ifndef FAR_PATCH_PARAM_H
 #define FAR_PATCH_PARAM_H
 
+#include "../version.h"
+
+#include <cassert>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -117,9 +121,30 @@ struct FarPatchParam {
 
         /// True if the parent coarse face is a non-quad
         bool NonQuadRoot() const { return (field >> 4) & 0x1; }
+        
+        /// Returns the fratcion of normalized parametric space covered by the 
+        /// sub-patch.
+        float GetParamFraction() const;
 
         /// Returns the level of subdivision of the patch 
         unsigned char GetDepth() const { return (field & 0xf); }
+
+        /// The (u,v) pair is normalized to this sub-parametric space. 
+        ///
+        /// @param u  u parameter
+        ///
+        /// @param v  v parameter
+        ///
+        void Normalize( float & u, float & v ) const;
+        
+        /// Rotate (u,v) pair to compensate for transition pattern and boundary
+        /// orientations.
+        ///
+        /// @param u  u parameter
+        ///
+        /// @param v  v parameter
+        ///
+        void Rotate( float & u, float & v ) const;
 
         /// Resets the values to 0
         void Clear() { field = 0; }
@@ -146,8 +171,43 @@ struct FarPatchParam {
     void Clear() { 
         faceIndex = 0;
         bitField.Clear();
-    }    
+    }
 };
+
+inline float 
+FarPatchParam::BitField::GetParamFraction( ) const {
+    if (NonQuadRoot()) {
+        return 1.0f / float( 1 << (GetDepth()-1) );
+    } else {
+        return 1.0f / float( 1 << GetDepth() );
+    }
+}
+
+inline void
+FarPatchParam::BitField::Normalize( float & u, float & v ) const {
+
+    float frac = GetParamFraction();
+
+    // top left corner
+    float pu = (float)GetU()*frac;
+    float pv = (float)GetV()*frac;
+
+    // normalize u,v coordinates
+    u = (u - pu) / frac,
+    v = (v - pv) / frac;
+}
+
+inline void 
+FarPatchParam::BitField::Rotate( float & u, float & v ) const {
+    switch( GetRotation() ) {
+         case 0 : break;
+         case 1 : { float tmp=v; v=1.0f-u; u=tmp; } break;
+         case 2 : { u=1.0f-u; v=1.0f-v; } break;
+         case 3 : { float tmp=u; u=1.0f-v; v=tmp; } break;
+         default:
+             assert(0);
+    }
+}
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

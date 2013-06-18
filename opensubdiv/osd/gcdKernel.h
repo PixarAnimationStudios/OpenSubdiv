@@ -57,8 +57,9 @@
 #ifndef OSD_GCD_KERNEL_H
 #define OSD_GCD_KERNEL_H
 
-#include <dispatch/dispatch.h>
 #include "../version.h"
+
+#include <dispatch/dispatch.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
