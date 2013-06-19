@@ -175,7 +175,7 @@ uniform isamplerBuffer g_ptexIndicesBuffer;
         ivec2 ptexIndex = texelFetch(g_ptexIndicesBuffer,               \
                                      gl_PrimitiveID + LevelBase).xy;    \
         int faceID = ptexIndex.x;                                       \
-        int lv = 1 << (ptexIndex.y & 0xf);                              \
+        int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1)); \
         int u = (ptexIndex.y >> 17) & 0x3ff;                            \
         int v = (ptexIndex.y >> 7) & 0x3ff;                             \
         int rotation = (ptexIndex.y >> 5) & 0x3;                        \
