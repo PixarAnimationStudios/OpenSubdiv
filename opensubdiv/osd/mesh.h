@@ -132,8 +132,7 @@ public:
         int numVertices = _farMesh->GetNumVertices();
         _vertexBuffer = VertexBuffer::Create(numElements, numVertices);
         _computeContext = ComputeContext::Create(_farMesh);
-        _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
-                                           bits.test(MeshFVarData));
+        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(), bits.test(MeshFVarData));
     }
 
     virtual ~OsdMesh() {
@@ -149,7 +148,7 @@ public:
         _vertexBuffer->UpdateData(vertexData, startVertex, numVerts);
     }
     virtual void Refine() {
-        _computeController->Refine(_computeContext, _vertexBuffer);
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer);
     }
     virtual void Synchronize() {
         _computeController->Synchronize();
