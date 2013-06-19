@@ -377,21 +377,23 @@ public:
     
     /// Returns a pointer to the vertex indices of uniformly subdivided faces
     ///
-    /// @param level  the level of subdivision of the faces
+    /// @param level  the level of subdivision of the faces (returns the highest
+    ///               level by default)
     ///
     /// @return       a pointer to the first vertex index or NULL if the mesh
     ///               is not uniformly subdivided or the level cannot be found.
     ///
-    unsigned int const * GetFaceVertices(int level) const;
+    unsigned int const * GetFaceVertices(int level=0) const;
 
     /// Returns the number of faces in a uniformly subdivided mesh at a given level
     ///
-    /// @param level  the level of subdivision of the faces
+    /// @param level  the level of subdivision of the faces (returns the highest
+    ///               level by default)
     ///
     /// @return       the number of faces in the mesh given the subdivision level
-    ///               or -1 if the mesh is not uniform or the level incorrect.
+    ///               or -1 if the mesh is not uniform or the level is incorrect.
     ///
-    int GetNumFaces(int level) const;
+    int GetNumFaces(int level=0) const;
     
     /// Returns a vertex valence table used by Gregory patches
     VertexValenceTable const & GetVertexValenceTable() const { return _vertexValenceTable; }
@@ -579,7 +581,12 @@ FarPatchTables::GetFaceVertices(int level) const {
     
     PatchArrayVector const & parrays = GetPatchArrayVector();
     
-    if ( (level-1) < (int)parrays.size() ) {
+    if (parrays.empty())
+        return NULL;
+    
+    if (level < 1) {
+        return &GetPatchTable()[ parrays.rbegin()->GetVertIndex() ];
+    } else if ((level-1) < (int)parrays.size() ) {
         return &GetPatchTable()[ parrays[level-1].GetVertIndex() ];
     }
     
@@ -595,7 +602,12 @@ FarPatchTables::GetNumFaces(int level) const {
     
     PatchArrayVector const & parrays = GetPatchArrayVector();
     
-    if ( (level-1) < (int)parrays.size() ) {
+    if (parrays.empty())
+        return NULL;
+    
+    if (level < 1) {
+        return parrays.rbegin()->GetNumPatches();
+    } else if ( (level-1) < (int)parrays.size() ) {
         return parrays[level-1].GetNumPatches();
     }
     
