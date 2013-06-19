@@ -343,7 +343,7 @@ OsdGLDrawRegistryBase::_CreateDrawConfig(
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
         char * infoLog = new char[infoLogLength];
         glGetProgramInfoLog(program, infoLogLength, NULL, infoLog);
-        OsdError(OSD_GLSL_COMPILE_ERROR,
+        OsdError(OSD_GLSL_LINK_ERROR,
                  "Error linking GLSL program: %s\n", infoLog);
         delete[] infoLog;
     }
