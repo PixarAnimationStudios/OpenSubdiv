@@ -1081,6 +1081,14 @@ reshape(int width, int height) {
 
 }
 
+void reshape() {
+#if GLFW_VERSION_MAJOR>=3
+    reshape(g_window, g_width, g_height);
+#else
+    reshape(g_width, g_height);
+#endif
+}
+
 //------------------------------------------------------------------------------
 #if GLFW_VERSION_MAJOR>=3
 void windowClose(GLFWwindow*) {
@@ -1380,6 +1388,8 @@ int main(int argc, char ** argv)
 
 #if GLFW_VERSION_MAJOR>=3
     glfwSetWindowSizeCallback(g_window, reshape);
+    // as of GLFW 3.0.1 this callback is not implicit
+    reshape();
 #else
     glfwSetWindowSizeCallback(reshape);
 #endif

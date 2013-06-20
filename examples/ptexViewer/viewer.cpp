@@ -2097,6 +2097,8 @@ int main(int argc, char ** argv) {
 #if GLFW_VERSION_MAJOR>=3
     glfwSetWindowSizeCallback(g_window, reshape);
     glfwSetWindowCloseCallback(g_window, windowClose);
+    // as of GLFW 3.0.1 this callback is not implicit
+    reshape();
 #else
     glfwSetWindowSizeCallback(reshape);
     glfwSetWindowCloseCallback(windowClose);
