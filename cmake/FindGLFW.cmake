@@ -67,7 +67,7 @@
 find_path( GLFW_INCLUDE_DIR 
     NAMES
         GL/glfw.h
-        GL/glfw3.h
+        GLFW/glfw3.h
     PATHS
         ${GLFW_LOCATION}/include
         $ENV{GLFW_LOCATION}/include
@@ -183,7 +183,7 @@ if(GLFW_INCLUDE_DIR)
             
         set(PATTERN "^#define ${VARNAME}.*$")
         
-        file(STRINGS "${GLFW_INCLUDE_DIR}/GL/${FILENAME}" TMP REGEX ${PATTERN})
+        file(STRINGS "${GLFW_INCLUDE_DIR}/${FILENAME}" TMP REGEX ${PATTERN})
         
         string(REGEX MATCHALL "[0-9]+" TMP ${TMP})
         
@@ -194,18 +194,18 @@ if(GLFW_INCLUDE_DIR)
 
     if(EXISTS "${GLFW_INCLUDE_DIR}/GL/glfw.h")
 
-        parseVersion(glfw.h GLFW_VERSION_MAJOR)
-        parseVersion(glfw.h GLFW_VERSION_MINOR)
-        parseVersion(glfw.h GLFW_VERSION_REVISION)
+        parseVersion(GL/glfw.h GLFW_VERSION_MAJOR)
+        parseVersion(GL/glfw.h GLFW_VERSION_MINOR)
+        parseVersion(GL/glfw.h GLFW_VERSION_REVISION)
 
-    elseif(EXISTS "${GLFW_INCLUDE_DIR}/GL/glfw3.h")
+    elseif(EXISTS "${GLFW_INCLUDE_DIR}/GLFW/glfw3.h")
 
-        parseVersion(glfw3.h GLFW_VERSION_MAJOR)
-        parseVersion(glfw3.h GLFW_VERSION_MINOR)
-        parseVersion(glfw3.h GLFW_VERSION_REVISION)
+        parseVersion(GLFW/glfw3.h GLFW_VERSION_MAJOR)
+        parseVersion(GLFW/glfw3.h GLFW_VERSION_MINOR)
+        parseVersion(GLFW/glfw3.h GLFW_VERSION_REVISION)
  
     endif()
-     
+
     if(${GLFW_VERSION_MAJOR} OR ${GLFW_VERSION_MINOR} OR ${GLFW_VERSION_REVISION})
         set(GLFW_VERSION "${GLFW_VERSION_MAJOR}.${GLFW_VERSION_MINOR}.${GLFW_VERSION_REVISION}")
         set(GLFW_VERSION_STRING "${GLFW_VERSION}")
