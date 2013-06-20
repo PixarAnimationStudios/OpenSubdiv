@@ -315,7 +315,7 @@ FarPatchMap::initialize( FarPatchTables const & patchTables ) {
             
             QuadNode * node = &quadtree[ param.faceIndex ];
             
-            if (depth==0) {
+            if (depth==(bits.NonQuadRoot() ? 1 : 0)) {
                 // special case : regular BSpline face w/ no sub-patches
                 node->SetChild( handleIdx );
                 continue;
