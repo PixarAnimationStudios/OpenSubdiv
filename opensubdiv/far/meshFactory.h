@@ -512,6 +512,7 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
                 }
             }
         }
+        _maxValence = std::max(_maxValence, nv);
     }
     
 
@@ -604,7 +605,7 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adapt
     _numVertices(-1),
     _numCoarseVertices(-1),
     _numFaces(-1),
-    _maxValence(4),
+    _maxValence(3),
     _numPtexFaces(-1),
     _facesList(maxlevel+1)
 {
