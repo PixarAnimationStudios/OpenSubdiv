@@ -197,13 +197,15 @@ FarVertexEditTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, Fa
         int & batchCount = currentCounts[batchIndex];
         typename FarVertexEditTables<U>::VertexEditBatch &batch = result->_batches[batchIndex];
 
-        // insert a batch into batch array
-        if (batchLevel != level-1 && batchCount != currentOffsets[batchIndex]) {
-            // if the batch isn't empty, emit kernelBatch
-            insertHEditBatch(batches, batchIndex, batchLevel, batchCount-currentOffsets[batchIndex], currentOffsets[batchIndex]);
-
-            batchLevel = level-1;
-            currentOffsets[batchIndex] = batchCount;
+	// if a new batch is needed
+        if (batchLevel != level-1) {
+	    // if the current batch isn't empty, emit a kernelBatch
+	    if (batchCount != currentOffsets[batchIndex]) {
+                insertHEditBatch(batches, batchIndex, batchLevel, batchCount-currentOffsets[batchIndex], currentOffsets[batchIndex]);
+	    }
+	    // prepare a next batch
+  	    batchLevel = level-1;
+	    currentOffsets[batchIndex] = batchCount;
         }
 
         // Set absolute vertex index
