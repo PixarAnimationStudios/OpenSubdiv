@@ -58,7 +58,7 @@
 //----------------------------------------------------------
 // Patches.TessVertexGregory
 //----------------------------------------------------------
-#ifdef PATCH_VERTEX_GREGORY_SHADER
+#ifdef OSD_PATCH_VERTEX_GREGORY_SHADER
 
 uniform samplerBuffer g_VertexBuffer;
 uniform isamplerBuffer g_ValenceBuffer;
@@ -153,7 +153,7 @@ void main()
 //----------------------------------------------------------
 // Patches.TessControlGregory
 //----------------------------------------------------------
-#ifdef PATCH_TESS_CONTROL_GREGORY_SHADER
+#ifdef OSD_PATCH_TESS_CONTROL_GREGORY_SHADER
 
 layout(vertices = 4) out;
 
@@ -235,8 +235,8 @@ void main()
 
     int patchLevel = GetPatchLevel();
     outpt[ID].v.patchCoord = vec4(0, 0,
-                                  patchLevel+0.5,
-                                  gl_PrimitiveID+LevelBase+0.5);
+                                  patchLevel+0.5f,
+                                  gl_PrimitiveID+LevelBase+0.5f);
 
     OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
 
@@ -245,13 +245,13 @@ void main()
 
 #ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
         gl_TessLevelOuter[0] =
-            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[1].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[1].v.hullPosition.xyz);
         gl_TessLevelOuter[1] =
-            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz);
         gl_TessLevelOuter[2] =
-            TessAdaptive(inpt[2].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[2].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz);
         gl_TessLevelOuter[3] =
-            TessAdaptive(inpt[1].v.hullPosition.xyz, inpt[2].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[1].v.hullPosition.xyz, inpt[2].v.hullPosition.xyz);
         gl_TessLevelInner[0] =
             max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
         gl_TessLevelInner[1] =
@@ -271,7 +271,7 @@ void main()
 //----------------------------------------------------------
 // Patches.TessEvalGregory
 //----------------------------------------------------------
-#ifdef PATCH_TESS_EVAL_GREGORY_SHADER
+#ifdef OSD_PATCH_TESS_EVAL_GREGORY_SHADER
 
 layout(quads) in;
 layout(cw) in;
@@ -377,9 +377,9 @@ void main()
 
     vec3 normal = normalize(cross(BiTangent, Tangent));
 
-    outpt.v.position = ModelViewMatrix * vec4(WorldPos, 1.0);
+    outpt.v.position = ModelViewMatrix * vec4(WorldPos, 1.0f);
     outpt.v.normal = normal;
-    outpt.v.tangent = BiTangent;
+    outpt.v.tangent = normalize(BiTangent);
 
     outpt.v.patchCoord = inpt[0].v.patchCoord;
     outpt.v.patchCoord.xy = vec2(v, u);
@@ -396,7 +396,7 @@ void main()
 //----------------------------------------------------------
 // Patches.Vertex
 //----------------------------------------------------------
-#ifdef VERTEX_SHADER
+#ifdef OSD_VERTEX_SHADER
 
 layout (location=0) in vec4 position;
 layout (location=1) in vec3 normal;
@@ -416,7 +416,7 @@ void main() {
 //----------------------------------------------------------
 // Patches.FragmentColor
 //----------------------------------------------------------
-#ifdef FRAGMENT_SHADER
+#ifdef OSD_FRAGMENT_SHADER
 
 in block {
     OutputVertex v;

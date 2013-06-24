@@ -58,7 +58,7 @@
 //----------------------------------------------------------
 // Patches.TessVertexBoundaryGregory
 //----------------------------------------------------------
-#ifdef PATCH_VERTEX_BOUNDARY_GREGORY_SHADER
+#ifdef OSD_PATCH_VERTEX_BOUNDARY_GREGORY_SHADER
 
 uniform samplerBuffer g_VertexBuffer;
 uniform isamplerBuffer g_ValenceBuffer;
@@ -258,7 +258,7 @@ void main()
 //----------------------------------------------------------
 // Patches.TessControlBoundaryGregory
 //----------------------------------------------------------
-#ifdef PATCH_TESS_CONTROL_BOUNDARY_GREGORY_SHADER
+#ifdef OSD_PATCH_TESS_CONTROL_BOUNDARY_GREGORY_SHADER
 
 layout(vertices = 4) out;
 
@@ -410,13 +410,13 @@ void main()
 
 #ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
         gl_TessLevelOuter[0] =
-            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[1].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[1].v.hullPosition.xyz);
         gl_TessLevelOuter[1] =
-            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz);
         gl_TessLevelOuter[2] =
-            TessAdaptive(inpt[2].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[2].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz);
         gl_TessLevelOuter[3] =
-            TessAdaptive(inpt[1].v.hullPosition.xyz, inpt[2].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[1].v.hullPosition.xyz, inpt[2].v.hullPosition.xyz);
         gl_TessLevelInner[0] =
             max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
         gl_TessLevelInner[1] =
@@ -436,7 +436,7 @@ void main()
 //----------------------------------------------------------
 // Patches.TessEvalBoundaryGregory
 //----------------------------------------------------------
-#ifdef PATCH_TESS_EVAL_BOUNDARY_GREGORY_SHADER
+#ifdef OSD_PATCH_TESS_EVAL_BOUNDARY_GREGORY_SHADER
 
 layout(quads) in;
 layout(cw) in;
@@ -509,7 +509,7 @@ void main()
 
     float B[4], D[4];
 
-    Univar4x4(gl_TessCoord.x, B, D);
+    Univar4x4(u, B, D);
     vec3 BUCP[4], DUCP[4];
 
     for (int i=0; i<4; ++i) {
@@ -529,7 +529,7 @@ void main()
     vec3 Tangent   = vec3(0, 0, 0);
     vec3 BiTangent = vec3(0, 0, 0);
 
-    Univar4x4(gl_TessCoord.y, B, D);
+    Univar4x4(v, B, D);
 
     for (uint i=0; i<4; ++i) {
         WorldPos  += B[i] * BUCP[i];
@@ -544,15 +544,16 @@ void main()
 
     outpt.v.position = ModelViewMatrix * vec4(WorldPos, 1.0f);
     outpt.v.normal = normal;
+    outpt.v.tangent = normalize(BiTangent);
+
     outpt.v.patchCoord = inpt[0].v.patchCoord;
     outpt.v.patchCoord.xy = vec2(v, u);
-    outpt.v.tangent = normalize(BiTangent);
 
     OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    gl_Position = (ModelViewProjectionMatrix * vec4(WorldPos, 1.0f));
+    gl_Position = ProjectionMatrix * outpt.v.position;
 }
 
 #endif
@@ -560,7 +561,7 @@ void main()
 //----------------------------------------------------------
 // Patches.Vertex
 //----------------------------------------------------------
-#ifdef VERTEX_SHADER
+#ifdef OSD_VERTEX_SHADER
 
 layout (location=0) in vec4 position;
 layout (location=1) in vec3 normal;
@@ -580,7 +581,7 @@ void main() {
 //----------------------------------------------------------
 // Patches.FragmentColor
 //----------------------------------------------------------
-#ifdef FRAGMENT_SHADER
+#ifdef OSD_FRAGMENT_SHADER
 
 in block {
     OutputVertex v;

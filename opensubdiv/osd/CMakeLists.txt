@@ -212,9 +212,7 @@ if( OPENGL_FOUND OR OPENGLES_FOUND )
     if ( OPENGL_FOUND )
         list(APPEND KERNEL_FILES
             glslPatchCommon.glsl
-            glslPatchRegular.glsl
-            glslPatchBoundary.glsl
-            glslPatchCorner.glsl
+            glslPatchBSpline.glsl
             glslPatchGregory.glsl
             glslPatchBoundaryGregory.glsl
             glslPatchTransition.glsl
@@ -295,9 +293,7 @@ if( DXSDK_FOUND )
     list(APPEND KERNEL_FILES
         hlslComputeKernel.hlsl
         hlslPatchCommon.hlsl
-        hlslPatchRegular.hlsl
-        hlslPatchBoundary.hlsl
-        hlslPatchCorner.hlsl
+        hlslPatchBSpline.hlsl
         hlslPatchGregory.hlsl
         hlslPatchBoundaryGregory.hlsl
         hlslPatchTransition.hlsl

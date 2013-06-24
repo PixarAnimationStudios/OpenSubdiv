@@ -189,13 +189,13 @@ HS_CONSTANT_FUNC_OUT HSConstFunc(
 
 #if OSD_ENABLE_SCREENSPACE_TESSELLATION
     output.tessLevelOuter[0] =
-        TessAdaptive(patch[0].hullPosition.xyz, patch[1].hullPosition.xyz, patchLevel);
+        TessAdaptive(patch[0].hullPosition.xyz, patch[1].hullPosition.xyz);
     output.tessLevelOuter[1] =
-        TessAdaptive(patch[0].hullPosition.xyz, patch[3].hullPosition.xyz, patchLevel);
+        TessAdaptive(patch[0].hullPosition.xyz, patch[3].hullPosition.xyz);
     output.tessLevelOuter[2] =
-        TessAdaptive(patch[2].hullPosition.xyz, patch[3].hullPosition.xyz, patchLevel);
+        TessAdaptive(patch[2].hullPosition.xyz, patch[3].hullPosition.xyz);
     output.tessLevelOuter[3] =
-        TessAdaptive(patch[1].hullPosition.xyz, patch[2].hullPosition.xyz, patchLevel);
+        TessAdaptive(patch[1].hullPosition.xyz, patch[2].hullPosition.xyz);
     output.tessLevelInner[0] =
         max(output.tessLevelOuter[1], output.tessLevelOuter[3]);
     output.tessLevelInner[1] =
@@ -286,8 +286,8 @@ GregDomainVertex hs_main_patches(
 
     int patchLevel = GetPatchLevel(primitiveID);
     output.patchCoord = float4(0, 0,
-                               patchLevel+0.5,
-                               primitiveID+LevelBase+0.5);
+                               patchLevel+0.5f,
+                               primitiveID+LevelBase+0.5f);
 
     OSD_COMPUTE_PTEX_COORD_HULL_SHADER;
 
@@ -298,10 +298,10 @@ GregDomainVertex hs_main_patches(
 // Patches.DomainGregory
 //----------------------------------------------------------
 
-void Univar4(in float u, out float B[4], out float D[4])
+void Univar4x4(in float u, out float B[4], out float D[4])
 {
     float t = u;
-    float s = 1.0 - u;
+    float s = 1.0f - u;
 
     float A0 =     s * s;
     float A1 = 2 * s * t;
@@ -383,7 +383,7 @@ void ds_main_patches(
 
     float B[4], D[4];
 
-    Univar4(uv.x, B, D);
+    Univar4x4(uv.x, B, D);
     float3 BUCP[4], DUCP[4];
 
     for (int i=0; i<4; ++i) {
@@ -403,7 +403,7 @@ void ds_main_patches(
     float3 Tangent   = float3(0, 0, 0);
     float3 BiTangent = float3(0, 0, 0);
 
-    Univar4(uv.y, B, D);
+    Univar4x4(uv.y, B, D);
 
     for (uint i=0; i<4; ++i) {
         WorldPos  += B[i] * BUCP[i];
@@ -416,7 +416,7 @@ void ds_main_patches(
 
     float3 normal = normalize(cross(BiTangent, Tangent));
 
-    output.position = mul(ModelViewMatrix, float4(WorldPos, 1.0));
+    output.position = mul(ModelViewMatrix, float4(WorldPos, 1.0f));
     output.normal = normal;
     output.tangent = normalize(BiTangent);
 

@@ -56,17 +56,18 @@
 //
 
 //----------------------------------------------------------
-// Patches.TessVertex
+// Patches.TessVertexBSpline
 //----------------------------------------------------------
-#ifdef PATCH_VERTEX_SHADER
+#ifdef OSD_PATCH_VERTEX_BSPLINE_SHADER
 
-layout (location=0) in vec4 position;
+layout(location = 0) in vec4 position;
 
 out block {
     ControlVertex v;
 } outpt;
 
-void main() {
+void main()
+{
     outpt.v.position = ModelViewMatrix * position;
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
 
@@ -79,9 +80,25 @@ void main() {
 #endif
 
 //----------------------------------------------------------
-// Patches.TessControlBoundary
+// Patches.TessControlBSpline
 //----------------------------------------------------------
-#ifdef PATCH_TESS_CONTROL_BOUNDARY_SHADER
+#ifdef OSD_PATCH_TESS_CONTROL_BSPLINE_SHADER
+
+// Regular
+uniform mat4 Q = mat4(
+    1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
+    0.f,     4.f/6.f, 2.f/6.f, 0.f,
+    0.f,     2.f/6.f, 4.f/6.f, 0.f,
+    0.f,     1.f/6.f, 4.f/6.f, 1.f/6.f
+);
+
+// Boundary / Corner
+uniform mat4x3 B = mat4x3( 
+    1.f,     0.f,     0.f,
+    4.f/6.f, 2.f/6.f, 0.f,
+    2.f/6.f, 4.f/6.f, 0.f,
+    1.f/6.f, 4.f/6.f, 1.f/6.f
+);
 
 layout(vertices = 16) out;
 
@@ -97,28 +114,57 @@ out block {
 
 void main()
 {
-    int i = ID/4;
-    int j = ID%4;
+    int i = ID%4;
+    int j = ID/4;
 
-    i = 3 - i;
-
+#if defined OSD_PATCH_BOUNDARY
     vec3 H[3];
-    for (int l=0; l<3; l++) {
+    for (int l=0; l<3; ++l) {
         H[l] = vec3(0,0,0);
-        for (int k=0; k<4; k++) {
-            float c = Q[i][k];
-            H[l] += c*inpt[l*4 + k].v.position.xyz;
+        for (int k=0; k<4; ++k) {
+            H[l] += Q[i][k] * inpt[l*4 + k].v.position.xyz;
         }
     }
 
     vec3 pos = vec3(0,0,0);
-    for (int k=0; k<3; k++) {
+    for (int k=0; k<3; ++k) {
         pos += B[j][k]*H[k];
     }
+
+#elif defined OSD_PATCH_CORNER
+    vec3 H[3];
+    for (int l=0; l<3; ++l) {
+        H[l] = vec3(0,0,0);
+        for (int k=0; k<3; ++k) {
+            H[l] += B[3-i][2-k] * inpt[l*3 + k].v.position.xyz;
+        }
+    }
+
+    vec3 pos = vec3(0,0,0);
+    for (int k=0; k<3; ++k) {
+        pos += B[j][k]*H[k];
+    }
+
+#else // not OSD_PATCH_BOUNDARY, not OSD_PATCH_CORNER
+    vec3 H[4];
+    for (int l=0; l<4; ++l) {
+        H[l] = vec3(0,0,0);
+        for (int k=0; k<4; ++k) {
+            H[l] += Q[i][k] * inpt[l*4 + k].v.position.xyz;
+        }
+    }
+
+    vec3 pos = vec3(0,0,0);
+    for (int k=0; k<4; ++k) {
+        pos += Q[j][k]*H[k];
+    }
+
+#endif
 
     outpt[ID].v.position = vec4(pos, 1.0);
 
     int patchLevel = GetPatchLevel();
+
     // +0.5 to avoid interpolation error of integer value
     outpt[ID].v.patchCoord = vec4(0, 0,
                                   patchLevel+0.5,
@@ -127,28 +173,36 @@ void main()
     OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
 
     if (ID == 0) {
-        OSD_PATCH_CULL(12);
+        OSD_PATCH_CULL(16);
 
-#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
-        gl_TessLevelOuter[0] =
-            TessAdaptive(inpt[1].v.position.xyz, inpt[2].v.position.xyz, patchLevel);
-        gl_TessLevelOuter[1] =
-            TessAdaptive(inpt[2].v.position.xyz, inpt[6].v.position.xyz, patchLevel);
-        gl_TessLevelOuter[2] =
-            TessAdaptive(inpt[5].v.position.xyz, inpt[6].v.position.xyz, patchLevel);
-        gl_TessLevelOuter[3] =
-            TessAdaptive(inpt[1].v.position.xyz, inpt[5].v.position.xyz, patchLevel);
-        gl_TessLevelInner[0] =
-            max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
-        gl_TessLevelInner[1] =
-            max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
+#ifdef OSD_PATCH_TRANSITION
+        vec3 cp[OSD_PATCH_INPUT_SIZE];
+        for(int k = 0; k < OSD_PATCH_INPUT_SIZE; ++k) cp[k] = inpt[k].v.position.xyz;
+        SetTransitionTessLevels(cp, patchLevel);
 #else
+    #if defined OSD_PATCH_BOUNDARY
+        const int p[4] = int[]( 1, 2, 5, 6 );
+    #elif defined OSD_PATCH_CORNER
+        const int p[4] = int[]( 1, 2, 4, 5 );
+    #else
+        const int p[4] = int[]( 5, 6, 9, 10 );
+    #endif
+
+    #ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
+        gl_TessLevelOuter[0] = TessAdaptive(inpt[p[0]].v.position.xyz, inpt[p[2]].v.position.xyz);
+        gl_TessLevelOuter[1] = TessAdaptive(inpt[p[0]].v.position.xyz, inpt[p[1]].v.position.xyz);
+        gl_TessLevelOuter[2] = TessAdaptive(inpt[p[1]].v.position.xyz, inpt[p[3]].v.position.xyz);
+        gl_TessLevelOuter[3] = TessAdaptive(inpt[p[2]].v.position.xyz, inpt[p[3]].v.position.xyz);
+        gl_TessLevelInner[0] = max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
+        gl_TessLevelInner[1] = max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
+    #else
         gl_TessLevelInner[0] = GetTessLevel(patchLevel);
         gl_TessLevelInner[1] = GetTessLevel(patchLevel);
         gl_TessLevelOuter[0] = GetTessLevel(patchLevel);
         gl_TessLevelOuter[1] = GetTessLevel(patchLevel);
         gl_TessLevelOuter[2] = GetTessLevel(patchLevel);
         gl_TessLevelOuter[3] = GetTessLevel(patchLevel);
+    #endif
 #endif
     }
 }
@@ -156,12 +210,15 @@ void main()
 #endif
 
 //----------------------------------------------------------
-// Patches.TessEvalBoundary
+// Patches.TessEvalBSpline
 //----------------------------------------------------------
-#ifdef PATCH_TESS_EVAL_BOUNDARY_SHADER
+#ifdef OSD_PATCH_TESS_EVAL_BSPLINE_SHADER
 
-layout(quads) in;
-layout(equal_spacing) in;
+#ifdef OSD_TRANSITION_TRIANGLE_SUBPATCH
+    layout(triangles) in;
+#else
+    layout(quads) in;
+#endif
 
 in block {
     ControlVertex v;
@@ -173,59 +230,38 @@ out block {
 
 void main()
 {
-    float u = gl_TessCoord.x,
-          v = gl_TessCoord.y;
+#ifdef OSD_PATCH_TRANSITION
+    vec2 UV = GetTransitionSubpatchUV();
+#else
+    vec2 UV = gl_TessCoord.xy;
+#endif
 
-/*
-    float B[4], D[4];
-
-    Univar4x4(u, B, D);
-
-    vec3 BUCP[4], DUCP[4];
-
-    for (int i=0; i<4; ++i) {
-        BUCP[i] = vec3(0.0f, 0.0f, 0.0f);
-        DUCP[i] = vec3(0.0f, 0.0f, 0.0f);
-
-        for (int j=0; j<4; ++j) {
-            vec3 A = inpt[4*i + j].v.position.xyz;
-
-            BUCP[i] += A * B[j];
-            DUCP[i] += A * D[j];
-        }
-    }
-
-    vec3 WorldPos  = vec3(0.0f, 0.0f, 0.0f);
-    vec3 Tangent   = vec3(0.0f, 0.0f, 0.0f);
-    vec3 BiTangent = vec3(0.0f, 0.0f, 0.0f);
-
-    Univar4x4(v, B, D);
-
-    for (int i=0; i<4; ++i) {
-        WorldPos  += B[i] * BUCP[i];
-        Tangent   += B[i] * DUCP[i];
-        BiTangent += D[i] * BUCP[i];
-    }
-*/
     vec3 WorldPos, Tangent, BiTangent;
     vec3 cp[16];
     for(int i = 0; i < 16; ++i) cp[i] = inpt[i].v.position.xyz;
-    EvalBSpline(gl_TessCoord.xy, cp, WorldPos, Tangent, BiTangent);
+    EvalBSpline(UV, cp, WorldPos, Tangent, BiTangent);
 
     vec3 normal = normalize(cross(Tangent, BiTangent));
 
     outpt.v.position = vec4(WorldPos, 1.0f);
     outpt.v.normal = normal;
-
-    BiTangent = -BiTangent;  // BiTangent will be used in following macro
-    outpt.v.tangent = BiTangent;
+    outpt.v.tangent = Tangent;
 
     outpt.v.patchCoord = inpt[0].v.patchCoord;
-    outpt.v.patchCoord.xy = vec2(1.0-v, u);
+
+#if OSD_TRANSITION_ROTATE == 1
+    outpt.v.patchCoord.xy = vec2(UV.y, 1.0-UV.x);
+#elif OSD_TRANSITION_ROTATE == 2
+    outpt.v.patchCoord.xy = vec2(1.0-UV.x, 1.0-UV.y);
+#elif OSD_TRANSITION_ROTATE == 3
+    outpt.v.patchCoord.xy = vec2(1.0-UV.y, UV.x);
+#else // OSD_TRANNSITION_ROTATE == 0, or non-transition patch
+    outpt.v.patchCoord.xy = vec2(UV.x, UV.y);
+#endif
 
     OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
 
-    OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(0);
+    OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(OSD_TRANSITION_ROTATE);
 
     OSD_DISPLACEMENT_CALLBACK;
 
@@ -237,7 +273,7 @@ void main()
 //----------------------------------------------------------
 // Patches.Vertex
 //----------------------------------------------------------
-#ifdef VERTEX_SHADER
+#ifdef OSD_VERTEX_SHADER
 
 layout (location=0) in vec4 position;
 layout (location=1) in vec3 normal;
@@ -257,7 +293,7 @@ void main() {
 //----------------------------------------------------------
 // Patches.FragmentColor
 //----------------------------------------------------------
-#ifdef FRAGMENT_SHADER
+#ifdef OSD_FRAGMENT_SHADER
 
 in block {
     OutputVertex v;

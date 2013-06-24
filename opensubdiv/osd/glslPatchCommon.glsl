@@ -63,8 +63,16 @@
 #define OSD_NUM_VARYINGS 0
 #endif
 
-#ifndef ROTATE
-#define ROTATE 0
+#ifndef OSD_TRANSITION_ROTATE
+#define OSD_TRANSITION_ROTATE 0
+#endif
+
+#if defined OSD_PATCH_BOUNDARY
+    #define OSD_PATCH_INPUT_SIZE 12
+#elif defined OSD_PATCH_CORNER
+    #define OSD_PATCH_INPUT_SIZE 9
+#else
+    #define OSD_PATCH_INPUT_SIZE 16
 #endif
 
 #define M_PI 3.14159265359f
@@ -151,7 +159,7 @@ float GetPostProjectionSphereExtent(vec3 center, float diameter)
     return abs(diameter * ProjectionMatrix[1][1] / p.w);
 }
 
-float TessAdaptive(vec3 p0, vec3 p1, int patchLevel)
+float TessAdaptive(vec3 p0, vec3 p1)
 {
     // Adaptive factor can be any computation that depends only on arg values.
     // Project the diameter of the edge's bounding sphere instead of using the
@@ -201,13 +209,13 @@ uniform isamplerBuffer g_ptexIndicesBuffer;
     {                                                           \
         int rot = (inpt[0].v.ptexInfo.w + 4 - ROTATE)%4;        \
         if (rot == 1) {                                         \
-            outpt.v.tangent = -normalize(Tangent);              \
-        } else if (rot == 2) {                                  \
             outpt.v.tangent = -normalize(BiTangent);            \
+        } else if (rot == 2) {                                  \
+            outpt.v.tangent = -normalize(Tangent);              \
         } else if (rot == 3) {                                  \
-            outpt.v.tangent = normalize(Tangent);               \
-        } else {                                                \
             outpt.v.tangent = normalize(BiTangent);             \
+        } else {                                                \
+            outpt.v.tangent = normalize(Tangent);               \
         }                                                       \
     }
 
@@ -244,29 +252,6 @@ uniform isamplerBuffer g_ptexIndicesBuffer;
 //----------------------------------------------------------
 // Patches.Coefficients
 //----------------------------------------------------------
-// Regular
-uniform mat4 Q = mat4(
-    1.f/6.f, 2.f/3.f, 1.f/6.f, 0.f,
-    0.f,     2.f/3.f, 1.f/3.f, 0.f,
-    0.f,     1.f/3.f, 2.f/3.f, 0.f,
-    0.f,     1.f/6.f, 2.f/3.f, 1.f/6.f
-);
-
-// Boundary
-uniform mat4x3 B = mat4x3( 
-    1.0f,    0.0f,    0.0f,
-    2.f/3.f, 1.f/3.f, 0.0f,
-    1.f/3.f, 2.f/3.f, 0.0f,
-    1.f/6.f, 2.f/3.f, 1.f/6.f
-);
-
-// Corner
-uniform mat4 R = mat4( 
-    1.f/6.f, 2.f/3.f, 1.f/6.f, 0.0f,
-    0.0f,    2.f/3.f, 1.f/3.f, 0.0f,
-    0.0f,    1.f/3.f, 2.f/3.f, 0.0f,
-    0.0f,    0.0f,    1.0f,    0.0f
-);
 
 #if OSD_MAX_VALENCE<=10
 uniform float ef[7] = float[](
@@ -315,47 +300,6 @@ Univar4x4(in float u, out float B[4], out float D[4])
     D[3] = A2;
 }
 
-vec4
-EvalBSpline(vec2 uv, vec4 cp[16])
-{
-    float B[4], D[4];
-
-    Univar4x4(uv.x, B, D);
-    vec3 BUCP[4], DUCP[4];
-
-    for (int i=0; i<4; ++i) {
-        BUCP[i] = vec3(0.0f, 0.0f, 0.0f);
-        DUCP[i] = vec3(0.0f, 0.0f, 0.0f);
-
-        for (int j=0; j<4; ++j) {
-/*
-#if ROTATE == 1
-            vec3 A = cp[4*(3-j) + (3-j)].xyz;
-#elif ROTATE == 2
-            vec3 A = cp[4*i + (3-j)].xyz;
-#elif ROTATE == 3
-            vec3 A = cp[4*j + i].xyz;
-#else
-            vec3 A = cp[4*i + j].xyz;
-#endif
-*/
-            vec3 A = cp[4*i + j].xyz;
-
-            BUCP[i] += A * B[j];
-            DUCP[i] += A * D[j];
-        }
-    }
-    vec3 val = vec3(0);
-
-    Univar4x4(uv.y, B, D);
-
-    for (int i=0; i<4; ++i) {
-        val += B[i] * BUCP[i];
-    }
-
-    return vec4(val, 1);
-}
-
 void EvalBSpline(vec2 uv, vec3 cp[16],
                  out vec3 position,
                  out vec3 utangent,
@@ -372,13 +316,13 @@ void EvalBSpline(vec2 uv, vec3 cp[16],
         DUCP[i] = vec3(0);
 
         for (int j=0; j<4; ++j) {
-#if ROTATE == 1
-            vec3 A = cp[4*(3-j) + (3-i)];
-#elif ROTATE == 2
-            vec3 A = cp[4*i + (3-j)];
-#elif ROTATE == 3
-            vec3 A = cp[4*j + i];
-#else
+#if OSD_TRANSITION_ROTATE == 1
+            vec3 A = cp[4*(3-j) + i];
+#elif OSD_TRANSITION_ROTATE == 2
+            vec3 A = cp[4*(3-i) + (3-j)];
+#elif OSD_TRANSITION_ROTATE == 3
+            vec3 A = cp[4*j + (3-i)];
+#else // OSD_TRANNSITION_ROTATE == 0, or non-transition patch
             vec3 A = cp[4*i + j];
 #endif
             BUCP[i] += A * B[j];
@@ -397,89 +341,4 @@ void EvalBSpline(vec2 uv, vec3 cp[16],
         utangent += B[i] * DUCP[i];
         vtangent += D[i] * BUCP[i];
     }
-}
-
-vec4 EvalGregory(vec2 uv, GregEvalVertex ev[4])
-{
-    float u = uv.x;
-    float v = uv.y;
-    vec3 p[20];
-
-    p[0] = ev[0].position;
-    p[1] = ev[0].Ep;
-    p[2] = ev[0].Em;
-    p[3] = ev[0].Fp;
-    p[4] = ev[0].Fm;
-
-    p[5] = ev[1].position;
-    p[6] = ev[1].Ep;
-    p[7] = ev[1].Em;
-    p[8] = ev[1].Fp;
-    p[9] = ev[1].Fm;
-
-    p[10] = ev[2].position;
-    p[11] = ev[2].Ep;
-    p[12] = ev[2].Em;
-    p[13] = ev[2].Fp;
-    p[14] = ev[2].Fm;
-
-    p[15] = ev[3].position;
-    p[16] = ev[3].Ep;
-    p[17] = ev[3].Em;
-    p[18] = ev[3].Fp;
-    p[19] = ev[3].Fm;
-
-    vec3 q[16];
-
-    float U = 1-u, V=1-v;
-
-    float d11 = u+v; if(u+v==0.0f) d11 = 1.0f;
-    float d12 = U+v; if(U+v==0.0f) d12 = 1.0f;
-    float d21 = u+V; if(u+V==0.0f) d21 = 1.0f;
-    float d22 = U+V; if(U+V==0.0f) d22 = 1.0f;
-
-    q[ 5] = (u*p[3] + v*p[4])/d11;
-    q[ 6] = (U*p[9] + v*p[8])/d12;
-    q[ 9] = (u*p[19] + V*p[18])/d21;
-    q[10] = (U*p[13] + V*p[14])/d22;
-
-    q[ 0] = p[0];
-    q[ 1] = p[1];
-    q[ 2] = p[7];
-    q[ 3] = p[5];
-    q[ 4] = p[2];
-    q[ 7] = p[6];
-    q[ 8] = p[16];
-    q[11] = p[12];
-    q[12] = p[15];
-    q[13] = p[17];
-    q[14] = p[11];
-    q[15] = p[10];
-
-    float B[4], D[4];
-
-    Univar4x4(u, B, D);
-    vec3 BUCP[4], DUCP[4];
-
-    for (int i=0; i<4; ++i) {
-        BUCP[i] =  vec3(0, 0, 0);
-        DUCP[i] =  vec3(0, 0, 0);
-
-        for (uint j=0; j<4; ++j) {
-            // reverse face front
-            vec3 A = q[i + 4*j];
-
-            BUCP[i] += A * B[j];
-            DUCP[i] += A * D[j];
-        }
-    }
-
-    vec3 WorldPos  = vec3(0);
-
-    Univar4x4(v, B, D);
-
-    for (uint i=0; i<4; ++i) {
-        WorldPos  += B[i] * BUCP[i];
-    }
-    return vec4(WorldPos, 1);
 }

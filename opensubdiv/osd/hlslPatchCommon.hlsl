@@ -56,11 +56,23 @@
 //
 
 //----------------------------------------------------------
-// Patches.Prologue
+// Patches.Common
 //----------------------------------------------------------
 
 #ifndef OSD_NUM_VARYINGS
 #define OSD_NUM_VARYINGS 0
+#endif
+
+#ifndef OSD_TRANSITION_ROTATE
+#define OSD_TRANSITION_ROTATE 0
+#endif
+
+#if defined OSD_PATCH_BOUNDARY
+    #define OSD_PATCH_INPUT_SIZE 12
+#elif defined OSD_PATCH_CORNER
+    #define OSD_PATCH_INPUT_SIZE 9
+#else
+    #define OSD_PATCH_INPUT_SIZE 16
 #endif
 
 #define M_PI 3.14159265359f
@@ -136,7 +148,8 @@ cbuffer Tessellation : register( b1 ) {
     int LevelBase;
 };
 
-float GetTessLevel(int patchLevel) {
+float GetTessLevel(int patchLevel)
+{
 #if OSD_ENABLE_SCREENSPACE_TESSELLATION
     return TessLevel;
 #else
@@ -150,7 +163,7 @@ float GetPostProjectionSphereExtent(float3 center, float diameter)
     return abs(diameter * ProjectionMatrix[1][1] / p.w);
 }
 
-float TessAdaptive(float3 p0, float3 p1, int patchLevel)
+float TessAdaptive(float3 p0, float3 p1)
 {
     // Adaptive factor can be any computation that depends only on arg values.
     // Project the diameter of the edge's bounding sphere instead of using the
@@ -166,25 +179,20 @@ float TessAdaptive(float3 p0, float3 p1, int patchLevel)
 
 Buffer<int2> g_ptexIndicesBuffer : register( t3 );
 
-int GetPatchLevel(int primitiveID)
-{
-    int2 ptexIndex = g_ptexIndicesBuffer[primitiveID + LevelBase].xy;
-    return ptexIndex.y & 0xf;
-}
+#define GetPatchLevel(primitiveID)                                      \
+        (g_ptexIndicesBuffer[primitiveID + LevelBase].y & 0xf)
 
-#define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
+#define OSD_COMPUTE_PTEX_COORD_HULL_SHADER                              \
     {                                                                   \
         int2 ptexIndex = g_ptexIndicesBuffer[ID + LevelBase].xy;        \
         int faceID = ptexIndex.x;                                       \
-        int lv = 1 << (ptexIndex.y & 0xf);                              \
+        int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1)); \
         int u = (ptexIndex.y >> 17) & 0x3ff;                            \
         int v = (ptexIndex.y >> 7) & 0x3ff;                             \
         int rotation = (ptexIndex.y >> 5) & 0x3;                        \
         output.patchCoord.w = faceID+0.5;                               \
         output.ptexInfo = int4(u, v, lv, rotation);                     \
     }
-
-#define OSD_COMPUTE_PTEX_COORD_HULL_SHADER
 
 #define OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER                            \
     {                                                                   \
@@ -203,13 +211,13 @@ int GetPatchLevel(int primitiveID)
     {                                                           \
         int rot = (patch[0].ptexInfo.w + 4 - ROTATE)%4;         \
         if (rot == 1) {                                         \
-            output.tangent = -normalize(Tangent);               \
-        } else if (rot == 2) {                                  \
             output.tangent = -normalize(BiTangent);             \
+        } else if (rot == 2) {                                  \
+            output.tangent = -normalize(Tangent);               \
         } else if (rot == 3) {                                  \
-            output.tangent = normalize(Tangent);                \
-        } else {                                                \
             output.tangent = normalize(BiTangent);              \
+        } else {                                                \
+            output.tangent = normalize(Tangent);                \
         }                                                       \
     }
 

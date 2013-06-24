@@ -293,13 +293,13 @@ HS_CONSTANT_FUNC_OUT HSConstFunc(
 
 #if OSD_ENABLE_SCREENSPACE_TESSELLATION
     output.tessLevelOuter[0] =
-        TessAdaptive(patch[0].hullPosition.xyz, patch[1].hullPosition.xyz, patchLevel);
+        TessAdaptive(patch[0].hullPosition.xyz, patch[1].hullPosition.xyz);
     output.tessLevelOuter[1] =
-        TessAdaptive(patch[0].hullPosition.xyz, patch[3].hullPosition.xyz, patchLevel);
+        TessAdaptive(patch[0].hullPosition.xyz, patch[3].hullPosition.xyz);
     output.tessLevelOuter[2] =
-        TessAdaptive(patch[2].hullPosition.xyz, patch[3].hullPosition.xyz, patchLevel);
+        TessAdaptive(patch[2].hullPosition.xyz, patch[3].hullPosition.xyz);
     output.tessLevelOuter[3] =
-        TessAdaptive(patch[1].hullPosition.xyz, patch[2].hullPosition.xyz, patchLevel);
+        TessAdaptive(patch[1].hullPosition.xyz, patch[2].hullPosition.xyz);
     output.tessLevelInner[0] =
         max(output.tessLevelOuter[1], output.tessLevelOuter[3]);
     output.tessLevelInner[1] =
@@ -582,9 +582,10 @@ void ds_main_patches(
 
     output.position = mul(ModelViewMatrix, float4(WorldPos, 1.0f));
     output.normal = normal;
+    output.tangent = normalize(BiTangent);
+
     output.patchCoord = patch[0].patchCoord;
     output.patchCoord.xy = float2(v, u);
-    output.tangent = BiTangent;
 
     OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER;
 
