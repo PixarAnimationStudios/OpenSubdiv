@@ -201,15 +201,11 @@ public:
         class iterator;
 
         /// Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
-        static iterator begin() {
-            return iterator( Descriptor(REGULAR, NON_TRANSITION, 0) );
-        }
+        static iterator begin();
 
         /// Returns an iterator to the end of the list of patch types (NON_PATCH)
-        static iterator end() {
-            return iterator( Descriptor() );
-        }
-        
+        static iterator end();
+
     private:
         template <class T> friend class FarPatchTablesFactory;
         friend class iterator;
@@ -217,35 +213,6 @@ public:
         unsigned int  _type:4;
         unsigned int  _pattern:3;
         unsigned int  _rotation:2;
-    };
-
-
-    /// \brief Descriptor iterator class 
-    class Descriptor::iterator {
-        public:
-            /// Constructor
-            iterator() {}
-
-            /// Copy Constructor
-            iterator(Descriptor desc) : pos(desc) { }
-            
-            /// Iteration increment operator
-            iterator & operator ++ () { ++pos; return *this; }
-            
-            /// True of the two descriptors are identical
-            bool operator == ( iterator const & other ) const { return (pos==other.pos); }
-
-            /// True if the two descriptors are different
-            bool operator != ( iterator const & other ) const { return not (*this==other); }
-            
-            /// Dereferencing operator
-            Descriptor * operator -> () { return &pos; }
-            
-            /// Dereferencing operator
-            Descriptor & operator * () { return pos; }
-
-        private:
-            Descriptor pos;
     };
 
 
@@ -462,6 +429,45 @@ private:
     // vertexValance & quadOffset tables)
     int _maxValence;
 };
+
+  /// \brief Descriptor iterator class
+class FarPatchTables::Descriptor::iterator {
+  public:
+    /// Constructor
+    iterator() {}
+
+    /// Copy Constructor
+    iterator(FarPatchTables::Descriptor desc) : pos(desc) { }
+
+    /// Iteration increment operator
+    iterator & operator ++ () { ++pos; return *this; }
+
+    /// True of the two descriptors are identical
+    bool operator == ( iterator const & other ) const { return (pos==other.pos); }
+
+    /// True if the two descriptors are different
+    bool operator != ( iterator const & other ) const { return not (*this==other); }
+
+    /// Dereferencing operator
+    FarPatchTables::Descriptor * operator -> () { return &pos; }
+
+    /// Dereferencing operator
+    FarPatchTables::Descriptor & operator * () { return pos; }
+
+  private:
+    FarPatchTables::Descriptor pos;
+};
+
+
+/// Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
+inline FarPatchTables::Descriptor::iterator FarPatchTables::Descriptor::begin() {
+  return FarPatchTables::Descriptor::iterator( FarPatchTables::Descriptor(REGULAR, NON_TRANSITION, 0) );
+}
+
+/// Returns an iterator to the end of the list of patch types (NON_PATCH)
+inline FarPatchTables::Descriptor::iterator FarPatchTables::Descriptor::end() {
+  return FarPatchTables::Descriptor::iterator( FarPatchTables::Descriptor() );
+}
 
 // Constructor
 inline
