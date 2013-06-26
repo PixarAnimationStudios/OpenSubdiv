@@ -63,7 +63,6 @@ include_directories(
 )
 
 if( OPENGL_FOUND )
-    add_definitions( -DOSD_USES_GLEW )
     include_directories(
         ${OPENGL_INCLUDE_DIR}
         ${GLEW_INCLUDE_DIR}

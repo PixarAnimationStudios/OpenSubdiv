@@ -16,7 +16,11 @@
 // The following is to ensure the example runs on Linux, Windows and OS X
 //
 #if defined(__APPLE__)
-    #include <OpenGL/gl3.h>
+    #if defined(OSD_USES_GLEW)
+        #include <GL/glew.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
     #define GLFW_INCLUDE_GL3
     #define GLFW_NO_GLU
     #include <stdio.h>

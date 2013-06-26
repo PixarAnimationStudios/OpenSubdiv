@@ -296,6 +296,11 @@ if(GLFW_FOUND AND (GLFW_VERSION VERSION_EQUAL 3.0 OR GLFW_VERSION VERSION_GREATE
     add_definitions( -DGLFW_VERSION_3 )
 endif()
 
+# note: perhaps rename this to be more consistent, e.g. OPENSUBDIV_USES_GLEW
+if(GLEW_FOUND)
+    add_definitions( -DOSD_USES_GLEW )
+endif()
+
 # note : (GLSL transform feedback kernels require GL 4.2)
 if(GLEW_FOUND AND OPENGL_4_2_FOUND)
     add_definitions(
