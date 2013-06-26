@@ -436,7 +436,7 @@ void editAdd()
 
     for (int j = 0; j < 3; ++j) {
         int index = min(j-editPrimVarOffset, editPrimVarWidth-1);
-        float editValue = texelFetch(_editValues, i*editPrimVarOffset + index).x;
+        float editValue = texelFetch(_editValues, i*editPrimVarWidth + index).x;
         editValue *= float(j >= editPrimVarOffset);
         editValue *= float(j < (editPrimVarWidth + editPrimVarOffset));
 

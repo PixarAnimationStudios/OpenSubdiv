@@ -599,8 +599,7 @@ editVertexAdd(float *fVertex, int numVertexElements, int primVarOffset, int prim
         float *dstVertex = fVertex + (editIndices[i] + vertexOffset) * numVertexElements + primVarOffset;
 
         for(int j = 0; j < primVarWidth; j++) {
-            // XXX: wrong? maybe editValues[i*primVarWidth + j]...
-            *dstVertex++ += editValues[j];
+            *dstVertex++ += editValues[i*primVarWidth + j];
         }
     }
 }
