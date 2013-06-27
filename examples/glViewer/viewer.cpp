@@ -174,6 +174,19 @@ enum KernelType { kCPU = 0,
                   kGLSL = 5,
                   kGLSLCompute = 6 };
 
+enum DisplayStyle { kWire = 0,
+                    kShaded,
+                    kWireShaded,
+                    kVaryingColor };
+
+enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
+                   kHUD_CB_DISPLAY_CAGE_VERTS,
+                   kHUD_CB_ANIMATE_VERTICES,
+                   kHUD_CB_DISPLAY_PATCH_COLOR,
+                   kHUD_CB_VIEW_LOD,
+                   kHUD_CB_PATCH_CULL,
+                   kHUD_CB_FREEZE };
+
 struct SimpleShape {
     std::string  name;
     Scheme       scheme;
@@ -194,16 +207,16 @@ int   g_frame = 0,
 // GUI variables
 int   g_fullscreen = 0,
       g_freeze = 0,
-      g_wire = 2,
+      g_displayStyle = kWireShaded,
       g_adaptive = 0,
       g_drawCageEdges = 1,
       g_drawCageVertices = 0,
-      g_drawPatchCVs = 0,
-      g_drawNormals = 0,
       g_mbutton[3] = {0, 0, 0}, 
       g_running = 1;
 
-int   g_displayPatchColor = 1;
+int   g_displayPatchColor = 1,
+      g_screenSpaceTess = 0,
+      g_patchCull = 0;
 
 float g_rotate[2] = {0, 0},
       g_dolly = 5,
@@ -530,11 +543,12 @@ updateGeom() {
 
     int nverts = (int)g_orgPositions.size() / 3;
 
-    std::vector<float> vertex;
-    vertex.reserve(nverts*6);
+    std::vector<float> vertex, varying;
+    vertex.reserve(nverts*3);
+    if (g_displayStyle == kVaryingColor)
+        varying.reserve(nverts*3);
 
     const float *p = &g_orgPositions[0];
-    const float *n = &g_normals[0];
 
     float r = sin(g_frame*0.001f) * g_moveScale;
     for (int i = 0; i < nverts; ++i) {
@@ -548,20 +562,25 @@ updateGeom() {
         p += 3;
     }
 
-    p = &g_positions[0];
+    p = &g_orgPositions[0];
+    const float *pp = &g_positions[0];
     for (int i = 0; i < nverts; ++i) {
-        vertex.push_back(p[0]);
-        vertex.push_back(p[1]);
-        vertex.push_back(p[2]);
-        vertex.push_back(n[0]);
-        vertex.push_back(n[1]);
-        vertex.push_back(n[2]);
-        
-        p += 3;
-        n += 3;
+        vertex.push_back(pp[0]);
+        vertex.push_back(pp[1]);
+        vertex.push_back(pp[2]);
+        if (g_displayStyle == kVaryingColor) {
+            varying.push_back(p[0]);
+            varying.push_back(p[1]);
+            varying.push_back(p[2]);
+            p += 3;
+        }
+        pp += 3;
     }
 
     g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
+
+    if (g_displayStyle == kVaryingColor)
+        g_mesh->UpdateVaryingBuffer(&varying[0], 0, nverts);
 
     Stopwatch s;
     s.Start();
@@ -641,6 +660,9 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
     OpenSubdiv::OsdMeshBitset bits;
     bits.set(OpenSubdiv::MeshAdaptive, doAdaptive);
 
+    int numVertexElements = 3;
+    int numVaryingElements = (g_displayStyle == kVaryingColor) ? 3 : 0;
+
     if (kernel == kCPU) {
         if (not g_cpuComputeController) {
             g_cpuComputeController = new OpenSubdiv::OsdCpuComputeController();
@@ -649,7 +671,10 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdCpuComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_cpuComputeController,
-                                                hmesh, 6, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         if (not g_ompComputeController) {
@@ -659,7 +684,10 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdOmpComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_ompComputeController,
-                                                hmesh, 6, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GCD
     } else if (kernel == kGCD) {
@@ -670,7 +698,10 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdGcdComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_gcdComputeController,
-                                                hmesh, 6, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == kCL) {
@@ -681,8 +712,10 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdCLComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_clComputeController,
-                                                hmesh, 6, level, bits,
-                                                g_clContext, g_clQueue);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits, g_clContext, g_clQueue);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if(kernel == kCUDA) {
@@ -693,7 +726,10 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdCudaComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_cudaComputeController,
-                                                hmesh, 6, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if(kernel == kGLSL) {
@@ -704,7 +740,10 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdGLSLTransformFeedbackComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_glslTransformFeedbackComputeController,
-                                                hmesh, 6, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if(kernel == kGLSLCompute) {
@@ -715,7 +754,10 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdGLSLComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_glslComputeController,
-                                                hmesh, 6, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
     } else {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
@@ -753,10 +795,17 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
     glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVertexBuffer());
 
     glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
 
+    if (g_displayStyle == kVaryingColor) {
+        glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVaryingBuffer());
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
+    } else {
+        glDisableVertexAttribArray(1);
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
 
@@ -769,44 +818,6 @@ fitFrame() {
 }
 
 //------------------------------------------------------------------------------
-static void
-drawNormals() {
-
-#if 0
-    float * data=0;
-    int datasize = g_vertexBuffer->GetNumVertices() * g_vertexBuffer->GetNumElements();
-
-    data = new float[datasize];
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBuffer->BindVBO());
-
-    glGetBufferSubData(GL_ARRAY_BUFFER,0,datasize*sizeof(float),data);
-
-    glDisable(GL_LIGHTING);
-    glColor3f(0.0f, 0.0f, 0.5f);
-    glBegin(GL_LINES);
-
-    int start = g_farmesh->GetSubdivisionTables()->GetFirstVertexOffset(g_level) *
-                g_vertexBuffer->GetNumElements();
-
-    for (int i=start; i<datasize; i+=6) {
-        glVertex3f( data[i  ],
-                    data[i+1],
-                    data[i+2] );
-
-        float n[3] = { data[i+3], data[i+4], data[i+5] };
-        normalize(n);
-
-        glVertex3f( data[i  ]+n[0]*0.2f,
-                    data[i+1]+n[1]*0.2f,
-                    data[i+2]+n[2]*0.2f );
-    }
-    glEnd();
-
-    delete [] data;
-#endif
-}
-
 static inline void
 setSharpnessColor(float s, float *r, float *g, float *b)
 {
@@ -901,14 +912,24 @@ drawCageVertices() {
 }
 
 //------------------------------------------------------------------------------
-enum Effect {
-    kQuadWire = 0,
-    kQuadFill = 1,
-    kQuadLine = 2,
-    kTriWire = 3,
-    kTriFill = 4,
-    kTriLine = 5,
-    kPoint = 6,
+
+union Effect {
+    Effect(int displayStyle_, int screenSpaceTess_, int patchCull_) : value(0) {
+        displayStyle = displayStyle_;
+        screenSpaceTess = screenSpaceTess_;
+        patchCull = patchCull_;
+    }
+
+    struct {
+        int displayStyle:3;
+        int screenSpaceTess:1;
+        int patchCull:1;
+    };
+    int value;
+
+    bool operator < (const Effect &e) const {
+        return value < e.value;
+    }
 };
 
 typedef std::pair<OpenSubdiv::OsdDrawContext::PatchDescriptor, Effect> EffectDesc;
@@ -931,8 +952,7 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     SourceConfigType * sconfig =
         BaseRegistry::_CreateDrawSourceConfig(desc.first);
 
-//    sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
-//    sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
+    assert(sconfig);
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     const char *glslVersion = "#version 400\n";
@@ -946,12 +966,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
     } else {
-        if (effect == kQuadWire) effect = kTriWire;
-        if (effect == kQuadFill) effect = kTriFill;
-        if (effect == kQuadLine) effect = kTriLine;
         sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
     }
-    assert(sconfig);
 
     sconfig->geometryShader.source = shaderSource;
     sconfig->geometryShader.version = glslVersion;
@@ -961,46 +977,41 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     sconfig->fragmentShader.version = glslVersion;
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
-    switch (effect) {
-    case kQuadWire:
+    if (desc.first.GetType() == OpenSubdiv::FarPatchTables::QUADS) {
+        // uniform catmark, bilinear
         sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
         sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_WIRE");
-        break;
-    case kQuadFill:
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
-        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_FILL");
-        break;
-    case kQuadLine:
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_LINE");
-        break;
-    case kTriWire:
+    } else if (desc.first.GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
+        // uniform loop
         sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_WIRE");
-        break;
-    case kTriFill:
+    } else {
+        // adaptive
         sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_FILL");
+    }
+
+    if (effect.screenSpaceTess) {
+        sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
+    }
+    if (effect.patchCull) {
+        sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
+    }
+
+
+    switch (effect.displayStyle) {
+    case kWire:
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_WIRE");
         break;
-    case kTriLine:
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_LINE");
+    case kWireShaded:
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_LINE");
         break;
-    case kPoint:
-        sconfig->geometryShader.AddDefine("PRIM_POINT");
-        sconfig->fragmentShader.AddDefine("PRIM_POINT");
+    case kShaded:
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+        break;
+    case kVaryingColor:
+        sconfig->commonShader.AddDefine("VARYING_COLOR");
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
         break;
     }
 
@@ -1071,11 +1082,7 @@ EffectDrawRegistry effectRegistry;
 static Effect
 GetEffect()
 {
-    if (g_scheme == kLoop) {
-        return (g_wire == 0 ? kTriWire : (g_wire == 1 ? kTriFill : kTriLine));
-    } else {
-        return (g_wire == 0 ? kQuadWire : (g_wire == 1 ? kQuadFill : kQuadLine));
-    }
+    return Effect(g_displayStyle, g_screenSpaceTess, g_patchCull);
 }
 
 //------------------------------------------------------------------------------
@@ -1208,27 +1215,13 @@ display() {
     
     // make sure that the vertex buffer is interoped back as a GL resources.
     g_mesh->BindVertexBuffer();
-    
+
+    if (g_displayStyle == kVaryingColor)
+        g_mesh->BindVaryingBuffer();
+
     glBindVertexArray(g_vao);
 
     OpenSubdiv::OsdDrawContext::PatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
-
-    // cv drawing
-/*
-    if (g_drawPatchCVs) {
-        glPointSize(3.0);
-
-        bindProgram(kPoint, OpenSubdiv::FarPatchTables::PatchArray());
-
-        for (int i=0; i<(int)patches.size(); ++i) {
-            OpenSubdiv::FarPatchTables::PatchArray const & patch = patches[i];
-
-            glDrawElements(GL_POINTS,
-                           patch.numIndices, GL_UNSIGNED_INT,
-                           (void *)(patch.firstIndex * sizeof(unsigned int)));
-        }
-    }
-*/
 
     // patch drawing
     int patchCount[11][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
@@ -1288,13 +1281,13 @@ display() {
         bindProgram(GetEffect(), patch);
 #endif
 
-        if (g_wire == 0) {
+        if (g_displayStyle == kWire) {
             glDisable(GL_CULL_FACE);
         }
 
         glDrawElements(primType, patch.GetNumIndices(), GL_UNSIGNED_INT,
                        (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
-        if (g_wire == 0) {
+        if (g_displayStyle == kWire) {
             glEnable(GL_CULL_FACE);
         }
     }
@@ -1308,9 +1301,6 @@ display() {
 
     glUseProgram(0);
 
-    if (g_drawNormals)
-        drawNormals();
-    
     if (g_drawCageEdges)
         drawCageEdges();
 
@@ -1524,9 +1514,21 @@ keyboard(int key, int event) {
 
 //------------------------------------------------------------------------------
 static void
-callbackWireframe(int b)
+rebuildOsdMesh()
 {
-    g_wire = b;
+    createOsdMesh( g_defaultShapes[ g_currentShape ].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
+}
+
+static void
+callbackDisplayStyle(int b)
+{
+    if (g_displayStyle == kVaryingColor or b == kVaryingColor) {
+        // need to rebuild for varying reconstruct
+        g_displayStyle = b;
+        rebuildOsdMesh();
+        return;
+    }
+    g_displayStyle = b;
 }
 
 static void
@@ -1549,14 +1551,14 @@ callbackKernel(int k)
     }
 #endif
 
-    createOsdMesh( g_defaultShapes[ g_currentShape ].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
+    rebuildOsdMesh();
 }
 
 static void
 callbackLevel(int l)
 {
     g_level = l;
-    createOsdMesh( g_defaultShapes[g_currentShape].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
+    rebuildOsdMesh();
 }
 
 static void
@@ -1569,26 +1571,7 @@ callbackModel(int m)
         m = (int)g_defaultShapes.size() - 1;
 
     g_currentShape = m;
-
-    createOsdMesh( g_defaultShapes[m].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
-}
-
-static void
-callbackDisplayNormal(bool checked, int n)
-{
-    g_drawNormals = checked;
-}
-
-static void
-callbackAnimate(bool checked, int m)
-{
-    g_moveScale = checked;
-}
-
-static void
-callbackFreeze(bool checked, int f)
-{
-    g_freeze = checked;
+    rebuildOsdMesh();
 }
 
 static void
@@ -1596,33 +1579,36 @@ callbackAdaptive(bool checked, int a)
 {
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation()) {
         g_adaptive = checked;
-
-        createOsdMesh( g_defaultShapes[g_currentShape].data, g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
+        rebuildOsdMesh();
     }
 }
 
 static void
-callbackDisplayCageEdges(bool checked, int d)
+callbackCheckBox(bool checked, int button)
 {
-    g_drawCageEdges = checked;
-}
-
-static void
-callbackDisplayCageVertices(bool checked, int d)
-{
-    g_drawCageVertices = checked;
-}
-
-static void
-callbackDisplayPatchCVs(bool checked, int d)
-{
-    g_drawPatchCVs = checked;
-}
-
-static void
-callbackDisplayPatchColor(bool checked, int p)
-{
-    g_displayPatchColor = checked;
+    switch (button) {
+    case kHUD_CB_DISPLAY_CAGE_EDGES:
+        g_drawCageEdges = checked;
+        break;
+    case kHUD_CB_DISPLAY_CAGE_VERTS:
+        g_drawCageVertices = checked;
+        break;
+    case kHUD_CB_ANIMATE_VERTICES:
+        g_moveScale = checked;
+        break;
+    case kHUD_CB_DISPLAY_PATCH_COLOR:
+        g_displayPatchColor = checked;
+        break;
+    case kHUD_CB_VIEW_LOD:
+        g_screenSpaceTess = checked;
+        break;
+    case kHUD_CB_PATCH_CULL:
+        g_patchCull = checked;
+        break;
+    case kHUD_CB_FREEZE:
+        g_freeze = checked;
+        break;
+    }
 }
 
 static void
@@ -1653,17 +1639,25 @@ initHUD()
     }
 #endif
 
-    g_hud.AddRadioButton(1, "Wire (W)",    g_wire == 0,  200, 10, callbackWireframe, 0, 'w');
-    g_hud.AddRadioButton(1, "Shaded",      g_wire == 1, 200, 30, callbackWireframe, 1, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", g_wire == 2, 200, 50, callbackWireframe, 2, 'w');
+    g_hud.AddRadioButton(1, "Wire (W)",    g_displayStyle == kWire,  200, 10, callbackDisplayStyle, 0, 'w');
+    g_hud.AddRadioButton(1, "Shaded",      g_displayStyle == kShaded, 200, 30, callbackDisplayStyle, 1, 'w');
+    g_hud.AddRadioButton(1, "Wire+Shaded", g_displayStyle == kWireShaded, 200, 50, callbackDisplayStyle, 2, 'w');
+    g_hud.AddRadioButton(1, "Varying color", g_displayStyle == kVaryingColor, 200, 70, callbackDisplayStyle, 3, 'w');
 
-    g_hud.AddCheckBox("Cage Edges (H)",    true,  350, 10, callbackDisplayCageEdges, 0, 'h');
-    g_hud.AddCheckBox("Cage Verts (J)", false, 350, 30, callbackDisplayCageVertices, 0, 'j');
-    g_hud.AddCheckBox("Patch CVs (L)", false, 350, 50, callbackDisplayPatchCVs, 0, 'l');
-    g_hud.AddCheckBox("Show normal vector (E)", false, 350, 70, callbackDisplayNormal, 0, 'e');
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 350, 90, callbackAnimate, 0, 'm');
-    g_hud.AddCheckBox("Patch Color (P)",   true, 350, 110, callbackDisplayPatchColor, 0, 'p');
-    g_hud.AddCheckBox("Freeze (spc)", false, 350, 130, callbackFreeze, 0, ' ');
+    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
+                      350, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'h');
+    g_hud.AddCheckBox("Cage Verts (J)", g_drawCageVertices != 0,
+                      350, 30, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_VERTS, 'j');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0,
+                      350, 50, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
+    g_hud.AddCheckBox("Patch Color (P)", g_displayPatchColor != 0,
+                      350, 70, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'p');
+    g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess != 0,
+                      350, 90, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull != 0,
+                      350, 110, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
+    g_hud.AddCheckBox("Freeze (spc)", g_freeze != 0,
+                      350, 130, callbackCheckBox, kHUD_CB_FREEZE, ' ');
 
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0, 10, 150, callbackAdaptive, 0, '`');
@@ -1853,7 +1847,7 @@ int main(int argc, char ** argv)
     glfwSwapInterval(0);
 
     initHUD();
-    callbackModel(g_currentShape);
+    rebuildOsdMesh();
 
     while (g_running) {
         idle();

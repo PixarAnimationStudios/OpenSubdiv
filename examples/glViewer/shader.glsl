@@ -61,16 +61,24 @@
 #ifdef VERTEX_SHADER
 
 layout (location=0) in vec4 position;
-layout (location=1) in vec3 normal;
+
+#ifdef VARYING_COLOR
+layout (location=1) in vec3 color;
+#endif
 
 out block {
     OutputVertex v;
+#ifdef VARYING_COLOR
+    out vec3 vsColor;
+#endif
 } outpt;
 
 void main()
 {
     outpt.v.position = ModelViewMatrix * position;
-    outpt.v.normal = (ModelViewMatrix * vec4(normal, 0.0)).xyz;
+#ifdef VARYING_COLOR
+    outpt.vsColor = color;
+#endif
 }
 
 #endif
@@ -84,13 +92,7 @@ void main()
 
     layout(lines_adjacency) in;
 
-    layout(triangle_strip, max_vertices = 4) out;
-
     #define EDGE_VERTS 4
-
-    in block {
-        OutputVertex v;
-    } inpt[4];
 
 #endif // PRIM_QUAD
 
@@ -98,30 +100,25 @@ void main()
 
     layout(triangles) in;
 
-    layout(triangle_strip, max_vertices = 3) out;
-
     #define EDGE_VERTS 3
-
-    in block {
-        OutputVertex v;
-    } inpt[3];
 
 #endif // PRIM_TRI
 
-#ifdef PRIM_POINT
 
-    layout(points) in;
-    layout(points, max_vertices = 1) out;
-
-    in block {
-        OutputVertex v;
-    } inpt[1];
-
-#endif // PRIM_POINT
+layout(triangle_strip, max_vertices = EDGE_VERTS) out;
+in block {
+    OutputVertex v;
+#ifdef VARYING_COLOR
+    vec3 vsColor;
+#endif
+} inpt[EDGE_VERTS];
 
 out block {
     OutputVertex v;
     noperspective out vec4 edgeDistance;
+#ifdef VARYING_COLOR
+    vec3 gsColor;
+#endif
 } outpt;
 
 void emit(int index, vec3 normal)
@@ -131,6 +128,9 @@ void emit(int index, vec3 normal)
     outpt.v.normal = inpt[index].v.normal;
 #else
     outpt.v.normal = normal;
+#endif
+#ifdef VARYING_COLOR
+    outpt.gsColor = inpt[index].vsColor;
 #endif
     gl_Position = ProjectionMatrix * inpt[index].v.position;
     EmitVertex();
@@ -170,10 +170,6 @@ void emit(int index, vec3 normal, vec4 edgeVerts[EDGE_VERTS])
 void main()
 {
     gl_PrimitiveID = gl_PrimitiveIDIn;
-
-#ifdef PRIM_POINT
-    emit(0, vec3(0));
-#endif
     
 #ifdef PRIM_QUAD
     vec3 A = (inpt[0].v.position - inpt[1].v.position).xyz;
@@ -243,6 +239,9 @@ void main()
 in block {
     OutputVertex v;
     noperspective in vec4 edgeDistance;
+#ifdef VARYING_COLOR
+    vec3 gsColor;
+#endif
 } inpt;
 
 out vec4 outColor;
@@ -264,7 +263,7 @@ uniform vec4 diffuseColor = vec4(1);
 uniform vec4 ambientColor = vec4(1);
 
 vec4
-lighting(vec3 Peye, vec3 Neye)
+lighting(vec4 diffuse, vec3 Peye, vec3 Neye)
 {
     vec4 color = vec4(0);
 
@@ -282,22 +281,13 @@ lighting(vec3 Peye, vec3 Neye)
         float s = pow(max(0.0, dot(n, h)), 500.0f);
 
         color += lightSource[i].ambient * ambientColor
-            + d * lightSource[i].diffuse * diffuseColor
+            + d * lightSource[i].diffuse * diffuse
             + s * lightSource[i].specular;
     }
 
     color.a = 1;
     return color;
 }
-
-#ifdef PRIM_POINT
-uniform vec4 fragColor;
-void
-main()
-{
-    outColor = fragColor;
-}
-#endif
 
 vec4
 edgeColor(vec4 Cfill, vec4 edgeDistance)
@@ -329,7 +319,14 @@ void
 main()
 {
     vec3 N = (gl_FrontFacing ? inpt.v.normal : -inpt.v.normal);
-    vec4 Cf = lighting(inpt.v.position.xyz, N);
+
+#ifdef VARYING_COLOR
+    vec4 color = vec4(inpt.gsColor, 1);
+#else
+    vec4 color = diffuseColor;
+#endif
+
+    vec4 Cf = lighting(color, inpt.v.position.xyz, N);
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
     Cf = edgeColor(Cf, inpt.edgeDistance);

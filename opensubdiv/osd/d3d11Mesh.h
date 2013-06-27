@@ -80,13 +80,15 @@ public:
 
     OsdMesh(ComputeController * computeController,
             HbrMesh<OsdVertex> * hmesh,
-            int numElements,
+            int numVertexElements,
+            int numVaryingElements,
             int level,
             OsdMeshBitset bits,
             ID3D11DeviceContext *d3d11DeviceContext) :
 
             _farMesh(0),
             _vertexBuffer(0),
+            _varyingBuffer(0),
             _computeContext(0),
             _computeController(computeController),
             _drawContext(0),
@@ -99,7 +101,9 @@ public:
         _pd3d11DeviceContext->GetDevice(&pd3d11Device);
 
         int numVertices = _farMesh->GetNumVertices();
-        _vertexBuffer = VertexBuffer::Create(numElements, numVertices, pd3d11Device);
+        _vertexBuffer = VertexBuffer::Create(numVertexElements, numVertices, pd3d11Device);
+        if (numVaryingElements)
+            _vertexBuffer = VertexBuffer::Create(numVaryingElements, numVertices, pd3d11Device);
         _computeContext = ComputeContext::Create(_farMesh);
         _drawContext = DrawContext::Create(_farMesh->GetPatchTables(),
                                            _pd3d11DeviceContext,
@@ -111,6 +115,7 @@ public:
     virtual ~OsdMesh() {
         delete _farMesh;
         delete _vertexBuffer;
+        delete _varyingBuffer;
         delete _computeContext;
         delete _drawContext;
     }
@@ -120,14 +125,20 @@ public:
     virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
         _vertexBuffer->UpdateData(vertexData, startVertex, numVerts, _pd3d11DeviceContext);
     }
+    virtual void UpdateVaryingBuffer(float const *varyingData, int startVertex, int numVerts) {
+        _varyingBuffer->UpdateData(varyingData, startVertex, numVerts, _pd3d11DeviceContext);
+    }
     virtual void Refine() {
-        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer);
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer, _varyingBuffer);
     }
     virtual void Synchronize() {
         _computeController->Synchronize();
     }
     virtual VertexBufferBinding BindVertexBuffer() {
         return _vertexBuffer->BindD3D11Buffer(_pd3d11DeviceContext);
+    }
+    virtual VertexBufferBinding BindVaryingBuffer() {
+        return _varyingBuffer->BindD3D11Buffer(_pd3d11DeviceContext);
     }
     virtual DrawContext * GetDrawContext() {
         return _drawContext;
@@ -136,6 +147,7 @@ public:
 private:
     FarMesh<OsdVertex> *_farMesh;
     VertexBuffer *_vertexBuffer;
+    VertexBuffer *_varyingBuffer;
     ComputeContext *_computeContext;
     ComputeController *_computeController;
     DrawContext *_drawContext;
@@ -154,13 +166,15 @@ public:
 
     OsdMesh(ComputeController * computeController,
             HbrMesh<OsdVertex> * hmesh,
-            int numElements,
+            int numVertexElements,
+            int numVaryingElements,
             int level,
             OsdMeshBitset bits,
             ID3D11DeviceContext *d3d11DeviceContext) :
 
             _farMesh(0),
             _vertexBuffer(0),
+            _varyingBuffer(0),
             _computeContext(0),
             _computeController(computeController),
             _drawContext(0),
@@ -173,7 +187,9 @@ public:
         _pd3d11DeviceContext->GetDevice(&pd3d11Device);
 
         int numVertices = _farMesh->GetNumVertices();
-        _vertexBuffer = VertexBuffer::Create(numElements, numVertices, pd3d11Device);
+        _vertexBuffer = VertexBuffer::Create(numVertexElements, numVertices, pd3d11Device);
+        if (numVaryingElements)
+            _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices, pd3d11Device);
         _computeContext = ComputeContext::Create(_farMesh, _pd3d11DeviceContext);
         _drawContext = DrawContext::Create(_farMesh->GetPatchTables(),
                                            _pd3d11DeviceContext,
@@ -184,6 +200,7 @@ public:
     virtual ~OsdMesh() {
         delete _farMesh;
         delete _vertexBuffer;
+        delete _varyingBuffer;
         delete _computeContext;
         delete _drawContext;
     }
@@ -193,14 +210,20 @@ public:
     virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
         _vertexBuffer->UpdateData(vertexData, startVertex, numVerts, _pd3d11DeviceContext);
     }
+    virtual void UpdateVaryingBuffer(float const *varyingData, int startVertex, int numVerts) {
+        _varyingBuffer->UpdateData(varyingData, startVertex, numVerts, _pd3d11DeviceContext);
+    }
     virtual void Refine() {
-        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer);
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer, _varyingBuffer);
     }
     virtual void Synchronize() {
         _computeController->Synchronize();
     }
     virtual VertexBufferBinding BindVertexBuffer() {
         return _vertexBuffer->BindD3D11Buffer(_pd3d11DeviceContext);
+    }
+    virtual VertexBufferBinding BindVaryingBuffer() {
+        return _varyingBuffer->BindD3D11Buffer(_pd3d11DeviceContext);
     }
     virtual DrawContext * GetDrawContext() {
         return _drawContext;
@@ -209,6 +232,7 @@ public:
 private:
     FarMesh<OsdVertex> *_farMesh;
     VertexBuffer *_vertexBuffer;
+    VertexBuffer *_varyingBuffer;
     ComputeContext *_computeContext;
     ComputeController *_computeController;
     DrawContext *_drawContext;
@@ -237,7 +261,8 @@ public:
 
     OsdMesh(ComputeController * computeController,
             HbrMesh<OsdVertex> * hmesh,
-            int numElements,
+            int numVertexElements,
+            int numVaryingElements,
             int level,
             OsdMeshBitset bits,
             cl_context clContext,
@@ -246,6 +271,7 @@ public:
 
             _farMesh(0),
             _vertexBuffer(0),
+            _varyingBuffer(0),
             _computeContext(0),
             _computeController(computeController),
             _drawContext(0),
@@ -261,7 +287,9 @@ public:
         _pd3d11DeviceContext->GetDevice(&pd3d11Device);
 
         int numVertices = _farMesh->GetNumVertices();
-        _vertexBuffer = typename VertexBuffer::Create(numElements, numVertices, _clContext, pd3d11Device);
+        _vertexBuffer = typename VertexBuffer::Create(numVertexElements, numVertices, _clContext, pd3d11Device);
+        if (numVaryingElements)
+            _varyingBuffer = typename VertexBuffer::Create(numVaryingElements, numVertices, _clContext, pd3d11Device);
         _computeContext = ComputeContext::Create(_farMesh, _clContext);
         _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
                                            _pd3d11DeviceContext,
@@ -272,6 +300,7 @@ public:
     virtual ~OsdMesh() {
         delete _farMesh;
         delete _vertexBuffer;
+        delete _varyingBuffer;
         delete _computeContext;
         delete _drawContext;
     }
@@ -283,14 +312,22 @@ public:
         _pd3d11DeviceContext->GetDevice(&pd3d11Device);
         _vertexBuffer->UpdateData(vertexData, numVerts, _clQueue, pd3d11Device);
     }
+    virtual void UpdateVaryingBuffer(float const *varyingData, int numVerts) {
+        ID3D11Device * pd3d11Device;
+        _pd3d11DeviceContext->GetDevice(&pd3d11Device);
+        _varyingBuffer->UpdateData(varyingData, numVerts, _clQueue, pd3d11Device);
+    }
     virtual void Refine() {
-        _computeController->Refine(_computeContext, _vertexBuffer);
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer, _varyingBuffer);
     }
     virtual void Synchronize() {
         _computeController->Synchronize();
     }
     virtual VertexBufferBinding BindVertexBuffer() {
         return _vertexBuffer->BindD3D11Buffer(_pd3d11DeviceContext);
+    }
+    virtual VertexBufferBinding BindVaryingBuffer() {
+        return _varyingBuffer->BindD3D11Buffer(_pd3d11DeviceContext);
     }
     virtual DrawContext * GetDrawContext() {
         return _drawContext;
@@ -299,6 +336,7 @@ public:
 private:
     FarMesh<OsdVertex> *_farMesh;
     VertexBuffer *_vertexBuffer;
+    VertexBuffer *_varyingBuffer;
     ComputeContext *_computeContext;
     ComputeController *_computeController;
     DrawContext *_drawContext;

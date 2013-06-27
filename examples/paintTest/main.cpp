@@ -399,7 +399,7 @@ createOsdMesh() {
         OpenSubdiv::OsdCpuComputeController,
         OpenSubdiv::OsdGLDrawContext>(
             g_cpuComputeController,
-            hmesh, 3, level, bits);
+            hmesh, 3, 0, level, bits);
 
     // Hbr mesh can be deleted
     delete hmesh;

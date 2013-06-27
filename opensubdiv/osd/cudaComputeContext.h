@@ -164,7 +164,7 @@ public:
 
         if (varying) {
             _currentVaryingBuffer = static_cast<float*>(varying->BindCudaBuffer());
-            _vdesc.numVertexElements = varying->GetNumElements();
+            _vdesc.numVaryingElements = varying->GetNumElements();
         } else {
             _currentVaryingBuffer = 0;
             _vdesc.numVaryingElements = 0;
