@@ -771,8 +771,6 @@ evalGregoryBoundary(float u, float v,
             unsigned int im = (i+ivalence-1)%ivalence,
                          ip = (i+1)%ivalence;
 
-            bool isBoundaryNeighbor = false;
-
             int idx_neighbor   = valenceTable[2*i  + 0 + 1];
             int idx_diagonal   = valenceTable[2*i  + 1 + 1];
             int idx_neighbor_p = valenceTable[2*ip + 0 + 1];
@@ -781,7 +779,6 @@ evalGregoryBoundary(float u, float v,
 
             int valenceNeighbor = vertexValenceBuffer[idx_neighbor * (2*maxValence+1)]; 
             if (valenceNeighbor < 0) {
-                isBoundaryNeighbor = true;
                 boundaryEdgeNeighbors[currNeighbor++] = idx_neighbor;
                 if (currNeighbor == 1)    {
                     ibefore = i;
