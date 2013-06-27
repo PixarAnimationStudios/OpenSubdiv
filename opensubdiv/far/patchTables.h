@@ -612,7 +612,7 @@ FarPatchTables::GetNumFaces(int level) const {
     PatchArrayVector const & parrays = GetPatchArrayVector();
     
     if (parrays.empty())
-        return NULL;
+        return -1;
     
     if (level < 1) {
         return parrays.rbegin()->GetNumPatches();
