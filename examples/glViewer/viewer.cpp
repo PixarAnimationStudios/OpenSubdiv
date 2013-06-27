@@ -184,6 +184,7 @@ enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
                    kHUD_CB_ANIMATE_VERTICES,
                    kHUD_CB_DISPLAY_PATCH_COLOR,
                    kHUD_CB_VIEW_LOD,
+                   kHUD_CB_FRACTIONAL_SPACING,
                    kHUD_CB_PATCH_CULL,
                    kHUD_CB_FREEZE };
 
@@ -216,6 +217,7 @@ int   g_fullscreen = 0,
 
 int   g_displayPatchColor = 1,
       g_screenSpaceTess = 0,
+      g_fractionalSpacing = 0,
       g_patchCull = 0;
 
 float g_rotate[2] = {0, 0},
@@ -914,15 +916,17 @@ drawCageVertices() {
 //------------------------------------------------------------------------------
 
 union Effect {
-    Effect(int displayStyle_, int screenSpaceTess_, int patchCull_) : value(0) {
+    Effect(int displayStyle_, int screenSpaceTess_, int fractionalSpacing_, int patchCull_) : value(0) {
         displayStyle = displayStyle_;
         screenSpaceTess = screenSpaceTess_;
+        fractionalSpacing = fractionalSpacing_;
         patchCull = patchCull_;
     }
 
     struct {
         int displayStyle:3;
         int screenSpaceTess:1;
+        int fractionalSpacing:1;
         int patchCull:1;
     };
     int value;
@@ -993,6 +997,9 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 
     if (effect.screenSpaceTess) {
         sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
+    }
+    if (effect.fractionalSpacing) {
+        sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
     }
     if (effect.patchCull) {
         sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
@@ -1082,7 +1089,7 @@ EffectDrawRegistry effectRegistry;
 static Effect
 GetEffect()
 {
-    return Effect(g_displayStyle, g_screenSpaceTess, g_patchCull);
+    return Effect(g_displayStyle, g_screenSpaceTess, g_fractionalSpacing, g_patchCull);
 }
 
 //------------------------------------------------------------------------------
@@ -1602,6 +1609,9 @@ callbackCheckBox(bool checked, int button)
     case kHUD_CB_VIEW_LOD:
         g_screenSpaceTess = checked;
         break;
+    case kHUD_CB_FRACTIONAL_SPACING:
+        g_fractionalSpacing = checked;
+        break;
     case kHUD_CB_PATCH_CULL:
         g_patchCull = checked;
         break;
@@ -1654,10 +1664,12 @@ initHUD()
                       350, 70, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'p');
     g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess != 0,
                       350, 90, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Fractional spacing (V)",  g_fractionalSpacing != 0,
+                      350, 110, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull != 0,
-                      350, 110, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
+                      350, 130, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
     g_hud.AddCheckBox("Freeze (spc)", g_freeze != 0,
-                      350, 130, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+                      350, 150, callbackCheckBox, kHUD_CB_FREEZE, ' ');
 
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0, 10, 150, callbackAdaptive, 0, '`');

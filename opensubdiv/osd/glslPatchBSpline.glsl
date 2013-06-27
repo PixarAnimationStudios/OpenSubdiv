@@ -220,6 +220,12 @@ void main()
     layout(quads) in;
 #endif
 
+#ifdef OSD_FRACTIONAL_ODD_SPACING
+    layout(fractional_odd_spacing) in;
+#elif OSD_FRACTIONAL_EVEN_SPACING
+    layout(fractional_even_spacing) in;
+#endif
+
 in block {
     ControlVertex v;
 } inpt[];

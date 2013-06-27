@@ -195,6 +195,7 @@ enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_ANIMATE_VERTICES,
                    HUD_CB_DISPLAY_PATCH_COLOR,
                    HUD_CB_VIEW_LOD,
+                   HUD_CB_FRACTIONAL_SPACING,
                    HUD_CB_PATCH_CULL,
                    HUD_CB_IBL,
                    HUD_CB_BLOOM };
@@ -224,8 +225,9 @@ bool  g_adaptive = false,
       g_displayPatchColor = false,
       g_patchCull = true,
       g_screenSpaceTess = true,
+      g_fractionalSpacing = false,
       g_ibl = false,
-      g_bloom = true;
+      g_bloom = false;
 
 GLuint g_transformUB = 0,
        g_transformBinding = 0,
@@ -694,6 +696,7 @@ union Effect {
         int specular:1;
         int patchCull:1;
         int screenSpaceTess:1;
+        int fractionalSpacing:1;
         int ibl:1;
         unsigned int wire:2;
     };
@@ -729,6 +732,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
     if (effect.screenSpaceTess)
         sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
+    if (effect.fractionalSpacing)
+        sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     const char *glslVersion = "#version 400\n";
@@ -1463,6 +1468,7 @@ drawModel() {
         effect.specular = g_specular;
         effect.patchCull = g_patchCull;
         effect.screenSpaceTess = g_screenSpaceTess;
+        effect.fractionalSpacing = g_fractionalSpacing;
         effect.ibl = g_ibl;
         effect.wire = g_wire;
 
@@ -1819,6 +1825,9 @@ callbackCheckBox(bool checked, int button)
         break;
     case HUD_CB_VIEW_LOD:
         g_screenSpaceTess = checked;
+        break;
+    case HUD_CB_FRACTIONAL_SPACING:
+        g_fractionalSpacing = checked;
         break;
     case HUD_CB_PATCH_CULL:
         g_patchCull = checked;
@@ -2193,9 +2202,12 @@ int main(int argc, char ** argv) {
                       450, 30, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');
     g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
                       450, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
+                      450, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
-                      450, 70, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
-    g_hud.AddCheckBox("Bloom (Y)", g_bloom, 450, 90, callbackCheckBox, HUD_CB_BLOOM, 'y');
+                      450, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
+    g_hud.AddCheckBox("Bloom (Y)", g_bloom,
+                      450, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
 
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive, 10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
