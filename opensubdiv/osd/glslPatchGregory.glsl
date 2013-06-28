@@ -276,9 +276,9 @@ void main()
 layout(quads) in;
 layout(cw) in;
 
-#ifdef OSD_FRACTIONAL_ODD_SPACING
+#if defined OSD_FRACTIONAL_ODD_SPACING
     layout(fractional_odd_spacing) in;
-#elif OSD_FRACTIONAL_EVEN_SPACING
+#elif defined OSD_FRACTIONAL_EVEN_SPACING
     layout(fractional_even_spacing) in;
 #endif
 
