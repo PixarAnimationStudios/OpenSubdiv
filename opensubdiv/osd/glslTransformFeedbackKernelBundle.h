@@ -136,22 +136,22 @@ public:
 
     void UseProgram() const;
 
-    GLuint GetTableUniformLocation(int tableIndex) const {
+    GLint GetTableUniformLocation(int tableIndex) const {
         return _uniformTables[tableIndex];
     }
-    GLuint GetVertexUniformLocation() const {
+    GLint GetVertexUniformLocation() const {
         return _uniformVertexBuffer;
     }
-    GLuint GetVaryingUniformLocation() const {
+    GLint GetVaryingUniformLocation() const {
         return _uniformVaryingBuffer;
     }
-    GLuint GetEditIndicesUniformLocation() const {
+    GLint GetEditIndicesUniformLocation() const {
         return _uniformEditIndices;
     }
-    GLuint GetEditValuesUniformLocation() const {
+    GLint GetEditValuesUniformLocation() const {
         return _uniformEditValues;
     }
-    GLuint GetVertexBufferImageUniformLocation() const {
+    GLint GetVertexBufferImageUniformLocation() const {
         return _uniformVertexBufferImage;
     }
 
@@ -180,21 +180,21 @@ protected:
     GLuint _program;
 
     // uniform locations
-    GLuint _uniformTables[FarSubdivisionTables<OsdVertex>::TABLE_TYPES_COUNT];
-    GLuint _uniformVertexPass;
-    GLuint _uniformVertexOffset;
-    GLuint _uniformTableOffset;
-    GLuint _uniformIndexStart;
+    GLint _uniformTables[FarSubdivisionTables<OsdVertex>::TABLE_TYPES_COUNT];
+    GLint _uniformVertexPass;
+    GLint _uniformVertexOffset;
+    GLint _uniformTableOffset;
+    GLint _uniformIndexStart;
 
-    GLuint _uniformVertexBuffer;
-    GLuint _uniformVaryingBuffer;
+    GLint _uniformVertexBuffer;
+    GLint _uniformVaryingBuffer;
 
-    GLuint _uniformEditPrimVarOffset;
-    GLuint _uniformEditPrimVarWidth;
+    GLint _uniformEditPrimVarOffset;
+    GLint _uniformEditPrimVarWidth;
 
-    GLuint _uniformEditIndices;
-    GLuint _uniformEditValues;
-    GLuint _uniformVertexBufferImage;
+    GLint _uniformEditIndices;
+    GLint _uniformEditValues;
+    GLint _uniformVertexBufferImage;
 
     // subroutines
 

@@ -154,14 +154,14 @@ public:
         _vdesc.numVertexElements = vertex ? vertex->GetNumElements() : 0;
         _vdesc.numVaryingElements = varying ? varying->GetNumElements() : 0;
 
-        bindTextures();
+        bind();
     }
 
     /// Unbinds any previously bound vertex and varying data buffers.
     void Unbind() {
         _currentVertexBuffer = 0;
         _currentVaryingBuffer = 0;
-        unbindTextures();
+        unbind();
     }
 
     /// Returns one of the vertex refinement tables.
@@ -204,13 +204,13 @@ public:
 protected:
     explicit OsdGLSLTransformFeedbackComputeContext(FarMesh<OsdVertex> const *farMesh);
 
-    void bindTexture(GLuint sampler, GLuint texture, int unit);
+    void bindTexture(GLint samplerUniform, GLuint texture, int unit);
 
     void unbindTexture(GLuint unit);
 
-    void bindTextures();
+    void bind();
 
-    void unbindTextures();
+    void unbind();
 
 private:
     std::vector<OsdGLSLTransformFeedbackTable*> _tables;

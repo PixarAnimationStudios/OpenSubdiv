@@ -571,9 +571,9 @@ updateGeom() {
         vertex.push_back(pp[1]);
         vertex.push_back(pp[2]);
         if (g_displayStyle == kVaryingColor) {
-            varying.push_back(p[0]);
-            varying.push_back(p[1]);
             varying.push_back(p[2]);
+            varying.push_back(p[1]);
+            varying.push_back(p[0]);
             p += 3;
         }
         pp += 3;

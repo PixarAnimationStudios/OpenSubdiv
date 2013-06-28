@@ -59,6 +59,7 @@
 
 #include "../far/mesh.h"
 #include "../far/subdivisionTables.h"
+#include "../osd/debug.h"
 #include "../osd/glslTransformFeedbackComputeContext.h"
 #include "../osd/glslTransformFeedbackKernelBundle.h"
 
@@ -77,10 +78,7 @@ OsdGLSLTransformFeedbackTable::createTextureBuffer(size_t size, const void *ptr,
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
     glBindBuffer(GL_ARRAY_BUFFER, _devicePtr);
     glBufferData(GL_ARRAY_BUFFER, size, ptr, GL_STATIC_DRAW);
-/*
-  CHECK_GL_ERROR("UpdateTable tableIndex %d, size %ld, buffer =%d\n",
-  tableIndex, size, _tableBuffers[tableIndex]);
-*/
+
     glBindBuffer(GL_ARRAY_BUFFER, prev);
 
     glGetIntegerv(GL_TEXTURE_BINDING_BUFFER, &prev);
@@ -270,9 +268,10 @@ OsdGLSLTransformFeedbackComputeContext::UnbindEditTextures() {
 }
 
 void
-OsdGLSLTransformFeedbackComputeContext::bindTexture(GLuint sampler, GLuint texture, int unit) {
+OsdGLSLTransformFeedbackComputeContext::bindTexture(GLint samplerUniform, GLuint texture, int unit) {
 
-    glUniform1i(sampler, unit);
+    if (samplerUniform == -1) return;
+    glUniform1i(samplerUniform, unit);
     glActiveTexture(GL_TEXTURE0 + unit);
     glBindTexture(GL_TEXTURE_BUFFER, texture);
     glActiveTexture(GL_TEXTURE0);
@@ -286,7 +285,7 @@ OsdGLSLTransformFeedbackComputeContext::unbindTexture(GLuint unit) {
 }
 
 void
-OsdGLSLTransformFeedbackComputeContext::bindTextures() {
+OsdGLSLTransformFeedbackComputeContext::bind() {
 
     glEnable(GL_RASTERIZER_DISCARD);
     _kernelBundle->UseProgram();
@@ -298,7 +297,6 @@ OsdGLSLTransformFeedbackComputeContext::bindTextures() {
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, _currentVertexBuffer);
         glBindTexture(GL_TEXTURE_BUFFER, 0);
     }
-    bindTexture(_kernelBundle->GetVertexUniformLocation(), _vertexTexture, 0);
 
     if (_currentVaryingBuffer) {
         if (not _varyingTexture) glGenTextures(1, &_varyingTexture);
@@ -306,7 +304,11 @@ OsdGLSLTransformFeedbackComputeContext::bindTextures() {
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, _currentVaryingBuffer);
         glBindTexture(GL_TEXTURE_BUFFER, 0);
     }
-    bindTexture(_kernelBundle->GetVaryingUniformLocation(), _varyingTexture, 1);
+
+    if (_vertexTexture)
+        bindTexture(_kernelBundle->GetVertexUniformLocation(), _vertexTexture, 0);
+    if (_varyingTexture)
+        bindTexture(_kernelBundle->GetVaryingUniformLocation(), _varyingTexture, 1);
 
     // XXX: loop...
     if (_tables[FarSubdivisionTables<OsdVertex>::F_IT]) {
@@ -333,13 +335,16 @@ OsdGLSLTransformFeedbackComputeContext::bindTextures() {
 }
 
 void
-OsdGLSLTransformFeedbackComputeContext::unbindTextures() {
+OsdGLSLTransformFeedbackComputeContext::unbind() {
 
     for (int i = 8; i >= 0; --i) {
         unbindTexture(i);
     }
+    glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
+
     glDisable(GL_RASTERIZER_DISCARD);
     glUseProgram(0);
+    glActiveTexture(GL_TEXTURE0);
 }
 
 }  // end namespace OPENSUBDIV_VERSION
