@@ -242,10 +242,42 @@ void main()
     vec2 UV = gl_TessCoord.xy;
 #endif
 
-    vec3 WorldPos, Tangent, BiTangent;
-    vec3 cp[16];
-    for(int i = 0; i < 16; ++i) cp[i] = inpt[i].v.position.xyz;
-    EvalBSpline(UV, cp, WorldPos, Tangent, BiTangent);
+    float B[4], D[4];
+
+    Univar4x4(UV.x, B, D);
+
+    vec3 BUCP[4], DUCP[4];
+
+    for (int i=0; i<4; ++i) {
+        BUCP[i] = vec3(0);
+        DUCP[i] = vec3(0);
+
+        for (int j=0; j<4; ++j) {
+#if OSD_TRANSITION_ROTATE == 1
+            vec3 A = inpt[4*(3-j) + i].v.position.xyz;
+#elif OSD_TRANSITION_ROTATE == 2
+            vec3 A = inpt[4*(3-i) + (3-j)].v.position.xyz;
+#elif OSD_TRANSITION_ROTATE == 3
+            vec3 A = inpt[4*j + (3-i)].v.position.xyz;
+#else // OSD_TRANSITION_ROTATE == 0, or non-transition patch
+            vec3 A = inpt[4*i + j].v.position.xyz;
+#endif
+            BUCP[i] += A * B[j];
+            DUCP[i] += A * D[j];
+        }
+    }
+
+    vec3 WorldPos  = vec3(0);
+    vec3 Tangent   = vec3(0);
+    vec3 BiTangent = vec3(0);
+
+    Univar4x4(UV.y, B, D);
+
+    for (int k=0; k<4; ++k) {
+        WorldPos  += B[k] * BUCP[k];
+        Tangent   += B[k] * DUCP[k];
+        BiTangent += D[k] * BUCP[k];
+    }
 
     vec3 normal = normalize(cross(Tangent, BiTangent));
 
@@ -274,38 +306,4 @@ void main()
     gl_Position = (ProjectionMatrix * vec4(WorldPos, 1.0f));
 }
 
-#endif
-
-//----------------------------------------------------------
-// Patches.Vertex
-//----------------------------------------------------------
-#ifdef OSD_VERTEX_SHADER
-
-layout (location=0) in vec4 position;
-layout (location=1) in vec3 normal;
-layout (location=2) in vec4 color;
-
-out block {
-    OutputVertex v;
-} outpt;
-
-void main() {
-    gl_Position = ModelViewProjectionMatrix * position;
-    outpt.v.color = color;
-}
-
-#endif
-
-//----------------------------------------------------------
-// Patches.FragmentColor
-//----------------------------------------------------------
-#ifdef OSD_FRAGMENT_SHADER
-
-in block {
-    OutputVertex v;
-} inpt;
-
-void main() {
-    gl_FragColor = inpt.v.color;
-}
 #endif

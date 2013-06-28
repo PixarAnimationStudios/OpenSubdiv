@@ -104,12 +104,7 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdDrawContext::PatchDescriptor c
         switch (desc.GetType()) {
         case FarPatchTables::QUADS:
         case FarPatchTables::TRIANGLES:
-            sconfig->vertexShader.source = bsplineShaderSource;
-            sconfig->vertexShader.version = "#version 410\n";
-            sconfig->vertexShader.AddDefine("OSD_VERTEX_SHADER");
-            sconfig->fragmentShader.source = bsplineShaderSource;
-            sconfig->fragmentShader.AddDefine("OSD_FRAGMENT_SHADER");
-            sconfig->fragmentShader.version = "#version 410\n";
+            // do nothing
             break;
         case FarPatchTables::REGULAR:
             sconfig->vertexShader.source = bsplineShaderSource;
@@ -121,9 +116,6 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdDrawContext::PatchDescriptor c
             sconfig->tessEvalShader.source = bsplineShaderSource;
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
-            sconfig->fragmentShader.source = bsplineShaderSource;
-            sconfig->fragmentShader.version = "#version 410\n";
-            sconfig->fragmentShader.AddDefine("OSD_FRAGMENT_SHADER");
             break;
         case FarPatchTables::BOUNDARY:
             sconfig->vertexShader.source = bsplineShaderSource;
@@ -136,9 +128,6 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdDrawContext::PatchDescriptor c
             sconfig->tessEvalShader.source = bsplineShaderSource;
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
-            sconfig->fragmentShader.source = bsplineShaderSource;
-            sconfig->fragmentShader.version = "#version 410\n";
-            sconfig->fragmentShader.AddDefine("OSD_FRAGMENT_SHADER");
             break;
         case FarPatchTables::CORNER:
             sconfig->vertexShader.source = bsplineShaderSource;
@@ -151,9 +140,6 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdDrawContext::PatchDescriptor c
             sconfig->tessEvalShader.source = bsplineShaderSource;
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
-            sconfig->fragmentShader.source = bsplineShaderSource;
-            sconfig->fragmentShader.version = "#version 410\n";
-            sconfig->fragmentShader.AddDefine("OSD_FRAGMENT_SHADER");
             break;
         case FarPatchTables::GREGORY:
             sconfig->vertexShader.source = gregoryShaderSource;
@@ -165,9 +151,6 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdDrawContext::PatchDescriptor c
             sconfig->tessEvalShader.source = gregoryShaderSource;
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_GREGORY_SHADER");
-            sconfig->fragmentShader.source = gregoryShaderSource;
-            sconfig->fragmentShader.version = "#version 410\n";
-            sconfig->fragmentShader.AddDefine("OSD_FRAGMENT_SHADER");
             break;
         case FarPatchTables::GREGORY_BOUNDARY:
             sconfig->vertexShader.source = boundaryGregoryShaderSource;
@@ -179,9 +162,6 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdDrawContext::PatchDescriptor c
             sconfig->tessEvalShader.source = boundaryGregoryShaderSource;
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BOUNDARY_GREGORY_SHADER");
-            sconfig->fragmentShader.source = boundaryGregoryShaderSource;
-            sconfig->fragmentShader.version = "#version 410\n";
-            sconfig->fragmentShader.AddDefine("OSD_FRAGMENT_SHADER");
             break;
         default:
             // error
@@ -203,9 +183,6 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdDrawContext::PatchDescriptor c
         sconfig->tessEvalShader.version = "#version 410\n";
         sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
         sconfig->tessEvalShader.AddDefine("OSD_PATCH_TRANSITION");
-        sconfig->fragmentShader.source = bsplineShaderSource;
-        sconfig->fragmentShader.version = "#version 410\n";
-        sconfig->fragmentShader.AddDefine("OSD_FRAGMENT_SHADER");
 
         int pattern = desc.GetPattern() - 1;
         int rotation = desc.GetRotation();

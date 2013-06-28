@@ -193,7 +193,7 @@ HullVertex hs_main_patches(
         pos += B[j][k]*H[k];
     }
 
-#else
+#else // not OSD_PATCH_BOUNDARY, not OSD_PATCH_CORNER
     float3 H[4];
     for (int l=0; l<4; ++l) {
         H[l] = float3(0,0,0);
@@ -309,7 +309,7 @@ void ds_main_patches(
             float3 A = patch[4*(3-i) + (3-j)].position.xyz;
 #elif OSD_TRANSITION_ROTATE == 3
             float3 A = patch[4*j + (3-i)].position.xyz;
-#else // OSD_TRANNSITION_ROTATE == 0, or non-transition patch
+#else // OSD_TRANSITION_ROTATE == 0, or non-transition patch
             float3 A = patch[4*i + j].position.xyz;
 #endif
             BUCP[i] += A * B[j];
@@ -352,28 +352,4 @@ void ds_main_patches(
     OSD_DISPLACEMENT_CALLBACK;
 
     output.positionOut = mul(ProjectionMatrix, float4(WorldPos, 1.0f));
-}
-
-//----------------------------------------------------------
-// Patches.Vertex
-//----------------------------------------------------------
-
-void vs_main( in InputVertex input,
-              out OutputVertex output)
-{
-    output.positionOut = mul(ModelViewProjectionMatrix, input.position);
-}
-
-//----------------------------------------------------------
-// Patches.PixelColor
-//----------------------------------------------------------
-
-cbuffer Data : register( b2 ) {
-    float4 color;
-};
-
-void ps_main( in OutputVertex input,
-              out float4 colorOut : SV_Target )
-{
-    colorOut = color;
 }

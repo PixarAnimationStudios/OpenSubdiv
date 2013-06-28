@@ -398,37 +398,3 @@ void main()
 }
 
 #endif
-
-//----------------------------------------------------------
-// Patches.Vertex
-//----------------------------------------------------------
-#ifdef OSD_VERTEX_SHADER
-
-layout (location=0) in vec4 position;
-layout (location=1) in vec3 normal;
-layout (location=2) in vec4 color;
-
-out block {
-    OutputVertex v;
-} outpt;
-
-void main() {
-    gl_Position = ModelViewProjectionMatrix * position;
-    outpt.v.color = color;
-}
-
-#endif
-
-//----------------------------------------------------------
-// Patches.FragmentColor
-//----------------------------------------------------------
-#ifdef OSD_FRAGMENT_SHADER
-
-in block {
-    OutputVertex v;
-} inpt;
-
-void main() {
-    gl_FragColor = inpt.v.color;
-}
-#endif

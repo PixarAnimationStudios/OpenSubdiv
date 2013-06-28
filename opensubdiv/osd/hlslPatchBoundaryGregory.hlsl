@@ -593,27 +593,3 @@ void ds_main_patches(
 
     output.positionOut = mul(ModelViewProjectionMatrix, float4(WorldPos, 1.0f));
 }
-
-//----------------------------------------------------------
-// Patches.Vertex
-//----------------------------------------------------------
-
-void vs_main( in InputVertex input,
-              out OutputVertex output)
-{
-    output.positionOut = mul(ModelViewProjectionMatrix, input.position);
-}
-
-//----------------------------------------------------------
-// Patches.PixelColor
-//----------------------------------------------------------
-
-cbuffer Data : register( b2 ) {
-    float4 color;
-};
-
-void ps_main( in OutputVertex input,
-              out float4 colorOut : SV_Target )
-{
-    colorOut = color;
-}
