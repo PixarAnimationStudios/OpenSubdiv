@@ -82,7 +82,7 @@ class OsdD3D11ComputeTable : OsdNonCopyable<OsdD3D11ComputeTable> {
 public:
     template<typename T>
         OsdD3D11ComputeTable(const std::vector<T> &table, ID3D11DeviceContext *deviceContext, DXGI_FORMAT format) {
-        createBuffer((int)table.size() * sizeof(T), &table[0], format, (int)table.size(), deviceContext);
+        createBuffer((int)table.size() * sizeof(T), table.empty() ? NULL : &table[0], format, (int)table.size(), deviceContext);
     }
 
     virtual ~OsdD3D11ComputeTable();

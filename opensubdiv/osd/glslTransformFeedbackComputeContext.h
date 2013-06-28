@@ -77,7 +77,7 @@ class OsdGLSLTransformFeedbackTable : OsdNonCopyable<OsdGLSLTransformFeedbackTab
 public:
     template<typename T>
     OsdGLSLTransformFeedbackTable(const std::vector<T> &table, GLenum type) {
-        createTextureBuffer(table.size() * sizeof(unsigned int), &table[0], type);
+        createTextureBuffer(table.size() * sizeof(unsigned int), table.empty() ? NULL : &table[0], type);
     }
 
     virtual ~OsdGLSLTransformFeedbackTable();

@@ -76,7 +76,7 @@ class OsdCpuTable : OsdNonCopyable<OsdCpuTable> {
 public:
     template<typename T>
     explicit OsdCpuTable(const std::vector<T> &table) {
-        createCpuBuffer(table.size() * sizeof(T), &table[0]);
+        createCpuBuffer(table.size() * sizeof(T), table.empty() ? NULL : &table[0]);
     }
 
     virtual ~OsdCpuTable();
