@@ -180,11 +180,6 @@ void vs_main_patches( in InputVertex input,
     output.position = float4(opos, 1.0f).xyz;
     output.zerothNeighbor = zerothNeighbor;
 
-#if OSD_NUM_VARYINGS > 0
-    for (int i = 0; i< OSD_NUM_VARYINGS; ++i)
-        output.varyings[i] = input.varyings[i];
-#endif
-
     if (currNeighbor == 1) {
         boundaryEdgeNeighbors[1] = boundaryEdgeNeighbors[0];
     }

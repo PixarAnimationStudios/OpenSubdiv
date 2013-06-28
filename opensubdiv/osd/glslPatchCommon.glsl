@@ -59,8 +59,31 @@
 // Patches.Common
 //----------------------------------------------------------
 
-#ifndef OSD_NUM_VARYINGS
-#define OSD_NUM_VARYINGS 0
+#ifndef OSD_USER_VARYING_DECLARE
+#define OSD_USER_VARYING_DECLARE
+// type var;
+#endif
+
+#ifndef OSD_USER_VARYING_ATTRIBUTE_DECLARE
+#define OSD_USER_VARYING_ATTRIBUTE_DECLARE
+// layout(location = loc) in type var;
+#endif
+
+#ifndef OSD_USER_VARYING_PER_VERTEX
+#define OSD_USER_VARYING_PER_VERTEX()
+// output.var = var;
+#endif
+
+#ifndef OSD_USER_VARYING_PER_CONTROL_POINT
+#define OSD_USER_VARYING_PER_CONTROL_POINT(ID_OUT, ID_IN)
+// output[ID_OUT].var = input[ID_IN].var
+#endif
+
+#ifndef OSD_USER_VARYING_PER_EVAL_POINT
+#define OSD_USER_VARYING_PER_EVAL_POINT(UV, a, b, c, d)
+// output.var =
+//     mix(mix(input[a].var, input[b].var, UV.x),
+//         mix(input[c].var, input[d].var, UV.x), UV.y)
 #endif
 
 #ifndef OSD_TRANSITION_ROTATE
@@ -82,9 +105,6 @@ struct ControlVertex {
     centroid vec4 patchCoord; // u, v, level, faceID
     ivec4 ptexInfo;  // U offset, V offset, 2^ptexlevel', rotation
     ivec3 clipFlag;
-#if OSD_NUM_VARYINGS > 0
-    float varyings[OSD_NUM_VARYINGS];
-#endif
 };
 
 struct OutputVertex {
@@ -93,9 +113,6 @@ struct OutputVertex {
     vec3 tangent;
     centroid vec4 patchCoord; // u, v, level, faceID
     centroid vec2 tessCoord; // tesscoord.st
-#if OSD_NUM_VARYINGS > 0
-    float varyings[OSD_NUM_VARYINGS];
-#endif
 };
 
 struct GregControlVertex {
@@ -120,9 +137,6 @@ struct GregEvalVertex {
     vec3 Fm;
     centroid vec4 patchCoord;
     ivec4 ptexInfo;
-#if OSD_NUM_VARYINGS > 0
-    float varyings[OSD_NUM_VARYINGS];
-#endif
 };
 
 layout(std140) uniform Transform {

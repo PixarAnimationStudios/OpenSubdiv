@@ -64,9 +64,11 @@ uniform samplerBuffer g_VertexBuffer;
 uniform isamplerBuffer g_ValenceBuffer;
 
 layout (location=0) in vec4 position;
+OSD_USER_VARYING_ATTRIBUTE_DECLARE
 
 out block {
     GregControlVertex v;
+    OSD_USER_VARYING_DECLARE
 } outpt;
 
 void main()
@@ -75,6 +77,7 @@ void main()
 
      outpt.v.hullPosition = (ModelViewMatrix * position).xyz;
      OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
+     OSD_USER_VARYING_PER_VERTEX();
 
      uint valence = uint(texelFetch(g_ValenceBuffer,int(vID * (2 * OSD_MAX_VALENCE + 1))).x);
      outpt.v.valence = int(valence);
@@ -131,11 +134,6 @@ void main()
     opos /= valence;
     outpt.v.position = vec4(opos, 1.0f).xyz;
 
-#if OSD_NUM_VARYINGS > 0
-    for (int i = 0; i < OSD_NUM_VARYINGS; ++i)
-        outpt.v.varyings[i] = varyings[i];
-#endif
-
     vec3 e;
     outpt.v.e0 = vec3(0,0,0);
     outpt.v.e1 = vec3(0,0,0);
@@ -161,10 +159,12 @@ uniform isamplerBuffer g_QuadOffsetBuffer;
 
 in block {
     GregControlVertex v;
+    OSD_USER_VARYING_DECLARE
 } inpt[];
 
 out block {
     GregEvalVertex v;
+    OSD_USER_VARYING_DECLARE
 } outpt[];
 
 #define ID gl_InvocationID
@@ -233,6 +233,8 @@ void main()
     outpt[ID].v.Fp = Fp;
     outpt[ID].v.Fm = Fm;
 
+    OSD_USER_VARYING_PER_CONTROL_POINT(ID, ID);
+
     int patchLevel = GetPatchLevel();
     outpt[ID].v.patchCoord = vec4(0, 0,
                                   patchLevel+0.5f,
@@ -284,10 +286,12 @@ layout(cw) in;
 
 in block {
     GregEvalVertex v;
+    OSD_USER_VARYING_DECLARE
 } inpt[];
 
 out block {
     OutputVertex v;
+    OSD_USER_VARYING_DECLARE
 } outpt;
 
 void main()
@@ -386,6 +390,8 @@ void main()
     outpt.v.position = ModelViewMatrix * vec4(WorldPos, 1.0f);
     outpt.v.normal = normal;
     outpt.v.tangent = normalize(BiTangent);
+
+    OSD_USER_VARYING_PER_EVAL_POINT(vec2(u,v), 0, 3, 1, 2);
 
     outpt.v.patchCoord = inpt[0].v.patchCoord;
     outpt.v.patchCoord.xy = vec2(v, u);

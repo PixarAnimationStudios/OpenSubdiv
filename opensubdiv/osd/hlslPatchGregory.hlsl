@@ -154,11 +154,6 @@ void vs_main_patches( in InputVertex input,
     opos /= valence;
     output.position = float4(opos, 1.0f).xyz;
 
-#if OSD_NUM_VARYINGS > 0
-    for (int i = 0; i< OSD_NUM_VARYINGS; ++i)
-        output.varyings[i] = input.varyings[i];
-#endif
-
     float3 e;
     output.e0 = float3(0,0,0);
     output.e1 = float3(0,0,0);

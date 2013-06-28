@@ -991,6 +991,10 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
     } else {
         // adaptive
+        sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
+        sconfig->tessControlShader.source = shaderSource + sconfig->tessControlShader.source;
+        sconfig->tessEvalShader.source = shaderSource + sconfig->tessEvalShader.source;
+
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
     }

@@ -59,10 +59,6 @@
 // Patches.Common
 //----------------------------------------------------------
 
-#ifndef OSD_NUM_VARYINGS
-#define OSD_NUM_VARYINGS 0
-#endif
-
 #ifndef OSD_TRANSITION_ROTATE
 #define OSD_TRANSITION_ROTATE 0
 #endif
@@ -87,9 +83,6 @@ struct HullVertex {
     float4 patchCoord : PATCHCOORD; // u, v, level, faceID
     int4 ptexInfo : PTEXINFO;       // u offset, v offset, 2^ptexlevel, rotation
     int3 clipFlag : CLIPFLAG;
-#if OSD_NUM_VARYINGS > 0
-    float varyings[OSD_NUM_VARYINGS] : VARYING;
-#endif
 };
 
 struct OutputVertex {
@@ -99,9 +92,6 @@ struct OutputVertex {
     float3 tangent : TANGENT;
     float4 patchCoord : PATCHCOORD; // u, v, level, faceID
     noperspective float4 edgeDistance : EDGEDISTANCE;
-#if OSD_NUM_VARYINGS > 0
-    float varyings[OSD_NUM_VARYINGS] : VARYING;
-#endif
 };
 
 struct GregHullVertex {
@@ -126,9 +116,6 @@ struct GregDomainVertex {
     float3 Fm : POSITION4;
     float4 patchCoord: TEXTURE0;
     float4 ptexInfo: TEXTURE1;
-#if OSD_NUM_VARYINGS > 0
-    float varyings[OSD_NUM_VARYINGS];
-#endif
 };
 
 struct HS_CONSTANT_FUNC_OUT {

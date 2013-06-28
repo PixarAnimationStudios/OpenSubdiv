@@ -70,11 +70,6 @@ void vs_main_patches( in InputVertex input,
 {
     output.position = mul(ModelViewMatrix, input.position);
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(input.position);
-
-#if OSD_NUM_VARYINGS > 0
-    for (int i = 0; i< OSD_NUM_VARYINGS; ++i)
-        output.varyings[i] = input.varyings[i];
-#endif
 }
 
 //----------------------------------------------------------

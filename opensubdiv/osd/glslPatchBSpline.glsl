@@ -61,20 +61,18 @@
 #ifdef OSD_PATCH_VERTEX_BSPLINE_SHADER
 
 layout(location = 0) in vec4 position;
+OSD_USER_VARYING_ATTRIBUTE_DECLARE
 
 out block {
     ControlVertex v;
+    OSD_USER_VARYING_DECLARE
 } outpt;
 
 void main()
 {
     outpt.v.position = ModelViewMatrix * position;
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
-
-#if OSD_NUM_VARYINGS > 0
-    for (int i = 0; i < OSD_NUM_VARYINGS; ++i)
-        outpt.v.varyings[i] = varyings[i];
-#endif
+    OSD_USER_VARYING_PER_VERTEX();
 }
 
 #endif
@@ -104,10 +102,12 @@ layout(vertices = 16) out;
 
 in block {
     ControlVertex v;
+    OSD_USER_VARYING_DECLARE
 } inpt[];
 
 out block {
     ControlVertex v;
+    OSD_USER_VARYING_DECLARE
 } outpt[];
 
 #define ID gl_InvocationID
@@ -162,6 +162,26 @@ void main()
 #endif
 
     outpt[ID].v.position = vec4(pos, 1.0);
+
+#if defined OSD_PATCH_BOUNDARY
+    const int p[16] = int[]( 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 );
+#elif defined OSD_PATCH_CORNER
+    const int p[16] = int[]( 0, 1, 2, 2, 0, 1, 2, 2, 3, 4, 5, 5, 6, 7, 8, 8 );
+#else
+    const int p[16] = int[]( 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 );
+#endif
+
+#if OSD_TRANSITION_ROTATE == 0
+    const int r[16] = int[]( 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 );
+#elif OSD_TRANSITION_ROTATE == 1
+    const int r[16] = int[]( 12, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3 );
+#elif OSD_TRANSITION_ROTATE == 2
+    const int r[16] = int[]( 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 );
+#elif OSD_TRANSITION_ROTATE == 3
+    const int r[16] = int[]( 3, 7, 11, 15, 2, 6, 10, 14, 1, 5, 9, 13, 0, 4, 8, 12 );
+#endif
+
+    OSD_USER_VARYING_PER_CONTROL_POINT(ID, p[r[ID]]);
 
     int patchLevel = GetPatchLevel();
 
@@ -228,10 +248,12 @@ void main()
 
 in block {
     ControlVertex v;
+    OSD_USER_VARYING_DECLARE
 } inpt[];
 
 out block {
     OutputVertex v;
+    OSD_USER_VARYING_DECLARE
 } outpt;
 
 void main()
@@ -284,6 +306,8 @@ void main()
     outpt.v.position = vec4(WorldPos, 1.0f);
     outpt.v.normal = normal;
     outpt.v.tangent = Tangent;
+
+    OSD_USER_VARYING_PER_EVAL_POINT(UV, 5, 6, 9, 10);
 
     outpt.v.patchCoord = inpt[0].v.patchCoord;
 

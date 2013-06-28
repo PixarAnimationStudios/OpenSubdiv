@@ -55,6 +55,36 @@
 //     a particular purpose and non-infringement.
 //
 
+#ifdef VARYING_COLOR
+#undef OSD_USER_VARYING_DECLARE
+#define OSD_USER_VARYING_DECLARE \
+    vec3 color;
+
+#undef OSD_USER_VARYING_ATTRIBUTE_DECLARE
+#define OSD_USER_VARYING_ATTRIBUTE_DECLARE \
+    layout(location = 1) in vec3 color;
+
+#undef OSD_USER_VARYING_PER_VERTEX
+#define OSD_USER_VARYING_PER_VERTEX() \
+    outpt.color = color
+
+#undef OSD_USER_VARYING_PER_CONTROL_POINT
+#define OSD_USER_VARYING_PER_CONTROL_POINT(ID_OUT, ID_IN) \
+    outpt[ID_OUT].color = inpt[ID_IN].color
+
+#undef OSD_USER_VARYING_PER_EVAL_POINT
+#define OSD_USER_VARYING_PER_EVAL_POINT(UV, a, b, c, d) \
+    outpt.color = \
+        mix(mix(inpt[a].color, inpt[b].color, UV.x), \
+            mix(inpt[c].color, inpt[d].color, UV.x), UV.y)
+#else
+#define OSD_USER_VARYING_DECLARE
+#define OSD_USER_VARYING_ATTRIBUTE_DECLARE
+#define OSD_USER_VARYING_PER_VERTEX()
+#define OSD_USER_VARYING_PER_CONTROL_POINT(ID_OUT, ID_IN)
+#define OSD_USER_VARYING_PER_EVAL_POINT(UV, a, b, c, d)
+#endif
+
 //--------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------
@@ -68,17 +98,13 @@ layout (location=1) in vec3 color;
 
 out block {
     OutputVertex v;
-#ifdef VARYING_COLOR
-    out vec3 vsColor;
-#endif
+    OSD_USER_VARYING_DECLARE
 } outpt;
 
 void main()
 {
     outpt.v.position = ModelViewMatrix * position;
-#ifdef VARYING_COLOR
-    outpt.vsColor = color;
-#endif
+    OSD_USER_VARYING_PER_VERTEX();
 }
 
 #endif
@@ -108,9 +134,7 @@ void main()
 layout(triangle_strip, max_vertices = EDGE_VERTS) out;
 in block {
     OutputVertex v;
-#ifdef VARYING_COLOR
-    vec3 vsColor;
-#endif
+    OSD_USER_VARYING_DECLARE
 } inpt[EDGE_VERTS];
 
 out block {
@@ -130,7 +154,7 @@ void emit(int index, vec3 normal)
     outpt.v.normal = normal;
 #endif
 #ifdef VARYING_COLOR
-    outpt.gsColor = inpt[index].vsColor;
+    outpt.gsColor = inpt[index].color;
 #endif
     gl_Position = ProjectionMatrix * inpt[index].v.position;
     EmitVertex();
