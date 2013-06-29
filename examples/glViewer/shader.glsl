@@ -91,10 +91,7 @@
 #ifdef VERTEX_SHADER
 
 layout (location=0) in vec4 position;
-
-#ifdef VARYING_COLOR
-layout (location=1) in vec3 color;
-#endif
+OSD_USER_VARYING_ATTRIBUTE_DECLARE
 
 out block {
     OutputVertex v;
@@ -140,9 +137,7 @@ in block {
 out block {
     OutputVertex v;
     noperspective out vec4 edgeDistance;
-#ifdef VARYING_COLOR
-    vec3 gsColor;
-#endif
+    OSD_USER_VARYING_DECLARE
 } outpt;
 
 void emit(int index, vec3 normal)
@@ -154,7 +149,7 @@ void emit(int index, vec3 normal)
     outpt.v.normal = normal;
 #endif
 #ifdef VARYING_COLOR
-    outpt.gsColor = inpt[index].color;
+    outpt.color = inpt[index].color;
 #endif
     gl_Position = ProjectionMatrix * inpt[index].v.position;
     EmitVertex();
@@ -263,9 +258,7 @@ void main()
 in block {
     OutputVertex v;
     noperspective in vec4 edgeDistance;
-#ifdef VARYING_COLOR
-    vec3 gsColor;
-#endif
+    OSD_USER_VARYING_DECLARE
 } inpt;
 
 out vec4 outColor;
@@ -345,7 +338,7 @@ main()
     vec3 N = (gl_FrontFacing ? inpt.v.normal : -inpt.v.normal);
 
 #ifdef VARYING_COLOR
-    vec4 color = vec4(inpt.gsColor, 1);
+    vec4 color = vec4(inpt.color, 1);
 #else
     vec4 color = diffuseColor;
 #endif
