@@ -73,20 +73,21 @@ out block {
 
 void main()
 {
-     int vID = gl_VertexID;
+    int vID = gl_VertexID;
 
-     outpt.v.hullPosition = (ModelViewMatrix * position).xyz;
-     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
-     OSD_USER_VARYING_PER_VERTEX();
+    outpt.v.hullPosition = (ModelViewMatrix * position).xyz;
+    OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
+    OSD_USER_VARYING_PER_VERTEX();
 
-     uint valence = uint(texelFetch(g_ValenceBuffer,int(vID * (2 * OSD_MAX_VALENCE + 1))).x);
-     outpt.v.valence = int(valence);
+    int ivalence = texelFetch(g_ValenceBuffer,int(vID * (2 * OSD_MAX_VALENCE + 1))).x;
+    outpt.v.valence = ivalence;
+    uint valence = uint(abs(ivalence));
 
-     vec3 f[OSD_MAX_VALENCE]; 
-     vec3 pos = position.xyz;
-     vec3 opos = vec3(0,0,0);
+    vec3 f[OSD_MAX_VALENCE]; 
+    vec3 pos = position.xyz;
+    vec3 opos = vec3(0,0,0);
 
-     for (uint i=0; i<valence; ++i) {
+    for (uint i=0; i<valence; ++i) {
         uint im=(i+valence-1)%valence; 
         uint ip=(i+1)%valence; 
 
@@ -125,10 +126,10 @@ void main()
                  texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)).x,
                  texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)).x);
 
-        f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0 + diagonal) / (float(valence)+5.0);
+        f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0f + diagonal) / (float(valence)+5.0f);
 
         opos += f[i];
-        outpt.v.r[i] = (neighbor_p-neighbor_m)/3.0 + (diagonal - diagonal_m)/6.0;
+        outpt.v.r[i] = (neighbor_p-neighbor_m)/3.0f + (diagonal - diagonal_m)/6.0f;
     }
 
     opos /= valence;
@@ -137,15 +138,17 @@ void main()
     vec3 e;
     outpt.v.e0 = vec3(0,0,0);
     outpt.v.e1 = vec3(0,0,0);
+
     for(uint i=0; i<valence; ++i) {
         uint im = (i + valence -1) % valence;
-        e = 0.5 * (f[i] + f[im]);
+        e = 0.5f * (f[i] + f[im]);
         outpt.v.e0 += csf(valence-3, 2*i) *e;
         outpt.v.e1 += csf(valence-3, 2*i + 1)*e;
     }
     outpt.v.e0 *= ef[valence - 3];
     outpt.v.e1 *= ef[valence - 3];
 }
+
 #endif
 
 //----------------------------------------------------------
@@ -174,14 +177,18 @@ void main()
     uint i = gl_InvocationID;
     uint ip = (i+1)%4;
     uint im = (i+3)%4;
-    uint n = uint(inpt[i].v.valence);
+    uint valence = abs(inpt[i].v.valence);
+    uint n = valence;
     int base = GregoryQuadOffsetBase;
 
     outpt[ID].v.position = inpt[ID].v.position;
 
     uint start = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0x00ffu;
     uint prev = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0xff00u;
-    prev=uint(prev/256);
+    prev = uint(prev/256);
+
+    uint np = abs(inpt[ip].v.valence);
+    uint nm = abs(inpt[im].v.valence);
 
     // Control Vertices based on : 
     // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation" 
@@ -210,23 +217,19 @@ void main()
     vec3 Ep = inpt[i].v.position + inpt[i].v.e0 * csf(n-3, 2*start) + inpt[i].v.e1*csf(n-3, 2*start +1);
     vec3 Em = inpt[i].v.position + inpt[i].v.e0 * csf(n-3, 2*prev ) + inpt[i].v.e1*csf(n-3, 2*prev + 1);
 
-    uint np = inpt[ip].v.valence;
-    uint nm = inpt[im].v.valence;
-
     uint prev_p = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + ip)).x) & 0xff00u;
-    prev_p=uint(prev_p/256);
+    prev_p = uint(prev_p/256);
     vec3 Em_ip = inpt[ip].v.position + inpt[ip].v.e0*csf(np-3,2*prev_p) +inpt[ip].v.e1*csf(np-3, 2*prev_p+1);
 
     uint start_m = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + im)).x) & 0x00ffu;
     vec3 Ep_im = inpt[im].v.position + inpt[im].v.e0*csf(nm-3, 2*start_m) + inpt[im].v.e1*csf(nm-3, 2*start_m+1);
 
-    float s1 = 3 - 2*csf(n-3,2)-csf(np-3,2);
+    float s1 = 3-2*csf(n-3,2)-csf(np-3,2);
     float s2 = 2*csf(n-3,2);
 
-    vec3 Fp = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0;
-
-    s1 = 3.0 -2.0*cos(2.0*M_PI/float(n)) - cos(2*M_PI/float(nm));
-    vec3 Fm = (csf(nm-3,2)*inpt[i].v.position + s1*Em +s2*Ep_im - inpt[i].v.r[prev])/3.0;
+    vec3 Fp = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f;
+    s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n)) - cos(2.0f*M_PI/float(nm));
+    vec3 Fm = (csf(nm-3,2)*inpt[i].v.position + s1*Em +s2*Ep_im - inpt[i].v.r[prev])/3.0f;
 
     outpt[ID].v.Ep = Ep;
     outpt[ID].v.Em = Em;
@@ -268,6 +271,7 @@ void main()
 #endif
     }
 }
+
 #endif
 
 //----------------------------------------------------------
