@@ -1668,7 +1668,7 @@ initHUD()
                       350, 70, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'p');
     g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess != 0,
                       350, 90, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
-    g_hud.AddCheckBox("Fractional spacing (V)",  g_fractionalSpacing != 0,
+    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing != 0,
                       350, 110, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull != 0,
                       350, 130, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
