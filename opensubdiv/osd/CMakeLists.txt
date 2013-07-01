@@ -213,7 +213,6 @@ if( OPENGL_FOUND OR OPENGLES_FOUND )
             glslPatchCommon.glsl
             glslPatchBSpline.glsl
             glslPatchGregory.glsl
-            glslPatchBoundaryGregory.glsl
             glslPatchTransition.glsl
         )
     endif()

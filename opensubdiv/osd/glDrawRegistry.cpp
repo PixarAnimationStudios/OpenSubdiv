@@ -74,9 +74,6 @@ static const char *bsplineShaderSource =
 static const char *gregoryShaderSource =
 #include "glslPatchGregory.inc"
 ;
-static const char *boundaryGregoryShaderSource =
-#include "glslPatchBoundaryGregory.inc"
-;
 static const char *transitionShaderSource =
 #include "glslPatchTransition.inc"
 ;
@@ -153,15 +150,18 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdDrawContext::PatchDescriptor c
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_GREGORY_SHADER");
             break;
         case FarPatchTables::GREGORY_BOUNDARY:
-            sconfig->vertexShader.source = boundaryGregoryShaderSource;
+            sconfig->vertexShader.source = gregoryShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
-            sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_BOUNDARY_GREGORY_SHADER");
-            sconfig->tessControlShader.source = boundaryGregoryShaderSource;
+            sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_GREGORY_SHADER");
+            sconfig->vertexShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
+            sconfig->tessControlShader.source = gregoryShaderSource;
             sconfig->tessControlShader.version = "#version 410\n";
-            sconfig->tessControlShader.AddDefine("OSD_PATCH_TESS_CONTROL_BOUNDARY_GREGORY_SHADER");
-            sconfig->tessEvalShader.source = boundaryGregoryShaderSource;
+            sconfig->tessControlShader.AddDefine("OSD_PATCH_TESS_CONTROL_GREGORY_SHADER");
+            sconfig->tessControlShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
+            sconfig->tessEvalShader.source = gregoryShaderSource;
             sconfig->tessEvalShader.version = "#version 410\n";
-            sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BOUNDARY_GREGORY_SHADER");
+            sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_GREGORY_SHADER");
+            sconfig->tessEvalShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
             break;
         default:
             // error
