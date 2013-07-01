@@ -67,7 +67,7 @@ vec4 GeneratePatchCoord(vec2 localUV)  // for non-adpative
 {
     ivec2 ptexIndex = texelFetch(g_ptexIndicesBuffer, gl_PrimitiveID).xy;
     int faceID = ptexIndex.x;
-    int lv = 1 << (ptexIndex.y & 0xf);
+    int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1));
     int u = (ptexIndex.y >> 17) & 0x3ff;
     int v = (ptexIndex.y >> 7) & 0x3ff;
     vec2 uv = localUV;
