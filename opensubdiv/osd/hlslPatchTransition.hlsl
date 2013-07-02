@@ -82,7 +82,7 @@ struct HS_CONSTANT_TRANSITION_FUNC_OUT {
 void
 SetTransitionTessLevels(inout HS_CONSTANT_TRANSITION_FUNC_OUT output, float3 cp[OSD_PATCH_INPUT_SIZE], int patchLevel)
 {
-#if OSD_ENABLE_SCREENSPACE_TESSELLATION
+#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
     // These tables map the 9, 12, or 16 input control points onto the
     // canonical 16 control points for a regular patch.
 #if defined OSD_PATCH_BOUNDARY

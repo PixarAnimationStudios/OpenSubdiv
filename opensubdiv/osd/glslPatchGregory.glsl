@@ -368,7 +368,7 @@ void main()
         uint j = (np + prev_p - inpt[ip].v.zerothNeighbor) % np;
         Em_ip = inpt[ip].v.position + cos((M_PI*j)/float(np-1))*inpt[ip].v.e0 + sin((M_PI*j)/float(np-1))*inpt[ip].v.e1;
     } else {
-        Em_ip = inpt[ip].v.position + inpt[ip].v.e0 * csf(np-3, 2*prev_p ) + inpt[ip].v.e1*csf(np-3, 2*prev_p + 1);
+        Em_ip = inpt[ip].v.position + inpt[ip].v.e0*csf(np-3, 2*prev_p ) + inpt[ip].v.e1*csf(np-3, 2*prev_p + 1);
     }
 
     vec3 Ep_im;
@@ -376,7 +376,7 @@ void main()
         uint j = (nm + start_m - inpt[im].v.zerothNeighbor) % nm;
         Ep_im = inpt[im].v.position + cos((M_PI*j)/float(nm-1))*inpt[im].v.e0 + sin((M_PI*j)/float(nm-1))*inpt[im].v.e1;
     } else {
-        Ep_im = inpt[im].v.position + inpt[im].v.e0 * csf(nm-3, 2*start_m) + inpt[im].v.e1*csf(nm-3, 2*start_m + 1);
+        Ep_im = inpt[im].v.position + inpt[im].v.e0*csf(nm-3, 2*start_m) + inpt[im].v.e1*csf(nm-3, 2*start_m + 1);
     }
 
     if (inpt[i].v.valence < 0) {
@@ -390,8 +390,8 @@ void main()
     }
 
     if (inpt[i].v.valence > 2) {
-        Ep = inpt[i].v.position + inpt[i].v.e0 * csf(n-3, 2*start) + inpt[i].v.e1*csf(n-3, 2*start + 1);
-        Em = inpt[i].v.position + inpt[i].v.e0 * csf(n-3, 2*prev ) + inpt[i].v.e1*csf(n-3, 2*prev + 1); 
+        Ep = inpt[i].v.position + inpt[i].v.e0*csf(n-3, 2*start) + inpt[i].v.e1*csf(n-3, 2*start + 1);
+        Em = inpt[i].v.position + inpt[i].v.e0*csf(n-3, 2*prev ) + inpt[i].v.e1*csf(n-3, 2*prev + 1); 
 
         float s1=3-2*csf(n-3,2)-csf(np-3,2);
         float s2=2*csf(n-3,2);
@@ -621,7 +621,7 @@ void main()
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    gl_Position = ProjectionMatrix * outpt.v.position;
+    gl_Position = ModelViewProjectionMatrix * vec4(WorldPos, 1.0f);
 }
 
 #endif

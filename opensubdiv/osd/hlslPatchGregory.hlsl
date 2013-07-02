@@ -293,7 +293,7 @@ HS_CONSTANT_FUNC_OUT HSConstFunc(
 
     OSD_PATCH_CULL(4);
 
-#if OSD_ENABLE_SCREENSPACE_TESSELLATION
+#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
     output.tessLevelOuter[0] =
         TessAdaptive(patch[0].hullPosition.xyz, patch[1].hullPosition.xyz);
     output.tessLevelOuter[1] =
@@ -383,7 +383,7 @@ GregDomainVertex hs_main_patches(
         uint j = (np + prev_p - patch[ip].zerothNeighbor) % np;
         Em_ip = patch[ip].position + cos((M_PI*j)/float(np-1))*patch[ip].e0 + sin((M_PI*j)/float(np-1))*patch[ip].e1;
     } else {
-        Em_ip = patch[ip].position + patch[ip].e0*csf(np-3,2*prev_p) + patch[ip].e1*csf(np-3,2*prev_p+1);
+        Em_ip = patch[ip].position + patch[ip].e0*csf(np-3, 2*prev_p) + patch[ip].e1*csf(np-3, 2*prev_p + 1);
     }
 
     float3 Ep_im;
@@ -391,7 +391,7 @@ GregDomainVertex hs_main_patches(
         uint j = (nm + start_m - patch[im].zerothNeighbor) % nm;
         Ep_im = patch[im].position + cos((M_PI*j)/float(nm-1))*patch[im].e0 + sin((M_PI*j)/float(nm-1))*patch[im].e1;
     } else {
-        Ep_im = patch[im].position + patch[im].e0*csf(nm-3,2*start_m) + patch[im].e1*csf(nm-3,2*start_m+1);
+        Ep_im = patch[im].position + patch[im].e0*csf(nm-3, 2*start_m) + patch[im].e1*csf(nm-3, 2*start_m + 1);
     }
 
     if (patch[i].valence < 0) {
@@ -405,14 +405,14 @@ GregDomainVertex hs_main_patches(
     }
 
     if (patch[i].valence > 2) {
-        Ep = patch[i].position + (patch[i].e0*csf(n-3,2*start) + patch[i].e1*csf(n-3, 2*start + 1));
-        Em = patch[i].position + (patch[i].e0*csf(n-3,2*prev) +  patch[i].e1*csf(n-3, 2*prev + 1)); 
+        Ep = patch[i].position + (patch[i].e0*csf(n-3, 2*start) + patch[i].e1*csf(n-3, 2*start + 1));
+        Em = patch[i].position + (patch[i].e0*csf(n-3, 2*prev) +  patch[i].e1*csf(n-3, 2*prev + 1)); 
 
         float s1=3-2*csf(n-3,2)-csf(np-3,2);
         float s2=2*csf(n-3,2);
 
         Fp = (csf(np-3,2)*patch[i].position + s1*Ep + s2*Em_ip + patch[i].r[start])/3.0f; 
-        s1 = 3.0f-2.0f*cos(2.0f*M_PI/n)-cos(2*M_PI/nm);
+        s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
         Fm = (csf(nm-3,2)*patch[i].position + s1*Em + s2*Ep_im - patch[i].r[prev])/3.0f;
 
     } else if (patch[i].valence < -2) {
@@ -429,7 +429,7 @@ GregDomainVertex hs_main_patches(
         float s2 = 2*csf(n-3,2);
 
         Fp = (csf(np-3,2)*patch[i].position + s1*Ep + s2*Em_ip + patch[i].r[start])/3.0f; 
-        s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2*M_PI/float(nm));
+        s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
         Fm = (csf(nm-3,2)*patch[i].position + s1*Em + s2*Ep_im - patch[i].r[prev])/3.0f;
 
         if (patch[im].valence < 0) {
@@ -451,14 +451,14 @@ GregDomainVertex hs_main_patches(
     float3 Ep = patch[i].position + patch[i].e0 * csf(n-3, 2*start) + patch[i].e1*csf(n-3, 2*start + 1);
     float3 Em = patch[i].position + patch[i].e0 * csf(n-3, 2*prev ) + patch[i].e1*csf(n-3, 2*prev + 1);
 
-    float3 Em_ip = patch[ip].position + patch[ip].e0*csf(np-3,2*prev_p) +patch[ip].e1*csf(np-3, 2*prev_p + 1);
+    float3 Em_ip = patch[ip].position + patch[ip].e0*csf(np-3, 2*prev_p) + patch[ip].e1*csf(np-3, 2*prev_p + 1);
     float3 Ep_im = patch[im].position + patch[im].e0*csf(nm-3, 2*start_m) + patch[im].e1*csf(nm-3, 2*start_m + 1);
 
     float s1 = 3-2*csf(n-3,2)-csf(np-3,2);
     float s2 = 2*csf(n-3,2);
 
     float3 Fp = (csf(np-3,2)*patch[i].position + s1*Ep + s2*Em_ip + patch[i].r[start])/3.0f;
-    s1 = 3.0f-2.0f*cos(2.0*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
+    s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
     float3 Fm = (csf(nm-3,2)*patch[i].position + s1*Em +s2*Ep_im - patch[i].r[prev])/3.0f;
 
 #endif

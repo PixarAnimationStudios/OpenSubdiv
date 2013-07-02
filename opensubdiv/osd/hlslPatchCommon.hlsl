@@ -137,7 +137,7 @@ cbuffer Tessellation : register( b1 ) {
 
 float GetTessLevel(int patchLevel)
 {
-#if OSD_ENABLE_SCREENSPACE_TESSELLATION
+#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
     return TessLevel;
 #else
     return TessLevel / pow(2, patchLevel-1);
