@@ -177,7 +177,8 @@ enum KernelType { kCPU = 0,
 enum DisplayStyle { kWire = 0,
                     kShaded,
                     kWireShaded,
-                    kVaryingColor };
+                    kVaryingColor,
+                    kFaceVaryingColor };
 
 enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
                    kHUD_CB_DISPLAY_CAGE_VERTS,
@@ -626,7 +627,8 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
 
     checkGLErrors("create osd enter");
     // generate Hbr representation from "obj" description
-    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape.c_str(), scheme, g_orgPositions);
+    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape.c_str(), scheme, g_orgPositions,
+                                                          g_displayStyle == kFaceVaryingColor);
 
     g_normals.resize(g_orgPositions.size(),0.0f);
     g_positions.resize(g_orgPositions.size(),0.0f);
@@ -661,6 +663,7 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
 
     OpenSubdiv::OsdMeshBitset bits;
     bits.set(OpenSubdiv::MeshAdaptive, doAdaptive);
+    bits.set(OpenSubdiv::MeshFVarData, 1);
 
     int numVertexElements = 3;
     int numVaryingElements = (g_displayStyle == kVaryingColor) ? 3 : 0;
@@ -924,10 +927,10 @@ union Effect {
     }
 
     struct {
-        int displayStyle:3;
-        int screenSpaceTess:1;
-        int fractionalSpacing:1;
-        int patchCull:1;
+        unsigned int displayStyle:3;
+        unsigned int screenSpaceTess:1;
+        unsigned int fractionalSpacing:1;
+        unsigned int patchCull:1;
     };
     int value;
 
@@ -985,10 +988,12 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         // uniform catmark, bilinear
         sconfig->geometryShader.AddDefine("PRIM_QUAD");
         sconfig->fragmentShader.AddDefine("PRIM_QUAD");
+        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
     } else if (desc.first.GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
         // uniform loop
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
+        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
     } else {
         // adaptive
         sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
@@ -1022,6 +1027,10 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         break;
     case kVaryingColor:
         sconfig->commonShader.AddDefine("VARYING_COLOR");
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+        break;
+    case kFaceVaryingColor:
+        sconfig->commonShader.AddDefine("FACEVARYING_COLOR");
         sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
         break;
     }
@@ -1070,6 +1079,9 @@ EffectDrawRegistry::_CreateDrawConfig(
     if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
         glUniform1i(loc, 3); // GL_TEXTURE3
     }
+    if ((loc = glGetUniformLocation(config->program, "g_uvFVarBuffer")) != -1) {
+        glUniform1i(loc, 4); // GL_TEXTURE4
+    }
 #else
     if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
@@ -1082,6 +1094,9 @@ EffectDrawRegistry::_CreateDrawConfig(
     }
     if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
+    }
+    if ((loc = glGetUniformLocation(config->program, "g_uvFVarBuffer")) != -1) {
+        glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
     }
 #endif
 
@@ -1193,6 +1208,12 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
         glBindTexture(GL_TEXTURE_BUFFER,
             g_mesh->GetDrawContext()->GetPatchParamTextureBuffer());
     }
+    if (g_mesh->GetDrawContext()->GetFvarDataTextureBuffer()) {
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_BUFFER,
+            g_mesh->GetDrawContext()->GetFvarDataTextureBuffer());
+    }
+
     glActiveTexture(GL_TEXTURE0);
 
     return program;
@@ -1533,7 +1554,8 @@ rebuildOsdMesh()
 static void
 callbackDisplayStyle(int b)
 {
-    if (g_displayStyle == kVaryingColor or b == kVaryingColor) {
+    if (g_displayStyle == kVaryingColor or b == kVaryingColor or
+        g_displayStyle == kFaceVaryingColor or b == kFaceVaryingColor) {
         // need to rebuild for varying reconstruct
         g_displayStyle = b;
         rebuildOsdMesh();
@@ -1657,6 +1679,7 @@ initHUD()
     g_hud.AddRadioButton(1, "Shaded",      g_displayStyle == kShaded, 200, 30, callbackDisplayStyle, 1, 'w');
     g_hud.AddRadioButton(1, "Wire+Shaded", g_displayStyle == kWireShaded, 200, 50, callbackDisplayStyle, 2, 'w');
     g_hud.AddRadioButton(1, "Varying color", g_displayStyle == kVaryingColor, 200, 70, callbackDisplayStyle, 3, 'w');
+    g_hud.AddRadioButton(1, "FaceVarying color", g_displayStyle == kFaceVaryingColor, 200, 90, callbackDisplayStyle, 4, 'w');
 
     g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
                       350, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'h');
