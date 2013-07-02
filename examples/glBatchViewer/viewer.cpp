@@ -219,7 +219,7 @@ int   g_frame = 0,
 // GUI variables
 int   g_fullscreen = 0,
       g_freeze = 0,
-      g_wire = 2,
+      g_displayStyle = kWireShaded,
       g_adaptive = 1,
       g_batching = 1,
       g_mbutton[3] = {0, 0, 0}, 
@@ -326,9 +326,11 @@ updateGeom(bool forceAll) {
         if (forceAll == false && j >= g_moveModels) break;
         int nverts = (int)g_positions[j].size()/3;
 
-        std::vector<float> vertex;
-        vertex.resize(nverts * 3);
-        float * d = &vertex[0];
+        std::vector<float> vertex, varying;
+        vertex.reserve(nverts * 3);
+
+        if (g_displayStyle == kVaryingColor)
+            varying.reserve(nverts * 3);
 
         const float *p = &g_positions[j][0];
         for (int i = 0; i < nverts; ++i) {
@@ -340,14 +342,24 @@ updateGeom(bool forceAll) {
             v[2] = p[2];
             v[3] = 1;
             apply(v, g_transforms[j].value);
-            *d++ = v[0];
-            *d++ = v[1];
-            *d++ = v[2];
+            vertex.push_back(v[0]);
+            vertex.push_back(v[1]);
+            vertex.push_back(v[2]);
+
+            if (g_displayStyle == kVaryingColor) {
+                varying.push_back(p[2]);
+                varying.push_back(p[1]);
+                varying.push_back(p[0]);
+            }
 
             p += 3;
         }
         
         g_batch->UpdateCoarseVertices(j, &vertex[0], nverts);
+
+        if (g_displayStyle == kVaryingColor) {
+            g_batch->UpdateCoarseVaryings(j, &varying[0], nverts);
+        }
     }
 
     Stopwatch s;
@@ -384,7 +396,8 @@ createFarMesh( const char * shape, int level, bool adaptive, Scheme scheme=kCatm
     checkGLErrors("create osd enter");
     // generate Hbr representation from "obj" description
     std::vector<float> positions;
-    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, positions);
+    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, positions,
+                                                          g_displayStyle == kFaceVaryingColor);
 
     size_t nModel = g_bboxes.size();
     float x = nModel%g_modelCount - g_modelCount*0.5f;
@@ -449,42 +462,44 @@ rebuild()
     delete g_batch;
     g_batch = NULL;
 
-    int numVertexElements = 3, numVaryingElements = 0;
+    int numVertexElements = 3;
+    int numVaryingElements = g_displayStyle == kVaryingColor ? 3 : 0;
+    bool requireFVarData = (g_displayStyle == kFaceVaryingColor);
 
     // create multimesh batch
     if (g_kernel == kCPU) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
             MyDrawContext, OpenSubdiv::OsdCpuComputeController>::Create(
             Controller<OpenSubdiv::OsdCpuComputeController>::GetInstance(),
-            farMeshes, numVertexElements, numVaryingElements, 0);
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (g_kernel == kOPENMP) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
             MyDrawContext,
             OpenSubdiv::OsdOmpComputeController>::Create(
             Controller<OpenSubdiv::OsdOmpComputeController>::GetInstance(),
-            farMeshes, numVertexElements, numVaryingElements, 0);
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if (g_kernel == kCL) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCLGLVertexBuffer,
             MyDrawContext, OpenSubdiv::OsdCLComputeController>::Create(
             Controller<OpenSubdiv::OsdCLComputeController>::GetInstance(),
-            farMeshes, numVertexElements, numVaryingElements, 0);
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCudaGLVertexBuffer,
             MyDrawContext, OpenSubdiv::OsdCudaComputeController>::Create(
             Controller<OpenSubdiv::OsdCudaComputeController>::GetInstance(),
-            farMeshes, numVertexElements, numVaryingElements, 0);
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if (g_kernel == kGLSL) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdGLVertexBuffer,
             MyDrawContext, OpenSubdiv::OsdGLSLTransformFeedbackComputeController>::Create(
             Controller<OpenSubdiv::OsdGLSLTransformFeedbackComputeController>::GetInstance(),
-            farMeshes, numVertexElements, numVaryingElements, 0);
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #endif
     } else {
         assert(false);
@@ -518,7 +533,7 @@ static void
 display() {
 
     // set effect
-    g_effect.wire = g_wire;
+    g_effect.displayStyle = g_displayStyle;
     g_effect.screenSpaceTess = (g_screenSpaceTess != 0);
     g_effect.displayPatchColor = (g_displayPatchColor != 0);
 
@@ -578,7 +593,7 @@ display() {
 #endif
     g_drawDelegate.ResetNumDrawCalls();
 
-    if (g_wire == 0) glDisable(GL_CULL_FACE);
+    if (g_displayStyle == kWire) glDisable(GL_CULL_FACE);
 
     if (g_batching) {
         OpenSubdiv::OsdUtil::DrawCollection(cachedDrawItems, &g_drawDelegate);
@@ -586,7 +601,7 @@ display() {
         OpenSubdiv::OsdUtil::DrawCollection(items, &g_drawDelegate);
     }
 
-    if (g_wire == 0) glEnable(GL_CULL_FACE);
+    if (g_displayStyle == kWire) glEnable(GL_CULL_FACE);
 
     glEndQuery(GL_PRIMITIVES_GENERATED);
 #if defined(GL_VERSION_3_3)
@@ -731,9 +746,16 @@ keyboard(int key, int event) {
 
 //------------------------------------------------------------------------------
 static void
-callbackWireframe(int b)
+callbackDisplayStyle(int b)
 {
-    g_wire = b;
+    if (g_displayStyle == kVaryingColor or b == kVaryingColor or
+        g_displayStyle == kFaceVaryingColor or b == kFaceVaryingColor) {
+        // need to rebuild for varying reconstruct
+        g_displayStyle = b;
+        rebuild();
+        return;
+    }
+    g_displayStyle = b;
 }
 
 static void
@@ -833,9 +855,16 @@ initHUD()
 //    }
 #endif
 
-    g_hud.AddRadioButton(1, "Wire (W)",    g_wire == 0,  200, 10, callbackWireframe, 0, 'w');
-    g_hud.AddRadioButton(1, "Shaded",      g_wire == 1, 200, 30, callbackWireframe, 1, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", g_wire == 2, 200, 50, callbackWireframe, 2, 'w');
+    g_hud.AddRadioButton(1, "Wire (W)", g_displayStyle == kWire,
+                         200, 10, callbackDisplayStyle, kWire, 'w');
+    g_hud.AddRadioButton(1, "Shaded", g_displayStyle == kShaded,
+                         200, 30, callbackDisplayStyle, kShaded, 'w');
+    g_hud.AddRadioButton(1, "Wire+Shaded", g_displayStyle == kWireShaded,
+                         200, 50, callbackDisplayStyle, kWireShaded, 'w');
+    g_hud.AddRadioButton(1, "Varying color", g_displayStyle == kVaryingColor,
+                         200, 70, callbackDisplayStyle, kVaryingColor, 'w');
+    g_hud.AddRadioButton(1, "Face varying color", g_displayStyle == kFaceVaryingColor,
+                         200, 90, callbackDisplayStyle, kFaceVaryingColor, 'w');
 
     g_hud.AddCheckBox("Batching (B)", g_batching != 0, 350, 10, callbackCheckBox, HUD_CB_BATCHING, 'b');
     g_hud.AddCheckBox("Patch Color (P)",      true, 350, 50, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');

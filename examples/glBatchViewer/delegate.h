@@ -69,9 +69,6 @@ class MyDrawContext : public OpenSubdiv::OsdGLDrawContext {
 public:
     virtual ~MyDrawContext();
 
-    static MyDrawContext *Create(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> const *farMesh,
-                                 bool requireFVarData=false);
-
     static MyDrawContext *Create(OpenSubdiv::FarPatchTables const *patchTables,
                                  bool requireFVarData=false);
 

@@ -169,6 +169,7 @@ void initializeShapes( ) {
     g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
 
 
+/*
 #include <shapes/loop_cube_creases0.h>
     g_defaultShapes.push_back(SimpleShape(loop_cube_creases0, "loop_cube_creases0", kLoop));
 
@@ -192,4 +193,5 @@ void initializeShapes( ) {
 
 #include <shapes/loop_triangle_edgeonly.h>
     g_defaultShapes.push_back(SimpleShape(loop_triangle_edgeonly, "loop_triangle_edgeonly", kLoop));
+*/
 }

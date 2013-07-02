@@ -61,10 +61,16 @@
 
 #include <osd/opengl.h>
 
+enum DisplayTyle { kWire = 0,
+                   kShaded,
+                   kWireShaded,
+                   kVaryingColor,
+                   kFaceVaryingColor };
+
 union EffectDesc {
 public:
     struct {
-        unsigned int wire:2;
+        unsigned int displayStyle:3;
         unsigned int screenSpaceTess:1;
     };
     int value;
@@ -73,7 +79,7 @@ public:
         return value < e.value;
     }
 
-    int GetWire() const { return wire; }
+    int GetDisplayStyle() const { return displayStyle; }
     bool GetScreenSpaceTess() const { return screenSpaceTess; }
 };
 
@@ -88,13 +94,13 @@ struct MyDrawConfig : public OpenSubdiv::OsdGLDrawConfig {
 
 class MyEffect { // formerly EffectHandle
 public:
-    MyEffect() : displayPatchColor(false), screenSpaceTess(false), wire(0) {}
+    MyEffect() : displayPatchColor(false), screenSpaceTess(false), displayStyle(kWire) {}
 
     EffectDesc GetEffectDescriptor() const {
         EffectDesc desc;
 
         desc.value = 0;
-        desc.wire = wire;
+        desc.displayStyle = displayStyle;
         desc.screenSpaceTess = screenSpaceTess;
 
         return desc;
@@ -109,19 +115,15 @@ public:
     bool operator == (const MyEffect &other) const {
         return (displayPatchColor == other.displayPatchColor) and
                (screenSpaceTess == other.screenSpaceTess) and
-               (wire == other.wire);
+               (displayStyle == other.displayStyle);
     }
     bool operator != (const MyEffect &other) const {
         return !(*this == other);
     }
 
-    enum {
-        kWire, kFill, kLine
-    };
-
     bool displayPatchColor;  // runtime switchable
     bool screenSpaceTess;    // need recompile (should be considered in effect descriptor)
-    int wire;                // need recompile
+    int displayStyle;        // need recompile
 };
 
 
