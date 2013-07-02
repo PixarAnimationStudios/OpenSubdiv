@@ -517,7 +517,7 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
         numGregoryPatches.push_back(nGregory);
         gregoryQuadOffsets.push_back(totalQuadOffset0);
 
-        totalFVarData += ptables->GetFVarDataTable().size();
+        totalFVarData += (int)ptables->GetFVarDataTable().size();
         numTotalIndices += ptables->GetNumControlVertices();
     }
 
