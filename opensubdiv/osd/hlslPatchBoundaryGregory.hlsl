@@ -96,30 +96,30 @@ void vs_main_patches( in InputVertex input,
                       uint vID : SV_VertexID,
                       out GregHullVertex output )
 {
-     output.hullPosition = mul(ModelViewMatrix, input.position).xyz;
-     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(input.position);
+    output.hullPosition = mul(ModelViewMatrix, input.position).xyz;
+    OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(input.position);
 
-     int valence = g_ValenceBuffer[int(vID * (2 * OSD_MAX_VALENCE + 1))];
-     output.valence = int(valence);
-     uint ivalence = uint(abs(valence));
+    int ivalence = g_ValenceBuffer[int(vID * (2 * OSD_MAX_VALENCE + 1))];
+    output.valence = ivalence;
+    uint valence = uint(abs(ivalence));
 
-     float3 f[OSD_MAX_VALENCE]; 
-     float3 pos = input.position.xyz;
-     output.org = input.position.xyz;
-     float3 opos = float3(0,0,0);
+    float3 f[OSD_MAX_VALENCE]; 
+    float3 pos = input.position.xyz;
+    float3 opos = float3(0,0,0);
 
-     int boundaryEdgeNeighbors[2];
-     uint currNeighbor = 0;
-     uint ibefore = 0;
-     uint zerothNeighbor = 0;
+    output.org = input.position.xyz;
+    int boundaryEdgeNeighbors[2];
+    uint currNeighbor = 0;
+    uint ibefore = 0;
+    uint zerothNeighbor = 0;
 
-     for (uint i=0; i<ivalence; ++i) {
-        uint im=(i+ivalence-1)%ivalence; 
-        uint ip=(i+1)%ivalence; 
+    for (uint i=0; i<valence; ++i) {
+        uint im=(i+valence-1)%valence; 
+        uint ip=(i+1)%valence; 
 
         bool isBoundaryNeighbor = false;
         uint idx_neighbor = uint(g_ValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 0 + 1)]);
-        int valenceNeighbor = g_ValenceBuffer[int(idx_neighbor * (2 * OSD_MAX_VALENCE + 1))];
+        int valenceNeighbor = g_ValenceBuffer[int(idx_neighbor * (2*OSD_MAX_VALENCE+1))];
 
         if (valenceNeighbor < 0) {
             isBoundaryNeighbor = true;
@@ -170,35 +170,35 @@ void vs_main_patches( in InputVertex input,
                    g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)],
                    g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)]);
 
-        f[i] = (pos * float(ivalence) + (neighbor_p + neighbor)*2.0f + diagonal)/(float(ivalence)+5.0f);
+        f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0f + diagonal) / (float(valence)+5.0f);
 
         opos += f[i];
         output.r[i] = (neighbor_p-neighbor_m)/3.0f + (diagonal - diagonal_m)/6.0f;
     }
 
-    opos /= ivalence;
+    opos /= valence;
     output.position = float4(opos, 1.0f).xyz;
-    output.zerothNeighbor = zerothNeighbor;
-
-    if (currNeighbor == 1) {
-        boundaryEdgeNeighbors[1] = boundaryEdgeNeighbors[0];
-    }
 
     float3 e;
     output.e0 = float3(0,0,0);
     output.e1 = float3(0,0,0);
 
-    for(uint i=0; i<ivalence; ++i) {
-        uint im = (i + ivalence -1) % ivalence;
+    for(uint i=0; i<valence; ++i) {
+        uint im = (i + valence -1) % valence;
         e = 0.5f * (f[i] + f[im]);
-        output.e0 += csf(ivalence-3, 2*i) *e;
-        output.e1 += csf(ivalence-3, 2*i + 1)*e;
+        output.e0 += csf(valence-3, 2*i) *e;
+        output.e1 += csf(valence-3, 2*i + 1)*e;
     }
-    output.e0 *= ef[ivalence - 3];
-    output.e1 *= ef[ivalence - 3];
+    output.e0 *= ef[valence - 3];
+    output.e1 *= ef[valence - 3];
 
-    if (valence < 0) {
-        if (ivalence > 2) {
+    output.zerothNeighbor = zerothNeighbor;
+    if (currNeighbor == 1) {
+        boundaryEdgeNeighbors[1] = boundaryEdgeNeighbors[0];
+    }
+
+    if (ivalence < 0) {
+        if (valence > 2) {
             output.position = (
                 float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
                        g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
@@ -220,7 +220,7 @@ void vs_main_patches( in InputVertex input,
                    g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) 
             )/6.0;
 
-        float k = float(float(ivalence) - 1.0f);    //k is the number of faces
+        float k = float(float(valence) - 1.0f);    //k is the number of faces
         float c = cos(M_PI/k);
         float s = sin(M_PI/k);
         float gamma = -(4.0f*s)/(3.0f*k+c);
@@ -244,8 +244,8 @@ void vs_main_patches( in InputVertex input,
                               g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) +
             beta_0 * diagonal;
 
-        for (uint x=1; x<ivalence - 1; ++x) {
-            uint curri = ((x + zerothNeighbor)%ivalence);
+        for (uint x=1; x<valence - 1; ++x) {
+            uint curri = ((x + zerothNeighbor)%valence);
             float alpha = (4.0f*sin((M_PI * float(x))/k))/(3.0f*k+c);
             float beta = (sin((M_PI * float(x))/k) + sin((M_PI * float(x+1))/k))/(3.0f*k+c);
 
@@ -323,16 +323,17 @@ GregDomainVertex hs_main_patches(
     uint i = ID;
     uint ip = (i+1)%4;
     uint im = (i+3)%4;
-    uint n = uint(abs(patch[i].valence));
-    uint ivalence = abs(patch[i].valence);
+    uint valence = abs(patch[i].valence);
+    uint n = valence;
     int base = GregoryQuadOffsetBase;
 
     GregDomainVertex output;
     output.position = patch[ID].position;
 
-    uint start = g_QuadOffsetBuffer[int(4*primitiveID+base + i)] & 0x00ff;
-    uint prev = uint(g_QuadOffsetBuffer[int(4*primitiveID+base + i)]) & 0xff00;
-    prev=uint(prev/256);
+    uint start = uint(g_QuadOffsetBuffer[int(4*primitiveID+base + i)]) & 0x00ffu;
+    uint prev = uint(g_QuadOffsetBuffer[int(4*primitiveID+base + i)]) & 0xff00u;
+    prev = uint(prev/256);
+
     uint np = abs(patch[ip].valence);
     uint nm = abs(patch[im].valence);
 
@@ -365,8 +366,8 @@ GregDomainVertex hs_main_patches(
     float3 Fp = float3(0.0f,0.0f,0.0f);
     float3 Fm = float3(0.0f,0.0f,0.0f);
 
-    uint prev_p = uint(g_QuadOffsetBuffer[int(4*primitiveID+base + ip)])&0xff00;
-    prev_p=uint(prev_p/256);
+    uint prev_p = uint(g_QuadOffsetBuffer[int(4*primitiveID+base + ip)]) & 0xff00u;
+    prev_p = uint(prev_p/256);
     float3 Em_ip;
 
     if (patch[ip].valence < -2) {
@@ -376,7 +377,7 @@ GregDomainVertex hs_main_patches(
         Em_ip = patch[ip].position + patch[ip].e0*csf(np-3,2*prev_p) + patch[ip].e1*csf(np-3,2*prev_p+1);
     }
 
-    uint start_m = uint(g_QuadOffsetBuffer[int(4*primitiveID+base + im)])&0x00ff;
+    uint start_m = uint(g_QuadOffsetBuffer[int(4*primitiveID+base + im)]) & 0x00ffu;
     float3 Ep_im;
 
     if (patch[im].valence < -2) {
@@ -397,8 +398,8 @@ GregDomainVertex hs_main_patches(
     }
 
     if (patch[i].valence > 2) {
-        Ep = patch[i].position + (patch[i].e0*csf(n-3,2*start) + patch[i].e1*csf(n-3,2*start+1));
-        Em = patch[i].position + (patch[i].e0*csf(n-3,2*prev) +  patch[i].e1*csf(n-3,2*prev+1)); 
+        Ep = patch[i].position + (patch[i].e0*csf(n-3,2*start) + patch[i].e1*csf(n-3, 2*start + 1));
+        Em = patch[i].position + (patch[i].e0*csf(n-3,2*prev) +  patch[i].e1*csf(n-3, 2*prev + 1)); 
 
         float s1=3-2*csf(n-3,2)-csf(np-3,2);
         float s2=2*csf(n-3,2);
@@ -408,20 +409,20 @@ GregDomainVertex hs_main_patches(
         Fm = (csf(nm-3,2)*patch[i].position + s1*Em + s2*Ep_im - patch[i].r[prev])/3.0f;
 
     } else if (patch[i].valence < -2) {
-        uint j = (ivalence + start - patch[i].zerothNeighbor) % ivalence;
+        uint j = (valence + start - patch[i].zerothNeighbor) % valence;
 
-        Ep = patch[i].position + cos((M_PI*j)/float(ivalence-1))*patch[i].e0 + sin((M_PI*j)/float(ivalence-1))*patch[i].e1;
-        j = (ivalence + prev - patch[i].zerothNeighbor) % ivalence;
-        Em = patch[i].position + cos((M_PI*j)/float(ivalence-1))*patch[i].e0 + sin((M_PI*j)/float(ivalence-1))*patch[i].e1;
+        Ep = patch[i].position + cos((M_PI*j)/float(valence-1))*patch[i].e0 + sin((M_PI*j)/float(valence-1))*patch[i].e1;
+        j = (valence + prev - patch[i].zerothNeighbor) % valence;
+        Em = patch[i].position + cos((M_PI*j)/float(valence-1))*patch[i].e0 + sin((M_PI*j)/float(valence-1))*patch[i].e1;
 
         float3 Rp = ((-2.0f * patch[i].org - 1.0f * patch[im].org) + (2.0f * patch[ip].org + 1.0f * patch[(i+2)%4].org))/3.0f;
         float3 Rm = ((-2.0f * patch[i].org - 1.0f * patch[ip].org) + (2.0f * patch[im].org + 1.0f * patch[(i+2)%4].org))/3.0f;
 
-        float s1=3-2*csf(n-3,2)-csf(np-3,2);
-        float s2=2*csf(n-3,2);
+        float s1 = 3-2*csf(n-3,2)-csf(np-3,2);
+        float s2 = 2*csf(n-3,2);
 
         Fp = (csf(np-3,2)*patch[i].position + s1*Ep + s2*Em_ip + patch[i].r[start])/3.0f; 
-        s1 = 3.0f-2.0f*cos(2.0f*M_PI/n)-cos(2*M_PI/nm);
+        s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2*M_PI/float(nm));
         Fm = (csf(nm-3,2)*patch[i].position + s1*Em + s2*Ep_im - patch[i].r[prev])/3.0f;
 
         if (patch[im].valence < 0) {

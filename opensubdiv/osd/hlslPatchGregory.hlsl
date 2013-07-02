@@ -96,17 +96,18 @@ void vs_main_patches( in InputVertex input,
                       uint vID : SV_VertexID,
                       out GregHullVertex output )
 {
-     output.hullPosition = mul(ModelViewMatrix, input.position).xyz;
-     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(input.position);
+    output.hullPosition = mul(ModelViewMatrix, input.position).xyz;
+    OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(input.position);
 
-     uint valence = uint(g_ValenceBuffer[int(vID * (2 * OSD_MAX_VALENCE + 1))]);
-     output.valence = int(valence);
+    int ivalence = g_ValenceBuffer[int(vID * (2 * OSD_MAX_VALENCE + 1))];
+    output.valence = ivalence;
+    uint valence = uint(abs(ivalence));
 
-     float3 f[OSD_MAX_VALENCE]; 
-     float3 pos = input.position.xyz;
-     float3 opos = float3(0,0,0);
+    float3 f[OSD_MAX_VALENCE]; 
+    float3 pos = input.position.xyz;
+    float3 opos = float3(0,0,0);
 
-     for (uint i=0; i<valence; ++i) {
+    for (uint i=0; i<valence; ++i) {
         uint im=(i+valence-1)%valence; 
         uint ip=(i+1)%valence; 
 
@@ -145,10 +146,10 @@ void vs_main_patches( in InputVertex input,
                    g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)],
                    g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)]);
 
-        f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0 + diagonal) / (float(valence)+5.0);
+        f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0f + diagonal) / (float(valence)+5.0f);
 
         opos += f[i];
-        output.r[i] = (neighbor_p-neighbor_m)/3.0 + (diagonal - diagonal_m)/6.0;
+        output.r[i] = (neighbor_p-neighbor_m)/3.0f + (diagonal - diagonal_m)/6.0f;
     }
 
     opos /= valence;
@@ -157,9 +158,10 @@ void vs_main_patches( in InputVertex input,
     float3 e;
     output.e0 = float3(0,0,0);
     output.e1 = float3(0,0,0);
+
     for(uint i=0; i<valence; ++i) {
         uint im = (i + valence -1) % valence;
-        e = 0.5 * (f[i] + f[im]);
+        e = 0.5f * (f[i] + f[im]);
         output.e0 += csf(valence-3, 2*i) *e;
         output.e1 += csf(valence-3, 2*i + 1)*e;
     }
@@ -219,15 +221,19 @@ GregDomainVertex hs_main_patches(
     uint i = ID;
     uint ip = (i+1)%4;
     uint im = (i+3)%4;
-    uint n = uint(patch[i].valence);
+    uint valence = uint(patch[i].valence);
+    uint n = valence;
     int base = GregoryQuadOffsetBase;
 
     GregDomainVertex output;
     output.position = patch[ID].position;
 
-    uint start = g_QuadOffsetBuffer[int(4*(primitiveID+base) + i)] & 0x00ff;
-    uint prev = uint(g_QuadOffsetBuffer[int(4*(primitiveID+base) + i)]) & 0xff00;
-    prev=uint(prev/256);
+    uint start = uint(g_QuadOffsetBuffer[int(4*(primitiveID+base) + i)]) & 0x00ffu;
+    uint prev = uint(g_QuadOffsetBuffer[int(4*(primitiveID+base) + i)]) & 0xff00u;
+    prev = uint(prev/256);
+
+    uint np = abs(patch[ip].valence);
+    uint nm = abs(patch[im].valence);
 
     // Control Vertices based on : 
     // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation" 
@@ -253,26 +259,22 @@ GregDomainVertex hs_main_patches(
     //  P0         e0+      e1-         E1
     //
 
-    float3 Ep = patch[i].position + patch[i].e0 * csf(n-3, 2*start) + patch[i].e1*csf(n-3, 2*start +1);
+    float3 Ep = patch[i].position + patch[i].e0 * csf(n-3, 2*start) + patch[i].e1*csf(n-3, 2*start + 1);
     float3 Em = patch[i].position + patch[i].e0 * csf(n-3, 2*prev ) + patch[i].e1*csf(n-3, 2*prev + 1);
 
-    uint np = patch[ip].valence;
-    uint nm = patch[im].valence;
+    uint prev_p = uint(g_QuadOffsetBuffer[int(4*(primitiveID+base) + ip)]) & 0xff00u;
+    prev_p = uint(prev_p/256);
+    float3 Em_ip = patch[ip].position + patch[ip].e0*csf(np-3,2*prev_p) +patch[ip].e1*csf(np-3, 2*prev_p + 1);
 
-    uint prev_p = uint(g_QuadOffsetBuffer[int(4*(primitiveID+base) + ip)])&0xff00;
-    prev_p=uint(prev_p/256);
-    float3 Em_ip = patch[ip].position + patch[ip].e0*csf(np-3,2*prev_p) +patch[ip].e1*csf(np-3, 2*prev_p+1);
+    uint start_m = uint(g_QuadOffsetBuffer[int(4*(primitiveID+base) + im)]) & 0x00ffu;
+    float3 Ep_im = patch[im].position + patch[im].e0*csf(nm-3, 2*start_m) + patch[im].e1*csf(nm-3, 2*start_m + 1);
 
-    uint start_m = g_QuadOffsetBuffer[int(4*(primitiveID+base) + im)]&0x00ff;
-    float3 Ep_im = patch[im].position + patch[im].e0*csf(nm-3, 2*start_m) + patch[im].e1*csf(nm-3, 2*start_m+1);
-
-    float s1 = 3 - 2*csf(n-3,2)-csf(np-3,2);
+    float s1 = 3-2*csf(n-3,2)-csf(np-3,2);
     float s2 = 2*csf(n-3,2);
 
-    float3 Fp = (csf(np-3,2)*patch[i].position + s1*Ep + s2*Em_ip + patch[i].r[start])/3.0;
-
-    s1 = 3.0 -2.0*cos(2.0*M_PI/float(n)) - cos(2*M_PI/float(nm));
-    float3 Fm = (csf(nm-3,2)*patch[i].position + s1*Em +s2*Ep_im - patch[i].r[prev])/3.0;
+    float3 Fp = (csf(np-3,2)*patch[i].position + s1*Ep + s2*Em_ip + patch[i].r[start])/3.0f;
+    s1 = 3.0f-2.0f*cos(2.0*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
+    float3 Fm = (csf(nm-3,2)*patch[i].position + s1*Em +s2*Ep_im - patch[i].r[prev])/3.0f;
 
     output.Ep = Ep;
     output.Em = Em;
