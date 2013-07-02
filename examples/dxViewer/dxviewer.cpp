@@ -877,7 +877,7 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 static void
 display()
 {
-    float color[4] = {0.1f, 0.1f, 0.1f, 1.0f};
+    float color[4] = {0.006f, 0.006f, 0.006f, 1.0f};
     g_pd3dDeviceContext->ClearRenderTargetView(g_pSwapChainRTV, color);
 
     // Clear the depth buffer.
