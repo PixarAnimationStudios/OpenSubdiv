@@ -293,7 +293,6 @@ if( DXSDK_FOUND )
         hlslPatchCommon.hlsl
         hlslPatchBSpline.hlsl
         hlslPatchGregory.hlsl
-        hlslPatchBoundaryGregory.hlsl
         hlslPatchTransition.hlsl
     )
     list(APPEND PLATFORM_LIBRARIES

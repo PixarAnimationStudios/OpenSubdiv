@@ -78,9 +78,6 @@ static const char *bsplineShaderSource =
 static const char *gregoryShaderSource =
 #include "hlslPatchGregory.inc"
 ;
-static const char *boundaryGregoryShaderSource =
-#include "hlslPatchBoundaryGregory.inc"
-;
 static const char *transitionShaderSource =
 #include "hlslPatchTransition.inc"
 ;
@@ -156,15 +153,18 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->domainShader.entry = "ds_main_patches";
             break;
         case FarPatchTables::GREGORY_BOUNDARY:
-            sconfig->vertexShader.source = boundaryGregoryShaderSource;
+            sconfig->vertexShader.source = gregoryShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
-            sconfig->hullShader.source = boundaryGregoryShaderSource;
+            sconfig->vertexShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
+            sconfig->hullShader.source = gregoryShaderSource;
             sconfig->hullShader.target = "hs_5_0";
             sconfig->hullShader.entry = "hs_main_patches";
-            sconfig->domainShader.source = boundaryGregoryShaderSource;
+            sconfig->hullShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
+            sconfig->domainShader.source = gregoryShaderSource;
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
+            sconfig->domainShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
             break;
         default:
             delete sconfig;
