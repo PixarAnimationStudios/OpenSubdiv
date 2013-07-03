@@ -187,6 +187,10 @@ float TessAdaptive(vec3 p0, vec3 p1)
 #define OSD_DISPLACEMENT_CALLBACK
 #endif
 
+// ----------------------------------------------------------------------------
+// ptex coordinates
+// ----------------------------------------------------------------------------
+
 uniform isamplerBuffer g_ptexIndicesBuffer;
 
 #define GetPatchLevel()                                                 \
@@ -232,6 +236,85 @@ uniform isamplerBuffer g_ptexIndicesBuffer;
             outpt.v.tangent = normalize(Tangent);               \
         }                                                       \
     }
+
+// ----------------------------------------------------------------------------
+// face varyings
+// ----------------------------------------------------------------------------
+
+uniform samplerBuffer g_fvarDataBuffer;
+#line 10245
+
+#ifndef OSD_FVAR_WIDTH
+#define OSD_FVAR_WIDTH 0
+#endif
+
+// XXX: quad only for now
+float ComputeFaceVarying1(int fvarOffset, vec2 tessCoord)
+{
+    float v[4];
+    int primOffset = (gl_PrimitiveID + LevelBase) * 4;
+    for (int i = 0; i < 4; ++i) {
+        v[i] = texelFetch(g_fvarDataBuffer,
+                          (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset).s;
+    }
+    return mix(mix(v[0], v[1], tessCoord.s),
+               mix(v[3], v[2], tessCoord.s),
+               tessCoord.t);
+}
+vec2 ComputeFaceVarying2(int fvarOffset, vec2 tessCoord)
+{
+    vec2 v[4];
+    int primOffset = (gl_PrimitiveID + LevelBase) * 4;
+    for (int i = 0; i < 4; ++i) {
+        v[i] = vec2(texelFetch(g_fvarDataBuffer,
+                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset).s,
+                    texelFetch(g_fvarDataBuffer,
+                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 1).s);
+    }
+    return mix(mix(v[0], v[1], tessCoord.s),
+               mix(v[3], v[2], tessCoord.s),
+               tessCoord.t);
+}
+
+vec3 ComputeFaceVarying3(int fvarOffset, vec2 tessCoord)
+{
+    vec3 v[4];
+    int primOffset = (gl_PrimitiveID + LevelBase) * 4;
+    for (int i = 0; i < 4; ++i) {
+        v[i] = vec3(texelFetch(g_fvarDataBuffer,
+                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset).s,
+                    texelFetch(g_fvarDataBuffer,
+                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 1).s,
+                    texelFetch(g_fvarDataBuffer,
+                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 2).s);
+    }
+    return mix(mix(v[0], v[1], tessCoord.s),
+               mix(v[3], v[2], tessCoord.s),
+               tessCoord.t);
+}
+
+vec4 ComputeFaceVarying4(int fvarOffset, vec2 tessCoord)
+{
+    vec4 v[4];
+    int primOffset = (gl_PrimitiveID + LevelBase) * 4;
+    for (int i = 0; i < 4; ++i) {
+        v[i] = vec4(texelFetch(g_fvarDataBuffer,
+                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset).s,
+                    texelFetch(g_fvarDataBuffer,
+                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 1).s,
+                    texelFetch(g_fvarDataBuffer,
+                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 2).s,
+                    texelFetch(g_fvarDataBuffer,
+                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 3).s);
+    }
+    return mix(mix(v[0], v[1], tessCoord.s),
+               mix(v[3], v[2], tessCoord.s),
+               tessCoord.t);
+}
+
+// ----------------------------------------------------------------------------
+// patch culling
+// ----------------------------------------------------------------------------
 
 #ifdef OSD_ENABLE_PATCH_CULL
 

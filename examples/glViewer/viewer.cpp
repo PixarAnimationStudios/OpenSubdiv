@@ -1030,6 +1030,7 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
         break;
     case kFaceVaryingColor:
+        sconfig->commonShader.AddDefine("OSD_FVAR_WIDTH", "2");
         sconfig->commonShader.AddDefine("FACEVARYING_COLOR");
         sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
         break;
@@ -1079,7 +1080,7 @@ EffectDrawRegistry::_CreateDrawConfig(
     if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
         glUniform1i(loc, 3); // GL_TEXTURE3
     }
-    if ((loc = glGetUniformLocation(config->program, "g_uvFVarBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "g_fvarDataBuffer")) != -1) {
         glUniform1i(loc, 4); // GL_TEXTURE4
     }
 #else
@@ -1095,7 +1096,7 @@ EffectDrawRegistry::_CreateDrawConfig(
     if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
     }
-    if ((loc = glGetUniformLocation(config->program, "g_uvFVarBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "g_fvarDataBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
     }
 #endif
