@@ -242,7 +242,6 @@ uniform isamplerBuffer g_ptexIndicesBuffer;
 // ----------------------------------------------------------------------------
 
 uniform samplerBuffer g_fvarDataBuffer;
-#line 10245
 
 #ifndef OSD_FVAR_WIDTH
 #define OSD_FVAR_WIDTH 0
