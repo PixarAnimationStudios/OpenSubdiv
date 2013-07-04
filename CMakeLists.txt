@@ -256,7 +256,7 @@ find_package(PTex 2.0)
 find_package(PythonInterp 2.6)
 find_package(SWIG 1.3.40)
 find_package(Doxygen)
-
+find_package(Docutils 0.6)
 if (NOT APPLE AND OPENGL_FOUND)
     find_package(GLEW REQUIRED)
 endif()

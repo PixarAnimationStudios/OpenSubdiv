@@ -55,20 +55,156 @@
 #     a particular purpose and non-infringement.
 #
 
-if (DOXYGEN_FOUND)
+if (NOT NO_DOC)
 
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/OpenSubdiv.doxy ${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy @ONLY)
+    if (DOXYGEN_FOUND)
 
-    add_custom_target(doc
-        ${DOXYGEN_EXECUTABLE} 
-        ${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy  
-        WORKING_DIRECTORY 
-        ${CMAKE_INSTALL_PREFIX}/include
-        COMMENT "Generating API documentation with Doxygen" VERBATIM
-    )
-else()
-    
-    message(WARNING
-        "Doxyen was not found : support for Doxygen automated API documentation is disabled.")
-        
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/OpenSubdiv.doxy ${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy @ONLY)
+
+        add_custom_target(doc_doxy
+                ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy  
+            WORKING_DIRECTORY 
+                ${CMAKE_INSTALL_PREFIX}/include
+            COMMENT 
+                "Generating API documentation with Doxygen" VERBATIM
+        )
+
+        #list(APPEND DOC_TARGETS doc_doxy)
+    else()
+
+        message(WARNING
+            "Doxyen was not found : support for Doxygen automated API documentation is disabled.")
+
+    endif()
+
+
+
+    if (DOCUTILS_FOUND)
+
+        set(HTML_FILES
+             search.html
+        )
+
+        set(RST_FILES 
+            api_overview.rst
+            intro.rst 
+            cmake_build.rst
+            code_examples.rst
+            getting_started.rst
+            glviewer.rst
+            release_notes.rst 
+            subdivision_surfaces.rst 
+            using_opensubdiv.rst
+        )
+
+        # process rst markup files
+        foreach(src ${RST_FILES})
+            get_filename_component(BASENAME ${src} NAME_WE)
+
+            set(infile ${CMAKE_CURRENT_SOURCE_DIR}/${src})
+            set(outfile ${CMAKE_CURRENT_BINARY_DIR}/${BASENAME}.html)
+
+            add_custom_command(
+                OUTPUT 
+                    ${outfile} 
+                COMMAND 
+                    ${RST2HTML_EXECUTABLE}
+                ARGS 
+                    --date
+                    --time
+                    --no-xml-declaration 
+                    --initial-header-level=3
+                    --strip-comments 
+                    --stylesheet=css/rst.css
+                    --link-stylesheet
+                    ${infile} ${outfile} 
+                DEPENDS
+                    ${infile}
+            )
+
+            add_custom_target(${src} ALL DEPENDS ${outfile})
+
+            list(APPEND RST_TARGETS ${src})
+
+            install( 
+                FILES
+                    ${outfile}
+                DESTINATION 
+                    ${CMAKE_INSTALL_PREFIX}/documentation
+                PERMISSIONS 
+                    OWNER_READ GROUP_READ WORLD_READ 
+            )
+
+        endforeach()
+
+        # copy html files to the build area
+        foreach(src ${HTML_FILES})
+            set(infile ${CMAKE_CURRENT_SOURCE_DIR}/${src})
+            set(outfile ${CMAKE_CURRENT_BINARY_DIR}/${src})
+
+            add_custom_command(
+                OUTPUT
+                    ${outfile}
+                COMMAND
+                    ${CMAKE_COMMAND}
+                ARGS
+                    -E copy ${infile} ${outfile}
+            )
+
+            add_custom_target( ${src} ALL DEPENDS ${outfile})
+
+            list(APPEND HTML_TARGETS ${src})
+
+            install( 
+                FILES
+                    ${outfile}
+                DESTINATION 
+                    ${CMAKE_INSTALL_PREFIX}/documentation
+            )
+        endforeach()
+
+        # build search index and insert navigation tab
+        if (PYTHONINTERP_FOUND)
+
+            add_custom_target(search_index ALL
+                COMMAND
+                    ${PYTHON_EXECUTABLE} 
+                    ${CMAKE_CURRENT_SOURCE_DIR}/processHtml.py 
+                    ${CMAKE_CURRENT_BINARY_DIR} 
+                    ${CMAKE_INSTALL_PREFIX}/documentation
+                    ${CMAKE_CURRENT_SOURCE_DIR}/nav_template.txt
+                DEPENDS 
+                    ${HTML_TARGETS} ${RST_TARGETS}
+            )
+
+            install( 
+                DIRECTORY
+                    tipuesearch
+                DESTINATION 
+                    ${CMAKE_INSTALL_PREFIX}/documentation
+            )
+        endif()
+
+
+        add_custom_target(doc_html DEPENDS ${HTML_TARGETS} ${RST_TARGETS} )
+
+        install( 
+            DIRECTORY
+                images
+            DESTINATION 
+                ${CMAKE_INSTALL_PREFIX}/documentation
+        )
+
+        install( 
+            DIRECTORY
+                css
+            DESTINATION 
+                ${CMAKE_INSTALL_PREFIX}/documentation
+        )
+
+        list(APPEND DOC_TARGETS doc_html)
+    endif()
+
+    add_custom_target(doc DEPENDS ${DOC_TARGETS})
+
 endif()
