@@ -70,21 +70,30 @@ set(PUBLIC_HEADER_FILES
     drawController.h
 )
 
-#-------------------------------------------------------------------------------
-# OpenCL code & dependencies
-if ( OPENCL_FOUND )
-    list(APPEND PUBLIC_HEADER_FILES
-        batchCL.h
-    )
-endif()
+set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
 
 #-------------------------------------------------------------------------------
-# platform dependent tweaks
+# OpenCL code & dependencies
+
+set(OPENCL_PUBLIC_HEADER_FILES
+    batchCL.h
+)
+
+if ( OPENCL_FOUND )
+    list(APPEND PUBLIC_HEADER_FILES ${OPENCL_PUBLIC_HEADER_FILES} )
+endif()
+
+list(APPEND DOXY_HEADER_FILES ${OPENCL_PUBLIC_HEADER_FILES} )
+
+#-------------------------------------------------------------------------------
+
+_add_doxy_headers( "${DOXY_HEADER_FILES}" )
 
 install( FILES ${PUBLIC_HEADER_FILES}
          DESTINATION include/osdutil
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
 
+# platform dependent tweaks
 if (ANDROID)
     install( FILES Android.mk 
              DESTINATION ${LIBRARY_OUTPUT_PATH_ROOT}

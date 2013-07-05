@@ -138,17 +138,20 @@ if (len(sys.argv)<3):
 
 rootDir = str(sys.argv[1])    
     
-outputDir = str(sys.argv[2])
-
-f = open( str(sys.argv[3]), "r")
+f = open( str(sys.argv[2]), "r")
 navHtml = f.read()
 f.close()
 
-print "rootDir="+rootDir+" outputDir="+outputDir
+print "Scanning :"+rootDir
 
 searchIndex = 'var tipuesearch = { "pages": [ '
 
 for root, dirs, files in os.walk(rootDir):
+
+    # skip doxygen generated HTML
+    if 'doxy_html' in dirs:
+        dirs.remove('doxy_html')
+
     for f in files:
 
         inputFile = os.path.join(root, f)
@@ -191,5 +194,5 @@ for root, dirs, files in os.walk(rootDir):
 
 searchIndex = searchIndex + "]};"
 
-WriteIndexFile( os.path.join(outputDir, "tipuesearch", "tipuesearch_content.js"), searchIndex )
+WriteIndexFile( os.path.join(rootDir, "tipuesearch", "tipuesearch_content.js"), searchIndex )
 

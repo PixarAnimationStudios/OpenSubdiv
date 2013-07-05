@@ -104,7 +104,7 @@
             <hr>
             <li><a href="release_notes.html">Release Notes</a>
             <hr>
-            <li><a href="html/index.html">Doxygen</a></li>
+            <li><a href="doxy_html/index.html" target="_blank">Doxygen</a></li>
         </ul>
     </div>
     <hr>

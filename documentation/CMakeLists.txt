@@ -64,12 +64,21 @@ if (NOT NO_DOC)
         add_custom_target(doc_doxy
                 ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy  
             WORKING_DIRECTORY 
-                ${CMAKE_INSTALL_PREFIX}/include
+                ${CMAKE_BINARY_DIR}/public_headers/
+            DEPENDS
+                public_headers
             COMMENT 
                 "Generating API documentation with Doxygen" VERBATIM
         )
 
         list(APPEND DOC_TARGETS doc_doxy)
+
+        install( 
+            DIRECTORY
+                ${CMAKE_CURRENT_BINARY_DIR}/doxy_html
+            DESTINATION 
+                ${CMAKE_INSTALL_PREFIX}/documentation
+        )
         
     else()
 
@@ -80,7 +89,7 @@ if (NOT NO_DOC)
 
 
 
-    if (DOCUTILS_FOUND)
+    if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
 
         set(HTML_FILES
              search.html
@@ -125,7 +134,7 @@ if (NOT NO_DOC)
                     ${infile}
             )
 
-            add_custom_target(${src} ALL DEPENDS ${outfile})
+            add_custom_target(${src} DEPENDS ${outfile})
 
             list(APPEND RST_TARGETS ${src})
 
@@ -154,7 +163,7 @@ if (NOT NO_DOC)
                     -E copy ${infile} ${outfile}
             )
 
-            add_custom_target( ${src} ALL DEPENDS ${outfile})
+            add_custom_target( ${src} DEPENDS ${outfile})
 
             list(APPEND HTML_TARGETS ${src})
 
@@ -166,41 +175,62 @@ if (NOT NO_DOC)
             )
         endforeach()
 
+        # copy the site resources to the build area so that the 
+        # documentation can be read without an install
+        add_custom_target(doc_html_images
+            COMMAND
+                ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/images ${CMAKE_CURRENT_BINARY_DIR}/images
+        )
+
+        add_custom_target(doc_html_css
+            COMMAND
+                ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/css ${CMAKE_CURRENT_BINARY_DIR}/css
+        )
+
+        add_custom_target(doc_tipuesearch
+            COMMAND
+                ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/tipuesearch ${CMAKE_CURRENT_BINARY_DIR}/tipuesearch
+        )
+        
         # build search index and insert navigation tab
-        if (PYTHONINTERP_FOUND)
+        add_custom_target(search_index
+            COMMAND
+                ${PYTHON_EXECUTABLE} 
+                ${CMAKE_CURRENT_SOURCE_DIR}/processHtml.py 
+                ${CMAKE_CURRENT_BINARY_DIR} 
+                ${CMAKE_CURRENT_SOURCE_DIR}/nav_template.txt
+            DEPENDS 
+                ${HTML_TARGETS} ${RST_TARGETS} doc_tipuesearch
+        )
+        
+        add_custom_target(doc_html 
+            DEPENDS 
+                search_index 
+                ${HTML_TARGETS} 
+                ${RST_TARGETS} 
+                doc_html_images 
+                doc_html_css 
+                doc_tipuesearch
+        )
+         
+        install( 
+            DIRECTORY
+                ${CMAKE_CURRENT_BINARY_DIR}/tipuesearch
+            DESTINATION 
+                ${CMAKE_INSTALL_PREFIX}/documentation
+        )
 
-            add_custom_target(search_index ALL
-                COMMAND
-                    ${PYTHON_EXECUTABLE} 
-                    ${CMAKE_CURRENT_SOURCE_DIR}/processHtml.py 
-                    ${CMAKE_CURRENT_BINARY_DIR} 
-                    ${CMAKE_INSTALL_PREFIX}/documentation
-                    ${CMAKE_CURRENT_SOURCE_DIR}/nav_template.txt
-                DEPENDS 
-                    ${HTML_TARGETS} ${RST_TARGETS}
-            )
-
-            install( 
-                DIRECTORY
-                    tipuesearch
-                DESTINATION 
-                    ${CMAKE_INSTALL_PREFIX}/documentation
-            )
-        endif()
-
-
-        add_custom_target(doc_html DEPENDS ${HTML_TARGETS} ${RST_TARGETS} )
 
         install( 
             DIRECTORY
-                images
+                ${CMAKE_CURRENT_BINARY_DIR}/images
             DESTINATION 
                 ${CMAKE_INSTALL_PREFIX}/documentation
         )
 
         install( 
             DIRECTORY
-                css
+                ${CMAKE_CURRENT_BINARY_DIR}/css
             DESTINATION 
                 ${CMAKE_INSTALL_PREFIX}/documentation
         )
@@ -208,6 +238,6 @@ if (NOT NO_DOC)
         list(APPEND DOC_TARGETS doc_html)
     endif()
 
-    add_custom_target(doc DEPENDS ${DOC_TARGETS})
+    add_custom_target(doc ALL DEPENDS ${DOC_TARGETS})
 
 endif()

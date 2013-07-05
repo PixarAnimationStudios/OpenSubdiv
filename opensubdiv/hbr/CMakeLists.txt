@@ -55,6 +55,7 @@
 #     a particular purpose and non-infringement.
 #
 
+#-------------------------------------------------------------------------------
 set(PUBLIC_HEADER_FILES
     allocator.h
     bilinear.h
@@ -75,6 +76,11 @@ set(PUBLIC_HEADER_FILES
     vertex.h
 )
 
+#-------------------------------------------------------------------------------
+_add_doxy_headers( "${PUBLIC_HEADER_FILES}" )
+
 install( FILES ${PUBLIC_HEADER_FILES}
          DESTINATION ${CMAKE_INCDIR_BASE}/hbr
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+
+#-------------------------------------------------------------------------------

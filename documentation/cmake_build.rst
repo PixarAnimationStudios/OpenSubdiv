@@ -142,9 +142,12 @@ The following configuration arguments can be passed to the cmake command line.
    -DGLFW_LOCATION=[path to GLFW]
    -DMAYA_LOCATION=[path to Maya]
    
-   -DNO_OMP=1 // disable OpenMP
-   -DNO_GCD=1 // disable GrandCentralDispatch on OSX
-   -DNO_DOC=1 // disable documentation build
+   -DNO_EXAMPLES=1   // disable examples build
+   -DNO_REGRESSION=1 // disable regression tests build
+   -DNO_PYTHON=1     // disable Python SWIG build
+   -DNO_DOC=1        // disable documentation build
+   -DNO_OMP=1        // disable OpenMP
+   -DNO_GCD=1        // disable GrandCentralDispatch on OSX
 
 Environment Variables
 _____________________
