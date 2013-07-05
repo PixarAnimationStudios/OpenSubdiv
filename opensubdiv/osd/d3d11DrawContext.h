@@ -96,7 +96,7 @@ public:
 
     virtual ~OsdD3D11DrawContext();
 
-    /// \brienf Create an OsdD3D11DrawContext from FarPatchTables
+    /// \brief Create an OsdD3D11DrawContext from FarPatchTables
     ///
     /// @param patchTables          a valid set of FarPatchTables
     ///
