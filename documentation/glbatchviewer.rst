@@ -1,4 +1,4 @@
-<!--
+..  
        Copyright (C) Pixar. All rights reserved.
   
        This license governs use of the accompanying software. If you
@@ -53,60 +53,61 @@
        To the extent permitted under your local laws, the contributors
        exclude the implied warranties of merchantability, fitness for
        a particular purpose and non-infringement.
-//-->
+  
 
-<div class="navigation">
-    <br>
-    <div>
-        <a href="intro.html"><img src="images/opensubdiv_logo_header.png" width=150 align="right" hspace=10></a>
-        <br style="clear:both" />
-    </div>
-    <hr>
-    <div class="searchBar">
-        <form action="search.html">
-            <input type="text" name="q" id="searchInput" />
-            <input type="button" id="searchButton" onclick="this.form.submit();" value="Search" />
-        </form>
-    </div>
-    <div class="quickLinks">
-        <ul>
-            <hr>
-            <li><a href="intro.html">Introduction</a></li>
-            <li><a href="getting_started.html">Getting Started</a></li>
-            <li><a href="cmake_build.html">Building OpenSubdiv</a></li>
-            <li><a href="code_examples.html">Code Examples</a></li>
-            <hr>
-            <li><a href="subdivision_surfaces.html">Subdivision Surfaces</a>
-                <ul>
-                    <li><a href="subdivision_surfaces.html">Schemes</a></li>
-                    <li><a href="subdivision_surfaces.html">Creases</a></li>
-                    <li><a href="subdivision_surfaces.html">Hierarchical Edits</a></li>
-                    <li><a href="subdivision_surfaces.html">Topology</a></li>
-                </ul>
-            </li>
-            <hr>
-            <li><a href="api_overview.html">API Overview</a>
-                <ul>
-                    <li><a href="api_overview.html#hierarchical-boundary-representation-hbr">Hbr</a></li>
-                    <li><a href="api_overview.html#feature-adaptive-representation-far">Far</a></li>
-                    <li><a href="api_overview.html#opensubdiv-osd">Osd</a></li>
-                </ul>
-            </li>
-            <hr>
-            <li><a href="using_opensubdiv.html">Using OpenSubdiv</a>
-                <ul>
-                    <li><a href="using_opensubdiv.html#compiling-linking">Compiling & Linking</a></li>
-                    <li><a href="using_opensubdiv.html">Manipulating Topology</a></li>
-                    <li><a href="using_opensubdiv.html">Writing Shaders</a></li>
-                    <li><a href="using_opensubdiv.html">Primitive Batching</a></li>
-                </ul>
-            </li>
-            <hr>
-            <li><a href="release_notes.html">Release Notes</a>
-            <hr>
-            <li><a href="html/index.html">Doxygen</a></li>
-        </ul>
-    </div>
-    <hr>
-    <br>
-</div>
+glBatchViewer
+-------------
+
+.. contents::
+   :local:
+   :backlinks: none
+
+SYNOPSIS
+========
+
+.. parsed-literal:: 
+   :class: codefhead
+
+   **glBatchViewer** [**-d** *isolation level*] [**-c** *animation loops*] [**-f**] *objfile(s)*
+
+DESCRIPTION
+===========
+
+``glBatchViewer`` is a stand-alone application that showcases the primitive 
+batching capabilities of the OpenSubdiv API. Batching is an optimization that
+enables the merging together of the data tables of many primitives in order to
+reduce the number of GPU calls.
+
+Multiple controls are available to experiment with the algorithms.
+
+.. image:: images/glbatchviewer.png 
+   :width: 400px
+   :align: center
+   :target: images/glbatchviewer.png 
+
+
+OPTIONS
+=======
+
+**-d** *isolation level*
+  Select the desired isolation level of adaptive feature isolation. This can be 
+  useful when trying to load large pieces of geometry.
+
+**-c** *animation frequency*
+  Number of repetitions of the animtion loop (default=0 is infinite)
+
+**-f**
+  Launches the application in full-screen mode (if is supported by GLFW on the
+  OS)
+
+Keyboard Controls
+=================
+
+   .. code:: c++
+   
+      . ,      : increase / decrease the number of animated primitives
+      i, o     : add / remove primitives
+
+SEE ALSO
+========
+

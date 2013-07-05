@@ -972,7 +972,7 @@ int main(int argc, char ** argv)
         return 1;
     }
 
-    static const char windowTitle[] = "OpenSubdiv glViewer";
+    static const char windowTitle[] = "OpenSubdiv glBatchViewer";
     
 #define CORE_PROFILE
 #ifdef CORE_PROFILE

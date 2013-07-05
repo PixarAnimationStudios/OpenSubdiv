@@ -69,7 +69,8 @@ if (NOT NO_DOC)
                 "Generating API documentation with Doxygen" VERBATIM
         )
 
-        #list(APPEND DOC_TARGETS doc_doxy)
+        list(APPEND DOC_TARGETS doc_doxy)
+        
     else()
 
         message(WARNING
@@ -92,6 +93,8 @@ if (NOT NO_DOC)
             code_examples.rst
             getting_started.rst
             glviewer.rst
+            glbatchviewer.rst
+            ptexviewer.rst
             release_notes.rst 
             subdivision_surfaces.rst 
             using_opensubdiv.rst

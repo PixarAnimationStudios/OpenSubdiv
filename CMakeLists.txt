@@ -528,6 +528,4 @@ endif()
 
 add_subdirectory(examples)
 
-if (DOXYGEN_FOUND)
-    add_subdirectory(documentation)
-endif()
+add_subdirectory(documentation)

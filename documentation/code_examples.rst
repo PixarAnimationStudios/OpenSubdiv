@@ -58,11 +58,20 @@
 Code Examples
 -------------
 
+Standalone Viewers
+==================
+
+OpenSubdiv builds a number of standalone viewers that demonstrate various aspects 
+of the software.
+
+----
+
 .. list-table:: **OpenGL examples**
    :class: quickref
    :widths: 50 50
    
    * - | `glViewer <glviewer.html>`_
+       | `glBatchViewer <glbatchviewer.html>`_
        | `ptexViewer <ptexviewer.html>`_
      - | `paintTest <painttest.html>`_
        | `evalLimit <evallimit.html>`_
@@ -80,3 +89,22 @@ Code Examples
 
    * - | `mayaViewer <mayaviewer.html>`_
      - | `mayaPtexViewer <mayaptexviewer.html>`_
+
+----
+
+Common Keyboard Controls
+========================
+
+   .. code:: c++
+   
+      Left mouse button drag   : orbit camera
+      Middle mouse button drag : pan camera
+      Right mouse button       : dolly camera
+      n, p                     : next/prev model
+      1, 2, 3, ..., 9, 0       : specify adaptive isolation or uniform refinment level
+      +, -                     : increase / decrease tessellation 
+      Tab                      : toggle full-screen
+      Esc                      : turn on / off the HUD
+      w                        : switch display mode
+      q                        : quit
+

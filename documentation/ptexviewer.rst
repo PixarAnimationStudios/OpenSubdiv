@@ -1,4 +1,4 @@
-<!--
+..  
        Copyright (C) Pixar. All rights reserved.
   
        This license governs use of the accompanying software. If you
@@ -53,60 +53,113 @@
        To the extent permitted under your local laws, the contributors
        exclude the implied warranties of merchantability, fitness for
        a particular purpose and non-infringement.
-//-->
+  
 
-<div class="navigation">
-    <br>
-    <div>
-        <a href="intro.html"><img src="images/opensubdiv_logo_header.png" width=150 align="right" hspace=10></a>
-        <br style="clear:both" />
-    </div>
-    <hr>
-    <div class="searchBar">
-        <form action="search.html">
-            <input type="text" name="q" id="searchInput" />
-            <input type="button" id="searchButton" onclick="this.form.submit();" value="Search" />
-        </form>
-    </div>
-    <div class="quickLinks">
-        <ul>
-            <hr>
-            <li><a href="intro.html">Introduction</a></li>
-            <li><a href="getting_started.html">Getting Started</a></li>
-            <li><a href="cmake_build.html">Building OpenSubdiv</a></li>
-            <li><a href="code_examples.html">Code Examples</a></li>
-            <hr>
-            <li><a href="subdivision_surfaces.html">Subdivision Surfaces</a>
-                <ul>
-                    <li><a href="subdivision_surfaces.html">Schemes</a></li>
-                    <li><a href="subdivision_surfaces.html">Creases</a></li>
-                    <li><a href="subdivision_surfaces.html">Hierarchical Edits</a></li>
-                    <li><a href="subdivision_surfaces.html">Topology</a></li>
-                </ul>
-            </li>
-            <hr>
-            <li><a href="api_overview.html">API Overview</a>
-                <ul>
-                    <li><a href="api_overview.html#hierarchical-boundary-representation-hbr">Hbr</a></li>
-                    <li><a href="api_overview.html#feature-adaptive-representation-far">Far</a></li>
-                    <li><a href="api_overview.html#opensubdiv-osd">Osd</a></li>
-                </ul>
-            </li>
-            <hr>
-            <li><a href="using_opensubdiv.html">Using OpenSubdiv</a>
-                <ul>
-                    <li><a href="using_opensubdiv.html#compiling-linking">Compiling & Linking</a></li>
-                    <li><a href="using_opensubdiv.html">Manipulating Topology</a></li>
-                    <li><a href="using_opensubdiv.html">Writing Shaders</a></li>
-                    <li><a href="using_opensubdiv.html">Primitive Batching</a></li>
-                </ul>
-            </li>
-            <hr>
-            <li><a href="release_notes.html">Release Notes</a>
-            <hr>
-            <li><a href="html/index.html">Doxygen</a></li>
-        </ul>
-    </div>
-    <hr>
-    <br>
-</div>
+ptexViewer
+----------
+
+.. contents::
+   :local:
+   :backlinks: none
+
+SYNOPSIS
+========
+
+.. parsed-literal:: 
+   :class: codefhead
+
+   **ptexViewer** 
+   [**-e** *environment map*]
+   [**-d** *HDR diffuse map*]
+   [**-s** *HDR specular map*]
+   [**-y**]
+   [**--disp** *displacement scale*]
+   [**--bump** *bump scale*]
+   [**-l** *isolation level*] 
+   [**-c** *animation loops*] 
+   [**-f**] 
+   *ptex color file*
+   *ptex displacement file*
+   *ptex occlusion file*
+   *ptex specular file*
+   *objfile(s)*
+
+DESCRIPTION
+===========
+
+``ptexViewer`` is a stand-alone application that showcases advanced HDR shading
+with color, displacement, occlusion and specular ptex maps. Multiple controls 
+are available to experiment with the algorithms.
+
+.. image:: images/ptexviewer.png 
+   :width: 400px
+   :align: center
+   :target: images/ptexviewer.png 
+
+OPTIONS
+=======
+
+**-e** *environment map*
+  A low dynamic range spherical environment map used as a background. Ideally,
+  a color-normalized version of the HDR light probe.
+
+**-d** *HDR diffuse map*
+  An HDR file containing a diffuse environment map (typically they are low
+  resolution blurry hemispherical convolutions of the environment light probe).
+
+**-s** *environment map*
+  An HDR file containing a specular environment map.
+
+**--disp** *displacement scale*
+  A scalar multiplier for the shader displacement values.
+
+**--bump** *displacement scale*
+  A scalar multiplier for the shader bump values.
+
+**-y**
+  Swap Z-up geometry to Y-UP.
+
+**-l** *isolation level*
+  Select the desired isolation level of adaptive feature isolation. This can be 
+  useful when trying to load large pieces of geometry.
+
+**-c** *animation frequency*
+  Number of repetitions of the animtion loop (default=0 is infinite)
+
+**-f**
+  Launches the application in full-screen mode (if is supported by GLFW on the
+  OS)
+
+*ptex color file*
+  A ptex file containing RGB channels read as material albedo color.
+  
+*ptex displacement file*
+  A single-channel ptex file (preferrably float precision) containing the 
+  displacement values.
+
+*ptex occlusion file*
+  A single-channel ptex file (preferrably 8 bits precision) containing a 
+  pre-computed ambient occlusion signal.
+
+*ptex specular file*
+  A single-channel ptex file (preferrably 8 bits precision) applied to modulate
+  the specular reflectance of the material
+  
+*objfile(s)*
+  A sequence of obj files used as an animation loop (the topology has to match
+  the data contained in all the ptex files !)
+
+
+Keyboard Controls
+=================
+
+   .. code:: c++
+   
+      e      : draw normals
+      g      : toggle ptex texel guttering
+      r      : reload and re-compile the shader files
+
+
+SEE ALSO
+========
+

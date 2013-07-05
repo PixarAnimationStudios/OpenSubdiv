@@ -106,8 +106,8 @@ our 'dev' branch. Before we can accept submissions however, we will need a signe
 Branches & Git Flow
 ===================
 
-Since version 1.1.0, OpenSubdiv has adopted the 
-`Git Flow branching model <http://nvie.com/posts/a-successful-git-branching-model/>`__.
+Since version 1.1.0, OpenSubdiv has adopted the `Git Flow 
+<http://nvie.com/posts/a-successful-git-branching-model/>`__ branching model .
 
 Our active development branch is named 'dev' : all new features and buf fixes should
 be submitted to this branch. The changes submitted to the dev branch are periodically

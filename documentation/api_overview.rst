@@ -63,7 +63,87 @@ API Overview
    :backlinks: none
 
 
-The OpenSubdiv API is structured in 3 global layers: Hbr, Far and Osd.
+Architecture Overview
+=====================
+
+Because OpenSubdiv software is intended to run on a variete of discrete compute
+resources, the API architecture has to accomodate a fairly complex matrix of
+interoperations. In order to achieve the requisite flexibility, the code structure
+is both layered and modular.
+
+----
+
+Opt-In Features
+===============
+
+XXXX
+
+----
+
+Layers
+======
+
+From a top-down point of view, OpenSubdiv is comprised of 3 layers : Hbr, Far and 
+Osd. 
+
+.. image:: images/api_hbr_far_osd.png
+   :align: center
+
+Data flows are mostly 1-directional, from top to bottom as a number of algorithms 
+are preparing the coarse mesh data to be refined and passing their results to 
+the next element in the processing chain.
+
+----
+
+Representation vs. Implementation Layers
+****************************************
+
+One of the core performance goals of our subdivision algorithms is to leverage
+interactive performance out of massively parallel code execution wherever 
+possible. In order to support a large diversity of discrete compute devices through
+multiple dedicated SDKs, it is critical to distill the critical computations into
+the smallest and simplest kernels possible. These can in turn be safely ported and 
+optimized for each of the hardware platforms. 
+
+.. image:: images/api_layers.png
+   :align: center
+
+This separation of general purpose against hardware-specific code is translated into
+two types of layers : the **implementation** layer against the **representation** 
+layers.
+
+----
+
+Multiple Representations
+************************
+
+The coarse mesh of a subdivision surface is represented by a collection of 
+components that maintain relationships to each other. 
+
+.. image:: images/api_mesh_data.png
+   :align: center
+
+For instance:
+  - vertex to incident edge
+  - edge to origin and destination vertex
+  - face to edges
+
+This allows authoring applications to easily access "neighboring" components 
+in order to make topology edits or manipulate properties of the components 
+themselves. The key to achieving efficient many-core processing is to reduce data
+interdependencies. However, by definition, the bulk of topological mesh data is 
+the very description of the connections (dependencies) between vertices. 
+
+.. image:: images/api_serialized_data.png
+   :align: center
+
+This is why OpenSubdiv provides specific representations for mesh data: 
+  - Hbr is a half-edge relational representation
+  - Far is a serialized representation
+
+A typical workflow is to manipulate Hbr meshes in authoring applications. Once the
+topology of the mesh has stabilized, it is processed into a serialized form that
+can then be evaluated at interactive framerates.
 
 ----
 
@@ -76,7 +156,9 @@ editing purposes. It is however inefficient for interactive refinement operation
 Separate objects are allocated for each vertex and edge with pointers to neighboring 
 vertices and edges.
 
-Hbr is also the lowest-level subdivision library in Pixar's Photorealistic RenderMan.
+Hbr is also the lowest-level subdivision library in Pixar's `Photorealistic RenderMan`.
+
+----
 
 Half-edge Data Structure
 ************************
@@ -85,6 +167,8 @@ The current implementation is based on a half-edge data structure.
 
 .. image:: images/half_edge.png
    :align: center
+
+----
 
 Half-edge cycles and Manifold Topology
 **************************************
@@ -97,6 +181,8 @@ edge can only access a single neighboring edge cycle.
    
 This is a fundamental limitation of the half-edge data structure, in that it
 cannot represent non-manifold geometry, in particular fan-type topologies.
+
+----
 
 Templated Vertex Class
 **********************

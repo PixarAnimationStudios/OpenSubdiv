@@ -61,24 +61,25 @@ ________________________*/
 
 
 pre, code {
-	border: 1px dashed #555555;
-	background:#222;
-	padding: 5px 10px;
-	line-height: 21px;
-	word-wrap:break-word;
-	text-align: left;
-	width: 96%;
-	-moz-border-radius: 5px;
-	-webkit-border-radius: 5px;
+    border: 1px dashed #555555;
+    background:#222;
+    padding: 5px 10px;
+    line-height: 21px;
+    word-wrap:break-word;
+    text-align: left;
+    width: 96%;
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
 }
 .code-keyword {
-	color:#036eff;
+    color:#036eff;
 }
 .code-quote {
-	color:#13db03;
+    color:#13db03;
 }
 .code-object {
-	color:#e403ff;
+    color:#e403ff;
 }
 
 

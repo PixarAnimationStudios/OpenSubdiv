@@ -63,10 +63,34 @@ Release Notes
    :backlinks: none
 
 
+----
+
 Release 1.2.4
 =============
 
-- Adding a much needed API documention system based on Docutils RST markup.
+- Adding support for fractional tessellation of patches
+- Adding a much needed API documention system based on Docutils RST markup
+- Adding support for face-varying interpolation in GLSL APIs
+- Adding varying data buffers to OsdMesh
+- Adding accessors to the vertex buffers in OsdGlMesh
+- Adding face-varying data to regression shapes
+- Cleanup of common bicubic patch shader code (GLSL / HLSL) for portability 
+  (ATI / OSX drivers)
+- Fix FarVertexEditTablesFactory to insert properly vertex edit batches
+  (fixes incorrect hierarchical hole in regression shape)
+- Fix FarPatchMap quadtree to not drop top-level non-quad faces
+- Fix Gregory patches bug with incorrect max-valence
+- Fix FarPatchTables::GetNumFaces() and FarPatchTables::GetFaceVertices()
+  functions to return the correct values
+- Fix face indexing GLSL code (ptex works on non-quads again)
+- Fix face-varying data splicing in FarMultiMeshFactory
+- Fix ptex face indexing in FarMultiMeshFactory
+- Fix glew #include to not break builds
+- Fix Clang / ICC build failures with FarPatchTables 
+- Fix build and example code to work with GFLW 3.0+
+- Fix cmake to have ptex dynamically linked in OSX
+
+----
 
 Release 1.2.3
 =============
@@ -87,6 +111,8 @@ Release 1.2.3
 - FarPatchTables : fix IsFeatureAdaptive() to return the correct answer
 - Fix Far factories to handle the absence of face-varying data correctly.
 - Many GLSL shader code style fixes which should help with ATI / OSX shader compiling
+
+----
 
 Release 1.2.2
 =============
@@ -114,10 +140,14 @@ Release 1.2.2
    :align: center
    :target: images/evalLimit_hedit0.jpg
 
+----
+
 Release 1.2.1
 =============
 
 - Added CUDA runtime error checking
+
+----
 
 Release 1.2.0
 =============
@@ -127,10 +157,14 @@ Release 1.2.0
 - Fix GLSL transform feedback initialization bug in ptexViewer
 - Minor bug & typo fixes
 
+----
+
 Release 1.1.0
 =============
 
 - release initiated because of the switch to Git Flow
+
+----
 
 Release 1.0.0
 =============

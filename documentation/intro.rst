@@ -138,6 +138,10 @@ This code is live, so Pixar's changes to OpenSubdiv for current and future films
 will be released as open source at the same time they are rolled out to Pixar 
 animation production.
 
+    | *Subdivision for Modeling and Animation*
+    | Denis Zorin, Peter Schroder
+    | Course Notes of SIGGRAPH 1999
+    |
     | *Subdivision Surfaces in Character Animation*
     | Tony DeRose, Michael Kass, Tien Truong
     | Proceedings of SIGGRAPH 1998

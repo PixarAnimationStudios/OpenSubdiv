@@ -94,7 +94,7 @@ OPTIONS
 
 **-f**
   Launches the application in full-screen mode (if is supported by GLFW on the
-  OS).
+  OS)
 
 SEE ALSO
 ========
