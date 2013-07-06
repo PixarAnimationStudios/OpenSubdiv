@@ -55,62 +55,50 @@
        a particular purpose and non-infringement.
   
 
-Code Examples
--------------
+dxViewer
+--------
 
-Standalone Viewers
-==================
+.. contents::
+   :local:
+   :backlinks: none
 
-OpenSubdiv builds a number of standalone viewers that demonstrate various aspects 
-of the software.
+SYNOPSIS
+========
 
-----
+.. parsed-literal:: 
+   :class: codefhead
 
-.. list-table:: **OpenGL examples**
-   :class: quickref
-   :widths: 50 50
-   
-   * - | `glViewer <glviewer.html>`_
-       | `glBatchViewer <glbatchviewer.html>`_
-       | `ptexViewer <ptexviewer.html>`_
-     - | `paintTest <painttest.html>`_
-       | `limitEval <limiteval.html>`_
+   **dxViewer** [**-f**] *objfile(s)*
 
-.. list-table:: **DirectX examples**
-   :class: quickref
-   :widths: 50 50
-   
-   * - | `dxViewer <dxviewer.html>`_
-     - |
+DESCRIPTION
+===========
 
-.. list-table:: **Plugin examples**
-   :class: quickref
-   :widths: 50 50
-
-   * - | `mayaViewer <mayaviewer.html>`_
-     - | `mayaPtexViewer <mayaptexviewer.html>`_
+``glViewer`` is a stand-alone application that showcases the application of 
+uniform and feature adaptive subdivision schemes to a collection of geometric
+shapes. Multiple controls are available to experiment with the algorithms.
 
 
-Note : the Maya plugins are currently unsupported and they may fail to compile
-or work with current versions of OpenSubdiv. These were originally written for 
-the sole purpose of live demonstrations and the code is provided only as an 
-implementation example.
+.. container:: impnotip
 
-----
+   * **Note:** 
+     
+      dxViewer requires Microsoft's DirectX 11 SDK
 
-Common Keyboard Controls
-========================
+OPTIONS
+=======
 
-   .. code:: c++
-   
-      Left mouse button drag   : orbit camera
-      Middle mouse button drag : pan camera
-      Right mouse button       : dolly camera
-      n, p                     : next/prev model
-      1, 2, 3, ..., 9, 0       : specify adaptive isolation or uniform refinment level
-      +, -                     : increase / decrease tessellation 
-      Tab                      : toggle full-screen
-      Esc                      : turn on / off the HUD
-      w                        : switch display mode
-      q                        : quit
+**-f**
+  Launches the application in full-screen mode (if is supported by GLFW on the
+  OS)
+
+SEE ALSO
+========
+
+`Code Examples <code_examples.html>`__, \
+`glViewer <glviewer.html>`__, \
+`glBatchViewer <glbatchviewer.html>`__, \
+`ptexViewer <ptexviewer.html>`__, \
+`paintTest <painttest.html>`__, \
+`limitEval <limiteval.html>`__, \
+`dxViewer <dxviewer.html>`__, \
 

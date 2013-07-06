@@ -77,10 +77,10 @@ DESCRIPTION
 uniform and feature adaptive subdivision schemes to a collection of geometric
 shapes. Multiple controls are available to experiment with the algorithms.
 
-.. image:: images/glviewer.png 
+.. image:: images/glviewer.jpg 
    :width: 400px
    :align: center
-   :target: images/glviewer.png 
+   :target: images/glviewer.jpg 
 
 OPTIONS
 =======
@@ -98,4 +98,12 @@ OPTIONS
 
 SEE ALSO
 ========
+
+`Code Examples <code_examples.html>`__, \
+`glViewer <glviewer.html>`__, \
+`glBatchViewer <glbatchviewer.html>`__, \
+`ptexViewer <ptexviewer.html>`__, \
+`paintTest <painttest.html>`__, \
+`limitEval <limiteval.html>`__, \
+`dxViewer <dxviewer.html>`__, \
 

@@ -55,62 +55,49 @@
        a particular purpose and non-infringement.
   
 
-Code Examples
--------------
+limitEval
+---------
 
-Standalone Viewers
-==================
+.. contents::
+   :local:
+   :backlinks: none
 
-OpenSubdiv builds a number of standalone viewers that demonstrate various aspects 
-of the software.
+SYNOPSIS
+========
 
-----
+.. parsed-literal:: 
+   :class: codefhead
 
-.. list-table:: **OpenGL examples**
-   :class: quickref
-   :widths: 50 50
-   
-   * - | `glViewer <glviewer.html>`_
-       | `glBatchViewer <glbatchviewer.html>`_
-       | `ptexViewer <ptexviewer.html>`_
-     - | `paintTest <painttest.html>`_
-       | `limitEval <limiteval.html>`_
+   **limitEval** [**-f**] *objfile(s)*
 
-.. list-table:: **DirectX examples**
-   :class: quickref
-   :widths: 50 50
-   
-   * - | `dxViewer <dxviewer.html>`_
-     - |
+DESCRIPTION
+===========
 
-.. list-table:: **Plugin examples**
-   :class: quickref
-   :widths: 50 50
+``limitEval`` is a stand-alone application that showcases the limit surface
+Eval module. On the given shape, random samples are generated in local u,v space.
+Vertex, varying and face-varying data is then computed on the surface limit and
+displayed as colors. Multiple controls are available to experiment with the algorithms.
 
-   * - | `mayaViewer <mayaviewer.html>`_
-     - | `mayaPtexViewer <mayaptexviewer.html>`_
+.. image:: images/evalLimit_hedit0.jpg 
+   :width: 400px
+   :align: center
+   :target: images/evalLimit_hedit0.jpg 
 
+OPTIONS
+=======
 
-Note : the Maya plugins are currently unsupported and they may fail to compile
-or work with current versions of OpenSubdiv. These were originally written for 
-the sole purpose of live demonstrations and the code is provided only as an 
-implementation example.
+**-f**
+  Launches the application in full-screen mode (if is supported by GLFW on the
+  OS)
 
-----
+SEE ALSO
+========
 
-Common Keyboard Controls
-========================
-
-   .. code:: c++
-   
-      Left mouse button drag   : orbit camera
-      Middle mouse button drag : pan camera
-      Right mouse button       : dolly camera
-      n, p                     : next/prev model
-      1, 2, 3, ..., 9, 0       : specify adaptive isolation or uniform refinment level
-      +, -                     : increase / decrease tessellation 
-      Tab                      : toggle full-screen
-      Esc                      : turn on / off the HUD
-      w                        : switch display mode
-      q                        : quit
+`Code Examples <code_examples.html>`__, \
+`glViewer <glviewer.html>`__, \
+`glBatchViewer <glbatchviewer.html>`__, \
+`ptexViewer <ptexviewer.html>`__, \
+`paintTest <painttest.html>`__, \
+`limitEval <limiteval.html>`__, \
+`dxViewer <dxviewer.html>`__, \
 

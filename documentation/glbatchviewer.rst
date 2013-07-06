@@ -80,10 +80,10 @@ reduce the number of GPU calls.
 
 Multiple controls are available to experiment with the algorithms.
 
-.. image:: images/glbatchviewer.png 
+.. image:: images/glbatchviewer.jpg 
    :width: 400px
    :align: center
-   :target: images/glbatchviewer.png 
+   :target: images/glbatchviewer.jpg 
 
 
 OPTIONS
@@ -110,4 +110,12 @@ Keyboard Controls
 
 SEE ALSO
 ========
+
+`Code Examples <code_examples.html>`__, \
+`glViewer <glviewer.html>`__, \
+`glBatchViewer <glbatchviewer.html>`__, \
+`ptexViewer <ptexviewer.html>`__, \
+`paintTest <painttest.html>`__, \
+`limitEval <limiteval.html>`__, \
+`dxViewer <dxviewer.html>`__, \
 

@@ -356,10 +356,14 @@ h1.title {
     margin-bottom: 23px;
     padding: 0.2em 1em 1em 1em;
     border: 3px inset;
-    border-color: #CCCCCC;
+    border-color: #A77;
     clear: both;
     margin-left: 60px;
     margin-right: 60px;
+    background-color: #CAA;
+    border-radius:15px;
+    -moz-border-radius:15px;
+    -webkit-border-radius:15px;
 }
 
 ul.auto-toc li {

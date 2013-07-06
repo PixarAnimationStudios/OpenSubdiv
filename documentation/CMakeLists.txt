@@ -100,9 +100,11 @@ if (NOT NO_DOC)
             intro.rst 
             cmake_build.rst
             code_examples.rst
+            dxviewer.rst
             getting_started.rst
             glviewer.rst
             glbatchviewer.rst
+            limiteval.rst
             ptexviewer.rst
             release_notes.rst 
             subdivision_surfaces.rst 

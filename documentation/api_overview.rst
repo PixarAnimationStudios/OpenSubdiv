@@ -76,7 +76,13 @@ is both layered and modular.
 Opt-In Features
 ===============
 
-XXXX
+One of the fundamental requirement of all our API's design patterns is the opt-in
+implementation of features. Because most of the algorithms are used within the
+constraints of interactive applications, we want to provide optimal code paths
+wherever possible. 
+
+Therefore, client-code should always have the option to opt-out of the memory and
+processing costs of any given feature that is not used.
 
 ----
 
