@@ -108,7 +108,10 @@ if (NOT NO_DOC)
             ptexviewer.rst
             release_notes.rst 
             subdivision_surfaces.rst 
-            using_opensubdiv.rst
+            using_osd.rst
+            using_osd_compile.rst
+            using_osd_hbr.rst
+            using_osd_textures.rst
         )
 
         # process rst markup files
@@ -128,12 +131,13 @@ if (NOT NO_DOC)
                     --time
                     --no-xml-declaration 
                     --initial-header-level=3
-                    --strip-comments 
+                    --strip-comments
+                    --template=${CMAKE_CURRENT_SOURCE_DIR}/rst_template.txt
                     --stylesheet=css/rst.css
                     --link-stylesheet
                     ${infile} ${outfile} 
                 DEPENDS
-                    ${infile}
+                    ${infile} rst_template.txt nav_template.txt
             )
 
             add_custom_target(${src} DEPENDS ${outfile})
@@ -202,7 +206,9 @@ if (NOT NO_DOC)
                 ${CMAKE_CURRENT_BINARY_DIR} 
                 ${CMAKE_CURRENT_SOURCE_DIR}/nav_template.txt
             DEPENDS 
-                ${HTML_TARGETS} ${RST_TARGETS} doc_tipuesearch
+                ${HTML_TARGETS} 
+                ${RST_TARGETS} 
+                doc_tipuesearch
         )
         
         add_custom_target(doc_html 

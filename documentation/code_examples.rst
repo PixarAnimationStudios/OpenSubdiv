@@ -90,11 +90,17 @@ of the software.
    * - | `mayaViewer <mayaviewer.html>`_
      - | `mayaPtexViewer <mayaptexviewer.html>`_
 
+|
 
-Note : the Maya plugins are currently unsupported and they may fail to compile
-or work with current versions of OpenSubdiv. These were originally written for 
-the sole purpose of live demonstrations and the code is provided only as an 
-implementation example.
+.. container:: notebox
+
+   **Note:**
+   the Maya plugins are currently unsupported and they may fail to compile
+   or work with current versions of OpenSubdiv. These were originally written for 
+   the sole purpose of live demonstrations and the code is provided only as an 
+   implementation example.
+
+|
 
 ----
 

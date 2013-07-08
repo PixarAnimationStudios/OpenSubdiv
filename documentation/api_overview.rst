@@ -66,7 +66,7 @@ API Overview
 Architecture Overview
 =====================
 
-Because OpenSubdiv software is intended to run on a variete of discrete compute
+Because the OpenSubdiv software is intended to run on a variete of computing
 resources, the API architecture has to accomodate a fairly complex matrix of
 interoperations. In order to achieve the requisite flexibility, the code structure
 is both layered and modular.
@@ -74,7 +74,7 @@ is both layered and modular.
 ----
 
 Opt-In Features
-===============
+***************
 
 One of the fundamental requirement of all our API's design patterns is the opt-in
 implementation of features. Because most of the algorithms are used within the
@@ -87,17 +87,33 @@ processing costs of any given feature that is not used.
 ----
 
 Layers
-======
+******
 
-From a top-down point of view, OpenSubdiv is comprised of 3 layers : Hbr, Far and 
-Osd. 
+From a top-down point of view, OpenSubdiv is comprised of 3 layers : **Hbr**, 
+**Far** and **Osd**. 
 
-.. image:: images/api_hbr_far_osd.png
-   :align: center
+.. image:: images/api_layers.png
+
+The color groupings indicate inter-layer functional dependencies:
+
+  * Osd depends on Far, but not on Hbr
+  * Far depends on Hbr
+  * Hbr has no dependencies
+
+It is therefore possible to use functionality from Hbr without introducing any
+dependency on either Far or Osd.
+
+----
+
+Data and Workflows
+******************
 
 Data flows are mostly 1-directional, from top to bottom as a number of algorithms 
 are preparing the coarse mesh data to be refined and passing their results to 
 the next element in the processing chain.
+
+.. image:: images/api_workflows.png
+   :align: center
 
 ----
 
@@ -111,7 +127,7 @@ multiple dedicated SDKs, it is critical to distill the critical computations int
 the smallest and simplest kernels possible. These can in turn be safely ported and 
 optimized for each of the hardware platforms. 
 
-.. image:: images/api_layers.png
+.. image:: images/api_representations.png
    :align: center
 
 This separation of general purpose against hardware-specific code is translated into

@@ -110,6 +110,30 @@ class HtmlToTextParser(HTMLParser.HTMLParser):
         return self.m_title
 
 #-------------------------------------------------------------------------------
+def StripHTMLComments(data):
+    regex = re.compile('\<![ \r\n\t]*(--([^\-]|[\r\n]|-[^\-])*--[ \r\n\t]*)\>')
+    return regex.sub('',data)
+
+#-------------------------------------------------------------------------------
+def ReadNavigationTemplate( filePath ):
+
+    navHtml = ""
+
+    try:
+        navFile = open( filePath, "r")
+    except IOError:
+        print "Could not open file \'"+filePath+"\'"
+    
+    with navFile:
+        print "Navigation template: \'"+filePath+"\'"
+        navHtml = navFile.read()
+        navHtml = StripHTMLComments(navHtml)
+        navFile.close()
+        navHtml = StripHTMLComments(navHtml)
+        
+    return navHtml
+    
+#-------------------------------------------------------------------------------
 def WriteIndexFile( outputFile, content ):
     outputPath = os.path.dirname( outputFile )
     
@@ -132,20 +156,20 @@ def Usage():
 
 #-------------------------------------------------------------------------------
 # Main
-
 if (len(sys.argv)<3):
     Usage()
 
-rootDir = str(sys.argv[1])    
-    
-f = open( str(sys.argv[2]), "r")
-navHtml = f.read()
-f.close()
+rootDir = str(sys.argv[1])
 
-print "Scanning :"+rootDir
+navTemplate = str(sys.argv[2])
+    
+navHtml = ReadNavigationTemplate( navTemplate )
+
+print "Scanning : \'"+rootDir+"\'"
 
 searchIndex = 'var tipuesearch = { "pages": [ '
 
+# recursively scan sub-directories for HTML files
 for root, dirs, files in os.walk(rootDir):
 
     # skip doxygen generated HTML
@@ -160,7 +184,7 @@ for root, dirs, files in os.walk(rootDir):
             f = open(inputFile, "r+")
             html = f.read()
 
-            # parse search index data
+            # parse the ReST generated HTML
             parser = HtmlToTextParser()
             try:
                 parser.feed(html)
@@ -179,7 +203,7 @@ for root, dirs, files in os.walk(rootDir):
                 searchIndex += '{"title":"'+title+'", "text":"'+text+'", "tags": "", "loc":"'+loc+'"}, \n'
                 msg += "indexed - "
 
-            # insert navigation html
+            # if necessary, insert navigation html
             if (not parser.HasNavigationSection()):
                 loc = string.find(html,"<body>")
                 html = html[:loc+6] + navHtml + html[loc+6:]

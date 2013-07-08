@@ -173,34 +173,34 @@ forks of our 'dev' branch.
 Code Overview
 =============
 
-The OpenSubdiv code base contains 4 main areas:
+The OpenSubdiv code base contains the following main areas:
 
-./opensubdiv/
-_____________
+**./opensubdiv/**
 
-The main subdivision APIs : Hbr, Far and Osd. 
+  The main subdivision APIs : Hbr, Far and Osd. 
 
 
-./regression/
-_____________
+**./regression/**
 
-Standalone regression tests and baseline data to help maintain the integrity of
-our APIs. If GPU SDKs are detected, some tests will attempt to run computations
-on those GPUs.
+  Standalone regression tests and baseline data to help maintain the integrity of
+  our APIs. If GPU SDKs are detected, some tests will attempt to run computations
+  on those GPUs.
 
-./examples/
-___________
+**./examples/**
 
-A small collection of standalone applications that illustrate how to deploy the
-various features and optimizations of the OpenSubdiv APIs. The GL-based examples
-rely on the cross-platform GLFW API for interactive window management, while the
-DirectX ones are OS-native.
+  A small collection of standalone applications that illustrate how to deploy the
+  various features and optimizations of the OpenSubdiv APIs. The GL-based examples
+  rely on the cross-platform GLFW API for interactive window management, while the
+  DirectX ones are OS-native.
 
-./documentation/
-________________
+**./python/**
 
-The reStructuredText source files along with python scripts that generate the HTML
-documentation site.
+  Python-SWIG bindings for a minimal uniform refinement wrapper 
+
+**./documentation/**
+
+  The reStructuredText source files along with python scripts that generate the HTML
+  documentation site.
 
 ----
 

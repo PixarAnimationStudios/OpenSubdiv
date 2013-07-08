@@ -89,6 +89,17 @@ pre, code {
  *
  **************************************************/
 
+.red {
+    color: rgb(128,0,0);
+}
+
+.green {
+    color: rgb(0,128,0);
+}
+
+.blue {
+    color: rgb(0,0,128);
+}
 
 .subtitle {
     color: #000000;
@@ -117,12 +128,39 @@ table.data {
     margin-top: 10px;
     margin-left: 30px;
     margin-right: 60px;
-    text-align: center; }    
+    text-align: center; 
+}    
 
 table.data tt {
     max-width: 400px;
     display: inline-block;
     word-wrap: break-word;
+}
+
+table {
+	font-family: verdana,arial,sans-serif;
+	font-size:11px;
+	color:#333333;
+	border-width: 1px;
+	border-color: #666666;
+	border-collapse: collapse;
+    margin-left:60px; 
+}
+
+table th {
+	border-width: 1px;
+	padding: 8px;
+	border-style: solid;
+	border-color: #666666;
+	background-color: #dedede;
+}
+
+table td {
+	border-width: 1px;
+	padding: 8px;
+	border-style: solid;
+	border-color: #666666;
+    background-color: #f9f9f9;
 }
 
 /* container for a table with left-aligned entries */
@@ -287,6 +325,9 @@ h1.title {
     padding: 0.2em 1em 1em 1em;
     background-color: #f9f9f9;
     border: 1px solid rgb(120,30,40);
+    border-radius:10px;
+    -moz-border-radius:10px;
+    -webkit-border-radius:10px;
     clear: both;
     margin-left: 60px;
     margin-right: 60px;
@@ -361,9 +402,24 @@ h1.title {
     margin-left: 60px;
     margin-right: 60px;
     background-color: #CAA;
-    border-radius:15px;
-    -moz-border-radius:15px;
-    -webkit-border-radius:15px;
+    border-radius:10px;
+    -moz-border-radius:10px;
+    -webkit-border-radius:10px;
+}
+
+.note {
+    margin-top: 23px;
+    margin-bottom: 23px;
+    padding: 0.2em 1em 1em 1em;
+    border: 3px inset;
+    border-color: #7AC;
+    clear: both;
+    margin-left: 60px;
+    margin-right: 60px;
+    background-color: #7AC;
+    border-radius:10px;
+    -moz-border-radius:10px;
+    -webkit-border-radius:10px;
 }
 
 ul.auto-toc li {
@@ -469,7 +525,7 @@ div.navigation a:hover {
 }
 
 div.document {
-    background: #FFF;
+    background: rgb(240,240,240);
     margin-top: 5px;
     margin-left: 255px;
 
@@ -484,6 +540,9 @@ div.document {
     border-top-right-radius: 15px;
     -moz-border-top-right-radius: 15px;
     -webkit-border-top-right-radius: 15px;
+
+    font-family:Arial, Helvetica, sans-serif!important;
+	color:#333!important;
 }
 
 div.document a,
@@ -518,6 +577,9 @@ div.contents.local.topic {
     margin-left: 60px;
     margin-right: 60px;
     margin-bottom: 15px;
+    border-radius:5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
 }
 
 img.align-center, .align-center img {

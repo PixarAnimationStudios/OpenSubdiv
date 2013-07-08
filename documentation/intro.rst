@@ -102,6 +102,13 @@ a character of 30,000 polygons to the second level of subdivision (500,000 polyg
 By doing the same thing in 3ms, OpenSubdiv allows the user to see the smooth, 
 accurate limit surface at all times.
 
+.. image:: images/efficient_subdivision.png 
+   :height: 400px
+   :align: center
+   :target: images/efficient_subdivision.png 
+
+
+
 ----
 
 Research
@@ -141,6 +148,7 @@ animation production.
     | *Subdivision for Modeling and Animation*
     | Denis Zorin, Peter Schroder
     | Course Notes of SIGGRAPH 1999
+    | `<http://www.multires.caltech.edu/pubs/sig99notes.pdf>`_
     |
     | *Subdivision Surfaces in Character Animation*
     | Tony DeRose, Michael Kass, Tien Truong

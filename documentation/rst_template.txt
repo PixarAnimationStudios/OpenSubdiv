@@ -1,0 +1,9 @@
+%(head_prefix)s
+%(head)s
+<link rel="icon" type="image/png" href="images/icon.png">
+%(stylesheet)s
+%(body_prefix)s
+%(body_pre_docinfo)s
+%(docinfo)s
+%(body)s
+%(body_suffix)s

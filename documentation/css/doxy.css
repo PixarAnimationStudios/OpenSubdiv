@@ -1,4 +1,4 @@
-<!--
+ /* 
        Copyright (C) Pixar. All rights reserved.
   
        This license governs use of the accompanying software. If you
@@ -53,62 +53,32 @@
        To the extent permitted under your local laws, the contributors
        exclude the implied warranties of merchantability, fitness for
        a particular purpose and non-infringement.
-//-->
+*/  
 
-<div class="navigation">
-    <br>
-    <div>
-        <a href="intro.html"><img src="images/opensubdiv_logo_header.png" width=150 align="right" hspace=10></a>
-        <br style="clear:both" />
-    </div>
-    <hr>
-    <div class="searchBar">
-        <form action="search.html">
-            <input type="text" name="q" id="searchInput" />
-            <input type="button" id="searchButton" onclick="this.form.submit();" value="Search" />
-        </form>
-    </div>
-    <div class="quickLinks">
-        <ul>
-            <hr>
-            <li><a href="intro.html">Introduction</a></li>
-            <li><a href="getting_started.html">Getting Started</a></li>
-            <li><a href="cmake_build.html">Building OpenSubdiv</a></li>
-            <li><a href="code_examples.html">Code Examples</a></li>
-            <hr>
-            <li><a href="subdivision_surfaces.html">Subdivision Surfaces</a>
-                <ul>
-                    <li><a href="subdivision_surfaces.html#introduction">Introduction</a></li>
-                    <li><a href="subdivision_surfaces.html#manifold-geometry">Topology</a></li>
-                    <li><a href="subdivision_surfaces.html#semi-sharp-creases">Semi-Sharp Creases</a></li>
-                    <li><a href="subdivision_surfaces.html#hierarchical-edits">Hierarchical Edits</a></li>
-                </ul>
-            </li>
-            <hr>
-            <li><a href="api_overview.html">APIs Overview</a>
-                <ul>
-                    <li><a href="api_overview.html#architecture">Architecture</a></li>
-                    <li><a href="api_overview.html#hierarchical-boundary-representation-hbr">Hbr</a></li>
-                    <li><a href="api_overview.html#feature-adaptive-representation-far">Far</a></li>
-                    <li><a href="api_overview.html#opensubdiv-osd">Osd</a></li>
-                </ul>
-            </li>
-            <hr>
-            <li><a href="using_osd.html">Using OpenSubdiv</a>
-                <ul>
-                    <li><a href="using_osd_compile.html#compiling-linking">Compiling & Linking</a></li>
-                    <li><a href="using_osd_hbr.html">Manipulating Topology</a></li>
-                    <li><a href="using_osd.html">Writing Shaders</a></li>
-                    <li><a href="using_osd_textures.html">Textures</a></li>
-                    <li><a href="using_osd.html">Primitive Batching</a></li>
-                </ul>
-            </li>
-            <hr>
-            <li><a href="release_notes.html">Release Notes</a>
-            <hr>
-            <li><a href="doxy_html/index.html" target="_blank">Doxygen</a></li>
-        </ul>
-    </div>
-    <hr>
-    <br>
-</div>
+#top {
+    background-image: url('../images/background.jpg');
+    background-repeat:repeat;
+    padding-top:5px;
+}
+
+#titlearea {
+    background-image: url('../images/background.jpg');
+    background-repeat:repeat;
+    border: 1px solid rgb(204, 204, 204);
+    border-radius:15px;
+    -moz-border-radius:15px;
+    -webkit-border-radius:15px;
+    text-decoration: none;
+    margin-bottom:5px;
+    margin-left:5px;
+    margin-right:5px;
+}
+
+#projectlogo {
+    padding-bottom:10px;
+    padding-left:25px;
+}
+
+#projectlogo img {
+    width:150px;
+}
