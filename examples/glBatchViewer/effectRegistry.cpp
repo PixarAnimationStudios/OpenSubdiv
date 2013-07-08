@@ -54,23 +54,10 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#if defined(__APPLE__)
-    #include "TargetConditionals.h"
-    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
-        #include <OpenGLES/ES2/gl.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-#elif defined(ANDROID)
-    #include <GLES2/gl2.h>
-#else
-    #if defined(_WIN32)
-        #include <windows.h>
-    #endif
-    #include <GL/glew.h>
-#endif
 
 #include "effectRegistry.h"
+
+#include <osd/opengl.h>
 
 static const char *shaderSource =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
@@ -113,24 +100,44 @@ MyEffectRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
     if (desc.first.GetType() == OpenSubdiv::FarPatchTables::QUADS) {
+        // uniform catmark, bilinear
         sconfig->geometryShader.AddDefine("PRIM_QUAD");
         sconfig->fragmentShader.AddDefine("PRIM_QUAD");
+        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
+    } else if (desc.first.GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
+        // uniform loop
+        sconfig->geometryShader.AddDefine("PRIM_TRI");
+        sconfig->fragmentShader.AddDefine("PRIM_TRI");
+        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
     } else {
+        // adaptive
+        sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
+        sconfig->tessControlShader.source = shaderSource + sconfig->tessControlShader.source;
+        sconfig->tessEvalShader.source = shaderSource + sconfig->tessEvalShader.source;
+
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
     }
 
-    int wire = effectDesc.GetWire();
-
-    if (wire == MyEffect::kWire) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_WIRE");
-    } else if (wire == MyEffect::kFill) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_FILL");
-    } else if (wire == MyEffect::kLine) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_LINE");
+    int displayStyle = effectDesc.GetDisplayStyle();
+    switch (displayStyle) {
+    case kWire:
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_WIRE");
+        break;
+    case kWireShaded:
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_LINE");
+        break;
+    case kShaded:
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+        break;
+    case kVaryingColor:
+        sconfig->commonShader.AddDefine("VARYING_COLOR");
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+        break;
+    case kFaceVaryingColor:
+        sconfig->commonShader.AddDefine("FACEVARYING_COLOR");
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+        break;
     }
 
     return sconfig;
@@ -184,6 +191,9 @@ MyEffectRegistry::_CreateDrawConfig(DescType const & desc, SourceConfigType cons
     }
     if ((loc = glGetUniformLocation(program, "g_ptexIndicesBuffer")) != -1) {
         glProgramUniform1i(program, loc, 3); // GL_TEXTURE3
+    }
+    if ((loc = glGetUniformLocation(program, "g_uvFVarBuffer")) != -1) {
+        glProgramUniform1i(program, loc, 4); // GL_TEXTURE4
     }
 #endif
 

@@ -75,7 +75,7 @@ public:
     template<typename T>
     static OsdCudaTable * Create(const std::vector<T> &table) {
         OsdCudaTable *result = new OsdCudaTable();
-        if (not result->createCudaBuffer(table.size() * sizeof(T), &table[0])) {
+        if (not result->createCudaBuffer(table.size() * sizeof(T), table.empty() ? NULL : &table[0])) {
             delete result;
             return NULL;
         }
@@ -164,7 +164,7 @@ public:
 
         if (varying) {
             _currentVaryingBuffer = static_cast<float*>(varying->BindCudaBuffer());
-            _vdesc.numVertexElements = varying->GetNumElements();
+            _vdesc.numVaryingElements = varying->GetNumElements();
         } else {
             _currentVaryingBuffer = 0;
             _vdesc.numVaryingElements = 0;

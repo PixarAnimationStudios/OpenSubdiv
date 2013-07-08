@@ -78,7 +78,7 @@ class OsdGLSLComputeTable : OsdNonCopyable<OsdGLSLComputeTable> {
 public:
     template<typename T>
     explicit OsdGLSLComputeTable(const std::vector<T> &table) {
-        createBuffer(table.size() * sizeof(unsigned int), &table[0]);
+        createBuffer(table.size() * sizeof(unsigned int), table.empty() ? NULL : &table[0]);
     }
 
     virtual ~OsdGLSLComputeTable();

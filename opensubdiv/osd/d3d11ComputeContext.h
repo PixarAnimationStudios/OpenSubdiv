@@ -82,7 +82,7 @@ class OsdD3D11ComputeTable : OsdNonCopyable<OsdD3D11ComputeTable> {
 public:
     template<typename T>
         OsdD3D11ComputeTable(const std::vector<T> &table, ID3D11DeviceContext *deviceContext, DXGI_FORMAT format) {
-        createBuffer((int)table.size() * sizeof(T), &table[0], format, (int)table.size(), deviceContext);
+        createBuffer((int)table.size() * sizeof(T), table.empty() ? NULL : &table[0], format, (int)table.size(), deviceContext);
     }
 
     virtual ~OsdD3D11ComputeTable();
@@ -136,7 +136,9 @@ class OsdD3D11ComputeContext : public OsdNonCopyable<OsdD3D11ComputeContext> {
 public:
     /// Creates an OsdD3D11ComputeContext instance
     ///
-    /// @param farmesh the FarMesh used for this Context.
+    /// @param farmesh        the FarMesh used for this Context.
+    ///
+    /// @param deviceContext  D3D device
     ///
     static OsdD3D11ComputeContext * Create(FarMesh<OsdVertex> const *farmesh,
                                            ID3D11DeviceContext *deviceContext);
@@ -148,9 +150,9 @@ public:
     /// that data buffers are properly inter-operated between Contexts and 
     /// Controllers operating across multiple devices.
     ///
-    /// @param a buffer containing vertex-interpolated primvar data
+    /// @param vertex a buffer containing vertex-interpolated primvar data
     ///
-    /// @param a buffer containing varying-interpolated primvar data
+    /// @param varying a buffer containing varying-interpolated primvar data
     ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {

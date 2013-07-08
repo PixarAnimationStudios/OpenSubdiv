@@ -1,20 +1,25 @@
 
 #if defined(__APPLE__)
-    #include <OpenGL/gl3.h>
+    #if defined(OSD_USES_GLEW)
+        #include <GL/glew.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
     #define GLFW_INCLUDE_GL3
     #define GLFW_NO_GLU
-    #include <stdio.h>
 #else
     #include <stdlib.h>
-    #include <stdio.h>
     #include <GL/glew.h>
     #if defined(WIN32)
         #include <GL/wglew.h>
     #endif
 #endif
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #if defined(GLFW_VERSION_3)
-    #include <GL/glfw3.h>
+    #include <GLFW/glfw3.h>
     GLFWwindow* g_window=0;
     GLFWmonitor* g_primary=0;
 #else
@@ -128,7 +133,7 @@ int main(int argc, char ** argv)
 
     
 
-#if not defined(__APPLE__)
+#if defined(OSD_USES_GLEW)
 #ifdef CORE_PROFILE
     // this is the only way to initialize glew correctly under core profile context.
     glewExperimental = true;

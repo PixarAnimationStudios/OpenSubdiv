@@ -74,14 +74,15 @@ namespace OPENSUBDIV_VERSION {
 /// but has to be remapped to a specific layout for uv textures.
 ///
 /// Bitfield layout :
-///
-///   level:4      - the subdivision level of the patch
-///   nonquad:1;   - whether the patch is the child of a non-quad face
-///   rotation:2;  - patch rotations necessary to match CCW face-winding
-///   v:10;        - log2 value of u parameter at first patch corner
-///   u:10;        - log2 value of v parameter at first patch corner
-///   reserved1:5; - padding
-///
+///   <table>
+///   <tr> <th> Field      </th> <th> Bits </th> <th> Content                                             </th> </tr>
+///   <tr> <td> level      </td> <td>  4   </td> <td> the subdivision level of the patch                  </td> </tr>
+///   <tr> <td> nonquad    </td> <td>  1   </td> <td> whether the patch is the child of a non-quad face   </td> </tr>
+///   <tr> <td> rotation   </td> <td>  2   </td> <td> patch rotations necessary to match CCW face-winding </td> </tr>
+///   <tr> <td> v          </td> <td> 10   </td> <td> log2 value of u parameter at first patch corner     </td> </tr>
+///   <tr> <td> u          </td> <td> 10   </td> <td> log2 value of v parameter at first patch corner     </td> </tr>
+///   <tr> <td> reserved1  </td> <td>  5   </td> <td> padding                                             </td> </tr>
+///   </table>
 /// Note : the bitfield is not expanded in the struct due to differences in how
 ///        GPU & CPU compilers pack bit-fields and endian-ness.
 ///

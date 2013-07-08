@@ -96,6 +96,8 @@ public:
 
     virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) = 0;
 
+    virtual void UpdateVaryingBuffer(float const *varyingData, int startVertex, int numVerts) = 0;
+
     virtual void Refine() = 0;
 
     virtual void Synchronize() = 0;
@@ -103,6 +105,8 @@ public:
     virtual DrawContext * GetDrawContext() = 0;
 
     virtual VertexBufferBinding BindVertexBuffer() = 0;
+
+    virtual VertexBufferBinding BindVaryingBuffer() = 0;
 };
 
 template <class VERTEX_BUFFER, class COMPUTE_CONTROLLER, class DRAW_CONTEXT>
@@ -116,12 +120,14 @@ public:
 
     OsdMesh(ComputeController * computeController,
             HbrMesh<OsdVertex> * hmesh,
-            int numElements,
+            int numVertexElements,
+            int numVaryingElements,
             int level,
             OsdMeshBitset bits = OsdMeshBitset()) :
 
             _farMesh(0),
             _vertexBuffer(0),
+            _varyingBuffer(0),
             _computeContext(0),
             _computeController(computeController),
             _drawContext(0)
@@ -130,15 +136,18 @@ public:
         _farMesh = meshFactory.Create(bits.test(MeshFVarData));
 
         int numVertices = _farMesh->GetNumVertices();
-        _vertexBuffer = VertexBuffer::Create(numElements, numVertices);
+        if (numVertexElements)
+            _vertexBuffer = VertexBuffer::Create(numVertexElements, numVertices);
+        if (numVaryingElements)
+            _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices);
         _computeContext = ComputeContext::Create(_farMesh);
-        _drawContext = DrawContext::Create(_farMesh, _vertexBuffer,
-                                           bits.test(MeshFVarData));
+        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(), bits.test(MeshFVarData));
     }
 
     virtual ~OsdMesh() {
         delete _farMesh;
         delete _vertexBuffer;
+        delete _varyingBuffer;
         delete _computeContext;
         delete _drawContext;
     }
@@ -148,13 +157,19 @@ public:
     virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
         _vertexBuffer->UpdateData(vertexData, startVertex, numVerts);
     }
+    virtual void UpdateVaryingBuffer(float const *varyingData, int startVertex, int numVerts) {
+        _varyingBuffer->UpdateData(varyingData, startVertex, numVerts);
+    }
     virtual void Refine() {
-        _computeController->Refine(_computeContext, _vertexBuffer);
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer, _varyingBuffer);
     }
     virtual void Synchronize() {
         _computeController->Synchronize();
     }
     virtual VertexBufferBinding BindVertexBuffer() {
+        return VertexBufferBinding(0);
+    }
+    virtual VertexBufferBinding BindVaryingBuffer() {
         return VertexBufferBinding(0);
     }
     virtual DrawContext * GetDrawContext() {
@@ -164,6 +179,7 @@ public:
 private:
     FarMesh<OsdVertex> *_farMesh;
     VertexBuffer *_vertexBuffer;
+    VertexBuffer *_varyingBuffer;
     ComputeContext *_computeContext;
     ComputeController *_computeController;
     DrawContext *_drawContext;

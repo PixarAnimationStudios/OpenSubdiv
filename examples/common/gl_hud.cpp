@@ -55,27 +55,13 @@
 //     a particular purpose and non-infringement.
 //
 
-#if defined(__APPLE__)
-    #include "TargetConditionals.h"
-    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
-        #include <OpenGLES/ES2/gl.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-#elif defined(ANDROID)
-    #include <GLES2/gl2.h>
-#else
-    #if defined(_WIN32)
-        #include <windows.h>
-    #endif
-    #include <GL/glew.h>
-#endif
+#include "gl_hud.h"
+
+#include "font_image.h"
+#include "simple_math.h"
 
 #include <string.h>
 #include <stdio.h>
-#include "gl_hud.h"
-#include "font_image.h"
-#include "simple_math.h"
 
 static const char *s_VS =
 #if defined(GL_VERSION_3_1)

@@ -96,7 +96,7 @@ elseif (APPLE)
             DOC "The directory where Ptexture.h resides")
     find_library( PTEX_LIBRARY
         NAMES
-            libPtex.a
+            Ptex libPtex.a
         PATHS
             ${PTEX_LOCATION}/lib
             $ENV{PTEX_LOCATION}/lib

@@ -54,23 +54,10 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
-#if defined(__APPLE__)
-    #include "TargetConditionals.h"
-    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
-        #include <OpenGLES/ES2/gl.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-#elif defined(ANDROID)
-    #include <GLES2/gl2.h>
-#else
-    #if defined(_WIN32)
-        #include <windows.h>
-    #endif
-    #include <GL/glew.h>
-#endif
 
 #include "delegate.h"
+
+#include <osd/opengl.h>
 
 MyDrawContext::MyDrawContext() {
     glGenVertexArrays(1, &_vao);
@@ -78,21 +65,6 @@ MyDrawContext::MyDrawContext() {
 
 MyDrawContext::~MyDrawContext() {
     glDeleteVertexArrays(1, &_vao);
-}
-
-MyDrawContext*
-MyDrawContext::Create(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> const *farMesh, bool requireFVarData)
-{
-    MyDrawContext *instance = new MyDrawContext();
-
-    OpenSubdiv::FarPatchTables const * patchTables = farMesh->GetPatchTables();
-
-    if (patchTables) {
-        return Create(patchTables, requireFVarData);
-    }
-
-    delete instance;
-    return NULL;
 }
 
 MyDrawContext*
@@ -124,13 +96,18 @@ MyDrawDelegate::Bind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch, Eff
         glBindVertexArray(drawContext->GetVertexArray());
 
         // bind vbo state
-        // glBindVertexArray(batch->vao);
         glBindBuffer(GL_ARRAY_BUFFER, batch->BindVertexBuffer());
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, drawContext->GetPatchIndexBuffer());
 
         // vertex attrib
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
+
+        if (effect->displayStyle == kVaryingColor) {
+            glBindBuffer(GL_ARRAY_BUFFER, batch->BindVaryingBuffer());
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
+        }
 
         // bind other builtin texture buffers
         glActiveTexture(GL_TEXTURE0);
@@ -141,6 +118,11 @@ MyDrawDelegate::Bind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch, Eff
         glBindTexture(GL_TEXTURE_BUFFER, drawContext->GetQuadOffsetsTextureBuffer());
         glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_BUFFER, drawContext->GetPatchParamTextureBuffer());
+
+        if (drawContext->GetFvarDataTextureBuffer()) {
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_BUFFER, drawContext->GetFvarDataTextureBuffer());
+        }
     }
     if (effect != _currentEffect) {
         _currentEffect = effect;
@@ -151,7 +133,6 @@ MyDrawDelegate::Bind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch, Eff
 
 void
 MyDrawDelegate::Unbind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch, EffectHandle const &effect) {
-    // does nothing
 }
 
 void
@@ -167,6 +148,8 @@ MyDrawDelegate::End() {
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
 }
 
 void

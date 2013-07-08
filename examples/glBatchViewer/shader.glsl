@@ -54,6 +54,38 @@
 //     exclude the implied warranties of merchantability, fitness for
 //     a particular purpose and non-infringement.
 //
+#line 57
+
+#if defined(VARYING_COLOR) || defined(FACEVARYING_COLOR)
+#undef OSD_USER_VARYING_DECLARE
+#define OSD_USER_VARYING_DECLARE \
+    vec3 color;
+
+#undef OSD_USER_VARYING_ATTRIBUTE_DECLARE
+#define OSD_USER_VARYING_ATTRIBUTE_DECLARE \
+    layout(location = 1) in vec3 color;
+
+#undef OSD_USER_VARYING_PER_VERTEX
+#define OSD_USER_VARYING_PER_VERTEX() \
+    outpt.color = color
+
+#undef OSD_USER_VARYING_PER_CONTROL_POINT
+#define OSD_USER_VARYING_PER_CONTROL_POINT(ID_OUT, ID_IN) \
+    outpt[ID_OUT].color = inpt[ID_IN].color
+
+#undef OSD_USER_VARYING_PER_EVAL_POINT
+#define OSD_USER_VARYING_PER_EVAL_POINT(UV, a, b, c, d) \
+    outpt.color = \
+        mix(mix(inpt[a].color, inpt[b].color, UV.x), \
+            mix(inpt[c].color, inpt[d].color, UV.x), UV.y)
+
+#else
+#define OSD_USER_VARYING_DECLARE
+#define OSD_USER_VARYING_ATTRIBUTE_DECLARE
+#define OSD_USER_VARYING_PER_VERTEX()
+#define OSD_USER_VARYING_PER_CONTROL_POINT(ID_OUT, ID_IN)
+#define OSD_USER_VARYING_PER_EVAL_POINT(UV, a, b, c, d)
+#endif
 
 //--------------------------------------------------------------
 // Vertex Shader
@@ -61,16 +93,17 @@
 #ifdef VERTEX_SHADER
 
 layout (location=0) in vec4 position;
-layout (location=1) in vec3 normal;
+OSD_USER_VARYING_ATTRIBUTE_DECLARE
 
 out block {
     OutputVertex v;
+    OSD_USER_VARYING_DECLARE
 } outpt;
 
 void main()
 {
     outpt.v.position = ModelViewMatrix * position;
-    outpt.v.normal = (ModelViewMatrix * vec4(normal, 0.0)).xyz;
+    OSD_USER_VARYING_PER_VERTEX();
 }
 
 #endif
@@ -84,13 +117,7 @@ void main()
 
     layout(lines_adjacency) in;
 
-    layout(triangle_strip, max_vertices = 4) out;
-
     #define EDGE_VERTS 4
-
-    in block {
-        OutputVertex v;
-    } inpt[4];
 
 #endif // PRIM_QUAD
 
@@ -98,33 +125,26 @@ void main()
 
     layout(triangles) in;
 
-    layout(triangle_strip, max_vertices = 3) out;
-
     #define EDGE_VERTS 3
-
-    in block {
-        OutputVertex v;
-    } inpt[3];
 
 #endif // PRIM_TRI
 
-#ifdef PRIM_POINT
 
-    layout(points) in;
-    layout(points, max_vertices = 1) out;
+uniform samplerBuffer g_uvFVarBuffer;
 
-    in block {
-        OutputVertex v;
-    } inpt[1];
-
-#endif // PRIM_POINT
+layout(triangle_strip, max_vertices = EDGE_VERTS) out;
+in block {
+    OutputVertex v;
+    OSD_USER_VARYING_DECLARE
+} inpt[EDGE_VERTS];
 
 out block {
     OutputVertex v;
     noperspective out vec4 edgeDistance;
+    OSD_USER_VARYING_DECLARE
 } outpt;
 
-void emit(int index, vec3 normal)
+void emit(int index, vec3 normal, vec2 uvs[4])
 {
     outpt.v.position = inpt[index].v.position;
 #ifdef SMOOTH_NORMALS
@@ -132,6 +152,21 @@ void emit(int index, vec3 normal)
 #else
     outpt.v.normal = normal;
 #endif
+
+#ifdef VARYING_COLOR
+    outpt.color = inpt[index].color;
+#endif
+
+#ifdef FACEVARYING_COLOR
+#ifdef UNIFORM_SUBDIVISION
+    vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
+    vec2 st = quadst[index];
+#else
+    vec2 st = inpt[index].v.tessCoord;
+#endif
+    outpt.color = vec3(mix(mix(uvs[0], uvs[1], st.s), mix(uvs[3], uvs[2], st.s), st.t), 0);
+#endif
+
     gl_Position = ProjectionMatrix * inpt[index].v.position;
     EmitVertex();
 }
@@ -146,7 +181,7 @@ float edgeDistance(vec4 p, vec4 p0, vec4 p1)
             (p.y - p0.y) * (p1.x - p0.x)) / length(p1.xy - p0.xy);
 }
 
-void emit(int index, vec3 normal, vec4 edgeVerts[EDGE_VERTS])
+void emit(int index, vec3 normal, vec2 uvs[4], vec4 edgeVerts[EDGE_VERTS])
 {
     outpt.edgeDistance[0] =
         edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
@@ -163,7 +198,7 @@ void emit(int index, vec3 normal, vec4 edgeVerts[EDGE_VERTS])
         edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
 #endif
 
-    emit(index, normal);
+    emit(index, normal, uvs);
 }
 #endif
 
@@ -171,9 +206,25 @@ void main()
 {
     gl_PrimitiveID = gl_PrimitiveIDIn;
 
-#ifdef PRIM_POINT
-    emit(0, vec3(0));
+    vec2 uvs[4];
+
+#ifdef FACEVARYING_COLOR
+    // Offset based on prim id and offset into patch-type fvar data table
+    int uvOffset = (gl_PrimitiveID+LevelBase) * 4;
+
+    uvs[0] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+0)*2   ).s,
+                   texelFetch( g_uvFVarBuffer, (uvOffset+0)*2+1 ).s );
+     
+    uvs[1] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+1)*2   ).s,
+                   texelFetch( g_uvFVarBuffer, (uvOffset+1)*2+1 ).s );
+     
+    uvs[2] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+2)*2   ).s,
+                   texelFetch( g_uvFVarBuffer, (uvOffset+2)*2+1 ).s );
+     
+    uvs[3] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+3)*2   ).s,
+                   texelFetch( g_uvFVarBuffer, (uvOffset+3)*2+1 ).s );
 #endif
+
     
 #ifdef PRIM_QUAD
     vec3 A = (inpt[0].v.position - inpt[1].v.position).xyz;
@@ -193,15 +244,15 @@ void main()
     edgeVerts[2].xy /= edgeVerts[2].w;
     edgeVerts[3].xy /= edgeVerts[3].w;
 
-    emit(0, n0, edgeVerts);
-    emit(1, n0, edgeVerts);
-    emit(3, n0, edgeVerts);
-    emit(2, n0, edgeVerts);
+    emit(0, n0, uvs, edgeVerts);
+    emit(1, n0, uvs, edgeVerts);
+    emit(3, n0, uvs, edgeVerts);
+    emit(2, n0, uvs, edgeVerts);
 #else
-    emit(0, n0);
-    emit(1, n0);
-    emit(3, n0);
-    emit(2, n0);
+    emit(0, n0, uvs);
+    emit(1, n0, uvs);
+    emit(3, n0, uvs);
+    emit(2, n0, uvs);
 #endif
 #endif // PRIM_QUAD
 
@@ -220,13 +271,13 @@ void main()
     edgeVerts[1].xy /= edgeVerts[1].w;
     edgeVerts[2].xy /= edgeVerts[2].w;
 
-    emit(0, n0, edgeVerts);
-    emit(1, n0, edgeVerts);
-    emit(2, n0, edgeVerts);
+    emit(0, n0, uvs, edgeVerts);
+    emit(1, n0, uvs, edgeVerts);
+    emit(2, n0, uvs, edgeVerts);
 #else
-    emit(0, n0);
-    emit(1, n0);
-    emit(2, n0);
+    emit(0, n0, uvs);
+    emit(1, n0, uvs);
+    emit(2, n0, uvs);
 #endif
 #endif // PRIM_TRI
 
@@ -243,6 +294,7 @@ void main()
 in block {
     OutputVertex v;
     noperspective in vec4 edgeDistance;
+    OSD_USER_VARYING_DECLARE
 } inpt;
 
 out vec4 outColor;
@@ -264,7 +316,7 @@ uniform vec4 diffuseColor = vec4(1);
 uniform vec4 ambientColor = vec4(1);
 
 vec4
-lighting(vec3 Peye, vec3 Neye)
+lighting(vec4 diffuse, vec3 Peye, vec3 Neye)
 {
     vec4 color = vec4(0);
 
@@ -282,22 +334,13 @@ lighting(vec3 Peye, vec3 Neye)
         float s = pow(max(0.0, dot(n, h)), 500.0f);
 
         color += lightSource[i].ambient * ambientColor
-            + d * lightSource[i].diffuse * diffuseColor
+            + d * lightSource[i].diffuse * diffuse
             + s * lightSource[i].specular;
     }
 
     color.a = 1;
     return color;
 }
-
-#ifdef PRIM_POINT
-uniform vec4 fragColor;
-void
-main()
-{
-    outColor = fragColor;
-}
-#endif
 
 vec4
 edgeColor(vec4 Cfill, vec4 edgeDistance)
@@ -329,7 +372,16 @@ void
 main()
 {
     vec3 N = (gl_FrontFacing ? inpt.v.normal : -inpt.v.normal);
-    vec4 Cf = lighting(inpt.v.position.xyz, N);
+
+#if defined(VARYING_COLOR)
+    vec4 color = vec4(inpt.color, 1);
+#elif defined(FACEVARYING_COLOR)
+    vec4 color = vec4(inpt.color.rg, int(floor(20*inpt.color.r)+floor(20*inpt.color.g))&1, 1);
+#else
+    vec4 color = diffuseColor;
+#endif
+
+    vec4 Cf = lighting(color, inpt.v.position.xyz, N);
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
     Cf = edgeColor(Cf, inpt.edgeDistance);

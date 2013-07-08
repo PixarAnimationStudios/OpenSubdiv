@@ -201,14 +201,10 @@ public:
         class iterator;
 
         /// Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
-        static iterator begin() {
-            return iterator( Descriptor(REGULAR, NON_TRANSITION, 0) );
-        }
+        static iterator begin();
 
         /// Returns an iterator to the end of the list of patch types (NON_PATCH)
-        static iterator end() {
-            return iterator( Descriptor() );
-        }
+        static iterator end();
         
     private:
         template <class T> friend class FarPatchTablesFactory;
@@ -220,33 +216,6 @@ public:
     };
 
 
-    /// \brief Descriptor iterator class 
-    class Descriptor::iterator {
-        public:
-            /// Constructor
-            iterator() {}
-
-            /// Copy Constructor
-            iterator(Descriptor desc) : pos(desc) { }
-            
-            /// Iteration increment operator
-            iterator & operator ++ () { ++pos; return *this; }
-            
-            /// True of the two descriptors are identical
-            bool operator == ( iterator const & other ) const { return (pos==other.pos); }
-
-            /// True if the two descriptors are different
-            bool operator != ( iterator const & other ) const { return not (*this==other); }
-            
-            /// Dereferencing operator
-            Descriptor * operator -> () { return &pos; }
-            
-            /// Dereferencing operator
-            Descriptor & operator * () { return pos; }
-
-        private:
-            Descriptor pos;
-    };
 
 
     /// \brief Describes an array of patches of the same type
@@ -377,21 +346,23 @@ public:
     
     /// Returns a pointer to the vertex indices of uniformly subdivided faces
     ///
-    /// @param level  the level of subdivision of the faces
+    /// @param level  the level of subdivision of the faces (returns the highest
+    ///               level by default)
     ///
     /// @return       a pointer to the first vertex index or NULL if the mesh
     ///               is not uniformly subdivided or the level cannot be found.
     ///
-    unsigned int const * GetFaceVertices(int level) const;
+    unsigned int const * GetFaceVertices(int level=0) const;
 
     /// Returns the number of faces in a uniformly subdivided mesh at a given level
     ///
-    /// @param level  the level of subdivision of the faces
+    /// @param level  the level of subdivision of the faces (returns the highest
+    ///               level by default)
     ///
     /// @return       the number of faces in the mesh given the subdivision level
-    ///               or -1 if the mesh is not uniform or the level incorrect.
+    ///               or -1 if the mesh is not uniform or the level is incorrect.
     ///
-    int GetNumFaces(int level) const;
+    int GetNumFaces(int level=0) const;
     
     /// Returns a vertex valence table used by Gregory patches
     VertexValenceTable const & GetVertexValenceTable() const { return _vertexValenceTable; }
@@ -462,6 +433,46 @@ private:
     // vertexValance & quadOffset tables)
     int _maxValence;
 };
+
+/// \brief Descriptor iterator class 
+class FarPatchTables::Descriptor::iterator {
+    public:
+        /// Constructor
+        iterator() {}
+
+        /// Copy Constructor
+        iterator(Descriptor desc) : pos(desc) { }
+
+        /// Iteration increment operator
+        iterator & operator ++ () { ++pos; return *this; }
+
+        /// True of the two descriptors are identical
+        bool operator == ( iterator const & other ) const { return (pos==other.pos); }
+
+        /// True if the two descriptors are different
+        bool operator != ( iterator const & other ) const { return not (*this==other); }
+
+        /// Dereferencing operator
+        Descriptor * operator -> () { return &pos; }
+
+        /// Dereferencing operator
+        Descriptor & operator * () { return pos; }
+
+    private:
+        Descriptor pos;
+};
+
+// Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
+inline FarPatchTables::Descriptor::iterator 
+FarPatchTables::Descriptor::begin() {
+    return iterator( Descriptor(REGULAR, NON_TRANSITION, 0) );
+}
+
+// Returns an iterator to the end of the list of patch types (NON_PATCH)
+inline FarPatchTables::Descriptor::iterator 
+FarPatchTables::Descriptor::end() {
+    return iterator( Descriptor() );
+}
 
 // Constructor
 inline
@@ -579,7 +590,12 @@ FarPatchTables::GetFaceVertices(int level) const {
     
     PatchArrayVector const & parrays = GetPatchArrayVector();
     
-    if ( (level-1) < (int)parrays.size() ) {
+    if (parrays.empty())
+        return NULL;
+    
+    if (level < 1) {
+        return &GetPatchTable()[ parrays.rbegin()->GetVertIndex() ];
+    } else if ((level-1) < (int)parrays.size() ) {
         return &GetPatchTable()[ parrays[level-1].GetVertIndex() ];
     }
     
@@ -595,7 +611,12 @@ FarPatchTables::GetNumFaces(int level) const {
     
     PatchArrayVector const & parrays = GetPatchArrayVector();
     
-    if ( (level-1) < (int)parrays.size() ) {
+    if (parrays.empty())
+        return -1;
+    
+    if (level < 1) {
+        return parrays.rbegin()->GetNumPatches();
+    } else if ( (level-1) < (int)parrays.size() ) {
         return parrays[level-1].GetNumPatches();
     }
     

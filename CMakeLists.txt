@@ -255,8 +255,8 @@ find_package(GLFW 2.7.0)
 find_package(PTex 2.0)
 find_package(PythonInterp 2.6)
 find_package(SWIG 1.3.40)
-find_package(Doxygen)
-
+find_package(Doxygen 1.8.4)
+find_package(Docutils 0.6)
 if (NOT APPLE AND OPENGL_FOUND)
     find_package(GLEW REQUIRED)
 endif()
@@ -294,6 +294,11 @@ endif()
 
 if(GLFW_FOUND AND (GLFW_VERSION VERSION_EQUAL 3.0 OR GLFW_VERSION VERSION_GREATER 3.0))
     add_definitions( -DGLFW_VERSION_3 )
+endif()
+
+# note: perhaps rename this to be more consistent, e.g. OPENSUBDIV_USES_GLEW
+if(GLEW_FOUND)
+    add_definitions( -DOSD_USES_GLEW )
 endif()
 
 # note : (GLSL transform feedback kernels require GL 4.2)
@@ -378,7 +383,7 @@ else()
     )
 endif()
 
-if(PYTHONINTERP_FOUND AND SWIG_FOUND)
+if(PYTHONINTERP_FOUND AND SWIG_FOUND AND NOT NO_PYTHON)
     message(STATUS "Python and SWIG found.  Looking for numpy...")
     execute_process(
         COMMAND
@@ -427,12 +432,6 @@ if(PYTHONINTERP_FOUND AND SWIG_FOUND)
                       COMMAND ${PYCMD} install --user)"
         )
     endif()
-else()
-    message(WARNING
-        "Python / Swig not found : python bindings and examples will not be "
-	"available. If you do have Python and Swig installed and see this "
-	"message, please check the default FindPython.cmake module."
-    )
 endif()
 
 # Link examples & regressions dynamically against Osd
@@ -466,6 +465,43 @@ endif()
 
 #-------------------------------------------------------------------------------
 # General-use macros
+
+# Macro for processing public headers into the build area for doxygen processing
+
+add_custom_target( public_headers )
+
+macro(_add_doxy_headers headers)
+
+    file(RELATIVE_PATH path ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    string(REPLACE  "/" "_" targetpath ${path})
+
+    foreach (header ${headers})
+
+        set(infile ${CMAKE_CURRENT_SOURCE_DIR}/${header})
+        set(outfile ${CMAKE_BINARY_DIR}/public_headers/${path}/${header})
+        set(targetname "${targetpath}_${header}")
+
+        add_custom_command(
+            OUTPUT
+                ${outfile}
+            COMMAND
+                ${CMAKE_COMMAND}
+            ARGS
+                -E copy ${infile} ${outfile}
+            DEPENDS
+                ${infile}
+        )
+
+        add_custom_target(${targetname} DEPENDS ${outfile})
+
+        list(APPEND headerfiles ${targetname} )
+    endforeach()
+
+    add_dependencies( public_headers DEPENDS ${headerfiles} )
+
+endmacro()
+
 
 # Macro for adding a cuda executable if cuda is found and a regular
 # executable otherwise.
@@ -517,12 +553,12 @@ endmacro()
 
 add_subdirectory(opensubdiv)
 
-if(NOT ANDROID AND NOT IOS) # XXXdyu
+if (NOT NO_REGRESSION AND NOT ANDROID AND NOT IOS) # XXXdyu
     add_subdirectory(regression)
 endif()
 
-add_subdirectory(examples)
-
-if (DOXYGEN_FOUND)
-    add_subdirectory(documentation)
+if (NOT NO_EXAMPLES)
+    add_subdirectory(examples)
 endif()
+
+add_subdirectory(documentation)

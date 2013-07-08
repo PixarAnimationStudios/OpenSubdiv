@@ -495,6 +495,9 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
     OpenSubdiv::OsdMeshBitset bits;
     bits.set(OpenSubdiv::MeshAdaptive, doAdaptive);
 
+    int numVertexElements = 6;
+    int numVaryingElements = 0;
+
     if (g_kernel == kCPU) {
         if (not g_cpuComputeController) {
             g_cpuComputeController = new OpenSubdiv::OsdCpuComputeController();
@@ -503,8 +506,10 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdCpuComputeController,
                                          OpenSubdiv::OsdD3D11DrawContext>(
                                                 g_cpuComputeController,
-                                                hmesh, 6, level, bits,
-                                                g_pd3dDeviceContext);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits, g_pd3dDeviceContext);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         if (not g_ompComputeController) {
@@ -514,8 +519,10 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdOmpComputeController,
                                          OpenSubdiv::OsdD3D11DrawContext>(
                                                 g_ompComputeController,
-                                                hmesh, 6, level, bits,
-                                                g_pd3dDeviceContext);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits, g_pd3dDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == kCL) {
@@ -526,9 +533,10 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdCLComputeController,
                                          OpenSubdiv::OsdD3D11DrawContext>(
                                                 g_clComputeController,
-                                                hmesh, 6, level, bits,
-                                                g_clContext, g_clQueue,
-                                                g_pd3dDeviceContext);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits, g_pd3dDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
@@ -539,8 +547,10 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdCudaComputeController,
                                          OpenSubdiv::OsdD3D11DrawContext>(
                                                 g_cudaComputeController,
-                                                hmesh, 6, level, bits,
-                                                g_pd3dDeviceContext);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits, g_pd3dDeviceContext);
 #endif
     } else if (g_kernel == kDirectCompute) {
         if (not g_d3d11ComputeController) {
@@ -550,8 +560,10 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdD3D11ComputeController,
                                          OpenSubdiv::OsdD3D11DrawContext>(
                                                 g_d3d11ComputeController,
-                                                hmesh, 6, level, bits,
-                                                g_pd3dDeviceContext);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits, g_pd3dDeviceContext);
     } else {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
     }
@@ -865,7 +877,7 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 static void
 display()
 {
-    float color[4] = {0.1f, 0.1f, 0.1f, 1.0f};
+    float color[4] = {0.006f, 0.006f, 0.006f, 1.0f};
     g_pd3dDeviceContext->ClearRenderTargetView(g_pSwapChainRTV, color);
 
     // Clear the depth buffer.

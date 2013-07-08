@@ -389,7 +389,7 @@ void editAdd()
     // seemingly we can't iterate dynamically over vertexData[n]
     // due to mysterious glsl runtime limitation...?
     for (int j = 0; j < NUM_VERTEX_ELEMENTS; ++j) {
-        float editValue = _editValues[i*editPrimVarOffset + min(j, editPrimVarWidth)];
+        float editValue = _editValues[i*editPrimVarWidth + min(j, editPrimVarWidth)];
         editValue *= float(j >= editPrimVarOffset);
         editValue *= float(j < (editPrimVarWidth + editPrimVarOffset));
         dst.vertexData[j] += editValue;

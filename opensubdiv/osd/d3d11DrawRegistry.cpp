@@ -72,20 +72,11 @@ OsdD3D11DrawConfig::~OsdD3D11DrawConfig()
 static const char *commonShaderSource =
 #include "hlslPatchCommon.inc"
 ;
-static const char *regularShaderSource =
-#include "hlslPatchRegular.inc"
-;
-static const char *boundaryShaderSource =
-#include "hlslPatchBoundary.inc"
-;
-static const char *cornerShaderSource =
-#include "hlslPatchCorner.inc"
+static const char *bsplineShaderSource =
+#include "hlslPatchBSpline.inc"
 ;
 static const char *gregoryShaderSource =
 #include "hlslPatchGregory.inc"
-;
-static const char *boundaryGregoryShaderSource =
-#include "hlslPatchBoundaryGregory.inc"
 ;
 static const char *transitionShaderSource =
 #include "hlslPatchTransition.inc"
@@ -113,54 +104,42 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
         switch (desc.GetType()) {
         case FarPatchTables::QUADS:
         case FarPatchTables::TRIANGLES:
-            sconfig->vertexShader.source = regularShaderSource;
-            sconfig->vertexShader.target = "vs_5_0";
-            sconfig->vertexShader.entry = "vs_main";
-            sconfig->pixelShader.source = regularShaderSource;
-            sconfig->pixelShader.target = "ps_5_0";
-            sconfig->pixelShader.entry = "ps_main";
+            // do nothing
             break;
         case FarPatchTables::REGULAR:
-            sconfig->vertexShader.source = regularShaderSource;
+            sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
-            sconfig->hullShader.source = regularShaderSource;
+            sconfig->hullShader.source = bsplineShaderSource;
             sconfig->hullShader.target = "hs_5_0";
             sconfig->hullShader.entry = "hs_main_patches";
-            sconfig->domainShader.source = regularShaderSource;
+            sconfig->domainShader.source = bsplineShaderSource;
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
-            sconfig->pixelShader.source = regularShaderSource;
-            sconfig->pixelShader.target = "ps_5_0";
-            sconfig->pixelShader.entry = "ps_main";
             break;
         case FarPatchTables::BOUNDARY:
-            sconfig->vertexShader.source = boundaryShaderSource;
+            sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
-            sconfig->hullShader.source = boundaryShaderSource;
+            sconfig->hullShader.source = bsplineShaderSource;
             sconfig->hullShader.target = "hs_5_0";
             sconfig->hullShader.entry = "hs_main_patches";
-            sconfig->domainShader.source = boundaryShaderSource;
+            sconfig->hullShader.AddDefine("OSD_PATCH_BOUNDARY");
+            sconfig->domainShader.source = bsplineShaderSource;
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
-            sconfig->pixelShader.source = boundaryShaderSource;
-            sconfig->pixelShader.target = "ps_5_0";
-            sconfig->pixelShader.entry = "ps_main";
             break;
         case FarPatchTables::CORNER:
-            sconfig->vertexShader.source = cornerShaderSource;
+            sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
-            sconfig->hullShader.source = cornerShaderSource;
+            sconfig->hullShader.source = bsplineShaderSource;
             sconfig->hullShader.target = "hs_5_0";
             sconfig->hullShader.entry = "hs_main_patches";
-            sconfig->domainShader.source = cornerShaderSource;
+            sconfig->hullShader.AddDefine("OSD_PATCH_CORNER");
+            sconfig->domainShader.source = bsplineShaderSource;
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
-            sconfig->pixelShader.source = cornerShaderSource;
-            sconfig->pixelShader.target = "ps_5_0";
-            sconfig->pixelShader.entry = "ps_main";
             break;
         case FarPatchTables::GREGORY:
             sconfig->vertexShader.source = gregoryShaderSource;
@@ -172,23 +151,20 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->domainShader.source = gregoryShaderSource;
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
-            sconfig->pixelShader.source = gregoryShaderSource;
-            sconfig->pixelShader.target = "ps_5_0";
-            sconfig->pixelShader.entry = "ps_main";
             break;
         case FarPatchTables::GREGORY_BOUNDARY:
-            sconfig->vertexShader.source = boundaryGregoryShaderSource;
+            sconfig->vertexShader.source = gregoryShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
-            sconfig->hullShader.source = boundaryGregoryShaderSource;
+            sconfig->vertexShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
+            sconfig->hullShader.source = gregoryShaderSource;
             sconfig->hullShader.target = "hs_5_0";
             sconfig->hullShader.entry = "hs_main_patches";
-            sconfig->domainShader.source = boundaryGregoryShaderSource;
+            sconfig->hullShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
+            sconfig->domainShader.source = gregoryShaderSource;
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
-            sconfig->pixelShader.source = boundaryGregoryShaderSource;
-            sconfig->pixelShader.target = "ps_5_0";
-            sconfig->pixelShader.entry = "ps_main";
+            sconfig->domainShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
             break;
         default:
             delete sconfig;
@@ -196,37 +172,38 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
             break;
         }
     } else { // pattern != NON_TRANSITION
-        sconfig->vertexShader.source = transitionShaderSource;
+        sconfig->vertexShader.source = bsplineShaderSource;
         sconfig->vertexShader.target = "vs_5_0";
         sconfig->vertexShader.entry = "vs_main_patches";
-        sconfig->hullShader.source = transitionShaderSource;;
+        sconfig->hullShader.source =
+            std::string(transitionShaderSource) + bsplineShaderSource;
         sconfig->hullShader.target = "hs_5_0";
         sconfig->hullShader.entry = "hs_main_patches";
-        sconfig->domainShader.source = transitionShaderSource;
+        sconfig->hullShader.AddDefine("OSD_PATCH_TRANSITION");
+        sconfig->domainShader.source =
+            std::string(transitionShaderSource) + bsplineShaderSource;
         sconfig->domainShader.target = "ds_5_0";
         sconfig->domainShader.entry = "ds_main_patches";
-        sconfig->pixelShader.source = transitionShaderSource;
-        sconfig->pixelShader.target = "ps_5_0";
-        sconfig->pixelShader.entry = "ps_main";
+        sconfig->domainShader.AddDefine("OSD_PATCH_TRANSITION");
 
         int pattern = desc.GetPattern() - 1;
         int rotation = desc.GetRotation();
         int subpatch = desc.GetSubPatch();
 
         std::ostringstream ss;
-        ss << "CASE" << pattern << subpatch;
+        ss << "OSD_TRANSITION_PATTERN" << pattern << subpatch;
         sconfig->hullShader.AddDefine(ss.str());
         sconfig->domainShader.AddDefine(ss.str());
 
         ss.str("");
         ss << rotation;
-        sconfig->hullShader.AddDefine("ROTATE", ss.str());
-        sconfig->domainShader.AddDefine("ROTATE", ss.str());
+        sconfig->hullShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
+        sconfig->domainShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
 
         if (desc.GetType() == FarPatchTables::BOUNDARY) {
-            sconfig->hullShader.AddDefine("BOUNDARY");
+            sconfig->hullShader.AddDefine("OSD_PATCH_BOUNDARY");
         } else if (desc.GetType() == FarPatchTables::CORNER) {
-            sconfig->hullShader.AddDefine("CORNER");
+            sconfig->hullShader.AddDefine("OSD_PATCH_CORNER");
         }
     }
 

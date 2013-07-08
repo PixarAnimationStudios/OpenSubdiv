@@ -133,6 +133,7 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
     if (meshes.empty()) return NULL;
 
     bool adaptive = (meshes[0]->GetPatchTables() != NULL);
+    int totalFVarWidth = meshes[0]->GetTotalFVarWidth();
     const std::type_info &scheme = typeid(*(meshes[0]->GetSubdivisionTables()));
     _maxlevel = 0;
     _maxvalence = 0;
@@ -156,6 +157,12 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
         if (mesh->GetPatchTables()) {
             _maxvalence = std::max(_maxvalence, mesh->GetPatchTables()->GetMaxValence());
         }
+
+        // meshes have to have a same fvardata width
+        if (totalFVarWidth != mesh->GetTotalFVarWidth()) {
+            assert(false);
+            return NULL;
+        }
     }
 
     FarMesh<U> * result = new FarMesh<U>();
@@ -177,7 +184,7 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
     }
     result->_vertices.resize(numVertices);
     result->_numPtexFaces = numPtexFaces;
-    result->_totalFVarWidth = 0;  // XXX: fvar for multimesh hasn't been implemented yet.
+    result->_totalFVarWidth = totalFVarWidth;
 
     return result;
 }
@@ -474,8 +481,9 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
 
     FarPatchTables *result = new FarPatchTables(_maxvalence);
 
-    int total_quadOffset0 = 0;
-    int total_quadOffset1 = 0;
+    int totalQuadOffset0 = 0;
+    int totalQuadOffset1 = 0;
+    int totalFVarData = 0;
 
     std::vector<int> vertexOffsets;
     std::vector<int> gregoryQuadOffsets;
@@ -504,11 +512,12 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
 
         int nGregory = gregory ? gregory->GetNumPatches() : 0;
         int nGregoryBoundary = gregoryBoundary ? gregoryBoundary->GetNumPatches() : 0;
-        total_quadOffset0 += nGregory * 4;
-        total_quadOffset1 += nGregoryBoundary * 4;
+        totalQuadOffset0 += nGregory * 4;
+        totalQuadOffset1 += nGregoryBoundary * 4;
         numGregoryPatches.push_back(nGregory);
-        gregoryQuadOffsets.push_back(total_quadOffset0);
+        gregoryQuadOffsets.push_back(totalQuadOffset0);
 
+        totalFVarData += (int)ptables->GetFVarDataTable().size();
         numTotalIndices += ptables->GetNumControlVertices();
     }
 
@@ -516,10 +525,13 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
     result->_patches.resize(numTotalIndices);
 
     // Allocate vertex valence table, quad offset table
-    if (total_quadOffset0 + total_quadOffset1 > 0) {
+    if (totalQuadOffset0 + totalQuadOffset1 > 0) {
         result->_vertexValenceTable.resize((2*maxValence+1) * vertexOffset);
-        result->_quadOffsetTable.resize(total_quadOffset0 + total_quadOffset1);
+        result->_quadOffsetTable.resize(totalQuadOffset0 + totalQuadOffset1);
     }
+
+    // Allocate fvardata table
+    result->_fvarTable.resize(totalFVarData);
 
     // splice tables
     // assuming input farmeshes have dense patchtables
@@ -536,10 +548,10 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
     }
 
     // merge vertexvalence and quadoffset tables
-    std::vector<unsigned int>::iterator Q0_IT = result->_quadOffsetTable.begin();
-    std::vector<unsigned int>::iterator Q1_IT = Q0_IT + total_quadOffset0;
+    FarPatchTables::QuadOffsetTable::iterator Q0_IT = result->_quadOffsetTable.begin();
+    FarPatchTables::QuadOffsetTable::iterator Q1_IT = Q0_IT + totalQuadOffset0;
 
-    std::vector<int>::iterator VV_IT = result->_vertexValenceTable.begin();
+    FarPatchTables::VertexValenceTable::iterator VV_IT = result->_vertexValenceTable.begin();
     for (size_t i = 0; i < meshes.size(); ++i) {
         const FarPatchTables *ptables = meshes[i]->GetPatchTables();
 
@@ -576,14 +588,31 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
         for (size_t i = 0; i < meshes.size(); ++i) {
             FarPatchTables const *ptables = meshes[i]->GetPatchTables();
             FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
-            if (not parray) continue;
-
-            copyWithPtexFaceOffset(std::back_inserter(result->_paramTable),
-                                                      ptables->_paramTable,
-                                                      parray->GetPatchIndex(),
-                                                      parray->GetNumPatches(), ptexFaceOffset);
-
+            if (parray) {
+                copyWithPtexFaceOffset(std::back_inserter(result->_paramTable),
+                                       ptables->_paramTable,
+                                       parray->GetPatchIndex(),
+                                       parray->GetNumPatches(), ptexFaceOffset);
+            }
             ptexFaceOffset += meshes[i]->GetNumPtexFaces();
+        }
+    }
+
+    // merge fvardata table
+    FarPatchTables::FVarDataTable::iterator FV_IT = result->_fvarTable.begin();
+    for (FarPatchTables::Descriptor::iterator it(FarPatchTables::Descriptor(FarPatchTables::POINTS, FarPatchTables::NON_TRANSITION, 0));
+         it != FarPatchTables::Descriptor::end(); ++it) {
+        for (size_t i = 0; i < meshes.size(); ++i) {
+            FarPatchTables const *ptables = meshes[i]->GetPatchTables();
+            FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
+            if (parray) {
+                int width = meshes[i]->GetTotalFVarWidth() * 4; // for each quad
+                FarPatchTables::FVarDataTable::const_iterator begin =
+                    ptables->_fvarTable.begin() + parray->GetPatchIndex() * width;
+                FarPatchTables::FVarDataTable::const_iterator end =
+                    begin + parray->GetNumPatches() * width;
+                FV_IT = std::copy(begin, end, FV_IT);
+            }
         }
     }
 

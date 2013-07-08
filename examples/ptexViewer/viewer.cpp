@@ -56,7 +56,11 @@
 //
 
 #if defined(__APPLE__)
-    #include <OpenGL/gl3.h>
+    #if defined(OSD_USES_GLEW)
+        #include <GL/glew.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
     #define GLFW_INCLUDE_GL3
     #define GLFW_NO_GLU
 #else
@@ -68,7 +72,7 @@
 #endif
 
 #if defined(GLFW_VERSION_3)
-    #include <GL/glfw3.h>
+    #include <GLFW/glfw3.h>
     GLFWwindow* g_window=0;
     GLFWmonitor* g_primary=0;
 #else
@@ -191,6 +195,7 @@ enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_ANIMATE_VERTICES,
                    HUD_CB_DISPLAY_PATCH_COLOR,
                    HUD_CB_VIEW_LOD,
+                   HUD_CB_FRACTIONAL_SPACING,
                    HUD_CB_PATCH_CULL,
                    HUD_CB_IBL,
                    HUD_CB_BLOOM };
@@ -220,8 +225,9 @@ bool  g_adaptive = false,
       g_displayPatchColor = false,
       g_patchCull = true,
       g_screenSpaceTess = true,
+      g_fractionalSpacing = false,
       g_ibl = false,
-      g_bloom = true;
+      g_bloom = false;
 
 GLuint g_transformUB = 0,
        g_transformBinding = 0,
@@ -690,6 +696,7 @@ union Effect {
         int specular:1;
         int patchCull:1;
         int screenSpaceTess:1;
+        int fractionalSpacing:1;
         int ibl:1;
         unsigned int wire:2;
     };
@@ -725,6 +732,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
     if (effect.screenSpaceTess)
         sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
+    if (effect.fractionalSpacing)
+        sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     const char *glslVersion = "#version 400\n";
@@ -912,6 +921,7 @@ createOsdMesh(int level, int kernel) {
     bits.set(OpenSubdiv::MeshPtexData, true);
 
     int numVertexElements = g_adaptive ? 3 : 6;
+    int numVaryingElements = 0;
 
     if (kernel == kCPU) {
         if (not g_cpuComputeController) {
@@ -921,7 +931,10 @@ createOsdMesh(int level, int kernel) {
                                          OpenSubdiv::OsdCpuComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_cpuComputeController,
-                                                hmesh, numVertexElements, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         if (not g_ompComputeController) {
@@ -931,7 +944,10 @@ createOsdMesh(int level, int kernel) {
                                          OpenSubdiv::OsdOmpComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_ompComputeController,
-                                                hmesh, numVertexElements, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == kCL) {
@@ -942,8 +958,10 @@ createOsdMesh(int level, int kernel) {
                                          OpenSubdiv::OsdCLComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_clComputeController,
-                                                hmesh, numVertexElements, level, bits,
-                                                g_clContext, g_clQueue);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits, g_clContext, g_clQueue);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if(kernel == kCUDA) {
@@ -954,7 +972,10 @@ createOsdMesh(int level, int kernel) {
                                          OpenSubdiv::OsdCudaComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_cudaComputeController,
-                                                hmesh, numVertexElements, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if(kernel == kGLSL) {
@@ -965,7 +986,10 @@ createOsdMesh(int level, int kernel) {
                                          OpenSubdiv::OsdGLSLTransformFeedbackComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_glslTransformFeedbackComputeController,
-                                                hmesh, numVertexElements, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if(kernel == kGLSLCompute) {
@@ -976,7 +1000,10 @@ createOsdMesh(int level, int kernel) {
                                          OpenSubdiv::OsdGLSLComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_glslComputeController,
-                                                hmesh, numVertexElements, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
     } else {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
@@ -1441,6 +1468,7 @@ drawModel() {
         effect.specular = g_specular;
         effect.patchCull = g_patchCull;
         effect.screenSpaceTess = g_screenSpaceTess;
+        effect.fractionalSpacing = g_fractionalSpacing;
         effect.ibl = g_ibl;
         effect.wire = g_wire;
 
@@ -1636,7 +1664,7 @@ display() {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state) {
+mouse(GLFWwindow *, int button, int state, int mods) {
 #else
 mouse(int button, int state) {
 #endif
@@ -1798,6 +1826,9 @@ callbackCheckBox(bool checked, int button)
     case HUD_CB_VIEW_LOD:
         g_screenSpaceTess = checked;
         break;
+    case HUD_CB_FRACTIONAL_SPACING:
+        g_fractionalSpacing = checked;
+        break;
     case HUD_CB_PATCH_CULL:
         g_patchCull = checked;
         break;
@@ -1839,8 +1870,9 @@ toggleFullScreen() {
 //------------------------------------------------------------------------------
 void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int event) {
+keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
 #else
+#define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
 #endif
 
@@ -1857,7 +1889,7 @@ keyboard(int key, int event) {
         case '+':
         case '=': g_tessLevel++; break;
         case '-': g_tessLevel = std::max(1, g_tessLevel-1); break;
-        case GLFW_KEY_ESC: g_hud.SetVisible(!g_hud.IsVisible()); break;
+        case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
     }
 }
 
@@ -2047,9 +2079,9 @@ int main(int argc, char ** argv) {
         }
         
         if (g_primary) {
-            GLFWvidmode vidmode = glfwGetVideoMode(g_primary);
-            g_width = vidmode.width;
-            g_height = vidmode.height;
+            GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
+            g_width = vidmode->width;
+            g_height = vidmode->height;
         }
     }
 
@@ -2076,7 +2108,7 @@ int main(int argc, char ** argv) {
     glfwSetMouseButtonCallback(mouse);
 #endif
 
-#if not defined(__APPLE__)
+#if defined(OSD_USES_GLEW)
 #ifdef CORE_PROFILE
     // this is the only way to initialize glew correctly under core profile context.
     glewExperimental = true;
@@ -2096,6 +2128,8 @@ int main(int argc, char ** argv) {
 #if GLFW_VERSION_MAJOR>=3
     glfwSetWindowSizeCallback(g_window, reshape);
     glfwSetWindowCloseCallback(g_window, windowClose);
+    // as of GLFW 3.0.1 this callback is not implicit
+    reshape();
 #else
     glfwSetWindowSizeCallback(reshape);
     glfwSetWindowCloseCallback(windowClose);
@@ -2168,9 +2202,12 @@ int main(int argc, char ** argv) {
                       450, 30, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');
     g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
                       450, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
+                      450, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
-                      450, 70, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
-    g_hud.AddCheckBox("Bloom (Y)", g_bloom, 450, 90, callbackCheckBox, HUD_CB_BLOOM, 'y');
+                      450, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
+    g_hud.AddCheckBox("Bloom (Y)", g_bloom,
+                      450, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
 
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive, 10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');

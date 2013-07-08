@@ -87,37 +87,35 @@ uniform bool vertexPass;
 
 //--------------------------------------------------------------------------------
 
-#define NUM_USER_VERTEX_ELEMENTS (NUM_VERTEX_ELEMENTS-3)
-
 struct Vertex
 {
-    vec3 position;
-#if NUM_USER_VERTEX_ELEMENTS > 0
-    float vertexData[NUM_USER_VERTEX_ELEMENTS];
+#if NUM_VERTEX_ELEMENTS > 0
+    float vertexData[NUM_VERTEX_ELEMENTS];
 #endif
 #if NUM_VARYING_ELEMENTS > 0
-    float varyingData[NUM_VARYING_ELEMENTS];  // XXX: should use vec4 and packing
+    float varyingData[NUM_VARYING_ELEMENTS];
 #endif
 };
 
-uniform samplerBuffer vertex;        // vec3 position, + vertexdata[NUM_USER_VERTEX_ELEMENTS]
+#if NUM_VERTEX_ELEMENTS > 0
+uniform samplerBuffer vertexData;    // float[NUM_VERTEX_ELEMENTS]
+#endif
 #if NUM_VARYING_ELEMENTS > 0
 uniform samplerBuffer varyingData;   // float[NUM_VARYING_ELEMENTS]
 #endif
 
-out vec3 outPosition;
-#if NUM_USER_VERTEX_ELEMENTS > 0
-out float outVertexData[NUM_USER_VERTEX_ELEMENTS];
+// output feedback (mapped as a subrange of vertices)
+#if NUM_VERTEX_ELEMENTS > 0
+out float outVertexData[NUM_VERTEX_ELEMENTS];
 #endif
 #if NUM_VARYING_ELEMENTS > 0
-out float outVaryingData[NUM_VARYING_ELEMENTS];  // output feedback (mapped as a subrange of vertices)
+out float outVaryingData[NUM_VARYING_ELEMENTS];
 #endif
 
 void clear(out Vertex v)
 {
-    v.position = vec3(0);
-#if NUM_USER_VERTEX_ELEMENTS > 0
-    for (int i = 0; i < NUM_USER_VERTEX_ELEMENTS; i++) {
+#if NUM_VERTEX_ELEMENTS > 0
+    for (int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
         v.vertexData[i] = 0;
     }
 #endif
@@ -134,18 +132,14 @@ Vertex readVertex(int index)
     Vertex v;
 
     // unpacking
-    v.position.x = texelFetch(vertex, index*NUM_VERTEX_ELEMENTS  ).x;
-    v.position.y = texelFetch(vertex, index*NUM_VERTEX_ELEMENTS+1).x;
-    v.position.z = texelFetch(vertex, index*NUM_VERTEX_ELEMENTS+2).x;
-#if NUM_USER_VERTEX_ELEMENTS > 0
-    for(int i = 0; i < NUM_USER_VERTEX_ELEMENTS; i++) {
-        v.vertexData[i] = texelFetch(vertex, index*NUM_VERTEX_ELEMENTS+3+i).x;
+#if NUM_VERTEX_ELEMENTS > 0
+    for(int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
+        v.vertexData[i] = texelFetch(vertexData, index*NUM_VERTEX_ELEMENTS+i).x;
     }
 #endif
 #if NUM_VARYING_ELEMENTS > 0
-    int stride = NUM_VARYING_ELEMENTS;
     for(int i = 0; i < NUM_VARYING_ELEMENTS; i++){
-        v.varyingData[i] = texelFetch(varyingData, index*stride+i).x;
+        v.varyingData[i] = texelFetch(varyingData, index*NUM_VARYING_ELEMENTS+i).x;
     }
 #endif
     return v;
@@ -154,9 +148,8 @@ Vertex readVertex(int index)
 void writeVertex(Vertex v)
 {
     // packing
-    outPosition = v.position;
-#if NUM_USER_VERTEX_ELEMENTS > 0
-    for(int i = 0; i < NUM_USER_VERTEX_ELEMENTS; i++) {
+#if NUM_VERTEX_ELEMENTS > 0
+    for(int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
         outVertexData[i] = v.vertexData[i];
     }
 #endif
@@ -169,22 +162,18 @@ void writeVertex(Vertex v)
 
 void writeVertexByImageStore(Vertex v, int index)
 {
+#if NUM_VERTEX_ELEMENTS > 0
     int p = index * NUM_VERTEX_ELEMENTS;
-    imageStore(_vertexBufferImage, p,   vec4(v.position.x, 0, 0, 0));
-    imageStore(_vertexBufferImage, p+1, vec4(v.position.y, 0, 0, 0));
-    imageStore(_vertexBufferImage, p+2, vec4(v.position.z, 0, 0, 0));
-#if NUM_USER_VERTEX_ELEMENTS > 0
-    for(int i = 0; i < NUM_USER_VERTEX_ELEMENTS; i++) {
-        imageStore(_vertexBufferImage, p+3+i, vec4(v.vertexData[i], 0, 0, 0));
+    for(int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
+        imageStore(_vertexBufferImage, p+i, vec4(v.vertexData[i], 0, 0, 0));
     }
 #endif
 }
 
 void addWithWeight(inout Vertex v, Vertex src, float weight)
 {
-    v.position += weight * src.position;
-#if NUM_USER_VERTEX_ELEMENTS > 0
-    for(int i = 0; i < NUM_USER_VERTEX_ELEMENTS; i++) {
+#if NUM_VERTEX_ELEMENTS > 0
+    for(int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
         v.vertexData[i] += weight * src.vertexData[i];
     }
 #endif
@@ -434,24 +423,12 @@ void editAdd()
     // below loops iterate over every elements regardless editing values to be applied or not,
     // so we need to make out-of-range edits ineffective.
 
-    for (int j = 0; j < 3; ++j) {
+#if NUM_VERTEX_ELEMENTS > 0
+    for (int j = 0; j < NUM_VERTEX_ELEMENTS; ++j) {
         int index = min(j-editPrimVarOffset, editPrimVarWidth-1);
         float editValue = texelFetch(_editValues, i*editPrimVarOffset + index).x;
         editValue *= float(j >= editPrimVarOffset);
         editValue *= float(j < (editPrimVarWidth + editPrimVarOffset));
-
-        if (j == 0) dst.position.x += editValue;
-        else if (j == 1) dst.position.y += editValue;
-        else if (j == 2) dst.position.z += editValue;
-    }
-
-    // XXX: following code has not been tested.
-#if NUM_USER_VERTEX_ELEMENTS > 0
-    for (int j = 0; j < NUM_USER_VERTEX_ELEMENTS; ++j) {
-        int index = min(j-editPrimVarOffset, editPrimVarWidth-1);
-        float editValue = texelFetch(_editValues, i*editPrimVarOffset + index).x;
-        editValue *= float((j+3) >= editPrimVarOffset);
-        editValue *= float((j+3) < (editPrimVarWidth + editPrimVarOffset));
         dst.vertexData[j] += editValue;
     }
 #endif

@@ -56,7 +56,11 @@
 //
 
 #if defined(__APPLE__)
-    #include <OpenGL/gl3.h>
+    #if defined(OSD_USES_GLEW)
+        #include <GL/glew.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
     #define GLFW_INCLUDE_GL3
     #define GLFW_NO_GLU
 #else
@@ -68,7 +72,7 @@
 #endif
 
 #if defined(GLFW_VERSION_3)
-    #include <GL/glfw3.h>
+    #include <GLFW/glfw3.h>
     GLFWwindow* g_window=0;
     GLFWmonitor* g_primary=0;
 #else
@@ -919,7 +923,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state) {
+mouse(GLFWwindow *, int button, int state, int mods) {
 #else
 mouse(int button, int state) {
 #endif
@@ -972,8 +976,9 @@ setSamples(bool add)
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int event) {
+keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
 #else
+#define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
 #endif
 
@@ -987,7 +992,7 @@ keyboard(int key, int event) {
         
         case '-': setSamples(false); break;
         
-        case GLFW_KEY_ESC: g_hud.SetVisible(!g_hud.IsVisible()); break;
+        case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
     }
 }
 
@@ -1136,12 +1141,29 @@ setGLCoreProfile()
 }
 
 //------------------------------------------------------------------------------
-int main(int, char**) {
+int main(int argc, char **argv) {
 
     bool fullscreen = false;
 
+    std::string str;
+    for (int i = 1; i < argc; ++i) {
+        if (!strcmp(argv[i], "-f"))
+            fullscreen = true;
+        else {
+            std::ifstream ifs(argv[1]);
+            if (ifs) {
+                std::stringstream ss;
+                ss << ifs.rdbuf();
+                ifs.close();
+                str = ss.str();
+                g_defaultShapes.push_back(SimpleShape(str.c_str(), argv[1], kCatmark));
+            }
+        }
+    }
+    
     OsdSetErrorCallback(callbackError);
     
+
     initializeShapes();
 
     if (not glfwInit()) {
@@ -1172,9 +1194,9 @@ int main(int, char**) {
         }
         
         if (g_primary) {
-            GLFWvidmode vidmode = glfwGetVideoMode(g_primary);
-            g_width = vidmode.width;
-            g_height = vidmode.height;
+            GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
+            g_width = vidmode->width;
+            g_height = vidmode->height;
         }
     }
 
@@ -1205,7 +1227,7 @@ int main(int, char**) {
     glfwSetWindowCloseCallback(windowClose);
 #endif
     
-#if not defined(__APPLE__)
+#if defined(OSD_USES_GLEW)
 #ifdef CORE_PROFILE
     // this is the only way to initialize glew correctly under core profile context.
     glewExperimental = true;

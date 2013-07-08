@@ -814,13 +814,13 @@ createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
         int nv = sh->nvertsPerFace[f];
 
         if ((scheme==kLoop) and (nv!=3)) {
-            printf("Trying to create a Loop surbd with non-triangle face\n");
+            printf("Trying to create a Loop subd with non-triangle face\n");
             exit(1);
         }
 
         for(int j=0;j<nv;j++) {
             OpenSubdiv::HbrVertex<T> * origin      = mesh->GetVertex( fv[j] );
-            OpenSubdiv::HbrVertex<T> * destination = mesh->GetVertex( fv[ (j+1)%nv] );
+            OpenSubdiv::HbrVertex<T> * destination = mesh->GetVertex( fv[(j+1)%nv] );
             OpenSubdiv::HbrHalfedge<T> * opposite  = destination->GetEdge(origin);
 
             if(origin==NULL || destination==NULL) {
