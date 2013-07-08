@@ -248,68 +248,63 @@ uniform samplerBuffer g_fvarDataBuffer;
 #endif
 
 // XXX: quad only for now
-float ComputeFaceVarying1(int fvarOffset, vec2 tessCoord)
-{
-    float v[4];
-    int primOffset = (gl_PrimitiveID + LevelBase) * 4;
-    for (int i = 0; i < 4; ++i) {
-        v[i] = texelFetch(g_fvarDataBuffer,
-                          (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset).s;
+#define OSD_COMPUTE_FACE_VARYING_1(result, fvarOffset, tessCoord)       \
+    {                                                                   \
+        float v[4];                                                     \
+        int primOffset = (gl_PrimitiveID + LevelBase) * 4;              \
+        for (int i = 0; i < 4; ++i) {                                   \
+            int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
+            v[i] = texelFetch(g_fvarDataBuffer, index).s                \
+        }                                                               \
+        result = mix(mix(v[0], v[1], tessCoord.s),                      \
+                     mix(v[3], v[2], tessCoord.s),                      \
+                     tessCoord.t);                                      \
     }
-    return mix(mix(v[0], v[1], tessCoord.s),
-               mix(v[3], v[2], tessCoord.s),
-               tessCoord.t);
-}
-vec2 ComputeFaceVarying2(int fvarOffset, vec2 tessCoord)
-{
-    vec2 v[4];
-    int primOffset = (gl_PrimitiveID + LevelBase) * 4;
-    for (int i = 0; i < 4; ++i) {
-        v[i] = vec2(texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset).s,
-                    texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 1).s);
-    }
-    return mix(mix(v[0], v[1], tessCoord.s),
-               mix(v[3], v[2], tessCoord.s),
-               tessCoord.t);
-}
 
-vec3 ComputeFaceVarying3(int fvarOffset, vec2 tessCoord)
-{
-    vec3 v[4];
-    int primOffset = (gl_PrimitiveID + LevelBase) * 4;
-    for (int i = 0; i < 4; ++i) {
-        v[i] = vec3(texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset).s,
-                    texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 1).s,
-                    texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 2).s);
+#define OSD_COMPUTE_FACE_VARYING_2(result, fvarOffset, tessCoord)       \
+    {                                                                   \
+        vec2 v[4];                                                      \
+        int primOffset = (gl_PrimitiveID + LevelBase) * 4;              \
+        for (int i = 0; i < 4; ++i) {                                   \
+            int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
+            v[i] = vec2(texelFetch(g_fvarDataBuffer, index).s,          \
+                        texelFetch(g_fvarDataBuffer, index + 1).s);     \
+        }                                                               \
+        result = mix(mix(v[0], v[1], tessCoord.s),                      \
+                     mix(v[3], v[2], tessCoord.s),                      \
+                     tessCoord.t);                                      \
     }
-    return mix(mix(v[0], v[1], tessCoord.s),
-               mix(v[3], v[2], tessCoord.s),
-               tessCoord.t);
-}
 
-vec4 ComputeFaceVarying4(int fvarOffset, vec2 tessCoord)
-{
-    vec4 v[4];
-    int primOffset = (gl_PrimitiveID + LevelBase) * 4;
-    for (int i = 0; i < 4; ++i) {
-        v[i] = vec4(texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset).s,
-                    texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 1).s,
-                    texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 2).s,
-                    texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 3).s);
+#define OSD_COMPUTE_FACE_VARYING_3(result, fvarOffset, tessCoord)       \
+    {                                                                   \
+        vec3 v[4];                                                      \
+        int primOffset = (gl_PrimitiveID + LevelBase) * 4;              \
+        for (int i = 0; i < 4; ++i) {                                   \
+            int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
+            v[i] = vec3(texelFetch(g_fvarDataBuffer, index).s,          \
+                        texelFetch(g_fvarDataBuffer, index + 1).s,      \
+                        texelFetch(g_fvarDataBuffer, index + 2).s);     \
+        }                                                               \
+        result = mix(mix(v[0], v[1], tessCoord.s),                      \
+                     mix(v[3], v[2], tessCoord.s),                      \
+                     tessCoord.t);                                      \
     }
-    return mix(mix(v[0], v[1], tessCoord.s),
-               mix(v[3], v[2], tessCoord.s),
-               tessCoord.t);
-}
+
+#define OSD_COMPUTE_FACE_VARYING_4(result, fvarOffset, tessCoord)       \
+    {                                                                   \
+        vec4 v[4];                                                      \
+        int primOffset = (gl_PrimitiveID + LevelBase) * 4;              \
+        for (int i = 0; i < 4; ++i) {                                   \
+            int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
+            v[i] = vec3(texelFetch(g_fvarDataBuffer, index).s,          \
+                        texelFetch(g_fvarDataBuffer, index + 1).s,      \
+                        texelFetch(g_fvarDataBuffer, index + 2).s,      \
+                        texelFetch(g_fvarDataBuffer, index + 3).s);     \
+        }                                                               \
+        result = mix(mix(v[0], v[1], tessCoord.s),                      \
+                     mix(v[3], v[2], tessCoord.s),                      \
+                     tessCoord.t);                                      \
+    }
 
 // ----------------------------------------------------------------------------
 // patch culling

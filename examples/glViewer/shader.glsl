@@ -160,7 +160,8 @@ void emit(int index, vec3 normal)
 #else
     vec2 st = inpt[index].v.tessCoord;
 #endif
-    vec2 uv = ComputeFaceVarying2(/*fvarOffset=*/0, st);
+    vec2 uv;
+    OSD_COMPUTE_FACE_VARYING_2(uv, /*fvarOffset=*/0, st);
     outpt.color = vec3(uv.s, uv.t, 0);
 #endif
 
