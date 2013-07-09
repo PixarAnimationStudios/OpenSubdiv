@@ -471,35 +471,35 @@ endif()
 add_custom_target( public_headers )
 
 macro(_add_doxy_headers headers)
+    if (NOT NO_DOC)
+        file(RELATIVE_PATH path ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR} )
 
-    file(RELATIVE_PATH path ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR} )
+        string(REPLACE  "/" "_" targetpath ${path})
 
-    string(REPLACE  "/" "_" targetpath ${path})
+        foreach (header ${headers})
 
-    foreach (header ${headers})
+            set(infile ${CMAKE_CURRENT_SOURCE_DIR}/${header})
+            set(outfile ${CMAKE_BINARY_DIR}/public_headers/${path}/${header})
+            set(targetname "${targetpath}_${header}")
 
-        set(infile ${CMAKE_CURRENT_SOURCE_DIR}/${header})
-        set(outfile ${CMAKE_BINARY_DIR}/public_headers/${path}/${header})
-        set(targetname "${targetpath}_${header}")
+            add_custom_command(
+                OUTPUT
+                    ${outfile}
+                COMMAND
+                    ${CMAKE_COMMAND}
+                ARGS
+                    -E copy ${infile} ${outfile}
+                DEPENDS
+                    ${infile}
+            )
 
-        add_custom_command(
-            OUTPUT
-                ${outfile}
-            COMMAND
-                ${CMAKE_COMMAND}
-            ARGS
-                -E copy ${infile} ${outfile}
-            DEPENDS
-                ${infile}
-        )
+            add_custom_target(${targetname} DEPENDS ${outfile})
 
-        add_custom_target(${targetname} DEPENDS ${outfile})
+            list(APPEND headerfiles ${targetname} )
+        endforeach()
 
-        list(APPEND headerfiles ${targetname} )
-    endforeach()
-
-    add_dependencies( public_headers DEPENDS ${headerfiles} )
-
+        add_dependencies( public_headers DEPENDS ${headerfiles} )
+    endif()
 endmacro()
 
 
@@ -561,4 +561,6 @@ if (NOT NO_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-add_subdirectory(documentation)
+if (NOT NO_DOC)
+    add_subdirectory(documentation)
+endif()
