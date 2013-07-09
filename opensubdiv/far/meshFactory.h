@@ -493,9 +493,9 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
                 v->_adaptiveFlags.isTagged=true;
                 nextverts.insert(v);
             }
-            
+
             // Quad-faces with 2 non-consecutive boundaries need to be flagged
-            // as "non-patch"
+            // for refinement as boundary patches. 
             //
             //  o ........ o ........ o ........ o
             //  .          |          |          .     ... b.undary edge
@@ -505,10 +505,21 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
             //  o ........ o ........ o ........ o
             //
             if ( e->IsBoundary() and (not f->_adaptiveFlags.isTagged) and nv==4 ) {
+            
                 if (e->GetPrev() and (not e->GetPrev()->IsBoundary()) and
                     e->GetNext() and (not e->GetNext()->IsBoundary()) and
                     e->GetNext() and e->GetNext()->GetNext() and e->GetNext()->GetNext()->IsBoundary()) {
+
+                    // Tag the face so that we don't check for this again
                     f->_adaptiveFlags.isTagged=true;
+
+                    // Tag all 4 vertices of the face to make sure 4 boundary
+                    // sub-patches are generated
+                    for (int k=0; k<4; ++k) {
+                        HbrVertex<T> * v = f->GetVertex(j);
+                        v->_adaptiveFlags.isTagged=true;
+                        nextverts.insert(v);
+                    }
                 }
             }
         }
