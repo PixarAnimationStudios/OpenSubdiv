@@ -313,7 +313,7 @@ FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & fli
 
     unsigned int  * iptr = &result->_patches[0];
     FarPatchParam * pptr = &result->_paramTable[0];
-    float         * fptr = requireFVarData ? &result->_fvarTable[0] : 0;
+    float         * fptr = fvarwidth>0 ? &result->_fvarTable[0] : 0;
     
     for (int level=firstArray; level<(int)flist.size(); ++level) {
 
@@ -327,7 +327,7 @@ FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & fli
             
             pptr = computePatchParam(f, pptr);
             
-            if (requireFVarData)
+            if (fvarwidth>0)
                 fptr = computeFVarData(f, fvarwidth, fptr, /*isAdaptive=*/false);
         }
     }
