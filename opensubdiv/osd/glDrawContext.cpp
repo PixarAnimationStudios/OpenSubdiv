@@ -103,6 +103,7 @@ createTextureBuffer(T const &data, GLint format, int offset=0)
 
     glBindTexture(GL_TEXTURE_BUFFER, texture);
     glTexBuffer(GL_TEXTURE_BUFFER, format, buffer);
+    glBindTexture(GL_TEXTURE_BUFFER, 0);
     glDeleteBuffers(1, &buffer);
 #endif
 
