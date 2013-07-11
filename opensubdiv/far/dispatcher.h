@@ -84,9 +84,18 @@ namespace OPENSUBDIV_VERSION {
 ///
 /// Note : the caller is responsible for deleting a custom dispatcher
 ///
-
 class FarDispatcher {
 public:
+    /// \brief Launches the processing of a vector of kernel batches
+    ///
+    /// @param controller  refinement controller implementation
+    ///
+    /// @param batches     batches of kernels that need to be processed
+    ///
+    /// @param maxlevel    process vertex batches up to this level
+    ///
+    /// @param clientdata  custom client data passed to the controller
+    ///
     template <class CONTROLLER>
     static void Refine(CONTROLLER const *controller, FarKernelBatchVector const & batches, int maxlevel, void * clientdata=0);
 };
@@ -148,10 +157,12 @@ FarDispatcher::Refine(CONTROLLER const *controller, FarKernelBatchVector const &
 
 // -----------------------------------------------------------------------------
 
-
+/// \brief Far default controller implementation
+///
+/// This is Far's default implementation of a kernal batch controller.
+///
 template <class U>
-class FarComputeController
-{
+class FarComputeController {
 
 public:
     void Refine(FarMesh<U> * mesh, int maxlevel=-1) const;

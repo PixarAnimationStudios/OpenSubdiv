@@ -84,39 +84,39 @@ public:
 
     ~FarMesh();
 
-    /// Returns the subdivision method
+    /// \brief Returns the subdivision method
     FarSubdivisionTables<U> const * GetSubdivisionTables() const { return _subdivisionTables; }
 
-    /// Returns patch tables
+    /// \brief Returns patch tables
     FarPatchTables const * GetPatchTables() const { return _patchTables; }
 
-    /// Returns the total number of vertices in the mesh across across all depths
+    /// \brief Returns the total number of vertices in the mesh across across all depths
     int GetNumVertices() const { return GetSubdivisionTables()->GetNumVertices(); }
 
-    /// Returns the list of vertices in the mesh (from subdiv level 0 to N)
+    /// \brief Returns the list of vertices in the mesh (from subdiv level 0 to N)
     std::vector<U> & GetVertices() { return _vertices; }
 
-    /// Returns a reference to the vertex at the given index
+    /// \brief Returns a reference to the vertex at the given index
     ///
     /// @param index the index fo the vertex
     ///
     U & GetVertex(int index) { return _vertices[index]; }
 
-    /// Returns the width of the interleaved face-varying data
+    /// \brief Returns the width of the interleaved face-varying data
     int GetTotalFVarWidth() const { return _totalFVarWidth; }
 
-    /// Returns vertex edit tables
+    /// \brief Returns vertex edit tables
     FarVertexEditTables<U> const * GetVertexEdit() const { return _vertexEditTables; }
 
-    /// Returns the total number of vertices in the mesh across across all depths
+    /// \brief Returns the total number of vertices in the mesh across across all depths
     int GetNumPtexFaces() const { return _numPtexFaces; }
 
-    /// True if the mesh tables support the feature-adaptive mode.
+    /// \brief True if the mesh tables support the feature-adaptive mode.
     bool IsFeatureAdaptive() const { return _patchTables->IsFeatureAdaptive(); }
 
-    /// Returns an ordered vector of batches of compute kernels. The kernels
-    /// describe the sequence of computations required to apply the subdivision
-    /// scheme to the vertices in the mesh.    
+    /// \brief Returns an ordered vector of batches of compute kernels. 
+    /// The kernels describe the sequence of computations required to apply the 
+    /// subdivision scheme to the vertices in the mesh.    
     const FarKernelBatchVector & GetKernelBatches() const { return _batches; }
 
 private:

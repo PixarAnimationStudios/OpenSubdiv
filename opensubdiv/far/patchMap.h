@@ -80,20 +80,20 @@ namespace OPENSUBDIV_VERSION {
 class FarPatchMap {
 public:
 
-    /// Handle that can be used as unique patch identifier within FarPatchTables
+    /// \brief Handle that can be used as unique patch identifier within FarPatchTables
     struct Handle {
         unsigned int patchArrayIdx,  // OsdPatchArray containing the patch
                      patchIdx,       // Absolute index of the patch
                      vertexOffset;   // Offset to the first CV of the patch
     };
-    
-    /// Constructor
+
+    /// \brief Constructor
     ///
     /// @param patchTables  A valid set of FarPatchTables
     ///
     FarPatchMap( FarPatchTables const & patchTables );
 
-    /// Returns a handle to the sub-patch of the face at the given (u,v).
+    /// \brief Returns a handle to the sub-patch of the face at the given (u,v).
     /// Note : the faceid corresponds to quadrangulated face indices (ie. quads
     /// count as 1 index, non-quads add as many indices as they have vertices)
     ///

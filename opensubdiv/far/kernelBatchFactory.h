@@ -69,7 +69,7 @@ class FarVertexKernelBatchFactory {
 
 public:
 
-    /// Constructor.
+    /// \brief Constructor.
     ///
     /// @param start index of the first vertex in the batch
     ///
@@ -81,13 +81,15 @@ public:
     }
 
 
-    /// Adds a vertex-vertex to the appropriate compute batch based on "Rank". 
+    /// \brief Adds a vertex-vertex to the appropriate compute batch based on "Rank". 
+    ///
     /// Ranking is based on the interpolation required (Smooth, Dart, Crease,
     /// or Corner). With semi-sharp creases, two passes of interpolation are
     /// required, from which we derive a matrix of compute kernel combinations.
     ///
     /// The kernel combinatorial matrix :
     ///
+#ifndef doxygen    
     /// Rules     +----+----+----+----+----+----+----+----+----+----+
     ///   Pass 0  | Dt | Sm | Sm | Dt | Sm | Dt | Sm | Cr | Co | Cr |
     ///   Pass 1  |    |    |    | Co | Co | Cr | Cr | Co |    |    |
@@ -97,6 +99,24 @@ public:
     ///           +----+----+----+----+----+----+----+----+----+----+
     /// Rank      | 0  | 1  | 2  | 3  | 4  | 5  | 6  | 7  | 8  | 9  |
     ///           +----+----+----+----+----+----+----+----+----+----+
+#else
+    /// <table class="doxtable">
+    /// <tr> <th colspan="11" align="left">Rules</th></tr>
+    /// <tr align="center"> <td>Pass 0</td> <td>Dart</td> <td>Smooth</td> 
+    ///     <td>Smooth</td> <td>Dart  </td> <td>Smooth</td> <td>Dart  </td> 
+    ///     <td>Smooth</td> <td>Crease</td> <td>Corner</td> <td>Crease</td> </tr>
+    /// <tr align="center"> <td>Pass 1</td> <td>    </td> <td>      </td> 
+    ///     <td>      </td> <td>Corner</td> <td>Corner</td> <td>Crease</td> 
+    ///     <td>Crease</td> <td>Corner</td> <td>      </td> <td>      </td> </tr>
+    /// <tr> <th colspan="11" align="left">Kernel</th></tr>
+    /// <tr align="center"> <td>Pass 0</td> <td>  B </td> <td>  B   </td> 
+    ///      <td>  B   </td> <td>  B   </td> <td>  B   </td> <td>  B   </td> 
+    ///      <td>  B   </td> <td>  A   </td> <td>  A   </td> <td>  A   </td> </tr>
+    /// <tr align="center"> <td>Pass 1</td> <td>    </td> <td>      </td> 
+    ///      <td>      </td> <td>  A   </td> <td>  A   </td> <td>  A   </td> 
+    ///      <td>  A   </td> <td>  A   </td> <td>      </td> <td>      </td> </tr>    
+    /// </table>
+#endif    
     /// with :
     ///     - A : compute kernel applying k_Crease / k_Corner rules
     ///     - B : compute kernel applying k_Smooth / k_Dart rules
@@ -110,7 +130,7 @@ public:
 
 
 
-    /// Appends a FarKernelBatch to a vector of batches for Catmark subdivision
+    /// \brief Appends a FarKernelBatch to a vector of batches for Catmark subdivision
     ///
     /// @param level         the subdivision level of the vertices in the batch
     ///
@@ -124,7 +144,7 @@ public:
 
 
 
-    /// Appends a FarKernelBatch to a vector of batches for Loop subdivision
+    /// \brief Appends a FarKernelBatch to a vector of batches for Loop subdivision
     ///
     /// @param level         the subdivision level of the vertices in the batch
     ///

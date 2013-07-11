@@ -122,7 +122,7 @@ public:
     ///
     FarMeshFactory(HbrMesh<T> * mesh, int maxlevel, bool adaptive=false, int firstLevel=-1);
 
-    /// Create a table-based mesh representation
+    /// \brief Create a table-based mesh representation
     ///
     /// @param requireFVarData create a face-varying table
     ///
@@ -130,7 +130,7 @@ public:
     ///
     FarMesh<U> * Create( bool requireFVarData=false );
 
-    /// Computes the minimum number of adaptive feature isolation levels required
+    /// \brief Computes the minimum number of adaptive feature isolation levels required
     /// in order for the limit surface to be an accurate representation of the 
     /// shape given all the tags and edits.
     ///
@@ -145,19 +145,19 @@ public:
     ///
     static int ComputeMinIsolation( HbrMesh<T> const * mesh, int nfaces, int cornerIsolate=5 );
 
-    /// The Hbr mesh that this factory is converting
+    /// \brief The Hbr mesh that this factory is converting
     HbrMesh<T> const * GetHbrMesh() const { return _hbrMesh; }
 
-    /// Maximum level of subidivision supported by this factory
+    /// \brief Maximum level of subidivision supported by this factory
     int GetMaxLevel() const { return _maxlevel; }
 
-    /// The number of coarse vertices found in the HbrMesh before refinement
+    /// \brief The number of coarse vertices found in the HbrMesh before refinement
     ///
     /// @return The number of coarse vertices
     ///
     int GetNumCoarseVertices() const { return _numCoarseVertices; }
 
-    /// Total number of faces up to a given level of subdivision
+    /// \brief Total number of faces up to a given level of subdivision
     ///
     /// @param level  The number of faces up to 'level' of subdivision
     ///
@@ -167,7 +167,8 @@ public:
         return sumList<HbrFace<T> *>(_facesList, level);
     }
 
-    /// Returns the corresponding index of the HbrVertex<T> in the new FarMesh
+    /// \brief Returns the corresponding index of the HbrVertex<T> in the new 
+    /// FarMesh
     ///
     /// @param v  the vertex
     ///
@@ -175,7 +176,8 @@ public:
     ///
     int GetVertexID( HbrVertex<T> * v );
 
-    /// Returns a the mapping between HbrVertex<T>->GetID() and Far vertices indices
+    /// \brief Returns a the mapping between HbrVertex<T>->GetID() and Far 
+    /// vertices indices
     ///
     /// @return the table that maps HbrMesh to FarMesh vertex indices
     ///
@@ -189,6 +191,13 @@ private:
     friend class FarVertexEditTablesFactory<T,U>;
     friend class FarPatchTablesFactory<T>;
 
+    template <class X> struct VertCompare {
+        bool operator()(HbrVertex<X> const * v1, HbrVertex<X> const * v2 ) const {
+            //return v1->GetID() < v2->GetID();
+            return (void*)(v1) < (void*)(v2); 
+        }
+    };
+    
     // Non-copyable, so these are not implemented:
     FarMeshFactory( FarMeshFactory const & );
     FarMeshFactory<T,U> & operator=(FarMeshFactory<T,U> const &);
@@ -433,12 +442,6 @@ FarMeshFactory<T,U>::refineVertexNeighbors(HbrVertex<T> * v) {
     } while (next and next!=start);
 }
 
-template <class T> struct VertCompare {
-    bool operator()(HbrVertex<T> const * v1, HbrVertex<T> const * v2 ) const {
-        //return v1->GetID() < v2->GetID();
-        return (void*)(v1) < (void*)(v2); 
-    }
-};
 
 // Refines an Hbr Catmark mesh adaptively around extraordinary features
 template <class T, class U> int

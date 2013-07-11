@@ -79,8 +79,8 @@ template <class U> class FarCatmarkSubdivisionTables : public FarSubdivisionTabl
 
 public:
 
-    /// Returns the number of indexing tables needed to represent this particular
-    /// subdivision scheme.
+    /// \brief Returns the number of indexing tables needed to represent this 
+    /// particular subdivision scheme.
     virtual int GetNumTables() const { return 7; }
 
 private:

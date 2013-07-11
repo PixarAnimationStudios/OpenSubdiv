@@ -77,7 +77,7 @@ template <class T> class FarPatchTablesFactory {
 protected:
     template <class X, class Y> friend class FarMeshFactory;
 
-    /// Factory constructor for feature-adaptive meshes
+    /// \brief Factory constructor for feature-adaptive meshes
     ///
     /// @param mesh        Hbr mesh to generate tables for
     ///
@@ -87,7 +87,7 @@ protected:
     ///
     FarPatchTablesFactory( HbrMesh<T> const * mesh, int nfaces, std::vector<int> const & remapTable );
     
-    /// Returns a feature-adaptive FarPatchTables instance 
+    /// \brief Returns a feature-adaptive FarPatchTables instance 
     ///
     /// @param maxlevel         Highest level of refinement processed
     ///
@@ -102,7 +102,7 @@ protected:
 
     typedef std::vector<std::vector< HbrFace<T> *> > FacesList;
 
-    /// Factory constructor for uniform meshes
+    /// \brief Factory constructor for uniform meshes
     ///
     /// @param mesh             Hbr mesh to generate tables for
     ///

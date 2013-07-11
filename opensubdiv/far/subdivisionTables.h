@@ -99,69 +99,69 @@ template <class U> class FarSubdivisionTables {
 
 public:
     enum TableType {
-        E_IT,  // edge-vertices adjacency indexing table
-        E_W,   // edge-vertices weights
+        E_IT,  ///< edge-vertices adjacency indexing table
+        E_W,   ///< edge-vertices weights
         
-        V_ITa, // vertex-vertices adjacency indexing table
-        V_IT,  // vertex-vertices indexing table
-        V_W,   // vertex-vertices weights
+        V_ITa, ///< vertex-vertices adjacency indexing table
+        V_IT,  ///< vertex-vertices indexing table
+        V_W,   ///< vertex-vertices weights
         
-        F_ITa, // face-vertices adjacency indexing table
-        F_IT,  // face-vertices indexing table
+        F_ITa, ///< face-vertices adjacency indexing table
+        F_IT,  ///< face-vertices indexing table
         
         TABLE_TYPES_COUNT  // number of different types of tables
     };
 
-    /// Destructor
+    /// \brief Destructor
     virtual ~FarSubdivisionTables<U>() {}
 
-    /// Return the highest level of subdivision possible with these tables
+    /// \brief Return the highest level of subdivision possible with these tables
     int GetMaxLevel() const { return (int)(_vertsOffsets.size()-1); }
 
-    /// Memory required to store the indexing tables
+    /// \brief Memory required to store the indexing tables
     int GetMemoryUsed() const;
 
-    /// Pointer back to the mesh owning the table
+    /// \brief Pointer back to the mesh owning the table
     FarMesh<U> * GetMesh() { return _mesh; }
 
-    /// The index of the first vertex that belongs to the level of subdivision
+    /// \brief The index of the first vertex that belongs to the level of subdivision
     /// represented by this set of FarCatmarkSubdivisionTables
     int GetFirstVertexOffset( int level ) const;
 
-    /// Returns the total number of vertex adressed by the tables (this is the
+    /// \brief Returns the total number of vertex adressed by the tables (this is the
     /// length that a vertex buffer object should be allocating
     int GetNumVertices( ) const;
 
-    /// Returns the number of vertices at a given level
+    /// \brief Returns the number of vertices at a given level
     int GetNumVertices( int level ) const;
 
-    /// Returns the summation of the number of vertices up to a given level
+    /// \brief Returns the summation of the number of vertices up to a given level
     int GetNumVerticesTotal( int level ) const;
 
-    /// Indexing tables accessors
+    // Indexing tables accessors
 
-    /// Returns the face vertices codex table
+    /// \brief Returns the face vertices codex table
     std::vector<int> const &          Get_F_ITa( ) const { return _F_ITa; }
 
-    /// Returns the face vertices indexing table
+    /// \brief Returns the face vertices indexing table
     std::vector<unsigned int> const & Get_F_IT( ) const { return _F_IT; }
 
-    /// Returns the edge vertices indexing table
+    /// \brief Returns the edge vertices indexing table
     std::vector<int> const &          Get_E_IT() const { return _E_IT; }
 
-    /// Returns the edge vertices weights table
+    /// \brief Returns the edge vertices weights table
     std::vector<float> const &        Get_E_W() const { return _E_W; }
 
-    /// Returns the vertex vertices codex table
+    /// \brief Returns the vertex vertices codex table
     std::vector<int> const &          Get_V_ITa() const { return _V_ITa; }
 
-    /// Returns the vertex vertices indexing table
+    /// \brief Returns the vertex vertices indexing table
     std::vector<unsigned int> const & Get_V_IT() const { return _V_IT; }
 
-    /// Returns the vertex vertices weights table
+    /// \brief Returns the vertex vertices weights table
     std::vector<float> const &        Get_V_W() const { return _V_W; }
 
-    /// Returns the number of indexing tables needed to represent this particular
+    /// \brief Returns the number of indexing tables needed to represent this particular
     /// subdivision scheme.
     virtual int GetNumTables() const { return 5; }
 

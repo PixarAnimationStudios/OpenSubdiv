@@ -93,30 +93,30 @@ protected:
     // Hbr vertex indices to the FarVertexEdit tables.
     FarSubdivisionTablesFactory( HbrMesh<T> const * mesh, int maxlevel, std::vector<int> & remapTable );
 
-    /// Returns the number of coarse vertices found in the mesh
+    // Returns the number of coarse vertices found in the mesh
     int GetNumCoarseVertices() const { 
         return (int)(_vertVertsList[0].size()); 
     }
 
-    /// Total number of face vertices up to 'level'
+    // Total number of face vertices up to 'level'
     int GetNumFaceVerticesTotal(int level) const {
         return sumList<HbrVertex<T> *>(_faceVertsList, level);
     }
 
-    /// Total number of edge vertices up to 'level'
+    // Total number of edge vertices up to 'level'
     int GetNumEdgeVerticesTotal(int level) const {
         return sumList<HbrVertex<T> *>(_edgeVertsList, level);
     }
 
-    /// Total number of vertex vertices up to 'level'
+    // Total number of vertex vertices up to 'level'
     int GetNumVertexVerticesTotal(int level) const {
         return sumList<HbrVertex<T> *>(_vertVertsList, level);
     }
 
-    /// Valence summation up to 'level'
+    // Valence summation up to 'level'
     int GetFaceVertsValenceSum() const { return _faceVertsValenceSum; }
 
-    /// Valence summation for face vertices 
+    // Valence summation for face vertices 
     int GetVertVertsValenceSum() const { return _vertVertsValenceSum; }
 
     // Returns an integer based on the order in which the kernels are applied

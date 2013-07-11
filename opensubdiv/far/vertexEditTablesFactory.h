@@ -80,12 +80,12 @@ template <class T, class U> class FarVertexEditTablesFactory {
 protected:
     template <class X, class Y> friend class FarMeshFactory;
 
-    /// Compares the number of subfaces in an edit (for sorting purposes)
+    /// \brief Compares the number of subfaces in an edit (for sorting purposes)
     static bool compareEdits(HbrVertexEdit<T> const *a, HbrVertexEdit<T> const *b);
     
     static void insertHEditBatch(FarKernelBatchVector *batches, int batchIndex, int batchLevel, int batchCount, int tableOffset);
 
-    /// Creates a FarVertexEditTables instance.
+    /// \brief Creates a FarVertexEditTables instance.
     static FarVertexEditTables<U> * Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, FarKernelBatchVector *batches, int maxlevel );
 };
 

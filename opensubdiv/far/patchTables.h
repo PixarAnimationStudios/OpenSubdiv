@@ -86,17 +86,17 @@ public:
     typedef std::vector<float>         FVarDataTable;
 
     enum Type {
-        NON_PATCH = 0,   // undefined
+        NON_PATCH = 0,     ///< undefined
  
-        POINTS,          // points  (useful for cage drawing)
-        LINES,           // lines   (useful for cage drawing)
+        POINTS,            ///< points  (useful for cage drawing)
+        LINES,             ///< lines   (useful for cage drawing)
  
-        QUADS,           // bilinear quads-only patches
-        TRIANGLES,       // bilinear triangles-only mesh
+        QUADS,             ///< bilinear quads-only patches
+        TRIANGLES,         ///< bilinear triangles-only mesh
  
-        LOOP,            // Loop patch  (unsupported)
-
-        REGULAR,         // feature-adaptive bicubic patches
+        LOOP,              ///< Loop patch  (unsupported)
+ 
+        REGULAR,           ///< feature-adaptive bicubic patches
         BOUNDARY,
         CORNER,
         GREGORY,
@@ -133,77 +133,79 @@ public:
     class Descriptor {
     
     public:
-        /// Default constructor.
+        /// \brief Default constructor.
         Descriptor() :
             _type(NON_PATCH), _pattern(NON_TRANSITION), _rotation(0) {}
             
-        /// Constructor
+        /// \brief Constructor
         Descriptor(int type, int pattern, unsigned char rotation) :
             _type(type), _pattern(pattern), _rotation(rotation) { }
 
-        /// Copy Constructor
+        /// \brief Copy Constructor
         Descriptor( Descriptor const & d ) :
             _type(d.GetType()), _pattern(d.GetPattern()), _rotation(d.GetRotation()) { }
         
-        /// Returns the type of the patch
+        /// \brief Returns the type of the patch
         Type GetType() const {
             return (Type)_type;
         }
         
-        /// Returns the transition pattern of the patch if any (5 types)
+        /// \brief Returns the transition pattern of the patch if any (5 types)
         TransitionPattern GetPattern() const {
             return (TransitionPattern)_pattern;
         }
         
-        /// Returns the rotation of the patch (4 rotations)
+        /// \brief Returns the rotation of the patch (4 rotations)
         unsigned char GetRotation() const {
             return _rotation;
         }
                 
-        /// Returns the number of control vertices expected for a patch of the
+        /// \brief Returns the number of control vertices expected for a patch of the
         /// type described
         static short GetNumControlVertices( Type t );
         
-        /// Returns the number of control vertices expected for a patch of the 
+        /// \brief Returns the number of control vertices expected for a patch of the 
         /// type described
         short GetNumControlVertices() const {
             return GetNumControlVertices( this->GetType() );
         }
         
-        /// Iterates through the patches in the following preset order
+        /// \brief Iterates through the patches in the following preset order
         ///
-        /// NON_TRANSITION ( REGULAR 
-        ///                  BOUNDARY
-        ///                  CORNER
-        ///                  GREGORY
-        ///                  GREGORY_BOUNDARY )
+        /// Order:
         ///
-        /// PATTERN0 ( REGULAR 
-        ///            BOUNDARY ROT0 ROT1 ROT2 ROT3
-        ///            CORNER   ROT0 ROT1 ROT2 ROT3 )
+        ///       NON_TRANSITION ( REGULAR
+        ///                         BOUNDARY
+        ///                         CORNER
+        ///                         GREGORY
+        ///                         GREGORY_BOUNDARY )
         ///
-        /// PATTERN1 ( REGULAR 
-        ///            BOUNDARY ROT0 ROT1 ROT2 ROT3
-        ///            CORNER   ROT0 ROT1 ROT2 ROT3 )
-        /// ...           
+        ///        PATTERN0 ( REGULAR
+        ///                   BOUNDARY ROT0 ROT1 ROT2 ROT3
+        ///                   CORNER   ROT0 ROT1 ROT2 ROT3 )
         ///
-        /// NON_TRANSITION NON_PATCH ROT0 (end)
+        ///        PATTERN1 ( REGULAR
+        ///                   BOUNDARY ROT0 ROT1 ROT2 ROT3
+        ///                   CORNER   ROT0 ROT1 ROT2 ROT3 )
+        ///        ...
+        ///
+        ///        NON_TRANSITION NON_PATCH ROT0 (end)
         ///
         Descriptor & operator ++ ();
         
-        /// Allows ordering of patches by type
+        /// \brief Allows ordering of patches by type
         bool operator < ( Descriptor const other ) const;
 
-        /// True if the descriptors are identical
+        /// \brief True if the descriptors are identical
         bool operator == ( Descriptor const other ) const;
         
-        /// Descriptor Iterator 
+        /// \brief Descriptor Iterator 
         class iterator;
 
-        /// Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
+        /// \brief Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
         static iterator begin();
 
-        /// Returns an iterator to the end of the list of patch types (NON_PATCH)
+        /// \brief Returns an iterator to the end of the list of patch types (NON_PATCH)
         static iterator end();
         
     private:
@@ -222,7 +224,7 @@ public:
     class PatchArray {
     
     public:
-        /// Constructor.
+        /// \brief Constructor.
         ///
         /// @param desc             descriptor information for the patches in 
         ///                         the array
@@ -249,7 +251,7 @@ public:
         /// \brief Describes the range of patches in a PatchArray
         struct ArrayRange {
         
-            /// Constructor
+            /// \brief Constructor
             ///
             /// @param vertIndex        absolute index to the first control vertex
             ///                         of the first patch in the PTable
@@ -271,28 +273,29 @@ public:
                          quadOffsetIndex; // absolute index of the first quad offset entry
         };
 
-        /// Returns a array range struct
+        /// \brief Returns a array range struct
         ArrayRange const & GetArrayRange() const {
             return _range;
         }
 
-        /// Returns the index of the first control vertex of the first patch 
+        /// \brief Returns the index of the first control vertex of the first patch 
         /// of this array in the global PTable
         unsigned int GetVertIndex() const { 
             return _range.vertIndex;
         }
         
-        /// Returns the global index of the first patch in this array (Used to
+        /// \brief Returns the global index of the first patch in this array (Used to
         /// access param / fvar table data)
         unsigned int GetPatchIndex() const {
             return _range.patchIndex;
         }
         
-        /// Returns the number of patches in the array
+        /// \brief Returns the number of patches in the array
         unsigned int GetNumPatches() const {
             return _range.npatches;
         }
 
+        /// \brief Returns the index to the first entry in the QuadOffsetTable
         unsigned int GetQuadOffsetIndex() const {
             return _range.quadOffsetIndex;
         }
@@ -307,7 +310,7 @@ public:
     
     typedef std::vector<PatchArray> PatchArrayVector;
 
-    /// Constructor
+    /// \brief Constructor
     ///
     /// @param patchArrays      Vector of descriptors and ranges for arrays of patches
     ///
@@ -331,20 +334,20 @@ public:
                    FVarDataTable const * fvarData,
                    int maxValence);
 
-    /// Get the table of patch control vertices
+    /// \brief Get the table of patch control vertices
     PTable const & GetPatchTable() const { return _patches; }
 
-    /// Returns a pointer to the array of patches matching the descriptor
+    /// \brief Returns a pointer to the array of patches matching the descriptor
     PatchArray const * GetPatchArray( Descriptor desc ) const { 
         return const_cast<FarPatchTables *>(this)->findPatchArray( desc ); 
     }
 
-    /// Returns all arrays of patches
+    /// \brief Returns all arrays of patches
     PatchArrayVector const & GetPatchArrayVector() const {
         return _patchArrays;
     }
     
-    /// Returns a pointer to the vertex indices of uniformly subdivided faces
+    /// \brief Returns a pointer to the vertex indices of uniformly subdivided faces
     ///
     /// @param level  the level of subdivision of the faces (returns the highest
     ///               level by default)
@@ -354,7 +357,7 @@ public:
     ///
     unsigned int const * GetFaceVertices(int level=0) const;
 
-    /// Returns the number of faces in a uniformly subdivided mesh at a given level
+    /// \brief Returns the number of faces in a uniformly subdivided mesh at a given level
     ///
     /// @param level  the level of subdivision of the faces (returns the highest
     ///               level by default)
@@ -364,16 +367,16 @@ public:
     ///
     int GetNumFaces(int level=0) const;
     
-    /// Returns a vertex valence table used by Gregory patches
+    /// \brief Returns a vertex valence table used by Gregory patches
     VertexValenceTable const & GetVertexValenceTable() const { return _vertexValenceTable; }
 
-    /// Returns a quad offsets table used by Gregory patches
+    /// \brief Returns a quad offsets table used by Gregory patches
     QuadOffsetTable const & GetQuadOffsetTable() const { return _quadOffsetTable; }
 
-    /// Returns a PatchParamTable for each type of patch
+    /// \brief Returns a PatchParamTable for each type of patch
     PatchParamTable const & GetPatchParamTable() const { return _paramTable; }
 
-    /// Returns an FVarDataTable for each type of patch
+    /// \brief Returns an FVarDataTable for each type of patch
     /// The data is stored as a run of totalFVarWidth floats per-vertex per-face
     /// e.g.: for UV data it has the structure of float[p][4][2] where 
     /// p=primitiveID and totalFVarWidth=2:
@@ -381,28 +384,28 @@ public:
     ///            prim 0           prim 1
     FVarDataTable const & GetFVarDataTable() const { return _fvarTable; }
 
-    /// Ringsize of Regular Patches in table.
+    /// \brief Ringsize of Regular Patches in table.
     static int GetRegularPatchRingsize() { return 16; }
 
-    /// Ringsize of Boundary Patches in table.
+    /// \brief Ringsize of Boundary Patches in table.
     static int GetBoundaryPatchRingsize() { return 12; }
 
-    /// Ringsize of Boundary Patches in table.
+    /// \brief Ringsize of Boundary Patches in table.
     static int GetCornerPatchRingsize() { return 9; }
 
-    /// Ringsize of Gregory (and Gregory Boundary) Patches in table.
+    /// \brief Ringsize of Gregory (and Gregory Boundary) Patches in table.
     static int GetGregoryPatchRingsize() { return 4; }
 
-    /// Returns the total number of patches stored in the tables
+    /// \brief Returns the total number of patches stored in the tables
     int GetNumPatches() const;
     
-    /// Returns the total number of control vertex indices in the tables
+    /// \brief Returns the total number of control vertex indices in the tables
     int GetNumControlVertices() const;
 
-    /// Returns max vertex valence
+    /// \brief Returns max vertex valence
     int GetMaxValence() const { return _maxValence; }
     
-    /// True if the patches are of feature adaptive types
+    /// \brief True if the patches are of feature adaptive types
     bool IsFeatureAdaptive() const;
     
 private:

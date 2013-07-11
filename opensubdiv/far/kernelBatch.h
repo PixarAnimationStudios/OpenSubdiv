@@ -112,7 +112,7 @@ public:
         HIERARCHICAL_EDIT,
     };
 
-    /// Constructor.
+    /// \brief Constructor.
     /// 
     /// @param kernelType    the type of compute kernel kernel
     ///
@@ -148,74 +148,74 @@ public:
         _meshIndex(meshIndex) {
     }
 
-    /// Returns the type of kernel to apply to the vertices in the batch.
+    /// \brief Returns the type of kernel to apply to the vertices in the batch.
     KernelType GetKernelType() const {
         return _kernelType;
     }
 
 
-    /// Returns the subdivision level of the vertices in the batch
+    /// \brief Returns the subdivision level of the vertices in the batch
     int GetLevel() const {
         return _level;
     }
 
 
     
-    /// Returns the index of the first vertex in the batch
+    /// \brief Returns the index of the first vertex in the batch
     int GetStart() const {
         return _start;
     }
 
-    /// Returns the index of the first vertex in the batch
+    /// \brief Returns the index of the first vertex in the batch
     const int * GetStartPtr() const {
         return & _start;
     }
 
 
     
-    /// Returns the index of the last vertex in the batch
+    /// \brief Returns the index of the last vertex in the batch
     int GetEnd() const {
         return _end;
     }
 
-    /// Returns the index of the last vertex in the batch
+    /// \brief Returns the index of the last vertex in the batch
     const int * GetEndPtr() const {
         return & _end;
     }
 
 
 
-    /// Returns the edit index (for the hierarchical edit kernels only)
+    /// \brief Returns the edit index (for the hierarchical edit kernels only)
     int GetTableIndex() const {
         return _tableIndex;
     }
     
 
 
-    /// Returns
+    /// \brief Returns
     int GetTableOffset() const {
         return _tableOffset;
     }
 
-    /// Returns
+    /// \brief Returns
     const int * GetTableOffsetPtr() const {
         return & _tableOffset;
     }
 
 
 
-    /// Returns
+    /// \brief Returns
     int GetVertexOffset() const {
         return _vertexOffset;
     }
 
-    /// Returns
+    /// \brief Returns
     const int * GetVertexOffsetPtr() const {
         return & _vertexOffset;
     }
 
 
-    /// Returns the mesh index (used in batching)
+    /// \brief Returns the mesh index (used in batching)
     int GetMeshIndex() const {
         return _meshIndex;
     }

@@ -80,7 +80,7 @@ template <class T, class U> class FarBilinearSubdivisionTablesFactory {
 protected:
     template <class X, class Y> friend class FarMeshFactory;
 
-    /// Creates a FarBilinearSubdivisiontables instance.
+    /// \brief Creates a FarBilinearSubdivisiontables instance.
     ///
     /// @param meshFactory  a valid FarMeshFactory instance
     ///

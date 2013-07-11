@@ -85,10 +85,10 @@ public:
 
     typedef std::vector<FarMesh<U> const *> FarMeshVector;
 
-    /// Constructor.
+    /// \brief Constructor.
     FarMultiMeshFactory() {}
     
-    /// Splices a vector of Far meshes into a single Far mesh
+    /// \brief Splices a vector of Far meshes into a single Far mesh
     ///
     /// @param meshes  a vector of Far meshes to splice
     ///

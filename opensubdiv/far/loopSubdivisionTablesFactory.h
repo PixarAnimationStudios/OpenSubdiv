@@ -81,7 +81,7 @@ template <class T, class U> class FarLoopSubdivisionTablesFactory {
 protected:
     template <class X, class Y> friend class FarMeshFactory;
 
-    /// Creates a FarLoopSubdivisiontables instance.
+    /// \brief Creates a FarLoopSubdivisiontables instance.
     ///
     /// @param meshFactory  a valid FarMeshFactory instance
     ///

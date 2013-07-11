@@ -81,7 +81,7 @@ template <class T, class U> class FarCatmarkSubdivisionTablesFactory {
 protected:
     template <class X, class Y> friend class FarMeshFactory;
 
-    /// Creates a FarCatmarkSubdivisiontables instance.
+    /// \brief Creates a FarCatmarkSubdivisiontables instance.
     ///
     /// @param meshFactory  a valid FarMeshFactory instance
     ///

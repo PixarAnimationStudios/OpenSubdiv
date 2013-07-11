@@ -86,16 +86,16 @@ public:
         /// Note : subtract edits are converted to Add edits for better serialization
     };
 
-    /// Get the type of operation
+    /// \brief Get the type of operation
     Operation GetOperation() const { return _op; }
 
-    /// Return index of variable this edit applies to
+    /// \brief Return index of variable this edit applies to
     int GetIndex() const { return _index; }
 
-    /// Return width of the variable
+    /// \brief Return width of the variable
     int GetWidth() const { return _width; }
     
-    /// Get the numerical value of the edit
+    /// \brief Get the numerical value of the edit
     const float* GetEdit() const { return _edit; }
 
 private:
@@ -115,37 +115,38 @@ private:
 
 template <class U> class FarVertexEditTables {
 public:
+    /// \brief Constructor
     FarVertexEditTables( FarMesh<U> * mesh );
 
     // Note : Subtract type edits are converted into Adds in order to save kernel calls.
 
-    int GetNumBatches() const {
-        return (int)_batches.size();
-    }
-
-    // This class holds an array of edits. each batch has unique index/width/operation
+    /// \brief This class holds an array of edits. each batch has unique index/width/operation
     class VertexEditBatch {
     public:
+        /// \brief Constructor
         VertexEditBatch(int index, int width, FarVertexEdit::Operation operation);
 
-        // copy vertex id and edit values into table
+        /// \brief Copy vertex id and edit values into table
         void Append(int level, int vertexID, const float *values, bool negate);
 
-        // Compute-kernel applied to vertices
+        /// \brief Compute-kernel applied to vertices
         void ApplyVertexEdits(U * vsrc, int offset, int tableOffset, int start, int end) const;
 
         // Edit tables accessors
 
-        // Returns the edit offset table
+        /// \brief Returns the edit offset table
         const std::vector<unsigned int> &GetVertexIndices() const { return _vertIndices; }
 
-        // Returns the edit values table
+        /// \brief Returns the edit values table
         const std::vector<float> &GetValues() const { return _edits; }
 
+        /// \brief Returns the edit operand (Set / Add)
         FarVertexEdit::Operation GetOperation() const { return _op; }
 
+        /// \brief Returns the index of the primvar affected by the edit
         int GetPrimvarIndex() const { return _primvarIndex; }
 
+        /// \brief Returns the width of the primvar (number of elements)
         int GetPrimvarWidth() const { return _primvarWidth; } 
 
     private:
@@ -160,6 +161,15 @@ public:
         FarVertexEdit::Operation  _op;           // edit operation (Set, Add)
     };
 
+    /// \brief Returns the number of edit batches
+    int GetNumBatches() const {
+        return (int)_batches.size();
+    }
+
+    /// \brief Returns a batch of vertex edits
+    ///
+    /// @param index  batch index
+    ///
     VertexEditBatch const & GetBatch(int index) const {
         return _batches[index];
     }
