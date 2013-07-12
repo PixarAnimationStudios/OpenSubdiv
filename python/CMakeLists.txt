@@ -55,39 +55,62 @@
 #     a particular purpose and non-infringement.
 #
 
-include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${GLEW_INCLUDE_DIR}
-    ${GLFW_INCLUDE_DIR}
-)
-
-set(SOURCE_FILES
-    main.cpp
-)
-
-set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
-    ${OPENGL_LIBRARY}
-    ${GLEW_LIBRARY}
-    ${GLFW_LIBRARIES}
-)
-
-if ( OPENCL_FOUND )
-    list(APPEND PLATFORM_LIBRARIES
-        ${OPENCL_LIBRARIES}
+if(PYTHONINTERP_FOUND AND SWIG_FOUND)
+    message(STATUS "Python and SWIG found.  Looking for numpy...")
+    execute_process(
+        COMMAND
+        ${PYTHON_EXECUTABLE} -c "import numpy; print numpy.get_include()"
+        OUTPUT_VARIABLE NUMPY_INCLUDE_PATH
+        RESULT_VARIABLE NUMPY_ERR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-    include_directories( ${OPENCL_INCLUDE_DIRS} )
+    if(NUMPY_ERR)
+        message(WARNING "Unable to import numpy.")
+    else()
+        message(STATUS "Numpy package has been located.")
+        set(PYCMD ${PYTHON_EXECUTABLE} setup.py build )
+        list(APPEND PYCMD --osddir=${LIBRARY_OUTPUT_PATH} )
+        list(APPEND PYCMD --build-platlib=${PROJECT_BINARY_DIR}/python )
+        list(APPEND PYCMD --build-temp=${PROJECT_BINARY_DIR}/temp )
+        
+        # grab all compiler definitions and add '-D'
+        get_directory_property( TMP DIRECTORY ${CMAKE_SOURCE_DIR} COMPILE_DEFINITIONS )
+        foreach(FLAG ${TMP})
+            list(APPEND SWIG_COMPILE_FLAGS "-D${FLAG}")
+        endforeach()
+        
+        # append platform specific compiler flags
+        list(APPEND SWIG_COMPILE_FLAGS ${OSD_COMPILER_FLAGS})
+        list(APPEND PYCMD --cxxflags="${SWIG_COMPILE_FLAGS}" )
+        
+        # add Swig -builtin optimization build flag 
+        if(SWIG_VERSION VERSION_GREATER 2.0.4)
+            list(APPEND SWIG_OPTS "-builtin")
+        endif()
+        list(APPEND PYCMD --swigopts="${SWIG_OPTS}" )
+        
+        add_custom_command(
+            OUTPUT 
+                ${CURRENT_BINARY_DIR}/osd
+            COMMAND 
+                ${PYCMD}
+            WORKING_DIRECTORY 
+                ${CMAKE_SOURCE_DIR}/python
+            DEPENDS 
+                osd_static_cpu 
+                osd_dynamic_cpu
+            COMMENT 
+                "Building Python bindings with distutils"
+        )
+        add_custom_target(python ALL
+            DEPENDS 
+                ${CURRENT_BINARY_DIR}/osd
+        )
+        install(CODE "execute_process(
+                          WORKING_DIRECTORY 
+                              ../python 
+                          COMMAND 
+                              ${PYCMD} install --user)"
+        )
+    endif()
 endif()
-
-
-add_executable(osd_regression
-    ${SOURCE_FILES}
-)
-
-add_dependencies(osd_regression blarg )
-
-target_link_libraries(osd_regression
-    ${PLATFORM_LIBRARIES}
-)
-
-install(TARGETS osd_regression DESTINATION ${CMAKE_BINDIR_BASE})

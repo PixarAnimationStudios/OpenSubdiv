@@ -250,7 +250,9 @@ endif()
 find_package(OpenGL)
 find_package(OpenGLES)
 find_package(OpenCL 1.1)
-find_package(CUDA 4.0)
+if(NOT NO_CUDA)
+    find_package(CUDA 4.0)
+endif()
 find_package(GLFW 2.7.0)
 find_package(PTex 2.0)
 find_package(PythonInterp 2.6)
@@ -383,57 +385,6 @@ else()
     )
 endif()
 
-if(PYTHONINTERP_FOUND AND SWIG_FOUND AND NOT NO_PYTHON)
-    message(STATUS "Python and SWIG found.  Looking for numpy...")
-    execute_process(
-        COMMAND
-        ${PYTHON_EXECUTABLE} -c "import numpy; print numpy.get_include()"
-        OUTPUT_VARIABLE NUMPY_INCLUDE_PATH
-        RESULT_VARIABLE NUMPY_ERR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    if(NUMPY_ERR)
-        message(WARNING "Unable to import numpy.")
-    else()
-        message(STATUS "Numpy package has been located.")
-        set(PYCMD ${PYTHON_EXECUTABLE} setup.py build )
-        list(APPEND PYCMD --osddir=${LIBRARY_OUTPUT_PATH} )
-        list(APPEND PYCMD --build-platlib=${PROJECT_BINARY_DIR}/python )
-        list(APPEND PYCMD --build-temp=${PROJECT_BINARY_DIR}/temp )
-        
-        # grab all compiler definitions and add '-D'
-        get_directory_property( TMP DIRECTORY ${CMAKE_SOURCE_DIR} COMPILE_DEFINITIONS )
-        foreach(FLAG ${TMP})
-            list(APPEND SWIG_COMPILE_FLAGS "-D${FLAG}")
-        endforeach()
-        
-        # append platform specific compiler flags
-        list(APPEND SWIG_COMPILE_FLAGS ${OSD_COMPILER_FLAGS})
-        list(APPEND PYCMD --cxxflags="${SWIG_COMPILE_FLAGS}" )
-        
-        # add Swig -builtin optimization build flag 
-        if(SWIG_VERSION VERSION_GREATER 2.0.4)
-            list(APPEND SWIG_OPTS "-builtin")
-        endif()
-        list(APPEND PYCMD --swigopts="${SWIG_OPTS}" )
-        
-        add_custom_command(
-            OUTPUT ${PROJECT_BINARY_DIR}/python/osd
-            COMMAND ${PYCMD}
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python
-            DEPENDS osd_static_cpu osd_dynamic_cpu
-            COMMENT "Building Python bindings with distutils"
-        )
-        add_custom_target(python ALL
-            DEPENDS ${PROJECT_BINARY_DIR}/python/osd
-        )
-        install(CODE "execute_process(
-                      WORKING_DIRECTORY ../python 
-                      COMMAND ${PYCMD} install --user)"
-        )
-    endif()
-endif()
-
 # Link examples & regressions dynamically against Osd
 set( OSD_LINK_TARGET osd_dynamic_cpu osd_dynamic_gpu )
 
@@ -468,10 +419,12 @@ endif()
 
 # Macro for processing public headers into the build area for doxygen processing
 
+#set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 add_custom_target( public_headers )
 
 macro(_add_doxy_headers headers)
-    if (NOT NO_DOC)
+    if (NOT NO_DOC AND DOXYGEN_FOUND)
         file(RELATIVE_PATH path ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR} )
 
         string(REPLACE  "/" "_" targetpath ${path})
@@ -494,6 +447,8 @@ macro(_add_doxy_headers headers)
             )
 
             add_custom_target(${targetname} DEPENDS ${outfile})
+            
+            #set_target_properties(${targetname} PROPERTIES FOLDER "public_headers/")
 
             list(APPEND headerfiles ${targetname} )
         endforeach()
@@ -559,6 +514,10 @@ endif()
 
 if (NOT NO_EXAMPLES)
     add_subdirectory(examples)
+endif()
+
+if (NOT NO_PYTHON)
+    add_subdirectory(python)
 endif()
 
 if (NOT NO_DOC)
