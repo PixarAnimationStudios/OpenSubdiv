@@ -55,8 +55,8 @@
        a particular purpose and non-infringement.
   
 
-ptexViewer
-----------
+paintTest
+---------
 
 .. contents::
    :local:
@@ -68,22 +68,10 @@ SYNOPSIS
 .. parsed-literal:: 
    :class: codefhead
 
-   **ptexViewer** 
-   [**-e** *environment map*]
-   [**-d** *HDR diffuse map*]
-   [**-s** *HDR specular map*]
-   [**-y**]
-   [**--disp** *displacement scale*]
-   [**--bump** *bump scale*]
-   [**-l** *isolation level*] 
-   [**-c** *animation loops*] 
+   **paintTest** 
    [**-f**] 
-   *ptex color file*
-   *ptex displacement file*
-   *ptex occlusion file*
-   *ptex specular file*
    *objfile(s)*
-
+   
 DESCRIPTION
 ===========
 
@@ -91,60 +79,18 @@ DESCRIPTION
 with color, displacement, occlusion and specular ptex maps. Multiple controls 
 are available to experiment with the algorithms.
 
-.. image:: images/barb_1.jpg
+.. image:: images/painttest.jpg
    :width: 400px
    :align: center
-   :target: images/barb_1.jpg
+   :target: images/painttest.jpg
 
 OPTIONS
 =======
-
-**-e** *environment map*
-  A low dynamic range spherical environment map used as a background. Ideally,
-  a color-normalized version of the HDR light probe.
-
-**-d** *HDR diffuse map*
-  An HDR file containing a diffuse environment map (typically they are low
-  resolution blurry hemispherical convolutions of the environment light probe).
-
-**-s** *environment map*
-  An HDR file containing a specular environment map.
-
-**--disp** *displacement scale*
-  A scalar multiplier for the shader displacement values.
-
-**--bump** *displacement scale*
-  A scalar multiplier for the shader bump values.
-
-**-y**
-  Swap Z-up geometry to Y-UP.
-
-**-l** *isolation level*
-  Select the desired isolation level of adaptive feature isolation. This can be 
-  useful when trying to load large pieces of geometry.
-
-**-c** *animation frequency*
-  Number of repetitions of the animtion loop (default=0 is infinite)
 
 **-f**
   Launches the application in full-screen mode (if is supported by GLFW on the
   OS)
 
-*ptex color file*
-  A ptex file containing RGB channels read as material albedo color.
-  
-*ptex displacement file*
-  A single-channel ptex file (preferrably float precision) containing the 
-  displacement values.
-
-*ptex occlusion file*
-  A single-channel ptex file (preferrably 8 bits precision) containing a 
-  pre-computed ambient occlusion signal.
-
-*ptex specular file*
-  A single-channel ptex file (preferrably 8 bits precision) applied to modulate
-  the specular reflectance of the material
-  
 *objfile(s)*
   A sequence of obj files used as an animation loop (the topology has to match
   the data contained in all the ptex files !)
@@ -155,9 +101,8 @@ Keyboard Controls
 
    .. code:: c++
    
-      e      : draw normals
-      g      : toggle ptex texel guttering
-      r      : reload and re-compile the shader files
+      c      : use texture as color
+      d      : use texture as displacement
 
 
 SEE ALSO
@@ -166,7 +111,8 @@ SEE ALSO
 `Code Examples <code_examples.html>`__, \
 `glViewer <glviewer.html>`__, \
 `glBatchViewer <glbatchviewer.html>`__, \
-`paintTest <painttest.html>`__, \
+`ptexViewer <ptexviewer.html>`__, \
 `limitEval <limiteval.html>`__, \
 `dxViewer <dxviewer.html>`__, \
+
 

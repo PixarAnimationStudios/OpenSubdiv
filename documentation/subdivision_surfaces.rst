@@ -104,17 +104,16 @@ animates or how closely it is viewed.
 Ordinary cubic B-spline surfaces are rectangular grids of tensor-product patches. 
 Subdivision surfaces generalize these to control grids with arbitrary connectivity.
 
-   .. image:: images/tetra.0.jpg
-      :width: 20%
+.. raw:: html
 
-   .. image:: images/tetra.1.jpg
-      :width: 20%
-
-   .. image:: images/tetra.2.jpg
-      :width: 20%
-
-   .. image:: images/tetra.3.jpg
-      :width: 20%
+    <center>
+      <p align="center">
+        <IMG src="images/tetra.0.jpg" style="width: 20%;"> 
+        <IMG src="images/tetra.1.jpg" style="width: 20%;"> 
+        <IMG src="images/tetra.2.jpg" style="width: 20%;"> 
+        <IMG src="images/tetra.3.jpg" style="width: 20%;"> 
+      </p>
+    </center>
 
 ----
 
@@ -159,6 +158,11 @@ XXXX
 Semi-Sharp Creases
 ==================
 
+.. image:: images/gtruck.jpg
+   :align: center
+   :height: 300
+   :target: images/gtruck.jpg
+
 XXXX
 
 ----
@@ -180,12 +184,10 @@ A hierarchical edit overrides these values. This allows for a compact specificat
 of localized detail on a subdivision surface, without having to express information 
 about the rest of the subdivision surface at the same level of detail.
 
-.. container:: fourcol
-
-    .. image:: images/hedit_example1.png
-       :align: center
-       :height: 300
-       :target: images/hedit_example1.png
+.. image:: images/hedit_example1.png
+   :align: center
+   :height: 300
+   :target: images/hedit_example1.png
 
 ----
 

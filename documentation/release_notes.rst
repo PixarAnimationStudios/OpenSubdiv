@@ -62,6 +62,16 @@ Release Notes
    :local:
    :backlinks: none
 
+----
+
+Release 1.2.5
+=============
+
+
+**Bug Fixes**
+
+    - Fix incorrect patch generation for patches with 2 non-consecutive boundary edges
+    - Fix "undefined gl_PrimitiveID" shader build errors
 
 ----
 

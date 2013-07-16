@@ -62,4 +62,13 @@ Using OpenSubdiv
    :local:
    :backlinks: none
 
+.. image:: images/barb_1.jpg 
+   :width: 400px
+   :align: center
+
+Using OpenSubdiv
+================
+
+
+
 

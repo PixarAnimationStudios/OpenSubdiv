@@ -555,7 +555,7 @@ div.document a:hover {
 }
 
 div.footer {
-    background: #FFF;
+    background: rgb(240,240,240);
     margin-left: 255px;
     padding-top: 15px;
     padding-left: 5px;

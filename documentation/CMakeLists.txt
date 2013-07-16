@@ -105,6 +105,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         glviewer.rst
         glbatchviewer.rst
         limiteval.rst
+        painttest.rst
         ptexviewer.rst
         release_notes.rst 
         subdivision_surfaces.rst 

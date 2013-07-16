@@ -128,7 +128,6 @@ the smallest and simplest kernels possible. These can in turn be safely ported a
 optimized for each of the hardware platforms. 
 
 .. image:: images/api_representations.png
-   :align: center
 
 This separation of general purpose against hardware-specific code is translated into
 two types of layers : the **implementation** layer against the **representation** 
@@ -202,7 +201,9 @@ edge can only access a single neighboring edge cycle.
    :align: center
    
 This is a fundamental limitation of the half-edge data structure, in that it
-cannot represent non-manifold geometry, in particular fan-type topologies.
+cannot represent non-manifold geometry, in particular fan-type topologies. A
+different approach to topology will probably be necessary in order to accomodate
+non-manifold geometry.
 
 ----
 
@@ -246,7 +247,22 @@ the CVs of cubic patches, then the cubic patches are tessellated on with GLSL or
 OpenSubdiv enforces the same results for the different computation backends with 
 a series of regression tests that compare the methods to each other.
 
-The OpenSubdiv layer is comprised of 3 modules : Refine, Draw and Eval.
+The OpenSubdiv layer is comprised of 3 maine modules : Refine, Draw and Eval.
+
+.. image:: images/api_osd_modules.png
+
+These modules are identified by their name spaces (**OsdRefine**, **OsdDraw**,
+**OsdEval**) and encapsulate atomic functationality. The vertex data is carried 
+in interoperable buffers that can be exchanged between modules. 
+
+The typical use pattern is to pose the coarse vertices of a mesh for a given frame.
+The buffer is submitted to the **Refine** module which applies the subdivision rules
+and produces refined control vertices. This new buffer can be passed to the **Draw**
+module which will put them on screen.
+
+However, the same buffer of refined control vertices could be passed instead to
+the **Eval** module (and be projected onto another surface for instance) before
+being sent for display to the **Draw** module.
 
 .. container:: impnotip
 
