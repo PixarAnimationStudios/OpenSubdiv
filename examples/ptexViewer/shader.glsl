@@ -94,6 +94,7 @@ vec4 PTexLookup(vec4 patchCoord,
 
 #ifdef USE_PTEX_DISPLACEMENT
 
+#undef OSD_DISPLACEMENT_CALLBACK
 #define OSD_DISPLACEMENT_CALLBACK              \
     outpt.v.position =                         \
         displacement(outpt.v.position,         \
