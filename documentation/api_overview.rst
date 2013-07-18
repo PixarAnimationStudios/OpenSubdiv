@@ -112,7 +112,7 @@ Data flows are mostly 1-directional, from top to bottom as a number of algorithm
 are preparing the coarse mesh data to be refined and passing their results to 
 the next element in the processing chain.
 
-.. image:: images/api_workflows.png
+.. image:: images/api_data_flow.png
    :align: center
 
 ----
@@ -123,8 +123,8 @@ Representation vs. Implementation Layers
 One of the core performance goals of our subdivision algorithms is to leverage
 interactive performance out of massively parallel code execution wherever 
 possible. In order to support a large diversity of discrete compute devices through
-multiple dedicated SDKs, it is critical to distill the critical computations into
-the smallest and simplest kernels possible. These can in turn be safely ported and 
+multiple dedicated SDKs, it is critical to distill the computations into the
+smallest and simplest kernels possible. These can in turn be safely ported and 
 optimized for each of the hardware platforms. 
 
 .. image:: images/api_representations.png
@@ -153,7 +153,7 @@ This allows authoring applications to easily access "neighboring" components
 in order to make topology edits or manipulate properties of the components 
 themselves. The key to achieving efficient many-core processing is to reduce data
 interdependencies. However, by definition, the bulk of topological mesh data is 
-the very description of the connections (dependencies) between vertices. 
+the very description of these connections (dependencies) between vertices. 
 
 .. image:: images/api_serialized_data.png
    :align: center
@@ -162,9 +162,14 @@ This is why OpenSubdiv provides specific representations for mesh data:
   - Hbr is a half-edge relational representation
   - Far is a serialized representation
 
-A typical workflow is to manipulate Hbr meshes in authoring applications. Once the
-topology of the mesh has stabilized, it is processed into a serialized form that
-can then be evaluated at interactive framerates.
+A typical workflow would be to manipulate the topology in authoring applications,
+maybe using Hbr meshes for common editing operations. Once the topology of the mesh 
+has stabilized, it is processed into a serialized form that can then be evaluated 
+at interactive framerates. The serialized form is embodied by Far, which can then 
+be migrated by the device-specific functions in Osd.
+
+.. image:: images/api_workflows.png
+   :align: center
 
 ----
 
