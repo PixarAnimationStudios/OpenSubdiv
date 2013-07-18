@@ -82,8 +82,7 @@ template <class T> std::ostream& operator<<(std::ostream& out, const HbrHalfedge
 
 template <class T> class HbrHalfedge {
 
-public:
-
+private:
     HbrHalfedge(): opposite(0), incidentVertex(-1), vchild(-1), sharpness(0.0f)
 #ifdef HBRSTITCH
     , stitchccw(1), raystitchccw(1)
@@ -92,6 +91,8 @@ public:
     {
     }
 
+    HbrHalfedge(const HbrHalfedge &e) {}
+    
     ~HbrHalfedge();
 
     void Clear();
@@ -99,6 +100,7 @@ public:
     // Finish the initialization of the halfedge. Should only be
     // called by HbrFace
     void Initialize(HbrHalfedge<T>* opposite, int index, HbrVertex<T>* origin, unsigned int *fvarbits, HbrFace<T>* face);
+public:
 
     // Returns the opposite half edge
     HbrHalfedge<T>* GetOpposite() const { return opposite; }
@@ -411,6 +413,8 @@ public:
     // we're worried about interpolateboundary behaviour
     void SetCoarse(bool c) { coarse = c; }
     bool IsCoarse() const { return coarse; }
+
+    friend class HbrFace<T>;
 
 private:
     HbrHalfedge<T>* opposite;

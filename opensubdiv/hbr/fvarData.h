@@ -67,14 +67,14 @@ namespace OPENSUBDIV_VERSION {
 
 template <class T> class HbrFVarEdit;
 template <class T> class HbrFace;
+template <class T> class HbrVertex;
 
 // This class implements a "face varying vector item". Really it's
 // just a smart wrapper around face varying data (itself just a bunch
 // of floats) stored on each vertex.
 template <class T> class HbrFVarData {
 
-public:
-
+private:
     HbrFVarData()
         : faceid(0), initialized(0) {
     }
@@ -83,6 +83,10 @@ public:
         Uninitialize();
     }
 
+    HbrFVarData(const HbrFVarData &data) {}
+
+public:
+    
     // Sets the face id
     void SetFaceID(int id) {
         faceid = id;
@@ -181,6 +185,8 @@ public:
     // Modify the data of the item with an edit
     void ApplyFVarEdit(const HbrFVarEdit<T>& edit);
 
+    friend class HbrVertex<T>;
+    
 private:
     unsigned int faceid:31;
     unsigned int initialized:1;
