@@ -32,14 +32,26 @@ Release Notes
 
 ----
 
-Release 1.2.5
+Release 2.0.0
 =============
 
+**New Features**
+    - New CMake build flags: NO_LIB, NO_CUDA, NO_PYTHON)
+
+**Changes**
+    - OpenSubdiv is now under Apache 2.0 license
+    - HbrHalfedge and HbrFVarData copy constructors are now private
+    - Documentation style matched to graphics.pixar.com + new content
+    - Add an animation freeze button to ptexViewer
+    - Variable name changes for better readability across all example
+      shader code
 
 **Bug Fixes**
 
     - Fix incorrect patch generation for patches with 2 non-consecutive boundary edges
     - Fix "undefined gl_PrimitiveID" shader build errors
+    - Fix for shader macro "OSD_DISPLACEMENT_CALLBACK"
+    - Fix out-of-bounds std::vector access in FarPatchTablesFactory
 
 ----
 
