@@ -28,7 +28,7 @@ ul.creatorFooterNav {
             <div class="center">
                 <div id="mainSiteNavigation">
                     <div class="homeRenderManLink">
-                        <a href="index.html"><img alt="OpenSubdiv Logo" src="images/opensubdiv_logo_header.png"></a>
+                        <a href="http://graphics.pixar.com/opensubdiv/index.html"><img alt="OpenSubdiv Logo" src="images/opensubdiv_logo_header.png"></a>
                     </div>
           
 					<!-- TOP NAVIGATION MENU -->
