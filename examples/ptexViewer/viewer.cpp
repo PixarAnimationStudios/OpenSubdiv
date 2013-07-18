@@ -166,7 +166,8 @@ enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_FRACTIONAL_SPACING,
                    HUD_CB_PATCH_CULL,
                    HUD_CB_IBL,
-                   HUD_CB_BLOOM };
+                   HUD_CB_BLOOM,
+                   HUD_CB_FREEZE };
     
 //-----------------------------------------------------------------------------
 int   g_frame = 0,
@@ -195,7 +196,8 @@ bool  g_adaptive = false,
       g_screenSpaceTess = true,
       g_fractionalSpacing = false,
       g_ibl = false,
-      g_bloom = false;
+      g_bloom = false,
+      g_freeze = false;
 
 GLuint g_transformUB = 0,
        g_transformBinding = 0,
@@ -248,7 +250,6 @@ std::vector<float> g_positions,
                    g_normals;
 
 std::vector<std::vector<float> > g_animPositions;
-std::vector<GLuint> g_animPositionBuffers;
 
 GLuint g_primQuery = 0;
 GLuint g_vao = 0;
@@ -363,19 +364,6 @@ updateGeom() {
             vertex.push_back(p0*(1-b) + p1*b);
         }
         g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
-
-/*
-        if (g_kernel != kCPU && g_kernel != kOPENMP) {
-            glBindBuffer(GL_COPY_READ_BUFFER, g_animPositionBuffers[g_frame%nkey]);
-            glBindBuffer(GL_COPY_WRITE_BUFFER, g_mesh->BindVertexBuffer());
-            glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
-                                0, 0, nverts * 3 * sizeof(float));
-            glBindBuffer(GL_COPY_READ_BUFFER, 0);
-            glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
-        } else {
-            g_mesh->UpdateVertexBuffer(&g_animPositions[g_frame%nkey][0], 0, nverts);
-        }
-*/
 
     } else {
         std::vector<float> vertex;
@@ -1609,12 +1597,14 @@ display() {
     GLuint numPrimsGenerated = 0;
     glGetQueryObjectuiv(g_primQuery, GL_QUERY_RESULT, &numPrimsGenerated);
 
-    if (g_hud.IsVisible()) {
-        g_fpsTimer.Stop();
-        float elapsed = (float)g_fpsTimer.GetElapsed();
+    g_fpsTimer.Stop();
+    float elapsed = (float)g_fpsTimer.GetElapsed();
+    if (not g_freeze)
         g_animTime += elapsed;
+    g_fpsTimer.Start();
+
+    if (g_hud.IsVisible()) {
         double fps = 1.0/elapsed;
-        g_fpsTimer.Start();
 
         // Avereage fps over a defined number of time samples for
         // easier reading in the HUD
@@ -1625,8 +1615,6 @@ display() {
         for (int i=0; i< NUM_FPS_TIME_SAMPLES; ++i) {
             averageFps += g_fpsTimeSamples[i]/(float)NUM_FPS_TIME_SAMPLES;
         }
-
-        
 
         g_hud.DrawString(10, -180, "Tess level (+/-): %d", g_tessLevel);
         if (numPrimsGenerated > 1000000) {
@@ -1732,8 +1720,6 @@ void uninitGL() {
     delete g_glslComputeController;
 #endif
 
-    if (g_animPositionBuffers.size())
-        glDeleteBuffers((int)g_animPositionBuffers.size(), &g_animPositionBuffers[0]);
     if (g_diffuseEnvironmentMap) glDeleteTextures(1, &g_diffuseEnvironmentMap);
     if (g_specularEnvironmentMap) glDeleteTextures(1, &g_specularEnvironmentMap);
 
@@ -1829,6 +1815,9 @@ callbackCheckBox(bool checked, int button)
     case HUD_CB_BLOOM:
         g_bloom = checked;
         break;
+    case HUD_CB_FREEZE:
+        g_freeze = checked;
+        break;
     }
 
     if (rebuild)
@@ -1888,7 +1877,9 @@ keyboard(int key, int event) {
 void
 idle() {
 
-    g_frame++;
+    if (not g_freeze)
+        g_frame++;
+
     updateGeom();
 
     if(g_repeatCount != 0 && g_frame >= g_repeatCount)
@@ -2199,6 +2190,8 @@ int main(int argc, char ** argv) {
                       450, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
     g_hud.AddCheckBox("Bloom (Y)", g_bloom,
                       450, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
+    g_hud.AddCheckBox("Freeze (spc)", g_freeze,
+                      450, 130, callbackCheckBox, HUD_CB_FREEZE, ' ');
 
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive, 10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
@@ -2228,16 +2221,13 @@ int main(int argc, char ** argv) {
 
     // load animation obj sequences (optional)
     if (not animobjs.empty()) {
-//        g_animPositionBuffers.resize(animobjs.size());
-//        glGenBuffers((int)animobjs.size(), &g_animPositionBuffers[0]);
-
         for (int i = 0; i < (int)animobjs.size(); ++i) {
             std::ifstream ifs(animobjs[i].c_str());
             if (ifs) {
                 std::stringstream ss;
                 ss << ifs.rdbuf();
                 ifs.close();
-                
+
                 printf("Reading %s\r", animobjs[i].c_str());
                 std::string str = ss.str();
                 shape *shape = shape::parseShape(str.c_str());
@@ -2248,10 +2238,6 @@ int main(int argc, char ** argv) {
                 }
 
                 g_animPositions.push_back(shape->verts);
-
-//                glBindBuffer(GL_ARRAY_BUFFER, g_animPositionBuffers[i]);
-//                glBufferData(GL_ARRAY_BUFFER, shape->verts.size()*sizeof(float), &shape->verts[0], GL_STATIC_DRAW);
-
                 delete shape;
             } else {
                 printf("Error in reading %s\n", animobjs[i].c_str());
