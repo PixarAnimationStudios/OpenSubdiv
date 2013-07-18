@@ -109,6 +109,7 @@ class HtmlToTextParser(HTMLParser.HTMLParser):
     def GetTitle(self):
         return self.m_title
 
+
 #-------------------------------------------------------------------------------
 def StripHTMLComments(data):
     regex = re.compile('\<![ \r\n\t]*(--([^\-]|[\r\n]|-[^\-])*--[ \r\n\t]*)\>')
@@ -210,9 +211,15 @@ for root, dirs, files in os.walk(rootDir):
 
                 msg += "added navigation"
 
-                f.seek(0)
-                f.write(html)
-                f.close()
+            # replace the article title placeholder with the real title
+            if title:
+                html = string.replace(html,"OSD_ARTICLE_TITLE", title)
+            else:
+                html = string.replace(html,"OSD_ARTICLE_TITLE", "")
+
+            f.seek(0)
+            f.write(html)
+            f.close()
 
             print msg
 
