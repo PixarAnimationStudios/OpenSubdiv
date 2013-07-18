@@ -59,21 +59,17 @@
 //--------------------------------------------------------------
 // Common
 //--------------------------------------------------------------
-uniform isamplerBuffer g_ptexIndicesBuffer;
-uniform int nonAdaptiveLevel;
 
 vec4 GeneratePatchCoord(vec2 localUV)  // for non-adpative
 {
-    ivec2 ptexIndex = texelFetch(g_ptexIndicesBuffer, gl_PrimitiveID).xy;
-    int faceID = abs(ptexIndex.x);
-    int lv = 1 << nonAdaptiveLevel;
-    if (ptexIndex.x < 0) lv >>= 1;
-
-    int u = ptexIndex.y >> 16;
-    int v = (ptexIndex.y & 0xffff);
+    ivec2 ptexIndex = texelFetch(OsdPatchParamBuffer, gl_PrimitiveID).xy;
+    int faceID = ptexIndex.x;
+    int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1));
+    int u = (ptexIndex.y >> 17) & 0x3ff;
+    int v = (ptexIndex.y >> 7) & 0x3ff;
     vec2 uv = localUV;
     uv = (uv * vec2(1.0)/lv) + vec2(u, v)/lv;
-    return vec4(uv.x, uv.y, lv+0.5, faceID+0.5);
+
 }
 
 vec4 PTexLookup(vec4 patchCoord,

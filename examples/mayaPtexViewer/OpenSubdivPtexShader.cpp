@@ -335,20 +335,17 @@ EffectDrawRegistry::_CreateDrawConfig(
     CHECK_GL_ERROR("CreateDrawConfig B \n");
 
     GLint loc;
-    if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 0);  // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 1);  // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 2);  // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_patchLevelBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 3);  // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 4);  // GL_TEXTURE4
     }
 
     CHECK_GL_ERROR("CreateDrawConfig leave\n");
@@ -769,31 +766,26 @@ OpenSubdivPtexShader::draw(const MHWRender::MDrawContext &mDrawContext,
         if (patch.desc.type != OpenSubdiv::kNonPatch) {
             glPatchParameteri(GL_PATCH_VERTICES, patch.desc.GetPatchSize());
 
-            if (osdDrawContext->vertexTextureBuffer) {
+            if (osdDrawContext->GetVertexTextureBuffer()) {
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_BUFFER,
-                              osdDrawContext->vertexTextureBuffer);
+                              osdDrawContext->GetVertexTextureBuffer());
                 glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, bPosition);
             }
-            if (osdDrawContext->vertexValenceTextureBuffer) {
+            if (osdDrawContext->GetVertexValenceTextureBuffer()) {
                 glActiveTexture(GL_TEXTURE1);
                 glBindTexture(GL_TEXTURE_BUFFER,
-                              osdDrawContext->vertexValenceTextureBuffer);
+                              osdDrawContext->GetVertexValenceTextureBuffer());
             }
-            if (osdDrawContext->quadOffsetTextureBuffer) {
+            if (osdDrawContext->GetQuadOffsetsTextureBuffer()) {
                 glActiveTexture(GL_TEXTURE2);
                 glBindTexture(GL_TEXTURE_BUFFER,
-                              osdDrawContext->quadOffsetTextureBuffer);
+                              osdDrawContext->GetQuadOffsetsTextureBuffer());
             }
-            if (osdDrawContext->patchLevelTextureBuffer) {
+            if (osdDrawContext->GetPatchParamTextureBuffer()) {
                 glActiveTexture(GL_TEXTURE3);
                 glBindTexture(GL_TEXTURE_BUFFER,
-                              osdDrawContext->patchLevelTextureBuffer);
-            }
-            if (osdDrawContext->ptexCoordinateTextureBuffer) {
-                glActiveTexture(GL_TEXTURE4);
-                glBindTexture(GL_TEXTURE_BUFFER,
-                              osdDrawContext->ptexCoordinateTextureBuffer);
+                              osdDrawContext->GetPatchParamTextureBuffer());
             }
             glActiveTexture(GL_TEXTURE0);
 
@@ -978,12 +970,12 @@ OpenSubdivPtexShader::bindProgram(const MHWRender::MDrawContext &     mDrawConte
     struct Tessellation {
         float TessLevel;
         int GregoryQuadOffsetBase;
-        int LevelBase;
+        int PrimitiveIdBase;
     } tessellationData;
 
     tessellationData.TessLevel = static_cast<float>(1 << _tessFactor);
-    tessellationData.GregoryQuadOffsetBase = patch.gregoryQuadOffsetBase;
-    tessellationData.LevelBase = patch.levelBase;
+    tessellationData.GregoryQuadOffsetBase = patch.GetQuadOffsetBase;
+    tessellationData.PrimitiveIdBase = patch.GetPatchIndex();;
 
     if (!g_tessellationUB) {
         glGenBuffers(1, &g_tessellationUB);

@@ -327,19 +327,19 @@ EffectDrawRegistry::_CreateDrawConfig(
 
     // Specify texture buffer ID uniforms in shader
     GLint loc;
-    if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 0);  // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 1);  // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 2);  // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 3);  // GL_TEXTURE3
     }
-    if ((loc = glGetUniformLocation(config->program, "g_uvFVarBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 4);  // GL_TEXTURE4
     }
 
@@ -672,10 +672,14 @@ OpenSubdivShader::draw(const MHWRender::MDrawContext &mDrawContext,
 
         GLuint program = bindProgram(mDrawContext, osdDrawContext, patch);
 
-        GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
-        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformLevelBase, patch.GetPatchIndex());
+        GLuint uniformGregoryQuadOffsetBase =
+            glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+        GLuint uniformPrimitiveIdBase =
+            glGetUniformLocation(program, "OsdPrimitiveIdBase");
+        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
+                           patch.GetQuadOffsetIndex());
+        glProgramUniform1i(program, uniformPrimitiveIdBase,
+                           patch.GetPatchIndex());
 
         GLenum primType = GL_PATCHES;
         if (patch.GetDescriptor().GetType() == OpenSubdiv::FarPatchTables::QUADS) {

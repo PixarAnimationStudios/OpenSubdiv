@@ -174,25 +174,22 @@ MyEffectRegistry::_CreateDrawConfig(DescType const & desc, SourceConfigType cons
     if (uboIndex != GL_INVALID_INDEX)
         glUniformBlockBinding(program, uboIndex, g_lightingBinding);
 
-//    g_gregoryQuadOffsetBaseMap[program] = glGetUniformLocation(program, "GregoryQuadOffsetBase");
-//    g_levelBaseMap[program] = glGetUniformLocation(program, "LevelBase");
-
 // currently, these are used only in conjunction with tessellation shaders
 #if defined(GL_EXT_direct_state_access) || defined(GL_VERSION_4_1)
     GLint loc;
-    if ((loc = glGetUniformLocation(program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(program, "OsdVertexBuffer")) != -1) {
         glProgramUniform1i(program, loc, 0); // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(program, "OsdValenceBuffer")) != -1) {
         glProgramUniform1i(program, loc, 1); // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(program, "OsdQuadOffsetBuffer")) != -1) {
         glProgramUniform1i(program, loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(program, "g_ptexIndicesBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(program, "OsdPatchParamBuffer")) != -1) {
         glProgramUniform1i(program, loc, 3); // GL_TEXTURE3
     }
-    if ((loc = glGetUniformLocation(program, "g_uvFVarBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(program, "OsdFVarDataBuffer")) != -1) {
         glProgramUniform1i(program, loc, 4); // GL_TEXTURE4
     }
 #endif

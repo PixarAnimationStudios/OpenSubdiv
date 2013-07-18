@@ -326,8 +326,10 @@ OsdGLDrawRegistryBase::_CreateDrawConfig(
     }
 
     config->program = program;
-    config->levelBaseUniform = glGetUniformLocation(program, "LevelBase");
-    config->gregoryQuadOffsetBaseUniform = glGetUniformLocation(program, "GregoryQuadOffsetBase");
+    config->primitiveIdBaseUniform =
+      glGetUniformLocation(program, "OsdPrimitiveIdBase");
+    config->gregoryQuadOffsetBaseUniform =
+      glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
 
     return config;
 }

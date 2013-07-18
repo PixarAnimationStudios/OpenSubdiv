@@ -1068,35 +1068,35 @@ EffectDrawRegistry::_CreateDrawConfig(
     GLint loc;
 #if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
     glUseProgram(config->program);
-    if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
         glUniform1i(loc, 0); // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
         glUniform1i(loc, 1); // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
         glUniform1i(loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
         glUniform1i(loc, 3); // GL_TEXTURE3
     }
-    if ((loc = glGetUniformLocation(config->program, "g_fvarDataBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
         glUniform1i(loc, 4); // GL_TEXTURE4
     }
 #else
-    if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
     }
-    if ((loc = glGetUniformLocation(config->program, "g_fvarDataBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
     }
 #endif
@@ -1298,20 +1298,29 @@ display() {
         GLuint program = bindProgram(GetEffect(), patch);
 
         GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
-        
+
         if (g_displayPatchColor and primType == GL_PATCHES) {
             float const * color = getAdaptivePatchColor( desc );
             glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
         } else {
             glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
         }
-        
-        GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
-        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformLevelBase, patch.GetPatchIndex());
+
+        GLuint uniformGregoryQuadOffsetBase =
+          glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+        GLuint uniformPrimitiveIdBase =
+          glGetUniformLocation(program, "OsdPrimitiveIdBase");
+
+        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
+                           patch.GetQuadOffsetIndex());
+        glProgramUniform1i(program, uniformPrimitiveIdBase,
+                           patch.GetPatchIndex());
 #else
-        bindProgram(GetEffect(), patch);
+        GLuint program = bindProgram(GetEffect(), patch);
+        GLint uniformPrimitiveIdBase =
+          glGetUniformLocation(program, "OsdPrimitiveIdBase");
+        if (uniformPrimitiveIdBase != -1)
+            glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
 #endif
 
         if (g_displayStyle == kWire) {

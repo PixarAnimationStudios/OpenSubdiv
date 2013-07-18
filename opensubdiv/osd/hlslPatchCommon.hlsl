@@ -132,7 +132,7 @@ cbuffer Transform : register( b0 ) {
 cbuffer Tessellation : register( b1 ) {
     float TessLevel;
     int GregoryQuadOffsetBase;
-    int LevelBase;
+    int PrimitiveIdBase;
 };
 
 float GetTessLevel(int patchLevel)
@@ -164,14 +164,14 @@ float TessAdaptive(float3 p0, float3 p1)
 #define OSD_DISPLACEMENT_CALLBACK
 #endif
 
-Buffer<int2> g_ptexIndicesBuffer : register( t3 );
+Buffer<int2> OsdPatchParamBuffer : register( t3 );
 
 #define GetPatchLevel(primitiveID)                                      \
-        (g_ptexIndicesBuffer[primitiveID + LevelBase].y & 0xf)
+        (OsdPatchParamBuffer[primitiveID + PrimitiveIdBase].y & 0xf)
 
 #define OSD_COMPUTE_PTEX_COORD_HULL_SHADER                              \
     {                                                                   \
-        int2 ptexIndex = g_ptexIndicesBuffer[ID + LevelBase].xy;        \
+        int2 ptexIndex = OsdPatchParamBuffer[ID + PrimitiveIdBase].xy;  \
         int faceID = ptexIndex.x;                                       \
         int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1)); \
         int u = (ptexIndex.y >> 17) & 0x3ff;                            \

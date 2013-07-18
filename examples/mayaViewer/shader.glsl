@@ -197,7 +197,7 @@ void main()
     //            prim 0           prim 1
 
     // Offset based on prim id and offset into patch-type fvar data table
-    int uvOffset = (gl_PrimitiveID+LevelBase) * 4;
+    int uvOffset = (gl_PrimitiveID+PrimitiveIdBase) * 4;
 
     vec2 uvs[4];
     uvs[0] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+0)*2   ).s,

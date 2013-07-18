@@ -73,12 +73,12 @@ namespace OPENSUBDIV_VERSION {
 struct OsdGLDrawConfig : public OsdDrawConfig {
     OsdGLDrawConfig() :
         program(0),
-        levelBaseUniform(-1),
+        primitiveIdBaseUniform(-1),
         gregoryQuadOffsetBaseUniform(-1) {}
     virtual ~OsdGLDrawConfig();
 
     GLuint program;
-    GLint levelBaseUniform;
+    GLint primitiveIdBaseUniform;
     GLint gregoryQuadOffsetBaseUniform;
 };
 

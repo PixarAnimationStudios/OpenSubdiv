@@ -622,7 +622,7 @@ OpenSubdivShader::bindProgram(const MHWRender::MDrawContext &     mDrawContext,
         float TessLevelInner[MAX_LEVEL][4];
         float TessLevelOuter[MAX_LEVEL][4];
         int GregoryQuadOffsetBase;
-        int LevelBase;
+        int PrimitiveIdBase;
     } tessellationData;
 
     int tessFactor = 2 << _tessFactor;
@@ -631,8 +631,8 @@ OpenSubdivShader::bindProgram(const MHWRender::MDrawContext &     mDrawContext,
         tessellationData.TessLevelOuter[i][0] = float(std::max(tessFactor >> i, 1));
     }
 
-    tessellationData.GregoryQuadOffsetBase = patch.gregoryQuadOffsetBase;
-    tessellationData.LevelBase = patch.levelBase;
+    tessellationData.GregoryQuadOffsetBase = patch.GetQuadOffsetIndex();
+    tessellationData.PrimitiveIdBase = patch.GetPatchIndex();
 
     if (!g_tessellationUB) {
         glGenBuffers(1, &g_tessellationUB);

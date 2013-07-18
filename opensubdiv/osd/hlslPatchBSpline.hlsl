@@ -212,7 +212,7 @@ HullVertex hs_main_patches(
     // +0.5 to avoid interpolation error of integer value
     output.patchCoord = float4(0, 0,
                                patchLevel+0.5,
-                               primitiveID+LevelBase+0.5);
+                               primitiveID+PrimitiveIdBase+0.5);
 
     OSD_COMPUTE_PTEX_COORD_HULL_SHADER;
 

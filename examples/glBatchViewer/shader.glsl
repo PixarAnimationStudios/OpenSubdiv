@@ -210,7 +210,7 @@ void main()
 
 #ifdef FACEVARYING_COLOR
     // Offset based on prim id and offset into patch-type fvar data table
-    int uvOffset = (gl_PrimitiveID+LevelBase) * 4;
+    int uvOffset = (gl_PrimitiveID+OsdPrimitiveIdBase) * 4;
 
     uvs[0] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+0)*2   ).s,
                    texelFetch( g_uvFVarBuffer, (uvOffset+0)*2+1 ).s );

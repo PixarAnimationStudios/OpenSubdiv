@@ -172,7 +172,7 @@ MyDrawDelegate::DrawElements(OpenSubdiv::OsdDrawContext::PatchArray const &patch
     // apply patch color
     _currentEffect->BindDrawConfig(config, patchArray.GetDescriptor());
     
-    glUniform1i(config->levelBaseUniform, patchArray.GetPatchIndex());
+    glUniform1i(config->primitiveIdBaseUniform, patchArray.GetPatchIndex());
     if (patchArray.GetDescriptor().GetType() == OpenSubdiv::FarPatchTables::GREGORY ||
         patchArray.GetDescriptor().GetType() == OpenSubdiv::FarPatchTables::GREGORY_BOUNDARY){
         glUniform1i(config->gregoryQuadOffsetBaseUniform, patchArray.GetQuadOffsetIndex());

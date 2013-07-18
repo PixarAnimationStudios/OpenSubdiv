@@ -817,7 +817,7 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
         struct Tessellation {
             float TessLevel;
             int GregoryQuadOffsetBase;
-            int LevelBase;
+            int PrimitiveIdBase;
         };
 
         if (! g_pcbTessellation) {
@@ -838,7 +838,7 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 
         pData->TessLevel = static_cast<float>(1 << g_tessLevel);
         pData->GregoryQuadOffsetBase = patch.GetQuadOffsetIndex();
-        pData->LevelBase = patch.GetPatchIndex();
+        pData->PrimitiveIdBase = patch.GetPatchIndex();
 
         g_pd3dDeviceContext->Unmap( g_pcbTessellation, 0 );
     }

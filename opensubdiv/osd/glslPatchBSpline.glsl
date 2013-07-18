@@ -188,7 +188,7 @@ void main()
     // +0.5 to avoid interpolation error of integer value
     outpt[ID].v.patchCoord = vec4(0, 0,
                                   patchLevel+0.5,
-                                  gl_PrimitiveID+LevelBase+0.5);
+                                  gl_PrimitiveID+OsdPrimitiveIdBase+0.5);
 
     OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
 
