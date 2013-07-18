@@ -1,58 +1,26 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
 //----------------------------------------------------------
@@ -90,8 +58,8 @@ float csf(uint n, uint j)
 //----------------------------------------------------------
 #ifdef OSD_PATCH_VERTEX_GREGORY_SHADER
 
-uniform samplerBuffer g_VertexBuffer;
-uniform isamplerBuffer g_ValenceBuffer;
+uniform samplerBuffer OsdVertexBuffer;
+uniform isamplerBuffer OsdValenceBuffer;
 
 layout (location=0) in vec4 position;
 OSD_USER_VARYING_ATTRIBUTE_DECLARE
@@ -109,7 +77,7 @@ void main()
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
     OSD_USER_VARYING_PER_VERTEX();
 
-    int ivalence = texelFetch(g_ValenceBuffer,int(vID * (2 * OSD_MAX_VALENCE + 1))).x;
+    int ivalence = texelFetch(OsdValenceBuffer,int(vID * (2 * OSD_MAX_VALENCE + 1))).x;
     outpt.v.valence = ivalence;
     uint valence = uint(abs(ivalence));
 
@@ -129,11 +97,11 @@ void main()
         uint im=(i+valence-1)%valence; 
         uint ip=(i+1)%valence; 
 
-        uint idx_neighbor = uint(texelFetch(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 0 + 1)).x);
+        uint idx_neighbor = uint(texelFetch(OsdValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 0 + 1)).x);
 
 #ifdef OSD_PATCH_GREGORY_BOUNDARY
         bool isBoundaryNeighbor = false;
-        int valenceNeighbor = texelFetch(g_ValenceBuffer,int(idx_neighbor * (2*OSD_MAX_VALENCE+1))).x;
+        int valenceNeighbor = texelFetch(OsdValenceBuffer,int(idx_neighbor * (2*OSD_MAX_VALENCE+1))).x;
 
         if (valenceNeighbor < 0) {
             isBoundaryNeighbor = true;
@@ -153,37 +121,37 @@ void main()
 #endif
 
         vec3 neighbor =
-            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor)).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+1)).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+2)).x);
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+2)).x);
 
-        uint idx_diagonal = uint(texelFetch(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 1 + 1)).x);
+        uint idx_diagonal = uint(texelFetch(OsdValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 1 + 1)).x);
 
         vec3 diagonal =
-            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
 
-        uint idx_neighbor_p = uint(texelFetch(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*ip + 0 + 1)).x);
+        uint idx_neighbor_p = uint(texelFetch(OsdValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*ip + 0 + 1)).x);
 
         vec3 neighbor_p =
-            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p)).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p+1)).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p+2)).x);
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p+2)).x);
 
-        uint idx_neighbor_m = uint(texelFetch(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 0 + 1)).x);
+        uint idx_neighbor_m = uint(texelFetch(OsdValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 0 + 1)).x);
 
         vec3 neighbor_m =
-            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m)).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m+1)).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m+2)).x);
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m+2)).x);
 
-        uint idx_diagonal_m = uint(texelFetch(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 1 + 1)).x);
+        uint idx_diagonal_m = uint(texelFetch(OsdValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 1 + 1)).x);
 
         vec3 diagonal_m =
-            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m)).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)).x);
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)).x);
 
         f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0f + diagonal) / (float(valence)+5.0f);
 
@@ -216,24 +184,24 @@ void main()
     if (ivalence < 0) {
         if (valence > 2) {
             outpt.v.position = (
-                vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
-                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
-                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) +
-                vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
-                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
-                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) +
+                vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) +
+                vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) +
                 4.0f * pos)/6.0f;        
         } else {
             outpt.v.position = pos;                    
         }
 
         outpt.v.e0 = ( 
-            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) -
-            vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
-                 texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) 
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) -
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) 
             )/6.0;
 
         float k = float(float(valence) - 1.0f);    //k is the number of faces
@@ -244,20 +212,20 @@ void main()
         float beta_0 = s/(3.0f*k + c); 
 
 
-        int idx_diagonal = texelFetch(g_ValenceBuffer,int((vID) * (2*OSD_MAX_VALENCE+1) + 2*zerothNeighbor + 1 + 1)).x;
+        int idx_diagonal = texelFetch(OsdValenceBuffer,int((vID) * (2*OSD_MAX_VALENCE+1) + 2*zerothNeighbor + 1 + 1)).x;
         idx_diagonal = abs(idx_diagonal);
         vec3 diagonal =
-                vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
-                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
-                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
+                vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
 
         outpt.v.e1 = gamma * pos + 
-            alpha_0k * vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
-                            texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
-                            texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) +
-            alpha_0k * vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
-                            texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
-                            texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) +
+            alpha_0k * vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
+                            texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
+                            texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) +
+            alpha_0k * vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
+                            texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
+                            texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) +
             beta_0 * diagonal;
 
         for (uint x=1; x<valence - 1; ++x) {
@@ -265,20 +233,20 @@ void main()
             float alpha = (4.0f*sin((M_PI * float(x))/k))/(3.0f*k+c);
             float beta = (sin((M_PI * float(x))/k) + sin((M_PI * float(x+1))/k))/(3.0f*k+c);
 
-            int idx_neighbor = texelFetch(g_ValenceBuffer, int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 0 + 1)).x;
+            int idx_neighbor = texelFetch(OsdValenceBuffer, int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 0 + 1)).x;
             idx_neighbor = abs(idx_neighbor);
 
             vec3 neighbor =
-                vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor)).x,
-                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+1)).x,
-                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+2)).x);
+                vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+1)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+2)).x);
 
-            idx_diagonal = texelFetch(g_ValenceBuffer, int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 1 + 1)).x;
+            idx_diagonal = texelFetch(OsdValenceBuffer, int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 1 + 1)).x;
 
             diagonal =
-                vec3(texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
-                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
-                     texelFetch(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
+                vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
 
             outpt.v.e1 += alpha * neighbor + beta * diagonal;                         
         }
@@ -297,7 +265,7 @@ void main()
 
 layout(vertices = 4) out;
 
-uniform isamplerBuffer g_QuadOffsetBuffer;
+uniform isamplerBuffer OsdQuadOffsetBuffer;
 
 in block {
     GregControlVertex v;
@@ -318,16 +286,16 @@ void main()
     uint im = (i+3)%4;
     uint valence = abs(inpt[i].v.valence);
     uint n = valence;
-    int base = GregoryQuadOffsetBase;
+    int base = OsdGregoryQuadOffsetBase;
 
     outpt[ID].v.position = inpt[ID].v.position;
 
-    uint start = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0x00ffu;
-    uint prev = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0xff00u;
+    uint start = uint(texelFetch(OsdQuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0x00ffu;
+    uint prev = uint(texelFetch(OsdQuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0xff00u;
     prev = uint(prev/256);
 
-    uint start_m = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + im)).x) & 0x00ffu;
-    uint prev_p = uint(texelFetch(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + ip)).x) & 0xff00u;
+    uint start_m = uint(texelFetch(OsdQuadOffsetBuffer, int(4*gl_PrimitiveID+base + im)).x) & 0x00ffu;
+    uint prev_p = uint(texelFetch(OsdQuadOffsetBuffer, int(4*gl_PrimitiveID+base + ip)).x) & 0xff00u;
     prev_p = uint(prev_p/256);
 
     uint np = abs(inpt[ip].v.valence);
@@ -458,7 +426,7 @@ void main()
     int patchLevel = GetPatchLevel();
     outpt[ID].v.patchCoord = vec4(0, 0,
                                   patchLevel+0.5f,
-                                  gl_PrimitiveID+LevelBase+0.5f);
+                                  gl_PrimitiveID+OsdPrimitiveIdBase+0.5f);
 
     OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
 

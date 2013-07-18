@@ -115,9 +115,9 @@ http://www.tipue.com/search
 }
 
 div.search_result {
-    background: #FFF;
+    /* background: #FFF;*/
     margin-top: 5px;
-    margin-left: 255px;
+    /* margin-left: 255px;*/
 
     padding-top: 15px;
     padding-left: 15px;

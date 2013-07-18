@@ -1,0 +1,106 @@
+/* 
+       Copyright 2013 Pixar
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License
+       and the following modification to it: Section 6 Trademarks.
+       deleted and replaced with:
+
+       6. Trademarks. This License does not grant permission to use the
+       trade names, trademarks, service marks, or product names of the
+       Licensor and its affiliates, except as required for reproducing
+       the content of the NOTICE file.
+
+       You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing,
+       software distributed under the License is distributed on an
+       "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+       either express or implied.  See the License for the specific
+       language governing permissions and limitations under the
+       License.
+*/  
+.coursewareBackground {
+	background: #efefef;
+	float: left;
+	margin: 0 25px 25px;
+	padding: 30px 50px;
+	width: 796px;
+	color: #333;
+	font-size: 13px!important;
+}
+.coursewareBackground hr {
+	display:none;
+}
+.coursewareBackground img {
+	margin-bottom:20px;
+	max-width: 776px;
+}
+.coursewareBackground strong, .coursewareBackground p, .coursewareBackground h1, .coursewareBackground h2, .coursewareBackground h3, .coursewareBackground h4, .coursewareBackground h5, .coursewareBackground h6, .coursewareBackground li, .coursewareBackground li a {
+	color:#333;
+}
+.coursewareBackground a {
+	color:#000;
+	text-decoration:underline;
+}
+.coursewareBackground a:hover {
+	color: #CC9900!important;
+}
+.coursewareBackground pre, .coursewareBackground code {
+	background:#ddd;
+}
+.coursewareBackground ul li {
+	padding-left: 6px!important;
+	list-style-type:square!important;
+}
+.coursewareBackground h1, .coursewareBackground h2, .coursewareBackground h1 a, .coursewareBackground h2 a {
+	padding-bottom:10px;
+	margin-bottom:10px!important;
+	clear: left;
+	border-bottom:1px solid #ccc;
+	text-decoration:none;
+}
+.coursewareBackground div.note {
+	margin-left: 15px;
+	margin-right: 15px;
+	padding:10px 5px 10px 5px;
+	clear: left;
+	border:1px solid #333;
+	background: #ccc;
+}
+.imageLeft {
+	float:left;
+	padding:0 10px 10px 0;
+	margin:0 10px 10px 0;
+}
+#mainContentContainer p {
+	font-family:Arial, Helvetica, sans-serif!important;
+	color:#333!important;
+}
+#mainContentContainer .entranceList p {
+	color: #aaa!important;
+}
+#mainContentContainer .entranceList h3 {
+	color: #FFCC03;
+}
+#mainContentContainer a:hover {
+	color: #FFCC03;
+}
+h1.articleContentTitle {
+	width:620px!important;
+}
+#mainContentContainer ul li {
+	color:#333;
+	font-weight:normal;
+}
+#mainContentContainer ol li {
+	color: #333!important;
+	font-weight: normal;
+	font-family: arial, sans-serif;
+	font-size: 13px!important;
+}
+ol img {
+	margin-left:-28px;
+}

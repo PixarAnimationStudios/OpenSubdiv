@@ -1,58 +1,26 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
 //----------------------------------------------------------
@@ -89,8 +57,8 @@ float csf(uint n, uint j)
 // Patches.TessVertexGregory
 //----------------------------------------------------------
 
-Buffer<float> g_VertexBuffer : register( t0 );
-Buffer<int> g_ValenceBuffer : register( t1 );
+Buffer<float> OsdVertexBuffer : register( t0 );
+Buffer<int> OsdValenceBuffer : register( t1 );
 
 void vs_main_patches( in InputVertex input,
                       uint vID : SV_VertexID,
@@ -99,7 +67,7 @@ void vs_main_patches( in InputVertex input,
     output.hullPosition = mul(ModelViewMatrix, input.position).xyz;
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(input.position);
 
-    int ivalence = g_ValenceBuffer[int(vID * (2 * OSD_MAX_VALENCE + 1))];
+    int ivalence = OsdValenceBuffer[int(vID * (2 * OSD_MAX_VALENCE + 1))];
     output.valence = ivalence;
     uint valence = uint(abs(ivalence));
 
@@ -119,11 +87,11 @@ void vs_main_patches( in InputVertex input,
         uint im=(i+valence-1)%valence; 
         uint ip=(i+1)%valence; 
 
-        uint idx_neighbor = uint(g_ValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 0 + 1)]);
+        uint idx_neighbor = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 0 + 1)]);
 
 #ifdef OSD_PATCH_GREGORY_BOUNDARY
         bool isBoundaryNeighbor = false;
-        int valenceNeighbor = g_ValenceBuffer[int(idx_neighbor * (2*OSD_MAX_VALENCE+1))];
+        int valenceNeighbor = OsdValenceBuffer[int(idx_neighbor * (2*OSD_MAX_VALENCE+1))];
 
         if (valenceNeighbor < 0) {
             isBoundaryNeighbor = true;
@@ -143,37 +111,37 @@ void vs_main_patches( in InputVertex input,
 #endif
 
         float3 neighbor =
-            float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor)],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+1)],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+2)]);
+            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor)],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+1)],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+2)]);
 
-        uint idx_diagonal = uint(g_ValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 1 + 1)]);
+        uint idx_diagonal = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 1 + 1)]);
 
         float3 diagonal =
-            float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
+            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
 
-        uint idx_neighbor_p = uint(g_ValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*ip + 0 + 1)]);
+        uint idx_neighbor_p = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*ip + 0 + 1)]);
 
         float3 neighbor_p =
-            float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p)],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p+1)],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p+2)]);
+            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p)],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p+1)],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p+2)]);
 
-        uint idx_neighbor_m = uint(g_ValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 0 + 1)]);
+        uint idx_neighbor_m = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 0 + 1)]);
 
         float3 neighbor_m =
-            float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m)],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m+1)],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m+2)]);
+            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m)],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m+1)],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m+2)]);
 
-        uint idx_diagonal_m = uint(g_ValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 1 + 1)]);
+        uint idx_diagonal_m = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 1 + 1)]);
 
         float3 diagonal_m =
-            float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m)],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)]);
+            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m)],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)]);
 
         f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0f + diagonal) / (float(valence)+5.0f);
 
@@ -206,24 +174,24 @@ void vs_main_patches( in InputVertex input,
     if (ivalence < 0) {
         if (valence > 2) {
             output.position = (
-                float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
-                       g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
-                       g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) +
-                float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
-                       g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
-                       g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) +
+                float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
+                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
+                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) +
+                float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
+                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
+                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) +
                 4.0f * pos)/6.0f;        
         } else {
             output.position = pos;                    
         }
 
         output.e0 = ( 
-            float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) -
-            float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
-                   g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) 
+            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) -
+            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
+                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) 
             )/6.0;
 
         float k = float(float(valence) - 1.0f);    //k is the number of faces
@@ -234,20 +202,20 @@ void vs_main_patches( in InputVertex input,
         float beta_0 = s/(3.0f*k + c); 
 
 
-        int idx_diagonal = g_ValenceBuffer[int((vID) * (2*OSD_MAX_VALENCE+1) + 2*zerothNeighbor + 1 + 1)];
+        int idx_diagonal = OsdValenceBuffer[int((vID) * (2*OSD_MAX_VALENCE+1) + 2*zerothNeighbor + 1 + 1)];
         idx_diagonal = abs(idx_diagonal);
         float3 diagonal =
-                float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
-                       g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
-                       g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
+                float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
+                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
+                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
 
         output.e1 = gamma * pos + 
-            alpha_0k * float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
-                              g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
-                              g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) +
-            alpha_0k * float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
-                              g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
-                              g_VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) +
+            alpha_0k * float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
+                              OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
+                              OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) +
+            alpha_0k * float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
+                              OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
+                              OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) +
             beta_0 * diagonal;
 
         for (uint x=1; x<valence - 1; ++x) {
@@ -255,20 +223,20 @@ void vs_main_patches( in InputVertex input,
             float alpha = (4.0f*sin((M_PI * float(x))/k))/(3.0f*k+c);
             float beta = (sin((M_PI * float(x))/k) + sin((M_PI * float(x+1))/k))/(3.0f*k+c);
 
-            int idx_neighbor = g_ValenceBuffer[int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 0 + 1)];
+            int idx_neighbor = OsdValenceBuffer[int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 0 + 1)];
             idx_neighbor = abs(idx_neighbor);
 
             float3 neighbor =
-                float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor)],
-                       g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+1)],
-                       g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+2)]);
+                float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor)],
+                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+1)],
+                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+2)]);
 
-            idx_diagonal = g_ValenceBuffer[int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 1 + 1)];
+            idx_diagonal = OsdValenceBuffer[int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 1 + 1)];
 
             diagonal =
-                float3(g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
-                       g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
-                       g_VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
+                float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
+                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
+                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
 
             output.e1 += alpha * neighbor + beta * diagonal;                         
         }
@@ -282,7 +250,7 @@ void vs_main_patches( in InputVertex input,
 // Patches.HullGregory
 //----------------------------------------------------------
 
-Buffer<int> g_QuadOffsetBuffer : register( t2 );
+Buffer<int> OsdQuadOffsetBuffer : register( t2 );
 
 HS_CONSTANT_FUNC_OUT HSConstFunc(
     InputPatch<GregHullVertex, 4> patch,
@@ -337,12 +305,12 @@ GregDomainVertex hs_main_patches(
     GregDomainVertex output;
     output.position = patch[ID].position;
 
-    uint start = uint(g_QuadOffsetBuffer[int(4*primitiveID+base + i)]) & 0x00ffu;
-    uint prev = uint(g_QuadOffsetBuffer[int(4*primitiveID+base + i)]) & 0xff00u;
+    uint start = uint(OsdQuadOffsetBuffer[int(4*primitiveID+base + i)]) & 0x00ffu;
+    uint prev = uint(OsdQuadOffsetBuffer[int(4*primitiveID+base + i)]) & 0xff00u;
     prev = uint(prev/256);
 
-    uint start_m = uint(g_QuadOffsetBuffer[int(4*primitiveID+base + im)]) & 0x00ffu;
-    uint prev_p = uint(g_QuadOffsetBuffer[int(4*primitiveID+base + ip)]) & 0xff00u;
+    uint start_m = uint(OsdQuadOffsetBuffer[int(4*primitiveID+base + im)]) & 0x00ffu;
+    uint prev_p = uint(OsdQuadOffsetBuffer[int(4*primitiveID+base + ip)]) & 0xff00u;
     prev_p = uint(prev_p/256);
 
     uint np = abs(patch[ip].valence);
@@ -471,7 +439,7 @@ GregDomainVertex hs_main_patches(
     int patchLevel = GetPatchLevel(primitiveID);
     output.patchCoord = float4(0, 0,
                                patchLevel+0.5f,
-                               primitiveID+LevelBase+0.5f);
+                               primitiveID+PrimitiveIdBase+0.5f);
 
     OSD_COMPUTE_PTEX_COORD_HULL_SHADER;
 

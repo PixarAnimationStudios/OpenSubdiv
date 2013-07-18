@@ -1,58 +1,26 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
 #ifndef FAR_PATCH_PARAM_H
@@ -74,15 +42,16 @@ namespace OPENSUBDIV_VERSION {
 /// but has to be remapped to a specific layout for uv textures.
 ///
 /// Bitfield layout :
-///   <table>
-///   <tr> <th> Field      </th> <th> Bits </th> <th> Content                                             </th> </tr>
-///   <tr> <td> level      </td> <td>  4   </td> <td> the subdivision level of the patch                  </td> </tr>
-///   <tr> <td> nonquad    </td> <td>  1   </td> <td> whether the patch is the child of a non-quad face   </td> </tr>
-///   <tr> <td> rotation   </td> <td>  2   </td> <td> patch rotations necessary to match CCW face-winding </td> </tr>
-///   <tr> <td> v          </td> <td> 10   </td> <td> log2 value of u parameter at first patch corner     </td> </tr>
-///   <tr> <td> u          </td> <td> 10   </td> <td> log2 value of v parameter at first patch corner     </td> </tr>
-///   <tr> <td> reserved1  </td> <td>  5   </td> <td> padding                                             </td> </tr>
-///   </table>
+/// 
+///  Field      | Bits | Content                                              
+///  -----------|:----:|------------------------------------------------------
+///  level      | 4    | the subdivision level of the patch                   
+///  nonquad    | 1    | whether the patch is the child of a non-quad face    
+///  rotation   | 2    | patch rotations necessary to match CCW face-winding  
+///  v          | 10   | log2 value of u parameter at first patch corner      
+///  u          | 10   | log2 value of v parameter at first patch corner      
+///  reserved1  | 5    | padding                                              
+/// 
 /// Note : the bitfield is not expanded in the struct due to differences in how
 ///        GPU & CPU compilers pack bit-fields and endian-ness.
 ///
@@ -92,7 +61,7 @@ struct FarPatchParam {
     struct BitField {
         unsigned int field:32;
         
-        /// Sets the values of the bit fields
+        /// \brief Sets the values of the bit fields
         ///
         /// @param u value of the u parameter for the first corner of the face
         /// @param v value of the v parameter for the first corner of the face
@@ -109,25 +78,25 @@ struct FarPatchParam {
                     (nonquad ? depth+1 : depth);
         }
 
-        /// Returns the log2 value of the u parameter at the top left corner of
+        /// \brief Returns the log2 value of the u parameter at the top left corner of
         /// the patch
         unsigned short GetU() const { return (field >> 17) & 0x3ff; }
 
-        /// Returns the log2 value of the v parameter at the top left corner of
+        /// \brief Returns the log2 value of the v parameter at the top left corner of
         /// the patch
         unsigned short GetV() const { return (field >> 7) & 0x3ff; }
 
-        /// Returns the rotation of the patch (the number of CCW parameter winding)
+        /// \brief Returns the rotation of the patch (the number of CCW parameter winding)
         unsigned char GetRotation() const { return (field >> 5) & 0x3; }
 
-        /// True if the parent coarse face is a non-quad
+        /// \brief True if the parent coarse face is a non-quad
         bool NonQuadRoot() const { return (field >> 4) & 0x1; }
         
-        /// Returns the fratcion of normalized parametric space covered by the 
+        /// \brief Returns the fratcion of normalized parametric space covered by the 
         /// sub-patch.
         float GetParamFraction() const;
 
-        /// Returns the level of subdivision of the patch 
+        /// \brief Returns the level of subdivision of the patch 
         unsigned char GetDepth() const { return (field & 0xf); }
 
         /// The (u,v) pair is normalized to this sub-parametric space. 
@@ -138,7 +107,7 @@ struct FarPatchParam {
         ///
         void Normalize( float & u, float & v ) const;
         
-        /// Rotate (u,v) pair to compensate for transition pattern and boundary
+        /// \brief Rotate (u,v) pair to compensate for transition pattern and boundary
         /// orientations.
         ///
         /// @param u  u parameter
@@ -147,12 +116,12 @@ struct FarPatchParam {
         ///
         void Rotate( float & u, float & v ) const;
 
-        /// Resets the values to 0
+        /// \brief Resets the values to 0
         void Clear() { field = 0; }
                 
     } bitField;
 
-    /// Sets the values of the bit fields
+    /// \brief Sets the values of the bit fields
     ///
     /// @param faceid ptex face index
     ///
@@ -168,7 +137,7 @@ struct FarPatchParam {
         bitField.Set(u,v,rots,depth,nonquad);
     }
     
-    /// Resets everything to 0
+    /// \brief Resets everything to 0
     void Clear() { 
         faceIndex = 0;
         bitField.Clear();

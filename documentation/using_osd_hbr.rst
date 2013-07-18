@@ -1,58 +1,26 @@
 ..  
-       Copyright (C) Pixar. All rights reserved.
-  
-       This license governs use of the accompanying software. If you
-       use the software, you accept this license. If you do not accept
-       the license, do not use the software.
-  
-       1. Definitions
-       The terms "reproduce," "reproduction," "derivative works," and
-       "distribution" have the same meaning here as under U.S.
-       copyright law.  A "contribution" is the original software, or
-       any additions or changes to the software.
-       A "contributor" is any person or entity that distributes its
-       contribution under this license.
-       "Licensed patents" are a contributor's patent claims that read
-       directly on its contribution.
-  
-       2. Grant of Rights
-       (A) Copyright Grant- Subject to the terms of this license,
-       including the license conditions and limitations in section 3,
-       each contributor grants you a non-exclusive, worldwide,
-       royalty-free copyright license to reproduce its contribution,
-       prepare derivative works of its contribution, and distribute
-       its contribution or any derivative works that you create.
-       (B) Patent Grant- Subject to the terms of this license,
-       including the license conditions and limitations in section 3,
-       each contributor grants you a non-exclusive, worldwide,
-       royalty-free license under its licensed patents to make, have
-       made, use, sell, offer for sale, import, and/or otherwise
-       dispose of its contribution in the software or derivative works
-       of the contribution in the software.
-  
-       3. Conditions and Limitations
-       (A) No Trademark License- This license does not grant you
-       rights to use any contributor's name, logo, or trademarks.
-       (B) If you bring a patent claim against any contributor over
-       patents that you claim are infringed by the software, your
-       patent license from such contributor to the software ends
-       automatically.
-       (C) If you distribute any portion of the software, you must
-       retain all copyright, patent, trademark, and attribution
-       notices that are present in the software.
-       (D) If you distribute any portion of the software in source
-       code form, you may do so only under this license by including a
-       complete copy of this license with your distribution. If you
-       distribute any portion of the software in compiled or object
-       code form, you may only do so under a license that complies
-       with this license.
-       (E) The software is licensed "as-is." You bear the risk of
-       using it. The contributors give no express warranties,
-       guarantees or conditions. You may have additional consumer
-       rights under your local laws which this license cannot change.
-       To the extent permitted under your local laws, the contributors
-       exclude the implied warranties of merchantability, fitness for
-       a particular purpose and non-infringement.
+       Copyright 2013 Pixar
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License
+       and the following modification to it: Section 6 Trademarks.
+       deleted and replaced with:
+
+       6. Trademarks. This License does not grant permission to use the
+       trade names, trademarks, service marks, or product names of the
+       Licensor and its affiliates, except as required for reproducing
+       the content of the NOTICE file.
+
+       You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing,
+       software distributed under the License is distributed on an
+       "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+       either express or implied.  See the License for the specific
+       language governing permissions and limitations under the
+       License.
   
 
 Using Hbr
@@ -351,7 +319,7 @@ The rule-set can be selected using the following accessors:
 
 .. container:: impnotip
 
-   **Note**
+   **Warning**
 
    The boundary interpolation rules **must** be set before the call to 
    *HbrMesh::Finish()*, which sets the sharpness values to boundary edges
@@ -434,7 +402,7 @@ Holes
 
 
 
-.. container:: impnotip
+.. container:: note
 
    **Note**
 
@@ -514,9 +482,9 @@ to `this example <subdivision_surfaces.html#hierarchical-edits-paths>`__.
 Face-varying Data
 =================
 
-Here is a simple example of how to store face-varying data for a (u,v) pair.
+Here is a walk-through of how to store face-varying data for a (u,v) pair.
 Unlike vertex and varying data which is accessed through the templated vertex
-API, face-varying data is aggregated as vectors of float data.
+API, face-varying data is directly aggregated as vectors of float data.
 
 
 Instantiating the *HbrMesh*
@@ -566,15 +534,78 @@ Here is some sample code:
 
             if (not fvt.IsInitialized()) {
             
+                // if no fvar daa exists yet on the vertex
                 fvt.SetAllData(2, fvdata);
             
             } else if (not fvt.CompareAll(2, fvdata)) {
                 
-                // if there is a boundary in the fvar-data, add the new data
+                // if there already is fvar data and there is a boundary add the new data
                 OpenSubdiv::HbrFVarData<T> & nfvt = e->GetOrgVertex()->NewFVarData(f);
                 nfvt.SetAllData(2, fvdata);
                 
             }
         }
     }
+
+
+Retrieving the Face-Varying Data
+********************************
+
+The HbrFVarData structures are expanded during the refinement process, with every
+sub-face being assigned a set of interpolated face-varying data. This data can be
+accessed in 2 ways :
+
+From a face, passing a vertex index:
+
+.. code:: c++
+
+    // OpenSubdiv::HbrFace<Vertex> * f
+    
+    OpenSubdiv::HbrFVarData const &fv = f.GetFVarData(vindex);
+    
+    const float * data = fv.GetData()
+
+
+From a vertex, passing a pointer to an incident face:
+
+.. code:: c++
+
+    // OpenSubdiv::HbrFace<Vertex> * f
+
+    OpenSubdiv::HbrFVarData const &fv = myVertex.GetFVarData(f);
+
+    const float * data = fv.GetData()
+
+
+----
+
+Valence Operators
+=================
+
+When manipulating meshes, it is often necessary to iterate over neighboring faces
+or vertices. Rather than gather lists of pointers and return them, Hbr exposes
+an operator pattern that guarantees consistent mesh traversals.
+
+The following example shows how to use an operator to count the number of neighboring
+vertices (use HbrVertex::GetValence() for proper valence counts)
+
+.. code:: c++
+
+    //OpenSubdiv::HbrVertex<Vertex> * v;
+    
+    class MyOperator : public OpenSubdiv::HbrVertexOperator<Vertex> {
+
+    public:
+        int count;
+
+        MyOperator() : count(0) { }
+
+        virtual void operator() (OpenSubdiv::HbrVertex<Vertex> &v) {
+            ++count;
+        }
+    };
+    
+    MyOperator op;
+    
+    v->ApplyOperatorSurroundingVertices( op );
 

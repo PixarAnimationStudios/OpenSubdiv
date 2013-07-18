@@ -1,58 +1,26 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
 //----------------------------------------------------------
@@ -153,10 +121,8 @@ layout(std140) uniform Tessellation {
     float TessLevel;
 };
 
-//layout(std140) uniform PrimitiveBufferOffset {
-uniform    int GregoryQuadOffsetBase;
-uniform    int LevelBase;
-//};
+uniform int OsdGregoryQuadOffsetBase;
+uniform int OsdPrimitiveIdBase;
 
 float GetTessLevel(int patchLevel)
 {
@@ -191,15 +157,17 @@ float TessAdaptive(vec3 p0, vec3 p1)
 // ptex coordinates
 // ----------------------------------------------------------------------------
 
-uniform isamplerBuffer g_ptexIndicesBuffer;
+uniform isamplerBuffer OsdPatchParamBuffer;
 
 #define GetPatchLevel()                                                 \
-        (texelFetch(g_ptexIndicesBuffer, gl_PrimitiveID + LevelBase).y & 0xf)
+        (texelFetch(OsdPatchParamBuffer, gl_PrimitiveID +               \
+                                         OsdPrimitiveIdBase).y & 0xf)
 
 #define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
     {                                                                   \
-        ivec2 ptexIndex = texelFetch(g_ptexIndicesBuffer,               \
-                                     gl_PrimitiveID + LevelBase).xy;    \
+        ivec2 ptexIndex = texelFetch(OsdPatchParamBuffer,               \
+                                     gl_PrimitiveID +                   \
+                                     OsdPrimitiveIdBase).xy;            \
         int faceID = ptexIndex.x;                                       \
         int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1)); \
         int u = (ptexIndex.y >> 17) & 0x3ff;                            \
@@ -241,75 +209,70 @@ uniform isamplerBuffer g_ptexIndicesBuffer;
 // face varyings
 // ----------------------------------------------------------------------------
 
-uniform samplerBuffer g_fvarDataBuffer;
+uniform samplerBuffer OsdFVarDataBuffer;
 
 #ifndef OSD_FVAR_WIDTH
 #define OSD_FVAR_WIDTH 0
 #endif
 
 // XXX: quad only for now
-float ComputeFaceVarying1(int fvarOffset, vec2 tessCoord)
-{
-    float v[4];
-    int primOffset = (gl_PrimitiveID + LevelBase) * 4;
-    for (int i = 0; i < 4; ++i) {
-        v[i] = texelFetch(g_fvarDataBuffer,
-                          (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset).s;
+#define OSD_COMPUTE_FACE_VARYING_1(result, fvarOffset, tessCoord)       \
+    {                                                                   \
+        float v[4];                                                     \
+        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 4;     \
+        for (int i = 0; i < 4; ++i) {                                   \
+            int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
+            v[i] = texelFetch(OsdFVarDataBuffer, index).s               \
+        }                                                               \
+        result = mix(mix(v[0], v[1], tessCoord.s),                      \
+                     mix(v[3], v[2], tessCoord.s),                      \
+                     tessCoord.t);                                      \
     }
-    return mix(mix(v[0], v[1], tessCoord.s),
-               mix(v[3], v[2], tessCoord.s),
-               tessCoord.t);
-}
-vec2 ComputeFaceVarying2(int fvarOffset, vec2 tessCoord)
-{
-    vec2 v[4];
-    int primOffset = (gl_PrimitiveID + LevelBase) * 4;
-    for (int i = 0; i < 4; ++i) {
-        v[i] = vec2(texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset).s,
-                    texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 1).s);
-    }
-    return mix(mix(v[0], v[1], tessCoord.s),
-               mix(v[3], v[2], tessCoord.s),
-               tessCoord.t);
-}
 
-vec3 ComputeFaceVarying3(int fvarOffset, vec2 tessCoord)
-{
-    vec3 v[4];
-    int primOffset = (gl_PrimitiveID + LevelBase) * 4;
-    for (int i = 0; i < 4; ++i) {
-        v[i] = vec3(texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset).s,
-                    texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 1).s,
-                    texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 2).s);
+#define OSD_COMPUTE_FACE_VARYING_2(result, fvarOffset, tessCoord)       \
+    {                                                                   \
+        vec2 v[4];                                                      \
+        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 4;     \
+        for (int i = 0; i < 4; ++i) {                                   \
+            int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
+            v[i] = vec2(texelFetch(OsdFVarDataBuffer, index).s,         \
+                        texelFetch(OsdFVarDataBuffer, index + 1).s);    \
+        }                                                               \
+        result = mix(mix(v[0], v[1], tessCoord.s),                      \
+                     mix(v[3], v[2], tessCoord.s),                      \
+                     tessCoord.t);                                      \
     }
-    return mix(mix(v[0], v[1], tessCoord.s),
-               mix(v[3], v[2], tessCoord.s),
-               tessCoord.t);
-}
 
-vec4 ComputeFaceVarying4(int fvarOffset, vec2 tessCoord)
-{
-    vec4 v[4];
-    int primOffset = (gl_PrimitiveID + LevelBase) * 4;
-    for (int i = 0; i < 4; ++i) {
-        v[i] = vec4(texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset).s,
-                    texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 1).s,
-                    texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 2).s,
-                    texelFetch(g_fvarDataBuffer,
-                               (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset + 3).s);
+#define OSD_COMPUTE_FACE_VARYING_3(result, fvarOffset, tessCoord)       \
+    {                                                                   \
+        vec3 v[4];                                                      \
+        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 4;     \
+        for (int i = 0; i < 4; ++i) {                                   \
+            int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
+            v[i] = vec3(texelFetch(OsdFVarDataBuffer, index).s,         \
+                        texelFetch(OsdFVarDataBuffer, index + 1).s,     \
+                        texelFetch(OsdFVarDataBuffer, index + 2).s);    \
+        }                                                               \
+        result = mix(mix(v[0], v[1], tessCoord.s),                      \
+                     mix(v[3], v[2], tessCoord.s),                      \
+                     tessCoord.t);                                      \
     }
-    return mix(mix(v[0], v[1], tessCoord.s),
-               mix(v[3], v[2], tessCoord.s),
-               tessCoord.t);
-}
+
+#define OSD_COMPUTE_FACE_VARYING_4(result, fvarOffset, tessCoord)       \
+    {                                                                   \
+        vec4 v[4];                                                      \
+        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 4;     \
+        for (int i = 0; i < 4; ++i) {                                   \
+            int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
+            v[i] = vec3(texelFetch(OsdFVarDataBuffer, index).s,         \
+                        texelFetch(OsdFVarDataBuffer, index + 1).s,     \
+                        texelFetch(OsdFVarDataBuffer, index + 2).s,     \
+                        texelFetch(OsdFVarDataBuffer, index + 3).s);    \
+        }                                                               \
+        result = mix(mix(v[0], v[1], tessCoord.s),                      \
+                     mix(v[3], v[2], tessCoord.s),                      \
+                     tessCoord.t);                                      \
+    }
 
 // ----------------------------------------------------------------------------
 // patch culling

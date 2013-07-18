@@ -1,58 +1,26 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
 #if defined(__APPLE__)
@@ -1068,35 +1036,35 @@ EffectDrawRegistry::_CreateDrawConfig(
     GLint loc;
 #if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
     glUseProgram(config->program);
-    if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
         glUniform1i(loc, 0); // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
         glUniform1i(loc, 1); // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
         glUniform1i(loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
         glUniform1i(loc, 3); // GL_TEXTURE3
     }
-    if ((loc = glGetUniformLocation(config->program, "g_fvarDataBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
         glUniform1i(loc, 4); // GL_TEXTURE4
     }
 #else
-    if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
     }
-    if ((loc = glGetUniformLocation(config->program, "g_fvarDataBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
     }
 #endif
@@ -1298,20 +1266,29 @@ display() {
         GLuint program = bindProgram(GetEffect(), patch);
 
         GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
-        
+
         if (g_displayPatchColor and primType == GL_PATCHES) {
             float const * color = getAdaptivePatchColor( desc );
             glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
         } else {
             glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
         }
-        
-        GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
-        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformLevelBase, patch.GetPatchIndex());
+
+        GLuint uniformGregoryQuadOffsetBase =
+          glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+        GLuint uniformPrimitiveIdBase =
+          glGetUniformLocation(program, "OsdPrimitiveIdBase");
+
+        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
+                           patch.GetQuadOffsetIndex());
+        glProgramUniform1i(program, uniformPrimitiveIdBase,
+                           patch.GetPatchIndex());
 #else
-        bindProgram(GetEffect(), patch);
+        GLuint program = bindProgram(GetEffect(), patch);
+        GLint uniformPrimitiveIdBase =
+          glGetUniformLocation(program, "OsdPrimitiveIdBase");
+        if (uniformPrimitiveIdBase != -1)
+            glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
 #endif
 
         if (g_displayStyle == kWire) {

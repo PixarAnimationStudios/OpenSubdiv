@@ -1,58 +1,26 @@
 ..  
-       Copyright (C) Pixar. All rights reserved.
-  
-       This license governs use of the accompanying software. If you
-       use the software, you accept this license. If you do not accept
-       the license, do not use the software.
-  
-       1. Definitions
-       The terms "reproduce," "reproduction," "derivative works," and
-       "distribution" have the same meaning here as under U.S.
-       copyright law.  A "contribution" is the original software, or
-       any additions or changes to the software.
-       A "contributor" is any person or entity that distributes its
-       contribution under this license.
-       "Licensed patents" are a contributor's patent claims that read
-       directly on its contribution.
-  
-       2. Grant of Rights
-       (A) Copyright Grant- Subject to the terms of this license,
-       including the license conditions and limitations in section 3,
-       each contributor grants you a non-exclusive, worldwide,
-       royalty-free copyright license to reproduce its contribution,
-       prepare derivative works of its contribution, and distribute
-       its contribution or any derivative works that you create.
-       (B) Patent Grant- Subject to the terms of this license,
-       including the license conditions and limitations in section 3,
-       each contributor grants you a non-exclusive, worldwide,
-       royalty-free license under its licensed patents to make, have
-       made, use, sell, offer for sale, import, and/or otherwise
-       dispose of its contribution in the software or derivative works
-       of the contribution in the software.
-  
-       3. Conditions and Limitations
-       (A) No Trademark License- This license does not grant you
-       rights to use any contributor's name, logo, or trademarks.
-       (B) If you bring a patent claim against any contributor over
-       patents that you claim are infringed by the software, your
-       patent license from such contributor to the software ends
-       automatically.
-       (C) If you distribute any portion of the software, you must
-       retain all copyright, patent, trademark, and attribution
-       notices that are present in the software.
-       (D) If you distribute any portion of the software in source
-       code form, you may do so only under this license by including a
-       complete copy of this license with your distribution. If you
-       distribute any portion of the software in compiled or object
-       code form, you may only do so under a license that complies
-       with this license.
-       (E) The software is licensed "as-is." You bear the risk of
-       using it. The contributors give no express warranties,
-       guarantees or conditions. You may have additional consumer
-       rights under your local laws which this license cannot change.
-       To the extent permitted under your local laws, the contributors
-       exclude the implied warranties of merchantability, fitness for
-       a particular purpose and non-infringement.
+       Copyright 2013 Pixar
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License
+       and the following modification to it: Section 6 Trademarks.
+       deleted and replaced with:
+
+       6. Trademarks. This License does not grant permission to use the
+       trade names, trademarks, service marks, or product names of the
+       Licensor and its affiliates, except as required for reproducing
+       the content of the NOTICE file.
+
+       You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing,
+       software distributed under the License is distributed on an
+       "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+       either express or implied.  See the License for the specific
+       language governing permissions and limitations under the
+       License.
   
 
 Subdivision Surfaces
@@ -104,17 +72,16 @@ animates or how closely it is viewed.
 Ordinary cubic B-spline surfaces are rectangular grids of tensor-product patches. 
 Subdivision surfaces generalize these to control grids with arbitrary connectivity.
 
-   .. image:: images/tetra.0.jpg
-      :width: 20%
+.. raw:: html
 
-   .. image:: images/tetra.1.jpg
-      :width: 20%
-
-   .. image:: images/tetra.2.jpg
-      :width: 20%
-
-   .. image:: images/tetra.3.jpg
-      :width: 20%
+    <center>
+      <p align="center">
+        <IMG src="images/tetra.0.jpg" style="width: 20%;"> 
+        <IMG src="images/tetra.1.jpg" style="width: 20%;"> 
+        <IMG src="images/tetra.2.jpg" style="width: 20%;"> 
+        <IMG src="images/tetra.3.jpg" style="width: 20%;"> 
+      </p>
+    </center>
 
 ----
 
@@ -159,6 +126,11 @@ XXXX
 Semi-Sharp Creases
 ==================
 
+.. image:: images/gtruck.jpg
+   :align: center
+   :height: 300
+   :target: images/gtruck.jpg
+
 XXXX
 
 ----
@@ -180,12 +152,10 @@ A hierarchical edit overrides these values. This allows for a compact specificat
 of localized detail on a subdivision surface, without having to express information 
 about the rest of the subdivision surface at the same level of detail.
 
-.. container:: fourcol
-
-    .. image:: images/hedit_example1.png
-       :align: center
-       :height: 300
-       :target: images/hedit_example1.png
+.. image:: images/hedit_example1.png
+   :align: center
+   :height: 300
+   :target: images/hedit_example1.png
 
 ----
 

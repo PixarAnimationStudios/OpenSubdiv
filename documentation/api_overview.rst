@@ -1,58 +1,26 @@
 ..  
-       Copyright (C) Pixar. All rights reserved.
-  
-       This license governs use of the accompanying software. If you
-       use the software, you accept this license. If you do not accept
-       the license, do not use the software.
-  
-       1. Definitions
-       The terms "reproduce," "reproduction," "derivative works," and
-       "distribution" have the same meaning here as under U.S.
-       copyright law.  A "contribution" is the original software, or
-       any additions or changes to the software.
-       A "contributor" is any person or entity that distributes its
-       contribution under this license.
-       "Licensed patents" are a contributor's patent claims that read
-       directly on its contribution.
-  
-       2. Grant of Rights
-       (A) Copyright Grant- Subject to the terms of this license,
-       including the license conditions and limitations in section 3,
-       each contributor grants you a non-exclusive, worldwide,
-       royalty-free copyright license to reproduce its contribution,
-       prepare derivative works of its contribution, and distribute
-       its contribution or any derivative works that you create.
-       (B) Patent Grant- Subject to the terms of this license,
-       including the license conditions and limitations in section 3,
-       each contributor grants you a non-exclusive, worldwide,
-       royalty-free license under its licensed patents to make, have
-       made, use, sell, offer for sale, import, and/or otherwise
-       dispose of its contribution in the software or derivative works
-       of the contribution in the software.
-  
-       3. Conditions and Limitations
-       (A) No Trademark License- This license does not grant you
-       rights to use any contributor's name, logo, or trademarks.
-       (B) If you bring a patent claim against any contributor over
-       patents that you claim are infringed by the software, your
-       patent license from such contributor to the software ends
-       automatically.
-       (C) If you distribute any portion of the software, you must
-       retain all copyright, patent, trademark, and attribution
-       notices that are present in the software.
-       (D) If you distribute any portion of the software in source
-       code form, you may do so only under this license by including a
-       complete copy of this license with your distribution. If you
-       distribute any portion of the software in compiled or object
-       code form, you may only do so under a license that complies
-       with this license.
-       (E) The software is licensed "as-is." You bear the risk of
-       using it. The contributors give no express warranties,
-       guarantees or conditions. You may have additional consumer
-       rights under your local laws which this license cannot change.
-       To the extent permitted under your local laws, the contributors
-       exclude the implied warranties of merchantability, fitness for
-       a particular purpose and non-infringement.
+       Copyright 2013 Pixar
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License
+       and the following modification to it: Section 6 Trademarks.
+       deleted and replaced with:
+
+       6. Trademarks. This License does not grant permission to use the
+       trade names, trademarks, service marks, or product names of the
+       Licensor and its affiliates, except as required for reproducing
+       the content of the NOTICE file.
+
+       You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing,
+       software distributed under the License is distributed on an
+       "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+       either express or implied.  See the License for the specific
+       language governing permissions and limitations under the
+       License.
   
 
 API Overview
@@ -112,7 +80,7 @@ Data flows are mostly 1-directional, from top to bottom as a number of algorithm
 are preparing the coarse mesh data to be refined and passing their results to 
 the next element in the processing chain.
 
-.. image:: images/api_workflows.png
+.. image:: images/api_data_flow.png
    :align: center
 
 ----
@@ -123,12 +91,11 @@ Representation vs. Implementation Layers
 One of the core performance goals of our subdivision algorithms is to leverage
 interactive performance out of massively parallel code execution wherever 
 possible. In order to support a large diversity of discrete compute devices through
-multiple dedicated SDKs, it is critical to distill the critical computations into
-the smallest and simplest kernels possible. These can in turn be safely ported and 
+multiple dedicated SDKs, it is critical to distill the computations into the
+smallest and simplest kernels possible. These can in turn be safely ported and 
 optimized for each of the hardware platforms. 
 
 .. image:: images/api_representations.png
-   :align: center
 
 This separation of general purpose against hardware-specific code is translated into
 two types of layers : the **implementation** layer against the **representation** 
@@ -154,7 +121,7 @@ This allows authoring applications to easily access "neighboring" components
 in order to make topology edits or manipulate properties of the components 
 themselves. The key to achieving efficient many-core processing is to reduce data
 interdependencies. However, by definition, the bulk of topological mesh data is 
-the very description of the connections (dependencies) between vertices. 
+the very description of these connections (dependencies) between vertices. 
 
 .. image:: images/api_serialized_data.png
    :align: center
@@ -163,9 +130,14 @@ This is why OpenSubdiv provides specific representations for mesh data:
   - Hbr is a half-edge relational representation
   - Far is a serialized representation
 
-A typical workflow is to manipulate Hbr meshes in authoring applications. Once the
-topology of the mesh has stabilized, it is processed into a serialized form that
-can then be evaluated at interactive framerates.
+A typical workflow would be to manipulate the topology in authoring applications,
+maybe using Hbr meshes for common editing operations. Once the topology of the mesh 
+has stabilized, it is processed into a serialized form that can then be evaluated 
+at interactive framerates. The serialized form is embodied by Far, which can then 
+be migrated by the device-specific functions in Osd.
+
+.. image:: images/api_workflows.png
+   :align: center
 
 ----
 
@@ -202,7 +174,9 @@ edge can only access a single neighboring edge cycle.
    :align: center
    
 This is a fundamental limitation of the half-edge data structure, in that it
-cannot represent non-manifold geometry, in particular fan-type topologies.
+cannot represent non-manifold geometry, in particular fan-type topologies. A
+different approach to topology will probably be necessary in order to accomodate
+non-manifold geometry.
 
 ----
 
@@ -246,7 +220,22 @@ the CVs of cubic patches, then the cubic patches are tessellated on with GLSL or
 OpenSubdiv enforces the same results for the different computation backends with 
 a series of regression tests that compare the methods to each other.
 
-The OpenSubdiv layer is comprised of 3 modules : Refine, Draw and Eval.
+The OpenSubdiv layer is comprised of 3 maine modules : Refine, Draw and Eval.
+
+.. image:: images/api_osd_modules.png
+
+These modules are identified by their name spaces (**OsdRefine**, **OsdDraw**,
+**OsdEval**) and encapsulate atomic functationality. The vertex data is carried 
+in interoperable buffers that can be exchanged between modules. 
+
+The typical use pattern is to pose the coarse vertices of a mesh for a given frame.
+The buffer is submitted to the **Refine** module which applies the subdivision rules
+and produces refined control vertices. This new buffer can be passed to the **Draw**
+module which will put them on screen.
+
+However, the same buffer of refined control vertices could be passed instead to
+the **Eval** module (and be projected onto another surface for instance) before
+being sent for display to the **Draw** module.
 
 .. container:: impnotip
 
