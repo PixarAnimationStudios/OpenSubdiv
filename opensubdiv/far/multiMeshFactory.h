@@ -529,7 +529,7 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
         result->_vertexValenceTable.resize((2*maxValence+1) * vertexOffset);
         result->_quadOffsetTable.resize(totalQuadOffset0 + totalQuadOffset1);
     }
-    7
+
     // Allocate fvardata table
     result->_fvarTable.resize(totalFVarData);
 
