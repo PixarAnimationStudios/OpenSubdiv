@@ -1635,21 +1635,21 @@ initHUD()
     g_hud.AddRadioButton(0, "OPENMP", false, 10, 30, callbackKernel, kOPENMP, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_GCD
-    g_hud.AddRadioButton(0, "GCD", false, 10, 30, callbackKernel, kGCD, 'k');
+    g_hud.AddRadioButton(0, "GCD", false, 10, 50, callbackKernel, kGCD, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    g_hud.AddRadioButton(0, "CUDA",   false, 10, 50, callbackKernel, kCUDA, 'k');
+    g_hud.AddRadioButton(0, "CUDA",   false, 10, 70, callbackKernel, kCUDA, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    g_hud.AddRadioButton(0, "OPENCL", false, 10, 70, callbackKernel, kCL, 'k');
+    g_hud.AddRadioButton(0, "OPENCL", false, 10, 90, callbackKernel, kCL, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    g_hud.AddRadioButton(0, "GLSL TransformFeedback",   false, 10, 90, callbackKernel, kGLSL, 'k');
+    g_hud.AddRadioButton(0, "GLSL TransformFeedback",   false, 10, 110, callbackKernel, kGLSL, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     // Must also check at run time for OpenGL 4.3
     if (GLEW_VERSION_4_3) {
-        g_hud.AddRadioButton(0, "GLSL Compute",   false, 10, 110, callbackKernel, kGLSLCompute, 'k');
+        g_hud.AddRadioButton(0, "GLSL Compute",   false, 10, 130, callbackKernel, kGLSLCompute, 'k');
     }
 #endif
 
