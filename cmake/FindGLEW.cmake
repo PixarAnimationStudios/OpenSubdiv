@@ -90,7 +90,7 @@ if (GLEW_INCLUDE_DIR AND EXISTS "${GLEW_INCLUDE_DIR}/GL/glew.h")
 
    file(STRINGS "${GLEW_INCLUDE_DIR}/GL/glew.h" GLEW_4_2 REGEX "^#define GL_VERSION_4_2.*$")
    if (GLEW_4_2)
-       SET(OPENGL_4_2_FOUND TRUE)
+       set(OPENGL_4_2_FOUND TRUE)
    else ()
        message(WARNING
        "glew-1.7.0 or newer needed for supporting OpenGL 4.2 dependent features"
@@ -108,9 +108,8 @@ if (GLEW_INCLUDE_DIR AND EXISTS "${GLEW_INCLUDE_DIR}/GL/glew.h")
 
 endif ()
 
-find_package_handle_standard_args(GLEW DEFAULT_MSG
-    GLEW_INCLUDE_DIR
-    GLEW_LIBRARY
+find_package_handle_standard_args(GLEW
+    REQUIRED_VARS
+        GLEW_INCLUDE_DIR
+        GLEW_LIBRARY
 )
-
-mark_as_advanced( GLEW_FOUND )

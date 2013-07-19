@@ -32,8 +32,12 @@ include_directories(
 if( OPENGL_FOUND )
     include_directories(
         ${OPENGL_INCLUDE_DIR}
-        ${GLEW_INCLUDE_DIR}
     )
+    if (GLEW_FOUND)
+        include_directories(
+            ${GLEW_INCLUDE_DIR}
+        )
+    endif()
 elseif( OPENGLES_FOUND )
     include_directories(
         ${OPENGLES_INCLUDE_DIR}
