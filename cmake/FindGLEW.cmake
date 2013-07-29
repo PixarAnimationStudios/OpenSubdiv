@@ -78,6 +78,7 @@ if (${CMAKE_HOST_UNIX})
             $ENV{GLEW_LOCATION}/lib
             /usr/lib64
             /usr/lib
+            /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}
             /usr/local/lib64
             /usr/local/lib
             /sw/lib
