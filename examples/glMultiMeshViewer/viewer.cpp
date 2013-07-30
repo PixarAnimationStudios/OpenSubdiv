@@ -225,9 +225,11 @@ int g_modelCount = 4;
 int g_level = 4;
 int g_tessLevel = 1;
 int g_tessLevelMin = 1;
+int g_nVertexElement = 4;
+int g_numPrimsGenerated = 0;
 
 #ifdef OPENSUBDIV_HAS_TBB
-int g_kernel = kCPU;
+int g_kernel = kTBB;
 #else
 int g_kernel = kCPU;
 #endif
@@ -511,31 +513,6 @@ initializeShapes( ) {
 
 #include <shapes/bilinear_cube.h>
     g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
-
-
-#include <shapes/loop_cube_creases0.h>
-    g_defaultShapes.push_back(SimpleShape(loop_cube_creases0, "loop_cube_creases0", kLoop));
-
-#include <shapes/loop_cube_creases1.h>
-    g_defaultShapes.push_back(SimpleShape(loop_cube_creases1, "loop_cube_creases1", kLoop));
-
-#include <shapes/loop_cube.h>
-    g_defaultShapes.push_back(SimpleShape(loop_cube, "loop_cube", kLoop));
-
-#include <shapes/loop_icosahedron.h>
-    g_defaultShapes.push_back(SimpleShape(loop_icosahedron, "loop_icosahedron", kLoop));
-
-#include <shapes/loop_saddle_edgecorner.h>
-    g_defaultShapes.push_back(SimpleShape(loop_saddle_edgecorner, "loop_saddle_edgecorner", kLoop));
-
-#include <shapes/loop_saddle_edgeonly.h>
-    g_defaultShapes.push_back(SimpleShape(loop_saddle_edgeonly, "loop_saddle_edgeonly", kLoop));
-
-#include <shapes/loop_triangle_edgecorner.h>
-    g_defaultShapes.push_back(SimpleShape(loop_triangle_edgecorner, "loop_triangle_edgecorner", kLoop));
-
-#include <shapes/loop_triangle_edgeonly.h>
-    g_defaultShapes.push_back(SimpleShape(loop_triangle_edgeonly, "loop_triangle_edgeonly", kLoop));
 }
 
 //------------------------------------------------------------------------------
@@ -574,7 +551,7 @@ updateGeom(MeshData *pData) {
     int nverts = (int)pData->m_orgPositions.size() / 3;
 
     std::vector<float> vertex;
-    vertex.reserve(nverts*8);
+    vertex.reserve(nverts*g_nVertexElement);
 
     const float *p = &pData->m_orgPositions[0];
     const float *n = &pData->m_normals[0];
@@ -601,11 +578,20 @@ updateGeom(MeshData *pData) {
         vertex.push_back(p[0]);
         vertex.push_back(p[1]);
         vertex.push_back(p[2]);
-        vertex.push_back(n[0]);
-        vertex.push_back(n[1]);
-        vertex.push_back(n[2]);
-        vertex.push_back(0.0);
-        vertex.push_back(0.0);    
+        if(g_nVertexElement == 4)         
+            vertex.push_back(0.0);    
+        else if(g_nVertexElement == 6){
+            vertex.push_back(n[0]);
+            vertex.push_back(n[1]);
+            vertex.push_back(n[2]);
+        }
+        else if(g_nVertexElement == 8){
+            vertex.push_back(n[0]);
+            vertex.push_back(n[1]);
+            vertex.push_back(n[2]);
+            vertex.push_back(0.0);
+            vertex.push_back(0.0);
+        }        
         p += 3;
         n += 3;
     }
@@ -672,7 +658,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdCpuComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_cpuComputeController,
-                                                hmesh, 8, level, bits);
+                                                hmesh, g_nVertexElement, level, bits);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         if (not g_ompComputeController) {
@@ -682,7 +668,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdOmpComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_ompComputeController,
-                                                hmesh, 8, level, bits);
+                                                hmesh, g_nVertexElement, level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == kTBB) {
@@ -693,7 +679,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdTbbComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_tbbComputeController,
-                                                hmesh, 8, level, bits);
+                                                hmesh, g_nVertexElement, level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GCD
     } else if (kernel == kGCD) {
@@ -704,7 +690,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdGcdComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_gcdComputeController,
-                                                hmesh, 8, level, bits);
+                                                hmesh, g_nVertexElement, level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == kCL) {
@@ -715,7 +701,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdCLComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_clComputeController,
-                                                hmesh, 8, level, bits,
+                                                hmesh, g_nVertexElement, level, bits,
                                                 g_clContext, g_clQueue);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
@@ -727,7 +713,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdCudaComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_cudaComputeController,
-                                                hmesh, 8, level, bits);
+                                                hmesh, g_nVertexElement, level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if(kernel == kGLSL) {
@@ -738,7 +724,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdGLSLTransformFeedbackComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_glslTransformFeedbackComputeController,
-                                                hmesh, 8, level, bits);
+                                                hmesh, g_nVertexElement, level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if(kernel == kGLSLCompute) {
@@ -749,7 +735,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdGLSLComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_glslComputeController,
-                                                hmesh, 8, level, bits);
+                                                hmesh, g_nVertexElement, level, bits);
 #endif
     } else {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
@@ -786,8 +772,8 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
 
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 8, 0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 8, (float*)12);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * g_nVertexElement, 0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * g_nVertexElement, (float*)12);
 
     glBindVertexArray(0);
     
@@ -1153,6 +1139,7 @@ displayMesh(MeshData *pMesh) {
 
     GLuint numPrimsGenerated = 0;
     glGetQueryObjectuiv(g_primQuery, GL_QUERY_RESULT, &numPrimsGenerated);
+    g_numPrimsGenerated += numPrimsGenerated;
 
     glBindVertexArray(0);
     
@@ -1183,6 +1170,7 @@ display() {
     Stopwatch s;
     s.Start();
     
+    g_numPrimsGenerated = 0;
     std::vector<MeshData*>::iterator it;
     for(it = g_mesh_list.begin(); it != g_mesh_list.end(); it++)
         displayMesh(*it);
@@ -1200,13 +1188,16 @@ display() {
         static float last_kernelTime      = 0;
         static float last_drawTime        = 0;
         static float last_fps             = 0;
+        static int   last_numPrimsGenerated = 0;
         display_count ++;
         if(display_count % 100 == 0) {
             last_kernelTime = g_kernelTime;
             last_drawTime   = g_drawTime;
             last_fps        = fps;
+            last_numPrimsGenerated = g_numPrimsGenerated;
         }
 
+        g_hud.DrawString(10, -100, "Primitives  : %d",      last_numPrimsGenerated);
         g_hud.DrawString(10, -80, "Tess level  : %d",      g_tessLevel);
         g_hud.DrawString(10, -60, "Kernel time : %.3f ms", last_kernelTime);
         g_hud.DrawString(10, -40, "Draw   time : %.3f ms", last_drawTime);
