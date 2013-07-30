@@ -257,30 +257,30 @@ SetTransitionTessLevels(inout HS_CONSTANT_TRANSITION_FUNC_OUT output, float3 cp[
         max(output.tessLevelOuter[0], output.tessLevelOuter[2]);
 #endif
 #ifdef OSD_TRANSITION_PATTERN31
-    output.tessLevelOuter[0] = TessAdaptive(ev01, vv1);
-    output.tessLevelOuter[1] = TessAdaptive(ev12, vv1);
-    output.tessLevelOuter[2] = TessAdaptive(ev12, ev30) * 0.5;
-    output.tessLevelOuter[3] = TessAdaptive(ev01, ev23) * 0.5;
+    output.tessLevelOuter[0] = TessAdaptive(ev01, ev23) * 0.5;
+    output.tessLevelOuter[1] = TessAdaptive(ev23, vv3);
+    output.tessLevelOuter[2] = TessAdaptive(ev30, vv3);
+    output.tessLevelOuter[3] = TessAdaptive(ev30, ev12) * 0.5;
     output.tessLevelInner[0] =
         max(output.tessLevelOuter[1], output.tessLevelOuter[3]);
     output.tessLevelInner[1] =
         max(output.tessLevelOuter[0], output.tessLevelOuter[2]);
 #endif
 #ifdef OSD_TRANSITION_PATTERN32
-    output.tessLevelOuter[0] = TessAdaptive(ev01, ev23) * 0.5;
-    output.tessLevelOuter[1] = TessAdaptive(ev12, ev30) * 0.5;
-    output.tessLevelOuter[2] = TessAdaptive(ev23, vv3);
-    output.tessLevelOuter[3] = TessAdaptive(ev30, vv3);
+    output.tessLevelOuter[0] = TessAdaptive(ev23, ev01) * 0.5;
+    output.tessLevelOuter[1] = TessAdaptive(ev01, vv1);
+    output.tessLevelOuter[2] = TessAdaptive(ev12, vv1);
+    output.tessLevelOuter[3] = TessAdaptive(ev12, ev30) * 0.5;
     output.tessLevelInner[0] =
         max(output.tessLevelOuter[1], output.tessLevelOuter[3]);
     output.tessLevelInner[1] =
         max(output.tessLevelOuter[0], output.tessLevelOuter[2]);
 #endif
 #ifdef OSD_TRANSITION_PATTERN33
-    output.tessLevelOuter[0] = TessAdaptive(ev01, ev23) * 0.5;
+    output.tessLevelOuter[0] = TessAdaptive(ev12, ev30) * 0.5;
     output.tessLevelOuter[1] = TessAdaptive(ev12, vv2);
     output.tessLevelOuter[2] = TessAdaptive(ev23, vv2);
-    output.tessLevelOuter[3] = TessAdaptive(ev12, ev30) * 0.5;
+    output.tessLevelOuter[3] = TessAdaptive(ev01, ev23) * 0.5;
     output.tessLevelInner[0] =
         max(output.tessLevelOuter[1], output.tessLevelOuter[3]);
     output.tessLevelInner[1] =
@@ -567,12 +567,12 @@ GetTransitionSubpatchUV(
     UV.y = 0.5 - uv.x/2.0;
 #endif
 #ifdef OSD_TRANSITION_PATTERN31
-    UV.x = 0.5 - uv.y/2.0;
-    UV.y = 0.5 + uv.x/2.0;
+    UV.x = 0.5 - uv.x/2.0;
+    UV.y = 1.0 - uv.y/2.0;
 #endif
 #ifdef OSD_TRANSITION_PATTERN32
-    UV.x = 1.0 - uv.y/2.0;
-    UV.y = uv.x/2.0;
+    UV.x = 0.5 + uv.x/2.0;
+    UV.y = uv.y/2.0;
 #endif
 #ifdef OSD_TRANSITION_PATTERN33
     UV.x = 1.0 - uv.y/2.0;

@@ -240,26 +240,26 @@ SetTransitionTessLevels(vec3 cp[OSD_PATCH_INPUT_SIZE], int patchLevel)
     gl_TessLevelInner[1] = max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
 #endif
 #ifdef OSD_TRANSITION_PATTERN31
-    gl_TessLevelOuter[0] = TessAdaptive(ev01, vv1);
-    gl_TessLevelOuter[1] = TessAdaptive(ev12, vv1);
-    gl_TessLevelOuter[2] = TessAdaptive(ev12, ev30) * 0.5;
-    gl_TessLevelOuter[3] = TessAdaptive(ev01, ev23) * 0.5;
+    gl_TessLevelOuter[0] = TessAdaptive(ev01, ev23) * 0.5;
+    gl_TessLevelOuter[1] = TessAdaptive(ev23, vv3);
+    gl_TessLevelOuter[2] = TessAdaptive(ev30, vv3);
+    gl_TessLevelOuter[3] = TessAdaptive(ev30, ev12) * 0.5;
     gl_TessLevelInner[0] = max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
     gl_TessLevelInner[1] = max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
 #endif
 #ifdef OSD_TRANSITION_PATTERN32
-    gl_TessLevelOuter[0] = TessAdaptive(ev01, ev23) * 0.5;
-    gl_TessLevelOuter[1] = TessAdaptive(ev12, ev30) * 0.5;
-    gl_TessLevelOuter[2] = TessAdaptive(ev23, vv3);
-    gl_TessLevelOuter[3] = TessAdaptive(ev30, vv3);
+    gl_TessLevelOuter[0] = TessAdaptive(ev23, ev01) * 0.5;
+    gl_TessLevelOuter[1] = TessAdaptive(ev01, vv1);
+    gl_TessLevelOuter[2] = TessAdaptive(ev12, vv1);
+    gl_TessLevelOuter[3] = TessAdaptive(ev12, ev30) * 0.5;
     gl_TessLevelInner[0] = max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
     gl_TessLevelInner[1] = max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
 #endif
 #ifdef OSD_TRANSITION_PATTERN33
-    gl_TessLevelOuter[0] = TessAdaptive(ev01, ev23) * 0.5;
+    gl_TessLevelOuter[0] = TessAdaptive(ev12, ev30) * 0.5;
     gl_TessLevelOuter[1] = TessAdaptive(ev12, vv2);
     gl_TessLevelOuter[2] = TessAdaptive(ev23, vv2);
-    gl_TessLevelOuter[3] = TessAdaptive(ev12, ev30) * 0.5;
+    gl_TessLevelOuter[3] = TessAdaptive(ev01, ev23) * 0.5;
     gl_TessLevelInner[0] = max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
     gl_TessLevelInner[1] = max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
 #endif
@@ -539,12 +539,12 @@ GetTransitionSubpatchUV()
     UV.y = 0.5 - uv.x/2.0;
 #endif
 #ifdef OSD_TRANSITION_PATTERN31
-    UV.x = 0.5 - uv.y/2.0;
-    UV.y = 0.5 + uv.x/2.0;
+    UV.x = 0.5 - uv.x/2.0;
+    UV.y = 1.0 - uv.y/2.0;
 #endif
 #ifdef OSD_TRANSITION_PATTERN32
-    UV.x = 1.0 - uv.y/2.0;
-    UV.y = uv.x/2.0;
+    UV.x = 0.5 + uv.x/2.0;
+    UV.y = uv.y/2.0;
 #endif
 #ifdef OSD_TRANSITION_PATTERN33
     UV.x = 1.0 - uv.y/2.0;
