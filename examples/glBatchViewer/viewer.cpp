@@ -1,62 +1,34 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
 #if defined(__APPLE__)
-    #include <OpenGL/gl3.h>
+    #if defined(OSD_USES_GLEW)
+        #include <GL/glew.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
     #define GLFW_INCLUDE_GL3
     #define GLFW_NO_GLU
 #else
@@ -68,7 +40,7 @@
 #endif
 
 #if defined(GLFW_VERSION_3)
-    #include <GL/glfw3.h>
+    #include <GLFW/glfw3.h>
     GLFWwindow* g_window=0;
     GLFWmonitor* g_primary=0;
 #else
@@ -131,7 +103,9 @@
 #include <far/meshFactory.h>
 
 #include <osdutil/batch.h>
-#include <osdutil/batchCL.h>
+#ifdef OPENSUBDIV_HAS_OPENCL
+    #include <osdutil/batchCL.h>
+#endif
 #include <osdutil/drawItem.h>
 #include <osdutil/drawController.h>
 #include "delegate.h"
@@ -213,7 +187,7 @@ int   g_frame = 0,
 // GUI variables
 int   g_fullscreen = 0,
       g_freeze = 0,
-      g_wire = 1,
+      g_displayStyle = kWireShaded,
       g_adaptive = 1,
       g_batching = 1,
       g_mbutton[3] = {0, 0, 0}, 
@@ -323,9 +297,11 @@ updateGeom(bool forceAll) {
         if (forceAll == false && j >= g_moveModels) break;
         int nverts = (int)g_positions[j].size()/3;
 
-        std::vector<float> vertex;
-        vertex.resize(nverts * 3);
-        float * d = &vertex[0];
+        std::vector<float> vertex, varying;
+        vertex.reserve(nverts * 3);
+
+        if (g_displayStyle == kVaryingColor)
+            varying.reserve(nverts * 3);
 
         const float *p = &g_positions[j][0];
         for (int i = 0; i < nverts; ++i) {
@@ -337,14 +313,24 @@ updateGeom(bool forceAll) {
             v[2] = p[2];
             v[3] = 1;
             apply(v, g_transforms[j].value);
-            *d++ = v[0];
-            *d++ = v[1];
-            *d++ = v[2];
+            vertex.push_back(v[0]);
+            vertex.push_back(v[1]);
+            vertex.push_back(v[2]);
+
+            if (g_displayStyle == kVaryingColor) {
+                varying.push_back(p[2]);
+                varying.push_back(p[1]);
+                varying.push_back(p[0]);
+            }
 
             p += 3;
         }
         
         g_batch->UpdateCoarseVertices(j, &vertex[0], nverts);
+
+        if (g_displayStyle == kVaryingColor) {
+            g_batch->UpdateCoarseVaryings(j, &varying[0], nverts);
+        }
     }
 
     g_batch->FinalizeUpdate();
@@ -378,7 +364,8 @@ createFarMesh( const char * shape, int level, bool adaptive, Scheme scheme=kCatm
     checkGLErrors("create osd enter");
     // generate Hbr representation from "obj" description
     std::vector<float> positions;
-    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, positions);
+    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape, scheme, positions,
+                                                          g_displayStyle == kFaceVaryingColor);
 
     size_t nModel = g_bboxes.size();
     float x = nModel%g_modelCount - g_modelCount*0.5f;
@@ -443,42 +430,44 @@ rebuild()
     delete g_batch;
     g_batch = NULL;
 
-    int numVertexElements = 3, numVaryingElements = 0;
+    int numVertexElements = 3;
+    int numVaryingElements = g_displayStyle == kVaryingColor ? 3 : 0;
+    bool requireFVarData = (g_displayStyle == kFaceVaryingColor);
 
     // create multimesh batch
     if (g_kernel == kCPU) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
             MyDrawContext, OpenSubdiv::OsdCpuComputeController>::Create(
             Controller<OpenSubdiv::OsdCpuComputeController>::GetInstance(),
-            farMeshes, numVertexElements, numVaryingElements, 0);
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (g_kernel == kOPENMP) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
             MyDrawContext,
             OpenSubdiv::OsdOmpComputeController>::Create(
             Controller<OpenSubdiv::OsdOmpComputeController>::GetInstance(),
-            farMeshes, numVertexElements, numVaryingElements, 0);
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if (g_kernel == kCL) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCLGLVertexBuffer,
             MyDrawContext, OpenSubdiv::OsdCLComputeController>::Create(
             Controller<OpenSubdiv::OsdCLComputeController>::GetInstance(),
-            farMeshes, numVertexElements, numVaryingElements, 0);
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCudaGLVertexBuffer,
             MyDrawContext, OpenSubdiv::OsdCudaComputeController>::Create(
             Controller<OpenSubdiv::OsdCudaComputeController>::GetInstance(),
-            farMeshes, numVertexElements, numVaryingElements, 0);
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if (g_kernel == kGLSL) {
         g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdGLVertexBuffer,
             MyDrawContext, OpenSubdiv::OsdGLSLTransformFeedbackComputeController>::Create(
             Controller<OpenSubdiv::OsdGLSLTransformFeedbackComputeController>::GetInstance(),
-            farMeshes, numVertexElements, numVaryingElements, 0);
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #endif
     } else {
         assert(false);
@@ -512,7 +501,7 @@ static void
 display() {
 
     // set effect
-    g_effect.wire = g_wire;
+    g_effect.displayStyle = g_displayStyle;
     g_effect.screenSpaceTess = (g_screenSpaceTess != 0);
     g_effect.displayPatchColor = (g_displayPatchColor != 0);
 
@@ -572,7 +561,7 @@ display() {
 #endif
     g_drawDelegate.ResetNumDrawCalls();
 
-    if (g_wire == 0) glDisable(GL_CULL_FACE);
+    if (g_displayStyle == kWire) glDisable(GL_CULL_FACE);
 
     if (g_batching) {
         OpenSubdiv::OsdUtil::DrawCollection(cachedDrawItems, &g_drawDelegate);
@@ -580,7 +569,7 @@ display() {
         OpenSubdiv::OsdUtil::DrawCollection(items, &g_drawDelegate);
     }
 
-    if (g_wire == 0) glEnable(GL_CULL_FACE);
+    if (g_displayStyle == kWire) glEnable(GL_CULL_FACE);
 
     glEndQuery(GL_PRIMITIVES_GENERATED);
 #if defined(GL_VERSION_3_3)
@@ -666,7 +655,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state) {
+mouse(GLFWwindow *, int button, int state, int mods) {
 #else
 mouse(int button, int state) {
 #endif
@@ -713,8 +702,9 @@ reshape(int width, int height) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int event) {
+keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
 #else
+#define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
 #endif
 
@@ -731,15 +721,22 @@ keyboard(int key, int event) {
         case ',': g_moveModels = std::max(g_moveModels/2, 0); break;
         case 'I': g_modelCount = std::max(g_modelCount/2, 1); rebuild(); break;
         case 'O': g_modelCount = std::min(g_modelCount*2, MAX_MODELS); rebuild(); break;
-        case GLFW_KEY_ESC: g_hud.SetVisible(!g_hud.IsVisible()); break;
+        case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
     }
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackWireframe(int b)
+callbackDisplayStyle(int b)
 {
-    g_wire = b;
+    if (g_displayStyle == kVaryingColor or b == kVaryingColor or
+        g_displayStyle == kFaceVaryingColor or b == kFaceVaryingColor) {
+        // need to rebuild for varying reconstruct
+        g_displayStyle = b;
+        rebuild();
+        return;
+    }
+    g_displayStyle = b;
 }
 
 static void
@@ -839,9 +836,16 @@ initHUD()
 //    }
 #endif
 
-    g_hud.AddRadioButton(1, "Wire (W)",    g_wire == 0,  200, 10, callbackWireframe, 0, 'w');
-    g_hud.AddRadioButton(1, "Shaded",      g_wire == 1, 200, 30, callbackWireframe, 1, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", g_wire == 2, 200, 50, callbackWireframe, 2, 'w');
+    g_hud.AddRadioButton(1, "Wire (W)", g_displayStyle == kWire,
+                         200, 10, callbackDisplayStyle, kWire, 'w');
+    g_hud.AddRadioButton(1, "Shaded", g_displayStyle == kShaded,
+                         200, 30, callbackDisplayStyle, kShaded, 'w');
+    g_hud.AddRadioButton(1, "Wire+Shaded", g_displayStyle == kWireShaded,
+                         200, 50, callbackDisplayStyle, kWireShaded, 'w');
+    g_hud.AddRadioButton(1, "Varying color", g_displayStyle == kVaryingColor,
+                         200, 70, callbackDisplayStyle, kVaryingColor, 'w');
+    g_hud.AddRadioButton(1, "Face varying color", g_displayStyle == kFaceVaryingColor,
+                         200, 90, callbackDisplayStyle, kFaceVaryingColor, 'w');
 
     g_hud.AddCheckBox("Batching (B)", g_batching != 0, 350, 10, callbackCheckBox, HUD_CB_BATCHING, 'b');
     g_hud.AddCheckBox("Patch Color (P)",      g_displayPatchColor == 1, 350, 30, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');
@@ -949,7 +953,7 @@ int main(int argc, char ** argv)
         return 1;
     }
 
-    static const char windowTitle[] = "OpenSubdiv glViewer";
+    static const char windowTitle[] = "OpenSubdiv glBatchViewer";
     
 #define CORE_PROFILE
 #ifdef CORE_PROFILE
@@ -972,9 +976,9 @@ int main(int argc, char ** argv)
         }
         
         if (g_primary) {
-            GLFWvidmode vidmode = glfwGetVideoMode(g_primary);
-            g_width = vidmode.width;
-            g_height = vidmode.height;
+            GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
+            g_width = vidmode->width;
+            g_height = vidmode->height;
         }
     }
 
@@ -1003,7 +1007,7 @@ int main(int argc, char ** argv)
     glfwSetWindowSizeCallback(reshape);
 #endif
 
-#if not defined(__APPLE__)
+#if defined(OSD_USES_GLEW)
 #ifdef CORE_PROFILE
     // this is the only way to initialize glew correctly under core profile context.
     glewExperimental = true;

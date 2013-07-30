@@ -1,73 +1,39 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
-#line 57
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
+//
 
 //--------------------------------------------------------------
 // Common
 //--------------------------------------------------------------
-uniform int nonAdaptiveLevel;
 uniform float displacementScale = 1.0;
 uniform float bumpScale = 1.0;
 
-vec4 GeneratePatchCoord(vec2 localUV)  // for non-adpative
+vec4 GeneratePatchCoord(vec2 localUV, int primitiveID)  // for non-adpative
 {
-    ivec2 ptexIndex = texelFetchBuffer(g_ptexIndicesBuffer, gl_PrimitiveID).xy;
+    ivec2 ptexIndex = texelFetch(OsdPatchParamBuffer, primitiveID).xy;
     int faceID = ptexIndex.x;
-    int lv = 1 << (ptexIndex.y & 0xf);
+    int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1));
     int u = (ptexIndex.y >> 17) & 0x3ff;
     int v = (ptexIndex.y >> 7) & 0x3ff;
     vec2 uv = localUV;
@@ -94,11 +60,12 @@ vec4 PTexLookup(vec4 patchCoord,
 
 #ifdef USE_PTEX_DISPLACEMENT
 
-#define OSD_DISPLACEMENT_CALLBACK                   \
-    output.v.position =                         \
-        displacement(output.v.position,         \
-                     output.v.normal,           \
-                     output.v.patchCoord);
+#undef OSD_DISPLACEMENT_CALLBACK
+#define OSD_DISPLACEMENT_CALLBACK              \
+    outpt.v.position =                         \
+        displacement(outpt.v.position,         \
+                     outpt.v.normal,           \
+                     outpt.v.patchCoord);
 
 uniform sampler2DArray textureDisplace_Data;
 uniform samplerBuffer textureDisplace_Packing;
@@ -124,12 +91,12 @@ layout (location=1) in vec3 normal;
 
 out block {
     OutputVertex v;
-} output;
+} outpt;
 
 void main()
 {
-    output.v.position = ModelViewMatrix * position;
-    output.v.normal = (ModelViewMatrix * vec4(normal, 0)).xyz;
+    outpt.v.position = ModelViewMatrix * position;
+    outpt.v.normal = (ModelViewMatrix * vec4(normal, 0)).xyz;
 }
 
 #endif
@@ -138,8 +105,6 @@ void main()
 // Geometry Shader
 //--------------------------------------------------------------
 #ifdef GEOMETRY_SHADER
-
-//uniform int nonAdaptiveLevel;
 
 #ifdef PRIM_QUAD
 
@@ -151,7 +116,7 @@ void main()
 
     in block {
         OutputVertex v;
-    } input[4];
+    } inpt[4];
 
 #endif // PRIM_QUAD
 
@@ -165,23 +130,24 @@ void main()
 
     in block {
         OutputVertex v;
-    } input[3];
+    } inpt[3];
 
 #endif // PRIM_TRI
 
 out block {
     OutputVertex v;
-} output;
+    noperspective out vec4 edgeDistance;
+} outpt;
 
 // --------------------------------------
 
 void emit(vec4 position, vec3 normal, vec4 patchCoord)
 {
-    output.v.position = position;
-    output.v.patchCoord = patchCoord;
-    output.v.normal = normal;
+    outpt.v.position = position;
+    outpt.v.patchCoord = patchCoord;
+    outpt.v.normal = normal;
 
-    gl_Position = ProjectionMatrix * output.v.position;
+    gl_Position = ProjectionMatrix * outpt.v.position;
     EmitVertex();
 }
 
@@ -196,18 +162,18 @@ float edgeDistance(vec4 p, vec4 p0, vec4 p1)
 
 void emit(int index, vec4 position, vec3 normal, vec4 patchCoord, vec4 edgeVerts[EDGE_VERTS])
 {
-    output.v.edgeDistance[0] =
+    outpt.edgeDistance[0] =
         edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
-    output.v.edgeDistance[1] =
+    outpt.edgeDistance[1] =
         edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
 #ifdef PRIM_TRI
-    output.v.edgeDistance[2] =
+    outpt.edgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
 #endif
 #ifdef PRIM_QUAD
-    output.v.edgeDistance[2] =
+    outpt.edgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[3]);
-    output.v.edgeDistance[3] =
+    outpt.edgeDistance[3] =
         edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
 #endif
 
@@ -226,21 +192,21 @@ void main()
     vec3 normal[4];
 
     // need to generate patch coord for non-patch quads
-    patchCoord[0] = GeneratePatchCoord(vec2(0, 0));
-    patchCoord[1] = GeneratePatchCoord(vec2(1, 0));
-    patchCoord[2] = GeneratePatchCoord(vec2(1, 1));
-    patchCoord[3] = GeneratePatchCoord(vec2(0, 1));
+    patchCoord[0] = GeneratePatchCoord(vec2(0, 0), gl_PrimitiveID);
+    patchCoord[1] = GeneratePatchCoord(vec2(1, 0), gl_PrimitiveID);
+    patchCoord[2] = GeneratePatchCoord(vec2(1, 1), gl_PrimitiveID);
+    patchCoord[3] = GeneratePatchCoord(vec2(0, 1), gl_PrimitiveID);
 
 #ifdef USE_PTEX_DISPLACEMENT
-    position[0] = displacement(input[0].v.position, input[0].v.normal, patchCoord[0]);
-    position[1] = displacement(input[1].v.position, input[1].v.normal, patchCoord[1]);
-    position[2] = displacement(input[2].v.position, input[2].v.normal, patchCoord[2]);
-    position[3] = displacement(input[3].v.position, input[3].v.normal, patchCoord[3]);
+    position[0] = displacement(inpt[0].v.position, inpt[0].v.normal, patchCoord[0]);
+    position[1] = displacement(inpt[1].v.position, inpt[1].v.normal, patchCoord[1]);
+    position[2] = displacement(inpt[2].v.position, inpt[2].v.normal, patchCoord[2]);
+    position[3] = displacement(inpt[3].v.position, inpt[3].v.normal, patchCoord[3]);
 #else
-    position[0] = input[0].v.position;
-    position[1] = input[1].v.position;
-    position[2] = input[2].v.position;
-    position[3] = input[3].v.position;
+    position[0] = inpt[0].v.position;
+    position[1] = inpt[1].v.position;
+    position[2] = inpt[2].v.position;
+    position[3] = inpt[3].v.position;
 #endif
 
 #ifdef FLAT_NORMALS
@@ -253,18 +219,18 @@ void main()
     normal[2] = normal[0];
     normal[3] = normal[0];
 #else
-    normal[0] = input[0].v.normal;
-    normal[1] = input[1].v.normal;
-    normal[2] = input[2].v.normal;
-    normal[3] = input[3].v.normal;
+    normal[0] = inpt[0].v.normal;
+    normal[1] = inpt[1].v.normal;
+    normal[2] = inpt[2].v.normal;
+    normal[3] = inpt[3].v.normal;
 #endif
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
     vec4 edgeVerts[EDGE_VERTS];
-    edgeVerts[0] = ProjectionMatrix * input[0].v.position;
-    edgeVerts[1] = ProjectionMatrix * input[1].v.position;
-    edgeVerts[2] = ProjectionMatrix * input[2].v.position;
-    edgeVerts[3] = ProjectionMatrix * input[3].v.position;
+    edgeVerts[0] = ProjectionMatrix * inpt[0].v.position;
+    edgeVerts[1] = ProjectionMatrix * inpt[1].v.position;
+    edgeVerts[2] = ProjectionMatrix * inpt[2].v.position;
+    edgeVerts[3] = ProjectionMatrix * inpt[3].v.position;
 
     edgeVerts[0].xy /= edgeVerts[0].w;
     edgeVerts[1].xy /= edgeVerts[1].w;
@@ -276,6 +242,10 @@ void main()
     emit(3, position[3], normal[3], patchCoord[3], edgeVerts);
     emit(2, position[2], normal[2], patchCoord[2], edgeVerts);
 #else
+    outpt.edgeDistance[0] = 0;
+    outpt.edgeDistance[1] = 0;
+    outpt.edgeDistance[2] = 0;
+    outpt.edgeDistance[3] = 0;
     emit(position[0], normal[0], patchCoord[0]);
     emit(position[1], normal[1], patchCoord[1]);
     emit(position[3], normal[3], patchCoord[3]);
@@ -289,18 +259,18 @@ void main()
     vec3 normal[3];
 
     // patch coords are computed in tessellation shader
-    patchCoord[0] = input[0].v.patchCoord;
-    patchCoord[1] = input[1].v.patchCoord;
-    patchCoord[2] = input[2].v.patchCoord;
+    patchCoord[0] = inpt[0].v.patchCoord;
+    patchCoord[1] = inpt[1].v.patchCoord;
+    patchCoord[2] = inpt[2].v.patchCoord;
 
 #ifdef USE_PTEX_DISPLACEMENT
-    position[0] = displacement(input[0].v.position, input[0].v.normal, patchCoord[0]);
-    position[1] = displacement(input[1].v.position, input[1].v.normal, patchCoord[1]);
-    position[2] = displacement(input[2].v.position, input[2].v.normal, patchCoord[2]);
+    position[0] = displacement(inpt[0].v.position, inpt[0].v.normal, patchCoord[0]);
+    position[1] = displacement(inpt[1].v.position, inpt[1].v.normal, patchCoord[1]);
+    position[2] = displacement(inpt[2].v.position, inpt[2].v.normal, patchCoord[2]);
 #else
-    position[0] = input[0].v.position;
-    position[1] = input[1].v.position;
-    position[2] = input[2].v.position;
+    position[0] = inpt[0].v.position;
+    position[1] = inpt[1].v.position;
+    position[2] = inpt[2].v.position;
 #endif
 
 #ifdef FLAT_NORMALS  // emit flat normals for displaced surface
@@ -310,16 +280,16 @@ void main()
     normal[1] = normal[0];
     normal[2] = normal[0];
 #else
-    normal[0] = input[0].v.normal;
-    normal[1] = input[1].v.normal;
-    normal[2] = input[2].v.normal;
+    normal[0] = inpt[0].v.normal;
+    normal[1] = inpt[1].v.normal;
+    normal[2] = inpt[2].v.normal;
 #endif
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
     vec4 edgeVerts[EDGE_VERTS];
-    edgeVerts[0] = ProjectionMatrix * input[0].v.position;
-    edgeVerts[1] = ProjectionMatrix * input[1].v.position;
-    edgeVerts[2] = ProjectionMatrix * input[2].v.position;
+    edgeVerts[0] = ProjectionMatrix * inpt[0].v.position;
+    edgeVerts[1] = ProjectionMatrix * inpt[1].v.position;
+    edgeVerts[2] = ProjectionMatrix * inpt[2].v.position;
 
     edgeVerts[0].xy /= edgeVerts[0].w;
     edgeVerts[1].xy /= edgeVerts[1].w;
@@ -346,7 +316,8 @@ void main()
 
 in block {
     OutputVertex v;
-} input;
+    noperspective in vec4 edgeDistance;
+} inpt;
 
 out vec4 outColor;
 
@@ -386,7 +357,7 @@ layout(std140) uniform Lighting {
 uniform bool overrideColorEnable = false;
 uniform vec4 overrideColor;
 
-#if USE_PTEX_NORMAL
+#ifdef USE_PTEX_NORMAL
 uniform sampler2DArray textureDisplace_Data;
 uniform samplerBuffer textureDisplace_Packing;
 uniform isamplerBuffer textureDisplace_Pages;
@@ -449,7 +420,7 @@ lighting(vec4 texColor, vec3 Peye, vec3 Neye)
     vec4 color = vec4(0);
 
 #ifdef USE_PTEX_OCCLUSION
-    float occ = PTexLookup(input.v.patchCoord,
+    float occ = PTexLookup(inpt.v.patchCoord,
                            textureOcclusion_Data,
                            textureOcclusion_Packing,
                            textureOcclusion_Pages).x;
@@ -487,12 +458,12 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
     float d =
-        min(input.v.edgeDistance[0], min(input.v.edgeDistance[1], input.v.edgeDistance[2]));
+        min(inpt.edgeDistance[0], min(inpt.edgeDistance[1], inpt.edgeDistance[2]));
 #endif
 #ifdef PRIM_QUAD
     float d =
-        min(min(input.v.edgeDistance[0], input.v.edgeDistance[1]),
-            min(input.v.edgeDistance[2], input.v.edgeDistance[3]));
+        min(min(inpt.edgeDistance[0], inpt.edgeDistance[1]),
+            min(inpt.edgeDistance[2], inpt.edgeDistance[3]));
 #endif
     vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
     float p = exp2(-2 * d * d);
@@ -509,8 +480,8 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
 void
 main()
 {
-#if USE_PTEX_COLOR
-    vec4 texColor = PTexLookup(input.v.patchCoord,
+#ifdef USE_PTEX_COLOR
+    vec4 texColor = PTexLookup(inpt.v.patchCoord,
                                textureImage_Data,
                                textureImage_Packing,
                                textureImage_Pages);
@@ -519,24 +490,24 @@ main()
     vec4 texColor = vec4(1);
 #endif
 
-#if USE_PTEX_NORMAL
-    vec3 normal = perturbNormalFromDisplacement(input.v.position.xyz,
-                                                input.v.normal,
-                                                input.v.patchCoord);
+#ifdef USE_PTEX_NORMAL
+    vec3 normal = perturbNormalFromDisplacement(inpt.v.position.xyz,
+                                                inpt.v.normal,
+                                                inpt.v.patchCoord);
 #else
-    vec3 normal = input.v.normal;
+    vec3 normal = inpt.v.normal;
 #endif
 
     if (overrideColorEnable) {
         texColor = overrideColor;
-        vec4 Cf = lighting(texColor, input.v.position.xyz, normal);
-        outColor = edgeColor(Cf, input.v.edgeDistance);
+        vec4 Cf = lighting(texColor, inpt.v.position.xyz, normal);
+        outColor = edgeColor(Cf, inpt.edgeDistance);
         return;
     }
 
-#if USE_IBL
+#ifdef USE_IBL
 #ifdef USE_PTEX_OCCLUSION
-    float occ = PTexLookup(input.v.patchCoord,
+    float occ = PTexLookup(inpt.v.patchCoord,
                            textureOcclusion_Data,
                            textureOcclusion_Packing,
                            textureOcclusion_Pages).x;
@@ -545,7 +516,7 @@ main()
 #endif
 
 #ifdef USE_PTEX_SPECULAR
-    float specular = PTexLookup(input.v.patchCoord,
+    float specular = PTexLookup(inpt.v.patchCoord,
                                 textureSpecular_Data,
                                 textureSpecular_Packing,
                                 textureSpecular_Pages).x;
@@ -555,7 +526,7 @@ main()
 
     vec4 a = vec4(0, 0, 0, 1); //ambientColor;
     vec4 d = getEnvironmentHDR(diffuseEnvironmentMap, normal) * 1.4;
-    vec3 eye = normalize(input.v.position.xyz - vec3(0,0,0));
+    vec3 eye = normalize(inpt.v.position.xyz - vec3(0,0,0));
     vec3 reflect = reflect(eye, normal);
     vec4 s = getEnvironmentHDR(specularEnvironmentMap, reflect);
     const float fresnelBias = 0;
@@ -569,10 +540,10 @@ main()
 
     vec4 Cf = (a + d) * texColor + s * 0.5;
 #else
-    vec4 Cf = lighting(texColor, input.v.position.xyz, normal);
+    vec4 Cf = lighting(texColor, inpt.v.position.xyz, normal);
 #endif
 
-    outColor = edgeColor(Cf, input.v.edgeDistance);
+    outColor = edgeColor(Cf, inpt.edgeDistance);
 }
 
 #endif

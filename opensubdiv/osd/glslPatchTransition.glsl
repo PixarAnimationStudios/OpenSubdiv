@@ -1,593 +1,431 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
-#extension GL_EXT_gpu_shader4 : require
-#line 2
+#if defined(OSD_TRANSITION_PATTERN00) || defined(OSD_TRANSITION_PATTERN01) || defined(OSD_TRANSITION_PATTERN02) || defined(OSD_TRANSITION_PATTERN10) || defined(OSD_TRANSITION_PATTERN11) || defined(OSD_TRANSITION_PATTERN12) || defined(OSD_TRANSITION_PATTERN13) || defined(OSD_TRANSITION_PATTERN21) || defined(OSD_TRANSITION_PATTERN22) || defined(OSD_TRANSITION_PATTERN23)
 
-//----------------------------------------------------------
-// Patches.Coefficients
-//----------------------------------------------------------
-
-#if defined(CASE00) || defined(CASE01) || defined(CASE02) || defined(CASE10) || defined(CASE11) || defined(CASE12) || defined(CASE13) || defined(CASE21) || defined(CASE22) || defined(CASE23)
-
-    #define TRIANGLE
+    #define OSD_TRANSITION_TRIANGLE_SUBPATCH
 
 #else
 
-    #undef TRIANGLE
-
-#endif
-
-//----------------------------------------------------------
-// Patches.TessVertex
-//----------------------------------------------------------
-#ifdef PATCH_VERTEX_SHADER
-
-layout (location=0) in vec4 position;
-
-out block {
-    ControlVertex v;
-} output;
-
-void main() {
-    output.v.position = ModelViewMatrix * position;
-    OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
-
-#if OSD_NUM_VARYINGS > 0
-    for (int i = 0; i < OSD_NUM_VARYINGS; ++i)
-        output.v.varyings[i] = varyings[i];
-#endif
-}
+    #undef OSD_TRANSITION_TRIANGLE_SUBPATCH
 
 #endif
 
 //----------------------------------------------------------
 // Patches.TessControlTransition
 //----------------------------------------------------------
-#ifdef PATCH_TESS_CONTROL_TRANSITION_SHADER
+#ifdef OSD_PATCH_TESS_CONTROL_BSPLINE_SHADER
 
-layout(vertices = 16) out;
-
-in block {
-    ControlVertex v;
-} input[];
-
-out block {
-    ControlVertex v;
-} output[];
-
-#define ID gl_InvocationID
-
-void main()
+void
+SetTransitionTessLevels(vec3 cp[OSD_PATCH_INPUT_SIZE], int patchLevel)
 {
-#if defined BOUNDARY
-    int i = ID/4;
-    int j = ID%4;
-
-#if defined(CASE20) || defined(CASE21) || defined(CASE22) || defined(CASE23)
+#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
+    // These tables map the 9, 12, or 16 input control points onto the
+    // canonical 16 control points for a regular patch.
+#if defined OSD_PATCH_BOUNDARY
+    const int p[16] = int[]( 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 );
+#elif defined OSD_PATCH_CORNER
+    const int p[16] = int[]( 0, 1, 2, 2, 0, 1, 2, 2, 3, 4, 5, 5, 6, 7, 8, 8 );
 #else
-    i = 3 - i;
+    const int p[16] = int[]( 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 );
 #endif
 
-    vec3 H[3];
-    for (int l=0; l<3 ;l++) {
-        H[l] = vec3(0,0,0);
-        for (int k=0; k<4; k++) {
-            float c = Q[i][k];
-            H[l] += c*input[l*4 + k].v.position.xyz;
-        }
-    }
-
-    vec3 pos = vec3(0,0,0);
-    for (int k=0; k<3; k++) {
-        pos += B[j][k]*H[k];
-    }
-
-#elif defined CORNER
-    int i = ID/4;
-    int j = ID%4;
-
-    vec3 H[3];
-    for (int l=0; l<3; l++) {
-        H[l] = vec3(0,0,0);
-        for (int k=0; k<3; k++) {
-            float c = B[i][2-k];
-            H[l] += c*input[l*3 + k].v.position.xyz;
-        }
-    }
-
-    vec3 pos = vec3(0,0,0);
-    for (int k=0; k<3; k++) {
-        pos += B[j][k]*H[k];
-    }
-
-#else // not BOUNDARY, not CORNER
-    int i = ID/4;
-    int j = ID%4;
-
-    vec3 H[4];
-    for (int l=0; l<4; l++) {
-        H[l] = vec3(0,0,0);
-        for (int k=0; k<4; k++) {
-            float c = Q[i][k];
-            H[l] += c*input[l*4 + k].v.position.xyz;
-        }
-    }
-
-    vec3 pos = vec3(0,0,0);
-    for (int k=0; k<4; k++) {
-        pos += Q[j][k]*H[k];
-    }
-
+#if OSD_TRANSITION_ROTATE == 0
+    const int r[16] = int[]( 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 );
+#elif OSD_TRANSITION_ROTATE == 1
+    const int r[16] = int[]( 12, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3 );
+#elif OSD_TRANSITION_ROTATE == 2
+    const int r[16] = int[]( 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 );
+#elif OSD_TRANSITION_ROTATE == 3
+    const int r[16] = int[]( 3, 7, 11, 15, 2, 6, 10, 14, 1, 5, 9, 13, 0, 4, 8, 12 );
 #endif
 
-    output[ID].v.position = vec4(pos, 1.0);
+    // Expand and rotate control points using remapping tables above
+    vec3 pv0 = cp[p[r[0]]];
+    vec3 pv1 = cp[p[r[1]]];
+    vec3 pv2 = cp[p[r[2]]];
+    vec3 pv3 = cp[p[r[3]]];
 
-    int patchLevel = GetPatchLevel();
-    output[ID].v.patchCoord = vec4(0, 0,
-                                   patchLevel+0.5,
-                                   gl_PrimitiveID+LevelBase+0.5);
+    vec3 pv4 = cp[p[r[4]]];
+    vec3 pv5 = cp[p[r[5]]];
+    vec3 pv6 = cp[p[r[6]]];
+    vec3 pv7 = cp[p[r[7]]];
 
-    OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
+    vec3 pv8 = cp[p[r[8]]];
+    vec3 pv9 = cp[p[r[9]]];
+    vec3 pv10 = cp[p[r[10]]];
+    vec3 pv11 = cp[p[r[11]]];
 
-    if (ID == 0) {
-        OSD_PATCH_CULL(16);
+    vec3 pv12 = cp[p[r[12]]];
+    vec3 pv13 = cp[p[r[13]]];
+    vec3 pv14 = cp[p[r[14]]];
+    vec3 pv15 = cp[p[r[15]]];
 
-#if OSD_ENABLE_SCREENSPACE_TESSELLATION
-#line 1000
-        // These tables map the 9, 12, or 16 input control points onto the
-        // canonical 16 control points for a regular patch.
-#if defined BOUNDARY
-        const int p[16] = int[]( 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 );
-#elif defined CORNER
-        const int p[16] = int[]( 0, 1, 2, 2, 0, 1, 2, 2, 3, 4, 5, 5, 6, 7, 8, 8 );
-#else
-        const int p[16] = int[]( 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 );
+    // Each edge of a transition patch is adjacent to one or two 
+    // patches at the next refined level of subdivision.
+    // Compute the corresponding vertex-vertex and edge-vertex refined
+    // points along the edges of the patch using Catmull-Clark subdivision
+    // stencil weights.
+    // For simplicity, we let the optimizer discard unused computation.
+    vec3 vv0 = (pv0 + pv2 + pv8 + pv10) * 0.015625 +
+                 (pv1 + pv4 + pv6 + pv9) * 0.09375 + pv5 * 0.5625;
+    vec3 ev01 = (pv1 + pv2 + pv9 + pv10) * 0.0625 + (pv5 + pv6) * 0.375;
+
+    vec3 vv1 = (pv1 + pv3 + pv9 + pv11) * 0.015625 +
+                 (pv2 + pv5 + pv7 + pv10) * 0.09375 + pv6 * 0.5625;
+    vec3 ev12 = (pv5 + pv7 + pv9 + pv11) * 0.0625 + (pv6 + pv10) * 0.375;
+
+    vec3 vv2 = (pv5 + pv7 + pv13 + pv15) * 0.015625 +
+                 (pv6 + pv9 + pv11 + pv14) * 0.09375 + pv10 * 0.5625;
+    vec3 ev23 = (pv5 + pv6 + pv13 + pv14) * 0.0625 + (pv9 + pv10) * 0.375;
+
+    vec3 vv3 = (pv4 + pv6 + pv12 + pv14) * 0.015625 +
+                 (pv5 + pv8 + pv10 + pv13) * 0.09375 + pv9 * 0.5625;
+    vec3 ev30 = (pv4 + pv6 + pv8 + pv10) * 0.0625 + (pv5 + pv9) * 0.375;
+
+    // The vertices along boundaries and at corners are refined specially.
+#if defined OSD_PATCH_BOUNDARY
+#if OSD_TRANSITION_ROTATE == 0
+    vv0 = (pv4 + pv6) * 0.125 + pv5 * 0.75;
+    vv1 = (pv5 + pv7) * 0.125 + pv6 * 0.75;
+#elif OSD_TRANSITION_ROTATE == 1
+    vv1 = (pv2 + pv10) * 0.125 + pv6 * 0.75;
+    vv2 = (pv6 + pv14) * 0.125 + pv10 * 0.75;
+#elif OSD_TRANSITION_ROTATE == 2
+    vv2 = (pv9 + pv11) * 0.125 + pv10 * 0.75;
+    vv3 = (pv8 + pv10) * 0.125 + pv9 * 0.75;
+#elif OSD_TRANSITION_ROTATE == 3
+    vv3 = (pv5 + pv13) * 0.125 + pv9 * 0.75;
+    vv0 = (pv1 + pv9) * 0.125 + pv5 * 0.75;
+#endif
+#elif defined OSD_PATCH_CORNER
+#if OSD_TRANSITION_ROTATE == 0
+    vv0 = (pv4 + pv6) * 0.125 + pv5 * 0.75;
+    vv1 = pv6;
+    vv2 = (pv6 + pv14) * 0.125 + pv10 * 0.75;
+#elif OSD_TRANSITION_ROTATE == 1
+    vv1 = (pv5 + pv7) * 0.125 + pv6 * 0.75;
+    vv2 = pv10;
+    vv3 = (pv8 + pv10) * 0.125 + pv9 * 0.75;
+#elif OSD_TRANSITION_ROTATE == 2
+    vv2 = (pv6 + pv14) * 0.125 + pv10 * 0.75;
+    vv3 = pv9;
+    vv0 = (pv4 + pv6) * 0.125 + pv5 * 0.75;
+#elif OSD_TRANSITION_ROTATE == 3
+    vv3 = (pv8 + pv10) * 0.125 + pv9 * 0.75;
+    vv0 = pv5;
+    vv1 = (pv5 + pv7) * 0.125 + pv6 * 0.75;
+#endif
 #endif
 
-#if ROTATE == 0
-        const int r[16] = int[]( 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 );
-#elif ROTATE == 1
-        const int r[16] = int[]( 12, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3 );
-#elif ROTATE == 2
-        const int r[16] = int[]( 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 );
-#elif ROTATE == 3
-        const int r[16] = int[]( 3, 7, 11, 15, 2, 6, 10, 14, 1, 5, 9, 13, 0, 4, 8, 12 );
+#ifdef OSD_TRANSITION_PATTERN00
+    gl_TessLevelOuter[0] = TessAdaptive(ev01, pv9) * 0.5;
+    gl_TessLevelOuter[1] = TessAdaptive(ev01, pv10) * 0.5;
+    gl_TessLevelOuter[2] = TessAdaptive(pv9, pv10);
+
+    gl_TessLevelInner[0] =
+        (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.5;
+#endif
+#ifdef OSD_TRANSITION_PATTERN01
+    gl_TessLevelOuter[0] = TessAdaptive(ev01, vv1);
+    gl_TessLevelOuter[1] = TessAdaptive(pv6, pv10);
+    gl_TessLevelOuter[2] = TessAdaptive(ev01, pv10) * 0.5;
+
+    gl_TessLevelInner[0] =
+        (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.25;
+#endif
+#ifdef OSD_TRANSITION_PATTERN02
+    gl_TessLevelOuter[0] = TessAdaptive(ev01, vv0);
+    gl_TessLevelOuter[1] = TessAdaptive(ev01, pv9) * 0.5;
+    gl_TessLevelOuter[2] = TessAdaptive(pv5, pv9);
+
+    gl_TessLevelInner[0] =
+        (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.25;
 #endif
 
-#line 2000
-        // Expand and rotate control points using remapping tables above
-        vec3 pv0 = input[p[r[0]]].v.position.xyz;
-        vec3 pv1 = input[p[r[1]]].v.position.xyz;
-        vec3 pv2 = input[p[r[2]]].v.position.xyz;
-        vec3 pv3 = input[p[r[3]]].v.position.xyz;
 
-        vec3 pv4 = input[p[r[4]]].v.position.xyz;
-        vec3 pv5 = input[p[r[5]]].v.position.xyz;
-        vec3 pv6 = input[p[r[6]]].v.position.xyz;
-        vec3 pv7 = input[p[r[7]]].v.position.xyz;
+#ifdef OSD_TRANSITION_PATTERN10 
+    gl_TessLevelOuter[0] = TessAdaptive(pv6, pv10);
+    gl_TessLevelOuter[1] = TessAdaptive(ev01, pv10);
+    gl_TessLevelOuter[2] = TessAdaptive(ev01, vv1);
 
-        vec3 pv8 = input[p[r[8]]].v.position.xyz;
-        vec3 pv9 = input[p[r[9]]].v.position.xyz;
-        vec3 pv10 = input[p[r[10]]].v.position.xyz;
-        vec3 pv11 = input[p[r[11]]].v.position.xyz;
+    gl_TessLevelInner[0] = (gl_TessLevelOuter[0] + gl_TessLevelOuter[1]) * 0.25;
+#endif
+#ifdef OSD_TRANSITION_PATTERN11
+    gl_TessLevelOuter[0] = TessAdaptive(pv9, pv10);
+    gl_TessLevelOuter[1] = TessAdaptive(ev30, vv3);
+    gl_TessLevelOuter[2] = TessAdaptive(ev30, pv10);
 
-        vec3 pv12 = input[p[r[12]]].v.position.xyz;
-        vec3 pv13 = input[p[r[13]]].v.position.xyz;
-        vec3 pv14 = input[p[r[14]]].v.position.xyz;
-        vec3 pv15 = input[p[r[15]]].v.position.xyz;
+    gl_TessLevelInner[0] = (gl_TessLevelOuter[0] + gl_TessLevelOuter[2]) * 0.25;
+#endif
+#ifdef OSD_TRANSITION_PATTERN12
+    gl_TessLevelOuter[0] = TessAdaptive(ev30, vv0);
+    gl_TessLevelOuter[1] = TessAdaptive(ev01, vv0);
+    gl_TessLevelOuter[2] = TessAdaptive(ev01, ev30);
 
-        // Each edge of a transition patch is adjacent to one or two 
-        // patches at the next refined level of subdivision.
-        // Compute the corresponding vertex-vertex and edge-vertex refined
-        // points along the edges of the patch using Catmull-Clark subdivision
-        // stencil weights.
-        // For simplicity, we let the optimizer discard unused computation.
-        vec3 vv0 = (pv0 + pv2 + pv8 + pv10) * 0.015625 +
-                     (pv1 + pv4 + pv6 + pv9) * 0.09375 + pv5 * 0.5625;
-        vec3 ev01 = (pv1 + pv2 + pv9 + pv10) * 0.0625 + (pv5 + pv6) * 0.375;
+    gl_TessLevelInner[0] =
+        (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.25;
+#endif
+#ifdef OSD_TRANSITION_PATTERN13
+    gl_TessLevelOuter[0] = TessAdaptive(ev01, pv10);
+    gl_TessLevelOuter[1] = TessAdaptive(ev30, pv10);
+    gl_TessLevelOuter[2] = TessAdaptive(ev01, ev30);
 
-        vec3 vv1 = (pv1 + pv3 + pv9 + pv11) * 0.015625 +
-                     (pv2 + pv5 + pv7 + pv10) * 0.09375 + pv6 * 0.5625;
-        vec3 ev12 = (pv5 + pv7 + pv9 + pv11) * 0.0625 + (pv6 + pv10) * 0.375;
-
-        vec3 vv2 = (pv5 + pv7 + pv13 + pv15) * 0.015625 +
-                     (pv6 + pv9 + pv11 + pv14) * 0.09375 + pv10 * 0.5625;
-        vec3 ev23 = (pv5 + pv6 + pv13 + pv14) * 0.0625 + (pv9 + pv10) * 0.375;
-
-        vec3 vv3 = (pv4 + pv6 + pv12 + pv14) * 0.015625 +
-                     (pv5 + pv8 + pv10 + pv13) * 0.09375 + pv9 * 0.5625;
-        vec3 ev30 = (pv4 + pv6 + pv8 + pv10) * 0.0625 + (pv5 + pv9) * 0.375;
-
-        // The vertices along boundaries and at corners are refined specially.
-#if defined BOUNDARY
-    #if ROTATE == 0
-        vv0 = (pv4 + pv6) * 0.125 + pv5 * 0.75;
-        vv1 = (pv5 + pv7) * 0.125 + pv6 * 0.75;
-    #elif ROTATE == 1
-        vv1 = (pv2 + pv10) * 0.125 + pv6 * 0.75;
-        vv2 = (pv6 + pv14) * 0.125 + pv10 * 0.75;
-    #elif ROTATE == 2
-        vv2 = (pv9 + pv11) * 0.125 + pv10 * 0.75;
-        vv3 = (pv8 + pv10) * 0.125 + pv9 * 0.75;
-    #elif ROTATE == 3
-        vv3 = (pv5 + pv13) * 0.125 + pv9 * 0.75;
-        vv0 = (pv1 + pv9) * 0.125 + pv5 * 0.75;
-    #endif
-#elif defined CORNER
-    #if ROTATE == 0
-        vv0 = (pv4 + pv6) * 0.125 + pv5 * 0.75;
-        vv1 = pv6;
-        vv2 = (pv6 + pv14) * 0.125 + pv10 * 0.75;
-    #elif ROTATE == 1
-        vv1 = (pv5 + pv7) * 0.125 + pv6 * 0.75;
-        vv2 = pv10;
-        vv3 = (pv8 + pv10) * 0.125 + pv9 * 0.75;
-    #elif ROTATE == 2
-        vv2 = (pv6 + pv14) * 0.125 + pv10 * 0.75;
-        vv3 = pv9;
-        vv0 = (pv4 + pv6) * 0.125 + pv5 * 0.75;
-    #elif ROTATE == 3
-        vv3 = (pv8 + pv10) * 0.125 + pv9 * 0.75;
-        vv0 = pv5;
-        vv1 = (pv5 + pv7) * 0.125 + pv6 * 0.75;
-    #endif
+    gl_TessLevelInner[0] =
+        (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.25;
 #endif
 
-    #ifdef CASE00
-        gl_TessLevelOuter[0] = TessAdaptive(ev01, pv9, patchLevel) * 0.5;
-        gl_TessLevelOuter[1] = TessAdaptive(ev01, pv10, patchLevel) * 0.5;
-        gl_TessLevelOuter[2] = TessAdaptive(pv9, pv10, patchLevel);
 
-        gl_TessLevelInner[0] =
-            (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.5;
-    #endif
-    #ifdef CASE01
-        gl_TessLevelOuter[0] = TessAdaptive(ev01, vv1, patchLevel+1);
-        gl_TessLevelOuter[1] = TessAdaptive(pv6, pv10, patchLevel);
-        gl_TessLevelOuter[2] = TessAdaptive(ev01, pv10, patchLevel) * 0.5;
+#ifdef OSD_TRANSITION_PATTERN20
+    gl_TessLevelOuter[0] = TessAdaptive(pv5, pv6);
+    gl_TessLevelOuter[1] = TessAdaptive(ev12, vv1);
+    gl_TessLevelOuter[2] = TessAdaptive(ev12, ev30);
+    gl_TessLevelOuter[3] = TessAdaptive(ev30, vv0);
 
-        gl_TessLevelInner[0] =
-            (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.25;
-    #endif
-    #ifdef CASE02
-        gl_TessLevelOuter[0] = TessAdaptive(ev01, vv0, patchLevel+1);
-        gl_TessLevelOuter[1] = TessAdaptive(ev01, pv9, patchLevel) * 0.5;
-        gl_TessLevelOuter[2] = TessAdaptive(pv5, pv9, patchLevel);
+    gl_TessLevelInner[0] = max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
+    gl_TessLevelInner[1] = max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
+#endif
+#ifdef OSD_TRANSITION_PATTERN21
+    gl_TessLevelOuter[0] = TessAdaptive(ev23, ev30) * 0.5;
+    gl_TessLevelOuter[1] = TessAdaptive(ev23, vv3);
+    gl_TessLevelOuter[2] = TessAdaptive(ev30, vv3);
 
-        gl_TessLevelInner[0] =
-            (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.25;
-    #endif
+    gl_TessLevelInner[0] = (gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.5;
+#endif
+#ifdef OSD_TRANSITION_PATTERN22
+    gl_TessLevelOuter[0] = TessAdaptive(ev12, vv2);
+    gl_TessLevelOuter[1] = TessAdaptive(ev23, vv2);
+    gl_TessLevelOuter[2] = TessAdaptive(ev12, ev23) * 0.5;
 
+    gl_TessLevelInner[0] = (gl_TessLevelOuter[0] + gl_TessLevelOuter[1]) * 0.5;
+#endif
+#ifdef OSD_TRANSITION_PATTERN23
+    gl_TessLevelOuter[0] = TessAdaptive(ev12, ev30);
+    gl_TessLevelOuter[1] = TessAdaptive(ev12, ev23) * 0.5;
+    gl_TessLevelOuter[2] = TessAdaptive(ev23, ev30) * 0.5;
 
-    #ifdef CASE10 
-        gl_TessLevelOuter[0] = TessAdaptive(pv6, pv10, patchLevel);
-        gl_TessLevelOuter[1] = TessAdaptive(ev01, pv10, patchLevel);
-        gl_TessLevelOuter[2] = TessAdaptive(ev01, vv1, patchLevel+1);
-
-        gl_TessLevelInner[0] =
-            (gl_TessLevelOuter[0] + gl_TessLevelOuter[1]) * 0.25;
-    #endif
-    #ifdef CASE11
-        gl_TessLevelOuter[0] = TessAdaptive(pv9, pv10, patchLevel);
-        gl_TessLevelOuter[1] = TessAdaptive(ev30, vv3, patchLevel+1);
-        gl_TessLevelOuter[2] = TessAdaptive(ev30, pv10, patchLevel);
-
-        gl_TessLevelInner[0] =
-            (gl_TessLevelOuter[0] + gl_TessLevelOuter[2]) * 0.25;
-    #endif
-    #ifdef CASE12
-        gl_TessLevelOuter[0] = TessAdaptive(ev30, vv0, patchLevel+1);
-        gl_TessLevelOuter[1] = TessAdaptive(ev01, vv0, patchLevel+1);
-        gl_TessLevelOuter[2] = TessAdaptive(ev01, ev30, patchLevel);
-
-        gl_TessLevelInner[0] =
-            (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.25;
-    #endif
-    #ifdef CASE13
-        gl_TessLevelOuter[0] = TessAdaptive(ev01, pv10, patchLevel);
-        gl_TessLevelOuter[1] = TessAdaptive(ev30, pv10, patchLevel);
-        gl_TessLevelOuter[2] = TessAdaptive(ev01, ev30, patchLevel);
-
-        gl_TessLevelInner[0] =
-            (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.25;
-    #endif
+    gl_TessLevelInner[0] =
+        (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.5;
+#endif
 
 
-    #ifdef CASE20
-        gl_TessLevelOuter[0] = TessAdaptive(ev12, ev30, patchLevel);
-        gl_TessLevelOuter[1] = TessAdaptive(ev30, vv0, patchLevel+1);
-        gl_TessLevelOuter[2] = TessAdaptive(pv5, pv6, patchLevel);
-        gl_TessLevelOuter[3] = TessAdaptive(ev12, vv1, patchLevel+1);
-
-        gl_TessLevelInner[0] =
-            max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
-        gl_TessLevelInner[1] =
-            max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
-    #endif
-    #ifdef CASE21
-        gl_TessLevelOuter[0] = TessAdaptive(ev23, ev30, patchLevel) * 0.5;
-        gl_TessLevelOuter[1] = TessAdaptive(ev23, vv3, patchLevel+1);
-        gl_TessLevelOuter[2] = TessAdaptive(ev30, vv3, patchLevel+1);
-
-        gl_TessLevelInner[0] =
-            (gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.5;
-    #endif
-    #ifdef CASE22
-        gl_TessLevelOuter[0] = TessAdaptive(ev12, vv2, patchLevel+1);
-        gl_TessLevelOuter[1] = TessAdaptive(ev23, vv2, patchLevel+1);
-        gl_TessLevelOuter[2] = TessAdaptive(ev12, ev23, patchLevel) * 0.5;
-
-        gl_TessLevelInner[0] =
-            (gl_TessLevelOuter[0] + gl_TessLevelOuter[1]) * 0.5;
-    #endif
-    #ifdef CASE23
-        gl_TessLevelOuter[0] = TessAdaptive(ev12, ev30, patchLevel);
-        gl_TessLevelOuter[1] = TessAdaptive(ev12, ev23, patchLevel) * 0.5;
-        gl_TessLevelOuter[2] = TessAdaptive(ev23, ev30, patchLevel) * 0.5;
-
-        gl_TessLevelInner[0] =
-            (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.5;
-    #endif
+#ifdef OSD_TRANSITION_PATTERN30
+    gl_TessLevelOuter[0] = TessAdaptive(ev30, ev12) * 0.5;
+    gl_TessLevelOuter[1] = TessAdaptive(ev30, vv0);
+    gl_TessLevelOuter[2] = TessAdaptive(ev01, vv0);
+    gl_TessLevelOuter[3] = TessAdaptive(ev01, ev23) * 0.5;
+    gl_TessLevelInner[0] = max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
+    gl_TessLevelInner[1] = max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
+#endif
+#ifdef OSD_TRANSITION_PATTERN31
+    gl_TessLevelOuter[0] = TessAdaptive(ev01, vv1);
+    gl_TessLevelOuter[1] = TessAdaptive(ev12, vv1);
+    gl_TessLevelOuter[2] = TessAdaptive(ev12, ev30) * 0.5;
+    gl_TessLevelOuter[3] = TessAdaptive(ev01, ev23) * 0.5;
+    gl_TessLevelInner[0] = max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
+    gl_TessLevelInner[1] = max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
+#endif
+#ifdef OSD_TRANSITION_PATTERN32
+    gl_TessLevelOuter[0] = TessAdaptive(ev01, ev23) * 0.5;
+    gl_TessLevelOuter[1] = TessAdaptive(ev12, ev30) * 0.5;
+    gl_TessLevelOuter[2] = TessAdaptive(ev23, vv3);
+    gl_TessLevelOuter[3] = TessAdaptive(ev30, vv3);
+    gl_TessLevelInner[0] = max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
+    gl_TessLevelInner[1] = max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
+#endif
+#ifdef OSD_TRANSITION_PATTERN33
+    gl_TessLevelOuter[0] = TessAdaptive(ev01, ev23) * 0.5;
+    gl_TessLevelOuter[1] = TessAdaptive(ev12, vv2);
+    gl_TessLevelOuter[2] = TessAdaptive(ev23, vv2);
+    gl_TessLevelOuter[3] = TessAdaptive(ev12, ev30) * 0.5;
+    gl_TessLevelInner[0] = max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
+    gl_TessLevelInner[1] = max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
+#endif
 
 
-    #ifdef CASE30
-        gl_TessLevelOuter[0] = TessAdaptive(ev30, ev12, patchLevel) * 0.5;
-        gl_TessLevelOuter[1] = TessAdaptive(ev30, vv0, patchLevel+1);
-        gl_TessLevelOuter[2] = TessAdaptive(ev01, vv0, patchLevel+1);
-        gl_TessLevelOuter[3] = TessAdaptive(ev01, ev23, patchLevel) * 0.5;
-        gl_TessLevelInner[0] =
-            max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
-        gl_TessLevelInner[1] =
-            max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
-    #endif
-    #ifdef CASE31
-        gl_TessLevelOuter[0] = TessAdaptive(ev01, vv1, patchLevel+1);
-        gl_TessLevelOuter[1] = TessAdaptive(ev12, vv1, patchLevel+1);
-        gl_TessLevelOuter[2] = TessAdaptive(ev12, ev30, patchLevel) * 0.5;
-        gl_TessLevelOuter[3] = TessAdaptive(ev01, ev23, patchLevel) * 0.5;
-        gl_TessLevelInner[0] =
-            max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
-        gl_TessLevelInner[1] =
-            max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
-    #endif
-    #ifdef CASE32
-        gl_TessLevelOuter[0] = TessAdaptive(ev01, ev23, patchLevel) * 0.5;
-        gl_TessLevelOuter[1] = TessAdaptive(ev12, ev30, patchLevel) * 0.5;
-        gl_TessLevelOuter[2] = TessAdaptive(ev23, vv3, patchLevel+1);
-        gl_TessLevelOuter[3] = TessAdaptive(ev30, vv3, patchLevel+1);
-        gl_TessLevelInner[0] =
-            max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
-        gl_TessLevelInner[1] =
-            max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
-    #endif
-    #ifdef CASE33
-        gl_TessLevelOuter[0] = TessAdaptive(ev01, ev23, patchLevel) * 0.5;
-        gl_TessLevelOuter[1] = TessAdaptive(ev12, vv2, patchLevel+1);
-        gl_TessLevelOuter[2] = TessAdaptive(ev23, vv2, patchLevel+1);
-        gl_TessLevelOuter[3] = TessAdaptive(ev12, ev30, patchLevel) * 0.5;
-        gl_TessLevelInner[0] =
-            max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
-        gl_TessLevelInner[1] =
-            max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
-    #endif
+#ifdef OSD_TRANSITION_PATTERN40
+    gl_TessLevelOuter[0] = TessAdaptive(ev01, vv0);
+    gl_TessLevelOuter[1] = TessAdaptive(ev01, ev23);
+    gl_TessLevelOuter[2] = TessAdaptive(ev23, vv3);
+    gl_TessLevelOuter[3] = TessAdaptive(pv5, pv9);
 
+    gl_TessLevelInner[0] = max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
+    gl_TessLevelInner[1] = max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
+#endif
+#ifdef OSD_TRANSITION_PATTERN41
+    gl_TessLevelOuter[0] = TessAdaptive(ev01, vv1);
+    gl_TessLevelOuter[1] = TessAdaptive(pv6, pv10);
+    gl_TessLevelOuter[2] = TessAdaptive(ev23, vv2);
+    gl_TessLevelOuter[3] = TessAdaptive(ev01, ev23);
 
-    #ifdef CASE40
-        gl_TessLevelOuter[0] = TessAdaptive(ev01, vv0, patchLevel+1);
-        gl_TessLevelOuter[1] = TessAdaptive(ev01, ev23, patchLevel);
-        gl_TessLevelOuter[2] = TessAdaptive(ev23, vv3, patchLevel+1);
-        gl_TessLevelOuter[3] = TessAdaptive(pv5, pv9, patchLevel);
+    gl_TessLevelInner[0] = max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
+    gl_TessLevelInner[1] = max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
+#endif
 
-        gl_TessLevelInner[0] =
-            max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
-        gl_TessLevelInner[1] =
-            max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
-    #endif
-    #ifdef CASE41
-        gl_TessLevelOuter[0] = TessAdaptive(ev01, vv1, patchLevel+1);
-        gl_TessLevelOuter[1] = TessAdaptive(pv6, pv10, patchLevel);
-        gl_TessLevelOuter[2] = TessAdaptive(ev23, vv2, patchLevel+1);
-        gl_TessLevelOuter[3] = TessAdaptive(ev01, ev23, patchLevel);
+#else // OSD_ENABLE_SCREENSPACE_TESSELLATION
 
-        gl_TessLevelInner[0] =
-            max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
-        gl_TessLevelInner[1] =
-            max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
-    #endif
-#else
     float TessAmount = GetTessLevel(patchLevel);
 
-    #ifdef CASE00
-        float side = sqrt(1.25)*TessAmount;
-        gl_TessLevelOuter[0] = side;
-        gl_TessLevelOuter[1] = side;
-        gl_TessLevelOuter[2] = TessAmount;
+#ifdef OSD_TRANSITION_PATTERN00
+    float side = sqrt(1.25)*TessAmount;
+    gl_TessLevelOuter[0] = side;
+    gl_TessLevelOuter[1] = side;
+    gl_TessLevelOuter[2] = TessAmount;
 
-        gl_TessLevelInner[0] = TessAmount;
-    #endif
-    #ifdef CASE01
-        float side =  sqrt(1.25)*TessAmount;
-        gl_TessLevelOuter[0] = TessAmount/2.0;
-        gl_TessLevelOuter[1] = TessAmount;
-        gl_TessLevelOuter[2] = side;
-
-        gl_TessLevelInner[0] = TessAmount/2.0;
-    #endif
-    #ifdef CASE02
-        float side =  sqrt(1.25)*TessAmount;
-        gl_TessLevelOuter[0] = TessAmount/2.0;
-        gl_TessLevelOuter[1] = side;
-        gl_TessLevelOuter[2] = TessAmount;
-
-        gl_TessLevelInner[0] = TessAmount/2.0;
-    #endif
-    #ifdef CASE10 
-        float side = sqrt(1.25) * TessAmount;
-        gl_TessLevelOuter[0] = TessAmount;
-        gl_TessLevelOuter[1] = side;
-        gl_TessLevelOuter[2] = TessAmount/2.0;
-
-        gl_TessLevelInner[0] = TessAmount/2;
-    #endif
-    #ifdef CASE11
-        float side = sqrt(1.25) * TessAmount;
-        gl_TessLevelOuter[0] = TessAmount;
-        gl_TessLevelOuter[1] = TessAmount/2.0;
-        gl_TessLevelOuter[2] = side;
-
-        gl_TessLevelInner[0] = TessAmount/2;
-    #endif
-    #ifdef CASE12
-        float side = sqrt(0.125) * TessAmount;
-        gl_TessLevelOuter[0] = TessAmount/2.0;
-        gl_TessLevelOuter[1] = TessAmount/2.0;
-        gl_TessLevelOuter[2] = side;
-
-        gl_TessLevelInner[0] = TessAmount/2;
-    #endif
-    #ifdef CASE13
-        float side1 = sqrt(1.25) * TessAmount;
-        float side2 = sqrt(0.125) * TessAmount;
-        gl_TessLevelOuter[0] = side1;
-        gl_TessLevelOuter[1] = side1;
-        gl_TessLevelOuter[2] = side2;
-
-        gl_TessLevelInner[0] = TessAmount/2.0*1.414;
-    #endif
-
-
-    #ifdef CASE20
-        gl_TessLevelOuter[0] = TessAmount;
-        gl_TessLevelOuter[1] = TessAmount/2.0;
-        gl_TessLevelOuter[2] = TessAmount;
-        gl_TessLevelOuter[3] = TessAmount/2.0;
-
-        gl_TessLevelInner[0] = TessAmount/2.0;
-        gl_TessLevelInner[1] = TessAmount;
-    #endif
-    #ifdef CASE21
-        float side = sqrt(0.125) * TessAmount;
-        gl_TessLevelOuter[0] = side;
-        gl_TessLevelOuter[1] = TessAmount/2.0;
-        gl_TessLevelOuter[2] = TessAmount/2.0;
-
-        gl_TessLevelInner[0] = TessAmount/2.0;
-    #endif
-    #ifdef CASE22
-        float side = sqrt(0.125) * TessAmount;
-        gl_TessLevelOuter[0] = TessAmount/2.0;
-        gl_TessLevelOuter[1] = TessAmount/2.0;
-        gl_TessLevelOuter[2] = side;
-
-        gl_TessLevelInner[0] = TessAmount/2.0;
-    #endif
-    #ifdef CASE23
-        float side = sqrt(0.125) * TessAmount;
-        gl_TessLevelOuter[0] = TessAmount;
-        gl_TessLevelOuter[1] = side;
-        gl_TessLevelOuter[2] = side;
-
-        gl_TessLevelInner[0] = TessAmount/2.0;
-    #endif
-
-
-    #ifdef CASE30
-        gl_TessLevelOuter[0] = gl_TessLevelOuter[1] =
-        gl_TessLevelOuter[2] = gl_TessLevelOuter[3] = TessAmount/2.0;
-        gl_TessLevelInner[0] = gl_TessLevelInner[1] = TessAmount/2.0;
-    #endif
-    #ifdef CASE31
-        gl_TessLevelOuter[0] = gl_TessLevelOuter[1] =
-        gl_TessLevelOuter[2] = gl_TessLevelOuter[3] = TessAmount/2.0;
-        gl_TessLevelInner[0] = gl_TessLevelInner[1] = TessAmount/2.0;
-    #endif
-    #ifdef CASE32
-        gl_TessLevelOuter[0] = gl_TessLevelOuter[1] =
-        gl_TessLevelOuter[2] = gl_TessLevelOuter[3] = TessAmount/2.0;
-        gl_TessLevelInner[0] = gl_TessLevelInner[1] = TessAmount/2.0;
-    #endif
-    #ifdef CASE33
-        gl_TessLevelOuter[0] = gl_TessLevelOuter[1] =
-        gl_TessLevelOuter[2] = gl_TessLevelOuter[3] = TessAmount/2.0;
-        gl_TessLevelInner[0] = gl_TessLevelInner[1] = TessAmount/2.0;
-    #endif
-
-
-    #ifdef CASE40
-        gl_TessLevelOuter[0] = TessAmount/2.0;
-        gl_TessLevelOuter[1] = TessAmount;
-        gl_TessLevelOuter[2] = TessAmount/2.0;
-        gl_TessLevelOuter[3] = TessAmount;
-
-        gl_TessLevelInner[0] = TessAmount;
-        gl_TessLevelInner[1] = TessAmount/2.0;
-    #endif
-    #ifdef CASE41
-        gl_TessLevelOuter[0] = TessAmount/2.0;
-        gl_TessLevelOuter[1] = TessAmount;
-        gl_TessLevelOuter[2] = TessAmount/2.0;
-        gl_TessLevelOuter[3] = TessAmount;
-
-        gl_TessLevelInner[0] = TessAmount;
-        gl_TessLevelInner[1] = TessAmount/2.0;
-    #endif
+    gl_TessLevelInner[0] = TessAmount;
 #endif
-    }
+#ifdef OSD_TRANSITION_PATTERN01
+    float side =  sqrt(1.25)*TessAmount;
+    gl_TessLevelOuter[0] = TessAmount/2.0;
+    gl_TessLevelOuter[1] = TessAmount;
+    gl_TessLevelOuter[2] = side;
+
+    gl_TessLevelInner[0] = TessAmount/2.0;
+#endif
+#ifdef OSD_TRANSITION_PATTERN02
+    float side =  sqrt(1.25)*TessAmount;
+    gl_TessLevelOuter[0] = TessAmount/2.0;
+    gl_TessLevelOuter[1] = side;
+    gl_TessLevelOuter[2] = TessAmount;
+
+    gl_TessLevelInner[0] = TessAmount/2.0;
+#endif
+
+
+#ifdef OSD_TRANSITION_PATTERN10 
+    float side = sqrt(1.25) * TessAmount;
+    gl_TessLevelOuter[0] = TessAmount;
+    gl_TessLevelOuter[1] = side;
+    gl_TessLevelOuter[2] = TessAmount/2.0;
+
+    gl_TessLevelInner[0] = TessAmount/2;
+#endif
+#ifdef OSD_TRANSITION_PATTERN11
+    float side = sqrt(1.25) * TessAmount;
+    gl_TessLevelOuter[0] = TessAmount;
+    gl_TessLevelOuter[1] = TessAmount/2.0;
+    gl_TessLevelOuter[2] = side;
+
+    gl_TessLevelInner[0] = TessAmount/2;
+#endif
+#ifdef OSD_TRANSITION_PATTERN12
+    float side = sqrt(0.125) * TessAmount;
+    gl_TessLevelOuter[0] = TessAmount/2.0;
+    gl_TessLevelOuter[1] = TessAmount/2.0;
+    gl_TessLevelOuter[2] = side;
+
+    gl_TessLevelInner[0] = TessAmount/2;
+#endif
+#ifdef OSD_TRANSITION_PATTERN13
+    float side1 = sqrt(1.25) * TessAmount;
+    float side2 = sqrt(0.125) * TessAmount;
+    gl_TessLevelOuter[0] = side1;
+    gl_TessLevelOuter[1] = side1;
+    gl_TessLevelOuter[2] = side2;
+
+    gl_TessLevelInner[0] = TessAmount/2.0*1.414;
+#endif
+
+
+#ifdef OSD_TRANSITION_PATTERN20
+    gl_TessLevelOuter[0] = TessAmount;
+    gl_TessLevelOuter[1] = TessAmount/2.0;
+    gl_TessLevelOuter[2] = TessAmount;
+    gl_TessLevelOuter[3] = TessAmount/2.0;
+
+    gl_TessLevelInner[0] = TessAmount/2.0;
+    gl_TessLevelInner[1] = TessAmount;
+#endif
+#ifdef OSD_TRANSITION_PATTERN21
+    float side = sqrt(0.125) * TessAmount;
+    gl_TessLevelOuter[0] = side;
+    gl_TessLevelOuter[1] = TessAmount/2.0;
+    gl_TessLevelOuter[2] = TessAmount/2.0;
+
+    gl_TessLevelInner[0] = TessAmount/2.0;
+#endif
+#ifdef OSD_TRANSITION_PATTERN22
+    float side = sqrt(0.125) * TessAmount;
+    gl_TessLevelOuter[0] = TessAmount/2.0;
+    gl_TessLevelOuter[1] = TessAmount/2.0;
+    gl_TessLevelOuter[2] = side;
+
+    gl_TessLevelInner[0] = TessAmount/2.0;
+#endif
+#ifdef OSD_TRANSITION_PATTERN23
+    float side = sqrt(0.125) * TessAmount;
+    gl_TessLevelOuter[0] = TessAmount;
+    gl_TessLevelOuter[1] = side;
+    gl_TessLevelOuter[2] = side;
+
+    gl_TessLevelInner[0] = TessAmount/2.0;
+#endif
+
+
+#ifdef OSD_TRANSITION_PATTERN30
+    gl_TessLevelOuter[0] = gl_TessLevelOuter[1] =
+    gl_TessLevelOuter[2] = gl_TessLevelOuter[3] = TessAmount/2.0;
+    gl_TessLevelInner[0] = gl_TessLevelInner[1] = TessAmount/2.0;
+#endif
+#ifdef OSD_TRANSITION_PATTERN31
+    gl_TessLevelOuter[0] = gl_TessLevelOuter[1] =
+    gl_TessLevelOuter[2] = gl_TessLevelOuter[3] = TessAmount/2.0;
+    gl_TessLevelInner[0] = gl_TessLevelInner[1] = TessAmount/2.0;
+#endif
+#ifdef OSD_TRANSITION_PATTERN32
+    gl_TessLevelOuter[0] = gl_TessLevelOuter[1] =
+    gl_TessLevelOuter[2] = gl_TessLevelOuter[3] = TessAmount/2.0;
+    gl_TessLevelInner[0] = gl_TessLevelInner[1] = TessAmount/2.0;
+#endif
+#ifdef OSD_TRANSITION_PATTERN33
+    gl_TessLevelOuter[0] = gl_TessLevelOuter[1] =
+    gl_TessLevelOuter[2] = gl_TessLevelOuter[3] = TessAmount/2.0;
+    gl_TessLevelInner[0] = gl_TessLevelInner[1] = TessAmount/2.0;
+#endif
+
+
+#ifdef OSD_TRANSITION_PATTERN40
+    gl_TessLevelOuter[0] = TessAmount/2.0;
+    gl_TessLevelOuter[1] = TessAmount;
+    gl_TessLevelOuter[2] = TessAmount/2.0;
+    gl_TessLevelOuter[3] = TessAmount;
+
+    gl_TessLevelInner[0] = TessAmount;
+    gl_TessLevelInner[1] = TessAmount/2.0;
+#endif
+#ifdef OSD_TRANSITION_PATTERN41
+    gl_TessLevelOuter[0] = TessAmount/2.0;
+    gl_TessLevelOuter[1] = TessAmount;
+    gl_TessLevelOuter[2] = TessAmount/2.0;
+    gl_TessLevelOuter[3] = TessAmount;
+
+    gl_TessLevelInner[0] = TessAmount;
+    gl_TessLevelInner[1] = TessAmount/2.0;
+#endif
+
+#endif // OSD_ENABLE_SCREENSPACE_TESSELLATION
 }
 
 #endif
@@ -595,212 +433,145 @@ void main()
 //----------------------------------------------------------
 // Patches.TessEvalTransition
 //----------------------------------------------------------
-#ifdef PATCH_TESS_EVAL_TRANSITION_SHADER
+#ifdef OSD_PATCH_TESS_EVAL_BSPLINE_SHADER
 
-#ifdef TRIANGLE
-    layout(triangles) in;
-#else
-    layout(quads) in;
-#endif
-
-in block {
-    ControlVertex v;
-} input[];
-
-out block {
-    OutputVertex v;
-} output;
-
-void main()
+vec2
+GetTransitionSubpatchUV()
 {
-    vec2 UV = vec2(0.0, 0.0);
-#ifdef TRIANGLE
-    vec3 uvw = vec3(gl_TessCoord.x, gl_TessCoord.y, gl_TessCoord.z);
+#ifdef OSD_TRANSITION_TRIANGLE_SUBPATCH
+    vec3 uvw = gl_TessCoord.xyz;
 #else
-    vec2 uv = vec2(gl_TessCoord.x, gl_TessCoord.y);
+    vec2 uv = gl_TessCoord.xy;
 #endif
+    vec2 UV = vec2(0, 0);
 
-// XXXtakahito: Tess coordinates computed below are results of heuristic hack
-//              to get front facing and appropriate patch uv.
-//              Revisit here to get more consistent code with patch factory!
+//  OSD_TRANSITION_PATTERN0*
+//  +-------------+
+//  |     /\\     |
+//  | 1  /  \\  2 |
+//  |   /    \\   |
+//  |  /      \\  |
+//  | /    0   \\ |
+//  |/          \\|
+//  +-------------+
 
-/*  CASE0*
-    +-------+
-    |1 /\\2 |
-    | /  \\ |
-    |/ 0  \\|
-    +-------+
- */
-
-#ifdef CASE00
-    UV.x = 1.0-uvw.z;
-    UV.y = 1.0-uvw.y-uvw.z/2.0;
+#ifdef OSD_TRANSITION_PATTERN00
+    UV.x = 1.0-uvw.y-uvw.z/2;
+    UV.y = 1.0-uvw.z;
 #endif    
-#ifdef CASE01
-    UV.x = uvw.x;
-    UV.y = 1.0 - uvw.y/2;
+#ifdef OSD_TRANSITION_PATTERN01
+    UV.x = 1.0-uvw.y/2;
+    UV.y = uvw.x;
 #endif    
-#ifdef CASE02
-    UV.x = uvw.x;
-    UV.y = uvw.z/2;
+#ifdef OSD_TRANSITION_PATTERN02
+    UV.x = uvw.z/2;
+    UV.y = uvw.x;
 #endif
 
-/*  CASE1*
-    +------+
-    |1 /\\2|
-    | /3_\\|
-    |/_- 0 |
-    +------+
-*/
+// OSD_TRANSITION_PATTERN1*
+//  +-------------+
+//  | 0   /\\   2 |
+//  |    /   \\   |
+//  |   /  3   \\ |
+//  |  /       /  |
+//  | /    /    1 |
+//  |/ /          |
+//  +-------------+
 
-#ifdef CASE10
-    UV.x = uvw.z;
-    UV.y = 1.0-uvw.x/2.0;
-#endif
-#ifdef CASE11
+#ifdef OSD_TRANSITION_PATTERN10
     UV.x = 1.0-uvw.x/2.0;
-    UV.y = uvw.y;
+    UV.y = uvw.z;
 #endif
-#ifdef CASE12
-    UV.x = uvw.y/2.0;
-    UV.y = uvw.x/2.0;
-#endif
-#ifdef CASE13
-    UV.x = 1.0-uvw.y-uvw.x/2.0;
-    UV.y = 1.0-uvw.x-uvw.y/2.0;
-#endif
-
-/*  CASE2*
-    +-------+
-    |   |\\2|
-    |   | \\|
-    | 0 |3/ |
-    |   |/ 1|
-    +-------+
- */
-
-#ifdef CASE20
-    UV.x = 0.5 - uv.x/2.0;
-    UV.y = uv.y;
-#endif
-#ifdef CASE21
-    UV.x = 1.0 - 0.5 *uvw.y;
-    UV.y = 0.5*uvw.z;
-#endif
-#ifdef CASE22
-    UV.x = 1.0 - uvw.y/2.0;
+#ifdef OSD_TRANSITION_PATTERN11
+    UV.x = uvw.y;
     UV.y = 1.0-uvw.x/2.0;
 #endif
-#ifdef CASE23
-    UV.x = 1.0-0.5*uvw.y-0.5*uvw.z;
-    UV.y = 1-uvw.y-0.5*uvw.x;
+#ifdef OSD_TRANSITION_PATTERN12
+    UV.x = uvw.x/2.0;
+    UV.y = uvw.y/2.0;
+#endif
+#ifdef OSD_TRANSITION_PATTERN13
+    UV.x = 1.0-uvw.x-uvw.y/2.0;
+    UV.y = 1.0-uvw.y-uvw.x/2.0;
 #endif
 
-/*  CASE3*
-    +-----+
-    |2 |3 |
-    |--+--+
-    |0 |1 |
-    +-----+
-*/
+//  OSD_TRANSITION_PATTERN2*
+//  +-------------+
+//  |             |
+//  |      0      |
+//  |             |
+//  |-------------|
+//  |\\    3    / |
+//  |  \\     /   |
+//  | 1  \\ /   2 |
+//  +-------------+
 
-#ifdef CASE30
-    UV.x = 0.5 - uv.x/2.0;
-    UV.y = uv.y/2.0;
+#ifdef OSD_TRANSITION_PATTERN20
+    UV.x = 1.0-uv.y;
+    UV.y = uv.x/2.0;
 #endif
-#ifdef CASE31
-    UV.x = 0.5 + uv.x/2.0;
-    UV.y = 0.5 - uv.y/2.0;
+#ifdef OSD_TRANSITION_PATTERN21
+    UV.x = uvw.z/2.0;
+    UV.y = 1.0-uvw.y/2.0;
 #endif
-#ifdef CASE32
-    UV.x = uv.x/2.0;
-    UV.y = 1.0 - uv.y/2.0;
+#ifdef OSD_TRANSITION_PATTERN22
+    UV.x = 1.0-uvw.x/2.0;
+    UV.y = 1.0-uvw.y/2.0;
 #endif
-#ifdef CASE33
-    UV.x = 0.5 + uv.x/2.0;
-    UV.y = 1.0 - uv.y/2.0;
-#endif
-
-/*  CASE4*
-    +-----+
-    | 1   |
-    +-----+
-    | 0   |
-    +-----+
-*/
-#ifdef CASE40
-    UV.x = uv.x;
-    UV.y = 0.5 - uv.y/2.0;
-#endif
-#ifdef CASE41
-    UV.x = uv.x;
-    UV.y = 1.0 - uv.y/2.0;
+#ifdef OSD_TRANSITION_PATTERN23
+    UV.x = 1.0-uvw.y-uvw.x/2;
+    UV.y = 0.5+uvw.x/2.0;
 #endif
 
-    vec3 WorldPos, Tangent, BiTangent;
-    vec3 cp[16];
-    for(int i = 0; i < 16; ++i) cp[i] = input[i].v.position.xyz;
-    EvalBSpline(UV, cp, WorldPos, Tangent, BiTangent);
+//  OSD_TRANSITION_PATTERN3*
+//  +-------------+
+//  |      |      |
+//  |  1   |  0   |
+//  |      |      |
+//  |------|------|
+//  |      |      |
+//  |  3   |  2   |
+//  |      |      |
+//  +-------------+
 
-    vec3 normal = normalize(cross(BiTangent, Tangent));
-
-    output.v.position = vec4(WorldPos, 1.0f);
-    output.v.normal = normal;
-    output.v.tangent = BiTangent;
-
-    output.v.patchCoord = input[0].v.patchCoord;
-
-#if ROTATE == 1
-    output.v.patchCoord.xy = vec2(UV.x, 1.0-UV.y);
-#elif ROTATE == 2
-    output.v.patchCoord.xy = vec2(1.0-UV.y, 1.0-UV.x);
-#elif ROTATE == 3
-    output.v.patchCoord.xy = vec2(1.0-UV.x, UV.y);
-#else
-    output.v.patchCoord.xy = vec2(UV.y, UV.x);
+#ifdef OSD_TRANSITION_PATTERN30
+    UV.x = uv.y/2.0;
+    UV.y = 0.5 - uv.x/2.0;
+#endif
+#ifdef OSD_TRANSITION_PATTERN31
+    UV.x = 0.5 - uv.y/2.0;
+    UV.y = 0.5 + uv.x/2.0;
+#endif
+#ifdef OSD_TRANSITION_PATTERN32
+    UV.x = 1.0 - uv.y/2.0;
+    UV.y = uv.x/2.0;
+#endif
+#ifdef OSD_TRANSITION_PATTERN33
+    UV.x = 1.0 - uv.y/2.0;
+    UV.y = 0.5 + uv.x/2.0;
 #endif
 
-    OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
+//  OSD_TRANSITION_PATTERN4*
+//  +-------------+
+//  |      |      |
+//  |      |      |
+//  |      |      |
+//  |  1   |   0  |
+//  |      |      |
+//  |      |      |
+//  |      |      |
+//  +-------------+
 
-    OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(ROTATE);
+#ifdef OSD_TRANSITION_PATTERN40
+    UV.x = 0.5 - uv.y/2.0;
+    UV.y = uv.x;
+#endif
+#ifdef OSD_TRANSITION_PATTERN41
+    UV.x = 1.0 - uv.y/2.0;
+    UV.y = uv.x;
+#endif
 
-    OSD_DISPLACEMENT_CALLBACK;
-
-    gl_Position = (ProjectionMatrix * vec4(WorldPos, 1.0f));
+    return UV;
 }
 
-#endif
-
-//----------------------------------------------------------
-// Patches.Vertex
-//----------------------------------------------------------
-#ifdef VERTEX_SHADER
-
-layout (location=0) in vec4 position;
-layout (location=1) in vec3 normal;
-layout (location=2) in vec4 color;
-
-out block {
-    OutputVertex v;
-} output;
-
-void main() {
-    gl_Position = ModelViewProjectionMatrix * position;
-    output.v.color = color;
-}
-
-#endif
-
-//----------------------------------------------------------
-// Patches.FragmentColor
-//----------------------------------------------------------
-#ifdef FRAGMENT_SHADER
-
-in block {
-    OutputVertex v;
-} input;
-
-void main() {
-    gl_FragColor = input.v.color;
-}
 #endif

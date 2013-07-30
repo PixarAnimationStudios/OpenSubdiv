@@ -1,53 +1,27 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
+//
 
 #include "../osd/d3d11DrawRegistry.h"
 #include "../osd/error.h"
@@ -72,20 +46,11 @@ OsdD3D11DrawConfig::~OsdD3D11DrawConfig()
 static const char *commonShaderSource =
 #include "hlslPatchCommon.inc"
 ;
-static const char *regularShaderSource =
-#include "hlslPatchRegular.inc"
-;
-static const char *boundaryShaderSource =
-#include "hlslPatchBoundary.inc"
-;
-static const char *cornerShaderSource =
-#include "hlslPatchCorner.inc"
+static const char *bsplineShaderSource =
+#include "hlslPatchBSpline.inc"
 ;
 static const char *gregoryShaderSource =
 #include "hlslPatchGregory.inc"
-;
-static const char *boundaryGregoryShaderSource =
-#include "hlslPatchBoundaryGregory.inc"
 ;
 static const char *transitionShaderSource =
 #include "hlslPatchTransition.inc"
@@ -113,54 +78,42 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
         switch (desc.GetType()) {
         case FarPatchTables::QUADS:
         case FarPatchTables::TRIANGLES:
-            sconfig->vertexShader.source = regularShaderSource;
-            sconfig->vertexShader.target = "vs_5_0";
-            sconfig->vertexShader.entry = "vs_main";
-            sconfig->pixelShader.source = regularShaderSource;
-            sconfig->pixelShader.target = "ps_5_0";
-            sconfig->pixelShader.entry = "ps_main";
+            // do nothing
             break;
         case FarPatchTables::REGULAR:
-            sconfig->vertexShader.source = regularShaderSource;
+            sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
-            sconfig->hullShader.source = regularShaderSource;
+            sconfig->hullShader.source = bsplineShaderSource;
             sconfig->hullShader.target = "hs_5_0";
             sconfig->hullShader.entry = "hs_main_patches";
-            sconfig->domainShader.source = regularShaderSource;
+            sconfig->domainShader.source = bsplineShaderSource;
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
-            sconfig->pixelShader.source = regularShaderSource;
-            sconfig->pixelShader.target = "ps_5_0";
-            sconfig->pixelShader.entry = "ps_main";
             break;
         case FarPatchTables::BOUNDARY:
-            sconfig->vertexShader.source = boundaryShaderSource;
+            sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
-            sconfig->hullShader.source = boundaryShaderSource;
+            sconfig->hullShader.source = bsplineShaderSource;
             sconfig->hullShader.target = "hs_5_0";
             sconfig->hullShader.entry = "hs_main_patches";
-            sconfig->domainShader.source = boundaryShaderSource;
+            sconfig->hullShader.AddDefine("OSD_PATCH_BOUNDARY");
+            sconfig->domainShader.source = bsplineShaderSource;
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
-            sconfig->pixelShader.source = boundaryShaderSource;
-            sconfig->pixelShader.target = "ps_5_0";
-            sconfig->pixelShader.entry = "ps_main";
             break;
         case FarPatchTables::CORNER:
-            sconfig->vertexShader.source = cornerShaderSource;
+            sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
-            sconfig->hullShader.source = cornerShaderSource;
+            sconfig->hullShader.source = bsplineShaderSource;
             sconfig->hullShader.target = "hs_5_0";
             sconfig->hullShader.entry = "hs_main_patches";
-            sconfig->domainShader.source = cornerShaderSource;
+            sconfig->hullShader.AddDefine("OSD_PATCH_CORNER");
+            sconfig->domainShader.source = bsplineShaderSource;
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
-            sconfig->pixelShader.source = cornerShaderSource;
-            sconfig->pixelShader.target = "ps_5_0";
-            sconfig->pixelShader.entry = "ps_main";
             break;
         case FarPatchTables::GREGORY:
             sconfig->vertexShader.source = gregoryShaderSource;
@@ -172,23 +125,20 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->domainShader.source = gregoryShaderSource;
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
-            sconfig->pixelShader.source = gregoryShaderSource;
-            sconfig->pixelShader.target = "ps_5_0";
-            sconfig->pixelShader.entry = "ps_main";
             break;
         case FarPatchTables::GREGORY_BOUNDARY:
-            sconfig->vertexShader.source = boundaryGregoryShaderSource;
+            sconfig->vertexShader.source = gregoryShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
-            sconfig->hullShader.source = boundaryGregoryShaderSource;
+            sconfig->vertexShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
+            sconfig->hullShader.source = gregoryShaderSource;
             sconfig->hullShader.target = "hs_5_0";
             sconfig->hullShader.entry = "hs_main_patches";
-            sconfig->domainShader.source = boundaryGregoryShaderSource;
+            sconfig->hullShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
+            sconfig->domainShader.source = gregoryShaderSource;
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
-            sconfig->pixelShader.source = boundaryGregoryShaderSource;
-            sconfig->pixelShader.target = "ps_5_0";
-            sconfig->pixelShader.entry = "ps_main";
+            sconfig->domainShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
             break;
         default:
             delete sconfig;
@@ -196,37 +146,38 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
             break;
         }
     } else { // pattern != NON_TRANSITION
-        sconfig->vertexShader.source = transitionShaderSource;
+        sconfig->vertexShader.source = bsplineShaderSource;
         sconfig->vertexShader.target = "vs_5_0";
         sconfig->vertexShader.entry = "vs_main_patches";
-        sconfig->hullShader.source = transitionShaderSource;;
+        sconfig->hullShader.source =
+            std::string(transitionShaderSource) + bsplineShaderSource;
         sconfig->hullShader.target = "hs_5_0";
         sconfig->hullShader.entry = "hs_main_patches";
-        sconfig->domainShader.source = transitionShaderSource;
+        sconfig->hullShader.AddDefine("OSD_PATCH_TRANSITION");
+        sconfig->domainShader.source =
+            std::string(transitionShaderSource) + bsplineShaderSource;
         sconfig->domainShader.target = "ds_5_0";
         sconfig->domainShader.entry = "ds_main_patches";
-        sconfig->pixelShader.source = transitionShaderSource;
-        sconfig->pixelShader.target = "ps_5_0";
-        sconfig->pixelShader.entry = "ps_main";
+        sconfig->domainShader.AddDefine("OSD_PATCH_TRANSITION");
 
         int pattern = desc.GetPattern() - 1;
         int rotation = desc.GetRotation();
         int subpatch = desc.GetSubPatch();
 
         std::ostringstream ss;
-        ss << "CASE" << pattern << subpatch;
+        ss << "OSD_TRANSITION_PATTERN" << pattern << subpatch;
         sconfig->hullShader.AddDefine(ss.str());
         sconfig->domainShader.AddDefine(ss.str());
 
         ss.str("");
         ss << rotation;
-        sconfig->hullShader.AddDefine("ROTATE", ss.str());
-        sconfig->domainShader.AddDefine("ROTATE", ss.str());
+        sconfig->hullShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
+        sconfig->domainShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
 
         if (desc.GetType() == FarPatchTables::BOUNDARY) {
-            sconfig->hullShader.AddDefine("BOUNDARY");
+            sconfig->hullShader.AddDefine("OSD_PATCH_BOUNDARY");
         } else if (desc.GetType() == FarPatchTables::CORNER) {
-            sconfig->hullShader.AddDefine("CORNER");
+            sconfig->hullShader.AddDefine("OSD_PATCH_CORNER");
         }
     }
 

@@ -1,58 +1,26 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
 #ifndef FAR_MULTI_MESH_FACTORY_H
@@ -85,10 +53,10 @@ public:
 
     typedef std::vector<FarMesh<U> const *> FarMeshVector;
 
-    /// Constructor.
+    /// \brief Constructor.
     FarMultiMeshFactory() {}
     
-    /// Splices a vector of Far meshes into a single Far mesh
+    /// \brief Splices a vector of Far meshes into a single Far mesh
     ///
     /// @param meshes  a vector of Far meshes to splice
     ///
@@ -133,6 +101,7 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
     if (meshes.empty()) return NULL;
 
     bool adaptive = (meshes[0]->GetPatchTables() != NULL);
+    int totalFVarWidth = meshes[0]->GetTotalFVarWidth();
     const std::type_info &scheme = typeid(*(meshes[0]->GetSubdivisionTables()));
     _maxlevel = 0;
     _maxvalence = 0;
@@ -156,6 +125,12 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
         if (mesh->GetPatchTables()) {
             _maxvalence = std::max(_maxvalence, mesh->GetPatchTables()->GetMaxValence());
         }
+
+        // meshes have to have a same fvardata width
+        if (totalFVarWidth != mesh->GetTotalFVarWidth()) {
+            assert(false);
+            return NULL;
+        }
     }
 
     FarMesh<U> * result = new FarMesh<U>();
@@ -177,7 +152,7 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
     }
     result->_vertices.resize(numVertices);
     result->_numPtexFaces = numPtexFaces;
-    result->_totalFVarWidth = 0;  // XXX: fvar for multimesh hasn't been implemented yet.
+    result->_totalFVarWidth = totalFVarWidth;
 
     return result;
 }
@@ -375,9 +350,10 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
     // merge batch, model by model
     FarKernelBatchVector &batches = farMesh->_batches;
     int editTableIndexOffset = 0;
-    for (size_t i = 0; i < meshes.size(); ++i) {
+    for (int i = 0; i < (int)meshes.size(); ++i) {
         for (int j = 0; j < (int)meshes[i]->_batches.size(); ++j) {
             FarKernelBatch batch = meshes[i]->_batches[j];
+            batch._meshIndex = i;
             batch._vertexOffset += vertexOffsets[i];
             
             if (batch._kernelType == FarKernelBatch::CATMARK_FACE_VERTEX or
@@ -473,8 +449,9 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
 
     FarPatchTables *result = new FarPatchTables(_maxvalence);
 
-    int total_quadOffset0 = 0;
-    int total_quadOffset1 = 0;
+    int totalQuadOffset0 = 0;
+    int totalQuadOffset1 = 0;
+    int totalFVarData = 0;
 
     std::vector<int> vertexOffsets;
     std::vector<int> gregoryQuadOffsets;
@@ -503,11 +480,12 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
 
         int nGregory = gregory ? gregory->GetNumPatches() : 0;
         int nGregoryBoundary = gregoryBoundary ? gregoryBoundary->GetNumPatches() : 0;
-        total_quadOffset0 += nGregory * 4;
-        total_quadOffset1 += nGregoryBoundary * 4;
+        totalQuadOffset0 += nGregory * 4;
+        totalQuadOffset1 += nGregoryBoundary * 4;
         numGregoryPatches.push_back(nGregory);
-        gregoryQuadOffsets.push_back(total_quadOffset0);
+        gregoryQuadOffsets.push_back(totalQuadOffset0);
 
+        totalFVarData += (int)ptables->GetFVarDataTable().size();
         numTotalIndices += ptables->GetNumControlVertices();
     }
 
@@ -515,10 +493,13 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
     result->_patches.resize(numTotalIndices);
 
     // Allocate vertex valence table, quad offset table
-    if (total_quadOffset0 + total_quadOffset1 > 0) {
+    if (totalQuadOffset0 + totalQuadOffset1 > 0) {
         result->_vertexValenceTable.resize((2*maxValence+1) * vertexOffset);
-        result->_quadOffsetTable.resize(total_quadOffset0 + total_quadOffset1);
+        result->_quadOffsetTable.resize(totalQuadOffset0 + totalQuadOffset1);
     }
+
+    // Allocate fvardata table
+    result->_fvarTable.resize(totalFVarData);
 
     // splice tables
     // assuming input farmeshes have dense patchtables
@@ -535,10 +516,10 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
     }
 
     // merge vertexvalence and quadoffset tables
-    std::vector<unsigned int>::iterator Q0_IT = result->_quadOffsetTable.begin();
-    std::vector<unsigned int>::iterator Q1_IT = Q0_IT + total_quadOffset0;
+    FarPatchTables::QuadOffsetTable::iterator Q0_IT = result->_quadOffsetTable.begin();
+    FarPatchTables::QuadOffsetTable::iterator Q1_IT = Q0_IT + totalQuadOffset0;
 
-    std::vector<int>::iterator VV_IT = result->_vertexValenceTable.begin();
+    FarPatchTables::VertexValenceTable::iterator VV_IT = result->_vertexValenceTable.begin();
     for (size_t i = 0; i < meshes.size(); ++i) {
         const FarPatchTables *ptables = meshes[i]->GetPatchTables();
 
@@ -575,14 +556,31 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
         for (size_t i = 0; i < meshes.size(); ++i) {
             FarPatchTables const *ptables = meshes[i]->GetPatchTables();
             FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
-            if (not parray) continue;
-
-            copyWithPtexFaceOffset(std::back_inserter(result->_paramTable),
-                                                      ptables->_paramTable,
-                                                      parray->GetPatchIndex(),
-                                                      parray->GetNumPatches(), ptexFaceOffset);
-
+            if (parray) {
+                copyWithPtexFaceOffset(std::back_inserter(result->_paramTable),
+                                       ptables->_paramTable,
+                                       parray->GetPatchIndex(),
+                                       parray->GetNumPatches(), ptexFaceOffset);
+            }
             ptexFaceOffset += meshes[i]->GetNumPtexFaces();
+        }
+    }
+
+    // merge fvardata table
+    FarPatchTables::FVarDataTable::iterator FV_IT = result->_fvarTable.begin();
+    for (FarPatchTables::Descriptor::iterator it(FarPatchTables::Descriptor(FarPatchTables::POINTS, FarPatchTables::NON_TRANSITION, 0));
+         it != FarPatchTables::Descriptor::end(); ++it) {
+        for (size_t i = 0; i < meshes.size(); ++i) {
+            FarPatchTables const *ptables = meshes[i]->GetPatchTables();
+            FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
+            if (parray) {
+                int width = meshes[i]->GetTotalFVarWidth() * 4; // for each quad
+                FarPatchTables::FVarDataTable::const_iterator begin =
+                    ptables->_fvarTable.begin() + parray->GetPatchIndex() * width;
+                FarPatchTables::FVarDataTable::const_iterator end =
+                    begin + parray->GetNumPatches() * width;
+                FV_IT = std::copy(begin, end, FV_IT);
+            }
         }
     }
 

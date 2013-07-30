@@ -1,62 +1,34 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
 #if defined(__APPLE__)
-    #include <OpenGL/gl3.h>
+    #if defined(OSD_USES_GLEW)
+        #include <GL/glew.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
     #define GLFW_INCLUDE_GL3
     #define GLFW_NO_GLU
 #else
@@ -68,7 +40,7 @@
 #endif
 
 #if defined(GLFW_VERSION_3)
-    #include <GL/glfw3.h>
+    #include <GLFW/glfw3.h>
     GLFWwindow* g_window=0;
     GLFWmonitor* g_primary=0;
 #else
@@ -191,9 +163,11 @@ enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_ANIMATE_VERTICES,
                    HUD_CB_DISPLAY_PATCH_COLOR,
                    HUD_CB_VIEW_LOD,
+                   HUD_CB_FRACTIONAL_SPACING,
                    HUD_CB_PATCH_CULL,
                    HUD_CB_IBL,
-                   HUD_CB_BLOOM };
+                   HUD_CB_BLOOM,
+                   HUD_CB_FREEZE };
     
 //-----------------------------------------------------------------------------
 int   g_frame = 0,
@@ -220,8 +194,10 @@ bool  g_adaptive = false,
       g_displayPatchColor = false,
       g_patchCull = true,
       g_screenSpaceTess = true,
+      g_fractionalSpacing = false,
       g_ibl = false,
-      g_bloom = true;
+      g_bloom = false,
+      g_freeze = false;
 
 GLuint g_transformUB = 0,
        g_transformBinding = 0,
@@ -274,7 +250,6 @@ std::vector<float> g_positions,
                    g_normals;
 
 std::vector<std::vector<float> > g_animPositions;
-std::vector<GLuint> g_animPositionBuffers;
 
 GLuint g_primQuery = 0;
 GLuint g_vao = 0;
@@ -389,19 +364,6 @@ updateGeom() {
             vertex.push_back(p0*(1-b) + p1*b);
         }
         g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
-
-/*
-        if (g_kernel != kCPU && g_kernel != kOPENMP) {
-            glBindBuffer(GL_COPY_READ_BUFFER, g_animPositionBuffers[g_frame%nkey]);
-            glBindBuffer(GL_COPY_WRITE_BUFFER, g_mesh->BindVertexBuffer());
-            glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
-                                0, 0, nverts * 3 * sizeof(float));
-            glBindBuffer(GL_COPY_READ_BUFFER, 0);
-            glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
-        } else {
-            g_mesh->UpdateVertexBuffer(&g_animPositions[g_frame%nkey][0], 0, nverts);
-        }
-*/
 
     } else {
         std::vector<float> vertex;
@@ -690,6 +652,7 @@ union Effect {
         int specular:1;
         int patchCull:1;
         int screenSpaceTess:1;
+        int fractionalSpacing:1;
         int ibl:1;
         unsigned int wire:2;
     };
@@ -725,6 +688,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
     if (effect.screenSpaceTess)
         sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
+    if (effect.fractionalSpacing)
+        sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     const char *glslVersion = "#version 400\n";
@@ -820,31 +785,31 @@ EffectDrawRegistry::_CreateDrawConfig(
 
     GLint loc;
 #if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-    if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
     }
 #else
     glUseProgram(config->program);
-    if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
         glUniform1i(loc, 0); // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
         glUniform1i(loc, 1); // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
         glUniform1i(loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
-        glUniform1i(loc, 4); // GL_TEXTURE3
+    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
+        glUniform1i(loc, 3); // GL_TEXTURE3
     }
 #endif
 
@@ -912,6 +877,7 @@ createOsdMesh(int level, int kernel) {
     bits.set(OpenSubdiv::MeshPtexData, true);
 
     int numVertexElements = g_adaptive ? 3 : 6;
+    int numVaryingElements = 0;
 
     if (kernel == kCPU) {
         if (not g_cpuComputeController) {
@@ -921,7 +887,10 @@ createOsdMesh(int level, int kernel) {
                                          OpenSubdiv::OsdCpuComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_cpuComputeController,
-                                                hmesh, numVertexElements, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         if (not g_ompComputeController) {
@@ -931,7 +900,10 @@ createOsdMesh(int level, int kernel) {
                                          OpenSubdiv::OsdOmpComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_ompComputeController,
-                                                hmesh, numVertexElements, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == kCL) {
@@ -942,8 +914,10 @@ createOsdMesh(int level, int kernel) {
                                          OpenSubdiv::OsdCLComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_clComputeController,
-                                                hmesh, numVertexElements, level, bits,
-                                                g_clContext, g_clQueue);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits, g_clContext, g_clQueue);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if(kernel == kCUDA) {
@@ -954,7 +928,10 @@ createOsdMesh(int level, int kernel) {
                                          OpenSubdiv::OsdCudaComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_cudaComputeController,
-                                                hmesh, numVertexElements, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if(kernel == kGLSL) {
@@ -965,7 +942,10 @@ createOsdMesh(int level, int kernel) {
                                          OpenSubdiv::OsdGLSLTransformFeedbackComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_glslTransformFeedbackComputeController,
-                                                hmesh, numVertexElements, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if(kernel == kGLSLCompute) {
@@ -976,7 +956,10 @@ createOsdMesh(int level, int kernel) {
                                          OpenSubdiv::OsdGLSLComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_glslComputeController,
-                                                hmesh, numVertexElements, level, bits);
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
 #endif
     } else {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
@@ -1112,12 +1095,22 @@ compileImageShader(const char *define) {
     glDeleteShader(vs);
     glDeleteShader(fs);
 
+#if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
     GLint colorMap = glGetUniformLocation(program, "colorMap");
     if (colorMap != -1)
         glProgramUniform1i(program, colorMap, 0);  // GL_TEXTURE0
     GLint depthMap = glGetUniformLocation(program, "depthMap");
     if (depthMap != -1)
         glProgramUniform1i(program, depthMap, 1);  // GL_TEXTURE1
+#else
+    glUseProgram(program);
+    GLint colorMap = glGetUniformLocation(program, "colorMap");
+    if (colorMap != -1)
+        glUniform1i(colorMap, 0);  // GL_TEXTURE0
+    GLint depthMap = glGetUniformLocation(program, "depthMap");
+    if (depthMap != -1)
+        glUniform1i(depthMap, 1);  // GL_TEXTURE1
+#endif
 
     return program;
 }
@@ -1409,6 +1402,7 @@ drawModel() {
 #endif
         }
 
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         if (g_mesh->GetDrawContext()->GetVertexTextureBuffer()) {
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_BUFFER,
@@ -1425,6 +1419,7 @@ drawModel() {
             glBindTexture(GL_TEXTURE_BUFFER,
                 g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer());
         }
+#endif
         if (g_mesh->GetDrawContext()->GetPatchParamTextureBuffer()) {
             glActiveTexture(GL_TEXTURE3);
             glBindTexture(GL_TEXTURE_BUFFER,
@@ -1441,6 +1436,7 @@ drawModel() {
         effect.specular = g_specular;
         effect.patchCull = g_patchCull;
         effect.screenSpaceTess = g_screenSpaceTess;
+        effect.fractionalSpacing = g_fractionalSpacing;
         effect.ibl = g_ibl;
         effect.wire = g_wire;
 
@@ -1480,11 +1476,22 @@ drawModel() {
             glDisable(GL_CULL_FACE);
         }
 
-        GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
+        GLuint uniformGregoryQuadOffsetBase =
+	  glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+        GLuint uniformPrimitiveIdBase =
+	  glGetUniformLocation(program, "OsdPrimitiveIdBase");
 
-        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformLevelBase, patch.GetPatchIndex());
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
+			   patch.GetQuadOffsetIndex());
+        glProgramUniform1i(program, uniformPrimitiveIdBase,
+			   patch.GetPatchIndex());
+#else
+        glUniform1i(uniformGregoryQuadOffsetBase,
+		    patch.GetQuadOffsetIndex());
+        glUniform1i(uniformPrimitiveIdBase,
+		    patch.GetPatchIndex());
+#endif
 
         glDrawElements(primType,
                        patch.GetNumIndices(), GL_UNSIGNED_INT,
@@ -1590,12 +1597,14 @@ display() {
     GLuint numPrimsGenerated = 0;
     glGetQueryObjectuiv(g_primQuery, GL_QUERY_RESULT, &numPrimsGenerated);
 
-    if (g_hud.IsVisible()) {
-        g_fpsTimer.Stop();
-        float elapsed = (float)g_fpsTimer.GetElapsed();
+    g_fpsTimer.Stop();
+    float elapsed = (float)g_fpsTimer.GetElapsed();
+    if (not g_freeze)
         g_animTime += elapsed;
+    g_fpsTimer.Start();
+
+    if (g_hud.IsVisible()) {
         double fps = 1.0/elapsed;
-        g_fpsTimer.Start();
 
         // Avereage fps over a defined number of time samples for
         // easier reading in the HUD
@@ -1606,8 +1615,6 @@ display() {
         for (int i=0; i< NUM_FPS_TIME_SAMPLES; ++i) {
             averageFps += g_fpsTimeSamples[i]/(float)NUM_FPS_TIME_SAMPLES;
         }
-
-        
 
         g_hud.DrawString(10, -180, "Tess level (+/-): %d", g_tessLevel);
         if (numPrimsGenerated > 1000000) {
@@ -1636,7 +1643,7 @@ display() {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state) {
+mouse(GLFWwindow *, int button, int state, int mods) {
 #else
 mouse(int button, int state) {
 #endif
@@ -1713,8 +1720,6 @@ void uninitGL() {
     delete g_glslComputeController;
 #endif
 
-    if (g_animPositionBuffers.size())
-        glDeleteBuffers((int)g_animPositionBuffers.size(), &g_animPositionBuffers[0]);
     if (g_diffuseEnvironmentMap) glDeleteTextures(1, &g_diffuseEnvironmentMap);
     if (g_specularEnvironmentMap) glDeleteTextures(1, &g_specularEnvironmentMap);
 
@@ -1798,6 +1803,9 @@ callbackCheckBox(bool checked, int button)
     case HUD_CB_VIEW_LOD:
         g_screenSpaceTess = checked;
         break;
+    case HUD_CB_FRACTIONAL_SPACING:
+        g_fractionalSpacing = checked;
+        break;
     case HUD_CB_PATCH_CULL:
         g_patchCull = checked;
         break;
@@ -1806,6 +1814,9 @@ callbackCheckBox(bool checked, int button)
         break;
     case HUD_CB_BLOOM:
         g_bloom = checked;
+        break;
+    case HUD_CB_FREEZE:
+        g_freeze = checked;
         break;
     }
 
@@ -1839,8 +1850,9 @@ toggleFullScreen() {
 //------------------------------------------------------------------------------
 void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int event) {
+keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
 #else
+#define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
 #endif
 
@@ -1857,7 +1869,7 @@ keyboard(int key, int event) {
         case '+':
         case '=': g_tessLevel++; break;
         case '-': g_tessLevel = std::max(1, g_tessLevel-1); break;
-        case GLFW_KEY_ESC: g_hud.SetVisible(!g_hud.IsVisible()); break;
+        case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
     }
 }
 
@@ -1865,7 +1877,9 @@ keyboard(int key, int event) {
 void
 idle() {
 
-    g_frame++;
+    if (not g_freeze)
+        g_frame++;
+
     updateGeom();
 
     if(g_repeatCount != 0 && g_frame >= g_repeatCount)
@@ -2047,9 +2061,9 @@ int main(int argc, char ** argv) {
         }
         
         if (g_primary) {
-            GLFWvidmode vidmode = glfwGetVideoMode(g_primary);
-            g_width = vidmode.width;
-            g_height = vidmode.height;
+            GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
+            g_width = vidmode->width;
+            g_height = vidmode->height;
         }
     }
 
@@ -2076,7 +2090,7 @@ int main(int argc, char ** argv) {
     glfwSetMouseButtonCallback(mouse);
 #endif
 
-#if not defined(__APPLE__)
+#if defined(OSD_USES_GLEW)
 #ifdef CORE_PROFILE
     // this is the only way to initialize glew correctly under core profile context.
     glewExperimental = true;
@@ -2096,6 +2110,8 @@ int main(int argc, char ** argv) {
 #if GLFW_VERSION_MAJOR>=3
     glfwSetWindowSizeCallback(g_window, reshape);
     glfwSetWindowCloseCallback(g_window, windowClose);
+    // as of GLFW 3.0.1 this callback is not implicit
+    reshape();
 #else
     glfwSetWindowSizeCallback(reshape);
     glfwSetWindowCloseCallback(windowClose);
@@ -2168,9 +2184,14 @@ int main(int argc, char ** argv) {
                       450, 30, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');
     g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
                       450, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
+                      450, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
-                      450, 70, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
-    g_hud.AddCheckBox("Bloom (Y)", g_bloom, 450, 90, callbackCheckBox, HUD_CB_BLOOM, 'y');
+                      450, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
+    g_hud.AddCheckBox("Bloom (Y)", g_bloom,
+                      450, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
+    g_hud.AddCheckBox("Freeze (spc)", g_freeze,
+                      450, 130, callbackCheckBox, HUD_CB_FREEZE, ' ');
 
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive, 10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
@@ -2200,16 +2221,13 @@ int main(int argc, char ** argv) {
 
     // load animation obj sequences (optional)
     if (not animobjs.empty()) {
-//        g_animPositionBuffers.resize(animobjs.size());
-//        glGenBuffers((int)animobjs.size(), &g_animPositionBuffers[0]);
-
         for (int i = 0; i < (int)animobjs.size(); ++i) {
             std::ifstream ifs(animobjs[i].c_str());
             if (ifs) {
                 std::stringstream ss;
                 ss << ifs.rdbuf();
                 ifs.close();
-                
+
                 printf("Reading %s\r", animobjs[i].c_str());
                 std::string str = ss.str();
                 shape *shape = shape::parseShape(str.c_str());
@@ -2220,10 +2238,6 @@ int main(int argc, char ** argv) {
                 }
 
                 g_animPositions.push_back(shape->verts);
-
-//                glBindBuffer(GL_ARRAY_BUFFER, g_animPositionBuffers[i]);
-//                glBufferData(GL_ARRAY_BUFFER, shape->verts.size()*sizeof(float), &shape->verts[0], GL_STATIC_DRAW);
-
                 delete shape;
             } else {
                 printf("Error in reading %s\n", animobjs[i].c_str());

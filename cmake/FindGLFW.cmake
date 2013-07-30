@@ -1,59 +1,26 @@
 #
-#     Copyright (C) Pixar. All rights reserved.
+#     Copyright 2013 Pixar
 #
-#     This license governs use of the accompanying software. If you
-#     use the software, you accept this license. If you do not accept
-#     the license, do not use the software.
+#     Licensed under the Apache License, Version 2.0 (the "License");
+#     you may not use this file except in compliance with the License
+#     and the following modification to it: Section 6 Trademarks.
+#     deleted and replaced with:
 #
-#     1. Definitions
-#     The terms "reproduce," "reproduction," "derivative works," and
-#     "distribution" have the same meaning here as under U.S.
-#     copyright law.  A "contribution" is the original software, or
-#     any additions or changes to the software.
-#     A "contributor" is any person or entity that distributes its
-#     contribution under this license.
-#     "Licensed patents" are a contributor's patent claims that read
-#     directly on its contribution.
+#     6. Trademarks. This License does not grant permission to use the
+#     trade names, trademarks, service marks, or product names of the
+#     Licensor and its affiliates, except as required for reproducing
+#     the content of the NOTICE file.
 #
-#     2. Grant of Rights
-#     (A) Copyright Grant- Subject to the terms of this license,
-#     including the license conditions and limitations in section 3,
-#     each contributor grants you a non-exclusive, worldwide,
-#     royalty-free copyright license to reproduce its contribution,
-#     prepare derivative works of its contribution, and distribute
-#     its contribution or any derivative works that you create.
-#     (B) Patent Grant- Subject to the terms of this license,
-#     including the license conditions and limitations in section 3,
-#     each contributor grants you a non-exclusive, worldwide,
-#     royalty-free license under its licensed patents to make, have
-#     made, use, sell, offer for sale, import, and/or otherwise
-#     dispose of its contribution in the software or derivative works
-#     of the contribution in the software.
+#     You may obtain a copy of the License at
 #
-#     3. Conditions and Limitations
-#     (A) No Trademark License- This license does not grant you
-#     rights to use any contributor's name, logo, or trademarks.
-#     (B) If you bring a patent claim against any contributor over
-#     patents that you claim are infringed by the software, your
-#     patent license from such contributor to the software ends
-#     automatically.
-#     (C) If you distribute any portion of the software, you must
-#     retain all copyright, patent, trademark, and attribution
-#     notices that are present in the software.
-#     (D) If you distribute any portion of the software in source
-#     code form, you may do so only under this license by including a
-#     complete copy of this license with your distribution. If you
-#     distribute any portion of the software in compiled or object
-#     code form, you may only do so under a license that complies
-#     with this license.
-#     (E) The software is licensed "as-is." You bear the risk of
-#     using it. The contributors give no express warranties,
-#     guarantees or conditions. You may have additional consumer
-#     rights under your local laws which this license cannot change.
-#     To the extent permitted under your local laws, the contributors
-#     exclude the implied warranties of merchantability, fitness for
-#     a particular purpose and non-infringement.
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
+#     Unless required by applicable law or agreed to in writing,
+#     software distributed under the License is distributed on an
+#     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+#     either express or implied.  See the License for the specific
+#     language governing permissions and limitations under the
+#     License.
 #
 
 # Try to find GLFW library and include path.
@@ -67,7 +34,7 @@
 find_path( GLFW_INCLUDE_DIR 
     NAMES
         GL/glfw.h
-        GL/glfw3.h
+        GLFW/glfw3.h
     PATHS
         ${GLFW_LOCATION}/include
         $ENV{GLFW_LOCATION}/include
@@ -144,9 +111,15 @@ else ()
         find_package(X11 REQUIRED)
         
         if(NOT X11_Xrandr_FOUND)
-            message(FATAL_ERROR "Xrandr library not found")
+            message(FATAL_ERROR "Xrandr library not found - required for GLFW")
         endif()
-        
+
+        if(NOT X11_xf86vmode_FOUND)
+            message(FATAL_ERROR "xf86vmode library not found - required for GLFW")
+        endif()
+
+        list(APPEND GLFW_x11_LIBRARY ${X11_Xrandr_LIB} ${X11_Xxf86vm_LIB})
+
         find_library( GLFW_glfw_LIBRARY
             NAMES 
                 glfw
@@ -171,7 +144,7 @@ set( GLFW_FOUND "NO" )
 if(GLFW_INCLUDE_DIR)
 
     if(GLFW_glfw_LIBRARY)
-        set( GLFW_LIBRARIES ${GLFW_glfw_LIBRARY} ${GLFW_cocoa_LIBRARY} ${GLFW_iokit_LIBRARY} )
+        set( GLFW_LIBRARIES ${GLFW_glfw_LIBRARY} ${GLFW_x11_LIBRARY} ${GLFW_cocoa_LIBRARY} ${GLFW_iokit_LIBRARY} )        
         set( GLFW_FOUND "YES" )
         set (GLFW_LIBRARY ${GLFW_LIBRARIES})
         set (GLFW_INCLUDE_PATH ${GLFW_INCLUDE_DIR})
@@ -183,7 +156,7 @@ if(GLFW_INCLUDE_DIR)
             
         set(PATTERN "^#define ${VARNAME}.*$")
         
-        file(STRINGS "${GLFW_INCLUDE_DIR}/GL/${FILENAME}" TMP REGEX ${PATTERN})
+        file(STRINGS "${GLFW_INCLUDE_DIR}/${FILENAME}" TMP REGEX ${PATTERN})
         
         string(REGEX MATCHALL "[0-9]+" TMP ${TMP})
         
@@ -194,28 +167,24 @@ if(GLFW_INCLUDE_DIR)
 
     if(EXISTS "${GLFW_INCLUDE_DIR}/GL/glfw.h")
 
-        parseVersion(glfw.h GLFW_VERSION_MAJOR)
-        parseVersion(glfw.h GLFW_VERSION_MINOR)
-        parseVersion(glfw.h GLFW_VERSION_REVISION)
+        parseVersion(GL/glfw.h GLFW_VERSION_MAJOR)
+        parseVersion(GL/glfw.h GLFW_VERSION_MINOR)
+        parseVersion(GL/glfw.h GLFW_VERSION_REVISION)
 
-    elseif(EXISTS "${GLFW_INCLUDE_DIR}/GL/glfw3.h")
+    elseif(EXISTS "${GLFW_INCLUDE_DIR}/GLFW/glfw3.h")
 
-        parseVersion(glfw3.h GLFW_VERSION_MAJOR)
-        parseVersion(glfw3.h GLFW_VERSION_MINOR)
-        parseVersion(glfw3.h GLFW_VERSION_REVISION)
+        parseVersion(GLFW/glfw3.h GLFW_VERSION_MAJOR)
+        parseVersion(GLFW/glfw3.h GLFW_VERSION_MINOR)
+        parseVersion(GLFW/glfw3.h GLFW_VERSION_REVISION)
  
     endif()
-     
+
     if(${GLFW_VERSION_MAJOR} OR ${GLFW_VERSION_MINOR} OR ${GLFW_VERSION_REVISION})
         set(GLFW_VERSION "${GLFW_VERSION_MAJOR}.${GLFW_VERSION_MINOR}.${GLFW_VERSION_REVISION}")
         set(GLFW_VERSION_STRING "${GLFW_VERSION}")
         mark_as_advanced(GLFW_VERSION)
     endif()
     
-    # static builds of glfw require Xrandr
-    if( NOT WIN32 AND NOT APPLE AND GLFW_FOUND)
-        list(APPEND GLFW_LIBRARIES -lXrandr -lXxf86vm)
-    endif()
 endif(GLFW_INCLUDE_DIR)
 
 include(FindPackageHandleStandardArgs)

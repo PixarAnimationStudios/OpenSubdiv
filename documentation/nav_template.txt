@@ -1,0 +1,71 @@
+<!--
+       Copyright 2013 Pixar
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License
+       and the following modification to it: Section 6 Trademarks.
+       deleted and replaced with:
+
+       6. Trademarks. This License does not grant permission to use the
+       trade names, trademarks, service marks, or product names of the
+       Licensor and its affiliates, except as required for reproducing
+       the content of the NOTICE file.
+
+       You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing,
+       software distributed under the License is distributed on an
+       "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+       either express or implied.  See the License for the specific
+       language governing permissions and limitations under the
+       License.
+//-->
+
+<div class="navigation">
+    <br>
+    <div class="searchBar">
+        <form action="search.html">
+            <input type="text" name="q" id="searchInput" />
+            <input type="button" id="searchButton" onclick="this.form.submit();" value="Search" />
+        </form>
+    </div>
+    <div class="quickLinks">
+        <ul>
+            <li><a href="intro.html">Introduction</a></li>
+            <li><a href="getting_started.html">Getting Started</a></li>
+            <li><a href="cmake_build.html">Building OpenSubdiv</a></li>
+            <li><a href="code_examples.html">Code Examples</a></li>
+            <li><a href="subdivision_surfaces.html">Subdivision Surfaces</a>
+                <ul>
+                    <li><a href="subdivision_surfaces.html#introduction">Introduction</a></li>
+                    <li><a href="subdivision_surfaces.html#manifold-geometry">Topology</a></li>
+                    <li><a href="subdivision_surfaces.html#semi-sharp-creases">Semi-Sharp Creases</a></li>
+                    <li><a href="subdivision_surfaces.html#hierarchical-edits">Hierarchical Edits</a></li>
+                    <li><a href="subdivision_surfaces.html#uniform-subdivision">Uniform</a></li>
+                    <li><a href="subdivision_surfaces.html#feature-adaptive-subdivision">Feature Adaptive</a></li>
+                </ul>
+            </li>
+            <li><a href="api_overview.html">APIs Overview</a>
+                <ul>
+                    <li><a href="hbr_overview.html">Hbr</a></li>
+                    <li><a href="far_overview.html">Far</a></li>
+                    <li><a href="osd_overview.html">Osd</a></li>
+                </ul>
+            </li>
+            <li><a href="using_osd.html">Using OpenSubdiv</a>
+                <ul>
+                    <li><a href="using_osd_compile.html#compiling-linking">Compiling & Linking</a></li>
+                    <li><a href="using_osd_hbr.html">Manipulating Topology</a></li>
+                    <li><a href="using_osd.html">Writing Shaders</a></li>
+                    <li><a href="using_osd_textures.html">Textures</a></li>
+                    <li><a href="using_osd.html">Primitive Batching</a></li>
+                </ul>
+            </li>
+            <li><a href="release_notes.html">Release Notes</a>
+            <li><a href="doxy_html/index.html" target="_blank">Doxygen</a></li>
+        </ul>
+    </div>
+    <br>
+</div>

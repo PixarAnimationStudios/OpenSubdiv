@@ -1,58 +1,26 @@
 #
-#     Copyright (C) Pixar. All rights reserved.
+#     Copyright 2013 Pixar
 #
-#     This license governs use of the accompanying software. If you
-#     use the software, you accept this license. If you do not accept
-#     the license, do not use the software.
+#     Licensed under the Apache License, Version 2.0 (the "License");
+#     you may not use this file except in compliance with the License
+#     and the following modification to it: Section 6 Trademarks.
+#     deleted and replaced with:
 #
-#     1. Definitions
-#     The terms "reproduce," "reproduction," "derivative works," and
-#     "distribution" have the same meaning here as under U.S.
-#     copyright law.  A "contribution" is the original software, or
-#     any additions or changes to the software.
-#     A "contributor" is any person or entity that distributes its
-#     contribution under this license.
-#     "Licensed patents" are a contributor's patent claims that read
-#     directly on its contribution.
+#     6. Trademarks. This License does not grant permission to use the
+#     trade names, trademarks, service marks, or product names of the
+#     Licensor and its affiliates, except as required for reproducing
+#     the content of the NOTICE file.
 #
-#     2. Grant of Rights
-#     (A) Copyright Grant- Subject to the terms of this license,
-#     including the license conditions and limitations in section 3,
-#     each contributor grants you a non-exclusive, worldwide,
-#     royalty-free copyright license to reproduce its contribution,
-#     prepare derivative works of its contribution, and distribute
-#     its contribution or any derivative works that you create.
-#     (B) Patent Grant- Subject to the terms of this license,
-#     including the license conditions and limitations in section 3,
-#     each contributor grants you a non-exclusive, worldwide,
-#     royalty-free license under its licensed patents to make, have
-#     made, use, sell, offer for sale, import, and/or otherwise
-#     dispose of its contribution in the software or derivative works
-#     of the contribution in the software.
+#     You may obtain a copy of the License at
 #
-#     3. Conditions and Limitations
-#     (A) No Trademark License- This license does not grant you
-#     rights to use any contributor's name, logo, or trademarks.
-#     (B) If you bring a patent claim against any contributor over
-#     patents that you claim are infringed by the software, your
-#     patent license from such contributor to the software ends
-#     automatically.
-#     (C) If you distribute any portion of the software, you must
-#     retain all copyright, patent, trademark, and attribution
-#     notices that are present in the software.
-#     (D) If you distribute any portion of the software in source
-#     code form, you may do so only under this license by including a
-#     complete copy of this license with your distribution. If you
-#     distribute any portion of the software in compiled or object
-#     code form, you may only do so under a license that complies
-#     with this license.
-#     (E) The software is licensed "as-is." You bear the risk of
-#     using it. The contributors give no express warranties,
-#     guarantees or conditions. You may have additional consumer
-#     rights under your local laws which this license cannot change.
-#     To the extent permitted under your local laws, the contributors
-#     exclude the implied warranties of merchantability, fitness for
-#     a particular purpose and non-infringement.
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#     Unless required by applicable law or agreed to in writing,
+#     software distributed under the License is distributed on an
+#     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+#     either express or implied.  See the License for the specific
+#     language governing permissions and limitations under the
+#     License.
 #
 
 project(OpenSubdiv)
@@ -257,15 +225,21 @@ find_package(TBB)
 find_package(OpenGL)
 find_package(OpenGLES)
 find_package(OpenCL 1.1)
-find_package(CUDA 4.0)
+if(NOT NO_CUDA)
+    find_package(CUDA 4.0)
+endif()
 find_package(GLFW 2.7.0)
 find_package(PTex 2.0)
-#find_package(PythonInterp 2.6)
-#find_package(SWIG 1.3.40)
-find_package(Doxygen)
-
-if (NOT APPLE AND OPENGL_FOUND)
-    find_package(GLEW REQUIRED)
+find_package(PythonInterp 2.6)
+find_package(SWIG 1.3.40)
+find_package(Doxygen 1.8.4)
+find_package(Docutils 0.6)
+if (OPENGL_FOUND)
+    if (APPLE)
+        find_package(GLEW)
+    else()
+        find_package(GLEW REQUIRED)
+    endif()
 endif()
 
 if (WIN32)
@@ -316,6 +290,11 @@ endif()
 
 if(GLFW_FOUND AND (GLFW_VERSION VERSION_EQUAL 3.0 OR GLFW_VERSION VERSION_GREATER 3.0))
     add_definitions( -DGLFW_VERSION_3 )
+endif()
+
+# note: perhaps rename this to be more consistent, e.g. OPENSUBDIV_USES_GLEW
+if(GLEW_FOUND)
+    add_definitions( -DOSD_USES_GLEW )
 endif()
 
 # note : (GLSL transform feedback kernels require GL 4.2)
@@ -400,63 +379,6 @@ else()
     )
 endif()
 
-if(PYTHONINTERP_FOUND AND SWIG_FOUND)
-    message(STATUS "Python and SWIG found.  Looking for numpy...")
-    execute_process(
-        COMMAND
-        ${PYTHON_EXECUTABLE} -c "import numpy; print numpy.get_include()"
-        OUTPUT_VARIABLE NUMPY_INCLUDE_PATH
-        RESULT_VARIABLE NUMPY_ERR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    if(NUMPY_ERR)
-        message(WARNING "Unable to import numpy.")
-    else()
-        message(STATUS "Numpy package has been located.")
-        set(PYCMD ${PYTHON_EXECUTABLE} setup.py build )
-        list(APPEND PYCMD --osddir=${LIBRARY_OUTPUT_PATH} )
-        list(APPEND PYCMD --build-platlib=${PROJECT_BINARY_DIR}/python )
-        list(APPEND PYCMD --build-temp=${PROJECT_BINARY_DIR}/temp )
-        
-        # grab all compiler definitions and add '-D'
-        get_directory_property( TMP DIRECTORY ${CMAKE_SOURCE_DIR} COMPILE_DEFINITIONS )
-        foreach(FLAG ${TMP})
-            list(APPEND SWIG_COMPILE_FLAGS "-D${FLAG}")
-        endforeach()
-        
-        # append platform specific compiler flags
-        list(APPEND SWIG_COMPILE_FLAGS ${OSD_COMPILER_FLAGS})
-        list(APPEND PYCMD --cxxflags="${SWIG_COMPILE_FLAGS}" )
-        
-        # add Swig -builtin optimization build flag 
-        if(SWIG_VERSION VERSION_GREATER 2.0.4)
-            list(APPEND SWIG_OPTS "-builtin")
-        endif()
-        list(APPEND PYCMD --swigopts="${SWIG_OPTS}" )
-        
-        add_custom_command(
-            OUTPUT ${PROJECT_BINARY_DIR}/python/osd
-            COMMAND ${PYCMD}
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python
-            DEPENDS osd_static_cpu osd_dynamic_cpu
-            COMMENT "Building Python bindings with distutils"
-        )
-        add_custom_target(python ALL
-            DEPENDS ${PROJECT_BINARY_DIR}/python/osd
-        )
-        install(CODE "execute_process(
-                      WORKING_DIRECTORY ../python 
-                      COMMAND ${PYCMD} install --user)"
-        )
-    endif()
-else()
-    message(WARNING
-        "Python / Swig not found : python bindings and examples will not be "
-	"available. If you do have Python and Swig installed and see this "
-	"message, please check the default FindPython.cmake module."
-    )
-endif()
-
 # Link examples & regressions dynamically against Osd
 set( OSD_LINK_TARGET osd_dynamic_cpu osd_dynamic_gpu )
 
@@ -488,6 +410,47 @@ endif()
 
 #-------------------------------------------------------------------------------
 # General-use macros
+
+# Macro for processing public headers into the build area for doxygen processing
+
+#set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+add_custom_target( public_headers )
+
+macro(_add_doxy_headers headers)
+    if (NOT NO_DOC AND DOXYGEN_FOUND)
+        file(RELATIVE_PATH path ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR} )
+
+        string(REPLACE  "/" "_" targetpath ${path})
+
+        foreach (header ${headers})
+
+            set(infile ${CMAKE_CURRENT_SOURCE_DIR}/${header})
+            set(outfile ${CMAKE_BINARY_DIR}/public_headers/${path}/${header})
+            set(targetname "${targetpath}_${header}")
+
+            add_custom_command(
+                OUTPUT
+                    ${outfile}
+                COMMAND
+                    ${CMAKE_COMMAND}
+                ARGS
+                    -E copy ${infile} ${outfile}
+                DEPENDS
+                    ${infile}
+            )
+
+            add_custom_target(${targetname} DEPENDS ${outfile})
+            
+            #set_target_properties(${targetname} PROPERTIES FOLDER "public_headers/")
+
+            list(APPEND headerfiles ${targetname} )
+        endforeach()
+
+        add_dependencies( public_headers DEPENDS ${headerfiles} )
+    endif()
+endmacro()
+
 
 # Macro for adding a cuda executable if cuda is found and a regular
 # executable otherwise.
@@ -539,12 +502,18 @@ endmacro()
 
 add_subdirectory(opensubdiv)
 
-if(NOT ANDROID AND NOT IOS) # XXXdyu
+if (NOT NO_REGRESSION AND NOT ANDROID AND NOT IOS) # XXXdyu
     add_subdirectory(regression)
 endif()
 
-add_subdirectory(examples)
+if (NOT NO_EXAMPLES)
+    add_subdirectory(examples)
+endif()
 
-if (DOXYGEN_FOUND)
+if (NOT NO_PYTHON)
+    add_subdirectory(python)
+endif()
+
+if (NOT NO_DOC)
     add_subdirectory(documentation)
 endif()

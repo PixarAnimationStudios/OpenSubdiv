@@ -1,58 +1,26 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 #ifndef FAR_KERNEL_BATCH_FACTORY_H
 #define FAR_KERNEL_BATCH_FACTORY_H
@@ -69,7 +37,7 @@ class FarVertexKernelBatchFactory {
 
 public:
 
-    /// Constructor.
+    /// \brief Constructor.
     ///
     /// @param start index of the first vertex in the batch
     ///
@@ -81,13 +49,15 @@ public:
     }
 
 
-    /// Adds a vertex-vertex to the appropriate compute batch based on "Rank". 
+    /// \brief Adds a vertex-vertex to the appropriate compute batch based on "Rank". 
+    ///
     /// Ranking is based on the interpolation required (Smooth, Dart, Crease,
     /// or Corner). With semi-sharp creases, two passes of interpolation are
     /// required, from which we derive a matrix of compute kernel combinations.
     ///
     /// The kernel combinatorial matrix :
     ///
+#ifndef doxygen    
     /// Rules     +----+----+----+----+----+----+----+----+----+----+
     ///   Pass 0  | Dt | Sm | Sm | Dt | Sm | Dt | Sm | Cr | Co | Cr |
     ///   Pass 1  |    |    |    | Co | Co | Cr | Cr | Co |    |    |
@@ -97,6 +67,24 @@ public:
     ///           +----+----+----+----+----+----+----+----+----+----+
     /// Rank      | 0  | 1  | 2  | 3  | 4  | 5  | 6  | 7  | 8  | 9  |
     ///           +----+----+----+----+----+----+----+----+----+----+
+#else
+    /// <table class="doxtable">
+    /// <tr> <th colspan="11" align="left">Rules</th></tr>
+    /// <tr align="center"> <td>Pass 0</td> <td>Dart</td> <td>Smooth</td> 
+    ///     <td>Smooth</td> <td>Dart  </td> <td>Smooth</td> <td>Dart  </td> 
+    ///     <td>Smooth</td> <td>Crease</td> <td>Corner</td> <td>Crease</td> </tr>
+    /// <tr align="center"> <td>Pass 1</td> <td>    </td> <td>      </td> 
+    ///     <td>      </td> <td>Corner</td> <td>Corner</td> <td>Crease</td> 
+    ///     <td>Crease</td> <td>Corner</td> <td>      </td> <td>      </td> </tr>
+    /// <tr> <th colspan="11" align="left">Kernel</th></tr>
+    /// <tr align="center"> <td>Pass 0</td> <td>  B </td> <td>  B   </td> 
+    ///      <td>  B   </td> <td>  B   </td> <td>  B   </td> <td>  B   </td> 
+    ///      <td>  B   </td> <td>  A   </td> <td>  A   </td> <td>  A   </td> </tr>
+    /// <tr align="center"> <td>Pass 1</td> <td>    </td> <td>      </td> 
+    ///      <td>      </td> <td>  A   </td> <td>  A   </td> <td>  A   </td> 
+    ///      <td>  A   </td> <td>  A   </td> <td>      </td> <td>      </td> </tr>    
+    /// </table>
+#endif    
     /// with :
     ///     - A : compute kernel applying k_Crease / k_Corner rules
     ///     - B : compute kernel applying k_Smooth / k_Dart rules
@@ -110,7 +98,7 @@ public:
 
 
 
-    /// Appends a FarKernelBatch to a vector of batches for Catmark subdivision
+    /// \brief Appends a FarKernelBatch to a vector of batches for Catmark subdivision
     ///
     /// @param level         the subdivision level of the vertices in the batch
     ///
@@ -124,7 +112,7 @@ public:
 
 
 
-    /// Appends a FarKernelBatch to a vector of batches for Loop subdivision
+    /// \brief Appends a FarKernelBatch to a vector of batches for Loop subdivision
     ///
     /// @param level         the subdivision level of the vertices in the batch
     ///

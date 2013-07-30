@@ -7,32 +7,28 @@
 
 # The MIT License
 #
-# Copyright (c) 2011 Hannes Hofmann
+#     Copyright 2013 Pixar
 #
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
+#     Licensed under the Apache License, Version 2.0 (the "License");
+#     you may not use this file except in compliance with the License
+#     and the following modification to it: Section 6 Trademarks.
+#     deleted and replaced with:
 #
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
+#     6. Trademarks. This License does not grant permission to use the
+#     trade names, trademarks, service marks, or product names of the
+#     Licensor and its affiliates, except as required for reproducing
+#     the content of the NOTICE file.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-
-# GvdB: This module uses the environment variable TBB_ARCH_PLATFORM which defines architecture and compiler.
-#   e.g. "ia32/vc8" or "em64t/cc4.1.0_libc2.4_kernel2.6.16.21"
-#   TBB_ARCH_PLATFORM is set by the build script tbbvars[.bat|.sh|.csh], which can be found
-#   in the TBB installation directory (TBB_INSTALL_DIR).
+#     You may obtain a copy of the License at
 #
-# GvdB: Mac OS X distribution places libraries directly in lib directory.
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#     Unless required by applicable law or agreed to in writing,
+#     software distributed under the License is distributed on an
+#     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+#     either express or implied.  See the License for the specific
+#     language governing permissions and limitations under the
+#     License.
 #
 # For backwards compatibility, you may explicitely set the CMake variables TBB_ARCHITECTURE and TBB_COMPILER.
 # TBB_ARCHITECTURE [ ia32 | em64t | itanium ]

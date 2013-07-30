@@ -1,76 +1,31 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
-#if defined(__APPLE__)
-    #include "TargetConditionals.h"
-    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
-        #include <OpenGLES/ES2/gl.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-#elif defined(ANDROID)
-    #include <GLES2/gl2.h>
-#else
-    #if defined(_WIN32)
-        #include <windows.h>
-    #endif
-    #include <GL/glew.h>
-#endif
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
+//
 
 #include "effectRegistry.h"
+
+#include <osd/opengl.h>
 
 static const char *shaderSource =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
@@ -113,24 +68,44 @@ MyEffectRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
     if (desc.first.GetType() == OpenSubdiv::FarPatchTables::QUADS) {
+        // uniform catmark, bilinear
         sconfig->geometryShader.AddDefine("PRIM_QUAD");
         sconfig->fragmentShader.AddDefine("PRIM_QUAD");
+        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
+    } else if (desc.first.GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
+        // uniform loop
+        sconfig->geometryShader.AddDefine("PRIM_TRI");
+        sconfig->fragmentShader.AddDefine("PRIM_TRI");
+        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
     } else {
+        // adaptive
+        sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
+        sconfig->tessControlShader.source = shaderSource + sconfig->tessControlShader.source;
+        sconfig->tessEvalShader.source = shaderSource + sconfig->tessEvalShader.source;
+
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
     }
 
-    int wire = effectDesc.GetWire();
-
-    if (wire == MyEffect::kWire) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_WIRE");
-    } else if (wire == MyEffect::kFill) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_FILL");
-    } else if (wire == MyEffect::kLine) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_LINE");
+    int displayStyle = effectDesc.GetDisplayStyle();
+    switch (displayStyle) {
+    case kWire:
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_WIRE");
+        break;
+    case kWireShaded:
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_LINE");
+        break;
+    case kShaded:
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+        break;
+    case kVaryingColor:
+        sconfig->commonShader.AddDefine("VARYING_COLOR");
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+        break;
+    case kFaceVaryingColor:
+        sconfig->commonShader.AddDefine("FACEVARYING_COLOR");
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+        break;
     }
 
     return sconfig;
@@ -167,23 +142,23 @@ MyEffectRegistry::_CreateDrawConfig(DescType const & desc, SourceConfigType cons
     if (uboIndex != GL_INVALID_INDEX)
         glUniformBlockBinding(program, uboIndex, g_lightingBinding);
 
-//    g_gregoryQuadOffsetBaseMap[program] = glGetUniformLocation(program, "GregoryQuadOffsetBase");
-//    g_levelBaseMap[program] = glGetUniformLocation(program, "LevelBase");
-
 // currently, these are used only in conjunction with tessellation shaders
 #if defined(GL_EXT_direct_state_access) || defined(GL_VERSION_4_1)
     GLint loc;
-    if ((loc = glGetUniformLocation(program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(program, "OsdVertexBuffer")) != -1) {
         glProgramUniform1i(program, loc, 0); // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(program, "OsdValenceBuffer")) != -1) {
         glProgramUniform1i(program, loc, 1); // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(program, "OsdQuadOffsetBuffer")) != -1) {
         glProgramUniform1i(program, loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(program, "g_ptexIndicesBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(program, "OsdPatchParamBuffer")) != -1) {
         glProgramUniform1i(program, loc, 3); // GL_TEXTURE3
+    }
+    if ((loc = glGetUniformLocation(program, "OsdFVarDataBuffer")) != -1) {
+        glProgramUniform1i(program, loc, 4); // GL_TEXTURE4
     }
 #endif
 

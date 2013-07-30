@@ -1,172 +1,281 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
-#extension GL_EXT_gpu_shader4 : require
+//----------------------------------------------------------
+// Patches.Coefficients
+//----------------------------------------------------------
+
+#if OSD_MAX_VALENCE<=10
+uniform float ef[7] = float[](
+    0.813008, 0.500000, 0.363636, 0.287505,
+    0.238692, 0.204549, 0.179211
+);
+#else
+uniform float ef[27] = float[](
+    0.812816, 0.500000, 0.363644, 0.287514,
+    0.238688, 0.204544, 0.179229, 0.159657,
+    0.144042, 0.131276, 0.120632, 0.111614,
+    0.103872, 0.09715, 0.0912559, 0.0860444,
+    0.0814022, 0.0772401, 0.0734867, 0.0700842,
+    0.0669851, 0.0641504, 0.0615475, 0.0591488,
+    0.0569311, 0.0548745, 0.0529621
+);
+#endif
+
+float csf(uint n, uint j)
+{
+    if (j%2 == 0) {
+        return cos((2.0f * M_PI * float(float(j-0)/2.0f))/(float(n)+3.0f));
+    } else {
+        return sin((2.0f * M_PI * float(float(j-1)/2.0f))/(float(n)+3.0f));
+    }
+}
+
 //----------------------------------------------------------
 // Patches.TessVertexGregory
 //----------------------------------------------------------
-#ifdef PATCH_VERTEX_GREGORY_SHADER
+#ifdef OSD_PATCH_VERTEX_GREGORY_SHADER
 
-uniform samplerBuffer g_VertexBuffer;
-uniform isamplerBuffer g_ValenceBuffer;
+uniform samplerBuffer OsdVertexBuffer;
+uniform isamplerBuffer OsdValenceBuffer;
 
 layout (location=0) in vec4 position;
+OSD_USER_VARYING_ATTRIBUTE_DECLARE
 
 out block {
     GregControlVertex v;
-} output;
+    OSD_USER_VARYING_DECLARE
+} outpt;
 
 void main()
 {
-     int vID = gl_VertexID;
+    int vID = gl_VertexID;
 
-     output.v.hullPosition = (ModelViewMatrix * position).xyz;
-     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
+    outpt.v.hullPosition = (ModelViewMatrix * position).xyz;
+    OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
+    OSD_USER_VARYING_PER_VERTEX();
 
-     uint valence = uint(texelFetchBuffer(g_ValenceBuffer,int(vID * (2 * OSD_MAX_VALENCE + 1))).x);
-     output.v.valence = int(valence);
+    int ivalence = texelFetch(OsdValenceBuffer,int(vID * (2 * OSD_MAX_VALENCE + 1))).x;
+    outpt.v.valence = ivalence;
+    uint valence = uint(abs(ivalence));
 
-     vec3 f[OSD_MAX_VALENCE]; 
-     vec3 pos = position.xyz;
-     vec3 opos = vec3(0,0,0);
+    vec3 f[OSD_MAX_VALENCE]; 
+    vec3 pos = position.xyz;
+    vec3 opos = vec3(0,0,0);
 
-     for (uint i=0; i<valence; ++i) {
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+    outpt.v.org = position.xyz;
+    int boundaryEdgeNeighbors[2];
+    uint currNeighbor = 0;
+    uint ibefore = 0;
+    uint zerothNeighbor = 0;
+#endif
+
+    for (uint i=0; i<valence; ++i) {
         uint im=(i+valence-1)%valence; 
         uint ip=(i+1)%valence; 
 
-        uint idx_neighbor = uint(texelFetchBuffer(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 0 + 1)).x);
+        uint idx_neighbor = uint(texelFetch(OsdValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 0 + 1)).x);
+
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+        bool isBoundaryNeighbor = false;
+        int valenceNeighbor = texelFetch(OsdValenceBuffer,int(idx_neighbor * (2*OSD_MAX_VALENCE+1))).x;
+
+        if (valenceNeighbor < 0) {
+            isBoundaryNeighbor = true;
+            boundaryEdgeNeighbors[currNeighbor++] = int(idx_neighbor);
+            if (currNeighbor == 1)    {
+                ibefore = i;
+                zerothNeighbor = i;
+            } else {
+                if (i-ibefore == 1) {
+                    int tmp = boundaryEdgeNeighbors[0];
+                    boundaryEdgeNeighbors[0] = boundaryEdgeNeighbors[1];
+                    boundaryEdgeNeighbors[1] = tmp;
+                    zerothNeighbor = i;
+                } 
+            }
+        }
+#endif
 
         vec3 neighbor =
-            vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+1)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+2)).x);
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+2)).x);
 
-        uint idx_diagonal = uint(texelFetchBuffer(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 1 + 1)).x);
+        uint idx_diagonal = uint(texelFetch(OsdValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 1 + 1)).x);
 
         vec3 diagonal =
-            vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
 
-        uint idx_neighbor_p = uint(texelFetchBuffer(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*ip + 0 + 1)).x);
+        uint idx_neighbor_p = uint(texelFetch(OsdValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*ip + 0 + 1)).x);
 
         vec3 neighbor_p =
-            vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p+1)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p+2)).x);
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_p+2)).x);
 
-        uint idx_neighbor_m = uint(texelFetchBuffer(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 0 + 1)).x);
+        uint idx_neighbor_m = uint(texelFetch(OsdValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 0 + 1)).x);
 
         vec3 neighbor_m =
-            vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m+1)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m+2)).x);
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor_m+2)).x);
 
-        uint idx_diagonal_m = uint(texelFetchBuffer(g_ValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 1 + 1)).x);
+        uint idx_diagonal_m = uint(texelFetch(OsdValenceBuffer, int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 1 + 1)).x);
 
         vec3 diagonal_m =
-            vec3(texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)).x,
-                 texelFetchBuffer(g_VertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)).x);
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)).x);
 
-        f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0 + diagonal) / (float(valence)+5.0);
+        f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0f + diagonal) / (float(valence)+5.0f);
 
         opos += f[i];
-        output.v.r[i] = (neighbor_p-neighbor_m)/3.0 + (diagonal - diagonal_m)/6.0;
+        outpt.v.r[i] = (neighbor_p-neighbor_m)/3.0f + (diagonal - diagonal_m)/6.0f;
     }
 
     opos /= valence;
-    output.v.position = vec4(opos, 1.0f).xyz;
-
-#if OSD_NUM_VARYINGS > 0
-    for (int i = 0; i < OSD_NUM_VARYINGS; ++i)
-        output.v.varyings[i] = varyings[i];
-#endif
+    outpt.v.position = vec4(opos, 1.0f).xyz;
 
     vec3 e;
-    output.v.e0 = vec3(0,0,0);
-    output.v.e1 = vec3(0,0,0);
+    outpt.v.e0 = vec3(0,0,0);
+    outpt.v.e1 = vec3(0,0,0);
+
     for(uint i=0; i<valence; ++i) {
         uint im = (i + valence -1) % valence;
-        e = 0.5 * (f[i] + f[im]);
-        output.v.e0 += csf(valence-3, 2*i) *e;
-        output.v.e1 += csf(valence-3, 2*i + 1)*e;
+        e = 0.5f * (f[i] + f[im]);
+        outpt.v.e0 += csf(valence-3, 2*i) *e;
+        outpt.v.e1 += csf(valence-3, 2*i + 1)*e;
     }
-    output.v.e0 *= ef[valence - 3];
-    output.v.e1 *= ef[valence - 3];
+    outpt.v.e0 *= ef[valence - 3];
+    outpt.v.e1 *= ef[valence - 3];
+
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+    outpt.v.zerothNeighbor = zerothNeighbor;
+    if (currNeighbor == 1) {
+        boundaryEdgeNeighbors[1] = boundaryEdgeNeighbors[0];
+    }
+
+    if (ivalence < 0) {
+        if (valence > 2) {
+            outpt.v.position = (
+                vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) +
+                vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) +
+                4.0f * pos)/6.0f;        
+        } else {
+            outpt.v.position = pos;                    
+        }
+
+        outpt.v.e0 = ( 
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) -
+            vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
+                 texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) 
+            )/6.0;
+
+        float k = float(float(valence) - 1.0f);    //k is the number of faces
+        float c = cos(M_PI/k);
+        float s = sin(M_PI/k);
+        float gamma = -(4.0f*s)/(3.0f*k+c);
+        float alpha_0k = -((1.0f+2.0f*c)*sqrt(1.0f+c))/((3.0f*k+c)*sqrt(1.0f-c));
+        float beta_0 = s/(3.0f*k + c); 
+
+
+        int idx_diagonal = texelFetch(OsdValenceBuffer,int((vID) * (2*OSD_MAX_VALENCE+1) + 2*zerothNeighbor + 1 + 1)).x;
+        idx_diagonal = abs(idx_diagonal);
+        vec3 diagonal =
+                vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
+
+        outpt.v.e1 = gamma * pos + 
+            alpha_0k * vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])).x,
+                            texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)).x,
+                            texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)).x) +
+            alpha_0k * vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])).x,
+                            texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)).x,
+                            texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)).x) +
+            beta_0 * diagonal;
+
+        for (uint x=1; x<valence - 1; ++x) {
+            uint curri = ((x + zerothNeighbor)%valence);
+            float alpha = (4.0f*sin((M_PI * float(x))/k))/(3.0f*k+c);
+            float beta = (sin((M_PI * float(x))/k) + sin((M_PI * float(x+1))/k))/(3.0f*k+c);
+
+            int idx_neighbor = texelFetch(OsdValenceBuffer, int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 0 + 1)).x;
+            idx_neighbor = abs(idx_neighbor);
+
+            vec3 neighbor =
+                vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+1)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_neighbor+2)).x);
+
+            idx_diagonal = texelFetch(OsdValenceBuffer, int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 1 + 1)).x;
+
+            diagonal =
+                vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+1)).x,
+                     texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*idx_diagonal+2)).x);
+
+            outpt.v.e1 += alpha * neighbor + beta * diagonal;                         
+        }
+
+        outpt.v.e1 /= 3.0f;
+    } 
+#endif
 }
+
 #endif
 
 //----------------------------------------------------------
 // Patches.TessControlGregory
 //----------------------------------------------------------
-#ifdef PATCH_TESS_CONTROL_GREGORY_SHADER
+#ifdef OSD_PATCH_TESS_CONTROL_GREGORY_SHADER
 
 layout(vertices = 4) out;
 
-uniform isamplerBuffer g_QuadOffsetBuffer;
+uniform isamplerBuffer OsdQuadOffsetBuffer;
 
 in block {
     GregControlVertex v;
-} input[];
+    OSD_USER_VARYING_DECLARE
+} inpt[];
 
 out block {
     GregEvalVertex v;
-} output[];
+    OSD_USER_VARYING_DECLARE
+} outpt[];
 
 #define ID gl_InvocationID
 
@@ -175,14 +284,22 @@ void main()
     uint i = gl_InvocationID;
     uint ip = (i+1)%4;
     uint im = (i+3)%4;
-    uint n = uint(input[i].v.valence);
-    int base = GregoryQuadOffsetBase;
+    uint valence = abs(inpt[i].v.valence);
+    uint n = valence;
+    int base = OsdGregoryQuadOffsetBase;
 
-    output[ID].v.position = input[ID].v.position;
+    outpt[ID].v.position = inpt[ID].v.position;
 
-    uint start = texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x & 0x00ff;
-    uint prev = uint(texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0xff00;
-    prev=uint(prev/256);
+    uint start = uint(texelFetch(OsdQuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0x00ffu;
+    uint prev = uint(texelFetch(OsdQuadOffsetBuffer, int(4*gl_PrimitiveID+base + i)).x) & 0xff00u;
+    prev = uint(prev/256);
+
+    uint start_m = uint(texelFetch(OsdQuadOffsetBuffer, int(4*gl_PrimitiveID+base + im)).x) & 0x00ffu;
+    uint prev_p = uint(texelFetch(OsdQuadOffsetBuffer, int(4*gl_PrimitiveID+base + ip)).x) & 0xff00u;
+    prev_p = uint(prev_p/256);
+
+    uint np = abs(inpt[ip].v.valence);
+    uint nm = abs(inpt[im].v.valence);
 
     // Control Vertices based on : 
     // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation" 
@@ -208,51 +325,123 @@ void main()
     //  P0         e0+      e1-         E1
     //
 
-    vec3 Ep = input[i].v.position + input[i].v.e0 * csf(n-3, 2*start) + input[i].v.e1*csf(n-3, 2*start +1);
-    vec3 Em = input[i].v.position + input[i].v.e0 * csf(n-3, 2*prev ) + input[i].v.e1*csf(n-3, 2*prev + 1);
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+    vec3 Ep = vec3(0.0f,0.0f,0.0f);
+    vec3 Em = vec3(0.0f,0.0f,0.0f);
+    vec3 Fp = vec3(0.0f,0.0f,0.0f);
+    vec3 Fm = vec3(0.0f,0.0f,0.0f);
 
-    uint np = input[ip].v.valence;
-    uint nm = input[im].v.valence;
+    vec3 Em_ip;
+    if (inpt[ip].v.valence < -2) {
+        uint j = (np + prev_p - inpt[ip].v.zerothNeighbor) % np;
+        Em_ip = inpt[ip].v.position + cos((M_PI*j)/float(np-1))*inpt[ip].v.e0 + sin((M_PI*j)/float(np-1))*inpt[ip].v.e1;
+    } else {
+        Em_ip = inpt[ip].v.position + inpt[ip].v.e0*csf(np-3, 2*prev_p ) + inpt[ip].v.e1*csf(np-3, 2*prev_p + 1);
+    }
 
-    uint prev_p = uint(texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + ip)).x)&0xff00;
-    prev_p=uint(prev_p/256);
-    vec3 Em_ip = input[ip].v.position + input[ip].v.e0*csf(np-3,2*prev_p) +input[ip].v.e1*csf(np-3, 2*prev_p+1);
+    vec3 Ep_im;
+    if (inpt[im].v.valence < -2) {
+        uint j = (nm + start_m - inpt[im].v.zerothNeighbor) % nm;
+        Ep_im = inpt[im].v.position + cos((M_PI*j)/float(nm-1))*inpt[im].v.e0 + sin((M_PI*j)/float(nm-1))*inpt[im].v.e1;
+    } else {
+        Ep_im = inpt[im].v.position + inpt[im].v.e0*csf(nm-3, 2*start_m) + inpt[im].v.e1*csf(nm-3, 2*start_m + 1);
+    }
 
-    uint start_m = texelFetchBuffer(g_QuadOffsetBuffer, int(4*gl_PrimitiveID+base + im)).x&0x00ff;
-    vec3 Ep_im = input[im].v.position + input[im].v.e0*csf(nm-3, 2*start_m) + input[im].v.e1*csf(nm-3, 2*start_m+1);
+    if (inpt[i].v.valence < 0) {
+        n = (n-1)*2;
+    }
+    if (inpt[im].v.valence < 0) {
+        nm = (nm-1)*2;
+    }  
+    if (inpt[ip].v.valence < 0) {
+        np = (np-1)*2;
+    }
 
-    float s1 = 3 - 2*csf(n-3,2)-csf(np-3,2);
+    if (inpt[i].v.valence > 2) {
+        Ep = inpt[i].v.position + inpt[i].v.e0*csf(n-3, 2*start) + inpt[i].v.e1*csf(n-3, 2*start + 1);
+        Em = inpt[i].v.position + inpt[i].v.e0*csf(n-3, 2*prev ) + inpt[i].v.e1*csf(n-3, 2*prev + 1); 
+
+        float s1=3-2*csf(n-3,2)-csf(np-3,2);
+        float s2=2*csf(n-3,2);
+
+        Fp = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f; 
+        s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
+        Fm = (csf(nm-3,2)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
+
+    } else if (inpt[i].v.valence < -2) {
+        uint j = (valence + start - inpt[i].v.zerothNeighbor) % valence;
+
+        Ep = inpt[i].v.position + cos((M_PI*j)/float(valence-1))*inpt[i].v.e0 + sin((M_PI*j)/float(valence-1))*inpt[i].v.e1;
+        j = (valence + prev - inpt[i].v.zerothNeighbor) % valence;
+        Em = inpt[i].v.position + cos((M_PI*j)/float(valence-1))*inpt[i].v.e0 + sin((M_PI*j)/float(valence-1))*inpt[i].v.e1;
+
+        vec3 Rp = ((-2.0f * inpt[i].v.org - 1.0f * inpt[im].v.org) + (2.0f * inpt[ip].v.org + 1.0f * inpt[(i+2)%4].v.org))/3.0f;
+        vec3 Rm = ((-2.0f * inpt[i].v.org - 1.0f * inpt[ip].v.org) + (2.0f * inpt[im].v.org + 1.0f * inpt[(i+2)%4].v.org))/3.0f;
+
+        float s1 = 3-2*csf(n-3,2)-csf(np-3,2);
+        float s2 = 2*csf(n-3,2);
+
+        Fp = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f; 
+        s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
+        Fm = (csf(nm-3,2)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
+
+        if (inpt[im].v.valence < 0) {
+            s1 = 3-2*csf(n-3,2)-csf(np-3,2);
+            Fp = Fm = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f;
+        } else if (inpt[ip].v.valence < 0) {
+            s1 = 3.0f-2.0f*cos(2.0f*M_PI/n)-cos(2.0f*M_PI/nm);
+            Fm = Fp = (csf(nm-3,2)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
+        }
+
+    } else if (inpt[i].v.valence == -2) {
+        Ep = (2.0f * inpt[i].v.org + inpt[ip].v.org)/3.0f;
+        Em = (2.0f * inpt[i].v.org + inpt[im].v.org)/3.0f;
+        Fp = Fm = (4.0f * inpt[i].v.org + inpt[(i+2)%n].v.org + 2.0f * inpt[ip].v.org + 2.0f * inpt[im].v.org)/9.0f;
+    }
+
+#else // not OSD_PATCH_GREGORY_BOUNDARY
+
+    vec3 Ep = inpt[i].v.position + inpt[i].v.e0 * csf(n-3, 2*start) + inpt[i].v.e1*csf(n-3, 2*start + 1);
+    vec3 Em = inpt[i].v.position + inpt[i].v.e0 * csf(n-3, 2*prev ) + inpt[i].v.e1*csf(n-3, 2*prev + 1);
+
+    vec3 Em_ip = inpt[ip].v.position + inpt[ip].v.e0 * csf(np-3, 2*prev_p ) + inpt[ip].v.e1*csf(np-3, 2*prev_p + 1);
+    vec3 Ep_im = inpt[im].v.position + inpt[im].v.e0 * csf(nm-3, 2*start_m) + inpt[im].v.e1*csf(nm-3, 2*start_m + 1);
+
+    float s1 = 3-2*csf(n-3,2)-csf(np-3,2);
     float s2 = 2*csf(n-3,2);
 
-    vec3 Fp = (csf(np-3,2)*input[i].v.position + s1*Ep + s2*Em_ip + input[i].v.r[start])/3.0;
+    vec3 Fp = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f;
+    s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
+    vec3 Fm = (csf(nm-3,2)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
 
-    s1 = 3.0 -2.0*cos(2.0*M_PI/float(n)) - cos(2*M_PI/float(nm));
-    vec3 Fm = (csf(nm-3,2)*input[i].v.position + s1*Em +s2*Ep_im - input[i].v.r[prev])/3.0;
+#endif
 
-    output[ID].v.Ep = Ep;
-    output[ID].v.Em = Em;
-    output[ID].v.Fp = Fp;
-    output[ID].v.Fm = Fm;
+    outpt[ID].v.Ep = Ep;
+    outpt[ID].v.Em = Em;
+    outpt[ID].v.Fp = Fp;
+    outpt[ID].v.Fm = Fm;
+
+    OSD_USER_VARYING_PER_CONTROL_POINT(ID, ID);
 
     int patchLevel = GetPatchLevel();
-    output[ID].v.patchCoord = vec4(0, 0,
-                                   patchLevel+0.5,
-                                   gl_PrimitiveID+LevelBase+0.5);
+    outpt[ID].v.patchCoord = vec4(0, 0,
+                                  patchLevel+0.5f,
+                                  gl_PrimitiveID+OsdPrimitiveIdBase+0.5f);
 
     OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
 
     if (ID == 0) {
         OSD_PATCH_CULL(4);
 
-#if OSD_ENABLE_SCREENSPACE_TESSELLATION
+#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
         gl_TessLevelOuter[0] =
-            TessAdaptive(input[0].v.hullPosition.xyz, input[1].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[1].v.hullPosition.xyz);
         gl_TessLevelOuter[1] =
-            TessAdaptive(input[0].v.hullPosition.xyz, input[3].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz);
         gl_TessLevelOuter[2] =
-            TessAdaptive(input[2].v.hullPosition.xyz, input[3].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[2].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz);
         gl_TessLevelOuter[3] =
-            TessAdaptive(input[1].v.hullPosition.xyz, input[2].v.hullPosition.xyz, patchLevel);
+            TessAdaptive(inpt[1].v.hullPosition.xyz, inpt[2].v.hullPosition.xyz);
         gl_TessLevelInner[0] =
             max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
         gl_TessLevelInner[1] =
@@ -267,23 +456,32 @@ void main()
 #endif
     }
 }
+
 #endif
 
 //----------------------------------------------------------
 // Patches.TessEvalGregory
 //----------------------------------------------------------
-#ifdef PATCH_TESS_EVAL_GREGORY_SHADER
+#ifdef OSD_PATCH_TESS_EVAL_GREGORY_SHADER
 
 layout(quads) in;
 layout(cw) in;
 
+#if defined OSD_FRACTIONAL_ODD_SPACING
+    layout(fractional_odd_spacing) in;
+#elif defined OSD_FRACTIONAL_EVEN_SPACING
+    layout(fractional_even_spacing) in;
+#endif
+
 in block {
     GregEvalVertex v;
-} input[];
+    OSD_USER_VARYING_DECLARE
+} inpt[];
 
 out block {
     OutputVertex v;
-} output;
+    OSD_USER_VARYING_DECLARE
+} outpt;
 
 void main()
 {
@@ -292,29 +490,29 @@ void main()
 
     vec3 p[20];
 
-    p[0] = input[0].v.position;
-    p[1] = input[0].v.Ep;
-    p[2] = input[0].v.Em;
-    p[3] = input[0].v.Fp;
-    p[4] = input[0].v.Fm;
+    p[0] = inpt[0].v.position;
+    p[1] = inpt[0].v.Ep;
+    p[2] = inpt[0].v.Em;
+    p[3] = inpt[0].v.Fp;
+    p[4] = inpt[0].v.Fm;
 
-    p[5] = input[1].v.position;
-    p[6] = input[1].v.Ep;
-    p[7] = input[1].v.Em;
-    p[8] = input[1].v.Fp;
-    p[9] = input[1].v.Fm;
+    p[5] = inpt[1].v.position;
+    p[6] = inpt[1].v.Ep;
+    p[7] = inpt[1].v.Em;
+    p[8] = inpt[1].v.Fp;
+    p[9] = inpt[1].v.Fm;
 
-    p[10] = input[2].v.position;
-    p[11] = input[2].v.Ep;
-    p[12] = input[2].v.Em;
-    p[13] = input[2].v.Fp;
-    p[14] = input[2].v.Fm;
+    p[10] = inpt[2].v.position;
+    p[11] = inpt[2].v.Ep;
+    p[12] = inpt[2].v.Em;
+    p[13] = inpt[2].v.Fp;
+    p[14] = inpt[2].v.Fm;
 
-    p[15] = input[3].v.position;
-    p[16] = input[3].v.Ep;
-    p[17] = input[3].v.Em;
-    p[18] = input[3].v.Fp;
-    p[19] = input[3].v.Fm;
+    p[15] = inpt[3].v.position;
+    p[16] = inpt[3].v.Ep;
+    p[17] = inpt[3].v.Em;
+    p[18] = inpt[3].v.Fp;
+    p[19] = inpt[3].v.Fm;
 
     vec3 q[16];
 
@@ -378,52 +576,20 @@ void main()
 
     vec3 normal = normalize(cross(BiTangent, Tangent));
 
-    output.v.position = ModelViewMatrix * vec4(WorldPos, 1.0);
-    output.v.normal = normal;
-    output.v.tangent = BiTangent;
+    outpt.v.position = ModelViewMatrix * vec4(WorldPos, 1.0f);
+    outpt.v.normal = normal;
+    outpt.v.tangent = normalize(BiTangent);
 
-    output.v.patchCoord = input[0].v.patchCoord;
-    output.v.patchCoord.xy = vec2(v, u);
+    OSD_USER_VARYING_PER_EVAL_POINT(vec2(u,v), 0, 3, 1, 2);
+
+    outpt.v.patchCoord = inpt[0].v.patchCoord;
+    outpt.v.patchCoord.xy = vec2(v, u);
 
     OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    gl_Position = ProjectionMatrix * output.v.position;
+    gl_Position = ModelViewProjectionMatrix * vec4(WorldPos, 1.0f);
 }
 
-#endif
-
-//----------------------------------------------------------
-// Patches.Vertex
-//----------------------------------------------------------
-#ifdef VERTEX_SHADER
-
-layout (location=0) in vec4 position;
-layout (location=1) in vec3 normal;
-layout (location=2) in vec4 color;
-
-out block {
-    OutputVertex v;
-} output;
-
-void main() {
-    gl_Position = ModelViewProjectionMatrix * position;
-    output.v.color = color;
-}
-
-#endif
-
-//----------------------------------------------------------
-// Patches.FragmentColor
-//----------------------------------------------------------
-#ifdef FRAGMENT_SHADER
-
-in block {
-    OutputVertex v;
-} input;
-
-void main() {
-    gl_FragColor = input.v.color;
-}
 #endif

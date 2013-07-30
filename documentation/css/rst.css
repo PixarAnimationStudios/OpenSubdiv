@@ -1,0 +1,620 @@
+ /* 
+       Copyright 2013 Pixar
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License
+       and the following modification to it: Section 6 Trademarks.
+       deleted and replaced with:
+
+       6. Trademarks. This License does not grant permission to use the
+       trade names, trademarks, service marks, or product names of the
+       Licensor and its affiliates, except as required for reproducing
+       the content of the NOTICE file.
+
+       You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing,
+       software distributed under the License is distributed on an
+       "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+       either express or implied.  See the License for the specific
+       language governing permissions and limitations under the
+       License.
+*/  
+
+
+/*Code Styles
+________________________*/
+
+
+pre, code {
+    border: 1px dashed #555555;
+    background:#222;
+    padding: 5px 10px;
+    line-height: 21px;
+    word-wrap:break-word;
+    text-align: left;
+    width: 96%;
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+}
+.code-keyword {
+    color:#036eff;
+}
+.code-quote {
+    color:#13db03;
+}
+.code-object {
+    color:#e403ff;
+}
+
+
+/**************************************************
+ *
+ * Browser style sheet - loaded by all CSS aware browsers
+ *
+ **************************************************/
+
+.red {
+    color: rgb(128,0,0);
+}
+
+.green {
+    color: rgb(0,128,0);
+}
+
+.blue {
+    color: rgb(0,0,128);
+}
+
+.subtitle {
+    color: #000000;
+    font-size: 12pt;
+}
+
+/* neutralize the "docutils" class imposed by rst */
+
+table.docutils {
+    border-style: hidden;
+    border-spacing: 15px;
+    outline-style: none; }  
+
+.widetablecontainer {
+    overflow: auto;
+}
+
+/* container for a table with centered entries */
+
+table.data {
+    background-color: #f9f9f9;
+    border: 1px solid #2f6fab;
+    border-width: 1px;
+    border-collapse: collapse;
+    padding-left: 10px;
+    margin-top: 10px;
+    margin-left: 30px;
+    margin-right: 60px;
+    text-align: center; 
+}    
+
+table.data tt {
+    max-width: 400px;
+    display: inline-block;
+    word-wrap: break-word;
+}
+
+table {
+	font-family: verdana,arial,sans-serif;
+	font-size:11px;
+	color:#333333;
+	border-width: 1px;
+	border-color: #666666;
+	border-collapse: collapse;
+    margin-left:60px; 
+}
+
+table th {
+	border-width: 1px;
+	padding: 8px;
+	border-style: solid;
+	border-color: #666666;
+	background-color: #dedede;
+}
+
+table td {
+	border-width: 1px;
+	padding: 8px;
+	border-style: solid;
+	border-color: #666666;
+    background-color: #f9f9f9;
+}
+
+/* container for a table with left-aligned entries */
+
+table.data-list {
+    border: 1px solid #2f6fab;
+    border-width: 1px;
+    border-collapse: collapse;
+    padding-left: 10px;
+    margin-top: 10px;
+    margin-left: 30px;
+    margin-right: 60px;
+    margin-bottom: 20px;
+    text-align: left; 
+} 
+
+table.data-list caption {
+    margin: 5px;
+}
+
+table.data-list td{
+    max-width: 600px;
+    overflow: hidden;
+    padding: 6px;
+}
+
+/* layout hack to override default left margin in a table */
+
+table.fullpage {
+    margin-top: 4px;
+    margin-left: -20px;
+    border-style: hidden;
+    outline-style: none; 
+} 
+
+/* specialized container for quick reference indices */
+
+table.quickref caption {
+    padding: 12px 6px 6px 6px;
+}
+
+table.quickref .line {
+    padding: 2px 15px 2px 15px;
+}
+
+table.quickref {
+    width: 600px;
+    margin-top: 0px;
+    margin-left: 30px;
+    border-style: hidden;
+    border-collapse: collapse;
+    outline-style: none;
+    text-align: left; 
+} 
+
+hr.docutils {
+    background-color: transparent;
+    border: 1px solid rgb(204, 204, 204);
+    clear: none;
+    color: #333;
+    display: block;
+    float: none;
+    height: 0px;
+    margin-bottom: 6.5px;
+    margin-left: 0px;
+    margin-right: 0px;
+    margin-top: 6.5px;
+    width: 794px; 
+}
+
+/**************************************************
+ * CLASSES
+ **************************************************/
+
+/* Only for use in the copyright in the footer */
+.size {
+    line-height: 100%;
+}
+
+.no_Indent  {
+    margin-left: inherit;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.indentedMenu {
+    margin-left: 18;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.indentedMenu2 {
+    margin-left: 36;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.indentedMenu3 {
+    margin-left: 54;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.literal-block {
+    padding: 1em;
+    background-color: #f9f9f9;
+    border: 1px dashed #2f6fab;
+    clear: both;
+    margin-left: 25px;
+    margin-right: 60px;
+    white-space: pre;
+    overflow: auto;
+    width: auto;
+    font-weight: normal;
+}
+
+.no_Indent, .no_Indent_Bold, .indentedMenu, .indentedMenu2, .indentedMenu3 {
+    line-height: normal;
+}
+
+.no_Indent a:link, .no_Indent_Bold a:link, .no_Indent a:visited, .no_Indent a:active,
+.indentedMenu a:link, .indentedMenu a:visited, .indentedMenu a:active,
+.indentedMenu2 a:link, .indentedMenu2 a:visited, .indentedMenu2 a:active,
+.indentedMenu3 a:link, .indentedMenu3 a:visited, .indentedMenu3 a:active
+ {
+    text-decoration: none;
+}
+
+.no_Indent_Bold
+{
+        font-weight : bold;
+}
+  
+.menu A:link {
+    text-decoration: none;
+    color: "#777777";}
+
+.menu A:visited {    
+    text-decoration: none;
+    color: "#777777";}
+
+.menu A:hover {
+   background-color: "#CCCCCC";
+   color: white; }
+
+.menu {
+    color: "#CCCCCC";
+}
+
+h1.title {
+    display: none;
+}
+
+
+/****************************************************
+ *
+ * Special rst "containers"
+ *
+ ***************************************************/
+
+.notebox {
+    padding: 0.2em 1em 1em 1em;
+    background-color: #f9f9f9;
+    border: 1px solid rgb(120,30,40);
+    border-radius:10px;
+    -moz-border-radius:10px;
+    -webkit-border-radius:10px;
+    clear: both;
+    margin-left: 60px;
+    margin-right: 60px;
+    /*float:right;*/
+}
+
+/* assume the first paragraph is a title */
+
+.notebox p:first-child {
+    font-weight : bold;
+    color: rgb(120,30,40);
+    margin-bottom: 20px;
+    margin-top: 20px;
+}
+
+/* code that only requires markup/emphasis */
+
+.codefhead {
+    font-family: Monaco, Courier, "Courier New", monospace;
+    font-size: 13px!important;
+    clear: both;
+    margin-left: 0px;
+    background-color: #ddd;
+    border: none;
+    overflow: auto;
+    font-weight: normal;
+}
+
+/* code that requires markup/emphasis and a pretty container */
+
+.stylized-rib {
+    font-family: Monaco, Courier, "Courier New", monospace;
+    clear: both;
+    padding: 1em;
+    background-color: #f9f9f9;
+    border: 1px dashed #2f6fab;
+    font-weight: normal;
+}
+
+/* for side-by-side code examples */
+
+.shader-rib {
+    font-family: Monaco, Courier, "Courier New", monospace;
+    clear: both;
+    margin-left: 0px;
+    padding: 1em;
+    background-color: #f9f9f9;
+    border: 1px dashed #2f6fab;
+}
+
+/* matches spacing of "codefhead", but restores default fonts */
+
+.codefbody {
+    font-family : "Verdana", Helvetica, sans-serif;
+    clear: both;
+    margin-bottom: 13px;
+    margin-top: 5px;
+    margin-left: 30px;
+    margin-right: 60px;
+    font-weight: normal;
+}
+
+/* special container for Important/Note/Tip pullouts */
+
+.impnotip {
+    margin-top: 23px;
+    margin-bottom: 23px;
+    padding: 0.2em 1em 1em 1em;
+    border: 3px inset;
+    border-color: #A77;
+    clear: both;
+    margin-left: 60px;
+    margin-right: 60px;
+    background-color: #CAA;
+    border-radius:10px;
+    -moz-border-radius:10px;
+    -webkit-border-radius:10px;
+}
+
+.note {
+    margin-top: 23px;
+    margin-bottom: 23px;
+    padding: 0.2em 1em 1em 1em;
+    border: 3px inset;
+    border-color: #7AC;
+    clear: both;
+    margin-left: 60px;
+    margin-right: 60px;
+    background-color: #7AC;
+    border-radius:10px;
+    -moz-border-radius:10px;
+    -webkit-border-radius:10px;
+}
+
+ul.auto-toc li {
+   list-style-type: none;
+}
+
+ol li {
+    list-style-type: decimal;
+}
+
+.imgboxtop {
+    border-top: 1px solid #ddd; 
+    border-right: 1px solid #bbb; 
+    border-left: 1px solid #ddd; 
+    margin: 0;
+    padding-top: 10px;
+    padding-right: 10px;
+    padding-bottom: 10px;
+    padding-left: 10px;
+}
+
+.imgboxbottom {
+    border-right: 1px solid #bbb; 
+    border-bottom: 1px solid #bbb; 
+    border-left: 1px solid #ddd; 
+    margin: 0;
+    padding-top: 10px;
+    padding-right: 10px;
+    padding-bottom: 10px;
+    padding-left: 10px;
+}
+
+.caption {
+    font-size: small;
+}
+
+.code {
+    padding: 1em;
+    background-color: #f9f9f9;
+    border: 1px dashed #2f6fab;
+    clear: both;
+    font-weight: normal;
+    margin-right: 20px;
+}
+
+pre {
+    border: 1px dashed #2f6fab;
+    background: #222;
+    padding: 5px 10px;
+    line-height: 21px;
+    word-wrap: normal;
+    text-align: left;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    white-space: pre;
+    overflow: auto;
+    width: auto;
+    font-weight: normal;
+}
+
+code {
+    font-family: Monaco, Courier, "Courier New", monospace;
+    overflow: auto;
+    width: auto;
+    border: 0px;
+    background: transparent;
+    padding: 0px;
+}
+
+.copyright {
+    text-align: center;
+    line-height: 80%;
+}
+
+.highlight {
+    color: #880000;
+    font-weight: bold;
+}
+
+div.navigation {
+    position:fixed;
+    width:245px;
+    border: 1px solid rgb(204, 204, 204);
+    border-radius:15px;
+    -moz-border-radius: 15px;
+    -webkit-border-radius: 15px;
+    text-decoration: none;
+    color: #9A9A9A;
+    font-size: 12px;
+    font-weight: 400;
+    font-family: futura-pt, sans-serif;
+}
+
+div.navigation ul {
+    list-style-image: url('../images/toggler0.gif');
+}
+
+div.navigation a:link,
+div.navigation a:visited,
+div.navigation a:hover {
+    color: #9A9A9A;
+    text-decoration: none;
+}
+
+div.document {
+    background: rgb(240,240,240);
+/*
+    margin-left: 255px;
+    margin-top: 5px;
+    padding-top: 15px;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-bottom: 15px;
+*/
+    
+    border-top-left-radius: 15px;
+    -moz-border-top-left-radius: 15px;
+    -webkit-border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+    -moz-border-top-right-radius: 15px;
+    -webkit-border-top-right-radius: 15px;
+
+    font-family:Arial, Helvetica, sans-serif!important;
+	color:#333!important;
+}
+
+div.document a,
+div.document a:visited {
+    color: #333;
+}
+
+div.document a:hover {
+    color: #FFCC03;
+}
+
+div.footer {
+    /* background: #FFF;*/
+    margin-left: 255px;
+    padding-top: 15px;
+    padding-left: 5px;
+    padding-right: 5px;
+    padding-bottom: 15px;
+
+    border-bottom-left-radius: 15px;
+    -moz-border-bottom-left-radius: 15px;
+    -webkit-border-bottom-left-radius: 15px;
+    border-bottom-right-radius: 15px;
+    -moz-border-bottom-right-radius: 15px;
+    -webkit-border-bottom-right-radius: 15px;
+}
+
+div.contents.local.topic { 
+    background-color: transparent;
+    border: 1px solid #DEDBE7;
+    border-collapse: collapse;
+    margin-left: 60px;
+    margin-right: 60px;
+    margin-bottom: 15px;
+    border-radius:5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+}
+
+img.align-center, .align-center img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto
+}
+
+
+/****************************************************
+****************************************************/
+
+body {
+    background-image: url('../images/background.jpg');
+    background-repeat:repeat;
+}
+
+.page{
+    position:relative;
+    width: 946px;
+    margin:0 auto 0px auto;
+}
+
+.hidden {
+    display: none;
+}
+
+/****************************************************
+****************************************************/
+
+#searchInput{
+    /*background: #474747;*/
+    background: #9A9A9A;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    -khtml-border-radius: 5px;
+    border-radius: 5px;
+    border: 1px solid black;
+    -moz-box-shadow: 0 1px 0 #444444;
+    -webkit-box-shadow: 0 1px 0 #444;
+    color: white;
+    font-size: 11px;
+    padding: 5px 5px;
+    width: 145px;
+    height: 17px;
+    margin-left: 10px;
+}
+
+#searchButton{
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    -khtml-border-radius: 5px;
+    border-radius: 5px;
+    background: black;
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#333333', endColorstr='#111111');
+    background: -webkit-gradient(linear, left top, left bottom, from(#333), to(#111));
+    background: -moz-linear-gradient(bottom, #111, #333);
+    box-shadow: inset 0px 1px 0px #555;
+    -webkit-box-shadow: inset 0px 1px 0px #555;
+    -moz-box-shadow: inset 0px 1px 0px #555;
+    /*color: #DDD;*/
+    color: #9A9A9A;
+    text-transform: uppercase;
+    font-size: 11px;
+    padding: 6px 10px;
+    border: 1px solid black;
+    height: 28px;
+}
+

@@ -1,58 +1,26 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 #ifndef FAR_KERNEL_BATCH_H
 #define FAR_KERNEL_BATCH_H
@@ -112,7 +80,7 @@ public:
         HIERARCHICAL_EDIT,
     };
 
-    /// Constructor.
+    /// \brief Constructor.
     /// 
     /// @param kernelType    the type of compute kernel kernel
     ///
@@ -148,74 +116,74 @@ public:
         _meshIndex(meshIndex) {
     }
 
-    /// Returns the type of kernel to apply to the vertices in the batch.
+    /// \brief Returns the type of kernel to apply to the vertices in the batch.
     KernelType GetKernelType() const {
         return _kernelType;
     }
 
 
-    /// Returns the subdivision level of the vertices in the batch
+    /// \brief Returns the subdivision level of the vertices in the batch
     int GetLevel() const {
         return _level;
     }
 
 
     
-    /// Returns the index of the first vertex in the batch
+    /// \brief Returns the index of the first vertex in the batch
     int GetStart() const {
         return _start;
     }
 
-    /// Returns the index of the first vertex in the batch
+    /// \brief Returns the index of the first vertex in the batch
     const int * GetStartPtr() const {
         return & _start;
     }
 
 
     
-    /// Returns the index of the last vertex in the batch
+    /// \brief Returns the index of the last vertex in the batch
     int GetEnd() const {
         return _end;
     }
 
-    /// Returns the index of the last vertex in the batch
+    /// \brief Returns the index of the last vertex in the batch
     const int * GetEndPtr() const {
         return & _end;
     }
 
 
 
-    /// Returns the edit index (for the hierarchical edit kernels only)
+    /// \brief Returns the edit index (for the hierarchical edit kernels only)
     int GetTableIndex() const {
         return _tableIndex;
     }
     
 
 
-    /// Returns
+    /// \brief Returns
     int GetTableOffset() const {
         return _tableOffset;
     }
 
-    /// Returns
+    /// \brief Returns
     const int * GetTableOffsetPtr() const {
         return & _tableOffset;
     }
 
 
 
-    /// Returns
+    /// \brief Returns
     int GetVertexOffset() const {
         return _vertexOffset;
     }
 
-    /// Returns
+    /// \brief Returns
     const int * GetVertexOffsetPtr() const {
         return & _vertexOffset;
     }
 
 
-    /// Returns the mesh index (used in batching)
+    /// \brief Returns the mesh index (used in batching)
     int GetMeshIndex() const {
         return _meshIndex;
     }

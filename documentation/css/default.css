@@ -1,0 +1,251 @@
+ /* 
+       Copyright 2013 Pixar
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License
+       and the following modification to it: Section 6 Trademarks.
+       deleted and replaced with:
+
+       6. Trademarks. This License does not grant permission to use the
+       trade names, trademarks, service marks, or product names of the
+       Licensor and its affiliates, except as required for reproducing
+       the content of the NOTICE file.
+
+       You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing,
+       software distributed under the License is distributed on an
+       "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+       either express or implied.  See the License for the specific
+       language governing permissions and limitations under the
+       License.
+*/  
+
+/*-------------------------------GENERAL STYLES-------------------------------*/
+
+html, body {
+	margin:0;
+	padding:0;
+	font-family:Arial, Helvetica, Sans-serif;
+	background:#000;
+}
+a img {
+	border:none;
+}
+a {
+	text-decoration:none;
+	color:#999
+}
+a:hover {
+	color:#333;
+}
+a:active {
+	color:#000;
+}
+p {
+	color:#444;
+	font-family:Helvetica, Arial, sans-serif;
+}
+#mainNav {
+	float:right;
+}
+.twoThird, #twoThird {
+	width:66%;
+	float:left;
+}
+.oneThird, #oneThird {
+	width:33%;
+	float:right;
+}
+.hidden {
+	display:none;
+}
+.creatorMainNavActive a {
+	color:#333
+}
+.twoColumn {
+	float: left;
+	padding: 0 40px 0 0;
+	text-align: justify;
+	width: 450px;
+}
+.threeColumn {
+	float: left;
+	padding: 0 15px 0 0;
+	text-align: justify;
+	width: 310px;
+}
+.fourColumn {
+	float: left;
+	padding: 0 15px 0 0;
+	text-align: justify;
+	width: 230px;
+}
+.floatLeft {
+	float:left;
+}
+.floatRight {
+	float:right;
+}
+.clearBoth, .clearFloat {
+	clear:both;
+}
+.fullWidth, .fluidWidth {
+	width:100%;
+}
+.dateStamp {
+	font-size: 11px;
+	padding:0;
+	font-weight:bold;
+	color: #AAAAAA;
+	font-style: italic;
+}
+.socialLinksInPage {
+	margin-bottom:10px;
+}
+#mainSubNavigation ul, ul.creatorFooterNav, #headerSubNav ul, #blogPostPreview ul, #mainSiteNavigation ul, form#userRegistrationForm ul, #blogEntriesForSection ul, #galleryEntriesForSection ul {
+	list-style-type:none;
+	margin:0;
+	padding:0;
+}
+.breadcrumbs {
+	font-size: 10px;
+	padding: 10px 0 0;
+	text-align: right;
+}
+.center {
+	width:980px;
+	display:none;
+	margin:0 auto;
+}
+.logo {
+	float: left;
+	padding: 10px;
+}
+.adSidebar {
+	float:left;
+	margin:10px 0;
+}
+.sidebarLeft {
+	width:300px;
+	float:left;
+}
+.sidebarRight {
+	width:300px;
+	float:right;
+}
+.articleTextLeft {
+	width:640px;
+	padding:0 0 20px 20px;
+	float:left;
+	border-left: 1px solid #EEEEEE;
+}
+.articleTextRight {
+	width:640px;
+	padding:0 20px 20px 0;
+	float:left;
+	border-right:1px solid #ddd;
+}
+h2.commentHeading {
+	border-top:1px solid #ddd;
+	padding-top:20px;
+}
+/*-------------------------------BLOG STYLES-------------------------------*/	
+.blogPostSynopsis {
+	border-bottom: 1px solid #DDDDDD;
+	float: left;
+	margin-bottom: 20px;
+	padding-bottom: 50px;
+}
+.blogPostSynopsis h2 {
+	font-size: 21px;
+	margin: 0;
+}
+.blog .articleTextLeft {
+	border-left: 1px solid #EEEEEE;
+	float: left;
+	margin-left: 15px;
+	padding: 0 0 20px 20px;
+	width: 640px;
+}
+.blog .articleRightLeft {
+	border-right: 1px solid #EEEEEE;
+	float: left;
+	margin-right: 15px;
+	padding: 0 0 20px 20px;
+	width: 640px;
+}
+
+/*-------------------------------FOOTER STYLES-------------------------------*/	
+.footerColor p {
+	margin:0;
+	padding:0;
+}
+.footerColumn, #footerRight {
+	background:#ddd;
+	float:left;
+}
+ul.creatorFooterNav {
+	border-top:1px solid #686868;
+	margin-top:20px;
+}
+ul.creatorFooterNav li a {
+	float: left;
+	padding: 10px 25px 10px 0;
+}
+
+
+/*-------------------------------COLOR STYLES-------------------------------*/
+.headerColor {
+	border-bottom: 1px solid #EEEEEE;
+	float: left;
+}
+.subHeaderColor {
+	border-bottom: 1px solid #EEEEEE;
+	float: left;
+}
+.footerColor {
+	float: left;
+	background:#000;
+	margin-top: 20px;
+}
+#flavorLogo {
+	float:left;
+	width:300px;
+	height:100px;
+}
+/*-------------------------------NAVIGATION STYLES-------------------------------*/
+
+#mainSiteNavigation {
+	float:right;
+}
+#mainSiteNavigation li {
+	float: left;
+	padding: 10px;
+}
+#headerSubNav {
+	float:right;
+}
+#headerSubNav li {
+	float: left;
+	font-size: 13px;
+	padding: 10px;
+}
+#headerSubNav li a.active {
+	color:#222;
+}
+#mainSubNavigation {
+	font-family:'Oswald', Arial, Helvetica, sans-serif;
+	padding:20px;
+}
+#mainSubNavigation ul li {
+	line-height: 30px;
+}
+#mainSubNavigation li.navbarLabel {
+	font-size: 18px;
+	font-weight: bold;
+	margin: 20px 0 5px;
+}
+

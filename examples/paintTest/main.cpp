@@ -1,62 +1,34 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
 #if defined(__APPLE__)
-    #include <OpenGL/gl3.h>
+    #if defined(OSD_USES_GLEW)
+        #include <GL/glew.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
     #define GLFW_INCLUDE_GL3
     #define GLFW_NO_GLU
 #else
@@ -68,7 +40,7 @@
 #endif
 
 #if defined(GLFW_VERSION_3)
-    #include <GL/glfw3.h>
+    #include <GLFW/glfw3.h>
     GLFWwindow* g_window=0;
     GLFWmonitor* g_primary=0;
 #else
@@ -395,7 +367,7 @@ createOsdMesh() {
         OpenSubdiv::OsdCpuComputeController,
         OpenSubdiv::OsdGLDrawContext>(
             g_cpuComputeController,
-            hmesh, 3, level, bits);
+            hmesh, 3, 0, level, bits);
 
     // Hbr mesh can be deleted
     delete hmesh;
@@ -593,16 +565,16 @@ EffectDrawRegistry::_CreateDrawConfig(
         glUniformBlockBinding(config->program, uboIndex, g_lightingBinding);
 
     GLint loc;
-    if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
     }
 
@@ -807,10 +779,14 @@ display() {
         GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
         glProgramUniform4f(program, diffuseColor, 1, 1, 1, 1);
 
-        GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
-        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformLevelBase, patch.GetPatchIndex());
+        GLuint uniformGregoryQuadOffsetBase =
+	  glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+        GLuint uniformPrimitiveIdBase =
+	  glGetUniformLocation(program, "OsdPrimitiveIdBase");
+        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
+			   patch.GetQuadOffsetIndex());
+        glProgramUniform1i(program, uniformPrimitiveIdBase,
+			   patch.GetPatchIndex());
 
         if (g_wire == 0) {
             glDisable(GL_CULL_FACE);
@@ -971,10 +947,14 @@ drawStroke(int x, int y)
         effect.paint = 1;
         
         GLuint program = bindProgram(effect, patch);
-        GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
-        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformLevelBase, patch.GetPatchIndex());
+        GLuint uniformGregoryQuadOffsetBase =
+	  glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+        GLuint uniformPrimitiveIdBase =
+	  glGetUniformLocation(program, "OsdPrimitiveIdBase");
+        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
+			   patch.GetQuadOffsetIndex());
+        glProgramUniform1i(program, uniformPrimitiveIdBase,
+			   patch.GetPatchIndex());
 
         glDrawElements(primType,
                        patch.GetNumIndices(), GL_UNSIGNED_INT,
@@ -1000,7 +980,7 @@ motion(int x, int y) {
 #endif
 
 #if GLFW_VERSION_MAJOR>=3
-    if (glfwGetKey(w,GLFW_KEY_LALT)) {
+    if (glfwGetKey(w,GLFW_KEY_LEFT_ALT)) {
 #else
     if (glfwGetKey(GLFW_KEY_LALT)) {
 #endif
@@ -1032,7 +1012,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow * w, int button, int state) {
+mouse(GLFWwindow * w, int button, int state, int mods) {
 #else
 mouse(int button, int state) {
 #endif
@@ -1045,7 +1025,7 @@ mouse(int button, int state) {
     }
 
 #if GLFW_VERSION_MAJOR>=3
-    if (not glfwGetKey(w, GLFW_KEY_LALT)) {
+    if (not glfwGetKey(w, GLFW_KEY_LEFT_ALT)) {
 #else
     if (not glfwGetKey(GLFW_KEY_LALT)) {
 #endif
@@ -1081,6 +1061,14 @@ reshape(int width, int height) {
 
 }
 
+void reshape() {
+#if GLFW_VERSION_MAJOR>=3
+    reshape(g_window, g_width, g_height);
+#else
+    reshape(g_width, g_height);
+#endif
+}
+
 //------------------------------------------------------------------------------
 #if GLFW_VERSION_MAJOR>=3
 void windowClose(GLFWwindow*) {
@@ -1102,8 +1090,9 @@ toggleFullScreen() {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int event) {
+keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
 #else
+#define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
 #endif
 
@@ -1117,7 +1106,7 @@ keyboard(int key, int event) {
         case '+':
         case '=':  g_tessLevel++; break;
         case '-':  g_tessLevel = std::max(1, g_tessLevel-1); break;
-        case GLFW_KEY_ESC: g_hud.SetVisible(!g_hud.IsVisible()); break;
+        case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
     }
 }
 
@@ -1328,9 +1317,9 @@ int main(int argc, char ** argv)
         }
         
         if (g_primary) {
-            GLFWvidmode vidmode = glfwGetVideoMode(g_primary);
-            g_width = vidmode.width;
-            g_height = vidmode.height;
+            GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
+            g_width = vidmode->width;
+            g_height = vidmode->height;
         }
     }
 
@@ -1360,7 +1349,7 @@ int main(int argc, char ** argv)
 #endif
 
 
-#if not defined(__APPLE__)
+#if defined(OSD_USES_GLEW)
 #ifdef CORE_PROFILE
     // this is the only way to initialize glew correctly under core profile context.
     glewExperimental = true;
@@ -1379,6 +1368,8 @@ int main(int argc, char ** argv)
 
 #if GLFW_VERSION_MAJOR>=3
     glfwSetWindowSizeCallback(g_window, reshape);
+    // as of GLFW 3.0.1 this callback is not implicit
+    reshape();
 #else
     glfwSetWindowSizeCallback(reshape);
 #endif

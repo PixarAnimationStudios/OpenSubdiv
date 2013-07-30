@@ -1,66 +1,42 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
 //----------------------------------------------------------
-// Patches.Prologue
+// Patches.Common
 //----------------------------------------------------------
 
-#ifndef OSD_NUM_VARYINGS
-#define OSD_NUM_VARYINGS 0
+#ifndef OSD_TRANSITION_ROTATE
+#define OSD_TRANSITION_ROTATE 0
+#endif
+
+#if defined OSD_PATCH_BOUNDARY
+    #define OSD_PATCH_INPUT_SIZE 12
+#elif defined OSD_PATCH_CORNER
+    #define OSD_PATCH_INPUT_SIZE 9
+#else
+    #define OSD_PATCH_INPUT_SIZE 16
 #endif
 
 #define M_PI 3.14159265359f
@@ -75,9 +51,6 @@ struct HullVertex {
     float4 patchCoord : PATCHCOORD; // u, v, level, faceID
     int4 ptexInfo : PTEXINFO;       // u offset, v offset, 2^ptexlevel, rotation
     int3 clipFlag : CLIPFLAG;
-#if OSD_NUM_VARYINGS > 0
-    float varyings[OSD_NUM_VARYINGS] : VARYING;
-#endif
 };
 
 struct OutputVertex {
@@ -87,9 +60,6 @@ struct OutputVertex {
     float3 tangent : TANGENT;
     float4 patchCoord : PATCHCOORD; // u, v, level, faceID
     noperspective float4 edgeDistance : EDGEDISTANCE;
-#if OSD_NUM_VARYINGS > 0
-    float varyings[OSD_NUM_VARYINGS] : VARYING;
-#endif
 };
 
 struct GregHullVertex {
@@ -114,9 +84,6 @@ struct GregDomainVertex {
     float3 Fm : POSITION4;
     float4 patchCoord: TEXTURE0;
     float4 ptexInfo: TEXTURE1;
-#if OSD_NUM_VARYINGS > 0
-    float varyings[OSD_NUM_VARYINGS];
-#endif
 };
 
 struct HS_CONSTANT_FUNC_OUT {
@@ -133,11 +100,12 @@ cbuffer Transform : register( b0 ) {
 cbuffer Tessellation : register( b1 ) {
     float TessLevel;
     int GregoryQuadOffsetBase;
-    int LevelBase;
+    int PrimitiveIdBase;
 };
 
-float GetTessLevel(int patchLevel) {
-#if OSD_ENABLE_SCREENSPACE_TESSELLATION
+float GetTessLevel(int patchLevel)
+{
+#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
     return TessLevel;
 #else
     return TessLevel / pow(2, patchLevel-1);
@@ -150,7 +118,7 @@ float GetPostProjectionSphereExtent(float3 center, float diameter)
     return abs(diameter * ProjectionMatrix[1][1] / p.w);
 }
 
-float TessAdaptive(float3 p0, float3 p1, int patchLevel)
+float TessAdaptive(float3 p0, float3 p1)
 {
     // Adaptive factor can be any computation that depends only on arg values.
     // Project the diameter of the edge's bounding sphere instead of using the
@@ -164,27 +132,22 @@ float TessAdaptive(float3 p0, float3 p1, int patchLevel)
 #define OSD_DISPLACEMENT_CALLBACK
 #endif
 
-Buffer<int2> g_ptexIndicesBuffer : register( t3 );
+Buffer<int2> OsdPatchParamBuffer : register( t3 );
 
-int GetPatchLevel(int primitiveID)
-{
-    int2 ptexIndex = g_ptexIndicesBuffer[primitiveID + LevelBase].xy;
-    return ptexIndex.y & 0xf;
-}
+#define GetPatchLevel(primitiveID)                                      \
+        (OsdPatchParamBuffer[primitiveID + PrimitiveIdBase].y & 0xf)
 
-#define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
+#define OSD_COMPUTE_PTEX_COORD_HULL_SHADER                              \
     {                                                                   \
-        int2 ptexIndex = g_ptexIndicesBuffer[ID + LevelBase].xy;        \
+        int2 ptexIndex = OsdPatchParamBuffer[ID + PrimitiveIdBase].xy;  \
         int faceID = ptexIndex.x;                                       \
-        int lv = 1 << (ptexIndex.y & 0xf);                              \
+        int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1)); \
         int u = (ptexIndex.y >> 17) & 0x3ff;                            \
         int v = (ptexIndex.y >> 7) & 0x3ff;                             \
         int rotation = (ptexIndex.y >> 5) & 0x3;                        \
         output.patchCoord.w = faceID+0.5;                               \
         output.ptexInfo = int4(u, v, lv, rotation);                     \
     }
-
-#define OSD_COMPUTE_PTEX_COORD_HULL_SHADER
 
 #define OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER                            \
     {                                                                   \
@@ -203,13 +166,13 @@ int GetPatchLevel(int primitiveID)
     {                                                           \
         int rot = (patch[0].ptexInfo.w + 4 - ROTATE)%4;         \
         if (rot == 1) {                                         \
-            output.tangent = -normalize(Tangent);               \
-        } else if (rot == 2) {                                  \
             output.tangent = -normalize(BiTangent);             \
+        } else if (rot == 2) {                                  \
+            output.tangent = -normalize(Tangent);               \
         } else if (rot == 3) {                                  \
-            output.tangent = normalize(Tangent);                \
-        } else {                                                \
             output.tangent = normalize(BiTangent);              \
+        } else {                                                \
+            output.tangent = normalize(Tangent);                \
         }                                                       \
     }
 
