@@ -658,7 +658,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdCpuComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_cpuComputeController,
-                                                hmesh, g_nVertexElement, level, bits);
+                                                hmesh, g_nVertexElement, 0, level, bits);                                            
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         if (not g_ompComputeController) {
@@ -668,7 +668,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdOmpComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_ompComputeController,
-                                                hmesh, g_nVertexElement, level, bits);
+                                                hmesh, g_nVertexElement, 0, level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == kTBB) {
@@ -679,7 +679,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdTbbComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_tbbComputeController,
-                                                hmesh, g_nVertexElement, level, bits);
+                                                hmesh, g_nVertexElement, 0, level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GCD
     } else if (kernel == kGCD) {
@@ -690,7 +690,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdGcdComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_gcdComputeController,
-                                                hmesh, g_nVertexElement, level, bits);
+                                                hmesh, g_nVertexElement, 0, level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == kCL) {
@@ -701,7 +701,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdCLComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_clComputeController,
-                                                hmesh, g_nVertexElement, level, bits,
+                                                hmesh, g_nVertexElement, 0, level, bits,
                                                 g_clContext, g_clQueue);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
@@ -713,7 +713,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdCudaComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_cudaComputeController,
-                                                hmesh, g_nVertexElement, level, bits);
+                                                hmesh, g_nVertexElement, 0, level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if(kernel == kGLSL) {
@@ -724,7 +724,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdGLSLTransformFeedbackComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_glslTransformFeedbackComputeController,
-                                                hmesh, g_nVertexElement, level, bits);
+                                                hmesh, g_nVertexElement, 0, level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if(kernel == kGLSLCompute) {
@@ -735,7 +735,7 @@ createOsdMesh( const std::string &shape, Matrix &xform, float min[3], float max[
                                          OpenSubdiv::OsdGLSLComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_glslComputeController,
-                                                hmesh, g_nVertexElement, level, bits);
+                                                hmesh, g_nVertexElement, 0, level, bits);
 #endif
     } else {
         printf("Unsupported kernel %s\n", getKernelName(kernel));

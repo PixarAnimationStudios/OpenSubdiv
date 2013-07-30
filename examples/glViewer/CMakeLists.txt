@@ -47,6 +47,12 @@ if ( GLEW_FOUND )
     list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
 endif()
 
+if( TBB_FOUND ) 
+    list(APPEND PLATFORM_LIBRARIES
+        ${TBB_LIBRARIES}
+    )    
+endif()
+
 #-------------------------------------------------------------------------------
 # Shader Stringification
 # We want to use preprocessor include directives to include GLSL and OpenCL

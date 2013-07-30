@@ -445,6 +445,7 @@ if (NOT NO_LIB)
 
     target_link_libraries(osd_static_cpu
         ${PLATFORM_CPU_LIBRARIES}
+        ${TBB_LIBRARIES}        
     )
 
     _add_possibly_cuda_library(osd_static_gpu STATIC
@@ -474,6 +475,7 @@ if (NOT NO_LIB)
 
         target_link_libraries(osd_dynamic_cpu
             ${PLATFORM_CPU_LIBRARIES}
+            ${TBB_LIBRARIES}            
         )
 
         _add_possibly_cuda_library(osd_dynamic_gpu SHARED
