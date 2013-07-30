@@ -65,14 +65,17 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
 
     set(RST_FILES 
         api_overview.rst
-        intro.rst 
         cmake_build.rst
         code_examples.rst
         dxviewer.rst
+        far_overview.rst
         getting_started.rst
         glviewer.rst
         glbatchviewer.rst
+        hbr_overview.rst
+        intro.rst 
         limiteval.rst
+        osd_overview.rst
         painttest.rst
         ptexviewer.rst
         release_notes.rst 

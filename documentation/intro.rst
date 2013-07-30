@@ -42,11 +42,11 @@ Introduction
 OpenSubdiv is a set of open source libraries that implement high performance 
 subdivision surface (subdiv) evaluation on massively parallel CPU and GPU 
 architectures. This codepath is optimized for drawing deforming surfaces with 
-static topology at interactive framerates. The resulting limit surface are a match
+static topology at interactive framerates. The resulting limit surfaces are a match
 for Pixar's Renderman specification within numerical precision limits.
 
 OpenSubdiv is a code API which we hope to integrate into 3rd. party digital
-content creation tools. It is **not** an application nor a tool that can be used
+content creation tools. It is **not** an application, nor a tool that can be used
 directly to create digital assets.
 
 ----
@@ -67,8 +67,8 @@ approximation errors to be magnified.
 
 Maya and Pixar's proprietary Presto animation system can take 100ms to subdivide 
 a character of 30,000 polygons to the second level of subdivision (500,000 polygons). 
-By doing the same thing in 3ms, OpenSubdiv allows the user to see the smooth, 
-accurate limit surface at all times.
+Being able to perform the same operation in less than 3ms allows the user to interact
+with the smooth, accurate limit surface at all times.
 
 .. image:: images/efficient_subdivision.png 
    :height: 400px

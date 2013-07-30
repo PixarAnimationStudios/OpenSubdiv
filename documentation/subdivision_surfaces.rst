@@ -47,8 +47,8 @@ patch surfaces are limited to 2-dimensional topologies, which only describes a
 very small fraction of real-world shapes. This fundamental parametric limitation 
 requires authoring tools to implementat at least the following functionalities:
 
-    1. smooth trimming
-    2. seams stitching
+    - smooth trimming
+    - seams stitching
     
 Both trimming and stitching need to guarantee the smoothness of the model both
 spatially and temporally as the model is animated. Attempting to meet these 
@@ -90,12 +90,13 @@ Manifold Geometry
 
 Continuous limit surfaces require that the topology be a two-dimensional 
 manifold. It is therefore possible to model non-manifold geometry that cannot
-be subdivided to a smooth limit.
+be represented with a smooth C2 continuous limit. The following examples show
+typical cases of non-manifold topological configurations.
 
 ----
 
-Fan
-+++
+Non-Manifold Fan
+++++++++++++++++
 
 This "fan" configuration shows an edge shared by 3 distinct faces.
 
@@ -103,10 +104,16 @@ This "fan" configuration shows an edge shared by 3 distinct faces.
    :align: center
    :target: images/nonmanifold_fan.png
 
+With this configuration, it is unclear which face should contribute to the
+limit surface, as 3 of them share the same edge (which incidentally breaks
+half-edge cycles in said data-structures). Fan configurations are not limited
+to 3 incident faces: any configuration where an edge is shared by more than
+2 faces incurs the same problem.
+
 ----
 
-Disconnected Vertex
-+++++++++++++++++++
+Non-Manifold Disconnected Vertex
+++++++++++++++++++++++++++++++++
 
 A vertex is disconnected from any edge and face.
 
@@ -114,24 +121,64 @@ A vertex is disconnected from any edge and face.
    :align: center
    :target: images/nonmanifold_vert.png
 
+This case is fairly trivial: there is no possible way to exact a limit surface here,
+so the vertex simply has to be flagged as non-contributing, or discarded gracefully.
+
 ----
 
 Boundary Interpolation Rules
 ============================
 
-XXXX
+These rules control how boundary edges are interpolated. 4 rule-sets can be applied to
+vertex, varying and face-varying data:
+
+    **None**
+    
+    Debug mode, boundary edges are "undefined"
+
+    **EdgeOnly**
+    
+    No boundary interpolation behavior should occur
+
+    **EdgeAndCorner**
+    
+    All the boundary edge-chains are sharp creases and that boundary 
+    vertices with exactly two incident edges are sharp corners
+
+    **AlwaysSharp**
+    
+    All the boundary edge-chains are sharp creases; boundary vertices 
+    are not affected
+
 
 ----
 
 Semi-Sharp Creases
 ==================
 
+It is possible to modify the subdivision rules to create piecewise smooth surfaces
+containing infinitely sharp features such as creases and corners. As a special 
+case, surfaces can be made to interpolate their boundaries by tagging their boundary
+edges as sharp.
+
+However, we've recognized that real world surfaces never really have infinitely 
+sharp edges, especially when viewed sufficiently close. To this end, we've added 
+the notion of semi-sharp creases, i.e. rounded creases of controllable sharpness. 
+These allow you to create features that are more akin to fillets and blends. As 
+you tag edges and edge chains as creases, you also supply a sharpness value that 
+ranges from 0-10, with sharpness values >=10 treated as infinitely sharp.
+
+It should be noted that infinitely sharp creases are really tangent discontinuities 
+in the surface, implying that the geometric normals are also discontinuous there. 
+Therefore, displacing along the normal will likely tear apart the surface along 
+the crease. If you really want to displace a surface at a crease, it may be better 
+to make the crease semi-sharp.
+
+
 .. image:: images/gtruck.jpg
    :align: center
    :height: 300
    :target: images/gtruck.jpg
-
-XXXX
 
 ----
 

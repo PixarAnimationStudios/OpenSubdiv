@@ -66,7 +66,7 @@ need to create a free Github account and clone a fork of the OpenSubdiv reposito
 
 Submissions to the main code trunk can be sent using Git's pull-request mechanisms.
 Please note that we are using the git flow tools so all changes should be made to
-our 'dev' branch. Before we can accept submissions however, we will need a signed 
+our *dev* branch. Before we can accept submissions however, we will need a signed 
 `Contributor's License Agreement <intro.html#contributing>`__.
 
 ----
@@ -77,7 +77,7 @@ Branches & Git Flow
 Since version 1.1.0, OpenSubdiv has adopted the `Git Flow 
 <http://nvie.com/posts/a-successful-git-branching-model/>`__ branching model .
 
-Our active development branch is named 'dev' : all new features and buf fixes should
+Our active development branch is named *dev* : all new features and buf fixes should
 be submitted to this branch. The changes submitted to the dev branch are periodically
 patched to the 'master' branch as new versions are released.
 
@@ -86,8 +86,8 @@ _____________________
 
 The Git Flow `tools <https://github.com/nvie/gitflow>`__ are not a requisite for 
 working with the OpenSubdiv code base, but new work should always be performed in
-the 'dev' branch, or dedicated feature-branches. By default, a cloned repository
-will be pointing to the 'master' branch. You can switch to the 'dev' branch using
+the *dev* branch, or dedicated feature-branches. By default, a cloned repository
+will be pointing to the 'master' branch. You can switch to the *dev* branch using
 the following command:
 
 .. code:: c++
@@ -134,7 +134,7 @@ ______________
 Direct push access to the OpenSubdiv master repository is currently limited to a 
 small internal development team, so external submissions should be made by sending 
 `pull-requests <https://help.github.com/articles/using-pull-requests>`__ from 
-forks of our 'dev' branch. 
+forks of our *dev* branch. 
 
 ----
 
