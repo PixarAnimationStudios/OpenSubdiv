@@ -637,7 +637,7 @@ FarPatchTablesFactory<T>::pushPatchArray( FarPatchTables::Descriptor desc,
 }
 
 template <class T> FarPatchTables *
-FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVarData ) {
+FarPatchTablesFactory<T>::Create( int /*maxlevel*/, int maxvalence, bool requireFVarData ) {
 
     static const unsigned int remapRegular        [16] = {5,6,10,9,4,0,1,2,3,7,11,15,14,13,12,8};
     static const unsigned int remapRegularBoundary[12] = {1,2,6,5,0,3,7,11,10,9,8,4};

@@ -25,6 +25,8 @@
 #ifndef HBRBILINEAR_H
 #define HBRBILINEAR_H
 
+#pragma warning disable 593
+
 /*#define HBR_DEBUG */
 #include "../hbr/subdivision.h"
 

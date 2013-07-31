@@ -25,6 +25,8 @@
 #ifndef HBRCATMARK_H
 #define HBRCATMARK_H
 
+#pragma warning disable 593
+
 /*#define HBR_DEBUG */
 #include "../hbr/subdivision.h"
 

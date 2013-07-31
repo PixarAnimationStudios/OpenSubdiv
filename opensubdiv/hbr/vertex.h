@@ -34,6 +34,8 @@
 
 #include "../version.h"
 
+#pragma warning disable 1599 
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
