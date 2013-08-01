@@ -57,7 +57,7 @@ list(APPEND DOXY_HEADER_FILES ${OPENCL_PUBLIC_HEADER_FILES} )
 _add_doxy_headers( "${DOXY_HEADER_FILES}" )
 
 install( FILES ${PUBLIC_HEADER_FILES}
-         DESTINATION include/osdutil
+         DESTINATION ${CMAKE_INCDIR_BASE}/osdutil
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
 
 # platform dependent tweaks
