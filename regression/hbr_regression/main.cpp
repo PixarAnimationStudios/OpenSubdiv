@@ -206,19 +206,19 @@ static int checkMesh( shaperec const & r, int levels ) {
             
             float dist = sqrtf( delta[0]*delta[0]+delta[1]*delta[1]+delta[2]*delta[2]);
             if ( dist > STRICT_PRECISION ) {
-		if(dist < WEAK_PRECISION && g_AllowWeakRegression) {
-			g_StrictRegressionFailure=1;
-			}
-		else {
-			printf("// HbrVertex<T> %d fails : dist=%.10f (%.10f %.10f %.10f)"
-			       " (%.10f %.10f %.10f)\n", i, dist, apos[0],
-								  apos[1],
-								  apos[2],
-								  bpos[0],
-								  bpos[1],
-								  bpos[2] );
-			count++;
-		}
+                if(dist < WEAK_PRECISION && g_AllowWeakRegression) {
+                        g_StrictRegressionFailure=1;
+                        }
+                else {
+                        printf("// HbrVertex<T> %d fails : dist=%.10f (%.10f %.10f %.10f)"
+                               " (%.10f %.10f %.10f)\n", i, dist, apos[0],
+                                                                  apos[1],
+                                                                  apos[2],
+                                                                  bpos[0],
+                                                                  bpos[1],
+                                                                  bpos[2] );
+                        count++;
+                }
             }
         }
         delete sh;
@@ -251,7 +251,7 @@ int main(int argc, char ** argv) {
 
     int levels=5, total=0;
     if(argc==2 && strcmp(argv[1],"-S")==0)
-	g_AllowWeakRegression=0;
+        g_AllowWeakRegression=0;
 
     initShapes();
 
@@ -262,11 +262,10 @@ int main(int argc, char ** argv) {
 
     if (total==0) {
         printf("All tests passed.\n");
-	if(g_StrictRegressionFailure)
-	    printf("Some tests were not bit-wise accurate.\nRerun with -S for strict regression\n");
-	}
+        if(g_StrictRegressionFailure)
+            printf("Some tests were not bit-wise accurate.\nRerun with -S for strict regression\n");
+        }
     else
       printf("Total failures : %d\n", total);
 
-		
 }
