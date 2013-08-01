@@ -47,7 +47,7 @@ if (NOT DEFINED CMAKE_INSTALL_PREFIX)
 endif()
 
 if (NOT DEFINED CMAKE_INCDIR_BASE)
-    set( CMAKE_INCDIR_BASE include )
+    set( CMAKE_INCDIR_BASE include/opensubdiv )
 endif()
 
 if (NOT DEFINED CMAKE_BINDIR_BASE)
