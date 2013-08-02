@@ -167,14 +167,14 @@ static void generate( char const * shapeStr, char const * name, int levels, Sche
             
                 int vert = f->GetVertex(j)->GetID()-firstvert;
                 
-                fprintf(handle, "%d/%d/%d", vert, vert, vert);
+                fprintf(handle, "%d", vert+1);
                 
                 if (++j<f->GetNumVertices())
                     fprintf(handle, " ");
             }
             fprintf(handle, "\n");
         }
-       fprintf(handle, ";\n");
+       fprintf(handle, "\n");
        fclose(handle);
     }
 
@@ -187,7 +187,7 @@ static void usage(char const * appname) {
     printf("    Valid shapes :\n");
     for (int i=0; i<(int)g_shapes.size(); ++i)
         printf("        %d : %s\n", i, g_shapes[i].name.c_str());
-    printf("        %ld : all shapes\n", g_shapes.size());
+    printf("        %ld : all shapes\n", (long int)g_shapes.size());
 }
 
 int g_shapeindex=-1;
@@ -207,7 +207,7 @@ static void parseArgs(int argc, char ** argv) {
             if (i<(argc-1))
                 g_shapeindex =  atoi( argv[++i] );
             if ( g_shapeindex<0 or g_shapeindex>(int)g_shapes.size()) {
-                printf("-shape : index must be within [%ld %ld]\n", 0L, g_shapes.size());
+                printf("-shape : index must be within [%ld %ld]\n", 0L, (long int)g_shapes.size());
                 exit(0);
             }
         } else if (not strcmp(argv[i],"-scheme")) {
