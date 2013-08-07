@@ -69,16 +69,18 @@ ________
 Optional
 ________
 
-    - `GLEW <http://glew.sourceforge.net/>`__ (Windows/Linux only)
-    - `CUDA <http://www.nvidia.com/object/cuda_home_new.html>`__
-    - `OpenCL <http://www.khronos.org/opencl/>`__
-    - `GLFW <https://github.com/glfw/glfw>`__ (required for standalone examples
-      and some regression tests)
     - `Ptex <http://ptex.us/>`__ (support features for ptex textures and the
       ptexViewer example)
     - `Zlib <http://www.zlib.net/>`__ (required for Ptex under Windows)
+    - `GLEW <http://glew.sourceforge.net/>`__ (Windows/Linux only)
+    - `CUDA <http://www.nvidia.com/object/cuda_home_new.html>`__
+    - `OpenCL <http://www.khronos.org/opencl/>`__
     - `DX11 SDK <http://www.microsoft.com/>`__
-    - `Docutils <http://docutils.sourceforge.net/>`__
+    - `GLFW <https://github.com/glfw/glfw>`__ (required for standalone examples
+      and some regression tests)
+    - `Docutils <http://docutils.sourceforge.net/>`__ (required for reST-based documentation)
+    - `Python Pygments <http://www.pygments.org/>`__ (required for Docutils reST styling)
+    - `Doxygen <www.doxygen.org/>`__
 
 ----
 

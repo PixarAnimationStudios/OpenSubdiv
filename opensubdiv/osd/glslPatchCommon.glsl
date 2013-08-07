@@ -68,6 +68,10 @@
 
 #define M_PI 3.14159265359f
 
+#if __VERSION__ < 420
+    #define centroid
+#endif
+
 struct ControlVertex {
     vec4 position;
     centroid vec4 patchCoord; // u, v, level, faceID

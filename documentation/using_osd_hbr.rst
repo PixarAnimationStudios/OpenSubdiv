@@ -288,21 +288,6 @@ remaining to validate the mesh:
 Boundary Interpolation Rules
 ============================
 
-**Hbr** recognizes 4 rule-sets of boundary interpolation:
-
-+------------------------------------+
-| Interpolation Rule-Sets            |
-+====================================+
-| k_InterpolateBoundaryNone          |
-+------------------------------------+
-| k_InterpolateBoundaryEdgeOnly      |
-+------------------------------------+
-| k_InterpolateBoundaryEdgeAndCorner |
-+------------------------------------+
-| k_InterpolateBoundaryAlwaysSharp   |
-+------------------------------------+
-
-
 The rule-set can be selected using the following accessors:
 
 *Vertex* and *varying* data:

@@ -52,13 +52,15 @@ OsdGLDrawContext::~OsdGLDrawContext()
 bool
 OsdGLDrawContext::SupportsAdaptiveTessellation()
 {
-// Compile-time check of GL version
-#if (defined(GL_ARB_tessellation_shader) or defined(GL_VERSION_4_0)) and defined(GLEW_VERSION_4_0)
-    // Run-time check of GL version with GLEW
-    if (GLEW_VERSION_4_0) {
-        return true;
-    }
+#ifdef OSD_USES_GLEW
+    // XXX: uncomment here to try tessellation on OSX
+    // if (GLEW_ARB_tessellation_shader)
+    //    return true;
 #endif
+    static const GLubyte *version = glGetString(GL_VERSION);
+    if (version and version[0] == '4')
+        return true;
+
     return false;
 }
 

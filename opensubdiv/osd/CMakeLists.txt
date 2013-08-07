@@ -32,8 +32,12 @@ include_directories(
 if( OPENGL_FOUND )
     include_directories(
         ${OPENGL_INCLUDE_DIR}
-        ${GLEW_INCLUDE_DIR}
     )
+    if (GLEW_FOUND)
+        include_directories(
+            ${GLEW_INCLUDE_DIR}
+        )
+    endif()
 elseif( OPENGLES_FOUND )
     include_directories(
         ${OPENGLES_INCLUDE_DIR}
@@ -130,7 +134,7 @@ if( PTEX_FOUND )
         )
     endif()
     include_directories( ${PTEX_INCLUDE_DIR} )
-    list(APPEND PLATFORM_LIBRARIES
+    list(APPEND PLATFORM_CPU_LIBRARIES
         ${PTEX_LIBRARY}
     )
 endif()
@@ -155,7 +159,7 @@ if( OPENMP_FOUND )
     list(APPEND PUBLIC_HEADER_FILES ${OPENMP_PUBLIC_HEADERS})
 
     if (CMAKE_COMPILER_IS_GNUCXX)
-        list(APPEND PLATFORM_LIBRARIES
+        list(APPEND PLATFORM_CPU_LIBRARIES
             gomp
         )
     endif()
@@ -205,7 +209,7 @@ if( OPENGL_FOUND OR OPENGLES_FOUND )
             glslPatchTransition.glsl
         )
     endif()
-    list(APPEND PLATFORM_LIBRARIES
+    list(APPEND PLATFORM_GPU_LIBRARIES
         ${OPENGL_LIBRARY}
         ${OPENGLES_LIBRARIES}
     )
@@ -232,7 +236,7 @@ if( OPENGL_4_2_FOUND )
     list(APPEND KERNEL_FILES
         glslTransformFeedbackKernel.glsl
     )
-    list(APPEND PLATFORM_LIBRARIES
+    list(APPEND PLATFORM_GPU_LIBRARIES
         ${GLEW_LIBRARY}
     )
 endif()
@@ -258,7 +262,7 @@ if( OPENGL_4_3_FOUND )
     list(APPEND KERNEL_FILES
         glslComputeKernel.glsl
     )
-    list(APPEND PLATFORM_LIBRARIES
+    list(APPEND PLATFORM_GPU_LIBRARIES
         ${GLEW_LIBRARY}
     )
 endif()
@@ -295,7 +299,7 @@ if( DXSDK_FOUND )
         hlslPatchGregory.hlsl
         hlslPatchTransition.hlsl
     )
-    list(APPEND PLATFORM_LIBRARIES
+    list(APPEND PLATFORM_GPU_LIBRARIES
         ${DXSDK_LIBRARIES}
     )
 endif()
@@ -320,7 +324,7 @@ if ( OPENCL_FOUND )
     list(APPEND KERNEL_FILES
         clKernel.cl
     )
-    list(APPEND PLATFORM_LIBRARIES
+    list(APPEND PLATFORM_GPU_LIBRARIES
         ${OPENCL_LIBRARIES}
     )
     include_directories( ${OPENCL_INCLUDE_DIRS} )
@@ -411,7 +415,7 @@ source_group("Inc" FILES ${INC_FILES})
 
 if (NOT NO_LIB)
 
-    _add_possibly_cuda_library(osd_static_cpu STATIC
+    add_library(osd_static_cpu STATIC
         ${CPU_SOURCE_FILES}
         ${PRIVATE_HEADER_FILES}
         ${PUBLIC_HEADER_FILES}
@@ -419,7 +423,7 @@ if (NOT NO_LIB)
     set_target_properties(osd_static_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
 
     target_link_libraries(osd_static_cpu
-        ${PLATFORM_LIBRARIES}
+        ${PLATFORM_CPU_LIBRARIES}
     )
 
     _add_possibly_cuda_library(osd_static_gpu STATIC
@@ -432,14 +436,14 @@ if (NOT NO_LIB)
     set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
 
     target_link_libraries(osd_static_gpu
-        ${PLATFORM_LIBRARIES}
+        ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
     )
 
     install( TARGETS osd_static_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
     install( TARGETS osd_static_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
 
     if (NOT WIN32 AND NOT IOS)
-        _add_possibly_cuda_library(osd_dynamic_cpu SHARED
+        add_library(osd_dynamic_cpu SHARED
             ${CPU_SOURCE_FILES}
             ${PRIVATE_HEADER_FILES}
             ${PUBLIC_HEADER_FILES}
@@ -448,7 +452,7 @@ if (NOT NO_LIB)
         set_target_properties(osd_dynamic_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
 
         target_link_libraries(osd_dynamic_cpu
-            ${PLATFORM_LIBRARIES}
+            ${PLATFORM_CPU_LIBRARIES}
         )
 
         _add_possibly_cuda_library(osd_dynamic_gpu SHARED
@@ -463,7 +467,7 @@ if (NOT NO_LIB)
 
         target_link_libraries(osd_dynamic_gpu
             osd_dynamic_cpu
-            ${PLATFORM_LIBRARIES}
+            ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
         )
 
         install( TARGETS osd_dynamic_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )

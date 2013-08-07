@@ -317,6 +317,13 @@ public:
     
     /// \brief Returns a pointer to the vertex indices of uniformly subdivided faces
     ///
+    /// In uniform mode the FarPatchTablesFactory can be set to generate either a
+    /// patch array containing the faces at the highest level of subdivision, or
+    /// a range of arrays, corresponding to multiple successive levels of subdivision.
+    ///
+    /// Note : level '0' is not the coarse mesh. Currently there is no path in the
+    /// factories to convert the coarse mesh to FarPatchTables.
+    ///
     /// @param level  the level of subdivision of the faces (returns the highest
     ///               level by default)
     ///
@@ -326,6 +333,13 @@ public:
     unsigned int const * GetFaceVertices(int level=0) const;
 
     /// \brief Returns the number of faces in a uniformly subdivided mesh at a given level
+    ///
+    /// In uniform mode the FarPatchTablesFactory can be set to generate either a
+    /// patch array containing the faces at the highest level of subdivision, or
+    /// a range of arrays, corresponding to multiple successive levels of subdivision.
+    ///
+    /// Note : level '0' is not the coarse mesh. Currently there is no path in the
+    /// factories to convert the coarse mesh to FarPatchTables.
     ///
     /// @param level  the level of subdivision of the faces (returns the highest
     ///               level by default)

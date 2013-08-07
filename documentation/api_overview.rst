@@ -42,7 +42,7 @@ is both layered and modular.
 ----
 
 Opt-In Features
-***************
+===============
 
 One of the fundamental requirement of all our API's design patterns is the opt-in
 implementation of features. Because most of the algorithms are used within the
@@ -55,7 +55,7 @@ processing costs of any given feature that is not used.
 ----
 
 Layers
-******
+======
 
 From a top-down point of view, OpenSubdiv is comprised of 3 layers : **Hbr**, 
 **Far** and **Osd**. 
@@ -70,18 +70,6 @@ The color groupings indicate inter-layer functional dependencies:
 
 It is therefore possible to use functionality from Hbr without introducing any
 dependency on either Far or Osd.
-
-----
-
-Data and Workflows
-******************
-
-Data flows are mostly 1-directional, from top to bottom as a number of algorithms 
-are preparing the coarse mesh data to be refined and passing their results to 
-the next element in the processing chain.
-
-.. image:: images/api_data_flow.png
-   :align: center
 
 ----
 
@@ -100,6 +88,18 @@ optimized for each of the hardware platforms.
 This separation of general purpose against hardware-specific code is translated into
 two types of layers : the **implementation** layer against the **representation** 
 layers.
+
+----
+
+Data Flows
+**********
+
+Data flows are mostly 1-directional, from top to bottom as a number of algorithms 
+are preparing the coarse mesh data to be refined and passing their results to 
+the next element in the processing chain.
+
+.. image:: images/api_data_flow.png
+   :align: center
 
 ----
 
@@ -141,131 +141,23 @@ be migrated by the device-specific functions in Osd.
 
 ----
 
-Hierarchical Boundary Representation (Hbr)
-==========================================
+Feature Adaptive Subdivision
+============================
 
-Hbr is an interconnected topological data representation. The high level of vertex
-connectivity information makes this representation well suited for creation and
-editing purposes. It is however inefficient for interactive refinement operations:
-Separate objects are allocated for each vertex and edge with pointers to neighboring 
-vertices and edges.
+Because of the high-performance apsects, one of the main goals of the OpenSubdiv 
+set of APIs is to compartmentalize subdivision rules from interpolation 
+computations, which can then be dispatched to discrete compute devices, including
+a variety of GPUs.
 
-Hbr is also the lowest-level subdivision library in Pixar's `Photorealistic RenderMan`.
+The data paths for the feature adaptive algorithm layered over the OpenSubdiv
+architecture:
 
-----
+.. image:: images/osd_layers.png
 
-Half-edge Data Structure
-************************
+Hbr serves both as an advanced topological description and the custodian of the
+Catmull-Clark (and Loop) subdivision rules. Far is then used to leverage these
+rules in order to produce serialized topological tables. 
 
-The current implementation is based on a half-edge data structure.
-
-.. image:: images/half_edge.png
-   :align: center
-
-----
-
-Half-edge cycles and Manifold Topology
-**************************************
-
-Because half-edges only carry a reference to their opposite half-edge, a given 
-edge can only access a single neighboring edge cycle. 
-
-.. image:: images/half_edge_cycle.png
-   :align: center
-   
-This is a fundamental limitation of the half-edge data structure, in that it
-cannot represent non-manifold geometry, in particular fan-type topologies. A
-different approach to topology will probably be necessary in order to accomodate
-non-manifold geometry.
-
-----
-
-Templated Vertex Class
-**********************
-
-The vertex class has been abstracted into a set of templated function accesses. 
-Providing Hbr with a template vertex class that does not implement these functions 
-allows client-code to use Hbr as a pure topological analysis tool without having 
-to pay any costs for data interpolation. It also allows client-code to remain in 
-complete control of the layout of the vertex data : interleaved or non-interleaved.
-
-----
-
-Feature Adaptive Representation (Far)
-=====================================
-
-Far is a serialized topoloigcal data representation.Far uses hbr to create and 
-cache fast run time data structures for table driven subdivision of vertices and 
-cubic patches for limit surface evaluation. `Feature-adaptive <subdivision_surfaces.html#feature-adaptive-subdivision>`__ 
-refinement logic is used to adaptively refine coarse topology near features like 
-extraordinary vertices and creases in order to make the topology amenable to 
-cubic patch evaluation. Far is also a generic, templated algorithmic base API 
-that clients in higher levels instantiate and use by providing an implementation 
-of a vertex class. It supports these subdivision schemes:
-
-----
-
-OpenSubdiv (Osd)
-================
-
-Osd contains client-level code that uses Far to create concrete instances of 
-meshes. These meshes use precomputed tables from hbr to perform table-driven 
-subdivision steps with a variety of massively parallel computational backend 
-technologies. Osd supports both `uniform subdivision <subdivision_surfaces.html#uniform-subdivision>`
-and adaptive refinement with cubic patches. With uniform subdivision the 
-computational backend code performs Catmull/Clark splitting and averaging on 
-each face. With adaptive subdivision the Catmull/Clark steps are used to compute 
-the CVs of cubic patches, then the cubic patches are tessellated on with GLSL or DirectX.
-
-OpenSubdiv enforces the same results for the different computation backends with 
-a series of regression tests that compare the methods to each other.
-
-The OpenSubdiv layer is comprised of 3 maine modules : Refine, Draw and Eval.
-
-.. image:: images/api_osd_modules.png
-
-These modules are identified by their name spaces (**OsdRefine**, **OsdDraw**,
-**OsdEval**) and encapsulate atomic functationality. The vertex data is carried 
-in interoperable buffers that can be exchanged between modules. 
-
-The typical use pattern is to pose the coarse vertices of a mesh for a given frame.
-The buffer is submitted to the **Refine** module which applies the subdivision rules
-and produces refined control vertices. This new buffer can be passed to the **Draw**
-module which will put them on screen.
-
-However, the same buffer of refined control vertices could be passed instead to
-the **Eval** module (and be projected onto another surface for instance) before
-being sent for display to the **Draw** module.
-
-.. container:: impnotip
-
-   * **Important**
-
-      Face-varying smooth data interpolation is currently not supported in Osd.
-      "Smooth UV" modes of various DCC applications are not supported (yet).
-
-----
-
-OsdRefine
-*********
-
-The Refine module contains the code paths that manage the application of the 
-subdivision rules to the vertex data.
-
-----
-
-OsdDraw
-*******
-
-The Draw module manages interactions with discrete display devices and provide
-support for interactive drawing of the subdivision surfaces.
-
-----
-
-OsdEval
-*******
-
-The Eval module provides computational APIs for the evaluation of vertex data at
-the limit, ray intersection and point projection.
-
-
+The remaining computations have been reduced to extremely simple forms of 
+interpolation, which can be dispatched to a variety of discrete computation 
+platforms.

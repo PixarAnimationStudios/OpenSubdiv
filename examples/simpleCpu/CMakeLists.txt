@@ -32,16 +32,19 @@ set(SHADER_FILES
 set(PLATFORM_LIBRARIES
     ${OSD_LINK_TARGET}
     ${OPENGL_LIBRARY}
-    ${GLEW_LIBRARY}
     ${GLFW_LIBRARIES}
 )
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
     ${PROJECT_SOURCE_DIR}/regression
-    ${GLEW_INCLUDE_DIR}
     ${GLFW_INCLUDE_DIR}
 )
+
+if ( GLEW_FOUND )
+    include_directories(${GLEW_INCLUDE_DIR})
+    list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
+endif()
 
 #-------------------------------------------------------------------------------
 # Shader Stringification
