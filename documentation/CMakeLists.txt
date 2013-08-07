@@ -45,7 +45,7 @@ if (DOXYGEN_FOUND)
         DIRECTORY
             ${CMAKE_CURRENT_BINARY_DIR}/doxy_html
         DESTINATION 
-            ${CMAKE_INSTALL_PREFIX}/documentation
+            ${CMAKE_DOCDIR_BASE}
     )
 
 else()
@@ -120,7 +120,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
             FILES
                 ${outfile}
             DESTINATION 
-                ${CMAKE_INSTALL_PREFIX}/documentation
+                ${CMAKE_DOCDIR_BASE}
             PERMISSIONS 
                 OWNER_READ GROUP_READ WORLD_READ 
         )
@@ -149,7 +149,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
             FILES
                 ${outfile}
             DESTINATION 
-                ${CMAKE_INSTALL_PREFIX}/documentation
+                ${CMAKE_DOCDIR_BASE}
         )
     endforeach()
 
@@ -197,7 +197,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         DIRECTORY
             ${CMAKE_CURRENT_BINARY_DIR}/tipuesearch
         DESTINATION 
-            ${CMAKE_INSTALL_PREFIX}/documentation
+            ${CMAKE_DOCDIR_BASE}
     )
 
 
@@ -205,14 +205,14 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         DIRECTORY
             ${CMAKE_CURRENT_BINARY_DIR}/images
         DESTINATION 
-            ${CMAKE_INSTALL_PREFIX}/documentation
+            ${CMAKE_DOCDIR_BASE}
     )
 
     install( 
         DIRECTORY
             ${CMAKE_CURRENT_BINARY_DIR}/css
         DESTINATION 
-            ${CMAKE_INSTALL_PREFIX}/documentation
+            ${CMAKE_DOCDIR_BASE}
     )
 
     list(APPEND DOC_TARGETS doc_html)
