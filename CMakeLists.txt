@@ -62,6 +62,10 @@ if (NOT DEFINED CMAKE_PLUGINDIR_BASE)
     set( CMAKE_PLUGINDIR_BASE plugin )
 endif()
 
+if (NOT DEFINED CMAKE_DOCDIR_BASE)
+    set( CMAKE_DOCDIR_BASE share/doc/opensubdiv )
+endif()
+
 # Allow install path to be overridden for cross-compile builds
 if(LIBRARY_OUTPUT_PATH_ROOT)
     SET( CMAKE_INSTALL_PREFIX ${LIBRARY_OUTPUT_PATH_ROOT}/ )
