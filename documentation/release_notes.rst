@@ -39,6 +39,7 @@ Release 2.0.1
     - New CLA files to reflect Apache 2.0 licensing
 
 **Changes**
+    - Move all public headers to include/opensubdiv/...
     - Adding Osd documentation based on Siggraph slides
 
 **Bug Fixes**
@@ -48,6 +49,7 @@ Release 2.0.1
     - Fix GLFW Xrandr & xf86vmode dependency paths for X11 based systems
     - Fix HUD display overlaps in code examples
     - Fix FindGLEW.cmake to be aware of multiarch on linux systems
+    - Fix some hard-coded include paths in CMake build
 
 
 Release 2.0.0
