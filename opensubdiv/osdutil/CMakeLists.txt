@@ -60,11 +60,4 @@ install( FILES ${PUBLIC_HEADER_FILES}
          DESTINATION include/osdutil
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
 
-# platform dependent tweaks
-if (ANDROID)
-    install( FILES Android.mk 
-             DESTINATION ${LIBRARY_OUTPUT_PATH_ROOT}
-             PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
-endif()
-
 #-------------------------------------------------------------------------------
