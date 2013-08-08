@@ -70,14 +70,24 @@ public:
         FarMeshFactory<OsdVertex> meshFactory(hmesh, level, bits.test(MeshAdaptive));
         _farMesh = meshFactory.Create(bits.test(MeshFVarData));
 
-        int numVertices = _farMesh->GetNumVertices();
-        if (numVertexElements)
-            _vertexBuffer = VertexBuffer::Create(numVertexElements, numVertices);
-        if (numVaryingElements)
-            _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices);
-        _computeContext = ComputeContext::Create(_farMesh);
-        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(), bits.test(MeshFVarData));
-        _drawContext->UpdateVertexTexture(_vertexBuffer);
+        _initialize(numVertexElements, numVaryingElements, level, bits);
+    }
+
+    OsdMesh(ComputeController * computeController,
+            FarMesh<OsdVertex> * fmesh,
+            int numVertexElements,
+            int numVaryingElements,
+            int level,
+            OsdMeshBitset bits) :
+
+            _farMesh(fmesh),
+            _vertexBuffer(0),
+            _varyingBuffer(0),
+            _computeContext(0),
+            _computeController(computeController),
+            _drawContext(0)
+    {
+        _initialize(numVertexElements, numVaryingElements, level, bits);
     }
 
     virtual ~OsdMesh() {
@@ -122,6 +132,22 @@ public:
     }
 
 private:
+
+    void _initialize( int numVertexElements,
+                      int numVaryingElements,
+                      int level,
+                      OsdMeshBitset bits) 
+    {
+        int numVertices = _farMesh->GetNumVertices();
+        if (numVertexElements)
+            _vertexBuffer = VertexBuffer::Create(numVertexElements, numVertices);
+        if (numVaryingElements)
+            _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices);
+        _computeContext = ComputeContext::Create(_farMesh);
+        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(), bits.test(MeshFVarData));
+        _drawContext->UpdateVertexTexture(_vertexBuffer);
+    }
+
     FarMesh<OsdVertex> *_farMesh;
     VertexBuffer *_vertexBuffer;
     VertexBuffer *_varyingBuffer;
@@ -162,14 +188,28 @@ public:
         FarMeshFactory<OsdVertex> meshFactory(hmesh, level, bits.test(MeshAdaptive));
         _farMesh = meshFactory.Create(bits.test(MeshFVarData));
 
-        int numVertices = _farMesh->GetNumVertices();
-        if (numVertexElements)
-            _vertexBuffer = VertexBuffer::Create(numVertexElements, numVertices, _clContext);
-        if (numVaryingElements)
-            _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices, _clContext);
-        _computeContext = ComputeContext::Create(_farMesh, _clContext);
-        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(), bits.test(MeshFVarData));
-        _drawContext->UpdateVertexTexture(_vertexBuffer);
+        _initialize(numVertexElements, numVaryingElements, level, bits);
+    }
+
+    OsdMesh(ComputeController * computeController,
+            FarMesh<OsdVertex> * fmesh,
+            int numVertexElements,
+            int numVaryingElements,
+            int level,
+            OsdMeshBitset bits,
+            cl_context clContext,
+            cl_command_queue clQueue) :
+
+            _farMesh(fmesh),
+            _vertexBuffer(0),
+            _varyingBuffer(0),
+            _computeContext(0),
+            _computeController(computeController),
+            _drawContext(0),
+            _clContext(clContext),
+            _clQueue(clQueue)
+    {
+        _initialize(numVertexElements, numVaryingElements, level, bits);
     }
 
     virtual ~OsdMesh() {
@@ -213,6 +253,22 @@ public:
     }
 
 private:
+
+    void _initialize( int numVertexElements,
+                      int numVaryingElements,
+                      int level,
+                      OsdMeshBitset bits) 
+    {
+        int numVertices = _farMesh->GetNumVertices();
+        if (numVertexElements)
+            _vertexBuffer = VertexBuffer::Create(numVertexElements, numVertices, _clContext);
+        if (numVaryingElements)
+            _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices, _clContext);
+        _computeContext = ComputeContext::Create(_farMesh, _clContext);
+        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(), bits.test(MeshFVarData));
+        _drawContext->UpdateVertexTexture(_vertexBuffer);
+    }
+
     FarMesh<OsdVertex> *_farMesh;
     VertexBuffer *_vertexBuffer;
     VertexBuffer *_varyingBuffer;
