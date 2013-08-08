@@ -29,9 +29,9 @@
 uniform float displacementScale = 1.0;
 uniform float bumpScale = 1.0;
 
-vec4 GeneratePatchCoord(vec2 localUV)  // for non-adpative
+vec4 GeneratePatchCoord(vec2 localUV, int primitiveID)  // for non-adpative
 {
-    ivec2 ptexIndex = texelFetch(OsdPatchParamBuffer, gl_PrimitiveID).xy;
+    ivec2 ptexIndex = texelFetch(OsdPatchParamBuffer, primitiveID).xy;
     int faceID = ptexIndex.x;
     int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1));
     int u = (ptexIndex.y >> 17) & 0x3ff;
@@ -192,10 +192,10 @@ void main()
     vec3 normal[4];
 
     // need to generate patch coord for non-patch quads
-    patchCoord[0] = GeneratePatchCoord(vec2(0, 0));
-    patchCoord[1] = GeneratePatchCoord(vec2(1, 0));
-    patchCoord[2] = GeneratePatchCoord(vec2(1, 1));
-    patchCoord[3] = GeneratePatchCoord(vec2(0, 1));
+    patchCoord[0] = GeneratePatchCoord(vec2(0, 0), gl_PrimitiveID);
+    patchCoord[1] = GeneratePatchCoord(vec2(1, 0), gl_PrimitiveID);
+    patchCoord[2] = GeneratePatchCoord(vec2(1, 1), gl_PrimitiveID);
+    patchCoord[3] = GeneratePatchCoord(vec2(0, 1), gl_PrimitiveID);
 
 #ifdef USE_PTEX_DISPLACEMENT
     position[0] = displacement(inpt[0].v.position, inpt[0].v.normal, patchCoord[0]);
@@ -242,6 +242,10 @@ void main()
     emit(3, position[3], normal[3], patchCoord[3], edgeVerts);
     emit(2, position[2], normal[2], patchCoord[2], edgeVerts);
 #else
+    outpt.edgeDistance[0] = 0;
+    outpt.edgeDistance[1] = 0;
+    outpt.edgeDistance[2] = 0;
+    outpt.edgeDistance[3] = 0;
     emit(position[0], normal[0], patchCoord[0]);
     emit(position[1], normal[1], patchCoord[1]);
     emit(position[3], normal[3], patchCoord[3]);
@@ -353,7 +357,7 @@ layout(std140) uniform Lighting {
 uniform bool overrideColorEnable = false;
 uniform vec4 overrideColor;
 
-#if USE_PTEX_NORMAL
+#ifdef USE_PTEX_NORMAL
 uniform sampler2DArray textureDisplace_Data;
 uniform samplerBuffer textureDisplace_Packing;
 uniform isamplerBuffer textureDisplace_Pages;
@@ -476,7 +480,7 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
 void
 main()
 {
-#if USE_PTEX_COLOR
+#ifdef USE_PTEX_COLOR
     vec4 texColor = PTexLookup(inpt.v.patchCoord,
                                textureImage_Data,
                                textureImage_Packing,
@@ -486,7 +490,7 @@ main()
     vec4 texColor = vec4(1);
 #endif
 
-#if USE_PTEX_NORMAL
+#ifdef USE_PTEX_NORMAL
     vec3 normal = perturbNormalFromDisplacement(inpt.v.position.xyz,
                                                 inpt.v.normal,
                                                 inpt.v.patchCoord);
@@ -501,7 +505,7 @@ main()
         return;
     }
 
-#if USE_IBL
+#ifdef USE_IBL
 #ifdef USE_PTEX_OCCLUSION
     float occ = PTexLookup(inpt.v.patchCoord,
                            textureOcclusion_Data,

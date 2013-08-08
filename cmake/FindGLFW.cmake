@@ -111,9 +111,15 @@ else ()
         find_package(X11 REQUIRED)
         
         if(NOT X11_Xrandr_FOUND)
-            message(FATAL_ERROR "Xrandr library not found")
+            message(FATAL_ERROR "Xrandr library not found - required for GLFW")
         endif()
-        
+
+        if(NOT X11_xf86vmode_FOUND)
+            message(FATAL_ERROR "xf86vmode library not found - required for GLFW")
+        endif()
+
+        list(APPEND GLFW_x11_LIBRARY ${X11_Xrandr_LIB} ${X11_Xxf86vm_LIB})
+
         find_library( GLFW_glfw_LIBRARY
             NAMES 
                 glfw
@@ -138,7 +144,7 @@ set( GLFW_FOUND "NO" )
 if(GLFW_INCLUDE_DIR)
 
     if(GLFW_glfw_LIBRARY)
-        set( GLFW_LIBRARIES ${GLFW_glfw_LIBRARY} ${GLFW_cocoa_LIBRARY} ${GLFW_iokit_LIBRARY} )
+        set( GLFW_LIBRARIES ${GLFW_glfw_LIBRARY} ${GLFW_x11_LIBRARY} ${GLFW_cocoa_LIBRARY} ${GLFW_iokit_LIBRARY} )        
         set( GLFW_FOUND "YES" )
         set (GLFW_LIBRARY ${GLFW_LIBRARIES})
         set (GLFW_INCLUDE_PATH ${GLFW_INCLUDE_DIR})
@@ -179,10 +185,6 @@ if(GLFW_INCLUDE_DIR)
         mark_as_advanced(GLFW_VERSION)
     endif()
     
-    # static builds of glfw require Xrandr
-    if( NOT WIN32 AND NOT APPLE AND GLFW_FOUND)
-        list(APPEND GLFW_LIBRARIES -lXrandr -lXxf86vm)
-    endif()
 endif(GLFW_INCLUDE_DIR)
 
 include(FindPackageHandleStandardArgs)

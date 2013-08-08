@@ -25,7 +25,6 @@
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${GLEW_INCLUDE_DIR}
     ${GLFW_INCLUDE_DIR}
 )
 
@@ -36,9 +35,13 @@ set(SOURCE_FILES
 set(PLATFORM_LIBRARIES
     ${OSD_LINK_TARGET}
     ${OPENGL_LIBRARY}
-    ${GLEW_LIBRARY}
     ${GLFW_LIBRARIES}
 )
+
+if ( GLEW_FOUND )
+    include_directories(${GLEW_INCLUDE_DIR})
+    list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
+endif()
 
 if ( OPENCL_FOUND )
     list(APPEND PLATFORM_LIBRARIES

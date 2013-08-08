@@ -2,7 +2,7 @@
 
 OpenSubdiv is a set of open source libraries that implement high performance subdivision surface (subdiv) evaluation on massively parallel CPU and GPU architectures. This codepath is optimized for drawing deforming subdivs with static topology at interactive framerates. The resulting limit surface matches Pixar's Renderman to numerical precision.
 
-OpenSubdiv is covered by the [Microsoft Public License](http://www.microsoft.com/en-us/openness/licenses.aspx#MPL), and is free to use for commercial or non-commercial use. This is the same code that Pixar uses internally for animated film production. Our intent is to encourage high performance accurate subdiv drawing by giving away the "good stuff".
+OpenSubdiv is covered by the Apache license, and is free to use for commercial or non-commercial use. This is the same code that Pixar uses internally for animated film production. Our intent is to encourage high performance accurate subdiv drawing by giving away the "good stuff".
 
 The current version is "Release Candidate 1.0" (12/05/2012) and we hope to have "Release 1.0" ready by February 2013. Feel free to use it and let us know what you think.
 
@@ -27,9 +27,9 @@ Please refer to the documentation of each of the dependency packages for specifi
 
 Required:
 * [cmake](http://www.cmake.org/cmake/resources/software.html)
-* [GLEW](http://sourceforge.net/projects/glew/) (Windows/Linux only)
 
 Optional:
+* [GLEW](http://sourceforge.net/projects/glew/) (Windows/Linux only)
 * [CUDA](http://developer.nvidia.com/category/zone/cuda-zone)
 * [OpenCL](http://www.khronos.org/opencl/)
 * [GLFW](http://www.glfw.org/)
@@ -37,20 +37,31 @@ Optional:
 * [Zlib](http://www.zlib.net) (required for Ptex under Windows)
 * [Maya SDK](http://www.autodesk.com/maya/) (sample code for Maya viewport 2.0 primitive)
 * [DX11 SDK](http://www.microsoft.com/en-us/download/details.aspx?id=6812)
+* [Docutils](http://docutils.sourceforge.net/)
+* [Doxygen](file://www.doxygen.org/)
 
 ### Useful cmake options and environment variables
 
 ````
 -DCMAKE_BUILD_TYPE=[Debug|Release]
+
 -DCMAKE_INSTALL_PREFIX=[base path to install OpenSubdiv (default: Current directory)]
 -DCMAKE_LIBDIR_BASE=[library directory basename (default: lib)]
+
 -DCUDA_TOOLKIT_ROOT_DIR=[path to CUDA]
 -DPTEX_LOCATION=[path to Ptex]
 -DGLEW_LOCATION=[path to GLEW]
 -DGLFW_LOCATION=[path to GLFW]
 -DMAYA_LOCATION=[path to Maya]
--DNO_OMP=1 // disable OpenMP
--DNO_GCD=1 // disable GrandCentralDispatch on OSX
+
+-DNO_LIB=1        // disable the opensubdiv libs build (caveat emptor)
+-DNO_EXAMPLES=1   // disable examples build
+-DNO_REGRESSION=1 // disable regression tests build
+-DNO_PYTHON=1     // disable Python SWIG build
+-DNO_DOC=1        // disable documentation build
+-DNO_OMP=1        // disable OpenMP
+-DNO_CUDA=1       // disable CUDA
+-DNO_GCD=1        // disable GrandCentralDispatch on OSX
 ````
 
 The paths to Maya, Ptex, GLFW, and GLEW can also be specified through the
@@ -203,15 +214,3 @@ OpenSubdiv builds a number of regression test executables for testing:
 * far_regression: Matching FAR (feature-adaptive rep using tables) against HBR results.
 * osd_regression: Matching full OSD subdivision against HBR results. Currently checks single threaded CPU kernel only.
 
-## Contributing
-
-In order for us to accept code submissions (merge git pull-requests), contributors need to sign the "Contributor License Agreement" (found in the code repository or [here](https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/OpenSubdivCLA.pdf)) and you can either email or fax it to Pixar.
-
-## Wish List
-
-There are many things we'd love to do to improve support for subdivs but don't have the resources to. In particular, we would welcome contributions for the following items :
-
-  * The maya plugins don't integrate with Maya shading.  That would be cool.
-  * John Lasseter loves looking at film assets in progress on an iPad. If anyone were to get this working on iOS he'd be looking at your code, and the apple geeks in all of us would smile.
-  * Alembic support would be wonderful, but we don't use Alembic enough internally to do the work.
-  * The precomputation step with hbr can be slow. Does anyone have thoughts on higher performance with topology rich data structures needed for feature adaptive subdivision? Maybe a class that packs adjacency into blocks of indices efficiently, or supports multithreading ?

@@ -52,13 +52,15 @@ OsdGLDrawContext::~OsdGLDrawContext()
 bool
 OsdGLDrawContext::SupportsAdaptiveTessellation()
 {
-// Compile-time check of GL version
-#if (defined(GL_ARB_tessellation_shader) or defined(GL_VERSION_4_0)) and defined(GLEW_VERSION_4_0)
-    // Run-time check of GL version with GLEW
-    if (GLEW_VERSION_4_0) {
-        return true;
-    }
+#ifdef OSD_USES_GLEW
+    // XXX: uncomment here to try tessellation on OSX
+    // if (GLEW_ARB_tessellation_shader)
+    //    return true;
 #endif
+    static const GLubyte *version = glGetString(GL_VERSION);
+    if (version and version[0] == '4')
+        return true;
+
     return false;
 }
 
@@ -166,6 +168,7 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
     
     // allocate and initialize additional buffer data
 
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
     // create vertex valence buffer and vertex texture
     FarPatchTables::VertexValenceTable const &
         valenceTable = patchTables->GetVertexValenceTable();
@@ -200,6 +203,7 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
 
     if (requireFVarData and not fvarTables.empty())
         _fvarDataTextureBuffer = createTextureBuffer(fvarTables, GL_R32F);
+#endif
 
     glBindBuffer(GL_TEXTURE_BUFFER, 0);
 
@@ -209,9 +213,11 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
 void
 OsdGLDrawContext::updateVertexTexture(GLuint vbo, int numVertexElements)
 {
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
     glBindTexture(GL_TEXTURE_BUFFER, _vertexTextureBuffer);
     glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
     glBindTexture(GL_TEXTURE_BUFFER, 0);
+#endif
 
     // XXX: consider moving this proc to base class
     // updating num elements in descriptor with new vbo specs

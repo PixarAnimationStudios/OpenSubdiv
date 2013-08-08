@@ -23,29 +23,30 @@
        License.
   
 
-Using OpenSubdiv
-----------------
+FAR Overview
+------------
 
 .. contents::
    :local:
    :backlinks: none
 
-.. image:: images/barb_1.jpg 
-   :width: 400px
-   :align: center
+Feature Adaptive Representation (Far)
+=====================================
 
-Using OpenSubdiv
-================
+Far is a serialized topoloigcal data representation.Far uses hbr to create and 
+cache fast run time data structures for table driven subdivision of vertices and 
+cubic patches for limit surface evaluation. `Feature-adaptive <subdivision_surfaces.html#feature-adaptive-subdivision>`__ 
+refinement logic is used to adaptively refine coarse topology near features like 
+extraordinary vertices and creases in order to make the topology amenable to 
+cubic patch evaluation. Far is also a generic, templated algorithmic base API 
+that clients in higher levels instantiate and use by providing an implementation 
+of a vertex class. It supports these subdivision schemes:
 
-.. list-table:: **OpenGL examples**
-   :class: quickref
-   :widths: 50 50
-   
-   * - | `Compiling & Linking <using_osd_compile.html>`_
-       | `Textures <using_osd_textures.html>`_
-     - | `Manipulating Topology <using_osd_hbr.html>`_
+Factories & Tables
+==================
 
-|
+Subdivision Tables
+==================
 
-
-
+Patch Tables
+============

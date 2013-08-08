@@ -42,11 +42,11 @@ Introduction
 OpenSubdiv is a set of open source libraries that implement high performance 
 subdivision surface (subdiv) evaluation on massively parallel CPU and GPU 
 architectures. This codepath is optimized for drawing deforming surfaces with 
-static topology at interactive framerates. The resulting limit surface are a match
+static topology at interactive framerates. The resulting limit surfaces are a match
 for Pixar's Renderman specification within numerical precision limits.
 
 OpenSubdiv is a code API which we hope to integrate into 3rd. party digital
-content creation tools. It is **not** an application nor a tool that can be used
+content creation tools. It is **not** an application, nor a tool that can be used
 directly to create digital assets.
 
 ----
@@ -67,8 +67,8 @@ approximation errors to be magnified.
 
 Maya and Pixar's proprietary Presto animation system can take 100ms to subdivide 
 a character of 30,000 polygons to the second level of subdivision (500,000 polygons). 
-By doing the same thing in 3ms, OpenSubdiv allows the user to see the smooth, 
-accurate limit surface at all times.
+Being able to perform the same operation in less than 3ms allows the user to interact
+with the smooth, accurate limit surface at all times.
 
 .. image:: images/efficient_subdivision.png 
    :height: 400px
@@ -131,13 +131,21 @@ animation production.
 Licensing
 =========
 
-OpenSubdiv is covered by the `Microsoft Public License 
-<http:  www.microsoft.com/en-us/openness/licenses.aspx#MPL>`__, and is free to use 
-for commercial or non-commercial use. This is the same code that Pixar uses 
-internally for animated film production. Our intent is to encourage high 
-performance accurate subdiv drawing by giving away the "good stuff".
+OpenSubdiv is covered by the Apache License, and is free to use for commercial or
+non-commercial use. This is the same code that Pixar uses internally for animated
+film production. Our intent is to encourage a geometry standard for subdivision 
+surfaces, by providing consistent (i.e. yielding the same limit surface), high 
+performance implementations on a variety of platforms.
 
-Feel free to use it and let us know what you think.
+Why Apache? We were looking for a commercial-friendly license that would convey 
+our patents to the end users. This quickly narrowed the field to Microsoft Public 
+License or Apache. Initially we chose MSPL because it handled trademarks better. 
+But at the request of several companies we gave Apache another look, and decided 
+to go with Apache with a very slight modification that simply says you cannot use 
+any contributors' trademarks. In other words, you can use OpenSubdiv to make a 
+product, but you cannot use a Luxo Lamp (or other character, etc.) when marketing 
+your product.
+
 
 ----
 
@@ -145,9 +153,13 @@ Contributing
 ============
 
 In order for us to accept code submissions (merge git pull-requests), contributors 
-need to sign the "Contributor License Agreement" (found in the code repository or 
-`here <https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/OpenSubdivCLA.pdf>`__)
-and you can either email or fax it to Pixar.
+need to sign the Contributor License Agreement (CLA). There are two CLAs, one for 
+individuals and one for corporations. As for the end-user license, both are based 
+on Apache. They are found in the code repository (`individual form 
+<https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/OpenSubdivCLA_individual.pdf>`__,
+`corporate form <https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/OpenSubdivCLA_corporate.pdf>`__). 
+Please email the signed CLA to opensubdiv-cla@pixar.com.
+
 
 For more details about OpenSubdiv, see `Pixar Graphics Technologies <http:  graphics.pixar.com>`__.
 
