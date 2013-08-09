@@ -246,12 +246,12 @@ OsdPtexTextureLoader::~OsdPtexTextureLoader()
     ClearPages();
 }
 
-unsigned long int
+const unsigned long int
 OsdPtexTextureLoader::GetNumBlocks( ) const {
     return (unsigned long int)_blocks.size();
 }
 
-unsigned long int
+const unsigned long int
 OsdPtexTextureLoader::GetNumPages( ) const {
     return (unsigned long int)_pages.size();
 }
