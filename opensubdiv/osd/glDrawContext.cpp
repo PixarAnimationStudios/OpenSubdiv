@@ -168,6 +168,7 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
     
     // allocate and initialize additional buffer data
 
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
     // create vertex valence buffer and vertex texture
     FarPatchTables::VertexValenceTable const &
         valenceTable = patchTables->GetVertexValenceTable();
@@ -202,6 +203,7 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
 
     if (requireFVarData and not fvarTables.empty())
         _fvarDataTextureBuffer = createTextureBuffer(fvarTables, GL_R32F);
+#endif
 
     glBindBuffer(GL_TEXTURE_BUFFER, 0);
 
@@ -211,9 +213,11 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
 void
 OsdGLDrawContext::updateVertexTexture(GLuint vbo, int numVertexElements)
 {
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
     glBindTexture(GL_TEXTURE_BUFFER, _vertexTextureBuffer);
     glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
     glBindTexture(GL_TEXTURE_BUFFER, 0);
+#endif
 
     // XXX: consider moving this proc to base class
     // updating num elements in descriptor with new vbo specs

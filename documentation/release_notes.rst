@@ -32,6 +32,26 @@ Release Notes
 
 ----
 
+Release 2.0.1
+=============
+
+**New Features**
+    - New CLA files to reflect Apache 2.0 licensing
+
+**Changes**
+    - Move all public headers to include/opensubdiv/...
+    - Adding Osd documentation based on Siggraph slides
+
+**Bug Fixes**
+    - Fix incorrect transition pattern 3 in GLSL / HLSL shaders
+    - Fix CMake build to not link GPU-based libraries into libosdCPU
+    - Fix support for GLEW on OSX
+    - Fix GLFW Xrandr & xf86vmode dependency paths for X11 based systems
+    - Fix HUD display overlaps in code examples
+    - Fix FindGLEW.cmake to be aware of multiarch on linux systems
+    - Fix some hard-coded include paths in CMake build
+
+
 Release 2.0.0
 =============
 
