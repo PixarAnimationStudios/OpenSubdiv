@@ -1,62 +1,34 @@
 //
-//     Copyright (C) Pixar. All rights reserved.
+//     Copyright 2013 Pixar
 //
-//     This license governs use of the accompanying software. If you
-//     use the software, you accept this license. If you do not accept
-//     the license, do not use the software.
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License
+//     and the following modification to it: Section 6 Trademarks.
+//     deleted and replaced with:
 //
-//     1. Definitions
-//     The terms "reproduce," "reproduction," "derivative works," and
-//     "distribution" have the same meaning here as under U.S.
-//     copyright law.  A "contribution" is the original software, or
-//     any additions or changes to the software.
-//     A "contributor" is any person or entity that distributes its
-//     contribution under this license.
-//     "Licensed patents" are a contributor's patent claims that read
-//     directly on its contribution.
+//     6. Trademarks. This License does not grant permission to use the
+//     trade names, trademarks, service marks, or product names of the
+//     Licensor and its affiliates, except as required for reproducing
+//     the content of the NOTICE file.
 //
-//     2. Grant of Rights
-//     (A) Copyright Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free copyright license to reproduce its contribution,
-//     prepare derivative works of its contribution, and distribute
-//     its contribution or any derivative works that you create.
-//     (B) Patent Grant- Subject to the terms of this license,
-//     including the license conditions and limitations in section 3,
-//     each contributor grants you a non-exclusive, worldwide,
-//     royalty-free license under its licensed patents to make, have
-//     made, use, sell, offer for sale, import, and/or otherwise
-//     dispose of its contribution in the software or derivative works
-//     of the contribution in the software.
+//     You may obtain a copy of the License at
 //
-//     3. Conditions and Limitations
-//     (A) No Trademark License- This license does not grant you
-//     rights to use any contributor's name, logo, or trademarks.
-//     (B) If you bring a patent claim against any contributor over
-//     patents that you claim are infringed by the software, your
-//     patent license from such contributor to the software ends
-//     automatically.
-//     (C) If you distribute any portion of the software, you must
-//     retain all copyright, patent, trademark, and attribution
-//     notices that are present in the software.
-//     (D) If you distribute any portion of the software in source
-//     code form, you may do so only under this license by including a
-//     complete copy of this license with your distribution. If you
-//     distribute any portion of the software in compiled or object
-//     code form, you may only do so under a license that complies
-//     with this license.
-//     (E) The software is licensed "as-is." You bear the risk of
-//     using it. The contributors give no express warranties,
-//     guarantees or conditions. You may have additional consumer
-//     rights under your local laws which this license cannot change.
-//     To the extent permitted under your local laws, the contributors
-//     exclude the implied warranties of merchantability, fitness for
-//     a particular purpose and non-infringement.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+//     Unless required by applicable law or agreed to in writing,
+//     software distributed under the License is distributed on an
+//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//     either express or implied.  See the License for the specific
+//     language governing permissions and limitations under the
+//     License.
 //
 
 #if defined(__APPLE__)
-    #include <OpenGL/gl3.h>
+    #if defined(OSD_USES_GLEW)
+        #include <GL/glew.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
     #define GLFW_INCLUDE_GL3
     #define GLFW_NO_GLU
 #else
@@ -68,7 +40,7 @@
 #endif
 
 #if defined(GLFW_VERSION_3)
-    #include <GL/glfw3.h>
+    #include <GLFW/glfw3.h>
     GLFWwindow* g_window=0;
     GLFWmonitor* g_primary=0;
 #else
@@ -148,6 +120,7 @@ OpenSubdiv::OsdCpuComputeController *g_cpuComputeController = NULL;
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/gl_hud.h"
+#include "../common/patchColors.h"
 
 static const char *shaderSource =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
@@ -175,6 +148,20 @@ enum KernelType { kCPU    = 0,
                   kCL     = 5,
                   kGLSL   = 6,
                   kGLSLCompute = 7 };
+enum DisplayStyle { kWire = 0,
+                    kShaded,
+                    kWireShaded,
+                    kVaryingColor,
+                    kFaceVaryingColor };
+
+enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
+                   kHUD_CB_DISPLAY_CAGE_VERTS,
+                   kHUD_CB_ANIMATE_VERTICES,
+                   kHUD_CB_DISPLAY_PATCH_COLOR,
+                   kHUD_CB_VIEW_LOD,
+                   kHUD_CB_FRACTIONAL_SPACING,
+                   kHUD_CB_PATCH_CULL,
+                   kHUD_CB_FREEZE };
 
 struct SimpleShape {
     std::string  name;
@@ -191,16 +178,21 @@ std::vector<SimpleShape> g_defaultShapes;
 int g_currentShape = 29;
 
 int   g_frame = 0,
-      g_freeze = 0,
       g_repeatCount = 0;
 
 // GUI variables
 int   g_fullscreen = 0,
+      g_freeze = 0,
       g_wire = 1,
+      g_displayStyle = kShaded,
       g_adaptive = 1,
       g_mbutton[3] = {0, 0, 0}, 
       g_running = 1;
 
+int   g_displayPatchColor = 0,
+      g_screenSpaceTess = 0,
+      g_fractionalSpacing = 0,
+      g_patchCull = 0;
 
 float g_rotate[2] = {0, 0},
       g_dolly = 5,
@@ -400,8 +392,7 @@ linkDefaultProgram()
 }
 
 //------------------------------------------------------------------------------
-static void
-initializeShapes( ) {
+static void initializeShapes( ) {
 
 #include <shapes/catmark_cube_corner0.h>
     g_defaultShapes.push_back(SimpleShape(catmark_cube_corner0, "catmark_cube_corner0", kCatmark));
@@ -513,6 +504,33 @@ initializeShapes( ) {
 
 #include <shapes/bilinear_cube.h>
     g_defaultShapes.push_back(SimpleShape(bilinear_cube, "bilinear_cube", kBilinear));
+
+
+/*
+#include <shapes/loop_cube_creases0.h>
+    g_defaultShapes.push_back(SimpleShape(loop_cube_creases0, "loop_cube_creases0", kLoop));
+
+#include <shapes/loop_cube_creases1.h>
+    g_defaultShapes.push_back(SimpleShape(loop_cube_creases1, "loop_cube_creases1", kLoop));
+
+#include <shapes/loop_cube.h>
+    g_defaultShapes.push_back(SimpleShape(loop_cube, "loop_cube", kLoop));
+
+#include <shapes/loop_icosahedron.h>
+    g_defaultShapes.push_back(SimpleShape(loop_icosahedron, "loop_icosahedron", kLoop));
+
+#include <shapes/loop_saddle_edgecorner.h>
+    g_defaultShapes.push_back(SimpleShape(loop_saddle_edgecorner, "loop_saddle_edgecorner", kLoop));
+
+#include <shapes/loop_saddle_edgeonly.h>
+    g_defaultShapes.push_back(SimpleShape(loop_saddle_edgeonly, "loop_saddle_edgeonly", kLoop));
+
+#include <shapes/loop_triangle_edgecorner.h>
+    g_defaultShapes.push_back(SimpleShape(loop_triangle_edgecorner, "loop_triangle_edgecorner", kLoop));
+
+#include <shapes/loop_triangle_edgeonly.h>
+    g_defaultShapes.push_back(SimpleShape(loop_triangle_edgeonly, "loop_triangle_edgeonly", kLoop));
+*/
 }
 
 //------------------------------------------------------------------------------
@@ -799,14 +817,25 @@ setSharpnessColor(float s, float *r, float *g, float *b)
 }
 
 //------------------------------------------------------------------------------
-enum Effect {
-    kQuadWire = 0,
-    kQuadFill = 1,
-    kQuadLine = 2,
-    kTriWire = 3,
-    kTriFill = 4,
-    kTriLine = 5,
-    kPoint = 6,
+union Effect {
+    Effect(int displayStyle_, int screenSpaceTess_, int fractionalSpacing_, int patchCull_) : value(0) {
+        displayStyle = displayStyle_;
+        screenSpaceTess = screenSpaceTess_;
+        fractionalSpacing = fractionalSpacing_;
+        patchCull = patchCull_;
+    }
+
+    struct {
+        unsigned int displayStyle:3;
+        unsigned int screenSpaceTess:1;
+        unsigned int fractionalSpacing:1;
+        unsigned int patchCull:1;
+    };
+    int value;
+
+    bool operator < (const Effect &e) const {
+        return value < e.value;
+    }
 };
 
 typedef std::pair<OpenSubdiv::OsdDrawContext::PatchDescriptor, Effect> EffectDesc;
@@ -829,8 +858,7 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     SourceConfigType * sconfig =
         BaseRegistry::_CreateDrawSourceConfig(desc.first);
 
-//    sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
-//    sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
+    assert(sconfig);
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     const char *glslVersion = "#version 400\n";
@@ -844,12 +872,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
     } else {
-        if (effect == kQuadWire) effect = kTriWire;
-        if (effect == kQuadFill) effect = kTriFill;
-        if (effect == kQuadLine) effect = kTriLine;
         sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
     }
-    assert(sconfig);
 
     sconfig->geometryShader.source = shaderSource;
     sconfig->geometryShader.version = glslVersion;
@@ -859,46 +883,55 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     sconfig->fragmentShader.version = glslVersion;
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
-    switch (effect) {
-    case kQuadWire:
+    if (desc.first.GetType() == OpenSubdiv::FarPatchTables::QUADS) {
+        // uniform catmark, bilinear
         sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
         sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_WIRE");
-        break;
-    case kQuadFill:
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
-        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_FILL");
-        break;
-    case kQuadLine:
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_LINE");
-        break;
-    case kTriWire:
+        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
+    } else if (desc.first.GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
+        // uniform loop
         sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_WIRE");
-        break;
-    case kTriFill:
+        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
+    } else {
+        // adaptive
+        sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
+        sconfig->tessControlShader.source = shaderSource + sconfig->tessControlShader.source;
+        sconfig->tessEvalShader.source = shaderSource + sconfig->tessEvalShader.source;
+
         sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_FILL");
+    }
+
+    if (effect.screenSpaceTess) {
+        sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
+    }
+    if (effect.fractionalSpacing) {
+        sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
+    }
+    if (effect.patchCull) {
+        sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
+    }
+
+
+    switch (effect.displayStyle) {
+    case kWire:
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_WIRE");
         break;
-    case kTriLine:
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_LINE");
+    case kWireShaded:
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_LINE");
         break;
-    case kPoint:
-        sconfig->geometryShader.AddDefine("PRIM_POINT");
-        sconfig->fragmentShader.AddDefine("PRIM_POINT");
+    case kShaded:
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+        break;
+    case kVaryingColor:
+        sconfig->commonShader.AddDefine("VARYING_COLOR");
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+        break;
+    case kFaceVaryingColor:
+        sconfig->commonShader.AddDefine("OSD_FVAR_WIDTH", "2");
+        sconfig->commonShader.AddDefine("FACEVARYING_COLOR");
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
         break;
     }
 
@@ -934,30 +967,36 @@ EffectDrawRegistry::_CreateDrawConfig(
     GLint loc;
 #if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
     glUseProgram(config->program);
-    if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
         glUniform1i(loc, 0); // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
         glUniform1i(loc, 1); // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
         glUniform1i(loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
         glUniform1i(loc, 3); // GL_TEXTURE3
     }
+    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
+        glUniform1i(loc, 4); // GL_TEXTURE4
+    }
 #else
-    if ((loc = glGetUniformLocation(config->program, "g_VertexBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ValenceBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
     }
-    if ((loc = glGetUniformLocation(config->program, "g_QuadOffsetBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
     }
-    if ((loc = glGetUniformLocation(config->program, "g_ptexIndicesBuffer")) != -1) {
+    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
         glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
+    }
+    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
+        glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
     }
 #endif
 
@@ -967,13 +1006,9 @@ EffectDrawRegistry::_CreateDrawConfig(
 EffectDrawRegistry effectRegistry;
 
 static Effect
-GetEffect(Scheme scheme)
+GetEffect()
 {
-    if (scheme == kLoop) {
-        return (g_wire == 0 ? kTriWire : (g_wire == 1 ? kTriFill : kTriLine));
-    } else {
-        return (g_wire == 0 ? kQuadWire : (g_wire == 1 ? kQuadFill : kQuadLine));
-    }
+    return Effect(g_displayStyle, g_screenSpaceTess, g_fractionalSpacing, g_patchCull);
 }
 
 //------------------------------------------------------------------------------
@@ -1113,24 +1148,41 @@ displayMesh(MeshData *pMesh) {
         }
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        GLuint program = bindProgram(pMesh, GetEffect(pMesh->m_scheme), patch);
+        GLuint program = bindProgram(pMesh, GetEffect(), patch);
+
         GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
-        glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
-        GLuint uniformGregoryQuadOffset = glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformLevelBase = glGetUniformLocation(program, "LevelBase");
-        glProgramUniform1i(program, uniformGregoryQuadOffset, patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformLevelBase, patch.GetPatchIndex());
+
+        if (g_displayPatchColor and primType == GL_PATCHES) {
+            float const * color = getAdaptivePatchColor( desc );
+            glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
+        } else {
+            glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
+        }
+
+        GLuint uniformGregoryQuadOffsetBase =
+          glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+        GLuint uniformPrimitiveIdBase =
+          glGetUniformLocation(program, "OsdPrimitiveIdBase");
+
+        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
+                           patch.GetQuadOffsetIndex());
+        glProgramUniform1i(program, uniformPrimitiveIdBase,
+                           patch.GetPatchIndex());
 #else
-        bindProgram(pMesh, GetEffect(), patch);
+        GLuint program = bindProgram(pMesh, GetEffect(), patch);
+        GLint uniformPrimitiveIdBase =
+          glGetUniformLocation(program, "OsdPrimitiveIdBase");
+        if (uniformPrimitiveIdBase != -1)
+            glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
 #endif
 
-        if (g_wire == 0) {
+        if (g_displayStyle == kWire) {
             glDisable(GL_CULL_FACE);
         }
 
         glDrawElements(primType, patch.GetNumIndices(), GL_UNSIGNED_INT,
-                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));                       
-        if (g_wire == 0) {
+                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
+        if (g_displayStyle == kWire) {
             glEnable(GL_CULL_FACE);
         }
     }
@@ -1242,7 +1294,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state) {
+mouse(GLFWwindow *, int button, int state, int mods) {
 #else
 mouse(int button, int state) {
 #endif
@@ -1341,8 +1393,9 @@ toggleFullScreen() {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int event) {
+keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
 #else
+#define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
 #endif
 
@@ -1356,7 +1409,7 @@ keyboard(int key, int event) {
         case '+':
         case '=':  g_tessLevel++; break;
         case '-':  g_tessLevel = std::max(g_tessLevelMin, g_tessLevel-1); break;
-        case GLFW_KEY_ESC: g_hud.SetVisible(!g_hud.IsVisible()); break;
+        case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
     }
 }
 
@@ -1624,9 +1677,9 @@ int main(int argc, char ** argv)
         }
         
         if (g_primary) {
-            GLFWvidmode vidmode = glfwGetVideoMode(g_primary);
-            g_width = vidmode.width;
-            g_height = vidmode.height;
+            GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
+            g_width = vidmode->width;
+            g_height = vidmode->height;
         }
     }
 
@@ -1658,7 +1711,7 @@ int main(int argc, char ** argv)
 #endif
 
 
-#if not defined(__APPLE__)
+#if defined(OSD_USES_GLEW)
 #ifdef CORE_PROFILE
     // this is the only way to initialize glew correctly under core profile context.
     glewExperimental = true;
