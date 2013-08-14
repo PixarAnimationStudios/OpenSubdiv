@@ -25,6 +25,8 @@
 #ifndef OSD_DRAW_REGISTRY_H
 #define OSD_DRAW_REGISTRY_H
 
+#pragma warning disable 1125
+
 #include "../version.h"
 
 #include "../osd/drawContext.h"

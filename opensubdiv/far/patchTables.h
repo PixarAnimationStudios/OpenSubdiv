@@ -130,11 +130,11 @@ public:
                 
         /// \brief Returns the number of control vertices expected for a patch of the
         /// type described
-        static short GetNumControlVertices( Type t );
+        inline static short GetNumControlVertices( Type t );
         
         /// \brief Returns the number of control vertices expected for a patch of the 
         /// type described
-        short GetNumControlVertices() const {
+        inline short GetNumControlVertices() const {
             return GetNumControlVertices( this->GetType() );
         }
         
@@ -159,22 +159,22 @@ public:
         ///
         ///        NON_TRANSITION NON_PATCH ROT0 (end)
         ///
-        Descriptor & operator ++ ();
+        inline Descriptor & operator ++ ();
         
         /// \brief Allows ordering of patches by type
-        bool operator < ( Descriptor const other ) const;
+        inline bool operator < ( Descriptor const other ) const;
 
         /// \brief True if the descriptors are identical
-        bool operator == ( Descriptor const other ) const;
+        inline bool operator == ( Descriptor const other ) const;
         
         /// \brief Descriptor Iterator 
         class iterator;
 
         /// \brief Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
-        static iterator begin();
+        inline static iterator begin();
 
         /// \brief Returns an iterator to the end of the list of patch types (NON_PATCH)
-        static iterator end();
+        inline static iterator end();
         
     private:
         template <class T> friend class FarPatchTablesFactory;
@@ -396,7 +396,7 @@ private:
     template <class T, class U> friend class FarMultiMeshFactory;
 
     // Returns the array of patches of type "desc", or NULL if there aren't any in the primitive
-    PatchArray * findPatchArray( Descriptor desc );
+    inline PatchArray * findPatchArray( Descriptor desc );
 
     // Private constructor
     FarPatchTables( int maxvalence ) : _maxValence(maxvalence) { }

@@ -179,7 +179,7 @@ MyEffect g_effect;
 
 std::vector<SimpleShape> g_defaultShapes;
 
-int g_currentShape = 0;
+int g_currentShape = 29;
 
 int   g_frame = 0,
       g_repeatCount = 0;
@@ -193,7 +193,7 @@ int   g_fullscreen = 0,
       g_mbutton[3] = {0, 0, 0}, 
       g_running = 1;
 
-int   g_displayPatchColor = 1;
+int   g_displayPatchColor = 0;
 
 float g_rotate[2] = {0, 0},
       g_dolly = 5,
@@ -258,14 +258,14 @@ std::vector<Matrix> g_transforms;
 
 Scheme             g_scheme;
 
-int g_level = 2;
+int g_level = 4;
 int g_tessLevel = 1;
 int g_tessLevelMin = 0;
-int g_screenSpaceTess = 1;
-int g_kernel = kCPU;
+int g_screenSpaceTess = 0;
+int g_kernel = kCUDA;
 #define MAX_MODELS 600
 int g_modelCount = 4;
-int g_moveModels = g_modelCount;
+int g_moveModels = g_modelCount*g_modelCount;
 
 GLuint g_queries[2] = {0, 0};
 
@@ -287,6 +287,9 @@ checkGLErrors(std::string const & where = "")
 
 static void
 updateGeom(bool forceAll) {
+
+    Stopwatch s;
+    s.Start();
 
     float r = (float)sin(g_totalTime);
 
@@ -329,9 +332,6 @@ updateGeom(bool forceAll) {
             g_batch->UpdateCoarseVaryings(j, &varying[0], nverts);
         }
     }
-
-    Stopwatch s;
-    s.Start();
 
     g_batch->FinalizeUpdate();
 
@@ -594,15 +594,28 @@ display() {
         g_totalTime += g_fpsTimer.GetElapsed();
         double fps = 1.0/g_fpsTimer.GetElapsed();
         g_fpsTimer.Start();
+        static float last_gpuTime, last_cpuTime, last_drawCpuTime;
+        static float last_drawGpuTime, last_prepCpuTime;
+        static float last_fps;
+        static int display_count = 0;
+        if(display_count % 100 == 0) {
+            last_gpuTime = g_gpuTime;
+            last_cpuTime = g_cpuTime;
+            last_drawCpuTime = drawCpuTime;
+            last_drawGpuTime = drawGpuTime;
+            last_prepCpuTime = prepCpuTime;
+            last_fps = fps;
+        }
+        display_count ++;
         g_hud.DrawString(10, -200, "Draw Calls : %d", g_drawDelegate.GetNumDrawCalls());
         g_hud.DrawString(10, -180, "Tess level : %d", g_tessLevel);
         g_hud.DrawString(10, -160, "Primitives : %d", numPrimsGenerated);
-        g_hud.DrawString(10, -120, "GPU Kernel : %.3f ms", g_gpuTime);
-        g_hud.DrawString(10, -100, "CPU Kernel : %.3f ms", g_cpuTime);
-        g_hud.DrawString(10, -80,  "GPU Draw   : %.3f ms", drawGpuTime);
-        g_hud.DrawString(10, -60,  "CPU Draw   : %.3f ms", drawCpuTime);
-        g_hud.DrawString(10, -40,  "CPU Prep   : %.3f ms", prepCpuTime);
-        g_hud.DrawString(10, -20,  "FPS        : %3.1f", fps);
+        g_hud.DrawString(10, -120, "GPU Kernel : %.3f ms", last_gpuTime);
+        g_hud.DrawString(10, -100, "CPU Kernel : %.3f ms", last_cpuTime);
+        g_hud.DrawString(10, -80,  "GPU Draw   : %.3f ms", last_drawGpuTime);
+        g_hud.DrawString(10, -60,  "CPU Draw   : %.3f ms", last_drawCpuTime);
+        g_hud.DrawString(10, -40,  "CPU Prep   : %.3f ms", last_prepCpuTime);
+        g_hud.DrawString(10, -20,  "FPS        : %3.1f", last_fps);
 
         g_hud.Flush();
     }
@@ -835,9 +848,9 @@ initHUD()
                          200, 90, callbackDisplayStyle, kFaceVaryingColor, 'w');
 
     g_hud.AddCheckBox("Batching (B)", g_batching != 0, 350, 10, callbackCheckBox, HUD_CB_BATCHING, 'b');
-    g_hud.AddCheckBox("Patch Color (P)",      true, 350, 50, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');
-    g_hud.AddCheckBox("Screen space LOD (V)", g_screenSpaceTess != 0, 350, 70, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
-    g_hud.AddCheckBox("Freeze (spc)",         false, 350, 90, callbackCheckBox, HUD_CB_FREEZE, ' ');
+    g_hud.AddCheckBox("Patch Color (P)",      g_displayPatchColor == 1, 350, 30, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');
+    g_hud.AddCheckBox("Screen space LOD (V)", g_screenSpaceTess != 0, 350, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Freeze (spc)",         g_freeze == true, 350, 70, callbackCheckBox, HUD_CB_FREEZE, ' ');
 
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0, 10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');

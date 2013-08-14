@@ -75,7 +75,7 @@ foreach(shader_file ${SHADER_FILES})
     )
 endforeach()
 
-_add_glfw_executable(glViewer
+_add_glfw_executable(glMultiMeshViewer
     viewer.cpp
     ../common/font_image.cpp
     ../common/hud.cpp
@@ -85,8 +85,8 @@ _add_glfw_executable(glViewer
     ${INC_FILES}
 )
 
-target_link_libraries(glViewer
+target_link_libraries(glMultiMeshViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS glViewer DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS glMultiMeshViewer DESTINATION ${CMAKE_BINDIR_BASE})

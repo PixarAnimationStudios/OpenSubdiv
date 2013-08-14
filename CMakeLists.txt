@@ -117,6 +117,8 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC)
     # optimization.
     list(APPEND OSD_COMPILER_FLAGS -Wno-strict-aliasing)
 
+    #cpuKernel.h uses Intel vectorization pragma which is not supported by GCC
+    list(APPEND OSD_COMPILER_FLAGS -Wno-unknown-pragmas)
     
     # FAR and OSD have templated virtual function implementations that trigger
     # a lot of hidden virtual function overloads (some of them spurrious).
@@ -203,6 +205,10 @@ elseif(MSVC)
 
 endif()
 
+if(${SIMD} MATCHES "AVX")
+    list(APPEND OSD_COMPILER_FLAGS -xAVX)
+endif()    
+
 add_definitions(${OSD_COMPILER_FLAGS})
 
 #-------------------------------------------------------------------------------
@@ -215,6 +221,7 @@ set(CMAKE_SUPPRESS_REGENERATION TRUE)
 if(NOT NO_OMP)
     find_package(OpenMP)
 endif()
+find_package(TBB)
 find_package(OpenGL)
 find_package(OpenGLES)
 find_package(OpenCL 1.1)
@@ -260,11 +267,26 @@ if(OPENMP_FOUND)
         -DOPENSUBDIV_HAS_OPENMP
         ${OpenMP_CXX_FLAGS}
     )
+    SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}" )
 else()
     message(WARNING
         "OpenMP was not found : support for OMP parallel compute kernels "
         "will be diabled in Osd.  If your compiler supports OpenMP "
         "directives, please refer to the FindOpenMP.cmake shared module "
+        "in your cmake installation.")
+endif()
+
+if(TBB_FOUND)
+    add_definitions(
+        -DOPENSUBDIV_HAS_TBB
+        ${TBB_CXX_FLAGS}
+    )
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TBB_CXX_FLAGS}")
+else()
+    message(WARNING
+        "TBB was not found : support for TBB parallel compute kernels "
+        "will be diabled in Osd.  If your compiler supports TBB "
+        "directives, please refer to the FindTBB.cmake shared module "
         "in your cmake installation.")
 endif()
 

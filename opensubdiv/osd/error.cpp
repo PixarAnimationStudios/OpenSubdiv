@@ -22,6 +22,7 @@
 //     language governing permissions and limitations under the
 //     License.
 //
+#pragma warning disable 1711
 
 #include "../osd/error.h"
 

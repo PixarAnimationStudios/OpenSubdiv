@@ -25,6 +25,8 @@
 #ifndef OSD_NON_COPYABLE_H
 #define OSD_NON_COPYABLE_H
 
+#pragma warning disable 304
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

@@ -168,6 +168,27 @@ endif()
 list(APPEND DOXY_HEADER_FILES ${OPENMP_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
+if( TBB_FOUND )
+    list(APPEND CPU_SOURCE_FILES
+        tbbKernel.cpp
+        tbbComputeController.cpp
+    )
+    list(APPEND PUBLIC_HEADER_FILES
+        tbbKernel.h
+        tbbComputeController.h
+    )   
+    if (CMAKE_COMPILER_IS_GNUCXX)
+        list(APPEND PLATFORM_LIBRARIES
+            gomp
+        )
+    endif()
+  
+    list(APPEND PLATFORM_LIBRARIES
+        ${TBB_LIBRARIES}
+    )    
+endif()
+
+#-------------------------------------------------------------------------------
 set(GCD_PUBLIC_HEADERS
     gcdKernel.h
     gcdComputeController.h
@@ -424,6 +445,7 @@ if (NOT NO_LIB)
 
     target_link_libraries(osd_static_cpu
         ${PLATFORM_CPU_LIBRARIES}
+        ${TBB_LIBRARIES}        
     )
 
     _add_possibly_cuda_library(osd_static_gpu STATIC
@@ -453,6 +475,7 @@ if (NOT NO_LIB)
 
         target_link_libraries(osd_dynamic_cpu
             ${PLATFORM_CPU_LIBRARIES}
+            ${TBB_LIBRARIES}            
         )
 
         _add_possibly_cuda_library(osd_dynamic_gpu SHARED
