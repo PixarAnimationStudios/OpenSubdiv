@@ -117,6 +117,8 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC)
     # optimization.
     list(APPEND OSD_COMPILER_FLAGS -Wno-strict-aliasing)
 
+    #cpuKernel.h uses Intel vectorization pragma which is not supported by GCC
+    list(APPEND OSD_COMPILER_FLAGS -Wno-unknown-pragmas)
     
     # FAR and OSD have templated virtual function implementations that trigger
     # a lot of hidden virtual function overloads (some of them spurrious).
@@ -203,6 +205,10 @@ elseif(MSVC)
 
 endif()
 
+if(${SIMD} MATCHES "AVX")
+    list(APPEND OSD_COMPILER_FLAGS -xAVX)
+endif()    
+
 add_definitions(${OSD_COMPILER_FLAGS})
 
 #-------------------------------------------------------------------------------
@@ -260,6 +266,7 @@ if(OPENMP_FOUND)
         -DOPENSUBDIV_HAS_OPENMP
         ${OpenMP_CXX_FLAGS}
     )
+    SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}" )
 else()
     message(WARNING
         "OpenMP was not found : support for OMP parallel compute kernels "
