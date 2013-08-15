@@ -25,10 +25,10 @@
 #ifndef OSD_CPU_KERNEL_H
 #define OSD_CPU_KERNEL_H
 
-#ifdef __INTEL_COMPILER
-#define __ALIGN_DATA __declspec(align(32))
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #define __ALIGN_DATA __declspec(align(32))
 #else
-#define __ALIGN_DATA 
+    #define __ALIGN_DATA 
 #endif
 
 #include <string.h>
@@ -58,8 +58,11 @@ void ComputeFaceKernel(float     *vertex,
         int h = F_ITa[2*i];
         int n = F_ITa[2*i+1];
         float weight = 1.0f/n;
-#pragma simd       
-#pragma vector aligned
+
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
         for (int k = 0; k < numVertexElements; ++k)
             result[k] = 0.0f;
             
@@ -68,13 +71,17 @@ void ComputeFaceKernel(float     *vertex,
         for (int j = 0; j < n; ++j) {
             int index = F_IT[h+j];
             src = vertex + index  * numVertexElements;
-#pragma simd       
-#pragma vector aligned 
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
             for (int k = 0; k < numVertexElements; ++k)
                 result[k] += src[k] * weight;
         }
-#pragma simd
-#pragma vector aligned 
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
         for (int k = 0; k < numVertexElements; ++k)
             result1[k] = result[k];                 
         des = vertex + dstIndex * numVertexElements;
@@ -110,8 +117,10 @@ void ComputeEdgeKernel(      float *vertex,
       
         src  = vertex + eidx0 * numVertexElements;
         src2 = vertex + eidx1 * numVertexElements;
-#pragma simd       
-#pragma vector aligned 
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
         for (int j = 0; j < numVertexElements; ++j)
             result[j] = (src[j]+src2[j]) * vertWeight;
 
@@ -119,13 +128,17 @@ void ComputeEdgeKernel(      float *vertex,
             float faceWeight = E_W[i*2+1];
             src  = vertex + eidx2 * numVertexElements;
             src2 = vertex + eidx3 * numVertexElements;            
-#pragma simd       
-#pragma vector aligned 
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
             for (int j = 0; j < numVertexElements; ++j)
                 result[j] += (src[j]+src2[j]) * faceWeight;
         }
-#pragma simd
-#pragma vector aligned 
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
         for (int j = 0; j < numVertexElements; ++j)
             result1[j] = result[j]; 
 
@@ -169,37 +182,47 @@ void ComputeVertexAKernel(      float *vertex,
         int dstIndex = i + vertexOffset - tableOffset;
 
         if (not pass) {
-#pragma simd       
-#pragma vector aligned
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
             for (int k = 0; k < numVertexElements; ++k)
                 result[k] = 0.0f;
         }
         else {
             memcpy(result1, vertex+dstIndex*numVertexElements,  
                    sizeof(float)*numVertexElements);
-#pragma simd       
-#pragma vector aligned
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
             for (int k = 0; k < numVertexElements; ++k)
                 result[k] = result1[k];                   
         }
         
         if (eidx0 == -1 || (pass == 0 && (n == -1))) {
             src = vertex + p * numVertexElements;
-#pragma simd       
-#pragma vector aligned 
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
             for (int j = 0; j < numVertexElements; ++j)
                 result[j] += src[j] * weight;
         } else {
             src  = vertex + p     * numVertexElements;
             src2 = vertex + eidx0 * numVertexElements;            
             src3 = vertex + eidx1 * numVertexElements;            
-#pragma simd       
-#pragma vector aligned 
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
             for (int j = 0; j < numVertexElements; ++j)
                 result[j] += (src[j]*0.75f + src2[j]*0.125f + src3[j]*0.125f) * weight;
         }    
-#pragma simd
-#pragma vector aligned 
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
         for (int k = 0; k < numVertexElements; ++k)
             result1[k] = result[k]; 
 
@@ -237,8 +260,10 @@ void ComputeVertexBKernel(      float *vertex,
         int dstIndex = i + vertexOffset - tableOffset;
                                   
         src = vertex + p * numVertexElements;
-#pragma simd       
-#pragma vector aligned 
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
         for (int j = 0; j < numVertexElements; ++j)
             result[j] = src[j] * weight * wv; 
 
@@ -247,13 +272,17 @@ void ComputeVertexBKernel(      float *vertex,
             int id2 = V_IT[h+2*j+1];
             src1 = vertex + id1 * numVertexElements;
             src2 = vertex + id2 * numVertexElements;
-#pragma simd       
-#pragma vector aligned 
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
             for (int k = 0; k < numVertexElements; ++k)
                 result[k] += (src1[k]+src2[k]) * weight * wp; 
         }
-#pragma simd       
-#pragma vector aligned 
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
         for (int j = 0; j < numVertexElements; ++j)
             result1[j] = result[j]; 
 
@@ -293,21 +322,27 @@ void ComputeLoopVertexBKernel(      float *vertex,
 
         int dstIndex = i + vertexOffset - tableOffset;
         src = vertex + p * numVertexElements;
-#pragma simd       
-#pragma vector aligned
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
         for (int k = 0; k < numVertexElements; ++k)
             result[k] = src[k] * weight * (1.0f - (beta * n));
 
         for (int j = 0; j < n; ++j) {
             src = vertex + V_IT[h+j] * numVertexElements;
-#pragma simd       
-#pragma vector aligned                
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
             for (int k = 0; k < numVertexElements; ++k)
                 result[k] += src[k] * weight * beta;
         }
 
-#pragma simd       
-#pragma vector aligned 
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
         for (int j = 0; j < numVertexElements; ++j)
             result1[j] = result[j]; 
 
@@ -338,8 +373,10 @@ void ComputeBilinearEdgeKernel(    float *vertex,
 
         src1 = vertex + eidx0 * numVertexElements;
         src2 = vertex + eidx1 * numVertexElements;            
-#pragma simd       
-#pragma vector aligned            
+#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+    #pragma simd       
+    #pragma vector aligned
+#endif
         for (int j = 0; j < numVertexElements; ++j)
             result[j] = 0.5f * (src1[j]+src2[j]);     
                 
