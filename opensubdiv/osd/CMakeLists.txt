@@ -139,17 +139,17 @@ if( PTEX_FOUND )
     )
 endif()
 
-list(APPEND DOXY_HEADER_FILES 
-    ${GL_PTEX_PUBLIC_HEADERS} 
-    ${DX_PTEX_PUBLIC_HEADERS} 
+list(APPEND DOXY_HEADER_FILES
+    ${GL_PTEX_PUBLIC_HEADERS}
+    ${DX_PTEX_PUBLIC_HEADERS}
 )
 
 #-------------------------------------------------------------------------------
-set(OPENMP_PUBLIC_HEADERS 
+set(OPENMP_PUBLIC_HEADERS
     ompKernel.h
     ompComputeController.h
 )
- 
+
 if( OPENMP_FOUND )
     list(APPEND CPU_SOURCE_FILES
         ompKernel.cpp
@@ -168,11 +168,35 @@ endif()
 list(APPEND DOXY_HEADER_FILES ${OPENMP_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
+if( TBB_FOUND )
+    include_directories(
+        ${TBB_INCLUDE_DIR}
+    )
+    list(APPEND CPU_SOURCE_FILES
+        tbbKernel.cpp
+        tbbComputeController.cpp
+    )
+    list(APPEND PUBLIC_HEADER_FILES
+        tbbKernel.h
+        tbbComputeController.h
+    )
+    if (CMAKE_COMPILER_IS_GNUCXX)
+        list(APPEND PLATFORM_CPU_LIBRARIES
+            gomp
+        )
+    endif()
+
+    list(APPEND PLATFORM_CPU_LIBRARIES
+        ${TBB_LIBRARIES}
+    )
+endif()
+
+#-------------------------------------------------------------------------------
 set(GCD_PUBLIC_HEADERS
     gcdKernel.h
     gcdComputeController.h
 )
- 
+
 if( GCD_FOUND )
     list(APPEND CPU_SOURCE_FILES
         gcdKernel.cpp
@@ -373,7 +397,7 @@ if( CUDA_FOUND )
         list(APPEND PUBLIC_HEADER_FILES
             cudaD3D11VertexBuffer.h
         )
-    endif()        
+    endif()
 
     if (UNIX)
         list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC --gpu-architecture compute_11 )
@@ -483,7 +507,7 @@ install( FILES ${PUBLIC_HEADER_FILES}
 
 
 if (ANDROID)
-    install( FILES Android.mk 
+    install( FILES Android.mk
              DESTINATION ${LIBRARY_OUTPUT_PATH_ROOT}
              PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
 endif()

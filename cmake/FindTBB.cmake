@@ -63,51 +63,72 @@ else ()
             DOC "The directory where TBB headers reside")
 endif ()
 
+set (TBB_LIB_ARCH "")
+
+if (WIN32)
+
+        if ("${CMAKE_GENERATOR}" MATCHES "[Ww]in64")
+        set(WINPATH intel64)
+    else ()
+        set(WINPATH ia32)
+    endif()
+
+        if (MSVC80)
+        set(WINPATH "${WINPATH}/vc8")
+    elseif (MSVC90)
+        set(WINPATH "${WINPATH}/vc9")
+    elseif (MSVC10)
+        set(WINPATH "${WINPATH}/vc10")
+    elseif (MSVC11)
+        set(WINPATH "${WINPATH}/vc11")
+    endif()
+
+    list(APPEND TBB_LIB_ARCH ${WINPATH})
+
+elseif(ANDROID)
+
+    list(APPEND TBB_LIB_ARCH "android")
+
+else()
+
+    if(CMAKE_SIZEOF_VOID_P MATCHES "8")
+        list(APPEND TBB_LIB_ARCH "intel64")
+    elseif(CMAKE_SIZEOF_VOID_P MATCHES "4")
+        list(APPEND TBB_LIB_ARCH "ia32")
+    endif()
+endif()
+
 # List library files
-foreach(TBB_LIB tbb             tbb_debug 
+foreach(TBB_LIB tbb             tbb_debug
                 tbbmalloc       tbbmalloc_debug
                 tbbmalloc_proxy tbbmalloc_proxy_debug
                 tbb_preview     tbb_preview_debug)
 
-    if (WIN32)
-
-            if ("${CMAKE_GENERATOR}" MATCHES "[Ww]in64")
-            set(WINPATH intel64)
-        else ()
-            set(WINPATH ia32)
-        endif()
-
-            if (MSVC80)
-            set(WINPATH "${WINPATH}/vc8")
-        elseif (MSVC90)
-            set(WINPATH "${WINPATH}/vc9")
-        elseif (MSVC10)
-            set(WINPATH "${WINPATH}/vc10")
-        elseif (MSVC11)
-            set(WINPATH "${WINPATH}/vc11")
-        endif()
-    endif()
 
     find_library(TBB_${TBB_LIB}_LIBRARY
         NAMES
             ${TBB_LIB}
         PATHS
             ${TBB_LOCATION}/lib
-            ${TBB_LOCATION}/bin/${WINPATH}
-            ${TBB_LOCATION}/lib/${WINPATH}
+            ${TBB_LOCATION}/bin
             $ENV{TBB_LOCATION}/lib
-            $ENV{TBB_LOCATION}/bin/${WINPATH}
+            $ENV{TBB_LOCATION}/bin
             $ENV{PROGRAMFILES}/TBB/lib
             /usr/lib
             /usr/lib/w32api
             /usr/local/lib
             /usr/X11R6/lib
-            DOC "Intel's Threading Building Blocks library")
+        PATH_SUFFIXES
+            ${TBB_LIB_ARCH}
+            ${TBB_LIB_ARCH}/${TBB_COMPILER}
+            ${TBB_LIB_ARCH}/gcc4.4
+            ${TBB_LIB_ARCH}/gcc4.1
+        DOC "Intel's Threading Building Blocks library")
 
     if (TBB_${TBB_LIB}_LIBRARY)
         list(APPEND TBB_LIBRARIES ${TBB_${TBB_LIB}_LIBRARY})
     endif()
-    
+
 endforeach()
 
 # Obtain version information
@@ -115,20 +136,20 @@ if(TBB_INCLUDE_DIR)
 
     # Tease the TBB version numbers from the lib headers
     function(parseVersion FILENAME VARNAME)
-            
+
         set(PATTERN "^#define ${VARNAME}.*$")
-        
+
         file(STRINGS "${TBB_INCLUDE_DIR}/${FILENAME}" TMP REGEX ${PATTERN})
-        
+
         string(REGEX MATCHALL "[0-9]+" TMP ${TMP})
-        
+
         set(${VARNAME} ${TMP} PARENT_SCOPE)
-        
+
     endfunction()
 
     if(EXISTS "${TBB_INCLUDE_DIR}/tbb/tbb_stddef.h")
         parseVersion(tbb/tbb_stddef.h TBB_VERSION_MAJOR)
-        parseVersion(tbb/tbb_stddef.h TBB_VERSION_MINOR)        
+        parseVersion(tbb/tbb_stddef.h TBB_VERSION_MINOR)
     endif()
 
     if(${TBB_VERSION_MAJOR} OR ${TBB_VERSION_MINOR})
@@ -144,7 +165,7 @@ endif(TBB_INCLUDE_DIR)
 
 include(FindPackageHandleStandardArgs)
 
-find_package_handle_standard_args(TBB 
+find_package_handle_standard_args(TBB
     REQUIRED_VARS
         TBB_INCLUDE_DIR
         TBB_LIBRARIES

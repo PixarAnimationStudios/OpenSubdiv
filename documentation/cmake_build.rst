@@ -74,6 +74,7 @@ ________
     - `Zlib <http://www.zlib.net/>`__ (required for Ptex under Windows)
     - `GLEW <http://glew.sourceforge.net/>`__ (Windows/Linux only)
     - `CUDA <http://www.nvidia.com/object/cuda_home_new.html>`__
+    - `TBB <http://www.threadingbuildingblocks.org/>`__
     - `OpenCL <http://www.khronos.org/opencl/>`__
     - `DX11 SDK <http://www.microsoft.com/>`__
     - `GLFW <https://github.com/glfw/glfw>`__ (required for standalone examples
@@ -111,6 +112,7 @@ The following configuration arguments can be passed to the cmake command line.
    -DGLEW_LOCATION=[path to GLEW]
    -DGLFW_LOCATION=[path to GLFW]
    -DMAYA_LOCATION=[path to Maya]
+   -DTBB_LOCATION=[path to Intel's TBB]
    -DICC_LOCATION=[path to Intel's C++ Studio XE]
    
    -DNO_LIB=1        // disable the opensubdiv libs build (caveat emptor)
@@ -119,6 +121,7 @@ The following configuration arguments can be passed to the cmake command line.
    -DNO_PYTHON=1     // disable Python SWIG build
    -DNO_DOC=1        // disable documentation build
    -DNO_OMP=1        // disable OpenMP
+   -DNO_TBB=1        // disable TBB
    -DNO_CUDA=1       // disable CUDA
    -DNO_GCD=1        // disable GrandCentralDispatch on OSX
 
