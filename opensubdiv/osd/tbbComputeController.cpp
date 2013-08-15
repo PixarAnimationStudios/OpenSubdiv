@@ -26,7 +26,6 @@
 #include "../osd/cpuComputeContext.h"
 #include "../osd/tbbComputeController.h"
 #include "../osd/tbbKernel.h"
-#include "../osd/table.h"
 
 #ifdef OPENSUBDIV_HAS_TBB 
     #include <tbb/task_scheduler_init.h>
@@ -57,8 +56,8 @@ OsdTbbComputeController::ApplyBilinearFaceVerticesKernel(
         context->GetVertexDescriptor(),
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(Table::F_IT)->GetBuffer(),
-        (const int*)context->GetTable(Table::F_ITa)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::F_IT)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::F_ITa)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -74,7 +73,7 @@ OsdTbbComputeController::ApplyBilinearEdgeVerticesKernel(
         context->GetVertexDescriptor(),
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(Table::E_IT)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::E_IT)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -90,7 +89,7 @@ OsdTbbComputeController::ApplyBilinearVertexVerticesKernel(
         context->GetVertexDescriptor(),
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -106,8 +105,8 @@ OsdTbbComputeController::ApplyCatmarkFaceVerticesKernel(
         context->GetVertexDescriptor(),
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(Table::F_IT)->GetBuffer(),
-        (const int*)context->GetTable(Table::F_ITa)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::F_IT)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::F_ITa)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -123,8 +122,8 @@ OsdTbbComputeController::ApplyCatmarkEdgeVerticesKernel(
         context->GetVertexDescriptor(),
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(Table::E_IT)->GetBuffer(),
-        (const float*)context->GetTable(Table::E_W)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::E_IT)->GetBuffer(),
+        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::E_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -140,9 +139,9 @@ OsdTbbComputeController::ApplyCatmarkVertexVerticesKernelB(
         context->GetVertexDescriptor(),
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
-        (const int*)context->GetTable(Table::V_IT)->GetBuffer(),
-        (const float*)context->GetTable(Table::V_W)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_IT)->GetBuffer(),
+        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -158,8 +157,8 @@ OsdTbbComputeController::ApplyCatmarkVertexVerticesKernelA1(
         context->GetVertexDescriptor(),
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
-        (const float*)context->GetTable(Table::V_W)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
+        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
 }
 
@@ -175,8 +174,8 @@ OsdTbbComputeController::ApplyCatmarkVertexVerticesKernelA2(
         context->GetVertexDescriptor(),
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
-        (const float*)context->GetTable(Table::V_W)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
+        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
 }
 
@@ -192,8 +191,8 @@ OsdTbbComputeController::ApplyLoopEdgeVerticesKernel(
         context->GetVertexDescriptor(),
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(Table::E_IT)->GetBuffer(),
-        (const float*)context->GetTable(Table::E_W)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::E_IT)->GetBuffer(),
+        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::E_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -209,9 +208,9 @@ OsdTbbComputeController::ApplyLoopVertexVerticesKernelB(
         context->GetVertexDescriptor(),
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
-        (const int*)context->GetTable(Table::V_IT)->GetBuffer(),
-        (const float*)context->GetTable(Table::V_W)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_IT)->GetBuffer(),
+        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -227,8 +226,8 @@ OsdTbbComputeController::ApplyLoopVertexVerticesKernelA1(
         context->GetVertexDescriptor(),
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
-        (const float*)context->GetTable(Table::V_W)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
+        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
 }
 
@@ -244,8 +243,8 @@ OsdTbbComputeController::ApplyLoopVertexVerticesKernelA2(
         context->GetVertexDescriptor(),
         context->GetCurrentVertexBuffer(),
         context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(Table::V_ITa)->GetBuffer(),
-        (const float*)context->GetTable(Table::V_W)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
+        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
 }
 

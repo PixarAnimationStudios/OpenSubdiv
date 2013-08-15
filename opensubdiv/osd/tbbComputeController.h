@@ -34,9 +34,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-/// \brief Compute controller for launching OpenMP subdivision kernels.
+/// \brief Compute controller for launching TBB subdivision kernels.
 ///
-/// OsdTbbComputeController is a compute controller class to launch OpenMP
+/// OsdTbbComputeController is a compute controller class to launch TBB
 /// threaded subdivision kernels. It requires OsdCpuVertexBufferInterface
 /// as arguments of Refine function.
 ///
@@ -71,8 +71,6 @@ public:
                 FarKernelBatchVector const & batches,
                 VERTEX_BUFFER * vertexBuffer,
                 VARYING_BUFFER * varyingBuffer) {
-
-        omp_set_num_threads(_numThreads);
 
         context->Bind(vertexBuffer, varyingBuffer);
         FarDispatcher::Refine(this,
