@@ -96,13 +96,15 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 # Detect Clang (until a cmake version provides built-in variables)
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set(CMAKE_COMPILER_IS_CLANGCC 1)
+elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Intel")
+    set(CMAKE_COMPILER_IS_ICC 1)
 endif()
 
 
 set(OSD_COMPILER_FLAGS)
 
 # Disable spurrious warnings in gcc builds and clang
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC)
+if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
 
     # Turn on all warnings
     list(APPEND OSD_COMPILER_FLAGS -Wall)
@@ -116,15 +118,38 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC)
     # gcc 4.4.1 versions onwards. We disable the warning but keep aliasing
     # optimization.
     list(APPEND OSD_COMPILER_FLAGS -Wno-strict-aliasing)
-
-    #cpuKernel.h uses Intel vectorization pragma which is not supported by GCC
-    list(APPEND OSD_COMPILER_FLAGS -Wno-unknown-pragmas)
     
     # FAR and OSD have templated virtual function implementations that trigger
     # a lot of hidden virtual function overloads (some of them spurrious).
     # Disable those for now in Clang.
     if(CMAKE_COMPILER_IS_CLANGCC)
         list(APPEND OSD_COMPILER_FLAGS -Wno-overloaded-virtual)
+    endif()
+
+    # Intel's icc compiler requires some libraries linked
+    if(CMAKE_COMPILER_IS_ICC)
+
+        foreach (ICC_LIB iomp5 irng intlc)
+
+            find_library( ICC_${ICC_LIB}
+                NAMES
+                    ${ICC_LIB}
+                PATHS
+                    ${ICC_LOCATION}/lib
+                    /opt/intel/lib/
+                PATH_SUFFIXES
+                    intel64/
+                    ia32/
+                    mic/
+            )
+            
+            if (ICC_${ICC_LIB})
+                list(APPEND ICC_LIBRARIES ${ICC_${ICC_LIB}})
+            else()
+                message( FATAL_ERROR "${ICC_${ICC_LIB}} library not found - required by icc" )
+            endif()
+
+        endforeach()
     endif()
 
 elseif(MSVC)
@@ -266,7 +291,7 @@ if(OPENMP_FOUND)
         -DOPENSUBDIV_HAS_OPENMP
         ${OpenMP_CXX_FLAGS}
     )
-    SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}" )
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
 else()
     message(WARNING
         "OpenMP was not found : support for OMP parallel compute kernels "
@@ -446,6 +471,10 @@ macro(_add_possibly_cuda_executable target)
         cuda_add_executable(${target} ${ARGN})
     else()
         add_executable(${target} ${ARGN})
+    endif()
+    
+    if(CMAKE_COMPILER_IS_ICC)
+        target_link_libraries(${target} ${ICC_LIBRARIES})
     endif()
 endmacro()
 

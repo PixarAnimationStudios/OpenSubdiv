@@ -111,6 +111,7 @@ The following configuration arguments can be passed to the cmake command line.
    -DGLEW_LOCATION=[path to GLEW]
    -DGLFW_LOCATION=[path to GLFW]
    -DMAYA_LOCATION=[path to Maya]
+   -DICC_LOCATION=[path to Intel's C++ Studio XE]
    
    -DNO_LIB=1        // disable the opensubdiv libs build (caveat emptor)
    -DNO_EXAMPLES=1   // disable examples build
@@ -201,6 +202,24 @@ Here is a similar script for \*Nix-based platforms:
       Notice that this script starts by **recursively removing** the *../build/* and 
       *../inst/* directories. Make sure you modify this script to suit your build
       workflow.
+
+Using Intel's C++ Studio XE
+___________________________
+
+OpenSubdiv can be also be built with `Intel's C++ compiler <http://software.intel.com/en-us/intel-compilers>`__ 
+(icc). The default compiler can be overriden in CMake with the following configuration options:
+
+.. code:: c++
+
+    -DCMAKE_CXX_COMPILER=[path to icc executable]
+    -DCMAKE_C_COMPILER=[path to icc executable]
+
+The installation location of the C++ Studio XE can be overriden with:
+
+.. code:: c++
+
+    -DICC_LOCATION=[path to Intel's C++ Studio XE]
+
 
 ----
 
