@@ -91,15 +91,15 @@ public:
 
     ~OsdPtexTextureLoader();
 
-    const unsigned short GetPageSize( ) const {
+    unsigned short GetPageSize( ) const {
         return _pagesize;
     }
 
-    const unsigned long int GetNumBlocks( ) const;
+    unsigned long int GetNumBlocks( ) const;
 
-    const unsigned long int GetNumPages( ) const;
+    unsigned long int GetNumPages( ) const;
 
-    const unsigned int * GetIndexBuffer( ) const {
+    unsigned int * GetIndexBuffer( ) const {
         return _indexBuffer;
     }
 
