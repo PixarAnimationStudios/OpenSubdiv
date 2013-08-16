@@ -62,6 +62,11 @@ OpenSubdiv::OsdCpuComputeController *g_cpuComputeController = NULL;
     OpenSubdiv::OsdOmpComputeController *g_ompComputeController = NULL;
 #endif
 
+#ifdef OPENSUBDIV_HAS_TBB
+    #include <osd/tbbComputeController.h>
+    OpenSubdiv::OsdTbbComputeController *g_tbbComputeController = NULL;
+#endif
+
 #ifdef OPENSUBDIV_HAS_GCD
     #include <osd/gcdComputeController.h>
     OpenSubdiv::OsdGcdComputeController *g_gcdComputeController = NULL;
@@ -136,11 +141,12 @@ typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
 enum KernelType { kCPU = 0,
                   kOPENMP = 1,
-                  kGCD = 2,
-                  kCUDA = 3,
-                  kCL = 4,
-                  kGLSL = 5,
-                  kGLSLCompute = 6 };
+                  kTBB = 2,
+                  kGCD = 3,
+                  kCUDA = 4,
+                  kCL = 5,
+                  kGLSL = 6,
+                  kGLSLCompute = 7 };
 
 enum DisplayStyle { kWire = 0,
                     kShaded,
@@ -181,7 +187,7 @@ int   g_fullscreen = 0,
       g_adaptive = 0,
       g_drawCageEdges = 1,
       g_drawCageVertices = 0,
-      g_mbutton[3] = {0, 0, 0}, 
+      g_mbutton[3] = {0, 0, 0},
       g_running = 1;
 
 int   g_displayPatchColor = 1,
@@ -286,7 +292,7 @@ linkDefaultProgram()
 #else
     #define GLSL_VERSION_DEFINE "#version 150\n"
 #endif
-    
+
     static const char *vsSrc =
         GLSL_VERSION_DEFINE
         "in vec3 position;\n"
@@ -329,7 +335,7 @@ linkDefaultProgram()
     }
 
     g_defaultProgram.program = program;
-    g_defaultProgram.uniformModelViewProjectionMatrix = 
+    g_defaultProgram.uniformModelViewProjectionMatrix =
         glGetUniformLocation(program, "ModelViewProjectionMatrix");
     g_defaultProgram.attrPosition = glGetAttribLocation(program, "position");
     g_defaultProgram.attrColor = glGetAttribLocation(program, "color");
@@ -529,7 +535,7 @@ updateGeom() {
         g_positions[i*3+0] = p[0]*ct + p[1]*st;
         g_positions[i*3+1] = -p[0]*st + p[1]*ct;
         g_positions[i*3+2] = p[2];
-        
+
         p += 3;
     }
 
@@ -576,6 +582,8 @@ getKernelName(int kernel) {
         return "CPU";
     else if (kernel == kOPENMP)
         return "OpenMP";
+    else if (kernel == kTBB)
+        return "TBB";
     else if (kernel == kGCD)
         return "GCD";
     else if (kernel == kCUDA)
@@ -657,6 +665,20 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                          OpenSubdiv::OsdOmpComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_ompComputeController,
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
+#endif
+#ifdef OPENSUBDIV_HAS_TBB
+    } else if (kernel == kTBB) {
+        if (not g_tbbComputeController) {
+            g_tbbComputeController = new OpenSubdiv::OsdTbbComputeController();
+        }
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuGLVertexBuffer,
+                                         OpenSubdiv::OsdTbbComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(
+                                                g_tbbComputeController,
                                                 hmesh,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -761,7 +783,7 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
 
     updateGeom();
 
-    // -------- VAO 
+    // -------- VAO
     glBindVertexArray(g_vao);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->GetPatchIndexBuffer());
@@ -840,7 +862,7 @@ drawCageEdges() {
 
     glBindVertexArray(0);
     glUseProgram(0);
-} 
+}
 
 static void
 drawCageVertices() {
@@ -1010,7 +1032,7 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 EffectDrawRegistry::ConfigType *
 EffectDrawRegistry::_CreateDrawConfig(
         DescType const & desc,
-        SourceConfigType const * sconfig) 
+        SourceConfigType const * sconfig)
 {
     ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig);
     assert(config);
@@ -1138,7 +1160,7 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
            { 0.1f, 0.1f, 0.1f, 1.0f },
            { 0.7f, 0.7f, 0.7f, 1.0f },
            { 0.8f, 0.8f, 0.8f, 1.0f } },
- 
+
          { { -0.8f, 0.4f, -1.0f, 0.0f },
            {  0.0f, 0.0f,  0.0f, 1.0f },
            {  0.5f, 0.5f,  0.5f, 1.0f },
@@ -1213,7 +1235,7 @@ display() {
     multMatrix(g_transformData.ModelViewProjectionMatrix,
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
-    
+
     // make sure that the vertex buffer is interoped back as a GL resources.
     g_mesh->BindVertexBuffer();
 
@@ -1348,7 +1370,7 @@ display() {
                          patchCount[OpenSubdiv::FarPatchTables::REGULAR][OpenSubdiv::FarPatchTables::PATTERN2][0],
                          patchCount[OpenSubdiv::FarPatchTables::REGULAR][OpenSubdiv::FarPatchTables::PATTERN3][0],
                          patchCount[OpenSubdiv::FarPatchTables::REGULAR][OpenSubdiv::FarPatchTables::PATTERN4][0]);
-        for (int i=0; i < 5; i++) 
+        for (int i=0; i < 5; i++)
             g_hud.DrawString(x, -220+i*20, "Trans. Boundary%d : %d %d %d %d", i,
                              patchCount[OpenSubdiv::FarPatchTables::BOUNDARY][i+1][0],
                              patchCount[OpenSubdiv::FarPatchTables::BOUNDARY][i+1][1],
@@ -1444,6 +1466,10 @@ uninitGL() {
     delete g_ompComputeController;
 #endif
 
+#ifdef OPENSUBDIV_HAS_TBB
+    delete g_tbbComputeController;
+#endif
+
 #ifdef OPENSUBDIV_HAS_GCD
     delete g_gcdComputeController;
 #endif
@@ -1477,7 +1503,7 @@ reshape(int width, int height) {
 
     g_width = width;
     g_height = height;
-    
+
     g_hud.Rebuild(width, height);
 }
 
@@ -1494,7 +1520,7 @@ int windowClose() {
 #endif
 
 //------------------------------------------------------------------------------
-static void 
+static void
 toggleFullScreen() {
     // XXXX manuelk : to re-implement from glut
 }
@@ -1634,22 +1660,25 @@ initHUD()
 #ifdef OPENSUBDIV_HAS_OPENMP
     g_hud.AddRadioButton(0, "OPENMP", false, 10, 30, callbackKernel, kOPENMP, 'k');
 #endif
+#ifdef OPENSUBDIV_HAS_TBB
+    g_hud.AddRadioButton(0, "TBB", false, 10, 50, callbackKernel, kTBB, 'k');
+#endif
 #ifdef OPENSUBDIV_HAS_GCD
-    g_hud.AddRadioButton(0, "GCD", false, 10, 50, callbackKernel, kGCD, 'k');
+    g_hud.AddRadioButton(0, "GCD", false, 10, 70, callbackKernel, kGCD, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    g_hud.AddRadioButton(0, "CUDA",   false, 10, 70, callbackKernel, kCUDA, 'k');
+    g_hud.AddRadioButton(0, "CUDA",   false, 10, 90, callbackKernel, kCUDA, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    g_hud.AddRadioButton(0, "OPENCL", false, 10, 90, callbackKernel, kCL, 'k');
+    g_hud.AddRadioButton(0, "OPENCL", false, 10, 110, callbackKernel, kCL, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    g_hud.AddRadioButton(0, "GLSL TransformFeedback",   false, 10, 110, callbackKernel, kGLSL, 'k');
+    g_hud.AddRadioButton(0, "GLSL TransformFeedback",   false, 10, 130, callbackKernel, kGLSL, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     // Must also check at run time for OpenGL 4.3
     if (GLEW_VERSION_4_3) {
-        g_hud.AddRadioButton(0, "GLSL Compute",   false, 10, 130, callbackKernel, kGLSLCompute, 'k');
+        g_hud.AddRadioButton(0, "GLSL Compute",   false, 10, 150, callbackKernel, kGLSLCompute, 'k');
     }
 #endif
 
@@ -1749,7 +1778,7 @@ setGLCoreProfile()
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
 #endif
-    
+
 }
 
 //------------------------------------------------------------------------------
@@ -1784,7 +1813,7 @@ int main(int argc, char ** argv)
     }
 
     static const char windowTitle[] = "OpenSubdiv glViewer";
-    
+
 #define CORE_PROFILE
 #ifdef CORE_PROFILE
     setGLCoreProfile();
@@ -1792,11 +1821,11 @@ int main(int argc, char ** argv)
 
 #if GLFW_VERSION_MAJOR>=3
     if (fullscreen) {
-    
+
         g_primary = glfwGetPrimaryMonitor();
 
         // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
-        // settle for the first one in the list    
+        // settle for the first one in the list
         if (not g_primary) {
             int count=0;
             GLFWmonitor ** monitors = glfwGetMonitors(&count);
@@ -1804,7 +1833,7 @@ int main(int argc, char ** argv)
             if (count)
                 g_primary = monitors[0];
         }
-        
+
         if (g_primary) {
             GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
             g_width = vidmode->width;
@@ -1812,7 +1841,7 @@ int main(int argc, char ** argv)
         }
     }
 
-    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle, 
+    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
                                        fullscreen and g_primary ? g_primary : NULL, NULL))) {
         printf("Failed to open window.\n");
         glfwTerminate();
@@ -1869,14 +1898,14 @@ int main(int argc, char ** argv)
     while (g_running) {
         idle();
         display();
-        
+
 #if GLFW_VERSION_MAJOR>=3
         glfwPollEvents();
         glfwSwapBuffers(g_window);
 #else
         glfwSwapBuffers();
 #endif
-        
+
         glFinish();
     }
 
