@@ -800,6 +800,8 @@ FarMeshFactory<T,U>::Create( bool requireFVarData ) {
     
     if (requireFVarData) {
         result->_totalFVarWidth = _hbrMesh->GetTotalFVarWidth();
+    } else {
+        result->_totalFVarWidth = 0;
     }
 
     // Create VertexEditTables if necessary

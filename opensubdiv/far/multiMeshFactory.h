@@ -74,7 +74,7 @@ private:
     FarSubdivisionTables<U> * spliceSubdivisionTables(FarMesh<U> *farmesh, FarMeshVector const &meshes);
 
     // splice patch tables
-    FarPatchTables * splicePatchTables(FarMeshVector const &meshes);
+    FarPatchTables * splicePatchTables(FarMeshVector const &meshes, bool hasFVarData);
 
     // splice patch array
     FarPatchTables::PTable::iterator splicePatch(FarPatchTables::Descriptor desc,
@@ -139,7 +139,7 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
     result->_subdivisionTables = spliceSubdivisionTables(result, meshes);
 
     // splice patch/quad index tables
-    result->_patchTables = splicePatchTables(meshes);
+    result->_patchTables = splicePatchTables(meshes, totalFVarWidth > 0);
 
     // splice vertex edit tables
     result->_vertexEditTables = spliceVertexEditTables(result, meshes);
@@ -445,7 +445,7 @@ FarMultiMeshFactory<T, U>::splicePatch(FarPatchTables::Descriptor desc,
 }
 
 template <class T, class U> FarPatchTables *
-FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
+FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes, bool hasFVarData) {
 
     FarPatchTables *result = new FarPatchTables(_maxvalence);
 
@@ -463,6 +463,7 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
     //result->_patchCounts.reserve(meshes.size());
     //FarPatchCount totalCount;
     typedef FarPatchTables::Descriptor Descriptor;
+
 
     // count how many patches exist on each mesh
     for (size_t i = 0; i < meshes.size(); ++i) {
@@ -567,19 +568,21 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes) {
     }
 
     // merge fvardata table
-    FarPatchTables::FVarDataTable::iterator FV_IT = result->_fvarTable.begin();
-    for (FarPatchTables::Descriptor::iterator it(FarPatchTables::Descriptor(FarPatchTables::POINTS, FarPatchTables::NON_TRANSITION, 0));
-         it != FarPatchTables::Descriptor::end(); ++it) {
-        for (size_t i = 0; i < meshes.size(); ++i) {
-            FarPatchTables const *ptables = meshes[i]->GetPatchTables();
-            FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
-            if (parray) {
-                int width = meshes[i]->GetTotalFVarWidth() * 4; // for each quad
-                FarPatchTables::FVarDataTable::const_iterator begin =
-                    ptables->_fvarTable.begin() + parray->GetPatchIndex() * width;
-                FarPatchTables::FVarDataTable::const_iterator end =
-                    begin + parray->GetNumPatches() * width;
-                FV_IT = std::copy(begin, end, FV_IT);
+    if (hasFVarData) {
+        FarPatchTables::FVarDataTable::iterator FV_IT = result->_fvarTable.begin();
+        for (FarPatchTables::Descriptor::iterator it(FarPatchTables::Descriptor(FarPatchTables::POINTS, FarPatchTables::NON_TRANSITION, 0));
+             it != FarPatchTables::Descriptor::end(); ++it) {
+            for (size_t i = 0; i < meshes.size(); ++i) {
+                FarPatchTables const *ptables = meshes[i]->GetPatchTables();
+                FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
+                if (parray) {
+                    int width = meshes[i]->GetTotalFVarWidth() * 4; // for each quad
+                    FarPatchTables::FVarDataTable::const_iterator begin =
+                        ptables->_fvarTable.begin() + parray->GetPatchIndex() * width;
+                    FarPatchTables::FVarDataTable::const_iterator end =
+                        begin + parray->GetNumPatches() * width;
+                    FV_IT = std::copy(begin, end, FV_IT);
+                }
             }
         }
     }
