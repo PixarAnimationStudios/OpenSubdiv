@@ -92,7 +92,7 @@ the following command:
 
 .. code:: c++
 
-    git branch dev
+    git checkout dev
 
 You can check that the branch has now been switched simply with:
 
@@ -132,7 +132,7 @@ Making Changes
 ______________
 
 Direct push access to the OpenSubdiv master repository is currently limited to a 
-small internal development team, so external submissions should be made by sending 
+small internal development team. External code should be submitted by sending Git
 `pull-requests <https://help.github.com/articles/using-pull-requests>`__ from 
 forks of our *dev* branch. 
 
