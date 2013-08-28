@@ -28,7 +28,7 @@
 #ifdef OSD_DEBUG_BUILD
 
 //  XXX: put gl includes into OPENSUBDIV_HAS_GL
-#include <GL/gl.h>
+#include "../osd/opengl.h"
 #include <stdio.h>
 #endif
 
