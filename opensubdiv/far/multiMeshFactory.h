@@ -100,7 +100,6 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
 
     if (meshes.empty()) return NULL;
 
-    bool adaptive = (meshes[0]->GetPatchTables() != NULL);
     int totalFVarWidth = meshes[0]->GetTotalFVarWidth();
     const std::type_info &scheme = typeid(*(meshes[0]->GetSubdivisionTables()));
     _maxlevel = 0;
@@ -108,12 +107,6 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
 
     for (size_t i = 0; i < meshes.size(); ++i) {
         FarMesh<U> const *mesh = meshes[i];
-        // XXX: once uniform quads are integrated into patch tables,
-        // this restriction can be relaxed so that we can merge adaptive and uniform meshes together.
-        if (adaptive ^ (mesh->GetPatchTables() != NULL)) {
-            assert(false);
-            return NULL;
-        }
 
         // meshes have to have a same subdivision scheme
         if (scheme != typeid(*(mesh->GetSubdivisionTables()))) {
