@@ -469,6 +469,13 @@ rebuild()
             Controller<OpenSubdiv::OsdGLSLTransformFeedbackComputeController>::GetInstance(),
             farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #endif
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    } else if (g_kernel == kGLSLCompute) {
+        g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdGLVertexBuffer,
+            MyDrawContext, OpenSubdiv::OsdGLSLComputeController>::Create(
+            Controller<OpenSubdiv::OsdGLSLComputeController>::GetInstance(),
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
+#endif
     } else {
         assert(false);
     }
