@@ -32,6 +32,27 @@ Release Notes
 
 ----
 
+Release 2.1.0
+=============
+
+**New Features**
+    - Added TBB Compute back-end on Linux (contribution from Sheng Fu)
+    - Added support for ICC compiler (still Beta)
+
+**Changes**
+    - Added constructor to OsdMesh with a FarMesh * as input
+    - Added command line input to DX11 viewer
+    - FarMultiMesh can splice uniform and adaptive meshes together.
+
+**Bug Fixes**
+    - Fix FarMultiMesh splicing
+    - Removed unnecessary cudaThreadSynchronize calls.
+    - Fix glViewer overlapping HUD menus
+    - Fix facevarying rendering in glBatchViewer
+    - Fix build of GLSL transform feedback kernels
+    - Fix 'Getting Started' documentation 
+
+
 Release 2.0.1
 =============
 
