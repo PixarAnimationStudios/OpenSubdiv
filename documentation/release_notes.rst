@@ -41,6 +41,7 @@ Release 2.1.0
 
 **Changes**
     - Added constructor to OsdMesh with a FarMesh * as input
+    - Modify CMake to name and sym-link DSO's based on Linux ABI versioning spec
     - Added command line input to DX11 viewer
     - FarMultiMesh can splice uniform and adaptive meshes together.
 
