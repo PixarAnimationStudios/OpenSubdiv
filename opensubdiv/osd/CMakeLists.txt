@@ -439,10 +439,11 @@ source_group("Inc" FILES ${INC_FILES})
 
 if (NOT NO_LIB)
 
-    add_library(osd_static_cpu STATIC
-        ${CPU_SOURCE_FILES}
-        ${PRIVATE_HEADER_FILES}
-        ${PUBLIC_HEADER_FILES}
+    add_library(osd_static_cpu
+        STATIC
+            ${CPU_SOURCE_FILES}
+            ${PRIVATE_HEADER_FILES}
+            ${PUBLIC_HEADER_FILES}
     )
     set_target_properties(osd_static_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
 
@@ -450,12 +451,13 @@ if (NOT NO_LIB)
         ${PLATFORM_CPU_LIBRARIES}
     )
 
-    _add_possibly_cuda_library(osd_static_gpu STATIC
-        ${GPU_SOURCE_FILES}
-        ${PRIVATE_HEADER_FILES}
-        ${PUBLIC_HEADER_FILES}
-        ${KERNEL_FILES}
-        ${INC_FILES}
+    _add_possibly_cuda_library(osd_static_gpu
+        STATIC
+            ${GPU_SOURCE_FILES}
+            ${PRIVATE_HEADER_FILES}
+            ${PUBLIC_HEADER_FILES}
+            ${KERNEL_FILES}
+            ${INC_FILES}
     )
     set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
 
@@ -467,35 +469,57 @@ if (NOT NO_LIB)
     install( TARGETS osd_static_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
 
     if (NOT WIN32 AND NOT IOS)
-        add_library(osd_dynamic_cpu SHARED
-            ${CPU_SOURCE_FILES}
-            ${PRIVATE_HEADER_FILES}
-            ${PUBLIC_HEADER_FILES}
+
+        # Evaluate 'soname' from OSD version
+
+        # replace '_' with '.'
+        string(REGEX REPLACE "(_)" "." OSD_SONAME ${OpenSubdiv_VERSION})
+
+        # remove starting 'v' character
+        string(REGEX REPLACE "^v" "" OSD_SONAME ${OSD_SONAME})
+
+        # generate dynamic-link targets
+        add_library(osd_dynamic_cpu
+            SHARED
+                ${CPU_SOURCE_FILES}
+                ${PRIVATE_HEADER_FILES}
+                ${PUBLIC_HEADER_FILES}
         )
 
-        set_target_properties(osd_dynamic_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
+        set_target_properties(osd_dynamic_cpu
+            PROPERTIES
+                OUTPUT_NAME osdCPU
+                CLEAN_DIRECT_OUTPUT 1
+                SOVERSION ${OSD_SONAME}
+            )
 
         target_link_libraries(osd_dynamic_cpu
             ${PLATFORM_CPU_LIBRARIES}
         )
 
-        _add_possibly_cuda_library(osd_dynamic_gpu SHARED
-            ${GPU_SOURCE_FILES}
-            ${PRIVATE_HEADER_FILES}
-            ${PUBLIC_HEADER_FILES}
-            ${KERNEL_FILES}
-            ${INC_FILES}
+        _add_possibly_cuda_library(osd_dynamic_gpu
+            SHARED
+                ${GPU_SOURCE_FILES}
+                ${PRIVATE_HEADER_FILES}
+                ${PUBLIC_HEADER_FILES}
+                ${KERNEL_FILES}
+                ${INC_FILES}
         )
 
-        set_target_properties(osd_dynamic_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
+        set_target_properties(osd_dynamic_gpu
+            PROPERTIES
+                OUTPUT_NAME osdGPU
+                CLEAN_DIRECT_OUTPUT 1
+                SOVERSION ${OSD_SONAME}
+            )
 
         target_link_libraries(osd_dynamic_gpu
             osd_dynamic_cpu
             ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
         )
 
-        install( TARGETS osd_dynamic_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
-        install( TARGETS osd_dynamic_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
+        install( TARGETS osd_dynamic_cpu LIBRARY DESTINATION ${CMAKE_LIBDIR_BASE} )
+        install( TARGETS osd_dynamic_gpu LIBRARY DESTINATION ${CMAKE_LIBDIR_BASE} )
     endif()
 endif()
 
