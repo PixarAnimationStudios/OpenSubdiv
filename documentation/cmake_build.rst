@@ -74,6 +74,7 @@ ________
     - `Zlib <http://www.zlib.net/>`__ (required for Ptex under Windows)
     - `GLEW <http://glew.sourceforge.net/>`__ (Windows/Linux only)
     - `CUDA <http://www.nvidia.com/object/cuda_home_new.html>`__
+    - `TBB <http://www.threadingbuildingblocks.org/>`__
     - `OpenCL <http://www.khronos.org/opencl/>`__
     - `DX11 SDK <http://www.microsoft.com/>`__
     - `GLFW <https://github.com/glfw/glfw>`__ (required for standalone examples
@@ -111,6 +112,8 @@ The following configuration arguments can be passed to the cmake command line.
    -DGLEW_LOCATION=[path to GLEW]
    -DGLFW_LOCATION=[path to GLFW]
    -DMAYA_LOCATION=[path to Maya]
+   -DTBB_LOCATION=[path to Intel's TBB]
+   -DICC_LOCATION=[path to Intel's C++ Studio XE]
    
    -DNO_LIB=1        // disable the opensubdiv libs build (caveat emptor)
    -DNO_EXAMPLES=1   // disable examples build
@@ -118,6 +121,7 @@ The following configuration arguments can be passed to the cmake command line.
    -DNO_PYTHON=1     // disable Python SWIG build
    -DNO_DOC=1        // disable documentation build
    -DNO_OMP=1        // disable OpenMP
+   -DNO_TBB=1        // disable TBB
    -DNO_CUDA=1       // disable CUDA
    -DNO_GCD=1        // disable GrandCentralDispatch on OSX
 
@@ -201,6 +205,24 @@ Here is a similar script for \*Nix-based platforms:
       Notice that this script starts by **recursively removing** the *../build/* and 
       *../inst/* directories. Make sure you modify this script to suit your build
       workflow.
+
+Using Intel's C++ Studio XE
+___________________________
+
+OpenSubdiv can be also be built with `Intel's C++ compiler <http://software.intel.com/en-us/intel-compilers>`__ 
+(icc). The default compiler can be overriden in CMake with the following configuration options:
+
+.. code:: c++
+
+    -DCMAKE_CXX_COMPILER=[path to icc executable]
+    -DCMAKE_C_COMPILER=[path to icc executable]
+
+The installation location of the C++ Studio XE can be overriden with:
+
+.. code:: c++
+
+    -DICC_LOCATION=[path to Intel's C++ Studio XE]
+
 
 ----
 

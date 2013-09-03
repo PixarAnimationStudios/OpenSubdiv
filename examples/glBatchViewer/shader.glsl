@@ -112,7 +112,7 @@ out block {
     OSD_USER_VARYING_DECLARE
 } outpt;
 
-void emit(int index, vec3 normal, vec2 uvs[4])
+void emit(int index, vec3 normal)
 {
     outpt.v.position = inpt[index].v.position;
 #ifdef SMOOTH_NORMALS
@@ -132,7 +132,9 @@ void emit(int index, vec3 normal, vec2 uvs[4])
 #else
     vec2 st = inpt[index].v.tessCoord;
 #endif
-    outpt.color = vec3(mix(mix(uvs[0], uvs[1], st.s), mix(uvs[3], uvs[2], st.s), st.t), 0);
+    vec2 uv;
+    OSD_COMPUTE_FACE_VARYING_2(uv, /*fvarOffset=*/0, st);
+    outpt.color = vec3(uv.s, uv.t, 0);
 #endif
 
     gl_Position = ProjectionMatrix * inpt[index].v.position;
@@ -149,7 +151,7 @@ float edgeDistance(vec4 p, vec4 p0, vec4 p1)
             (p.y - p0.y) * (p1.x - p0.x)) / length(p1.xy - p0.xy);
 }
 
-void emit(int index, vec3 normal, vec2 uvs[4], vec4 edgeVerts[EDGE_VERTS])
+void emit(int index, vec3 normal, vec4 edgeVerts[EDGE_VERTS])
 {
     outpt.edgeDistance[0] =
         edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
@@ -166,7 +168,7 @@ void emit(int index, vec3 normal, vec2 uvs[4], vec4 edgeVerts[EDGE_VERTS])
         edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
 #endif
 
-    emit(index, normal, uvs);
+    emit(index, normal);
 }
 #endif
 
@@ -174,26 +176,6 @@ void main()
 {
     gl_PrimitiveID = gl_PrimitiveIDIn;
 
-    vec2 uvs[4];
-
-#ifdef FACEVARYING_COLOR
-    // Offset based on prim id and offset into patch-type fvar data table
-    int uvOffset = (gl_PrimitiveID+OsdPrimitiveIdBase) * 4;
-
-    uvs[0] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+0)*2   ).s,
-                   texelFetch( g_uvFVarBuffer, (uvOffset+0)*2+1 ).s );
-     
-    uvs[1] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+1)*2   ).s,
-                   texelFetch( g_uvFVarBuffer, (uvOffset+1)*2+1 ).s );
-     
-    uvs[2] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+2)*2   ).s,
-                   texelFetch( g_uvFVarBuffer, (uvOffset+2)*2+1 ).s );
-     
-    uvs[3] = vec2( texelFetch( g_uvFVarBuffer, (uvOffset+3)*2   ).s,
-                   texelFetch( g_uvFVarBuffer, (uvOffset+3)*2+1 ).s );
-#endif
-
-    
 #ifdef PRIM_QUAD
     vec3 A = (inpt[0].v.position - inpt[1].v.position).xyz;
     vec3 B = (inpt[3].v.position - inpt[1].v.position).xyz;
@@ -212,15 +194,15 @@ void main()
     edgeVerts[2].xy /= edgeVerts[2].w;
     edgeVerts[3].xy /= edgeVerts[3].w;
 
-    emit(0, n0, uvs, edgeVerts);
-    emit(1, n0, uvs, edgeVerts);
-    emit(3, n0, uvs, edgeVerts);
-    emit(2, n0, uvs, edgeVerts);
+    emit(0, n0, edgeVerts);
+    emit(1, n0, edgeVerts);
+    emit(3, n0, edgeVerts);
+    emit(2, n0, edgeVerts);
 #else
-    emit(0, n0, uvs);
-    emit(1, n0, uvs);
-    emit(3, n0, uvs);
-    emit(2, n0, uvs);
+    emit(0, n0);
+    emit(1, n0);
+    emit(3, n0);
+    emit(2, n0);
 #endif
 #endif // PRIM_QUAD
 
@@ -239,13 +221,13 @@ void main()
     edgeVerts[1].xy /= edgeVerts[1].w;
     edgeVerts[2].xy /= edgeVerts[2].w;
 
-    emit(0, n0, uvs, edgeVerts);
-    emit(1, n0, uvs, edgeVerts);
-    emit(2, n0, uvs, edgeVerts);
+    emit(0, n0, edgeVerts);
+    emit(1, n0, edgeVerts);
+    emit(2, n0, edgeVerts);
 #else
-    emit(0, n0, uvs);
-    emit(1, n0, uvs);
-    emit(2, n0, uvs);
+    emit(0, n0);
+    emit(1, n0);
+    emit(2, n0);
 #endif
 #endif // PRIM_TRI
 

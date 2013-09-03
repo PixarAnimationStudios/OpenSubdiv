@@ -103,6 +103,7 @@ MyEffectRegistry::_CreateDrawSourceConfig(DescType const & desc) {
         sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
         break;
     case kFaceVaryingColor:
+        sconfig->commonShader.AddDefine("OSD_FVAR_WIDTH", "2");
         sconfig->commonShader.AddDefine("FACEVARYING_COLOR");
         sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
         break;

@@ -303,7 +303,7 @@ void catmarkComputeVertexA()
         addWithWeight(dst, readVertex(eidx1), weight * 0.125f);
     }
     if(! vertexPass)
-        addVaryingWithWeight(dst, readVertex(p), 1);
+        addVaryingWithWeight(dst, readVertex(p), 1.0f);
 
     writeVertex(dst);
 }
@@ -340,7 +340,7 @@ void catmarkComputeVertexB()
         addWithWeight(dst, readVertex(texelFetch(_V0_IT, h+j*2+1).x), weight * wp);
 #endif
     }
-    addVaryingWithWeight(dst, readVertex(p), 1);
+    addVaryingWithWeight(dst, readVertex(p), 1.0f);
     writeVertex(dst);
 }
 
@@ -369,7 +369,7 @@ void loopComputeVertexB()
     for(int j = 0; j < n; ++j){
         addWithWeight(dst, readVertex(texelFetch(_V0_IT, h+j).x), weight * beta);
     }
-    addVaryingWithWeight(dst, readVertex(p), 1);
+    addVaryingWithWeight(dst, readVertex(p), 1.0f);
     writeVertex(dst);
 }
 

@@ -111,10 +111,10 @@ void initializeShapes( ) {
 
 
 
-#ifndef WIN32 // exceeds max string literal (65535 chars)
-#include <shapes/catmark_bishop.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_bishop, "catmark_bishop", kCatmark));
-#endif
+//#ifndef WIN32 // exceeds max string literal (65535 chars)
+//#include <shapes/catmark_bishop.h>
+//    g_defaultShapes.push_back(SimpleShape(catmark_bishop, "catmark_bishop", kCatmark));
+//#endif
 
 #ifndef WIN32 // exceeds max string literal (65535 chars)
 #include <shapes/catmark_car.h>

@@ -30,7 +30,7 @@ cmake_minimum_required(VERSION 2.8.6)
 #-------------------------------------------------------------------------------
 # Obtain OpenSubdiv API version from version.h file
 if(EXISTS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h")
-    file(STRINGS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h" 
+    file(STRINGS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h"
         OpenSubdiv_VERSION REGEX "^#define OPENSUBDIV_VERSION .*$")
     string(REPLACE "#define OPENSUBDIV_VERSION " "" OpenSubdiv_VERSION ${OpenSubdiv_VERSION})
 endif()
@@ -96,13 +96,15 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 # Detect Clang (until a cmake version provides built-in variables)
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set(CMAKE_COMPILER_IS_CLANGCC 1)
+elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Intel")
+    set(CMAKE_COMPILER_IS_ICC 1)
 endif()
 
 
 set(OSD_COMPILER_FLAGS)
 
 # Disable spurrious warnings in gcc builds and clang
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC)
+if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
 
     # Turn on all warnings
     list(APPEND OSD_COMPILER_FLAGS -Wall)
@@ -117,7 +119,6 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC)
     # optimization.
     list(APPEND OSD_COMPILER_FLAGS -Wno-strict-aliasing)
 
-    
     # FAR and OSD have templated virtual function implementations that trigger
     # a lot of hidden virtual function overloads (some of them spurrious).
     # Disable those for now in Clang.
@@ -125,11 +126,37 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC)
         list(APPEND OSD_COMPILER_FLAGS -Wno-overloaded-virtual)
     endif()
 
+    # Intel's icc compiler requires some libraries linked
+    if(CMAKE_COMPILER_IS_ICC)
+
+        foreach (ICC_LIB iomp5 irng intlc)
+
+            find_library( ICC_${ICC_LIB}
+                NAMES
+                    ${ICC_LIB}
+                PATHS
+                    ${ICC_LOCATION}/lib
+                    /opt/intel/lib/
+                PATH_SUFFIXES
+                    intel64/
+                    ia32/
+                    mic/
+            )
+
+            if (ICC_${ICC_LIB})
+                list(APPEND ICC_LIBRARIES ${ICC_${ICC_LIB}})
+            else()
+                message( FATAL_ERROR "${ICC_${ICC_LIB}} library not found - required by icc" )
+            endif()
+
+        endforeach()
+    endif()
+
 elseif(MSVC)
 
     # Turn on all warnings
     list(APPEND OSD_COMPILER_FLAGS /Wall)
-    
+
     # MSVC is unfortunately not standard conforming with regards to
     # the alternative names for logical and bitwise operators:
     # http://stackoverflow.com/questions/555505/c-alternative-tokens
@@ -159,7 +186,7 @@ elseif(MSVC)
                     /Dxor=^/**/
                     /Dxor_eq=^=
     )
-    
+
 
     list(APPEND OSD_COMPILER_FLAGS
                     /W3     # Use warning level recommended for production purposes.
@@ -170,37 +197,41 @@ elseif(MSVC)
                     /wd4350
                     # warning C4548: expression before comma has no effect; expected expression with side-effect
                     /wd4548
-                    
+
                     # Make sure WinDef.h does not define min and max macros which
                     # will conflict with std::min() and std::max().
                     /DNOMINMAX
-                    
+
                     # Make sure the constants in <math.h> get defined.
                     /D_USE_MATH_DEFINES
-                    
+
                     # Do not enforce MSVC's safe CRT replacements.
                     /D_CRT_SECURE_NO_WARNINGS
-                    
+
                     # Disable checked iterators and iterator debugging.  Visual Studio
                     # 2008 does not implement std::vector::data(), so we need to take the
                     # address of std::vector::operator[](0) to get the memory location of
                     # a vector's underlying data storage.  This does not work for an empty
                     # vector if checked iterators or iterator debugging is enabled.
-                     
-		    # XXXX manuelk : we can't force SECURE_SCL to 0 or client code has
-		    # problems linking against OSD if their build is not also
-		    # overriding SSCL to the same value.
-		    # See : http://msdn.microsoft.com/en-us/library/vstudio/hh697468.aspx
+
+                    # XXXX manuelk : we can't force SECURE_SCL to 0 or client code has
+                    # problems linking against OSD if their build is not also
+                    # overriding SSCL to the same value.
+                    # See : http://msdn.microsoft.com/en-us/library/vstudio/hh697468.aspx
                     #/D_SECURE_SCL=0
                     #/D_HAS_ITERATOR_DEBUGGING=0
     )
 
-    # Turn off a duplicate LIBCMT linker warning 
-    set(CMAKE_EXE_LINKER_FLAGS 
+    # Turn off a duplicate LIBCMT linker warning
+    set(CMAKE_EXE_LINKER_FLAGS
         "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
-    set(CMAKE_SHARED_LINKER_FLAGS 
+    set(CMAKE_SHARED_LINKER_FLAGS
         "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
 
+endif()
+
+if(${SIMD} MATCHES "AVX")
+    list(APPEND OSD_COMPILER_FLAGS -xAVX)
 endif()
 
 add_definitions(${OSD_COMPILER_FLAGS})
@@ -214,6 +245,9 @@ set(CMAKE_SUPPRESS_REGENERATION TRUE)
 # Check for dependencies
 if(NOT NO_OMP)
     find_package(OpenMP)
+endif()
+if(NOT NO_TBB)
+    find_package(TBB 4.0)
 endif()
 find_package(OpenGL)
 find_package(OpenGLES)
@@ -260,11 +294,26 @@ if(OPENMP_FOUND)
         -DOPENSUBDIV_HAS_OPENMP
         ${OpenMP_CXX_FLAGS}
     )
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
 else()
     message(WARNING
         "OpenMP was not found : support for OMP parallel compute kernels "
         "will be diabled in Osd.  If your compiler supports OpenMP "
         "directives, please refer to the FindOpenMP.cmake shared module "
+        "in your cmake installation.")
+endif()
+
+if(TBB_FOUND)
+    add_definitions(
+        -DOPENSUBDIV_HAS_TBB
+        ${TBB_CXX_FLAGS}
+    )
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TBB_CXX_FLAGS}")
+else()
+    message(WARNING
+        "TBB was not found : support for TBB parallel compute kernels "
+        "will be diabled in Osd.  If your compiler supports TBB "
+        "directives, please refer to the FindTBB.cmake shared module "
         "in your cmake installation.")
 endif()
 
@@ -421,7 +470,7 @@ macro(_add_doxy_headers headers)
             )
 
             add_custom_target(${targetname} DEPENDS ${outfile})
-            
+
             #set_target_properties(${targetname} PROPERTIES FOLDER "public_headers/")
 
             list(APPEND headerfiles ${targetname} )
@@ -439,6 +488,10 @@ macro(_add_possibly_cuda_executable target)
         cuda_add_executable(${target} ${ARGN})
     else()
         add_executable(${target} ${ARGN})
+    endif()
+
+    if(CMAKE_COMPILER_IS_ICC)
+        target_link_libraries(${target} ${ICC_LIBRARIES})
     endif()
 endmacro()
 

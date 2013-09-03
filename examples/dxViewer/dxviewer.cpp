@@ -82,7 +82,9 @@ static const char *shaderSource =
 #include "shader.inc"
 ;
 
+#include <algorithm>
 #include <cfloat>
+#include <fstream>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -1427,6 +1429,19 @@ msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
+static std::vector<std::string>
+tokenize(std::string const & src)
+{
+    std::vector<std::string> result;
+
+    std::stringstream input(src);
+    std::copy(std::istream_iterator<std::string>(input),
+              std::istream_iterator<std::string>(),
+              std::back_inserter< std::vector<std::string> >(result));
+
+    return result;
+}
+
 int WINAPI
 WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
@@ -1460,6 +1475,18 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
                         NULL,
                         hInstance,
                         NULL);
+
+    std::vector<std::string> args = tokenize(lpCmdLine);
+    for (int i=0; i<args.size(); ++i) {
+        std::ifstream ifs(args[i]);
+        if (ifs) {
+            std::stringstream ss;
+            ss << ifs.rdbuf();
+            ifs.close();
+            std::string str = ss.str();
+            g_defaultShapes.push_back(SimpleShape(str.c_str(), args[i].c_str(), kCatmark));
+        }
+    }
 
     initializeShapes();
 

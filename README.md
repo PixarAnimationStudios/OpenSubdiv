@@ -4,7 +4,7 @@ OpenSubdiv is a set of open source libraries that implement high performance sub
 
 OpenSubdiv is covered by the Apache license, and is free to use for commercial or non-commercial use. This is the same code that Pixar uses internally for animated film production. Our intent is to encourage high performance accurate subdiv drawing by giving away the "good stuff".
 
-The current version is "Release Candidate 1.0" (12/05/2012) and we hope to have "Release 1.0" ready by February 2013. Feel free to use it and let us know what you think.
+Feel free to use it and let us know what you think.
 
 For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://graphics.pixar.com).
 

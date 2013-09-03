@@ -139,17 +139,17 @@ if( PTEX_FOUND )
     )
 endif()
 
-list(APPEND DOXY_HEADER_FILES 
-    ${GL_PTEX_PUBLIC_HEADERS} 
-    ${DX_PTEX_PUBLIC_HEADERS} 
+list(APPEND DOXY_HEADER_FILES
+    ${GL_PTEX_PUBLIC_HEADERS}
+    ${DX_PTEX_PUBLIC_HEADERS}
 )
 
 #-------------------------------------------------------------------------------
-set(OPENMP_PUBLIC_HEADERS 
+set(OPENMP_PUBLIC_HEADERS
     ompKernel.h
     ompComputeController.h
 )
- 
+
 if( OPENMP_FOUND )
     list(APPEND CPU_SOURCE_FILES
         ompKernel.cpp
@@ -168,11 +168,35 @@ endif()
 list(APPEND DOXY_HEADER_FILES ${OPENMP_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
+if( TBB_FOUND )
+    include_directories(
+        ${TBB_INCLUDE_DIR}
+    )
+    list(APPEND CPU_SOURCE_FILES
+        tbbKernel.cpp
+        tbbComputeController.cpp
+    )
+    list(APPEND PUBLIC_HEADER_FILES
+        tbbKernel.h
+        tbbComputeController.h
+    )
+    if (CMAKE_COMPILER_IS_GNUCXX)
+        list(APPEND PLATFORM_CPU_LIBRARIES
+            gomp
+        )
+    endif()
+
+    list(APPEND PLATFORM_CPU_LIBRARIES
+        ${TBB_LIBRARIES}
+    )
+endif()
+
+#-------------------------------------------------------------------------------
 set(GCD_PUBLIC_HEADERS
     gcdKernel.h
     gcdComputeController.h
 )
- 
+
 if( GCD_FOUND )
     list(APPEND CPU_SOURCE_FILES
         gcdKernel.cpp
@@ -373,7 +397,7 @@ if( CUDA_FOUND )
         list(APPEND PUBLIC_HEADER_FILES
             cudaD3D11VertexBuffer.h
         )
-    endif()        
+    endif()
 
     if (UNIX)
         list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC --gpu-architecture compute_11 )
@@ -415,10 +439,11 @@ source_group("Inc" FILES ${INC_FILES})
 
 if (NOT NO_LIB)
 
-    add_library(osd_static_cpu STATIC
-        ${CPU_SOURCE_FILES}
-        ${PRIVATE_HEADER_FILES}
-        ${PUBLIC_HEADER_FILES}
+    add_library(osd_static_cpu
+        STATIC
+            ${CPU_SOURCE_FILES}
+            ${PRIVATE_HEADER_FILES}
+            ${PUBLIC_HEADER_FILES}
     )
     set_target_properties(osd_static_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
 
@@ -426,12 +451,13 @@ if (NOT NO_LIB)
         ${PLATFORM_CPU_LIBRARIES}
     )
 
-    _add_possibly_cuda_library(osd_static_gpu STATIC
-        ${GPU_SOURCE_FILES}
-        ${PRIVATE_HEADER_FILES}
-        ${PUBLIC_HEADER_FILES}
-        ${KERNEL_FILES}
-        ${INC_FILES}
+    _add_possibly_cuda_library(osd_static_gpu
+        STATIC
+            ${GPU_SOURCE_FILES}
+            ${PRIVATE_HEADER_FILES}
+            ${PUBLIC_HEADER_FILES}
+            ${KERNEL_FILES}
+            ${INC_FILES}
     )
     set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
 
@@ -443,35 +469,57 @@ if (NOT NO_LIB)
     install( TARGETS osd_static_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
 
     if (NOT WIN32 AND NOT IOS)
-        add_library(osd_dynamic_cpu SHARED
-            ${CPU_SOURCE_FILES}
-            ${PRIVATE_HEADER_FILES}
-            ${PUBLIC_HEADER_FILES}
+
+        # Evaluate 'soname' from OSD version
+
+        # replace '_' with '.'
+        string(REGEX REPLACE "(_)" "." OSD_SONAME ${OpenSubdiv_VERSION})
+
+        # remove starting 'v' character
+        string(REGEX REPLACE "^v" "" OSD_SONAME ${OSD_SONAME})
+
+        # generate dynamic-link targets
+        add_library(osd_dynamic_cpu
+            SHARED
+                ${CPU_SOURCE_FILES}
+                ${PRIVATE_HEADER_FILES}
+                ${PUBLIC_HEADER_FILES}
         )
 
-        set_target_properties(osd_dynamic_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
+        set_target_properties(osd_dynamic_cpu
+            PROPERTIES
+                OUTPUT_NAME osdCPU
+                CLEAN_DIRECT_OUTPUT 1
+                SOVERSION ${OSD_SONAME}
+            )
 
         target_link_libraries(osd_dynamic_cpu
             ${PLATFORM_CPU_LIBRARIES}
         )
 
-        _add_possibly_cuda_library(osd_dynamic_gpu SHARED
-            ${GPU_SOURCE_FILES}
-            ${PRIVATE_HEADER_FILES}
-            ${PUBLIC_HEADER_FILES}
-            ${KERNEL_FILES}
-            ${INC_FILES}
+        _add_possibly_cuda_library(osd_dynamic_gpu
+            SHARED
+                ${GPU_SOURCE_FILES}
+                ${PRIVATE_HEADER_FILES}
+                ${PUBLIC_HEADER_FILES}
+                ${KERNEL_FILES}
+                ${INC_FILES}
         )
 
-        set_target_properties(osd_dynamic_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
+        set_target_properties(osd_dynamic_gpu
+            PROPERTIES
+                OUTPUT_NAME osdGPU
+                CLEAN_DIRECT_OUTPUT 1
+                SOVERSION ${OSD_SONAME}
+            )
 
         target_link_libraries(osd_dynamic_gpu
             osd_dynamic_cpu
             ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
         )
 
-        install( TARGETS osd_dynamic_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
-        install( TARGETS osd_dynamic_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
+        install( TARGETS osd_dynamic_cpu LIBRARY DESTINATION ${CMAKE_LIBDIR_BASE} )
+        install( TARGETS osd_dynamic_gpu LIBRARY DESTINATION ${CMAKE_LIBDIR_BASE} )
     endif()
 endif()
 
@@ -483,7 +531,7 @@ install( FILES ${PUBLIC_HEADER_FILES}
 
 
 if (ANDROID)
-    install( FILES Android.mk 
+    install( FILES Android.mk
              DESTINATION ${LIBRARY_OUTPUT_PATH_ROOT}
              PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
 endif()
