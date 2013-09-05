@@ -131,6 +131,12 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC
 
         foreach (ICC_LIB iomp5 irng intlc)
 
+            if(CMAKE_SIZEOF_VOID_P MATCHES "8")
+                list(APPEND ICC_LIB_ARCH "intel64")
+            elseif(CMAKE_SIZEOF_VOID_P MATCHES "4")
+                list(APPEND ICC_LIB_ARCH "ia32")
+            endif()
+
             find_library( ICC_${ICC_LIB}
                 NAMES
                     ${ICC_LIB}
@@ -138,9 +144,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC
                     ${ICC_LOCATION}/lib
                     /opt/intel/lib/
                 PATH_SUFFIXES
-                    intel64/
-                    ia32/
-                    mic/
+                    ${ICC_LIB_ARCH}
             )
 
             if (ICC_${ICC_LIB})
