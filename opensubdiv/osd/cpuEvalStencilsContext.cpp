@@ -23,9 +23,23 @@
 //     License.
 //
 
-#ifndef OPENSUBDIV_VERSION_H
-#define OPENSUBDIV_VERSION_H
+#include "../osd/cpuEvalStencilsContext.h"
 
-#define OPENSUBDIV_VERSION v2_2_0_dev
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
-#endif /* OPENSUBDIV_VERSION_H */
+OsdCpuEvalStencilsContext::OsdCpuEvalStencilsContext(FarStencilTables const *stencils) :
+    _stencils(stencils),
+    _controlData(0),
+    _outputData(0),
+    _outputUDeriv(0),
+    _outputVDeriv(0) {
+}
+
+OsdCpuEvalStencilsContext *
+OsdCpuEvalStencilsContext::Create(FarStencilTables const *stencils) {
+    return new OsdCpuEvalStencilsContext(stencils);
+}
+
+}  // end namespace OPENSUBDIV_VERSION
+}  // end namespace OpenSubdiv

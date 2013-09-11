@@ -81,7 +81,7 @@ SEE ALSO
 
 `Code Examples <code_examples.html>`__, \
 `glViewer <glviewer.html>`__, \
-`glBatchViewer <glbatchviewer.html>`__, \
+`glStencilViewer <glstencilviewer.html>`__, \
 `ptexViewer <ptexviewer.html>`__, \
 `paintTest <painttest.html>`__, \
 `limitEval <limiteval.html>`__, \

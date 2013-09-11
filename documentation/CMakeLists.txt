@@ -71,6 +71,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         far_overview.rst
         getting_started.rst
         glviewer.rst
+        glstencilviewer.rst
         glbatchviewer.rst
         hbr_overview.rst
         intro.rst 

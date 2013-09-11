@@ -41,6 +41,8 @@ set(PUBLIC_HEADER_FILES
     patchMap.h
     patchTables.h
     patchTablesFactory.h
+    stencilTablesFactory.h
+    stencilTables.h
     subdivisionTables.h
     subdivisionTablesFactory.h
     vertexEditTables.h
