@@ -23,16 +23,9 @@
 //     License.
 //
 
-#if defined(_WIN32)
-    #include <windows.h>
-#elif defined(__APPLE__)
-    #include <OpenGL/OpenGL.h>
-#else
-    #include <GL/gl.h>
-#endif
-
 #include "../osd/clKernelBundle.h"
 #include "../osd/error.h"
+#include "../osd/opengl.h"
 
 #include <stdio.h>
 #ifdef _MSC_VER
