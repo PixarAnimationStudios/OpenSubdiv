@@ -51,7 +51,7 @@ if ( OPENCL_FOUND )
 endif()
 
 
-add_executable(osd_regression
+_add_possibly_cuda_executable(osd_regression
     ${SOURCE_FILES}
 )
 
