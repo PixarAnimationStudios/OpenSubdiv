@@ -70,7 +70,8 @@ public:
     ///
     template<class VERTEX_BUFFER>
     void UpdateVertexTexture(VERTEX_BUFFER *vbo) {
-        updateVertexTexture(vbo->BindVBO(), vbo->GetNumElements());
+        if (vbo)
+            updateVertexTexture(vbo->BindVBO(), vbo->GetNumElements());
     }
 
     /// true if the GL version detected supports shader tessellation

@@ -23,19 +23,17 @@
 #     License.
 #
 
-include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${GLFW_INCLUDE_DIR}
-)
-
-set(SOURCE_FILES
-    main.cpp
-)
+# *** glStencilViewer ***
 
 set(PLATFORM_LIBRARIES
     ${OSD_LINK_TARGET}
-    ${OPENGL_LIBRARY}
     ${GLFW_LIBRARIES}
+)
+
+include_directories(
+    ${PROJECT_SOURCE_DIR}/opensubdiv
+    ${PROJECT_SOURCE_DIR}/regression
+    ${GLFW_INCLUDE_DIR}
 )
 
 if ( GLEW_FOUND )
@@ -43,22 +41,16 @@ if ( GLEW_FOUND )
     list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
 endif()
 
-if ( OPENCL_FOUND )
-    list(APPEND PLATFORM_LIBRARIES
-        ${OPENCL_LIBRARIES}
-    )
-    include_directories( ${OPENCL_INCLUDE_DIRS} )
-endif()
-
-
-_add_possibly_cuda_executable(osd_regression
-    ${SOURCE_FILES}
+_add_possibly_cuda_executable(glStencilViewer
+    main.cpp
+    ../common/font_image.cpp
+    ../common/hud.cpp
+    ../common/gl_hud.cpp
+    ${INC_FILES}
 )
 
-add_dependencies(osd_regression blarg )
-
-target_link_libraries(osd_regression
+target_link_libraries(glStencilViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS osd_regression DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS glStencilViewer DESTINATION ${CMAKE_BINDIR_BASE})

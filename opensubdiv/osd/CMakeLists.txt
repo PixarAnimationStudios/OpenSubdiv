@@ -53,6 +53,8 @@ set(CPU_SOURCE_FILES
     cpuEvalLimitContext.cpp
     cpuEvalLimitController.cpp
     cpuEvalLimitKernel.cpp
+    cpuEvalStencilsContext.cpp
+    cpuEvalStencilsController.cpp
     cpuVertexBuffer.cpp
     error.cpp
     evalLimitContext.cpp
@@ -81,6 +83,8 @@ set(PUBLIC_HEADER_FILES
     cpuComputeController.h
     cpuEvalLimitContext.h
     cpuEvalLimitController.h
+    cpuEvalStencilsContext.h
+    cpuEvalStencilsController.h
     cpuVertexBuffer.h
     error.h
     evalLimitContext.h
@@ -148,12 +152,14 @@ list(APPEND DOXY_HEADER_FILES
 set(OPENMP_PUBLIC_HEADERS
     ompKernel.h
     ompComputeController.h
+    ompEvalStencilsController.h
 )
 
 if( OPENMP_FOUND )
     list(APPEND CPU_SOURCE_FILES
         ompKernel.cpp
         ompComputeController.cpp
+        ompEvalStencilsController.cpp
     )
 
     list(APPEND PUBLIC_HEADER_FILES ${OPENMP_PUBLIC_HEADERS})
@@ -175,10 +181,12 @@ if( TBB_FOUND )
     list(APPEND CPU_SOURCE_FILES
         tbbKernel.cpp
         tbbComputeController.cpp
+        tbbEvalStencilsController.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES
         tbbKernel.h
         tbbComputeController.h
+        tbbEvalStencilsController.h
     )
     if (CMAKE_COMPILER_IS_GNUCXX)
         list(APPEND PLATFORM_CPU_LIBRARIES

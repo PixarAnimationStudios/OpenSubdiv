@@ -56,12 +56,12 @@ struct OsdVertexDescriptor {
         numVertexElements = numVertexElem;
         numVaryingElements = numVaryingElem;
     }
-    
+
     /// Resets the descriptor
     void Reset() {
         numVertexElements = numVaryingElements = 0;
     }
-    
+
     /// Returns the total number of elements (vertex + varying)
     int GetNumElements() const {
         return numVertexElements + numVaryingElements;
@@ -75,7 +75,7 @@ struct OsdVertexDescriptor {
     /// Resets the contents of vertex & varying primvar data buffers for a given
     /// vertex.
     ///
-    /// @param vertex  The float array containing the vertex-interpolated primvar 
+    /// @param vertex  The float array containing the vertex-interpolated primvar
     ///                data that needs to be reset.
     ///
     /// @param varying The float array containing the varying-interpolated primvar
@@ -85,15 +85,15 @@ struct OsdVertexDescriptor {
     ///
     void Clear(float *vertex, float *varying, int index) const {
         if (vertex) {
-            memset(vertex+index*numVertexElements, 0, sizeof(float)*numVertexElements);               
+            memset(vertex+index*numVertexElements, 0, sizeof(float)*numVertexElements);
         }
 
         if (varying) {
-            memset(varying+index*numVaryingElements, 0, sizeof(float)*numVaryingElements);       
-               
+            memset(varying+index*numVaryingElements, 0, sizeof(float)*numVaryingElements);
+
         }
     }
-    
+
     /// Applies "dst += src*weight" to "vertex" primvar data in a vertex buffer.
     ///
     /// @param vertex The VertexData buffer
@@ -104,14 +104,14 @@ struct OsdVertexDescriptor {
     ///
     /// @param weight Weight applied to the primvar data.
     ///
-    inline 
+    inline
     void AddWithWeight(float *vertex, int dstIndex, int srcIndex, float weight) const {
         int d = dstIndex * numVertexElements;
-        int s = srcIndex * numVertexElements;       
+        int s = srcIndex * numVertexElements;
 #if defined ( __INTEL_COMPILER ) or defined ( __ICC )
-    #pragma ivdep  
+    #pragma ivdep
     #pragma vector aligned
-#endif 
+#endif
         for (int i = 0; i < numVertexElements; ++i)
             vertex[d++] += vertex[s++] * weight;
     }
@@ -131,9 +131,9 @@ struct OsdVertexDescriptor {
         int d = dstIndex * numVaryingElements;
         int s = srcIndex * numVaryingElements;
 #if defined ( __INTEL_COMPILER ) or defined ( __ICC )
-    #pragma ivdep  
+    #pragma ivdep
     #pragma vector aligned
-#endif 
+#endif
         for (int i = 0; i < numVaryingElements; ++i)
             varying[d++] += varying[s++] * weight;
     }
@@ -191,16 +191,15 @@ struct OsdVertexBufferDescriptor {
 
     /// True if the descriptor values are internally consistent
     bool IsValid() const {
-        return (length>0) and (offset<length) and (stride>=length);
+        return ((length>0) and (offset<stride) and (length<=stride-offset));
     }
-    
+
     /// True if the 'other' descriptor can be used as a destination for
     /// data evaluations.
     bool CanEval( OsdVertexBufferDescriptor const & other ) const {
-        return IsValid() and 
-               other.IsValid() and 
-               (length==other.length) and 
-               (other.length <= (stride-offset));
+        return (IsValid() and
+                other.IsValid() and
+                (length==other.length));
     }
 
     /// Resets the descriptor to default

@@ -40,6 +40,7 @@
 #include "../osd/opengl.h"
 
 #include <cassert>
+#include <string>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -94,20 +95,30 @@ OsdGLSLTransformFeedbackKernelBundle::Compile(int numVertexElements, int numVary
     glCompileShader(shader);
     glAttachShader(_program, shader);
 
-    const char *outputs[4];
-    int nOutputs = 0;
+    std::vector<std::string> outputs;
 
     // position and custom vertex data are stored same buffer whereas varying data
     // exists on another buffer. "gl_NextBuffer" identifier helps to split them.
-    if (numVertexElements > 0)
-        outputs[nOutputs++] = "outVertexData";
-    if (numVaryingElements > 0) {
-        if (nOutputs > 0)
-            outputs[nOutputs++] = "gl_NextBuffer";
-        outputs[nOutputs++] = "outVaryingData";
+    for (int i = 0; i < numVertexElements; ++i) {
+        char attrName[32];
+        snprintf(attrName, 32, "outVertexData[%d]", i);
+        outputs.push_back(attrName);
+    }
+    for (int i = 0; i < numVaryingElements; ++i) {
+        if (i == 0 and (not outputs.empty())) {
+            outputs.push_back("gl_NextBuffer");
+        }
+        char attrName[32];
+        snprintf(attrName, 32, "outVaryingData[%d]", i);
+        outputs.push_back(attrName);
+    }
+    std::vector<const char *> pOutputs;
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        pOutputs.push_back(&outputs[i][0]);
     }
 
-    glTransformFeedbackVaryings(_program, nOutputs, outputs, GL_INTERLEAVED_ATTRIBS);
+    glTransformFeedbackVaryings(_program, (GLsizei)outputs.size(),
+                                &pOutputs[0], GL_INTERLEAVED_ATTRIBS);
 
     OSD_DEBUG_CHECK_GL_ERROR("Transform feedback initialize\n");
 

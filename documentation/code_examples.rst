@@ -1,4 +1,4 @@
-..  
+..
        Copyright 2013 Pixar
 
        Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@
        either express or implied.  See the License for the specific
        language governing permissions and limitations under the
        License.
-  
+
 
 Code Examples
 -------------
@@ -29,7 +29,7 @@ Code Examples
 Standalone Viewers
 ==================
 
-OpenSubdiv builds a number of standalone viewers that demonstrate various aspects 
+OpenSubdiv builds a number of standalone viewers that demonstrate various aspects
 of the software.
 
 ----
@@ -37,17 +37,18 @@ of the software.
 .. list-table:: **OpenGL examples**
    :class: quickref
    :widths: 50 50
-   
+
    * - | `glViewer <glviewer.html>`_
        | `glBatchViewer <glbatchviewer.html>`_
+       | `glStencilViewer <glstencilviewer.html>`_
+     - | `limitEval <limiteval.html>`_
+       | `paintTest <painttest.html>`_
        | `ptexViewer <ptexviewer.html>`_
-     - | `paintTest <painttest.html>`_
-       | `limitEval <limiteval.html>`_
 
 .. list-table:: **DirectX examples**
    :class: quickref
    :widths: 50 50
-   
+
    * - | `dxViewer <dxviewer.html>`_
      - |
 
@@ -64,8 +65,8 @@ of the software.
 
    **Note:**
    the Maya plugins are currently unsupported and they may fail to compile
-   or work with current versions of OpenSubdiv. These were originally written for 
-   the sole purpose of live demonstrations and the code is provided only as an 
+   or work with current versions of OpenSubdiv. These were originally written for
+   the sole purpose of live demonstrations and the code is provided only as an
    implementation example.
 
 |
@@ -76,13 +77,13 @@ Common Keyboard Controls
 ========================
 
    .. code:: c++
-   
+
       Left mouse button drag   : orbit camera
       Middle mouse button drag : pan camera
       Right mouse button       : dolly camera
       n, p                     : next/prev model
       1, 2, 3, ..., 9, 0       : specify adaptive isolation or uniform refinment level
-      +, -                     : increase / decrease tessellation 
+      +, -                     : increase / decrease tessellation
       Tab                      : toggle full-screen
       Esc                      : turn on / off the HUD
       w                        : switch display mode

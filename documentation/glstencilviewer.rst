@@ -23,8 +23,8 @@
        License.
   
 
-glViewer
---------
+glStencilViewer
+---------------
 
 .. contents::
    :local:
@@ -36,19 +36,19 @@ SYNOPSIS
 .. parsed-literal:: 
    :class: codefhead
 
-   **glViewer** [**-d** *isolation level*] [**-c** *animation loops*] [**-f**] *objfile(s)*
+   **glStencilViewer** [**-d** *isolation level*] [**-f**] *objfile(s)*
 
 DESCRIPTION
 ===========
 
-``glViewer`` is a stand-alone application that showcases the application of 
-uniform and feature adaptive subdivision schemes to a collection of geometric
-shapes. Multiple controls are available to experiment with the algorithms.
+``glStencilViewer`` is a stand-alone application that showcases the application of 
+pre-computed stencil tables to a collection of geometric test shapes. Multiple 
+controls are available to experiment with the algorithms.
 
-.. image:: images/glviewer.jpg 
+.. image:: images/glstencilviewer.png 
    :width: 400px
    :align: center
-   :target: images/glviewer.jpg 
+   :target: images/glstencilviewer.png 
 
 OPTIONS
 =======
@@ -56,9 +56,6 @@ OPTIONS
 **-d** *isolation level*
   Select the desired isolation level of adaptive feature isolation. This can be 
   useful when trying to load large pieces of geometry.
-
-**-c** *animation frequency*
-  Number of repetitions of the animtion loop (default=0 is infinite)
 
 **-f**
   Launches the application in full-screen mode (if is supported by GLFW on the
@@ -68,8 +65,8 @@ SEE ALSO
 ========
 
 `Code Examples <code_examples.html>`__, \
+`glViewer <glviewer.html>`__, \
 `glBatchViewer <glbatchviewer.html>`__, \
-`glStencilViewer <glstencilviewer.html>`__, \
 `ptexViewer <ptexviewer.html>`__, \
 `paintTest <painttest.html>`__, \
 `limitEval <limiteval.html>`__, \

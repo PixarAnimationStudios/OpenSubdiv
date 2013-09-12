@@ -32,6 +32,18 @@ Release Notes
 
 ----
 
+Release 2.2.0
+=============
+
+**New Features**
+    - Added subdivision stencil functionality (Far & OsdEval)
+
+**Bug Fixes**
+    - Fix D3D11DrawContext to check for NULL pointers
+    - Fix cpuEvalLimitController crash bug
+    - Fixed search path suffixes for ICC libs
+    - Fixed invalid initialization of glslTransformFeedback kernel.
+
 Release 2.1.0
 =============
 

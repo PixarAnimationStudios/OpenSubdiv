@@ -258,19 +258,16 @@ public:
     bool HasCreaseEdits() const { return hasCreaseEdits; }
 
     void Unrefine(int numCoarseVerts, int numCoarseFaces) {
-        static int oldMaxFaceID = 0;
-        if(oldMaxFaceID == 0) {
-            oldMaxFaceID = numCoarseFaces;
-        }
+
         for (int i = numCoarseFaces; i < maxFaceID; ++i) {
             HbrFace<T>* f = GetFace(i);
                 if(f and not f->IsCoarse())
                     DeleteFace(f);
         }
-        //oldMaxFaceID = maxFaceID;
+        
         maxFaceID = numCoarseFaces;
 
-        for(int i=numCoarseVerts; (int)vertices.size(); ++i ) {
+        for(int i=numCoarseVerts; i<(int)vertices.size(); ++i ) {
             HbrVertex<T>* v = GetVertex(i);
             if(v and not v->IsReferenced())
                 DeleteVertex(v);

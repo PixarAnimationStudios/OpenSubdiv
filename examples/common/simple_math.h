@@ -28,6 +28,13 @@
 #include <cmath>
 
 inline void
+cross(float *n, const float *v1, const float *v2) {
+    n[0] = v1[1]*v2[2]-v1[2]*v2[1];
+    n[1] = v1[2]*v2[0]-v1[0]*v2[2];
+    n[2] = v1[0]*v2[1]-v1[1]*v2[0];
+}
+
+inline void
 cross(float *n, const float *p0, const float *p1, const float *p2) {
 
     float a[3] = { p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2] };
