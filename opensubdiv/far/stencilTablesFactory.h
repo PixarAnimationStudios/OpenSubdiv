@@ -881,8 +881,22 @@ FarStencilTablesFactory<T>::Patch::GetStencilsAtUV( HbrHalfedge<T> * e,
                                               vtan->_GetData() );
 
             FarVertexStencil::AddScaled( point, pt, weights[i] );
-            FarVertexStencil::AddScaled( uderiv, utan, weights[i] );
-            FarVertexStencil::AddScaled( vderiv, vtan, weights[i] );
+
+            // Tangent vectors must compensate for the CCW rotation of 'elimit'
+            switch (i) {
+                case 0: {
+                    FarVertexStencil::AddScaled( uderiv, utan,  weights[i] );
+                    FarVertexStencil::AddScaled( vderiv, vtan,  weights[i] ); } break;
+                case 1: {
+                    FarVertexStencil::AddScaled( uderiv, vtan, -weights[i] );
+                    FarVertexStencil::AddScaled( vderiv, utan,  weights[i] ); } break;
+                case 2: {
+                    FarVertexStencil::AddScaled( uderiv, utan, -weights[i] );
+                    FarVertexStencil::AddScaled( vderiv, vtan, -weights[i] ); } break;
+                case 3: {
+                    FarVertexStencil::AddScaled( uderiv, vtan,  weights[i] );
+                    FarVertexStencil::AddScaled( vderiv, utan, -weights[i] ); } break;
+            }
         }
 
         _allocator->Deallocate(pt);
@@ -1478,15 +1492,12 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
 
     HbrVertex<T> * v = e->GetOrgVertex();
 
-    v->GuaranteeNeighbors();
-
     while (v->IsVolatile()) {
         v->Refine();
         v = v->Subdivide();
         e = v->GetEdge(e->Subdivide());
         assert(e);
     }
-
 
     assert(v->GetMask(false) == v->GetMask(true));
     switch(v->GetMask(false)) {
