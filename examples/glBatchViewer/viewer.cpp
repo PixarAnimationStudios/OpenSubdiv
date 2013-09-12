@@ -694,6 +694,18 @@ reshape(int width, int height) {
 }
 
 //------------------------------------------------------------------------------
+#if GLFW_VERSION_MAJOR>=3
+void windowClose(GLFWwindow*) {
+    g_running = false;
+}
+#else
+int windowClose() {
+    g_running = false;
+    return GL_TRUE;
+}
+#endif
+
+//------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
 keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
@@ -908,12 +920,11 @@ setGLCoreProfile()
 #if not defined(__APPLE__)
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
 #endif
-    
+    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
 //------------------------------------------------------------------------------
@@ -987,6 +998,7 @@ int main(int argc, char ** argv)
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
     glfwSetWindowSizeCallback(g_window, reshape);
+    glfwSetWindowCloseCallback(g_window, windowClose);
 #else
     if (glfwOpenWindow(g_width, g_height, 8, 8, 8, 8, 24, 8,
                        fullscreen ? GLFW_FULLSCREEN : GLFW_WINDOW) == GL_FALSE) {
@@ -999,6 +1011,7 @@ int main(int argc, char ** argv)
     glfwSetMousePosCallback(motion);
     glfwSetMouseButtonCallback(mouse);
     glfwSetWindowSizeCallback(reshape);
+    glfwSetWindowCloseCallback(g_window, windowClose);
 #endif
 
 #if defined(OSD_USES_GLEW)
