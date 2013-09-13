@@ -537,7 +537,7 @@ public:
 
     void EnableVertexAttributes( ) {
 
-        int offset = 0;
+        long int offset = 0;
         for (AttrList::iterator i=_attrs.begin(); i!=_attrs.end(); ++i) {
 
             glEnableVertexAttribArray( i->location );
