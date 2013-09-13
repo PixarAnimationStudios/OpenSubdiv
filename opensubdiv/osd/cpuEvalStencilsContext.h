@@ -54,9 +54,10 @@ public:
     /// Binding ensures that data buffers are properly inter-operated between
     /// Contexts and Controllers operating across multiple devices.
     ///
-    /// @param controlDataDesc
+    /// @param controlDataDesc  A buffer descriptor for the control vertices
+    ///                         data
     ///
-    /// @param controlData
+    /// @param controlData      A buffer for the control vertices data
     ///
     template<class VERTEX_BUFFER>
     void BindControlData(OsdVertexBufferDescriptor const & controlDataDesc, VERTEX_BUFFER *controlData ) {
@@ -71,9 +72,10 @@ public:
     /// Binding ensures that data buffers are properly inter-operated between
     /// Contexts and Controllers operating across multiple devices.
     ///
-    /// @param outputDataDesc
+    /// @param outputDataDesc  A buffer descriptor for the output vertex 
+    ///                        interpolated data
     ///
-    /// @param outputData
+    /// @param outputData      A buffer for vertex interpolated data
     ///
     template<class VERTEX_BUFFER>
     void BindOutputData( OsdVertexBufferDescriptor const & outputDataDesc, VERTEX_BUFFER *outputData ) {
@@ -87,13 +89,15 @@ public:
     /// Binding ensures that data buffers are properly inter-operated between
     /// Contexts and Controllers operating across multiple devices.
     ///
-    /// @param controlDataDesc
+    /// @param outputDuDesc  A buffer descriptor for the output U derivative
+    ///                      vertex data
     ///
-    /// @param controlData
+    /// @param outputDu      A buffer for the output U derivative data
     ///
-    /// @param outputDataDesc
+    /// @param outputDvDesc  A buffer descriptor for the output V derivative
+    ///                      vertex data
     ///
-    /// @param outputData
+    /// @param outputDv      A buffer for the output V derivative data
     ///
     template<class VERTEX_BUFFER>
     void BindOutputDerivData( OsdVertexBufferDescriptor const & outputDuDesc, VERTEX_BUFFER *outputDu, 

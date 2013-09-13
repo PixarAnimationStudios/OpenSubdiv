@@ -306,7 +306,7 @@ public:
     ///
     /// @param other        Source stencil to add the weights from
     ///
-    static void Add( float * dest, FarVertexStencil const * other );
+    static void Add( float * dst, FarVertexStencil const * other );
 
     /// \brief Subtracts the coefficients from a stencil dst = (a - b)
     ///
@@ -336,7 +336,7 @@ public:
     ///
     /// @param val          Value to weigh 'other' with
     ///
-    static void AddScaled( float * dest, FarVertexStencil const * other, float val );
+    static void AddScaled( float * dst, FarVertexStencil const * other, float val );
 
     /// \brief Adds and scales the coefficients of the stencil: this += other * val
     ///
