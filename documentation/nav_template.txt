@@ -68,6 +68,13 @@
                     <li><a href="using_osd.html">Primitive Batching</a></li>
                 </ul>
             </li>
+            <li><a href="additional_resources.html">Additional Resources</a>
+                <ul>
+                    <li><a href="http://graphics.pixar.com/opensubdiv/forum.html">Forum</a>
+                    <li><a href="additional_resources.html#links">Links</a>
+                    <li><a href="additional_resources.html#tutorials">Tutorials</a>
+                    <li><a href="additional_resources.html#videos">Videos</a>
+                </ul>
             <li><a href="release_notes.html">Release Notes</a>
             <li><a href="doxy_html/index.html" target="_blank">Doxygen</a></li>
         </ul>

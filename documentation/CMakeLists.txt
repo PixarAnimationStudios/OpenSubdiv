@@ -64,6 +64,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
     )
 
     set(RST_FILES 
+        additional_resources.rst
         api_overview.rst
         cmake_build.rst
         code_examples.rst
