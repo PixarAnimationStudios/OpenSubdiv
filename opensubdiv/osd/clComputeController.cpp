@@ -107,7 +107,7 @@ OsdCLComputeController::ApplyBilinearEdgeVerticesKernel(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetBilinearEdgeKernel();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -136,7 +136,7 @@ OsdCLComputeController::ApplyBilinearVertexVerticesKernel(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetBilinearVertexKernel();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -165,7 +165,7 @@ OsdCLComputeController::ApplyCatmarkFaceVerticesKernel(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetCatmarkFaceKernel();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -197,7 +197,7 @@ OsdCLComputeController::ApplyCatmarkEdgeVerticesKernel(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetCatmarkEdgeKernel();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -229,7 +229,7 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelB(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetCatmarkVertexKernelB();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -263,7 +263,7 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelA1(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     int ipass = false;
     cl_kernel kernel = context->GetKernelBundle()->GetCatmarkVertexKernelA();
 
@@ -297,7 +297,7 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelA2(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     int ipass = true;
     cl_kernel kernel = context->GetKernelBundle()->GetCatmarkVertexKernelA();
 
@@ -331,7 +331,7 @@ OsdCLComputeController::ApplyLoopEdgeVerticesKernel(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetLoopEdgeKernel();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -363,7 +363,7 @@ OsdCLComputeController::ApplyLoopVertexVerticesKernelB(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetLoopVertexKernelB();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -397,7 +397,7 @@ OsdCLComputeController::ApplyLoopVertexVerticesKernelA1(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     int ipass = false;
     cl_kernel kernel = context->GetKernelBundle()->GetLoopVertexKernelA();
 
@@ -431,7 +431,7 @@ OsdCLComputeController::ApplyLoopVertexVerticesKernelA2(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     int ipass = true;
     cl_kernel kernel = context->GetKernelBundle()->GetLoopVertexKernelA();
 
@@ -465,7 +465,7 @@ OsdCLComputeController::ApplyVertexEdits(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
 
     const OsdCLHEditTable * edit = context->GetEditTable(batch.GetTableIndex());
