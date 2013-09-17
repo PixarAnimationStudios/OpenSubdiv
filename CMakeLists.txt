@@ -64,6 +64,12 @@ endif()
 
 if (NOT DEFINED CMAKE_DOCDIR_BASE)
     set( CMAKE_DOCDIR_BASE share/doc/opensubdiv )
+else()
+    if (IS_ABSOLUTE ${CMAKE_DOCDIR_BASE})
+        set( CMAKE_DOCDIR_BASE ${CMAKE_DOCDIR_BASE} )
+    else()
+        set( CMAKE_DOCDIR_BASE ${CMAKE_INSTALL_PREFIX}/${CMAKE_DOCDIR_BASE} )
+    endif()
 endif()
 
 # Allow install path to be overridden for cross-compile builds
