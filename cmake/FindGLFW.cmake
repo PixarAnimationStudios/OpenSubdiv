@@ -129,8 +129,12 @@ else ()
                 $ENV{GLFW_LOCATION}/lib
                 ${GLFW_LOCATION}/lib/x11
                 $ENV{GLFW_LOCATION}/lib/x11
+                /usr/lib64
                 /usr/lib
+                /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}
+                /usr/local/lib64
                 /usr/local/lib
+                /usr/local/lib/${CMAKE_LIBRARY_ARCHITECTURE}
                 /usr/openwin/lib
                 /usr/X11R6/lib
             DOC 
