@@ -29,7 +29,7 @@
 #
 #  DOCUTILS_FOUND - System has Docutils
 #
-#  RST2HTML_EXECUTALE
+#  RST2HTML_EXECUTABLE
 
 find_package(PackageHandleStandardArgs)
 
