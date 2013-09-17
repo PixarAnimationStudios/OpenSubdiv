@@ -59,10 +59,10 @@ struct xyzVV {
 
    ~xyzVV( ) { }
 
-    void     AddWithWeight(const xyzVV& src, float weight, void * =0 ) { 
-        _pos[0]+=weight*src._pos[0]; 
-        _pos[1]+=weight*src._pos[1]; 
-        _pos[2]+=weight*src._pos[2]; 
+    void     AddWithWeight(const xyzVV& src, float weight, void * =0 ) {
+        _pos[0]+=weight*src._pos[0];
+        _pos[1]+=weight*src._pos[1];
+        _pos[2]+=weight*src._pos[2];
     }
 
     void     AddVaryingWithWeight(const xyzVV& , float, void * =0 ) { }
@@ -133,15 +133,15 @@ static shape * readShape( char const * fname ) {
     }
 
     fclose(handle);
-    
+
     shapeStr[size]='\0';
-    
+
     return shape::parseShape( shapeStr, 1 );
 }
 
 #define STR(x) x
 
-#ifdef  HBR_BASELINE_DIR  
+#ifdef  HBR_BASELINE_DIR
     std::string g_baseline_path = STR(HBR_BASELINE_DIR);
 #else
     std::string g_baseline_path;
@@ -156,27 +156,27 @@ static int checkMesh( shaperec const & r, int levels ) {
     xyzmesh * mesh = simpleHbr<xyzVV>(r.data.c_str(), r.scheme, 0);
 
     int firstface=0, lastface=mesh->GetNumFaces(),
-        firstvert=0, lastvert=mesh->GetNumVertices(), nverts;    
-    
+        firstvert=0, lastvert=mesh->GetNumVertices(), nverts;
+
     printf("- %s (scheme=%d)\n", r.name.c_str(), r.scheme);
-    
+
     for (int l=0; l<levels; ++l ) {
 
 
         std::stringstream fname;
-        
+
         fname << g_baseline_path <<  r.name << "_level" << l << ".obj";
-    
-        
+
+
         shape * sh = readShape( fname.str().c_str() );
         assert(sh);
-        
+
         // subdivide up to current level
         for (int i=firstface; i<lastface; ++i) {
             xyzface * f = mesh->GetFace(i);
             f->Refine();
         }
-        
+
         firstface = lastface;
         lastface = mesh->GetNumFaces();
         //nfaces = lastface - firstface;
@@ -184,7 +184,7 @@ static int checkMesh( shaperec const & r, int levels ) {
         firstvert = lastvert;
         lastvert = mesh->GetNumVertices();
         nverts = lastvert - firstvert;
-        
+
         for (int i=firstvert; i<lastvert; ++i) {
             const float * apos = mesh->GetVertex(i)->GetData().GetPos(),
                         * bpos = &sh->verts[(i-firstvert)*3];
@@ -203,27 +203,26 @@ static int checkMesh( shaperec const & r, int levels ) {
             deltaAvg[0]+=delta[0];
             deltaAvg[1]+=delta[1];
             deltaAvg[2]+=delta[2];
-            
+
             float dist = sqrtf( delta[0]*delta[0]+delta[1]*delta[1]+delta[2]*delta[2]);
             if ( dist > STRICT_PRECISION ) {
                 if(dist < WEAK_PRECISION && g_AllowWeakRegression) {
-                        g_StrictRegressionFailure=1;
-                        }
-                else {
-                        printf("// HbrVertex<T> %d fails : dist=%.10f (%.10f %.10f %.10f)"
-                               " (%.10f %.10f %.10f)\n", i, dist, apos[0],
-                                                                  apos[1],
-                                                                  apos[2],
-                                                                  bpos[0],
-                                                                  bpos[1],
-                                                                  bpos[2] );
-                        count++;
+                    g_StrictRegressionFailure=1;
+                } else {
+                    printf("// HbrVertex<T> %d fails : dist=%.10f (%.10f %.10f %.10f)"
+                           " (%.10f %.10f %.10f)\n", i, dist, apos[0],
+                                                              apos[1],
+                                                              apos[2],
+                                                              bpos[0],
+                                                              bpos[1],
+                                                              bpos[2] );
+                    count++;
                 }
             }
         }
         delete sh;
     }
-    
+
     if (deltaCnt[0])
         deltaAvg[0]/=deltaCnt[0];
     if (deltaCnt[1])

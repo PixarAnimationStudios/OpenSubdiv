@@ -23,7 +23,7 @@
 #     License.
 #
 
-_add_possibly_cuda_executable(stringify
+_add_executable(stringify
     main.cpp
 )
 

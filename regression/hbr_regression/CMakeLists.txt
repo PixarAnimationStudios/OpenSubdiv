@@ -27,7 +27,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
 )
 
-add_executable(hbr_regression
+_add_possibly_cuda_executable(hbr_regression
    main.cpp
 )
 
@@ -46,7 +46,7 @@ add_definitions(
 )
 
 
-add_executable(hbr_baseline
+_add_executable(hbr_baseline
    baseline.cpp
 )
 

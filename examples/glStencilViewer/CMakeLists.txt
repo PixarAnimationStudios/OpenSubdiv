@@ -41,7 +41,7 @@ if ( GLEW_FOUND )
     list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
 endif()
 
-_add_possibly_cuda_executable(glStencilViewer
+_add_glfw_executable(glStencilViewer
     main.cpp
     ../common/font_image.cpp
     ../common/hud.cpp

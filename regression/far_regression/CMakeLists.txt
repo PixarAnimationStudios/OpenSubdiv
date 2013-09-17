@@ -32,7 +32,7 @@ set(SOURCE_FILES
 )
 
 
-add_executable(far_regression
+_add_executable(far_regression
     ${SOURCE_FILES}
 )
 

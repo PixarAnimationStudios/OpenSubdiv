@@ -485,6 +485,17 @@ macro(_add_doxy_headers headers)
 endmacro()
 
 
+# Macro wrapper for adding a non-cuda dependent executable
+macro(_add_executable target)
+
+    add_executable(${target} ${ARGN})
+
+    if(CMAKE_COMPILER_IS_ICC)
+        target_link_libraries(${target} ${ICC_LIBRARIES})
+    endif()
+endmacro()
+
+
 # Macro for adding a cuda executable if cuda is found and a regular
 # executable otherwise.
 macro(_add_possibly_cuda_executable target)
@@ -511,7 +522,7 @@ macro(_add_possibly_cuda_library target)
 endmacro()
 
 
-# Macro for adding a (potentially cuda) executable.
+# Macro for adding a (potentially cuda) GLFW executable.
 macro(_add_glfw_executable target)
 
     _add_possibly_cuda_executable(${target} ${ARGN})
