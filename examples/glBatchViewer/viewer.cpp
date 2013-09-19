@@ -1011,7 +1011,7 @@ int main(int argc, char ** argv)
     glfwSetMousePosCallback(motion);
     glfwSetMouseButtonCallback(mouse);
     glfwSetWindowSizeCallback(reshape);
-    glfwSetWindowCloseCallback(g_window, windowClose);
+    glfwSetWindowCloseCallback(windowClose);
 #endif
 
 #if defined(OSD_USES_GLEW)
