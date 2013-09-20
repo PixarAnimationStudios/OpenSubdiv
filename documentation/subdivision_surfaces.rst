@@ -143,11 +143,11 @@ The following rule sets can be applied to vertex data interpolation:
 | 0 - **None**           | No boundary interpolation behavior should occur          |
 |                        | (debug mode - boundaries are undefined)                  |
 +------------------------+----------------------------------------------------------+
-| 1 - **EdgeOnly**       | All the boundary edge-chains are sharp creases and       |
+| 1 - **EdgeAndCorner**  | All the boundary edge-chains are sharp creases and       |
 |                        | boundary vertices with exactly two incident edges are    |
 |                        | sharp corners                                            |
 +------------------------+----------------------------------------------------------+
-| 2 - **EdgeAndCorner**  | All the boundary edge-chains are sharp creases; boundary |
+| 2 - **EdgeOnly**       | All the boundary edge-chains are sharp creases; boundary |
 |                        | vertices are not affected                                |
 |                        |                                                          |
 +------------------------+----------------------------------------------------------+
