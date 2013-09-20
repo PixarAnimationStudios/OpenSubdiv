@@ -141,6 +141,7 @@ The following rule sets can be applied to vertex data interpolation:
 | Mode                   | Behavior                                                 |
 +========================+==========================================================+
 | 0 - **None**           | No boundary interpolation behavior should occur          |
+|                        | (debug mode - boundaries are undefined)                  |
 +------------------------+----------------------------------------------------------+
 | 1 - **EdgeOnly**       | All the boundary edge-chains are sharp creases and       |
 |                        | boundary vertices with exactly two incident edges are    |
@@ -150,6 +151,13 @@ The following rule sets can be applied to vertex data interpolation:
 |                        | vertices are not affected                                |
 |                        |                                                          |
 +------------------------+----------------------------------------------------------+
+
+On a quad example:
+
+.. image:: images/vertex_boundary.png
+   :align: center
+   :target: images/vertex_boundary.png
+
 
 Facevarying Data
 ****************

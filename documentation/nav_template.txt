@@ -41,6 +41,7 @@
                 <ul>
                     <li><a href="subdivision_surfaces.html#introduction">Introduction</a></li>
                     <li><a href="subdivision_surfaces.html#manifold-geometry">Topology</a></li>
+                    <li><a href="subdivision_surfaces.html#boundary-interpolation-rules">Boundary Interpolation</a></li>
                     <li><a href="subdivision_surfaces.html#semi-sharp-creases">Semi-Sharp Creases</a></li>
                     <li><a href="subdivision_surfaces.html#hierarchical-edits">Hierarchical Edits</a></li>
                     <li><a href="subdivision_surfaces.html#uniform-subdivision">Uniform</a></li>
