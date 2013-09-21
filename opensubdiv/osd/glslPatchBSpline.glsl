@@ -22,7 +22,6 @@
 //     language governing permissions and limitations under the
 //     License.
 //
-
 //----------------------------------------------------------
 // Patches.TessVertexBSpline
 //----------------------------------------------------------
@@ -232,15 +231,22 @@ void main()
     vec2 UV = gl_TessCoord.xy;
 #endif
 
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    float B[4], D[4], C[4];
+    vec3 BUCP[4], DUCP[4], CUCP[4];
+    Univar4x4(UV.x, B, D, C);
+#else
     float B[4], D[4];
-
-    Univar4x4(UV.x, B, D);
-
     vec3 BUCP[4], DUCP[4];
+    Univar4x4(UV.x, B, D);
+#endif
 
     for (int i=0; i<4; ++i) {
         BUCP[i] = vec3(0);
         DUCP[i] = vec3(0);
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+        CUCP[i] = vec3(0);
+#endif
 
         for (int j=0; j<4; ++j) {
 #if OSD_TRANSITION_ROTATE == 1
@@ -254,6 +260,9 @@ void main()
 #endif
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+            CUCP[i] += A * C[j];
+#endif
         }
     }
 
@@ -261,6 +270,49 @@ void main()
     vec3 Tangent   = vec3(0);
     vec3 BiTangent = vec3(0);
 
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    // used for weingarten term
+    Univar4x4(UV.y, B, D, C);
+
+    vec3 dUU = vec3(0);
+    vec3 dVV = vec3(0);
+    vec3 dUV = vec3(0);
+
+    for (int k=0; k<4; ++k) {
+        WorldPos  += B[k] * BUCP[k];
+        Tangent   += B[k] * DUCP[k];
+        BiTangent += D[k] * BUCP[k];
+
+        dUU += B[k] * CUCP[k];
+        dVV += C[k] * BUCP[k];
+        dUV += D[k] * DUCP[k];
+    }
+
+    int level = int(inpt[0].v.ptexInfo.z);
+    Tangent *= 3 * level;
+    BiTangent *= 3 * level;
+    dUU *= 6 * level;
+    dVV *= 6 * level;
+    dUV *= 9 * level;
+
+    vec3 n = cross(Tangent, BiTangent);
+    vec3 normal = normalize(n);
+
+    float E = dot(Tangent, Tangent);
+    float F = dot(Tangent, BiTangent);
+    float G = dot(BiTangent, BiTangent);
+    float e = dot(normal, dUU);
+    float f = dot(normal, dUV);
+    float g = dot(normal, dVV);
+
+    vec3 Nu = (f*F-e*G)/(E*G-F*F) * Tangent + (e*F-f*E)/(E*G-F*F) * BiTangent;
+    vec3 Nv = (g*F-f*G)/(E*G-F*F) * Tangent + (f*F-g*E)/(E*G-F*F) * BiTangent;
+
+    Nu = Nu/length(n) - n * (dot(Nu,n)/pow(dot(n,n), 1.5));
+    Nv = Nv/length(n) - n * (dot(Nv,n)/pow(dot(n,n), 1.5));
+
+    OSD_COMPUTE_PTEX_COMPATIBLE_DERIVATIVES(OSD_TRANSITION_ROTATE);
+#else
     Univar4x4(UV.y, B, D);
 
     for (int k=0; k<4; ++k) {
@@ -268,12 +320,17 @@ void main()
         Tangent   += B[k] * DUCP[k];
         BiTangent += D[k] * BUCP[k];
     }
+    int level = int(inpt[0].v.ptexInfo.z);
+    Tangent *= 3 * level;
+    BiTangent *= 3 * level;
 
     vec3 normal = normalize(cross(Tangent, BiTangent));
 
+    OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(OSD_TRANSITION_ROTATE);
+#endif
+
     outpt.v.position = vec4(WorldPos, 1.0f);
     outpt.v.normal = normal;
-    outpt.v.tangent = Tangent;
 
     OSD_USER_VARYING_PER_EVAL_POINT(UV, 5, 6, 9, 10);
 
@@ -290,8 +347,6 @@ void main()
 #endif
 
     OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
-
-    OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(OSD_TRANSITION_ROTATE);
 
     OSD_DISPLACEMENT_CALLBACK;
 

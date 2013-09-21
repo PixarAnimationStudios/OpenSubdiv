@@ -22,7 +22,6 @@
 //     language governing permissions and limitations under the
 //     License.
 //
-
 //----------------------------------------------------------
 // Patches.Common
 //----------------------------------------------------------
@@ -82,9 +81,14 @@ struct ControlVertex {
 struct OutputVertex {
     vec4 position;
     vec3 normal;
-    vec3 tangent;
     centroid vec4 patchCoord; // u, v, level, faceID
     centroid vec2 tessCoord; // tesscoord.st
+    vec3 tangent;
+    vec3 bitangent;
+#if defined OSD_COMPUTE_NORMAL_DERIVATIVES
+    vec3 Nu;
+    vec3 Nv;
+#endif
 };
 
 struct GregControlVertex {
@@ -195,18 +199,48 @@ uniform isamplerBuffer OsdPatchParamBuffer;
         outpt.v.patchCoord.xy = (uv * vec2(1.0)/lv) + vec2(p.x, p.y)/lv; \
     }
 
-#define OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(ROTATE)             \
-    {                                                           \
-        int rot = (inpt[0].v.ptexInfo.w + 4 - ROTATE)%4;        \
-        if (rot == 1) {                                         \
-            outpt.v.tangent = -normalize(BiTangent);            \
-        } else if (rot == 2) {                                  \
-            outpt.v.tangent = -normalize(Tangent);              \
-        } else if (rot == 3) {                                  \
-            outpt.v.tangent = normalize(BiTangent);             \
-        } else {                                                \
-            outpt.v.tangent = normalize(Tangent);               \
-        }                                                       \
+#define OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(ROTATE)                 \
+    {                                                               \
+        int rot = (inpt[0].v.ptexInfo.w + 4 - ROTATE)%4;            \
+        if (rot == 1) {                                             \
+            outpt.v.tangent = -BiTangent;                           \
+            outpt.v.bitangent = Tangent;                            \
+        } else if (rot == 2) {                                      \
+            outpt.v.tangent = -Tangent;                             \
+            outpt.v.bitangent = -BiTangent;                         \
+        } else if (rot == 3) {                                      \
+            outpt.v.tangent = BiTangent;                            \
+            outpt.v.bitangent = -Tangent;                           \
+        } else {                                                    \
+            outpt.v.tangent = Tangent;                              \
+            outpt.v.bitangent = BiTangent;                          \
+        }                                                           \
+    }
+
+#define OSD_COMPUTE_PTEX_COMPATIBLE_DERIVATIVES(ROTATE)             \
+    {                                                               \
+        int rot = (inpt[0].v.ptexInfo.w + 4 - ROTATE)%4;            \
+        if (rot == 1) {                                             \
+            outpt.v.tangent = -BiTangent;                           \
+            outpt.v.bitangent = Tangent;                            \
+            outpt.v.Nu = -Nv;                                       \
+            outpt.v.Nv = Nv;                                        \
+        } else if (rot == 2) {                                      \
+            outpt.v.tangent = -Tangent;                             \
+            outpt.v.bitangent = -BiTangent;                         \
+            outpt.v.Nu = -Nu;                                       \
+            outpt.v.Nv = -Nv;                                       \
+        } else if (rot == 3) {                                      \
+            outpt.v.tangent = BiTangent;                            \
+            outpt.v.bitangent = -Tangent;                           \
+            outpt.v.Nu = Nv;                                        \
+            outpt.v.Nv = -Nu;                                       \
+        } else {                                                    \
+            outpt.v.tangent = Tangent;                              \
+            outpt.v.bitangent = BiTangent;                          \
+            outpt.v.Nu = Nu;                                        \
+            outpt.v.Nv = Nv;                                        \
+        }                                                           \
     }
 
 // ----------------------------------------------------------------------------
@@ -331,4 +365,34 @@ Univar4x4(in float u, out float B[4], out float D[4])
     D[1] = A0 - A1;
     D[2] = A1 - A2;
     D[3] = A2;
+}
+
+void
+Univar4x4(in float u, out float B[4], out float D[4], out float C[4])
+{
+    float t = u;
+    float s = 1.0f - u;
+
+    float A0 = s * s;
+    float A1 = 2 * s * t;
+    float A2 = t * t;
+
+    B[0] = s * A0;
+    B[1] = t * A0 + s * A1;
+    B[2] = t * A1 + s * A2;
+    B[3] = t * A2;
+
+    D[0] =    - A0;
+    D[1] = A0 - A1;
+    D[2] = A1 - A2;
+    D[3] = A2;
+
+    A0 =   - s;
+    A1 = s - t;
+    A2 = t;
+
+    C[0] =    - A0;
+    C[1] = A0 - A1;
+    C[2] = A1 - A2;
+    C[3] = A2;
 }
