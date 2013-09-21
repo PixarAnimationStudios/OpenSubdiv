@@ -36,33 +36,11 @@ class Hud
 public:
     typedef void (*RadioButtonCallback)(int c);
     typedef void (*CheckBoxCallback)(bool checked, int data);
-
-    struct RadioButton 
-    {
-        int x, y, w, h;
-        int group;
-        int localIndex;
-        std::string label;
-        bool checked;
-        RadioButtonCallback callback;
-        int callbackData;
-        int shortcut;
-        bool sharedShortcut;
-    };
-
-    struct CheckBox
-    {
-        int x, y, w, h;
-        std::string label;
-        bool checked;
-        CheckBoxCallback callback;
-        int callbackData;
-        int shortcut;
-    };
+    typedef void (*SliderCallback)(float value, int data);
 
     Hud();
     virtual ~Hud();
-    
+
     virtual void Init(int width, int height);
 
     virtual void Rebuild(int width, int height);
@@ -79,34 +57,105 @@ public:
 
     void Clear();
 
+    void AddLabel(const char *label, int x, int y);
+
     void AddRadioButton(int group, const char *label, bool checked, int x, int y,
                         RadioButtonCallback callback=0, int data=0, int shortcut=0);
 
     void AddCheckBox(const char *label, bool checked, int x, int y,
                      CheckBoxCallback callback=0, int data=0, int shortcut=0);
 
+    void AddSlider(const char *label, float min, float max, float value,
+                   int x, int y, int width, bool intStep,
+                   SliderCallback callback=0, int data=0);
+
     bool KeyDown(int key);
 
     bool MouseClick(int x, int y);
 
+    bool MouseCapture() const;
+
+    void MouseRelease();
+
+    void MouseMotion(int x, int y);
+
     int GetWidth() const;
-    
+
     int GetHeight() const;
 
 protected:
-    int drawString(std::vector<float> &vboSource, int x, int y, float r, float g, float b, const char *c) const;
-    int drawChar(std::vector<float> &vboSource, int x, int y, float r, float g, float b, char ch) const;
-    const std::vector<RadioButton> & getRadioButtons() const;
-    const std::vector<CheckBox> & getCheckBoxes() const;
+    struct Item
+    {
+        int x, y, w, h;
+        std::string label;
+    };
+
+    struct RadioButton : public Item
+    {
+        int group;
+        int localIndex;
+        bool checked;
+        int shortcut;
+        bool sharedShortcut;
+        RadioButtonCallback callback;
+        int callbackData;
+    };
+
+    struct CheckBox : public Item
+    {
+        bool checked;
+        CheckBoxCallback callback;
+        int callbackData;
+        int shortcut;
+    };
+
+    struct Slider : public Item
+    {
+        float min, max;
+        float value;
+        SliderCallback callback;
+        int callbackData;
+        bool intStep;
+
+        void SetValue(float v) {
+            value = std::max(std::min(v, max), min);
+        }
+    };
+
+    int drawString(std::vector<float> &vboSource, int x, int y,
+                   float r, float g, float b, const char *c) const;
+
+    int drawChar(std::vector<float> &vboSource, int x, int y,
+                 float r, float g, float b, char ch) const;
+
+    bool hitTest(Item const &item, int x, int y) const {
+        int ix = item.x > 0 ? item.x : _windowWidth + item.x;
+        int iy = item.y > 0 ? item.y : _windowHeight + item.y;
+        return (x >= ix &&
+                y >= iy &&
+                x <= (ix + item.w) &&
+                y <= (iy + item.h));
+    }
+
+    void getWindowPos(Item const &item, int *x, int *y) const {
+        *x = item.x > 0 ? item.x : _windowWidth + item.x;
+        *y = item.y > 0 ? item.y : _windowHeight + item.y;
+    }
+
     std::vector<float> & getVboSource();
+    std::vector<float> & getStaticVboSource();
 
 private:
     bool _visible;
-    std::vector<float> _vboSource;
+    std::vector<float> _vboSource, _staticVboSource;
     int _windowWidth, _windowHeight;
     bool _requiresRebuildStatic;
+    std::vector<Item> _labels;
     std::vector<RadioButton> _radioButtons;
     std::vector<CheckBox> _checkBoxes;
+    std::vector<Slider> _sliders;
+    int _capturedSlider;
+
 };
 
 #endif // HUD_H

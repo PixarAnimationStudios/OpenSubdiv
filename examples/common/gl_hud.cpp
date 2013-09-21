@@ -204,44 +204,10 @@ GLhud::Rebuild(int width, int height)
     if (not _staticVbo)
         return;
 
-    std::vector<float> vboSource;
-    // add UI elements
-    for (std::vector<RadioButton>::const_iterator it = getRadioButtons().begin();
-         it != getRadioButtons().end(); ++it) {
-
-        int x = it->x > 0 ? it->x : GetWidth() + it->x;
-        int y = it->y > 0 ? it->y : GetHeight() + it->y;
-
-        if (it->checked) {
-            x = drawChar(vboSource, x, y, 1, 1, 1, FONT_RADIO_BUTTON_ON);
-            drawString(vboSource, x, y, 1, 1, 0, it->label.c_str());
-        } else {
-            x = drawChar(vboSource, x, y, 1, 1, 1, ' ');
-            drawString(vboSource, x, y, .5f, .5f, .5f, it->label.c_str());
-        }
-    }
-    for (std::vector<CheckBox>::const_iterator it = getCheckBoxes().begin();
-         it != getCheckBoxes().end(); ++it) {
-
-        int x = it->x > 0 ? it->x : GetWidth() + it->x;
-        int y = it->y > 0 ? it->y : GetHeight() + it->y;
-
-        if( it->checked) {
-            x = drawChar(vboSource, x, y, 1, 1, 1, FONT_CHECK_BOX_ON);
-            drawString(vboSource, x, y, 1, 1, 0, it->label.c_str());
-        } else {
-            x = drawChar(vboSource, x, y, 1, 1, 1, FONT_CHECK_BOX_OFF);
-            drawString(vboSource, x, y, .5f, .5f, .5f, it->label.c_str());
-        }
-    }
-
-    drawString(vboSource, GetWidth()-80, GetHeight()-48, .5, .5, .5, "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f");
-    drawString(vboSource, GetWidth()-80, GetHeight()-32, .5, .5, .5, "\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f");
-
-    _staticVboSize = (int)vboSource.size();
+    _staticVboSize = (int)getStaticVboSource().size();
     glBindBuffer(GL_ARRAY_BUFFER, _staticVbo);
     glBufferData(GL_ARRAY_BUFFER, _staticVboSize * sizeof(float),
-                 &vboSource[0], GL_STATIC_DRAW);
+                 &getStaticVboSource()[0], GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 

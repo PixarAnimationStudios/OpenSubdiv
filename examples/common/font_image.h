@@ -36,6 +36,10 @@
 #define FONT_CHECK_BOX_ON      0x4
 #define FONT_RADIO_BUTTON_OFF  0x6
 #define FONT_RADIO_BUTTON_ON   0x7
+#define FONT_SLIDER_LEFT       0x10
+#define FONT_SLIDER_MIDDLE     0x11
+#define FONT_SLIDER_RIGHT      0x12
+#define FONT_SLIDER_CURSOR     0x7c
 
 extern unsigned char font_image[];
 

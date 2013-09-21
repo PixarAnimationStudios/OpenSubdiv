@@ -194,48 +194,12 @@ D3D11hud::Rebuild(int width, int height)
 {
     Hud::Rebuild(width, height);
 
-    // XXX: move this code to Hud
-    std::vector<float> vboSource;
-    // add UI elements
-    for (std::vector<RadioButton>::const_iterator it = getRadioButtons().begin();
-         it != getRadioButtons().end(); ++it) {
-
-        int x = it->x > 0 ? it->x : GetWidth() + it->x;
-        int y = it->y > 0 ? it->y : GetHeight() + it->y;
-
-        if (it->checked) {
-            x = drawChar(vboSource, x, y, 1, 1, 1, FONT_RADIO_BUTTON_ON);
-            drawString(vboSource, x, y, 1, 1, 0, it->label.c_str());
-        } else {
-            x = drawChar(vboSource, x, y, 1, 1, 1, ' ');
-            drawString(vboSource, x, y, .5f, .5f, .5f, it->label.c_str());
-        }
-    }
-    for (std::vector<CheckBox>::const_iterator it = getCheckBoxes().begin();
-         it != getCheckBoxes().end(); ++it) {
-
-        int x = it->x > 0 ? it->x : GetWidth() + it->x;
-        int y = it->y > 0 ? it->y : GetHeight() + it->y;
-
-        if( it->checked) {
-            x = drawChar(vboSource, x, y, 1, 1, 1, FONT_CHECK_BOX_ON);
-            drawString(vboSource, x, y, 1, 1, 0, it->label.c_str());
-        } else {
-            x = drawChar(vboSource, x, y, 1, 1, 1, FONT_CHECK_BOX_OFF);
-            drawString(vboSource, x, y, .5f, .5f, .5f, it->label.c_str());
-        }
-    }
-
-    drawString(vboSource, GetWidth()-80, GetHeight()-48, .5, .5, .5, "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f");
-    drawString(vboSource, GetWidth()-80, GetHeight()-32, .5, .5, .5, "\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f");
-
-    // --------------------------------
-
     SAFE_RELEASE(_staticVbo);
 
-    if (vboSource.size()) {
+    int size = (int)getStaticVboSource().size();
+    if (size) {
         D3D11_BUFFER_DESC bufferDesc;
-        bufferDesc.ByteWidth = (int)vboSource.size() * sizeof(float);
+        bufferDesc.ByteWidth = size * sizeof(float);
         bufferDesc.Usage = D3D11_USAGE_DEFAULT;
         bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
         bufferDesc.CPUAccessFlags = 0;
@@ -243,7 +207,7 @@ D3D11hud::Rebuild(int width, int height)
         bufferDesc.StructureByteStride = 4*sizeof(float);
 
         D3D11_SUBRESOURCE_DATA subData;
-        subData.pSysMem = &vboSource[0];
+        subData.pSysMem = &getStaticVboSource()[0];
         subData.SysMemPitch = 0;
         subData.SysMemSlicePitch = 0;
 
@@ -251,7 +215,7 @@ D3D11hud::Rebuild(int width, int height)
         _deviceContext->GetDevice(&device);
         HRESULT hr = device->CreateBuffer(&bufferDesc, &subData, &_staticVbo);
         assert(_staticVbo);
-        _staticVboCount = (int)vboSource.size() / 7;
+        _staticVboCount = size / 7;
     }
 }
 
