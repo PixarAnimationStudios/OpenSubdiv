@@ -114,16 +114,25 @@ add_definitions(
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
 
 #-------------------------------------------------------------------------------
-set(GL_PTEX_PUBLIC_HEADERS glPtexTexture.h)
+set(GL_PTEX_PUBLIC_HEADERS
+    glPtexTexture.h
+    glPtexMipmapTexture.h
+)
 set(DX_PTEX_PUBLIC_HEADERS d3d11PtexTexture.h)
 
 if( PTEX_FOUND )
+    list(APPEND PUBLIC_HEADER_FILES
+        ptexTextureLoader.h
+        ptexMipmapTextureLoader.h
+    )
     list(APPEND CPU_SOURCE_FILES
         ptexTextureLoader.cpp
+        ptexMipmapTextureLoader.cpp
     )
     if( OPENGL_FOUND )
         list(APPEND GPU_SOURCE_FILES
             glPtexTexture.cpp
+            glPtexMipmapTexture.cpp
         )
         list(APPEND PUBLIC_HEADER_FILES
             ${GL_PTEX_PUBLIC_HEADERS}
