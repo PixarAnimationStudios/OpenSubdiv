@@ -22,7 +22,6 @@
 //     language governing permissions and limitations under the
 //     License.
 //
-
 #if defined(__APPLE__)
     #if defined(OSD_USES_GLEW)
         #include <GL/glew.h>
@@ -41,11 +40,18 @@
 
 #if defined(GLFW_VERSION_3)
     #include <GLFW/glfw3.h>
-    GLFWwindow* g_window=0;
-    GLFWmonitor* g_primary=0;
+    GLFWwindow* g_window = 0;
+    GLFWmonitor* g_primary = 0;
 #else
     #include <GL/glfw.h>
 #endif
+
+#include <vector>
+#include <sstream>
+#include <fstream>
+#include <string>
+#include <utility>
+#include <algorithm>
 
 #define HBR_ADAPTIVE
 
@@ -55,9 +61,9 @@
 #include <hbr/face.h>
 
 #include <osd/error.h>
-#include <osd/glPtexTexture.h>
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
+#include <osd/glPtexMipmapTexture.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -76,8 +82,8 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 
     #include "../common/clInit.h"
 
-    cl_context g_clContext;
-    cl_command_queue g_clQueue;
+    cl_context g_clContext = NULL;
+    cl_command_queue g_clQueue = NULL;
     OpenSubdiv::OsdCLComputeController * g_clComputeController = NULL;
 #endif
 
@@ -99,7 +105,8 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
     #include <osd/glslTransformFeedbackComputeContext.h>
     #include <osd/glslTransformFeedbackComputeController.h>
     #include <osd/glVertexBuffer.h>
-    OpenSubdiv::OsdGLSLTransformFeedbackComputeController * g_glslTransformFeedbackComputeController = NULL;
+    OpenSubdiv::OsdGLSLTransformFeedbackComputeController
+        *g_glslTransformFeedbackComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
@@ -121,10 +128,6 @@ OpenSubdiv::OsdGLMeshInterface *g_mesh;
 #include "../common/patchColors.h"
 #include "../common/hdr_reader.h"
 #include "../../regression/common/shape_utils.h"
-
-#include <vector>
-#include <sstream>
-#include <fstream>
 
 static const char *g_defaultShaderSource =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
@@ -155,46 +158,78 @@ enum KernelType { kCPU = 0,
                   kGLSLCompute = 5 };
 
 enum HudCheckBox { HUD_CB_ADAPTIVE,
-                   HUD_CB_DISPLAY_COLOR,
                    HUD_CB_DISPLAY_OCCLUSION,
-                   HUD_CB_DISPLAY_DISPLACEMENT,
                    HUD_CB_DISPLAY_NORMALMAP,
                    HUD_CB_DISPLAY_SPECULAR,
                    HUD_CB_ANIMATE_VERTICES,
-                   HUD_CB_DISPLAY_PATCH_COLOR,
                    HUD_CB_VIEW_LOD,
                    HUD_CB_FRACTIONAL_SPACING,
                    HUD_CB_PATCH_CULL,
                    HUD_CB_IBL,
                    HUD_CB_BLOOM,
                    HUD_CB_FREEZE };
-    
+
+enum HudRadioGroup { HUD_RB_KERNEL,
+                     HUD_RB_LEVEL,
+                     HUD_RB_SCHEME,
+                     HUD_RB_WIRE,
+                     HUD_RB_COLOR,
+                     HUD_RB_DISPLACEMENT,
+                     HUD_RB_NORMAL };
+
+enum DisplayType { DISPLAY_WIRE,
+                   DISPLAY_SHADED,
+                   DISPLAY_WIRE_ON_SHADED };
+
+enum ColorType { COLOR_NONE,
+                 COLOR_PTEX_NEAREST,
+                 COLOR_PTEX_HW_BILINEAR,
+                 COLOR_PTEX_BILINEAR,
+                 COLOR_PTEX_BIQUADRATIC,
+                 COLOR_PATCHTYPE,
+                 COLOR_PATCHCOORD,
+                 COLOR_NORMAL };
+
+enum DisplacementType { DISPLACEMENT_NONE,
+                        DISPLACEMENT_HW_BILINEAR,
+                        DISPLACEMENT_BILINEAR,
+                        DISPLACEMENT_BIQUADRATIC };
+
+enum NormalType { NORMAL_FACET,
+                  NORMAL_HW_SCREENSPACE,
+                  NORMAL_SCREENSPACE,
+                  NORMAL_BIQUADRATIC,
+                  NORMAL_BIQUADRATIC_WG };
+
 //-----------------------------------------------------------------------------
 int   g_frame = 0,
       g_repeatCount = 0;
 
 // GUI variables
-int   g_fullscreen=0,
-      g_wire = 1,
+int   g_fullscreen = 0,
+      g_wire = DISPLAY_SHADED,
       g_drawNormals = 0,
       g_mbutton[3] = {0, 0, 0},
       g_level = 2,
       g_tessLevel = 2,
       g_kernel = kCPU,
       g_scheme = 0,
-      g_gutterWidth = 1,
-      g_running = 1;
+      g_running = 1,
+      g_maxMipmapLevels = 10,
+      g_color = COLOR_PTEX_BILINEAR,
+      g_displacement = DISPLACEMENT_NONE,
+      g_normal = NORMAL_FACET;
+
 
 float g_moveScale = 0.0f,
       g_displacementScale = 1.0f,
-      g_bumpScale = 1.0f;
+      g_mipmapBias = 0.0;
 
 bool  g_adaptive = false,
       g_yup = false,
-      g_displayPatchColor = false,
       g_patchCull = true,
       g_screenSpaceTess = true,
-      g_fractionalSpacing = false,
+      g_fractionalSpacing = true,
       g_ibl = false,
       g_bloom = false,
       g_freeze = false;
@@ -214,10 +249,7 @@ struct Transform {
 } transformData;
 
 // ptex switch
-bool  g_color = true,
-      g_occlusion = false,
-      g_displacement = false,
-      g_normal = false,
+bool  g_occlusion = false,
       g_specular = false;
 
 // camera
@@ -240,7 +272,7 @@ GLhud g_hud;
 float g_cpuTime = 0;
 float g_gpuTime = 0;
 #define NUM_FPS_TIME_SAMPLES 6
-float g_fpsTimeSamples[NUM_FPS_TIME_SAMPLES] = {0,0,0,0,0,0};
+float g_fpsTimeSamples[NUM_FPS_TIME_SAMPLES] = {0, 0, 0, 0, 0, 0};
 int   g_currentFpsTimeSample = 0;
 Stopwatch g_fpsTimer;
 float g_animTime = 0;
@@ -293,10 +325,10 @@ struct ImageShader {
     }
 } g_imageShader;
 
-OpenSubdiv::OsdGLPtexTexture * g_osdPTexImage = 0;
-OpenSubdiv::OsdGLPtexTexture * g_osdPTexDisplacement = 0;
-OpenSubdiv::OsdGLPtexTexture * g_osdPTexOcclusion = 0;
-OpenSubdiv::OsdGLPtexTexture * g_osdPTexSpecular = 0;
+OpenSubdiv::OsdGLPtexMipmapTexture * g_osdPTexImage = 0;
+OpenSubdiv::OsdGLPtexMipmapTexture * g_osdPTexDisplacement = 0;
+OpenSubdiv::OsdGLPtexMipmapTexture * g_osdPTexOcclusion = 0;
+OpenSubdiv::OsdGLPtexMipmapTexture * g_osdPTexSpecular = 0;
 const char * g_ptexColorFilename;
 
 static void
@@ -312,14 +344,13 @@ checkGLErrors(std::string const & where = "")
 
 //------------------------------------------------------------------------------
 static void
-calcNormals(OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float> & result ) {
-
+calcNormals(OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float> & result )
+{
     // calc normal vectors
     int nverts = (int)pos.size()/3;
 
     int nfaces = mesh->GetNumCoarseFaces();
     for (int i = 0; i < nfaces; ++i) {
-
         OsdHbrFace * f = mesh->GetFace(i);
 
         float const * p0 = &pos[f->GetVertex(0)->GetID()*3],
@@ -327,7 +358,7 @@ calcNormals(OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float
                     * p2 = &pos[f->GetVertex(2)->GetID()*3];
 
         float n[3];
-        cross( n, p0, p1, p2 );
+        cross(n, p0, p1, p2);
 
         for (int j = 0; j < f->GetNumVertices(); j++) {
             int idx = f->GetVertex(j)->GetID() * 3;
@@ -337,13 +368,13 @@ calcNormals(OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float
         }
     }
     for (int i = 0; i < nverts; ++i)
-        normalize( &result[i*3] );
+        normalize(&result[i*3]);
 }
 
 //------------------------------------------------------------------------------
 void
-updateGeom() {
-
+updateGeom()
+{
     int nverts = (int)g_positions.size() / 3;
 
     if (g_moveScale and g_adaptive and not g_animPositions.empty()) {
@@ -406,8 +437,8 @@ updateGeom() {
 
 //-------------------------------------------------------------------------------
 void
-fitFrame() {
-
+fitFrame()
+{
     g_pan[0] = g_pan[1] = 0;
     g_dolly = g_size;
 }
@@ -417,28 +448,28 @@ template <class T>
 OpenSubdiv::HbrMesh<T> * createPTexGeo(PtexTexture * r)
 {
   PtexMetaData* meta = r->getMetaData();
-  if(meta->numKeys()<3) return NULL;
+  if (meta->numKeys() < 3) return NULL;
 
   const float* vp;
   const int *vi, *vc;
   int nvp, nvi, nvc;
 
   meta->getValue("PtexFaceVertCounts", vc, nvc);
-  if (nvc==0)
+  if (nvc == 0)
       return NULL;
 
   meta->getValue("PtexVertPositions", vp, nvp);
-  if (nvp==0)
+  if (nvp == 0)
       return NULL;
 
   meta->getValue("PtexFaceVertIndices", vi, nvi);
-  if (nvi==0)
+  if (nvi == 0)
       return NULL;
 
   static OpenSubdiv::HbrCatmarkSubdivision<T>  _catmark;
   static OpenSubdiv::HbrBilinearSubdivision<T>  _bilinear;
   OpenSubdiv::HbrMesh<T> * mesh;
-  if(g_scheme == 0)
+  if (g_scheme == 0)
       mesh = new OpenSubdiv::HbrMesh<T>(&_catmark);
   else
       mesh = new OpenSubdiv::HbrMesh<T>(&_bilinear);
@@ -449,8 +480,8 @@ OpenSubdiv::HbrMesh<T> * createPTexGeo(PtexTexture * r)
   // compute model bounding
   float min[3] = {vp[0], vp[1], vp[2]};
   float max[3] = {vp[0], vp[1], vp[2]};
-  for (int i=0; i<nvp/3; ++i) {
-      for(int j=0; j<3; ++j) {
+  for (int i = 0; i < nvp/3; ++i) {
+      for (int j = 0; j < 3; ++j) {
           float v = vp[i*3+j];
           g_positions.push_back(v);
           min[j] = std::min(min[j], v);
@@ -458,26 +489,26 @@ OpenSubdiv::HbrMesh<T> * createPTexGeo(PtexTexture * r)
       }
       mesh->NewVertex(i, T());
   }
-  for (int j=0; j<3; ++j) {
+  for (int j = 0; j < 3; ++j) {
       g_center[j] = (min[j] + max[j]) * 0.5f;
       g_size += (max[j]-min[j])*(max[j]-min[j]);
   }
   g_size = sqrtf(g_size);
 
   const int *fv = vi;
-  for (int i=0, ptxidx=0; i<nvc; ++i) {
+  for (int i = 0, ptxidx = 0; i < nvc; ++i) {
       int nv = vc[i];
       OpenSubdiv::HbrFace<T> * face = mesh->NewFace(nv, (int *)fv, 0);
 
       face->SetPtexIndex(ptxidx);
-      if(nv != 4)
-          ptxidx+=nv;
+      if (nv != 4)
+          ptxidx += nv;
       else
           ptxidx++;
 
       fv += nv;
   }
-  mesh->SetInterpolateBoundaryMethod( OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly );
+  mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly);
 //  set creases here
 //  applyTags<T>( mesh, sh );
   mesh->Finish();
@@ -488,12 +519,12 @@ OpenSubdiv::HbrMesh<T> * createPTexGeo(PtexTexture * r)
 
 //------------------------------------------------------------------------------
 void
-#if GLFW_VERSION_MAJOR>=3
-reshape(GLFWwindow *, int width, int height) {
+#if GLFW_VERSION_MAJOR >= 3
+reshape(GLFWwindow *, int width, int height)
 #else
-reshape(int width, int height) {
+reshape(int width, int height)
 #endif
-
+{
     g_width = width;
     g_height = height;
 
@@ -503,7 +534,7 @@ reshape(int width, int height) {
     glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, 0);
-    
+
     glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferDepthTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, width, height, 0,
                  GL_DEPTH_COMPONENT, GL_FLOAT, 0);
@@ -521,14 +552,14 @@ reshape(int width, int height) {
         glBindTexture(GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[i]);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width/d, height/d, 0,
                      GL_RGBA, GL_UNSIGNED_BYTE, 0);
-        
+
         glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.smallFrameBuffer[i]);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[i], 0);
     }
-        
+
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if(status != GL_FRAMEBUFFER_COMPLETE)
+    if (status != GL_FRAMEBUFFER_COMPLETE)
         assert(false);
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -538,14 +569,14 @@ reshape(int width, int height) {
 }
 
 void reshape() {
-#if GLFW_VERSION_MAJOR>=3
+#if GLFW_VERSION_MAJOR >= 3
     reshape(g_window, g_width, g_height);
 #else
     reshape(g_width, g_height);
 #endif
 }
 
-#if GLFW_VERSION_MAJOR>=3
+#if GLFW_VERSION_MAJOR >= 3
 void windowClose(GLFWwindow*) {
     g_running = false;
 }
@@ -557,8 +588,8 @@ int windowClose() {
 #endif
 
 //------------------------------------------------------------------------------
-const char *getKernelName(int kernel) {
-
+const char *getKernelName(int kernel)
+{
          if (kernel == kCPU)
         return "CPU";
     else if (kernel == kOPENMP)
@@ -579,12 +610,12 @@ static GLuint compileShader(GLenum shaderType,
 {
     const char *sources[4];
     std::stringstream definitions;
-    for (int i=0; i<(int)common.defines.size(); ++i) {
+    for (int i = 0; i < (int)common.defines.size(); ++i) {
         definitions << "#define "
                     << common.defines[i].first << " "
                     << common.defines[i].second << "\n";
     }
-    for (int i=0; i<(int)source.defines.size(); ++i) {
+    for (int i = 0; i < (int)source.defines.size(); ++i) {
         definitions << "#define "
                     << source.defines[i].first << " "
                     << source.defines[i].second << "\n";
@@ -602,10 +633,10 @@ static GLuint compileShader(GLenum shaderType,
 
     GLint status;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-    if( status == GL_FALSE ) {
+    if (status == GL_FALSE) {
         GLchar emsg[40960];
         glGetShaderInfoLog(shader, sizeof(emsg), 0, emsg);
-        fprintf(stderr, "Error compiling GLSL shader: %s\n", emsg );
+        fprintf(stderr, "Error compiling GLSL shader: %s\n", emsg);
         fprintf(stderr, "Defines: %s\n", defString.c_str());
         return 0;
     }
@@ -613,17 +644,15 @@ static GLuint compileShader(GLenum shaderType,
     return shader;
 }
 
-int bindPTexture(GLint program, OpenSubdiv::OsdGLPtexTexture *osdPTex,
-                 GLuint data, GLuint packing, GLuint pages, int samplerUnit)
+int bindPTexture(GLint program, OpenSubdiv::OsdGLPtexMipmapTexture *osdPTex,
+                 GLuint data, GLuint packing, int samplerUnit)
 {
 #if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
     glProgramUniform1i(program, data, samplerUnit + 0);
     glProgramUniform1i(program, packing, samplerUnit + 1);
-    glProgramUniform1i(program, pages, samplerUnit + 2);
 #else
     glUniform1i(data, samplerUnit + 0);
     glUniform1i(packing, samplerUnit + 1);
-    glUniform1i(pages, samplerUnit + 2);
 #endif
 
     glActiveTexture(GL_TEXTURE0 + samplerUnit + 0);
@@ -632,29 +661,25 @@ int bindPTexture(GLint program, OpenSubdiv::OsdGLPtexTexture *osdPTex,
     glActiveTexture(GL_TEXTURE0 + samplerUnit + 1);
     glBindTexture(GL_TEXTURE_BUFFER, osdPTex->GetLayoutTextureBuffer());
 
-    glActiveTexture(GL_TEXTURE0 + samplerUnit + 2);
-    glBindTexture(GL_TEXTURE_BUFFER, osdPTex->GetPagesTextureBuffer());
-
     glActiveTexture(GL_TEXTURE0);
 
-    return samplerUnit + 3;
+    return samplerUnit + 2;
 }
 
 //------------------------------------------------------------------------------
 
 union Effect {
-
     struct {
-        int color:1;
+        unsigned int wire:2;
+        unsigned int color:3;
+        unsigned int displacement:2;
+        unsigned int normal:3;
         int occlusion:1;
-        int displacement:1;
-        int normal:1;
         int specular:1;
         int patchCull:1;
         int screenSpaceTess:1;
         int fractionalSpacing:1;
         int ibl:1;
-        unsigned int wire:2;
     };
     int value;
 
@@ -665,9 +690,9 @@ union Effect {
 
 typedef std::pair<OpenSubdiv::OsdDrawContext::PatchDescriptor, Effect> EffectDesc;
 
-class EffectDrawRegistry : public OpenSubdiv::OsdGLDrawRegistry<EffectDesc> {
-
-protected:
+class EffectDrawRegistry : public OpenSubdiv::OsdGLDrawRegistry<EffectDesc>
+{
+  protected:
     virtual ConfigType *
     _CreateDrawConfig(DescType const & desc, SourceConfigType const * sconfig);
 
@@ -682,7 +707,6 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 
     SourceConfigType * sconfig =
         BaseRegistry::_CreateDrawSourceConfig(desc.first);
-    sconfig->commonShader.AddDefine("USE_PTEX_COORD");
 
     if (effect.patchCull)
         sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
@@ -703,7 +727,6 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
         if (effect.displacement) {
-            sconfig->geometryShader.AddDefine("USE_PTEX_DISPLACEMENT");
             sconfig->geometryShader.AddDefine("FLAT_NORMALS");
         }
     } else {
@@ -712,8 +735,6 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->tessEvalShader.version = glslVersion;
         if (effect.displacement and (not effect.normal))
             sconfig->geometryShader.AddDefine("FLAT_NORMALS");
-        if (effect.displacement)
-            sconfig->tessEvalShader.AddDefine("USE_PTEX_DISPLACEMENT");
     }
     assert(sconfig);
 
@@ -724,12 +745,68 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     sconfig->fragmentShader.source = g_shaderSource;
     sconfig->fragmentShader.version = glslVersion;
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
-    if (effect.color)
-        sconfig->fragmentShader.AddDefine("USE_PTEX_COLOR");
+
+    switch (effect.color) {
+    case COLOR_NONE:
+        break;
+    case COLOR_PTEX_NEAREST:
+        sconfig->fragmentShader.AddDefine("COLOR_PTEX_NEAREST");
+        break;
+    case COLOR_PTEX_HW_BILINEAR:
+        sconfig->fragmentShader.AddDefine("COLOR_PTEX_HW_BILINEAR");
+        break;
+    case COLOR_PTEX_BILINEAR:
+        sconfig->fragmentShader.AddDefine("COLOR_PTEX_BILINEAR");
+        break;
+    case COLOR_PTEX_BIQUADRATIC:
+        sconfig->fragmentShader.AddDefine("COLOR_PTEX_BIQUADRATIC");
+        break;
+    case COLOR_PATCHTYPE:
+        sconfig->fragmentShader.AddDefine("COLOR_PATCHTYPE");
+        break;
+    case COLOR_PATCHCOORD:
+        sconfig->fragmentShader.AddDefine("COLOR_PATCHCOORD");
+        break;
+    case COLOR_NORMAL:
+        sconfig->fragmentShader.AddDefine("COLOR_NORMAL");
+        break;
+    }
+
+    switch (effect.displacement) {
+    case DISPLACEMENT_NONE:
+        break;
+    case DISPLACEMENT_HW_BILINEAR:
+        sconfig->commonShader.AddDefine("DISPLACEMENT_HW_BILINEAR");
+        break;
+    case DISPLACEMENT_BILINEAR:
+        sconfig->commonShader.AddDefine("DISPLACEMENT_BILINEAR");
+        break;
+    case DISPLACEMENT_BIQUADRATIC:
+        sconfig->commonShader.AddDefine("DISPLACEMENT_BIQUADRATIC");
+        break;
+    }
+
+    switch (effect.normal) {
+    case NORMAL_FACET:
+        sconfig->commonShader.AddDefine("NORMAL_FACET");
+        break;
+    case NORMAL_HW_SCREENSPACE:
+        sconfig->commonShader.AddDefine("NORMAL_HW_SCREENSPACE");
+        break;
+    case NORMAL_SCREENSPACE:
+        sconfig->commonShader.AddDefine("NORMAL_SCREENSPACE");
+        break;
+    case NORMAL_BIQUADRATIC:
+        sconfig->commonShader.AddDefine("NORMAL_BIQUADRATIC");
+        break;
+    case NORMAL_BIQUADRATIC_WG:
+        sconfig->commonShader.AddDefine("OSD_COMPUTE_NORMAL_DERIVATIVES");
+        sconfig->commonShader.AddDefine("NORMAL_BIQUADRATIC_WG");
+        break;
+    }
+
     if (effect.occlusion)
         sconfig->fragmentShader.AddDefine("USE_PTEX_OCCLUSION");
-    if (effect.normal)
-        sconfig->fragmentShader.AddDefine("USE_PTEX_NORMAL");
     if (effect.specular)
         sconfig->fragmentShader.AddDefine("USE_PTEX_SPECULAR");
     if (effect.ibl)
@@ -742,6 +819,7 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
     }
+
     if (effect.wire == 0) {
         sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
         sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_WIRE");
@@ -751,7 +829,7 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     } else if (effect.wire == 2) {
         sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
         sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_LINE");
-    } 
+    }
 
     return sconfig;
 }
@@ -766,50 +844,50 @@ EffectDrawRegistry::_CreateDrawConfig(
 
     // XXXdyu can use layout(binding=) with GLSL 4.20 and beyond
     g_transformBinding = 0;
-    glUniformBlockBinding(config->program,
-        glGetUniformBlockIndex(config->program, "Transform"),
-        g_transformBinding);
+    GLint transformIndex = glGetUniformBlockIndex(config->program, "Transform");
+    if (transformIndex != -1)
+        glUniformBlockBinding(config->program, transformIndex, g_transformBinding);
 
     g_tessellationBinding = 1;
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    glUniformBlockBinding(config->program,
-        glGetUniformBlockIndex(config->program, "Tessellation"),
-        g_tessellationBinding);
+    GLint tessellationIndex = glGetUniformBlockIndex(config->program, "Tessellation");
+    if (tessellationIndex != -1)
+        glUniformBlockBinding(config->program, tessellationIndex, g_tessellationBinding);
 #endif
 
     g_lightingBinding = 2;
-    glUniformBlockBinding(config->program,
-        glGetUniformBlockIndex(config->program, "Lighting"),
-        g_lightingBinding);
+    GLint lightingIndex = glGetUniformBlockIndex(config->program, "Lighting");
+    if (lightingIndex != -1)
+        glUniformBlockBinding(config->program, lightingIndex, g_lightingBinding);
 
     GLint loc;
 #if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
     if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
+        glProgramUniform1i(config->program, loc, 0);  // GL_TEXTURE0
     }
     if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
+        glProgramUniform1i(config->program, loc, 1);  // GL_TEXTURE1
     }
     if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
+        glProgramUniform1i(config->program, loc, 2);  // GL_TEXTURE2
     }
     if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
+        glProgramUniform1i(config->program, loc, 3);  // GL_TEXTURE3
     }
 #else
     glUseProgram(config->program);
     if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glUniform1i(loc, 0); // GL_TEXTURE0
+        glUniform1i(loc, 0);  // GL_TEXTURE0
     }
     if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glUniform1i(loc, 1); // GL_TEXTURE1
+        glUniform1i(loc, 1);  // GL_TEXTURE1
     }
     if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glUniform1i(loc, 2); // GL_TEXTURE2
+        glUniform1i(loc, 2);  // GL_TEXTURE2
     }
     if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glUniform1i(loc, 3); // GL_TEXTURE3
+        glUniform1i(loc, 3);  // GL_TEXTURE3
     }
 #endif
 
@@ -819,8 +897,8 @@ EffectDrawRegistry::_CreateDrawConfig(
 EffectDrawRegistry effectRegistry;
 
 EffectDrawRegistry::ConfigType *
-getInstance(Effect effect, OpenSubdiv::OsdDrawContext::PatchDescriptor const & patchDesc) {
-
+getInstance(Effect effect, OpenSubdiv::OsdDrawContext::PatchDescriptor const & patchDesc)
+{
     EffectDesc desc(patchDesc, effect);
 
     EffectDrawRegistry::ConfigType * config =
@@ -831,8 +909,9 @@ getInstance(Effect effect, OpenSubdiv::OsdDrawContext::PatchDescriptor const & p
 }
 
 //------------------------------------------------------------------------------
-OpenSubdiv::OsdGLPtexTexture *
-createPtex(const char *filename) {
+OpenSubdiv::OsdGLPtexMipmapTexture *
+createPtex(const char *filename)
+{
     Ptex::String ptexError;
     printf("Loading ptex : %s\n", filename);
     PtexTexture *ptex = PtexTexture::open(filename, ptexError, true);
@@ -840,16 +919,16 @@ createPtex(const char *filename) {
         printf("Error in reading %s\n", filename);
         exit(1);
     }
-    OpenSubdiv::OsdGLPtexTexture *osdPtex = OpenSubdiv::OsdGLPtexTexture::Create(
-        ptex, /*targetMemory =*/0, /*gutterWidth =*/g_gutterWidth, /*pageMargin = */g_gutterWidth*8);
+    OpenSubdiv::OsdGLPtexMipmapTexture *osdPtex =
+        OpenSubdiv::OsdGLPtexMipmapTexture::Create(ptex, g_maxMipmapLevels);
 
     ptex->release();
     return osdPtex;
 }
 
 void
-createOsdMesh(int level, int kernel) {
-
+createOsdMesh(int level, int kernel)
+{
     checkGLErrors("createOsdMesh");
 
     Ptex::String ptexError;
@@ -861,16 +940,16 @@ createOsdMesh(int level, int kernel) {
 
     // generate Hbr representation from ptex
     OsdHbrMesh * hmesh = createPTexGeo<OpenSubdiv::OsdVertex>(ptexColor);
-    if(hmesh == NULL) return;
+    if (hmesh == NULL) return;
 
-    g_normals.resize(g_positions.size(),0.0f);
-    calcNormals( hmesh, g_positions, g_normals );
+    g_normals.resize(g_positions.size(), 0.0f);
+    calcNormals(hmesh, g_positions, g_normals);
 
     delete g_mesh;
     g_mesh = NULL;
 
     // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive!=0 and g_scheme==0);
+    bool doAdaptive = (g_adaptive != 0 and g_scheme == 0);
 
     OpenSubdiv::OsdMeshBitset bits;
     bits.set(OpenSubdiv::MeshAdaptive, doAdaptive);
@@ -906,7 +985,7 @@ createOsdMesh(int level, int kernel) {
                                                 level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    } else if(kernel == kCL) {
+    } else if (kernel == kCL) {
         if (not g_clComputeController) {
             g_clComputeController = new OpenSubdiv::OsdCLComputeController(g_clContext, g_clQueue);
         }
@@ -920,7 +999,7 @@ createOsdMesh(int level, int kernel) {
                                                 level, bits, g_clContext, g_clQueue);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    } else if(kernel == kCUDA) {
+    } else if (kernel == kCUDA) {
         if (not g_cudaComputeController) {
             g_cudaComputeController = new OpenSubdiv::OsdCudaComputeController();
         }
@@ -934,9 +1013,10 @@ createOsdMesh(int level, int kernel) {
                                                 level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    } else if(kernel == kGLSL) {
+    } else if (kernel == kGLSL) {
         if (not g_glslTransformFeedbackComputeController) {
-            g_glslTransformFeedbackComputeController = new OpenSubdiv::OsdGLSLTransformFeedbackComputeController();
+            g_glslTransformFeedbackComputeController =
+                new OpenSubdiv::OsdGLSLTransformFeedbackComputeController();
         }
         g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdGLVertexBuffer,
                                          OpenSubdiv::OsdGLSLTransformFeedbackComputeController,
@@ -948,7 +1028,7 @@ createOsdMesh(int level, int kernel) {
                                                 level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    } else if(kernel == kGLSLCompute) {
+    } else if (kernel == kGLSLCompute) {
         if (not g_glslComputeController) {
             g_glslComputeController = new OpenSubdiv::OsdGLSLComputeController();
         }
@@ -966,9 +1046,9 @@ createOsdMesh(int level, int kernel) {
     }
 
     delete hmesh;
-    
-    if (glGetError() != GL_NO_ERROR){
-        printf ("GLERROR\n");
+
+    if (glGetError() != GL_NO_ERROR) {
+        printf("GLERROR\n");
     }
 
     updateGeom();
@@ -984,8 +1064,8 @@ createOsdMesh(int level, int kernel) {
     } else {
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, 0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, (float*)12);
     }
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->GetPatchIndexBuffer());
 
@@ -993,7 +1073,8 @@ createOsdMesh(int level, int kernel) {
 }
 
 void
-createSky() {
+createSky()
+{
     const int U_DIV = 20;
     const int V_DIV = 20;
 
@@ -1040,7 +1121,7 @@ createSky() {
     fragmentShader.source = g_skyShaderSource;
     fragmentShader.version = "#version 410\n";
     fragmentShader.AddDefine("SKY_FRAGMENT_SHADER");
-    GLuint vs = compileShader(GL_VERTEX_SHADER, 
+    GLuint vs = compileShader(GL_VERTEX_SHADER,
                               common, vertexShader);
     GLuint fs = compileShader(GL_FRAGMENT_SHADER,
                               common, fragmentShader);
@@ -1070,8 +1151,8 @@ createSky() {
 }
 
 GLuint
-compileImageShader(const char *define) {
-
+compileImageShader(const char *define)
+{
     GLuint program = glCreateProgram();
 
     OpenSubdiv::OsdDrawShaderSource common, vertexShader, fragmentShader;
@@ -1116,8 +1197,8 @@ compileImageShader(const char *define) {
 }
 
 void
-createImageShader() {
-
+createImageShader()
+{
     g_imageShader.blurProgram = compileImageShader("BLUR");
     g_imageShader.hipassProgram = compileImageShader("HIPASS");
     g_imageShader.compositeProgram = compileImageShader("COMPOSITE");
@@ -1140,8 +1221,8 @@ createImageShader() {
 }
 
 void
-applyImageShader() {
-
+applyImageShader()
+{
     int w = g_imageShader.smallWidth, h = g_imageShader.smallHeight;
     const float hoffsets[10] = {
         -2.0f / w, 0,
@@ -1240,7 +1321,7 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 
     glUseProgram(program);
 
-    if (! g_transformUB) {
+    if (g_transformUB == 0) {
         glGenBuffers(1, &g_transformUB);
         glBindBuffer(GL_UNIFORM_BUFFER, g_transformUB);
         glBufferData(GL_UNIFORM_BUFFER,
@@ -1260,7 +1341,7 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 
     tessellationData.TessLevel = static_cast<float>(1 << g_tessLevel);
 
-    if (! g_tessellationUB) {
+    if (g_tessellationUB == 0) {
         glGenBuffers(1, &g_tessellationUB);
         glBindBuffer(GL_UNIFORM_BUFFER, g_tessellationUB);
         glBufferData(GL_UNIFORM_BUFFER,
@@ -1286,13 +1367,13 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
            { 0.1f, 0.1f, 0.1f, 1.0f },
            { 1.7f, 1.3f, 1.1f, 1.0f },
            { 1.0f, 1.0f, 1.0f, 1.0f } },
- 
+
          { { -0.8f, 0.6f, -0.7f, 0.0f },
            {  0.0f, 0.0f,  0.0f, 1.0f },
            {  0.8f, 0.8f,  1.5f, 1.0f },
            {  0.4f, 0.4f,  0.4f, 1.0f } }}
     };
-    if (! g_lightingUB) {
+    if (g_lightingUB == 0) {
         glGenBuffers(1, &g_lightingUB);
         glBindBuffer(GL_UNIFORM_BUFFER, g_lightingUB);
         glBufferData(GL_UNIFORM_BUFFER,
@@ -1311,31 +1392,27 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
     // color ptex
     GLint texData = glGetUniformLocation(program, "textureImage_Data");
     GLint texPacking = glGetUniformLocation(program, "textureImage_Packing");
-    GLint texPages = glGetUniformLocation(program, "textureImage_Pages");
-    sampler = bindPTexture(program, g_osdPTexImage, texData, texPacking, texPages, sampler);
+    sampler = bindPTexture(program, g_osdPTexImage, texData, texPacking, sampler);
 
     // displacement ptex
-    if (g_displacement || g_normal) {
+    if (g_displacement != DISPLACEMENT_NONE || g_normal) {
         texData = glGetUniformLocation(program, "textureDisplace_Data");
         texPacking = glGetUniformLocation(program, "textureDisplace_Packing");
-        texPages = glGetUniformLocation(program, "textureDisplace_Pages");
-        sampler = bindPTexture(program, g_osdPTexDisplacement, texData, texPacking, texPages, sampler);
+        sampler = bindPTexture(program, g_osdPTexDisplacement, texData, texPacking, sampler);
     }
 
     // occlusion ptex
     if (g_occlusion) {
         texData = glGetUniformLocation(program, "textureOcclusion_Data");
         texPacking = glGetUniformLocation(program, "textureOcclusion_Packing");
-        texPages = glGetUniformLocation(program, "textureOcclusion_Pages");
-        sampler = bindPTexture(program, g_osdPTexOcclusion, texData, texPacking, texPages, sampler);
+        sampler = bindPTexture(program, g_osdPTexOcclusion, texData, texPacking, sampler);
     }
 
     // specular ptex
     if (g_specular) {
         texData = glGetUniformLocation(program, "textureSpecular_Data");
         texPacking = glGetUniformLocation(program, "textureSpecular_Packing");
-        texPages = glGetUniformLocation(program, "textureSpecular_Pages");
-        sampler = bindPTexture(program, g_osdPTexSpecular, texData, texPacking, texPages, sampler);
+        sampler = bindPTexture(program, g_osdPTexSpecular, texData, texPacking, sampler);
     }
 
     // other textures
@@ -1368,25 +1445,27 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 
 //------------------------------------------------------------------------------
 void
-drawModel() {
+drawModel()
+{
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     GLuint bVertex = g_mesh->BindVertexBuffer();
 #else
     g_mesh->BindVertexBuffer();
 #endif
 
-    OpenSubdiv::OsdDrawContext::PatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
+    OpenSubdiv::OsdDrawContext::PatchArrayVector const & patches =
+        g_mesh->GetDrawContext()->patchArrays;
     glBindVertexArray(g_vao);
 
     // patch drawing
-    for (int i=0; i<(int)patches.size(); ++i) {
+    for (int i = 0; i < (int)patches.size(); ++i) {
         OpenSubdiv::OsdDrawContext::PatchArray const & patch = patches[i];
 
         OpenSubdiv::OsdDrawContext::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
 
         GLenum primType;
-        switch(patchType) {
+        switch (patchType) {
         case OpenSubdiv::FarPatchTables::QUADS:
             primType = GL_LINES_ADJACENCY;
             break;
@@ -1429,9 +1508,11 @@ drawModel() {
 
         Effect effect;
         effect.value = 0;
+
         effect.color = g_color;
-        effect.occlusion = g_occlusion;
         effect.displacement = g_displacement;
+
+        effect.occlusion = g_occlusion;
         effect.normal = g_normal;
         effect.specular = g_specular;
         effect.patchCull = g_patchCull;
@@ -1454,49 +1535,43 @@ drawModel() {
         GLint displacementScale = glGetUniformLocation(program, "displacementScale");
         if (displacementScale != -1)
             glUniform1f(displacementScale, g_displacementScale);
-        GLint bumpScale = glGetUniformLocation(program, "bumpScale");
-        if (bumpScale != -1)
-            glUniform1f(bumpScale, g_bumpScale);
+
+        GLint mipmapBias = glGetUniformLocation(program, "mipmapBias");
+        if (mipmapBias != -1)
+            glUniform1f(mipmapBias, g_mipmapBias);
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        GLuint overrideColorEnable = glGetUniformLocation(program, "overrideColorEnable");
         GLuint overrideColor = glGetUniformLocation(program, "overrideColor");
 
-        float const * color = getAdaptivePatchColor( desc );
+        float const * color = getAdaptivePatchColor(desc);
         glProgramUniform4f(program, overrideColor, color[0], color[1], color[2], color[3]);
-
-        if (g_displayPatchColor or g_wire == 2) {
-            glProgramUniform1i(program, overrideColorEnable, 1);
-        } else {
-            glProgramUniform1i(program, overrideColorEnable, 0);
-        }
 #endif
 
-        if (g_wire == 0) {
+        if (g_wire == DISPLAY_WIRE) {
             glDisable(GL_CULL_FACE);
         }
 
         GLuint uniformGregoryQuadOffsetBase =
-	  glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+            glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
         GLuint uniformPrimitiveIdBase =
-	  glGetUniformLocation(program, "OsdPrimitiveIdBase");
+            glGetUniformLocation(program, "OsdPrimitiveIdBase");
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
-			   patch.GetQuadOffsetIndex());
+                           patch.GetQuadOffsetIndex());
         glProgramUniform1i(program, uniformPrimitiveIdBase,
-			   patch.GetPatchIndex());
+                           patch.GetPatchIndex());
 #else
         glUniform1i(uniformGregoryQuadOffsetBase,
-		    patch.GetQuadOffsetIndex());
+                    patch.GetQuadOffsetIndex());
         glUniform1i(uniformPrimitiveIdBase,
-		    patch.GetPatchIndex());
+                    patch.GetPatchIndex());
 #endif
 
         glDrawElements(primType,
                        patch.GetNumIndices(), GL_UNSIGNED_INT,
                        (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
-        if (g_wire == 0) {
+        if (g_wire == DISPLAY_WIRE) {
             glEnable(GL_CULL_FACE);
         }
     }
@@ -1504,8 +1579,8 @@ drawModel() {
 }
 
 void
-drawSky() {
-    
+drawSky()
+{
     glUseProgram(g_sky.program);
 
     glDisable(GL_DEPTH_TEST);
@@ -1527,8 +1602,9 @@ drawSky() {
     glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, g_sky.vertexBuffer);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 5, 0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 5, (void*)(sizeof(GLfloat)*3));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 5, 0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 5,
+                          (void*)(sizeof(GLfloat)*3));
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_sky.elementBuffer);
     glDrawElements(GL_TRIANGLES, g_sky.numIndices, GL_UNSIGNED_INT, 0);
@@ -1540,11 +1616,11 @@ drawSky() {
 
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
- }
+}
 
 void
-display() {
-
+display()
+{
     glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.frameBuffer);
 
     Stopwatch s;
@@ -1572,8 +1648,11 @@ display() {
     perspective(transformData.ProjectionMatrix, 45.0f, (float)aspect, g_size*0.001f,
                 g_size+g_dolly);
 
-    multMatrix(transformData.ModelViewProjectionMatrix, transformData.ModelViewMatrix, transformData.ProjectionMatrix);
-    inverseMatrix(transformData.ModelViewInverseMatrix, transformData.ModelViewMatrix);
+    multMatrix(transformData.ModelViewProjectionMatrix,
+               transformData.ModelViewMatrix,
+               transformData.ProjectionMatrix);
+    inverseMatrix(transformData.ModelViewInverseMatrix,
+                  transformData.ModelViewMatrix);
 
     glEnable(GL_DEPTH_TEST);
 
@@ -1612,15 +1691,17 @@ display() {
         if (g_currentFpsTimeSample >= NUM_FPS_TIME_SAMPLES)
             g_currentFpsTimeSample = 0;
         double averageFps = 0;
-        for (int i=0; i< NUM_FPS_TIME_SAMPLES; ++i) {
+        for (int i = 0; i < NUM_FPS_TIME_SAMPLES; ++i) {
             averageFps += g_fpsTimeSamples[i]/(float)NUM_FPS_TIME_SAMPLES;
         }
 
         g_hud.DrawString(10, -180, "Tess level (+/-): %d", g_tessLevel);
         if (numPrimsGenerated > 1000000) {
-            g_hud.DrawString(10, -160, "Primitives      : %3.1f million", (float)numPrimsGenerated/1000000.0);
+            g_hud.DrawString(10, -160, "Primitives      : %3.1f million",
+                             (float)numPrimsGenerated/1000000.0);
         } else if (numPrimsGenerated > 1000) {
-            g_hud.DrawString(10, -160, "Primitives      : %3.1f thousand", (float)numPrimsGenerated/1000.0);
+            g_hud.DrawString(10, -160, "Primitives      : %3.1f thousand",
+                             (float)numPrimsGenerated/1000.0);
         } else {
             g_hud.DrawString(10, -160, "Primitives      : %d", numPrimsGenerated);
         }
@@ -1631,7 +1712,7 @@ display() {
         g_hud.DrawString(10, -60,  "GPU Draw        : %.3f ms", drawGpuTime);
         g_hud.DrawString(10, -40,  "CPU Draw        : %.3f ms", drawCpuTime);
         g_hud.DrawString(10, -20,  "FPS             : %3.1f", averageFps);
-    
+
         g_hud.Flush();
     }
 
@@ -1642,11 +1723,14 @@ display() {
 
 //------------------------------------------------------------------------------
 static void
-#if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state, int mods) {
+#if GLFW_VERSION_MAJOR >= 3
+mouse(GLFWwindow *, int button, int state, int mods)
 #else
-mouse(int button, int state) {
+mouse(int button, int state)
 #endif
+{
+    if (state == GLFW_RELEASE)
+        g_hud.MouseRelease();
 
     if (button == 0 && state == GLFW_PRESS && g_hud.MouseClick(g_prev_x, g_prev_y))
         return;
@@ -1654,15 +1738,19 @@ mouse(int button, int state) {
 }
 
 //------------------------------------------------------------------------------
-static void 
-#if GLFW_VERSION_MAJOR>=3
-motion(GLFWwindow *, double dx, double dy) {
-    int x=(int)dx, y=(int)dy;
+static void
+#if GLFW_VERSION_MAJOR >= 3
+motion(GLFWwindow *, double dx, double dy)
+{
+    int x = (int)dx, y = (int)dy;
 #else
-motion(int x, int y) {
+motion(int x, int y)
 #endif
-
-    if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
+{
+    if (g_hud.MouseCapture()) {
+        // check gui
+        g_hud.MouseMotion(x, y);
+    } else if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
         // orbit
         g_rotate[0] += x - g_prev_x;
         g_rotate[1] += y - g_prev_y;
@@ -1674,7 +1762,7 @@ motion(int x, int y) {
                (!g_mbutton[0] && g_mbutton[1] && !g_mbutton[2])) {
         // dolly
         g_dolly -= g_dolly*0.01f*(x - g_prev_x);
-        if(g_dolly <= 0.01) g_dolly = 0.01f;
+        if (g_dolly <= 0.01) g_dolly = 0.01f;
     }
 
     g_prev_x = x;
@@ -1682,8 +1770,8 @@ motion(int x, int y) {
 }
 
 //------------------------------------------------------------------------------
-void uninitGL() {
-
+void uninitGL()
+{
     if (g_osdPTexImage) delete g_osdPTexImage;
     if (g_osdPTexDisplacement) delete g_osdPTexDisplacement;
     if (g_osdPTexOcclusion) delete g_osdPTexOcclusion;
@@ -1693,7 +1781,7 @@ void uninitGL() {
     glDeleteVertexArrays(1, &g_vao);
     glDeleteVertexArrays(1, &g_skyVAO);
 
-    if(g_mesh)
+    if (g_mesh)
         delete g_mesh;
 
     delete g_cpuComputeController;
@@ -1720,8 +1808,10 @@ void uninitGL() {
     delete g_glslComputeController;
 #endif
 
-    if (g_diffuseEnvironmentMap) glDeleteTextures(1, &g_diffuseEnvironmentMap);
-    if (g_specularEnvironmentMap) glDeleteTextures(1, &g_specularEnvironmentMap);
+    if (g_diffuseEnvironmentMap)
+        glDeleteTextures(1, &g_diffuseEnvironmentMap);
+    if (g_specularEnvironmentMap)
+        glDeleteTextures(1, &g_specularEnvironmentMap);
 
     if (g_sky.program) glDeleteProgram(g_sky.program);
     if (g_sky.vertexBuffer) glDeleteBuffers(1, &g_sky.vertexBuffer);
@@ -1753,7 +1843,18 @@ callbackKernel(int k)
 {
     g_kernel = k;
     createOsdMesh(g_level, g_kernel);
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+    if (g_kernel == kCL and g_clContext == NULL) {
+        // Initialize OpenCL
+        if (initCL(&g_clContext, &g_clQueue) == false) {
+            printf("Error in initializing OpenCL\n");
+            exit(1);
+        }
+    }
+#endif
 }
+
 static void
 callbackScheme(int s)
 {
@@ -1767,28 +1868,34 @@ callbackLevel(int l)
     createOsdMesh(g_level, g_kernel);
 }
 static void
+callbackColor(int c)
+{
+    g_color = c;
+}
+static void
+callbackDisplacement(int d)
+{
+    g_displacement = d;
+}
+static void
+callbackNormal(int n)
+{
+    g_normal = n;
+}
+static void
 callbackCheckBox(bool checked, int button)
 {
     bool rebuild = false;
 
-    switch(button) {
+    switch (button) {
     case HUD_CB_ADAPTIVE:
         if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation()) {
             g_adaptive = checked;
             rebuild = true;
         }
         break;
-    case HUD_CB_DISPLAY_COLOR:
-        g_color = checked;
-        break;
     case HUD_CB_DISPLAY_OCCLUSION:
         g_occlusion = checked;
-        break;
-    case HUD_CB_DISPLAY_DISPLACEMENT:
-        g_displacement = checked;
-        break;
-    case HUD_CB_DISPLAY_NORMALMAP:
-        g_normal = checked;
         break;
     case HUD_CB_DISPLAY_SPECULAR:
         g_specular = checked;
@@ -1796,9 +1903,6 @@ callbackCheckBox(bool checked, int button)
     case HUD_CB_ANIMATE_VERTICES:
         g_moveScale = checked ? 1.0f : 0.0f;
         g_animTime = 0;
-        break;
-    case HUD_CB_DISPLAY_PATCH_COLOR:
-        g_displayPatchColor = checked;
         break;
     case HUD_CB_VIEW_LOD:
         g_screenSpaceTess = checked;
@@ -1823,9 +1927,23 @@ callbackCheckBox(bool checked, int button)
     if (rebuild)
         createOsdMesh(g_level, g_kernel);
 }
+
+static void
+callbackSlider(float value, int data)
+{
+    switch (data) {
+    case 0:
+        g_mipmapBias = value;
+        break;
+    case 1:
+        g_displacementScale = value;
+        break;
+    }
+}
 //-------------------------------------------------------------------------------
 void
-reloadShaderFile() {
+reloadShaderFile()
+{
     if (not g_shaderFilename) return;
 
     std::ifstream ifs(g_shaderFilename);
@@ -1842,20 +1960,21 @@ reloadShaderFile() {
 }
 
 //------------------------------------------------------------------------------
-static void 
-toggleFullScreen() {
+static void
+toggleFullScreen()
+{
     // XXXX manuelk : to re-implement from glut
 }
 
 //------------------------------------------------------------------------------
 void
-#if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
+#if GLFW_VERSION_MAJOR >= 3
+keyboard(GLFWwindow *, int key, int scancode, int event, int mods)
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
-keyboard(int key, int event) {
+keyboard(int key, int event)
 #endif
-
+{
     if (event == GLFW_RELEASE) return;
     if (g_hud.KeyDown(tolower(key))) return;
 
@@ -1864,7 +1983,6 @@ keyboard(int key, int event) {
         case 'E': g_drawNormals = (g_drawNormals+1)%2; break;
         case 'F': fitFrame(); break;
         case GLFW_KEY_TAB: toggleFullScreen(); break;
-        case 'G': g_gutterWidth = (g_gutterWidth+1)%8; createOsdMesh(g_level, g_kernel); break;
         case 'R': reloadShaderFile(); createOsdMesh(g_level, g_kernel); break;
         case '+':
         case '=': g_tessLevel++; break;
@@ -1875,21 +1993,21 @@ keyboard(int key, int event) {
 
 //------------------------------------------------------------------------------
 void
-idle() {
-
+idle()
+{
     if (not g_freeze)
         g_frame++;
 
     updateGeom();
 
-    if(g_repeatCount != 0 && g_frame >= g_repeatCount)
+    if (g_repeatCount != 0 && g_frame >= g_repeatCount)
         g_running = 0;
 }
 
 //------------------------------------------------------------------------------
 void
-initGL() {
-
+initGL()
+{
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -1925,12 +2043,13 @@ initGL() {
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }
-    
+
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 //------------------------------------------------------------------------------
-void usage(const char *program) {
+void usage(const char *program)
+{
     printf("Usage: %s [options] <color.ptx> [<displacement.ptx>] [occlusion.ptx>] "
            "[specular.ptx] [pose.obj]...\n", program);
     printf("Options:  -l level                : subdivision level\n");
@@ -1939,9 +2058,8 @@ void usage(const char *program) {
     printf("          -e <specularEnvMap.hdr> : specular environment map for IBL\n");
     printf("          -s <shaderfile.glsl>    : custom shader file\n");
     printf("          -y                      : Y-up model\n");
+    printf("          -m level                : max mimmap level (default=10)\n");
     printf("          --disp <scale>          : Displacment scale\n");
-    printf("          --bump <scale>          : Bump normal scale\n");
-
 }
 
 //------------------------------------------------------------------------------
@@ -1956,13 +2074,13 @@ callbackError(OpenSubdiv::OsdErrorType err, const char *message)
 static void
 setGLCoreProfile()
 {
-#if GLFW_VERSION_MAJOR>=3
+#if GLFW_VERSION_MAJOR >= 3
     #define glfwOpenWindowHint glfwWindowHint
     #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
 #endif
 
-#if GLFW_VERSION_MAJOR>=2 and GLFW_VERSION_MINOR >=7
+#if GLFW_VERSION_MAJOR >= 2 and GLFW_VERSION_MINOR >= 7
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #if not defined(__APPLE__)
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
@@ -1976,8 +2094,8 @@ setGLCoreProfile()
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char ** argv) {
-
+int main(int argc, char ** argv)
+{
     std::vector<std::string> animobjs;
     const char *diffuseEnvironmentMap = NULL, *specularEnvironmentMap = NULL;
     const char *colorFilename = NULL, *displacementFilename = NULL,
@@ -1985,9 +2103,9 @@ int main(int argc, char ** argv) {
     bool fullscreen = false;
 
     for (int i = 1; i < argc; ++i) {
-        if (strstr(argv[i], ".obj")) {
+        if (strstr(argv[i], ".obj"))
             animobjs.push_back(argv[i]);
-        } else if (!strcmp(argv[i], "-l"))
+        else if (!strcmp(argv[i], "-l"))
             g_level = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-c"))
             g_repeatCount = atoi(argv[++i]);
@@ -2001,16 +2119,16 @@ int main(int argc, char ** argv) {
             fullscreen = true;
         else if (!strcmp(argv[i], "-y"))
             g_yup = true;
+        else if (!strcmp(argv[i], "-m"))
+            g_maxMipmapLevels = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--disp"))
             g_displacementScale = (float)atof(argv[++i]);
-        else if (!strcmp(argv[i], "--bump"))
-            g_bumpScale = (float)atof(argv[++i]);
         else if (colorFilename == NULL)
             colorFilename = argv[i];
         else if (displacementFilename == NULL) {
             displacementFilename = argv[i];
-            g_displacement = 1;
-            g_normal = 1;
+            g_displacement = DISPLACEMENT_BILINEAR;
+            g_normal = NORMAL_BIQUADRATIC;
         } else if (occlusionFilename == NULL) {
             occlusionFilename = argv[i];
             g_occlusion = 1;
@@ -2035,30 +2153,29 @@ int main(int argc, char ** argv) {
         printf("Failed to initialize GLFW\n");
         return 1;
     }
-    
+
     static const char windowTitle[] = "OpenSubdiv ptexViewer";
-    
+
 #define CORE_PROFILE
 #ifdef CORE_PROFILE
     setGLCoreProfile();
 #endif
 
-#if GLFW_VERSION_MAJOR>=3
+#if GLFW_VERSION_MAJOR >= 3
 
     if (fullscreen) {
-    
         g_primary = glfwGetPrimaryMonitor();
 
         // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
-        // settle for the first one in the list    
+        // settle for the first one in the list
         if (not g_primary) {
-            int count=0;
+            int count = 0;
             GLFWmonitor ** monitors = glfwGetMonitors(&count);
 
             if (count)
                 g_primary = monitors[0];
         }
-        
+
         if (g_primary) {
             GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
             g_width = vidmode->width;
@@ -2066,7 +2183,7 @@ int main(int argc, char ** argv) {
         }
     }
 
-    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle, 
+    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
                                        fullscreen and g_primary ? g_primary : NULL, NULL))) {
         printf("Failed to open window.\n");
         glfwTerminate();
@@ -2106,7 +2223,7 @@ int main(int argc, char ** argv) {
 
     initGL();
 
-#if GLFW_VERSION_MAJOR>=3
+#if GLFW_VERSION_MAJOR >= 3
     glfwSetWindowSizeCallback(g_window, reshape);
     glfwSetWindowCloseCallback(g_window, windowClose);
     // as of GLFW 3.0.1 this callback is not implicit
@@ -2119,91 +2236,142 @@ int main(int argc, char ** argv) {
     // activate feature adaptive tessellation if OSD supports it
     g_adaptive = OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation();
 
-#ifdef OPENSUBDIV_HAS_OPENCL
-    // Initialize OpenCL
-    if (initCL(&g_clContext, &g_clQueue) == false) {
-        printf("Error in initializing OpenCL\n");
-        exit(1);
-    }
-#endif
-
 #if OPENSUBDIV_HAS_CUDA
     // Note: This function randomly crashes with linux 5.0-dev driver.
     // cudaGetDeviceProperties overrun stack..?
-    cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
+    cudaGLSetGLDevice(cutGetMaxGflopsDeviceId());
 #endif
 
     g_hud.Init(g_width, g_height);
 
-    g_hud.AddRadioButton(0, "CPU (K)", true, 10, 10, callbackKernel, kCPU, 'k');
+    g_hud.AddRadioButton(HUD_RB_KERNEL, "CPU (K)", true,
+                         10, 10, callbackKernel, kCPU, 'k');
 #ifdef OPENSUBDIV_HAS_OPENMP
-    g_hud.AddRadioButton(0, "OPENMP", false, 10, 30, callbackKernel, kOPENMP, 'k');
+    g_hud.AddRadioButton(HUD_RB_KERNEL, "OPENMP", false,
+                         10, 30, callbackKernel, kOPENMP, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    g_hud.AddRadioButton(0, "CUDA",   false, 10, 50, callbackKernel, kCUDA, 'k');
+    g_hud.AddRadioButton(HUD_RB_KERNEL, "CUDA",   false,
+                         10, 50, callbackKernel, kCUDA, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    g_hud.AddRadioButton(0, "OPENCL", false, 10, 70, callbackKernel, kCL, 'k');
+    g_hud.AddRadioButton(HUD_RB_KERNEL, "OPENCL", false,
+                         10, 70, callbackKernel, kCL, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    g_hud.AddRadioButton(0, "GLSL Transform Feedback",   false, 10, 90, callbackKernel, kGLSL, 'k');
+    g_hud.AddRadioButton(HUD_RB_KERNEL, "GLSL Transform Feedback", false,
+                         10, 90, callbackKernel, kGLSL, 'k');
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     // Must also check at run time for OpenGL 4.3
     if (GLEW_VERSION_4_3) {
-        g_hud.AddRadioButton(0, "GLSL Compute",   false, 10, 110, callbackKernel, kGLSLCompute, 'k');
+        g_hud.AddRadioButton(HUD_RB_KERNEL, "GLSL Compute", false,
+                             10, 110, callbackKernel, kGLSLCompute, 'k');
     }
 #endif
 
-    g_hud.AddRadioButton(1, "Wire (W)",       (g_wire==0), 100, 10, callbackWireframe, 0, 'w');
-    g_hud.AddRadioButton(1, "Shaded",         (g_wire==1), 100, 30, callbackWireframe, 1, 'w');
-    g_hud.AddRadioButton(1, "Wire on Shaded", (g_wire==2), 100, 50, callbackWireframe, 2, 'w');
-
-    g_hud.AddCheckBox("Color (C)", g_color, 250, 10, callbackCheckBox, HUD_CB_DISPLAY_COLOR, 'c');
-    if (occlusionFilename != NULL) 
-        g_hud.AddCheckBox("Ambient Occlusion (A)", g_occlusion,
-                          250, 30, callbackCheckBox, HUD_CB_DISPLAY_OCCLUSION, 'a');
-    if (displacementFilename != NULL) {
-        g_hud.AddCheckBox("Displacement (D)", g_displacement,
-                          250, 50, callbackCheckBox, HUD_CB_DISPLAY_DISPLACEMENT, 'd');
-        g_hud.AddCheckBox("Normal (N)", g_normal,
-                          250, 70, callbackCheckBox, HUD_CB_DISPLAY_NORMALMAP, 'n');
-    }
-    if (specularFilename != NULL)
-        g_hud.AddCheckBox("Specular (S)", g_specular,
-                          250, 90, callbackCheckBox, HUD_CB_DISPLAY_SPECULAR, 's');
-
-    if (diffuseEnvironmentMap || specularEnvironmentMap) {
-        g_hud.AddCheckBox("IBL (I)", g_ibl, 250, 110, callbackCheckBox, HUD_CB_IBL, 'i');
-    }
-
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
-                      450, 10, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
-    g_hud.AddCheckBox("Patch Color (P)",  g_displayPatchColor,
-                      450, 30, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');
-    g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
-                      450, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
-    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
-                      450, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
-    g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
-                      450, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
-    g_hud.AddCheckBox("Bloom (Y)", g_bloom,
-                      450, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
-    g_hud.AddCheckBox("Freeze (spc)", g_freeze,
-                      450, 130, callbackCheckBox, HUD_CB_FREEZE, ' ');
-
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
-        g_hud.AddCheckBox("Adaptive (`)", g_adaptive, 10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
+        g_hud.AddCheckBox("Adaptive (`)", g_adaptive,
+                          10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
 
+    g_hud.AddRadioButton(HUD_RB_SCHEME, "CATMARK", true, 10, 190, callbackScheme, 0);
+    g_hud.AddRadioButton(HUD_RB_SCHEME, "BILINEAR", false, 10, 210, callbackScheme, 1);
 
     for (int i = 1; i < 8; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(3, level, i==2, 10, 150+i*20, callbackLevel, i, '0'+i);
+        g_hud.AddRadioButton(HUD_RB_LEVEL, level, i == g_level,
+                             10, 220+i*20, callbackLevel, i, '0'+i);
     }
 
-    g_hud.AddRadioButton(4, "CATMARK", true, -220, 10, callbackScheme, 0);
-    g_hud.AddRadioButton(4, "BILINEAR", false, -220, 30, callbackScheme, 1);
+    g_hud.AddRadioButton(HUD_RB_WIRE, "Wire (W)",       (g_wire == DISPLAY_WIRE),
+                         100, 10, callbackWireframe, 0, 'w');
+    g_hud.AddRadioButton(HUD_RB_WIRE, "Shaded",         (g_wire == DISPLAY_SHADED),
+                         100, 30, callbackWireframe, 1, 'w');
+    g_hud.AddRadioButton(HUD_RB_WIRE, "Wire on Shaded", (g_wire == DISPLAY_WIRE_ON_SHADED),
+                         100, 50, callbackWireframe, 2, 'w');
+
+    g_hud.AddLabel("Color (C)", -200, 10);
+    g_hud.AddRadioButton(HUD_RB_COLOR, "None", (g_color == COLOR_NONE),
+                         -200, 30, callbackColor, COLOR_NONE, 'c');
+    g_hud.AddRadioButton(HUD_RB_COLOR, "Ptex Nearest", (g_color == COLOR_PTEX_NEAREST),
+                         -200, 50, callbackColor, COLOR_PTEX_NEAREST, 'c');
+    g_hud.AddRadioButton(HUD_RB_COLOR, "Ptex HW bilinear", (g_color == COLOR_PTEX_HW_BILINEAR),
+                         -200, 70, callbackColor, COLOR_PTEX_HW_BILINEAR, 'c');
+    g_hud.AddRadioButton(HUD_RB_COLOR, "Ptex bilinear", (g_color == COLOR_PTEX_BILINEAR),
+                         -200, 90, callbackColor, COLOR_PTEX_BILINEAR, 'c');
+    g_hud.AddRadioButton(HUD_RB_COLOR, "Ptex biquadratic", (g_color == COLOR_PTEX_BIQUADRATIC),
+                         -200, 110, callbackColor, COLOR_PTEX_BIQUADRATIC, 'c');
+    g_hud.AddRadioButton(HUD_RB_COLOR, "Patch type", (g_color == COLOR_PATCHTYPE),
+                         -200, 130, callbackColor, COLOR_PATCHTYPE, 'c');
+    g_hud.AddRadioButton(HUD_RB_COLOR, "Patch coord", (g_color == COLOR_PATCHCOORD),
+                         -200, 150, callbackColor, COLOR_PATCHCOORD, 'c');
+    g_hud.AddRadioButton(HUD_RB_COLOR, "Normal", (g_color == COLOR_NORMAL),
+                         -200, 170, callbackColor, COLOR_NORMAL, 'c');
+
+    if (displacementFilename != NULL) {
+        g_hud.AddLabel("Displacement (D)", -200, 200);
+        g_hud.AddRadioButton(HUD_RB_DISPLACEMENT, "None",
+                             (g_displacement == DISPLACEMENT_NONE),
+                             -200, 220, callbackDisplacement, DISPLACEMENT_NONE, 'd');
+        g_hud.AddRadioButton(HUD_RB_DISPLACEMENT, "HW bilinear",
+                             (g_displacement == DISPLACEMENT_HW_BILINEAR),
+                             -200, 240, callbackDisplacement, DISPLACEMENT_HW_BILINEAR, 'd');
+        g_hud.AddRadioButton(HUD_RB_DISPLACEMENT, "Bilinear",
+                             (g_displacement == DISPLACEMENT_BILINEAR),
+                             -200, 260, callbackDisplacement, DISPLACEMENT_BILINEAR, 'd');
+        g_hud.AddRadioButton(HUD_RB_DISPLACEMENT, "Biquadratic",
+                             (g_displacement == DISPLACEMENT_BIQUADRATIC),
+                             -200, 280, callbackDisplacement, DISPLACEMENT_BIQUADRATIC, 'd');
+
+        g_hud.AddLabel("Normal (N)", -200, 310);
+        g_hud.AddRadioButton(HUD_RB_NORMAL, "Facet",
+                             (g_normal == NORMAL_FACET),
+                             -200, 330, callbackNormal, NORMAL_FACET, 'n');
+        g_hud.AddRadioButton(HUD_RB_NORMAL, "HW Screen space",
+                             (g_normal == NORMAL_HW_SCREENSPACE),
+                             -200, 350, callbackNormal, NORMAL_HW_SCREENSPACE, 'n');
+        g_hud.AddRadioButton(HUD_RB_NORMAL, "Screen space",
+                             (g_normal == NORMAL_SCREENSPACE),
+                             -200, 370, callbackNormal, NORMAL_SCREENSPACE, 'n');
+        g_hud.AddRadioButton(HUD_RB_NORMAL, "Biquadratic",
+                             (g_normal == NORMAL_BIQUADRATIC),
+                             -200, 390, callbackNormal, NORMAL_BIQUADRATIC, 'n');
+        g_hud.AddRadioButton(HUD_RB_NORMAL, "Biquadratic WG",
+                             (g_normal == NORMAL_BIQUADRATIC_WG),
+                             -200, 410, callbackNormal, NORMAL_BIQUADRATIC_WG, 'n');
+    }
+
+    g_hud.AddSlider("Mipmap Bias", 0, 5, 0,
+                    -200, 450, 20, false, callbackSlider, 0);
+    g_hud.AddSlider("Displacementd", 0, 5, 1,
+                    -200, 490, 20, false, callbackSlider, 1);
+
+    if (occlusionFilename != NULL) {
+        g_hud.AddCheckBox("Ambient Occlusion (A)", g_occlusion,
+                          250, 10, callbackCheckBox, HUD_CB_DISPLAY_OCCLUSION, 'a');
+    }
+    if (specularFilename != NULL)
+        g_hud.AddCheckBox("Specular (S)", g_specular,
+                          250, 30, callbackCheckBox, HUD_CB_DISPLAY_SPECULAR, 's');
+
+    if (diffuseEnvironmentMap || specularEnvironmentMap) {
+        g_hud.AddCheckBox("IBL (I)", g_ibl,
+                          250, 50, callbackCheckBox, HUD_CB_IBL, 'i');
+    }
+
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
+                      450, 10, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
+    g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
+                      450, 30, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
+                      450, 50, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
+    g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
+                      450, 70, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
+    g_hud.AddCheckBox("Bloom (Y)", g_bloom,
+                      450, 90, callbackCheckBox, HUD_CB_BLOOM, 'y');
+    g_hud.AddCheckBox("Freeze (spc)", g_freeze,
+                      450, 110, callbackCheckBox, HUD_CB_FREEZE, ' ');
 
     // create mesh from ptex metadata
     createOsdMesh(g_level, g_kernel);
@@ -2242,7 +2410,6 @@ int main(int argc, char ** argv) {
                 printf("Error in reading %s\n", animobjs[i].c_str());
                 goto error;
             }
-
         }
         printf("\n");
         glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -2293,17 +2460,15 @@ int main(int argc, char ** argv) {
         idle();
         display();
 
-#if GLFW_VERSION_MAJOR>=3
+#if GLFW_VERSION_MAJOR >= 3
         glfwPollEvents();
         glfwSwapBuffers(g_window);
 #else
         glfwSwapBuffers();
 #endif
-        
         glFinish();
     }
-
-error:
+  error:
     uninitGL();
     glfwTerminate();
 }
