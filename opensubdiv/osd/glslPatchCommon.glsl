@@ -253,7 +253,9 @@ uniform samplerBuffer OsdFVarDataBuffer;
 #define OSD_FVAR_WIDTH 0
 #endif
 
-// XXX: quad only for now
+// ------ extract from quads (catmark, bilinear) ---------
+// XXX: only linear interpolation is supported
+
 #define OSD_COMPUTE_FACE_VARYING_1(result, fvarOffset, tessCoord)       \
     {                                                                   \
         float v[4];                                                     \
@@ -302,7 +304,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
         int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 4;     \
         for (int i = 0; i < 4; ++i) {                                   \
             int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
-            v[i] = vec3(texelFetch(OsdFVarDataBuffer, index).s,         \
+            v[i] = vec4(texelFetch(OsdFVarDataBuffer, index).s,         \
                         texelFetch(OsdFVarDataBuffer, index + 1).s,     \
                         texelFetch(OsdFVarDataBuffer, index + 2).s,     \
                         texelFetch(OsdFVarDataBuffer, index + 3).s);    \
@@ -310,6 +312,43 @@ uniform samplerBuffer OsdFVarDataBuffer;
         result = mix(mix(v[0], v[1], tessCoord.s),                      \
                      mix(v[3], v[2], tessCoord.s),                      \
                      tessCoord.t);                                      \
+    }
+
+// ------ extract from triangles (loop) ---------
+// XXX: no interpolation supproted
+
+#define OSD_COMPUTE_FACE_VARYING_TRI_1(result, fvarOffset, triVert)     \
+    {                                                                   \
+        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 3;     \
+        int index = (primOffset+triVert)*OSD_FVAR_WIDTH + fvarOffset;   \
+        result = texelFetch(OsdFVarDataBuffer, index).s;                \
+    }
+
+#define OSD_COMPUTE_FACE_VARYING_TRI_2(result, fvarOffset, triVert)     \
+    {                                                                   \
+        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 3;     \
+        int index = (primOffset+triVert)*OSD_FVAR_WIDTH + fvarOffset;   \
+        result = vec2(texelFetch(OsdFVarDataBuffer, index).s,           \
+                      texelFetch(OsdFVarDataBuffer, index + 1).s);      \
+    }
+
+#define OSD_COMPUTE_FACE_VARYING_TRI_3(result, fvarOffset, triVert)     \
+    {                                                                   \
+        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 3;     \
+        int index = (primOffset+triVert)*OSD_FVAR_WIDTH + fvarOffset;   \
+        result = vec3(texelFetch(OsdFVarDataBuffer, index).s,           \
+                      texelFetch(OsdFVarDataBuffer, index + 1).s,       \
+                      texelFetch(OsdFVarDataBuffer, index + 2).s);      \
+    }
+
+#define OSD_COMPUTE_FACE_VARYING_TRI_4(result, fvarOffset, triVert)     \
+    {                                                                   \
+        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 3;     \
+        int index = (primOffset+triVert)*OSD_FVAR_WIDTH + fvarOffset;   \
+        result = vec4(texelFetch(OsdFVarDataBuffer, index).s,           \
+                      texelFetch(OsdFVarDataBuffer, index + 1).s,       \
+                      texelFetch(OsdFVarDataBuffer, index + 2).s,       \
+                      texelFetch(OsdFVarDataBuffer, index + 3).s);      \
     }
 
 // ----------------------------------------------------------------------------
