@@ -983,6 +983,7 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         // uniform loop
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
+        sconfig->commonShader.AddDefine("LOOP");
         sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
     } else {
         // adaptive
