@@ -418,12 +418,17 @@ rebuild()
     for (int i = 0; i < g_modelCount*g_modelCount; ++i) {
         g_vertexOffsets.push_back(vertexOffset);
 
+        while (g_defaultShapes[shape].scheme != scheme) {
+            ++shape;
+            if (shape >= (int)g_defaultShapes.size()) shape = 0;
+        }
+
         OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMesh = createFarMesh(
             g_defaultShapes[ shape ].data.c_str(), g_level, adaptive, scheme);
         farMeshes.push_back(farMesh);
 
         vertexOffset += farMesh->GetNumVertices();
-        shape++;
+        ++shape;
         if (shape >= (int)g_defaultShapes.size()) shape = 0;
     }
 

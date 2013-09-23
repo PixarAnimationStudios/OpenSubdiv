@@ -89,6 +89,7 @@ private:
 
     int _maxlevel;
     int _maxvalence;
+    bool _isLoop;
 
     // patch arrays for each mesh
     std::vector<FarPatchTables::PatchArrayVector> _multiPatchArrays;
@@ -104,6 +105,7 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
     const std::type_info &scheme = typeid(*(meshes[0]->GetSubdivisionTables()));
     _maxlevel = 0;
     _maxvalence = 0;
+    _isLoop = false;
 
     for (size_t i = 0; i < meshes.size(); ++i) {
         FarMesh<U> const *mesh = meshes[i];
@@ -244,10 +246,13 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
 
     if (scheme == typeid(FarCatmarkSubdivisionTables<U>) ) {
         result = new FarCatmarkSubdivisionTables<U>(farMesh, _maxlevel);
+        _isLoop = false;
     } else if (scheme == typeid(FarBilinearSubdivisionTables<U>) ) {
         result = new FarBilinearSubdivisionTables<U>(farMesh, _maxlevel);
+        _isLoop = false;
     } else if (scheme == typeid(FarLoopSubdivisionTables<U>) ) {
         result = new FarLoopSubdivisionTables<U>(farMesh, _maxlevel);
+        _isLoop = true;
     }
 
     result->_F_ITa.resize(total_F_ITa);
@@ -569,7 +574,8 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes, bool h
                 FarPatchTables const *ptables = meshes[i]->GetPatchTables();
                 FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
                 if (parray) {
-                    int width = meshes[i]->GetTotalFVarWidth() * 4; // for each quad
+                    int nv = _isLoop ? 3 : 4;
+                    int width = meshes[i]->GetTotalFVarWidth() * nv; // for each quads or tris
                     FarPatchTables::FVarDataTable::const_iterator begin =
                         ptables->_fvarTable.begin() + parray->GetPatchIndex() * width;
                     FarPatchTables::FVarDataTable::const_iterator end =

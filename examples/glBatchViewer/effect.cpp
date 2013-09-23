@@ -141,8 +141,13 @@ MyEffect::BindDrawConfig(MyDrawConfig *config, OpenSubdiv::OsdDrawContext::Patch
     GLint diffuseColor = config->diffuseColorUniform;
 
     if (displayPatchColor) {
-        float const * color = getAdaptivePatchColor( desc );
-        glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
+        if (desc.GetType() == OpenSubdiv::FarPatchTables::QUADS or
+            desc.GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
+            glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
+        } else {
+            const float *color = getAdaptivePatchColor( desc );
+            glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
+        }
     }
 #endif
 }

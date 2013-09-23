@@ -51,7 +51,8 @@ MyEffectRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     }
 
     const char *glslVersion = "#version 400\n";
-    if (desc.first.GetType() == OpenSubdiv::FarPatchTables::QUADS) {
+    if (desc.first.GetType() == OpenSubdiv::FarPatchTables::QUADS or
+        desc.first.GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
         sconfig->vertexShader.source = shaderSource;
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
@@ -76,6 +77,7 @@ MyEffectRegistry::_CreateDrawSourceConfig(DescType const & desc) {
         // uniform loop
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
+        sconfig->commonShader.AddDefine("LOOP");
         sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
     } else {
         // adaptive

@@ -126,6 +126,12 @@ void emit(int index, vec3 normal)
 #endif
 
 #ifdef FACEVARYING_COLOR
+#ifdef LOOP  // ----- scheme : LOOP
+    vec2 uv;
+    OSD_COMPUTE_FACE_VARYING_TRI_2(uv, /*fvarOffste=*/0, index);
+
+#else        // ----- scheme : CATMARK / BILINEAR
+
 #ifdef UNIFORM_SUBDIVISION
     vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
     vec2 st = quadst[index];
@@ -134,6 +140,7 @@ void emit(int index, vec3 normal)
 #endif
     vec2 uv;
     OSD_COMPUTE_FACE_VARYING_2(uv, /*fvarOffset=*/0, st);
+#endif      // ------ scheme
     outpt.color = vec3(uv.s, uv.t, 0);
 #endif
 
@@ -283,7 +290,7 @@ lighting(vec4 diffuse, vec3 Peye, vec3 Neye)
         float d = max(0.0, dot(n, l));
         float s = pow(max(0.0, dot(n, h)), 500.0f);
 
-        color += lightSource[i].ambient * ambientColor
+        color += lightSource[i].ambient * diffuse * ambientColor
             + d * lightSource[i].diffuse * diffuse
             + s * lightSource[i].specular;
     }

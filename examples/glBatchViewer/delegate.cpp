@@ -149,6 +149,9 @@ MyDrawDelegate::DrawElements(OpenSubdiv::OsdDrawContext::PatchArray const &patch
     if (patchArray.GetDescriptor().GetType() == OpenSubdiv::FarPatchTables::QUADS) {
         glDrawElements(GL_LINES_ADJACENCY, patchArray.GetNumIndices(), GL_UNSIGNED_INT,
                        (void*)(patchArray.GetVertIndex()*sizeof(GLuint)));
+    } else if (patchArray.GetDescriptor().GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
+        glDrawElements(GL_TRIANGLES, patchArray.GetNumIndices(), GL_UNSIGNED_INT,
+                       (void*)(patchArray.GetVertIndex()*sizeof(GLuint)));
     } else {
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         glDrawElements(GL_PATCHES, patchArray.GetNumIndices(), GL_UNSIGNED_INT,
