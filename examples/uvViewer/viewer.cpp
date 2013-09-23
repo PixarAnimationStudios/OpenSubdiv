@@ -489,7 +489,7 @@ createOsdMesh(const std::string &shape, int level, Scheme scheme = kCatmark)
     }
 
     hmesh->SetFVarInterpolateBoundaryMethod((OsdHbrMesh::InterpolateBoundaryMethod)g_fvarBoundary);
-    hmesh->SetFVarPropagateCorners(g_fvarPropagateCorners);
+    hmesh->SetFVarPropagateCorners(g_fvarPropagateCorners != 0);
 
     delete g_mesh;
     g_mesh = NULL;
@@ -1303,7 +1303,7 @@ initHUD()
                          g_fvarBoundary == OsdHbrMesh::k_InterpolateBoundaryAlwaysSharp,
                          350, 70, callbackBoundary, OsdHbrMesh::k_InterpolateBoundaryAlwaysSharp, 'b');
 
-    g_hud.AddCheckBox("Propagate corners (C)", g_fvarPropagateCorners,
+    g_hud.AddCheckBox("Propagate corners (C)", g_fvarPropagateCorners != 0,
                       350, 110, callbackPropagateCorners, 0, 'c');
 }
 
