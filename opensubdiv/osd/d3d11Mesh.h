@@ -111,6 +111,15 @@ public:
     virtual DrawContext * GetDrawContext() {
         return _drawContext;
     }
+    VertexBuffer * GetVertexBuffer() {
+        return _vertexBuffer;
+    }
+    VertexBuffer * GetVaryingBuffer() {
+        return _varyingBuffer;
+    }
+    FarMesh<OsdVertex> const * GetFarMesh() const {
+        return _farMesh;
+    }
 
 private:
     FarMesh<OsdVertex> *_farMesh;

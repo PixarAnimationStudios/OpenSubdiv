@@ -121,13 +121,13 @@ public:
     virtual DrawContext * GetDrawContext() {
         return _drawContext;
     }
-    virtual VertexBuffer * GetVertexBuffer() {
+    VertexBuffer * GetVertexBuffer() {
         return _vertexBuffer;
     }
-    virtual VertexBuffer * GetVaryingBuffer() {
+    VertexBuffer * GetVaryingBuffer() {
         return _varyingBuffer;
     }
-    virtual FarMesh<OsdVertex> const * GetFarMesh() const {
+    FarMesh<OsdVertex> const * GetFarMesh() const {
         return _farMesh;
     }
 
