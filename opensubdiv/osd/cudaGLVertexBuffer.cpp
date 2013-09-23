@@ -62,11 +62,13 @@ void
 OsdCudaGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
 
     map();
-    cudaMemcpy((float*)_devicePtr + _numElements * startVertex,
-               src,
-               _numElements * numVertices * sizeof(float),
-               cudaMemcpyHostToDevice);
-
+    cudaError_t err = cudaMemcpy((float*)_devicePtr + _numElements * startVertex,
+                                 src,
+                                 _numElements * numVertices * sizeof(float),
+                                 cudaMemcpyHostToDevice);
+    if (err != cudaSuccess)
+        OsdError(OSD_CUDA_GL_ERROR, "OsdCudaGLVertexBuffer::UpdateData failed. : %s\n",
+                 cudaGetErrorString(err));
 }
 
 int
