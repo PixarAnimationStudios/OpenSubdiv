@@ -228,6 +228,19 @@ rotate(float *m, float angle, float x, float y, float z)
 }
 
 inline void
+scale(float *m, float sx, float sy, float sz)
+{
+    float t[16];
+    identity(t);
+    t[0] = sx;
+    t[5] = sy;
+    t[10] = sz;
+    float o[16];
+    for(int i = 0; i < 16; i++) o[i] = m[i];
+    multMatrix(m, t, o);
+}
+
+inline void
 transpose(float *m)
 {
     std::swap(m[1], m[4]);
