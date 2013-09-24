@@ -1745,8 +1745,8 @@ motion(GLFWwindow *, double dx, double dy)
     int x = (int)dx, y = (int)dy;
 #else
 motion(int x, int y)
-#endif
 {
+#endif
     if (g_hud.MouseCapture()) {
         // check gui
         g_hud.MouseMotion(x, y);
