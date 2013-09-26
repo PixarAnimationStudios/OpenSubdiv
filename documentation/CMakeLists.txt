@@ -85,6 +85,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         using_osd_compile.rst
         using_osd_hbr.rst
         using_osd_textures.rst
+        uvviewer.rst
     )
 
     # process rst markup files

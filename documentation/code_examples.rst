@@ -43,6 +43,7 @@ of the software.
      - | `limitEval <limiteval.html>`_
        | `paintTest <painttest.html>`_
        | `ptexViewer <ptexviewer.html>`_
+       | `uvViewer <uvviewer.html>`_
 
 .. list-table:: **DirectX examples**
    :class: quickref
