@@ -195,7 +195,8 @@ enum DisplacementType { DISPLACEMENT_NONE,
                         DISPLACEMENT_BILINEAR,
                         DISPLACEMENT_BIQUADRATIC };
 
-enum NormalType { NORMAL_FACET,
+enum NormalType { NORMAL_SURFACE,
+                  NORMAL_FACET,
                   NORMAL_HW_SCREENSPACE,
                   NORMAL_SCREENSPACE,
                   NORMAL_BIQUADRATIC,
@@ -218,7 +219,7 @@ int   g_fullscreen = 0,
       g_maxMipmapLevels = 10,
       g_color = COLOR_PTEX_BILINEAR,
       g_displacement = DISPLACEMENT_NONE,
-      g_normal = NORMAL_FACET;
+      g_normal = NORMAL_SURFACE;
 
 
 float g_moveScale = 0.0f,
@@ -914,7 +915,17 @@ createPtex(const char *filename)
 {
     Ptex::String ptexError;
     printf("Loading ptex : %s\n", filename);
+
+#define USE_PTEX_CACHE
+#define PTEX_CACHE_SIZE (512*1024*1024)
+
+#ifdef USE_PTEX_CACHE
+    PtexCache *cache = PtexCache::create(1, PTEX_CACHE_SIZE);
+    PtexTexture *ptex = cache->get(filename, ptexError);
+#else
     PtexTexture *ptex = PtexTexture::open(filename, ptexError, true);
+#endif
+
     if (ptex == NULL) {
         printf("Error in reading %s\n", filename);
         exit(1);
@@ -922,7 +933,13 @@ createPtex(const char *filename)
     OpenSubdiv::OsdGLPtexMipmapTexture *osdPtex =
         OpenSubdiv::OsdGLPtexMipmapTexture::Create(ptex, g_maxMipmapLevels);
 
+#ifdef USE_PTEX_CACHE
+    cache->release();
+#endif
+
     ptex->release();
+
+
     return osdPtex;
 }
 
@@ -2325,21 +2342,24 @@ int main(int argc, char ** argv)
                              -200, 280, callbackDisplacement, DISPLACEMENT_BIQUADRATIC, 'd');
 
         g_hud.AddLabel("Normal (N)", -200, 310);
+        g_hud.AddRadioButton(HUD_RB_NORMAL, "Surface",
+                             (g_normal == NORMAL_SURFACE),
+                             -200, 330, callbackNormal, NORMAL_SURFACE, 'n');
         g_hud.AddRadioButton(HUD_RB_NORMAL, "Facet",
                              (g_normal == NORMAL_FACET),
-                             -200, 330, callbackNormal, NORMAL_FACET, 'n');
+                             -200, 350, callbackNormal, NORMAL_FACET, 'n');
         g_hud.AddRadioButton(HUD_RB_NORMAL, "HW Screen space",
                              (g_normal == NORMAL_HW_SCREENSPACE),
-                             -200, 350, callbackNormal, NORMAL_HW_SCREENSPACE, 'n');
+                             -200, 370, callbackNormal, NORMAL_HW_SCREENSPACE, 'n');
         g_hud.AddRadioButton(HUD_RB_NORMAL, "Screen space",
                              (g_normal == NORMAL_SCREENSPACE),
-                             -200, 370, callbackNormal, NORMAL_SCREENSPACE, 'n');
+                             -200, 390, callbackNormal, NORMAL_SCREENSPACE, 'n');
         g_hud.AddRadioButton(HUD_RB_NORMAL, "Biquadratic",
                              (g_normal == NORMAL_BIQUADRATIC),
-                             -200, 390, callbackNormal, NORMAL_BIQUADRATIC, 'n');
+                             -200, 410, callbackNormal, NORMAL_BIQUADRATIC, 'n');
         g_hud.AddRadioButton(HUD_RB_NORMAL, "Biquadratic WG",
                              (g_normal == NORMAL_BIQUADRATIC_WG),
-                             -200, 410, callbackNormal, NORMAL_BIQUADRATIC_WG, 'n');
+                             -200, 430, callbackNormal, NORMAL_BIQUADRATIC_WG, 'n');
     }
 
     g_hud.AddSlider("Mipmap Bias", 0, 5, 0,
