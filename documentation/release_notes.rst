@@ -31,6 +31,36 @@ Release Notes
 
 ----
 
+Release 2.3.0
+=============
+
+**New Features**
+    - Added Analytical displacement mapping ('Analytic Displacement Mapping using 
+      Hardware Tessellation; Niessner and Loop [TOG 2013])
+    - Added a new ptex mipmap loader
+    - Added face varying macros for loop subdivision
+    - Added the uvViewer example to see how face varying interpolation rule works
+    - Added a slider component and cleanup hud code.
+
+**Changes**
+    - Adding license & attribution files, improved language of the code headers
+    - Install documentation into the Filesystem Hierarchy Standard location
+    - Set GLFW_OPENGL_FORWARD_COMPAT on Mac OS to make samples work on that platform
+    - Added surface normal mode & mipmap to ptxViewer
+    
+**Bug Fixes**
+    - Fix a bug of bad fvar splicing for loop surface.
+    - Fix incorrect bilinear limit tangents in FarStencilTablesFactory
+    - Fix boundary interpolation rules doc
+    - Added an error check on updating cuda buffer
+    - Fix face varying rendering on loop surface
+    - Fixed glBatchViewer build for GLFW 2.x
+    - Expand search paths for FindGLFW.cmake for Debian and other Linux architectures
+    - Fix CMake executable builds for ICC
+    - Fix bhr baseline regression, so reference files are real OBJ's
+    - Fixed clKernelBundle.cpp to build on Android.
+    - Fix misc build warings
+    
 Release 2.2.0
 =============
 
