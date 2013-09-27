@@ -1,26 +1,25 @@
 //
-//     Copyright 2013 Pixar
+//   Copyright 2013 Pixar
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License
-//     and the following modification to it: Section 6 Trademarks.
-//     deleted and replaced with:
+//   Licensed under the Apache License, Version 2.0 (the "Apache License")
+//   with the following modification; you may not use this file except in
+//   compliance with the Apache License and the following modification to it:
+//   Section 6. Trademarks. is deleted and replaced with:
 //
-//     6. Trademarks. This License does not grant permission to use the
-//     trade names, trademarks, service marks, or product names of the
-//     Licensor and its affiliates, except as required for reproducing
-//     the content of the NOTICE file.
+//   6. Trademarks. This License does not grant permission to use the trade
+//      names, trademarks, service marks, or product names of the Licensor
+//      and its affiliates, except as required to comply with Section 4(c) of
+//      the License and to reproduce the content of the NOTICE file.
 //
-//     You may obtain a copy of the License at
+//   You may obtain a copy of the Apache License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//       http://www.apache.org/licenses/LICENSE-2.0
 //
-//     Unless required by applicable law or agreed to in writing,
-//     software distributed under the License is distributed on an
-//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-//     either express or implied.  See the License for the specific
-//     language governing permissions and limitations under the
-//     License.
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the Apache License with the above modification is
+//   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+//   KIND, either express or implied. See the Apache License for the specific
+//   language governing permissions and limitations under the Apache License.
 //
 
 #ifndef FAR_STENCILTABLE_FACTORY_H
@@ -306,7 +305,7 @@ public:
     ///
     /// @param other        Source stencil to add the weights from
     ///
-    static void Add( float * dest, FarVertexStencil const * other );
+    static void Add( float * dst, FarVertexStencil const * other );
 
     /// \brief Subtracts the coefficients from a stencil dst = (a - b)
     ///
@@ -336,7 +335,7 @@ public:
     ///
     /// @param val          Value to weigh 'other' with
     ///
-    static void AddScaled( float * dest, FarVertexStencil const * other, float val );
+    static void AddScaled( float * dst, FarVertexStencil const * other, float val );
 
     /// \brief Adds and scales the coefficients of the stencil: this += other * val
     ///
@@ -881,8 +880,22 @@ FarStencilTablesFactory<T>::Patch::GetStencilsAtUV( HbrHalfedge<T> * e,
                                               vtan->_GetData() );
 
             FarVertexStencil::AddScaled( point, pt, weights[i] );
-            FarVertexStencil::AddScaled( uderiv, utan, weights[i] );
-            FarVertexStencil::AddScaled( vderiv, vtan, weights[i] );
+
+            // Tangent vectors must compensate for the CCW rotation of 'elimit'
+            switch (i) {
+                case 0: {
+                    FarVertexStencil::AddScaled( uderiv, utan,  weights[i] );
+                    FarVertexStencil::AddScaled( vderiv, vtan,  weights[i] ); } break;
+                case 1: {
+                    FarVertexStencil::AddScaled( uderiv, vtan, -weights[i] );
+                    FarVertexStencil::AddScaled( vderiv, utan,  weights[i] ); } break;
+                case 2: {
+                    FarVertexStencil::AddScaled( uderiv, utan, -weights[i] );
+                    FarVertexStencil::AddScaled( vderiv, vtan, -weights[i] ); } break;
+                case 3: {
+                    FarVertexStencil::AddScaled( uderiv, vtan,  weights[i] );
+                    FarVertexStencil::AddScaled( vderiv, utan, -weights[i] ); } break;
+            }
         }
 
         _allocator->Deallocate(pt);
@@ -1478,15 +1491,12 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
 
     HbrVertex<T> * v = e->GetOrgVertex();
 
-    v->GuaranteeNeighbors();
-
     while (v->IsVolatile()) {
         v->Refine();
         v = v->Subdivide();
         e = v->GetEdge(e->Subdivide());
         assert(e);
     }
-
 
     assert(v->GetMask(false) == v->GetMask(true));
     switch(v->GetMask(false)) {

@@ -1,26 +1,25 @@
 //
-//     Copyright 2013 Pixar
+//   Copyright 2013 Pixar
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License
-//     and the following modification to it: Section 6 Trademarks.
-//     deleted and replaced with:
+//   Licensed under the Apache License, Version 2.0 (the "Apache License")
+//   with the following modification; you may not use this file except in
+//   compliance with the Apache License and the following modification to it:
+//   Section 6. Trademarks. is deleted and replaced with:
 //
-//     6. Trademarks. This License does not grant permission to use the
-//     trade names, trademarks, service marks, or product names of the
-//     Licensor and its affiliates, except as required for reproducing
-//     the content of the NOTICE file.
+//   6. Trademarks. This License does not grant permission to use the trade
+//      names, trademarks, service marks, or product names of the Licensor
+//      and its affiliates, except as required to comply with Section 4(c) of
+//      the License and to reproduce the content of the NOTICE file.
 //
-//     You may obtain a copy of the License at
+//   You may obtain a copy of the Apache License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//       http://www.apache.org/licenses/LICENSE-2.0
 //
-//     Unless required by applicable law or agreed to in writing,
-//     software distributed under the License is distributed on an
-//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-//     either express or implied.  See the License for the specific
-//     language governing permissions and limitations under the
-//     License.
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the Apache License with the above modification is
+//   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+//   KIND, either express or implied. See the Apache License for the specific
+//   language governing permissions and limitations under the Apache License.
 //
 
 #if defined(__APPLE__)
@@ -418,12 +417,17 @@ rebuild()
     for (int i = 0; i < g_modelCount*g_modelCount; ++i) {
         g_vertexOffsets.push_back(vertexOffset);
 
+        while (g_defaultShapes[shape].scheme != scheme) {
+            ++shape;
+            if (shape >= (int)g_defaultShapes.size()) shape = 0;
+        }
+
         OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMesh = createFarMesh(
             g_defaultShapes[ shape ].data.c_str(), g_level, adaptive, scheme);
         farMeshes.push_back(farMesh);
 
         vertexOffset += farMesh->GetNumVertices();
-        shape++;
+        ++shape;
         if (shape >= (int)g_defaultShapes.size()) shape = 0;
     }
 
@@ -694,6 +698,18 @@ reshape(int width, int height) {
 }
 
 //------------------------------------------------------------------------------
+#if GLFW_VERSION_MAJOR>=3
+void windowClose(GLFWwindow*) {
+    g_running = false;
+}
+#else
+int windowClose() {
+    g_running = false;
+    return GL_TRUE;
+}
+#endif
+
+//------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
 keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
@@ -908,12 +924,11 @@ setGLCoreProfile()
 #if not defined(__APPLE__)
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
 #endif
-    
+    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
 //------------------------------------------------------------------------------
@@ -987,6 +1002,7 @@ int main(int argc, char ** argv)
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
     glfwSetWindowSizeCallback(g_window, reshape);
+    glfwSetWindowCloseCallback(g_window, windowClose);
 #else
     if (glfwOpenWindow(g_width, g_height, 8, 8, 8, 8, 24, 8,
                        fullscreen ? GLFW_FULLSCREEN : GLFW_WINDOW) == GL_FALSE) {
@@ -999,6 +1015,7 @@ int main(int argc, char ** argv)
     glfwSetMousePosCallback(motion);
     glfwSetMouseButtonCallback(mouse);
     glfwSetWindowSizeCallback(reshape);
+    glfwSetWindowCloseCallback(windowClose);
 #endif
 
 #if defined(OSD_USES_GLEW)

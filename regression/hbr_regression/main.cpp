@@ -1,26 +1,25 @@
 //
-//     Copyright 2013 Pixar
+//   Copyright 2013 Pixar
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License
-//     and the following modification to it: Section 6 Trademarks.
-//     deleted and replaced with:
+//   Licensed under the Apache License, Version 2.0 (the "Apache License")
+//   with the following modification; you may not use this file except in
+//   compliance with the Apache License and the following modification to it:
+//   Section 6. Trademarks. is deleted and replaced with:
 //
-//     6. Trademarks. This License does not grant permission to use the
-//     trade names, trademarks, service marks, or product names of the
-//     Licensor and its affiliates, except as required for reproducing
-//     the content of the NOTICE file.
+//   6. Trademarks. This License does not grant permission to use the trade
+//      names, trademarks, service marks, or product names of the Licensor
+//      and its affiliates, except as required to comply with Section 4(c) of
+//      the License and to reproduce the content of the NOTICE file.
 //
-//     You may obtain a copy of the License at
+//   You may obtain a copy of the Apache License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//       http://www.apache.org/licenses/LICENSE-2.0
 //
-//     Unless required by applicable law or agreed to in writing,
-//     software distributed under the License is distributed on an
-//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-//     either express or implied.  See the License for the specific
-//     language governing permissions and limitations under the
-//     License.
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the Apache License with the above modification is
+//   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+//   KIND, either express or implied. See the Apache License for the specific
+//   language governing permissions and limitations under the Apache License.
 //
 
 #include <stdio.h>
@@ -40,7 +39,10 @@
 //
 
 // Precision is currently held at bit-wise identical
-#define PRECISION 0
+static int g_AllowWeakRegression=1;
+static int g_StrictRegressionFailure=0;
+#define STRICT_PRECISION 0
+#define WEAK_PRECISION 1e-6
 
 //------------------------------------------------------------------------------
 // Vertex class implementation
@@ -56,10 +58,10 @@ struct xyzVV {
 
    ~xyzVV( ) { }
 
-    void     AddWithWeight(const xyzVV& src, float weight, void * =0 ) { 
-        _pos[0]+=weight*src._pos[0]; 
-        _pos[1]+=weight*src._pos[1]; 
-        _pos[2]+=weight*src._pos[2]; 
+    void     AddWithWeight(const xyzVV& src, float weight, void * =0 ) {
+        _pos[0]+=weight*src._pos[0];
+        _pos[1]+=weight*src._pos[1];
+        _pos[2]+=weight*src._pos[2];
     }
 
     void     AddVaryingWithWeight(const xyzVV& , float, void * =0 ) { }
@@ -130,15 +132,15 @@ static shape * readShape( char const * fname ) {
     }
 
     fclose(handle);
-    
+
     shapeStr[size]='\0';
-    
+
     return shape::parseShape( shapeStr, 1 );
 }
 
 #define STR(x) x
 
-#ifdef  HBR_BASELINE_DIR  
+#ifdef  HBR_BASELINE_DIR
     std::string g_baseline_path = STR(HBR_BASELINE_DIR);
 #else
     std::string g_baseline_path;
@@ -146,7 +148,6 @@ static shape * readShape( char const * fname ) {
 
 //------------------------------------------------------------------------------
 static int checkMesh( shaperec const & r, int levels ) {
-
     int count=0;
     float deltaAvg[3] = {0.0f, 0.0f, 0.0f},
           deltaCnt[3] = {0.0f, 0.0f, 0.0f};
@@ -154,27 +155,27 @@ static int checkMesh( shaperec const & r, int levels ) {
     xyzmesh * mesh = simpleHbr<xyzVV>(r.data.c_str(), r.scheme, 0);
 
     int firstface=0, lastface=mesh->GetNumFaces(),
-        firstvert=0, lastvert=mesh->GetNumVertices(), nverts;    
-    
+        firstvert=0, lastvert=mesh->GetNumVertices(), nverts;
+
     printf("- %s (scheme=%d)\n", r.name.c_str(), r.scheme);
-    
+
     for (int l=0; l<levels; ++l ) {
 
 
         std::stringstream fname;
-        
+
         fname << g_baseline_path <<  r.name << "_level" << l << ".obj";
-    
-        
+
+
         shape * sh = readShape( fname.str().c_str() );
         assert(sh);
-        
+
         // subdivide up to current level
         for (int i=firstface; i<lastface; ++i) {
             xyzface * f = mesh->GetFace(i);
             f->Refine();
         }
-        
+
         firstface = lastface;
         lastface = mesh->GetNumFaces();
         //nfaces = lastface - firstface;
@@ -182,7 +183,7 @@ static int checkMesh( shaperec const & r, int levels ) {
         firstvert = lastvert;
         lastvert = mesh->GetNumVertices();
         nverts = lastvert - firstvert;
-        
+
         for (int i=firstvert; i<lastvert; ++i) {
             const float * apos = mesh->GetVertex(i)->GetData().GetPos(),
                         * bpos = &sh->verts[(i-firstvert)*3];
@@ -201,22 +202,26 @@ static int checkMesh( shaperec const & r, int levels ) {
             deltaAvg[0]+=delta[0];
             deltaAvg[1]+=delta[1];
             deltaAvg[2]+=delta[2];
-            
+
             float dist = sqrtf( delta[0]*delta[0]+delta[1]*delta[1]+delta[2]*delta[2]);
-            if ( dist > PRECISION ) {
-                printf("// HbrVertex<T> %d fails : dist=%.10f (%.10f %.10f %.10f)"
-                       " (%.10f %.10f %.10f)\n", i, dist, apos[0],
-                                                          apos[1],
-                                                          apos[2],
-                                                          bpos[0],
-                                                          bpos[1],
-                                                          bpos[2] );
-                count++;
+            if ( dist > STRICT_PRECISION ) {
+                if(dist < WEAK_PRECISION && g_AllowWeakRegression) {
+                    g_StrictRegressionFailure=1;
+                } else {
+                    printf("// HbrVertex<T> %d fails : dist=%.10f (%.10f %.10f %.10f)"
+                           " (%.10f %.10f %.10f)\n", i, dist, apos[0],
+                                                              apos[1],
+                                                              apos[2],
+                                                              bpos[0],
+                                                              bpos[1],
+                                                              bpos[2] );
+                    count++;
+                }
             }
         }
         delete sh;
     }
-    
+
     if (deltaCnt[0])
         deltaAvg[0]/=deltaCnt[0];
     if (deltaCnt[1])
@@ -240,9 +245,11 @@ static int checkMesh( shaperec const & r, int levels ) {
 }
 
 //------------------------------------------------------------------------------
-int main(int /* argc */, char ** /* argv */) {
+int main(int argc, char ** argv) {
 
     int levels=5, total=0;
+    if(argc==2 && strcmp(argv[1],"-S")==0)
+        g_AllowWeakRegression=0;
 
     initShapes();
 
@@ -251,8 +258,12 @@ int main(int /* argc */, char ** /* argv */) {
     for (int i=0; i<(int)g_shapes.size(); ++i)
         total+=checkMesh( g_shapes[i], levels );
 
-    if (total==0)
-      printf("All tests passed.\n");
+    if (total==0) {
+        printf("All tests passed.\n");
+        if(g_StrictRegressionFailure)
+            printf("Some tests were not bit-wise accurate.\nRerun with -S for strict regression\n");
+        }
     else
       printf("Total failures : %d\n", total);
+
 }

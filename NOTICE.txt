@@ -1,0 +1,5 @@
+   OpenSubdiv
+   Copyright 2013 Pixar
+
+   This product includes software developed at
+   Pixar (http://www.pixar.com/).

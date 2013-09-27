@@ -1,26 +1,25 @@
 #
-#     Copyright 2013 Pixar
+#   Copyright 2013 Pixar
 #
-#     Licensed under the Apache License, Version 2.0 (the "License");
-#     you may not use this file except in compliance with the License
-#     and the following modification to it: Section 6 Trademarks.
-#     deleted and replaced with:
+#   Licensed under the Apache License, Version 2.0 (the "Apache License")
+#   with the following modification; you may not use this file except in
+#   compliance with the Apache License and the following modification to it:
+#   Section 6. Trademarks. is deleted and replaced with:
 #
-#     6. Trademarks. This License does not grant permission to use the
-#     trade names, trademarks, service marks, or product names of the
-#     Licensor and its affiliates, except as required for reproducing
-#     the content of the NOTICE file.
+#   6. Trademarks. This License does not grant permission to use the trade
+#      names, trademarks, service marks, or product names of the Licensor
+#      and its affiliates, except as required to comply with Section 4(c) of
+#      the License and to reproduce the content of the NOTICE file.
 #
-#     You may obtain a copy of the License at
+#   You may obtain a copy of the Apache License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#       http://www.apache.org/licenses/LICENSE-2.0
 #
-#     Unless required by applicable law or agreed to in writing,
-#     software distributed under the License is distributed on an
-#     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-#     either express or implied.  See the License for the specific
-#     language governing permissions and limitations under the
-#     License.
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the Apache License with the above modification is
+#   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+#   KIND, either express or implied. See the Apache License for the specific
+#   language governing permissions and limitations under the Apache License.
 #
 
 project(OpenSubdiv)
@@ -60,6 +59,16 @@ endif()
 
 if (NOT DEFINED CMAKE_PLUGINDIR_BASE)
     set( CMAKE_PLUGINDIR_BASE plugin )
+endif()
+
+if (NOT DEFINED CMAKE_DOCDIR_BASE)
+    set( CMAKE_DOCDIR_BASE share/doc/opensubdiv )
+else()
+    if (IS_ABSOLUTE ${CMAKE_DOCDIR_BASE})
+        set( CMAKE_DOCDIR_BASE ${CMAKE_DOCDIR_BASE} )
+    else()
+        set( CMAKE_DOCDIR_BASE ${CMAKE_INSTALL_PREFIX}/${CMAKE_DOCDIR_BASE} )
+    endif()
 endif()
 
 # Allow install path to be overridden for cross-compile builds
@@ -485,6 +494,17 @@ macro(_add_doxy_headers headers)
 endmacro()
 
 
+# Macro wrapper for adding a non-cuda dependent executable
+macro(_add_executable target)
+
+    add_executable(${target} ${ARGN})
+
+    if(CMAKE_COMPILER_IS_ICC)
+        target_link_libraries(${target} ${ICC_LIBRARIES})
+    endif()
+endmacro()
+
+
 # Macro for adding a cuda executable if cuda is found and a regular
 # executable otherwise.
 macro(_add_possibly_cuda_executable target)
@@ -511,7 +531,7 @@ macro(_add_possibly_cuda_library target)
 endmacro()
 
 
-# Macro for adding a (potentially cuda) executable.
+# Macro for adding a (potentially cuda) GLFW executable.
 macro(_add_glfw_executable target)
 
     _add_possibly_cuda_executable(${target} ${ARGN})

@@ -1,26 +1,25 @@
 //
-//     Copyright 2013 Pixar
+//   Copyright 2013 Pixar
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License
-//     and the following modification to it: Section 6 Trademarks.
-//     deleted and replaced with:
+//   Licensed under the Apache License, Version 2.0 (the "Apache License")
+//   with the following modification; you may not use this file except in
+//   compliance with the Apache License and the following modification to it:
+//   Section 6. Trademarks. is deleted and replaced with:
 //
-//     6. Trademarks. This License does not grant permission to use the
-//     trade names, trademarks, service marks, or product names of the
-//     Licensor and its affiliates, except as required for reproducing
-//     the content of the NOTICE file.
+//   6. Trademarks. This License does not grant permission to use the trade
+//      names, trademarks, service marks, or product names of the Licensor
+//      and its affiliates, except as required to comply with Section 4(c) of
+//      the License and to reproduce the content of the NOTICE file.
 //
-//     You may obtain a copy of the License at
+//   You may obtain a copy of the Apache License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//       http://www.apache.org/licenses/LICENSE-2.0
 //
-//     Unless required by applicable law or agreed to in writing,
-//     software distributed under the License is distributed on an
-//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-//     either express or implied.  See the License for the specific
-//     language governing permissions and limitations under the
-//     License.
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the Apache License with the above modification is
+//   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+//   KIND, either express or implied. See the Apache License for the specific
+//   language governing permissions and limitations under the Apache License.
 //
 
 #include "../osd/clComputeController.h"
@@ -107,7 +106,7 @@ OsdCLComputeController::ApplyBilinearEdgeVerticesKernel(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetBilinearEdgeKernel();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -136,7 +135,7 @@ OsdCLComputeController::ApplyBilinearVertexVerticesKernel(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetBilinearVertexKernel();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -165,7 +164,7 @@ OsdCLComputeController::ApplyCatmarkFaceVerticesKernel(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetCatmarkFaceKernel();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -197,7 +196,7 @@ OsdCLComputeController::ApplyCatmarkEdgeVerticesKernel(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetCatmarkEdgeKernel();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -229,7 +228,7 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelB(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetCatmarkVertexKernelB();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -263,7 +262,7 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelA1(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     int ipass = false;
     cl_kernel kernel = context->GetKernelBundle()->GetCatmarkVertexKernelA();
 
@@ -297,7 +296,7 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelA2(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     int ipass = true;
     cl_kernel kernel = context->GetKernelBundle()->GetCatmarkVertexKernelA();
 
@@ -331,7 +330,7 @@ OsdCLComputeController::ApplyLoopEdgeVerticesKernel(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetLoopEdgeKernel();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -363,7 +362,7 @@ OsdCLComputeController::ApplyLoopVertexVerticesKernelB(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_kernel kernel = context->GetKernelBundle()->GetLoopVertexKernelB();
 
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
@@ -397,7 +396,7 @@ OsdCLComputeController::ApplyLoopVertexVerticesKernelA1(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     int ipass = false;
     cl_kernel kernel = context->GetKernelBundle()->GetLoopVertexKernelA();
 
@@ -431,7 +430,7 @@ OsdCLComputeController::ApplyLoopVertexVerticesKernelA2(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     int ipass = true;
     cl_kernel kernel = context->GetKernelBundle()->GetLoopVertexKernelA();
 
@@ -465,7 +464,7 @@ OsdCLComputeController::ApplyVertexEdits(
     assert(context);
 
     cl_int ciErrNum;
-    size_t globalWorkSize[1] = { batch.GetEnd() - batch.GetStart() };
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
     cl_mem vertexBuffer = context->GetCurrentVertexBuffer();
 
     const OsdCLHEditTable * edit = context->GetEditTable(batch.GetTableIndex());

@@ -1,34 +1,42 @@
 //
-//     Copyright 2013 Pixar
+//   Copyright 2013 Pixar
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License
-//     and the following modification to it: Section 6 Trademarks.
-//     deleted and replaced with:
+//   Licensed under the Apache License, Version 2.0 (the "Apache License")
+//   with the following modification; you may not use this file except in
+//   compliance with the Apache License and the following modification to it:
+//   Section 6. Trademarks. is deleted and replaced with:
 //
-//     6. Trademarks. This License does not grant permission to use the
-//     trade names, trademarks, service marks, or product names of the
-//     Licensor and its affiliates, except as required for reproducing
-//     the content of the NOTICE file.
+//   6. Trademarks. This License does not grant permission to use the trade
+//      names, trademarks, service marks, or product names of the Licensor
+//      and its affiliates, except as required to comply with Section 4(c) of
+//      the License and to reproduce the content of the NOTICE file.
 //
-//     You may obtain a copy of the License at
+//   You may obtain a copy of the Apache License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//       http://www.apache.org/licenses/LICENSE-2.0
 //
-//     Unless required by applicable law or agreed to in writing,
-//     software distributed under the License is distributed on an
-//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-//     either express or implied.  See the License for the specific
-//     language governing permissions and limitations under the
-//     License.
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the Apache License with the above modification is
+//   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+//   KIND, either express or implied. See the Apache License for the specific
+//   language governing permissions and limitations under the Apache License.
 //
-#include <string.h>
-#include <stdio.h>
+
+#include <algorithm>
+#include <vector>
+#include <cstring>
+#include <cstdio>
 #include "hud.h"
 #include "font_image.h"
 
-Hud::Hud() : _visible(true), _windowWidth(0), _windowHeight(0), _requiresRebuildStatic(true)
+#if _MSC_VER
+#define snprintf _snprintf
+#endif
+
+Hud::Hud() : _visible(true), _windowWidth(0), _windowHeight(0),
+             _requiresRebuildStatic(true)
 {
+    _capturedSlider = -1;
 }
 
 Hud::~Hud()
@@ -59,6 +67,7 @@ Hud::Clear()
 {
     _radioButtons.clear();
     _checkBoxes.clear();
+    _sliders.clear();
     _vboSource.clear();
     _requiresRebuildStatic = true;
 }
@@ -68,7 +77,6 @@ Hud::KeyDown(int key)
 {
     for (std::vector<RadioButton>::iterator it = _radioButtons.begin();
         it != _radioButtons.end(); ++it) {
-
         if (key == it->shortcut) {
             int nextLocalIndex = it->localIndex;
             if (it->sharedShortcut) {
@@ -76,7 +84,7 @@ Hud::KeyDown(int key)
                 int maxLocalIndex = 0;
                 for (std::vector<RadioButton>::iterator it2 = _radioButtons.begin();
                      it2 != _radioButtons.end(); ++it2) {
-                    
+
                     if (it2->group == it->group) {
                         maxLocalIndex = std::max(maxLocalIndex, it2->localIndex);
                         if (it2->checked) {
@@ -84,7 +92,7 @@ Hud::KeyDown(int key)
                         }
                     }
                 }
-                if(nextLocalIndex > maxLocalIndex) nextLocalIndex = 0;
+                if (nextLocalIndex > maxLocalIndex) nextLocalIndex = 0;
             }
             for (std::vector<RadioButton>::iterator it2 = _radioButtons.begin();
                  it2 != _radioButtons.end(); ++it2) {
@@ -103,7 +111,7 @@ Hud::KeyDown(int key)
     }
     for (std::vector<CheckBox>::iterator it = _checkBoxes.begin();
          it != _checkBoxes.end(); ++it) {
-        
+
         if (key == it->shortcut) {
             it->checked = !it->checked;
             it->callback(it->checked, it->callbackData);
@@ -111,7 +119,7 @@ Hud::KeyDown(int key)
             return true;
         }
     }
-          
+
     return false;
 }
 
@@ -120,12 +128,7 @@ Hud::MouseClick(int x, int y)
 {
     for (std::vector<RadioButton>::iterator it = _radioButtons.begin();
         it != _radioButtons.end(); ++it) {
-
-        int bx = it->x > 0 ? it->x : _windowWidth + it->x;
-        int by = it->y > 0 ? it->y : _windowHeight + it->y;
-
-        if (x >= bx && y >= by &&
-            x <= (bx + it->w) && y <= (by + it->h)) {
+        if (hitTest(*it, x, y)) {
             for (std::vector<RadioButton>::iterator it2 = _radioButtons.begin();
                  it2 != _radioButtons.end(); ++it2) {
 
@@ -139,14 +142,21 @@ Hud::MouseClick(int x, int y)
     }
     for (std::vector<CheckBox>::iterator it = _checkBoxes.begin();
         it != _checkBoxes.end(); ++it) {
-
-        int bx = it->x > 0 ? it->x : _windowWidth + it->x;
-        int by = it->y > 0 ? it->y : _windowHeight + it->y;
-
-        if (x >= bx && y >= by &&
-            x <= (bx + it->w) && y <= (by + it->h)) {
+        if (hitTest(*it, x, y)) {
             it->checked = !it->checked;
             it->callback(it->checked, it->callbackData);
+            _requiresRebuildStatic = true;
+            return true;
+        }
+    }
+    for (std::vector<Slider>::iterator it = _sliders.begin();
+         it != _sliders.end(); ++it) {
+        if (hitTest(*it, x, y)) {
+            int bx = 0, by = 0;
+            getWindowPos(*it, &bx, &by);
+            it->SetValue(((x-bx-FONT_CHAR_WIDTH/2)/float(it->w))*(it->max - it->min) + it->min);
+            it->callback(it->value, it->callbackData);
+            _capturedSlider = (int)(it - _sliders.begin());
             _requiresRebuildStatic = true;
             return true;
         }
@@ -155,8 +165,45 @@ Hud::MouseClick(int x, int y)
 }
 
 void
+Hud::MouseMotion(int x, int y)
+{
+    if (_capturedSlider != -1) {
+        std::vector<Slider>::iterator it = _sliders.begin() + _capturedSlider;
+
+        int bx = it->x > 0 ? it->x : _windowWidth + it->x;
+        it->SetValue(((x-bx-FONT_CHAR_WIDTH/2)/float(it->w))*(it->max - it->min) + it->min);
+        it->callback(it->value, it->callbackData);
+        _requiresRebuildStatic = true;
+    }
+}
+
+bool
+Hud::MouseCapture() const
+{
+    return _capturedSlider != -1;
+}
+
+void
+Hud::MouseRelease()
+{
+    _capturedSlider = -1;
+}
+
+void
+Hud::AddLabel(const char *label, int x, int y)
+{
+    Item l;
+    l.label = label;
+    l.x = x;
+    l.y = y;
+
+    _labels.push_back(l);
+    _requiresRebuildStatic = true;
+}
+
+void
 Hud::AddCheckBox(const char *label, bool checked, int x, int y,
-                   CheckBoxCallback callback, int data, int shortcut)
+                 CheckBoxCallback callback, int data, int shortcut)
 {
     CheckBox cb;
     cb.label = label;
@@ -175,7 +222,7 @@ Hud::AddCheckBox(const char *label, bool checked, int x, int y,
 
 void
 Hud::AddRadioButton(int group, const char *label, bool checked, int x, int y,
-                      RadioButtonCallback callback, int data, int shortcut)
+                    RadioButtonCallback callback, int data, int shortcut)
 {
     RadioButton rb;
     rb.group = group;
@@ -206,46 +253,94 @@ Hud::AddRadioButton(int group, const char *label, bool checked, int x, int y,
     _requiresRebuildStatic = true;
 }
 
+void
+Hud::AddSlider(const char *label, float min, float max, float value,
+               int x, int y, int width, bool intStep, SliderCallback callback, int data)
+{
+    Slider slider;
+    slider.label = label;
+    slider.x = x;
+    slider.y = y;
+    slider.w = width * FONT_CHAR_WIDTH;
+    slider.h = FONT_CHAR_HEIGHT * 2;
+    slider.min = min;
+    slider.max = max;
+    slider.value = value;
+    slider.callback = callback;
+    slider.callbackData = data;
+    slider.intStep = intStep;
+
+    _sliders.push_back(slider);
+    _requiresRebuildStatic = true;
+}
+
+
 int
-Hud::drawChar(std::vector<float> &vboSource, int x, int y, float r, float g, float b, char ch) const
+Hud::drawChar(std::vector<float> &vboSource,
+              int x, int y, float r, float g, float b, char ch) const
 {
     const float w = 1.0f/FONT_TEXTURE_COLUMNS;
     const float h = 1.0f/FONT_TEXTURE_ROWS;
-        
+
     float u = (ch%FONT_TEXTURE_COLUMNS)/(float)FONT_TEXTURE_COLUMNS;
     float v = (ch/FONT_TEXTURE_COLUMNS)/(float)FONT_TEXTURE_ROWS;
-        
-    vboSource.push_back(float(x)); vboSource.push_back(float(y));
-    vboSource.push_back(r); vboSource.push_back(g); vboSource.push_back(b);
-    vboSource.push_back(u); vboSource.push_back(v);
-    
-    vboSource.push_back(float(x)); vboSource.push_back(float(y+FONT_CHAR_HEIGHT));
-    vboSource.push_back(r); vboSource.push_back(g); vboSource.push_back(b);
-    vboSource.push_back(u); vboSource.push_back(v+h);
-    
-    vboSource.push_back(float(x+FONT_CHAR_WIDTH)); vboSource.push_back(float(y));
-    vboSource.push_back(r);                 vboSource.push_back(g); vboSource.push_back(b);
-    vboSource.push_back(u+w);               vboSource.push_back(v);
 
-    vboSource.push_back(float(x+FONT_CHAR_WIDTH)); vboSource.push_back(float(y));
-    vboSource.push_back(r);                 vboSource.push_back(g); vboSource.push_back(b);
-    vboSource.push_back(u+w);               vboSource.push_back(v);
+    vboSource.push_back(float(x));
+    vboSource.push_back(float(y));
+    vboSource.push_back(r);
+    vboSource.push_back(g);
+    vboSource.push_back(b);
+    vboSource.push_back(u);
+    vboSource.push_back(v);
 
-    vboSource.push_back(float(x)); vboSource.push_back(float(y+FONT_CHAR_HEIGHT));
-    vboSource.push_back(r); vboSource.push_back(g); vboSource.push_back(b);
-    vboSource.push_back(u); vboSource.push_back(v+h);
-    
-    vboSource.push_back(float(x+FONT_CHAR_WIDTH)); vboSource.push_back(float(y+FONT_CHAR_HEIGHT));
-    vboSource.push_back(r);                 vboSource.push_back(g); vboSource.push_back(b);
-    vboSource.push_back(u+w);               vboSource.push_back(v+h);
-    
+    vboSource.push_back(float(x));
+    vboSource.push_back(float(y+FONT_CHAR_HEIGHT));
+    vboSource.push_back(r);
+    vboSource.push_back(g);
+    vboSource.push_back(b);
+    vboSource.push_back(u);
+    vboSource.push_back(v+h);
+
+    vboSource.push_back(float(x+FONT_CHAR_WIDTH));
+    vboSource.push_back(float(y));
+    vboSource.push_back(r);
+    vboSource.push_back(g);
+    vboSource.push_back(b);
+    vboSource.push_back(u+w);
+    vboSource.push_back(v);
+
+    vboSource.push_back(float(x+FONT_CHAR_WIDTH));
+    vboSource.push_back(float(y));
+    vboSource.push_back(r);
+    vboSource.push_back(g);
+    vboSource.push_back(b);
+    vboSource.push_back(u+w);
+    vboSource.push_back(v);
+
+    vboSource.push_back(float(x));
+    vboSource.push_back(float(y+FONT_CHAR_HEIGHT));
+    vboSource.push_back(r);
+    vboSource.push_back(g);
+    vboSource.push_back(b);
+    vboSource.push_back(u);
+    vboSource.push_back(v+h);
+
+    vboSource.push_back(float(x+FONT_CHAR_WIDTH));
+    vboSource.push_back(float(y+FONT_CHAR_HEIGHT));
+    vboSource.push_back(r);
+    vboSource.push_back(g);
+    vboSource.push_back(b);
+    vboSource.push_back(u+w);
+    vboSource.push_back(v+h);
+
     return x + FONT_CHAR_WIDTH;
 }
 
 int
-Hud::drawString(std::vector<float> &vboSource, int x, int y, float r, float g, float b, const char *c) const
+Hud::drawString(std::vector<float> &vboSource,
+                int x, int y, float r, float g, float b, const char *c) const
 {
-    while(*c) {
+    while (*c) {
         char ch = (*c) & 0x7f;
         x = drawChar(vboSource, x, y, r, g, b, ch);
         c++;
@@ -289,6 +384,66 @@ Hud::Rebuild(int width, int height)
     _requiresRebuildStatic = false;
     _windowWidth = width;
     _windowHeight = height;
+
+    _staticVboSource.clear();
+
+    int x, y;
+    // add UI elements
+    for (std::vector<Item>::const_iterator it = _labels.begin();
+         it != _labels.end(); ++it) {
+        getWindowPos(*it, &x, &y);
+        drawString(_staticVboSource, x, y, 1, 1, 1, it->label.c_str());
+    }
+
+    for (std::vector<RadioButton>::const_iterator it = _radioButtons.begin();
+         it != _radioButtons.end(); ++it) {
+        getWindowPos(*it, &x, &y);
+        if (it->checked) {
+            x = drawChar(_staticVboSource, x, y, 1, 1, 1, FONT_RADIO_BUTTON_ON);
+            drawString(_staticVboSource, x, y, 1, 1, 0, it->label.c_str());
+        } else {
+            x = drawChar(_staticVboSource, x, y, 1, 1, 1, ' ');
+            drawString(_staticVboSource, x, y, .5f, .5f, .5f, it->label.c_str());
+        }
+    }
+    for (std::vector<CheckBox>::const_iterator it = _checkBoxes.begin();
+         it != _checkBoxes.end(); ++it) {
+        getWindowPos(*it, &x, &y);
+        if (it->checked) {
+            x = drawChar(_staticVboSource, x, y, 1, 1, 1, FONT_CHECK_BOX_ON);
+            drawString(_staticVboSource, x, y, 1, 1, 0, it->label.c_str());
+        } else {
+            x = drawChar(_staticVboSource, x, y, 1, 1, 1, FONT_CHECK_BOX_OFF);
+            drawString(_staticVboSource, x, y, .5f, .5f, .5f, it->label.c_str());
+        }
+    }
+    for (std::vector<Slider>::const_iterator it = _sliders.begin();
+         it != _sliders.end(); ++it) {
+        getWindowPos(*it, &x, &y);
+        int sx = x;
+        x = drawString(_staticVboSource, x, y, 1, 1, 1, it->label.c_str());
+        char value[16];
+        snprintf(value, 16, " : %.2f", it->value);
+        drawString(_staticVboSource, x, y, 1, 1, 1, value);
+
+        // new line
+        y += FONT_CHAR_HEIGHT;
+        x = sx;
+
+        x = drawChar(_staticVboSource, x, y, 1, 1, 1, FONT_SLIDER_LEFT);
+        int nw = it->w / FONT_CHAR_WIDTH;
+        for (int i = 1; i < nw; ++i) {
+            x = drawChar(_staticVboSource, x, y, 1, 1, 1, FONT_SLIDER_MIDDLE);
+        }
+        drawChar(_staticVboSource, x, y, 1, 1, 1, FONT_SLIDER_RIGHT);
+        int pos = (int)((it->value/float(it->max-it->min))*it->w);
+        drawChar(_staticVboSource, sx+pos, y, 1, 1, 0, FONT_SLIDER_CURSOR);
+    }
+
+    drawString(_staticVboSource, _windowWidth-80, _windowHeight-48, .5, .5, .5,
+               "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f");
+    drawString(_staticVboSource, _windowWidth-80, _windowHeight-32, .5, .5, .5,
+               "\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f");
 }
 
 bool
@@ -317,19 +472,14 @@ Hud::SetVisible(bool visible)
     _visible = visible;
 }
 
-const std::vector<Hud::RadioButton> & 
-Hud::getRadioButtons() const
-{
-    return _radioButtons;
-}
-const std::vector<Hud::CheckBox> &
-Hud::getCheckBoxes() const
-{
-    return _checkBoxes;
-}
-
 std::vector<float> &
 Hud::getVboSource()
 {
     return _vboSource;
+}
+
+std::vector<float> &
+Hud::getStaticVboSource()
+{
+    return _staticVboSource;
 }

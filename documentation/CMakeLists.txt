@@ -1,26 +1,25 @@
 #
-#     Copyright 2013 Pixar
+#   Copyright 2013 Pixar
 #
-#     Licensed under the Apache License, Version 2.0 (the "License");
-#     you may not use this file except in compliance with the License
-#     and the following modification to it: Section 6 Trademarks.
-#     deleted and replaced with:
+#   Licensed under the Apache License, Version 2.0 (the "Apache License")
+#   with the following modification; you may not use this file except in
+#   compliance with the Apache License and the following modification to it:
+#   Section 6. Trademarks. is deleted and replaced with:
 #
-#     6. Trademarks. This License does not grant permission to use the
-#     trade names, trademarks, service marks, or product names of the
-#     Licensor and its affiliates, except as required for reproducing
-#     the content of the NOTICE file.
+#   6. Trademarks. This License does not grant permission to use the trade
+#      names, trademarks, service marks, or product names of the Licensor
+#      and its affiliates, except as required to comply with Section 4(c) of
+#      the License and to reproduce the content of the NOTICE file.
 #
-#     You may obtain a copy of the License at
+#   You may obtain a copy of the Apache License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#       http://www.apache.org/licenses/LICENSE-2.0
 #
-#     Unless required by applicable law or agreed to in writing,
-#     software distributed under the License is distributed on an
-#     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-#     either express or implied.  See the License for the specific
-#     language governing permissions and limitations under the
-#     License.
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the Apache License with the above modification is
+#   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+#   KIND, either express or implied. See the Apache License for the specific
+#   language governing permissions and limitations under the Apache License.
 #
 
 
@@ -45,7 +44,7 @@ if (DOXYGEN_FOUND)
         DIRECTORY
             ${CMAKE_CURRENT_BINARY_DIR}/doxy_html
         DESTINATION 
-            ${CMAKE_INSTALL_PREFIX}/documentation
+            ${CMAKE_DOCDIR_BASE}
     )
 
 else()
@@ -64,6 +63,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
     )
 
     set(RST_FILES 
+        additional_resources.rst
         api_overview.rst
         cmake_build.rst
         code_examples.rst
@@ -85,6 +85,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         using_osd_compile.rst
         using_osd_hbr.rst
         using_osd_textures.rst
+        uvviewer.rst
     )
 
     # process rst markup files
@@ -121,7 +122,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
             FILES
                 ${outfile}
             DESTINATION 
-                ${CMAKE_INSTALL_PREFIX}/documentation
+                ${CMAKE_DOCDIR_BASE}
             PERMISSIONS 
                 OWNER_READ GROUP_READ WORLD_READ 
         )
@@ -150,7 +151,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
             FILES
                 ${outfile}
             DESTINATION 
-                ${CMAKE_INSTALL_PREFIX}/documentation
+                ${CMAKE_DOCDIR_BASE}
         )
     endforeach()
 
@@ -198,7 +199,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         DIRECTORY
             ${CMAKE_CURRENT_BINARY_DIR}/tipuesearch
         DESTINATION 
-            ${CMAKE_INSTALL_PREFIX}/documentation
+            ${CMAKE_DOCDIR_BASE}
     )
 
 
@@ -206,14 +207,14 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         DIRECTORY
             ${CMAKE_CURRENT_BINARY_DIR}/images
         DESTINATION 
-            ${CMAKE_INSTALL_PREFIX}/documentation
+            ${CMAKE_DOCDIR_BASE}
     )
 
     install( 
         DIRECTORY
             ${CMAKE_CURRENT_BINARY_DIR}/css
         DESTINATION 
-            ${CMAKE_INSTALL_PREFIX}/documentation
+            ${CMAKE_DOCDIR_BASE}
     )
 
     list(APPEND DOC_TARGETS doc_html)

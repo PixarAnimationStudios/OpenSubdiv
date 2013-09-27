@@ -1,26 +1,25 @@
 //
-//     Copyright 2013 Pixar
+//   Copyright 2013 Pixar
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License
-//     and the following modification to it: Section 6 Trademarks.
-//     deleted and replaced with:
+//   Licensed under the Apache License, Version 2.0 (the "Apache License")
+//   with the following modification; you may not use this file except in
+//   compliance with the Apache License and the following modification to it:
+//   Section 6. Trademarks. is deleted and replaced with:
 //
-//     6. Trademarks. This License does not grant permission to use the
-//     trade names, trademarks, service marks, or product names of the
-//     Licensor and its affiliates, except as required for reproducing
-//     the content of the NOTICE file.
+//   6. Trademarks. This License does not grant permission to use the trade
+//      names, trademarks, service marks, or product names of the Licensor
+//      and its affiliates, except as required to comply with Section 4(c) of
+//      the License and to reproduce the content of the NOTICE file.
 //
-//     You may obtain a copy of the License at
+//   You may obtain a copy of the Apache License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//       http://www.apache.org/licenses/LICENSE-2.0
 //
-//     Unless required by applicable law or agreed to in writing,
-//     software distributed under the License is distributed on an
-//     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-//     either express or implied.  See the License for the specific
-//     language governing permissions and limitations under the
-//     License.
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the Apache License with the above modification is
+//   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+//   KIND, either express or implied. See the Apache License for the specific
+//   language governing permissions and limitations under the Apache License.
 //
 
 //----------------------------------------------------------
@@ -541,14 +540,85 @@ void main()
     q[14] = p[11];
     q[15] = p[10];
 
-    float B[4], D[4];
+    vec3 WorldPos  = vec3(0, 0, 0);
+    vec3 Tangent   = vec3(0, 0, 0);
+    vec3 BiTangent = vec3(0, 0, 0);
 
-    Univar4x4(u, B, D);
-    vec3 BUCP[4], DUCP[4];
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    float B[4], D[4], C[4];
+    vec3 BUCP[4], DUCP[4], CUCP[4];
+    vec3 dUU = vec3(0);
+    vec3 dVV = vec3(0);
+    vec3 dUV = vec3(0);
+
+    Univar4x4(u, B, D, C);
 
     for (int i=0; i<4; ++i) {
-        BUCP[i] =  vec3(0, 0, 0);
-        DUCP[i] =  vec3(0, 0, 0);
+        BUCP[i] = vec3(0);
+        DUCP[i] = vec3(0);
+        CUCP[i] = vec3(0);
+
+        for (uint j=0; j<4; ++j) {
+            // reverse face front
+            vec3 A = q[i + 4*j];
+
+            BUCP[i] += A * B[j];
+            DUCP[i] += A * D[j];
+            CUCP[i] += A * C[j];
+        }
+    }
+
+    Univar4x4(v, B, D, C);
+
+    for (int i=0; i<4; ++i) {
+        WorldPos  += B[i] * BUCP[i];
+        Tangent   += B[i] * DUCP[i];
+        BiTangent += D[i] * BUCP[i];
+        dUU += B[i] * CUCP[i];
+        dVV += C[i] * BUCP[i];
+        dUV += D[i] * DUCP[i];
+    }
+
+    int level = int(inpt[0].v.ptexInfo.z);
+    BiTangent *= 3 * level;
+    Tangent *= 3 * level;
+    dUU *= 6 * level;
+    dVV *= 6 * level;
+    dUV *= 9 * level;
+
+    vec3 n = cross(Tangent, BiTangent);
+    vec3 normal = normalize(n);
+
+    float E = dot(Tangent, Tangent);
+    float F = dot(Tangent, BiTangent);
+    float G = dot(BiTangent, BiTangent);
+    float e = dot(normal, dUU);
+    float f = dot(normal, dUV);
+    float g = dot(normal, dVV);
+
+    vec3 Nu = (f*F-e*G)/(E*G-F*F) * Tangent + (e*F-f*E)/(E*G-F*F) * BiTangent;
+    vec3 Nv = (g*F-f*G)/(E*G-F*F) * Tangent + (f*F-g*E)/(E*G-F*F) * BiTangent;
+
+    Nu = Nu/length(n) - n * (dot(Nu,n)/pow(dot(n,n), 1.5));
+    Nv = Nv/length(n) - n * (dot(Nv,n)/pow(dot(n,n), 1.5));
+
+    BiTangent = (ModelViewMatrix * vec4(BiTangent, 0)).xyz;
+    Tangent = (ModelViewMatrix * vec4(Tangent, 0)).xyz;
+
+    normal = normalize(cross(BiTangent, Tangent));
+
+    outpt.v.Nu = Nu;
+    outpt.v.Nv = Nv;
+
+#else
+    float B[4], D[4];
+    vec3 BUCP[4], DUCP[4];
+
+    Univar4x4(u, B, D);
+
+    for (int i=0; i<4; ++i) {
+        BUCP[i] =  vec3(0);
+        DUCP[i] =  vec3(0);
 
         for (uint j=0; j<4; ++j) {
             // reverse face front
@@ -559,26 +629,28 @@ void main()
         }
     }
 
-    vec3 WorldPos  = vec3(0, 0, 0);
-    vec3 Tangent   = vec3(0, 0, 0);
-    vec3 BiTangent = vec3(0, 0, 0);
-
     Univar4x4(v, B, D);
 
-    for (uint i=0; i<4; ++i) {
+    for (int i=0; i<4; ++i) {
         WorldPos  += B[i] * BUCP[i];
         Tangent   += B[i] * DUCP[i];
         BiTangent += D[i] * BUCP[i];
     }
+    int level = int(inpt[0].v.ptexInfo.z);
+    BiTangent *= 3 * level;
+    Tangent *= 3 * level;
 
     BiTangent = (ModelViewMatrix * vec4(BiTangent, 0)).xyz;
     Tangent = (ModelViewMatrix * vec4(Tangent, 0)).xyz;
 
     vec3 normal = normalize(cross(BiTangent, Tangent));
 
+#endif
+
     outpt.v.position = ModelViewMatrix * vec4(WorldPos, 1.0f);
     outpt.v.normal = normal;
-    outpt.v.tangent = normalize(BiTangent);
+    outpt.v.tangent = BiTangent;
+    outpt.v.bitangent = Tangent;
 
     OSD_USER_VARYING_PER_EVAL_POINT(vec2(u,v), 0, 3, 1, 2);
 

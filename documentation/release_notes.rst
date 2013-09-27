@@ -1,26 +1,25 @@
 ..  
-       Copyright 2013 Pixar
-
-       Licensed under the Apache License, Version 2.0 (the "License");
-       you may not use this file except in compliance with the License
-       and the following modification to it: Section 6 Trademarks.
-       deleted and replaced with:
-
-       6. Trademarks. This License does not grant permission to use the
-       trade names, trademarks, service marks, or product names of the
-       Licensor and its affiliates, except as required for reproducing
-       the content of the NOTICE file.
-
-       You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-       Unless required by applicable law or agreed to in writing,
-       software distributed under the License is distributed on an
-       "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-       either express or implied.  See the License for the specific
-       language governing permissions and limitations under the
-       License.
+     Copyright 2013 Pixar
+  
+     Licensed under the Apache License, Version 2.0 (the "Apache License")
+     with the following modification; you may not use this file except in
+     compliance with the Apache License and the following modification to it:
+     Section 6. Trademarks. is deleted and replaced with:
+  
+     6. Trademarks. This License does not grant permission to use the trade
+        names, trademarks, service marks, or product names of the Licensor
+        and its affiliates, except as required to comply with Section 4(c) of
+        the License and to reproduce the content of the NOTICE file.
+  
+     You may obtain a copy of the Apache License at
+  
+         http://www.apache.org/licenses/LICENSE-2.0
+  
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the Apache License with the above modification is
+     distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     KIND, either express or implied. See the Apache License for the specific
+     language governing permissions and limitations under the Apache License.
   
 
 Release Notes
@@ -32,6 +31,36 @@ Release Notes
 
 ----
 
+Release 2.3.0
+=============
+
+**New Features**
+    - Added Analytical displacement mapping ('Analytic Displacement Mapping using 
+      Hardware Tessellation; Niessner and Loop [TOG 2013])
+    - Added a new ptex mipmap loader
+    - Added face varying macros for loop subdivision
+    - Added the uvViewer example to see how face varying interpolation rule works
+    - Added a slider component and cleanup hud code.
+
+**Changes**
+    - Adding license & attribution files, improved language of the code headers
+    - Install documentation into the Filesystem Hierarchy Standard location
+    - Set GLFW_OPENGL_FORWARD_COMPAT on Mac OS to make samples work on that platform
+    - Added surface normal mode & mipmap to ptxViewer
+    
+**Bug Fixes**
+    - Fix a bug of bad fvar splicing for loop surface.
+    - Fix incorrect bilinear limit tangents in FarStencilTablesFactory
+    - Fix boundary interpolation rules doc
+    - Added an error check on updating cuda buffer
+    - Fix face varying rendering on loop surface
+    - Fixed glBatchViewer build for GLFW 2.x
+    - Expand search paths for FindGLFW.cmake for Debian and other Linux architectures
+    - Fix CMake executable builds for ICC
+    - Fix bhr baseline regression, so reference files are real OBJ's
+    - Fixed clKernelBundle.cpp to build on Android.
+    - Fix misc build warings
+    
 Release 2.2.0
 =============
 
