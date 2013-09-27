@@ -57,3 +57,10 @@ Here are example commands for building an OpenSubdiv application on several arch
   link /nologo /out:myapp.exe /LIBPATH:"%OPENSUBDIV%\lib" libosdCPU.lib libosdGPU.lib myapp.obj 
 
 
+.. container:: impnotip
+
+    **Note:**
+    
+    HBR uses the offsetof macro on a templated struct, which appears to spurriously set off a 
+    warning in both gccc and Clang. It is recommended to turn the warning off with the
+    *-Wno-invalid-offsetof* flag.
