@@ -933,12 +933,11 @@ createPtex(const char *filename)
     OpenSubdiv::OsdGLPtexMipmapTexture *osdPtex =
         OpenSubdiv::OsdGLPtexMipmapTexture::Create(ptex, g_maxMipmapLevels);
 
+    ptex->release();
+
 #ifdef USE_PTEX_CACHE
     cache->release();
 #endif
-
-    ptex->release();
-
 
     return osdPtex;
 }
