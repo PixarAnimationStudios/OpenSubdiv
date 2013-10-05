@@ -728,6 +728,8 @@ FarStencilTablesFactory<T>::Patch::SetupControlStencils( HbrFace<T> * f,
             HbrVertex<T> const * corner, std::vector<int> & verts  ) :
                 _face(face), _corner(corner), _verts(verts) { }
 
+        ~GatherOperator() { }
+
         virtual void operator() (HbrFace<T> &face) {
 
             HbrMesh<T> * mesh = face.GetMesh();
@@ -1377,6 +1379,8 @@ FarStencilTablesFactory<T>::Patch::_GetLimitStencils( HbrVertex<T> * v,
                 SmoothVertexOperator(HbrVertex<T> *v, float * point) :
                     _vertex(v), _point(point) { }
 
+                ~SmoothVertexOperator() { }
+
                 virtual void operator() (HbrHalfedge<T> &e) {
 
                     HbrVertex<T> * a = e.GetDestVertex();
@@ -1423,6 +1427,8 @@ FarStencilTablesFactory<T>::Patch::_GetLimitStencils( HbrVertex<T> * v,
 
                 CreaseEdgeOperator(HbrVertex<T> *v, float * point) :
                     _vertex(v), _point(point), _count(0) { }
+
+                ~CreaseEdgeOperator() { }
 
                 virtual void operator() (HbrHalfedge<T> &e) {
 
@@ -1571,6 +1577,8 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
                     ei[0]=ei[1]=0;
                     eidx[0]=eidx[1]=-1;
                 }
+
+                ~CreaseEdgesOperator() { }
 
                 void SetAccumMode(int valence, float d, float * deriv, float (*crease)[12]) {
                     _gather = false;
