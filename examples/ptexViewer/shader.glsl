@@ -28,6 +28,16 @@
 uniform float displacementScale = 1.0;
 uniform float mipmapBias = 0;
 
+struct PtexPacking
+{
+    int page;
+    int nMipmap;
+    int uOffset;
+    int vOffset;
+    int width;
+    int height;
+};
+
 vec4 GeneratePatchCoord(vec2 localUV, int primitiveID)  // for non-adpative
 {
     ivec2 ptexIndex = texelFetch(OsdPatchParamBuffer, primitiveID).xy;
@@ -41,21 +51,78 @@ vec4 GeneratePatchCoord(vec2 localUV, int primitiveID)  // for non-adpative
     return vec4(uv.x, uv.y, lv+0.5, faceID+0.5);
 }
 
+PtexPacking getPtexPacking(isamplerBuffer packings, int faceID)
+{
+    PtexPacking packing;
+    packing.page    = texelFetch(packings, faceID*5).x;
+    packing.nMipmap = texelFetch(packings, faceID*5+1).x;
+    packing.uOffset = texelFetch(packings, faceID*5+2).x;
+    packing.vOffset = texelFetch(packings, faceID*5+3).x;
+    int wh          = texelFetch(packings, faceID*5+4).x;
+    packing.width   = 1 << (wh >> 8);
+    packing.height  = 1 << (wh & 0xff);
+    return packing;
+}
+
+int computeMipmapOffsetU(int w, int level)
+{
+    int width = 1 << w;
+    int m = (0x55555555 & (width | (width-1))) << (w&1);
+    int x = ~((1 << (w -((level-1)&~1))) - 1);
+    return (m & x) + ((level+1)&~1);
+}
+
+int computeMipmapOffsetV(int h, int level)
+{
+    int height = 1 << h;
+    int m = (0x55555555 & (height-1)) << ((h+1)&1);;
+    int x = ~((1 << (h - (level&~1))) - 1 );
+    return (m & x) + (level&~1);
+}
+
+PtexPacking getPtexPacking(isamplerBuffer packings, int faceID, int level)
+{
+    PtexPacking packing;
+    packing.page    = texelFetch(packings, faceID*5).x;
+    packing.nMipmap = texelFetch(packings, faceID*5+1).x;
+    packing.uOffset = texelFetch(packings, faceID*5+2).x;
+    packing.vOffset = texelFetch(packings, faceID*5+3).x;
+    int wh          = texelFetch(packings, faceID*5+4).x;
+    int w = wh >> 8;
+    int h = wh & 0xff;
+
+    // clamp max level
+    level = min(level, packing.nMipmap);
+
+#if 0
+    packing.width = 1 << w;
+    packing.height = 1 << h;
+    // offset mipmap location (slow!)
+    for (int i = 1; i <= level; ++i) {
+        packing.uOffset += (packing.width+2) * (i&1);
+        packing.vOffset += (packing.height+2) * (1-i&1);
+        packing.width /= 2;
+        packing.height /= 2;
+    }
+#else
+    packing.uOffset += computeMipmapOffsetU(w, level);
+    packing.vOffset += computeMipmapOffsetV(h, level);
+    packing.width = 1 << (w-level);
+    packing.height = 1 << (h-level);
+#endif
+    return packing;
+}
+
 vec4 PTexLookupNearest(vec4 patchCoord,
                        sampler2DArray data,
                        isamplerBuffer packings)
 {
     vec2 uv = patchCoord.xy;
     int faceID = int(patchCoord.w);
-    int page = texelFetch(packings, faceID*6).x;
-    int uOffset = texelFetch(packings, faceID*6+2).x;
-    int vOffset = texelFetch(packings, faceID*6+3).x;
-    int width   = texelFetch(packings, faceID*6+4).x;
-    int height  = texelFetch(packings, faceID*6+5).x;
-
-    vec2 coords = vec2(uv.x * width + uOffset, uv.y * height + vOffset);
-
-    return texelFetch(data, ivec3(int(coords.x), int(coords.y), page), 0);
+    PtexPacking ppack = getPtexPacking(packings, faceID);
+    vec2 coords = vec2(uv.x * ppack.width + ppack.uOffset,
+                       uv.y * ppack.height + ppack.vOffset);
+    return texelFetch(data, ivec3(int(coords.x), int(coords.y), ppack.page), 0);
 }
 
 vec4 PTexLookupFast(vec4 patchCoord,
@@ -64,17 +131,12 @@ vec4 PTexLookupFast(vec4 patchCoord,
 {
     vec2 uv = patchCoord.xy;
     int faceID = int(patchCoord.w);
-    int page = texelFetch(packings, faceID*6).x;
-    int uOffset = texelFetch(packings, faceID*6+2).x;
-    int vOffset = texelFetch(packings, faceID*6+3).x;
-    int width   = texelFetch(packings, faceID*6+4).x;
-    int height  = texelFetch(packings, faceID*6+5).x;
+    PtexPacking ppack = getPtexPacking(packings, faceID);
 
     ivec3 size = textureSize(data, 0);
-    vec2 coords = vec2((uv.x * width + uOffset)/size.x,
-                       (uv.y * height + vOffset)/size.y);
-
-    return texture(data, vec3(coords.x, coords.y, page));
+    vec2 coords = vec2((uv.x * ppack.width + ppack.uOffset)/size.x,
+                       (uv.y * ppack.height + ppack.vOffset)/size.y);
+    return texture(data, vec3(coords.x, coords.y, ppack.page));
 }
 
 vec4 PTexLookup(vec4 patchCoord,
@@ -84,28 +146,10 @@ vec4 PTexLookup(vec4 patchCoord,
 {
     vec2 uv = patchCoord.xy;
     int faceID = int(patchCoord.w);
+    PtexPacking ppack = getPtexPacking(packings, faceID, level);
 
-    int page    = texelFetch(packings, faceID*6).x;
-    int nMipmap = texelFetch(packings, faceID*6+1).x;
-    int uOffset = texelFetch(packings, faceID*6+2).x;
-    int vOffset = texelFetch(packings, faceID*6+3).x;
-    int width   = texelFetch(packings, faceID*6+4).x;
-    int height  = texelFetch(packings, faceID*6+5).x;
-
-    // clamp max level
-    level = min(level, nMipmap);
-
-    // offset mipmap location (slow!)
-    for (int i = 1; i <= level; ++i) {
-        if ((i & 1) == 1) uOffset += width + 2;
-        else vOffset += height + 2;
-
-        width /= 2;
-        height /= 2;
-    }
-
-    vec2 coords = vec2(uv.x * width + uOffset,
-                       uv.y * height + vOffset);
+    vec2 coords = vec2(uv.x * ppack.width + ppack.uOffset,
+                       uv.y * ppack.height + ppack.vOffset);
 
     coords -= vec2(0.5, 0.5);
 
@@ -117,10 +161,10 @@ vec4 PTexLookup(vec4 patchCoord,
     float t = coords.x - float(c0X);
     float s = coords.y - float(c0Y);
 
-    vec4 d0 = texelFetch(data, ivec3(c0X, c0Y, page), 0);
-    vec4 d1 = texelFetch(data, ivec3(c0X, c1Y, page), 0);
-    vec4 d2 = texelFetch(data, ivec3(c1X, c0Y, page), 0);
-    vec4 d3 = texelFetch(data, ivec3(c1X, c1Y, page), 0);
+    vec4 d0 = texelFetch(data, ivec3(c0X, c0Y, ppack.page), 0);
+    vec4 d1 = texelFetch(data, ivec3(c0X, c1Y, ppack.page), 0);
+    vec4 d2 = texelFetch(data, ivec3(c1X, c0Y, ppack.page), 0);
+    vec4 d3 = texelFetch(data, ivec3(c1X, c1Y, ppack.page), 0);
 
     vec4 result = (1-t) * ((1-s)*d0 + s*d1) + t * ((1-s)*d2 + s*d3);
 
@@ -143,34 +187,16 @@ void EvalQuadraticBSpline(float u, out float B[3], out float BU[3])
 vec4 PTexLookupQuadratic(out vec4 du,
                          out vec4 dv,
                          vec4 patchCoord,
-                         float level,
+                         int level,
                          sampler2DArray data,
                          isamplerBuffer packings)
 {
     vec2 uv = patchCoord.xy;
     int faceID = int(patchCoord.w);
+    PtexPacking ppack = getPtexPacking(packings, faceID, level);
 
-    int page    = texelFetch(packings, faceID*6).x;
-    int nMipmap = texelFetch(packings, faceID*6+1).x;
-    int uOffset = texelFetch(packings, faceID*6+2).x;
-    int vOffset = texelFetch(packings, faceID*6+3).x;
-    int width   = texelFetch(packings, faceID*6+4).x;
-    int height  = texelFetch(packings, faceID*6+5).x;
-
-    // clamp max level
-    level = min(level, nMipmap);
-
-    // offset mipmap location (slow!)
-    for (int i = 1; i <= level; ++i) {
-        if ((i & 1) == 1) uOffset += width + 2;
-        else vOffset += height + 2;
-
-        width /= 2;
-        height /= 2;
-    }
-
-    vec2 coords = vec2(uv.x * width + uOffset,
-                       uv.y * height + vOffset);
+    vec2 coords = vec2(uv.x * ppack.width + ppack.uOffset,
+                       uv.y * ppack.height + ppack.vOffset);
 
     coords -= vec2(0.5, 0.5);
 
@@ -183,15 +209,15 @@ vec4 PTexLookupQuadratic(out vec4 du,
     // ---------------------------
 
     vec4 d[9];
-    d[0] = texelFetch(data, ivec3(cX-1, cY-1, page), 0);
-    d[1] = texelFetch(data, ivec3(cX-1, cY-0, page), 0);
-    d[2] = texelFetch(data, ivec3(cX-1, cY+1, page), 0);
-    d[3] = texelFetch(data, ivec3(cX-0, cY-1, page), 0);
-    d[4] = texelFetch(data, ivec3(cX-0, cY-0, page), 0);
-    d[5] = texelFetch(data, ivec3(cX-0, cY+1, page), 0);
-    d[6] = texelFetch(data, ivec3(cX+1, cY-1, page), 0);
-    d[7] = texelFetch(data, ivec3(cX+1, cY-0, page), 0);
-    d[8] = texelFetch(data, ivec3(cX+1, cY+1, page), 0);
+    d[0] = texelFetch(data, ivec3(cX-1, cY-1, ppack.page), 0);
+    d[1] = texelFetch(data, ivec3(cX-1, cY-0, ppack.page), 0);
+    d[2] = texelFetch(data, ivec3(cX-1, cY+1, ppack.page), 0);
+    d[3] = texelFetch(data, ivec3(cX-0, cY-1, ppack.page), 0);
+    d[4] = texelFetch(data, ivec3(cX-0, cY-0, ppack.page), 0);
+    d[5] = texelFetch(data, ivec3(cX-0, cY+1, ppack.page), 0);
+    d[6] = texelFetch(data, ivec3(cX+1, cY-1, ppack.page), 0);
+    d[7] = texelFetch(data, ivec3(cX+1, cY-0, ppack.page), 0);
+    d[8] = texelFetch(data, ivec3(cX+1, cY+1, ppack.page), 0);
 
     float B[3], D[3];
     vec4 BUCP[3], DUCP[3];
@@ -218,8 +244,8 @@ vec4 PTexLookupQuadratic(out vec4 du,
         dv += B[i] * DUCP[i];
     }
 
-    du *= width;
-    dv *= height;
+    du *= ppack.width;
+    dv *= ppack.height;
 
     return result;
 }

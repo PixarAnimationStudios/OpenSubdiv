@@ -1858,7 +1858,6 @@ static void
 callbackKernel(int k)
 {
     g_kernel = k;
-    createOsdMesh(g_level, g_kernel);
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     if (g_kernel == kCL and g_clContext == NULL) {
@@ -1869,6 +1868,8 @@ callbackKernel(int k)
         }
     }
 #endif
+
+    createOsdMesh(g_level, g_kernel);
 }
 
 static void

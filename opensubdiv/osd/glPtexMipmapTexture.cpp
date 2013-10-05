@@ -80,7 +80,7 @@ OsdGLPtexMipmapTexture::Create(PtexTexture * reader, int maxLevels)
     int numFaces = loader.GetNumFaces();
 
     GLuint layout = genTextureBuffer(GL_R16I,
-                                     numFaces * 6 * sizeof(GLshort),
+                                     numFaces * 5 * sizeof(GLshort),
                                      loader.GetLayoutBuffer());
 
     GLenum format, type;

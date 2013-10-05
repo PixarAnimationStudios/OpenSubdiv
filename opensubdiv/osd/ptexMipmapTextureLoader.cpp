@@ -611,8 +611,8 @@ OsdPtexMipmapTextureLoader::OsdPtexMipmapTextureLoader(PtexTexture *ptex,
         int w = faceInfo.res.u();
         int h = faceInfo.res.v();
 
-        _blocks[i].texWidth = w;
-        _blocks[i].texHeight = h;
+        _blocks[i].ulog2 = faceInfo.res.ulog2;
+        _blocks[i].vlog2 = faceInfo.res.vlog2;
 
         // XXX: each face must have at least 2x2 texels
         w = w + w/2 + 4;
@@ -713,8 +713,8 @@ OsdPtexMipmapTextureLoader::generateBuffers()
     //     unsigned short nMipmap;
     //     unsigned short u;
     //     unsigned short v;
-    //     unsigned short width;
-    //     unsigned short height;
+    //     unsigned char  width log2;
+    //     unsigned char  height log2;
     // };
 
     int numFaces = (int)_blocks.size();
@@ -733,19 +733,18 @@ OsdPtexMipmapTextureLoader::generateBuffers()
     }
 
     // populate the layout texture buffer
-    _layoutBuffer = new unsigned char[numFaces * sizeof(short) * 6];
+    _layoutBuffer = new unsigned char[numFaces * sizeof(short) * 5];
     for (int i = 0; i < numPages; ++i) {
         Page *page = _pages[i];
         for (Page::BlockList::const_iterator it = page->GetBlocks().begin();
              it != page->GetBlocks().end(); ++it) {
             int ptexIndex = (*it)->index;
-            unsigned short *p = (unsigned short*)(_layoutBuffer + sizeof(short)*6*ptexIndex);
+            unsigned short *p = (unsigned short*)(_layoutBuffer + sizeof(short)*5*ptexIndex);
             *p++ = i; // page
             *p++ = (*it)->nMipmaps-1;
             *p++ = (*it)->u+1;
             *p++ = (*it)->v+1;
-            *p++ = (*it)->texWidth;
-            *p++ = (*it)->texHeight;
+            *p++ = ((*it)->ulog2 << 8) | (*it)->vlog2;
         }
     }
 

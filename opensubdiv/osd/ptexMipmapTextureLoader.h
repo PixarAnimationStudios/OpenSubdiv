@@ -96,7 +96,7 @@ private:
         int nMipmaps;
         unsigned short u, v;             // top-left texel offset
         unsigned short width, height;    // texel dimension (includes mipmap)
-        unsigned short texWidth, texHeight;  // texel dimension (original tile)
+        unsigned char  ulog2, vlog2;     // texel dimension log2 (original tile)
 
         void Generate(PtexTexture *ptex, unsigned char *destination,
                       int bpp, int width, int maxLevels);
