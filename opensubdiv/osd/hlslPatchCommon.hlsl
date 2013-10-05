@@ -136,16 +136,16 @@ Buffer<int2> OsdPatchParamBuffer : register( t3 );
 #define GetPatchLevel(primitiveID)                                      \
         (OsdPatchParamBuffer[primitiveID + PrimitiveIdBase].y & 0xf)
 
-#define OSD_COMPUTE_PTEX_COORD_HULL_SHADER                              \
-    {                                                                   \
-        int2 ptexIndex = OsdPatchParamBuffer[ID + PrimitiveIdBase].xy;  \
-        int faceID = ptexIndex.x;                                       \
-        int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1)); \
-        int u = (ptexIndex.y >> 17) & 0x3ff;                            \
-        int v = (ptexIndex.y >> 7) & 0x3ff;                             \
-        int rotation = (ptexIndex.y >> 5) & 0x3;                        \
-        output.patchCoord.w = faceID+0.5;                               \
-        output.ptexInfo = int4(u, v, lv, rotation);                     \
+#define OSD_COMPUTE_PTEX_COORD_HULL_SHADER                                    \
+    {                                                                         \
+        int2 ptexIndex = OsdPatchParamBuffer[primitiveID+PrimitiveIdBase].xy; \
+        int faceID = ptexIndex.x;                                             \
+        int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1));       \
+        int u = (ptexIndex.y >> 17) & 0x3ff;                                  \
+        int v = (ptexIndex.y >> 7) & 0x3ff;                                   \
+        int rotation = (ptexIndex.y >> 5) & 0x3;                              \
+        output.patchCoord.w = faceID+0.5;                                     \
+        output.ptexInfo = int4(u, v, lv, rotation);                           \
     }
 
 #define OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER                            \
