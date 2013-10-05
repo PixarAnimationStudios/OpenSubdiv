@@ -62,6 +62,9 @@ endif()
 
 if(DXSDK_FOUND)
    add_subdirectory(dxViewer)
+   if(PTEX_FOUND)
+       add_subdirectory(dxPtexViewer)
+   endif()
 endif()
 
 # XXXX manuelk : turning off the maya plugin examples for now
