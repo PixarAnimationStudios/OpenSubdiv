@@ -49,8 +49,6 @@ namespace OsdUtil {
     template <typename DRAW_ITEM_COLLECTION, typename DRAW_DELEGATE>
     void DrawCollection(DRAW_ITEM_COLLECTION const &items, DRAW_DELEGATE *delegate) {
 
-        typedef typename DRAW_ITEM_COLLECTION::value_type DrawItem;
-
         delegate->Begin();
     
         // iterate over DrawItemCollection
