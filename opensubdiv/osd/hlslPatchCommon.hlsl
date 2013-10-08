@@ -56,9 +56,14 @@ struct OutputVertex {
     float4 positionOut : SV_Position;
     float4 position : POSITION1;
     float3 normal : NORMAL;
-    float3 tangent : TANGENT;
+    float3 tangent : TANGENT0;
+    float3 bitangent : TANGENT1;
     float4 patchCoord : PATCHCOORD; // u, v, level, faceID
     noperspective float4 edgeDistance : EDGEDISTANCE;
+#if defined(OSD_COMPUTE_NORMAL_DERIVATIVES)
+    float3 Nu : TANGENT2;
+    float3 Nv : TANGENT3;
+#endif
 };
 
 struct GregHullVertex {
@@ -161,19 +166,50 @@ Buffer<int2> OsdPatchParamBuffer : register( t3 );
         output.patchCoord.xy = (uv * float2(1.0,1.0)/lv) + float2(p.x, p.y)/lv; \
     }
 
-#define OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(ROTATE)             \
-    {                                                           \
-        int rot = (patch[0].ptexInfo.w + 4 - ROTATE)%4;         \
-        if (rot == 1) {                                         \
-            output.tangent = -normalize(BiTangent);             \
-        } else if (rot == 2) {                                  \
-            output.tangent = -normalize(Tangent);               \
-        } else if (rot == 3) {                                  \
-            output.tangent = normalize(BiTangent);              \
-        } else {                                                \
-            output.tangent = normalize(Tangent);                \
-        }                                                       \
+#define OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(ROTATE)                 \
+    {                                                               \
+        int rot = (patch[0].ptexInfo.w + 4 - ROTATE)%4;             \
+        if (rot == 1) {                                             \
+            output.tangent = -BiTangent;                            \
+            output.bitangent = Tangent;                             \
+        } else if (rot == 2) {                                      \
+            output.tangent = -Tangent;                              \
+            output.bitangent = -BiTangent;                          \
+        } else if (rot == 3) {                                      \
+            output.tangent = BiTangent;                             \
+            output.bitangent = -Tangent;                            \
+        } else {                                                    \
+            output.tangent = Tangent;                               \
+            output.bitangent = BiTangent;                           \
+        }                                                           \
     }
+
+#define OSD_COMPUTE_PTEX_COMPATIBLE_DERIVATIVES(ROTATE)             \
+    {                                                               \
+        int rot = (patch[0].ptexInfo.w + 4 - ROTATE)%4;             \
+        if (rot == 1) {                                             \
+            output.tangent = -BiTangent;                            \
+            output.bitangent = Tangent;                             \
+            output.Nu = -Nv;                                        \
+            output.Nv = Nv;                                         \
+        } else if (rot == 2) {                                      \
+            output.tangent = -Tangent;                              \
+            output.bitangent = -BiTangent;                          \
+            output.Nu = -Nu;                                        \
+            output.Nv = -Nv;                                        \
+        } else if (rot == 3) {                                      \
+            output.tangent = BiTangent;                             \
+            output.bitangent = -Tangent;                            \
+            output.Nu = Nv;                                         \
+            output.Nv = -Nu;                                        \
+        } else {                                                    \
+            output.tangent = Tangent;                               \
+            output.bitangent = BiTangent;                           \
+            output.Nu = Nu;                                         \
+            output.Nv = Nv;                                         \
+        }                                                           \
+    }
+
 
 #ifdef OSD_ENABLE_PATCH_CULL
 
@@ -221,3 +257,52 @@ Buffer<int2> OsdPatchParamBuffer : register( t3 );
 #define OSD_PATCH_CULL_TRIANGLE(N)
 #endif
 
+void Univar4x4(in float u, out float B[4], out float D[4])
+{
+    float t = u;
+    float s = 1.0f - u;
+
+    float A0 =     s * s;
+    float A1 = 2 * s * t;
+    float A2 = t * t;
+
+    B[0] =          s * A0;
+    B[1] = t * A0 + s * A1;
+    B[2] = t * A1 + s * A2;
+    B[3] = t * A2;
+
+    D[0] =    - A0;
+    D[1] = A0 - A1;
+    D[2] = A1 - A2;
+    D[3] = A2;
+}
+
+void
+Univar4x4(in float u, out float B[4], out float D[4], out float C[4])
+{
+    float t = u;
+    float s = 1.0f - u;
+
+    float A0 = s * s;
+    float A1 = 2 * s * t;
+    float A2 = t * t;
+
+    B[0] = s * A0;
+    B[1] = t * A0 + s * A1;
+    B[2] = t * A1 + s * A2;
+    B[3] = t * A2;
+
+    D[0] =    - A0;
+    D[1] = A0 - A1;
+    D[2] = A1 - A2;
+    D[3] = A2;
+
+    A0 =   - s;
+    A1 = s - t;
+    A2 = t;
+
+    C[0] =    - A0;
+    C[1] = A0 - A1;
+    C[2] = A1 - A2;
+    C[3] = A2;
+}
