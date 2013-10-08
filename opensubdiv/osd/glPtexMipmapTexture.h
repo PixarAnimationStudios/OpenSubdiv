@@ -38,7 +38,8 @@ namespace OPENSUBDIV_VERSION {
 class OsdGLPtexMipmapTexture : OsdNonCopyable<OsdGLPtexMipmapTexture> {
 public:
     static OsdGLPtexMipmapTexture * Create(PtexTexture * reader,
-                                           int maxLevels=10);
+                                           int maxLevels=-1,
+                                           size_t targetMemory=0);
 
     /// Returns the texture buffer containing the layout of the ptex faces
     /// in the texels texture array.
@@ -46,6 +47,9 @@ public:
 
     /// Returns the texels texture array.
     GLuint GetTexelsTexture() const { return _texels; }
+
+    /// Returns the amount of allocated memory (in byte)
+    size_t GetMemoryUsage() const { return _memoryUsage; }
 
     ~OsdGLPtexMipmapTexture();
 
@@ -60,6 +64,8 @@ private:
 
     GLuint _layout,   // per-face lookup table
            _texels;   // texel data
+
+    size_t _memoryUsage;  // total amount of memory used (estimate)
 };
 
 }  // end namespace OPENSUBDIV_VERSION

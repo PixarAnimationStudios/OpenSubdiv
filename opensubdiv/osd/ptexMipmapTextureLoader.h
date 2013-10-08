@@ -37,7 +37,10 @@ namespace OPENSUBDIV_VERSION {
 class OsdPtexMipmapTextureLoader {
 public:
     OsdPtexMipmapTextureLoader(PtexTexture *ptex,
-                               int maxNumPages, int maxLevels=10);
+                               int maxNumPages,
+                               int maxLevels = -1,
+                               size_t targetMemory = 0);
+
     ~OsdPtexMipmapTextureLoader();
 
     const unsigned char * GetLayoutBuffer() const {
@@ -57,6 +60,9 @@ public:
     }
     int GetPageHeight() const {
         return _pageHeight;
+    }
+    size_t GetMemoryUsage() const {
+        return _memoryUsage;
     }
 
 /*
@@ -104,16 +110,36 @@ private:
         void guttering(PtexTexture *ptex, int level, int width, int height,
                        unsigned char *pptr, int bpp, int stride);
 
+        void SetSize(unsigned char ulog2_, unsigned char vlog2_, bool mipmap) {
+            ulog2 = ulog2_;
+            vlog2 = vlog2_;
+
+            int w = 1 << ulog2;
+            int h = 1 << vlog2;
+
+            // includes mipmap
+            if (mipmap) {
+                w = w + w/2 + 4;
+                h = h + 2;
+            }
+
+            width = w;
+            height = h;
+        }
+        int GetNumTexels() const {
+            return width*height;
+        }
+
         static bool sort(const Block *a, const Block *b) {
             return (a->height > b->height) or
-                ((a->height == b->height) and (a->width > b->width));
+                   ((a->height == b->height) and (a->width > b->width));
         }
     };
 
     struct Page;
 
     void generateBuffers();
-    void optimizePacking(int maxNumPages);
+    void optimizePacking(int maxNumPages, size_t targetMemory);
 
     std::vector<Block> _blocks;
     std::vector<Page *> _pages;
@@ -125,6 +151,8 @@ private:
 
     unsigned char *_texelBuffer;
     unsigned char *_layoutBuffer;
+
+    size_t _memoryUsage;
 };
 
 
