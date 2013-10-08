@@ -26,6 +26,11 @@ struct OutputPointVertex {
     float4 positionOut : SV_Position;
 };
 
+cbuffer Config : register( b3 ) {
+    float displacementScale;
+    float mipmapBias;
+};
+
 struct PtexPacking
 {
     int page;
@@ -131,6 +136,85 @@ float4 PTexLookup(float4 patchCoord,
     return result;
 }
 
+// quadratic
+
+void EvalQuadraticBSpline(float u, out float B[3], out float BU[3])
+{
+    B[0] = 0.5 * (u*u - 2.0*u + 1);
+    B[1] = 0.5 + u - u*u;
+    B[2] = 0.5 * u*u;
+
+    BU[0] = u - 1.0;
+    BU[1] = 1 - 2 * u;
+    BU[2] = u;
+}
+
+float4 PTexLookupQuadratic(out float4 du,
+                           out float4 dv,
+                           float4 patchCoord,
+                           int level,
+                           Texture2DArray data,
+                           Buffer<int> packings)
+{
+    float2 uv = patchCoord.xy;
+    int faceID = int(patchCoord.w);
+    PtexPacking ppack = getPtexPacking(packings, faceID, level);
+
+    float2 coords = float2(uv.x * ppack.width + ppack.uOffset,
+                           uv.y * ppack.height + ppack.vOffset);
+
+    coords -= float2(0.5, 0.5);
+
+    int cX = int(round(coords.x));
+    int cY = int(round(coords.y));
+
+    float x = 0.5 - (float(cX) - coords.x);
+    float y = 0.5 - (float(cY) - coords.y);
+
+    // ---------------------------
+
+    float4 d[9];
+    d[0] = data[int3(cX-1, cY-1, ppack.page)];
+    d[1] = data[int3(cX-1, cY-0, ppack.page)];
+    d[2] = data[int3(cX-1, cY+1, ppack.page)];
+    d[3] = data[int3(cX-0, cY-1, ppack.page)];
+    d[4] = data[int3(cX-0, cY-0, ppack.page)];
+    d[5] = data[int3(cX-0, cY+1, ppack.page)];
+    d[6] = data[int3(cX+1, cY-1, ppack.page)];
+    d[7] = data[int3(cX+1, cY-0, ppack.page)];
+    d[8] = data[int3(cX+1, cY+1, ppack.page)];
+
+    float B[3], D[3];
+    float4 BUCP[3], DUCP[3];
+    EvalQuadraticBSpline(y, B, D);
+
+    for (int i = 0; i < 3; ++i) {
+        BUCP[i] = float4(0, 0, 0, 0);
+        DUCP[i] = float4(0, 0, 0, 0);
+        for (int j = 0; j < 3; j++) {
+            float4 A = d[i*3+j];
+            BUCP[i] += A * B[j];
+            DUCP[i] += A * D[j];
+        }
+    }
+
+    EvalQuadraticBSpline(x, B, D);
+
+    float4 result = float4(0, 0, 0, 0);
+    du = float4(0, 0, 0, 0);
+    dv = float4(0, 0, 0, 0);
+    for (int i = 0; i < 3; ++i) {
+        result += B[i] * BUCP[i];
+        du += D[i] * BUCP[i];
+        dv += B[i] * DUCP[i];
+    }
+
+    du *= ppack.width;
+    dv *= ppack.height;
+
+    return result;
+}
+
 float4 PTexMipmapLookup(float4 patchCoord,
                         float level,
                         Texture2DArray data,
@@ -146,6 +230,85 @@ float4 PTexMipmapLookup(float4 patchCoord,
         + t * PTexLookup(patchCoord, levelp, data, packings);
     return result;
 }
+
+float4 PTexMipmapLookupQuadratic(out float4 du,
+                                 out float4 dv,
+                                 float4 patchCoord,
+                                 float level,
+                                 Texture2DArray data,
+                                 Buffer<int> packings)
+{
+    // TODO take into account difflevel
+
+    int levelm = int(floor(level));
+    int levelp = int(ceil(level));
+    float t = level - float(levelm);
+
+    float4 du0, du1, dv0, dv1;
+    float4 r0 = PTexLookupQuadratic(du0, dv0, patchCoord, levelm, data, packings);
+    float4 r1 = PTexLookupQuadratic(du1, dv1, patchCoord, levelp, data, packings);
+
+    float4 result = lerp(r0, r1, t);
+    du = lerp(du0, du1, t);
+    dv = lerp(dv0, dv1, t);
+
+    return result;
+}
+
+float4 PTexMipmapLookupQuadratic(float4 patchCoord,
+                                 float level,
+                                 Texture2DArray data,
+                                 Buffer<int> packings)
+{
+    float4 du, dv;
+    return PTexMipmapLookupQuadratic(du, dv, patchCoord, level, data, packings);
+}
+
+// ---------------------------------------------------------------------------
+
+#if    defined(DISPLACEMENT_HW_BILINEAR)        \
+    || defined(DISPLACEMENT_BILINEAR)           \
+    || defined(DISPLACEMENT_BIQUADRATIC)        \
+    || defined(NORMAL_HW_SCREENSPACE)           \
+    || defined(NORMAL_SCREENSPACE)              \
+    || defined(NORMAL_BIQUADRATIC)              \
+    || defined(NORMAL_BIQUADRATIC_WG)
+
+Texture2DArray textureDisplace_Data : register(t6);
+Buffer<int> textureDisplace_Packing : register(t7);
+#endif
+
+#if defined(DISPLACEMENT_HW_BILINEAR) \
+    || defined(DISPLACEMENT_BILINEAR) \
+    || defined(DISPLACEMENT_BIQUADRATIC)
+
+#undef OSD_DISPLACEMENT_CALLBACK
+#define OSD_DISPLACEMENT_CALLBACK              \
+    output.position =                          \
+        displacement(output.position,          \
+                     output.normal,            \
+                     output.patchCoord);
+
+float4 displacement(float4 position, float3 normal, float4 patchCoord)
+{
+#if defined(DISPLACEMENT_HW_BILINEAR)
+    float disp = PTexLookupFast(patchCoord,
+                                textureDisplace_Data,
+                                textureDisplace_Packing).x;
+#elif defined(DISPLACEMENT_BILINEAR)
+    float disp = PTexMipmapLookup(patchCoord, mipmapBias,
+                                  textureDisplace_Data,
+                                  textureDisplace_Packing).x;
+#elif defined(DISPLACEMENT_BIQUADRATIC)
+    float disp = PTexMipmapLookupQuadratic(patchCoord, mipmapBias,
+                                           textureDisplace_Data,
+                                           textureDisplace_Packing).x;
+#endif
+    return position + float4(disp*normal, 0) * displacementScale;
+}
+#endif
+
+
 
 // ---------------------------------------------------------------------------
 //  Vertex Shader
@@ -299,8 +462,6 @@ struct LightSource {
 
 cbuffer Lighting : register( b2 ) {
     LightSource lightSource[NUM_LIGHTS];
-    float displacementScale;
-    float mipmapBias;
 };
 
 float4
@@ -362,15 +523,57 @@ edgeColor(float4 Cfill, float4 edgeDistance)
 //  Pixel Shader
 // ---------------------------------------------------------------------------
 
+#if defined(COLOR_PTEX_NEAREST) ||     \
+    defined(COLOR_PTEX_HW_BILINEAR) || \
+    defined(COLOR_PTEX_BILINEAR) ||    \
+    defined(COLOR_PTEX_BIQUADRATIC)
 Texture2DArray textureImage_Data : register(t4);
 Buffer<int> textureImage_Packing : register(t5);
+#endif
+
+#ifdef USE_PTEX_OCCLUSION
+Texture2DArray textureOcclusion_Data : register(t8);
+Buffer<int> textureOcclusion_Packing : register(t9);
+#endif
+
+#ifdef USE_PTEX_SPECULAR
+Texture2DArray textureSpecular_Data : register(t10);
+Buffer<int> textureSpecular_Packing : register(t11);
+#endif
 
 void
-ps_main( in OutputVertex input,
-         bool isFrontFacing : SV_IsFrontFace,
-         out float4 outColor : SV_Target )
+ps_main(in OutputVertex input,
+        out float4 outColor : SV_Target )
 {
-    float3 normal = (isFrontFacing ? input.normal : -input.normal);
+    // ------------ normal ---------------
+#if defined(NORMAL_HW_SCREENSPACE) || defined(NORMAL_SCREENSPACE)
+    float3 normal = perturbNormalFromDisplacement(input.position.xyz,
+                                                  input.normal,
+                                                  input.patchCoord);
+#elif defined(NORMAL_BIQUADRATIC) || defined(NORMAL_BIQUADRATIC_WG)
+    float4 du, dv;
+    float4 disp = PTexMipmapLookupQuadratic(du, dv, input.patchCoord,
+                                            mipmapBias,
+                                            textureDisplace_Data,
+                                            textureDisplace_Packing);
+
+    disp *= displacementScale;
+    du *= displacementScale;
+    dv *= displacementScale;
+
+    float3 n = normalize(cross(input.tangent, input.bitangent));
+    float3 tangent = input.tangent + n * du.x;
+    float3 bitangent = input.bitangent + n * dv.x;
+
+#if defined(NORMAL_BIQUADRATIC_WG)
+    tangent += input.Nu * disp.x;
+    bitangent += input.Nv * disp.x;
+#endif
+
+    float3 normal = normalize(cross(tangent, bitangent));
+#else
+    float3 normal = input.normal;
+#endif
 
     // ------------ color ---------------
 #if defined(COLOR_PTEX_NEAREST)
@@ -409,9 +612,24 @@ ps_main( in OutputVertex input,
 #endif
 
     // ------------ occlusion ---------------
+
+#ifdef USE_PTEX_OCCLUSION
+    float occ = PTexLookup(input.patchCoord,
+                           textureOcclusion_Data,
+                           textureOcclusion_Packing).x;
+#else
     float occ = 0.0;
+#endif
+
     // ------------ specular ---------------
+
+#ifdef USE_PTEX_SPECULAR
+    float specular = PTexLookup(input.patchCoord,
+                                textureSpecular_Data,
+                                textureSpecular_Packing).x;
+#else
     float specular = 1.0;
+#endif
     // ------------ lighting ---------------
     float4 Cf = lighting(texColor, input.position.xyz, normal, occ);
 

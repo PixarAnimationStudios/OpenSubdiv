@@ -235,6 +235,7 @@ ID3D11Texture2D * g_pDepthStencilBuffer = NULL;
 ID3D11Buffer* g_pcbPerFrame = NULL;
 ID3D11Buffer* g_pcbTessellation = NULL;
 ID3D11Buffer* g_pcbLighting = NULL;
+ID3D11Buffer* g_pcbConfig = NULL;
 ID3D11DepthStencilView* g_pDepthStencilView = NULL;
 
 bool g_bDone = false;
@@ -786,7 +787,7 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
         translate(pData->ModelViewMatrix, -g_pan[0], -g_pan[1], -g_dolly);
         rotate(pData->ModelViewMatrix, g_rotate[1], 1, 0, 0);
         rotate(pData->ModelViewMatrix, g_rotate[0], 0, 1, 0);
-        translate(pData->ModelViewMatrix, -g_center[0], -g_center[2], g_center[1]);
+        translate(pData->ModelViewMatrix, -g_center[0], -g_center[1], -g_center[2]);
 
         identity(pData->ProjectionMatrix);
         perspective(pData->ProjectionMatrix, 45.0, aspect, 0.01f, 500.0);
@@ -827,6 +828,36 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
         g_pd3dDeviceContext->Unmap( g_pcbTessellation, 0 );
     }
 
+    // Update config state
+    {
+        __declspec(align(16))
+            struct Config {
+                float displacementScale;
+                float mipmapBias;
+            };
+
+        if (! g_pcbConfig) {
+            D3D11_BUFFER_DESC cbDesc;
+            ZeroMemory(&cbDesc, sizeof(cbDesc));
+            cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+            cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+            cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+            cbDesc.MiscFlags = 0;
+            cbDesc.ByteWidth = sizeof(Config);
+            g_pd3dDevice->CreateBuffer(&cbDesc, NULL, &g_pcbConfig);
+        }
+        assert(g_pcbConfig);
+
+        D3D11_MAPPED_SUBRESOURCE MappedResource;
+        g_pd3dDeviceContext->Map(g_pcbConfig, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
+        Config * pData = ( Config* )MappedResource.pData;
+
+        pData->displacementScale = g_displacementScale;
+        pData->mipmapBias = g_mipmapBias;
+
+        g_pd3dDeviceContext->Unmap( g_pcbConfig, 0 );
+    }
+
     g_pd3dDeviceContext->IASetInputLayout(g_pInputLayout);
 
     g_pd3dDeviceContext->VSSetShader(config->vertexShader, NULL, 0);
@@ -836,11 +867,13 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
     g_pd3dDeviceContext->HSSetConstantBuffers(1, 1, &g_pcbTessellation);
     g_pd3dDeviceContext->DSSetShader(config->domainShader, NULL, 0);
     g_pd3dDeviceContext->DSSetConstantBuffers(0, 1, &g_pcbPerFrame);
+    g_pd3dDeviceContext->DSSetConstantBuffers(3, 1, &g_pcbConfig);
     g_pd3dDeviceContext->GSSetShader(config->geometryShader, NULL, 0);
     g_pd3dDeviceContext->GSSetConstantBuffers(0, 1, &g_pcbPerFrame);
     g_pd3dDeviceContext->PSSetShader(config->pixelShader, NULL, 0);
     g_pd3dDeviceContext->PSSetConstantBuffers(0, 1, &g_pcbPerFrame);
     g_pd3dDeviceContext->PSSetConstantBuffers(2, 1, &g_pcbLighting);
+    g_pd3dDeviceContext->PSSetConstantBuffers(3, 1, &g_pcbConfig);
 
     if (g_mesh->GetDrawContext()->vertexBufferSRV) {
         g_pd3dDeviceContext->VSSetShaderResources(0, 1, &g_mesh->GetDrawContext()->vertexBufferSRV);
@@ -859,6 +892,22 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
     g_pd3dDeviceContext->PSSetShaderResources(4, 1, g_osdPTexImage->GetTexelsSRV());
     g_pd3dDeviceContext->PSSetShaderResources(5, 1, g_osdPTexImage->GetLayoutSRV());
 
+    if (g_osdPTexDisplacement) {
+        g_pd3dDeviceContext->DSSetShaderResources(6, 1, g_osdPTexDisplacement->GetTexelsSRV());
+        g_pd3dDeviceContext->DSSetShaderResources(7, 1, g_osdPTexDisplacement->GetLayoutSRV());
+        g_pd3dDeviceContext->PSSetShaderResources(6, 1, g_osdPTexDisplacement->GetTexelsSRV());
+        g_pd3dDeviceContext->PSSetShaderResources(7, 1, g_osdPTexDisplacement->GetLayoutSRV());
+    }
+
+    if (g_osdPTexOcclusion) {
+        g_pd3dDeviceContext->PSSetShaderResources(8, 1, g_osdPTexOcclusion->GetTexelsSRV());
+        g_pd3dDeviceContext->PSSetShaderResources(9, 1, g_osdPTexOcclusion->GetLayoutSRV());
+    }
+
+    if (g_osdPTexSpecular) {
+        g_pd3dDeviceContext->PSSetShaderResources(10, 1, g_osdPTexSpecular->GetTexelsSRV());
+        g_pd3dDeviceContext->PSSetShaderResources(11, 1, g_osdPTexSpecular->GetLayoutSRV());
+    }
 }
 
 static void
@@ -1028,6 +1077,7 @@ quit() {
     SAFE_RELEASE(g_pcbPerFrame);
     SAFE_RELEASE(g_pcbTessellation);
     SAFE_RELEASE(g_pcbLighting);
+    SAFE_RELEASE(g_pcbConfig);
     SAFE_RELEASE(g_pDepthStencilView);
 
     SAFE_RELEASE(g_pSwapChainRTV);
@@ -1206,8 +1256,8 @@ initHUD()
     g_hud->AddCheckBox("Adaptive (`)", g_adaptive,
                        10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
 
-    g_hud->AddRadioButton(HUD_RB_SCHEME, "CATMARK", true, 10, 190, callbackScheme, 0);
-    g_hud->AddRadioButton(HUD_RB_SCHEME, "BILINEAR", false, 10, 210, callbackScheme, 1);
+    g_hud->AddRadioButton(HUD_RB_SCHEME, "CATMARK", true, 10, 190, callbackScheme, 0, 's');
+    g_hud->AddRadioButton(HUD_RB_SCHEME, "BILINEAR", false, 10, 210, callbackScheme, 1, 's');
 
     for (int i = 1; i < 8; ++i) {
         char level[16];
@@ -1279,7 +1329,7 @@ initHUD()
 
     g_hud->AddSlider("Mipmap Bias", 0, 5, 0,
                     -200, 450, 20, false, callbackSlider, 0);
-    g_hud->AddSlider("Displacementd", 0, 5, 1,
+    g_hud->AddSlider("Displacement", 0, 5, 1,
                     -200, 490, 20, false, callbackSlider, 1);
 
     if (g_osdPTexOcclusion != NULL) {
@@ -1377,8 +1427,6 @@ initD3D11(HWND hWnd)
             float diffuse[4];
             float specular[4];
         } lightSource[2];
-        float displacementScale;
-        float mipmapBias;
     } lightingData = {
         0.5, 0.2f, 1.0f, 0.0f,
         0.1f, 0.1f, 0.1f, 1.0f,
@@ -1389,11 +1437,7 @@ initD3D11(HWND hWnd)
         0.0f, 0.0f, 0.0f, 1.0f,
         0.5f, 0.5f, 0.5f, 1.0f,
         0.8f, 0.8f, 0.8f, 1.0f,
-        0.0f,
-        0.0f
     };
-
-    lightingData.mipmapBias = g_mipmapBias;
 
     D3D11_BUFFER_DESC cbDesc;
     ZeroMemory(&cbDesc, sizeof(cbDesc));
@@ -1573,7 +1617,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
     wcex.cbWndExtra     = 0;
     wcex.hInstance      = hInstance;
     wcex.hIcon          = NULL;
-    wcex.hCursor        = NULL;
+    wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
     wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
     wcex.lpszMenuName   = NULL;
     wcex.lpszClassName  = szWindowClass;
@@ -1643,12 +1687,18 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
 
     initD3D11(hWnd);
 
-    initHUD();
-
     createOsdMesh(g_level, g_kernel);
 
     // load ptex files
     g_osdPTexImage = createPtex(colorFilename);
+    if (displacementFilename)
+        g_osdPTexDisplacement = createPtex(displacementFilename);
+    if (occlusionFilename)
+        g_osdPTexOcclusion = createPtex(occlusionFilename);
+    if (specularFilename)
+        g_osdPTexSpecular = createPtex(specularFilename);
+
+    initHUD();
 
     fitFrame();
 
