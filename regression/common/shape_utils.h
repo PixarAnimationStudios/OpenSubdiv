@@ -412,7 +412,19 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
                 case 0 : mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryNone); break;
                 case 1 : mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner); break;
                 case 2 : mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly); break;
-                default: printf("unknown interpolation boundary : %d\n", t->intargs[0] ); break;
+                default: printf("unknown interpolate boundary : %d\n", t->intargs[0] ); break;
+            }
+        } else if (t->name=="facevaryinginterpolateboundary") {
+            if ((int)t->intargs.size()!=1) {
+                printf("expecting 1 integer for \"facevaryinginterpolateboundary\" tag n. %d\n", i);
+                continue;
+            }
+            switch( t->intargs[0] ) {
+                case 0 : mesh->SetFVarInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryNone); break;
+                case 1 : mesh->SetFVarInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner); break;
+                case 2 : mesh->SetFVarInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly); break;
+                case 3 : mesh->SetFVarInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryAlwaysSharp); break;
+                default: printf("unknown facevarying interpolate boundary : %d\n", t->intargs[0] ); break;
             }
         } else if (t->name=="facevaryingpropagatecorners") {
             if ((int)t->intargs.size()==1)
@@ -681,10 +693,10 @@ createMesh( Scheme scheme=kCatmark, int fvarwidth=0) {
   static OpenSubdiv::HbrLoopSubdivision<T>     _loop;
   static OpenSubdiv::HbrCatmarkSubdivision<T>  _catmark;
 
-  static int indices[1] = { 0 },
-             widths[1] = { 2 };
+  static int indices[2] = { 0, 1 },
+             widths[2] = { 1, 1 };
 
-  int const   fvarcount   = fvarwidth > 0 ? 1 : 0,
+  int const   fvarcount   = fvarwidth > 0 ? 2 : 0,
             * fvarindices = fvarwidth > 0 ? indices : NULL,
             * fvarwidths  = fvarwidth > 0 ? widths : NULL;
 
