@@ -37,6 +37,7 @@ struct PtexPacking
     int nMipmap;
     int uOffset;
     int vOffset;
+    int adjSizeDiffs[4];
     int width;
     int height;
 };
@@ -44,13 +45,20 @@ struct PtexPacking
 PtexPacking getPtexPacking(Buffer<int> packings, int faceID)
 {
     PtexPacking packing;
-    packing.page    = packings[faceID*5+0].x;
-    packing.nMipmap = packings[faceID*5+1].x;
-    packing.uOffset = packings[faceID*5+2].x;
-    packing.vOffset = packings[faceID*5+3].x;
-    int wh          = packings[faceID*5+4].x;
+    packing.page    = packings[faceID*6+0].x;
+    packing.nMipmap = packings[faceID*6+1].x;
+    packing.uOffset = packings[faceID*6+2].x;
+    packing.vOffset = packings[faceID*6+3].x;
+    int wh          = packings[faceID*6+5].x;
     packing.width   = 1 << (wh >> 8);
     packing.height  = 1 << (wh & 0xff);
+
+    int adjSizeDiffs = packings[faceID*6+4].x;
+    packing.adjSizeDiffs[0] = (adjSizeDiffs >> 12) & 0xf;
+    packing.adjSizeDiffs[1] = (adjSizeDiffs >> 8) & 0xf;
+    packing.adjSizeDiffs[2] = (adjSizeDiffs >> 4) & 0xf;
+    packing.adjSizeDiffs[3] = (adjSizeDiffs >> 0) & 0xf;
+
     return packing;
 }
 
@@ -73,11 +81,11 @@ int computeMipmapOffsetV(int h, int level)
 PtexPacking getPtexPacking(Buffer<int> packings, int faceID, int level)
 {
     PtexPacking packing;
-    packing.page    = packings[faceID*5+0].x;
-    packing.nMipmap = packings[faceID*5+1].x;
-    packing.uOffset = packings[faceID*5+2].x;
-    packing.vOffset = packings[faceID*5+3].x;
-    int wh          = packings[faceID*5+4].x;
+    packing.page    = packings[faceID*6+0].x;
+    packing.nMipmap = packings[faceID*6+1].x;
+    packing.uOffset = packings[faceID*6+2].x;
+    packing.vOffset = packings[faceID*6+3].x;
+    int wh          = packings[faceID*6+5].x;
     int w = wh >> 8;
     int h = wh & 0xff;
 
@@ -90,6 +98,7 @@ PtexPacking getPtexPacking(Buffer<int> packings, int faceID, int level)
     packing.height = 1 << (h-level);
 
     return packing;
+
 }
 
 float4 PTexLookupNearest(float4 patchCoord,
@@ -220,7 +229,15 @@ float4 PTexMipmapLookup(float4 patchCoord,
                         Texture2DArray data,
                         Buffer<int> packings)
 {
-    // TODO take into account difflevel
+#if defined(SEAMLESS_MIPMAP)
+    // diff level
+    int faceID = int(patchCoord.w);
+    float2 uv = patchCoord.xy;
+    PtexPacking packing = getPtexPacking(packings, faceID);
+    level += lerp(lerp(packing.adjSizeDiffs[0], packing.adjSizeDiffs[1], uv.x),
+                  lerp(packing.adjSizeDiffs[3], packing.adjSizeDiffs[2], uv.x),
+                  uv.y);
+#endif
 
     int levelm = int(floor(level));
     int levelp = int(ceil(level));
@@ -238,7 +255,15 @@ float4 PTexMipmapLookupQuadratic(out float4 du,
                                  Texture2DArray data,
                                  Buffer<int> packings)
 {
-    // TODO take into account difflevel
+#if defined(SEAMLESS_MIPMAP)
+    // diff level
+    int faceID = int(patchCoord.w);
+    float2 uv = patchCoord.xy;
+    PtexPacking packing = getPtexPacking(packings, faceID);
+    level += lerp(lerp(packing.adjSizeDiffs[0], packing.adjSizeDiffs[1], uv.x),
+                  lerp(packing.adjSizeDiffs[3], packing.adjSizeDiffs[2], uv.x),
+                  uv.y);
+#endif
 
     int levelm = int(floor(level));
     int levelp = int(ceil(level));

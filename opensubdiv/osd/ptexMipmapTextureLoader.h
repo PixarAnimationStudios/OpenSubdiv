@@ -27,6 +27,7 @@
 
 #include "../version.h"
 
+#include <stdint.h>
 #include <vector>
 
 class PtexTexture;
@@ -39,7 +40,8 @@ public:
     OsdPtexMipmapTextureLoader(PtexTexture *ptex,
                                int maxNumPages,
                                int maxLevels = -1,
-                               size_t targetMemory = 0);
+                               size_t targetMemory = 0,
+                               bool seamlessMipmap = true);
 
     ~OsdPtexMipmapTextureLoader();
 
@@ -98,37 +100,26 @@ public:
 
 private:
     struct Block {
-        int index;                       // ptex index
+        int index;                 // ptex index
         int nMipmaps;
-        unsigned short u, v;             // top-left texel offset
-        unsigned short width, height;    // texel dimension (includes mipmap)
-        unsigned char  ulog2, vlog2;     // texel dimension log2 (original tile)
+        uint16_t u, v;             // top-left texel offset
+        uint16_t width, height;    // texel dimension (includes mipmap)
+        uint16_t adjSizeDiffs;     // maximum tile size difference around each vertices
+        int8_t   ulog2, vlog2;     // texel dimension log2 (original tile)
 
-        void Generate(PtexTexture *ptex, unsigned char *destination,
+        void Generate(OsdPtexMipmapTextureLoader *loader, PtexTexture *ptex,
+                      unsigned char *destination,
                       int bpp, int width, int maxLevels);
 
-        void guttering(PtexTexture *ptex, int level, int width, int height,
-                       unsigned char *pptr, int bpp, int stride);
+        void SetSize(unsigned char ulog2_, unsigned char vlog2_, bool mipmap);
 
-        void SetSize(unsigned char ulog2_, unsigned char vlog2_, bool mipmap) {
-            ulog2 = ulog2_;
-            vlog2 = vlog2_;
-
-            int w = 1 << ulog2;
-            int h = 1 << vlog2;
-
-            // includes mipmap
-            if (mipmap) {
-                w = w + w/2 + 4;
-                h = h + 2;
-            }
-
-            width = w;
-            height = h;
-        }
         int GetNumTexels() const {
             return width*height;
         }
+
+        void guttering(OsdPtexMipmapTextureLoader *loader, PtexTexture *ptex,
+                       int level, int width, int height,
+                       unsigned char *pptr, int bpp, int stride);
 
         static bool sort(const Block *a, const Block *b) {
             return (a->height > b->height) or
@@ -137,9 +128,18 @@ private:
     };
 
     struct Page;
+    class CornerIterator;
 
     void generateBuffers();
     void optimizePacking(int maxNumPages, size_t targetMemory);
+    int  getLevelDiff(int face, int edge);
+    bool getCornerPixel(float *resultPixel, int numchannels,
+                        int face, int edge, int bpp, int8_t res);
+    void sampleNeighbor(unsigned char *border,
+                        int face, int edge, int length, int bpp);
+    int  resampleBorder(int face, int edgeId, unsigned char *result,
+                        int dstLength, int bpp,
+                        float srcStart = 0.0f, float srcEnd = 1.0f);
 
     std::vector<Block> _blocks;
     std::vector<Page *> _pages;

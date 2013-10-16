@@ -116,6 +116,7 @@ enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_PATCH_CULL,
                    HUD_CB_IBL,
                    HUD_CB_BLOOM,
+                   HUD_CB_SEAMLESS_MIPMAP,
                    HUD_CB_FREEZE };
 
 enum HudRadioGroup { HUD_RB_KERNEL,
@@ -187,6 +188,8 @@ bool  g_adaptive = true,
 // ptex switch
 bool  g_occlusion = false,
       g_specular = false;
+
+bool g_seamless = true;
 
 // camera
 float g_rotate[2] = {0, 0},
@@ -425,6 +428,7 @@ union Effect {
         int screenSpaceTess:1;
         int fractionalSpacing:1;
         int ibl:1;
+        int seamless:1;
     };
     int value;
 
@@ -563,6 +567,10 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc, ID3D11Device 
     } else {
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->pixelShader.AddDefine("PRIM_TRI");
+    }
+
+    if (effect.seamless) {
+        sconfig->commonShader.AddDefine("SEAMLESS_MIPMAP");
     }
 
     if (effect.wire == 0) {
@@ -973,6 +981,7 @@ drawModel()
         effect.fractionalSpacing = g_fractionalSpacing;
         effect.ibl = g_ibl;
         effect.wire = g_wire;
+        effect.seamless = g_seamless;
 
         bindProgram(effect, patch);
 
@@ -1213,6 +1222,9 @@ callbackCheckBox(bool checked, int button)
     case HUD_CB_IBL:
         g_ibl = checked;
         break;
+    case HUD_CB_SEAMLESS_MIPMAP:
+        g_seamless = checked;
+        break;
     case HUD_CB_FREEZE:
         g_freeze = checked;
         break;
@@ -1331,6 +1343,8 @@ initHUD()
                     -200, 450, 20, false, callbackSlider, 0);
     g_hud->AddSlider("Displacement", 0, 5, 1,
                     -200, 490, 20, false, callbackSlider, 1);
+    g_hud->AddCheckBox("Seamless Mipmap", g_seamless,
+                       -200, 530, callbackCheckBox, HUD_CB_SEAMLESS_MIPMAP, 'j');
 
     if (g_osdPTexOcclusion != NULL) {
         g_hud->AddCheckBox("Ambient Occlusion (A)", g_occlusion,

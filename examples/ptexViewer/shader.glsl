@@ -34,6 +34,7 @@ struct PtexPacking
     int nMipmap;
     int uOffset;
     int vOffset;
+    int adjSizeDiffs[4];
     int width;
     int height;
 };
@@ -54,13 +55,20 @@ vec4 GeneratePatchCoord(vec2 localUV, int primitiveID)  // for non-adpative
 PtexPacking getPtexPacking(isamplerBuffer packings, int faceID)
 {
     PtexPacking packing;
-    packing.page    = texelFetch(packings, faceID*5).x;
-    packing.nMipmap = texelFetch(packings, faceID*5+1).x;
-    packing.uOffset = texelFetch(packings, faceID*5+2).x;
-    packing.vOffset = texelFetch(packings, faceID*5+3).x;
-    int wh          = texelFetch(packings, faceID*5+4).x;
+    packing.page    = texelFetch(packings, faceID*6).x;
+    packing.nMipmap = texelFetch(packings, faceID*6+1).x;
+    packing.uOffset = texelFetch(packings, faceID*6+2).x;
+    packing.vOffset = texelFetch(packings, faceID*6+3).x;
+    int wh          = texelFetch(packings, faceID*6+5).x;
     packing.width   = 1 << (wh >> 8);
     packing.height  = 1 << (wh & 0xff);
+
+    int adjSizeDiffs = texelFetch(packings, faceID*6+4).x;
+    packing.adjSizeDiffs[0] = (adjSizeDiffs >> 12) & 0xf;
+    packing.adjSizeDiffs[1] = (adjSizeDiffs >> 8) & 0xf;
+    packing.adjSizeDiffs[2] = (adjSizeDiffs >> 4) & 0xf;
+    packing.adjSizeDiffs[3] = (adjSizeDiffs >> 0) & 0xf;
+
     return packing;
 }
 
@@ -83,11 +91,12 @@ int computeMipmapOffsetV(int h, int level)
 PtexPacking getPtexPacking(isamplerBuffer packings, int faceID, int level)
 {
     PtexPacking packing;
-    packing.page    = texelFetch(packings, faceID*5).x;
-    packing.nMipmap = texelFetch(packings, faceID*5+1).x;
-    packing.uOffset = texelFetch(packings, faceID*5+2).x;
-    packing.vOffset = texelFetch(packings, faceID*5+3).x;
-    int wh          = texelFetch(packings, faceID*5+4).x;
+    packing.page    = texelFetch(packings, faceID*6).x;
+    packing.nMipmap = texelFetch(packings, faceID*6+1).x;
+    packing.uOffset = texelFetch(packings, faceID*6+2).x;
+    packing.vOffset = texelFetch(packings, faceID*6+3).x;
+    int sizeDiffs   = texelFetch(packings, faceID*6+4).x;
+    int wh          = texelFetch(packings, faceID*6+5).x;
     int w = wh >> 8;
     int h = wh & 0xff;
 
@@ -120,6 +129,19 @@ vec4 PTexLookupNearest(vec4 patchCoord,
     vec2 uv = patchCoord.xy;
     int faceID = int(patchCoord.w);
     PtexPacking ppack = getPtexPacking(packings, faceID);
+    vec2 coords = vec2(uv.x * ppack.width + ppack.uOffset,
+                       uv.y * ppack.height + ppack.vOffset);
+    return texelFetch(data, ivec3(int(coords.x), int(coords.y), ppack.page), 0);
+}
+
+vec4 PTexLookupNearest(vec4 patchCoord,
+                       int level,
+                       sampler2DArray data,
+                       isamplerBuffer packings)
+{
+    vec2 uv = patchCoord.xy;
+    int faceID = int(patchCoord.w);
+    PtexPacking ppack = getPtexPacking(packings, faceID, level);
     vec2 coords = vec2(uv.x * ppack.width + ppack.uOffset,
                        uv.y * ppack.height + ppack.vOffset);
     return texelFetch(data, ivec3(int(coords.x), int(coords.y), ppack.page), 0);
@@ -255,7 +277,15 @@ vec4 PTexMipmapLookup(vec4 patchCoord,
                       sampler2DArray data,
                       isamplerBuffer packings)
 {
-    // TODO take into account difflevel
+#if defined(SEAMLESS_MIPMAP)
+    // diff level
+    int faceID = int(patchCoord.w);
+    vec2 uv = patchCoord.xy;
+    PtexPacking packing = getPtexPacking(packings, faceID);
+    level += mix(mix(packing.adjSizeDiffs[0], packing.adjSizeDiffs[1], uv.x),
+                 mix(packing.adjSizeDiffs[3], packing.adjSizeDiffs[2], uv.x),
+                 uv.y);
+#endif
 
     int levelm = int(floor(level));
     int levelp = int(ceil(level));
@@ -274,7 +304,15 @@ vec4 PTexMipmapLookupQuadratic(out vec4 du,
                                sampler2DArray data,
                                isamplerBuffer packings)
 {
-    // TODO take into account difflevel
+#if defined(SEAMLESS_MIPMAP)
+    // diff level
+    int faceID = int(patchCoord.w);
+    vec2 uv = patchCoord.xy;
+    PtexPacking packing = getPtexPacking(packings, faceID);
+    level += mix(mix(packing.adjSizeDiffs[0], packing.adjSizeDiffs[1], uv.x),
+                 mix(packing.adjSizeDiffs[3], packing.adjSizeDiffs[2], uv.x),
+                 uv.y);
+#endif
 
     int levelm = int(floor(level));
     int levelp = int(ceil(level));

@@ -101,7 +101,7 @@ OsdD3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
     int numFaces = loader.GetNumFaces();
 
     ID3D11Buffer *layout = genTextureBuffer(deviceContext,
-                                            numFaces * 5 * sizeof(short),
+                                            numFaces * 6 * sizeof(short),
                                             loader.GetLayoutBuffer());
     if (not layout) return NULL;
 
@@ -184,7 +184,7 @@ OsdD3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
     srvd.Format = DXGI_FORMAT_R16_UINT;
     srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
     srvd.Buffer.FirstElement = 0;
-    srvd.Buffer.NumElements = numFaces * 5;
+    srvd.Buffer.NumElements = numFaces * 6;
     hr = device->CreateShaderResourceView(layout, &srvd, &layoutSRV);
     if (FAILED(hr)) return NULL;
 
