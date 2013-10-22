@@ -187,7 +187,12 @@ public:
         if (fvarinfsharp) {
             const int fvarcount = GetMesh()->GetFVarCount();
             int fvarbitsSizePerEdge = ((fvarcount + 15) / 16);
-            memcpy(fvarinfsharp, edge->getFVarInfSharp(), fvarbitsSizePerEdge * sizeof(unsigned int));
+            
+            if (edge->IsSharp(true)) {
+                memset(fvarinfsharp, 0x55555555, fvarbitsSizePerEdge * sizeof(unsigned int));
+            } else {
+                memcpy(fvarinfsharp, edge->getFVarInfSharp(), fvarbitsSizePerEdge * sizeof(unsigned int));
+            }
         }
     }
 
@@ -663,6 +668,11 @@ HbrHalfedge<T>::GetFVarInfiniteSharp(int datum) {
 template <class T>
 bool
 HbrHalfedge<T>::IsFVarInfiniteSharpAnywhere() {
+
+    if (sharpness > k_Smooth) {
+        return true;
+    }
+
     for (int i = 0; i < GetMesh()->GetFVarCount(); ++i) {
         if (GetFVarInfiniteSharp(i)) return true;
     }
@@ -673,14 +683,13 @@ template <class T>
 float
 HbrHalfedge<T>::GetFVarSharpness(int datum, bool ignoreGeometry) {
 
-    bool infsharp = GetFVarInfiniteSharp(datum);
-
-    if (infsharp) return k_InfinitelySharp;
+    if (GetFVarInfiniteSharp(datum)) return k_InfinitelySharp;
 
     if (!ignoreGeometry) {
         // If it's a geometrically sharp edge it's going to be a
         // facevarying sharp edge too
         if (sharpness > k_Smooth) {
+            SetFVarInfiniteSharp(datum, true);
             return k_InfinitelySharp;
         }
     }
