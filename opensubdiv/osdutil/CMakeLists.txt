@@ -34,8 +34,26 @@ set(PUBLIC_HEADER_FILES
     batch.h
     drawItem.h
     drawController.h
+    mesh.h
+    refiner.h
 )
 
+add_library(osdutil
+    mesh.h
+    mesh.cpp
+    refiner.h
+    refiner.cpp    
+    ${INC_FILES}
+)
+
+set_target_properties(osdutil PROPERTIES OUTPUT_NAME osdutil CLEAN_DIRECT_OUTPUT 1)
+
+target_link_libraries(
+    osdutil    
+    ${PLATFORM_LIBRARIES}
+)
+        
+                
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
 
 #-------------------------------------------------------------------------------
