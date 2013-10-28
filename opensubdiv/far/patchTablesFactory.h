@@ -868,7 +868,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
             // feature adaptive refinement can generate un-connected face-vertices
             // that have a valence of 0
             if (not v->IsConnected()) {
-                assert( v->GetParentFace() );
+                //assert( v->GetParentFace() );
                 table[offset] = 0;
                 continue;
             }

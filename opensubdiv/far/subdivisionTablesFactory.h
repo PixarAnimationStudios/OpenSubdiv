@@ -53,7 +53,7 @@ protected:
     friend class FarLoopSubdivisionTablesFactory<T,U>;
 
     template <class X, class Y> friend class FarMeshFactory;
-    
+
     // This factory accumulates vertex topology data that will be shared among the
     // specialized subdivision scheme factories (Bilinear / Catmark / Loop).
     // It also populates the FarMeshFactory vertex remapping vector that ties the
@@ -61,8 +61,8 @@ protected:
     FarSubdivisionTablesFactory( HbrMesh<T> const * mesh, int maxlevel, std::vector<int> & remapTable );
 
     // Returns the number of coarse vertices found in the mesh
-    int GetNumCoarseVertices() const { 
-        return (int)(_vertVertsList[0].size()); 
+    int GetNumCoarseVertices() const {
+        return (int)(_vertVertsList[0].size());
     }
 
     // Total number of face vertices up to 'level'
@@ -83,7 +83,7 @@ protected:
     // Valence summation up to 'level'
     int GetFaceVertsValenceSum() const { return _faceVertsValenceSum; }
 
-    // Valence summation for face vertices 
+    // Valence summation for face vertices
     int GetVertVertsValenceSum() const { return _vertVertsValenceSum; }
 
     // Returns an integer based on the order in which the kernels are applied
@@ -96,7 +96,7 @@ protected:
 
     // Mumber of indices required for the face-vert and vertex-vert
     // iteration tables at each level
-    int _faceVertsValenceSum, 
+    int _faceVertsValenceSum,
         _vertVertsValenceSum;
 
     // lists of vertices sorted by type and level
@@ -110,29 +110,29 @@ private:
 
     template <class Type> static int sumList( std::vector<std::vector<Type> > const & list, int level );
 
-    // Sums the number of adjacent vertices required to interpolate a Vert-Vertex 
+    // Sums the number of adjacent vertices required to interpolate a Vert-Vertex
     static int sumVertVertexValence(HbrVertex<T> * vertex);
 
-    // Compares vertices based on their topological configuration 
+    // Compares vertices based on their topological configuration
     // (see subdivisionTables::GetMaskRanking for more details)
     static bool compareVertices( HbrVertex<T> const *x, HbrVertex<T> const *y );
 };
 
-template <class T, class U> 
+template <class T, class U>
 FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const * mesh, int maxlevel, std::vector<int> & remapTable ) :
     _faceVertIdx(maxlevel+1,0),
     _edgeVertIdx(maxlevel+1,0),
     _vertVertIdx(maxlevel+1,0),
-    _faceVertsValenceSum(0), 
+    _faceVertsValenceSum(0),
     _vertVertsValenceSum(0),
     _faceVertsList(maxlevel+1),
     _edgeVertsList(maxlevel+1),
     _vertVertsList(maxlevel+1)
  {
     assert( mesh );
-    
+
     int numVertices = mesh->GetNumVertices();
- 
+
     std::vector<int> faceCounts(maxlevel+1,0),
                      edgeCounts(maxlevel+1,0),
                      vertCounts(maxlevel+1,0);
@@ -144,6 +144,10 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
 
         HbrVertex<T> * v = mesh->GetVertex(i);
         assert(v);
+
+        if (not v->IsConnected()) {
+            continue;
+        }
 
         int depth = getVertexDepth( v );
 
@@ -192,6 +196,11 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
         HbrVertex<T> * v = mesh->GetVertex(i);
         assert(v);
 
+        if (not v->IsConnected()) {
+            remapTable[ v->GetID() ] = v->GetID();
+            continue;
+        }
+
         int depth = getVertexDepth( v );
 
         if (depth>maxlevel)
@@ -231,7 +240,7 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
 }
 
 
-template <class T, class U> int 
+template <class T, class U> int
 FarSubdivisionTablesFactory<T,U>::getVertexDepth(HbrVertex<T> * v) {
 
     if (v->IsConnected()) {
@@ -286,14 +295,14 @@ FarSubdivisionTablesFactory<T,U>::GetMaskRanking( unsigned char mask0, unsigned 
     return masks[mask0][mask1];
 }
 
-// Sums the number of adjacent vertices required to interpolate a Vert-Vertex 
-template <class T, class U> int 
+// Sums the number of adjacent vertices required to interpolate a Vert-Vertex
+template <class T, class U> int
 FarSubdivisionTablesFactory<T,U>::sumVertVertexValence(HbrVertex<T> * vertex) {
     int masks[2], npasses=1, result=0;
-    
+
     HbrVertex<T> * pv = vertex->GetParentVertex();
     assert(pv);
-    
+
     masks[0] = pv->GetMask(false);
     masks[1] = pv->GetMask(true);
 
