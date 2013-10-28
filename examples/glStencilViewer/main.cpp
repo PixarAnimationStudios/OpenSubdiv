@@ -432,12 +432,14 @@ createMesh( const std::string &shape, Scheme scheme=kCatmark ) {
 
     srand( static_cast<int>(2147483647) ); // use a large Pell prime number
 
+    // Generate set of random (u,v) locations for the face
+    float * u = new float[g_nsamples], 
+          * v = new float[g_nsamples];
+
     for (int i=0; i<nfaces; ++i) {
 
         HFace * f = mesh->GetFace(i);
 
-        // Generate set of random (u,v) locations for the face
-        float u[g_nsamples], v[g_nsamples];
         for (int j=0; j<g_nsamples; ++j) {
             u[j] = (float)rand()/(float)RAND_MAX;
             v[j] = (float)rand()/(float)RAND_MAX;
@@ -462,6 +464,9 @@ createMesh( const std::string &shape, Scheme scheme=kCatmark ) {
             }
         }
     }
+
+    delete [] u;
+    delete [] v;
 
     // Create control vertex buffer (layout: [ P(xyz) ] )
     delete g_controlValues;
