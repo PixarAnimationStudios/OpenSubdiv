@@ -25,7 +25,7 @@
 /* Basic Styles
 ________________________*/
 body {
-	background-color: #000000;
+	background: #000 url("../images/studio-tools.png") no-repeat;
 }
 a {
 	color: #FFCC03;
