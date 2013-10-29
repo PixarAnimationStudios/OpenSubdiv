@@ -55,7 +55,9 @@
 //     a particular purpose and non-infringement.
 //
 
-    #include <stdlib.h>
+#if defined( _WIN32)
+#include <windows.h>
+#endif
 
 #include <osd/cpuComputeContext.h>
 #include <osd/cpuComputeController.h>
@@ -75,7 +77,7 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
-#include <stdlib.h>
+#include <cstdlib>
 
 #ifdef OPENSUBDIV_HAS_OPENMP
     #include <omp.h>
@@ -99,14 +101,14 @@ typedef FarSubdivisionTables<OsdVertex> OsdFarMeshSubdivision;
 static void
 createOsdMesh(int level)
 {
-    float points[] = { 0.000000, -1.414214, 1.000000,
-                       1.414214, 0.000000, 1.000000,    
-                       -1.414214, 0.000000, 1.000000,
-                       0.000000, 1.414214, 1.000000,
-                       -1.414214, 0.000000, -1.000000,
-                       0.000000, 1.414214, -1.000000,
-                       0.000000, -1.414214, -1.000000,
-                       1.414214, 0.000000, -1.000000};
+    float points[] = { 0.000000f, -1.414214f, 1.000000f,
+                       1.414214f, 0.000000f, 1.000000f,
+                       -1.414214f, 0.000000f, 1.000000f,
+                       0.000000f, 1.414214f, 1.000000f,
+                       -1.414214f, 0.000000f, -1.000000f,
+                       0.000000f, 1.414214f, -1.000000f,
+                       0.000000f, -1.414214f, -1.000000f,
+                       1.414214f, 0.000000f, -1.000000f };
 
     int nverts[] = { 4, 4, 4, 4, 4, 4};
 
