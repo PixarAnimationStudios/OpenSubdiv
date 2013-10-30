@@ -22,9 +22,30 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV_VERSION_H
-#define OPENSUBDIV_VERSION_H
-
-#define OPENSUBDIV_VERSION v2_3_1
-
-#endif /* OPENSUBDIV_VERSION_H */
+static const std::string catmark_fan =
+"# This file uses centimeters as units for non-parametric coordinates.\n"
+"\n"
+"v -1.000000 0.000000 -1.000000\n"
+"v -1.000000 0.000000 0.000000\n"
+"v 0.000000 0.000000 0.000000\n"
+"v 0.000000 0.000000 -1.000000\n"
+"v 1.000000 0.000000 0.000000\n"
+"v 1.000000 0.000000 -1.000000\n"
+"v 0.000000 1.000000 0.000000\n"
+"v 0.000000 1.000000 -1.000000\n"
+"vt 0.000000 0.000000\n"
+"vt 1.000000 0.000000\n"
+"vt 1.000000 1.000000\n"
+"vt 0.000000 1.000000\n"
+"vt 0.000000 0.000000\n"
+"vt 1.000000 0.000000\n"
+"vt 1.000000 1.000000\n"
+"vt 0.000000 1.000000\n"
+"vt 0.000000 0.000000\n"
+"vt 1.000000 0.000000\n"
+"vt 1.000000 1.000000\n"
+"vt 0.000000 1.000000\n"
+"f 1/1 2/2 3/3 4/4\n"
+"f 4/5 3/6 5/7 6/8\n"
+"f 4/9 3/10 7/11 8/12\n"
+"\n";

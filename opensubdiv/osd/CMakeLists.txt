@@ -117,7 +117,10 @@ set(GL_PTEX_PUBLIC_HEADERS
     glPtexTexture.h
     glPtexMipmapTexture.h
 )
-set(DX_PTEX_PUBLIC_HEADERS d3d11PtexTexture.h)
+set(DX_PTEX_PUBLIC_HEADERS
+    d3d11PtexTexture.h
+    d3d11PtexMipmapTexture.h
+)
 
 if( PTEX_FOUND )
     list(APPEND PUBLIC_HEADER_FILES
@@ -140,6 +143,7 @@ if( PTEX_FOUND )
     if( DXSDK_FOUND )
         list(APPEND GPU_SOURCE_FILES
             d3d11PtexTexture.cpp
+            d3d11PtexMipmapTexture.cpp
         )
         list(APPEND PUBLIC_HEADER_FILES
             ${DX_PTEX_PUBLIC_HEADERS}

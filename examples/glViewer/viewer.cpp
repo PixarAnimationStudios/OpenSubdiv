@@ -382,6 +382,9 @@ initializeShapes( ) {
 #include <shapes/catmark_edgeonly.h>
     g_defaultShapes.push_back(SimpleShape(catmark_edgeonly, "catmark_edgeonly", kCatmark));
 
+#include <shapes/catmark_fan.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_fan, "catmark_fan", kCatmark));
+
 #include <shapes/catmark_gregory_test1.h>
     g_defaultShapes.push_back(SimpleShape(catmark_gregory_test1, "catmark_gregory_test1", kCatmark));
 

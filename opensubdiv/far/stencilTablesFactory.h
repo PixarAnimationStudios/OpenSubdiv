@@ -121,6 +121,9 @@ public:
 
 private:
 
+    friend class FarVertexStencil;
+    friend class FarStencilFactoryVertex;
+
     // Reserve space for stencils of a set size at the end of a stencil table
     void _AddNewStencils( FarStencilTables * tables, int nstencils, int stencilsize);
 
@@ -560,6 +563,10 @@ public:
     ///
     void ApplyVertexEdit(OpenSubdiv::HbrVertexEdit<FarStencilFactoryVertex> const & edit) { }
 
+    /// \brief Hbr template vertex class API: edits are not supported yet
+    ///
+    void ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<FarStencilFactoryVertex> &) { }
+
 private:
 
     template <class T> friend class FarStencilTablesFactory<T>::Patch;
@@ -727,6 +734,8 @@ FarStencilTablesFactory<T>::Patch::SetupControlStencils( HbrFace<T> * f,
         GatherOperator( HbrFace<T> const * face,
             HbrVertex<T> const * corner, std::vector<int> & verts  ) :
                 _face(face), _corner(corner), _verts(verts) { }
+
+        ~GatherOperator() { }
 
         virtual void operator() (HbrFace<T> &face) {
 
@@ -1377,6 +1386,8 @@ FarStencilTablesFactory<T>::Patch::_GetLimitStencils( HbrVertex<T> * v,
                 SmoothVertexOperator(HbrVertex<T> *v, float * point) :
                     _vertex(v), _point(point) { }
 
+                ~SmoothVertexOperator() { }
+
                 virtual void operator() (HbrHalfedge<T> &e) {
 
                     HbrVertex<T> * a = e.GetDestVertex();
@@ -1423,6 +1434,8 @@ FarStencilTablesFactory<T>::Patch::_GetLimitStencils( HbrVertex<T> * v,
 
                 CreaseEdgeOperator(HbrVertex<T> *v, float * point) :
                     _vertex(v), _point(point), _count(0) { }
+
+                ~CreaseEdgeOperator() { }
 
                 virtual void operator() (HbrHalfedge<T> &e) {
 
@@ -1509,7 +1522,7 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
 
             int n = v->GetValence();
 
-            float alpha = 2.0f * M_PI / (float) n,
+            float alpha = 2.0f * static_cast<float>(M_PI) / (float) n,
                   c0 = 2.0f * cosf(alpha),
                   c1 = 1.0f,
                   A  = 1.0f + c0 + sqrtf(18.0f + c0) * cosf(0.5f * alpha);
@@ -1571,6 +1584,8 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
                     ei[0]=ei[1]=0;
                     eidx[0]=eidx[1]=-1;
                 }
+
+                ~CreaseEdgesOperator() { }
 
                 void SetAccumMode(int valence, float d, float * deriv, float (*crease)[12]) {
                     _gather = false;

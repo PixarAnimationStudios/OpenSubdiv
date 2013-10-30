@@ -28,7 +28,10 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
     add_subdirectory(glStencilViewer)
     add_subdirectory(simpleCpu)
     add_subdirectory(limitEval)
-    add_subdirectory(uvViewer)
+    add_subdirectory(projectTest)
+    if (NOT APPLE)
+        add_subdirectory(uvViewer)
+    endif()    
     if(OPENGL_4_3_FOUND AND (NOT APPLE))
         # the paintTest example requires GL functionality not available on OSX
         add_subdirectory(paintTest)
@@ -62,6 +65,9 @@ endif()
 
 if(DXSDK_FOUND)
    add_subdirectory(dxViewer)
+   if(PTEX_FOUND)
+       add_subdirectory(dxPtexViewer)
+   endif()
 endif()
 
 # XXXX manuelk : turning off the maya plugin examples for now

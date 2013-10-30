@@ -22,9 +22,10 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "../osd/opengl.h"
+
 #include "../osd/clKernelBundle.h"
 #include "../osd/error.h"
-#include "../osd/opengl.h"
 
 #include <stdio.h>
 #ifdef _MSC_VER

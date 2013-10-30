@@ -167,6 +167,7 @@ enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_PATCH_CULL,
                    HUD_CB_IBL,
                    HUD_CB_BLOOM,
+                   HUD_CB_SEAMLESS_MIPMAP,
                    HUD_CB_FREEZE };
 
 enum HudRadioGroup { HUD_RB_KERNEL,
@@ -253,6 +254,8 @@ struct Transform {
 bool  g_occlusion = false,
       g_specular = false;
 
+bool g_seamless = true;
+
 // camera
 float g_rotate[2] = {0, 0},
       g_dolly = 5,
@@ -331,6 +334,8 @@ OpenSubdiv::OsdGLPtexMipmapTexture * g_osdPTexDisplacement = 0;
 OpenSubdiv::OsdGLPtexMipmapTexture * g_osdPTexOcclusion = 0;
 OpenSubdiv::OsdGLPtexMipmapTexture * g_osdPTexSpecular = 0;
 const char * g_ptexColorFilename;
+size_t g_ptexMemoryUsage = 0;
+
 
 static void
 checkGLErrors(std::string const & where = "")
@@ -681,6 +686,7 @@ union Effect {
         int screenSpaceTess:1;
         int fractionalSpacing:1;
         int ibl:1;
+        int seamless:1;
     };
     int value;
 
@@ -821,6 +827,10 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
     }
 
+    if (effect.seamless) {
+        sconfig->commonShader.AddDefine("SEAMLESS_MIPMAP");
+    }
+
     if (effect.wire == 0) {
         sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
         sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_WIRE");
@@ -911,7 +921,7 @@ getInstance(Effect effect, OpenSubdiv::OsdDrawContext::PatchDescriptor const & p
 
 //------------------------------------------------------------------------------
 OpenSubdiv::OsdGLPtexMipmapTexture *
-createPtex(const char *filename)
+createPtex(const char *filename, int memLimit)
 {
     Ptex::String ptexError;
     printf("Loading ptex : %s\n", filename);
@@ -930,15 +940,28 @@ createPtex(const char *filename)
         printf("Error in reading %s\n", filename);
         exit(1);
     }
+
+    size_t targetMemory = memLimit * 1024 * 1024; // MB
+
     OpenSubdiv::OsdGLPtexMipmapTexture *osdPtex =
-        OpenSubdiv::OsdGLPtexMipmapTexture::Create(ptex, g_maxMipmapLevels);
+        OpenSubdiv::OsdGLPtexMipmapTexture::Create(ptex,
+                                                   g_maxMipmapLevels,
+                                                   targetMemory);
+
+    GLuint texture = osdPtex->GetTexelsTexture();
+    glBindTexture(GL_TEXTURE_2D_ARRAY, texture);
+    GLint w, h, d;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_WIDTH, &w);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_HEIGHT, &h);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_DEPTH, &d);
+    printf("PageSize = %d x %d x %d\n", w, h, d);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+    ptex->release();
 
 #ifdef USE_PTEX_CACHE
     cache->release();
 #endif
-
-    ptex->release();
-
 
     return osdPtex;
 }
@@ -1537,6 +1560,7 @@ drawModel()
         effect.fractionalSpacing = g_fractionalSpacing;
         effect.ibl = g_ibl;
         effect.wire = g_wire;
+        effect.seamless = g_seamless;
 
         GLuint program = bindProgram(effect, patch);
 
@@ -1712,6 +1736,7 @@ display()
             averageFps += g_fpsTimeSamples[i]/(float)NUM_FPS_TIME_SAMPLES;
         }
 
+        g_hud.DrawString(10, -220, "Ptex memory use : %.1f mb", g_ptexMemoryUsage/1024.0/1024.0);
         g_hud.DrawString(10, -180, "Tess level (+/-): %d", g_tessLevel);
         if (numPrimsGenerated > 1000000) {
             g_hud.DrawString(10, -160, "Primitives      : %3.1f million",
@@ -1859,7 +1884,6 @@ static void
 callbackKernel(int k)
 {
     g_kernel = k;
-    createOsdMesh(g_level, g_kernel);
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     if (g_kernel == kCL and g_clContext == NULL) {
@@ -1870,6 +1894,8 @@ callbackKernel(int k)
         }
     }
 #endif
+
+    createOsdMesh(g_level, g_kernel);
 }
 
 static void
@@ -1935,6 +1961,9 @@ callbackCheckBox(bool checked, int button)
         break;
     case HUD_CB_BLOOM:
         g_bloom = checked;
+        break;
+    case HUD_CB_SEAMLESS_MIPMAP:
+        g_seamless = checked;
         break;
     case HUD_CB_FREEZE:
         g_freeze = checked;
@@ -2076,6 +2105,7 @@ void usage(const char *program)
     printf("          -s <shaderfile.glsl>    : custom shader file\n");
     printf("          -y                      : Y-up model\n");
     printf("          -m level                : max mimmap level (default=10)\n");
+    printf("          -x <ptex limit MB>      : ptex target memory size\n");
     printf("          --disp <scale>          : Displacment scale\n");
 }
 
@@ -2117,6 +2147,8 @@ int main(int argc, char ** argv)
     const char *diffuseEnvironmentMap = NULL, *specularEnvironmentMap = NULL;
     const char *colorFilename = NULL, *displacementFilename = NULL,
         *occlusionFilename = NULL, *specularFilename = NULL;
+    int memLimit = 0, colorMem = 0, displacementMem = 0,
+        occlusionMem = 0, specularMem = 0;
     bool fullscreen = false;
 
     for (int i = 1; i < argc; ++i) {
@@ -2138,19 +2170,25 @@ int main(int argc, char ** argv)
             g_yup = true;
         else if (!strcmp(argv[i], "-m"))
             g_maxMipmapLevels = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "-x"))
+            memLimit = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--disp"))
             g_displacementScale = (float)atof(argv[++i]);
-        else if (colorFilename == NULL)
+        else if (colorFilename == NULL) {
             colorFilename = argv[i];
-        else if (displacementFilename == NULL) {
+            colorMem = memLimit;
+        } else if (displacementFilename == NULL) {
             displacementFilename = argv[i];
+            displacementMem = memLimit;
             g_displacement = DISPLACEMENT_BILINEAR;
             g_normal = NORMAL_BIQUADRATIC;
         } else if (occlusionFilename == NULL) {
             occlusionFilename = argv[i];
+            occlusionMem = memLimit;
             g_occlusion = 1;
         } else if (specularFilename == NULL) {
             specularFilename = argv[i];
+            specularMem = memLimit;
             g_specular = 1;
         }
     }
@@ -2364,8 +2402,10 @@ int main(int argc, char ** argv)
 
     g_hud.AddSlider("Mipmap Bias", 0, 5, 0,
                     -200, 450, 20, false, callbackSlider, 0);
-    g_hud.AddSlider("Displacementd", 0, 5, 1,
+    g_hud.AddSlider("Displacement", 0, 5, 1,
                     -200, 490, 20, false, callbackSlider, 1);
+    g_hud.AddCheckBox("Seamless Mipmap", g_seamless,
+                      -200, 530, callbackCheckBox, HUD_CB_SEAMLESS_MIPMAP, 'j');
 
     if (occlusionFilename != NULL) {
         g_hud.AddCheckBox("Ambient Occlusion (A)", g_occlusion,
@@ -2398,13 +2438,19 @@ int main(int argc, char ** argv)
 
     // load ptex files
     if (colorFilename)
-        g_osdPTexImage = createPtex(colorFilename);
+        g_osdPTexImage = createPtex(colorFilename, colorMem);
     if (displacementFilename)
-        g_osdPTexDisplacement = createPtex(displacementFilename);
+        g_osdPTexDisplacement = createPtex(displacementFilename, displacementMem);
     if (occlusionFilename)
-        g_osdPTexOcclusion = createPtex(occlusionFilename);
+        g_osdPTexOcclusion = createPtex(occlusionFilename, occlusionMem);
     if (specularFilename)
-        g_osdPTexSpecular = createPtex(specularFilename);
+        g_osdPTexSpecular = createPtex(specularFilename, specularMem);
+
+    g_ptexMemoryUsage =
+        (g_osdPTexImage ? g_osdPTexImage->GetMemoryUsage() : 0)
+        + (g_osdPTexDisplacement ? g_osdPTexDisplacement->GetMemoryUsage() : 0)
+        + (g_osdPTexOcclusion ? g_osdPTexOcclusion->GetMemoryUsage() : 0)
+        + (g_osdPTexSpecular ? g_osdPTexSpecular->GetMemoryUsage() : 0);
 
     // load animation obj sequences (optional)
     if (not animobjs.empty()) {

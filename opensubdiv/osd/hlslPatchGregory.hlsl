@@ -22,6 +22,14 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#if defined OSD_FRACTIONAL_ODD_SPACING
+    #define HS_PARTITION "fractional_odd"
+#elif defined OSD_FRACTIONAL_EVEN_SPACING
+    #define HS_PARTITION "fractional_even"
+#else
+    #define HS_PARTITION "integer"
+#endif
+
 //----------------------------------------------------------
 // Patches.Coefficients
 //----------------------------------------------------------
@@ -285,7 +293,7 @@ HS_CONSTANT_FUNC_OUT HSConstFunc(
 }
 
 [domain("quad")]
-[partitioning("integer")]
+[partitioning(HS_PARTITION)]
 [outputtopology("triangle_ccw")]
 [outputcontrolpoints(4)]
 [patchconstantfunc("HSConstFunc")]
@@ -449,26 +457,6 @@ GregDomainVertex hs_main_patches(
 // Patches.DomainGregory
 //----------------------------------------------------------
 
-void Univar4x4(in float u, out float B[4], out float D[4])
-{
-    float t = u;
-    float s = 1.0f - u;
-
-    float A0 =     s * s;
-    float A1 = 2 * s * t;
-    float A2 = t * t;
-
-    B[0] =          s * A0;
-    B[1] = t * A0 + s * A1;
-    B[2] = t * A1 + s * A2;
-    B[3] = t * A2;
-
-    D[0] =    - A0;
-    D[1] = A0 - A1;
-    D[2] = A1 - A2;
-    D[3] = A2;
-}
-
 [domain("quad")]
 void ds_main_patches(
     in HS_CONSTANT_FUNC_OUT input,
@@ -532,10 +520,83 @@ void ds_main_patches(
     q[14] = p[11];
     q[15] = p[10];
 
+    float3 WorldPos  = float3(0, 0, 0);
+    float3 Tangent   = float3(0, 0, 0);
+    float3 BiTangent = float3(0, 0, 0);
+
+#line 519
+
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    float B[4], D[4], C[4];
+    float3 BUCP[4], DUCP[4], CUCP[4];
+    float3 dUU = float3(0, 0, 0);
+    float3 dVV = float3(0, 0, 0);
+    float3 dUV = float3(0, 0, 0);
+
+    Univar4x4(u, B, D, C);
+
+    for (int i=0; i<4; ++i) {
+        BUCP[i] = float3(0, 0, 0);
+        DUCP[i] = float3(0, 0, 0);
+        CUCP[i] = float3(0, 0, 0);
+
+        for (uint j=0; j<4; ++j) {
+            // reverse face front
+            float3 A = q[i + 4*j];
+
+            BUCP[i] += A * B[j];
+            DUCP[i] += A * D[j];
+            CUCP[i] += A * C[j];
+        }
+    }
+
+    Univar4x4(v, B, D, C);
+
+    for (int i=0; i<4; ++i) {
+        WorldPos  += B[i] * BUCP[i];
+        Tangent   += B[i] * DUCP[i];
+        BiTangent += D[i] * BUCP[i];
+        dUU += B[i] * CUCP[i];
+        dVV += C[i] * BUCP[i];
+        dUV += D[i] * DUCP[i];
+    }
+
+    int level = int(patch[0].ptexInfo.z);
+    BiTangent *= 3 * level;
+    Tangent *= 3 * level;
+    dUU *= 6 * level;
+    dVV *= 6 * level;
+    dUV *= 9 * level;
+
+    float3 n = cross(Tangent, BiTangent);
+    float3 normal = normalize(n);
+
+    float E = dot(Tangent, Tangent);
+    float F = dot(Tangent, BiTangent);
+    float G = dot(BiTangent, BiTangent);
+    float e = dot(normal, dUU);
+    float f = dot(normal, dUV);
+    float g = dot(normal, dVV);
+
+    float3 Nu = (f*F-e*G)/(E*G-F*F) * Tangent + (e*F-f*E)/(E*G-F*F) * BiTangent;
+    float3 Nv = (g*F-f*G)/(E*G-F*F) * Tangent + (f*F-g*E)/(E*G-F*F) * BiTangent;
+
+    Nu = Nu/length(n) - n * (dot(Nu,n)/pow(dot(n,n), 1.5));
+    Nv = Nv/length(n) - n * (dot(Nv,n)/pow(dot(n,n), 1.5));
+
+    BiTangent = mul(ModelViewMatrix, float4(BiTangent, 0)).xyz;
+    Tangent = mul(ModelViewMatrix, float4(Tangent, 0)).xyz;
+
+    normal = normalize(cross(BiTangent, Tangent));
+
+    output.Nu = Nu;
+    output.Nv = Nv;
+
+#else
     float B[4], D[4];
+    float3 BUCP[4], DUCP[4];
 
     Univar4x4(uv.x, B, D);
-    float3 BUCP[4], DUCP[4];
 
     for (int i=0; i<4; ++i) {
         BUCP[i] =  float3(0, 0, 0);
@@ -550,10 +611,6 @@ void ds_main_patches(
         }
     }
 
-    float3 WorldPos  = float3(0, 0, 0);
-    float3 Tangent   = float3(0, 0, 0);
-    float3 BiTangent = float3(0, 0, 0);
-
     Univar4x4(uv.y, B, D);
 
     for (uint i=0; i<4; ++i) {
@@ -561,15 +618,21 @@ void ds_main_patches(
         Tangent   += B[i] * DUCP[i];
         BiTangent += D[i] * BUCP[i];
     }
+    int level = int(patch[0].ptexInfo.z);
+    BiTangent *= 3 * level;
+    Tangent *= 3 * level;
 
     BiTangent = mul(ModelViewMatrix, float4(BiTangent, 0)).xyz;
     Tangent = mul(ModelViewMatrix, float4(Tangent, 0)).xyz;
 
     float3 normal = normalize(cross(BiTangent, Tangent));
 
+#endif
+
     output.position = mul(ModelViewMatrix, float4(WorldPos, 1.0f));
     output.normal = normal;
-    output.tangent = normalize(BiTangent);
+    output.tangent = BiTangent;
+    output.bitangent = Tangent;
 
     output.patchCoord = patch[0].patchCoord;
     output.patchCoord.xy = float2(v, u);
@@ -578,5 +641,6 @@ void ds_main_patches(
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    output.positionOut = mul(ModelViewProjectionMatrix, float4(WorldPos, 1.0f));
+    output.positionOut = mul(ProjectionMatrix,
+                             float4(output.position.xyz, 1.0f));
 }

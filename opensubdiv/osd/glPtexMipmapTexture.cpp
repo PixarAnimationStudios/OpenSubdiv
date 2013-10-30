@@ -33,7 +33,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 OsdGLPtexMipmapTexture::OsdGLPtexMipmapTexture()
-    : _width(0), _height(0), _depth(0), _layout(0), _texels(0)
+    : _width(0), _height(0), _depth(0), _layout(0), _texels(0), _memoryUsage(0)
 {
 }
 
@@ -66,7 +66,9 @@ genTextureBuffer(GLenum format, GLsizeiptr size, GLvoid const * data)
 }
 
 OsdGLPtexMipmapTexture *
-OsdGLPtexMipmapTexture::Create(PtexTexture * reader, int maxLevels)
+OsdGLPtexMipmapTexture::Create(PtexTexture * reader,
+                               int maxLevels,
+                               size_t targetMemory)
 {
     OsdGLPtexMipmapTexture * result = NULL;
 
@@ -74,7 +76,10 @@ OsdGLPtexMipmapTexture::Create(PtexTexture * reader, int maxLevels)
     glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &maxNumPages);
 
     // Read the ptexture data and pack the texels
-    OsdPtexMipmapTextureLoader loader(reader, maxNumPages, maxLevels);
+    OsdPtexMipmapTextureLoader loader(reader,
+                                      maxNumPages,
+                                      maxLevels,
+                                      targetMemory);
 
     // Setup GPU memory
     int numFaces = loader.GetNumFaces();
@@ -130,6 +135,7 @@ OsdGLPtexMipmapTexture::Create(PtexTexture * reader, int maxLevels)
 
     result->_layout = layout;
     result->_texels = texels;
+    result->_memoryUsage = loader.GetMemoryUsage();
 
     return result;
 }

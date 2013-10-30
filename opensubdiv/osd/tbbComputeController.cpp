@@ -37,7 +37,7 @@ namespace OPENSUBDIV_VERSION {
 OsdTbbComputeController::OsdTbbComputeController(int numThreads) {
     _numThreads = numThreads;
     if(_numThreads == -1)
-        tbb::task_scheduler_init init();
+        tbb::task_scheduler_init init;
     else
         tbb::task_scheduler_init init(numThreads);
 }

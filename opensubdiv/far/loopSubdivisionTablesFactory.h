@@ -54,7 +54,7 @@ protected:
     ///
     /// @param farMesh
     ///
-    /// @param batches      a vector of Kernel refinement batches : the factory 
+    /// @param batches      a vector of Kernel refinement batches : the factory
     ///                     will reserve and append refinement tasks
     ///
     static FarLoopSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector * batches );
@@ -63,15 +63,15 @@ protected:
 // This factory walks the Hbr vertices and accumulates the weights and adjacency
 // (valance) information specific to the loop subdivision scheme. The results
 // are stored in a FarLoopSubdivisionTable<U>.
-template <class T, class U> FarLoopSubdivisionTables<U> * 
+template <class T, class U> FarLoopSubdivisionTables<U> *
 FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector * batches ) {
 
     assert( meshFactory and farMesh );
 
     int maxlevel = meshFactory->GetMaxLevel();
-    
+
     std::vector<int> & remap = meshFactory->getRemappingTable();
-    
+
     FarSubdivisionTablesFactory<T,U> tablesFactory( meshFactory->GetHbrMesh(),  maxlevel, remap );
 
     FarLoopSubdivisionTables<U> * result = new FarLoopSubdivisionTables<U>(farMesh, maxlevel);
@@ -103,13 +103,13 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
     for (int level=1; level<=maxlevel; ++level) {
 
         // pointer to the first vertex corresponding to this level
-        vertexOffset = tablesFactory._vertVertIdx[level-1] + 
+        vertexOffset = tablesFactory._vertVertIdx[level-1] +
             (int)tablesFactory._vertVertsList[level-1].size();
         result->_vertsOffsets[level] = vertexOffset;
 
         // Edge vertices
         int nEdgeVertices = (int)tablesFactory._edgeVertsList[level].size();
-        if (nEdgeVertices > 0) 
+        if (nEdgeVertices > 0)
             batches->push_back(FarKernelBatch( FarKernelBatch::LOOP_EDGE_VERTEX,
                                                level,
                                                0,
@@ -220,6 +220,8 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
                             HbrVertex<T> * vertex; int eidx[2]; int count; bool next;
 
                             GatherCreaseEdgesOperator(HbrVertex<T> * v, bool n) : vertex(v), count(0), next(n) { eidx[0]=-1; eidx[1]=-1; }
+
+                            ~GatherCreaseEdgesOperator() { }
 
                             virtual void operator() (HbrHalfedge<T> &e) {
                                 if (e.IsSharp(next) and count < 2) {

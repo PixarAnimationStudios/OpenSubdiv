@@ -31,6 +31,33 @@ Release Notes
 
 ----
 
+Release 2.3.1
+=============
+
+**New Features**
+    - Add DX11 version of ptex mipmap loader
+    - Add DX11 ptex viewer (work in progress)
+    - Add DX11 fractional partitioning, normal derivatives computation
+    - Add memory usage controls to Ptex loader
+    - Add face-varying boundary interpolation parsing to shape_utils
+    - Add simple HbrMesh and FarMesh wrapper classes to osdutil
+
+**Changes**
+    - Amend language of attribution file 'NOTICE.txt'
+    - Optimize a bit of ptex mipmap lookup.
+    - Show ptex memory usage in GL and DX11 ptexViewers
+    - Improve ptex guttering
+    - Addding some video links to our collection of external resources
+    
+**Bug Fixes**
+    - Fix edge-only face-varying interpolation
+    - Fix Far to handle disconnected vertices in an Hbr mesh
+    - Fixed ptex cache resource release sequence
+    - Fix build symbol conflict in Far
+    - Fix patch parambuffer generation in OsdD3D11DrawContext
+    - Fix a minor osdutil build warning (seen with gcc 4.8.1)
+    - Fix VS2010 build errors
+
 Release 2.3.0
 =============
 

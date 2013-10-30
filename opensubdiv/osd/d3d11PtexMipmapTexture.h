@@ -22,50 +22,54 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_GL_PTEX_MIPMAP_TEXTURE_H
-#define OSD_GL_PTEX_MIPMAP_TEXTURE_H
+#ifndef OSD_D3D11_PTEX_MIPMAP_TEXTURE_H
+#define OSD_D3D11_PTEX_MIPMAP_TEXTURE_H
 
 #include "../version.h"
 
 #include "../osd/nonCopyable.h"
-#include "../osd/opengl.h"
 
 class PtexTexture;
+struct ID3D11Buffer;
+struct ID3D11Texture2D;
+struct ID3D11DeviceContext;
+struct ID3D11ShaderResourceView;
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdGLPtexMipmapTexture : OsdNonCopyable<OsdGLPtexMipmapTexture> {
+class OsdD3D11PtexMipmapTexture : OsdNonCopyable<OsdD3D11PtexMipmapTexture> {
 public:
-    static OsdGLPtexMipmapTexture * Create(PtexTexture * reader,
-                                           int maxLevels=-1,
-                                           size_t targetMemory=0);
+    static OsdD3D11PtexMipmapTexture * Create(ID3D11DeviceContext *deviceContext,
+                                              PtexTexture * reader,
+                                              int maxLevels=10);
 
     /// Returns the texture buffer containing the layout of the ptex faces
     /// in the texels texture array.
-    GLuint GetLayoutTextureBuffer() const { return _layout; }
+    ID3D11Buffer *GetLayoutTextureBuffer() const { return _layout; }
+
+    ID3D11ShaderResourceView **GetLayoutSRV() { return &_layoutSRV; }
 
     /// Returns the texels texture array.
-    GLuint GetTexelsTexture() const { return _texels; }
+    ID3D11Texture2D *GetTexelsTexture() const { return _texels; }
 
-    /// Returns the amount of allocated memory (in byte)
-    size_t GetMemoryUsage() const { return _memoryUsage; }
+    ID3D11ShaderResourceView **GetTexelsSRV() { return &_texelsSRV; }
 
-    ~OsdGLPtexMipmapTexture();
+    ~OsdD3D11PtexMipmapTexture();
 
 private:
-    OsdGLPtexMipmapTexture();
+    OsdD3D11PtexMipmapTexture();
 
-    GLsizei _width,   // widht / height / depth of the 3D texel buffer
-            _height,
-            _depth;
+    int _width,   // widht / height / depth of the 3D texel buffer
+        _height,
+        _depth;
 
-    GLint   _format;  // texel color format
+    int _format;  // texel color format
 
-    GLuint _layout,   // per-face lookup table
-           _texels;   // texel data
-
-    size_t _memoryUsage;  // total amount of memory used (estimate)
+    ID3D11Buffer *_layout;     // per-face lookup table
+    ID3D11Texture2D *_texels;  // texel data
+    ID3D11ShaderResourceView *_layoutSRV;
+    ID3D11ShaderResourceView *_texelsSRV;
 };
 
 }  // end namespace OPENSUBDIV_VERSION
@@ -73,4 +77,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_GL_PTEX_MIPMAP_TEXTURE_H
+#endif  // OSD_D3D11_PTEX_TEXTURE_H
