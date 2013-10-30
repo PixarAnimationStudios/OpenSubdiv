@@ -121,6 +121,9 @@ public:
 
 private:
 
+    friend class FarVertexStencil;
+    friend class FarStencilFactoryVertex;
+
     // Reserve space for stencils of a set size at the end of a stencil table
     void _AddNewStencils( FarStencilTables * tables, int nstencils, int stencilsize);
 
@@ -559,6 +562,10 @@ public:
     /// \brief Hbr template vertex class API: edits are not supported yet
     ///
     void ApplyVertexEdit(OpenSubdiv::HbrVertexEdit<FarStencilFactoryVertex> const & edit) { }
+
+    /// \brief Hbr template vertex class API: edits are not supported yet
+    ///
+    void ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<FarStencilFactoryVertex> &) { }
 
 private:
 
@@ -1515,7 +1522,7 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
 
             int n = v->GetValence();
 
-            float alpha = 2.0f * M_PI / (float) n,
+            float alpha = 2.0f * static_cast<float>(M_PI) / (float) n,
                   c0 = 2.0f * cosf(alpha),
                   c1 = 1.0f,
                   A  = 1.0f + c0 + sqrtf(18.0f + c0) * cosf(0.5f * alpha);
