@@ -431,6 +431,30 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
                 mesh->SetFVarPropagateCorners( t->intargs[0] != 0 );
             else
                 printf( "expecting single int argument for \"facevaryingpropagatecorners\"\n" );
+        } else if (t->name=="smoothtriangles") {
+        
+            OpenSubdiv::HbrCatmarkSubdivision<T> * scheme =
+                dynamic_cast<OpenSubdiv::HbrCatmarkSubdivision<T> *>( mesh->GetSubdivision() );
+
+            if (not scheme) {
+                printf("the \"creasemethod\" tag can only be applied to Catmark meshes\n");
+                continue;
+            }
+
+            if ((int)t->intargs.size()==0) {
+                printf("the \"creasemethod\" tag expects an int argument\n");
+                continue;
+            }
+
+            if( t->intargs[0]==1 )
+                scheme->SetTriangleSubdivisionMethod(
+                    OpenSubdiv::HbrCatmarkSubdivision<T>::k_Old);
+            else if( t->intargs[0]==2 )
+                scheme->SetTriangleSubdivisionMethod(
+                    OpenSubdiv::HbrCatmarkSubdivision<T>::k_New);
+            else
+                printf("the \"creasemethod\" tag only accepts \"normal\" or \"chaikin\" as value (%s)\n", t->stringargs[0].c_str());
+
         } else if (t->name=="creasemethod") {
 
             OpenSubdiv::HbrCatmarkSubdivision<T> * scheme =
@@ -447,11 +471,11 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
             }
 
             if( t->stringargs[0]=="normal" )
-                scheme->SetTriangleSubdivisionMethod(
-                    OpenSubdiv::HbrCatmarkSubdivision<T>::k_Old);
+                scheme->SetCreaseSubdivisionMethod(
+                    OpenSubdiv::HbrSubdivision<T>::k_CreaseNormal);
             else if( t->stringargs[0]=="chaikin" )
-                scheme->SetTriangleSubdivisionMethod(
-                    OpenSubdiv::HbrCatmarkSubdivision<T>::k_New);
+                scheme->SetCreaseSubdivisionMethod(
+                    OpenSubdiv::HbrSubdivision<T>::k_CreaseChaikin);
             else
                 printf("the \"creasemethod\" tag only accepts \"normal\" or \"chaikin\" as value (%s)\n", t->stringargs[0].c_str());
 
