@@ -25,6 +25,11 @@
 #include "mesh.h"
 
 #include <osd/vertex.h>
+
+//XXX: required to set ADAPTIVE before hbr includes
+#ifndef HBR_ADAPTIVE
+#define HBR_ADAPTIVE
+#endif
 #include <hbr/catmark.h>
 
 #include <sstream>

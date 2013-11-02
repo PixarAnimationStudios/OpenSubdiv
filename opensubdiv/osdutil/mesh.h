@@ -25,7 +25,12 @@
 #ifndef PX_OSD_UTIL_MESH_H
 #define PX_OSD_UTIL_MESH_H
 
+//XXX: required to set ADAPTIVE before hbr includes
+#ifndef HBR_ADAPTIVE
+#define HBR_ADAPTIVE
+#endif
 #include <hbr/mesh.h>
+
 #include <osd/vertex.h>
 
 #include <string>
