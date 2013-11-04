@@ -24,9 +24,14 @@
 
 #-------------------------------------------------------------------------------
 include_directories(
-    ${DXSDK_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/opensubdiv
 )
+
+if( DXSDK_FOUND )
+    include_directories(
+        ${DXSDK_INCLUDE_DIR}
+    )
+endif()
 
 if( OPENGL_FOUND )
     include_directories(
