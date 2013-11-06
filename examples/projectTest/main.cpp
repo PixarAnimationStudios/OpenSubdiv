@@ -67,6 +67,7 @@
 
 #include <vector>
 #include <iostream>
+#include <stdio.h>
 
 #ifdef OPENSUBDIV_HAS_OPENMP
     #include <omp.h>
