@@ -102,7 +102,7 @@ OsdCpuGLVertexBuffer::allocate() {
     glBufferData(GL_ARRAY_BUFFER, size, 0, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    return false;
+    return true;
 }
 
 }  // end namespace OPENSUBDIV_VERSION
