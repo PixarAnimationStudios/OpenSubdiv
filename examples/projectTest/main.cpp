@@ -70,6 +70,7 @@
 
 #include <osdutil/mesh.h>
 #include <osdutil/refiner.h>
+#include <osdutil/topology.h>
 
 #include "../common/stopwatch.h"
 

@@ -22,6 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#define HBR_ADAPTIVE
 #include <far/meshFactory.h>
 
 #include "refiner.h"
@@ -73,11 +74,9 @@ PxOsdUtilRefiner::Initialize(
          
         
 
-    _mesh = new PxOsdUtilMesh(topology, errorMessage);
-
-    std::cout << "\tCreated _mesh in refiner\n";
+    _mesh = new PxOsdUtilMesh<OsdVertex>();
     
-    if (not _mesh->IsValid()) {
+    if (not _mesh->Initialize(topology, errorMessage)) {
         std::cout << "Invalid mesh\n";
         return false;
     }

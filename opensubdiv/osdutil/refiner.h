@@ -30,10 +30,13 @@
 #include <string>
 #include <vector>
 
-#include <osd/cpuVertexBuffer.h>
-#include <osd/cpuComputeContext.h>
 
-#include <far/mesh.h>
+#define HBR_ADAPTIVE
+
+#include "../osd/vertex.h"
+#include "../osd/cpuVertexBuffer.h"
+#include "../osd/cpuComputeContext.h"
+#include "../far/mesh.h"
 
 //----------------------------------------------------------------------------
 // A simple class that wraps several OpenSubdiv classes for tessellating
@@ -118,7 +121,7 @@ class PxOsdUtilRefiner  {
     
     // The lowest level mesh, it definies the polygonal topology
     // and is used for refinement.  
-    PxOsdUtilMesh *_mesh;
+    PxOsdUtilMesh<OpenSubdiv::OsdVertex>* _mesh;
 
     // A mesh of patches (adaptive), or quads (uniform) generated
     // by performing feature adaptive or uniform subdivision on the hbrMesh.
