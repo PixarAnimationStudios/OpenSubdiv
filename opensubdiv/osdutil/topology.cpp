@@ -26,6 +26,7 @@
 #include <sstream>
 #include <iostream>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 using namespace std;
@@ -33,7 +34,7 @@ using namespace std;
 PxOsdUtilSubdivTopology::PxOsdUtilSubdivTopology():
     name("noname"),
     numVertices(0),
-    maxLevels(2)  // arbitrary, start with a reasonable subdivision level
+    refinementLevel(2)  // arbitrary, start with a reasonable subdivision level
 {
     std::cout << "Creating subdiv topology object\n";    
 }
@@ -53,7 +54,7 @@ PxOsdUtilSubdivTopology::Initialize(
 {
 
     numVertices = numVerticesParam;
-    maxLevels = levels;
+    refinementLevel = levels;
 
     nverts.resize(numFaces);
     for (int i=0; i<numFaces; ++i) {
@@ -126,7 +127,7 @@ PxOsdUtilSubdivTopology::Print() const
 {
     std::cout << "Mesh " << name << "\n";
     std::cout << "\tnumVertices = " << numVertices << "\n";
-    std::cout << "\tmaxLevels = " << maxLevels << "\n";
+    std::cout << "\trefinementLevel = " << refinementLevel << "\n";
     std::cout << "\tindices ( " << indices.size() << ") : ";
     for (int i=0; i<(int)indices.size(); ++i) {
         std::cout << indices[i] << ", ";
@@ -265,7 +266,7 @@ PxOsdUtilSubdivTopology::ParseFromObjString(
         }
     }
 
-    numVertices = (int)pointPositions->size()/3;
+    numVertices = pointPositions->size()/3;
 
     return true;
 }

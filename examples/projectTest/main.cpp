@@ -84,13 +84,19 @@ createOsdMesh(char *inputFile, char *outputFile, std::string *errorMessage)
     PxOsdUtilSubdivTopology topology;
     std::vector<float> pointPositions;
     
-    if (not topology.ReadFromObjFile(inputFile, &pointPositions, errorMessage))
+    if (not topology.ReadFromObjFile(inputFile, &pointPositions, errorMessage)) {
         return false;
+    }
 
+    topology.refinementLevel = 3;
+
+    std::cout << "Did read topology\n";
+    
     PxOsdUtilUniformEvaluator uniformEvaluator;
 
     // Create uniformEvaluator
     if (not uniformEvaluator.Initialize(topology, errorMessage)) {
+        std::cout << "Initialize failed with " << *errorMessage << "\n";        
         return false;
     }
 
@@ -98,36 +104,40 @@ createOsdMesh(char *inputFile, char *outputFile, std::string *errorMessage)
     uniformEvaluator.SetCoarsePositions(pointPositions, errorMessage);
 
     // Refine with eight threads
-    if (not uniformEvaluator.Refine(8, errorMessage))
+    if (not uniformEvaluator.Refine(8, errorMessage)) {
+        std::cout << "Refine failed with " << *errorMessage << "\n";
         return false;
+    }
     
     std::vector<int> refinedQuads;
     if (not uniformEvaluator.GetRefinedQuads(&refinedQuads, errorMessage)) {
-        std::cout  << "GetRefinedQuads failed with " << *errorMessage << std::endl;        
+        std::cout  << "GetRefinedQuads failed with " << *errorMessage << std::endl;
+        return false;
     }
 
     float *refinedPositions = NULL;
     int numFloats = 0;
     if (not uniformEvaluator.GetRefinedPositions(&refinedPositions, &numFloats, errorMessage)) {
-        std::cout  << "GetRefinedPositions failed with " << *errorMessage << std::endl;        
+        std::cout  << "GetRefinedPositions failed with " << *errorMessage << std::endl;
+        return false;           
     }
     
     std::cout << "Quads = " << refinedQuads.size()/4 << std::endl;        
-    for (int i=0; i<(int)refinedQuads.size(); i+=4)  {
-        std::cout << "(" << refinedQuads[i] <<
-            ", " << refinedQuads[i+1] <<
-            ", " << refinedQuads[i+2] <<
-            ", " << refinedQuads[i+3] <<
-            ")\n";
-    }
+//    for (int i=0; i<(int)refinedQuads.size(); i+=4)  {
+//        std::cout << "(" << refinedQuads[i] <<
+//            ", " << refinedQuads[i+1] <<
+//            ", " << refinedQuads[i+2] <<
+//            ", " << refinedQuads[i+3] <<
+//            ")\n";
+//    }
         
     std::cout << "Hot damn, it worked.\n";
     std::cout << "Positions = " << numFloats/3 << std::endl;
-    for (int i=0; i<numFloats; i+=3)  {
-        std::cout << "(" << refinedPositions[i] <<
-            ", " << refinedPositions[i+1] <<
-            "," << refinedPositions[i+2] << ")\n";
-    }
+//    for (int i=0; i<numFloats; i+=3)  {
+//        std::cout << "(" << refinedPositions[i] <<
+//            ", " << refinedPositions[i+1] <<
+//            "," << refinedPositions[i+2] << ")\n";
+//    }
 
 
 

@@ -113,16 +113,16 @@ PxOsdUtilMesh<T>::Initialize(const PxOsdUtilSubdivTopology &topology,
     int fvarWidth = _hmesh->GetTotalFVarWidth();
     if (_t.fvData.size() < _t.nverts.size() * fvarWidth ||
         fvarWidth != (int)_t.fvNames.size()) {
-/*XXX            if (errorMessage)  
-                *errorMessage = TfStringPrintf(
-                    "Incorrectly sized face data: name count = %d, "
-                    "data width = %d, face count = %d, total data size = %d.",
-                    (int) _t.fvNames.size(),
-                    fvarWidth,
-                    (int) _t.nverts.size(),
-                    (int) _t.fvData.size());
-*/                    
-            return false;
+        if (errorMessage)  {                 
+            stringstream ss;
+            ss << "Incorrectly sized face data: name count = " <<
+                _t.fvNames.size() << 
+                ",  data width = " << fvarWidth <<
+                ",  face count = " <<  _t.nverts.size() <<
+                ",  total data size = %d." << _t.fvData.size();
+            *errorMessage = ss.str();
+        }
+        return false;
     }
 
     // ptex index is not necessarily the same as the face index
@@ -243,8 +243,10 @@ PxOsdUtilMesh<T>::Initialize(const PxOsdUtilSubdivTopology &topology,
 //    names.size() * NumRefinedFaces * 4
 template <class T> void
 PxOsdUtilMesh<T>::GetRefinedFVData(
-    int level, const vector<string>& names, vector<float>* outdata)
+    const vector<string>& names, vector<float>* outdata)
 {
+    int level = _t.refinementLevel;
+    
     // First some sanity checking.
     if (!outdata) {
         return;

@@ -122,7 +122,7 @@ PxOsdUtilUniformEvaluator::Initialize(
     }
 
     // No need to create a far mesh if no subdivision is required.
-    if (_refiner->GetTopology().maxLevels == 0) {
+    if (_refiner->GetTopology().refinementLevel == 0) {
         
         // Three elements per unrefined point
         _vertexBuffer = OsdCpuVertexBuffer::Create(

@@ -56,7 +56,7 @@ class PxOsdUtilSubdivTopology {
     // XXX Would be great for these members to be private with accessors
     std::string name;
     int numVertices;
-    int maxLevels;
+    int refinementLevel;
     std::vector<int> indices;
     std::vector<int> nverts;
     std::vector<std::string> vvNames;

@@ -74,8 +74,7 @@ class PxOsdUtilMesh {
     // by a refiner.
     // XXX: this assumes uniform subdivision, should be moved
     // into uniformRefiner?
-    void GetRefinedFVData(int subdivisionLevel,
-                          const std::vector<std::string>& names,
+    void GetRefinedFVData(const std::vector<std::string>& names,
                           std::vector<float>* fvdata);
     
     OpenSubdiv::OPENSUBDIV_VERSION::HbrMesh<T> *GetHbrMesh() { return _hmesh;}

@@ -83,10 +83,9 @@ class PxOsdUtilRefiner  {
     // Fetch the face varying attribute values on refined quads
     // Calls through to the lower level mesh class to extract
     // face varying data from hbr.
-    void GetRefinedFVData(int subdivisionLevel,
-                          const std::vector<std::string>& names,
+    void GetRefinedFVData(const std::vector<std::string>& names,
                           std::vector<float>* fvdata) {
-        _mesh->GetRefinedFVData(subdivisionLevel, names, fvdata);
+        _mesh->GetRefinedFVData(names, fvdata);
     }
 
     // Const access to far mesh
@@ -112,7 +111,7 @@ class PxOsdUtilRefiner  {
     // If true, feature adaptive refinement is used and _farMesh
     // is populated with bspline and gregory patches.
     // if false, uniform refinement is used by subdividing the entire
-    // mesh _level times.
+    // mesh N times.
     bool _adaptive;
     
     // The next block of member variables are the OpenSubdiv meshe
@@ -145,8 +144,6 @@ class PxOsdUtilRefiner  {
     int _numUniformQuads;  // zero if adaptive = true
     int _numPatches;       // zero if adaptive = false
     
-    int _level;
-
     bool _isRefined;
 
 };
