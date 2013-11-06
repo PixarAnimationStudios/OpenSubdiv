@@ -80,7 +80,7 @@ OsdGLVertexBuffer::BindVBO() {
 
 bool
 OsdGLVertexBuffer::allocate() {
-    
+
     int size = _numElements * _numVertices * sizeof(float);
     GLint prev = 0;
 
@@ -90,7 +90,6 @@ OsdGLVertexBuffer::allocate() {
     glBufferData(GL_ARRAY_BUFFER, size, 0, GL_STREAM_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, prev);
 
-//    if (glGetError() != GL_NO_ERROR) return false;
     return true;
 }
 
