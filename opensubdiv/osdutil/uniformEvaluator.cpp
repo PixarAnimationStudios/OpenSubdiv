@@ -29,9 +29,12 @@
 
 #include "../osd/vertex.h"
 
+#ifdef OPENSUBDIV_HAS_OPENMP
 #include <omp.h>
-
 #include "../osd/ompComputeController.h"
+#endif
+
+
 #include "../osd/cpuComputeController.h"
 
 #include <fstream>
@@ -213,17 +216,22 @@ PxOsdUtilUniformEvaluator::Refine(
 {
     const FarMesh<OsdVertex> *fmesh = _refiner->GetFarMesh();
     
+#ifdef OPENSUBDIV_HAS_OPENMP
+    
     if (numThreads > 1) {
         OsdOmpComputeController ompComputeController(numThreads);
         ompComputeController.Refine(_computeContext,
                                     fmesh->GetKernelBatches(),
                                     _vertexBuffer, _vvBuffer);
-    } else {
-        OsdCpuComputeController cpuComputeController;
-        cpuComputeController.Refine(_computeContext,
-                                    fmesh->GetKernelBatches(),
-                                    _vertexBuffer, _vvBuffer);        
+        return true;
     }
+    
+#endif
+
+    OsdCpuComputeController cpuComputeController;
+    cpuComputeController.Refine(_computeContext,
+                                fmesh->GetKernelBatches(),
+                                _vertexBuffer, _vvBuffer);        
 
     return true;
 }
