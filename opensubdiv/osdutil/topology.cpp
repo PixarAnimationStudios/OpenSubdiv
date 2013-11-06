@@ -265,7 +265,7 @@ PxOsdUtilSubdivTopology::ParseFromObjString(
         }
     }
 
-    numVertices = pointPositions->size()/3;
+    numVertices = (int)pointPositions->size()/3;
 
     return true;
 }

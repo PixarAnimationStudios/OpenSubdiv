@@ -137,7 +137,7 @@ PxOsdUtilUniformEvaluator::Initialize(
             // One element in the vertex buffer for each
             // named vertex varying attribute in the unrefined mesh
             _vvBuffer = OsdCpuVertexBuffer::Create(
-                vvNames.size(), hmesh->GetNumVertices());
+                (int)vvNames.size(), hmesh->GetNumVertices());
 
             // zeros
             memset( _vvBuffer->BindCpuBuffer(), 0,
@@ -162,7 +162,7 @@ PxOsdUtilUniformEvaluator::Initialize(
         // One element in the vertex buffer for each
         // named vertex varying attribute in the refined mesh
         _vvBuffer = OsdCpuVertexBuffer::Create(
-            vvNames.size(), fmesh->GetNumVertices());
+            (int)vvNames.size(), fmesh->GetNumVertices());
         
         // zeros
         memset( _vvBuffer->BindCpuBuffer(), 0,
@@ -311,7 +311,7 @@ PxOsdUtilUniformEvaluator::GetRefinedVVData(
     }
 
 
-    int numElements = GetTopology().vvNames.size();
+    int numElements = (int)GetTopology().vvNames.size();
     if (numElementsRetVal)
         *numElementsRetVal = numElements;
             
