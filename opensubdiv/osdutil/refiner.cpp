@@ -107,7 +107,7 @@ PxOsdUtilRefiner::Initialize(
         // create the quad tables to include all levels by specifying
         // firstLevel as 1
         FarMeshFactory<OsdVertex> uniformMeshFactory(
-            _mesh->GetHbrMesh(), t.maxLevels, false, /*firstLevel=*/1);
+            _mesh->GetHbrMesh(), t.maxLevels, false);
 
         _farMesh = uniformMeshFactory.Create();
 
