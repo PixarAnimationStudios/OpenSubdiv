@@ -59,27 +59,14 @@
 #include <windows.h>
 #endif
 
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-#include <osd/cpuEvalLimitContext.h>
-#include <osd/cpuEvalLimitController.h>
-#include <osd/cpuVertexBuffer.h>
-#include <osd/error.h>
-#include <osd/mesh.h>
-#include <osd/vertex.h>
 
 #include <osdutil/uniformEvaluator.h>
 #include <osdutil/topology.h>
 
-#include "../common/stopwatch.h"
-#include "../../regression/common/shape_utils.h"
+#include <osd/error.h>
 
-
-#include <cfloat>
 #include <vector>
-#include <fstream>
-#include <sstream>
-#include <cstdlib>
+#include <iostream>
 
 #ifdef OPENSUBDIV_HAS_OPENMP
     #include <omp.h>
@@ -87,59 +74,16 @@
 
 using namespace OpenSubdiv;
 
-static shape * readShape( char const * fname ) {
-
-    FILE * handle = fopen( fname, "rt" );
-    if (not handle) {
-        printf("Could not open \"%s\" - aborting.\n", fname);
-        exit(0);
-    }
-
-    fseek( handle, 0, SEEK_END );
-    size_t size = ftell(handle);
-    fseek( handle, 0, SEEK_SET );
-
-    char * shapeStr = new char[size+1];
-
-    if ( fread( shapeStr, size, 1, handle)!=1 ) {
-        printf("Error reading \"%s\" - aborting.\n", fname);
-        exit(0);
-    }
-
-    fclose(handle);
-
-    shapeStr[size]='\0';
-
-    return shape::parseShape( shapeStr, 1 );
-}
-
-static bool
-shapeToTopology( const shape *input, PxOsdUtilSubdivTopology *output,
-                 std::string *errorMessage)
-{
-    int numVertices = input->getNverts();
-    
-    output->numVertices = numVertices;
-    output->maxLevels = 3;  //arbitrary initial value
-    output->nverts = input->nvertsPerFace;
-    output->indices = input->faceverts;
-
-    // XXX:gelder
-    // Need to pull over uvs and tags for better test coverage
-
-    return output->IsValid(errorMessage);
-}
-
 
 //------------------------------------------------------------------------------
 static bool
 createOsdMesh(char *inputFile, char *outputFile, std::string *errorMessage)
 {
 
-    shape *inputShape = readShape(inputFile);
-    
     PxOsdUtilSubdivTopology topology;
-    if (not shapeToTopology(inputShape, &topology, errorMessage))
+    std::vector<float> pointPositions;
+    
+    if (not topology.ReadFromObjFile(inputFile, &pointPositions, errorMessage))
         return false;
 
     PxOsdUtilUniformEvaluator uniformEvaluator;
@@ -150,7 +94,7 @@ createOsdMesh(char *inputFile, char *outputFile, std::string *errorMessage)
     }
 
     // Push the vertex data
-    uniformEvaluator.SetCoarsePositions(inputShape->verts, errorMessage);
+    uniformEvaluator.SetCoarsePositions(pointPositions, errorMessage);
 
     // Refine with eight threads
     if (not uniformEvaluator.Refine(8, errorMessage))
@@ -158,13 +102,13 @@ createOsdMesh(char *inputFile, char *outputFile, std::string *errorMessage)
     
     std::vector<int> refinedQuads;
     if (not uniformEvaluator.GetRefinedQuads(&refinedQuads, errorMessage)) {
-        std::cout  << "GetRefinedQuads failed with " << errorMessage << std::endl;        
+        std::cout  << "GetRefinedQuads failed with " << *errorMessage << std::endl;        
     }
 
     float *refinedPositions = NULL;
     int numFloats = 0;
     if (not uniformEvaluator.GetRefinedPositions(&refinedPositions, &numFloats, errorMessage)) {
-        std::cout  << "GetRefinedPositions failed with " << errorMessage << std::endl;        
+        std::cout  << "GetRefinedPositions failed with " << *errorMessage << std::endl;        
     }
     
     std::cout << "Quads = " << refinedQuads.size()/4 << std::endl;        

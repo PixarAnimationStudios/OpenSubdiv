@@ -139,3 +139,131 @@ PxOsdUtilSubdivTopology::Print() const
 
 }
 
+
+
+bool
+PxOsdUtilSubdivTopology::ReadFromObjFile( char const * fname,
+                                          vector<float> *pointPositions,
+                                          std::string *errorMessage ) {
+
+    FILE * handle = fopen( fname, "rt" );
+    if (not handle) {
+        stringstream ss;
+        ss << "Could not open .obj file " << fname ;
+        *errorMessage = ss.str();
+        return false;
+    }
+
+    fseek( handle, 0, SEEK_END );
+    size_t size = ftell(handle);
+    fseek( handle, 0, SEEK_SET );
+
+    char * shapeStr = new char[size+1];
+
+    if ( fread( shapeStr, size, 1, handle)!=1 ) {
+        stringstream ss;
+        ss << "Error reading .obj file " << fname ;
+        *errorMessage = ss.str();
+        return false;        
+    }
+
+    fclose(handle);
+
+    shapeStr[size]='\0';
+
+    name = fname;
+    
+    return ParseFromObjString(shapeStr, 1, pointPositions );
+}
+
+
+
+static char const * sgets( char * s, int size, char ** stream ) {
+    for (int i=0; i<size; ++i) {
+        if ( (*stream)[i]=='\n' or (*stream)[i]=='\0') {
+
+            memcpy(s, *stream, i);
+            s[i]='\0';
+
+            if ((*stream)[i]=='\0')
+                return 0;
+            else {
+                (*stream) += i+1;
+                return s;
+            }
+        }
+    }
+    return 0;
+}
+
+bool
+PxOsdUtilSubdivTopology::ParseFromObjString(
+    char const * shapestr, int axis,
+    vector<float> *pointPositions,
+    std::string *errorMessage)
+{
+    char * str=const_cast<char *>(shapestr), line[256];
+    bool done = false;
+    
+    while( not done ) {
+        
+        done = sgets(line, sizeof(line), &str)==0;
+        char* end = &line[strlen(line)-1];
+        if (*end == '\n')
+            *end = '\0'; // strip trailing nl
+        
+        float x, y, z, u, v;
+        switch (line[0]) {
+        case 'v': switch (line[1]) {
+            case ' ':
+                if(sscanf(line, "v %f %f %f", &x, &y, &z) == 3) {
+                    pointPositions->push_back(x);
+                    switch( axis ) {
+                    case 0 : pointPositions->push_back(-z);
+                        pointPositions->push_back(y); break;
+                    case 1 : pointPositions->push_back(y);
+                        pointPositions->push_back(z); break;
+                    }
+                } break;
+            case 't':
+                if(sscanf(line, "vt %f %f", &u, &v) == 2) {
+                    //XXX:gelder
+                    // extract UVs
+                    // s->uvs.push_back(u);
+                    // s->uvs.push_back(v);
+                } break;
+            case 'n' :
+                break; // skip normals for now
+            }
+            break;
+        case 'f':
+            if(line[1] == ' ')  {
+                int vi, ti, ni;
+                const char* cp = &line[2];
+                while (*cp == ' ') cp++;
+                int numVerts = 0, nitems=0;
+                while( (nitems=sscanf(cp, "%d/%d/%d", &vi, &ti, &ni))>0) {
+                    numVerts++;
+                    indices.push_back(vi-1);
+                    //XXX:gelder
+                    // Extract face varying uvs
+                    //if(nitems >= 1) s->faceuvs.push_back(ti-1);
+                    //if(nitems >= 2) s->facenormals.push_back(ni-1);
+                    while (*cp && *cp != ' ') cp++;
+                    while (*cp == ' ') cp++;
+                }
+                nverts.push_back(numVerts);
+            }
+            break;
+//        case 't' : if(line[1] == ' ') {
+//                shape::tag * t = tag::parseTag( line );
+//                if (t)
+//                    s->tags.push_back(t);
+//            } break;
+        }
+    }
+
+    numVertices = pointPositions->size()/3;
+
+    return true;
+}

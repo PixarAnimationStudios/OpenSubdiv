@@ -77,6 +77,8 @@ class PxOsdUtilSubdivTopology {
         int levels,
         std::string *errorMessage);
 
+    
+
     // checks indices etc to ensure that mesh isn't in a
     // broken state. Returns false on error, and will populate
     // errorMessage (if non-NULL) with a descriptive error message
@@ -84,6 +86,14 @@ class PxOsdUtilSubdivTopology {
 
     // for debugging, print the contents of the topology to stdout
     void Print() const;
+
+    bool ReadFromObjFile( char const * fname,
+                          std::vector<float> *pointPositions,
+                          std::string *errorMessage = NULL);
+    
+    bool ParseFromObjString( char const * shapestr, int axis,
+                             std::vector<float> *pointPositions,
+                             std::string *errorMessage = NULL);       
 };
 
 

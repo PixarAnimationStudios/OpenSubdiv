@@ -61,7 +61,6 @@ set(PLATFORM_LIBRARIES
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${PROJECT_SOURCE_DIR}/regression
     ${PROJECT_SOURCE_DIR}/examples
 )
 
