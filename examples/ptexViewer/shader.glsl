@@ -421,10 +421,6 @@ void main()
 
     #define EDGE_VERTS 4
 
-    in block {
-        OutputVertex v;
-    } inpt[4];
-
 #endif // PRIM_QUAD
 
 #ifdef  PRIM_TRI
@@ -435,11 +431,20 @@ void main()
 
     #define EDGE_VERTS 3
 
-    in block {
-        OutputVertex v;
-    } inpt[3];
-
 #endif // PRIM_TRI
+
+#ifdef  PRIM_LINE
+    layout(lines) in;
+
+    layout(line_strip, max_vertices = 2) out;
+
+    #define EDGE_VERTS 2
+
+#endif // PRIM_LINE
+
+in block {
+    OutputVertex v;
+} inpt[EDGE_VERTS];
 
 out block {
     OutputVertex v;
@@ -614,6 +619,11 @@ void main()
 #endif
 #endif // PRIM_TRI
 
+#ifdef PRIM_LINE
+    emit(0, inpt[0].v.position, inpt[0].v.normal, vec4(0));
+    emit(1, inpt[1].v.position, inpt[1].v.normal, vec4(0));
+#endif
+
     EndPrimitive();
 }
 
@@ -762,6 +772,9 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
         min(min(inpt.edgeDistance[0], inpt.edgeDistance[1]),
             min(inpt.edgeDistance[2], inpt.edgeDistance[3]));
 #endif
+#ifdef PRIM_LINE
+    float d = 0;
+#endif
     vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
     float p = exp2(-2 * d * d);
 
@@ -774,6 +787,7 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
     return Cfill;
 }
 
+#if defined(PRIM_QUAD) || defined(PRIM_TRI)
 void
 main()
 {
@@ -891,5 +905,14 @@ main()
 
     outColor = edgeColor(Cf, inpt.edgeDistance);
 }
+#endif //PRIM_TRI || PRIM_QUAD
+
+#if defined(PRIM_LINE)
+void
+main()
+{
+    outColor = vec4(0, 1, 0, 1);
+}
+#endif
 
 #endif
