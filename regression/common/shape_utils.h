@@ -437,12 +437,12 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
                 dynamic_cast<OpenSubdiv::HbrCatmarkSubdivision<T> *>( mesh->GetSubdivision() );
 
             if (not scheme) {
-                printf("the \"creasemethod\" tag can only be applied to Catmark meshes\n");
+                printf("the \"smoothtriangles\" tag can only be applied to Catmark meshes\n");
                 continue;
             }
 
             if ((int)t->intargs.size()==0) {
-                printf("the \"creasemethod\" tag expects an int argument\n");
+                printf("the \"smoothtriangles\" tag expects an int argument\n");
                 continue;
             }
 
@@ -453,17 +453,13 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
                 scheme->SetTriangleSubdivisionMethod(
                     OpenSubdiv::HbrCatmarkSubdivision<T>::k_New);
             else
-                printf("the \"creasemethod\" tag only accepts \"normal\" or \"chaikin\" as value (%s)\n", t->stringargs[0].c_str());
+                printf("the \"smoothtriangles\" tag only accepts 1 or 2 as value (%d)\n", t->intargs[0]);
 
         } else if (t->name=="creasemethod") {
 
-            OpenSubdiv::HbrCatmarkSubdivision<T> * scheme =
-                dynamic_cast<OpenSubdiv::HbrCatmarkSubdivision<T> *>( mesh->GetSubdivision() );
+            OpenSubdiv::HbrSubdivision<T> * scheme = mesh->GetSubdivision();
 
-            if (not scheme) {
-                printf("the \"creasemethod\" tag can only be applied to Catmark meshes\n");
-                continue;
-            }
+            assert(scheme);
 
             if ((int)t->stringargs.size()==0) {
                 printf("the \"creasemethod\" tag expects a string argument\n");
@@ -871,7 +867,18 @@ createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
         fv+=nv;
     }
 
-    mesh->SetInterpolateBoundaryMethod( OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly );
+    mesh->SetInterpolateBoundaryMethod(
+        OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly);
+
+    mesh->GetSubdivision()->SetCreaseSubdivisionMethod(
+        OpenSubdiv::HbrSubdivision<T>::k_CreaseNormal);
+    
+    if (OpenSubdiv::HbrCatmarkSubdivision<T> * scheme =
+        dynamic_cast<OpenSubdiv::HbrCatmarkSubdivision<T> *>(mesh->GetSubdivision())) {
+    
+        scheme->SetTriangleSubdivisionMethod(
+            OpenSubdiv::HbrCatmarkSubdivision<T>::k_Normal);
+    }
 
     applyTags<T>( mesh, sh );
 

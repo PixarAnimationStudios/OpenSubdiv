@@ -490,6 +490,12 @@ initializeShapes( ) {
 
 #include <shapes/loop_triangle_edgeonly.h>
     g_defaultShapes.push_back(SimpleShape(loop_triangle_edgeonly, "loop_triangle_edgeonly", kLoop));
+
+#include <shapes/loop_chaikin0.h>
+    g_defaultShapes.push_back(SimpleShape(loop_chaikin0, "loop_chaikin0", kLoop));
+
+#include <shapes/loop_chaikin1.h>
+    g_defaultShapes.push_back(SimpleShape(loop_chaikin1, "loop_chaikin1", kLoop));
 }
 
 //------------------------------------------------------------------------------

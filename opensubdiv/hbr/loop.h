@@ -483,14 +483,14 @@ HbrLoopSubdivision<T>::Refine(HbrMesh<T>* mesh, HbrFace<T>* face) {
             childedge = child->GetEdge(i);
             if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                 HbrSubdivision<T>::SubdivideCreaseWeight(
-                    edge, edge->GetDestVertex(), childedge);
+                    edge, edge->GetOrgVertex(), childedge);
             }
             childedge->CopyFVarInfiniteSharpness(edge);
 
             childedge = child->GetEdge((i+2)%3);
             if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                 HbrSubdivision<T>::SubdivideCreaseWeight(
-                    prevedge, prevedge->GetOrgVertex(), childedge);
+                    prevedge, prevedge->GetDestVertex(), childedge);
             }
             childedge->CopyFVarInfiniteSharpness(prevedge);
 
@@ -542,14 +542,14 @@ HbrLoopSubdivision<T>::RefineFaceAtVertex(HbrMesh<T>* mesh, HbrFace<T>* face, Hb
                 childedge = child->GetEdge(i);
                 if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                     HbrSubdivision<T>::SubdivideCreaseWeight(
-                        edge, edge->GetDestVertex(), childedge);
+                        edge, edge->GetOrgVertex(), childedge);
                 }
                 childedge->CopyFVarInfiniteSharpness(edge);
 
                 childedge = child->GetEdge((i+2)%3);
                 if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                     HbrSubdivision<T>::SubdivideCreaseWeight(
-                        prevedge, prevedge->GetOrgVertex(), childedge);
+                        prevedge, prevedge->GetDestVertex(), childedge);
                 }
                 childedge->CopyFVarInfiniteSharpness(prevedge);
 
