@@ -96,7 +96,7 @@ class PxOsdUtilUniformEvaluator {
     // packed as 3 floats per point.  This doesn't involve a copy, the
     // pointer will be valid as long as _vertexBuffer exists.
     //
-    bool GetRefinedPositions(float **positions, int *numFloats,
+    bool GetRefinedPositions(const float **positions, int *numFloats,
                              std::string *errorMessage = NULL) const;
 
     // Grab vertex varying results of calling Refine, return by reference
@@ -136,12 +136,13 @@ class PxOsdUtilUniformEvaluator {
                     std::string *errorMessage = NULL) const {
         return _refiner->GetRefinedPtexUvs(subfaceUvs, ptexIndices, errorMessage);
     }
-    
-    
-    // Write the refined quad mesh to given filename, return false on error
-//    bool WriteRefinedObj( const std::string &filename,
-//                          std::string *errorMessage = NULL) const;
 
+    bool GetRefinedTopology(
+        PxOsdUtilSubdivTopology *t,
+        //positions will have three floats * t->numVertices
+        const float **positions,    
+        std::string *errorMessage = NULL);
+    
     // Forward these calls through to the refiner, which may forward
     // to the mesh.  Make these top level API calls on the evaluator
     // so clients can talk to a single API

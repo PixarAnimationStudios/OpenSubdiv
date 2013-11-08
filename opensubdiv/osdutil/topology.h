@@ -93,7 +93,12 @@ class PxOsdUtilSubdivTopology {
     
     bool ParseFromObjString( char const * shapestr, int axis,
                              std::vector<float> *pointPositions,
-                             std::string *errorMessage = NULL);       
+                             std::string *errorMessage = NULL);
+
+    bool WriteObjFile(
+        const char *filename, const float *positions,
+        std::string *errorMessage = NULL);
+    
 };
 
 

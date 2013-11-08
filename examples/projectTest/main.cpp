@@ -88,7 +88,7 @@ createOsdMesh(char *inputFile, char *outputFile, std::string *errorMessage)
         return false;
     }
 
-    topology.refinementLevel = 3;
+    topology.refinementLevel = 2;
 
     std::cout << "Did read topology\n";
     
@@ -104,47 +104,25 @@ createOsdMesh(char *inputFile, char *outputFile, std::string *errorMessage)
     uniformEvaluator.SetCoarsePositions(pointPositions, errorMessage);
 
     // Refine with eight threads
-    if (not uniformEvaluator.Refine(8, errorMessage)) {
+    if (not uniformEvaluator.Refine(1, errorMessage)) {
         std::cout << "Refine failed with " << *errorMessage << "\n";
         return false;
     }
     
-    std::vector<int> refinedQuads;
-    if (not uniformEvaluator.GetRefinedQuads(&refinedQuads, errorMessage)) {
-        std::cout  << "GetRefinedQuads failed with " << *errorMessage << std::endl;
+    // Refine with eight threads
+    PxOsdUtilSubdivTopology refinedTopology;
+    const float *positions = NULL;
+   
+    if (not uniformEvaluator.GetRefinedTopology(
+            &refinedTopology, &positions, errorMessage)) {
+        std::cout << "GetRefinedTopology failed with " << *errorMessage <<"\n";
         return false;
     }
-
-    float *refinedPositions = NULL;
-    int numFloats = 0;
-    if (not uniformEvaluator.GetRefinedPositions(&refinedPositions, &numFloats, errorMessage)) {
-        std::cout  << "GetRefinedPositions failed with " << *errorMessage << std::endl;
-        return false;           
-    }
     
-    std::cout << "Quads = " << refinedQuads.size()/4 << std::endl;        
-//    for (int i=0; i<(int)refinedQuads.size(); i+=4)  {
-//        std::cout << "(" << refinedQuads[i] <<
-//            ", " << refinedQuads[i+1] <<
-//            ", " << refinedQuads[i+2] <<
-//            ", " << refinedQuads[i+3] <<
-//            ")\n";
-//    }
-        
-    std::cout << "Hot damn, it worked.\n";
-    std::cout << "Positions = " << numFloats/3 << std::endl;
-//    for (int i=0; i<numFloats; i+=3)  {
-//        std::cout << "(" << refinedPositions[i] <<
-//            ", " << refinedPositions[i+1] <<
-//            "," << refinedPositions[i+2] << ")\n";
-//    }
-
-
-
-//    if (not uniformEvaluator.WriteRefinedObj("foo.obj", errorMessage)) {
-//        std::cout << errorMessage << std::endl;             
-//    }
-
+    if (not refinedTopology.WriteObjFile(
+            outputFile, positions, errorMessage)) {
+        std::cout << errorMessage << std::endl;             
+    }
 
     return true;
 }

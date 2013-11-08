@@ -238,7 +238,7 @@ PxOsdUtilUniformEvaluator::Refine(
 
 bool
 PxOsdUtilUniformEvaluator::GetRefinedPositions(
-    float **positions, int *numFloats,
+    const float **positions, int *numFloats,
     string *errorMessage) const 
 {
 
@@ -325,3 +325,35 @@ PxOsdUtilUniformEvaluator::GetRefinedVVData(
     return true;
 }
 
+
+
+
+bool
+PxOsdUtilUniformEvaluator::GetRefinedTopology(
+    PxOsdUtilSubdivTopology *t,
+    //positions will have three floats * t->numVertices
+    const float **positions,
+    std::string *errorMessage)
+{
+    
+    if (not GetRefinedQuads(&t->indices, errorMessage)) {
+        return false;
+    }
+
+    int numQuads = t->indices.size()/4;
+    t->nverts.resize(numQuads);
+    for (int i=0; i<numQuads; ++i) {
+        t->nverts[i] = 4;
+    }
+
+    int numFloats = 0;
+    if (not GetRefinedPositions(positions, &numFloats, errorMessage)) {
+        return false;           
+    }
+
+    t->name = GetTopology().name + "_refined";
+    t->numVertices = numFloats/3;
+    t->refinementLevel = GetTopology().refinementLevel;
+
+    return t->IsValid(errorMessage);
+}

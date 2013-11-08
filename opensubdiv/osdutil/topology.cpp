@@ -25,6 +25,7 @@
 
 #include <sstream>
 #include <iostream>
+#include <fstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -270,3 +271,49 @@ PxOsdUtilSubdivTopology::ParseFromObjString(
 
     return true;
 }
+
+bool
+PxOsdUtilSubdivTopology::WriteObjFile(
+    const char *filename,
+    const float *positions,
+    std::string *errorMessage)
+{
+    
+    ofstream file;
+    
+    file.open (filename);
+
+    if (not file.is_open()) {
+        stringstream ss;
+        ss << "Could not open .obj file " << filename ;
+        *errorMessage = ss.str();
+        return false;
+    }
+    
+
+    for (int i=0; i<numVertices*3; i+=3) {
+        file << "v " << positions[i] << " " << positions[i+1]
+             << " " << positions[i+2] <<"\n";
+    }
+
+    file << "\n";
+
+    int idx = 0;
+    for (int i=0; i<(int)nverts.size(); ++i) {
+        file << "f";
+        for (int j=0; j<nverts[i]-1; ++j) {
+            file << " " << indices[idx+j]+1;
+        }
+        idx += nverts[i];
+        file << "\n";
+    }
+
+    file << "\n";    
+
+    file.close();
+
+    return true;
+}
+
+
+
