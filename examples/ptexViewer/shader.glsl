@@ -479,6 +479,7 @@ float edgeDistance(vec4 p, vec4 p0, vec4 p1)
             (p.y - p0.y) * (p1.x - p0.x)) / length(p1.xy - p0.xy);
 }
 
+#if defined(PRIM_TRI) || defined(PRIM_QUAD)
 void emit(int index, vec4 position, vec3 normal, vec4 patchCoord, vec4 edgeVerts[EDGE_VERTS])
 {
     outpt.edgeDistance[0] =
@@ -498,6 +499,7 @@ void emit(int index, vec4 position, vec3 normal, vec4 patchCoord, vec4 edgeVerts
 
     emit(index, position, normal, patchCoord);
 }
+#endif
 
 // --------------------------------------
 
