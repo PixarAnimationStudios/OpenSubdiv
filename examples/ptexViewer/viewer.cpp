@@ -2502,7 +2502,7 @@ int main(int argc, char ** argv)
                           250, 50, callbackCheckBox, HUD_CB_IBL, 'i');
     }
 
-    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges,
+    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
                       450, 10, callbackCheckBox, HUD_CB_CAGE_EDGES, 'h');
     g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
                       450, 30, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
