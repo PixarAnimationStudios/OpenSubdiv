@@ -340,7 +340,7 @@ PxOsdUtilUniformEvaluator::GetRefinedTopology(
         return false;
     }
 
-    int numQuads = t->indices.size()/4;
+    int numQuads = (int)t->indices.size()/4;
     t->nverts.resize(numQuads);
     for (int i=0; i<numQuads; ++i) {
         t->nverts[i] = 4;
