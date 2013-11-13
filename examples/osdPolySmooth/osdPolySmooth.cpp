@@ -61,13 +61,14 @@
 #include <map>
 
 // XXX -- Fix this
-#define HBR_ADAPTIVE // Workaround: If not defined, will cause an error in far/meshFactory.h 
+#define HBR_ADAPTIVE // Workaround: If not defined, will cause an error in far/meshFactory.h
 
 // XXX -- Need to uncomment this unless Cmake adds this automatically
 #include <iso646.h> // needed for "and" and "or" logic in OpenSubdiv
 
-// XXX-  Revisit
-#pragma warning( disable : 174 593 )
+#if defined(_MSV_VER) and (not defined(__INTEL_COMPILER))
+    #pragma warning( disable : 174 593 )
+#endif
 
 // OpenSubdiv includes
 #include <version.h>  // XXX -- Verify the code will work without this include
@@ -92,14 +93,14 @@
 // MAYA_NODE_BUILDER:BEG [ATTRIBUTE INITIALIZATION] ==========
 const MTypeId OsdPolySmooth::id( 0x0010a25b );
 const MString OsdPolySmooth::typeNameStr("osdPolySmooth");
-MObject OsdPolySmooth::a_inputPolymesh; 
-MObject OsdPolySmooth::a_output; 
-MObject OsdPolySmooth::a_subdivisionLevels; 
-MObject OsdPolySmooth::a_vertBoundaryMethod; 
-MObject OsdPolySmooth::a_fvarBoundaryMethod; 
-MObject OsdPolySmooth::a_fvarPropagateCorners; 
-MObject OsdPolySmooth::a_smoothTriangles; 
-MObject OsdPolySmooth::a_creaseMethod; 
+MObject OsdPolySmooth::a_inputPolymesh;
+MObject OsdPolySmooth::a_output;
+MObject OsdPolySmooth::a_subdivisionLevels;
+MObject OsdPolySmooth::a_vertBoundaryMethod;
+MObject OsdPolySmooth::a_fvarBoundaryMethod;
+MObject OsdPolySmooth::a_fvarPropagateCorners;
+MObject OsdPolySmooth::a_smoothTriangles;
+MObject OsdPolySmooth::a_creaseMethod;
 // MAYA_NODE_BUILDER:END [ATTRIBUTE INITIALIZATION] ==========
 
 // ATTR ENUMS
@@ -117,9 +118,9 @@ enum CreaseMethod {
     k_creaseMethod_chaikin = 1
 };
 
-OpenSubdiv::HbrMesh< OpenSubdiv::OsdVertex >::InterpolateBoundaryMethod 
+OpenSubdiv::HbrMesh< OpenSubdiv::OsdVertex >::InterpolateBoundaryMethod
 ConvertMayaBoundaryMethodShortToOsdInterpolateBoundaryMethod(short boundaryMethod) {
-    switch (boundaryMethod) 
+    switch (boundaryMethod)
     {
     case k_BoundaryMethod_InterpolateBoundaryNone:
         return OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>::k_InterpolateBoundaryNone;
@@ -195,7 +196,7 @@ void createComp(MFnMeshData &dataCreator,
 // Reference: OSD shape_utils.h:: applyTags() "crease"
 //
 template <class T> float
-applyCreaseEdges( const MFnMesh &inMeshFn, OpenSubdiv::HbrMesh<T> * hbrMesh ) 
+applyCreaseEdges( const MFnMesh &inMeshFn, OpenSubdiv::HbrMesh<T> * hbrMesh )
 {
     MStatus returnStatus;
     MUintArray tEdgeIds;
@@ -226,7 +227,7 @@ applyCreaseEdges( const MFnMesh &inMeshFn, OpenSubdiv::HbrMesh<T> * hbrMesh )
                     if (tCreaseData[j] > maxCreaseValue) {
                         maxCreaseValue = (float)tCreaseData[j];
                     }
-                } 
+                }
                 else {
                     fprintf(stderr, "warning: cannot find edge for crease tag (%d,%d)\n", edgeVerts[0], edgeVerts[1] );
                 }
@@ -241,7 +242,7 @@ applyCreaseEdges( const MFnMesh &inMeshFn, OpenSubdiv::HbrMesh<T> * hbrMesh )
 // Reference: OSD shape_utils.h:: applyTags() "corner"
 //
 template <class T> float
-applyCreaseVertices( const MFnMesh &inMeshFn, OpenSubdiv::HbrMesh<T> * hbrMesh ) 
+applyCreaseVertices( const MFnMesh &inMeshFn, OpenSubdiv::HbrMesh<T> * hbrMesh )
 {
     MUintArray tVertexIds;
     MDoubleArray tCreaseData;
@@ -261,7 +262,7 @@ applyCreaseVertices( const MFnMesh &inMeshFn, OpenSubdiv::HbrMesh<T> * hbrMesh )
                 if (tCreaseData[j] > maxCreaseValue) {
                     maxCreaseValue = (float)tCreaseData[j];
                 }
-            } 
+            }
             else {
                 fprintf(stderr, "warning: cannot find vertex for corner tag (%d)\n", tVertexIds[j] );
            }
@@ -277,7 +278,7 @@ applyCreaseVertices( const MFnMesh &inMeshFn, OpenSubdiv::HbrMesh<T> * hbrMesh )
 //
 // Collect UVs and ColorSet info to represent them as face-varying in OpenSubdiv
 //
-MStatus getMayaFvarFieldParams(const MFnMesh &inMeshFn, MStringArray &uvSetNames, MStringArray &colorSetNames, std::vector<int> &colorSetChannels, std::vector<MFnMesh::MColorRepresentation> &colorSetReps, int &totalColorSetChannels) 
+MStatus getMayaFvarFieldParams(const MFnMesh &inMeshFn, MStringArray &uvSetNames, MStringArray &colorSetNames, std::vector<int> &colorSetChannels, std::vector<MFnMesh::MColorRepresentation> &colorSetReps, int &totalColorSetChannels)
 {
     MStatus returnStatus;
 
@@ -308,19 +309,18 @@ MStatus getMayaFvarFieldParams(const MFnMesh &inMeshFn, MStringArray &uvSetNames
 }
 
 
-//! Create OSD HBR mesh.  
+//! Create OSD HBR mesh.
 //! Caller is expected to delet the resulting hbrMesh returned
 //!
 OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex> *
-createOsdHbrFromPoly( const MFnMesh &inMeshFn, 
+createOsdHbrFromPoly( const MFnMesh &inMeshFn,
                       MItMeshPolygon &inMeshItPolygon,
-                      std::vector<int> &fvarIndices, 
+                      std::vector<int> &fvarIndices,
                       std::vector<int> &fvarWidths)
 {
     MStatus returnStatus;
 
     // == Mesh Properties
-    int numFaces = inMeshFn.numPolygons();
 
     // =====================================
     // Init HBR
@@ -350,11 +350,11 @@ createOsdHbrFromPoly( const MFnMesh &inMeshFn,
     // Create HBR mesh
     OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex> * hbrMesh = NULL;
     assert(fvarIndices.size() == fvarWidths.size());
-    hbrMesh = new OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>( &hbrCatmarkSubdMethod, 
-                                                              (int)fvarIndices.size(), 
-                                                              (fvarIndices.size() > 0) ? &fvarIndices[0] : NULL, 
+    hbrMesh = new OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>( &hbrCatmarkSubdMethod,
+                                                              (int)fvarIndices.size(),
+                                                              (fvarIndices.size() > 0) ? &fvarIndices[0] : NULL,
                                                               (fvarWidths.size()  > 0) ? &fvarWidths[0] : NULL,
-                                                              totalFvarWidth ); 
+                                                              totalFvarWidth );
 
     // Create Stub HBR Vertices
     int numVerts = inMeshFn.numVertices();
@@ -368,7 +368,7 @@ createOsdHbrFromPoly( const MFnMesh &inMeshFn,
 
     assert(totalFvarWidth == hbrMesh->GetTotalFVarWidth());
     unsigned int ptxidx = 0;
-    
+
     MIntArray fvArray; // face vertex array
     // temp storage for UVs and ColorSets for a face
     std::vector<MFloatArray> uvSet_uCoords(uvSetNames.length());
@@ -465,7 +465,7 @@ createOsdHbrFromPoly( const MFnMesh &inMeshFn,
                 }
                 assert((fvarItemIndex) == totalFvarWidth); // For UVs, sanity check the resulting value
 
-                // Insert into the HBR structure for that face 
+                // Insert into the HBR structure for that face
                 OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex> *hbrVertex = hbrMesh->GetVertex( fvArray[fvid] );
                 OpenSubdiv::HbrFVarData<OpenSubdiv::OsdVertex> &fvarData = hbrVertex->GetFVarData(face);
                 if ( !fvarData.IsInitialized() ) {
@@ -482,7 +482,7 @@ createOsdHbrFromPoly( const MFnMesh &inMeshFn,
         }
 
         // Increment ptxidx and store off ptex index values
-        //   The number of ptexIds needed is 1 if a quad.  Otherwise it is the number of 
+        //   The number of ptexIds needed is 1 if a quad.  Otherwise it is the number of
         //   vertices for the face.
         int numPtexIdsForFace;
         if (validFace) {
@@ -495,8 +495,12 @@ createOsdHbrFromPoly( const MFnMesh &inMeshFn,
     }
 
     // Apply Creases
-    float maxEdgeCreaseValue = applyCreaseEdges<OpenSubdiv::OsdVertex>( inMeshFn, hbrMesh );     // Subset of applyTags<T>( hbrMesh, sh ) for "crease"
-    float maxVertCreaseValue = applyCreaseVertices<OpenSubdiv::OsdVertex>( inMeshFn, hbrMesh );  // Subset of applyTags<T>( hbrMesh, sh ) for "corner"
+
+    // Subset of applyTags<T>( hbrMesh, sh ) for "crease"
+    applyCreaseEdges<OpenSubdiv::OsdVertex>( inMeshFn, hbrMesh );
+
+    // Subset of applyTags<T>( hbrMesh, sh ) for "corner"
+    applyCreaseVertices<OpenSubdiv::OsdVertex>( inMeshFn, hbrMesh );
 
     // Return the resulting HBR Mesh
     // Note that boundaryMethods and hbrMesh->Finish() still need to be called
@@ -544,7 +548,7 @@ MStatus convertOsdFarToMayaMeshData(
     assert(numFloatsPerVertex == 3); // assuming only xyz stored for each vertex
     const float *vertexData = vertexBuffer->BindCpuBuffer();
     float *ptrVertexData;
-    for (unsigned int i=0; i < numVertices; i++) 
+    for (unsigned int i=0; i < numVertices; i++)
     {
         unsigned int osdRawVertexIndex = i + vertexOffset; // make sure to offset to the first osd vertex for that subd level
         // Lookup the data in the vertexData
@@ -622,7 +626,7 @@ MStatus convertOsdFarToMayaMeshData(
                     colorArray[vertid].b = fvarDataTable[fvarItem+2];
                     colorArray[vertid].a = 1.0f;
                 }
-                else { // (colorSetChannels[colorSetIndex] == 4) 
+                else { // (colorSetChannels[colorSetIndex] == 4)
                     colorArray[vertid].r = fvarDataTable[fvarItem];
                     colorArray[vertid].g = fvarDataTable[fvarItem+1];
                     colorArray[vertid].b = fvarDataTable[fvarItem+2];
@@ -656,7 +660,7 @@ MStatus createSmoothMesh_objectGroups(const MFnMeshData &inMeshDat, int subdivis
 
     int facesPerBaseFace = (int)(pow(4.0f, subdivisionLevel));
     MIntArray newCompElems;
-    // Loop over the Object Groups 
+    // Loop over the Object Groups
     for(unsigned int gi=0; gi < inMeshDat.objectGroupCount(); gi++) {
         unsigned int compId = inMeshDat.objectGroup(gi, &returnStatus);
         MCHECKERR(returnStatus, "cannot get objectGroup() comp ID.");
@@ -704,10 +708,10 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data )
 //
 {
     MStatus returnStatus;
-    // Check which output attribute we have been asked to compute.  If this 
-    // node doesn't know how to compute it, we must return 
+    // Check which output attribute we have been asked to compute.  If this
+    // node doesn't know how to compute it, we must return
     // MS::kUnknownParameter.
-    // 
+    //
     if( plug == a_output ) {
         bool createdSubdMesh = false;
 
@@ -725,18 +729,18 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data )
             short creaseMethodVal    = data.inputValue(a_creaseMethod).asShort();
 
             // Convert attr values to OSD enums
-            OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>::InterpolateBoundaryMethod vertInterpBoundaryMethod = 
+            OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>::InterpolateBoundaryMethod vertInterpBoundaryMethod =
                 ConvertMayaBoundaryMethodShortToOsdInterpolateBoundaryMethod(vertBoundaryMethod);
 
-            OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>::InterpolateBoundaryMethod fvarInterpBoundaryMethod = 
+            OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>::InterpolateBoundaryMethod fvarInterpBoundaryMethod =
                 ConvertMayaBoundaryMethodShortToOsdInterpolateBoundaryMethod(fvarBoundaryMethod);
 
-            OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::CreaseSubdivision creaseMethod = (creaseMethodVal == k_creaseMethod_chaikin) ? 
-                OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::k_CreaseChaikin : 
+            OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::CreaseSubdivision creaseMethod = (creaseMethodVal == k_creaseMethod_chaikin) ?
+                OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::k_CreaseChaikin :
                 OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::k_CreaseNormal;
 
-            OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::TriangleSubdivision triangleSubdivision = smoothTriangles ? 
-                OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::k_New : 
+            OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::TriangleSubdivision triangleSubdivision = smoothTriangles ?
+                OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::k_New :
                 OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::k_Normal;
 
             // == Get Mesh Functions and Iterators ==========================
@@ -751,9 +755,9 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data )
             // Note: These fvar values only need to be kept alive through the life of the farMesh
             std::vector<int> fvarIndices;
             std::vector<int> fvarWidths;
-            OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex> *hbrMesh = createOsdHbrFromPoly( 
-                                                        inMeshFn, 
-                                                        inMeshItPolygon, 
+            OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex> *hbrMesh = createOsdHbrFromPoly(
+                                                        inMeshFn,
+                                                        inMeshItPolygon,
                                                         fvarIndices,
                                                         fvarWidths);
 
@@ -776,7 +780,7 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data )
                 // NOTE: This HAS to be called after all HBR parameters are set
                 hbrMesh->Finish();
 
-                // Create a FarMesh from the HBR mesh and pass into 
+                // Create a FarMesh from the HBR mesh and pass into
                 // It will be owned by the OsdMesh and deleted in the ~OsdMesh()
                 OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex> meshFactory(hbrMesh, subdivisionLevel, false);
                 OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMesh = meshFactory.Create( (hbrMesh->GetTotalFVarWidth() > 0) );
@@ -860,7 +864,7 @@ void* OsdPolySmooth::creator()
 //
 //  Description:
 //      this method exists to give Maya a way to create new objects
-//      of this type. 
+//      of this type.
 //
 //  Return Value:
 //      a new object of this type
@@ -875,13 +879,13 @@ MStatus OsdPolySmooth::initialize()
 //
 //  Description:
 //      This method is called to create and initialize all of the attributes
-//      and attribute dependencies for this node type.  This is only called 
+//      and attribute dependencies for this node type.  This is only called
 //      once when the node type is registered with Maya.
 //
 //  Return Values:
 //      MS::kSuccess
 //      MS::kFailure
-//      
+//
 {
     MStatus stat;
 
@@ -894,16 +898,16 @@ MStatus OsdPolySmooth::initialize()
     MFnNumericAttribute   nAttr;
     MFnTypedAttribute     tAttr;
     MFnUnitAttribute      uAttr;
-    
+
     // MAYA_NODE_BUILDER:BEG [ATTRIBUTE CREATION] ==========
     // a_inputPolymesh : This is a description for this attribute
     a_inputPolymesh = tAttr.create("inputPolymesh", "ip", MFnData::kMesh, MObject::kNullObj, &stat);
     MCHECKERR( stat, "cannot create OsdPolySmooth::inputPolymesh" );
-    stat = tAttr.setReadable(true); 
+    stat = tAttr.setReadable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::inputPolymesh.setReadable()" );
-    stat = tAttr.setWritable(true); 
+    stat = tAttr.setWritable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::inputPolymesh.setWritable()" );
-    stat = tAttr.setHidden(true); 
+    stat = tAttr.setHidden(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::inputPolymesh.setHidden()" );
     stat = addAttribute( a_inputPolymesh );
     MCHECKERR( stat, "cannot OsdPolySmooth::addAttribute(a_inputPolymesh)" );
@@ -911,11 +915,11 @@ MStatus OsdPolySmooth::initialize()
     // a_output : This is a description for this attribute
     a_output = tAttr.create("output", "out", MFnData::kMesh, MObject::kNullObj, &stat);
     MCHECKERR( stat, "cannot create OsdPolySmooth::output" );
-    stat = tAttr.setReadable(true); 
+    stat = tAttr.setReadable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::output.setReadable()" );
-    stat = tAttr.setWritable(false); 
+    stat = tAttr.setWritable(false);
     MCHECKERR( stat, "cannot OsdPolySmooth::output.setWritable()" );
-    stat = tAttr.setHidden(true); 
+    stat = tAttr.setHidden(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::output.setHidden()" );
     stat = addAttribute( a_output );
     MCHECKERR( stat, "cannot OsdPolySmooth::addAttribute(a_output)" );
@@ -931,9 +935,9 @@ MStatus OsdPolySmooth::initialize()
     MCHECKERR( stat, "cannot OsdPolySmooth::subdivisionLevels.setMax(10)" );
     stat = nAttr.setSoftMax(4);
     MCHECKERR( stat, "cannot OsdPolySmooth::subdivisionLevels.setSoftMax(4)" );
-    stat = nAttr.setReadable(true); 
+    stat = nAttr.setReadable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::subdivisionLevels.setReadable()" );
-    stat = nAttr.setWritable(true); 
+    stat = nAttr.setWritable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::subdivisionLevels.setWritable()" );
     stat = addAttribute( a_subdivisionLevels );
     MCHECKERR( stat, "cannot OsdPolySmooth::addAttribute(a_subdivisionLevels)" );
@@ -947,9 +951,9 @@ MStatus OsdPolySmooth::initialize()
     MCHECKERR( stat, "cannot OsdPolySmooth::vertBoundaryMethod.addField(Interpolate Edges And Corners, k_BoundaryMethod_InterpolateBoundaryEdgeAndCorner)" );
     stat = eAttr.setDefault(k_BoundaryMethod_InterpolateBoundaryEdgeOnly);
     MCHECKERR( stat, "cannot OsdPolySmooth::vertBoundaryMethod.setDefault(k_BoundaryMethod_InterpolateBoundaryEdgeOnly)" );
-    stat = eAttr.setReadable(true); 
+    stat = eAttr.setReadable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::vertBoundaryMethod.setReadable()" );
-    stat = eAttr.setWritable(true); 
+    stat = eAttr.setWritable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::vertBoundaryMethod.setWritable()" );
     stat = addAttribute( a_vertBoundaryMethod );
     MCHECKERR( stat, "cannot OsdPolySmooth::addAttribute(a_vertBoundaryMethod)" );
@@ -967,21 +971,21 @@ MStatus OsdPolySmooth::initialize()
     MCHECKERR( stat, "cannot OsdPolySmooth::fvarBoundaryMethod.addField(Smooth (Always Sharp), k_BoundaryMethod_InterpolateBoundaryAlwaysSharp)" );
     stat = eAttr.setDefault(k_BoundaryMethod_InterpolateBoundaryNone);
     MCHECKERR( stat, "cannot OsdPolySmooth::fvarBoundaryMethod.setDefault(k_BoundaryMethod_InterpolateBoundaryNone)" );
-    stat = eAttr.setReadable(true); 
+    stat = eAttr.setReadable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::fvarBoundaryMethod.setReadable()" );
-    stat = eAttr.setWritable(true); 
+    stat = eAttr.setWritable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::fvarBoundaryMethod.setWritable()" );
     stat = addAttribute( a_fvarBoundaryMethod );
     MCHECKERR( stat, "cannot OsdPolySmooth::addAttribute(a_fvarBoundaryMethod)" );
 
-    // a_fvarPropagateCorners : 
+    // a_fvarPropagateCorners :
     a_fvarPropagateCorners = nAttr.create("fvarPropagateCorners", "fvpc", MFnNumericData::kBoolean, 0.0, &stat);
     MCHECKERR( stat, "cannot create OsdPolySmooth::fvarPropagateCorners" );
     stat = nAttr.setDefault(false);
     MCHECKERR( stat, "cannot OsdPolySmooth::fvarPropagateCorners.setDefault(false)" );
-    stat = nAttr.setReadable(true); 
+    stat = nAttr.setReadable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::fvarPropagateCorners.setReadable()" );
-    stat = nAttr.setWritable(true); 
+    stat = nAttr.setWritable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::fvarPropagateCorners.setWritable()" );
     stat = addAttribute( a_fvarPropagateCorners );
     MCHECKERR( stat, "cannot OsdPolySmooth::addAttribute(a_fvarPropagateCorners)" );
@@ -991,9 +995,9 @@ MStatus OsdPolySmooth::initialize()
     MCHECKERR( stat, "cannot create OsdPolySmooth::smoothTriangles" );
     stat = nAttr.setDefault(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::smoothTriangles.setDefault(true)" );
-    stat = nAttr.setReadable(true); 
+    stat = nAttr.setReadable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::smoothTriangles.setReadable()" );
-    stat = nAttr.setWritable(true); 
+    stat = nAttr.setWritable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::smoothTriangles.setWritable()" );
     stat = addAttribute( a_smoothTriangles );
     MCHECKERR( stat, "cannot OsdPolySmooth::addAttribute(a_smoothTriangles)" );
@@ -1007,9 +1011,9 @@ MStatus OsdPolySmooth::initialize()
     MCHECKERR( stat, "cannot OsdPolySmooth::creaseMethod.addField(Chaikin, k_creaseMethod_chaikin)" );
     stat = eAttr.setDefault(0);
     MCHECKERR( stat, "cannot OsdPolySmooth::creaseMethod.setDefault(0)" );
-    stat = eAttr.setReadable(true); 
+    stat = eAttr.setReadable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::creaseMethod.setReadable()" );
-    stat = eAttr.setWritable(true); 
+    stat = eAttr.setWritable(true);
     MCHECKERR( stat, "cannot OsdPolySmooth::creaseMethod.setWritable()" );
     stat = addAttribute( a_creaseMethod );
     MCHECKERR( stat, "cannot OsdPolySmooth::addAttribute(a_creaseMethod)" );
@@ -1052,16 +1056,16 @@ MStatus initializePlugin( MObject obj )
         MStatus   returnStatus = MS::kSuccess;
         MFnPlugin plugin( obj, "OsdPolySmooth", "1.0", "Any");
 
-        returnStatus = plugin.registerNode( 
-            OsdPolySmooth::typeNameStr, 
-            OsdPolySmooth::id, 
+        returnStatus = plugin.registerNode(
+            OsdPolySmooth::typeNameStr,
+            OsdPolySmooth::id,
             OsdPolySmooth::creator,
             OsdPolySmooth::initialize);
         MCHECKERR(returnStatus, "registerNode");
 
         // Source UI scripts
         // source the mel procs to be run when the plugin is loaded / unloaded
-        MStatus scriptExecStatus = MGlobal::sourceFile("osdPolySmooth.mel"); 
+        MStatus scriptExecStatus = MGlobal::sourceFile("osdPolySmooth.mel");
         if (!scriptExecStatus) {
             MGlobal::displayWarning("Failed to source osdPolySmooth.mel.");
         }

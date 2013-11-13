@@ -22,6 +22,8 @@
 #   language governing permissions and limitations under the Apache License.
 # 
 
+# *** osdPolySmooth ***
+
 set(MAYA_FIND_QUIETLY TRUE)
 
 if(NOT MAYA_FOUND)
