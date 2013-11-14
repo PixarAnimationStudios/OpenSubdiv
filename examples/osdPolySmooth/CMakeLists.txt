@@ -1,4 +1,4 @@
-# 
+#
 #   Copyright 2013 Autodesk, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
@@ -20,7 +20,7 @@
 #   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 #   KIND, either express or implied. See the Apache License for the specific
 #   language governing permissions and limitations under the Apache License.
-# 
+#
 
 # *** osdPolySmooth ***
 
@@ -45,14 +45,12 @@ include_directories(
     ${MAYA_INCLUDE_DIRS}
 )
 
-set(SHADER_FILES
-)
-
 set(SOURCE_FILES
     osdPolySmooth.cpp
 )
 
 set(HEADER_FILES
+    osdPolySmooth.h
 )
 
 if(UNIX)
@@ -66,9 +64,7 @@ if(UNIX)
     )
     set(PLATFORM_LINK_FLAGS
     )
-endif(UNIX)
-
-if(WIN32)
+elseif(WIN32)
     set(PLATFORM_COMPILE_FLAGS
         /D_AFXDLL
         /DNT_PLUGIN
@@ -80,7 +76,7 @@ if(WIN32)
     set(PLATFORM_LINK_FLAGS
         "/export:initializePlugin /export:uninitializePlugin"
     )
-endif(WIN32)
+endif()
 
 add_definitions(
     ${PLATFORM_COMPILE_FLAGS}
@@ -89,8 +85,6 @@ add_definitions(
 add_library(maya_polySmoothNode SHARED
     ${SOURCE_FILES}
     ${HEADER_FILES}
-    ${SHADER_FILES}
-    ${INC_FILES}
 )
 
 set_target_properties(maya_polySmoothNode
@@ -110,3 +104,23 @@ target_link_libraries(maya_polySmoothNode
 )
 
 install(TARGETS maya_polySmoothNode DESTINATION ${CMAKE_PLUGINDIR_BASE})
+
+add_custom_target(maya_polySmoothNode_melScripts
+        COMMAND
+            ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/osdPolySmooth.mel ${CMAKE_CURRENT_BINARY_DIR}
+        DEPENDS
+            ${CMAKE_CURRENT_SOURCE_DIR}/osdPolySmooth.mel
+)
+
+install(
+    FILES 
+        ${CMAKE_CURRENT_BINARY_DIR}/osdPolySmooth.mel
+    DESTINATION 
+        ${CMAKE_PLUGINDIR_BASE}
+)
+
+add_custom_target(osdPolySmoothNode 
+    ALL 
+    DEPENDS 
+        maya_polySmoothNode maya_polySmoothNode_melScripts
+)
