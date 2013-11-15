@@ -1,26 +1,26 @@
-..  
+..
      Copyright 2013 Pixar
-  
+
      Licensed under the Apache License, Version 2.0 (the "Apache License")
      with the following modification; you may not use this file except in
      compliance with the Apache License and the following modification to it:
      Section 6. Trademarks. is deleted and replaced with:
-  
+
      6. Trademarks. This License does not grant permission to use the trade
         names, trademarks, service marks, or product names of the Licensor
         and its affiliates, except as required to comply with Section 4(c) of
         the License and to reproduce the content of the NOTICE file.
-  
+
      You may obtain a copy of the Apache License at
-  
+
          http://www.apache.org/licenses/LICENSE-2.0
-  
+
      Unless required by applicable law or agreed to in writing, software
      distributed under the Apache License with the above modification is
      distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
      KIND, either express or implied. See the Apache License for the specific
      language governing permissions and limitations under the Apache License.
-  
+
 
 Release Notes
 -------------
@@ -30,6 +30,31 @@ Release Notes
    :backlinks: none
 
 ----
+
+Release 2.3.2
+=============
+
+**New Features**
+    - Adding control cage drawing to ptexViewer
+    - Adding Maya osdPolySmooth plugin into OpenSubdiv examples. 
+
+**Changes**
+    - Removing some glGetError checks that are causing problems for Autodesk
+    - D3D11DrawRegistry returns the common shader config for all non-tess patcharrays.
+    - Updates to simple cpu osdutil classes
+
+**Bug Fixes**
+    - Fix Hbr Chaikin crease rule
+    - Fix Chaikin tag parsing
+    - Fix return value of allocate function for OsdCPUGLVertxBuffer
+    - Fixed GLSL shader portability.
+    - Fix FindGLFW.cmake for GLFW 3.03 on OSX
+    - Fixed compiler warnings.
+    - Fixed VS2010 build errors
+    - Fixed WIN32 build error when no DXSDK installed.
+    - Fix OSX build: stdlib.h needs to be included in glPtexMipmapTexture.h
+    - Fix for crash in new mesh/refiner code in OsdUtil
+
 
 Release 2.3.1
 =============
@@ -48,7 +73,7 @@ Release 2.3.1
     - Show ptex memory usage in GL and DX11 ptexViewers
     - Improve ptex guttering
     - Addding some video links to our collection of external resources
-    
+
 **Bug Fixes**
     - Fix edge-only face-varying interpolation
     - Fix Far to handle disconnected vertices in an Hbr mesh
@@ -62,7 +87,7 @@ Release 2.3.0
 =============
 
 **New Features**
-    - Added Analytical displacement mapping ('Analytic Displacement Mapping using 
+    - Added Analytical displacement mapping ('Analytic Displacement Mapping using
       Hardware Tessellation; Niessner and Loop [TOG 2013])
     - Added a new ptex mipmap loader
     - Added face varying macros for loop subdivision
@@ -74,7 +99,7 @@ Release 2.3.0
     - Install documentation into the Filesystem Hierarchy Standard location
     - Set GLFW_OPENGL_FORWARD_COMPAT on Mac OS to make samples work on that platform
     - Added surface normal mode & mipmap to ptxViewer
-    
+
 **Bug Fixes**
     - Fix a bug of bad fvar splicing for loop surface.
     - Fix incorrect bilinear limit tangents in FarStencilTablesFactory
@@ -87,7 +112,7 @@ Release 2.3.0
     - Fix bhr baseline regression, so reference files are real OBJ's
     - Fixed clKernelBundle.cpp to build on Android.
     - Fix misc build warings
-    
+
 Release 2.2.0
 =============
 
@@ -119,7 +144,7 @@ Release 2.1.0
     - Fix glViewer overlapping HUD menus
     - Fix facevarying rendering in glBatchViewer
     - Fix build of GLSL transform feedback kernels
-    - Fix 'Getting Started' documentation 
+    - Fix 'Getting Started' documentation
 
 
 Release 2.0.1
@@ -179,9 +204,9 @@ Release 1.2.4
 
 **Changes**
 
-    - Cleanup of common bicubic patch shader code (GLSL / HLSL) for portability 
+    - Cleanup of common bicubic patch shader code (GLSL / HLSL) for portability
       (ATI / OSX drivers)
-  
+
 **Bug Fixes**
 
     - Fix FarVertexEditTablesFactory to insert properly vertex edit batches
@@ -194,7 +219,7 @@ Release 1.2.4
     - Fix face-varying data splicing in FarMultiMeshFactory
     - Fix ptex face indexing in FarMultiMeshFactory
     - Fix glew #include to not break builds
-    - Fix Clang / ICC build failures with FarPatchTables 
+    - Fix Clang / ICC build failures with FarPatchTables
     - Fix build and example code to work with GFLW 3.0+
     - Fix cmake to have ptex dynamically linked in OSX
 
@@ -239,14 +264,14 @@ Release 1.2.2
       computational tasks that are not related to drawing the surfaces. The EvalLimit
       sub-module provides an API that enables client code to evaluate primitive variables
       on the limit surface.
-      
+
     .. image:: images/evalLimit_hedit0.jpg
        :height: 300px
        :align: center
        :target: images/evalLimit_hedit0.jpg
 
-    - Osd<xxx>ComputeController : minor optimization. Added early exit to Refine method 
-      to avoid unnecessary interop. 
+    - Osd<xxx>ComputeController : minor optimization. Added early exit to Refine method
+      to avoid unnecessary interop.
 
 **Changes**
 
@@ -256,11 +281,11 @@ Release 1.2.2
 
 **Bug Fixes**
 
-    - Fix Ptex bug : prevent corner texel guttering code to from going into infinite 
+    - Fix Ptex bug : prevent corner texel guttering code to from going into infinite
       loops
-    - Adding the ability for a FarMeshFactory to construct patchTables starting from 
+    - Adding the ability for a FarMeshFactory to construct patchTables starting from
       'firstLevel' in uniform subdivision mode
-    - Consolidating the color coding of bicubic patch types through all our our code 
+    - Consolidating the color coding of bicubic patch types through all our our code
       examples (this is used mostly as a debugging tool)
     - Fixing some MSVC++ build warnings
     - Update to the outdated README.md

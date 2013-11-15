@@ -217,24 +217,41 @@ HbrSubdivision<T>::SubdivideCreaseWeight(HbrHalfedge<T>* edge, HbrVertex<T>* ver
     else if (creaseSubdivision == HbrSubdivision<T>::k_CreaseChaikin) {
 
         float childsharp = 0.0f;
+        
+        int n = 0;
 
         // Add 1/4 of the sharpness of all crease edges incident to
         // the vertex (other than this crease edge)
-        std::vector<HbrHalfedge<T>*> edges;
-        vertex->GuaranteeNeighbors();
-        vertex->GetSurroundingEdges(std::back_inserter(edges));
+        class ChaikinEdgeCreaseOperator : public HbrHalfedgeOperator<T> {
+        public:
 
-        int n = 0;
-        for (typename std::vector<HbrHalfedge<T>*>::iterator ei = edges.begin(); ei != edges.end(); ++ei) {
-            if (*ei == edge) continue;
-            if ((*ei)->GetSharpness() > HbrHalfedge<T>::k_Smooth) {
-                childsharp += (*ei)->GetSharpness();
-                n++;
+            ChaikinEdgeCreaseOperator(
+                HbrHalfedge<T> const * edge, float & childsharp, int & count) : 
+                    m_edge(edge), m_childsharp(childsharp), m_count(count) { }
+
+            virtual void operator() (HbrHalfedge<T> &edge) {
+
+                // Skip original edge or it's opposite
+                if ((&edge==m_edge) || (&edge==m_edge->GetOpposite()))
+                    return;
+                if (edge.GetSharpness() > HbrHalfedge<T>::k_Smooth) {
+                    m_childsharp += edge.GetSharpness();
+                    ++m_count;
+                }
             }
-        }
+
+        private:
+            HbrHalfedge<T> const * m_edge;
+            float & m_childsharp;
+            int & m_count;
+        };
+
+        ChaikinEdgeCreaseOperator op(edge, childsharp, n);
+        vertex->GuaranteeNeighbors();
+        vertex->ApplyOperatorSurroundingEdges(op);
 
         if (n) {
-            childsharp = childsharp * 0.25f / n;
+            childsharp = childsharp * 0.25f / float(n);
         }
 
         // Add 3/4 of the sharpness of this crease edge

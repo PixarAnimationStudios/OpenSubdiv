@@ -216,6 +216,14 @@ to make the crease semi-sharp.
 
 ----
 
+Chaikin Rule
+============
+
+Chaikin's curve subdivision algorithm improves the appearance of multi-edge
+semi-sharp creases with vayring weights.
+
+----
+
 Hierarchical Edits
 ==================
 

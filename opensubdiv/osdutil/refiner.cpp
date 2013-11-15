@@ -22,13 +22,15 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#define HBR_ADAPTIVE
 #include <far/meshFactory.h>
 
 #include "refiner.h"
 
 #include <osd/vertex.h>
 
-#include <fstream>
+
+#include <sstream>
 
 using namespace OpenSubdiv;
 using namespace std;
@@ -48,7 +50,6 @@ PxOsdUtilRefiner::PxOsdUtilRefiner():
     _numRefinedVerts(0),
     _numUniformQuads(0),
     _numPatches(0),        
-    _level(1),
     _isRefined(false)
 {
 }
@@ -73,11 +74,9 @@ PxOsdUtilRefiner::Initialize(
          
         
 
-    _mesh = new PxOsdUtilMesh(topology, errorMessage);
-
-    std::cout << "\tCreated _mesh in refiner\n";
+    _mesh = new PxOsdUtilMesh<OsdVertex>();
     
-    if (not _mesh->IsValid()) {
+    if (not _mesh->Initialize(topology, errorMessage)) {
         std::cout << "Invalid mesh\n";
         return false;
     }
@@ -85,35 +84,19 @@ PxOsdUtilRefiner::Initialize(
     const PxOsdUtilSubdivTopology &t = _mesh->GetTopology();
 
     if (adaptive) {
-        std::cout << "\tAdaptive mesh for refiner\n";
         FarMeshFactory<OsdVertex> adaptiveMeshFactory(
-            _mesh->GetHbrMesh(), t.maxLevels, true);
+            _mesh->GetHbrMesh(), t.refinementLevel, true);
         
         _farMesh = adaptiveMeshFactory.Create();
         
     } else {
-        std::cout << "\tUniform mesh for refiner, maxLevels = " << t.maxLevels << "\n";
-
-        HbrMesh<OsdVertex> *hmesh = _mesh->GetHbrMesh();
-        
-        t.Print();
-        
-        std::cout << "\tHbr mesh has faces " << hmesh->GetNumFaces() << "  " << hmesh->GetNumCoarseFaces() << " and vertices " <<
-            hmesh->GetNumVertices() << ", disconnected = " <<
-            hmesh->GetNumDisconnectedVertices() << "\n";
-
-    hmesh->PrintStats(std::cout);
-
-        
-        // create the quad tables to include all levels by specifying
-        // firstLevel as 1
+        // XXX:gelder
+        // Had problems with patchArrayVector in patchTables not working
+        // unless firstLevel is passed as 1 here.  Bug in refiner?
         FarMeshFactory<OsdVertex> uniformMeshFactory(
-            _mesh->GetHbrMesh(), t.maxLevels, false, /*firstLevel=*/1);
+            _mesh->GetHbrMesh(), t.refinementLevel, false, /*firstLevel*/1);
 
         _farMesh = uniformMeshFactory.Create();
-
-        std::cout << "\tUniform farmesh created with " << t.maxLevels << "\n";
-
     }
 
     //
@@ -127,32 +110,33 @@ PxOsdUtilRefiner::Initialize(
     const FarSubdivisionTables<OsdVertex>* ftable =
         _farMesh->GetSubdivisionTables();
     
-    // Find quads array at _level
+    // Find quads array at given level
     const FarPatchTables * ptables = _farMesh->GetPatchTables();
     const FarPatchTables::PatchArrayVector & parrays =
         ptables->GetPatchArrayVector();
     
-    if (_level > (int)parrays.size()) {
-/*XXX        
-         *errorMessage = TfStringPrintf(
-                 "Invalid size of patch array %d %d\n",
-                 _level, (int)parrays.size());;
-*/                 
+    if (t.refinementLevel > (int)parrays.size()) {
+        if (errorMessage) {
+            stringstream ss;
+            ss << "Invalid size of patch array " << t.refinementLevel << " " <<
+                (int)parrays.size();
+            *errorMessage = ss.str();
+        }
         return false;
     }
 
     // parrays doesn't contain base mesh, so it starts with level==1
-    const FarPatchTables::PatchArray & parray = parrays[_level-1];
+    const FarPatchTables::PatchArray & parray = parrays[t.refinementLevel-1];
 
     _patchParamTable = &(ptables->GetPatchParamTable());
 
     // Global index of the first point in this array
-    _firstVertexOffset =  ftable->GetFirstVertexOffset(_level);
+    _firstVertexOffset =  ftable->GetFirstVertexOffset(t.refinementLevel);
     
     // Global index of the first face (patch) in this array
     _firstPatchOffset =  parray.GetPatchIndex();
 
-    _numRefinedVerts = (int) ftable->GetNumVertices(_level);
+    _numRefinedVerts = (int) ftable->GetNumVertices(t.refinementLevel);
 
     std::cout << "refiner has " << _numRefinedVerts << " refined verts\n";
     if (adaptive) {
@@ -192,7 +176,8 @@ PxOsdUtilRefiner::GetRefinedQuads(
     quads->resize(_numUniformQuads * 4);
 
     const FarPatchTables * ptables = _farMesh->GetPatchTables();
-    const unsigned int *quadIndices = ptables->GetFaceVertices(_level);
+    const unsigned int *quadIndices =
+        ptables->GetFaceVertices(_mesh->GetTopology().refinementLevel);
 
     for (int i=0; i<_numUniformQuads*4; ++i) {
         (*quads)[i] = quadIndices[i] - _firstVertexOffset;
@@ -253,11 +238,13 @@ PxOsdUtilRefiner::GetRefinedPtexUvs(vector<float>* subfaceUvs,
     const FarPatchTables * ptables = _farMesh->GetPatchTables();
     const FarPatchTables::PatchArrayVector & parrays =
         ptables->GetPatchArrayVector();
-    if (_level > (int)parrays.size()) {
+    int refinementLevel = _mesh->GetTopology().refinementLevel;
+    
+    if (refinementLevel > (int)parrays.size()) {
         if (errorMessage)
             *errorMessage = "Invalid size of patch array";
     }
-    const FarPatchTables::PatchArray & parray = parrays[_level-1];
+    const FarPatchTables::PatchArray & parray = parrays[refinementLevel-1];
     
     const FarPatchTables::PatchParamTable& paramTable =
         ptables->GetPatchParamTable();

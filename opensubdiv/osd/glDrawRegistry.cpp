@@ -72,10 +72,6 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdDrawContext::PatchDescriptor c
 
     if (desc.GetPattern() == FarPatchTables::NON_TRANSITION) {
         switch (desc.GetType()) {
-        case FarPatchTables::QUADS:
-        case FarPatchTables::TRIANGLES:
-            // do nothing
-            break;
         case FarPatchTables::REGULAR:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
@@ -136,10 +132,8 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdDrawContext::PatchDescriptor c
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_GREGORY_SHADER");
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
             break;
-        default:
-            // error
-            delete sconfig;
-            sconfig = NULL;
+        default: // POINTS, LINES, QUADS, TRIANGLES
+            // do nothing
             break;
         }
     } else { // pattern != NON_TRANSITION

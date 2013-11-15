@@ -31,7 +31,7 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
     add_subdirectory(projectTest)
     if (NOT APPLE)
         add_subdirectory(uvViewer)
-    endif()    
+    endif()
     if(OPENGL_4_3_FOUND AND (NOT APPLE))
         # the paintTest example requires GL functionality not available on OSX
         add_subdirectory(paintTest)
@@ -64,16 +64,23 @@ else()
 endif()
 
 if(DXSDK_FOUND)
+
    add_subdirectory(dxViewer)
+
    if(PTEX_FOUND)
        add_subdirectory(dxPtexViewer)
    endif()
 endif()
 
-# XXXX manuelk : turning off the maya plugin examples for now
-if(MAYA_FOUND AND (NOT APPLE))
-#    add_subdirectory(mayaViewer)
+
+if(MAYA_FOUND)
+    add_subdirectory(osdPolySmooth)
+
+    # manuelk: the following plugins are disabled until further notice
+
+    #add_subdirectory(mayaViewer)
+
     if(PTEX_FOUND)
-#        add_subdirectory(mayaPtexViewer)
+        #add_subdirectory(mayaPtexViewer)
     endif()
 endif()

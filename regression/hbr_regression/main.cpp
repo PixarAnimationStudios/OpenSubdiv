@@ -39,8 +39,10 @@
 //
 
 // Precision is currently held at bit-wise identical
-static int g_AllowWeakRegression=1;
-static int g_StrictRegressionFailure=0;
+static bool g_allowWeakRegression=true,
+            g_strictRegressionFailure=false,
+            g_verbose=false;
+
 #define STRICT_PRECISION 0
 #define WEAK_PRECISION 1e-6
 
@@ -147,8 +149,48 @@ static shape * readShape( char const * fname ) {
 #endif
 
 //------------------------------------------------------------------------------
+static void writeObj( const char * fname, xyzmesh const * mesh,
+    int firstface, int lastface, int firstvert, int lastvert ) {
+
+    FILE * handle = fopen( fname, "w" );
+    if (not handle) {
+        printf("Could not open \"%s\" - aborting.\n", fname);
+        exit(0);
+    }
+
+    fprintf(handle, "# This file uses centimeters as units for non-parametric coordinates.\n");
+
+    for (int i=firstvert; i<lastvert; ++i) {
+        const float * pos = mesh->GetVertex(i)->GetData().GetPos();
+        fprintf(handle, "v  %.*g %.*g %.*g\n", 9, pos[0], 9, pos[1], 9, pos[2]);
+    }
+
+    fprintf(handle, "s off\n");
+
+    for (int i=firstface; i<lastface; ++i) {
+        xyzface * f = mesh->GetFace(i);
+
+        fprintf(handle, "f ");
+        for (int j=0; j<f->GetNumVertices();) {
+
+            int vert = f->GetVertex(j)->GetID()-firstvert+1;
+
+            fprintf(handle, "%d", vert);
+
+            if (++j<f->GetNumVertices())
+                fprintf(handle, " ");
+        }
+        fprintf(handle, "\n");
+    }
+
+    fclose(handle);
+}
+
+//------------------------------------------------------------------------------
 static int checkMesh( shaperec const & r, int levels ) {
+
     int count=0;
+
     float deltaAvg[3] = {0.0f, 0.0f, 0.0f},
           deltaCnt[3] = {0.0f, 0.0f, 0.0f};
 
@@ -157,10 +199,13 @@ static int checkMesh( shaperec const & r, int levels ) {
     int firstface=0, lastface=mesh->GetNumFaces(),
         firstvert=0, lastvert=mesh->GetNumVertices(), nverts;
 
-    printf("- %s (scheme=%d)\n", r.name.c_str(), r.scheme);
+    static char const * schemes[] = { "Bilinear", "Catmark", "Loop" };
+
+    printf("- %-25s ( %-8s ): ", r.name.c_str(), schemes[r.scheme]);
 
     for (int l=0; l<levels; ++l ) {
 
+        int errcount=0;
 
         std::stringstream fname;
 
@@ -205,21 +250,33 @@ static int checkMesh( shaperec const & r, int levels ) {
 
             float dist = sqrtf( delta[0]*delta[0]+delta[1]*delta[1]+delta[2]*delta[2]);
             if ( dist > STRICT_PRECISION ) {
-                if(dist < WEAK_PRECISION && g_AllowWeakRegression) {
-                    g_StrictRegressionFailure=1;
+                if(dist < WEAK_PRECISION and g_allowWeakRegression) {
+                    g_strictRegressionFailure=true;
                 } else {
-                    printf("// HbrVertex<T> %d fails : dist=%.10f (%.10f %.10f %.10f)"
-                           " (%.10f %.10f %.10f)\n", i, dist, apos[0],
-                                                              apos[1],
-                                                              apos[2],
-                                                              bpos[0],
-                                                              bpos[1],
-                                                              bpos[2] );
-                    count++;
+                    if (g_verbose) {
+                        printf("\n// HbrVertex<T> %d fails : dist=%.10f "
+                            "(%.10f %.10f %.10f) (%.10f %.10f %.10f)", i, dist,
+                                    apos[0], apos[1], apos[2],
+                                        bpos[0], bpos[1], bpos[2] );
+                    }
+                    ++errcount;
                 }
             }
         }
+        
+        if (errcount) {
+            
+            std::stringstream errfile;
+            errfile << r.name << "_level" << l << "_error.obj";
+            
+            writeObj(errfile.str().c_str(), mesh, 
+                firstface, lastface, firstvert, lastvert);
+            
+            printf("\n  wrote: %s\n", errfile.str().c_str());
+        }
+        
         delete sh;
+        count += errcount;
     }
 
     if (deltaCnt[0])
@@ -229,15 +286,19 @@ static int checkMesh( shaperec const & r, int levels ) {
     if (deltaCnt[2])
         deltaAvg[2]/=deltaCnt[2];
 
-    printf("  delta ratio : (%d/%d %d/%d %d/%d)\n", (int)deltaCnt[0], nverts,
-                                                    (int)deltaCnt[1], nverts,
-                                                    (int)deltaCnt[2], nverts );
-    printf("  average delta : (%.10f %.10f %.10f)\n", deltaAvg[0],
-                                                      deltaAvg[1],
-                                                      deltaAvg[2] );
+    if (g_verbose) {
+        printf("\n  delta ratio : (%d/%d %d/%d %d/%d)", (int)deltaCnt[0], nverts,
+                                                        (int)deltaCnt[1], nverts,
+                                                        (int)deltaCnt[2], nverts );
+        printf("\n  average delta : (%.10f %.10f %.10f)", deltaAvg[0],
+                                                          deltaAvg[1],
+                                                          deltaAvg[2] );
+    }
 
-    if (count==0)
-        printf("  success !\n");
+    if (count==0) {
+        printf(" success !\n");
+    } else
+        printf(" failed !\n");
 
     delete mesh;
 
@@ -245,11 +306,27 @@ static int checkMesh( shaperec const & r, int levels ) {
 }
 
 //------------------------------------------------------------------------------
+static void usage(char const * appname) {
+    printf("Usage : %s [options]\n", appname);
+    printf("    -s | -strict  : strict bitwise comparisons\n");
+    printf("    -v | -verbose : verbose output\n");
+}
+
+//------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
     int levels=5, total=0;
-    if(argc==2 && strcmp(argv[1],"-S")==0)
-        g_AllowWeakRegression=0;
+
+    for (int i=1; i<argc; ++i) {
+        if ((not strcmp(argv[i],"-s")) or (not strcmp(argv[i],"-strict"))) {
+            g_allowWeakRegression=false;
+        } else if ((not strcmp(argv[i],"-v")) or (not strcmp(argv[i],"-verbose"))) {
+            g_verbose=true;
+        } else {
+            usage( argv[1] );
+            return 1;
+        }
+    }
 
     initShapes();
 
@@ -260,8 +337,9 @@ int main(int argc, char ** argv) {
 
     if (total==0) {
         printf("All tests passed.\n");
-        if(g_StrictRegressionFailure)
-            printf("Some tests were not bit-wise accurate.\nRerun with -S for strict regression\n");
+        if(g_strictRegressionFailure)
+            printf("Some tests were not bit-wise accurate.\n"
+                   "Rerun with -s for strict regression\n");
         }
     else
       printf("Total failures : %d\n", total);

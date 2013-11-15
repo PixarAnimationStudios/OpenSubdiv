@@ -59,25 +59,15 @@
 #include <windows.h>
 #endif
 
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-#include <osd/cpuEvalLimitContext.h>
-#include <osd/cpuEvalLimitController.h>
-#include <osd/cpuVertexBuffer.h>
+
+#include <osdutil/uniformEvaluator.h>
+#include <osdutil/topology.h>
+
 #include <osd/error.h>
-#include <osd/mesh.h>
-#include <osd/vertex.h>
 
-#include <osdutil/mesh.h>
-#include <osdutil/refiner.h>
-
-#include "../common/stopwatch.h"
-
-#include <cfloat>
 #include <vector>
-#include <fstream>
-#include <sstream>
-#include <cstdlib>
+#include <iostream>
+#include <stdio.h>
 
 #ifdef OPENSUBDIV_HAS_OPENMP
     #include <omp.h>
@@ -85,115 +75,56 @@
 
 using namespace OpenSubdiv;
 
-//------------------------------------------------------------------------------
-typedef HbrMesh<OsdVertex>     OsdHbrMesh;
-typedef HbrVertex<OsdVertex>   OsdHbrVertex;
-typedef HbrFace<OsdVertex>     OsdHbrFace;
-typedef HbrHalfedge<OsdVertex> OsdHbrHalfedge;
-
-typedef FarMesh<OsdVertex>              OsdFarMesh;
-typedef FarMeshFactory<OsdVertex>       OsdFarMeshFactory;
-typedef FarSubdivisionTables<OsdVertex> OsdFarMeshSubdivision;
-
-
 
 //------------------------------------------------------------------------------
-static void
-createOsdMesh(int level)
+static bool
+createOsdMesh(char *inputFile, char *outputFile, std::string *errorMessage)
 {
-    float points[] = { 0.000000f, -1.414214f, 1.000000f,
-                       1.414214f, 0.000000f, 1.000000f,
-                       -1.414214f, 0.000000f, 1.000000f,
-                       0.000000f, 1.414214f, 1.000000f,
-                       -1.414214f, 0.000000f, -1.000000f,
-                       0.000000f, 1.414214f, -1.000000f,
-                       0.000000f, -1.414214f, -1.000000f,
-                       1.414214f, 0.000000f, -1.000000f };
 
-    int nverts[] = { 4, 4, 4, 4, 4, 4};
-
-    int indices[] = { 0, 1, 3, 2,
-                      2, 3, 5, 4,
-                      4, 5, 7, 6,
-                      6, 7, 1, 0,
-                      1, 7, 5, 3,
-                      6, 0, 2, 4};
+    PxOsdUtilSubdivTopology topology;
+    std::vector<float> pointPositions;
     
-
-//    Scheme scheme = kCatmark;
-
-    PxOsdUtilSubdivTopology t;
-    t.name = "TestSubdiv";
-    for (int i=0; i< (int)(sizeof(nverts)/sizeof(int)); ++i) {
-        t.nverts.push_back(nverts[i]);
-    }
-    for (int i=0; i< (int)(sizeof(indices)/sizeof(int)); ++i) {
-        t.indices.push_back(indices[i]);
-    }    
-    t.numVertices = (int)sizeof(points)/(3*sizeof(float));
-    t.maxLevels = 8;
-
-    std::string errorMessage;        
-    PxOsdUtilRefiner refiner;
-
-    // Create refiner, passing "false" to adaptive so we'll get
-    // uniform refinement
-    if (not refiner.Initialize(t, false, &errorMessage)) {
-        std::cout  << "Refiner creation failed with " << errorMessage << std::endl;
-        return;
+    if (not topology.ReadFromObjFile(inputFile, &pointPositions, errorMessage)) {
+        return false;
     }
 
-    std::vector<int> refinedQuads;
-    if (not refiner.GetRefinedQuads(&refinedQuads, &errorMessage)) {
-        std::cout  << "GetRefinedQuads failed with " << errorMessage << std::endl;        
+    topology.refinementLevel = 2;
+
+    std::cout << "Did read topology\n";
+    
+    PxOsdUtilUniformEvaluator uniformEvaluator;
+
+    // Create uniformEvaluator
+    if (not uniformEvaluator.Initialize(topology, errorMessage)) {
+        std::cout << "Initialize failed with " << *errorMessage << "\n";        
+        return false;
     }
 
+    // Push the vertex data
+    uniformEvaluator.SetCoarsePositions(pointPositions, errorMessage);
 
-    std::cout << "Quads = " << refinedQuads.size()/4 << std::endl;        
-    for (int i=0; i<(int)refinedQuads.size(); i+=4)  {
-        std::cout << "(" << refinedQuads[i] <<
-            ", " << refinedQuads[i+1] <<
-            ", " << refinedQuads[i+2] <<
-            ", " << refinedQuads[i+3] <<
-            ")\n";
+    // Refine with eight threads
+    if (not uniformEvaluator.Refine(1, errorMessage)) {
+        std::cout << "Refine failed with " << *errorMessage << "\n";
+        return false;
     }
-        
-/*
-  
-    // Push the vertex data:
-    std::vector<float> pointsVec;
-    pointsVec.resize(sizeof(points));
-    for (int i=0; i<(int)sizeof(points); ++i) {
-        pointsVec[i] = points[i];
+    
+    // Refine with eight threads
+    PxOsdUtilSubdivTopology refinedTopology;
+    const float *positions = NULL;
+   
+    if (not uniformEvaluator.GetRefinedTopology(
+            &refinedTopology, &positions, errorMessage)) {
+        std::cout << "GetRefinedTopology failed with " << *errorMessage <<"\n";
+        return false;
+    }
+    
+    if (not refinedTopology.WriteObjFile(
+            outputFile, positions, errorMessage)) {
+        std::cout << errorMessage << std::endl;             
     }
 
-
-    shape->SetCoarsePositions(pointsVec);
-
-    std::vector<float> refinedPositions;
-
-
-    if (not (shape->Refine(2)                                      and
-             shape->GetPositions(&refinedPositions, &errorMessage) and
-             shape->GetQuads(&refinedQuads, &errorMessage))) {
-        std::cout << errorMessage << std::endl;
-    } else {
-        std::cout << "Hot damn, it worked.\n";
-        std::cout << "Positions = " << refinedPositions.size()/3 << std::endl;
-        for (int i=0; i<(int)refinedPositions.size(); i+=3)  {
-            std::cout << "(" << refinedPositions[i] <<
-                ", " << refinedPositions[i+1] <<
-                "," << refinedPositions[i+2] << ")\n";
-        }
-
-
-
-        if (not shape->WriteRefinedObj("foo.obj", &errorMessage)) {
-            std::cout << errorMessage << std::endl;             
-        }
-    }
-         
-*/  
+    return true;
 }
 
 //------------------------------------------------------------------------------
@@ -206,11 +137,23 @@ callbackError(OpenSubdiv::OsdErrorType err, const char *message)
 
 
 //------------------------------------------------------------------------------
-int main(int, char**) {
+int main(int argc, char** argv) {
+
+
+    if (argc < 3) {
+        std::cout << "Usage: projectTest input.obj output\n";
+        return false;
+    }
+
+    std::cout << "input is " << argv[1] << " and output is " << argv[2] <<std::endl;
 
 
     OsdSetErrorCallback(callbackError);
 
-    createOsdMesh(1);
+    std::string errorMessage;
+
+    if (not createOsdMesh(argv[1], argv[2], &errorMessage)) {
+        std::cout << "Failed with error: " << errorMessage << std::endl;
+    }
 
 }

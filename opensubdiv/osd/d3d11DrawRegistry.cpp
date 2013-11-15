@@ -75,10 +75,6 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
 
     if (desc.GetPattern() == FarPatchTables::NON_TRANSITION) {
         switch (desc.GetType()) {
-        case FarPatchTables::QUADS:
-        case FarPatchTables::TRIANGLES:
-            // do nothing
-            break;
         case FarPatchTables::REGULAR:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
@@ -139,9 +135,8 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->domainShader.entry = "ds_main_patches";
             sconfig->domainShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
             break;
-        default:
-            delete sconfig;
-            sconfig = NULL;
+        default: // POINTS, LINES, QUADS, TRIANGLES
+            // do nothing
             break;
         }
     } else { // pattern != NON_TRANSITION

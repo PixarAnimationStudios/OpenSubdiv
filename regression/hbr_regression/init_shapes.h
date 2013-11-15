@@ -37,6 +37,8 @@ struct shaperec {
 static std::vector<shaperec> g_shapes;
 
 #include "../shapes/bilinear_cube.h"
+#include "../shapes/catmark_chaikin0.h"
+#include "../shapes/catmark_chaikin1.h"
 #include "../shapes/catmark_cube_corner0.h"
 #include "../shapes/catmark_cube_corner1.h"
 #include "../shapes/catmark_cube_corner2.h"
@@ -69,10 +71,14 @@ static std::vector<shaperec> g_shapes;
 #include "../shapes/loop_saddle_edgeonly.h"
 #include "../shapes/loop_triangle_edgecorner.h"
 #include "../shapes/loop_triangle_edgeonly.h"
+#include "../shapes/loop_chaikin0.h"
+#include "../shapes/loop_chaikin1.h"
 
 //------------------------------------------------------------------------------
 static void initShapes() {
     g_shapes.push_back( shaperec("bilinear_cube",            bilinear_cube,            kBilinear) );
+    g_shapes.push_back( shaperec("catmark_chaikin0",         catmark_chaikin0,         kCatmark ) );
+    g_shapes.push_back( shaperec("catmark_chaikin1",         catmark_chaikin1,         kCatmark ) );
     g_shapes.push_back( shaperec("catmark_cube_corner0",     catmark_cube_corner0,     kCatmark ) );
     g_shapes.push_back( shaperec("catmark_cube_corner1",     catmark_cube_corner1,     kCatmark ) );
     g_shapes.push_back( shaperec("catmark_cube_corner2",     catmark_cube_corner2,     kCatmark ) );
@@ -105,5 +111,7 @@ static void initShapes() {
     g_shapes.push_back( shaperec("loop_saddle_edgeonly",     loop_saddle_edgeonly,     kLoop ) );
     g_shapes.push_back( shaperec("loop_triangle_edgecorner", loop_triangle_edgecorner, kLoop ) );
     g_shapes.push_back( shaperec("loop_triangle_edgeonly",   loop_triangle_edgeonly,   kLoop ) );
+    g_shapes.push_back( shaperec("loop_chaikin0",            loop_chaikin0,            kLoop ) );
+    g_shapes.push_back( shaperec("loop_chaikin1",            loop_chaikin1,            kLoop ) );
 }
 //------------------------------------------------------------------------------

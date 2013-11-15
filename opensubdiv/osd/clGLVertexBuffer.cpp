@@ -107,8 +107,6 @@ OsdCLGLVertexBuffer::allocate(cl_context clContext) {
     glBufferData(GL_ARRAY_BUFFER, size, 0, GL_STREAM_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, prev);
 
-    if (glGetError() != GL_NO_ERROR) return false;
-
     // register vbo as cl memory
     cl_int err;
     _clMemory = clCreateFromGLBuffer(clContext,
@@ -137,4 +135,3 @@ OsdCLGLVertexBuffer::unmap() {
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv
-

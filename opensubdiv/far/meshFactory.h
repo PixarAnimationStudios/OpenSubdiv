@@ -31,7 +31,9 @@
 // adaptively, some tag data is added to HbrFace, HbrVertex and HbrHalfedge.
 // While small, these tags incur some performance costs and are by default
 // disabled.
+#ifndef HBR_ADAPTIVE
 #define HBR_ADAPTIVE
+#endif
 
 #include "../hbr/mesh.h"
 #include "../hbr/bilinear.h"

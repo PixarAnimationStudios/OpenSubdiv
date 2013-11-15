@@ -382,6 +382,12 @@ initializeShapes( ) {
 #include <shapes/catmark_edgeonly.h>
     g_defaultShapes.push_back(SimpleShape(catmark_edgeonly, "catmark_edgeonly", kCatmark));
 
+#include <shapes/catmark_chaikin0.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_chaikin0, "catmark_chaikin0", kCatmark));
+
+#include <shapes/catmark_chaikin1.h>
+    g_defaultShapes.push_back(SimpleShape(catmark_chaikin1, "catmark_chaikin1", kCatmark));
+
 #include <shapes/catmark_fan.h>
     g_defaultShapes.push_back(SimpleShape(catmark_fan, "catmark_fan", kCatmark));
 
@@ -484,6 +490,12 @@ initializeShapes( ) {
 
 #include <shapes/loop_triangle_edgeonly.h>
     g_defaultShapes.push_back(SimpleShape(loop_triangle_edgeonly, "loop_triangle_edgeonly", kLoop));
+
+#include <shapes/loop_chaikin0.h>
+    g_defaultShapes.push_back(SimpleShape(loop_chaikin0, "loop_chaikin0", kLoop));
+
+#include <shapes/loop_chaikin1.h>
+    g_defaultShapes.push_back(SimpleShape(loop_chaikin1, "loop_chaikin1", kLoop));
 }
 
 //------------------------------------------------------------------------------

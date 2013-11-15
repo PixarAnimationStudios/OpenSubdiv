@@ -4,3 +4,4 @@
 
    This product includes software developed at
    Pixar (http://www.pixar.com/).
+   Autodesk, Inc. (http://www.autodesk.com/).

@@ -161,6 +161,7 @@ enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_DISPLAY_OCCLUSION,
                    HUD_CB_DISPLAY_NORMALMAP,
                    HUD_CB_DISPLAY_SPECULAR,
+                   HUD_CB_CAGE_EDGES,
                    HUD_CB_ANIMATE_VERTICES,
                    HUD_CB_VIEW_LOD,
                    HUD_CB_FRACTIONAL_SPACING,
@@ -211,6 +212,7 @@ int   g_frame = 0,
 int   g_fullscreen = 0,
       g_wire = DISPLAY_SHADED,
       g_drawNormals = 0,
+      g_drawCageEdges = 0,
       g_mbutton[3] = {0, 0, 0},
       g_level = 2,
       g_tessLevel = 2,
@@ -289,7 +291,10 @@ std::vector<std::vector<float> > g_animPositions;
 
 GLuint g_primQuery = 0;
 GLuint g_vao = 0;
+GLuint g_cageEdgeVAO = 0;
 GLuint g_skyVAO = 0;
+GLuint g_edgeIndexBuffer = 0;
+GLuint g_numCageEdges = 0;
 
 GLuint g_diffuseEnvironmentMap = 0;
 GLuint g_specularEnvironmentMap = 0;
@@ -728,7 +733,7 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     const char *glslVersion = "#version 330\n";
 #endif
 
-    bool quad = true;
+    int nverts = 4;
     if (desc.first.GetType() == OpenSubdiv::FarPatchTables::QUADS) {
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.version = glslVersion;
@@ -736,8 +741,13 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         if (effect.displacement) {
             sconfig->geometryShader.AddDefine("FLAT_NORMALS");
         }
+    } else if (desc.first.GetType() == OpenSubdiv::FarPatchTables::LINES) {
+        nverts = 2;
+        sconfig->vertexShader.source = g_shaderSource;
+        sconfig->vertexShader.version = glslVersion;
+        sconfig->vertexShader.AddDefine("VERTEX_SHADER");
     } else {
-        quad = false;
+        nverts = 3;
         sconfig->tessEvalShader.source = g_shaderSource + sconfig->tessEvalShader.source;
         sconfig->tessEvalShader.version = glslVersion;
         if (effect.displacement and (not effect.normal))
@@ -819,12 +829,15 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     if (effect.ibl)
         sconfig->fragmentShader.AddDefine("USE_IBL");
 
-    if (quad) {
+    if (nverts == 4) {
         sconfig->geometryShader.AddDefine("PRIM_QUAD");
         sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-    } else {
+    } else if (nverts == 3) {
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
+    } else {
+        sconfig->geometryShader.AddDefine("PRIM_LINE");
+        sconfig->fragmentShader.AddDefine("PRIM_LINE");
     }
 
     if (effect.seamless) {
@@ -982,6 +995,19 @@ createOsdMesh(int level, int kernel)
     OsdHbrMesh * hmesh = createPTexGeo<OpenSubdiv::OsdVertex>(ptexColor);
     if (hmesh == NULL) return;
 
+    // create cage edge index
+    std::vector<int> edgeIndices;
+    int numFaces = hmesh->GetNumFaces();
+    for (int i = 0; i < numFaces; ++i) {
+        OsdHbrFace *face = hmesh->GetFace(i);
+        int numVerts = face->GetNumVertices();
+        for (int j = 0; j < numVerts; ++j) {
+            OsdHbrHalfedge *edge = face->GetEdge(j);
+            edgeIndices.push_back(edge->GetVertexID());
+            edgeIndices.push_back(edge->GetDestVertexID());
+        }
+    }
+
     g_normals.resize(g_positions.size(), 0.0f);
     calcNormals(hmesh, g_positions, g_normals);
 
@@ -1108,6 +1134,24 @@ createOsdMesh(int level, int kernel)
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, (float*)12);
     }
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->GetPatchIndexBuffer());
+
+    // ------ Cage VAO
+    glBindVertexArray(g_cageEdgeVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVertexBuffer());
+
+    if (g_adaptive) {
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    } else {
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, 0);
+    }
+    if (not g_edgeIndexBuffer) glGenBuffers(1, &g_edgeIndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_edgeIndexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int)*edgeIndices.size(),
+                 &edgeIndices[0], GL_STATIC_DRAW);
+    g_numCageEdges = (int)edgeIndices.size();
 
     glBindVertexArray(0);
 }
@@ -1349,18 +1393,9 @@ applyImageShader()
 }
 
 //------------------------------------------------------------------------------
-static GLuint
-bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
+static void
+updateUniformBlocks()
 {
-    OpenSubdiv::OsdDrawContext::PatchDescriptor const & desc = patch.GetDescriptor();
-
-    EffectDrawRegistry::ConfigType *
-        config = getInstance(effect, desc);
-
-    GLuint program = config->program;
-
-    glUseProgram(program);
-
     if (g_transformUB == 0) {
         glGenBuffers(1, &g_transformUB);
         glBindBuffer(GL_UNIFORM_BUFFER, g_transformUB);
@@ -1425,6 +1460,18 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     glBindBufferBase(GL_UNIFORM_BUFFER, g_lightingBinding, g_lightingUB);
+}
+
+//------------------------------------------------------------------------------
+static GLuint
+bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchDescriptor const &desc)
+{
+    EffectDrawRegistry::ConfigType *
+        config = getInstance(effect, desc);
+
+    GLuint program = config->program;
+
+    glUseProgram(program);
 
     //-----------------
     int sampler = 7;
@@ -1465,7 +1512,6 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 #endif
             glActiveTexture(GL_TEXTURE5);
             glBindTexture(GL_TEXTURE_2D, g_diffuseEnvironmentMap);
-            sampler++;
         }
         if (g_specularEnvironmentMap) {
 #if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
@@ -1475,7 +1521,6 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 #endif
             glActiveTexture(GL_TEXTURE6);
             glBindTexture(GL_TEXTURE_2D, g_specularEnvironmentMap);
-            sampler++;
         }
         glActiveTexture(GL_TEXTURE0);
     }
@@ -1562,7 +1607,7 @@ drawModel()
         effect.wire = g_wire;
         effect.seamless = g_seamless;
 
-        GLuint program = bindProgram(effect, patch);
+        GLuint program = bindProgram(effect, patch.GetDescriptor());
 
         GLint nonAdaptiveLevel = glGetUniformLocation(program, "nonAdaptiveLevel");
         if (nonAdaptiveLevel != -1) {
@@ -1657,6 +1702,33 @@ drawSky()
 
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
+
+    checkGLErrors("draw model");
+}
+
+void
+drawCageEdges()
+{
+    g_mesh->BindVertexBuffer();
+
+    glBindVertexArray(g_cageEdgeVAO);
+
+    Effect effect;
+    effect.value = 0;
+    OpenSubdiv::OsdDrawContext::PatchDescriptor desc(
+                    OpenSubdiv::FarPatchTables::Descriptor(OpenSubdiv::FarPatchTables::LINES,
+                                                   OpenSubdiv::FarPatchTables::NON_TRANSITION,
+                                                   0),
+                    0, 0, 0);
+    EffectDrawRegistry::ConfigType *config = getInstance(effect, desc);
+    glUseProgram(config->program);
+
+    glDrawElements(GL_LINES, g_numCageEdges, GL_UNSIGNED_INT, 0);
+
+    glBindVertexArray(0);
+    glUseProgram(0);
+
+    checkGLErrors("draw cage edges");
 }
 
 void
@@ -1695,15 +1767,20 @@ display()
     inverseMatrix(transformData.ModelViewInverseMatrix,
                   transformData.ModelViewMatrix);
 
+    updateUniformBlocks();
+
     glEnable(GL_DEPTH_TEST);
 
     drawModel();
 
+    glEndQuery(GL_PRIMITIVES_GENERATED);
+
+    if (g_drawCageEdges)
+        drawCageEdges();
+
     glDisable(GL_DEPTH_TEST);
 
     glUseProgram(0);
-
-    glEndQuery(GL_PRIMITIVES_GENERATED);
 
     applyImageShader();
 
@@ -1821,6 +1898,7 @@ void uninitGL()
 
     glDeleteQueries(1, &g_primQuery);
     glDeleteVertexArrays(1, &g_vao);
+    glDeleteVertexArrays(1, &g_cageEdgeVAO);
     glDeleteVertexArrays(1, &g_skyVAO);
 
     if (g_mesh)
@@ -1943,6 +2021,9 @@ callbackCheckBox(bool checked, int button)
     case HUD_CB_DISPLAY_SPECULAR:
         g_specular = checked;
         break;
+    case HUD_CB_CAGE_EDGES:
+        g_drawCageEdges = checked;
+        break;
     case HUD_CB_ANIMATE_VERTICES:
         g_moveScale = checked ? 1.0f : 0.0f;
         g_animTime = 0;
@@ -2061,6 +2142,7 @@ initGL()
 
     glGenQueries(1, &g_primQuery);
     glGenVertexArrays(1, &g_vao);
+    glGenVertexArrays(1, &g_cageEdgeVAO);
     glGenVertexArrays(1, &g_skyVAO);
 
     glGenFramebuffers(1, &g_imageShader.frameBuffer);
@@ -2420,18 +2502,20 @@ int main(int argc, char ** argv)
                           250, 50, callbackCheckBox, HUD_CB_IBL, 'i');
     }
 
+    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
+                      450, 10, callbackCheckBox, HUD_CB_CAGE_EDGES, 'h');
     g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
-                      450, 10, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
+                      450, 30, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
     g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
-                      450, 30, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+                      450, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
     g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
-                      450, 50, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
+                      450, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
-                      450, 70, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
+                      450, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
     g_hud.AddCheckBox("Bloom (Y)", g_bloom,
-                      450, 90, callbackCheckBox, HUD_CB_BLOOM, 'y');
+                      450, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
     g_hud.AddCheckBox("Freeze (spc)", g_freeze,
-                      450, 110, callbackCheckBox, HUD_CB_FREEZE, ' ');
+                      450, 130, callbackCheckBox, HUD_CB_FREEZE, ' ');
 
     // create mesh from ptex metadata
     createOsdMesh(g_level, g_kernel);

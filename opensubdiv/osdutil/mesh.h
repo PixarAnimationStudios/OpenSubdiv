@@ -25,69 +25,29 @@
 #ifndef PX_OSD_UTIL_MESH_H
 #define PX_OSD_UTIL_MESH_H
 
-#include <hbr/mesh.h>
-#include <osd/vertex.h>
+#include "topology.h"
 
+#include "../version.h"
 #include <string>
 #include <map>
 
-
-// A value struct that holds annotations on a subdivision surface
-// such as creases, boundaries, holes, corners, hierarchical edits, etc.
+// We forward declare the HbrMesh templated class here to avoid including
+// hbr headers.  Keep the hbr inclusions in the .cpp files to avoid
+// conflicts with the amber/lib version of hbr and to reduce included code
+// complexity.
 //
-// For OpenSubdiv documentation on tags, see:
-// See http://graphics.pixar.com/opensubdiv/docs/subdivision_surfaces.html#hierarchical-edits
+// Note that a client who wants to access the HbrMesh should include hbr/mesh.h
+// like this:
+// #define HBR_ADAPTIVE
+// #include <opensubdiv/hbr/mesh.h>
 //
-struct PxOsdUtilTagData {
-    std::vector<std::string> tags;
-    std::vector<int> numArgs;
-    std::vector<int> intArgs;
-    std::vector<float> floatArgs;
-    std::vector<std::string> stringArgs;
-};
-
-// A value struct intended to hold within it topology for the base mesh
-// of a subdivision surface, and any annotation tags.
-// It is used to initialize classes that create and operate on subdivs.
-//
-class PxOsdUtilSubdivTopology {
-  public:
-
-    PxOsdUtilSubdivTopology();
-    ~PxOsdUtilSubdivTopology();    
-
-    // XXX Would be great for these members to be private with accessors
-    std::string name;
-    int numVertices;
-    int maxLevels;
-    std::vector<int> indices;
-    std::vector<int> nverts;
-    std::vector<std::string> vvNames;
-    std::vector<std::string> fvNames;
-    std::vector<float> fvData;
-    PxOsdUtilTagData tagData;
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+    template <class T> class HbrMesh;
+  }
+}
 
 
-    // Initialize using raw types. 
-    //
-    // This is useful for automated tests initializing with data like:
-    // int nverts[] = { 4, 4, 4, 4, 4, 4};
-    //
-    bool Initialize(
-        int numVertices,
-        const int *nverts, int numFaces,
-        const int *indices, int indicesLen,
-        int levels,
-        std::string *errorMessage);
-
-    // checks indices etc to ensure that mesh isn't in a
-    // broken state. Returns false on error, and will populate
-    // errorMessage (if non-NULL) with a descriptive error message
-    bool IsValid(std::string *errorMessage = NULL) const;
-
-    // for debugging, print the contents of the topology to stdout
-    void Print() const;
-};
 
 
 // This class is reponsible for taking a topological description of a mesh
@@ -97,10 +57,13 @@ class PxOsdUtilSubdivTopology {
 // surfaces (subdivs), which is itself a requirement for fast run-time
 // evaluation of subdivs.
 //
+template <class T>
 class PxOsdUtilMesh {
   public:
     
-    PxOsdUtilMesh(
+    PxOsdUtilMesh();
+
+    bool Initialize(
         const PxOsdUtilSubdivTopology &topology,
         std::string *errorMessage = NULL);
 
@@ -111,11 +74,10 @@ class PxOsdUtilMesh {
     // by a refiner.
     // XXX: this assumes uniform subdivision, should be moved
     // into uniformRefiner?
-    void GetRefinedFVData(int subdivisionLevel,
-                          const std::vector<std::string>& names,
+    void GetRefinedFVData(const std::vector<std::string>& names,
                           std::vector<float>* fvdata);
     
-    OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex> *GetHbrMesh() { return _hmesh;}
+    OpenSubdiv::OPENSUBDIV_VERSION::HbrMesh<T> *GetHbrMesh() { return _hmesh;}
 
     bool IsValid() { return _valid;}
 
@@ -125,25 +87,18 @@ class PxOsdUtilMesh {
 
 private:
 
-    const PxOsdUtilSubdivTopology &_t;
+    PxOsdUtilSubdivTopology _t;
 
     std::vector<int> _fvarwidths;
     std::vector<int> _fvarindices;
     std::map<std::string, int> _fvaroffsets;
 
-    OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex> *_hmesh;
+    OpenSubdiv::OPENSUBDIV_VERSION::HbrMesh<T> *_hmesh;
 
     std::string _name;
 
     bool _valid;
     
-    static void _ProcessTagsAndFinishMesh(
-        OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex> *mesh,
-        const std::vector<std::string> &tags,
-        const std::vector<int> &numArgs,
-        const std::vector<int> &intArgs,
-        const std::vector<float> &floatArgs,
-        const std::vector<std::string> &stringArgs);
 };
 
 

@@ -36,13 +36,19 @@ set(PUBLIC_HEADER_FILES
     drawController.h
     mesh.h
     refiner.h
+    topology.h
+    uniformEvaluator.h        
 )
 
 add_library(osdutil
     mesh.h
     mesh.cpp
     refiner.h
-    refiner.cpp    
+    refiner.cpp
+    topology.h
+    topology.cpp
+    uniformEvaluator.h
+    uniformEvaluator.cpp            
     ${INC_FILES}
 )
 

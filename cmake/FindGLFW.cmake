@@ -103,6 +103,7 @@ else ()
                 /usr/local/lib
         )
         set(GLFW_cocoa_LIBRARY "-framework Cocoa" CACHE STRING "Cocoa framework for OSX")
+        set(GLFW_corevideo_LIBRARY "-framework CoreVideo" CACHE STRING "CoreVideo framework for OSX")
         set(GLFW_iokit_LIBRARY "-framework IOKit" CACHE STRING "IOKit framework for OSX")
     else ()
         # (*)NIX
@@ -147,7 +148,11 @@ set( GLFW_FOUND "NO" )
 if(GLFW_INCLUDE_DIR)
 
     if(GLFW_glfw_LIBRARY)
-        set( GLFW_LIBRARIES ${GLFW_glfw_LIBRARY} ${GLFW_x11_LIBRARY} ${GLFW_cocoa_LIBRARY} ${GLFW_iokit_LIBRARY} )        
+        set( GLFW_LIBRARIES ${GLFW_glfw_LIBRARY} 
+                            ${GLFW_x11_LIBRARY} 
+                            ${GLFW_cocoa_LIBRARY} 
+                            ${GLFW_iokit_LIBRARY} 
+                            ${GLFW_corevideo_LIBRARY} )        
         set( GLFW_FOUND "YES" )
         set (GLFW_LIBRARY ${GLFW_LIBRARIES})
         set (GLFW_INCLUDE_PATH ${GLFW_INCLUDE_DIR})
