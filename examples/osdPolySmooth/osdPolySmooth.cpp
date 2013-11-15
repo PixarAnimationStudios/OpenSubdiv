@@ -22,11 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-// XXX -- Should be able to remove if fixed in OSD
-#if defined(_WIN32) || defined(_WIN64)
-    #define NOMINMAX     // Workaround: Needed on Windows to avoid confusing max define with std::max
-#endif
-
 #include "osdPolySmooth.h"
 
 #include <maya/MFnNumericAttribute.h>
@@ -60,30 +55,17 @@
 #include <stdexcept>
 #include <map>
 
-// XXX -- Fix this
-#define HBR_ADAPTIVE // Workaround: If not defined, will cause an error in far/meshFactory.h
-
-// XXX -- Need to uncomment this unless Cmake adds this automatically
-#include <iso646.h> // needed for "and" and "or" logic in OpenSubdiv
-
 #if defined(_MSV_VER) and (not defined(__INTEL_COMPILER))
     #pragma warning( disable : 174 593 )
 #endif
 
 // OpenSubdiv includes
-#include <version.h>  // XXX -- Verify the code will work without this include
-#include <hbr/mesh.h>
 #include <osd/vertex.h>
-#include <osd/error.h> // XXX -- Is this necessary?
 #include <osd/vertex.h>
 #include <osd/mesh.h>
-
-// == STATIC VARIABLE CONTROLLERS
-#include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h> // Standard CPU Compute Controller
+#include <osd/cpuComputeController.h>
 #include <osd/cpuVertexBuffer.h>
-#include <hbr/catmark.h> // XXX -- Is this necessary?
 
 
 // ====================================
@@ -118,25 +100,31 @@ enum CreaseMethod {
     k_creaseMethod_chaikin = 1
 };
 
-OpenSubdiv::HbrMesh< OpenSubdiv::OsdVertex >::InterpolateBoundaryMethod
+typedef OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>               HMesh;
+typedef OpenSubdiv::HbrFace<OpenSubdiv::OsdVertex>               HFace;
+typedef OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex>             HVertex;
+typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex>           HHalfedge;
+typedef OpenSubdiv::HbrFVarData<OpenSubdiv::OsdVertex>           HFvarData;
+typedef OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex> HCatmark;
+
+typedef OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>               FMesh;
+typedef OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex>        FMeshFactory;
+
+HMesh::InterpolateBoundaryMethod
 ConvertMayaBoundaryMethodShortToOsdInterpolateBoundaryMethod(short boundaryMethod) {
-    switch (boundaryMethod)
-    {
-    case k_BoundaryMethod_InterpolateBoundaryNone:
-        return OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>::k_InterpolateBoundaryNone;
+    switch (boundaryMethod) {
 
-    case k_BoundaryMethod_InterpolateBoundaryEdgeOnly:
-        return OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>::k_InterpolateBoundaryEdgeOnly;
+        case k_BoundaryMethod_InterpolateBoundaryNone: return HMesh::k_InterpolateBoundaryNone;
 
-    case k_BoundaryMethod_InterpolateBoundaryEdgeAndCorner:
-        return OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>::k_InterpolateBoundaryEdgeAndCorner;
+        case k_BoundaryMethod_InterpolateBoundaryEdgeOnly: return HMesh::k_InterpolateBoundaryEdgeOnly;
 
-    case k_BoundaryMethod_InterpolateBoundaryAlwaysSharp:
-        return OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>::k_InterpolateBoundaryAlwaysSharp;
-    default:
-        ; // Do nothing
+        case k_BoundaryMethod_InterpolateBoundaryEdgeAndCorner: return HMesh::k_InterpolateBoundaryEdgeAndCorner;
+
+        case k_BoundaryMethod_InterpolateBoundaryAlwaysSharp: return HMesh::k_InterpolateBoundaryAlwaysSharp;
+
+        default: ;
     }
-    cerr << "ERROR: Value out of range. Returing k_BoundaryMethod_InterpolateBoundaryNone" << endl;
+    MGlobal::displayError("InterpolateBoundaryMethod value out of range. Using \"none\"");
     return OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>::k_InterpolateBoundaryNone;
 }
 
@@ -159,6 +147,7 @@ ConvertMayaBoundaryMethodShortToOsdInterpolateBoundaryMethod(short boundaryMetho
 // Constructors/Destructors
 // ====================================
 OsdPolySmooth::OsdPolySmooth() {}
+
 OsdPolySmooth::~OsdPolySmooth() {}
 
 
@@ -166,11 +155,9 @@ OsdPolySmooth::~OsdPolySmooth() {}
 // Helper Functions
 // ====================================
 // Create component groups
-void createComp(MFnMeshData &dataCreator,
-                MFn::Type compType,
-                unsigned compId,
-                MIntArray &compList)
-{
+void
+createComp(MFnMeshData &dataCreator, MFn::Type compType, unsigned compId, MIntArray &compList) {
+
   MStatus returnStatus;
 
   MFnSingleIndexedComponent comp;
@@ -192,44 +179,48 @@ void createComp(MFnMeshData &dataCreator,
 // OpenSubdiv Functions
 // ====================================
 
-//
+
 // Reference: OSD shape_utils.h:: applyTags() "crease"
-//
-template <class T> float
-applyCreaseEdges( const MFnMesh &inMeshFn, OpenSubdiv::HbrMesh<T> * hbrMesh )
-{
+float
+applyCreaseEdges(MFnMesh const & inMeshFn, HMesh * hbrMesh) {
+
     MStatus returnStatus;
     MUintArray tEdgeIds;
     MDoubleArray tCreaseData;
-    float maxCreaseValue = 0.0;
+    float maxCreaseValue = 0.0f;
 
-    if ( inMeshFn.getCreaseEdges(tEdgeIds, tCreaseData) ) {
+    if (inMeshFn.getCreaseEdges(tEdgeIds, tCreaseData)) {
+
         assert( tEdgeIds.length() == tCreaseData.length() );
+
         // Has crease edges
         int2 edgeVerts;
         for (unsigned int j=0; j < tEdgeIds.length(); j++) {
+
             // Get vert ids from maya edge
             int edgeId = tEdgeIds[j];
             returnStatus = inMeshFn.getEdgeVertices(edgeId, edgeVerts);
 
             // Assumption: The OSD vert ids are identical to those of the Maya mesh
-            OpenSubdiv::HbrVertex<T> * v = hbrMesh->GetVertex( edgeVerts[0] );
-            OpenSubdiv::HbrVertex<T> * w = hbrMesh->GetVertex( edgeVerts[1] );
-            OpenSubdiv::HbrHalfedge<T> * e = 0;
-            if( v && w ) {
+            HVertex const * v = hbrMesh->GetVertex( edgeVerts[0] ),
+                          * w = hbrMesh->GetVertex( edgeVerts[1] );
+
+            HHalfedge * e = 0;
+            if( v and w ) {
+
                 if( (e = v->GetEdge(w)) == 0) {
                     e = w->GetEdge(v);
                 }
+
                 if(e) {
                     assert( tCreaseData[j] >= 0.0 );
                     e->SetSharpness( (float)tCreaseData[j] );
-                    // Update maxCreaseValue
-                    if (tCreaseData[j] > maxCreaseValue) {
-                        maxCreaseValue = (float)tCreaseData[j];
-                    }
-                }
-                else {
-                    fprintf(stderr, "warning: cannot find edge for crease tag (%d,%d)\n", edgeVerts[0], edgeVerts[1] );
+
+                    maxCreaseValue = std::max(float(tCreaseData[j]), maxCreaseValue);
+                } else {
+                    fprintf(stderr,
+                        "warning: cannot find edge for crease tag (%d,%d)\n",
+                            edgeVerts[0], edgeVerts[1] );
                 }
             }
         }
@@ -238,48 +229,53 @@ applyCreaseEdges( const MFnMesh &inMeshFn, OpenSubdiv::HbrMesh<T> * hbrMesh )
 }
 
 
-//
 // Reference: OSD shape_utils.h:: applyTags() "corner"
-//
-template <class T> float
-applyCreaseVertices( const MFnMesh &inMeshFn, OpenSubdiv::HbrMesh<T> * hbrMesh )
-{
+float
+applyCreaseVertices( MFnMesh const & inMeshFn, HMesh * hbrMesh ) {
+
     MUintArray tVertexIds;
     MDoubleArray tCreaseData;
-    float maxCreaseValue = 0.0;
+    float maxCreaseValue = 0.0f;
 
     if ( inMeshFn.getCreaseVertices(tVertexIds, tCreaseData) ) {
+
         assert( tVertexIds.length() == tCreaseData.length() );
+
         // Has crease vertices
         for (unsigned int j=0; j < tVertexIds.length(); j++) {
+
             // Assumption: The OSD vert ids are identical to those of the Maya mesh
 
-            OpenSubdiv::HbrVertex<T> * v = hbrMesh->GetVertex( tVertexIds[j] );
+            HVertex * v = hbrMesh->GetVertex( tVertexIds[j] );
             if(v) {
+
                 assert( tCreaseData[j] >= 0.0 );
+
                 v->SetSharpness( (float)tCreaseData[j] );
-                // Update maxCreaseValue
-                if (tCreaseData[j] > maxCreaseValue) {
-                    maxCreaseValue = (float)tCreaseData[j];
-                }
-            }
-            else {
-                fprintf(stderr, "warning: cannot find vertex for corner tag (%d)\n", tVertexIds[j] );
+
+                maxCreaseValue = std::max(float(tCreaseData[j]), maxCreaseValue);
+            } else {
+                fprintf(stderr,
+                    "warning: cannot find vertex for corner tag (%d)\n",
+                        tVertexIds[j] );
            }
         }
     }
     return maxCreaseValue;
 }
 
-//
 // XXX -- Future Data Optimization: Implement varying data instead of forcing face-varying for ColorSets.
-//
 
-//
 // Collect UVs and ColorSet info to represent them as face-varying in OpenSubdiv
-//
-MStatus getMayaFvarFieldParams(const MFnMesh &inMeshFn, MStringArray &uvSetNames, MStringArray &colorSetNames, std::vector<int> &colorSetChannels, std::vector<MFnMesh::MColorRepresentation> &colorSetReps, int &totalColorSetChannels)
-{
+MStatus
+getMayaFvarFieldParams(
+    MFnMesh const & inMeshFn,
+    MStringArray & uvSetNames,
+    MStringArray & colorSetNames,
+    std::vector<int> & colorSetChannels,
+    std::vector<MFnMesh::MColorRepresentation> &colorSetReps,
+    int & totalColorSetChannels) {
+
     MStatus returnStatus;
 
     returnStatus = inMeshFn.getUVSetNames(uvSetNames);
@@ -291,17 +287,18 @@ MStatus getMayaFvarFieldParams(const MFnMesh &inMeshFn, MStringArray &uvSetNames
     colorSetChannels.resize(colorSetNames.length());
     colorSetReps.resize(colorSetNames.length());
     totalColorSetChannels = 0;
+
     for (unsigned int i=0; i < colorSetNames.length(); i++) {
-        colorSetReps[i] = inMeshFn.getColorRepresentation (colorSetNames[i], &returnStatus);
+
+        colorSetReps[i] = inMeshFn.getColorRepresentation(colorSetNames[i], &returnStatus);
         MCHECKERR(returnStatus, "Cannot get colorSet representation");
-        if (colorSetReps[i] == MFnMesh::kAlpha) {
+
+               if (colorSetReps[i] == MFnMesh::kAlpha) {
             colorSetChannels[i] = 1;
-        }
-        else if (colorSetReps[i] == MFnMesh::kRGB) {
+        } else if (colorSetReps[i] == MFnMesh::kRGB) {
             colorSetChannels[i] = 3;
-        }
-        else { // kRGBA
-            colorSetChannels[i] = 4;
+        } else {
+            colorSetChannels[i] = 4; // kRGBA
         }
         totalColorSetChannels += colorSetChannels[i];
     }
@@ -310,22 +307,18 @@ MStatus getMayaFvarFieldParams(const MFnMesh &inMeshFn, MStringArray &uvSetNames
 
 
 //! Create OSD HBR mesh.
-//! Caller is expected to delet the resulting hbrMesh returned
-//!
-OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex> *
-createOsdHbrFromPoly( const MFnMesh &inMeshFn,
-                      MItMeshPolygon &inMeshItPolygon,
-                      std::vector<int> &fvarIndices,
-                      std::vector<int> &fvarWidths)
+//! Caller is expected to delete the resulting hbrMesh returned
+HMesh *
+createOsdHbrFromPoly( MFnMesh const & inMeshFn,
+                      MItMeshPolygon & inMeshItPolygon,
+                      std::vector<int> & fvarIndices,
+                      std::vector<int> & fvarWidths)
 {
     MStatus returnStatus;
 
     // == Mesh Properties
 
-    // =====================================
-    // Init HBR
-    // =====================================
-    // Init FVarData used in HBR (for UVs)
+    // Gather FVarData
     MStringArray uvSetNames;
     MStringArray colorSetNames;
     std::vector<int> colorSetChannels;
@@ -344,73 +337,77 @@ createOsdHbrFromPoly( const MFnMesh &inMeshFn,
         fvarWidths[i] = 1;
     }
 
+    // temp storage for UVs and ColorSets for a face
+    MIntArray fvArray; // face vertex array
+    std::vector<MFloatArray> uvSet_uCoords(uvSetNames.length());
+    std::vector<MFloatArray> uvSet_vCoords(uvSetNames.length());
+    std::vector<MColorArray> colorSet_colors(colorSetNames.length());
+
+    // =====================================
+    // Init HBR
+    // =====================================
+
     // Determine HBR Subdiv Method
-    static OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>  hbrCatmarkSubdMethod;
+    static HCatmark _catmark;
 
     // Create HBR mesh
-    OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex> * hbrMesh = NULL;
     assert(fvarIndices.size() == fvarWidths.size());
-    hbrMesh = new OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>( &hbrCatmarkSubdMethod,
-                                                              (int)fvarIndices.size(),
-                                                              (fvarIndices.size() > 0) ? &fvarIndices[0] : NULL,
-                                                              (fvarWidths.size()  > 0) ? &fvarWidths[0] : NULL,
-                                                              totalFvarWidth );
+    HMesh * hbrMesh = new HMesh( &_catmark,
+                                 (int)fvarIndices.size(),
+                                 (fvarIndices.size() > 0) ? &fvarIndices[0] : NULL,
+                                 (fvarWidths.size()  > 0) ? &fvarWidths[0] : NULL,
+                                 totalFvarWidth );
 
     // Create Stub HBR Vertices
     int numVerts = inMeshFn.numVertices();
-    OpenSubdiv::OsdVertex v; // Stub class unused when generating HBR mesh topology, so leaving to init value
+    OpenSubdiv::OsdVertex v;
     for(int i=0; i<numVerts; i++ ) {
         hbrMesh->NewVertex( i, v );
     }
 
+    // ===================================================
     // Create HBR Topology
     // ===================================================
 
     assert(totalFvarWidth == hbrMesh->GetTotalFVarWidth());
     unsigned int ptxidx = 0;
 
-    MIntArray fvArray; // face vertex array
-    // temp storage for UVs and ColorSets for a face
-    std::vector<MFloatArray> uvSet_uCoords(uvSetNames.length());
-    std::vector<MFloatArray> uvSet_vCoords(uvSetNames.length());
-    std::vector<MColorArray> colorSet_colors(colorSetNames.length());
     for( inMeshItPolygon.reset(); !inMeshItPolygon.isDone(); inMeshItPolygon.next() ) {
 
         // Verts for this face
         inMeshItPolygon.getVertices(fvArray);
         unsigned int nv = fvArray.length();
 
-        // Sanity check the face
-        //   Skip face if not valid
-        //
-        bool validFace = true;
+        bool valid = true;
+
         for(unsigned int j=0;j<fvArray.length(); j++) {
-            OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex>   *origin      = hbrMesh->GetVertex( fvArray[j] );
-            OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex>   *destination = hbrMesh->GetVertex( fvArray[(j+1)%nv] );
-            OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> *opposite    = destination->GetEdge(origin);
+
+            HVertex const * origin      = hbrMesh->GetVertex( fvArray[j] ),
+                          * destination = hbrMesh->GetVertex( fvArray[(j+1)%nv] );
+            HHalfedge const * opposite = destination->GetEdge(origin);
 
             if(origin==NULL || destination==NULL) {
                 fprintf(stderr, "Skipping face: An edge was specified that connected a nonexistent vertex\n");
-                validFace = false;
+                valid = false;
                 break;
             }
 
             if(origin == destination) {
                 fprintf(stderr, "Skipping face: An edge was specified that connected a vertex to itself\n");
-                validFace = false;
+                valid = false;
                 break;
             }
 
             if(opposite && opposite->GetOpposite() ) {
                 fprintf(stderr, "Skipping face: A non-manifold edge incident to more than 2 faces was found\n");
-                validFace = false;
+                valid = false;
                 break;
             }
 
             if(origin->GetEdge(destination)) {
                 fprintf(stderr, "Skipping face: An edge connecting two vertices was specified more than once."
                        " It's likely that an incident face was flipped\n");
-                validFace = false;
+                valid = false;
                 break;
             }
         }
@@ -423,7 +420,8 @@ createOsdHbrFromPoly( const MFnMesh &inMeshFn,
         face->SetPtexIndex(ptxidx);
 
         // Add FaceVaryingData (UVSets, ...)
-        if (totalFvarWidth > 0) { // if HBR mesh expects face-varying data
+        if (totalFvarWidth > 0) {
+
             // Retrieve all UV and ColorSet data
             MIntArray faceCounts;
             for (unsigned int i=0; i < uvSetNames.length(); ++i) {
@@ -436,8 +434,10 @@ createOsdHbrFromPoly( const MFnMesh &inMeshFn,
             }
 
             std::vector<float> fvarItem(totalFvarWidth); // storage for all the face-varying channels for this face-vertex
+
             // loop over each uvSet and the uvs within
             for (unsigned int fvid=0; fvid < fvArray.length(); ++fvid) {
+
                 int fvarItemIndex = 0;
                 // Handle uvSets
                 for( unsigned int uvSetIt=0; uvSetIt < uvSetNames.length(); ++uvSetIt ) {
@@ -466,13 +466,13 @@ createOsdHbrFromPoly( const MFnMesh &inMeshFn,
                 assert((fvarItemIndex) == totalFvarWidth); // For UVs, sanity check the resulting value
 
                 // Insert into the HBR structure for that face
-                OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex> *hbrVertex = hbrMesh->GetVertex( fvArray[fvid] );
-                OpenSubdiv::HbrFVarData<OpenSubdiv::OsdVertex> &fvarData = hbrVertex->GetFVarData(face);
-                if ( !fvarData.IsInitialized() ) {
-                    fvarData.SetAllData( totalFvarWidth, &fvarItem[0] );
-                }
-                else if (!fvarData.CompareAll(totalFvarWidth, &fvarItem[0]))
-                {
+                HVertex * hbrVertex = hbrMesh->GetVertex( fvArray[fvid] );
+                HFvarData & fvarData = hbrVertex->GetFVarData(face);
+
+                if (not fvarData.IsInitialized()) {
+                    fvarData.SetAllData(totalFvarWidth, &fvarItem[0]);
+                } else if (not fvarData.CompareAll(totalFvarWidth, &fvarItem[0])) {
+
                     // If data exists for this face vertex, but is different
                     // (e.g. we're on a UV seam) create another fvar datum
                     OpenSubdiv::HbrFVarData<OpenSubdiv::OsdVertex> &fvarData_new = hbrVertex->NewFVarData(face);
@@ -485,7 +485,7 @@ createOsdHbrFromPoly( const MFnMesh &inMeshFn,
         //   The number of ptexIds needed is 1 if a quad.  Otherwise it is the number of
         //   vertices for the face.
         int numPtexIdsForFace;
-        if (validFace) {
+        if (valid) {
             numPtexIdsForFace = ( nv != 4 ) ? nv : 1 ;
         }
         else {
@@ -495,12 +495,8 @@ createOsdHbrFromPoly( const MFnMesh &inMeshFn,
     }
 
     // Apply Creases
-
-    // Subset of applyTags<T>( hbrMesh, sh ) for "crease"
-    applyCreaseEdges<OpenSubdiv::OsdVertex>( inMeshFn, hbrMesh );
-
-    // Subset of applyTags<T>( hbrMesh, sh ) for "corner"
-    applyCreaseVertices<OpenSubdiv::OsdVertex>( inMeshFn, hbrMesh );
+    applyCreaseEdges( inMeshFn, hbrMesh );
+    applyCreaseVertices( inMeshFn, hbrMesh );
 
     // Return the resulting HBR Mesh
     // Note that boundaryMethods and hbrMesh->Finish() still need to be called
@@ -509,13 +505,12 @@ createOsdHbrFromPoly( const MFnMesh &inMeshFn,
 
 
 MStatus convertOsdFarToMayaMeshData(
-                             const OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMesh,      // input
-                             OpenSubdiv::OsdCpuVertexBuffer *vertexBuffer,                   // input
-                             int subdivisionLevel,                                           // input
-                             const MFnMesh &inMeshFn,                                        // input
-                             MObject newMeshDataObj                                          // output/modified
-                            )
-{
+     FMesh const * farMesh,
+     OpenSubdiv::OsdCpuVertexBuffer * vertexBuffer,
+     int subdivisionLevel,
+     MFnMesh const & inMeshFn,
+     MObject newMeshDataObj ) {
+
     MStatus returnStatus;
 
     // Get sizing data from OSD
@@ -529,8 +524,8 @@ MStatus convertOsdFarToMayaMeshData(
 
     // Init Maya Data
     MFloatPointArray points(numVertices);
-    MIntArray        faceCounts(numPolygons); // number of edges for each polygon.  Assume quads (4-edges per face)
-    MIntArray        faceConnects(numPolygons*4); // array of vertex ids for all edges. assuming quads
+    MIntArray faceCounts(numPolygons); // number of edges for each polygon.  Assume quads (4-edges per face)
+    MIntArray faceConnects(numPolygons*4); // array of vertex ids for all edges. assuming quads
 
     // -- Face Counts
     for (int i=0; i < numPolygons; ++i) {
@@ -548,9 +543,12 @@ MStatus convertOsdFarToMayaMeshData(
     assert(numFloatsPerVertex == 3); // assuming only xyz stored for each vertex
     const float *vertexData = vertexBuffer->BindCpuBuffer();
     float *ptrVertexData;
-    for (unsigned int i=0; i < numVertices; i++)
-    {
-        unsigned int osdRawVertexIndex = i + vertexOffset; // make sure to offset to the first osd vertex for that subd level
+
+    for (unsigned int i=0; i < numVertices; i++) {
+
+        // make sure to offset to the first osd vertex for that subd level
+        unsigned int osdRawVertexIndex = i + vertexOffset;
+
         // Lookup the data in the vertexData
         ptrVertexData = (float *) vertexData + ((osdRawVertexIndex) * numFloatsPerVertex);
         points.set(i, ptrVertexData[0], ptrVertexData[1], ptrVertexData[2]);
@@ -558,17 +556,17 @@ MStatus convertOsdFarToMayaMeshData(
 
     // Create New Mesh from MFnMesh
     MFnMesh newMeshFn;
-    MObject newMeshObj;
-    newMeshObj = newMeshFn.create(points.length(), faceCounts.length(),
-                                points, faceCounts, faceConnects,
-                                newMeshDataObj, &returnStatus);
+    MObject newMeshObj = newMeshFn.create(points.length(), faceCounts.length(),
+        points, faceCounts, faceConnects, newMeshDataObj, &returnStatus);
     MCHECKERR(returnStatus, "Cannot create new mesh");
 
     // Attach UVs (if present)
     // ASSUMPTION: Only tracking UVs as FVar data.  Will need to change this
     // ASSUMPTION: OSD has a unique UV for each face-vertex
     int fvarTotalWidth = farMesh->GetTotalFVarWidth();
+
     if (fvarTotalWidth > 0) {
+
         // Get face-varying set names and other info from the inMesh
         MStringArray uvSetNames;
         MStringArray colorSetNames;
@@ -592,7 +590,9 @@ MStatus convertOsdFarToMayaMeshData(
 
         MFloatArray uCoord(faceConnects.length());
         MFloatArray vCoord(faceConnects.length());
+
         for (int uvSetIndex=0; uvSetIndex < numUVSets; uvSetIndex++) {
+
             for(unsigned int vertid=0; vertid < faceConnects.length(); vertid++) {
                 int fvarItem = vertid*fvarTotalWidth + uvSetIndex*2; // stride per vertex is the fvarTotalWidth
                 uCoord[vertid] = fvarDataTable[fvarItem];
@@ -609,33 +609,35 @@ MStatus convertOsdFarToMayaMeshData(
 
         MColorArray colorArray(faceConnects.length());
         int colorSetRelativeStartIndex = numUVSets*2;
+
         for (unsigned int colorSetIndex=0; colorSetIndex < colorSetNames.length(); colorSetIndex++) {
+
             for(unsigned int vertid=0; vertid < faceConnects.length(); vertid++) {
+
                 int fvarItem = vertid*fvarTotalWidth + colorSetRelativeStartIndex;
                 if (colorSetChannels[colorSetIndex] == 1) {
-                    // Workaround since cannot specify colorRepresentation with createColorSetDataMesh() other than RGBA
                     colorArray[vertid].r = fvarDataTable[fvarItem];
                     colorArray[vertid].g = fvarDataTable[fvarItem];
                     colorArray[vertid].b = fvarDataTable[fvarItem];
-                    colorArray[vertid].a = 1.0f; //fvarDataTable[fvarItem];
-                }
-                else if (colorSetChannels[colorSetIndex] == 3) {
-                    // Workaround since cannot specify colorRepresentation with createColorSetDataMesh() other than RGBA
+                    colorArray[vertid].a = 1.0f;
+                } else if (colorSetChannels[colorSetIndex] == 3) {
                     colorArray[vertid].r = fvarDataTable[fvarItem];
                     colorArray[vertid].g = fvarDataTable[fvarItem+1];
                     colorArray[vertid].b = fvarDataTable[fvarItem+2];
                     colorArray[vertid].a = 1.0f;
-                }
-                else { // (colorSetChannels[colorSetIndex] == 4)
+                } else {
                     colorArray[vertid].r = fvarDataTable[fvarItem];
                     colorArray[vertid].g = fvarDataTable[fvarItem+1];
                     colorArray[vertid].b = fvarDataTable[fvarItem+2];
                     colorArray[vertid].a = fvarDataTable[fvarItem+3];
                 }
             }
+
             // Assign UV buffer and map the uvids for each face-vertex
-            returnStatus = newMeshFn.createColorSetDataMesh( colorSetNames[colorSetIndex]); // API Limitation: Cannot set MColorRepresentation here
+            // API Limitation: Cannot set MColorRepresentation here
+            returnStatus = newMeshFn.createColorSetDataMesh(colorSetNames[colorSetIndex]);
             MCHECKERR(returnStatus, "Cannot create ColorSet");
+
             bool isColorClamped = inMeshFn.isColorClamped(colorSetNames[colorSetIndex], &returnStatus);
             newMeshFn.setIsColorClamped(colorSetNames[colorSetIndex], isColorClamped);
             newMeshFn.setColors(colorArray, &colorSetNames[colorSetIndex], colorSetReps[colorSetIndex]);
@@ -645,22 +647,21 @@ MStatus convertOsdFarToMayaMeshData(
             colorSetRelativeStartIndex += colorSetChannels[colorSetIndex];
         }
     }
-
     return MS::kSuccess;
 }
 
 
-//
 // Propagate objectGroups from inMesh to subdivided outMesh
 // Note: Currently only supporting facet groups (for per-facet shading)
-//
-MStatus createSmoothMesh_objectGroups(const MFnMeshData &inMeshDat, int subdivisionLevel, MFnMeshData &newMeshDat)
-{
+MStatus
+createSmoothMesh_objectGroups(const MFnMeshData &inMeshDat,
+    int subdivisionLevel, MFnMeshData &newMeshDat) {
+
     MStatus returnStatus;
 
     int facesPerBaseFace = (int)(pow(4.0f, subdivisionLevel));
     MIntArray newCompElems;
-    // Loop over the Object Groups
+
     for(unsigned int gi=0; gi < inMeshDat.objectGroupCount(); gi++) {
         unsigned int compId = inMeshDat.objectGroup(gi, &returnStatus);
         MCHECKERR(returnStatus, "cannot get objectGroup() comp ID.");
@@ -676,11 +677,15 @@ MStatus createSmoothMesh_objectGroups(const MFnMeshData &inMeshDat, int subdivis
         // Only supporting kMeshPolygonComponent ObjectGroups at this time
         // Skip the other types
         if (compType == MFn::kMeshPolygonComponent) {
-            // convert/populate newCompElems from compElems of inMesh (with new face indices) to outMesh
+
+            // convert/populate newCompElems from compElems of inMesh
+            // (with new face indices) to outMesh
             newCompElems.setLength( compElems.length() * facesPerBaseFace );
             for (unsigned int i=0; i < compElems.length(); i++) {
+
                 int startElemIndex = i * facesPerBaseFace;
                 int startElemValue = compElems[i] * facesPerBaseFace;
+
                 for (int j=0; j < facesPerBaseFace; j++) {
                     newCompElems[startElemIndex+j] = startElemValue+j;
                 }
@@ -696,7 +701,6 @@ MStatus createSmoothMesh_objectGroups(const MFnMeshData &inMeshDat, int subdivis
 // ====================================
 // Compute
 // ====================================
-MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data )
 //
 //  Description:
 //      This method computes the value of the given output plug based
@@ -706,8 +710,10 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data )
 //      plug - the plug to compute
 //      data - object that provides access to the attributes for this node
 //
-{
+MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
+
     MStatus returnStatus;
+
     // Check which output attribute we have been asked to compute.  If this
     // node doesn't know how to compute it, we must return
     // MS::kUnknownParameter.
@@ -715,10 +721,11 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data )
     if( plug == a_output ) {
         bool createdSubdMesh = false;
 
-        int subdivisionLevel   = data.inputValue(a_subdivisionLevels).asInt();
-        short  stateH = data.inputValue(state).asShort();
+        int subdivisionLevel = data.inputValue(a_subdivisionLevels).asInt();
+        short stateH = data.inputValue(state).asShort();
 
-        if ((subdivisionLevel > 0) && (stateH !=1)) { // if state is not "Do Nothing" and the subdiv level > 0
+        if ((subdivisionLevel > 0) and (stateH !=1)) {
+
             // == Retrieve input mesh ====================================
             // Get attr values
             MObject inMeshObj        = data.inputValue(a_inputPolymesh).asMesh();
@@ -729,19 +736,18 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data )
             short creaseMethodVal    = data.inputValue(a_creaseMethod).asShort();
 
             // Convert attr values to OSD enums
-            OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>::InterpolateBoundaryMethod vertInterpBoundaryMethod =
+            HMesh::InterpolateBoundaryMethod vertInterpBoundaryMethod =
                 ConvertMayaBoundaryMethodShortToOsdInterpolateBoundaryMethod(vertBoundaryMethod);
 
-            OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>::InterpolateBoundaryMethod fvarInterpBoundaryMethod =
+            HMesh::InterpolateBoundaryMethod fvarInterpBoundaryMethod =
                 ConvertMayaBoundaryMethodShortToOsdInterpolateBoundaryMethod(fvarBoundaryMethod);
 
-            OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::CreaseSubdivision creaseMethod = (creaseMethodVal == k_creaseMethod_chaikin) ?
-                OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::k_CreaseChaikin :
-                OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::k_CreaseNormal;
+            HCatmark::CreaseSubdivision creaseMethod =
+                (creaseMethodVal == k_creaseMethod_chaikin) ?
+                    HCatmark::k_CreaseChaikin : HCatmark::k_CreaseNormal;
 
-            OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::TriangleSubdivision triangleSubdivision = smoothTriangles ?
-                OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::k_New :
-                OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex>::k_Normal;
+            HCatmark::TriangleSubdivision triangleSubdivision =
+                smoothTriangles ? HCatmark::k_New : HCatmark::k_Normal;
 
             // == Get Mesh Functions and Iterators ==========================
             MFnMeshData inMeshDat(inMeshObj);
@@ -755,14 +761,13 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data )
             // Note: These fvar values only need to be kept alive through the life of the farMesh
             std::vector<int> fvarIndices;
             std::vector<int> fvarWidths;
-            OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex> *hbrMesh = createOsdHbrFromPoly(
-                                                        inMeshFn,
-                                                        inMeshItPolygon,
-                                                        fvarIndices,
-                                                        fvarWidths);
+
+            HMesh *hbrMesh = createOsdHbrFromPoly(
+                inMeshFn, inMeshItPolygon, fvarIndices, fvarWidths);
+            assert(hbrMesh);
 
             // Create the farMesh if successfully created the hbrMesh
-            assert(hbrMesh);
+
             if (hbrMesh) {
                 // Set Boundary methods and other hbr paramters
                 hbrMesh->SetInterpolateBoundaryMethod( vertInterpBoundaryMethod );
@@ -771,7 +776,7 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data )
                 hbrMesh->GetSubdivision()->SetCreaseSubdivisionMethod(creaseMethod);
 
                 // Set HBR Catmark Subdivision parameters
-                OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex> *catmarkSubdivision = dynamic_cast<OpenSubdiv::HbrCatmarkSubdivision<OpenSubdiv::OsdVertex> *>(hbrMesh->GetSubdivision());
+                HCatmark *catmarkSubdivision = dynamic_cast<HCatmark *>(hbrMesh->GetSubdivision());
                 if (catmarkSubdivision) {
                     catmarkSubdivision->SetTriangleSubdivisionMethod(triangleSubdivision);
                 }
@@ -780,30 +785,69 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data )
                 // NOTE: This HAS to be called after all HBR parameters are set
                 hbrMesh->Finish();
 
+                int ncoarseverts = hbrMesh->GetNumVertices();
+
                 // Create a FarMesh from the HBR mesh and pass into
                 // It will be owned by the OsdMesh and deleted in the ~OsdMesh()
-                OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex> meshFactory(hbrMesh, subdivisionLevel, false);
-                OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMesh = meshFactory.Create( (hbrMesh->GetTotalFVarWidth() > 0) );
+                FMeshFactory meshFactory(hbrMesh, subdivisionLevel, false);
+
+                FMesh *farMesh = meshFactory.Create((hbrMesh->GetTotalFVarWidth() > 0));
 
                 // == Setup OSD Data Structures =========================
                 int numVertexElements  = 3; // only track vertex positions
                 int numVaryingElements = 0; // XXX Future: Revise to include varying ColorSets
                 int numVertices = inMeshFn.numVertices();
 
+                int numFarVerts = farMesh->GetNumVertices();
+
+                static OpenSubdiv::OsdCpuComputeController computeController = OpenSubdiv::OsdCpuComputeController();
+
+                OpenSubdiv::OsdCpuComputeController::ComputeContext *computeContext =
+                    OpenSubdiv::OsdCpuComputeController::ComputeContext::Create(farMesh);
+
+                OpenSubdiv::OsdCpuVertexBuffer *vertexBuffer =
+                    OpenSubdiv::OsdCpuVertexBuffer::Create(numVertexElements, numFarVerts );
+
+                OpenSubdiv::OsdCpuVertexBuffer *varyingBuffer =
+                    (numVaryingElements) ? OpenSubdiv::OsdCpuVertexBuffer::Create(numVaryingElements, numFarVerts) : NULL;
+
+                // == UPDATE VERTICES (can be done after farMesh generated from topology) ==
+                float const * vertex3fArray = inMeshFn.getRawPoints(&returnStatus);
+                vertexBuffer->UpdateData(vertex3fArray, 0, numVertices );
+
+                // Hbr dupes singular vertices during Mesh::Finish() - we need
+                // to duplicate their positions in the vertex buffer.
+                if (ncoarseverts > numVertices) {
+
+                    MIntArray polyverts;
+
+                    for (int i=numVertices; i<ncoarseverts; ++i) {
+
+                        HVertex const * v = hbrMesh->GetVertex(i);
+
+                        HFace const * f = v->GetIncidentEdge()->GetFace();
+
+                        int vidx = -1;
+                        for (int j=0; j<f->GetNumVertices(); ++j) {
+                            if (f->GetVertex(j)==v) {
+                                vidx = j;
+                                break;
+                            }
+                        }
+                        assert(vidx>-1);
+
+                        inMeshFn.getPolygonVertices(f->GetID(), polyverts);
+
+                        int vert = polyverts[vidx];
+
+                        vertexBuffer->UpdateData(&vertex3fArray[0]+vert*numVertexElements, i, 1);
+                    }
+                }
+
                 // == Delete HBR
                 // Can now delete the hbrMesh as we will only be referencing the farMesh from this point on
                 delete hbrMesh;
                 hbrMesh = NULL;
-
-                int numFarVerts = farMesh->GetNumVertices();
-                static OpenSubdiv::OsdCpuComputeController computeController = OpenSubdiv::OsdCpuComputeController();
-                OpenSubdiv::OsdCpuComputeController::ComputeContext *computeContext = OpenSubdiv::OsdCpuComputeController::ComputeContext::Create(farMesh);
-                OpenSubdiv::OsdCpuVertexBuffer *vertexBuffer  = OpenSubdiv::OsdCpuVertexBuffer::Create(numVertexElements, numFarVerts );
-                OpenSubdiv::OsdCpuVertexBuffer *varyingBuffer = (numVaryingElements) ? OpenSubdiv::OsdCpuVertexBuffer::Create(numVaryingElements, numFarVerts) : NULL;
-
-                // == UPDATE VERTICES (can be done after farMesh generated from topology) ==
-                const float *vertex3fArray = inMeshFn.getRawPoints(&returnStatus);
-                vertexBuffer->UpdateData(vertex3fArray, 0, numVertices );
 
                 // == Subdivide OpenSubdiv mesh ==========================
                 computeController.Refine(computeContext, farMesh->GetKernelBatches(), vertexBuffer, varyingBuffer);
@@ -860,7 +904,6 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data )
 
 
 // Creator
-void* OsdPolySmooth::creator()
 //
 //  Description:
 //      this method exists to give Maya a way to create new objects
@@ -869,13 +912,13 @@ void* OsdPolySmooth::creator()
 //  Return Value:
 //      a new object of this type
 //
-{
+void* OsdPolySmooth::creator() {
+
     return new OsdPolySmooth;
 }
 
 
 // Create and Add Attributes
-MStatus OsdPolySmooth::initialize()
 //
 //  Description:
 //      This method is called to create and initialize all of the attributes
@@ -886,7 +929,8 @@ MStatus OsdPolySmooth::initialize()
 //      MS::kSuccess
 //      MS::kFailure
 //
-{
+MStatus OsdPolySmooth::initialize() {
+
     MStatus stat;
 
     MFnCompoundAttribute  cAttr;
@@ -1043,7 +1087,6 @@ MStatus OsdPolySmooth::initialize()
     // MAYA_NODE_BUILDER:END [ATTRIBUTE DEPENDS] ==========
 
     return MS::kSuccess;
-
 }
 
 
@@ -1053,37 +1096,39 @@ MStatus OsdPolySmooth::initialize()
 
 MStatus initializePlugin( MObject obj )
 {
-        MStatus   returnStatus = MS::kSuccess;
-        MFnPlugin plugin( obj, "OsdPolySmooth", "1.0", "Any");
+    MStatus   status = MS::kSuccess;
+    MFnPlugin plugin( obj, "OsdPolySmooth", "1.0", "Any");
 
-        returnStatus = plugin.registerNode(
-            OsdPolySmooth::typeNameStr,
-            OsdPolySmooth::id,
-            OsdPolySmooth::creator,
-            OsdPolySmooth::initialize);
-        MCHECKERR(returnStatus, "registerNode");
+    status = plugin.registerNode(
+        OsdPolySmooth::typeNameStr,
+        OsdPolySmooth::id,
+        OsdPolySmooth::creator,
+        OsdPolySmooth::initialize);
+    MCHECKERR(status, "registerNode");
 
-        // Source UI scripts
-        // source the mel procs to be run when the plugin is loaded / unloaded
-        MStatus scriptExecStatus = MGlobal::sourceFile("osdPolySmooth.mel");
-        if (!scriptExecStatus) {
+    // Source UI scripts
+    MString path = plugin.loadPath()+"/osdPolySmooth.mel";
+    if (not MGlobal::sourceFile(path)) {
+        path = "osdPolySmooth.mel";
+        if (not MGlobal::sourceFile(path)) {
             MGlobal::displayWarning("Failed to source osdPolySmooth.mel.");
         }
+    }
 
-        // RegisterUI
-        returnStatus = plugin.registerUI("osdPolySmooth_addUI()", "osdPolySmooth_removeUI()");
-        MCHECKERR(returnStatus, "registerUI");
+    // RegisterUI
+    status = plugin.registerUI("osdPolySmooth_addUI()", "osdPolySmooth_removeUI()");
+    MCHECKERR(status, "registerUI");
 
-        return returnStatus;
+    return status;
 }
 
 MStatus uninitializePlugin( MObject obj)
 {
-        MStatus   returnStatus = MS::kSuccess;
-        MFnPlugin plugin( obj );
+    MStatus   returnStatus = MS::kSuccess;
+    MFnPlugin plugin( obj );
 
-        returnStatus = plugin.deregisterNode( OsdPolySmooth::id );
-        MCHECKERR(returnStatus, "deregisterNode");
+    returnStatus = plugin.deregisterNode( OsdPolySmooth::id );
+    MCHECKERR(returnStatus, "deregisterNode");
 
-        return returnStatus;
+    return returnStatus;
 }

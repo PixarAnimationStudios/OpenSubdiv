@@ -107,14 +107,14 @@ install(TARGETS maya_polySmoothNode DESTINATION ${CMAKE_PLUGINDIR_BASE})
 
 add_custom_target(maya_polySmoothNode_melScripts
         COMMAND
-            ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/osdPolySmooth.mel ${CMAKE_CURRENT_BINARY_DIR}
+            ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/osdPolySmooth.mel ${CMAKE_BINARY_DIR}/${CMAKE_LIBDIR_BASE}
         DEPENDS
             ${CMAKE_CURRENT_SOURCE_DIR}/osdPolySmooth.mel
 )
 
 install(
     FILES 
-        ${CMAKE_CURRENT_BINARY_DIR}/osdPolySmooth.mel
+        ${CMAKE_BINARY_DIR}/${CMAKE_LIBDIR_BASE}/osdPolySmooth.mel
     DESTINATION 
         ${CMAKE_PLUGINDIR_BASE}
 )

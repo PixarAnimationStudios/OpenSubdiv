@@ -29,8 +29,8 @@
 //
 // Add the UI for the osdPolySmooth plugin
 //
-global proc osdPolySmooth_addUI()
-{
+global proc osdPolySmooth_addUI() {
+
     osdPolySmooth_removeUI();
 
     // Make sure the "Edit Mesh" menu has been built
@@ -41,15 +41,15 @@ global proc osdPolySmooth_addUI()
     // Add to the menu
     setParent -m $gPolygonsEditMeshMenu;
     menuItem -label "+ OSD Subdivide Meshes"
-             -command "osdPolySmooth({})" 
+             -command "osdPolySmooth({})"
              "osdPolySmooth_menuItem";
 }
 
 //
 // Remove the UI for the osdPolySmooth plugin
 //
-global proc osdPolySmooth_removeUI()
-{
+global proc osdPolySmooth_removeUI() {
+
     if (`menuItem -ex "osdPolySmooth_menuItem"`) {
         deleteUI -mi "osdPolySmooth_menuItem";
     }
@@ -63,13 +63,13 @@ global proc osdPolySmooth_removeUI()
 //
 // Command to OSD Subdivide the selected or specified meshes
 //
-global proc string[] osdPolySmooth(string $meshes[])
-{
+global proc string[] osdPolySmooth(string $meshes[]) {
+
     string $osdPolySmoothNodes[];
 
     // parameter to conditionally insert an intermediate mesh node before the
     // osdPolySmooth node to allow editing the base mesh
-    int $showBaseMesh = 1; 
+    int $showBaseMesh = 1;
 
     // Store off the original selection so can restore it below
     string $origSel[] = `ls -sl`;
@@ -100,7 +100,7 @@ global proc string[] osdPolySmooth(string $meshes[])
         // Create and connect the osdPolySmooth node
         string $osdPolySmooth = `createNode osdPolySmooth`;
         connectAttr ($inMeshAttr[0]) ($osdPolySmooth+".inputPolymesh");
-        connectAttr -force ($osdPolySmooth+".output") ($outMeshAttr[0]); 
+        connectAttr -force ($osdPolySmooth+".output") ($outMeshAttr[0]);
 
         if ($showBaseMesh) {
             addAttr -ln "displayMesh"  -at "enum" -en "Cage:Smooth:Cage+Smooth" -defaultValue 2 $osdPolySmooth;

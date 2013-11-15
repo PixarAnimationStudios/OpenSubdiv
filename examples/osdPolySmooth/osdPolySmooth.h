@@ -22,51 +22,42 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-
 #ifndef _OsdPolySmooth
 #define _OsdPolySmooth
 
 #include <maya/MPxNode.h>
-#include <maya/MTypeId.h> 
+#include <maya/MTypeId.h>
 
- 
-class OsdPolySmooth : public MPxNode
-{
+
+class OsdPolySmooth : public MPxNode {
+
 public:
+
     OsdPolySmooth();
-    virtual  ~OsdPolySmooth(); 
 
-    // Basic MPxNode static and virtual functions
-    virtual MStatus     compute( const MPlug& plug, MDataBlock& data );
+    virtual  ~OsdPolySmooth();
 
-    static  void*       creator();
-    static  MStatus     initialize();
+    virtual MStatus compute( const MPlug& plug, MDataBlock& data );
+
+    static void * creator();
     
-    // Additional class functions here
+    static MStatus initialize();
 
 public:
-    // There needs to be a MObject handle declared for each attribute that
-    // the node will have.  These handles are needed for getting and setting
-    // the values later.
-    //
+
     // MAYA_NODE_BUILDER:BEG [ATTRIBUTE DECLARATION] ==========
-    static MObject a_inputPolymesh; // This is a description for this attribute
-    static MObject a_output; // This is a description for this attribute
-    static MObject a_subdivisionLevels; // The number of recursive quad subdivisions to perform on each face.
-    static MObject a_vertBoundaryMethod; // Controls how boundary edges and vertices are interpolated. <ul> <li>Smooth, Edges: Renderman: InterpolateBoundaryEdgeOnly</li> <li>Smooth, Edges and Corners: Renderman: InterpolateBoundaryEdgeAndCorner</li> </ul>
-    static MObject a_fvarBoundaryMethod; // Controls how boundaries are treated for face-varying data (UVs and Vertex Colors). <ul> <li>Bi-linear (None): Renderman: InterpolateBoundaryNone</li> <li>Smooth, (Edge Only): Renderman: InterpolateBoundaryEdgeOnly</li> <li>Smooth, (Edges and Corners: Renderman: InterpolateBoundaryEdgeAndCorner</li> <li>Smooth, (ZBrush and Maya "Smooth Internal Only"): Renderman: InterpolateBoundaryAlwaysSharp</li> </ul>
-    static MObject a_fvarPropagateCorners; // 
-    static MObject a_smoothTriangles; // Apply a special subdivision rule be applied to all triangular faces that was empirically determined to make triangles subdivide more smoothly.
-    static MObject a_creaseMethod; // Controls how boundary edges and vertices are interpolated. <ul> <li>Normal</li> <li>Chaikin: Improves the appearance of multiedge creases with varying weight</li> </ul>
+    static MObject a_inputPolymesh;        // This is a description for this attribute
+    static MObject a_output;               // This is a description for this attribute
+    static MObject a_subdivisionLevels;    // The number of recursive quad subdivisions to perform on each face.
+    static MObject a_vertBoundaryMethod;   // Controls how boundary edges and vertices are interpolated. <ul> <li>Smooth, Edges: Renderman: InterpolateBoundaryEdgeOnly</li> <li>Smooth, Edges and Corners: Renderman: InterpolateBoundaryEdgeAndCorner</li> </ul>
+    static MObject a_fvarBoundaryMethod;   // Controls how boundaries are treated for face-varying data (UVs and Vertex Colors). <ul> <li>Bi-linear (None): Renderman: InterpolateBoundaryNone</li> <li>Smooth, (Edge Only): Renderman: InterpolateBoundaryEdgeOnly</li> <li>Smooth, (Edges and Corners: Renderman: InterpolateBoundaryEdgeAndCorner</li> <li>Smooth, (ZBrush and Maya "Smooth Internal Only"): Renderman: InterpolateBoundaryAlwaysSharp</li> </ul>
+    static MObject a_fvarPropagateCorners; //
+    static MObject a_smoothTriangles;      // Apply a special subdivision rule be applied to all triangular faces that was empirically determined to make triangles subdivide more smoothly.
+    static MObject a_creaseMethod;         // Controls how boundary edges and vertices are interpolated. <ul> <li>Normal</li> <li>Chaikin: Improves the appearance of multiedge creases with varying weight</li> </ul>
     // MAYA_NODE_BUILDER:END [ATTRIBUTE DECLARATION] ==========
 
-    // The typeid is a unique 32bit indentifier that describes this node.
-    // It is used to save and retrieve nodes of this type from the binary
-    // file format.  If it is not unique, it will cause file IO problems.
-    //
     static const MTypeId id;
     static const MString typeNameStr;
-    
 };
 
 #endif // _OsdPolySmooth
