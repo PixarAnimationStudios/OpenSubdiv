@@ -46,9 +46,14 @@ template <class U> class FarCatmarkSubdivisionTables : public FarSubdivisionTabl
 
 public:
 
-    /// \brief Returns the number of indexing tables needed to represent this 
+    /// \brief Returns the number of indexing tables needed to represent this
     /// particular subdivision scheme.
     virtual int GetNumTables() const { return 7; }
+
+    /// \brief  Returns the subdivision scheme of the tables 
+    virtual typename FarSubdivisionTables<U>::Scheme GetScheme() const { 
+        return FarSubdivisionTables<U>::CATMARK; 
+    }
 
 private:
     template <class X, class Y> friend class FarCatmarkSubdivisionTablesFactory;

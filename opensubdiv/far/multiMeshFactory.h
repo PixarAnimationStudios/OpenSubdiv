@@ -34,8 +34,6 @@
 #include "../far/patchTablesFactory.h"
 #include "../far/vertexEditTablesFactory.h"
 
-#include <typeinfo>
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -101,7 +99,10 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
     if (meshes.empty()) return NULL;
 
     int totalFVarWidth = meshes[0]->GetTotalFVarWidth();
-    const std::type_info &scheme = typeid(*(meshes[0]->GetSubdivisionTables()));
+
+    typename FarSubdivisionTables<U>::Scheme scheme = 
+        meshes[0]->GetSubdivisionTables()->GetScheme();
+        
     _maxlevel = 0;
     _maxvalence = 0;
     _isLoop = false;
@@ -110,7 +111,7 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
         FarMesh<U> const *mesh = meshes[i];
 
         // meshes have to have a same subdivision scheme
-        if (scheme != typeid(*(mesh->GetSubdivisionTables()))) {
+        if (scheme != mesh->GetSubdivisionTables()->GetScheme()) {
             assert(false);
             return NULL;
         }
@@ -241,19 +242,26 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
     }
 
     FarSubdivisionTables<U> *result = NULL;
-    const std::type_info &scheme = typeid(*(meshes[0]->GetSubdivisionTables()));
+    typename FarSubdivisionTables<U>::Scheme scheme = 
+        meshes[0]->GetSubdivisionTables()->GetScheme();
 
-    if (scheme == typeid(FarCatmarkSubdivisionTables<U>) ) {
-        result = new FarCatmarkSubdivisionTables<U>(farMesh, _maxlevel);
-        _isLoop = false;
-    } else if (scheme == typeid(FarBilinearSubdivisionTables<U>) ) {
-        result = new FarBilinearSubdivisionTables<U>(farMesh, _maxlevel);
-        _isLoop = false;
-    } else if (scheme == typeid(FarLoopSubdivisionTables<U>) ) {
-        result = new FarLoopSubdivisionTables<U>(farMesh, _maxlevel);
-        _isLoop = true;
+    switch (scheme) {
+        case FarSubdivisionTables<U>::CATMARK: 
+            result = new FarCatmarkSubdivisionTables<U>(farMesh, _maxlevel);
+            _isLoop = false;
+            break;
+        case FarSubdivisionTables<U>::LOOP: 
+            result = new FarLoopSubdivisionTables<U>(farMesh, _maxlevel);
+            _isLoop = true;
+            break;
+        case FarSubdivisionTables<U>::BILINEAR: 
+            result = new FarBilinearSubdivisionTables<U>(farMesh, _maxlevel);
+            _isLoop = false;
+            break;
+        default:
+            assert(0);
     }
-
+    
     result->_F_ITa.resize(total_F_ITa);
     result->_F_IT.resize(total_F_IT);
     result->_E_IT.resize(total_E_IT);
@@ -293,11 +301,13 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
             fvOffset += (int)tables->Get_F_ITa().size()/2;
             V_IToffset += (int)tables->Get_V_IT().size();
 
-            if (scheme == typeid(FarCatmarkSubdivisionTables<U>) ||
-                scheme == typeid(FarLoopSubdivisionTables<U>)) {
+            if (scheme == FarSubdivisionTables<U>::CATMARK or
+                scheme == FarSubdivisionTables<U>::LOOP) {
+                
                 evOffset += (int)tables->Get_E_IT().size()/4;
                 vvOffset += (int)tables->Get_V_ITa().size()/5;
             } else {
+            
                 evOffset += (int)tables->Get_E_IT().size()/2;
                 vvOffset += (int)tables->Get_V_ITa().size();
             }
@@ -335,10 +345,12 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
         E_W = copyWithOffset(E_W, tables->Get_E_W(), 0);
 
         // copy vert tables
-        if (scheme == typeid(FarCatmarkSubdivisionTables<U>) ||
-            scheme == typeid(FarLoopSubdivisionTables<U>)) {
+        if (scheme == FarSubdivisionTables<U>::CATMARK or
+            scheme == FarSubdivisionTables<U>::LOOP) {
+            
             V_ITa = copyWithOffsetV_ITa(V_ITa, tables->Get_V_ITa(), V_IToffsets[i], vertexOffsets[i]);
         } else {
+        
             V_ITa = copyWithOffset(V_ITa, tables->Get_V_ITa(), vertexOffsets[i]);
         }
         V_W = copyWithOffset(V_W, tables->Get_V_W(), 0);

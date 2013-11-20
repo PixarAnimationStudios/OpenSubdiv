@@ -171,6 +171,9 @@ private:
     FarMeshFactory( FarMeshFactory const & );
     FarMeshFactory<T,U> & operator=(FarMeshFactory<T,U> const &);
 
+    // True if t1 and t2 are the same, even accounting for plugins
+    static bool compareType(std::type_info const & t1, std::type_info const & t2);
+
     // True if the HbrMesh applies the bilinear subdivision scheme
     static bool isBilinear(HbrMesh<T> const * mesh);
 
@@ -638,18 +641,36 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adapt
 }
 
 template <class T, class U> bool
+FarMeshFactory<T,U>::compareType(std::type_info const & t1, std::type_info const & t2) {
+
+    if (t1==t2) {
+        return true;
+    }
+
+    // On some systems, distinct instances of \c type_info objects compare equal if
+    // their name() functions return equivalent strings.  On other systems, distinct
+    // type_info objects never compare equal.  The latter can cause problems in the
+    // presence of plugins loaded without RTLD_GLOBAL, because typeid(T) returns
+    // different \c type_info objects for the same T in the two plugins.
+    for (char const * p1 = t1.name(), *p2 = t2.name(); *p1 == *p2; ++p1, ++p2)
+        if (*p1 == '\0')
+            return true;
+    return false;
+}
+
+template <class T, class U> bool
 FarMeshFactory<T,U>::isBilinear(HbrMesh<T> const * mesh) {
-    return typeid(*(mesh->GetSubdivision()))==typeid(HbrBilinearSubdivision<T>);
+    return compareType(typeid(*(mesh->GetSubdivision())), typeid(HbrBilinearSubdivision<T>));
 }
 
 template <class T, class U> bool
 FarMeshFactory<T,U>::isCatmark(HbrMesh<T> const * mesh) {
-    return typeid(*(mesh->GetSubdivision()))==typeid(HbrCatmarkSubdivision<T>);
+    return compareType(typeid(*(mesh->GetSubdivision())), typeid(HbrCatmarkSubdivision<T>));
 }
 
 template <class T, class U> bool
 FarMeshFactory<T,U>::isLoop(HbrMesh<T> const * mesh) {
-    return typeid(*(mesh->GetSubdivision()))==typeid(HbrLoopSubdivision<T>);
+    return compareType(typeid(*(mesh->GetSubdivision())), typeid(HbrLoopSubdivision<T>));
 }
 
 template <class T, class U> void
