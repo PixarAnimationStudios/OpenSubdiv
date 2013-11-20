@@ -109,42 +109,42 @@ OsdD3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
     int bpp = 0;
     int numChannels = reader->numChannels();
     switch (reader->dataType()) {
-    case Ptex::dt_uint16:
-        switch (numChannels) {
-        case 1: format = DXGI_FORMAT_R16_UINT; break;
-        case 2: format = DXGI_FORMAT_R16G16_UINT; break;
-        case 3: assert(false); break;
-        case 4: format = DXGI_FORMAT_R16G16B16A16_UINT; break;
-        }
-        bpp = numChannels * 2;
-        break;
-    case Ptex::dt_float:
-        switch (numChannels) {
-        case 1: format = DXGI_FORMAT_R32_FLOAT; break;
-        case 2: format = DXGI_FORMAT_R32G32_FLOAT; break;
-        case 3: format = DXGI_FORMAT_R32G32B32_FLOAT; break;
-        case 4: format = DXGI_FORMAT_R32G32B32A32_FLOAT; break;
-        }
-        bpp = numChannels * 4;
-        break;
-    case Ptex::dt_half:
-        switch (numChannels) {
-        case 1: format = DXGI_FORMAT_R16_FLOAT; break;
-        case 2: format = DXGI_FORMAT_R16G16_FLOAT; break;
-        case 3:assert(false); break;
-        case 4: format = DXGI_FORMAT_R16G16B16A16_FLOAT; break;
-        }
-        bpp = numChannels * 2;
-        break;
-    default:
-        switch (numChannels) {
-        case 1: format = DXGI_FORMAT_R8_UINT; break;
-        case 2: format = DXGI_FORMAT_R8G8_UINT; break;
-        case 3: assert(false); break;
-        case 4: format = DXGI_FORMAT_R8G8B8A8_UINT; break;
-        }
-        bpp = numChannels;
-        break;
+        case Ptex::dt_uint16:
+            switch (numChannels) {
+                case 1: format = DXGI_FORMAT_R16_UINT; break;
+                case 2: format = DXGI_FORMAT_R16G16_UINT; break;
+                case 3: assert(false); break;
+                case 4: format = DXGI_FORMAT_R16G16B16A16_UINT; break;
+            }
+            bpp = numChannels * 2;
+            break;
+        case Ptex::dt_float:
+            switch (numChannels) {
+                case 1: format = DXGI_FORMAT_R32_FLOAT; break;
+                case 2: format = DXGI_FORMAT_R32G32_FLOAT; break;
+                case 3: format = DXGI_FORMAT_R32G32B32_FLOAT; break;
+                case 4: format = DXGI_FORMAT_R32G32B32A32_FLOAT; break;
+            }
+            bpp = numChannels * 4;
+            break;
+        case Ptex::dt_half:
+            switch (numChannels) {
+                case 1: format = DXGI_FORMAT_R16_FLOAT; break;
+                case 2: format = DXGI_FORMAT_R16G16_FLOAT; break;
+                case 3:assert(false); break;
+                case 4: format = DXGI_FORMAT_R16G16B16A16_FLOAT; break;
+            }
+            bpp = numChannels * 2;
+            break;
+        default:
+            switch (numChannels) {
+                case 1: format = DXGI_FORMAT_R8_UINT; break;
+                case 2: format = DXGI_FORMAT_R8G8_UINT; break;
+                case 3: assert(false); break;
+                case 4: format = DXGI_FORMAT_R8G8B8A8_UINT; break;
+            }
+            bpp = numChannels;
+            break;
     }
 
     // actual texels texture array

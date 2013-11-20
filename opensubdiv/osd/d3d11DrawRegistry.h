@@ -62,6 +62,8 @@ struct OsdD3D11DrawConfig : public OsdDrawConfig {
     ID3D11PixelShader    *pixelShader;
 };
 
+//------------------------------------------------------------------------------
+
 struct OsdD3D11DrawSourceConfig {
     OsdDrawShaderSource commonShader;
     OsdDrawShaderSource vertexShader;
@@ -71,15 +73,27 @@ struct OsdD3D11DrawSourceConfig {
     OsdDrawShaderSource pixelShader;
 };
 
-////////////////////////////////////////////////////////////
+
+//------------------------------------------------------------------------------
 
 class OsdD3D11DrawRegistryBase {
+
 public:
     typedef OsdDrawContext::PatchDescriptor DescType;
     typedef OsdD3D11DrawConfig ConfigType;
     typedef OsdD3D11DrawSourceConfig SourceConfigType;
 
+    OsdD3D11DrawRegistryBase(bool enablePtex=false) : _enablePtex(enablePtex) { }
+
     virtual ~OsdD3D11DrawRegistryBase();
+
+    bool IsPtexEnabled() const {
+        return _enablePtex;
+    }
+
+    void SetPtexEnabled(bool b) {
+        _enablePtex=b;
+    }
 
 protected:
     virtual ConfigType * _NewDrawConfig() { return new ConfigType(); }
@@ -94,12 +108,18 @@ protected:
     virtual SourceConfigType * _NewDrawSourceConfig() { return new SourceConfigType(); }
     virtual SourceConfigType *
     _CreateDrawSourceConfig(DescType const & desc, ID3D11Device * pd3dDevice);
+
+private:
+    bool _enablePtex;
 };
+
+//------------------------------------------------------------------------------
 
 template <class DESC_TYPE = OsdDrawContext::PatchDescriptor,
           class CONFIG_TYPE = OsdD3D11DrawConfig,
-          class SOURCE_CONFIG_TYPE = OsdD3D11DrawSourceConfig >
+          class SOURCE_CONFIG_TYPE = OsdD3D11DrawSourceConfig>
 class OsdD3D11DrawRegistry : public OsdD3D11DrawRegistryBase {
+
 public:
     typedef OsdD3D11DrawRegistryBase BaseRegistry;
 
@@ -145,18 +165,27 @@ public:
     }
 
 protected:
-    virtual ConfigType * _NewDrawConfig() { return new ConfigType(); }
-    virtual ConfigType *
-    _CreateDrawConfig(DescType const & desc,
-                      SourceConfigType const * sconfig,
-                      ID3D11Device * pd3dDevice,
-                      ID3D11InputLayout ** ppInputLayout,
-                      D3D11_INPUT_ELEMENT_DESC const * pInputElementDescs,
-                      int numInputElements) { return NULL; }
+    virtual ConfigType * _NewDrawConfig() {
+        return new ConfigType();
+    }
 
-    virtual SourceConfigType * _NewDrawSourceConfig() { return new SourceConfigType(); }
-    virtual SourceConfigType *
-    _CreateDrawSourceConfig(DescType const & desc, ID3D11Device * pd3dDevice) { return NULL; }
+    virtual ConfigType * _CreateDrawConfig(DescType const & desc,
+                                           SourceConfigType const * sconfig,
+                                           ID3D11Device * pd3dDevice,
+                                           ID3D11InputLayout ** ppInputLayout,
+                                           D3D11_INPUT_ELEMENT_DESC const * pInputElementDescs,
+                                           int numInputElements) {
+        return NULL;
+    }
+
+    virtual SourceConfigType * _NewDrawSourceConfig() {
+        return new SourceConfigType();
+    }
+
+    virtual SourceConfigType * _CreateDrawSourceConfig(DescType const & desc,
+                                                       ID3D11Device * pd3dDevice) {
+        return NULL;
+    }
 
 private:
     ConfigMap _configMap;

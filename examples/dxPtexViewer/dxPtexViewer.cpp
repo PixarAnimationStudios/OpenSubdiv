@@ -460,6 +460,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc, ID3D11Device 
 {
     Effect effect = desc.second;
 
+    SetPtexEnabled(true);
+
     SourceConfigType * sconfig =
         BaseRegistry::_CreateDrawSourceConfig(desc.first, pd3dDevice);
     assert(sconfig);

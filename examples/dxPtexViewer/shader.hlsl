@@ -31,264 +31,6 @@ cbuffer Config : register( b3 ) {
     float mipmapBias;
 };
 
-struct PtexPacking
-{
-    int page;
-    int nMipmap;
-    int uOffset;
-    int vOffset;
-    int adjSizeDiffs[4];
-    int width;
-    int height;
-};
-
-PtexPacking getPtexPacking(Buffer<int> packings, int faceID)
-{
-    PtexPacking packing;
-    packing.page    = packings[faceID*6+0].x;
-    packing.nMipmap = packings[faceID*6+1].x;
-    packing.uOffset = packings[faceID*6+2].x;
-    packing.vOffset = packings[faceID*6+3].x;
-    int wh          = packings[faceID*6+5].x;
-    packing.width   = 1 << (wh >> 8);
-    packing.height  = 1 << (wh & 0xff);
-
-    int adjSizeDiffs = packings[faceID*6+4].x;
-    packing.adjSizeDiffs[0] = (adjSizeDiffs >> 12) & 0xf;
-    packing.adjSizeDiffs[1] = (adjSizeDiffs >> 8) & 0xf;
-    packing.adjSizeDiffs[2] = (adjSizeDiffs >> 4) & 0xf;
-    packing.adjSizeDiffs[3] = (adjSizeDiffs >> 0) & 0xf;
-
-    return packing;
-}
-
-int computeMipmapOffsetU(int w, int level)
-{
-    int width = 1 << w;
-    int m = (0x55555555 & (width | (width-1))) << (w&1);
-    int x = ~((1 << (w -((level-1)&~1))) - 1);
-    return (m & x) + ((level+1)&~1);
-}
-
-int computeMipmapOffsetV(int h, int level)
-{
-    int height = 1 << h;
-    int m = (0x55555555 & (height-1)) << ((h+1)&1);;
-    int x = ~((1 << (h - (level&~1))) - 1 );
-    return (m & x) + (level&~1);
-}
-
-PtexPacking getPtexPacking(Buffer<int> packings, int faceID, int level)
-{
-    PtexPacking packing;
-    packing.page    = packings[faceID*6+0].x;
-    packing.nMipmap = packings[faceID*6+1].x;
-    packing.uOffset = packings[faceID*6+2].x;
-    packing.vOffset = packings[faceID*6+3].x;
-    int wh          = packings[faceID*6+5].x;
-    int w = wh >> 8;
-    int h = wh & 0xff;
-
-    // clamp max level
-    level = min(level, packing.nMipmap);
-
-    packing.uOffset += computeMipmapOffsetU(w, level);
-    packing.vOffset += computeMipmapOffsetV(h, level);
-    packing.width = 1 << (w-level);
-    packing.height = 1 << (h-level);
-
-    return packing;
-
-}
-
-float4 PTexLookupNearest(float4 patchCoord,
-                         Texture2DArray data,
-                         Buffer<int> packings)
-{
-    float2 uv = patchCoord.xy;
-    int faceID = patchCoord.w;
-    PtexPacking ppack = getPtexPacking(packings, faceID);
-    float2 coords = float2(uv.x * ppack.width + ppack.uOffset,
-                           uv.y * ppack.height + ppack.vOffset);
-    return data[int3(int(coords.x), int(coords.y), ppack.page)];
-}
-
-float4 PTexLookup(float4 patchCoord,
-                  int level,
-                  Texture2DArray data,
-                  Buffer<int> packings)
-{
-    float2 uv = patchCoord.xy;
-    int faceID = int(patchCoord.w);
-    PtexPacking ppack = getPtexPacking(packings, faceID, level);
-
-    float2 coords = float2(uv.x * ppack.width + ppack.uOffset,
-                           uv.y * ppack.height + ppack.vOffset);
-
-    coords -= float2(0.5, 0.5);
-
-    int c0X = int(floor(coords.x));
-    int c1X = int(ceil(coords.x));
-    int c0Y = int(floor(coords.y));
-    int c1Y = int(ceil(coords.y));
-
-    float t = coords.x - float(c0X);
-    float s = coords.y - float(c0Y);
-
-    float4 d0 = data[int3(c0X, c0Y, ppack.page)];
-    float4 d1 = data[int3(c0X, c1Y, ppack.page)];
-    float4 d2 = data[int3(c1X, c0Y, ppack.page)];
-    float4 d3 = data[int3(c1X, c1Y, ppack.page)];
-
-    float4 result = (1-t) * ((1-s)*d0 + s*d1) + t * ((1-s)*d2 + s*d3);
-
-    return result;
-}
-
-// quadratic
-
-void EvalQuadraticBSpline(float u, out float B[3], out float BU[3])
-{
-    B[0] = 0.5 * (u*u - 2.0*u + 1);
-    B[1] = 0.5 + u - u*u;
-    B[2] = 0.5 * u*u;
-
-    BU[0] = u - 1.0;
-    BU[1] = 1 - 2 * u;
-    BU[2] = u;
-}
-
-float4 PTexLookupQuadratic(out float4 du,
-                           out float4 dv,
-                           float4 patchCoord,
-                           int level,
-                           Texture2DArray data,
-                           Buffer<int> packings)
-{
-    float2 uv = patchCoord.xy;
-    int faceID = int(patchCoord.w);
-    PtexPacking ppack = getPtexPacking(packings, faceID, level);
-
-    float2 coords = float2(uv.x * ppack.width + ppack.uOffset,
-                           uv.y * ppack.height + ppack.vOffset);
-
-    coords -= float2(0.5, 0.5);
-
-    int cX = int(round(coords.x));
-    int cY = int(round(coords.y));
-
-    float x = 0.5 - (float(cX) - coords.x);
-    float y = 0.5 - (float(cY) - coords.y);
-
-    // ---------------------------
-
-    float4 d[9];
-    d[0] = data[int3(cX-1, cY-1, ppack.page)];
-    d[1] = data[int3(cX-1, cY-0, ppack.page)];
-    d[2] = data[int3(cX-1, cY+1, ppack.page)];
-    d[3] = data[int3(cX-0, cY-1, ppack.page)];
-    d[4] = data[int3(cX-0, cY-0, ppack.page)];
-    d[5] = data[int3(cX-0, cY+1, ppack.page)];
-    d[6] = data[int3(cX+1, cY-1, ppack.page)];
-    d[7] = data[int3(cX+1, cY-0, ppack.page)];
-    d[8] = data[int3(cX+1, cY+1, ppack.page)];
-
-    float B[3], D[3];
-    float4 BUCP[3], DUCP[3];
-    EvalQuadraticBSpline(y, B, D);
-
-    for (int i = 0; i < 3; ++i) {
-        BUCP[i] = float4(0, 0, 0, 0);
-        DUCP[i] = float4(0, 0, 0, 0);
-        for (int j = 0; j < 3; j++) {
-            float4 A = d[i*3+j];
-            BUCP[i] += A * B[j];
-            DUCP[i] += A * D[j];
-        }
-    }
-
-    EvalQuadraticBSpline(x, B, D);
-
-    float4 result = float4(0, 0, 0, 0);
-    du = float4(0, 0, 0, 0);
-    dv = float4(0, 0, 0, 0);
-    for (int i = 0; i < 3; ++i) {
-        result += B[i] * BUCP[i];
-        du += D[i] * BUCP[i];
-        dv += B[i] * DUCP[i];
-    }
-
-    du *= ppack.width;
-    dv *= ppack.height;
-
-    return result;
-}
-
-float4 PTexMipmapLookup(float4 patchCoord,
-                        float level,
-                        Texture2DArray data,
-                        Buffer<int> packings)
-{
-#if defined(SEAMLESS_MIPMAP)
-    // diff level
-    int faceID = int(patchCoord.w);
-    float2 uv = patchCoord.xy;
-    PtexPacking packing = getPtexPacking(packings, faceID);
-    level += lerp(lerp(packing.adjSizeDiffs[0], packing.adjSizeDiffs[1], uv.x),
-                  lerp(packing.adjSizeDiffs[3], packing.adjSizeDiffs[2], uv.x),
-                  uv.y);
-#endif
-
-    int levelm = int(floor(level));
-    int levelp = int(ceil(level));
-    float t = level - float(levelm);
-
-    float4 result = (1-t) * PTexLookup(patchCoord, levelm, data, packings)
-        + t * PTexLookup(patchCoord, levelp, data, packings);
-    return result;
-}
-
-float4 PTexMipmapLookupQuadratic(out float4 du,
-                                 out float4 dv,
-                                 float4 patchCoord,
-                                 float level,
-                                 Texture2DArray data,
-                                 Buffer<int> packings)
-{
-#if defined(SEAMLESS_MIPMAP)
-    // diff level
-    int faceID = int(patchCoord.w);
-    float2 uv = patchCoord.xy;
-    PtexPacking packing = getPtexPacking(packings, faceID);
-    level += lerp(lerp(packing.adjSizeDiffs[0], packing.adjSizeDiffs[1], uv.x),
-                  lerp(packing.adjSizeDiffs[3], packing.adjSizeDiffs[2], uv.x),
-                  uv.y);
-#endif
-
-    int levelm = int(floor(level));
-    int levelp = int(ceil(level));
-    float t = level - float(levelm);
-
-    float4 du0, du1, dv0, dv1;
-    float4 r0 = PTexLookupQuadratic(du0, dv0, patchCoord, levelm, data, packings);
-    float4 r1 = PTexLookupQuadratic(du1, dv1, patchCoord, levelp, data, packings);
-
-    float4 result = lerp(r0, r1, t);
-    du = lerp(du0, du1, t);
-    dv = lerp(dv0, dv1, t);
-
-    return result;
-}
-
-float4 PTexMipmapLookupQuadratic(float4 patchCoord,
-                                 float level,
-                                 Texture2DArray data,
-                                 Buffer<int> packings)
-{
-    float4 du, dv;
-    return PTexMipmapLookupQuadratic(du, dv, patchCoord, level, data, packings);
-}
-
 // ---------------------------------------------------------------------------
 
 #if    defined(DISPLACEMENT_HW_BILINEAR)        \
@@ -317,15 +59,15 @@ Buffer<int> textureDisplace_Packing : register(t7);
 float4 displacement(float4 position, float3 normal, float4 patchCoord)
 {
 #if defined(DISPLACEMENT_HW_BILINEAR)
-    float disp = PTexLookupFast(patchCoord,
+    float disp = PtexLookupFast(patchCoord,
                                 textureDisplace_Data,
                                 textureDisplace_Packing).x;
 #elif defined(DISPLACEMENT_BILINEAR)
-    float disp = PTexMipmapLookup(patchCoord, mipmapBias,
+    float disp = PtexMipmapLookup(patchCoord, mipmapBias,
                                   textureDisplace_Data,
                                   textureDisplace_Packing).x;
 #elif defined(DISPLACEMENT_BIQUADRATIC)
-    float disp = PTexMipmapLookupQuadratic(patchCoord, mipmapBias,
+    float disp = PtexMipmapLookupQuadratic(patchCoord, mipmapBias,
                                            textureDisplace_Data,
                                            textureDisplace_Packing).x;
 #endif
@@ -577,7 +319,7 @@ ps_main(in OutputVertex input,
                                                   input.patchCoord);
 #elif defined(NORMAL_BIQUADRATIC) || defined(NORMAL_BIQUADRATIC_WG)
     float4 du, dv;
-    float4 disp = PTexMipmapLookupQuadratic(du, dv, input.patchCoord,
+    float4 disp = PtexMipmapLookupQuadratic(du, dv, input.patchCoord,
                                             mipmapBias,
                                             textureDisplace_Data,
                                             textureDisplace_Packing);
@@ -602,19 +344,19 @@ ps_main(in OutputVertex input,
 
     // ------------ color ---------------
 #if defined(COLOR_PTEX_NEAREST)
-    float4 texColor = PTexLookupNearest(input.patchCoord,
+    float4 texColor = PtexLookupNearest(input.patchCoord,
                                         textureImage_Data,
                                         textureImage_Packing);
 #elif defined(COLOR_PTEX_HW_BILINEAR)
-    float4 texColor = PTexLookupFast(input.patchCoord,
+    float4 texColor = PtexLookupFast(input.patchCoord,
                                    textureImage_Data,
                                    textureImage_Packing);
 #elif defined(COLOR_PTEX_BILINEAR)
-    float4 texColor = PTexMipmapLookup(input.patchCoord, mipmapBias,
+    float4 texColor = PtexMipmapLookup(input.patchCoord, mipmapBias,
                                      textureImage_Data,
                                      textureImage_Packing);
 #elif defined(COLOR_PTEX_BIQUADRATIC)
-    float4 texColor = PTexMipmapLookupQuadratic(input.patchCoord, mipmapBias,
+    float4 texColor = PtexMipmapLookupQuadratic(input.patchCoord, mipmapBias,
                                               textureImage_Data,
                                               textureImage_Packing);
 #elif defined(COLOR_PATCHTYPE)
@@ -639,7 +381,7 @@ ps_main(in OutputVertex input,
     // ------------ occlusion ---------------
 
 #ifdef USE_PTEX_OCCLUSION
-    float occ = PTexLookup(input.patchCoord,
+    float occ = PtexLookup(input.patchCoord,
                            textureOcclusion_Data,
                            textureOcclusion_Packing).x;
 #else
@@ -649,7 +391,7 @@ ps_main(in OutputVertex input,
     // ------------ specular ---------------
 
 #ifdef USE_PTEX_SPECULAR
-    float specular = PTexLookup(input.patchCoord,
+    float specular = PtexLookup(input.patchCoord,
                                 textureSpecular_Data,
                                 textureSpecular_Packing).x;
 #else

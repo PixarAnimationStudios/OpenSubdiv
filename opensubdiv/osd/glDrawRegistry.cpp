@@ -41,6 +41,9 @@ OsdGLDrawConfig::~OsdGLDrawConfig()
 static const char *commonShaderSource =
 #include "glslPatchCommon.inc"
 ;
+static const char *ptexShaderSource =
+#include "glslPtexCommon.inc"
+;
 static const char *bsplineShaderSource =
 #include "glslPatchBSpline.inc"
 ;
@@ -55,12 +58,18 @@ static const char *transitionShaderSource =
 OsdGLDrawRegistryBase::~OsdGLDrawRegistryBase() {}
 
 OsdGLDrawSourceConfig *
-OsdGLDrawRegistryBase::_CreateDrawSourceConfig(OsdDrawContext::PatchDescriptor const & desc)
+OsdGLDrawRegistryBase::_CreateDrawSourceConfig(
+    OsdDrawContext::PatchDescriptor const & desc)
 {
     OsdGLDrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     sconfig->commonShader.source = commonShaderSource;
+    
+    if (IsPtexEnabled()) {
+        sconfig->commonShader.source += ptexShaderSource;
+    }
+    
     {
         std::ostringstream ss;
         ss << (int)desc.GetMaxValence();

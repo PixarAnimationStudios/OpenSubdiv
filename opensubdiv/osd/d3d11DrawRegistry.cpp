@@ -45,6 +45,9 @@ OsdD3D11DrawConfig::~OsdD3D11DrawConfig()
 static const char *commonShaderSource =
 #include "hlslPatchCommon.inc"
 ;
+static const char *ptexShaderSource =
+#include "hlslPtexCommon.inc"
+;
 static const char *bsplineShaderSource =
 #include "hlslPatchBSpline.inc"
 ;
@@ -64,6 +67,12 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
     OsdD3D11DrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
     sconfig->commonShader.source = commonShaderSource;
+
+    if (IsPtexEnabled()) {
+        sconfig->commonShader.source += ptexShaderSource;
+    }
+
+
     {
         std::ostringstream ss;
         ss << (int)desc.GetMaxValence();
