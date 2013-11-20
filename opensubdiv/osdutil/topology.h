@@ -35,9 +35,57 @@
 // For OpenSubdiv documentation on tags, see:
 // See http://graphics.pixar.com/opensubdiv/docs/subdivision_surfaces.html#hierarchical-edits
 //
-struct PxOsdUtilTagData {
-    std::vector<std::string> tags;
+class PxOsdUtilTagData {
+public:
+    enum TagType {
+        // The strings in comments are the strings as specified by renderman
+        
+        CORNER,                            // "corner"        
+        CREASE,                            // "crease"        
+        CREASE_METHOD,                     // "creasemethod"        
+        FACE_VARYING_INTERPOLATE_BOUNDARY, // "facevaryinginterpolateboundary"
+        FACE_VARYING_PROPOGATE_CORNERS,    // "facevaryingpropagatecorners"
+        HOLE,                              // "hole"
+        INTERPOLATE_BOUNDARY,              // "interpolateboundary"
+        SMOOTH_TRIANGLES,                  // "smoothtriangles"
+        VERTEX_EDIT,                       // "vertexedit"
+        EDGE_EDIT,                         // "edgeedit"
+    };
+
+    // returns false on error, parses rman spec strings to enum values
+    static bool TagTypeFromString(TagType *t,
+                                  const std::string &str);
+
+    // Indices is the vertices of the mesh that will be tagged as corners.
+    // If numSharpness == 1, the single sharpness value applies for all vertices
+    // If numSharpness == numIndices, there is a per-vertex sharpness
+    bool AddCorner(int *indices, int numIndices,
+                   float *sharpness, int numSharpness);
+
+    // Indices is a sequential series of mesh vertex indices that bound
+    // the edges to be tagged with sharpness.  
+    //
+    // If numSharpness == 1, the single sharpness value applies for all edges
+    // If numSharpness == numIndices, there is a per-edge sharpness that
+    // will be interpolated along the crease
+    bool AddCrease(int *indices, int numIndices,
+                   float *sharpness, int numSharpness);
+        
+    // Either "normal" or "chaikin"
+    bool AddCreaseMethod(const std::string &value);
+
+    // 0 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryNone
+    // 1 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner
+    // 2 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly    
+    bool AddInterpolateBoundary(int value);                        
+
+    
+    std::vector<TagType> tags;
+
+    // For each tag, numArgs will have three integer values.
+    // They are, in order, (#IntArgs, #FloatArgs, #StringArgs)
     std::vector<int> numArgs;
+    
     std::vector<int> intArgs;
     std::vector<float> floatArgs;
     std::vector<std::string> stringArgs;

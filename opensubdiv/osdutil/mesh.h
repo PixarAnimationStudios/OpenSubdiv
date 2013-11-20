@@ -39,7 +39,7 @@
 // Note that a client who wants to access the HbrMesh should include hbr/mesh.h
 // like this:
 // #define HBR_ADAPTIVE
-// #include <opensubdiv/hbr/mesh.h>
+// #include "../hbr/mesh.h"
 //
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -74,14 +74,15 @@ class PxOsdUtilMesh {
     // by a refiner.
     // XXX: this assumes uniform subdivision, should be moved
     // into uniformRefiner?
-    void GetRefinedFVData(const std::vector<std::string>& names,
+    void GetRefinedFVData(int level,
+                          const std::vector<std::string>& names,
                           std::vector<float>* fvdata);
     
     OpenSubdiv::OPENSUBDIV_VERSION::HbrMesh<T> *GetHbrMesh() { return _hmesh;}
 
     bool IsValid() { return _valid;}
 
-    const std::string &GetName() { return _name;}
+    const std::string &GetName() { return _t.name;}
 
     const PxOsdUtilSubdivTopology &GetTopology() const {return _t;}
 
@@ -94,8 +95,6 @@ private:
     std::map<std::string, int> _fvaroffsets;
 
     OpenSubdiv::OPENSUBDIV_VERSION::HbrMesh<T> *_hmesh;
-
-    std::string _name;
 
     bool _valid;
     

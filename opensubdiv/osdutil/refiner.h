@@ -83,9 +83,9 @@ class PxOsdUtilRefiner  {
     // Fetch the face varying attribute values on refined quads
     // Calls through to the lower level mesh class to extract
     // face varying data from hbr.
-    void GetRefinedFVData(const std::vector<std::string>& names,
+    void GetRefinedFVData(int level, const std::vector<std::string>& names,
                           std::vector<float>* fvdata) {
-        _mesh->GetRefinedFVData(names, fvdata);
+        _mesh->GetRefinedFVData(level, names, fvdata);
     }
 
     // Const access to far mesh
