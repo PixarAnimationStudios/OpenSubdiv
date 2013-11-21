@@ -562,7 +562,7 @@ main()
     // ------------ occlusion ---------------
 
 #ifdef USE_PTEX_OCCLUSION
-    float occ = PtexMipMapLookup(inpt.v.patchCoord,
+    float occ = PtexMipmapLookup(inpt.v.patchCoord,
                                  mipmapBias,
                                  textureOcclusion_Data,
                                  textureOcclusion_Packing).x;
@@ -573,7 +573,7 @@ main()
     // ------------ specular ---------------
 
 #ifdef USE_PTEX_SPECULAR
-    float specular = PtexMipMapLookup(inpt.v.patchCoord,
+    float specular = PtexMipmapLookup(inpt.v.patchCoord,
                                       mipmapBias,
                                       textureSpecular_Data,
                                       textureSpecular_Packing).x;
