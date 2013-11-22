@@ -103,8 +103,7 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
     for (int level=1; level<=maxlevel; ++level) {
 
         // pointer to the first vertex corresponding to this level
-        vertexOffset = tablesFactory._vertVertIdx[level-1] +
-            (int)tablesFactory._vertVertsList[level-1].size();
+        vertexOffset = tablesFactory._edgeVertIdx[level];
         result->_vertsOffsets[level] = vertexOffset;
 
         // Edge vertices

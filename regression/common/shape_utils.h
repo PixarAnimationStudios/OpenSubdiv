@@ -778,7 +778,8 @@ copyVertexPositions( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vecto
 
     std::copy(sh->verts.begin(), sh->verts.end(), verts.begin());
 
-    // Sometimes Hbr dupes some vertices during Mesh::Finish()
+    // Sometimes Hbr dupes some vertices during Mesh::Finish() and our example 
+    // code uses those vertices to draw coarse control cages and such
     std::vector<std::pair<int, int> > const splits = mesh->GetSplitVertices();
     for (int i=0; i<(int)splits.size(); ++i) {
         memcpy(&verts[splits[i].first*3], &sh->verts[splits[i].second*3], 3*sizeof(float));

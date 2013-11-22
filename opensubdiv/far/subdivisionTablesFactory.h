@@ -171,6 +171,9 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
         }
     }
 
+    int nsingulars = (int)mesh->GetSplitVertices().size();
+    vertCounts[0] -= nsingulars;
+
     // Per-level offset to the first vertex of each type in the global vertex map
     _vertVertsList[0].reserve( vertCounts[0] );
     for (int l=1; l<(maxlevel+1); ++l) {

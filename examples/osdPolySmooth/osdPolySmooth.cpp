@@ -813,13 +813,6 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
                 float const * vertex3fArray = inMeshFn.getRawPoints(&returnStatus);
                 vertexBuffer->UpdateData(vertex3fArray, 0, numVertices );
 
-                // Hbr dupes singular vertices during Mesh::Finish() - we need
-                // to duplicate their positions in the vertex buffer.
-                std::vector<std::pair<int, int> > const splits = hbrMesh->GetSplitVertices();
-                for (int i=0; i<(int)splits.size(); ++i) {
-                    vertexBuffer->UpdateData(&vertex3fArray[0]+splits[i].second*numVertexElements, splits[i].first, 1);
-                }
-
                 // == Delete HBR
                 // Can now delete the hbrMesh as we will only be referencing the farMesh from this point on
                 delete hbrMesh;

@@ -215,8 +215,7 @@ Stopwatch g_fpsTimer;
 
 // geometry
 std::vector<float> g_orgPositions,
-                   g_positions,
-                   g_normals;
+                   g_positions;
 
 Scheme             g_scheme;
 
@@ -620,9 +619,7 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
     OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape.c_str(), scheme, g_orgPositions,
                                                           g_displayStyle == kFaceVaryingColor);
 
-    g_normals.resize(g_orgPositions.size(),0.0f);
     g_positions.resize(g_orgPositions.size(),0.0f);
-    calcNormals( hmesh, g_orgPositions, g_normals );
 
     // save coarse topology (used for coarse mesh drawing)
     g_coarseEdges.clear();
