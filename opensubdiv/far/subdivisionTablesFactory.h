@@ -236,7 +236,11 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
         for (size_t i=0; i<_vertVertsList[l].size(); ++i)
             remapTable[ _vertVertsList[l][i]->GetID() ]=_vertVertIdx[l]+(int)i;
 
-
+    // Remap singular vertices to their origin vertices
+    std::vector<std::pair<int, int> > const & singulars = mesh->GetSplitVertices();
+    for (int i=0; i<(int)singulars.size(); ++i) {
+        remapTable[singulars[i].first]=singulars[i].second;
+    }
 }
 
 

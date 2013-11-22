@@ -1,26 +1,26 @@
-..  
+..
      Copyright 2013 Pixar
-  
+
      Licensed under the Apache License, Version 2.0 (the "Apache License")
      with the following modification; you may not use this file except in
      compliance with the Apache License and the following modification to it:
      Section 6. Trademarks. is deleted and replaced with:
-  
+
      6. Trademarks. This License does not grant permission to use the trade
         names, trademarks, service marks, or product names of the Licensor
         and its affiliates, except as required to comply with Section 4(c) of
         the License and to reproduce the content of the NOTICE file.
-  
+
      You may obtain a copy of the Apache License at
-  
+
          http://www.apache.org/licenses/LICENSE-2.0
-  
+
      Unless required by applicable law or agreed to in writing, software
      distributed under the Apache License with the above modification is
      distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
      KIND, either express or implied. See the Apache License for the specific
      language governing permissions and limitations under the Apache License.
-  
+
 
 Using Hbr
 ---------
@@ -40,7 +40,7 @@ expected to provide a vertex class that implements the requisite interpolation
 functionality.
 
 Here is an example of a simple vertex class that accounts for 3D position, but
-does not support arbitrary variables or varying interpolation. 
+does not support arbitrary variables or varying interpolation.
 
 .. code:: c++
 
@@ -54,10 +54,10 @@ does not support arbitrary variables or varying interpolation.
 
        ~Vertex( ) { }
 
-        void AddWithWeight(const Vertex& src, float weight, void * =0 ) { 
-            _pos[0]+=weight*src._pos[0]; 
-            _pos[1]+=weight*src._pos[1]; 
-            _pos[2]+=weight*src._pos[2]; 
+        void AddWithWeight(const Vertex& src, float weight, void * =0 ) {
+            _pos[0]+=weight*src._pos[0];
+            _pos[1]+=weight*src._pos[1];
+            _pos[2]+=weight*src._pos[2];
         }
 
         void AddVaryingWithWeight(const Vertex& , float, void * =0 ) { }
@@ -90,7 +90,7 @@ does not support arbitrary variables or varying interpolation.
         void ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<Vertex> &) { }
 
         // custom functions & data not required by Hbr -------------------------
-        
+
         Vertex( float x, float y, float z ) { _pos[0]=x; _pos[1]=y; _pos[2]=z; }
 
         const float * GetPos() const { return _pos; }
@@ -131,25 +131,25 @@ Creating a Mesh
 ===============
 
 The following tutorial walks through the steps of instantiating a simple **Hbr**
-mesh. 
+mesh.
 
 The code found in regression/common/shape_utils.h can also be used as an example.
 While this implementation covers many of **Hbr**'s features, it does not provide
-coverage for the complete Renderman specification though. 
+coverage for the complete Renderman specification though.
 
 ----
 
 Instantiating an HbrMesh
 ************************
 
-First we need to instantiate a mesh object. 
+First we need to instantiate a mesh object.
 
 **Hbr** supports 3 subdivision schemes:
    * Catmull-Clark (catmark)
    * Loop
    * Bilinear
 
-The scheme is selected by passing an specialized instance of *HbrSubdivision<T>*, 
+The scheme is selected by passing an specialized instance of *HbrSubdivision<T>*,
 *HbrCatmarkSubdivision<T>* in this case. The scheme can be shared across multiple
 mesh objects, so we only need a single instance.
 
@@ -175,7 +175,7 @@ the following design pattern:
     Vertex vtx;
     for(int i=0;i<numVerts; i++ ) {
         Vertex * v = mesh->NewVertex( i, vtx);
-        
+
         // v->SetPosition();
     }
 
@@ -194,29 +194,29 @@ faces with *HbrMesh::NewFace()*. Assuming we had an *obj* style reader, we need
 to know the number of vertices in the face and the indices of these vertices.
 
 .. code:: c++
-    
+
     for (int f=0; f<numFaces; ++f) {
-    
+
         int nverts = obj->GetNumVertices(f);
-    
+
         const int * faceverts = obj->GetFaceVerts(f);
-        
+
         mesh->NewFace(nv, fv, 0);
     }
 
-However, currently **Hbr** is not able to handle `non-manifold <subdivision_surfaces.html#manifold-geometry>`__ 
-geometry. In order to avoid tripping asserts or causing memory violations, let's 
-rewrite the previous loop with some some prototype code to check the validity of 
+However, currently **Hbr** is not able to handle `non-manifold <subdivision_surfaces.html#manifold-geometry>`__
+geometry. In order to avoid tripping asserts or causing memory violations, let's
+rewrite the previous loop with some some prototype code to check the validity of
 the topology.
 
 .. code:: c++
-    
+
     for (int f=0; f<numFaces; ++f) {
-    
+
         int nv = obj->GetNumVertices(f);
-    
+
         const int * fv = obj->GetFaceVerts(f);
-        
+
         // triangles only for Loop subdivision !
         if ((scheme==kLoop) and (nv!=3)) {
             printf("Trying to create a Loop subd with non-triangle face\n");
@@ -250,7 +250,7 @@ the topology.
                 continue;
             }
         }
-        
+
         mesh->NewFace(nv, fv, 0);
     }
 
@@ -259,7 +259,7 @@ the topology.
 Wrapping Things Up
 ******************
 
-Once we have vertices and faces set in our mesh, we still need to wrap things up 
+Once we have vertices and faces set in our mesh, we still need to wrap things up
 by calling *HbrMesh::Finish()*:
 
 .. code:: c++
@@ -276,7 +276,7 @@ remaining to validate the mesh:
 
     if (mesh->GetNumDisconnectedVertices()) {
         printf("The specified subdivmesh contains disconnected surface components.\n");
-        
+
         // abort or iterate over the mesh to remove the offending vertices
     }
 
@@ -305,7 +305,7 @@ The rule-set can be selected using the following accessors:
 
    **Warning**
 
-   The boundary interpolation rules **must** be set before the call to 
+   The boundary interpolation rules **must** be set before the call to
    *HbrMesh::Finish()*, which sets the sharpness values to boundary edges
    and vertices based on these rules.
 
@@ -326,12 +326,12 @@ Vertex Creases
 Given an index, vertices are very easy to access in the mesh.
 
 .. code:: c++
-    
+
     int idx;     // vertex index
     float sharp; // the edge sharpness
-    
+
     OpenSubdiv::HbrVertex<Vertex> * v = mesh->GetVertex( idx );
-    
+
     if(v) {
         v->SetSharpness( std::max(0.0f, sharp) );
     } else
@@ -342,7 +342,7 @@ Given an index, vertices are very easy to access in the mesh.
 Edge Creases
 ************
 
-Usually, edge creases are described with a vertex indices pair. Here is some 
+Usually, edge creases are described with a vertex indices pair. Here is some
 sample code to locate the matching half-edge and set a crease sharpness.
 
 .. code:: c++
@@ -352,9 +352,9 @@ sample code to locate the matching half-edge and set a crease sharpness.
 
     OpenSubdiv::HbrVertex<Vertex> * v = mesh->GetVertex( v0 ),
                                   * w = mesh->GetVertex( v1 );
-                                  
+
     OpenSubdiv::HbrHalfedge<Vertex> * e = 0;
-    
+
     if( v && w ) {
 
         if((e = v->GetEdge(w)) == 0)
@@ -390,8 +390,8 @@ Holes
 
    **Note**
 
-   The hole tag is hierarchical : sub-faces can also be marked as holes. 
-   
+   The hole tag is hierarchical : sub-faces can also be marked as holes.
+
    See: `Hierarchical Edits`_
 
 ----
@@ -435,31 +435,31 @@ to `this example <subdivision_surfaces.html#hierarchical-edits-paths>`__.
 .. code:: c++
 
     // path = 655, 2, 3, 0
-    int faceid = 655,          
+    int faceid = 655,
         nsubfaces = 2,
         subfaces[2] = { 2, 3 },
         vertexid = 0;
-    
+
     int offset = 0,       // offset to the vertex or varying data
         numElems = 3;     // number of elements to apply the modifier to (x,y,z = 3)
-        
+
     bool isP = false;     // shortcut to identify modifications to the vertex position "P"
 
-    OpenSubdiv::HbrHierarchicalEdit<Vertex>::Operation op = 
+    OpenSubdiv::HbrHierarchicalEdit<Vertex>::Operation op =
          OpenSubdiv::HbrHierarchicalEdit<T>::Set;
 
     float values[3] = { 1.0f, 0.5f, 0.0f }; // edit values
 
-    OpenSubdiv::HbrVertexEdit<T> * edit = 
+    OpenSubdiv::HbrVertexEdit<T> * edit =
          new OpenSubdiv::HbrVertexEdit<T>(faceid,
                                           nsubfaces,
-                                          subfaces, 
-                                          vertexid, 
+                                          subfaces,
+                                          vertexid,
                                           offset,
                                           floatwidth,
-                                          isP,      
-                                          op,       
-                                          values); 
+                                          isP,
+                                          op,
+                                          values);
 
 ----
 
@@ -503,30 +503,30 @@ Here is some sample code:
 .. code:: c++
 
     for (int i=0, idx=0; i<numFaces; ++i ) {
-    
+
         OpenSubdiv::HbrFace<Vertex> * f = mesh->GetFace(i);
-        
+
         int nv = f->GetNumVertices(); // note: this is not the fastest way
-        
+
         OpenSubdiv::HbrHalfedge<Vertex> * e = f->GetFirstEdge();
-        
+
         for (int j=0; j<nv; ++j, e=e->GetNext()) {
 
             OpenSubdiv::HbrFVarData<Vertex> & fvt = e->GetOrgVertex()->GetFVarData(f);
-            
+
             float const * fvdata = GetFaceVaryingData( i, j );
 
             if (not fvt.IsInitialized()) {
-            
+
                 // if no fvar daa exists yet on the vertex
                 fvt.SetAllData(2, fvdata);
-            
+
             } else if (not fvt.CompareAll(2, fvdata)) {
-                
+
                 // if there already is fvar data and there is a boundary add the new data
                 OpenSubdiv::HbrFVarData<T> & nfvt = e->GetOrgVertex()->NewFVarData(f);
                 nfvt.SetAllData(2, fvdata);
-                
+
             }
         }
     }
@@ -544,9 +544,9 @@ From a face, passing a vertex index:
 .. code:: c++
 
     // OpenSubdiv::HbrFace<Vertex> * f
-    
+
     OpenSubdiv::HbrFVarData const &fv = f.GetFVarData(vindex);
-    
+
     const float * data = fv.GetData()
 
 
@@ -576,7 +576,7 @@ vertices (use HbrVertex::GetValence() for proper valence counts)
 .. code:: c++
 
     //OpenSubdiv::HbrVertex<Vertex> * v;
-    
+
     class MyOperator : public OpenSubdiv::HbrVertexOperator<Vertex> {
 
     public:
@@ -588,8 +588,37 @@ vertices (use HbrVertex::GetValence() for proper valence counts)
             ++count;
         }
     };
-    
+
     MyOperator op;
-    
+
     v->ApplyOperatorSurroundingVertices( op );
 
+----
+
+Managing Singular Vertices
+==========================
+
+Certain topological configurations would force vertices to share multiple
+half-edge cycles. Because Hbr is a half-edge representation, these "singular"
+vertices have to be duplicated as part of the HbrMesh::Finish() phase of the
+instantiation.
+
+These duplicated vertices can cause problems for client-code that tries to
+populate buffers of vertex or varying data. The following sample code shows
+how to match the vertex data to singular vertex splits:
+
+.. code:: c++
+
+    // Populating an OsdCpuVertexBuffer with vertex data (positions,...)
+    float const * vtxData = inMeshFn.getRawPoints(&returnStatus);
+
+    OpenSubdiv::OsdCpuVertexBuffer *vertexBuffer =
+        OpenSubdiv::OsdCpuVertexBuffer::Create(numVertexElements, numFarVerts);
+
+    vertexBuffer->UpdateData(vtxData, 0, numVertices );
+
+    // Duplicate the vertex data into the split singular vertices
+    std::vector<std::pair<int, int> > const splits = hbrMesh->GetSplitVertices();
+    for (int i=0; i<(int)splits.size(); ++i) {
+        vertexBuffer->UpdateData(vtxData+splits[i].second*numVertexElements, splits[i].first, 1);
+    }

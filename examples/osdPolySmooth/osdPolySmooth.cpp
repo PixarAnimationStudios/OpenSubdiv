@@ -785,8 +785,6 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
                 // NOTE: This HAS to be called after all HBR parameters are set
                 hbrMesh->Finish();
 
-                int ncoarseverts = hbrMesh->GetNumVertices();
-
                 // Create a FarMesh from the HBR mesh and pass into
                 // It will be owned by the OsdMesh and deleted in the ~OsdMesh()
                 FMeshFactory meshFactory(hbrMesh, subdivisionLevel, false);
@@ -817,31 +815,9 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
 
                 // Hbr dupes singular vertices during Mesh::Finish() - we need
                 // to duplicate their positions in the vertex buffer.
-                if (ncoarseverts > numVertices) {
-
-                    MIntArray polyverts;
-
-                    for (int i=numVertices; i<ncoarseverts; ++i) {
-
-                        HVertex const * v = hbrMesh->GetVertex(i);
-
-                        HFace const * f = v->GetIncidentEdge()->GetFace();
-
-                        int vidx = -1;
-                        for (int j=0; j<f->GetNumVertices(); ++j) {
-                            if (f->GetVertex(j)==v) {
-                                vidx = j;
-                                break;
-                            }
-                        }
-                        assert(vidx>-1);
-
-                        inMeshFn.getPolygonVertices(f->GetID(), polyverts);
-
-                        int vert = polyverts[vidx];
-
-                        vertexBuffer->UpdateData(&vertex3fArray[0]+vert*numVertexElements, i, 1);
-                    }
+                std::vector<std::pair<int, int> > const splits = hbrMesh->GetSplitVertices();
+                for (int i=0; i<(int)splits.size(); ++i) {
+                    vertexBuffer->UpdateData(&vertex3fArray[0]+splits[i].second*numVertexElements, splits[i].first, 1);
                 }
 
                 // == Delete HBR

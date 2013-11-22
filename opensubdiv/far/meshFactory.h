@@ -285,8 +285,6 @@ FarMeshFactory<T,U>::refine( HbrMesh<T> * mesh, int maxlevel ) {
         // faces that have already been refined.
         firstface = nfaces;
     }
-
-    mesh->SetSubdivisionMethod(HbrMesh<T>::k_SubdivisionMethodUniform);
 }
 
 // Scan the faces of a mesh and compute the max level of subdivision required
@@ -578,9 +576,6 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
             }
         }
     }
-
-    mesh->SetSubdivisionMethod(HbrMesh<T>::k_SubdivisionMethodFeatureAdaptive);
-
     return maxlevel-1;
 }
 
