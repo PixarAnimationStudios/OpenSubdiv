@@ -218,7 +218,7 @@ find_program(MAYA_EXECUTABLE maya
 if(MAYA_INCLUDE_DIRS AND EXISTS "${MAYA_INCLUDE_DIR}/maya/MTypes.h")
 
     # Tease the MAYA_API_VERSION numbers from the lib headers
-    file(STRINGS ${MAYA_INCLUDE_DIR}/maya/MTypes.h TMP REGEX "^#define MAYA_API_VERSION.*$")
+    file(STRINGS ${MAYA_INCLUDE_DIR}/maya/MTypes.h TMP REGEX "#define MAYA_API_VERSION.*$")
     string(REGEX MATCHALL "[0-9]+" MAYA_API_VERSION ${TMP})
 endif()
 
