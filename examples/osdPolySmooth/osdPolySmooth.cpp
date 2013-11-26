@@ -78,6 +78,7 @@ const MString OsdPolySmooth::typeNameStr("osdPolySmooth");
 MObject OsdPolySmooth::a_inputPolymesh;
 MObject OsdPolySmooth::a_output;
 MObject OsdPolySmooth::a_subdivisionLevels;
+MObject OsdPolySmooth::a_recommendedIsolation;
 MObject OsdPolySmooth::a_vertBoundaryMethod;
 MObject OsdPolySmooth::a_fvarBoundaryMethod;
 MObject OsdPolySmooth::a_fvarPropagateCorners;
@@ -312,7 +313,8 @@ HMesh *
 createOsdHbrFromPoly( MFnMesh const & inMeshFn,
                       MItMeshPolygon & inMeshItPolygon,
                       std::vector<int> & fvarIndices,
-                      std::vector<int> & fvarWidths)
+                      std::vector<int> & fvarWidths,
+                      float * maxCreaseSharpness=0)
 {
     MStatus returnStatus;
 
@@ -495,8 +497,12 @@ createOsdHbrFromPoly( MFnMesh const & inMeshFn,
     }
 
     // Apply Creases
-    applyCreaseEdges( inMeshFn, hbrMesh );
-    applyCreaseVertices( inMeshFn, hbrMesh );
+    float maxEdgeCrease = applyCreaseEdges( inMeshFn, hbrMesh );
+    float maxVertexCrease = applyCreaseVertices( inMeshFn, hbrMesh );
+
+    if (maxCreaseSharpness) {
+        *maxCreaseSharpness = std::max(maxEdgeCrease, maxVertexCrease);
+    }
 
     // Return the resulting HBR Mesh
     // Note that boundaryMethods and hbrMesh->Finish() still need to be called
@@ -761,9 +767,10 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             // Note: These fvar values only need to be kept alive through the life of the farMesh
             std::vector<int> fvarIndices;
             std::vector<int> fvarWidths;
+            float maxCreaseSharpness=0.0;
 
             HMesh *hbrMesh = createOsdHbrFromPoly(
-                inMeshFn, inMeshItPolygon, fvarIndices, fvarWidths);
+                inMeshFn, inMeshItPolygon, fvarIndices, fvarWidths, &maxCreaseSharpness);
             assert(hbrMesh);
 
             // Create the farMesh if successfully created the hbrMesh
@@ -840,6 +847,9 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
                 MDataHandle outMeshH = data.outputValue(a_output, &returnStatus);
                 MCHECKERR(returnStatus, "ERROR getting polygon data handle\n");
                 outMeshH.set(newMeshDataObj);
+                
+                int isolation = std::min(10,(int)ceil(maxCreaseSharpness)+1);
+                data.outputValue(a_recommendedIsolation).set(isolation);
 
                 // == Cleanup OSD ============================================
                 // REVISIT: Re-add these deletes
@@ -955,6 +965,24 @@ MStatus OsdPolySmooth::initialize() {
     stat = addAttribute( a_subdivisionLevels );
     MCHECKERR( stat, "cannot OsdPolySmooth::addAttribute(a_subdivisionLevels)" );
 
+    // a_recommendedIsolation : The number of recursive quad subdivisions to perform on each face.
+    a_recommendedIsolation = nAttr.create("recommendedIsolation", "ri", MFnNumericData::kInt, 0.0, &stat);
+    MCHECKERR( stat, "cannot create OsdPolySmooth::recommendedIsolation" );
+    stat = nAttr.setDefault(2);
+    MCHECKERR( stat, "cannot OsdPolySmooth::recommendedIsolation.setDefault(0)" );
+    stat = nAttr.setMin(0);
+    MCHECKERR( stat, "cannot OsdPolySmooth::recommendedIsolation.setMin(0)" );
+    stat = nAttr.setMax(10);
+    MCHECKERR( stat, "cannot OsdPolySmooth::recommendedIsolation.setSoftMax(10)" );
+    stat = nAttr.setReadable(true);
+    MCHECKERR( stat, "cannot OsdPolySmooth::recommendedIsolation.setReadable()" );
+    stat = nAttr.setWritable(false);
+    MCHECKERR( stat, "cannot OsdPolySmooth::recommendedIsolation.setWritable()" );
+    stat = nAttr.setHidden(false);
+    MCHECKERR( stat, "cannot OsdPolySmooth::recommendedIsolation.setHidden()" );
+    stat = addAttribute( a_recommendedIsolation );
+    MCHECKERR( stat, "cannot OsdPolySmooth::addAttribute(a_recommendedIsolation)" );
+
     // a_vertBoundaryMethod : Controls how boundary edges and vertices are interpolated. <ul> <li>Smooth, Edges: Renderman: InterpolateBoundaryEdgeOnly</li> <li>Smooth, Edges and Corners: Renderman: InterpolateBoundaryEdgeAndCorner</li> </ul>
     a_vertBoundaryMethod = eAttr.create("vertBoundaryMethod", "vbm", 0, &stat);
     MCHECKERR( stat, "cannot create OsdPolySmooth::vertBoundaryMethod" );
@@ -1053,6 +1081,21 @@ MStatus OsdPolySmooth::initialize() {
     MCHECKERR( stat, "cannot have attribute vertBoundaryMethod affect output" );
     stat = attributeAffects( a_fvarBoundaryMethod, a_output );
     MCHECKERR( stat, "cannot have attribute fvarBoundaryMethod affect output" );
+
+    stat = attributeAffects( a_creaseMethod, a_recommendedIsolation );
+    MCHECKERR( stat, "cannot have attribute creaseMethod affect .si output" );
+    stat = attributeAffects( a_inputPolymesh, a_recommendedIsolation );
+    MCHECKERR( stat, "cannot have attribute inputPolymesh affect .si output" );
+    stat = attributeAffects( a_subdivisionLevels, a_recommendedIsolation );
+    MCHECKERR( stat, "cannot have attribute subdivisionLevels affect .si output" );
+    stat = attributeAffects( a_smoothTriangles, a_recommendedIsolation );
+    MCHECKERR( stat, "cannot have attribute smoothTriangles affect .si output" );
+    stat = attributeAffects( a_fvarPropagateCorners, a_recommendedIsolation );
+    MCHECKERR( stat, "cannot have attribute fvarPropagateCorners affect .si output" );
+    stat = attributeAffects( a_vertBoundaryMethod, a_recommendedIsolation );
+    MCHECKERR( stat, "cannot have attribute vertBoundaryMethod affect .si output" );
+    stat = attributeAffects( a_fvarBoundaryMethod, a_recommendedIsolation );
+    MCHECKERR( stat, "cannot have attribute fvarBoundaryMethod affect .si output" );
     // MAYA_NODE_BUILDER:END [ATTRIBUTE DEPENDS] ==========
 
     return MS::kSuccess;

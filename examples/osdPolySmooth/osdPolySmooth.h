@@ -49,6 +49,7 @@ public:
     static MObject a_inputPolymesh;        // This is a description for this attribute
     static MObject a_output;               // This is a description for this attribute
     static MObject a_subdivisionLevels;    // The number of recursive quad subdivisions to perform on each face.
+    static MObject a_recommendedIsolation; // The recommended number of levels of isolation / subdivision based on topology
     static MObject a_vertBoundaryMethod;   // Controls how boundary edges and vertices are interpolated. <ul> <li>Smooth, Edges: Renderman: InterpolateBoundaryEdgeOnly</li> <li>Smooth, Edges and Corners: Renderman: InterpolateBoundaryEdgeAndCorner</li> </ul>
     static MObject a_fvarBoundaryMethod;   // Controls how boundaries are treated for face-varying data (UVs and Vertex Colors). <ul> <li>Bi-linear (None): Renderman: InterpolateBoundaryNone</li> <li>Smooth, (Edge Only): Renderman: InterpolateBoundaryEdgeOnly</li> <li>Smooth, (Edges and Corners: Renderman: InterpolateBoundaryEdgeAndCorner</li> <li>Smooth, (ZBrush and Maya "Smooth Internal Only"): Renderman: InterpolateBoundaryAlwaysSharp</li> </ul>
     static MObject a_fvarPropagateCorners; //

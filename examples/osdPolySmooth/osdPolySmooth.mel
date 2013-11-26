@@ -55,6 +55,27 @@ global proc osdPolySmooth_removeUI() {
     }
 }
 
+global proc AEosdPolySmoothTemplate( string $nodeName ) {
+
+    editorTemplate -beginScrollLayout;
+
+	editorTemplate -beginLayout "Subdivision Attributes" -collapse 0;
+
+        editorTemplate -addControl "displayMesh";
+        editorTemplate -addControl "subdivisionLevels";
+        editorTemplate -addControl "recommendedIsolation";
+        editorTemplate -addControl "vertBoundaryMethod";
+        editorTemplate -addControl "fvarBoundaryMethod";
+        editorTemplate -addControl "fvarPropagateCorners";
+        editorTemplate -addControl "smoothTriangles";
+        editorTemplate -addControl "creaseMethod";
+
+	editorTemplate -endLayout;
+
+	editorTemplate -addExtraControls;
+
+    editorTemplate -endScrollLayout;
+}
 
 // ===========================
 // COMMANDS
