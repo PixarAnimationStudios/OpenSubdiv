@@ -33,7 +33,7 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h")
         OpenSubdiv_VERSION REGEX "^#define OPENSUBDIV_VERSION .*$")
     string(REPLACE "#define OPENSUBDIV_VERSION " "" OpenSubdiv_VERSION ${OpenSubdiv_VERSION})
 else()
-    error("Cannot locate opensubdiv/version.h in CMAKE_SOURCE_DIR")
+    message(FATAL_ERROR, "Cannot locate opensubdiv/version.h in CMAKE_SOURCE_DIR")
 endif()
 
 #-------------------------------------------------------------------------------
