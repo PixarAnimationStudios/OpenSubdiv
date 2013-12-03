@@ -653,6 +653,13 @@ private:
     // Updates the cached BSpline stencils
     void _UpdateBSplineStencils( HbrFace<T> const * f );
 
+    // Scale tangent stencils so that magnitudes are consistent across
+    // isolation levels.
+    static void _ScaleTangentStencil( HbrFace<T> const * f,
+                                      int stencilsize,
+                                      float *uderiv, 
+                                      float *vderiv );
+
     // Computes BSpline stencil weights at (u,v)
     void _GetBSplineStencilsAtUV( float u,
                                   float v,
@@ -1335,6 +1342,7 @@ FarStencilTablesFactory<T>::Patch::_GetBSplineStencilsAtUV( float u,
             }
             FarVertexStencil::AddScaled(deriv2, _bsplineStencils[12+j], prevWeight);
         }
+        _ScaleTangentStencil(_bsplineFace, GetStencilSize(), deriv1, deriv2);
     }
 }
 
@@ -1469,6 +1477,19 @@ FarStencilTablesFactory<T>::Patch::_GetLimitStencils( HbrVertex<T> * v,
             FarVertexStencil::Copy( point, v->GetData().GetStencil() );
         } break;
     }
+}
+
+// Scale tangent stencils so that magnitudes are consistent across
+// isolation levels.
+template <class T> void
+FarStencilTablesFactory<T>::Patch::_ScaleTangentStencil( HbrFace<T> const * f,
+                                                         int stencilsize,
+                                                         float *uderiv,
+                                                         float *vderiv ) {
+
+    float scale = float (1 << f->GetDepth());
+    FarVertexStencil::Scale(uderiv, scale, stencilsize);
+    FarVertexStencil::Scale(vderiv, scale, stencilsize);
 }
 
 
@@ -1689,10 +1710,7 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
         } break;
     }
 
-    // Scale tangent stencils so that magnitudes are consistent across levels.
-    float scale = float (1 << e->GetLeftFace()->GetDepth());
-    FarVertexStencil::Scale(uderiv, scale, GetStencilSize());
-    FarVertexStencil::Scale(vderiv, scale, GetStencilSize());
+    _ScaleTangentStencil(e->GetFace(), GetStencilSize(), uderiv, vderiv);
 }
 
 } // end namespace OPENSUBDIV_VERSION
