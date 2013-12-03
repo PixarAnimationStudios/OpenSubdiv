@@ -41,13 +41,11 @@ namespace OPENSUBDIV_VERSION {
 struct OsdGLDrawConfig : public OsdDrawConfig {
 
     OsdGLDrawConfig() :
-        program(0), primitiveIdBaseUniform(-1), gregoryQuadOffsetBaseUniform(-1) { }
+        program(0) { }
 
     virtual ~OsdGLDrawConfig();
 
     GLuint program;
-    GLint primitiveIdBaseUniform;
-    GLint gregoryQuadOffsetBaseUniform;
 };
 
 //------------------------------------------------------------------------------

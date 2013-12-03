@@ -1309,9 +1309,9 @@ display() {
         }
 
         GLuint uniformGregoryQuadOffsetBase =
-          glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+          glGetUniformLocation(program, "GregoryQuadOffsetBase");
         GLuint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "OsdPrimitiveIdBase");
+          glGetUniformLocation(program, "PrimitiveIdBase");
 
         glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
                            patch.GetQuadOffsetIndex());
@@ -1320,7 +1320,7 @@ display() {
 #else
         GLuint program = bindProgram(GetEffect(), patch);
         GLint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "OsdPrimitiveIdBase");
+          glGetUniformLocation(program, "PrimitiveIdBase");
         if (uniformPrimitiveIdBase != -1)
             glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
 #endif

@@ -166,5 +166,11 @@ MyEffectRegistry::_CreateDrawConfig(DescType const & desc, SourceConfigType cons
 
     config->diffuseColorUniform = glGetUniformLocation(program, "diffuseColor");
 
+    config->gregoryQuadOffsetBaseUniform =
+        glGetUniformLocation(program, "GregoryQuadOffsetBase");
+
+    config->primitiveIdBaseUniform =
+        glGetUniformLocation(program, "PrimitiveIdBase");
+
     return config;
 }

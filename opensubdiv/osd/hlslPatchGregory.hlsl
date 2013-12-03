@@ -71,7 +71,7 @@ void vs_main_patches( in InputVertex input,
                       uint vID : SV_VertexID,
                       out GregHullVertex output )
 {
-    output.hullPosition = mul(ModelViewMatrix, input.position).xyz;
+    output.hullPosition = mul(OsdModelViewMatrix(), input.position).xyz;
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(input.position);
 
     int ivalence = OsdValenceBuffer[int(vID * (2 * OSD_MAX_VALENCE + 1))];
@@ -307,7 +307,7 @@ GregDomainVertex hs_main_patches(
     uint im = (i+3)%4;
     uint valence = abs(patch[i].valence);
     uint n = valence;
-    int base = GregoryQuadOffsetBase;
+    int base = OsdGregoryQuadOffsetBase();
 
     GregDomainVertex output;
     output.position = patch[ID].position;
@@ -446,7 +446,7 @@ GregDomainVertex hs_main_patches(
     int patchLevel = GetPatchLevel(primitiveID);
     output.patchCoord = float4(0, 0,
                                patchLevel+0.5f,
-                               primitiveID+PrimitiveIdBase+0.5f);
+                               GetPrimitiveID(primitiveID)+0.5f);
 
     OSD_COMPUTE_PTEX_COORD_HULL_SHADER;
 
@@ -584,8 +584,8 @@ void ds_main_patches(
     Nu = Nu/length(n) - n * (dot(Nu,n)/pow(dot(n,n), 1.5));
     Nv = Nv/length(n) - n * (dot(Nv,n)/pow(dot(n,n), 1.5));
 
-    BiTangent = mul(ModelViewMatrix, float4(BiTangent, 0)).xyz;
-    Tangent = mul(ModelViewMatrix, float4(Tangent, 0)).xyz;
+    BiTangent = mul(OsdModelViewMatrix(), float4(BiTangent, 0)).xyz;
+    Tangent = mul(OsdModelViewMatrix(), float4(Tangent, 0)).xyz;
 
     normal = normalize(cross(BiTangent, Tangent));
 
@@ -622,14 +622,14 @@ void ds_main_patches(
     BiTangent *= 3 * level;
     Tangent *= 3 * level;
 
-    BiTangent = mul(ModelViewMatrix, float4(BiTangent, 0)).xyz;
-    Tangent = mul(ModelViewMatrix, float4(Tangent, 0)).xyz;
+    BiTangent = mul(OsdModelViewMatrix(), float4(BiTangent, 0)).xyz;
+    Tangent = mul(OsdModelViewMatrix(), float4(Tangent, 0)).xyz;
 
     float3 normal = normalize(cross(BiTangent, Tangent));
 
 #endif
 
-    output.position = mul(ModelViewMatrix, float4(WorldPos, 1.0f));
+    output.position = mul(OsdModelViewMatrix(), float4(WorldPos, 1.0f));
     output.normal = normal;
     output.tangent = BiTangent;
     output.bitangent = Tangent;
@@ -641,6 +641,6 @@ void ds_main_patches(
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    output.positionOut = mul(ProjectionMatrix,
+    output.positionOut = mul(OsdProjectionMatrix(),
                              float4(output.position.xyz, 1.0f));
 }

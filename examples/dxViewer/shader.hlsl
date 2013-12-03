@@ -26,6 +26,43 @@ struct OutputPointVertex {
     float4 positionOut : SV_Position;
 };
 
+cbuffer Transform : register( b0 ) {
+    float4x4 ModelViewMatrix;
+    float4x4 ProjectionMatrix;
+    float4x4 ModelViewProjectionMatrix;
+};
+
+cbuffer Tessellation : register( b1 ) {
+    float TessLevel;
+    int GregoryQuadOffsetBase;
+    int PrimitiveIdBase;
+};
+
+float4x4 OsdModelViewMatrix()
+{
+    return ModelViewMatrix;
+}
+float4x4 OsdProjectionMatrix()
+{
+    return ProjectionMatrix;
+}
+float4x4 OsdModelViewProjectionMatrix()
+{
+    return ModelViewProjectionMatrix;
+}
+float OsdTessLevel()
+{
+    return TessLevel;
+}
+int OsdGregoryQuadOffsetBase()
+{
+    return GregoryQuadOffsetBase;
+}
+int OsdPrimitiveIdBase()
+{
+    return PrimitiveIdBase;
+}
+
 // ---------------------------------------------------------------------------
 //  Vertex Shader
 // ---------------------------------------------------------------------------

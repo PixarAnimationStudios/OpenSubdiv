@@ -21,7 +21,6 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#line 57
 
 #if defined(VARYING_COLOR) || defined(FACEVARYING_COLOR)
 #undef OSD_USER_VARYING_DECLARE
@@ -53,6 +52,53 @@
 #define OSD_USER_VARYING_PER_CONTROL_POINT(ID_OUT, ID_IN)
 #define OSD_USER_VARYING_PER_EVAL_POINT(UV, a, b, c, d)
 #endif
+
+//--------------------------------------------------------------
+// Uniforms / Uniform Blocks
+//--------------------------------------------------------------
+
+layout(std140) uniform Transform {
+    mat4 ModelViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 ModelViewProjectionMatrix;
+    mat4 ModelViewInverseMatrix;
+};
+
+layout(std140) uniform Tessellation {
+    float TessLevel;
+};
+
+uniform int GregoryQuadOffsetBase;
+uniform int PrimitiveIdBase;
+
+//--------------------------------------------------------------
+// Osd external functions
+//--------------------------------------------------------------
+
+mat4 OsdModelViewMatrix()
+{
+    return ModelViewMatrix;
+}
+mat4 OsdProjectionMatrix()
+{
+    return ProjectionMatrix;
+}
+mat4 OsdModelViewProjectionMatrix()
+{
+    return ModelViewProjectionMatrix;
+}
+float OsdTessLevel()
+{
+    return TessLevel;
+}
+int OsdGregoryQuadOffsetBase()
+{
+    return GregoryQuadOffsetBase;
+}
+int OsdPrimitiveIdBase()
+{
+    return PrimitiveIdBase;
+}
 
 //--------------------------------------------------------------
 // Vertex Shader

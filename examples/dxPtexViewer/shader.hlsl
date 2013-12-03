@@ -21,15 +21,52 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#line 24
+
 struct OutputPointVertex {
     float4 positionOut : SV_Position;
+};
+
+cbuffer Transform : register( b0 ) {
+    float4x4 ModelViewMatrix;
+    float4x4 ProjectionMatrix;
+    float4x4 ModelViewProjectionMatrix;
+};
+
+cbuffer Tessellation : register( b1 ) {
+    float TessLevel;
+    int GregoryQuadOffsetBase;
+    int PrimitiveIdBase;
 };
 
 cbuffer Config : register( b3 ) {
     float displacementScale;
     float mipmapBias;
 };
+
+float4x4 OsdModelViewMatrix()
+{
+    return ModelViewMatrix;
+}
+float4x4 OsdProjectionMatrix()
+{
+    return ProjectionMatrix;
+}
+float4x4 OsdModelViewProjectionMatrix()
+{
+    return ModelViewProjectionMatrix;
+}
+float OsdTessLevel()
+{
+    return TessLevel;
+}
+int OsdGregoryQuadOffsetBase()
+{
+    return GregoryQuadOffsetBase;
+}
+int OsdPrimitiveIdBase()
+{
+    return PrimitiveIdBase;
+}
 
 // ---------------------------------------------------------------------------
 
@@ -70,12 +107,27 @@ float4 displacement(float4 position, float3 normal, float4 patchCoord)
     float disp = PtexMipmapLookupQuadratic(patchCoord, mipmapBias,
                                            textureDisplace_Data,
                                            textureDisplace_Packing).x;
+#else
+    float disp(0);
 #endif
     return position + float4(disp*normal, 0) * displacementScale;
 }
 #endif
 
+#line 20117
+float4 GeneratePatchCoord(float2 localUV, int primitiveID)  // for non-adpative
+{
+    int2 ptexIndex = OsdPatchParamBuffer[GetPrimitiveID(primitiveID)].xy;
 
+    int faceID = ptexIndex.x;
+    int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1));
+    int u = (ptexIndex.y >> 17) & 0x3ff;
+    int v = (ptexIndex.y >> 7) & 0x3ff;
+    float2 uv = localUV;
+    uv = (uv * float2(1, 1)/lv) + float2(u, v)/lv;
+
+    return float4(uv.x, uv.y, lv+0.5, faceID+0.5);
+}
 
 // ---------------------------------------------------------------------------
 //  Vertex Shader
@@ -98,6 +150,15 @@ outputVertex(OutputVertex input, float3 normal)
 {
     OutputVertex v = input;
     v.normal = normal;
+    return v;
+}
+
+OutputVertex
+outputVertex(OutputVertex input, float3 normal, float4 patchCoord)
+{
+    OutputVertex v = input;
+    v.normal = normal;
+    v.patchCoord = patchCoord;
     return v;
 }
 
@@ -147,7 +208,8 @@ outputWireVertex(OutputVertex input, float3 normal,
 #ifdef PRIM_QUAD
 [maxvertexcount(6)]
 void gs_main( lineadj OutputVertex input[4],
-              inout TriangleStream<OutputVertex> triStream )
+              inout TriangleStream<OutputVertex> triStream,
+              uint primitiveID : SV_PrimitiveID)
 {
     float3 A = (input[0].position - input[1].position).xyz;
     float3 B = (input[3].position - input[1].position).xyz;
@@ -155,13 +217,19 @@ void gs_main( lineadj OutputVertex input[4],
 
     float3 n0 = normalize(cross(B, A));
 
-    triStream.Append(outputVertex(input[0], n0));
-    triStream.Append(outputVertex(input[1], n0));
-    triStream.Append(outputVertex(input[3], n0));
+    float4 patchCoord[4];
+    patchCoord[0] = GeneratePatchCoord(float2(0, 0), primitiveID);
+    patchCoord[1] = GeneratePatchCoord(float2(1, 0), primitiveID);
+    patchCoord[2] = GeneratePatchCoord(float2(1, 1), primitiveID);
+    patchCoord[3] = GeneratePatchCoord(float2(0, 1), primitiveID);
+
+    triStream.Append(outputVertex(input[0], n0, patchCoord[0]));
+    triStream.Append(outputVertex(input[1], n0, patchCoord[1]));
+    triStream.Append(outputVertex(input[3], n0, patchCoord[3]));
     triStream.RestartStrip();
-    triStream.Append(outputVertex(input[3], n0));
-    triStream.Append(outputVertex(input[1], n0));
-    triStream.Append(outputVertex(input[2], n0));
+    triStream.Append(outputVertex(input[3], n0, patchCoord[3]));
+    triStream.Append(outputVertex(input[1], n0, patchCoord[1]));
+    triStream.Append(outputVertex(input[2], n0, patchCoord[2]));
     triStream.RestartStrip();
 }
 #else // PRIM_TRI

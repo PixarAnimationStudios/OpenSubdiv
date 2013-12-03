@@ -52,6 +52,54 @@ vec4 displacement(vec4 position, vec3 normal, vec4 patchCoord)
 }
 
 //--------------------------------------------------------------
+// Uniform Blocks
+//--------------------------------------------------------------
+
+layout(std140) uniform Transform {
+    mat4 ModelViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 ModelViewProjectionMatrix;
+    mat4 ModelViewInverseMatrix;
+    mat4 ProjectionWithoutPickMatrix;
+};
+
+layout(std140) uniform Tessellation {
+    float TessLevel;
+};
+
+uniform int GregoryQuadOffsetBase;
+uniform int PrimitiveIdBase;
+
+//--------------------------------------------------------------
+// Osd external functions
+//--------------------------------------------------------------
+
+mat4 OsdModelViewMatrix()
+{
+    return ModelViewMatrix;
+}
+mat4 OsdProjectionMatrix()
+{
+    return ProjectionMatrix;
+}
+mat4 OsdModelViewProjectionMatrix()
+{
+    return ModelViewProjectionMatrix;
+}
+float OsdTessLevel()
+{
+    return TessLevel;
+}
+int OsdGregoryQuadOffsetBase()
+{
+    return GregoryQuadOffsetBase;
+}
+int OsdPrimitiveIdBase()
+{
+    return PrimitiveIdBase;
+}
+
+//--------------------------------------------------------------
 // Geometry Shader
 //--------------------------------------------------------------
 #ifdef GEOMETRY_SHADER

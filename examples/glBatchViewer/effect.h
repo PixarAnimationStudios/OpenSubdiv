@@ -58,6 +58,9 @@ struct MyDrawConfig : public OpenSubdiv::OsdGLDrawConfig {
     virtual ~MyDrawConfig() {}
 
     GLint diffuseColorUniform;
+
+    GLint gregoryQuadOffsetBaseUniform;
+    GLint primitiveIdBaseUniform;
 };
 
 class MyEffect { // formerly EffectHandle

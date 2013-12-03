@@ -43,7 +43,7 @@
 void vs_main_patches( in InputVertex input,
                       out HullVertex output )
 {
-    output.position = mul(ModelViewMatrix, input.position);
+    output.position = mul(OsdModelViewMatrix(), input.position);
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(input.position);
 }
 
@@ -187,7 +187,7 @@ HullVertex hs_main_patches(
     // +0.5 to avoid interpolation error of integer value
     output.patchCoord = float4(0, 0,
                                patchLevel+0.5,
-                               primitiveID+PrimitiveIdBase+0.5);
+                               GetPrimitiveID(primitiveID)+0.5);
 
     OSD_COMPUTE_PTEX_COORD_HULL_SHADER;
 
@@ -336,6 +336,6 @@ void ds_main_patches(
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    output.positionOut = mul(ProjectionMatrix,
+    output.positionOut = mul(OsdProjectionMatrix(),
                              float4(output.position.xyz, 1.0f));
 }

@@ -22,6 +22,24 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+//
+// typical shader composition ordering (see glDrawRegistry:_CompileShader)
+//
+//
+// - glsl version string  (#version 430)
+//
+// - common defines       (#define OSD_ENABLE_PATCH_CULL, ...)
+// - source defines       (#define VERTEX_SHADER, ...)
+//
+// - osd headers          (glslPatchCommon: varying structs,
+//                         glslPtexCommon: ptex functions)
+// - client header        (Osd*Matrix(), displacement callback, ...)
+//
+// - osd shader source    (glslPatchBSpline, glslPatchGregory, ...)
+//     or
+//   client shader source (vertex/geometry/fragment shader)
+//
+
 //----------------------------------------------------------
 // Patches.Common
 //----------------------------------------------------------
@@ -115,36 +133,31 @@ struct GregEvalVertex {
     ivec4 ptexInfo;
 };
 
-layout(std140) uniform Transform {
-    mat4 ModelViewMatrix;
-    mat4 ProjectionMatrix;
-    mat4 ModelViewProjectionMatrix;
-    mat4 ModelViewInverseMatrix;
-#ifdef OSD_USER_TRANSFORM_UNIFORMS
-    OSD_USER_TRANSFORM_UNIFORMS
-#endif
-};
-
-layout(std140) uniform Tessellation {
-    float TessLevel;
-};
-
-uniform int OsdGregoryQuadOffsetBase;
-uniform int OsdPrimitiveIdBase;
+// osd shaders need following functions defined
+mat4 OsdModelViewMatrix();
+mat4 OsdProjectionMatrix();
+mat4 OsdModelViewProjectionMatrix();
+float OsdTessLevel();
+int OsdGregoryQuadOffsetBase();
+int OsdPrimitiveIdBase();
 
 float GetTessLevel(int patchLevel)
 {
 #ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
-    return TessLevel;
+    return OsdTessLevel();
 #else
-    return TessLevel / pow(2, patchLevel-1);
+    return OsdTessLevel() / pow(2, patchLevel-1);
 #endif
 }
 
+#ifndef GetPrimitiveID
+#define GetPrimitiveID() (gl_PrimitiveID + OsdPrimitiveIdBase())
+#endif
+
 float GetPostProjectionSphereExtent(vec3 center, float diameter)
 {
-    vec4 p = ProjectionMatrix * vec4(center, 1.0);
-    return abs(diameter * ProjectionMatrix[1][1] / p.w);
+    vec4 p = OsdProjectionMatrix() * vec4(center, 1.0);
+    return abs(diameter * OsdProjectionMatrix()[1][1] / p.w);
 }
 
 float TessAdaptive(vec3 p0, vec3 p1)
@@ -154,7 +167,7 @@ float TessAdaptive(vec3 p0, vec3 p1)
     // length of the projected edge itself to avoid problems near silhouettes.
     vec3 center = (p0 + p1) / 2.0;
     float diameter = distance(p0, p1);
-    return max(1.0, TessLevel * GetPostProjectionSphereExtent(center, diameter));
+    return max(1.0, OsdTessLevel() * GetPostProjectionSphereExtent(center, diameter));
 }
 
 #ifndef OSD_DISPLACEMENT_CALLBACK
@@ -168,14 +181,12 @@ float TessAdaptive(vec3 p0, vec3 p1)
 uniform isamplerBuffer OsdPatchParamBuffer;
 
 #define GetPatchLevel()                                                 \
-        (texelFetch(OsdPatchParamBuffer, gl_PrimitiveID +               \
-                                         OsdPrimitiveIdBase).y & 0xf)
+    (texelFetch(OsdPatchParamBuffer, GetPrimitiveID()).y & 0xf)
 
 #define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
     {                                                                   \
         ivec2 ptexIndex = texelFetch(OsdPatchParamBuffer,               \
-                                     gl_PrimitiveID +                   \
-                                     OsdPrimitiveIdBase).xy;            \
+                                     GetPrimitiveID()).xy;              \
         int faceID = ptexIndex.x;                                       \
         int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1)); \
         int u = (ptexIndex.y >> 17) & 0x3ff;                            \
@@ -259,7 +270,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 #define OSD_COMPUTE_FACE_VARYING_1(result, fvarOffset, tessCoord)       \
     {                                                                   \
         float v[4];                                                     \
-        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 4;     \
+        int primOffset = GetPrimitiveID() * 4;                          \
         for (int i = 0; i < 4; ++i) {                                   \
             int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
             v[i] = texelFetch(OsdFVarDataBuffer, index).s               \
@@ -272,7 +283,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 #define OSD_COMPUTE_FACE_VARYING_2(result, fvarOffset, tessCoord)       \
     {                                                                   \
         vec2 v[4];                                                      \
-        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 4;     \
+        int primOffset = GetPrimitiveID() * 4;                          \
         for (int i = 0; i < 4; ++i) {                                   \
             int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
             v[i] = vec2(texelFetch(OsdFVarDataBuffer, index).s,         \
@@ -286,7 +297,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 #define OSD_COMPUTE_FACE_VARYING_3(result, fvarOffset, tessCoord)       \
     {                                                                   \
         vec3 v[4];                                                      \
-        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 4;     \
+        int primOffset = GetPrimitiveID() * 4;                          \
         for (int i = 0; i < 4; ++i) {                                   \
             int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
             v[i] = vec3(texelFetch(OsdFVarDataBuffer, index).s,         \
@@ -301,7 +312,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 #define OSD_COMPUTE_FACE_VARYING_4(result, fvarOffset, tessCoord)       \
     {                                                                   \
         vec4 v[4];                                                      \
-        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 4;     \
+        int primOffset = GetPrimitiveID() * 4;                          \
         for (int i = 0; i < 4; ++i) {                                   \
             int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
             v[i] = vec4(texelFetch(OsdFVarDataBuffer, index).s,         \
@@ -319,14 +330,14 @@ uniform samplerBuffer OsdFVarDataBuffer;
 
 #define OSD_COMPUTE_FACE_VARYING_TRI_1(result, fvarOffset, triVert)     \
     {                                                                   \
-        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 3;     \
+        int primOffset = GetPrimitiveID() * 3;                          \
         int index = (primOffset+triVert)*OSD_FVAR_WIDTH + fvarOffset;   \
         result = texelFetch(OsdFVarDataBuffer, index).s;                \
     }
 
 #define OSD_COMPUTE_FACE_VARYING_TRI_2(result, fvarOffset, triVert)     \
     {                                                                   \
-        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 3;     \
+        int primOffset = GetPrimitiveID() * 3;                          \
         int index = (primOffset+triVert)*OSD_FVAR_WIDTH + fvarOffset;   \
         result = vec2(texelFetch(OsdFVarDataBuffer, index).s,           \
                       texelFetch(OsdFVarDataBuffer, index + 1).s);      \
@@ -334,7 +345,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 
 #define OSD_COMPUTE_FACE_VARYING_TRI_3(result, fvarOffset, triVert)     \
     {                                                                   \
-        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 3;     \
+        int primOffset = GetPrimitiveID() * 3;                          \
         int index = (primOffset+triVert)*OSD_FVAR_WIDTH + fvarOffset;   \
         result = vec3(texelFetch(OsdFVarDataBuffer, index).s,           \
                       texelFetch(OsdFVarDataBuffer, index + 1).s,       \
@@ -343,7 +354,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 
 #define OSD_COMPUTE_FACE_VARYING_TRI_4(result, fvarOffset, triVert)     \
     {                                                                   \
-        int primOffset = (gl_PrimitiveID + OsdPrimitiveIdBase) * 3;     \
+        int primOffset = GetPrimitiveID() * 3;                          \
         int index = (primOffset+triVert)*OSD_FVAR_WIDTH + fvarOffset;   \
         result = vec4(texelFetch(OsdFVarDataBuffer, index).s,           \
                       texelFetch(OsdFVarDataBuffer, index + 1).s,       \
@@ -358,7 +369,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 #ifdef OSD_ENABLE_PATCH_CULL
 
 #define OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(P)                     \
-    vec4 clipPos = ModelViewProjectionMatrix * P;               \
+    vec4 clipPos = OsdModelViewProjectionMatrix() * P;          \
     bvec3 clip0 = lessThan(clipPos.xyz, vec3(clipPos.w));       \
     bvec3 clip1 = greaterThan(clipPos.xyz, -vec3(clipPos.w));   \
     outpt.v.clipFlag = ivec3(clip0) + 2*ivec3(clip1);           \

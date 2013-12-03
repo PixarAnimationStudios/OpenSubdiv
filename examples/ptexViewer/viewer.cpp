@@ -751,6 +751,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
     } else {
         nverts = 3;
+        sconfig->vertexShader.source = g_shaderSource + sconfig->vertexShader.source;
+        sconfig->tessControlShader.source = g_shaderSource + sconfig->tessControlShader.source;
         sconfig->tessEvalShader.source = g_shaderSource + sconfig->tessEvalShader.source;
         sconfig->tessEvalShader.version = glslVersion;
         if (effect.displacement and (not effect.normal))
@@ -1641,9 +1643,9 @@ drawModel()
         }
 
         GLuint uniformGregoryQuadOffsetBase =
-            glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+            glGetUniformLocation(program, "GregoryQuadOffsetBase");
         GLuint uniformPrimitiveIdBase =
-            glGetUniformLocation(program, "OsdPrimitiveIdBase");
+            glGetUniformLocation(program, "PrimitiveIdBase");
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
