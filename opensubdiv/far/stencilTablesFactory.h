@@ -657,7 +657,7 @@ private:
     // isolation levels.
     static void _ScaleTangentStencil( HbrFace<T> const * f,
                                       int stencilsize,
-                                      float *uderiv, 
+                                      float *uderiv,
                                       float *vderiv );
 
     // Computes BSpline stencil weights at (u,v)
@@ -892,25 +892,35 @@ FarStencilTablesFactory<T>::Patch::GetStencilsAtUV( HbrHalfedge<T> * e,
 
             _GetLimitStencils( vlimit, pt->_GetData() );
 
-            _GetTangentLimitStencils( elimit, utan->_GetData(),
-                                              vtan->_GetData() );
-
             FarVertexStencil::AddScaled( point, pt, weights[i] );
 
-            // Tangent vectors must compensate for the CCW rotation of 'elimit'
-            switch (i) {
-                case 0: {
-                    FarVertexStencil::AddScaled( uderiv, utan,  weights[i] );
-                    FarVertexStencil::AddScaled( vderiv, vtan,  weights[i] ); } break;
-                case 1: {
-                    FarVertexStencil::AddScaled( uderiv, vtan, -weights[i] );
-                    FarVertexStencil::AddScaled( vderiv, utan,  weights[i] ); } break;
-                case 2: {
-                    FarVertexStencil::AddScaled( uderiv, utan, -weights[i] );
-                    FarVertexStencil::AddScaled( vderiv, vtan, -weights[i] ); } break;
-                case 3: {
-                    FarVertexStencil::AddScaled( uderiv, vtan,  weights[i] );
-                    FarVertexStencil::AddScaled( vderiv, utan, -weights[i] ); } break;
+            if (uderiv and vderiv) {
+
+                _GetTangentLimitStencils( elimit, utan->_GetData(),
+                                                  vtan->_GetData() );
+
+                // Tangent vectors must compensate for the CCW rotation of elimit
+                switch (i) {
+                    case 0: {
+                        FarVertexStencil::AddScaled( uderiv, utan,  weights[i] );
+                        FarVertexStencil::AddScaled( vderiv, vtan,  weights[i] );
+                    } break;
+
+                    case 1: {
+                        FarVertexStencil::AddScaled( uderiv, vtan, -weights[i] );
+                        FarVertexStencil::AddScaled( vderiv, utan,  weights[i] );
+                    } break;
+
+                    case 2: {
+                        FarVertexStencil::AddScaled( uderiv, utan, -weights[i] );
+                        FarVertexStencil::AddScaled( vderiv, vtan, -weights[i] );
+                    } break;
+
+                    case 3: {
+                        FarVertexStencil::AddScaled( uderiv, vtan,  weights[i] );
+                        FarVertexStencil::AddScaled( vderiv, utan, -weights[i] );
+                    } break;
+                }
             }
         }
 
