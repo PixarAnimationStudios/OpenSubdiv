@@ -95,31 +95,31 @@ struct HS_CONSTANT_FUNC_OUT {
     float tessLevelOuter[4] : SV_TessFactor;
 };
 
-cbuffer Transform : register( b0 ) {
-    float4x4 ModelViewMatrix;
-    float4x4 ProjectionMatrix;
-    float4x4 ModelViewProjectionMatrix;
-};
-
-cbuffer Tessellation : register( b1 ) {
-    float TessLevel;
-    int GregoryQuadOffsetBase;
-    int PrimitiveIdBase;
-};
+// osd shaders need following functions defined
+float4x4 OsdModelViewMatrix();
+float4x4 OsdProjectionMatrix();
+float4x4 OsdModelViewProjectionMatrix();
+float OsdTessLevel();
+int OsdGregoryQuadOffsetBase();
+int OsdPrimitiveIdBase();
 
 float GetTessLevel(int patchLevel)
 {
 #ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
-    return TessLevel;
+    return OsdTessLevel();
 #else
-    return TessLevel / pow(2, patchLevel-1);
+    return OsdTessLevel() / pow(2, patchLevel-1);
 #endif
 }
 
+#ifndef GetPrimitiveID
+#define GetPrimitiveID(x) (x + OsdPrimitiveIdBase())
+#endif
+
 float GetPostProjectionSphereExtent(float3 center, float diameter)
 {
-    float4 p = mul(ProjectionMatrix, float4(center, 1.0));
-    return abs(diameter * ProjectionMatrix[1][1] / p.w);
+    float4 p = mul(OsdProjectionMatrix(), float4(center, 1.0));
+    return abs(diameter * OsdProjectionMatrix()[1][1] / p.w);
 }
 
 float TessAdaptive(float3 p0, float3 p1)
@@ -129,7 +129,7 @@ float TessAdaptive(float3 p0, float3 p1)
     // length of the projected edge itself to avoid problems near silhouettes.
     float3 center = (p0 + p1) / 2.0;
     float diameter = distance(p0, p1);
-    return max(1.0, TessLevel * GetPostProjectionSphereExtent(center, diameter));
+    return max(1.0, OsdTessLevel() * GetPostProjectionSphereExtent(center, diameter));
 }
 
 #ifndef OSD_DISPLACEMENT_CALLBACK
@@ -139,18 +139,18 @@ float TessAdaptive(float3 p0, float3 p1)
 Buffer<int2> OsdPatchParamBuffer : register( t3 );
 
 #define GetPatchLevel(primitiveID)                                      \
-        (OsdPatchParamBuffer[primitiveID + PrimitiveIdBase].y & 0xf)
+    (OsdPatchParamBuffer[GetPrimitiveID(primitiveID)].y & 0xf)
 
-#define OSD_COMPUTE_PTEX_COORD_HULL_SHADER                                    \
-    {                                                                         \
-        int2 ptexIndex = OsdPatchParamBuffer[primitiveID+PrimitiveIdBase].xy; \
-        int faceID = ptexIndex.x;                                             \
-        int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1));       \
-        int u = (ptexIndex.y >> 17) & 0x3ff;                                  \
-        int v = (ptexIndex.y >> 7) & 0x3ff;                                   \
-        int rotation = (ptexIndex.y >> 5) & 0x3;                              \
-        output.patchCoord.w = faceID+0.5;                                     \
-        output.ptexInfo = int4(u, v, lv, rotation);                           \
+#define OSD_COMPUTE_PTEX_COORD_HULL_SHADER                              \
+    {                                                                   \
+        int2 ptexIndex = OsdPatchParamBuffer[GetPrimitiveID(primitiveID)].xy; \
+        int faceID = ptexIndex.x;                                       \
+        int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1)); \
+        int u = (ptexIndex.y >> 17) & 0x3ff;                            \
+        int v = (ptexIndex.y >> 7) & 0x3ff;                             \
+        int rotation = (ptexIndex.y >> 5) & 0x3;                        \
+        output.patchCoord.w = faceID+0.5;                               \
+        output.ptexInfo = int4(u, v, lv, rotation);                     \
     }
 
 #define OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER                            \
@@ -214,7 +214,7 @@ Buffer<int2> OsdPatchParamBuffer : register( t3 );
 #ifdef OSD_ENABLE_PATCH_CULL
 
 #define OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(P)                     \
-    float4 clipPos = mul(ModelViewProjectionMatrix, P);         \
+    float4 clipPos = mul(OsdModelViewProjectionMatrix(), P);    \
     int3 clip0 = int3(clipPos.x < clipPos.w,                    \
                       clipPos.y < clipPos.w,                    \
                       clipPos.z < clipPos.w);                   \

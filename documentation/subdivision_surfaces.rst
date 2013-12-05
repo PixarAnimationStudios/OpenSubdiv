@@ -220,7 +220,12 @@ Chaikin Rule
 ============
 
 Chaikin's curve subdivision algorithm improves the appearance of multi-edge
-semi-sharp creases with vayring weights.
+semi-sharp creases with vayring weights. The Chaikin rule interpolates the
+sharpness of incident edges.
+
+.. image:: images/chaikin.png
+   :align: center
+   :target: images/chaikin.png
 
 ----
 

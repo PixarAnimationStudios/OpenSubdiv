@@ -37,7 +37,7 @@ out block {
 
 void main()
 {
-    outpt.v.position = ModelViewMatrix * position;
+    outpt.v.position = OsdModelViewMatrix() * position;
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
     OSD_USER_VARYING_PER_VERTEX();
 }
@@ -155,7 +155,7 @@ void main()
     // +0.5 to avoid interpolation error of integer value
     outpt[ID].v.patchCoord = vec4(0, 0,
                                   patchLevel+0.5,
-                                  gl_PrimitiveID+OsdPrimitiveIdBase+0.5);
+                                  GetPrimitiveID()+0.5);
 
     OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
 
@@ -350,7 +350,7 @@ void main()
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    gl_Position = (ProjectionMatrix * vec4(WorldPos, 1.0f));
+    gl_Position = (OsdProjectionMatrix() * vec4(WorldPos, 1.0f));
 }
 
 #endif

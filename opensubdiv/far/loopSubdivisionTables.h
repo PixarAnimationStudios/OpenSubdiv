@@ -47,6 +47,11 @@ template <class U> class FarLoopSubdivisionTables : public FarSubdivisionTables<
 
 public:
 
+    /// \brief  Returns the subdivision scheme of the tables 
+    virtual typename FarSubdivisionTables<U>::Scheme GetScheme() const { 
+        return FarSubdivisionTables<U>::LOOP; 
+    }
+
 private:
     template <class X, class Y> friend class FarLoopSubdivisionTablesFactory;
     template <class X, class Y> friend class FarMultiMeshFactory;

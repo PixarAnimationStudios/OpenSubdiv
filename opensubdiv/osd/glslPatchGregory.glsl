@@ -72,7 +72,7 @@ void main()
 {
     int vID = gl_VertexID;
 
-    outpt.v.hullPosition = (ModelViewMatrix * position).xyz;
+    outpt.v.hullPosition = (OsdModelViewMatrix() * position).xyz;
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
     OSD_USER_VARYING_PER_VERTEX();
 
@@ -285,7 +285,7 @@ void main()
     uint im = (i+3)%4;
     uint valence = abs(inpt[i].v.valence);
     uint n = valence;
-    int base = OsdGregoryQuadOffsetBase;
+    int base = OsdGregoryQuadOffsetBase();
 
     outpt[ID].v.position = inpt[ID].v.position;
 
@@ -425,7 +425,7 @@ void main()
     int patchLevel = GetPatchLevel();
     outpt[ID].v.patchCoord = vec4(0, 0,
                                   patchLevel+0.5f,
-                                  gl_PrimitiveID+OsdPrimitiveIdBase+0.5f);
+                                  GetPrimitiveID()+0.5f);
 
     OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
 
@@ -602,8 +602,8 @@ void main()
     Nu = Nu/length(n) - n * (dot(Nu,n)/pow(dot(n,n), 1.5));
     Nv = Nv/length(n) - n * (dot(Nv,n)/pow(dot(n,n), 1.5));
 
-    BiTangent = (ModelViewMatrix * vec4(BiTangent, 0)).xyz;
-    Tangent = (ModelViewMatrix * vec4(Tangent, 0)).xyz;
+    BiTangent = (OsdModelViewMatrix() * vec4(BiTangent, 0)).xyz;
+    Tangent = (OsdModelViewMatrix() * vec4(Tangent, 0)).xyz;
 
     normal = normalize(cross(BiTangent, Tangent));
 
@@ -640,14 +640,14 @@ void main()
     BiTangent *= 3 * level;
     Tangent *= 3 * level;
 
-    BiTangent = (ModelViewMatrix * vec4(BiTangent, 0)).xyz;
-    Tangent = (ModelViewMatrix * vec4(Tangent, 0)).xyz;
+    BiTangent = (OsdModelViewMatrix() * vec4(BiTangent, 0)).xyz;
+    Tangent = (OsdModelViewMatrix() * vec4(Tangent, 0)).xyz;
 
     vec3 normal = normalize(cross(BiTangent, Tangent));
 
 #endif
 
-    outpt.v.position = ModelViewMatrix * vec4(WorldPos, 1.0f);
+    outpt.v.position = OsdModelViewMatrix() * vec4(WorldPos, 1.0f);
     outpt.v.normal = normal;
     outpt.v.tangent = BiTangent;
     outpt.v.bitangent = Tangent;
@@ -661,7 +661,7 @@ void main()
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    gl_Position = ModelViewProjectionMatrix * vec4(WorldPos, 1.0f);
+    gl_Position = OsdModelViewProjectionMatrix() * vec4(WorldPos, 1.0f);
 }
 
 #endif

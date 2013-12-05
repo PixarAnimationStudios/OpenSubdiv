@@ -23,9 +23,9 @@
 //
 #include "topology.h"
 
+#include <fstream>
 #include <sstream>
 #include <iostream>
-#include <fstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,12 +37,10 @@ PxOsdUtilSubdivTopology::PxOsdUtilSubdivTopology():
     numVertices(0),
     refinementLevel(2)  // arbitrary, start with a reasonable subdivision level
 {
-    std::cout << "Creating subdiv topology object\n";    
 }
 
 PxOsdUtilSubdivTopology::~PxOsdUtilSubdivTopology()
 {
-    std::cout << "Destroying subdiv topology object\n";
 }
 
 bool
@@ -117,8 +115,6 @@ PxOsdUtilSubdivTopology::IsValid(string *errorMessage) const
         return false;
     }
     
-    std::cout << "\n";
-
     return true;
 }
 
@@ -272,6 +268,93 @@ PxOsdUtilSubdivTopology::ParseFromObjString(
     return true;
 }
 
+
+
+bool PxOsdUtilTagData::TagTypeFromString(
+    PxOsdUtilTagData::TagType *tagType,
+    const std::string &str)
+{
+    if (str == "corner") {
+        *tagType = PxOsdUtilTagData::CORNER;
+    } else if  (str == "crease") {
+        *tagType = PxOsdUtilTagData::CREASE;
+    } else if  (str == "creasemethod") {
+        *tagType = PxOsdUtilTagData::CREASE_METHOD;
+    } else if  (str == "facevaryinginterpolateboundary") {
+        *tagType = PxOsdUtilTagData::FACE_VARYING_INTERPOLATE_BOUNDARY;
+    } else if  (str == "facevaryingpropagatecorners") {
+        *tagType = PxOsdUtilTagData::FACE_VARYING_PROPOGATE_CORNERS; 
+    } else if  (str == "hole") {
+        *tagType = PxOsdUtilTagData::HOLE;
+    } else if  (str == "interpolateboundary") {
+        *tagType = PxOsdUtilTagData::INTERPOLATE_BOUNDARY;
+    } else if  (str == "smoothtriangles") {
+        *tagType = PxOsdUtilTagData::SMOOTH_TRIANGLES;
+    } else if  (str == "vertexedit") {
+        *tagType = PxOsdUtilTagData::VERTEX_EDIT;
+    } else if  (str == "edgeedit") {
+        *tagType = PxOsdUtilTagData::EDGE_EDIT;
+    } else {
+        return false;
+    }
+
+    return true;
+}
+    
+
+
+// If numSharpness == 1, the single sharpness value applies for all vertices
+// If numSharpness == numIndices, there is a per-vertex sharpness
+bool
+PxOsdUtilTagData::AddCorner(int *indices, int numIndices,
+                            float *sharpness, int numSharpness)
+{
+    tags.push_back(CORNER);
+    numArgs.push_back(numIndices);
+    numArgs.push_back(numSharpness);
+    numArgs.push_back(0); 
+    for (int i=0; i<numIndices; ++i) {
+        intArgs.push_back(indices[i]);
+    }
+    for (int i=0; i<numSharpness; ++i) {
+        floatArgs.push_back(sharpness[i]);
+    }
+
+    return true;
+}
+
+// Indices is a sequential series of mesh vertex indices that bound
+// the edges to be tagged with sharpness.  
+//
+// If numSharpness == 1, the single sharpness value applies for all edges
+// If numSharpness == numIndices, there is a per-edge sharpness that
+// will be interpolated along the crease
+bool
+PxOsdUtilTagData::AddCrease(int *indices, int numIndices,
+                            float *sharpness, int numSharpness)
+{
+        return true;
+}
+        
+// Either "normal" or "chaikin"
+bool
+PxOsdUtilTagData::AddCreaseMethod(const std::string &value)
+{
+    return true;
+}
+
+// 0 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryNone
+// 1 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner
+// 2 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly    
+bool
+PxOsdUtilTagData::AddInterpolateBoundary(int value)
+{
+    return true;
+
+}
+
+
+
 bool
 PxOsdUtilSubdivTopology::WriteObjFile(
     const char *filename,
@@ -301,7 +384,7 @@ PxOsdUtilSubdivTopology::WriteObjFile(
     int idx = 0;
     for (int i=0; i<(int)nverts.size(); ++i) {
         file << "f";
-        for (int j=0; j<nverts[i]-1; ++j) {
+        for (int j=0; j<nverts[i]; ++j) {
             file << " " << indices[idx+j]+1;
         }
         idx += nverts[i];
@@ -314,6 +397,3 @@ PxOsdUtilSubdivTopology::WriteObjFile(
 
     return true;
 }
-
-
-

@@ -22,22 +22,13 @@
 //   language governing permissions and limitations under the Apache License.
 //
 #line 25
+
 //--------------------------------------------------------------
 // Common
 //--------------------------------------------------------------
+
 uniform float displacementScale = 1.0;
 uniform float mipmapBias = 0;
-
-struct PtexPacking
-{
-    int page;
-    int nMipmap;
-    int uOffset;
-    int vOffset;
-    int adjSizeDiffs[4];
-    int width;
-    int height;
-};
 
 vec4 GeneratePatchCoord(vec2 localUV, int primitiveID)  // for non-adpative
 {
@@ -51,303 +42,6 @@ vec4 GeneratePatchCoord(vec2 localUV, int primitiveID)  // for non-adpative
 
     return vec4(uv.x, uv.y, lv+0.5, faceID+0.5);
 }
-
-PtexPacking getPtexPacking(isamplerBuffer packings, int faceID)
-{
-    PtexPacking packing;
-    packing.page    = texelFetch(packings, faceID*6).x;
-    packing.nMipmap = texelFetch(packings, faceID*6+1).x;
-    packing.uOffset = texelFetch(packings, faceID*6+2).x;
-    packing.vOffset = texelFetch(packings, faceID*6+3).x;
-    int wh          = texelFetch(packings, faceID*6+5).x;
-    packing.width   = 1 << (wh >> 8);
-    packing.height  = 1 << (wh & 0xff);
-
-    int adjSizeDiffs = texelFetch(packings, faceID*6+4).x;
-    packing.adjSizeDiffs[0] = (adjSizeDiffs >> 12) & 0xf;
-    packing.adjSizeDiffs[1] = (adjSizeDiffs >> 8) & 0xf;
-    packing.adjSizeDiffs[2] = (adjSizeDiffs >> 4) & 0xf;
-    packing.adjSizeDiffs[3] = (adjSizeDiffs >> 0) & 0xf;
-
-    return packing;
-}
-
-int computeMipmapOffsetU(int w, int level)
-{
-    int width = 1 << w;
-    int m = (0x55555555 & (width | (width-1))) << (w&1);
-    int x = ~((1 << (w -((level-1)&~1))) - 1);
-    return (m & x) + ((level+1)&~1);
-}
-
-int computeMipmapOffsetV(int h, int level)
-{
-    int height = 1 << h;
-    int m = (0x55555555 & (height-1)) << ((h+1)&1);;
-    int x = ~((1 << (h - (level&~1))) - 1 );
-    return (m & x) + (level&~1);
-}
-
-PtexPacking getPtexPacking(isamplerBuffer packings, int faceID, int level)
-{
-    PtexPacking packing;
-    packing.page    = texelFetch(packings, faceID*6).x;
-    packing.nMipmap = texelFetch(packings, faceID*6+1).x;
-    packing.uOffset = texelFetch(packings, faceID*6+2).x;
-    packing.vOffset = texelFetch(packings, faceID*6+3).x;
-    int sizeDiffs   = texelFetch(packings, faceID*6+4).x;
-    int wh          = texelFetch(packings, faceID*6+5).x;
-    int w = wh >> 8;
-    int h = wh & 0xff;
-
-    // clamp max level
-    level = min(level, packing.nMipmap);
-
-#if 0
-    packing.width = 1 << w;
-    packing.height = 1 << h;
-    // offset mipmap location (slow!)
-    for (int i = 1; i <= level; ++i) {
-        packing.uOffset += (packing.width+2) * (i&1);
-        packing.vOffset += (packing.height+2) * (1-i&1);
-        packing.width /= 2;
-        packing.height /= 2;
-    }
-#else
-    packing.uOffset += computeMipmapOffsetU(w, level);
-    packing.vOffset += computeMipmapOffsetV(h, level);
-    packing.width = 1 << (w-level);
-    packing.height = 1 << (h-level);
-#endif
-    return packing;
-}
-
-vec4 PTexLookupNearest(vec4 patchCoord,
-                       sampler2DArray data,
-                       isamplerBuffer packings)
-{
-    vec2 uv = patchCoord.xy;
-    int faceID = int(patchCoord.w);
-    PtexPacking ppack = getPtexPacking(packings, faceID);
-    vec2 coords = vec2(uv.x * ppack.width + ppack.uOffset,
-                       uv.y * ppack.height + ppack.vOffset);
-    return texelFetch(data, ivec3(int(coords.x), int(coords.y), ppack.page), 0);
-}
-
-vec4 PTexLookupNearest(vec4 patchCoord,
-                       int level,
-                       sampler2DArray data,
-                       isamplerBuffer packings)
-{
-    vec2 uv = patchCoord.xy;
-    int faceID = int(patchCoord.w);
-    PtexPacking ppack = getPtexPacking(packings, faceID, level);
-    vec2 coords = vec2(uv.x * ppack.width + ppack.uOffset,
-                       uv.y * ppack.height + ppack.vOffset);
-    return texelFetch(data, ivec3(int(coords.x), int(coords.y), ppack.page), 0);
-}
-
-vec4 PTexLookupFast(vec4 patchCoord,
-                    sampler2DArray data,
-                    isamplerBuffer packings)
-{
-    vec2 uv = patchCoord.xy;
-    int faceID = int(patchCoord.w);
-    PtexPacking ppack = getPtexPacking(packings, faceID);
-
-    ivec3 size = textureSize(data, 0);
-    vec2 coords = vec2((uv.x * ppack.width + ppack.uOffset)/size.x,
-                       (uv.y * ppack.height + ppack.vOffset)/size.y);
-    return texture(data, vec3(coords.x, coords.y, ppack.page));
-}
-
-vec4 PTexLookup(vec4 patchCoord,
-                int level,
-                sampler2DArray data,
-                isamplerBuffer packings)
-{
-    vec2 uv = patchCoord.xy;
-    int faceID = int(patchCoord.w);
-    PtexPacking ppack = getPtexPacking(packings, faceID, level);
-
-    vec2 coords = vec2(uv.x * ppack.width + ppack.uOffset,
-                       uv.y * ppack.height + ppack.vOffset);
-
-    coords -= vec2(0.5, 0.5);
-
-    int c0X = int(floor(coords.x));
-    int c1X = int(ceil(coords.x));
-    int c0Y = int(floor(coords.y));
-    int c1Y = int(ceil(coords.y));
-
-    float t = coords.x - float(c0X);
-    float s = coords.y - float(c0Y);
-
-    vec4 d0 = texelFetch(data, ivec3(c0X, c0Y, ppack.page), 0);
-    vec4 d1 = texelFetch(data, ivec3(c0X, c1Y, ppack.page), 0);
-    vec4 d2 = texelFetch(data, ivec3(c1X, c0Y, ppack.page), 0);
-    vec4 d3 = texelFetch(data, ivec3(c1X, c1Y, ppack.page), 0);
-
-    vec4 result = (1-t) * ((1-s)*d0 + s*d1) + t * ((1-s)*d2 + s*d3);
-
-    return result;
-}
-
-// quadratic
-
-void EvalQuadraticBSpline(float u, out float B[3], out float BU[3])
-{
-    B[0] = 0.5 * (u*u - 2.0*u + 1);
-    B[1] = 0.5 + u - u*u;
-    B[2] = 0.5 * u*u;
-
-    BU[0] = u - 1.0;
-    BU[1] = 1 - 2 * u;
-    BU[2] = u;
-}
-
-vec4 PTexLookupQuadratic(out vec4 du,
-                         out vec4 dv,
-                         vec4 patchCoord,
-                         int level,
-                         sampler2DArray data,
-                         isamplerBuffer packings)
-{
-    vec2 uv = patchCoord.xy;
-    int faceID = int(patchCoord.w);
-    PtexPacking ppack = getPtexPacking(packings, faceID, level);
-
-    vec2 coords = vec2(uv.x * ppack.width + ppack.uOffset,
-                       uv.y * ppack.height + ppack.vOffset);
-
-    coords -= vec2(0.5, 0.5);
-
-    int cX = int(round(coords.x));
-    int cY = int(round(coords.y));
-
-    float x = 0.5 - (float(cX) - coords.x);
-    float y = 0.5 - (float(cY) - coords.y);
-
-    // ---------------------------
-
-    vec4 d[9];
-    d[0] = texelFetch(data, ivec3(cX-1, cY-1, ppack.page), 0);
-    d[1] = texelFetch(data, ivec3(cX-1, cY-0, ppack.page), 0);
-    d[2] = texelFetch(data, ivec3(cX-1, cY+1, ppack.page), 0);
-    d[3] = texelFetch(data, ivec3(cX-0, cY-1, ppack.page), 0);
-    d[4] = texelFetch(data, ivec3(cX-0, cY-0, ppack.page), 0);
-    d[5] = texelFetch(data, ivec3(cX-0, cY+1, ppack.page), 0);
-    d[6] = texelFetch(data, ivec3(cX+1, cY-1, ppack.page), 0);
-    d[7] = texelFetch(data, ivec3(cX+1, cY-0, ppack.page), 0);
-    d[8] = texelFetch(data, ivec3(cX+1, cY+1, ppack.page), 0);
-
-    float B[3], D[3];
-    vec4 BUCP[3], DUCP[3];
-    EvalQuadraticBSpline(y, B, D);
-
-    for (int i = 0; i < 3; ++i) {
-        BUCP[i] = vec4(0);
-        DUCP[i] = vec4(0);
-        for (int j = 0; j < 3; j++) {
-            vec4 A = d[i*3+j];
-            BUCP[i] += A * B[j];
-            DUCP[i] += A * D[j];
-        }
-    }
-
-    EvalQuadraticBSpline(x, B, D);
-
-    vec4 result = vec4(0);
-    du = vec4(0);
-    dv = vec4(0);
-    for (int i = 0; i < 3; ++i) {
-        result += B[i] * BUCP[i];
-        du += D[i] * BUCP[i];
-        dv += B[i] * DUCP[i];
-    }
-
-    du *= ppack.width;
-    dv *= ppack.height;
-
-    return result;
-}
-
-vec4 PTexMipmapLookup(vec4 patchCoord,
-                      float level,
-                      sampler2DArray data,
-                      isamplerBuffer packings)
-{
-#if defined(SEAMLESS_MIPMAP)
-    // diff level
-    int faceID = int(patchCoord.w);
-    vec2 uv = patchCoord.xy;
-    PtexPacking packing = getPtexPacking(packings, faceID);
-    level += mix(mix(packing.adjSizeDiffs[0], packing.adjSizeDiffs[1], uv.x),
-                 mix(packing.adjSizeDiffs[3], packing.adjSizeDiffs[2], uv.x),
-                 uv.y);
-#endif
-
-    int levelm = int(floor(level));
-    int levelp = int(ceil(level));
-    float t = level - float(levelm);
-
-    vec4 result = (1-t) * PTexLookup(patchCoord, levelm, data, packings)
-        + t * PTexLookup(patchCoord, levelp, data, packings);
-    return result;
-}
-
-
-vec4 PTexMipmapLookupQuadratic(out vec4 du,
-                               out vec4 dv,
-                               vec4 patchCoord,
-                               float level,
-                               sampler2DArray data,
-                               isamplerBuffer packings)
-{
-#if defined(SEAMLESS_MIPMAP)
-    // diff level
-    int faceID = int(patchCoord.w);
-    vec2 uv = patchCoord.xy;
-    PtexPacking packing = getPtexPacking(packings, faceID);
-    level += mix(mix(packing.adjSizeDiffs[0], packing.adjSizeDiffs[1], uv.x),
-                 mix(packing.adjSizeDiffs[3], packing.adjSizeDiffs[2], uv.x),
-                 uv.y);
-#endif
-
-    int levelm = int(floor(level));
-    int levelp = int(ceil(level));
-    float t = level - float(levelm);
-
-    vec4 du0, du1, dv0, dv1;
-    vec4 r0 = PTexLookupQuadratic(du0, dv0, patchCoord, levelm, data, packings);
-    vec4 r1 = PTexLookupQuadratic(du1, dv1, patchCoord, levelp, data, packings);
-
-    vec4 result = mix(r0, r1, t);
-    du = mix(du0, du1, t);
-    dv = mix(dv0, dv1, t);
-
-    return result;
-}
-
-vec4 PTexMipmapLookupQuadratic(vec4 patchCoord,
-                               float level,
-                               sampler2DArray data,
-                               isamplerBuffer packings)
-{
-    vec4 du, dv;
-    return PTexMipmapLookupQuadratic(du, dv, patchCoord, level, data, packings);
-}
-
-
-vec4 PTexLookup(vec4 patchCoord,
-                sampler2DArray data,
-                isamplerBuffer packings)
-{
-    return PTexMipmapLookup(patchCoord, mipmapBias, data, packings);
-}
-
-
-
 
 #if    defined(DISPLACEMENT_HW_BILINEAR)        \
     || defined(DISPLACEMENT_BILINEAR)           \
@@ -372,21 +66,70 @@ uniform isamplerBuffer textureDisplace_Packing;
 vec4 displacement(vec4 position, vec3 normal, vec4 patchCoord)
 {
 #if defined(DISPLACEMENT_HW_BILINEAR)
-    float disp = PTexLookupFast(patchCoord,
+    float disp = PtexLookupFast(patchCoord,
                                 textureDisplace_Data,
                                 textureDisplace_Packing).x;
 #elif defined(DISPLACEMENT_BILINEAR)
-    float disp = PTexMipmapLookup(patchCoord, mipmapBias,
+    float disp = PtexMipmapLookup(patchCoord, 
+                                  mipmapBias,
                                   textureDisplace_Data,
                                   textureDisplace_Packing).x;
 #elif defined(DISPLACEMENT_BIQUADRATIC)
-    float disp = PTexMipmapLookupQuadratic(patchCoord, mipmapBias,
+    float disp = PtexMipmapLookupQuadratic(patchCoord, 
+                                           mipmapBias,
                                            textureDisplace_Data,
                                            textureDisplace_Packing).x;
 #endif
     return position + vec4(disp * normal, 0) * displacementScale;
 }
 #endif
+
+//--------------------------------------------------------------
+// Uniforms / Uniform Blocks
+//--------------------------------------------------------------
+
+layout(std140) uniform Transform {
+    mat4 ModelViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 ModelViewProjectionMatrix;
+    mat4 ModelViewInverseMatrix;
+};
+
+layout(std140) uniform Tessellation {
+    float TessLevel;
+};
+
+uniform int GregoryQuadOffsetBase;
+uniform int PrimitiveIdBase;
+
+//--------------------------------------------------------------
+// Osd external functions
+//--------------------------------------------------------------
+
+mat4 OsdModelViewMatrix()
+{
+    return ModelViewMatrix;
+}
+mat4 OsdProjectionMatrix()
+{
+    return ProjectionMatrix;
+}
+mat4 OsdModelViewProjectionMatrix()
+{
+    return ModelViewProjectionMatrix;
+}
+float OsdTessLevel()
+{
+    return TessLevel;
+}
+int OsdGregoryQuadOffsetBase()
+{
+    return GregoryQuadOffsetBase;
+}
+int OsdPrimitiveIdBase()
+{
+    return PrimitiveIdBase;
+}
 
 //--------------------------------------------------------------
 // Vertex Shader
@@ -705,13 +448,13 @@ perturbNormalFromDisplacement(vec3 position, vec3 normal, vec4 patchCoord)
     vec4 STlr = patchCoord + d * vec4(texDx.x, texDx.y, 0, 0);
     vec4 STul = patchCoord + d * vec4(texDy.x, texDy.y, 0, 0);
 #if defined NORMAL_HW_SCREENSPACE
-    float Hll = PTexLookupFast(STll, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
-    float Hlr = PTexLookupFast(STlr, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
-    float Hul = PTexLookupFast(STul, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
+    float Hll = PtexLookupFast(STll, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
+    float Hlr = PtexLookupFast(STlr, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
+    float Hul = PtexLookupFast(STul, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
 #elif defined NORMAL_SCREENSPACE
-    float Hll = PTexMipmapLookup(STll, mipmapBias, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
-    float Hlr = PTexMipmapLookup(STlr, mipmapBias, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
-    float Hul = PTexMipmapLookup(STul, mipmapBias, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
+    float Hll = PtexMipmapLookup(STll, mipmapBias, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
+    float Hlr = PtexMipmapLookup(STlr, mipmapBias, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
+    float Hul = PtexMipmapLookup(STul, mipmapBias, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
 #endif
     float dBs = (Hlr - Hll)/d;
     float dBt = (Hul - Hll)/d;
@@ -801,7 +544,7 @@ main()
                                                 inpt.v.patchCoord);
 #elif defined(NORMAL_BIQUADRATIC) || defined(NORMAL_BIQUADRATIC_WG)
     vec4 du, dv;
-    vec4 disp = PTexMipmapLookupQuadratic(du, dv, inpt.v.patchCoord,
+    vec4 disp = PtexMipmapLookupQuadratic(du, dv, inpt.v.patchCoord,
                                           mipmapBias,
                                           textureDisplace_Data,
                                           textureDisplace_Packing);
@@ -827,19 +570,21 @@ main()
     // ------------ color ---------------
 
 #if defined COLOR_PTEX_NEAREST
-    vec4 texColor = PTexLookupNearest(inpt.v.patchCoord,
+    vec4 texColor = PtexLookupNearest(inpt.v.patchCoord,
                                       textureImage_Data,
                                       textureImage_Packing);
 #elif defined COLOR_PTEX_HW_BILINEAR
-    vec4 texColor = PTexLookupFast(inpt.v.patchCoord,
+    vec4 texColor = PtexLookupFast(inpt.v.patchCoord,
                                    textureImage_Data,
                                    textureImage_Packing);
 #elif defined COLOR_PTEX_BILINEAR
-    vec4 texColor = PTexMipmapLookup(inpt.v.patchCoord, mipmapBias,
+    vec4 texColor = PtexMipmapLookup(inpt.v.patchCoord, 
+                                     mipmapBias,
                                      textureImage_Data,
                                      textureImage_Packing);
 #elif defined COLOR_PTEX_BIQUADRATIC
-    vec4 texColor = PTexMipmapLookupQuadratic(inpt.v.patchCoord, mipmapBias,
+    vec4 texColor = PtexMipmapLookupQuadratic(inpt.v.patchCoord, 
+                                              mipmapBias,
                                               textureImage_Data,
                                               textureImage_Packing);
 #elif defined COLOR_PATCHTYPE
@@ -864,9 +609,10 @@ main()
     // ------------ occlusion ---------------
 
 #ifdef USE_PTEX_OCCLUSION
-    float occ = PTexLookup(inpt.v.patchCoord,
-                           textureOcclusion_Data,
-                           textureOcclusion_Packing).x;
+    float occ = PtexMipmapLookup(inpt.v.patchCoord,
+                                 mipmapBias,
+                                 textureOcclusion_Data,
+                                 textureOcclusion_Packing).x;
 #else
     float occ = 0.0;
 #endif
@@ -874,9 +620,10 @@ main()
     // ------------ specular ---------------
 
 #ifdef USE_PTEX_SPECULAR
-    float specular = PTexLookup(inpt.v.patchCoord,
-                                textureSpecular_Data,
-                                textureSpecular_Packing).x;
+    float specular = PtexMipmapLookup(inpt.v.patchCoord,
+                                      mipmapBias,
+                                      textureSpecular_Data,
+                                      textureSpecular_Packing).x;
 #else
     float specular = 1.0;
 #endif

@@ -22,7 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#line 58
 vec4 PTexLookup(vec4 patchCoord,
                 sampler2DArray data,
                 samplerBuffer packings,
@@ -50,6 +49,54 @@ vec4 displacement(vec4 position, vec3 normal, vec4 patchCoord)
                             textureImage_Packing,
                             textureImage_Pages).x;
     return position + 0.01*vec4(disp * normal, 0);
+}
+
+//--------------------------------------------------------------
+// Uniform Blocks
+//--------------------------------------------------------------
+
+layout(std140) uniform Transform {
+    mat4 ModelViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 ModelViewProjectionMatrix;
+    mat4 ModelViewInverseMatrix;
+    mat4 ProjectionWithoutPickMatrix;
+};
+
+layout(std140) uniform Tessellation {
+    float TessLevel;
+};
+
+uniform int GregoryQuadOffsetBase;
+uniform int PrimitiveIdBase;
+
+//--------------------------------------------------------------
+// Osd external functions
+//--------------------------------------------------------------
+
+mat4 OsdModelViewMatrix()
+{
+    return ModelViewMatrix;
+}
+mat4 OsdProjectionMatrix()
+{
+    return ProjectionMatrix;
+}
+mat4 OsdModelViewProjectionMatrix()
+{
+    return ModelViewProjectionMatrix;
+}
+float OsdTessLevel()
+{
+    return TessLevel;
+}
+int OsdGregoryQuadOffsetBase()
+{
+    return GregoryQuadOffsetBase;
+}
+int OsdPrimitiveIdBase()
+{
+    return PrimitiveIdBase;
 }
 
 //--------------------------------------------------------------

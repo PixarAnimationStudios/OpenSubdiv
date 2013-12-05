@@ -460,6 +460,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc, ID3D11Device 
 {
     Effect effect = desc.second;
 
+    SetPtexEnabled(true);
+
     SourceConfigType * sconfig =
         BaseRegistry::_CreateDrawSourceConfig(desc.first, pd3dDevice);
     assert(sconfig);
@@ -482,7 +484,9 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc, ID3D11Device 
         }
     } else {
         quad = false;
+        sconfig->vertexShader.source = g_shaderSource + sconfig->vertexShader.source;
         sconfig->domainShader.source = g_shaderSource + sconfig->domainShader.source;
+        sconfig->hullShader.source = g_shaderSource + sconfig->hullShader.source;
         if (effect.displacement and (not effect.normal))
             sconfig->geometryShader.AddDefine("FLAT_NORMALS");
     }
@@ -895,6 +899,7 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
     if (g_mesh->GetDrawContext()->ptexCoordinateBufferSRV) {
         g_pd3dDeviceContext->HSSetShaderResources(3, 1, &g_mesh->GetDrawContext()->ptexCoordinateBufferSRV);
         g_pd3dDeviceContext->DSSetShaderResources(3, 1, &g_mesh->GetDrawContext()->ptexCoordinateBufferSRV);
+        g_pd3dDeviceContext->GSSetShaderResources(3, 1, &g_mesh->GetDrawContext()->ptexCoordinateBufferSRV);
     }
 
     g_pd3dDeviceContext->PSSetShaderResources(4, 1, g_osdPTexImage->GetTexelsSRV());

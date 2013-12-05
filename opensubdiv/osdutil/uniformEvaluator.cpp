@@ -73,20 +73,14 @@ PxOsdUtilUniformEvaluator::Initialize(
     string *errorMessage)    
 {
 
-    std::cout << "Initializing evaluator with topology\n";
-    
     // create and initialize a refiner, passing "false" for adaptive
     // to indicate we wish for uniform refinement
     PxOsdUtilRefiner *refiner = new PxOsdUtilRefiner();
     _ownsRefiner = true;
 
-    std::cout << "Created refiner\n";
-    
     if (not refiner->Initialize(t, false, errorMessage)) {
         return false;   
     }
-
-    std::cout << "Initialized refiner\n";
 
     return Initialize(refiner, errorMessage);
 }
@@ -97,12 +91,9 @@ PxOsdUtilUniformEvaluator::Initialize(
     string *errorMessage)    
 {    
 
-    std::cout << "Initializing evaluator with refiner\n";
-    
     if (refiner->GetAdaptive()) {
         if (errorMessage)
             *errorMessage = "Uniform evaluator requires uniform refiner";
-        std::cout << *errorMessage << "\n";
         return false;
     }
 
@@ -117,7 +108,6 @@ PxOsdUtilUniformEvaluator::Initialize(
     if (not (fmesh and hmesh)) {
         if (errorMessage)
             *errorMessage = "No valid uniform far/hbr mesh";
-        std::cout << *errorMessage << "\n";        
         return false;
     }
 
@@ -184,7 +174,6 @@ PxOsdUtilUniformEvaluator::SetCoarsePositions(
     if (numFloats/3 >= _refiner->GetFarMesh()->GetNumVertices()) {
         if (errorMessage)
             *errorMessage = "Indexing error in tesselator";
-        std::cout << *errorMessage << "\n";        
     } else {
         _vertexBuffer->UpdateData(pFloats, 0, numFloats / 3);
     }

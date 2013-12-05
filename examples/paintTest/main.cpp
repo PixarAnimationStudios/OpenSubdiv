@@ -487,7 +487,6 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         BaseRegistry::_CreateDrawSourceConfig(desc.first);
 
     sconfig->commonShader.AddDefine("USE_PTEX_COORD");
-    sconfig->commonShader.AddDefine("OSD_USER_TRANSFORM_UNIFORMS", "mat4 ProjectionWithoutPickMatrix;");
 
     if (effect.color) {
         sconfig->commonShader.AddDefine("USE_PTEX_COLOR");
@@ -500,12 +499,18 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 
     const char *glslVersion = "#version 420\n";
 
+    sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
+    sconfig->tessControlShader.source = shaderSource + sconfig->tessControlShader.source;
+    sconfig->tessEvalShader.source = shaderSource + sconfig->tessEvalShader.source;
+    sconfig->vertexShader.version = glslVersion;
+    sconfig->tessEvalShader.version = glslVersion;
+    sconfig->tessControlShader.version = glslVersion;
+    sconfig->geometryShader.version = glslVersion;
+    sconfig->fragmentShader.version = glslVersion;
+
     if (effect.paint) {
-        sconfig->vertexShader.version = glslVersion;
-        sconfig->geometryShader.version = glslVersion;
         sconfig->geometryShader.source = paintShaderSource;
         sconfig->geometryShader.AddDefine("GEOMETRY_SHADER");
-        sconfig->fragmentShader.version = glslVersion;
         sconfig->fragmentShader.source = paintShaderSource;
         sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
         return sconfig;
@@ -513,11 +518,9 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 
     sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
     sconfig->geometryShader.source = shaderSource;
-    sconfig->geometryShader.version = glslVersion;
     sconfig->geometryShader.AddDefine("GEOMETRY_SHADER");
 
     sconfig->fragmentShader.source = shaderSource;
-    sconfig->fragmentShader.version = glslVersion;
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
     sconfig->geometryShader.AddDefine("PRIM_TRI");
@@ -779,9 +782,9 @@ display() {
         glProgramUniform4f(program, diffuseColor, 1, 1, 1, 1);
 
         GLuint uniformGregoryQuadOffsetBase =
-	  glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+	  glGetUniformLocation(program, "GregoryQuadOffsetBase");
         GLuint uniformPrimitiveIdBase =
-	  glGetUniformLocation(program, "OsdPrimitiveIdBase");
+	  glGetUniformLocation(program, "PrimitiveIdBase");
         glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
 			   patch.GetQuadOffsetIndex());
         glProgramUniform1i(program, uniformPrimitiveIdBase,
@@ -947,9 +950,9 @@ drawStroke(int x, int y)
         
         GLuint program = bindProgram(effect, patch);
         GLuint uniformGregoryQuadOffsetBase =
-	  glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+	  glGetUniformLocation(program, "GregoryQuadOffsetBase");
         GLuint uniformPrimitiveIdBase =
-	  glGetUniformLocation(program, "OsdPrimitiveIdBase");
+	  glGetUniformLocation(program, "PrimitiveIdBase");
         glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
 			   patch.GetQuadOffsetIndex());
         glProgramUniform1i(program, uniformPrimitiveIdBase,

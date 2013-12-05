@@ -76,6 +76,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         hbr_overview.rst
         intro.rst 
         limiteval.rst
+        maya_osdpolysmooth.rst
         osd_overview.rst
         painttest.rst
         ptexviewer.rst

@@ -24,14 +24,6 @@
 
 #include <stdio.h>
 
-#include <hbr/mesh.h>
-#include <hbr/face.h>
-#include <hbr/vertex.h>
-#include <hbr/halfedge.h>
-#include <hbr/bilinear.h>
-#include <hbr/catmark.h>
-#include <hbr/loop.h>
-
 #include "../common/shape_utils.h"
 
 //

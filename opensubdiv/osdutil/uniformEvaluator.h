@@ -111,10 +111,10 @@ class PxOsdUtilUniformEvaluator {
     // Fetch the face varying attribute values on refined quads, call
     // through to the refiner but keep in evaluator API for 
     // one-stop-service for user API
-    void GetRefinedFVData(
+    void GetRefinedFVData( int level,
                    const std::vector<std::string>& names,
                    std::vector<float>* fvdata) {
-        _refiner->GetRefinedFVData(names, fvdata);
+        _refiner->GetRefinedFVData(level, names, fvdata);
     }
 
 

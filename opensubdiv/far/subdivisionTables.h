@@ -65,6 +65,14 @@ template <class U> class FarMesh;
 template <class U> class FarSubdivisionTables {
 
 public:
+
+    enum Scheme {
+        UNDEFINED=0,
+        BILINEAR,
+        CATMARK,
+        LOOP
+    };
+
     enum TableType {
         E_IT,  ///< edge-vertices adjacency indexing table
         E_W,   ///< edge-vertices weights
@@ -127,6 +135,10 @@ public:
 
     /// \brief Returns the vertex vertices weights table
     std::vector<float> const &        Get_V_W() const { return _V_W; }
+
+    /// \brief  Returns the subdivision scheme of the tables 
+    /// (sidesteps typeinfo dependency)
+    virtual Scheme GetScheme() const { return UNDEFINED; }
 
     /// \brief Returns the number of indexing tables needed to represent this particular
     /// subdivision scheme.

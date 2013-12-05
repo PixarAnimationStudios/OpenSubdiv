@@ -23,13 +23,13 @@
 //
 
 #define HBR_ADAPTIVE
-#include <far/meshFactory.h>
+#include "../far/meshFactory.h"
 
 #include "refiner.h"
 
-#include <osd/vertex.h>
+#include "../osd/vertex.h"
 
-
+#include <iostream>
 #include <sstream>
 
 using namespace OpenSubdiv;
@@ -62,22 +62,13 @@ PxOsdUtilRefiner::Initialize(
        string *errorMessage)    
 {
 
-    std::cout << "Initializing refiner\n";
-
     if (not topology.IsValid(errorMessage)) {
-        std::cout << "Topology invalid:\n\t" << *errorMessage << "\n";
-        topology.Print();
         return false;
-    } else {
-        std::cout << "Topology is valid\n";
-    }
-         
-        
+    } 
 
     _mesh = new PxOsdUtilMesh<OsdVertex>();
     
     if (not _mesh->Initialize(topology, errorMessage)) {
-        std::cout << "Invalid mesh\n";
         return false;
     }
 
@@ -138,7 +129,6 @@ PxOsdUtilRefiner::Initialize(
 
     _numRefinedVerts = (int) ftable->GetNumVertices(t.refinementLevel);
 
-    std::cout << "refiner has " << _numRefinedVerts << " refined verts\n";
     if (adaptive) {
         _numPatches = (int) parray.GetNumPatches();
     } else {

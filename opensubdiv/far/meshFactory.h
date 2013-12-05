@@ -171,6 +171,9 @@ private:
     FarMeshFactory( FarMeshFactory const & );
     FarMeshFactory<T,U> & operator=(FarMeshFactory<T,U> const &);
 
+    // True if t1 and t2 are the same, even accounting for plugins
+    static bool compareType(std::type_info const & t1, std::type_info const & t2);
+
     // True if the HbrMesh applies the bilinear subdivision scheme
     static bool isBilinear(HbrMesh<T> const * mesh);
 
@@ -282,8 +285,6 @@ FarMeshFactory<T,U>::refine( HbrMesh<T> * mesh, int maxlevel ) {
         // faces that have already been refined.
         firstface = nfaces;
     }
-
-    mesh->SetSubdivisionMethod(HbrMesh<T>::k_SubdivisionMethodUniform);
 }
 
 // Scan the faces of a mesh and compute the max level of subdivision required
@@ -575,9 +576,6 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
             }
         }
     }
-
-    mesh->SetSubdivisionMethod(HbrMesh<T>::k_SubdivisionMethodFeatureAdaptive);
-
     return maxlevel-1;
 }
 
@@ -638,18 +636,36 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adapt
 }
 
 template <class T, class U> bool
+FarMeshFactory<T,U>::compareType(std::type_info const & t1, std::type_info const & t2) {
+
+    if (t1==t2) {
+        return true;
+    }
+
+    // On some systems, distinct instances of \c type_info objects compare equal if
+    // their name() functions return equivalent strings.  On other systems, distinct
+    // type_info objects never compare equal.  The latter can cause problems in the
+    // presence of plugins loaded without RTLD_GLOBAL, because typeid(T) returns
+    // different \c type_info objects for the same T in the two plugins.
+    for (char const * p1 = t1.name(), *p2 = t2.name(); *p1 == *p2; ++p1, ++p2)
+        if (*p1 == '\0')
+            return true;
+    return false;
+}
+
+template <class T, class U> bool
 FarMeshFactory<T,U>::isBilinear(HbrMesh<T> const * mesh) {
-    return typeid(*(mesh->GetSubdivision()))==typeid(HbrBilinearSubdivision<T>);
+    return compareType(typeid(*(mesh->GetSubdivision())), typeid(HbrBilinearSubdivision<T>));
 }
 
 template <class T, class U> bool
 FarMeshFactory<T,U>::isCatmark(HbrMesh<T> const * mesh) {
-    return typeid(*(mesh->GetSubdivision()))==typeid(HbrCatmarkSubdivision<T>);
+    return compareType(typeid(*(mesh->GetSubdivision())), typeid(HbrCatmarkSubdivision<T>));
 }
 
 template <class T, class U> bool
 FarMeshFactory<T,U>::isLoop(HbrMesh<T> const * mesh) {
-    return typeid(*(mesh->GetSubdivision()))==typeid(HbrLoopSubdivision<T>);
+    return compareType(typeid(*(mesh->GetSubdivision())), typeid(HbrLoopSubdivision<T>));
 }
 
 template <class T, class U> void
@@ -673,91 +689,6 @@ getNumPtexFaces(HbrMesh<T> const * hmesh) {
                   lastface->GetNumVertices() : 1);
 
     return result;
-}
-
-// Computes per-face or per-patch local ptex texture coordinates.
-template <class T> FarPatchParam *
-computePatchParam(HbrFace<T> const *f, FarPatchParam *coord) {
-
-    short u,v;
-    unsigned short ofs = 1;
-    unsigned char depth;
-    bool nonquad = false;
-
-    if (coord == NULL) return NULL;
-
-    // save the rotation state of the coarse face
-    unsigned char rots = f->_adaptiveFlags.rots;
-
-    // track upwards towards coarse parent face, accumulating u,v indices
-    HbrFace<T> const * p = f->GetParent();
-    for ( u=v=depth=0;  p!=NULL; depth++ ) {
-
-        int nverts = p->GetNumVertices();
-        if ( nverts != 4 ) {           // non-quad coarse face : stop accumulating offsets
-            nonquad = true;            // set non-quad bit
-            break;
-        }
-
-        for (unsigned char i=0; i<nverts; ++i) {
-            if ( p->GetChild( i )==f ) {
-                switch ( i ) {
-                    case 0 :                     break;
-                    case 1 : { u+=ofs;         } break;
-                    case 2 : { u+=ofs; v+=ofs; } break;
-                    case 3 : {         v+=ofs; } break;
-                }
-                break;
-            }
-        }
-        ofs = ofs << 1;
-        f = p;
-        p = f->GetParent();
-    }
-
-    coord->Set( f->GetPtexIndex(), u, v, rots, depth, nonquad );
-
-    return ++coord;
-}
-
-template <class T> float *
-computeFVarData(HbrFace<T> const *f, const int width, float *coord, bool isAdaptive) {
-
-    if (coord == NULL) return NULL;
-
-    if (isAdaptive) {
-
-        int rots = f->_adaptiveFlags.rots;
-        int nverts = f->GetNumVertices();
-        assert(nverts==4);
-
-        for ( int j=0; j < nverts; ++j ) {
-
-            HbrVertex<T> *v      = f->GetVertex((j+rots)%4);
-            float        *fvdata = v->GetFVarData(f).GetData(0);
-
-            for ( int k=0; k<width; ++k ) {
-                (*coord++) = fvdata[k];
-            }
-        }
-
-    } else {
-
-        // for each face vertex copy face-varying data into coord pointer
-        int nverts = f->GetNumVertices();
-        for ( int j=0; j < nverts; ++j ) {
-
-            HbrVertex<T> *v      = f->GetVertex(j);
-            float        *fvdata = v->GetFVarData(f).GetData(0);
-
-            for ( int k=0; k<width; ++k ) {
-                (*coord++) = fvdata[k];
-            }
-        }
-    }
-
-    // pass back pointer to next destination
-    return coord;
 }
 
 template <class T, class U> FarMesh<U> *

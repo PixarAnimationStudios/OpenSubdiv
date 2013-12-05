@@ -25,6 +25,10 @@
 #ifndef SHAPE_UTILS_H
 #define SHAPE_UTILS_H
 
+#ifndef HBR_ADAPTIVE
+#define HBR_ADAPTIVE
+#endif
+
 #include <hbr/mesh.h>
 #include <hbr/bilinear.h>
 #include <hbr/loop.h>
@@ -432,7 +436,7 @@ void applyTags( OpenSubdiv::HbrMesh<T> * mesh, shape const * sh ) {
             else
                 printf( "expecting single int argument for \"facevaryingpropagatecorners\"\n" );
         } else if (t->name=="smoothtriangles") {
-        
+
             OpenSubdiv::HbrCatmarkSubdivision<T> * scheme =
                 dynamic_cast<OpenSubdiv::HbrCatmarkSubdivision<T> *>( mesh->GetSubdivision() );
 
@@ -774,33 +778,11 @@ copyVertexPositions( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vecto
 
     std::copy(sh->verts.begin(), sh->verts.end(), verts.begin());
 
-    // Sometimes Hbr dupes some vertices during Mesh::Finish()
-    if (nverts > sh->getNverts()) {
-
-        for (int i=sh->getNverts(); i<nverts; ++i) {
-
-            OpenSubdiv::HbrVertex<T> * v = mesh->GetVertex(i);
-
-            OpenSubdiv::HbrFace<T> * f = v->GetIncidentEdge()->GetFace();
-
-            int vidx = -1;
-            for (int j=0; j<f->GetNumVertices(); ++j)
-                if (f->GetVertex(j)==v) {
-                    vidx = j;
-                    break;
-                }
-            assert(vidx>-1);
-
-            const int * shfaces = &sh->faceverts[0];
-            for (int j=0; j<f->GetID(); ++j)
-                shfaces += sh->nvertsPerFace[j];
-
-            int shvert = shfaces[vidx];
-
-            verts[i*3+0] = sh->verts[shvert*3+0];
-            verts[i*3+1] = sh->verts[shvert*3+1];
-            verts[i*3+2] = sh->verts[shvert*3+2];
-        }
+    // Sometimes Hbr dupes some vertices during Mesh::Finish() and our example 
+    // code uses those vertices to draw coarse control cages and such
+    std::vector<std::pair<int, int> > const splits = mesh->GetSplitVertices();
+    for (int i=0; i<(int)splits.size(); ++i) {
+        memcpy(&verts[splits[i].first*3], &sh->verts[splits[i].second*3], 3*sizeof(float));
     }
 }
 
@@ -872,10 +854,10 @@ createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
 
     mesh->GetSubdivision()->SetCreaseSubdivisionMethod(
         OpenSubdiv::HbrSubdivision<T>::k_CreaseNormal);
-    
+
     if (OpenSubdiv::HbrCatmarkSubdivision<T> * scheme =
         dynamic_cast<OpenSubdiv::HbrCatmarkSubdivision<T> *>(mesh->GetSubdivision())) {
-    
+
         scheme->SetTriangleSubdivisionMethod(
             OpenSubdiv::HbrCatmarkSubdivision<T>::k_Normal);
     }

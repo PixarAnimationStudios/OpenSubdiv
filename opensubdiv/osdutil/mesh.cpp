@@ -39,13 +39,7 @@ using namespace OpenSubdiv;
 template <class T>
 static void _ProcessTagsAndFinishMesh(
     OpenSubdiv::HbrMesh<T> *mesh,
-    const vector<string> &tags,
-    const vector<int> &numArgs,
-    const vector<int> &intArgs,
-    const vector<float> &floatArgs,
-    const vector<string> &stringArgs);
-
-
+    const PxOsdUtilTagData &tagData);
 
 template <class T>  
 PxOsdUtilMesh<T>::PxOsdUtilMesh() :
@@ -57,7 +51,6 @@ PxOsdUtilMesh<T>::PxOsdUtilMesh() :
 template <class T>
 PxOsdUtilMesh<T>::~PxOsdUtilMesh()
 {
-    std::cout << "Deleting PxOsdUtilMesh\n";
     delete _hmesh;
 }
 
@@ -75,11 +68,9 @@ PxOsdUtilMesh<T>::Initialize(const PxOsdUtilSubdivTopology &topology,
     static HbrCatmarkSubdivision<T>  _catmark;
     
     if (_t.fvNames.empty()) {
-        // std::cout << "Creating non-face varying hbr mesh\n";
         _hmesh = new HbrMesh<T>(&_catmark);
     } else {
 
-        // std::cout << "Creating face varying hbr mesh\n";
         int fvarcount = (int) _t.fvNames.size();
 
         // For now we only handle 1 float per FV variable.
@@ -106,8 +97,6 @@ PxOsdUtilMesh<T>::Initialize(const PxOsdUtilSubdivTopology &topology,
             return false;
         }
     }
-
-    std::cout << "Created " << _t.numVertices << " vertices for hbr mesh\n";
 
     // Sanity check
     int fvarWidth = _hmesh->GetTotalFVarWidth();
@@ -226,11 +215,7 @@ PxOsdUtilMesh<T>::Initialize(const PxOsdUtilSubdivTopology &topology,
         fvcOffset += nv;
     }
 
-    std::cout << "Create " << facesCreated << " faces in hbrMesh\n";
-
-    _ProcessTagsAndFinishMesh(
-        _hmesh, _t.tagData.tags, _t.tagData.numArgs, _t.tagData.intArgs,
-        _t.tagData.floatArgs, _t.tagData.stringArgs);
+    _ProcessTagsAndFinishMesh( _hmesh, _t.tagData);
 
     _valid = true;
 
@@ -243,10 +228,9 @@ PxOsdUtilMesh<T>::Initialize(const PxOsdUtilSubdivTopology &topology,
 //    names.size() * NumRefinedFaces * 4
 template <class T> void
 PxOsdUtilMesh<T>::GetRefinedFVData(
-    const vector<string>& names, vector<float>* outdata)
+    int level, const vector<string>& names, vector<float>* outdata)
 {
-    int level = _t.refinementLevel;
-    
+
     // First some sanity checking.
     if (!outdata) {
         return;
@@ -300,28 +284,23 @@ PxOsdUtilMesh<T>::GetRefinedFVData(
 template <class T>
 void _ProcessTagsAndFinishMesh(
     OpenSubdiv::HbrMesh<T> *mesh,
-    const vector<string> &tags,
-    const vector<int> &numArgs,
-    const vector<int> &intArgs,
-    const vector<float> &floatArgs,
-    const vector<string> &stringArgs)
+    const PxOsdUtilTagData &tagData)    
 {
     mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly);
 
-    const int* currentInt = &intArgs[0];
-    const float* currentFloat = &floatArgs[0];
-    const string* currentString = &stringArgs[0];
+    const int* currentInt = &tagData.intArgs[0];
+    const float* currentFloat = &tagData.floatArgs[0];
+    const string* currentString = &tagData.stringArgs[0];
 
     // TAGS (crease, corner, hole, smooth triangles, edits(vertex,
     // edge, face), creasemethod, facevaryingpropagatecorners, interpolateboundary
-    for(int i = 0; i < (int)tags.size(); ++i){
-	const char * tag = tags[i].c_str();
-	int nint = numArgs[3*i];
-	int nfloat = numArgs[3*i+1];
-	int nstring = numArgs[3*i+2];
+    for(int i = 0; i < (int)tagData.tags.size(); ++i){
+        PxOsdUtilTagData::TagType tag = tagData.tags[i];
+	int nint = tagData.numArgs[3*i];
+	int nfloat = tagData.numArgs[3*i+1];
+	int nstring = tagData.numArgs[3*i+2];
 
-	// XXX could use tokens here to reduce string matching overhead
-	if(strcmp(tag, "interpolateboundary") == 0) {
+	if (tag == PxOsdUtilTagData::INTERPOLATE_BOUNDARY) {
 	    // Interp boundaries
 	    assert(nint == 1);
 	    switch(currentInt[0]) {
@@ -342,7 +321,7 @@ void _ProcessTagsAndFinishMesh(
 		break;
 	    }
 	    // Processing of this tag is done in mesh->Finish()
-	} else if(strcmp(tag, "crease") == 0) {
+	} else if (tag == PxOsdUtilTagData::CREASE) {
 	    for(int j = 0; j < nint-1; ++j) {
 		// Find the appropriate edge
                 HbrVertex<T>* v = mesh->GetVertex(currentInt[j]);
@@ -364,7 +343,7 @@ void _ProcessTagsAndFinishMesh(
 		    e->SetSharpness(std::max(0.0f, ((nfloat > 1) ? currentFloat[j] : currentFloat[0])));
 		}
 	    }
-	} else if(strcmp(tag, "corner") == 0) {
+	} else if (tag ==  PxOsdUtilTagData::CORNER) {
 	    for(int j = 0; j < nint; ++j) {
                 HbrVertex<T>* v = mesh->GetVertex(currentInt[j]);
 		if(v) {
@@ -375,7 +354,7 @@ void _ProcessTagsAndFinishMesh(
 */                    
 		}
 	    }
-	} else if(strcmp(tag, "hole") == 0) {
+	} else if ( tag == PxOsdUtilTagData::HOLE ) {
 	    for(int j = 0; j < nint; ++j) {
                 HbrFace<T>* f = mesh->GetFace(currentInt[j]);
 		if(f) {
@@ -387,7 +366,8 @@ void _ProcessTagsAndFinishMesh(
 */                            
 		}
 	    }
-	} else if(strcmp(tag, "facevaryinginterpolateboundary") == 0) {
+	} else if ( tag ==
+                    PxOsdUtilTagData::FACE_VARYING_INTERPOLATE_BOUNDARY) {
 	    switch(currentInt[0]) {
             case 0:
                 mesh->SetFVarInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryNone);
@@ -408,9 +388,9 @@ void _ProcessTagsAndFinishMesh(
 */                        
 		break;
 	    }
-	} else if(strcmp(tag, "smoothtriangles") == 0) {
+	} else if ( tag == PxOsdUtilTagData::SMOOTH_TRIANGLES ) {
 	    // Do nothing - CatmarkMesh should handle it
-	} else if(strcmp(tag, "creasemethod") == 0) {
+	} else if ( tag == PxOsdUtilTagData::CREASE_METHOD) {
 	    if(nstring < 1) {
 /*XXX                                                                   
 		TF_WARN("Creasemethod tag missing string argument on SubdivisionMesh.\n");
@@ -431,7 +411,7 @@ void _ProcessTagsAndFinishMesh(
 */                            
 		}
 	    }
-	} else if(strcmp(tag, "facevaryingpropagatecorners") == 0) {
+	} else if ( tag == PxOsdUtilTagData::FACE_VARYING_PROPOGATE_CORNERS) {
 	    if(nint != 1) {
 /*XXX                                                                     
 		TF_WARN("Expecting single integer argument for "
@@ -440,8 +420,8 @@ void _ProcessTagsAndFinishMesh(
 	    } else {
 		mesh->SetFVarPropagateCorners(currentInt[0] != 0);
 	    }
-	} else if(strcmp(tag, "vertexedit") == 0
-		  || strcmp(tag, "edgeedit") == 0) {
+        } else if (( tag == PxOsdUtilTagData::VERTEX_EDIT) or
+                   ( tag == PxOsdUtilTagData::EDGE_EDIT)) {
 	    // XXX DO EDITS
 /*XXX                                                                                 
             TF_WARN("vertexedit and edgeedit not yet supported.\n");
@@ -459,10 +439,8 @@ void _ProcessTagsAndFinishMesh(
 	currentString += nstring;
     }
 
-    std::cout << "Finishing mesh\n";
     mesh->Finish();
 }
-
 
 
 //XXX Note that these explicit template instantiations

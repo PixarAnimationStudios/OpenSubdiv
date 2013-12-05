@@ -105,12 +105,20 @@ private:
 
     // Returns the rotation for a corner patch
     static unsigned char computeCornerPatchRotation( HbrFace<T> * f );
+    
+    // Populates the face-varying data buffer 'coord' for the given face and
+    // returns a pointer to the next entry in the table
+    static float * computeFVarData(HbrFace<T> const *f, const int width, float *coord, bool isAdaptive);
+    
+    // Populates the patch parametrization descriptor 'coord' for the given face 
+    // returns a pointer to the next descriptor
+    static FarPatchParam * computePatchParam(HbrFace<T> const *f, FarPatchParam *coord);
 
     // Populates an array of indices with the "one-ring" vertices for the given face
-    void getOneRing( HbrFace<T> * f, int ringsize, unsigned int const * remap, unsigned int * result );
+    void getOneRing(HbrFace<T> const * f, int ringsize, unsigned int const * remap, unsigned int * result) const;
 
     // Populates the Gregory patch quad offsets table
-    static void getQuadOffsets( HbrFace<T> * f, unsigned int * result );
+    static void getQuadOffsets(HbrFace<T> const * f, unsigned int * result);
 
     // Iterates through the faces of an HbrMesh and tags the _adaptiveFlags on faces and vertices
     void tagAdaptivePatches( HbrMesh<T> const * mesh, int nfaces );
@@ -901,15 +909,18 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
 
 // The One Ring vertices to rule them all !
 template <class T> void
-FarPatchTablesFactory<T>::getOneRing( HbrFace<T> * f, int ringsize, unsigned int const * remap, unsigned int * result) {
+FarPatchTablesFactory<T>::getOneRing(HbrFace<T> const * f, 
+    int ringsize, unsigned int const * remap, unsigned int * result) const {
 
     assert( f and f->GetNumVertices()==4 and ringsize >=4 );
 
     int idx=0;
 
-    for (unsigned char i=0; i<4; ++i)
-        result[remap[idx++ % ringsize]] = _remapTable[f->GetVertex( (i+f->_adaptiveFlags.rots)%4 )->GetID()];
-
+    for (unsigned char i=0; i<4; ++i) {
+        result[remap[idx++ % ringsize]] = 
+            _remapTable[f->GetVertex( (i+f->_adaptiveFlags.rots)%4 )->GetID()];
+    }
+    
     if (ringsize==16) {
 
         // Regular case
@@ -1017,7 +1028,7 @@ FarPatchTablesFactory<T>::getOneRing( HbrFace<T> * f, int ringsize, unsigned int
 
 // Populate the quad-offsets table used by Gregory patches
 template <class T> void
-FarPatchTablesFactory<T>::getQuadOffsets( HbrFace<T> * f, unsigned int * result ) {
+FarPatchTablesFactory<T>::getQuadOffsets(HbrFace<T> const * f, unsigned int * result) {
 
     assert( f and f->GetNumVertices()==4 );
 
@@ -1089,6 +1100,95 @@ FarPatchTablesFactory<T>::getQuadOffsets( HbrFace<T> * f, unsigned int * result 
         result[i] = (op.offsets[0] | (op.offsets[1] << 8));
     }
 }
+
+// Computes per-face or per-patch local ptex texture coordinates.
+template <class T> FarPatchParam *
+FarPatchTablesFactory<T>::computePatchParam(HbrFace<T> const * f, FarPatchParam *coord) {
+
+    short u,v;
+    unsigned short ofs = 1;
+    unsigned char depth;
+    bool nonquad = false;
+
+    if (coord == NULL) return NULL;
+
+    // save the rotation state of the coarse face
+    unsigned char rots = f->_adaptiveFlags.rots;
+
+    // track upwards towards coarse parent face, accumulating u,v indices
+    HbrFace<T> const * p = f->GetParent();
+    for ( u=v=depth=0;  p!=NULL; depth++ ) {
+
+        int nverts = p->GetNumVertices();
+        if ( nverts != 4 ) {           // non-quad coarse face : stop accumulating offsets
+            nonquad = true;            // set non-quad bit
+            break;
+        }
+
+        for (unsigned char i=0; i<nverts; ++i) {
+            if ( p->GetChild( i )==f ) {
+                switch ( i ) {
+                    case 0 :                     break;
+                    case 1 : { u+=ofs;         } break;
+                    case 2 : { u+=ofs; v+=ofs; } break;
+                    case 3 : {         v+=ofs; } break;
+                }
+                break;
+            }
+        }
+        ofs = ofs << 1;
+        f = p;
+        p = f->GetParent();
+    }
+
+    coord->Set( f->GetPtexIndex(), u, v, rots, depth, nonquad );
+
+    return ++coord;
+}
+
+// Populates the face-varying data buffer 'coord' for the given face
+template <class T> float *
+FarPatchTablesFactory<T>::computeFVarData(
+    HbrFace<T> const *f, const int width, float *coord, bool isAdaptive) {
+
+    if (coord == NULL) return NULL;
+
+    if (isAdaptive) {
+
+        int rots = f->_adaptiveFlags.rots;
+        int nverts = f->GetNumVertices();
+        assert(nverts==4);
+
+        for ( int j=0; j < nverts; ++j ) {
+
+            HbrVertex<T> *v      = f->GetVertex((j+rots)%4);
+            float        *fvdata = v->GetFVarData(f).GetData(0);
+
+            for ( int k=0; k<width; ++k ) {
+                (*coord++) = fvdata[k];
+            }
+        }
+
+    } else {
+
+        // for each face vertex copy face-varying data into coord pointer
+        int nverts = f->GetNumVertices();
+        for ( int j=0; j < nverts; ++j ) {
+
+            HbrVertex<T> *v      = f->GetVertex(j);
+            float        *fvdata = v->GetFVarData(f).GetData(0);
+
+            for ( int k=0; k<width; ++k ) {
+                (*coord++) = fvdata[k];
+            }
+        }
+    }
+
+    // pass back pointer to next destination
+    return coord;
+}
+
+
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

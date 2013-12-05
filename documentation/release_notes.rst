@@ -31,6 +31,25 @@ Release Notes
 
 ----
 
+Release 2.3.3
+=============
+
+**Changes**
+    - Modify Far remapping of singular vertices to point to their source vertex.
+    - Refactoring Ptex Mipmap and Analytic Displacement code
+    - Adding some documentation for Chaikin crease rule
+    - Misc. improvements to PxOsdUtilsMesh
+    - Adding recommended isolation output to OsdPolySmooth node
+    
+**Bug Fixes**
+    - Adding an error check on version parsing of main CMakeLists
+    - Fix regex in FindMaya.cmake that breaks with recent versions of Maya
+    - Fix crashes induced by typeid
+    - Fixed VS2010 build warning
+    - Fix build break in hbr_regression
+    - Fix incorrect capitalization in GL ptexViewer shader.glsl
+    - Fix OSX build: add stdlib.h include
+
 Release 2.3.2
 =============
 

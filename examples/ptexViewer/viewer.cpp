@@ -702,9 +702,10 @@ union Effect {
 
 typedef std::pair<OpenSubdiv::OsdDrawContext::PatchDescriptor, Effect> EffectDesc;
 
-class EffectDrawRegistry : public OpenSubdiv::OsdGLDrawRegistry<EffectDesc>
-{
-  protected:
+class EffectDrawRegistry : public OpenSubdiv::OsdGLDrawRegistry<EffectDesc> {
+
+protected:
+
     virtual ConfigType *
     _CreateDrawConfig(DescType const & desc, SourceConfigType const * sconfig);
 
@@ -716,6 +717,8 @@ EffectDrawRegistry::SourceConfigType *
 EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 {
     Effect effect = desc.second;
+
+    SetPtexEnabled(true);
 
     SourceConfigType * sconfig =
         BaseRegistry::_CreateDrawSourceConfig(desc.first);
@@ -748,6 +751,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
     } else {
         nverts = 3;
+        sconfig->vertexShader.source = g_shaderSource + sconfig->vertexShader.source;
+        sconfig->tessControlShader.source = g_shaderSource + sconfig->tessControlShader.source;
         sconfig->tessEvalShader.source = g_shaderSource + sconfig->tessEvalShader.source;
         sconfig->tessEvalShader.version = glslVersion;
         if (effect.displacement and (not effect.normal))
@@ -764,62 +769,62 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
     switch (effect.color) {
-    case COLOR_NONE:
-        break;
-    case COLOR_PTEX_NEAREST:
-        sconfig->fragmentShader.AddDefine("COLOR_PTEX_NEAREST");
-        break;
-    case COLOR_PTEX_HW_BILINEAR:
-        sconfig->fragmentShader.AddDefine("COLOR_PTEX_HW_BILINEAR");
-        break;
-    case COLOR_PTEX_BILINEAR:
-        sconfig->fragmentShader.AddDefine("COLOR_PTEX_BILINEAR");
-        break;
-    case COLOR_PTEX_BIQUADRATIC:
-        sconfig->fragmentShader.AddDefine("COLOR_PTEX_BIQUADRATIC");
-        break;
-    case COLOR_PATCHTYPE:
-        sconfig->fragmentShader.AddDefine("COLOR_PATCHTYPE");
-        break;
-    case COLOR_PATCHCOORD:
-        sconfig->fragmentShader.AddDefine("COLOR_PATCHCOORD");
-        break;
-    case COLOR_NORMAL:
-        sconfig->fragmentShader.AddDefine("COLOR_NORMAL");
-        break;
+        case COLOR_NONE:
+            break;
+        case COLOR_PTEX_NEAREST:
+            sconfig->fragmentShader.AddDefine("COLOR_PTEX_NEAREST");
+            break;
+        case COLOR_PTEX_HW_BILINEAR:
+            sconfig->fragmentShader.AddDefine("COLOR_PTEX_HW_BILINEAR");
+            break;
+        case COLOR_PTEX_BILINEAR:
+            sconfig->fragmentShader.AddDefine("COLOR_PTEX_BILINEAR");
+            break;
+        case COLOR_PTEX_BIQUADRATIC:
+            sconfig->fragmentShader.AddDefine("COLOR_PTEX_BIQUADRATIC");
+            break;
+        case COLOR_PATCHTYPE:
+            sconfig->fragmentShader.AddDefine("COLOR_PATCHTYPE");
+            break;
+        case COLOR_PATCHCOORD:
+            sconfig->fragmentShader.AddDefine("COLOR_PATCHCOORD");
+            break;
+        case COLOR_NORMAL:
+            sconfig->fragmentShader.AddDefine("COLOR_NORMAL");
+            break;
     }
 
     switch (effect.displacement) {
-    case DISPLACEMENT_NONE:
-        break;
-    case DISPLACEMENT_HW_BILINEAR:
-        sconfig->commonShader.AddDefine("DISPLACEMENT_HW_BILINEAR");
-        break;
-    case DISPLACEMENT_BILINEAR:
-        sconfig->commonShader.AddDefine("DISPLACEMENT_BILINEAR");
-        break;
-    case DISPLACEMENT_BIQUADRATIC:
-        sconfig->commonShader.AddDefine("DISPLACEMENT_BIQUADRATIC");
-        break;
+        case DISPLACEMENT_NONE:
+            break;
+        case DISPLACEMENT_HW_BILINEAR:
+            sconfig->commonShader.AddDefine("DISPLACEMENT_HW_BILINEAR");
+            break;
+        case DISPLACEMENT_BILINEAR:
+            sconfig->commonShader.AddDefine("DISPLACEMENT_BILINEAR");
+            break;
+        case DISPLACEMENT_BIQUADRATIC:
+            sconfig->commonShader.AddDefine("DISPLACEMENT_BIQUADRATIC");
+            break;
     }
 
     switch (effect.normal) {
-    case NORMAL_FACET:
-        sconfig->commonShader.AddDefine("NORMAL_FACET");
-        break;
-    case NORMAL_HW_SCREENSPACE:
-        sconfig->commonShader.AddDefine("NORMAL_HW_SCREENSPACE");
-        break;
-    case NORMAL_SCREENSPACE:
-        sconfig->commonShader.AddDefine("NORMAL_SCREENSPACE");
-        break;
-    case NORMAL_BIQUADRATIC:
-        sconfig->commonShader.AddDefine("NORMAL_BIQUADRATIC");
-        break;
-    case NORMAL_BIQUADRATIC_WG:
-        sconfig->commonShader.AddDefine("OSD_COMPUTE_NORMAL_DERIVATIVES");
-        sconfig->commonShader.AddDefine("NORMAL_BIQUADRATIC_WG");
-        break;
+        case NORMAL_FACET:
+            sconfig->commonShader.AddDefine("NORMAL_FACET");
+            break;
+        case NORMAL_HW_SCREENSPACE:
+            sconfig->commonShader.AddDefine("NORMAL_HW_SCREENSPACE");
+            break;
+        case NORMAL_SCREENSPACE:
+            sconfig->commonShader.AddDefine("NORMAL_SCREENSPACE");
+            break;
+        case NORMAL_BIQUADRATIC:
+            sconfig->commonShader.AddDefine("NORMAL_BIQUADRATIC");
+            break;
+        case NORMAL_BIQUADRATIC_WG:
+            sconfig->commonShader.AddDefine("OSD_COMPUTE_NORMAL_DERIVATIVES");
+            sconfig->commonShader.AddDefine("NORMAL_BIQUADRATIC_WG");
+            break;
     }
 
     if (effect.occlusion)
@@ -1638,9 +1643,9 @@ drawModel()
         }
 
         GLuint uniformGregoryQuadOffsetBase =
-            glGetUniformLocation(program, "OsdGregoryQuadOffsetBase");
+            glGetUniformLocation(program, "GregoryQuadOffsetBase");
         GLuint uniformPrimitiveIdBase =
-            glGetUniformLocation(program, "OsdPrimitiveIdBase");
+            glGetUniformLocation(program, "PrimitiveIdBase");
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
         glProgramUniform1i(program, uniformGregoryQuadOffsetBase,

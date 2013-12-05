@@ -39,16 +39,16 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 struct OsdGLDrawConfig : public OsdDrawConfig {
+
     OsdGLDrawConfig() :
-        program(0),
-        primitiveIdBaseUniform(-1),
-        gregoryQuadOffsetBaseUniform(-1) {}
+        program(0) { }
+
     virtual ~OsdGLDrawConfig();
 
     GLuint program;
-    GLint primitiveIdBaseUniform;
-    GLint gregoryQuadOffsetBaseUniform;
 };
+
+//------------------------------------------------------------------------------
 
 struct OsdGLDrawSourceConfig : public OsdDrawSourceConfig {
     OsdDrawShaderSource commonShader;
@@ -59,41 +59,62 @@ struct OsdGLDrawSourceConfig : public OsdDrawSourceConfig {
     OsdDrawShaderSource fragmentShader;
 };
 
-////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------
 
 class OsdGLDrawRegistryBase {
+
 public:
     typedef OsdDrawContext::PatchDescriptor DescType;
     typedef OsdGLDrawConfig ConfigType;
     typedef OsdGLDrawSourceConfig SourceConfigType;
 
+    OsdGLDrawRegistryBase(bool enablePtex=false) : _enablePtex(enablePtex) { }
+
     virtual ~OsdGLDrawRegistryBase();
 
-protected:
-    virtual ConfigType * _NewDrawConfig() { return new ConfigType(); }
-    virtual ConfigType *
-    _CreateDrawConfig(DescType const & desc,
-                      SourceConfigType const * sconfig);
+    bool IsPtexEnabled() const {
+        return _enablePtex;
+    }
+    
+    void SetPtexEnabled(bool b) {
+        _enablePtex=b;
+    }
 
-    virtual SourceConfigType * _NewDrawSourceConfig() { return new SourceConfigType(); }
-    virtual SourceConfigType *
-    _CreateDrawSourceConfig(DescType const & desc);
+protected:
+    virtual ConfigType * _NewDrawConfig() {
+        return new ConfigType(); 
+    }
+
+    virtual ConfigType * _CreateDrawConfig(DescType const & desc, 
+                                           SourceConfigType const * sconfig);
+
+    virtual SourceConfigType * _NewDrawSourceConfig() { 
+        return new SourceConfigType(); 
+    }
+    
+    virtual SourceConfigType * _CreateDrawSourceConfig(DescType const & desc);
+
+private:
+    bool _enablePtex;
 };
+
+//------------------------------------------------------------------------------
 
 template <class DESC_TYPE = OsdDrawContext::PatchDescriptor,
           class CONFIG_TYPE = OsdGLDrawConfig,
           class SOURCE_CONFIG_TYPE = OsdGLDrawSourceConfig >
-class OsdGLDrawRegistry : public OsdGLDrawRegistryBase {
-public:
-    typedef OsdGLDrawRegistryBase BaseRegistry;
 
+class OsdGLDrawRegistry : public OsdGLDrawRegistryBase {
+
+public:
     typedef DESC_TYPE DescType;
     typedef CONFIG_TYPE ConfigType;
     typedef SOURCE_CONFIG_TYPE SourceConfigType;
 
+    typedef OsdGLDrawRegistryBase BaseRegistry;
+
     typedef std::map<DescType, ConfigType *> ConfigMap;
 
-public:
     virtual ~OsdGLDrawRegistry() {
         Reset();
     }
@@ -107,8 +128,8 @@ public:
     }
 
     // fetch shader config
-    ConfigType *
-    GetDrawConfig(DescType const & desc) {
+    ConfigType * GetDrawConfig(DescType const & desc) {
+    
         typename ConfigMap::iterator it = _configMap.find(desc);
         if (it != _configMap.end()) {
             return it->second;
@@ -121,14 +142,22 @@ public:
     }
 
 protected:
-    virtual ConfigType * _NewDrawConfig() { return new ConfigType(); }
-    virtual ConfigType *
-    _CreateDrawConfig(DescType const & desc,
-                      SourceConfigType const * sconfig) { return NULL; }
+    virtual ConfigType * _NewDrawConfig() { 
+        return new ConfigType(); 
+    }
+    
+    virtual ConfigType * _CreateDrawConfig(DescType const & desc,
+                                           SourceConfigType const * sconfig) {
+        return NULL; 
+    }
 
-    virtual SourceConfigType * _NewDrawSourceConfig() { return new SourceConfigType(); }
-    virtual SourceConfigType *
-    _CreateDrawSourceConfig(DescType const & desc) { return NULL; }
+    virtual SourceConfigType * _NewDrawSourceConfig() { 
+        return new SourceConfigType(); 
+    }
+    
+    virtual SourceConfigType * _CreateDrawSourceConfig(DescType const & desc) { 
+        return NULL; 
+    }
 
 private:
     ConfigMap _configMap;
