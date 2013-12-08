@@ -498,6 +498,7 @@ initializeShapes( ) {
 }
 
 //------------------------------------------------------------------------------
+#ifdef calcNormals
 static void
 calcNormals(OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float> & result ) {
 
@@ -526,6 +527,7 @@ calcNormals(OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float
     for (int i = 0; i < nverts; ++i)
         normalize( &result[i*3] );
 }
+#endif
 
 //------------------------------------------------------------------------------
 static void

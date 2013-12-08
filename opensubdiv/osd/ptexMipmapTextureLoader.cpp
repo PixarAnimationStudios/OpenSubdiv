@@ -907,7 +907,6 @@ OsdPtexMipmapTextureLoader::optimizePacking(int maxNumPages,
     for (BlockArray::iterator it = _blocks.begin(); it != _blocks.end(); ++it) {
         int face = it->index;
         uint16_t adjSizeDiffs = 0;
-        Ptex::Res baseRes = Ptex::Res(it->ulog2, it->vlog2);
         for (int edge = 0; edge < 4; ++edge) {
             int levelDiff = getLevelDiff(face, edge);
             adjSizeDiffs <<= 4;
