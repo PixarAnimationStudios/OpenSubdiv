@@ -34,6 +34,7 @@
 #include "../far/stencilTables.h"
 
 #include <string.h>
+#include <list>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -1600,98 +1601,71 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
 
         case HbrVertex<T>::k_Crease: {
 
-            class CreaseEdgesOperator : public HbrHalfedgeOperator<T> {
-            private:
-               bool _gather;
-               int _valence, _count;
-               float _d, * _deriv, (*_crease)[12];
-            public:
+            std::list<HbrHalfedge<T> *> edges;
+            v->GetSurroundingEdges(std::back_inserter(edges));
 
-                HbrVertex<T> * org;
-                HbrHalfedge<T> * ei[2];
-                int eidx[2];
+            std::list<HbrVertex<T> *> vertices;
+            v->GetSurroundingVertices(std::back_inserter(vertices));
 
-                CreaseEdgesOperator(HbrVertex<T> * v) : _gather(true), _count(0), org(v) {
-                    ei[0]=ei[1]=0;
-                    eidx[0]=eidx[1]=-1;
-                }
+            assert(edges.size()==vertices.size());
 
-                ~CreaseEdgesOperator() { }
+            // Circle the lists around so that we start processing at the edge
+            // after 'e'
+            while (*edges.rbegin() != e) {
+                edges.push_back(edges.front()); edges.pop_front();
+                vertices.push_back(vertices.front()); vertices.pop_front();
+            }
 
-                void SetAccumMode(int valence, float d, float * deriv, float (*crease)[12]) {
-                    _gather = false;
-                    _count = 0;
-                    _valence = valence;
-                    _d=d; _deriv=deriv; _crease=crease;
-                }
-
-                virtual void operator() (HbrHalfedge<T> &e) {
-
-                    if (_gather) {
-                     if (e.IsSharp(false) and (eidx[0]<0 or eidx[1]<0)) {
-                                 if (not ei[1]) { ei[1]=&e; eidx[1]=_count; }
-                            else if (not ei[0]) { ei[0]=&e; eidx[0]=_count; }
-                            else
-                                return;
-                        }
+            // Look for the two sharp edges
+            int idx=0, e1i=-1, e2i=-1;
+            typename std::list<HbrHalfedge<T> *>::iterator ei;
+            typename std::list<HbrVertex<T> *>::iterator vi, v1i, v2i;
+            for (ei=edges.begin(), vi=vertices.begin(); ei!=edges.end(); ++ei, ++vi, ++idx) {
+                if ((*ei)->IsSharp(false)) {
+                    if (e2i<0) {
+                        e2i = idx;
+                        v2i = vi;
                     } else {
-                        if ( _count>eidx[1] and _count<eidx[0] ) {
-
-                            HbrVertex<T> * v = e.GetDestVertex();
-                            if (v==org)
-                                v = e.GetOrgVertex();
-
-                            int idx = _count - eidx[1] + 3;
-                            FarVertexStencil::AddScaled(_deriv, v->GetData().GetStencil(), _crease[_valence][idx]);
-                            _d += fabsf(_crease[_valence][idx]);
-                        }
+                        e1i = idx;
+                        v1i = vi;
+                        break;
                     }
-                    ++_count;
                 }
-            };
-
-            CreaseEdgesOperator op( v );
-            v->ApplyOperatorSurroundingEdges( op );
+            }
 
             // We expected (at least) two edges to be on a crease. Instead, there
             // are zero or 1. We're not really sure what to do in that case, but
             // the easiest thing to do is to ignore the crease, which fixes the
             // coredump at the very least.  The code here is exactly the same as
             // the default case.
-            if ((op.eidx[0]<0) or (op.eidx[1]<0)) {
-
+            if (e1i<0 or e2i<0) {
+            
                 e = e->GetPrev();
 
                 HbrVertex<T> * v1 = e->GetDestVertex(),
-                             * v2 = v->GetNextEdge(e)->GetDestVertex();
+                             * v2 = e->GetNext()->GetDestVertex();
 
                 FarVertexStencil::Subtract(uderiv, v1->GetData().GetStencil(), v->GetData().GetStencil());
                 FarVertexStencil::Subtract(vderiv, v2->GetData().GetStencil(), v->GetData().GetStencil());
-
                 break;
             }
 
             // Count the number of edges between e1 and e2 going clockwise.
             // Since e1 is AFTER e2 (see above), this just requires some math on
             // the edge indices
-            int n = v->GetValence() - op.eidx[0] + op.eidx[1] + 1;
+            int n = (int)edges.size() - e1i + e2i + 1;
             assert(n >= 2);
 
             // creaseK table has 11 entries : max valence is 10
             // XXXX error should be reported
             if (n >= 11) {
+                assert(0);
                 break;
             }
 
             // Math on the two crease vertices
-            HbrVertex<T> * v1 = op.ei[0]->GetDestVertex(),
-                         * v2 = op.ei[1]->GetDestVertex();
-
-            if (v1==v)
-                v1 = op.ei[0]->GetOrgVertex();
-
-            if (v2==v)
-                v2 = op.ei[1]->GetOrgVertex();
+            HbrVertex<T> * v1 = *v1i,
+                         * v2 = *v2i;
 
             FarVertexStencil::Subtract(uderiv, v1->GetData().GetStencil(), v2->GetData().GetStencil());
             FarVertexStencil::Scale(uderiv, 0.5f, GetStencilSize());
@@ -1701,13 +1675,22 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
             FarVertexStencil::AddScaled(vderiv, v2->GetData().GetStencil(), creaseK[n][2]);
 
             // Math on vertices between the two creases
-
             float d = fabsf(creaseK[n][0]) + fabsf(creaseK[n][1]) + fabsf(creaseK[n][2]);
-
-            op.SetAccumMode( n, d, vderiv, creaseK );
-
-            v->ApplyOperatorSurroundingEdges( op );
-
+            idx = 3;
+            if ((vi=++vi)==vertices.end()) {
+                vi = vertices.begin();
+            }
+            while (vi !=v2i) {
+                FarVertexStencil::AddScaled(vderiv, (*vi)->GetData().GetStencil(), creaseK[n][idx]);
+                d += fabsf(creaseK[n][idx]);
+                ++idx;
+                if (++vi==vertices.end()) {
+                    vi = vertices.begin();
+                }
+            }
+            
+            FarVertexStencil::Scale(uderiv, -2.0f/d, GetStencilSize());
+            
         } break;
 
         case HbrVertex<T>::k_Corner: {
