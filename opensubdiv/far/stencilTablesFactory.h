@@ -1659,7 +1659,6 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
             // creaseK table has 11 entries : max valence is 10
             // XXXX error should be reported
             if (n >= 11) {
-                assert(0);
                 break;
             }
 
