@@ -167,7 +167,7 @@ FarStencilTablesFactory<T>::SetCurrentFace(int id, unsigned int quadrant) {
             return false;
 
     } else {
-
+        // face is a quad: lock quadrant to 0
         quadrant = 0;
     }
 
@@ -690,14 +690,20 @@ FarStencilTablesFactory<T>::Patch::SetupControlStencils( HbrFace<T> * f,
 
     assert(f and f->IsCoarse());
 
-    _quadrant = quadrant;
+    // same face and same quadrant: control stencil and cached bspline patch
+    // stay the same
+    if (quadrant==GetCurrentQuadrant() and f==GetCurrentFace())
+        return;
 
+    // new face or new quadrant: control stencil may still be the same, but
+    // cached bspline patch must be invalidated
+    _quadrant = quadrant;
+    _bsplineFace = NULL;
     if (f==GetCurrentFace())
         return;
 
+    // new coarse face: control stencil is invalidated and must be recomputed
     _face = f;
-
-    _bsplineFace = NULL;
 
     HbrMesh<T> * mesh = f->GetMesh();
 
@@ -1639,7 +1645,7 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
             // coredump at the very least.  The code here is exactly the same as
             // the default case.
             if (e1i<0 or e2i<0) {
-            
+
                 e = e->GetPrev();
 
                 HbrVertex<T> * v1 = e->GetDestVertex(),
@@ -1687,9 +1693,9 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
                     vi = vertices.begin();
                 }
             }
-            
+
             FarVertexStencil::Scale(uderiv, -2.0f/d, GetStencilSize());
-            
+
         } break;
 
         case HbrVertex<T>::k_Corner: {
