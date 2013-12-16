@@ -202,9 +202,9 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
 
     if (requireFVarData and not fvarTables.empty())
         _fvarDataTextureBuffer = createTextureBuffer(fvarTables, GL_R32F);
-#endif
 
     glBindBuffer(GL_TEXTURE_BUFFER, 0);
+#endif
 
     return true;
 }
