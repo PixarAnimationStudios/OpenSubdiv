@@ -26,6 +26,16 @@ project(OpenSubdiv)
 
 cmake_minimum_required(VERSION 2.8.6)
 
+set(OSD_COMPILER_FLAGS)
+if (EMSCRIPTEN_DIR)
+    set(JAVASCRIPT 1)
+    set(OPENGL_INCLUDE_DIR "${EMSCRIPTEN_DIR}/system/include")
+    set(GLEW_INCLUDE_DIR "${EMSCRIPTEN_DIR}/system/include")
+    set(CMAKE_CXX_COMPILER "emcc")
+    set(CMAKE_CC_COMPILER "emcc")
+    list(APPEND OSD_COMPILER_FLAGS -Wno-warn-absolute-paths)
+endif()
+
 #-------------------------------------------------------------------------------
 # Obtain OpenSubdiv API version from version.h file
 if(EXISTS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h")
@@ -110,9 +120,6 @@ if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Intel")
     set(CMAKE_COMPILER_IS_ICC 1)
 endif()
-
-
-set(OSD_COMPILER_FLAGS)
 
 # Disable spurrious warnings in gcc builds and clang
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
