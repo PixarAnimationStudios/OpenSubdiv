@@ -466,11 +466,15 @@ source_group("Inc" FILES ${INC_FILES})
 
 if (NOT NO_LIB)
 
-    add_library(osd_static_cpu
-        STATIC
+    add_library(osd_static_cpu_obj
+        OBJECT
             ${CPU_SOURCE_FILES}
             ${PRIVATE_HEADER_FILES}
             ${PUBLIC_HEADER_FILES}
+    )
+    add_library(osd_static_cpu
+        STATIC
+        $<TARGET_OBJECTS:osd_static_cpu_obj>
     )
     set_target_properties(osd_static_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
 
