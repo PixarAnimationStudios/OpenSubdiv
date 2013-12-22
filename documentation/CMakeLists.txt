@@ -47,7 +47,7 @@ if (DOXYGEN_FOUND)
             ${CMAKE_DOCDIR_BASE}
     )
 
-else()
+elseif(NOT JAVASCRIPT)
 
     message(WARNING
         "Doxyen was not found : support for Doxygen automated API documentation is disabled.")

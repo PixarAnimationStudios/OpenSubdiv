@@ -291,7 +291,10 @@ if (NOT JAVASCRIPT)
     find_package(Docutils 0.6)
 endif()
 
-if (OPENGL_FOUND)
+# XXX(jcowles): Emscripten support for glew is coming, but has not yet landed.
+# We will allow warnings from regression/viewer to spew, as a reminder to get
+# glew working.
+if (OPENGL_FOUND AND NOT JAVASCRIPT)
     if (APPLE)
         find_package(GLEW)
     else()
@@ -325,7 +328,7 @@ if(OPENMP_FOUND)
         ${OpenMP_CXX_FLAGS}
     )
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
-else()
+elseif(NOT JAVASCRIPT)
     message(WARNING
         "OpenMP was not found : support for OMP parallel compute kernels "
         "will be diabled in Osd.  If your compiler supports OpenMP "
@@ -339,7 +342,7 @@ if(TBB_FOUND)
         ${TBB_CXX_FLAGS}
     )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TBB_CXX_FLAGS}")
-else()
+elseif(NOT JAVASCRIPT)
     message(WARNING
         "TBB was not found : support for TBB parallel compute kernels "
         "will be diabled in Osd.  If your compiler supports TBB "
@@ -361,7 +364,7 @@ if(GLEW_FOUND AND OPENGL_4_2_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     )
-else()
+elseif(NOT JAVASCRIPT)
     message(WARNING
         "OpenGL 4.2 was not found : support for GLSL transform feedback kernels "
         "will be disabled in Osd.  If you have an OpenGL SDK installed "
@@ -374,7 +377,7 @@ if(GLEW_FOUND AND OPENGL_4_3_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_GLSL_COMPUTE
     )
-else()
+elseif(NOT JAVASCRIPT)
     message(WARNING
         "OpenGL 4.3 was not found : support for GLSL compute shader kernels "
         "will be disabled in Osd.  If you have an OpenGL SDK installed "
@@ -392,7 +395,7 @@ if(OPENCL_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_OPENCL
     )
-else()
+elseif(NOT JAVASCRIPT)
     message(WARNING
         "OpenCL was not found : support for OpenCL parallel compute kernels "
         "will be disabled in Osd.  If you have the OpenCL SDK installed, "
@@ -403,7 +406,7 @@ if(CUDA_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_CUDA
     )
-else()
+elseif(NOT JAVASCRIPT)
     message(WARNING
         "CUDA was not found : support for CUDA parallel compute kernels "
         "will be disabled in Osd.  If you have the CUDA SDK installed, please "
@@ -414,7 +417,7 @@ if(PTEX_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_PTEX
     )
-else()
+elseif(NOT JAVASCRIPT)
     message(WARNING
         "Ptex was not found : the OpenSubdiv Ptex example will not be "
         "available.  If you do have Ptex installed and see this message, "
@@ -428,7 +431,7 @@ if(MAYA_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_MAYA
     )
-else()
+elseif(NOT JAVASCRIPT)
     message(WARNING
         "Maya was not found : the OpenSubdiv mayaViwer plugin will not be "
         "available.  If you do have Maya installed and see this message, "
