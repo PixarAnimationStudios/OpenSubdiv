@@ -205,6 +205,44 @@ The resulting NDK module can be imported by other NDK modules by including it in
 export NDK_MODULE_PATH=[path to build-ndk/modules]
 ````
 
+## Build instructions (JavaScript/Emscripten)
+
+Yes, it is possible to compile a subset of OpenSubdiv to JavaScript! 
+
+JavaScript bindings for OpenSubdiv are currently under developement, so for those 
+needing bindings, please stay tuned. If you are willing to experiment with writing
+your own bindings, read on!
+
+To facillitate compilation with emscripten, the EMSCRIPTEN_DIR cmake variable has been 
+provided which will alter the build in several ways.
+
+While ***experimental***, the following instructions should be helpful in
+building the tree with emscripten. Note that the following has only been tested on Linux.
+
+ 1. Obtain Emscripten & Node.js and ensure emcc works correctly on a simple C++ file.
+ 2. Clone a fresh OpenSubdiv tree (A dedicated tree for emscripten is highly recommended)
+ 3. Make a build directory
+ 4. Run cmake as follows:
+
+````
+cmake -DEMSCRIPTEN_DIR=$EMSCRIPTEN ..
+````
+
+Where $EMSCRIPTEN is the path to your emscripten installation (e.g. ~/src/em/emscripten) 
+which contains the emscripten "system" subdirectory. The build will be configured to pull
+headers from $EMSCRIPTEN/system/include and will disable libraries that have not yet been
+tested (or just cannot run) with OpenSubdiv in JavaScript, such as Cuda.
+
+Next, test your build (ensuring emcc is on your command line):
+
+````
+make far_regression
+mv bin/far_regression bin/far_regression.bc
+emcc bin/far_regression.bc -O2 -o bin/far_regression.js
+node bin/far_regression.js
+````
+
+You should see a series of messages ending with "All tests passed!".
 
 ## Regression tests
 
