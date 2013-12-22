@@ -258,26 +258,39 @@ add_definitions(${OSD_COMPILER_FLAGS})
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 
 # Check for dependencies
-if(NOT NO_OMP)
+if(NOT NO_OMP AND NOT JAVASCRIPT)
     find_package(OpenMP)
 endif()
-if(NOT NO_TBB)
+if(NOT NO_TBB AND NOT JAVASCRIPT)
     find_package(TBB 4.0)
 endif()
+
 find_package(OpenGL)
 find_package(OpenGLES)
-find_package(OpenCL 1.1)
-if(NOT NO_CUDA)
+
+if (JAVASCRIPT)
+    # TODO: disable advanced OpenGL features
+endif()
+
+if (NOT JAVASCRIPT)
+    find_package(OpenCL 1.1)
+endif()
+
+if(NOT NO_CUDA AND NOT JAVASCRIPT)
     find_package(CUDA 4.0)
 endif()
 if(NOT ANDROID AND NOT IOS)
     find_package(GLFW 2.7.0)
 endif()
-find_package(PTex 2.0)
-find_package(PythonInterp 2.6)
-find_package(SWIG 1.3.40)
-find_package(Doxygen 1.8.4)
-find_package(Docutils 0.6)
+
+if (NOT JAVASCRIPT)
+    find_package(PTex 2.0)
+    find_package(PythonInterp 2.6)
+    find_package(SWIG 1.3.40)
+    find_package(Doxygen 1.8.4)
+    find_package(Docutils 0.6)
+endif()
+
 if (OPENGL_FOUND)
     if (APPLE)
         find_package(GLEW)
@@ -290,11 +303,13 @@ if (WIN32)
    find_package(DXSDK)
 endif()
 
-if (NOT NO_GCD AND APPLE)
+if (NOT NO_GCD AND APPLE AND NOT JAVASCRIPT)
     set(GCD_FOUND 1)
 endif()
 
-find_package(Maya 201200)
+if (NOT JAVASCRIPT)
+    find_package(Maya 201200)
+endif()
 
 # Warn about missing dependencies that will cause parts of OpenSubdiv to be
 # disabled.  Also, add preprocessor defines that can be used in the source
