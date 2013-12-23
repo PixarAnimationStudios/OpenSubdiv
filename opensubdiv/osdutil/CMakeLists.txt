@@ -83,4 +83,6 @@ install( FILES ${PUBLIC_HEADER_FILES}
          DESTINATION ${CMAKE_INCDIR_BASE}/osdutil
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
 
+install( TARGETS osdutil DESTINATION ${CMAKE_BINDIR_BASE})
+                  
 #-------------------------------------------------------------------------------

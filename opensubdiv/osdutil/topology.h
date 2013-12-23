@@ -112,7 +112,12 @@ class PxOsdUtilSubdivTopology {
     std::vector<float> fvData;
     PxOsdUtilTagData tagData;
 
-
+    void AddFace(int numVertsInFace, int *verts) {
+        nverts.push_back(numVertsInFace);
+        for (int i=0; i<numVertsInFace; ++i)
+            indices.push_back(verts[i]);
+    }
+    
     // Initialize using raw types. 
     //
     // This is useful for automated tests initializing with data like:
