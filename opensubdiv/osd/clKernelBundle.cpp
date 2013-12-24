@@ -33,7 +33,7 @@
 #endif
 
 static const char *clSource =
-#include "clKernel.inc"
+#include "clKernel.gen.h"
     ;
 
 #define CL_CHECK_ERROR(x, ...) {      \
