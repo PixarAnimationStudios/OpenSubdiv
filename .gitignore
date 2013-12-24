@@ -2,6 +2,7 @@
 # ignore stringified kernels
 *.inc
 *.inc.rule
+*.gen.h
 
 # ignore build files
 /build*

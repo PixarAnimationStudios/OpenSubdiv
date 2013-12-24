@@ -40,7 +40,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 static const char *shaderSource =
-#include "../osd/hlslComputeKernel.inc"
+#include "../osd/hlslComputeKernel.gen.h"
 ;
 
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }

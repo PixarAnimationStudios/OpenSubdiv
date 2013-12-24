@@ -42,7 +42,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 static const char *shaderSource =
-#include "../osd/glslComputeKernel.inc"
+#include "../osd/glslComputeKernel.gen.h"
 ;
 
 OsdGLSLComputeKernelBundle::OsdGLSLComputeKernelBundle()

@@ -446,7 +446,7 @@ foreach(kernel_file ${KERNEL_FILES})
 
     if(NOT ${extension} STREQUAL "cu")
 
-        string(REGEX REPLACE "(.*)[.].*" "\\1.inc" inc_file ${kernel_file})
+        string(REGEX REPLACE "(.*)[.].*" "\\1.gen.h" inc_file ${kernel_file})
         list(APPEND INC_FILES ${inc_file})
 
         add_custom_command(
@@ -479,6 +479,7 @@ if (NOT NO_LIB)
             ${GPU_SOURCE_FILES}
             ${PRIVATE_HEADER_FILES}
             ${PUBLIC_HEADER_FILES}
+            ${INC_FILES}
     )
 
     # Build static libs ------------------------------------
@@ -498,7 +499,6 @@ if (NOT NO_LIB)
         STATIC
             $<TARGET_OBJECTS:osd_gpu_obj>
             ${KERNEL_FILES}
-            ${INC_FILES}
     )
     set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
 
@@ -538,9 +538,8 @@ if (NOT NO_LIB)
 
         _add_possibly_cuda_library(osd_dynamic_gpu
             SHARED
-                $<TARGET_OBJECTS:osd_gpu_obj>
-                ${KERNEL_FILES}
-                ${INC_FILES}
+            $<TARGET_OBJECTS:osd_gpu_obj>
+            ${KERNEL_FILES}
         )
 
         set_target_properties(osd_dynamic_gpu

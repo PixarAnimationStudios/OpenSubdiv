@@ -39,19 +39,19 @@ OsdGLDrawConfig::~OsdGLDrawConfig()
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
 static const char *commonShaderSource =
-#include "glslPatchCommon.inc"
+#include "glslPatchCommon.gen.h"
 ;
 static const char *ptexShaderSource =
-#include "glslPtexCommon.inc"
+#include "glslPtexCommon.gen.h"
 ;
 static const char *bsplineShaderSource =
-#include "glslPatchBSpline.inc"
+#include "glslPatchBSpline.gen.h"
 ;
 static const char *gregoryShaderSource =
-#include "glslPatchGregory.inc"
+#include "glslPatchGregory.gen.h"
 ;
 static const char *transitionShaderSource =
-#include "glslPatchTransition.inc"
+#include "glslPatchTransition.gen.h"
 ;
 #endif
 

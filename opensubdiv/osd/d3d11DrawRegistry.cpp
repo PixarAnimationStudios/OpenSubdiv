@@ -43,19 +43,19 @@ OsdD3D11DrawConfig::~OsdD3D11DrawConfig()
 }
 
 static const char *commonShaderSource =
-#include "hlslPatchCommon.inc"
+#include "hlslPatchCommon.gen.h"
 ;
 static const char *ptexShaderSource =
-#include "hlslPtexCommon.inc"
+#include "hlslPtexCommon.gen.h"
 ;
 static const char *bsplineShaderSource =
-#include "hlslPatchBSpline.inc"
+#include "hlslPatchBSpline.gen.h"
 ;
 static const char *gregoryShaderSource =
-#include "hlslPatchGregory.inc"
+#include "hlslPatchGregory.gen.h"
 ;
 static const char *transitionShaderSource =
-#include "hlslPatchTransition.inc"
+#include "hlslPatchTransition.gen.h"
 ;
 
 OsdD3D11DrawRegistryBase::~OsdD3D11DrawRegistryBase() {}

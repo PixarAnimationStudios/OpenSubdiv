@@ -45,7 +45,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 static const char *shaderSource =
-#include "../osd/glslTransformFeedbackKernel.inc"
+#include "../osd/glslTransformFeedbackKernel.gen.h"
 ;
 
 static const char *shaderDefines = ""
