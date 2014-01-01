@@ -148,7 +148,7 @@ blenderStyleTessellate(char *inputFile, char *outputFile, std::string *errorMess
 
     // Push the vertex data
     adaptiveEvaluator.SetCoarsePositions(
-        &(pointPositions[0]), pointPositions.size(), errorMessage);
+        &(pointPositions[0]), (int) pointPositions.size(), errorMessage);
 
     // Refine with one thread
     if (not adaptiveEvaluator.Refine(1, errorMessage)) {

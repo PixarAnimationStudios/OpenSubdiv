@@ -329,7 +329,7 @@ PxOsdUtilAdaptiveEvaluator::GetRefinedTopology(
 	    }
 	}
 
-	int startingPositionIndex = positions->size();
+	int startingPositionIndex = (int) positions->size();
 	int currentGridSize = gridSize;
 	
 	// Subfaces have a smaller gridsize so tessellation lines up.
@@ -377,7 +377,7 @@ PxOsdUtilAdaptiveEvaluator::GetRefinedTopology(
     } // while (not done)
 	
     out->name = GetTopology().name + "_refined";
-    out->numVertices = positions->size()/3;
+    out->numVertices = (int) positions->size()/3;
     out->refinementLevel = GetTopology().refinementLevel;
 
     return out->IsValid(errorMessage);
