@@ -31,6 +31,7 @@ include_directories(
 # source & headers
 
 set(PUBLIC_HEADER_FILES
+    adaptiveEvaluator.h
     batch.h
     drawItem.h
     drawController.h
@@ -41,6 +42,8 @@ set(PUBLIC_HEADER_FILES
 )
 
 add_library(osdutil
+    adaptiveEvaluator.h
+    adaptiveEvaluator.cpp    
     mesh.h
     mesh.cpp
     refiner.h

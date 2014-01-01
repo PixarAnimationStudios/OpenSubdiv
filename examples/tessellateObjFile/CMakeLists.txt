@@ -61,18 +61,17 @@ set(PLATFORM_LIBRARIES
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${PROJECT_SOURCE_DIR}/examples
 )
 
-_add_executable(projectTest
+_add_executable(tessellateObjFile
     main.cpp
 )
 
                                           
-target_link_libraries(projectTest
+target_link_libraries(tessellateObjFile
     osdutil
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS projectTest DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS tessellateObjFile DESTINATION ${CMAKE_BINDIR_BASE})
 
