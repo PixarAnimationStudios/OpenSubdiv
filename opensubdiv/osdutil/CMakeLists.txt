@@ -35,6 +35,7 @@ set(PUBLIC_HEADER_FILES
     batch.h
     drawItem.h
     drawController.h
+    evaluator_capi.h    
     mesh.h
     refiner.h
     topology.h
@@ -43,7 +44,9 @@ set(PUBLIC_HEADER_FILES
 
 add_library(osdutil
     adaptiveEvaluator.h
-    adaptiveEvaluator.cpp    
+    adaptiveEvaluator.cpp
+    evaluator_capi.h
+    evaluator_capi.cpp            
     mesh.h
     mesh.cpp
     refiner.h
