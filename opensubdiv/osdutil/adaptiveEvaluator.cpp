@@ -370,7 +370,7 @@ PxOsdUtilAdaptiveEvaluator::GetRefinedTopology(
 	ptexFaceIndex++;
 
 	if ((numSubfacesToProcess == 0) and
-	    (coarseFaceIndex == t.nverts.size())) {
+	    (coarseFaceIndex == (int)t.nverts.size())) {
 	    done = true; // last face
 	}
 	
