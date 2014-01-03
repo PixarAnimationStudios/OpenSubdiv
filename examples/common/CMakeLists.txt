@@ -22,7 +22,7 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-set(EXAMPLES_COMMON_SOURCE_FILES 
+set(EXAMPLES_COMMON_SOURCE_FILES
     font_image.cpp
     hdr_reader.cpp
     hud.cpp
@@ -49,9 +49,16 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
         gl_hud.h
     )
+
+    include_directories(${OPENGL_INCLUDE_DIR})
+
+    if (GLEW_FOUND)
+        include_directories(${GLEW_INCLUDE_DIR})
+    endif()
+
 endif()
 
-    
+
 if(DXSDK_FOUND)
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
@@ -61,6 +68,9 @@ if(DXSDK_FOUND)
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
         d3d11_hud.h
     )
+
+    include_directories(${DXSDK_INCLUDE_DIR})
+
 endif()
 
 include_directories(
