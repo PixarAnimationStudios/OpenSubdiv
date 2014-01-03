@@ -78,14 +78,10 @@ endforeach()
 
 #-------------------------------------------------------------------------------
 _add_glfw_executable(ptexViewer
-   viewer.cpp
-   ../common/font_image.cpp
-   ../common/hud.cpp
-   ../common/patchColors.cpp
-   ../common/gl_hud.cpp
-   ../common/hdr_reader.cpp
-   ${SHADER_FILES}
-   ${INC_FILES}
+    viewer.cpp
+    ${SHADER_FILES}
+    ${INC_FILES}
+    $<TARGET_OBJECTS:examples_common_obj>
 )
 
 target_link_libraries(ptexViewer

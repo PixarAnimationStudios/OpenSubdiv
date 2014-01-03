@@ -67,11 +67,9 @@ endforeach()
 
 _add_glfw_executable(paintTest
     main.cpp
-    ../common/font_image.cpp
-    ../common/hud.cpp
-    ../common/gl_hud.cpp
     ${SHADER_FILES}
     ${INC_FILES}
+    $<TARGET_OBJECTS:examples_common_obj>
 )
 
 target_link_libraries(paintTest

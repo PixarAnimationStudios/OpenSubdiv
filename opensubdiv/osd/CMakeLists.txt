@@ -466,15 +466,25 @@ source_group("Inc" FILES ${INC_FILES})
 
 if (NOT NO_LIB)
 
-    add_library(osd_static_cpu_obj
+    # Compile objs first for both the CPU and GPU libs -----
+    add_library(osd_cpu_obj
         OBJECT
             ${CPU_SOURCE_FILES}
             ${PRIVATE_HEADER_FILES}
             ${PUBLIC_HEADER_FILES}
     )
+
+    add_library(osd_gpu_obj
+        OBJECT
+            ${GPU_SOURCE_FILES}
+            ${PRIVATE_HEADER_FILES}
+            ${PUBLIC_HEADER_FILES}
+    )
+
+    # Build static libs ------------------------------------
     add_library(osd_static_cpu
         STATIC
-        $<TARGET_OBJECTS:osd_static_cpu_obj>
+        $<TARGET_OBJECTS:osd_cpu_obj>
     )
     set_target_properties(osd_static_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
 
@@ -482,11 +492,11 @@ if (NOT NO_LIB)
         ${PLATFORM_CPU_LIBRARIES}
     )
 
+    # this macro uses FindCUDA.cmake to compile .cu kernel files
+    # the target then adds the other obj dependencies and include files
     _add_possibly_cuda_library(osd_static_gpu
         STATIC
-            ${GPU_SOURCE_FILES}
-            ${PRIVATE_HEADER_FILES}
-            ${PUBLIC_HEADER_FILES}
+            $<TARGET_OBJECTS:osd_gpu_obj>
             ${KERNEL_FILES}
             ${INC_FILES}
     )
@@ -499,22 +509,20 @@ if (NOT NO_LIB)
     install( TARGETS osd_static_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
     install( TARGETS osd_static_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
 
+    # Build dynamic libs  ----------------------------------
     if (NOT WIN32 AND NOT IOS)
 
         # Evaluate 'soname' from OSD version
+            # replace '_' with '.'
+            string(REGEX REPLACE "(_)" "." OSD_SONAME ${OpenSubdiv_VERSION})
 
-        # replace '_' with '.'
-        string(REGEX REPLACE "(_)" "." OSD_SONAME ${OpenSubdiv_VERSION})
-
-        # remove starting 'v' character
-        string(REGEX REPLACE "^v" "" OSD_SONAME ${OSD_SONAME})
+            # remove starting 'v' character
+            string(REGEX REPLACE "^v" "" OSD_SONAME ${OSD_SONAME})
 
         # generate dynamic-link targets
         add_library(osd_dynamic_cpu
             SHARED
-                ${CPU_SOURCE_FILES}
-                ${PRIVATE_HEADER_FILES}
-                ${PUBLIC_HEADER_FILES}
+            $<TARGET_OBJECTS:osd_cpu_obj>
         )
 
         set_target_properties(osd_dynamic_cpu
@@ -530,9 +538,7 @@ if (NOT NO_LIB)
 
         _add_possibly_cuda_library(osd_dynamic_gpu
             SHARED
-                ${GPU_SOURCE_FILES}
-                ${PRIVATE_HEADER_FILES}
-                ${PUBLIC_HEADER_FILES}
+                $<TARGET_OBJECTS:osd_gpu_obj>
                 ${KERNEL_FILES}
                 ${INC_FILES}
         )

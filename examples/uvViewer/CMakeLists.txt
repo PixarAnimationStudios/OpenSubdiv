@@ -69,11 +69,9 @@ endforeach()
 
 _add_glfw_executable(uvViewer
     viewer.cpp
-    ../common/font_image.cpp
-    ../common/hud.cpp
-    ../common/gl_hud.cpp
     ${SHADER_FILES}
     ${INC_FILES}
+    $<TARGET_OBJECTS:examples_common_obj>
 )
 
 target_link_libraries(uvViewer

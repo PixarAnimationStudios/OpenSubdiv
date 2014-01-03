@@ -42,9 +42,6 @@ include_directories(
 )
 
 set(SOURCE_FILES
-    ../common/font_image.cpp
-    ../common/hud.cpp
-    ../common/d3d11_hud.cpp
     dxPtexViewer.cpp
 )
 
@@ -74,6 +71,7 @@ _add_possibly_cuda_executable(dxPtexViewer WIN32
     ${SOURCE_FILES}
     ${SHADER_FILES}
     ${INC_FILES}
+    $<TARGET_OBJECTS:examples_common_obj>
 )
 
 target_link_libraries(dxPtexViewer

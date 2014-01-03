@@ -73,12 +73,9 @@ _add_glfw_executable(glBatchViewer
     delegate.cpp
     effect.cpp
     effectRegistry.cpp
-    ../common/font_image.cpp
-    ../common/hud.cpp
-    ../common/patchColors.cpp
-    ../common/gl_hud.cpp
     ${SHADER_FILES}
     ${INC_FILES}
+    $<TARGET_OBJECTS:examples_common_obj>
 )
 
 target_link_libraries(glBatchViewer
