@@ -273,97 +273,92 @@ add_definitions(${OSD_COMPILER_FLAGS})
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 
 # Check for dependencies
-if(NOT NO_OMP AND NOT JAVASCRIPT)
-    find_package(OpenMP)
-endif()
-if(NOT NO_TBB AND NOT JAVASCRIPT)
-    find_package(TBB 4.0)
-endif()
+if (NOT JAVASCRIPT)
+    if(NOT NO_OMP)
+        find_package(OpenMP)
+    endif()
+    if(NOT NO_TBB)
+        find_package(TBB 4.0)
+    endif()
+endif(NOT JAVASCRIPT)
 
 find_package(OpenGL)
 find_package(OpenGLES)
 
-if (JAVASCRIPT)
-    # TODO: disable advanced OpenGL features
-endif()
-
 if (NOT JAVASCRIPT)
     find_package(OpenCL 1.1)
-endif()
 
-if(NOT NO_CUDA AND NOT JAVASCRIPT)
-    find_package(CUDA 4.0)
-endif()
-if(NOT ANDROID AND NOT IOS)
-    find_package(GLFW 2.7.0)
-endif()
+    if(NOT NO_CUDA)
+        find_package(CUDA 4.0)
+    endif()
+    if(NOT ANDROID AND NOT IOS)
+        find_package(GLFW 2.7.0)
+    endif()
 
-if (NOT JAVASCRIPT)
     find_package(PTex 2.0)
     find_package(PythonInterp 2.6)
     find_package(SWIG 1.3.40)
     find_package(Doxygen 1.8.4)
     find_package(Docutils 0.6)
-endif()
 
-# XXX(jcowles): Emscripten support for glew is coming, but has not yet landed.
-# We will allow warnings from regression/viewer to spew, as a reminder to get
-# glew working.
-if (OPENGL_FOUND AND NOT JAVASCRIPT)
-    if (APPLE)
-        find_package(GLEW)
-    else()
-        find_package(GLEW REQUIRED)
+    # XXX(jcowles): Emscripten support for glew is coming, but has not yet landed.
+    # We will allow warnings from regression/viewer to spew, as a reminder to get
+    # glew working.
+    if (OPENGL_FOUND)
+        if (APPLE)
+            find_package(GLEW)
+        else()
+            find_package(GLEW REQUIRED)
+        endif()
     endif()
-endif()
 
-if (WIN32)
-   find_package(DXSDK)
-endif()
+    if (WIN32)
+       find_package(DXSDK)
+    endif()
 
-if (NOT NO_GCD AND APPLE AND NOT JAVASCRIPT)
-    set(GCD_FOUND 1)
-endif()
+    if (NOT NO_GCD AND APPLE)
+        set(GCD_FOUND 1)
+    endif()
 
-if (NOT JAVASCRIPT)
     find_package(Maya 201200)
-endif()
 
-# Warn about missing dependencies that will cause parts of OpenSubdiv to be
-# disabled.  Also, add preprocessor defines that can be used in the source
-# code to determine if a specific dependency is present or not.
 
-if(GCD_FOUND)
-    add_definitions( -DOPENSUBDIV_HAS_GCD )
-endif()
+    # Warn about missing dependencies that will cause parts of OpenSubdiv to be
+    # disabled.  Also, add preprocessor defines that can be used in the source
+    # code to determine if a specific dependency is present or not.
 
-if(OPENMP_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_OPENMP
-        ${OpenMP_CXX_FLAGS}
-    )
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
-elseif(NOT JAVASCRIPT)
-    message(WARNING
-        "OpenMP was not found : support for OMP parallel compute kernels "
-        "will be diabled in Osd.  If your compiler supports OpenMP "
-        "directives, please refer to the FindOpenMP.cmake shared module "
-        "in your cmake installation.")
-endif()
+    if(GCD_FOUND)
+        add_definitions( -DOPENSUBDIV_HAS_GCD )
+    endif()
 
-if(TBB_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_TBB
-        ${TBB_CXX_FLAGS}
-    )
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TBB_CXX_FLAGS}")
-elseif(NOT JAVASCRIPT)
-    message(WARNING
-        "TBB was not found : support for TBB parallel compute kernels "
-        "will be diabled in Osd.  If your compiler supports TBB "
-        "directives, please refer to the FindTBB.cmake shared module "
-        "in your cmake installation.")
-endif()
+    if(OPENMP_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_OPENMP
+            ${OpenMP_CXX_FLAGS}
+        )
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
+    else()
+        message(WARNING
+            "OpenMP was not found : support for OMP parallel compute kernels "
+            "will be diabled in Osd.  If your compiler supports OpenMP "
+            "directives, please refer to the FindOpenMP.cmake shared module "
+            "in your cmake installation.")
+    endif()
+
+    if(TBB_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_TBB
+            ${TBB_CXX_FLAGS}
+        )
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TBB_CXX_FLAGS}")
+    elseif()
+        message(WARNING
+            "TBB was not found : support for TBB parallel compute kernels "
+            "will be diabled in Osd.  If your compiler supports TBB "
+            "directives, please refer to the FindTBB.cmake shared module "
+            "in your cmake installation.")
+    endif()
+endif(NOT JAVASCRIPT)
 
 if(GLFW_FOUND AND (GLFW_VERSION VERSION_EQUAL 3.0 OR GLFW_VERSION VERSION_GREATER 3.0))
     add_definitions( -DGLFW_VERSION_3 )
@@ -374,87 +369,89 @@ if(GLEW_FOUND)
     add_definitions( -DOSD_USES_GLEW )
 endif()
 
-# note : (GLSL transform feedback kernels require GL 4.2)
-if(GLEW_FOUND AND OPENGL_4_2_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    )
-elseif(NOT JAVASCRIPT)
-    message(WARNING
-        "OpenGL 4.2 was not found : support for GLSL transform feedback kernels "
-        "will be disabled in Osd.  If you have an OpenGL SDK installed "
-        "(version 4.2 or above), please refer to the FindOpenGL.cmake "
-        "shared module in your cmake installation.")
-endif()
+if (NOT JAVASCRIPT)
+    # note : (GLSL transform feedback kernels require GL 4.2)
+    if(GLEW_FOUND AND OPENGL_4_2_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+        )
+    else()
+        message(WARNING
+            "OpenGL 4.2 was not found : support for GLSL transform feedback kernels "
+            "will be disabled in Osd.  If you have an OpenGL SDK installed "
+            "(version 4.2 or above), please refer to the FindOpenGL.cmake "
+            "shared module in your cmake installation.")
+    endif()
 
-# note : (GLSL compute shader kernels require GL 4.3)
-if(GLEW_FOUND AND OPENGL_4_3_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_GLSL_COMPUTE
-    )
-elseif(NOT JAVASCRIPT)
-    message(WARNING
-        "OpenGL 4.3 was not found : support for GLSL compute shader kernels "
-        "will be disabled in Osd.  If you have an OpenGL SDK installed "
-        "(version 4.3 or above), please refer to the FindOpenGL.cmake "
-        "shared module in your cmake installation.")
-endif()
+    # note : (GLSL compute shader kernels require GL 4.3)
+    if(GLEW_FOUND AND OPENGL_4_3_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_GLSL_COMPUTE
+        )
+    else()
+        message(WARNING
+            "OpenGL 4.3 was not found : support for GLSL compute shader kernels "
+            "will be disabled in Osd.  If you have an OpenGL SDK installed "
+            "(version 4.3 or above), please refer to the FindOpenGL.cmake "
+            "shared module in your cmake installation.")
+    endif()
 
-if(OPENGLES_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_OPENGLES
-    )
-endif()
+    if(OPENGLES_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_OPENGLES
+        )
+    endif()
 
-if(OPENCL_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_OPENCL
-    )
-elseif(NOT JAVASCRIPT)
-    message(WARNING
-        "OpenCL was not found : support for OpenCL parallel compute kernels "
-        "will be disabled in Osd.  If you have the OpenCL SDK installed, "
-        "please refer to the FindOpenCL.cmake in ${PROJECT_SOURCE_DIR}/cmake.")
-endif()
+    if(OPENCL_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_OPENCL
+        )
+    else()
+        message(WARNING
+            "OpenCL was not found : support for OpenCL parallel compute kernels "
+            "will be disabled in Osd.  If you have the OpenCL SDK installed, "
+            "please refer to the FindOpenCL.cmake in ${PROJECT_SOURCE_DIR}/cmake.")
+    endif()
 
-if(CUDA_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_CUDA
-    )
-elseif(NOT JAVASCRIPT)
-    message(WARNING
-        "CUDA was not found : support for CUDA parallel compute kernels "
-        "will be disabled in Osd.  If you have the CUDA SDK installed, please "
-        "refer to the FindCUDA.cmake shared module in your cmake installation.")
-endif()
+    if(CUDA_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_CUDA
+        )
+    else()
+        message(WARNING
+            "CUDA was not found : support for CUDA parallel compute kernels "
+            "will be disabled in Osd.  If you have the CUDA SDK installed, please "
+            "refer to the FindCUDA.cmake shared module in your cmake installation.")
+    endif()
 
-if(PTEX_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_PTEX
-    )
-elseif(NOT JAVASCRIPT)
-    message(WARNING
-        "Ptex was not found : the OpenSubdiv Ptex example will not be "
-        "available.  If you do have Ptex installed and see this message, "
-        "please add your Ptex path to FindPTex.cmake in "
-        "${PROJECT_SOURCE_DIR}/cmake or set it through the PTEX_LOCATION "
-        "cmake command line argument or environment variable."
-    )
-endif()
+    if(PTEX_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_PTEX
+        )
+    else()
+        message(WARNING
+            "Ptex was not found : the OpenSubdiv Ptex example will not be "
+            "available.  If you do have Ptex installed and see this message, "
+            "please add your Ptex path to FindPTex.cmake in "
+            "${PROJECT_SOURCE_DIR}/cmake or set it through the PTEX_LOCATION "
+            "cmake command line argument or environment variable."
+        )
+    endif()
 
-if(MAYA_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_MAYA
-    )
-elseif(NOT JAVASCRIPT)
-    message(WARNING
-        "Maya was not found : the OpenSubdiv mayaViwer plugin will not be "
-        "available.  If you do have Maya installed and see this message, "
-        "please add your Maya path to FindMaya.cmake in "
-        "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
-        "cmake command line argument or environment variable."
-    )
-endif()
+    if(MAYA_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_MAYA
+        )
+    else()
+        message(WARNING
+            "Maya was not found : the OpenSubdiv mayaViwer plugin will not be "
+            "available.  If you do have Maya installed and see this message, "
+            "please add your Maya path to FindMaya.cmake in "
+            "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
+            "cmake command line argument or environment variable."
+        )
+    endif()
+endif(NOT JAVASCRIPT)
 
 # Link examples & regressions dynamically against Osd
 set( OSD_LINK_TARGET osd_dynamic_cpu osd_dynamic_gpu )
