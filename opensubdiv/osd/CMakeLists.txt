@@ -434,30 +434,10 @@ endif()
 list(APPEND DOXY_HEADER_FILES ${CUDA_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
-# Kernel Stringification
-# We want to use preprocessor include directives to include GLSL and OpenCL
-# kernel source files in cpp files, but since the sources contain newline
-# characters we would need raw string literals from C++11 to do this directly.
-# To avoid depending on C++11 we instead use a small tool called "line_quote"
-# to generate source files that are suitable for direct inclusion.
-foreach(kernel_file ${KERNEL_FILES})
 
-    string(REGEX REPLACE ".*[.](.*)" "\\1" extension ${kernel_file})
+_stringify("${KERNEL_FILES}" INC_FILES)
 
-    if(NOT ${extension} STREQUAL "cu")
-
-        string(REGEX REPLACE "(.*)[.].*" "\\1.gen.h" inc_file ${kernel_file})
-        list(APPEND INC_FILES ${inc_file})
-
-        add_custom_command(
-            OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
-            COMMAND stringify ${CMAKE_CURRENT_SOURCE_DIR}/${kernel_file}
-                ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
-            DEPENDS stringify ${CMAKE_CURRENT_SOURCE_DIR}/${kernel_file}
-        )
-
-    endif()
-endforeach()
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 #-------------------------------------------------------------------------------
 source_group("Kernels" FILES ${KERNEL_FILES})

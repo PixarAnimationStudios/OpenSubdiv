@@ -83,7 +83,7 @@ OpenSubdiv::OsdD3D11MeshInterface *g_mesh;
 #include "../../regression/common/shape_utils.h"
 
 static const char *g_shaderSource =
-#include "shader.inc"
+#include "shader.gen.h"
 ;
 
 #include <algorithm>

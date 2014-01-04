@@ -65,10 +65,10 @@ OpenSubdiv::OsdGLMeshInterface *g_mesh;
 #include "../common/gl_hud.h"
 
 static const char *shaderSource =
-#include "shader.inc"
+#include "shader.gen.h"
 ;
 static const char *paintShaderSource =
-#include "paintShader.inc"
+#include "paintShader.gen.h"
 ;
 
 #include <cfloat>

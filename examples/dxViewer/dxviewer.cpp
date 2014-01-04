@@ -79,7 +79,7 @@ OpenSubdiv::OsdD3D11MeshInterface *g_mesh;
 #include "../common/d3d11_hud.h"
 
 static const char *shaderSource =
-#include "shader.inc"
+#include "shader.gen.h"
 ;
 
 #include <algorithm>
