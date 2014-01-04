@@ -446,7 +446,7 @@ foreach(kernel_file ${KERNEL_FILES})
 
     if(NOT ${extension} STREQUAL "cu")
 
-        string(REGEX REPLACE "(.*)[.].*" "\\1.inc" inc_file ${kernel_file})
+        string(REGEX REPLACE "(.*)[.].*" "\\1.gen.h" inc_file ${kernel_file})
         list(APPEND INC_FILES ${inc_file})
 
         add_custom_command(
@@ -466,11 +466,15 @@ source_group("Inc" FILES ${INC_FILES})
 
 if (NOT NO_LIB)
 
-    add_library(osd_static_cpu
-        STATIC
+    add_library(osd_cpu_obj
+        OBJECT
             ${CPU_SOURCE_FILES}
             ${PRIVATE_HEADER_FILES}
             ${PUBLIC_HEADER_FILES}
+    )
+    add_library(osd_static_cpu
+        STATIC
+        $<TARGET_OBJECTS:osd_cpu_obj>
     )
     set_target_properties(osd_static_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
 
@@ -478,13 +482,17 @@ if (NOT NO_LIB)
         ${PLATFORM_CPU_LIBRARIES}
     )
 
-    _add_possibly_cuda_library(osd_static_gpu
-        STATIC
+    add_library(osd_gpu_obj
+        OBJECT 
             ${GPU_SOURCE_FILES}
             ${PRIVATE_HEADER_FILES}
             ${PUBLIC_HEADER_FILES}
-            ${KERNEL_FILES}
             ${INC_FILES}
+    )
+    _add_possibly_cuda_library(osd_static_gpu
+        STATIC
+        $<TARGET_OBJECTS:osd_gpu_obj>
+        ${KERNEL_FILES}
     )
     set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
 
@@ -508,9 +516,7 @@ if (NOT NO_LIB)
         # generate dynamic-link targets
         add_library(osd_dynamic_cpu
             SHARED
-                ${CPU_SOURCE_FILES}
-                ${PRIVATE_HEADER_FILES}
-                ${PUBLIC_HEADER_FILES}
+            $<TARGET_OBJECTS:osd_cpu_obj>
         )
 
         set_target_properties(osd_dynamic_cpu
@@ -526,11 +532,8 @@ if (NOT NO_LIB)
 
         _add_possibly_cuda_library(osd_dynamic_gpu
             SHARED
-                ${GPU_SOURCE_FILES}
-                ${PRIVATE_HEADER_FILES}
-                ${PUBLIC_HEADER_FILES}
-                ${KERNEL_FILES}
-                ${INC_FILES}
+            $<TARGET_OBJECTS:osd_gpu_obj>
+            ${KERNEL_FILES}
         )
 
         set_target_properties(osd_dynamic_gpu
