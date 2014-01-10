@@ -174,6 +174,7 @@ set(OPENMP_PUBLIC_HEADERS
     ompKernel.h
     ompComputeController.h
     ompEvalStencilsController.h
+    ompSmoothNormalController.h
 )
 
 if( OPENMP_FOUND )
@@ -181,6 +182,7 @@ if( OPENMP_FOUND )
         ompKernel.cpp
         ompComputeController.cpp
         ompEvalStencilsController.cpp
+        ompSmoothNormalController.cpp
     )
 
     list(APPEND PUBLIC_HEADER_FILES ${OPENMP_PUBLIC_HEADERS})
