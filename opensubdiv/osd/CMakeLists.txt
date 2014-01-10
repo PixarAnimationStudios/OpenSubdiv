@@ -59,6 +59,8 @@ set(CPU_SOURCE_FILES
     cpuEvalLimitKernel.cpp
     cpuEvalStencilsContext.cpp
     cpuEvalStencilsController.cpp
+    cpuSmoothNormalContext.cpp
+    cpuSmoothNormalController.cpp
     cpuVertexBuffer.cpp
     error.cpp
     evalLimitContext.cpp
@@ -89,6 +91,8 @@ set(PUBLIC_HEADER_FILES
     cpuEvalLimitController.h
     cpuEvalStencilsContext.h
     cpuEvalStencilsController.h
+    cpuSmoothNormalContext.h
+    cpuSmoothNormalController.h
     cpuVertexBuffer.h
     error.h
     evalLimitContext.h
