@@ -203,11 +203,13 @@ if( TBB_FOUND )
         tbbKernel.cpp
         tbbComputeController.cpp
         tbbEvalStencilsController.cpp
+        tbbSmoothNormalController.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES
         tbbKernel.h
         tbbComputeController.h
         tbbEvalStencilsController.h
+        tbbSmoothNormalController.h
     )
     if (CMAKE_COMPILER_IS_GNUCXX)
         list(APPEND PLATFORM_CPU_LIBRARIES

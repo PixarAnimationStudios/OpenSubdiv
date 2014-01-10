@@ -22,27 +22,53 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#ifndef OSD_TBB_SMOOTHNORMAL_CONTROLLER_H
+#define OSD_TBB_SMOOTHNORMAL_CONTROLLER_H
+
+#include "../version.h"
+
+#include "../osd/nonCopyable.h"
 #include "../osd/cpuSmoothNormalContext.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCpuSmoothNormalContext::OsdCpuSmoothNormalContext(
-    FarPatchTables const *patchTables, bool resetMemory) :
-        _numVertices(0), _resetMemory(resetMemory) {
+class OsdTbbSmoothNormalController {
 
-    // copy the data from the FarTables
-    _patches = patchTables->GetPatchTable();
+public:
 
-    _patchArrays = patchTables->GetPatchArrayVector();
-}
+    /// Constructor
+    OsdTbbSmoothNormalController();
 
-OsdCpuSmoothNormalContext *
-OsdCpuSmoothNormalContext::Create(FarPatchTables const *patchTables, bool resetMemory) {
+    /// Destructor
+    ~OsdTbbSmoothNormalController();
 
-    return new OsdCpuSmoothNormalContext(patchTables, resetMemory);
-}
+    /// Computes smooth vertex normals
+    template<class VERTEX_BUFFER>
+    void SmootheNormals( OsdCpuSmoothNormalContext * context,
+                         VERTEX_BUFFER * iBuffer, int iOfs,
+                         VERTEX_BUFFER * oBuffer, int oOfs ) {
 
+         if (not context) return;
+
+         context->Bind(iBuffer, iOfs, oBuffer, oOfs);
+
+         _smootheNormals(context);
+
+         context->Unbind();
+    }
+
+    /// Waits until all running subdivision kernels finish.
+    void Synchronize();
+
+private:
+
+    void _smootheNormals(OsdCpuSmoothNormalContext * context);
+};
 
 }  // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
 }  // end namespace OpenSubdiv
+
+#endif  // OSD_CPU_SMOOTHNORMAL_CONTROLLER_H

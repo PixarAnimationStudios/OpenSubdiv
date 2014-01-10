@@ -26,20 +26,9 @@
 
 #include <math.h>
 #include <string.h>
-#include <stdio.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
-
-OsdCpuSmoothNormalController::OsdCpuSmoothNormalController() {
-}
-
-OsdCpuSmoothNormalController::~OsdCpuSmoothNormalController() {
-}
-
-void
-OsdCpuSmoothNormalController::Synchronize() {
-}
 
 inline void
 cross(float *n, const float *p0, const float *p1, const float *p2) {
@@ -56,7 +45,8 @@ cross(float *n, const float *p0, const float *p1, const float *p2) {
     n[2] *= rn;
 }
 
-void OsdCpuSmoothNormalController::_smootheNormals(OsdCpuSmoothNormalContext * context) {
+void OsdCpuSmoothNormalController::_smootheNormals(
+    OsdCpuSmoothNormalContext * context) {
 
     OsdVertexBufferDescriptor const & iDesc = context->GetInputVertexDescriptor(),
                                     & oDesc = context->GetOutputVertexDescriptor();
@@ -85,9 +75,12 @@ void OsdCpuSmoothNormalController::_smootheNormals(OsdCpuSmoothNormalContext * c
 
             int nv = FarPatchTables::Descriptor::GetNumControlVertices(type);
 
-            // reset all normal values to 0
-            for (int j=0, idx=pa.GetVertIndex(); j<(int)pa.GetNumPatches()*nv; ++j, ++idx) {
-                memset(oBuffer + verts[idx]*oDesc.stride, 0, oDesc.length*sizeof(float));
+            // if necessary, reset all normal values to 0
+            if (context->GetResetMemory()) {
+                float * ptr = oBuffer;
+                for (int j=0; j<context->GetNumVertices(); ++j, ptr += oDesc.stride) {
+                    memset(ptr, 0, oDesc.length*sizeof(float));
+                }
             }
 
             for (int j=0, idx=pa.GetVertIndex(); j<(int)pa.GetNumPatches(); ++j, idx+=nv) {
@@ -114,6 +107,16 @@ void OsdCpuSmoothNormalController::_smootheNormals(OsdCpuSmoothNormalContext * c
         }
     }
 
+}
+
+OsdCpuSmoothNormalController::OsdCpuSmoothNormalController() {
+}
+
+OsdCpuSmoothNormalController::~OsdCpuSmoothNormalController() {
+}
+
+void
+OsdCpuSmoothNormalController::Synchronize() {
 }
 
 }  // end namespace OPENSUBDIV_VERSION

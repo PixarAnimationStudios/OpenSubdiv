@@ -42,9 +42,16 @@ public:
 
     /// Creates an OsdCpuComputeContext instance
     ///
-    /// @param farmesh the FarMesh used for this Context.
+    /// @param farmesh      The FarMesh used for this Context.
     ///
-    static OsdCpuSmoothNormalContext * Create(FarPatchTables const *patchTables);
+    /// @param resetMemory  Set to true if the target vertex buffer needs its
+    ///                     memory reset before accumulating the averaged normals.
+    ///                     If the SmoothNormal Controller runs after a Computer
+    ///                     Controller, then the vertex buffer will already have
+    ///                     been reset and this step can be skipped to save time.
+    ///
+    static OsdCpuSmoothNormalContext * Create(
+        FarPatchTables const *patchTables, bool resetMemory=false);
 
     /// Binds a vertex and a varying data buffers to the context. Binding ensures
     /// that data buffers are properly inter-operated between Contexts and
@@ -63,13 +70,16 @@ public:
               VERTEX_BUFFER * out, int oOfs) {
 
         assert( ((iOfs+3)<=in->GetNumElements()) and
-            ((oOfs+3)<=out->GetNumElements()));
+            ((oOfs+3)<=out->GetNumElements()) and
+            out->GetNumVertices()>=in->GetNumVertices());
 
         _iBuffer = in ? in->BindCpuBuffer() : 0;
         _oBuffer = out ? out->BindCpuBuffer() : 0;
 
         _iDesc = OsdVertexBufferDescriptor( iOfs, 3, in->GetNumElements() );
         _oDesc = OsdVertexBufferDescriptor( oOfs, 3, out->GetNumElements() );
+
+        _numVertices = out->GetNumVertices();
     }
 
     /// Unbinds any previously bound vertex and varying data buffers.
@@ -78,6 +88,7 @@ public:
         _iBuffer = _oBuffer = 0;
         _iDesc.Reset();
         _oDesc.Reset();
+        _numVertices = 0;
     }
 
     /// Returns the vector of patch arrays
@@ -111,9 +122,27 @@ public:
         return _oDesc;
     }
 
+    /// Returns the number of vertices in output vertex buffer
+    int GetNumVertices() const {
+        return _numVertices;
+    }
+
+    /// Returns whether the controller needs to reset the vertex buffer before
+    /// accumulating smooth normals
+    bool GetResetMemory() const {
+        return _resetMemory;
+    }
+
+    /// Set to true if the controller needs to reset the vertex buffer before
+    /// accumulating smooth normals
+    void SetResetMemory(bool resetMemory) {
+        _resetMemory = resetMemory;
+    }
+
 protected:
     // Constructor
-    explicit OsdCpuSmoothNormalContext(FarPatchTables const *patchTables);
+    explicit OsdCpuSmoothNormalContext(
+        FarPatchTables const *patchTables, bool resetMemory);
 
 private:
 
@@ -124,9 +153,12 @@ private:
     OsdVertexBufferDescriptor _iDesc,
                               _oDesc;
 
+    int _numVertices;
+
     float * _iBuffer,
           * _oBuffer;
 
+    bool _resetMemory;  // set to true if the output buffer needs to be reset to 0
 };
 
 
