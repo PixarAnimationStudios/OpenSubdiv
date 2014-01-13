@@ -31,6 +31,32 @@ Release Notes
 
 ----
 
+Release 2.3.4
+=============
+
+**New Features**
+    - Adding CPU/OMP/TBB Context / Controller pairs for CPU evaluation of smooth normals
+    - Added adaptiveEvaluator class inspired by Sergey's work in blender (OsdUtil)
+
+**Changes**
+    - Changed the HUD to ignore mouse clicks when not visible.
+    - Updates for blender development (OsdUtil)
+    - Add C compatible API to access the adaptiveEvaluator class from non-C++ (OsdUtil)
+    - Update license headers to apache (OsdUtil)
+    - CMake build improvement : make osd a cmake object library & remove compiling redundancies
+    - Improve stringification of shaders & kernels in CMake build
+
+**Bug Fixes**
+    - Fixed iOS build
+    - Fixed VS2010 warnings/errors.
+    - Fix OsdCpuEvalLimitKernel
+    - Fix maxvalence calculation in FarMeshFactory 
+    - Fix FarStencilFactory control stencil caching
+    - Removing assert for high-valence vertices running off limit tangent pre-computed table.
+    - Fix degenerate stencil limit tangent code path. 
+    - Fix unused variable build warnings (gcc 4.8.2 - Fedora 19)
+    - Fix build warning from osdutil/adaptiveEvaluator.cpp
+
 Release 2.3.3
 =============
 
