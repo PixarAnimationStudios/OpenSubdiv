@@ -34,6 +34,7 @@
 #include "../far/stencilTables.h"
 
 #include <string.h>
+#include <list>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -119,6 +120,10 @@ public:
                         float const * v,
                         int reflevel );
 
+    /// \brief Returns the maximum valence of a vertex allowed in the coarse
+    /// mesh topology. Higher valences will generate incorrect limit tangents.
+    int GetMaxValenceSupported();
+
 private:
 
     friend class FarVertexStencil;
@@ -166,7 +171,7 @@ FarStencilTablesFactory<T>::SetCurrentFace(int id, unsigned int quadrant) {
             return false;
 
     } else {
-
+        // face is a quad: lock quadrant to 0
         quadrant = 0;
     }
 
@@ -689,14 +694,20 @@ FarStencilTablesFactory<T>::Patch::SetupControlStencils( HbrFace<T> * f,
 
     assert(f and f->IsCoarse());
 
-    _quadrant = quadrant;
+    // same face and same quadrant: control stencil and cached bspline patch
+    // stay the same
+    if (quadrant==GetCurrentQuadrant() and f==GetCurrentFace())
+        return;
 
+    // new face or new quadrant: control stencil may still be the same, but
+    // cached bspline patch must be invalidated
+    _quadrant = quadrant;
+    _bsplineFace = NULL;
     if (f==GetCurrentFace())
         return;
 
+    // new coarse face: control stencil is invalidated and must be recomputed
     _face = f;
-
-    _bsplineFace = NULL;
 
     HbrMesh<T> * mesh = f->GetMesh();
 
@@ -1508,30 +1519,87 @@ template <class T> void
 FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
                                                              float * uderiv,
                                                              float * vderiv ) {
-    static float creaseK[][12] = {
-        {  .000000f,  .000000f,  .000000f,  .000000f,  .000000f,  .000000f,
-           .000000f,  .000000f,  .000000f,  .000000f,  .000000f,  .000000f },
-        {  .000000f,  .000000f,  .000000f,  .000000f,  .000000f,  .000000f,
-           .000000f,  .000000f,  .000000f,  .000000f,  .000000f,  .000000f },
-        { 1.000000f, -.500000f, -.500000f,  .000000f,  .000000f,  .000000f,
-           .000000f,  .000000f,  .000000f,  .000000f,  .000000f,  .000000f },
-        { 1.000000f,  .000000f,  .000000f, -1.00000f,  .000000f,  .000000f,
-           .000000f,  .000000f,  .000000f,  .000000f,  .000000f,  .000000f },
-        { 1.000000f,  .500000f,  .500000f, -1.00000f, -1.00000f,  .000000f,
-           .000000f,  .000000f,  .000000f,  .000000f,  .000000f,  .000000f },
-        {  .707107f,  .500000f,  .500000f, -.500000f, -.707107f, -.500000f,
-           .000000f,  .000000f,  .000000f,  .000000f,  .000000f,  .000000f },
-        {  .743496f,  .601501f,  .601501f, -.371748f, -.601501f, -.601501f,
-          -.371748f,  .000000f,  .000000f,  .000000f,  .000000f,  .000000f },
-        {  .788675f,  .683013f,  .683013f, -.288675f, -.500000f, -.577350f,
-          -.500000f, -.288675f,  .000000f,  .000000f,  .000000f,  .000000f },
-        {  .835813f,  .753042f,  .753042f, -.231921f, -.417907f, -.521121f,
-          -.521121f, -.417907f, -.231921f,  .000000f,  .000000f,  .000000f },
-        {  .882683f,  .815493f,  .815493f, -.191342f, -.353553f, -.461940f,
-          -.500000f, -.461940f, -.353553f, -.191342f,  .000000f,  .000000f },
-        {  .928486f,  .872491f,  .872491f, -.161230f, -.303013f, -.408248f,
-          -.464243f, -.464243f, -.408248f, -.303013f, -.161230f,  .000000f }
-    };
+
+    // Boundary vertex tangent stencil table generated using the python script:
+    // opensubdiv/tools/tangentStencils/tangentStencils.py
+
+#define FAR_LIMITTANGENT_MAXVALENCE 20
+
+    static float creaseK[][40] =
+        { { -0.662085f,  -0.082761f,   0.662085f,  -0.248282f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.165521f,   0.165521f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          {  0.430450f,   0.385279f,  -0.430450f,  -0.430450f,   0.475622f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,  -0.107613f,  -0.215225f,  -0.107613f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          { -0.263966f,  -0.557805f,   0.263966f,   0.373304f,   0.263966f,  -0.530084f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.065992f,   0.159318f,   0.159318f,   0.065992f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          {  0.173071f,   0.574415f,  -0.173071f,  -0.280034f,  -0.280034f,  -0.173071f,   0.611831f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,  -0.043268f,  -0.113276f,  -0.140017f,  -0.113276f,  -0.043268f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          {  0.110310f,   0.858370f,  -0.110310f,  -0.191063f,  -0.220620f,  -0.191063f,  -0.110310f,   0.266369f,   0.000000f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,  -0.027578f,  -0.075343f,  -0.102921f,  -0.102921f,  -0.075343f,  -0.027578f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          {  0.059499f,  -0.108652f,  -0.059499f,  -0.107213f,  -0.133693f,  -0.133693f,  -0.107213f,  -0.059499f,   0.950367f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,  -0.014875f,  -0.041678f,  -0.060226f,  -0.066846f,  -0.060226f,  -0.041678f,  -0.014875f,   0.000000f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          { -0.069034f,  -0.643889f,   0.069034f,   0.127558f,   0.166663f,   0.180394f,   0.166663f,   0.127558f,   0.069034f,  -0.647432f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.017258f,   0.049148f,   0.073555f,   0.086764f,   0.086764f,   0.073555f,   0.049148f,   0.017258f,   0.000000f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          {  0.054360f,   0.565883f,  -0.054360f,  -0.102164f,  -0.137645f,  -0.156524f,  -0.156524f,  -0.137645f,  -0.102164f,  -0.054360f,
+             0.731835f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,  -0.013590f,  -0.039131f,  -0.059952f,  -0.073542f,  -0.078262f,  -0.073542f,  -0.059952f,  -0.039131f,  -0.013590f,
+             0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          { -0.044000f,  -0.755024f,   0.044000f,   0.083693f,   0.115193f,   0.135418f,   0.142386f,   0.135418f,   0.115193f,   0.083693f,
+             0.044000f,  -0.549465f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.011000f,   0.031923f,   0.049721f,   0.062653f,   0.069451f,   0.069451f,   0.062653f,   0.049721f,   0.031923f,
+             0.011000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          {  0.010145f,  -0.497027f,  -0.010145f,  -0.019467f,  -0.027213f,  -0.032754f,  -0.035642f,  -0.035642f,  -0.032754f,  -0.027213f,
+            -0.019467f,  -0.010145f,   0.862545f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,  -0.002536f,  -0.007403f,  -0.011670f,  -0.014992f,  -0.017099f,  -0.017821f,  -0.017099f,  -0.014992f,  -0.011670f,
+            -0.007403f,  -0.002536f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          { -0.029547f,  -0.419056f,   0.029547f,   0.057081f,   0.080725f,   0.098867f,   0.110272f,   0.114162f,   0.110272f,   0.098867f,
+             0.080725f,   0.057081f,   0.029547f,  -0.852117f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.007387f,   0.021657f,   0.034451f,   0.044898f,   0.052285f,   0.056109f,   0.056109f,   0.052285f,   0.044898f,
+             0.034451f,   0.021657f,   0.007387f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          {  0.022520f,   0.197157f,  -0.022520f,  -0.043731f,  -0.062400f,  -0.077443f,  -0.087986f,  -0.093415f,  -0.093415f,  -0.087986f,
+            -0.077443f,  -0.062400f,  -0.043731f,  -0.022520f,   0.942807f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,  -0.005630f,  -0.016563f,  -0.026533f,  -0.034961f,  -0.041357f,  -0.045350f,  -0.046707f,  -0.045350f,  -0.041357f,
+            -0.034961f,  -0.026533f,  -0.016563f,  -0.005630f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          { -0.022403f,  -0.513093f,   0.022403f,   0.043683f,   0.062773f,   0.078714f,   0.090709f,   0.098155f,   0.100680f,   0.098155f,
+             0.090709f,   0.078714f,   0.062773f,   0.043683f,   0.022403f,  -0.804837f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.005601f,   0.016522f,   0.026614f,   0.035372f,   0.042356f,   0.047216f,   0.049709f,   0.049709f,   0.047216f,
+             0.042356f,   0.035372f,   0.026614f,   0.016522f,   0.005601f,   0.000000f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          { -0.019877f,  -0.743782f,   0.019877f,   0.038885f,   0.056194f,   0.071047f,   0.082795f,   0.090924f,   0.095079f,   0.095079f,
+             0.090924f,   0.082795f,   0.071047f,   0.056194f,   0.038885f,   0.019877f,  -0.600744f,   0.000000f,   0.000000f,   0.000000f,
+             0.000000f,   0.004969f,   0.014691f,   0.023770f,   0.031810f,   0.038460f,   0.043430f,   0.046501f,   0.047540f,   0.046501f,
+             0.043430f,   0.038460f,   0.031810f,   0.023770f,   0.014691f,   0.004969f,   0.000000f,   0.000000f,   0.000000f,   0.000000f, },
+          {  0.015725f,   0.289165f,  -0.015725f,  -0.030845f,  -0.044780f,  -0.056994f,  -0.067018f,  -0.074466f,  -0.079053f,  -0.080602f,
+            -0.079053f,  -0.074466f,  -0.067018f,  -0.056994f,  -0.044780f,  -0.030845f,  -0.015725f,   0.922656f,   0.000000f,   0.000000f,
+             0.000000f,  -0.003931f,  -0.011642f,  -0.018906f,  -0.025444f,  -0.031003f,  -0.035371f,  -0.038380f,  -0.039914f,  -0.039914f,
+            -0.038380f,  -0.035371f,  -0.031003f,  -0.025444f,  -0.018906f,  -0.011642f,  -0.003931f,   0.000000f,   0.000000f,   0.000000f, },
+          {  0.015399f,   0.556833f,  -0.015399f,  -0.030273f,  -0.044117f,  -0.056458f,  -0.066877f,  -0.075018f,  -0.080605f,  -0.083446f,
+            -0.083446f,  -0.080605f,  -0.075018f,  -0.066877f,  -0.056458f,  -0.044117f,  -0.030273f,  -0.015399f,   0.784351f,   0.000000f,
+             0.000000f,  -0.003850f,  -0.011418f,  -0.018598f,  -0.025144f,  -0.030834f,  -0.035474f,  -0.038906f,  -0.041013f,  -0.041723f,
+            -0.041013f,  -0.038906f,  -0.035474f,  -0.030834f,  -0.025144f,  -0.018598f,  -0.011418f,  -0.003850f,   0.000000f,   0.000000f, },
+          { -0.006900f,  -0.951532f,   0.006900f,   0.013591f,   0.019869f,   0.025543f,   0.030441f,   0.034414f,   0.037341f,   0.039134f,
+             0.039737f,   0.039134f,   0.037341f,   0.034414f,   0.030441f,   0.025543f,   0.019869f,   0.013591f,   0.006900f,   0.277130f,
+             0.000000f,   0.001725f,   0.005123f,   0.008365f,   0.011353f,   0.013996f,   0.016214f,   0.017939f,   0.019119f,   0.019718f,
+             0.019718f,   0.019119f,   0.017939f,   0.016214f,   0.013996f,   0.011353f,   0.008365f,   0.005123f,   0.001725f,   0.000000f, },
+          {  0.010264f,   0.154214f,  -0.010264f,  -0.020248f,  -0.029680f,  -0.038302f,  -0.045879f,  -0.052205f,  -0.057107f,  -0.060451f,
+            -0.062146f,  -0.062146f,  -0.060451f,  -0.057107f,  -0.052205f,  -0.045879f,  -0.038302f,  -0.029680f,  -0.020248f,  -0.010264f,
+             0.964364f,  -0.002566f,  -0.007628f,  -0.012482f,  -0.016995f,  -0.021045f,  -0.024521f,  -0.027328f,  -0.029389f,  -0.030649f,
+            -0.031073f,  -0.030649f,  -0.029389f,  -0.027328f,  -0.024521f,  -0.021045f,  -0.016995f,  -0.012482f,  -0.007628f,  -0.002566f,
+          },
+        };
 
     HbrVertex<T> * v = e->GetOrgVertex();
 
@@ -1600,98 +1668,70 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
 
         case HbrVertex<T>::k_Crease: {
 
-            class CreaseEdgesOperator : public HbrHalfedgeOperator<T> {
-            private:
-               bool _gather;
-               int _valence, _count;
-               float _d, * _deriv, (*_crease)[12];
-            public:
+            std::list<HbrHalfedge<T> *> edges;
+            v->GetSurroundingEdges(std::back_inserter(edges));
 
-                HbrVertex<T> * org;
-                HbrHalfedge<T> * ei[2];
-                int eidx[2];
+            std::list<HbrVertex<T> *> vertices;
+            v->GetSurroundingVertices(std::back_inserter(vertices));
 
-                CreaseEdgesOperator(HbrVertex<T> * v) : _gather(true), _count(0), org(v) {
-                    ei[0]=ei[1]=0;
-                    eidx[0]=eidx[1]=-1;
-                }
+            assert(edges.size()==vertices.size());
 
-                ~CreaseEdgesOperator() { }
+            // Circle the lists around so that we start processing at the edge
+            // after 'e'
+            while (*edges.rbegin() != e) {
+                edges.push_back(edges.front()); edges.pop_front();
+                vertices.push_back(vertices.front()); vertices.pop_front();
+            }
 
-                void SetAccumMode(int valence, float d, float * deriv, float (*crease)[12]) {
-                    _gather = false;
-                    _count = 0;
-                    _valence = valence;
-                    _d=d; _deriv=deriv; _crease=crease;
-                }
-
-                virtual void operator() (HbrHalfedge<T> &e) {
-
-                    if (_gather) {
-                     if (e.IsSharp(false) and (eidx[0]<0 or eidx[1]<0)) {
-                                 if (not ei[1]) { ei[1]=&e; eidx[1]=_count; }
-                            else if (not ei[0]) { ei[0]=&e; eidx[0]=_count; }
-                            else
-                                return;
-                        }
+            // Look for the two sharp edges
+            int idx=0, e1i=-1, e2i=-1;
+            typename std::list<HbrHalfedge<T> *>::iterator ei;
+            typename std::list<HbrVertex<T> *>::iterator vi, v1i, v2i;
+            for (ei=edges.begin(), vi=vertices.begin(); ei!=edges.end(); ++ei, ++vi, ++idx) {
+                if ((*ei)->IsSharp(false)) {
+                    if (e2i<0) {
+                        e2i = idx;
+                        v2i = vi;
                     } else {
-                        if ( _count>eidx[1] and _count<eidx[0] ) {
-
-                            HbrVertex<T> * v = e.GetDestVertex();
-                            if (v==org)
-                                v = e.GetOrgVertex();
-
-                            int idx = _count - eidx[1] + 3;
-                            FarVertexStencil::AddScaled(_deriv, v->GetData().GetStencil(), _crease[_valence][idx]);
-                            _d += fabsf(_crease[_valence][idx]);
-                        }
+                        e1i = idx;
+                        v1i = vi;
+                        break;
                     }
-                    ++_count;
                 }
-            };
-
-            CreaseEdgesOperator op( v );
-            v->ApplyOperatorSurroundingEdges( op );
+            }
 
             // We expected (at least) two edges to be on a crease. Instead, there
             // are zero or 1. We're not really sure what to do in that case, but
             // the easiest thing to do is to ignore the crease, which fixes the
             // coredump at the very least.  The code here is exactly the same as
             // the default case.
-            if ((op.eidx[0]<0) or (op.eidx[1]<0)) {
+            if (e1i<0 or e2i<0) {
 
                 e = e->GetPrev();
 
                 HbrVertex<T> * v1 = e->GetDestVertex(),
-                             * v2 = v->GetNextEdge(e)->GetDestVertex();
+                             * v2 = e->GetNext()->GetDestVertex();
 
                 FarVertexStencil::Subtract(uderiv, v1->GetData().GetStencil(), v->GetData().GetStencil());
                 FarVertexStencil::Subtract(vderiv, v2->GetData().GetStencil(), v->GetData().GetStencil());
-
                 break;
             }
 
             // Count the number of edges between e1 and e2 going clockwise.
             // Since e1 is AFTER e2 (see above), this just requires some math on
             // the edge indices
-            int n = v->GetValence() - op.eidx[0] + op.eidx[1] + 1;
+            int n = (int)edges.size() - e1i + e2i + 1;
             assert(n >= 2);
 
             // creaseK table has 11 entries : max valence is 10
             // XXXX error should be reported
-            if (n >= 11) {
+            if (n >= FAR_LIMITTANGENT_MAXVALENCE) {
                 break;
             }
 
             // Math on the two crease vertices
-            HbrVertex<T> * v1 = op.ei[0]->GetDestVertex(),
-                         * v2 = op.ei[1]->GetDestVertex();
-
-            if (v1==v)
-                v1 = op.ei[0]->GetOrgVertex();
-
-            if (v2==v)
-                v2 = op.ei[1]->GetOrgVertex();
+            HbrVertex<T> * v1 = *v1i,
+                         * v2 = *v2i;
 
             FarVertexStencil::Subtract(uderiv, v1->GetData().GetStencil(), v2->GetData().GetStencil());
             FarVertexStencil::Scale(uderiv, 0.5f, GetStencilSize());
@@ -1701,12 +1741,21 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
             FarVertexStencil::AddScaled(vderiv, v2->GetData().GetStencil(), creaseK[n][2]);
 
             // Math on vertices between the two creases
-
             float d = fabsf(creaseK[n][0]) + fabsf(creaseK[n][1]) + fabsf(creaseK[n][2]);
+            idx = 3;
+            if ((vi=++vi)==vertices.end()) {
+                vi = vertices.begin();
+            }
+            while (vi !=v2i) {
+                FarVertexStencil::AddScaled(vderiv, (*vi)->GetData().GetStencil(), creaseK[n][idx]);
+                d += fabsf(creaseK[n][idx]);
+                ++idx;
+                if (++vi==vertices.end()) {
+                    vi = vertices.begin();
+                }
+            }
 
-            op.SetAccumMode( n, d, vderiv, creaseK );
-
-            v->ApplyOperatorSurroundingEdges( op );
+            FarVertexStencil::Scale(uderiv, -2.0f/d, GetStencilSize());
 
         } break;
 
@@ -1722,6 +1771,12 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
 
     _ScaleTangentStencil(e->GetFace(), GetStencilSize(), uderiv, vderiv);
 }
+
+template <class T> int
+FarStencilTablesFactory<T>::GetMaxValenceSupported() {
+    return FAR_LIMITTANGENT_MAXVALENCE;
+}
+
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

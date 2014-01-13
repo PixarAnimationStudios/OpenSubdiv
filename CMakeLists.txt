@@ -278,7 +278,7 @@ find_package(PythonInterp 2.6)
 find_package(SWIG 1.3.40)
 find_package(Doxygen 1.8.4)
 find_package(Docutils 0.6)
-if (OPENGL_FOUND)
+if (OPENGL_FOUND AND NOT IOS)
     if (APPLE)
         find_package(GLEW)
     else()
@@ -495,6 +495,38 @@ macro(_add_doxy_headers headers)
     endif()
 endmacro()
 
+# Kernel Stringification
+# We want to use preprocessor include directives to include GLSL and OpenCL
+# kernel source files in cpp files, but since the sources contain newline
+# characters we would need raw string literals from C++11 to do this directly.
+# To avoid depending on C++11 we instead use a small tool called "line_quote"
+# to generate source files that are suitable for direct inclusion.
+function(_stringify src_files varname)
+
+    set(inc_files "")
+
+    foreach(src_file ${src_files})
+
+        string(REGEX REPLACE ".*[.](.*)" "\\1" extension ${src_file})
+
+        if(NOT ${extension} STREQUAL "cu")
+
+            string(REGEX REPLACE "(.*)[.].*" "\\1.gen.h" inc_file ${src_file})
+            list(APPEND inc_files ${inc_file})
+
+            add_custom_command(
+                OUTPUT 
+                    ${CMAKE_CURRENT_BINARY_DIR}/${inc_file}
+                COMMAND 
+                    stringify ${CMAKE_CURRENT_SOURCE_DIR}/${src_file} ${CMAKE_CURRENT_BINARY_DIR}/${inc_file}
+                DEPENDS 
+                    stringify ${CMAKE_CURRENT_SOURCE_DIR}/${src_file}
+            )
+
+        endif()
+    endforeach()
+    set(${varname} ${inc_files} PARENT_SCOPE)
+endfunction()
 
 # Macro wrapper for adding a non-cuda dependent executable
 macro(_add_executable target)

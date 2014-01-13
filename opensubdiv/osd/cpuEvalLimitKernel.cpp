@@ -208,7 +208,7 @@ evalBoundary(float u, float v,
                 *v6 = inOffset + vertexIndices[6]*inDesc.stride,
                 *v7 = inOffset + vertexIndices[7]*inDesc.stride;
 
-    for (int k=0; k<inDesc.stride; ++k) {
+    for (int k=0; k<inDesc.length; ++k) {
         M[0*inDesc.length+k] = 2.0f*v0[k] - v4[k];  // M0 = 2*v0 - v3
         M[1*inDesc.length+k] = 2.0f*v1[k] - v5[k];  // M0 = 2*v1 - v4
         M[2*inDesc.length+k] = 2.0f*v2[k] - v6[k];  // M1 = 2*v2 - v5
@@ -219,7 +219,7 @@ evalBoundary(float u, float v,
         for (int j=0; j<4; ++j) {
         
             // swap the missing row of verts with our mirrored ones
-            float const * in = j==0 ? &M[i*inDesc.stride] :
+            float const * in = j==0 ? &M[i*inDesc.length] :
                 inOffset + vertexIndices[i+(j-1)*4]*inDesc.stride;
             
             for (int k=0; k<inDesc.length; ++k) {
@@ -311,7 +311,7 @@ evalCorner(float u, float v,
                 *v7 = inOffset + vertexIndices[7]*inDesc.stride,
                 *v8 = inOffset + vertexIndices[8]*inDesc.stride;
 
-    for (int k=0; k<inDesc.stride; ++k) {
+    for (int k=0; k<inDesc.length; ++k) {
         M[0*length+k] = 2.0f*v0[k] - v3[k];  // M0 = 2*v0 - v3
         M[1*length+k] = 2.0f*v1[k] - v4[k];  // M0 = 2*v1 - v4
         M[2*length+k] = 2.0f*v2[k] - v5[k];  // M1 = 2*v2 - v5
@@ -330,9 +330,9 @@ evalCorner(float u, float v,
             float const * in = NULL;
 
             if (j==0) { // (2)
-                in = &M[i*inDesc.stride];
+                in = &M[i*inDesc.length];
             } else if (i==3) {
-                in = &M[(j+3)*inDesc.stride];
+                in = &M[(j+3)*inDesc.length];
             } else {
                 in = inOffset + vertexIndices[i+(j-1)*3]*inDesc.stride;
             }

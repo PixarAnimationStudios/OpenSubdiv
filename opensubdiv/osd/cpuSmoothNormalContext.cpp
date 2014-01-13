@@ -22,9 +22,27 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV_VERSION_H
-#define OPENSUBDIV_VERSION_H
+#include "../osd/cpuSmoothNormalContext.h"
 
-#define OPENSUBDIV_VERSION v2_3_4
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
-#endif /* OPENSUBDIV_VERSION_H */
+OsdCpuSmoothNormalContext::OsdCpuSmoothNormalContext(
+    FarPatchTables const *patchTables, bool resetMemory) :
+        _numVertices(0), _resetMemory(resetMemory) {
+
+    // copy the data from the FarTables
+    _patches = patchTables->GetPatchTable();
+
+    _patchArrays = patchTables->GetPatchArrayVector();
+}
+
+OsdCpuSmoothNormalContext *
+OsdCpuSmoothNormalContext::Create(FarPatchTables const *patchTables, bool resetMemory) {
+
+    return new OsdCpuSmoothNormalContext(patchTables, resetMemory);
+}
+
+
+}  // end namespace OPENSUBDIV_VERSION
+}  // end namespace OpenSubdiv

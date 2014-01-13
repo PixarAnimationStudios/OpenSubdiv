@@ -59,7 +59,7 @@
 #include <windows.h>
 #endif
 
-
+#include <osdutil/adaptiveEvaluator.h>
 #include <osdutil/uniformEvaluator.h>
 #include <osdutil/topology.h>
 
@@ -78,7 +78,7 @@ using namespace OpenSubdiv;
 
 //------------------------------------------------------------------------------
 static bool
-createOsdMesh(char *inputFile, char *outputFile, std::string *errorMessage)
+uniformTessellate(char *inputFile, char *outputFile, std::string *errorMessage)
 {
 
     PxOsdUtilSubdivTopology topology;
@@ -90,8 +90,6 @@ createOsdMesh(char *inputFile, char *outputFile, std::string *errorMessage)
 
     topology.refinementLevel = 2;
 
-    std::cout << "Did read topology\n";
-    
     PxOsdUtilUniformEvaluator uniformEvaluator;
 
     // Create uniformEvaluator
@@ -103,13 +101,12 @@ createOsdMesh(char *inputFile, char *outputFile, std::string *errorMessage)
     // Push the vertex data
     uniformEvaluator.SetCoarsePositions(pointPositions, errorMessage);
 
-    // Refine with eight threads
+    // Refine with one thread
     if (not uniformEvaluator.Refine(1, errorMessage)) {
         std::cout << "Refine failed with " << *errorMessage << "\n";
         return false;
     }
-    
-    // Refine with eight threads
+
     PxOsdUtilSubdivTopology refinedTopology;
     const float *positions = NULL;
    
@@ -121,6 +118,55 @@ createOsdMesh(char *inputFile, char *outputFile, std::string *errorMessage)
     
     if (not refinedTopology.WriteObjFile(
             outputFile, positions, errorMessage)) {
+        std::cout << errorMessage << std::endl;             
+    }
+
+    return true;
+}
+
+
+static bool
+blenderStyleTessellate(char *inputFile, char *outputFile, std::string *errorMessage)
+{
+
+    PxOsdUtilSubdivTopology topology;
+    std::vector<float> pointPositions;
+    
+    if (not topology.ReadFromObjFile(inputFile, &pointPositions, errorMessage)) {
+        return false;
+    }
+
+    topology.refinementLevel = 5;
+
+    PxOsdUtilAdaptiveEvaluator adaptiveEvaluator;
+
+    // Create adaptiveEvaluator
+    if (not adaptiveEvaluator.Initialize(topology, errorMessage)) {
+        std::cout << "Initialize failed with " << *errorMessage << "\n";        
+        return false;
+    }
+
+    // Push the vertex data
+    adaptiveEvaluator.SetCoarsePositions(
+        &(pointPositions[0]), (int) pointPositions.size(), errorMessage);
+
+    // Refine with one thread
+    if (not adaptiveEvaluator.Refine(1, errorMessage)) {
+        std::cout << "Refine failed with " << *errorMessage << "\n";
+        return false;
+    }
+
+    PxOsdUtilSubdivTopology refinedTopology;
+    std::vector<float> positions;
+   
+    if (not adaptiveEvaluator.GetRefinedTopology(
+            &refinedTopology, &positions, errorMessage)) {
+        std::cout << "GetRefinedTopology failed with " << *errorMessage <<"\n";
+        return false;
+    }
+    
+    if (not refinedTopology.WriteObjFile(
+            outputFile, &(positions[0]), errorMessage)) {
         std::cout << errorMessage << std::endl;             
     }
 
@@ -140,20 +186,23 @@ callbackError(OpenSubdiv::OsdErrorType err, const char *message)
 int main(int argc, char** argv) {
 
 
-    if (argc < 3) {
-        std::cout << "Usage: projectTest input.obj output\n";
-        return false;
-    }
-
-    std::cout << "input is " << argv[1] << " and output is " << argv[2] <<std::endl;
-
 
     OsdSetErrorCallback(callbackError);
 
     std::string errorMessage;
 
-    if (not createOsdMesh(argv[1], argv[2], &errorMessage)) {
-        std::cout << "Failed with error: " << errorMessage << std::endl;
+    if ((argc == 4) and (std::string(argv[1]) == std::string("-blender"))) {
+	std::cout << "About to call blender-style tessellate\n";
+	if (not blenderStyleTessellate(argv[2], argv[3], &errorMessage)) {
+	    std::cout << "Failed with error: " << errorMessage << std::endl;
+	    return -1;
+	}
+    } else if (argc != 3) {
+        std::cout << "Usage: tessellate [-blender] input.obj output.obj\n";
+        return false;
+    } else {
+	if (not uniformTessellate(argv[1], argv[2], &errorMessage)) {
+	    std::cout << "Failed with error: " << errorMessage << std::endl;
+	}
     }
-
 }

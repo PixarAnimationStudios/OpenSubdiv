@@ -66,9 +66,9 @@ OpenSubdiv::OsdGLMeshInterface *g_mesh = NULL;
 
 static const char *shaderSource =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    #include "shader.inc"
+    #include "shader.gen.h"
 #else
-    #include "shader_gl3.inc"
+    #include "shader_gl3.gen.h"
 #endif
 ;
 

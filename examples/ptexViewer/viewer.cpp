@@ -131,16 +131,16 @@ OpenSubdiv::OsdGLMeshInterface *g_mesh;
 
 static const char *g_defaultShaderSource =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    #include "shader.inc"
+    #include "shader.gen.h"
 #else
-    #include "shader_gl3.inc"
+    #include "shader_gl3.gen.h"
 #endif
 ;
 static const char *g_skyShaderSource =
-#include "skyshader.inc"
+#include "skyshader.gen.h"
 ;
 static const char *g_imageShaderSource =
-#include "imageshader.inc"
+#include "imageshader.gen.h"
 ;
 static std::string g_shaderSource;
 static const char *g_shaderFilename = NULL;

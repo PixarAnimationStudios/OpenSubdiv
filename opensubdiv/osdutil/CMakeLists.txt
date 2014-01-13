@@ -31,9 +31,11 @@ include_directories(
 # source & headers
 
 set(PUBLIC_HEADER_FILES
+    adaptiveEvaluator.h
     batch.h
     drawItem.h
     drawController.h
+    evaluator_capi.h    
     mesh.h
     refiner.h
     topology.h
@@ -41,6 +43,10 @@ set(PUBLIC_HEADER_FILES
 )
 
 add_library(osdutil
+    adaptiveEvaluator.h
+    adaptiveEvaluator.cpp
+    evaluator_capi.h
+    evaluator_capi.cpp            
     mesh.h
     mesh.cpp
     refiner.h
@@ -83,4 +89,6 @@ install( FILES ${PUBLIC_HEADER_FILES}
          DESTINATION ${CMAKE_INCDIR_BASE}/osdutil
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
 
+install( TARGETS osdutil DESTINATION ${CMAKE_LIBDIR_BASE})
+                  
 #-------------------------------------------------------------------------------

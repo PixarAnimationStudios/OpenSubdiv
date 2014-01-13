@@ -84,7 +84,7 @@ GLuint g_quadFillProgram = 0;
 // see [shader.glsl](shader.html).
 //
 static const char *shaderSource =
-#include "shader.inc"
+#include "shader.gen.h"
 ;
 
 GLfloat g_modelView[16], g_proj[16], g_mvp[16];

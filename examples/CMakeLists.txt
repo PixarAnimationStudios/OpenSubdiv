@@ -23,23 +23,31 @@
 #
 
 if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
+
+    add_subdirectory(common)
+    
     add_subdirectory(glViewer)
     add_subdirectory(glBatchViewer)
     add_subdirectory(glStencilViewer)
     add_subdirectory(simpleCpu)
     add_subdirectory(limitEval)
-    add_subdirectory(projectTest)
+    add_subdirectory(tessellateObjFile)
+
     if (NOT APPLE)
         add_subdirectory(uvViewer)
     endif()
+
     if(OPENGL_4_3_FOUND AND (NOT APPLE))
         # the paintTest example requires GL functionality not available on OSX
         add_subdirectory(paintTest)
     endif()
+
     if(PTEX_FOUND)
         add_subdirectory(ptexViewer)
     endif()
+
 else()
+
     set(MISSING "")
 
     if (NOT OPENGL_FOUND)
@@ -70,6 +78,7 @@ if(DXSDK_FOUND)
    if(PTEX_FOUND)
        add_subdirectory(dxPtexViewer)
    endif()
+
 endif()
 
 
@@ -79,8 +88,7 @@ if(MAYA_FOUND)
     # manuelk: the following plugins are disabled until further notice
 
     #add_subdirectory(mayaViewer)
-
-    if(PTEX_FOUND)
+    #if(PTEX_FOUND)
         #add_subdirectory(mayaPtexViewer)
-    endif()
+    #endif()
 endif()

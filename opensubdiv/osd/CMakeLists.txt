@@ -59,6 +59,8 @@ set(CPU_SOURCE_FILES
     cpuEvalLimitKernel.cpp
     cpuEvalStencilsContext.cpp
     cpuEvalStencilsController.cpp
+    cpuSmoothNormalContext.cpp
+    cpuSmoothNormalController.cpp
     cpuVertexBuffer.cpp
     error.cpp
     evalLimitContext.cpp
@@ -89,6 +91,8 @@ set(PUBLIC_HEADER_FILES
     cpuEvalLimitController.h
     cpuEvalStencilsContext.h
     cpuEvalStencilsController.h
+    cpuSmoothNormalContext.h
+    cpuSmoothNormalController.h
     cpuVertexBuffer.h
     error.h
     evalLimitContext.h
@@ -170,6 +174,7 @@ set(OPENMP_PUBLIC_HEADERS
     ompKernel.h
     ompComputeController.h
     ompEvalStencilsController.h
+    ompSmoothNormalController.h
 )
 
 if( OPENMP_FOUND )
@@ -177,6 +182,7 @@ if( OPENMP_FOUND )
         ompKernel.cpp
         ompComputeController.cpp
         ompEvalStencilsController.cpp
+        ompSmoothNormalController.cpp
     )
 
     list(APPEND PUBLIC_HEADER_FILES ${OPENMP_PUBLIC_HEADERS})
@@ -199,11 +205,13 @@ if( TBB_FOUND )
         tbbKernel.cpp
         tbbComputeController.cpp
         tbbEvalStencilsController.cpp
+        tbbSmoothNormalController.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES
         tbbKernel.h
         tbbComputeController.h
         tbbEvalStencilsController.h
+        tbbSmoothNormalController.h
     )
     if (CMAKE_COMPILER_IS_GNUCXX)
         list(APPEND PLATFORM_CPU_LIBRARIES
@@ -434,30 +442,10 @@ endif()
 list(APPEND DOXY_HEADER_FILES ${CUDA_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
-# Kernel Stringification
-# We want to use preprocessor include directives to include GLSL and OpenCL
-# kernel source files in cpp files, but since the sources contain newline
-# characters we would need raw string literals from C++11 to do this directly.
-# To avoid depending on C++11 we instead use a small tool called "line_quote"
-# to generate source files that are suitable for direct inclusion.
-foreach(kernel_file ${KERNEL_FILES})
 
-    string(REGEX REPLACE ".*[.](.*)" "\\1" extension ${kernel_file})
+_stringify("${KERNEL_FILES}" INC_FILES)
 
-    if(NOT ${extension} STREQUAL "cu")
-
-        string(REGEX REPLACE "(.*)[.].*" "\\1.inc" inc_file ${kernel_file})
-        list(APPEND INC_FILES ${inc_file})
-
-        add_custom_command(
-            OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
-            COMMAND stringify ${CMAKE_CURRENT_SOURCE_DIR}/${kernel_file}
-                ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
-            DEPENDS stringify ${CMAKE_CURRENT_SOURCE_DIR}/${kernel_file}
-        )
-
-    endif()
-endforeach()
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 #-------------------------------------------------------------------------------
 source_group("Kernels" FILES ${KERNEL_FILES})
@@ -466,11 +454,26 @@ source_group("Inc" FILES ${INC_FILES})
 
 if (NOT NO_LIB)
 
-    add_library(osd_static_cpu
-        STATIC
+    # Compile objs first for both the CPU and GPU libs -----
+    add_library(osd_cpu_obj
+        OBJECT
             ${CPU_SOURCE_FILES}
             ${PRIVATE_HEADER_FILES}
             ${PUBLIC_HEADER_FILES}
+    )
+
+    add_library(osd_gpu_obj
+        OBJECT
+            ${GPU_SOURCE_FILES}
+            ${PRIVATE_HEADER_FILES}
+            ${PUBLIC_HEADER_FILES}
+            ${INC_FILES}
+    )
+
+    # Build static libs ------------------------------------
+    add_library(osd_static_cpu
+        STATIC
+        $<TARGET_OBJECTS:osd_cpu_obj>
     )
     set_target_properties(osd_static_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
 
@@ -478,13 +481,12 @@ if (NOT NO_LIB)
         ${PLATFORM_CPU_LIBRARIES}
     )
 
+    # this macro uses FindCUDA.cmake to compile .cu kernel files
+    # the target then adds the other obj dependencies and include files
     _add_possibly_cuda_library(osd_static_gpu
         STATIC
-            ${GPU_SOURCE_FILES}
-            ${PRIVATE_HEADER_FILES}
-            ${PUBLIC_HEADER_FILES}
+            $<TARGET_OBJECTS:osd_gpu_obj>
             ${KERNEL_FILES}
-            ${INC_FILES}
     )
     set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
 
@@ -495,22 +497,20 @@ if (NOT NO_LIB)
     install( TARGETS osd_static_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
     install( TARGETS osd_static_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
 
+    # Build dynamic libs  ----------------------------------
     if (NOT WIN32 AND NOT IOS)
 
         # Evaluate 'soname' from OSD version
+            # replace '_' with '.'
+            string(REGEX REPLACE "(_)" "." OSD_SONAME ${OpenSubdiv_VERSION})
 
-        # replace '_' with '.'
-        string(REGEX REPLACE "(_)" "." OSD_SONAME ${OpenSubdiv_VERSION})
-
-        # remove starting 'v' character
-        string(REGEX REPLACE "^v" "" OSD_SONAME ${OSD_SONAME})
+            # remove starting 'v' character
+            string(REGEX REPLACE "^v" "" OSD_SONAME ${OSD_SONAME})
 
         # generate dynamic-link targets
         add_library(osd_dynamic_cpu
             SHARED
-                ${CPU_SOURCE_FILES}
-                ${PRIVATE_HEADER_FILES}
-                ${PUBLIC_HEADER_FILES}
+            $<TARGET_OBJECTS:osd_cpu_obj>
         )
 
         set_target_properties(osd_dynamic_cpu
@@ -526,11 +526,8 @@ if (NOT NO_LIB)
 
         _add_possibly_cuda_library(osd_dynamic_gpu
             SHARED
-                ${GPU_SOURCE_FILES}
-                ${PRIVATE_HEADER_FILES}
-                ${PUBLIC_HEADER_FILES}
-                ${KERNEL_FILES}
-                ${INC_FILES}
+            $<TARGET_OBJECTS:osd_gpu_obj>
+            ${KERNEL_FILES}
         )
 
         set_target_properties(osd_dynamic_gpu

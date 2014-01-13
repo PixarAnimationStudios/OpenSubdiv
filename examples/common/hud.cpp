@@ -126,6 +126,10 @@ Hud::KeyDown(int key)
 bool
 Hud::MouseClick(int x, int y)
 {
+    if (!IsVisible()) {
+        return false;
+    }
+
     for (std::vector<RadioButton>::iterator it = _radioButtons.begin();
         it != _radioButtons.end(); ++it) {
         if (hitTest(*it, x, y)) {
