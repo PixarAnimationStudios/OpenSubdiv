@@ -419,7 +419,7 @@ vec4 getEnvironmentHDR(sampler2D sampler, vec3 dir)
 }
 
 vec4
-lighting(vec3 Peye, vec3 Neye)
+lighting(vec3 Peye, vec3 Neye, float spec)
 {
     vec4 color = vec4(0);
 
@@ -448,7 +448,7 @@ lighting(vec3 Peye, vec3 Neye)
 
         color += (1.0-occ) * ((lightSource[i].ambient +
                                d * lightSource[i].diffuse +
-                               s * lightSource[i].specular));
+                               spec * s * lightSource[i].specular));
     }
 
     color.a = 1;
@@ -546,7 +546,7 @@ main()
 
     vec4 Cf = (a + d) * texColor + s * 0.5;
 #else
-    vec4 Cf = texColor * lighting(gPosition.xyz, normal);
+    vec4 Cf = texColor * lighting(gPosition.xyz, normal, specular);
 #endif
 
     outColor = edgeColor(Cf, gEdgeDistance);

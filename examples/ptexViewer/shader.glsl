@@ -478,7 +478,7 @@ vec4 getEnvironmentHDR(sampler2D sampler, vec3 dir)
 }
 
 vec4
-lighting(vec4 texColor, vec3 Peye, vec3 Neye, float occ)
+lighting(vec4 texColor, vec3 Peye, vec3 Neye, float spec, float occ)
 {
     vec4 color = vec4(0);
     vec3 n = Neye;
@@ -496,7 +496,7 @@ lighting(vec4 texColor, vec3 Peye, vec3 Neye, float occ)
 
         color += (1.0-occ) * ((lightSource[i].ambient +
                                d * lightSource[i].diffuse) * texColor +
-                              s * lightSource[i].specular);
+                               spec * s * lightSource[i].specular);
     }
 
     color.a = 1;
@@ -647,7 +647,7 @@ main()
 
     vec4 Cf = (a + d) * texColor + s * 0.5;
 #else
-    vec4 Cf = lighting(texColor, inpt.v.position.xyz, normal, occ);
+    vec4 Cf = lighting(texColor, inpt.v.position.xyz, normal, specular, occ);
 #endif
 
     // ------------ wireframe ---------------
