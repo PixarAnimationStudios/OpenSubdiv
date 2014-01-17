@@ -122,6 +122,8 @@ global proc string[] osdPolySmooth(string $meshes[]) {
         string $osdPolySmooth = `createNode osdPolySmooth`;
         connectAttr ($inMeshAttr[0]) ($osdPolySmooth+".inputPolymesh");
         connectAttr -force ($osdPolySmooth+".output") ($outMeshAttr[0]);
+        
+        polyMergeUV -d 0.01 -ch 1 $mesh;
 
         if ($showBaseMesh) {
             addAttr -ln "displayMesh"  -at "enum" -en "Cage:Smooth:Cage+Smooth" -defaultValue 2 $osdPolySmooth;
