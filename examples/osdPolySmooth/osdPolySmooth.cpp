@@ -586,7 +586,9 @@ MStatus convertOsdFarToMayaMeshData(
         assert(fvarTotalWidth == expectedFvarTotalWidth);
 
         const OpenSubdiv::FarPatchTables::FVarDataTable &fvarDataTable =  farPatchTables->GetFVarDataTable();
-        assert(fvarDataTable.size() == expectedFvarTotalWidth*faceConnects.length());
+        if (fvarDataTable.size() != expectedFvarTotalWidth*faceConnects.length()) {
+            MCHECKERR(MS::kFailure, "Incorrect face-varying table length");
+        }
 
         // Create an array of indices to map each face-vert to the UV and ColorSet Data
         MIntArray fvarConnects(faceConnects.length());
@@ -847,7 +849,7 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
                 MDataHandle outMeshH = data.outputValue(a_output, &returnStatus);
                 MCHECKERR(returnStatus, "ERROR getting polygon data handle\n");
                 outMeshH.set(newMeshDataObj);
-                
+
                 int isolation = std::min(10,(int)ceil(maxCreaseSharpness)+1);
                 data.outputValue(a_recommendedIsolation).set(isolation);
 
