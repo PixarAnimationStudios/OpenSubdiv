@@ -54,6 +54,13 @@ if ( GLEW_FOUND )
     list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
 endif()
 
+# optional dependency - enables screenshots
+find_package(PNG)
+if (PNG_FOUND)
+    list(APPEND PLATFORM_LIBRARIES ${PNG_LIBRARIES})
+    add_definitions(-DOPENSUBDIV_HAS_PNG)
+endif()
+
 #-------------------------------------------------------------------------------
 
 _stringify("${SHADER_FILES}" INC_FILES)
