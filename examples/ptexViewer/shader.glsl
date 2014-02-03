@@ -588,11 +588,11 @@ main()
                                               textureImage_Data,
                                               textureImage_Packing);
 #elif defined COLOR_PATCHTYPE
-    vec4 texColor = edgeColor(lighting(overrideColor, inpt.v.position.xyz, normal, 0), inpt.edgeDistance);
+    vec4 texColor = edgeColor(lighting(overrideColor, inpt.v.position.xyz, normal, 1, 0), inpt.edgeDistance);
     outColor = texColor;
     return;
 #elif defined COLOR_PATCHCOORD
-    vec4 texColor = edgeColor(lighting(inpt.v.patchCoord, inpt.v.position.xyz, normal, 0), inpt.edgeDistance);
+    vec4 texColor = edgeColor(lighting(inpt.v.patchCoord, inpt.v.position.xyz, normal, 1, 0), inpt.edgeDistance);
     outColor = texColor;
     return;
 #elif defined COLOR_NORMAL
