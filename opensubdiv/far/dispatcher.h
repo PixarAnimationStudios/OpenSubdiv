@@ -182,7 +182,7 @@ FarComputeController<U>::ApplyBilinearFaceVerticesKernel(FarKernelBatch const &b
     FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
 
     FarBilinearSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+        reinterpret_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
     assert(subdivision);
 
     subdivision->computeFacePoints( batch.GetVertexOffset(),
@@ -198,7 +198,7 @@ FarComputeController<U>::ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &b
     FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
 
     FarBilinearSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+        reinterpret_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
     assert(subdivision);
 
     subdivision->computeEdgePoints( batch.GetVertexOffset(),
@@ -214,7 +214,7 @@ FarComputeController<U>::ApplyBilinearVertexVerticesKernel(FarKernelBatch const 
     FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
 
     FarBilinearSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+        reinterpret_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -231,7 +231,7 @@ FarComputeController<U>::ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &ba
     FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
 
     FarCatmarkSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+        reinterpret_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -248,7 +248,7 @@ FarComputeController<U>::ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &ba
     FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
 
     FarCatmarkSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+        reinterpret_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -265,7 +265,7 @@ FarComputeController<U>::ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const 
     FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
 
     FarCatmarkSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+        reinterpret_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -282,7 +282,7 @@ FarComputeController<U>::ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const
     FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
 
     FarCatmarkSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+        reinterpret_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -300,7 +300,7 @@ FarComputeController<U>::ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const
     FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
 
     FarCatmarkSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+        reinterpret_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -318,7 +318,7 @@ FarComputeController<U>::ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch
     FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
 
     FarLoopSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+        reinterpret_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -335,7 +335,7 @@ FarComputeController<U>::ApplyLoopVertexVerticesKernelB(FarKernelBatch const &ba
     FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
 
     FarLoopSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+        reinterpret_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -352,7 +352,7 @@ FarComputeController<U>::ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &b
     FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
 
     FarLoopSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+        reinterpret_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -370,7 +370,7 @@ FarComputeController<U>::ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &b
     FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
 
     FarLoopSubdivisionTables<U> const * subdivision =
-        dynamic_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+        reinterpret_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
 
     assert(subdivision);
 
