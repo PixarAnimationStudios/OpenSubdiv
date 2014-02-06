@@ -1858,7 +1858,11 @@ screenshot(int multiplier=4) {
         width = multiplier * g_width,
         height = multiplier * g_height;
 
+#if GLFW_VERSION_MAJOR >= 3
     reshape(g_window, width, height);
+#else
+    reshape(width, height);
+#endif
 
     display();
 
@@ -1884,7 +1888,11 @@ screenshot(int multiplier=4) {
     glBindTexture( GL_TEXTURE_2D, restoreBinding );
     glPopClientAttrib();
 
+#if GLFW_VERSION_MAJOR >= 3
     reshape(g_window, oldwidth, oldheight);
+#else
+    reshape(oldwidth, oldheight);
+#endif
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
