@@ -104,7 +104,10 @@ void main()
 
         if (valenceNeighbor < 0) {
             isBoundaryNeighbor = true;
-            boundaryEdgeNeighbors[currNeighbor++] = int(idx_neighbor);
+            if (currNeighbor<2) {
+                boundaryEdgeNeighbors[currNeighbor] = int(idx_neighbor);
+            }
+            currNeighbor++;
             if (currNeighbor == 1)    {
                 ibefore = i;
                 zerothNeighbor = i;
