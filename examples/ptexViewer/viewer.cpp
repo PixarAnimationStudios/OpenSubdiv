@@ -54,6 +54,7 @@
 #include <algorithm>
 
 #ifdef OPENSUBDIV_HAS_PNG
+    #include <zlib.h>
     #include <png.h>
 #endif
 

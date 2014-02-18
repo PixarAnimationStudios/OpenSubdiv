@@ -57,6 +57,7 @@ endif()
 # optional dependency - enables screenshots
 find_package(PNG)
 if (PNG_FOUND)
+    include_directories(${PNG_INCLUDE_DIRS})
     list(APPEND PLATFORM_LIBRARIES ${PNG_LIBRARIES})
     add_definitions(-DOPENSUBDIV_HAS_PNG)
 endif()
