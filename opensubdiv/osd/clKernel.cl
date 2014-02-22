@@ -36,27 +36,27 @@ struct Varying
     float v[NUM_VARYING_ELEMENTS];
 };
 
-__global void clearVertex(struct Vertex *vertex) {
+void clearVertex(struct Vertex *vertex) {
 
     for (int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
         vertex->v[i] = 0;
     }
 }
-__global void clearVarying(struct Varying *varying) {
+void clearVarying(struct Varying *varying) {
 
     for (int i = 0; i < NUM_VARYING_ELEMENTS; i++) {
         varying->v[i] = 0;
     }
 }
 
-__global void addWithWeight(struct Vertex *dst, __global struct Vertex *src, float weight) {
+void addWithWeight(struct Vertex *dst, __global struct Vertex *src, float weight) {
 
     for (int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
         dst->v[i] += src->v[i] * weight;
     }
 }
 
-__global void addVaryingWithWeight(struct Varying *dst, __global struct Varying *src, float weight) {
+void addVaryingWithWeight(struct Varying *dst, __global struct Varying *src, float weight) {
 
     for (int i = 0; i < NUM_VARYING_ELEMENTS; i++) {
         dst->v[i] += src->v[i] * weight;
