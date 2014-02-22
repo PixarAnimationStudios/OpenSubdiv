@@ -544,7 +544,12 @@ reshape(int width, int height)
     g_width = width;
     g_height = height;
 
-    g_hud.Rebuild(width, height);
+    int windowWidth = g_width, windowHeight = g_height;
+#if GLFW_VERSION_MAJOR>=3
+    // window size might not match framebuffer size on a high DPI display
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+#endif
+    g_hud.Rebuild(windowWidth, windowHeight);
 
     // resize framebuffers
     glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
@@ -2310,17 +2315,20 @@ setGLCoreProfile()
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
 #endif
 
-#if GLFW_VERSION_MAJOR >= 2 and GLFW_VERSION_MINOR >= 7
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #if not defined(__APPLE__)
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
+#else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
+#endif
+    
 #else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
 #endif
     glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -2462,7 +2470,10 @@ int main(int argc, char ** argv)
     initGL();
 
 #if GLFW_VERSION_MAJOR >= 3
-    glfwSetWindowSizeCallback(g_window, reshape);
+    // accommodate high DPI displays (e.g. mac retina displays)
+    glfwGetFramebufferSize(g_window, &g_width, &g_height);
+    glfwSetFramebufferSizeCallback(g_window, reshape);
+
     glfwSetWindowCloseCallback(g_window, windowClose);
     // as of GLFW 3.0.1 this callback is not implicit
     reshape();
@@ -2480,7 +2491,12 @@ int main(int argc, char ** argv)
     cudaGLSetGLDevice(cutGetMaxGflopsDeviceId());
 #endif
 
-    g_hud.Init(g_width, g_height);
+    int windowWidth = g_width, windowHeight = g_height;
+#if GLFW_VERSION_MAJOR>=3
+    // window size might not match framebuffer size on a high DPI display
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+#endif
+    g_hud.Init(windowWidth, windowHeight);
 
     g_hud.AddRadioButton(HUD_RB_KERNEL, "CPU (K)", true,
                          10, 10, callbackKernel, kCPU, 'k');

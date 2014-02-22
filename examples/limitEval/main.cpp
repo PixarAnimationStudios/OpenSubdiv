@@ -914,7 +914,12 @@ reshape(int width, int height) {
     g_width = width;
     g_height = height;
     
-    g_hud.Rebuild(width, height);
+    int windowWidth = g_width, windowHeight = g_height;
+#if GLFW_VERSION_MAJOR>=3
+    // window size might not match framebuffer size on a high DPI display
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+#endif
+    g_hud.Rebuild(windowWidth, windowHeight);
 }
 
 //------------------------------------------------------------------------------
@@ -1035,7 +1040,12 @@ callbackDisplayVaryingColors(int mode)
 static void
 initHUD()
 {
-    g_hud.Init(g_width, g_height);
+    int windowWidth = g_width, windowHeight = g_height;
+#if GLFW_VERSION_MAJOR>=3
+    // window size might not match framebuffer size on a high DPI display
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+#endif
+    g_hud.Init(windowWidth, windowHeight);
 
     g_hud.AddCheckBox("Cage Edges (H)", true, 350, 10, callbackDisplayCageEdges, 0, 'h');
     g_hud.AddCheckBox("Cage Verts (J)", true, 350, 30, callbackDisplayCageVertices, 0, 'j');
@@ -1173,10 +1183,14 @@ int main(int argc, char **argv) {
         return 1;
     }
     glfwMakeContextCurrent(g_window);
+
+    // accommodate high DPI displays (e.g. mac retina displays)
+    glfwGetFramebufferSize(g_window, &g_width, &g_height);
+    glfwSetFramebufferSizeCallback(g_window, reshape);
+
     glfwSetKeyCallback(g_window, keyboard);
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
-    glfwSetWindowSizeCallback(g_window, reshape);
     glfwSetWindowCloseCallback(g_window, windowClose);
 #else
     if (glfwOpenWindow(g_width, g_height, 8, 8, 8, 8, 24, 8,

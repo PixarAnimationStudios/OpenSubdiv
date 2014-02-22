@@ -140,7 +140,11 @@ int main(int argc, char ** argv)
             return 1;
         }
         glfwMakeContextCurrent(g_window);
-        glfwSetWindowSizeCallback(g_window, reshape);
+
+        // accommodate high DPI displays (e.g. mac retina displays)
+        glfwGetFramebufferSize(g_window, &g_width, &g_height);
+        glfwSetFramebufferSizeCallback(g_window, reshape);
+
         glfwSetWindowCloseCallback(g_window, windowClose);
     #else
         if (glfwOpenWindow(g_width, g_height, 8, 8, 8, 8, 24, 8, GLFW_WINDOW) == GL_FALSE) {
