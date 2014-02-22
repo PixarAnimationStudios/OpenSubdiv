@@ -40,6 +40,10 @@ if ( GLEW_FOUND )
     list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
 endif()
 
+if( OPENCL_FOUND )
+    include_directories(${OPENCL_INCLUDE_DIRS})
+endif()
+
 _add_glfw_executable(limitEval
     main.cpp
     ${INC_FILES}
