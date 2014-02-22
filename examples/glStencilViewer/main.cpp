@@ -673,9 +673,9 @@ linkDefaultPrograms()
         static const char *fsSrc =
             GLSL_VERSION_DEFINE
             "out vec4 color;\n"
-            "uniform vec4 colors[3] = { vec4(1.0,0.0,0.0,1.0),    \n"
-            "                           vec4(0.0,1.0,0.0,1.0),    \n"
-            "                           vec4(0.0,0.0,1.0,1.0)  }; \n"
+            "const vec4 colors[3] = vec4[3]( vec4(1.0,0.0,0.0,1.0),    \n"
+            "                                vec4(0.0,1.0,0.0,1.0),    \n"
+            "                                vec4(0.0,0.0,1.0,1.0)  ); \n"
             "void main() {\n"
             "   color = colors[gl_PrimitiveID % 3];\n"
             "}\n";
