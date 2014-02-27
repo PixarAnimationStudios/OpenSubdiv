@@ -34,7 +34,7 @@ if (WIN32)
     find_path(TBB_INCLUDE_DIR
         NAMES
             tbb/tbb.h
-        PATHS
+        HINTS
             ${TBB_LOCATION}/include
             $ENV{TBB_LOCATION}/include
             $ENV{PROGRAMFILES}/Intel/TBB/include
@@ -44,7 +44,7 @@ elseif (APPLE)
     find_path(TBB_INCLUDE_DIR
         NAMES
             tbb/tbb.h
-        PATHS
+        HINTS
             ${TBB_LOCATION}/include
             $ENV{TBB_LOCATION}/include
             DOC "The directory where TBB headers reside")
@@ -52,7 +52,7 @@ else ()
     find_path(TBB_INCLUDE_DIR
         NAMES
             tbb/tbb.h
-        PATHS
+        HINTS
             ${TBB_LOCATION}/include
             $ENV{TBB_LOCATION}/include
             /usr/include
@@ -107,7 +107,7 @@ foreach(TBB_LIB tbb             tbb_debug
     find_library(TBB_${TBB_LIB}_LIBRARY
         NAMES
             ${TBB_LIB}
-        PATHS
+        HINTS
             ${TBB_LOCATION}/lib
             ${TBB_LOCATION}/bin
             $ENV{TBB_LOCATION}/lib
