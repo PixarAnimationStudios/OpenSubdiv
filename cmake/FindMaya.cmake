@@ -51,54 +51,60 @@
 #  License text for the above reference.)
 
 if(APPLE)
-    find_path(MAYA_BASE_DIR ../../devkit/include/maya/MFn.h PATH
-        ${MAYA_LOCATION}
-        $ENV{MAYA_LOCATION}
-        "/Applications/Autodesk/maya2014/Maya.app/Contents"
-        "/Applications/Autodesk/maya2013.5/Maya.app/Contents"
-        "/Applications/Autodesk/maya2013/Maya.app/Contents"
-        "/Applications/Autodesk/maya2012.17/Maya.app/Contents"
-        "/Applications/Autodesk/maya2012/Maya.app/Contents"
-        "/Applications/Autodesk/maya2011/Maya.app/Contents"
-        "/Applications/Autodesk/maya2010/Maya.app/Contents"
+    find_path(MAYA_BASE_DIR
+            ../../devkit/include/maya/MFn.h
+        HINTS
+            ${MAYA_LOCATION}
+            $ENV{MAYA_LOCATION}
+            "/Applications/Autodesk/maya2014/Maya.app/Contents"
+            "/Applications/Autodesk/maya2013.5/Maya.app/Contents"
+            "/Applications/Autodesk/maya2013/Maya.app/Contents"
+            "/Applications/Autodesk/maya2012.17/Maya.app/Contents"
+            "/Applications/Autodesk/maya2012/Maya.app/Contents"
+            "/Applications/Autodesk/maya2011/Maya.app/Contents"
+            "/Applications/Autodesk/maya2010/Maya.app/Contents"
     )
     find_path(MAYA_LIBRARY_DIR libOpenMaya.dylib
-        PATHS
+        HINTS
             ${MAYA_LOCATION}
             $ENV{MAYA_LOCATION}
             ${MAYA_BASE_DIR}
         PATH_SUFFIXES
             Maya.app/contents/MacOS/
-        DOC 
+        DOC
             "Maya's libraries path"
     )
 endif(APPLE)
 
 if(UNIX)
-    find_path(MAYA_BASE_DIR include/maya/MFn.h PATH
-        ${MAYA_LOCATION}
-        $ENV{MAYA_LOCATION}
-        "/usr/autodesk/maya2013-x64"
-        "/usr/autodesk/maya2012.17-x64"
-        "/usr/autodesk/maya2012-x64"
-        "/usr/autodesk/maya2011-x64"
-        "/usr/autodesk/maya2010-x64"
+    find_path(MAYA_BASE_DIR
+            include/maya/MFn.h
+        HINTS
+            ${MAYA_LOCATION}
+            $ENV{MAYA_LOCATION}
+            "/usr/autodesk/maya2013-x64"
+            "/usr/autodesk/maya2012.17-x64"
+            "/usr/autodesk/maya2012-x64"
+            "/usr/autodesk/maya2011-x64"
+            "/usr/autodesk/maya2010-x64"
     )
-    find_path(MAYA_LIBRARY_DIR libOpenMaya.so
-        PATHS
+    find_path(MAYA_LIBRARY_DIR
+            libOpenMaya.so
+        HINTS
             ${MAYA_LOCATION}
             $ENV{MAYA_LOCATION}
             ${MAYA_BASE_DIR}
         PATH_SUFFIXES
             lib/
-        DOC 
+        DOC
             "Maya's libraries path"
     )
 endif(UNIX)
 
 if(WIN32)
-    find_path(MAYA_BASE_DIR include/maya/MFn.h 
-        PATH
+    find_path(MAYA_BASE_DIR
+            include/maya/MFn.h
+        HINTS
             ${MAYA_LOCATION}
             $ENV{MAYA_LOCATION}
             "C:/Program Files/Autodesk/Maya2013.5-x64"
@@ -122,46 +128,50 @@ if(WIN32)
             "C:/Program Files (x86)/Autodesk/Maya2010"
             "C:/Autodesk/maya-2010x64"
     )
-    find_path(MAYA_LIBRARY_DIR OpenMaya.lib
-        PATHS
+    find_path(MAYA_LIBRARY_DIR
+            OpenMaya.lib
+        HINTS
             ${MAYA_LOCATION}
             $ENV{MAYA_LOCATION}
             ${MAYA_BASE_DIR}
         PATH_SUFFIXES
             lib/
-        DOC 
+        DOC
             "Maya's libraries path"
     )
 endif(WIN32)
 
-find_path(MAYA_INCLUDE_DIR maya/MFn.h
-    PATHS
+find_path(MAYA_INCLUDE_DIR
+        maya/MFn.h
+    HINTS
         ${MAYA_LOCATION}
         $ENV{MAYA_LOCATION}
         ${MAYA_BASE_DIR}
     PATH_SUFFIXES
         ../../devkit/include/
         include/
-    DOC 
+    DOC
         "Maya's devkit headers path"
 )
 
-find_path(MAYA_LIBRARY_DIR OpenMaya
-    PATHS
+find_path(MAYA_LIBRARY_DIR
+        OpenMaya
+    HINTS
         ${MAYA_LOCATION}
         $ENV{MAYA_LOCATION}
         ${MAYA_BASE_DIR}
     PATH_SUFFIXES
         ../../devkit/include/
         include/
-    DOC 
+    DOC
         "Maya's devkit headers path"
 )
 
 list(APPEND MAYA_INCLUDE_DIRS ${MAYA_INCLUDE_DIR})
 
-find_path(MAYA_DEVKIT_INC_DIR GL/glext.h
-    PATHS
+find_path(MAYA_DEVKIT_INC_DIR
+       GL/glext.h
+    HINTS
         ${MAYA_LOCATION}
         $ENV{MAYA_LOCATION}
         ${MAYA_BASE_DIR}
@@ -186,25 +196,28 @@ foreach(MAYA_LIB
     cg
     cgGL)
 
-    find_library(MAYA_${MAYA_LIB}_LIBRARY ${MAYA_LIB}
-        PATHS
+    find_library(MAYA_${MAYA_LIB}_LIBRARY
+            ${MAYA_LIB}
+        HINTS
             ${MAYA_LOCATION}
             $ENV{MAYA_LOCATION}
             ${MAYA_BASE_DIR}
         PATH_SUFFIXES
             MacOS/
             lib/
-        DOC 
+        DOC
             "Maya's ${MAYA_LIB} library path"
     )
 
+
     if (MAYA_${MAYA_LIB}_LIBRARY)
-        list(APPEND ${MAYA_LIBRARIES} MAYA_${MAYA_LIB}_LIBRARY)
+        list(APPEND MAYA_LIBRARIES ${MAYA_${MAYA_LIB}_LIBRARY})
     endif()
 endforeach(MAYA_LIB)
 
-find_program(MAYA_EXECUTABLE maya
-    PATHS
+find_program(MAYA_EXECUTABLE
+        maya
+    HINTS
         ${MAYA_LOCATION}
         $ENV{MAYA_LOCATION}
         ${MAYA_BASE_DIR}
@@ -226,11 +239,11 @@ endif()
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
 
-find_package_handle_standard_args(Maya 
-    REQUIRED_VARS 
-        ${MAYA_LIBRARIES} 
-        MAYA_EXECUTABLE  
+find_package_handle_standard_args(Maya
+    REQUIRED_VARS
+        MAYA_EXECUTABLE
         MAYA_INCLUDE_DIRS
+        MAYA_LIBRARIES
     VERSION_VAR
-        MAYA_API_VERSION    
+        MAYA_API_VERSION
 )
