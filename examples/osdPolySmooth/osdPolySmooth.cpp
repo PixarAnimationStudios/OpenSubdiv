@@ -425,14 +425,11 @@ createOsdHbrFromPoly( MFnMesh const & inMeshFn,
         if (totalFvarWidth > 0) {
 
             // Retrieve all UV and ColorSet data
-            MIntArray faceCounts;
             for (unsigned int i=0; i < uvSetNames.length(); ++i) {
-                returnStatus = inMeshItPolygon.getUVs(uvSet_uCoords[i], uvSet_vCoords[i], &uvSetNames[i] );
-                MWARNERR(returnStatus, "Cannot get UVs");
+                inMeshItPolygon.getUVs(uvSet_uCoords[i], uvSet_vCoords[i], &uvSetNames[i] );
             }
             for (unsigned int i=0; i < colorSetNames.length(); ++i) {
-                returnStatus = inMeshItPolygon.getColors (colorSet_colors[i], &colorSetNames[i]);
-                MWARNERR(returnStatus, "Cannot get face vertex colors");
+                inMeshItPolygon.getColors(colorSet_colors[i], &colorSetNames[i]);
             }
 
             std::vector<float> fvarItem(totalFvarWidth); // storage for all the face-varying channels for this face-vertex
@@ -443,27 +440,29 @@ createOsdHbrFromPoly( MFnMesh const & inMeshFn,
                 int fvarItemIndex = 0;
                 // Handle uvSets
                 for( unsigned int uvSetIt=0; uvSetIt < uvSetNames.length(); ++uvSetIt ) {
-                    fvarItem[fvarItemIndex]   = uvSet_uCoords[uvSetIt][fvid];
-                    fvarItem[fvarItemIndex+1] = uvSet_vCoords[uvSetIt][fvid];
-                    fvarItemIndex +=2;
+                    if (fvid < uvSet_uCoords[uvSetIt].length()) {
+                        fvarItem[fvarItemIndex  ] = uvSet_uCoords[uvSetIt][fvid];
+                        fvarItem[fvarItemIndex+1] = uvSet_vCoords[uvSetIt][fvid];
+                    } else {
+                        // getUVs() can return incomplete or empty arrays
+                        fvarItem[fvarItemIndex  ] = 0.0f;
+                        fvarItem[fvarItemIndex+1] = 0.0f;
+                    }
+                    fvarItemIndex += 2;
                 }
                 // Handle colorSets
                 for( unsigned int colorSetIt=0; colorSetIt < colorSetNames.length(); ++colorSetIt ) {
-                    if (colorSetChannels[colorSetIt] == 1) {
-                        fvarItem[fvarItemIndex]   = colorSet_colors[colorSetIt][fvid].a;
+
+                    int nchannels = colorSetChannels[colorSetIt];
+                    for (int channel=0; channel < nchannels; ++channel) {
+                        if (fvid < colorSet_colors[colorSetIt].length()) {
+                            fvarItem[fvarItemIndex+channel] = colorSet_colors[colorSetIt][fvid][channel];
+                        } else {
+                            // getColors() can return incomplete or empty arrays
+                            fvarItem[fvarItemIndex+channel] = 0.0f;
+                        }
                     }
-                    else if (colorSetChannels[colorSetIt] == 3) {
-                        fvarItem[fvarItemIndex]   = colorSet_colors[colorSetIt][fvid].r;
-                        fvarItem[fvarItemIndex+1] = colorSet_colors[colorSetIt][fvid].g;
-                        fvarItem[fvarItemIndex+2] = colorSet_colors[colorSetIt][fvid].b;
-                    }
-                    else { // colorSetChannels[colorSetIt] == 4
-                        fvarItem[fvarItemIndex]   = colorSet_colors[colorSetIt][fvid].r;
-                        fvarItem[fvarItemIndex+1] = colorSet_colors[colorSetIt][fvid].g;
-                        fvarItem[fvarItemIndex+2] = colorSet_colors[colorSetIt][fvid].b;
-                        fvarItem[fvarItemIndex+3] = colorSet_colors[colorSetIt][fvid].a;
-                    }
-                    fvarItemIndex += colorSetChannels[colorSetIt];
+                    fvarItemIndex += nchannels;
                 }
                 assert((fvarItemIndex) == totalFvarWidth); // For UVs, sanity check the resulting value
 
@@ -607,12 +606,17 @@ MStatus convertOsdFarToMayaMeshData(
                 vCoord[vertid] = fvarDataTable[fvarItem+1];
             }
             // Assign UV buffer and map the uvids for each face-vertex
-            if (uvSetIndex != 0) { // assume uvset index 0 is the default UVset, so do not create
+            if (uvSetIndex > 0) {
                 returnStatus = newMeshFn.createUVSetDataMesh( uvSetNames[uvSetIndex] );
+                MCHECKERR(returnStatus, "Cannot create UVSet");
             }
-            MCHECKERR(returnStatus, "Cannot create UVSet");
-            newMeshFn.setUVs(uCoord,vCoord, &uvSetNames[uvSetIndex]);
-            newMeshFn.assignUVs(faceCounts, fvarConnects, &uvSetNames[uvSetIndex]);
+
+            static MString defaultUVName("map1");
+            MString const * uvname = uvSetIndex==0 ? &defaultUVName : &uvSetNames[uvSetIndex];
+
+            returnStatus = newMeshFn.setUVs(uCoord,vCoord, uvname);
+            MCHECKERR(returnStatus, "Cannot set UVs for set : "+*uvname);
+            newMeshFn.assignUVs(faceCounts, fvarConnects, uvname);
         }
 
         MColorArray colorArray(faceConnects.length());
@@ -623,21 +627,9 @@ MStatus convertOsdFarToMayaMeshData(
             for(unsigned int vertid=0; vertid < faceConnects.length(); vertid++) {
 
                 int fvarItem = vertid*fvarTotalWidth + colorSetRelativeStartIndex;
-                if (colorSetChannels[colorSetIndex] == 1) {
-                    colorArray[vertid].r = fvarDataTable[fvarItem];
-                    colorArray[vertid].g = fvarDataTable[fvarItem];
-                    colorArray[vertid].b = fvarDataTable[fvarItem];
-                    colorArray[vertid].a = 1.0f;
-                } else if (colorSetChannels[colorSetIndex] == 3) {
-                    colorArray[vertid].r = fvarDataTable[fvarItem];
-                    colorArray[vertid].g = fvarDataTable[fvarItem+1];
-                    colorArray[vertid].b = fvarDataTable[fvarItem+2];
-                    colorArray[vertid].a = 1.0f;
-                } else {
-                    colorArray[vertid].r = fvarDataTable[fvarItem];
-                    colorArray[vertid].g = fvarDataTable[fvarItem+1];
-                    colorArray[vertid].b = fvarDataTable[fvarItem+2];
-                    colorArray[vertid].a = fvarDataTable[fvarItem+3];
+                int nchannels = colorSetChannels[colorSetIndex];
+                for (int channel=0; channel<nchannels; ++channel) {
+                    colorArray[vertid][channel] = fvarDataTable[fvarItem+channel];
                 }
             }
 
