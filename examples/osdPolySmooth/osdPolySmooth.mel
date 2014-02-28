@@ -145,3 +145,23 @@ global proc string[] osdPolySmooth(string $meshes[]) {
     // Return created osdPolySmooth nodes
     return $osdPolySmoothNodes;
 }
+
+//
+// Clearnup the DAG from nodes created with osdPolySmooth
+//
+global proc osdPolySmoothCleanup() {
+
+    string $nodes[] = `ls -type osdPolySmooth`;
+
+    for ($node in $nodes) {
+
+        string $mergeUVNodes[] = `listConnections -s on -sh on -t polyMergeUV ($node+".output")`;
+
+        string $expressionNodes[] = `listConnections -s on -t expression ($node+".displayMesh")`;
+
+        string $refinedNodes[] = `listConnections -s on -sh on -t mesh ($mergeUVNodes[0]+".output")`;
+
+        delete $node $mergeUVNodes[0] $refinedNodes[0] $expressionNodes[0];
+    }
+}
+
