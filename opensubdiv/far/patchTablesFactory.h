@@ -141,12 +141,9 @@ private:
     // A convenience container for the different types of feature adaptive patches
     template<class TYPE> struct PatchTypes {
 
-//#define NUM_TRANSITIONS 6
-//#define NUM_ROTATIONS 4
-    
         static const int NUM_TRANSITIONS=6,
                          NUM_ROTATIONS=4;
-    
+
         TYPE R[NUM_TRANSITIONS],                   // regular patch
              B[NUM_TRANSITIONS][NUM_ROTATIONS],    // boundary patch (4 rotations)
              C[NUM_TRANSITIONS][NUM_ROTATIONS],    // corner patch (4 rotations)
@@ -675,17 +672,12 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
 
     int fvarwidth = requireFVarData ? getMesh()->GetTotalFVarWidth() : 0;
 
+    // Allocate various tables
     allocateTables( result, fvarwidth );
 
-    FarPatchTables::QuadOffsetTable quad_G_C0; // Quad-offsets tables (for Gregory patches)
-    quad_G_C0.resize(_patchCtr.G*4);
-
-    FarPatchTables::QuadOffsetTable quad_G_C1;
-    quad_G_C1.resize(_patchCtr.GB*4);
-
-    FarPatchTables::QuadOffsetTable::value_type *quad_G_C0_P = quad_G_C0.empty() ? 0 : &quad_G_C0[0];
-    FarPatchTables::QuadOffsetTable::value_type *quad_G_C1_P = quad_G_C1.empty() ? 0 : &quad_G_C1[0];
-
+    if ((_patchCtr.G > 0) or (_patchCtr.GB > 0)) { // Quad-offsets tables (for Gregory patches)
+        result->_quadOffsetTable.resize( _patchCtr.G*4 + _patchCtr.GB*4 );
+    }
 
     // Setup convenience pointers at the beginning of each patch array for each
     // table (patches, ptex, fvar)
@@ -706,6 +698,9 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
         if (fvarwidth>0)
             fptrs.getValue( *it ) = &result->_fvarTable[pa->GetPatchIndex() * 4 * fvarwidth];
     }
+
+    FarPatchTables::QuadOffsetTable::value_type *quad_G_C0_P = _patchCtr.G>0 ? &result->_quadOffsetTable[0] : 0;
+    FarPatchTables::QuadOffsetTable::value_type *quad_G_C1_P = _patchCtr.GB>0 ? &result->_quadOffsetTable[_patchCtr.G*4] : 0;
 
     // Populate patch index tables with vertex indices
     for (int i=0; i<getNumFaces(); ++i) {
@@ -903,11 +898,6 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
         result->_vertexValenceTable.clear();
     }
 
-    // Combine quad offset buffers
-    result->_quadOffsetTable.resize((_patchCtr.G+_patchCtr.GB)*4);
-    std::copy(quad_G_C0.begin(), quad_G_C0.end(), result->_quadOffsetTable.begin());
-    std::copy(quad_G_C1.begin(), quad_G_C1.end(), result->_quadOffsetTable.begin()+_patchCtr.G*4);
-
     return result;
 }
 
@@ -1044,7 +1034,7 @@ FarPatchTablesFactory<T>::getOneRing(HbrFace<T> const * f,
 template <class T> void
 FarPatchTablesFactory<T>::getQuadOffsets(HbrFace<T> const * f, unsigned int * result) {
 
-    assert( f and f->GetNumVertices()==4 );
+    assert(result and f and f->GetNumVertices()==4);
 
     // Builds a table of value pairs for each vertex of the patch.
     //
