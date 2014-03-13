@@ -650,46 +650,87 @@ MStatus convertOsdFarToMayaMeshData(
     return MS::kSuccess;
 }
 
+static inline int
+computeNumSubfaces( int nverts, int level ) {
+
+    return nverts==4 ? 1<<(level<<1) : nverts*(1<<((level-1)<<1));
+}
 
 // Propagate objectGroups from inMesh to subdivided outMesh
 // Note: Currently only supporting facet groups (for per-facet shading)
 MStatus
-createSmoothMesh_objectGroups(const MFnMeshData &inMeshDat,
-    int subdivisionLevel, MFnMeshData &newMeshDat) {
+createSmoothMesh_objectGroups( FMesh const * farMesh, MFnMesh const & inMeshFn,
+    MFnMeshData const & inMeshDat, MFnMeshData &newMeshDat, int level ) {
 
     MStatus returnStatus;
 
-    int facesPerBaseFace = (int)(pow(4.0f, subdivisionLevel));
     MIntArray newCompElems;
 
-    for(unsigned int gi=0; gi < inMeshDat.objectGroupCount(); gi++) {
+    int numSubfaces = farMesh->GetPatchTables()->GetNumFaces();
+
+    std::vector<unsigned int> offsets; // mapping of offsets for subdivided faces
+
+    for(unsigned int gi=0; gi<inMeshDat.objectGroupCount(); gi++) {
+
         unsigned int compId = inMeshDat.objectGroup(gi, &returnStatus);
         MCHECKERR(returnStatus, "cannot get objectGroup() comp ID.");
+
         MFn::Type compType = inMeshDat.objectGroupType(compId, &returnStatus);
         MCHECKERR(returnStatus, "cannot get objectGroupType().");
-
-        // get elements from inMesh objectGroupComponent
-        MIntArray compElems;
-        MFnSingleIndexedComponent compFn(inMeshDat.objectGroupComponent(compId), &returnStatus );
-        MCHECKERR(returnStatus, "cannot get MFnSingleIndexedComponent for inMeshDat.objectGroupComponent().");
-        compFn.getElements(compElems);
 
         // Only supporting kMeshPolygonComponent ObjectGroups at this time
         // Skip the other types
         if (compType == MFn::kMeshPolygonComponent) {
 
-            // convert/populate newCompElems from compElems of inMesh
-            // (with new face indices) to outMesh
-            newCompElems.setLength( compElems.length() * facesPerBaseFace );
-            for (unsigned int i=0; i < compElems.length(); i++) {
+            // get elements from inMesh objectGroupComponent
+            MIntArray compElems;
+            MFnSingleIndexedComponent compFn(inMeshDat.objectGroupComponent(compId), &returnStatus );
 
-                int startElemIndex = i * facesPerBaseFace;
-                int startElemValue = compElems[i] * facesPerBaseFace;
+            MCHECKERR(returnStatus, "cannot get MFnSingleIndexedComponent for inMeshDat.objectGroupComponent().");
+            compFn.getElements(compElems);
 
-                for (int j=0; j < facesPerBaseFace; j++) {
-                    newCompElems[startElemIndex+j] = startElemValue+j;
+            if (compElems.length()==0) {
+                continue;
+            }
+
+            // over-allocation to maximum possible length
+            newCompElems.setLength( numSubfaces );
+
+            if (offsets.empty()) {
+                // lazy population of the subface offsets table
+                int nfaces = inMeshFn.numPolygons();
+
+                offsets.resize(nfaces);
+                
+                for (int i=0, count=0; i<nfaces; ++i) {
+
+                    int nverts = inMeshFn.polygonVertexCount(i),
+                        nsubfaces = computeNumSubfaces(nverts, level);
+                    
+                    offsets[i] = count;
+                    count+=nsubfaces;
                 }
             }
+
+            unsigned int idx = 0;
+
+            // convert/populate newCompElems from compElems of inMesh
+            // (with new face indices) to outMesh
+            for (unsigned int i=0; i < compElems.length(); i++) {
+
+                int nverts = inMeshFn.polygonVertexCount(compElems[i]),
+                    nsubfaces = computeNumSubfaces(nverts, level);
+
+                unsigned int subFaceOffset = offsets[compElems[i]];
+
+                for (int j=0; j<nsubfaces; ++j) {
+                    newCompElems[idx++] = subFaceOffset++;
+                }
+            }
+
+            // resize to actual length
+            newCompElems.setLength( idx );
+
             // create comp
             createComp(newMeshDat, compType, compId, newCompElems);
         }
@@ -835,7 +876,7 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
                 MCHECKERR(returnStatus, "ERROR convertOsdFarToMayaMesh");
 
                 // Propagate objectGroups from inMesh to outMesh (for per-facet shading, etc)
-                returnStatus = createSmoothMesh_objectGroups(inMeshDat, subdivisionLevel, newMeshData );
+                returnStatus = createSmoothMesh_objectGroups(farMesh, inMeshFn, inMeshDat, newMeshData, subdivisionLevel );
 
                 // Write to output plug
                 MDataHandle outMeshH = data.outputValue(a_output, &returnStatus);
