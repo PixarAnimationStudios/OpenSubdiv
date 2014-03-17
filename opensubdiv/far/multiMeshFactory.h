@@ -507,7 +507,7 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes, bool h
         // in order to fill following prim's data at appropriate location.
         numVerticesInVertexValence += ptables->_vertexValenceTable.empty()
             ? (int)meshes[i]->GetNumVertices()
-            : ptables->_vertexValenceTable.size()/(2*ptables->_maxValence+1);
+            : (int)ptables->_vertexValenceTable.size()/(2*ptables->_maxValence+1);
     }
 
     // Allocate full patches
