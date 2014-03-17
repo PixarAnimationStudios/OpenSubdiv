@@ -122,6 +122,8 @@ global proc string[] osdPolySmooth(string $meshes[]) {
         string $osdPolySmooth = `createNode osdPolySmooth`;
         connectAttr ($inMeshAttr[0]) ($osdPolySmooth+".inputPolymesh");
         connectAttr -force ($osdPolySmooth+".output") ($outMeshAttr[0]);
+        
+        polyMergeUV -d 0.01 -ch 1 $mesh;
 
         if ($showBaseMesh) {
             addAttr -ln "displayMesh"  -at "enum" -en "Cage:Smooth:Cage+Smooth" -defaultValue 2 $osdPolySmooth;
@@ -143,3 +145,23 @@ global proc string[] osdPolySmooth(string $meshes[]) {
     // Return created osdPolySmooth nodes
     return $osdPolySmoothNodes;
 }
+
+//
+// Clearnup the DAG from nodes created with osdPolySmooth
+//
+global proc osdPolySmoothCleanup() {
+
+    string $nodes[] = `ls -type osdPolySmooth`;
+
+    for ($node in $nodes) {
+
+        string $mergeUVNodes[] = `listConnections -s on -sh on -t polyMergeUV ($node+".output")`;
+
+        string $expressionNodes[] = `listConnections -s on -t expression ($node+".displayMesh")`;
+
+        string $refinedNodes[] = `listConnections -s on -sh on -t mesh ($mergeUVNodes[0]+".output")`;
+
+        delete $node $mergeUVNodes[0] $refinedNodes[0] $expressionNodes[0];
+    }
+}
+

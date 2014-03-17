@@ -32,6 +32,7 @@
 %header %{
 #include <numpy/arrayobject.h>
 #include <iostream>
+#include <stddef.h>
 
 static shim::DataType
 _ShimTypeFromNumpyType(int numpyType)

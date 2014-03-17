@@ -173,6 +173,10 @@ OsdPtexMipmapTextureLoader::Block::Generate(OsdPtexMipmapTextureLoader *loader,
     // 2x2 subfaces.
     int limit = faceInfo.isSubface() ? 1 : 2;
 
+    // but if the base size is already less than limit, we'd like to pick it
+    // instead of nothing.
+    limit = std::min(std::min(limit, ulog2), vlog2);
+
     while (ulog2 >= limit and vlog2 >= limit
            and (maxLevels == -1 or level <= maxLevels)) {
         if (level % 2 == 1)

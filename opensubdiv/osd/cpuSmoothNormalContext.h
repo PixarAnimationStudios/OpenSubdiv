@@ -42,7 +42,7 @@ public:
 
     /// Creates an OsdCpuComputeContext instance
     ///
-    /// @param farmesh      The FarMesh used for this Context.
+    /// @param patchTables  The FarPatchTables used for this Context.
     ///
     /// @param resetMemory  Set to true if the target vertex buffer needs its
     ///                     memory reset before accumulating the averaged normals.

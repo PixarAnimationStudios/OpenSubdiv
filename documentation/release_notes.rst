@@ -31,6 +31,47 @@ Release Notes
 
 ----
 
+Release 2.3.5
+=============
+
+**New Features**
+    - Add the ability to read obj files to the dxViewer example
+    - Add screen-capture function to ptexViewer
+    - Update documention for Xcode builds
+    - Add documentation (boundary interpolation rules and face-varying boundary interpolation rules)
+
+**Changes**
+    - Refactoring FarPatchTables and FarPatchTablesFactory
+    - Move GL vertex buffer VBO buffer allocation out of allocate() and into BindVBO()
+    - Enable uvViewer on OS X now that Mavericks is released.
+    - Replacing un-necessary dynamic_cast with reinterpret_cast within FarDispatcher
+    - Minor code cleanup of FarMeshFactory
+    - Remove address space qualifiers from OpenCL kernel functions
+    - Fix OpenCL initialization to be slightly more robust
+    - Add OpenCL header include paths where necessary
+    - Add 'static' specifiers for non-kernel CL funcs at program scope
+    - Add stddef.h to python/osd/osdshim.i
+    - Modify ptexViewer and uvViewer shaders to address some portability issues
+
+**Bug Fixes**
+    - Fix Gregory Boundary patch buffer overrun
+    - Fix black texels when the resolution of a ptex face is less than 4
+    - Fix a splicing bug in FarMultiMeshFactory
+    - Fix a build error when using older versions of GLFW
+    - Fix build warnings (optimized)
+    - Fix FindTBB.cmake
+    - Fix FindMaya.cmake
+    - Fix glViewer support for GLSL compute
+    - Fix ptexViewer: enable specular pass in both IBL and point lighting
+    - Fix Zlib include in ptexViewer
+    - Fix ptexViewer shader errors.
+    - Fix osdPolySmooth Maya plugin
+    - Fix UV merging in osdPolySmooth code example
+    - Add cleanup function to osdPolySmooth Maya plugin
+    - Fix Maya OsdPolySmooth node component output
+    - Fix GLSL array instantiation syntax for glStencilViewer
+    - Fix examples to run correctly on high DPI displays with GLFW 3
+
 Release 2.3.4
 =============
 
@@ -50,10 +91,10 @@ Release 2.3.4
     - Fixed iOS build
     - Fixed VS2010 warnings/errors.
     - Fix OsdCpuEvalLimitKernel
-    - Fix maxvalence calculation in FarMeshFactory 
+    - Fix maxvalence calculation in FarMeshFactory
     - Fix FarStencilFactory control stencil caching
     - Removing assert for high-valence vertices running off limit tangent pre-computed table.
-    - Fix degenerate stencil limit tangent code path. 
+    - Fix degenerate stencil limit tangent code path.
     - Fix unused variable build warnings (gcc 4.8.2 - Fedora 19)
     - Fix build warning from osdutil/adaptiveEvaluator.cpp
 
@@ -66,7 +107,7 @@ Release 2.3.3
     - Adding some documentation for Chaikin crease rule
     - Misc. improvements to PxOsdUtilsMesh
     - Adding recommended isolation output to OsdPolySmooth node
-    
+
 **Bug Fixes**
     - Adding an error check on version parsing of main CMakeLists
     - Fix regex in FindMaya.cmake that breaks with recent versions of Maya
@@ -81,7 +122,7 @@ Release 2.3.2
 
 **New Features**
     - Adding control cage drawing to ptexViewer
-    - Adding Maya osdPolySmooth plugin into OpenSubdiv examples. 
+    - Adding Maya osdPolySmooth plugin into OpenSubdiv examples.
 
 **Changes**
     - Removing some glGetError checks that are causing problems for Autodesk

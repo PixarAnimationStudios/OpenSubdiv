@@ -54,6 +54,18 @@ if ( GLEW_FOUND )
     list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
 endif()
 
+if( OPENCL_FOUND )
+    include_directories(${OPENCL_INCLUDE_DIRS})
+endif()
+
+# optional dependency - enables screenshots
+find_package(PNG)
+if (PNG_FOUND)
+    include_directories(${PNG_INCLUDE_DIRS})
+    list(APPEND PLATFORM_LIBRARIES ${PNG_LIBRARIES})
+    add_definitions(-DOPENSUBDIV_HAS_PNG)
+endif()
+
 #-------------------------------------------------------------------------------
 
 _stringify("${SHADER_FILES}" INC_FILES)

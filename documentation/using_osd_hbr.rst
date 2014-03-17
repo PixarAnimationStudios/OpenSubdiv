@@ -301,6 +301,11 @@ The rule-set can be selected using the following accessors:
 
     mesh->SetFVarInterpolateBoundaryMethod( OpenSubdiv::HbrMesh<Vertex>::k_InterpolateBoundaryEdgeOnly );
 
+
+Additional information on boundary interpolation rules can be found
+`here <subdivision_surfaces.html#boundary-interpolation-rules>`__ and
+`here <hbr_overview.html#boundary-interpolation-rules>`__
+
 .. container:: impnotip
 
    **Warning**
@@ -308,7 +313,6 @@ The rule-set can be selected using the following accessors:
    The boundary interpolation rules **must** be set before the call to
    *HbrMesh::Finish()*, which sets the sharpness values to boundary edges
    and vertices based on these rules.
-
 
 Adding Creases
 ==============

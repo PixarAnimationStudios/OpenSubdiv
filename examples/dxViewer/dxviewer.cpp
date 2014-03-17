@@ -1497,6 +1497,23 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
         }
     }
 
+    std::string str;
+    for (int i = 1; i < __argc; ++i) {
+        if (!strcmp(__argv[i], "-d"))
+            g_level = atoi(__argv[++i]);
+        else if (!strcmp(__argv[i], "-c"))
+            g_repeatCount = atoi(__argv[++i]);
+        else {
+            std::ifstream ifs(__argv[1]);
+            if (ifs) {
+                std::stringstream ss;
+                ss << ifs.rdbuf();
+                ifs.close();
+                str = ss.str();
+                g_defaultShapes.push_back(SimpleShape(str.c_str(), __argv[1], kCatmark));
+            }
+        }
+    }
     initializeShapes();
 
     OsdSetErrorCallback(callbackError);

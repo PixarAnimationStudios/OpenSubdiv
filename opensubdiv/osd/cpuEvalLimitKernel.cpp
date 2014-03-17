@@ -746,7 +746,12 @@ evalGregoryBoundary(float u, float v,
 
             int valenceNeighbor = vertexValenceBuffer[idx_neighbor * (2*maxValence+1)]; 
             if (valenceNeighbor < 0) {
-                boundaryEdgeNeighbors[currNeighbor++] = idx_neighbor;
+                
+                if (currNeighbor<2) {
+                    boundaryEdgeNeighbors[currNeighbor] = idx_neighbor;
+                }
+                currNeighbor++;
+                
                 if (currNeighbor == 1)    {
                     ibefore = i;
                     zerothNeighbor = i;

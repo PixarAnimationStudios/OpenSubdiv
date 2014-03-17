@@ -420,8 +420,6 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
     int ncoarsefaces = mesh->GetNumCoarseFaces(),
         ncoarseverts = mesh->GetNumVertices();
 
-    int maxlevel = maxIsolate+1;
-
     // First pass : tag coarse vertices & faces that need refinement
 
     typedef std::set<HbrVertex<T> *,VertCompare<T> > VertSet;
@@ -507,7 +505,7 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
 
     // Second pass : refine adaptively around singularities
 
-    for (int level=0; level<maxlevel-1; ++level) {
+    for (int level=0; level<maxIsolate; ++level) {
 
         verts = nextverts;
         nextverts.clear();
@@ -576,7 +574,7 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
             }
         }
     }
-    return maxlevel-1;
+    return maxIsolate;
 }
 
 // Assumption : the order of the vertices in the HbrMesh could be set in any

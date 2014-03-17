@@ -105,17 +105,17 @@ private:
 
     // Returns the rotation for a corner patch
     static unsigned char computeCornerPatchRotation( HbrFace<T> * f );
-    
+
     // Populates the face-varying data buffer 'coord' for the given face and
     // returns a pointer to the next entry in the table
     static float * computeFVarData(HbrFace<T> const *f, const int width, float *coord, bool isAdaptive);
-    
-    // Populates the patch parametrization descriptor 'coord' for the given face 
+
+    // Populates the patch parametrization descriptor 'coord' for the given face
     // returns a pointer to the next descriptor
     static FarPatchParam * computePatchParam(HbrFace<T> const *f, FarPatchParam *coord);
 
     // Populates an array of indices with the "one-ring" vertices for the given face
-    void getOneRing(HbrFace<T> const * f, int ringsize, unsigned int const * remap, unsigned int * result) const;
+    unsigned int * getOneRing(HbrFace<T> const * f, int ringsize, unsigned int const * remap, unsigned int * result) const;
 
     // Populates the Gregory patch quad offsets table
     static void getQuadOffsets(HbrFace<T> const * f, unsigned int * result);
@@ -140,10 +140,15 @@ private:
 
     // A convenience container for the different types of feature adaptive patches
     template<class TYPE> struct PatchTypes {
-        TYPE R,       // regular patch
-             B[4],    // boundary patch (4 rotations)
-             C[4],    // corner patch (4 rotations)
-             G[2];    // gregory patch (boundary & corner)
+
+        static const int NUM_TRANSITIONS=6,
+                         NUM_ROTATIONS=4;
+
+        TYPE R[NUM_TRANSITIONS],                   // regular patch
+             B[NUM_TRANSITIONS][NUM_ROTATIONS],    // boundary patch (4 rotations)
+             C[NUM_TRANSITIONS][NUM_ROTATIONS],    // corner patch (4 rotations)
+             G,                                    // gregory patch
+             GB;                                   // gregory boundary patch
 
         PatchTypes() { memset(this, 0, sizeof(PatchTypes<TYPE>)); }
 
@@ -164,10 +169,9 @@ private:
     // vertex and patch offsets
     void pushPatchArray( FarPatchTables::Descriptor desc,
                          FarPatchTables::PatchArrayVector & parray,
-                         Counter & counter,
-                         int * voffset, int * poffset, int * qoffset );
+                         int npatches, int * voffset, int * poffset, int * qoffset );
 
-    Counter _patchCtr[6];  // counters for full and transition patches
+    Counter _patchCtr;  // counters for full and transition patches
 
     HbrMesh<T> const * _mesh;
 
@@ -176,6 +180,45 @@ private:
 
     int _nfaces;
 };
+
+template <class T>
+    template <class TYPE> TYPE &
+FarPatchTablesFactory<T>::PatchTypes<TYPE>::getValue( FarPatchTables::Descriptor desc ) {
+
+    switch (desc.GetType()) {
+        case FarPatchTables::REGULAR          : return R[desc.GetPattern()];
+        case FarPatchTables::BOUNDARY         : return B[desc.GetPattern()][desc.GetRotation()];
+        case FarPatchTables::CORNER           : return C[desc.GetPattern()][desc.GetRotation()];
+        case FarPatchTables::GREGORY          : return G;
+        case FarPatchTables::GREGORY_BOUNDARY : return GB;
+        default : assert(0);
+    }
+    // can't be reached (suppress compiler warning)
+    return R[0];
+}
+
+template <class T>
+    template <class TYPE> int
+FarPatchTablesFactory<T>::PatchTypes<TYPE>::getNumPatchArrays() const {
+
+    int result=0;
+
+    for (int i=0; i<6; ++i) {
+
+        if (R[i]) ++result;
+
+        for (int j=0; j<4; ++j) {
+            if (B[i][j]) ++result;
+            if (C[i][j]) ++result;
+
+        }
+    }
+
+    if (G) ++result;
+    if (GB) ++result;
+
+    return result;
+}
 
 // True if the surrounding faces are "tagged" (unsupported feature : watertight
 // critical patches)
@@ -452,17 +495,17 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
                     switch (boundaryVerts) {
 
                         case 0 : {   // Regular patch
-                                     _patchCtr[0].R++;
+                                     _patchCtr.R[FarPatchTables::NON_TRANSITION]++;
                                  } break;
 
                         case 2 : {   // Boundary patch
                                      f->_adaptiveFlags.rots=computeBoundaryPatchRotation(f);
-                                     _patchCtr[0].B[0]++;
+                                     _patchCtr.B[FarPatchTables::NON_TRANSITION][0]++;
                                  } break;
 
                         case 3 : {   // Corner patch
                                      f->_adaptiveFlags.rots=computeCornerPatchRotation(f);
-                                     _patchCtr[0].C[0]++;
+                                     _patchCtr.C[FarPatchTables::NON_TRANSITION][0]++;
                                  } break;
 
                         default : break;
@@ -475,12 +518,12 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
                     switch (boundaryVerts) {
 
                         case 0 : {   // Regular Gregory patch
-                                     _patchCtr[0].G[0]++;
+                                     _patchCtr.G++;
                                  } break;
 
 
                         default : { // Boundary Gregory patch
-                                     _patchCtr[0].G[1]++;
+                                     _patchCtr.GB++;
                                   } break;
                     }
                 }
@@ -532,8 +575,8 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
                     default: break;
                 }
 
-                int tidx = f->_adaptiveFlags.transitionType;
-                assert(tidx>=0);
+                int pattern = f->_adaptiveFlags.transitionType;
+                assert(pattern>=0);
 
                 // Correct rotations for corners & boundaries
                 if (not isExtraordinary and boundaryVerts!=1) {
@@ -541,7 +584,7 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
                     switch (boundaryVerts) {
 
                         case 0 : {   // regular patch
-                                     _patchCtr[tidx+1].R++;
+                                     _patchCtr.R[pattern+1]++;
                                  } break;
 
                         case 2 : {   // boundary patch
@@ -551,7 +594,7 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
 
                                      f->_adaptiveFlags.rots=rot; // override the transition rotation
 
-                                     _patchCtr[tidx+1].B[f->_adaptiveFlags.brots]++;
+                                     _patchCtr.B[pattern+1][f->_adaptiveFlags.brots]++;
                                  } break;
 
                         case 3 : {   // corner patch
@@ -561,7 +604,7 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
 
                                      f->_adaptiveFlags.rots=rot; // override the transition rotation
 
-                                     _patchCtr[tidx+1].C[f->_adaptiveFlags.brots]++;
+                                     _patchCtr.C[pattern+1][f->_adaptiveFlags.brots]++;
                                  } break;
 
                         default : assert(0); break;
@@ -574,45 +617,10 @@ FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nf
     }
 }
 
-template <class T>
-    template <class TYPE> TYPE &
-FarPatchTablesFactory<T>::PatchTypes<TYPE>::getValue( FarPatchTables::Descriptor desc ) {
-    switch (desc.GetType()) {
-        case FarPatchTables::REGULAR          : return R;
-        case FarPatchTables::BOUNDARY         : return B[desc.GetRotation()];
-        case FarPatchTables::CORNER           : return C[desc.GetRotation()];
-        case FarPatchTables::GREGORY          : return G[0];
-        case FarPatchTables::GREGORY_BOUNDARY : return G[1];
-        default : assert(0);
-    }
-    // can't be reached (suppress compiler warning)
-    return R;
-}
-
-template <class T>
-    template <class TYPE> int
-FarPatchTablesFactory<T>::PatchTypes<TYPE>::getNumPatchArrays() const {
-
-    int result=0;
-
-    if (R) ++result;
-    for (int i=0; i<4; ++i) {
-        if (B[i]) ++result;
-        if (C[i]) ++result;
-        if ((i<2) and G[i]) ++result;
-    }
-    return result;
-}
-
 template <class T> int
 FarPatchTablesFactory<T>::getNumPatchArrays() const {
 
-    int result = 0;
-
-    for (int i=0; i<6; ++i)
-        result += _patchCtr[i].getNumPatchArrays();
-
-    return result;
+    return _patchCtr.getNumPatchArrays();
 }
 
 template <class T> int
@@ -629,10 +637,7 @@ FarPatchTablesFactory<T>::getNumPatches( FarPatchTables::PatchArrayVector const 
 template <class T> void
 FarPatchTablesFactory<T>::pushPatchArray( FarPatchTables::Descriptor desc,
                                           FarPatchTables::PatchArrayVector & parray,
-                                          typename FarPatchTablesFactory<T>::Counter & counter,
-                                          int * voffset, int * poffset, int * qoffset ) {
-
-    int npatches = counter.getValue( desc );
+                                          int npatches, int * voffset, int * poffset, int * qoffset ) {
 
     if (npatches>0) {
         parray.push_back( FarPatchTables::PatchArray(desc, *voffset, *poffset, npatches, *qoffset) );
@@ -662,28 +667,23 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
 
 
     for (Descriptor::iterator it=Descriptor::begin(); it!=Descriptor::end(); ++it) {
-        pushPatchArray( *it, parray, _patchCtr[it->GetPattern()], &voffset, &poffset, &qoffset );
+        pushPatchArray( *it, parray, _patchCtr.getValue(*it), &voffset, &poffset, &qoffset );
     }
 
     int fvarwidth = requireFVarData ? getMesh()->GetTotalFVarWidth() : 0;
 
+    // Allocate various tables
     allocateTables( result, fvarwidth );
 
-    FarPatchTables::QuadOffsetTable quad_G_C0; // Quad-offsets tables (for Gregory patches)
-    quad_G_C0.resize(_patchCtr[0].G[0]*4);
-
-    FarPatchTables::QuadOffsetTable quad_G_C1;
-    quad_G_C1.resize(_patchCtr[0].G[1]*4);
-
-    FarPatchTables::QuadOffsetTable::value_type *quad_G_C0_P = quad_G_C0.empty() ? 0 : &quad_G_C0[0];
-    FarPatchTables::QuadOffsetTable::value_type *quad_G_C1_P = quad_G_C1.empty() ? 0 : &quad_G_C1[0];
-
+    if ((_patchCtr.G > 0) or (_patchCtr.GB > 0)) { // Quad-offsets tables (for Gregory patches)
+        result->_quadOffsetTable.resize( _patchCtr.G*4 + _patchCtr.GB*4 );
+    }
 
     // Setup convenience pointers at the beginning of each patch array for each
     // table (patches, ptex, fvar)
-    CVPointers    iptrs[6];
-    ParamPointers pptrs[6];
-    FVarPointers  fptrs[6];
+    CVPointers    iptrs;
+    ParamPointers pptrs;
+    FVarPointers  fptrs;
 
     for (Descriptor::iterator it=Descriptor::begin(); it!=Descriptor::end(); ++it) {
 
@@ -692,12 +692,15 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
         if (not pa)
             continue;
 
-        iptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_patches[pa->GetVertIndex()];
-        pptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_paramTable[pa->GetPatchIndex()];
+        iptrs.getValue( *it ) = &result->_patches[pa->GetVertIndex()];
+        pptrs.getValue( *it ) = &result->_paramTable[pa->GetPatchIndex()];
 
         if (fvarwidth>0)
-            fptrs[(int)pa->GetDescriptor().GetPattern()].getValue( *it ) = &result->_fvarTable[pa->GetPatchIndex() * 4 * fvarwidth];
+            fptrs.getValue( *it ) = &result->_fvarTable[pa->GetPatchIndex() * 4 * fvarwidth];
     }
+
+    FarPatchTables::QuadOffsetTable::value_type *quad_G_C0_P = _patchCtr.G>0 ? &result->_quadOffsetTable[0] : 0;
+    FarPatchTables::QuadOffsetTable::value_type *quad_G_C1_P = _patchCtr.GB>0 ? &result->_quadOffsetTable[_patchCtr.G*4] : 0;
 
     // Populate patch index tables with vertex indices
     for (int i=0; i<getNumFaces(); ++i) {
@@ -711,28 +714,28 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
             if (f->_adaptiveFlags.patchType==HbrFace<T>::kFull) {
                 if (not f->_adaptiveFlags.isExtraordinary and f->_adaptiveFlags.bverts!=1) {
 
+                    int pattern = FarPatchTables::NON_TRANSITION,
+                        rot = 0;
+
                     switch (f->_adaptiveFlags.bverts) {
                         case 0 : {   // Regular Patch (16 CVs)
-                                     getOneRing(f, 16, remapRegular, iptrs[0].R);
-                                     iptrs[0].R+=16;
-                                     pptrs[0].R = computePatchParam(f, pptrs[0].R);
-                                     fptrs[0].R = computeFVarData(f, fvarwidth, fptrs[0].R, /*isAdaptive=*/true);
+                                     iptrs.R[pattern] = getOneRing(f, 16, remapRegular, iptrs.R[0]);
+                                     pptrs.R[pattern] = computePatchParam(f, pptrs.R[0]);
+                                     fptrs.R[pattern] = computeFVarData(f, fvarwidth, fptrs.R[0], /*isAdaptive=*/true);
                                  } break;
 
                         case 2 : {   // Boundary Patch (12 CVs)
                                      f->_adaptiveFlags.brots = (f->_adaptiveFlags.rots+1)%4;
-                                     getOneRing(f, 12, remapRegularBoundary, iptrs[0].B[0]);
-                                     iptrs[0].B[0]+=12;
-                                     pptrs[0].B[0] = computePatchParam(f, pptrs[0].B[0]);
-                                     fptrs[0].B[0] = computeFVarData(f, fvarwidth, fptrs[0].B[0], /*isAdaptive=*/true);
+                                     iptrs.B[pattern][rot] = getOneRing(f, 12, remapRegularBoundary, iptrs.B[0][0]);
+                                     pptrs.B[pattern][rot] = computePatchParam(f, pptrs.B[0][0]);
+                                     fptrs.B[pattern][rot] = computeFVarData(f, fvarwidth, fptrs.B[0][0], /*isAdaptive=*/true);
                                  } break;
 
                         case 3 : {   // Corner Patch (9 CVs)
                                      f->_adaptiveFlags.brots = (f->_adaptiveFlags.rots+1)%4;
-                                     getOneRing(f, 9, remapRegularCorner, iptrs[0].C[0]);
-                                     iptrs[0].C[0]+=9;
-                                     pptrs[0].C[0] = computePatchParam(f, pptrs[0].C[0]);
-                                     fptrs[0].C[0] = computeFVarData(f, fvarwidth, fptrs[0].C[0], /*isAdaptive=*/true);
+                                     iptrs.C[pattern][rot] = getOneRing(f, 9, remapRegularCorner, iptrs.C[0][0]);
+                                     pptrs.C[pattern][rot] = computePatchParam(f, pptrs.C[0][0]);
+                                     fptrs.C[pattern][rot] = computeFVarData(f, fvarwidth, fptrs.C[0][0], /*isAdaptive=*/true);
                                  } break;
 
                         default : assert(0);
@@ -744,22 +747,22 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
 
                     // Gregory Regular Patch (4 CVs + quad-offsets / valence tables)
                     for (int j=0; j<4; ++j)
-                        iptrs[0].G[0][j] = _remapTable[f->GetVertex(j)->GetID()];
-                    iptrs[0].G[0]+=4;
+                        iptrs.G[j] = _remapTable[f->GetVertex(j)->GetID()];
+                    iptrs.G+=4;
                     getQuadOffsets(f, quad_G_C0_P);
                     quad_G_C0_P += 4;
-                    pptrs[0].G[0] = computePatchParam(f, pptrs[0].G[0]);
-                    fptrs[0].G[0] = computeFVarData(f, fvarwidth, fptrs[0].G[0], /*isAdaptive=*/true);
+                    pptrs.G = computePatchParam(f, pptrs.G);
+                    fptrs.G = computeFVarData(f, fvarwidth, fptrs.G, /*isAdaptive=*/true);
                 } else {
 
                     // Gregory Boundary Patch (4 CVs + quad-offsets / valence tables)
                     for (int j=0; j<4; ++j)
-                        iptrs[0].G[1][j] = _remapTable[f->GetVertex(j)->GetID()];
-                    iptrs[0].G[1]+=4;
+                        iptrs.GB[j] = _remapTable[f->GetVertex(j)->GetID()];
+                    iptrs.GB+=4;
                     getQuadOffsets(f, quad_G_C1_P);
                     quad_G_C1_P += 4;
-                    pptrs[0].G[1] = computePatchParam(f, pptrs[0].G[1]);
-                    fptrs[0].G[1] = computeFVarData(f, fvarwidth, fptrs[0].G[1], /*isAdaptive=*/true);
+                    pptrs.GB = computePatchParam(f, pptrs.GB);
+                    fptrs.GB = computeFVarData(f, fvarwidth, fptrs.GB, /*isAdaptive=*/true);
                 }
             } else {
                 // XXXX manuelk - end patches here
@@ -768,35 +771,31 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
 
             // Transition patches
 
-            int tcase = f->_adaptiveFlags.transitionType;
-            assert( tcase>=HbrFace<T>::kTransition0 and tcase<=HbrFace<T>::kTransition4 );
-            ++tcase;  // TransitionPattern begin with NON_TRANSITION
+            int pattern = f->_adaptiveFlags.transitionType;
+            assert( pattern>=HbrFace<T>::kTransition0 and pattern<=HbrFace<T>::kTransition4 );
+            ++pattern;  // TransitionPattern begin with NON_TRANSITION
 
             if (not f->_adaptiveFlags.isExtraordinary and f->_adaptiveFlags.bverts!=1) {
 
                 switch (f->_adaptiveFlags.bverts) {
                     case 0 : {   // Regular Transition Patch (16 CVs)
-                                 getOneRing(f, 16, remapRegular, iptrs[tcase].R);
-
-                                 iptrs[tcase].R+=16;
-                                 pptrs[tcase].R = computePatchParam(f, pptrs[tcase].R);
-                                 fptrs[tcase].R = computeFVarData(f, fvarwidth, fptrs[tcase].R, /*isAdaptive=*/true);
+                                 iptrs.R[pattern] = getOneRing(f, 16, remapRegular, iptrs.R[pattern]);
+                                 pptrs.R[pattern] = computePatchParam(f, pptrs.R[pattern]);
+                                 fptrs.R[pattern] = computeFVarData(f, fvarwidth, fptrs.R[pattern], /*isAdaptive=*/true);
                              } break;
 
                     case 2 : {   // Boundary Transition Patch (12 CVs)
                                  unsigned rot = f->_adaptiveFlags.brots;
-                                 getOneRing(f, 12, remapRegularBoundary, iptrs[tcase].B[rot]);
-                                 iptrs[tcase].B[rot]+=12;
-                                 pptrs[tcase].B[rot] = computePatchParam(f, pptrs[tcase].B[rot]);
-                                 fptrs[tcase].B[rot] = computeFVarData(f, fvarwidth, fptrs[tcase].B[rot], /*isAdaptive=*/true);
+                                 iptrs.B[pattern][rot] = getOneRing(f, 12, remapRegularBoundary, iptrs.B[pattern][rot]);
+                                 pptrs.B[pattern][rot] = computePatchParam(f, pptrs.B[pattern][rot]);
+                                 fptrs.B[pattern][rot] = computeFVarData(f, fvarwidth, fptrs.B[pattern][rot], /*isAdaptive=*/true);
                              } break;
 
                     case 3 : {   // Corner Transition Patch (9 CVs)
                                  unsigned rot = f->_adaptiveFlags.brots;
-                                 getOneRing(f, 9, remapRegularCorner, iptrs[tcase].C[rot]);
-                                 iptrs[tcase].C[rot]+=9;
-                                 pptrs[tcase].C[rot] = computePatchParam(f, pptrs[tcase].C[rot]);
-                                 fptrs[tcase].C[rot] = computeFVarData(f, fvarwidth, fptrs[tcase].C[rot], /*isAdaptive=*/true);
+                                 iptrs.C[pattern][rot] = getOneRing(f, 9, remapRegularCorner, iptrs.C[pattern][rot]);
+                                 pptrs.C[pattern][rot] = computePatchParam(f, pptrs.C[pattern][rot]);
+                                 fptrs.C[pattern][rot] = computeFVarData(f, fvarwidth, fptrs.C[pattern][rot], /*isAdaptive=*/true);
                              } break;
                 }
             } else
@@ -806,7 +805,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
     }
 
     // Build Gregory patches vertex valence indices table
-    if ((_patchCtr[0].G[0] > 0) or (_patchCtr[0].G[1] > 0)) {
+    if ((_patchCtr.G > 0) or (_patchCtr.GB > 0)) {
 
         // MAX_VALENCE is a property of hardware shaders and needs to be matched in OSD
         const int perVertexValenceSize = 2*maxvalence + 1;
@@ -899,17 +898,12 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
         result->_vertexValenceTable.clear();
     }
 
-    // Combine quad offset buffers
-    result->_quadOffsetTable.resize((_patchCtr[0].G[0]+_patchCtr[0].G[1])*4);
-    std::copy(quad_G_C0.begin(), quad_G_C0.end(), result->_quadOffsetTable.begin());
-    std::copy(quad_G_C1.begin(), quad_G_C1.end(), result->_quadOffsetTable.begin()+_patchCtr[0].G[0]*4);
-
     return result;
 }
 
 // The One Ring vertices to rule them all !
-template <class T> void
-FarPatchTablesFactory<T>::getOneRing(HbrFace<T> const * f, 
+template <class T> unsigned int *
+FarPatchTablesFactory<T>::getOneRing(HbrFace<T> const * f,
     int ringsize, unsigned int const * remap, unsigned int * result) const {
 
     assert( f and f->GetNumVertices()==4 and ringsize >=4 );
@@ -917,10 +911,10 @@ FarPatchTablesFactory<T>::getOneRing(HbrFace<T> const * f,
     int idx=0;
 
     for (unsigned char i=0; i<4; ++i) {
-        result[remap[idx++ % ringsize]] = 
+        result[remap[idx++ % ringsize]] =
             _remapTable[f->GetVertex( (i+f->_adaptiveFlags.rots)%4 )->GetID()];
     }
-    
+
     if (ringsize==16) {
 
         // Regular case
@@ -952,6 +946,9 @@ FarPatchTablesFactory<T>::getOneRing(HbrFace<T> const * f,
                 result[remap[idx++ % ringsize]] = _remapTable[e->GetOrgVertex()->GetID()];
             }
         }
+
+        result += 16;
+
     } else if (ringsize==12) {
 
         // Boundary case
@@ -990,6 +987,9 @@ FarPatchTablesFactory<T>::getOneRing(HbrFace<T> const * f,
             e = e->GetNext();
             result[remap[idx++ % ringsize]] = _remapTable[e->GetOrgVertex()->GetID()];
         }
+
+        result += 12;
+
     } else if (ringsize==9) {
 
         // Corner case
@@ -1022,15 +1022,19 @@ FarPatchTablesFactory<T>::getOneRing(HbrFace<T> const * f,
             e = e->GetNext();
             result[remap[idx++ % ringsize]] = _remapTable[e->GetOrgVertex()->GetID()];
         }
+
+        result += 9;
+
     }
     assert(idx==ringsize);
+    return result;
 }
 
 // Populate the quad-offsets table used by Gregory patches
 template <class T> void
 FarPatchTablesFactory<T>::getQuadOffsets(HbrFace<T> const * f, unsigned int * result) {
 
-    assert( f and f->GetNumVertices()==4 );
+    assert(result and f and f->GetNumVertices()==4);
 
     // Builds a table of value pairs for each vertex of the patch.
     //

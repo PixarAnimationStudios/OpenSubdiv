@@ -73,6 +73,10 @@ if(DXSDK_FOUND)
 
 endif()
 
+if( OPENCL_FOUND )
+    include_directories(${OPENCL_INCLUDE_DIRS})
+endif()
+
 include_directories(
     ${PROJECT_SOURCE_DIR}/opensubdiv
 )

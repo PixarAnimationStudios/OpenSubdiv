@@ -673,9 +673,9 @@ linkDefaultPrograms()
         static const char *fsSrc =
             GLSL_VERSION_DEFINE
             "out vec4 color;\n"
-            "uniform vec4 colors[3] = { vec4(1.0,0.0,0.0,1.0),    \n"
-            "                           vec4(0.0,1.0,0.0,1.0),    \n"
-            "                           vec4(0.0,0.0,1.0,1.0)  }; \n"
+            "const vec4 colors[3] = vec4[3]( vec4(1.0,0.0,0.0,1.0),    \n"
+            "                                vec4(0.0,1.0,0.0,1.0),    \n"
+            "                                vec4(0.0,0.0,1.0,1.0)  ); \n"
             "void main() {\n"
             "   color = colors[gl_PrimitiveID % 3];\n"
             "}\n";
@@ -934,7 +934,12 @@ reshape(int width, int height) {
     g_width = width;
     g_height = height;
 
-    g_hud.Rebuild(width, height);
+    int windowWidth = g_width, windowHeight = g_height;
+#if GLFW_VERSION_MAJOR>=3
+    // window size might not match framebuffer size on a high DPI display
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+#endif
+    g_hud.Rebuild(windowWidth, windowHeight);
 }
 
 //------------------------------------------------------------------------------
@@ -1054,7 +1059,12 @@ callbackModel(int m)
 static void
 initHUD()
 {
-    g_hud.Init(g_width, g_height);
+    int windowWidth = g_width, windowHeight = g_height;
+#if GLFW_VERSION_MAJOR>=3
+    // window size might not match framebuffer size on a high DPI display
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+#endif
+    g_hud.Init(windowWidth, windowHeight);
 
     g_hud.AddRadioButton(0, "CPU (K)", true, 10, 10, callbackKernel, kCPU, 'k');
 #ifdef OPENSUBDIV_HAS_OPENMP
@@ -1197,10 +1207,14 @@ int main(int argc, char **argv) {
         return 1;
     }
     glfwMakeContextCurrent(g_window);
+
+    // accommodate high DPI displays (e.g. mac retina displays)
+    glfwGetFramebufferSize(g_window, &g_width, &g_height);
+    glfwSetFramebufferSizeCallback(g_window, reshape);
+
     glfwSetKeyCallback(g_window, keyboard);
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
-    glfwSetWindowSizeCallback(g_window, reshape);
     glfwSetWindowCloseCallback(g_window, windowClose);
 #else
     if (glfwOpenWindow(g_width, g_height, 8, 8, 8, 8, 24, 8,

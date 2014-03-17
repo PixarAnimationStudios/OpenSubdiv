@@ -1048,7 +1048,12 @@ reshape(int width, int height) {
     g_width = width;
     g_height = height;
     
-    g_hud.Rebuild(width, height);
+    int windowWidth = g_width, windowHeight = g_height;
+#if GLFW_VERSION_MAJOR>=3
+    // window size might not match framebuffer size on a high DPI display
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+#endif
+    g_hud.Rebuild(windowWidth, windowHeight);
 
     // prepare depth texture
     if (g_depthTexture == 0) glGenTextures(1, &g_depthTexture);
@@ -1149,7 +1154,12 @@ callbackModel(int m)
 static void
 initHUD()
 {
-    g_hud.Init(g_width, g_height);
+    int windowWidth = g_width, windowHeight = g_height;
+#if GLFW_VERSION_MAJOR>=3
+    // window size might not match framebuffer size on a high DPI display
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+#endif
+    g_hud.Init(windowWidth, windowHeight);
 
     g_hud.AddRadioButton(1, "Wire (W)",    g_wire == 0,  200, 10, callbackWireframe, 0, 'w');
     g_hud.AddRadioButton(1, "Shaded",      g_wire == 1, 200, 30, callbackWireframe, 1, 'w');
@@ -1368,7 +1378,10 @@ int main(int argc, char ** argv)
     initGL();
 
 #if GLFW_VERSION_MAJOR>=3
-    glfwSetWindowSizeCallback(g_window, reshape);
+    // accommodate high DPI displays (e.g. mac retina displays)
+    glfwGetFramebufferSize(g_window, &g_width, &g_height);
+    glfwSetFramebufferSizeCallback(g_window, reshape);
+
     // as of GLFW 3.0.1 this callback is not implicit
     reshape();
 #else

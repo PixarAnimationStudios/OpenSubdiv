@@ -425,14 +425,11 @@ createOsdHbrFromPoly( MFnMesh const & inMeshFn,
         if (totalFvarWidth > 0) {
 
             // Retrieve all UV and ColorSet data
-            MIntArray faceCounts;
             for (unsigned int i=0; i < uvSetNames.length(); ++i) {
-                returnStatus = inMeshItPolygon.getUVs(uvSet_uCoords[i], uvSet_vCoords[i], &uvSetNames[i] );
-                MWARNERR(returnStatus, "Cannot get UVs");
+                inMeshItPolygon.getUVs(uvSet_uCoords[i], uvSet_vCoords[i], &uvSetNames[i] );
             }
             for (unsigned int i=0; i < colorSetNames.length(); ++i) {
-                returnStatus = inMeshItPolygon.getColors (colorSet_colors[i], &colorSetNames[i]);
-                MWARNERR(returnStatus, "Cannot get face vertex colors");
+                inMeshItPolygon.getColors(colorSet_colors[i], &colorSetNames[i]);
             }
 
             std::vector<float> fvarItem(totalFvarWidth); // storage for all the face-varying channels for this face-vertex
@@ -443,27 +440,29 @@ createOsdHbrFromPoly( MFnMesh const & inMeshFn,
                 int fvarItemIndex = 0;
                 // Handle uvSets
                 for( unsigned int uvSetIt=0; uvSetIt < uvSetNames.length(); ++uvSetIt ) {
-                    fvarItem[fvarItemIndex]   = uvSet_uCoords[uvSetIt][fvid];
-                    fvarItem[fvarItemIndex+1] = uvSet_vCoords[uvSetIt][fvid];
-                    fvarItemIndex +=2;
+                    if (fvid < uvSet_uCoords[uvSetIt].length()) {
+                        fvarItem[fvarItemIndex  ] = uvSet_uCoords[uvSetIt][fvid];
+                        fvarItem[fvarItemIndex+1] = uvSet_vCoords[uvSetIt][fvid];
+                    } else {
+                        // getUVs() can return incomplete or empty arrays
+                        fvarItem[fvarItemIndex  ] = 0.0f;
+                        fvarItem[fvarItemIndex+1] = 0.0f;
+                    }
+                    fvarItemIndex += 2;
                 }
                 // Handle colorSets
                 for( unsigned int colorSetIt=0; colorSetIt < colorSetNames.length(); ++colorSetIt ) {
-                    if (colorSetChannels[colorSetIt] == 1) {
-                        fvarItem[fvarItemIndex]   = colorSet_colors[colorSetIt][fvid].a;
+
+                    int nchannels = colorSetChannels[colorSetIt];
+                    for (int channel=0; channel < nchannels; ++channel) {
+                        if (fvid < colorSet_colors[colorSetIt].length()) {
+                            fvarItem[fvarItemIndex+channel] = colorSet_colors[colorSetIt][fvid][channel];
+                        } else {
+                            // getColors() can return incomplete or empty arrays
+                            fvarItem[fvarItemIndex+channel] = 0.0f;
+                        }
                     }
-                    else if (colorSetChannels[colorSetIt] == 3) {
-                        fvarItem[fvarItemIndex]   = colorSet_colors[colorSetIt][fvid].r;
-                        fvarItem[fvarItemIndex+1] = colorSet_colors[colorSetIt][fvid].g;
-                        fvarItem[fvarItemIndex+2] = colorSet_colors[colorSetIt][fvid].b;
-                    }
-                    else { // colorSetChannels[colorSetIt] == 4
-                        fvarItem[fvarItemIndex]   = colorSet_colors[colorSetIt][fvid].r;
-                        fvarItem[fvarItemIndex+1] = colorSet_colors[colorSetIt][fvid].g;
-                        fvarItem[fvarItemIndex+2] = colorSet_colors[colorSetIt][fvid].b;
-                        fvarItem[fvarItemIndex+3] = colorSet_colors[colorSetIt][fvid].a;
-                    }
-                    fvarItemIndex += colorSetChannels[colorSetIt];
+                    fvarItemIndex += nchannels;
                 }
                 assert((fvarItemIndex) == totalFvarWidth); // For UVs, sanity check the resulting value
 
@@ -586,7 +585,9 @@ MStatus convertOsdFarToMayaMeshData(
         assert(fvarTotalWidth == expectedFvarTotalWidth);
 
         const OpenSubdiv::FarPatchTables::FVarDataTable &fvarDataTable =  farPatchTables->GetFVarDataTable();
-        assert(fvarDataTable.size() == expectedFvarTotalWidth*faceConnects.length());
+        if (fvarDataTable.size() != expectedFvarTotalWidth*faceConnects.length()) {
+            MCHECKERR(MS::kFailure, "Incorrect face-varying table length");
+        }
 
         // Create an array of indices to map each face-vert to the UV and ColorSet Data
         MIntArray fvarConnects(faceConnects.length());
@@ -605,12 +606,17 @@ MStatus convertOsdFarToMayaMeshData(
                 vCoord[vertid] = fvarDataTable[fvarItem+1];
             }
             // Assign UV buffer and map the uvids for each face-vertex
-            if (uvSetIndex != 0) { // assume uvset index 0 is the default UVset, so do not create
+            if (uvSetIndex > 0) {
                 returnStatus = newMeshFn.createUVSetDataMesh( uvSetNames[uvSetIndex] );
+                MCHECKERR(returnStatus, "Cannot create UVSet");
             }
-            MCHECKERR(returnStatus, "Cannot create UVSet");
-            newMeshFn.setUVs(uCoord,vCoord, &uvSetNames[uvSetIndex]);
-            newMeshFn.assignUVs(faceCounts, fvarConnects, &uvSetNames[uvSetIndex]);
+
+            static MString defaultUVName("map1");
+            MString const * uvname = uvSetIndex==0 ? &defaultUVName : &uvSetNames[uvSetIndex];
+
+            returnStatus = newMeshFn.setUVs(uCoord,vCoord, uvname);
+            MCHECKERR(returnStatus, "Cannot set UVs for set : "+*uvname);
+            newMeshFn.assignUVs(faceCounts, fvarConnects, uvname);
         }
 
         MColorArray colorArray(faceConnects.length());
@@ -621,21 +627,9 @@ MStatus convertOsdFarToMayaMeshData(
             for(unsigned int vertid=0; vertid < faceConnects.length(); vertid++) {
 
                 int fvarItem = vertid*fvarTotalWidth + colorSetRelativeStartIndex;
-                if (colorSetChannels[colorSetIndex] == 1) {
-                    colorArray[vertid].r = fvarDataTable[fvarItem];
-                    colorArray[vertid].g = fvarDataTable[fvarItem];
-                    colorArray[vertid].b = fvarDataTable[fvarItem];
-                    colorArray[vertid].a = 1.0f;
-                } else if (colorSetChannels[colorSetIndex] == 3) {
-                    colorArray[vertid].r = fvarDataTable[fvarItem];
-                    colorArray[vertid].g = fvarDataTable[fvarItem+1];
-                    colorArray[vertid].b = fvarDataTable[fvarItem+2];
-                    colorArray[vertid].a = 1.0f;
-                } else {
-                    colorArray[vertid].r = fvarDataTable[fvarItem];
-                    colorArray[vertid].g = fvarDataTable[fvarItem+1];
-                    colorArray[vertid].b = fvarDataTable[fvarItem+2];
-                    colorArray[vertid].a = fvarDataTable[fvarItem+3];
+                int nchannels = colorSetChannels[colorSetIndex];
+                for (int channel=0; channel<nchannels; ++channel) {
+                    colorArray[vertid][channel] = fvarDataTable[fvarItem+channel];
                 }
             }
 
@@ -656,46 +650,87 @@ MStatus convertOsdFarToMayaMeshData(
     return MS::kSuccess;
 }
 
+static inline int
+computeNumSubfaces( int nverts, int level ) {
+
+    return nverts==4 ? 1<<(level<<1) : nverts*(1<<((level-1)<<1));
+}
 
 // Propagate objectGroups from inMesh to subdivided outMesh
 // Note: Currently only supporting facet groups (for per-facet shading)
 MStatus
-createSmoothMesh_objectGroups(const MFnMeshData &inMeshDat,
-    int subdivisionLevel, MFnMeshData &newMeshDat) {
+createSmoothMesh_objectGroups( FMesh const * farMesh, MFnMesh const & inMeshFn,
+    MFnMeshData const & inMeshDat, MFnMeshData &newMeshDat, int level ) {
 
     MStatus returnStatus;
 
-    int facesPerBaseFace = (int)(pow(4.0f, subdivisionLevel));
     MIntArray newCompElems;
 
-    for(unsigned int gi=0; gi < inMeshDat.objectGroupCount(); gi++) {
+    int numSubfaces = farMesh->GetPatchTables()->GetNumFaces();
+
+    std::vector<unsigned int> offsets; // mapping of offsets for subdivided faces
+
+    for(unsigned int gi=0; gi<inMeshDat.objectGroupCount(); gi++) {
+
         unsigned int compId = inMeshDat.objectGroup(gi, &returnStatus);
         MCHECKERR(returnStatus, "cannot get objectGroup() comp ID.");
+
         MFn::Type compType = inMeshDat.objectGroupType(compId, &returnStatus);
         MCHECKERR(returnStatus, "cannot get objectGroupType().");
-
-        // get elements from inMesh objectGroupComponent
-        MIntArray compElems;
-        MFnSingleIndexedComponent compFn(inMeshDat.objectGroupComponent(compId), &returnStatus );
-        MCHECKERR(returnStatus, "cannot get MFnSingleIndexedComponent for inMeshDat.objectGroupComponent().");
-        compFn.getElements(compElems);
 
         // Only supporting kMeshPolygonComponent ObjectGroups at this time
         // Skip the other types
         if (compType == MFn::kMeshPolygonComponent) {
 
-            // convert/populate newCompElems from compElems of inMesh
-            // (with new face indices) to outMesh
-            newCompElems.setLength( compElems.length() * facesPerBaseFace );
-            for (unsigned int i=0; i < compElems.length(); i++) {
+            // get elements from inMesh objectGroupComponent
+            MIntArray compElems;
+            MFnSingleIndexedComponent compFn(inMeshDat.objectGroupComponent(compId), &returnStatus );
 
-                int startElemIndex = i * facesPerBaseFace;
-                int startElemValue = compElems[i] * facesPerBaseFace;
+            MCHECKERR(returnStatus, "cannot get MFnSingleIndexedComponent for inMeshDat.objectGroupComponent().");
+            compFn.getElements(compElems);
 
-                for (int j=0; j < facesPerBaseFace; j++) {
-                    newCompElems[startElemIndex+j] = startElemValue+j;
+            if (compElems.length()==0) {
+                continue;
+            }
+
+            // over-allocation to maximum possible length
+            newCompElems.setLength( numSubfaces );
+
+            if (offsets.empty()) {
+                // lazy population of the subface offsets table
+                int nfaces = inMeshFn.numPolygons();
+
+                offsets.resize(nfaces);
+                
+                for (int i=0, count=0; i<nfaces; ++i) {
+
+                    int nverts = inMeshFn.polygonVertexCount(i),
+                        nsubfaces = computeNumSubfaces(nverts, level);
+                    
+                    offsets[i] = count;
+                    count+=nsubfaces;
                 }
             }
+
+            unsigned int idx = 0;
+
+            // convert/populate newCompElems from compElems of inMesh
+            // (with new face indices) to outMesh
+            for (unsigned int i=0; i < compElems.length(); i++) {
+
+                int nverts = inMeshFn.polygonVertexCount(compElems[i]),
+                    nsubfaces = computeNumSubfaces(nverts, level);
+
+                unsigned int subFaceOffset = offsets[compElems[i]];
+
+                for (int j=0; j<nsubfaces; ++j) {
+                    newCompElems[idx++] = subFaceOffset++;
+                }
+            }
+
+            // resize to actual length
+            newCompElems.setLength( idx );
+
             // create comp
             createComp(newMeshDat, compType, compId, newCompElems);
         }
@@ -841,13 +876,13 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
                 MCHECKERR(returnStatus, "ERROR convertOsdFarToMayaMesh");
 
                 // Propagate objectGroups from inMesh to outMesh (for per-facet shading, etc)
-                returnStatus = createSmoothMesh_objectGroups(inMeshDat, subdivisionLevel, newMeshData );
+                returnStatus = createSmoothMesh_objectGroups(farMesh, inMeshFn, inMeshDat, newMeshData, subdivisionLevel );
 
                 // Write to output plug
                 MDataHandle outMeshH = data.outputValue(a_output, &returnStatus);
                 MCHECKERR(returnStatus, "ERROR getting polygon data handle\n");
                 outMeshH.set(newMeshDataObj);
-                
+
                 int isolation = std::min(10,(int)ceil(maxCreaseSharpness)+1);
                 data.outputValue(a_recommendedIsolation).set(isolation);
 

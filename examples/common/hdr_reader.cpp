@@ -71,8 +71,8 @@ unsigned char *loadHdr(const char *filename, HdrInfo *info, bool convertToFloat)
     memset(info, 0, sizeof(HdrInfo));
     info->exposure = 1.0;
 
-    unsigned char *dst = NULL, *line = NULL, *d;
-    float *fd;
+    unsigned char *dst=NULL, *line=NULL, *d=NULL;
+    float *fd=NULL;
 
     const int MAXLINE = 1024;
     char buffer[MAXLINE];

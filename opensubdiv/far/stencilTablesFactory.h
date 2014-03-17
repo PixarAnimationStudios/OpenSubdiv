@@ -944,7 +944,7 @@ FarStencilTablesFactory<T>::Patch::GetStencilsAtUV( HbrHalfedge<T> * e,
 
         f->Refine();
 
-        int quadrant;
+        int quadrant=-1;
 
              if (u<=0.5f and v<=0.5f) { quadrant = 0; }
         else if (u> 0.5f and v<=0.5f) { quadrant = 1; u-=0.5f; }
@@ -952,6 +952,8 @@ FarStencilTablesFactory<T>::Patch::GetStencilsAtUV( HbrHalfedge<T> * e,
         else if (u<=0.5f and v> 0.5f) { quadrant = 3; v-=0.5f; }
         else
             assert(0);
+
+        assert(quadrant>-1 and quadrant<4);
 
         HbrVertex<T> * a = f->GetVertex(quadrant)->Subdivide(),
                      * b = f->GetEdge(quadrant)->Subdivide();

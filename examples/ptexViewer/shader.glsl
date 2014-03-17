@@ -147,6 +147,11 @@ void main()
 {
     outpt.v.position = ModelViewMatrix * position;
     outpt.v.normal = (ModelViewMatrix * vec4(normal, 0)).xyz;
+
+    outpt.v.patchCoord = vec4(0);
+    outpt.v.tessCoord = vec2(0);
+    outpt.v.tangent = vec3(0);
+    outpt.v.bitangent = vec3(0);
 }
 
 #endif
@@ -478,7 +483,7 @@ vec4 getEnvironmentHDR(sampler2D sampler, vec3 dir)
 }
 
 vec4
-lighting(vec4 texColor, vec3 Peye, vec3 Neye, float occ)
+lighting(vec4 texColor, vec3 Peye, vec3 Neye, float spec, float occ)
 {
     vec4 color = vec4(0);
     vec3 n = Neye;
@@ -496,7 +501,7 @@ lighting(vec4 texColor, vec3 Peye, vec3 Neye, float occ)
 
         color += (1.0-occ) * ((lightSource[i].ambient +
                                d * lightSource[i].diffuse) * texColor +
-                              s * lightSource[i].specular);
+                               spec * s * lightSource[i].specular);
     }
 
     color.a = 1;
@@ -505,7 +510,7 @@ lighting(vec4 texColor, vec3 Peye, vec3 Neye, float occ)
 }
 
 vec4
-edgeColor(vec4 Cfill, vec4 edgeDistance)
+edgeColor(vec4 Cfill)
 {
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
@@ -588,15 +593,15 @@ main()
                                               textureImage_Data,
                                               textureImage_Packing);
 #elif defined COLOR_PATCHTYPE
-    vec4 texColor = edgeColor(lighting(overrideColor, inpt.v.position.xyz, normal, 0), inpt.edgeDistance);
+    vec4 texColor = edgeColor(lighting(overrideColor, inpt.v.position.xyz, normal, 1, 0));
     outColor = texColor;
     return;
 #elif defined COLOR_PATCHCOORD
-    vec4 texColor = edgeColor(lighting(inpt.v.patchCoord, inpt.v.position.xyz, normal, 0), inpt.edgeDistance);
+    vec4 texColor = edgeColor(lighting(inpt.v.patchCoord, inpt.v.position.xyz, normal, 1, 0));
     outColor = texColor;
     return;
 #elif defined COLOR_NORMAL
-    vec4 texColor = edgeColor(vec4(normal, 1), inpt.edgeDistance);
+    vec4 texColor = edgeColor(vec4(normal, 1));
     outColor = texColor;
     return;
 #else // COLOR_NONE
@@ -647,12 +652,12 @@ main()
 
     vec4 Cf = (a + d) * texColor + s * 0.5;
 #else
-    vec4 Cf = lighting(texColor, inpt.v.position.xyz, normal, occ);
+    vec4 Cf = lighting(texColor, inpt.v.position.xyz, normal, specular, occ);
 #endif
 
     // ------------ wireframe ---------------
 
-    outColor = edgeColor(Cf, inpt.edgeDistance);
+    outColor = edgeColor(Cf);
 }
 #endif //PRIM_TRI || PRIM_QUAD
 

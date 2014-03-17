@@ -53,6 +53,11 @@
 #include <utility>
 #include <algorithm>
 
+#ifdef OPENSUBDIV_HAS_PNG
+    #include <zlib.h>
+    #include <png.h>
+#endif
+
 #define HBR_ADAPTIVE
 
 #include <hbr/mesh.h>
@@ -539,7 +544,12 @@ reshape(int width, int height)
     g_width = width;
     g_height = height;
 
-    g_hud.Rebuild(width, height);
+    int windowWidth = g_width, windowHeight = g_height;
+#if GLFW_VERSION_MAJOR>=3
+    // window size might not match framebuffer size on a high DPI display
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+#endif
+    g_hud.Rebuild(windowWidth, windowHeight);
 
     // resize framebuffers
     glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
@@ -1846,6 +1856,96 @@ display()
 }
 
 //------------------------------------------------------------------------------
+void
+screenshot(int multiplier=4) {
+#ifdef OPENSUBDIV_HAS_PNG
+    int oldwidth = g_width,
+        oldheight = g_height,
+        width = multiplier * g_width,
+        height = multiplier * g_height;
+
+#if GLFW_VERSION_MAJOR >= 3
+    reshape(g_window, width, height);
+#else
+    reshape(width, height);
+#endif
+
+    display();
+
+    void * buf = malloc(width * height * 4);
+
+    glPushClientAttrib(GL_CLIENT_PIXEL_STORE_BIT);
+
+    glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
+    glPixelStorei(GL_PACK_SKIP_ROWS, 0);
+
+    GLint restoreBinding, restoreActiveTexture;
+    glGetIntegerv( GL_TEXTURE_BINDING_2D, &restoreBinding );
+    glGetIntegerv( GL_ACTIVE_TEXTURE, & restoreActiveTexture);
+
+    glActiveTexture( GL_TEXTURE0 );
+
+    glBindTexture( GL_TEXTURE_2D, g_imageShader.frameBufferTexture );
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+
+    glActiveTexture( restoreActiveTexture );
+    glBindTexture( GL_TEXTURE_2D, restoreBinding );
+    glPopClientAttrib();
+
+#if GLFW_VERSION_MAJOR >= 3
+    reshape(g_window, oldwidth, oldheight);
+#else
+    reshape(oldwidth, oldheight);
+#endif
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    static int counter=0;
+    char fname[64];
+    snprintf(fname, 64, "screenshot.%d.png", counter++);
+
+    if (FILE * f = fopen( fname, "w" )) {
+
+        png_structp png_ptr =
+            png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+        assert(png_ptr);
+
+        png_infop info_ptr =
+            png_create_info_struct(png_ptr);
+        assert(info_ptr);
+
+        png_set_IHDR(png_ptr, info_ptr, width, height, 8,
+                         PNG_COLOR_TYPE_RGB_ALPHA,
+                         PNG_INTERLACE_NONE,
+                         PNG_COMPRESSION_TYPE_DEFAULT,
+                         PNG_FILTER_TYPE_DEFAULT );
+
+        png_set_compression_level(png_ptr, Z_BEST_COMPRESSION);
+
+        png_bytep rows_ptr[ height ];
+        for(int i = 0; i<height; ++i ) {
+            rows_ptr[height-i-1] = ((png_byte *)buf) + i*width*4;
+        }
+
+        png_set_rows(png_ptr, info_ptr, rows_ptr);
+
+        png_init_io(png_ptr, f);
+
+        png_write_png( png_ptr, info_ptr, PNG_TRANSFORM_IDENTITY, 0 );
+
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+
+        fclose(f);
+        fprintf(stdout, "Saved %s\n", fname);
+    } else {
+        fprintf(stderr, "Error creating: %s\n", fname);
+    }
+#endif
+}
+
+//------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR >= 3
 mouse(GLFWwindow *, int button, int state, int mods)
@@ -2120,6 +2220,7 @@ keyboard(int key, int event)
         case '=': g_tessLevel++; break;
         case '-': g_tessLevel = std::max(1, g_tessLevel-1); break;
         case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
+        case 'X': screenshot(); break;
     }
 }
 
@@ -2140,7 +2241,7 @@ idle()
 void
 initGL()
 {
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_CULL_FACE);
@@ -2214,17 +2315,20 @@ setGLCoreProfile()
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
 #endif
 
-#if GLFW_VERSION_MAJOR >= 2 and GLFW_VERSION_MINOR >= 7
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #if not defined(__APPLE__)
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
+#else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
+#endif
+    
 #else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
 #endif
     glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -2366,7 +2470,10 @@ int main(int argc, char ** argv)
     initGL();
 
 #if GLFW_VERSION_MAJOR >= 3
-    glfwSetWindowSizeCallback(g_window, reshape);
+    // accommodate high DPI displays (e.g. mac retina displays)
+    glfwGetFramebufferSize(g_window, &g_width, &g_height);
+    glfwSetFramebufferSizeCallback(g_window, reshape);
+
     glfwSetWindowCloseCallback(g_window, windowClose);
     // as of GLFW 3.0.1 this callback is not implicit
     reshape();
@@ -2384,7 +2491,12 @@ int main(int argc, char ** argv)
     cudaGLSetGLDevice(cutGetMaxGflopsDeviceId());
 #endif
 
-    g_hud.Init(g_width, g_height);
+    int windowWidth = g_width, windowHeight = g_height;
+#if GLFW_VERSION_MAJOR>=3
+    // window size might not match framebuffer size on a high DPI display
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+#endif
+    g_hud.Init(windowWidth, windowHeight);
 
     g_hud.AddRadioButton(HUD_RB_KERNEL, "CPU (K)", true,
                          10, 10, callbackKernel, kCPU, 'k');

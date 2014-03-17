@@ -292,7 +292,7 @@ in block {
 out vec4 outColor;
 
 vec4
-edgeColor(vec4 Cfill, vec4 edgeDistance)
+edgeColor(vec4 Cfill)
 {
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
@@ -321,7 +321,7 @@ void
 main()
 {
 #ifdef GEOMETRY_UV_VIEW
-    outColor = vec4(edgeColor(vec4(0.5), inpt.edgeDistance));
+    outColor = edgeColor(vec4(0.5));
     return;
 
 #else
@@ -332,7 +332,7 @@ main()
     vec4 color = vec4(inpt.color.rg*checker, 1-checker, 1);
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-    color = edgeColor(color, inpt.edgeDistance);
+    color = edgeColor(color);
 #endif
     outColor = color;
 #endif
