@@ -473,6 +473,11 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes, bool h
     //FarPatchCount totalCount;
     typedef FarPatchTables::Descriptor Descriptor;
 
+    // note: see FarPatchTablesFactory<T>::Create
+    // feature adaptive refinement can generate un-connected face-vertices
+    // that have a valence of 0. The spliced vertex valence tables
+    // needs to be resized including such un-connected face-vertices.
+    int numVerticesInVertexValence = 0;
 
     // count how many patches exist on each mesh
     for (size_t i = 0; i < meshes.size(); ++i) {
@@ -497,6 +502,12 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes, bool h
 
         totalFVarData += (int)ptables->GetFVarDataTable().size();
         numTotalIndices += ptables->GetNumControlVertices();
+
+        // note: some prims may not have vertex valence table, but still need a space
+        // in order to fill following prim's data at appropriate location.
+        numVerticesInVertexValence += ptables->_vertexValenceTable.empty()
+            ? (int)meshes[i]->GetNumVertices()
+            : ptables->_vertexValenceTable.size()/(2*ptables->_maxValence+1);
     }
 
     // Allocate full patches
@@ -504,7 +515,7 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes, bool h
 
     // Allocate vertex valence table, quad offset table
     if (totalQuadOffset0 + totalQuadOffset1 > 0) {
-        result->_vertexValenceTable.resize((2*maxValence+1) * vertexOffset);
+        result->_vertexValenceTable.resize((2*maxValence+1) * numVerticesInVertexValence);
         result->_quadOffsetTable.resize(totalQuadOffset0 + totalQuadOffset1);
     }
 
@@ -519,9 +530,15 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes, bool h
     int voffset = 0, poffset = 0, qoffset = 0;
     FarPatchTables::PTable::iterator dstIndexIt = result->_patches.begin();
 
-    // splice patches : iterate from POINTS
-    for (FarPatchTables::Descriptor::iterator it(FarPatchTables::Descriptor(FarPatchTables::POINTS, FarPatchTables::NON_TRANSITION, 0));
-         it != FarPatchTables::Descriptor::end(); ++it) {
+    // splice patches : iterate over all descriptors, including points, lines, quads, etc.
+    // non-patches
+    for (int type = FarPatchTables::POINTS; type <= FarPatchTables::LOOP; ++type) {
+        dstIndexIt = splicePatch(FarPatchTables::Descriptor(type, 0, 0),
+                                 meshes, result->_patchArrays, dstIndexIt, &voffset, &poffset, &qoffset, vertexOffsets);
+    }
+
+    // patches
+    for (Descriptor::iterator it=Descriptor::begin(); it!=Descriptor::end(); ++it) {
         dstIndexIt = splicePatch(*it, meshes, result->_patchArrays, dstIndexIt, &voffset, &poffset, &qoffset, vertexOffsets);
     }
 
