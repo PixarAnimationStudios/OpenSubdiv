@@ -531,14 +531,7 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes, bool h
     FarPatchTables::PTable::iterator dstIndexIt = result->_patches.begin();
 
     // splice patches : iterate over all descriptors, including points, lines, quads, etc.
-    // non-patches
-    for (int type = FarPatchTables::POINTS; type <= FarPatchTables::LOOP; ++type) {
-        dstIndexIt = splicePatch(FarPatchTables::Descriptor(type, 0, 0),
-                                 meshes, result->_patchArrays, dstIndexIt, &voffset, &poffset, &qoffset, vertexOffsets);
-    }
-
-    // patches
-    for (Descriptor::iterator it=Descriptor::begin(); it!=Descriptor::end(); ++it) {
+    for (Descriptor::iterator it=Descriptor::begin(Descriptor::ANY); it!=Descriptor::end(); ++it) {
         dstIndexIt = splicePatch(*it, meshes, result->_patchArrays, dstIndexIt, &voffset, &poffset, &qoffset, vertexOffsets);
     }
 
@@ -577,8 +570,10 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes, bool h
     }
 
     // merge ptexCoord table
-    for (FarPatchTables::Descriptor::iterator it(FarPatchTables::Descriptor(FarPatchTables::POINTS, FarPatchTables::NON_TRANSITION, 0));
-         it != FarPatchTables::Descriptor::end(); ++it) {
+    for (FarPatchTables::Descriptor::iterator it =
+        FarPatchTables::Descriptor::begin(FarPatchTables::Descriptor::ANY);
+            it != FarPatchTables::Descriptor::end(); ++it) {
+
         int ptexFaceOffset = 0;
         for (size_t i = 0; i < meshes.size(); ++i) {
             FarPatchTables const *ptables = meshes[i]->GetPatchTables();
@@ -595,9 +590,13 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes, bool h
 
     // merge fvardata table
     if (hasFVarData) {
+
         FarPatchTables::FVarDataTable::iterator FV_IT = result->_fvarTable.begin();
-        for (FarPatchTables::Descriptor::iterator it(FarPatchTables::Descriptor(FarPatchTables::POINTS, FarPatchTables::NON_TRANSITION, 0));
-             it != FarPatchTables::Descriptor::end(); ++it) {
+
+        for (FarPatchTables::Descriptor::iterator it =
+            FarPatchTables::Descriptor::begin(FarPatchTables::Descriptor::ANY);
+                it != FarPatchTables::Descriptor::end(); ++it) {
+
             for (size_t i = 0; i < meshes.size(); ++i) {
                 FarPatchTables const *ptables = meshes[i]->GetPatchTables();
                 FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);

@@ -149,7 +149,14 @@ public:
         /// \brief Descriptor Iterator
         /// Iterates through the patches in the following preset order
         ///
-        /// Order:
+        /// ANY order:
+        ///        POINTS
+        ///        LINES
+        ///        QUADS
+        ///        TRIANGLES
+        ///        LOOP
+        ///
+        /// FEATURE_ADAPTIVE_CATMARK order:
         ///
         ///       NON_TRANSITION ( REGULAR
         ///                         BOUNDARY
@@ -170,8 +177,16 @@ public:
         ///
         class iterator;
 
-        /// \brief Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
-        static iterator begin();
+        enum PrimType {
+            ANY,
+            FEATURE_ADAPTIVE_CATMARK,
+        };
+
+        /// \brief Returns a patch type iterator
+        /// @param type       if type=ANY then the iterater points to type POINTS
+        ///                   if type=FEATURE_ADAPTIVE_CATMARK then the iterator
+        ///                   points to type NON_TRANSITION REGULAR
+        static iterator begin(PrimType type);
 
         /// \brief Returns an iterator to the end of the list of patch types (NON_PATCH)
         static iterator end();
@@ -504,7 +519,12 @@ FarPatchTables::Descriptor::GetAllValidDescriptors() {
     static std::vector<Descriptor> _descriptors;
 
     if (_descriptors.empty()) {
-        _descriptors.reserve(50);
+        _descriptors.reserve(55);
+
+        // non-patch primitives
+        for (int i=POINTS; i<=LOOP; ++i) {
+            _descriptors.push_back( Descriptor(i, NON_TRANSITION, 0) );
+        }
 
         // non-transition patches
         for (int i=REGULAR; i<=GREGORY_BOUNDARY; ++i) {
@@ -532,8 +552,15 @@ FarPatchTables::Descriptor::GetAllValidDescriptors() {
 
 // Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
 inline FarPatchTables::Descriptor::iterator
-FarPatchTables::Descriptor::begin() {
-    return iterator( Descriptor(REGULAR, NON_TRANSITION, 0) );
+FarPatchTables::Descriptor::begin(PrimType type) {
+    switch (type) {
+        case ANY:
+            return iterator( Descriptor(POINTS, NON_TRANSITION, 0) );
+        case FEATURE_ADAPTIVE_CATMARK:
+            return iterator( Descriptor(REGULAR, NON_TRANSITION, 0) );
+        default:
+            return iterator( Descriptor() );
+    }
 }
 
 // Returns an iterator to the end of the list of patch types (NON_PATCH)

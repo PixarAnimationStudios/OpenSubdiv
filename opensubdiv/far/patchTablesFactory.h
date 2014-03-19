@@ -666,7 +666,9 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
     int voffset=0, poffset=0, qoffset=0;
 
 
-    for (Descriptor::iterator it=Descriptor::begin(); it!=Descriptor::end(); ++it) {
+    for (Descriptor::iterator it=Descriptor::begin(Descriptor::FEATURE_ADAPTIVE_CATMARK);
+        it!=Descriptor::end(); ++it) {
+
         pushPatchArray( *it, parray, _patchCtr.getValue(*it), &voffset, &poffset, &qoffset );
     }
 
@@ -685,7 +687,8 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, bool requireFVar
     ParamPointers pptrs;
     FVarPointers  fptrs;
 
-    for (Descriptor::iterator it=Descriptor::begin(); it!=Descriptor::end(); ++it) {
+    for (Descriptor::iterator it=Descriptor::begin(Descriptor::FEATURE_ADAPTIVE_CATMARK);
+        it!=Descriptor::end(); ++it) {
 
         FarPatchTables::PatchArray * pa = result->findPatchArray(*it);
 
