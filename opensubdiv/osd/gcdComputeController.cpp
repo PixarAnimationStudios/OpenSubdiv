@@ -35,7 +35,7 @@ OsdGcdComputeController::OsdGcdComputeController() {
 }
 
 void
-OsdGcdComputeController::ApplyBilinearFaceVerticesxKernel(
+OsdGcdComputeController::ApplyBilinearFaceVerticesKernel(
     FarKernelBatch const &batch, OsdCpuComputeContext *context) const {
 
     assert(context);
