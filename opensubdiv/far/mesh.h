@@ -48,11 +48,12 @@ namespace OPENSUBDIV_VERSION {
 ///
 template <class U> class FarMesh {
 public:
+    typedef U VertexType;
 
     ~FarMesh();
 
     /// \brief Returns the subdivision method
-    FarSubdivisionTables<U> const * GetSubdivisionTables() const { return _subdivisionTables; }
+    FarSubdivisionTables const * GetSubdivisionTables() const { return _subdivisionTables; }
 
     /// \brief Returns patch tables
     FarPatchTables const * GetPatchTables() const { return _patchTables; }
@@ -73,7 +74,7 @@ public:
     int GetTotalFVarWidth() const { return _totalFVarWidth; }
 
     /// \brief Returns vertex edit tables
-    FarVertexEditTables<U> const * GetVertexEdit() const { return _vertexEditTables; }
+    FarVertexEditTables const * GetVertexEdit() const { return _vertexEditTables; }
 
     /// \brief Returns the total number of vertices in the mesh across across all depths
     int GetNumPtexFaces() const { return _numPtexFaces; }
@@ -99,13 +100,13 @@ private:
     FarMesh<U> & operator = (FarMesh<U> const &);
 
     // subdivision method used in this mesh
-    FarSubdivisionTables<U> * _subdivisionTables;
+    FarSubdivisionTables * _subdivisionTables;
 
     // tables of vertex indices for feature adaptive patches
     FarPatchTables * _patchTables;
 
     // hierarchical vertex edit tables
-    FarVertexEditTables<U> * _vertexEditTables;
+    FarVertexEditTables * _vertexEditTables;
 
     // kernel execution batches
     FarKernelBatchVector _batches;

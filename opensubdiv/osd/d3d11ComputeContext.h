@@ -27,6 +27,7 @@
 
 #include "../version.h"
 
+#include "../far/mesh.h"
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
 #include "../osd/vertexDescriptor.h"
@@ -67,8 +68,8 @@ private:
 
 class OsdD3D11ComputeHEditTable : OsdNonCopyable<OsdD3D11ComputeHEditTable> {
 public:
-    OsdD3D11ComputeHEditTable(const FarVertexEditTables<OsdVertex>::
-                      VertexEditBatch &batch, ID3D11DeviceContext *deviceContext);
+    OsdD3D11ComputeHEditTable(const FarVertexEditTables::VertexEditBatch &batch,
+                              ID3D11DeviceContext *deviceContext);
 
     virtual ~OsdD3D11ComputeHEditTable();
 

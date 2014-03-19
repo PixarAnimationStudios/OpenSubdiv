@@ -27,6 +27,7 @@
 
 #include "../version.h"
 
+#include "../far/mesh.h"
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
 #include "../osd/vertexDescriptor.h"
@@ -61,8 +62,8 @@ private:
 
 class OsdGLSLTransformFeedbackHEditTable : OsdNonCopyable<OsdGLSLTransformFeedbackHEditTable> {
 public:
-    OsdGLSLTransformFeedbackHEditTable(const FarVertexEditTables<OsdVertex>::
-                      VertexEditBatch &batch);
+    OsdGLSLTransformFeedbackHEditTable(
+        const FarVertexEditTables::VertexEditBatch &batch);
 
     virtual ~OsdGLSLTransformFeedbackHEditTable();
 

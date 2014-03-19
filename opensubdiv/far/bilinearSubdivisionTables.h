@@ -42,7 +42,7 @@ namespace OPENSUBDIV_VERSION {
 /// structure. The advantage of this representation is its ability to be executed
 /// in a massively parallel environment without data dependencies.
 ///
-template <class U> class FarBilinearSubdivisionTables : public FarSubdivisionTables<U> {
+class FarBilinearSubdivisionTables : public FarSubdivisionTables {
 
 public:
 
@@ -51,56 +51,57 @@ public:
     virtual int GetNumTables() const { return 7; }
 
     /// \brief  Returns the subdivision scheme of the tables 
-    virtual typename FarSubdivisionTables<U>::Scheme GetScheme() const { 
-        return FarSubdivisionTables<U>::BILINEAR; 
+    virtual FarSubdivisionTables::Scheme GetScheme() const { 
+        return FarSubdivisionTables::BILINEAR; 
     }
 
 private:
     template <class X, class Y> friend class FarBilinearSubdivisionTablesFactory;
     template <class X, class Y> friend class FarMultiMeshFactory;
-    template <class CONTROLLER> friend class FarComputeController;
+    friend class FarComputeController;
 
-    FarBilinearSubdivisionTables( FarMesh<U> * mesh, int maxlevel );
+    FarBilinearSubdivisionTables( int maxlevel );
 
     // Compute-kernel applied to vertices resulting from the refinement of a face.
-    void computeFacePoints(int vertexOffset, int tableOffset, int start, int end, void * clientdata) const;
+    template <class U>
+    void computeFacePoints(int vertexOffset, int tableOffset, int start, int end, U *vsrc) const;
 
     // Compute-kernel applied to vertices resulting from the refinement of an edge.
-    void computeEdgePoints(int vertexOffset, int tableOffset, int start, int end, void * clientdata) const;
+    template <class U>
+    void computeEdgePoints(int vertexOffset, int tableOffset, int start, int end, U *vsrc) const;
 
     // Compute-kernel applied to vertices resulting from the refinement of a vertex
-    void computeVertexPoints(int vertexOffset, int tableOffset, int start, int end, void * clientdata) const;
+    template <class U>
+    void computeVertexPoints(int vertexOffset, int tableOffset, int start, int end, U *vsrc) const;
 
 };
 
-template <class U>
-FarBilinearSubdivisionTables<U>::FarBilinearSubdivisionTables( FarMesh<U> * mesh, int maxlevel ) :
-    FarSubdivisionTables<U>(mesh, maxlevel)
-{ }
+inline
+FarBilinearSubdivisionTables::FarBilinearSubdivisionTables( int maxlevel) :
+    FarSubdivisionTables(maxlevel) {
+}
+
 
 //
 // Face-vertices compute Kernel - completely re-entrant
 //
 
 template <class U> void
-FarBilinearSubdivisionTables<U>::computeFacePoints( int offset, int tableOffset, int start, int end, void * clientdata ) const {
+FarBilinearSubdivisionTables::computeFacePoints( int offset, int tableOffset, int start, int end, U *vsrc ) const {
 
-    assert(this->_mesh);
-
-    U * vsrc = &this->_mesh->GetVertices().at(0),
-      * vdst = vsrc + offset + start;
+    U * vdst = vsrc + offset + start;
 
     for (int i=start+tableOffset; i<end+tableOffset; ++i, ++vdst ) {
 
-        vdst->Clear(clientdata);
+        vdst->Clear();
 
         int h = this->_F_ITa[2*i  ],
             n = this->_F_ITa[2*i+1];
         float weight = 1.0f/n;
 
         for (int j=0; j<n; ++j) {
-             vdst->AddWithWeight( vsrc[ this->_F_IT[h+j] ], weight, clientdata );
-             vdst->AddVaryingWithWeight( vsrc[ this->_F_IT[h+j] ], weight, clientdata );
+             vdst->AddWithWeight( vsrc[ this->_F_IT[h+j] ], weight );
+             vdst->AddVaryingWithWeight( vsrc[ this->_F_IT[h+j] ], weight );
         }
     }
 }
@@ -110,25 +111,22 @@ FarBilinearSubdivisionTables<U>::computeFacePoints( int offset, int tableOffset,
 //
 
 template <class U> void
-FarBilinearSubdivisionTables<U>::computeEdgePoints( int offset,  int tableOffset, int start, int end, void * clientdata ) const {
+FarBilinearSubdivisionTables::computeEdgePoints( int offset,  int tableOffset, int start, int end, U *vsrc ) const {
 
-    assert(this->_mesh);
-
-    U * vsrc = &this->_mesh->GetVertices().at(0),
-      * vdst = vsrc + offset + start;
+    U * vdst = vsrc + offset + start;
 
     for (int i=start+tableOffset; i<end+tableOffset; ++i, ++vdst ) {
 
-        vdst->Clear(clientdata);
+        vdst->Clear();
 
         int eidx0 = this->_E_IT[2*i+0],
             eidx1 = this->_E_IT[2*i+1];
 
-        vdst->AddWithWeight( vsrc[eidx0], 0.5f, clientdata );
-        vdst->AddWithWeight( vsrc[eidx1], 0.5f, clientdata );
+        vdst->AddWithWeight( vsrc[eidx0], 0.5f );
+        vdst->AddWithWeight( vsrc[eidx1], 0.5f );
 
-        vdst->AddVaryingWithWeight( vsrc[eidx0], 0.5f, clientdata );
-        vdst->AddVaryingWithWeight( vsrc[eidx1], 0.5f, clientdata );
+        vdst->AddVaryingWithWeight( vsrc[eidx0], 0.5f );
+        vdst->AddVaryingWithWeight( vsrc[eidx1], 0.5f );
     }
 }
 
@@ -137,21 +135,18 @@ FarBilinearSubdivisionTables<U>::computeEdgePoints( int offset,  int tableOffset
 //
 
 template <class U> void
-FarBilinearSubdivisionTables<U>::computeVertexPoints( int offset, int tableOffset, int start, int end, void * clientdata ) const {
+FarBilinearSubdivisionTables::computeVertexPoints( int offset, int tableOffset, int start, int end, U *vsrc ) const {
 
-    assert(this->_mesh);
-
-    U * vsrc = &this->_mesh->GetVertices().at(0),
-      * vdst = vsrc + offset + start;
+    U * vdst = vsrc + offset + start;
 
     for (int i=start+tableOffset; i<end+tableOffset; ++i, ++vdst ) {
 
-        vdst->Clear(clientdata);
+        vdst->Clear();
 
         int p = this->_V_ITa[i];   // index of the parent vertex
 
-        vdst->AddWithWeight( vsrc[p], 1.0f, clientdata );
-        vdst->AddVaryingWithWeight( vsrc[p], 1.0f, clientdata );
+        vdst->AddWithWeight( vsrc[p], 1.0f );
+        vdst->AddVaryingWithWeight( vsrc[p], 1.0f );
     }
 }
 

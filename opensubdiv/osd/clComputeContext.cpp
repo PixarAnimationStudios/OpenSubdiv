@@ -52,7 +52,7 @@ OsdCLTable::GetDevicePtr() const {
 // -----------------------------------------------------------------------------
 
 OsdCLHEditTable::OsdCLHEditTable(
-    const FarVertexEditTables<OsdVertex>::VertexEditBatch &batch,
+    const FarVertexEditTables::VertexEditBatch &batch,
     cl_context clContext)
     : _primvarIndicesTable(new OsdCLTable(batch.GetVertexIndices(), clContext)),
       _editValuesTable(new OsdCLTable(batch.GetValues(), clContext)) {
@@ -104,30 +104,29 @@ OsdCLComputeContext::OsdCLComputeContext(FarMesh<OsdVertex> const *farMesh,
                                           cl_context clContext)
     : _clQueue(NULL), _kernelBundle(NULL) {
 
-    FarSubdivisionTables<OsdVertex> const * farTables =
-        farMesh->GetSubdivisionTables();
+    FarSubdivisionTables const * farTables = farMesh->GetSubdivisionTables();
 
     // allocate 5 or 7 tables
     _tables.resize(farTables->GetNumTables(), 0);
 
-    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdCLTable(farTables->Get_E_IT(), clContext);
-    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdCLTable(farTables->Get_V_IT(), clContext);
-    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdCLTable(farTables->Get_V_ITa(), clContext);
-    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdCLTable(farTables->Get_E_W(), clContext);
-    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdCLTable(farTables->Get_V_W(), clContext);
+    _tables[FarSubdivisionTables::E_IT]  = new OsdCLTable(farTables->Get_E_IT(), clContext);
+    _tables[FarSubdivisionTables::V_IT]  = new OsdCLTable(farTables->Get_V_IT(), clContext);
+    _tables[FarSubdivisionTables::V_ITa] = new OsdCLTable(farTables->Get_V_ITa(), clContext);
+    _tables[FarSubdivisionTables::E_W]   = new OsdCLTable(farTables->Get_E_W(), clContext);
+    _tables[FarSubdivisionTables::V_W]   = new OsdCLTable(farTables->Get_V_W(), clContext);
 
     if (farTables->GetNumTables() > 5) {
-        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdCLTable(farTables->Get_F_IT(), clContext);
-        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdCLTable(farTables->Get_F_ITa(), clContext);
+        _tables[FarSubdivisionTables::F_IT]  = new OsdCLTable(farTables->Get_F_IT(), clContext);
+        _tables[FarSubdivisionTables::F_ITa] = new OsdCLTable(farTables->Get_F_ITa(), clContext);
     }
 
     // create hedit tables
-    FarVertexEditTables<OsdVertex> const *editTables = farMesh->GetVertexEdit();
+    FarVertexEditTables const *editTables = farMesh->GetVertexEdit();
     if (editTables) {
         int numEditBatches = editTables->GetNumBatches();
         _editTables.reserve(numEditBatches);
         for (int i = 0; i < numEditBatches; ++i) {
-            const FarVertexEditTables<OsdVertex>::VertexEditBatch & edit =
+            const FarVertexEditTables::VertexEditBatch & edit =
                 editTables->GetBatch(i);
             _editTables.push_back(new OsdCLHEditTable(edit, clContext));
         }

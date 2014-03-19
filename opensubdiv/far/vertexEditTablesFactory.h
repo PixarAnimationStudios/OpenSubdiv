@@ -53,7 +53,7 @@ protected:
     static void insertHEditBatch(FarKernelBatchVector *batches, int batchIndex, int batchLevel, int batchCount, int tableOffset);
 
     /// \brief Creates a FarVertexEditTables instance.
-    static FarVertexEditTables<U> * Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, FarKernelBatchVector *batches, int maxlevel );
+    static FarVertexEditTables * Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, FarKernelBatchVector *batches, int maxlevel );
 };
 
 template <class T, class U> bool
@@ -76,12 +76,12 @@ FarVertexEditTablesFactory<T,U>::insertHEditBatch(FarKernelBatchVector *batches,
     batches->insert(it, FarKernelBatch( FarKernelBatch::HIERARCHICAL_EDIT, batchLevel+1, batchIndex, 0, batchCount, tableOffset, 0) );
 }
 
-template <class T, class U> FarVertexEditTables<U> * 
+template <class T, class U> FarVertexEditTables * 
 FarVertexEditTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, FarMesh<U> * mesh, FarKernelBatchVector *batches, int maxlevel ) {
 
     assert( factory and mesh );
 
-    FarVertexEditTables<U> * result = new FarVertexEditTables<U>(mesh);
+    FarVertexEditTables* result = new FarVertexEditTables();
 
     std::vector<HbrHierarchicalEdit<T>*> const & hEdits = factory->_hbrMesh->GetHierarchicalEdits();
 
@@ -127,7 +127,7 @@ FarVertexEditTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, Fa
         if (batchIndex == -1) {
             // create new batch
             batchIndex = (int)result->_batches.size();
-            result->_batches.push_back(typename FarVertexEditTables<U>::VertexEditBatch(vedit->GetIndex(), vedit->GetWidth(), op));
+            result->_batches.push_back(typename FarVertexEditTables::VertexEditBatch(vedit->GetIndex(), vedit->GetWidth(), op));
             batchSizes.push_back(0);
         }
         batchSizes[batchIndex]++;
@@ -162,7 +162,7 @@ FarVertexEditTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, Fa
         int batchIndex = batchIndices[i];
         int & batchLevel = currentLevels[batchIndex];
         int & batchCount = currentCounts[batchIndex];
-        typename FarVertexEditTables<U>::VertexEditBatch &batch = result->_batches[batchIndex];
+        typename FarVertexEditTables::VertexEditBatch &batch = result->_batches[batchIndex];
 
         // if a new batch is needed
         if (batchLevel != level-1) {

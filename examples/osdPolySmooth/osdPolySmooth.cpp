@@ -523,7 +523,7 @@ MStatus convertOsdFarToMayaMeshData(
     int numPolygons = farPatchTables->GetNumFaces(); // use the highest level stored in the patch tables
     const unsigned int *polygonConnects_orig = farPatchTables->GetFaceVertices(); // use the highest level stored in the patch tables
 
-    const OpenSubdiv::FarSubdivisionTables<OpenSubdiv::OsdVertex> *farSubdivTables = farMesh->GetSubdivisionTables();
+    const OpenSubdiv::FarSubdivisionTables *farSubdivTables = farMesh->GetSubdivisionTables();
     unsigned int numVertices  = farSubdivTables->GetNumVertices(subdivisionLevel);
     unsigned int vertexOffset = farSubdivTables->GetFirstVertexOffset(subdivisionLevel);
 

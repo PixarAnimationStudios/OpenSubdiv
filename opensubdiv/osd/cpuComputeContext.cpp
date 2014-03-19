@@ -59,7 +59,7 @@ OsdCpuTable::GetBuffer() const {
 // ----------------------------------------------------------------------------
 
 OsdCpuHEditTable::OsdCpuHEditTable(
-    const FarVertexEditTables<OsdVertex>::VertexEditBatch &batch)
+    const FarVertexEditTables::VertexEditBatch &batch)
     : _primvarIndicesTable(new OsdCpuTable(batch.GetVertexIndices())),
       _editValuesTable(new OsdCpuTable(batch.GetValues())) {
 
@@ -106,30 +106,30 @@ OsdCpuHEditTable::GetPrimvarWidth() const {
 
 OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> const *farMesh) {
 
-    FarSubdivisionTables<OsdVertex> const * farTables =
+    FarSubdivisionTables const * farTables =
         farMesh->GetSubdivisionTables();
 
     // allocate 5 or 7 tables
     _tables.resize(farTables->GetNumTables(), 0);
 
-    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdCpuTable(farTables->Get_E_IT());
-    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdCpuTable(farTables->Get_V_IT());
-    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdCpuTable(farTables->Get_V_ITa());
-    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdCpuTable(farTables->Get_E_W());
-    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdCpuTable(farTables->Get_V_W());
+    _tables[FarSubdivisionTables::E_IT]  = new OsdCpuTable(farTables->Get_E_IT());
+    _tables[FarSubdivisionTables::V_IT]  = new OsdCpuTable(farTables->Get_V_IT());
+    _tables[FarSubdivisionTables::V_ITa] = new OsdCpuTable(farTables->Get_V_ITa());
+    _tables[FarSubdivisionTables::E_W]   = new OsdCpuTable(farTables->Get_E_W());
+    _tables[FarSubdivisionTables::V_W]   = new OsdCpuTable(farTables->Get_V_W());
 
     if (farTables->GetNumTables() > 5) {
-        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdCpuTable(farTables->Get_F_IT());
-        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdCpuTable(farTables->Get_F_ITa());
+        _tables[FarSubdivisionTables::F_IT]  = new OsdCpuTable(farTables->Get_F_IT());
+        _tables[FarSubdivisionTables::F_ITa] = new OsdCpuTable(farTables->Get_F_ITa());
     }
 
     // create hedit tables
-    FarVertexEditTables<OsdVertex> const *editTables = farMesh->GetVertexEdit();
+    FarVertexEditTables const *editTables = farMesh->GetVertexEdit();
     if (editTables) {
         int numEditBatches = editTables->GetNumBatches();
         _editTables.reserve(numEditBatches);
         for (int i = 0; i < numEditBatches; ++i) {
-            const FarVertexEditTables<OsdVertex>::VertexEditBatch & edit =
+            const FarVertexEditTables::VertexEditBatch & edit =
                 editTables->GetBatch(i);
 
             _editTables.push_back(new OsdCpuHEditTable(edit));

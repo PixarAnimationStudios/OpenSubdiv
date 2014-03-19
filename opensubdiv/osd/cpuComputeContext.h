@@ -27,6 +27,7 @@
 
 #include "../version.h"
 
+#include "../far/mesh.h"
 #include "../far/subdivisionTables.h"
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
@@ -59,8 +60,7 @@ private:
 
 class OsdCpuHEditTable : OsdNonCopyable<OsdCpuHEditTable> {
 public:
-    OsdCpuHEditTable(const FarVertexEditTables<OsdVertex>::
-                      VertexEditBatch &batch);
+    OsdCpuHEditTable(const FarVertexEditTables::VertexEditBatch &batch);
 
     virtual ~OsdCpuHEditTable();
 

@@ -34,8 +34,6 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-template <class U> class FarMesh;
-
 /// \brief A serialized container for hierarchical edits.
 ///
 /// Some of the hierarchical edits are resolved into the vertex weights computed
@@ -66,7 +64,7 @@ public:
     const float* GetEdit() const { return _edit; }
 
 private:
-    template <class U> friend class FarVertexEditTables;
+    friend class FarVertexEditTables;
     
     FarVertexEdit(Operation op, int index, int width) :
         _op(op), _edit(0), _index(index), _width(width)
@@ -80,10 +78,10 @@ private:
                   _width;
 };
 
-template <class U> class FarVertexEditTables {
+class FarVertexEditTables {
 public:
     /// \brief Constructor
-    FarVertexEditTables( FarMesh<U> * mesh );
+    FarVertexEditTables( ) { }
 
     // Note : Subtract type edits are converted into Adds in order to save kernel calls.
 
@@ -97,6 +95,7 @@ public:
         void Append(int level, int vertexID, const float *values, bool negate);
 
         /// \brief Compute-kernel applied to vertices
+        template <class U> 
         void ApplyVertexEdits(U * vsrc, int offset, int tableOffset, int start, int end) const;
 
         // Edit tables accessors
@@ -144,13 +143,11 @@ public:
 private:
     template <class X, class Y> friend class FarVertexEditTablesFactory;
     template <class X, class Y> friend class FarMultiMeshFactory;
-    template <class CONTROLLER> friend class FarComputeController;
+    friend class FarComputeController;
 
     // Compute-kernel that applies the edits
-    void computeVertexEdits(int tableIndex, int offset, int tableOffset, int start, int end, void *clientdata) const;
-
-    // mesh that owns this vertexEditTable
-    FarMesh<U> * _mesh;
+    template <class CONTEXT>
+    void computeVertexEdits(int tableIndex, int offset, int tableOffset, int start, int end, CONTEXT *context) const;
 
 #if defined(__GNUC__)
     // XXX(dyu): seems like there is a compiler bug in g++ that requires
@@ -160,16 +157,16 @@ public:
     std::vector<VertexEditBatch> _batches;
 };
 
-template <class U>
-FarVertexEditTables<U>::VertexEditBatch::VertexEditBatch(int index, int width, FarVertexEdit::Operation op) :
+inline
+FarVertexEditTables::VertexEditBatch::VertexEditBatch(int index, int width, FarVertexEdit::Operation operation) :
     _primvarIndex(index),
     _primvarWidth(width),
-    _op(op) {
+    _op(operation) {
 }
 
 template <class U>
 void
-FarVertexEditTables<U>::VertexEditBatch::ApplyVertexEdits(U * vsrc, int vertexOffset, int tableOffset, int start, int end) const
+FarVertexEditTables::VertexEditBatch::ApplyVertexEdits(U * vsrc, int vertexOffset, int tableOffset, int start, int end) const
 {
     int primvarWidth = GetPrimvarWidth();
     assert(tableOffset+end <= (int)_vertIndices.size());
@@ -185,17 +182,8 @@ FarVertexEditTables<U>::VertexEditBatch::ApplyVertexEdits(U * vsrc, int vertexOf
     }
 }
 
-template <class U>
-FarVertexEditTables<U>::FarVertexEditTables( FarMesh<U> * mesh ) :
-    _mesh(mesh) {
-}
-
 template <class U> void
-FarVertexEditTables<U>::computeVertexEdits(int tableIndex, int offset, int tableOffset, int start, int end, void *clientdata) const {
-
-    assert(this->_mesh);
-
-    U * vsrc = &this->_mesh->GetVertices().at(0);
+FarVertexEditTables::computeVertexEdits(int tableIndex, int offset, int tableOffset, int start, int end, U * vsrc) const {
 
     _batches[tableIndex].ApplyVertexEdits(vsrc, offset, tableOffset, start, end);
 }

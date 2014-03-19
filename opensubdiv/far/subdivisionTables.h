@@ -34,8 +34,6 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-template <class U> class FarMesh;
-
 /// \brief FarSubdivisionTables are a serialized topological data representation.
 ///
 /// Subdivision tables store the indexing tables required in order to compute
@@ -62,7 +60,7 @@ template <class U> class FarMesh;
 /// For more details see : "Feature Adaptive GPU Rendering of Catmull-Clark
 /// Subdivision Surfaces"  (p.3 - par. 3.2)
 ///
-template <class U> class FarSubdivisionTables {
+class FarSubdivisionTables {
 
 public:
 
@@ -88,16 +86,13 @@ public:
     };
 
     /// \brief Destructor
-    virtual ~FarSubdivisionTables<U>() {}
+    virtual ~FarSubdivisionTables() {}
 
     /// \brief Return the highest level of subdivision possible with these tables
     int GetMaxLevel() const { return (int)(_vertsOffsets.size()-1); }
 
     /// \brief Memory required to store the indexing tables
     int GetMemoryUsed() const;
-
-    /// \brief Pointer back to the mesh owning the table
-    FarMesh<U> * GetMesh() { return _mesh; }
 
     /// \brief The index of the first vertex that belongs to the level of subdivision
     /// represented by this set of FarCatmarkSubdivisionTables
@@ -148,10 +143,7 @@ protected:
     template <class X, class Y> friend class FarMeshFactory;
     template <class X, class Y> friend class FarMultiMeshFactory;
 
-    FarSubdivisionTables<U>( FarMesh<U> * mesh, int maxlevel );
-
-    // mesh that owns this subdivisionTable
-    FarMesh<U> * _mesh;
+    FarSubdivisionTables( int maxlevel );
 
     std::vector<int>          _F_ITa; // vertices from face refinement
     std::vector<unsigned int> _F_IT;  // indices of face vertices
@@ -166,22 +158,21 @@ protected:
     std::vector<int> _vertsOffsets; // offset to the first vertex of each level
 };
 
-template <class U>
-FarSubdivisionTables<U>::FarSubdivisionTables( FarMesh<U> * mesh, int maxlevel ) :
-    _mesh(mesh),
+inline
+FarSubdivisionTables::FarSubdivisionTables( int maxlevel ) :
     _vertsOffsets(maxlevel+2, 0)
 {
     assert( maxlevel > 0 );
 }
 
-template <class U> int
-FarSubdivisionTables<U>::GetFirstVertexOffset( int level ) const {
+inline int
+FarSubdivisionTables::GetFirstVertexOffset( int level ) const {
     assert(level>=0 and level<(int)_vertsOffsets.size());
     return _vertsOffsets[level];
 }
 
-template <class U> int
-FarSubdivisionTables<U>::GetNumVertices( ) const {
+inline int
+FarSubdivisionTables::GetNumVertices( ) const {
     if (_vertsOffsets.empty()) {
         return 0;
     } else {
@@ -191,20 +182,20 @@ FarSubdivisionTables<U>::GetNumVertices( ) const {
     }
 }
 
-template <class U> int
-FarSubdivisionTables<U>::GetNumVertices( int level ) const {
+inline int
+FarSubdivisionTables::GetNumVertices( int level ) const {
     assert(level>=0 and level<((int)_vertsOffsets.size()-1));
     return _vertsOffsets[level+1] - _vertsOffsets[level];
 }
 
-template <class U> int
-FarSubdivisionTables<U>::GetNumVerticesTotal( int level ) const {
+inline int
+FarSubdivisionTables::GetNumVerticesTotal( int level ) const {
     assert(level>=0 and level<((int)_vertsOffsets.size()-1));
     return _vertsOffsets[level+1];
 }
 
-template <class U> int
-FarSubdivisionTables<U>::GetMemoryUsed() const {
+inline int
+FarSubdivisionTables::GetMemoryUsed() const {
     return (int)(_F_ITa.size() * sizeof(int) +
                  _F_IT.size() * sizeof(unsigned int) +
                  _E_IT.size() * sizeof(int) +

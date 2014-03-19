@@ -82,7 +82,7 @@ typedef HbrHalfedge<OsdVertex> OsdHbrHalfedge;
 
 typedef FarMesh<OsdVertex>              OsdFarMesh;
 typedef FarMeshFactory<OsdVertex>       OsdFarMeshFactory;
-typedef FarSubdivisionTables<OsdVertex> OsdFarMeshSubdivision;
+typedef FarSubdivisionTables            OsdFarMeshSubdivision;
 
 //------------------------------------------------------------------------------
 struct SimpleShape {

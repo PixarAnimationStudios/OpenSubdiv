@@ -72,10 +72,8 @@ OsdGLSLTransformFeedbackComputeController::getKernels(int numVertexElements,
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyBilinearFaceVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -90,10 +88,8 @@ OsdGLSLTransformFeedbackComputeController::ApplyBilinearFaceVerticesKernel(
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyBilinearEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -108,10 +104,8 @@ OsdGLSLTransformFeedbackComputeController::ApplyBilinearEdgeVerticesKernel(
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyBilinearVertexVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -126,10 +120,8 @@ OsdGLSLTransformFeedbackComputeController::ApplyBilinearVertexVerticesKernel(
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyCatmarkFaceVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -146,10 +138,8 @@ OsdGLSLTransformFeedbackComputeController::ApplyCatmarkFaceVerticesKernel(
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyCatmarkEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -164,10 +154,8 @@ OsdGLSLTransformFeedbackComputeController::ApplyCatmarkEdgeVerticesKernel(
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelB(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -182,10 +170,8 @@ OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelB(
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelA1(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -200,10 +186,8 @@ OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelA1(
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelA2(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -218,10 +202,8 @@ OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelA2(
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyLoopEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -236,10 +218,8 @@ OsdGLSLTransformFeedbackComputeController::ApplyLoopEdgeVerticesKernel(
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelB(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -254,10 +234,8 @@ OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelB(
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelA1(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -272,10 +250,8 @@ OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelA1(
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelA2(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -290,10 +266,8 @@ OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelA2(
 
 void
 OsdGLSLTransformFeedbackComputeController::ApplyVertexEdits(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext *context) const {
 
-    OsdGLSLTransformFeedbackComputeContext * context =
-        static_cast<OsdGLSLTransformFeedbackComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLTransformFeedbackKernelBundle * kernelBundle = context->GetKernelBundle();

@@ -701,11 +701,11 @@ FarMeshFactory<T,U>::Create( bool requireFVarData ) {
     FarMesh<U> * result = new FarMesh<U>();
 
     if ( isBilinear( GetHbrMesh() ) ) {
-        result->_subdivisionTables = FarBilinearSubdivisionTablesFactory<T,U>::Create(this, result, &result->_batches);
+        result->_subdivisionTables = FarBilinearSubdivisionTablesFactory<T,U>::Create(this, &result->_batches);
     } else if ( isCatmark( GetHbrMesh() ) ) {
-        result->_subdivisionTables = FarCatmarkSubdivisionTablesFactory<T,U>::Create(this, result, &result->_batches);
+        result->_subdivisionTables = FarCatmarkSubdivisionTablesFactory<T,U>::Create(this, &result->_batches);
     } else if ( isLoop(GetHbrMesh()) ) {
-        result->_subdivisionTables = FarLoopSubdivisionTablesFactory<T,U>::Create(this, result, &result->_batches);
+        result->_subdivisionTables = FarLoopSubdivisionTablesFactory<T,U>::Create(this, &result->_batches);
     } else
         assert(0);
     assert(result->_subdivisionTables);

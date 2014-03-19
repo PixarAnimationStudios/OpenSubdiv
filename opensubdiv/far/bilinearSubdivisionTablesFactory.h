@@ -51,21 +51,19 @@ protected:
     ///
     /// @param meshFactory  a valid FarMeshFactory instance
     ///
-    /// @param farMesh
-    ///
     /// @param batches      a vector of Kernel refinement batches : the factory 
     ///                     will reserve and append refinement tasks
     ///
-    static FarBilinearSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector *batches );
+    static FarBilinearSubdivisionTables * Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector *batches );
 };
 
 // This factory walks the Hbr vertices and accumulates the weights and adjacency
 // (valance) information specific to the bilinear subdivision scheme. The results
 // are stored in a FarBilinearSubdivisionTable<U>
-template <class T, class U> FarBilinearSubdivisionTables<U> * 
-FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector * batches ) {
+template <class T, class U> FarBilinearSubdivisionTables * 
+FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector * batches ) {
 
-    assert( meshFactory and farMesh );
+    assert( meshFactory );
      
     int maxlevel = meshFactory->GetMaxLevel();
     
@@ -73,7 +71,7 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
     
     FarSubdivisionTablesFactory<T,U> tablesFactory( meshFactory->GetHbrMesh(),  maxlevel, remap );
 
-    FarBilinearSubdivisionTables<U> * result = new FarBilinearSubdivisionTables<U>(farMesh, maxlevel);
+    FarBilinearSubdivisionTables * result = new FarBilinearSubdivisionTables(maxlevel);
 
     // Allocate memory for the indexing tables
     result->_F_ITa.resize(tablesFactory.GetNumFaceVerticesTotal(maxlevel)*2);

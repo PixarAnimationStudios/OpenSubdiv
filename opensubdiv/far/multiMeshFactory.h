@@ -68,7 +68,7 @@ public:
 private:
 
     // splice subdivision tables
-    FarSubdivisionTables<U> * spliceSubdivisionTables(FarMesh<U> *farmesh, FarMeshVector const &meshes);
+    FarSubdivisionTables * spliceSubdivisionTables(FarMesh<U> *farmesh, FarMeshVector const &meshes);
 
     // splice patch tables
     FarPatchTables * splicePatchTables(FarMeshVector const &meshes, bool hasFVarData);
@@ -82,7 +82,7 @@ private:
                                                  std::vector<int> const &vertexOffsets);
 
     // splice hierarchical edit tables
-    FarVertexEditTables<U> * spliceVertexEditTables(FarMesh<U> *farmesh, FarMeshVector const &meshes);
+    FarVertexEditTables * spliceVertexEditTables(FarMeshVector const &meshes);
 
     int _maxlevel;
     int _maxvalence;
@@ -100,7 +100,7 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
 
     int totalFVarWidth = meshes[0]->GetTotalFVarWidth();
 
-    typename FarSubdivisionTables<U>::Scheme scheme = 
+    typename FarSubdivisionTables::Scheme scheme = 
         meshes[0]->GetSubdivisionTables()->GetScheme();
         
     _maxlevel = 0;
@@ -137,7 +137,7 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
     result->_patchTables = splicePatchTables(meshes, totalFVarWidth > 0);
 
     // splice vertex edit tables
-    result->_vertexEditTables = spliceVertexEditTables(result, meshes);
+    result->_vertexEditTables = spliceVertexEditTables(meshes);
 
     // count total num vertices, numptex faces
     int numVertices = 0, numPtexFaces = 0;
@@ -221,7 +221,7 @@ copyWithOffsetVertexValence(IT dst_iterator, V const &src, int srcMaxValence, in
     return dst_iterator;
 }
 
-template <class T, class U> FarSubdivisionTables<U> *
+template <class T, class U> FarSubdivisionTables *
 FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshVector const &meshes) {
 
     // count total table size
@@ -229,7 +229,7 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
     size_t total_E_IT = 0, total_E_W = 0;
     size_t total_V_ITa = 0, total_V_IT = 0, total_V_W = 0;
     for (size_t i = 0; i < meshes.size(); ++i) {
-        FarSubdivisionTables<U> const * tables = meshes[i]->GetSubdivisionTables();
+        FarSubdivisionTables const * tables = meshes[i]->GetSubdivisionTables();
         assert(tables);
 
         total_F_ITa += tables->Get_F_ITa().size();
@@ -241,21 +241,21 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
         total_V_W   += tables->Get_V_W().size();
     }
 
-    FarSubdivisionTables<U> *result = NULL;
-    typename FarSubdivisionTables<U>::Scheme scheme = 
+    FarSubdivisionTables *result = NULL;
+    typename FarSubdivisionTables::Scheme scheme = 
         meshes[0]->GetSubdivisionTables()->GetScheme();
 
     switch (scheme) {
-        case FarSubdivisionTables<U>::CATMARK: 
-            result = new FarCatmarkSubdivisionTables<U>(farMesh, _maxlevel);
+        case FarSubdivisionTables::CATMARK: 
+            result = new FarCatmarkSubdivisionTables(_maxlevel);
             _isLoop = false;
             break;
-        case FarSubdivisionTables<U>::LOOP: 
-            result = new FarLoopSubdivisionTables<U>(farMesh, _maxlevel);
+        case FarSubdivisionTables::LOOP: 
+            result = new FarLoopSubdivisionTables(_maxlevel);
             _isLoop = true;
             break;
-        case FarSubdivisionTables<U>::BILINEAR: 
-            result = new FarBilinearSubdivisionTables<U>(farMesh, _maxlevel);
+        case FarSubdivisionTables::BILINEAR: 
+            result = new FarBilinearSubdivisionTables(_maxlevel);
             _isLoop = false;
             break;
         default:
@@ -286,7 +286,7 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
         int evOffset = 0;
         int vvOffset = 0;
         for (size_t i = 0; i < meshes.size(); ++i) {
-            FarSubdivisionTables<U> const * tables = meshes[i]->GetSubdivisionTables();
+            FarSubdivisionTables const * tables = meshes[i]->GetSubdivisionTables();
             assert(tables);
             
             vertexOffsets.push_back(vertexOffset);
@@ -301,8 +301,8 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
             fvOffset += (int)tables->Get_F_ITa().size()/2;
             V_IToffset += (int)tables->Get_V_IT().size();
 
-            if (scheme == FarSubdivisionTables<U>::CATMARK or
-                scheme == FarSubdivisionTables<U>::LOOP) {
+            if (scheme == FarSubdivisionTables::CATMARK or
+                scheme == FarSubdivisionTables::LOOP) {
                 
                 evOffset += (int)tables->Get_E_IT().size()/4;
                 vvOffset += (int)tables->Get_V_ITa().size()/5;
@@ -319,7 +319,7 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
     std::vector<unsigned int>::iterator V_IT = result->_V_IT.begin();
 
     for (size_t i = 0; i < meshes.size(); ++i) {
-        FarSubdivisionTables<U> const * tables = meshes[i]->GetSubdivisionTables();
+        FarSubdivisionTables const * tables = meshes[i]->GetSubdivisionTables();
 
         int vertexOffset = vertexOffsets[i];
         // remap F_IT, V_IT tables
@@ -335,7 +335,7 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
     std::vector<int>::iterator V_ITa = result->_V_ITa.begin();
 
     for (size_t i = 0; i < meshes.size(); ++i) {
-        FarSubdivisionTables<U> const * tables = meshes[i]->GetSubdivisionTables();
+        FarSubdivisionTables const * tables = meshes[i]->GetSubdivisionTables();
 
         // copy face tables
         F_ITa = copyWithOffsetF_ITa(F_ITa, tables->Get_F_ITa(), F_IToffsets[i]);
@@ -345,8 +345,8 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
         E_W = copyWithOffset(E_W, tables->Get_E_W(), 0);
 
         // copy vert tables
-        if (scheme == FarSubdivisionTables<U>::CATMARK or
-            scheme == FarSubdivisionTables<U>::LOOP) {
+        if (scheme == FarSubdivisionTables::CATMARK or
+            scheme == FarSubdivisionTables::LOOP) {
             
             V_ITa = copyWithOffsetV_ITa(V_ITa, tables->Get_V_ITa(), V_IToffsets[i], vertexOffsets[i]);
         } else {
@@ -398,7 +398,7 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
     // count verts offsets
     result->_vertsOffsets.resize(_maxlevel+2);
     for (size_t i = 0; i < meshes.size(); ++i) {
-        FarSubdivisionTables<U> const * tables = meshes[i]->GetSubdivisionTables();
+        FarSubdivisionTables const * tables = meshes[i]->GetSubdivisionTables();
         for (size_t j = 0; j < tables->_vertsOffsets.size(); ++j) {
             result->_vertsOffsets[j] += tables->_vertsOffsets[j];
         }
@@ -616,14 +616,14 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes, bool h
     return result;
 }
 
-template <class T, class U> FarVertexEditTables<U> *
-FarMultiMeshFactory<T, U>::spliceVertexEditTables(FarMesh<U> *farMesh, FarMeshVector const &meshes) {
+template <class T, class U> FarVertexEditTables *
+FarMultiMeshFactory<T, U>::spliceVertexEditTables(FarMeshVector const &meshes) {
 
-    FarVertexEditTables<U> * result = new FarVertexEditTables<U>(farMesh);
+    FarVertexEditTables * result = new FarVertexEditTables();
 
     // at this moment, don't merge vertex edit tables (separate batch)
     for (size_t i = 0; i < meshes.size(); ++i) {
-        const FarVertexEditTables<U> *vertexEditTables = meshes[i]->GetVertexEdit();
+        const FarVertexEditTables *vertexEditTables = meshes[i]->GetVertexEdit();
         if (not vertexEditTables) continue;
 
         // copy each edit batch  XXX:inefficient copy

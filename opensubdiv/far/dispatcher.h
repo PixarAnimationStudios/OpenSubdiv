@@ -27,7 +27,6 @@
 
 #include "../version.h"
 
-#include "../far/mesh.h"
 #include "../far/bilinearSubdivisionTables.h"
 #include "../far/catmarkSubdivisionTables.h"
 #include "../far/loopSubdivisionTables.h"
@@ -54,72 +53,98 @@ namespace OPENSUBDIV_VERSION {
 ///
 class FarDispatcher {
 public:
-    /// \brief Launches the processing of a vector of kernel batches
+    /// \brief Launches the processing of a kernel batch
+    /// returns true if the batch is handled, otherwise returns false (i.e. user defined kernel)
     ///
     /// @param controller  refinement controller implementation
+    ///
+    /// @param context     refinement context implementation
+    ///
+    /// @param batch       a batch of kernel that need to be processed
+    ///
+    template <class CONTROLLER, class CONTEXT>
+    static bool ApplyKernel(CONTROLLER const *controller, CONTEXT *context, FarKernelBatch const &batch);
+
+    /// \brief Launches the processing of a vector of kernel batches
+    /// this is a convenient API for controllers which don't have any user defined kernels.
+    ///
+    /// @param controller  refinement controller implementation
+    ///
+    /// @param context     refinement context implementation (vertex array and subdivision tables)
+    ///                    passed to the controller.
     ///
     /// @param batches     batches of kernels that need to be processed
     ///
     /// @param maxlevel    process vertex batches up to this level
     ///
-    /// @param clientdata  custom client data passed to the controller
-    ///
-    template <class CONTROLLER>
-    static void Refine(CONTROLLER const *controller, FarKernelBatchVector const & batches, int maxlevel, void * clientdata=0);
+    template <class CONTROLLER, class CONTEXT>
+    static void Refine(CONTROLLER const *controller, CONTEXT *context, FarKernelBatchVector const & batches, int maxlevel);
+
 };
 
-template <class CONTROLLER> void
-FarDispatcher::Refine(CONTROLLER const *controller, FarKernelBatchVector const & batches, int maxlevel, void * clientdata) {
+template <class CONTROLLER, class CONTEXT> bool
+FarDispatcher::ApplyKernel(CONTROLLER const *controller, CONTEXT *context, FarKernelBatch const &batch) {
+
+    switch(batch.GetKernelType()) {
+        case FarKernelBatch::CATMARK_FACE_VERTEX:
+            controller->ApplyCatmarkFaceVerticesKernel(batch, context);
+            break;
+        case FarKernelBatch::CATMARK_EDGE_VERTEX:
+            controller->ApplyCatmarkEdgeVerticesKernel(batch, context);
+            break;
+        case FarKernelBatch::CATMARK_VERT_VERTEX_B:
+            controller->ApplyCatmarkVertexVerticesKernelB(batch, context);
+            break;
+        case FarKernelBatch::CATMARK_VERT_VERTEX_A1:
+            controller->ApplyCatmarkVertexVerticesKernelA1(batch, context);
+            break;
+        case FarKernelBatch::CATMARK_VERT_VERTEX_A2:
+            controller->ApplyCatmarkVertexVerticesKernelA2(batch, context);
+            break;
+
+        case FarKernelBatch::LOOP_EDGE_VERTEX:
+            controller->ApplyLoopEdgeVerticesKernel(batch, context);
+            break;
+        case FarKernelBatch::LOOP_VERT_VERTEX_B:
+            controller->ApplyLoopVertexVerticesKernelB(batch, context);
+            break;
+        case FarKernelBatch::LOOP_VERT_VERTEX_A1:
+            controller->ApplyLoopVertexVerticesKernelA1(batch, context);
+            break;
+        case FarKernelBatch::LOOP_VERT_VERTEX_A2:
+            controller->ApplyLoopVertexVerticesKernelA2(batch, context);
+            break;
+
+        case FarKernelBatch::BILINEAR_FACE_VERTEX:
+            controller->ApplyBilinearFaceVerticesKernel(batch, context);
+            break;
+        case FarKernelBatch::BILINEAR_EDGE_VERTEX:
+            controller->ApplyBilinearEdgeVerticesKernel(batch, context);
+            break;
+        case FarKernelBatch::BILINEAR_VERT_VERTEX:
+            controller->ApplyBilinearVertexVerticesKernel(batch, context);
+            break;
+
+        case FarKernelBatch::HIERARCHICAL_EDIT:
+            controller->ApplyVertexEdits(batch, context);
+            break;
+
+        default: // user defined kernel type
+            return false;
+    }
+
+    return true;
+}
+
+template <class CONTROLLER, class CONTEXT> void
+FarDispatcher::Refine(CONTROLLER const *controller, CONTEXT *context, FarKernelBatchVector const & batches, int maxlevel) {
 
     for (int i = 0; i < (int)batches.size(); ++i) {
         const FarKernelBatch &batch = batches[i];
 
         if (maxlevel >= 0 && batch.GetLevel() >= maxlevel) continue;
 
-        switch(batch.GetKernelType()) {
-            case FarKernelBatch::CATMARK_FACE_VERTEX:
-                controller->ApplyCatmarkFaceVerticesKernel(batch, clientdata);
-                break;
-            case FarKernelBatch::CATMARK_EDGE_VERTEX:
-                controller->ApplyCatmarkEdgeVerticesKernel(batch, clientdata);
-                break;
-            case FarKernelBatch::CATMARK_VERT_VERTEX_B:
-                controller->ApplyCatmarkVertexVerticesKernelB(batch, clientdata);
-                break;
-            case FarKernelBatch::CATMARK_VERT_VERTEX_A1:
-                controller->ApplyCatmarkVertexVerticesKernelA1(batch, clientdata);
-                break;
-            case FarKernelBatch::CATMARK_VERT_VERTEX_A2:
-                controller->ApplyCatmarkVertexVerticesKernelA2(batch, clientdata);
-                break;
-
-            case FarKernelBatch::LOOP_EDGE_VERTEX:
-                controller->ApplyLoopEdgeVerticesKernel(batch, clientdata);
-                break;
-            case FarKernelBatch::LOOP_VERT_VERTEX_B:
-                controller->ApplyLoopVertexVerticesKernelB(batch, clientdata);
-                break;
-            case FarKernelBatch::LOOP_VERT_VERTEX_A1:
-                controller->ApplyLoopVertexVerticesKernelA1(batch, clientdata);
-                break;
-            case FarKernelBatch::LOOP_VERT_VERTEX_A2:
-                controller->ApplyLoopVertexVerticesKernelA2(batch, clientdata);
-                break;
-
-            case FarKernelBatch::BILINEAR_FACE_VERTEX:
-                controller->ApplyBilinearFaceVerticesKernel(batch, clientdata);
-                break;
-            case FarKernelBatch::BILINEAR_EDGE_VERTEX:
-                controller->ApplyBilinearEdgeVerticesKernel(batch, clientdata);
-                break;
-            case FarKernelBatch::BILINEAR_VERT_VERTEX:
-                controller->ApplyBilinearVertexVerticesKernel(batch, clientdata);
-                break;
-
-            case FarKernelBatch::HIERARCHICAL_EDIT:
-                controller->ApplyVertexEdits(batch, clientdata);
-                break;
-        }
+        ApplyKernel(controller, context, batch);
     }
 }
 
@@ -129,92 +154,101 @@ FarDispatcher::Refine(CONTROLLER const *controller, FarKernelBatchVector const &
 ///
 /// This is Far's default implementation of a kernal batch controller.
 ///
-template <class U>
 class FarComputeController {
 
 public:
-    void Refine(FarMesh<U> * mesh, int maxlevel=-1) const;
+    template <class CONTEXT>
+    void Refine(CONTEXT * context, int maxlevel=-1) const;
 
-    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+    template <class CONTEXT>
+    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const;
 
-    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+    template <class CONTEXT>
+    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const;
 
-    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+    template <class CONTEXT>
+    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const;
 
+    template <class CONTEXT>
+    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const;
 
-    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+    template <class CONTEXT>
+    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const;
 
-    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+    template <class CONTEXT>
+    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, CONTEXT *context) const;
 
-    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const;
+    template <class CONTEXT>
+    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, CONTEXT *context) const;
 
-    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const;
+    template <class CONTEXT>
+    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, CONTEXT *context) const;
 
-    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const;
+    template <class CONTEXT>
+    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const;
 
-    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+    template <class CONTEXT>
+    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, CONTEXT *context) const;
 
-    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const;
+    template <class CONTEXT>
+    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, CONTEXT *context) const;
 
-    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const;
+    template <class CONTEXT>
+    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, CONTEXT *context) const;
 
-    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const;
+    template <class CONTEXT>
+    void ApplyVertexEdits(FarKernelBatch const &batch, CONTEXT *context) const;
 
-    void ApplyVertexEdits(FarKernelBatch const &batch, void * clientdata) const;
-
-    static FarComputeController _DefaultController;
-    
 private:
 
 };
 
-template<class U> FarComputeController<U> FarComputeController<U>::_DefaultController;
+template <class CONTEXT> void
+FarComputeController::Refine(CONTEXT *context, int maxlevel) const {
 
-template <class U> void
-FarComputeController<U>::Refine(FarMesh<U> *mesh, int maxlevel) const {
+    FarDispatcher::Refine(this, context, context->GetKernelBatches(), maxlevel);
 
-    FarDispatcher::Refine(this, mesh->GetKernelBatches(), maxlevel, mesh);
 }
 
-template <class U> void
-FarComputeController<U>::ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarBilinearSubdivisionTables<U> const * subdivision =
-        reinterpret_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+    FarBilinearSubdivisionTables const * subdivision =
+        reinterpret_cast<FarBilinearSubdivisionTables const *>(context->GetSubdivisionTables());
     assert(subdivision);
 
     subdivision->computeFacePoints( batch.GetVertexOffset(),
                                     batch.GetTableOffset(),
                                     batch.GetStart(),
                                     batch.GetEnd(),
-                                    clientdata );
+                                    vsrc );
 }
 
-template <class U> void
-FarComputeController<U>::ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarBilinearSubdivisionTables<U> const * subdivision =
-        reinterpret_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+    FarBilinearSubdivisionTables const * subdivision =
+        reinterpret_cast<FarBilinearSubdivisionTables const *>(context->GetSubdivisionTables());
     assert(subdivision);
 
     subdivision->computeEdgePoints( batch.GetVertexOffset(),
                                     batch.GetTableOffset(),
                                     batch.GetStart(),
                                     batch.GetEnd(),
-                                    clientdata );
+                                    vsrc );
 }
 
-template <class U> void
-FarComputeController<U>::ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarBilinearSubdivisionTables<U> const * subdivision =
-        reinterpret_cast<FarBilinearSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+    FarBilinearSubdivisionTables const * subdivision =
+        reinterpret_cast<FarBilinearSubdivisionTables const *>(context->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -222,16 +256,16 @@ FarComputeController<U>::ApplyBilinearVertexVerticesKernel(FarKernelBatch const 
                                       batch.GetTableOffset(),
                                       batch.GetStart(),
                                       batch.GetEnd(),
-                                      clientdata );
+                                      vsrc );
 }
 
-template <class U> void
-FarComputeController<U>::ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarCatmarkSubdivisionTables<U> const * subdivision =
-        reinterpret_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+    FarCatmarkSubdivisionTables const * subdivision =
+        reinterpret_cast<FarCatmarkSubdivisionTables const *>(context->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -239,16 +273,16 @@ FarComputeController<U>::ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &ba
                                     batch.GetTableOffset(),
                                     batch.GetStart(),
                                     batch.GetEnd(),
-                                    clientdata );
+                                    vsrc );
 }
 
-template <class U> void
-FarComputeController<U>::ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarCatmarkSubdivisionTables<U> const * subdivision =
-        reinterpret_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+    FarCatmarkSubdivisionTables const * subdivision =
+        reinterpret_cast<FarCatmarkSubdivisionTables const *>(context->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -256,16 +290,16 @@ FarComputeController<U>::ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &ba
                                     batch.GetTableOffset(),
                                     batch.GetStart(),
                                     batch.GetEnd(),
-                                    clientdata );
+                                    vsrc );
 }
 
-template <class U> void
-FarComputeController<U>::ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarCatmarkSubdivisionTables<U> const * subdivision =
-        reinterpret_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+    FarCatmarkSubdivisionTables const * subdivision =
+        reinterpret_cast<FarCatmarkSubdivisionTables const *>(context->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -273,16 +307,16 @@ FarComputeController<U>::ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const 
                                        batch.GetTableOffset(),
                                        batch.GetStart(),
                                        batch.GetEnd(),
-                                       clientdata );
+                                       vsrc );
 }
 
-template <class U> void
-FarComputeController<U>::ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarCatmarkSubdivisionTables<U> const * subdivision =
-        reinterpret_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+    FarCatmarkSubdivisionTables const * subdivision =
+        reinterpret_cast<FarCatmarkSubdivisionTables const *>(context->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -291,16 +325,16 @@ FarComputeController<U>::ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const
                                        batch.GetTableOffset(),
                                        batch.GetStart(),
                                        batch.GetEnd(),
-                                       clientdata );
+                                       vsrc );
 }
 
-template <class U> void
-FarComputeController<U>::ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarCatmarkSubdivisionTables<U> const * subdivision =
-        reinterpret_cast<FarCatmarkSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+    FarCatmarkSubdivisionTables const * subdivision =
+        reinterpret_cast<FarCatmarkSubdivisionTables const *>(context->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -309,16 +343,16 @@ FarComputeController<U>::ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const
                                        batch.GetTableOffset(),
                                        batch.GetStart(),
                                        batch.GetEnd(),
-                                       clientdata );
+                                       vsrc );
 }
 
-template <class U> void
-FarComputeController<U>::ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarLoopSubdivisionTables<U> const * subdivision =
-        reinterpret_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+    FarLoopSubdivisionTables const * subdivision =
+        reinterpret_cast<FarLoopSubdivisionTables const *>(context->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -326,16 +360,16 @@ FarComputeController<U>::ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch
                                     batch.GetTableOffset(),
                                     batch.GetStart(),
                                     batch.GetEnd(),
-                                    clientdata );
+                                    vsrc );
 }
 
-template <class U> void
-FarComputeController<U>::ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarLoopSubdivisionTables<U> const * subdivision =
-        reinterpret_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+    FarLoopSubdivisionTables const * subdivision =
+        reinterpret_cast<FarLoopSubdivisionTables const *>(context->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -343,16 +377,16 @@ FarComputeController<U>::ApplyLoopVertexVerticesKernelB(FarKernelBatch const &ba
                                        batch.GetTableOffset(),
                                        batch.GetStart(),
                                        batch.GetEnd(),
-                                       clientdata );
+                                       vsrc );
 }
 
-template <class U> void
-FarComputeController<U>::ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarLoopSubdivisionTables<U> const * subdivision =
-        reinterpret_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+    FarLoopSubdivisionTables const * subdivision =
+        reinterpret_cast<FarLoopSubdivisionTables const *>(context->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -361,16 +395,16 @@ FarComputeController<U>::ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &b
                                        batch.GetTableOffset(),
                                        batch.GetStart(),
                                        batch.GetEnd(),
-                                       clientdata );
+                                       vsrc );
 }
 
-template <class U> void
-FarComputeController<U>::ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarLoopSubdivisionTables<U> const * subdivision =
-        reinterpret_cast<FarLoopSubdivisionTables<U> const *>(mesh->GetSubdivisionTables());
+    FarLoopSubdivisionTables const * subdivision =
+        reinterpret_cast<FarLoopSubdivisionTables const *>(context->GetSubdivisionTables());
 
     assert(subdivision);
 
@@ -379,15 +413,15 @@ FarComputeController<U>::ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &b
                                        batch.GetTableOffset(),
                                        batch.GetStart(),
                                        batch.GetEnd(),
-                                       clientdata);
+                                       vsrc );
 }
 
-template <class U> void
-FarComputeController<U>::ApplyVertexEdits(FarKernelBatch const &batch, void * clientdata) const {
+template <class CONTEXT> void
+FarComputeController::ApplyVertexEdits(FarKernelBatch const &batch, CONTEXT *context) const {
 
-    FarMesh<U> * mesh = static_cast<FarMesh<U> *>(clientdata);
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarVertexEditTables<U> const * vertEdit = mesh->GetVertexEdit();
+    FarVertexEditTables const * vertEdit = context->GetVertexEdit();
 
     if (vertEdit)
         vertEdit->computeVertexEdits( batch.GetTableIndex(),
@@ -395,7 +429,7 @@ FarComputeController<U>::ApplyVertexEdits(FarKernelBatch const &batch, void * cl
                                       batch.GetTableOffset(),
                                       batch.GetStart(),
                                       batch.GetEnd(),
-                                      clientdata );
+                                      vsrc );
 }
 
 } // end namespace OPENSUBDIV_VERSION

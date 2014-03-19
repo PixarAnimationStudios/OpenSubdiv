@@ -27,6 +27,7 @@
 
 #include "../version.h"
 
+#include "../far/mesh.h"
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
 #include "../osd/nonCopyable.h"
@@ -64,7 +65,7 @@ private:
 
 class OsdCLHEditTable : OsdNonCopyable<OsdCLHEditTable> {
 public:
-    OsdCLHEditTable(const FarVertexEditTables<OsdVertex>::
+    OsdCLHEditTable(const FarVertexEditTables::
                     VertexEditBatch &batch, cl_context clContext);
 
     virtual ~OsdCLHEditTable();

@@ -65,7 +65,7 @@ class FarKernelBatch {
 public:
 
     enum KernelType {
-        CATMARK_FACE_VERTEX,
+        CATMARK_FACE_VERTEX = 1,
         CATMARK_EDGE_VERTEX,
         CATMARK_VERT_VERTEX_A1,
         CATMARK_VERT_VERTEX_A2,
@@ -78,6 +78,7 @@ public:
         BILINEAR_EDGE_VERTEX,
         BILINEAR_VERT_VERTEX,
         HIERARCHICAL_EDIT,
+        USER_DEFINED_KERNEL_START
     };
 
     /// \brief Constructor.
@@ -98,7 +99,7 @@ public:
     ///
     /// @param meshIndex     XXXX
     ///
-    FarKernelBatch( KernelType kernelType,
+    FarKernelBatch( int kernelType,
                     int level,
                     int tableIndex,
                     int start,
@@ -117,7 +118,7 @@ public:
     }
 
     /// \brief Returns the type of kernel to apply to the vertices in the batch.
-    KernelType GetKernelType() const {
+    int GetKernelType() const {
         return _kernelType;
     }
 
@@ -192,7 +193,7 @@ private:
     friend class FarKernelBatchFactory;
     template <class X, class Y> friend class FarMultiMeshFactory;
 
-    KernelType _kernelType;
+    int _kernelType;
     int _level;
     int _tableIndex;
     int _start;

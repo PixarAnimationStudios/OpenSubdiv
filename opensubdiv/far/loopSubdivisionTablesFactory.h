@@ -52,21 +52,19 @@ protected:
     ///
     /// @param meshFactory  a valid FarMeshFactory instance
     ///
-    /// @param farMesh
-    ///
     /// @param batches      a vector of Kernel refinement batches : the factory
     ///                     will reserve and append refinement tasks
     ///
-    static FarLoopSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector * batches );
+    static FarLoopSubdivisionTables * Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector * batches );
 };
 
 // This factory walks the Hbr vertices and accumulates the weights and adjacency
 // (valance) information specific to the loop subdivision scheme. The results
-// are stored in a FarLoopSubdivisionTable<U>.
-template <class T, class U> FarLoopSubdivisionTables<U> *
-FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector * batches ) {
+// are stored in a FarLoopSubdivisionTable.
+template <class T, class U> FarLoopSubdivisionTables *
+FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector * batches ) {
 
-    assert( meshFactory and farMesh );
+    assert( meshFactory );
 
     int maxlevel = meshFactory->GetMaxLevel();
 
@@ -74,7 +72,7 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
 
     FarSubdivisionTablesFactory<T,U> tablesFactory( meshFactory->GetHbrMesh(),  maxlevel, remap );
 
-    FarLoopSubdivisionTables<U> * result = new FarLoopSubdivisionTables<U>(farMesh, maxlevel);
+    FarLoopSubdivisionTables * result = new FarLoopSubdivisionTables(maxlevel);
 
     // Allocate memory for the indexing tables
     result->_E_IT.resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*4);
