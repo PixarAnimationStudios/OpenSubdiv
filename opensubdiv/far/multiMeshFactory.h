@@ -51,7 +51,7 @@ public:
     typedef std::vector<FarMesh<U> const *> FarMeshVector;
 
     /// \brief Constructor.
-    FarMultiMeshFactory() {}
+    FarMultiMeshFactory();
     
     /// \brief Splices a vector of Far meshes into a single Far mesh
     ///
@@ -86,12 +86,16 @@ private:
 
     int _maxlevel;
     int _maxvalence;
-    bool _isLoop;
+    FarSubdivisionTables::Scheme _scheme;
 
     // patch arrays for each mesh
     std::vector<FarPatchTables::PatchArrayVector> _multiPatchArrays;
 };
 
+template <class T, class U>
+FarMultiMeshFactory<T, U>::FarMultiMeshFactory()
+    : _maxlevel(0), _maxvalence(0), _scheme(FarSubdivisionTables::UNDEFINED) {
+}
 
 template <class T, class U> FarMesh<U> *
 FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes) {
@@ -100,18 +104,15 @@ FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes)
 
     int totalFVarWidth = meshes[0]->GetTotalFVarWidth();
 
-    typename FarSubdivisionTables::Scheme scheme = 
-        meshes[0]->GetSubdivisionTables()->GetScheme();
-        
     _maxlevel = 0;
     _maxvalence = 0;
-    _isLoop = false;
+    _scheme = meshes[0]->GetSubdivisionTables()->GetScheme();
 
     for (size_t i = 0; i < meshes.size(); ++i) {
         FarMesh<U> const *mesh = meshes[i];
 
         // meshes have to have a same subdivision scheme
-        if (scheme != mesh->GetSubdivisionTables()->GetScheme()) {
+        if (_scheme != mesh->GetSubdivisionTables()->GetScheme()) {
             assert(false);
             return NULL;
         }
@@ -241,27 +242,8 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
         total_V_W   += tables->Get_V_W().size();
     }
 
-    FarSubdivisionTables *result = NULL;
-    typename FarSubdivisionTables::Scheme scheme = 
-        meshes[0]->GetSubdivisionTables()->GetScheme();
+    FarSubdivisionTables *result = new FarSubdivisionTables(_maxlevel, _scheme);
 
-    switch (scheme) {
-        case FarSubdivisionTables::CATMARK: 
-            result = new FarCatmarkSubdivisionTables(_maxlevel);
-            _isLoop = false;
-            break;
-        case FarSubdivisionTables::LOOP: 
-            result = new FarLoopSubdivisionTables(_maxlevel);
-            _isLoop = true;
-            break;
-        case FarSubdivisionTables::BILINEAR: 
-            result = new FarBilinearSubdivisionTables(_maxlevel);
-            _isLoop = false;
-            break;
-        default:
-            assert(0);
-    }
-    
     result->_F_ITa.resize(total_F_ITa);
     result->_F_IT.resize(total_F_IT);
     result->_E_IT.resize(total_E_IT);
@@ -301,8 +283,8 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
             fvOffset += (int)tables->Get_F_ITa().size()/2;
             V_IToffset += (int)tables->Get_V_IT().size();
 
-            if (scheme == FarSubdivisionTables::CATMARK or
-                scheme == FarSubdivisionTables::LOOP) {
+            if (_scheme == FarSubdivisionTables::CATMARK or
+                _scheme == FarSubdivisionTables::LOOP) {
                 
                 evOffset += (int)tables->Get_E_IT().size()/4;
                 vvOffset += (int)tables->Get_V_ITa().size()/5;
@@ -345,8 +327,8 @@ FarMultiMeshFactory<T, U>::spliceSubdivisionTables(FarMesh<U> *farMesh, FarMeshV
         E_W = copyWithOffset(E_W, tables->Get_E_W(), 0);
 
         // copy vert tables
-        if (scheme == FarSubdivisionTables::CATMARK or
-            scheme == FarSubdivisionTables::LOOP) {
+        if (_scheme == FarSubdivisionTables::CATMARK or
+            _scheme == FarSubdivisionTables::LOOP) {
             
             V_ITa = copyWithOffsetV_ITa(V_ITa, tables->Get_V_ITa(), V_IToffsets[i], vertexOffsets[i]);
         } else {
@@ -601,7 +583,7 @@ FarMultiMeshFactory<T, U>::splicePatchTables(FarMeshVector const &meshes, bool h
                 FarPatchTables const *ptables = meshes[i]->GetPatchTables();
                 FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
                 if (parray) {
-                    int nv = _isLoop ? 3 : 4;
+                    int nv = (_scheme == FarSubdivisionTables::LOOP) ? 3 : 4;
                     int width = meshes[i]->GetTotalFVarWidth() * nv; // for each quads or tris
                     FarPatchTables::FVarDataTable::const_iterator begin =
                         ptables->_fvarTable.begin() + parray->GetPatchIndex() * width;

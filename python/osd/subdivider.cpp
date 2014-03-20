@@ -114,7 +114,7 @@ shim::Subdivider::getRefinedQuads(Buffer* refinedQuads)
     const OpenSubdiv::FarSubdivisionTables *tables =
         self->farMesh->GetSubdivisionTables();
 
-    bool loop = dynamic_cast<const OpenSubdiv::FarLoopSubdivisionTables*>(tables);
+    bool loop = (tables->GetScheme() == OpenSubdiv::FarSubdivisionTables::LOOP);
 
     if (loop) {
         cerr << "loop subdivision not supported" << endl;

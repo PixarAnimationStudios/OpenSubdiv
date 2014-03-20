@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/loopSubdivisionTables.h"
+#include "../far/subdivisionTables.h"
 #include "../far/meshFactory.h"
 #include "../far/kernelBatchFactory.h"
 #include "../far/subdivisionTablesFactory.h"
@@ -40,7 +40,7 @@ namespace OPENSUBDIV_VERSION {
 
 template <class T, class U> class FarMeshFactory;
 
-/// \brief A specialized factory for FarLoopSubdivisionTables
+/// \brief A specialized factory for loop FarSubdivisionTables
 ///
 /// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
 ///
@@ -48,20 +48,20 @@ template <class T, class U> class FarLoopSubdivisionTablesFactory {
 protected:
     template <class X, class Y> friend class FarMeshFactory;
 
-    /// \brief Creates a FarLoopSubdivisiontables instance.
+    /// \brief Creates a FarSubdivisiontables instance with Loop scheme.
     ///
     /// @param meshFactory  a valid FarMeshFactory instance
     ///
     /// @param batches      a vector of Kernel refinement batches : the factory
     ///                     will reserve and append refinement tasks
     ///
-    static FarLoopSubdivisionTables * Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector * batches );
+    static FarSubdivisionTables * Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector * batches );
 };
 
 // This factory walks the Hbr vertices and accumulates the weights and adjacency
 // (valance) information specific to the loop subdivision scheme. The results
-// are stored in a FarLoopSubdivisionTable.
-template <class T, class U> FarLoopSubdivisionTables *
+// are stored in a FarSubdivisionTable.
+template <class T, class U> FarSubdivisionTables *
 FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector * batches ) {
 
     assert( meshFactory );
@@ -72,7 +72,7 @@ FarLoopSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory,
 
     FarSubdivisionTablesFactory<T,U> tablesFactory( meshFactory->GetHbrMesh(),  maxlevel, remap );
 
-    FarLoopSubdivisionTables * result = new FarLoopSubdivisionTables(maxlevel);
+    FarSubdivisionTables * result = new FarSubdivisionTables(maxlevel, FarSubdivisionTables::LOOP);
 
     // Allocate memory for the indexing tables
     result->_E_IT.resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*4);

@@ -24,8 +24,7 @@
 
 #include "../far/mesh.h"
 #include "../far/dispatcher.h"
-#include "../far/catmarkSubdivisionTables.h"
-#include "../far/bilinearSubdivisionTables.h"
+#include "../far/subdivisionTables.h"
 
 #include "../osd/cpuComputeContext.h"
 #include "../osd/cpuKernel.h"

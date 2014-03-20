@@ -24,14 +24,11 @@
 
 #-------------------------------------------------------------------------------
 set(PUBLIC_HEADER_FILES
-    bilinearSubdivisionTables.h
     bilinearSubdivisionTablesFactory.h
-    catmarkSubdivisionTables.h
     catmarkSubdivisionTablesFactory.h
     dispatcher.h
     kernelBatch.h
     kernelBatchFactory.h
-    loopSubdivisionTables.h
     loopSubdivisionTablesFactory.h
     meshFactory.h
     mesh.h

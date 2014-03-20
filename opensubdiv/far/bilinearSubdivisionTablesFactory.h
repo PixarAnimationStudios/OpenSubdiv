@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/bilinearSubdivisionTables.h"
+#include "../far/subdivisionTables.h"
 #include "../far/meshFactory.h"
 #include "../far/subdivisionTablesFactory.h"
 
@@ -39,7 +39,7 @@ namespace OPENSUBDIV_VERSION {
 
 template <class T, class U> class FarMeshFactory;
 
-/// \brief A specialized factory for FarBilinearSubdivisionTables
+/// \brief A specialized factory for bilinear FarSubdivisionTables
 ///
 /// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
 ///
@@ -47,20 +47,20 @@ template <class T, class U> class FarBilinearSubdivisionTablesFactory {
 protected:
     template <class X, class Y> friend class FarMeshFactory;
 
-    /// \brief Creates a FarBilinearSubdivisiontables instance.
+    /// \brief Creates a FarSubdivisiontables instance.
     ///
     /// @param meshFactory  a valid FarMeshFactory instance
     ///
     /// @param batches      a vector of Kernel refinement batches : the factory 
     ///                     will reserve and append refinement tasks
     ///
-    static FarBilinearSubdivisionTables * Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector *batches );
+    static FarSubdivisionTables * Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector *batches );
 };
 
 // This factory walks the Hbr vertices and accumulates the weights and adjacency
 // (valance) information specific to the bilinear subdivision scheme. The results
-// are stored in a FarBilinearSubdivisionTable<U>
-template <class T, class U> FarBilinearSubdivisionTables * 
+// are stored in a FarSubdivisionTable
+template <class T, class U> FarSubdivisionTables * 
 FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector * batches ) {
 
     assert( meshFactory );
@@ -71,7 +71,7 @@ FarBilinearSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFact
     
     FarSubdivisionTablesFactory<T,U> tablesFactory( meshFactory->GetHbrMesh(),  maxlevel, remap );
 
-    FarBilinearSubdivisionTables * result = new FarBilinearSubdivisionTables(maxlevel);
+    FarSubdivisionTables * result = new FarSubdivisionTables(maxlevel, FarSubdivisionTables::BILINEAR);
 
     // Allocate memory for the indexing tables
     result->_F_ITa.resize(tablesFactory.GetNumFaceVerticesTotal(maxlevel)*2);

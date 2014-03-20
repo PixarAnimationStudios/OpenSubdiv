@@ -23,7 +23,6 @@
 //
 
 #include "../far/dispatcher.h"
-#include "../far/loopSubdivisionTables.h"
 #include "../osd/d3d11DrawContext.h"
 
 #include <D3D11.h>

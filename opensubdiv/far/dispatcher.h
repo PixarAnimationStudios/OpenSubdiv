@@ -27,9 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/bilinearSubdivisionTables.h"
-#include "../far/catmarkSubdivisionTables.h"
-#include "../far/loopSubdivisionTables.h"
+#include "../far/subdivisionTables.h"
 #include "../far/vertexEditTables.h"
 #include "../far/kernelBatch.h"
 
@@ -215,15 +213,14 @@ FarComputeController::ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batc
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarBilinearSubdivisionTables const * subdivision =
-        reinterpret_cast<FarBilinearSubdivisionTables const *>(context->GetSubdivisionTables());
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
     assert(subdivision);
 
-    subdivision->computeFacePoints( batch.GetVertexOffset(),
-                                    batch.GetTableOffset(),
-                                    batch.GetStart(),
-                                    batch.GetEnd(),
-                                    vsrc );
+    subdivision->computeBilinearFacePoints( batch.GetVertexOffset(),
+                                            batch.GetTableOffset(),
+                                            batch.GetStart(),
+                                            batch.GetEnd(),
+                                            vsrc );
 }
 
 template <class CONTEXT> void
@@ -231,15 +228,14 @@ FarComputeController::ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batc
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarBilinearSubdivisionTables const * subdivision =
-        reinterpret_cast<FarBilinearSubdivisionTables const *>(context->GetSubdivisionTables());
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
     assert(subdivision);
 
-    subdivision->computeEdgePoints( batch.GetVertexOffset(),
-                                    batch.GetTableOffset(),
-                                    batch.GetStart(),
-                                    batch.GetEnd(),
-                                    vsrc );
+    subdivision->computeBilinearEdgePoints( batch.GetVertexOffset(),
+                                            batch.GetTableOffset(),
+                                            batch.GetStart(),
+                                            batch.GetEnd(),
+                                            vsrc );
 }
 
 template <class CONTEXT> void
@@ -247,16 +243,14 @@ FarComputeController::ApplyBilinearVertexVerticesKernel(FarKernelBatch const &ba
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarBilinearSubdivisionTables const * subdivision =
-        reinterpret_cast<FarBilinearSubdivisionTables const *>(context->GetSubdivisionTables());
-
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
     assert(subdivision);
 
-    subdivision->computeVertexPoints( batch.GetVertexOffset(),
-                                      batch.GetTableOffset(),
-                                      batch.GetStart(),
-                                      batch.GetEnd(),
-                                      vsrc );
+    subdivision->computeBilinearVertexPoints( batch.GetVertexOffset(),
+                                              batch.GetTableOffset(),
+                                              batch.GetStart(),
+                                              batch.GetEnd(),
+                                              vsrc );
 }
 
 template <class CONTEXT> void
@@ -264,16 +258,14 @@ FarComputeController::ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarCatmarkSubdivisionTables const * subdivision =
-        reinterpret_cast<FarCatmarkSubdivisionTables const *>(context->GetSubdivisionTables());
-
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
     assert(subdivision);
 
-    subdivision->computeFacePoints( batch.GetVertexOffset(),
-                                    batch.GetTableOffset(),
-                                    batch.GetStart(),
-                                    batch.GetEnd(),
-                                    vsrc );
+    subdivision->computeCatmarkFacePoints( batch.GetVertexOffset(),
+                                           batch.GetTableOffset(),
+                                           batch.GetStart(),
+                                           batch.GetEnd(),
+                                           vsrc );
 }
 
 template <class CONTEXT> void
@@ -281,16 +273,14 @@ FarComputeController::ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarCatmarkSubdivisionTables const * subdivision =
-        reinterpret_cast<FarCatmarkSubdivisionTables const *>(context->GetSubdivisionTables());
-
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
     assert(subdivision);
 
-    subdivision->computeEdgePoints( batch.GetVertexOffset(),
-                                    batch.GetTableOffset(),
-                                    batch.GetStart(),
-                                    batch.GetEnd(),
-                                    vsrc );
+    subdivision->computeCatmarkEdgePoints( batch.GetVertexOffset(),
+                                           batch.GetTableOffset(),
+                                           batch.GetStart(),
+                                           batch.GetEnd(),
+                                           vsrc );
 }
 
 template <class CONTEXT> void
@@ -298,16 +288,14 @@ FarComputeController::ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &ba
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarCatmarkSubdivisionTables const * subdivision =
-        reinterpret_cast<FarCatmarkSubdivisionTables const *>(context->GetSubdivisionTables());
-
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
     assert(subdivision);
 
-    subdivision->computeVertexPointsB( batch.GetVertexOffset(),
-                                       batch.GetTableOffset(),
-                                       batch.GetStart(),
-                                       batch.GetEnd(),
-                                       vsrc );
+    subdivision->computeCatmarkVertexPointsB( batch.GetVertexOffset(),
+                                              batch.GetTableOffset(),
+                                              batch.GetStart(),
+                                              batch.GetEnd(),
+                                              vsrc );
 }
 
 template <class CONTEXT> void
@@ -315,17 +303,15 @@ FarComputeController::ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &b
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarCatmarkSubdivisionTables const * subdivision =
-        reinterpret_cast<FarCatmarkSubdivisionTables const *>(context->GetSubdivisionTables());
-
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
     assert(subdivision);
 
-    subdivision->computeVertexPointsA( batch.GetVertexOffset(),
-                                       false,
-                                       batch.GetTableOffset(),
-                                       batch.GetStart(),
-                                       batch.GetEnd(),
-                                       vsrc );
+    subdivision->computeCatmarkVertexPointsA( batch.GetVertexOffset(),
+                                              false,
+                                              batch.GetTableOffset(),
+                                              batch.GetStart(),
+                                              batch.GetEnd(),
+                                              vsrc );
 }
 
 template <class CONTEXT> void
@@ -333,17 +319,15 @@ FarComputeController::ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &b
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarCatmarkSubdivisionTables const * subdivision =
-        reinterpret_cast<FarCatmarkSubdivisionTables const *>(context->GetSubdivisionTables());
-
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
     assert(subdivision);
 
-    subdivision->computeVertexPointsA( batch.GetVertexOffset(),
-                                       true,
-                                       batch.GetTableOffset(),
-                                       batch.GetStart(),
-                                       batch.GetEnd(),
-                                       vsrc );
+    subdivision->computeCatmarkVertexPointsA( batch.GetVertexOffset(),
+                                              true,
+                                              batch.GetTableOffset(),
+                                              batch.GetStart(),
+                                              batch.GetEnd(),
+                                              vsrc );
 }
 
 template <class CONTEXT> void
@@ -351,16 +335,14 @@ FarComputeController::ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, C
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarLoopSubdivisionTables const * subdivision =
-        reinterpret_cast<FarLoopSubdivisionTables const *>(context->GetSubdivisionTables());
-
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
     assert(subdivision);
 
-    subdivision->computeEdgePoints( batch.GetVertexOffset(),
-                                    batch.GetTableOffset(),
-                                    batch.GetStart(),
-                                    batch.GetEnd(),
-                                    vsrc );
+    subdivision->computeLoopEdgePoints( batch.GetVertexOffset(),
+                                        batch.GetTableOffset(),
+                                        batch.GetStart(),
+                                        batch.GetEnd(),
+                                        vsrc );
 }
 
 template <class CONTEXT> void
@@ -368,16 +350,14 @@ FarComputeController::ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarLoopSubdivisionTables const * subdivision =
-        reinterpret_cast<FarLoopSubdivisionTables const *>(context->GetSubdivisionTables());
-
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
     assert(subdivision);
 
-    subdivision->computeVertexPointsB( batch.GetVertexOffset(),
-                                       batch.GetTableOffset(),
-                                       batch.GetStart(),
-                                       batch.GetEnd(),
-                                       vsrc );
+    subdivision->computeLoopVertexPointsB( batch.GetVertexOffset(),
+                                           batch.GetTableOffset(),
+                                           batch.GetStart(),
+                                           batch.GetEnd(),
+                                           vsrc );
 }
 
 template <class CONTEXT> void
@@ -385,17 +365,15 @@ FarComputeController::ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batc
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarLoopSubdivisionTables const * subdivision =
-        reinterpret_cast<FarLoopSubdivisionTables const *>(context->GetSubdivisionTables());
-
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
     assert(subdivision);
 
-    subdivision->computeVertexPointsA( batch.GetVertexOffset(),
-                                       false,
-                                       batch.GetTableOffset(),
-                                       batch.GetStart(),
-                                       batch.GetEnd(),
-                                       vsrc );
+    subdivision->computeLoopVertexPointsA( batch.GetVertexOffset(),
+                                           false,
+                                           batch.GetTableOffset(),
+                                           batch.GetStart(),
+                                           batch.GetEnd(),
+                                           vsrc );
 }
 
 template <class CONTEXT> void
@@ -403,17 +381,15 @@ FarComputeController::ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batc
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarLoopSubdivisionTables const * subdivision =
-        reinterpret_cast<FarLoopSubdivisionTables const *>(context->GetSubdivisionTables());
-
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
     assert(subdivision);
 
-    subdivision->computeVertexPointsA( batch.GetVertexOffset(),
-                                       true,
-                                       batch.GetTableOffset(),
-                                       batch.GetStart(),
-                                       batch.GetEnd(),
-                                       vsrc );
+    subdivision->computeLoopVertexPointsA( batch.GetVertexOffset(),
+                                           true,
+                                           batch.GetTableOffset(),
+                                           batch.GetStart(),
+                                           batch.GetEnd(),
+                                           vsrc );
 }
 
 template <class CONTEXT> void
