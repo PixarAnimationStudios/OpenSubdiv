@@ -191,7 +191,7 @@ public:
 
 private:
     friend class FarKernelBatchFactory;
-    template <class X, class Y> friend class FarMultiMeshFactory;
+    template <class X, class Y> friend class FarSubdivisionTablesFactory;
 
     int _kernelType;
     int _level;

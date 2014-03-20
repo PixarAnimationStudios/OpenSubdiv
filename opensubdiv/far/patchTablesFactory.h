@@ -41,6 +41,18 @@ namespace OPENSUBDIV_VERSION {
 ///
 template <class T> class FarPatchTablesFactory {
 
+public:
+    typedef std::vector<FarMesh<T> const *> FarMeshVector;
+    typedef std::vector<FarPatchTables::PatchArrayVector> MultiPatchArrayVector;
+
+    /// \brief Splices patch tables from multiple meshes.
+    /// if non-null multPatchArrays is given, it returns subsets of patcharrays such that
+    /// corresponding input meshes are separately expressed.
+    /// Client code is responsible for deallocation.
+    static FarPatchTables *Splice(FarMeshVector const &meshes,
+                                  MultiPatchArrayVector *multiPatchArrays,
+                                  bool hasFVarData);
+
 protected:
     template <class X, class Y> friend class FarMeshFactory;
 
@@ -1194,6 +1206,259 @@ FarPatchTablesFactory<T>::computeFVarData(
     // pass back pointer to next destination
     return coord;
 }
+
+// splicing functions
+template <typename V, typename IT> static IT
+copyWithOffset(IT dst_iterator, V const &src, int start, int count, int offset) {
+    return std::transform(src.begin()+start, src.begin()+start+count, dst_iterator,
+                          std::bind2nd(std::plus<typename V::value_type>(), offset));
+}
+
+template <typename V, typename IT> static IT
+copyWithOffsetVertexValence(IT dst_iterator, V const &src, int srcMaxValence, int dstMaxValence, int offset) {
+    for (typename V::const_iterator it = src.begin(); it != src.end(); ) {
+        int valence = *it++;
+        *dst_iterator++ = valence;
+        valence = abs(valence);
+        for (int i = 0; i < 2*dstMaxValence; ++i) {
+            if (i < 2*srcMaxValence) {
+                *dst_iterator++ = (i < 2*valence) ? *it + offset : 0;
+                ++it;
+            } else {
+                *dst_iterator++ = 0;
+            }
+        }
+    }
+    return dst_iterator;
+}
+
+template <class T> static FarPatchTables::PTable::iterator
+splicePatch(FarPatchTables::Descriptor desc,
+            std::vector<FarMesh<T> const *> const &meshes,
+            FarPatchTables::PatchArrayVector &result,
+            std::vector<FarPatchTables::PatchArrayVector> *multiArrayResult,
+            FarPatchTables::PTable::iterator dstIndexIt,
+            int *voffset, int *poffset, int *qoffset,
+            std::vector<int> const &vertexOffsets) {
+
+    for (size_t i = 0; i < meshes.size(); ++i) {
+        FarPatchTables const *patchTables = meshes[i]->GetPatchTables();
+        FarPatchTables::PatchArray const *srcPatchArray = patchTables->GetPatchArray(desc);
+        if (not srcPatchArray) continue;
+
+        // create new patcharray with offset
+        int vindex = srcPatchArray->GetVertIndex();
+        int npatch = srcPatchArray->GetNumPatches();
+        int nvertex = npatch * desc.GetNumControlVertices();
+
+        FarPatchTables::PatchArray patchArray(desc,
+                                              *voffset,
+                                              *poffset,
+                                              npatch,
+                                              *qoffset);
+        // append patch array
+        result.push_back(patchArray);
+
+        // also store into multiPatchArrays, will be used for partial drawing
+        // XXX: can be stored as indices. revisit here later
+        if (multiArrayResult) {
+            (*multiArrayResult)[i].push_back(patchArray);
+        }
+
+        // increment offset
+        *voffset += nvertex;
+        *poffset += npatch;
+        *qoffset += (desc.GetType() == FarPatchTables::GREGORY ||
+                     desc.GetType() == FarPatchTables::GREGORY_BOUNDARY) ? npatch * 4 : 0;
+
+        // copy index arrays [vindex, vindex+nvertex]
+        dstIndexIt = copyWithOffset(dstIndexIt,
+                                    patchTables->GetPatchTable(),
+                                    vindex,
+                                    nvertex,
+                                    vertexOffsets[i]);
+    }
+    return dstIndexIt;
+}
+
+template <class T> FarPatchTables *
+FarPatchTablesFactory<T>::Splice(FarMeshVector const &meshes,
+                                 MultiPatchArrayVector *multiPatchArrays,
+                                 bool hasFVarData) {
+
+    int totalQuadOffset0 = 0;
+    int totalQuadOffset1 = 0;
+    int totalFVarData = 0;
+
+    std::vector<int> vertexOffsets;
+    std::vector<int> gregoryQuadOffsets;
+    std::vector<int> numGregoryPatches;
+    int vertexOffset = 0;
+    int maxValence = 0;
+    int numTotalIndices = 0;
+
+    //result->_patchCounts.reserve(meshes.size());
+    //FarPatchCount totalCount;
+    typedef FarPatchTables::Descriptor Descriptor;
+
+    // note: see FarPatchTablesFactory<T>::Create
+    // feature adaptive refinement can generate un-connected face-vertices
+    // that have a valence of 0. The spliced vertex valence tables
+    // needs to be resized including such un-connected face-vertices.
+    int numVerticesInVertexValence = 0;
+
+    // count how many patches exist on each mesh
+    for (size_t i = 0; i < meshes.size(); ++i) {
+        const FarPatchTables *ptables = meshes[i]->GetPatchTables();
+        assert(ptables);
+
+        vertexOffsets.push_back(vertexOffset);
+        vertexOffset += meshes[i]->GetNumVertices();
+
+        // need to align maxvalence with the highest value
+        maxValence = std::max(maxValence, ptables->_maxValence);
+
+        FarPatchTables::PatchArray const *gregory =
+            ptables->GetPatchArray(Descriptor(FarPatchTables::GREGORY,
+                                              FarPatchTables::NON_TRANSITION, /*rot*/ 0));
+        FarPatchTables::PatchArray const *gregoryBoundary =
+            ptables->GetPatchArray(Descriptor(FarPatchTables::GREGORY_BOUNDARY,
+                                              FarPatchTables::NON_TRANSITION, /*rot*/ 0));
+
+        int nGregory = gregory ? gregory->GetNumPatches() : 0;
+        int nGregoryBoundary = gregoryBoundary ? gregoryBoundary->GetNumPatches() : 0;
+        totalQuadOffset0 += nGregory * 4;
+        totalQuadOffset1 += nGregoryBoundary * 4;
+        numGregoryPatches.push_back(nGregory);
+        gregoryQuadOffsets.push_back(totalQuadOffset0);
+
+        totalFVarData += (int)ptables->GetFVarDataTable().size();
+        numTotalIndices += ptables->GetNumControlVertices();
+
+        // note: some prims may not have vertex valence table, but still need a space
+        // in order to fill following prim's data at appropriate location.
+        numVerticesInVertexValence += ptables->_vertexValenceTable.empty()
+            ? (int)meshes[i]->GetNumVertices()
+            : (int)ptables->_vertexValenceTable.size()/(2*ptables->_maxValence+1);
+    }
+
+    FarPatchTables *result = new FarPatchTables(maxValence);
+
+    // Allocate full patches
+    result->_patches.resize(numTotalIndices);
+
+    // Allocate vertex valence table, quad offset table
+    if (totalQuadOffset0 + totalQuadOffset1 > 0) {
+        result->_vertexValenceTable.resize((2*maxValence+1) * numVerticesInVertexValence);
+        result->_quadOffsetTable.resize(totalQuadOffset0 + totalQuadOffset1);
+    }
+
+    // Allocate fvardata table
+    result->_fvarTable.resize(totalFVarData);
+
+    // splice tables
+    // assuming input farmeshes have dense patchtables
+
+    if (multiPatchArrays)
+        multiPatchArrays->resize(meshes.size());
+
+    int voffset = 0, poffset = 0, qoffset = 0;
+    FarPatchTables::PTable::iterator dstIndexIt = result->_patches.begin();
+
+    // splice patches : iterate over all descriptors, including points, lines, quads, etc.
+    for (Descriptor::iterator it=Descriptor::begin(Descriptor::ANY); it!=Descriptor::end(); ++it) {
+        dstIndexIt = splicePatch(*it,
+                                 meshes,
+                                 result->_patchArrays,
+                                 multiPatchArrays,
+                                 dstIndexIt,
+                                 &voffset,
+                                 &poffset,
+                                 &qoffset,
+                                 vertexOffsets);
+    }
+
+    // merge vertexvalence and quadoffset tables
+    FarPatchTables::QuadOffsetTable::iterator Q0_IT = result->_quadOffsetTable.begin();
+    FarPatchTables::QuadOffsetTable::iterator Q1_IT = Q0_IT + totalQuadOffset0;
+
+    FarPatchTables::VertexValenceTable::iterator VV_IT = result->_vertexValenceTable.begin();
+    for (size_t i = 0; i < meshes.size(); ++i) {
+        const FarPatchTables *ptables = meshes[i]->GetPatchTables();
+
+        // merge vertex valence
+        // note: some prims may not have vertex valence table, but still need a space
+        // in order to fill following prim's data at appropriate location.
+        copyWithOffsetVertexValence(VV_IT,
+                                    ptables->_vertexValenceTable,
+                                    ptables->_maxValence,
+                                    maxValence,
+                                    vertexOffsets[i]);
+
+        VV_IT += meshes[i]->GetNumVertices() * (2 * maxValence + 1);
+
+        // merge quad offsets
+        int nGregoryQuads = numGregoryPatches[i] * 4;
+        if (nGregoryQuads > 0) {
+            Q0_IT = std::copy(ptables->_quadOffsetTable.begin(),
+                              ptables->_quadOffsetTable.begin()+nGregoryQuads,
+                              Q0_IT);
+        }
+        if (nGregoryQuads < (int)ptables->_quadOffsetTable.size()) {
+            Q1_IT = std::copy(ptables->_quadOffsetTable.begin()+nGregoryQuads,
+                              ptables->_quadOffsetTable.end(),
+                              Q1_IT);
+        }
+    }
+
+    // merge ptexCoord table
+    for (FarPatchTables::Descriptor::iterator it =
+        FarPatchTables::Descriptor::begin(FarPatchTables::Descriptor::ANY);
+            it != FarPatchTables::Descriptor::end(); ++it) {
+
+        int ptexFaceOffset = 0;
+        for (size_t i = 0; i < meshes.size(); ++i) {
+            FarPatchTables const *ptables = meshes[i]->GetPatchTables();
+            FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
+            if (parray) {
+                copyWithPtexFaceOffset(std::back_inserter(result->_paramTable),
+                                       ptables->_paramTable,
+                                       parray->GetPatchIndex(),
+                                       parray->GetNumPatches(), ptexFaceOffset);
+            }
+            ptexFaceOffset += meshes[i]->GetNumPtexFaces();
+        }
+    }
+
+    // merge fvardata table
+    if (hasFVarData) {
+
+        FarPatchTables::FVarDataTable::iterator FV_IT = result->_fvarTable.begin();
+
+        for (FarPatchTables::Descriptor::iterator it =
+            FarPatchTables::Descriptor::begin(FarPatchTables::Descriptor::ANY);
+                it != FarPatchTables::Descriptor::end(); ++it) {
+
+            for (size_t i = 0; i < meshes.size(); ++i) {
+                FarPatchTables const *ptables = meshes[i]->GetPatchTables();
+                FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
+                FarSubdivisionTables::Scheme scheme = meshes[i]->GetSubdivisionTables()->GetScheme();
+                if (parray) {
+                    int nv = (scheme == FarSubdivisionTables::LOOP) ? 3 : 4;
+                    int width = meshes[i]->GetTotalFVarWidth() * nv; // for each quads or tris
+                    FarPatchTables::FVarDataTable::const_iterator begin =
+                        ptables->_fvarTable.begin() + parray->GetPatchIndex() * width;
+                    FarPatchTables::FVarDataTable::const_iterator end =
+                        begin + parray->GetNumPatches() * width;
+                    FV_IT = std::copy(begin, end, FV_IT);
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
 
 
 

@@ -44,6 +44,13 @@ namespace OPENSUBDIV_VERSION {
 ///
 template <class T, class U> class FarVertexEditTablesFactory {
 
+public:
+    typedef std::vector<FarMesh<U> const *> FarMeshVector;
+
+    /// \brief Splices vertex edit tables from multiple meshes and returns it.
+    /// Client code is responsible for deallocation.
+    static FarVertexEditTables *Splice(FarMeshVector const &meshes);
+
 protected:
     template <class X, class Y> friend class FarMeshFactory;
 
@@ -200,6 +207,31 @@ FarVertexEditTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, Fa
 
     return result;
 }
+
+// splicing functions
+template <class T, class U> FarVertexEditTables *
+FarVertexEditTablesFactory<T, U>::Splice(FarMeshVector const &meshes) {
+    FarVertexEditTables * result = new FarVertexEditTables();
+
+    // at this moment, don't merge vertex edit tables (separate batch)
+    for (size_t i = 0; i < meshes.size(); ++i) {
+        const FarVertexEditTables *vertexEditTables = meshes[i]->GetVertexEdit();
+        if (not vertexEditTables) continue;
+
+        // copy each edit batch  XXX:inefficient copy
+        result->_batches.insert(result->_batches.end(),
+                                vertexEditTables->_batches.begin(),
+                                vertexEditTables->_batches.end());
+    }
+
+    if (result->_batches.empty()) {
+        delete result;
+        return NULL;
+    }
+    return result;
+}
+
+
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

@@ -195,10 +195,10 @@ public:
     void computeLoopVertexPointsB(int offset,int level, int start, int end, U *vsrc) const;
 
 protected:
-    template <class X, class Y> friend class FarMultiMeshFactory;
     template <class X, class Y> friend class FarBilinearSubdivisionTablesFactory;
     template <class X, class Y> friend class FarCatmarkSubdivisionTablesFactory;
     template <class X, class Y> friend class FarLoopSubdivisionTablesFactory;
+    template <class X, class Y> friend class FarSubdivisionTablesFactory;
 
     FarSubdivisionTables( int maxlevel, Scheme scheme );
 

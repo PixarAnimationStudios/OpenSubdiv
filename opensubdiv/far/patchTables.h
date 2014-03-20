@@ -408,7 +408,6 @@ public:
 private:
 
     template <class T> friend class FarPatchTablesFactory;
-    template <class T, class U> friend class FarMultiMeshFactory;
 
     // Returns the array of patches of type "desc", or NULL if there aren't any in the primitive
     PatchArray * findPatchArray( Descriptor desc );

@@ -27,8 +27,9 @@
 
 #include "../version.h"
 
-#include "../far/meshFactory.h"
+// note: currently, this file has to be included from meshFactory.h
 #include "../far/subdivisionTables.h"
+#include "../far/kernelBatch.h"
 
 #include <cassert>
 #include <utility>
@@ -46,6 +47,13 @@ template <class T, class U> class  FarLoopSubdivisionTablesFactory;
 /// This factory is private to Far and should not be used by client code.
 ///
 template <class T, class U> class FarSubdivisionTablesFactory {
+
+public:
+    typedef std::vector<FarMesh<U> const *> FarMeshVector;
+
+    /// \brief Splices subdivision tables and batches from multiple meshes and returns them
+    /// Client code is responsible for deallocation.
+    static FarSubdivisionTables *Splice(FarMeshVector const &meshes, FarKernelBatchVector *resultBatches);
 
 protected:
     friend class FarBilinearSubdivisionTablesFactory<T,U>;
@@ -349,6 +357,231 @@ FarSubdivisionTablesFactory<T,U>::compareVertices( HbrVertex<T> const * x, HbrVe
     return GetMaskRanking(px->GetMask(false), px->GetMask(true) ) <
            GetMaskRanking(py->GetMask(false), py->GetMask(true) );
 }
+
+// splice subdivision tables
+template <typename V, typename IT> static IT
+copyWithOffset(IT dst_iterator, V const &src, int offset) {
+    return std::transform(src.begin(), src.end(), dst_iterator,
+                          std::bind2nd(std::plus<typename V::value_type>(), offset));
+}
+
+template <typename V, typename IT> static IT
+copyWithPtexFaceOffset(IT dst_iterator, V const &src, int start, int count, int offset) {
+    for (typename V::const_iterator it = src.begin()+start; it != src.begin()+start+count; ++it) {
+        typename V::value_type ptexCoord = *it;
+        ptexCoord.faceIndex += offset;
+        *dst_iterator++ = ptexCoord;
+    }
+    return dst_iterator;
+}
+
+template <typename V, typename IT> static IT
+copyWithOffsetF_ITa(IT dst_iterator, V const &src, int offset) {
+    for (typename V::const_iterator it = src.begin(); it != src.end();) {
+        *dst_iterator++ = *it++ + offset;   // offset to F_IT
+        *dst_iterator++ = *it++;            // valence
+    }
+    return dst_iterator;
+}
+
+template <typename V, typename IT> static IT
+copyWithOffsetE_IT(IT dst_iterator, V const &src, int offset) {
+    for (typename V::const_iterator it = src.begin(); it != src.end(); ++it) {
+        *dst_iterator++ = (*it == -1) ? -1 : (*it + offset);
+    }
+    return dst_iterator;
+}
+
+template <typename V, typename IT> static IT
+copyWithOffsetV_ITa(IT dst_iterator, V const &src, int tableOffset, int vertexOffset) {
+    for (typename V::const_iterator it = src.begin(); it != src.end();) {
+        *dst_iterator++ = *it++ + tableOffset;   // offset to V_IT
+        *dst_iterator++ = *it++;                 // valence
+        *dst_iterator++ = (*it == -1) ? -1 : (*it + vertexOffset); ++it;
+        *dst_iterator++ = (*it == -1) ? -1 : (*it + vertexOffset); ++it;
+        *dst_iterator++ = (*it == -1) ? -1 : (*it + vertexOffset); ++it;
+    }
+    return dst_iterator;
+}
+
+template <class T, class U> FarSubdivisionTables*
+FarSubdivisionTablesFactory<T,U>::Splice(FarMeshVector const &meshes, FarKernelBatchVector *batches ) {
+
+    // count total table size
+    size_t total_F_ITa = 0, total_F_IT = 0;
+    size_t total_E_IT = 0, total_E_W = 0;
+    size_t total_V_ITa = 0, total_V_IT = 0, total_V_W = 0;
+    FarSubdivisionTables::Scheme scheme = FarSubdivisionTables::UNDEFINED;
+    int maxLevel = 0;
+    for (size_t i = 0; i < meshes.size(); ++i) {
+        FarSubdivisionTables const * tables = meshes[i]->GetSubdivisionTables();
+        assert(tables);
+
+        total_F_ITa += tables->Get_F_ITa().size();
+        total_F_IT  += tables->Get_F_IT().size();
+        total_E_IT  += tables->Get_E_IT().size();
+        total_E_W   += tables->Get_E_W().size();
+        total_V_ITa += tables->Get_V_ITa().size();
+        total_V_IT  += tables->Get_V_IT().size();
+        total_V_W   += tables->Get_V_W().size();
+
+        maxLevel = std::max(maxLevel, tables->GetMaxLevel()-1);
+        if (scheme == FarSubdivisionTables::UNDEFINED) {
+            scheme = tables->GetScheme();
+        } else {
+            assert(scheme == tables->GetScheme());
+        }
+    }
+
+    FarSubdivisionTables *result = new FarSubdivisionTables(maxLevel, scheme);
+
+    result->_F_ITa.resize(total_F_ITa);
+    result->_F_IT.resize(total_F_IT);
+    result->_E_IT.resize(total_E_IT);
+    result->_E_W.resize(total_E_W);
+    result->_V_ITa.resize(total_V_ITa);
+    result->_V_IT.resize(total_V_IT);
+    result->_V_W.resize(total_V_W);
+
+    // compute table offsets;
+    std::vector<int> vertexOffsets;
+    std::vector<int> fvOffsets;
+    std::vector<int> evOffsets;
+    std::vector<int> vvOffsets;
+    std::vector<int> F_IToffsets;
+    std::vector<int> V_IToffsets;
+
+    {
+        int vertexOffset = 0;
+        int F_IToffset = 0;
+        int V_IToffset = 0;
+        int fvOffset = 0;
+        int evOffset = 0;
+        int vvOffset = 0;
+        for (size_t i = 0; i < meshes.size(); ++i) {
+            FarSubdivisionTables const * tables = meshes[i]->GetSubdivisionTables();
+            assert(tables);
+
+            vertexOffsets.push_back(vertexOffset);
+            F_IToffsets.push_back(F_IToffset);
+            V_IToffsets.push_back(V_IToffset);
+            fvOffsets.push_back(fvOffset);
+            evOffsets.push_back(evOffset);
+            vvOffsets.push_back(vvOffset);
+
+            vertexOffset += meshes[i]->GetNumVertices();
+            F_IToffset += (int)tables->Get_F_IT().size();
+            fvOffset += (int)tables->Get_F_ITa().size()/2;
+            V_IToffset += (int)tables->Get_V_IT().size();
+
+            if (scheme == FarSubdivisionTables::CATMARK or
+                scheme == FarSubdivisionTables::LOOP) {
+
+                evOffset += (int)tables->Get_E_IT().size()/4;
+                vvOffset += (int)tables->Get_V_ITa().size()/5;
+            } else {
+
+                evOffset += (int)tables->Get_E_IT().size()/2;
+                vvOffset += (int)tables->Get_V_ITa().size();
+            }
+        }
+    }
+
+    // concat F_IT and V_IT
+    std::vector<unsigned int>::iterator F_IT = result->_F_IT.begin();
+    std::vector<unsigned int>::iterator V_IT = result->_V_IT.begin();
+
+    for (size_t i = 0; i < meshes.size(); ++i) {
+        FarSubdivisionTables const * tables = meshes[i]->GetSubdivisionTables();
+
+        int vertexOffset = vertexOffsets[i];
+        // remap F_IT, V_IT tables
+        F_IT = copyWithOffset(F_IT, tables->Get_F_IT(), vertexOffset);
+        V_IT = copyWithOffset(V_IT, tables->Get_V_IT(), vertexOffset);
+    }
+
+    // merge other tables
+    std::vector<int>::iterator F_ITa = result->_F_ITa.begin();
+    std::vector<int>::iterator E_IT  = result->_E_IT.begin();
+    std::vector<float>::iterator E_W = result->_E_W.begin();
+    std::vector<float>::iterator V_W = result->_V_W.begin();
+    std::vector<int>::iterator V_ITa = result->_V_ITa.begin();
+
+    for (size_t i = 0; i < meshes.size(); ++i) {
+        FarSubdivisionTables const * tables = meshes[i]->GetSubdivisionTables();
+
+        // copy face tables
+        F_ITa = copyWithOffsetF_ITa(F_ITa, tables->Get_F_ITa(), F_IToffsets[i]);
+
+        // copy edge tables
+        E_IT = copyWithOffsetE_IT(E_IT, tables->Get_E_IT(), vertexOffsets[i]);
+        E_W = copyWithOffset(E_W, tables->Get_E_W(), 0);
+
+        // copy vert tables
+        if (scheme == FarSubdivisionTables::CATMARK or
+            scheme == FarSubdivisionTables::LOOP) {
+
+            V_ITa = copyWithOffsetV_ITa(V_ITa, tables->Get_V_ITa(), V_IToffsets[i], vertexOffsets[i]);
+        } else {
+
+            V_ITa = copyWithOffset(V_ITa, tables->Get_V_ITa(), vertexOffsets[i]);
+        }
+        V_W = copyWithOffset(V_W, tables->Get_V_W(), 0);
+    }
+
+    // merge batch, model by model
+    int editTableIndexOffset = 0;
+    for (int i = 0; i < (int)meshes.size(); ++i) {
+        int numBatches = (int)meshes[i]->GetKernelBatches().size();
+        for (int j = 0; j < numBatches; ++j) {
+            FarKernelBatch batch = meshes[i]->GetKernelBatches()[j];
+            batch._meshIndex = i;
+            batch._vertexOffset += vertexOffsets[i];
+
+            if (batch._kernelType == FarKernelBatch::CATMARK_FACE_VERTEX or
+                batch._kernelType == FarKernelBatch::BILINEAR_FACE_VERTEX) {
+
+                batch._tableOffset += fvOffsets[i];
+
+            } else if (batch._kernelType == FarKernelBatch::CATMARK_EDGE_VERTEX or
+                       batch._kernelType == FarKernelBatch::LOOP_EDGE_VERTEX or
+                       batch._kernelType == FarKernelBatch::BILINEAR_EDGE_VERTEX) {
+
+                batch._tableOffset += evOffsets[i];
+
+            } else if (batch._kernelType == FarKernelBatch::CATMARK_VERT_VERTEX_A1 or
+                       batch._kernelType == FarKernelBatch::CATMARK_VERT_VERTEX_A2 or
+                       batch._kernelType == FarKernelBatch::CATMARK_VERT_VERTEX_B or
+                       batch._kernelType == FarKernelBatch::LOOP_VERT_VERTEX_A1 or
+                       batch._kernelType == FarKernelBatch::LOOP_VERT_VERTEX_A2 or
+                       batch._kernelType == FarKernelBatch::LOOP_VERT_VERTEX_B or
+                       batch._kernelType == FarKernelBatch::BILINEAR_VERT_VERTEX) {
+
+                batch._tableOffset += vvOffsets[i];
+
+            } else if (batch._kernelType == FarKernelBatch::HIERARCHICAL_EDIT) {
+
+                batch._tableIndex += editTableIndexOffset;
+            }
+            batches->push_back(batch);
+        }
+        editTableIndexOffset += meshes[i]->GetVertexEdit() ?
+            meshes[i]->GetVertexEdit()->GetNumBatches() : 0;
+    }
+
+    // count verts offsets
+    result->_vertsOffsets.resize(maxLevel+2);
+    for (size_t i = 0; i < meshes.size(); ++i) {
+        FarSubdivisionTables const * tables = meshes[i]->GetSubdivisionTables();
+        for (size_t j = 0; j < tables->_vertsOffsets.size(); ++j) {
+            result->_vertsOffsets[j] += tables->_vertsOffsets[j];
+        }
+    }
+
+    return result;
+}
+
+
 
 
 } // end namespace OPENSUBDIV_VERSION

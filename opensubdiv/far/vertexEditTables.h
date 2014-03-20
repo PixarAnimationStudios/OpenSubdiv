@@ -85,6 +85,10 @@ public:
 
     // Note : Subtract type edits are converted into Adds in order to save kernel calls.
 
+    // Compute-kernel that applies the edits
+    template <class CONTEXT>
+    void computeVertexEdits(int tableIndex, int offset, int tableOffset, int start, int end, CONTEXT *context) const;
+
     /// \brief This class holds an array of edits. each batch has unique index/width/operation
     class VertexEditBatch {
     public:
@@ -117,7 +121,6 @@ public:
 
     private:
         template <class X, class Y> friend class FarVertexEditTablesFactory;
-        template <class X, class Y> friend class FarMultiMeshFactory;
 
         std::vector<unsigned int> _vertIndices;  // absolute vertex index array for edits
         std::vector<float>        _edits;        // edit values array
@@ -142,12 +145,6 @@ public:
 
 private:
     template <class X, class Y> friend class FarVertexEditTablesFactory;
-    template <class X, class Y> friend class FarMultiMeshFactory;
-    friend class FarComputeController;
-
-    // Compute-kernel that applies the edits
-    template <class CONTEXT>
-    void computeVertexEdits(int tableIndex, int offset, int tableOffset, int start, int end, CONTEXT *context) const;
 
 #if defined(__GNUC__)
     // XXX(dyu): seems like there is a compiler bug in g++ that requires
