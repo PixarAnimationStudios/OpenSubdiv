@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_MULTI_MESH_FACTORY_H
-#define FAR_MULTI_MESH_FACTORY_H
+#ifndef OSDUTIL_MULTI_MESH_FACTORY_H
+#define OSDUTIL_MULTI_MESH_FACTORY_H
 
 #include "../version.h"
 
@@ -43,15 +43,15 @@ namespace OPENSUBDIV_VERSION {
 /// multiple meshes into a single set of tables. This factory builds upon the
 /// specialized Far factories in order to provide this batching functionality.
 ///
-template <class T, class U=T> class FarMultiMeshFactory  {
+template <class T, class U=T> class OsdUtilMultiMeshFactory  {
 
 public:
 
     typedef std::vector<FarMesh<U> const *> FarMeshVector;
 
     /// \brief Constructor.
-    FarMultiMeshFactory();
-    
+    OsdUtilMultiMeshFactory();
+
     /// \brief Splices a vector of Far meshes into a single Far mesh
     ///
     /// @param meshes  a vector of Far meshes to splice
@@ -61,7 +61,7 @@ public:
     FarMesh<U> * Create(std::vector<FarMesh<U> const *> const &meshes);
 
     std::vector<FarPatchTables::PatchArrayVector> const & GetMultiPatchArrays() {
-        return _multiPatchArrays; 
+        return _multiPatchArrays;
     }
 
 private:
@@ -70,63 +70,29 @@ private:
 };
 
 template <class T, class U>
-FarMultiMeshFactory<T, U>::FarMultiMeshFactory() {
+OsdUtilMultiMeshFactory<T, U>::OsdUtilMultiMeshFactory() {
 }
 
 template <class T, class U> FarMesh<U> *
-FarMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes) {
-
-    if (meshes.empty()) return NULL;
-
-    int totalFVarWidth = meshes[0]->GetTotalFVarWidth();
-    FarSubdivisionTables::Scheme scheme = meshes[0]->GetSubdivisionTables()->GetScheme();
-
-    for (size_t i = 0; i < meshes.size(); ++i) {
-        FarMesh<U> const *mesh = meshes[i];
-
-        // meshes have to have a same subdivision scheme
-        if (scheme != mesh->GetSubdivisionTables()->GetScheme()) {
-            assert(false);
-            return NULL;
-        }
-
-        // meshes have to have a same fvardata width
-        if (totalFVarWidth != mesh->GetTotalFVarWidth()) {
-            assert(false);
-            return NULL;
-        }
-    }
-
-    FarMesh<U> * result = new FarMesh<U>();
+OsdUtilMultiMeshFactory<T, U>::Create(std::vector<FarMesh<U> const *> const &meshes) {
 
     // splice subdivision tables
-    result->_subdivisionTables = FarSubdivisionTablesFactory<T, U>::Splice(meshes, &result->_batches);
+    FarKernelBatchVector batches;
+    FarSubdivisionTables *subdivisionTables = FarSubdivisionTablesFactory<T, U>::Splice(meshes, &batches);
 
     // splice patch/quad index tables
-    result->_patchTables = FarPatchTablesFactory<T>::Splice(meshes,
-                                                            &_multiPatchArrays,
-                                                            totalFVarWidth > 0);
+    FarPatchTables *patchTables = FarPatchTablesFactory<T>::Splice(meshes,
+                                                                   &_multiPatchArrays);
 
     // splice vertex edit tables
-    result->_vertexEditTables = FarVertexEditTablesFactory<T, U>::Splice(meshes);
+    FarVertexEditTables *vertexEditTables = FarVertexEditTablesFactory<T, U>::Splice(meshes);
 
-    // count total num vertices, numptex faces
-    int numVertices = 0, numPtexFaces = 0;
-    for (size_t i = 0; i < meshes.size(); ++i) {
-        numVertices += meshes[i]->GetNumVertices();
-        numPtexFaces += meshes[i]->GetNumPtexFaces();
-    }
-    result->_vertices.resize(numVertices);
-    result->_numPtexFaces = numPtexFaces;
-    result->_totalFVarWidth = totalFVarWidth;
-
-    return result;
+    return new FarMesh<U>(subdivisionTables, patchTables, vertexEditTables, batches);
 }
-
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_MULTI_MESH_FACTORY_H */
+#endif /* OSDUTIL_MULTI_MESH_FACTORY_H */

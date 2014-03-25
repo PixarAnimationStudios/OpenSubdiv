@@ -405,6 +405,12 @@ public:
     /// \brief True if the patches are of feature adaptive types
     bool IsFeatureAdaptive() const;
 
+    /// \brief Returns the width of the interleaved face-varying data
+    int GetTotalFVarWidth() const { return _totalFVarWidth; }
+
+    /// \brief Returns the total number of vertices in the mesh across across all depths
+    int GetNumPtexFaces() const { return _numPtexFaces; }
+
 private:
 
     template <class T> friend class FarPatchTablesFactory;
@@ -431,6 +437,13 @@ private:
     // highest vertex valence allowed in the mesh (used for Gregory
     // vertexValance & quadOffset tables)
     int _maxValence;
+
+    // width of the face-varying data
+    int _totalFVarWidth;
+
+    // number of total ptex faces in quads or triangles(loop)
+    int _numPtexFaces;
+
 };
 
 /// \brief Descriptor iterator class
@@ -579,7 +592,9 @@ FarPatchTables::FarPatchTables(PatchArrayVector const & patchArrays,
                                int maxValence) :
     _patchArrays(patchArrays),
     _patches(patches),
-    _maxValence(maxValence) {
+    _maxValence(maxValence),
+    _totalFVarWidth(0),
+    _numPtexFaces(0) {
 
     // copy other tables if exist
     if (vertexValences)

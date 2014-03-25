@@ -37,6 +37,7 @@ set(PUBLIC_HEADER_FILES
     drawController.h
     evaluator_capi.h    
     mesh.h
+    multiMeshFactory.h
     patchPartitioner.h
     refiner.h
     topology.h

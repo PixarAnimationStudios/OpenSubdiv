@@ -86,7 +86,7 @@ OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmes
     
     // Copy the face-varying table if necessary    
     if (requireFVarData) {
-        _fvarwidth = farmesh->GetTotalFVarWidth();
+        _fvarwidth = patchTables->GetTotalFVarWidth();
         if (_fvarwidth>0) {
             _fvarData = patchTables->GetFVarDataTable();
         }

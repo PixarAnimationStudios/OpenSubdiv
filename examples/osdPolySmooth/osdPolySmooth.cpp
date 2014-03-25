@@ -568,7 +568,7 @@ MStatus convertOsdFarToMayaMeshData(
     // Attach UVs (if present)
     // ASSUMPTION: Only tracking UVs as FVar data.  Will need to change this
     // ASSUMPTION: OSD has a unique UV for each face-vertex
-    int fvarTotalWidth = farMesh->GetTotalFVarWidth();
+    int fvarTotalWidth = farMesh->GetPatchTables()->GetTotalFVarWidth();
 
     if (fvarTotalWidth > 0) {
 

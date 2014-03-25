@@ -147,7 +147,7 @@ OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, OsdCLComputeController>::initializ
                                                                                   int numVaryingElements,
                                                                                   int batchIndex,
                                                                                   bool requireFVarData) {
-    Base::initialize(entries, farMultiMesh->GetNumVertices(), farMultiMesh->GetNumPtexFaces(),
+    Base::initialize(entries, farMultiMesh->GetNumVertices(), farMultiMesh->GetPatchTables()->GetNumPtexFaces(),
                      numVertexElements, batchIndex);
     
     _computeController = computeController;

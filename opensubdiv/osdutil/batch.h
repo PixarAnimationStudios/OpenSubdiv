@@ -26,9 +26,9 @@
 #define OSDUTIL_MESH_BATCH_H
 
 #include "../version.h"
-#include "../far/multiMeshFactory.h"
 #include "../far/patchTables.h"
 #include "../osd/vertexDescriptor.h"
+#include "../osdutil/multiMeshFactory.h"
 
 #include <vector>
 
@@ -298,7 +298,7 @@ createMultiMesh(std::vector<FarMesh<OsdVertex> const * > const & meshVector,
                 std::vector<FarPatchTables::PatchArrayVector> & multiFarPatchArray) {
 
     // create multimesh
-    FarMultiMeshFactory<OsdVertex> multiMeshFactory;
+    OsdUtilMultiMeshFactory<OsdVertex> multiMeshFactory;
     FarMesh <OsdVertex> *farMultiMesh = multiMeshFactory.Create(meshVector);
 
     // return patch arrays
@@ -326,7 +326,7 @@ createEntries(OsdUtilMeshBatchEntryVector &result,
     int vertexOffset = 0, ptexFaceOffset = 0;
     for (size_t i = 0; i < meshVector.size(); ++i) {
         int numVertices = meshVector[i]->GetNumVertices();
-        int numPtexFaces = meshVector[i]->GetNumPtexFaces();
+        int numPtexFaces = meshVector[i]->GetPatchTables()->GetNumPtexFaces();
 
         result[i].vertexOffset = vertexOffset;
         result[i].ptexFaceOffset = ptexFaceOffset;
@@ -350,7 +350,7 @@ OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>::initialize(Co
                                                                               int batchIndex,
                                                                               bool requireFVarData) {
 
-    Base::initialize(entries, farMultiMesh->GetNumVertices(), farMultiMesh->GetNumPtexFaces(),
+    Base::initialize(entries, farMultiMesh->GetNumVertices(), farMultiMesh->GetPatchTables()->GetNumPtexFaces(),
                      numVertexElements, batchIndex);
 
     _computeController = computeController;

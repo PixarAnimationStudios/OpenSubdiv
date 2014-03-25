@@ -50,6 +50,12 @@ template <class U> class FarMesh {
 public:
     typedef U VertexType;
 
+    /// \brief Constructor. FarMesh takes ownership of input tables.
+    FarMesh(FarSubdivisionTables *subdivisionTables, FarPatchTables *patchTables,
+            FarVertexEditTables *vertexEditTables, FarKernelBatchVector const &batches) :
+        _subdivisionTables(subdivisionTables), _patchTables(patchTables),
+        _vertexEditTables(vertexEditTables), _batches(batches) { }
+
     ~FarMesh();
 
     /// \brief Returns the subdivision method
@@ -70,14 +76,8 @@ public:
     ///
     U & GetVertex(int index) { return _vertices[index]; }
 
-    /// \brief Returns the width of the interleaved face-varying data
-    int GetTotalFVarWidth() const { return _totalFVarWidth; }
-
     /// \brief Returns vertex edit tables
     FarVertexEditTables const * GetVertexEdit() const { return _vertexEditTables; }
-
-    /// \brief Returns the total number of vertices in the mesh across across all depths
-    int GetNumPtexFaces() const { return _numPtexFaces; }
 
     /// \brief True if the mesh tables support the feature-adaptive mode.
     bool IsFeatureAdaptive() const { return _patchTables->IsFeatureAdaptive(); }
@@ -91,7 +91,6 @@ private:
     // Note : the vertex classes are renamed <X,Y> so as not to shadow the 
     // declaration of the templated vertex class U.
     template <class X, class Y> friend class FarMeshFactory;
-    template <class X, class Y> friend class FarMultiMeshFactory;
 
     FarMesh() : _subdivisionTables(0), _patchTables(0), _vertexEditTables(0) { }
 
@@ -113,10 +112,6 @@ private:
 
     // list of vertices (up to N levels of subdivision)
     std::vector<U> _vertices;
-
-    int _totalFVarWidth;    // width of the face-varying data 
-
-    int _numPtexFaces;
 };
 
 template <class U>

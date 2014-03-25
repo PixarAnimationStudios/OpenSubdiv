@@ -32,7 +32,6 @@ set(PUBLIC_HEADER_FILES
     loopSubdivisionTablesFactory.h
     meshFactory.h
     mesh.h
-    multiMeshFactory.h
     patchParam.h
     patchMap.h
     patchTables.h
