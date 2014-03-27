@@ -39,23 +39,23 @@ using namespace OpenSubdiv;
 template <class T>
 static void _ProcessTagsAndFinishMesh(
     OpenSubdiv::HbrMesh<T> *mesh,
-    const PxOsdUtilTagData &tagData);
+    const OsdUtilTagData &tagData);
 
 template <class T>  
-PxOsdUtilMesh<T>::PxOsdUtilMesh() :
+OsdUtilMesh<T>::OsdUtilMesh() :
     _hmesh(NULL),
     _valid(false)
 {
 }
 
 template <class T>
-PxOsdUtilMesh<T>::~PxOsdUtilMesh()
+OsdUtilMesh<T>::~OsdUtilMesh()
 {
     delete _hmesh;
 }
 
 template <class T>  bool
-PxOsdUtilMesh<T>::Initialize(const PxOsdUtilSubdivTopology &topology,
+OsdUtilMesh<T>::Initialize(const OsdUtilSubdivTopology &topology,
                              std::string *errorMessage)
 {
     
@@ -227,7 +227,7 @@ PxOsdUtilMesh<T>::Initialize(const PxOsdUtilSubdivTopology &topology,
 // floats into the "fvdata" vector.  The number of added floats is:
 //    names.size() * NumRefinedFaces * 4
 template <class T> void
-PxOsdUtilMesh<T>::GetRefinedFVData(
+OsdUtilMesh<T>::GetRefinedFVData(
     int level, const vector<string>& names, vector<float>* outdata)
 {
 
@@ -284,7 +284,7 @@ PxOsdUtilMesh<T>::GetRefinedFVData(
 template <class T>
 void _ProcessTagsAndFinishMesh(
     OpenSubdiv::HbrMesh<T> *mesh,
-    const PxOsdUtilTagData &tagData)    
+    const OsdUtilTagData &tagData)    
 {
     mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly);
 
@@ -295,12 +295,12 @@ void _ProcessTagsAndFinishMesh(
     // TAGS (crease, corner, hole, smooth triangles, edits(vertex,
     // edge, face), creasemethod, facevaryingpropagatecorners, interpolateboundary
     for(int i = 0; i < (int)tagData.tags.size(); ++i){
-        PxOsdUtilTagData::TagType tag = tagData.tags[i];
+        OsdUtilTagData::TagType tag = tagData.tags[i];
 	int nint = tagData.numArgs[3*i];
 	int nfloat = tagData.numArgs[3*i+1];
 	int nstring = tagData.numArgs[3*i+2];
 
-	if (tag == PxOsdUtilTagData::INTERPOLATE_BOUNDARY) {
+	if (tag == OsdUtilTagData::INTERPOLATE_BOUNDARY) {
 	    // Interp boundaries
 	    assert(nint == 1);
 	    switch(currentInt[0]) {
@@ -321,7 +321,7 @@ void _ProcessTagsAndFinishMesh(
 		break;
 	    }
 	    // Processing of this tag is done in mesh->Finish()
-	} else if (tag == PxOsdUtilTagData::CREASE) {
+	} else if (tag == OsdUtilTagData::CREASE) {
 	    for(int j = 0; j < nint-1; ++j) {
 		// Find the appropriate edge
                 HbrVertex<T>* v = mesh->GetVertex(currentInt[j]);
@@ -343,7 +343,7 @@ void _ProcessTagsAndFinishMesh(
 		    e->SetSharpness(std::max(0.0f, ((nfloat > 1) ? currentFloat[j] : currentFloat[0])));
 		}
 	    }
-	} else if (tag ==  PxOsdUtilTagData::CORNER) {
+	} else if (tag ==  OsdUtilTagData::CORNER) {
 	    for(int j = 0; j < nint; ++j) {
                 HbrVertex<T>* v = mesh->GetVertex(currentInt[j]);
 		if(v) {
@@ -354,7 +354,7 @@ void _ProcessTagsAndFinishMesh(
 */                    
 		}
 	    }
-	} else if ( tag == PxOsdUtilTagData::HOLE ) {
+	} else if ( tag == OsdUtilTagData::HOLE ) {
 	    for(int j = 0; j < nint; ++j) {
                 HbrFace<T>* f = mesh->GetFace(currentInt[j]);
 		if(f) {
@@ -367,7 +367,7 @@ void _ProcessTagsAndFinishMesh(
 		}
 	    }
 	} else if ( tag ==
-                    PxOsdUtilTagData::FACE_VARYING_INTERPOLATE_BOUNDARY) {
+                    OsdUtilTagData::FACE_VARYING_INTERPOLATE_BOUNDARY) {
 	    switch(currentInt[0]) {
             case 0:
                 mesh->SetFVarInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryNone);
@@ -388,9 +388,9 @@ void _ProcessTagsAndFinishMesh(
 */                        
 		break;
 	    }
-	} else if ( tag == PxOsdUtilTagData::SMOOTH_TRIANGLES ) {
+	} else if ( tag == OsdUtilTagData::SMOOTH_TRIANGLES ) {
 	    // Do nothing - CatmarkMesh should handle it
-	} else if ( tag == PxOsdUtilTagData::CREASE_METHOD) {
+	} else if ( tag == OsdUtilTagData::CREASE_METHOD) {
 	    if(nstring < 1) {
 /*XXX                                                                   
 		TF_WARN("Creasemethod tag missing string argument on SubdivisionMesh.\n");
@@ -411,7 +411,7 @@ void _ProcessTagsAndFinishMesh(
 */                            
 		}
 	    }
-	} else if ( tag == PxOsdUtilTagData::FACE_VARYING_PROPOGATE_CORNERS) {
+	} else if ( tag == OsdUtilTagData::FACE_VARYING_PROPOGATE_CORNERS) {
 	    if(nint != 1) {
 /*XXX                                                                     
 		TF_WARN("Expecting single integer argument for "
@@ -420,8 +420,8 @@ void _ProcessTagsAndFinishMesh(
 	    } else {
 		mesh->SetFVarPropagateCorners(currentInt[0] != 0);
 	    }
-        } else if (( tag == PxOsdUtilTagData::VERTEX_EDIT) or
-                   ( tag == PxOsdUtilTagData::EDGE_EDIT)) {
+        } else if (( tag == OsdUtilTagData::VERTEX_EDIT) or
+                   ( tag == OsdUtilTagData::EDGE_EDIT)) {
 	    // XXX DO EDITS
 /*XXX                                                                                 
             TF_WARN("vertexedit and edgeedit not yet supported.\n");
@@ -446,13 +446,13 @@ void _ProcessTagsAndFinishMesh(
 //XXX Note that these explicit template instantiations
 // need to live at the _bottom_ of the file.
 
-// Explicitly instantiate PxOsdUtilMesh for these
+// Explicitly instantiate OsdUtilMesh for these
 // two vertex types.  Since the class members are in
 // the .cpp file, clients can't create template
 // instances other than these two vertex classes.
-//template class PxOsdUtilMesh<OsdVertex>;
-template class PxOsdUtilMesh<OsdVertex>;
+//template class OsdUtilMesh<OsdVertex>;
+template class OsdUtilMesh<OsdVertex>;
 
-//template class PxOsdUtilMesh<FarStencilFactoryVertex>;
-template class PxOsdUtilMesh<FarStencilFactoryVertex>;
+//template class OsdUtilMesh<FarStencilFactoryVertex>;
+template class OsdUtilMesh<FarStencilFactoryVertex>;
 

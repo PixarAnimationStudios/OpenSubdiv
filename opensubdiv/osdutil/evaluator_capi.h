@@ -32,7 +32,7 @@ extern "C" {
     
 
 /* Types declaration. */
-struct OpenSubdiv_EvaluationDescr;
+struct OpenSubdiv_EvaluatorDescr;
 
 /* Methods to create and delete evaluators. */
 struct OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(int numVertices);

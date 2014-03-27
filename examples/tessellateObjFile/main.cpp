@@ -81,7 +81,7 @@ static bool
 uniformTessellate(char *inputFile, char *outputFile, std::string *errorMessage)
 {
 
-    PxOsdUtilSubdivTopology topology;
+    OsdUtilSubdivTopology topology;
     std::vector<float> pointPositions;
     
     if (not topology.ReadFromObjFile(inputFile, &pointPositions, errorMessage)) {
@@ -90,7 +90,7 @@ uniformTessellate(char *inputFile, char *outputFile, std::string *errorMessage)
 
     topology.refinementLevel = 2;
 
-    PxOsdUtilUniformEvaluator uniformEvaluator;
+    OsdUtilUniformEvaluator uniformEvaluator;
 
     // Create uniformEvaluator
     if (not uniformEvaluator.Initialize(topology, errorMessage)) {
@@ -107,7 +107,7 @@ uniformTessellate(char *inputFile, char *outputFile, std::string *errorMessage)
         return false;
     }
 
-    PxOsdUtilSubdivTopology refinedTopology;
+    OsdUtilSubdivTopology refinedTopology;
     const float *positions = NULL;
    
     if (not uniformEvaluator.GetRefinedTopology(
@@ -129,7 +129,7 @@ static bool
 blenderStyleTessellate(char *inputFile, char *outputFile, std::string *errorMessage)
 {
 
-    PxOsdUtilSubdivTopology topology;
+    OsdUtilSubdivTopology topology;
     std::vector<float> pointPositions;
     
     if (not topology.ReadFromObjFile(inputFile, &pointPositions, errorMessage)) {
@@ -138,7 +138,7 @@ blenderStyleTessellate(char *inputFile, char *outputFile, std::string *errorMess
 
     topology.refinementLevel = 5;
 
-    PxOsdUtilAdaptiveEvaluator adaptiveEvaluator;
+    OsdUtilAdaptiveEvaluator adaptiveEvaluator;
 
     // Create adaptiveEvaluator
     if (not adaptiveEvaluator.Initialize(topology, errorMessage)) {
@@ -156,7 +156,7 @@ blenderStyleTessellate(char *inputFile, char *outputFile, std::string *errorMess
         return false;
     }
 
-    PxOsdUtilSubdivTopology refinedTopology;
+    OsdUtilSubdivTopology refinedTopology;
     std::vector<float> positions;
    
     if (not adaptiveEvaluator.GetRefinedTopology(

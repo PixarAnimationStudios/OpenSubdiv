@@ -44,7 +44,7 @@ using namespace OpenSubdiv;
 using namespace std;
 
 
-PxOsdUtilAdaptiveEvaluator::PxOsdUtilAdaptiveEvaluator():
+OsdUtilAdaptiveEvaluator::OsdUtilAdaptiveEvaluator():
     _refiner(NULL),
     _ownsRefiner(false),
     _computeContext(NULL),
@@ -60,7 +60,7 @@ PxOsdUtilAdaptiveEvaluator::PxOsdUtilAdaptiveEvaluator():
 {
 }
 
-PxOsdUtilAdaptiveEvaluator::~PxOsdUtilAdaptiveEvaluator()
+OsdUtilAdaptiveEvaluator::~OsdUtilAdaptiveEvaluator()
 {
     if (_ownsRefiner and _refiner) {
         delete _refiner;
@@ -83,14 +83,14 @@ PxOsdUtilAdaptiveEvaluator::~PxOsdUtilAdaptiveEvaluator()
 
 
 bool
-PxOsdUtilAdaptiveEvaluator::Initialize(
-    const PxOsdUtilSubdivTopology &t,
+OsdUtilAdaptiveEvaluator::Initialize(
+    const OsdUtilSubdivTopology &t,
     string *errorMessage)    
 {
 
     // create and initialize a refiner, passing "true" for adaptive
     // to indicate we wish for adaptive refinement rather than uniform
-    PxOsdUtilRefiner *refiner = new PxOsdUtilRefiner();
+    OsdUtilRefiner *refiner = new OsdUtilRefiner();
     _ownsRefiner = true;
 
     if (not refiner->Initialize(t, true, errorMessage)) {
@@ -101,8 +101,8 @@ PxOsdUtilAdaptiveEvaluator::Initialize(
 }
 
 bool
-PxOsdUtilAdaptiveEvaluator::Initialize(
-    PxOsdUtilRefiner *refiner,
+OsdUtilAdaptiveEvaluator::Initialize(
+    OsdUtilRefiner *refiner,
     string *errorMessage)    
 {    
 
@@ -189,7 +189,7 @@ PxOsdUtilAdaptiveEvaluator::Initialize(
 
 
 void
-PxOsdUtilAdaptiveEvaluator::SetCoarsePositions(
+OsdUtilAdaptiveEvaluator::SetCoarsePositions(
         const float *coords, int numFloats, string *errorMessage ) 
 {
     //XXX: should be >= num coarse vertices
@@ -202,7 +202,7 @@ PxOsdUtilAdaptiveEvaluator::SetCoarsePositions(
 }
 
 bool
-PxOsdUtilAdaptiveEvaluator::Refine(
+OsdUtilAdaptiveEvaluator::Refine(
     int numThreads, string *errorMessage)
 {
     const FarMesh<OsdVertex> *fmesh = _refiner->GetFarMesh();
@@ -228,7 +228,7 @@ PxOsdUtilAdaptiveEvaluator::Refine(
 }
 
 void
-PxOsdUtilAdaptiveEvaluator::EvaluateLimit(
+OsdUtilAdaptiveEvaluator::EvaluateLimit(
     const OsdEvalCoords &coords, float P[3], float dPdu[3], float dPdv[3])
 {
 
@@ -281,14 +281,14 @@ void ccgSubSurf__mapGridToFace(int S, float grid_u, float grid_v,
 
 
 bool
-PxOsdUtilAdaptiveEvaluator::GetRefinedTopology(
-    PxOsdUtilSubdivTopology *out,
+OsdUtilAdaptiveEvaluator::GetRefinedTopology(
+    OsdUtilSubdivTopology *out,
     //positions will have three floats * t->numVertices
     std::vector<float> *positions,
     std::string *errorMessage)
 {
 
-    const PxOsdUtilSubdivTopology &t = GetTopology();
+    const OsdUtilSubdivTopology &t = GetTopology();
 
     positions->clear();
 

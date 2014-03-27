@@ -44,7 +44,7 @@ using namespace OpenSubdiv;
 using namespace std;
 
 
-PxOsdUtilUniformEvaluator::PxOsdUtilUniformEvaluator():
+OsdUtilUniformEvaluator::OsdUtilUniformEvaluator():
     _refiner(NULL),
     _ownsRefiner(false),
     _computeContext(NULL),
@@ -53,7 +53,7 @@ PxOsdUtilUniformEvaluator::PxOsdUtilUniformEvaluator():
 {
 }
 
-PxOsdUtilUniformEvaluator::~PxOsdUtilUniformEvaluator()
+OsdUtilUniformEvaluator::~OsdUtilUniformEvaluator()
 {
     if (_ownsRefiner and _refiner) {
         delete _refiner;
@@ -68,14 +68,14 @@ PxOsdUtilUniformEvaluator::~PxOsdUtilUniformEvaluator()
 
 
 bool
-PxOsdUtilUniformEvaluator::Initialize(
-    const PxOsdUtilSubdivTopology &t,
+OsdUtilUniformEvaluator::Initialize(
+    const OsdUtilSubdivTopology &t,
     string *errorMessage)    
 {
 
     // create and initialize a refiner, passing "false" for adaptive
     // to indicate we wish for uniform refinement
-    PxOsdUtilRefiner *refiner = new PxOsdUtilRefiner();
+    OsdUtilRefiner *refiner = new OsdUtilRefiner();
     _ownsRefiner = true;
 
     if (not refiner->Initialize(t, false, errorMessage)) {
@@ -86,8 +86,8 @@ PxOsdUtilUniformEvaluator::Initialize(
 }
 
 bool
-PxOsdUtilUniformEvaluator::Initialize(
-    PxOsdUtilRefiner *refiner,
+OsdUtilUniformEvaluator::Initialize(
+    OsdUtilRefiner *refiner,
     string *errorMessage)    
 {    
 
@@ -164,7 +164,7 @@ PxOsdUtilUniformEvaluator::Initialize(
 
 
 void
-PxOsdUtilUniformEvaluator::SetCoarsePositions(
+OsdUtilUniformEvaluator::SetCoarsePositions(
     const vector<float>& coords, string *errorMessage ) 
 {
     const float* pFloats = &coords.front();
@@ -181,7 +181,7 @@ PxOsdUtilUniformEvaluator::SetCoarsePositions(
 
 
 void
-PxOsdUtilUniformEvaluator::SetCoarseVVData(
+OsdUtilUniformEvaluator::SetCoarseVVData(
     const vector<float>& data, string *errorMessage
     ) 
 {
@@ -200,7 +200,7 @@ PxOsdUtilUniformEvaluator::SetCoarseVVData(
 
 
 bool
-PxOsdUtilUniformEvaluator::Refine(
+OsdUtilUniformEvaluator::Refine(
     int numThreads, string *errorMessage)
 {
     const FarMesh<OsdVertex> *fmesh = _refiner->GetFarMesh();
@@ -226,7 +226,7 @@ PxOsdUtilUniformEvaluator::Refine(
 }
 
 bool
-PxOsdUtilUniformEvaluator::GetRefinedPositions(
+OsdUtilUniformEvaluator::GetRefinedPositions(
     const float **positions, int *numFloats,
     string *errorMessage) const 
 {
@@ -268,7 +268,7 @@ PxOsdUtilUniformEvaluator::GetRefinedPositions(
 
 
 bool
-PxOsdUtilUniformEvaluator::GetRefinedVVData(
+OsdUtilUniformEvaluator::GetRefinedVVData(
     float **data, int *numFloats, int *numElementsRetVal,
     std::string *errorMessage ) const
 {
@@ -318,8 +318,8 @@ PxOsdUtilUniformEvaluator::GetRefinedVVData(
 
 
 bool
-PxOsdUtilUniformEvaluator::GetRefinedTopology(
-    PxOsdUtilSubdivTopology *t,
+OsdUtilUniformEvaluator::GetRefinedTopology(
+    OsdUtilSubdivTopology *t,
     //positions will have three floats * t->numVertices
     const float **positions,
     std::string *errorMessage)

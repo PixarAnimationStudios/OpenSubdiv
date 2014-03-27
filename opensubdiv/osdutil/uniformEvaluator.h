@@ -42,13 +42,13 @@
 //
 // An important note here is that refined positions and vertex varying
 // attributes are sampled at the n-th subdivision level, not at the
-// exact limit surface.  Use PxOsdUtilAdaptiveEvaluator for true limits.
+// exact limit surface.  Use OsdUtilAdaptiveEvaluator for true limits.
 //
-class PxOsdUtilUniformEvaluator {
+class OsdUtilUniformEvaluator {
   public:
-    PxOsdUtilUniformEvaluator();
+    OsdUtilUniformEvaluator();
 
-    ~PxOsdUtilUniformEvaluator();    
+    ~OsdUtilUniformEvaluator();    
 
     // Initialize returns false on error.  If errorMessage is non-NULL it'll
     // be populated upon error.
@@ -63,11 +63,11 @@ class PxOsdUtilUniformEvaluator {
     // of refiners among evaluators.
     //
     bool Initialize(
-        PxOsdUtilRefiner* refiner,
+        OsdUtilRefiner* refiner,
         std::string *errorMessage = NULL);
     
     bool Initialize(
-        const PxOsdUtilSubdivTopology &topology,
+        const OsdUtilSubdivTopology &topology,
         std::string *errorMessage = NULL);    
 
     // Set new coarse-mesh CV positions, need to call Refine
@@ -138,7 +138,7 @@ class PxOsdUtilUniformEvaluator {
     }
 
     bool GetRefinedTopology(
-        PxOsdUtilSubdivTopology *t,
+        OsdUtilSubdivTopology *t,
         //positions will have three floats * t->numVertices
         const float **positions,    
         std::string *errorMessage = NULL);
@@ -153,7 +153,7 @@ class PxOsdUtilUniformEvaluator {
         return _refiner->GetHbrMesh();
     }
 
-    const PxOsdUtilSubdivTopology &GetTopology() const {
+    const OsdUtilSubdivTopology &GetTopology() const {
         return _refiner->GetTopology();
     }
 
@@ -167,7 +167,7 @@ class PxOsdUtilUniformEvaluator {
     // own the refiner pointer (if _ownsRefiner is true), or it may
     // assume that someone else is responsible for managing that pointer
     // if _ownsRefiner is false.
-    PxOsdUtilRefiner *_refiner;
+    OsdUtilRefiner *_refiner;
     bool _ownsRefiner;
 
     // responsible for performing uniform catmull/clark subdivision

@@ -32,19 +32,19 @@
 
 using namespace std;
 
-PxOsdUtilSubdivTopology::PxOsdUtilSubdivTopology():
+OsdUtilSubdivTopology::OsdUtilSubdivTopology():
     name("noname"),
     numVertices(0),
     refinementLevel(2)  // arbitrary, start with a reasonable subdivision level
 {
 }
 
-PxOsdUtilSubdivTopology::~PxOsdUtilSubdivTopology()
+OsdUtilSubdivTopology::~OsdUtilSubdivTopology()
 {
 }
 
 bool
-PxOsdUtilSubdivTopology::Initialize(
+OsdUtilSubdivTopology::Initialize(
     int numVerticesParam,
     const int *nvertsParam, int numFaces,
     const int *indicesParam, int indicesLen,
@@ -70,7 +70,7 @@ PxOsdUtilSubdivTopology::Initialize(
 
 
 bool
-PxOsdUtilSubdivTopology::IsValid(string *errorMessage) const
+OsdUtilSubdivTopology::IsValid(string *errorMessage) const
 {
     if (numVertices == 0) {
         if (errorMessage) {
@@ -120,7 +120,7 @@ PxOsdUtilSubdivTopology::IsValid(string *errorMessage) const
 
 
 void
-PxOsdUtilSubdivTopology::Print() const
+OsdUtilSubdivTopology::Print() const
 {
     std::cout << "Mesh " << name << "\n";
     std::cout << "\tnumVertices = " << numVertices << "\n";
@@ -142,7 +142,7 @@ PxOsdUtilSubdivTopology::Print() const
 
 
 bool
-PxOsdUtilSubdivTopology::ReadFromObjFile( char const * fname,
+OsdUtilSubdivTopology::ReadFromObjFile( char const * fname,
                                           vector<float> *pointPositions,
                                           std::string *errorMessage ) {
 
@@ -197,7 +197,7 @@ static char const * sgets( char * s, int size, char ** stream ) {
 }
 
 bool
-PxOsdUtilSubdivTopology::ParseFromObjString(
+OsdUtilSubdivTopology::ParseFromObjString(
     char const * shapestr, int axis,
     vector<float> *pointPositions,
     std::string *errorMessage)
@@ -270,30 +270,30 @@ PxOsdUtilSubdivTopology::ParseFromObjString(
 
 
 
-bool PxOsdUtilTagData::TagTypeFromString(
-    PxOsdUtilTagData::TagType *tagType,
+bool OsdUtilTagData::TagTypeFromString(
+    OsdUtilTagData::TagType *tagType,
     const std::string &str)
 {
     if (str == "corner") {
-        *tagType = PxOsdUtilTagData::CORNER;
+        *tagType = OsdUtilTagData::CORNER;
     } else if  (str == "crease") {
-        *tagType = PxOsdUtilTagData::CREASE;
+        *tagType = OsdUtilTagData::CREASE;
     } else if  (str == "creasemethod") {
-        *tagType = PxOsdUtilTagData::CREASE_METHOD;
+        *tagType = OsdUtilTagData::CREASE_METHOD;
     } else if  (str == "facevaryinginterpolateboundary") {
-        *tagType = PxOsdUtilTagData::FACE_VARYING_INTERPOLATE_BOUNDARY;
+        *tagType = OsdUtilTagData::FACE_VARYING_INTERPOLATE_BOUNDARY;
     } else if  (str == "facevaryingpropagatecorners") {
-        *tagType = PxOsdUtilTagData::FACE_VARYING_PROPOGATE_CORNERS; 
+        *tagType = OsdUtilTagData::FACE_VARYING_PROPOGATE_CORNERS; 
     } else if  (str == "hole") {
-        *tagType = PxOsdUtilTagData::HOLE;
+        *tagType = OsdUtilTagData::HOLE;
     } else if  (str == "interpolateboundary") {
-        *tagType = PxOsdUtilTagData::INTERPOLATE_BOUNDARY;
+        *tagType = OsdUtilTagData::INTERPOLATE_BOUNDARY;
     } else if  (str == "smoothtriangles") {
-        *tagType = PxOsdUtilTagData::SMOOTH_TRIANGLES;
+        *tagType = OsdUtilTagData::SMOOTH_TRIANGLES;
     } else if  (str == "vertexedit") {
-        *tagType = PxOsdUtilTagData::VERTEX_EDIT;
+        *tagType = OsdUtilTagData::VERTEX_EDIT;
     } else if  (str == "edgeedit") {
-        *tagType = PxOsdUtilTagData::EDGE_EDIT;
+        *tagType = OsdUtilTagData::EDGE_EDIT;
     } else {
         return false;
     }
@@ -306,7 +306,7 @@ bool PxOsdUtilTagData::TagTypeFromString(
 // If numSharpness == 1, the single sharpness value applies for all vertices
 // If numSharpness == numIndices, there is a per-vertex sharpness
 bool
-PxOsdUtilTagData::AddCorner(int *indices, int numIndices,
+OsdUtilTagData::AddCorner(int *indices, int numIndices,
                             float *sharpness, int numSharpness)
 {
     tags.push_back(CORNER);
@@ -330,7 +330,7 @@ PxOsdUtilTagData::AddCorner(int *indices, int numIndices,
 // If numSharpness == numIndices, there is a per-edge sharpness that
 // will be interpolated along the crease
 bool
-PxOsdUtilTagData::AddCrease(int *indices, int numIndices,
+OsdUtilTagData::AddCrease(int *indices, int numIndices,
                             float *sharpness, int numSharpness)
 {
         return true;
@@ -338,7 +338,7 @@ PxOsdUtilTagData::AddCrease(int *indices, int numIndices,
         
 // Either "normal" or "chaikin"
 bool
-PxOsdUtilTagData::AddCreaseMethod(const std::string &value)
+OsdUtilTagData::AddCreaseMethod(const std::string &value)
 {
     return true;
 }
@@ -347,7 +347,7 @@ PxOsdUtilTagData::AddCreaseMethod(const std::string &value)
 // 1 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner
 // 2 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly    
 bool
-PxOsdUtilTagData::AddInterpolateBoundary(int value)
+OsdUtilTagData::AddInterpolateBoundary(int value)
 {
     return true;
 
@@ -356,7 +356,7 @@ PxOsdUtilTagData::AddInterpolateBoundary(int value)
 
 
 bool
-PxOsdUtilSubdivTopology::WriteObjFile(
+OsdUtilSubdivTopology::WriteObjFile(
     const char *filename,
     const float *positions,
     std::string *errorMessage)
