@@ -37,9 +37,10 @@ using namespace OpenSubdiv;
 
 
 template <class T>
-static void _ProcessTagsAndFinishMesh(
+static bool _ProcessTagsAndFinishMesh(
     OpenSubdiv::HbrMesh<T> *mesh,
-    const OsdUtilTagData &tagData);
+    const OsdUtilTagData &tagData,
+    std::string *errorMessage);
 
 template <class T>  
 OsdUtilMesh<T>::OsdUtilMesh() :
@@ -215,7 +216,8 @@ OsdUtilMesh<T>::Initialize(const OsdUtilSubdivTopology &topology,
         fvcOffset += nv;
     }
 
-    _ProcessTagsAndFinishMesh( _hmesh, _t.tagData);
+    if (not _ProcessTagsAndFinishMesh( _hmesh, _t.tagData, errorMessage))
+        return false;
 
     _valid = true;
 
@@ -282,9 +284,11 @@ OsdUtilMesh<T>::GetRefinedFVData(
 //
 // prideout: 3/19/2013 - edits are not yet supported.
 template <class T>
-void _ProcessTagsAndFinishMesh(
+bool _ProcessTagsAndFinishMesh(
     OpenSubdiv::HbrMesh<T> *mesh,
-    const OsdUtilTagData &tagData)    
+    const OsdUtilTagData &tagData,
+    std::string *errorMessage
+    )           
 {
     mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly);
 
@@ -300,7 +304,10 @@ void _ProcessTagsAndFinishMesh(
 	int nfloat = tagData.numArgs[3*i+1];
 	int nstring = tagData.numArgs[3*i+2];
 
-	if (tag == OsdUtilTagData::INTERPOLATE_BOUNDARY) {
+        std::cout << "TAGSTAGStag " << i << " " << tag << " " << nint << " " << nfloat << " " << nstring << "\n";
+
+	switch (tag) {
+        case OsdUtilTagData::INTERPOLATE_BOUNDARY:
 	    // Interp boundaries
 	    assert(nint == 1);
 	    switch(currentInt[0]) {
@@ -313,15 +320,17 @@ void _ProcessTagsAndFinishMesh(
             case 2:
                 mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly);
                 break;
-            default:
-/*XXX
-                TF_WARN("Subdivmesh contains unknown interpolate boundary method: %d\n",
-                        currentInt[0]);
-*/                        
-		break;
-	    }
+            default: {
+                stringstream ss;
+                ss << "Subdivmesh contains unknown interpolate boundary method: " << currentInt[0];
+                *errorMessage = ss.str();
+                return false;
+               }
+            }
+            break;
+            
 	    // Processing of this tag is done in mesh->Finish()
-	} else if (tag == OsdUtilTagData::CREASE) {
+        case OsdUtilTagData::CREASE:
 	    for(int j = 0; j < nint-1; ++j) {
 		// Find the appropriate edge
                 HbrVertex<T>* v = mesh->GetVertex(currentInt[j]);
@@ -335,39 +344,49 @@ void _ProcessTagsAndFinishMesh(
 		    }
 		}
 		if(!e) {
-/*XXX                    
-		    TF_WARN("Subdivmesh has non-existent sharp edge (%d,%d).\n",
-                            currentInt[j], currentInt[j+1]);
-*/                            
+                    stringstream ss;
+                    ss << "Subdivmesh has non-existent sharp edge (" <<
+                        currentInt[j]<< ", " <<  currentInt[j+1] << ")";
+                    *errorMessage = ss.str();            
+                    return false;
 		} else {
-		    e->SetSharpness(std::max(0.0f, ((nfloat > 1) ? currentFloat[j] : currentFloat[0])));
+                    float sharpness = std::max(0.0f, ((nfloat > 1) ? currentFloat[j] : currentFloat[0]));
+                    std::cout << "Setting sharpness on edge " << currentInt[j] << " " << currentInt[j+1] << " to " << sharpness << " " << nfloat << "\n";
+		    e->SetSharpness(sharpness);
 		}
 	    }
-	} else if (tag ==  OsdUtilTagData::CORNER) {
+            break;
+            
+        case OsdUtilTagData::CORNER: {
 	    for(int j = 0; j < nint; ++j) {
                 HbrVertex<T>* v = mesh->GetVertex(currentInt[j]);
 		if(v) {
 		    v->SetSharpness(std::max(0.0f, ((nfloat > 1) ? currentFloat[j] : currentFloat[0])));
 		} else {
-/*XXX                                        
-		    TF_WARN("Subdivmesh has non-existent sharp vertex %d.\n", currentInt[j]);
-*/                    
+                    stringstream ss;
+                    ss << "Subdivmesh has non-existent sharp vertex " << currentInt[j];
+                    *errorMessage = ss.str();
+                    return false;
 		}
 	    }
-	} else if ( tag == OsdUtilTagData::HOLE ) {
+        }
+            break;
+            
+        case OsdUtilTagData::HOLE:
 	    for(int j = 0; j < nint; ++j) {
                 HbrFace<T>* f = mesh->GetFace(currentInt[j]);
 		if(f) {
 		    f->SetHole();
 		} else {
-/*XXX                                                            
-		    TF_WARN("Subdivmesh has hole at non-existent face %d.\n",
-                            currentInt[j]);
-*/                            
+                    stringstream ss;
+                    ss << "Subdivmesh has hole at non-existent face " << currentInt[j];
+                    *errorMessage = ss.str();
+                    return false;
 		}
 	    }
-	} else if ( tag ==
-                    OsdUtilTagData::FACE_VARYING_INTERPOLATE_BOUNDARY) {
+            break;
+
+        case OsdUtilTagData::FACE_VARYING_INTERPOLATE_BOUNDARY:            
 	    switch(currentInt[0]) {
             case 0:
                 mesh->SetFVarInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryNone);
@@ -381,57 +400,65 @@ void _ProcessTagsAndFinishMesh(
             case 3:
 		mesh->SetFVarInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryAlwaysSharp);
 		break;
-            default:
-/*XXX                                                                       
-		TF_WARN("Subdivmesh contains unknown facevarying interpolate "
-                        "boundary method: %d.\n", currentInt[0]);
-*/                        
-		break;
-	    }
-	} else if ( tag == OsdUtilTagData::SMOOTH_TRIANGLES ) {
+            default: {
+                stringstream ss;
+                ss << "Subdivmesh contains unknown facevarying interpolate boundary method "
+                    << currentInt[0];
+                *errorMessage = ss.str();
+                return false;                
+            }
+            }
+            break;
+            
+        case OsdUtilTagData::SMOOTH_TRIANGLES: 
 	    // Do nothing - CatmarkMesh should handle it
-	} else if ( tag == OsdUtilTagData::CREASE_METHOD) {
+            break;
+        case OsdUtilTagData::CREASE_METHOD: {
 	    if(nstring < 1) {
-/*XXX                                                                   
-		TF_WARN("Creasemethod tag missing string argument on SubdivisionMesh.\n");
-*/                
-	    } else {
-                HbrSubdivision<T>* subdivisionMethod = mesh->GetSubdivision();
-		if(strcmp(currentString->c_str(), "normal") == 0) {
-		    subdivisionMethod->SetCreaseSubdivisionMethod(
-                        HbrSubdivision<T>::k_CreaseNormal);
-		} else if(strcmp(currentString->c_str(), "chaikin") == 0) {
-		    subdivisionMethod->SetCreaseSubdivisionMethod(
-                        HbrSubdivision<T>::k_CreaseChaikin);		    
-		} else {
-/*XXX                                                              
-		    TF_WARN("Creasemethod tag specifies unknown crease "
-                            "subdivision method '%s' on SubdivisionMesh.\n",
-                            currentString->c_str());
-*/                            
-		}
-	    }
-	} else if ( tag == OsdUtilTagData::FACE_VARYING_PROPOGATE_CORNERS) {
+                *errorMessage = "Creasemethod tag missing string argument on SubdivisionMesh";
+                return false;                                
+	    } 
+            HbrSubdivision<T>* subdivisionMethod = mesh->GetSubdivision();
+            if(strcmp(currentString->c_str(), "normal") == 0) {
+                subdivisionMethod->SetCreaseSubdivisionMethod(
+                    HbrSubdivision<T>::k_CreaseNormal);
+            } else if(strcmp(currentString->c_str(), "chaikin") == 0) {
+                subdivisionMethod->SetCreaseSubdivisionMethod(
+                    HbrSubdivision<T>::k_CreaseChaikin);		    
+            } else {
+                stringstream ss;
+                ss << "Creasemethod tag specifies unknown crease subdivision method "
+                   << currentString->c_str() << " SubdivisionMesh";
+                *errorMessage = ss.str();
+                return false;                                                    
+            }
+        }
+            break;
+            
+        case OsdUtilTagData::FACE_VARYING_PROPOGATE_CORNERS:
 	    if(nint != 1) {
-/*XXX                                                                     
-		TF_WARN("Expecting single integer argument for "
-                        "\"facevaryingpropagatecorners\" on SubdivisionMesh.\n");
-*/                        
+                stringstream ss;
+                ss << "Expecting single integer argument for \"facevaryingpropagatecorners\" on SubdivisionMesh";
+                *errorMessage = ss.str();
+                return false;                                                    
 	    } else {
 		mesh->SetFVarPropagateCorners(currentInt[0] != 0);
 	    }
-        } else if (( tag == OsdUtilTagData::VERTEX_EDIT) or
-                   ( tag == OsdUtilTagData::EDGE_EDIT)) {
-	    // XXX DO EDITS
-/*XXX                                                                                 
-            TF_WARN("vertexedit and edgeedit not yet supported.\n");
-*/            
-	} else {
-/*XXX                                                                                             
-	    // Complain
-            TF_WARN("Unknown tag: %s.\n", tag);
-*/                        
-	}
+            break;
+            
+        case OsdUtilTagData::VERTEX_EDIT:
+        case OsdUtilTagData::EDGE_EDIT:
+                // XXX DO EDITS
+                *errorMessage = "vertexedit and edgeedit not yet supported";
+                break;
+                
+         default: {
+             stringstream ss;
+             ss << "Unknown tag: " << tag;
+             *errorMessage = ss.str();
+             return false;                                                    
+         }
+        }
 
 	// update the tag data pointers
 	currentInt += nint;
@@ -440,7 +467,10 @@ void _ProcessTagsAndFinishMesh(
     }
 
     mesh->Finish();
+
+    return true;
 }
+
 
 
 //XXX Note that these explicit template instantiations

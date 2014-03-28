@@ -333,7 +333,19 @@ bool
 OsdUtilTagData::AddCrease(int *indices, int numIndices,
                             float *sharpness, int numSharpness)
 {
-        return true;
+    std::cout << "Adding crease!\n";
+    tags.push_back(CREASE);
+    numArgs.push_back(numIndices);
+    numArgs.push_back(numSharpness);
+    numArgs.push_back(0); 
+    for (int i=0; i<numIndices; ++i) {
+        intArgs.push_back(indices[i]);
+    }
+    for (int i=0; i<numSharpness; ++i) {
+        floatArgs.push_back(sharpness[i]);
+    }
+
+    return true;
 }
         
 // Either "normal" or "chaikin"
@@ -351,6 +363,20 @@ OsdUtilTagData::AddInterpolateBoundary(int value)
 {
     return true;
 
+}
+
+bool
+OsdUtilTagData::AddHole(int *indices, int numIndices)
+{
+    tags.push_back(HOLE);
+    numArgs.push_back(numIndices);
+    numArgs.push_back(0);
+    numArgs.push_back(0);
+    for (int i=0; i<numIndices; ++i) {
+        intArgs.push_back(indices[i]);
+    }
+
+    return true;
 }
 
 

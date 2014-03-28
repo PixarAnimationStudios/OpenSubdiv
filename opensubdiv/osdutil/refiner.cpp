@@ -98,7 +98,8 @@ OsdUtilRefiner::Initialize(
 
     // Subdivision tables describe the addition steps with coefficients
     // needed to perform subdivision
-    const FarSubdivisionTables* ftable = _farMesh->GetSubdivisionTables();
+    const FarSubdivisionTables* ftable =
+        _farMesh->GetSubdivisionTables();
     
     // Find quads array at given level
     const FarPatchTables * ptables = _farMesh->GetPatchTables();

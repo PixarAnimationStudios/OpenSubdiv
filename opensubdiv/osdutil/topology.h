@@ -77,8 +77,14 @@ public:
     // 0 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryNone
     // 1 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner
     // 2 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly    
-    bool AddInterpolateBoundary(int value);                        
+    bool AddInterpolateBoundary(int value);
 
+    // Specify which faces on the coarse mesh should be "holes",
+    // as if the limit surface for those faces is cut away from
+    // from the rest of the surface.
+    bool AddHole(int *indices, int numIndices);
+
+    
     
     std::vector<TagType> tags;
 

@@ -57,8 +57,8 @@ shim::Subdivider::Subdivider(
         subdivisionLevels);
     self->farMesh = meshFactory.Create();
     self->computeContext = OpenSubdiv::OsdCpuComputeContext::Create(
-        self->farMesh);
-
+        self->farMesh->GetSubdivisionTables(),
+        self->farMesh->GetVertexEditTables());
     self->vertexBuffer = OpenSubdiv::OsdCpuVertexBuffer::Create(
         numFloatsPerVertex, self->farMesh->GetNumVertices());
 }
