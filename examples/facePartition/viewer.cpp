@@ -69,7 +69,8 @@ public:
 
         int numVertices = farMesh->GetNumVertices();
         _vertexBuffer = OpenSubdiv::OsdCpuGLVertexBuffer::Create(3, numVertices);
-        _computeContext = OpenSubdiv::OsdCpuComputeContext::Create(farMesh);
+        _computeContext = OpenSubdiv::OsdCpuComputeContext::Create(
+            farMesh->GetSubdivisionTables(), farMesh->GetVertexEditTables());
         _kernelBatches = farMesh->GetKernelBatches();
 
         OpenSubdiv::OsdUtilPatchPartitioner partitioner(farMesh->GetPatchTables(), partitionPerFace);

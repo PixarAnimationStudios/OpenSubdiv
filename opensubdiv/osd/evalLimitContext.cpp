@@ -28,9 +28,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdEvalLimitContext::OsdEvalLimitContext(FarMesh<OsdVertex> const * farmesh) {
+OsdEvalLimitContext::OsdEvalLimitContext(FarPatchTables const *patchTables) {
 
-    _adaptive = farmesh->GetPatchTables()->IsFeatureAdaptive();
+    _adaptive = patchTables->IsFeatureAdaptive();
 }
 
 OsdEvalLimitContext::~OsdEvalLimitContext() {

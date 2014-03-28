@@ -27,7 +27,6 @@
 
 #include "../version.h"
 
-#include "../far/mesh.h"
 #include "../far/subdivisionTables.h"
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
@@ -97,9 +96,12 @@ class OsdCpuComputeContext : OsdNonCopyable<OsdCpuComputeContext> {
 public:
     /// Creates an OsdCpuComputeContext instance
     ///
-    /// @param farmesh the FarMesh used for this Context.
+    /// @param subdivisionTables the FarSubdivisionTables used for this Context.
     ///
-    static OsdCpuComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
+    /// @param vertexEditTables the FarVertexEditTables used for this Context.
+    ///
+    static OsdCpuComputeContext * Create(FarSubdivisionTables const *subdivisionTables,
+                                         FarVertexEditTables const *vertexEditTables);
 
     /// Destructor
     virtual ~OsdCpuComputeContext();
@@ -160,7 +162,8 @@ public:
     float * GetCurrentVaryingBuffer() const;
 
 protected:
-    explicit OsdCpuComputeContext(FarMesh<OsdVertex> const *farMesh);
+    explicit OsdCpuComputeContext(FarSubdivisionTables const *subdivisionTables,
+                                  FarVertexEditTables const *vertexEditTables);
 
 private:
     std::vector<OsdCpuTable*> _tables;

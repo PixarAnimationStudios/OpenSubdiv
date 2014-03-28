@@ -338,7 +338,8 @@ createOsdContext(int level)
 
     g_farmesh = meshFactory.Create();
 
-    g_osdComputeContext = OpenSubdiv::OsdCpuComputeContext::Create(g_farmesh);
+    g_osdComputeContext = OpenSubdiv::OsdCpuComputeContext::Create(
+        g_farmesh->GetSubdivisionTables(), g_farmesh->GetVertexEditTables());
 
     delete hmesh;
 

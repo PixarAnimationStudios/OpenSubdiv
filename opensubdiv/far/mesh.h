@@ -77,7 +77,7 @@ public:
     U & GetVertex(int index) { return _vertices[index]; }
 
     /// \brief Returns vertex edit tables
-    FarVertexEditTables const * GetVertexEdit() const { return _vertexEditTables; }
+    FarVertexEditTables const * GetVertexEditTables() const { return _vertexEditTables; }
 
     /// \brief True if the mesh tables support the feature-adaptive mode.
     bool IsFeatureAdaptive() const { return _patchTables->IsFeatureAdaptive(); }

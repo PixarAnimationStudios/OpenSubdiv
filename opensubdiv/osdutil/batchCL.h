@@ -156,7 +156,7 @@ OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, OsdCLComputeController>::initializ
     Base::setKernelBatches(farMultiMesh->GetKernelBatches());
 
     // create compute contexts
-    _computeContext = ComputeContext::Create(farMultiMesh, _computeController->GetContext());
+    _computeContext = ComputeContext::Create(farMultiMesh->GetSubdivisionTables(), farMultiMesh->GetVertexEditTables(), _computeController->GetContext());
 
     if (not _computeContext) return false;
 

@@ -22,7 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/mesh.h"
 #include "../osd/cudaComputeContext.h"
 
 #include <cuda_runtime.h>
@@ -136,22 +135,21 @@ OsdCudaComputeContext::~OsdCudaComputeContext() {
 }
 
 bool
-OsdCudaComputeContext::initialize(FarMesh<OsdVertex> const *farMesh) {
-
-    FarSubdivisionTables const * farTables = farMesh->GetSubdivisionTables();
+OsdCudaComputeContext::initialize(FarSubdivisionTables const *subdivisionTables,
+                                  FarVertexEditTables const *vertexEditTables) {
 
     // allocate 5 or 7 tables
-    _tables.resize(farTables->GetNumTables(), 0);
+    _tables.resize(subdivisionTables->GetNumTables(), 0);
 
-    _tables[FarSubdivisionTables::E_IT]  = OsdCudaTable::Create(farTables->Get_E_IT());
-    _tables[FarSubdivisionTables::V_IT]  = OsdCudaTable::Create(farTables->Get_V_IT());
-    _tables[FarSubdivisionTables::V_ITa] = OsdCudaTable::Create(farTables->Get_V_ITa());
-    _tables[FarSubdivisionTables::E_W]   = OsdCudaTable::Create(farTables->Get_E_W());
-    _tables[FarSubdivisionTables::V_W]   = OsdCudaTable::Create(farTables->Get_V_W());
+    _tables[FarSubdivisionTables::E_IT]  = OsdCudaTable::Create(subdivisionTables->Get_E_IT());
+    _tables[FarSubdivisionTables::V_IT]  = OsdCudaTable::Create(subdivisionTables->Get_V_IT());
+    _tables[FarSubdivisionTables::V_ITa] = OsdCudaTable::Create(subdivisionTables->Get_V_ITa());
+    _tables[FarSubdivisionTables::E_W]   = OsdCudaTable::Create(subdivisionTables->Get_E_W());
+    _tables[FarSubdivisionTables::V_W]   = OsdCudaTable::Create(subdivisionTables->Get_V_W());
 
-    if (farTables->GetNumTables() > 5) {
-        _tables[FarSubdivisionTables::F_IT]  = OsdCudaTable::Create(farTables->Get_F_IT());
-        _tables[FarSubdivisionTables::F_ITa] = OsdCudaTable::Create(farTables->Get_F_ITa());
+    if (subdivisionTables->GetNumTables() > 5) {
+        _tables[FarSubdivisionTables::F_IT]  = OsdCudaTable::Create(subdivisionTables->Get_F_IT());
+        _tables[FarSubdivisionTables::F_ITa] = OsdCudaTable::Create(subdivisionTables->Get_F_ITa());
     }
 
     // error check
@@ -162,13 +160,12 @@ OsdCudaComputeContext::initialize(FarMesh<OsdVertex> const *farMesh) {
     }
 
     // create hedit tables
-    FarVertexEditTables const *editTables = farMesh->GetVertexEdit();
-    if (editTables) {
-        int numEditBatches = editTables->GetNumBatches();
+    if (vertexEditTables) {
+        int numEditBatches = vertexEditTables->GetNumBatches();
         _editTables.reserve(numEditBatches);
         for (int i = 0; i < numEditBatches; ++i) {
             const FarVertexEditTables::VertexEditBatch & edit =
-                editTables->GetBatch(i);
+                vertexEditTables->GetBatch(i);
 
             _editTables.push_back(OsdCudaHEditTable::Create(edit));
         }
@@ -213,11 +210,12 @@ OsdCudaComputeContext::GetCurrentVaryingBuffer() const {
 }
 
 OsdCudaComputeContext *
-OsdCudaComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
+OsdCudaComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
+                              FarVertexEditTables const *vertexEditTables) {
 
     OsdCudaComputeContext *result = new OsdCudaComputeContext();
 
-    if (result->initialize(farmesh) == false) {
+    if (result->initialize(subdivisionTables, vertexEditTables) == false) {
         delete result;
         return NULL;
     }

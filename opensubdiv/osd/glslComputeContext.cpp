@@ -22,7 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/mesh.h"
 #include "../osd/debug.h"
 #include "../osd/error.h"
 #include "../osd/glslComputeContext.h"
@@ -110,11 +109,9 @@ OsdGLSLComputeHEditTable::GetPrimvarWidth() const {
 // ----------------------------------------------------------------------------
 
 OsdGLSLComputeContext::OsdGLSLComputeContext(
-    FarMesh<OsdVertex> const *farMesh)
+    FarSubdivisionTables const *subdivisionTables,
+    FarVertexEditTables const *vertexEditTables)
     : _vertexTexture(0), _varyingTexture(0) {
-
-    FarSubdivisionTables const * farTables =
-        farMesh->GetSubdivisionTables();
 
     // allocate 5 or 7 tables
     // XXXtakahito: Although _tables size depends on table type, F_IT is set
@@ -122,16 +119,16 @@ OsdGLSLComputeContext::OsdGLSLComputeContext(
     // bindShaderStorageBuffer()...
     _tables.resize(7, 0);
 
-    _tables[FarSubdivisionTables::E_IT]  = new OsdGLSLComputeTable(farTables->Get_E_IT());
-    _tables[FarSubdivisionTables::V_IT]  = new OsdGLSLComputeTable(farTables->Get_V_IT());
-    _tables[FarSubdivisionTables::V_ITa] = new OsdGLSLComputeTable(farTables->Get_V_ITa());
-    _tables[FarSubdivisionTables::E_W]   = new OsdGLSLComputeTable(farTables->Get_E_W());
-    _tables[FarSubdivisionTables::V_W]   = new OsdGLSLComputeTable(farTables->Get_V_W());
+    _tables[FarSubdivisionTables::E_IT]  = new OsdGLSLComputeTable(subdivisionTables->Get_E_IT());
+    _tables[FarSubdivisionTables::V_IT]  = new OsdGLSLComputeTable(subdivisionTables->Get_V_IT());
+    _tables[FarSubdivisionTables::V_ITa] = new OsdGLSLComputeTable(subdivisionTables->Get_V_ITa());
+    _tables[FarSubdivisionTables::E_W]   = new OsdGLSLComputeTable(subdivisionTables->Get_E_W());
+    _tables[FarSubdivisionTables::V_W]   = new OsdGLSLComputeTable(subdivisionTables->Get_V_W());
 
-    if (farTables->GetNumTables() > 5) {
+    if (subdivisionTables->GetNumTables() > 5) {
         // catmark, bilinear
-        _tables[FarSubdivisionTables::F_IT]  = new OsdGLSLComputeTable(farTables->Get_F_IT());
-        _tables[FarSubdivisionTables::F_ITa] = new OsdGLSLComputeTable(farTables->Get_F_ITa());
+        _tables[FarSubdivisionTables::F_IT]  = new OsdGLSLComputeTable(subdivisionTables->Get_F_IT());
+        _tables[FarSubdivisionTables::F_ITa] = new OsdGLSLComputeTable(subdivisionTables->Get_F_ITa());
     } else {
         // loop
         _tables[FarSubdivisionTables::F_IT] = NULL;
@@ -139,13 +136,12 @@ OsdGLSLComputeContext::OsdGLSLComputeContext(
     }
 
     // create hedit tables
-    FarVertexEditTables const *editTables = farMesh->GetVertexEdit();
-    if (editTables) {
-        int numEditBatches = editTables->GetNumBatches();
+    if (vertexEditTables) {
+        int numEditBatches = vertexEditTables->GetNumBatches();
         _editTables.reserve(numEditBatches);
         for (int i = 0; i < numEditBatches; ++i) {
             const FarVertexEditTables::VertexEditBatch & edit =
-                editTables->GetBatch(i);
+                vertexEditTables->GetBatch(i);
             _editTables.push_back(new OsdGLSLComputeHEditTable(edit));
         }
     }
@@ -205,9 +201,10 @@ OsdGLSLComputeContext::SetKernelBundle(
 }
 
 OsdGLSLComputeContext *
-OsdGLSLComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
+OsdGLSLComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
+                              FarVertexEditTables const *vertexEditTables) {
 
-    return new OsdGLSLComputeContext(farmesh);
+    return new OsdGLSLComputeContext(subdivisionTables, vertexEditTables);
 }
 
 void

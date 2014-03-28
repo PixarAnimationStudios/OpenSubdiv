@@ -397,7 +397,7 @@ FarComputeController::ApplyVertexEdits(FarKernelBatch const &batch, CONTEXT *con
 
     typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
 
-    FarVertexEditTables const * vertEdit = context->GetVertexEdit();
+    FarVertexEditTables const * vertEdit = context->GetVertexEditTables();
 
     if (vertEdit)
         vertEdit->computeVertexEdits( batch.GetTableIndex(),

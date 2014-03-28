@@ -126,7 +126,8 @@ OsdUtilAdaptiveEvaluator::Initialize(
     }
 
 
-    _computeContext = OsdCpuComputeContext::Create(fmesh);
+    _computeContext = OsdCpuComputeContext::Create(fmesh->GetSubdivisionTables(),
+                                                   fmesh->GetVertexEditTables());
     
     // Three elements (x/y/z) per refined point at every subdivision level
     // defined by the farMesh.  The coarse vertices seed the beginning of
@@ -156,14 +157,15 @@ OsdUtilAdaptiveEvaluator::Initialize(
     */
     
     // A context object used to store data used in refinement
-    _computeContext = OsdCpuComputeContext::Create(fmesh);
+    _computeContext = OsdCpuComputeContext::Create(fmesh->GetSubdivisionTables(),
+                                                   fmesh->GetVertexEditTables());
 
     // A context object used to store data used in fast limit surface
     // evaluation.  This contains vectors of patches and associated
     // tables pulled and computed from the adaptive farMesh.
     // It also holds onto vertex buffer data through binds    
     _evalLimitContext = OsdCpuEvalLimitContext::Create(
-        fmesh, /*requierFVarData*/ false);
+        fmesh->GetPatchTables(), /*requierFVarData*/ false);
     
     // A buffer with one float per target point to use when
     // evaluating interpolated weights

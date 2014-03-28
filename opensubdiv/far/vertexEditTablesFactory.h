@@ -215,7 +215,7 @@ FarVertexEditTablesFactory<T, U>::Splice(FarMeshVector const &meshes) {
 
     // at this moment, don't merge vertex edit tables (separate batch)
     for (size_t i = 0; i < meshes.size(); ++i) {
-        const FarVertexEditTables *vertexEditTables = meshes[i]->GetVertexEdit();
+        const FarVertexEditTables *vertexEditTables = meshes[i]->GetVertexEditTables();
         if (not vertexEditTables) continue;
 
         // copy each edit batch  XXX:inefficient copy

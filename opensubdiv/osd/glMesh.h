@@ -143,7 +143,7 @@ private:
             _vertexBuffer = VertexBuffer::Create(numVertexElements, numVertices);
         if (numVaryingElements)
             _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices);
-        _computeContext = ComputeContext::Create(_farMesh);
+        _computeContext = ComputeContext::Create(_farMesh->GetSubdivisionTables(), _farMesh->GetVertexEditTables());
         _drawContext = DrawContext::Create(_farMesh->GetPatchTables(), bits.test(MeshFVarData));
         _drawContext->UpdateVertexTexture(_vertexBuffer);
     }
@@ -264,7 +264,7 @@ private:
             _vertexBuffer = VertexBuffer::Create(numVertexElements, numVertices, _clContext);
         if (numVaryingElements)
             _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices, _clContext);
-        _computeContext = ComputeContext::Create(_farMesh, _clContext);
+        _computeContext = ComputeContext::Create(_farMesh->GetSubdivisionTables(), _farMesh->GetVertexEditTables(), _clContext);
         _drawContext = DrawContext::Create(_farMesh->GetPatchTables(), bits.test(MeshFVarData));
         _drawContext->UpdateVertexTexture(_vertexBuffer);
     }

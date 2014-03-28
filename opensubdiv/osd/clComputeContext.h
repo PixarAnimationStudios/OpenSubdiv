@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/mesh.h"
+#include "../far/subdivisionTables.h"
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
 #include "../osd/nonCopyable.h"
@@ -103,11 +103,14 @@ class OsdCLComputeContext : public OsdNonCopyable<OsdCLComputeContext> {
 public:
     /// Creates an OsdCLComputeContext instance
     ///
-    /// @param farmesh    the FarMesh used for this Context.
+    /// @param subdivisionTables the FarSubdivisionTables used for this Context.
+    ///
+    /// @param vertexEditTables the FarVertexEditTables used for this Context.
     ///
     /// @param clContext  a valid active OpenCL context
     ///
-    static OsdCLComputeContext * Create(FarMesh<OsdVertex> const *farmesh,
+    static OsdCLComputeContext * Create(FarSubdivisionTables const *subdivisionTables,
+                                        FarVertexEditTables const *vertexEditTables,
                                         cl_context clContext);
 
     /// Destructor
@@ -170,7 +173,8 @@ public:
     void SetCommandQueue(cl_command_queue queue);
 
 protected:
-    explicit OsdCLComputeContext(FarMesh<OsdVertex> const *farMesh,
+    explicit OsdCLComputeContext(FarSubdivisionTables const *subdivisionTables,
+                                 FarVertexEditTables const *vertexEditTables,
                                  cl_context clContext);
 
 private:

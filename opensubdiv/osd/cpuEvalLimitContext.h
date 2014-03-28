@@ -42,15 +42,15 @@ class OsdCpuEvalLimitContext : public OsdEvalLimitContext {
 public:
 
     /// \brief Factory
-    /// Returns an EvalLimitContext from the given farmesh.
-    /// Note : the farmesh is expected to be feature-adaptive and have ptex
+    /// Returns an EvalLimitContext from the given far patch tables.
+    /// Note : the patchtables is expected to be feature-adaptive and have ptex
     ///        coordinates tables.
     /// 
-    /// @param farmesh          a pointer to an initialized farmesh
+    /// @param patchTables      a pointer to an initialized FarPatchTables
     ///
     /// @param requireFVarData  flag for generating face-varying data
     ///
-    static OsdCpuEvalLimitContext * Create(FarMesh<OsdVertex> const * farmesh, 
+    static OsdCpuEvalLimitContext * Create(FarPatchTables const *patchTables,
                                            bool requireFVarData=false);
 
     virtual ~OsdCpuEvalLimitContext();
@@ -315,7 +315,7 @@ public:
     }
 
 protected:
-    explicit OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmesh, bool requireFVarData);
+    explicit OsdCpuEvalLimitContext(FarPatchTables const *patchTables, bool requireFVarData);
 
 private:
 

@@ -565,8 +565,8 @@ FarSubdivisionTablesFactory<T,U>::Splice(FarMeshVector const &meshes, FarKernelB
             }
             batches->push_back(batch);
         }
-        editTableIndexOffset += meshes[i]->GetVertexEdit() ?
-            meshes[i]->GetVertexEdit()->GetNumBatches() : 0;
+        editTableIndexOffset += meshes[i]->GetVertexEditTables() ?
+            meshes[i]->GetVertexEditTables()->GetNumBatches() : 0;
     }
 
     // count verts offsets

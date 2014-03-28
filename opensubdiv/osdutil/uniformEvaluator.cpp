@@ -136,7 +136,7 @@ OsdUtilUniformEvaluator::Initialize(
         return true;
     }
 
-    _computeContext = OsdCpuComputeContext::Create(fmesh);
+    _computeContext = OsdCpuComputeContext::Create(fmesh->GetSubdivisionTables(), fmesh->GetVertexEditTables());
     
     // Three elements per refined point    
     _vertexBuffer = OsdCpuVertexBuffer::Create(

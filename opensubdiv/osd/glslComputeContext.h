@@ -27,7 +27,8 @@
 
 #include "../version.h"
 
-#include "../far/mesh.h"
+#include "../far/subdivisionTables.h"
+#include "../far/vertexEditTables.h"
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
 #include "../osd/vertexDescriptor.h"
@@ -102,9 +103,12 @@ class OsdGLSLComputeContext {
 public:
     /// Creates an OsdGLSLComputeContext instance
     ///
-    /// @param farmesh the FarMesh used for this Context.
+    /// @param subdivisionTables the FarSubdivisionTables used for this Context.
     ///
-    static OsdGLSLComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
+    /// @param vertexEditTables the FarVertexEditTables used for this Context.
+    ///
+    static OsdGLSLComputeContext * Create(FarSubdivisionTables const *subdivisionTables,
+                                          FarVertexEditTables const *vertexEditTables);
 
     /// Destructor
     virtual ~OsdGLSLComputeContext();
@@ -197,7 +201,8 @@ public:
     void UnbindEditShaderStorageBuffers();
 
 protected:
-    explicit OsdGLSLComputeContext(FarMesh<OsdVertex> const *farMesh);
+    explicit OsdGLSLComputeContext(FarSubdivisionTables const *subdivisionTables,
+                                   FarVertexEditTables const *vertexEditTables);
 
     void bindShaderStorageBuffers();
 

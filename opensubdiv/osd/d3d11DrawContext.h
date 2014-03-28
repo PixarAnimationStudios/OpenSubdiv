@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/mesh.h"
+#include "../far/patchTables.h"
 #include "../osd/drawContext.h"
 #include "../osd/vertex.h"
 

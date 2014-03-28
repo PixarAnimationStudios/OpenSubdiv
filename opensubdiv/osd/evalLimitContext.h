@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/mesh.h"
+#include "../far/patchTables.h"
 
 #include "../osd/nonCopyable.h"
 #include "../osd/vertex.h"
@@ -70,7 +70,7 @@ public:
     virtual ~OsdEvalLimitContext();
 
 protected:
-    explicit OsdEvalLimitContext(FarMesh<OsdVertex> const * farmesh);
+    explicit OsdEvalLimitContext(FarPatchTables const *patchTables);
 
 private:
     bool _adaptive;

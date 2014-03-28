@@ -72,7 +72,8 @@ public:
         _vertexBuffer = VertexBuffer::Create(numVertexElements, numVertices, pd3d11Device);
         if (numVaryingElements)
             _vertexBuffer = VertexBuffer::Create(numVaryingElements, numVertices, pd3d11Device);
-        _computeContext = ComputeContext::Create(_farMesh);
+        _computeContext = ComputeContext::Create(_farMesh->GetSubdivisionTables(),
+                                                 _farMesh->GetVertexEditTables());
         _drawContext = DrawContext::Create(_farMesh->GetPatchTables(),
                                            _pd3d11DeviceContext,
                                            bits.test(MeshFVarData));
@@ -158,7 +159,9 @@ public:
         _vertexBuffer = VertexBuffer::Create(numVertexElements, numVertices, pd3d11Device);
         if (numVaryingElements)
             _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices, pd3d11Device);
-        _computeContext = ComputeContext::Create(_farMesh, _pd3d11DeviceContext);
+        _computeContext = ComputeContext::Create(_farMesh->GetSubdivisionTables(),
+                                                 _farMesh->GetVertexEditTables(),
+                                                 _pd3d11DeviceContext);
         _drawContext = DrawContext::Create(_farMesh->GetPatchTables(),
                                            _pd3d11DeviceContext,
                                            bits.test(MeshFVarData));

@@ -843,7 +843,7 @@ MStatus OsdPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
                 static OpenSubdiv::OsdCpuComputeController computeController = OpenSubdiv::OsdCpuComputeController();
 
                 OpenSubdiv::OsdCpuComputeController::ComputeContext *computeContext =
-                    OpenSubdiv::OsdCpuComputeController::ComputeContext::Create(farMesh);
+                    OpenSubdiv::OsdCpuComputeController::ComputeContext::Create(farMesh->GetSubdivisionTables(), farMesh->GetVertexEditTables());
 
                 OpenSubdiv::OsdCpuVertexBuffer *vertexBuffer =
                     OpenSubdiv::OsdCpuVertexBuffer::Create(numVertexElements, numFarVerts );

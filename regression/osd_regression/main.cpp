@@ -315,7 +315,7 @@ checkMeshCPU( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
                   
     static OpenSubdiv::OsdCpuComputeController *controller = new OpenSubdiv::OsdCpuComputeController();
     
-    OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh);
+    OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh->GetSubdivisionTables(), farmesh->GetVertexEditTables());
     
     OpenSubdiv::OsdCpuVertexBuffer * vb = OpenSubdiv::OsdCpuVertexBuffer::Create(3, farmesh->GetNumVertices());
     
@@ -335,7 +335,7 @@ checkMeshCPUGL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
                     
     static OpenSubdiv::OsdCpuComputeController *controller = new OpenSubdiv::OsdCpuComputeController();
     
-    OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh);
+    OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh->GetSubdivisionTables(), farmesh->GetVertexEditTables());
     
     OpenSubdiv::OsdCpuGLVertexBuffer * vb = OpenSubdiv::OsdCpuGLVertexBuffer::Create(3, farmesh->GetNumVertices());
     
@@ -357,7 +357,7 @@ checkMeshCL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
 
     static OpenSubdiv::OsdCLComputeController *controller = new OpenSubdiv::OsdCLComputeController(g_clContext, g_clQueue);
     
-    OpenSubdiv::OsdCLComputeContext *context = OpenSubdiv::OsdCLComputeContext::Create(farmesh, g_clContext);
+    OpenSubdiv::OsdCLComputeContext *context = OpenSubdiv::OsdCLComputeContext::Create(farmesh->GetSubdivisionTables(), farmesh->GetVertexEditTables(), g_clContext);
     
     OpenSubdiv::OsdCLGLVertexBuffer * vb = OpenSubdiv::OsdCLGLVertexBuffer::Create(3, farmesh->GetNumVertices(), g_clContext);
     

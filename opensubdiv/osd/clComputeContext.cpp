@@ -22,7 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/mesh.h"
 #include "../osd/clComputeContext.h"
 #include "../osd/clKernelBundle.h"
 
@@ -100,34 +99,32 @@ OsdCLHEditTable::GetPrimvarWidth() const {
 
 // ----------------------------------------------------------------------------
 
-OsdCLComputeContext::OsdCLComputeContext(FarMesh<OsdVertex> const *farMesh,
-                                          cl_context clContext)
+OsdCLComputeContext::OsdCLComputeContext(FarSubdivisionTables const *subdivisionTables,
+                                         FarVertexEditTables const *vertexEditTables,
+                                         cl_context clContext)
     : _clQueue(NULL), _kernelBundle(NULL) {
 
-    FarSubdivisionTables const * farTables = farMesh->GetSubdivisionTables();
-
     // allocate 5 or 7 tables
-    _tables.resize(farTables->GetNumTables(), 0);
+    _tables.resize(subdivisionTables->GetNumTables(), 0);
 
-    _tables[FarSubdivisionTables::E_IT]  = new OsdCLTable(farTables->Get_E_IT(), clContext);
-    _tables[FarSubdivisionTables::V_IT]  = new OsdCLTable(farTables->Get_V_IT(), clContext);
-    _tables[FarSubdivisionTables::V_ITa] = new OsdCLTable(farTables->Get_V_ITa(), clContext);
-    _tables[FarSubdivisionTables::E_W]   = new OsdCLTable(farTables->Get_E_W(), clContext);
-    _tables[FarSubdivisionTables::V_W]   = new OsdCLTable(farTables->Get_V_W(), clContext);
+    _tables[FarSubdivisionTables::E_IT]  = new OsdCLTable(subdivisionTables->Get_E_IT(), clContext);
+    _tables[FarSubdivisionTables::V_IT]  = new OsdCLTable(subdivisionTables->Get_V_IT(), clContext);
+    _tables[FarSubdivisionTables::V_ITa] = new OsdCLTable(subdivisionTables->Get_V_ITa(), clContext);
+    _tables[FarSubdivisionTables::E_W]   = new OsdCLTable(subdivisionTables->Get_E_W(), clContext);
+    _tables[FarSubdivisionTables::V_W]   = new OsdCLTable(subdivisionTables->Get_V_W(), clContext);
 
-    if (farTables->GetNumTables() > 5) {
-        _tables[FarSubdivisionTables::F_IT]  = new OsdCLTable(farTables->Get_F_IT(), clContext);
-        _tables[FarSubdivisionTables::F_ITa] = new OsdCLTable(farTables->Get_F_ITa(), clContext);
+    if (subdivisionTables->GetNumTables() > 5) {
+        _tables[FarSubdivisionTables::F_IT]  = new OsdCLTable(subdivisionTables->Get_F_IT(), clContext);
+        _tables[FarSubdivisionTables::F_ITa] = new OsdCLTable(subdivisionTables->Get_F_ITa(), clContext);
     }
 
     // create hedit tables
-    FarVertexEditTables const *editTables = farMesh->GetVertexEdit();
-    if (editTables) {
-        int numEditBatches = editTables->GetNumBatches();
+    if (vertexEditTables) {
+        int numEditBatches = vertexEditTables->GetNumBatches();
         _editTables.reserve(numEditBatches);
         for (int i = 0; i < numEditBatches; ++i) {
             const FarVertexEditTables::VertexEditBatch & edit =
-                editTables->GetBatch(i);
+                vertexEditTables->GetBatch(i);
             _editTables.push_back(new OsdCLHEditTable(edit, clContext));
         }
     }
@@ -198,9 +195,11 @@ OsdCLComputeContext::GetCommandQueue() const {
 }
 
 OsdCLComputeContext *
-OsdCLComputeContext::Create(FarMesh<OsdVertex> const *farmesh, cl_context clContext) {
+OsdCLComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
+                            FarVertexEditTables const *vertexEditTables,
+                            cl_context clContext) {
 
-    return new OsdCLComputeContext(farmesh, clContext);
+    return new OsdCLComputeContext(subdivisionTables, vertexEditTables, clContext);
 }
 
 }  // end namespace OPENSUBDIV_VERSION

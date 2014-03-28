@@ -24,7 +24,6 @@
 
 #include "../version.h"
 
-#include "../far/mesh.h"
 #include "../far/subdivisionTables.h"
 #include "../osd/debug.h"
 #include "../osd/glslTransformFeedbackComputeContext.h"
@@ -118,25 +117,23 @@ OsdGLSLTransformFeedbackHEditTable::GetPrimvarWidth() const {
 // ----------------------------------------------------------------------------
 
 OsdGLSLTransformFeedbackComputeContext::OsdGLSLTransformFeedbackComputeContext(
-    FarMesh<OsdVertex> const *farMesh) :
+    FarSubdivisionTables const *subdivisionTables,
+    FarVertexEditTables const *vertexEditTables) :
     _vertexTexture(0), _varyingTexture(0) {
-
-    FarSubdivisionTables const * farTables =
-        farMesh->GetSubdivisionTables();
 
     // allocate 5 or 7 tables
     _tables.resize(7, 0);
 
-    _tables[FarSubdivisionTables::E_IT]  = new OsdGLSLTransformFeedbackTable(farTables->Get_E_IT(), GL_R32I);
-    _tables[FarSubdivisionTables::V_IT]  = new OsdGLSLTransformFeedbackTable(farTables->Get_V_IT(), GL_R32UI);
-    _tables[FarSubdivisionTables::V_ITa] = new OsdGLSLTransformFeedbackTable(farTables->Get_V_ITa(), GL_R32I);
-    _tables[FarSubdivisionTables::E_W]   = new OsdGLSLTransformFeedbackTable(farTables->Get_E_W(), GL_R32F);
-    _tables[FarSubdivisionTables::V_W]   = new OsdGLSLTransformFeedbackTable(farTables->Get_V_W(), GL_R32F);
+    _tables[FarSubdivisionTables::E_IT]  = new OsdGLSLTransformFeedbackTable(subdivisionTables->Get_E_IT(), GL_R32I);
+    _tables[FarSubdivisionTables::V_IT]  = new OsdGLSLTransformFeedbackTable(subdivisionTables->Get_V_IT(), GL_R32UI);
+    _tables[FarSubdivisionTables::V_ITa] = new OsdGLSLTransformFeedbackTable(subdivisionTables->Get_V_ITa(), GL_R32I);
+    _tables[FarSubdivisionTables::E_W]   = new OsdGLSLTransformFeedbackTable(subdivisionTables->Get_E_W(), GL_R32F);
+    _tables[FarSubdivisionTables::V_W]   = new OsdGLSLTransformFeedbackTable(subdivisionTables->Get_V_W(), GL_R32F);
 
-    if (farTables->GetNumTables() > 5) {
+    if (subdivisionTables->GetNumTables() > 5) {
         // catmark, bilinear
-        _tables[FarSubdivisionTables::F_IT]  = new OsdGLSLTransformFeedbackTable(farTables->Get_F_IT(), GL_R32UI);
-        _tables[FarSubdivisionTables::F_ITa] = new OsdGLSLTransformFeedbackTable(farTables->Get_F_ITa(), GL_R32I);
+        _tables[FarSubdivisionTables::F_IT]  = new OsdGLSLTransformFeedbackTable(subdivisionTables->Get_F_IT(), GL_R32UI);
+        _tables[FarSubdivisionTables::F_ITa] = new OsdGLSLTransformFeedbackTable(subdivisionTables->Get_F_ITa(), GL_R32I);
     } else {
         // loop
         _tables[FarSubdivisionTables::F_IT] = NULL;
@@ -144,12 +141,11 @@ OsdGLSLTransformFeedbackComputeContext::OsdGLSLTransformFeedbackComputeContext(
     }
 
     // create hedit tables
-    FarVertexEditTables const *editTables = farMesh->GetVertexEdit();
-    if (editTables) {
-        int numEditBatches = editTables->GetNumBatches();
+    if (vertexEditTables) {
+        int numEditBatches = vertexEditTables->GetNumBatches();
         _editTables.reserve(numEditBatches);
         for (int i = 0; i < numEditBatches; ++i) {
-            const FarVertexEditTables::VertexEditBatch & edit = editTables->GetBatch(i);
+            const FarVertexEditTables::VertexEditBatch & edit = vertexEditTables->GetBatch(i);
             _editTables.push_back(new OsdGLSLTransformFeedbackHEditTable(edit));
         }
     }
@@ -210,9 +206,10 @@ OsdGLSLTransformFeedbackComputeContext::SetKernelBundle(OsdGLSLTransformFeedback
 }
 
 OsdGLSLTransformFeedbackComputeContext *
-OsdGLSLTransformFeedbackComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
+OsdGLSLTransformFeedbackComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
+                                               FarVertexEditTables const *vertexEditTables) {
 
-    return new OsdGLSLTransformFeedbackComputeContext(farmesh);
+    return new OsdGLSLTransformFeedbackComputeContext(subdivisionTables, vertexEditTables);
 }
 
 void
