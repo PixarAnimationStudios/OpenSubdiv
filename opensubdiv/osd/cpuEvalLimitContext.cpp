@@ -85,9 +85,9 @@ OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarPatchTables const *patchTables
     
     // Copy the face-varying table if necessary    
     if (requireFVarData) {
-        _fvarwidth = patchTables->GetTotalFVarWidth();
+        _fvarwidth = patchTables->GetFVarData().GetFVarWidth();
         if (_fvarwidth>0) {
-            _fvarData = patchTables->GetFVarDataTable();
+            _fvarData = patchTables->GetFVarData().GetAllData();
         }
     }
     

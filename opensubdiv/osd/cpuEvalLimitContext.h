@@ -295,7 +295,7 @@ public:
     }
     
     /// Returns the face-varying data patch table
-    FarPatchTables::FVarDataTable const & GetFVarData() const {
+    std::vector<float> const & GetFVarData() const {
         return _fvarData;
     }
     
@@ -327,7 +327,7 @@ private:
     FarPatchTables::VertexValenceTable   _vertexValenceTable; // extra Gregory patch data buffers
     FarPatchTables::QuadOffsetTable      _quadOffsetTable;
 
-    FarPatchTables::FVarDataTable        _fvarData;
+    std::vector<float>                   _fvarData;
 
     FarPatchMap * _patchMap;           // map of the sub-patches given a face index
 

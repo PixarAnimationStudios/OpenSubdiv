@@ -73,11 +73,11 @@ protected:
     ///
     /// @param numPtexFaces     Number of ptex faces
     ///
-    /// @param totalFVarWidth   The width of the interleaved face-varying data
+    /// @param fvarWidth        The width of the interleaved face-varying data
     ///
     /// @return                 A new instance of FarPatchTables
     ///
-    FarPatchTables * Create( int maxlevel, int maxvalence, int numPtexFaces=0, int totalFVarWidth=0 );
+    FarPatchTables * Create( int maxlevel, int maxvalence, int numPtexFaces=0, int fvarWidth=0 );
 
 
     typedef std::vector<std::vector< HbrFace<T> *> > FacesList;
@@ -98,7 +98,7 @@ protected:
     ///
     /// @param numPtexFaces     Number of ptex faces
     ///
-    /// @param totalFVarWidth   The width of the interleaved face-varying data
+    /// @param fvarWidth   The width of the interleaved face-varying data
     ///
     /// @return                 A new instance of FarPatchTables
     ///
@@ -107,7 +107,7 @@ protected:
                                     std::vector<int> const & remapTable,
                                     int firstLevel=-1,
                                     int numPtexFaces=0,
-                                    int totalFVarWidth=0 );
+                                    int fvarWidth=0 );
 
 private:
 
@@ -152,7 +152,7 @@ private:
     static int getNumPatches( FarPatchTables::PatchArrayVector const & parrays );
 
     // Reserves tables based on the contents of the PatchArrayVector
-    static void allocateTables( FarPatchTables * tables, int fvarwidth );
+    static void allocateTables( FarPatchTables * tables, int nlevels, int fvarwidth );
 
     // A convenience container for the different types of feature adaptive patches
     template<class TYPE> struct PatchTypes {
@@ -288,7 +288,7 @@ FarPatchTablesFactory<T>::computeCornerPatchRotation( HbrFace<T> * f ) {
 
 // Reserves tables based on the contents of the PatchArrayVector
 template <class T> void
-FarPatchTablesFactory<T>::allocateTables( FarPatchTables * tables, int fvarwidth ) {
+FarPatchTablesFactory<T>::allocateTables( FarPatchTables * tables, int nlevels, int fvarwidth ) {
 
     int nverts = tables->GetNumControlVertices(),
         npatches = getNumPatches(tables->GetPatchArrayVector());
@@ -301,7 +301,11 @@ FarPatchTablesFactory<T>::allocateTables( FarPatchTables * tables, int fvarwidth
     tables->_paramTable.resize( npatches );
 
     if (fvarwidth>0) {
-        tables->_fvarTable.resize( npatches * 4 * fvarwidth );
+        tables->_fvarData._data.resize( npatches * 4 * fvarwidth );
+
+        if (nlevels >1) {
+            tables->_fvarData._offsets.resize( nlevels );
+        }
     }
 }
 
@@ -318,7 +322,8 @@ FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & fli
 
     int nv = isLoop ? 3 : 4;
 
-    int firstArray = firstLevel > -1 ? firstLevel : (int)flist.size()-1;
+    int firstArray = firstLevel > -1 ? firstLevel : (int)flist.size()-1,
+        nlevels = (int)flist.size()-firstArray;
 
     // Populate the patch array descriptors
 
@@ -339,18 +344,18 @@ FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & fli
         }
     }
 
-    result->_totalFVarWidth = fvarwidth;
+    result->_fvarData._fvarWidth = fvarwidth;
     result->_numPtexFaces = numPtexFaces;
 
     // Populate the patch / param / fvar tables
 
-    allocateTables( result, fvarwidth );
+    allocateTables( result, nlevels, fvarwidth );
 
     unsigned int  * iptr = &result->_patches[0];
     FarPatchParam * pptr = &result->_paramTable[0];
-    float         * fptr = fvarwidth>0 ? &result->_fvarTable[0] : 0;
+    float         * fptr = fvarwidth>0 ? &result->_fvarData._data[0] : 0;
 
-    for (int level=firstArray; level<(int)flist.size(); ++level) {
+    for (int level=firstArray, fvarOffset=0; level<(int)flist.size(); ++level) {
 
         for (int i=0; i<(int)flist[level].size(); ++i) {
             HbrFace<T> * f = flist[level][i];
@@ -365,12 +370,16 @@ FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & fli
             if (fvarwidth>0)
                 fptr = computeFVarData(f, fvarwidth, fptr, /*isAdaptive=*/false);
         }
+
+        if (fvarwidth>0 and (not result->_fvarData._offsets.empty())) {
+            result->_fvarData._offsets[level-firstArray] = (fvarOffset+=(int)flist[level].size()*4*fvarwidth);
+        }
     }
 
     return result;
 }
 
-// Feature adaptive mesh factory
+// PatchTables Factory
 template <class T>
 FarPatchTablesFactory<T>::FarPatchTablesFactory( HbrMesh<T> const * mesh, int nfaces,  std::vector<int> const & remapTable ) :
     _mesh(mesh),
@@ -665,6 +674,7 @@ FarPatchTablesFactory<T>::pushPatchArray( FarPatchTables::Descriptor desc,
     }
 }
 
+// Uniform mesh factory
 template <class T> FarPatchTables *
 FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, int numPtexFaces, int fvarwidth ) {
 
@@ -689,11 +699,11 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, int numPtexFaces
         pushPatchArray( *it, parray, _patchCtr.getValue(*it), &voffset, &poffset, &qoffset );
     }
 
-    result->_totalFVarWidth = fvarwidth;
+    result->_fvarData._fvarWidth = fvarwidth;
     result->_numPtexFaces = numPtexFaces;
 
     // Allocate various tables
-    allocateTables( result, fvarwidth );
+    allocateTables( result, 0, fvarwidth );
 
     if ((_patchCtr.G > 0) or (_patchCtr.GB > 0)) { // Quad-offsets tables (for Gregory patches)
         result->_quadOffsetTable.resize( _patchCtr.G*4 + _patchCtr.GB*4 );
@@ -717,7 +727,7 @@ FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, int numPtexFaces
         pptrs.getValue( *it ) = &result->_paramTable[pa->GetPatchIndex()];
 
         if (fvarwidth>0)
-            fptrs.getValue( *it ) = &result->_fvarTable[pa->GetPatchIndex() * 4 * fvarwidth];
+            fptrs.getValue( *it ) = &result->_fvarData._data[pa->GetPatchIndex() * 4 * fvarwidth];
     }
 
     FarPatchTables::QuadOffsetTable::value_type *quad_G_C0_P = _patchCtr.G>0 ? &result->_quadOffsetTable[0] : 0;
@@ -1294,7 +1304,7 @@ FarPatchTablesFactory<T>::Splice(FarMeshVector const &meshes,
     int totalQuadOffset0 = 0;
     int totalQuadOffset1 = 0;
     int totalFVarData = 0;
-    int totalFVarWidth = 0;
+    int fvarWidth = 0;
 
     std::vector<int> vertexOffsets;
     std::vector<int> gregoryQuadOffsets;
@@ -1338,7 +1348,7 @@ FarPatchTablesFactory<T>::Splice(FarMeshVector const &meshes,
         numGregoryPatches.push_back(nGregory);
         gregoryQuadOffsets.push_back(totalQuadOffset0);
 
-        totalFVarData += (int)ptables->GetFVarDataTable().size();
+        totalFVarData += (int)ptables->GetFVarData()._data.size();
         numTotalIndices += ptables->GetNumControlVertices();
 
         // note: some prims may not have vertex valence table, but still need a space
@@ -1347,8 +1357,8 @@ FarPatchTablesFactory<T>::Splice(FarMeshVector const &meshes,
             ? (int)meshes[i]->GetNumVertices()
             : (int)ptables->_vertexValenceTable.size()/(2*ptables->_maxValence+1);
 
-        // totalFVarWidth has to be same for all meshes.
-        totalFVarWidth = meshes[i]->GetPatchTables()->GetTotalFVarWidth();
+        // fvarWidth has to be same for all meshes.
+        fvarWidth = meshes[i]->GetPatchTables()->GetFVarData().GetFVarWidth();
     }
 
     FarPatchTables *result = new FarPatchTables(maxValence);
@@ -1363,7 +1373,7 @@ FarPatchTablesFactory<T>::Splice(FarMeshVector const &meshes,
     }
 
     // Allocate fvardata table
-    result->_fvarTable.resize(totalFVarData);
+    result->_fvarData._data.resize(totalFVarData);
 
     // splice tables
     // assuming input farmeshes have dense patchtables
@@ -1447,32 +1457,38 @@ FarPatchTablesFactory<T>::Splice(FarMeshVector const &meshes,
     result->_numPtexFaces = numPtexFaces;
 
     // merge fvardata table
-    if (totalFVarWidth > 0) {
+    if (fvarWidth > 0) {
 
-        FarPatchTables::FVarDataTable::iterator FV_IT = result->_fvarTable.begin();
+        std::vector<float>::iterator FV_IT = result->_fvarData._data.begin();
 
         for (FarPatchTables::Descriptor::iterator it =
             FarPatchTables::Descriptor::begin(FarPatchTables::Descriptor::ANY);
                 it != FarPatchTables::Descriptor::end(); ++it) {
 
             for (size_t i = 0; i < meshes.size(); ++i) {
+
                 FarPatchTables const *ptables = meshes[i]->GetPatchTables();
                 FarPatchTables::PatchArray const *parray = ptables->GetPatchArray(*it);
                 FarSubdivisionTables::Scheme scheme = meshes[i]->GetSubdivisionTables()->GetScheme();
+
                 if (parray) {
+
                     int nv = (scheme == FarSubdivisionTables::LOOP) ? 3 : 4;
-                    int width = ptables->GetTotalFVarWidth() * nv; // for each quads or tris
-                    FarPatchTables::FVarDataTable::const_iterator begin =
-                        ptables->_fvarTable.begin() + parray->GetPatchIndex() * width;
-                    FarPatchTables::FVarDataTable::const_iterator end =
+                    int width = ptables->GetFVarData().GetFVarWidth() * nv; // for each quads or tris
+
+                    std::vector<float>::const_iterator begin =
+                        ptables->_fvarData._data.begin() + parray->GetPatchIndex() * width;
+
+                    std::vector<float>::const_iterator end =
                         begin + parray->GetNumPatches() * width;
+
                     FV_IT = std::copy(begin, end, FV_IT);
                 }
             }
         }
 
         // set fvarwidth
-        result->_totalFVarWidth = totalFVarWidth;
+        result->_fvarData._fvarWidth = fvarWidth;
     }
 
     return result;

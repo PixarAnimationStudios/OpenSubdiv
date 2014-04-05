@@ -104,7 +104,7 @@ inline
 OsdUtilPatchPartitioner::OsdUtilPatchPartitioner(FarPatchTables const *srcPatchTables,
                                                  std::vector<int> const &idsOnPtexFaces) :
         _patchTables(FarPatchTables::PatchArrayVector(),
-                     FarPatchTables::PTable(), NULL, NULL, NULL, NULL, 0)
+                     FarPatchTables::PTable(), NULL, NULL, NULL, NULL, 0, 0)
 {
     int numPartitions = 0;
     for (int i = 0; i < (int)idsOnPtexFaces.size(); ++i) {
@@ -200,6 +200,7 @@ OsdUtilPatchPartitioner::OsdUtilPatchPartitioner(FarPatchTables const *srcPatchT
                                   &newQuadOffsetTable,
                                   &newPatchParamTable,
                                   NULL,
+                                  0,
                                   srcPatchTables->GetMaxValence());
 }
 

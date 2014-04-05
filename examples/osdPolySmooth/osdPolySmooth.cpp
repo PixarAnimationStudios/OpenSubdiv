@@ -568,7 +568,7 @@ MStatus convertOsdFarToMayaMeshData(
     // Attach UVs (if present)
     // ASSUMPTION: Only tracking UVs as FVar data.  Will need to change this
     // ASSUMPTION: OSD has a unique UV for each face-vertex
-    int fvarTotalWidth = farMesh->GetPatchTables()->GetTotalFVarWidth();
+    int fvarTotalWidth = farMesh->GetPatchTables()->GetFVarData().GetFVarWidth();
 
     if (fvarTotalWidth > 0) {
 
@@ -584,8 +584,8 @@ MStatus convertOsdFarToMayaMeshData(
         int expectedFvarTotalWidth = numUVSets*2 + totalColorSetChannels;
         assert(fvarTotalWidth == expectedFvarTotalWidth);
 
-        const OpenSubdiv::FarPatchTables::FVarDataTable &fvarDataTable =  farPatchTables->GetFVarDataTable();
-        if (fvarDataTable.size() != expectedFvarTotalWidth*faceConnects.length()) {
+        std::vector<float> const &fvarData =  farPatchTables->GetFVarData().GetAllData();
+        if (fvarData.size() != expectedFvarTotalWidth*faceConnects.length()) {
             MCHECKERR(MS::kFailure, "Incorrect face-varying table length");
         }
 
@@ -602,8 +602,8 @@ MStatus convertOsdFarToMayaMeshData(
 
             for(unsigned int vertid=0; vertid < faceConnects.length(); vertid++) {
                 int fvarItem = vertid*fvarTotalWidth + uvSetIndex*2; // stride per vertex is the fvarTotalWidth
-                uCoord[vertid] = fvarDataTable[fvarItem];
-                vCoord[vertid] = fvarDataTable[fvarItem+1];
+                uCoord[vertid] = fvarData[fvarItem];
+                vCoord[vertid] = fvarData[fvarItem+1];
             }
             // Assign UV buffer and map the uvids for each face-vertex
             if (uvSetIndex > 0) {
@@ -629,7 +629,7 @@ MStatus convertOsdFarToMayaMeshData(
                 int fvarItem = vertid*fvarTotalWidth + colorSetRelativeStartIndex;
                 int nchannels = colorSetChannels[colorSetIndex];
                 for (int channel=0; channel<nchannels; ++channel) {
-                    colorArray[vertid][channel] = fvarDataTable[fvarItem+channel];
+                    colorArray[vertid][channel] = fvarData[fvarItem+channel];
                 }
             }
 
