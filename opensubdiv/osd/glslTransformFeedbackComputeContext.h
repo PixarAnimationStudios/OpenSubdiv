@@ -104,7 +104,7 @@ public:
     /// @param vertexEditTables the FarVertexEditTables used for this Context.
     ///
     static OsdGLSLTransformFeedbackComputeContext * Create(FarSubdivisionTables const *subdivisionTables,
-                                                           FarVertexEditTables const *vertexEditTabes);
+                                                           FarVertexEditTables const *vertexEditTables);
 
     /// Destructor
     virtual ~OsdGLSLTransformFeedbackComputeContext();
