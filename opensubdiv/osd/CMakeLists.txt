@@ -35,7 +35,7 @@ endif()
 
 if( OPENGL_FOUND )
 
-    if (NOT OPENGL_INCLUDE_DIR STREQUAL "")
+    if (NOT "${OPENGL_INCLUDE_DIR}" STREQUAL "")
         include_directories("${OPENGL_INCLUDE_DIR}")
     endif()
     if (GLEW_FOUND)

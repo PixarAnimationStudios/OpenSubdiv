@@ -50,7 +50,7 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
         gl_hud.h
     )
 
-    if (NOT OPENGL_INCLUDE_DIR STREQUAL "")
+    if (NOT "${OPENGL_INCLUDE_DIR}" STREQUAL "")
         include_directories("${OPENGL_INCLUDE_DIR}")
     endif()
 
