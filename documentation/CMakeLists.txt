@@ -26,12 +26,12 @@
 # Doxygen documentation
 if (DOXYGEN_FOUND)
 
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/OpenSubdiv.doxy ${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy @ONLY)
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/OpenSubdiv.doxy" "${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy" @ONLY)
 
     add_custom_target(doc_doxy
-            ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy  
+            ${DOXYGEN_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy"
         WORKING_DIRECTORY 
-            ${CMAKE_BINARY_DIR}/public_headers/
+            "${CMAKE_BINARY_DIR}/public_headers/"
         DEPENDS
             public_headers
         COMMENT 
@@ -42,9 +42,9 @@ if (DOXYGEN_FOUND)
 
     install( 
         DIRECTORY
-            ${CMAKE_CURRENT_BINARY_DIR}/doxy_html
+            "${CMAKE_CURRENT_BINARY_DIR}/doxy_html"
         DESTINATION 
-            ${CMAKE_DOCDIR_BASE}
+            "${CMAKE_DOCDIR_BASE}"
     )
 
 else()
@@ -93,37 +93,37 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
     foreach(src ${RST_FILES})
         get_filename_component(BASENAME ${src} NAME_WE)
 
-        set(infile ${CMAKE_CURRENT_SOURCE_DIR}/${src})
-        set(outfile ${CMAKE_CURRENT_BINARY_DIR}/${BASENAME}.html)
+        set(infile "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+        set(outfile "${CMAKE_CURRENT_BINARY_DIR}/${BASENAME}.html")
 
         add_custom_command(
             OUTPUT 
-                ${outfile} 
+                "${outfile}"
             COMMAND 
-                ${RST2HTML_EXECUTABLE}
+                "${RST2HTML_EXECUTABLE}"
             ARGS 
                 --date
                 --time
                 --no-xml-declaration 
                 --initial-header-level=3
                 --strip-comments
-                --template=${CMAKE_CURRENT_SOURCE_DIR}/rst_template.txt
+                --template="${CMAKE_CURRENT_SOURCE_DIR}/rst_template.txt"
                 --stylesheet=css/rst.css
                 --link-stylesheet
-                ${infile} ${outfile} 
+                "${infile}" "${outfile}"
             DEPENDS
-                ${infile} rst_template.txt nav_template.txt
+                "${infile}" rst_template.txt nav_template.txt
         )
 
-        add_custom_target(${src} DEPENDS ${outfile})
+        add_custom_target(${src} DEPENDS "${outfile}")
 
         list(APPEND RST_TARGETS ${src})
 
         install( 
             FILES
-                ${outfile}
+                "${outfile}"
             DESTINATION 
-                ${CMAKE_DOCDIR_BASE}
+                "${CMAKE_DOCDIR_BASE}"
             PERMISSIONS 
                 OWNER_READ GROUP_READ WORLD_READ 
         )
@@ -132,27 +132,27 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
 
     # copy html files to the build area
     foreach(src ${HTML_FILES})
-        set(infile ${CMAKE_CURRENT_SOURCE_DIR}/${src})
-        set(outfile ${CMAKE_CURRENT_BINARY_DIR}/${src})
+        set(infile "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+        set(outfile "${CMAKE_CURRENT_BINARY_DIR}/${src}")
 
         add_custom_command(
             OUTPUT
-                ${outfile}
+                "${outfile}"
             COMMAND
-                ${CMAKE_COMMAND}
+                "${CMAKE_COMMAND}"
             ARGS
-                -E copy ${infile} ${outfile}
+                -E copy "${infile}" "${outfile}"
         )
 
-        add_custom_target( ${src} DEPENDS ${outfile})
+        add_custom_target( ${src} DEPENDS "${outfile}")
 
         list(APPEND HTML_TARGETS ${src})
 
         install( 
             FILES
-                ${outfile}
+                "${outfile}"
             DESTINATION 
-                ${CMAKE_DOCDIR_BASE}
+                "${CMAKE_DOCDIR_BASE}"
         )
     endforeach()
 
@@ -160,37 +160,37 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
     # documentation can be read without an install
     add_custom_target(doc_html_images
         COMMAND
-            ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/images ${CMAKE_CURRENT_BINARY_DIR}/images
+            "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/images" "${CMAKE_CURRENT_BINARY_DIR}/images"
     )
 
     add_custom_target(doc_html_css
         COMMAND
-            ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/css ${CMAKE_CURRENT_BINARY_DIR}/css
+            ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/css" "${CMAKE_CURRENT_BINARY_DIR}/css"
     )
 
     add_custom_target(doc_tipuesearch
         COMMAND
-            ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/tipuesearch ${CMAKE_CURRENT_BINARY_DIR}/tipuesearch
+            ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/tipuesearch" "${CMAKE_CURRENT_BINARY_DIR}/tipuesearch"
     )
 
     # build search index and insert navigation tab
     add_custom_target(search_index
         COMMAND
-            ${PYTHON_EXECUTABLE} 
-            ${CMAKE_CURRENT_SOURCE_DIR}/processHtml.py 
-            ${CMAKE_CURRENT_BINARY_DIR} 
-            ${CMAKE_CURRENT_SOURCE_DIR}/nav_template.txt
+            "${PYTHON_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/processHtml.py"
+            "${CMAKE_CURRENT_BINARY_DIR}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/nav_template.txt"
         DEPENDS 
-            ${HTML_TARGETS} 
-            ${RST_TARGETS} 
+            ${HTML_TARGETS}
+            ${RST_TARGETS}
             doc_tipuesearch
     )
 
     add_custom_target(doc_html 
         DEPENDS 
             search_index 
-            ${HTML_TARGETS} 
-            ${RST_TARGETS} 
+            ${HTML_TARGETS}
+            ${RST_TARGETS}
             doc_html_images 
             doc_html_css 
             doc_tipuesearch
@@ -198,24 +198,24 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
 
     install( 
         DIRECTORY
-            ${CMAKE_CURRENT_BINARY_DIR}/tipuesearch
+            "${CMAKE_CURRENT_BINARY_DIR}/tipuesearch"
         DESTINATION 
-            ${CMAKE_DOCDIR_BASE}
+            "${CMAKE_DOCDIR_BASE}"
     )
 
 
     install( 
         DIRECTORY
-            ${CMAKE_CURRENT_BINARY_DIR}/images
+            "${CMAKE_CURRENT_BINARY_DIR}/images"
         DESTINATION 
-            ${CMAKE_DOCDIR_BASE}
+            "${CMAKE_DOCDIR_BASE}"
     )
 
     install( 
         DIRECTORY
-            ${CMAKE_CURRENT_BINARY_DIR}/css
+            "${CMAKE_CURRENT_BINARY_DIR}/css"
         DESTINATION 
-            ${CMAKE_DOCDIR_BASE}
+            "${CMAKE_DOCDIR_BASE}"
     )
 
     list(APPEND DOC_TARGETS doc_html)

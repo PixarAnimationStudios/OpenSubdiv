@@ -25,33 +25,33 @@
 # *** glStencilViewer ***
 
 set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
-    ${GLFW_LIBRARIES}
+    "${OSD_LINK_TARGET}"
+    "${GLFW_LIBRARIES}"
 )
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${PROJECT_SOURCE_DIR}/regression
-    ${GLFW_INCLUDE_DIR}
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${PROJECT_SOURCE_DIR}/regression"
+    "${GLFW_INCLUDE_DIR}"
 )
 
 if ( GLEW_FOUND )
-    include_directories(${GLEW_INCLUDE_DIR})
-    list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
+    include_directories("${GLEW_INCLUDE_DIR}")
+    list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
 endif()
 
 if( OPENCL_FOUND )
-    include_directories(${OPENCL_INCLUDE_DIRS})
+    include_directories("${OPENCL_INCLUDE_DIRS}")
 endif()
 
 _add_glfw_executable(glStencilViewer
     main.cpp
-    ${INC_FILES}
+    "${INC_FILES}"
     $<TARGET_OBJECTS:examples_common_obj>
 )
 
 target_link_libraries(glStencilViewer
-    ${PLATFORM_LIBRARIES}
+    "${PLATFORM_LIBRARIES}"
 )
 
-install(TARGETS glStencilViewer DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS glStencilViewer DESTINATION "${CMAKE_BINDIR_BASE}")

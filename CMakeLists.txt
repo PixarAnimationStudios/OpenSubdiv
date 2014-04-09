@@ -44,7 +44,7 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 #-------------------------------------------------------------------------------
 # Specify the default install path
 if (NOT DEFINED CMAKE_INSTALL_PREFIX)
-    SET( CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/ )
+    SET( CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/" )
 endif()
 
 if (NOT DEFINED CMAKE_INCDIR_BASE)
@@ -67,37 +67,37 @@ if (NOT DEFINED CMAKE_DOCDIR_BASE)
     set( CMAKE_DOCDIR_BASE share/doc/opensubdiv )
 else()
     if (IS_ABSOLUTE ${CMAKE_DOCDIR_BASE})
-        set( CMAKE_DOCDIR_BASE ${CMAKE_DOCDIR_BASE} )
+        set( CMAKE_DOCDIR_BASE "${CMAKE_DOCDIR_BASE}" )
     else()
-        set( CMAKE_DOCDIR_BASE ${CMAKE_INSTALL_PREFIX}/${CMAKE_DOCDIR_BASE} )
+        set( CMAKE_DOCDIR_BASE "${CMAKE_INSTALL_PREFIX}/${CMAKE_DOCDIR_BASE}" )
     endif()
 endif()
 
 # Allow install path to be overridden for cross-compile builds
 if(LIBRARY_OUTPUT_PATH_ROOT)
-    SET( CMAKE_INSTALL_PREFIX ${LIBRARY_OUTPUT_PATH_ROOT}/ )
+    SET( CMAKE_INSTALL_PREFIX "${LIBRARY_OUTPUT_PATH_ROOT}/" )
 endif()
 
 # Set the directory where the executables will be stored.
 set(EXECUTABLE_OUTPUT_PATH
-    ${PROJECT_BINARY_DIR}/bin
+    "${PROJECT_BINARY_DIR}/bin"
     CACHE PATH
     "Directory where executables will be stored"
 )
 
 # Set the directory where the libraries will be stored.
 set(LIBRARY_OUTPUT_PATH
-    ${PROJECT_BINARY_DIR}/lib
+    "${PROJECT_BINARY_DIR}/lib"
     CACHE PATH
     "Directory where all libraries will be stored"
 )
 
 # Specify the list of directories to search for cmake modules.
 set(CMAKE_MODULE_PATH
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmake
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
 )
 
-list(APPEND CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
+list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
 # add the automatically determined parts of the RPATH
 # which point to directories outside the build tree to the install RPATH
@@ -463,19 +463,19 @@ add_custom_target( public_headers )
 
 macro(_add_doxy_headers headers)
     if (NOT NO_DOC AND DOXYGEN_FOUND)
-        file(RELATIVE_PATH path ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR} )
+        file(RELATIVE_PATH path "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" )
 
         string(REPLACE  "/" "_" targetpath ${path})
 
         foreach (header ${headers})
 
-            set(infile ${CMAKE_CURRENT_SOURCE_DIR}/${header})
-            set(outfile ${CMAKE_BINARY_DIR}/public_headers/${path}/${header})
+            set(infile "${CMAKE_CURRENT_SOURCE_DIR}/${header}")
+            set(outfile "${CMAKE_BINARY_DIR}/public_headers/${path}/${header}")
             set(targetname "${targetpath}_${header}")
 
             add_custom_command(
                 OUTPUT
-                    ${outfile}
+                    "${outfile}"
                 COMMAND
                     ${CMAKE_COMMAND}
                 ARGS
@@ -484,7 +484,7 @@ macro(_add_doxy_headers headers)
                     ${infile}
             )
 
-            add_custom_target(${targetname} DEPENDS ${outfile})
+            add_custom_target(${targetname} DEPENDS "${outfile}")
 
             #set_target_properties(${targetname} PROPERTIES FOLDER "public_headers/")
 
@@ -507,20 +507,20 @@ function(_stringify src_files varname)
 
     foreach(src_file ${src_files})
 
-        string(REGEX REPLACE ".*[.](.*)" "\\1" extension ${src_file})
+        string(REGEX REPLACE ".*[.](.*)" "\\1" extension "${src_file}")
 
         if(NOT ${extension} STREQUAL "cu")
 
-            string(REGEX REPLACE "(.*)[.].*" "\\1.gen.h" inc_file ${src_file})
-            list(APPEND inc_files ${inc_file})
+            string(REGEX REPLACE "(.*)[.].*" "\\1.gen.h" inc_file "${src_file}")
+            list(APPEND inc_files "${inc_file}")
 
             add_custom_command(
                 OUTPUT 
-                    ${CMAKE_CURRENT_BINARY_DIR}/${inc_file}
+                    "${CMAKE_CURRENT_BINARY_DIR}/${inc_file}"
                 COMMAND 
-                    stringify ${CMAKE_CURRENT_SOURCE_DIR}/${src_file} ${CMAKE_CURRENT_BINARY_DIR}/${inc_file}
+                    stringify "${CMAKE_CURRENT_SOURCE_DIR}/${src_file}" "${CMAKE_CURRENT_BINARY_DIR}/${inc_file}"
                 DEPENDS 
-                    stringify ${CMAKE_CURRENT_SOURCE_DIR}/${src_file}
+                    stringify "${CMAKE_CURRENT_SOURCE_DIR}/${src_file}"
             )
 
         endif()
@@ -549,7 +549,7 @@ macro(_add_possibly_cuda_executable target)
     endif()
 
     if(CMAKE_COMPILER_IS_ICC)
-        target_link_libraries(${target} ${ICC_LIBRARIES})
+        target_link_libraries(${target} "${ICC_LIBRARIES}")
     endif()
 endmacro()
 

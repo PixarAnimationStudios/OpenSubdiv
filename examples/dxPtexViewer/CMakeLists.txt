@@ -29,16 +29,16 @@ set(SHADER_FILES
 )
 
 set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
-    ${DXSDK_LIBRARIES}
-    ${PTEX_LIBRARY}
+    "${OSD_LINK_TARGET}"
+    "${DXSDK_LIBRARIES}"
+    "${PTEX_LIBRARY}"
 )
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${PROJECT_SOURCE_DIR}/regression
-    ${DXSDK_INCLUDE_DIR}
-    ${PTEX_INCLUDE_DIR}
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${PROJECT_SOURCE_DIR}/regression"
+    "${DXSDK_INCLUDE_DIR}"
+    "${PTEX_INCLUDE_DIR}"
 )
 
 set(SOURCE_FILES
@@ -47,17 +47,17 @@ set(SOURCE_FILES
 
 _stringify("${SHADER_FILES}" INC_FILES)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 _add_possibly_cuda_executable(dxPtexViewer WIN32
-    ${SOURCE_FILES}
-    ${SHADER_FILES}
-    ${INC_FILES}
+    "${SOURCE_FILES}"
+    "${SHADER_FILES}"
+    "${INC_FILES}"
     $<TARGET_OBJECTS:examples_common_obj>
 )
 
 target_link_libraries(dxPtexViewer
-    ${PLATFORM_LIBRARIES}
+    "${PLATFORM_LIBRARIES}"
 )
 
-install(TARGETS dxPtexViewer DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS dxPtexViewer DESTINATION "${CMAKE_BINDIR_BASE}")

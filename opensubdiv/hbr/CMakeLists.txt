@@ -46,8 +46,14 @@ set(PUBLIC_HEADER_FILES
 #-------------------------------------------------------------------------------
 _add_doxy_headers( "${PUBLIC_HEADER_FILES}" )
 
-install( FILES ${PUBLIC_HEADER_FILES}
-         DESTINATION ${CMAKE_INCDIR_BASE}/hbr
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+install( 
+    FILES
+        ${PUBLIC_HEADER_FILES}
+    DESTINATION 
+        "${CMAKE_INCDIR_BASE}/hbr"
+    PERMISSIONS
+        OWNER_READ
+        GROUP_READ
+        WORLD_READ )
 
 #-------------------------------------------------------------------------------

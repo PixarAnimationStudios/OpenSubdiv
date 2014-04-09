@@ -105,13 +105,13 @@ elseif (UNIX)
 
     get_filename_component( OPENCL_LIB_DIR ${OPENCL_LIBRARIES} PATH )
 
-    get_filename_component( _OPENCL_INC_CAND ${OPENCL_LIB_DIR}/../../include ABSOLUTE )
+    get_filename_component( _OPENCL_INC_CAND "${OPENCL_LIB_DIR}/../../include" ABSOLUTE )
 
     find_path( OPENCL_INCLUDE_DIRS
         NAMES
             CL/cl.h
         PATHS
-            ${_OPENCL_INC_CAND}
+            "${_OPENCL_INC_CAND}"
             "/usr/local/cuda/include"
             "/opt/AMDAPP/include"
             ENV OpenCL_INCPATH
@@ -121,7 +121,7 @@ elseif (UNIX)
         NAMES
             CL/cl.hpp
         PATHS
-            ${_OPENCL_INC_CAND}
+            "${_OPENCL_INC_CAND}"
             "/usr/local/cuda/include"
             "/opt/AMDAPP/include"
             ENV OpenCL_INCPATH

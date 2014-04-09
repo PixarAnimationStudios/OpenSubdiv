@@ -32,10 +32,10 @@ set(SHADER_FILES
 )
 
 set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
-    ${OPENGL_LIBRARY}
-    ${GLFW_LIBRARIES}
-    ${PTEX_LIBRARY}
+    "${OSD_LINK_TARGET}"
+    "${OPENGL_LIBRARY}"
+    "${GLFW_LIBRARIES}"
+    "${PTEX_LIBRARY}"
 )
 
 if (APPLE)
@@ -43,26 +43,26 @@ if (APPLE)
 endif()
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${PROJECT_SOURCE_DIR}/regression
-    ${GLFW_INCLUDE_DIR}
-    ${PTEX_INCLUDE_DIR}
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${PROJECT_SOURCE_DIR}/regression"
+    "${GLFW_INCLUDE_DIR}"
+    "${PTEX_INCLUDE_DIR}"
 )
 
 if ( GLEW_FOUND )
-    include_directories(${GLEW_INCLUDE_DIR})
-    list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
+    include_directories("${GLEW_INCLUDE_DIR}")
+    list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
 endif()
 
 if( OPENCL_FOUND )
-    include_directories(${OPENCL_INCLUDE_DIRS})
+    include_directories("${OPENCL_INCLUDE_DIRS}")
 endif()
 
 # optional dependency - enables screenshots
 find_package(PNG)
 if (PNG_FOUND)
-    include_directories(${PNG_INCLUDE_DIRS})
-    list(APPEND PLATFORM_LIBRARIES ${PNG_LIBRARIES})
+    include_directories("${PNG_INCLUDE_DIRS}")
+    list(APPEND PLATFORM_LIBRARIES "${PNG_LIBRARIES}")
     add_definitions(-DOPENSUBDIV_HAS_PNG)
 endif()
 
@@ -70,18 +70,18 @@ endif()
 
 _stringify("${SHADER_FILES}" INC_FILES)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 #-------------------------------------------------------------------------------
 _add_glfw_executable(ptexViewer
     viewer.cpp
-    ${SHADER_FILES}
-    ${INC_FILES}
+    "${SHADER_FILES}"
+    "${INC_FILES}"
     $<TARGET_OBJECTS:examples_common_obj>
 )
 
 target_link_libraries(ptexViewer
-    ${PLATFORM_LIBRARIES}
+    "${PLATFORM_LIBRARIES}"
 )
 
-install(TARGETS ptexViewer DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS ptexViewer DESTINATION "${CMAKE_BINDIR_BASE}")

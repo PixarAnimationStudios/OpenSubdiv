@@ -56,11 +56,11 @@
 #
 
 set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
+    "${OSD_LINK_TARGET}"
 )
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
 )
 
 _add_executable(tessellateObjFile
@@ -70,8 +70,8 @@ _add_executable(tessellateObjFile
                                           
 target_link_libraries(tessellateObjFile
     osdutil
-    ${PLATFORM_LIBRARIES}
+    "${PLATFORM_LIBRARIES}"
 )
 
-install(TARGETS tessellateObjFile DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS tessellateObjFile DESTINATION "${CMAKE_BINDIR_BASE}")
 

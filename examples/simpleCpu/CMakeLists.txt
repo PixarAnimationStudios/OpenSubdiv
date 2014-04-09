@@ -29,27 +29,27 @@ set(SHADER_FILES
 )
 
 set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
-    ${OPENGL_LIBRARY}
-    ${GLFW_LIBRARIES}
+    "${OSD_LINK_TARGET}"
+    "${OPENGL_LIBRARY}"
+    "${GLFW_LIBRARIES}"
 )
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${PROJECT_SOURCE_DIR}/regression
-    ${GLFW_INCLUDE_DIR}
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${PROJECT_SOURCE_DIR}/regression"
+    "${GLFW_INCLUDE_DIR}"
 )
 
 if ( GLEW_FOUND )
-    include_directories(${GLEW_INCLUDE_DIR})
-    list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
+    include_directories("${GLEW_INCLUDE_DIR}")
+    list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
 endif()
 
 #-------------------------------------------------------------------------------
 
 _stringify("${SHADER_FILES}" INC_FILES)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 _add_glfw_executable(simpleCpu
     main.cpp
@@ -59,8 +59,8 @@ _add_glfw_executable(simpleCpu
 )
 
 target_link_libraries(simpleCpu
-    ${PLATFORM_LIBRARIES}
+    "${PLATFORM_LIBRARIES}"
 )
 
-install(TARGETS simpleCpu DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS simpleCpu DESTINATION "${CMAKE_BINDIR_BASE}")
 

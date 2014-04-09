@@ -37,16 +37,16 @@ if(NOT MAYA_FOUND OR NOT PTEX_FOUND)
 endif()
 
 set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
-    ${OPENGL_LIBRARY}
-    ${GLEW_LIBRARY}
+    "${OSD_LINK_TARGET}"
+    "${OPENGL_LIBRARY}"
+    "${GLEW_LIBRARY}"
 )
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${MAYA_INCLUDE_DIRS}
-    ${GLEW_INCLUDE_DIR}
-    ${PTEX_INCLUDE_DIR}
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${MAYA_INCLUDE_DIRS}"
+    "${GLEW_INCLUDE_DIR}"
+    "${PTEX_INCLUDE_DIR}"
 )
 
 set(SHADER_FILES
@@ -93,11 +93,8 @@ endif(WIN32)
 #-------------------------------------------------------------------------------
 # CUDA code & dependencies
 if( CUDA_FOUND )
-    list(APPEND SOURCE_FILES
-        cudaUtil.cpp
-    )
-    include_directories( ${CUDA_INCLUDE_DIRS} 
-    )
+    list(APPEND SOURCE_FILES cudaUtil.cpp)
+    include_directories( ${CUDA_INCLUDE_DIRS} )
 endif()
 
 #-------------------------------------------------------------------------------
@@ -115,10 +112,10 @@ foreach(shader_file ${SHADER_FILES})
     list(APPEND INC_FILES ${inc_file})
 
     add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
-        COMMAND stringify ${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}
-            ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
-        DEPENDS stringify ${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}
+        OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}"
+        COMMAND stringify "${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}"
+        DEPENDS stringify "${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}"
     )
 endforeach()
 
@@ -128,10 +125,10 @@ add_definitions(
 )
 
 add_library(maya_ptex_plugin SHARED
-    ${SOURCE_FILES}
-    ${HEADER_FILES}
-    ${SHADER_FILES}
-    ${INC_FILES}
+    "${SOURCE_FILES}"
+    "${HEADER_FILES}"
+    "${SHADER_FILES}"
+    "${INC_FILES}"
 )
 
 set_target_properties(maya_ptex_plugin
@@ -143,11 +140,11 @@ set_target_properties(maya_ptex_plugin
 )
 
 target_link_libraries(maya_ptex_plugin
-    ${MAYA_Foundation_LIBRARY}
-    ${MAYA_OpenMaya_LIBRARY}
-    ${MAYA_OpenMayaRender_LIBRARY}
-    ${MAYA_OpenMayaUI_LIBRARY}
-    ${PLATFORM_LIBRARIES}
+    "${MAYA_Foundation_LIBRARY}"
+    "${MAYA_OpenMaya_LIBRARY}"
+    "${MAYA_OpenMayaRender_LIBRARY}"
+    "${MAYA_OpenMayaUI_LIBRARY}"
+    "${PLATFORM_LIBRARIES}"
 )
 
-install(TARGETS maya_ptex_plugin DESTINATION ${CMAKE_PLUGINDIR_BASE})
+install(TARGETS maya_ptex_plugin DESTINATION "${CMAKE_PLUGINDIR_BASE}")

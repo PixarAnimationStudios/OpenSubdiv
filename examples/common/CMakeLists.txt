@@ -50,10 +50,10 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
         gl_hud.h
     )
 
-    include_directories(${OPENGL_INCLUDE_DIR})
+    include_directories("${OPENGL_INCLUDE_DIR}")
 
     if (GLEW_FOUND)
-        include_directories(${GLEW_INCLUDE_DIR})
+        include_directories("${GLEW_INCLUDE_DIR}")
     endif()
 
 endif()
@@ -69,16 +69,16 @@ if(DXSDK_FOUND)
         d3d11_hud.h
     )
 
-    include_directories(${DXSDK_INCLUDE_DIR})
+    include_directories("${DXSDK_INCLUDE_DIR}")
 
 endif()
 
 if( OPENCL_FOUND )
-    include_directories(${OPENCL_INCLUDE_DIRS})
+    include_directories("${OPENCL_INCLUDE_DIRS}")
 endif()
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
 )
 
 add_library(examples_common_obj
