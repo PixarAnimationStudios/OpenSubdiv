@@ -34,7 +34,10 @@ if( DXSDK_FOUND )
 endif()
 
 if( OPENGL_FOUND )
-    include_directories("${OPENGL_INCLUDE_DIR}")
+
+    if (NOT OPENGL_INCLUDE_DIR STREQUAL "")
+        include_directories("${OPENGL_INCLUDE_DIR}")
+    endif()
     if (GLEW_FOUND)
         include_directories("${GLEW_INCLUDE_DIR}")
     endif()
