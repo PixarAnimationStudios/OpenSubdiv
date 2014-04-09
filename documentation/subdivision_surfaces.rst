@@ -320,21 +320,57 @@ the :blue:`655` th. face of the subdivision mesh.
 Vertex Edits
 ************
 
-XXXX
+Vertex hierarchical edits can modify the value or the sharpness of primitive variables for vertices
+and sub-vertices anywhere in the subdivision hierarchy.
+
+.. image:: images/hedit_example1.png
+   :align: center
+   :height: 300
+   :target: images/hedit_example1.png
+
+The edits are performed using either an "add" or a "set" operator. "set" indicates the primitive
+variable value or sharpness is to be set directly to the values specified. "add" adds a value to the 
+normal result computed via standard subdivision rules. In other words, this operation allows value 
+offsets to be applied to the mesh at any level of the hierarchy.
+
+.. image:: images/hedit_example2.png
+   :align: center
+   :height: 300
+   :target: images/hedit_example2.png
 
 ----
 
 Edge Edits
 **********
 
-XXXX
+Edge hierarchical edits can only modify the sharpness of primitive variables for edges
+and sub-edges anywhere in the subdivision hierarchy. 
+
+.. image:: images/hedit_example4.png
+   :align: center
+   :height: 300
+   :target: images/hedit_example4.png
 
 ----
 
 Face Edits
 **********
 
-XXXX
+Face hierarchical edits can modify several properties of faces and sub-faces anywhere in the
+subdivision hierarchy.
+
+Modifiable properties include:
+    * The "set" or "add" operators modify the value of primitive variables associated with faces.
+    * The "hole" operation introduces holes (missing faces) into the subdivision mesh at any
+      level in the subdivision hierarchy. The faces will be deleted, and none of their children
+      will appear (you cannot "unhole" a face if any ancestor is a "hole"). This operation takes
+      no float or string arguments.
+
+.. image:: images/hedit_example5.png
+   :align: center
+   :height: 300
+   :target: images/hedit_example5.png
+
 
 ----
 
@@ -348,7 +384,9 @@ XXXX
 Uniform Subdivision
 ===================
 
-Applies a uniform refinement scheme to the coarse faces of a mesh.
+Applies a uniform refinement scheme to the coarse faces of a mesh. This is the most
+common solution employed to apply subdivision schemes to a control cage. The mesh
+converges closer to the limit surface with each iteration of the algorithm.
 
 .. image:: images/uniform.gif
    :align: center
@@ -360,15 +398,45 @@ Applies a uniform refinement scheme to the coarse faces of a mesh.
 Feature Adaptive Subdivision
 ============================
 
-Isolates extraordinary features by applying progressive refinement.
-
-.. image:: images/subdiv_faceindex.png
-   :align: center
-   :target: images/subdiv_faceindex.png
+Generates bi-cubic patches on the limit surface and applies a progressive refinement
+scheme in order to isolate non-C2 continuous extraordinary features.
 
 .. image:: images/adaptive.gif
    :align: center
    :width: 300
    :target: images/adaptive.gif
+
+----
+
+Uniform or Adaptive ?
+=====================
+
+Main features comparison:
+
++-------------------------------------------------------+--------------------------------------------------------+
+| Uniform                                               | Feature Adaptive                                       |
++=======================================================+========================================================+
+|                                                       |                                                        |
+| * Bilinear approximation                              | * Bicubic limit patches                                |
+|     * No tangents / no normals                        |     * Analytical tangents / normals                    |
+|     * No smooth shading around creases                |                                                        |
+|     * No animated displacements                       |                                                        |
+|                                                       |                                                        |
++-------------------------------------------------------+--------------------------------------------------------+
+| * Exponential geometry Growth                         | * Feature isolation growth close to linear             |
+|                                                       |                                                        |
++-------------------------------------------------------+--------------------------------------------------------+
+| * Boundary interpolation rules supported:             | * Boundary interpolation rules supported:              |
+|     * All vertex & varying rules supported dynamically|     * All vertex & varying rules supported dynamically |
+|     * All face-varying rules supported \              |     * Bilinear face-varying interpolation \            |
+|       statically at vertex locations (there is no \   |       supported statically                             |
+|       surface limit)                                  |     * Bi-cubic face-varying interpolation \            |
+|                                                       |       currently not supported                          |
+|                                                       |                                                        |
++-------------------------------------------------------+--------------------------------------------------------+
+| * No GPU shading implications                         | * Requires GPU composable shading                      |
+|                                                       |                                                        |
++-------------------------------------------------------+--------------------------------------------------------+
+
 
 
