@@ -120,11 +120,17 @@ OsdUtilPatchPartitioner::OsdUtilPatchPartitioner(FarPatchTables const *srcPatchT
         srcPatchTables->GetPatchTable();
     FarPatchTables::QuadOffsetTable const &srcQuadOffsetTable =
         srcPatchTables->GetQuadOffsetTable();
+    FarPatchTables::FVarData const &srcFVarData =
+        srcPatchTables->GetFVarData();
 
     // dst tables
     FarPatchTables::PatchParamTable newPatchParamTable;
     FarPatchTables::PTable newPTable;
     FarPatchTables::QuadOffsetTable newQuadOffsetTable;
+    std::vector<float> newFVarDataTable;
+    bool hasFVarData = !srcFVarData.GetAllData().empty() &&
+        srcFVarData.GetData(1) == NULL; // multi-level face-varying data not supported
+    int fvarWidth = hasFVarData ? srcFVarData.GetFVarWidth() : 0;
 
     // iterate over all patch
     for (FarPatchTables::PatchArrayVector::const_iterator paIt =
@@ -136,6 +142,7 @@ OsdUtilPatchPartitioner::OsdUtilPatchPartitioner(FarPatchTables const *srcPatchT
         int vertexOffset = (int)newPTable.size();
         int patchOffset = (int)newPatchParamTable.size();
         int quadOffsetOffset = (int)newQuadOffsetTable.size();
+        int fvarOffset = (int)newFVarDataTable.size();
 
         // shuffle this range in partition order
         std::vector<std::pair<int, int> > sortProxy(paIt->GetNumPatches());
@@ -176,6 +183,14 @@ OsdUtilPatchPartitioner::OsdUtilPatchPartitioner(FarPatchTables const *srcPatchT
                         srcQuadOffsetTable[patchIndex*4+j + quadOffsetOffset]);
                 }
             }
+
+            // reorder corresponding face-varying table entry
+            if (hasFVarData) {
+                for (int j = 0; j < 4 * fvarWidth; ++j) {
+                    newFVarDataTable.push_back(
+                        srcFVarData.GetAllData()[patchIndex*4*fvarWidth+j + fvarOffset]);
+                }
+            }
         }
 
         // split patch array
@@ -199,8 +214,8 @@ OsdUtilPatchPartitioner::OsdUtilPatchPartitioner(FarPatchTables const *srcPatchT
                                   &srcPatchTables->GetVertexValenceTable(),
                                   &newQuadOffsetTable,
                                   &newPatchParamTable,
-                                  NULL,
-                                  0,
+                                  hasFVarData ? &newFVarDataTable : NULL,
+                                  fvarWidth,
                                   srcPatchTables->GetMaxValence());
 }
 
