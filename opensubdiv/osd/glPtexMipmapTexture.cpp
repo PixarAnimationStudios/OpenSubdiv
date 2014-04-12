@@ -51,15 +51,24 @@ genTextureBuffer(GLenum format, GLsizeiptr size, GLvoid const * data)
 {
     GLuint buffer, result;
     glGenBuffers(1, &buffer);
+    glGenTextures(1, & result);
+
+
+#if defined(GL_EXT_direct_state_access)
+    glNamedBufferDataEXT(buffer, size, data, GL_STATIC_DRAW);
+    glTextureBufferEXT(result, GL_TEXTURE_BUFFER, format, buffer);
+#else
     glBindBuffer(GL_TEXTURE_BUFFER, buffer);
     glBufferData(GL_TEXTURE_BUFFER, size, data, GL_STATIC_DRAW);
 
-    glGenTextures(1, & result);
     glBindTexture(GL_TEXTURE_BUFFER, result);
     glTexBuffer(GL_TEXTURE_BUFFER, format, buffer);
 
     // need to reset texture binding before deleting the source buffer.
     glBindTexture(GL_TEXTURE_BUFFER, 0);
+    glBindBuffer(GL_TEXTURE_BUFFER, 0);
+#endif
+
     glDeleteBuffers(1, &buffer);
 
     return result;

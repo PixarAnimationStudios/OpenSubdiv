@@ -100,11 +100,16 @@ bool
 OsdCudaGLVertexBuffer::allocate() {
 
     int size = _numElements * _numVertices * sizeof(float);
-    
+
     glGenBuffers(1, &_vbo);
+
+#if defined(GL_EXT_direct_state_access)
+    glNamedBufferDataEXT(_vbo, size, 0, GL_DYNAMIC_DRAW);
+#else
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
     glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+#endif
 
     // register vbo as cuda resource
     cudaError_t err = cudaGraphicsGLRegisterBuffer(

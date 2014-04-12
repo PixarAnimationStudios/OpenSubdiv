@@ -54,10 +54,14 @@ OsdGLVertexBuffer::Create(int numElements, int numVertices) {
 void
 OsdGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
 
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
     int size = numVertices * _numElements * sizeof(float);
+#if defined(GL_EXT_direct_state_access)
+    glNamedBufferSubDataEXT(_vbo, startVertex * _numElements * sizeof(float), size, src);
+#else
+    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
     glBufferSubData(GL_ARRAY_BUFFER, startVertex * _numElements * sizeof(float), size, src);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+#endif
 }
 
 int
@@ -82,13 +86,18 @@ bool
 OsdGLVertexBuffer::allocate() {
 
     int size = _numElements * _numVertices * sizeof(float);
-    GLint prev = 0;
 
-    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
     glGenBuffers(1, &_vbo);
+
+#if defined(GL_EXT_direct_state_access)
+    glNamedBufferDataEXT(_vbo, size, 0, GL_DYNAMIC_DRAW);
+#else
+    GLint prev = 0;
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, size, 0, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, prev);
+#endif
 
     return true;
 }

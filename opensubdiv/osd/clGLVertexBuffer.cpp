@@ -99,13 +99,17 @@ OsdCLGLVertexBuffer::allocate(cl_context clContext) {
 
     // create GL buffer first
     int size = _numElements * _numVertices * sizeof(float);
-    GLint prev = 0;
 
-    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
     glGenBuffers(1, &_vbo);
+#if defined(GL_EXT_direct_state_access)
+    glNamedBufferDataEXT(_vbo, size, 0, GL_DYNAMIC_DRAW);
+#else
+    GLint prev = 0;
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, size, 0, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, prev);
+#endif
 
     // register vbo as cl memory
     cl_int err;

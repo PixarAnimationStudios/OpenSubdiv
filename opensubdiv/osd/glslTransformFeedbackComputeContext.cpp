@@ -37,22 +37,28 @@ namespace OPENSUBDIV_VERSION {
 void
 OsdGLSLTransformFeedbackTable::createTextureBuffer(size_t size, const void *ptr, GLenum type) {
 
-    glGenBuffers(1, &_devicePtr);
+    GLuint buffer;
+    glGenBuffers(1, &buffer);
     glGenTextures(1, &_texture);
 
+#if defined(GL_EXT_direct_state_access)
+    glNamedBufferDataEXT(buffer, size, ptr, GL_STATIC_DRAW);
+    glTextureBufferEXT(_texture, GL_TEXTURE_BUFFER, type, buffer);
+#else
     GLint prev = 0;
-    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
-    glBindBuffer(GL_ARRAY_BUFFER, _devicePtr);
-    glBufferData(GL_ARRAY_BUFFER, size, ptr, GL_STATIC_DRAW);
 
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, size, ptr, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, prev);
 
     glGetIntegerv(GL_TEXTURE_BINDING_BUFFER, &prev);
     glBindTexture(GL_TEXTURE_BUFFER, _texture);
-    glTexBuffer(GL_TEXTURE_BUFFER, type, _devicePtr);
+    glTexBuffer(GL_TEXTURE_BUFFER, type, buffer);
     glBindTexture(GL_TEXTURE_BUFFER, prev);
+#endif
 
-    glDeleteBuffers(1, &_devicePtr);
+    glDeleteBuffers(1, &buffer);
 }
 
 OsdGLSLTransformFeedbackTable::~OsdGLSLTransformFeedbackTable() {
@@ -258,16 +264,24 @@ OsdGLSLTransformFeedbackComputeContext::bind() {
     // bind vertex texture
     if (_currentVertexBuffer) {
         if (not _vertexTexture) glGenTextures(1, &_vertexTexture);
+#if defined(GL_EXT_direct_state_access)
+        glTextureBufferEXT(_vertexTexture, GL_TEXTURE_BUFFER, GL_R32F, _currentVertexBuffer);
+#else
         glBindTexture(GL_TEXTURE_BUFFER, _vertexTexture);
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, _currentVertexBuffer);
         glBindTexture(GL_TEXTURE_BUFFER, 0);
+#endif
     }
 
     if (_currentVaryingBuffer) {
         if (not _varyingTexture) glGenTextures(1, &_varyingTexture);
+#if defined(GL_EXT_direct_state_access)
+        glTextureBufferEXT(_varyingTexture, GL_TEXTURE_BUFFER, GL_R32F, _currentVaryingBuffer);
+#else
         glBindTexture(GL_TEXTURE_BUFFER, _varyingTexture);
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, _currentVaryingBuffer);
         glBindTexture(GL_TEXTURE_BUFFER, 0);
+#endif
     }
 
     if (_vertexTexture)
