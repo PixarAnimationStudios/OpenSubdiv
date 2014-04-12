@@ -62,7 +62,7 @@ _add_glfw_executable(glViewer
 )
 
 target_link_libraries(glViewer
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS glViewer DESTINATION "${CMAKE_BINDIR_BASE}")

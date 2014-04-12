@@ -57,7 +57,7 @@ _add_possibly_cuda_executable(osd_regression
 add_dependencies(osd_regression blarg )
 
 target_link_libraries(osd_regression
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS osd_regression DESTINATION "${CMAKE_BINDIR_BASE}")

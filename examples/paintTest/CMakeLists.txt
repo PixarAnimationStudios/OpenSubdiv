@@ -59,7 +59,7 @@ _add_glfw_executable(paintTest
 )
 
 target_link_libraries(paintTest
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS paintTest DESTINATION "${CMAKE_BINDIR_BASE}")

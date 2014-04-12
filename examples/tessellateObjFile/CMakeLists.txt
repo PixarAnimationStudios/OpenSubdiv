@@ -70,7 +70,7 @@ _add_executable(tessellateObjFile
                                           
 target_link_libraries(tessellateObjFile
     osdutil
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS tessellateObjFile DESTINATION "${CMAKE_BINDIR_BASE}")

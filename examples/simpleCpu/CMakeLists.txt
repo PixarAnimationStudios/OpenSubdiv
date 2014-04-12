@@ -59,7 +59,7 @@ _add_glfw_executable(simpleCpu
 )
 
 target_link_libraries(simpleCpu
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS simpleCpu DESTINATION "${CMAKE_BINDIR_BASE}")

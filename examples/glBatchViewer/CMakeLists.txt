@@ -65,7 +65,7 @@ _add_glfw_executable(glBatchViewer
 )
 
 target_link_libraries(glBatchViewer
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS glBatchViewer DESTINATION "${CMAKE_BINDIR_BASE}")

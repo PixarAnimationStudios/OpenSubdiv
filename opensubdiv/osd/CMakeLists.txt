@@ -152,7 +152,7 @@ if( PTEX_FOUND )
     endif()
     include_directories( "${PTEX_INCLUDE_DIR}" )
     list(APPEND PLATFORM_CPU_LIBRARIES
-        "${PTEX_LIBRARY}"
+        ${PTEX_LIBRARY}
     )
 endif()
 
@@ -203,7 +203,9 @@ if( TBB_FOUND )
         list(APPEND PLATFORM_CPU_LIBRARIES gomp)
     endif()
 
-    list(APPEND PLATFORM_CPU_LIBRARIES "${TBB_LIBRARIES}")
+    list(APPEND PLATFORM_CPU_LIBRARIES
+        ${TBB_LIBRARIES}
+    )
 endif()
 
 #-------------------------------------------------------------------------------
@@ -250,8 +252,8 @@ if( OPENGL_FOUND OR OPENGLES_FOUND )
         )
     endif()
     list(APPEND PLATFORM_GPU_LIBRARIES
-        "${OPENGL_LIBRARY}"
-        "${OPENGLES_LIBRARIES}"
+        ${OPENGL_LIBRARY}
+        ${OPENGLES_LIBRARIES}
     )
 endif()
 
@@ -273,8 +275,12 @@ if( OPENGL_4_2_FOUND )
         glslTransformFeedbackKernelBundle.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES ${GL_4_2_PUBLIC_HEADERS})
-    list(APPEND KERNEL_FILES glslTransformFeedbackKernel.glsl)
-    list(APPEND PLATFORM_GPU_LIBRARIES "${GLEW_LIBRARY}")
+    list(APPEND KERNEL_FILES
+        glslTransformFeedbackKernel.glsl
+    )
+    list(APPEND PLATFORM_GPU_LIBRARIES
+        ${GLEW_LIBRARY}
+    )
 endif()
 
 list(APPEND DOXY_HEADER_FILES ${GL_4_2_PUBLIC_HEADERS})
@@ -295,8 +301,12 @@ if( OPENGL_4_3_FOUND )
         glslKernelBundle.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES ${GL_4_3_PUBLIC_HEADERS})
-    list(APPEND KERNEL_FILES glslComputeKernel.glsl)
-    list(APPEND PLATFORM_GPU_LIBRARIES "${GLEW_LIBRARY}")
+    list(APPEND KERNEL_FILES
+        glslComputeKernel.glsl
+    )
+    list(APPEND PLATFORM_GPU_LIBRARIES
+        ${GLEW_LIBRARY}
+    )
 endif()
 
 list(APPEND DOXY_HEADER_FILES ${GL_4_3_PUBLIC_HEADERS})
@@ -332,7 +342,9 @@ if( DXSDK_FOUND )
         hlslPatchTransition.hlsl
         hlslPtexCommon.hlsl
     )
-    list(APPEND PLATFORM_GPU_LIBRARIES "${DXSDK_LIBRARIES}")
+    list(APPEND PLATFORM_GPU_LIBRARIES
+        ${DXSDK_LIBRARIES}
+    )
 endif()
 
 list(APPEND DOXY_HEADER_FILES ${DXSDK_PUBLIC_HEADERS})
@@ -459,7 +471,7 @@ if (NOT NO_LIB)
     set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
 
     target_link_libraries(osd_static_gpu
-        "${PLATFORM_CPU_LIBRARIES}" "${PLATFORM_GPU_LIBRARIES}"
+        ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
     )
 
     install( TARGETS osd_static_cpu DESTINATION "${CMAKE_LIBDIR_BASE}" )
@@ -489,7 +501,7 @@ if (NOT NO_LIB)
             )
 
         target_link_libraries(osd_dynamic_cpu
-            "${PLATFORM_CPU_LIBRARIES}"
+            ${PLATFORM_CPU_LIBRARIES}
         )
 
         _add_possibly_cuda_library(osd_dynamic_gpu
@@ -507,7 +519,7 @@ if (NOT NO_LIB)
 
         target_link_libraries(osd_dynamic_gpu
             osd_dynamic_cpu
-            "${PLATFORM_CPU_LIBRARIES}" "${PLATFORM_GPU_LIBRARIES}"
+            ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
         )
 
         install( TARGETS osd_dynamic_cpu LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}" )

@@ -51,7 +51,7 @@ _add_glfw_executable(limitEval
 )
 
 target_link_libraries(limitEval
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS limitEval DESTINATION "${CMAKE_BINDIR_BASE}")

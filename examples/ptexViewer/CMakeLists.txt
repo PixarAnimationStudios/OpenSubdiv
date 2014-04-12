@@ -81,7 +81,7 @@ _add_glfw_executable(ptexViewer
 )
 
 target_link_libraries(ptexViewer
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS ptexViewer DESTINATION "${CMAKE_BINDIR_BASE}")

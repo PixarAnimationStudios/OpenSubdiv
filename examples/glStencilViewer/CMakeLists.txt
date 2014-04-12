@@ -51,7 +51,7 @@ _add_glfw_executable(glStencilViewer
 )
 
 target_link_libraries(glStencilViewer
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS glStencilViewer DESTINATION "${CMAKE_BINDIR_BASE}")

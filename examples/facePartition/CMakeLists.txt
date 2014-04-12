@@ -63,7 +63,7 @@ _add_glfw_executable(facePartition
 )
 
 target_link_libraries(facePartition
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS facePartition DESTINATION "${CMAKE_BINDIR_BASE}")

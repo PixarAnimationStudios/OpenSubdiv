@@ -63,7 +63,7 @@ _add_glfw_executable(uvViewer
 )
 
 target_link_libraries(uvViewer
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS uvViewer DESTINATION "${CMAKE_BINDIR_BASE}")

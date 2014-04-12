@@ -100,7 +100,7 @@ target_link_libraries(maya_polySmoothNode
     "${MAYA_OpenMaya_LIBRARY}"
     "${MAYA_OpenMayaRender_LIBRARY}"
     "${MAYA_OpenMayaUI_LIBRARY}"
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS maya_polySmoothNode DESTINATION "${CMAKE_PLUGINDIR_BASE}")
