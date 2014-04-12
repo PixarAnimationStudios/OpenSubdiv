@@ -38,14 +38,18 @@ OsdGLSLComputeTable::createBuffer(size_t size, const void *ptr) {
     glGenBuffers(1, &_devicePtr);
 
 #if defined(GL_EXT_direct_state_access)
-    glNamedBufferDataEXT(_devicePtr, size, ptr, GL_STATIC_DRAW);
+    if (glNamedBufferDataEXT) {
+        glNamedBufferDataEXT(_devicePtr, size, ptr, GL_STATIC_DRAW);
+    } else {
 #else
-    GLint prev = 0;
-    glGetIntegerv(GL_SHADER_STORAGE_BUFFER_BINDING, &prev);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, _devicePtr);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, size, ptr, GL_STATIC_DRAW);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, prev);
+    {
 #endif
+        GLint prev = 0;
+        glGetIntegerv(GL_SHADER_STORAGE_BUFFER_BINDING, &prev);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, _devicePtr);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, size, ptr, GL_STATIC_DRAW);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, prev);
+    }
 /*
   CHECK_GL_ERROR("UpdateTable tableIndex %d, size %ld, buffer =%d\n",
   tableIndex, size, _tableBuffers[tableIndex]);

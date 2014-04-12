@@ -72,19 +72,23 @@ createTextureBuffer(T const &data, GLint format, int offset=0)
     glGenBuffers(1, &buffer);
 
 #if defined(GL_EXT_direct_state_access)
-    glNamedBufferDataEXT(buffer, (data.size()-offset) * sizeof(typename T::value_type),
-                         &data[offset], GL_STATIC_DRAW);
-    glTextureBufferEXT(texture, GL_TEXTURE_BUFFER, format, buffer);
+    if (glNamedBufferDataEXT and glTextureBufferEXT) {
+        glNamedBufferDataEXT(buffer, (data.size()-offset) * sizeof(typename T::value_type),
+                             &data[offset], GL_STATIC_DRAW);
+        glTextureBufferEXT(texture, GL_TEXTURE_BUFFER, format, buffer);
+    } else {
 #else
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, (data.size()-offset) * sizeof(typename T::value_type),
-                 &data[offset], GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    glBindTexture(GL_TEXTURE_BUFFER, texture);
-    glTexBuffer(GL_TEXTURE_BUFFER, format, buffer);
-    glBindTexture(GL_TEXTURE_BUFFER, 0);
+    {
 #endif
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+        glBufferData(GL_ARRAY_BUFFER, (data.size()-offset) * sizeof(typename T::value_type),
+                     &data[offset], GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        glBindTexture(GL_TEXTURE_BUFFER, texture);
+        glTexBuffer(GL_TEXTURE_BUFFER, format, buffer);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+    }
     glDeleteBuffers(1, &buffer);
 
 #endif
@@ -121,14 +125,18 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
     glGenBuffers(1, &_patchIndexBuffer);
 
 #if defined(GL_EXT_direct_state_access)
-    glNamedBufferDataEXT(_patchIndexBuffer,
-                         ptables.size() * sizeof(unsigned int), &ptables[0], GL_STATIC_DRAW);
+    if (glNamedBufferDataEXT) {
+        glNamedBufferDataEXT(_patchIndexBuffer,
+                             ptables.size() * sizeof(unsigned int), &ptables[0], GL_STATIC_DRAW);
+    } else {
 #else
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _patchIndexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 ptables.size() * sizeof(unsigned int), &ptables[0], GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    {
 #endif
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _patchIndexBuffer);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                     ptables.size() * sizeof(unsigned int), &ptables[0], GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    }
     
     OsdDrawContext::ConvertPatchArrays(patchTables->GetPatchArrayVector(),
         patchArrays, patchTables->GetMaxValence(), 0);
@@ -183,12 +191,16 @@ OsdGLDrawContext::updateVertexTexture(GLuint vbo, int numVertexElements)
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
 
 #if defined(GL_EXT_direct_state_access)
-    glBindTexture(GL_TEXTURE_BUFFER, _vertexTextureBuffer);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
-    glBindTexture(GL_TEXTURE_BUFFER, 0);
+    if (glTextureBufferEXT) {
+        glTextureBufferEXT(_vertexTextureBuffer, GL_TEXTURE_BUFFER, GL_R32F, vbo);
+    } else {
 #else
-    glTextureBufferEXT(_vertexTextureBuffer, GL_TEXTURE_BUFFER, GL_R32F, vbo);
+    {
 #endif
+        glBindTexture(GL_TEXTURE_BUFFER, _vertexTextureBuffer);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+    }
 
 #endif
 

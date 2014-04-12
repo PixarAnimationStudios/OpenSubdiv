@@ -56,12 +56,16 @@ OsdGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices
 
     int size = numVertices * _numElements * sizeof(float);
 #if defined(GL_EXT_direct_state_access)
-    glNamedBufferSubDataEXT(_vbo, startVertex * _numElements * sizeof(float), size, src);
+    if (glNamedBufferSubDataEXT) {
+        glNamedBufferSubDataEXT(_vbo, startVertex * _numElements * sizeof(float), size, src);
+    } else {
 #else
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, startVertex * _numElements * sizeof(float), size, src);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    {
 #endif
+        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+        glBufferSubData(GL_ARRAY_BUFFER, startVertex * _numElements * sizeof(float), size, src);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
 }
 
 int
@@ -90,14 +94,18 @@ OsdGLVertexBuffer::allocate() {
     glGenBuffers(1, &_vbo);
 
 #if defined(GL_EXT_direct_state_access)
-    glNamedBufferDataEXT(_vbo, size, 0, GL_DYNAMIC_DRAW);
+    if (glNamedBufferDataEXT) {
+        glNamedBufferDataEXT(_vbo, size, 0, GL_DYNAMIC_DRAW);
+    } else {
 #else
-    GLint prev = 0;
-    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, prev);
+    {
 #endif
+        GLint prev = 0;
+        glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
+        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+        glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, prev);
+    }
 
     return true;
 }
