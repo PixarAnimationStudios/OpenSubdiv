@@ -31,6 +31,48 @@ Release Notes
 
 ----
 
+Release 2.4.0
+=============
+
+**New Features**
+    - Adding functionality to store uniform face-varying data across multiple levels of subdivision
+    - Add OsdUtilPatchPartitioner
+        It splits patcharray into subsets so that clients can draw partial surfaces
+        for both adaptive and uniform.
+
+**Changes**
+    - Remove FarMesh dependency from Osd*Context.
+    - Use DSA APIs for GL buffer update (if available).
+    - Refactor Far API
+        - replace void- of all kernel applications with CONTEXT template parameter.
+          It eliminates many static_casts from void- for both far and osd classes.
+        - move the big switch-cases of far default kernel launches out of Refine so
+          that osd controllers can arbitrary mix default kernels and custom kernels.
+        - change FarKernelBatch::kernelType from enum to int, clients can add
+          custom kernel types.
+        - remove a back-pointer to farmesh from subdivision table.
+        - untemplate all subdivision table classes and template their compute methods
+          instead. Those methods take a typed vertex storage.
+        - remove an unused argument FarMesh from the constructor of subdivision
+          table factories.
+    - Refactor FarSubdivisionTables.
+        Delete scheme specialized subdivision tables. The base class FarSubdivisionTables
+        already has all tables, so we just need scheme enum to identify which scheme
+        the subdivision tables belong to. This brings a lot of code cleanups around far
+        factory classes.
+    - Move FarMultiMeshFactory to OsdUtil.
+    - Move table splicing functions of FarMultiMeshFactory into factories
+    - Change PxOsdUtil prefix to final OsdUtil prefix.
+    - Improve error reporting in osdutil refinement classes, and fix a build issue
+
+**Bug Fixes**
+    - Fix another multi mesh splicing bug of face varying data.
+    - Make CMake path variables more robust
+    - Fixing a crash on Marvericks w/glew
+    - Update dxViewer example documentation
+    - Fix wrong logic in openSubdiv_setEvaluatorCoarsePositions
+    - Remove debug print from adaptive evaluator's initialization
+
 Release 2.3.5
 =============
 
