@@ -55,7 +55,7 @@ _add_possibly_cuda_executable(dxViewer WIN32
 )
 
 target_link_libraries(dxViewer
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS dxViewer DESTINATION "${CMAKE_BINDIR_BASE}")

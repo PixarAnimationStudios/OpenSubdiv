@@ -57,7 +57,7 @@ _add_possibly_cuda_executable(dxPtexViewer WIN32
 )
 
 target_link_libraries(dxPtexViewer
-    "${PLATFORM_LIBRARIES}"
+    ${PLATFORM_LIBRARIES}
 )
 
 install(TARGETS dxPtexViewer DESTINATION "${CMAKE_BINDIR_BASE}")
