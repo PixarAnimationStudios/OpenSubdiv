@@ -185,7 +185,6 @@ OsdUtilAdaptiveEvaluator::Initialize(
     _evalLimitContext->GetVertexData().Bind(in_desc, _vertexBuffer, out_desc,
 					    _vbufP, _vbufdPdu, _vbufdPdv);
 
-    std::cout << "Initialized adaptive evaluator\n";
     return true;
 }
 
