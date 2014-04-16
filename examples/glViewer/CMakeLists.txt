@@ -30,34 +30,34 @@ set(SHADER_FILES
 )
 
 set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
-    ${OPENGL_LIBRARY}
-    ${GLFW_LIBRARIES}
+    "${OSD_LINK_TARGET}"
+    "${OPENGL_LIBRARY}"
+    "${GLFW_LIBRARIES}"
 )
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${PROJECT_SOURCE_DIR}/regression
-    ${GLFW_INCLUDE_DIR}
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${PROJECT_SOURCE_DIR}/regression"
+    "${GLFW_INCLUDE_DIR}"
 )
 
 if ( GLEW_FOUND )
-    include_directories(${GLEW_INCLUDE_DIR})
-    list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
+    include_directories("${GLEW_INCLUDE_DIR}")
+    list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
 endif()
 
 if( OPENCL_FOUND )
-    include_directories(${OPENCL_INCLUDE_DIRS})
+    include_directories("${OPENCL_INCLUDE_DIRS}")
 endif()
 
 _stringify("${SHADER_FILES}" INC_FILES)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 _add_glfw_executable(glViewer
     viewer.cpp
-    ${SHADER_FILES}
-    ${INC_FILES}
+    "${SHADER_FILES}"
+    "${INC_FILES}"
     $<TARGET_OBJECTS:examples_common_obj>
 )
 
@@ -65,4 +65,4 @@ target_link_libraries(glViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS glViewer DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS glViewer DESTINATION "${CMAKE_BINDIR_BASE}")

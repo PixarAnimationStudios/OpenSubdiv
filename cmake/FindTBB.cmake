@@ -35,9 +35,9 @@ if (WIN32)
         NAMES
             tbb/tbb.h
         HINTS
-            ${TBB_LOCATION}/include
-            $ENV{TBB_LOCATION}/include
-            $ENV{PROGRAMFILES}/Intel/TBB/include
+            "${TBB_LOCATION}/include"
+            "$ENV{TBB_LOCATION}/include"
+            "$ENV{PROGRAMFILES}/Intel/TBB/include"
             /usr/include
             DOC "The directory where TBB headers reside")
 elseif (APPLE)
@@ -45,16 +45,16 @@ elseif (APPLE)
         NAMES
             tbb/tbb.h
         HINTS
-            ${TBB_LOCATION}/include
-            $ENV{TBB_LOCATION}/include
+            "${TBB_LOCATION}/include"
+            "$ENV{TBB_LOCATION}/include"
             DOC "The directory where TBB headers reside")
 else ()
     find_path(TBB_INCLUDE_DIR
         NAMES
             tbb/tbb.h
         HINTS
-            ${TBB_LOCATION}/include
-            $ENV{TBB_LOCATION}/include
+            "${TBB_LOCATION}/include"
+            "$ENV{TBB_LOCATION}/include"
             /usr/include
             /usr/local/include
             /usr/openwin/share/include
@@ -108,20 +108,20 @@ foreach(TBB_LIB tbb             tbb_debug
         NAMES
             ${TBB_LIB}
         HINTS
-            ${TBB_LOCATION}/lib
-            ${TBB_LOCATION}/bin
-            $ENV{TBB_LOCATION}/lib
-            $ENV{TBB_LOCATION}/bin
-            $ENV{PROGRAMFILES}/TBB/lib
+            "${TBB_LOCATION}/lib"
+            "${TBB_LOCATION}/bin"
+            "$ENV{TBB_LOCATION}/lib"
+            "$ENV{TBB_LOCATION}/bin"
+            "$ENV{PROGRAMFILES}/TBB/lib"
             /usr/lib
             /usr/lib/w32api
             /usr/local/lib
             /usr/X11R6/lib
         PATH_SUFFIXES
-            ${TBB_LIB_ARCH}
-            ${TBB_LIB_ARCH}/${TBB_COMPILER}
-            ${TBB_LIB_ARCH}/gcc4.4
-            ${TBB_LIB_ARCH}/gcc4.1
+            "${TBB_LIB_ARCH}"
+            "${TBB_LIB_ARCH}/${TBB_COMPILER}"
+            "${TBB_LIB_ARCH}/gcc4.4"
+            "${TBB_LIB_ARCH}/gcc4.1"
         DOC "Intel's Threading Building Blocks library")
 
     if (TBB_${TBB_LIB}_LIBRARY)

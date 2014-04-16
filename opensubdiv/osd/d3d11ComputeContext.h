@@ -27,6 +27,7 @@
 
 #include "../version.h"
 
+#include "../far/subdivisionTables.h"
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
 #include "../osd/vertexDescriptor.h"
@@ -67,8 +68,8 @@ private:
 
 class OsdD3D11ComputeHEditTable : OsdNonCopyable<OsdD3D11ComputeHEditTable> {
 public:
-    OsdD3D11ComputeHEditTable(const FarVertexEditTables<OsdVertex>::
-                      VertexEditBatch &batch, ID3D11DeviceContext *deviceContext);
+    OsdD3D11ComputeHEditTable(const FarVertexEditTables::VertexEditBatch &batch,
+                              ID3D11DeviceContext *deviceContext);
 
     virtual ~OsdD3D11ComputeHEditTable();
 
@@ -104,11 +105,14 @@ class OsdD3D11ComputeContext : public OsdNonCopyable<OsdD3D11ComputeContext> {
 public:
     /// Creates an OsdD3D11ComputeContext instance
     ///
-    /// @param farmesh        the FarMesh used for this Context.
+    /// @param subdivisionTables  the FarSubdivisionTables used for this Context.
+    ///
+    /// @param vertexEditTables   the FarVertexEditTables used for this Context.
     ///
     /// @param deviceContext  D3D device
     ///
-    static OsdD3D11ComputeContext * Create(FarMesh<OsdVertex> const *farmesh,
+    static OsdD3D11ComputeContext * Create(FarSubdivisionTables const *subdivisionTables,
+                                           FarVertexEditTables const *vertexEditTables,
                                            ID3D11DeviceContext *deviceContext);
 
     /// Destructor
@@ -184,7 +188,9 @@ public:
     void UnbindEditShaderStorageBuffers();
 
 protected:
-    explicit OsdD3D11ComputeContext(FarMesh<OsdVertex> const *farMesh, ID3D11DeviceContext *deviceContext);
+    explicit OsdD3D11ComputeContext(FarSubdivisionTables const *subdivisionTables,
+                                    FarVertexEditTables const *vertexEditTables,
+                                    ID3D11DeviceContext *deviceContext);
 
     void bindShaderStorageBuffers();
 

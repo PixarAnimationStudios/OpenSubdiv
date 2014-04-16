@@ -73,10 +73,8 @@ OsdGLSLComputeController::getKernels(int numVertexElements,
 
 void
 OsdGLSLComputeController::ApplyBilinearFaceVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -87,10 +85,8 @@ OsdGLSLComputeController::ApplyBilinearFaceVerticesKernel(
 
 void
 OsdGLSLComputeController::ApplyBilinearEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -101,10 +97,8 @@ OsdGLSLComputeController::ApplyBilinearEdgeVerticesKernel(
 
 void
 OsdGLSLComputeController::ApplyBilinearVertexVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -115,10 +109,8 @@ OsdGLSLComputeController::ApplyBilinearVertexVerticesKernel(
 
 void
 OsdGLSLComputeController::ApplyCatmarkFaceVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -131,10 +123,8 @@ OsdGLSLComputeController::ApplyCatmarkFaceVerticesKernel(
 
 void
 OsdGLSLComputeController::ApplyCatmarkEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -145,10 +135,8 @@ OsdGLSLComputeController::ApplyCatmarkEdgeVerticesKernel(
 
 void
 OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelB(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -159,10 +147,8 @@ OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelB(
 
 void
 OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelA1(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -173,10 +159,8 @@ OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelA1(
 
 void
 OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelA2(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -187,10 +171,8 @@ OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelA2(
 
 void
 OsdGLSLComputeController::ApplyLoopEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -201,10 +183,8 @@ OsdGLSLComputeController::ApplyLoopEdgeVerticesKernel(
 
 void
 OsdGLSLComputeController::ApplyLoopVertexVerticesKernelB(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -215,10 +195,8 @@ OsdGLSLComputeController::ApplyLoopVertexVerticesKernelB(
 
 void
 OsdGLSLComputeController::ApplyLoopVertexVerticesKernelA1(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -229,10 +207,8 @@ OsdGLSLComputeController::ApplyLoopVertexVerticesKernelA1(
 
 void
 OsdGLSLComputeController::ApplyLoopVertexVerticesKernelA2(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -243,10 +219,8 @@ OsdGLSLComputeController::ApplyLoopVertexVerticesKernelA2(
 
 void
 OsdGLSLComputeController::ApplyVertexEdits(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdGLSLComputeContext *context) const {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
     assert(context);
 
     OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();

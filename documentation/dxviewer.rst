@@ -35,12 +35,12 @@ SYNOPSIS
 .. parsed-literal:: 
    :class: codefhead
 
-   **dxViewer** [**-f**] *objfile(s)*
+   **dxViewer** [**-d** *isolation level*] [**-c** *animation loops*]  *objfile(s)*
 
 DESCRIPTION
 ===========
 
-``glViewer`` is a stand-alone application that showcases the application of 
+``dxViewer`` is a stand-alone application that showcases the application of 
 uniform and feature adaptive subdivision schemes to a collection of geometric
 shapes. Multiple controls are available to experiment with the algorithms.
 
@@ -54,9 +54,13 @@ shapes. Multiple controls are available to experiment with the algorithms.
 OPTIONS
 =======
 
-**-f**
-  Launches the application in full-screen mode (if is supported by GLFW on the
-  OS)
+**-d** *isolation level*
+  Select the desired isolation level of adaptive feature isolation. This can be 
+  useful when trying to load large pieces of geometry.
+
+**-c** *animation frequency*
+  Number of repetitions of the animtion loop (default=0 is infinite)
+
 
 SEE ALSO
 ========

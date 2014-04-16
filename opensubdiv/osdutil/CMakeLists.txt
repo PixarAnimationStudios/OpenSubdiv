@@ -23,9 +23,7 @@
 #
 
 #-------------------------------------------------------------------------------
-include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-)
+include_directories("${PROJECT_SOURCE_DIR}/opensubdiv")
 
 #-------------------------------------------------------------------------------
 # source & headers
@@ -37,6 +35,8 @@ set(PUBLIC_HEADER_FILES
     drawController.h
     evaluator_capi.h    
     mesh.h
+    multiMeshFactory.h
+    patchPartitioner.h
     refiner.h
     topology.h
     uniformEvaluator.h        
@@ -62,7 +62,7 @@ set_target_properties(osdutil PROPERTIES OUTPUT_NAME osdutil CLEAN_DIRECT_OUTPUT
 
 target_link_libraries(
     osdutil    
-    ${PLATFORM_LIBRARIES}
+    "${PLATFORM_LIBRARIES}"
 )
         
                 
@@ -85,10 +85,16 @@ list(APPEND DOXY_HEADER_FILES ${OPENCL_PUBLIC_HEADER_FILES} )
 
 _add_doxy_headers( "${DOXY_HEADER_FILES}" )
 
-install( FILES ${PUBLIC_HEADER_FILES}
-         DESTINATION ${CMAKE_INCDIR_BASE}/osdutil
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+install(
+    FILES 
+        ${PUBLIC_HEADER_FILES}
+    DESTINATION
+        "${CMAKE_INCDIR_BASE}/osdutil"
+    PERMISSIONS
+        OWNER_READ
+        GROUP_READ
+        WORLD_READ )
 
-install( TARGETS osdutil DESTINATION ${CMAKE_LIBDIR_BASE})
+install( TARGETS osdutil DESTINATION "${CMAKE_LIBDIR_BASE}")
                   
 #-------------------------------------------------------------------------------

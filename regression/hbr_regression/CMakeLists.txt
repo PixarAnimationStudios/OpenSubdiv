@@ -22,9 +22,7 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-)
+include_directories("${PROJECT_SOURCE_DIR}/opensubdiv")
 
 _add_possibly_cuda_executable(hbr_regression
    main.cpp
@@ -37,7 +35,7 @@ _add_possibly_cuda_executable(hbr_regression
 set(HBR_BASELINE_DIR "${PROJECT_SOURCE_DIR}/regression/hbr_regression/baseline/" )
 
 if (WIN32)
-    string(REGEX REPLACE "/" "\\\\\\\\" HBR_BASELINE_DIR ${HBR_BASELINE_DIR}) 
+    string(REGEX REPLACE "/" "\\\\\\\\" HBR_BASELINE_DIR "${HBR_BASELINE_DIR}")
 endif()
 
 add_definitions(
@@ -49,5 +47,5 @@ _add_executable(hbr_baseline
    baseline.cpp
 )
 
-install(TARGETS hbr_baseline DESTINATION ${CMAKE_BINDIR_BASE})
-install(TARGETS hbr_regression DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS hbr_baseline DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS hbr_regression DESTINATION "${CMAKE_BINDIR_BASE}")

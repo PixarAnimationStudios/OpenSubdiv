@@ -23,7 +23,6 @@
 //
 
 #include "../far/dispatcher.h"
-#include "../far/loopSubdivisionTables.h"
 #include "../osd/glDrawRegistry.h"
 #include "../osd/glDrawContext.h"
 
@@ -71,15 +70,27 @@ createTextureBuffer(T const &data, GLint format, int offset=0)
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
     glGenTextures(1, &texture);
     glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, (data.size()-offset) * sizeof(typename T::value_type),
-                 &data[offset], GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    glBindTexture(GL_TEXTURE_BUFFER, texture);
-    glTexBuffer(GL_TEXTURE_BUFFER, format, buffer);
-    glBindTexture(GL_TEXTURE_BUFFER, 0);
+#if defined(GL_EXT_direct_state_access)
+    if (glNamedBufferDataEXT and glTextureBufferEXT) {
+        glNamedBufferDataEXT(buffer, (data.size()-offset) * sizeof(typename T::value_type),
+                             &data[offset], GL_STATIC_DRAW);
+        glTextureBufferEXT(texture, GL_TEXTURE_BUFFER, format, buffer);
+    } else {
+#else
+    {
+#endif
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+        glBufferData(GL_ARRAY_BUFFER, (data.size()-offset) * sizeof(typename T::value_type),
+                     &data[offset], GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        glBindTexture(GL_TEXTURE_BUFFER, texture);
+        glTexBuffer(GL_TEXTURE_BUFFER, format, buffer);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+    }
     glDeleteBuffers(1, &buffer);
+
 #endif
 
     return texture;
@@ -112,59 +123,24 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
     FarPatchTables::PTable const & ptables = patchTables->GetPatchTable();
 
     glGenBuffers(1, &_patchIndexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _patchIndexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 ptables.size() * sizeof(unsigned int), &ptables[0], GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+#if defined(GL_EXT_direct_state_access)
+    if (glNamedBufferDataEXT) {
+        glNamedBufferDataEXT(_patchIndexBuffer,
+                             ptables.size() * sizeof(unsigned int), &ptables[0], GL_STATIC_DRAW);
+    } else {
+#else
+    {
+#endif
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _patchIndexBuffer);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                     ptables.size() * sizeof(unsigned int), &ptables[0], GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    }
     
     OsdDrawContext::ConvertPatchArrays(patchTables->GetPatchArrayVector(),
         patchArrays, patchTables->GetMaxValence(), 0);
 
-/*    
-#if defined(GL_ES_VERSION_2_0)
-        // XXX: farmesh should have FarDensePatchTable for dense mesh indices.
-        //      instead of GetFaceVertices().
-        const FarSubdivisionTables<OsdVertex> *tables = farMesh->GetSubdivisionTables();
-        int level = tables->GetMaxLevel();
-        const std::vector<int> &indices = farMesh->GetFaceVertices(level-1);
-
-        int numIndices = (int)indices.size();
-
-        // Allocate and fill index buffer.
-        glGenBuffers(1, &_patchIndexBuffer);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _patchIndexBuffer);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                     numIndices * sizeof(unsigned int), &(indices[0]), GL_STATIC_DRAW);
-
-
-        // OpenGLES 2 supports only triangle topologies for filled
-        // primitives i.e. not QUADS or PATCHES or LINES_ADJACENCY
-        // For the convenience of clients build build a triangles
-        // index buffer by splitting quads.
-        int numQuads = indices.size() / 4;
-        int numTrisIndices = numQuads * 6;
-
-        std::vector<short> trisIndices;
-        trisIndices.reserve(numTrisIndices);
-        for (int i=0; i<numQuads; ++i) {
-            const int * quad = &indices[i*4];
-            trisIndices.push_back(short(quad[0]));
-            trisIndices.push_back(short(quad[1]));
-            trisIndices.push_back(short(quad[2]));
-
-            trisIndices.push_back(short(quad[2]));
-            trisIndices.push_back(short(quad[3]));
-            trisIndices.push_back(short(quad[0]));
-        }
-
-        // Allocate and fill triangles index buffer.
-        glGenBuffers(1, &patchTrianglesIndexBuffer);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchTrianglesIndexBuffer);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                     numTrisIndices * sizeof(short), &(trisIndices[0]), GL_STATIC_DRAW);
-#endif
-*/    
-    
     // allocate and initialize additional buffer data
 
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
@@ -197,11 +173,11 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
 
 
     // create fvar data buffer if requested
-    FarPatchTables::FVarDataTable const &
-        fvarTables = patchTables->GetFVarDataTable();
+    std::vector<float> const &
+        fvarData = patchTables->GetFVarData().GetAllData();
 
-    if (requireFVarData and not fvarTables.empty())
-        _fvarDataTextureBuffer = createTextureBuffer(fvarTables, GL_R32F);
+    if (requireFVarData and not fvarData.empty())
+        _fvarDataTextureBuffer = createTextureBuffer(fvarData, GL_R32F);
 
     glBindBuffer(GL_TEXTURE_BUFFER, 0);
 #endif
@@ -213,9 +189,19 @@ void
 OsdGLDrawContext::updateVertexTexture(GLuint vbo, int numVertexElements)
 {
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-    glBindTexture(GL_TEXTURE_BUFFER, _vertexTextureBuffer);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
-    glBindTexture(GL_TEXTURE_BUFFER, 0);
+
+#if defined(GL_EXT_direct_state_access)
+    if (glTextureBufferEXT) {
+        glTextureBufferEXT(_vertexTextureBuffer, GL_TEXTURE_BUFFER, GL_R32F, vbo);
+    } else {
+#else
+    {
+#endif
+        glBindTexture(GL_TEXTURE_BUFFER, _vertexTextureBuffer);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+    }
+
 #endif
 
     // XXX: consider moving this proc to base class

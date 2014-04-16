@@ -44,11 +44,11 @@
 // call the eval API to sample values on subdivision surfaces on the
 // limit surface..
 //
-class PxOsdUtilAdaptiveEvaluator {
+class OsdUtilAdaptiveEvaluator {
   public:
-    PxOsdUtilAdaptiveEvaluator();
+    OsdUtilAdaptiveEvaluator();
 
-    ~PxOsdUtilAdaptiveEvaluator();    
+    ~OsdUtilAdaptiveEvaluator();    
 
     // Initialize returns false on error.  If errorMessage is non-NULL it'll
     // be populated upon error.
@@ -63,11 +63,11 @@ class PxOsdUtilAdaptiveEvaluator {
     // of refiners among evaluators.
     //
     bool Initialize(
-        PxOsdUtilRefiner* refiner,
+        OsdUtilRefiner* refiner,
         std::string *errorMessage = NULL);
     
     bool Initialize(
-        const PxOsdUtilSubdivTopology &topology,
+        const OsdUtilSubdivTopology &topology,
         std::string *errorMessage = NULL);    
 
     // Set new coarse-mesh CV positions, need to call Refine
@@ -91,7 +91,7 @@ class PxOsdUtilAdaptiveEvaluator {
 	float P[3], float dPdu[3], float dPdv[3]);
 
     bool GetRefinedTopology(
-        PxOsdUtilSubdivTopology *t,
+        OsdUtilSubdivTopology *t,
         //positions will have three floats * t->numVertices
 	std::vector<float> *positions,
         std::string *errorMessage = NULL);    
@@ -106,7 +106,7 @@ class PxOsdUtilAdaptiveEvaluator {
         return _refiner->GetHbrMesh();
     }
 
-    const PxOsdUtilSubdivTopology &GetTopology() const {
+    const OsdUtilSubdivTopology &GetTopology() const {
         return _refiner->GetTopology();
     }
 
@@ -120,7 +120,7 @@ class PxOsdUtilAdaptiveEvaluator {
     // own the refiner pointer (if _ownsRefiner is true), or it may
     // assume that someone else is responsible for managing that pointer
     // if _ownsRefiner is false.
-    PxOsdUtilRefiner *_refiner;
+    OsdUtilRefiner *_refiner;
     bool _ownsRefiner;
 
     OpenSubdiv::OsdCpuComputeContext *_computeContext;

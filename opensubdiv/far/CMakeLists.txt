@@ -24,18 +24,14 @@
 
 #-------------------------------------------------------------------------------
 set(PUBLIC_HEADER_FILES
-    bilinearSubdivisionTables.h
     bilinearSubdivisionTablesFactory.h
-    catmarkSubdivisionTables.h
     catmarkSubdivisionTablesFactory.h
     dispatcher.h
     kernelBatch.h
     kernelBatchFactory.h
-    loopSubdivisionTables.h
     loopSubdivisionTablesFactory.h
     meshFactory.h
     mesh.h
-    multiMeshFactory.h
     patchParam.h
     patchMap.h
     patchTables.h
@@ -51,8 +47,14 @@ set(PUBLIC_HEADER_FILES
 #-------------------------------------------------------------------------------
 _add_doxy_headers( "${PUBLIC_HEADER_FILES}" )
 
-install( FILES ${PUBLIC_HEADER_FILES}
-         DESTINATION ${CMAKE_INCDIR_BASE}/far
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+install( 
+    FILES
+        ${PUBLIC_HEADER_FILES}
+    DESTINATION
+        "${CMAKE_INCDIR_BASE}/far"
+    PERMISSIONS
+        OWNER_READ
+        GROUP_READ
+        WORLD_READ )
 
 #-------------------------------------------------------------------------------

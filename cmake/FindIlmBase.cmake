@@ -41,7 +41,7 @@ IF(NOT DEFINED ILMBASE_LOCATION)
         IF ( WIN32 )
           # Note: This assumes that the Deploy directory has been copied
           #       back into the IlmBase root directory.
-          SET( ILMBASE_LOCATION $ENV{PROGRAMFILES}/ilmbase-1.0.1/Deploy )
+          SET( ILMBASE_LOCATION "$ENV{PROGRAMFILES}/ilmbase-1.0.1/Deploy" )
         ENDIF()
     ENDIF()
 ENDIF()
@@ -52,12 +52,12 @@ ELSE()
 ENDIF()
 
 SET(LIBRARY_PATHS
-    ${ILMBASE_LOCATION}/lib
-    ${ILMBASE_LOCATION}/lib/Release
-    ${ILMBASE_LOCATION}/lib/x64/Release
-    $ENV{ILMBASE_LOCATION}/lib
-    $ENV{ILMBASE_LOCATION}/lib/Release
-    $ENV{ILMBASE_LOCATION}/lib/x64/Release
+    "${ILMBASE_LOCATION}/lib"
+    "${ILMBASE_LOCATION}/lib/Release"
+    "${ILMBASE_LOCATION}/lib/x64/Release"
+    "$ENV{ILMBASE_LOCATION}/lib"
+    "$ENV{ILMBASE_LOCATION}/lib/Release"
+    "$ENV{ILMBASE_LOCATION}/lib/x64/Release"
     ~/Library/Frameworks
     /Library/Frameworks
     /usr/local/lib
@@ -70,10 +70,10 @@ SET(LIBRARY_PATHS
 )
 
 SET(INCLUDE_PATHS
-    ${ILMBASE_LOCATION}/include/OpenEXR/
-    ${ILMBASE_LOCATION}/include
-    $ENV{ILMBASE_LOCATION}/include/OpenEXR/
-    $ENV{ILMBASE_LOCATION}/include
+    "${ILMBASE_LOCATION}/include/OpenEXR/"
+    "${ILMBASE_LOCATION}/include"
+    "$ENV{ILMBASE_LOCATION}/include/OpenEXR/"
+    "$ENV{ILMBASE_LOCATION}/include"
     ~/Library/Frameworks
     /Library/Frameworks
     /usr/local/include/OpenEXR/
@@ -88,45 +88,49 @@ SET(INCLUDE_PATHS
 )
 
 
-FIND_PATH( ILMBASE_INCLUDE_DIR ImathMath.h
-           PATHS
-           ${INCLUDE_PATHS}
-           NO_DEFAULT_PATH
-           NO_CMAKE_ENVIRONMENT_PATH
-           NO_CMAKE_PATH
-           NO_SYSTEM_ENVIRONMENT_PATH
-           NO_CMAKE_SYSTEM_PATH
-           DOC "The directory where ImathMath.h resides" )
+FIND_PATH( ILMBASE_INCLUDE_DIR 
+        ImathMath.h
+    PATHS
+        "${INCLUDE_PATHS}"
+    NO_DEFAULT_PATH
+    NO_CMAKE_ENVIRONMENT_PATH
+    NO_CMAKE_PATH
+    NO_SYSTEM_ENVIRONMENT_PATH
+    NO_CMAKE_SYSTEM_PATH
+    DOC "The directory where ImathMath.h resides" )
 
-FIND_LIBRARY( ILMBASE_IEX_LIB Iex
-              PATHS
-              ${LIBRARY_PATHS}
-              NO_DEFAULT_PATH
-              NO_CMAKE_ENVIRONMENT_PATH
-              NO_CMAKE_PATH
-              NO_SYSTEM_ENVIRONMENT_PATH
-              NO_CMAKE_SYSTEM_PATH
-              DOC "The Iex library" )
+FIND_LIBRARY( ILMBASE_IEX_LIB 
+        Iex
+    PATHS
+        "${LIBRARY_PATHS}"
+        NO_DEFAULT_PATH
+        NO_CMAKE_ENVIRONMENT_PATH
+        NO_CMAKE_PATH
+        NO_SYSTEM_ENVIRONMENT_PATH
+        NO_CMAKE_SYSTEM_PATH
+        DOC "The Iex library" )
 
-FIND_LIBRARY( ILMBASE_ILMTHREAD_LIB IlmThread
-              PATHS
-              ${LIBRARY_PATHS}
-              NO_DEFAULT_PATH
-              NO_CMAKE_ENVIRONMENT_PATH
-              NO_CMAKE_PATH
-              NO_SYSTEM_ENVIRONMENT_PATH
-              NO_CMAKE_SYSTEM_PATH
-              DOC "The IlmThread library" )
+FIND_LIBRARY( ILMBASE_ILMTHREAD_LIB 
+        IlmThread
+    PATHS
+        "${LIBRARY_PATHS}"
+        NO_DEFAULT_PATH
+        NO_CMAKE_ENVIRONMENT_PATH
+        NO_CMAKE_PATH
+        NO_SYSTEM_ENVIRONMENT_PATH
+        NO_CMAKE_SYSTEM_PATH
+        DOC "The IlmThread library" )
 
-FIND_LIBRARY( ILMBASE_IMATH_LIB Imath
-              PATHS
-              ${LIBRARY_PATHS}
-              NO_DEFAULT_PATH
-              NO_CMAKE_ENVIRONMENT_PATH
-              NO_CMAKE_PATH
-              NO_SYSTEM_ENVIRONMENT_PATH
-              NO_CMAKE_SYSTEM_PATH
-              DOC "The Imath library" )
+FIND_LIBRARY( ILMBASE_IMATH_LIB
+        Imath
+    PATHS
+        "${LIBRARY_PATHS}"
+        NO_DEFAULT_PATH
+        NO_CMAKE_ENVIRONMENT_PATH
+        NO_CMAKE_PATH
+        NO_SYSTEM_ENVIRONMENT_PATH
+        NO_CMAKE_SYSTEM_PATH
+        DOC "The Imath library" )
 
 
 IF ( ${ILMBASE_IEX_LIB} STREQUAL "ILMBASE_IEX_LIB-NOTFOUND" )
@@ -146,9 +150,9 @@ IF ( ${ILMBASE_INCLUDE_DIR} STREQUAL "ILMBASE_INCLUDE_DIR-NOTFOUND" )
 ENDIF()
 
 SET( ILMBASE_LIBRARIES
-       ${ILMBASE_IMATH_LIB}
-       ${ILMBASE_ILMTHREAD_LIB}
-       ${ILMBASE_IEX_LIB}
+    "${ILMBASE_IMATH_LIB}"
+    "${ILMBASE_ILMTHREAD_LIB}"
+    "${ILMBASE_IEX_LIB}"
 )
 
 INCLUDE(FindPackageHandleStandardArgs)

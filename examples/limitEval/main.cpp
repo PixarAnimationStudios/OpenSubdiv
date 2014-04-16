@@ -82,7 +82,7 @@ typedef HbrHalfedge<OsdVertex> OsdHbrHalfedge;
 
 typedef FarMesh<OsdVertex>              OsdFarMesh;
 typedef FarMeshFactory<OsdVertex>       OsdFarMeshFactory;
-typedef FarSubdivisionTables<OsdVertex> OsdFarMeshSubdivision;
+typedef FarSubdivisionTables            OsdFarMeshSubdivision;
 
 //------------------------------------------------------------------------------
 struct SimpleShape {
@@ -518,7 +518,7 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
             
     // Create a Compute context, used to "pose" the vertices
     delete g_computeCtx;
-    g_computeCtx = OsdCpuComputeContext::Create(g_fmesh);
+    g_computeCtx = OsdCpuComputeContext::Create(g_fmesh->GetSubdivisionTables(), g_fmesh->GetVertexEditTables());
     
     g_computeCtrl.Refine( g_computeCtx, g_fmesh->GetKernelBatches(), g_vertexData, g_varyingData );
     
@@ -526,7 +526,7 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
     
     // Create eval context & data buffers
     delete g_evalCtx;
-    g_evalCtx = OsdCpuEvalLimitContext::Create(g_fmesh, /*requireFVarData*/ true);
+    g_evalCtx = OsdCpuEvalLimitContext::Create(g_fmesh->GetPatchTables(), /*requireFVarData*/ true);
 
     delete g_Q;
     g_Q = OsdCpuGLVertexBuffer::Create(6,nsamples);

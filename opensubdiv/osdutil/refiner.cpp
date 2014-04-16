@@ -41,7 +41,7 @@ using namespace std;
 // mesh topology
 
 
-PxOsdUtilRefiner::PxOsdUtilRefiner():
+OsdUtilRefiner::OsdUtilRefiner():
     _adaptive(false),
     _mesh(NULL),
     _farMesh(NULL),
@@ -56,8 +56,8 @@ PxOsdUtilRefiner::PxOsdUtilRefiner():
 
     
 bool
-PxOsdUtilRefiner::Initialize(
-       const PxOsdUtilSubdivTopology &topology,
+OsdUtilRefiner::Initialize(
+       const OsdUtilSubdivTopology &topology,
        bool adaptive,
        string *errorMessage)    
 {
@@ -66,13 +66,13 @@ PxOsdUtilRefiner::Initialize(
         return false;
     } 
 
-    _mesh = new PxOsdUtilMesh<OsdVertex>();
+    _mesh = new OsdUtilMesh<OsdVertex>();
     
     if (not _mesh->Initialize(topology, errorMessage)) {
         return false;
     }
 
-    const PxOsdUtilSubdivTopology &t = _mesh->GetTopology();
+    const OsdUtilSubdivTopology &t = _mesh->GetTopology();
 
     if (adaptive) {
         FarMeshFactory<OsdVertex> adaptiveMeshFactory(
@@ -98,7 +98,7 @@ PxOsdUtilRefiner::Initialize(
 
     // Subdivision tables describe the addition steps with coefficients
     // needed to perform subdivision
-    const FarSubdivisionTables<OsdVertex>* ftable =
+    const FarSubdivisionTables* ftable =
         _farMesh->GetSubdivisionTables();
     
     // Find quads array at given level
@@ -141,7 +141,7 @@ PxOsdUtilRefiner::Initialize(
 }
 
 bool
-PxOsdUtilRefiner::GetRefinedQuads(
+OsdUtilRefiner::GetRefinedQuads(
     vector<int>* quads,
     string *errorMessage) const
 {
@@ -201,7 +201,7 @@ _InverseRotate(OpenSubdiv::FarPatchParam::BitField bf, float& u, float& v)
 }
 
 bool
-PxOsdUtilRefiner::GetRefinedPtexUvs(vector<float>* subfaceUvs,
+OsdUtilRefiner::GetRefinedPtexUvs(vector<float>* subfaceUvs,
                                     vector<int>* ptexIndices,
                                     string *errorMessage) const
 {
@@ -267,7 +267,7 @@ PxOsdUtilRefiner::GetRefinedPtexUvs(vector<float>* subfaceUvs,
 }
 
 
-PxOsdUtilRefiner::~PxOsdUtilRefiner() {
+OsdUtilRefiner::~OsdUtilRefiner() {
     
     if (_mesh)
         delete _mesh;
@@ -278,7 +278,7 @@ PxOsdUtilRefiner::~PxOsdUtilRefiner() {
 
 
 const std::string &
-PxOsdUtilRefiner::GetName()
+OsdUtilRefiner::GetName()
 {
     if (_mesh) {
         return _mesh->GetName();
@@ -289,7 +289,7 @@ PxOsdUtilRefiner::GetName()
 }
 
 OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>*
-PxOsdUtilRefiner::GetHbrMesh()
+OsdUtilRefiner::GetHbrMesh()
 {
     if (_mesh) {
         return _mesh->GetHbrMesh();

@@ -701,11 +701,11 @@ FarMeshFactory<T,U>::Create( bool requireFVarData ) {
     FarMesh<U> * result = new FarMesh<U>();
 
     if ( isBilinear( GetHbrMesh() ) ) {
-        result->_subdivisionTables = FarBilinearSubdivisionTablesFactory<T,U>::Create(this, result, &result->_batches);
+        result->_subdivisionTables = FarBilinearSubdivisionTablesFactory<T,U>::Create(this, &result->_batches);
     } else if ( isCatmark( GetHbrMesh() ) ) {
-        result->_subdivisionTables = FarCatmarkSubdivisionTablesFactory<T,U>::Create(this, result, &result->_batches);
+        result->_subdivisionTables = FarCatmarkSubdivisionTablesFactory<T,U>::Create(this, &result->_batches);
     } else if ( isLoop(GetHbrMesh()) ) {
-        result->_subdivisionTables = FarLoopSubdivisionTablesFactory<T,U>::Create(this, result, &result->_batches);
+        result->_subdivisionTables = FarLoopSubdivisionTablesFactory<T,U>::Create(this, &result->_batches);
     } else
         assert(0);
     assert(result->_subdivisionTables);
@@ -718,26 +718,20 @@ FarMeshFactory<T,U>::Create( bool requireFVarData ) {
             copyVertex(result->_vertices[i], GetHbrMesh()->GetVertex(i)->GetData());
     }
 
+    int fvarwidth = requireFVarData ? _hbrMesh->GetTotalFVarWidth() : 0;
+
     // Create the element indices tables (patches for adaptive, quads for non-adaptive)
     if (isAdaptive()) {
 
         FarPatchTablesFactory<T> factory(GetHbrMesh(), _numFaces, _remapTable);
 
         // XXXX: currently PatchGregory shader supports up to 29 valence
-        result->_patchTables = factory.Create(GetMaxLevel()+1, _maxValence, requireFVarData);
+        result->_patchTables = factory.Create(GetMaxLevel()+1, _maxValence, _numPtexFaces, fvarwidth);
 
     } else {
-        result->_patchTables = FarPatchTablesFactory<T>::Create(GetHbrMesh(), _facesList, _remapTable, _firstlevel, requireFVarData );
+        result->_patchTables = FarPatchTablesFactory<T>::Create(GetHbrMesh(), _facesList, _remapTable, _firstlevel, _numPtexFaces, fvarwidth );
     }
     assert( result->_patchTables );
-
-    result->_numPtexFaces = _numPtexFaces;
-
-    if (requireFVarData) {
-        result->_totalFVarWidth = _hbrMesh->GetTotalFVarWidth();
-    } else {
-        result->_totalFVarWidth = 0;
-    }
 
     // Create VertexEditTables if necessary
     if (GetHbrMesh()->HasVertexEdits()) {

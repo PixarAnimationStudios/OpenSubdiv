@@ -34,21 +34,20 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 OsdCpuEvalLimitContext *
-OsdCpuEvalLimitContext::Create(FarMesh<OsdVertex> const * farmesh, bool requireFVarData) {
+OsdCpuEvalLimitContext::Create(FarPatchTables const *patchTables, bool requireFVarData) {
 
-    assert(farmesh);
+    assert(patchTables);
     
     // we do not support uniform yet
-    if (not farmesh->GetPatchTables())
+    if (not patchTables->IsFeatureAdaptive())
         return NULL;
                                           
-    return new OsdCpuEvalLimitContext(farmesh, requireFVarData);
+    return new OsdCpuEvalLimitContext(patchTables, requireFVarData);
 }
 
-OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmesh, bool requireFVarData) :
-    OsdEvalLimitContext(farmesh) {
+OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarPatchTables const *patchTables, bool requireFVarData) :
+    OsdEvalLimitContext(patchTables) {
     
-    FarPatchTables const * patchTables = farmesh->GetPatchTables();
     assert(patchTables);
 
     // copy the data from the FarTables
@@ -86,9 +85,9 @@ OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmes
     
     // Copy the face-varying table if necessary    
     if (requireFVarData) {
-        _fvarwidth = farmesh->GetTotalFVarWidth();
+        _fvarwidth = patchTables->GetFVarData().GetFVarWidth();
         if (_fvarwidth>0) {
-            _fvarData = patchTables->GetFVarDataTable();
+            _fvarData = patchTables->GetFVarData().GetAllData();
         }
     }
     

@@ -30,31 +30,31 @@ set(SHADER_FILES
 )
 
 set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
-    ${OPENGL_LIBRARY}
-    ${GLEW_LIBRARY}
-    ${GLFW_LIBRARIES}
+    "${OSD_LINK_TARGET}"
+    "${OPENGL_LIBRARY}"
+    "${GLEW_LIBRARY}"
+    "${GLFW_LIBRARIES}"
 )
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${PROJECT_SOURCE_DIR}/regression
-    ${GLEW_INCLUDE_DIR}
-    ${GLFW_INCLUDE_DIR}
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${PROJECT_SOURCE_DIR}/regression"
+    "${GLEW_INCLUDE_DIR}"
+    "${GLFW_INCLUDE_DIR}"
 )
 
 if( OPENCL_FOUND )
-    include_directories(${OPENCL_INCLUDE_DIRS})
+    include_directories("${OPENCL_INCLUDE_DIRS}")
 endif()
 
 _stringify("${SHADER_FILES}" INC_FILES)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 _add_glfw_executable(paintTest
     main.cpp
-    ${SHADER_FILES}
-    ${INC_FILES}
+    "${SHADER_FILES}"
+    "${INC_FILES}"
     $<TARGET_OBJECTS:examples_common_obj>
 )
 
@@ -62,4 +62,4 @@ target_link_libraries(paintTest
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS paintTest DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS paintTest DESTINATION "${CMAKE_BINDIR_BASE}")

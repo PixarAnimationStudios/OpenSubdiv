@@ -91,10 +91,8 @@ OsdD3D11ComputeController::getKernels(int numVertexElements,
 
 void
 OsdD3D11ComputeController::ApplyBilinearFaceVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -105,10 +103,8 @@ OsdD3D11ComputeController::ApplyBilinearFaceVerticesKernel(
 
 void
 OsdD3D11ComputeController::ApplyBilinearEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -119,10 +115,8 @@ OsdD3D11ComputeController::ApplyBilinearEdgeVerticesKernel(
 
 void
 OsdD3D11ComputeController::ApplyBilinearVertexVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -133,10 +127,8 @@ OsdD3D11ComputeController::ApplyBilinearVertexVerticesKernel(
 
 void
 OsdD3D11ComputeController::ApplyCatmarkFaceVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -149,10 +141,8 @@ OsdD3D11ComputeController::ApplyCatmarkFaceVerticesKernel(
 
 void
 OsdD3D11ComputeController::ApplyCatmarkEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -163,10 +153,8 @@ OsdD3D11ComputeController::ApplyCatmarkEdgeVerticesKernel(
 
 void
 OsdD3D11ComputeController::ApplyCatmarkVertexVerticesKernelB(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -177,10 +165,8 @@ OsdD3D11ComputeController::ApplyCatmarkVertexVerticesKernelB(
 
 void
 OsdD3D11ComputeController::ApplyCatmarkVertexVerticesKernelA1(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -191,10 +177,8 @@ OsdD3D11ComputeController::ApplyCatmarkVertexVerticesKernelA1(
 
 void
 OsdD3D11ComputeController::ApplyCatmarkVertexVerticesKernelA2(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -205,10 +189,8 @@ OsdD3D11ComputeController::ApplyCatmarkVertexVerticesKernelA2(
 
 void
 OsdD3D11ComputeController::ApplyLoopEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -219,10 +201,8 @@ OsdD3D11ComputeController::ApplyLoopEdgeVerticesKernel(
 
 void
 OsdD3D11ComputeController::ApplyLoopVertexVerticesKernelB(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -233,10 +213,8 @@ OsdD3D11ComputeController::ApplyLoopVertexVerticesKernelB(
 
 void
 OsdD3D11ComputeController::ApplyLoopVertexVerticesKernelA1(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -247,10 +225,8 @@ OsdD3D11ComputeController::ApplyLoopVertexVerticesKernelA1(
 
 void
 OsdD3D11ComputeController::ApplyLoopVertexVerticesKernelA2(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
@@ -261,10 +237,8 @@ OsdD3D11ComputeController::ApplyLoopVertexVerticesKernelA2(
 
 void
 OsdD3D11ComputeController::ApplyVertexEdits(
-    FarKernelBatch const &batch, void * clientdata) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
 
-    OsdD3D11ComputeContext * context =
-        static_cast<OsdD3D11ComputeContext*>(clientdata);
     assert(context);
 
     OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();

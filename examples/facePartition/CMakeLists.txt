@@ -1,5 +1,5 @@
 #
-#   Copyright 2013 Pixar
+#   Copyright 2014 Pixar
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -22,69 +22,48 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-set(EXAMPLES_COMMON_SOURCE_FILES
-    font_image.cpp
-    hdr_reader.cpp
-    hud.cpp
-    patchColors.cpp
+# *** facePartition ***
+
+set(SHADER_FILES
+     shader.glsl
 )
 
-set(EXAMPLES_COMMON_HEADER_FILES
-    clInit.h
-    cudaInit.h
-    font_image.h
-    hdr_reader.h
-    hud.h
-    patchColors.h
-    simple_math.h
-    stopwatch.h
+set(PLATFORM_LIBRARIES
+    "${OSD_LINK_TARGET}"
+    "${OPENGL_LIBRARY}"
+    "${GLFW_LIBRARIES}"
 )
 
-if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
+include_directories(
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${PROJECT_SOURCE_DIR}/regression"
+    "${GLFW_INCLUDE_DIR}"
+)
 
-    list(APPEND EXAMPLES_COMMON_SOURCE_FILES
-        gl_hud.cpp
-    )
-
-    list(APPEND EXAMPLES_COMMON_HEADER_FILES
-        gl_hud.h
-    )
-
-    if (NOT "${OPENGL_INCLUDE_DIR}" STREQUAL "")
-        include_directories("${OPENGL_INCLUDE_DIR}")
-    endif()
-
-    if (GLEW_FOUND)
-        include_directories("${GLEW_INCLUDE_DIR}")
-    endif()
-
-endif()
-
-
-if(DXSDK_FOUND)
-
-    list(APPEND EXAMPLES_COMMON_SOURCE_FILES
-        d3d11_hud.cpp
-    )
-
-    list(APPEND EXAMPLES_COMMON_HEADER_FILES
-        d3d11_hud.h
-    )
-
-    include_directories("${DXSDK_INCLUDE_DIR}")
-
+if ( GLEW_FOUND )
+    include_directories("${GLEW_INCLUDE_DIR}")
+    list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
 endif()
 
 if( OPENCL_FOUND )
     include_directories("${OPENCL_INCLUDE_DIRS}")
 endif()
 
-include_directories(
-    "${PROJECT_SOURCE_DIR}/opensubdiv"
+#-------------------------------------------------------------------------------
+
+_stringify("${SHADER_FILES}" INC_FILES)
+
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+
+_add_glfw_executable(facePartition
+    viewer.cpp
+    "${SHADER_FILES}"
+    "${INC_FILES}"
+    $<TARGET_OBJECTS:examples_common_obj>
 )
 
-add_library(examples_common_obj
-    OBJECT
-        ${EXAMPLES_COMMON_SOURCE_FILES}
-        ${EXAMPLES_COMMON_HEADER_FILES}
+target_link_libraries(facePartition
+    ${PLATFORM_LIBRARIES}
 )
+
+install(TARGETS facePartition DESTINATION "${CMAKE_BINDIR_BASE}")

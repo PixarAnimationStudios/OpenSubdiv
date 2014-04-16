@@ -35,10 +35,10 @@ find_path( GLFW_INCLUDE_DIR
         GL/glfw.h
         GLFW/glfw3.h
     PATHS
-        ${GLFW_LOCATION}/include
-        $ENV{GLFW_LOCATION}/include
-        $ENV{PROGRAMFILES}/GLFW/include
-        ${OPENGL_INCLUDE_DIR}
+        "${GLFW_LOCATION}/include"
+        "$ENV{GLFW_LOCATION}/include"
+        "$ENV{PROGRAMFILES}/GLFW/include"
+        "${OPENGL_INCLUDE_DIR}"
         /usr/openwin/share/include
         /usr/openwin/include
         /usr/X11R6/include
@@ -58,10 +58,10 @@ if (WIN32)
             NAMES
                 glfw32
             PATHS
-                ${GLFW_LOCATION}/lib
-                ${GLFW_LOCATION}/lib/x64
-                $ENV{GLFW_LOCATION}/lib
-                ${OPENGL_LIBRARY_DIR}
+                "${GLFW_LOCATION}/lib"
+                "${GLFW_LOCATION}/lib/x64"
+                "$ENV{GLFW_LOCATION}/lib"
+                "${OPENGL_LIBRARY_DIR}"
                 /usr/lib
                 /usr/lib/w32api
                 /usr/local/lib
@@ -77,14 +77,14 @@ if (WIN32)
                 glfw
                 glfw3
             PATHS
-                ${GLFW_LOCATION}/lib
-                ${GLFW_LOCATION}/lib/x64
-                ${GLFW_LOCATION}/lib-msvc110
-                $ENV{GLFW_LOCATION}/lib
-                ${PROJECT_SOURCE_DIR}/extern/glfw/bin
-                ${PROJECT_SOURCE_DIR}/extern/glfw/lib
-                $ENV{PROGRAMFILES}/GLFW/lib
-                ${OPENGL_LIBRARY_DIR}
+                "${GLFW_LOCATION}/lib"
+                "${GLFW_LOCATION}/lib/x64"
+                "${GLFW_LOCATION}/lib-msvc110"
+                "$ENV{GLFW_LOCATION}/lib"
+                "${PROJECT_SOURCE_DIR}/extern/glfw/bin"
+                "${PROJECT_SOURCE_DIR}/extern/glfw/lib"
+                "$ENV{PROGRAMFILES}/GLFW/lib"
+                "${OPENGL_LIBRARY_DIR}"
             DOC 
                 "The GLFW library"
         )
@@ -96,10 +96,10 @@ else ()
                 glfw
                 glfw3
             PATHS
-                ${GLFW_LOCATION}/lib
-                ${GLFW_LOCATION}/lib/cocoa
-                $ENV{GLFW_LOCATION}/lib
-                $ENV{GLFW_LOCATION}/lib/cocoa
+                "${GLFW_LOCATION}/lib"
+                "${GLFW_LOCATION}/lib/cocoa"
+                "$ENV{GLFW_LOCATION}/lib"
+                "$ENV{GLFW_LOCATION}/lib/cocoa"
                 /usr/local/lib
         )
         set(GLFW_cocoa_LIBRARY "-framework Cocoa" CACHE STRING "Cocoa framework for OSX")
@@ -118,17 +118,17 @@ else ()
             message(FATAL_ERROR "xf86vmode library not found - required for GLFW")
         endif()
 
-        list(APPEND GLFW_x11_LIBRARY ${X11_Xrandr_LIB} ${X11_Xxf86vm_LIB})
+        list(APPEND GLFW_x11_LIBRARY "${X11_Xrandr_LIB}" "${X11_Xxf86vm_LIB}")
 
         find_library( GLFW_glfw_LIBRARY
             NAMES 
                 glfw
                 glfw3
             PATHS
-                ${GLFW_LOCATION}/lib
-                $ENV{GLFW_LOCATION}/lib
-                ${GLFW_LOCATION}/lib/x11
-                $ENV{GLFW_LOCATION}/lib/x11
+                "${GLFW_LOCATION}/lib"
+                "$ENV{GLFW_LOCATION}/lib"
+                "${GLFW_LOCATION}/lib/x11"
+                "$ENV{GLFW_LOCATION}/lib/x11"
                 /usr/lib64
                 /usr/lib
                 /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}
@@ -148,14 +148,14 @@ set( GLFW_FOUND "NO" )
 if(GLFW_INCLUDE_DIR)
 
     if(GLFW_glfw_LIBRARY)
-        set( GLFW_LIBRARIES ${GLFW_glfw_LIBRARY} 
-                            ${GLFW_x11_LIBRARY} 
-                            ${GLFW_cocoa_LIBRARY} 
-                            ${GLFW_iokit_LIBRARY} 
-                            ${GLFW_corevideo_LIBRARY} )        
+        set( GLFW_LIBRARIES "${GLFW_glfw_LIBRARY}"
+                            "${GLFW_x11_LIBRARY}"
+                            "${GLFW_cocoa_LIBRARY}"
+                            "${GLFW_iokit_LIBRARY}"
+                            "${GLFW_corevideo_LIBRARY}" )
         set( GLFW_FOUND "YES" )
-        set (GLFW_LIBRARY ${GLFW_LIBRARIES})
-        set (GLFW_INCLUDE_PATH ${GLFW_INCLUDE_DIR})
+        set (GLFW_LIBRARY "${GLFW_LIBRARIES}")
+        set (GLFW_INCLUDE_PATH "${GLFW_INCLUDE_DIR}")
     endif(GLFW_glfw_LIBRARY)
 
 

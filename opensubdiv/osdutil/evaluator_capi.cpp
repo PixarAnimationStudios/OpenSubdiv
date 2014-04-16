@@ -50,9 +50,9 @@ using namespace OpenSubdiv;
 /* **************** Types declaration **************** */
 
 typedef struct OpenSubdiv_EvaluatorDescr {
-    PxOsdUtilSubdivTopology topology;
-    PxOsdUtilAdaptiveEvaluator evaluator;
-    std::vector<float> coarsePositions;
+    OsdUtilSubdivTopology topology;
+    OsdUtilAdaptiveEvaluator evaluator;
+    // std::vector<float> coarsePositions;
 } OpenSubdiv_EvaluatorDescr;
 
 
@@ -115,9 +115,11 @@ int openSubdiv_setEvaluatorCoarsePositions(
 
     // TODO: returns void, need error check on length of positions?
     evaluator_descr->evaluator.SetCoarsePositions(
-        &evaluator_descr->coarsePositions[0],
-        (int)evaluator_descr->coarsePositions.size(),
-	&errorMessage);
+        positions, 3 * numVertices, &errorMessage);
+
+    if (not errorMessage.empty()) {
+        std::cout << "OpenSubdiv set coarse positions failed due to " << errorMessage << std::endl;	
+    }
     
     // Refine with 1 thread for now
     if (not evaluator_descr->evaluator.Refine(1, &errorMessage)) {

@@ -27,7 +27,6 @@
 
 #include "../version.h"
 
-#include "../far/mesh.h"
 #include "../osd/drawRegistry.h"
 #include "../osd/vertex.h"
 

@@ -35,5 +35,9 @@ add_subdirectory(osd)
 add_subdirectory(osdutil)
 
 install( FILES version.h
-         DESTINATION ${CMAKE_INCDIR_BASE}
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+    DESTINATION
+        "${CMAKE_INCDIR_BASE}"
+    PERMISSIONS
+        OWNER_READ
+        GROUP_READ
+        WORLD_READ )

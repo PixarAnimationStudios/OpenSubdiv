@@ -38,10 +38,10 @@ if (WIN32)
         NAMES
             D3D11.h D3Dcompiler.h
         PATHS
-            ${DXSDK_LOCATION}/Include
-            $ENV{DXSDK_LOCATION}/Include
-            ${DXSDK_ROOT}/Include
-            $ENV{DXSDK_ROOT}/Include
+            "${DXSDK_LOCATION}/Include"
+            "$ENV{DXSDK_LOCATION}/Include"
+            "${DXSDK_ROOT}/Include"
+            "$ENV{DXSDK_ROOT}/Include"
             "C:/Program Files (x86)/Microsoft DirectX SDK*/Include"
             "C:/Program Files/Microsoft DirectX SDK*/Include"
     )
@@ -55,10 +55,10 @@ if (WIN32)
     find_path(LIBRARY_DIR
             d3d11.lib
         PATHS
-            ${DXSDK_LOCATION}/Lib/${ARCH}
-            $ENV{DXSDK_LOCATION}/Lib/${ARCH}
-            ${DXSDK_ROOT}/Lib/${ARCH}
-            $ENV{DXSDK_ROOT}/Lib/${ARCH}
+            "${DXSDK_LOCATION}/Lib/${ARCH}"
+            "$ENV{DXSDK_LOCATION}/Lib/${ARCH}"
+            "${DXSDK_ROOT}/Lib/${ARCH}"
+            "$ENV{DXSDK_ROOT}/Lib/${ARCH}"
             "C:/Program Files (x86)/Microsoft DirectX SDK*/Lib/${ARCH}"
             "C:/Program Files/Microsoft DirectX SDK*/Lib/${ARCH}"
     )

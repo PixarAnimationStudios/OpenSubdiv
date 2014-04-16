@@ -50,12 +50,12 @@
 // At runtime Osd vertex buffers, compute controllers, and compute contexts
 // are used for fast evaluation of the surface given the FarMesh.
 //----------------------------------------------------------------------------
-class PxOsdUtilRefiner  {
+class OsdUtilRefiner  {
   public:
 
-    PxOsdUtilRefiner();
+    OsdUtilRefiner();
 
-    ~PxOsdUtilRefiner();    
+    ~OsdUtilRefiner();    
 
     // Returns false on error.  If errorMessage is non-NULL it'll
     // be populated upon error.
@@ -64,7 +64,7 @@ class PxOsdUtilRefiner  {
     // all variables will be populated for later calls to Refine.
     //
     bool Initialize(
-       const PxOsdUtilSubdivTopology &topology, bool adaptive,
+       const OsdUtilSubdivTopology &topology, bool adaptive,
        std::string *errorMessage = NULL);
 
     // Fetch the topology of the post-refined mesh. The "quads" vector
@@ -99,7 +99,7 @@ class PxOsdUtilRefiner  {
 
     OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex> *GetHbrMesh();
 
-    const PxOsdUtilSubdivTopology &GetTopology() const {return _mesh->GetTopology();}
+    const OsdUtilSubdivTopology &GetTopology() const {return _mesh->GetTopology();}
 
     bool IsRefined() {return _isRefined;}
 
@@ -120,7 +120,7 @@ class PxOsdUtilRefiner  {
     
     // The lowest level mesh, it definies the polygonal topology
     // and is used for refinement.  
-    PxOsdUtilMesh<OpenSubdiv::OsdVertex>* _mesh;
+    OsdUtilMesh<OpenSubdiv::OsdVertex>* _mesh;
 
     // A mesh of patches (adaptive), or quads (uniform) generated
     // by performing feature adaptive or uniform subdivision on the hbrMesh.

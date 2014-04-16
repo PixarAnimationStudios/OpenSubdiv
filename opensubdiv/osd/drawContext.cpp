@@ -64,7 +64,7 @@ OsdDrawContext::ConvertPatchArrays(FarPatchTables::PatchArrayVector const &farPa
 #if defined(GL_ES_VERSION_2_0)
         // XXX: farmesh should have FarDensePatchTable for dense mesh indices.
         //      instead of GetFaceVertices().
-        const FarSubdivisionTables<OsdVertex> *tables = farMesh->GetSubdivisionTables();
+        const FarSubdivisionTables *tables = farMesh->GetSubdivisionTables();
         int level = tables->GetMaxLevel();
         const std::vector<int> &indices = farMesh->GetFaceVertices(level-1);
 

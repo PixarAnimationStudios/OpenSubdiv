@@ -148,7 +148,7 @@ protected:
     GLuint _program;
 
     // uniform locations
-    GLint _uniformTables[FarSubdivisionTables<OsdVertex>::TABLE_TYPES_COUNT];
+    GLint _uniformTables[FarSubdivisionTables::TABLE_TYPES_COUNT];
     GLint _uniformVertexPass;
     GLint _uniformVertexOffset;
     GLint _uniformTableOffset;

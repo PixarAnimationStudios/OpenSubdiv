@@ -50,7 +50,6 @@ public:
     typedef std::vector<int>           VertexValenceTable;
     typedef std::vector<unsigned int>  QuadOffsetTable;
     typedef std::vector<FarPatchParam> PatchParamTable;
-    typedef std::vector<float>         FVarDataTable;
 
     enum Type {
         NON_PATCH = 0,     ///< undefined
@@ -149,7 +148,14 @@ public:
         /// \brief Descriptor Iterator
         /// Iterates through the patches in the following preset order
         ///
-        /// Order:
+        /// ANY order:
+        ///        POINTS
+        ///        LINES
+        ///        QUADS
+        ///        TRIANGLES
+        ///        LOOP
+        ///
+        /// FEATURE_ADAPTIVE_CATMARK order:
         ///
         ///       NON_TRANSITION ( REGULAR
         ///                         BOUNDARY
@@ -170,8 +176,16 @@ public:
         ///
         class iterator;
 
-        /// \brief Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
-        static iterator begin();
+        enum PrimType {
+            ANY,
+            FEATURE_ADAPTIVE_CATMARK,
+        };
+
+        /// \brief Returns a patch type iterator
+        /// @param type       if type=ANY then the iterater points to type POINTS
+        ///                   if type=FEATURE_ADAPTIVE_CATMARK then the iterator
+        ///                   points to type NON_TRANSITION REGULAR
+        static iterator begin(PrimType type);
 
         /// \brief Returns an iterator to the end of the list of patch types (NON_PATCH)
         static iterator end();
@@ -292,6 +306,8 @@ public:
     ///
     /// @param fvarData         Face varying data table
     ///
+    /// @param fvarWidth        Primvar data width (number of floats)
+    ///
     /// @param maxValence       Highest vertex valence allowed in the mesh
     ///
     FarPatchTables(PatchArrayVector const & patchArrays,
@@ -299,7 +315,8 @@ public:
                    VertexValenceTable const * vertexValences,
                    QuadOffsetTable const * quadOffsets,
                    PatchParamTable const * patchParams,
-                   FVarDataTable const * fvarData,
+                   std::vector<float> const * fvarData,
+                   int fvarWidth,
                    int maxValence);
 
     /// \brief Get the table of patch control vertices
@@ -358,14 +375,6 @@ public:
     /// \brief Returns a PatchParamTable for each type of patch
     PatchParamTable const & GetPatchParamTable() const { return _paramTable; }
 
-    /// \brief Returns an FVarDataTable for each type of patch
-    /// The data is stored as a run of totalFVarWidth floats per-vertex per-face
-    /// e.g.: for UV data it has the structure of float[p][4][2] where
-    /// p=primitiveID and totalFVarWidth=2:
-    ///      [ [ uv uv uv uv ] [ uv uv uv uv ] [ ... ] ]
-    ///            prim 0           prim 1
-    FVarDataTable const & GetFVarDataTable() const { return _fvarTable; }
-
     /// \brief Ringsize of Regular Patches in table.
     static int GetRegularPatchRingsize() { return 16; }
 
@@ -390,10 +399,67 @@ public:
     /// \brief True if the patches are of feature adaptive types
     bool IsFeatureAdaptive() const;
 
+    /// \brief Returns the total number of vertices in the mesh across across all depths
+    int GetNumPtexFaces() const { return _numPtexFaces; }
+
+    
+    /// \brief Container for static face-varying primvar data
+    class FVarData {
+
+    public:
+
+        /// \brief Returns a vector of floats containing the face-varying data attached
+        /// to each patch.
+        ///
+        /// The data is stored as a run of FVarWidth floats per-vertex per-face
+        /// e.g.: for UV data it has the structure of float[p][4][2] where
+        /// p=primitiveID and FVarWidth=2:
+        ///      [ [ uv uv uv uv ] [ uv uv uv uv ] [ ... ] ]
+        ///            prim 0           prim 1
+        ///
+        /// In uniform mode the FarPatchTablesFactory can be set to generate either a
+        /// patch array containing the faces at the highest level of subdivision, or
+        /// a range of arrays, corresponding to multiple successive levels of subdivision.
+        ///
+        /// Note : level '0' is not the coarse mesh. Currently there is no path in the
+        /// factories to convert the coarse mesh to FarPatchTables.
+        ///
+        /// @param level  the level of subdivision of the faces (returns the highest
+        ///               level by default) **Uniform subdivision only**
+        ///
+        float const * GetData(int level=0) const;
+
+        /// \brief Returns a vector of floats containing the face-varying data attached
+        std::vector<float> const & GetAllData() const {
+            return _data;
+        }
+
+        /// \brief Returns the width of the interleaved face-varying data
+        int GetFVarWidth() const {
+            return _fvarWidth;
+        }
+
+    private:
+
+        template <class T> friend class FarPatchTablesFactory;
+        friend class FarPatchTables;
+
+        FVarData() : _fvarWidth(0) { }
+        
+        FVarData( std::vector<float> const * data, int fvarWidth );
+
+        std::vector<float> _data;      // face-varying data stored per-face-per-vertex
+        std::vector<int>   _offsets;   // a vector of offsets if multiple leves of
+                                       // subdivision are stored in _data
+        int                _fvarWidth; // width of the face-varying data
+    };
+    
+    /// \brief Returns a container for face-varying data
+    FVarData const & GetFVarData() const { return _fvarData; }
+
 private:
 
     template <class T> friend class FarPatchTablesFactory;
-    template <class T, class U> friend class FarMultiMeshFactory;
 
     // Returns the array of patches of type "desc", or NULL if there aren't any in the primitive
     PatchArray * findPatchArray( Descriptor desc );
@@ -412,11 +478,15 @@ private:
 
     PatchParamTable     _paramTable;
 
-    FVarDataTable       _fvarTable;
+    FVarData            _fvarData;           // face-varying data
 
     // highest vertex valence allowed in the mesh (used for Gregory
     // vertexValance & quadOffset tables)
     int _maxValence;
+
+    // number of total ptex faces in quads or triangles(loop)
+    int _numPtexFaces;
+
 };
 
 /// \brief Descriptor iterator class
@@ -504,7 +574,12 @@ FarPatchTables::Descriptor::GetAllValidDescriptors() {
     static std::vector<Descriptor> _descriptors;
 
     if (_descriptors.empty()) {
-        _descriptors.reserve(50);
+        _descriptors.reserve(55);
+
+        // non-patch primitives
+        for (int i=POINTS; i<=LOOP; ++i) {
+            _descriptors.push_back( Descriptor(i, NON_TRANSITION, 0) );
+        }
 
         // non-transition patches
         for (int i=REGULAR; i<=GREGORY_BOUNDARY; ++i) {
@@ -532,8 +607,15 @@ FarPatchTables::Descriptor::GetAllValidDescriptors() {
 
 // Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
 inline FarPatchTables::Descriptor::iterator
-FarPatchTables::Descriptor::begin() {
-    return iterator( Descriptor(REGULAR, NON_TRANSITION, 0) );
+FarPatchTables::Descriptor::begin(PrimType type) {
+    switch (type) {
+        case ANY:
+            return iterator( Descriptor(POINTS, NON_TRANSITION, 0) );
+        case FEATURE_ADAPTIVE_CATMARK:
+            return iterator( Descriptor(REGULAR, NON_TRANSITION, 0) );
+        default:
+            return iterator( Descriptor() );
+    }
 }
 
 // Returns an iterator to the end of the list of patch types (NON_PATCH)
@@ -549,11 +631,14 @@ FarPatchTables::FarPatchTables(PatchArrayVector const & patchArrays,
                                VertexValenceTable const * vertexValences,
                                QuadOffsetTable const * quadOffsets,
                                PatchParamTable const * patchParams,
-                               FVarDataTable const * fvarData,
+                               std::vector<float> const * fvarData,
+                               int fvarWidth,
                                int maxValence) :
     _patchArrays(patchArrays),
     _patches(patches),
-    _maxValence(maxValence) {
+    _fvarData(fvarData, fvarWidth),
+    _maxValence(maxValence),
+    _numPtexFaces(0) {
 
     // copy other tables if exist
     if (vertexValences)
@@ -562,8 +647,6 @@ FarPatchTables::FarPatchTables(PatchArrayVector const & patchArrays,
         _quadOffsetTable = *quadOffsets;
     if (patchParams)
         _paramTable = *patchParams;
-    if (fvarData)
-        _fvarTable = *fvarData;
 }
 
 inline bool
@@ -693,6 +776,34 @@ FarPatchTables::GetNumControlVertices() const {
     return result;
 }
 
+// Constructor
+inline
+FarPatchTables::FVarData::FVarData( std::vector<float> const * data, int fvarWidth ) : 
+    _fvarWidth(fvarWidth) {
+
+    if (data) {
+        _data = *data;
+    }    
+}
+
+// Returns a vector of float containing the face-varying data attached
+inline float const *
+FarPatchTables::FVarData::GetData(int level) const {
+
+    if ( (level-1)<(int)_offsets.size()) {
+
+        int offset = 0;
+
+        if ((level>0) and (not _offsets.empty()) ) {
+
+            offset = _offsets[level -1];
+        }
+
+        return &_data[offset];
+    }
+
+    return NULL;
+}
 
 
 } // end namespace OPENSUBDIV_VERSION

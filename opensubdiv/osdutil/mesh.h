@@ -51,23 +51,23 @@ namespace OPENSUBDIV_VERSION {
 
 
 // This class is reponsible for taking a topological description of a mesh
-// defined by PxOsdUtilSubdivTopology and turn that into a halfedge mesh
-// with detailed connectivity information for mesh traversal. A PxOsdUtilMesh
+// defined by OsdUtilSubdivTopology and turn that into a halfedge mesh
+// with detailed connectivity information for mesh traversal. A OsdUtilMesh
 // object is used for uniform and feature adaptive refinement of subdivision
 // surfaces (subdivs), which is itself a requirement for fast run-time
 // evaluation of subdivs.
 //
 template <class T>
-class PxOsdUtilMesh {
+class OsdUtilMesh {
   public:
     
-    PxOsdUtilMesh();
+    OsdUtilMesh();
 
     bool Initialize(
-        const PxOsdUtilSubdivTopology &topology,
+        const OsdUtilSubdivTopology &topology,
         std::string *errorMessage = NULL);
 
-    ~PxOsdUtilMesh();
+    ~OsdUtilMesh();
 
     // Fetch the face varying attribute values on refined quads
     // Traverse the hbrMesh gathering face varying data created
@@ -84,11 +84,11 @@ class PxOsdUtilMesh {
 
     const std::string &GetName() { return _t.name;}
 
-    const PxOsdUtilSubdivTopology &GetTopology() const {return _t;}
+    const OsdUtilSubdivTopology &GetTopology() const {return _t;}
 
 private:
 
-    PxOsdUtilSubdivTopology _t;
+    OsdUtilSubdivTopology _t;
 
     std::vector<int> _fvarwidths;
     std::vector<int> _fvarindices;

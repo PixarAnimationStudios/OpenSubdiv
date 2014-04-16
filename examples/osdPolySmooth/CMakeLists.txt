@@ -37,12 +37,12 @@ if(NOT MAYA_FOUND)
 endif()
 
 set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
+    "${OSD_LINK_TARGET}"
 )
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${MAYA_INCLUDE_DIRS}
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${MAYA_INCLUDE_DIRS}"
 )
 
 set(SOURCE_FILES
@@ -96,27 +96,27 @@ set_target_properties(maya_polySmoothNode
 )
 
 target_link_libraries(maya_polySmoothNode
-    ${MAYA_Foundation_LIBRARY}
-    ${MAYA_OpenMaya_LIBRARY}
-    ${MAYA_OpenMayaRender_LIBRARY}
-    ${MAYA_OpenMayaUI_LIBRARY}
+    "${MAYA_Foundation_LIBRARY}"
+    "${MAYA_OpenMaya_LIBRARY}"
+    "${MAYA_OpenMayaRender_LIBRARY}"
+    "${MAYA_OpenMayaUI_LIBRARY}"
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS maya_polySmoothNode DESTINATION ${CMAKE_PLUGINDIR_BASE})
+install(TARGETS maya_polySmoothNode DESTINATION "${CMAKE_PLUGINDIR_BASE}")
 
 add_custom_target(maya_polySmoothNode_melScripts
         COMMAND
-            ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/osdPolySmooth.mel ${CMAKE_BINARY_DIR}/${CMAKE_LIBDIR_BASE}
+            ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/osdPolySmooth.mel" "${CMAKE_BINARY_DIR}/${CMAKE_LIBDIR_BASE}"
         DEPENDS
-            ${CMAKE_CURRENT_SOURCE_DIR}/osdPolySmooth.mel
+            "${CMAKE_CURRENT_SOURCE_DIR}/osdPolySmooth.mel"
 )
 
 install(
     FILES 
-        ${CMAKE_BINARY_DIR}/${CMAKE_LIBDIR_BASE}/osdPolySmooth.mel
+        "${CMAKE_BINARY_DIR}/${CMAKE_LIBDIR_BASE}/osdPolySmooth.mel"
     DESTINATION 
-        ${CMAKE_PLUGINDIR_BASE}
+        "${CMAKE_PLUGINDIR_BASE}"
 )
 
 add_custom_target(osdPolySmoothNode 

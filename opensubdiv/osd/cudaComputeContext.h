@@ -27,6 +27,7 @@
 
 #include "../version.h"
 
+#include "../far/subdivisionTables.h"
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
 #include "../osd/vertexDescriptor.h"
@@ -64,8 +65,7 @@ private:
 
 class OsdCudaHEditTable : OsdNonCopyable<OsdCudaHEditTable> {
 public:
-    static OsdCudaHEditTable * Create(const FarVertexEditTables<OsdVertex>::
-                                      VertexEditBatch &batch);
+    static OsdCudaHEditTable * Create(const FarVertexEditTables::VertexEditBatch &batch);
 
     virtual ~OsdCudaHEditTable();
 
@@ -104,9 +104,12 @@ class OsdCudaComputeContext : public OsdNonCopyable<OsdCudaComputeContext> {
 public:
     /// Creates an OsdCudaComputeContext instance
     ///
-    /// @param farmesh the FarMesh used for this Context.
+    /// @param subdivisionTables the FarSubdivisionTables used for this Context.
     ///
-    static OsdCudaComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
+    /// @param vertexEditTables the FarVertexEditTables used for this Context.
+    ///
+    static OsdCudaComputeContext * Create(FarSubdivisionTables const *subdivisionTables,
+                                          FarVertexEditTables const *vertexEditTables);
 
     /// Destructor
     virtual ~OsdCudaComputeContext();
@@ -178,7 +181,8 @@ public:
 protected:
     OsdCudaComputeContext();
 
-    bool initialize(FarMesh<OsdVertex> const *farMesh);
+    bool initialize(FarSubdivisionTables const *subdivisionTables,
+                    FarVertexEditTables const *vertexEditTables);
 
 private:
     std::vector<OsdCudaTable*> _tables;

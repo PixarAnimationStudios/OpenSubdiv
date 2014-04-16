@@ -22,10 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/mesh.h"
 #include "../far/dispatcher.h"
-#include "../far/catmarkSubdivisionTables.h"
-#include "../far/bilinearSubdivisionTables.h"
+#include "../far/subdivisionTables.h"
 
 #include "../osd/cpuComputeContext.h"
 #include "../osd/cpuKernel.h"
@@ -59,7 +57,7 @@ OsdCpuTable::GetBuffer() const {
 // ----------------------------------------------------------------------------
 
 OsdCpuHEditTable::OsdCpuHEditTable(
-    const FarVertexEditTables<OsdVertex>::VertexEditBatch &batch)
+    const FarVertexEditTables::VertexEditBatch &batch)
     : _primvarIndicesTable(new OsdCpuTable(batch.GetVertexIndices())),
       _editValuesTable(new OsdCpuTable(batch.GetValues())) {
 
@@ -104,33 +102,30 @@ OsdCpuHEditTable::GetPrimvarWidth() const {
     return _primvarWidth;
 }
 
-OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> const *farMesh) {
-
-    FarSubdivisionTables<OsdVertex> const * farTables =
-        farMesh->GetSubdivisionTables();
+OsdCpuComputeContext::OsdCpuComputeContext(FarSubdivisionTables const *subdivisionTables,
+                                           FarVertexEditTables const *vertexEditTables) {
 
     // allocate 5 or 7 tables
-    _tables.resize(farTables->GetNumTables(), 0);
+    _tables.resize(subdivisionTables->GetNumTables(), 0);
 
-    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdCpuTable(farTables->Get_E_IT());
-    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdCpuTable(farTables->Get_V_IT());
-    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdCpuTable(farTables->Get_V_ITa());
-    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdCpuTable(farTables->Get_E_W());
-    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdCpuTable(farTables->Get_V_W());
+    _tables[FarSubdivisionTables::E_IT]  = new OsdCpuTable(subdivisionTables->Get_E_IT());
+    _tables[FarSubdivisionTables::V_IT]  = new OsdCpuTable(subdivisionTables->Get_V_IT());
+    _tables[FarSubdivisionTables::V_ITa] = new OsdCpuTable(subdivisionTables->Get_V_ITa());
+    _tables[FarSubdivisionTables::E_W]   = new OsdCpuTable(subdivisionTables->Get_E_W());
+    _tables[FarSubdivisionTables::V_W]   = new OsdCpuTable(subdivisionTables->Get_V_W());
 
-    if (farTables->GetNumTables() > 5) {
-        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdCpuTable(farTables->Get_F_IT());
-        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdCpuTable(farTables->Get_F_ITa());
+    if (subdivisionTables->GetNumTables() > 5) {
+        _tables[FarSubdivisionTables::F_IT]  = new OsdCpuTable(subdivisionTables->Get_F_IT());
+        _tables[FarSubdivisionTables::F_ITa] = new OsdCpuTable(subdivisionTables->Get_F_ITa());
     }
 
     // create hedit tables
-    FarVertexEditTables<OsdVertex> const *editTables = farMesh->GetVertexEdit();
-    if (editTables) {
-        int numEditBatches = editTables->GetNumBatches();
+    if (vertexEditTables) {
+        int numEditBatches = vertexEditTables->GetNumBatches();
         _editTables.reserve(numEditBatches);
         for (int i = 0; i < numEditBatches; ++i) {
-            const FarVertexEditTables<OsdVertex>::VertexEditBatch & edit =
-                editTables->GetBatch(i);
+            const FarVertexEditTables::VertexEditBatch & edit =
+                vertexEditTables->GetBatch(i);
 
             _editTables.push_back(new OsdCpuHEditTable(edit));
         }
@@ -180,9 +175,10 @@ OsdCpuComputeContext::GetCurrentVaryingBuffer() const {
 }
 
 OsdCpuComputeContext *
-OsdCpuComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
+OsdCpuComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
+                             FarVertexEditTables const *vertexEditTables) {
 
-    return new OsdCpuComputeContext(farmesh);
+    return new OsdCpuComputeContext(subdivisionTables, vertexEditTables);
 }
 
 }  // end namespace OPENSUBDIV_VERSION

@@ -30,7 +30,7 @@
 
 #include "../version.h"
 
-#include "../far/catmarkSubdivisionTables.h"
+#include "../far/subdivisionTables.h"
 #include "../far/meshFactory.h"
 #include "../far/kernelBatchFactory.h"
 #include "../far/subdivisionTablesFactory.h"
@@ -40,7 +40,7 @@ namespace OPENSUBDIV_VERSION {
 
 template <class T, class U> class FarMeshFactory;
 
-/// \brief A specialized factory for FarCatmarkSubdivisionTables
+/// \brief A specialized factory for catmark FarSubdivisionTables
 ///
 /// Separating the factory allows us to isolate Far data structures from Hbr dependencies.
 ///
@@ -48,25 +48,23 @@ template <class T, class U> class FarCatmarkSubdivisionTablesFactory {
 protected:
     template <class X, class Y> friend class FarMeshFactory;
 
-    /// \brief Creates a FarCatmarkSubdivisiontables instance.
+    /// \brief Creates a FarSubdivisiontables instance with Catmark scheme.
     ///
     /// @param meshFactory  a valid FarMeshFactory instance
-    ///
-    /// @param farMesh
     ///
     /// @param batches      a vector of Kernel refinement batches : the factory
     ///                     will reserve and append refinement tasks
     ///
-    static FarCatmarkSubdivisionTables<U> * Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector *batches  );
+    static FarSubdivisionTables * Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector *batches  );
 };
 
 // This factory walks the Hbr vertices and accumulates the weights and adjacency
 // (valance) information specific to the catmark subdivision scheme. The results
-// are stored in a FarCatmarkSubdivisionTable<U>.
-template <class T, class U> FarCatmarkSubdivisionTables<U> *
-FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarMesh<U> * farMesh, FarKernelBatchVector *batches ) {
+// are stored in a FarSubdivisionTable.
+template <class T, class U> FarSubdivisionTables *
+FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector *batches ) {
 
-    assert( meshFactory and farMesh );
+    assert( meshFactory );
 
     int maxlevel = meshFactory->GetMaxLevel();
 
@@ -74,7 +72,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
 
     FarSubdivisionTablesFactory<T,U> tablesFactory( meshFactory->GetHbrMesh(), maxlevel, remap );
 
-    FarCatmarkSubdivisionTables<U> * result = new FarCatmarkSubdivisionTables<U>(farMesh, maxlevel);
+    FarSubdivisionTables * result = new FarSubdivisionTables(maxlevel, FarSubdivisionTables::CATMARK);
 
     // Allocate memory for the indexing tables
     result->_F_ITa.resize(tablesFactory.GetNumFaceVerticesTotal(maxlevel)*2);

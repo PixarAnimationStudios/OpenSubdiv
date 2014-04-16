@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/mesh.h"
 #include "../far/subdivisionTables.h"
+#include "../far/vertexEditTables.h"
 #include "../osd/debug.h"
 #include "../osd/error.h"
 #include "../osd/d3d11ComputeContext.h"
@@ -97,7 +97,7 @@ OsdD3D11ComputeTable::GetSRV() const {
 // ----------------------------------------------------------------------------
 
 OsdD3D11ComputeHEditTable::OsdD3D11ComputeHEditTable(
-    const FarVertexEditTables<OsdVertex>::VertexEditBatch &batch, ID3D11DeviceContext *deviceContext)
+    const FarVertexEditTables::VertexEditBatch &batch, ID3D11DeviceContext *deviceContext)
     : _primvarIndicesTable(new OsdD3D11ComputeTable(batch.GetVertexIndices(), deviceContext, DXGI_FORMAT_R32_UINT)),
       _editValuesTable(new OsdD3D11ComputeTable(batch.GetValues(), deviceContext, DXGI_FORMAT_R32_FLOAT)) {
 
@@ -145,12 +145,11 @@ OsdD3D11ComputeHEditTable::GetPrimvarWidth() const {
 // ----------------------------------------------------------------------------
 
 OsdD3D11ComputeContext::OsdD3D11ComputeContext(
-    FarMesh<OsdVertex> const *farMesh, ID3D11DeviceContext *deviceContext)
+    FarSubdivisionTables const *subdivisionTables,
+    FarVertexEditTables const *vertexEditTables,
+    ID3D11DeviceContext *deviceContext)
     : _deviceContext(deviceContext),
       _currentVertexBufferUAV(0), _currentVaryingBufferUAV(0) {
-
-    FarSubdivisionTables<OsdVertex> const * farTables =
-        farMesh->GetSubdivisionTables();
 
     // allocate 5 or 7 tables
     // XXXtakahito: Although _tables size depends on table type, F_IT is set
@@ -158,28 +157,27 @@ OsdD3D11ComputeContext::OsdD3D11ComputeContext(
     // bindShaderStorageBuffer()...
     _tables.resize(7, 0);
 
-    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdD3D11ComputeTable(farTables->Get_E_IT(), deviceContext, DXGI_FORMAT_R32_SINT);
-    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdD3D11ComputeTable(farTables->Get_V_IT(), deviceContext, DXGI_FORMAT_R32_UINT);
-    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdD3D11ComputeTable(farTables->Get_V_ITa(), deviceContext, DXGI_FORMAT_R32_SINT);
-    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdD3D11ComputeTable(farTables->Get_E_W(), deviceContext, DXGI_FORMAT_R32_FLOAT);
-    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdD3D11ComputeTable(farTables->Get_V_W(), deviceContext, DXGI_FORMAT_R32_FLOAT);
+    _tables[FarSubdivisionTables::E_IT]  = new OsdD3D11ComputeTable(subdivisionTables->Get_E_IT(), deviceContext, DXGI_FORMAT_R32_SINT);
+    _tables[FarSubdivisionTables::V_IT]  = new OsdD3D11ComputeTable(subdivisionTables->Get_V_IT(), deviceContext, DXGI_FORMAT_R32_UINT);
+    _tables[FarSubdivisionTables::V_ITa] = new OsdD3D11ComputeTable(subdivisionTables->Get_V_ITa(), deviceContext, DXGI_FORMAT_R32_SINT);
+    _tables[FarSubdivisionTables::E_W]   = new OsdD3D11ComputeTable(subdivisionTables->Get_E_W(), deviceContext, DXGI_FORMAT_R32_FLOAT);
+    _tables[FarSubdivisionTables::V_W]   = new OsdD3D11ComputeTable(subdivisionTables->Get_V_W(), deviceContext, DXGI_FORMAT_R32_FLOAT);
 
-    if (farTables->GetNumTables() > 5) {
-        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdD3D11ComputeTable(farTables->Get_F_IT(), deviceContext, DXGI_FORMAT_R32_UINT);
-        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdD3D11ComputeTable(farTables->Get_F_ITa(), deviceContext, DXGI_FORMAT_R32_SINT);
+    if (subdivisionTables->GetNumTables() > 5) {
+        _tables[FarSubdivisionTables::F_IT]  = new OsdD3D11ComputeTable(subdivisionTables->Get_F_IT(), deviceContext, DXGI_FORMAT_R32_UINT);
+        _tables[FarSubdivisionTables::F_ITa] = new OsdD3D11ComputeTable(subdivisionTables->Get_F_ITa(), deviceContext, DXGI_FORMAT_R32_SINT);
     } else {
-        _tables[FarSubdivisionTables<OsdVertex>::F_IT] = NULL;
-        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = NULL;
+        _tables[FarSubdivisionTables::F_IT] = NULL;
+        _tables[FarSubdivisionTables::F_ITa] = NULL;
     }
 
     // create hedit tables
-    FarVertexEditTables<OsdVertex> const *editTables = farMesh->GetVertexEdit();
-    if (editTables) {
-        int numEditBatches = editTables->GetNumBatches();
+    if (vertexEditTables) {
+        int numEditBatches = vertexEditTables->GetNumBatches();
         _editTables.reserve(numEditBatches);
         for (int i = 0; i < numEditBatches; ++i) {
-            const FarVertexEditTables<OsdVertex>::VertexEditBatch & edit =
-                editTables->GetBatch(i);
+            const FarVertexEditTables::VertexEditBatch & edit =
+                vertexEditTables->GetBatch(i);
             _editTables.push_back(new OsdD3D11ComputeHEditTable(edit, deviceContext));
         }
     }
@@ -249,9 +247,11 @@ OsdD3D11ComputeContext::SetDeviceContext(ID3D11DeviceContext *deviceContext) {
 }
 
 OsdD3D11ComputeContext *
-OsdD3D11ComputeContext::Create(FarMesh<OsdVertex> const *farmesh, ID3D11DeviceContext *deviceContext) {
+OsdD3D11ComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
+                               FarVertexEditTables const *vertexEditTables,
+                               ID3D11DeviceContext *deviceContext) {
 
-    return new OsdD3D11ComputeContext(farmesh, deviceContext);
+    return new OsdD3D11ComputeContext(subdivisionTables, vertexEditTables, deviceContext);
 }
 
 void
@@ -294,20 +294,20 @@ OsdD3D11ComputeContext::bindShaderStorageBuffers() {
         _deviceContext->CSSetUnorderedAccessViews(1, 1, &_currentVaryingBufferUAV, 0); // u1
 
     // XXX: should be better handling for loop subdivision.
-    if (_tables[FarSubdivisionTables<OsdVertex>::F_IT]) {
+    if (_tables[FarSubdivisionTables::F_IT]) {
         ID3D11ShaderResourceView *SRViews[] = {
-            _tables[FarSubdivisionTables<OsdVertex>::F_IT]->GetSRV(),
-            _tables[FarSubdivisionTables<OsdVertex>::F_ITa]->GetSRV(),
+            _tables[FarSubdivisionTables::F_IT]->GetSRV(),
+            _tables[FarSubdivisionTables::F_ITa]->GetSRV(),
         };
         _deviceContext->CSSetShaderResources(2, 2, SRViews); // t2-t3
     }
 
     ID3D11ShaderResourceView *SRViews[] = {
-        _tables[FarSubdivisionTables<OsdVertex>::E_IT]->GetSRV(),
-        _tables[FarSubdivisionTables<OsdVertex>::V_IT]->GetSRV(),
-        _tables[FarSubdivisionTables<OsdVertex>::V_ITa]->GetSRV(),
-        _tables[FarSubdivisionTables<OsdVertex>::E_W]->GetSRV(),
-        _tables[FarSubdivisionTables<OsdVertex>::V_W]->GetSRV(),
+        _tables[FarSubdivisionTables::E_IT]->GetSRV(),
+        _tables[FarSubdivisionTables::V_IT]->GetSRV(),
+        _tables[FarSubdivisionTables::V_ITa]->GetSRV(),
+        _tables[FarSubdivisionTables::E_W]->GetSRV(),
+        _tables[FarSubdivisionTables::V_W]->GetSRV(),
     };
     _deviceContext->CSSetShaderResources(4, 5, SRViews); // t4-t8
 }

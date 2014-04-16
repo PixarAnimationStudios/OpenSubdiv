@@ -35,7 +35,7 @@
 // For OpenSubdiv documentation on tags, see:
 // See http://graphics.pixar.com/opensubdiv/docs/subdivision_surfaces.html#hierarchical-edits
 //
-class PxOsdUtilTagData {
+class OsdUtilTagData {
 public:
     enum TagType {
         // The strings in comments are the strings as specified by renderman
@@ -77,8 +77,14 @@ public:
     // 0 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryNone
     // 1 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner
     // 2 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly    
-    bool AddInterpolateBoundary(int value);                        
+    bool AddInterpolateBoundary(int value);
 
+    // Specify which faces on the coarse mesh should be "holes",
+    // as if the limit surface for those faces is cut away from
+    // from the rest of the surface.
+    bool AddHole(int *indices, int numIndices);
+
+    
     
     std::vector<TagType> tags;
 
@@ -95,11 +101,11 @@ public:
 // of a subdivision surface, and any annotation tags.
 // It is used to initialize classes that create and operate on subdivs.
 //
-class PxOsdUtilSubdivTopology {
+class OsdUtilSubdivTopology {
   public:
 
-    PxOsdUtilSubdivTopology();
-    ~PxOsdUtilSubdivTopology();    
+    OsdUtilSubdivTopology();
+    ~OsdUtilSubdivTopology();    
 
     // XXX Would be great for these members to be private with accessors
     std::string name;
@@ -110,7 +116,7 @@ class PxOsdUtilSubdivTopology {
     std::vector<std::string> vvNames;
     std::vector<std::string> fvNames;
     std::vector<float> fvData;
-    PxOsdUtilTagData tagData;
+    OsdUtilTagData tagData;
 
     void AddFace(int numVertsInFace, int *verts) {
         nverts.push_back(numVertsInFace);

@@ -54,8 +54,8 @@ if(APPLE)
     find_path(MAYA_BASE_DIR
             ../../devkit/include/maya/MFn.h
         HINTS
-            ${MAYA_LOCATION}
-            $ENV{MAYA_LOCATION}
+            "${MAYA_LOCATION}"
+            "$ENV{MAYA_LOCATION}"
             "/Applications/Autodesk/maya2014/Maya.app/Contents"
             "/Applications/Autodesk/maya2013.5/Maya.app/Contents"
             "/Applications/Autodesk/maya2013/Maya.app/Contents"
@@ -66,9 +66,9 @@ if(APPLE)
     )
     find_path(MAYA_LIBRARY_DIR libOpenMaya.dylib
         HINTS
-            ${MAYA_LOCATION}
-            $ENV{MAYA_LOCATION}
-            ${MAYA_BASE_DIR}
+            "${MAYA_LOCATION}"
+            "$ENV{MAYA_LOCATION}"
+            "${MAYA_BASE_DIR}"
         PATH_SUFFIXES
             Maya.app/contents/MacOS/
         DOC
@@ -80,8 +80,8 @@ if(UNIX)
     find_path(MAYA_BASE_DIR
             include/maya/MFn.h
         HINTS
-            ${MAYA_LOCATION}
-            $ENV{MAYA_LOCATION}
+            "${MAYA_LOCATION}"
+            "$ENV{MAYA_LOCATION}"
             "/usr/autodesk/maya2013-x64"
             "/usr/autodesk/maya2012.17-x64"
             "/usr/autodesk/maya2012-x64"
@@ -91,9 +91,9 @@ if(UNIX)
     find_path(MAYA_LIBRARY_DIR
             libOpenMaya.so
         HINTS
-            ${MAYA_LOCATION}
-            $ENV{MAYA_LOCATION}
-            ${MAYA_BASE_DIR}
+            "${MAYA_LOCATION}"
+            "$ENV{MAYA_LOCATION}"
+            "${MAYA_BASE_DIR}"
         PATH_SUFFIXES
             lib/
         DOC
@@ -105,8 +105,8 @@ if(WIN32)
     find_path(MAYA_BASE_DIR
             include/maya/MFn.h
         HINTS
-            ${MAYA_LOCATION}
-            $ENV{MAYA_LOCATION}
+            "${MAYA_LOCATION}"
+            "$ENV{MAYA_LOCATION}"
             "C:/Program Files/Autodesk/Maya2013.5-x64"
             "C:/Program Files/Autodesk/Maya2013.5"
             "C:/Program Files (x86)/Autodesk/Maya2013.5"
@@ -131,9 +131,9 @@ if(WIN32)
     find_path(MAYA_LIBRARY_DIR
             OpenMaya.lib
         HINTS
-            ${MAYA_LOCATION}
-            $ENV{MAYA_LOCATION}
-            ${MAYA_BASE_DIR}
+            "${MAYA_LOCATION}"
+            "$ENV{MAYA_LOCATION}"
+            "${MAYA_BASE_DIR}"
         PATH_SUFFIXES
             lib/
         DOC
@@ -144,9 +144,9 @@ endif(WIN32)
 find_path(MAYA_INCLUDE_DIR
         maya/MFn.h
     HINTS
-        ${MAYA_LOCATION}
-        $ENV{MAYA_LOCATION}
-        ${MAYA_BASE_DIR}
+        "${MAYA_LOCATION}"
+        "$ENV{MAYA_LOCATION}"
+        "${MAYA_BASE_DIR}"
     PATH_SUFFIXES
         ../../devkit/include/
         include/
@@ -157,9 +157,9 @@ find_path(MAYA_INCLUDE_DIR
 find_path(MAYA_LIBRARY_DIR
         OpenMaya
     HINTS
-        ${MAYA_LOCATION}
-        $ENV{MAYA_LOCATION}
-        ${MAYA_BASE_DIR}
+        "${MAYA_LOCATION}"
+        "$ENV{MAYA_LOCATION}"
+        "${MAYA_BASE_DIR}"
     PATH_SUFFIXES
         ../../devkit/include/
         include/
@@ -172,9 +172,9 @@ list(APPEND MAYA_INCLUDE_DIRS ${MAYA_INCLUDE_DIR})
 find_path(MAYA_DEVKIT_INC_DIR
        GL/glext.h
     HINTS
-        ${MAYA_LOCATION}
-        $ENV{MAYA_LOCATION}
-        ${MAYA_BASE_DIR}
+        "${MAYA_LOCATION}"
+        "$ENV{MAYA_LOCATION}"
+        "${MAYA_BASE_DIR}"
     PATH_SUFFIXES
         /devkit/plug-ins/
     DOC
@@ -199,9 +199,9 @@ foreach(MAYA_LIB
     find_library(MAYA_${MAYA_LIB}_LIBRARY
             ${MAYA_LIB}
         HINTS
-            ${MAYA_LOCATION}
-            $ENV{MAYA_LOCATION}
-            ${MAYA_BASE_DIR}
+            "${MAYA_LOCATION}"
+            "$ENV{MAYA_LOCATION}"
+            "${MAYA_BASE_DIR}"
         PATH_SUFFIXES
             MacOS/
             lib/
@@ -218,9 +218,9 @@ endforeach(MAYA_LIB)
 find_program(MAYA_EXECUTABLE
         maya
     HINTS
-        ${MAYA_LOCATION}
-        $ENV{MAYA_LOCATION}
-        ${MAYA_BASE_DIR}
+        "${MAYA_LOCATION}"
+        "$ENV{MAYA_LOCATION}"
+        "${MAYA_BASE_DIR}"
     PATH_SUFFIXES
         MacOS/
         bin/

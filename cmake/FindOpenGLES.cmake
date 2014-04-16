@@ -30,20 +30,21 @@
 #  OPENGLES_LIBRARIES    - Link these to use OpenGLES
 
 if(ANDROID)
-    FIND_PATH(
-            OPENGLES_INCLUDE_DIR GLES2/gl2.h 
-            ${ANDROID_STANDALONE_TOOLCHAIN}/usr/include
+    FIND_PATH( OPENGLES_INCLUDE_DIR
+        GLES2/gl2.h
+        "${ANDROID_STANDALONE_TOOLCHAIN}/usr/include"
     )
 
-    FIND_LIBRARY(
-            OPENGLES_LIBRARIES NAMES  GLESv2
-            PATHS ${ANDROID_STANDALONE_TOOLCHAIN}/usr/lib
+    FIND_LIBRARY( OPENGLES_LIBRARIES
+        NAMES
+            GLESv2
+        PATHS
+            "${ANDROID_STANDALONE_TOOLCHAIN}/usr/lib"
     )
 
 elseif(IOS)
-    FIND_LIBRARY(
-            OPENGLES_FRAMEWORKS OpenGLES
-    )
+    FIND_LIBRARY( OPENGLES_FRAMEWORKS OpenGLES )
+
     if(OPENGLES_FRAMEWORKS)
         set( OPENGLES_LIBRARIES "-framework OpenGLES" )
     endif()

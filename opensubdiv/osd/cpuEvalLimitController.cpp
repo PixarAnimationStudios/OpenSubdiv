@@ -158,7 +158,7 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
     OsdCpuEvalLimitContext::FaceVaryingData & faceVaryingData = context->GetFaceVaryingData();
     if (faceVaryingData.IsBound()) {
 
-        FarPatchTables::FVarDataTable const & fvarData = context->GetFVarData();
+        std::vector<float> const & fvarData = context->GetFVarData();
 
         if (not fvarData.empty()) {
 

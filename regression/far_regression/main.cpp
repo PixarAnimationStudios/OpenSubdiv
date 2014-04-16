@@ -56,13 +56,13 @@ struct xyzVV {
 
    ~xyzVV( ) { }
 
-    void AddWithWeight(const xyzVV& src, float weight, void * =0 ) { 
+    void AddWithWeight(const xyzVV& src, float weight) { 
         _pos[0]+=weight*src._pos[0]; 
         _pos[1]+=weight*src._pos[1]; 
         _pos[2]+=weight*src._pos[2]; 
     }
 
-    void AddVaryingWithWeight(const xyzVV& , float, void * =0 ) { }
+    void AddVaryingWithWeight(const xyzVV& , float) { }
 
     void Clear( void * =0 ) { _pos[0]=_pos[1]=_pos[2]=0.0f; }
 
@@ -124,7 +124,7 @@ typedef OpenSubdiv::HbrVertexOperator<xyzVV> xyzVertexOperator;
 
 typedef OpenSubdiv::FarMesh<xyzVV>              fMesh;
 typedef OpenSubdiv::FarMeshFactory<xyzVV>       fMeshFactory;
-typedef OpenSubdiv::FarSubdivisionTables<xyzVV> fSubdivision;
+typedef OpenSubdiv::FarSubdivisionTables        fSubdivision;
 typedef OpenSubdiv::FarPatchTables              fPatches;
 
 static bool g_debugmode = false;
@@ -309,7 +309,8 @@ int checkMesh( char const * msg, xyzmesh * hmesh, int levels, Scheme scheme=kCat
 
     fMeshFactory fact( hmesh, levels );
     fMesh * m = fact.Create( );
-    OpenSubdiv::FarComputeController<xyzVV>::_DefaultController.Refine(m);
+    static OpenSubdiv::FarComputeController computeController;
+    computeController.Refine(m);
 
     if (g_debugmode) {
         for (int i=1; i<=levels; ++i)

@@ -27,6 +27,7 @@
 
 #include "../version.h"
 
+#include "../far/subdivisionTables.h"
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
 #include "../osd/vertexDescriptor.h"
@@ -55,14 +56,13 @@ public:
 private:
     void createTextureBuffer(size_t size, const void *ptr, GLenum type);
 
-    GLuint _devicePtr, 
-           _texture;
+    GLuint _texture;
 };
 
 class OsdGLSLTransformFeedbackHEditTable : OsdNonCopyable<OsdGLSLTransformFeedbackHEditTable> {
 public:
-    OsdGLSLTransformFeedbackHEditTable(const FarVertexEditTables<OsdVertex>::
-                      VertexEditBatch &batch);
+    OsdGLSLTransformFeedbackHEditTable(
+        const FarVertexEditTables::VertexEditBatch &batch);
 
     virtual ~OsdGLSLTransformFeedbackHEditTable();
 
@@ -98,9 +98,12 @@ class OsdGLSLTransformFeedbackComputeContext {
 public:
     /// Creates an OsdGLSLTransformFeedbackComputeContext instance
     ///
-    /// @param farmesh the FarMesh used for this Context.
+    /// @param subdivisionTables the FarSubdivisionTables used for this Context.
     ///
-    static OsdGLSLTransformFeedbackComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
+    /// @param vertexEditTables the FarVertexEditTables used for this Context.
+    ///
+    static OsdGLSLTransformFeedbackComputeContext * Create(FarSubdivisionTables const *subdivisionTables,
+                                                           FarVertexEditTables const *vertexEditTables);
 
     /// Destructor
     virtual ~OsdGLSLTransformFeedbackComputeContext();
@@ -170,7 +173,8 @@ public:
     void UnbindEditTextures();
 
 protected:
-    explicit OsdGLSLTransformFeedbackComputeContext(FarMesh<OsdVertex> const *farMesh);
+    explicit OsdGLSLTransformFeedbackComputeContext(FarSubdivisionTables const *subdivisionTables,
+                                                    FarVertexEditTables const *vertexEditTabes);
 
     void bindTexture(GLint samplerUniform, GLuint texture, int unit);
 

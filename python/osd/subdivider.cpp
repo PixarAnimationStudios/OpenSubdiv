@@ -57,8 +57,8 @@ shim::Subdivider::Subdivider(
         subdivisionLevels);
     self->farMesh = meshFactory.Create();
     self->computeContext = OpenSubdiv::OsdCpuComputeContext::Create(
-        self->farMesh);
-
+        self->farMesh->GetSubdivisionTables(),
+        self->farMesh->GetVertexEditTables());
     self->vertexBuffer = OpenSubdiv::OsdCpuVertexBuffer::Create(
         numFloatsPerVertex, self->farMesh->GetNumVertices());
 }
@@ -111,11 +111,10 @@ shim::Subdivider::getRefinedQuads(Buffer* refinedQuads)
         return;
     }
 
-    const OpenSubdiv::FarSubdivisionTables<OpenSubdiv::OsdVertex> *tables =
+    const OpenSubdiv::FarSubdivisionTables *tables =
         self->farMesh->GetSubdivisionTables();
 
-    bool loop = dynamic_cast<const OpenSubdiv::FarLoopSubdivisionTables<
-        OpenSubdiv::OsdVertex>*>(tables);
+    bool loop = (tables->GetScheme() == OpenSubdiv::FarSubdivisionTables::LOOP);
 
     if (loop) {
         cerr << "loop subdivision not supported" << endl;
