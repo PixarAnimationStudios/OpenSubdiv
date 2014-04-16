@@ -115,7 +115,7 @@ int openSubdiv_setEvaluatorCoarsePositions(
 
     // TODO: returns void, need error check on length of positions?
     evaluator_descr->evaluator.SetCoarsePositions(
-        positions, numVertices, &errorMessage);
+        positions, 3 * numVertices, &errorMessage);
 
     if (not errorMessage.empty()) {
         std::cout << "OpenSubdiv set coarse positions failed due to " << errorMessage << std::endl;	
