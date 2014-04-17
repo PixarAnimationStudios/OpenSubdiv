@@ -38,7 +38,7 @@ struct OpenSubdiv_EvaluatorDescr;
 struct OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(int numVertices);
 void openSubdiv_deleteEvaluatorDescr(struct OpenSubdiv_EvaluatorDescr *evaluator_descr);
 void openSubdiv_createEvaluatorDescrFace(struct OpenSubdiv_EvaluatorDescr *evaluator_descr, int num_vertices, int *indices);
-void openSubdiv_finishEvaluatorDescr(struct OpenSubdiv_EvaluatorDescr *evaluator_descr, int refinementLevel);
+int openSubdiv_finishEvaluatorDescr(struct OpenSubdiv_EvaluatorDescr *evaluator_descr, int refinementLevel);
 
 /* Set the positions of points on the coarse mesh and refine. This method    */
 /* will perform catmull/clark refinement on the CVs to be ready to call      */
