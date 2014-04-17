@@ -86,7 +86,7 @@ public:
                                                            maxValence, 3);
         }
 
-        _drawContext = OpenSubdiv::OsdGLDrawContext::Create(&partitioner.GetPatchTables(), false);
+        _drawContext = OpenSubdiv::OsdGLDrawContext::Create(&partitioner.GetPatchTables(), 3, false);
         _drawContext->UpdateVertexTexture(_vertexBuffer);
     }
 

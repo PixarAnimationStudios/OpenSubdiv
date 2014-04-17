@@ -35,12 +35,12 @@ MyDrawContext::~MyDrawContext() {
 }
 
 MyDrawContext*
-MyDrawContext::Create(OpenSubdiv::FarPatchTables const *patchTables, bool requireFVarData)
+MyDrawContext::Create(OpenSubdiv::FarPatchTables const *patchTables, int numVertexElements, bool requireFVarData)
 {
     MyDrawContext * result = new MyDrawContext();
 
     if (patchTables) {
-        if (result->create(patchTables, requireFVarData)) {
+        if (result->create(patchTables, numVertexElements, requireFVarData)) {
             return result;
         } else {
             delete result;

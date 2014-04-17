@@ -313,7 +313,7 @@ if(OPENMP_FOUND)
 else()
     message(WARNING
         "OpenMP was not found : support for OMP parallel compute kernels "
-        "will be diabled in Osd.  If your compiler supports OpenMP "
+        "will be disabled in Osd.  If your compiler supports OpenMP "
         "directives, please refer to the FindOpenMP.cmake shared module "
         "in your cmake installation.")
 endif()
@@ -327,7 +327,7 @@ if(TBB_FOUND)
 else()
     message(WARNING
         "TBB was not found : support for TBB parallel compute kernels "
-        "will be diabled in Osd.  If your compiler supports TBB "
+        "will be disabled in Osd.  If your compiler supports TBB "
         "directives, please refer to the FindTBB.cmake shared module "
         "in your cmake installation.")
 endif()
