@@ -96,9 +96,11 @@ protected:
     ///                         a single patch array for the highest level of
     ///                         subdivision)
     ///
+    /// @param patchType        The type of patch to create: QUADS or TRIANGLES
+    ///
     /// @param numPtexFaces     Number of ptex faces
     ///
-    /// @param fvarWidth   The width of the interleaved face-varying data
+    /// @param fvarWidth        The width of the interleaved face-varying data
     ///
     /// @return                 A new instance of FarPatchTables
     ///
@@ -106,6 +108,7 @@ protected:
                                     FacesList const & flist,
                                     std::vector<int> const & remapTable,
                                     int firstLevel=-1,
+                                    FarPatchTables::Type patchType=FarPatchTables::QUADS,
                                     int numPtexFaces=0,
                                     int fvarWidth=0 );
 
@@ -150,6 +153,9 @@ private:
 
     // The number of patches in the mesh
     static int getNumPatches( FarPatchTables::PatchArrayVector const & parrays );
+
+    // The number of vertices in the face-varying table
+    static int getNumFVarVertices( FarPatchTables::PatchArrayVector const & parrays );
 
     // Reserves tables based on the contents of the PatchArrayVector
     static void allocateTables( FarPatchTables * tables, int nlevels, int fvarwidth );
@@ -301,7 +307,8 @@ FarPatchTablesFactory<T>::allocateTables( FarPatchTables * tables, int nlevels, 
     tables->_paramTable.resize( npatches );
 
     if (fvarwidth>0) {
-        tables->_fvarData._data.resize( npatches * 4 * fvarwidth );
+        int nfvarverts = getNumFVarVertices(tables->GetPatchArrayVector());
+        tables->_fvarData._data.resize( nfvarverts * fvarwidth );
 
         if (nlevels >1) {
             tables->_fvarData._offsets.resize( nlevels );
@@ -311,7 +318,9 @@ FarPatchTablesFactory<T>::allocateTables( FarPatchTables * tables, int nlevels, 
 
 // Uniform mesh factory (static function because it requires no cached state)
 template <class T> FarPatchTables *
-FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & flist, std::vector<int> const & remapTable, int firstLevel, int numPtexFaces, int fvarwidth ) {
+FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & flist, std::vector<int> const & remapTable, int firstLevel, FarPatchTables::Type patchType, int numPtexFaces, int fvarwidth ) {
+
+    assert(patchType == FarPatchTables::QUADS || patchType == FarPatchTables::TRIANGLES);
 
     if (flist.size()<2)
         return 0;
@@ -319,8 +328,12 @@ FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & fli
     FarPatchTables * result = new FarPatchTables(0);
 
     bool isLoop = FarMeshFactory<T,T>::isLoop(mesh);
+    if (isLoop)
+        patchType = FarPatchTables::TRIANGLES;
 
-    int nv = isLoop ? 3 : 4;
+    bool tessellate = !isLoop && patchType == FarPatchTables::TRIANGLES;
+
+    int nv = patchType == FarPatchTables::TRIANGLES ? 3 : 4;
 
     int firstArray = firstLevel > -1 ? firstLevel : (int)flist.size()-1,
         nlevels = (int)flist.size()-firstArray;
@@ -330,17 +343,19 @@ FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & fli
     FarPatchTables::PatchArrayVector & parray = result->_patchArrays;
     parray.reserve( (int)flist.size() - firstArray );
 
-    Descriptor desc( isLoop ? FarPatchTables::TRIANGLES : FarPatchTables::QUADS, FarPatchTables::NON_TRANSITION, 0 );
+    Descriptor desc( patchType, FarPatchTables::NON_TRANSITION, 0 );
 
     for (int i=1, poffset=0, voffset=0; i<(int)flist.size(); ++i) {
 
-        int nfaces = (int)flist[i].size();
+        int npatches = (int)flist[i].size();
+        if (tessellate)
+            npatches *= 2;
 
         if (i>=firstArray) {
-            parray.push_back( FarPatchTables::PatchArray(desc, voffset, poffset, nfaces, 0 ) );
+            parray.push_back( FarPatchTables::PatchArray(desc, voffset, poffset, npatches, 0 ) );
 
-            voffset += nfaces * nv;
-            poffset += nfaces;
+            voffset += npatches * nv;
+            poffset += npatches;
         }
     }
 
@@ -359,7 +374,7 @@ FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & fli
 
         for (int i=0; i<(int)flist[level].size(); ++i) {
             HbrFace<T> * f = flist[level][i];
-            assert( f and f->GetNumVertices()==nv);
+            assert( f and f->GetNumVertices() == isLoop ? 3 : 4);
 
             for (int j=0; j<f->GetNumVertices(); ++j) {
                 *iptr++ = remapTable[f->GetVertex(j)->GetID()];
@@ -369,10 +384,38 @@ FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & fli
 
             if (fvarwidth>0)
                 fptr = computeFVarData(f, fvarwidth, fptr, /*isAdaptive=*/false);
+
+            if (tessellate) {
+                // Triangulate the quadrilateral: {v0,v1,v2,v3} -> {v0,v1,v2},{v3,v0,v2}.
+                iptr += 2;
+                unsigned int * iptr0 = iptr - 6;
+                unsigned int * iptr2 = iptr - 4;
+                unsigned int * iptr4 = iptr - 2;
+                unsigned int * iptr5 = iptr - 1;
+                *iptr4 = *iptr0;
+                *iptr5 = *iptr2;
+
+                pptr++;
+                FarPatchParam * pptr0 = pptr - 2;
+                FarPatchParam * pptr1 = pptr - 1;
+                *pptr1 = *pptr0;
+
+                if (fvarwidth > 0) {
+                    fptr += 2 * fvarwidth;
+                    float * fptr0 = fptr - 6 * fvarwidth;
+                    float * fptr2 = fptr - 4 * fvarwidth;
+                    float * fptr4 = fptr - 2 * fvarwidth;
+                    float * fptr5 = fptr - 1 * fvarwidth;
+                    for (int j = 0; j < fvarwidth; ++j) {
+                        fptr4[j] = fptr0[j];
+                        fptr5[j] = fptr2[j];
+                    }
+                }
+            }
         }
 
         if (fvarwidth>0 and (not result->_fvarData._offsets.empty())) {
-            result->_fvarData._offsets[level-firstArray] = (fvarOffset+=(int)flist[level].size()*4*fvarwidth);
+            result->_fvarData._offsets[level-firstArray] = (fvarOffset+=(int)flist[level].size()*nv*fvarwidth);
         }
     }
 
@@ -655,6 +698,19 @@ FarPatchTablesFactory<T>::getNumPatches( FarPatchTables::PatchArrayVector const 
     int result=0;
     for (int i=0; i<(int)parrays.size(); ++i) {
         result += parrays[i].GetNumPatches();
+    }
+
+    return result;
+}
+
+template <class T> int
+FarPatchTablesFactory<T>::getNumFVarVertices( FarPatchTables::PatchArrayVector const & parrays ) {
+
+    int result=0;
+    for (int i=0; i<(int)parrays.size(); ++i) {
+        int npatches = parrays[i].GetNumPatches();
+        int nverts = parrays[i].GetDescriptor().GetType() == FarPatchTables::TRIANGLES ? 3 : 4;
+        result += npatches * nverts;
     }
 
     return result;

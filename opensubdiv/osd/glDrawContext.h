@@ -84,13 +84,6 @@ public:
         return _patchIndexBuffer;
     }
 
-#if defined(GL_ES_VERSION_2_0)
-    /// Returns the GL a VBO containing a triangulated version of the mesh
-    GLuint GetPatchTrianglesIndexBUffer() const {
-        return _patchTrianglesIndexBuffer;
-    }
-#endif
-
     /// Returns the GL texture buffer containing the patch local parameterization
     /// data
     GLuint GetPatchParamTextureBuffer() const {
@@ -121,10 +114,6 @@ public:
 
 protected:
     GLuint _patchIndexBuffer;
-
-#if defined(GL_ES_VERSION_2_0)
-    GLuint _patchTrianglesIndexBuffer;
-#endif
 
     GLuint _patchParamTextureBuffer;
     GLuint _fvarDataTextureBuffer;
