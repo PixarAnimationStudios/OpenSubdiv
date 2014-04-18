@@ -51,6 +51,7 @@ set(CPU_SOURCE_FILES
     cpuKernel.cpp
     cpuComputeController.cpp
     cpuComputeContext.cpp
+    cpuDrawContext.cpp
     cpuEvalLimitContext.cpp
     cpuEvalLimitController.cpp
     cpuEvalLimitKernel.cpp
@@ -81,6 +82,7 @@ set(PUBLIC_HEADER_FILES
     computeController.h
     cpuComputeContext.h
     cpuComputeController.h
+    cpuDrawContext.h
     cpuEvalLimitContext.h
     cpuEvalLimitController.h
     cpuEvalStencilsContext.h
