@@ -81,6 +81,8 @@ if (WIN32)
                 "${GLFW_LOCATION}/lib/x64"
                 "${GLFW_LOCATION}/lib-msvc110"
                 "$ENV{GLFW_LOCATION}/lib"
+                "$ENV{GLFW_LOCATION}/lib/x64"
+                "$ENV{GLFW_LOCATION}/lib-msvc110"
                 "${PROJECT_SOURCE_DIR}/extern/glfw/bin"
                 "${PROJECT_SOURCE_DIR}/extern/glfw/lib"
                 "$ENV{PROGRAMFILES}/GLFW/lib"
