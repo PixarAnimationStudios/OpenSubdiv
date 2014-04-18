@@ -69,6 +69,20 @@ target_link_libraries(
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
 
 #-------------------------------------------------------------------------------
+# platform dependent tweaks
+if(APPLE OR UNIX)
+    set(PLATFORM_COMPILE_FLAGS
+        -fPIC
+    )
+elseif(WIN32)
+
+endif()
+
+add_definitions(
+    ${PLATFORM_COMPILE_FLAGS}
+)
+               
+#-------------------------------------------------------------------------------
 # OpenCL code & dependencies
 
 set(OPENCL_PUBLIC_HEADER_FILES
