@@ -506,7 +506,7 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
                                                 hmesh,
                                                 numVertexElements,
                                                 numVaryingElements,
-                                                level, bits, g_pd3dDeviceContext);
+                                                level, bits, g_clContext, g_clQueue, g_pd3dDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {

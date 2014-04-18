@@ -375,6 +375,12 @@ if ( OPENCL_FOUND )
         list(APPEND GPU_SOURCE_FILES clGLVertexBuffer.cpp)
         list(APPEND PUBLIC_HEADER_FILES clGLVertexBuffer.h)
     endif()
+
+    # OpenCL D3D11 interop needs work...
+    #if ( DXSDK_FOUND )
+    #    list(APPEND GPU_SOURCE_FILES clD3D11VertexBuffer.cpp)
+    #    list(APPEND PUBLIC_HEADER_FILES clD3D11VertexBuffer.h)
+    #endif()
 endif()
 
 list(APPEND DOXY_HEADER_FILES ${OPENCL_PUBLIC_HEADERS})

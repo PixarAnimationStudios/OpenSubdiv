@@ -63,10 +63,11 @@ OsdD3D11DrawContext::~OsdD3D11DrawContext()
 OsdD3D11DrawContext *
 OsdD3D11DrawContext::Create(FarPatchTables const *patchTables,
                             ID3D11DeviceContext *pd3d11DeviceContext,
+                            int numVertexElements,
                             bool requireFVarData)
 {
     OsdD3D11DrawContext * result = new OsdD3D11DrawContext();
-    if (result->create(patchTables, pd3d11DeviceContext, requireFVarData))
+    if (result->create(patchTables, pd3d11DeviceContext, numVertexElements, requireFVarData))
         return result;
 
     delete result;
@@ -76,6 +77,7 @@ OsdD3D11DrawContext::Create(FarPatchTables const *patchTables,
 bool
 OsdD3D11DrawContext::create(FarPatchTables const *patchTables,
                             ID3D11DeviceContext *pd3d11DeviceContext,
+                            int numVertexElements,
                             bool requireFVarData)
 {
     // adaptive patches
@@ -85,7 +87,7 @@ OsdD3D11DrawContext::create(FarPatchTables const *patchTables,
     pd3d11DeviceContext->GetDevice(&pd3d11Device);
     assert(pd3d11Device);
 
-    ConvertPatchArrays(patchTables->GetPatchArrayVector(), patchArrays, patchTables->GetMaxValence(), 0);
+    ConvertPatchArrays(patchTables->GetPatchArrayVector(), patchArrays, patchTables->GetMaxValence(), numVertexElements);
 
     FarPatchTables::PTable const & ptables = patchTables->GetPatchTable();
     FarPatchTables::PatchParamTable const & ptexCoordTables = patchTables->GetPatchParamTable();
@@ -230,15 +232,6 @@ OsdD3D11DrawContext::updateVertexTexture(ID3D11Buffer *vbo,
     HRESULT hr = pd3d11Device->CreateShaderResourceView(vbo, &srvd, &vertexBufferSRV);
     if (FAILED(hr)) {
         return;
-    }
-
-    // XXX: consider moving this proc to base class
-    // updating num elements in descriptor with new vbo specs
-    for (int i = 0; i < (int)patchArrays.size(); ++i) {
-        PatchArray &parray = patchArrays[i];
-        PatchDescriptor desc = parray.GetDescriptor();
-        desc.SetNumElements(numVertexElements);
-        parray.SetDescriptor(desc);
     }
 }
 

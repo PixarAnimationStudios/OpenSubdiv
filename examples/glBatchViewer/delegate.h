@@ -38,6 +38,7 @@ public:
     virtual ~MyDrawContext();
 
     static MyDrawContext *Create(OpenSubdiv::FarPatchTables const *patchTables,
+                                 int numVertexElements,
                                  bool requireFVarData=false);
 
     GLuint GetVertexArray() const { return _vao; }
