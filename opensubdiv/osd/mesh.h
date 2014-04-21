@@ -111,7 +111,6 @@ public:
             FarMesh<OsdVertex> * fmesh,
             int numVertexElements,
             int numVaryingElements,
-            int level,
             OsdMeshBitset bits = OsdMeshBitset()) :
 
             _farMesh(fmesh),
@@ -122,6 +121,22 @@ public:
             _drawContext(0)
     {
         _initialize(numVertexElements, numVaryingElements, bits);
+    }
+
+    OsdMesh(ComputeController * computeController,
+            FarMesh<OsdVertex> * fmesh,
+            VertexBuffer * vertexBuffer,
+            VertexBuffer * varyingBuffer,
+            ComputeContext * computeContext,
+            DrawContext * drawContext) :
+
+            _farMesh(fmesh),
+            _vertexBuffer(vertexBuffer),
+            _varyingBuffer(varyingBuffer),
+            _computeContext(computeContext),
+            _computeController(computeController),
+            _drawContext(drawContext)
+    {
     }
 
     virtual ~OsdMesh() {

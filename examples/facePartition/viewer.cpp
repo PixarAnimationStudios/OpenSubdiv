@@ -53,6 +53,7 @@
 #include <osd/vertex.h>
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
+#include <osd/glMesh.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -62,76 +63,69 @@
 
 OpenSubdiv::OsdCpuComputeController *g_cpuComputeController = NULL;
 
-class PartitionedMesh {
+template <class VERTEX_BUFFER, class COMPUTE_CONTROLLER>
+class PartitionedMesh : public OpenSubdiv::OsdMesh<VERTEX_BUFFER, COMPUTE_CONTROLLER, OpenSubdiv::OsdGLDrawContext>
+{
 public:
-    PartitionedMesh(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> const *farMesh,
-                    std::vector<int> const &partitionPerFace) {
+    typedef OpenSubdiv::OsdMesh<VERTEX_BUFFER, COMPUTE_CONTROLLER, OpenSubdiv::OsdGLDrawContext> Inherited;
+    typedef typename Inherited::VertexBuffer VertexBuffer;
+    typedef typename Inherited::ComputeController ComputeController;
+    typedef typename Inherited::ComputeContext ComputeContext;
+    typedef typename Inherited::DrawContext DrawContext;
 
-        int numVertices = farMesh->GetNumVertices();
-        _vertexBuffer = OpenSubdiv::OsdCpuGLVertexBuffer::Create(3, numVertices);
-        _computeContext = OpenSubdiv::OsdCpuComputeContext::Create(
-            farMesh->GetSubdivisionTables(), farMesh->GetVertexEditTables());
-        _kernelBatches = farMesh->GetKernelBatches();
+    static PartitionedMesh*
+    Create(ComputeController *computeController, OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMesh,
+           std::vector<int> const &partitionPerFace) {
 
         OpenSubdiv::OsdUtilPatchPartitioner partitioner(farMesh->GetPatchTables(), partitionPerFace);
 
+        int numVertices = farMesh->GetNumVertices();
+        VertexBuffer* vertexBuffer = VertexBuffer::Create(3, numVertices);
+        ComputeContext* computeContext = ComputeContext::Create(
+            farMesh->GetSubdivisionTables(), farMesh->GetVertexEditTables());
+        DrawContext* drawContext = DrawContext::Create(&partitioner.GetPatchTables(), 3, false);
+
+        PartitionedMesh* mesh = new PartitionedMesh(computeController, farMesh, vertexBuffer,
+                                                    NULL, computeContext, drawContext);
+
         // convert farpatch to osdpatch
         int maxMaterial = partitioner.GetNumPartitions();
-        int maxValence = farMesh->GetPatchTables()->GetMaxValence();;
+        int maxValence = farMesh->GetPatchTables()->GetMaxValence();
 
-        _partitionedOsdPatchArrays.resize(maxMaterial);
+        mesh->_partitionedOsdPatchArrays.resize(maxMaterial);
         for (int i = 0; i < maxMaterial; ++i) {
             OpenSubdiv::OsdDrawContext::ConvertPatchArrays(partitioner.GetPatchArrays(i),
-                                                           _partitionedOsdPatchArrays[i],
+                                                           mesh->_partitionedOsdPatchArrays[i],
                                                            maxValence, 3);
         }
 
-        _drawContext = OpenSubdiv::OsdGLDrawContext::Create(&partitioner.GetPatchTables(), 3, false);
-        _drawContext->UpdateVertexTexture(_vertexBuffer);
+        return mesh;
     }
 
-    ~PartitionedMesh() {
-        delete _vertexBuffer;
-        delete _computeContext;
-        delete _drawContext;
+    int GetNumPartitions() const {
+        return (int)_partitionedOsdPatchArrays.size();
     }
 
-    void UpdateVertexBuffer(float const *vertexData, int numVerts) {
-        _vertexBuffer->UpdateData(vertexData, 0, numVerts);
+    OpenSubdiv::OsdDrawContext::PatchArrayVector const & GetPatchArrays(int partition) const {
+        return _partitionedOsdPatchArrays[partition];
     }
-
-    void Refine() {
-        g_cpuComputeController->Refine(_computeContext,
-                                       _kernelBatches,
-                                       _vertexBuffer);
-  }
-
-  OpenSubdiv::OsdGLDrawContext *GetDrawContext() const {
-    return _drawContext;
-  }
-  GLuint BindVertexBuffer() {
-    return _vertexBuffer->BindVBO();
-  }
-
-  int GetNumPartitions() const {
-    return (int)_partitionedOsdPatchArrays.size();
-  }
-
-  OpenSubdiv::OsdDrawContext::PatchArrayVector const & GetPatchArrays(int partition) const {
-    return _partitionedOsdPatchArrays[partition];
-  }
 
 private:
+    PartitionedMesh(ComputeController * computeController,
+                    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> * fmesh,
+                    VertexBuffer * vertexBuffer,
+                    VertexBuffer * varyingBuffer,
+                    ComputeContext * computeContext,
+                    DrawContext * drawContext) :
 
-  OpenSubdiv::OsdCpuComputeContext *_computeContext;
-  OpenSubdiv::OsdCpuGLVertexBuffer *_vertexBuffer;
-  OpenSubdiv::FarKernelBatchVector _kernelBatches;
+        Inherited(computeController, fmesh, vertexBuffer, varyingBuffer, computeContext, drawContext)
+    {
+    }
 
-  OpenSubdiv::OsdGLDrawContext *_drawContext;
-  std::vector<OpenSubdiv::OsdDrawContext::PatchArrayVector> _partitionedOsdPatchArrays;
+    std::vector<OpenSubdiv::OsdDrawContext::PatchArrayVector> _partitionedOsdPatchArrays;
 };
 
-PartitionedMesh *g_mesh = NULL;
+PartitionedMesh<OpenSubdiv::OsdCpuGLVertexBuffer, OpenSubdiv::OsdCpuComputeController> *g_mesh = NULL;
 
 #include <common/shape_utils.h>
 #include "../common/stopwatch.h"
@@ -421,7 +415,7 @@ updateGeom() {
         pp += 3;
     }
 
-    g_mesh->UpdateVertexBuffer(&vertex[0], nverts);
+    g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
 
     Stopwatch s;
     s.Start();
@@ -486,11 +480,10 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
 
     // create partitioned patcharray
     delete g_mesh;
-    g_mesh = new PartitionedMesh(farMesh, idsOnPtexFaces);
+    g_mesh = PartitionedMesh<OpenSubdiv::OsdCpuGLVertexBuffer, OpenSubdiv::OsdCpuComputeController>::Create(g_cpuComputeController, farMesh, idsOnPtexFaces);
 
-    // Hbr,Far mesh can be deleted
+    // Hbr mesh can be deleted
     delete hmesh;
-    delete farMesh;
 
     // compute model bounding
     float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};
