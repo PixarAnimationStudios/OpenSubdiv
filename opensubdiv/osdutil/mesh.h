@@ -22,12 +22,12 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef PX_OSD_UTIL_MESH_H
-#define PX_OSD_UTIL_MESH_H
-
-#include "topology.h"
+#ifndef OSD_UTIL_MESH_H
+#define OSD_UTIL_MESH_H
 
 #include "../version.h"
+
+#include "topology.h"
 #include <string>
 #include <map>
 
@@ -49,7 +49,9 @@ namespace OPENSUBDIV_VERSION {
 
 
 
-
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+    
 // This class is reponsible for taking a topological description of a mesh
 // defined by OsdUtilSubdivTopology and turn that into a halfedge mesh
 // with detailed connectivity information for mesh traversal. A OsdUtilMesh
@@ -101,4 +103,10 @@ private:
 };
 
 
-#endif /* PX_OSD_UTIL_MESH_H */
+}  // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+}  // end namespace OpenSubdiv
+    
+
+#endif /* OSD_UTIL_MESH_H */

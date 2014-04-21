@@ -40,9 +40,10 @@
 #include <fstream>
 #include <iostream>
 
-using namespace OpenSubdiv;
 using namespace std;
 
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
 OsdUtilAdaptiveEvaluator::OsdUtilAdaptiveEvaluator():
     _refiner(NULL),
@@ -384,8 +385,5 @@ OsdUtilAdaptiveEvaluator::GetRefinedTopology(
     return out->IsValid(errorMessage);
 }
 
-     
-
-
-
-
+}  // end namespace OPENSUBDIV_VERSION
+}  // end namespace OpenSubdiv

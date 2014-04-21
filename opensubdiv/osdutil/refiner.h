@@ -22,8 +22,10 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef PXOSDUTIL_REFINER_H
-#define PXOSDUTIL_REFINER_H
+#ifndef OSDUTIL_REFINER_H
+#define OSDUTIL_REFINER_H
+
+#include "../version.h"
 
 #include "mesh.h"
 
@@ -37,6 +39,9 @@
 #include "../osd/cpuVertexBuffer.h"
 #include "../osd/cpuComputeContext.h"
 #include "../far/mesh.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
 //----------------------------------------------------------------------------
 // A simple class that wraps several OpenSubdiv classes for tessellating
@@ -148,5 +153,9 @@ class OsdUtilRefiner  {
 
 };
 
+}  // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
 
-#endif /* PXOSDUTIL_REFINER_H */
+}  // end namespace OpenSubdiv
+
+#endif /* OSDUTIL_REFINER_H */

@@ -22,8 +22,10 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef PXOSDUTIL_ADAPTIVE_EVALUATOR_H
-#define PXOSDUTIL_ADAPTIVE_EVALUATOR_H
+#ifndef OSDUTIL_ADAPTIVE_EVALUATOR_H
+#define OSDUTIL_ADAPTIVE_EVALUATOR_H
+
+#include "../version.h"
 
 #include "refiner.h"
 
@@ -37,6 +39,9 @@
 #include "../osd/cpuEvalLimitController.h"
 #include "../osd/cpuEvalLimitContext.h"
 #include "../far/mesh.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
 // This class takes a mesh that has undergone adaptive refinement to
 // create bspline and gregory patches to a fixed subdivision level,
@@ -138,6 +143,10 @@ class OsdUtilAdaptiveEvaluator {
 };
 
 
+}  // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+}  // end namespace OpenSubdiv
 
 
-#endif /* PXOSDUTIL_ADAPTIVE_EVALUATOR_H */
+#endif /* OSDUTIL_ADAPTIVE_EVALUATOR_H */
