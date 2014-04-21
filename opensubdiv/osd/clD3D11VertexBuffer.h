@@ -33,6 +33,17 @@
     #include <CL/opencl.h>
 #endif
 
+struct ID3D11VertexShader;
+struct ID3D11HullShader;
+struct ID3D11DomainShader;
+struct ID3D11GeometryShader;
+struct ID3D11PixelShader;
+
+struct ID3D11Buffer;
+struct ID3D11ShaderResourceView;
+struct ID3D11Device;
+struct ID3D11DeviceContext;
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

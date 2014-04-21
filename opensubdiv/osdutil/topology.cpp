@@ -31,6 +31,8 @@
 #include <string.h>
 
 using namespace std;
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
 OsdUtilSubdivTopology::OsdUtilSubdivTopology():
     name("noname"),
@@ -423,3 +425,7 @@ OsdUtilSubdivTopology::WriteObjFile(
 
     return true;
 }
+
+
+}  // end namespace OPENSUBDIV_VERSION
+}  // end namespace OpenSubdiv

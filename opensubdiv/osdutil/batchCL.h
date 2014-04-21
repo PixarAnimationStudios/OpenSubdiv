@@ -100,7 +100,7 @@ public:
         Base::populateDirtyKernelBatches(batches);
         Base::resetMeshDirty();
 
-        _computeController->Refine(_computeContext, batches, _vertexBuffer);
+        _computeController->Refine(_computeContext, batches, _vertexBuffer, _varyingBuffer);
     }
 
     VertexBuffer *GetVertexBuffer() const { return _vertexBuffer; }

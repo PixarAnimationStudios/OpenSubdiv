@@ -353,7 +353,9 @@ createOsdContext(int level)
                                                  g_farmesh->GetNumVertices());
 
     g_drawContext =
-        OpenSubdiv::OsdGLDrawContext::Create(g_farmesh->GetPatchTables(), false);
+        OpenSubdiv::OsdGLDrawContext::Create(g_farmesh->GetPatchTables(),
+                                             g_farmesh->GetNumVertices(),
+                                             false);
     g_drawContext->UpdateVertexTexture(g_vertexBuffer);
 
     // 

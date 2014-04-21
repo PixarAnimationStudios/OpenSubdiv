@@ -33,8 +33,8 @@
 #include <sstream>
 
 using namespace std;
-using namespace OpenSubdiv;
-
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
 template <class T>
 static bool _ProcessTagsAndFinishMesh(
@@ -486,3 +486,5 @@ template class OsdUtilMesh<OsdVertex>;
 //template class OsdUtilMesh<FarStencilFactoryVertex>;
 template class OsdUtilMesh<FarStencilFactoryVertex>;
 
+}  // end namespace OPENSUBDIV_VERSION
+}  // end namespace OpenSubdiv

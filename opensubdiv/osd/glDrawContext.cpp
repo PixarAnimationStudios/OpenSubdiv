@@ -97,13 +97,13 @@ createTextureBuffer(T const &data, GLint format, int offset=0)
 }
 
 OsdGLDrawContext *
-OsdGLDrawContext::Create(FarPatchTables const * patchTables, bool requireFVarData) {
+OsdGLDrawContext::Create(FarPatchTables const * patchTables, int numVertexElements, bool requireFVarData) {
 
     if (patchTables) {
         
         OsdGLDrawContext * result = new OsdGLDrawContext();
         
-        if (result->create(patchTables, requireFVarData)) {
+        if (result->create(patchTables, numVertexElements, requireFVarData)) {
             return result;
         } else {
             delete result;
@@ -113,7 +113,7 @@ OsdGLDrawContext::Create(FarPatchTables const * patchTables, bool requireFVarDat
 }
 
 bool
-OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarData) {
+OsdGLDrawContext::create(FarPatchTables const * patchTables, int numVertexElements, bool requireFVarData) {
 
     assert(patchTables);
          
@@ -139,7 +139,7 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
     }
     
     OsdDrawContext::ConvertPatchArrays(patchTables->GetPatchArrayVector(),
-        patchArrays, patchTables->GetMaxValence(), 0);
+        patchArrays, patchTables->GetMaxValence(), numVertexElements);
 
     // allocate and initialize additional buffer data
 
@@ -186,7 +186,7 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, bool requireFVarDat
 }
 
 void
-OsdGLDrawContext::updateVertexTexture(GLuint vbo, int numVertexElements)
+OsdGLDrawContext::updateVertexTexture(GLuint vbo)
 {
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
 
@@ -203,15 +203,6 @@ OsdGLDrawContext::updateVertexTexture(GLuint vbo, int numVertexElements)
     }
 
 #endif
-
-    // XXX: consider moving this proc to base class
-    // updating num elements in descriptor with new vbo specs
-    for (int i = 0; i < (int)patchArrays.size(); ++i) {
-        PatchArray &parray = patchArrays[i];
-        PatchDescriptor desc = parray.GetDescriptor();
-        desc.SetNumElements(numVertexElements);
-        parray.SetDescriptor(desc);
-    }
 }
 
 

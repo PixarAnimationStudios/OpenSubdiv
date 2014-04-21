@@ -57,12 +57,14 @@ public:
 
     /// \brief Create an OsdGLDraContext from FarPatchTables
     ///
-    /// @param patchTables      a valid set of FarPatchTables
+    /// @param patchTables          a valid set of FarPatchTables
     ///
-    /// @param requireFVarData  set to true to enable face-varying data to be 
-    ///                         carried over from the Far data structures.
+    /// @param numVertexElements    the number of vertex elements
     ///
-    static OsdGLDrawContext * Create(FarPatchTables const * patchTables, bool requireFVarData);
+    /// @param requireFVarData      set to true to enable face-varying data to be
+    ///                             carried over from the Far data structures.
+    ///
+    static OsdGLDrawContext * Create(FarPatchTables const * patchTables, int numVertexElements, bool requireFVarData);
 
     /// Set vbo as a vertex texture (for gregory patch drawing)
     ///
@@ -71,7 +73,7 @@ public:
     template<class VERTEX_BUFFER>
     void UpdateVertexTexture(VERTEX_BUFFER *vbo) {
         if (vbo)
-            updateVertexTexture(vbo->BindVBO(), vbo->GetNumElements());
+            updateVertexTexture(vbo->BindVBO());
     }
 
     /// true if the GL version detected supports shader tessellation
@@ -134,9 +136,9 @@ protected:
     OsdGLDrawContext();
 
     // allocate buffers from patchTables
-    bool create(FarPatchTables const *patchTables, bool requireFVarData);
+    bool create(FarPatchTables const *patchTables, int numElements, bool requireFVarData);
 
-    void updateVertexTexture(GLuint vbo, int numElements);
+    void updateVertexTexture(GLuint vbo);
 };
 
 } // end namespace OPENSUBDIV_VERSION

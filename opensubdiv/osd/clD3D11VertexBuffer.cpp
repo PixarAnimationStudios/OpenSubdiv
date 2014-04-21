@@ -119,7 +119,7 @@ void
 OsdCLD3D11VertexBuffer::unmap() {
     
     if (not _clMapped) return;
-    clEnqueueReleaseD3D11ObjectsKHR(queue, 1, &_clMemory, 0, 0, 0);
+    clEnqueueReleaseD3D11ObjectsKHR(_clQueue, 1, &_clMemory, 0, 0, 0);
     _clMapped = false;
 }
 

@@ -70,12 +70,15 @@ public:
     ///
     /// @param pd3d11DeviceContext  a device context
     ///
+    /// @param numVertexElements    the number of vertex elements
+    ///
     /// @param requireFVarData      set to true to enable face-varying data to be 
     ///                             carried over from the Far data structures.
     ///
     ///
     static OsdD3D11DrawContext *Create(FarPatchTables const *patchTables,
                                        ID3D11DeviceContext *pd3d11DeviceContext,
+                                       int numVertexElements,
                                        bool requireFVarData=false);
 
     /// Set vbo as a vertex texture (for gregory patch drawing)
@@ -112,12 +115,13 @@ private:
     // allocate buffers from patchTables
     bool create(FarPatchTables const *patchTables,
                 ID3D11DeviceContext *pd3d11DeviceContext,
+                int numVertexElements,
                 bool requireFVarData);
 
     void updateVertexTexture(ID3D11Buffer *vbo,
                              ID3D11DeviceContext *pd3d11DeviceContext,
                              int numVertices,
-                             int numElements);
+                             int numVertexElements);
 
     int _numVertices;
 };

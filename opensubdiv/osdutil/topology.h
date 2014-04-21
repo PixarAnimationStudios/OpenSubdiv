@@ -21,13 +21,16 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef PX_OSD_UTIL_TOPOLOGY_H
-#define PX_OSD_UTIL_TOPOLOGY_H
+#ifndef OSDUTIL_TOPOLOGY_H
+#define OSDUTIL_TOPOLOGY_H
+
+#include "../version.h"
 
 #include <vector>
 #include <string>
 
-
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
 // A value struct that holds annotations on a subdivision surface
 // such as creases, boundaries, holes, corners, hierarchical edits, etc.
@@ -160,6 +163,10 @@ class OsdUtilSubdivTopology {
     
 };
 
+}  // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+}  // end namespace OpenSubdiv
 
 
-#endif /* PX_OSD_UTIL_TOPOLOGY_H */
+#endif /* OSDUTIL_TOPOLOGY_H */

@@ -32,8 +32,10 @@
 #include <iostream>
 #include <sstream>
 
-using namespace OpenSubdiv;
 using namespace std;
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
 
 
 //------------------------------------------------------------------------------
@@ -297,5 +299,6 @@ OsdUtilRefiner::GetHbrMesh()
         return NULL;
     }
 }
-
-
+     
+}  // end namespace OPENSUBDIV_VERSION
+}  // end namespace OpenSubdiv

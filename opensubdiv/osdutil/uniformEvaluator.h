@@ -22,8 +22,10 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef PXOSDUTIL_UNIFORM_EVALUATOR_H
-#define PXOSDUTIL_UNIFORM_EVALUATOR_H
+#ifndef OSDUTIL_UNIFORM_EVALUATOR_H
+#define OSDUTIL_UNIFORM_EVALUATOR_H
+
+#include "../version.h"
 
 #include "refiner.h"
 
@@ -36,6 +38,9 @@
 #include "../osd/cpuComputeContext.h"
 #include "../far/mesh.h"
 
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+    
 // This class takes a mesh that has undergone uniform refinement to
 // a fixed subdivision level, and creates required run time OpenSubdiv
 // data structures used to sample values on subdivision surfaces.
@@ -180,6 +185,9 @@ class OsdUtilUniformEvaluator {
     OpenSubdiv::OsdCpuVertexBuffer *_vvBuffer;
 };
 
+}  // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
 
+}  // end namespace OpenSubdiv
 
-#endif /* PXOSDUTIL_UNIFORM_EVALUATOR_H */
+#endif /* OSDUTIL_UNIFORM_EVALUATOR_H */

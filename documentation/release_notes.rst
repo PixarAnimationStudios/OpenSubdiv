@@ -31,6 +31,18 @@ Release Notes
 
 ----
 
+Release 2.4.1
+=============
+
+**Changes**
+    - Add correct OpenSubdiv namespace begin/end blocks.
+
+**Bug Fixes**
+    - Compile osdutil with -fPIC for correct linking.
+    - Fix a bug of OsdUtilMeshBatch, the varying buffer isn't computed with CL kernels
+    - Fix FindGLFW.cmake to use the %GLFW_LOCATION% environment variable in Windows
+    - Fix Draw contexts do not fully initialize patch arrays
+
 Release 2.4.0
 =============
 
