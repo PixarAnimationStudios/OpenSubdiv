@@ -377,7 +377,7 @@ FarPatchTablesFactory<T>::Create( HbrMesh<T> const * mesh, FacesList const & fli
 
         for (int i=0; i<(int)flist[level].size(); ++i) {
             HbrFace<T> * f = flist[level][i];
-            assert( f and f->GetNumVertices() == isLoop ? 3 : 4);
+            assert( f and (f->GetNumVertices() == (isLoop ? 3 : 4)));
 
             for (int j=0; j<f->GetNumVertices(); ++j) {
                 *iptr++ = remapTable[f->GetVertex(j)->GetID()];
