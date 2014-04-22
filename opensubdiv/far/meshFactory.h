@@ -45,6 +45,7 @@
 #include "../far/bilinearSubdivisionTablesFactory.h"
 #include "../far/catmarkSubdivisionTablesFactory.h"
 #include "../far/loopSubdivisionTablesFactory.h"
+#include "../far/patchTables.h"
 #include "../far/patchTablesFactory.h"
 #include "../far/vertexEditTablesFactory.h"
 
@@ -82,14 +83,18 @@ public:
     ///                    level of isolation around extraordinary topological
     ///                    features.
     ///
+    /// @param adaptive    Switch between uniform and feature adaptive mode
+    ///
     /// @param firstLevel  First level of subdivision to use when building the
     ///                    FarMesh. The default -1 only generates a single patch
     ///                    array for the highest level of subdivision)
     ///                    Note : firstLevel is only applicable if adaptive is false
     ///
-    /// @param adaptive Switch between uniform and feature adaptive mode
+    /// @param patchType   The type of patch to create: QUADS or TRIANGLES
+    ///                    Note : patchType is only applicable if adaptive is false
     ///
-    FarMeshFactory(HbrMesh<T> * mesh, int maxlevel, bool adaptive=false, int firstLevel=-1);
+    FarMeshFactory(HbrMesh<T> * mesh, int maxlevel, bool adaptive=false, int firstLevel=-1,
+                   FarPatchTables::Type patchType=FarPatchTables::QUADS);
 
     /// \brief Create a table-based mesh representation
     ///
@@ -223,6 +228,8 @@ private:
         _numFaces,
         _maxValence,
         _numPtexFaces;
+
+    FarPatchTables::Type _patchType;
 
     // remapping table to translate vertex ID's between Hbr indices and the
     // order of the same vertices in the tables
@@ -581,7 +588,7 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
 // random order, so the builder runs 2 passes over the entire vertex list to
 // gather the counters needed to generate the indexing tables.
 template <class T, class U>
-FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adaptive, int firstlevel ) :
+FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adaptive, int firstlevel, FarPatchTables::Type patchType ) :
     _hbrMesh(mesh),
     _adaptive(adaptive),
     _maxlevel(maxlevel),
@@ -591,6 +598,7 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adapt
     _numFaces(-1),
     _maxValence(4),
     _numPtexFaces(-1),
+    _patchType(patchType),
     _facesList(maxlevel+1)
 {
     _numCoarseVertices = mesh->GetNumVertices();
@@ -729,7 +737,7 @@ FarMeshFactory<T,U>::Create( bool requireFVarData ) {
         result->_patchTables = factory.Create(GetMaxLevel()+1, _maxValence, _numPtexFaces, fvarwidth);
 
     } else {
-        result->_patchTables = FarPatchTablesFactory<T>::Create(GetHbrMesh(), _facesList, _remapTable, _firstlevel, _numPtexFaces, fvarwidth );
+        result->_patchTables = FarPatchTablesFactory<T>::Create(GetHbrMesh(), _facesList, _remapTable, _firstlevel, _patchType, _numPtexFaces, fvarwidth );
     }
     assert( result->_patchTables );
 
