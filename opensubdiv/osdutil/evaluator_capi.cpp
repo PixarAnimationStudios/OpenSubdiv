@@ -90,20 +90,23 @@ void openSubdiv_createEvaluatorDescrFace(OpenSubdiv_EvaluatorDescr *evaluator_de
         }
 }
 
-void openSubdiv_finishEvaluatorDescr(OpenSubdiv_EvaluatorDescr *evaluator_descr,
-                                int refinementLevel)
+int openSubdiv_finishEvaluatorDescr(OpenSubdiv_EvaluatorDescr *evaluator_descr,
+                                    int refinementLevel)
 {
     std::string errorMessage;
     evaluator_descr->topology.refinementLevel = refinementLevel;
-    
+    // TODO: Pass the error message to the callee function so it know what's going on.
     if (not evaluator_descr->topology.IsValid(&errorMessage)) {
         std::cout <<"OpenSubdiv topology is not valid due to " << errorMessage << std::endl;
+        return 0;
     } else {
         if (not evaluator_descr->evaluator.Initialize(
                 evaluator_descr->topology, &errorMessage)) {
             std::cout <<"OpenSubdiv uniform evaluator initialization failed due to " << errorMessage << std::endl;
+            return 0;
         }
     }
+    return 1;
 }
 
 
