@@ -186,9 +186,10 @@ OsdUtilPatchPartitioner::OsdUtilPatchPartitioner(FarPatchTables const *srcPatchT
 
             // reorder corresponding face-varying table entry
             if (hasFVarData) {
-                for (int j = 0; j < 4 * fvarWidth; ++j) {
+                int fvarVerts = desc.GetType() == FarPatchTables::TRIANGLES ? 3 : 4;
+                for (int j = 0; j < fvarVerts * fvarWidth; ++j) {
                     newFVarDataTable.push_back(
-                        srcFVarData.GetAllData()[patchIndex*4*fvarWidth+j + fvarOffset]);
+                        srcFVarData.GetAllData()[patchIndex*fvarVerts*fvarWidth+j + fvarOffset]);
                 }
             }
         }
