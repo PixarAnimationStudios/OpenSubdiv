@@ -298,7 +298,7 @@ std::string shape::genRIB() const {
         }
     }
 
-    rib << "["<<names<<"] " << "["<<nargs<<"] " << "["<<intargs<<"] " << "["<<floatargs<<"] " << "["<<strargs<<"] ";
+    rib << "["<<names.str()<<"] " << "["<<nargs.str()<<"] " << "["<<intargs.str()<<"] " << "["<<floatargs.str()<<"] " << "["<<strargs.str()<<"] ";
 
     rib << "\"P\" [";
     std::copy(verts.begin(), verts.end(), std::ostream_iterator<float>(rib));
