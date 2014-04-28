@@ -1052,10 +1052,10 @@ initHUD()
     g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 10, 50, callbackAnimate, 0, 'm');
     g_hud.AddCheckBox("Freeze (spc)", false, 10, 70, callbackFreeze, 0, ' ');
     
-    int shading_pulldown = g_hud.AddPullDown("Shading (w) :", 250, 10, 250, callbackDisplayVaryingColors, 'w');
-    g_hud.AddPullDownButton(shading_pulldown, "(u,v)", kUV);
-    g_hud.AddPullDownButton(shading_pulldown, "Varying", kVARYING);
-    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying", kFACEVARYING);
+    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 250, 10, 250, callbackDisplayVaryingColors, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "(u,v)", kUV, g_drawMode==kUV);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying", kVARYING, g_drawMode==kVARYING);
+    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying", kFACEVARYING, g_drawMode==kFACEVARYING);
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
@@ -1063,7 +1063,7 @@ initHUD()
         g_hud.AddRadioButton(3, level, i==g_level, 10, 170+i*20, callbackLevel, i, '0'+(i%10));
     }
 
-    int pulldown_handle = g_hud.AddPullDown("Shape :", -300, 10, 300, callbackModel, 'n');
+    int pulldown_handle = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
         g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
     }   

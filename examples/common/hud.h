@@ -73,8 +73,8 @@ public:
     int AddPullDown(const char *label, int x, int y, int width,
                     PullDownCallback callback=0, int shortcut=0);
     
-    void AddPullDownButton(int handle, const char *label, int value);
-
+    void AddPullDownButton(int handle, const char *label, int value, bool checked=false);
+    
     bool KeyDown(int key);
 
     bool MouseClick(int x, int y);

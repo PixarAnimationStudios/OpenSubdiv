@@ -186,7 +186,7 @@ Hud::MouseClick(int x, int y)
             if (not it->open) {
                 it->h *= (int)it->labels.size();
             } else {
-                int label_width = (1+(int)it->label.size()) * FONT_CHAR_WIDTH;
+                int label_width = (3+(int)it->label.size()) * FONT_CHAR_WIDTH;
                 if (x > it->x + label_width) {
                     int sel = it->selected;
                     it->SetSelected((y - it->y) / FONT_CHAR_HEIGHT);
@@ -336,13 +336,17 @@ Hud::AddPullDown(const char *label, int x, int y, int width,
 }
 
 void 
-Hud::AddPullDownButton(int handle, const char *label, int value)
+Hud::AddPullDownButton(int handle, const char *label, int value, bool checked)
 {
     if (handle < (int)_pulldowns.size()) {
         
         PullDown & pulldown = _pulldowns[handle];
+
         pulldown.labels.push_back(label);
         pulldown.values.push_back(value);
+        if (checked) {
+            pulldown.selected = (int)pulldown.labels.size()-1;
+        }
     }
 }
     
@@ -523,15 +527,19 @@ Hud::Rebuild(int width, int height)
         x += FONT_CHAR_WIDTH;
         
         if (it->open) {
+            x = drawChar(_staticVboSource, x, y, .5f, .5f, .5f, FONT_ARROW_DOWN);
+            x += FONT_CHAR_WIDTH;
             for (int i=0; i<(int)it->labels.size(); ++i, y+=FONT_CHAR_HEIGHT) {
                 if (i==it->selected) {
-                    drawString(_staticVboSource, x, y, 1, 1, 1, it->labels[i]);
+                    drawString(_staticVboSource, x, y, 1, 1, 0, it->labels[i]);
                 } else {
                     drawString(_staticVboSource, x, y, 0.5f, 0.5f, 0.5f, it->labels[i]);
                 }
             }
         } else {
-            drawString(_staticVboSource, x, y, 1, 1, 1, it->labels[it->selected]);
+            x = drawChar(_staticVboSource, x, y, .5f, .5f, .5f, FONT_ARROW_RIGHT);
+            x += FONT_CHAR_WIDTH;
+            drawString(_staticVboSource, x, y, 1, 1, 0, it->labels[it->selected]);
         }
     }      
 

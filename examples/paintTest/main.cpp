@@ -1164,10 +1164,10 @@ initHUD()
     g_hud.AddCheckBox("Color (C)",  g_displayColor != 0, 10, 10, callbackDisplay, 0, 'c');
     g_hud.AddCheckBox("Displacement (D)",  g_displayDisplacement != 0, 10, 30, callbackDisplay, 1, 'd');
 
-    int shading_pulldown = g_hud.AddPullDown("Shading (w) :", 200, 10, 250, callbackWireframe, 'w');
-    g_hud.AddPullDownButton(shading_pulldown, "Wire", 0);
-    g_hud.AddPullDownButton(shading_pulldown, "Shaded", 1);
-    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", 2);
+    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 200, 10, 250, callbackWireframe, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", 0, g_wire==0);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", 1, g_wire==1);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", 2, g_wire==2);
     
     for (int i = 1; i < 11; ++i) {
         char level[16];
@@ -1175,7 +1175,7 @@ initHUD()
         g_hud.AddRadioButton(3, level, i==2, 10, 170+i*20, callbackLevel, i, '0'+(i%10));
     }
 
-    int pulldown_handle = g_hud.AddPullDown("Shape :", -300, 10, 300, callbackModel, 'n');
+    int pulldown_handle = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
         g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
     }   

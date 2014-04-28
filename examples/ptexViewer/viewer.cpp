@@ -2564,7 +2564,7 @@ int main(int argc, char ** argv)
                              10, 320+i*20, callbackLevel, i, '0'+i);
     }
 
-    int compute_pulldown = g_hud.AddPullDown("Compute (k) :", 475, 10, 300, callbackKernel, 'k');
+    int compute_pulldown = g_hud.AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
     g_hud.AddPullDownButton(compute_pulldown, "OpenMP", kOPENMP);
@@ -2591,10 +2591,10 @@ int main(int argc, char ** argv)
     }
 #endif
 
-    int shading_pulldown = g_hud.AddPullDown("Shading (w) :", 250, 10, 250, callbackWireframe, 'w');
-    g_hud.AddPullDownButton(shading_pulldown, "Wire", DISPLAY_WIRE);
-    g_hud.AddPullDownButton(shading_pulldown, "Shaded", DISPLAY_SHADED);
-    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", DISPLAY_WIRE_ON_SHADED);
+    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 250, 10, 250, callbackWireframe, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", DISPLAY_WIRE, g_wire==DISPLAY_WIRE);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", DISPLAY_SHADED, g_wire==DISPLAY_SHADED);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", DISPLAY_WIRE_ON_SHADED, g_wire==DISPLAY_WIRE_ON_SHADED);
 
     g_hud.AddLabel("Color (C)", -200, 10);
     g_hud.AddRadioButton(HUD_RB_COLOR, "None", (g_color == COLOR_NONE),

@@ -838,14 +838,14 @@ initHUD()
     g_hud.AddCheckBox("Screen space LOD (V)", g_screenSpaceTess != 0, 10, 70, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
     g_hud.AddCheckBox("Freeze (spc)",         false,                  10, 90, callbackCheckBox, HUD_CB_FREEZE, ' ');
 
-    int shading_pulldown = g_hud.AddPullDown("Shading (w) :", 200, 10, 250, callbackDisplayStyle, 'w');
-    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire);
-    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded);
-    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded);
-    g_hud.AddPullDownButton(shading_pulldown, "Varying Color", kVaryingColor);
-    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color", kFaceVaryingColor);
+    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 200, 10, 250, callbackDisplayStyle, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color", kVaryingColor, g_displayStyle==kVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color", kFaceVaryingColor, g_displayStyle==kFaceVaryingColor);
 
-    int compute_pulldown = g_hud.AddPullDown("Compute (k) :", 450, 10, 300, callbackKernel, 'k');
+    int compute_pulldown = g_hud.AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
     g_hud.AddPullDownButton(compute_pulldown, "OpenMP", kOPENMP);
@@ -878,7 +878,7 @@ initHUD()
         g_hud.AddRadioButton(3, level, i==g_level, 10, 170+i*20, callbackLevel, i, '0'+(i%10));
     }
 
-    int pulldown_handle = g_hud.AddPullDown("Shape :", -300, 10, 300, callbackModel, 'n');
+    int pulldown_handle = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
         g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
     }   

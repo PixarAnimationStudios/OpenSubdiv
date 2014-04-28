@@ -1277,10 +1277,10 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    int shading_pulldown = g_hud.AddPullDown("Shading (w) :", 350, 10, 250, callbackDisplayStyle, 'w');
-    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire);
-    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded);
-    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded);
+    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 300, 10, 250, callbackDisplayStyle, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
 
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive != 0, 10, 250, callbackAdaptive, 0, '`');
@@ -1307,7 +1307,7 @@ initHUD()
     g_hud.AddCheckBox("Propagate corners (C)", g_fvarPropagateCorners != 0,
                       10, 110, callbackPropagateCorners, 0, 'c');
 
-    int pulldown_handle = g_hud.AddPullDown("Shape :", -300, 10, 300, callbackModel, 'n');
+    int pulldown_handle = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
         g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
     }   
