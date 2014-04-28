@@ -128,7 +128,7 @@ Hud::KeyDown(int key)
             if (it->selected>=(int)it->labels.size()) {
                  it->selected=0;
             }                
-            it->callback(it->selected);
+            it->callback(it->values[it->selected]);
             _requiresRebuildStatic = true;
             return true;
         }
@@ -191,7 +191,7 @@ Hud::MouseClick(int x, int y)
                     int sel = it->selected;
                     it->SetSelected((y - it->y) / FONT_CHAR_HEIGHT);
                     if (it->selected!=sel) {
-                        it->callback(it->selected);
+                        it->callback(it->values[it->selected]);
                     }
                 }
             }
@@ -336,12 +336,13 @@ Hud::AddPullDown(const char *label, int x, int y, int width,
 }
 
 void 
-Hud::AddPullDownButton(int handle, const char *label)
+Hud::AddPullDownButton(int handle, const char *label, int value)
 {
     if (handle < (int)_pulldowns.size()) {
         
         PullDown & pulldown = _pulldowns[handle];
         pulldown.labels.push_back(label);
+        pulldown.values.push_back(value);
     }
 }
     
@@ -349,7 +350,7 @@ Hud::AddPullDownButton(int handle, const char *label)
 
 int
 Hud::drawChar(std::vector<float> &vboSource,
-              int x, int y, float r, float g, float b, char ch) const
+              int x, int y, float r, float g, float b, char ch)
 {
     const float w = 1.0f/FONT_TEXTURE_COLUMNS;
     const float h = 1.0f/FONT_TEXTURE_ROWS;
@@ -410,7 +411,7 @@ Hud::drawChar(std::vector<float> &vboSource,
 
 int
 Hud::drawString(std::vector<float> &vboSource,
-                int x, int y, float r, float g, float b, const char *c) const
+                int x, int y, float r, float g, float b, const char *c)
 {
     while (*c) {
         char ch = (*c) & 0x7f;

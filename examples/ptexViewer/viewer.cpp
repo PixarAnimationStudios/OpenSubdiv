@@ -80,6 +80,11 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
     OpenSubdiv::OsdOmpComputeController * g_ompComputeController = NULL;
 #endif
 
+#ifdef OPENSUBDIV_HAS_TBB
+    #include <osd/tbbComputeController.h>
+    OpenSubdiv::OsdTbbComputeController *g_tbbComputeController = NULL;
+#endif
+
 #ifdef OPENSUBDIV_HAS_OPENCL
     #include <osd/clGLVertexBuffer.h>
     #include <osd/clComputeContext.h>
@@ -157,10 +162,11 @@ typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
 enum KernelType { kCPU = 0,
                   kOPENMP = 1,
-                  kCUDA = 2,
-                  kCL = 3,
-                  kGLSL = 4,
-                  kGLSLCompute = 5 };
+                  kTBB = 2,
+                  kCUDA = 3,
+                  kCL = 4,
+                  kGLSL = 5,
+                  kGLSLCompute = 6 };
 
 enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_DISPLAY_OCCLUSION,
@@ -1060,6 +1066,20 @@ createOsdMesh(int level, int kernel)
                                          OpenSubdiv::OsdOmpComputeController,
                                          OpenSubdiv::OsdGLDrawContext>(
                                                 g_ompComputeController,
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
+#endif
+#ifdef OPENSUBDIV_HAS_TBB
+    } else if (kernel == kTBB) {
+        if (not g_tbbComputeController) {
+            g_tbbComputeController = new OpenSubdiv::OsdTbbComputeController();
+        }
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuGLVertexBuffer,
+                                         OpenSubdiv::OsdTbbComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(
+                                                g_tbbComputeController,
                                                 hmesh,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -2015,6 +2035,10 @@ void uninitGL()
     delete g_ompComputeController;
 #endif
 
+#ifdef OPENSUBDIV_HAS_TBB
+    delete g_tbbComputeController;
+#endif
+
 #ifdef OPENSUBDIV_HAS_OPENCL
     delete g_clComputeController;
     uninitCL(g_clContext, g_clQueue);
@@ -2498,29 +2522,30 @@ int main(int argc, char ** argv)
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddRadioButton(HUD_RB_KERNEL, "CPU (K)", true,
-                         10, 10, callbackKernel, kCPU, 'k');
+    int compute_pulldown = g_hud.AddPullDown("Compute (k) :", 450, 10, 300, callbackKernel, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
-    g_hud.AddRadioButton(HUD_RB_KERNEL, "OPENMP", false,
-                         10, 30, callbackKernel, kOPENMP, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "OpenMP", kOPENMP);
+#endif
+#ifdef OPENSUBDIV_HAS_TBB
+    g_hud.AddPullDownButton(compute_pulldown, "TBB", kTBB);
+#endif
+#ifdef OPENSUBDIV_HAS_GCD
+    g_hud.AddPullDownButton(compute_pulldown, "GCD", kGCD);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    g_hud.AddRadioButton(HUD_RB_KERNEL, "CUDA",   false,
-                         10, 50, callbackKernel, kCUDA, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    g_hud.AddRadioButton(HUD_RB_KERNEL, "OPENCL", false,
-                         10, 70, callbackKernel, kCL, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    g_hud.AddRadioButton(HUD_RB_KERNEL, "GLSL Transform Feedback", false,
-                         10, 90, callbackKernel, kGLSL, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "GLSL TransformFeedback", kGLSL);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     // Must also check at run time for OpenGL 4.3
     if (GLEW_VERSION_4_3) {
-        g_hud.AddRadioButton(HUD_RB_KERNEL, "GLSL Compute", false,
-                             10, 110, callbackKernel, kGLSLCompute, 'k');
+        g_hud.AddPullDownButton(compute_pulldown, "GLSL Compute", kGLSLCompute);
     }
 #endif
 

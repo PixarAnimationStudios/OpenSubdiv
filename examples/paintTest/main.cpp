@@ -1176,7 +1176,7 @@ initHUD()
 
     int pulldown_handle = g_hud.AddPullDown("Shape :", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str());
+        g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
     }   
 }
 

@@ -73,7 +73,7 @@ public:
     int AddPullDown(const char *label, int x, int y, int width,
                     PullDownCallback callback=0, int shortcut=0);
     
-    void AddPullDownButton(int handle, const char *label);
+    void AddPullDownButton(int handle, const char *label, int value);
 
     bool KeyDown(int key);
 
@@ -133,6 +133,7 @@ protected:
         bool open; 
         int selected;
         std::vector<char const *> labels;
+        std::vector<int> values;
         int shortcut;
         PullDownCallback callback;
         
@@ -143,11 +144,11 @@ protected:
         }
     };
 
-    int drawString(std::vector<float> &vboSource, int x, int y,
-                   float r, float g, float b, const char *c) const;
+    static int drawString(std::vector<float> &vboSource, int x, int y,
+                   float r, float g, float b, const char *c);
 
-    int drawChar(std::vector<float> &vboSource, int x, int y,
-                 float r, float g, float b, char ch) const;
+    static int drawChar(std::vector<float> &vboSource, int x, int y,
+                   float r, float g, float b, char ch);
 
     bool hitTest(Item const &item, int x, int y) const {
         int ix = item.x > 0 ? item.x : _windowWidth + item.x;

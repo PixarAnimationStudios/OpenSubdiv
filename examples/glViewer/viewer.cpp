@@ -1680,55 +1680,56 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddRadioButton(0, "CPU (K)", true, 10, 10, callbackKernel, kCPU, 'k');
+
+    g_hud.AddRadioButton(1, "Wire (W)",    g_displayStyle == kWire,  10, 10, callbackDisplayStyle, 0, 'w');
+    g_hud.AddRadioButton(1, "Shaded",      g_displayStyle == kShaded, 10, 30, callbackDisplayStyle, 1, 'w');
+    g_hud.AddRadioButton(1, "Wire+Shaded", g_displayStyle == kWireShaded, 10, 50, callbackDisplayStyle, 2, 'w');
+    g_hud.AddRadioButton(1, "Varying color", g_displayStyle == kVaryingColor, 10, 70, callbackDisplayStyle, 3, 'w');
+    g_hud.AddRadioButton(1, "FaceVarying color", g_displayStyle == kFaceVaryingColor, 10, 90, callbackDisplayStyle, 4, 'w');
+
+    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
+                      200, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'h');
+    g_hud.AddCheckBox("Cage Verts (J)", g_drawCageVertices != 0,
+                      200, 30, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_VERTS, 'j');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0,
+                      200, 50, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
+    g_hud.AddCheckBox("Patch Color (P)", g_displayPatchColor != 0,
+                      200, 70, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'p');
+    g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess != 0,
+                      200, 90, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing != 0,
+                      200, 110, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
+    g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull != 0,
+                      200, 130, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
+    g_hud.AddCheckBox("Freeze (spc)", g_freeze != 0,
+                      200, 150, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+
+    int compute_pulldown = g_hud.AddPullDown("Compute (k) :", 450, 10, 300, callbackKernel, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
-    g_hud.AddRadioButton(0, "OPENMP", false, 10, 30, callbackKernel, kOPENMP, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "OpenMP", kOPENMP);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
-    g_hud.AddRadioButton(0, "TBB", false, 10, 50, callbackKernel, kTBB, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "TBB", kTBB);
 #endif
 #ifdef OPENSUBDIV_HAS_GCD
-    g_hud.AddRadioButton(0, "GCD", false, 10, 70, callbackKernel, kGCD, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "GCD", kGCD);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    g_hud.AddRadioButton(0, "CUDA",   false, 10, 90, callbackKernel, kCUDA, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    g_hud.AddRadioButton(0, "OPENCL", false, 10, 110, callbackKernel, kCL, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    g_hud.AddRadioButton(0, "GLSL TransformFeedback",   false, 10, 130, callbackKernel, kGLSL, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "GLSL TransformFeedback", kGLSL);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     // Must also check at run time for OpenGL 4.3
     if (GLEW_VERSION_4_3) {
-        g_hud.AddRadioButton(0, "GLSL Compute",   false, 10, 150, callbackKernel, kGLSLCompute, 'k');
+        g_hud.AddPullDownButton(compute_pulldown, "GLSL Compute", kGLSLCompute);
     }
 #endif
-
-    g_hud.AddRadioButton(1, "Wire (W)",    g_displayStyle == kWire,  200, 10, callbackDisplayStyle, 0, 'w');
-    g_hud.AddRadioButton(1, "Shaded",      g_displayStyle == kShaded, 200, 30, callbackDisplayStyle, 1, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", g_displayStyle == kWireShaded, 200, 50, callbackDisplayStyle, 2, 'w');
-    g_hud.AddRadioButton(1, "Varying color", g_displayStyle == kVaryingColor, 200, 70, callbackDisplayStyle, 3, 'w');
-    g_hud.AddRadioButton(1, "FaceVarying color", g_displayStyle == kFaceVaryingColor, 200, 90, callbackDisplayStyle, 4, 'w');
-
-    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
-                      350, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'h');
-    g_hud.AddCheckBox("Cage Verts (J)", g_drawCageVertices != 0,
-                      350, 30, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_VERTS, 'j');
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0,
-                      350, 50, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
-    g_hud.AddCheckBox("Patch Color (P)", g_displayPatchColor != 0,
-                      350, 70, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'p');
-    g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess != 0,
-                      350, 90, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
-    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing != 0,
-                      350, 110, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
-    g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull != 0,
-                      350, 130, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
-    g_hud.AddCheckBox("Freeze (spc)", g_freeze != 0,
-                      350, 150, callbackCheckBox, kHUD_CB_FREEZE, ' ');
-
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0, 10, 190, callbackAdaptive, 0, '`');
 
@@ -1738,9 +1739,9 @@ initHUD()
         g_hud.AddRadioButton(3, level, i==2, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
     }
 
-    int pulldown_handle = g_hud.AddPullDown("Shape :", -300, 10, 300, callbackModel, 'n');
+    int shapes_pulldown = g_hud.AddPullDown("Shape (n) :", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str());
+        g_hud.AddPullDownButton(shapes_pulldown, g_defaultShapes[i].name.c_str(),i);
     }   
 }
 

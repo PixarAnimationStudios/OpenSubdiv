@@ -1066,12 +1066,13 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddRadioButton(0, "CPU (K)", true, 10, 10, callbackKernel, kCPU, 'k');
+    int compute_pulldown = g_hud.AddPullDown("Compute (k) :", 10, 10, 300, callbackKernel, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
-    g_hud.AddRadioButton(0, "OPENMP", false, 10, 30, callbackKernel, kOPENMP, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "OpenMP", kOPENMP);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
-    g_hud.AddRadioButton(0, "TBB", false, 10, 50, callbackKernel, kTBB, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "TBB", kTBB);
 #endif
 
     g_hud.AddCheckBox("Cage Edges (H)", true, 350, 10, callbackDisplayCageEdges, 0, 'h');
@@ -1087,7 +1088,7 @@ initHUD()
 
     int pulldown_handle = g_hud.AddPullDown("Shape :", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str());
+        g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
     }   
 }
 
