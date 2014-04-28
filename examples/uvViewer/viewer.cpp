@@ -1277,37 +1277,35 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddRadioButton(1, "Wire (W)",    g_displayStyle == kWire,
-                         200, 10, callbackDisplayStyle, 0, 'w');
-    g_hud.AddRadioButton(1, "Shaded",      g_displayStyle == kShaded,
-                         200, 30, callbackDisplayStyle, 1, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", g_displayStyle == kWireShaded,
-                         200, 50, callbackDisplayStyle, 2, 'w');
+    int shading_pulldown = g_hud.AddPullDown("Shading (w) :", 350, 10, 250, callbackDisplayStyle, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded);
 
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
-        g_hud.AddCheckBox("Adaptive (`)", g_adaptive != 0, 10, 10, callbackAdaptive, 0, '`');
+        g_hud.AddCheckBox("Adaptive (`)", g_adaptive != 0, 10, 250, callbackAdaptive, 0, '`');
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(3, level, i == 2, 10, 20 + i*20, callbackLevel, i, '0'+(i%10));
+        g_hud.AddRadioButton(3, level, i == 2, 10, 270 + i*20, callbackLevel, i, '0'+(i%10));
     }
 
     g_hud.AddRadioButton(2, "Boundary none (B)",
                          g_fvarBoundary == OsdHbrMesh::k_InterpolateBoundaryNone,
-                         350, 10, callbackBoundary, OsdHbrMesh::k_InterpolateBoundaryNone, 'b');
+                         10, 10, callbackBoundary, OsdHbrMesh::k_InterpolateBoundaryNone, 'b');
     g_hud.AddRadioButton(2, "Boundary edge only",
                          g_fvarBoundary == OsdHbrMesh::k_InterpolateBoundaryEdgeOnly,
-                         350, 30, callbackBoundary, OsdHbrMesh::k_InterpolateBoundaryEdgeOnly, 'b');
+                         10, 30, callbackBoundary, OsdHbrMesh::k_InterpolateBoundaryEdgeOnly, 'b');
     g_hud.AddRadioButton(2, "Boundary edge and corners",
                          g_fvarBoundary == OsdHbrMesh::k_InterpolateBoundaryEdgeAndCorner,
-                         350, 50, callbackBoundary, OsdHbrMesh::k_InterpolateBoundaryEdgeAndCorner, 'b');
+                         10, 50, callbackBoundary, OsdHbrMesh::k_InterpolateBoundaryEdgeAndCorner, 'b');
     g_hud.AddRadioButton(2, "Boundary always sharp",
                          g_fvarBoundary == OsdHbrMesh::k_InterpolateBoundaryAlwaysSharp,
-                         350, 70, callbackBoundary, OsdHbrMesh::k_InterpolateBoundaryAlwaysSharp, 'b');
+                         10, 70, callbackBoundary, OsdHbrMesh::k_InterpolateBoundaryAlwaysSharp, 'b');
 
     g_hud.AddCheckBox("Propagate corners (C)", g_fvarPropagateCorners != 0,
-                      350, 110, callbackPropagateCorners, 0, 'c');
+                      10, 110, callbackPropagateCorners, 0, 'c');
 
     int pulldown_handle = g_hud.AddPullDown("Shape :", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {

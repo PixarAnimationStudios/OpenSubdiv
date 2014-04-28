@@ -1161,13 +1161,14 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddRadioButton(1, "Wire (W)",    g_wire == 0,  200, 10, callbackWireframe, 0, 'w');
-    g_hud.AddRadioButton(1, "Shaded",      g_wire == 1, 200, 30, callbackWireframe, 1, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", g_wire == 2, 200, 50, callbackWireframe, 2, 'w');
+    g_hud.AddCheckBox("Color (C)",  g_displayColor != 0, 10, 10, callbackDisplay, 0, 'c');
+    g_hud.AddCheckBox("Displacement (D)",  g_displayDisplacement != 0, 10, 30, callbackDisplay, 1, 'd');
 
-    g_hud.AddCheckBox("Color (C)",  g_displayColor != 0, 350, 10, callbackDisplay, 0, 'c');
-    g_hud.AddCheckBox("Displacement (D)",  g_displayDisplacement != 0, 350, 30, callbackDisplay, 1, 'd');
-
+    int shading_pulldown = g_hud.AddPullDown("Shading (w) :", 200, 10, 250, callbackWireframe, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", 0);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", 1);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", 2);
+    
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);

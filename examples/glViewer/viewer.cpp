@@ -1680,29 +1680,29 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-
-    g_hud.AddRadioButton(1, "Wire (W)",    g_displayStyle == kWire,  10, 10, callbackDisplayStyle, 0, 'w');
-    g_hud.AddRadioButton(1, "Shaded",      g_displayStyle == kShaded, 10, 30, callbackDisplayStyle, 1, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", g_displayStyle == kWireShaded, 10, 50, callbackDisplayStyle, 2, 'w');
-    g_hud.AddRadioButton(1, "Varying color", g_displayStyle == kVaryingColor, 10, 70, callbackDisplayStyle, 3, 'w');
-    g_hud.AddRadioButton(1, "FaceVarying color", g_displayStyle == kFaceVaryingColor, 10, 90, callbackDisplayStyle, 4, 'w');
-
     g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
-                      200, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'h');
+                      10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'h');
     g_hud.AddCheckBox("Cage Verts (J)", g_drawCageVertices != 0,
-                      200, 30, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_VERTS, 'j');
+                      10, 30, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_VERTS, 'j');
     g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0,
-                      200, 50, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
+                      10, 50, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
     g_hud.AddCheckBox("Patch Color (P)", g_displayPatchColor != 0,
-                      200, 70, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'p');
+                      10, 70, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'p');
     g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess != 0,
-                      200, 90, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
+                      10, 90, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
     g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing != 0,
-                      200, 110, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
+                      10, 110, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull != 0,
-                      200, 130, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
+                      10, 130, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
     g_hud.AddCheckBox("Freeze (spc)", g_freeze != 0,
-                      200, 150, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+                      10, 150, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+
+    int shading_pulldown = g_hud.AddPullDown("Shading (w) :", 200, 10, 250, callbackDisplayStyle, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color", kVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color", kFaceVaryingColor);
 
     int compute_pulldown = g_hud.AddPullDown("Compute (k) :", 450, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);

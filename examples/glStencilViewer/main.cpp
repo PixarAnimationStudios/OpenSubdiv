@@ -1066,7 +1066,12 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    int compute_pulldown = g_hud.AddPullDown("Compute (k) :", 10, 10, 300, callbackKernel, 'k');
+    g_hud.AddCheckBox("Cage Edges (H)", true, 10, 10, callbackDisplayCageEdges, 0, 'h');
+    g_hud.AddCheckBox("Cage Verts (J)", true, 10, 30, callbackDisplayCageVertices, 0, 'j');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 10, 50, callbackAnimate, 0, 'm');
+    g_hud.AddCheckBox("Freeze (spc)", false, 10, 70, callbackFreeze, 0, ' ');
+
+    int compute_pulldown = g_hud.AddPullDown("Compute (k) :", 250, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
     g_hud.AddPullDownButton(compute_pulldown, "OpenMP", kOPENMP);
@@ -1074,11 +1079,6 @@ initHUD()
 #ifdef OPENSUBDIV_HAS_TBB
     g_hud.AddPullDownButton(compute_pulldown, "TBB", kTBB);
 #endif
-
-    g_hud.AddCheckBox("Cage Edges (H)", true, 350, 10, callbackDisplayCageEdges, 0, 'h');
-    g_hud.AddCheckBox("Cage Verts (J)", true, 350, 30, callbackDisplayCageVertices, 0, 'j');
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 350, 50, callbackAnimate, 0, 'm');
-    g_hud.AddCheckBox("Freeze (spc)", false, 350, 70, callbackFreeze, 0, ' ');
 
     for (int i = 1; i < 11; ++i) {
         char level[16];

@@ -833,21 +833,17 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddRadioButton(1, "Wire (W)", g_displayStyle == kWire,
-                         10, 10, callbackDisplayStyle, kWire, 'w');
-    g_hud.AddRadioButton(1, "Shaded", g_displayStyle == kShaded,
-                         10, 30, callbackDisplayStyle, kShaded, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", g_displayStyle == kWireShaded,
-                         10, 50, callbackDisplayStyle, kWireShaded, 'w');
-    g_hud.AddRadioButton(1, "Varying color", g_displayStyle == kVaryingColor,
-                         10, 70, callbackDisplayStyle, kVaryingColor, 'w');
-    g_hud.AddRadioButton(1, "Face varying color", g_displayStyle == kFaceVaryingColor,
-                         10, 90, callbackDisplayStyle, kFaceVaryingColor, 'w');
+    g_hud.AddCheckBox("Batching (B)",         g_batching != 0,        10, 10, callbackCheckBox, HUD_CB_BATCHING, 'b');
+    g_hud.AddCheckBox("Patch Color (P)",      true,                   10, 50, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');
+    g_hud.AddCheckBox("Screen space LOD (V)", g_screenSpaceTess != 0, 10, 70, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Freeze (spc)",         false,                  10, 90, callbackCheckBox, HUD_CB_FREEZE, ' ');
 
-    g_hud.AddCheckBox("Batching (B)", g_batching != 0, 200, 10, callbackCheckBox, HUD_CB_BATCHING, 'b');
-    g_hud.AddCheckBox("Patch Color (P)",      true, 200, 50, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');
-    g_hud.AddCheckBox("Screen space LOD (V)", g_screenSpaceTess != 0, 200, 70, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
-    g_hud.AddCheckBox("Freeze (spc)",         false, 200, 90, callbackCheckBox, HUD_CB_FREEZE, ' ');
+    int shading_pulldown = g_hud.AddPullDown("Shading (w) :", 200, 10, 250, callbackDisplayStyle, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color", kVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color", kFaceVaryingColor);
 
     int compute_pulldown = g_hud.AddPullDown("Compute (k) :", 450, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);

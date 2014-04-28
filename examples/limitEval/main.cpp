@@ -1047,14 +1047,15 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddCheckBox("Cage Edges (H)", true, 350, 10, callbackDisplayCageEdges, 0, 'h');
-    g_hud.AddCheckBox("Cage Verts (J)", true, 350, 30, callbackDisplayCageVertices, 0, 'j');
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 350, 50, callbackAnimate, 0, 'm');
-    g_hud.AddCheckBox("Freeze (spc)", false, 350, 70, callbackFreeze, 0, ' ');
+    g_hud.AddCheckBox("Cage Edges (H)", true, 10, 10, callbackDisplayCageEdges, 0, 'h');
+    g_hud.AddCheckBox("Cage Verts (J)", true, 10, 30, callbackDisplayCageVertices, 0, 'j');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 10, 50, callbackAnimate, 0, 'm');
+    g_hud.AddCheckBox("Freeze (spc)", false, 10, 70, callbackFreeze, 0, ' ');
     
-    g_hud.AddRadioButton(0, "(u,v)", true, 200, 10, callbackDisplayVaryingColors, kUV, 'k');
-    g_hud.AddRadioButton(0, "varying", false, 200, 30, callbackDisplayVaryingColors, kVARYING, 'k');
-    g_hud.AddRadioButton(0, "face-varying", false, 200, 50, callbackDisplayVaryingColors, kFACEVARYING, 'k');
+    int shading_pulldown = g_hud.AddPullDown("Shading (w) :", 250, 10, 250, callbackDisplayVaryingColors, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "(u,v)", kUV);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying", kVARYING);
+    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying", kFACEVARYING);
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
