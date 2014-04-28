@@ -1293,11 +1293,6 @@ initHUD()
         g_hud.AddRadioButton(3, level, i == 2, 10, 20 + i*20, callbackLevel, i, '0'+(i%10));
     }
 
-    for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        g_hud.AddRadioButton(4, g_defaultShapes[i].name.c_str(),
-                             i == g_currentShape, -220, 10+i*16, callbackModel, i, 'n');
-    }
-
     g_hud.AddRadioButton(2, "Boundary none (B)",
                          g_fvarBoundary == OsdHbrMesh::k_InterpolateBoundaryNone,
                          350, 10, callbackBoundary, OsdHbrMesh::k_InterpolateBoundaryNone, 'b');
@@ -1313,6 +1308,11 @@ initHUD()
 
     g_hud.AddCheckBox("Propagate corners (C)", g_fvarPropagateCorners != 0,
                       350, 110, callbackPropagateCorners, 0, 'c');
+
+    int pulldown_handle = g_hud.AddPullDown("Shape :", -300, 10, 300, callbackModel, 'n');
+    for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
+        g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str());
+    }   
 }
 
 //------------------------------------------------------------------------------

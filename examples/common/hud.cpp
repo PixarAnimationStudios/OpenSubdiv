@@ -26,6 +26,7 @@
 #include <vector>
 #include <cstring>
 #include <cstdio>
+#include <cassert>
 #include "hud.h"
 #include "font_image.h"
 
@@ -119,6 +120,19 @@ Hud::KeyDown(int key)
             return true;
         }
     }
+    for (std::vector<PullDown>::iterator it = _pulldowns.begin();
+         it != _pulldowns.end(); ++it) {
+        if (key==it->shortcut) {
+            // cycle through selections
+            ++it->selected;
+            if (it->selected>=(int)it->labels.size()) {
+                 it->selected=0;
+            }                
+            it->callback(it->selected);
+            _requiresRebuildStatic = true;
+            return true;
+        }
+    }
 
     return false;
 }
@@ -161,6 +175,27 @@ Hud::MouseClick(int x, int y)
             it->SetValue(((x-bx-FONT_CHAR_WIDTH/2)/float(it->w))*(it->max - it->min) + it->min);
             it->callback(it->value, it->callbackData);
             _capturedSlider = (int)(it - _sliders.begin());
+            _requiresRebuildStatic = true;
+            return true;
+        }
+    }
+    for (std::vector<PullDown>::iterator it = _pulldowns.begin();
+         it != _pulldowns.end(); ++it) {
+        if (hitTest(*it, x, y)) {
+            it->h = FONT_CHAR_HEIGHT;
+            if (not it->open) {
+                it->h *= (int)it->labels.size();
+            } else {
+                int label_width = (1+(int)it->label.size()) * FONT_CHAR_WIDTH;
+                if (x > it->x + label_width) {
+                    int sel = it->selected;
+                    it->SetSelected((y - it->y) / FONT_CHAR_HEIGHT);
+                    if (it->selected!=sel) {
+                        it->callback(it->selected);
+                    }
+                }
+            }
+            it->open=not it->open;
             _requiresRebuildStatic = true;
             return true;
         }
@@ -277,6 +312,39 @@ Hud::AddSlider(const char *label, float min, float max, float value,
     _sliders.push_back(slider);
     _requiresRebuildStatic = true;
 }
+
+int 
+Hud::AddPullDown(const char *label, int x, int y, int width,
+                 PullDownCallback callback, int shortcut) 
+{
+
+    PullDown pd;
+    pd.label = label;
+    pd.x = x;
+    pd.y = y;
+    pd.w = width;
+    pd.h =  FONT_CHAR_HEIGHT;
+    pd.open = false;
+    pd.selected = 0;
+    pd.callback = callback;
+    pd.shortcut = shortcut;
+    
+    _pulldowns.push_back(pd);
+    _requiresRebuildStatic = true;
+    
+    return (int)_pulldowns.size()-1;
+}
+
+void 
+Hud::AddPullDownButton(int handle, const char *label)
+{
+    if (handle < (int)_pulldowns.size()) {
+        
+        PullDown & pulldown = _pulldowns[handle];
+        pulldown.labels.push_back(label);
+    }
+}
+    
 
 
 int
@@ -398,7 +466,7 @@ Hud::Rebuild(int width, int height)
         getWindowPos(*it, &x, &y);
         drawString(_staticVboSource, x, y, 1, 1, 1, it->label.c_str());
     }
-
+    // draw radio buttons
     for (std::vector<RadioButton>::const_iterator it = _radioButtons.begin();
          it != _radioButtons.end(); ++it) {
         getWindowPos(*it, &x, &y);
@@ -410,6 +478,7 @@ Hud::Rebuild(int width, int height)
             drawString(_staticVboSource, x, y, .5f, .5f, .5f, it->label.c_str());
         }
     }
+    // draw checkboxes
     for (std::vector<CheckBox>::const_iterator it = _checkBoxes.begin();
          it != _checkBoxes.end(); ++it) {
         getWindowPos(*it, &x, &y);
@@ -421,6 +490,7 @@ Hud::Rebuild(int width, int height)
             drawString(_staticVboSource, x, y, .5f, .5f, .5f, it->label.c_str());
         }
     }
+    // draw sliders
     for (std::vector<Slider>::const_iterator it = _sliders.begin();
          it != _sliders.end(); ++it) {
         getWindowPos(*it, &x, &y);
@@ -443,6 +513,26 @@ Hud::Rebuild(int width, int height)
         int pos = (int)((it->value/float(it->max-it->min))*it->w);
         drawChar(_staticVboSource, sx+pos, y, 1, 1, 0, FONT_SLIDER_CURSOR);
     }
+    // draw pulldowns
+    for (std::vector<PullDown>::const_iterator it = _pulldowns.begin();
+         it != _pulldowns.end(); ++it) {
+        getWindowPos(*it, &x, &y);
+
+        x = drawString(_staticVboSource, x, y, .5f, .5f, .5f, it->label.c_str());
+        x += FONT_CHAR_WIDTH;
+        
+        if (it->open) {
+            for (int i=0; i<(int)it->labels.size(); ++i, y+=FONT_CHAR_HEIGHT) {
+                if (i==it->selected) {
+                    drawString(_staticVboSource, x, y, 1, 1, 1, it->labels[i]);
+                } else {
+                    drawString(_staticVboSource, x, y, 0.5f, 0.5f, 0.5f, it->labels[i]);
+                }
+            }
+        } else {
+            drawString(_staticVboSource, x, y, 1, 1, 1, it->labels[it->selected]);
+        }
+    }      
 
     drawString(_staticVboSource, _windowWidth-80, _windowHeight-48, .5, .5, .5,
                "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f");

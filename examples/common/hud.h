@@ -37,6 +37,7 @@ public:
     typedef void (*RadioButtonCallback)(int c);
     typedef void (*CheckBoxCallback)(bool checked, int data);
     typedef void (*SliderCallback)(float value, int data);
+    typedef void (*PullDownCallback)(int value);
 
     Hud();
     virtual ~Hud();
@@ -69,6 +70,11 @@ public:
                    int x, int y, int width, bool intStep,
                    SliderCallback callback=0, int data=0);
 
+    int AddPullDown(const char *label, int x, int y, int width,
+                    PullDownCallback callback=0, int shortcut=0);
+    
+    void AddPullDownButton(int handle, const char *label);
+
     bool KeyDown(int key);
 
     bool MouseClick(int x, int y);
@@ -84,14 +90,14 @@ public:
     int GetHeight() const;
 
 protected:
-    struct Item
-    {
+    struct Item {
+
         int x, y, w, h;
         std::string label;
     };
 
-    struct RadioButton : public Item
-    {
+    struct RadioButton : public Item {
+
         int group;
         int localIndex;
         bool checked;
@@ -101,16 +107,16 @@ protected:
         int callbackData;
     };
 
-    struct CheckBox : public Item
-    {
+    struct CheckBox : public Item {
+
         bool checked;
         CheckBoxCallback callback;
         int callbackData;
         int shortcut;
     };
 
-    struct Slider : public Item
-    {
+    struct Slider : public Item {
+
         float min, max;
         float value;
         SliderCallback callback;
@@ -119,6 +125,21 @@ protected:
 
         void SetValue(float v) {
             value = std::max(std::min(v, max), min);
+        }
+    };
+    
+    struct PullDown : public Item {
+
+        bool open; 
+        int selected;
+        std::vector<char const *> labels;
+        int shortcut;
+        PullDownCallback callback;
+        
+        void SetSelected(int idx) {
+            if (idx>=0 and idx<(int)labels.size()) {
+                selected=idx;
+            }
         }
     };
 
@@ -146,6 +167,7 @@ protected:
     std::vector<float> & getStaticVboSource();
 
 private:
+
     bool _visible;
     std::vector<float> _vboSource, _staticVboSource;
     int _windowWidth, _windowHeight;
@@ -154,8 +176,8 @@ private:
     std::vector<RadioButton> _radioButtons;
     std::vector<CheckBox> _checkBoxes;
     std::vector<Slider> _sliders;
+    std::vector<PullDown> _pulldowns;
     int _capturedSlider;
-
 };
 
 #endif // HUD_H

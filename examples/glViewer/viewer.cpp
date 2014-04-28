@@ -1738,9 +1738,10 @@ initHUD()
         g_hud.AddRadioButton(3, level, i==2, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
     }
 
+    int pulldown_handle = g_hud.AddPullDown("Shape :", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        g_hud.AddRadioButton(4, g_defaultShapes[i].name.c_str(), i==g_currentShape, -220, 10+i*16, callbackModel, i, 'n');
-    }
+        g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str());
+    }   
 }
 
 //------------------------------------------------------------------------------
