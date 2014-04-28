@@ -2522,7 +2522,49 @@ int main(int argc, char ** argv)
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    int compute_pulldown = g_hud.AddPullDown("Compute (k) :", 450, 10, 300, callbackKernel, 'k');
+    if (occlusionFilename != NULL) {
+        g_hud.AddCheckBox("Ambient Occlusion (A)", g_occlusion,
+                          250, 10, callbackCheckBox, HUD_CB_DISPLAY_OCCLUSION, 'a');
+    }
+    if (specularFilename != NULL)
+        g_hud.AddCheckBox("Specular (S)", g_specular,
+                          250, 30, callbackCheckBox, HUD_CB_DISPLAY_SPECULAR, 's');
+
+    if (diffuseEnvironmentMap || specularEnvironmentMap) {
+        g_hud.AddCheckBox("IBL (I)", g_ibl,
+                          250, 50, callbackCheckBox, HUD_CB_IBL, 'i');
+    }
+
+    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
+                      10, 10, callbackCheckBox, HUD_CB_CAGE_EDGES, 'h');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
+                      10, 30, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
+    g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
+                      10, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
+                      10, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
+    g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
+                      10, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
+    g_hud.AddCheckBox("Bloom (Y)", g_bloom,
+                      10, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
+    g_hud.AddCheckBox("Freeze (spc)", g_freeze,
+                      10, 130, callbackCheckBox, HUD_CB_FREEZE, ' ');
+
+    g_hud.AddRadioButton(HUD_RB_SCHEME, "CATMARK", true, 10, 190, callbackScheme, 0);
+    g_hud.AddRadioButton(HUD_RB_SCHEME, "BILINEAR", false, 10, 210, callbackScheme, 1);
+
+    if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
+        g_hud.AddCheckBox("Adaptive (`)", g_adaptive,
+                          10, 300, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
+
+    for (int i = 1; i < 8; ++i) {
+        char level[16];
+        sprintf(level, "Lv. %d", i);
+        g_hud.AddRadioButton(HUD_RB_LEVEL, level, i == g_level,
+                             10, 320+i*20, callbackLevel, i, '0'+i);
+    }
+
+    int compute_pulldown = g_hud.AddPullDown("Compute (k) :", 475, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
     g_hud.AddPullDownButton(compute_pulldown, "OpenMP", kOPENMP);
@@ -2549,26 +2591,10 @@ int main(int argc, char ** argv)
     }
 #endif
 
-    if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
-        g_hud.AddCheckBox("Adaptive (`)", g_adaptive,
-                          10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
-
-    g_hud.AddRadioButton(HUD_RB_SCHEME, "CATMARK", true, 10, 190, callbackScheme, 0);
-    g_hud.AddRadioButton(HUD_RB_SCHEME, "BILINEAR", false, 10, 210, callbackScheme, 1);
-
-    for (int i = 1; i < 8; ++i) {
-        char level[16];
-        sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(HUD_RB_LEVEL, level, i == g_level,
-                             10, 220+i*20, callbackLevel, i, '0'+i);
-    }
-
-    g_hud.AddRadioButton(HUD_RB_WIRE, "Wire (W)",       (g_wire == DISPLAY_WIRE),
-                         100, 10, callbackWireframe, 0, 'w');
-    g_hud.AddRadioButton(HUD_RB_WIRE, "Shaded",         (g_wire == DISPLAY_SHADED),
-                         100, 30, callbackWireframe, 1, 'w');
-    g_hud.AddRadioButton(HUD_RB_WIRE, "Wire on Shaded", (g_wire == DISPLAY_WIRE_ON_SHADED),
-                         100, 50, callbackWireframe, 2, 'w');
+    int shading_pulldown = g_hud.AddPullDown("Shading (w) :", 250, 10, 250, callbackWireframe, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", DISPLAY_WIRE);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", DISPLAY_SHADED);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", DISPLAY_WIRE_ON_SHADED);
 
     g_hud.AddLabel("Color (C)", -200, 10);
     g_hud.AddRadioButton(HUD_RB_COLOR, "None", (g_color == COLOR_NONE),
@@ -2630,34 +2656,6 @@ int main(int argc, char ** argv)
                     -200, 490, 20, false, callbackSlider, 1);
     g_hud.AddCheckBox("Seamless Mipmap", g_seamless,
                       -200, 530, callbackCheckBox, HUD_CB_SEAMLESS_MIPMAP, 'j');
-
-    if (occlusionFilename != NULL) {
-        g_hud.AddCheckBox("Ambient Occlusion (A)", g_occlusion,
-                          250, 10, callbackCheckBox, HUD_CB_DISPLAY_OCCLUSION, 'a');
-    }
-    if (specularFilename != NULL)
-        g_hud.AddCheckBox("Specular (S)", g_specular,
-                          250, 30, callbackCheckBox, HUD_CB_DISPLAY_SPECULAR, 's');
-
-    if (diffuseEnvironmentMap || specularEnvironmentMap) {
-        g_hud.AddCheckBox("IBL (I)", g_ibl,
-                          250, 50, callbackCheckBox, HUD_CB_IBL, 'i');
-    }
-
-    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
-                      450, 10, callbackCheckBox, HUD_CB_CAGE_EDGES, 'h');
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
-                      450, 30, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
-    g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
-                      450, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
-    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
-                      450, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
-    g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
-                      450, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
-    g_hud.AddCheckBox("Bloom (Y)", g_bloom,
-                      450, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
-    g_hud.AddCheckBox("Freeze (spc)", g_freeze,
-                      450, 130, callbackCheckBox, HUD_CB_FREEZE, ' ');
 
     // create mesh from ptex metadata
     createOsdMesh(g_level, g_kernel);
