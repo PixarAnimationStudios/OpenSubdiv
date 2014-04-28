@@ -294,7 +294,9 @@ if (NOT NO_GCD AND APPLE)
     set(GCD_FOUND 1)
 endif()
 
+if (NOT NO_MAYA)
 find_package(Maya 201200)
+endif()
 
 # Warn about missing dependencies that will cause parts of OpenSubdiv to be
 # disabled.  Also, add preprocessor defines that can be used in the source
@@ -409,18 +411,20 @@ else()
     )
 endif()
 
-if(MAYA_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_MAYA
-    )
-else()
-    message(WARNING
-        "Maya was not found : the OpenSubdiv mayaViwer plugin will not be "
-        "available.  If you do have Maya installed and see this message, "
-        "please add your Maya path to FindMaya.cmake in "
-        "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
-        "cmake command line argument or environment variable."
-    )
+if (NOT NO_MAYA)
+    if(MAYA_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_MAYA
+        )
+    else()
+        message(WARNING
+            "Maya was not found : the OpenSubdiv mayaViwer plugin will not be "
+            "available.  If you do have Maya installed and see this message, "
+            "please add your Maya path to FindMaya.cmake in "
+            "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
+            "cmake command line argument or environment variable."
+        )
+    endif()
 endif()
 
 # Link examples & regressions dynamically against Osd

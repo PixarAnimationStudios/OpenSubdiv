@@ -79,7 +79,7 @@ if(DXSDK_FOUND)
 endif()
 
 
-if(MAYA_FOUND)
+if(MAYA_FOUND AND (NOT NO_MAYA))
     add_subdirectory(osdPolySmooth)
 
     # manuelk: the following plugins are disabled until further notice
