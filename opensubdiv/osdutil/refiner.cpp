@@ -108,7 +108,7 @@ OsdUtilRefiner::Initialize(
     const FarPatchTables::PatchArrayVector & parrays =
         ptables->GetPatchArrayVector();
     
-    if (t.refinementLevel > (int)parrays.size()) {
+    if ((not adaptive) and (t.refinementLevel > (int)parrays.size())) {
         if (errorMessage) {
             stringstream ss;
             ss << "Invalid size of patch array " << t.refinementLevel << " " <<
