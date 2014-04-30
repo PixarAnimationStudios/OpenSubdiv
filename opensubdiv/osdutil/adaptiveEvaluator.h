@@ -132,14 +132,6 @@ class OsdUtilAdaptiveEvaluator {
     OpenSubdiv::OsdCpuEvalLimitContext *_evalLimitContext;
     OpenSubdiv::OsdCpuVertexBuffer *_vertexBuffer;
     OpenSubdiv::OsdCpuVertexBuffer *_vvBuffer; // not yet used
-
-    OpenSubdiv::OsdCpuVertexBuffer *_vbufP;
-    OpenSubdiv::OsdCpuVertexBuffer *_vbufdPdu;
-    OpenSubdiv::OsdCpuVertexBuffer *_vbufdPdv;
-
-    const float *_pOutput;
-    const float *_dPduOutput;
-    const float *_dPdvOutput;    
 };
 
 

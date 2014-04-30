@@ -33,10 +33,9 @@
 #include <sstream>
 
 using namespace std;
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
-
-
 
 //------------------------------------------------------------------------------
 // The simplest constructor, only point positions and polygonal
@@ -47,29 +46,28 @@ OsdUtilRefiner::OsdUtilRefiner():
     _adaptive(false),
     _mesh(NULL),
     _farMesh(NULL),
-    _patchParamTable(NULL),
-    _firstVertexOffset(0),
-    _numRefinedVerts(0),
-    _numUniformQuads(0),
-    _numPatches(0),        
+    _firstVertexOffset(-1),
+    _numRefinedVerts(-1),
+    _numUniformQuads(-1),
+    _numPatches(-1),
     _isRefined(false)
 {
 }
 
-    
+
 bool
 OsdUtilRefiner::Initialize(
        const OsdUtilSubdivTopology &topology,
        bool adaptive,
-       string *errorMessage)    
+       string *errorMessage)
 {
 
     if (not topology.IsValid(errorMessage)) {
         return false;
-    } 
+    }
 
     _mesh = new OsdUtilMesh<OsdVertex>();
-    
+
     if (not _mesh->Initialize(topology, errorMessage)) {
         return false;
     }
@@ -79,9 +77,9 @@ OsdUtilRefiner::Initialize(
     if (adaptive) {
         FarMeshFactory<OsdVertex> adaptiveMeshFactory(
             _mesh->GetHbrMesh(), t.refinementLevel, true);
-        
+
         _farMesh = adaptiveMeshFactory.Create();
-        
+
     } else {
         // XXX:gelder
         // Had problems with patchArrayVector in patchTables not working
@@ -100,45 +98,45 @@ OsdUtilRefiner::Initialize(
 
     // Subdivision tables describe the addition steps with coefficients
     // needed to perform subdivision
-    const FarSubdivisionTables* ftable =
-        _farMesh->GetSubdivisionTables();
-    
-    // Find quads array at given level
+    const FarSubdivisionTables* ftable = _farMesh->GetSubdivisionTables();
+
     const FarPatchTables * ptables = _farMesh->GetPatchTables();
-    const FarPatchTables::PatchArrayVector & parrays =
+
+    const FarPatchTables::PatchArrayVector & parrays = 
         ptables->GetPatchArrayVector();
-    
-    if ((not adaptive) and (t.refinementLevel > (int)parrays.size())) {
-        if (errorMessage) {
-            stringstream ss;
-            ss << "Invalid size of patch array " << t.refinementLevel << " " <<
-                (int)parrays.size();
-            *errorMessage = ss.str();
-        }
-        return false;
-    }
-
-    // parrays doesn't contain base mesh, so it starts with level==1
-    const FarPatchTables::PatchArray & parray = parrays[t.refinementLevel-1];
-
-    _patchParamTable = &(ptables->GetPatchParamTable());
-
-    // Global index of the first point in this array
-    _firstVertexOffset =  ftable->GetFirstVertexOffset(t.refinementLevel);
-    
-    // Global index of the first face (patch) in this array
-    _firstPatchOffset =  parray.GetPatchIndex();
 
     _numRefinedVerts = (int) ftable->GetNumVertices(t.refinementLevel);
 
     if (adaptive) {
-        _numPatches = (int) parray.GetNumPatches();
+
+        _numPatches = (int) ptables->GetNumPatches();
+
     } else {
+
+        if (t.refinementLevel > (int)parrays.size()) {
+            if (errorMessage) {
+                stringstream ss;
+                ss << "Invalid size of patch array " << t.refinementLevel << " " <<
+                    (int)parrays.size();
+                *errorMessage = ss.str();
+            }
+            return false;
+        }
+
+        // parrays doesn't contain base mesh, so it starts with level==1
+        const FarPatchTables::PatchArray & parray = parrays[t.refinementLevel-1];
+
+        // Global index of the first point in this array
+        _firstVertexOffset =  ftable->GetFirstVertexOffset(t.refinementLevel);
+
+        // Global index of the first face (patch) in this array
+        _firstPatchOffset =  parray.GetPatchIndex();
+
         _numUniformQuads = (int) parray.GetNumPatches();
     }
-    
+
     _isRefined = true;
-    
+
     return true;
 }
 
@@ -158,13 +156,13 @@ OsdUtilRefiner::GetRefinedQuads(
         if (errorMessage) {
             *errorMessage = "GetQuads: only supports uniform subdivision.";
         }
-        return false;        
+        return false;
     }
-    
+
     if (!quads || (_numUniformQuads == 0)) {
         return false;
     }
-    
+
     quads->resize(_numUniformQuads * 4);
 
     const FarPatchTables * ptables = _farMesh->GetPatchTables();
@@ -191,7 +189,7 @@ _InverseNormalize(OpenSubdiv::FarPatchParam::BitField bf, float& u, float& v)
 }
 
 // Inverse of OpenSubdiv::FarPatchParam::BitField::Rotate
-static void 
+static void
 _InverseRotate(OpenSubdiv::FarPatchParam::BitField bf, float& u, float& v)
 {
     switch (bf.GetRotation()) {
@@ -218,7 +216,7 @@ OsdUtilRefiner::GetRefinedPtexUvs(vector<float>* subfaceUvs,
         if (errorMessage) {
             *errorMessage = "GetRefinedPtexUvs: only supports uniform subdivision.";
         }
-        return false;        
+        return false;
     }
 
     subfaceUvs->resize(_numUniformQuads * 4);
@@ -231,33 +229,33 @@ OsdUtilRefiner::GetRefinedPtexUvs(vector<float>* subfaceUvs,
     const FarPatchTables::PatchArrayVector & parrays =
         ptables->GetPatchArrayVector();
     int refinementLevel = _mesh->GetTopology().refinementLevel;
-    
+
     if (refinementLevel > (int)parrays.size()) {
         if (errorMessage)
             *errorMessage = "Invalid size of patch array";
     }
     const FarPatchTables::PatchArray & parray = parrays[refinementLevel-1];
-    
+
     const FarPatchTables::PatchParamTable& paramTable =
         ptables->GetPatchParamTable();
-    
+
     for (int refinedIndex = 0; refinedIndex < _numUniformQuads;
          ++refinedIndex) {
-        
+
         const OpenSubdiv::FarPatchParam& param =
             paramTable[parray.GetPatchIndex() + refinedIndex];
         OpenSubdiv::FarPatchParam::BitField bf = param.bitField;
-        
+
         float u0 = 0;
         float v0 = 0;
         _InverseRotate(bf, u0, v0);
         _InverseNormalize(bf, u0, v0);
-        
+
         float u1 = 1;
         float v1 = 1;
         _InverseRotate(bf, u1, v1);
         _InverseNormalize(bf, u1, v1);
-        
+
         *idIt++ = param.faceIndex;
         *uvIt++ = u0;
         *uvIt++ = v0;
@@ -270,7 +268,7 @@ OsdUtilRefiner::GetRefinedPtexUvs(vector<float>* subfaceUvs,
 
 
 OsdUtilRefiner::~OsdUtilRefiner() {
-    
+
     if (_mesh)
         delete _mesh;
 
@@ -299,6 +297,6 @@ OsdUtilRefiner::GetHbrMesh()
         return NULL;
     }
 }
-     
+
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

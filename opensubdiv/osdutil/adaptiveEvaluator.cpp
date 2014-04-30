@@ -51,13 +51,7 @@ OsdUtilAdaptiveEvaluator::OsdUtilAdaptiveEvaluator():
     _computeContext(NULL),
     _evalLimitContext(NULL),
     _vertexBuffer(NULL),
-    _vvBuffer(NULL),    
-    _vbufP(NULL),
-    _vbufdPdu(NULL),
-    _vbufdPdv(NULL),
-    _pOutput(NULL),
-    _dPduOutput(NULL),
-    _dPdvOutput(NULL)        
+    _vvBuffer(NULL)
 {
 }
 
@@ -71,22 +65,16 @@ OsdUtilAdaptiveEvaluator::~OsdUtilAdaptiveEvaluator()
     if (_evalLimitContext)
         delete _evalLimitContext;
     if (_vertexBuffer)
-	delete _vertexBuffer;
+        delete _vertexBuffer;
     if (_vvBuffer)
-	delete _vvBuffer;   
-    if (_vbufP)
-	delete _vbufP;
-    if (_vbufdPdu)
-	delete _vbufdPdu;
-    if (_vbufdPdv)
-	delete _vbufdPdv;
+        delete _vvBuffer;
 }
 
 
 bool
 OsdUtilAdaptiveEvaluator::Initialize(
     const OsdUtilSubdivTopology &t,
-    string *errorMessage)    
+    string *errorMessage)
 {
 
     // create and initialize a refiner, passing "true" for adaptive
@@ -95,7 +83,7 @@ OsdUtilAdaptiveEvaluator::Initialize(
     _ownsRefiner = true;
 
     if (not refiner->Initialize(t, true, errorMessage)) {
-        return false;   
+        return false;
     }
 
     return Initialize(refiner, errorMessage);
@@ -104,8 +92,8 @@ OsdUtilAdaptiveEvaluator::Initialize(
 bool
 OsdUtilAdaptiveEvaluator::Initialize(
     OsdUtilRefiner *refiner,
-    string *errorMessage)    
-{    
+    string *errorMessage)
+{
 
     if (refiner->GetAdaptive()) {
         if (errorMessage)
@@ -115,11 +103,11 @@ OsdUtilAdaptiveEvaluator::Initialize(
 
     // Note we assume someone else keeps this pointer alive
     _refiner = refiner;
-    _ownsRefiner = false; 
-    
+    _ownsRefiner = false;
+
     const FarMesh<OsdVertex> *fmesh = _refiner->GetFarMesh();
     const HbrMesh<OsdVertex> *hmesh = _refiner->GetHbrMesh();
-    
+
     if (not (fmesh and hmesh)) {
         if (errorMessage)
             *errorMessage = "No valid adaptive far/hbr mesh";
@@ -129,13 +117,13 @@ OsdUtilAdaptiveEvaluator::Initialize(
 
     _computeContext = OsdCpuComputeContext::Create(fmesh->GetSubdivisionTables(),
                                                    fmesh->GetVertexEditTables());
-    
+
     // Three elements (x/y/z) per refined point at every subdivision level
     // defined by the farMesh.  The coarse vertices seed the beginning of
-    // this buffer, and Refine populates the rest based on subdivision 
+    // this buffer, and Refine populates the rest based on subdivision
     _vertexBuffer = OsdCpuVertexBuffer::Create(
         3, fmesh->GetNumVertices());
-    
+
     // zeros
     memset( _vertexBuffer->BindCpuBuffer(), 0,
             3 * fmesh->GetNumVertices() * sizeof(float));
@@ -150,13 +138,13 @@ OsdUtilAdaptiveEvaluator::Initialize(
         // named vertex varying attribute in the refined mesh
         _vvBuffer = OsdCpuVertexBuffer::Create(
             (int)vvNames.size(), fmesh->GetNumVertices());
-        
+
         // zeros
         memset( _vvBuffer->BindCpuBuffer(), 0,
                 vvNames.size() * fmesh->GetNumVertices() * sizeof(float));
     }
     */
-    
+
     // A context object used to store data used in refinement
     _computeContext = OsdCpuComputeContext::Create(fmesh->GetSubdivisionTables(),
                                                    fmesh->GetVertexEditTables());
@@ -164,27 +152,17 @@ OsdUtilAdaptiveEvaluator::Initialize(
     // A context object used to store data used in fast limit surface
     // evaluation.  This contains vectors of patches and associated
     // tables pulled and computed from the adaptive farMesh.
-    // It also holds onto vertex buffer data through binds    
+    // It also holds onto vertex buffer data through binds
     _evalLimitContext = OsdCpuEvalLimitContext::Create(
         fmesh->GetPatchTables(), /*requierFVarData*/ false);
-    
-    // A buffer with one float per target point to use when
-    // evaluating interpolated weights
-    OsdCpuVertexBuffer* _vbufP = OsdCpuVertexBuffer::Create(3, 1);
-    OsdCpuVertexBuffer* _vbufdPdu = OsdCpuVertexBuffer::Create(3, 1);
-    OsdCpuVertexBuffer* _vbufdPdv = OsdCpuVertexBuffer::Create(3, 1);
-    _pOutput = _vbufP->BindCpuBuffer();
-    _dPduOutput = _vbufdPdu->BindCpuBuffer();
-    _dPdvOutput = _vbufdPdv->BindCpuBuffer();
-    
-    memset( (void*)_pOutput, 0, 3 * sizeof(float));
-    memset( (void*)_dPduOutput, 0, 3 * sizeof(float));
-    memset( (void*)_dPdvOutput, 0, 3 * sizeof(float));    
 
     // Setup evaluation context. Values are offset, length, stride */
-    OsdVertexBufferDescriptor in_desc(0, 3, 3), out_desc(0, 3, 3); 
-    _evalLimitContext->GetVertexData().Bind(in_desc, _vertexBuffer, out_desc,
-					    _vbufP, _vbufdPdu, _vbufdPdv);
+    OsdVertexBufferDescriptor in_desc(0, 3, 3), out_desc(0, 0, 0);
+    
+    OsdCpuEvalLimitContext::VertexData & vertexData = 
+        _evalLimitContext->GetVertexData();
+    
+    vertexData.Bind<OsdCpuVertexBuffer,OsdCpuVertexBuffer>(in_desc, _vertexBuffer, out_desc, NULL);
 
     return true;
 }
@@ -192,7 +170,7 @@ OsdUtilAdaptiveEvaluator::Initialize(
 
 void
 OsdUtilAdaptiveEvaluator::SetCoarsePositions(
-        const float *coords, int numFloats, string *errorMessage ) 
+        const float *coords, int numFloats, string *errorMessage )
 {
     //XXX: should be >= num coarse vertices
     if (numFloats/3 >= _refiner->GetFarMesh()->GetNumVertices()) {
@@ -208,9 +186,9 @@ OsdUtilAdaptiveEvaluator::Refine(
     int numThreads, string *errorMessage)
 {
     const FarMesh<OsdVertex> *fmesh = _refiner->GetFarMesh();
-    
+
 #ifdef OPENSUBDIV_HAS_OPENMP
-    
+
     if (numThreads > 1) {
         OsdOmpComputeController ompComputeController(numThreads);
         ompComputeController.Refine(_computeContext,
@@ -218,13 +196,13 @@ OsdUtilAdaptiveEvaluator::Refine(
                                     _vertexBuffer, _vvBuffer);
         return true;
     }
-    
+
 #endif
 
     OsdCpuComputeController cpuComputeController;
     cpuComputeController.Refine(_computeContext,
                                 fmesh->GetKernelBatches(),
-                                _vertexBuffer, _vvBuffer);        
+                                _vertexBuffer, _vvBuffer);
 
     return true;
 }
@@ -237,26 +215,17 @@ OsdUtilAdaptiveEvaluator::EvaluateLimit(
     // This controller is an empty object, essentially a namespace.
     OsdCpuEvalLimitController cpuEvalLimitController;
     
-    cpuEvalLimitController.
-	EvalLimitSample<OsdCpuVertexBuffer, OsdCpuVertexBuffer>(
-            coords, _evalLimitContext, 0 /*index*/);
-
-    // Copy results from vertex buffers into return parameters
-    memcpy(P, _pOutput, sizeof(float) * 3);
-    if (dPdu) {
-	memcpy(dPdu, _dPduOutput, sizeof(float) * 3);
-    }
-    if (dPdv) {
-	memcpy(dPdv, _dPdvOutput, sizeof(float) * 3);
-    }
+    static OsdVertexBufferDescriptor desc(0,3,3);
+    
+    cpuEvalLimitController.EvalLimitSample(coords, _evalLimitContext, desc, P, dPdu, dPdv);
 }
 
 
 void ccgSubSurf__mapGridToFace(int S, float grid_u, float grid_v,
-				      float *face_u, float *face_v)
+                                      float *face_u, float *face_v)
 {
     float u, v;
-    
+
     /* - Each grid covers half of the face along the edges.
      * - Grid's (0, 0) starts from the middle of the face.
      */
@@ -264,22 +233,22 @@ void ccgSubSurf__mapGridToFace(int S, float grid_u, float grid_v,
     v = 0.5f - 0.5f * grid_v;
 
     if (S == 0) {
-	*face_u = v;
-	*face_v = u;
+        *face_u = v;
+        *face_v = u;
     }
     else if (S == 1) {
-	*face_u = 1.0f - u;
-	*face_v = v;
+        *face_u = 1.0f - u;
+        *face_v = v;
     }
     else if (S == 2) {
-	*face_u = 1.0f - v;
-	*face_v = 1.0f - u;
+        *face_u = 1.0f - v;
+        *face_v = 1.0f - u;
     }
     else {
-	*face_u = v;
-	*face_v = 1.0f - u;
+        *face_u = v;
+        *face_v = 1.0f - u;
     }
-}          
+}
 
 
 bool
@@ -300,84 +269,84 @@ OsdUtilAdaptiveEvaluator::GetRefinedTopology(
     // Power of 2 + 1?
     int gridSize = 5;
     int subfaceGridSize = 3;
-    
+
     int coarseFaceIndex = 0;
     int ptexFaceIndex = 0;
     int numSubfacesToProcess = 0;
-    
+
     bool done = false;
-    
+
     while (not done ) {
-	
-	// iterate through faces in coarse topology.  Four sided
-	// faces are traversed in one pass, sub-faces of non quads
-	// are traversed in order, i.e. three subfaces for each triangle
-	// These are the indices used by ptex and the eval API
-	bool subface = false;
 
-	if (numSubfacesToProcess > 0) {
-	    // We are iterating over sub-faces of a non-quad	    
-	    numSubfacesToProcess--;
-	    subface = true;
-	} else {
-	    int vertsInCoarseFace = t.nverts[coarseFaceIndex++];
-	    
-	    if (vertsInCoarseFace != 4) {
-		// Non quads are subdivided by putting a point
-		// in the middle of the face and creating
-		// subfaces.
-		numSubfacesToProcess = vertsInCoarseFace-1;
-		subface = true;
-	    }
-	}
+        // iterate through faces in coarse topology.  Four sided
+        // faces are traversed in one pass, sub-faces of non quads
+        // are traversed in order, i.e. three subfaces for each triangle
+        // These are the indices used by ptex and the eval API
+        bool subface = false;
 
-	int startingPositionIndex = (int) positions->size();
-	int currentGridSize = gridSize;
-	
-	// Subfaces have a smaller gridsize so tessellation lines up.
-	if (subface)
-	    currentGridSize = subfaceGridSize;
+        if (numSubfacesToProcess > 0) {
+            // We are iterating over sub-faces of a non-quad
+            numSubfacesToProcess--;
+            subface = true;
+        } else {
+            int vertsInCoarseFace = t.nverts[coarseFaceIndex++];
 
-	OsdEvalCoords coords;
-	coords.face = ptexFaceIndex;
-	
-	for (int x = 0; x < currentGridSize; x++) {
-	    for (int y = 0; y < currentGridSize; y++) {
-		float grid_u = (float) x / (currentGridSize - 1),
-		      grid_v = (float) y / (currentGridSize - 1);
-		
-		float P[3];
+            if (vertsInCoarseFace != 4) {
+                // Non quads are subdivided by putting a point
+                // in the middle of the face and creating
+                // subfaces.
+                numSubfacesToProcess = vertsInCoarseFace-1;
+                subface = true;
+            }
+        }
 
-		coords.u = grid_u;
-		coords.v = grid_v;
-		
-		EvaluateLimit(coords, P, NULL, NULL);
-		positions->push_back(P[0]);
-		positions->push_back(P[1]);
-		positions->push_back(P[2]);		
+        int startingPositionIndex = (int) positions->size();
+        int currentGridSize = gridSize;
 
-		// If not on edges, add a quad
-		if ( (x<currentGridSize-1) and (y<currentGridSize-1)) {
-		    int v[4];
-		    int vBase = startingPositionIndex/3;
-		    v[0] = vBase + x*currentGridSize + y;
-		    v[1] = vBase + x*currentGridSize + y+1;
-		    v[2] = vBase + (x+1)*currentGridSize+y+1;
-		    v[3] = vBase + (x+1)*currentGridSize+y;
-		    out->AddFace(4, v);
-		}
-	    }
-	}
+        // Subfaces have a smaller gridsize so tessellation lines up.
+        if (subface)
+            currentGridSize = subfaceGridSize;
 
-	ptexFaceIndex++;
+        OsdEvalCoords coords;
+        coords.face = ptexFaceIndex;
 
-	if ((numSubfacesToProcess == 0) and
-	    (coarseFaceIndex == (int)t.nverts.size())) {
-	    done = true; // last face
-	}
-	
+        for (int x = 0; x < currentGridSize; x++) {
+            for (int y = 0; y < currentGridSize; y++) {
+                float grid_u = (float) x / (currentGridSize - 1),
+                      grid_v = (float) y / (currentGridSize - 1);
+
+                float P[3];
+
+                coords.u = grid_u;
+                coords.v = grid_v;
+
+                EvaluateLimit(coords, P, NULL, NULL);
+                positions->push_back(P[0]);
+                positions->push_back(P[1]);
+                positions->push_back(P[2]);
+
+                // If not on edges, add a quad
+                if ( (x<currentGridSize-1) and (y<currentGridSize-1)) {
+                    int v[4];
+                    int vBase = startingPositionIndex/3;
+                    v[0] = vBase + x*currentGridSize + y;
+                    v[1] = vBase + x*currentGridSize + y+1;
+                    v[2] = vBase + (x+1)*currentGridSize+y+1;
+                    v[3] = vBase + (x+1)*currentGridSize+y;
+                    out->AddFace(4, v);
+                }
+            }
+        }
+
+        ptexFaceIndex++;
+
+        if ((numSubfacesToProcess == 0) and
+            (coarseFaceIndex == (int)t.nverts.size())) {
+            done = true; // last face
+        }
+
     } // while (not done)
-	
+
     out->name = GetTopology().name + "_refined";
     out->numVertices = (int) positions->size()/3;
     out->refinementLevel = GetTopology().refinementLevel;

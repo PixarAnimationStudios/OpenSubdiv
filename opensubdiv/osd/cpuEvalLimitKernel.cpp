@@ -43,7 +43,7 @@ evalBilinear(float u, float v,
              OsdVertexBufferDescriptor const & outDesc,
              float * outQ) {
 
-    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
     float const * inOffset = inQ + inDesc.offset;
 
@@ -101,7 +101,7 @@ evalBSpline(float u, float v,
             float * outDQV ) {
 
     // make sure that we have enough space to store results
-    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
     bool evalDeriv = (outDQU or outDQV);
 
@@ -168,7 +168,7 @@ evalBoundary(float u, float v,
              float * outDQU,
              float * outDQV ) {
 
-    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
     bool evalDeriv = (outDQU or outDQV);
 
@@ -269,7 +269,7 @@ evalCorner(float u, float v,
            float * outDQU,
            float * outDQV ) {
 
-    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
     int length = inDesc.length;
 
@@ -440,7 +440,7 @@ evalGregory(float u, float v,
     // vertex
 
     // make sure that we have enough space to store results
-    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
     bool evalDeriv = (outDQU or outDQV);
 
@@ -692,7 +692,7 @@ evalGregoryBoundary(float u, float v,
     // vertex
 
     // make sure that we have enough space to store results
-    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
     bool evalDeriv = (outDQU or outDQV);
 

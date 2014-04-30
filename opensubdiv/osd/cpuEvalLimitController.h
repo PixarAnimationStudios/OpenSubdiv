@@ -47,20 +47,45 @@ public:
 
     /// Destructor.
     ~OsdCpuEvalLimitController();
-    
+
     /// \brief Represents a location on the limit surface
     struct OsdEvalCoords {
         int face;   // Ptex unique face ID
         float u,v;  // local u,v
     };
-    
+
+
+    /// \brief Vertex interpolation of a single sample at the limit
+    ///
+    /// Evaluates "vertex" interpolation of a single sample on the surface limit.
+    ///
+    /// This function is re-entrant and does not require the context to bind 
+    /// output vertex buffers.
+    ///
+    /// @param coords   location on the limit surface to be evaluated
+    ///
+    /// @param context  the EvalLimitContext that the controller will evaluate
+    ///
+    /// @param outDesc  data descriptor (offset, length, stride)
+    ///
+    /// @return 1 if the sample was found
+    ///
+    int EvalLimitSample( OpenSubdiv::OsdEvalCoords const & coord,
+                         OsdCpuEvalLimitContext * context,
+                         OsdVertexBufferDescriptor const & outDesc,
+                         float * outQ,
+                         float * outDQU,
+                         float * outDQV ) const;
+
+
+
     /// \brief Vertex interpolation of samples at the limit
     ///
     /// Evaluates "vertex" interpolation of a sample on the surface limit.
     ///
     /// Warning : this function is re-entrant but it breaks the Osd API pattern
     /// by requiring the client code to bind and unbind the vertex buffers to
-    /// the EvalLimitContext. 
+    /// the EvalLimitContext.
     ///
     /// Ex :
     /// \code
@@ -77,29 +102,29 @@ public:
     ///
     /// @param context  the EvalLimitContext that the controller will evaluate
     ///
-    /// @param index    the index of the vertex in the output buffers bound to the 
+    /// @param index    the index of the vertex in the output buffers bound to the
     ///                 context
     ///
     /// @return the number of samples found (0 if the location was tagged as a hole
     ///         or the coordinate was invalid)
     ///
     template<class VERTEX_BUFFER, class OUTPUT_BUFFER>
-    int EvalLimitSample( OpenSubdiv::OsdEvalCoords const & coords, 
+    int EvalLimitSample( OpenSubdiv::OsdEvalCoords const & coords,
                          OsdCpuEvalLimitContext * context,
-                         unsigned int index ) {    
+                         unsigned int index ) const {
         if (not context)
             return 0;
-            
+
         int n = _EvalLimitSample( coords, context, index );
-        
+
         return n;
     }
 
 private:
 
-    int _EvalLimitSample( OpenSubdiv::OsdEvalCoords const & coords, 
+    int _EvalLimitSample( OpenSubdiv::OsdEvalCoords const & coords,
                           OsdCpuEvalLimitContext * context,
-                          unsigned int index );
+                          unsigned int index ) const;
 
 };
 
