@@ -188,9 +188,11 @@ Hud::MouseClick(int x, int y)
                 it->open=true;
             } else {
                 int label_width = (3+(int)it->label.size()) * FONT_CHAR_WIDTH;
-                if (x > it->x + label_width) {
+                int bx = 0, by = 0;
+                getWindowPos(*it, &bx, &by);
+                if (x > (bx+label_width)) {
                     int sel = it->selected;
-                    it->SetSelected((y - it->y) / FONT_CHAR_HEIGHT);
+                    it->SetSelected((y-by)/FONT_CHAR_HEIGHT);
                     if (it->selected!=sel) {
                         it->callback(it->values[it->selected]);
                     }
