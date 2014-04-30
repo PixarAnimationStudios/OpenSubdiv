@@ -368,18 +368,38 @@ FarMeshFactory<T,U>::vertexIsBSpline( HbrVertex<T> * v, bool next ) {
 
     int valence = v->GetValence();
 
-    bool isRegBoundary = v->OnBoundary() and (valence==3);
+    // Boundary & corner vertices
+    if (v->OnBoundary()) {
+        if (valence==2) {
+            // corner vertex
 
-    // Extraordinary vertices that are not on a regular boundary
-    if (v->IsExtraordinary() and not isRegBoundary )
-        return false;
+            HbrFace<T> * f = v->GetFace();
+            typename HbrMesh<T>::InterpolateBoundaryMethod method =
+                f->GetMesh()->GetInterpolateBoundaryMethod();
+            if (method==HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner) {
+                // vertex may not need isolation depending on boundary
+                // interpolation rule (sharp vs. rounded corner)
+                int nsharpboundaries=0;
+                for (int i=0; i<f->GetNumVertices(); ++i) {
+                    HbrHalfedge<T> * e = f->GetEdge(i);
+                    if (e->IsBoundary() and
+                        e->GetSharpness()==HbrHalfedge<T>::k_InfinitelySharp) {
+                        ++nsharpboundaries;
+                    }
+                }
+                return next;
+            } else
+                return false;
+        } else if (valence>3) {
+            // extraordinary boundar vertex (high valence)
+            return false;
+        }
+        // regular boundary vertices have valence 3
+        return true;
+    }
 
-    // Irregular boundary vertices (high valence)
-    if (v->OnBoundary() and (valence>3))
-        return false;
-
-    // Creased vertices that aren't corner / boundaries
-    if (v->IsSharp(next) and not v->OnBoundary())
+    // Extraordinary or creased vertices that aren't corner / boundaries
+    if (v->IsExtraordinary() or v->IsSharp(next))
         return false;
 
     return true;
@@ -499,7 +519,7 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
                     // Tag all 4 vertices of the face to make sure 4 boundary
                     // sub-patches are generated
                     for (int k=0; k<4; ++k) {
-                        HbrVertex<T> * v = f->GetVertex(j);
+                        HbrVertex<T> * v = f->GetVertex(k);
                         v->_adaptiveFlags.isTagged=true;
                         nextverts.insert(v);
                     }
