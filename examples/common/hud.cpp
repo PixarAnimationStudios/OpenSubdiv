@@ -182,9 +182,10 @@ Hud::MouseClick(int x, int y)
     for (std::vector<PullDown>::iterator it = _pulldowns.begin();
          it != _pulldowns.end(); ++it) {
         if (hitTest(*it, x, y)) {
-            it->h = FONT_CHAR_HEIGHT;
             if (not it->open) {
+                it->h = FONT_CHAR_HEIGHT;
                 it->h *= (int)it->labels.size();
+                it->open=true;
             } else {
                 int label_width = (3+(int)it->label.size()) * FONT_CHAR_WIDTH;
                 if (x > it->x + label_width) {
@@ -193,9 +194,10 @@ Hud::MouseClick(int x, int y)
                     if (it->selected!=sel) {
                         it->callback(it->values[it->selected]);
                     }
+                } else {
+                    it->open=not it->open;
                 }
             }
-            it->open=not it->open;
             _requiresRebuildStatic = true;
             return true;
         }
@@ -527,7 +529,7 @@ Hud::Rebuild(int width, int height)
         x += FONT_CHAR_WIDTH;
         
         if (it->open) {
-            x = drawChar(_staticVboSource, x, y, .5f, .5f, .5f, FONT_ARROW_DOWN);
+            x = drawChar(_staticVboSource, x, y, 1, 1, 0, FONT_ARROW_DOWN);
             x += FONT_CHAR_WIDTH;
             for (int i=0; i<(int)it->labels.size(); ++i, y+=FONT_CHAR_HEIGHT) {
                 if (i==it->selected) {
