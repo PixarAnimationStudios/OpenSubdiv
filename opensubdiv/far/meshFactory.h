@@ -374,20 +374,26 @@ FarMeshFactory<T,U>::vertexIsBSpline( HbrVertex<T> * v, bool next ) {
             // corner vertex
 
             HbrFace<T> * f = v->GetFace();
+            // the vertex may not need isolation depending on boundary
+            // interpolation rule (sharp vs. rounded corner)
             typename HbrMesh<T>::InterpolateBoundaryMethod method =
                 f->GetMesh()->GetInterpolateBoundaryMethod();
             if (method==HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner) {
-                // vertex may not need isolation depending on boundary
-                // interpolation rule (sharp vs. rounded corner)
-                int nsharpboundaries=0;
-                for (int i=0; i<f->GetNumVertices(); ++i) {
-                    HbrHalfedge<T> * e = f->GetEdge(i);
-                    if (e->IsBoundary() and
-                        e->GetSharpness()==HbrHalfedge<T>::k_InfinitelySharp) {
-                        ++nsharpboundaries;
+                if (not next) {
+                    // if we are checking coarse vertices (next==false),
+                    // count the number of corners in the face, because we
+                    // can only have 1 corner vertex in a corner patch.
+                    int nsharpboundaries=0;
+                    for (int i=0; i<f->GetNumVertices(); ++i) {
+                        HbrHalfedge<T> * e = f->GetEdge(i);
+                        if (e->IsBoundary() and
+                            e->GetSharpness()==HbrHalfedge<T>::k_InfinitelySharp) {
+                            ++nsharpboundaries;
+                        }
                     }
-                }
-                return next;
+                    return nsharpboundaries < 3 ? true: false;
+                } else
+                    return true;
             } else
                 return false;
         } else if (valence>3) {
@@ -501,7 +507,7 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
             // for refinement as boundary patches.
             //
             //  o ........ o ........ o ........ o
-            //  .          |          |          .     ... b.undary edge
+            //  .          |          |          .     ... boundary edge
             //  .          |   needs  |          .
             //  .          |   flag   |          .     --- regular edge
             //  .          |          |          .
