@@ -125,15 +125,15 @@ SetTransitionTessLevels(vec3 cp[OSD_PATCH_INPUT_SIZE], int patchLevel)
     vv1 = pv6;
     vv2 = (pv6 + pv14) * 0.125 + pv10 * 0.75;
 #elif OSD_TRANSITION_ROTATE == 1
-    vv1 = (pv5 + pv7) * 0.125 + pv6 * 0.75;
+    vv1 = (pv2 + pv10) * 0.125 + pv6 * 0.75;
     vv2 = pv10;
     vv3 = (pv8 + pv10) * 0.125 + pv9 * 0.75;
 #elif OSD_TRANSITION_ROTATE == 2
-    vv2 = (pv6 + pv14) * 0.125 + pv10 * 0.75;
+    vv2 = (pv9 + pv11) * 0.125 + pv10 * 0.75;
     vv3 = pv9;
-    vv0 = (pv4 + pv6) * 0.125 + pv5 * 0.75;
+    vv0 = (pv1 + pv9) * 0.125 + pv5 * 0.75;
 #elif OSD_TRANSITION_ROTATE == 3
-    vv3 = (pv8 + pv10) * 0.125 + pv9 * 0.75;
+    vv3 = (pv5 + pv13) * 0.125 + pv9 * 0.75;
     vv0 = pv5;
     vv1 = (pv5 + pv7) * 0.125 + pv6 * 0.75;
 #endif
