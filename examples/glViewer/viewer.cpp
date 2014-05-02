@@ -1768,10 +1768,10 @@ initGL()
 static void
 idle() {
 
-    if (not g_freeze)
+    if (not g_freeze) {
         g_frame++;
-
-    updateGeom();
+        updateGeom();
+    }
 
     if (g_repeatCount != 0 and g_frame >= g_repeatCount)
         g_running = 0;
