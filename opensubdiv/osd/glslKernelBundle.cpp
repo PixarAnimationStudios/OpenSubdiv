@@ -171,7 +171,12 @@ OsdGLSLComputeKernelBundle::dispatchCompute(
     // execute
     glDispatchCompute(count/_workGroupSize + 1, 1, 1);
 
-    // sync for later reading (slow..)
+    // sync for later reading.
+    // XXX: in theory, just SHADER_STORAGE_BARRIER is needed here. However
+    // we found a problem (issue #295) with nvidia driver 331.49 / Quadro4000
+    // resulting invalid vertices.
+    // Apparently adding TEXTURE_FETCH_BARRIER after face kernel fixes it.
+    // We'll revisit this later.
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
@@ -206,6 +211,10 @@ OsdGLSLComputeKernelBundle::ApplyCatmarkFaceVerticesKernel(
 
     glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subComputeFace);
     dispatchCompute(vertexOffset, tableOffset, start, end);
+
+    // see the comment in dispatchCompute()
+    // this workaround could be a performance problem
+    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 }
 
 void
