@@ -335,7 +335,6 @@ bool
 OsdUtilTagData::AddCrease(int *indices, int numIndices,
                             float *sharpness, int numSharpness)
 {
-    std::cout << "Adding crease!\n";
     tags.push_back(CREASE);
     numArgs.push_back(numIndices);
     numArgs.push_back(numSharpness);

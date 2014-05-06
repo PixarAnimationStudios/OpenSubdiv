@@ -304,8 +304,6 @@ bool _ProcessTagsAndFinishMesh(
 	int nfloat = tagData.numArgs[3*i+1];
 	int nstring = tagData.numArgs[3*i+2];
 
-        std::cout << "TAGSTAGStag " << i << " " << tag << " " << nint << " " << nfloat << " " << nstring << "\n";
-
 	switch (tag) {
         case OsdUtilTagData::INTERPOLATE_BOUNDARY:
 	    // Interp boundaries
@@ -351,7 +349,6 @@ bool _ProcessTagsAndFinishMesh(
                     return false;
 		} else {
                     float sharpness = std::max(0.0f, ((nfloat > 1) ? currentFloat[j] : currentFloat[0]));
-                    std::cout << "Setting sharpness on edge " << currentInt[j] << " " << currentInt[j+1] << " to " << sharpness << " " << nfloat << "\n";
 		    e->SetSharpness(sharpness);
 		}
 	    }
