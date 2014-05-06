@@ -116,33 +116,6 @@ public:
     /// Destructor
     virtual ~OsdCLComputeContext();
 
-    /// Binds a vertex and a varying data buffers to the context. Binding ensures
-    /// that data buffers are properly inter-operated between Contexts and 
-    /// Controllers operating across multiple devices.
-    ///
-    /// @param vertex   a buffer containing vertex-interpolated primvar data
-    ///
-    /// @param varying  a buffer containing varying-interpolated primvar data
-    ///
-    /// @param clQueue  OpenCL command queue associated with the primvar data
-    ///
-    template<class VERTEX_BUFFER, class VARYING_BUFFER>
-        void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying, cl_command_queue clQueue) {
-
-        _currentVertexBuffer = vertex ? vertex->BindCLBuffer(clQueue) : NULL;
-        _currentVaryingBuffer = varying ? varying->BindCLBuffer(clQueue) : NULL;
-
-        _clQueue = clQueue;
-    }
-
-    /// Unbinds any previously bound vertex and varying data buffers.
-    void Unbind() {
-        _currentVertexBuffer = NULL;
-        _currentVaryingBuffer = NULL;
-        _clQueue = NULL;
-        _kernelBundle = NULL;
-    }
-
     /// Returns one of the vertex refinement tables.
     ///
     /// @param tableIndex the type of table
@@ -158,20 +131,6 @@ public:
     ///
     const OsdCLHEditTable * GetEditTable(int tableIndex) const;
 
-    /// Returns a CL handle to the vertex-interpolated data
-    cl_mem GetCurrentVertexBuffer() const;
-
-    /// Returns a CL handle to the varying-interpolated data
-    cl_mem GetCurrentVaryingBuffer() const;
-
-    OsdCLKernelBundle * GetKernelBundle() const;
-
-    void SetKernelBundle(OsdCLKernelBundle *kernelBundle);
-
-    cl_command_queue GetCommandQueue() const;
-
-    void SetCommandQueue(cl_command_queue queue);
-
 protected:
     explicit OsdCLComputeContext(FarSubdivisionTables const *subdivisionTables,
                                  FarVertexEditTables const *vertexEditTables,
@@ -180,13 +139,6 @@ protected:
 private:
     std::vector<OsdCLTable*> _tables;
     std::vector<OsdCLHEditTable*> _editTables;
-
-    cl_mem _currentVertexBuffer, 
-           _currentVaryingBuffer;
-
-    cl_command_queue _clQueue;
-
-    OsdCLKernelBundle *_kernelBundle;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

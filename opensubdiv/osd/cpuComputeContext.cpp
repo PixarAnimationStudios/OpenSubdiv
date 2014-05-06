@@ -130,8 +130,6 @@ OsdCpuComputeContext::OsdCpuComputeContext(FarSubdivisionTables const *subdivisi
             _editTables.push_back(new OsdCpuHEditTable(edit));
         }
     }
-    _currentVertexBuffer = 0;
-    _currentVaryingBuffer = 0;
 }
 
 OsdCpuComputeContext::~OsdCpuComputeContext() {
@@ -160,18 +158,6 @@ const OsdCpuHEditTable *
 OsdCpuComputeContext::GetEditTable(int tableIndex) const {
 
     return _editTables[tableIndex];
-}
-
-float *
-OsdCpuComputeContext::GetCurrentVertexBuffer() const {
-
-    return _currentVertexBuffer;
-}
-
-float *
-OsdCpuComputeContext::GetCurrentVaryingBuffer() const {
-
-    return _currentVaryingBuffer;
 }
 
 OsdCpuComputeContext *

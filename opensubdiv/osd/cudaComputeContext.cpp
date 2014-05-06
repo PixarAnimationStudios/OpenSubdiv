@@ -120,8 +120,7 @@ OsdCudaHEditTable::GetPrimvarWidth() const {
 
 // ----------------------------------------------------------------------------
 
-OsdCudaComputeContext::OsdCudaComputeContext() :
-    _currentVertexBuffer(NULL), _currentVaryingBuffer(NULL) {
+OsdCudaComputeContext::OsdCudaComputeContext() {
 }
 
 OsdCudaComputeContext::~OsdCudaComputeContext() {
@@ -195,18 +194,6 @@ const OsdCudaHEditTable *
 OsdCudaComputeContext::GetEditTable(int tableIndex) const {
 
     return _editTables[tableIndex];
-}
-
-float *
-OsdCudaComputeContext::GetCurrentVertexBuffer() const {
-
-    return _currentVertexBuffer;
-}
-
-float *
-OsdCudaComputeContext::GetCurrentVaryingBuffer() const {
-
-    return _currentVaryingBuffer;
 }
 
 OsdCudaComputeContext *

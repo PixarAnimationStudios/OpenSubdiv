@@ -119,8 +119,7 @@ OsdGLSLComputeHEditTable::GetPrimvarWidth() const {
 
 OsdGLSLComputeContext::OsdGLSLComputeContext(
     FarSubdivisionTables const *subdivisionTables,
-    FarVertexEditTables const *vertexEditTables)
-    : _vertexTexture(0), _varyingTexture(0) {
+    FarVertexEditTables const *vertexEditTables) {
 
     // allocate 5 or 7 tables
     // XXXtakahito: Although _tables size depends on table type, F_IT is set
@@ -184,31 +183,6 @@ OsdGLSLComputeContext::GetEditTable(int tableIndex) const {
     return _editTables[tableIndex];
 }
 
-GLuint
-OsdGLSLComputeContext::GetCurrentVertexBuffer() const {
-
-    return _currentVertexBuffer;
-}
-
-GLuint
-OsdGLSLComputeContext::GetCurrentVaryingBuffer() const {
-
-    return _currentVaryingBuffer;
-}
-
-OsdGLSLComputeKernelBundle *
-OsdGLSLComputeContext::GetKernelBundle() const {
-
-    return _kernelBundle;
-}
-
-void
-OsdGLSLComputeContext::SetKernelBundle(
-    OsdGLSLComputeKernelBundle *kernelBundle) {
-
-    _kernelBundle = kernelBundle;
-}
-
 OsdGLSLComputeContext *
 OsdGLSLComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
                               FarVertexEditTables const *vertexEditTables) {
@@ -217,7 +191,7 @@ OsdGLSLComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
 }
 
 void
-OsdGLSLComputeContext::BindEditShaderStorageBuffers(int editIndex) {
+OsdGLSLComputeContext::BindEditShaderStorageBuffers(int editIndex) const {
 
     const OsdGLSLComputeHEditTable * edit = _editTables[editIndex];
     const OsdGLSLComputeTable * primvarIndices = edit->GetPrimvarIndices();
@@ -230,24 +204,16 @@ OsdGLSLComputeContext::BindEditShaderStorageBuffers(int editIndex) {
 }
 
 void
-OsdGLSLComputeContext::UnbindEditShaderStorageBuffers() {
+OsdGLSLComputeContext::UnbindEditShaderStorageBuffers() const {
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, 0);
 }
 
 void
-OsdGLSLComputeContext::bindShaderStorageBuffers() {
+OsdGLSLComputeContext::BindShaderStorageBuffers() const {
 
-    _kernelBundle->UseProgram();
-
-    if (_currentVertexBuffer)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _currentVertexBuffer);
-
-    if (_currentVaryingBuffer)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _currentVaryingBuffer);
-
-    // XXX: should be better handling for loop subdivision.
+    // 0 and 1 are reserved for vertex/varying buffer bindings.
     if (_tables[FarSubdivisionTables::F_IT]) {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2,
                          _tables[FarSubdivisionTables::F_IT]->GetBuffer());
@@ -268,10 +234,9 @@ OsdGLSLComputeContext::bindShaderStorageBuffers() {
 }
 
 void
-OsdGLSLComputeContext::unbindShaderStorageBuffers() {
+OsdGLSLComputeContext::UnbindShaderStorageBuffers() const {
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+    // 0 and 1 are reserved for vertex/varying buffer bindings.
     if (_tables[FarSubdivisionTables::F_IT]) {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);

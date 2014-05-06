@@ -38,7 +38,9 @@ namespace OPENSUBDIV_VERSION {
 
 OsdD3D11ComputeController::OsdD3D11ComputeController(
     ID3D11DeviceContext *deviceContext)
-     : _deviceContext(deviceContext), _query(0) {
+      : _deviceContext(deviceContext), _query(0),
+        _currentVertexBufferUAV(0), _currentVaryingBufferUAV(0),
+        _currentKernelBundle(NULL) {
 }
 
 OsdD3D11ComputeController::~OsdD3D11ComputeController() {
@@ -88,52 +90,69 @@ OsdD3D11ComputeController::getKernels(int numVertexElements,
     }
 }
 
+void
+OsdD3D11ComputeController::bindShaderResources()
+{
+    // Unbind the vertexBuffer from the input assembler
+    ID3D11Buffer *NULLBuffer = 0;
+    UINT voffset = 0;
+    UINT vstride = 0;
+    _deviceContext->IASetVertexBuffers(0, 1, &NULLBuffer, &voffset, &vstride);
+    // Unbind the vertexBuffer from the vertex shader (gregory patch vertex srv)
+    ID3D11ShaderResourceView *NULLSRV = 0;
+    _deviceContext->VSSetShaderResources(0, 1, &NULLSRV);
+
+    if (_currentVertexBufferUAV)
+        _deviceContext->CSSetUnorderedAccessViews(0, 1, &_currentVertexBufferUAV, 0); // u0
+
+    if (_currentVaryingBufferUAV)
+        _deviceContext->CSSetUnorderedAccessViews(1, 1, &_currentVaryingBufferUAV, 0); // u1
+}
+
+void
+OsdD3D11ComputeController::unbindShaderResources()
+{
+    ID3D11UnorderedAccessView *UAViews[] = { 0, 0 };
+    _deviceContext->CSSetUnorderedAccessViews(0, 2, UAViews, 0); // u0-u2
+}
 
 void
 OsdD3D11ComputeController::ApplyBilinearFaceVerticesKernel(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
 
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyBilinearFaceVerticesKernel(
+    _currentKernelBundle->ApplyBilinearFaceVerticesKernel(
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
 OsdD3D11ComputeController::ApplyBilinearEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
 
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyBilinearEdgeVerticesKernel(
+    _currentKernelBundle->ApplyBilinearEdgeVerticesKernel(
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
 OsdD3D11ComputeController::ApplyBilinearVertexVerticesKernel(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
 
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyBilinearVertexVerticesKernel(
+    _currentKernelBundle->ApplyBilinearVertexVerticesKernel(
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
 OsdD3D11ComputeController::ApplyCatmarkFaceVerticesKernel(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
 
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyCatmarkFaceVerticesKernel(
+    _currentKernelBundle->ApplyCatmarkFaceVerticesKernel(
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
@@ -141,125 +160,109 @@ OsdD3D11ComputeController::ApplyCatmarkFaceVerticesKernel(
 
 void
 OsdD3D11ComputeController::ApplyCatmarkEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
 
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyCatmarkEdgeVerticesKernel(
+    _currentKernelBundle->ApplyCatmarkEdgeVerticesKernel(
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
 OsdD3D11ComputeController::ApplyCatmarkVertexVerticesKernelB(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
 
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyCatmarkVertexVerticesKernelB(
+    _currentKernelBundle->ApplyCatmarkVertexVerticesKernelB(
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
 OsdD3D11ComputeController::ApplyCatmarkVertexVerticesKernelA1(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
 
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyCatmarkVertexVerticesKernelA(
+    _currentKernelBundle->ApplyCatmarkVertexVerticesKernelA(
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
 }
 
 void
 OsdD3D11ComputeController::ApplyCatmarkVertexVerticesKernelA2(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
 
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyCatmarkVertexVerticesKernelA(
+    _currentKernelBundle->ApplyCatmarkVertexVerticesKernelA(
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
 }
 
 void
 OsdD3D11ComputeController::ApplyLoopEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
 
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyLoopEdgeVerticesKernel(
+    _currentKernelBundle->ApplyLoopEdgeVerticesKernel(
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
 OsdD3D11ComputeController::ApplyLoopVertexVerticesKernelB(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
 
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyLoopVertexVerticesKernelB(
+    _currentKernelBundle->ApplyLoopVertexVerticesKernelB(
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
 OsdD3D11ComputeController::ApplyLoopVertexVerticesKernelA1(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
 
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyLoopVertexVerticesKernelA(
+    _currentKernelBundle->ApplyLoopVertexVerticesKernelA(
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
 }
 
 void
 OsdD3D11ComputeController::ApplyLoopVertexVerticesKernelA2(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
 
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyLoopVertexVerticesKernelA(
+    _currentKernelBundle->ApplyLoopVertexVerticesKernelA(
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
 }
 
 void
 OsdD3D11ComputeController::ApplyVertexEdits(
-    FarKernelBatch const &batch, OsdD3D11ComputeContext *context) const {
+    FarKernelBatch const &batch, OsdD3D11ComputeContext const *context) const {
 
     assert(context);
-
-    OsdD3D11ComputeKernelBundle * kernelBundle = context->GetKernelBundle();
 
     const OsdD3D11ComputeHEditTable * edit = context->GetEditTable(batch.GetTableIndex());
     assert(edit);
 
-    context->BindEditShaderStorageBuffers(batch.GetTableIndex());
+    context->BindEditShaderStorageBuffers(batch.GetTableIndex(), _deviceContext);
 
     int primvarOffset = edit->GetPrimvarOffset();
     int primvarWidth = edit->GetPrimvarWidth();
-    
+
     if (edit->GetOperation() == FarVertexEdit::Add) {
-        kernelBundle->ApplyEditAdd(primvarOffset, primvarWidth,
-                                   batch.GetVertexOffset(), batch.GetTableOffset(),
-                                   batch.GetStart(), batch.GetEnd());
+        _currentKernelBundle->ApplyEditAdd(primvarOffset, primvarWidth,
+                                           batch.GetVertexOffset(),
+                                           batch.GetTableOffset(),
+                                           batch.GetStart(),
+                                           batch.GetEnd());
     } else {
         // XXX: edit SET is not implemented yet.
     }
-    
-    context->UnbindEditShaderStorageBuffers();
+
+    context->UnbindEditShaderStorageBuffers(_deviceContext);
 }
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

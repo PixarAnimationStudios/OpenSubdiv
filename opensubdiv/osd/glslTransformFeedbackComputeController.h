@@ -70,23 +70,20 @@ public:
     /// @param  varyingBuffer varying-interpolated data buffer
     ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Refine(OsdGLSLTransformFeedbackComputeContext *context,
+    void Refine(OsdGLSLTransformFeedbackComputeContext const *context,
                 FarKernelBatchVector const &batches,
                 VERTEX_BUFFER *vertexBuffer,
                 VARYING_BUFFER *varyingBuffer) {
 
         if (batches.empty()) return;
 
-        int numVertexElements = vertexBuffer ? vertexBuffer->GetNumElements() : 0;
-        int numVaryingElements = varyingBuffer ? varyingBuffer->GetNumElements() : 0;
-
-        context->SetKernelBundle(getKernels(numVertexElements, numVaryingElements));
-
-        context->Bind(vertexBuffer, varyingBuffer);
+        bind(vertexBuffer, varyingBuffer);
+        context->BindTableTextures(_currentKernelBundle);
 
         FarDispatcher::Refine(this, context, batches, /*maxlevel*/-1);
 
-        context->Unbind();
+        context->UnbindTableTextures();
+        unbind();
     }
 
     /// Launch subdivision kernels and apply to given vertex buffers.
@@ -99,7 +96,7 @@ public:
     /// @param  vertexBuffer  vertex-interpolated data buffer
     ///
     template<class VERTEX_BUFFER>
-    void Refine(OsdGLSLTransformFeedbackComputeContext *context,
+    void Refine(OsdGLSLTransformFeedbackComputeContext const *context,
                 FarKernelBatchVector const &batches,
                 VERTEX_BUFFER *vertexBuffer) {
         Refine(context, batches, vertexBuffer, (VERTEX_BUFFER*)NULL);
@@ -110,40 +107,76 @@ public:
 
 protected:
     friend class FarDispatcher;
-    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
-
-
-    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
-
-    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
 
-    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext const *context) const;
 
 
-    void ApplyVertexEdits(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+
+    void ApplyVertexEdits(FarKernelBatch const &batch, ComputeContext const *context) const;
 
     OsdGLSLTransformFeedbackKernelBundle * getKernels(int numVertexElements,
                                                       int numVaryingElements);
 
+    void bindTextures();
+
+    void unbindTextures();
+
+    template<class VERTEX_BUFFER, class VARYING_BUFFER>
+    void bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
+
+        _currentVertexBuffer = vertex ? vertex->BindVBO() : 0;
+        _currentVaryingBuffer = varying ? varying->BindVBO() : 0;
+
+        _vdesc.numVertexElements = vertex ? vertex->GetNumElements() : 0;
+        _vdesc.numVaryingElements = varying ? varying->GetNumElements() : 0;
+
+        _currentKernelBundle =
+            getKernels(_vdesc.numVertexElements, _vdesc.numVaryingElements);
+
+        bindTextures();
+    }
+
+    /// Unbinds any previously bound vertex and varying data buffers.
+    void unbind() {
+        _currentVertexBuffer = 0;
+        _currentVaryingBuffer = 0;
+        _currentKernelBundle = NULL;
+
+        unbindTextures();
+    }
+
 private:
     std::vector<OsdGLSLTransformFeedbackKernelBundle *> _kernelRegistry;
+
+    GLuint _vertexTexture, _varyingTexture;
+    GLuint _currentVertexBuffer, _currentVaryingBuffer;
+
+    OsdVertexDescriptor _vdesc;
+
+    OsdGLSLTransformFeedbackKernelBundle * _currentKernelBundle;
+
 };
 
 }  // end namespace OPENSUBDIV_VERSION

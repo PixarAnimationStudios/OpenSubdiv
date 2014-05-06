@@ -37,7 +37,8 @@ namespace OPENSUBDIV_VERSION {
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }
 
 void
-OsdD3D11ComputeTable::createBuffer(int size, const void *ptr, DXGI_FORMAT format, int numElements, ID3D11DeviceContext *deviceContext) {
+OsdD3D11ComputeTable::createBuffer(int size, const void *ptr, DXGI_FORMAT format, int numElements,
+                                   ID3D11DeviceContext *deviceContext) {
 
     if (size == 0)
         return;
@@ -147,9 +148,7 @@ OsdD3D11ComputeHEditTable::GetPrimvarWidth() const {
 OsdD3D11ComputeContext::OsdD3D11ComputeContext(
     FarSubdivisionTables const *subdivisionTables,
     FarVertexEditTables const *vertexEditTables,
-    ID3D11DeviceContext *deviceContext)
-    : _deviceContext(deviceContext),
-      _currentVertexBufferUAV(0), _currentVaryingBufferUAV(0) {
+    ID3D11DeviceContext *deviceContext) {
 
     // allocate 5 or 7 tables
     // XXXtakahito: Although _tables size depends on table type, F_IT is set
@@ -211,41 +210,6 @@ OsdD3D11ComputeContext::GetEditTable(int tableIndex) const {
     return _editTables[tableIndex];
 }
 
-ID3D11UnorderedAccessView *
-OsdD3D11ComputeContext::GetCurrentVertexBufferUAV() const {
-
-    return _currentVertexBufferUAV;
-}
-
-ID3D11UnorderedAccessView *
-OsdD3D11ComputeContext::GetCurrentVaryingBufferUAV() const {
-
-    return _currentVaryingBufferUAV;
-}
-
-OsdD3D11ComputeKernelBundle *
-OsdD3D11ComputeContext::GetKernelBundle() const {
-
-    return _kernelBundle;
-}
-
-void
-OsdD3D11ComputeContext::SetKernelBundle(
-    OsdD3D11ComputeKernelBundle *kernelBundle) {
-
-    _kernelBundle = kernelBundle;
-}
-
-ID3D11DeviceContext *
-OsdD3D11ComputeContext::GetDeviceContext() const {
-    return _deviceContext;
-}
-
-void
-OsdD3D11ComputeContext::SetDeviceContext(ID3D11DeviceContext *deviceContext) {
-    _deviceContext = deviceContext;
-}
-
 OsdD3D11ComputeContext *
 OsdD3D11ComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
                                FarVertexEditTables const *vertexEditTables,
@@ -255,7 +219,8 @@ OsdD3D11ComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
 }
 
 void
-OsdD3D11ComputeContext::BindEditShaderStorageBuffers(int editIndex) {
+OsdD3D11ComputeContext::BindEditShaderStorageBuffers(int editIndex,
+                                                     ID3D11DeviceContext *deviceContext) const {
 
     const OsdD3D11ComputeHEditTable * edit = _editTables[editIndex];
     const OsdD3D11ComputeTable * primvarIndices = edit->GetPrimvarIndices();
@@ -265,33 +230,18 @@ OsdD3D11ComputeContext::BindEditShaderStorageBuffers(int editIndex) {
         primvarIndices->GetSRV(),
         editValues->GetSRV(),
     };
-    _deviceContext->CSSetShaderResources(9, 2, SRViews); // t9-t10
+    deviceContext->CSSetShaderResources(9, 2, SRViews); // t9-t10
 }
 
 void
-OsdD3D11ComputeContext::UnbindEditShaderStorageBuffers() {
+OsdD3D11ComputeContext::UnbindEditShaderStorageBuffers(ID3D11DeviceContext *deviceContext) const {
 
     ID3D11ShaderResourceView *SRViews[] = { 0, 0 };
-    _deviceContext->CSSetShaderResources(9, 2, SRViews); // t9-t10
+    deviceContext->CSSetShaderResources(9, 2, SRViews); // t9-t10
 }
 
 void
-OsdD3D11ComputeContext::bindShaderStorageBuffers() {
-
-    // Unbind the vertexBuffer from the input assembler
-    ID3D11Buffer *NULLBuffer = 0;
-    UINT voffset = 0;
-    UINT vstride = 0;
-    _deviceContext->IASetVertexBuffers(0, 1, &NULLBuffer, &voffset, &vstride);
-    // Unbind the vertexBuffer from the vertex shader (gregory patch vertex srv)
-    ID3D11ShaderResourceView *NULLSRV = 0;
-    _deviceContext->VSSetShaderResources(0, 1, &NULLSRV);
-
-    if (_currentVertexBufferUAV)
-        _deviceContext->CSSetUnorderedAccessViews(0, 1, &_currentVertexBufferUAV, 0); // u0
-
-    if (_currentVaryingBufferUAV)
-        _deviceContext->CSSetUnorderedAccessViews(1, 1, &_currentVaryingBufferUAV, 0); // u1
+OsdD3D11ComputeContext::BindShaderStorageBuffers(ID3D11DeviceContext *deviceContext) const {
 
     // XXX: should be better handling for loop subdivision.
     if (_tables[FarSubdivisionTables::F_IT]) {
@@ -299,7 +249,7 @@ OsdD3D11ComputeContext::bindShaderStorageBuffers() {
             _tables[FarSubdivisionTables::F_IT]->GetSRV(),
             _tables[FarSubdivisionTables::F_ITa]->GetSRV(),
         };
-        _deviceContext->CSSetShaderResources(2, 2, SRViews); // t2-t3
+        deviceContext->CSSetShaderResources(2, 2, SRViews); // t2-t3
     }
 
     ID3D11ShaderResourceView *SRViews[] = {
@@ -309,16 +259,14 @@ OsdD3D11ComputeContext::bindShaderStorageBuffers() {
         _tables[FarSubdivisionTables::E_W]->GetSRV(),
         _tables[FarSubdivisionTables::V_W]->GetSRV(),
     };
-    _deviceContext->CSSetShaderResources(4, 5, SRViews); // t4-t8
+    deviceContext->CSSetShaderResources(4, 5, SRViews); // t4-t8
 }
 
 void
-OsdD3D11ComputeContext::unbindShaderStorageBuffers() {
+OsdD3D11ComputeContext::UnbindShaderStorageBuffers(ID3D11DeviceContext *deviceContext) const {
 
-    ID3D11UnorderedAccessView *UAViews[] = { 0, 0 };
-    _deviceContext->CSSetUnorderedAccessViews(0, 2, UAViews, 0); // u0-u2
     ID3D11ShaderResourceView *SRViews[] = { 0, 0, 0, 0, 0, 0, 0 };
-    _deviceContext->CSSetShaderResources(2, 7, SRViews); // t2-t8
+    deviceContext->CSSetShaderResources(2, 7, SRViews); // t2-t8
 }
 
 }  // end namespace OPENSUBDIV_VERSION

@@ -128,8 +128,7 @@ OsdGLSLTransformFeedbackHEditTable::GetPrimvarWidth() const {
 
 OsdGLSLTransformFeedbackComputeContext::OsdGLSLTransformFeedbackComputeContext(
     FarSubdivisionTables const *subdivisionTables,
-    FarVertexEditTables const *vertexEditTables) :
-    _vertexTexture(0), _varyingTexture(0) {
+    FarVertexEditTables const *vertexEditTables) {
 
     // allocate 5 or 7 tables
     _tables.resize(7, 0);
@@ -169,8 +168,6 @@ OsdGLSLTransformFeedbackComputeContext::~OsdGLSLTransformFeedbackComputeContext(
     for (size_t i = 0; i < _editTables.size(); ++i) {
         delete _editTables[i];
     }
-    if (_vertexTexture) glDeleteTextures(1, &_vertexTexture);
-    if (_varyingTexture) glDeleteTextures(1, &_varyingTexture);
 }
 
 const OsdGLSLTransformFeedbackTable *
@@ -191,30 +188,6 @@ OsdGLSLTransformFeedbackComputeContext::GetEditTable(int tableIndex) const {
     return _editTables[tableIndex];
 }
 
-GLuint
-OsdGLSLTransformFeedbackComputeContext::GetCurrentVertexBuffer() const {
-
-    return _currentVertexBuffer;
-}
-
-GLuint
-OsdGLSLTransformFeedbackComputeContext::GetCurrentVaryingBuffer() const {
-
-    return _currentVaryingBuffer;
-}
-
-OsdGLSLTransformFeedbackKernelBundle *
-OsdGLSLTransformFeedbackComputeContext::GetKernelBundle() const {
-
-    return _kernelBundle;
-}
-
-void
-OsdGLSLTransformFeedbackComputeContext::SetKernelBundle(OsdGLSLTransformFeedbackKernelBundle *kernelBundle) {
-
-    _kernelBundle = kernelBundle;
-}
-
 OsdGLSLTransformFeedbackComputeContext *
 OsdGLSLTransformFeedbackComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
                                                FarVertexEditTables const *vertexEditTables) {
@@ -223,27 +196,28 @@ OsdGLSLTransformFeedbackComputeContext::Create(FarSubdivisionTables const *subdi
 }
 
 void
-OsdGLSLTransformFeedbackComputeContext::BindEditTextures(int editIndex) {
+OsdGLSLTransformFeedbackComputeContext::BindEditTextures(
+    int editIndex, OsdGLSLTransformFeedbackKernelBundle const *kernelBundle) const {
 
     const OsdGLSLTransformFeedbackHEditTable * edit = _editTables[editIndex];
     const OsdGLSLTransformFeedbackTable * primvarIndices = edit->GetPrimvarIndices();
     const OsdGLSLTransformFeedbackTable * editValues = edit->GetEditValues();
 
-    bindTexture(_kernelBundle->GetEditIndicesUniformLocation(),
+    bindTexture(kernelBundle->GetEditIndicesUniformLocation(),
                 primvarIndices->GetTexture(), 9);
-    bindTexture(_kernelBundle->GetEditValuesUniformLocation(),
+    bindTexture(kernelBundle->GetEditValuesUniformLocation(),
                 editValues->GetTexture(), 10);
 }
 
 void
-OsdGLSLTransformFeedbackComputeContext::UnbindEditTextures() {
+OsdGLSLTransformFeedbackComputeContext::UnbindEditTextures() const {
 
     unbindTexture(9);
     unbindTexture(10);
 }
 
 void
-OsdGLSLTransformFeedbackComputeContext::bindTexture(GLint samplerUniform, GLuint texture, int unit) {
+OsdGLSLTransformFeedbackComputeContext::bindTexture(GLint samplerUniform, GLuint texture, int unit) const {
 
     if (samplerUniform == -1) return;
     glUniform1i(samplerUniform, unit);
@@ -253,89 +227,42 @@ OsdGLSLTransformFeedbackComputeContext::bindTexture(GLint samplerUniform, GLuint
 }
 
 void
-OsdGLSLTransformFeedbackComputeContext::unbindTexture(GLuint unit) {
+OsdGLSLTransformFeedbackComputeContext::unbindTexture(GLuint unit) const {
 
     glActiveTexture(GL_TEXTURE0 + unit);
     glBindTexture(GL_TEXTURE_BUFFER, 0);
 }
 
 void
-OsdGLSLTransformFeedbackComputeContext::bind() {
-
-    glEnable(GL_RASTERIZER_DISCARD);
-    _kernelBundle->UseProgram();
-
-    // bind vertex texture
-    if (_currentVertexBuffer) {
-        if (not _vertexTexture) glGenTextures(1, &_vertexTexture);
-#if defined(GL_EXT_direct_state_access)
-        if (glTextureBufferEXT) {
-            glTextureBufferEXT(_vertexTexture, GL_TEXTURE_BUFFER, GL_R32F, _currentVertexBuffer);
-        } else {
-#else
-        {
-#endif
-            glBindTexture(GL_TEXTURE_BUFFER, _vertexTexture);
-            glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, _currentVertexBuffer);
-            glBindTexture(GL_TEXTURE_BUFFER, 0);
-        }
-    }
-
-    if (_currentVaryingBuffer) {
-        if (not _varyingTexture) glGenTextures(1, &_varyingTexture);
-#if defined(GL_EXT_direct_state_access)
-        if (glTextureBufferEXT) {
-            glTextureBufferEXT(_varyingTexture, GL_TEXTURE_BUFFER, GL_R32F, _currentVaryingBuffer);
-        } else {
-#else
-        {
-#endif
-            glBindTexture(GL_TEXTURE_BUFFER, _varyingTexture);
-            glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, _currentVaryingBuffer);
-            glBindTexture(GL_TEXTURE_BUFFER, 0);
-        }
-    }
-
-    if (_vertexTexture)
-        bindTexture(_kernelBundle->GetVertexUniformLocation(), _vertexTexture, 0);
-    if (_varyingTexture)
-        bindTexture(_kernelBundle->GetVaryingUniformLocation(), _varyingTexture, 1);
+OsdGLSLTransformFeedbackComputeContext::BindTableTextures(
+    OsdGLSLTransformFeedbackKernelBundle const *kernelBundle) const {
 
     // XXX: loop...
     if (_tables[FarSubdivisionTables::F_IT]) {
-        bindTexture(_kernelBundle->GetTableUniformLocation(FarSubdivisionTables::F_IT),
+        bindTexture(kernelBundle->GetTableUniformLocation(FarSubdivisionTables::F_IT),
                     _tables[FarSubdivisionTables::F_IT]->GetTexture(),  2);
-        bindTexture(_kernelBundle->GetTableUniformLocation(FarSubdivisionTables::F_ITa),
+        bindTexture(kernelBundle->GetTableUniformLocation(FarSubdivisionTables::F_ITa),
                     _tables[FarSubdivisionTables::F_ITa]->GetTexture(), 3);
     }
 
-    bindTexture(_kernelBundle->GetTableUniformLocation(FarSubdivisionTables::E_IT),
+    bindTexture(kernelBundle->GetTableUniformLocation(FarSubdivisionTables::E_IT),
                 _tables[FarSubdivisionTables::E_IT]->GetTexture(),  4);
-    bindTexture(_kernelBundle->GetTableUniformLocation(FarSubdivisionTables::V_IT),
+    bindTexture(kernelBundle->GetTableUniformLocation(FarSubdivisionTables::V_IT),
                 _tables[FarSubdivisionTables::V_IT]->GetTexture(),  5);
-    bindTexture(_kernelBundle->GetTableUniformLocation(FarSubdivisionTables::V_ITa),
+    bindTexture(kernelBundle->GetTableUniformLocation(FarSubdivisionTables::V_ITa),
                 _tables[FarSubdivisionTables::V_ITa]->GetTexture(), 6);
-    bindTexture(_kernelBundle->GetTableUniformLocation(FarSubdivisionTables::E_W),
+    bindTexture(kernelBundle->GetTableUniformLocation(FarSubdivisionTables::E_W),
                 _tables[FarSubdivisionTables::E_W]->GetTexture(),   7);
-    bindTexture(_kernelBundle->GetTableUniformLocation(FarSubdivisionTables::V_W),
+    bindTexture(kernelBundle->GetTableUniformLocation(FarSubdivisionTables::V_W),
                 _tables[FarSubdivisionTables::V_W]->GetTexture(),   8);
-
-    // bind texture image (for edit kernel)
-    glUniform1i(_kernelBundle->GetVertexBufferImageUniformLocation(), 0);
-    glBindImageTexture(0, _vertexTexture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
 }
 
 void
-OsdGLSLTransformFeedbackComputeContext::unbind() {
+OsdGLSLTransformFeedbackComputeContext::UnbindTableTextures() const {
 
-    for (int i = 8; i >= 0; --i) {
+    for (int i = 8; i >= 2; --i) {
         unbindTexture(i);
     }
-    glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
-
-    glDisable(GL_RASTERIZER_DISCARD);
-    glUseProgram(0);
-    glActiveTexture(GL_TEXTURE0);
 }
 
 }  // end namespace OPENSUBDIV_VERSION

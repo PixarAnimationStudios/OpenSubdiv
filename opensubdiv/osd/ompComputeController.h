@@ -70,7 +70,7 @@ public:
     /// @param  varyingBuffer varying-interpolated data buffer
     ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Refine(OsdCpuComputeContext *context,
+    void Refine(OsdCpuComputeContext const *context,
                 FarKernelBatchVector const & batches,
                 VERTEX_BUFFER * vertexBuffer,
                 VARYING_BUFFER * varyingBuffer) {
@@ -79,11 +79,11 @@ public:
 
         omp_set_num_threads(_numThreads);
 
-        context->Bind(vertexBuffer, varyingBuffer);
+        bind(vertexBuffer, varyingBuffer);
 
         FarDispatcher::Refine(this, context, batches, /*maxlevel*/-1);
 
-        context->Unbind();
+        unbind();
     }
 
     /// Launch subdivision kernels and apply to given vertex buffers.
@@ -96,7 +96,7 @@ public:
     /// @param  vertexBuffer  vertex-interpolated data buffer
     ///
     template<class VERTEX_BUFFER>
-    void Refine(OsdCpuComputeContext *context,
+    void Refine(OsdCpuComputeContext const *context,
                 FarKernelBatchVector const &batches,
                 VERTEX_BUFFER *vertexBuffer) {
         Refine(context, batches, vertexBuffer, (VERTEX_BUFFER*)0);
@@ -108,34 +108,53 @@ public:
 protected:
     friend class FarDispatcher;
 
-    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
-
-
-    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
-
-    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
 
-    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyVertexEdits(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext const *context) const;
 
+
+    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyVertexEdits(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    template<class VERTEX_BUFFER, class VARYING_BUFFER>
+    void bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
+
+        _currentVertexBuffer = vertex ? vertex->BindCpuBuffer() : 0;
+        _currentVaryingBuffer = varying ? varying->BindCpuBuffer() : 0;
+
+        int numVertexElements = vertex ? vertex->GetNumElements() : 0;
+        int numVaryingElements = varying ? varying->GetNumElements() : 0;
+        _vdesc.Set(numVertexElements, numVaryingElements);
+    }
+    void unbind() {
+        _currentVertexBuffer = 0;
+        _currentVaryingBuffer = 0;
+        _vdesc.Reset();
+    }
+
+private:
+    float *_currentVertexBuffer, *_currentVaryingBuffer;
+    OsdVertexDescriptor _vdesc;
     int _numThreads;
 };
 

@@ -74,7 +74,8 @@ void OsdCudaEditVertexAdd(float *vertex, int numUserVertexElements,
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCudaComputeController::OsdCudaComputeController() {
+OsdCudaComputeController::OsdCudaComputeController() :
+    _currentVertexBuffer(NULL), _currentVaryingBuffer(NULL) {
 }
 
 OsdCudaComputeController::~OsdCudaComputeController() {
@@ -82,7 +83,7 @@ OsdCudaComputeController::~OsdCudaComputeController() {
 
 void
 OsdCudaComputeController::ApplyBilinearFaceVerticesKernel(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -92,10 +93,8 @@ OsdCudaComputeController::ApplyBilinearFaceVerticesKernel(
     assert(F_ITa);
 
     OsdCudaComputeFace(
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        context->GetVertexDescriptor().numVertexElements-3,
-        context->GetVertexDescriptor().numVaryingElements,
+        _currentVertexBuffer, _currentVaryingBuffer,
+        _vdesc.numVertexElements-3, _vdesc.numVaryingElements,
         static_cast<int*>(F_IT->GetCudaMemory()),
         static_cast<int*>(F_ITa->GetCudaMemory()),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
@@ -103,7 +102,7 @@ OsdCudaComputeController::ApplyBilinearFaceVerticesKernel(
 
 void
 OsdCudaComputeController::ApplyBilinearEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -111,17 +110,15 @@ OsdCudaComputeController::ApplyBilinearEdgeVerticesKernel(
     assert(E_IT);
 
     OsdCudaComputeBilinearEdge(
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        context->GetVertexDescriptor().numVertexElements-3,
-        context->GetVertexDescriptor().numVaryingElements,
+        _currentVertexBuffer, _currentVaryingBuffer,
+        _vdesc.numVertexElements-3, _vdesc.numVaryingElements,
         static_cast<int*>(E_IT->GetCudaMemory()),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
 OsdCudaComputeController::ApplyBilinearVertexVerticesKernel(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -129,17 +126,15 @@ OsdCudaComputeController::ApplyBilinearVertexVerticesKernel(
     assert(V_ITa);
 
     OsdCudaComputeBilinearVertex(
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        context->GetVertexDescriptor().numVertexElements-3,
-        context->GetVertexDescriptor().numVaryingElements,
+        _currentVertexBuffer, _currentVaryingBuffer,
+        _vdesc.numVertexElements-3, _vdesc.numVaryingElements,
         static_cast<int*>(V_ITa->GetCudaMemory()),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void
 OsdCudaComputeController::ApplyCatmarkFaceVerticesKernel(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -149,10 +144,8 @@ OsdCudaComputeController::ApplyCatmarkFaceVerticesKernel(
     assert(F_ITa);
 
     OsdCudaComputeFace(
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        context->GetVertexDescriptor().numVertexElements-3,
-        context->GetVertexDescriptor().numVaryingElements,
+        _currentVertexBuffer, _currentVaryingBuffer,
+        _vdesc.numVertexElements-3, _vdesc.numVaryingElements,
         static_cast<int*>(F_IT->GetCudaMemory()),
         static_cast<int*>(F_ITa->GetCudaMemory()),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
@@ -160,7 +153,7 @@ OsdCudaComputeController::ApplyCatmarkFaceVerticesKernel(
 
 void
 OsdCudaComputeController::ApplyCatmarkEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -170,10 +163,8 @@ OsdCudaComputeController::ApplyCatmarkEdgeVerticesKernel(
     assert(E_W);
 
     OsdCudaComputeEdge(
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        context->GetVertexDescriptor().numVertexElements-3,
-        context->GetVertexDescriptor().numVaryingElements,
+        _currentVertexBuffer, _currentVaryingBuffer,
+        _vdesc.numVertexElements-3, _vdesc.numVaryingElements,
         static_cast<int*>(E_IT->GetCudaMemory()),
         static_cast<float*>(E_W->GetCudaMemory()),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
@@ -181,7 +172,7 @@ OsdCudaComputeController::ApplyCatmarkEdgeVerticesKernel(
 
 void
 OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelB(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -193,10 +184,8 @@ OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelB(
     assert(V_W);
 
     OsdCudaComputeVertexB(
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        context->GetVertexDescriptor().numVertexElements-3,
-        context->GetVertexDescriptor().numVaryingElements,
+        _currentVertexBuffer, _currentVaryingBuffer,
+        _vdesc.numVertexElements-3, _vdesc.numVaryingElements,
         static_cast<int*>(V_ITa->GetCudaMemory()),
         static_cast<int*>(V_IT->GetCudaMemory()),
         static_cast<float*>(V_W->GetCudaMemory()),
@@ -205,7 +194,7 @@ OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelB(
 
 void
 OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelA1(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -215,10 +204,8 @@ OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelA1(
     assert(V_W);
 
     OsdCudaComputeVertexA(
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        context->GetVertexDescriptor().numVertexElements-3,
-        context->GetVertexDescriptor().numVaryingElements,
+        _currentVertexBuffer, _currentVaryingBuffer,
+        _vdesc.numVertexElements-3, _vdesc.numVaryingElements,
         static_cast<int*>(V_ITa->GetCudaMemory()),
         static_cast<float*>(V_W->GetCudaMemory()),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
@@ -226,7 +213,7 @@ OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelA1(
 
 void
 OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelA2(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -236,10 +223,8 @@ OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelA2(
     assert(V_W);
 
     OsdCudaComputeVertexA(
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        context->GetVertexDescriptor().numVertexElements-3,
-        context->GetVertexDescriptor().numVaryingElements,
+        _currentVertexBuffer, _currentVaryingBuffer,
+        _vdesc.numVertexElements-3, _vdesc.numVaryingElements,
         static_cast<int*>(V_ITa->GetCudaMemory()),
         static_cast<float*>(V_W->GetCudaMemory()),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
@@ -247,7 +232,7 @@ OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelA2(
 
 void
 OsdCudaComputeController::ApplyLoopEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -257,10 +242,8 @@ OsdCudaComputeController::ApplyLoopEdgeVerticesKernel(
     assert(E_W);
 
     OsdCudaComputeEdge(
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        context->GetVertexDescriptor().numVertexElements-3,
-        context->GetVertexDescriptor().numVaryingElements,
+        _currentVertexBuffer, _currentVaryingBuffer,
+        _vdesc.numVertexElements-3, _vdesc.numVaryingElements,
         static_cast<int*>(E_IT->GetCudaMemory()),
         static_cast<float*>(E_W->GetCudaMemory()),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
@@ -268,7 +251,7 @@ OsdCudaComputeController::ApplyLoopEdgeVerticesKernel(
 
 void
 OsdCudaComputeController::ApplyLoopVertexVerticesKernelB(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -280,10 +263,8 @@ OsdCudaComputeController::ApplyLoopVertexVerticesKernelB(
     assert(V_W);
 
     OsdCudaComputeLoopVertexB(
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        context->GetVertexDescriptor().numVertexElements-3,
-        context->GetVertexDescriptor().numVaryingElements,
+        _currentVertexBuffer, _currentVaryingBuffer,
+        _vdesc.numVertexElements-3, _vdesc.numVaryingElements,
         static_cast<int*>(V_ITa->GetCudaMemory()),
         static_cast<int*>(V_IT->GetCudaMemory()),
         static_cast<float*>(V_W->GetCudaMemory()),
@@ -292,7 +273,7 @@ OsdCudaComputeController::ApplyLoopVertexVerticesKernelB(
 
 void
 OsdCudaComputeController::ApplyLoopVertexVerticesKernelA1(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -302,10 +283,8 @@ OsdCudaComputeController::ApplyLoopVertexVerticesKernelA1(
     assert(V_W);
 
     OsdCudaComputeVertexA(
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        context->GetVertexDescriptor().numVertexElements-3,
-        context->GetVertexDescriptor().numVaryingElements,
+        _currentVertexBuffer, _currentVaryingBuffer,
+        _vdesc.numVertexElements-3, _vdesc.numVaryingElements,
         static_cast<int*>(V_ITa->GetCudaMemory()),
         static_cast<float*>(V_W->GetCudaMemory()),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
@@ -313,7 +292,7 @@ OsdCudaComputeController::ApplyLoopVertexVerticesKernelA1(
 
 void
 OsdCudaComputeController::ApplyLoopVertexVerticesKernelA2(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -323,10 +302,8 @@ OsdCudaComputeController::ApplyLoopVertexVerticesKernelA2(
     assert(V_W);
 
     OsdCudaComputeVertexA(
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        context->GetVertexDescriptor().numVertexElements-3,
-        context->GetVertexDescriptor().numVaryingElements,
+        _currentVertexBuffer, _currentVaryingBuffer,
+        _vdesc.numVertexElements-3, _vdesc.numVaryingElements,
         static_cast<int*>(V_ITa->GetCudaMemory()),
         static_cast<float*>(V_W->GetCudaMemory()),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
@@ -334,7 +311,7 @@ OsdCudaComputeController::ApplyLoopVertexVerticesKernelA2(
 
 void
 OsdCudaComputeController::ApplyVertexEdits(
-    FarKernelBatch const &batch, OsdCudaComputeContext *context) const {
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
     assert(context);
 
@@ -346,8 +323,8 @@ OsdCudaComputeController::ApplyVertexEdits(
 
     if (edit->GetOperation() == FarVertexEdit::Add) {
         OsdCudaEditVertexAdd(
-            context->GetCurrentVertexBuffer(),
-            context->GetVertexDescriptor().numVertexElements-3,
+            _currentVertexBuffer,
+            _vdesc.numVertexElements-3,
             edit->GetPrimvarOffset(),
             edit->GetPrimvarWidth(),
             batch.GetVertexOffset(),

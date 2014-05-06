@@ -114,40 +114,6 @@ public:
     /// Destructor
     virtual ~OsdCudaComputeContext();
 
-    /// Binds a vertex and a varying data buffers to the context. Binding ensures
-    /// that data buffers are properly inter-operated between Contexts and 
-    /// Controllers operating across multiple devices.
-    ///
-    /// @param vertex   a buffer containing vertex-interpolated primvar data
-    ///
-    /// @param varying  a buffer containing varying-interpolated primvar data
-    ///
-    template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
-
-        if (vertex) {
-            _currentVertexBuffer = static_cast<float*>(vertex->BindCudaBuffer());
-            _vdesc.numVertexElements = vertex->GetNumElements();
-        } else {
-            _currentVertexBuffer = 0;
-            _vdesc.numVertexElements = 0;
-        }
-
-        if (varying) {
-            _currentVaryingBuffer = static_cast<float*>(varying->BindCudaBuffer());
-            _vdesc.numVaryingElements = varying->GetNumElements();
-        } else {
-            _currentVaryingBuffer = 0;
-            _vdesc.numVaryingElements = 0;
-        }
-    }
-
-    /// Unbinds any previously bound vertex and varying data buffers.
-    void Unbind() {
-        _currentVertexBuffer = 0;
-        _currentVaryingBuffer = 0;
-    }
-
     /// Returns one of the vertex refinement tables.
     ///
     /// @param tableIndex the type of table
@@ -163,21 +129,6 @@ public:
     ///
     const OsdCudaHEditTable * GetEditTable(int tableIndex) const;
 
-    /// Returns a pointer to the vertex-interpolated data
-    float * GetCurrentVertexBuffer() const;
-
-    /// Returns a pointer to the varying-interpolated data
-    float * GetCurrentVaryingBuffer() const;
-
-    /// Returns an OsdVertexDescriptor if vertex buffers have been bound.
-    ///
-    /// @return a descriptor for the format of the vertex data currently bound
-    ///
-    OsdVertexDescriptor const & GetVertexDescriptor() const {
-        return _vdesc;
-    }
-
-
 protected:
     OsdCudaComputeContext();
 
@@ -187,12 +138,6 @@ protected:
 private:
     std::vector<OsdCudaTable*> _tables;
     std::vector<OsdCudaHEditTable*> _editTables;
-
-    
-    float *_currentVertexBuffer, // cuda buffers
-          *_currentVaryingBuffer;
-
-    OsdVertexDescriptor _vdesc;
 };
 
 }  // end namespace OPENSUBDIV_VERSION
