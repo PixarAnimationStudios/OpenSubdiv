@@ -59,6 +59,10 @@
     #include <osd/ompComputeController.h>
 #endif
 
+#ifdef OPENSUBDIV_HAS_TBB
+    #include <osd/tbbComputeController.h>
+#endif
+
 #ifdef OPENSUBDIV_HAS_GCD
     #include <osd/gcdComputeController.h>
 #endif
@@ -149,11 +153,12 @@ typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
 enum KernelType { kCPU = 0,
                   kOPENMP = 1,
-                  kGCD = 2,
-                  kCUDA = 3,
-                  kCL = 4,
-                  kGLSL = 5,
-                  kGLSLCompute = 6 };
+                  kTBB = 2,
+                  kGCD = 3,
+                  kCUDA = 4,
+                  kCL = 5,
+                  kGLSL = 6,
+                  kGLSLCompute = 7 };
 
 enum HudCheckBox { HUD_CB_BATCHING,
                    HUD_CB_ADAPTIVE,
@@ -342,6 +347,9 @@ updateGeom(bool forceAll) {
 #ifdef OPENSUBDIV_HAS_OPENMP
     else if (g_kernel == kOPENMP) Controller<OpenSubdiv::OsdOmpComputeController>::GetInstance()->Synchronize();
 #endif
+#ifdef OPENSUBDIV_HAS_TBB
+    else if (g_kernel == kTBB) Controller<OpenSubdiv::OsdTbbComputeController>::GetInstance()->Synchronize();
+#endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     else if (g_kernel == kCL) Controller<OpenSubdiv::OsdCLComputeController>::GetInstance()->Synchronize();
 #endif
@@ -350,6 +358,9 @@ updateGeom(bool forceAll) {
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     else if (g_kernel == kGLSL) Controller<OpenSubdiv::OsdGLSLTransformFeedbackComputeController>::GetInstance()->Synchronize();
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    else if (g_kernel == kGLSLCompute) Controller<OpenSubdiv::OsdGLSLComputeController>::GetInstance()->Synchronize();
 #endif
 
     s.Stop();
@@ -450,6 +461,14 @@ rebuild()
             MyDrawContext,
             OpenSubdiv::OsdOmpComputeController>::Create(
             Controller<OpenSubdiv::OsdOmpComputeController>::GetInstance(),
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
+#endif
+#ifdef OPENSUBDIV_HAS_TBB
+    } else if (g_kernel == kTBB) {
+        g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
+            MyDrawContext,
+            OpenSubdiv::OsdTbbComputeController>::Create(
+            Controller<OpenSubdiv::OsdTbbComputeController>::GetInstance(),
             farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
@@ -849,6 +868,9 @@ initHUD()
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
     g_hud.AddPullDownButton(compute_pulldown, "OpenMP", kOPENMP);
+#endif
+#ifdef OPENSUBDIV_HAS_OPENMP
+    g_hud.AddPullDownButton(compute_pulldown, "TBB", kTBB);
 #endif
 #ifdef OPENSUBDIV_HAS_GCD
     g_hud.AddPullDownButton(compute_pulldown, "GCD", kGCD);
