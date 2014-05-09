@@ -33,6 +33,7 @@
 #include "../hbr/mesh.h"
 
 #include "../osd/vertex.h"
+#include "../osd/vertexDescriptor.h"
 
 #include <bitset>
 
@@ -67,6 +68,10 @@ public:
     virtual void UpdateVaryingBuffer(float const *varyingData, int startVertex, int numVerts) = 0;
 
     virtual void Refine() = 0;
+
+    virtual void Refine(OsdVertexBufferDescriptor const *vertexDesc,
+                        OsdVertexBufferDescriptor const *varyingDesc,
+                        bool interleaved) = 0;
 
     virtual void Synchronize() = 0;
 
@@ -158,6 +163,13 @@ public:
     virtual void Refine() {
         _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer, _varyingBuffer);
     }
+    virtual void Refine(OsdVertexBufferDescriptor const *vertexDesc,
+                        OsdVertexBufferDescriptor const *varyingDesc) {
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(),
+                                   _vertexBuffer, _varyingBuffer,
+                                   vertexDesc, varyingDesc);
+    }
+
     virtual void Synchronize() {
         _computeController->Synchronize();
     }

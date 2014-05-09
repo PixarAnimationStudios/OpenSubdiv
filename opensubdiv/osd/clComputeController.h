@@ -29,6 +29,7 @@
 
 #include "../far/dispatcher.h"
 #include "../osd/clComputeContext.h"
+#include "../osd/vertexDescriptor.h"
 
 #if defined(__APPLE__)
     #include <OpenCL/opencl.h>
@@ -79,15 +80,25 @@ public:
     ///
     /// @param  varyingBuffer varying-interpolated data buffer
     ///
+    /// @param  vertexDesc    the descriptor of vertex elements to be refined.
+    ///                       if it's null, all primvars in the vertex buffer
+    ///                       will be refined.
+    ///
+    /// @param  varyingDesc   the descriptor of varying elements to be refined.
+    ///                       if it's null, all primvars in the varying buffer
+    ///                       will be refined.
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Refine(ComputeContext const *context,
                 FarKernelBatchVector const &batches,
                 VERTEX_BUFFER *vertexBuffer,
-                VARYING_BUFFER *varyingBuffer) {
+                VARYING_BUFFER *varyingBuffer,
+                OsdVertexBufferDescriptor const *vertexDesc=NULL,
+                OsdVertexBufferDescriptor const *varyingDesc=NULL) {
 
         if (batches.empty()) return;
 
-        bind(vertexBuffer, varyingBuffer);
+        bind(vertexBuffer, varyingBuffer, vertexDesc, varyingDesc);
 
         FarDispatcher::Refine(this, context, batches, /*maxlevel*/-1);
 
@@ -152,33 +163,63 @@ protected:
     void ApplyVertexEdits(FarKernelBatch const &batch, ComputeContext const *context) const;
 
 
-    OsdCLKernelBundle * getKernelBundle(int numVertexElements,
-                                        int numVaryingElements);
+    OsdCLKernelBundle * getKernelBundle(
+        OsdVertexBufferDescriptor const &vertexDesc,
+        OsdVertexBufferDescriptor const &varyingDesc);
 
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
+    void bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying,
+              OsdVertexBufferDescriptor const *vertexDesc,
+              OsdVertexBufferDescriptor const *varyingDesc) {
 
-        int numVertexElements = vertex ? vertex->GetNumElements() : 0;
-        int numVaryingElements = varying ? varying->GetNumElements() : 0;
+        // if the vertex buffer descriptor is specified, use it.
+        // otherwise, assumes the data is tightly packed in the vertex buffer.
+        if (vertexDesc) {
+            _currentBindState.vertexDesc = *vertexDesc;
+        } else {
+            int numElements = vertex ? vertex->GetNumElements() : 0;
+            _currentBindState.vertexDesc = OsdVertexBufferDescriptor(
+                0, numElements, numElements);
+        }
+        if (varyingDesc) {
+            _currentBindState.varyingDesc = *varyingDesc;
+        } else {
+            int numElements = varying ? varying->GetNumElements() : 0;
+            _currentBindState.varyingDesc = OsdVertexBufferDescriptor(
+                0, numElements, numElements);
+        }
 
-        _currentVertexBuffer = vertex ? vertex->BindCLBuffer(_clQueue) : NULL;
-        _currentVaryingBuffer = varying ? varying->BindCLBuffer(_clQueue) : NULL;
-        _currentKernelBundle = getKernelBundle(numVertexElements, numVaryingElements);
+        _currentBindState.vertexBuffer = vertex ? vertex->BindCLBuffer(_clQueue) : 0;
+        _currentBindState.varyingBuffer = varying ? varying->BindCLBuffer(_clQueue) : 0;
+        _currentBindState.kernelBundle = getKernelBundle(_currentBindState.vertexDesc,
+                                                         _currentBindState.varyingDesc);
     }
 
     void unbind() {
-        _currentVertexBuffer = NULL;
-        _currentVaryingBuffer = NULL;
-        _currentKernelBundle = NULL;
+        _currentBindState.Reset();
     }
 
 private:
+    struct BindState {
+        BindState() : vertexBuffer(NULL), varyingBuffer(NULL), kernelBundle(NULL) {}
+        void Reset() {
+            vertexBuffer = varyingBuffer = NULL;
+            vertexDesc.Reset();
+            varyingDesc.Reset();
+            kernelBundle = NULL;
+        }
+        cl_mem vertexBuffer;
+        cl_mem varyingBuffer;
+        OsdVertexBufferDescriptor vertexDesc;
+        OsdVertexBufferDescriptor varyingDesc;
+        OsdCLKernelBundle *kernelBundle;
+    };
+
+    BindState _currentBindState;
+
     cl_context _clContext;
     cl_command_queue _clQueue;
     std::vector<OsdCLKernelBundle *> _kernelRegistry;
-
-    cl_mem _currentVertexBuffer, _currentVaryingBuffer;
-    OsdCLKernelBundle *_currentKernelBundle;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

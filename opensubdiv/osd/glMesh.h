@@ -29,6 +29,7 @@
 
 #include "../osd/mesh.h"
 #include "../osd/glDrawContext.h"
+#include "../osd/vertexDescriptor.h"
 
 #ifdef OPENSUBDIV_HAS_OPENCL
 #if defined(__APPLE__)
@@ -125,6 +126,14 @@ public:
     virtual void Refine() {
         _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer, _varyingBuffer);
     }
+    virtual void Refine(OsdVertexBufferDescriptor const *vertexDesc,
+                        OsdVertexBufferDescriptor const *varyingDesc,
+                        bool interleaved) {
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(),
+                                   _vertexBuffer, (interleaved ? _vertexBuffer : _varyingBuffer),
+                                    vertexDesc, varyingDesc);
+    }
+
     virtual void Synchronize() {
         _computeController->Synchronize();
     }
@@ -250,6 +259,7 @@ public:
     virtual ~OsdMesh() {
         delete _farMesh;
         delete _vertexBuffer;
+        delete _varyingBuffer;
         delete _computeContext;
         delete _drawContext;
     }
@@ -264,6 +274,14 @@ public:
     }
     virtual void Refine() {
         _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer, _varyingBuffer);
+    }
+    virtual void Refine(OsdVertexBufferDescriptor const *vertexDesc,
+                        OsdVertexBufferDescriptor const *varyingDesc,
+                        bool interleaved) {
+
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(),
+                                   _vertexBuffer, (interleaved ? _vertexBuffer : _varyingBuffer),
+                                   vertexDesc, varyingDesc);
     }
     virtual void Synchronize() {
         _computeController->Synchronize();

@@ -30,8 +30,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 
-OsdGcdComputeController::OsdGcdComputeController() :
-    _currentVertexBuffer(0), _currentVaryingBuffer(0) {
+OsdGcdComputeController::OsdGcdComputeController() {
     _gcd_queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
 }
 
@@ -42,7 +41,8 @@ OsdGcdComputeController::ApplyBilinearFaceVerticesKernel(
     assert(context);
 
     OsdGcdComputeFace(
-        _vdesc, _currentVertexBuffer, _currentVaryingBuffer,
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
         (const int*)context->GetTable(FarSubdivisionTables::F_IT)->GetBuffer(),
         (const int*)context->GetTable(FarSubdivisionTables::F_ITa)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(),
@@ -56,7 +56,8 @@ OsdGcdComputeController::ApplyBilinearEdgeVerticesKernel(
     assert(context);
 
     OsdGcdComputeBilinearEdge(
-        _vdesc, _currentVertexBuffer, _currentVaryingBuffer,
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
         (const int*)context->GetTable(FarSubdivisionTables::E_IT)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(),
 	_gcd_queue);
@@ -69,7 +70,8 @@ OsdGcdComputeController::ApplyBilinearVertexVerticesKernel(
     assert(context);
 
     OsdGcdComputeBilinearVertex(
-        _vdesc, _currentVertexBuffer, _currentVaryingBuffer,
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
         (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(),
         _gcd_queue);
@@ -82,7 +84,8 @@ OsdGcdComputeController::ApplyCatmarkFaceVerticesKernel(
     assert(context);
 
     OsdGcdComputeFace(
-        _vdesc, _currentVertexBuffer, _currentVaryingBuffer,
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
         (const int*)context->GetTable(FarSubdivisionTables::F_IT)->GetBuffer(),
         (const int*)context->GetTable(FarSubdivisionTables::F_ITa)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(),
@@ -96,7 +99,8 @@ OsdGcdComputeController::ApplyCatmarkEdgeVerticesKernel(
     assert(context);
 
     OsdGcdComputeEdge(
-        _vdesc, _currentVertexBuffer, _currentVaryingBuffer,
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
         (const int*)context->GetTable(FarSubdivisionTables::E_IT)->GetBuffer(),
         (const float*)context->GetTable(FarSubdivisionTables::E_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(),
@@ -110,7 +114,8 @@ OsdGcdComputeController::ApplyCatmarkVertexVerticesKernelB(
     assert(context);
 
     OsdGcdComputeVertexB(
-        _vdesc, _currentVertexBuffer, _currentVaryingBuffer,
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
         (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
         (const int*)context->GetTable(FarSubdivisionTables::V_IT)->GetBuffer(),
         (const float*)context->GetTable(FarSubdivisionTables::V_W)->GetBuffer(),
@@ -125,7 +130,8 @@ OsdGcdComputeController::ApplyCatmarkVertexVerticesKernelA1(
     assert(context);
 
     OsdGcdComputeVertexA(
-        _vdesc, _currentVertexBuffer, _currentVaryingBuffer,
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
         (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
         (const float*)context->GetTable(FarSubdivisionTables::V_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false,
@@ -139,7 +145,8 @@ OsdGcdComputeController::ApplyCatmarkVertexVerticesKernelA2(
     assert(context);
 
     OsdGcdComputeVertexA(
-        _vdesc, _currentVertexBuffer, _currentVaryingBuffer,
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
         (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
         (const float*)context->GetTable(FarSubdivisionTables::V_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true,
@@ -153,7 +160,8 @@ OsdGcdComputeController::ApplyLoopEdgeVerticesKernel(
     assert(context);
 
     OsdGcdComputeEdge(
-        _vdesc, _currentVertexBuffer, _currentVaryingBuffer,
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
         (const int*)context->GetTable(FarSubdivisionTables::E_IT)->GetBuffer(),
         (const float*)context->GetTable(FarSubdivisionTables::E_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(),
@@ -167,7 +175,8 @@ OsdGcdComputeController::ApplyLoopVertexVerticesKernelB(
     assert(context);
 
     OsdGcdComputeLoopVertexB(
-        _vdesc, _currentVertexBuffer, _currentVaryingBuffer,
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
         (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
         (const int*)context->GetTable(FarSubdivisionTables::V_IT)->GetBuffer(),
         (const float*)context->GetTable(FarSubdivisionTables::V_W)->GetBuffer(),
@@ -182,7 +191,8 @@ OsdGcdComputeController::ApplyLoopVertexVerticesKernelA1(
     assert(context);
 
     OsdGcdComputeVertexA(
-        _vdesc, _currentVertexBuffer, _currentVaryingBuffer,
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
         (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
         (const float*)context->GetTable(FarSubdivisionTables::V_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false,
@@ -196,7 +206,8 @@ OsdGcdComputeController::ApplyLoopVertexVerticesKernelA2(
     assert(context);
 
     OsdGcdComputeVertexA(
-        _vdesc, _currentVertexBuffer, _currentVaryingBuffer,
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
         (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
         (const float*)context->GetTable(FarSubdivisionTables::V_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true,
@@ -216,8 +227,8 @@ OsdGcdComputeController::ApplyVertexEdits(
     const OsdCpuTable * editValues = edit->GetEditValues();
 
     if (edit->GetOperation() == FarVertexEdit::Add) {
-        OsdGcdEditVertexAdd(_vdesc,
-                            _currentVertexBuffer,
+        OsdGcdEditVertexAdd(_currentBindState.vertexBuffer,
+                            _currentBindState.vertexDesc,
                             edit->GetPrimvarOffset(),
                             edit->GetPrimvarWidth(),
                             batch.GetVertexOffset(),
@@ -228,8 +239,8 @@ OsdGcdComputeController::ApplyVertexEdits(
                             static_cast<float*>(editValues->GetBuffer()),
                             _gcd_queue);
     } else if (edit->GetOperation() == FarVertexEdit::Set) {
-        OsdGcdEditVertexSet(_vdesc,
-                            _currentVertexBuffer,
+        OsdGcdEditVertexSet(_currentBindState.vertexBuffer,
+                            _currentBindState.vertexDesc,
                             edit->GetPrimvarOffset(),
                             edit->GetPrimvarWidth(),
                             batch.GetVertexOffset(),

@@ -38,9 +38,7 @@ namespace OPENSUBDIV_VERSION {
 
 OsdD3D11ComputeController::OsdD3D11ComputeController(
     ID3D11DeviceContext *deviceContext)
-      : _deviceContext(deviceContext), _query(0),
-        _currentVertexBufferUAV(0), _currentVaryingBufferUAV(0),
-        _currentKernelBundle(NULL) {
+    : _deviceContext(deviceContext), _query(0) {
 }
 
 OsdD3D11ComputeController::~OsdD3D11ComputeController() {
@@ -72,20 +70,21 @@ OsdD3D11ComputeController::Synchronize() {
 }
 
 OsdD3D11ComputeKernelBundle *
-OsdD3D11ComputeController::getKernels(int numVertexElements,
-                                     int numVaryingElements) {
+OsdD3D11ComputeController::getKernels(OsdVertexBufferDescriptor const &vertexDesc,
+                                      OsdVertexBufferDescriptor const &varyingDesc) {
 
     std::vector<OsdD3D11ComputeKernelBundle*>::iterator it =
         std::find_if(_kernelRegistry.begin(), _kernelRegistry.end(),
-                     OsdD3D11ComputeKernelBundle::Match(numVertexElements,
-                                                numVaryingElements));
+                     OsdD3D11ComputeKernelBundle::Match(
+                         vertexDesc, varyingDesc));
+
     if (it != _kernelRegistry.end()) {
         return *it;
     } else {
         OsdD3D11ComputeKernelBundle *kernelBundle =
             new OsdD3D11ComputeKernelBundle(_deviceContext);
         _kernelRegistry.push_back(kernelBundle);
-        kernelBundle->Compile(numVertexElements, numVaryingElements);
+        kernelBundle->Compile(vertexDesc, varyingDesc);
         return kernelBundle;
     }
 }
@@ -102,11 +101,11 @@ OsdD3D11ComputeController::bindShaderResources()
     ID3D11ShaderResourceView *NULLSRV = 0;
     _deviceContext->VSSetShaderResources(0, 1, &NULLSRV);
 
-    if (_currentVertexBufferUAV)
-        _deviceContext->CSSetUnorderedAccessViews(0, 1, &_currentVertexBufferUAV, 0); // u0
+    if (_currentBindState.vertexBuffer)
+        _deviceContext->CSSetUnorderedAccessViews(0, 1, &_currentBindState.vertexBuffer, 0); // u0
 
-    if (_currentVaryingBufferUAV)
-        _deviceContext->CSSetUnorderedAccessViews(1, 1, &_currentVaryingBufferUAV, 0); // u1
+    if (_currentBindState.varyingBuffer)
+        _deviceContext->CSSetUnorderedAccessViews(1, 1, &_currentBindState.varyingBuffer, 0); // u1
 }
 
 void
@@ -122,8 +121,10 @@ OsdD3D11ComputeController::ApplyBilinearFaceVerticesKernel(
 
     assert(context);
 
-    _currentKernelBundle->ApplyBilinearFaceVerticesKernel(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+    _currentBindState.kernelBundle->ApplyBilinearFaceVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd(),
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
 }
 
 void
@@ -132,8 +133,10 @@ OsdD3D11ComputeController::ApplyBilinearEdgeVerticesKernel(
 
     assert(context);
 
-    _currentKernelBundle->ApplyBilinearEdgeVerticesKernel(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+    _currentBindState.kernelBundle->ApplyBilinearEdgeVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd(),
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
 }
 
 void
@@ -142,8 +145,10 @@ OsdD3D11ComputeController::ApplyBilinearVertexVerticesKernel(
 
     assert(context);
 
-    _currentKernelBundle->ApplyBilinearVertexVerticesKernel(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+    _currentBindState.kernelBundle->ApplyBilinearVertexVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd(),
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
 }
 
 void
@@ -152,8 +157,10 @@ OsdD3D11ComputeController::ApplyCatmarkFaceVerticesKernel(
 
     assert(context);
 
-    _currentKernelBundle->ApplyCatmarkFaceVerticesKernel(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+    _currentBindState.kernelBundle->ApplyCatmarkFaceVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd(),
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
 }
 
 
@@ -164,8 +171,10 @@ OsdD3D11ComputeController::ApplyCatmarkEdgeVerticesKernel(
 
     assert(context);
 
-    _currentKernelBundle->ApplyCatmarkEdgeVerticesKernel(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+    _currentBindState.kernelBundle->ApplyCatmarkEdgeVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd(),
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
 }
 
 void
@@ -174,8 +183,10 @@ OsdD3D11ComputeController::ApplyCatmarkVertexVerticesKernelB(
 
     assert(context);
 
-    _currentKernelBundle->ApplyCatmarkVertexVerticesKernelB(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+    _currentBindState.kernelBundle->ApplyCatmarkVertexVerticesKernelB(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd(),
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
 }
 
 void
@@ -184,8 +195,10 @@ OsdD3D11ComputeController::ApplyCatmarkVertexVerticesKernelA1(
 
     assert(context);
 
-    _currentKernelBundle->ApplyCatmarkVertexVerticesKernelA(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
+    _currentBindState.kernelBundle->ApplyCatmarkVertexVerticesKernelA(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd(), false,
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
 }
 
 void
@@ -194,8 +207,10 @@ OsdD3D11ComputeController::ApplyCatmarkVertexVerticesKernelA2(
 
     assert(context);
 
-    _currentKernelBundle->ApplyCatmarkVertexVerticesKernelA(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
+    _currentBindState.kernelBundle->ApplyCatmarkVertexVerticesKernelA(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd(), true,
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
 }
 
 void
@@ -204,8 +219,10 @@ OsdD3D11ComputeController::ApplyLoopEdgeVerticesKernel(
 
     assert(context);
 
-    _currentKernelBundle->ApplyLoopEdgeVerticesKernel(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+    _currentBindState.kernelBundle->ApplyLoopEdgeVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd(),
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
 }
 
 void
@@ -214,8 +231,10 @@ OsdD3D11ComputeController::ApplyLoopVertexVerticesKernelB(
 
     assert(context);
 
-    _currentKernelBundle->ApplyLoopVertexVerticesKernelB(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+    _currentBindState.kernelBundle->ApplyLoopVertexVerticesKernelB(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd(),
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
 }
 
 void
@@ -224,8 +243,10 @@ OsdD3D11ComputeController::ApplyLoopVertexVerticesKernelA1(
 
     assert(context);
 
-    _currentKernelBundle->ApplyLoopVertexVerticesKernelA(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
+    _currentBindState.kernelBundle->ApplyLoopVertexVerticesKernelA(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd(), false,
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
 }
 
 void
@@ -234,8 +255,10 @@ OsdD3D11ComputeController::ApplyLoopVertexVerticesKernelA2(
 
     assert(context);
 
-    _currentKernelBundle->ApplyLoopVertexVerticesKernelA(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
+    _currentBindState.kernelBundle->ApplyLoopVertexVerticesKernelA(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd(), true,
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
 }
 
 void
@@ -253,11 +276,13 @@ OsdD3D11ComputeController::ApplyVertexEdits(
     int primvarWidth = edit->GetPrimvarWidth();
 
     if (edit->GetOperation() == FarVertexEdit::Add) {
-        _currentKernelBundle->ApplyEditAdd(primvarOffset, primvarWidth,
+        _currentBindState.kernelBundle->ApplyEditAdd(primvarOffset, primvarWidth,
                                            batch.GetVertexOffset(),
                                            batch.GetTableOffset(),
                                            batch.GetStart(),
-                                           batch.GetEnd());
+                                           batch.GetEnd(),
+                                           _currentBindState.vertexDesc.offset,
+                                           _currentBindState.varyingDesc.offset);
     } else {
         // XXX: edit SET is not implemented yet.
     }

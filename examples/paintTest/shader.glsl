@@ -98,6 +98,10 @@ int OsdPrimitiveIdBase()
 {
     return PrimitiveIdBase;
 }
+int OsdBaseVertex()
+{
+    return 0;
+}
 
 //--------------------------------------------------------------
 // Geometry Shader

@@ -140,6 +140,7 @@ mat4 OsdModelViewProjectionMatrix();
 float OsdTessLevel();
 int OsdGregoryQuadOffsetBase();
 int OsdPrimitiveIdBase();
+int OsdBaseVertex();
 
 float GetTessLevel(int patchLevel)
 {

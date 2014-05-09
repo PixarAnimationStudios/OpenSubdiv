@@ -31,6 +31,8 @@ uniform int vertexOffset = 0;   // vertex index offset for the batch
 uniform int tableOffset = 0;    // offset of subdivision table
 uniform int indexStart = 0;     // start index relative to tableOffset
 uniform int indexEnd = 0;       // end index relative to tableOffset
+uniform int vertexBaseOffset = 0;  // base vbo offset of the vertex buffer
+uniform int varyingBaseOffset = 0; // base vbo offset of the varying buffer
 uniform bool vertexPass;
 
 /*
@@ -40,6 +42,22 @@ uniform bool vertexPass;
        ^             ^             ^
   vertexOffset       |             |
                  indexStart     indexEnd
+
+
+
+interleaved buffer example
+           +---------------------------+
+           | x | y | z | r | g | b | a |
+           +---------------------------+
+           ^
+           vertexBaseOffset
+                       ^
+                       varyingBaseOffset
+
+NUM_VERTEX_ELEMENTS = 3
+NUM_VARYING_ELEMENTS = 4
+VERTEX_STRIDE = VARYING_STRIDE = 7
+
 */
 
 layout(binding=0) buffer vertex_buffer  { float vertexBuffer[]; };
@@ -86,13 +104,15 @@ Vertex readVertex(int index)
     Vertex v;
 
 #if NUM_VERTEX_ELEMENTS > 0
+    int vertexIndex = index * VERTEX_STRIDE + vertexBaseOffset;
     for (int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
-        v.vertexData[i] = vertexBuffer[index*NUM_VERTEX_ELEMENTS+i];
+        v.vertexData[i] = vertexBuffer[vertexIndex + i];
     }
 #endif
 #if NUM_VARYING_ELEMENTS > 0
+    int varyingIndex = index * VARYING_STRIDE + varyingBaseOffset;
     for (int i = 0; i < NUM_VARYING_ELEMENTS; i++) {
-        v.varyingData[i] = varyingBuffer[index*NUM_VARYING_ELEMENTS+i];
+        v.varyingData[i] = varyingBuffer[varyingIndex + i];
     }
 #endif
     return v;
@@ -101,13 +121,15 @@ Vertex readVertex(int index)
 void writeVertex(int index, Vertex v)
 {
 #if NUM_VERTEX_ELEMENTS > 0
+    int vertexIndex = index * VERTEX_STRIDE + vertexBaseOffset;
     for (int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
-        vertexBuffer[index*NUM_VERTEX_ELEMENTS+i] = v.vertexData[i];
+        vertexBuffer[vertexIndex + i] = v.vertexData[i];
     }
 #endif
 #if NUM_VARYING_ELEMENTS > 0
+    int varyingIndex = index * VARYING_STRIDE + varyingBaseOffset;
     for (int i = 0; i < NUM_VARYING_ELEMENTS; i++) {
-        varyingBuffer[index*NUM_VARYING_ELEMENTS+i] = v.varyingData[i];
+        varyingBuffer[varyingIndex + i] = v.varyingData[i];
     }
 #endif
 }
@@ -152,6 +174,7 @@ void catmarkComputeFace()
         addWithWeight(dst, readVertex(index), weight);
         addVaryingWithWeight(dst, readVertex(index), weight);
     }
+
     writeVertex(vid, dst);
 }
 
@@ -356,6 +379,7 @@ void editAdd()
 
     // seemingly we can't iterate dynamically over vertexData[n]
     // due to mysterious glsl runtime limitation...?
+#if NUM_VERTEX_ELEMENTS > 0
     for (int j = 0; j < NUM_VERTEX_ELEMENTS; ++j) {
         float editValue = _editValues[i*editPrimVarWidth + min(j, editPrimVarWidth)];
         editValue *= float(j >= editPrimVarOffset);
@@ -363,6 +387,7 @@ void editAdd()
         dst.vertexData[j] += editValue;
     }
     writeVertex(v + vertexOffset, dst);
+#endif
 }
 
 void main()

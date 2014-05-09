@@ -32,66 +32,75 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-struct OsdVertexDescriptor;
+struct OsdVertexBufferDescriptor;
 
-void OsdGcdComputeFace(OsdVertexDescriptor const &vdesc,
-                       float * vertex, float * varying,
+void OsdGcdComputeFace(float * vertex, float * varying,
+                       OsdVertexBufferDescriptor const &vertexDesc,
+                       OsdVertexBufferDescriptor const &varyingDesc,
                        const int *F_IT, const int *F_ITa,
                        int vertexOffset, int tableOffset,
                        int start, int end,
                        dispatch_queue_t gcdq);
 
-void OsdGcdComputeEdge(OsdVertexDescriptor const &vdesc,
-                       float *vertex, float * varying,
+void OsdGcdComputeEdge(float *vertex, float * varying,
+                       OsdVertexBufferDescriptor const &vertexDesc,
+                       OsdVertexBufferDescriptor const &varyingDesc,
                        const int *E_IT, const float *E_ITa,
                        int vertexOffset, int tableOffset,
                        int start, int end,
                        dispatch_queue_t gcdq);
 
-void OsdGcdComputeVertexA(OsdVertexDescriptor const &vdesc,
-                          float *vertex, float * varying,
+void OsdGcdComputeVertexA(float *vertex, float * varying,
+                          OsdVertexBufferDescriptor const &vertexDesc,
+                          OsdVertexBufferDescriptor const &varyingDesc,
                           const int *V_ITa, const float *V_IT,
                           int vertexOffset, int tableOffset,
                           int start, int end, int pass,
                           dispatch_queue_t gcdq);
 
-void OsdGcdComputeVertexB(OsdVertexDescriptor const &vdesc,
-                          float *vertex, float * varying,
+void OsdGcdComputeVertexB(float *vertex, float * varying,
+                          OsdVertexBufferDescriptor const &vertexDesc,
+                          OsdVertexBufferDescriptor const &varyingDesc,
                           const int *V_ITa, const int *V_IT, const float *V_W,
                           int vertexOffset, int tableOffset,
                           int start, int end,
                           dispatch_queue_t gcdq);
 
-void OsdGcdComputeLoopVertexB(OsdVertexDescriptor const &vdesc,
-                              float *vertex, float * varying,
+void OsdGcdComputeLoopVertexB(float *vertex, float * varying,
+                              OsdVertexBufferDescriptor const &vertexDesc,
+                              OsdVertexBufferDescriptor const &varyingDesc,
                               const int *V_ITa, const int *V_IT,
                               const float *V_W,
                               int vertexOffset, int tableOffset,
                               int start, int end,
                               dispatch_queue_t gcdq);
 
-void OsdGcdComputeBilinearEdge(OsdVertexDescriptor const &vdesc,
-                               float *vertex, float * varying,
+void OsdGcdComputeBilinearEdge(float *vertex, float * varying,
+                               OsdVertexBufferDescriptor const &vertexDesc,
+                               OsdVertexBufferDescriptor const &varyingDesc,
                                const int *E_IT,
                                int vertexOffset, int tableOffset,
                                int start, int end,
                                dispatch_queue_t gcdq);
 
-void OsdGcdComputeBilinearVertex(OsdVertexDescriptor const &vdesc,
-                                 float *vertex, float * varying,
+void OsdGcdComputeBilinearVertex(float *vertex, float * varying,
+                                 OsdVertexBufferDescriptor const &vertexDesc,
+                                 OsdVertexBufferDescriptor const &varyingDesc,
                                  const int *V_ITa,
                                  int vertexOffset, int tableOffset,
                                  int start, int end,
                                  dispatch_queue_t gcdq);
 
-void OsdGcdEditVertexAdd(OsdVertexDescriptor const &vdesc, float *vertex,
+void OsdGcdEditVertexAdd(float *vertex,
+                         OsdVertexBufferDescriptor const &vertexDesc,
                          int primVarOffset, int primVarWidth,
                          int vertexOffset, int tableOffset,
                          int start, int end,
                          const unsigned int *editIndices, const float *editValues,
                          dispatch_queue_t gcdq);
 
-void OsdGcdEditVertexSet(OsdVertexDescriptor const &vdesc, float *vertex,
+void OsdGcdEditVertexSet(float *vertex,
+                         OsdVertexBufferDescriptor const &vertexDesc,
                          int primVarOffset, int primVarWidth,
                          int vertexOffset, int tableOffset,
                          int start, int end,

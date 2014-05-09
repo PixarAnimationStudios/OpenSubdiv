@@ -40,6 +40,7 @@
 
 #include <cassert>
 #include <string>
+#include <sstream>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -61,7 +62,12 @@ static const char *shaderDefines = ""
 ;
 
 OsdGLSLTransformFeedbackKernelBundle::OsdGLSLTransformFeedbackKernelBundle()
-    : _program(0) {
+    : _program(0),
+      _numVertexElements(0),
+      _vertexStride(0),
+      _numVaryingElements(0),
+      _varyingStride(0),
+      _interleaved(false) {
 }
 
 OsdGLSLTransformFeedbackKernelBundle::~OsdGLSLTransformFeedbackKernelBundle() {
@@ -70,24 +76,34 @@ OsdGLSLTransformFeedbackKernelBundle::~OsdGLSLTransformFeedbackKernelBundle() {
 }
 
 bool
-OsdGLSLTransformFeedbackKernelBundle::Compile(int numVertexElements, int numVaryingElements) {
+OsdGLSLTransformFeedbackKernelBundle::Compile(
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    bool interleaved) {
 
-    assert(numVertexElements >= 3); // at least xyz required (for performance reason)
+    _numVertexElements = vertexDesc.length;
+    _vertexStride = vertexDesc.stride;
+    _numVaryingElements = varyingDesc.length;
+    _varyingStride = varyingDesc.stride;
+    _interleaved = interleaved;
 
-    _vdesc.Set(numVertexElements, numVaryingElements);
-    
+    // modulo of vbo offset
+    _vertexOffsetMod = (_vertexStride ? vertexDesc.offset % _vertexStride : 0);
+    _varyingOffsetMod = (_varyingStride ? varyingDesc.offset % _varyingStride : 0);
+
     _program = glCreateProgram();
 
     GLuint shader = glCreateShader(GL_VERTEX_SHADER);
 
-    char constantDefine[256];
-    snprintf(constantDefine, 256,
-             "#define NUM_VERTEX_ELEMENTS %d\n"
-             "#define NUM_VARYING_ELEMENTS %d\n",
-             numVertexElements, numVaryingElements);
+    std::ostringstream defines;
+    defines << "#define NUM_VERTEX_ELEMENTS "  << _numVertexElements << "\n"
+            << "#define VERTEX_STRIDE "        << _vertexStride << "\n"
+            << "#define NUM_VARYING_ELEMENTS " << _numVaryingElements << "\n"
+            << "#define VARYING_STRIDE "       << _varyingStride << "\n";
+    std::string defineStr = defines.str();
 
     const char *shaderSources[3];
-    shaderSources[0] = constantDefine;
+    shaderSources[0] = defineStr.c_str();
     shaderSources[1] = shaderDefines;
     shaderSources[2] = shaderSource;
     glShaderSource(shader, 3, shaderSources, NULL);
@@ -96,21 +112,85 @@ OsdGLSLTransformFeedbackKernelBundle::Compile(int numVertexElements, int numVary
 
     std::vector<std::string> outputs;
 
-    // position and custom vertex data are stored same buffer whereas varying data
-    // exists on another buffer. "gl_NextBuffer" identifier helps to split them.
-    for (int i = 0; i < numVertexElements; ++i) {
+    /*
+      output attribute array
+
+      - interleaved
+      outVertexData[0]
+      outVertexData[1]
+      outVertexData[2]
+      (gl_SkipComponents1)
+      outVaryingData[0]
+      outVaryingData[1]
+      outVaryingData[2]
+      outVaryingData[3]
+      (gl_SkipComponents1)
+      ...
+
+
+      - non-interleaved
+      outVertexData[0]
+      outVertexData[1]
+      outVertexData[2]
+      gl_NextBuffer
+      outVaryingData[0]
+      outVaryingData[1]
+      outVaryingData[2]
+      outVaryingData[3]
+
+     */
+
+    if (_interleaved) {
+        assert(_vertexStride == _varyingStride);
+        assert(_numVertexElements + _numVaryingElements <= _vertexStride);
         char attrName[32];
-        snprintf(attrName, 32, "outVertexData[%d]", i);
-        outputs.push_back(attrName);
-    }
-    for (int i = 0; i < numVaryingElements; ++i) {
-        if (i == 0 and (not outputs.empty())) {
+
+        for (int i = 0; i < _vertexStride; ++i) {
+            int vertexElem = i - _vertexOffsetMod;
+            int varyingElem = i - _varyingOffsetMod;
+
+            if (vertexElem >= 0 and vertexElem < _numVertexElements) {
+                snprintf(attrName, 32, "outVertexData[%d]", vertexElem);
+                outputs.push_back(attrName);
+            } else if (varyingElem >= 0 and varyingElem <= _numVaryingElements) {
+                snprintf(attrName, 32, "outVaryingData[%d]", varyingElem);
+                outputs.push_back(attrName);
+            } else {
+                outputs.push_back("gl_SkipComponents1");
+            }
+        }
+    } else {
+        // non-interleaved
+        char attrName[32];
+
+        // vertex data (may include custom vertex data) and varying data
+        // are stored into the same buffer, interleaved.
+        for (int i = 0; i < _vertexOffsetMod; ++i)
+            outputs.push_back("gl_SkipComponents1");
+        for (int i = 0; i < _numVertexElements; ++i) {
+            snprintf(attrName, 32, "outVertexData[%d]", i);
+            outputs.push_back(attrName);
+        }
+        for (int i = _numVertexElements + _vertexOffsetMod; i < _vertexStride; ++i)
+            outputs.push_back("gl_SkipComponents1");
+
+        // varying
+        if (_numVaryingElements) {
             outputs.push_back("gl_NextBuffer");
         }
-        char attrName[32];
-        snprintf(attrName, 32, "outVaryingData[%d]", i);
-        outputs.push_back(attrName);
+        for (int i = 0; i < _varyingOffsetMod; ++i) {
+            outputs.push_back("gl_SkipComponents1");
+        }
+        for (int i = 0; i < _numVaryingElements; ++i) {
+            snprintf(attrName, 32, "outVaryingData[%d]", i);
+            outputs.push_back(attrName);
+        }
+        for (int i = _numVaryingElements + _varyingOffsetMod; i < _varyingStride; ++i) {
+            outputs.push_back("gl_SkipComponents1");
+        }
     }
+
+    // convert to char* array
     std::vector<const char *> pOutputs;
     for (size_t i = 0; i < outputs.size(); ++i) {
         pOutputs.push_back(&outputs[i][0]);
@@ -156,6 +236,8 @@ OsdGLSLTransformFeedbackKernelBundle::Compile(int numVertexElements, int numVary
     _uniformVertexOffset = glGetUniformLocation(_program, "vertexOffset");
     _uniformTableOffset  = glGetUniformLocation(_program, "tableOffset");
     _uniformIndexStart   = glGetUniformLocation(_program, "indexStart");
+    _uniformVertexBaseOffset  = glGetUniformLocation(_program, "vertexBaseOffset");
+    _uniformVaryingBaseOffset = glGetUniformLocation(_program, "varyingBaseOffset");
 
     _uniformTables[FarSubdivisionTables::F_IT]  = glGetUniformLocation(_program, "_F0_IT");
     _uniformTables[FarSubdivisionTables::F_ITa] = glGetUniformLocation(_program, "_F0_ITa");
@@ -181,32 +263,44 @@ OsdGLSLTransformFeedbackKernelBundle::Compile(int numVertexElements, int numVary
 
 void
 OsdGLSLTransformFeedbackKernelBundle::transformGpuBufferData(
-    GLuint vertexBuffer, int numVertexElements,
-    GLuint varyingBuffer, int numVaryingElements,
-    int vertexOffset, int tableOffset, int start, int end) const {
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) const {
 
     int count = end - start;
     if (count <= 0) return;
 
     // set batch range
     glUniform1i(_uniformIndexStart, start);
-    glUniform1i(_uniformVertexOffset, vertexOffset);
+    glUniform1i(_uniformVertexOffset, offset);
     glUniform1i(_uniformTableOffset, tableOffset);
+
     // XXX: end is not used here now
     OSD_DEBUG_CHECK_GL_ERROR("Uniform index set at offset=%d. start=%d\n",
-                             vertexOffset, start);
+                             offset, start);
+
+    int vertexOrigin = vertexOffset - _vertexOffsetMod;
+    int varyingOrigin = varyingOffset - _varyingOffsetMod;
 
     // set transform feedback buffer
-    if (vertexBuffer) {
-        int vertexStride = numVertexElements*sizeof(float);
+    if (_interleaved) {
+        int vertexStride = _vertexStride*sizeof(float);
         glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 0, vertexBuffer,
-                          (start + vertexOffset)*vertexStride, count*vertexStride);
-    }
-
-    if (varyingBuffer){
-        int varyingStride = numVaryingElements*sizeof(float);
-        glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 1, varyingBuffer,
-                          (start + vertexOffset)*varyingStride, count*varyingStride);
+                          (start + offset)*vertexStride + vertexOrigin*sizeof(float),
+                          count*vertexStride);
+    } else {
+        if (vertexBuffer) {
+            int vertexStride = _vertexStride*sizeof(float);
+            glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 0, vertexBuffer,
+                              (start + offset)*vertexStride + vertexOrigin*sizeof(float),
+                              count*vertexStride);
+        }
+        if (varyingBuffer){
+            int varyingStride = _varyingStride*sizeof(float);
+            glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 1, varyingBuffer,
+                              (start + offset)*varyingStride + varyingOrigin*sizeof(float),
+                              count*varyingStride);
+        }
     }
 
     OSD_DEBUG_CHECK_GL_ERROR("transformGpuBufferData glBindBufferRange\n");
@@ -222,142 +316,138 @@ OsdGLSLTransformFeedbackKernelBundle::transformGpuBufferData(
 
     glEndTransformFeedback();
     glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
-
-    GLsync sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-    glWaitSync(sync, 0, GL_TIMEOUT_IGNORED);
-    glDeleteSync(sync);
 }
 
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyBilinearFaceVerticesKernel(
-    GLuint vertexBuffer, int numVertexElements,
-    GLuint varyingBuffer, int numVaryingElements,
-    int vertexOffset, int tableOffset, int start, int end) {
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeFace);
-    transformGpuBufferData(vertexBuffer, numVertexElements,
-                           varyingBuffer, numVaryingElements,
-                           vertexOffset, tableOffset, start, end);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyBilinearEdgeVerticesKernel(
-    GLuint vertexBuffer, int numVertexElements,
-    GLuint varyingBuffer, int numVaryingElements,
-    int vertexOffset, int tableOffset, int start, int end) {
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeBilinearEdge);
-    transformGpuBufferData(vertexBuffer, numVertexElements,
-                           varyingBuffer, numVaryingElements,
-                           vertexOffset, tableOffset, start, end);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyBilinearVertexVerticesKernel(
-    GLuint vertexBuffer, int numVertexElements,
-    GLuint varyingBuffer, int numVaryingElements,
-    int vertexOffset, int tableOffset, int start, int end) {
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeVertex);
-    transformGpuBufferData(vertexBuffer, numVertexElements,
-                           varyingBuffer, numVaryingElements,
-                           vertexOffset, tableOffset, start, end);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
 }
 
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkFaceVerticesKernel(
-    GLuint vertexBuffer, int numVertexElements,
-    GLuint varyingBuffer, int numVaryingElements,
-    int vertexOffset, int tableOffset, int start, int end) {
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeFace);
-    transformGpuBufferData(vertexBuffer, numVertexElements,
-                           varyingBuffer, numVaryingElements,
-                           vertexOffset, tableOffset, start, end);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkEdgeVerticesKernel(
-    GLuint vertexBuffer, int numVertexElements,
-    GLuint varyingBuffer, int numVaryingElements,
-    int vertexOffset, int tableOffset, int start, int end) {
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeEdge);
-    transformGpuBufferData(vertexBuffer, numVertexElements,
-                           varyingBuffer, numVaryingElements,
-                           vertexOffset, tableOffset, start, end);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkVertexVerticesKernelB(
-    GLuint vertexBuffer, int numVertexElements,
-    GLuint varyingBuffer, int numVaryingElements,
-    int vertexOffset, int tableOffset, int start, int end) {
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeCatmarkVertexB);
-    transformGpuBufferData(vertexBuffer, numVertexElements,
-                           varyingBuffer, numVaryingElements,
-                           vertexOffset, tableOffset, start, end);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkVertexVerticesKernelA(
-    GLuint vertexBuffer, int numVertexElements,
-    GLuint varyingBuffer, int numVaryingElements,
-    int vertexOffset, int tableOffset, int start, int end, bool pass) {
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end, bool pass) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeVertexA);
     glUniform1i(_uniformVertexPass, pass ? 1 : 0);
-    transformGpuBufferData(vertexBuffer, numVertexElements,
-                           varyingBuffer, numVaryingElements,
-                           vertexOffset, tableOffset, start, end);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyLoopEdgeVerticesKernel(
-    GLuint vertexBuffer, int numVertexElements,
-    GLuint varyingBuffer, int numVaryingElements,
-    int vertexOffset, int tableOffset, int start, int end) {
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeEdge);
-    transformGpuBufferData(vertexBuffer, numVertexElements,
-                           varyingBuffer, numVaryingElements,
-                           vertexOffset, tableOffset, start, end);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyLoopVertexVerticesKernelB(
-    GLuint vertexBuffer, int numVertexElements,
-    GLuint varyingBuffer, int numVaryingElements,
-    int vertexOffset, int tableOffset, int start, int end) {
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeLoopVertexB);
-    transformGpuBufferData(vertexBuffer, numVertexElements,
-                           varyingBuffer, numVaryingElements,
-                           vertexOffset, tableOffset, start, end);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyLoopVertexVerticesKernelA(
-    GLuint vertexBuffer, int numVertexElements,
-    GLuint varyingBuffer, int numVaryingElements,
-    int vertexOffset, int tableOffset, int start, int end, bool pass) {
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end, bool pass) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeVertexA);
     glUniform1i(_uniformVertexPass, pass ? 1 : 0);
-    transformGpuBufferData(vertexBuffer, numVertexElements,
-                           varyingBuffer, numVaryingElements,
-                           vertexOffset, tableOffset, start, end);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
 }
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyEditAdd(
-    GLuint vertexBuffer, int numVertexElements,
-    GLuint varyingBuffer, int numVaryingElements,
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
     int primvarOffset, int primvarWidth,
-    int vertexOffset, int tableOffset, int start, int end) {
+    int offset, int tableOffset, int start, int end) {
     
     if (end - start <= 0) return;
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subEditAdd);
@@ -365,15 +455,19 @@ OsdGLSLTransformFeedbackKernelBundle::ApplyEditAdd(
     glUniform1i(_uniformEditPrimVarWidth, primvarWidth);
 
     glUniform1i(_uniformIndexStart, start);
-    glUniform1i(_uniformVertexOffset, vertexOffset);
+    glUniform1i(_uniformVertexOffset, offset);
     glUniform1i(_uniformTableOffset, tableOffset);
     glDrawArrays(GL_POINTS, 0, end - start);
 }
 
 void
-OsdGLSLTransformFeedbackKernelBundle::UseProgram() const
+OsdGLSLTransformFeedbackKernelBundle::UseProgram(int vertexBaseOffset,
+                                                 int varyingBaseOffset) const
 {
     glUseProgram(_program);
+
+    glUniform1i(_uniformVertexBaseOffset, vertexBaseOffset);
+    glUniform1i(_uniformVaryingBaseOffset, varyingBaseOffset);
 }
 
 

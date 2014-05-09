@@ -130,6 +130,10 @@ int OsdPrimitiveIdBase()
 {
     return PrimitiveIdBase;
 }
+int OsdBaseVertex()
+{
+    return 0;
+}
 
 //--------------------------------------------------------------
 // Vertex Shader

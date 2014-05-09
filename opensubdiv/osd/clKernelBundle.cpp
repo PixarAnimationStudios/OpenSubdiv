@@ -28,6 +28,8 @@
 #include "../osd/error.h"
 
 #include <stdio.h>
+#include <sstream>
+
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #endif
@@ -54,8 +56,11 @@ OsdCLKernelBundle::OsdCLKernelBundle() :
     _clCatmarkVertexB(NULL),
     _clLoopEdge(NULL),
     _clLoopVertexA(NULL),
-    _clLoopVertexB(NULL)
- {
+    _clLoopVertexB(NULL),
+    _numVertexElements(0),
+    _vertexStride(0),
+    _numVaryingElements(0),
+    _varyingStride(0) {
 }
 
 OsdCLKernelBundle::~OsdCLKernelBundle() {
@@ -97,19 +102,24 @@ static cl_kernel buildKernel(cl_program prog, const char * name) {
 
 bool
 OsdCLKernelBundle::Compile(cl_context clContext,
-                           int numVertexElements, int numVaryingElements) {
+                           OsdVertexBufferDescriptor const &vertexDesc,
+                           OsdVertexBufferDescriptor const &varyingDesc) {
 
     cl_int ciErrNum;
 
-    _vdesc.Set( numVertexElements, numVaryingElements );
+    _numVertexElements = vertexDesc.length;
+    _vertexStride = vertexDesc.stride;
+    _numVaryingElements = varyingDesc.length;
+    _varyingStride = varyingDesc.stride;
 
-    char constantDefine[256];
-    snprintf(constantDefine, sizeof(constantDefine),
-             "#define NUM_VERTEX_ELEMENTS %d\n"
-             "#define NUM_VARYING_ELEMENTS %d\n",
-             numVertexElements, numVaryingElements);
+    std::ostringstream defines;
+    defines << "#define NUM_VERTEX_ELEMENTS "  << _numVertexElements << "\n"
+            << "#define VERTEX_STRIDE "        << _vertexStride << "\n"
+            << "#define NUM_VARYING_ELEMENTS " << _numVaryingElements << "\n"
+            << "#define VARYING_STRIDE "       << _varyingStride << "\n";
+    std::string defineStr = defines.str();
 
-    const char *sources[] = { constantDefine, clSource };
+    const char *sources[] = { defineStr.c_str(), clSource };
 
     _clProgram = clCreateProgramWithSource(clContext, 2, sources, 0, &ciErrNum);
     CL_CHECK_ERROR(ciErrNum, "clCreateProgramWithSource\n");
@@ -131,6 +141,7 @@ OsdCLKernelBundle::Compile(cl_context clContext,
             OsdError(OSD_CL_PROGRAM_BUILD_ERROR, cBuildLog);
         }
         delete[] devices;
+
         return false;
     }
 

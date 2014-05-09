@@ -29,6 +29,7 @@
 
 #include "../far/dispatcher.h"
 #include "../osd/d3d11ComputeContext.h"
+#include "../osd/vertexDescriptor.h"
 
 #include <vector>
 
@@ -75,15 +76,25 @@ public:
     ///
     /// @param  varyingBuffer varying-interpolated data buffer
     ///
+    /// @param  vertexDesc    the descriptor of vertex elements to be refined.
+    ///                       if it's null, all primvars in the vertex buffer
+    ///                       will be refined.
+    ///
+    /// @param  varyingDesc   the descriptor of varying elements to be refined.
+    ///                       if it's null, all primvars in the varying buffer
+    ///                       will be refined.
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Refine(OsdD3D11ComputeContext const *context,
                 FarKernelBatchVector const &batches,
                 VERTEX_BUFFER *vertexBuffer,
-                VARYING_BUFFER *varyingBuffer) {
+                VARYING_BUFFER *varyingBuffer,
+                OsdVertexBufferDescriptor const *vertexDesc=NULL,
+                OsdVertexBufferDescriptor const *varyingDesc=NULL) {
 
         if (batches.empty()) return;
 
-        bind(vertexBuffer, varyingBuffer);
+        bind(vertexBuffer, varyingBuffer, vertexDesc, varyingDesc);
         context->BindShaderStorageBuffers(_deviceContext);
 
         FarDispatcher::Refine(this,
@@ -145,48 +156,68 @@ protected:
 
     void ApplyVertexEdits(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    OsdD3D11ComputeKernelBundle * getKernels(int numVertexElements,
-                                             int numVaryingElements);
+    OsdD3D11ComputeKernelBundle * getKernels(OsdVertexBufferDescriptor const &vertexDesc,
+                                             OsdVertexBufferDescriptor const &varyingDesc);
 
     void bindShaderResources();
 
     void unbindShaderResources();
 
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
+    void bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying,
+              OsdVertexBufferDescriptor const *vertexDesc,
+              OsdVertexBufferDescriptor const *varyingDesc) {
 
-        _currentVertexBufferUAV = vertex ? vertex->BindD3D11UAV(_deviceContext) : 0;
-        _currentVaryingBufferUAV = varying ? varying->BindD3D11UAV(_deviceContext) : 0;
+        // if the vertex buffer descriptor is specified, use it.
+        // otherwise, assumes the data is tightly packed in the vertex buffer.
+        if (vertexDesc) {
+            _currentBindState.vertexDesc = *vertexDesc;
+        } else {
+            int numElements = vertex ? vertex->GetNumElements() : 0;
+            _currentBindState.vertexDesc = OsdVertexBufferDescriptor(
+                0, numElements, numElements);
+        }
+        if (varyingDesc) {
+            _currentBindState.varyingDesc = *varyingDesc;
+        } else {
+            int numElements = varying ? varying->GetNumElements() : 0;
+            _currentBindState.varyingDesc = OsdVertexBufferDescriptor(
+                0, numElements, numElements);
+        }
 
-        _vdesc.numVertexElements = vertex ? vertex->GetNumElements() : 0;
-        _vdesc.numVaryingElements = varying ? varying->GetNumElements() : 0;
-
-        _currentKernelBundle = getKernels(_vdesc.numVertexElements,
-                                          _vdesc.numVaryingElements);
-
+        _currentBindState.vertexBuffer = vertex ? vertex->BindD3D11UAV(_deviceContext) : 0;
+        _currentBindState.varyingBuffer = varying ? varying->BindD3D11UAV(_deviceContext) : 0;
+        _currentBindState.kernelBundle = getKernels(_currentBindState.vertexDesc,
+                                                    _currentBindState.varyingDesc);
         bindShaderResources();
     }
 
     void unbind() {
-        _currentVertexBufferUAV = 0;
-        _currentVaryingBufferUAV = 0;
-        _currentKernelBundle = 0;
+        _currentBindState.Reset();
 
         unbindShaderResources();
     }
 
 private:
+    struct BindState {
+        BindState() : vertexBuffer(0), varyingBuffer(0), kernelBundle(NULL) {}
+        void Reset() {
+            vertexBuffer = varyingBuffer = 0;
+            vertexDesc.Reset();
+            varyingDesc.Reset();
+        }
+        ID3D11UnorderedAccessView *vertexBuffer;
+        ID3D11UnorderedAccessView *varyingBuffer;
+        OsdVertexBufferDescriptor vertexDesc;
+        OsdVertexBufferDescriptor varyingDesc;
+        OsdD3D11ComputeKernelBundle *kernelBundle;
+    };
+
+    BindState _currentBindState;
+
     ID3D11DeviceContext *_deviceContext;
     ID3D11Query *_query;
     std::vector<OsdD3D11ComputeKernelBundle *> _kernelRegistry;
-
-    OsdVertexDescriptor _vdesc;
-
-    ID3D11UnorderedAccessView * _currentVertexBufferUAV,
-                              * _currentVaryingBufferUAV;
-
-    OsdD3D11ComputeKernelBundle * _currentKernelBundle;
-
 };
 
 }  // end namespace OPENSUBDIV_VERSION

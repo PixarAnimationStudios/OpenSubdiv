@@ -32,6 +32,8 @@ cbuffer KernelCB : register( b0 ) {
     int tableOffset;    // offset of subdivision table
     int indexStart;     // start index relative to tableOffset
     int indexEnd;       // end index relative to tableOffset
+    int vertexBaseOffset;  // base vbo offset of the vertex buffer
+    int varyingBaseOffset; // base vbo offset of the varying buffer
     bool vertexPass;
 
 // vertex edit kernel
@@ -91,13 +93,15 @@ Vertex readVertex(int index)
     Vertex v;
 
 #if NUM_VERTEX_ELEMENTS > 0
+    int vertexIndex = index * VERTEX_STRIDE + vertexBaseOffset;
     for (int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
-        v.vertexData[i] = vertexBuffer[index*NUM_VERTEX_ELEMENTS+i];
+        v.vertexData[i] = vertexBuffer[vertexIndex + i];
     }
 #endif
 #if NUM_VARYING_ELEMENTS > 0
+    int varyingIndex = index * VARYING_STRIDE + varyingBaseOffset;
     for (int i = 0; i < NUM_VARYING_ELEMENTS; i++) {
-        v.varyingData[i] = varyingBuffer[index*NUM_VARYING_ELEMENTS+i];
+        v.varyingData[i] = varyingBuffer[varyingIndex + i];
     }
 #endif
     return v;
@@ -106,13 +110,15 @@ Vertex readVertex(int index)
 void writeVertex(int index, Vertex v)
 {
 #if NUM_VERTEX_ELEMENTS > 0
+    int vertexIndex = index * VERTEX_STRIDE + vertexBaseOffset;
     for (int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
-        vertexBuffer[index*NUM_VERTEX_ELEMENTS+i] = v.vertexData[i];
+        vertexBuffer[vertexIndex + i] = v.vertexData[i];
     }
 #endif
 #if NUM_VARYING_ELEMENTS > 0
+    int varyingIndex = index * VARYING_STRIDE + varyingBaseOffset;
     for (int i = 0; i < NUM_VARYING_ELEMENTS; i++) {
-        varyingBuffer[index*NUM_VARYING_ELEMENTS+i] = v.varyingData[i];
+        varyingBuffer[varyingIndex + i] = v.varyingData[i];
     }
 #endif
 }

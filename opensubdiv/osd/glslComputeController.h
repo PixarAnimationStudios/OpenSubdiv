@@ -29,6 +29,7 @@
 
 #include "../far/dispatcher.h"
 #include "../osd/glslComputeContext.h"
+#include "../osd/vertexDescriptor.h"
 
 #include <vector>
 
@@ -69,18 +70,25 @@ public:
     ///
     /// @param  varyingBuffer varying-interpolated data buffer
     ///
+    /// @param  vertexDesc    the descriptor of vertex elements to be refined.
+    ///                       if it's null, all primvars in the vertex buffer
+    ///                       will be refined.
+    ///
+    /// @param  varyingDesc   the descriptor of varying elements to be refined.
+    ///                       if it's null, all primvars in the varying buffer
+    ///                       will be refined.
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
     void Refine(OsdGLSLComputeContext const *context,
                 FarKernelBatchVector const &batches,
                 VERTEX_BUFFER *vertexBuffer,
-                VARYING_BUFFER *varyingBuffer) {
+                VARYING_BUFFER *varyingBuffer,
+                OsdVertexBufferDescriptor const *vertexDesc=NULL,
+                OsdVertexBufferDescriptor const *varyingDesc=NULL) {
 
         if (batches.empty()) return;
 
-        int numVertexElements = vertexBuffer ? vertexBuffer->GetNumElements() : 0;
-        int numVaryingElements = varyingBuffer ? varyingBuffer->GetNumElements() : 0;
-
-        bind(vertexBuffer, varyingBuffer, getKernels(numVertexElements, numVaryingElements));
+        bind(vertexBuffer, varyingBuffer, vertexDesc, varyingDesc);
         // bind table buffers.
         context->BindShaderStorageBuffers();
 
@@ -141,42 +149,69 @@ protected:
 
     void ApplyVertexEdits(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    OsdGLSLComputeKernelBundle * getKernels(int numVertexElements,
-                                     int numVaryingElements);
+    OsdGLSLComputeKernelBundle * getKernels(
+        OsdVertexBufferDescriptor const &vertexDesc,
+        OsdVertexBufferDescriptor const &varyingDesc);
 
     void bindBufferAndProgram();
 
     void unbindBufferAndProgram();
 
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying, OsdGLSLComputeKernelBundle *kernelBundle) {
+    void bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying,
+              OsdVertexBufferDescriptor const *vertexDesc,
+              OsdVertexBufferDescriptor const *varyingDesc) {
 
-        _currentVertexBuffer = vertex ? vertex->BindVBO() : 0;
-        _currentVaryingBuffer = varying ? varying->BindVBO() : 0;
+        // if the vertex buffer descriptor is specified, use it.
+        // otherwise, assumes the data is tightly packed in the vertex buffer.
+        if (vertexDesc) {
+            _currentBindState.vertexDesc = *vertexDesc;
+        } else {
+            int numElements = vertex ? vertex->GetNumElements() : 0;
+            _currentBindState.vertexDesc = OsdVertexBufferDescriptor(
+                0, numElements, numElements);
+        }
+        if (varyingDesc) {
+            _currentBindState.varyingDesc = *varyingDesc;
+        } else {
+            int numElements = varying ? varying->GetNumElements() : 0;
+            _currentBindState.varyingDesc = OsdVertexBufferDescriptor(
+                0, numElements, numElements);
+        }
 
-        _vdesc.numVertexElements = vertex ? vertex->GetNumElements() : 0;
-        _vdesc.numVaryingElements = varying ? varying->GetNumElements() : 0;
-
-        _currentKernelBundle = kernelBundle;
+        _currentBindState.vertexBuffer = vertex ? vertex->BindVBO() : 0;
+        _currentBindState.varyingBuffer = varying ? varying->BindVBO() : 0;
+        _currentBindState.kernelBundle = getKernels(_currentBindState.vertexDesc,
+                                                    _currentBindState.varyingDesc);
 
         bindBufferAndProgram();
     }
 
     /// Unbinds any previously bound vertex and varying data buffers.
     void unbind() {
-        _currentVertexBuffer = 0;
-        _currentVaryingBuffer = 0;
+        _currentBindState.Reset();
+
+        unbindBufferAndProgram();
     }
 
 private:
+    struct BindState {
+        BindState() : vertexBuffer(0), varyingBuffer(0), kernelBundle(NULL) {}
+        void Reset() {
+            vertexBuffer = varyingBuffer = 0;
+            vertexDesc.Reset();
+            varyingDesc.Reset();
+        }
+        GLuint vertexBuffer;
+        GLuint varyingBuffer;
+        OsdVertexBufferDescriptor vertexDesc;
+        OsdVertexBufferDescriptor varyingDesc;
+        OsdGLSLComputeKernelBundle *kernelBundle;
+    };
+
+    BindState _currentBindState;
+
     std::vector<OsdGLSLComputeKernelBundle *> _kernelRegistry;
-
-    GLuint _currentVertexBuffer, _currentVaryingBuffer;
-
-    OsdVertexDescriptor _vdesc;
-
-    OsdGLSLComputeKernelBundle * _currentKernelBundle;
-
 };
 
 }  // end namespace OPENSUBDIV_VERSION

@@ -37,6 +37,7 @@
 #include "../osd/opengl.h"
 
 #include <cassert>
+#include <sstream>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -46,7 +47,11 @@ static const char *shaderSource =
 ;
 
 OsdGLSLComputeKernelBundle::OsdGLSLComputeKernelBundle()
-    : _program(0) {
+    : _program(0),
+      _numVertexElements(0),
+      _vertexStride(0),
+      _numVaryingElements(0),
+      _varyingStride(0) {
 
     // XXX: too rough!
     _workGroupSize = 64;
@@ -58,9 +63,14 @@ OsdGLSLComputeKernelBundle::~OsdGLSLComputeKernelBundle() {
 }
 
 bool
-OsdGLSLComputeKernelBundle::Compile(int numVertexElements, int numVaryingElements) {
+OsdGLSLComputeKernelBundle::Compile(
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc) {
 
-    _vdesc.Set(numVertexElements, numVaryingElements );
+    _numVertexElements = vertexDesc.length;
+    _vertexStride = vertexDesc.stride;
+    _numVaryingElements = varyingDesc.length;
+    _varyingStride = varyingDesc.stride;
 
     if (_program) {
         glDeleteProgram(_program);
@@ -70,15 +80,16 @@ OsdGLSLComputeKernelBundle::Compile(int numVertexElements, int numVaryingElement
 
     GLuint shader = glCreateShader(GL_COMPUTE_SHADER);
 
-    char constantDefine[256];
-    snprintf(constantDefine, 256,
-             "#define NUM_VERTEX_ELEMENTS %d\n"
-             "#define NUM_VARYING_ELEMENTS %d\n"
-             "#define WORK_GROUP_SIZE %d\n",
-             numVertexElements, numVaryingElements, _workGroupSize);
+    std::ostringstream defines;
+    defines << "#define NUM_VERTEX_ELEMENTS "  << _numVertexElements << "\n"
+            << "#define VERTEX_STRIDE "        << _vertexStride << "\n"
+            << "#define NUM_VARYING_ELEMENTS " << _numVaryingElements << "\n"
+            << "#define VARYING_STRIDE "       << _varyingStride << "\n"
+            << "#define WORK_GROUP_SIZE "      << _workGroupSize << "\n";
+    std::string defineStr = defines.str();
 
     const char *shaderSources[3];
-    shaderSources[0] = constantDefine;
+    shaderSources[0] = defineStr.c_str();
     shaderSources[1] = shaderSource;
     glShaderSource(shader, 2, shaderSources, NULL);
     glCompileShader(shader);
@@ -98,9 +109,6 @@ OsdGLSLComputeKernelBundle::Compile(int numVertexElements, int numVaryingElement
 
         glDeleteProgram(_program);
         _program = 0;
-        // XXX ERROR HANDLE
-        printf("%s\n", constantDefine);
-        assert(false);
         return false;
     }
 
@@ -129,11 +137,13 @@ OsdGLSLComputeKernelBundle::Compile(int numVertexElements, int numVaryingElement
                                                      "loopComputeVertexB");
 
     // set uniform locations for compute
-    _uniformVertexPass   = glGetUniformLocation(_program, "vertexPass");
-    _uniformVertexOffset = glGetUniformLocation(_program, "vertexOffset");
-    _uniformTableOffset  = glGetUniformLocation(_program, "tableOffset");
-    _uniformIndexStart   = glGetUniformLocation(_program, "indexStart");
-    _uniformIndexEnd     = glGetUniformLocation(_program, "indexEnd");
+    _uniformVertexPass        = glGetUniformLocation(_program, "vertexPass");
+    _uniformVertexOffset      = glGetUniformLocation(_program, "vertexOffset");
+    _uniformTableOffset       = glGetUniformLocation(_program, "tableOffset");
+    _uniformIndexStart        = glGetUniformLocation(_program, "indexStart");
+    _uniformIndexEnd          = glGetUniformLocation(_program, "indexEnd");
+    _uniformVertexBaseOffset  = glGetUniformLocation(_program, "vertexBaseOffset");
+    _uniformVaryingBaseOffset = glGetUniformLocation(_program, "varyingBaseOffset");
 
     _tableUniforms[FarSubdivisionTables::F_IT]  = glGetUniformLocation(_program, "_F0_IT");
     _tableUniforms[FarSubdivisionTables::F_ITa] = glGetUniformLocation(_program, "_F0_ITa");
@@ -176,8 +186,7 @@ OsdGLSLComputeKernelBundle::dispatchCompute(
     // we found a problem (issue #295) with nvidia driver 331.49 / Quadro4000
     // resulting invalid vertices.
     // Apparently adding TEXTURE_FETCH_BARRIER after face kernel fixes it.
-    // We'll revisit this later.
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    // The workaroud is commented out, since it looks fixed at driver 334.xx.
 }
 
 void
@@ -186,6 +195,8 @@ OsdGLSLComputeKernelBundle::ApplyBilinearFaceVerticesKernel(
 
     glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subComputeFace);
     dispatchCompute(vertexOffset, tableOffset, start, end);
+
+    // glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 }
 
 void
@@ -213,8 +224,8 @@ OsdGLSLComputeKernelBundle::ApplyCatmarkFaceVerticesKernel(
     dispatchCompute(vertexOffset, tableOffset, start, end);
 
     // see the comment in dispatchCompute()
-    // this workaround could be a performance problem
-    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+    // this workaround causes a performance problem.
+    // glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 }
 
 void
@@ -279,9 +290,13 @@ OsdGLSLComputeKernelBundle::ApplyEditAdd(
 }
 
 void
-OsdGLSLComputeKernelBundle::UseProgram() const
+OsdGLSLComputeKernelBundle::UseProgram(int vertexBaseOffset,
+                                       int varyingBaseOffset) const
 {
     glUseProgram(_program);
+
+    glUniform1i(_uniformVertexBaseOffset, vertexBaseOffset);
+    glUniform1i(_uniformVaryingBaseOffset, varyingBaseOffset);
 }
 
 }  // end namespace OPENSUBDIV_VERSION
