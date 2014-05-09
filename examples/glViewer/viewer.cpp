@@ -151,6 +151,7 @@ enum DisplayStyle { kWire = 0,
                     kShaded,
                     kWireShaded,
                     kVaryingColor,
+                    kInterleavedVaryingColor,
                     kFaceVaryingColor };
 
 enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
@@ -536,9 +537,14 @@ updateGeom() {
     int nverts = (int)g_orgPositions.size() / 3;
 
     std::vector<float> vertex, varying;
-    vertex.reserve(nverts*3);
+
+    if (g_displayStyle == kInterleavedVaryingColor)
+        vertex.reserve(nverts*7);
+    else
+        vertex.reserve(nverts*3);
+
     if (g_displayStyle == kVaryingColor)
-        varying.reserve(nverts*3);
+        varying.reserve(nverts*4);
 
     const float *p = &g_orgPositions[0];
 
@@ -560,10 +566,18 @@ updateGeom() {
         vertex.push_back(pp[0]);
         vertex.push_back(pp[1]);
         vertex.push_back(pp[2]);
+        if (g_displayStyle == kInterleavedVaryingColor) {
+            vertex.push_back(p[1]);
+            vertex.push_back(p[2]);
+            vertex.push_back(p[0]);
+            vertex.push_back(1);
+            p += 3;
+        }
         if (g_displayStyle == kVaryingColor) {
             varying.push_back(p[2]);
             varying.push_back(p[1]);
             varying.push_back(p[0]);
+            varying.push_back(1);
             p += 3;
         }
         pp += 3;
@@ -577,7 +591,13 @@ updateGeom() {
     Stopwatch s;
     s.Start();
 
-    g_mesh->Refine();
+    if (g_displayStyle == kInterleavedVaryingColor) {
+        OpenSubdiv::OsdVertexBufferDescriptor vertexDesc(0, 3, 7);
+        OpenSubdiv::OsdVertexBufferDescriptor varyingDesc(3, 4, 7);
+        g_mesh->Refine(&vertexDesc, &varyingDesc, true);
+    } else {
+        g_mesh->Refine();
+    }
 
     s.Stop();
     g_cpuTime = float(s.GetElapsed() * 1000.0f);
@@ -654,8 +674,8 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
     bits.set(OpenSubdiv::MeshAdaptive, doAdaptive);
     bits.set(OpenSubdiv::MeshFVarData, 1);
 
-    int numVertexElements = 3;
-    int numVaryingElements = (g_displayStyle == kVaryingColor) ? 3 : 0;
+    int numVertexElements = (g_displayStyle == kInterleavedVaryingColor) ? 7 : 3;
+    int numVaryingElements = (g_displayStyle == kVaryingColor) ? 4 : 0;
 
     if (kernel == kCPU) {
         if (not g_cpuComputeController) {
@@ -803,12 +823,18 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
     glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVertexBuffer());
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+                          /*stride=*/sizeof (GLfloat) * numVertexElements, 0);
 
     if (g_displayStyle == kVaryingColor) {
         glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVaryingBuffer());
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 4, 0);
+    } else if (g_displayStyle == kInterleavedVaryingColor) {
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE,
+                              /*stride=*/sizeof (GLfloat) * numVertexElements,
+                              /*offset=*/(void*)(sizeof (GLfloat) * 3));
     } else {
         glDisableVertexAttribArray(1);
     }
@@ -1030,6 +1056,10 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
         break;
     case kVaryingColor:
+        sconfig->commonShader.AddDefine("VARYING_COLOR");
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+        break;
+    case kInterleavedVaryingColor:
         sconfig->commonShader.AddDefine("VARYING_COLOR");
         sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
         break;
@@ -1578,6 +1608,7 @@ static void
 callbackDisplayStyle(int b)
 {
     if (g_displayStyle == kVaryingColor or b == kVaryingColor or
+        g_displayStyle == kInterleavedVaryingColor or b == kInterleavedVaryingColor or
         g_displayStyle == kFaceVaryingColor or b == kFaceVaryingColor) {
         // need to rebuild for varying reconstruct
         g_displayStyle = b;
@@ -1702,6 +1733,7 @@ initHUD()
     g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
     g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
     g_hud.AddPullDownButton(shading_pulldown, "Varying Color", kVaryingColor, g_displayStyle==kVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color (Interleaved)", kInterleavedVaryingColor, g_displayStyle==kInterleavedVaryingColor);
     g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color", kFaceVaryingColor, g_displayStyle==kFaceVaryingColor);
 
     int compute_pulldown = g_hud.AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'k');
