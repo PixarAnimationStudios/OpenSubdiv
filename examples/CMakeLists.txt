@@ -34,6 +34,7 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
     add_subdirectory(tessellateObjFile)
     add_subdirectory(uvViewer)
     add_subdirectory(facePartition)
+    add_subdirectory(topologySharing)
 
     if(OPENGL_4_3_FOUND AND (NOT APPLE))
         add_subdirectory(paintTest)
