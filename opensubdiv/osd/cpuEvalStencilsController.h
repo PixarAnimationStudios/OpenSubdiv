@@ -134,8 +134,8 @@ protected:
     template<class VERTEX_BUFFER>
     void bindControlData(OsdVertexBufferDescriptor const & controlDataDesc, VERTEX_BUFFER *controlData ) {
 
-        _currentBindState._controlData = controlData ? controlData->BindCpuBuffer() : 0;
-        _currentBindState._controlDataDesc = controlDataDesc;
+        _currentBindState.controlData = controlData ? controlData->BindCpuBuffer() : 0;
+        _currentBindState.controlDataDesc = controlDataDesc;
 
     }
 
@@ -143,8 +143,8 @@ protected:
     template<class VERTEX_BUFFER>
     void bindOutputData( OsdVertexBufferDescriptor const & outputDataDesc, VERTEX_BUFFER *outputData ) {
 
-        _currentBindState._outputData = outputData ? outputData->BindCpuBuffer() : 0;
-        _currentBindState._outputDataDesc = outputDataDesc;
+        _currentBindState.outputData = outputData ? outputData->BindCpuBuffer() : 0;
+        _currentBindState.outputDataDesc = outputDataDesc;
     }
     
     /// \brief Binds output derivative vertex data buffer
@@ -152,25 +152,15 @@ protected:
     void bindOutputDerivData( OsdVertexBufferDescriptor const & outputDuDesc, VERTEX_BUFFER *outputDu, 
                               OsdVertexBufferDescriptor const & outputDvDesc, VERTEX_BUFFER *outputDv ) {
                               
-        _currentBindState._outputUDeriv = outputDu ? outputDu ->BindCpuBuffer() : 0;
-        _currentBindState._outputVDeriv = outputDv ? outputDv->BindCpuBuffer() : 0;
-        _currentBindState._outputDuDesc = outputDuDesc;
-        _currentBindState._outputDvDesc = outputDvDesc;
+        _currentBindState.outputUDeriv = outputDu ? outputDu ->BindCpuBuffer() : 0;
+        _currentBindState.outputVDeriv = outputDv ? outputDv->BindCpuBuffer() : 0;
+        _currentBindState.outputDuDesc = outputDuDesc;
+        _currentBindState.outputDvDesc = outputDvDesc;
     }
 
     /// \brief Unbinds any previously bound vertex and varying data buffers.
     void unbind() {
-       _currentBindState._controlData = 0;
-       _currentBindState._controlDataDesc.Reset();
-
-       _currentBindState._outputData = 0;
-       _currentBindState._outputDataDesc.Reset();
-      
-       _currentBindState._outputUDeriv = 0;
-       _currentBindState._outputDuDesc.Reset();
-       
-       _currentBindState._outputVDeriv = 0;
-       _currentBindState._outputDvDesc.Reset();
+        _currentBindState.Reset();
     }
 
 private:
@@ -182,16 +172,26 @@ private:
     // It doesn't take an ownership of vertex buffers.
     struct BindState {
 
-        // transient mesh data
-        OsdVertexBufferDescriptor _controlDataDesc,
-                                  _outputDataDesc,
-                                  _outputDuDesc,
-                                  _outputDvDesc;
+        BindState() : controlData(0), outputData(0), outputUDeriv(0), outputVDeriv(0) { }
+        
+        void Reset() {
+            controlData = outputData = outputUDeriv = outputVDeriv = NULL;
+            controlDataDesc.Reset();
+            outputDataDesc.Reset();
+            outputDuDesc.Reset();
+            outputDvDesc.Reset();
+        }
 
-        float * _controlData,
-              * _outputData,
-              * _outputUDeriv,
-              * _outputVDeriv;
+        // transient mesh data
+        OsdVertexBufferDescriptor controlDataDesc,
+                                  outputDataDesc,
+                                  outputDuDesc,
+                                  outputDvDesc;
+
+        float * controlData,
+              * outputData,
+              * outputUDeriv,
+              * outputVDeriv;
     };
     
     BindState _currentBindState;
