@@ -33,6 +33,7 @@ extern "C" {
 
 /* Types declaration. */
 struct OpenSubdiv_EvaluatorDescr;
+struct OpenSubdiv_TopologyDescr;
 
 /* Methods to create and delete evaluators. */
 struct OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(int numVertices);
@@ -69,6 +70,16 @@ void openSubdiv_getEvaluatorTopology(
     int **indices,
     int *numNVerts,
     int **nverts);
+
+/* Get pointer to a topology descriptor object.                            */
+/* Useful for cases when some parts of the pipeline needs to know the      */
+/* topology object. For example this way it's possible to create a HbrMesh */
+/* having evaluator without duplicating topology object.                   */
+/* TODO(sergey): Consider moving the API call above to toplogy-capi.       */
+/* It'll make current usecase in Blender a bit more complicated, but would */
+/* separate entities in OpenSubdiv side much clearer.                      */
+struct OpenSubdiv_EvaluatorDescr *openSubdiv_getEvaluatorTopologyDescr(
+    struct OpenSubdiv_EvaluatorDescr *evaluator_descr);
 
 #ifdef __cplusplus
 }

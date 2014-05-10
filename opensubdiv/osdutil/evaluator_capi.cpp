@@ -166,3 +166,10 @@ void openSubdiv_getEvaluatorTopology(
     *numNVerts =  evaluation_descr->topology.nverts.size();
     *nverts =  &evaluation_descr->topology.nverts[0];
 }
+
+struct OpenSubdiv_EvaluatorDescr *openSubdiv_getEvaluatorTopologyDescr(
+    struct OpenSubdiv_EvaluatorDescr *evaluator_descr)
+{
+    return (struct OpenSubdiv_EvaluatorDescr *) &evaluator_descr->topology;
+}
+
