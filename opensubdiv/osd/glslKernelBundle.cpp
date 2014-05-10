@@ -187,6 +187,7 @@ OsdGLSLComputeKernelBundle::dispatchCompute(
     // resulting invalid vertices.
     // Apparently adding TEXTURE_FETCH_BARRIER after face kernel fixes it.
     // The workaroud is commented out, since it looks fixed at driver 334.xx.
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
 void
