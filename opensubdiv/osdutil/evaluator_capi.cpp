@@ -111,7 +111,7 @@ int openSubdiv_finishEvaluatorDescr(OpenSubdiv_EvaluatorDescr *evaluator_descr,
 
 
 int openSubdiv_setEvaluatorCoarsePositions(
-    struct OpenSubdiv_EvaluatorDescr *evaluator_descr,
+    OpenSubdiv_EvaluatorDescr *evaluator_descr,
     const float *positions, int numVertices)
 {
     std::string errorMessage;
@@ -135,7 +135,7 @@ int openSubdiv_setEvaluatorCoarsePositions(
 
 
 void openSubdiv_evaluateLimit(
-    struct OpenSubdiv_EvaluatorDescr *evaluation_descr,
+    OpenSubdiv_EvaluatorDescr *evaluation_descr,
     int face_id, float u, float v,
     float P[3], float dPdu[3], float dPdv[3])
 {
@@ -148,7 +148,7 @@ void openSubdiv_evaluateLimit(
 }
 
 void openSubdiv_getEvaluatorTopology(
-    struct OpenSubdiv_EvaluatorDescr *evaluation_descr,
+    OpenSubdiv_EvaluatorDescr *evaluation_descr,
     int *numVertices,
     int *refinementLevel,
     int *numIndices,
@@ -167,9 +167,9 @@ void openSubdiv_getEvaluatorTopology(
     *nverts =  &evaluation_descr->topology.nverts[0];
 }
 
-struct OpenSubdiv_EvaluatorDescr *openSubdiv_getEvaluatorTopologyDescr(
-    struct OpenSubdiv_EvaluatorDescr *evaluator_descr)
+OpenSubdiv_EvaluatorDescr *openSubdiv_getEvaluatorTopologyDescr(
+    OpenSubdiv_EvaluatorDescr *evaluator_descr)
 {
-    return (struct OpenSubdiv_EvaluatorDescr *) &evaluator_descr->topology;
+    return (OpenSubdiv_EvaluatorDescr *) &evaluator_descr->topology;
 }
 

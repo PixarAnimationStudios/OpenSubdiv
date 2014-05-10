@@ -29,7 +29,6 @@ extern "C" {
  *   KIND, either express or implied. See the Apache License for the specific
  *   language governing permissions and limitations under the Apache License.
  */
-    
 
 /* Types declaration. */
 struct OpenSubdiv_EvaluatorDescr;
@@ -47,7 +46,7 @@ int openSubdiv_finishEvaluatorDescr(struct OpenSubdiv_EvaluatorDescr *evaluator_
 int openSubdiv_setEvaluatorCoarsePositions(
     struct OpenSubdiv_EvaluatorDescr *evaluator_descr,
     const float *positions, int numVertices);
-    
+
 /* Evaluate the subdivision limit surface at the given ptex face and u/v,    */
 /* return position and derivative information.  Derivative pointers can be   */
 /* NULL.  Note that face index here is the ptex index, or the index into     */
@@ -56,8 +55,6 @@ void openSubdiv_evaluateLimit(
     struct OpenSubdiv_EvaluatorDescr *evaluation_descr,
     int face_id, float u, float v,
     float P[3], float dPdu[3], float dPdv[3]);
-    
-    
 
 /* Get topology stored in the evaluator descriptor in order to be able */
 /* to check whether it still matches the mesh topology one is going to */
