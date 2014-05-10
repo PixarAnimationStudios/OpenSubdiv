@@ -58,6 +58,18 @@ void openSubdiv_evaluateLimit(
     
     
 
+/* Get topology stored in the evaluator descriptor in order to be able */
+/* to check whether it still matches the mesh topology one is going to */
+/* evaluate.                                                           */
+void openSubdiv_getEvaluatorTopology(
+    struct OpenSubdiv_EvaluatorDescr *evaluation_descr,
+    int *numVertices,
+    int *refinementLevel,
+    int *numIndices,
+    int **indices,
+    int *numNVerts,
+    int **nverts);
+
 #ifdef __cplusplus
 }
 #endif
