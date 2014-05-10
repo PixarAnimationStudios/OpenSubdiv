@@ -46,16 +46,16 @@ OsdCpuEvalStencilsController::_UpdateValues( OsdCpuEvalStencilsContext * context
     if (not nstencils)
         return result;
     
-    OsdVertexBufferDescriptor ctrlDesc = context->GetControlDataDescriptor(),
-                              outDesc = context->GetOutputDataDescriptor();
+    OsdVertexBufferDescriptor ctrlDesc = _currentBindState._controlDataDesc,
+                              outDesc = _currentBindState._outputDataDesc;
     
     // make sure that we have control data to work with
     if (not ctrlDesc.CanEval(outDesc))
         return 0;
 
-    float const * ctrl = context->GetControlData() + ctrlDesc.offset;
+    float const * ctrl = _currentBindState._controlData + ctrlDesc.offset;
 
-    float * out = context->GetOutputData() + outDesc.offset;
+    float * out = _currentBindState._outputData + outDesc.offset;
 
     if ((not ctrl) or (not out))
         return result;
@@ -94,18 +94,18 @@ OsdCpuEvalStencilsController::_UpdateDerivs( OsdCpuEvalStencilsContext * context
     if (not nstencils)
         return result;
     
-    OsdVertexBufferDescriptor ctrlDesc = context->GetControlDataDescriptor(),
-                              duDesc = context->GetDuDataDescriptor(),
-                              dvDesc = context->GetDvDataDescriptor();
+    OsdVertexBufferDescriptor ctrlDesc = _currentBindState._controlDataDesc,
+                              duDesc = _currentBindState._outputDuDesc,
+                              dvDesc = _currentBindState._outputDvDesc;
     
     // make sure that we have control data to work with
     if (not (ctrlDesc.CanEval(duDesc) and ctrlDesc.CanEval(dvDesc)))
         return 0;
 
-    float const * ctrl = context->GetControlData() + ctrlDesc.offset;
+    float const * ctrl = _currentBindState._controlData + ctrlDesc.offset;
 
-    float * du = context->GetOutputUDerivData() + duDesc.offset,
-          * dv = context->GetOutputVDerivData() + dvDesc.offset;
+    float * du = _currentBindState._outputUDeriv + duDesc.offset,
+          * dv = _currentBindState._outputVDeriv + dvDesc.offset;
 
     if ((not ctrl) or (not du) or (not dv))
         return result;

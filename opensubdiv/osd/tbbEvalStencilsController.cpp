@@ -138,13 +138,13 @@ OsdTbbEvalStencilsController::_UpdateValues( OsdCpuEvalStencilsContext * context
     if (not nstencils)
         return 0;
 
-    StencilKernel kernel( stencils, context->GetControlDataDescriptor(),
-                                    context->GetControlData() );
+    StencilKernel kernel( stencils, _currentBindState._controlDataDesc,
+                                    _currentBindState._controlData );
 
 
     if (not kernel.SetOutput( StencilKernel::POINT,
-                              context->GetOutputDataDescriptor(),
-                              context->GetOutputData() ))
+                              _currentBindState._outputDataDesc,
+                              _currentBindState._outputData ))
         return 0;
 
     tbb::blocked_range<int> range(0, nstencils, grain_size);
@@ -167,19 +167,19 @@ OsdTbbEvalStencilsController::_UpdateDerivs( OsdCpuEvalStencilsContext * context
 
     tbb::blocked_range<int> range(0, nstencils, grain_size);
 
-    StencilKernel kernel( stencils, context->GetControlDataDescriptor(),
-                                    context->GetControlData() );
+    StencilKernel kernel( stencils, _currentBindState._controlDataDesc,
+                                    _currentBindState._controlData );
 
     if (not kernel.SetOutput( StencilKernel::U_DERIV,
-                              context->GetDuDataDescriptor(),
-                              context->GetOutputUDerivData() ) )
+                              _currentBindState._outputDuDesc,
+                              _currentBindState._outputUDeriv ) )
         return 0;
 
     tbb::parallel_for(range, kernel);
 
     if (not kernel.SetOutput( StencilKernel::V_DERIV,
-                              context->GetDvDataDescriptor(),
-                              context->GetOutputVDerivData() ) )
+                              _currentBindState._outputDvDesc,
+                              _currentBindState._outputVDeriv ) )
         return 0;
 
     tbb::parallel_for(range, kernel);
