@@ -111,7 +111,7 @@ int openSubdiv_finishEvaluatorDescr(OpenSubdiv_EvaluatorDescr *evaluator_descr,
 
 
 int openSubdiv_setEvaluatorCoarsePositions(
-    struct OpenSubdiv_EvaluatorDescr *evaluator_descr,
+    OpenSubdiv_EvaluatorDescr *evaluator_descr,
     const float *positions, int numVertices)
 {
     std::string errorMessage;
@@ -135,7 +135,7 @@ int openSubdiv_setEvaluatorCoarsePositions(
 
 
 void openSubdiv_evaluateLimit(
-    struct OpenSubdiv_EvaluatorDescr *evaluation_descr,
+    OpenSubdiv_EvaluatorDescr *evaluation_descr,
     int face_id, float u, float v,
     float P[3], float dPdu[3], float dPdv[3])
 {
@@ -146,4 +146,30 @@ void openSubdiv_evaluateLimit(
 
     evaluation_descr->evaluator.EvaluateLimit(coords, P, dPdu, dPdv);
 }
-   
+
+void openSubdiv_getEvaluatorTopology(
+    OpenSubdiv_EvaluatorDescr *evaluation_descr,
+    int *numVertices,
+    int *refinementLevel,
+    int *numIndices,
+    int **indices,
+    int *numNVerts,
+    int **nverts)
+{
+    // TODO(sergey): Tag data is also need to do the full comparison,
+    // but it's not that clear how to pass it via C-API and no real
+    // application to test this yet.
+    *numVertices =  evaluation_descr->topology.numVertices;
+    *refinementLevel =  evaluation_descr->topology.refinementLevel;
+    *numIndices =  evaluation_descr->topology.indices.size();
+    *indices =  &evaluation_descr->topology.indices[0];
+    *numNVerts =  evaluation_descr->topology.nverts.size();
+    *nverts =  &evaluation_descr->topology.nverts[0];
+}
+
+OpenSubdiv_EvaluatorDescr *openSubdiv_getEvaluatorTopologyDescr(
+    OpenSubdiv_EvaluatorDescr *evaluator_descr)
+{
+    return (OpenSubdiv_EvaluatorDescr *) &evaluator_descr->topology;
+}
+
