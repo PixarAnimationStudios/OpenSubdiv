@@ -411,22 +411,22 @@ updateGeom() {
 
     g_nsamplesFound=0;
 
-    // Bind/Unbind of the vertex buffers to the context needs to happen 
-    // outside of the parallel loop
-    g_evalCtx->GetVertexData().Bind( g_idesc, g_vertexData, g_odesc, g_Q, g_dQu, g_dQv );
-
     // The varying data ends-up interleaved in the same g_Q output buffer because
     // g_Q has a stride of 6 and g_vdesc sets the offset to 3, while g_odesc sets
     // the offset to 0
     switch (g_drawMode) {
-        case kVARYING     : g_evalCtx->GetVaryingData().Bind( g_idesc, g_varyingData, g_vdesc, g_Q ); break;
+        case kVARYING     : g_evalCtrl.BindVaryingBuffers( g_idesc, g_varyingData, g_vdesc, g_Q ); break;
 
-        case kFACEVARYING : g_evalCtx->GetFaceVaryingData().Bind( g_fvidesc, g_fvodesc, g_Q );
+        case kFACEVARYING : g_evalCtrl.BindFacevaryingBuffers( g_fvidesc, g_fvodesc, g_Q ); break;
 
         case kUV :
 
-        default : g_evalCtx->GetVaryingData().Unbind(); break;
+        default : g_evalCtrl.Unbind(); break;
     }
+
+    // Bind/Unbind of the vertex buffers to the context needs to happen 
+    // outside of the parallel loop
+    g_evalCtrl.BindVertexBuffers( g_idesc, g_vertexData, g_odesc, g_Q, g_dQu, g_dQv );
 
 #define USE_OPENMP
 #if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
@@ -434,7 +434,7 @@ updateGeom() {
 #endif
     for (int i=0; i<(int)g_coords.size(); ++i) {
     
-        int n = g_evalCtrl.EvalLimitSample<OsdCpuVertexBuffer,OsdCpuGLVertexBuffer>( g_coords[i], g_evalCtx, i );
+        int n = g_evalCtrl.EvalLimitSample( g_coords[i], g_evalCtx, i );
 
         if (n) {
             // point colors
@@ -461,16 +461,8 @@ updateGeom() {
         }
     }
     
-    g_evalCtx->GetVertexData().Unbind();
+    g_evalCtrl.Unbind();
 
-    switch (g_drawMode) {
-        case kVARYING     : g_evalCtx->GetVaryingData().Unbind(); break;
-
-        case kFACEVARYING : g_evalCtx->GetFaceVaryingData().Unbind(); break;
-
-        default : break;
-    }
-    
     g_Q->BindVBO();
 
     s.Stop();

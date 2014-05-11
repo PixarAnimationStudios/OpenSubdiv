@@ -156,14 +156,6 @@ OsdUtilAdaptiveEvaluator::Initialize(
     _evalLimitContext = OsdCpuEvalLimitContext::Create(
         fmesh->GetPatchTables(), /*requierFVarData*/ false);
 
-    // Setup evaluation context. Values are offset, length, stride */
-    OsdVertexBufferDescriptor in_desc(0, 3, 3), out_desc(0, 0, 0);
-    
-    OsdCpuEvalLimitContext::VertexData & vertexData = 
-        _evalLimitContext->GetVertexData();
-    
-    vertexData.Bind<OsdCpuVertexBuffer,OsdCpuVertexBuffer>(in_desc, _vertexBuffer, out_desc, NULL);
-
     return true;
 }
 
@@ -216,6 +208,11 @@ OsdUtilAdaptiveEvaluator::EvaluateLimit(
     OsdCpuEvalLimitController cpuEvalLimitController;
     
     static OsdVertexBufferDescriptor desc(0,3,3);
+
+    // Setup evaluation controller. Values are offset, length, stride */
+    OsdVertexBufferDescriptor in_desc(0, 3, 3), out_desc(0, 0, 0);
+    
+    cpuEvalLimitController.BindVertexBuffers<OsdCpuVertexBuffer,OsdCpuVertexBuffer>(in_desc, _vertexBuffer, out_desc, NULL);
     
     cpuEvalLimitController.EvalLimitSample(coords, _evalLimitContext, desc, P, dPdu, dPdv);
 }

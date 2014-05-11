@@ -72,9 +72,9 @@ OsdCpuEvalLimitController::EvalLimitSample( OpenSubdiv::OsdEvalCoords const & co
 
     unsigned int const * cvs = &context->GetControlVertices()[ parray.GetVertIndex() + handle->vertexOffset ];
 
-    OsdCpuEvalLimitContext::VertexData & vertexData = context->GetVertexData();
+    VertexData const & vertexData = _currentBindState.vertexData;
 
-    if (vertexData.in.IsBound()) {
+    if (vertexData.in) {
     
         float * out   = outQ ? outQ + outDesc.offset : 0,
               * outDu = outDQU ? outDQU + outDesc.offset : 0,
@@ -84,21 +84,21 @@ OsdCpuEvalLimitController::EvalLimitSample( OpenSubdiv::OsdEvalCoords const & co
 
             case FarPatchTables::REGULAR  : evalBSpline( v, u, cvs,
                                                          vertexData.inDesc,
-                                                         vertexData.in.GetData(),
+                                                         vertexData.in,
                                                          outDesc,
                                                          out, outDu, outDv );
                                             break;
 
             case FarPatchTables::BOUNDARY : evalBoundary( v, u, cvs,
                                                           vertexData.inDesc,
-                                                          vertexData.in.GetData(),
+                                                          vertexData.in,
                                                           outDesc,
                                                           out, outDu, outDv );
                                             break;
 
             case FarPatchTables::CORNER   : evalCorner( v, u, cvs,
                                                         vertexData.inDesc,
-                                                        vertexData.in.GetData(),
+                                                        vertexData.in,
                                                         outDesc,
                                                         out, outDu, outDv );
                                             break;
@@ -109,7 +109,7 @@ OsdCpuEvalLimitController::EvalLimitSample( OpenSubdiv::OsdEvalCoords const & co
                                                          &context->GetQuadOffsetTable()[ parray.GetQuadOffsetIndex() + handle->vertexOffset ],
                                                          context->GetMaxValence(),
                                                          vertexData.inDesc,
-                                                         vertexData.in.GetData(),
+                                                         vertexData.in,
                                                          outDesc,
                                                          out, outDu, outDv );
                                             break;
@@ -120,7 +120,7 @@ OsdCpuEvalLimitController::EvalLimitSample( OpenSubdiv::OsdEvalCoords const & co
                                                                  &context->GetQuadOffsetTable()[ parray.GetQuadOffsetIndex() + handle->vertexOffset ],
                                                                  context->GetMaxValence(),
                                                                  vertexData.inDesc,
-                                                                 vertexData.in.GetData(),
+                                                                 vertexData.in,
                                                                  outDesc,
                                                                  out, outDu, outDv );
                                             break;
@@ -154,39 +154,38 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
 
     unsigned int const * cvs = &context->GetControlVertices()[ parray.GetVertIndex() + handle->vertexOffset ];
 
-    OsdCpuEvalLimitContext::VertexData & vertexData = context->GetVertexData();
+    VertexData const & vertexData = _currentBindState.vertexData;
 
-    if (vertexData.IsBound()) {
+    if (vertexData.in) {
 
         int offset = vertexData.outDesc.stride * index;
 
+        if (vertexData.out) {
 
-        if (vertexData.IsBound()) {
-
-            float * out   = vertexData.out.GetData()+offset,
-                  * outDu = vertexData.outDu.IsBound() ? vertexData.outDu.GetData()+offset : 0,
-                  * outDv = vertexData.outDv.IsBound() ? vertexData.outDv.GetData()+offset : 0;
+            float * out   = vertexData.out+offset,
+                  * outDu = vertexData.outDu ? vertexData.outDu+offset : 0,
+                  * outDv = vertexData.outDv ? vertexData.outDv+offset : 0;
 
             // Based on patch type - go execute interpolation
             switch( parray.GetDescriptor().GetType() ) {
 
                 case FarPatchTables::REGULAR  : evalBSpline( v, u, cvs,
                                                              vertexData.inDesc,
-                                                             vertexData.in.GetData(),
+                                                             vertexData.in,
                                                              vertexData.outDesc,
                                                              out, outDu, outDv );
                                                 break;
 
                 case FarPatchTables::BOUNDARY : evalBoundary( v, u, cvs,
                                                               vertexData.inDesc,
-                                                              vertexData.in.GetData(),
+                                                              vertexData.in,
                                                               vertexData.outDesc,
                                                               out, outDu, outDv );
                                                 break;
 
                 case FarPatchTables::CORNER   : evalCorner( v, u, cvs,
                                                             vertexData.inDesc,
-                                                            vertexData.in.GetData(),
+                                                            vertexData.in,
                                                             vertexData.outDesc,
                                                             out, outDu, outDv );
                                                 break;
@@ -197,7 +196,7 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
                                                              &context->GetQuadOffsetTable()[ parray.GetQuadOffsetIndex() + handle->vertexOffset ],
                                                              context->GetMaxValence(),
                                                              vertexData.inDesc,
-                                                             vertexData.in.GetData(),
+                                                             vertexData.in,
                                                              vertexData.outDesc,
                                                              out, outDu, outDv );
                                                 break;
@@ -208,7 +207,7 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
                                                                      &context->GetQuadOffsetTable()[ parray.GetQuadOffsetIndex() + handle->vertexOffset ],
                                                                      context->GetMaxValence(),
                                                                      vertexData.inDesc,
-                                                                     vertexData.in.GetData(),
+                                                                     vertexData.in,
                                                                      vertexData.outDesc,
                                                                      out, outDu, outDv );
                                                 break;
@@ -219,9 +218,9 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
         }
     }
 
-    OsdCpuEvalLimitContext::VaryingData & varyingData = context->GetVaryingData();
+    VaryingData const & varyingData = _currentBindState.varyingData;
 
-    if (varyingData.IsBound()) {
+    if (varyingData.in and varyingData.out) {
 
         static int indices[5][4] = { {5, 6,10, 9},  // regular
                                      {1, 2, 6, 5},  // boundary
@@ -240,9 +239,9 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
 
         evalBilinear( v, u, zeroRing,
                       varyingData.inDesc,
-                      varyingData.in.GetData(),
+                      varyingData.in,
                       varyingData.outDesc,
-                      varyingData.out.GetData()+offset);
+                      varyingData.out+offset);
 
     }
 
@@ -250,22 +249,24 @@ OsdCpuEvalLimitController::_EvalLimitSample( OpenSubdiv::OsdEvalCoords const & c
     // for face-varying data. Although Hbr supports 3 additional smooth rule
     // sets, the feature-adaptive patch interpolation code currently does not
     // support them, and neither does this EvalContext.
-    OsdCpuEvalLimitContext::FaceVaryingData & faceVaryingData = context->GetFaceVaryingData();
-    if (faceVaryingData.IsBound()) {
+
+    FacevaryingData const & facevaryingData = _currentBindState.facevaryingData;
+
+    if (facevaryingData.out) {
 
         std::vector<float> const & fvarData = context->GetFVarData();
 
         if (not fvarData.empty()) {
 
-            int offset = faceVaryingData.outDesc.stride * index;
+            int offset = facevaryingData.outDesc.stride * index;
 
             static unsigned int zeroRing[4] = {0,1,2,3};
 
             evalBilinear( v, u, zeroRing,
-                          faceVaryingData.inDesc,
+                          facevaryingData.inDesc,
                           &fvarData[ handle->patchIdx * 4 * context->GetFVarWidth() ],
-                          faceVaryingData.outDesc,
-                          faceVaryingData.out.GetData()+offset);
+                          facevaryingData.outDesc,
+                          facevaryingData.out+offset);
         }
     }
 

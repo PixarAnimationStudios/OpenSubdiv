@@ -98,36 +98,5 @@ OsdCpuEvalLimitContext::~OsdCpuEvalLimitContext() {
     delete _patchMap;
 }
 
-void 
-OsdCpuEvalLimitContext::VertexData::Unbind() {
-
-    inDesc.Reset();
-    in.Unbind();
-
-    outDesc.Reset();
-    out.Unbind();
-    outDu.Unbind();
-    outDv.Unbind();
-}
-
-void 
-OsdCpuEvalLimitContext::VaryingData::Unbind() {
-
-    inDesc.Reset();
-    in.Unbind();
-
-    outDesc.Reset();
-    out.Unbind();
-}
-
-void 
-OsdCpuEvalLimitContext::FaceVaryingData::Unbind() {
-
-    inDesc.Reset();
-
-    outDesc.Reset();
-    out.Unbind();
-}
-
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
