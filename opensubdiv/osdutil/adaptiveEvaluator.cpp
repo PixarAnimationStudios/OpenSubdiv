@@ -80,13 +80,15 @@ OsdUtilAdaptiveEvaluator::Initialize(
     // create and initialize a refiner, passing "true" for adaptive
     // to indicate we wish for adaptive refinement rather than uniform
     OsdUtilRefiner *refiner = new OsdUtilRefiner();
-    _ownsRefiner = true;
 
     if (not refiner->Initialize(t, true, errorMessage)) {
+        delete refiner;
         return false;
     }
 
-    return Initialize(refiner, errorMessage);
+    bool result = Initialize(refiner, errorMessage);
+    _ownsRefiner = true;
+    return result;
 }
 
 bool
@@ -113,10 +115,6 @@ OsdUtilAdaptiveEvaluator::Initialize(
             *errorMessage = "No valid adaptive far/hbr mesh";
         return false;
     }
-
-
-    _computeContext = OsdCpuComputeContext::Create(fmesh->GetSubdivisionTables(),
-                                                   fmesh->GetVertexEditTables());
 
     // Three elements (x/y/z) per refined point at every subdivision level
     // defined by the farMesh.  The coarse vertices seed the beginning of
