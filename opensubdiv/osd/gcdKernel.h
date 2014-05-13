@@ -42,6 +42,22 @@ void OsdGcdComputeFace(float * vertex, float * varying,
                        int start, int end,
                        dispatch_queue_t gcdq);
 
+void OsdGcdComputeQuadFace(float * vertex, float * varying,
+                           OsdVertexBufferDescriptor const &vertexDesc,
+                           OsdVertexBufferDescriptor const &varyingDesc,
+                           const int *F_IT,
+                           int vertexOffset, int tableOffset,
+                           int start, int end,
+                           dispatch_queue_t gcdq);
+
+void OsdGcdComputeTriQuadFace(float * vertex, float * varying,
+                              OsdVertexBufferDescriptor const &vertexDesc,
+                              OsdVertexBufferDescriptor const &varyingDesc,
+                              const int *F_IT,
+                              int vertexOffset, int tableOffset,
+                              int start, int end,
+                              dispatch_queue_t gcdq);
+
 void OsdGcdComputeEdge(float *vertex, float * varying,
                        OsdVertexBufferDescriptor const &vertexDesc,
                        OsdVertexBufferDescriptor const &varyingDesc,

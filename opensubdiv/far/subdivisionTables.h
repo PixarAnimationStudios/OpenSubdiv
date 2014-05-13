@@ -163,6 +163,14 @@ public:
     template <class U>
     void computeCatmarkFacePoints(int vertexOffset, int tableOffset, int start, int end, U * vsrc) const;
 
+    // Compute-kernel applied to vertices resulting from the refinement of a quad face.
+    template <class U>
+    void computeCatmarkQuadFacePoints(int vertexOffset, int tableOffset, int start, int end, U * vsrc) const;
+
+    // Compute-kernel applied to vertices resulting from the refinement of a tri or quad face.
+    template <class U>
+    void computeCatmarkTriQuadFacePoints(int vertexOffset, int tableOffset, int start, int end, U * vsrc) const;
+
     // Compute-kernel applied to vertices resulting from the refinement of an edge.
     template <class U>
     void computeCatmarkEdgePoints(int vertexOffset, int tableOffset, int start, int end, U * vsrc) const;
@@ -363,6 +371,65 @@ FarSubdivisionTables::computeCatmarkFacePoints( int vertexOffset, int tableOffse
         for (int j=0; j<n; ++j) {
              vdst->AddWithWeight( vsrc[ this->_F_IT[h+j] ], weight );
              vdst->AddVaryingWithWeight( vsrc[ this->_F_IT[h+j] ], weight );
+        }
+    }
+}
+
+//
+// Quad face-vertices compute Kernel - completely re-entrant
+//
+
+template <class U> void
+FarSubdivisionTables::computeCatmarkQuadFacePoints( int vertexOffset, int tableOffset, int start, int end, U * vsrc ) const {
+
+    U * vdst = vsrc + vertexOffset + start;
+
+    for (int i=start; i<end; ++i, ++vdst ) {
+        int fidx0 = _F_IT[tableOffset + 4 * i + 0];
+        int fidx1 = _F_IT[tableOffset + 4 * i + 1];
+        int fidx2 = _F_IT[tableOffset + 4 * i + 2];
+        int fidx3 = _F_IT[tableOffset + 4 * i + 3];
+
+        vdst->Clear();
+        vdst->AddWithWeight(vsrc[fidx0], 0.25f);
+        vdst->AddVaryingWithWeight(vsrc[fidx0], 0.25f);
+        vdst->AddWithWeight(vsrc[fidx1], 0.25f);
+        vdst->AddVaryingWithWeight(vsrc[fidx1], 0.25f);
+        vdst->AddWithWeight(vsrc[fidx2], 0.25f);
+        vdst->AddVaryingWithWeight(vsrc[fidx2], 0.25f);
+        vdst->AddWithWeight(vsrc[fidx3], 0.25f);
+        vdst->AddVaryingWithWeight(vsrc[fidx3], 0.25f);
+    }
+}
+
+//
+// Tri/quad face-vertices compute Kernel - completely re-entrant
+//
+
+template <class U> void
+FarSubdivisionTables::computeCatmarkTriQuadFacePoints( int vertexOffset, int tableOffset, int start, int end, U * vsrc ) const {
+
+    U * vdst = vsrc + vertexOffset + start;
+
+    for (int i=start; i<end; ++i, ++vdst ) {
+        int fidx0 = _F_IT[tableOffset + 4 * i + 0];
+        int fidx1 = _F_IT[tableOffset + 4 * i + 1];
+        int fidx2 = _F_IT[tableOffset + 4 * i + 2];
+        int fidx3 = _F_IT[tableOffset + 4 * i + 3];
+
+        bool triangle = (fidx3 == fidx2);
+        float weight = triangle ? 1.0f / 3.0f : 1.0f / 4.0f;
+
+        vdst->Clear();
+        vdst->AddWithWeight(vsrc[fidx0], weight);
+        vdst->AddVaryingWithWeight(vsrc[fidx0], weight);
+        vdst->AddWithWeight(vsrc[fidx1], weight);
+        vdst->AddVaryingWithWeight(vsrc[fidx1], weight);
+        vdst->AddWithWeight(vsrc[fidx2], weight);
+        vdst->AddVaryingWithWeight(vsrc[fidx2], weight);
+        if (!triangle) {
+            vdst->AddWithWeight(vsrc[fidx3], weight);
+            vdst->AddVaryingWithWeight(vsrc[fidx3], weight);
         }
     }
 }

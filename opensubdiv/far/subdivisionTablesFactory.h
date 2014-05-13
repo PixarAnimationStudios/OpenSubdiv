@@ -94,6 +94,15 @@ protected:
     // Valence summation for face vertices
     int GetVertVertsValenceSum() const { return _vertVertsValenceSum; }
 
+    // Minimum valence for coarse faces
+    int GetMinCoarseFaceValence() const { return _minCoarseFaceValence; }
+
+    // Maximum valence for coarse faces
+    int GetMaxCoarseFaceValence() const { return _maxCoarseFaceValence; }
+
+    // Number of coarse triangle faces
+    int GetNumCoarseTriangleFaces() const { return _numCoarseTriangleFaces; }
+
     // Returns an integer based on the order in which the kernels are applied
     static int GetMaskRanking( unsigned char mask0, unsigned char mask1 );
 
@@ -111,6 +120,14 @@ protected:
     std::vector<std::vector< HbrVertex<T> *> > _faceVertsList,
                                                _edgeVertsList,
                                                _vertVertsList;
+
+    // Minimum and maximum valence for coarse faces
+    int _minCoarseFaceValence,
+        _maxCoarseFaceValence;
+
+    // Number of coarse triangle faces
+    int _numCoarseTriangleFaces;
+
 private:
 
     // Returns the subdivision level of a vertex
@@ -135,7 +152,10 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
     _vertVertsValenceSum(0),
     _faceVertsList(maxlevel+1),
     _edgeVertsList(maxlevel+1),
-    _vertVertsList(maxlevel+1)
+    _vertVertsList(maxlevel+1),
+    _minCoarseFaceValence(0),
+    _maxCoarseFaceValence(0),
+    _numCoarseTriangleFaces(0)
  {
     assert( mesh );
 
@@ -170,7 +190,15 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
 
         if (v->GetParentFace()) {
             faceCounts[depth]++;
-            _faceVertsValenceSum += v->GetParentFace()->GetNumVertices();
+            int valence = v->GetParentFace()->GetNumVertices();
+            _faceVertsValenceSum += valence;
+
+            if (depth == 1) {
+                _minCoarseFaceValence = (_minCoarseFaceValence == 0 ? valence : std::min(_minCoarseFaceValence, valence));
+                _maxCoarseFaceValence = (_maxCoarseFaceValence == 0 ? valence : std::max(_maxCoarseFaceValence, valence));
+                if (valence == 3)
+                    ++_numCoarseTriangleFaces;
+            }
         } else if (v->GetParentEdge())
             edgeCounts[depth]++;
         else if (v->GetParentVertex()) {
