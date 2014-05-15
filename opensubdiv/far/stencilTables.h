@@ -211,7 +211,7 @@ template <class T> void
 FarStencilTables::_Update( T const *controlValues,
                            float const * weights,
                            T *values,
-                           int stride ) const {
+                           int /* stride */ ) const {
 
     int const * index = &_indices.at(0);
 

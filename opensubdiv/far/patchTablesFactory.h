@@ -67,8 +67,6 @@ protected:
 
     /// \brief Returns a feature-adaptive FarPatchTables instance
     ///
-    /// @param maxlevel         Highest level of refinement processed
-    ///
     /// @param maxvalence       Maximum vertex valence in the mesh
     ///
     /// @param numPtexFaces     Number of ptex faces
@@ -77,7 +75,7 @@ protected:
     ///
     /// @return                 A new instance of FarPatchTables
     ///
-    FarPatchTables * Create( int maxlevel, int maxvalence, int numPtexFaces=0, int fvarWidth=0 );
+    FarPatchTables * Create(int maxvalence, int numPtexFaces=0, int fvarWidth=0 );
 
 
     typedef std::vector<std::vector< HbrFace<T> *> > FacesList;
@@ -710,9 +708,9 @@ FarPatchTablesFactory<T>::pushPatchArray( FarPatchTables::Descriptor desc,
     }
 }
 
-// Uniform mesh factory
+// Feature adaptive mesh factory
 template <class T> FarPatchTables *
-FarPatchTablesFactory<T>::Create( int maxlevel, int maxvalence, int numPtexFaces, int fvarwidth ) {
+FarPatchTablesFactory<T>::Create(int maxvalence, int numPtexFaces, int fvarwidth ) {
 
     static const unsigned int remapRegular        [16] = {5,6,10,9,4,0,1,2,3,7,11,15,14,13,12,8};
     static const unsigned int remapRegularBoundary[12] = {1,2,6,5,0,3,7,11,10,9,8,4};

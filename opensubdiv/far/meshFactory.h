@@ -701,7 +701,7 @@ FarMeshFactory<T,U>::isLoop(HbrMesh<T> const * mesh) {
 }
 
 template <class T, class U> void
-copyVertex( T & dest, U const & src ) {
+copyVertex( T & /* dest */, U const & /* src */ ) {
 }
 
 template <class T> void
@@ -760,7 +760,7 @@ FarMeshFactory<T,U>::Create( bool requireFVarData ) {
         FarPatchTablesFactory<T> factory(GetHbrMesh(), _numFaces, _remapTable);
 
         // XXXX: currently PatchGregory shader supports up to 29 valence
-        result->_patchTables = factory.Create(GetMaxLevel()+1, _maxValence, _numPtexFaces, fvarwidth);
+        result->_patchTables = factory.Create(_maxValence, _numPtexFaces, fvarwidth);
 
     } else {
         result->_patchTables = FarPatchTablesFactory<T>::Create(GetHbrMesh(), _facesList, _remapTable, _firstlevel, _patchType, _numPtexFaces, fvarwidth );

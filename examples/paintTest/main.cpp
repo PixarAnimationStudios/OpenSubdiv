@@ -161,11 +161,9 @@ checkGLErrors(std::string const & where = "")
 {
     GLuint err;
     while ((err = glGetError()) != GL_NO_ERROR) {
-        /*
         std::cerr << "GL error: "
                   << (where.empty() ? "" : where + " ")
                   << err << "\n";
-        */
     }
 }
 
@@ -843,7 +841,7 @@ display() {
 
     glFinish();
 
-    checkGLErrors("display leave");
+    //checkGLErrors("display leave");
 
 #if GLFW_VERSION_MAJOR>=3
     glfwSwapBuffers(g_window);
@@ -969,7 +967,7 @@ drawStroke(int x, int y)
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT |
                     GL_TEXTURE_FETCH_BARRIER_BIT);
 
-    checkGLErrors("display leave");
+    //checkGLErrors("display leave");
 }
 
 //------------------------------------------------------------------------------
@@ -1014,7 +1012,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow * w, int button, int state, int mods) {
+mouse(GLFWwindow * w, int button, int state, int /* mods */) {
 #else
 mouse(int button, int state) {
 #endif
@@ -1097,7 +1095,7 @@ toggleFullScreen() {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
+keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
@@ -1125,7 +1123,7 @@ callbackWireframe(int b)
 }
 
 static void
-callbackDisplay(bool checked, int n)
+callbackDisplay(bool /* checked */, int n)
 {
     if (n == 0) g_displayColor = !g_displayColor;
     else if (n == 1) g_displayDisplacement = !g_displayDisplacement;

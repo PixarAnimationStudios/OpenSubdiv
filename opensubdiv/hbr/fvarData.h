@@ -51,7 +51,7 @@ private:
         Uninitialize();
     }
 
-    HbrFVarData(const HbrFVarData &data) {}
+    HbrFVarData(const HbrFVarData &/* data */) {}
 
 public:
     

@@ -882,7 +882,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state, int mods) {
+mouse(GLFWwindow *, int button, int state, int /* mods */) {
 #else
 mouse(int button, int state) {
 #endif
@@ -940,7 +940,7 @@ setSamples(bool add)
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
+keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
@@ -993,28 +993,28 @@ callbackLevel(int l)
 
 //------------------------------------------------------------------------------
 static void
-callbackAnimate(bool checked, int m)
+callbackAnimate(bool checked, int /* m */)
 {
     g_moveScale = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackFreeze(bool checked, int f)
+callbackFreeze(bool checked, int /* f */)
 {
     g_freeze = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackDisplayCageVertices(bool checked, int d)
+callbackDisplayCageVertices(bool checked, int /* d */)
 {
     g_drawCageVertices = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackDisplayCageEdges(bool checked, int d)
+callbackDisplayCageEdges(bool checked, int /* d */)
 {
     g_drawCageEdges = checked;
 }

@@ -145,8 +145,8 @@ protected:
         return new ConfigType(); 
     }
     
-    virtual ConfigType * _CreateDrawConfig(DescType const & desc,
-                                           SourceConfigType const * sconfig) {
+    virtual ConfigType * _CreateDrawConfig(DescType const & /* desc */,
+                                           SourceConfigType const * /* sconfig */) {
         return NULL; 
     }
 
@@ -154,7 +154,7 @@ protected:
         return new SourceConfigType(); 
     }
     
-    virtual SourceConfigType * _CreateDrawSourceConfig(DescType const & desc) { 
+    virtual SourceConfigType * _CreateDrawSourceConfig(DescType const & /* desc */) { 
         return NULL; 
     }
 

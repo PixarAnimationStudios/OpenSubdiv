@@ -135,7 +135,7 @@ private:
     void optimizePacking(int maxNumPages, size_t targetMemory);
     int  getLevelDiff(int face, int edge);
     bool getCornerPixel(float *resultPixel, int numchannels,
-                        int face, int edge, int bpp, int8_t res);
+                        int face, int edge, int8_t res);
     void sampleNeighbor(unsigned char *border,
                         int face, int edge, int length, int bpp);
     int  resampleBorder(int face, int edgeId, unsigned char *result,

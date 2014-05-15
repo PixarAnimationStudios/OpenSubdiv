@@ -481,11 +481,9 @@ checkGLErrors(std::string const & where = "")
 {
     GLuint err;
     while ((err = glGetError()) != GL_NO_ERROR) {
-        /*
         std::cerr << "GL error: "
                   << (where.empty() ? "" : where + " ")
                   << err << "\n";
-        */
     }
 }
 
@@ -1182,7 +1180,7 @@ display() {
 
     glFinish();
 
-    checkGLErrors("display leave");
+    //checkGLErrors("display leave");
 }
 
 //------------------------------------------------------------------------------
@@ -1216,7 +1214,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state, int mods) {
+mouse(GLFWwindow *, int button, int state, int /* mods */) {
 #else
 mouse(int button, int state) {
 #endif
@@ -1328,7 +1326,7 @@ rebuildOsdMesh()
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
+keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
@@ -1389,7 +1387,7 @@ callbackLevel(int l)
 }
 
 static void
-callbackSlider(float value, int data)
+callbackSlider(float value, int /* data */)
 {
     g_numInstances = (int)value;
     rebuildInstances();
@@ -1403,7 +1401,7 @@ callbackDisplayStyle(int b)
 }
 
 static void
-callbackAdaptive(bool checked, int a)
+callbackAdaptive(bool checked, int /* a */)
 {
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation()) {
         g_adaptive = checked;

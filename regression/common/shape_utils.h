@@ -92,7 +92,7 @@ struct shape {
 
     std::string genShape(char const * name) const;
 
-    std::string genObj(char const * name) const;
+    std::string genObj() const;
 
     std::string genRIB() const;
 
@@ -229,7 +229,7 @@ std::string shape::genShape(char const * name) const {
 }
 
 //------------------------------------------------------------------------------
-std::string shape::genObj(char const * name) const {
+std::string shape::genObj() const {
     std::stringstream sh;
 
     sh<<"# This file uses centimeters as units for non-parametric coordinates.\n\n";
@@ -750,7 +750,7 @@ createMesh( Scheme scheme=kCatmark, int fvarwidth=0) {
 
 //------------------------------------------------------------------------------
 template <class T> void
-createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<float> * verts ) {
+createVerticesWithPositions(shape const * sh, OpenSubdiv::HbrMesh<T> * mesh) {
 
     T v;
     for(int i=0;i<sh->getNverts(); i++ ) {
@@ -761,7 +761,7 @@ createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<flo
 
 //------------------------------------------------------------------------------
 template <class T> void
-createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<float> & verts ) {
+createVertices(shape const * sh, OpenSubdiv::HbrMesh<T> * mesh) {
 
     T v;
     for(int i=0;i<sh->getNverts(); i++ )
@@ -778,7 +778,7 @@ copyVertexPositions( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vecto
 
     std::copy(sh->verts.begin(), sh->verts.end(), verts.begin());
 
-    // Sometimes Hbr dupes some vertices during Mesh::Finish() and our example 
+    // Sometimes Hbr dupes some vertices during Mesh::Finish() and our example
     // code uses those vertices to draw coarse control cages and such
     std::vector<std::pair<int, int> > const splits = mesh->GetSplitVertices();
     for (int i=0; i<(int)splits.size(); ++i) {
@@ -913,7 +913,7 @@ simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> * verts=0, bo
 
     OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme, fvarwidth);
 
-    createVertices<T>(sh, mesh, verts);
+    createVerticesWithPositions<T>(sh, mesh);
 
     createTopology<T>(sh, mesh, scheme);
 
@@ -938,7 +938,7 @@ simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> & verts, bool
 
     OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme, fvarwidth);
 
-    createVertices<T>(sh, mesh, verts);
+    createVertices<T>(sh, mesh);
 
     createTopology<T>(sh, mesh, scheme);
 

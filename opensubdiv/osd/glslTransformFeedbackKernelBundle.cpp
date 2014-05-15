@@ -444,8 +444,8 @@ OsdGLSLTransformFeedbackKernelBundle::ApplyLoopVertexVerticesKernelA(
 
 void
 OsdGLSLTransformFeedbackKernelBundle::ApplyEditAdd(
-    GLuint vertexBuffer, GLuint varyingBuffer,
-    int vertexOffset, int varyingOffset,
+    GLuint /* vertexBuffer */, GLuint /* varyingBuffer */,
+    int /* vertexOffset */, int /* varyingOffset */,
     int primvarOffset, int primvarWidth,
     int offset, int tableOffset, int start, int end) {
     

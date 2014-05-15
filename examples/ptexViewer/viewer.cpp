@@ -1995,7 +1995,7 @@ screenshot(int multiplier=4) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR >= 3
-mouse(GLFWwindow *, int button, int state, int mods)
+mouse(GLFWwindow *, int button, int state, int /* mods */)
 #else
 mouse(int button, int state)
 #endif
@@ -2252,7 +2252,7 @@ toggleFullScreen()
 //------------------------------------------------------------------------------
 void
 #if GLFW_VERSION_MAJOR >= 3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods)
+keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */)
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event)

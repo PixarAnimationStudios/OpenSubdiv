@@ -118,8 +118,12 @@ set(OSD_COMPILER_FLAGS)
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
 
     # Turn on all warnings
-    list(APPEND OSD_COMPILER_FLAGS -Wall)
-
+    if(CMAKE_COMPILER_IS_ICC)
+        list(APPEND OSD_COMPILER_FLAGS -w3)
+    else()
+        list(APPEND OSD_COMPILER_FLAGS -Wall -Wextra)
+    endif()
+    
     # HBR uses the offsetof macro on a templated struct, which appears
     # to spurriously set off this warning in both gccc and Clang
     list(APPEND OSD_COMPILER_FLAGS -Wno-invalid-offsetof)

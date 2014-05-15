@@ -31,7 +31,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 OsdCLVertexBuffer::OsdCLVertexBuffer(int numElements, int numVertices,
-                                     cl_context clContext)
+                                     cl_context /* clContext */)
     : _numElements(numElements), _numVertices(numVertices),
       _clQueue(NULL), _clMemory(NULL) {
 
@@ -74,7 +74,7 @@ OsdCLVertexBuffer::GetNumVertices() const {
 }
 
 cl_mem
-OsdCLVertexBuffer::BindCLBuffer(cl_command_queue queue) {
+OsdCLVertexBuffer::BindCLBuffer(cl_command_queue /* queue */) {
 
     return _clMemory;
 }

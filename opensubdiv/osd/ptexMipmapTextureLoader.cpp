@@ -131,7 +131,7 @@ OsdPtexMipmapTextureLoader::Block::guttering(OsdPtexMipmapTextureLoader *loader,
 
         // seamless mipmap only works with square faces.
         if (loader->getCornerPixel(accumPixel, numchannels,
-                                   this->index, edge, bpp, this->ulog2-level)) {
+                                   this->index, edge, this->ulog2-level)) {
             // case1, case 2
             if (edge == 1 || edge == 2) du += width;
             if (edge == 2 || edge == 3) dv += height;
@@ -661,7 +661,7 @@ OsdPtexMipmapTextureLoader::sampleNeighbor(unsigned char *border, int face,
 bool
 OsdPtexMipmapTextureLoader::getCornerPixel(float *resultPixel, int numchannels,
                                            int face, int edge,
-                                           int bpp, int8_t reslog2)
+                                           int8_t reslog2)
 {
     const Ptex::FaceInfo &fi = _ptex->getFaceInfo(face);
 

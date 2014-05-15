@@ -202,21 +202,21 @@ OsdUtilUniformEvaluator::SetCoarseVVData(
 
 bool
 OsdUtilUniformEvaluator::Refine(
-    int numThreads, string *errorMessage)
+    int numThreads, string */* errorMessage */)
 {
     const FarMesh<OsdVertex> *fmesh = _refiner->GetFarMesh();
     
-#ifdef OPENSUBDIV_HAS_OPENMP
     
     if (numThreads > 1) {
+#ifdef OPENSUBDIV_HAS_OPENMP
         OsdOmpComputeController ompComputeController(numThreads);
         ompComputeController.Refine(_computeContext,
                                     fmesh->GetKernelBatches(),
                                     _vertexBuffer, _vvBuffer);
         return true;
+#endif
     }
     
-#endif
 
     OsdCpuComputeController cpuComputeController;
     cpuComputeController.Refine(_computeContext,

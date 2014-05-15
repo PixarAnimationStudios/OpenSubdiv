@@ -116,7 +116,7 @@ idle()
 }
 
 
-int main(int argc, char ** argv) 
+int main(int /* argc */, char ** /* argv */) 
 {
     // 
     // Setup GLFW, glew and some initial GL state
