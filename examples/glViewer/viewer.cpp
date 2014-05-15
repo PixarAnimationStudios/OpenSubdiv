@@ -264,11 +264,9 @@ checkGLErrors(std::string const & where = "")
 {
     GLuint err;
     while ((err = glGetError()) != GL_NO_ERROR) {
-        /*
         std::cerr << "GL error: "
                   << (where.empty() ? "" : where + " ")
                   << err << "\n";
-        */
     }
 }
 
@@ -636,7 +634,6 @@ getKernelName(int kernel) {
 static void
 createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kCatmark ) {
 
-    checkGLErrors("create osd enter");
     // generate Hbr representation from "obj" description
     OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape.c_str(), scheme, g_orgPositions,
                                                           g_displayStyle == kFaceVaryingColor);
@@ -1258,6 +1255,8 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 static void
 display() {
 
+    g_hud.GetFrameBuffer()->Bind();
+
     Stopwatch s;
     s.Start();
 
@@ -1275,7 +1274,7 @@ display() {
     translate(g_transformData.ModelViewMatrix,
               -g_center[0], -g_center[1], -g_center[2]);
     perspective(g_transformData.ProjectionMatrix,
-                45.0f, (float)aspect, 0.01f, 500.0f);
+                45.0f, (float)aspect, 1.0f, 500.0f);
     multMatrix(g_transformData.ModelViewProjectionMatrix,
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
@@ -1285,6 +1284,8 @@ display() {
 
     if (g_displayStyle == kVaryingColor)
         g_mesh->BindVaryingBuffer();
+
+    glEnable(GL_DEPTH_TEST);
 
     glBindVertexArray(g_vao);
 
@@ -1389,6 +1390,8 @@ display() {
     if (g_drawCageVertices)
         drawCageVertices();
 
+    g_hud.GetFrameBuffer()->ApplyImageShader();
+
     GLuint numPrimsGenerated = 0;
     GLuint timeElapsed = 0;
     glGetQueryObjectuiv(g_queries[0], GL_QUERY_RESULT, &numPrimsGenerated);
@@ -1450,7 +1453,7 @@ display() {
 
     glFinish();
 
-    checkGLErrors("display leave");
+    //checkGLErrors("display leave");
 }
 
 //------------------------------------------------------------------------------
@@ -1461,8 +1464,10 @@ motion(GLFWwindow *, double dx, double dy) {
 #else
 motion(int x, int y) {
 #endif
-
-    if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
+    if (g_hud.MouseCapture()) {
+        // check gui
+        g_hud.MouseMotion(x, y);
+    } else if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
         // orbit
         g_rotate[0] += x - g_prev_x;
         g_rotate[1] += y - g_prev_y;
@@ -1484,10 +1489,13 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state, int mods) {
+mouse(GLFWwindow *, int button, int state, int /* mods */) {
 #else
 mouse(int button, int state) {
 #endif
+
+    if (state == GLFW_RELEASE)
+        g_hud.MouseRelease();
 
     if (button == 0 && state == GLFW_PRESS && g_hud.MouseClick(g_prev_x, g_prev_y))
         return;
@@ -1585,7 +1593,7 @@ toggleFullScreen() {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
+keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
@@ -1602,6 +1610,7 @@ keyboard(int key, int event) {
         case '=':  g_tessLevel++; break;
         case '-':  g_tessLevel = std::max(g_tessLevelMin, g_tessLevel-1); break;
         case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
+        case 'X': g_hud.GetFrameBuffer()->Screenshot(); break;
     }
 }
 
@@ -1670,7 +1679,7 @@ callbackModel(int m)
 }
 
 static void
-callbackAdaptive(bool checked, int a)
+callbackAdaptive(bool checked, int /* a */)
 {
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation()) {
         g_adaptive = checked;
@@ -1782,14 +1791,14 @@ initHUD()
     int shapes_pulldown = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
         g_hud.AddPullDownButton(shapes_pulldown, g_defaultShapes[i].name.c_str(),i);
-    }   
+    }
 }
 
 //------------------------------------------------------------------------------
 static void
 initGL()
 {
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glCullFace(GL_BACK);
@@ -1843,7 +1852,7 @@ setGLCoreProfile()
 #else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
 #endif
-    
+
 #else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);

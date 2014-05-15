@@ -22,6 +22,11 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
+set(EXAMPLES_COMMON_SHADER_FILES
+     framebuffer.glsl
+     ssao.glsl
+)
+
 set(EXAMPLES_COMMON_SOURCE_FILES
     font_image.cpp
     hdr_reader.cpp
@@ -43,10 +48,14 @@ set(EXAMPLES_COMMON_HEADER_FILES
 if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        gl_common.cpp
+        gl_framebuffer.cpp
         gl_hud.cpp
     )
 
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        gl_common.h
+        gl_framebuffer.h
         gl_hud.h
     )
 
@@ -81,10 +90,20 @@ endif()
 
 include_directories(
     "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${CMAKE_CURRENT_BINARY_DIR}"
 )
+
+set(INC_FILES )
+
+_stringify("${EXAMPLES_COMMON_SHADER_FILES}" INC_FILES)
+
+source_group("Shaders" FILES ${EXAMPLES_COMMON_SHADER_FILES})
+source_group("Inc" FILES ${INC_FILES})
 
 add_library(examples_common_obj
     OBJECT
         ${EXAMPLES_COMMON_SOURCE_FILES}
         ${EXAMPLES_COMMON_HEADER_FILES}
+        ${INC_FILES}        
 )
+

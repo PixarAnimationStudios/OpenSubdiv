@@ -24,7 +24,7 @@
 
 # *** glViewer ***
 
-set(PLATFORM_LIBRARIES
+list(APPEND PLATFORM_LIBRARIES
     "${OSD_LINK_TARGET}"
     "${GLFW_LIBRARIES}"
 )

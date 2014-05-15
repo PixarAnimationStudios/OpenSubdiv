@@ -22,44 +22,36 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef GL_HUD_H
-#define GL_HUD_H
+#include "gl_common.h"
 
-#include "hud.h"
+void
+checkGLErrors(std::string const & where) {
 
-#include <osd/opengl.h>
+    GLuint err;
+    while ((err = glGetError()) != GL_NO_ERROR) {
+        std::cerr << "GL error: "
+                  << (where.empty() ? "" : where + " ")
+                  << err << "\n";
+    }
+}
 
-#include "gl_framebuffer.h"
+GLuint
+compileShader(GLenum shaderType, const char *source) {
 
-class GLhud : public Hud {
+    GLuint shader = glCreateShader(shaderType);
+    glShaderSource(shader, 1, &source, NULL);
+    glCompileShader(shader);
 
-public:
-    GLhud();
-    ~GLhud();
-
-    virtual void Init(int width, int height);
-
-    virtual void Rebuild(int width, int height);
-
-    virtual bool Flush();
-
-    GLFrameBuffer * GetFrameBuffer() {
-        return _frameBuffer;
+    GLint status;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+    if (status == GL_FALSE) {
+        GLchar emsg[40960];
+        glGetShaderInfoLog(shader, sizeof(emsg), 0, emsg);
+        fprintf(stderr, "Error compiling GLSL shader: %s\n", emsg);
+        return 0;
     }
 
-private:
+    return shader;
+}
 
 
-    GLFrameBuffer * _frameBuffer;
-
-    GLuint _fontTexture;
-    GLuint _vbo, _staticVbo;
-    GLuint _vao, _staticVao;
-    int _staticVboSize;
-
-    GLint _program;
-    GLint _mvpMatrix;
-    GLint _aPosition, _aColor, _aUV;
-};
-
-#endif // GL_HUD_H

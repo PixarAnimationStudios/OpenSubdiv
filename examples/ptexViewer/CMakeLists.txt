@@ -31,7 +31,7 @@ set(SHADER_FILES
      imageshader.glsl
 )
 
-set(PLATFORM_LIBRARIES
+list(APPEND PLATFORM_LIBRARIES
     "${OSD_LINK_TARGET}"
     "${OPENGL_LIBRARY}"
     "${GLFW_LIBRARIES}"

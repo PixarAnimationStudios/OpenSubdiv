@@ -208,7 +208,7 @@ Hud::MouseClick(int x, int y)
 }
 
 void
-Hud::MouseMotion(int x, int y)
+Hud::MouseMotion(int x, int /* y */)
 {
     if (_capturedSlider != -1) {
         std::vector<Slider>::iterator it = _sliders.begin() + _capturedSlider;
@@ -216,7 +216,7 @@ Hud::MouseMotion(int x, int y)
         int bx = it->x > 0 ? it->x : _windowWidth + it->x;
         it->SetValue(((x-bx-FONT_CHAR_WIDTH/2)/float(it->w))*(it->max - it->min) + it->min);
         it->callback(it->value, it->callbackData);
-        _requiresRebuildStatic = true;
+        _requiresRebuildStatic = true;        
     }
 }
 

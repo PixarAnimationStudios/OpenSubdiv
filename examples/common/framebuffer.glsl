@@ -22,44 +22,45 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef GL_HUD_H
-#define GL_HUD_H
+#version 410
 
-#include "hud.h"
+//--------------------------------------------------------------
+// image vertex shader
+//--------------------------------------------------------------
 
-#include <osd/opengl.h>
+#ifdef IMAGE_VERTEX_SHADER
 
-#include "gl_framebuffer.h"
+layout (location=0) in vec2 position;
+out vec2 outUV;
 
-class GLhud : public Hud {
+void
+main()
+{
+    outUV = vec2(position.xy*0.5) + vec2(0.5);
+    gl_Position = vec4(position.x, position.y, 0, 1);
+}
 
-public:
-    GLhud();
-    ~GLhud();
+#endif
 
-    virtual void Init(int width, int height);
+//--------------------------------------------------------------
+#ifdef IMAGE_FRAGMENT_SHADER
 
-    virtual void Rebuild(int width, int height);
+uniform sampler2D colorMap;
+uniform sampler2D normalMap;
+uniform sampler2D depthMap;
 
-    virtual bool Flush();
+in vec2 outUV;
+out vec4 outColor;
 
-    GLFrameBuffer * GetFrameBuffer() {
-        return _frameBuffer;
-    }
+void main()
+{
 
-private:
+    vec4 colorSample = texture(colorMap, outUV);
+    
+    //background color as a vertical grey ramp
+    vec4 bgColor = vec4(mix(0.05, 0.25, outUV.y));
 
+    outColor = mix(bgColor, colorSample, colorSample.a);
+}
 
-    GLFrameBuffer * _frameBuffer;
-
-    GLuint _fontTexture;
-    GLuint _vbo, _staticVbo;
-    GLuint _vao, _staticVao;
-    int _staticVboSize;
-
-    GLint _program;
-    GLint _mvpMatrix;
-    GLint _aPosition, _aColor, _aUV;
-};
-
-#endif // GL_HUD_H
+#endif

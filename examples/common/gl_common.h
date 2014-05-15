@@ -22,44 +22,17 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef GL_HUD_H
-#define GL_HUD_H
-
-#include "hud.h"
+#ifndef GL_COMMON_H
+#define GL_COMMON_H
 
 #include <osd/opengl.h>
 
-#include "gl_framebuffer.h"
+#include <cstdio>
+#include <string>
+#include <iostream>
 
-class GLhud : public Hud {
+void checkGLErrors(std::string const & where = "");
 
-public:
-    GLhud();
-    ~GLhud();
+GLuint compileShader(GLenum shaderType, const char *source);
 
-    virtual void Init(int width, int height);
-
-    virtual void Rebuild(int width, int height);
-
-    virtual bool Flush();
-
-    GLFrameBuffer * GetFrameBuffer() {
-        return _frameBuffer;
-    }
-
-private:
-
-
-    GLFrameBuffer * _frameBuffer;
-
-    GLuint _fontTexture;
-    GLuint _vbo, _staticVbo;
-    GLuint _vao, _staticVao;
-    int _staticVboSize;
-
-    GLint _program;
-    GLint _mvpMatrix;
-    GLint _aPosition, _aColor, _aUV;
-};
-
-#endif // GL_HUD_H
+#endif // GL_FRAMEBUFFER_H
