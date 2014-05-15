@@ -306,7 +306,7 @@ std::vector<float> g_positions,
 
 std::vector<std::vector<float> > g_animPositions;
 
-GLuint g_primQuery = 0;
+GLuint g_queries[2] = {0, 0};
 GLuint g_vao = 0;
 GLuint g_cageEdgeVAO = 0;
 GLuint g_skyVAO = 0;
@@ -1803,7 +1803,10 @@ display()
     }
 
     // primitive counting
-    glBeginQuery(GL_PRIMITIVES_GENERATED, g_primQuery);
+    glBeginQuery(GL_PRIMITIVES_GENERATED, g_queries[0]);
+#if defined(GL_VERSION_3_3)
+    glBeginQuery(GL_TIME_ELAPSED, g_queries[1]);
+#endif
 
     double aspect = g_width/(double)g_height;
     identity(transformData.ModelViewMatrix);
@@ -1829,6 +1832,9 @@ display()
     drawModel();
 
     glEndQuery(GL_PRIMITIVES_GENERATED);
+#if defined(GL_VERSION_3_3)
+    glEndQuery(GL_TIME_ELAPSED);
+#endif
 
     if (g_drawCageEdges)
         drawCageEdges();
@@ -1841,13 +1847,14 @@ display()
 
     s.Stop();
     float drawCpuTime = float(s.GetElapsed() * 1000.0f);
-    s.Start();
-    glFinish();
-    s.Stop();
-    float drawGpuTime = float(s.GetElapsed() * 1000.0f);
 
     GLuint numPrimsGenerated = 0;
-    glGetQueryObjectuiv(g_primQuery, GL_QUERY_RESULT, &numPrimsGenerated);
+    GLuint timeElapsed = 0;
+    glGetQueryObjectuiv(g_queries[0], GL_QUERY_RESULT, &numPrimsGenerated);
+#if defined(GL_VERSION_3_3)
+    glGetQueryObjectuiv(g_queries[1], GL_QUERY_RESULT, &timeElapsed);
+#endif
+    float drawGpuTime = timeElapsed / 1000.0f / 1000.0f;
 
     g_fpsTimer.Stop();
     float elapsed = (float)g_fpsTimer.GetElapsed();
@@ -2041,7 +2048,7 @@ void uninitGL()
     if (g_osdPTexOcclusion) delete g_osdPTexOcclusion;
     if (g_osdPTexSpecular) delete g_osdPTexSpecular;
 
-    glDeleteQueries(1, &g_primQuery);
+    glDeleteQueries(2, g_queries);
     glDeleteVertexArrays(1, &g_vao);
     glDeleteVertexArrays(1, &g_cageEdgeVAO);
     glDeleteVertexArrays(1, &g_skyVAO);
@@ -2290,7 +2297,7 @@ initGL()
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_CULL_FACE);
 
-    glGenQueries(1, &g_primQuery);
+    glGenQueries(2, g_queries);
     glGenVertexArrays(1, &g_vao);
     glGenVertexArrays(1, &g_cageEdgeVAO);
     glGenVertexArrays(1, &g_skyVAO);

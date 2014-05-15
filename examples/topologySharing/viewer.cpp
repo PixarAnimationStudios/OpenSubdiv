@@ -473,7 +473,7 @@ struct Transform {
     float ModelViewProjectionMatrix[16];
 } g_transformData;
 
-GLuint g_primQuery = 0;
+GLuint g_queries[2] = {0, 0};
 GLuint g_vao = 0;
 
 static void
@@ -1132,7 +1132,10 @@ display() {
         g_topology->GetDrawContext()->patchArrays;
     int numDrawCalls = 0;
     // primitive counting
-    glBeginQuery(GL_PRIMITIVES_GENERATED, g_primQuery);
+    glBeginQuery(GL_PRIMITIVES_GENERATED, g_queries[0]);
+#if defined(GL_VERSION_3_3)
+    glBeginQuery(GL_TIME_ELAPSED, g_queries[1]);
+#endif
 
     // draw instances with same topology
     for (int i = 0; i < g_numInstances; ++i) {
@@ -1141,9 +1144,9 @@ display() {
     }
 
     glEndQuery(GL_PRIMITIVES_GENERATED);
-
-    GLuint numPrimsGenerated = 0;
-    glGetQueryObjectuiv(g_primQuery, GL_QUERY_RESULT, &numPrimsGenerated);
+#if defined(GL_VERSION_3_3)
+    glEndQuery(GL_TIME_ELAPSED);
+#endif
 
     glBindVertexArray(0);
 
@@ -1151,10 +1154,14 @@ display() {
 
     s.Stop();
     float drawCpuTime = float(s.GetElapsed() * 1000.0f);
-    s.Start();
-    glFinish();
-    s.Stop();
-    float drawGpuTime = float(s.GetElapsed() * 1000.0f);
+
+    GLuint numPrimsGenerated = 0;
+    GLuint timeElapsed = 0;
+    glGetQueryObjectuiv(g_queries[0], GL_QUERY_RESULT, &numPrimsGenerated);
+#if defined(GL_VERSION_3_3)
+    glGetQueryObjectuiv(g_queries[1], GL_QUERY_RESULT, &timeElapsed);
+#endif
+    float drawGpuTime = timeElapsed / 1000.0f / 1000.0f;
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -1226,7 +1233,7 @@ mouse(int button, int state) {
 static void
 uninitGL() {
 
-    glDeleteQueries(1, &g_primQuery);
+    glDeleteQueries(2, g_queries);
     glDeleteVertexArrays(1, &g_vao);
 
     if (g_instances)
@@ -1484,7 +1491,7 @@ initGL()
     glCullFace(GL_BACK);
     glEnable(GL_CULL_FACE);
 
-    glGenQueries(1, &g_primQuery);
+    glGenQueries(2, g_queries);
 
     glGenVertexArrays(1, &g_vao);
 }
