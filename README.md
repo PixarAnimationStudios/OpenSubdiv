@@ -59,6 +59,7 @@ Optional:
 -DNO_REGRESSION=1 // disable regression tests build
 -DNO_PYTHON=1     // disable Python SWIG build
 -DNO_MAYA=1       // disable Maya plugin build
+-DNO_PTEX=1       // disable PTex support
 -DNO_DOC=1        // disable documentation build
 -DNO_OMP=1        // disable OpenMP
 -DNO_CUDA=1       // disable CUDA
