@@ -331,11 +331,13 @@ if(OPENMP_FOUND)
     )
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
 else()
-    message(WARNING
-        "OpenMP was not found : support for OMP parallel compute kernels "
-        "will be disabled in Osd.  If your compiler supports OpenMP "
-        "directives, please refer to the FindOpenMP.cmake shared module "
-        "in your cmake installation.")
+    if(NOT NO_OMP)
+        message(WARNING
+            "OpenMP was not found : support for OMP parallel compute kernels "
+            "will be disabled in Osd.  If your compiler supports OpenMP "
+            "directives, please refer to the FindOpenMP.cmake shared module "
+            "in your cmake installation.")
+    endif()
 endif()
 
 if(TBB_FOUND)
@@ -345,11 +347,13 @@ if(TBB_FOUND)
     )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TBB_CXX_FLAGS}")
 else()
-    message(WARNING
-        "TBB was not found : support for TBB parallel compute kernels "
-        "will be disabled in Osd.  If your compiler supports TBB "
-        "directives, please refer to the FindTBB.cmake shared module "
-        "in your cmake installation.")
+    if(NOT NO_TBB)
+        message(WARNING
+            "TBB was not found : support for TBB parallel compute kernels "
+            "will be disabled in Osd.  If your compiler supports TBB "
+            "directives, please refer to the FindTBB.cmake shared module "
+            "in your cmake installation.")
+    endif()
 endif()
 
 if(GLFW_FOUND AND (GLFW_VERSION VERSION_EQUAL 3.0 OR GLFW_VERSION VERSION_GREATER 3.0))
@@ -398,10 +402,12 @@ if(OPENCL_FOUND)
         -DOPENSUBDIV_HAS_OPENCL
     )
 else()
-    message(WARNING
-        "OpenCL was not found : support for OpenCL parallel compute kernels "
-        "will be disabled in Osd.  If you have the OpenCL SDK installed, "
-        "please refer to the FindOpenCL.cmake in ${PROJECT_SOURCE_DIR}/cmake.")
+    if(NOT NO_OPENCL)
+        message(WARNING
+            "OpenCL was not found : support for OpenCL parallel compute kernels "
+            "will be disabled in Osd.  If you have the OpenCL SDK installed, "
+            "please refer to the FindOpenCL.cmake in ${PROJECT_SOURCE_DIR}/cmake.")
+    endif()
 endif()
 
 if(CUDA_FOUND)
@@ -409,10 +415,12 @@ if(CUDA_FOUND)
         -DOPENSUBDIV_HAS_CUDA
     )
 else()
-    message(WARNING
-        "CUDA was not found : support for CUDA parallel compute kernels "
-        "will be disabled in Osd.  If you have the CUDA SDK installed, please "
-        "refer to the FindCUDA.cmake shared module in your cmake installation.")
+    if(NOT NO_CUDA)
+        message(WARNING
+            "CUDA was not found : support for CUDA parallel compute kernels "
+            "will be disabled in Osd.  If you have the CUDA SDK installed, please "
+            "refer to the FindCUDA.cmake shared module in your cmake installation.")
+    endif()
 endif()
 
 if(PTEX_FOUND)
