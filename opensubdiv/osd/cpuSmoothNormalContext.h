@@ -36,7 +36,7 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdCpuSmoothNormalContext :  OsdNonCopyable<OsdCpuSmoothNormalContext> {
+class OsdCpuSmoothNormalContext :  private OsdNonCopyable<OsdCpuSmoothNormalContext> {
 
 public:
 

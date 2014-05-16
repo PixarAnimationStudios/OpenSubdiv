@@ -63,7 +63,7 @@ public:
 ///
 /// A stub class to derive LimitEval context classes.
 ///
-class OsdEvalLimitContext : OsdNonCopyable<OsdEvalLimitContext> {
+class OsdEvalLimitContext : private OsdNonCopyable<OsdEvalLimitContext> {
 
 public:
     /// \brief Destructor.

@@ -271,7 +271,7 @@ FarMeshFactory<T,U>::refine( HbrMesh<T> * mesh, int maxlevel ) {
                     // have to create an extra row of children faces around the
                     // hole.
                     HbrHalfedge<T> * e = f->GetFirstEdge();
-                    for (int i=0; i<f->GetNumVertices(); ++i) {
+                    for (int j=0; j<f->GetNumVertices(); ++j) {
                         assert(e);
                         if (e->GetRightFace() and (not e->GetRightFace()->IsHole())) {
 

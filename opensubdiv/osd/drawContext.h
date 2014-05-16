@@ -112,7 +112,7 @@ public:
 
         /// Set the number of vertex elements
         void SetNumElements(int numElements) {
-            _numElements = numElements;
+            _numElements = (unsigned char)numElements;
         }
 
         /// Allows ordering of patches by type

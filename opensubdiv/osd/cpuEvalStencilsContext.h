@@ -39,7 +39,7 @@ namespace OPENSUBDIV_VERSION {
 /// \brief CPU stencils evaluation context
 ///
 ///
-class OsdCpuEvalStencilsContext : OsdNonCopyable<OsdCpuEvalStencilsContext> {
+class OsdCpuEvalStencilsContext : private OsdNonCopyable<OsdCpuEvalStencilsContext> {
 
 public:
     /// \brief Creates an OsdCpuEvalStencilsContext instance

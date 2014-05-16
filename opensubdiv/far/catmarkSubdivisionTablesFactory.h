@@ -284,7 +284,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
                         public:
                             HbrVertex<T> * vertex; int eidx[2]; int count; bool next;
 
-                            GatherCreaseEdgesOperator(HbrVertex<T> * v, bool n) : vertex(v), count(0), next(n) { eidx[0]=-1; eidx[1]=-1; }
+                            GatherCreaseEdgesOperator(HbrVertex<T> * vtx, bool n) : vertex(vtx), count(0), next(n) { eidx[0]=-1; eidx[1]=-1; }
 
                             ~GatherCreaseEdgesOperator() { }
 

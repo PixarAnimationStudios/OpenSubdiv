@@ -601,10 +601,16 @@ evalGregory(float u, float v,
     }
 
     float U = 1-u, V=1-v;
+#ifdef __INTEL_COMPILER // remark #1572: floating-point equality and inequality comparisons are unreliable
+#pragma warning disable 1572
+#endif
     float d11 = u+v; if(u+v==0.0f) d11 = 1.0f;
     float d12 = U+v; if(U+v==0.0f) d12 = 1.0f;
     float d21 = u+V; if(u+V==0.0f) d21 = 1.0f;
     float d22 = U+V; if(U+V==0.0f) d22 = 1.0f;
+#ifdef __INTEL_COMPILER
+#pragma warning enable 1572
+#endif
 
     float *q=(float*)alloca(length*16*sizeof(float));
     for (int k=0; k<length; ++k) {
@@ -826,13 +832,13 @@ evalGregoryBoundary(float u, float v,
             assert(idx_diagonal>0);
             float const * diagonal = inOffset + idx_diagonal * inDesc.stride;
 
-            for (int k=0; k<length; ++k) {
-                e0[vofs+k] = (inOffset[boundaryEdgeNeighbors[0]*inDesc.stride+k] -
-                              inOffset[boundaryEdgeNeighbors[1]*inDesc.stride+k])/6.0f;
+            for (int j=0; j<length; ++j) {
+                e0[vofs+j] = (inOffset[boundaryEdgeNeighbors[0]*inDesc.stride+j] -
+                              inOffset[boundaryEdgeNeighbors[1]*inDesc.stride+j])/6.0f;
 
-                e1[vofs+k] = gamma * pos[k] + beta_0 * diagonal[k] +
-                            (inOffset[boundaryEdgeNeighbors[0]*inDesc.stride+k] +
-                             inOffset[boundaryEdgeNeighbors[1]*inDesc.stride+k]) * alpha_0k;
+                e1[vofs+j] = gamma * pos[j] + beta_0 * diagonal[j] +
+                            (inOffset[boundaryEdgeNeighbors[0]*inDesc.stride+j] +
+                             inOffset[boundaryEdgeNeighbors[1]*inDesc.stride+j]) * alpha_0k;
 
             }
 
@@ -841,20 +847,20 @@ evalGregoryBoundary(float u, float v,
                 float alpha = (4.0f*sinf((float(M_PI) * float(x))/k))/(3.0f*k+c);
                 float beta = (sinf((float(M_PI) * float(x))/k) + sinf((float(M_PI) * float(x+1))/k))/(3.0f*k+c);
 
-                int idx_neighbor = valenceTable[2*curri + 0 + 1],
+                int idx_neighbor = valenceTable[2*curri + 0 + 1];
                     idx_diagonal = valenceTable[2*curri + 1 + 1];
                 assert( idx_neighbor>0 and idx_diagonal>0 );
 
-                float const * neighbor = inOffset + idx_neighbor * inDesc.stride,
-                            * diagonal = inOffset + idx_diagonal * inDesc.stride;
+                float const * neighbor = inOffset + idx_neighbor * inDesc.stride;
+                              diagonal = inOffset + idx_diagonal * inDesc.stride;
 
-                for (int k=0; k<length; ++k) {
-                    e1[vofs+k] += alpha*neighbor[k] + beta*diagonal[k];
+                for (int j=0; j<length; ++j) {
+                    e1[vofs+j] += alpha*neighbor[j] + beta*diagonal[j];
                 }
             }
 
-            for (int k=0; k<length; ++k) {
-                e1[vofs+k] /= 3.0f;
+            for (int j=0; j<length; ++j) {
+                e1[vofs+j] /= 3.0f;
             }
         }
     }
@@ -972,12 +978,12 @@ evalGregoryBoundary(float u, float v,
             }
 
             if (valences[im]<0) {
-                float s1=3-2*csf(n-3,2)-csf(np-3,2);
+                s1=3-2*csf(n-3,2)-csf(np-3,2);
                 for (int k=0, ofs=vofs; k<length; ++k, ++ofs) {
                     Fp[ofs] = Fm[ofs] = (csf(np-3,2)*opos[ofs] + s1*Ep[ofs] + s2*Em_ip[k] + rp[start*length+k])/3.0f;
                 }
             } else if (valences[ip]<0) {
-                float s1 = 3.0f-2.0f*cosf(2.0f*float(M_PI)/n)-cosf(2.0f*float(M_PI)/nm);
+                s1 = 3.0f-2.0f*cosf(2.0f*float(M_PI)/n)-cosf(2.0f*float(M_PI)/nm);
                 for (int k=0, ofs=vofs; k<length; ++k, ++ofs) {
                     Fm[ofs] = Fp[ofs] = (csf(nm-3,2)*opos[ofs] + s1*Em[ofs] + s2*Ep_im[k] - rp[prev*length+k])/3.0f;
                 }
@@ -1001,10 +1007,16 @@ evalGregoryBoundary(float u, float v,
     }
 
     float U = 1-u, V=1-v;
+#ifdef __INTEL_COMPILER // remark #1572: floating-point equality and inequality comparisons are unreliable
+#pragma warning disable 1572
+#endif
     float d11 = u+v; if(u+v==0.0f) d11 = 1.0f;
     float d12 = U+v; if(U+v==0.0f) d12 = 1.0f;
     float d21 = u+V; if(u+V==0.0f) d21 = 1.0f;
     float d22 = U+V; if(U+V==0.0f) d22 = 1.0f;
+#ifdef __INTEL_COMPILER
+#pragma warning enable 1572
+#endif
 
     float *q=(float*)alloca(length*16*sizeof(float));
     for (int k=0; k<length; ++k) {

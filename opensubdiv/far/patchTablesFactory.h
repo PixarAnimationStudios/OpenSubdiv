@@ -1174,15 +1174,14 @@ FarPatchTablesFactory<T>::getQuadOffsets(HbrFace<T> const * f, unsigned int * re
 template <class T> FarPatchParam *
 FarPatchTablesFactory<T>::computePatchParam(HbrFace<T> const * f, FarPatchParam *coord) {
 
-    short u,v;
-    unsigned short ofs = 1;
+    unsigned short u, v, ofs = 1;
     unsigned char depth;
     bool nonquad = false;
 
     if (coord == NULL) return NULL;
 
     // save the rotation state of the coarse face
-    unsigned char rots = f->_adaptiveFlags.rots;
+    unsigned char rots = (unsigned char)f->_adaptiveFlags.rots;
 
     // track upwards towards coarse parent face, accumulating u,v indices
     HbrFace<T> const * p = f->GetParent();
@@ -1205,7 +1204,7 @@ FarPatchTablesFactory<T>::computePatchParam(HbrFace<T> const * f, FarPatchParam 
                 break;
             }
         }
-        ofs = ofs << 1;
+        ofs = (unsigned short)(ofs << 1);
         f = p;
         p = f->GetParent();
     }

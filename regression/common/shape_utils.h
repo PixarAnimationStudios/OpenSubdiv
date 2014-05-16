@@ -127,9 +127,9 @@ shape::tag * shape::tag::parseTag(char const * line) {
 
     const char* cp = &line[2];
 
-    char name[50];
+    char tname[50];
     while (*cp == ' ') cp++;
-    if (sscanf(cp, "%s", name )!=1) return t;
+    if (sscanf(cp, "%s", tname )!=1) return t;
     while (*cp && *cp != ' ') cp++;
 
     int nints=0, nfloats=0, nstrings=0;
@@ -137,38 +137,38 @@ shape::tag * shape::tag::parseTag(char const * line) {
     if (sscanf(cp, "%d/%d/%d", &nints, &nfloats, &nstrings)!=3) return t;
     while (*cp && *cp != ' ') cp++;
 
-    std::vector<int> intargs;
+    std::vector<int> tintargs;
     for (int i=0; i<nints; ++i) {
         int val;
         while (*cp == ' ') cp++;
         if (sscanf(cp, "%d", &val)!=1) return t;
-        intargs.push_back(val);
+        tintargs.push_back(val);
         while (*cp && *cp != ' ') cp++;
     }
 
-    std::vector<float> floatargs;
+    std::vector<float> tfloatargs;
     for (int i=0; i<nfloats; ++i) {
         float val;
         while (*cp == ' ') cp++;
         if (sscanf(cp, "%f", &val)!=1) return t;
-        floatargs.push_back(val);
+        tfloatargs.push_back(val);
         while (*cp && *cp != ' ') cp++;
     }
 
-    std::vector<std::string> stringargs;
+    std::vector<std::string> tstringargs;
     for (int i=0; i<nstrings; ++i) {
         char val[512];
         while (*cp == ' ') cp++;
         if (sscanf(cp, "%s", val)!=1) return t;
-        stringargs.push_back(val);
+        tstringargs.push_back(std::string(val));
         while (*cp && *cp != ' ') cp++;
     }
 
     t = new shape::tag;
-    t->name = name;
-    t->intargs = intargs;
-    t->floatargs = floatargs;
-    t->stringargs = stringargs;
+    t->name = tname;
+    t->intargs = tintargs;
+    t->floatargs = tfloatargs;
+    t->stringargs = tstringargs;
 
     return t;
 }
@@ -855,10 +855,10 @@ createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
     mesh->GetSubdivision()->SetCreaseSubdivisionMethod(
         OpenSubdiv::HbrSubdivision<T>::k_CreaseNormal);
 
-    if (OpenSubdiv::HbrCatmarkSubdivision<T> * scheme =
+    if (OpenSubdiv::HbrCatmarkSubdivision<T> * hscheme =
         dynamic_cast<OpenSubdiv::HbrCatmarkSubdivision<T> *>(mesh->GetSubdivision())) {
 
-        scheme->SetTriangleSubdivisionMethod(
+        hscheme->SetTriangleSubdivisionMethod(
             OpenSubdiv::HbrCatmarkSubdivision<T>::k_Normal);
     }
 

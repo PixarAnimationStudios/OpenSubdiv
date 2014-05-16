@@ -79,14 +79,14 @@ struct FarPatchParam {
 
         /// \brief Returns the log2 value of the u parameter at the top left corner of
         /// the patch
-        unsigned short GetU() const { return (field >> 17) & 0x3ff; }
+        unsigned short GetU() const { return (unsigned short)((field >> 17) & 0x3ff); }
 
         /// \brief Returns the log2 value of the v parameter at the top left corner of
         /// the patch
-        unsigned short GetV() const { return (field >> 7) & 0x3ff; }
+        unsigned short GetV() const { return (unsigned short)((field >> 7) & 0x3ff); }
 
         /// \brief Returns the rotation of the patch (the number of CCW parameter winding)
-        unsigned char GetRotation() const { return (field >> 5) & 0x3; }
+        unsigned char GetRotation() const { return (unsigned char)((field >> 5) & 0x3); }
 
         /// \brief True if the parent coarse face is a non-quad
         bool NonQuadRoot() const { return (field >> 4) & 0x1; }
@@ -96,7 +96,7 @@ struct FarPatchParam {
         float GetParamFraction() const;
 
         /// \brief Returns the level of subdivision of the patch 
-        unsigned char GetDepth() const { return (field & 0xf); }
+        unsigned char GetDepth() const { return  (unsigned char)(field & 0xf); }
 
         /// The (u,v) pair is normalized to this sub-parametric space. 
         ///

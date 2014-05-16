@@ -76,7 +76,7 @@ public:
     Handle const * FindPatch( int faceid, float u, float v ) const;
     
 private:
-    void initialize( FarPatchTables const & patchTables );
+    inline void initialize( FarPatchTables const & patchTables );
 
     // Quadtree node with 4 children
     struct QuadNode {
@@ -288,14 +288,14 @@ FarPatchMap::initialize( FarPatchTables const & patchTables ) {
                 continue;
             } 
                   
-            short u = bits.GetU(),
-                  v = bits.GetV(),
-                  pdepth = bits.NonQuadRoot() ? depth-2 : depth-1,
-                  half = 1 << pdepth;
+            int u = bits.GetU(),
+                v = bits.GetV(),
+                pdepth = bits.NonQuadRoot() ? depth-2 : depth-1,
+                half = 1 << pdepth;
             
             for (unsigned char k=0; k<depth; ++k) {
 
-                short delta = half >> 1;
+                int delta = half >> 1;
                 
                 int quadrant = resolveQuadrant(half, u, v);
                 assert(quadrant>=0);

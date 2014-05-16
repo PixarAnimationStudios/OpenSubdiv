@@ -40,7 +40,7 @@ namespace OPENSUBDIV_VERSION {
 
 struct OsdVertexDescriptor;
 
-class OsdCpuTable : OsdNonCopyable<OsdCpuTable> {
+class OsdCpuTable : private OsdNonCopyable<OsdCpuTable> {
 public:
     template<typename T>
     explicit OsdCpuTable(const std::vector<T> &table) {
@@ -57,7 +57,7 @@ private:
     void *_devicePtr;
 };
 
-class OsdCpuHEditTable : OsdNonCopyable<OsdCpuHEditTable> {
+class OsdCpuHEditTable : private OsdNonCopyable<OsdCpuHEditTable> {
 public:
     OsdCpuHEditTable(const FarVertexEditTables::VertexEditBatch &batch);
 
@@ -91,7 +91,7 @@ private:
 /// geometric primitives with the capabilities of the selected discrete 
 /// compute device.
 ///
-class OsdCpuComputeContext : OsdNonCopyable<OsdCpuComputeContext> {
+class OsdCpuComputeContext : private OsdNonCopyable<OsdCpuComputeContext> {
 
 public:
     /// Creates an OsdCpuComputeContext instance

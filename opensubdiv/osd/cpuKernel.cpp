@@ -374,8 +374,8 @@ void OsdCpuEditVertexAdd(
             int editIndex = editIndices[i] + vertexOffset;
             float *dst = vertex + editIndex * vertexDesc.stride + primVarOffset;
 
-            for (int i = 0; i < primVarWidth; ++i) {
-                dst[i] += editValues[i];
+            for (int j = 0; j < primVarWidth; ++j) {
+                dst[j] += editValues[j];
             }
         }
     }
@@ -394,8 +394,8 @@ void OsdCpuEditVertexSet(
             int editIndex = editIndices[i] + vertexOffset;
             float *dst = vertex + editIndex * vertexDesc.stride + primVarOffset;
 
-            for (int i = 0; i < primVarWidth; ++i) {
-                dst[i] = editValues[i];
+            for (int j = 0; j < primVarWidth; ++j) {
+                dst[j] = editValues[j];
             }
         }
     }
