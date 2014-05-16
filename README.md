@@ -61,6 +61,7 @@ Optional:
 -DNO_DOC=1        // disable documentation build
 -DNO_OMP=1        // disable OpenMP
 -DNO_CUDA=1       // disable CUDA
+-DNO_OPENCL=1     // disable OpenCL
 -DNO_GCD=1        // disable GrandCentralDispatch on OSX
 ````
 
