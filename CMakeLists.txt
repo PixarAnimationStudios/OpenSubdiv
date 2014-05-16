@@ -267,6 +267,7 @@ option(NO_EXAMPLES "Disable examples build" OFF)
 option(NO_REGRESSION "Disable regression tests build" OFF)
 option(NO_PYTHON "Disable Python SWIG build" OFF)
 option(NO_MAYA "Disable Maya plugin build" OFF)
+option(NO_PTEX "Disable PTex support" OFF)
 option(NO_DOC "Disable documentation build" OFF)
 option(NO_OMP "Disable OpenMP backend" OFF)
 option(NO_TBB "Disable TBB backend" OFF)
@@ -292,7 +293,9 @@ endif()
 if(NOT ANDROID AND NOT IOS)
     find_package(GLFW 2.7.0)
 endif()
-find_package(PTex 2.0)
+if(NOT NO_PTEX)
+   find_package(PTex 2.0)
+endif()
 find_package(PythonInterp 2.6)
 find_package(SWIG 1.3.40)
 find_package(Doxygen 1.8.4)
@@ -429,13 +432,14 @@ if(PTEX_FOUND)
         -DOPENSUBDIV_HAS_PTEX
     )
 else()
-    message(WARNING
-        "Ptex was not found : the OpenSubdiv Ptex example will not be "
-        "available.  If you do have Ptex installed and see this message, "
-        "please add your Ptex path to FindPTex.cmake in "
-        "${PROJECT_SOURCE_DIR}/cmake or set it through the PTEX_LOCATION "
-        "cmake command line argument or environment variable."
-    )
+    if(NOT NO_PTEX)
+        message(WARNING
+            "Ptex was not found : the OpenSubdiv Ptex example will not be "
+            "available.  If you do have Ptex installed and see this message, "
+            "please add your Ptex path to FindPTex.cmake in "
+            "${PROJECT_SOURCE_DIR}/cmake or set it through the PTEX_LOCATION "
+            "cmake command line argument or environment variable.")
+    endif()
 endif()
 
 if (NOT NO_MAYA)
