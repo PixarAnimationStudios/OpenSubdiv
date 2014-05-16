@@ -192,12 +192,6 @@ GLhud::Init(int width, int height)
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     checkGLErrors("GLhud::Init");
-
-    _frameBuffer = new SSAOGLFrameBuffer;
-
-    _frameBuffer->Init(width, height);
-
-    _frameBuffer->BuildUI(this, 10, 600);
 }
 
 void
@@ -214,7 +208,9 @@ GLhud::Rebuild(int width, int height)
                  &getStaticVboSource()[0], GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    GetFrameBuffer()->Reshape(width, height);
+    if (GetFrameBuffer()) {
+        GetFrameBuffer()->Reshape(width, height);
+    }
 }
 
 bool

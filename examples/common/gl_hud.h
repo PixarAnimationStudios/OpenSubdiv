@@ -42,6 +42,14 @@ public:
     virtual void Rebuild(int width, int height);
 
     virtual bool Flush();
+    
+    void SetFrameBuffer(GLFrameBuffer * frameBuffer) {
+        if (not _frameBuffer) {
+            _frameBuffer = frameBuffer;
+            _frameBuffer->Init(GetWidth(), GetHeight());
+            _frameBuffer->BuildUI(this, 10, 600);
+        }
+    }
 
     GLFrameBuffer * GetFrameBuffer() {
         return _frameBuffer;

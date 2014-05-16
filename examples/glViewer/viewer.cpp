@@ -1726,7 +1726,11 @@ initHUD()
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 #endif
+
+
     g_hud.Init(windowWidth, windowHeight);
+    
+    g_hud.SetFrameBuffer(new SSAOGLFrameBuffer);
 
     g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
                       10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'h');

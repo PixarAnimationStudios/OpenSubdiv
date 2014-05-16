@@ -73,14 +73,18 @@ GLFrameBuffer::Init(int width, int height) {
     if (not _program)
         _program = compileProgram(g_framebufferShaderSource);
 
-    glGenVertexArrays(1, &_vao);
+    if (not _vao) {
+        glGenVertexArrays(1, &_vao);
+    }
     glBindVertexArray(_vao);
-
-    glGenBuffers(1, &_vbo);
-    float pos[] = { -1, -1, 1, -1, -1,  1, 1,  1 };
-    glGenBuffers(1, &_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(pos), pos, GL_STATIC_DRAW);
+    
+    if (not _vbo) {
+        glGenBuffers(1, &_vbo);
+        static float pos[] = { -1, -1, 1, -1, -1,  1, 1,  1 };
+        glGenBuffers(1, &_vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(pos), pos, GL_STATIC_DRAW);
+    }
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
 
     glEnableVertexAttribArray(0);
@@ -89,28 +93,37 @@ GLFrameBuffer::Init(int width, int height) {
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    glGenFramebuffers(1, &_frameBuffer);
-    glGenTextures(1, &_frameBufferColor);
-    glGenTextures(1, &_frameBufferNormal);
-    glGenTextures(1, &_frameBufferDepthTexture);
+    if (not _frameBuffer) {
+        glGenFramebuffers(1, &_frameBuffer);
 
-    glBindTexture(GL_TEXTURE_2D, _frameBufferColor);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    glBindTexture(GL_TEXTURE_2D, _frameBufferNormal);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        if (not _frameBufferColor) {
+            glGenTextures(1, &_frameBufferColor);
+            glBindTexture(GL_TEXTURE_2D, _frameBufferColor);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        }
+        
+        if (not _frameBufferNormal) {
+            glGenTextures(1, &_frameBufferNormal);
+            glBindTexture(GL_TEXTURE_2D, _frameBufferNormal);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        }
 
-    glBindTexture(GL_TEXTURE_2D, _frameBufferDepthTexture);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        if (not _frameBufferDepthTexture) {
+            glGenTextures(1, &_frameBufferDepthTexture);
+            glBindTexture(GL_TEXTURE_2D, _frameBufferDepthTexture);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        }
+    }
 
     glBindTexture(GL_TEXTURE_2D, 0);
     checkGLErrors("FrameBuffer::Init");
