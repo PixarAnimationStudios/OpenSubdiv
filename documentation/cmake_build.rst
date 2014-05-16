@@ -122,6 +122,7 @@ The following configuration arguments can be passed to the cmake command line.
    -DNO_OMP=1        // disable OpenMP
    -DNO_TBB=1        // disable TBB
    -DNO_CUDA=1       // disable CUDA
+   -DNO_OPENCL=1     // disable OpenCL
    -DNO_GCD=1        // disable GrandCentralDispatch on OSX
 
 Environment Variables
