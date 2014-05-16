@@ -143,10 +143,14 @@ GLFrameBuffer::compileProgram(char const * src) {
 
     GLuint program = glCreateProgram();
 
-    std::string vertexSrc = std::string("#define IMAGE_VERTEX_SHADER\n") + src;
+    static char const versionStr[] = "#version 330\n",
+                      vtxDefineStr[] = "#define IMAGE_VERTEX_SHADER\n",
+                      fragDefineStr[] = "#define IMAGE_FRAGMENT_SHADER\n";
+
+    std::string vertexSrc = std::string(versionStr) + vtxDefineStr + src;
     GLuint vs = compileShader(GL_VERTEX_SHADER, vertexSrc.c_str());
 
-    std::string fragmentSrc = std::string("#define IMAGE_FRAGMENT_SHADER\n") + src;
+    std::string fragmentSrc = std::string(versionStr) + fragDefineStr + src;
     GLuint fs = compileShader(GL_FRAGMENT_SHADER, fragmentSrc.c_str());
 
     glAttachShader(program, vs);

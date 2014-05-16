@@ -22,8 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#version 410
-
 //--------------------------------------------------------------
 // image vertex shader
 //--------------------------------------------------------------
