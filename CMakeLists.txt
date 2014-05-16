@@ -257,6 +257,21 @@ add_definitions(${OSD_COMPILER_FLAGS})
 # reloading of the generated Visual Studio project).
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 
+option(PTEX_LOCATION "Path to Ptex" "")
+option(GLEW_LOCATION "Path to GLEW" "")
+option(GLFW_LOCATION "Path to GLFW" "")
+option(MAYA_LOCATION "Path to Maya" "")
+
+option(NO_LIB "Disable the opensubdiv libs build (caveat emptor)" OFF)
+option(NO_EXAMPLES "Disable examples build" OFF)
+option(NO_REGRESSION "Disable regression tests build" OFF)
+option(NO_PYTHON "Disable Python SWIG build" OFF)
+option(NO_DOC "Disable documentation build" OFF)
+option(NO_OMP "Disable OpenMP backend" OFF)
+option(NO_TBB "Disable TBB backend" OFF)
+option(NO_CUDA "Disable CUDA backend" OFF)
+option(NO_NO_GCD "Disable GrandCentralDispatch backend" OFF)
+
 # Check for dependencies
 if(NOT NO_OMP)
     find_package(OpenMP)
