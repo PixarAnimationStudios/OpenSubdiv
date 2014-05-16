@@ -75,7 +75,6 @@ protected:
 private:
     int _numElements;
     int _numVertices;
-    cl_command_queue _clQueue;
     cl_mem _clMemory;
 };
 
