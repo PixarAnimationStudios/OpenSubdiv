@@ -151,7 +151,7 @@ OsdUtilPatchPartitioner::OsdUtilPatchPartitioner(FarPatchTables const *srcPatchT
             int patchIndex = paIt->GetPatchIndex() + i;
             int ptexIndex = srcPatchParamTable[patchIndex].faceIndex;
             int partitionID = idsOnPtexFaces[ptexIndex];
-            sortProxy[i] = std::make_pair<int, int>(partitionID, patchIndex);
+            sortProxy[i] = std::make_pair(partitionID, patchIndex);
             ++numPatches[partitionID];
         }
         // sort by partitionID

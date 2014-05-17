@@ -161,9 +161,9 @@ void openSubdiv_getEvaluatorTopology(
     // application to test this yet.
     *numVertices =  evaluation_descr->topology.numVertices;
     *refinementLevel =  evaluation_descr->topology.refinementLevel;
-    *numIndices =  evaluation_descr->topology.indices.size();
+    *numIndices =  (int)evaluation_descr->topology.indices.size();
     *indices =  &evaluation_descr->topology.indices[0];
-    *numNVerts =  evaluation_descr->topology.nverts.size();
+    *numNVerts =  (int)evaluation_descr->topology.nverts.size();
     *nverts =  &evaluation_descr->topology.nverts[0];
 }
 
