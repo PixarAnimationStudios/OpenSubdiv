@@ -97,12 +97,6 @@ set(CMAKE_MODULE_PATH
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
 )
 
-list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-
-# add the automatically determined parts of the RPATH
-# which point to directories outside the build tree to the install RPATH
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 #-------------------------------------------------------------------------------
 # Detect Clang (until a cmake version provides built-in variables)
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
@@ -110,6 +104,19 @@ if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Intel")
     set(CMAKE_COMPILER_IS_ICC 1)
 endif()
+
+
+if (NOT CMAKE_COMPILER_IS_ICC)
+    # Currently icc has a bug that asserts when linking rpaths containing long
+    # sequences of ':' that this command causes. The consequence is that examples
+    # built and installed using icc will not have an rpath pointing to the built
+    # OSD library which they depend on and will have to set LD_LIBRARY_PATH instead.
+    list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+endif()
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 
 set(OSD_COMPILER_FLAGS)
@@ -317,11 +324,13 @@ if(OPENMP_FOUND)
     )
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
 else()
-    message(WARNING
-        "OpenMP was not found : support for OMP parallel compute kernels "
-        "will be disabled in Osd.  If your compiler supports OpenMP "
-        "directives, please refer to the FindOpenMP.cmake shared module "
-        "in your cmake installation.")
+    if (NOT NO_OMP)
+        message(WARNING
+            "OpenMP was not found : support for OMP parallel compute kernels "
+            "will be disabled in Osd.  If your compiler supports OpenMP "
+            "directives, please refer to the FindOpenMP.cmake shared module "
+            "in your cmake installation.")
+    endif()
 endif()
 
 if(TBB_FOUND)
@@ -331,11 +340,13 @@ if(TBB_FOUND)
     )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TBB_CXX_FLAGS}")
 else()
-    message(WARNING
-        "TBB was not found : support for TBB parallel compute kernels "
-        "will be disabled in Osd.  If your compiler supports TBB "
-        "directives, please refer to the FindTBB.cmake shared module "
-        "in your cmake installation.")
+    if (NOT NO_TBB)
+        message(WARNING
+            "TBB was not found : support for TBB parallel compute kernels "
+            "will be disabled in Osd.  If your compiler supports TBB "
+            "directives, please refer to the FindTBB.cmake shared module "
+            "in your cmake installation.")
+    endif()
 endif()
 
 if(GLFW_FOUND AND (GLFW_VERSION VERSION_EQUAL 3.0 OR GLFW_VERSION VERSION_GREATER 3.0))
@@ -395,10 +406,12 @@ if(CUDA_FOUND)
         -DOPENSUBDIV_HAS_CUDA
     )
 else()
-    message(WARNING
-        "CUDA was not found : support for CUDA parallel compute kernels "
-        "will be disabled in Osd.  If you have the CUDA SDK installed, please "
-        "refer to the FindCUDA.cmake shared module in your cmake installation.")
+    if (NOT NO_CUDA)
+        message(WARNING
+            "CUDA was not found : support for CUDA parallel compute kernels "
+            "will be disabled in Osd.  If you have the CUDA SDK installed, please "
+            "refer to the FindCUDA.cmake shared module in your cmake installation.")
+    endif()
 endif()
 
 if(PTEX_FOUND)
@@ -557,7 +570,7 @@ macro(_add_possibly_cuda_executable target)
     endif()
 
     if(CMAKE_COMPILER_IS_ICC)
-        target_link_libraries(${target} "${ICC_LIBRARIES}")
+        target_link_libraries(${target} ${ICC_LIBRARIES})
     endif()
 endmacro()
 
