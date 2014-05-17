@@ -292,9 +292,9 @@ bool _ProcessTagsAndFinishMesh(
 {
     mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly);
 
-    const int* currentInt = &tagData.intArgs[0];
-    const float* currentFloat = &tagData.floatArgs[0];
-    const string* currentString = &tagData.stringArgs[0];
+    const int* currentInt = tagData.intArgs.size() ? &tagData.intArgs[0] : NULL;
+    const float* currentFloat = tagData.floatArgs.size() ? &tagData.floatArgs[0] : NULL;
+    const string* currentString = tagData.stringArgs.size() ? &tagData.stringArgs[0] : NULL;
 
     // TAGS (crease, corner, hole, smooth triangles, edits(vertex,
     // edge, face), creasemethod, facevaryingpropagatecorners, interpolateboundary

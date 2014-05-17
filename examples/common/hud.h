@@ -25,6 +25,7 @@
 #ifndef HUD_H
 #define HUD_H
 
+#include <algorithm>
 #include <vector>
 #include <string>
 #include <cstdarg>
