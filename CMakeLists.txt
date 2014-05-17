@@ -417,10 +417,12 @@ if(OPENCL_FOUND)
         -DOPENSUBDIV_HAS_OPENCL
     )
 else()
-    message(WARNING
-        "OpenCL was not found : support for OpenCL parallel compute kernels "
-        "will be disabled in Osd.  If you have the OpenCL SDK installed, "
-        "please refer to the FindOpenCL.cmake in ${PROJECT_SOURCE_DIR}/cmake.")
+    if (NOT NO_TBB)
+        message(WARNING
+            "OpenCL was not found : support for OpenCL parallel compute kernels "
+            "will be disabled in Osd.  If you have the OpenCL SDK installed, "
+            "please refer to the FindOpenCL.cmake in ${PROJECT_SOURCE_DIR}/cmake.")
+    endif()
 endif()
 
 if(CUDA_FOUND)
