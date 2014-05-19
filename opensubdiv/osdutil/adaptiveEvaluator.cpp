@@ -173,7 +173,7 @@ OsdUtilAdaptiveEvaluator::SetCoarsePositions(
 
 bool
 OsdUtilAdaptiveEvaluator::Refine(
-    int numThreads, string */* errorMessage */)
+    int numThreads, string * /* errorMessage */)
 {
     const FarMesh<OsdVertex> *fmesh = _refiner->GetFarMesh();
 
