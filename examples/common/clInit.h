@@ -27,19 +27,22 @@
 
 #if defined(_WIN32)
     #include <windows.h>
-    #include <CL/opencl.h>
 #elif defined(__APPLE__)
     #include <OpenGL/OpenGL.h>
-    #include <OpenCL/opencl.h>
 #else
     #include <GL/glx.h>
-    #include <CL/opencl.h>
 #endif
+#include "../../extern/clew/clew.h"
 
 #include <cstdio>
 
 static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
 {
+    if(clewInit() != CLEW_SUCCESS){
+        fprintf(stderr, "Loading OpenCL Failed\n");
+        return false;
+    }
+
     cl_int ciErrNum;
 
     cl_platform_id cpPlatform = 0;

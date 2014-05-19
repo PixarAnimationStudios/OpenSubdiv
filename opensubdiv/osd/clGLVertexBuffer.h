@@ -29,11 +29,7 @@
 
 #include "../osd/opengl.h"
 
-#if defined(__APPLE__)
-    #include <OpenCL/opencl.h>
-#else
-    #include <CL/opencl.h>
-#endif
+#include "../../extern/clew/clew.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

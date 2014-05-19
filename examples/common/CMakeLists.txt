@@ -75,8 +75,8 @@ if(DXSDK_FOUND)
 
 endif()
 
-if( OPENCL_FOUND )
-    include_directories("${OPENCL_INCLUDE_DIRS}")
+if( WITH_OPENCL )
+    list(APPEND PLATFORM_LIBRARIES ${CMAKE_DL_LIBS})
 endif()
 
 include_directories(

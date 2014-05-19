@@ -89,10 +89,6 @@ set(OPENCL_PUBLIC_HEADER_FILES
     batchCL.h
 )
 
-if ( OPENCL_FOUND )
-    list(APPEND PUBLIC_HEADER_FILES ${OPENCL_PUBLIC_HEADER_FILES} )
-endif()
-
 list(APPEND DOXY_HEADER_FILES ${OPENCL_PUBLIC_HEADER_FILES} )
 
 #-------------------------------------------------------------------------------

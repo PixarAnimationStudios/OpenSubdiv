@@ -46,8 +46,8 @@ if ( GLEW_FOUND )
     list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
 endif()
 
-if( OPENCL_FOUND )
-    include_directories("${OPENCL_INCLUDE_DIRS}")
+if( WITH_OPENCL )
+    list(APPEND PLATFORM_LIBRARIES ${CLEW_LIBRARIES})
 endif()
 
 _stringify("${SHADER_FILES}" INC_FILES)

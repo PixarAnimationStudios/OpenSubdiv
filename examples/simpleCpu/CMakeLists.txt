@@ -51,6 +51,10 @@ _stringify("${SHADER_FILES}" INC_FILES)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
+if( WITH_OPENCL )
+    list(APPEND PLATFORM_LIBRARIES ${CLEW_LIBRARIES})
+endif()
+
 _add_glfw_executable(simpleCpu
     main.cpp
     simpleCpuSubdivision.cpp
@@ -61,6 +65,8 @@ _add_glfw_executable(simpleCpu
 target_link_libraries(simpleCpu
     ${PLATFORM_LIBRARIES}
 )
+
+
 
 install(TARGETS simpleCpu DESTINATION "${CMAKE_BINDIR_BASE}")
 

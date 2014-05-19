@@ -31,11 +31,8 @@
 #include "../osd/glDrawContext.h"
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-#if defined(__APPLE__)
-    #include <OpenCL/opencl.h>
-#else
-    #include <CL/opencl.h>
-#endif
+#include "../../extern/clew/clew.h"
+
 #include "../osd/clComputeController.h"
 #endif
 
