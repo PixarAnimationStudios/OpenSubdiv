@@ -42,11 +42,9 @@ if ( GLEW_FOUND )
     list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
 endif()
 
-if ( OPENCL_FOUND )
-    list(APPEND PLATFORM_LIBRARIES
-        "${OPENCL_LIBRARIES}"
-    )
-    include_directories( "${OPENCL_INCLUDE_DIRS}" )
+if ( WITH_OPENCL )
+    list(APPEND PLATFORM_LIBRARIES clew)
+    list(APPEND PLATFORM_LIBRARIES ${CMAKE_DL_LIBS})
 endif()
 
 

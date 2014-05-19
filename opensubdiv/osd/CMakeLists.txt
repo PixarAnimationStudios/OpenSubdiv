@@ -356,25 +356,23 @@ set(OPENCL_PUBLIC_HEADERS
     clComputeController.h
     clVertexBuffer.h
 )
-if ( OPENCL_FOUND )
+if ( WITH_OPENCL )
     list(APPEND GPU_SOURCE_FILES
         clComputeController.cpp
         clComputeContext.cpp
         clKernelBundle.cpp
         clVertexBuffer.cpp
     )
-    list(APPEND PUBLIC_HEADER_FILES ${OPENCL_PUBLIC_HEADERS})
+
     list(APPEND KERNEL_FILES
         clKernel.cl
     )
-    list(APPEND PLATFORM_GPU_LIBRARIES
-        ${OPENCL_LIBRARIES}
-    )
-    include_directories( "${OPENCL_INCLUDE_DIRS}" )
-    if ( OPENGL_FOUND )
-        list(APPEND GPU_SOURCE_FILES clGLVertexBuffer.cpp)
-        list(APPEND PUBLIC_HEADER_FILES clGLVertexBuffer.h)
-    endif()
+
+    list(APPEND GPU_SOURCE_FILES clGLVertexBuffer.cpp)
+    list(APPEND PUBLIC_HEADER_FILES clGLVertexBuffer.h)
+
+
+    list(APPEND PLATFORM_LIBRARIES ${CMAKE_DL_LIBS})
 
     # OpenCL D3D11 interop needs work...
     #if ( DXSDK_FOUND )

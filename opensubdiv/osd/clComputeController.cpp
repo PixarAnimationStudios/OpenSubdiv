@@ -27,13 +27,7 @@
 #include "../osd/clKernelBundle.h"
 #include "../osd/error.h"
 
-#if defined(_WIN32)
-    #include <windows.h>
-#elif defined(__APPLE__)
-    #include <OpenCL/opencl.h>
-#else
-    #include <CL/opencl.h>
-#endif
+#include "../../extern/clew/clew.h"
 
 #include <string.h>
 #include <algorithm>
