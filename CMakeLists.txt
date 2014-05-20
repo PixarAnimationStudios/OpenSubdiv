@@ -417,7 +417,7 @@ if(OPENCL_FOUND)
         -DOPENSUBDIV_HAS_OPENCL
     )
 else()
-    if (NOT NO_TBB)
+    if (NOT NO_OPENCL)
         message(WARNING
             "OpenCL was not found : support for OpenCL parallel compute kernels "
             "will be disabled in Osd.  If you have the OpenCL SDK installed, "
