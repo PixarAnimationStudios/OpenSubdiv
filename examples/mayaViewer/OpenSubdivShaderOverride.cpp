@@ -454,6 +454,11 @@ initializePlugin(MObject obj)
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
+    if (loadCL() == false) {
+        MGlobal::displayError("Cannot load OpenCL libraries");
+        status.perror("OpenCL initialization");
+        return MS::kFailure;
+    }
     if (initCL(&g_clContext, &g_clQueue) == false) {
         MGlobal::displayError("Cannot initialize OpenCL");
         status.perror("OpenCL initialization");

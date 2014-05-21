@@ -30,61 +30,46 @@
 # CLEW_LIBRARY
 #
 
-include(FindPackageHandleStandardArgs)
+include (FindPackageHandleStandardArgs)
 
-if (WIN32)
-    find_path( CLEW_INCLUDE_DIR
-        NAMES
-            clew.h
-        PATHS
-            "${CLEW_LOCATION}/include"
-            "$ENV{CLEW_LOCATION}/include"
-            "$ENV{PROGRAMFILES}/CLEW/include"
-            "${PROJECT_SOURCE_DIR}/extern/clew/include"
-            DOC "The directory where clew.h resides" )
+if(WIN32)
+  set(_clew_SEARCH_DIRS
+    "${CLEW_LOCATION}/include"
+    "$ENV{CLEW_LOCATION}/include"
+    "$ENV{PROGRAMFILES}/CLEW/include"
+    "${PROJECT_SOURCE_DIR}/extern/clew/include"
+  )
+else()
+  set(_clew_SEARCH_DIRS
+      "${CLEW_LOCATION}"
+      "$ENV{CLEW_LOCATION}"
+      /usr
+      /usr/local
+      /sw
+      /opt/local
+      /opt/lib/clew
+  )
+endif()
 
-    find_library( CLEW_LIBRARY
-        NAMES
-            clew CLEW clew32s clew32
-        PATHS
-            "${CLEW_LOCATION}/lib"
-            "$ENV{CLEW_LOCATION}/lib"
-            "$ENV{PROGRAMFILES}/CLEW/lib"
-            "${PROJECT_SOURCE_DIR}/extern/clew/bin"
-            "${PROJECT_SOURCE_DIR}/extern/clew/lib"
-            DOC "The CLEW library")
-endif ()
+find_path(CLEW_INCLUDE_DIR
+  NAMES
+    clew.h
+  HINTS
+    ${_clew_SEARCH_DIRS}
+  PATH_SUFFIXES
+    include
+  NO_DEFAULT_PATH
+  DOC "The directory where clew.h resides")
 
-if (${CMAKE_HOST_UNIX})
-    find_path( CLEW_INCLUDE_DIR
-        NAMES
-            clew.h
-        PATHS
-            "${CLEW_LOCATION}/include"
-            "$ENV{CLEW_LOCATION}/include"
-            /usr/include
-            /usr/local/include
-            /sw/include
-            /opt/local/include
-            NO_DEFAULT_PATH
-            DOC "The directory where clew.h resides"
-    )
-    find_library( CLEW_LIBRARY
-        NAMES
-            CLEW clew
-        PATHS
-            "${CLEW_LOCATION}/lib"
-            "$ENV{CLEW_LOCATION}/lib"
-            /usr/lib64
-            /usr/lib
-            /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}
-            /usr/local/lib64
-            /usr/local/lib
-            /sw/lib
-            /opt/local/lib
-            NO_DEFAULT_PATH
-            DOC "The CLEW library")
-endif ()
+find_library(CLEW_LIBRARY
+  NAMES
+    CLEW clew
+  PATHS
+    ${_clew_SEARCH_DIRS}
+  PATH_SUFFIXES
+    lib lib64
+  NO_DEFAULT_PATH
+  DOC "The CLEW library")
 
 find_package_handle_standard_args(CLEW
     REQUIRED_VARS

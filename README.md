@@ -64,6 +64,7 @@ Optional:
 -DNO_OMP=1        // disable OpenMP
 -DNO_CUDA=1       // disable CUDA
 -DNO_OPENCL=1     // disable OpenCL
+-DNO_CLEW=1       // disable CLEW wrapper library
 -DNO_GCD=1        // disable GrandCentralDispatch on OSX
 ````
 

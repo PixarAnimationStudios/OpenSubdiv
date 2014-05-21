@@ -26,13 +26,10 @@
 #include "../osd/clComputeContext.h"
 #include "../osd/clKernelBundle.h"
 #include "../osd/error.h"
+#include "../osd/opencl.h"
 
 #if defined(_WIN32)
     #include <windows.h>
-#elif defined(__APPLE__)
-    #include <OpenCL/opencl.h>
-#else
-    #include <CL/opencl.h>
 #endif
 
 #include <string.h>

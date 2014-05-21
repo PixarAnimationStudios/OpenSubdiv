@@ -31,12 +31,7 @@
 #include "../far/vertexEditTables.h"
 #include "../osd/vertex.h"
 #include "../osd/nonCopyable.h"
-
-#if defined(__APPLE__)
-    #include <OpenCL/opencl.h>
-#else
-    #include <CL/opencl.h>
-#endif
+#include "../osd/opencl.h"
 
 #include <vector>
 
