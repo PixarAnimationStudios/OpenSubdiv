@@ -27,13 +27,8 @@
 
 #include "../version.h"
 
+#include "../osd/opencl.h"
 #include "../osd/opengl.h"
-
-#if defined(__APPLE__)
-    #include <OpenCL/opencl.h>
-#else
-    #include <CL/opencl.h>
-#endif
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

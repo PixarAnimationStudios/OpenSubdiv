@@ -284,6 +284,7 @@ option(NO_OMP "Disable OpenMP backend" OFF)
 option(NO_TBB "Disable TBB backend" OFF)
 option(NO_CUDA "Disable CUDA backend" OFF)
 option(NO_OPENCL "Disable OpenCL backend" OFF)
+option(NO_CLEW "Disable CLEW wrapper library" OFF)
 option(NO_NO_GCD "Disable GrandCentralDispatch backend" OFF)
 
 # Check for dependencies
@@ -296,7 +297,14 @@ endif()
 find_package(OpenGL)
 find_package(OpenGLES)
 if(NOT NO_OPENCL)
-    find_package(OpenCL 1.1)
+    if(NOT NO_CLEW)
+        find_package(CLEW)
+    endif()
+    if(NOT CLEW_FOUND)
+        find_package(OpenCL 1.1)
+    else()
+        set(OPENCL_FOUND TRUE)
+    endif()
 endif()
 if(NOT NO_CUDA)
     find_package(CUDA 4.0)
@@ -416,6 +424,20 @@ if(OPENCL_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_OPENCL
     )
+    if(CLEW_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_CLEW
+        )
+        set(OPENCL_INCLUDE_DIRS ${CLEW_INCLUDE_DIR})
+        set(OPENCL_LIBRARIES ${CLEW_LIBRARY})
+    else()
+        if (NOT NO_CLEW)
+            message(WARNING
+                "OpenCL was not found, but CLEW was not. "
+                "Building with OpenCL support enabled, but the build "
+                "wouldn't be portable on systems without OpenCL installed.")
+        endif()
+    endif()
 else()
     if (NOT NO_OPENCL)
         message(WARNING

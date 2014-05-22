@@ -28,14 +28,8 @@
 #include "../version.h"
 
 #include "../osd/nonCopyable.h"
+#include "../osd/opencl.h"
 #include "../osd/vertexDescriptor.h"
-
-#if defined(__APPLE__)
-    #include <OpenCL/opencl.h>
-#else
-    #include <CL/opencl.h>
-#endif
-
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

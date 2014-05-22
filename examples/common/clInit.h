@@ -27,17 +27,35 @@
 
 #if defined(_WIN32)
     #include <windows.h>
-    #include <CL/opencl.h>
 #elif defined(__APPLE__)
     #include <OpenGL/OpenGL.h>
-    #include <OpenCL/opencl.h>
 #else
     #include <GL/glx.h>
-    #include <CL/opencl.h>
 #endif
+
+#include "osd/opencl.h"
 
 #include <cstdio>
 
+static bool HAS_CL_VERSION_1_1 () {
+#ifdef OPENSUBDIV_HAS_OPENCL
+     #ifdef OPENSUBDIV_HAS_CLEW
+        static bool clewInitialized = false;
+        static bool clewLoadSuccess;
+        if (not clewInitialized) {
+            clewInitialized = true;
+            clewLoadSuccess = clewInit() == CLEW_SUCCESS;
+            if (not clewLoadSuccess) {
+                fprintf(stderr, "Loading OpenCL failed.\n");
+            }
+        }
+        return clewLoadSuccess;
+    #endif
+    return true;
+#else
+    return false;
+#endif
+}
 static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
 {
     cl_int ciErrNum;
