@@ -27,8 +27,8 @@
 
 #include "../version.h"
 
-#include "../osd/opencl.h"
 #include "../osd/opengl.h"
+#include "../osd/opencl.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
