@@ -113,9 +113,9 @@ GLhud::~GLhud()
 }
 
 void
-GLhud::Init(int width, int height)
+GLhud::Init(int width, int height, int frameBufferWidth, int frameBufferHeight)
 {
-    Hud::Init(width, height);
+    Hud::Init(width, height, frameBufferWidth, frameBufferHeight);
 
     glGenTextures(1, &_fontTexture);
     glBindTexture(GL_TEXTURE_2D, _fontTexture);
@@ -195,9 +195,9 @@ GLhud::Init(int width, int height)
 }
 
 void
-GLhud::Rebuild(int width, int height)
+GLhud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
 {
-    Hud::Rebuild(width, height);
+    Hud::Rebuild(width, height, framebufferWidth, framebufferHeight);
     
     if (not _staticVbo)
         return;
@@ -209,7 +209,7 @@ GLhud::Rebuild(int width, int height)
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     if (GetFrameBuffer()) {
-        GetFrameBuffer()->Reshape(width, height);
+        GetFrameBuffer()->Reshape(framebufferWidth, framebufferHeight);
     }
 }
 

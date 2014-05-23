@@ -37,9 +37,18 @@ public:
     GLhud();
     ~GLhud();
 
-    virtual void Init(int width, int height);
+    void Init(int width, int height) {
+        Init(width, height, width, height);
+    }
 
-    virtual void Rebuild(int width, int height);
+    void Rebuild(int width, int height) {
+        Rebuild(width, height, width, height);
+    }
+
+    virtual void Init(int width, int height, int framebufferWidth, int framebufferHeight);
+
+    virtual void Rebuild(int width, int height,
+                         int framebufferWidth, int framebufferHeight);
 
     virtual bool Flush();
     

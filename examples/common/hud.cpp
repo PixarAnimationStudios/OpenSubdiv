@@ -35,6 +35,7 @@
 #endif
 
 Hud::Hud() : _visible(true), _windowWidth(0), _windowHeight(0),
+             _framebufferWidth(0), _framebufferHeight(0),
              _requiresRebuildStatic(true)
 {
     _capturedSlider = -1;
@@ -45,10 +46,12 @@ Hud::~Hud()
 }
 
 void
-Hud::Init(int width, int height)
+Hud::Init(int width, int height, int framebufferWidth, int framebufferHeight)
 {
     _windowWidth = width;
     _windowHeight = height;
+    _framebufferWidth = framebufferWidth;
+    _framebufferHeight = framebufferHeight;
 }
 
 int
@@ -460,11 +463,13 @@ Hud::DrawString(int x, int y, float r, float g, float b, const char *fmt, ...)
 }
 
 void
-Hud::Rebuild(int width, int height)
+Hud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
 {
     _requiresRebuildStatic = false;
     _windowWidth = width;
     _windowHeight = height;
+    _framebufferWidth = framebufferWidth;
+    _framebufferHeight = framebufferHeight;
 
     _staticVboSource.clear();
 
@@ -562,7 +567,7 @@ Hud::Flush()
     }
 
     if (_requiresRebuildStatic)
-        Rebuild(_windowWidth, _windowHeight);
+        Rebuild(_windowWidth, _windowHeight, _framebufferWidth, _framebufferHeight);
 
     return true;
 }

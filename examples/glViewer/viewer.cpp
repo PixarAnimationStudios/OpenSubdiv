@@ -1560,7 +1560,6 @@ reshape(GLFWwindow *, int width, int height) {
 #else
 reshape(int width, int height) {
 #endif
-
     g_width = width;
     g_height = height;
 
@@ -1569,7 +1568,7 @@ reshape(int width, int height) {
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 #endif
-    g_hud.Rebuild(windowWidth, windowHeight);
+    g_hud.Rebuild(windowWidth, windowHeight, width, height);
 }
 
 //------------------------------------------------------------------------------
@@ -1722,14 +1721,15 @@ static void
 initHUD()
 {
     int windowWidth = g_width, windowHeight = g_height;
+    int frameBufferWidth = g_width, frameBufferHeight = g_height;
 #if GLFW_VERSION_MAJOR>=3
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+    glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 #endif
 
+    g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.Init(windowWidth, windowHeight);
-    
     g_hud.SetFrameBuffer(new SSAOGLFrameBuffer);
 
     g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,

@@ -43,9 +43,10 @@ public:
     Hud();
     virtual ~Hud();
 
-    virtual void Init(int width, int height);
+    virtual void Init(int width, int height, int framebufferWidth, int framebufferHeight);
 
-    virtual void Rebuild(int width, int height);
+    virtual void Rebuild(int width, int height,
+                         int framebufferWidth, int framebufferHeight);
 
     virtual bool Flush();
 
@@ -173,6 +174,7 @@ private:
     bool _visible;
     std::vector<float> _vboSource, _staticVboSource;
     int _windowWidth, _windowHeight;
+    int _framebufferWidth, _framebufferHeight;
     bool _requiresRebuildStatic;
     std::vector<Item> _labels;
     std::vector<RadioButton> _radioButtons;
