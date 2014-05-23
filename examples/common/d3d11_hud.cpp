@@ -88,7 +88,7 @@ D3D11hud::~D3D11hud()
 void
 D3D11hud::Init(int width, int height)
 {
-    Hud::Init(width, height);
+    Hud::Init(width, height, width, height);
 
     ID3D11Device *device = NULL;
     _deviceContext->GetDevice(&device);
@@ -192,7 +192,7 @@ D3D11hud::Init(int width, int height)
 void
 D3D11hud::Rebuild(int width, int height)
 {
-    Hud::Rebuild(width, height);
+    Hud::Rebuild(width, height, width, height);
 
     SAFE_RELEASE(_staticVbo);
 
