@@ -429,7 +429,7 @@ if(OPENCL_FOUND)
             -DOPENSUBDIV_HAS_CLEW
         )
         set(OPENCL_INCLUDE_DIRS ${CLEW_INCLUDE_DIR})
-        set(OPENCL_LIBRARIES ${CLEW_LIBRARY})
+        set(OPENCL_LIBRARIES ${CLEW_LIBRARY} ${CMAKE_DL_LIBS})
     else()
         if (NOT NO_CLEW)
             message(WARNING
