@@ -102,7 +102,7 @@ protected:
                      _edgeVertIdx,
                      _vertVertIdx;
 
-    // Mumber of indices required for the face-vert and vertex-vert
+    // Number of indices required for the face-vert and vertex-vert
     // iteration tables at each level
     int _faceVertsValenceSum,
         _vertVertsValenceSum;

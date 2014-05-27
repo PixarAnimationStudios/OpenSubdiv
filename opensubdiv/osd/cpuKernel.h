@@ -151,7 +151,7 @@ void ComputeEdgeKernel(      float *vertex,
 void OsdCpuComputeEdge(float *vertex, float * varying,
                        OsdVertexBufferDescriptor const &vertexDesc,
                        OsdVertexBufferDescriptor const &varyingDesc,
-                       const int *E_IT, const float *E_ITa,
+                       const int *E_IT, const float *E_W,
                        int vertexOffset, int tableOffset,
                        int start, int end);
 

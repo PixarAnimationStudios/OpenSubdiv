@@ -131,9 +131,9 @@ private:
             end;
     };
 
-    Range kernelB;  // vertex batch reange (kernel B)
-    Range kernelA1; // vertex batch reange (kernel A pass 1)
-    Range kernelA2; // vertex batch reange (kernel A pass 2)
+    Range kernelB;  // vertex batch range (kernel B)
+    Range kernelA1; // vertex batch range (kernel A pass 1)
+    Range kernelA2; // vertex batch range (kernel A pass 2)
 };
 
 inline void 

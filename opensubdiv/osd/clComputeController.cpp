@@ -239,7 +239,7 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelB(
     ciErrNum = clEnqueueNDRangeKernel(_clQueue,
                                       kernel, 1, NULL, globalWorkSize,
                                       NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "vertex kernel 1 %d\n", ciErrNum);
+    CL_CHECK_ERROR(ciErrNum, "vertex kernel B %d\n", ciErrNum);
 }
 
 void
@@ -271,7 +271,7 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelA1(
     ciErrNum = clEnqueueNDRangeKernel(_clQueue,
                                       kernel, 1, NULL, globalWorkSize,
                                       NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "vertex kernel 2 %d\n", ciErrNum);
+    CL_CHECK_ERROR(ciErrNum, "vertex kernel A1 %d\n", ciErrNum);
 }
 
 void
@@ -303,7 +303,7 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelA2(
     ciErrNum = clEnqueueNDRangeKernel(_clQueue,
                                       kernel, 1, NULL, globalWorkSize,
                                       NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "vertex kernel 2 %d\n", ciErrNum);
+    CL_CHECK_ERROR(ciErrNum, "vertex kernel A2 %d\n", ciErrNum);
 }
 
 void
