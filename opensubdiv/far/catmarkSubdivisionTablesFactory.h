@@ -84,13 +84,21 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
     if (coarseMeshAllTriQuadFaces)
         F_IT_size += tablesFactory.GetNumCoarseTriangleFaces(); // add padding for tri faces
 
+    // Triangular interpolation mode :
+    // see "smoothtriangle" tag introduced in prman 3.9 and HbrCatmarkSubdivision<T>
+    typename HbrCatmarkSubdivision<T>::TriangleSubdivision triangleMethod =
+        dynamic_cast<HbrCatmarkSubdivision<T> *>(meshFactory->GetHbrMesh()->GetSubdivision())->GetTriangleSubdivisionMethod();
+    bool hasFractionalEdgeSharpness = tablesFactory.HasFractionalEdgeSharpness();
+    bool useRestrictedEdgeVertexKernel = !hasFractionalEdgeSharpness && triangleMethod != HbrCatmarkSubdivision<T>::k_New;
+
     // Allocate memory for the indexing tables
     if (!coarseMeshAllTriQuadFaces)
         result->_F_ITa.resize(tablesFactory.GetNumFaceVerticesTotal(1) * 2);
     result->_F_IT.resize(F_IT_size);
 
     result->_E_IT.resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*4);
-    result->_E_W.resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*2);
+    if (!useRestrictedEdgeVertexKernel)
+        result->_E_W.resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*2);
 
     result->_V_ITa.resize((tablesFactory.GetNumVertexVerticesTotal(maxlevel)
                            - tablesFactory.GetNumVertexVerticesTotal(0))*5); // subtract coarse cage vertices
@@ -189,19 +197,18 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
 
         // Edge vertices
 
-        // Triangular interpolation mode :
-        // see "smoothtriangle" tag introduced in prman 3.9 and HbrCatmarkSubdivision<T>
-        typename HbrCatmarkSubdivision<T>::TriangleSubdivision triangleMethod =
-            dynamic_cast<HbrCatmarkSubdivision<T> *>(meshFactory->GetHbrMesh()->GetSubdivision())->GetTriangleSubdivisionMethod();
-
         // "For each vertex, gather the 2 vertices from the parent edege and the
         // 2 child vertices from the faces to the left and right of that edge.
         // Adjust if edge has a crease or is on a boundary."
         int nEdgeVertices = (int)tablesFactory._edgeVertsList[level].size();
 
         // add a batch for edge vertices
+        kernelType = (useRestrictedEdgeVertexKernel ?
+            FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX :
+            FarKernelBatch::CATMARK_EDGE_VERTEX);
+
         if (nEdgeVertices > 0)
-            batches->push_back(FarKernelBatch( FarKernelBatch::CATMARK_EDGE_VERTEX,
+            batches->push_back(FarKernelBatch( kernelType,
                                                level,
                                                0,
                                                0,
@@ -227,8 +234,20 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
 
             float faceWeight=0.5f, vertWeight=0.5f;
 
-            // in the case of a fractional sharpness, set the adjacent faces vertices
-            if (!e->IsBoundary() && esharp <= 1.0f) {
+            if (kernelType == FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX) {
+                // in the case of a sharp edge, repeat the endpoint vertices
+                if (!e->IsBoundary() && esharp < 1.0f) {
+                    HbrFace<T>* rf = e->GetRightFace();
+                    HbrFace<T>* lf = e->GetLeftFace();
+
+                    E_IT[4*i+2] = remap[lf->Subdivide()->GetID()];
+                    E_IT[4*i+3] = remap[rf->Subdivide()->GetID()];
+                } else {
+                    E_IT[4*i+2] = E_IT[4*i+0];
+                    E_IT[4*i+3] = E_IT[4*i+1];
+                }
+            } else if (!e->IsBoundary() && esharp <= 1.0f) {
+                // in the case of a fractional sharpness, set the adjacent faces vertices
 
                 float leftWeight, rightWeight;
                 HbrFace<T>* rf = e->GetRightFace();
@@ -250,11 +269,14 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
                 E_IT[4*i+2] = -1;
                 E_IT[4*i+3] = -1;
             }
-            E_W[2*i+0] = vertWeight;
-            E_W[2*i+1] = faceWeight;
+            if (kernelType == FarKernelBatch::CATMARK_EDGE_VERTEX) {
+                E_W[2*i+0] = vertWeight;
+                E_W[2*i+1] = faceWeight;
+            }
         }
         E_IT += 4 * nEdgeVertices;
-        E_W += 2 * nEdgeVertices;
+        if (kernelType == FarKernelBatch::CATMARK_EDGE_VERTEX)
+            E_W += 2 * nEdgeVertices;
 
         // Vertex vertices
 

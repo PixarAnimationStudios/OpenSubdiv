@@ -79,6 +79,10 @@ public:
         int vertexOffset, int tableOffset, int start, int end,
         int vertexBaseOffset, int varyingBaseOffset);
 
+    void ApplyCatmarkRestrictedEdgeVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end,
+        int vertexBaseOffset, int varyingBaseOffset);
+
     void ApplyCatmarkVertexVerticesKernelB(
         int vertexOffset, int tableOffset, int start, int end,
         int vertexBaseOffset, int varyingBaseOffset);
@@ -140,11 +144,13 @@ protected:
 
     ID3D11ClassInstance * _kernelComputeFace; // general face-vertex kernel (all schemes)
 
-    ID3D11ClassInstance * _kernelComputeQuadFace; // quad face-vertex kernel (catmark)
+    ID3D11ClassInstance * _kernelComputeQuadFace; // quad face-vertex kernel (catmark scheme)
 
-    ID3D11ClassInstance * _kernelComputeTriQuadFace; // tri-quad face-vertex kernel (catmark)
+    ID3D11ClassInstance * _kernelComputeTriQuadFace; // tri-quad face-vertex kernel (catmark scheme)
 
     ID3D11ClassInstance * _kernelComputeEdge; // edge-vertex kernel (catmark + loop schemes)
+
+    ID3D11ClassInstance * _kernelComputeRestrictedEdge; // edge-vertex kernel (catmark scheme)
 
     ID3D11ClassInstance * _kernelComputeBilinearEdge; // edge-vertex kernel (bilinear scheme)
 

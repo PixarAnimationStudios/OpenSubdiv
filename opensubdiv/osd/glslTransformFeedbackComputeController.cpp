@@ -231,7 +231,6 @@ OsdGLSLTransformFeedbackComputeController::ApplyCatmarkTriQuadFaceVerticesKernel
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
-
 void
 OsdGLSLTransformFeedbackComputeController::ApplyCatmarkEdgeVerticesKernel(
     FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
@@ -239,6 +238,18 @@ OsdGLSLTransformFeedbackComputeController::ApplyCatmarkEdgeVerticesKernel(
     assert(context);
 
     _currentBindState.kernelBundle->ApplyCatmarkEdgeVerticesKernel(
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLTransformFeedbackComputeController::ApplyCatmarkRestrictedEdgeVerticesKernel(
+    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
+
+    assert(context);
+
+    _currentBindState.kernelBundle->ApplyCatmarkRestrictedEdgeVerticesKernel(
         _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
         _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());

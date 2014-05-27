@@ -380,6 +380,71 @@ computeEdge(float *fVertex, float *fVarying,
 }
 
 template <int NUM_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
+computeRestrictedEdge(float *fVertex, float *fVaryings, int *E0_IT, int offset, int tableOffset, int start, int end)
+{
+    DeviceVertex<NUM_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_VERTEX_ELEMENTS>*)fVertex;
+    DeviceVertex<NUM_VARYING_ELEMENTS> *varyings = (DeviceVertex<NUM_VARYING_ELEMENTS>*)fVaryings;
+
+    for (int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x;
+         i < end + tableOffset;
+         i+= blockDim.x * gridDim.x){
+
+        int eidx0 = E0_IT[4*i+0];
+        int eidx1 = E0_IT[4*i+1];
+        int eidx2 = E0_IT[4*i+2];
+        int eidx3 = E0_IT[4*i+3];
+
+        DeviceVertex<NUM_VERTEX_ELEMENTS> dst;
+        dst.clear();
+
+        dst.addWithWeight(&vertex[eidx0], 0.25f);
+        dst.addWithWeight(&vertex[eidx1], 0.25f);
+        dst.addWithWeight(&vertex[eidx2], 0.25f);
+        dst.addWithWeight(&vertex[eidx3], 0.25f);
+
+        if(NUM_VARYING_ELEMENTS > 0){
+            DeviceVertex<NUM_VARYING_ELEMENTS> dstVarying;
+            dstVarying.clear();
+            dstVarying.addWithWeight(&varyings[eidx0], 0.5f);
+            dstVarying.addWithWeight(&varyings[eidx1], 0.5f);
+            varyings[offset+i-tableOffset] = dstVarying;
+        }
+    }
+}
+
+__global__ void
+computeRestrictedEdge(float *fVertex, float *fVarying,
+                      int vertexLength, int vertexStride,
+                      int varyingLength, int varyingStride,
+                      int *E0_IT, int offset, int tableOffset, int start, int end)
+{
+    for (int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x;
+         i < end + tableOffset;i+= blockDim.x * gridDim.x) {
+
+        int eidx0 = E0_IT[4*i+0];
+        int eidx1 = E0_IT[4*i+1];
+        int eidx2 = E0_IT[4*i+2];
+        int eidx3 = E0_IT[4*i+3];
+
+        float *dstVertex = fVertex + (i+offset-tableOffset)*vertexStride;
+        clear(dstVertex, vertexLength);
+
+        addWithWeight(dstVertex, fVertex + eidx0*vertexStride, 0.25f, vertexLength);
+        addWithWeight(dstVertex, fVertex + eidx1*vertexStride, 0.25f, vertexLength);
+        addWithWeight(dstVertex, fVertex + eidx2*vertexStride, 0.25f, vertexLength);
+        addWithWeight(dstVertex, fVertex + eidx3*vertexStride, 0.25f, vertexLength);
+
+        if (varyingLength > 0){
+            float *dstVarying = fVarying + (i+offset-tableOffset)*varyingStride;
+            clear(dstVarying, varyingLength);
+
+            addWithWeight(dstVarying, fVarying + eidx0*varyingStride, 0.5f, varyingLength);
+            addWithWeight(dstVarying, fVarying + eidx1*varyingStride, 0.5f, varyingLength);
+        }
+    }
+}
+
+template <int NUM_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
 computeVertexA(float *fVertex, float *fVaryings, int *V0_ITa, float *V0_S, int offset, int tableOffset, int start, int end, int pass)
 {
     DeviceVertex<NUM_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_VERTEX_ELEMENTS>*)fVertex;
@@ -845,6 +910,22 @@ void OsdCudaComputeEdge(float *vertex, float *varying,
     computeEdge<<<512, 32>>>(vertex, varying,
                              vertexLength, vertexStride, varyingLength, varyingStride,
                              E_IT, E_W, offset, tableOffset, start, end);
+}
+
+void OsdCudaComputeRestrictedEdge(float *vertex, float *varying,
+                                  int vertexLength, int vertexStride,
+                                  int varyingLength, int varyingStride,
+                                  int *E_IT, int offset, int tableOffset, int start, int end)
+{
+    //computeEdge<0, 3><<<512,32>>>(vertex, varying, E_IT, offset, start, end);
+    OPT_KERNEL(0, 0, computeRestrictedEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(0, 3, computeRestrictedEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 0, computeRestrictedEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 3, computeRestrictedEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
+
+    computeRestrictedEdge<<<512, 32>>>(vertex, varying,
+                                       vertexLength, vertexStride, varyingLength, varyingStride,
+                                       E_IT, offset, tableOffset, start, end);
 }
 
 void OsdCudaComputeVertexA(float *vertex, float *varying,

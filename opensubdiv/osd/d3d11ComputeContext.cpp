@@ -40,8 +40,11 @@ void
 OsdD3D11ComputeTable::createBuffer(int size, const void *ptr, DXGI_FORMAT format, int numElements,
                                    ID3D11DeviceContext *deviceContext) {
 
-    if (size == 0)
+    if (size == 0) {
+        _buffer = NULL;
+        _srv = NULL;
         return;
+    }
 
     ID3D11Device *device = NULL;
     deviceContext->GetDevice(&device);

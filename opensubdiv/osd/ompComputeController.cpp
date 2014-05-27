@@ -135,6 +135,19 @@ OsdOmpComputeController::ApplyCatmarkEdgeVerticesKernel(
 }
 
 void
+OsdOmpComputeController::ApplyCatmarkRestrictedEdgeVerticesKernel(
+    FarKernelBatch const &batch, OsdCpuComputeContext const *context) const {
+
+    assert(context);
+
+    OsdOmpComputeRestrictedEdge(
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
+        (const int*)context->GetTable(FarSubdivisionTables::E_IT)->GetBuffer(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
 OsdOmpComputeController::ApplyCatmarkVertexVerticesKernelB(
     FarKernelBatch const &batch, OsdCpuComputeContext const *context) const {
 

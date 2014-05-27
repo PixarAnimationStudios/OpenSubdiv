@@ -126,6 +126,9 @@ OsdGLSLComputeKernelBundle::Compile(
     _subComputeEdge           = glGetSubroutineIndex(_program,
                                                      GL_COMPUTE_SHADER,
                                                      "catmarkComputeEdge");
+    _subComputeRestrictedEdge = glGetSubroutineIndex(_program,
+                                                     GL_COMPUTE_SHADER,
+                                                     "catmarkComputeRestrictedEdge");
     _subComputeBilinearEdge   = glGetSubroutineIndex(_program,
                                                      GL_COMPUTE_SHADER,
                                                      "bilinearComputeEdge");
@@ -256,6 +259,14 @@ OsdGLSLComputeKernelBundle::ApplyCatmarkEdgeVerticesKernel(
     int vertexOffset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subComputeEdge);
+    dispatchCompute(vertexOffset, tableOffset, start, end);
+}
+
+void
+OsdGLSLComputeKernelBundle::ApplyCatmarkRestrictedEdgeVerticesKernel(
+    int vertexOffset, int tableOffset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subComputeRestrictedEdge);
     dispatchCompute(vertexOffset, tableOffset, start, end);
 }
 

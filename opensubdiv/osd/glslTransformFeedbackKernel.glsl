@@ -284,6 +284,35 @@ void catmarkComputeEdge()
     writeVertex(dst);
 }
 
+// Restricted edge-vertices compute Kernel
+subroutine(computeKernelType)
+void catmarkComputeRestrictedEdge()
+{
+    int i = gl_VertexID + indexStart + tableOffset;
+
+    Vertex dst;
+    clear(dst);
+
+#ifdef OPT_E0_IT_VEC4
+    ivec4 eidx = texelFetch(_E0_IT, i);
+#else
+    int eidx0 = texelFetch(_E0_IT, 4*i+0).x;
+    int eidx1 = texelFetch(_E0_IT, 4*i+1).x;
+    int eidx2 = texelFetch(_E0_IT, 4*i+2).x;
+    int eidx3 = texelFetch(_E0_IT, 4*i+3).x;
+    ivec4 eidx = ivec4(eidx0, eidx1, eidx2, eidx3);
+#endif
+
+    addWithWeight(dst, readVertex(eidx.x), 0.25f);
+    addWithWeight(dst, readVertex(eidx.y), 0.25f);
+    addWithWeight(dst, readVertex(eidx.z), 0.25f);
+    addWithWeight(dst, readVertex(eidx.w), 0.25f);
+    addVaryingWithWeight(dst, readVertex(eidx.x), 0.5f);
+    addVaryingWithWeight(dst, readVertex(eidx.y), 0.5f);
+
+    writeVertex(dst);
+}
+
 // Edge-vertices compute Kernel (bilinear scheme)
 subroutine(computeKernelType)
 void bilinearComputeEdge()

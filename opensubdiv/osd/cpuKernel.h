@@ -169,6 +169,13 @@ void OsdCpuComputeEdge(float *vertex, float * varying,
                        int vertexOffset, int tableOffset,
                        int start, int end);
 
+void OsdCpuComputeRestrictedEdge(float *vertex, float * varying,
+                                 OsdVertexBufferDescriptor const &vertexDesc,
+                                 OsdVertexBufferDescriptor const &varyingDesc,
+                                 const int *E_IT,
+                                 int vertexOffset, int tableOffset,
+                                 int start, int end);
+
 template<int numVertexElements>
 void ComputeVertexAKernel(      float *vertex, 
                           const int   *V_ITa, 

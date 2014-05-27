@@ -61,6 +61,13 @@ void OsdOmpComputeEdge(float *vertex, float * varying,
                        int vertexOffset, int tableOffset,
                        int start, int end);
 
+void OsdOmpComputeRestrictedEdge(float *vertex, float * varying,
+                                 OsdVertexBufferDescriptor const &vertexDesc,
+                                 OsdVertexBufferDescriptor const &varyingDesc,
+                                 const int *E_IT,
+                                 int vertexOffset, int tableOffset,
+                                 int start, int end);
+
 void OsdOmpComputeVertexA(float *vertex, float * varying,
                           OsdVertexBufferDescriptor const &vertexDesc,
                           OsdVertexBufferDescriptor const &varyingDesc,
