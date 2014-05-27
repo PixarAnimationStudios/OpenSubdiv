@@ -96,32 +96,16 @@ GLFrameBuffer::Init(int width, int height) {
     if (not _frameBuffer) {
         glGenFramebuffers(1, &_frameBuffer);
 
-
         if (not _frameBufferColor) {
-            glGenTextures(1, &_frameBufferColor);
-            glBindTexture(GL_TEXTURE_2D, _frameBufferColor);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            _frameBufferColor=allocateTexture();
         }
         
         if (not _frameBufferNormal) {
-            glGenTextures(1, &_frameBufferNormal);
-            glBindTexture(GL_TEXTURE_2D, _frameBufferNormal);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            _frameBufferNormal=allocateTexture();
         }
 
         if (not _frameBufferDepthTexture) {
-            glGenTextures(1, &_frameBufferDepthTexture);
-            glBindTexture(GL_TEXTURE_2D, _frameBufferDepthTexture);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            _frameBufferDepthTexture=allocateTexture();
         }
     }
 
@@ -133,13 +117,28 @@ void
 GLFrameBuffer::Bind() const {
 
     glBindFramebuffer(GL_FRAMEBUFFER, _frameBuffer);
-
     GLenum buffers[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
     glDrawBuffers(2, buffers);
 }
 
 GLuint
-GLFrameBuffer::compileProgram(char const * src) {
+GLFrameBuffer::allocateTexture() {
+    GLuint texture;
+    
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    checkGLErrors("FrameBuffer::allocateTexture");
+    
+    return texture;
+}
+
+GLuint
+GLFrameBuffer::compileProgram(char const * src, char const * defines) {
 
     GLuint program = glCreateProgram();
 
@@ -147,10 +146,10 @@ GLFrameBuffer::compileProgram(char const * src) {
                       vtxDefineStr[] = "#define IMAGE_VERTEX_SHADER\n",
                       fragDefineStr[] = "#define IMAGE_FRAGMENT_SHADER\n";
 
-    std::string vertexSrc = std::string(versionStr) + vtxDefineStr + src;
+    std::string vertexSrc = std::string(versionStr) + vtxDefineStr + (defines ? defines : "") + src;
     GLuint vs = compileShader(GL_VERTEX_SHADER, vertexSrc.c_str());
 
-    std::string fragmentSrc = std::string(versionStr) + fragDefineStr + src;
+    std::string fragmentSrc = std::string(versionStr) + fragDefineStr + (defines ? defines : "") + src;
     GLuint fs = compileShader(GL_FRAGMENT_SHADER, fragmentSrc.c_str());
 
     glAttachShader(program, vs);
@@ -349,6 +348,11 @@ GLFrameBuffer::Screenshot() const {
 #endif
 }
 
+
+//------------------------------------------------------------------------------
+
+
+
 SSAOGLFrameBuffer::SSAOGLFrameBuffer() :
               _active(1),
               _radius(0),
@@ -395,13 +399,13 @@ SSAOGLFrameBuffer::ApplyImageShader() {
 static SSAOGLFrameBuffer * g_ssaofb=0;
 
 static void
-callbackCheckbox(bool value, int /* data */) {
+ssaoCallbackCheckbox(bool value, int /* data */) {
 
     g_ssaofb->SetActive(value);
 }
 
 static void
-callbackSlider(float value, int data) {
+ssaoCallbackSlider(float value, int data) {
 
     switch (data) {
         case 0: g_ssaofb->SetRadius(value); break;
@@ -418,10 +422,10 @@ SSAOGLFrameBuffer::BuildUI(GLhud * hud, int x, int y) {
 
     g_ssaofb = this;
 
-    hud->AddCheckBox("SSAO", _active, x, y, callbackCheckbox);
+    hud->AddCheckBox("SSAO", _active, x, y, ssaoCallbackCheckbox);
 
-    hud->AddSlider("Radius",   0.0f,    0.1f,  0.01f, x+20, y+20,  20, false, callbackSlider, 0);
-    hud->AddSlider("Scale",    1.0f, 1000.0f, 300.0f, x+20, y+60,  20, false, callbackSlider, 1);
+    hud->AddSlider("Radius",   0.0f,    0.1f,  0.01f, x+20, y+20,  20, false, ssaoCallbackSlider, 0);
+    hud->AddSlider("Scale",    1.0f, 1000.0f, 300.0f, x+20, y+60,  20, false, ssaoCallbackSlider, 1);
     //hud->AddSlider("Gamma",    0.0f,    1.0f,   1.0f, x+20, y+100, 20, false, callbackSlider, 2);
     //hud->AddSlider("Contrast", 0.0f,    1.0f,   1.0f, x+20, y+140, 20, false, callbackSlider, 3);
 }

@@ -25,6 +25,7 @@
 set(EXAMPLES_COMMON_SHADER_FILES
      framebuffer.glsl
      ssao.glsl
+     hbao.glsl
 )
 
 set(EXAMPLES_COMMON_SOURCE_FILES

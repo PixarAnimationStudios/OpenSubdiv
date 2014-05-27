@@ -34,6 +34,8 @@ class GLFrameBuffer {
 
 public:
 
+    GLFrameBuffer();
+
     int GetWidth() const {
         return _width;
     }
@@ -57,7 +59,6 @@ public:
 protected:
     friend class GLhud;
 
-    GLFrameBuffer();
     virtual ~GLFrameBuffer();
 
     GLuint getFrameBuffer() {
@@ -76,7 +77,9 @@ protected:
         _program = program;
     }
     
-    GLuint compileProgram(char const * src);
+    GLuint compileProgram(char const * src, char const * defines=0);
+
+    GLuint allocateTexture();
 
 private:
 

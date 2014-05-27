@@ -56,7 +56,7 @@ void main()
     vec4 colorSample = texture(colorMap, outUV);
     
     //background color as a vertical grey ramp
-    vec4 bgColor = vec4(mix(0.05, 0.25, outUV.y));
+    vec4 bgColor = vec4(mix(0.1, 0.5, sin(outUV.y*3.14159)));
 
     outColor = mix(bgColor, colorSample, colorSample.a);
 }
