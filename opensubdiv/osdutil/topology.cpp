@@ -202,7 +202,7 @@ bool
 OsdUtilSubdivTopology::ParseFromObjString(
     char const * shapestr, int axis,
     vector<float> *pointPositions,
-    std::string *errorMessage)
+    std::string * /* errorMessage */)
 {
     char * str=const_cast<char *>(shapestr), line[256];
     bool done = false;
@@ -335,7 +335,6 @@ bool
 OsdUtilTagData::AddCrease(int *indices, int numIndices,
                             float *sharpness, int numSharpness)
 {
-    std::cout << "Adding crease!\n";
     tags.push_back(CREASE);
     numArgs.push_back(numIndices);
     numArgs.push_back(numSharpness);
@@ -352,7 +351,7 @@ OsdUtilTagData::AddCrease(int *indices, int numIndices,
         
 // Either "normal" or "chaikin"
 bool
-OsdUtilTagData::AddCreaseMethod(const std::string &value)
+OsdUtilTagData::AddCreaseMethod(const std::string & /* value */)
 {
     return true;
 }
@@ -361,7 +360,7 @@ OsdUtilTagData::AddCreaseMethod(const std::string &value)
 // 1 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner
 // 2 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly    
 bool
-OsdUtilTagData::AddInterpolateBoundary(int value)
+OsdUtilTagData::AddInterpolateBoundary(int /* value */)
 {
     return true;
 

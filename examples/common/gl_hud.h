@@ -29,19 +29,46 @@
 
 #include <osd/opengl.h>
 
-class GLhud : public Hud
-{
+#include "gl_framebuffer.h"
+
+class GLhud : public Hud {
+
 public:
     GLhud();
     ~GLhud();
 
-    virtual void Init(int width, int height);
+    void Init(int width, int height) {
+        Init(width, height, width, height);
+    }
 
-    virtual void Rebuild(int width, int height);
+    void Rebuild(int width, int height) {
+        Rebuild(width, height, width, height);
+    }
+
+    virtual void Init(int width, int height, int framebufferWidth, int framebufferHeight);
+
+    virtual void Rebuild(int width, int height,
+                         int framebufferWidth, int framebufferHeight);
 
     virtual bool Flush();
     
+    void SetFrameBuffer(GLFrameBuffer * frameBuffer) {
+        if (not _frameBuffer) {
+            _frameBuffer = frameBuffer;
+            _frameBuffer->Init(GetWidth(), GetHeight());
+            _frameBuffer->BuildUI(this, 10, 600);
+        }
+    }
+
+    GLFrameBuffer * GetFrameBuffer() {
+        return _frameBuffer;
+    }
+
 private:
+
+
+    GLFrameBuffer * _frameBuffer;
+
     GLuint _fontTexture;
     GLuint _vbo, _staticVbo;
     GLuint _vao, _staticVao;

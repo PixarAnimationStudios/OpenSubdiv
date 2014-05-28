@@ -133,12 +133,6 @@ class OsdUtilRefiner  {
     // adaptive code in far result in very different meshes
     OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>*  _farMesh;
 
-    // Pointer to patch parameters stored within _farMesh.
-    // These describe additional per-patch information, used here to
-    // extract the U/V values at the corners of each tessellated quad.
-    /// XXX: Maybe not cache, get from far mesh each time?
-    const OpenSubdiv::FarPatchTables::PatchParamTable* _patchParamTable;
-
     // Cached counts within _farMesh
     /// XXX: Maybe not cache, get from far mesh each time?    
     int _firstVertexOffset; 

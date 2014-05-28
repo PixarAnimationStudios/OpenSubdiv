@@ -151,7 +151,7 @@ OsdUtilPatchPartitioner::OsdUtilPatchPartitioner(FarPatchTables const *srcPatchT
             int patchIndex = paIt->GetPatchIndex() + i;
             int ptexIndex = srcPatchParamTable[patchIndex].faceIndex;
             int partitionID = idsOnPtexFaces[ptexIndex];
-            sortProxy[i] = std::make_pair<int, int>(partitionID, patchIndex);
+            sortProxy[i] = std::make_pair(partitionID, patchIndex);
             ++numPatches[partitionID];
         }
         // sort by partitionID
@@ -186,9 +186,10 @@ OsdUtilPatchPartitioner::OsdUtilPatchPartitioner(FarPatchTables const *srcPatchT
 
             // reorder corresponding face-varying table entry
             if (hasFVarData) {
-                for (int j = 0; j < 4 * fvarWidth; ++j) {
+                int fvarVerts = desc.GetType() == FarPatchTables::TRIANGLES ? 3 : 4;
+                for (int j = 0; j < fvarVerts * fvarWidth; ++j) {
                     newFVarDataTable.push_back(
-                        srcFVarData.GetAllData()[patchIndex*4*fvarWidth+j + fvarOffset]);
+                        srcFVarData.GetAllData()[patchIndex*fvarVerts*fvarWidth+j + fvarOffset]);
                 }
             }
         }

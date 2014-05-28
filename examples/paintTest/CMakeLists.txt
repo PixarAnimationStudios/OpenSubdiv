@@ -29,7 +29,7 @@ set(SHADER_FILES
      paintShader.glsl
 )
 
-set(PLATFORM_LIBRARIES
+list(APPEND PLATFORM_LIBRARIES
     "${OSD_LINK_TARGET}"
     "${OPENGL_LIBRARY}"
     "${GLEW_LIBRARY}"

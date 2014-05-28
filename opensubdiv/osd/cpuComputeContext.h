@@ -40,7 +40,7 @@ namespace OPENSUBDIV_VERSION {
 
 struct OsdVertexDescriptor;
 
-class OsdCpuTable : OsdNonCopyable<OsdCpuTable> {
+class OsdCpuTable : private OsdNonCopyable<OsdCpuTable> {
 public:
     template<typename T>
     explicit OsdCpuTable(const std::vector<T> &table) {
@@ -57,7 +57,7 @@ private:
     void *_devicePtr;
 };
 
-class OsdCpuHEditTable : OsdNonCopyable<OsdCpuHEditTable> {
+class OsdCpuHEditTable : private OsdNonCopyable<OsdCpuHEditTable> {
 public:
     OsdCpuHEditTable(const FarVertexEditTables::VertexEditBatch &batch);
 
@@ -91,7 +91,7 @@ private:
 /// geometric primitives with the capabilities of the selected discrete 
 /// compute device.
 ///
-class OsdCpuComputeContext : OsdNonCopyable<OsdCpuComputeContext> {
+class OsdCpuComputeContext : private OsdNonCopyable<OsdCpuComputeContext> {
 
 public:
     /// Creates an OsdCpuComputeContext instance
@@ -106,45 +106,11 @@ public:
     /// Destructor
     virtual ~OsdCpuComputeContext();
 
-    /// Binds a vertex and a varying data buffers to the context. Binding ensures
-    /// that data buffers are properly inter-operated between Contexts and 
-    /// Controllers operating across multiple devices.
-    ///
-    /// @param vertex   a buffer containing vertex-interpolated primvar data
-    ///
-    /// @param varying  a buffer containing varying-interpolated primvar data
-    ///
-    template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
-
-        _currentVertexBuffer = vertex ? vertex->BindCpuBuffer() : 0;
-        _currentVaryingBuffer = varying ? varying->BindCpuBuffer() : 0;
-
-        int numVertexElements = vertex ? vertex->GetNumElements() : 0;
-        int numVaryingElements = varying ? varying->GetNumElements() : 0;
-        _vdesc.Set(numVertexElements, numVaryingElements);
-    }
-
-    /// Unbinds any previously bound vertex and varying data buffers.
-    void Unbind() {
-        _currentVertexBuffer = 0;
-        _currentVaryingBuffer = 0;
-        _vdesc.Reset();
-    }
-
     /// Returns one of the vertex refinement tables.
     ///
     /// @param tableIndex the type of table
     ///
     const OsdCpuTable * GetTable(int tableIndex) const;
-
-    /// Returns an OsdVertexDescriptor if vertex buffers have been bound.
-    ///
-    /// @return a descriptor for the format of the vertex data currently bound
-    ///
-    OsdVertexDescriptor const & GetVertexDescriptor() const {
-        return _vdesc;
-    }
 
     /// Returns the number of hierarchical edit tables
     int GetNumEditTables() const;
@@ -155,12 +121,6 @@ public:
     ///
     const OsdCpuHEditTable * GetEditTable(int tableIndex) const;
 
-    /// Returns a pointer to the vertex-interpolated data
-    float * GetCurrentVertexBuffer() const;
-
-    /// Returns a pointer to the varying-interpolated data
-    float * GetCurrentVaryingBuffer() const;
-
 protected:
     explicit OsdCpuComputeContext(FarSubdivisionTables const *subdivisionTables,
                                   FarVertexEditTables const *vertexEditTables);
@@ -168,11 +128,6 @@ protected:
 private:
     std::vector<OsdCpuTable*> _tables;
     std::vector<OsdCpuHEditTable*> _editTables;
-
-    float *_currentVertexBuffer, 
-          *_currentVaryingBuffer;
-
-    OsdVertexDescriptor _vdesc;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

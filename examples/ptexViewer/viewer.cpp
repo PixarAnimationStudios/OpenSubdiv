@@ -80,6 +80,16 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
     OpenSubdiv::OsdOmpComputeController * g_ompComputeController = NULL;
 #endif
 
+#ifdef OPENSUBDIV_HAS_TBB
+    #include <osd/tbbComputeController.h>
+    OpenSubdiv::OsdTbbComputeController *g_tbbComputeController = NULL;
+#endif
+
+#ifdef OPENSUBDIV_HAS_GCD
+    #include <osd/gcdComputeController.h>
+    OpenSubdiv::OsdGcdComputeController *g_gcdComputeController = NULL;
+#endif
+
 #ifdef OPENSUBDIV_HAS_OPENCL
     #include <osd/clGLVertexBuffer.h>
     #include <osd/clComputeContext.h>
@@ -157,10 +167,12 @@ typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
 enum KernelType { kCPU = 0,
                   kOPENMP = 1,
-                  kCUDA = 2,
-                  kCL = 3,
-                  kGLSL = 4,
-                  kGLSLCompute = 5 };
+                  kTBB = 2,
+                  kCUDA = 3,
+                  kCL = 4,
+                  kGLSL = 5,
+                  kGLSLCompute = 6,
+                  kGCD = 7 };
 
 enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_DISPLAY_OCCLUSION,
@@ -294,7 +306,7 @@ std::vector<float> g_positions,
 
 std::vector<std::vector<float> > g_animPositions;
 
-GLuint g_primQuery = 0;
+GLuint g_queries[2] = {0, 0};
 GLuint g_vao = 0;
 GLuint g_cageEdgeVAO = 0;
 GLuint g_skyVAO = 0;
@@ -1065,6 +1077,34 @@ createOsdMesh(int level, int kernel)
                                                 numVaryingElements,
                                                 level, bits);
 #endif
+#ifdef OPENSUBDIV_HAS_TBB
+    } else if (kernel == kTBB) {
+        if (not g_tbbComputeController) {
+            g_tbbComputeController = new OpenSubdiv::OsdTbbComputeController();
+        }
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuGLVertexBuffer,
+                                         OpenSubdiv::OsdTbbComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(
+                                                g_tbbComputeController,
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
+#endif
+#ifdef OPENSUBDIV_HAS_GCD
+    } else if (kernel == kGCD) {
+        if (not g_gcdComputeController) {
+            g_gcdComputeController = new OpenSubdiv::OsdGcdComputeController();
+        }
+        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuGLVertexBuffer,
+                                         OpenSubdiv::OsdGcdComputeController,
+                                         OpenSubdiv::OsdGLDrawContext>(
+                                                g_gcdComputeController,
+                                                hmesh,
+                                                numVertexElements,
+                                                numVaryingElements,
+                                                level, bits);
+#endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if (kernel == kCL) {
         if (not g_clComputeController) {
@@ -1763,7 +1803,10 @@ display()
     }
 
     // primitive counting
-    glBeginQuery(GL_PRIMITIVES_GENERATED, g_primQuery);
+    glBeginQuery(GL_PRIMITIVES_GENERATED, g_queries[0]);
+#if defined(GL_VERSION_3_3)
+    glBeginQuery(GL_TIME_ELAPSED, g_queries[1]);
+#endif
 
     double aspect = g_width/(double)g_height;
     identity(transformData.ModelViewMatrix);
@@ -1789,6 +1832,9 @@ display()
     drawModel();
 
     glEndQuery(GL_PRIMITIVES_GENERATED);
+#if defined(GL_VERSION_3_3)
+    glEndQuery(GL_TIME_ELAPSED);
+#endif
 
     if (g_drawCageEdges)
         drawCageEdges();
@@ -1801,13 +1847,14 @@ display()
 
     s.Stop();
     float drawCpuTime = float(s.GetElapsed() * 1000.0f);
-    s.Start();
-    glFinish();
-    s.Stop();
-    float drawGpuTime = float(s.GetElapsed() * 1000.0f);
 
     GLuint numPrimsGenerated = 0;
-    glGetQueryObjectuiv(g_primQuery, GL_QUERY_RESULT, &numPrimsGenerated);
+    GLuint timeElapsed = 0;
+    glGetQueryObjectuiv(g_queries[0], GL_QUERY_RESULT, &numPrimsGenerated);
+#if defined(GL_VERSION_3_3)
+    glGetQueryObjectuiv(g_queries[1], GL_QUERY_RESULT, &timeElapsed);
+#endif
+    float drawGpuTime = timeElapsed / 1000.0f / 1000.0f;
 
     g_fpsTimer.Stop();
     float elapsed = (float)g_fpsTimer.GetElapsed();
@@ -1948,7 +1995,7 @@ screenshot(int multiplier=4) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR >= 3
-mouse(GLFWwindow *, int button, int state, int mods)
+mouse(GLFWwindow *, int button, int state, int /* mods */)
 #else
 mouse(int button, int state)
 #endif
@@ -2001,7 +2048,7 @@ void uninitGL()
     if (g_osdPTexOcclusion) delete g_osdPTexOcclusion;
     if (g_osdPTexSpecular) delete g_osdPTexSpecular;
 
-    glDeleteQueries(1, &g_primQuery);
+    glDeleteQueries(2, g_queries);
     glDeleteVertexArrays(1, &g_vao);
     glDeleteVertexArrays(1, &g_cageEdgeVAO);
     glDeleteVertexArrays(1, &g_skyVAO);
@@ -2013,6 +2060,10 @@ void uninitGL()
 
 #ifdef OPENSUBDIV_HAS_OPENMP
     delete g_ompComputeController;
+#endif
+
+#ifdef OPENSUBDIV_HAS_TBB
+    delete g_tbbComputeController;
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
@@ -2201,7 +2252,7 @@ toggleFullScreen()
 //------------------------------------------------------------------------------
 void
 #if GLFW_VERSION_MAJOR >= 3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods)
+keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */)
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event)
@@ -2246,7 +2297,7 @@ initGL()
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_CULL_FACE);
 
-    glGenQueries(1, &g_primQuery);
+    glGenQueries(2, g_queries);
     glGenVertexArrays(1, &g_vao);
     glGenVertexArrays(1, &g_cageEdgeVAO);
     glGenVertexArrays(1, &g_skyVAO);
@@ -2498,52 +2549,81 @@ int main(int argc, char ** argv)
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddRadioButton(HUD_RB_KERNEL, "CPU (K)", true,
-                         10, 10, callbackKernel, kCPU, 'k');
-#ifdef OPENSUBDIV_HAS_OPENMP
-    g_hud.AddRadioButton(HUD_RB_KERNEL, "OPENMP", false,
-                         10, 30, callbackKernel, kOPENMP, 'k');
-#endif
-#ifdef OPENSUBDIV_HAS_CUDA
-    g_hud.AddRadioButton(HUD_RB_KERNEL, "CUDA",   false,
-                         10, 50, callbackKernel, kCUDA, 'k');
-#endif
-#ifdef OPENSUBDIV_HAS_OPENCL
-    g_hud.AddRadioButton(HUD_RB_KERNEL, "OPENCL", false,
-                         10, 70, callbackKernel, kCL, 'k');
-#endif
-#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    g_hud.AddRadioButton(HUD_RB_KERNEL, "GLSL Transform Feedback", false,
-                         10, 90, callbackKernel, kGLSL, 'k');
-#endif
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    // Must also check at run time for OpenGL 4.3
-    if (GLEW_VERSION_4_3) {
-        g_hud.AddRadioButton(HUD_RB_KERNEL, "GLSL Compute", false,
-                             10, 110, callbackKernel, kGLSLCompute, 'k');
+    if (occlusionFilename != NULL) {
+        g_hud.AddCheckBox("Ambient Occlusion (A)", g_occlusion,
+                          250, 10, callbackCheckBox, HUD_CB_DISPLAY_OCCLUSION, 'a');
     }
-#endif
+    if (specularFilename != NULL)
+        g_hud.AddCheckBox("Specular (S)", g_specular,
+                          250, 30, callbackCheckBox, HUD_CB_DISPLAY_SPECULAR, 's');
 
-    if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
-        g_hud.AddCheckBox("Adaptive (`)", g_adaptive,
-                          10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
+    if (diffuseEnvironmentMap || specularEnvironmentMap) {
+        g_hud.AddCheckBox("IBL (I)", g_ibl,
+                          250, 50, callbackCheckBox, HUD_CB_IBL, 'i');
+    }
+
+    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
+                      10, 10, callbackCheckBox, HUD_CB_CAGE_EDGES, 'h');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
+                      10, 30, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
+    g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
+                      10, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
+                      10, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
+    g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
+                      10, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
+    g_hud.AddCheckBox("Bloom (Y)", g_bloom,
+                      10, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
+    g_hud.AddCheckBox("Freeze (spc)", g_freeze,
+                      10, 130, callbackCheckBox, HUD_CB_FREEZE, ' ');
 
     g_hud.AddRadioButton(HUD_RB_SCHEME, "CATMARK", true, 10, 190, callbackScheme, 0);
     g_hud.AddRadioButton(HUD_RB_SCHEME, "BILINEAR", false, 10, 210, callbackScheme, 1);
+
+    if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
+        g_hud.AddCheckBox("Adaptive (`)", g_adaptive,
+                          10, 300, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
 
     for (int i = 1; i < 8; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
         g_hud.AddRadioButton(HUD_RB_LEVEL, level, i == g_level,
-                             10, 220+i*20, callbackLevel, i, '0'+i);
+                             10, 320+i*20, callbackLevel, i, '0'+i);
     }
 
-    g_hud.AddRadioButton(HUD_RB_WIRE, "Wire (W)",       (g_wire == DISPLAY_WIRE),
-                         100, 10, callbackWireframe, 0, 'w');
-    g_hud.AddRadioButton(HUD_RB_WIRE, "Shaded",         (g_wire == DISPLAY_SHADED),
-                         100, 30, callbackWireframe, 1, 'w');
-    g_hud.AddRadioButton(HUD_RB_WIRE, "Wire on Shaded", (g_wire == DISPLAY_WIRE_ON_SHADED),
-                         100, 50, callbackWireframe, 2, 'w');
+    int compute_pulldown = g_hud.AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
+#ifdef OPENSUBDIV_HAS_OPENMP
+    g_hud.AddPullDownButton(compute_pulldown, "OpenMP", kOPENMP);
+#endif
+#ifdef OPENSUBDIV_HAS_TBB
+    g_hud.AddPullDownButton(compute_pulldown, "TBB", kTBB);
+#endif
+#ifdef OPENSUBDIV_HAS_GCD
+    g_hud.AddPullDownButton(compute_pulldown, "GCD", kGCD);
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+    if (HAS_CL_VERSION_1_1()) {
+        g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
+    }
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    g_hud.AddPullDownButton(compute_pulldown, "GLSL TransformFeedback", kGLSL);
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    // Must also check at run time for OpenGL 4.3
+    if (GLEW_VERSION_4_3) {
+        g_hud.AddPullDownButton(compute_pulldown, "GLSL Compute", kGLSLCompute);
+    }
+#endif
+
+    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 250, 10, 250, callbackWireframe, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", DISPLAY_WIRE, g_wire==DISPLAY_WIRE);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", DISPLAY_SHADED, g_wire==DISPLAY_SHADED);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", DISPLAY_WIRE_ON_SHADED, g_wire==DISPLAY_WIRE_ON_SHADED);
 
     g_hud.AddLabel("Color (C)", -200, 10);
     g_hud.AddRadioButton(HUD_RB_COLOR, "None", (g_color == COLOR_NONE),
@@ -2605,34 +2685,6 @@ int main(int argc, char ** argv)
                     -200, 490, 20, false, callbackSlider, 1);
     g_hud.AddCheckBox("Seamless Mipmap", g_seamless,
                       -200, 530, callbackCheckBox, HUD_CB_SEAMLESS_MIPMAP, 'j');
-
-    if (occlusionFilename != NULL) {
-        g_hud.AddCheckBox("Ambient Occlusion (A)", g_occlusion,
-                          250, 10, callbackCheckBox, HUD_CB_DISPLAY_OCCLUSION, 'a');
-    }
-    if (specularFilename != NULL)
-        g_hud.AddCheckBox("Specular (S)", g_specular,
-                          250, 30, callbackCheckBox, HUD_CB_DISPLAY_SPECULAR, 's');
-
-    if (diffuseEnvironmentMap || specularEnvironmentMap) {
-        g_hud.AddCheckBox("IBL (I)", g_ibl,
-                          250, 50, callbackCheckBox, HUD_CB_IBL, 'i');
-    }
-
-    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
-                      450, 10, callbackCheckBox, HUD_CB_CAGE_EDGES, 'h');
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
-                      450, 30, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
-    g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
-                      450, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
-    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
-                      450, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
-    g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
-                      450, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
-    g_hud.AddCheckBox("Bloom (Y)", g_bloom,
-                      450, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
-    g_hud.AddCheckBox("Freeze (spc)", g_freeze,
-                      450, 130, callbackCheckBox, HUD_CB_FREEZE, ' ');
 
     // create mesh from ptex metadata
     createOsdMesh(g_level, g_kernel);

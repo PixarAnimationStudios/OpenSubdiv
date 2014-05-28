@@ -33,6 +33,7 @@
 #include "../hbr/mesh.h"
 
 #include "../osd/vertex.h"
+#include "../osd/vertexDescriptor.h"
 
 #include <bitset>
 
@@ -67,6 +68,10 @@ public:
     virtual void UpdateVaryingBuffer(float const *varyingData, int startVertex, int numVerts) = 0;
 
     virtual void Refine() = 0;
+
+    virtual void Refine(OsdVertexBufferDescriptor const *vertexDesc,
+                        OsdVertexBufferDescriptor const *varyingDesc,
+                        bool interleaved) = 0;
 
     virtual void Synchronize() = 0;
 
@@ -111,7 +116,6 @@ public:
             FarMesh<OsdVertex> * fmesh,
             int numVertexElements,
             int numVaryingElements,
-            int level,
             OsdMeshBitset bits = OsdMeshBitset()) :
 
             _farMesh(fmesh),
@@ -122,6 +126,22 @@ public:
             _drawContext(0)
     {
         _initialize(numVertexElements, numVaryingElements, bits);
+    }
+
+    OsdMesh(ComputeController * computeController,
+            FarMesh<OsdVertex> * fmesh,
+            VertexBuffer * vertexBuffer,
+            VertexBuffer * varyingBuffer,
+            ComputeContext * computeContext,
+            DrawContext * drawContext) :
+
+            _farMesh(fmesh),
+            _vertexBuffer(vertexBuffer),
+            _varyingBuffer(varyingBuffer),
+            _computeContext(computeContext),
+            _computeController(computeController),
+            _drawContext(drawContext)
+    {
     }
 
     virtual ~OsdMesh() {
@@ -143,6 +163,13 @@ public:
     virtual void Refine() {
         _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer, _varyingBuffer);
     }
+    virtual void Refine(OsdVertexBufferDescriptor const *vertexDesc,
+                        OsdVertexBufferDescriptor const *varyingDesc) {
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(),
+                                   _vertexBuffer, _varyingBuffer,
+                                   vertexDesc, varyingDesc);
+    }
+
     virtual void Synchronize() {
         _computeController->Synchronize();
     }

@@ -97,12 +97,6 @@ set(CMAKE_MODULE_PATH
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
 )
 
-list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-
-# add the automatically determined parts of the RPATH
-# which point to directories outside the build tree to the install RPATH
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 #-------------------------------------------------------------------------------
 # Detect Clang (until a cmake version provides built-in variables)
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
@@ -112,14 +106,31 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Intel")
 endif()
 
 
+if (NOT CMAKE_COMPILER_IS_ICC)
+    # Currently icc has a bug that asserts when linking rpaths containing long
+    # sequences of ':' that this command causes. The consequence is that examples
+    # built and installed using icc will not have an rpath pointing to the built
+    # OSD library which they depend on and will have to set LD_LIBRARY_PATH instead.
+    list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+endif()
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+
 set(OSD_COMPILER_FLAGS)
 
 # Disable spurrious warnings in gcc builds and clang
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
 
     # Turn on all warnings
-    list(APPEND OSD_COMPILER_FLAGS -Wall)
-
+    if(CMAKE_COMPILER_IS_ICC)
+        list(APPEND OSD_COMPILER_FLAGS -w3 -wd1418 -wd981 -wd383 -wd193)
+    else()
+        list(APPEND OSD_COMPILER_FLAGS -Wall -Wextra)
+    endif()
+    
     # HBR uses the offsetof macro on a templated struct, which appears
     # to spurriously set off this warning in both gccc and Clang
     list(APPEND OSD_COMPILER_FLAGS -Wno-invalid-offsetof)
@@ -257,6 +268,25 @@ add_definitions(${OSD_COMPILER_FLAGS})
 # reloading of the generated Visual Studio project).
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 
+option(PTEX_LOCATION "Path to Ptex" "")
+option(GLEW_LOCATION "Path to GLEW" "")
+option(GLFW_LOCATION "Path to GLFW" "")
+option(MAYA_LOCATION "Path to Maya" "")
+
+option(NO_LIB "Disable the opensubdiv libs build (caveat emptor)" OFF)
+option(NO_EXAMPLES "Disable examples build" OFF)
+option(NO_REGRESSION "Disable regression tests build" OFF)
+option(NO_PYTHON "Disable Python SWIG build" OFF)
+option(NO_MAYA "Disable Maya plugin build" OFF)
+option(NO_PTEX "Disable PTex support" OFF)
+option(NO_DOC "Disable documentation build" OFF)
+option(NO_OMP "Disable OpenMP backend" OFF)
+option(NO_TBB "Disable TBB backend" OFF)
+option(NO_CUDA "Disable CUDA backend" OFF)
+option(NO_OPENCL "Disable OpenCL backend" OFF)
+option(NO_CLEW "Disable CLEW wrapper library" OFF)
+option(NO_NO_GCD "Disable GrandCentralDispatch backend" OFF)
+
 # Check for dependencies
 if(NOT NO_OMP)
     find_package(OpenMP)
@@ -266,14 +296,25 @@ if(NOT NO_TBB)
 endif()
 find_package(OpenGL)
 find_package(OpenGLES)
-find_package(OpenCL 1.1)
+if(NOT NO_OPENCL)
+    if(NOT NO_CLEW)
+        find_package(CLEW)
+    endif()
+    if(NOT CLEW_FOUND)
+        find_package(OpenCL 1.1)
+    else()
+        set(OPENCL_FOUND TRUE)
+    endif()
+endif()
 if(NOT NO_CUDA)
     find_package(CUDA 4.0)
 endif()
 if(NOT ANDROID AND NOT IOS)
     find_package(GLFW 2.7.0)
 endif()
-find_package(PTex 2.0)
+if(NOT NO_PTEX)
+   find_package(PTex 2.0)
+endif()
 find_package(PythonInterp 2.6)
 find_package(SWIG 1.3.40)
 find_package(Doxygen 1.8.4)
@@ -294,7 +335,9 @@ if (NOT NO_GCD AND APPLE)
     set(GCD_FOUND 1)
 endif()
 
+if (NOT NO_MAYA)
 find_package(Maya 201200)
+endif()
 
 # Warn about missing dependencies that will cause parts of OpenSubdiv to be
 # disabled.  Also, add preprocessor defines that can be used in the source
@@ -311,11 +354,13 @@ if(OPENMP_FOUND)
     )
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
 else()
-    message(WARNING
-        "OpenMP was not found : support for OMP parallel compute kernels "
-        "will be disabled in Osd.  If your compiler supports OpenMP "
-        "directives, please refer to the FindOpenMP.cmake shared module "
-        "in your cmake installation.")
+    if (NOT NO_OMP)
+        message(WARNING
+            "OpenMP was not found : support for OMP parallel compute kernels "
+            "will be disabled in Osd.  If your compiler supports OpenMP "
+            "directives, please refer to the FindOpenMP.cmake shared module "
+            "in your cmake installation.")
+    endif()
 endif()
 
 if(TBB_FOUND)
@@ -325,11 +370,13 @@ if(TBB_FOUND)
     )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TBB_CXX_FLAGS}")
 else()
-    message(WARNING
-        "TBB was not found : support for TBB parallel compute kernels "
-        "will be disabled in Osd.  If your compiler supports TBB "
-        "directives, please refer to the FindTBB.cmake shared module "
-        "in your cmake installation.")
+    if (NOT NO_TBB)
+        message(WARNING
+            "TBB was not found : support for TBB parallel compute kernels "
+            "will be disabled in Osd.  If your compiler supports TBB "
+            "directives, please refer to the FindTBB.cmake shared module "
+            "in your cmake installation.")
+    endif()
 endif()
 
 if(GLFW_FOUND AND (GLFW_VERSION VERSION_EQUAL 3.0 OR GLFW_VERSION VERSION_GREATER 3.0))
@@ -377,11 +424,27 @@ if(OPENCL_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_OPENCL
     )
+    if(CLEW_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_CLEW
+        )
+        set(OPENCL_INCLUDE_DIRS ${CLEW_INCLUDE_DIR})
+        set(OPENCL_LIBRARIES ${CLEW_LIBRARY} ${CMAKE_DL_LIBS})
+    else()
+        if (NOT NO_CLEW)
+            message(WARNING
+                "OpenCL was not found, but CLEW was not. "
+                "Building with OpenCL support enabled, but the build "
+                "wouldn't be portable on systems without OpenCL installed.")
+        endif()
+    endif()
 else()
-    message(WARNING
-        "OpenCL was not found : support for OpenCL parallel compute kernels "
-        "will be disabled in Osd.  If you have the OpenCL SDK installed, "
-        "please refer to the FindOpenCL.cmake in ${PROJECT_SOURCE_DIR}/cmake.")
+    if (NOT NO_OPENCL)
+        message(WARNING
+            "OpenCL was not found : support for OpenCL parallel compute kernels "
+            "will be disabled in Osd.  If you have the OpenCL SDK installed, "
+            "please refer to the FindOpenCL.cmake in ${PROJECT_SOURCE_DIR}/cmake.")
+    endif()
 endif()
 
 if(CUDA_FOUND)
@@ -389,10 +452,12 @@ if(CUDA_FOUND)
         -DOPENSUBDIV_HAS_CUDA
     )
 else()
-    message(WARNING
-        "CUDA was not found : support for CUDA parallel compute kernels "
-        "will be disabled in Osd.  If you have the CUDA SDK installed, please "
-        "refer to the FindCUDA.cmake shared module in your cmake installation.")
+    if (NOT NO_CUDA)
+        message(WARNING
+            "CUDA was not found : support for CUDA parallel compute kernels "
+            "will be disabled in Osd.  If you have the CUDA SDK installed, please "
+            "refer to the FindCUDA.cmake shared module in your cmake installation.")
+    endif()
 endif()
 
 if(PTEX_FOUND)
@@ -400,27 +465,30 @@ if(PTEX_FOUND)
         -DOPENSUBDIV_HAS_PTEX
     )
 else()
-    message(WARNING
-        "Ptex was not found : the OpenSubdiv Ptex example will not be "
-        "available.  If you do have Ptex installed and see this message, "
-        "please add your Ptex path to FindPTex.cmake in "
-        "${PROJECT_SOURCE_DIR}/cmake or set it through the PTEX_LOCATION "
-        "cmake command line argument or environment variable."
-    )
+    if(NOT NO_PTEX)
+        message(WARNING
+            "Ptex was not found : the OpenSubdiv Ptex example will not be "
+            "available.  If you do have Ptex installed and see this message, "
+            "please add your Ptex path to FindPTex.cmake in "
+            "${PROJECT_SOURCE_DIR}/cmake or set it through the PTEX_LOCATION "
+            "cmake command line argument or environment variable.")
+    endif()
 endif()
 
-if(MAYA_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_MAYA
-    )
-else()
-    message(WARNING
-        "Maya was not found : the OpenSubdiv mayaViwer plugin will not be "
-        "available.  If you do have Maya installed and see this message, "
-        "please add your Maya path to FindMaya.cmake in "
-        "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
-        "cmake command line argument or environment variable."
-    )
+if (NOT NO_MAYA)
+    if(MAYA_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_MAYA
+        )
+    else()
+        message(WARNING
+            "Maya was not found : the OpenSubdiv mayaViwer plugin will not be "
+            "available.  If you do have Maya installed and see this message, "
+            "please add your Maya path to FindMaya.cmake in "
+            "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
+            "cmake command line argument or environment variable."
+        )
+    endif()
 endif()
 
 # Link examples & regressions dynamically against Osd
@@ -549,7 +617,7 @@ macro(_add_possibly_cuda_executable target)
     endif()
 
     if(CMAKE_COMPILER_IS_ICC)
-        target_link_libraries(${target} "${ICC_LIBRARIES}")
+        target_link_libraries(${target} ${ICC_LIBRARIES})
     endif()
 endmacro()
 

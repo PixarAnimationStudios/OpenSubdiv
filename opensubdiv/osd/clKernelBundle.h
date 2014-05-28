@@ -28,14 +28,8 @@
 #include "../version.h"
 
 #include "../osd/nonCopyable.h"
+#include "../osd/opencl.h"
 #include "../osd/vertexDescriptor.h"
-
-#if defined(__APPLE__)
-    #include <OpenCL/opencl.h>
-#else
-    #include <CL/opencl.h>
-#endif
-
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -47,7 +41,8 @@ public:
     ~OsdCLKernelBundle();
 
     bool Compile(cl_context clContext,
-                 int numVertexElements, int numVaryingElements);
+                 OsdVertexBufferDescriptor const &vertexDesc,
+                 OsdVertexBufferDescriptor const &varyingDesc);
 
     cl_kernel GetBilinearEdgeKernel() const   { return _clBilinearEdge; }
 
@@ -70,17 +65,23 @@ public:
     cl_kernel GetVertexEditAdd() const        { return _clVertexEditAdd; }
 
     struct Match {
-    
         /// Constructor
-        Match(int numVertexElements, int numVaryingElements)
-            : vdesc(numVertexElements, numVaryingElements) {
+        Match(OsdVertexBufferDescriptor const &vertex,
+              OsdVertexBufferDescriptor const &varying)
+            : vertexDesc(vertex), varyingDesc(varying) {
         }
-        
+
         bool operator() (OsdCLKernelBundle const *kernel) {
-            return vdesc == kernel->_vdesc;
+            // offset is dynamic. just comparing length and stride here,
+            // returns true if they are equal
+            return (vertexDesc.length == kernel->_numVertexElements and
+                    vertexDesc.stride == kernel->_vertexStride and
+                    varyingDesc.length == kernel->_numVaryingElements and
+                    varyingDesc.stride == kernel->_varyingStride);
         }
-        
-        OsdVertexDescriptor vdesc;
+
+        OsdVertexBufferDescriptor vertexDesc;
+        OsdVertexBufferDescriptor varyingDesc;
     };
 
     friend struct Match;
@@ -99,7 +100,10 @@ protected:
               _clLoopVertexB,
               _clVertexEditAdd;
 
-    OsdVertexDescriptor _vdesc;
+    int _numVertexElements;
+    int _vertexStride;
+    int _numVaryingElements;
+    int _varyingStride;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

@@ -188,8 +188,8 @@ struct OsdPtexTextureLoader::page {
                 int w = gutterWidth,
                     w2 = 2*w;
 
-                b->u=i->u + w;
-                b->v=i->v + w;
+                b->u=(unsigned short)(i->u + w);
+                b->v=(unsigned short)(i->v + w);
 
                 // add new slot to the right
                 if (i->ures > (b->current.u()+w2)) {
@@ -293,8 +293,8 @@ OsdPtexTextureLoader::OptimizeResolution( unsigned long int memrec )
                     if (b->current.ulog2==0 || b->current.vlog2==0)
                          continue;
 
-                    unsigned short ures = (1<<(unsigned)(b->current.ulog2-1)),
-                                   vres = (1<<(unsigned)(b->current.vlog2-1));
+                    unsigned short ures = (unsigned short)(1<<(b->current.ulog2-1)),
+                                   vres = (unsigned short)(1<<(b->current.vlog2-1));
 
                     int diff = b->current.size() - ures * vres;
 
@@ -333,8 +333,8 @@ OsdPtexTextureLoader::OptimizeResolution( unsigned long int memrec )
                     if (b->current == b->native)
                         continue;
 
-                    unsigned short ures = (1<<(unsigned)(b->current.ulog2+1)),
-                                   vres = (1<<(unsigned)(b->current.vlog2+1));
+                    unsigned short ures = (unsigned short)(1<<(b->current.ulog2+1)),
+                                   vres = (unsigned short)(1<<(b->current.vlog2+1));
 
                     int diff = ures * vres - b->current.size();
 

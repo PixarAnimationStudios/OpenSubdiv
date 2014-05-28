@@ -85,12 +85,13 @@ public:
 
         omp_set_num_threads(_numThreads);
 
-        context->BindControlData( controlDataDesc, controlVertices );
-        context->BindOutputData( outputDataDesc, outputData );
+        bindControlData( controlDataDesc, controlVertices );
 
+        bindOutputData( outputDataDesc, outputData );
+        
         int n = _UpdateValues( context );
-
-        context->Unbind();
+        
+        unbind();
 
         return n;
     }
@@ -123,13 +124,13 @@ public:
         if (not context->GetStencilTables()->GetNumStencils())
             return 0;
 
-        context->BindControlData( controlDataDesc, controlVertices );
+        bindControlData( controlDataDesc, controlVertices );
 
-        context->BindOutputDerivData( outputDuDesc, outputDuData, outputDvDesc, outputDvData );
+        bindOutputDerivData( outputDuDesc, outputDuData, outputDvDesc, outputDvData );
         
         int n = _UpdateDerivs( context );
         
-        context->Unbind();
+        unbind();
         
         return n;
     }
@@ -137,12 +138,75 @@ public:
     /// Waits until all running subdivision kernels finish.
     void Synchronize();
 
+protected:
+
+    /// \brief Binds control vertex data buffer
+    template<class VERTEX_BUFFER>
+    void bindControlData(OsdVertexBufferDescriptor const & controlDataDesc, VERTEX_BUFFER *controlData ) {
+
+        _currentBindState.controlData = controlData ? controlData->BindCpuBuffer() : 0;
+        _currentBindState.controlDataDesc = controlDataDesc;
+
+    }
+
+    /// \brief Binds output vertex data buffer
+    template<class VERTEX_BUFFER>
+    void bindOutputData( OsdVertexBufferDescriptor const & outputDataDesc, VERTEX_BUFFER *outputData ) {
+
+        _currentBindState.outputData = outputData ? outputData->BindCpuBuffer() : 0;
+        _currentBindState.outputDataDesc = outputDataDesc;
+    }
+    
+    /// \brief Binds output derivative vertex data buffer
+    template<class VERTEX_BUFFER>
+    void bindOutputDerivData( OsdVertexBufferDescriptor const & outputDuDesc, VERTEX_BUFFER *outputDu, 
+                              OsdVertexBufferDescriptor const & outputDvDesc, VERTEX_BUFFER *outputDv ) {
+                              
+        _currentBindState.outputUDeriv = outputDu ? outputDu ->BindCpuBuffer() : 0;
+        _currentBindState.outputVDeriv = outputDv ? outputDv->BindCpuBuffer() : 0;
+        _currentBindState.outputDuDesc = outputDuDesc;
+        _currentBindState.outputDvDesc = outputDvDesc;
+    }
+
+    /// \brief Unbinds any previously bound vertex and varying data buffers.
+    void unbind() {
+        _currentBindState.Reset();
+    }
+
 private:
 
     int _UpdateValues( OsdCpuEvalStencilsContext * context );
     int _UpdateDerivs( OsdCpuEvalStencilsContext * context );
 
     int _numThreads;
+
+    // Bind state is a transitional state during refinement.
+    // It doesn't take an ownership of vertex buffers.
+    struct BindState {
+
+        BindState() : controlData(0), outputData(0), outputUDeriv(0), outputVDeriv(0) { }
+        
+        void Reset() {
+            controlData = outputData = outputUDeriv = outputVDeriv = NULL;
+            controlDataDesc.Reset();
+            outputDataDesc.Reset();
+            outputDuDesc.Reset();
+            outputDvDesc.Reset();
+        }
+
+        // transient mesh data
+        OsdVertexBufferDescriptor controlDataDesc,
+                                  outputDataDesc,
+                                  outputDuDesc,
+                                  outputDvDesc;
+
+        float * controlData,
+              * outputData,
+              * outputUDeriv,
+              * outputVDeriv;
+    };
+    
+    BindState _currentBindState;
 };
 
 } // end namespace OPENSUBDIV_VERSION

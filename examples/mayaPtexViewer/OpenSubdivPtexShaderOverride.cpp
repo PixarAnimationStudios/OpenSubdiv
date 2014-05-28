@@ -437,6 +437,11 @@ initializePlugin(MObject obj)
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
+    if (loadCL() == false) {
+        // XXX
+        printf("Error in loading OpenCL libraries\n");
+        exit(1);
+    }
     if (initCL(&g_clContext, &g_clQueue) == false) {
         // XXX
         printf("Error in initializing OpenCL\n");

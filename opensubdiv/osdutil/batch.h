@@ -374,8 +374,8 @@ OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>::initialize(Co
         _varyingBuffer = VertexBuffer::Create(numVaryingElements, Base::GetNumVertices());
         if (not _varyingBuffer) return false;
     }
-
-    _drawContext = DrawContext::Create(patchTables, requireFVarData);
+   
+    _drawContext = DrawContext::Create(patchTables,  numVertexElements, requireFVarData);
 
     if (not _drawContext) return false;
 
@@ -406,7 +406,7 @@ OsdUtilMeshBatch<VERTEX_BUFFER, DRAW_CONTEXT, COMPUTE_CONTROLLER>::initialize(Fa
         if (not _varyingBuffer) return false;
     }
 
-    _drawContext = DrawContext::Create(patchTables, requireFVarData);
+    _drawContext = DrawContext::Create(patchTables, numVertexElements, requireFVarData);
 
     if (not _drawContext) return false;
 

@@ -31,155 +31,6 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-struct OsdVertexDescriptor {
-
-    /// Constructor
-    OsdVertexDescriptor() : numVertexElements(0), numVaryingElements(0) {}
-
-    /// Constructor
-    ///
-    /// @param numVertexElem   number of vertex-interpolated data elements (floats)
-    ///
-    /// @param numVaryingElem  number of varying-interpolated data elements (floats)
-    ///
-    OsdVertexDescriptor(int numVertexElem, int numVaryingElem)
-        : numVertexElements(numVertexElem),
-        numVaryingElements(numVaryingElem) { }
-
-    /// Sets descriptor
-    ///
-    /// @param numVertexElem   number of vertex-interpolated data elements (floats)
-    ///
-    /// @param numVaryingElem  number of varying-interpolated data elements (floats)
-    ///
-    void Set(int numVertexElem, int numVaryingElem) {
-        numVertexElements = numVertexElem;
-        numVaryingElements = numVaryingElem;
-    }
-
-    /// Resets the descriptor
-    void Reset() {
-        numVertexElements = numVaryingElements = 0;
-    }
-
-    /// Returns the total number of elements (vertex + varying)
-    int GetNumElements() const {
-        return numVertexElements + numVaryingElements;
-    }
-
-    bool operator == (OsdVertexDescriptor const & other) {
-        return (numVertexElements == other.numVertexElements and
-                numVaryingElements == other.numVaryingElements);
-    }
-
-    /// Resets the contents of vertex & varying primvar data buffers for a given
-    /// vertex.
-    ///
-    /// @param vertex  The float array containing the vertex-interpolated primvar
-    ///                data that needs to be reset.
-    ///
-    /// @param varying The float array containing the varying-interpolated primvar
-    ///                data that needs to be reset.
-    ///
-    /// @param index   Vertex index in the buffer.
-    ///
-    void Clear(float *vertex, float *varying, int index) const {
-        if (vertex) {
-            memset(vertex+index*numVertexElements, 0, sizeof(float)*numVertexElements);
-        }
-
-        if (varying) {
-            memset(varying+index*numVaryingElements, 0, sizeof(float)*numVaryingElements);
-
-        }
-    }
-
-    /// Applies "dst += src*weight" to "vertex" primvar data in a vertex buffer.
-    ///
-    /// @param vertex The VertexData buffer
-    ///
-    /// @param dstIndex Index of the destination vertex.
-    ///
-    /// @param srcIndex Index of the origin vertex.
-    ///
-    /// @param weight Weight applied to the primvar data.
-    ///
-    inline
-    void AddWithWeight(float *vertex, int dstIndex, int srcIndex, float weight) const {
-        int d = dstIndex * numVertexElements;
-        int s = srcIndex * numVertexElements;
-#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
-    #pragma ivdep
-    #pragma vector aligned
-#endif
-        for (int i = 0; i < numVertexElements; ++i)
-            vertex[d++] += vertex[s++] * weight;
-    }
-
-    /// Applies "dst += src*weight" to "varying" primvar data in a vertex buffer.
-    ///
-    /// @param varying The VaryingData buffer
-    ///
-    /// @param dstIndex Index of the destination vertex.
-    ///
-    /// @param srcIndex Index of the source vertex.
-    ///
-    /// @param weight Weight applied to the primvar data.
-    ///
-    inline
-    void AddVaryingWithWeight(float *varying, int dstIndex, int srcIndex, float weight) const {
-        int d = dstIndex * numVaryingElements;
-        int s = srcIndex * numVaryingElements;
-#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
-    #pragma ivdep
-    #pragma vector aligned
-#endif
-        for (int i = 0; i < numVaryingElements; ++i)
-            varying[d++] += varying[s++] * weight;
-    }
-
-    /// Applies an "add" vertex edit
-    ///
-    /// @param vertex The primvar data buffer.
-    ///
-    /// @param primVarOffset Offset to the primvar datum.
-    ///
-    /// @param primVarWidth Length of the primvar datum.
-    ///
-    /// @param editIndex The location of the vertex in the buffer.
-    ///
-    /// @param editValues The values to add to the primvar datum.
-    ///
-    void ApplyVertexEditAdd(float *vertex, int primVarOffset, int primVarWidth, int editIndex, const float *editValues) const {
-        int d = editIndex * numVertexElements + primVarOffset;
-        for (int i = 0; i < primVarWidth; ++i) {
-            vertex[d++] += editValues[i];
-        }
-    }
-
-    /// Applies a "set" vertex edit
-    ///
-    /// @param vertex The primvar data buffer.
-    ///
-    /// @param primVarOffset Offset to the primvar datum.
-    ///
-    /// @param primVarWidth Length of the primvar datum.
-    ///
-    /// @param editIndex The location of the vertex in the buffer.
-    ///
-    /// @param editValues The values to add to the primvar datum.
-    ///
-    void ApplyVertexEditSet(float *vertex, int primVarOffset, int primVarWidth, int editIndex, const float *editValues) const {
-        int d = editIndex * numVertexElements + primVarOffset;
-        for (int i = 0; i < primVarWidth; ++i) {
-            vertex[d++] = editValues[i];
-        }
-    }
-
-    int numVertexElements;
-    int numVaryingElements;
-};
-
 /// \brief Describes vertex elements in interleaved data buffers
 struct OsdVertexBufferDescriptor {
 
@@ -205,6 +56,13 @@ struct OsdVertexBufferDescriptor {
     /// Resets the descriptor to default
     void Reset() {
         offset = length = stride = 0;
+    }
+
+    /// True if the descriptors are identical
+    bool operator == ( OsdVertexBufferDescriptor const other ) const {
+        return (offset == other.offset and
+                length == other.length and
+                stride == other.stride);
     }
 
     int offset;  // offset to desired element data

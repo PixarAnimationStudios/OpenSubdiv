@@ -92,7 +92,7 @@ struct shape {
 
     std::string genShape(char const * name) const;
 
-    std::string genObj(char const * name) const;
+    std::string genObj() const;
 
     std::string genRIB() const;
 
@@ -127,9 +127,9 @@ shape::tag * shape::tag::parseTag(char const * line) {
 
     const char* cp = &line[2];
 
-    char name[50];
+    char tname[50];
     while (*cp == ' ') cp++;
-    if (sscanf(cp, "%s", name )!=1) return t;
+    if (sscanf(cp, "%s", tname )!=1) return t;
     while (*cp && *cp != ' ') cp++;
 
     int nints=0, nfloats=0, nstrings=0;
@@ -137,38 +137,38 @@ shape::tag * shape::tag::parseTag(char const * line) {
     if (sscanf(cp, "%d/%d/%d", &nints, &nfloats, &nstrings)!=3) return t;
     while (*cp && *cp != ' ') cp++;
 
-    std::vector<int> intargs;
+    std::vector<int> tintargs;
     for (int i=0; i<nints; ++i) {
         int val;
         while (*cp == ' ') cp++;
         if (sscanf(cp, "%d", &val)!=1) return t;
-        intargs.push_back(val);
+        tintargs.push_back(val);
         while (*cp && *cp != ' ') cp++;
     }
 
-    std::vector<float> floatargs;
+    std::vector<float> tfloatargs;
     for (int i=0; i<nfloats; ++i) {
         float val;
         while (*cp == ' ') cp++;
         if (sscanf(cp, "%f", &val)!=1) return t;
-        floatargs.push_back(val);
+        tfloatargs.push_back(val);
         while (*cp && *cp != ' ') cp++;
     }
 
-    std::vector<std::string> stringargs;
+    std::vector<std::string> tstringargs;
     for (int i=0; i<nstrings; ++i) {
         char val[512];
         while (*cp == ' ') cp++;
         if (sscanf(cp, "%s", val)!=1) return t;
-        stringargs.push_back(val);
+        tstringargs.push_back(std::string(val));
         while (*cp && *cp != ' ') cp++;
     }
 
     t = new shape::tag;
-    t->name = name;
-    t->intargs = intargs;
-    t->floatargs = floatargs;
-    t->stringargs = stringargs;
+    t->name = tname;
+    t->intargs = tintargs;
+    t->floatargs = tfloatargs;
+    t->stringargs = tstringargs;
 
     return t;
 }
@@ -229,7 +229,7 @@ std::string shape::genShape(char const * name) const {
 }
 
 //------------------------------------------------------------------------------
-std::string shape::genObj(char const * name) const {
+std::string shape::genObj() const {
     std::stringstream sh;
 
     sh<<"# This file uses centimeters as units for non-parametric coordinates.\n\n";
@@ -298,7 +298,7 @@ std::string shape::genRIB() const {
         }
     }
 
-    rib << "["<<names<<"] " << "["<<nargs<<"] " << "["<<intargs<<"] " << "["<<floatargs<<"] " << "["<<strargs<<"] ";
+    rib << "["<<names.str()<<"] " << "["<<nargs.str()<<"] " << "["<<intargs.str()<<"] " << "["<<floatargs.str()<<"] " << "["<<strargs.str()<<"] ";
 
     rib << "\"P\" [";
     std::copy(verts.begin(), verts.end(), std::ostream_iterator<float>(rib));
@@ -750,7 +750,7 @@ createMesh( Scheme scheme=kCatmark, int fvarwidth=0) {
 
 //------------------------------------------------------------------------------
 template <class T> void
-createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<float> * verts ) {
+createVerticesWithPositions(shape const * sh, OpenSubdiv::HbrMesh<T> * mesh) {
 
     T v;
     for(int i=0;i<sh->getNverts(); i++ ) {
@@ -761,7 +761,7 @@ createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<flo
 
 //------------------------------------------------------------------------------
 template <class T> void
-createVertices( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vector<float> & verts ) {
+createVertices(shape const * sh, OpenSubdiv::HbrMesh<T> * mesh) {
 
     T v;
     for(int i=0;i<sh->getNverts(); i++ )
@@ -778,7 +778,7 @@ copyVertexPositions( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, std::vecto
 
     std::copy(sh->verts.begin(), sh->verts.end(), verts.begin());
 
-    // Sometimes Hbr dupes some vertices during Mesh::Finish() and our example 
+    // Sometimes Hbr dupes some vertices during Mesh::Finish() and our example
     // code uses those vertices to draw coarse control cages and such
     std::vector<std::pair<int, int> > const splits = mesh->GetSplitVertices();
     for (int i=0; i<(int)splits.size(); ++i) {
@@ -855,10 +855,10 @@ createTopology( shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
     mesh->GetSubdivision()->SetCreaseSubdivisionMethod(
         OpenSubdiv::HbrSubdivision<T>::k_CreaseNormal);
 
-    if (OpenSubdiv::HbrCatmarkSubdivision<T> * scheme =
+    if (OpenSubdiv::HbrCatmarkSubdivision<T> * hscheme =
         dynamic_cast<OpenSubdiv::HbrCatmarkSubdivision<T> *>(mesh->GetSubdivision())) {
 
-        scheme->SetTriangleSubdivisionMethod(
+        hscheme->SetTriangleSubdivisionMethod(
             OpenSubdiv::HbrCatmarkSubdivision<T>::k_Normal);
     }
 
@@ -913,7 +913,7 @@ simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> * verts=0, bo
 
     OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme, fvarwidth);
 
-    createVertices<T>(sh, mesh, verts);
+    createVerticesWithPositions<T>(sh, mesh);
 
     createTopology<T>(sh, mesh, scheme);
 
@@ -938,7 +938,7 @@ simpleHbr(char const * shapestr, Scheme scheme, std::vector<float> & verts, bool
 
     OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme, fvarwidth);
 
-    createVertices<T>(sh, mesh, verts);
+    createVertices<T>(sh, mesh);
 
     createTopology<T>(sh, mesh, scheme);
 

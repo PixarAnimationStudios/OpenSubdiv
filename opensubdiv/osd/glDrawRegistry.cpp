@@ -232,7 +232,7 @@ _CompileShader(
 
 OsdGLDrawConfig *
 OsdGLDrawRegistryBase::_CreateDrawConfig(
-        OsdDrawContext::PatchDescriptor const & desc,
+        OsdDrawContext::PatchDescriptor const & /* desc */,
         OsdGLDrawSourceConfig const * sconfig) 
 {
     assert(sconfig);

@@ -23,12 +23,16 @@
 //
 
 #include "gl_hud.h"
+#include "gl_common.h"
 
 #include "font_image.h"
 #include "simple_math.h"
 
-#include <string.h>
-#include <stdio.h>
+#include <cstdlib>
+#include <cstring>
+#include <cstdio>
+#include <cassert>
+#include <iostream>
 
 static const char *s_VS =
 #if defined(GL_VERSION_3_1)
@@ -84,7 +88,7 @@ static const char *s_FS =
     "}\n";
 #endif
 
-GLhud::GLhud() : _fontTexture(0), _vbo(0), _staticVbo(0),
+GLhud::GLhud() : _frameBuffer(0), _fontTexture(0), _vbo(0), _staticVbo(0),
                  _vao(0), _staticVao(0), _program(0),
                  _aPosition(0), _aColor(0), _aUV(0)
 {
@@ -92,6 +96,8 @@ GLhud::GLhud() : _fontTexture(0), _vbo(0), _staticVbo(0),
 
 GLhud::~GLhud()
 {
+    if (_frameBuffer)
+        delete _frameBuffer;
     if (_program)
         glDeleteProgram(_program);
     if (_fontTexture)
@@ -106,23 +112,14 @@ GLhud::~GLhud()
         glDeleteVertexArrays(1, &_staticVao);
 }
 
-static GLuint compileShader(GLenum shaderType, const char *source)
-{
-    GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, &source, NULL);
-    glCompileShader(shader);
-
-    return shader;
-}
-
 void
-GLhud::Init(int width, int height)
+GLhud::Init(int width, int height, int frameBufferWidth, int frameBufferHeight)
 {
-    Hud::Init(width, height);
-    
+    Hud::Init(width, height, frameBufferWidth, frameBufferHeight);
+
     glGenTextures(1, &_fontTexture);
     glBindTexture(GL_TEXTURE_2D, _fontTexture);
-    
+
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -193,13 +190,15 @@ GLhud::Init(int width, int height)
     glBindVertexArray(0);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    checkGLErrors("GLhud::Init");
 }
 
 void
-GLhud::Rebuild(int width, int height)
+GLhud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
 {
-    Hud::Rebuild(width, height);
-
+    Hud::Rebuild(width, height, framebufferWidth, framebufferHeight);
+    
     if (not _staticVbo)
         return;
 
@@ -208,12 +207,16 @@ GLhud::Rebuild(int width, int height)
     glBufferData(GL_ARRAY_BUFFER, _staticVboSize * sizeof(float),
                  &getStaticVboSource()[0], GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    if (GetFrameBuffer()) {
+        GetFrameBuffer()->Reshape(framebufferWidth, framebufferHeight);
+    }
 }
 
 bool
 GLhud::Flush()
 {
-    if (!Hud::Flush()) 
+    if (!Hud::Flush())
         return false;
 
     // update dynamic text
@@ -222,12 +225,11 @@ GLhud::Flush()
     glBufferData(GL_ARRAY_BUFFER, getVboSource().size() * sizeof(float),
                  &getVboSource()[0], GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    /* (x, y, r, g, b, u, v) = 7*/
+    // (x, y, r, g, b, u, v) = 7
     int numVertices = (int)getVboSource().size()/7;
 
     // reserved space of the vector remains for the next frame.
     getVboSource().clear();
-
     glUseProgram(_program);
     float proj[16];
     ortho(proj, 0, 0, float(GetWidth()), float(GetHeight()));
@@ -248,3 +250,4 @@ GLhud::Flush()
 
     return true;
 }
+

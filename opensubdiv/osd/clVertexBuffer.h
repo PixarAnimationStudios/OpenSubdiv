@@ -26,12 +26,7 @@
 #define OSD_CL_VERTEX_BUFFER_H
 
 #include "../version.h"
-
-#if defined(__APPLE__)
-    #include <OpenCL/opencl.h>
-#else
-    #include <CL/opencl.h>
-#endif
+#include "../osd/opencl.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -75,7 +70,6 @@ protected:
 private:
     int _numElements;
     int _numVertices;
-    cl_command_queue _clQueue;
     cl_mem _clMemory;
 };
 

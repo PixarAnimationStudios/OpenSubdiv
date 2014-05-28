@@ -29,16 +29,16 @@ set(SHADER_FILES
      shader_gl3.glsl
 )
 
-set(PLATFORM_LIBRARIES
-    "${OSD_LINK_TARGET}"
-    "${OPENGL_LIBRARY}"
-    "${GLFW_LIBRARIES}"
-)
-
 include_directories(
     "${PROJECT_SOURCE_DIR}/opensubdiv"
     "${PROJECT_SOURCE_DIR}/regression"
     "${GLFW_INCLUDE_DIR}"
+)
+
+list(APPEND PLATFORM_LIBRARIES
+    "${OSD_LINK_TARGET}"
+    "${OPENGL_LIBRARY}"
+    "${GLFW_LIBRARIES}"
 )
 
 if ( GLEW_FOUND )

@@ -108,33 +108,6 @@ public:
     /// Destructor
     virtual ~OsdGLSLTransformFeedbackComputeContext();
 
-    /// Binds a vertex and a varying data buffers to the context. Binding ensures
-    /// that data buffers are properly inter-operated between Contexts and 
-    /// Controllers operating across multiple devices.
-    ///
-    /// @param vertex   a buffer containing vertex-interpolated primvar data
-    ///
-    /// @param varying  a buffer containing varying-interpolated primvar data
-    ///
-    template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
-
-        _currentVertexBuffer = vertex ? vertex->BindVBO() : 0;
-        _currentVaryingBuffer = varying ? varying->BindVBO() : 0;
-
-        _vdesc.numVertexElements = vertex ? vertex->GetNumElements() : 0;
-        _vdesc.numVaryingElements = varying ? varying->GetNumElements() : 0;
-
-        bind();
-    }
-
-    /// Unbinds any previously bound vertex and varying data buffers.
-    void Unbind() {
-        _currentVertexBuffer = 0;
-        _currentVaryingBuffer = 0;
-        unbind();
-    }
-
     /// Returns one of the vertex refinement tables.
     ///
     /// @param tableIndex the type of table
@@ -150,53 +123,28 @@ public:
     ///
     const OsdGLSLTransformFeedbackHEditTable * GetEditTable(int tableIndex) const;
 
-    /// Returns a handle to the vertex-interpolated buffer
-    GLuint GetCurrentVertexBuffer() const;
+    void BindTableTextures(
+        OsdGLSLTransformFeedbackKernelBundle const *kernelBundle) const;
 
-    /// Returns a handle to the varying-interpolated buffer
-    GLuint GetCurrentVaryingBuffer() const;
+    void UnbindTableTextures() const;
 
-    /// Returns an OsdVertexDescriptor if vertex buffers have been bound.
-    ///
-    /// @return a descriptor for the format of the vertex data currently bound
-    ///
-    OsdVertexDescriptor const & GetVertexDescriptor() const {
-        return _vdesc;
-    }
+    void BindEditTextures(
+        int editIndex,
+        OsdGLSLTransformFeedbackKernelBundle const *kernelBundle) const;
 
-    OsdGLSLTransformFeedbackKernelBundle * GetKernelBundle() const;
-
-    void SetKernelBundle(OsdGLSLTransformFeedbackKernelBundle *kernelBundle);
-
-    void BindEditTextures(int editIndex);
-
-    void UnbindEditTextures();
+    void UnbindEditTextures() const;
 
 protected:
     explicit OsdGLSLTransformFeedbackComputeContext(FarSubdivisionTables const *subdivisionTables,
                                                     FarVertexEditTables const *vertexEditTabes);
 
-    void bindTexture(GLint samplerUniform, GLuint texture, int unit);
+    void bindTexture(GLint samplerUniform, GLuint texture, int unit) const;
 
-    void unbindTexture(GLuint unit);
-
-    void bind();
-
-    void unbind();
+    void unbindTexture(GLuint unit) const;
 
 private:
     std::vector<OsdGLSLTransformFeedbackTable*> _tables;
     std::vector<OsdGLSLTransformFeedbackHEditTable*> _editTables;
-
-    GLuint _vertexTexture,
-           _varyingTexture;
-
-    OsdVertexDescriptor _vdesc;
-
-    GLuint _currentVertexBuffer, 
-           _currentVaryingBuffer;
-
-    OsdGLSLTransformFeedbackKernelBundle * _kernelBundle;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

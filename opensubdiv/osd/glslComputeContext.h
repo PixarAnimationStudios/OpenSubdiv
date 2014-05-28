@@ -113,34 +113,6 @@ public:
     /// Destructor
     virtual ~OsdGLSLComputeContext();
 
-    /// Binds a vertex and a varying data buffers to the context. Binding ensures
-    /// that data buffers are properly inter-operated between Contexts and 
-    /// Controllers operating across multiple devices.
-    ///
-    /// @param vertex   a buffer containing vertex-interpolated primvar data
-    ///
-    /// @param varying  a buffer containing varying-interpolated primvar data
-    ///
-    template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
-
-        _currentVertexBuffer = vertex ? vertex->BindVBO() : 0;
-        _currentVaryingBuffer = varying ? varying->BindVBO() : 0;
-
-        _vdesc.numVertexElements = vertex ? vertex->GetNumElements() : 0;
-        _vdesc.numVaryingElements = varying ? varying->GetNumElements() : 0;
-
-        bindShaderStorageBuffers();
-    }
-
-    /// Unbinds any previously bound vertex and varying data buffers.
-    void Unbind() {
-        _currentVertexBuffer = 0;
-        _currentVaryingBuffer = 0;
-
-        unbindShaderStorageBuffers();
-    }
-
     /// Returns one of the vertex refinement tables.
     ///
     /// @param tableIndex the type of table
@@ -156,71 +128,21 @@ public:
     ///
     const OsdGLSLComputeHEditTable * GetEditTable(int tableIndex) const;
 
-    /// Returns a handle to the vertex-interpolated buffer
-    GLuint GetCurrentVertexBuffer() const;
+    void BindShaderStorageBuffers() const;
 
-    /// Returns a handle to the varying-interpolated buffer
-    GLuint GetCurrentVaryingBuffer() const;
+    void UnbindShaderStorageBuffers() const;
 
-    /// Returns an OsdVertexDescriptor if vertex buffers have been bound.
-    ///
-    /// @return a descriptor for the format of the vertex data currently bound
-    ///
-    OsdVertexDescriptor const & GetVertexDescriptor() const {
-        return _vdesc;
-    }
+    void BindEditShaderStorageBuffers(int editIndex) const;
 
-    OsdGLSLComputeKernelBundle * GetKernelBundle() const;
-
-    void SetKernelBundle(OsdGLSLComputeKernelBundle *kernelBundle);
-
-    void BindUniformBlockBilinearFace(GLuint program, int level);
-
-    void BindUniformBlockBilinearEdge(GLuint program, int level);
-
-    void BindUniformBlockBilinearVertex(GLuint program, int level);
-
-    void BindUniformBlockCatmarkFace(GLuint program, int level);
-
-    void BindUniformBlockCatmarkEdge(GLuint program, int level);
-
-    void BindUniformBlockCatmarkVertexA0(GLuint program, int level);
-
-    void BindUniformBlockCatmarkVertexA1(GLuint program, int level);
-
-    void BindUniformBlockCatmarkVertexB(GLuint program, int level);
-
-    void BindUniformBlockLoopEdge(GLuint program, int level);
-
-    void BindUniformBlockLoopVertexA(GLuint program, int level);
-
-    void BindUniformBlockLoopVertexB(GLuint program, int level);
-
-    void BindEditShaderStorageBuffers(int editIndex);
-
-    void UnbindEditShaderStorageBuffers();
+    void UnbindEditShaderStorageBuffers() const;
 
 protected:
     explicit OsdGLSLComputeContext(FarSubdivisionTables const *subdivisionTables,
                                    FarVertexEditTables const *vertexEditTables);
 
-    void bindShaderStorageBuffers();
-
-    void unbindShaderStorageBuffers();
-
 private:
     std::vector<OsdGLSLComputeTable*> _tables;
     std::vector<OsdGLSLComputeHEditTable*> _editTables;
-
-    GLuint _vertexTexture,
-           _varyingTexture;
-
-    OsdVertexDescriptor _vdesc;
-
-    GLuint _currentVertexBuffer, 
-           _currentVaryingBuffer;
-
-    OsdGLSLComputeKernelBundle * _kernelBundle;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

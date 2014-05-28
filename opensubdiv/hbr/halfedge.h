@@ -59,7 +59,7 @@ private:
     {
     }
 
-    HbrHalfedge(const HbrHalfedge &e) {}
+    HbrHalfedge(const HbrHalfedge &/* edge */) {}
     
     ~HbrHalfedge();
 

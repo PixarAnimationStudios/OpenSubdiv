@@ -31,6 +31,77 @@ Release Notes
 
 ----
 
+Release 2.5.0
+=============
+
+**New Features**
+    - Add ability to generate triangle patches for a uniformly subdivided mesh
+    - Add new example 'topologySharing'
+    - Add interleaved buffer mode in glViewer
+    - Add GLSL compute kernel to glBatchViewer
+    - Add TBB compute kernel to glBatchViewer
+    - Add a PullDown widget to our HUD in examples/common
+        - GUI updates & cosmetic changes to GL example code
+    - Adding a programmable image shader to gl_hud
+        - Code cleanup for GLFrameBuffer in examples/common
+    - Implement C-API accessor to evaluator topology (osdutil)
+    - Add command line option to CMake's options
+    - Add a CMake option to disable OpenCL
+    - Add a FindCLEW.cmake module in anticipation of using CLEW as a dependency
+        - Integrate CLEW into osd library and examples
+
+**Changes**
+    - Change interleaved buffer support in OsdCompute: 
+        - Removed OsdVertexDescriptor and replaced with OsdVertexBufferDescriptor
+        - Reorganize ComputeContext and ComputeController.
+        - Reorganize EvalStencilContext and EvalStencilController 
+
+          Moved transient states (current vertex buffer etc) to controller
+        - Reorganize EvalLimitContext and EvalLimitController
+        
+          Moved transient states (current vertex buffer etc) to controller
+    - Fix adaptive isolation of sharp corner vertices
+    - Fix incorrect FarMeshFactory logic for isolating multiple corner vertices in corner patches
+    - Change EvalLimit Gregory patch kernels to the large weights table to accomodate higher valences
+    - Fix calculation of screen space LOD tess factors for transition corner patches.
+    - Add a public constructor to OsdMesh
+    - Decrease compiler warning thresholds and fix outstanding warnings
+    - Make PTex support optional
+    - Add a NO_MAYA flag to CMakeLists to disable all Autodesk Maya dependencies in the build
+        - Document NO_MAYA command line option
+
+**Bug Fixes**
+    - Fix mistakenly deleted memory barrier in glsl OsdCompute kernel.
+    - Fix shape_utils genRIB function to use streams correctly.
+    - Temporary workaround for the synchronization bug of glsl compute kernel
+    - Fix Hud display for higher DPI (MBP retina)
+        - Fix Hud (d3d11)
+    - Fix examples to use GL timer query to measure the GPU draw timing more precisely
+    - Fix glViewer: stop updating during freeze.
+    - Fix file permissions on farPatchTablesFactory.h
+    - Fix some meory leaks in adaptive evaluator (osdutil)
+    - Fix OsdUtilAdaptiveEvaluator concurrency issue
+    - Fix OsdUtilRefiner incorrect "Invalid size of patch array" error reporting.
+    - Fix OsdUtilPatchPartitioner failure for triangle patches
+    - Fixes a bug that causes OsdUtilPatchPartitioner to fail to rebuild the face-varying
+      data table correctly for triangle patches.
+    - Add missing third parameter to templated OsdDrawContext usage (osdutil/batch.h)
+    - Return success status from openSubdiv_finishEvaluatorDescr() (osdutil)
+    - Remove debugging std::cout calls (osdutil)
+    - Build errors & warnings:
+        - Fix OSX Core Profile build (GLFrameBuffer)
+        - Fix ptexViewer build error on OSX
+        - Fix framebuffer shader compiling for OSX
+        - Reordering includes to address a compile error on OSX/glew environment
+        - Fix compilation errors with CLEW enabled
+        - Fix icc build problems
+        - Fix compiler warnings in OsdClVertexBuffer
+        - Fix compilation error on windows+msvc2013 
+        - Fix build warnings/errors with VS2010 Pro
+        - Fix Windows build warning in FarPatchTablesFactory
+        - Fix doxygen generation errors
+
+
 Release 2.4.1
 =============
 

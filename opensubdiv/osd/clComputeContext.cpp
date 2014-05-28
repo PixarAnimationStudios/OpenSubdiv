@@ -101,8 +101,7 @@ OsdCLHEditTable::GetPrimvarWidth() const {
 
 OsdCLComputeContext::OsdCLComputeContext(FarSubdivisionTables const *subdivisionTables,
                                          FarVertexEditTables const *vertexEditTables,
-                                         cl_context clContext)
-    : _clQueue(NULL), _kernelBundle(NULL) {
+                                         cl_context clContext) {
 
     // allocate 5 or 7 tables
     _tables.resize(subdivisionTables->GetNumTables(), 0);
@@ -156,42 +155,6 @@ const OsdCLHEditTable *
 OsdCLComputeContext::GetEditTable(int tableIndex) const {
 
     return _editTables[tableIndex];
-}
-
-cl_mem
-OsdCLComputeContext::GetCurrentVertexBuffer() const {
-
-    return _currentVertexBuffer;
-}
-
-cl_mem
-OsdCLComputeContext::GetCurrentVaryingBuffer() const {
-
-    return _currentVaryingBuffer;
-}
-
-OsdCLKernelBundle *
-OsdCLComputeContext::GetKernelBundle() const {
-
-    return _kernelBundle;
-}
-
-void
-OsdCLComputeContext::SetKernelBundle(OsdCLKernelBundle *kernelBundle) {
-
-    _kernelBundle = kernelBundle;
-}
-
-void
-OsdCLComputeContext::SetCommandQueue(cl_command_queue queue) {
-
-    _clQueue = queue;
-}
-
-cl_command_queue
-OsdCLComputeContext::GetCommandQueue() const {
-
-    return _clQueue;
 }
 
 OsdCLComputeContext *

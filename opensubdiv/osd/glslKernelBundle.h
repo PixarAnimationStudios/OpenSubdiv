@@ -42,7 +42,8 @@ public:
     OsdGLSLComputeKernelBundle();
     ~OsdGLSLComputeKernelBundle();
 
-    bool Compile(int numVertexElements, int numVaryingElements);
+    bool Compile(OsdVertexBufferDescriptor const &vertexDesc,
+                 OsdVertexBufferDescriptor const &varyingDesc);
 
     void ApplyBilinearFaceVerticesKernel(
         int vertexOffset, int tableOffset, int start, int end);
@@ -75,32 +76,40 @@ public:
         int vertexOffset, int tableOffset, int start, int end, bool pass);
 
     void ApplyEditAdd(int primvarOffset, int primvarWidth,
-                      int vertexOffset, int tableOffset, int start, int end);
+                      int vertexOffset, int tableOffset,
+                      int start, int end);
 
-    void UseProgram() const;
+    void UseProgram(int vertexBaseOffset, int varyingBaseOffset) const;
 
     GLuint GetTableUniformLocation(int tableIndex) const {
         return _tableUniforms[tableIndex];
     }
 
     struct Match {
-
         /// Constructor
-        Match(int numVertexElements, int numVaryingElements)
-            : vdesc(numVertexElements, numVaryingElements) {
+        Match(OsdVertexBufferDescriptor const &vertex,
+              OsdVertexBufferDescriptor const &varying)
+            : vertexDesc(vertex), varyingDesc(varying) {
         }
 
         bool operator() (OsdGLSLComputeKernelBundle const *kernel) {
-            return vdesc == kernel->_vdesc;
+            // offset is dynamic. just comparing length and stride here,
+            // returns true if they are equal
+            return (vertexDesc.length == kernel->_numVertexElements and
+                    vertexDesc.stride == kernel->_vertexStride and
+                    varyingDesc.length == kernel->_numVaryingElements and
+                    varyingDesc.stride == kernel->_varyingStride);
         }
 
-        OsdVertexDescriptor vdesc;
+        OsdVertexBufferDescriptor vertexDesc;
+        OsdVertexBufferDescriptor varyingDesc;
     };
 
     friend struct Match;
 
 protected:
-    void dispatchCompute(int vertexOffset, int tableOffset, int start, int end) const;
+    void dispatchCompute(int vertexOffset, int tableOffset,
+                         int start, int end) const ;
 
     GLuint _program;
 
@@ -111,6 +120,8 @@ protected:
     GLuint _uniformTableOffset;
     GLuint _uniformIndexStart;
     GLuint _uniformIndexEnd;
+    GLuint _uniformVertexBaseOffset;
+    GLuint _uniformVaryingBaseOffset;
 
     // uniform locations for vertex edit
     GLuint _uniformEditPrimVarOffset;
@@ -135,7 +146,10 @@ protected:
 
     int _workGroupSize;
 
-    OsdVertexDescriptor _vdesc;
+    int _numVertexElements;
+    int _vertexStride;
+    int _numVaryingElements;
+    int _varyingStride;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

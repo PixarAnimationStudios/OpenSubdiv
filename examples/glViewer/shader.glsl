@@ -97,6 +97,10 @@ int OsdPrimitiveIdBase()
 {
     return PrimitiveIdBase;
 }
+int OsdBaseVertex()
+{
+    return 0;
+}
 
 //--------------------------------------------------------------
 // Vertex Shader
@@ -296,6 +300,7 @@ in block {
 } inpt;
 
 out vec4 outColor;
+out vec3 outNormal;
 
 #define NUM_LIGHTS 2
 
@@ -388,6 +393,7 @@ main()
 #endif
 
     outColor = Cf;
+    outNormal = N;
 }
 #endif
 

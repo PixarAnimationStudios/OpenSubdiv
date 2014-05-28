@@ -151,6 +151,7 @@ enum DisplayStyle { kWire = 0,
                     kShaded,
                     kWireShaded,
                     kVaryingColor,
+                    kInterleavedVaryingColor,
                     kFaceVaryingColor };
 
 enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
@@ -225,6 +226,8 @@ int g_tessLevelMin = 1;
 int g_kernel = kCPU;
 float g_moveScale = 0.0f;
 
+GLuint g_queries[2] = {0, 0};
+
 GLuint g_transformUB = 0,
        g_transformBinding = 0,
        g_tessellationUB = 0,
@@ -237,8 +240,6 @@ struct Transform {
     float ProjectionMatrix[16];
     float ModelViewProjectionMatrix[16];
 } g_transformData;
-
-GLuint g_primQuery = 0;
 
 GLuint g_vao = 0;
 GLuint g_cageEdgeVAO = 0,
@@ -263,11 +264,9 @@ checkGLErrors(std::string const & where = "")
 {
     GLuint err;
     while ((err = glGetError()) != GL_NO_ERROR) {
-        /*
         std::cerr << "GL error: "
                   << (where.empty() ? "" : where + " ")
                   << err << "\n";
-        */
     }
 }
 
@@ -536,9 +535,14 @@ updateGeom() {
     int nverts = (int)g_orgPositions.size() / 3;
 
     std::vector<float> vertex, varying;
-    vertex.reserve(nverts*3);
+
+    if (g_displayStyle == kInterleavedVaryingColor)
+        vertex.reserve(nverts*7);
+    else
+        vertex.reserve(nverts*3);
+
     if (g_displayStyle == kVaryingColor)
-        varying.reserve(nverts*3);
+        varying.reserve(nverts*4);
 
     const float *p = &g_orgPositions[0];
 
@@ -560,10 +564,18 @@ updateGeom() {
         vertex.push_back(pp[0]);
         vertex.push_back(pp[1]);
         vertex.push_back(pp[2]);
+        if (g_displayStyle == kInterleavedVaryingColor) {
+            vertex.push_back(p[1]);
+            vertex.push_back(p[2]);
+            vertex.push_back(p[0]);
+            vertex.push_back(1);
+            p += 3;
+        }
         if (g_displayStyle == kVaryingColor) {
             varying.push_back(p[2]);
             varying.push_back(p[1]);
             varying.push_back(p[0]);
+            varying.push_back(1);
             p += 3;
         }
         pp += 3;
@@ -577,7 +589,13 @@ updateGeom() {
     Stopwatch s;
     s.Start();
 
-    g_mesh->Refine();
+    if (g_displayStyle == kInterleavedVaryingColor) {
+        OpenSubdiv::OsdVertexBufferDescriptor vertexDesc(0, 3, 7);
+        OpenSubdiv::OsdVertexBufferDescriptor varyingDesc(3, 4, 7);
+        g_mesh->Refine(&vertexDesc, &varyingDesc, true);
+    } else {
+        g_mesh->Refine();
+    }
 
     s.Stop();
     g_cpuTime = float(s.GetElapsed() * 1000.0f);
@@ -616,7 +634,6 @@ getKernelName(int kernel) {
 static void
 createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kCatmark ) {
 
-    checkGLErrors("create osd enter");
     // generate Hbr representation from "obj" description
     OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape.c_str(), scheme, g_orgPositions,
                                                           g_displayStyle == kFaceVaryingColor);
@@ -654,8 +671,8 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
     bits.set(OpenSubdiv::MeshAdaptive, doAdaptive);
     bits.set(OpenSubdiv::MeshFVarData, 1);
 
-    int numVertexElements = 3;
-    int numVaryingElements = (g_displayStyle == kVaryingColor) ? 3 : 0;
+    int numVertexElements = (g_displayStyle == kInterleavedVaryingColor) ? 7 : 3;
+    int numVaryingElements = (g_displayStyle == kVaryingColor) ? 4 : 0;
 
     if (kernel == kCPU) {
         if (not g_cpuComputeController) {
@@ -803,12 +820,18 @@ createOsdMesh( const std::string &shape, int level, int kernel, Scheme scheme=kC
     glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVertexBuffer());
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+                          /*stride=*/sizeof (GLfloat) * numVertexElements, 0);
 
     if (g_displayStyle == kVaryingColor) {
         glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVaryingBuffer());
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 4, 0);
+    } else if (g_displayStyle == kInterleavedVaryingColor) {
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE,
+                              /*stride=*/sizeof (GLfloat) * numVertexElements,
+                              /*offset=*/(void*)(sizeof (GLfloat) * 3));
     } else {
         glDisableVertexAttribArray(1);
     }
@@ -1033,6 +1056,10 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->commonShader.AddDefine("VARYING_COLOR");
         sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
         break;
+    case kInterleavedVaryingColor:
+        sconfig->commonShader.AddDefine("VARYING_COLOR");
+        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+        break;
     case kFaceVaryingColor:
         sconfig->commonShader.AddDefine("OSD_FVAR_WIDTH", "2");
         sconfig->commonShader.AddDefine("FACEVARYING_COLOR");
@@ -1228,6 +1255,8 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
 static void
 display() {
 
+    g_hud.GetFrameBuffer()->Bind();
+
     Stopwatch s;
     s.Start();
 
@@ -1245,7 +1274,7 @@ display() {
     translate(g_transformData.ModelViewMatrix,
               -g_center[0], -g_center[1], -g_center[2]);
     perspective(g_transformData.ProjectionMatrix,
-                45.0f, (float)aspect, 0.01f, 500.0f);
+                45.0f, (float)aspect, 1.0f, 500.0f);
     multMatrix(g_transformData.ModelViewProjectionMatrix,
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
@@ -1256,6 +1285,8 @@ display() {
     if (g_displayStyle == kVaryingColor)
         g_mesh->BindVaryingBuffer();
 
+    glEnable(GL_DEPTH_TEST);
+
     glBindVertexArray(g_vao);
 
     OpenSubdiv::OsdDrawContext::PatchArrayVector const & patches = g_mesh->GetDrawContext()->patchArrays;
@@ -1265,7 +1296,10 @@ display() {
     memset(patchCount, 0, sizeof(patchCount));
 
     // primitive counting
-    glBeginQuery(GL_PRIMITIVES_GENERATED, g_primQuery);
+    glBeginQuery(GL_PRIMITIVES_GENERATED, g_queries[0]);
+#if defined(GL_VERSION_3_3)
+    glBeginQuery(GL_TIME_ELAPSED, g_queries[1]);
+#endif
 
     for (int i=0; i<(int)patches.size(); ++i) {
         OpenSubdiv::OsdDrawContext::PatchArray const & patch = patches[i];
@@ -1338,10 +1372,13 @@ display() {
         }
     }
 
-    glEndQuery(GL_PRIMITIVES_GENERATED);
+    s.Stop();
+    float drawCpuTime = float(s.GetElapsed() * 1000.0f);
 
-    GLuint numPrimsGenerated = 0;
-    glGetQueryObjectuiv(g_primQuery, GL_QUERY_RESULT, &numPrimsGenerated);
+    glEndQuery(GL_PRIMITIVES_GENERATED);
+#if defined(GL_VERSION_3_3)
+    glEndQuery(GL_TIME_ELAPSED);
+#endif
 
     glBindVertexArray(0);
 
@@ -1353,12 +1390,16 @@ display() {
     if (g_drawCageVertices)
         drawCageVertices();
 
-    s.Stop();
-    float drawCpuTime = float(s.GetElapsed() * 1000.0f);
-    s.Start();
-    glFinish();
-    s.Stop();
-    float drawGpuTime = float(s.GetElapsed() * 1000.0f);
+    g_hud.GetFrameBuffer()->ApplyImageShader();
+
+    GLuint numPrimsGenerated = 0;
+    GLuint timeElapsed = 0;
+    glGetQueryObjectuiv(g_queries[0], GL_QUERY_RESULT, &numPrimsGenerated);
+#if defined(GL_VERSION_3_3)
+    glGetQueryObjectuiv(g_queries[1], GL_QUERY_RESULT, &timeElapsed);
+#endif
+
+    float drawGpuTime = timeElapsed / 1000.0f / 1000.0f;
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -1412,7 +1453,7 @@ display() {
 
     glFinish();
 
-    checkGLErrors("display leave");
+    //checkGLErrors("display leave");
 }
 
 //------------------------------------------------------------------------------
@@ -1423,8 +1464,10 @@ motion(GLFWwindow *, double dx, double dy) {
 #else
 motion(int x, int y) {
 #endif
-
-    if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
+    if (g_hud.MouseCapture()) {
+        // check gui
+        g_hud.MouseMotion(x, y);
+    } else if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
         // orbit
         g_rotate[0] += x - g_prev_x;
         g_rotate[1] += y - g_prev_y;
@@ -1446,10 +1489,13 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state, int mods) {
+mouse(GLFWwindow *, int button, int state, int /* mods */) {
 #else
 mouse(int button, int state) {
 #endif
+
+    if (state == GLFW_RELEASE)
+        g_hud.MouseRelease();
 
     if (button == 0 && state == GLFW_PRESS && g_hud.MouseClick(g_prev_x, g_prev_y))
         return;
@@ -1463,7 +1509,7 @@ mouse(int button, int state) {
 static void
 uninitGL() {
 
-    glDeleteQueries(1, &g_primQuery);
+    glDeleteQueries(2, g_queries);
 
     glDeleteBuffers(1, &g_cageVertexVBO);
     glDeleteBuffers(1, &g_cageEdgeVBO);
@@ -1514,7 +1560,6 @@ reshape(GLFWwindow *, int width, int height) {
 #else
 reshape(int width, int height) {
 #endif
-
     g_width = width;
     g_height = height;
 
@@ -1523,7 +1568,7 @@ reshape(int width, int height) {
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 #endif
-    g_hud.Rebuild(windowWidth, windowHeight);
+    g_hud.Rebuild(windowWidth, windowHeight, width, height);
 }
 
 //------------------------------------------------------------------------------
@@ -1547,7 +1592,7 @@ toggleFullScreen() {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
+keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
@@ -1564,6 +1609,7 @@ keyboard(int key, int event) {
         case '=':  g_tessLevel++; break;
         case '-':  g_tessLevel = std::max(g_tessLevelMin, g_tessLevel-1); break;
         case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
+        case 'X': g_hud.GetFrameBuffer()->Screenshot(); break;
     }
 }
 
@@ -1578,6 +1624,7 @@ static void
 callbackDisplayStyle(int b)
 {
     if (g_displayStyle == kVaryingColor or b == kVaryingColor or
+        g_displayStyle == kInterleavedVaryingColor or b == kInterleavedVaryingColor or
         g_displayStyle == kFaceVaryingColor or b == kFaceVaryingColor) {
         // need to rebuild for varying reconstruct
         g_displayStyle = b;
@@ -1631,7 +1678,7 @@ callbackModel(int m)
 }
 
 static void
-callbackAdaptive(bool checked, int a)
+callbackAdaptive(bool checked, int /* a */)
 {
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation()) {
         g_adaptive = checked;
@@ -1674,61 +1721,70 @@ static void
 initHUD()
 {
     int windowWidth = g_width, windowHeight = g_height;
+    int frameBufferWidth = g_width, frameBufferHeight = g_height;
 #if GLFW_VERSION_MAJOR>=3
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+    glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 #endif
-    g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddRadioButton(0, "CPU (K)", true, 10, 10, callbackKernel, kCPU, 'k');
+    g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
+
+    g_hud.SetFrameBuffer(new SSAOGLFrameBuffer);
+
+    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
+                      10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'h');
+    g_hud.AddCheckBox("Cage Verts (J)", g_drawCageVertices != 0,
+                      10, 30, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_VERTS, 'j');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0,
+                      10, 50, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
+    g_hud.AddCheckBox("Patch Color (P)", g_displayPatchColor != 0,
+                      10, 70, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'p');
+    g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess != 0,
+                      10, 90, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing != 0,
+                      10, 110, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
+    g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull != 0,
+                      10, 130, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
+    g_hud.AddCheckBox("Freeze (spc)", g_freeze != 0,
+                      10, 150, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+
+    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 200, 10, 250, callbackDisplayStyle, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color", kVaryingColor, g_displayStyle==kVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color (Interleaved)", kInterleavedVaryingColor, g_displayStyle==kInterleavedVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color", kFaceVaryingColor, g_displayStyle==kFaceVaryingColor);
+
+    int compute_pulldown = g_hud.AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
-    g_hud.AddRadioButton(0, "OPENMP", false, 10, 30, callbackKernel, kOPENMP, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "OpenMP", kOPENMP);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
-    g_hud.AddRadioButton(0, "TBB", false, 10, 50, callbackKernel, kTBB, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "TBB", kTBB);
 #endif
 #ifdef OPENSUBDIV_HAS_GCD
-    g_hud.AddRadioButton(0, "GCD", false, 10, 70, callbackKernel, kGCD, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "GCD", kGCD);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    g_hud.AddRadioButton(0, "CUDA",   false, 10, 90, callbackKernel, kCUDA, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    g_hud.AddRadioButton(0, "OPENCL", false, 10, 110, callbackKernel, kCL, 'k');
+    if (HAS_CL_VERSION_1_1()) {
+        g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
+    }
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    g_hud.AddRadioButton(0, "GLSL TransformFeedback",   false, 10, 130, callbackKernel, kGLSL, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "GLSL TransformFeedback", kGLSL);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     // Must also check at run time for OpenGL 4.3
     if (GLEW_VERSION_4_3) {
-        g_hud.AddRadioButton(0, "GLSL Compute",   false, 10, 150, callbackKernel, kGLSLCompute, 'k');
+        g_hud.AddPullDownButton(compute_pulldown, "GLSL Compute", kGLSLCompute);
     }
 #endif
-
-    g_hud.AddRadioButton(1, "Wire (W)",    g_displayStyle == kWire,  200, 10, callbackDisplayStyle, 0, 'w');
-    g_hud.AddRadioButton(1, "Shaded",      g_displayStyle == kShaded, 200, 30, callbackDisplayStyle, 1, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", g_displayStyle == kWireShaded, 200, 50, callbackDisplayStyle, 2, 'w');
-    g_hud.AddRadioButton(1, "Varying color", g_displayStyle == kVaryingColor, 200, 70, callbackDisplayStyle, 3, 'w');
-    g_hud.AddRadioButton(1, "FaceVarying color", g_displayStyle == kFaceVaryingColor, 200, 90, callbackDisplayStyle, 4, 'w');
-
-    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
-                      350, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'h');
-    g_hud.AddCheckBox("Cage Verts (J)", g_drawCageVertices != 0,
-                      350, 30, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_VERTS, 'j');
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0,
-                      350, 50, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
-    g_hud.AddCheckBox("Patch Color (P)", g_displayPatchColor != 0,
-                      350, 70, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'p');
-    g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess != 0,
-                      350, 90, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
-    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing != 0,
-                      350, 110, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
-    g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull != 0,
-                      350, 130, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
-    g_hud.AddCheckBox("Freeze (spc)", g_freeze != 0,
-                      350, 150, callbackCheckBox, kHUD_CB_FREEZE, ' ');
-
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0, 10, 190, callbackAdaptive, 0, '`');
 
@@ -1738,8 +1794,9 @@ initHUD()
         g_hud.AddRadioButton(3, level, i==2, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
     }
 
+    int shapes_pulldown = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        g_hud.AddRadioButton(4, g_defaultShapes[i].name.c_str(), i==g_currentShape, -220, 10+i*16, callbackModel, i, 'n');
+        g_hud.AddPullDownButton(shapes_pulldown, g_defaultShapes[i].name.c_str(),i);
     }
 }
 
@@ -1747,13 +1804,13 @@ initHUD()
 static void
 initGL()
 {
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glCullFace(GL_BACK);
     glEnable(GL_CULL_FACE);
 
-    glGenQueries(1, &g_primQuery);
+    glGenQueries(2, g_queries);
 
     glGenVertexArrays(1, &g_vao);
     glGenVertexArrays(1, &g_cageVertexVAO);
@@ -1766,10 +1823,10 @@ initGL()
 static void
 idle() {
 
-    if (not g_freeze)
+    if (not g_freeze) {
         g_frame++;
-
-    updateGeom();
+        updateGeom();
+    }
 
     if (g_repeatCount != 0 and g_frame >= g_repeatCount)
         g_running = 0;
@@ -1801,7 +1858,7 @@ setGLCoreProfile()
 #else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
 #endif
-    
+
 #else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);

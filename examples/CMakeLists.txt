@@ -22,7 +22,17 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
+
+
 if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
+
+    # optional dependency - enables screenshots in some examples
+    find_package(PNG)
+    if (PNG_FOUND)
+        include_directories("${PNG_INCLUDE_DIRS}")
+        list(APPEND PLATFORM_LIBRARIES "${PNG_LIBRARIES}")
+        add_definitions(-DOPENSUBDIV_HAS_PNG)
+    endif()
 
     add_subdirectory(common)
     
@@ -34,6 +44,7 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
     add_subdirectory(tessellateObjFile)
     add_subdirectory(uvViewer)
     add_subdirectory(facePartition)
+    add_subdirectory(topologySharing)
 
     if(OPENGL_4_3_FOUND AND (NOT APPLE))
         add_subdirectory(paintTest)
@@ -79,7 +90,7 @@ if(DXSDK_FOUND)
 endif()
 
 
-if(MAYA_FOUND)
+if(MAYA_FOUND AND (NOT NO_MAYA))
     add_subdirectory(osdPolySmooth)
 
     # manuelk: the following plugins are disabled until further notice

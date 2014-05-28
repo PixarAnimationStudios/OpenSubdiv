@@ -910,7 +910,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state, int mods) {
+mouse(GLFWwindow *, int button, int state, int /* mods */) {
 #else
 mouse(int button, int state) {
 #endif
@@ -976,7 +976,7 @@ setSamples(bool add)
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
+keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
@@ -1014,28 +1014,28 @@ callbackLevel(int l)
 
 //------------------------------------------------------------------------------
 static void
-callbackAnimate(bool checked, int m)
+callbackAnimate(bool checked, int /* m */)
 {
     g_moveScale = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackFreeze(bool checked, int f)
+callbackFreeze(bool checked, int /* f */)
 {
     g_freeze = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackDisplayCageVertices(bool checked, int d)
+callbackDisplayCageVertices(bool checked, int /* d */)
 {
     g_drawCageVertices = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackDisplayCageEdges(bool checked, int d)
+callbackDisplayCageEdges(bool checked, int /* d */)
 {
     g_drawCageEdges = checked;
 }
@@ -1066,28 +1066,30 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddRadioButton(0, "CPU (K)", true, 10, 10, callbackKernel, kCPU, 'k');
+    g_hud.AddCheckBox("Cage Edges (H)", true, 10, 10, callbackDisplayCageEdges, 0, 'h');
+    g_hud.AddCheckBox("Cage Verts (J)", true, 10, 30, callbackDisplayCageVertices, 0, 'j');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 10, 50, callbackAnimate, 0, 'm');
+    g_hud.AddCheckBox("Freeze (spc)", false, 10, 70, callbackFreeze, 0, ' ');
+
+    int compute_pulldown = g_hud.AddPullDown("Compute (K)", 250, 10, 300, callbackKernel, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
-    g_hud.AddRadioButton(0, "OPENMP", false, 10, 30, callbackKernel, kOPENMP, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "OpenMP", kOPENMP);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
-    g_hud.AddRadioButton(0, "TBB", false, 10, 50, callbackKernel, kTBB, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "TBB", kTBB);
 #endif
-
-    g_hud.AddCheckBox("Cage Edges (H)", true, 350, 10, callbackDisplayCageEdges, 0, 'h');
-    g_hud.AddCheckBox("Cage Verts (J)", true, 350, 30, callbackDisplayCageVertices, 0, 'j');
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 350, 50, callbackAnimate, 0, 'm');
-    g_hud.AddCheckBox("Freeze (spc)", false, 350, 70, callbackFreeze, 0, ' ');
-
-    for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        g_hud.AddRadioButton(4, g_defaultShapes[i].name.c_str(), i==0, -220, 10+i*16, callbackModel, i, 'n');
-    }
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
         g_hud.AddRadioButton(3, level, i==g_isolationLevel, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
     }
+
+    int pulldown_handle = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
+    for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
+        g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
+    }   
 }
 
 //------------------------------------------------------------------------------

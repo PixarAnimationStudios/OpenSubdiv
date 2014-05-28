@@ -48,53 +48,71 @@ public:
     /// Destructor
     ~OsdD3D11ComputeKernelBundle();
 
-    bool Compile(int numVertexElements, int numVaryingElements);
+    bool Compile(OsdVertexBufferDescriptor const &vertexDesc,
+                 OsdVertexBufferDescriptor const &varyingDesc);
 
     void ApplyBilinearFaceVerticesKernel(
-        int vertexOffset, int tableOffset, int start, int end);
+        int vertexOffset, int tableOffset, int start, int end,
+        int vertexBaseOffset, int varyingBaseOffset);
 
     void ApplyBilinearEdgeVerticesKernel(
-        int vertexOffset, int tableOffset, int start, int end);
+        int vertexOffset, int tableOffset, int start, int end,
+        int vertexBaseOffset, int varyingBaseOffset);
 
     void ApplyBilinearVertexVerticesKernel(
-        int vertexOffset, int tableOffset, int start, int end);
+        int vertexOffset, int tableOffset, int start, int end,
+        int vertexBaseOffset, int varyingBaseOffset);
 
     void ApplyCatmarkFaceVerticesKernel(
-        int vertexOffset, int tableOffset, int start, int end);
+        int vertexOffset, int tableOffset, int start, int end,
+        int vertexBaseOffset, int varyingBaseOffset);
 
     void ApplyCatmarkEdgeVerticesKernel(
-        int vertexOffset, int tableOffset, int start, int end);
+        int vertexOffset, int tableOffset, int start, int end,
+        int vertexBaseOffset, int varyingBaseOffset);
 
     void ApplyCatmarkVertexVerticesKernelB(
-        int vertexOffset, int tableOffset, int start, int end);
+        int vertexOffset, int tableOffset, int start, int end,
+        int vertexBaseOffset, int varyingBaseOffset);
 
     void ApplyCatmarkVertexVerticesKernelA(
-        int vertexOffset, int tableOffset, int start, int end, bool pass);
+        int vertexOffset, int tableOffset, int start, int end, bool pass,
+        int vertexBaseOffset, int varyingBaseOffset);
 
     void ApplyLoopEdgeVerticesKernel(
-        int vertexOffset, int tableOffset, int start, int end);
+        int vertexOffset, int tableOffset, int start, int end,
+        int vertexBaseOffset, int varyingBaseOffset);
 
     void ApplyLoopVertexVerticesKernelB(
-        int vertexOffset, int tableOffset, int start, int end);
+        int vertexOffset, int tableOffset, int start, int end,
+        int vertexBaseOffset, int varyingBaseOffset);
 
     void ApplyLoopVertexVerticesKernelA(
-        int vertexOffset, int tableOffset, int start, int end, bool pass);
+        int vertexOffset, int tableOffset, int start, int end, bool pass,
+        int vertexBaseOffset, int varyingBaseOffset);
 
     void ApplyEditAdd(int primvarOffset, int primvarWidth,
-                      int vertexOffset, int tableOffset, int start, int end);
+                      int vertexOffset, int tableOffset, int start, int end,
+                      int vertexBaseOffset, int varyingBaseOffset);
 
     struct Match {
-
         /// Constructor
-        Match(int numVertexElements, int numVaryingElements)
-            : vdesc(numVertexElements, numVaryingElements) {
+        Match(OsdVertexBufferDescriptor const &vertex,
+              OsdVertexBufferDescriptor const &varying)
+            : vertexDesc(vertex), varyingDesc(varying) {
         }
 
         bool operator() (OsdD3D11ComputeKernelBundle const *kernel) {
-            return vdesc == kernel->_vdesc;
+            // offset is dynamic. just comparing length and stride here,
+            // returns true if they are equal
+            return (vertexDesc.length == kernel->_numVertexElements and
+                    vertexDesc.stride == kernel->_vertexStride and
+                    varyingDesc.length == kernel->_numVaryingElements and
+                    varyingDesc.stride == kernel->_varyingStride);
         }
 
-        OsdVertexDescriptor vdesc;
+        OsdVertexBufferDescriptor vertexDesc;
+        OsdVertexBufferDescriptor varyingDesc;
     };
 
     friend struct Match;
@@ -130,7 +148,10 @@ protected:
 
     int _workGroupSize;
 
-    OsdVertexDescriptor _vdesc;
+    int _numVertexElements;
+    int _vertexStride;
+    int _numVaryingElements;
+    int _varyingStride;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

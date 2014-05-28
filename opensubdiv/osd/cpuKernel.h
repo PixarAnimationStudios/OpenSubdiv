@@ -88,8 +88,9 @@ void ComputeFaceKernel(float     *vertex,
         memcpy(des, result1, sizeof(float)*numVertexElements);        
     }
 }
-void OsdCpuComputeFace(OsdVertexDescriptor const &vdesc,
-                       float * vertex, float * varying,
+void OsdCpuComputeFace(float * vertex, float * varying,
+                       OsdVertexBufferDescriptor const &vertexDesc,
+                       OsdVertexBufferDescriptor const &varyingDesc,
                        const int *F_IT, const int *F_ITa,
                        int vertexOffset, int tableOffset,
                        int start, int end);
@@ -147,8 +148,9 @@ void ComputeEdgeKernel(      float *vertex,
         memcpy(des, result1, sizeof(float)*numVertexElements);
     }
 }
-void OsdCpuComputeEdge(OsdVertexDescriptor const &vdesc,
-                       float *vertex, float * varying,
+void OsdCpuComputeEdge(float *vertex, float * varying,
+                       OsdVertexBufferDescriptor const &vertexDesc,
+                       OsdVertexBufferDescriptor const &varyingDesc,
                        const int *E_IT, const float *E_ITa,
                        int vertexOffset, int tableOffset,
                        int start, int end);
@@ -230,8 +232,9 @@ void ComputeVertexAKernel(      float *vertex,
         memcpy(des, result1, sizeof(float)*numVertexElements);
     }
 }
-void OsdCpuComputeVertexA(OsdVertexDescriptor const &vdesc,
-                          float *vertex, float * varying,
+void OsdCpuComputeVertexA(float *vertex, float * varying,
+                          OsdVertexBufferDescriptor const &vertexDesc,
+                          OsdVertexBufferDescriptor const &varyingDesc,
                           const int *V_ITa, const float *V_IT,
                           int vertexOffset, int tableOffset,
                           int start, int end, int pass);
@@ -291,8 +294,9 @@ void ComputeVertexBKernel(      float *vertex,
     }
 }
         
-void OsdCpuComputeVertexB(OsdVertexDescriptor const &vdesc,
-                          float *vertex, float * varying,
+void OsdCpuComputeVertexB(float *vertex, float * varying,
+                          OsdVertexBufferDescriptor const &vertexDesc,
+                          OsdVertexBufferDescriptor const &varyingDesc,
                           const int *V_ITa, const int *V_IT, const float *V_W,
                           int vertexOffset, int tableOffset,
                           int start, int end);
@@ -350,8 +354,9 @@ void ComputeLoopVertexBKernel(      float *vertex,
         memcpy(des, result1, sizeof(float)*numVertexElements);
     }
 }
-void OsdCpuComputeLoopVertexB(OsdVertexDescriptor const &vdesc,
-                              float *vertex, float * varying,
+void OsdCpuComputeLoopVertexB(float *vertex, float * varying,
+                              OsdVertexBufferDescriptor const &vertexDesc,
+                              OsdVertexBufferDescriptor const &varyingDesc,
                               const int *V_ITa, const int *V_IT,
                               const float *V_W,
                               int vertexOffset, int tableOffset,
@@ -385,26 +390,30 @@ void ComputeBilinearEdgeKernel(    float *vertex,
         memcpy(des, result, sizeof(float)*numVertexElements);                    
     }
 }
-void OsdCpuComputeBilinearEdge(OsdVertexDescriptor const &vdesc,
-                               float *vertex, float * varying,
+void OsdCpuComputeBilinearEdge(float *vertex, float * varying,
+                               OsdVertexBufferDescriptor const &vertexDesc,
+                               OsdVertexBufferDescriptor const &varyingDesc,
                                const int *E_IT,
                                int vertexOffset, int tableOffset,
                                int start, int end);
 
-void OsdCpuComputeBilinearVertex(OsdVertexDescriptor const &vdesc,
-                                 float *vertex, float * varying,
+void OsdCpuComputeBilinearVertex(float *vertex, float * varying,
+                                 OsdVertexBufferDescriptor const &vertexDesc,
+                                 OsdVertexBufferDescriptor const &varyingDesc,
                                  const int *V_ITa,
                                  int vertexOffset, int tableOffset,
                                  int start, int end);
 
-void OsdCpuEditVertexAdd(OsdVertexDescriptor const &vdesc, float *vertex,
+void OsdCpuEditVertexAdd(float *vertex,
+                         OsdVertexBufferDescriptor const &vertexDesc,
                          int primVarOffset, int primVarWidth,
                          int vertexOffset, int tableOffset,
                          int start, int end,
                          const unsigned int *editIndices,
                          const float *editValues);
 
-void OsdCpuEditVertexSet(OsdVertexDescriptor const &vdesc, float *vertex,
+void OsdCpuEditVertexSet(float *vertex,
+                         OsdVertexBufferDescriptor const &vertexDesc,
                          int primVarOffset, int primVarWidth,
                          int vertexOffset, int tableOffset,
                          int start, int end,

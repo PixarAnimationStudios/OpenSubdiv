@@ -26,6 +26,7 @@
 #include <vector>
 #include <cstring>
 #include <cstdio>
+#include <cassert>
 #include "hud.h"
 #include "font_image.h"
 
@@ -34,6 +35,7 @@
 #endif
 
 Hud::Hud() : _visible(true), _windowWidth(0), _windowHeight(0),
+             _framebufferWidth(0), _framebufferHeight(0),
              _requiresRebuildStatic(true)
 {
     _capturedSlider = -1;
@@ -44,10 +46,12 @@ Hud::~Hud()
 }
 
 void
-Hud::Init(int width, int height)
+Hud::Init(int width, int height, int framebufferWidth, int framebufferHeight)
 {
     _windowWidth = width;
     _windowHeight = height;
+    _framebufferWidth = framebufferWidth;
+    _framebufferHeight = framebufferHeight;
 }
 
 int
@@ -119,6 +123,19 @@ Hud::KeyDown(int key)
             return true;
         }
     }
+    for (std::vector<PullDown>::iterator it = _pulldowns.begin();
+         it != _pulldowns.end(); ++it) {
+        if (key==it->shortcut) {
+            // cycle through selections
+            ++it->selected;
+            if (it->selected>=(int)it->labels.size()) {
+                 it->selected=0;
+            }                
+            it->callback(it->values[it->selected]);
+            _requiresRebuildStatic = true;
+            return true;
+        }
+    }
 
     return false;
 }
@@ -165,11 +182,36 @@ Hud::MouseClick(int x, int y)
             return true;
         }
     }
+    for (std::vector<PullDown>::iterator it = _pulldowns.begin();
+         it != _pulldowns.end(); ++it) {
+        if (hitTest(*it, x, y)) {
+            if (not it->open) {
+                it->h = FONT_CHAR_HEIGHT;
+                it->h *= (int)it->labels.size();
+                it->open=true;
+            } else {
+                int label_width = (3+(int)it->label.size()) * FONT_CHAR_WIDTH;
+                int bx = 0, by = 0;
+                getWindowPos(*it, &bx, &by);
+                if (x > (bx+label_width)) {
+                    int sel = it->selected;
+                    it->SetSelected((y-by)/FONT_CHAR_HEIGHT);
+                    if (it->selected!=sel) {
+                        it->callback(it->values[it->selected]);
+                    }
+                } else {
+                    it->open=not it->open;
+                }
+            }
+            _requiresRebuildStatic = true;
+            return true;
+        }
+    }
     return false;
 }
 
 void
-Hud::MouseMotion(int x, int y)
+Hud::MouseMotion(int x, int /* y */)
 {
     if (_capturedSlider != -1) {
         std::vector<Slider>::iterator it = _sliders.begin() + _capturedSlider;
@@ -177,7 +219,7 @@ Hud::MouseMotion(int x, int y)
         int bx = it->x > 0 ? it->x : _windowWidth + it->x;
         it->SetValue(((x-bx-FONT_CHAR_WIDTH/2)/float(it->w))*(it->max - it->min) + it->min);
         it->callback(it->value, it->callbackData);
-        _requiresRebuildStatic = true;
+        _requiresRebuildStatic = true;        
     }
 }
 
@@ -278,10 +320,48 @@ Hud::AddSlider(const char *label, float min, float max, float value,
     _requiresRebuildStatic = true;
 }
 
+int 
+Hud::AddPullDown(const char *label, int x, int y, int width,
+                 PullDownCallback callback, int shortcut) 
+{
+
+    PullDown pd;
+    pd.label = label;
+    pd.x = x;
+    pd.y = y;
+    pd.w = width;
+    pd.h =  FONT_CHAR_HEIGHT;
+    pd.open = false;
+    pd.selected = 0;
+    pd.callback = callback;
+    pd.shortcut = shortcut;
+    
+    _pulldowns.push_back(pd);
+    _requiresRebuildStatic = true;
+    
+    return (int)_pulldowns.size()-1;
+}
+
+void 
+Hud::AddPullDownButton(int handle, const char *label, int value, bool checked)
+{
+    if (handle < (int)_pulldowns.size()) {
+        
+        PullDown & pulldown = _pulldowns[handle];
+
+        pulldown.labels.push_back(label);
+        pulldown.values.push_back(value);
+        if (checked) {
+            pulldown.selected = (int)pulldown.labels.size()-1;
+        }
+    }
+}
+    
+
 
 int
 Hud::drawChar(std::vector<float> &vboSource,
-              int x, int y, float r, float g, float b, char ch) const
+              int x, int y, float r, float g, float b, char ch)
 {
     const float w = 1.0f/FONT_TEXTURE_COLUMNS;
     const float h = 1.0f/FONT_TEXTURE_ROWS;
@@ -342,7 +422,7 @@ Hud::drawChar(std::vector<float> &vboSource,
 
 int
 Hud::drawString(std::vector<float> &vboSource,
-                int x, int y, float r, float g, float b, const char *c) const
+                int x, int y, float r, float g, float b, const char *c)
 {
     while (*c) {
         char ch = (*c) & 0x7f;
@@ -383,11 +463,13 @@ Hud::DrawString(int x, int y, float r, float g, float b, const char *fmt, ...)
 }
 
 void
-Hud::Rebuild(int width, int height)
+Hud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
 {
     _requiresRebuildStatic = false;
     _windowWidth = width;
     _windowHeight = height;
+    _framebufferWidth = framebufferWidth;
+    _framebufferHeight = framebufferHeight;
 
     _staticVboSource.clear();
 
@@ -398,7 +480,7 @@ Hud::Rebuild(int width, int height)
         getWindowPos(*it, &x, &y);
         drawString(_staticVboSource, x, y, 1, 1, 1, it->label.c_str());
     }
-
+    // draw radio buttons
     for (std::vector<RadioButton>::const_iterator it = _radioButtons.begin();
          it != _radioButtons.end(); ++it) {
         getWindowPos(*it, &x, &y);
@@ -410,6 +492,7 @@ Hud::Rebuild(int width, int height)
             drawString(_staticVboSource, x, y, .5f, .5f, .5f, it->label.c_str());
         }
     }
+    // draw checkboxes
     for (std::vector<CheckBox>::const_iterator it = _checkBoxes.begin();
          it != _checkBoxes.end(); ++it) {
         getWindowPos(*it, &x, &y);
@@ -421,6 +504,7 @@ Hud::Rebuild(int width, int height)
             drawString(_staticVboSource, x, y, .5f, .5f, .5f, it->label.c_str());
         }
     }
+    // draw sliders
     for (std::vector<Slider>::const_iterator it = _sliders.begin();
          it != _sliders.end(); ++it) {
         getWindowPos(*it, &x, &y);
@@ -443,6 +527,30 @@ Hud::Rebuild(int width, int height)
         int pos = (int)((it->value/float(it->max-it->min))*it->w);
         drawChar(_staticVboSource, sx+pos, y, 1, 1, 0, FONT_SLIDER_CURSOR);
     }
+    // draw pulldowns
+    for (std::vector<PullDown>::const_iterator it = _pulldowns.begin();
+         it != _pulldowns.end(); ++it) {
+        getWindowPos(*it, &x, &y);
+
+        x = drawString(_staticVboSource, x, y, .5f, .5f, .5f, it->label.c_str());
+        x += FONT_CHAR_WIDTH;
+        
+        if (it->open) {
+            x = drawChar(_staticVboSource, x, y, 1, 1, 0, FONT_ARROW_DOWN);
+            x += FONT_CHAR_WIDTH;
+            for (int i=0; i<(int)it->labels.size(); ++i, y+=FONT_CHAR_HEIGHT) {
+                if (i==it->selected) {
+                    drawString(_staticVboSource, x, y, 1, 1, 0, it->labels[i]);
+                } else {
+                    drawString(_staticVboSource, x, y, 0.5f, 0.5f, 0.5f, it->labels[i]);
+                }
+            }
+        } else {
+            x = drawChar(_staticVboSource, x, y, .5f, .5f, .5f, FONT_ARROW_RIGHT);
+            x += FONT_CHAR_WIDTH;
+            drawString(_staticVboSource, x, y, 1, 1, 0, it->labels[it->selected]);
+        }
+    }      
 
     drawString(_staticVboSource, _windowWidth-80, _windowHeight-48, .5, .5, .5,
                "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f");
@@ -459,7 +567,7 @@ Hud::Flush()
     }
 
     if (_requiresRebuildStatic)
-        Rebuild(_windowWidth, _windowHeight);
+        Rebuild(_windowWidth, _windowHeight, _framebufferWidth, _framebufferHeight);
 
     return true;
 }

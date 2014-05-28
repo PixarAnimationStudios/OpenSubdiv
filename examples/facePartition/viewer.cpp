@@ -53,6 +53,7 @@
 #include <osd/vertex.h>
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
+#include <osd/glMesh.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -62,76 +63,69 @@
 
 OpenSubdiv::OsdCpuComputeController *g_cpuComputeController = NULL;
 
-class PartitionedMesh {
+template <class VERTEX_BUFFER, class COMPUTE_CONTROLLER>
+class PartitionedMesh : public OpenSubdiv::OsdMesh<VERTEX_BUFFER, COMPUTE_CONTROLLER, OpenSubdiv::OsdGLDrawContext>
+{
 public:
-    PartitionedMesh(OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> const *farMesh,
-                    std::vector<int> const &partitionPerFace) {
+    typedef OpenSubdiv::OsdMesh<VERTEX_BUFFER, COMPUTE_CONTROLLER, OpenSubdiv::OsdGLDrawContext> Inherited;
+    typedef typename Inherited::VertexBuffer VertexBuffer;
+    typedef typename Inherited::ComputeController ComputeController;
+    typedef typename Inherited::ComputeContext ComputeContext;
+    typedef typename Inherited::DrawContext DrawContext;
 
-        int numVertices = farMesh->GetNumVertices();
-        _vertexBuffer = OpenSubdiv::OsdCpuGLVertexBuffer::Create(3, numVertices);
-        _computeContext = OpenSubdiv::OsdCpuComputeContext::Create(
-            farMesh->GetSubdivisionTables(), farMesh->GetVertexEditTables());
-        _kernelBatches = farMesh->GetKernelBatches();
+    static PartitionedMesh*
+    Create(ComputeController *computeController, OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> *farMesh,
+           std::vector<int> const &partitionPerFace) {
 
         OpenSubdiv::OsdUtilPatchPartitioner partitioner(farMesh->GetPatchTables(), partitionPerFace);
 
+        int numVertices = farMesh->GetNumVertices();
+        VertexBuffer* vertexBuffer = VertexBuffer::Create(3, numVertices);
+        ComputeContext* computeContext = ComputeContext::Create(
+            farMesh->GetSubdivisionTables(), farMesh->GetVertexEditTables());
+        DrawContext* drawContext = DrawContext::Create(&partitioner.GetPatchTables(), 3, false);
+
+        PartitionedMesh* mesh = new PartitionedMesh(computeController, farMesh, vertexBuffer,
+                                                    NULL, computeContext, drawContext);
+
         // convert farpatch to osdpatch
         int maxMaterial = partitioner.GetNumPartitions();
-        int maxValence = farMesh->GetPatchTables()->GetMaxValence();;
+        int maxValence = farMesh->GetPatchTables()->GetMaxValence();
 
-        _partitionedOsdPatchArrays.resize(maxMaterial);
+        mesh->_partitionedOsdPatchArrays.resize(maxMaterial);
         for (int i = 0; i < maxMaterial; ++i) {
             OpenSubdiv::OsdDrawContext::ConvertPatchArrays(partitioner.GetPatchArrays(i),
-                                                           _partitionedOsdPatchArrays[i],
+                                                           mesh->_partitionedOsdPatchArrays[i],
                                                            maxValence, 3);
         }
 
-        _drawContext = OpenSubdiv::OsdGLDrawContext::Create(&partitioner.GetPatchTables(), 3, false);
-        _drawContext->UpdateVertexTexture(_vertexBuffer);
+        return mesh;
     }
 
-    ~PartitionedMesh() {
-        delete _vertexBuffer;
-        delete _computeContext;
-        delete _drawContext;
+    int GetNumPartitions() const {
+        return (int)_partitionedOsdPatchArrays.size();
     }
 
-    void UpdateVertexBuffer(float const *vertexData, int numVerts) {
-        _vertexBuffer->UpdateData(vertexData, 0, numVerts);
+    OpenSubdiv::OsdDrawContext::PatchArrayVector const & GetPatchArrays(int partition) const {
+        return _partitionedOsdPatchArrays[partition];
     }
-
-    void Refine() {
-        g_cpuComputeController->Refine(_computeContext,
-                                       _kernelBatches,
-                                       _vertexBuffer);
-  }
-
-  OpenSubdiv::OsdGLDrawContext *GetDrawContext() const {
-    return _drawContext;
-  }
-  GLuint BindVertexBuffer() {
-    return _vertexBuffer->BindVBO();
-  }
-
-  int GetNumPartitions() const {
-    return (int)_partitionedOsdPatchArrays.size();
-  }
-
-  OpenSubdiv::OsdDrawContext::PatchArrayVector const & GetPatchArrays(int partition) const {
-    return _partitionedOsdPatchArrays[partition];
-  }
 
 private:
+    PartitionedMesh(ComputeController * computeController,
+                    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> * fmesh,
+                    VertexBuffer * vertexBuffer,
+                    VertexBuffer * varyingBuffer,
+                    ComputeContext * computeContext,
+                    DrawContext * drawContext) :
 
-  OpenSubdiv::OsdCpuComputeContext *_computeContext;
-  OpenSubdiv::OsdCpuGLVertexBuffer *_vertexBuffer;
-  OpenSubdiv::FarKernelBatchVector _kernelBatches;
+        Inherited(computeController, fmesh, vertexBuffer, varyingBuffer, computeContext, drawContext)
+    {
+    }
 
-  OpenSubdiv::OsdGLDrawContext *_drawContext;
-  std::vector<OpenSubdiv::OsdDrawContext::PatchArrayVector> _partitionedOsdPatchArrays;
+    std::vector<OpenSubdiv::OsdDrawContext::PatchArrayVector> _partitionedOsdPatchArrays;
 };
 
-PartitionedMesh *g_mesh = NULL;
+PartitionedMesh<OpenSubdiv::OsdCpuGLVertexBuffer, OpenSubdiv::OsdCpuComputeController> *g_mesh = NULL;
 
 #include <common/shape_utils.h>
 #include "../common/stopwatch.h"
@@ -221,7 +215,7 @@ struct Transform {
     float ModelViewProjectionMatrix[16];
 } g_transformData;
 
-GLuint g_primQuery = 0;
+GLuint g_queries[2] = {0, 0};
 GLuint g_vao = 0;
 
 static void
@@ -229,11 +223,9 @@ checkGLErrors(std::string const & where = "")
 {
     GLuint err;
     while ((err = glGetError()) != GL_NO_ERROR) {
-        /*
         std::cerr << "GL error: "
                   << (where.empty() ? "" : where + " ")
                   << err << "\n";
-        */
     }
 }
 
@@ -421,7 +413,7 @@ updateGeom() {
         pp += 3;
     }
 
-    g_mesh->UpdateVertexBuffer(&vertex[0], nverts);
+    g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
 
     Stopwatch s;
     s.Start();
@@ -486,11 +478,10 @@ createOsdMesh( const std::string &shape, int level, Scheme scheme=kCatmark ) {
 
     // create partitioned patcharray
     delete g_mesh;
-    g_mesh = new PartitionedMesh(farMesh, idsOnPtexFaces);
+    g_mesh = PartitionedMesh<OpenSubdiv::OsdCpuGLVertexBuffer, OpenSubdiv::OsdCpuComputeController>::Create(g_cpuComputeController, farMesh, idsOnPtexFaces);
 
-    // Hbr,Far mesh can be deleted
+    // Hbr mesh can be deleted
     delete hmesh;
-    delete farMesh;
 
     // compute model bounding
     float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};
@@ -910,7 +901,10 @@ display() {
     int numDrawCalls = 0;
 
     // primitive counting
-    glBeginQuery(GL_PRIMITIVES_GENERATED, g_primQuery);
+    glBeginQuery(GL_PRIMITIVES_GENERATED, g_queries[0]);
+#if defined(GL_VERSION_3_3)
+    glBeginQuery(GL_TIME_ELAPSED, g_queries[1]);
+#endif
 
     if (g_partitioning) {
         // draw for each partition
@@ -933,9 +927,9 @@ display() {
     }
 
     glEndQuery(GL_PRIMITIVES_GENERATED);
-
-    GLuint numPrimsGenerated = 0;
-    glGetQueryObjectuiv(g_primQuery, GL_QUERY_RESULT, &numPrimsGenerated);
+#if defined(GL_VERSION_3_3)
+    glEndQuery(GL_TIME_ELAPSED);
+#endif
 
     glBindVertexArray(0);
 
@@ -943,10 +937,14 @@ display() {
 
     s.Stop();
     float drawCpuTime = float(s.GetElapsed() * 1000.0f);
-    s.Start();
-    glFinish();
-    s.Stop();
-    float drawGpuTime = float(s.GetElapsed() * 1000.0f);
+
+    GLuint numPrimsGenerated = 0;
+    GLuint timeElapsed = 0;
+    glGetQueryObjectuiv(g_queries[0], GL_QUERY_RESULT, &numPrimsGenerated);
+#if defined(GL_VERSION_3_3)
+    glGetQueryObjectuiv(g_queries[1], GL_QUERY_RESULT, &timeElapsed);
+#endif
+    float drawGpuTime = timeElapsed / 1000.0f / 1000.0f;
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -966,7 +964,7 @@ display() {
 
     glFinish();
 
-    checkGLErrors("display leave");
+    //checkGLErrors("display leave");
 }
 
 //------------------------------------------------------------------------------
@@ -1000,7 +998,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state, int mods) {
+mouse(GLFWwindow *, int button, int state, int /* mods */) {
 #else
 mouse(int button, int state) {
 #endif
@@ -1017,7 +1015,7 @@ mouse(int button, int state) {
 static void
 uninitGL() {
 
-    glDeleteQueries(1, &g_primQuery);
+    glDeleteQueries(2, g_queries);
     glDeleteVertexArrays(1, &g_vao);
 
     if (g_mesh)
@@ -1060,7 +1058,7 @@ int windowClose() {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
+keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
@@ -1113,7 +1111,7 @@ callbackDisplayStyle(int b)
 }
 
 static void
-callbackAdaptive(bool checked, int a)
+callbackAdaptive(bool checked, int /* a */)
 {
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation()) {
         g_adaptive = checked;
@@ -1141,9 +1139,10 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddRadioButton(1, "Wire (W)",    g_displayStyle == kWire,  200, 10, callbackDisplayStyle, 0, 'w');
-    g_hud.AddRadioButton(1, "Shaded",      g_displayStyle == kShaded, 200, 30, callbackDisplayStyle, 1, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", g_displayStyle == kWireShaded, 200, 50, callbackDisplayStyle, 2, 'w');
+    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 10, 10, 250, callbackDisplayStyle, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
 
     g_hud.AddCheckBox("Partitioning", g_partitioning != 0,
                       350, 10, callbackCheckBox, kHUD_CB_PARTITIONING, 'p');
@@ -1158,9 +1157,10 @@ initHUD()
         g_hud.AddRadioButton(3, level, i==2, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
     }
 
+    int pulldown_handle = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        g_hud.AddRadioButton(4, g_defaultShapes[i].name.c_str(), i==g_currentShape, -220, 10+i*16, callbackModel, i, 'n');
-    }
+        g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
+    }   
 }
 
 //------------------------------------------------------------------------------
@@ -1173,7 +1173,7 @@ initGL()
     glCullFace(GL_BACK);
     glEnable(GL_CULL_FACE);
 
-    glGenQueries(1, &g_primQuery);
+    glGenQueries(2, g_queries);
 
     glGenVertexArrays(1, &g_vao);
 }

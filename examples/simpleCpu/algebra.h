@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <limits>
 #include <cmath>
 #include <vector>

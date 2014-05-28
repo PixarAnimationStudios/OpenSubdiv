@@ -29,16 +29,16 @@ extern "C" {
  *   KIND, either express or implied. See the Apache License for the specific
  *   language governing permissions and limitations under the Apache License.
  */
-    
 
 /* Types declaration. */
 struct OpenSubdiv_EvaluatorDescr;
+struct OpenSubdiv_TopologyDescr;
 
 /* Methods to create and delete evaluators. */
 struct OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(int numVertices);
 void openSubdiv_deleteEvaluatorDescr(struct OpenSubdiv_EvaluatorDescr *evaluator_descr);
 void openSubdiv_createEvaluatorDescrFace(struct OpenSubdiv_EvaluatorDescr *evaluator_descr, int num_vertices, int *indices);
-void openSubdiv_finishEvaluatorDescr(struct OpenSubdiv_EvaluatorDescr *evaluator_descr, int refinementLevel);
+int openSubdiv_finishEvaluatorDescr(struct OpenSubdiv_EvaluatorDescr *evaluator_descr, int refinementLevel);
 
 /* Set the positions of points on the coarse mesh and refine. This method    */
 /* will perform catmull/clark refinement on the CVs to be ready to call      */
@@ -46,7 +46,7 @@ void openSubdiv_finishEvaluatorDescr(struct OpenSubdiv_EvaluatorDescr *evaluator
 int openSubdiv_setEvaluatorCoarsePositions(
     struct OpenSubdiv_EvaluatorDescr *evaluator_descr,
     const float *positions, int numVertices);
-    
+
 /* Evaluate the subdivision limit surface at the given ptex face and u/v,    */
 /* return position and derivative information.  Derivative pointers can be   */
 /* NULL.  Note that face index here is the ptex index, or the index into     */
@@ -55,8 +55,28 @@ void openSubdiv_evaluateLimit(
     struct OpenSubdiv_EvaluatorDescr *evaluation_descr,
     int face_id, float u, float v,
     float P[3], float dPdu[3], float dPdv[3]);
-    
-    
+
+/* Get topology stored in the evaluator descriptor in order to be able */
+/* to check whether it still matches the mesh topology one is going to */
+/* evaluate.                                                           */
+void openSubdiv_getEvaluatorTopology(
+    struct OpenSubdiv_EvaluatorDescr *evaluation_descr,
+    int *numVertices,
+    int *refinementLevel,
+    int *numIndices,
+    int **indices,
+    int *numNVerts,
+    int **nverts);
+
+/* Get pointer to a topology descriptor object.                            */
+/* Useful for cases when some parts of the pipeline needs to know the      */
+/* topology object. For example this way it's possible to create a HbrMesh */
+/* having evaluator without duplicating topology object.                   */
+/* TODO(sergey): Consider moving the API call above to toplogy-capi.       */
+/* It'll make current usecase in Blender a bit more complicated, but would */
+/* separate entities in OpenSubdiv side much clearer.                      */
+struct OpenSubdiv_EvaluatorDescr *openSubdiv_getEvaluatorTopologyDescr(
+    struct OpenSubdiv_EvaluatorDescr *evaluator_descr);
 
 #ifdef __cplusplus
 }

@@ -29,14 +29,11 @@
 
 #include "../osd/mesh.h"
 #include "../osd/glDrawContext.h"
+#include "../osd/vertexDescriptor.h"
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-#if defined(__APPLE__)
-    #include <OpenCL/opencl.h>
-#else
-    #include <CL/opencl.h>
-#endif
-#include "../osd/clComputeController.h"
+#  include "../osd/clComputeController.h"
+#  include "../osd/opencl.h"
 #endif
 
 namespace OpenSubdiv {
@@ -77,7 +74,6 @@ public:
             FarMesh<OsdVertex> * fmesh,
             int numVertexElements,
             int numVaryingElements,
-            int level,
             OsdMeshBitset bits) :
 
             _farMesh(fmesh),
@@ -88,6 +84,23 @@ public:
             _drawContext(0)
     {
         _initialize(numVertexElements, numVaryingElements, bits);
+    }
+
+    OsdMesh(ComputeController * computeController,
+            FarMesh<OsdVertex> * fmesh,
+            VertexBuffer * vertexBuffer,
+            VertexBuffer * varyingBuffer,
+            ComputeContext * computeContext,
+            DrawContext * drawContext) :
+
+            _farMesh(fmesh),
+            _vertexBuffer(vertexBuffer),
+            _varyingBuffer(varyingBuffer),
+            _computeContext(computeContext),
+            _computeController(computeController),
+            _drawContext(drawContext)
+    {
+        _drawContext->UpdateVertexTexture(_vertexBuffer);
     }
 
     virtual ~OsdMesh() {
@@ -109,6 +122,14 @@ public:
     virtual void Refine() {
         _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer, _varyingBuffer);
     }
+    virtual void Refine(OsdVertexBufferDescriptor const *vertexDesc,
+                        OsdVertexBufferDescriptor const *varyingDesc,
+                        bool interleaved) {
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(),
+                                   _vertexBuffer, (interleaved ? _vertexBuffer : _varyingBuffer),
+                                    vertexDesc, varyingDesc);
+    }
+
     virtual void Synchronize() {
         _computeController->Synchronize();
     }
@@ -194,7 +215,6 @@ public:
             FarMesh<OsdVertex> * fmesh,
             int numVertexElements,
             int numVaryingElements,
-            int level,
             OsdMeshBitset bits,
             cl_context clContext,
             cl_command_queue clQueue) :
@@ -211,9 +231,31 @@ public:
         _initialize(numVertexElements, numVaryingElements, bits);
     }
 
+    OsdMesh(ComputeController * computeController,
+            FarMesh<OsdVertex> * fmesh,
+            VertexBuffer * vertexBuffer,
+            VertexBuffer * varyingBuffer,
+            ComputeContext * computeContext,
+            DrawContext * drawContext,
+            cl_context clContext,
+            cl_command_queue clQueue) :
+
+            _farMesh(fmesh),
+            _vertexBuffer(vertexBuffer),
+            _varyingBuffer(varyingBuffer),
+            _computeContext(computeContext),
+            _computeController(computeController),
+            _drawContext(drawContext),
+            _clContext(clContext),
+            _clQueue(clQueue)
+    {
+        _drawContext->UpdateVertexTexture(_vertexBuffer);
+    }
+
     virtual ~OsdMesh() {
         delete _farMesh;
         delete _vertexBuffer;
+        delete _varyingBuffer;
         delete _computeContext;
         delete _drawContext;
     }
@@ -228,6 +270,14 @@ public:
     }
     virtual void Refine() {
         _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer, _varyingBuffer);
+    }
+    virtual void Refine(OsdVertexBufferDescriptor const *vertexDesc,
+                        OsdVertexBufferDescriptor const *varyingDesc,
+                        bool interleaved) {
+
+        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(),
+                                   _vertexBuffer, (interleaved ? _vertexBuffer : _varyingBuffer),
+                                   vertexDesc, varyingDesc);
     }
     virtual void Synchronize() {
         _computeController->Synchronize();

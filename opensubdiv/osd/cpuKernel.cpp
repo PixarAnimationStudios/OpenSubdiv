@@ -25,54 +25,101 @@
 #include "../osd/cpuKernel.h"
 #include "../osd/vertexDescriptor.h"
 
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+static inline void
+clear(float *dst, OsdVertexBufferDescriptor const &desc) {
+
+    memset(dst, 0, desc.length*sizeof(float));
+}
+
+static inline void
+addWithWeight(float *dst, const float *srcOrigin, int srcIndex, float weight,
+              OsdVertexBufferDescriptor const &desc) {
+
+    if (srcOrigin && dst) {
+        const float *src = srcOrigin + srcIndex * desc.stride;
+        for (int k = 0; k < desc.length; ++k) {
+            dst[k] += src[k] * weight;
+        }
+    }
+}
+
+static inline void
+copy(float *dstOrigin, const float *src, int dstIndex,
+     OsdVertexBufferDescriptor const &desc) {
+
+    if (dstOrigin && src) {
+        float *dst = dstOrigin + dstIndex * desc.stride;
+        memcpy(dst, src, desc.length*sizeof(float));
+    }
+}
+
 void OsdCpuComputeFace(
-    OsdVertexDescriptor const &vdesc, float * vertex, float * varying,
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
     const int *F_IT, const int *F_ITa, int vertexOffset, int tableOffset,
     int start, int end) {
-    if(vdesc.numVertexElements == 4 && varying == NULL) {
+    if(vertexDesc == OsdVertexBufferDescriptor(0, 4, 4) && varying == NULL) {
         ComputeFaceKernel<4>
             (vertex, F_IT, F_ITa, vertexOffset, tableOffset, start,  end);
-    } else if(vdesc.numVertexElements == 8 && varying == NULL) {
+    } else if(vertexDesc == OsdVertexBufferDescriptor(0, 8, 8) && varying == NULL) {
         ComputeFaceKernel<8>
             (vertex, F_IT, F_ITa, vertexOffset, tableOffset, start,  end);
     }
     else {
+        float *vertexResults = (float*)alloca(vertexDesc.length * sizeof(float));
+        float *varyingResults = (float*)alloca(varyingDesc.length * sizeof(float));
+
         for (int i = start + tableOffset; i < end + tableOffset; i++) {
             int h = F_ITa[2*i];
             int n = F_ITa[2*i+1];
 
             float weight = 1.0f/n;
-
-            // XXX: should use local vertex struct variable instead of
-            // accumulating directly into global memory.
             int dstIndex = i + vertexOffset - tableOffset;
-            vdesc.Clear(vertex, varying, dstIndex);
 
+            // clear
+            clear(vertexResults, vertexDesc);
+            clear(varyingResults, varyingDesc);
+
+            // accum
             for (int j = 0; j < n; ++j) {
                 int index = F_IT[h+j];
-                vdesc.AddWithWeight(vertex, dstIndex, index, weight);
-                vdesc.AddVaryingWithWeight(varying, dstIndex, index, weight);
+                addWithWeight(vertexResults, vertex, index, weight, vertexDesc);
+                addWithWeight(varyingResults, varying, index, weight, varyingDesc);
             }
-        }   
+
+            // write results
+            copy(vertex, vertexResults, dstIndex, vertexDesc);
+            copy(varying, varyingResults, dstIndex, varyingDesc);
+        }
     }
 }
 
 void OsdCpuComputeEdge(
-    OsdVertexDescriptor const &vdesc, float *vertex, float *varying,
+    float *vertex, float *varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
     const int *E_IT, const float *E_W, int vertexOffset, int tableOffset,
     int start, int end) {
-    if(vdesc.numVertexElements == 4 && varying == NULL) {
+    if(vertexDesc == OsdVertexBufferDescriptor(0, 4, 4) && varying == NULL) {
         ComputeEdgeKernel<4>(vertex, E_IT, E_W, vertexOffset, tableOffset,
                              start, end);
     }
-    else if(vdesc.numVertexElements == 8 && varying == NULL) {
+    else if(vertexDesc == OsdVertexBufferDescriptor(0, 8, 8) && varying == NULL) {
         ComputeEdgeKernel<8>(vertex, E_IT, E_W, vertexOffset, tableOffset,
-                             start, end);    
+                             start, end);
     }
     else {
+        float *vertexResults = (float*)alloca(vertexDesc.length * sizeof(float));
+        float *varyingResults = (float*)alloca(varyingDesc.length * sizeof(float));
+
         for (int i = start + tableOffset; i < end + tableOffset; i++) {
             int eidx0 = E_IT[4*i+0];
             int eidx1 = E_IT[4*i+1];
@@ -82,37 +129,46 @@ void OsdCpuComputeEdge(
             float vertWeight = E_W[i*2+0];
 
             int dstIndex = i + vertexOffset - tableOffset;
-            vdesc.Clear(vertex, varying, dstIndex);
+            clear(vertexResults, vertexDesc);
+            clear(varyingResults, varyingDesc);
 
-            vdesc.AddWithWeight(vertex, dstIndex, eidx0, vertWeight);
-            vdesc.AddWithWeight(vertex, dstIndex, eidx1, vertWeight);
+            addWithWeight(vertexResults, vertex, eidx0, vertWeight, vertexDesc);
+            addWithWeight(vertexResults, vertex, eidx1, vertWeight, vertexDesc);
 
             if (eidx2 != -1) {
                 float faceWeight = E_W[i*2+1];
 
-                vdesc.AddWithWeight(vertex, dstIndex, eidx2, faceWeight);
-                vdesc.AddWithWeight(vertex, dstIndex, eidx3, faceWeight);
+                addWithWeight(vertexResults, vertex, eidx2, faceWeight, vertexDesc);
+                addWithWeight(vertexResults, vertex, eidx3, faceWeight, vertexDesc);
             }
 
-            vdesc.AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
-            vdesc.AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
-        }    
+            addWithWeight(varyingResults, varying, eidx0, 0.5f, varyingDesc);
+            addWithWeight(varyingResults, varying, eidx1, 0.5f, varyingDesc);
+
+            copy(vertex, vertexResults, dstIndex, vertexDesc);
+            copy(varying, varyingResults, dstIndex, varyingDesc);
+        }
     }
 }
 
 void OsdCpuComputeVertexA(
-    OsdVertexDescriptor const &vdesc, float *vertex, float *varying,
+    float *vertex, float *varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
     const int *V_ITa, const float *V_W, int vertexOffset, int tableOffset,
     int start, int end, int pass) {
-    if(vdesc.numVertexElements == 4 && varying == NULL) {
+    if(vertexDesc == OsdVertexBufferDescriptor(0, 4, 4) && varying == NULL) {
         ComputeVertexAKernel<4>(vertex, V_ITa, V_W, vertexOffset, tableOffset,
                              start, end, pass);
     }
-    else if (vdesc.numVertexElements == 8 && varying == NULL) {
+    else if(vertexDesc == OsdVertexBufferDescriptor(0, 8, 8) && varying == NULL) {
         ComputeVertexAKernel<8>(vertex, V_ITa, V_W, vertexOffset, tableOffset,
                              start, end, pass);
-    }    
+    }
     else {
+        float *vertexResults = (float*)alloca(vertexDesc.length * sizeof(float));
+        float *varyingResults = (float*)alloca(varyingDesc.length * sizeof(float));
+
         for (int i = start + tableOffset; i < end + tableOffset; i++) {
             int n     = V_ITa[5*i+1];
             int p     = V_ITa[5*i+2];
@@ -129,36 +185,48 @@ void OsdCpuComputeVertexA(
 
             int dstIndex = i + vertexOffset - tableOffset;
 
-            if (not pass)
-                vdesc.Clear(vertex, varying, dstIndex);
-
-            if (eidx0 == -1 || (pass == 0 && (n == -1))) {
-                vdesc.AddWithWeight(vertex, dstIndex, p, weight);
-            } else {
-                vdesc.AddWithWeight(vertex, dstIndex, p, weight * 0.75f);
-                vdesc.AddWithWeight(vertex, dstIndex, eidx0, weight * 0.125f);
-                vdesc.AddWithWeight(vertex, dstIndex, eidx1, weight * 0.125f);
+            clear(vertexResults, vertexDesc);
+            clear(varyingResults, varyingDesc);
+            if (pass) {
+                // copy previous results
+                addWithWeight(vertexResults, vertex, dstIndex, 1.0f, vertexDesc);
             }
 
-            if (not pass)
-                vdesc.AddVaryingWithWeight(varying, dstIndex, p, 1.0f);    
-        }        
+            if (eidx0 == -1 || (pass == 0 && (n == -1))) {
+                addWithWeight(vertexResults, vertex, p, weight, vertexDesc);
+            } else {
+                addWithWeight(vertexResults, vertex, p, weight * 0.75f, vertexDesc);
+                addWithWeight(vertexResults, vertex, eidx0, weight * 0.125f, vertexDesc);
+                addWithWeight(vertexResults, vertex, eidx1, weight * 0.125f, vertexDesc);
+            }
+
+            copy(vertex, vertexResults, dstIndex, vertexDesc);
+            if (not pass) {
+                addWithWeight(varyingResults, varying, p, 1.0f, varyingDesc);
+                copy(varying, varyingResults, dstIndex, varyingDesc);
+            }
+        }
     }
 }
 
 void OsdCpuComputeVertexB(
-    OsdVertexDescriptor const &vdesc, float *vertex, float *varying,
+    float *vertex, float *varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
     const int *V_ITa, const int *V_IT, const float *V_W,
     int vertexOffset, int tableOffset, int start, int end) {
-    if(vdesc.numVertexElements == 4 && varying == NULL) {
+    if(vertexDesc == OsdVertexBufferDescriptor(0, 4, 4) && varying == NULL) {
         ComputeVertexBKernel<4>(vertex, V_ITa, V_IT, V_W,
             vertexOffset, tableOffset, start, end);
     }
-    else if(vdesc.numVertexElements == 8 && varying == NULL) {
+    else if(vertexDesc == OsdVertexBufferDescriptor(0, 8, 8) && varying == NULL) {
         ComputeVertexBKernel<8>(vertex, V_ITa, V_IT, V_W,
             vertexOffset, tableOffset, start, end);
-    }    
+    }
     else {
+        float *vertexResults = (float*)alloca(vertexDesc.length * sizeof(float));
+        float *varyingResults = (float*)alloca(varyingDesc.length * sizeof(float));
+
         for (int i = start + tableOffset; i < end + tableOffset; i++) {
             int h = V_ITa[5*i];
             int n = V_ITa[5*i+1];
@@ -169,32 +237,41 @@ void OsdCpuComputeVertexB(
             float wv = (n-2.0f) * n * wp;
 
             int dstIndex = i + vertexOffset - tableOffset;
-            vdesc.Clear(vertex, varying, dstIndex);
+            clear(vertexResults, vertexDesc);
+            clear(varyingResults, varyingDesc);
 
-            vdesc.AddWithWeight(vertex, dstIndex, p, weight * wv);
+            addWithWeight(vertexResults, vertex, p, weight * wv, vertexDesc);
 
             for (int j = 0; j < n; ++j) {
-                vdesc.AddWithWeight(vertex, dstIndex, V_IT[h+j*2], weight * wp);
-                vdesc.AddWithWeight(vertex, dstIndex, V_IT[h+j*2+1], weight * wp);
+                addWithWeight(vertexResults, vertex, V_IT[h+j*2], weight * wp, vertexDesc);
+                addWithWeight(vertexResults, vertex, V_IT[h+j*2+1], weight * wp, vertexDesc);
             }
-            vdesc.AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
+            addWithWeight(varyingResults, varying, p, 1.0f, varyingDesc);
+
+            copy(vertex, vertexResults, dstIndex, vertexDesc);
+            copy(varying, varyingResults, dstIndex, varyingDesc);
         }
-    }    
+    }
 }
 
 void OsdCpuComputeLoopVertexB(
-    OsdVertexDescriptor const &vdesc, float *vertex, float *varying,
+    float *vertex, float *varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
     const int *V_ITa, const int *V_IT, const float *V_W,
     int vertexOffset, int tableOffset, int start, int end) {
-    if(vdesc.numVertexElements == 4 && varying == NULL) {
+    if(vertexDesc == OsdVertexBufferDescriptor(0, 4, 4) && varying == NULL) {
         ComputeLoopVertexBKernel<4>(vertex, V_ITa, V_IT, V_W, vertexOffset, 
                               tableOffset, start, end);
     }
-    else if(vdesc.numVertexElements == 8 && varying == NULL) {
+    else if(vertexDesc == OsdVertexBufferDescriptor(0, 8, 8) && varying == NULL) {
         ComputeLoopVertexBKernel<8>(vertex, V_ITa, V_IT, V_W, vertexOffset, 
                               tableOffset, start, end);    
     }    
     else {
+        float *vertexResults = (float*)alloca(vertexDesc.length * sizeof(float));
+        float *varyingResults = (float*)alloca(varyingDesc.length * sizeof(float));
+
         for (int i = start + tableOffset; i < end + tableOffset; i++) {
             int h = V_ITa[5*i];
             int n = V_ITa[5*i+1];
@@ -207,94 +284,120 @@ void OsdCpuComputeLoopVertexB(
             beta = (0.625f - beta) * wp;
 
             int dstIndex = i + vertexOffset - tableOffset;
-            vdesc.Clear(vertex, varying, dstIndex);
+            clear(vertexResults, vertexDesc);
+            clear(varyingResults, varyingDesc);
 
-            vdesc.AddWithWeight(vertex, dstIndex, p, weight * (1.0f - (beta * n)));
+            addWithWeight(vertexResults, vertex, p, weight * (1.0f - (beta * n)), vertexDesc);
 
             for (int j = 0; j < n; ++j)
-                vdesc.AddWithWeight(vertex, dstIndex, V_IT[h+j], weight * beta);
+                addWithWeight(vertexResults, vertex, V_IT[h+j], weight * beta, vertexDesc);
 
-            vdesc.AddVaryingWithWeight(varying, dstIndex, p, 1.0f);
-        } 
-    }    
+            addWithWeight(varyingResults, varying, p, 1.0f, varyingDesc);
+
+            copy(vertex, vertexResults, dstIndex, vertexDesc);
+            copy(varying, varyingResults, dstIndex, varyingDesc);
+        }
+    }
 }
 
 void OsdCpuComputeBilinearEdge(
-    OsdVertexDescriptor const &vdesc, float *vertex, float *varying,
+    float *vertex, float *varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
     const int *E_IT, int vertexOffset, int tableOffset, int start, int end) {
-    if(vdesc.numVertexElements == 4 && varying == NULL) {
+    if(vertexDesc == OsdVertexBufferDescriptor(0, 4, 4) && varying == NULL) {
         ComputeBilinearEdgeKernel<4>(vertex, E_IT, vertexOffset, tableOffset, 
                                      start, end);
     }
-    else if(vdesc.numVertexElements == 8 && varying == NULL) {
+    else if(vertexDesc == OsdVertexBufferDescriptor(0, 8, 8) && varying == NULL) {
         ComputeBilinearEdgeKernel<8>(vertex, E_IT, vertexOffset, tableOffset, 
                                      start, end);      
     }
     else {
+        float *vertexResults = (float*)alloca(vertexDesc.length * sizeof(float));
+        float *varyingResults = (float*)alloca(varyingDesc.length * sizeof(float));
+
         for (int i = start + tableOffset; i < end + tableOffset; i++) {
             int eidx0 = E_IT[2*i+0];
             int eidx1 = E_IT[2*i+1];
 
             int dstIndex = i + vertexOffset - tableOffset;
-            vdesc.Clear(vertex, varying, dstIndex);
+            clear(vertexResults, vertexDesc);
+            clear(varyingResults, varyingDesc);
 
-            vdesc.AddWithWeight(vertex, dstIndex, eidx0, 0.5f);
-            vdesc.AddWithWeight(vertex, dstIndex, eidx1, 0.5f);
+            addWithWeight(vertexResults, vertex, eidx0, 0.5f, vertexDesc);
+            addWithWeight(vertexResults, vertex, eidx1, 0.5f, vertexDesc);
 
-            vdesc.AddVaryingWithWeight(varying, dstIndex, eidx0, 0.5f);
-            vdesc.AddVaryingWithWeight(varying, dstIndex, eidx1, 0.5f);
-        }    
+            addWithWeight(varyingResults, varying, eidx0, 0.5f, varyingDesc);
+            addWithWeight(varyingResults, varying, eidx1, 0.5f, varyingDesc);
+
+            copy(vertex, vertexResults, dstIndex, vertexDesc);
+            copy(varying, varyingResults, dstIndex, varyingDesc);
+        }
     }
 }
 
 void OsdCpuComputeBilinearVertex(
-    OsdVertexDescriptor const &vdesc, float *vertex, float *varying,
+    float *vertex, float *varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
     const int *V_ITa, int vertexOffset, int tableOffset, int start, int end) {
-    int numVertexElements  = vdesc.numVertexElements;
-    int numVaryingElements = vdesc.numVaryingElements;
-    float *src, *des;          
+
+    float *src, *des;
     for (int i = start + tableOffset; i < end + tableOffset; i++) {
         int p = V_ITa[i];
 
-        int dstIndex = i + vertexOffset - tableOffset;            
-        src = vertex + p        * numVertexElements;
-        des = vertex + dstIndex * numVertexElements;            
-        memcpy(des, src, sizeof(float)*numVertexElements);
-        if(varying) {
-            src = varying + p        * numVaryingElements;
-            des = varying + dstIndex * numVaryingElements;            
-            memcpy(des, src, sizeof(float)*numVaryingElements);
+        int dstIndex = i + vertexOffset - tableOffset;
+        if (vertex) {
+            src = vertex + p        * vertexDesc.stride;
+            des = vertex + dstIndex * vertexDesc.stride;
+            memcpy(des, src, sizeof(float)*vertexDesc.length);
+        }
+        if (varying) {
+            src = varying + p        * varyingDesc.stride;
+            des = varying + dstIndex * varyingDesc.stride;
+            memcpy(des, src, sizeof(float)*varyingDesc.length);
         }
     }
 }
 
 void OsdCpuEditVertexAdd(
-    OsdVertexDescriptor const &vdesc, float *vertex,
+    float *vertex,
+    OsdVertexBufferDescriptor const &vertexDesc,
     int primVarOffset, int primVarWidth, int vertexOffset, int tableOffset,
     int start, int end,
     const unsigned int *editIndices, const float *editValues) {
 
     for (int i = start+tableOffset; i < end+tableOffset; i++) {
-        vdesc.ApplyVertexEditAdd(vertex,
-                                 primVarOffset,
-                                 primVarWidth,
-                                 editIndices[i] + vertexOffset,
-                                 &editValues[i*primVarWidth]);
+
+        if (vertex) {
+            int editIndex = editIndices[i] + vertexOffset;
+            float *dst = vertex + editIndex * vertexDesc.stride + primVarOffset;
+
+            for (int j = 0; j < primVarWidth; ++j) {
+                dst[j] += editValues[j];
+            }
+        }
     }
 }
 
 void OsdCpuEditVertexSet(
-    OsdVertexDescriptor const &vdesc, float *vertex,
+    float *vertex,
+    OsdVertexBufferDescriptor const &vertexDesc,
     int primVarOffset, int primVarWidth, int vertexOffset, int tableOffset,
     int start, int end,
     const unsigned int *editIndices, const float *editValues) {
 
     for (int i = start+tableOffset; i < end+tableOffset; i++) {
-        vdesc.ApplyVertexEditSet(vertex,
-                                 primVarOffset,
-                                 primVarWidth,
-                                 editIndices[i] + vertexOffset,
-                                 &editValues[i*primVarWidth]);
+
+        if (vertex) {
+            int editIndex = editIndices[i] + vertexOffset;
+            float *dst = vertex + editIndex * vertexDesc.stride + primVarOffset;
+
+            for (int j = 0; j < primVarWidth; ++j) {
+                dst[j] = editValues[j];
+            }
+        }
     }
 }
 

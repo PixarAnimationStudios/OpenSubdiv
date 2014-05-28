@@ -41,6 +41,8 @@ layout(size1x32) uniform imageBuffer _vertexBufferImage;
 uniform int vertexOffset = 0;   // vertex index offset for the batch
 uniform int tableOffset = 0;    // offset of subdivision table
 uniform int indexStart = 0;     // start index relative to tableOffset
+uniform int vertexBaseOffset = 0;  // base vbo offset of the vertex buffer
+uniform int varyingBaseOffset = 0; // base vbo offset of the varying buffer
 uniform bool vertexPass;
 
 /*
@@ -50,6 +52,12 @@ uniform bool vertexPass;
        ^             ^
   vertexOffset       |
                  indexStart
+
+
+NUM_VERTEX_ELEMENTS = 3
+NUM_VARYING_ELEMENTS = 4
+VERTEX_STRIDE = VARYING_STRIDE = 7
+
 */
 
 //--------------------------------------------------------------------------------
@@ -100,13 +108,15 @@ Vertex readVertex(int index)
 
     // unpacking
 #if NUM_VERTEX_ELEMENTS > 0
+    int vertexIndex = index * VERTEX_STRIDE;
     for(int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
-        v.vertexData[i] = texelFetch(vertexData, index*NUM_VERTEX_ELEMENTS+i).x;
+        v.vertexData[i] = texelFetch(vertexData, vertexIndex+i+vertexBaseOffset).x;
     }
 #endif
 #if NUM_VARYING_ELEMENTS > 0
+    int varyingIndex = index * VARYING_STRIDE;
     for(int i = 0; i < NUM_VARYING_ELEMENTS; i++){
-        v.varyingData[i] = texelFetch(varyingData, index*NUM_VARYING_ELEMENTS+i).x;
+        v.varyingData[i] = texelFetch(varyingData, varyingIndex+i+varyingBaseOffset).x;
     }
 #endif
     return v;
@@ -130,7 +140,7 @@ void writeVertex(Vertex v)
 void writeVertexByImageStore(Vertex v, int index)
 {
 #if NUM_VERTEX_ELEMENTS > 0
-    int p = index * NUM_VERTEX_ELEMENTS;
+    int p = index * VERTEX_STRIDE + vertexBaseOffset;
     for(int i = 0; i < NUM_VERTEX_ELEMENTS; i++) {
         imageStore(_vertexBufferImage, p+i, vec4(v.vertexData[i], 0, 0, 0));
     }

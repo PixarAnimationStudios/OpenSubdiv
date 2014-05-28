@@ -1266,7 +1266,9 @@ initHUD()
     g_hud->AddRadioButton(0, "CUDA",   false, 10, 50, callbackKernel, kCUDA, 'K');
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    g_hud->AddRadioButton(0, "OPENCL", false, 10, 70, callbackKernel, kCL, 'K');
+    if (HAS_CL_VERSION_1_1()) {
+        g_hud->AddRadioButton(0, "OPENCL", false, 10, 70, callbackKernel, kCL, 'K');
+    }
 #endif
     g_hud->AddRadioButton(0, "DirectCompute", false, 10, 90, callbackKernel, kDirectCompute, 'K');
 

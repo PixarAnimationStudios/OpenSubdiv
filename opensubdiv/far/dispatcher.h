@@ -61,14 +61,14 @@ public:
     /// @param batch       a batch of kernel that need to be processed
     ///
     template <class CONTROLLER, class CONTEXT>
-    static bool ApplyKernel(CONTROLLER const *controller, CONTEXT *context, FarKernelBatch const &batch);
+    static bool ApplyKernel(CONTROLLER *controller, CONTEXT *context, FarKernelBatch const &batch);
 
     /// \brief Launches the processing of a vector of kernel batches
     /// this is a convenient API for controllers which don't have any user defined kernels.
     ///
-    /// @param controller  refinement controller implementation
+    /// @param controller  refinement controller implementation (vertex array)
     ///
-    /// @param context     refinement context implementation (vertex array and subdivision tables)
+    /// @param context     refinement context implementation (subdivision tables)
     ///                    passed to the controller.
     ///
     /// @param batches     batches of kernels that need to be processed
@@ -76,12 +76,12 @@ public:
     /// @param maxlevel    process vertex batches up to this level
     ///
     template <class CONTROLLER, class CONTEXT>
-    static void Refine(CONTROLLER const *controller, CONTEXT *context, FarKernelBatchVector const & batches, int maxlevel);
+    static void Refine(CONTROLLER *controller, CONTEXT *context, FarKernelBatchVector const & batches, int maxlevel);
 
 };
 
 template <class CONTROLLER, class CONTEXT> bool
-FarDispatcher::ApplyKernel(CONTROLLER const *controller, CONTEXT *context, FarKernelBatch const &batch) {
+FarDispatcher::ApplyKernel(CONTROLLER *controller, CONTEXT *context, FarKernelBatch const &batch) {
 
     switch(batch.GetKernelType()) {
         case FarKernelBatch::CATMARK_FACE_VERTEX:
@@ -135,7 +135,7 @@ FarDispatcher::ApplyKernel(CONTROLLER const *controller, CONTEXT *context, FarKe
 }
 
 template <class CONTROLLER, class CONTEXT> void
-FarDispatcher::Refine(CONTROLLER const *controller, CONTEXT *context, FarKernelBatchVector const & batches, int maxlevel) {
+FarDispatcher::Refine(CONTROLLER *controller, CONTEXT *context, FarKernelBatchVector const & batches, int maxlevel) {
 
     for (int i = 0; i < (int)batches.size(); ++i) {
         const FarKernelBatch &batch = batches[i];

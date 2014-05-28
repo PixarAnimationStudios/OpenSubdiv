@@ -123,11 +123,11 @@ FarVertexEditTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, Fa
         // XXXX manuelk - if the number of edits becomes large, we may need to switch this
         // to a map.
         int batchIndex = -1;
-        for(int i = 0; i<(int)result->_batches.size(); ++i) {
-            if(result->_batches[i]._primvarIndex == vedit->GetIndex() &&
-               result->_batches[i]._primvarWidth == vedit->GetWidth() &&
-               result->_batches[i]._op == op) {
-                batchIndex = i;
+        for(int j = 0; j<(int)result->_batches.size(); ++j) {
+            if(result->_batches[j]._primvarIndex == vedit->GetIndex() &&
+               result->_batches[j]._primvarWidth == vedit->GetWidth() &&
+               result->_batches[j]._op == op) {
+                batchIndex = j;
                 break;
             }
         }
@@ -190,8 +190,8 @@ FarVertexEditTablesFactory<T,U>::Create( FarMeshFactory<T,U> const * factory, Fa
 
         bool negate = (vedit->GetOperation() == HbrHierarchicalEdit<T>::Subtract);
         
-        for(int i=0; i<batch.GetPrimvarWidth(); ++i)
-            batch._edits[batchCount * batch.GetPrimvarWidth() + i] = negate ? -edit[i] : edit[i];
+        for(int j=0; j<batch.GetPrimvarWidth(); ++j)
+            batch._edits[batchCount * batch.GetPrimvarWidth() + j] = negate ? -edit[j] : edit[j];
 
         batchCount++;
     }

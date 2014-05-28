@@ -75,7 +75,7 @@ public:
         PATTERN1,
         PATTERN2,
         PATTERN3,
-        PATTERN4,
+        PATTERN4
     };
 
     /// \brief Describes the type of a patch
@@ -123,12 +123,12 @@ public:
 
         /// \brief Returns the rotation of the patch (4 rotations)
         unsigned char GetRotation() const {
-            return _rotation;
+            return (unsigned char)_rotation;
         }
 
         /// \brief Returns the number of control vertices expected for a patch of the
         /// type described
-        static short GetNumControlVertices( Type t );
+        static inline short GetNumControlVertices( Type t );
 
         /// \brief Returns the number of control vertices expected for a patch of the
         /// type described
@@ -137,13 +137,13 @@ public:
         }
 
         /// Returns a vector of all the legal patch descriptors
-        static std::vector<Descriptor> const & GetAllValidDescriptors();
+        static inline std::vector<Descriptor> const & GetAllValidDescriptors();
 
         /// \brief Allows ordering of patches by type
-        bool operator < ( Descriptor const other ) const;
+        inline bool operator < ( Descriptor const other ) const;
 
         /// \brief True if the descriptors are identical
-        bool operator == ( Descriptor const other ) const;
+        inline bool operator == ( Descriptor const other ) const;
 
         /// \brief Descriptor Iterator
         /// Iterates through the patches in the following preset order
@@ -178,7 +178,7 @@ public:
 
         enum PrimType {
             ANY,
-            FEATURE_ADAPTIVE_CATMARK,
+            FEATURE_ADAPTIVE_CATMARK
         };
 
         /// \brief Returns a patch type iterator
@@ -235,19 +235,19 @@ public:
 
             /// \brief Constructor
             ///
-            /// @param vertIndex        absolute index to the first control vertex
-            ///                         of the first patch in the PTable
+            /// @param ivertIndex        absolute index to the first control vertex
+            ///                          of the first patch in the PTable
             ///
-            /// @param patchIndex       absolute index of the first patch in the
-            ///                         array
+            /// @param ipatchIndex       absolute index of the first patch in the
+            ///                          array
             ///
-            /// @param npatches         number of patches in the array
+            /// @param inpatches         number of patches in the array
             ///
-            /// @param quadOffsetIndex  absolute index of the first quad offset
-            ///                         entry
+            /// @param iquadOffsetIndex  absolute index of the first quad offset
+            ///                          entry
             ///
-            ArrayRange( unsigned int vertIndex, unsigned int patchIndex, unsigned int npatches, unsigned int quadOffsetIndex ) :
-                vertIndex(vertIndex), patchIndex(patchIndex), npatches(npatches), quadOffsetIndex(quadOffsetIndex) { }
+            ArrayRange( unsigned int ivertIndex, unsigned int ipatchIndex, unsigned int inpatches, unsigned int iquadOffsetIndex ) :
+                vertIndex(ivertIndex), patchIndex(ipatchIndex), npatches(inpatches), quadOffsetIndex(iquadOffsetIndex) { }
 
             unsigned int vertIndex,       // absolute index to the first control vertex of the first patch in the PTable
                          patchIndex,      // absolute index of the first patch in the array
@@ -376,16 +376,16 @@ public:
     PatchParamTable const & GetPatchParamTable() const { return _paramTable; }
 
     /// \brief Ringsize of Regular Patches in table.
-    static int GetRegularPatchRingsize() { return 16; }
+    static short GetRegularPatchRingsize() { return 16; }
 
     /// \brief Ringsize of Boundary Patches in table.
-    static int GetBoundaryPatchRingsize() { return 12; }
+    static short GetBoundaryPatchRingsize() { return 12; }
 
     /// \brief Ringsize of Boundary Patches in table.
-    static int GetCornerPatchRingsize() { return 9; }
+    static short GetCornerPatchRingsize() { return 9; }
 
     /// \brief Ringsize of Gregory (and Gregory Boundary) Patches in table.
-    static int GetGregoryPatchRingsize() { return 4; }
+    static short GetGregoryPatchRingsize() { return 4; }
 
     /// \brief Returns the total number of patches stored in the tables
     int GetNumPatches() const;
@@ -446,7 +446,7 @@ public:
 
         FVarData() : _fvarWidth(0) { }
         
-        FVarData( std::vector<float> const * data, int fvarWidth );
+        inline FVarData( std::vector<float> const * data, int fvarWidth );
 
         std::vector<float> _data;      // face-varying data stored per-face-per-vertex
         std::vector<int>   _offsets;   // a vector of offsets if multiple leves of
@@ -462,7 +462,7 @@ private:
     template <class T> friend class FarPatchTablesFactory;
 
     // Returns the array of patches of type "desc", or NULL if there aren't any in the primitive
-    PatchArray * findPatchArray( Descriptor desc );
+    inline PatchArray * findPatchArray( Descriptor desc );
 
     // Private constructor
     FarPatchTables( int maxvalence ) : _maxValence(maxvalence) { }
@@ -523,7 +523,7 @@ class FarPatchTables::Descriptor::iterator {
         }
 
     private:
-        Descriptor const * getValue() const;
+        inline Descriptor const * getValue() const;
         
         int _pos;
 };

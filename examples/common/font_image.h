@@ -39,6 +39,8 @@
 #define FONT_SLIDER_MIDDLE     0x11
 #define FONT_SLIDER_RIGHT      0x12
 #define FONT_SLIDER_CURSOR     0x7c
+#define FONT_ARROW_RIGHT       0x15
+#define FONT_ARROW_DOWN        0x17
 
 extern unsigned char font_image[];
 

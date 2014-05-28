@@ -59,6 +59,10 @@
     #include <osd/ompComputeController.h>
 #endif
 
+#ifdef OPENSUBDIV_HAS_TBB
+    #include <osd/tbbComputeController.h>
+#endif
+
 #ifdef OPENSUBDIV_HAS_GCD
     #include <osd/gcdComputeController.h>
 #endif
@@ -149,11 +153,12 @@ typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
 enum KernelType { kCPU = 0,
                   kOPENMP = 1,
-                  kGCD = 2,
-                  kCUDA = 3,
-                  kCL = 4,
-                  kGLSL = 5,
-                  kGLSLCompute = 6 };
+                  kTBB = 2,
+                  kGCD = 3,
+                  kCUDA = 4,
+                  kCL = 5,
+                  kGLSL = 6,
+                  kGLSLCompute = 7 };
 
 enum HudCheckBox { HUD_CB_BATCHING,
                    HUD_CB_ADAPTIVE,
@@ -273,11 +278,9 @@ checkGLErrors(std::string const & where = "")
 {
     GLuint err;
     while ((err = glGetError()) != GL_NO_ERROR) {
-        /*
         std::cerr << "GL error: "
                   << (where.empty() ? "" : where + " ")
                   << err << "\n";
-        */
     }
 }
 
@@ -342,6 +345,9 @@ updateGeom(bool forceAll) {
 #ifdef OPENSUBDIV_HAS_OPENMP
     else if (g_kernel == kOPENMP) Controller<OpenSubdiv::OsdOmpComputeController>::GetInstance()->Synchronize();
 #endif
+#ifdef OPENSUBDIV_HAS_TBB
+    else if (g_kernel == kTBB) Controller<OpenSubdiv::OsdTbbComputeController>::GetInstance()->Synchronize();
+#endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     else if (g_kernel == kCL) Controller<OpenSubdiv::OsdCLComputeController>::GetInstance()->Synchronize();
 #endif
@@ -350,6 +356,9 @@ updateGeom(bool forceAll) {
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     else if (g_kernel == kGLSL) Controller<OpenSubdiv::OsdGLSLTransformFeedbackComputeController>::GetInstance()->Synchronize();
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    else if (g_kernel == kGLSLCompute) Controller<OpenSubdiv::OsdGLSLComputeController>::GetInstance()->Synchronize();
 #endif
 
     s.Stop();
@@ -450,6 +459,14 @@ rebuild()
             MyDrawContext,
             OpenSubdiv::OsdOmpComputeController>::Create(
             Controller<OpenSubdiv::OsdOmpComputeController>::GetInstance(),
+            farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
+#endif
+#ifdef OPENSUBDIV_HAS_TBB
+    } else if (g_kernel == kTBB) {
+        g_batch = OpenSubdiv::OsdUtilMeshBatch<OpenSubdiv::OsdCpuGLVertexBuffer,
+            MyDrawContext,
+            OpenSubdiv::OsdTbbComputeController>::Create(
+            Controller<OpenSubdiv::OsdTbbComputeController>::GetInstance(),
             farMeshes, numVertexElements, numVaryingElements, 0, requireFVarData);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
@@ -618,7 +635,7 @@ display() {
         g_hud.Flush();
     }
 
-    checkGLErrors("display leave");
+    //checkGLErrors("display leave");
     glFinish();
 }
 
@@ -653,7 +670,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state, int mods) {
+mouse(GLFWwindow *, int button, int state, int /* mods */) {
 #else
 mouse(int button, int state) {
 #endif
@@ -717,7 +734,7 @@ int windowClose() {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
+keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
@@ -833,44 +850,46 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddRadioButton(0, "CPU (K)", g_kernel == kCPU, 10, 10, callbackKernel, kCPU, 'k');
+    g_hud.AddCheckBox("Batching (B)",         g_batching != 0,        10, 10, callbackCheckBox, HUD_CB_BATCHING, 'b');
+    g_hud.AddCheckBox("Patch Color (P)",      true,                   10, 50, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');
+    g_hud.AddCheckBox("Screen space LOD (V)", g_screenSpaceTess != 0, 10, 70, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+    g_hud.AddCheckBox("Freeze (spc)",         false,                  10, 90, callbackCheckBox, HUD_CB_FREEZE, ' ');
+
+    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 200, 10, 250, callbackDisplayStyle, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color", kVaryingColor, g_displayStyle==kVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color", kFaceVaryingColor, g_displayStyle==kFaceVaryingColor);
+
+    int compute_pulldown = g_hud.AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
-    g_hud.AddRadioButton(0, "OPENMP", g_kernel == kOPENMP, 10, 30, callbackKernel, kOPENMP, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "OpenMP", kOPENMP);
+#endif
+#ifdef OPENSUBDIV_HAS_OPENMP
+    g_hud.AddPullDownButton(compute_pulldown, "TBB", kTBB);
 #endif
 #ifdef OPENSUBDIV_HAS_GCD
-    g_hud.AddRadioButton(0, "GCD", g_kernel == kGCD, 10, 30, callbackKernel, kGCD, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "GCD", kGCD);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    g_hud.AddRadioButton(0, "CUDA",   g_kernel == kCUDA, 10, 50, callbackKernel, kCUDA, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    g_hud.AddRadioButton(0, "OPENCL", g_kernel == kCL, 10, 70, callbackKernel, kCL, 'k');
+    if (HAS_CL_VERSION_1_1()) {
+        g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
+    }
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    g_hud.AddRadioButton(0, "GLSL TransformFeedback",   g_kernel == kGLSL, 10, 90, callbackKernel, kGLSL, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "GLSL TransformFeedback", kGLSL);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     // Must also check at run time for OpenGL 4.3
-//    if (GLEW_VERSION_4_3) {
-        g_hud.AddRadioButton(0, "GLSL Compute", g_kernel == kGLSLCompute, 10, 110, callbackKernel, kGLSLCompute, 'k');
-//    }
+    if (GLEW_VERSION_4_3) {
+        g_hud.AddPullDownButton(compute_pulldown, "GLSL Compute", kGLSLCompute);
+    }
 #endif
-
-    g_hud.AddRadioButton(1, "Wire (W)", g_displayStyle == kWire,
-                         200, 10, callbackDisplayStyle, kWire, 'w');
-    g_hud.AddRadioButton(1, "Shaded", g_displayStyle == kShaded,
-                         200, 30, callbackDisplayStyle, kShaded, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", g_displayStyle == kWireShaded,
-                         200, 50, callbackDisplayStyle, kWireShaded, 'w');
-    g_hud.AddRadioButton(1, "Varying color", g_displayStyle == kVaryingColor,
-                         200, 70, callbackDisplayStyle, kVaryingColor, 'w');
-    g_hud.AddRadioButton(1, "Face varying color", g_displayStyle == kFaceVaryingColor,
-                         200, 90, callbackDisplayStyle, kFaceVaryingColor, 'w');
-
-    g_hud.AddCheckBox("Batching (B)", g_batching != 0, 350, 10, callbackCheckBox, HUD_CB_BATCHING, 'b');
-    g_hud.AddCheckBox("Patch Color (P)",      true, 350, 50, callbackCheckBox, HUD_CB_DISPLAY_PATCH_COLOR, 'p');
-    g_hud.AddCheckBox("Screen space LOD (V)", g_screenSpaceTess != 0, 350, 70, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
-    g_hud.AddCheckBox("Freeze (spc)",         false, 350, 90, callbackCheckBox, HUD_CB_FREEZE, ' ');
 
     if (OpenSubdiv::OsdGLDrawContext::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0, 10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
@@ -881,9 +900,10 @@ initHUD()
         g_hud.AddRadioButton(3, level, i==g_level, 10, 170+i*20, callbackLevel, i, '0'+(i%10));
     }
 
+    int pulldown_handle = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        g_hud.AddRadioButton(4, g_defaultShapes[i].name.c_str(), i==g_currentShape, -220, 10+i*16, callbackModel, i, 'n');
-    }
+        g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
+    }   
 }
 
 //------------------------------------------------------------------------------
@@ -933,7 +953,12 @@ setGLCoreProfile()
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #if not defined(__APPLE__)
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
+#else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
+#endif
+
 #else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);

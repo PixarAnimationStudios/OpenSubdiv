@@ -99,7 +99,7 @@ MyDrawDelegate::Bind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch, Eff
 }
 
 void
-MyDrawDelegate::Unbind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> *batch, EffectHandle const &effect) {
+MyDrawDelegate::Unbind(OpenSubdiv::OsdUtilMeshBatchBase<MyDrawContext> * /* batch */, EffectHandle const &/* effect */) {
 }
 
 void

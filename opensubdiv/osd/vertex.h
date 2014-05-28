@@ -41,13 +41,13 @@ class OsdVertex {
 public:
     OsdVertex() {}
 
-    OsdVertex(int index) {}
+    OsdVertex(int /* index */) {}
 
-    OsdVertex(OsdVertex const & src) {}
+    OsdVertex(OsdVertex const & /* src */) {}
 
-    void AddWithWeight(OsdVertex const & i, float weight, void * = 0) {}
+    void AddWithWeight(OsdVertex const & /* i */, float /* weight */, void * = 0) {}
 
-    void AddVaryingWithWeight(const OsdVertex & i, float weight, void * = 0) {}
+    void AddVaryingWithWeight(const OsdVertex & /* i */, float /* weight */, void * = 0) {}
 
     void Clear(void * = 0) {}
 

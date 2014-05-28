@@ -161,11 +161,9 @@ checkGLErrors(std::string const & where = "")
 {
     GLuint err;
     while ((err = glGetError()) != GL_NO_ERROR) {
-        /*
         std::cerr << "GL error: "
                   << (where.empty() ? "" : where + " ")
                   << err << "\n";
-        */
     }
 }
 
@@ -843,7 +841,7 @@ display() {
 
     glFinish();
 
-    checkGLErrors("display leave");
+    //checkGLErrors("display leave");
 
 #if GLFW_VERSION_MAJOR>=3
     glfwSwapBuffers(g_window);
@@ -969,7 +967,7 @@ drawStroke(int x, int y)
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT |
                     GL_TEXTURE_FETCH_BARRIER_BIT);
 
-    checkGLErrors("display leave");
+    //checkGLErrors("display leave");
 }
 
 //------------------------------------------------------------------------------
@@ -1014,7 +1012,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow * w, int button, int state, int mods) {
+mouse(GLFWwindow * w, int button, int state, int /* mods */) {
 #else
 mouse(int button, int state) {
 #endif
@@ -1097,7 +1095,7 @@ toggleFullScreen() {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
+keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
@@ -1125,7 +1123,7 @@ callbackWireframe(int b)
 }
 
 static void
-callbackDisplay(bool checked, int n)
+callbackDisplay(bool /* checked */, int n)
 {
     if (n == 0) g_displayColor = !g_displayColor;
     else if (n == 1) g_displayDisplacement = !g_displayDisplacement;
@@ -1161,22 +1159,24 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddRadioButton(1, "Wire (W)",    g_wire == 0,  200, 10, callbackWireframe, 0, 'w');
-    g_hud.AddRadioButton(1, "Shaded",      g_wire == 1, 200, 30, callbackWireframe, 1, 'w');
-    g_hud.AddRadioButton(1, "Wire+Shaded", g_wire == 2, 200, 50, callbackWireframe, 2, 'w');
+    g_hud.AddCheckBox("Color (C)",  g_displayColor != 0, 10, 10, callbackDisplay, 0, 'c');
+    g_hud.AddCheckBox("Displacement (D)",  g_displayDisplacement != 0, 10, 30, callbackDisplay, 1, 'd');
 
-    g_hud.AddCheckBox("Color (C)",  g_displayColor != 0, 350, 10, callbackDisplay, 0, 'c');
-    g_hud.AddCheckBox("Displacement (D)",  g_displayDisplacement != 0, 350, 30, callbackDisplay, 1, 'd');
-
+    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 200, 10, 250, callbackWireframe, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Wire", 0, g_wire==0);
+    g_hud.AddPullDownButton(shading_pulldown, "Shaded", 1, g_wire==1);
+    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", 2, g_wire==2);
+    
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
         g_hud.AddRadioButton(3, level, i==2, 10, 170+i*20, callbackLevel, i, '0'+(i%10));
     }
 
+    int pulldown_handle = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        g_hud.AddRadioButton(4, g_defaultShapes[i].name.c_str(), i==0, -220, 10+i*16, callbackModel, i, 'n');
-    }
+        g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
+    }   
 }
 
 //------------------------------------------------------------------------------

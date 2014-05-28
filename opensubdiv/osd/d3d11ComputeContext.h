@@ -118,34 +118,6 @@ public:
     /// Destructor
     virtual ~OsdD3D11ComputeContext();
 
-    /// Binds a vertex and a varying data buffers to the context. Binding ensures
-    /// that data buffers are properly inter-operated between Contexts and 
-    /// Controllers operating across multiple devices.
-    ///
-    /// @param vertex a buffer containing vertex-interpolated primvar data
-    ///
-    /// @param varying a buffer containing varying-interpolated primvar data
-    ///
-    template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
-
-        _currentVertexBufferUAV = vertex ? vertex->BindD3D11UAV(_deviceContext) : 0;
-        _currentVaryingBufferUAV = varying ? varying->BindD3D11UAV(_deviceContext) : 0;
-
-        _vdesc.numVertexElements = vertex ? vertex->GetNumElements() : 0;
-        _vdesc.numVaryingElements = varying ? varying->GetNumElements() : 0;
-
-        bindShaderStorageBuffers();
-    }
-
-    /// Unbinds any previously bound vertex and varying data buffers.
-    void Unbind() {
-        _currentVertexBufferUAV = 0;
-        _currentVaryingBufferUAV = 0;
-
-        unbindShaderStorageBuffers();
-    }
-
     /// Returns one of the vertex refinement tables.
     ///
     /// @param tableIndex the type of table
@@ -161,53 +133,22 @@ public:
     ///
     const OsdD3D11ComputeHEditTable * GetEditTable(int tableIndex) const;
 
-    /// Returns a handle to the vertex-interpolated buffer
-    ID3D11UnorderedAccessView * GetCurrentVertexBufferUAV() const;
+    void BindShaderStorageBuffers(ID3D11DeviceContext *deviceContext) const;
 
-    /// Returns a handle to the varying-interpolated buffer
-    ID3D11UnorderedAccessView * GetCurrentVaryingBufferUAV() const;
+    void UnbindShaderStorageBuffers(ID3D11DeviceContext *deviceContext) const;
 
-    /// Returns an OsdVertexDescriptor if vertex buffers have been bound.
-    ///
-    /// @return a descriptor for the format of the vertex data currently bound
-    ///
-    OsdVertexDescriptor const & GetVertexDescriptor() const {
-        return _vdesc;
-    }
+    void BindEditShaderStorageBuffers(int editIndex, ID3D11DeviceContext *deviceContext) const;
 
-    OsdD3D11ComputeKernelBundle * GetKernelBundle() const;
-
-    void SetKernelBundle(OsdD3D11ComputeKernelBundle *kernelBundle);
-
-    ID3D11DeviceContext * GetDeviceContext() const;
-
-    void SetDeviceContext(ID3D11DeviceContext *deviceContext);
-
-    void BindEditShaderStorageBuffers(int editIndex);
-
-    void UnbindEditShaderStorageBuffers();
+    void UnbindEditShaderStorageBuffers(ID3D11DeviceContext *deviceContext) const;
 
 protected:
     explicit OsdD3D11ComputeContext(FarSubdivisionTables const *subdivisionTables,
                                     FarVertexEditTables const *vertexEditTables,
                                     ID3D11DeviceContext *deviceContext);
 
-    void bindShaderStorageBuffers();
-
-    void unbindShaderStorageBuffers();
-
 private:
     std::vector<OsdD3D11ComputeTable*> _tables;
     std::vector<OsdD3D11ComputeHEditTable*> _editTables;
-
-    ID3D11DeviceContext *_deviceContext;
-
-    OsdVertexDescriptor _vdesc;
-
-    ID3D11UnorderedAccessView * _currentVertexBufferUAV,
-                              * _currentVaryingBufferUAV;
-
-    OsdD3D11ComputeKernelBundle * _kernelBundle;
 };
 
 }  // end namespace OPENSUBDIV_VERSION

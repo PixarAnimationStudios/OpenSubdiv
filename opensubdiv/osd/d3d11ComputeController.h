@@ -29,6 +29,7 @@
 
 #include "../far/dispatcher.h"
 #include "../osd/d3d11ComputeContext.h"
+#include "../osd/vertexDescriptor.h"
 
 #include <vector>
 
@@ -75,24 +76,34 @@ public:
     ///
     /// @param  varyingBuffer varying-interpolated data buffer
     ///
+    /// @param  vertexDesc    the descriptor of vertex elements to be refined.
+    ///                       if it's null, all primvars in the vertex buffer
+    ///                       will be refined.
+    ///
+    /// @param  varyingDesc   the descriptor of varying elements to be refined.
+    ///                       if it's null, all primvars in the varying buffer
+    ///                       will be refined.
+    ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Refine(OsdD3D11ComputeContext *context,
+    void Refine(OsdD3D11ComputeContext const *context,
                 FarKernelBatchVector const &batches,
                 VERTEX_BUFFER *vertexBuffer,
-                VARYING_BUFFER *varyingBuffer) {
+                VARYING_BUFFER *varyingBuffer,
+                OsdVertexBufferDescriptor const *vertexDesc=NULL,
+                OsdVertexBufferDescriptor const *varyingDesc=NULL) {
 
         if (batches.empty()) return;
 
-        int numVertexElements = vertexBuffer ? vertexBuffer->GetNumElements() : 0;
-        int numVaryingElements = varyingBuffer ? varyingBuffer->GetNumElements() : 0;
+        bind(vertexBuffer, varyingBuffer, vertexDesc, varyingDesc);
+        context->BindShaderStorageBuffers(_deviceContext);
 
-        context->SetKernelBundle(getKernels(numVertexElements, numVaryingElements));
-        context->Bind(vertexBuffer, varyingBuffer);
         FarDispatcher::Refine(this,
                               context,
                               batches,
                               -1);
-        context->Unbind();
+
+        context->UnbindShaderStorageBuffers(_deviceContext);
+        unbind();
     }
 
     /// Launch subdivision kernels and apply to given vertex buffers.
@@ -105,7 +116,7 @@ public:
     /// @param  vertexBuffer  vertex-interpolated data buffer
     ///
     template<class VERTEX_BUFFER>
-    void Refine(OsdD3D11ComputeContext *context,
+    void Refine(OsdD3D11ComputeContext const *context,
                 FarKernelBatchVector const &batches,
                 VERTEX_BUFFER *vertexBuffer) {
         Refine(context, batches, vertexBuffer, (VERTEX_BUFFER*)NULL);
@@ -116,39 +127,94 @@ public:
 
 protected:
     friend class FarDispatcher;
-    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
-
-
-    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
-
-    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
 
-    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext const *context) const;
 
 
-    void ApplyVertexEdits(FarKernelBatch const &batch, ComputeContext *context) const;
+    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    OsdD3D11ComputeKernelBundle * getKernels(int numVertexElements,
-                                             int numVaryingElements);
+    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+
+    void ApplyVertexEdits(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    OsdD3D11ComputeKernelBundle * getKernels(OsdVertexBufferDescriptor const &vertexDesc,
+                                             OsdVertexBufferDescriptor const &varyingDesc);
+
+    void bindShaderResources();
+
+    void unbindShaderResources();
+
+    template<class VERTEX_BUFFER, class VARYING_BUFFER>
+    void bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying,
+              OsdVertexBufferDescriptor const *vertexDesc,
+              OsdVertexBufferDescriptor const *varyingDesc) {
+
+        // if the vertex buffer descriptor is specified, use it.
+        // otherwise, assumes the data is tightly packed in the vertex buffer.
+        if (vertexDesc) {
+            _currentBindState.vertexDesc = *vertexDesc;
+        } else {
+            int numElements = vertex ? vertex->GetNumElements() : 0;
+            _currentBindState.vertexDesc = OsdVertexBufferDescriptor(
+                0, numElements, numElements);
+        }
+        if (varyingDesc) {
+            _currentBindState.varyingDesc = *varyingDesc;
+        } else {
+            int numElements = varying ? varying->GetNumElements() : 0;
+            _currentBindState.varyingDesc = OsdVertexBufferDescriptor(
+                0, numElements, numElements);
+        }
+
+        _currentBindState.vertexBuffer = vertex ? vertex->BindD3D11UAV(_deviceContext) : 0;
+        _currentBindState.varyingBuffer = varying ? varying->BindD3D11UAV(_deviceContext) : 0;
+        _currentBindState.kernelBundle = getKernels(_currentBindState.vertexDesc,
+                                                    _currentBindState.varyingDesc);
+        bindShaderResources();
+    }
+
+    void unbind() {
+        _currentBindState.Reset();
+
+        unbindShaderResources();
+    }
 
 private:
+    struct BindState {
+        BindState() : vertexBuffer(0), varyingBuffer(0), kernelBundle(NULL) {}
+        void Reset() {
+            vertexBuffer = varyingBuffer = 0;
+            vertexDesc.Reset();
+            varyingDesc.Reset();
+        }
+        ID3D11UnorderedAccessView *vertexBuffer;
+        ID3D11UnorderedAccessView *varyingBuffer;
+        OsdVertexBufferDescriptor vertexDesc;
+        OsdVertexBufferDescriptor varyingDesc;
+        OsdD3D11ComputeKernelBundle *kernelBundle;
+    };
+
+    BindState _currentBindState;
+
     ID3D11DeviceContext *_deviceContext;
     ID3D11Query *_query;
     std::vector<OsdD3D11ComputeKernelBundle *> _kernelRegistry;

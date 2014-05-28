@@ -558,15 +558,11 @@ public:
     /// \brief Hbr template vertex class API: interpolate varying data with 'src'
     ///        vertex (this += src * weight)
     ///
-    /// @param src     The source vertex
-    ///
-    /// @param weight  The interpolation weight
-    ///
-    void AddVaryingWithWeight(FarStencilFactoryVertex const & src, float weight, void * =0 ) { }
+    void AddVaryingWithWeight(FarStencilFactoryVertex const & /* src */, float /* weight */, void * =0 ) { }
 
     /// \brief Hbr template vertex class API: edits are not supported yet
     ///
-    void ApplyVertexEdit(OpenSubdiv::HbrVertexEdit<FarStencilFactoryVertex> const & edit) { }
+    void ApplyVertexEdit(OpenSubdiv::HbrVertexEdit<FarStencilFactoryVertex> const & /* edit */) { }
 
     /// \brief Hbr template vertex class API: edits are not supported yet
     ///

@@ -292,9 +292,9 @@ bool _ProcessTagsAndFinishMesh(
 {
     mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly);
 
-    const int* currentInt = &tagData.intArgs[0];
-    const float* currentFloat = &tagData.floatArgs[0];
-    const string* currentString = &tagData.stringArgs[0];
+    const int* currentInt = tagData.intArgs.size() ? &tagData.intArgs[0] : NULL;
+    const float* currentFloat = tagData.floatArgs.size() ? &tagData.floatArgs[0] : NULL;
+    const string* currentString = tagData.stringArgs.size() ? &tagData.stringArgs[0] : NULL;
 
     // TAGS (crease, corner, hole, smooth triangles, edits(vertex,
     // edge, face), creasemethod, facevaryingpropagatecorners, interpolateboundary
@@ -303,8 +303,6 @@ bool _ProcessTagsAndFinishMesh(
 	int nint = tagData.numArgs[3*i];
 	int nfloat = tagData.numArgs[3*i+1];
 	int nstring = tagData.numArgs[3*i+2];
-
-        std::cout << "TAGSTAGStag " << i << " " << tag << " " << nint << " " << nfloat << " " << nstring << "\n";
 
 	switch (tag) {
         case OsdUtilTagData::INTERPOLATE_BOUNDARY:
@@ -351,7 +349,6 @@ bool _ProcessTagsAndFinishMesh(
                     return false;
 		} else {
                     float sharpness = std::max(0.0f, ((nfloat > 1) ? currentFloat[j] : currentFloat[0]));
-                    std::cout << "Setting sharpness on edge " << currentInt[j] << " " << currentInt[j+1] << " to " << sharpness << " " << nfloat << "\n";
 		    e->SetSharpness(sharpness);
 		}
 	    }

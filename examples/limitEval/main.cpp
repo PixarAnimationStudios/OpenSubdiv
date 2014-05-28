@@ -411,22 +411,22 @@ updateGeom() {
 
     g_nsamplesFound=0;
 
-    // Bind/Unbind of the vertex buffers to the context needs to happen 
-    // outside of the parallel loop
-    g_evalCtx->GetVertexData().Bind( g_idesc, g_vertexData, g_odesc, g_Q, g_dQu, g_dQv );
-
     // The varying data ends-up interleaved in the same g_Q output buffer because
     // g_Q has a stride of 6 and g_vdesc sets the offset to 3, while g_odesc sets
     // the offset to 0
     switch (g_drawMode) {
-        case kVARYING     : g_evalCtx->GetVaryingData().Bind( g_idesc, g_varyingData, g_vdesc, g_Q ); break;
+        case kVARYING     : g_evalCtrl.BindVaryingBuffers( g_idesc, g_varyingData, g_vdesc, g_Q ); break;
 
-        case kFACEVARYING : g_evalCtx->GetFaceVaryingData().Bind( g_fvidesc, g_fvodesc, g_Q );
+        case kFACEVARYING : g_evalCtrl.BindFacevaryingBuffers( g_fvidesc, g_fvodesc, g_Q ); break;
 
         case kUV :
 
-        default : g_evalCtx->GetVaryingData().Unbind(); break;
+        default : g_evalCtrl.Unbind(); break;
     }
+
+    // Bind/Unbind of the vertex buffers to the context needs to happen 
+    // outside of the parallel loop
+    g_evalCtrl.BindVertexBuffers( g_idesc, g_vertexData, g_odesc, g_Q, g_dQu, g_dQv );
 
 #define USE_OPENMP
 #if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
@@ -434,7 +434,7 @@ updateGeom() {
 #endif
     for (int i=0; i<(int)g_coords.size(); ++i) {
     
-        int n = g_evalCtrl.EvalLimitSample<OsdCpuVertexBuffer,OsdCpuGLVertexBuffer>( g_coords[i], g_evalCtx, i );
+        int n = g_evalCtrl.EvalLimitSample( g_coords[i], g_evalCtx, i );
 
         if (n) {
             // point colors
@@ -461,16 +461,8 @@ updateGeom() {
         }
     }
     
-    g_evalCtx->GetVertexData().Unbind();
+    g_evalCtrl.Unbind();
 
-    switch (g_drawMode) {
-        case kVARYING     : g_evalCtx->GetVaryingData().Unbind(); break;
-
-        case kFACEVARYING : g_evalCtx->GetFaceVaryingData().Unbind(); break;
-
-        default : break;
-    }
-    
     g_Q->BindVBO();
 
     s.Stop();
@@ -890,7 +882,7 @@ motion(int x, int y) {
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-mouse(GLFWwindow *, int button, int state, int mods) {
+mouse(GLFWwindow *, int button, int state, int /* mods */) {
 #else
 mouse(int button, int state) {
 #endif
@@ -948,7 +940,7 @@ setSamples(bool add)
 //------------------------------------------------------------------------------
 static void
 #if GLFW_VERSION_MAJOR>=3
-keyboard(GLFWwindow *, int key, int scancode, int event, int mods) {
+keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 #else
 #define GLFW_KEY_ESCAPE GLFW_KEY_ESC
 keyboard(int key, int event) {
@@ -1001,28 +993,28 @@ callbackLevel(int l)
 
 //------------------------------------------------------------------------------
 static void
-callbackAnimate(bool checked, int m)
+callbackAnimate(bool checked, int /* m */)
 {
     g_moveScale = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackFreeze(bool checked, int f)
+callbackFreeze(bool checked, int /* f */)
 {
     g_freeze = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackDisplayCageVertices(bool checked, int d)
+callbackDisplayCageVertices(bool checked, int /* d */)
 {
     g_drawCageVertices = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackDisplayCageEdges(bool checked, int d)
+callbackDisplayCageEdges(bool checked, int /* d */)
 {
     g_drawCageEdges = checked;
 }
@@ -1047,14 +1039,15 @@ initHUD()
 #endif
     g_hud.Init(windowWidth, windowHeight);
 
-    g_hud.AddCheckBox("Cage Edges (H)", true, 350, 10, callbackDisplayCageEdges, 0, 'h');
-    g_hud.AddCheckBox("Cage Verts (J)", true, 350, 30, callbackDisplayCageVertices, 0, 'j');
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 350, 50, callbackAnimate, 0, 'm');
-    g_hud.AddCheckBox("Freeze (spc)", false, 350, 70, callbackFreeze, 0, ' ');
+    g_hud.AddCheckBox("Cage Edges (H)", true, 10, 10, callbackDisplayCageEdges, 0, 'h');
+    g_hud.AddCheckBox("Cage Verts (J)", true, 10, 30, callbackDisplayCageVertices, 0, 'j');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 10, 50, callbackAnimate, 0, 'm');
+    g_hud.AddCheckBox("Freeze (spc)", false, 10, 70, callbackFreeze, 0, ' ');
     
-    g_hud.AddRadioButton(0, "(u,v)", true, 200, 10, callbackDisplayVaryingColors, kUV, 'k');
-    g_hud.AddRadioButton(0, "varying", false, 200, 30, callbackDisplayVaryingColors, kVARYING, 'k');
-    g_hud.AddRadioButton(0, "face-varying", false, 200, 50, callbackDisplayVaryingColors, kFACEVARYING, 'k');
+    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 250, 10, 250, callbackDisplayVaryingColors, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "(u,v)", kUV, g_drawMode==kUV);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying", kVARYING, g_drawMode==kVARYING);
+    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying", kFACEVARYING, g_drawMode==kFACEVARYING);
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
@@ -1062,9 +1055,10 @@ initHUD()
         g_hud.AddRadioButton(3, level, i==g_level, 10, 170+i*20, callbackLevel, i, '0'+(i%10));
     }
 
+    int pulldown_handle = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        g_hud.AddRadioButton(4, g_defaultShapes[i].name.c_str(), i==0, -220, 10+i*16, callbackModel, i, 'n');
-    }
+        g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
+    }   
 }
 
 //------------------------------------------------------------------------------

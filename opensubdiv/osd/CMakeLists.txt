@@ -355,6 +355,7 @@ set(OPENCL_PUBLIC_HEADERS
     clComputeContext.h
     clComputeController.h
     clVertexBuffer.h
+    opencl.h
 )
 if ( OPENCL_FOUND )
     list(APPEND GPU_SOURCE_FILES

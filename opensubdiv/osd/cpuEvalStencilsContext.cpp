@@ -28,11 +28,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 OsdCpuEvalStencilsContext::OsdCpuEvalStencilsContext(FarStencilTables const *stencils) :
-    _stencils(stencils),
-    _controlData(0),
-    _outputData(0),
-    _outputUDeriv(0),
-    _outputVDeriv(0) {
+    _stencils(stencils) {
 }
 
 OsdCpuEvalStencilsContext *
