@@ -141,6 +141,163 @@ computeFace(float *fVertex, float *fVarying,
 }
 
 template <int NUM_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
+computeQuadFace(float *fVertex, float *fVaryings, int *F0_IT, int offset, int tableOffset, int start, int end)
+{
+    DeviceVertex<NUM_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_VERTEX_ELEMENTS>*)fVertex;
+    DeviceVertex<NUM_VARYING_ELEMENTS> *varyings = (DeviceVertex<NUM_VARYING_ELEMENTS>*)fVaryings;
+    for (int i = start + threadIdx.x + blockIdx.x*blockDim.x;
+         i < end;
+         i += blockDim.x * gridDim.x) {
+
+        int fidx0 = F0_IT[tableOffset + 4 * i + 0];
+        int fidx1 = F0_IT[tableOffset + 4 * i + 1];
+        int fidx2 = F0_IT[tableOffset + 4 * i + 2];
+        int fidx3 = F0_IT[tableOffset + 4 * i + 3];
+
+        DeviceVertex<NUM_VERTEX_ELEMENTS> dst;
+        dst.clear();
+
+        if(NUM_VARYING_ELEMENTS > 0){
+            DeviceVertex<NUM_VARYING_ELEMENTS> dstVarying;
+            dstVarying.clear();
+
+            dst.addWithWeight(&vertex[fidx0], 0.25f);
+            dst.addWithWeight(&vertex[fidx1], 0.25f);
+            dst.addWithWeight(&vertex[fidx2], 0.25f);
+            dst.addWithWeight(&vertex[fidx3], 0.25f);
+            dstVarying.addWithWeight(&varyings[fidx0], 0.25f);
+            dstVarying.addWithWeight(&varyings[fidx1], 0.25f);
+            dstVarying.addWithWeight(&varyings[fidx2], 0.25f);
+            dstVarying.addWithWeight(&varyings[fidx3], 0.25f);
+            vertex[offset + i] = dst;
+            varyings[offset + i] = dstVarying;
+        }else{
+            dst.addWithWeight(&vertex[fidx0], 0.25f);
+            dst.addWithWeight(&vertex[fidx1], 0.25f);
+            dst.addWithWeight(&vertex[fidx2], 0.25f);
+            dst.addWithWeight(&vertex[fidx3], 0.25f);
+            vertex[offset + i] = dst;
+        }
+    }
+}
+
+__global__ void
+computeQuadFace(float *fVertex, float *fVarying,
+                int vertexLength, int vertexStride,
+                int varyingLength, int varyingStride,
+                int *F0_IT, int offset, int tableOffset, int start, int end)
+{
+    for (int i = start +threadIdx.x + blockIdx.x*blockDim.x;
+        i < end;
+        i += blockDim.x * gridDim.x){
+
+        int fidx0 = F0_IT[tableOffset + 4 * i + 0];
+        int fidx1 = F0_IT[tableOffset + 4 * i + 1];
+        int fidx2 = F0_IT[tableOffset + 4 * i + 2];
+        int fidx3 = F0_IT[tableOffset + 4 * i + 3];
+
+        // XXX: can we use local stack like alloca?
+        float *dstVertex = fVertex + (i+offset)*vertexStride;
+        clear(dstVertex, vertexLength);
+        float *dstVarying = fVarying + (i+offset)*varyingStride;
+        clear(dstVarying, varyingLength);
+
+        addWithWeight(dstVertex, fVertex + fidx0*vertexStride, 0.25f, vertexLength);
+        addWithWeight(dstVertex, fVertex + fidx1*vertexStride, 0.25f, vertexLength);
+        addWithWeight(dstVertex, fVertex + fidx2*vertexStride, 0.25f, vertexLength);
+        addWithWeight(dstVertex, fVertex + fidx3*vertexStride, 0.25f, vertexLength);
+        addWithWeight(dstVarying, fVarying + fidx0*varyingStride, 0.25f, varyingLength);
+        addWithWeight(dstVarying, fVarying + fidx1*varyingStride, 0.25f, varyingLength);
+        addWithWeight(dstVarying, fVarying + fidx2*varyingStride, 0.25f, varyingLength);
+        addWithWeight(dstVarying, fVarying + fidx3*varyingStride, 0.25f, varyingLength);
+    }
+}
+
+template <int NUM_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
+computeTriQuadFace(float *fVertex, float *fVaryings, int *F0_IT, int offset, int tableOffset, int start, int end)
+{
+    DeviceVertex<NUM_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_VERTEX_ELEMENTS>*)fVertex;
+    DeviceVertex<NUM_VARYING_ELEMENTS> *varyings = (DeviceVertex<NUM_VARYING_ELEMENTS>*)fVaryings;
+    for (int i = start + threadIdx.x + blockIdx.x*blockDim.x;
+         i < end;
+         i += blockDim.x * gridDim.x) {
+
+        int fidx0 = F0_IT[tableOffset + 4 * i + 0];
+        int fidx1 = F0_IT[tableOffset + 4 * i + 1];
+        int fidx2 = F0_IT[tableOffset + 4 * i + 2];
+        int fidx3 = F0_IT[tableOffset + 4 * i + 3];
+
+        bool triangle = (fidx2 == fidx3);
+        float weight = triangle ? 1.0f / 3.0f : 1.0f / 4.0f;
+
+        DeviceVertex<NUM_VERTEX_ELEMENTS> dst;
+        dst.clear();
+
+        if(NUM_VARYING_ELEMENTS > 0){
+            DeviceVertex<NUM_VARYING_ELEMENTS> dstVarying;
+            dstVarying.clear();
+
+            dst.addWithWeight(&vertex[fidx0], weight);
+            dst.addWithWeight(&vertex[fidx1], weight);
+            dst.addWithWeight(&vertex[fidx2], weight);
+            dstVarying.addWithWeight(&varyings[fidx0], weight);
+            dstVarying.addWithWeight(&varyings[fidx1], weight);
+            dstVarying.addWithWeight(&varyings[fidx2], weight);
+            if (!triangle) {
+                dst.addWithWeight(&vertex[fidx3], weight);
+                dstVarying.addWithWeight(&varyings[fidx3], 0.25f);
+            }
+            vertex[offset + i] = dst;
+            varyings[offset + i] = dstVarying;
+        }else{
+            dst.addWithWeight(&vertex[fidx0], weight);
+            dst.addWithWeight(&vertex[fidx1], weight);
+            dst.addWithWeight(&vertex[fidx2], weight);
+            if (!triangle)
+                dst.addWithWeight(&vertex[fidx3], weight);
+            vertex[offset + i] = dst;
+        }
+    }
+}
+
+__global__ void
+computeTriQuadFace(float *fVertex, float *fVarying,
+                   int vertexLength, int vertexStride,
+                   int varyingLength, int varyingStride,
+                   int *F0_IT, int offset, int tableOffset, int start, int end)
+{
+    for (int i = start +threadIdx.x + blockIdx.x*blockDim.x;
+        i < end;
+        i += blockDim.x * gridDim.x){
+
+        int fidx0 = F0_IT[tableOffset + 4 * i + 0];
+        int fidx1 = F0_IT[tableOffset + 4 * i + 1];
+        int fidx2 = F0_IT[tableOffset + 4 * i + 2];
+        int fidx3 = F0_IT[tableOffset + 4 * i + 3];
+
+        bool triangle = (fidx2 == fidx3);
+        float weight = triangle ? 1.0f / 3.0f : 1.0f / 4.0f;
+
+        // XXX: can we use local stack like alloca?
+        float *dstVertex = fVertex + (i+offset)*vertexStride;
+        clear(dstVertex, vertexLength);
+        float *dstVarying = fVarying + (i+offset)*varyingStride;
+        clear(dstVarying, varyingLength);
+
+        addWithWeight(dstVertex, fVertex + fidx0*vertexStride, weight, vertexLength);
+        addWithWeight(dstVertex, fVertex + fidx1*vertexStride, weight, vertexLength);
+        addWithWeight(dstVertex, fVertex + fidx2*vertexStride, weight, vertexLength);
+        addWithWeight(dstVarying, fVarying + fidx0*varyingStride, weight, varyingLength);
+        addWithWeight(dstVarying, fVarying + fidx1*varyingStride, weight, varyingLength);
+        addWithWeight(dstVarying, fVarying + fidx2*varyingStride, weight, varyingLength);
+        if (!triangle) {
+            addWithWeight(dstVertex, fVertex + fidx3*vertexStride, weight, vertexLength);
+            addWithWeight(dstVarying, fVarying + fidx3*varyingStride, weight, varyingLength);
+        }
+    }
+}
+
+template <int NUM_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
 computeEdge(float *fVertex, float *fVaryings, int *E0_IT, float *E0_S, int offset, int tableOffset, int start, int end)
 {
     DeviceVertex<NUM_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_VERTEX_ELEMENTS>*)fVertex;
@@ -637,6 +794,40 @@ void OsdCudaComputeFace(float *vertex, float *varying,
     computeFace<<<512, 32>>>(vertex, varying,
                              vertexLength, vertexStride, varyingLength, varyingStride,
                              F_IT, F_ITa, offset, tableOffset, start, end);
+}
+
+void OsdCudaComputeQuadFace(float *vertex, float *varying,
+                            int vertexLength, int vertexStride,
+                            int varyingLength, int varyingStride,
+                            int *F_IT, int offset, int tableOffset, int start, int end)
+{
+    //computeQuadFace<3, 0><<<512,32>>>(vertex, varying, F_IT, offset, start, end);
+    OPT_KERNEL(0, 0, computeQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(0, 3, computeQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 0, computeQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 3, computeQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
+
+    // fallback kernel (slow)
+    computeQuadFace<<<512, 32>>>(vertex, varying,
+                                 vertexLength, vertexStride, varyingLength, varyingStride,
+                                 F_IT, offset, tableOffset, start, end);
+}
+
+void OsdCudaComputeTriQuadFace(float *vertex, float *varying,
+                               int vertexLength, int vertexStride,
+                               int varyingLength, int varyingStride,
+                               int *F_IT, int offset, int tableOffset, int start, int end)
+{
+    //computeTriQuadFace<3, 0><<<512,32>>>(vertex, varying, F_IT, offset, start, end);
+    OPT_KERNEL(0, 0, computeTriQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(0, 3, computeTriQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 0, computeTriQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 3, computeTriQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
+
+    // fallback kernel (slow)
+    computeTriQuadFace<<<512, 32>>>(vertex, varying,
+                                    vertexLength, vertexStride, varyingLength, varyingStride,
+                                    F_IT, offset, tableOffset, start, end);
 }
 
 

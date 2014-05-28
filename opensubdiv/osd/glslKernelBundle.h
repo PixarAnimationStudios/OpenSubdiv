@@ -57,6 +57,12 @@ public:
     void ApplyCatmarkFaceVerticesKernel(
         int vertexOffset, int tableOffset, int start, int end);
 
+    void ApplyCatmarkQuadFaceVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
+
+    void ApplyCatmarkTriQuadFaceVerticesKernel(
+        int vertexOffset, int tableOffset, int start, int end);
+
     void ApplyCatmarkEdgeVerticesKernel(
         int vertexOffset, int tableOffset, int start, int end);
 
@@ -129,6 +135,10 @@ protected:
 
     
     GLuint _subComputeFace; // general face-vertex kernel (all schemes)
+
+    GLuint _subComputeQuadFace; // quad face-vertex kernel (catmark)
+
+    GLuint _subComputeTriQuadFace; // tri-quad face-vertex kernel (catmark)
 
     GLuint _subComputeEdge; // edge-vertex kernel (catmark + loop schemes)
 
