@@ -149,7 +149,7 @@ public:
     /// output vertex buffers. Pointers to memory where the data is
     /// output are explicitly passed to the function.
     ///
-    /// @param coords   location on the limit surface to be evaluated
+    /// @param coord    location on the limit surface to be evaluated
     ///
     /// @param context  the EvalLimitContext that the controller will evaluate
     ///
@@ -157,9 +157,9 @@ public:
     ///
     /// @param outQ    output vertex data
     ///
-    /// @param outdQu  output derivative along "u" of the vertex data (optional)
+    /// @param outDQU  output derivative along "u" of the vertex data (optional)
     ///
-    /// @param outdQv  output derivative along "v" of the vertex data (optional)
+    /// @param outDQV  output derivative along "v" of the vertex data (optional)
     ///
     /// @return 1 if the sample was found
     ///
