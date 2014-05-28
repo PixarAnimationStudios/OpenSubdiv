@@ -271,6 +271,34 @@ void
 GLFrameBuffer::BuildUI(GLhud * /* hud */, int /* x */, int /* y */) {
 }
 
+struct PixelStoreState {
+
+    void Push() {
+        glGetIntegerv(GL_PACK_ROW_LENGTH,  &_packRowLength);
+        glGetIntegerv(GL_PACK_ALIGNMENT,   &_packAlignment);
+        glGetIntegerv(GL_PACK_SKIP_PIXELS, &_packSkipPixels);
+        glGetIntegerv(GL_PACK_SKIP_ROWS,   &_packSkipRows);
+    }
+
+    void Pop() {
+        Set(_packRowLength, _packAlignment, _packSkipPixels, _packSkipRows);
+    }
+
+    void Set(GLint packRowLength,
+             GLint packAlignment,
+             GLint packSkipPixels,
+             GLint packSkipRows) {
+        glPixelStorei(GL_PACK_ROW_LENGTH,  packRowLength);
+        glPixelStorei(GL_PACK_ALIGNMENT,   packAlignment);
+        glPixelStorei(GL_PACK_SKIP_PIXELS, packSkipPixels);
+        glPixelStorei(GL_PACK_SKIP_ROWS,   packSkipRows);
+    }
+private:
+    GLint _packRowLength,
+          _packAlignment,
+          _packSkipPixels,
+          _packSkipRows;
+};
 
 void
 GLFrameBuffer::Screenshot() const {
@@ -282,12 +310,14 @@ GLFrameBuffer::Screenshot() const {
 
     void * buf = malloc(GetWidth() * GetHeight() * 4 /*RGBA*/);
 
-    glPushClientAttrib(GL_CLIENT_PIXEL_STORE_BIT);
+    PixelStoreState pixelStore;
 
-    glPixelStorei(GL_PACK_ROW_LENGTH, 0);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
-    glPixelStorei(GL_PACK_SKIP_ROWS, 0);
+    pixelStore.Push();
+
+    pixelStore.Set( /* GL_PACK_ROW_LENGTH  */ 0, 
+                    /* GL_PACK_ALIGNMENT   */ 1,
+                    /* GL_PACK_SKIP_PIXELS */ 0,
+                    /* GL_PACK_SKIP_ROWS   */ 0);
 
     GLint restoreBinding, restoreActiveTexture;
     glGetIntegerv( GL_TEXTURE_BINDING_2D, &restoreBinding );
@@ -300,7 +330,8 @@ GLFrameBuffer::Screenshot() const {
 
     glActiveTexture( restoreActiveTexture );
     glBindTexture( GL_TEXTURE_2D, restoreBinding );
-    glPopClientAttrib();
+
+    pixelStore.Pop();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
