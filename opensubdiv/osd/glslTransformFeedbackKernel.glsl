@@ -191,10 +191,10 @@ subroutine(computeKernelType)
 void catmarkComputeQuadFace()
 {
     int i = gl_VertexID + indexStart;
-    int fidx0 = texelFetch(_F0_IT, tableOffset + 4 * i + 0);
-    int fidx1 = texelFetch(_F0_IT, tableOffset + 4 * i + 1);
-    int fidx2 = texelFetch(_F0_IT, tableOffset + 4 * i + 2);
-    int fidx3 = texelFetch(_F0_IT, tableOffset + 4 * i + 3);
+    int fidx0 = texelFetch(_F0_IT, tableOffset + 4 * i + 0).x;
+    int fidx1 = texelFetch(_F0_IT, tableOffset + 4 * i + 1).x;
+    int fidx2 = texelFetch(_F0_IT, tableOffset + 4 * i + 2).x;
+    int fidx3 = texelFetch(_F0_IT, tableOffset + 4 * i + 3).x;
 
     Vertex dst;
     clear(dst);
@@ -214,10 +214,10 @@ subroutine(computeKernelType)
 void catmarkComputeTriQuadFace()
 {
     int i = gl_VertexID + indexStart;
-    int fidx0 = texelFetch(_F0_IT, tableOffset + 4 * i + 0);
-    int fidx1 = texelFetch(_F0_IT, tableOffset + 4 * i + 1);
-    int fidx2 = texelFetch(_F0_IT, tableOffset + 4 * i + 2);
-    int fidx3 = texelFetch(_F0_IT, tableOffset + 4 * i + 3);
+    int fidx0 = texelFetch(_F0_IT, tableOffset + 4 * i + 0).x;
+    int fidx1 = texelFetch(_F0_IT, tableOffset + 4 * i + 1).x;
+    int fidx2 = texelFetch(_F0_IT, tableOffset + 4 * i + 2).x;
+    int fidx3 = texelFetch(_F0_IT, tableOffset + 4 * i + 3).x;
     bool triangle = (fidx2 == fidx3);
     float weight = triangle ? 1.0f / 3.0f : 1.0f / 4.0f;
 
