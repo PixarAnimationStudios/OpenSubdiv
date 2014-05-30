@@ -140,6 +140,28 @@ OsdGLSLComputeController::ApplyCatmarkFaceVerticesKernel(
 }
 
 void
+OsdGLSLComputeController::ApplyCatmarkQuadFaceVerticesKernel(
+    FarKernelBatch const &batch, OsdGLSLComputeContext const *context) const {
+
+    assert(context);
+
+    _currentBindState.kernelBundle->ApplyCatmarkQuadFaceVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLComputeController::ApplyCatmarkTriQuadFaceVerticesKernel(
+    FarKernelBatch const &batch, OsdGLSLComputeContext const *context) const {
+
+    assert(context);
+
+    _currentBindState.kernelBundle->ApplyCatmarkTriQuadFaceVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd());
+}
+
+void
 OsdGLSLComputeController::ApplyCatmarkEdgeVerticesKernel(
     FarKernelBatch const &batch, OsdGLSLComputeContext const *context) const {
 

@@ -186,6 +186,57 @@ void catmarkComputeFace()
     writeVertex(dst);
 }
 
+// Quad face-vertices compute Kernel
+subroutine(computeKernelType)
+void catmarkComputeQuadFace()
+{
+    int i = gl_VertexID + indexStart;
+    int fidx0 = texelFetch(_F0_IT, tableOffset + 4 * i + 0).x;
+    int fidx1 = texelFetch(_F0_IT, tableOffset + 4 * i + 1).x;
+    int fidx2 = texelFetch(_F0_IT, tableOffset + 4 * i + 2).x;
+    int fidx3 = texelFetch(_F0_IT, tableOffset + 4 * i + 3).x;
+
+    Vertex dst;
+    clear(dst);
+    addWithWeight(dst, readVertex(fidx0), 0.25);
+    addWithWeight(dst, readVertex(fidx1), 0.25);
+    addWithWeight(dst, readVertex(fidx2), 0.25);
+    addWithWeight(dst, readVertex(fidx3), 0.25);
+    addVaryingWithWeight(dst, readVertex(fidx0), 0.25);
+    addVaryingWithWeight(dst, readVertex(fidx1), 0.25);
+    addVaryingWithWeight(dst, readVertex(fidx2), 0.25);
+    addVaryingWithWeight(dst, readVertex(fidx3), 0.25);
+    writeVertex(dst);
+}
+
+// Tri-quad face-vertices compute Kernel
+subroutine(computeKernelType)
+void catmarkComputeTriQuadFace()
+{
+    int i = gl_VertexID + indexStart;
+    int fidx0 = texelFetch(_F0_IT, tableOffset + 4 * i + 0).x;
+    int fidx1 = texelFetch(_F0_IT, tableOffset + 4 * i + 1).x;
+    int fidx2 = texelFetch(_F0_IT, tableOffset + 4 * i + 2).x;
+    int fidx3 = texelFetch(_F0_IT, tableOffset + 4 * i + 3).x;
+    bool triangle = (fidx2 == fidx3);
+    float weight = triangle ? 1.0f / 3.0f : 1.0f / 4.0f;
+
+    Vertex dst;
+    clear(dst);
+    addWithWeight(dst, readVertex(fidx0), weight);
+    addWithWeight(dst, readVertex(fidx1), weight);
+    addWithWeight(dst, readVertex(fidx2), weight);
+    addVaryingWithWeight(dst, readVertex(fidx0), weight);
+    addVaryingWithWeight(dst, readVertex(fidx1), weight);
+    addVaryingWithWeight(dst, readVertex(fidx2), weight);
+    if (!triangle) {
+        addWithWeight(dst, readVertex(fidx3), weight);
+        addVaryingWithWeight(dst, readVertex(fidx3), weight);
+    }
+
+    writeVertex(dst);
+}
+
 // Edge-vertices compute Kernel
 subroutine(computeKernelType)
 void catmarkComputeEdge()

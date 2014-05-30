@@ -79,6 +79,54 @@ void OsdGcdComputeFace(
                           vertexOffset, tableOffset, start_e, end_e);
 }
 
+void OsdGcdComputeQuadFace(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    const int *F_IT,
+    int vertexOffset, int tableOffset, int start, int end,
+    dispatch_queue_t gcdq) {
+
+    const int workSize = end-start;
+    dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
+        const int start_i = start + blockIdx*GCD_WORK_STRIDE;
+        const int end_i = start_i + GCD_WORK_STRIDE;
+        OsdCpuComputeQuadFace(vertex, varying, vertexDesc, varyingDesc,
+                              F_IT,
+                              vertexOffset, tableOffset, start_i, end_i);
+    });
+    const int start_e = end - workSize%GCD_WORK_STRIDE;
+    const int end_e = end;
+    if (start_e < end_e)
+        OsdCpuComputeQuadFace(vertex, varying, vertexDesc, varyingDesc,
+                              F_IT,
+                              vertexOffset, tableOffset, start_e, end_e);
+}
+
+void OsdGcdComputeTriQuadFace(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    const int *F_IT,
+    int vertexOffset, int tableOffset, int start, int end,
+    dispatch_queue_t gcdq) {
+
+    const int workSize = end-start;
+    dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
+        const int start_i = start + blockIdx*GCD_WORK_STRIDE;
+        const int end_i = start_i + GCD_WORK_STRIDE;
+        OsdCpuComputeTriQuadFace(vertex, varying, vertexDesc, varyingDesc,
+                                 F_IT,
+                                 vertexOffset, tableOffset, start_i, end_i);
+    });
+    const int start_e = end - workSize%GCD_WORK_STRIDE;
+    const int end_e = end;
+    if (start_e < end_e)
+        OsdCpuComputeTriQuadFace(vertex, varying, vertexDesc, varyingDesc,
+                                 F_IT,
+                                 vertexOffset, tableOffset, start_e, end_e);
+}
+
 void OsdGcdComputeEdge(
     float * vertex, float * varying,
     OsdVertexBufferDescriptor const &vertexDesc,

@@ -142,6 +142,162 @@ void OsdTbbComputeFace(
     tbb::parallel_for(range, kernel);
 }
 
+class TBBQuadFaceKernel {
+    float        *vertex;
+    float        *varying;
+    OsdVertexBufferDescriptor vertexDesc;
+    OsdVertexBufferDescriptor varyingDesc;
+    int const    *F_IT;
+    int           vertexOffset;
+    int           tableOffset;
+
+public:
+    void operator() (tbb::blocked_range<int> const &r) const {
+        for (int i = r.begin(); i < r.end(); i++) {
+            int fidx0 = F_IT[tableOffset + 4 * i + 0];
+            int fidx1 = F_IT[tableOffset + 4 * i + 1];
+            int fidx2 = F_IT[tableOffset + 4 * i + 2];
+            int fidx3 = F_IT[tableOffset + 4 * i + 3];
+
+            // XXX: should use local vertex struct variable instead of
+            // accumulating directly into global memory.
+            int dstIndex = i + vertexOffset;
+
+            clear(vertex, dstIndex, vertexDesc);
+            clear(varying, dstIndex, varyingDesc);
+
+            addWithWeight(vertex, dstIndex, fidx0, 0.25f, vertexDesc);
+            addWithWeight(vertex, dstIndex, fidx1, 0.25f, vertexDesc);
+            addWithWeight(vertex, dstIndex, fidx2, 0.25f, vertexDesc);
+            addWithWeight(vertex, dstIndex, fidx3, 0.25f, vertexDesc);
+            addWithWeight(varying, dstIndex, fidx0, 0.25f, varyingDesc);
+            addWithWeight(varying, dstIndex, fidx1, 0.25f, varyingDesc);
+            addWithWeight(varying, dstIndex, fidx2, 0.25f, varyingDesc);
+            addWithWeight(varying, dstIndex, fidx3, 0.25f, varyingDesc);
+        }
+    }
+
+    TBBQuadFaceKernel(TBBQuadFaceKernel const &other)
+    {
+        this->vertex = other.vertex;
+        this->varying= other.varying;
+        this->vertexDesc = other.vertexDesc;
+        this->varyingDesc = other.varyingDesc;
+        this->F_IT   = other.F_IT;
+        this->vertexOffset = other.vertexOffset;
+        this->tableOffset  = other.tableOffset;
+    }
+
+    TBBQuadFaceKernel(float                     *vertex_in,
+                      float                     *varying_in,
+                      OsdVertexBufferDescriptor  const &vertexDesc_in,
+                      OsdVertexBufferDescriptor  const &varyingDesc_in,
+                      int const                 *F_IT_in,
+                      int                        vertexOffset_in,
+                      int                        tableOffset_in) :
+                      vertex (vertex_in),
+                      varying(varying_in),
+                      vertexDesc(vertexDesc_in),
+                      varyingDesc(varyingDesc_in),
+                      F_IT   (F_IT_in),
+                      vertexOffset(vertexOffset_in),
+                      tableOffset(tableOffset_in)
+    {};
+};
+
+void OsdTbbComputeQuadFace(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    int const *F_IT, int vertexOffset, int tableOffset,
+    int start, int end) {
+
+    TBBQuadFaceKernel kernel(vertex, varying, vertexDesc, varyingDesc, F_IT,
+                             vertexOffset, tableOffset);
+    tbb::blocked_range<int> range(start, end, grain_size);
+    tbb::parallel_for(range, kernel);
+}
+
+class TBBTriQuadFaceKernel {
+    float        *vertex;
+    float        *varying;
+    OsdVertexBufferDescriptor vertexDesc;
+    OsdVertexBufferDescriptor varyingDesc;
+    int const    *F_IT;
+    int           vertexOffset;
+    int           tableOffset;
+
+public:
+    void operator() (tbb::blocked_range<int> const &r) const {
+        for (int i = r.begin(); i < r.end(); i++) {
+            int fidx0 = F_IT[tableOffset + 4 * i + 0];
+            int fidx1 = F_IT[tableOffset + 4 * i + 1];
+            int fidx2 = F_IT[tableOffset + 4 * i + 2];
+            int fidx3 = F_IT[tableOffset + 4 * i + 3];
+            bool triangle = (fidx2 == fidx3);
+            float weight = (triangle ? 1.0f / 3.0f : 1.0f / 4.0f);
+
+            // XXX: should use local vertex struct variable instead of
+            // accumulating directly into global memory.
+            int dstIndex = i + vertexOffset;
+
+            clear(vertex, dstIndex, vertexDesc);
+            clear(varying, dstIndex, varyingDesc);
+
+            addWithWeight(vertex, dstIndex, fidx0, weight, vertexDesc);
+            addWithWeight(vertex, dstIndex, fidx1, weight, vertexDesc);
+            addWithWeight(vertex, dstIndex, fidx2, weight, vertexDesc);
+            addWithWeight(varying, dstIndex, fidx0, weight, varyingDesc);
+            addWithWeight(varying, dstIndex, fidx1, weight, varyingDesc);
+            addWithWeight(varying, dstIndex, fidx2, weight, varyingDesc);
+            if (!triangle) {
+                addWithWeight(vertex, dstIndex, fidx3, weight, vertexDesc);
+                addWithWeight(varying, dstIndex, fidx3, weight, varyingDesc);
+            }
+        }
+    }
+
+    TBBTriQuadFaceKernel(TBBTriQuadFaceKernel const &other)
+    {
+        this->vertex = other.vertex;
+        this->varying= other.varying;
+        this->vertexDesc = other.vertexDesc;
+        this->varyingDesc = other.varyingDesc;
+        this->F_IT   = other.F_IT;
+        this->vertexOffset = other.vertexOffset;
+        this->tableOffset  = other.tableOffset;
+    }
+
+    TBBTriQuadFaceKernel(float                     *vertex_in,
+                         float                     *varying_in,
+                         OsdVertexBufferDescriptor  const &vertexDesc_in,
+                         OsdVertexBufferDescriptor  const &varyingDesc_in,
+                         int const                 *F_IT_in,
+                         int                        vertexOffset_in,
+                         int                        tableOffset_in) :
+                         vertex (vertex_in),
+                         varying(varying_in),
+                         vertexDesc(vertexDesc_in),
+                         varyingDesc(varyingDesc_in),
+                         F_IT   (F_IT_in),
+                         vertexOffset(vertexOffset_in),
+                         tableOffset(tableOffset_in)
+    {};
+};
+
+void OsdTbbComputeTriQuadFace(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    int const *F_IT, int vertexOffset, int tableOffset,
+    int start, int end) {
+
+    TBBTriQuadFaceKernel kernel(vertex, varying, vertexDesc, varyingDesc, F_IT,
+                                vertexOffset, tableOffset);
+    tbb::blocked_range<int> range(start, end, grain_size);
+    tbb::parallel_for(range, kernel);
+}
+
 class TBBEdgeKernel {
     float        *vertex;
     float        *varying;

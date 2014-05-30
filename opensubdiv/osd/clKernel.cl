@@ -182,6 +182,86 @@ __kernel void computeFace(__global float *vertex,
     if (varying) writeVarying(varying, vid, &dstVarying);
 }
 
+__kernel void computeQuadFace(__global float *vertex,
+                              __global float *varying,
+                              __global int *F_IT,
+                              int vertexOffset, int varyingOffset,
+                              int offset, int tableOffset,
+                              int start, int end) {
+
+    int i = start + get_global_id(0);
+    int vid = start + get_global_id(0) + offset;
+    vertex += vertexOffset;
+    varying += (varying ? varyingOffset :0);
+
+    struct Vertex dst;
+    struct Varying dstVarying;
+    clearVertex(&dst);
+    clearVarying(&dstVarying);
+
+    int fidx0 = F_IT[tableOffset + 4 * i + 0];
+    int fidx1 = F_IT[tableOffset + 4 * i + 1];
+    int fidx2 = F_IT[tableOffset + 4 * i + 2];
+    int fidx3 = F_IT[tableOffset + 4 * i + 3];
+
+    addWithWeight(&dst, vertex, fidx0, 0.25f);
+    addWithWeight(&dst, vertex, fidx1, 0.25f);
+    addWithWeight(&dst, vertex, fidx2, 0.25f);
+    addWithWeight(&dst, vertex, fidx3, 0.25f);
+
+    if (varying) {
+        addVaryingWithWeight(&dstVarying, varying, fidx0, 0.25f);
+        addVaryingWithWeight(&dstVarying, varying, fidx1, 0.25f);
+        addVaryingWithWeight(&dstVarying, varying, fidx2, 0.25f);
+        addVaryingWithWeight(&dstVarying, varying, fidx3, 0.25f);
+    }
+
+    writeVertex(vertex, vid, &dst);
+    if (varying) writeVarying(varying, vid, &dstVarying);
+}
+
+__kernel void computeTriQuadFace(__global float *vertex,
+                                 __global float *varying,
+                                 __global int *F_IT,
+                                 int vertexOffset, int varyingOffset,
+                                 int offset, int tableOffset,
+                                 int start, int end) {
+
+    int i = start + get_global_id(0);
+    int vid = start + get_global_id(0) + offset;
+    vertex += vertexOffset;
+    varying += (varying ? varyingOffset :0);
+
+    struct Vertex dst;
+    struct Varying dstVarying;
+    clearVertex(&dst);
+    clearVarying(&dstVarying);
+
+    int fidx0 = F_IT[tableOffset + 4 * i + 0];
+    int fidx1 = F_IT[tableOffset + 4 * i + 1];
+    int fidx2 = F_IT[tableOffset + 4 * i + 2];
+    int fidx3 = F_IT[tableOffset + 4 * i + 3];
+    bool triangle = (fidx2 == fidx3);
+    float weight = triangle ? 1.0f / 3.0f : 1.0f / 4.0f;
+
+    addWithWeight(&dst, vertex, fidx0, weight);
+    addWithWeight(&dst, vertex, fidx1, weight);
+    addWithWeight(&dst, vertex, fidx2, weight);
+    if (!triangle)
+        addWithWeight(&dst, vertex, fidx3, weight);
+
+    if (varying) {
+        addVaryingWithWeight(&dstVarying, varying, fidx0, weight);
+        addVaryingWithWeight(&dstVarying, varying, fidx1, weight);
+        addVaryingWithWeight(&dstVarying, varying, fidx2, weight);
+        if (!triangle)
+            addVaryingWithWeight(&dstVarying, varying, fidx3, weight);
+    }
+
+    writeVertex(vertex, vid, &dst);
+    if (varying) writeVarying(varying, vid, &dstVarying);
+}
+
 __kernel void computeEdge(__global float *vertex,
                           __global float *varying,
                           __global int *E_IT,

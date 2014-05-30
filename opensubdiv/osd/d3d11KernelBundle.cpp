@@ -52,6 +52,8 @@ OsdD3D11ComputeKernelBundle::OsdD3D11ComputeKernelBundle(
     _classLinkage(0),
     _kernelCB(0),
     _kernelComputeFace(0),
+    _kernelComputeQuadFace(0),
+    _kernelComputeTriQuadFace(0),
     _kernelComputeEdge(0),
     _kernelComputeBilinearEdge(0),
     _kernelComputeVertex(0),
@@ -69,6 +71,8 @@ OsdD3D11ComputeKernelBundle::~OsdD3D11ComputeKernelBundle() {
     SAFE_RELEASE(_classLinkage);
     SAFE_RELEASE(_kernelCB);
     SAFE_RELEASE(_kernelComputeFace);
+    SAFE_RELEASE(_kernelComputeQuadFace);
+    SAFE_RELEASE(_kernelComputeTriQuadFace);
     SAFE_RELEASE(_kernelComputeEdge);
     SAFE_RELEASE(_kernelComputeBilinearEdge);
     SAFE_RELEASE(_kernelComputeVertex);
@@ -163,6 +167,12 @@ OsdD3D11ComputeKernelBundle::Compile(
     _classLinkage->GetClassInstance(
         "catmarkComputeFace", 0, &_kernelComputeFace);
     assert(_kernelComputeFace);
+    _classLinkage->GetClassInstance(
+        "catmarkComputeQuadFace", 0, &_kernelComputeQuadFace);
+    assert(_kernelComputeQuadFace);
+    _classLinkage->GetClassInstance(
+        "catmarkComputeTriQuadFace", 0, &_kernelComputeTriQuadFace);
+    assert(_kernelComputeTriQuadFace);
     _classLinkage->GetClassInstance(
         "catmarkComputeEdge", 0, &_kernelComputeEdge);
     assert(_kernelComputeEdge);
@@ -300,6 +310,38 @@ OsdD3D11ComputeKernelBundle::ApplyCatmarkFaceVerticesKernel(
     args.vertexBaseOffset = vertexBaseOffset;
     args.varyingBaseOffset = varyingBaseOffset;
     dispatchCompute(_kernelComputeFace, args);
+}
+
+void
+OsdD3D11ComputeKernelBundle::ApplyCatmarkQuadFaceVerticesKernel(
+    int vertexOffset, int tableOffset, int start, int end,
+    int vertexBaseOffset, int varyingBaseOffset) {
+
+    KernelCB args;
+    ZeroMemory(&args, sizeof(args));
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
+    args.indexStart = start;
+    args.indexEnd = end;
+    args.vertexBaseOffset = vertexBaseOffset;
+    args.varyingBaseOffset = varyingBaseOffset;
+    dispatchCompute(_kernelComputeQuadFace, args);
+}
+
+void
+OsdD3D11ComputeKernelBundle::ApplyCatmarkTriQuadFaceVerticesKernel(
+    int vertexOffset, int tableOffset, int start, int end,
+    int vertexBaseOffset, int varyingBaseOffset) {
+
+    KernelCB args;
+    ZeroMemory(&args, sizeof(args));
+    args.vertexOffset = vertexOffset;
+    args.tableOffset = tableOffset;
+    args.indexStart = start;
+    args.indexEnd = end;
+    args.vertexBaseOffset = vertexBaseOffset;
+    args.varyingBaseOffset = varyingBaseOffset;
+    dispatchCompute(_kernelComputeTriQuadFace, args);
 }
 
 void

@@ -51,6 +51,8 @@ OsdCLKernelBundle::OsdCLKernelBundle() :
     _clBilinearEdge(NULL),
     _clBilinearVertex(NULL),
     _clCatmarkFace(NULL),
+    _clCatmarkQuadFace(NULL),
+    _clCatmarkTriQuadFace(NULL),
     _clCatmarkEdge(NULL),
     _clCatmarkVertexA(NULL),
     _clCatmarkVertexB(NULL),
@@ -72,6 +74,10 @@ OsdCLKernelBundle::~OsdCLKernelBundle() {
 
     if (_clCatmarkFace)
         clReleaseKernel(_clCatmarkFace);
+    if (_clCatmarkQuadFace)
+        clReleaseKernel(_clCatmarkQuadFace);
+    if (_clCatmarkTriQuadFace)
+        clReleaseKernel(_clCatmarkTriQuadFace);
     if (_clCatmarkEdge)
         clReleaseKernel(_clCatmarkEdge);
     if (_clCatmarkVertexA)
@@ -145,16 +151,18 @@ OsdCLKernelBundle::Compile(cl_context clContext,
         return false;
     }
 
-    _clBilinearEdge   = buildKernel(_clProgram, "computeBilinearEdge");
-    _clBilinearVertex = buildKernel(_clProgram, "computeBilinearVertex");
-    _clCatmarkFace    = buildKernel(_clProgram, "computeFace");
-    _clCatmarkEdge    = buildKernel(_clProgram, "computeEdge");
-    _clCatmarkVertexA = buildKernel(_clProgram, "computeVertexA");
-    _clCatmarkVertexB = buildKernel(_clProgram, "computeVertexB");
-    _clLoopEdge       = buildKernel(_clProgram, "computeEdge");
-    _clLoopVertexA    = buildKernel(_clProgram, "computeVertexA");
-    _clLoopVertexB    = buildKernel(_clProgram, "computeLoopVertexB");
-    _clVertexEditAdd  = buildKernel(_clProgram, "editVertexAdd");
+    _clBilinearEdge              = buildKernel(_clProgram, "computeBilinearEdge");
+    _clBilinearVertex            = buildKernel(_clProgram, "computeBilinearVertex");
+    _clCatmarkFace               = buildKernel(_clProgram, "computeFace");
+    _clCatmarkQuadFace           = buildKernel(_clProgram, "computeQuadFace");
+    _clCatmarkTriQuadFace        = buildKernel(_clProgram, "computeTriQuadFace");
+    _clCatmarkEdge               = buildKernel(_clProgram, "computeEdge");
+    _clCatmarkVertexA            = buildKernel(_clProgram, "computeVertexA");
+    _clCatmarkVertexB            = buildKernel(_clProgram, "computeVertexB");
+    _clLoopEdge                  = buildKernel(_clProgram, "computeEdge");
+    _clLoopVertexA               = buildKernel(_clProgram, "computeVertexA");
+    _clLoopVertexB               = buildKernel(_clProgram, "computeLoopVertexB");
+    _clVertexEditAdd             = buildKernel(_clProgram, "editVertexAdd");
 
     return true;
 }

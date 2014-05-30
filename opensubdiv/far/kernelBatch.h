@@ -66,6 +66,8 @@ public:
 
     enum KernelType {
         CATMARK_FACE_VERTEX = 1,
+        CATMARK_QUAD_FACE_VERTEX,
+        CATMARK_TRI_QUAD_FACE_VERTEX,
         CATMARK_EDGE_VERTEX,
         CATMARK_VERT_VERTEX_A1,
         CATMARK_VERT_VERTEX_A2,

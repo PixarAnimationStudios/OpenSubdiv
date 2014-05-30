@@ -178,6 +178,63 @@ void catmarkComputeFace()
     writeVertex(vid, dst);
 }
 
+// Quad face-vertices compute Kernel
+subroutine(computeKernelType)
+void catmarkComputeQuadFace()
+{
+    int i = int(gl_GlobalInvocationID.x) + indexStart;
+    if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    int fidx0 = _F_IT[tableOffset + i * 4 + 0];
+    int fidx1 = _F_IT[tableOffset + i * 4 + 1];
+    int fidx2 = _F_IT[tableOffset + i * 4 + 2];
+    int fidx3 = _F_IT[tableOffset + i * 4 + 3];
+
+    Vertex dst;
+    clear(dst);
+    addWithWeight(dst, readVertex(fidx0), 0.25);
+    addWithWeight(dst, readVertex(fidx1), 0.25);
+    addWithWeight(dst, readVertex(fidx2), 0.25);
+    addWithWeight(dst, readVertex(fidx3), 0.25);
+    addVaryingWithWeight(dst, readVertex(fidx0), 0.25);
+    addVaryingWithWeight(dst, readVertex(fidx1), 0.25);
+    addVaryingWithWeight(dst, readVertex(fidx2), 0.25);
+    addVaryingWithWeight(dst, readVertex(fidx3), 0.25);
+
+    writeVertex(vid, dst);
+}
+
+// Tri-quad face-vertices compute Kernel
+subroutine(computeKernelType)
+void catmarkComputeTriQuadFace()
+{
+    int i = int(gl_GlobalInvocationID.x) + indexStart;
+    if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    int fidx0 = _F_IT[tableOffset + i * 4 + 0];
+    int fidx1 = _F_IT[tableOffset + i * 4 + 1];
+    int fidx2 = _F_IT[tableOffset + i * 4 + 2];
+    int fidx3 = _F_IT[tableOffset + i * 4 + 3];
+
+    bool triangle = (fidx2 == fidx3);
+    float weight = triangle ? 1.0f / 3.0f : 1.0f / 4.0f;
+
+    Vertex dst;
+    clear(dst);
+    addWithWeight(dst, readVertex(fidx0), weight);
+    addWithWeight(dst, readVertex(fidx1), weight);
+    addWithWeight(dst, readVertex(fidx2), weight);
+    addVaryingWithWeight(dst, readVertex(fidx0), weight);
+    addVaryingWithWeight(dst, readVertex(fidx1), weight);
+    addVaryingWithWeight(dst, readVertex(fidx2), weight);
+    if (!triangle) {
+        addWithWeight(dst, readVertex(fidx3), weight);
+        addVaryingWithWeight(dst, readVertex(fidx3), weight);
+    }
+
+    writeVertex(vid, dst);
+}
+
 // Edge-vertices compute Kernepl
 subroutine(computeKernelType)
 void catmarkComputeEdge()
