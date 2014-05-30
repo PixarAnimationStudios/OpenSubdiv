@@ -192,9 +192,9 @@ void catmarkComputeQuadFace()
 {
     int i = gl_VertexID + indexStart;
     int fidx0 = texelFetch(_F0_IT, tableOffset + 4 * i + 0);
-    int fidx1 = texelFetch(_F0_IT, tableOffset + 4 * i + 0);
-    int fidx2 = texelFetch(_F0_IT, tableOffset + 4 * i + 0);
-    int fidx3 = texelFetch(_F0_IT, tableOffset + 4 * i + 0);
+    int fidx1 = texelFetch(_F0_IT, tableOffset + 4 * i + 1);
+    int fidx2 = texelFetch(_F0_IT, tableOffset + 4 * i + 2);
+    int fidx3 = texelFetch(_F0_IT, tableOffset + 4 * i + 3);
 
     Vertex dst;
     clear(dst);
@@ -215,10 +215,9 @@ void catmarkComputeTriQuadFace()
 {
     int i = gl_VertexID + indexStart;
     int fidx0 = texelFetch(_F0_IT, tableOffset + 4 * i + 0);
-    int fidx1 = texelFetch(_F0_IT, tableOffset + 4 * i + 0);
-    int fidx2 = texelFetch(_F0_IT, tableOffset + 4 * i + 0);
-    int fidx3 = texelFetch(_F0_IT, tableOffset + 4 * i + 0);
-
+    int fidx1 = texelFetch(_F0_IT, tableOffset + 4 * i + 1);
+    int fidx2 = texelFetch(_F0_IT, tableOffset + 4 * i + 2);
+    int fidx3 = texelFetch(_F0_IT, tableOffset + 4 * i + 3);
     bool triangle = (fidx2 == fidx3);
     float weight = triangle ? 1.0f / 3.0f : 1.0f / 4.0f;
 
@@ -227,14 +226,13 @@ void catmarkComputeTriQuadFace()
     addWithWeight(dst, readVertex(fidx0), weight);
     addWithWeight(dst, readVertex(fidx1), weight);
     addWithWeight(dst, readVertex(fidx2), weight);
-    if (!triangle)
-        addWithWeight(dst, readVertex(fidx3), weight);
-
     addVaryingWithWeight(dst, readVertex(fidx0), weight);
     addVaryingWithWeight(dst, readVertex(fidx1), weight);
     addVaryingWithWeight(dst, readVertex(fidx2), weight);
-    if (!triangle)
+    if (!triangle) {
+        addWithWeight(dst, readVertex(fidx3), weight);
         addVaryingWithWeight(dst, readVertex(fidx3), weight);
+    }
 
     writeVertex(dst);
 }

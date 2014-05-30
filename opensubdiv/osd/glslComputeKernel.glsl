@@ -224,14 +224,13 @@ void catmarkComputeTriQuadFace()
     addWithWeight(dst, readVertex(fidx0), weight);
     addWithWeight(dst, readVertex(fidx1), weight);
     addWithWeight(dst, readVertex(fidx2), weight);
-    if (!triangle)
-        addWithWeight(dst, readVertex(fidx3), weight);
-
     addVaryingWithWeight(dst, readVertex(fidx0), weight);
     addVaryingWithWeight(dst, readVertex(fidx1), weight);
     addVaryingWithWeight(dst, readVertex(fidx2), weight);
-    if (!triangle)
+    if (!triangle) {
+        addWithWeight(dst, readVertex(fidx3), weight);
         addVaryingWithWeight(dst, readVertex(fidx3), weight);
+    }
 
     writeVertex(vid, dst);
 }

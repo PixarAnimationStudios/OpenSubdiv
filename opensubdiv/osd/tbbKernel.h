@@ -39,6 +39,20 @@ void OsdTbbComputeFace(float * vertex, float * varying,
                        int vertexOffset, int tableOffset,
                        int start, int end);
 
+void OsdTbbComputeQuadFace(float * vertex, float * varying,
+                           OsdVertexBufferDescriptor const &vertexDesc,
+                           OsdVertexBufferDescriptor const &varyingDesc,
+                           int const *F_IT,
+                           int vertexOffset, int tableOffset,
+                           int start, int end);
+
+void OsdTbbComputeTriQuadFace(float * vertex, float * varying,
+                              OsdVertexBufferDescriptor const &vertexDesc,
+                              OsdVertexBufferDescriptor const &varyingDesc,
+                              int const *F_IT,
+                              int vertexOffset, int tableOffset,
+                              int start, int end);
+
 void OsdTbbComputeEdge(float *vertex, float * varying,
                        OsdVertexBufferDescriptor const &vertexDesc,
                        OsdVertexBufferDescriptor const &varyingDesc,

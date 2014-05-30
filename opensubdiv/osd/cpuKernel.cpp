@@ -126,12 +126,12 @@ void OsdCpuComputeQuadFace(
 
         // accum
         addWithWeight(vertexResults, vertex, fidx0, 0.25f, vertexDesc);
-        addWithWeight(varyingResults, varying, fidx0, 0.25f, varyingDesc);
         addWithWeight(vertexResults, vertex, fidx1, 0.25f, vertexDesc);
-        addWithWeight(varyingResults, varying, fidx1, 0.25f, varyingDesc);
         addWithWeight(vertexResults, vertex, fidx2, 0.25f, vertexDesc);
-        addWithWeight(varyingResults, varying, fidx2, 0.25f, varyingDesc);
         addWithWeight(vertexResults, vertex, fidx3, 0.25f, vertexDesc);
+        addWithWeight(varyingResults, varying, fidx0, 0.25f, varyingDesc);
+        addWithWeight(varyingResults, varying, fidx1, 0.25f, varyingDesc);
+        addWithWeight(varyingResults, varying, fidx2, 0.25f, varyingDesc);
         addWithWeight(varyingResults, varying, fidx3, 0.25f, varyingDesc);
 
         // write results
@@ -155,9 +155,9 @@ void OsdCpuComputeTriQuadFace(
         int fidx1 = F_IT[tableOffset + 4 * i + 1];
         int fidx2 = F_IT[tableOffset + 4 * i + 2];
         int fidx3 = F_IT[tableOffset + 4 * i + 3];
-
         bool triangle = (fidx2 == fidx3);
         float weight = (triangle ? 1.0f / 3.0f : 1.0f / 4.0f);
+
         int dstIndex = i + vertexOffset;
 
         // clear
@@ -166,10 +166,10 @@ void OsdCpuComputeTriQuadFace(
 
         // accum
         addWithWeight(vertexResults, vertex, fidx0, weight, vertexDesc);
-        addWithWeight(varyingResults, varying, fidx0, weight, varyingDesc);
         addWithWeight(vertexResults, vertex, fidx1, weight, vertexDesc);
-        addWithWeight(varyingResults, varying, fidx1, weight, varyingDesc);
         addWithWeight(vertexResults, vertex, fidx2, weight, vertexDesc);
+        addWithWeight(varyingResults, varying, fidx0, weight, varyingDesc);
+        addWithWeight(varyingResults, varying, fidx1, weight, varyingDesc);
         addWithWeight(varyingResults, varying, fidx2, weight, varyingDesc);
         if (!triangle) {
             addWithWeight(vertexResults, vertex, fidx3, weight, vertexDesc);
