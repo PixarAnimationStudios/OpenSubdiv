@@ -571,6 +571,11 @@ FarSubdivisionTablesFactory<T,U>::Splice(FarMeshVector const &meshes, FarKernelB
 
                 batch._tableOffset += fvOffsets[i];
 
+            } else if (batch._kernelType == FarKernelBatch::CATMARK_QUAD_FACE_VERTEX or
+                       batch._kernelType == FarKernelBatch::CATMARK_TRI_QUAD_FACE_VERTEX) {
+
+                batch._tableOffset += F_IToffsets[i];
+
             } else if (batch._kernelType == FarKernelBatch::CATMARK_EDGE_VERTEX or
                        batch._kernelType == FarKernelBatch::LOOP_EDGE_VERTEX or
                        batch._kernelType == FarKernelBatch::BILINEAR_EDGE_VERTEX) {
