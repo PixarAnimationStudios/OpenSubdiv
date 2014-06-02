@@ -207,6 +207,8 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
             }
         } else if (v->GetParentEdge()) {
             edgeCounts[depth]++;
+
+            // Determine if any edges have fractional sharpness.
             float sharpness = v->GetParentEdge()->GetSharpness();
             if (sharpness > 0.0f && sharpness < 1.0f)
                 _hasFractionalEdgeSharpness = true;

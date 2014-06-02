@@ -236,7 +236,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
 
             if (kernelType == FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX) {
                 // in the case of a sharp edge, repeat the endpoint vertices
-                if (!e->IsBoundary() && esharp < 1.0f) {
+                if (!e->IsBoundary() && esharp == 0.0f) {
                     HbrFace<T>* rf = e->GetRightFace();
                     HbrFace<T>* lf = e->GetLeftFace();
 
