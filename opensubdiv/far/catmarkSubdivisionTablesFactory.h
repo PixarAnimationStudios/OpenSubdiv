@@ -236,7 +236,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
 
             if (kernelType == FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX) {
                 // in the case of a sharp edge, repeat the endpoint vertices
-                if (!e->IsBoundary() && esharp == 0.0f) {
+                if (!e->IsBoundary() && esharp == HbrHalfedge<T>::k_Smooth) {
                     HbrFace<T>* rf = e->GetRightFace();
                     HbrFace<T>* lf = e->GetLeftFace();
 
@@ -246,7 +246,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
                     E_IT[4*i+2] = E_IT[4*i+0];
                     E_IT[4*i+3] = E_IT[4*i+1];
                 }
-            } else if (!e->IsBoundary() && esharp <= 1.0f) {
+            } else if (!e->IsBoundary() && esharp <= HbrHalfedge<T>::k_Sharp) {
                 // in the case of a fractional sharpness, set the adjacent faces vertices
 
                 float leftWeight, rightWeight;

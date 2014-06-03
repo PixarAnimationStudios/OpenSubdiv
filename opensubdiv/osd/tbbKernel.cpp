@@ -455,8 +455,8 @@ void OsdTbbComputeRestrictedEdge(
     int const *E_IT, int vertexOffset, int tableOffset,
     int start, int end) {
     tbb::blocked_range<int> range(start, end, grain_size);
-    TBBEdgeKernel kernel(vertex, varying, vertexDesc, varyingDesc, E_IT,
-                         vertexOffset, tableOffset);
+    TBBRestrictedEdgeKernel kernel(vertex, varying, vertexDesc, varyingDesc, E_IT,
+                                   vertexOffset, tableOffset);
     tbb::parallel_for(range, kernel);
 }
 
