@@ -433,6 +433,94 @@ void catmarkComputeVertexB()
     writeVertex(dst);
 }
 
+// Restricted vertex-vertices compute Kernels 'A' / k_Crease and k_Corner rules
+subroutine(computeKernelType)
+void catmarkComputeRestrictedVertexA()
+{
+    int i = gl_VertexID + indexStart + tableOffset;
+    int vid = gl_VertexID + indexStart + vertexOffset;
+
+    int p     = texelFetch(_V0_ITa, 5*i+2).x;
+    int eidx0 = texelFetch(_V0_ITa, 5*i+3).x;
+    int eidx1 = texelFetch(_V0_ITa, 5*i+4).x;
+
+    Vertex dst;
+    clear(dst);
+
+    addWithWeight(dst, readVertex(p), 0.75f);
+    addWithWeight(dst, readVertex(eidx0), 0.125f);
+    addWithWeight(dst, readVertex(eidx1), 0.125f);
+    addVaryingWithWeight(dst, readVertex(p), 1.0f);
+
+    writeVertex(dst);
+}
+
+// Restricted vertex-vertices compute Kernels 'B' / regular k_Dart and k_Smooth rules
+subroutine(computeKernelType)
+void catmarkComputeRestrictedVertexB1()
+{
+    int i = gl_VertexID + indexStart + tableOffset;
+
+    int h = texelFetch(_V0_ITa, 5*i).x;
+#ifdef OPT_CATMARK_V_IT_VEC2
+    int h2 = h/2;
+#endif
+    int p = texelFetch(_V0_ITa, 5*i+2).x;
+
+    Vertex dst;
+    clear(dst);
+
+    addWithWeight(dst, readVertex(p), 0.5f);
+
+    for(int j = 0; j < 4; ++j){
+#ifdef OPT_CATMARK_V_IT_VEC2
+        ivec2 v0it = texelFetch(_V0_IT, h2+j).xy;
+        addWithWeight(dst, readVertex(v0it.x), 0.0625f);
+        addWithWeight(dst, readVertex(v0it.y), 0.0625f);
+#else
+        addWithWeight(dst, readVertex(texelFetch(_V0_IT, h+j*2).x), 0.0625f);
+        addWithWeight(dst, readVertex(texelFetch(_V0_IT, h+j*2+1).x), 0.0625f);
+#endif
+    }
+    addVaryingWithWeight(dst, readVertex(p), 1.0f);
+    writeVertex(dst);
+}
+
+// Restricted vertex-vertices compute Kernels 'B' / irregular k_Dart and k_Smooth rules
+subroutine(computeKernelType)
+void catmarkComputeRestrictedVertexB2()
+{
+    int i = gl_VertexID + indexStart + tableOffset;
+
+    int h = texelFetch(_V0_ITa, 5*i).x;
+#ifdef OPT_CATMARK_V_IT_VEC2
+    int h2 = h/2;
+#endif
+    int n = texelFetch(_V0_ITa, 5*i+1).x;
+    int p = texelFetch(_V0_ITa, 5*i+2).x;
+
+    float wp = 1.0/float(n*n);
+    float wv = (n-2.0) * n * wp;
+
+    Vertex dst;
+    clear(dst);
+
+    addWithWeight(dst, readVertex(p), wv);
+
+    for(int j = 0; j < n; ++j){
+#ifdef OPT_CATMARK_V_IT_VEC2
+        ivec2 v0it = texelFetch(_V0_IT, h2+j).xy;
+        addWithWeight(dst, readVertex(v0it.x), wp);
+        addWithWeight(dst, readVertex(v0it.y), wp);
+#else
+        addWithWeight(dst, readVertex(texelFetch(_V0_IT, h+j*2).x), wp);
+        addWithWeight(dst, readVertex(texelFetch(_V0_IT, h+j*2+1).x), wp);
+#endif
+    }
+    addVaryingWithWeight(dst, readVertex(p), 1.0f);
+    writeVertex(dst);
+}
+
 // Vertex-vertices compute Kernels 'B' / k_Dart and k_Smooth rules
 subroutine(computeKernelType)
 void loopComputeVertexB()

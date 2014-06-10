@@ -56,6 +56,10 @@ protected:
     ///                     will reserve and append refinement tasks
     ///
     static FarSubdivisionTables * Create( FarMeshFactory<T,U> * meshFactory, FarKernelBatchVector *batches  );
+
+    // Compares vertices based on their topological configuration
+    // (see subdivisionTables::GetMaskRanking for more details)
+    static bool CompareVertices( HbrVertex<T> const *x, HbrVertex<T> const *y );
 };
 
 // This factory walks the Hbr vertices and accumulates the weights and adjacency
@@ -97,8 +101,17 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
     typename HbrCatmarkSubdivision<T>::TriangleSubdivision triangleMethod =
         dynamic_cast<HbrCatmarkSubdivision<T> *>(meshFactory->GetHbrMesh()->GetSubdivision())->GetTriangleSubdivisionMethod();
     bool hasFractionalEdgeSharpness = tablesFactory.HasFractionalEdgeSharpness();
-    bool useRestrictedEdgeVertexKernel = meshFactory->IsKernelTypeSupported(FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX);;
+    bool useRestrictedEdgeVertexKernel = meshFactory->IsKernelTypeSupported(FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX);
     useRestrictedEdgeVertexKernel &= !hasFractionalEdgeSharpness && triangleMethod != HbrCatmarkSubdivision<T>::k_New;
+
+    bool hasFractionalVertexSharpness = tablesFactory.HasFractionalVertexSharpness();
+    bool hasStandardVertexVertexKernels = meshFactory->IsKernelTypeSupported(FarKernelBatch::CATMARK_VERT_VERTEX_A1) &&
+                                          meshFactory->IsKernelTypeSupported(FarKernelBatch::CATMARK_VERT_VERTEX_A2) &&
+                                          meshFactory->IsKernelTypeSupported(FarKernelBatch::CATMARK_VERT_VERTEX_B);
+    bool useRestrictedVertexVertexKernels = meshFactory->IsKernelTypeSupported(FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_A) &&
+                                            meshFactory->IsKernelTypeSupported(FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B1) &&
+                                            meshFactory->IsKernelTypeSupported(FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B2);
+    useRestrictedVertexVertexKernels &= !hasFractionalVertexSharpness && !hasFractionalEdgeSharpness;
 
     // Allocate memory for the indexing tables
     result->_F_ITa.resize(F_ITa_size);
@@ -111,8 +124,9 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
     result->_V_ITa.resize((tablesFactory.GetNumVertexVerticesTotal(maxlevel)
                            - tablesFactory.GetNumVertexVerticesTotal(0))*5); // subtract coarse cage vertices
     result->_V_IT.resize(tablesFactory.GetVertVertsValenceSum()*2);
-    result->_V_W.resize(tablesFactory.GetNumVertexVerticesTotal(maxlevel)
-                        - tablesFactory.GetNumVertexVerticesTotal(0));
+    if (!useRestrictedVertexVertexKernels)
+        result->_V_W.resize(tablesFactory.GetNumVertexVerticesTotal(maxlevel)
+                            - tablesFactory.GetNumVertexVerticesTotal(0));
 
     // Prepare batch table
     batches->reserve(maxlevel*5);
@@ -382,35 +396,73 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
                         break;
                     }
                     case HbrVertex<T>::k_Corner :
-                        // in the case of a k_Crease / k_Corner pass combination, we
-                        // need to set the valence to -1 to tell the "B" Kernel to
-                        // switch to k_Corner rule (as edge indices won't be -1)
-                        if (V_ITa[5*i+1]==0)
-                            V_ITa[5*i+1] = -1;
+                        if (!useRestrictedVertexVertexKernels) {
+                            // in the case of a k_Crease / k_Corner pass combination, we
+                            // need to set the valence to -1 to tell the "B" Kernel to
+                            // switch to k_Corner rule (as edge indices won't be -1)
+                            if (V_ITa[5*i+1]==0)
+                                V_ITa[5*i+1] = -1;
+                        } else {
+                            // in the case of a k_Corner, repeat the vertex
+                            V_ITa[5*i+3] = V_ITa[5*i+2];
+                            V_ITa[5*i+4] = V_ITa[5*i+2];
+                        }
 
                     default : break;
                 }
 
-            if (rank>7)
-                // the k_Corner and k_Crease single-pass cases apply a weight of 1.0
-                // but this value is inverted in the kernel
-                V_W[i] = 0.0;
-            else
-                V_W[i] = weights[0];
+            if (!useRestrictedVertexVertexKernels) {
+                if (rank>7)
+                    // the k_Corner and k_Crease single-pass cases apply a weight of 1.0
+                    // but this value is inverted in the kernel
+                    V_W[i] = 0.0;
+                else
+                    V_W[i] = weights[0];
+            }
 
-            batchFactory.AddVertex( i, rank );
+            if (!useRestrictedVertexVertexKernels)
+                batchFactory.AddVertex( i, rank );
+            else
+                batchFactory.AddCatmarkRestrictedVertex( i, rank, V_ITa[5*i+1] );
         }
         V_ITa += nVertVertices*5;
-        V_W += nVertVertices;
+        if (!useRestrictedVertexVertexKernels)
+            V_W += nVertVertices;
 
         // add batches for vert vertices
-        if (nVertVertices > 0)
-            batchFactory.AppendCatmarkBatches(level, vertTableOffset, vertexOffset, batches);
+        if (nVertVertices > 0) {
+            if (!useRestrictedVertexVertexKernels) {
+                assert(hasStandardVertexVertexKernels);
+                batchFactory.AppendCatmarkBatches(level, vertTableOffset, vertexOffset, batches);
+            } else {
+                batchFactory.AppendCatmarkRestrictedBatches(level, vertTableOffset, vertexOffset, batches);
+            }
+        }
+
         vertexOffset += nVertVertices;
         vertTableOffset += nVertVertices;
     }
     result->_vertsOffsets[maxlevel+1] = vertexOffset;
     return result;
+}
+
+template <class T, class U> bool
+FarCatmarkSubdivisionTablesFactory<T,U>::CompareVertices( HbrVertex<T> const * x, HbrVertex<T> const * y ) {
+
+    // Masks of the parent vertex decide for the current vertex.
+    HbrVertex<T> * px=x->GetParentVertex(),
+                 * py=y->GetParentVertex();
+
+    int rankx = GetMaskRanking(px->GetMask(false), px->GetMask(true) );
+    int ranky = GetMaskRanking(py->GetMask(false), py->GetMask(true) );
+
+    assert( rankx!=0xFF and ranky!=0xFF );
+
+    // Arrange regular vertices before irregular vertices within the same kernel
+    if ((rankx <= 2 && ranky <= 2) || (rankx >= 3 && rankx <= 7 && ranky >= 3 && ranky <= 7) || (rankx >= 8 && ranky >= 8))
+        return px->GetValence() == 4 && py->GetValence() != 4;
+    else
+        return rankx < ranky;
 }
 
 } // end namespace OPENSUBDIV_VERSION

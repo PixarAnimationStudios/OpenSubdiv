@@ -386,6 +386,126 @@ void OsdOmpComputeVertexB(
     }
 }
 
+void OsdOmpComputeRestrictedVertexA(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    const int *V_ITa,
+    int offset, int tableOffset, int start, int end) {
+
+    int numThreads = omp_get_max_threads();
+    float *vertexResultsArray = (float*)alloca(vertexDesc.length * sizeof(float) * numThreads);
+    float *varyingResultsArray = (float*)alloca(varyingDesc.length * sizeof(float) * numThreads);
+
+#pragma omp parallel for
+    for (int i = start + tableOffset; i < end + tableOffset; i++) {
+        int p     = V_ITa[5*i+2];
+        int eidx0 = V_ITa[5*i+3];
+        int eidx1 = V_ITa[5*i+4];
+
+        int dstIndex = offset + i - tableOffset;
+
+        int threadId = omp_get_thread_num();
+        float *vertexResults = vertexResultsArray +
+            vertexDesc.length * threadId;
+        float *varyingResults = varyingResultsArray +
+            varyingDesc.length * threadId;
+
+        clear(vertexResults, vertexDesc);
+        clear(varyingResults, varyingDesc);
+
+        addWithWeight(vertexResults, vertex, p, 0.75f, vertexDesc);
+        addWithWeight(vertexResults, vertex, eidx0, 0.125f, vertexDesc);
+        addWithWeight(vertexResults, vertex, eidx1, 0.125f, vertexDesc);
+        copy(vertex, vertexResults, dstIndex, vertexDesc);
+
+        addWithWeight(varyingResults, varying, p, 1.0f, varyingDesc);
+        copy(varying, varyingResults, dstIndex, varyingDesc);
+    }
+}
+
+void OsdOmpComputeRestrictedVertexB1(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    const int *V_ITa, const int *V_IT,
+    int offset, int tableOffset, int start, int end) {
+
+    int numThreads = omp_get_max_threads();
+    float *vertexResultsArray = (float*)alloca(vertexDesc.length * sizeof(float) * numThreads);
+    float *varyingResultsArray = (float*)alloca(varyingDesc.length * sizeof(float) * numThreads);
+
+#pragma omp parallel for
+    for (int i = start + tableOffset; i < end + tableOffset; i++) {
+        int h = V_ITa[5*i];
+        int p = V_ITa[5*i+2];
+
+        int dstIndex = offset + i - tableOffset;
+
+        int threadId = omp_get_thread_num();
+        float *vertexResults = vertexResultsArray +
+            vertexDesc.length * threadId;
+        float *varyingResults = varyingResultsArray +
+            varyingDesc.length * threadId;
+
+        clear(vertexResults, vertexDesc);
+        clear(varyingResults, varyingDesc);
+
+        addWithWeight(vertexResults, vertex, p, 0.5f, vertexDesc);
+
+        for (int j = 0; j < 8; ++j)
+            addWithWeight(vertexResults, vertex, V_IT[h+j], 0.0625f, vertexDesc);
+        addWithWeight(varyingResults, varying, p, 1.0f, varyingDesc);
+
+        copy(vertex, vertexResults, dstIndex, vertexDesc);
+        copy(varying, varyingResults, dstIndex, varyingDesc);
+    }
+}
+
+void OsdOmpComputeRestrictedVertexB2(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    const int *V_ITa, const int *V_IT,
+    int offset, int tableOffset, int start, int end) {
+
+    int numThreads = omp_get_max_threads();
+    float *vertexResultsArray = (float*)alloca(vertexDesc.length * sizeof(float) * numThreads);
+    float *varyingResultsArray = (float*)alloca(varyingDesc.length * sizeof(float) * numThreads);
+
+#pragma omp parallel for
+    for (int i = start + tableOffset; i < end + tableOffset; i++) {
+        int h = V_ITa[5*i];
+        int n = V_ITa[5*i+1];
+        int p = V_ITa[5*i+2];
+
+        float wp = 1.0f/static_cast<float>(n*n);
+        float wv = (n-2.0f) * n * wp;
+
+        int dstIndex = offset + i - tableOffset;
+
+        int threadId = omp_get_thread_num();
+        float *vertexResults = vertexResultsArray +
+            vertexDesc.length * threadId;
+        float *varyingResults = varyingResultsArray +
+            varyingDesc.length * threadId;
+
+        clear(vertexResults, vertexDesc);
+        clear(varyingResults, varyingDesc);
+
+        addWithWeight(vertexResults, vertex, p, wv, vertexDesc);
+
+        for (int j = 0; j < n; ++j) {
+            addWithWeight(vertexResults, vertex, V_IT[h+j*2], wp, vertexDesc);
+            addWithWeight(vertexResults, vertex, V_IT[h+j*2+1], wp, vertexDesc);
+        }
+        addWithWeight(varyingResults, varying, p, 1.0f, varyingDesc);
+
+        copy(vertex, vertexResults, dstIndex, vertexDesc);
+        copy(varying, varyingResults, dstIndex, varyingDesc);
+    }
+}
+
 void OsdOmpComputeLoopVertexB(
     float * vertex, float * varying,
     OsdVertexBufferDescriptor const &vertexDesc,
