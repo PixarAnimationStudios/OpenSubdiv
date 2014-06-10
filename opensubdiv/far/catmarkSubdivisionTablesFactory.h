@@ -74,14 +74,22 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
 
     FarSubdivisionTables * result = new FarSubdivisionTables(maxlevel, FarSubdivisionTables::CATMARK);
 
-    // Calculate the size of the face-vertex index table
+    // Calculate the size of the face-vertex indexing tables
     int minCoarseFaceValence = tablesFactory.GetMinCoarseFaceValence();
     int maxCoarseFaceValence = tablesFactory.GetMaxCoarseFaceValence();
     bool coarseMeshAllQuadFaces = minCoarseFaceValence == 4 && maxCoarseFaceValence == 4;
     bool coarseMeshAllTriQuadFaces = minCoarseFaceValence >= 3 && maxCoarseFaceValence <= 4;
+    bool hasQuadFaceVertexKernel = meshFactory->IsKernelTypeSupported(FarKernelBatch::CATMARK_QUAD_FACE_VERTEX);
+    bool hasTriQuadFaceVertexKernel = meshFactory->IsKernelTypeSupported(FarKernelBatch::CATMARK_TRI_QUAD_FACE_VERTEX);
+
+    int F_ITa_size = 0;
+    if (!hasQuadFaceVertexKernel && !hasTriQuadFaceVertexKernel)
+        F_ITa_size = tablesFactory.GetNumFaceVerticesTotal(maxlevel) * 2;
+    else if (!coarseMeshAllTriQuadFaces || !hasTriQuadFaceVertexKernel)
+        F_ITa_size = tablesFactory.GetNumFaceVerticesTotal(1) * 2;
 
     int F_IT_size = tablesFactory.GetFaceVertsValenceSum();
-    if (coarseMeshAllTriQuadFaces)
+    if (coarseMeshAllTriQuadFaces && hasTriQuadFaceVertexKernel)
         F_IT_size += tablesFactory.GetNumCoarseTriangleFaces(); // add padding for tri faces
 
     // Triangular interpolation mode :
@@ -89,11 +97,11 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
     typename HbrCatmarkSubdivision<T>::TriangleSubdivision triangleMethod =
         dynamic_cast<HbrCatmarkSubdivision<T> *>(meshFactory->GetHbrMesh()->GetSubdivision())->GetTriangleSubdivisionMethod();
     bool hasFractionalEdgeSharpness = tablesFactory.HasFractionalEdgeSharpness();
-    bool useRestrictedEdgeVertexKernel = !hasFractionalEdgeSharpness && triangleMethod != HbrCatmarkSubdivision<T>::k_New;
+    bool useRestrictedEdgeVertexKernel = meshFactory->IsKernelTypeSupported(FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX);;
+    useRestrictedEdgeVertexKernel &= !hasFractionalEdgeSharpness && triangleMethod != HbrCatmarkSubdivision<T>::k_New;
 
     // Allocate memory for the indexing tables
-    if (!coarseMeshAllTriQuadFaces)
-        result->_F_ITa.resize(tablesFactory.GetNumFaceVerticesTotal(1) * 2);
+    result->_F_ITa.resize(F_ITa_size);
     result->_F_IT.resize(F_IT_size);
 
     result->_E_IT.resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*4);
@@ -135,20 +143,22 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
         int nFaceVertices = (int)tablesFactory._faceVertsList[level].size();
 
         // choose the kernel type that best fits the face topology
-        int kernelType;
+        int kernelType = FarKernelBatch::CATMARK_QUAD_FACE_VERTEX;
         if (level == 1) {
-            if (coarseMeshAllQuadFaces)
+            if (coarseMeshAllQuadFaces && hasQuadFaceVertexKernel)
                 kernelType = FarKernelBatch::CATMARK_QUAD_FACE_VERTEX;
-            else if (coarseMeshAllTriQuadFaces)
+            else if (coarseMeshAllTriQuadFaces && hasTriQuadFaceVertexKernel)
                 kernelType = FarKernelBatch::CATMARK_TRI_QUAD_FACE_VERTEX;
-            else
-                kernelType = FarKernelBatch::CATMARK_FACE_VERTEX;
         } else {
-            kernelType = FarKernelBatch::CATMARK_QUAD_FACE_VERTEX;
+            if (hasQuadFaceVertexKernel)
+                kernelType = FarKernelBatch::CATMARK_QUAD_FACE_VERTEX;
+            if (hasTriQuadFaceVertexKernel)
+                kernelType = FarKernelBatch::CATMARK_TRI_QUAD_FACE_VERTEX;
         }
 
         // add a batch for face vertices
         if (nFaceVertices > 0) {  // in torus case, nfacevertices could be zero
+            assert(meshFactory->IsKernelTypeSupported(kernelType));
             if (kernelType == FarKernelBatch::CATMARK_FACE_VERTEX) {
                 batches->push_back(FarKernelBatch( kernelType,
                                                    level,
@@ -208,6 +218,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
             FarKernelBatch::CATMARK_EDGE_VERTEX);
 
         if (nEdgeVertices > 0)
+            assert(meshFactory->IsKernelTypeSupported(kernelType));
             batches->push_back(FarKernelBatch( kernelType,
                                                level,
                                                0,

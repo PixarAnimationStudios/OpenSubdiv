@@ -65,7 +65,8 @@ class FarKernelBatch {
 public:
 
     enum KernelType {
-        CATMARK_FACE_VERTEX = 1,
+        FIRST_KERNEL_TYPE = 1,
+        CATMARK_FACE_VERTEX = FIRST_KERNEL_TYPE,
         CATMARK_QUAD_FACE_VERTEX,
         CATMARK_TRI_QUAD_FACE_VERTEX,
         CATMARK_EDGE_VERTEX,
@@ -81,7 +82,8 @@ public:
         BILINEAR_EDGE_VERTEX,
         BILINEAR_VERT_VERTEX,
         HIERARCHICAL_EDIT,
-        USER_DEFINED_KERNEL_START
+        NUM_KERNEL_TYPES,
+        USER_DEFINED_KERNEL_START = NUM_KERNEL_TYPES
     };
 
     /// \brief Constructor.
