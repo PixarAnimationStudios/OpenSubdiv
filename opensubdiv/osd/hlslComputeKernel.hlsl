@@ -211,8 +211,8 @@ void runKernel( uint3 ID )
     int fidx1 = _F_IT[tableOffset + 4 * i + 1];
     int fidx2 = _F_IT[tableOffset + 4 * i + 2];
     int fidx3 = _F_IT[tableOffset + 4 * i + 3];
-    bool triangle = (fidx2 == fidx3);
-    float weight = (triangle ? 1.0f / 3.0f : 1.0f / 4.0f);
+    bool isTriangle = (fidx2 == fidx3);
+    float weight = (isTriangle ? 1.0f / 3.0f : 1.0f / 4.0f);
 
     Vertex dst;
     clear(dst);
@@ -223,7 +223,7 @@ void runKernel( uint3 ID )
     addVaryingWithWeight(dst, readVertex(fidx0), weight);
     addVaryingWithWeight(dst, readVertex(fidx1), weight);
     addVaryingWithWeight(dst, readVertex(fidx2), weight);
-    if (!triangle) {
+    if (!isTriangle) {
         addWithWeight(dst, readVertex(fidx3), weight);
         addVaryingWithWeight(dst, readVertex(fidx3), weight);
     }
