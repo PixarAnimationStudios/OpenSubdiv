@@ -143,7 +143,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
         int nFaceVertices = (int)tablesFactory._faceVertsList[level].size();
 
         // choose the kernel type that best fits the face topology
-        int kernelType = FarKernelBatch::CATMARK_QUAD_FACE_VERTEX;
+        int kernelType = FarKernelBatch::CATMARK_FACE_VERTEX;
         if (level == 1) {
             if (coarseMeshAllQuadFaces && hasQuadFaceVertexKernel)
                 kernelType = FarKernelBatch::CATMARK_QUAD_FACE_VERTEX;
