@@ -360,10 +360,13 @@ OsdUtilTagData::AddCreaseMethod(const std::string & /* value */)
 // 1 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner
 // 2 == OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly    
 bool
-OsdUtilTagData::AddInterpolateBoundary(int /* value */)
+OsdUtilTagData::AddInterpolateBoundary(int value )
 {
-    return true;
-
+    tags.push_back(INTERPOLATE_BOUNDARY);
+    numArgs.push_back(1);
+    numArgs.push_back(0);
+    numArgs.push_back(0);    
+    intArgs.push_back(value);
 }
 
 bool
