@@ -1734,6 +1734,7 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
             FarVertexStencil::Subtract(uderiv, v1->GetData().GetStencil(), v2->GetData().GetStencil());
             FarVertexStencil::Scale(uderiv, 0.5f, GetStencilSize());
 
+            FarVertexStencil::Reset(vderiv, 0.0f, GetStencilSize());
             FarVertexStencil::AddScaled(vderiv,  v->GetData().GetStencil(), creaseK[n][0]);
             FarVertexStencil::AddScaled(vderiv, v1->GetData().GetStencil(), creaseK[n][1]);
             FarVertexStencil::AddScaled(vderiv, v2->GetData().GetStencil(), creaseK[n][2]);
@@ -1741,10 +1742,11 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
             // Math on vertices between the two creases
             float d = fabsf(creaseK[n][0]) + fabsf(creaseK[n][1]) + fabsf(creaseK[n][2]);
             idx = 3;
-            if ((vi=++vi)==vertices.end()) {
+            vi = v1i;
+            if ((++vi)==vertices.end()) {
                 vi = vertices.begin();
             }
-            while (vi !=v2i) {
+            while (vi!=v2i) {
                 FarVertexStencil::AddScaled(vderiv, (*vi)->GetData().GetStencil(), creaseK[n][idx]);
                 d += fabsf(creaseK[n][idx]);
                 ++idx;
@@ -1753,7 +1755,7 @@ FarStencilTablesFactory<T>::Patch::_GetTangentLimitStencils( HbrHalfedge<T> * e,
                 }
             }
 
-            FarVertexStencil::Scale(uderiv, -2.0f/d, GetStencilSize());
+            FarVertexStencil::Scale(vderiv, -2.0f/d, GetStencilSize());
 
         } break;
 
