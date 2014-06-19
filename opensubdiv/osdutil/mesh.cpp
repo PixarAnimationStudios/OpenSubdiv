@@ -290,7 +290,11 @@ bool _ProcessTagsAndFinishMesh(
     std::string *errorMessage
     )           
 {
-    mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly);
+    // Boundary interpolation "none" can yield uninitialized memory access in
+    // hbr.  Default to edge and corner interpolation because that is what
+    // users want almost all the time.
+    mesh->SetInterpolateBoundaryMethod(
+        OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeAndCorner);
 
     const int* currentInt = tagData.intArgs.size() ? &tagData.intArgs[0] : NULL;
     const float* currentFloat = tagData.floatArgs.size() ? &tagData.floatArgs[0] : NULL;

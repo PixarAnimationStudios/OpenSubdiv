@@ -95,6 +95,20 @@ void OsdCpuComputeFace(float * vertex, float * varying,
                        int vertexOffset, int tableOffset,
                        int start, int end);
 
+void OsdCpuComputeQuadFace(float * vertex, float * varying,
+                           OsdVertexBufferDescriptor const &vertexDesc,
+                           OsdVertexBufferDescriptor const &varyingDesc,
+                           const int *F_IT,
+                           int vertexOffset, int tableOffset,
+                           int start, int end);
+
+void OsdCpuComputeTriQuadFace(float * vertex, float * varying,
+                              OsdVertexBufferDescriptor const &vertexDesc,
+                              OsdVertexBufferDescriptor const &varyingDesc,
+                              const int *F_IT,
+                              int vertexOffset, int tableOffset,
+                              int start, int end);
+
 template<int numVertexElements>
 void ComputeEdgeKernel(      float *vertex,
                        const int   *E_IT, 
@@ -151,7 +165,7 @@ void ComputeEdgeKernel(      float *vertex,
 void OsdCpuComputeEdge(float *vertex, float * varying,
                        OsdVertexBufferDescriptor const &vertexDesc,
                        OsdVertexBufferDescriptor const &varyingDesc,
-                       const int *E_IT, const float *E_ITa,
+                       const int *E_IT, const float *E_W,
                        int vertexOffset, int tableOffset,
                        int start, int end);
 

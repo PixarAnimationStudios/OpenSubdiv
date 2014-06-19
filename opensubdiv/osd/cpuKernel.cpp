@@ -102,6 +102,86 @@ void OsdCpuComputeFace(
     }
 }
 
+void OsdCpuComputeQuadFace(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    const int *F_IT, int vertexOffset, int tableOffset,
+    int start, int end) {
+
+    float *vertexResults = (float*)alloca(vertexDesc.length * sizeof(float));
+    float *varyingResults = (float*)alloca(varyingDesc.length * sizeof(float));
+
+    for (int i = start; i < end; i++) {
+        int fidx0 = F_IT[tableOffset + 4 * i + 0];
+        int fidx1 = F_IT[tableOffset + 4 * i + 1];
+        int fidx2 = F_IT[tableOffset + 4 * i + 2];
+        int fidx3 = F_IT[tableOffset + 4 * i + 3];
+
+        int dstIndex = i + vertexOffset;
+
+        // clear
+        clear(vertexResults, vertexDesc);
+        clear(varyingResults, varyingDesc);
+
+        // accum
+        addWithWeight(vertexResults, vertex, fidx0, 0.25f, vertexDesc);
+        addWithWeight(vertexResults, vertex, fidx1, 0.25f, vertexDesc);
+        addWithWeight(vertexResults, vertex, fidx2, 0.25f, vertexDesc);
+        addWithWeight(vertexResults, vertex, fidx3, 0.25f, vertexDesc);
+        addWithWeight(varyingResults, varying, fidx0, 0.25f, varyingDesc);
+        addWithWeight(varyingResults, varying, fidx1, 0.25f, varyingDesc);
+        addWithWeight(varyingResults, varying, fidx2, 0.25f, varyingDesc);
+        addWithWeight(varyingResults, varying, fidx3, 0.25f, varyingDesc);
+
+        // write results
+        copy(vertex, vertexResults, dstIndex, vertexDesc);
+        copy(varying, varyingResults, dstIndex, varyingDesc);
+    }
+}
+
+void OsdCpuComputeTriQuadFace(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    const int *F_IT, int vertexOffset, int tableOffset,
+    int start, int end) {
+
+    float *vertexResults = (float*)alloca(vertexDesc.length * sizeof(float));
+    float *varyingResults = (float*)alloca(varyingDesc.length * sizeof(float));
+
+    for (int i = start; i < end; i++) {
+        int fidx0 = F_IT[tableOffset + 4 * i + 0];
+        int fidx1 = F_IT[tableOffset + 4 * i + 1];
+        int fidx2 = F_IT[tableOffset + 4 * i + 2];
+        int fidx3 = F_IT[tableOffset + 4 * i + 3];
+        bool triangle = (fidx2 == fidx3);
+        float weight = (triangle ? 1.0f / 3.0f : 1.0f / 4.0f);
+
+        int dstIndex = i + vertexOffset;
+
+        // clear
+        clear(vertexResults, vertexDesc);
+        clear(varyingResults, varyingDesc);
+
+        // accum
+        addWithWeight(vertexResults, vertex, fidx0, weight, vertexDesc);
+        addWithWeight(vertexResults, vertex, fidx1, weight, vertexDesc);
+        addWithWeight(vertexResults, vertex, fidx2, weight, vertexDesc);
+        addWithWeight(varyingResults, varying, fidx0, weight, varyingDesc);
+        addWithWeight(varyingResults, varying, fidx1, weight, varyingDesc);
+        addWithWeight(varyingResults, varying, fidx2, weight, varyingDesc);
+        if (!triangle) {
+            addWithWeight(vertexResults, vertex, fidx3, weight, vertexDesc);
+            addWithWeight(varyingResults, varying, fidx3, weight, varyingDesc);
+        }
+
+        // write results
+        copy(vertex, vertexResults, dstIndex, vertexDesc);
+        copy(varying, varyingResults, dstIndex, varyingDesc);
+    }
+}
+
 void OsdCpuComputeEdge(
     float *vertex, float *varying,
     OsdVertexBufferDescriptor const &vertexDesc,

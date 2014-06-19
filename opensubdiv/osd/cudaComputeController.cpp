@@ -35,6 +35,16 @@ void OsdCudaComputeFace(float *vertex, float *varying,
                         int varyingLength, int varyingStride,
                         int *F_IT, int *F_ITa, int offset, int tableOffset, int start, int end);
 
+void OsdCudaComputeQuadFace(float *vertex, float *varying,
+                            int vertexLength, int vertexStride,
+                            int varyingLength, int varyingStride,
+                            int *F_IT, int offset, int tableOffset, int start, int end);
+
+void OsdCudaComputeTriQuadFace(float *vertex, float *varying,
+                               int vertexLength, int vertexStride,
+                               int varyingLength, int varyingStride,
+                               int *F_IT, int offset, int tableOffset, int start, int end);
+
 void OsdCudaComputeEdge(float *vertex, float *varying,
                         int vertexLength, int vertexStride,
                         int varyingLength, int varyingStride,
@@ -168,6 +178,46 @@ OsdCudaComputeController::ApplyCatmarkFaceVerticesKernel(
         _currentBindState.varyingDesc.length, _currentBindState.varyingDesc.stride,
         static_cast<int*>(F_IT->GetCudaMemory()),
         static_cast<int*>(F_ITa->GetCudaMemory()),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdCudaComputeController::ApplyCatmarkQuadFaceVerticesKernel(
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
+
+    assert(context);
+
+    const OsdCudaTable * F_IT = context->GetTable(FarSubdivisionTables::F_IT);
+    assert(F_IT);
+
+    float *vertex = _currentBindState.GetOffsettedVertexBuffer();
+    float *varying = _currentBindState.GetOffsettedVaryingBuffer();
+
+    OsdCudaComputeQuadFace(
+        vertex, varying,
+        _currentBindState.vertexDesc.length, _currentBindState.vertexDesc.stride,
+        _currentBindState.varyingDesc.length, _currentBindState.varyingDesc.stride,
+        static_cast<int*>(F_IT->GetCudaMemory()),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdCudaComputeController::ApplyCatmarkTriQuadFaceVerticesKernel(
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
+
+    assert(context);
+
+    const OsdCudaTable * F_IT = context->GetTable(FarSubdivisionTables::F_IT);
+    assert(F_IT);
+
+    float *vertex = _currentBindState.GetOffsettedVertexBuffer();
+    float *varying = _currentBindState.GetOffsettedVaryingBuffer();
+
+    OsdCudaComputeTriQuadFace(
+        vertex, varying,
+        _currentBindState.vertexDesc.length, _currentBindState.vertexDesc.stride,
+        _currentBindState.varyingDesc.length, _currentBindState.varyingDesc.stride,
+        static_cast<int*>(F_IT->GetCudaMemory()),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 

@@ -117,6 +117,12 @@ OsdGLSLComputeKernelBundle::Compile(
     _subComputeFace           = glGetSubroutineIndex(_program,
                                                      GL_COMPUTE_SHADER,
                                                      "catmarkComputeFace");
+    _subComputeQuadFace       = glGetSubroutineIndex(_program,
+                                                     GL_COMPUTE_SHADER,
+                                                     "catmarkComputeQuadFace");
+    _subComputeTriQuadFace    = glGetSubroutineIndex(_program,
+                                                     GL_COMPUTE_SHADER,
+                                                     "catmarkComputeTriQuadFace");
     _subComputeEdge           = glGetSubroutineIndex(_program,
                                                      GL_COMPUTE_SHADER,
                                                      "catmarkComputeEdge");
@@ -227,6 +233,22 @@ OsdGLSLComputeKernelBundle::ApplyCatmarkFaceVerticesKernel(
     // see the comment in dispatchCompute()
     // this workaround causes a performance problem.
     // glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+}
+
+void
+OsdGLSLComputeKernelBundle::ApplyCatmarkQuadFaceVerticesKernel(
+    int vertexOffset, int tableOffset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subComputeQuadFace);
+    dispatchCompute(vertexOffset, tableOffset, start, end);
+}
+
+void
+OsdGLSLComputeKernelBundle::ApplyCatmarkTriQuadFaceVerticesKernel(
+    int vertexOffset, int tableOffset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subComputeTriQuadFace);
+    dispatchCompute(vertexOffset, tableOffset, start, end);
 }
 
 void

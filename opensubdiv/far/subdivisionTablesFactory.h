@@ -94,6 +94,15 @@ protected:
     // Valence summation for face vertices
     int GetVertVertsValenceSum() const { return _vertVertsValenceSum; }
 
+    // Minimum valence for coarse faces
+    int GetMinCoarseFaceValence() const { return _minCoarseFaceValence; }
+
+    // Maximum valence for coarse faces
+    int GetMaxCoarseFaceValence() const { return _maxCoarseFaceValence; }
+
+    // Number of coarse triangle faces
+    int GetNumCoarseTriangleFaces() const { return _numCoarseTriangleFaces; }
+
     // Returns an integer based on the order in which the kernels are applied
     static int GetMaskRanking( unsigned char mask0, unsigned char mask1 );
 
@@ -102,7 +111,7 @@ protected:
                      _edgeVertIdx,
                      _vertVertIdx;
 
-    // Mumber of indices required for the face-vert and vertex-vert
+    // Number of indices required for the face-vert and vertex-vert
     // iteration tables at each level
     int _faceVertsValenceSum,
         _vertVertsValenceSum;
@@ -111,6 +120,14 @@ protected:
     std::vector<std::vector< HbrVertex<T> *> > _faceVertsList,
                                                _edgeVertsList,
                                                _vertVertsList;
+
+    // Minimum and maximum valence for coarse faces
+    int _minCoarseFaceValence,
+        _maxCoarseFaceValence;
+
+    // Number of coarse triangle faces
+    int _numCoarseTriangleFaces;
+
 private:
 
     // Returns the subdivision level of a vertex
@@ -135,7 +152,10 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
     _vertVertsValenceSum(0),
     _faceVertsList(maxlevel+1),
     _edgeVertsList(maxlevel+1),
-    _vertVertsList(maxlevel+1)
+    _vertVertsList(maxlevel+1),
+    _minCoarseFaceValence(0),
+    _maxCoarseFaceValence(0),
+    _numCoarseTriangleFaces(0)
  {
     assert( mesh );
 
@@ -170,7 +190,15 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
 
         if (v->GetParentFace()) {
             faceCounts[depth]++;
-            _faceVertsValenceSum += v->GetParentFace()->GetNumVertices();
+            int valence = v->GetParentFace()->GetNumVertices();
+            _faceVertsValenceSum += valence;
+
+            if (depth == 1) {
+                _minCoarseFaceValence = (_minCoarseFaceValence == 0 ? valence : std::min(_minCoarseFaceValence, valence));
+                _maxCoarseFaceValence = (_maxCoarseFaceValence == 0 ? valence : std::max(_maxCoarseFaceValence, valence));
+                if (valence == 3)
+                    ++_numCoarseTriangleFaces;
+            }
         } else if (v->GetParentEdge())
             edgeCounts[depth]++;
         else if (v->GetParentVertex()) {
@@ -542,6 +570,11 @@ FarSubdivisionTablesFactory<T,U>::Splice(FarMeshVector const &meshes, FarKernelB
                 batch._kernelType == FarKernelBatch::BILINEAR_FACE_VERTEX) {
 
                 batch._tableOffset += fvOffsets[i];
+
+            } else if (batch._kernelType == FarKernelBatch::CATMARK_QUAD_FACE_VERTEX or
+                       batch._kernelType == FarKernelBatch::CATMARK_TRI_QUAD_FACE_VERTEX) {
+
+                batch._tableOffset += F_IToffsets[i];
 
             } else if (batch._kernelType == FarKernelBatch::CATMARK_EDGE_VERTEX or
                        batch._kernelType == FarKernelBatch::LOOP_EDGE_VERTEX or

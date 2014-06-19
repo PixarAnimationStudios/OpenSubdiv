@@ -87,6 +87,12 @@ FarDispatcher::ApplyKernel(CONTROLLER *controller, CONTEXT *context, FarKernelBa
         case FarKernelBatch::CATMARK_FACE_VERTEX:
             controller->ApplyCatmarkFaceVerticesKernel(batch, context);
             break;
+        case FarKernelBatch::CATMARK_QUAD_FACE_VERTEX:
+            controller->ApplyCatmarkQuadFaceVerticesKernel(batch, context);
+            break;
+        case FarKernelBatch::CATMARK_TRI_QUAD_FACE_VERTEX:
+            controller->ApplyCatmarkTriQuadFaceVerticesKernel(batch, context);
+            break;
         case FarKernelBatch::CATMARK_EDGE_VERTEX:
             controller->ApplyCatmarkEdgeVerticesKernel(batch, context);
             break;
@@ -169,6 +175,12 @@ public:
 
     template <class CONTEXT>
     void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const;
+
+    template <class CONTEXT>
+    void ApplyCatmarkQuadFaceVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const;
+
+    template <class CONTEXT>
+    void ApplyCatmarkTriQuadFaceVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const;
 
     template <class CONTEXT>
     void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const;
@@ -266,6 +278,36 @@ FarComputeController::ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch
                                            batch.GetStart(),
                                            batch.GetEnd(),
                                            vsrc );
+}
+
+template <class CONTEXT> void
+FarComputeController::ApplyCatmarkQuadFaceVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const {
+
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
+
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
+    assert(subdivision);
+
+    subdivision->computeCatmarkQuadFacePoints( batch.GetVertexOffset(),
+                                               batch.GetTableOffset(),
+                                               batch.GetStart(),
+                                               batch.GetEnd(),
+                                               vsrc );
+}
+
+template <class CONTEXT> void
+FarComputeController::ApplyCatmarkTriQuadFaceVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const {
+
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
+
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
+    assert(subdivision);
+
+    subdivision->computeCatmarkTriQuadFacePoints( batch.GetVertexOffset(),
+                                                  batch.GetTableOffset(),
+                                                  batch.GetStart(),
+                                                  batch.GetEnd(),
+                                                  vsrc );
 }
 
 template <class CONTEXT> void

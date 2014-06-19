@@ -31,6 +31,18 @@ Release Notes
 
 ----
 
+Release 2.5.1
+=============
+
+**New Features**
+    - Add CATMARK_QUAD_FACE_VERTEX and CATMARK_TRI_QUAD_FACE_VERTEX compute kernels
+      optimization that takes advantage of all-quads or all-triange-and-quads meshes
+
+**Bug Fixes**
+    - Fixed a compiler error in the GLSL Transform Feedback kernels on OS X
+    - Fixed boundary interpolation in osdutil
+    - Fix bilinear stencil tangent computions
+
 Release 2.5.0
 =============
 

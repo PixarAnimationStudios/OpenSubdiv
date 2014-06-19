@@ -44,25 +44,29 @@ public:
                  OsdVertexBufferDescriptor const &vertexDesc,
                  OsdVertexBufferDescriptor const &varyingDesc);
 
-    cl_kernel GetBilinearEdgeKernel() const   { return _clBilinearEdge; }
+    cl_kernel GetBilinearEdgeKernel() const              { return _clBilinearEdge; }
 
-    cl_kernel GetBilinearVertexKernel() const { return _clBilinearVertex; }
+    cl_kernel GetBilinearVertexKernel() const            { return _clBilinearVertex; }
 
-    cl_kernel GetCatmarkFaceKernel() const    { return _clCatmarkFace; }
+    cl_kernel GetCatmarkFaceKernel() const               { return _clCatmarkFace; }
 
-    cl_kernel GetCatmarkEdgeKernel() const    { return _clCatmarkEdge; }
+    cl_kernel GetCatmarkQuadFaceKernel() const           { return _clCatmarkQuadFace; }
 
-    cl_kernel GetCatmarkVertexKernelA() const { return _clCatmarkVertexA; }
+    cl_kernel GetCatmarkTriQuadFaceKernel() const        { return _clCatmarkQuadFace; }
 
-    cl_kernel GetCatmarkVertexKernelB() const { return _clCatmarkVertexB; }
+    cl_kernel GetCatmarkEdgeKernel() const               { return _clCatmarkEdge; }
 
-    cl_kernel GetLoopEdgeKernel() const       { return _clLoopEdge; }
+    cl_kernel GetCatmarkVertexKernelA() const            { return _clCatmarkVertexA; }
 
-    cl_kernel GetLoopVertexKernelA() const    { return _clLoopVertexA; }
+    cl_kernel GetCatmarkVertexKernelB() const            { return _clCatmarkVertexB; }
 
-    cl_kernel GetLoopVertexKernelB() const    { return _clLoopVertexB; }
+    cl_kernel GetLoopEdgeKernel() const                  { return _clLoopEdge; }
 
-    cl_kernel GetVertexEditAdd() const        { return _clVertexEditAdd; }
+    cl_kernel GetLoopVertexKernelA() const               { return _clLoopVertexA; }
+
+    cl_kernel GetLoopVertexKernelB() const               { return _clLoopVertexB; }
+
+    cl_kernel GetVertexEditAdd() const                   { return _clVertexEditAdd; }
 
     struct Match {
         /// Constructor
@@ -92,6 +96,8 @@ protected:
     cl_kernel _clBilinearEdge,
               _clBilinearVertex,
               _clCatmarkFace,
+              _clCatmarkQuadFace,
+              _clCatmarkTriQuadFace,
               _clCatmarkEdge,
               _clCatmarkVertexA,
               _clCatmarkVertexB,

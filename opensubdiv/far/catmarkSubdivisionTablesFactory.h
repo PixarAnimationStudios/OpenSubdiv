@@ -74,15 +74,26 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
 
     FarSubdivisionTables * result = new FarSubdivisionTables(maxlevel, FarSubdivisionTables::CATMARK);
 
+    // Calculate the size of the face-vertex index table
+    int minCoarseFaceValence = tablesFactory.GetMinCoarseFaceValence();
+    int maxCoarseFaceValence = tablesFactory.GetMaxCoarseFaceValence();
+    bool coarseMeshAllQuadFaces = minCoarseFaceValence == 4 && maxCoarseFaceValence == 4;
+    bool coarseMeshAllTriQuadFaces = minCoarseFaceValence >= 3 && maxCoarseFaceValence <= 4;
+
+    int F_IT_size = tablesFactory.GetFaceVertsValenceSum();
+    if (coarseMeshAllTriQuadFaces)
+        F_IT_size += tablesFactory.GetNumCoarseTriangleFaces(); // add padding for tri faces
+
     // Allocate memory for the indexing tables
-    result->_F_ITa.resize(tablesFactory.GetNumFaceVerticesTotal(maxlevel)*2);
-    result->_F_IT.resize(tablesFactory.GetFaceVertsValenceSum());
+    if (!coarseMeshAllTriQuadFaces)
+        result->_F_ITa.resize(tablesFactory.GetNumFaceVerticesTotal(1) * 2);
+    result->_F_IT.resize(F_IT_size);
 
     result->_E_IT.resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*4);
     result->_E_W.resize(tablesFactory.GetNumEdgeVerticesTotal(maxlevel)*2);
 
     result->_V_ITa.resize((tablesFactory.GetNumVertexVerticesTotal(maxlevel)
-                           - tablesFactory.GetNumVertexVerticesTotal(0))*5); // subtract corase cage vertices
+                           - tablesFactory.GetNumVertexVerticesTotal(0))*5); // subtract coarse cage vertices
     result->_V_IT.resize(tablesFactory.GetVertVertsValenceSum()*2);
     result->_V_W.resize(tablesFactory.GetNumVertexVerticesTotal(maxlevel)
                         - tablesFactory.GetNumVertexVerticesTotal(0));
@@ -115,18 +126,44 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
         // "For each vertex, gather all the vertices from the parent face."
         int nFaceVertices = (int)tablesFactory._faceVertsList[level].size();
 
+        // choose the kernel type that best fits the face topology
+        int kernelType;
+        if (level == 1) {
+            if (coarseMeshAllQuadFaces)
+                kernelType = FarKernelBatch::CATMARK_QUAD_FACE_VERTEX;
+            else if (coarseMeshAllTriQuadFaces)
+                kernelType = FarKernelBatch::CATMARK_TRI_QUAD_FACE_VERTEX;
+            else
+                kernelType = FarKernelBatch::CATMARK_FACE_VERTEX;
+        } else {
+            kernelType = FarKernelBatch::CATMARK_QUAD_FACE_VERTEX;
+        }
+
         // add a batch for face vertices
-        if (nFaceVertices > 0)  // in torus case, nfacevertices could be zero
-            batches->push_back(FarKernelBatch( FarKernelBatch::CATMARK_FACE_VERTEX,
-                                               level,
-                                               0,
-                                               0,
-                                               nFaceVertices,
-                                               faceTableOffset,
-                                               vertexOffset) );
+        if (nFaceVertices > 0) {  // in torus case, nfacevertices could be zero
+            if (kernelType == FarKernelBatch::CATMARK_FACE_VERTEX) {
+                batches->push_back(FarKernelBatch( kernelType,
+                                                   level,
+                                                   0,
+                                                   0,
+                                                   nFaceVertices,
+                                                   faceTableOffset,
+                                                   vertexOffset) );
+            } else {
+                // quad and tri-quad kernels store the offset of the first vertex in the table offset
+                batches->push_back(FarKernelBatch( kernelType,
+                                                   level,
+                                                   0,
+                                                   0,
+                                                   nFaceVertices,
+                                                   F_IT_offset,
+                                                   vertexOffset) );
+            }
+        }
 
         vertexOffset += nFaceVertices;
-        faceTableOffset += nFaceVertices;
+        if (kernelType == FarKernelBatch::CATMARK_FACE_VERTEX)
+            faceTableOffset += nFaceVertices;
 
         for (int i=0; i < nFaceVertices; ++i) {
 
@@ -138,13 +175,17 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
 
             int valence = f->GetNumVertices();
 
-            F_ITa[2*i+0] = F_IT_offset;
-            F_ITa[2*i+1] = valence;
+            if (kernelType == FarKernelBatch::CATMARK_FACE_VERTEX) {
+                *F_ITa++ = F_IT_offset;
+                *F_ITa++ = valence;
+            }
 
             for (int j=0; j<valence; ++j)
                 F_IT[F_IT_offset++] = remap[f->GetVertex(j)->GetID()];
+
+            if (kernelType == FarKernelBatch::CATMARK_TRI_QUAD_FACE_VERTEX && valence == 3)
+                F_IT[F_IT_offset++] = remap[f->GetVertex(2)->GetID()]; // repeat last index
         }
-        F_ITa += nFaceVertices * 2;
 
         // Edge vertices
 

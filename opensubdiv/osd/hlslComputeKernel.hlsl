@@ -168,6 +168,70 @@ void runKernel( uint3 ID )
 }
 };
 
+// Quad face-vertices compute Kernel
+class CatmarkComputeQuadFace : IComputeKernel {
+int placeholder;
+void runKernel( uint3 ID )
+{
+    int i = int(ID.x) + indexStart;
+    if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+
+    int fidx0 = _F_IT[tableOffset + 4 * i + 0];
+    int fidx1 = _F_IT[tableOffset + 4 * i + 1];
+    int fidx2 = _F_IT[tableOffset + 4 * i + 2];
+    int fidx3 = _F_IT[tableOffset + 4 * i + 3];
+
+    Vertex dst;
+    clear(dst);
+
+    addWithWeight(dst, readVertex(fidx0), 0.25f);
+    addWithWeight(dst, readVertex(fidx1), 0.25f);
+    addWithWeight(dst, readVertex(fidx2), 0.25f);
+    addWithWeight(dst, readVertex(fidx3), 0.25f);
+    addVaryingWithWeight(dst, readVertex(fidx0), 0.25f);
+    addVaryingWithWeight(dst, readVertex(fidx1), 0.25f);
+    addVaryingWithWeight(dst, readVertex(fidx2), 0.25f);
+    addVaryingWithWeight(dst, readVertex(fidx3), 0.25f);
+
+    writeVertex(vid, dst);
+}
+};
+
+// Tri-quad face-vertices compute Kernel
+class CatmarkComputeTriQuadFace : IComputeKernel {
+int placeholder;
+void runKernel( uint3 ID )
+{
+    int i = int(ID.x) + indexStart;
+    if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+
+    int fidx0 = _F_IT[tableOffset + 4 * i + 0];
+    int fidx1 = _F_IT[tableOffset + 4 * i + 1];
+    int fidx2 = _F_IT[tableOffset + 4 * i + 2];
+    int fidx3 = _F_IT[tableOffset + 4 * i + 3];
+    bool isTriangle = (fidx2 == fidx3);
+    float weight = (isTriangle ? 1.0f / 3.0f : 1.0f / 4.0f);
+
+    Vertex dst;
+    clear(dst);
+
+    addWithWeight(dst, readVertex(fidx0), weight);
+    addWithWeight(dst, readVertex(fidx1), weight);
+    addWithWeight(dst, readVertex(fidx2), weight);
+    addVaryingWithWeight(dst, readVertex(fidx0), weight);
+    addVaryingWithWeight(dst, readVertex(fidx1), weight);
+    addVaryingWithWeight(dst, readVertex(fidx2), weight);
+    if (!isTriangle) {
+        addWithWeight(dst, readVertex(fidx3), weight);
+        addVaryingWithWeight(dst, readVertex(fidx3), weight);
+    }
+
+    writeVertex(vid, dst);
+}
+};
+
 // Edge-vertices compute Kernel
 class CatmarkComputeEdge : IComputeKernel {
 int placeholder;
@@ -391,6 +455,8 @@ void runKernel( uint3 ID )
 };
 
 CatmarkComputeFace catmarkComputeFace;
+CatmarkComputeQuadFace catmarkComputeQuadFace;
+CatmarkComputeTriQuadFace catmarkComputeTriQuadFace;
 CatmarkComputeEdge catmarkComputeEdge;
 BilinearComputeEdge bilinearComputeEdge;
 BilinearComputeVertex bilinearComputeVertex;
