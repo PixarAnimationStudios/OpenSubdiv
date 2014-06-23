@@ -175,6 +175,10 @@ public:
     template <class U>
     void computeCatmarkEdgePoints(int vertexOffset, int tableOffset, int start, int end, U * vsrc) const;
 
+    // Compute-kernel applied to vertices resulting from the refinement of a smooth or sharp edge.
+    template <class U>
+    void computeCatmarkRestrictedEdgePoints(int vertexOffset, int tableOffset, int start, int end, U * vsrc) const;
+
     // Compute-kernel applied to vertices resulting from the refinement of a vertex
     // Kernel "A" Handles the k_Crease and k_Corner rules
     template <class U>
@@ -466,6 +470,33 @@ FarSubdivisionTables::computeCatmarkEdgePoints( int vertexOffset, int tableOffse
             vdst->AddWithWeight( vsrc[eidx3], faceWeight );
         }
 
+        vdst->AddVaryingWithWeight( vsrc[eidx0], 0.5f );
+        vdst->AddVaryingWithWeight( vsrc[eidx1], 0.5f );
+    }
+}
+
+//
+// Restricted edge-vertices compute Kernel - completely re-entrant
+//
+
+template <class U> void
+FarSubdivisionTables::computeCatmarkRestrictedEdgePoints( int vertexOffset, int tableOffset, int start, int end, U * vsrc ) const {
+
+    U * vdst = vsrc + vertexOffset + start;
+
+    for (int i=start+tableOffset; i<end+tableOffset; ++i, ++vdst ) {
+
+        vdst->Clear();
+
+        int eidx0 = this->_E_IT[4*i+0],
+            eidx1 = this->_E_IT[4*i+1],
+            eidx2 = this->_E_IT[4*i+2],
+            eidx3 = this->_E_IT[4*i+3];
+
+        vdst->AddWithWeight( vsrc[eidx0], 0.25f );
+        vdst->AddWithWeight( vsrc[eidx1], 0.25f );
+        vdst->AddWithWeight( vsrc[eidx2], 0.25f );
+        vdst->AddWithWeight( vsrc[eidx3], 0.25f );
         vdst->AddVaryingWithWeight( vsrc[eidx0], 0.5f );
         vdst->AddVaryingWithWeight( vsrc[eidx1], 0.5f );
     }

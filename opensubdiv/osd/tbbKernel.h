@@ -56,9 +56,16 @@ void OsdTbbComputeTriQuadFace(float * vertex, float * varying,
 void OsdTbbComputeEdge(float *vertex, float * varying,
                        OsdVertexBufferDescriptor const &vertexDesc,
                        OsdVertexBufferDescriptor const &varyingDesc,
-                       int const *E_IT, float const *E_ITa,
+                       int const *E_IT, float const *E_W,
                        int vertexOffset, int tableOffset,
                        int start, int end);
+
+void OsdTbbComputeRestrictedEdge(float *vertex, float * varying,
+                                 OsdVertexBufferDescriptor const &vertexDesc,
+                                 OsdVertexBufferDescriptor const &varyingDesc,
+                                 int const *E_IT,
+                                 int vertexOffset, int tableOffset,
+                                 int start, int end);
 
 void OsdTbbComputeVertexA(float *vertex, float * varying,
                           OsdVertexBufferDescriptor const &vertexDesc,

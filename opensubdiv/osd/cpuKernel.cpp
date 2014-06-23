@@ -231,6 +231,39 @@ void OsdCpuComputeEdge(
     }
 }
 
+void OsdCpuComputeRestrictedEdge(
+    float *vertex, float *varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    const int *E_IT, int vertexOffset, int tableOffset,
+    int start, int end) {
+
+    float *vertexResults = (float*)alloca(vertexDesc.length * sizeof(float));
+    float *varyingResults = (float*)alloca(varyingDesc.length * sizeof(float));
+
+    for (int i = start + tableOffset; i < end + tableOffset; i++) {
+        int eidx0 = E_IT[4*i+0];
+        int eidx1 = E_IT[4*i+1];
+        int eidx2 = E_IT[4*i+2];
+        int eidx3 = E_IT[4*i+3];
+
+        int dstIndex = i + vertexOffset - tableOffset;
+        clear(vertexResults, vertexDesc);
+        clear(varyingResults, varyingDesc);
+
+        addWithWeight(vertexResults, vertex, eidx0, 0.25f, vertexDesc);
+        addWithWeight(vertexResults, vertex, eidx1, 0.25f, vertexDesc);
+        addWithWeight(vertexResults, vertex, eidx2, 0.25f, vertexDesc);
+        addWithWeight(vertexResults, vertex, eidx3, 0.25f, vertexDesc);
+
+        addWithWeight(varyingResults, varying, eidx0, 0.5f, varyingDesc);
+        addWithWeight(varyingResults, varying, eidx1, 0.5f, varyingDesc);
+
+        copy(vertex, vertexResults, dstIndex, vertexDesc);
+        copy(varying, varyingResults, dstIndex, varyingDesc);
+    }
+}
+
 void OsdCpuComputeVertexA(
     float *vertex, float *varying,
     OsdVertexBufferDescriptor const &vertexDesc,

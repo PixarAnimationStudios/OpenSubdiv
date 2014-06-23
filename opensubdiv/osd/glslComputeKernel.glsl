@@ -235,7 +235,7 @@ void catmarkComputeTriQuadFace()
     writeVertex(vid, dst);
 }
 
-// Edge-vertices compute Kernepl
+// Edge-vertices compute Kernel
 subroutine(computeKernelType)
 void catmarkComputeEdge()
 {
@@ -266,6 +266,34 @@ void catmarkComputeEdge()
         addWithWeight(dst, readVertex(eidx.w), faceWeight);
     }
 
+    addVaryingWithWeight(dst, readVertex(eidx.x), 0.5f);
+    addVaryingWithWeight(dst, readVertex(eidx.y), 0.5f);
+
+    writeVertex(vid, dst);
+}
+
+// Restricted edge-vertices compute Kernel
+subroutine(computeKernelType)
+void catmarkComputeRestrictedEdge()
+{
+    int i = int(gl_GlobalInvocationID.x) + indexStart;
+    if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
+
+    Vertex dst;
+    clear(dst);
+
+    int eidx0 = _E_IT[4*i+0];
+    int eidx1 = _E_IT[4*i+1];
+    int eidx2 = _E_IT[4*i+2];
+    int eidx3 = _E_IT[4*i+3];
+    ivec4 eidx = ivec4(eidx0, eidx1, eidx2, eidx3);
+
+    addWithWeight(dst, readVertex(eidx.x), 0.25f);
+    addWithWeight(dst, readVertex(eidx.y), 0.25f);
+    addWithWeight(dst, readVertex(eidx.z), 0.25f);
+    addWithWeight(dst, readVertex(eidx.w), 0.25f);
     addVaryingWithWeight(dst, readVertex(eidx.x), 0.5f);
     addVaryingWithWeight(dst, readVertex(eidx.y), 0.5f);
 

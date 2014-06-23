@@ -228,6 +228,7 @@ OsdGLSLTransformFeedbackKernelBundle::Compile(
     _subComputeQuadFace = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeQuadFace");
     _subComputeTriQuadFace = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeTriQuadFace");
     _subComputeEdge = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeEdge");
+    _subComputeRestrictedEdge = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeRestrictedEdge");
     _subComputeBilinearEdge = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "bilinearComputeEdge");
     _subComputeVertex = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "bilinearComputeVertex");
     _subComputeVertexA = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeVertexA");
@@ -401,6 +402,18 @@ OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkEdgeVerticesKernel(
     int offset, int tableOffset, int start, int end) {
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeEdge);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
+}
+
+void
+OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkRestrictedEdgeVerticesKernel(
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeRestrictedEdge);
     transformGpuBufferData(vertexBuffer, varyingBuffer,
                            vertexOffset, varyingOffset,
                            offset, tableOffset, start, end);

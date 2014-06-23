@@ -54,6 +54,7 @@ OsdCLKernelBundle::OsdCLKernelBundle() :
     _clCatmarkQuadFace(NULL),
     _clCatmarkTriQuadFace(NULL),
     _clCatmarkEdge(NULL),
+    _clCatmarkRestrictedEdge(NULL),
     _clCatmarkVertexA(NULL),
     _clCatmarkVertexB(NULL),
     _clLoopEdge(NULL),
@@ -80,6 +81,8 @@ OsdCLKernelBundle::~OsdCLKernelBundle() {
         clReleaseKernel(_clCatmarkTriQuadFace);
     if (_clCatmarkEdge)
         clReleaseKernel(_clCatmarkEdge);
+    if (_clCatmarkRestrictedEdge)
+        clReleaseKernel(_clCatmarkRestrictedEdge);
     if (_clCatmarkVertexA)
         clReleaseKernel(_clCatmarkVertexA);
     if (_clCatmarkVertexB)
@@ -157,6 +160,7 @@ OsdCLKernelBundle::Compile(cl_context clContext,
     _clCatmarkQuadFace           = buildKernel(_clProgram, "computeQuadFace");
     _clCatmarkTriQuadFace        = buildKernel(_clProgram, "computeTriQuadFace");
     _clCatmarkEdge               = buildKernel(_clProgram, "computeEdge");
+    _clCatmarkRestrictedEdge     = buildKernel(_clProgram, "computeRestrictedEdge");
     _clCatmarkVertexA            = buildKernel(_clProgram, "computeVertexA");
     _clCatmarkVertexB            = buildKernel(_clProgram, "computeVertexB");
     _clLoopEdge                  = buildKernel(_clProgram, "computeEdge");

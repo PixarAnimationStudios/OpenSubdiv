@@ -56,6 +56,8 @@ public:
 
     cl_kernel GetCatmarkEdgeKernel() const               { return _clCatmarkEdge; }
 
+    cl_kernel GetCatmarkRestrictedEdgeKernel() const     { return _clCatmarkRestrictedEdge; }
+
     cl_kernel GetCatmarkVertexKernelA() const            { return _clCatmarkVertexA; }
 
     cl_kernel GetCatmarkVertexKernelB() const            { return _clCatmarkVertexB; }
@@ -99,6 +101,7 @@ protected:
               _clCatmarkQuadFace,
               _clCatmarkTriQuadFace,
               _clCatmarkEdge,
+              _clCatmarkRestrictedEdge,
               _clCatmarkVertexA,
               _clCatmarkVertexB,
               _clLoopEdge,

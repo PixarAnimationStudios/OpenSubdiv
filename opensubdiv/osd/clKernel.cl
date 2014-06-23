@@ -306,6 +306,41 @@ __kernel void computeEdge(__global float *vertex,
     }
 }
 
+__kernel void computeRestrictedEdge(__global float *vertex,
+                                    __global float *varying,
+                                    __global int *E_IT,
+                                    int vertexOffset, int varyingOffset,
+                                    int offset, int tableOffset,
+                                    int start, int end) {
+
+    int i = start + get_global_id(0) + tableOffset;
+    int vid = start + get_global_id(0) + offset;
+    int eidx0 = E_IT[4*i+0];
+    int eidx1 = E_IT[4*i+1];
+    int eidx2 = E_IT[4*i+2];
+    int eidx3 = E_IT[4*i+3];
+    vertex += vertexOffset;
+    varying += (varying ? varyingOffset :0);
+
+    struct Vertex dst;
+    struct Varying dstVarying;
+    clearVertex(&dst);
+    clearVarying(&dstVarying);
+
+    addWithWeight(&dst, vertex, eidx0, 0.25f);
+    addWithWeight(&dst, vertex, eidx1, 0.25f);
+    addWithWeight(&dst, vertex, eidx2, 0.25f);
+    addWithWeight(&dst, vertex, eidx3, 0.25f);
+
+    writeVertex(vertex, vid, &dst);
+
+    if (varying) {
+        addVaryingWithWeight(&dstVarying, varying, eidx0, 0.5f);
+        addVaryingWithWeight(&dstVarying, varying, eidx1, 0.5f);
+        writeVarying(varying, vid, &dstVarying);
+    }
+}
+
 __kernel void computeVertexA(__global float *vertex,
                              __global float *varying,
                              __global int *V_ITa,

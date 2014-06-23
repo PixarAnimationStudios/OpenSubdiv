@@ -271,6 +271,36 @@ void runKernel( uint3 ID )
 }
 };
 
+// Restricted edge-vertices compute Kernel
+class CatmarkComputeRestrictedEdge : IComputeKernel {
+int placeholder;
+void runKernel( uint3 ID )
+{
+    int i = int(ID.x) + indexStart;
+    if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
+
+    Vertex dst;
+    clear(dst);
+
+    int eidx0 = _E_IT[4*i+0];
+    int eidx1 = _E_IT[4*i+1];
+    int eidx2 = _E_IT[4*i+2];
+    int eidx3 = _E_IT[4*i+3];
+    int4 eidx = int4(eidx0, eidx1, eidx2, eidx3);
+
+    addWithWeight(dst, readVertex(eidx.x), 0.25f);
+    addWithWeight(dst, readVertex(eidx.y), 0.25f);
+    addWithWeight(dst, readVertex(eidx.z), 0.25f);
+    addWithWeight(dst, readVertex(eidx.w), 0.25f);
+    addVaryingWithWeight(dst, readVertex(eidx.x), 0.5f);
+    addVaryingWithWeight(dst, readVertex(eidx.y), 0.5f);
+
+    writeVertex(vid, dst);
+}
+};
+
 // Edge-vertices compute Kernel (bilinear scheme)
 class BilinearComputeEdge : IComputeKernel {
 int placeholder;
@@ -458,6 +488,7 @@ CatmarkComputeFace catmarkComputeFace;
 CatmarkComputeQuadFace catmarkComputeQuadFace;
 CatmarkComputeTriQuadFace catmarkComputeTriQuadFace;
 CatmarkComputeEdge catmarkComputeEdge;
+CatmarkComputeRestrictedEdge catmarkComputeRestrictedEdge;
 BilinearComputeEdge bilinearComputeEdge;
 BilinearComputeVertex bilinearComputeVertex;
 CatmarkComputeVertexA catmarkComputeVertexA;

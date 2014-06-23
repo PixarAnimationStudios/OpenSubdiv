@@ -173,6 +173,17 @@ OsdGLSLComputeController::ApplyCatmarkEdgeVerticesKernel(
 }
 
 void
+OsdGLSLComputeController::ApplyCatmarkRestrictedEdgeVerticesKernel(
+    FarKernelBatch const &batch, OsdGLSLComputeContext const *context) const {
+
+    assert(context);
+
+    _currentBindState.kernelBundle->ApplyCatmarkRestrictedEdgeVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd());
+}
+
+void
 OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelB(
     FarKernelBatch const &batch, OsdGLSLComputeContext const *context) const {
 

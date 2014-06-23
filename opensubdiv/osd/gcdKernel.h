@@ -66,6 +66,14 @@ void OsdGcdComputeEdge(float *vertex, float * varying,
                        int start, int end,
                        dispatch_queue_t gcdq);
 
+void OsdGcdComputeRestrictedEdge(float *vertex, float * varying,
+                                 OsdVertexBufferDescriptor const &vertexDesc,
+                                 OsdVertexBufferDescriptor const &varyingDesc,
+                                 const int *E_IT,
+                                 int vertexOffset, int tableOffset,
+                                 int start, int end,
+                                 dispatch_queue_t gcdq);
+
 void OsdGcdComputeVertexA(float *vertex, float * varying,
                           OsdVertexBufferDescriptor const &vertexDesc,
                           OsdVertexBufferDescriptor const &varyingDesc,

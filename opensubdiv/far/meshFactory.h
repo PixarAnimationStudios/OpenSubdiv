@@ -93,8 +93,13 @@ public:
     /// @param patchType   The type of patch to create: QUADS or TRIANGLES
     ///                    Note : patchType is only applicable if adaptive is false
     ///
+    /// @param kernelTypes A zero-terminated list of kernel types supported by the
+    ///                    controller.
+    ///                    Note : NULL indicates that all kernel types are supported
+    ///
     FarMeshFactory(HbrMesh<T> * mesh, int maxlevel, bool adaptive=false, int firstLevel=-1,
-                   FarPatchTables::Type patchType=FarPatchTables::QUADS);
+                   FarPatchTables::Type patchType=FarPatchTables::QUADS,
+                   const int * kernelTypes = NULL);
 
     /// \brief Create a table-based mesh representation
     ///
@@ -150,12 +155,23 @@ public:
     ///
     int GetVertexID( HbrVertex<T> * v );
 
-    /// \brief Returns a the mapping between HbrVertex<T>->GetID() and Far
+    /// \brief Returns the mapping between HbrVertex<T>->GetID() and Far
     /// vertices indices
     ///
     /// @return the table that maps HbrMesh to FarMesh vertex indices
     ///
     std::vector<int> const & GetRemappingTable( ) const { return _remapTable; }
+
+    /// \brief Returns true if the specified kernel type is supported by the
+    /// controller
+    ///
+    /// @return true if the kernel type is supported
+    ///
+    bool IsKernelTypeSupported(int kernelType) const {
+        assert(kernelType >= FarKernelBatch::FIRST_KERNEL_TYPE &&
+               kernelType < FarKernelBatch::NUM_KERNEL_TYPES);
+        return _supportedKernelTypes[kernelType];
+    }
 
 private:
     friend class FarBilinearSubdivisionTablesFactory<T,U>;
@@ -230,6 +246,8 @@ private:
         _numPtexFaces;
 
     FarPatchTables::Type _patchType;
+
+    bool _supportedKernelTypes[FarKernelBatch::NUM_KERNEL_TYPES];
 
     // remapping table to translate vertex ID's between Hbr indices and the
     // order of the same vertices in the tables
@@ -614,7 +632,8 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
 // random order, so the builder runs 2 passes over the entire vertex list to
 // gather the counters needed to generate the indexing tables.
 template <class T, class U>
-FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adaptive, int firstlevel, FarPatchTables::Type patchType ) :
+FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adaptive,
+    int firstlevel, FarPatchTables::Type patchType, const int * kernelTypes ) :
     _hbrMesh(mesh),
     _adaptive(adaptive),
     _maxlevel(maxlevel),
@@ -629,6 +648,17 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adapt
 {
     _numCoarseVertices = mesh->GetNumVertices();
     _numPtexFaces = getNumPtexFaces(mesh);
+
+    // Select the kernel types that are supported by the controller.
+    for (int i = FarKernelBatch::FIRST_KERNEL_TYPE; i < FarKernelBatch::NUM_KERNEL_TYPES; ++i) {
+        _supportedKernelTypes[i] = kernelTypes ? false : true;
+    }
+
+    for (int i = kernelTypes ? *kernelTypes++ : 0; i; i = *kernelTypes++) {
+        assert(i >= FarKernelBatch::FIRST_KERNEL_TYPE &&
+               i < FarKernelBatch::NUM_KERNEL_TYPES);
+        _supportedKernelTypes[i] = true;
+    }
 
     // Subdivide the Hbr mesh up to maxlevel.
     //
