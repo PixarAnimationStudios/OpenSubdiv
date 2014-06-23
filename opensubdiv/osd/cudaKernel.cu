@@ -396,11 +396,11 @@ computeRestrictedEdge(float *fVertex, float *fVaryings, int *E0_IT, int offset, 
 
         DeviceVertex<NUM_VERTEX_ELEMENTS> dst;
         dst.clear();
-
         dst.addWithWeight(&vertex[eidx0], 0.25f);
         dst.addWithWeight(&vertex[eidx1], 0.25f);
         dst.addWithWeight(&vertex[eidx2], 0.25f);
         dst.addWithWeight(&vertex[eidx3], 0.25f);
+        vertex[offset+i-tableOffset] = dst;
 
         if(NUM_VARYING_ELEMENTS > 0){
             DeviceVertex<NUM_VARYING_ELEMENTS> dstVarying;
@@ -917,7 +917,7 @@ void OsdCudaComputeRestrictedEdge(float *vertex, float *varying,
                                   int varyingLength, int varyingStride,
                                   int *E_IT, int offset, int tableOffset, int start, int end)
 {
-    //computeEdge<0, 3><<<512,32>>>(vertex, varying, E_IT, offset, start, end);
+    //computeRestrictedEdge<0, 3><<<512,32>>>(vertex, varying, E_IT, offset, start, end);
     OPT_KERNEL(0, 0, computeRestrictedEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
     OPT_KERNEL(0, 3, computeRestrictedEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
     OPT_KERNEL(3, 0, computeRestrictedEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
