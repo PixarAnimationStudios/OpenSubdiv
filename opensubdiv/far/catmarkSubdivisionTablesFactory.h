@@ -231,7 +231,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
             FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX :
             FarKernelBatch::CATMARK_EDGE_VERTEX);
 
-        if (nEdgeVertices > 0)
+        if (nEdgeVertices > 0) {
             assert(meshFactory->IsKernelTypeSupported(kernelType));
             batches->push_back(FarKernelBatch( kernelType,
                                                level,
@@ -240,6 +240,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
                                                nEdgeVertices,
                                                edgeTableOffset,
                                                vertexOffset) );
+        }
 
         vertexOffset += nEdgeVertices;
         edgeTableOffset += nEdgeVertices;
