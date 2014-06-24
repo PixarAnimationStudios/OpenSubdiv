@@ -367,6 +367,8 @@ OsdUtilTagData::AddInterpolateBoundary(int value )
     numArgs.push_back(0);
     numArgs.push_back(0);    
     intArgs.push_back(value);
+
+    return true;
 }
 
 bool
