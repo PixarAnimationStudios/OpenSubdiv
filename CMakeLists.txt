@@ -433,7 +433,7 @@ if(OPENCL_FOUND)
     else()
         if (NOT NO_CLEW)
             message(WARNING
-                "OpenCL was not found, but CLEW was not. "
+                "OpenCL was found, but CLEW was not. "
                 "Building with OpenCL support enabled, but the build "
                 "wouldn't be portable on systems without OpenCL installed.")
         endif()
