@@ -31,10 +31,14 @@ namespace OPENSUBDIV_VERSION {
 void
 OsdCLTable::createCLBuffer(size_t size, const void *ptr, cl_context clContext)
 {
-    cl_int ciErrNum;
-    _devicePtr = clCreateBuffer(
-        clContext, CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,
-        size, const_cast<void*>(ptr), &ciErrNum);
+    if (size == 0) {
+        _devicePtr = NULL;
+    } else {
+        cl_int ciErrNum;
+        _devicePtr = clCreateBuffer(
+            clContext, CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,
+            size, const_cast<void*>(ptr), &ciErrNum);
+    }
 }
 
 OsdCLTable::~OsdCLTable() {

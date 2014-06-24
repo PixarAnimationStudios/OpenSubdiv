@@ -44,7 +44,7 @@ class OsdCLKernelBundle;
 class OsdCLTable : OsdNonCopyable<OsdCLTable> {
 public:
     template<typename T>
-        OsdCLTable(const std::vector<T> &table, cl_context clContext) {
+    OsdCLTable(const std::vector<T> &table, cl_context clContext) {
         createCLBuffer(table.size() * sizeof(T), table.empty() ? NULL : &table[0], clContext);
     }
 
