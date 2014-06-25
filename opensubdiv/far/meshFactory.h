@@ -168,7 +168,7 @@ public:
     /// @return true if the kernel type is supported
     ///
     bool IsKernelTypeSupported(int kernelType) const {
-        assert(kernelType >= FarKernelBatch::FIRST_KERNEL_TYPE &&
+        assert(kernelType >= FarKernelBatch::FIRST_KERNEL_TYPE and
                kernelType < FarKernelBatch::NUM_KERNEL_TYPES);
         return _supportedKernelTypes[kernelType];
     }
@@ -655,7 +655,7 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adapt
     }
 
     for (int i = kernelTypes ? *kernelTypes++ : 0; i; i = *kernelTypes++) {
-        assert(i >= FarKernelBatch::FIRST_KERNEL_TYPE &&
+        assert(i >= FarKernelBatch::FIRST_KERNEL_TYPE and
                i < FarKernelBatch::NUM_KERNEL_TYPES);
         _supportedKernelTypes[i] = true;
     }

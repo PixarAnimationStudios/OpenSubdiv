@@ -191,14 +191,14 @@ FarVertexKernelBatchFactory::AddVertex( int index, int rank ) {
 inline void 
 FarVertexKernelBatchFactory::AddCatmarkRestrictedVertex( int index, int rank, int valence ) {
 
-    assert(rank <= 2 || rank >= 8);
+    assert(rank <= 2 or rank >= 8);
 
-    if (rank <= 2 && valence == 4) {
+    if (rank <= 2 and valence == 4) {
         if (index < restrictedKernelB1.start)
             restrictedKernelB1.start=index;
         if (index > restrictedKernelB1.end)
             restrictedKernelB1.end=index;
-    } else if (rank <= 2 && valence != 4) {
+    } else if (rank <= 2 and valence != 4) {
         if (index < restrictedKernelB2.start)
             restrictedKernelB2.start=index;
         if (index > restrictedKernelB2.end)
