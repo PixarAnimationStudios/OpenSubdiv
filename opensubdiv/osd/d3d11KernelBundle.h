@@ -91,6 +91,18 @@ public:
         int vertexOffset, int tableOffset, int start, int end, bool pass,
         int vertexBaseOffset, int varyingBaseOffset);
 
+    void ApplyCatmarkRestrictedVertexVerticesKernelB1(
+        int vertexOffset, int tableOffset, int start, int end,
+        int vertexBaseOffset, int varyingBaseOffset);
+
+    void ApplyCatmarkRestrictedVertexVerticesKernelB2(
+        int vertexOffset, int tableOffset, int start, int end,
+        int vertexBaseOffset, int varyingBaseOffset);
+
+    void ApplyCatmarkRestrictedVertexVerticesKernelA(
+        int vertexOffset, int tableOffset, int start, int end,
+        int vertexBaseOffset, int varyingBaseOffset);
+
     void ApplyLoopEdgeVerticesKernel(
         int vertexOffset, int tableOffset, int start, int end,
         int vertexBaseOffset, int varyingBaseOffset);
@@ -159,6 +171,12 @@ protected:
     ID3D11ClassInstance * _kernelComputeVertexA; // vertex-vertex kernel A (catmark + loop schemes)
 
     ID3D11ClassInstance * _kernelComputeCatmarkVertexB; // vertex-vertex kernel B (catmark scheme)
+
+    ID3D11ClassInstance * _kernelComputeCatmarkRestrictedVertexA; // restricted vertex-vertex kernel A (catmark scheme)
+
+    ID3D11ClassInstance * _kernelComputeCatmarkRestrictedVertexB1; // restricted vertex-vertex kernel B1 (catmark scheme)
+
+    ID3D11ClassInstance * _kernelComputeCatmarkRestrictedVertexB2; // restricted vertex-vertex kernel B2 (catmark scheme)
 
     ID3D11ClassInstance * _kernelComputeLoopVertexB; // vertex-vertex kernel B (loop scheme)
 

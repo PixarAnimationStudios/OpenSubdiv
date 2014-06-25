@@ -62,11 +62,13 @@ protected:
 
     template <class X, class Y> friend class FarMeshFactory;
 
+    typedef bool (*CompareVerticesOperator)(const HbrVertex<T> *, const HbrVertex<T> *);
+
     // This factory accumulates vertex topology data that will be shared among the
     // specialized subdivision scheme factories (Bilinear / Catmark / Loop).
     // It also populates the FarMeshFactory vertex remapping vector that ties the
     // Hbr vertex indices to the FarVertexEdit tables.
-    FarSubdivisionTablesFactory( HbrMesh<T> const * mesh, int maxlevel, std::vector<int> & remapTable );
+    FarSubdivisionTablesFactory( HbrMesh<T> const * mesh, int maxlevel, std::vector<int> & remapTable, CompareVerticesOperator compareVertices = CompareVertices );
 
     // Returns the number of coarse vertices found in the mesh
     int GetNumCoarseVertices() const {
@@ -108,6 +110,15 @@ protected:
 
     bool HasFractionalEdgeSharpness() const { return _hasFractionalEdgeSharpness; }
 
+    bool HasFractionalVertexSharpness() const { return _hasFractionalVertexSharpness; }
+
+    // Compares vertices based on their topological configuration
+    // (see subdivisionTables::GetMaskRanking for more details)
+    static bool CompareVertices( HbrVertex<T> const *x, HbrVertex<T> const *y );
+
+    // Compare vertices operator
+    CompareVerticesOperator _compareVertices;
+
     // Per-level counters and offsets for each type of vertex (face,edge,vert)
     std::vector<int> _faceVertIdx,
                      _edgeVertIdx,
@@ -130,8 +141,9 @@ protected:
     // Number of coarse triangle faces
     int _numCoarseTriangleFaces;
 
-    // Indicates if an edge has a fractional (non-integer) sharpness
-    bool _hasFractionalEdgeSharpness;
+    // Indicates if an edge or vertex has a fractional (non-integer) sharpness
+    bool _hasFractionalEdgeSharpness,
+         _hasFractionalVertexSharpness;
 
 private:
 
@@ -142,14 +154,11 @@ private:
 
     // Sums the number of adjacent vertices required to interpolate a Vert-Vertex
     static int sumVertVertexValence(HbrVertex<T> * vertex);
-
-    // Compares vertices based on their topological configuration
-    // (see subdivisionTables::GetMaskRanking for more details)
-    static bool compareVertices( HbrVertex<T> const *x, HbrVertex<T> const *y );
 };
 
 template <class T, class U>
-FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const * mesh, int maxlevel, std::vector<int> & remapTable ) :
+FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const * mesh, int maxlevel, std::vector<int> & remapTable, CompareVerticesOperator compareVertices ) :
+    _compareVertices(compareVertices),
     _faceVertIdx(maxlevel+1,0),
     _edgeVertIdx(maxlevel+1,0),
     _vertVertIdx(maxlevel+1,0),
@@ -161,7 +170,8 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
     _minCoarseFaceValence(0),
     _maxCoarseFaceValence(0),
     _numCoarseTriangleFaces(0),
-    _hasFractionalEdgeSharpness(false)
+    _hasFractionalEdgeSharpness(false),
+    _hasFractionalVertexSharpness(false)
  {
     assert( mesh );
 
@@ -215,6 +225,9 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
         } else if (v->GetParentVertex()) {
             vertCounts[depth]++;
             _vertVertsValenceSum+=sumVertVertexValence(v);
+            float sharpness = v->GetParentVertex()->GetSharpness();
+            if (sharpness > 0.0f && sharpness < 1.0f)
+                _hasFractionalVertexSharpness = true;
         }
     }
 
@@ -278,7 +291,7 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
     // mask. The masks combinations are ordered so as to minimize the compute
     // kernel switching.(see subdivisionTables::GetMaskRanking for more details)
     for (size_t i=1; i<_vertVertsList.size(); ++i)
-        std::sort( _vertVertsList[i].begin(), _vertVertsList[i].end(), compareVertices );
+        std::sort( _vertVertsList[i].begin(), _vertVertsList[i].end(), _compareVertices );
 
 
     // These vertices still need a remapped index
@@ -384,7 +397,7 @@ FarSubdivisionTablesFactory<T,U>::sumVertVertexValence(HbrVertex<T> * vertex) {
 // The vertices should be sorted so as to minimize the number execution calls of
 // these kernels to match the 2 pass interpolation scheme used in Hbr.
 template <class T, class U> bool
-FarSubdivisionTablesFactory<T,U>::compareVertices( HbrVertex<T> const * x, HbrVertex<T> const * y ) {
+FarSubdivisionTablesFactory<T,U>::CompareVertices( HbrVertex<T> const * x, HbrVertex<T> const * y ) {
 
     // Masks of the parent vertex decide for the current vertex.
     HbrVertex<T> * px=x->GetParentVertex(),
@@ -604,6 +617,9 @@ FarSubdivisionTablesFactory<T,U>::Splice(FarMeshVector const &meshes, FarKernelB
             } else if (batch._kernelType == FarKernelBatch::CATMARK_VERT_VERTEX_A1 or
                        batch._kernelType == FarKernelBatch::CATMARK_VERT_VERTEX_A2 or
                        batch._kernelType == FarKernelBatch::CATMARK_VERT_VERTEX_B or
+                       batch._kernelType == FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_A or
+                       batch._kernelType == FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B1 or
+                       batch._kernelType == FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B2 or
                        batch._kernelType == FarKernelBatch::LOOP_VERT_VERTEX_A1 or
                        batch._kernelType == FarKernelBatch::LOOP_VERT_VERTEX_A2 or
                        batch._kernelType == FarKernelBatch::LOOP_VERT_VERTEX_B or

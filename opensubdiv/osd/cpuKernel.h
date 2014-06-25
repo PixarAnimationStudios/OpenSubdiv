@@ -322,6 +322,27 @@ void OsdCpuComputeVertexB(float *vertex, float * varying,
                           int vertexOffset, int tableOffset,
                           int start, int end);
 
+void OsdCpuComputeRestrictedVertexB1(float *vertex, float * varying,
+                                     OsdVertexBufferDescriptor const &vertexDesc,
+                                     OsdVertexBufferDescriptor const &varyingDesc,
+                                     const int *V_ITa, const int *V_IT,
+                                     int vertexOffset, int tableOffset,
+                                     int start, int end);
+
+void OsdCpuComputeRestrictedVertexB2(float *vertex, float * varying,
+                                     OsdVertexBufferDescriptor const &vertexDesc,
+                                     OsdVertexBufferDescriptor const &varyingDesc,
+                                     const int *V_ITa, const int *V_IT,
+                                     int vertexOffset, int tableOffset,
+                                     int start, int end);
+
+void OsdCpuComputeRestrictedVertexA(float *vertex, float * varying,
+                                    OsdVertexBufferDescriptor const &vertexDesc,
+                                    OsdVertexBufferDescriptor const &varyingDesc,
+                                    const int *V_ITa,
+                                    int vertexOffset, int tableOffset,
+                                    int start, int end);
+
 template<int numVertexElements>
 void ComputeLoopVertexBKernel(      float *vertex, 
                               const   int *V_ITa, 

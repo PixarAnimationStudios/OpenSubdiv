@@ -197,6 +197,47 @@ OsdTbbComputeController::ApplyCatmarkVertexVerticesKernelA2(
 }
 
 void
+OsdTbbComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB1(
+    FarKernelBatch const &batch, OsdCpuComputeContext const *context) const {
+
+    assert(context);
+
+    OsdTbbComputeRestrictedVertexB1(
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
+        (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables::V_IT)->GetBuffer(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdTbbComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB2(
+    FarKernelBatch const &batch, OsdCpuComputeContext const *context) const {
+
+    assert(context);
+
+    OsdTbbComputeRestrictedVertexB2(
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
+        (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables::V_IT)->GetBuffer(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdTbbComputeController::ApplyCatmarkRestrictedVertexVerticesKernelA(
+    FarKernelBatch const &batch, OsdCpuComputeContext const *context) const {
+
+    assert(context);
+
+    OsdTbbComputeRestrictedVertexA(
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
+        (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
 OsdTbbComputeController::ApplyLoopEdgeVerticesKernel(
     FarKernelBatch const &batch, OsdCpuComputeContext const *context) const {
 

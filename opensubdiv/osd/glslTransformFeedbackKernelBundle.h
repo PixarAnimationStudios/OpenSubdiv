@@ -98,6 +98,21 @@ public:
         int vertexOffset, int varyingOffset,
         int offset, int tableOffset, int start, int end, bool pass);
 
+    void ApplyCatmarkRestrictedVertexVerticesKernelB1(
+        GLuint vertexBuffer, GLuint varyingBuffer,
+        int vertexOffset, int varyingOffset,
+        int offset, int tableOffset, int start, int end);
+
+    void ApplyCatmarkRestrictedVertexVerticesKernelB2(
+        GLuint vertexBuffer, GLuint varyingBuffer,
+        int vertexOffset, int varyingOffset,
+        int offset, int tableOffset, int start, int end);
+
+    void ApplyCatmarkRestrictedVertexVerticesKernelA(
+        GLuint vertexBuffer, GLuint varyingBuffer,
+        int vertexOffset, int varyingOffset,
+        int offset, int tableOffset, int start, int end);
+
     void ApplyLoopEdgeVerticesKernel(
         GLuint vertexBuffer, GLuint varyingBuffer,
         int vertexOffset, int varyingOffset,
@@ -211,6 +226,12 @@ protected:
     GLuint _subComputeVertexA; // vertex-vertex kernel A (catmark + loop schemes)
 
     GLuint _subComputeCatmarkVertexB;// vertex-vertex kernel B (catmark scheme)
+
+    GLuint _subComputeRestrictedVertexA; // restricted vertex-vertex kernel A (catmark scheme)
+
+    GLuint _subComputeRestrictedVertexB1; // restricted vertex-vertex kernel B1 (catmark scheme)
+
+    GLuint _subComputeRestrictedVertexB2; // restricted vertex-vertex kernel B2 (catmark scheme)
 
     GLuint _subComputeLoopVertexB; // vertex-vertex kernel B (loop scheme)
 

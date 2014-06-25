@@ -108,6 +108,15 @@ FarDispatcher::ApplyKernel(CONTROLLER *controller, CONTEXT *context, FarKernelBa
         case FarKernelBatch::CATMARK_VERT_VERTEX_A2:
             controller->ApplyCatmarkVertexVerticesKernelA2(batch, context);
             break;
+        case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B1:
+            controller->ApplyCatmarkRestrictedVertexVerticesKernelB1(batch, context);
+            break;
+        case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B2:
+            controller->ApplyCatmarkRestrictedVertexVerticesKernelB2(batch, context);
+            break;
+        case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_A:
+            controller->ApplyCatmarkRestrictedVertexVerticesKernelA(batch, context);
+            break;
 
         case FarKernelBatch::LOOP_EDGE_VERTEX:
             controller->ApplyLoopEdgeVerticesKernel(batch, context);
@@ -199,6 +208,15 @@ public:
 
     template <class CONTEXT>
     void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, CONTEXT *context) const;
+
+    template <class CONTEXT>
+    void ApplyCatmarkRestrictedVertexVerticesKernelB1(FarKernelBatch const &batch, CONTEXT *context) const;
+
+    template <class CONTEXT>
+    void ApplyCatmarkRestrictedVertexVerticesKernelB2(FarKernelBatch const &batch, CONTEXT *context) const;
+
+    template <class CONTEXT>
+    void ApplyCatmarkRestrictedVertexVerticesKernelA(FarKernelBatch const &batch, CONTEXT *context) const;
 
     template <class CONTEXT>
     void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, CONTEXT *context) const;
@@ -391,6 +409,51 @@ FarComputeController::ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &b
                                               batch.GetStart(),
                                               batch.GetEnd(),
                                               vsrc );
+}
+
+template <class CONTEXT> void
+FarComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB1(FarKernelBatch const &batch, CONTEXT *context) const {
+
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
+
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
+    assert(subdivision);
+
+    subdivision->computeCatmarkRestrictedVertexPointsB1( batch.GetVertexOffset(),
+                                                         batch.GetTableOffset(),
+                                                         batch.GetStart(),
+                                                         batch.GetEnd(),
+                                                         vsrc );
+}
+
+template <class CONTEXT> void
+FarComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB2(FarKernelBatch const &batch, CONTEXT *context) const {
+
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
+
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
+    assert(subdivision);
+
+    subdivision->computeCatmarkRestrictedVertexPointsB2( batch.GetVertexOffset(),
+                                                         batch.GetTableOffset(),
+                                                         batch.GetStart(),
+                                                         batch.GetEnd(),
+                                                         vsrc );
+}
+
+template <class CONTEXT> void
+FarComputeController::ApplyCatmarkRestrictedVertexVerticesKernelA(FarKernelBatch const &batch, CONTEXT *context) const {
+
+    typename CONTEXT::VertexType *vsrc = &context->GetVertices().at(0);
+
+    FarSubdivisionTables const * subdivision = context->GetSubdivisionTables();
+    assert(subdivision);
+
+    subdivision->computeCatmarkRestrictedVertexPointsA( batch.GetVertexOffset(),
+                                                         batch.GetTableOffset(),
+                                                         batch.GetStart(),
+                                                         batch.GetEnd(),
+                                                         vsrc );
 }
 
 template <class CONTEXT> void

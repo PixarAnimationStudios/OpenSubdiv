@@ -233,6 +233,9 @@ OsdGLSLTransformFeedbackKernelBundle::Compile(
     _subComputeVertex = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "bilinearComputeVertex");
     _subComputeVertexA = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeVertexA");
     _subComputeCatmarkVertexB = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeVertexB");
+    _subComputeRestrictedVertexA = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeRestrictedVertexA");
+    _subComputeRestrictedVertexB1 = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeRestrictedVertexB1");
+    _subComputeRestrictedVertexB2 = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "catmarkComputeRestrictedVertexB2");
     _subComputeLoopVertexB = glGetSubroutineIndex(_program, GL_VERTEX_SHADER, "loopComputeVertexB");
 
     _uniformVertexPass   = glGetUniformLocation(_program, "vertexPass");
@@ -439,6 +442,42 @@ OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkVertexVerticesKernelA(
 
     glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeVertexA);
     glUniform1i(_uniformVertexPass, pass ? 1 : 0);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
+}
+
+void
+OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkRestrictedVertexVerticesKernelB1(
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeRestrictedVertexB1);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
+}
+
+void
+OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkRestrictedVertexVerticesKernelB2(
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeRestrictedVertexB2);
+    transformGpuBufferData(vertexBuffer, varyingBuffer,
+                           vertexOffset, varyingOffset,
+                           offset, tableOffset, start, end);
+}
+
+void
+OsdGLSLTransformFeedbackKernelBundle::ApplyCatmarkRestrictedVertexVerticesKernelA(
+    GLuint vertexBuffer, GLuint varyingBuffer,
+    int vertexOffset, int varyingOffset,
+    int offset, int tableOffset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subComputeRestrictedVertexA);
     transformGpuBufferData(vertexBuffer, varyingBuffer,
                            vertexOffset, varyingOffset,
                            offset, tableOffset, start, end);
