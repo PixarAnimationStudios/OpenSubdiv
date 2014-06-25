@@ -220,13 +220,13 @@ FarSubdivisionTablesFactory<T,U>::FarSubdivisionTablesFactory( HbrMesh<T> const 
 
             // Determine if any edges have fractional sharpness.
             float sharpness = v->GetParentEdge()->GetSharpness();
-            if (sharpness > HbrHalfedge<T>::k_Smooth && sharpness < HbrHalfedge<T>::k_Sharp)
+            if (sharpness > HbrHalfedge<T>::k_Smooth and sharpness < HbrHalfedge<T>::k_Sharp)
                 _hasFractionalEdgeSharpness = true;
         } else if (v->GetParentVertex()) {
             vertCounts[depth]++;
             _vertVertsValenceSum+=sumVertVertexValence(v);
             float sharpness = v->GetParentVertex()->GetSharpness();
-            if (sharpness > 0.0f && sharpness < 1.0f)
+            if (sharpness > 0.0f and sharpness < 1.0f)
                 _hasFractionalVertexSharpness = true;
         }
     }
@@ -571,7 +571,7 @@ FarSubdivisionTablesFactory<T,U>::Splice(FarMeshVector const &meshes, FarKernelB
 
         // copy edge tables
         E_IT = copyWithOffsetE_IT(E_IT, tables->Get_E_IT(), vertexOffsets[i]);
-        if (!tables->Get_E_W().empty())
+        if (not tables->Get_E_W().empty())
             E_W = copyWithOffset(E_W, tables->Get_E_W(), 0);
         else
             E_W += tables->Get_E_IT().size() / 2;

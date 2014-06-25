@@ -437,8 +437,8 @@ FarSubdivisionTables::computeCatmarkTriQuadFacePoints( int vertexOffset, int tab
         int fidx2 = _F_IT[tableOffset + 4 * i + 2];
         int fidx3 = _F_IT[tableOffset + 4 * i + 3];
 
-        bool triangle = (fidx3 == fidx2);
-        float weight = triangle ? 1.0f / 3.0f : 1.0f / 4.0f;
+        bool isTriangle = (fidx3 == fidx2);
+        float weight = isTriangle ? 1.0f / 3.0f : 1.0f / 4.0f;
 
         vdst->Clear();
         vdst->AddWithWeight(vsrc[fidx0], weight);
@@ -447,7 +447,7 @@ FarSubdivisionTables::computeCatmarkTriQuadFacePoints( int vertexOffset, int tab
         vdst->AddVaryingWithWeight(vsrc[fidx1], weight);
         vdst->AddWithWeight(vsrc[fidx2], weight);
         vdst->AddVaryingWithWeight(vsrc[fidx2], weight);
-        if (!triangle) {
+        if (not isTriangle) {
             vdst->AddWithWeight(vsrc[fidx3], weight);
             vdst->AddVaryingWithWeight(vsrc[fidx3], weight);
         }
