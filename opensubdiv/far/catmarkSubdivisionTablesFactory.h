@@ -74,7 +74,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
 
     std::vector<int> & remap = meshFactory->getRemappingTable();
 
-    FarSubdivisionTablesFactory<T,U> tablesFactory( meshFactory->GetHbrMesh(), maxlevel, remap );
+    FarSubdivisionTablesFactory<T,U> tablesFactory( meshFactory->GetHbrMesh(), maxlevel, remap, CompareVertices );
 
     FarSubdivisionTables * result = new FarSubdivisionTables(maxlevel, FarSubdivisionTables::CATMARK);
 
@@ -454,14 +454,14 @@ FarCatmarkSubdivisionTablesFactory<T,U>::CompareVertices( HbrVertex<T> const * x
     HbrVertex<T> * px=x->GetParentVertex(),
                  * py=y->GetParentVertex();
 
-    int rankx = GetMaskRanking(px->GetMask(false), px->GetMask(true) );
-    int ranky = GetMaskRanking(py->GetMask(false), py->GetMask(true) );
+    int rankx = FarSubdivisionTablesFactory<T,U>::GetMaskRanking(px->GetMask(false), px->GetMask(true) );
+    int ranky = FarSubdivisionTablesFactory<T,U>::GetMaskRanking(py->GetMask(false), py->GetMask(true) );
 
     assert( rankx!=0xFF and ranky!=0xFF );
 
     // Arrange regular vertices before irregular vertices within the same kernel
     if ((rankx <= 2 and ranky <= 2) or (rankx >= 3 and rankx <= 7 and ranky >= 3 and ranky <= 7) or (rankx >= 8 and ranky >= 8))
-        return px->GetValence() == 4 and py->GetValence() != 4;
+        return x->GetValence() == 4 and y->GetValence() != 4;
     else
         return rankx < ranky;
 }
