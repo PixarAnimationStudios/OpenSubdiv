@@ -80,6 +80,8 @@ public:
     virtual VertexBufferBinding BindVertexBuffer() = 0;
 
     virtual VertexBufferBinding BindVaryingBuffer() = 0;
+
+    virtual FarMesh<OsdVertex> const * GetFarMesh() const  = 0;
 };
 
 template <class VERTEX_BUFFER, class COMPUTE_CONTROLLER, class DRAW_CONTEXT>
@@ -164,14 +166,18 @@ public:
         _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer, _varyingBuffer);
     }
     virtual void Refine(OsdVertexBufferDescriptor const *vertexDesc,
-                        OsdVertexBufferDescriptor const *varyingDesc) {
+                        OsdVertexBufferDescriptor const *varyingDesc,
+                        bool interleaved) {
         _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(),
-                                   _vertexBuffer, _varyingBuffer,
+                                   _vertexBuffer, (interleaved ? _vertexBuffer : _varyingBuffer),
                                    vertexDesc, varyingDesc);
     }
 
     virtual void Synchronize() {
         _computeController->Synchronize();
+    }
+    virtual DrawContext * GetDrawContext() {
+        return _drawContext;
     }
     virtual VertexBufferBinding BindVertexBuffer() {
         return VertexBufferBinding(0);
@@ -179,8 +185,8 @@ public:
     virtual VertexBufferBinding BindVaryingBuffer() {
         return VertexBufferBinding(0);
     }
-    virtual DrawContext * GetDrawContext() {
-        return _drawContext;
+    virtual FarMesh<OsdVertex> const * GetFarMesh() const {
+        return _farMesh;
     }
 
 private:
