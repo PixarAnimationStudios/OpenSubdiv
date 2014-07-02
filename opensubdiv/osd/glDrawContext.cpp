@@ -76,7 +76,10 @@ createTextureBuffer(T const &data, GLint format, int offset=0)
         glNamedBufferDataEXT(buffer, (data.size()-offset) * sizeof(typename T::value_type),
                              &data[offset], GL_STATIC_DRAW);
         glTextureBufferEXT(texture, GL_TEXTURE_BUFFER, format, buffer);
-    } else {
+    } else
+#endif
+#if defined(GLEW_ARB_texture_buffer_object)
+    if (GLEW_ARB_texture_buffer_object) {
 #else
     {
 #endif
@@ -144,42 +147,50 @@ OsdGLDrawContext::create(FarPatchTables const * patchTables, int numVertexElemen
     // allocate and initialize additional buffer data
 
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
-    // create vertex valence buffer and vertex texture
-    FarPatchTables::VertexValenceTable const &
-        valenceTable = patchTables->GetVertexValenceTable();
 
-    if (not valenceTable.empty()) {
-        _vertexValenceTextureBuffer = createTextureBuffer(valenceTable, GL_R32I);
+#if defined(GLEW_ARB_texture_buffer_object)
+    if (GLEW_ARB_texture_buffer_object) {
+#else
+    {
+#endif
 
-        // also create vertex texture buffer (will be updated in UpdateVertexTexture())
-        glGenTextures(1, &_vertexTextureBuffer);
+        // create vertex valence buffer and vertex texture
+        FarPatchTables::VertexValenceTable const &
+            valenceTable = patchTables->GetVertexValenceTable();
+
+        if (not valenceTable.empty()) {
+            _vertexValenceTextureBuffer = createTextureBuffer(valenceTable, GL_R32I);
+
+            // also create vertex texture buffer (will be updated in UpdateVertexTexture())
+            glGenTextures(1, &_vertexTextureBuffer);
+        }
+
+
+        // create quad offset table buffer
+        FarPatchTables::QuadOffsetTable const &
+            quadOffsetTable = patchTables->GetQuadOffsetTable();
+
+        if (not quadOffsetTable.empty())
+            _quadOffsetsTextureBuffer = createTextureBuffer(quadOffsetTable, GL_R32I);
+
+
+        // create ptex coordinate buffer
+        FarPatchTables::PatchParamTable const &
+            patchParamTables = patchTables->GetPatchParamTable();
+
+        if (not patchParamTables.empty())
+            _patchParamTextureBuffer = createTextureBuffer(patchParamTables, GL_RG32I);
+
+
+        // create fvar data buffer if requested
+        std::vector<float> const &
+            fvarData = patchTables->GetFVarData().GetAllData();
+
+        if (requireFVarData and not fvarData.empty())
+            _fvarDataTextureBuffer = createTextureBuffer(fvarData, GL_R32F);
+
+        glBindBuffer(GL_TEXTURE_BUFFER, 0);
     }
-
-
-    // create quad offset table buffer
-    FarPatchTables::QuadOffsetTable const &
-        quadOffsetTable = patchTables->GetQuadOffsetTable();
-
-    if (not quadOffsetTable.empty())
-        _quadOffsetsTextureBuffer = createTextureBuffer(quadOffsetTable, GL_R32I);
-
-
-    // create ptex coordinate buffer
-    FarPatchTables::PatchParamTable const &
-        patchParamTables = patchTables->GetPatchParamTable();
-
-    if (not patchParamTables.empty())
-        _patchParamTextureBuffer = createTextureBuffer(patchParamTables, GL_RG32I);
-
-
-    // create fvar data buffer if requested
-    std::vector<float> const &
-        fvarData = patchTables->GetFVarData().GetAllData();
-
-    if (requireFVarData and not fvarData.empty())
-        _fvarDataTextureBuffer = createTextureBuffer(fvarData, GL_R32F);
-
-    glBindBuffer(GL_TEXTURE_BUFFER, 0);
 #endif
 
     return true;
@@ -193,7 +204,10 @@ OsdGLDrawContext::updateVertexTexture(GLuint vbo)
 #if defined(GL_EXT_direct_state_access)
     if (glTextureBufferEXT) {
         glTextureBufferEXT(_vertexTextureBuffer, GL_TEXTURE_BUFFER, GL_R32F, vbo);
-    } else {
+    } else
+#endif
+#if defined(GLEW_ARB_texture_buffer_object)
+    if (GLEW_ARB_texture_buffer_object) {
 #else
     {
 #endif
