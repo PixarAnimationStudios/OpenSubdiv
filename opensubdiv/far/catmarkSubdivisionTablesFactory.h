@@ -166,7 +166,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
         } else {
             if (hasQuadFaceVertexKernel)
                 kernelType = FarKernelBatch::CATMARK_QUAD_FACE_VERTEX;
-            if (hasTriQuadFaceVertexKernel)
+            else if (hasTriQuadFaceVertexKernel)
                 kernelType = FarKernelBatch::CATMARK_TRI_QUAD_FACE_VERTEX;
         }
 
