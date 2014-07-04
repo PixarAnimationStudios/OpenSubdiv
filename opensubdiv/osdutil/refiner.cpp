@@ -59,7 +59,8 @@ bool
 OsdUtilRefiner::Initialize(
        const OsdUtilSubdivTopology &topology,
        bool adaptive,
-       string *errorMessage)
+       string *errorMessage,
+       OsdUtilMesh<OsdVertex>::Scheme scheme)
 {
 
     if (not topology.IsValid(errorMessage)) {
@@ -68,7 +69,7 @@ OsdUtilRefiner::Initialize(
 
     _mesh = new OsdUtilMesh<OsdVertex>();
 
-    if (not _mesh->Initialize(topology, errorMessage)) {
+    if (not _mesh->Initialize(topology, errorMessage, scheme)) {
         return false;
     }
 

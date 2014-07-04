@@ -70,7 +70,8 @@ class OsdUtilRefiner  {
     //
     bool Initialize(
        const OsdUtilSubdivTopology &topology, bool adaptive,
-       std::string *errorMessage = NULL);
+       std::string *errorMessage = NULL,
+       OsdUtilMesh<OsdVertex>::Scheme scheme = OsdUtilMesh<OsdVertex>::SCHEME_CATMARK);
 
     // Fetch the topology of the post-refined mesh. The "quads" vector
     // will be filled with 4 ints per quad which index into a vector

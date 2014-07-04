@@ -90,8 +90,23 @@ void openSubdiv_createEvaluatorDescrFace(OpenSubdiv_EvaluatorDescr *evaluator_de
         }
 }
 
+static OsdUtilMesh<OsdVertex>::Scheme get_refiner_scheme(OsdScheme scheme)
+{
+    switch (scheme) {
+        case OSD_SCHEME_CATMARK:
+            return OsdUtilMesh<OsdVertex>::SCHEME_CATMARK;
+        case OSD_SCHEME_BILINEAR:
+            return OsdUtilMesh<OsdVertex>::SCHEME_BILINEAR;
+        case OSD_SCHEME_LOOP:
+            return OsdUtilMesh<OsdVertex>::SCHEME_LOOP;
+    }
+    assert(!"Uknonwn scheme was passed to evaluator");
+    return OsdUtilMesh<OsdVertex>::SCHEME_CATMARK;
+}
+
 int openSubdiv_finishEvaluatorDescr(OpenSubdiv_EvaluatorDescr *evaluator_descr,
-                                    int refinementLevel)
+                                    int refinementLevel,
+                                    OsdScheme scheme)
 {
     std::string errorMessage;
     evaluator_descr->topology.refinementLevel = refinementLevel;
@@ -101,7 +116,9 @@ int openSubdiv_finishEvaluatorDescr(OpenSubdiv_EvaluatorDescr *evaluator_descr,
         return 0;
     } else {
         if (not evaluator_descr->evaluator.Initialize(
-                evaluator_descr->topology, &errorMessage)) {
+                evaluator_descr->topology,
+                &errorMessage,
+                get_refiner_scheme(scheme))) {
             std::cout <<"OpenSubdiv uniform evaluator initialization failed due to " << errorMessage << std::endl;
             return 0;
         }
