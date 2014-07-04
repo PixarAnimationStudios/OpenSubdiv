@@ -27,6 +27,7 @@
 
 #include "../version.h"
 
+#include "mesh.h"
 #include "refiner.h"
 
 #include <string>
@@ -73,7 +74,8 @@ class OsdUtilAdaptiveEvaluator {
     
     bool Initialize(
         const OsdUtilSubdivTopology &topology,
-        std::string *errorMessage = NULL);    
+        std::string *errorMessage = NULL,
+        OsdUtilMesh<OsdVertex>::Scheme scheme = OsdUtilMesh<OsdVertex>::SCHEME_CATMARK);
 
     // Set new coarse-mesh CV positions, need to call Refine
     // before calling Get* methods.  Three floats per

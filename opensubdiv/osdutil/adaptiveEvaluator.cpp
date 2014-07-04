@@ -74,14 +74,15 @@ OsdUtilAdaptiveEvaluator::~OsdUtilAdaptiveEvaluator()
 bool
 OsdUtilAdaptiveEvaluator::Initialize(
     const OsdUtilSubdivTopology &t,
-    string *errorMessage)
+    string *errorMessage,
+    OsdUtilMesh<OsdVertex>::Scheme scheme)
 {
 
     // create and initialize a refiner, passing "true" for adaptive
     // to indicate we wish for adaptive refinement rather than uniform
     OsdUtilRefiner *refiner = new OsdUtilRefiner();
 
-    if (not refiner->Initialize(t, true, errorMessage)) {
+    if (not refiner->Initialize(t, true, errorMessage, scheme)) {
         delete refiner;
         return false;
     }
