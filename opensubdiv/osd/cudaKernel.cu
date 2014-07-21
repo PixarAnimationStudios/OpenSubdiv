@@ -769,170 +769,186 @@ editVertexAdd(float *fVertex, int vertexLength, int vertexStride,
 // XXX: this macro usage is tentative. Since cuda kernel can't be dynamically configured,
 // still trying to find better way to have optimized kernel..
 
-#define OPT_KERNEL(NUM_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS, KERNEL, X, Y, ARG) \
+#define OPT_KERNEL(NUM_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS, KERNEL, X, Y, STREAM, ARG) \
     if(vertexLength == NUM_VERTEX_ELEMENTS &&                           \
        varyingLength == NUM_VARYING_ELEMENTS &&                         \
        vertexStride == vertexLength &&                                  \
        varyingStride == varyingLength)                                  \
-    { KERNEL<NUM_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS><<<X,Y>>>ARG;    \
+    { KERNEL<NUM_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS><<<X,Y,0,STREAM>>>ARG;    \
         return;  }
 
 extern "C" {
 
-void OsdCudaComputeFace(float *vertex, float *varying,
+void OsdCudaComputeFace(cudaStream_t stream,
+                        float *vertex, float *varying,
                         int vertexLength, int vertexStride,
                         int varyingLength, int varyingStride,
                         int *F_IT, int *F_ITa, int offset, int tableOffset, int start, int end)
 {
-    //computeFace<3, 0><<<512,32>>>(vertex, varying, F_IT, F_ITa, offset, start, end);
-    OPT_KERNEL(0, 0, computeFace, 512, 32, (vertex, varying, F_IT, F_ITa, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeFace, 512, 32, (vertex, varying, F_IT, F_ITa, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeFace, 512, 32, (vertex, varying, F_IT, F_ITa, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeFace, 512, 32, (vertex, varying, F_IT, F_ITa, offset, tableOffset, start, end));
+    //computeFace<3, 0><<<512,32,0,stream>>>(vertex, varying, F_IT, F_ITa, offset, start, end);
+    OPT_KERNEL(0, 0, computeFace, 512, 32, stream, (vertex, varying, F_IT, F_ITa, offset, tableOffset, start, end));
+    OPT_KERNEL(0, 3, computeFace, 512, 32, stream, (vertex, varying, F_IT, F_ITa, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 0, computeFace, 512, 32, stream, (vertex, varying, F_IT, F_ITa, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 3, computeFace, 512, 32, stream, (vertex, varying, F_IT, F_ITa, offset, tableOffset, start, end));
 
     // fallback kernel (slow)
-    computeFace<<<512, 32>>>(vertex, varying,
+    computeFace<<<512, 32, 0, stream>>>(vertex, varying,
                              vertexLength, vertexStride, varyingLength, varyingStride,
                              F_IT, F_ITa, offset, tableOffset, start, end);
 }
 
-void OsdCudaComputeQuadFace(float *vertex, float *varying,
+void OsdCudaComputeQuadFace(cudaStream_t stream,
+                            float *vertex, float *varying,
                             int vertexLength, int vertexStride,
                             int varyingLength, int varyingStride,
                             int *F_IT, int offset, int tableOffset, int start, int end)
 {
-    //computeQuadFace<3, 0><<<512,32>>>(vertex, varying, F_IT, offset, start, end);
-    OPT_KERNEL(0, 0, computeQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    //computeQuadFace<3, 0><<<512,32,0,stream>>>(vertex, varying, F_IT, offset, start, end);
+    OPT_KERNEL(0, 0, computeQuadFace, 512, 32, stream, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(0, 3, computeQuadFace, 512, 32, stream, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 0, computeQuadFace, 512, 32, stream, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 3, computeQuadFace, 512, 32, stream, (vertex, varying, F_IT, offset, tableOffset, start, end));
 
     // fallback kernel (slow)
-    computeQuadFace<<<512, 32>>>(vertex, varying,
+    computeQuadFace<<<512, 32, 0, stream>>>(vertex, varying,
                                  vertexLength, vertexStride, varyingLength, varyingStride,
                                  F_IT, offset, tableOffset, start, end);
 }
 
-void OsdCudaComputeTriQuadFace(float *vertex, float *varying,
+void OsdCudaComputeTriQuadFace(cudaStream_t stream,
+                               float *vertex, float *varying,
                                int vertexLength, int vertexStride,
                                int varyingLength, int varyingStride,
                                int *F_IT, int offset, int tableOffset, int start, int end)
 {
-    //computeTriQuadFace<3, 0><<<512,32>>>(vertex, varying, F_IT, offset, start, end);
-    OPT_KERNEL(0, 0, computeTriQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeTriQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeTriQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeTriQuadFace, 512, 32, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    //computeTriQuadFace<3, 0><<<512,32,0,stream>>>(vertex, varying, F_IT, offset, start, end);
+    OPT_KERNEL(0, 0, computeTriQuadFace, 512, 32, stream, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(0, 3, computeTriQuadFace, 512, 32, stream, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 0, computeTriQuadFace, 512, 32, stream, (vertex, varying, F_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 3, computeTriQuadFace, 512, 32, stream, (vertex, varying, F_IT, offset, tableOffset, start, end));
 
     // fallback kernel (slow)
-    computeTriQuadFace<<<512, 32>>>(vertex, varying,
+    computeTriQuadFace<<<512, 32, 0, stream>>>(vertex, varying,
                                     vertexLength, vertexStride, varyingLength, varyingStride,
                                     F_IT, offset, tableOffset, start, end);
 }
 
 
-void OsdCudaComputeEdge(float *vertex, float *varying,
+void OsdCudaComputeEdge(cudaStream_t stream,
+                        float *vertex, float *varying,
                         int vertexLength, int vertexStride,
                         int varyingLength, int varyingStride,
                         int *E_IT, float *E_W, int offset, int tableOffset, int start, int end)
 {
-    //computeEdge<0, 3><<<512,32>>>(vertex, varying, E_IT, E_W, offset, start, end);
-    OPT_KERNEL(0, 0, computeEdge, 512, 32, (vertex, varying, E_IT, E_W, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeEdge, 512, 32, (vertex, varying, E_IT, E_W, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeEdge, 512, 32, (vertex, varying, E_IT, E_W, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeEdge, 512, 32, (vertex, varying, E_IT, E_W, offset, tableOffset, start, end));
+    //computeEdge<0, 3><<<512,32,0,stream>>>(vertex, varying, E_IT, E_W, offset, start, end);
+    OPT_KERNEL(0, 0, computeEdge, 512, 32, stream, (vertex, varying, E_IT, E_W, offset, tableOffset, start, end));
+    OPT_KERNEL(0, 3, computeEdge, 512, 32, stream, (vertex, varying, E_IT, E_W, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 0, computeEdge, 512, 32, stream, (vertex, varying, E_IT, E_W, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 3, computeEdge, 512, 32, stream, (vertex, varying, E_IT, E_W, offset, tableOffset, start, end));
 
-    computeEdge<<<512, 32>>>(vertex, varying,
+    // fallback kernel (slow)
+    computeEdge<<<512, 32, 0, stream>>>(vertex, varying,
                              vertexLength, vertexStride, varyingLength, varyingStride,
                              E_IT, E_W, offset, tableOffset, start, end);
 }
 
-void OsdCudaComputeVertexA(float *vertex, float *varying,
+void OsdCudaComputeVertexA(cudaStream_t stream,
+                           float *vertex, float *varying,
                            int vertexLength, int vertexStride,
                            int varyingLength, int varyingStride,
                            int *V_ITa, float *V_W, int offset, int tableOffset, int start, int end, int pass)
 {
-//    computeVertexA<0, 3><<<512,32>>>(vertex, varying, V_ITa, V_W, offset, start, end, pass);
-    OPT_KERNEL(0, 0, computeVertexA, 512, 32, (vertex, varying, V_ITa, V_W, offset, tableOffset, start, end, pass));
-    OPT_KERNEL(0, 3, computeVertexA, 512, 32, (vertex, varying, V_ITa, V_W, offset, tableOffset, start, end, pass));
-    OPT_KERNEL(3, 0, computeVertexA, 512, 32, (vertex, varying, V_ITa, V_W, offset, tableOffset, start, end, pass));
-    OPT_KERNEL(3, 3, computeVertexA, 512, 32, (vertex, varying, V_ITa, V_W, offset, tableOffset, start, end, pass));
+//    computeVertexA<0, 3><<<512,32,0,stream>>>(vertex, varying, V_ITa, V_W, offset, start, end, pass);
+    OPT_KERNEL(0, 0, computeVertexA, 512, 32, stream, (vertex, varying, V_ITa, V_W, offset, tableOffset, start, end, pass));
+    OPT_KERNEL(0, 3, computeVertexA, 512, 32, stream, (vertex, varying, V_ITa, V_W, offset, tableOffset, start, end, pass));
+    OPT_KERNEL(3, 0, computeVertexA, 512, 32, stream, (vertex, varying, V_ITa, V_W, offset, tableOffset, start, end, pass));
+    OPT_KERNEL(3, 3, computeVertexA, 512, 32, stream, (vertex, varying, V_ITa, V_W, offset, tableOffset, start, end, pass));
 
-    computeVertexA<<<512, 32>>>(vertex, varying,
+    // fallback kernel (slow)
+    computeVertexA<<<512, 32, 0, stream>>>(vertex, varying,
                                 vertexLength, vertexStride, varyingLength, varyingStride,
                                 V_ITa, V_W, offset, tableOffset, start, end, pass);
 }
 
-void OsdCudaComputeVertexB(float *vertex, float *varying,
+void OsdCudaComputeVertexB(cudaStream_t stream,
+                           float *vertex, float *varying,
                            int vertexLength, int vertexStride,
                            int varyingLength, int varyingStride,
                            int *V_ITa, int *V_IT, float *V_W, int offset, int tableOffset, int start, int end)
 {
-//    computeVertexB<0, 3><<<512,32>>>(vertex, varying, V_ITa, V_IT, V_W, offset, start, end);
-    OPT_KERNEL(0, 0, computeVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
+//    computeVertexB<0, 3><<<512,32,0,stream>>>(vertex, varying, V_ITa, V_IT, V_W, offset, start, end);
+    OPT_KERNEL(0, 0, computeVertexB, 512, 32, stream, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
+    OPT_KERNEL(0, 3, computeVertexB, 512, 32, stream, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 0, computeVertexB, 512, 32, stream, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 3, computeVertexB, 512, 32, stream, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
 
-    computeVertexB<<<512, 32>>>(vertex, varying,
+    // fallback kernel (slow)
+    computeVertexB<<<512, 32, 0, stream>>>(vertex, varying,
                                 vertexLength, vertexStride, varyingLength, varyingStride,
                                 V_ITa, V_IT, V_W, offset, tableOffset, start, end);
 }
 
-void OsdCudaComputeLoopVertexB(float *vertex, float *varying,
+void OsdCudaComputeLoopVertexB(cudaStream_t stream,
+                               float *vertex, float *varying,
                                int vertexLength, int vertexStride,
                                int varyingLength, int varyingStride,
                                int *V_ITa, int *V_IT, float *V_W, int offset, int tableOffset, int start, int end)
 {
-//    computeLoopVertexB<0, 3><<<512,32>>>(vertex, varying, V_ITa, V_IT, V_W, offset, start, end);
-    OPT_KERNEL(0, 0, computeLoopVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeLoopVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeLoopVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeLoopVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
+//    computeLoopVertexB<0, 3><<<512,32,0,stream>>>(vertex, varying, V_ITa, V_IT, V_W, offset, start, end);
+    OPT_KERNEL(0, 0, computeLoopVertexB, 512, 32, stream, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
+    OPT_KERNEL(0, 3, computeLoopVertexB, 512, 32, stream, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 0, computeLoopVertexB, 512, 32, stream, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 3, computeLoopVertexB, 512, 32, stream, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
 
-    computeLoopVertexB<<<512, 32>>>(vertex, varying,
+    // fallback kernel (slow)
+    computeLoopVertexB<<<512, 32, 0, stream>>>(vertex, varying,
                                     vertexLength, vertexStride, varyingLength, varyingStride,
                                     V_ITa, V_IT, V_W, offset, tableOffset, start, end);
 }
 
-void OsdCudaComputeBilinearEdge(float *vertex, float *varying,
+void OsdCudaComputeBilinearEdge(cudaStream_t stream,
+                                float *vertex, float *varying,
                                 int vertexLength, int vertexStride,
                                 int varyingLength, int varyingStride,
                                 int *E_IT, int offset, int tableOffset, int start, int end)
 {
-    //computeBilinearEdge<0, 3><<<512,32>>>(vertex, varying, E_IT, offset, start, end);
-    OPT_KERNEL(0, 0, computeBilinearEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeBilinearEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeBilinearEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeBilinearEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
+    //computeBilinearEdge<0, 3><<<512,32,0,stream>>>(vertex, varying, E_IT, offset, start, end);
+    OPT_KERNEL(0, 0, computeBilinearEdge, 512, 32, stream, (vertex, varying, E_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(0, 3, computeBilinearEdge, 512, 32, stream, (vertex, varying, E_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 0, computeBilinearEdge, 512, 32, stream, (vertex, varying, E_IT, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 3, computeBilinearEdge, 512, 32, stream, (vertex, varying, E_IT, offset, tableOffset, start, end));
 
-    computeBilinearEdge<<<512, 32>>>(vertex, varying,
+    // fallback kernel (slow)
+    computeBilinearEdge<<<512, 32, 0, stream>>>(vertex, varying,
                                      vertexLength, vertexStride, varyingLength, varyingStride,
                                      E_IT, offset, tableOffset, start, end);
 }
 
-void OsdCudaComputeBilinearVertex(float *vertex, float *varying,
+void OsdCudaComputeBilinearVertex(cudaStream_t stream,
+                                  float *vertex, float *varying,
                                   int vertexLength, int vertexStride,
                                   int varyingLength, int varyingStride,
                                   int *V_ITa, int offset, int tableOffset, int start, int end)
 {
-//    computeBilinearVertex<0, 3><<<512,32>>>(vertex, varying, V_ITa, offset, start, end);
-    OPT_KERNEL(0, 0, computeBilinearVertex, 512, 32, (vertex, varying, V_ITa, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeBilinearVertex, 512, 32, (vertex, varying, V_ITa, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeBilinearVertex, 512, 32, (vertex, varying, V_ITa, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeBilinearVertex, 512, 32, (vertex, varying, V_ITa, offset, tableOffset, start, end));
+//    computeBilinearVertex<0, 3><<<512,32,0,stream>>>(vertex, varying, V_ITa, offset, start, end);
+    OPT_KERNEL(0, 0, computeBilinearVertex, 512, 32, stream, (vertex, varying, V_ITa, offset, tableOffset, start, end));
+    OPT_KERNEL(0, 3, computeBilinearVertex, 512, 32, stream, (vertex, varying, V_ITa, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 0, computeBilinearVertex, 512, 32, stream, (vertex, varying, V_ITa, offset, tableOffset, start, end));
+    OPT_KERNEL(3, 3, computeBilinearVertex, 512, 32, stream, (vertex, varying, V_ITa, offset, tableOffset, start, end));
 
-    computeBilinearVertex<<<512, 32>>>(vertex, varying,
+    // fallback kernel (slow)
+    computeBilinearVertex<<<512, 32, 0, stream>>>(vertex, varying,
                                        vertexLength, vertexStride, varyingLength, varyingStride,
                                        V_ITa, offset, tableOffset, start, end);
 }
 
-void OsdCudaEditVertexAdd(float *vertex, int vertexLength, int vertexStride,
+void OsdCudaEditVertexAdd(cudaStream_t stream,
+                          float *vertex, int vertexLength, int vertexStride,
                           int primVarOffset, int primVarWidth,
                           int vertexOffset, int tableOffset,
                           int start, int end, int *editIndices, float *editValues)
 {
-    editVertexAdd<<<512, 32>>>(vertex, vertexLength, vertexStride, primVarOffset, primVarWidth,
+    editVertexAdd<<<512, 32, 0, stream>>>(vertex, vertexLength, vertexStride, primVarOffset, primVarWidth,
                                vertexOffset, tableOffset, start, end,
                                editIndices, editValues);
 }
