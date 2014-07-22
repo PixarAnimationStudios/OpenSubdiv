@@ -190,3 +190,20 @@ OpenSubdiv_EvaluatorDescr *openSubdiv_getEvaluatorTopologyDescr(
     return (OpenSubdiv_EvaluatorDescr *) &evaluator_descr->topology;
 }
 
+void openSubdiv_evaluatorFVDataClear(OpenSubdiv_EvaluatorDescr *evaluator_descr)
+{
+    evaluator_descr->topology.fvData.clear();
+    evaluator_descr->topology.fvNames.clear();
+}
+
+void openSubdiv_evaluatorFVDataPush(OpenSubdiv_EvaluatorDescr *evaluator_descr,
+                                    float data)
+{
+    evaluator_descr->topology.fvData.push_back(data);
+}
+
+void openSubdiv_evaluatorFVNamePush(OpenSubdiv_EvaluatorDescr *evaluator_descr,
+                                    const char *name)
+{
+    evaluator_descr->topology.fvNames.push_back(name);
+}

@@ -84,6 +84,19 @@ void openSubdiv_getEvaluatorTopology(
 struct OpenSubdiv_EvaluatorDescr *openSubdiv_getEvaluatorTopologyDescr(
     struct OpenSubdiv_EvaluatorDescr *evaluator_descr);
 
+/* Face warying manipulation */
+
+void openSubdiv_evaluatorFVDataClear(
+    struct OpenSubdiv_EvaluatorDescr *evaluator_descr);
+
+void openSubdiv_evaluatorFVDataPush(
+    struct OpenSubdiv_EvaluatorDescr *evaluator_descr,
+    float data);
+
+void openSubdiv_evaluatorFVNamePush(
+    struct OpenSubdiv_EvaluatorDescr *evaluator_descr,
+    const char *name);
+
 #ifdef __cplusplus
 }
 #endif
