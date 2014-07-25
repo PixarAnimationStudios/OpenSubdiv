@@ -110,6 +110,40 @@ protected:
                                     int numPtexFaces=0,
                                     int fvarWidth=0 );
 
+    typedef std::vector<unsigned int> VertexList;
+    typedef std::map<unsigned int, unsigned int> VertexPermutation;
+    typedef std::vector<int> SplitTable;
+
+    /// \brief Remaps the vertices in the patch tables
+    ///
+    /// @param patchTables  the patch tables to modify
+    ///
+    /// @param vertexPermutation  permutation of the vertices
+    ///
+    static void RemapVertices( FarPatchTables * patchTables,
+                               VertexPermutation const &vertexPermutation );
+
+    /// \brief Shifts the vertices in a kernel batch
+    ///
+    /// @param patchTables  the patch tables to modify
+    ///
+    /// @param kernelBatch  the kernel batch
+    ///
+    /// @param numVertices  the number of vertices to shift
+    ///
+    static void ShiftVertices( FarPatchTables * patchTables,
+                               FarKernelBatch const &kernelBatch,
+                               int numVertices );
+
+    /// \brief Splits patch control vertices that have been duplicated
+    ///
+    /// @param patchTables  the patch tables to modify
+    ///
+    /// @param splitTable  a table of offsets for each patch control vertex
+    ///
+    static void SplitVertices( FarPatchTables * patchTables,
+                               SplitTable const &splitTable );
+
 private:
 
     typedef FarPatchTables::Descriptor Descriptor;
@@ -1527,8 +1561,69 @@ FarPatchTablesFactory<T>::Splice(FarMeshVector const &meshes,
     return result;
 }
 
+template <class T> void
+FarPatchTablesFactory<T>::RemapVertices( FarPatchTables * patchTables,
+    VertexPermutation const& vertexPermutation )
+{
+    // Remap the patch control vertex table.
+    FarPatchTables::PTable& patches = patchTables->_patches;
+    for (FarPatchTables::PTable::iterator i = patches.begin();
+        i != patches.end(); ++i)
+    {
+        unsigned int& vertex = *i;
+        VertexPermutation::const_iterator iterator =
+            vertexPermutation.find(vertex);
+        if (iterator != vertexPermutation.end())
+            vertex = iterator->second;
+    }
 
+    // Remap the vertex valence table.
+    FarPatchTables::VertexValenceTable& vertexValenceTable =
+        patchTables->_vertexValenceTable;
+    if (!vertexValenceTable.empty()) {
+        int maxValence = patchTables->GetMaxValence();
+        for (int i = 0; i < (int)vertexValenceTable.size(); i += maxValence) {
+            int vertexValence = vertexValenceTable[i];
+            for (int j = 0; j < 2 * vertexValence; ++j) {
+                int& vertex = vertexValenceTable[i + j + 1];
+                VertexPermutation::const_iterator iterator =
+                    vertexPermutation.find(vertex);
+                if (iterator != vertexPermutation.end())
+                    vertex = iterator->second;
+            }
+        }
+    }
+}
 
+template <class T> void
+FarPatchTablesFactory<T>::ShiftVertices( FarPatchTables * patchTables,
+    FarKernelBatch const &kernelBatch, int numVertices )
+{
+    unsigned int insertVertex = kernelBatch.GetVertexOffset() +
+        kernelBatch.GetEnd() - numVertices;
+
+    // Remap the patch control vertex table.
+    FarPatchTables::PTable& patchTable = patchTables->_patches;
+    for (FarPatchTables::PTable::iterator i = patchTable.begin();
+        i != patchTable.end(); ++i)
+    {
+        unsigned int& vertex = *i;
+        if (vertex >= insertVertex)
+            vertex += numVertices;
+    }
+}
+
+template <class T> void
+FarPatchTablesFactory<T>::SplitVertices( FarPatchTables * patchTables,
+    SplitTable const &splitTable )
+{
+    FarPatchTables::PTable& patchTable = patchTables->_patches;
+    assert(splitTable.size() == patchTable.size());
+
+    for (int i = 0; i < (int)patchTable.size(); ++i) {
+        patchTable[i] += splitTable[i];
+    }
+}
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
