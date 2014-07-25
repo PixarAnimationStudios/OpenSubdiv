@@ -42,9 +42,9 @@ namespace OPENSUBDIV_VERSION {
 class OsdCudaTable : OsdNonCopyable<OsdCudaTable> {
 public:
     template<typename T>
-    static OsdCudaTable * Create(const std::vector<T> &table) {
+    static OsdCudaTable * Create(cudaStream_t stream, const std::vector<T> &table) {
         OsdCudaTable *result = new OsdCudaTable();
-        if (not result->createCudaBuffer(table.size() * sizeof(T), table.empty() ? NULL : &table[0])) {
+        if (not result->createCudaBuffer(stream, table.size() * sizeof(T), table.empty() ? NULL : &table[0])) {
             delete result;
             return NULL;
         }
@@ -55,12 +55,16 @@ public:
 
     void * GetCudaMemory() const;
 
+    cudaStream_t GetStream();
+
 private:
     OsdCudaTable() : _devicePtr(NULL) {}
 
     bool createCudaBuffer(size_t size, const void *ptr);
 
     void *_devicePtr;
+
+    cudaStream_t *_stream;
 };
 
 class OsdCudaHEditTable : OsdNonCopyable<OsdCudaHEditTable> {
