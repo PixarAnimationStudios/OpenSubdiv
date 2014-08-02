@@ -30,17 +30,14 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 bool
-OsdCudaTable::createCudaBuffer(cudaStream_t stream, size_t size, const void *ptr) {
-
-    cudaHostRegister((void**)&ptr, size);
-    /* The above command is slow. Try to use cudaMallocHost during the allocation of ptr to speedup */
+OsdCudaTable::createCudaBuffer(size_t size, const void *ptr) {
 
     cudaError_t err = cudaMalloc(&_devicePtr, size);
     if (err != cudaSuccess) {
         return false;
     }
 
-    err = cudaMemcpyAsync(_devicePtr, ptr, size, cudaMemcpyHostToDevice, stream);
+    err = cudaMemcpy(_devicePtr, ptr, size, cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
         cudaFree(_devicePtr);
         _devicePtr = NULL;
@@ -143,15 +140,15 @@ OsdCudaComputeContext::initialize(FarSubdivisionTables const *subdivisionTables,
     // allocate 5 or 7 tables
     _tables.resize(subdivisionTables->GetNumTables(), 0);
 
-    _tables[FarSubdivisionTables::E_IT]  = OsdCudaTable::Create(GetStream(), subdivisionTables->Get_E_IT());
-    _tables[FarSubdivisionTables::V_IT]  = OsdCudaTable::Create(GetStream(), subdivisionTables->Get_V_IT());
-    _tables[FarSubdivisionTables::V_ITa] = OsdCudaTable::Create(GetStream(), subdivisionTables->Get_V_ITa());
-    _tables[FarSubdivisionTables::E_W]   = OsdCudaTable::Create(GetStream(), subdivisionTables->Get_E_W());
-    _tables[FarSubdivisionTables::V_W]   = OsdCudaTable::Create(GetStream(), subdivisionTables->Get_V_W());
+    _tables[FarSubdivisionTables::E_IT]  = OsdCudaTable::Create(subdivisionTables->Get_E_IT());
+    _tables[FarSubdivisionTables::V_IT]  = OsdCudaTable::Create(subdivisionTables->Get_V_IT());
+    _tables[FarSubdivisionTables::V_ITa] = OsdCudaTable::Create(subdivisionTables->Get_V_ITa());
+    _tables[FarSubdivisionTables::E_W]   = OsdCudaTable::Create(subdivisionTables->Get_E_W());
+    _tables[FarSubdivisionTables::V_W]   = OsdCudaTable::Create(subdivisionTables->Get_V_W());
 
     if (subdivisionTables->GetNumTables() > 5) {
-        _tables[FarSubdivisionTables::F_IT]  = OsdCudaTable::Create(GetStream(), subdivisionTables->Get_F_IT());
-        _tables[FarSubdivisionTables::F_ITa] = OsdCudaTable::Create(GetStream(), subdivisionTables->Get_F_ITa());
+        _tables[FarSubdivisionTables::F_IT]  = OsdCudaTable::Create(subdivisionTables->Get_F_IT());
+        _tables[FarSubdivisionTables::F_ITa] = OsdCudaTable::Create(subdivisionTables->Get_F_ITa());
     }
 
     // error check
@@ -205,20 +202,11 @@ OsdCudaComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
 
     OsdCudaComputeContext *result = new OsdCudaComputeContext();
 
-    cudaStream_t stream;
-    cudaStreamCreate(&stream);
-    _stream = &stream;
-
     if (result->initialize(subdivisionTables, vertexEditTables) == false) {
         delete result;
         return NULL;
     }
     return result;
-}
-
-cudaStream_t
-OsdComputeContext::GetStream(){
-    return *_stream
 }
 
 }  // end namespace OPENSUBDIV_VERSION
