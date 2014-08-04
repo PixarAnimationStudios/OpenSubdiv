@@ -39,7 +39,8 @@ set(PUBLIC_HEADER_FILES
     patchPartitioner.h
     refiner.h
     topology.h
-    uniformEvaluator.h        
+    uniformEvaluator.h
+    vertexSplit.h
 )
 
 add_library(osdutil

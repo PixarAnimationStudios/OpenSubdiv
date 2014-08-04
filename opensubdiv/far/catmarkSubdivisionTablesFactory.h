@@ -26,6 +26,7 @@
 #define FAR_CATMARK_SUBDIVISION_TABLES_FACTORY_H
 
 #include <cassert>
+#include <map>
 #include <vector>
 
 #include "../version.h"
@@ -48,6 +49,9 @@ template <class T, class U> class FarCatmarkSubdivisionTablesFactory {
 protected:
     template <class X, class Y> friend class FarMeshFactory;
 
+    typedef std::vector<unsigned int> VertexList;
+    typedef std::map<unsigned int, unsigned int> VertexPermutation;
+
     /// \brief Creates a FarSubdivisiontables instance with Catmark scheme.
     ///
     /// @param meshFactory  a valid FarMeshFactory instance
@@ -60,6 +64,90 @@ protected:
     // Compares vertices based on their topological configuration
     // (see subdivisionTables::GetMaskRanking for more details)
     static bool CompareVertices( HbrVertex<T> const *x, HbrVertex<T> const *y );
+
+    /// \brief Duplicates vertices in a kernel batch
+    ///
+    /// @param subdivisionTables  the subdivision tables to modify
+    ///
+    /// @param kernelBatch  kernel batch at the finest subdivision level
+    ///
+    /// @param vertexList  the list of vertices to duplicate
+    ///
+    static void DuplicateVertices( FarSubdivisionTables * subdivisionTables,
+                                   FarKernelBatch &kernelBatch,
+                                   VertexList const &vertexList );
+
+    /// \brief Rearranges vertices in a kernel batch to process them in a
+    /// \brief specific order
+    ///
+    /// @param subdivisionTables  the subdivision tables to modify
+    ///
+    /// @param kernelBatch  the kernel batch
+    ///
+    /// @param vertexPermutation  permutation of the vertices
+    ///
+    static bool PermuteVertices( FarSubdivisionTables * subdivisionTables,
+                                 FarKernelBatch const &kernelBatch,
+                                 VertexPermutation const &vertexPermutation );
+
+    /// \brief Remaps the vertices in a kernel batch
+    ///
+    /// @param subdivisionTables  the subdivision tables to modify
+    ///
+    /// @param kernelBatch  the kernel batch
+    ///
+    /// @param vertexPermutation  permutation of the vertices
+    ///
+    static void RemapVertices( FarSubdivisionTables * subdivisionTables,
+                               FarKernelBatch const &kernelBatch,
+                               VertexPermutation const& vertexPermutation);
+
+    /// \brief Shifts the vertices in a kernel batch
+    ///
+    /// @param subdivisionTables  the subdivision tables to modify
+    ///
+    /// @param kernelBatch  the kernel batch
+    ///
+    /// @param expandedKernelBatch  the kernel batch whose range was expanded
+    ///
+    /// @param numVertices  the number of vertices to shift
+    ///
+    static void ShiftVertices( FarSubdivisionTables * subdivisionTables,
+                               FarKernelBatch &kernelBatch,
+                               FarKernelBatch const &expandedKernelBatch,
+                               int numVertices );
+
+private:
+    /// \brief Duplicates vertices in an edge-vertex kernel batch
+    static void duplicateEdgeVertexKernelBatch( FarSubdivisionTables * subdivisionTables,
+                                                FarKernelBatch &kernelBatch,
+                                                VertexList const &vertexList );
+
+    /// \brief Duplicates vertices in a vertex-vertex kernel batch
+    static void duplicateVertexVertexKernelBatch( FarSubdivisionTables * subdivisionTables,
+                                                  FarKernelBatch &kernelBatch,
+                                                  VertexList const &vertexList );
+
+    /// \brief Rearranges vertices in an edge-vertex kernel batch
+    static void permuteEdgeVertexKernelBatch( FarSubdivisionTables * subdivisionTables,
+                                              FarKernelBatch const &kernelBatch,
+                                              VertexPermutation const &inversePermutation );
+
+    /// \brief Rearranges vertices in a face-vertex kernel batch
+    static void permuteFaceVertexKernelBatch( FarSubdivisionTables * subdivisionTables,
+                                              FarKernelBatch const &kernelBatch,
+                                              VertexPermutation const &inversePermutation );
+
+    /// \brief Rearranges vertices in a vertex-vertex kernel batch
+    static void permuteVertexVertexKernelBatch( FarSubdivisionTables * subdivisionTables,
+                                                FarKernelBatch const &kernelBatch,
+                                                VertexPermutation const &inversePermutation );
+
+    /// \brief Remaps a vertex index
+    static void remapVertex( VertexPermutation const& vertexPermutation, int& vertex );
+
+    /// \brief Remaps a vertex index
+    static void remapVertex( VertexPermutation const& vertexPermutation, unsigned int& vertex );
 };
 
 // This factory walks the Hbr vertices and accumulates the weights and adjacency
@@ -166,7 +254,7 @@ FarCatmarkSubdivisionTablesFactory<T,U>::Create( FarMeshFactory<T,U> * meshFacto
         } else {
             if (hasQuadFaceVertexKernel)
                 kernelType = FarKernelBatch::CATMARK_QUAD_FACE_VERTEX;
-            if (hasTriQuadFaceVertexKernel)
+            else if (hasTriQuadFaceVertexKernel)
                 kernelType = FarKernelBatch::CATMARK_TRI_QUAD_FACE_VERTEX;
         }
 
@@ -464,6 +552,535 @@ FarCatmarkSubdivisionTablesFactory<T,U>::CompareVertices( HbrVertex<T> const * x
         return x->GetValence() == 4 and y->GetValence() != 4;
     else
         return rankx < ranky;
+}
+
+template <class T, class U> void
+FarCatmarkSubdivisionTablesFactory<T, U>::DuplicateVertices(
+    FarSubdivisionTables * subdivisionTables,
+    FarKernelBatch &kernelBatch, VertexList const &vertexList )
+{
+    switch (kernelBatch.GetKernelType()) {
+    case FarKernelBatch::CATMARK_EDGE_VERTEX:
+    case FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX:
+        duplicateEdgeVertexKernelBatch(subdivisionTables, kernelBatch,
+            vertexList);
+        break;
+
+    case FarKernelBatch::CATMARK_VERT_VERTEX_A1:
+    case FarKernelBatch::CATMARK_VERT_VERTEX_B:
+    case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_A:
+    case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B1:
+    case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B2:
+        duplicateVertexVertexKernelBatch(subdivisionTables, kernelBatch,
+            vertexList);
+        break;
+    }
+
+    // Update the number of vertices in the subdivision tables.
+    subdivisionTables->_vertsOffsets.back() += (int)vertexList.size();
+}
+
+template <class T, class U> void
+FarCatmarkSubdivisionTablesFactory<T, U>::duplicateEdgeVertexKernelBatch(
+    FarSubdivisionTables * subdivisionTables,
+    FarKernelBatch &kernelBatch, VertexList const &vertexList )
+{
+    // Duplicate vertices in the edge vertices tables.
+    std::vector<int>& srcE_IT = subdivisionTables->_E_IT;
+    std::vector<float>& srcE_W = subdivisionTables->_E_W;
+    std::vector<int> dstE_IT;
+    std::vector<float> dstE_W;
+
+    int kernelBatchSize = kernelBatch.GetEnd() - kernelBatch.GetStart();
+    int tableOffset = kernelBatch.GetTableOffset();
+    int vertexOffset = kernelBatch.GetVertexOffset();
+    for (int i = 0; i < (int)vertexList.size(); ++i) {
+        int srcVertex = vertexList[i];
+        int srcTableOffset = tableOffset + srcVertex - vertexOffset;
+
+        for (int j = 0; j < 4; ++j) {
+            dstE_IT.push_back(srcE_IT[srcTableOffset * 4 + j]);
+        }
+
+        if ((int)srcE_W.size() > srcTableOffset) {
+            for (int j = 0; j < 2; ++j) {
+                dstE_W.push_back(srcE_W[srcTableOffset * 2 + j]);
+            }
+        }
+    }
+
+    // Rewrite the edge-vertices tables.
+    srcE_IT.insert(srcE_IT.begin() + (tableOffset + kernelBatchSize) * 4,
+        dstE_IT.begin(), dstE_IT.end());
+    if (!dstE_W.empty()) {
+        srcE_W.insert(srcE_W.begin() + (tableOffset + kernelBatchSize) * 2,
+            dstE_W.begin(), dstE_W.end());
+    }
+
+    // Replace the kernel batch.
+    int numDuplicates = (int)vertexList.size();
+    kernelBatch = FarKernelBatch(kernelBatch.GetKernelType(),
+        kernelBatch.GetLevel(), kernelBatch.GetTableIndex(),
+        kernelBatch.GetStart(), kernelBatch.GetEnd() + numDuplicates,
+        kernelBatch.GetTableOffset(), kernelBatch.GetVertexOffset(),
+        kernelBatch.GetMeshIndex());
+}
+
+template <class T, class U> void
+FarCatmarkSubdivisionTablesFactory<T, U>::duplicateVertexVertexKernelBatch(
+    FarSubdivisionTables * subdivisionTables,
+    FarKernelBatch &kernelBatch, VertexList const &vertexList )
+{
+    // Duplicate vertices in the vertex-vertices tables.
+    std::vector<int>& srcV_ITa = subdivisionTables->_V_ITa;
+    std::vector<unsigned int>& srcV_IT = subdivisionTables->_V_IT;
+    std::vector<float>& srcV_W = subdivisionTables->_V_W;
+    std::vector<int> dstV_ITa;
+    std::vector<unsigned int> dstV_IT;
+    std::vector<float> dstV_W;
+
+    int kernelBatchEnd = kernelBatch.GetEnd();
+    int tableOffset = kernelBatch.GetTableOffset();
+    int vertexOffset = kernelBatch.GetVertexOffset();
+    int lastVertexOffset = srcV_ITa[(tableOffset + kernelBatchEnd - 1) * 5 + 0];
+    int lastValence = srcV_ITa[(tableOffset + kernelBatchEnd - 1) * 5 + 1];
+    int dstVertexOffset = lastVertexOffset + lastValence * 2;
+    for (int i = 0; i < (int)vertexList.size(); ++i) {
+        int srcVertex = vertexList[i];
+        int srcTableOffset = tableOffset + srcVertex - vertexOffset;
+        int srcVertexOffset = srcV_ITa[srcTableOffset * 5 + 0];
+        int valence = srcV_ITa[srcTableOffset * 5 + 1];
+        int parentVertex = srcV_ITa[srcTableOffset * 5 + 2];
+        int edgeVertex1 = srcV_ITa[srcTableOffset * 5 + 3];
+        int edgeVertex2 = srcV_ITa[srcTableOffset * 5 + 4];
+
+        dstV_ITa.push_back(dstVertexOffset);
+        dstV_ITa.push_back(valence);
+        dstV_ITa.push_back(parentVertex);
+        dstV_ITa.push_back(edgeVertex1);
+        dstV_ITa.push_back(edgeVertex2);
+        dstVertexOffset += valence * 2;
+
+        for (int j = 0; j < valence * 2; ++j) {
+            dstV_IT.push_back(srcV_IT[srcVertexOffset + j]);
+        }
+
+        if ((int)srcV_W.size() > srcTableOffset) {
+            dstV_W.push_back(srcV_W[srcTableOffset]);
+        }
+    }
+
+    // Rewrite the vertex-vertices tables.
+    srcV_ITa.insert(srcV_ITa.begin() + (tableOffset + kernelBatchEnd) * 5,
+        dstV_ITa.begin(), dstV_ITa.end());
+    srcV_IT.insert(srcV_IT.begin() + lastVertexOffset + lastValence * 2,
+        dstV_IT.begin(), dstV_IT.end());
+    if (!dstV_W.empty()) {
+        srcV_W.insert(srcV_W.begin() + tableOffset + kernelBatchEnd,
+            dstV_W.begin(), dstV_W.end());
+    }
+
+    // Replace the kernel batch.
+    int numDuplicates = (int)vertexList.size();
+    kernelBatch = FarKernelBatch(kernelBatch.GetKernelType(),
+        kernelBatch.GetLevel(), kernelBatch.GetTableIndex(),
+        kernelBatch.GetStart(), kernelBatch.GetEnd() + numDuplicates,
+        kernelBatch.GetTableOffset(), kernelBatch.GetVertexOffset(),
+        kernelBatch.GetMeshIndex());
+}
+
+template <class T, class U> bool
+FarCatmarkSubdivisionTablesFactory<T, U>::PermuteVertices(
+    FarSubdivisionTables * subdivisionTables,
+    FarKernelBatch const &kernelBatch,
+    VertexPermutation const &vertexPermutation )
+{
+    // Create the inverse permutation.
+    VertexPermutation inversePermutation;
+    int kernelBatchSize = kernelBatch.GetEnd() - kernelBatch.GetStart();
+    int vertexOffset = kernelBatch.GetVertexOffset();
+    int firstVertex = vertexOffset + kernelBatch.GetStart();
+    int lastVertex = vertexOffset + kernelBatch.GetEnd();
+    for (int i = 0; i < kernelBatchSize; ++i) {
+        unsigned int oldVertex = firstVertex + i;
+        VertexPermutation::const_iterator j = vertexPermutation.find(oldVertex);
+        if (j == vertexPermutation.end())
+            continue;
+
+        int newVertex = j->second;
+
+        // Guarantee that the inverse map is a permutation.
+        assert(newVertex >= firstVertex && newVertex < lastVertex);
+        assert(inversePermutation.count(newVertex) == 0);
+
+        inversePermutation[newVertex] = oldVertex;
+    }
+
+    if (inversePermutation.empty())
+        return false; // the vertices of the kernel batch are not permuted
+
+    // Guarantee that the inverse map is a bijection.
+    assert((int)inversePermutation.size() == kernelBatchSize);
+
+    switch (kernelBatch.GetKernelType()) {
+    case FarKernelBatch::CATMARK_EDGE_VERTEX:
+    case FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX:
+        permuteEdgeVertexKernelBatch(subdivisionTables, kernelBatch,
+            inversePermutation);
+        break;
+
+    case FarKernelBatch::CATMARK_FACE_VERTEX:
+    case FarKernelBatch::CATMARK_QUAD_FACE_VERTEX:
+    case FarKernelBatch::CATMARK_TRI_QUAD_FACE_VERTEX:
+        permuteFaceVertexKernelBatch(subdivisionTables, kernelBatch,
+            inversePermutation);
+        break;
+
+    case FarKernelBatch::CATMARK_VERT_VERTEX_A1:
+    case FarKernelBatch::CATMARK_VERT_VERTEX_B:
+    case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_A:
+    case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B1:
+    case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B2:
+        permuteVertexVertexKernelBatch(subdivisionTables, kernelBatch,
+            inversePermutation);
+        break;
+    }
+
+    return true;
+}
+
+template <class T, class U> void
+FarCatmarkSubdivisionTablesFactory<T, U>::permuteEdgeVertexKernelBatch(
+    FarSubdivisionTables * subdivisionTables,
+    FarKernelBatch const &kernelBatch,
+    VertexPermutation const &inversePermutation )
+{
+    std::vector<int>& oldE_IT = subdivisionTables->_E_IT;
+    std::vector<float>& oldE_W = subdivisionTables->_E_W;
+    std::vector<int> newE_IT;
+    std::vector<float> newE_W;
+
+    // Rearrange the edge-vertices tables.
+    int tableOffset = kernelBatch.GetTableOffset();
+    int vertexOffset = kernelBatch.GetVertexOffset();
+    for (int i = kernelBatch.GetStart(); i < kernelBatch.GetEnd(); ++i) {
+        int newVertex = i + vertexOffset;
+        int oldVertex = inversePermutation.find(newVertex)->second;
+        int oldTableOffset = tableOffset + oldVertex - vertexOffset;
+
+        for (int j = 0; j < 4; ++j) {
+            newE_IT.push_back(oldE_IT[oldTableOffset * 4 + j]);
+        }
+
+        if ((int)oldE_W.size() > oldTableOffset) {
+            for (int j = 0; j < 2; ++j) {
+                newE_W.push_back(oldE_W[oldTableOffset * 2 + j]);
+            }
+        }
+    }
+
+    // Rewrite the edge-vertices tables.
+    std::copy(newE_IT.begin(), newE_IT.end(), oldE_IT.begin() +
+        tableOffset * 4);
+    if (!newE_W.empty()) {
+        std::copy(newE_W.begin(), newE_W.end(),
+            oldE_W.begin() + tableOffset * 2);
+    }
+}
+
+template <class T, class U> void
+FarCatmarkSubdivisionTablesFactory<T, U>::permuteFaceVertexKernelBatch(
+    FarSubdivisionTables * subdivisionTables,
+    FarKernelBatch const &kernelBatch,
+    VertexPermutation const &inversePermutation )
+{
+    bool isCatmarkFaceVertex = kernelBatch.GetKernelType() ==
+        FarKernelBatch::CATMARK_FACE_VERTEX;
+
+    std::vector<int>& oldF_ITa = subdivisionTables->_F_ITa;
+    std::vector<unsigned int>& oldF_IT = subdivisionTables->_F_IT;
+    std::vector<int> newF_ITa;
+    std::vector<unsigned int> newF_IT;
+
+    // Rearrange the face-vertices tables.
+    int tableOffset = kernelBatch.GetTableOffset();
+    int vertexOffset = kernelBatch.GetVertexOffset();
+    int firstVertexOffset, newVertexOffset;
+
+    if (isCatmarkFaceVertex) {
+        firstVertexOffset = oldF_ITa[tableOffset * 2];
+        newVertexOffset = firstVertexOffset;
+    } else {
+        firstVertexOffset = tableOffset;
+    }
+
+    newVertexOffset = firstVertexOffset;
+    for (int i = kernelBatch.GetStart(); i < kernelBatch.GetEnd(); ++i) {
+        int newVertex = i + vertexOffset;
+        int oldVertex = inversePermutation.find(newVertex)->second;
+        int oldVertexOffset, valence;
+
+        if (isCatmarkFaceVertex) {
+            int oldTableOffset = tableOffset + oldVertex - vertexOffset;
+            oldVertexOffset = oldF_ITa[oldTableOffset * 2 + 0];
+            valence = oldF_ITa[oldTableOffset * 2 + 1];
+
+            newF_ITa.push_back(newVertexOffset);
+            newF_ITa.push_back(valence);
+            newVertexOffset += valence;
+        } else {
+            oldVertexOffset = tableOffset + 4 * (oldVertex - vertexOffset);
+            valence = 4;
+        }
+
+        for (int j = 0; j < valence; ++j) {
+            newF_IT.push_back(oldF_IT[oldVertexOffset + j]);
+        }
+    }
+
+    // Rewrite the face-vertices tables.
+    std::copy(newF_IT.begin(), newF_IT.end(), oldF_IT.begin() +
+        firstVertexOffset);
+    if (!newF_ITa.empty()) {
+        std::copy(newF_ITa.begin(), newF_ITa.end(), oldF_ITa.begin() +
+            tableOffset * 2);
+    }
+}
+
+template <class T, class U> void
+FarCatmarkSubdivisionTablesFactory<T, U>::permuteVertexVertexKernelBatch(
+    FarSubdivisionTables * subdivisionTables,
+    FarKernelBatch const &kernelBatch,
+    VertexPermutation const &inversePermutation )
+{
+    std::vector<int>& oldV_ITa = subdivisionTables->_V_ITa;
+    std::vector<unsigned int>& oldV_IT = subdivisionTables->_V_IT;
+    std::vector<float>& oldV_W = subdivisionTables->_V_W;
+    std::vector<int> newV_ITa;
+    std::vector<unsigned int> newV_IT;
+    std::vector<float> newV_W;
+
+    // Rearrange the vertex-vertices tables.
+    int kernelBatchStart = kernelBatch.GetStart();
+    int kernelBatchEnd = kernelBatch.GetEnd();
+    int tableOffset = kernelBatch.GetTableOffset();
+    int vertexOffset = kernelBatch.GetVertexOffset();
+    int firstVertexOffset = oldV_ITa[(tableOffset + kernelBatchStart) * 5 + 0];
+    int newVertexOffset = firstVertexOffset;
+    for (int i = kernelBatchStart; i < kernelBatchEnd; ++i) {
+        int newVertex = i + vertexOffset;
+        int oldVertex = inversePermutation.find(newVertex)->second;
+        int oldTableOffset = tableOffset + oldVertex - vertexOffset;
+        int oldVertexOffset = oldV_ITa[oldTableOffset * 5 + 0];
+        int valence = oldV_ITa[oldTableOffset * 5 + 1];
+        int parentVertex = oldV_ITa[oldTableOffset * 5 + 2];
+        int edgeVertex1 = oldV_ITa[oldTableOffset * 5 + 3];
+        int edgeVertex2 = oldV_ITa[oldTableOffset * 5 + 4];
+
+        newV_ITa.push_back(newVertexOffset);
+        newV_ITa.push_back(valence);
+        newV_ITa.push_back(parentVertex);
+        newV_ITa.push_back(edgeVertex1);
+        newV_ITa.push_back(edgeVertex2);
+        newVertexOffset += valence * 2;
+
+        for (int j = 0; j < valence * 2; ++j) {
+            newV_IT.push_back(oldV_IT[oldVertexOffset + j]);
+        }
+
+        if ((int)oldV_W.size() > oldTableOffset) {
+            newV_W.push_back(oldV_W[oldTableOffset]);
+        }
+    }
+
+    // Rewrite the vertex-vertices tables.
+    std::copy(newV_ITa.begin(), newV_ITa.end(), oldV_ITa.begin() +
+        (tableOffset + kernelBatchStart) * 5);
+    std::copy(newV_IT.begin(), newV_IT.end(), oldV_IT.begin() +
+        firstVertexOffset);
+    if (!newV_W.empty()) {
+        std::copy(newV_W.begin(), newV_W.end(), oldV_W.begin() + tableOffset +
+            kernelBatchStart);
+    }
+}
+
+template <class T, class U> void
+FarCatmarkSubdivisionTablesFactory<T, U>::RemapVertices(
+    FarSubdivisionTables * subdivisionTables,
+    FarKernelBatch const &kernelBatch,
+    VertexPermutation const& vertexPermutation )
+{
+    switch (kernelBatch.GetKernelType()) {
+    case FarKernelBatch::CATMARK_FACE_VERTEX:
+        {
+            // Remap the face-vertices tables.
+            const std::vector<int>& F_ITa = subdivisionTables->_F_ITa;
+            std::vector<unsigned int>& F_IT = subdivisionTables->_F_IT;
+            int tableOffset = kernelBatch.GetTableOffset();
+            for (int i = kernelBatch.GetStart(); i < kernelBatch.GetEnd(); ++i)
+            {
+                int vertexOffset = F_ITa[(tableOffset + i) * 2];
+                int valence = F_ITa[(tableOffset + i) * 2 + 1];
+                for (int j = 0; j < valence; ++j) {
+                    remapVertex(vertexPermutation, F_IT[vertexOffset + j]);
+                }
+            }
+        }
+        break;
+
+    case FarKernelBatch::CATMARK_QUAD_FACE_VERTEX:
+    case FarKernelBatch::CATMARK_TRI_QUAD_FACE_VERTEX:
+        {
+            // Remap the face-vertices tables.
+            std::vector<unsigned int>& F_IT = subdivisionTables->_F_IT;
+            int tableOffset = kernelBatch.GetTableOffset();
+            for (int i = kernelBatch.GetStart(); i < kernelBatch.GetEnd(); ++i)
+            {
+                for (int j = 0; j < 4; ++j) {
+                    remapVertex(vertexPermutation,
+                        F_IT[tableOffset + 4 * i + j]);
+                }
+            }
+        }
+        break;
+
+    case FarKernelBatch::CATMARK_EDGE_VERTEX:
+    case FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX:
+        {
+            // Remap the edge-vertices indexing table.
+            std::vector<int>& E_IT = subdivisionTables->_E_IT;
+            int tableOffset = kernelBatch.GetTableOffset();
+            for (int i = kernelBatch.GetStart(); i < kernelBatch.GetEnd(); ++i)
+            {
+                int vertexOffset = (tableOffset + i) * 4;
+                for (int j = 0; j < 4; ++j) {
+                    remapVertex(vertexPermutation, E_IT[vertexOffset + j]);
+                }
+            }
+        }
+        break;
+
+    case FarKernelBatch::CATMARK_VERT_VERTEX_A1:
+    case FarKernelBatch::CATMARK_VERT_VERTEX_B:
+    case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_A:
+    case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B1:
+    case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B2:
+        {
+            // Remap the vertex-vertices tables.
+            std::vector<int>& V_ITa = subdivisionTables->_V_ITa;
+            std::vector<unsigned int>& V_IT = subdivisionTables->_V_IT;
+            int tableOffset = kernelBatch.GetTableOffset();
+            for (int i = kernelBatch.GetStart(); i < kernelBatch.GetEnd(); ++i)
+            {
+                int vertexOffset = V_ITa[(tableOffset + i) * 5];
+                int valence = V_ITa[(tableOffset + i) * 5 + 1];
+                int& parentVertex = V_ITa[(tableOffset + i) * 5 + 2];
+                int& edgeVertex1 = V_ITa[(tableOffset + i) * 5 + 3];
+                int& edgeVertex2 = V_ITa[(tableOffset + i) * 5 + 4];
+                remapVertex(vertexPermutation, parentVertex);
+                remapVertex(vertexPermutation, edgeVertex1);
+                remapVertex(vertexPermutation, edgeVertex2);
+
+                for (int j = 0; j < valence; ++j) {
+                    remapVertex(vertexPermutation, V_IT[vertexOffset + j * 2]);
+                    remapVertex(vertexPermutation, V_IT[vertexOffset + j * 2 + 1]);
+                }
+            }
+        }
+        break;
+    }
+}
+
+template <class T, class U> inline void
+FarCatmarkSubdivisionTablesFactory<T, U>::remapVertex(
+    VertexPermutation const& vertexPermutation, int& vertex )
+{
+    if (vertex < 0)
+        return; // do not remap negative indices
+
+    VertexPermutation::const_iterator i = vertexPermutation.find(vertex);
+    if (i != vertexPermutation.end())
+        vertex = i->second;
+}
+
+template <class T, class U> inline void
+FarCatmarkSubdivisionTablesFactory<T, U>::remapVertex(
+    VertexPermutation const& vertexPermutation, unsigned int& vertex )
+{
+    VertexPermutation::const_iterator i = vertexPermutation.find(vertex);
+    if (i != vertexPermutation.end())
+        vertex = i->second;
+}
+
+template <class T, class U> void
+FarCatmarkSubdivisionTablesFactory<T, U>::ShiftVertices(
+    FarSubdivisionTables * subdivisionTables, FarKernelBatch &kernelBatch,
+    FarKernelBatch const &expandedKernelBatch,
+    int numVertices )
+{
+    int start = kernelBatch.GetStart();
+    int end = kernelBatch.GetEnd();
+    int tableOffset = kernelBatch.GetTableOffset();
+    int vertexOffset = kernelBatch.GetVertexOffset();
+    int expandedKernelType = expandedKernelBatch.GetKernelType();
+
+    switch (kernelBatch.GetKernelType()) {
+    case FarKernelBatch::CATMARK_EDGE_VERTEX:
+    case FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX:
+        if (expandedKernelType == FarKernelBatch::CATMARK_EDGE_VERTEX ||
+            expandedKernelType ==
+            FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX)
+        {
+            tableOffset += numVertices;
+            vertexOffset += numVertices;
+        }
+        break;
+
+    case FarKernelBatch::CATMARK_VERT_VERTEX_A1:
+    case FarKernelBatch::CATMARK_VERT_VERTEX_B:
+    case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_A:
+    case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B1:
+    case FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B2:
+        if (expandedKernelType == FarKernelBatch::CATMARK_EDGE_VERTEX ||
+            expandedKernelType ==
+            FarKernelBatch::CATMARK_RESTRICTED_EDGE_VERTEX)
+        {
+            vertexOffset += numVertices;
+        } else if (expandedKernelType ==
+            FarKernelBatch::CATMARK_VERT_VERTEX_A1 ||
+            expandedKernelType == FarKernelBatch::CATMARK_VERT_VERTEX_B ||
+            expandedKernelType ==
+            FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_A ||
+            expandedKernelType ==
+            FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B1 ||
+            expandedKernelType ==
+            FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B2)
+        {
+            start += numVertices;
+            end += numVertices;
+
+            // Remap the vertex-vertices tables.
+            std::vector<int>& V_ITa = subdivisionTables->_V_ITa;
+            int lastVertexOffset = V_ITa[(tableOffset + start - 1) * 5 + 0];
+            int lastValence = V_ITa[(tableOffset + start - 1) * 5 + 1];
+            int oldVertexOffset = V_ITa[(tableOffset + start) * 5 + 0];
+            int newVertexOffset = lastVertexOffset + lastValence * 2;
+            for (int i = start; i < end; ++i) {
+                int& vertexOffset = V_ITa[(tableOffset + i) * 5 + 0];
+                vertexOffset += newVertexOffset - oldVertexOffset;
+            }
+        }
+        break;
+
+    default:
+        assert(!"kernel type is not supported");
+        break;
+    }
+
+    // Replace the kernel batch.
+    kernelBatch = FarKernelBatch(kernelBatch.GetKernelType(),
+        kernelBatch.GetLevel(), kernelBatch.GetTableIndex(), start, end,
+        tableOffset, vertexOffset, kernelBatch.GetMeshIndex());
 }
 
 } // end namespace OPENSUBDIV_VERSION
