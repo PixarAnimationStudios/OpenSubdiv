@@ -178,6 +178,10 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC
         endforeach()
     endif()
 
+    if(ANDROID)
+        list(APPEND OSD_COMPILER_FLAGS -mfpu=neon)
+    endif()
+
 elseif(MSVC)
 
     # Turn on all warnings
@@ -342,6 +346,10 @@ endif()
 # Warn about missing dependencies that will cause parts of OpenSubdiv to be
 # disabled.  Also, add preprocessor defines that can be used in the source
 # code to determine if a specific dependency is present or not.
+
+if(ANDROID)
+    add_definitions(-DLOCAL_ARM_MODE=arm -DLOCAL_ARM_NEON=true)
+endif()
 
 if(GCD_FOUND)
     add_definitions( -DOPENSUBDIV_HAS_GCD )

@@ -191,6 +191,18 @@ protected:
     void unbind() {
         _currentBindState.Reset();
     }
+    float * getVertexBuffer() const {
+        return _currentBindState.vertexBuffer;
+    }
+    float * getVaryingBuffer() const {
+        return _currentBindState.varyingBuffer;
+    }
+    OsdVertexBufferDescriptor const & getVertexDesc() const {
+        return _currentBindState.vertexDesc;
+    }
+    OsdVertexBufferDescriptor const & getVaryingDesc() const {
+        return _currentBindState.varyingDesc;
+    }
 
 private:
     // Bind state is a transitional state during refinement.
