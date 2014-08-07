@@ -94,9 +94,9 @@ OsdUtilVertexSplit<T>::OsdUtilVertexSplit(FarMesh<T> * mesh)
             ++vertexRange.first, ++j)
         {
             int fvar = vertexRange.first->second;
-            if (std::equal(&fvarDataTable[i * fvarWidth],
-                &fvarDataTable[(i + 1) * fvarWidth],
-                &fvarDataTable[fvar * fvarWidth]))
+            const float* fvarData = &fvarDataTable[fvar * fvarWidth];
+            if (std::equal(fvarData, fvarData + fvarWidth,
+                &fvarDataTable[i * fvarWidth]))
             {
                 splitTable[i] = j;
                 goto split_vertex;
