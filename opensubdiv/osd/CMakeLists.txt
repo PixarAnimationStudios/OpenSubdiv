@@ -168,7 +168,7 @@ set(NEON_PRIVATE_HEADERS
     neonKernel.h
 )
 
-if(ANDROID)
+if(NEON_FOUND)
     enable_language(ASM)
     list(APPEND CPU_SOURCE_FILES
         neonComputeContext.cpp
