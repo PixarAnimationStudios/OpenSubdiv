@@ -271,6 +271,36 @@ void runKernel( uint3 ID )
 }
 };
 
+// Restricted edge-vertices compute Kernel
+class CatmarkComputeRestrictedEdge : IComputeKernel {
+int placeholder;
+void runKernel( uint3 ID )
+{
+    int i = int(ID.x) + indexStart;
+    if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
+
+    Vertex dst;
+    clear(dst);
+
+    int eidx0 = _E_IT[4*i+0];
+    int eidx1 = _E_IT[4*i+1];
+    int eidx2 = _E_IT[4*i+2];
+    int eidx3 = _E_IT[4*i+3];
+    int4 eidx = int4(eidx0, eidx1, eidx2, eidx3);
+
+    addWithWeight(dst, readVertex(eidx.x), 0.25f);
+    addWithWeight(dst, readVertex(eidx.y), 0.25f);
+    addWithWeight(dst, readVertex(eidx.z), 0.25f);
+    addWithWeight(dst, readVertex(eidx.w), 0.25f);
+    addVaryingWithWeight(dst, readVertex(eidx.x), 0.5f);
+    addVaryingWithWeight(dst, readVertex(eidx.y), 0.5f);
+
+    writeVertex(vid, dst);
+}
+};
+
 // Edge-vertices compute Kernel (bilinear scheme)
 class BilinearComputeEdge : IComputeKernel {
 int placeholder;
@@ -397,6 +427,86 @@ void runKernel( uint3 ID )
 }
 };
 
+// Restricted vertex-vertices compute Kernels 'A' / k_Crease and k_Corner rules
+class CatmarkComputeRestrictedVertexA : IComputeKernel {
+int placeholder;
+void runKernel( uint3 ID )
+{
+    int i = int(ID.x) + indexStart;
+    if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
+
+    int p     = _V_ITa[5*i+2];
+    int eidx0 = _V_ITa[5*i+3];
+    int eidx1 = _V_ITa[5*i+4];
+
+    Vertex dst;
+    clear(dst);
+
+    addWithWeight(dst, readVertex(p), 0.75f);
+    addWithWeight(dst, readVertex(eidx0), 0.125f);
+    addWithWeight(dst, readVertex(eidx1), 0.125f);
+    addVaryingWithWeight(dst, readVertex(p), 1);
+
+    writeVertex(vid, dst);
+}
+};
+
+// Restricted vertex-vertices compute Kernels 'B' / regular k_Dart and k_Smooth rules
+class CatmarkComputeRestrictedVertexB1 : IComputeKernel {
+int placeholder;
+void runKernel( uint3 ID )
+{
+    int i = int(ID.x) + indexStart;
+    if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
+
+    int h = _V_ITa[5*i];
+    int p = _V_ITa[5*i+2];
+
+    Vertex dst;
+    clear(dst);
+
+    addWithWeight(dst, readVertex(p), 0.5f);
+    for(int j = 0; j < 8; ++j)
+        addWithWeight(dst, readVertex(_V_IT[h+j]), 0.0625f);
+    addVaryingWithWeight(dst, readVertex(p), 1);
+    writeVertex(vid, dst);
+}
+};
+
+// Restricted vertex-vertices compute Kernels 'B' / irregular k_Dart and k_Smooth rules
+class CatmarkComputeRestrictedVertexB2 : IComputeKernel {
+int placeholder;
+void runKernel( uint3 ID )
+{
+    int i = int(ID.x) + indexStart;
+    if (i >= indexEnd) return;
+    int vid = i + vertexOffset;
+    i += tableOffset;
+
+    int h = _V_ITa[5*i];
+    int n = _V_ITa[5*i+1];
+    int p = _V_ITa[5*i+2];
+
+    float wp = 1.0/float(n*n);
+    float wv = (n-2.0) * n * wp;
+
+    Vertex dst;
+    clear(dst);
+
+    addWithWeight(dst, readVertex(p), wv);
+    for(int j = 0; j < n; ++j){
+        addWithWeight(dst, readVertex(_V_IT[h+j*2]), wp);
+        addWithWeight(dst, readVertex(_V_IT[h+j*2+1]), wp);
+    }
+    addVaryingWithWeight(dst, readVertex(p), 1);
+    writeVertex(vid, dst);
+}
+};
+
 // Vertex-vertices compute Kernels 'B' / k_Dart and k_Smooth rules
 class LoopComputeVertexB : IComputeKernel {
 int placeholder;
@@ -458,10 +568,14 @@ CatmarkComputeFace catmarkComputeFace;
 CatmarkComputeQuadFace catmarkComputeQuadFace;
 CatmarkComputeTriQuadFace catmarkComputeTriQuadFace;
 CatmarkComputeEdge catmarkComputeEdge;
+CatmarkComputeRestrictedEdge catmarkComputeRestrictedEdge;
 BilinearComputeEdge bilinearComputeEdge;
 BilinearComputeVertex bilinearComputeVertex;
 CatmarkComputeVertexA catmarkComputeVertexA;
 CatmarkComputeVertexB catmarkComputeVertexB;
+CatmarkComputeRestrictedVertexA catmarkComputeRestrictedVertexA;
+CatmarkComputeRestrictedVertexB1 catmarkComputeRestrictedVertexB1;
+CatmarkComputeRestrictedVertexB2 catmarkComputeRestrictedVertexB2;
 LoopComputeVertexB loopComputeVertexB;
 EditAdd editAdd;
 

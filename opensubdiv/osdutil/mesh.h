@@ -62,12 +62,18 @@ namespace OPENSUBDIV_VERSION {
 template <class T>
 class OsdUtilMesh {
   public:
-    
+    enum Scheme {
+      SCHEME_CATMARK,
+      SCHEME_BILINEAR,
+      SCHEME_LOOP,
+    };
+
     OsdUtilMesh();
 
     bool Initialize(
         const OsdUtilSubdivTopology &topology,
-        std::string *errorMessage = NULL);
+        std::string *errorMessage = NULL,
+        Scheme scheme = SCHEME_CATMARK);
 
     ~OsdUtilMesh();
 

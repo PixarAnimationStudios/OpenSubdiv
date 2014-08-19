@@ -93,8 +93,13 @@ public:
     /// @param patchType   The type of patch to create: QUADS or TRIANGLES
     ///                    Note : patchType is only applicable if adaptive is false
     ///
+    /// @param kernelTypes A zero-terminated list of kernel types supported by the
+    ///                    controller.
+    ///                    Note : NULL indicates that all kernel types are supported
+    ///
     FarMeshFactory(HbrMesh<T> * mesh, int maxlevel, bool adaptive=false, int firstLevel=-1,
-                   FarPatchTables::Type patchType=FarPatchTables::QUADS);
+                   FarPatchTables::Type patchType=FarPatchTables::QUADS,
+                   const int * kernelTypes = NULL);
 
     /// \brief Create a table-based mesh representation
     ///
@@ -150,12 +155,51 @@ public:
     ///
     int GetVertexID( HbrVertex<T> * v );
 
-    /// \brief Returns a the mapping between HbrVertex<T>->GetID() and Far
+    /// \brief Returns the mapping between HbrVertex<T>->GetID() and Far
     /// vertices indices
     ///
     /// @return the table that maps HbrMesh to FarMesh vertex indices
     ///
     std::vector<int> const & GetRemappingTable( ) const { return _remapTable; }
+
+    /// \brief Returns true if the specified kernel type is supported by the
+    /// controller
+    ///
+    /// @return true if the kernel type is supported
+    ///
+    bool IsKernelTypeSupported( int kernelType ) const {
+        assert(kernelType >= FarKernelBatch::FIRST_KERNEL_TYPE and
+               kernelType < FarKernelBatch::NUM_KERNEL_TYPES);
+        return _supportedKernelTypes[kernelType];
+    }
+
+    typedef std::vector<unsigned int> VertexList;
+    typedef std::map<unsigned int, unsigned int> VertexPermutation;
+    typedef std::vector<int> SplitTable;
+
+    /// \brief Duplicates vertices at the finest subdivision level
+    ///
+    /// @param mesh  the mesh to modify
+    ///
+    /// @param vertexList  the list of vertices to duplicate
+    ///
+    static void DuplicateVertices( FarMesh<U> * mesh, VertexList const &vertexList);
+
+    /// \brief Rearranges vertices to process them in a specific order
+    ///
+    /// @param mesh  the mesh to modify
+    ///
+    /// @param vertexPermutation  permutation of the vertices in a kernel batch
+    ///
+    static void PermuteVertices( FarMesh<U> * mesh, VertexPermutation const &vertexPermutation);
+
+    /// \brief Splits patch control vertices that have been duplicated
+    ///
+    /// @param mesh  the mesh to modify
+    ///
+    /// @param splitTable  a table of offsets for each patch control vertex
+    ///
+    static void SplitVertices( FarMesh<U> * mesh, SplitTable const &splitTable );
 
 private:
     friend class FarBilinearSubdivisionTablesFactory<T,U>;
@@ -230,6 +274,8 @@ private:
         _numPtexFaces;
 
     FarPatchTables::Type _patchType;
+
+    bool _supportedKernelTypes[FarKernelBatch::NUM_KERNEL_TYPES];
 
     // remapping table to translate vertex ID's between Hbr indices and the
     // order of the same vertices in the tables
@@ -614,7 +660,8 @@ FarMeshFactory<T,U>::refineAdaptive( HbrMesh<T> * mesh, int maxIsolate ) {
 // random order, so the builder runs 2 passes over the entire vertex list to
 // gather the counters needed to generate the indexing tables.
 template <class T, class U>
-FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adaptive, int firstlevel, FarPatchTables::Type patchType ) :
+FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adaptive,
+    int firstlevel, FarPatchTables::Type patchType, const int * kernelTypes ) :
     _hbrMesh(mesh),
     _adaptive(adaptive),
     _maxlevel(maxlevel),
@@ -629,6 +676,17 @@ FarMeshFactory<T,U>::FarMeshFactory( HbrMesh<T> * mesh, int maxlevel, bool adapt
 {
     _numCoarseVertices = mesh->GetNumVertices();
     _numPtexFaces = getNumPtexFaces(mesh);
+
+    // Select the kernel types that are supported by the controller.
+    for (int i = FarKernelBatch::FIRST_KERNEL_TYPE; i < FarKernelBatch::NUM_KERNEL_TYPES; ++i) {
+        _supportedKernelTypes[i] = kernelTypes ? false : true;
+    }
+
+    for (int i = kernelTypes ? *kernelTypes++ : 0; i; i = *kernelTypes++) {
+        assert(i >= FarKernelBatch::FIRST_KERNEL_TYPE and
+               i < FarKernelBatch::NUM_KERNEL_TYPES);
+        _supportedKernelTypes[i] = true;
+    }
 
     // Subdivide the Hbr mesh up to maxlevel.
     //
@@ -780,6 +838,110 @@ template <class T, class U> int
 FarMeshFactory<T,U>::GetVertexID( HbrVertex<T> * v ) {
     assert( v  and (v->GetID() < _remapTable.size()) );
     return _remapTable[ v->GetID() ];
+}
+
+template <class T, class U> void
+FarMeshFactory<T, U>::DuplicateVertices( FarMesh<U> * mesh,
+    VertexList const &vertexList )
+{
+    FarKernelBatchVector& kernelBatchVector = mesh->_batches;
+    FarPatchTables* patchTables = mesh->_patchTables;
+    FarSubdivisionTables* subdivisionTables = mesh->_subdivisionTables;
+    assert(subdivisionTables->GetScheme() == FarSubdivisionTables::CATMARK);
+
+    VertexList sortedVertexList(vertexList);
+    std::sort(sortedVertexList.begin(), sortedVertexList.end());
+
+    for (FarKernelBatchVector::iterator i = kernelBatchVector.begin();
+        i != kernelBatchVector.end(); ++i)
+    {
+        FarKernelBatch& kernelBatch = *i;
+
+        VertexList::iterator begin =
+            std::lower_bound(sortedVertexList.begin(),
+            sortedVertexList.end(),
+            kernelBatch.GetVertexOffset() + kernelBatch.GetStart());
+        VertexList::iterator end =
+            std::upper_bound(sortedVertexList.begin(),
+            sortedVertexList.end(),
+            kernelBatch.GetVertexOffset() + kernelBatch.GetEnd() - 1);
+        if (begin == sortedVertexList.end() ||
+            (int)*begin >= kernelBatch.GetVertexOffset() + kernelBatch.GetEnd())
+        {
+            continue; // the vertices of the kernel batch are not duplicated
+        }
+
+        // Guarantee that the kernel batch is at the finest subdivision level.
+        assert(kernelBatch.GetLevel() == subdivisionTables->GetMaxLevel() - 1);
+
+        // Duplicate the vertices in this kernel batch.
+        FarCatmarkSubdivisionTablesFactory<T, U>::DuplicateVertices(
+            subdivisionTables, kernelBatch, VertexList(begin, end));
+
+        // Shift the affected kernel batches.
+        FarKernelBatchVector::iterator first = i;
+        FarKernelBatchVector::iterator last = kernelBatchVector.end();
+        for (++first; first != last; ++first) {
+            FarCatmarkSubdivisionTablesFactory<T, U>::ShiftVertices(
+                subdivisionTables, *first, kernelBatch,
+                std::distance(begin, end));
+        }
+
+        // Shift the control vertices in the patch tables.
+        FarPatchTablesFactory<T>::ShiftVertices(patchTables, kernelBatch,
+            std::distance(begin, end));
+    }
+}
+
+template <class T, class U> void
+FarMeshFactory<T, U>::PermuteVertices( FarMesh<U> * mesh,
+    VertexPermutation const &vertexPermutation )
+{
+    FarKernelBatchVector& kernelBatchVector = mesh->_batches;
+    FarPatchTables* patchTables = mesh->_patchTables;
+    FarSubdivisionTables* subdivisionTables = mesh->_subdivisionTables;
+    assert(subdivisionTables->GetScheme() == FarSubdivisionTables::CATMARK);
+
+    for (FarKernelBatchVector::const_iterator i = kernelBatchVector.begin();
+        i != kernelBatchVector.end(); ++i)
+    {
+        const FarKernelBatch& kernelBatch = *i;
+
+        // Permute the vertices in this kernel batch.
+        if (not FarCatmarkSubdivisionTablesFactory<T, U>::PermuteVertices(
+            subdivisionTables, kernelBatch, vertexPermutation))
+        {
+            continue;
+        }
+
+        // Find the range of kernel batches affected by the vertex permutation.
+        FarKernelBatchVector::const_iterator first = i;
+        FarKernelBatchVector::const_iterator last = kernelBatchVector.end();
+        for (FarKernelBatchVector::const_iterator j = first; j != last; ++j) {
+            if (j->GetLevel() > kernelBatch.GetLevel() + 1) {
+                // The vertex permutation does not affect this level.
+                last = j;
+                break;
+            }
+        }
+
+        // Remap the vertices in the affected kernel batches.
+        for (++first; first != last; ++first) {
+            FarCatmarkSubdivisionTablesFactory<T, U>::RemapVertices(
+                subdivisionTables, *first, vertexPermutation);
+        }
+
+        // Remap the patch tables.
+        FarPatchTablesFactory<T>::RemapVertices(patchTables, vertexPermutation);
+    }
+}
+
+template <class T, class U> void
+FarMeshFactory<T, U>::SplitVertices( FarMesh<U> * mesh,
+    SplitTable const &splitTable )
+{
+    FarPatchTables* patchTables = mesh->_patchTables;
+    FarPatchTablesFactory<T>::SplitVertices(patchTables, splitTable);
 }
 
 } // end namespace OPENSUBDIV_VERSION

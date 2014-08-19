@@ -136,6 +136,20 @@ OsdGcdComputeController::ApplyCatmarkEdgeVerticesKernel(
 }
 
 void
+OsdGcdComputeController::ApplyCatmarkRestrictedEdgeVerticesKernel(
+    FarKernelBatch const &batch, OsdCpuComputeContext const *context) const {
+
+    assert(context);
+
+    OsdGcdComputeRestrictedEdge(
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
+        (const int*)context->GetTable(FarSubdivisionTables::E_IT)->GetBuffer(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(),
+        _gcd_queue);
+}
+
+void
 OsdGcdComputeController::ApplyCatmarkVertexVerticesKernelB(
     FarKernelBatch const &batch, OsdCpuComputeContext const *context) const {
 
@@ -178,6 +192,50 @@ OsdGcdComputeController::ApplyCatmarkVertexVerticesKernelA2(
         (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
         (const float*)context->GetTable(FarSubdivisionTables::V_W)->GetBuffer(),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true,
+        _gcd_queue);
+}
+
+void
+OsdGcdComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB1(
+    FarKernelBatch const &batch, OsdCpuComputeContext const *context) const {
+
+    assert(context);
+
+    OsdGcdComputeRestrictedVertexB1(
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
+        (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables::V_IT)->GetBuffer(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(),
+        _gcd_queue);
+}
+
+void
+OsdGcdComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB2(
+    FarKernelBatch const &batch, OsdCpuComputeContext const *context) const {
+
+    assert(context);
+
+    OsdGcdComputeRestrictedVertexB2(
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
+        (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
+        (const int*)context->GetTable(FarSubdivisionTables::V_IT)->GetBuffer(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(),
+        _gcd_queue);
+}
+
+void
+OsdGcdComputeController::ApplyCatmarkRestrictedVertexVerticesKernelA(
+    FarKernelBatch const &batch, OsdCpuComputeContext const *context) const {
+
+    assert(context);
+
+    OsdGcdComputeRestrictedVertexA(
+        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
+        _currentBindState.vertexDesc, _currentBindState.varyingDesc,
+        (const int*)context->GetTable(FarSubdivisionTables::V_ITa)->GetBuffer(),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(),
         _gcd_queue);
 }
 

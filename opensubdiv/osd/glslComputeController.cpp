@@ -173,6 +173,17 @@ OsdGLSLComputeController::ApplyCatmarkEdgeVerticesKernel(
 }
 
 void
+OsdGLSLComputeController::ApplyCatmarkRestrictedEdgeVerticesKernel(
+    FarKernelBatch const &batch, OsdGLSLComputeContext const *context) const {
+
+    assert(context);
+
+    _currentBindState.kernelBundle->ApplyCatmarkRestrictedEdgeVerticesKernel(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd());
+}
+
+void
 OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelB(
     FarKernelBatch const &batch, OsdGLSLComputeContext const *context) const {
 
@@ -203,6 +214,39 @@ OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelA2(
     _currentBindState.kernelBundle->ApplyCatmarkVertexVerticesKernelA(
         batch.GetVertexOffset(), batch.GetTableOffset(),
         batch.GetStart(), batch.GetEnd(), true);
+}
+
+void
+OsdGLSLComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB1(
+    FarKernelBatch const &batch, OsdGLSLComputeContext const *context) const {
+
+    assert(context);
+
+    _currentBindState.kernelBundle->ApplyCatmarkRestrictedVertexVerticesKernelB1(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB2(
+    FarKernelBatch const &batch, OsdGLSLComputeContext const *context) const {
+
+    assert(context);
+
+    _currentBindState.kernelBundle->ApplyCatmarkRestrictedVertexVerticesKernelB2(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdGLSLComputeController::ApplyCatmarkRestrictedVertexVerticesKernelA(
+    FarKernelBatch const &batch, OsdGLSLComputeContext const *context) const {
+
+    assert(context);
+
+    _currentBindState.kernelBundle->ApplyCatmarkRestrictedVertexVerticesKernelA(
+        batch.GetVertexOffset(), batch.GetTableOffset(),
+        batch.GetStart(), batch.GetEnd());
 }
 
 void

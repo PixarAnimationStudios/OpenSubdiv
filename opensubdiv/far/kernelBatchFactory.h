@@ -46,6 +46,8 @@ public:
     FarVertexKernelBatchFactory(int start, int end) {
         kernelB.start = kernelA1.start = kernelA2.start = start;
         kernelB.end = kernelA1.end = kernelA2.end = end;
+        restrictedKernelB1.start = restrictedKernelB2.start = restrictedKernelA.start = start;
+        restrictedKernelB1.end = restrictedKernelB2.end = restrictedKernelA.end = end;
     }
 
 
@@ -97,6 +99,17 @@ public:
     void AddVertex( int index, int rank );
 
 
+    /// \brief Adds a vertex-vertex to the appropriate restricted compute batch based on "Rank" and valence.
+    ///
+    /// @param index   the index of the vertex
+    ///
+    /// @param rank    the rank of the vertex (see
+    ///                FarSubdivisionTables::GetMaskRanking())
+    ///
+    /// @param valence the valence of the vertex
+    ///
+    void AddCatmarkRestrictedVertex( int index, int rank, int valence );
+
 
     /// \brief Appends a FarKernelBatch to a vector of batches for Catmark subdivision
     ///
@@ -110,6 +123,18 @@ public:
     ///
     void AppendCatmarkBatches(int level, int tableOffset, int vertexOffset, FarKernelBatchVector *result);
 
+
+    /// \brief Appends a restricted FarKernelBatch to a vector of batches for Catmark subdivision
+    ///
+    /// @param level         the subdivision level of the vertices in the batch
+    ///
+    /// @param tableOffset   XXXX
+    ///
+    /// @param vertexOffset  XXXX
+    ///
+    /// @param result        the expanded batch vector
+    ///
+    void AppendCatmarkRestrictedBatches(int level, int tableOffset, int vertexOffset, FarKernelBatchVector *result);
 
 
     /// \brief Appends a FarKernelBatch to a vector of batches for Loop subdivision
@@ -131,9 +156,12 @@ private:
             end;
     };
 
-    Range kernelB;  // vertex batch range (kernel B)
-    Range kernelA1; // vertex batch range (kernel A pass 1)
-    Range kernelA2; // vertex batch range (kernel A pass 2)
+    Range kernelB;            // vertex batch range (kernel B)
+    Range kernelA1;           // vertex batch range (kernel A pass 1)
+    Range kernelA2;           // vertex batch range (kernel A pass 2)
+    Range restrictedKernelB1; // vertex batch range (restricted kernel B regular)
+    Range restrictedKernelB2; // vertex batch range (restricted kernel B irregular)
+    Range restrictedKernelA;  // vertex batch range (restricted kernel A)
 };
 
 inline void 
@@ -161,6 +189,29 @@ FarVertexKernelBatchFactory::AddVertex( int index, int rank ) {
 }
 
 inline void 
+FarVertexKernelBatchFactory::AddCatmarkRestrictedVertex( int index, int rank, int valence ) {
+
+    assert(rank <= 2 or rank >= 8);
+
+    if (rank <= 2 and valence == 4) {
+        if (index < restrictedKernelB1.start)
+            restrictedKernelB1.start=index;
+        if (index > restrictedKernelB1.end)
+            restrictedKernelB1.end=index;
+    } else if (rank <= 2 and valence != 4) {
+        if (index < restrictedKernelB2.start)
+            restrictedKernelB2.start=index;
+        if (index > restrictedKernelB2.end)
+            restrictedKernelB2.end=index;
+    } else if (rank >= 8) {
+        if (index < restrictedKernelA.start)
+            restrictedKernelA.start=index;
+        if (index > restrictedKernelA.end)
+            restrictedKernelA.end=index;
+    }
+}
+
+inline void 
 FarVertexKernelBatchFactory::AppendCatmarkBatches(int level, 
                                                   int tableOffset, 
                                                   int vertexOffset, 
@@ -177,6 +228,26 @@ FarVertexKernelBatchFactory::AppendCatmarkBatches(int level,
     if (kernelA2.end >= kernelA2.start)
         result->push_back(FarKernelBatch( FarKernelBatch::CATMARK_VERT_VERTEX_A2, level, 0,
                                           kernelA2.start, kernelA2.end+1,
+                                          tableOffset, vertexOffset) );
+}
+
+inline void 
+FarVertexKernelBatchFactory::AppendCatmarkRestrictedBatches(int level,
+                                                            int tableOffset,
+                                                            int vertexOffset,
+                                                            FarKernelBatchVector *result) {
+
+    if (restrictedKernelB1.end >= restrictedKernelB1.start)
+        result->push_back(FarKernelBatch( FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B1, level, 0,
+                                          restrictedKernelB1.start, restrictedKernelB1.end+1,
+                                          tableOffset, vertexOffset));
+    if (restrictedKernelB2.end >= restrictedKernelB2.start)
+        result->push_back(FarKernelBatch( FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_B2, level, 0,
+                                          restrictedKernelB2.start, restrictedKernelB2.end+1,
+                                          tableOffset, vertexOffset) );
+    if (restrictedKernelA.end >= restrictedKernelA.start)
+        result->push_back(FarKernelBatch( FarKernelBatch::CATMARK_RESTRICTED_VERT_VERTEX_A, level, 0,
+                                          restrictedKernelA.start, restrictedKernelA.end+1,
                                           tableOffset, vertexOffset) );
 }
 

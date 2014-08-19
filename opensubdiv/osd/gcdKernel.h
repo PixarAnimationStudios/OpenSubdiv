@@ -66,6 +66,14 @@ void OsdGcdComputeEdge(float *vertex, float * varying,
                        int start, int end,
                        dispatch_queue_t gcdq);
 
+void OsdGcdComputeRestrictedEdge(float *vertex, float * varying,
+                                 OsdVertexBufferDescriptor const &vertexDesc,
+                                 OsdVertexBufferDescriptor const &varyingDesc,
+                                 const int *E_IT,
+                                 int vertexOffset, int tableOffset,
+                                 int start, int end,
+                                 dispatch_queue_t gcdq);
+
 void OsdGcdComputeVertexA(float *vertex, float * varying,
                           OsdVertexBufferDescriptor const &vertexDesc,
                           OsdVertexBufferDescriptor const &varyingDesc,
@@ -81,6 +89,30 @@ void OsdGcdComputeVertexB(float *vertex, float * varying,
                           int vertexOffset, int tableOffset,
                           int start, int end,
                           dispatch_queue_t gcdq);
+
+void OsdGcdComputeRestrictedVertexA(float *vertex, float * varying,
+                                    OsdVertexBufferDescriptor const &vertexDesc,
+                                    OsdVertexBufferDescriptor const &varyingDesc,
+                                    const int *V_ITa,
+                                    int vertexOffset, int tableOffset,
+                                    int start, int end,
+                                    dispatch_queue_t gcdq);
+
+void OsdGcdComputeRestrictedVertexB1(float *vertex, float * varying,
+                                     OsdVertexBufferDescriptor const &vertexDesc,
+                                     OsdVertexBufferDescriptor const &varyingDesc,
+                                     const int *V_ITa, const int *V_IT,
+                                     int vertexOffset, int tableOffset,
+                                     int start, int end,
+                                     dispatch_queue_t gcdq);
+
+void OsdGcdComputeRestrictedVertexB2(float *vertex, float * varying,
+                                     OsdVertexBufferDescriptor const &vertexDesc,
+                                     OsdVertexBufferDescriptor const &varyingDesc,
+                                     const int *V_ITa, const int *V_IT,
+                                     int vertexOffset, int tableOffset,
+                                     int start, int end,
+                                     dispatch_queue_t gcdq);
 
 void OsdGcdComputeLoopVertexB(float *vertex, float * varying,
                               OsdVertexBufferDescriptor const &vertexDesc,

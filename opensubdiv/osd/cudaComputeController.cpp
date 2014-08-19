@@ -50,6 +50,11 @@ void OsdCudaComputeEdge(float *vertex, float *varying,
                         int varyingLength, int varyingStride,
                         int *E_IT, float *E_W, int offset, int tableOffset, int start, int end);
 
+void OsdCudaComputeRestrictedEdge(float *vertex, float *varying,
+                                  int vertexLength, int vertexStride,
+                                  int varyingLength, int varyingStride,
+                                  int *E_IT, int offset, int tableOffset, int start, int end);
+
 void OsdCudaComputeVertexA(float *vertex, float *varying,
                            int vertexLength, int vertexStride,
                            int varyingLength, int varyingStride,
@@ -61,6 +66,24 @@ void OsdCudaComputeVertexB(float *vertex, float *varying,
                            int varyingLength, int varyingStride,
                            int *V_ITa, int *V_IT, float *V_W, int offset, int tableOffset,
                            int start, int end);
+
+void OsdCudaComputeRestrictedVertexA(float *vertex, float *varying,
+                                     int vertexLength, int vertexStride,
+                                     int varyingLength, int varyingStride,
+                                     int *V_ITa, int offset, int tableOffset,
+                                     int start, int end);
+
+void OsdCudaComputeRestrictedVertexB1(float *vertex, float *varying,
+                                      int vertexLength, int vertexStride,
+                                      int varyingLength, int varyingStride,
+                                      int *V_ITa, int *V_IT, int offset, int tableOffset,
+                                      int start, int end);
+
+void OsdCudaComputeRestrictedVertexB2(float *vertex, float *varying,
+                                      int vertexLength, int vertexStride,
+                                      int varyingLength, int varyingStride,
+                                      int *V_ITa, int *V_IT, int offset, int tableOffset,
+                                      int start, int end);
 
 void OsdCudaComputeLoopVertexB(float *vertex, float *varying,
                                int vertexLength, int vertexStride,
@@ -245,6 +268,26 @@ OsdCudaComputeController::ApplyCatmarkEdgeVerticesKernel(
 }
 
 void
+OsdCudaComputeController::ApplyCatmarkRestrictedEdgeVerticesKernel(
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
+
+    assert(context);
+
+    const OsdCudaTable * E_IT = context->GetTable(FarSubdivisionTables::E_IT);
+    assert(E_IT);
+
+    float *vertex = _currentBindState.GetOffsettedVertexBuffer();
+    float *varying = _currentBindState.GetOffsettedVaryingBuffer();
+
+    OsdCudaComputeRestrictedEdge(
+        vertex, varying,
+        _currentBindState.vertexDesc.length, _currentBindState.vertexDesc.stride,
+        _currentBindState.varyingDesc.length, _currentBindState.varyingDesc.stride,
+        static_cast<int*>(E_IT->GetCudaMemory()),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
 OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelB(
     FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
 
@@ -314,6 +357,72 @@ OsdCudaComputeController::ApplyCatmarkVertexVerticesKernelA2(
         static_cast<int*>(V_ITa->GetCudaMemory()),
         static_cast<float*>(V_W->GetCudaMemory()),
         batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
+}
+
+void
+OsdCudaComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB1(
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
+
+    assert(context);
+
+    const OsdCudaTable * V_ITa = context->GetTable(FarSubdivisionTables::V_ITa);
+    const OsdCudaTable * V_IT = context->GetTable(FarSubdivisionTables::V_IT);
+    assert(V_ITa);
+    assert(V_IT);
+
+    float *vertex = _currentBindState.GetOffsettedVertexBuffer();
+    float *varying = _currentBindState.GetOffsettedVaryingBuffer();
+
+    OsdCudaComputeRestrictedVertexB1(
+        vertex, varying,
+        _currentBindState.vertexDesc.length, _currentBindState.vertexDesc.stride,
+        _currentBindState.varyingDesc.length, _currentBindState.varyingDesc.stride,
+        static_cast<int*>(V_ITa->GetCudaMemory()),
+        static_cast<int*>(V_IT->GetCudaMemory()),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdCudaComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB2(
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
+
+    assert(context);
+
+    const OsdCudaTable * V_ITa = context->GetTable(FarSubdivisionTables::V_ITa);
+    const OsdCudaTable * V_IT = context->GetTable(FarSubdivisionTables::V_IT);
+    assert(V_ITa);
+    assert(V_IT);
+
+    float *vertex = _currentBindState.GetOffsettedVertexBuffer();
+    float *varying = _currentBindState.GetOffsettedVaryingBuffer();
+
+    OsdCudaComputeRestrictedVertexB2(
+        vertex, varying,
+        _currentBindState.vertexDesc.length, _currentBindState.vertexDesc.stride,
+        _currentBindState.varyingDesc.length, _currentBindState.varyingDesc.stride,
+        static_cast<int*>(V_ITa->GetCudaMemory()),
+        static_cast<int*>(V_IT->GetCudaMemory()),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+}
+
+void
+OsdCudaComputeController::ApplyCatmarkRestrictedVertexVerticesKernelA(
+    FarKernelBatch const &batch, OsdCudaComputeContext const *context) const {
+
+    assert(context);
+
+    const OsdCudaTable * V_ITa = context->GetTable(FarSubdivisionTables::V_ITa);
+    assert(V_ITa);
+
+    float *vertex = _currentBindState.GetOffsettedVertexBuffer();
+    float *varying = _currentBindState.GetOffsettedVaryingBuffer();
+
+    OsdCudaComputeRestrictedVertexA(
+        vertex, varying,
+        _currentBindState.vertexDesc.length, _currentBindState.vertexDesc.stride,
+        _currentBindState.varyingDesc.length, _currentBindState.varyingDesc.stride,
+        static_cast<int*>(V_ITa->GetCudaMemory()),
+        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
 }
 
 void

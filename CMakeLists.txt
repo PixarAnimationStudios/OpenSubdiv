@@ -121,7 +121,7 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 set(OSD_COMPILER_FLAGS)
 
-# Disable spurrious warnings in gcc builds and clang
+# Disable spurious warnings in gcc builds and clang
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
 
     # Turn on all warnings
@@ -285,7 +285,8 @@ option(NO_TBB "Disable TBB backend" OFF)
 option(NO_CUDA "Disable CUDA backend" OFF)
 option(NO_OPENCL "Disable OpenCL backend" OFF)
 option(NO_CLEW "Disable CLEW wrapper library" OFF)
-option(NO_NO_GCD "Disable GrandCentralDispatch backend" OFF)
+option(NO_GCD "Disable GrandCentralDispatch backend" OFF)
+option(NO_NEON "Disable NEON backend" OFF)
 
 # Check for dependencies
 if(NOT NO_OMP)
@@ -335,6 +336,10 @@ if (NOT NO_GCD AND APPLE)
     set(GCD_FOUND 1)
 endif()
 
+if (NOT NO_NEON AND ANDROID)
+    set(NEON_FOUND 1)
+endif()
+
 if (NOT NO_MAYA)
 find_package(Maya 201200)
 endif()
@@ -345,6 +350,10 @@ endif()
 
 if(GCD_FOUND)
     add_definitions( -DOPENSUBDIV_HAS_GCD )
+endif()
+
+if(NEON_FOUND)
+    add_definitions(-DLOCAL_ARM_MODE=arm -DLOCAL_ARM_NEON=true -mfpu=neon)
 endif()
 
 if(OPENMP_FOUND)
@@ -433,7 +442,7 @@ if(OPENCL_FOUND)
     else()
         if (NOT NO_CLEW)
             message(WARNING
-                "OpenCL was not found, but CLEW was not. "
+                "OpenCL was found, but CLEW was not. "
                 "Building with OpenCL support enabled, but the build "
                 "wouldn't be portable on systems without OpenCL installed.")
         endif()

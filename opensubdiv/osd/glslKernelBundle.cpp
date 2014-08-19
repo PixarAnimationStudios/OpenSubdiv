@@ -114,33 +114,45 @@ OsdGLSLComputeKernelBundle::Compile(
 
     glDeleteShader(shader);
 
-    _subComputeFace           = glGetSubroutineIndex(_program,
-                                                     GL_COMPUTE_SHADER,
-                                                     "catmarkComputeFace");
-    _subComputeQuadFace       = glGetSubroutineIndex(_program,
-                                                     GL_COMPUTE_SHADER,
-                                                     "catmarkComputeQuadFace");
-    _subComputeTriQuadFace    = glGetSubroutineIndex(_program,
-                                                     GL_COMPUTE_SHADER,
-                                                     "catmarkComputeTriQuadFace");
-    _subComputeEdge           = glGetSubroutineIndex(_program,
-                                                     GL_COMPUTE_SHADER,
-                                                     "catmarkComputeEdge");
-    _subComputeBilinearEdge   = glGetSubroutineIndex(_program,
-                                                     GL_COMPUTE_SHADER,
-                                                     "bilinearComputeEdge");
-    _subComputeVertex         = glGetSubroutineIndex(_program,
-                                                     GL_COMPUTE_SHADER,
-                                                     "bilinearComputeVertex");
-    _subComputeVertexA        = glGetSubroutineIndex(_program,
-                                                     GL_COMPUTE_SHADER,
-                                                     "catmarkComputeVertexA");
-    _subComputeCatmarkVertexB = glGetSubroutineIndex(_program,
-                                                     GL_COMPUTE_SHADER,
-                                                     "catmarkComputeVertexB");
-    _subComputeLoopVertexB    = glGetSubroutineIndex(_program,
-                                                     GL_COMPUTE_SHADER,
-                                                     "loopComputeVertexB");
+    _subComputeFace               = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "catmarkComputeFace");
+    _subComputeQuadFace           = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "catmarkComputeQuadFace");
+    _subComputeTriQuadFace        = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "catmarkComputeTriQuadFace");
+    _subComputeEdge               = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "catmarkComputeEdge");
+    _subComputeRestrictedEdge     = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "catmarkComputeRestrictedEdge");
+    _subComputeRestrictedVertexA  = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "catmarkComputeRestrictedVertexA");
+    _subComputeRestrictedVertexB1 = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "catmarkComputeRestrictedVertexB1");
+    _subComputeRestrictedVertexB2 = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "catmarkComputeRestrictedVertexB2");
+    _subComputeBilinearEdge       = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "bilinearComputeEdge");
+    _subComputeVertex             = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "bilinearComputeVertex");
+    _subComputeVertexA            = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "catmarkComputeVertexA");
+    _subComputeCatmarkVertexB     = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "catmarkComputeVertexB");
+    _subComputeLoopVertexB        = glGetSubroutineIndex(_program,
+                                                         GL_COMPUTE_SHADER,
+                                                         "loopComputeVertexB");
 
     // set uniform locations for compute
     _uniformVertexPass        = glGetUniformLocation(_program, "vertexPass");
@@ -260,6 +272,14 @@ OsdGLSLComputeKernelBundle::ApplyCatmarkEdgeVerticesKernel(
 }
 
 void
+OsdGLSLComputeKernelBundle::ApplyCatmarkRestrictedEdgeVerticesKernel(
+    int vertexOffset, int tableOffset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subComputeRestrictedEdge);
+    dispatchCompute(vertexOffset, tableOffset, start, end);
+}
+
+void
 OsdGLSLComputeKernelBundle::ApplyCatmarkVertexVerticesKernelB(
     int vertexOffset, int tableOffset, int start, int end) {
 
@@ -273,6 +293,30 @@ OsdGLSLComputeKernelBundle::ApplyCatmarkVertexVerticesKernelA(
 
     glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subComputeVertexA);
     glUniform1i(_uniformVertexPass, pass ? 1 : 0);
+    dispatchCompute(vertexOffset, tableOffset, start, end);
+}
+
+void
+OsdGLSLComputeKernelBundle::ApplyCatmarkRestrictedVertexVerticesKernelB1(
+    int vertexOffset, int tableOffset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subComputeRestrictedVertexB1);
+    dispatchCompute(vertexOffset, tableOffset, start, end);
+}
+
+void
+OsdGLSLComputeKernelBundle::ApplyCatmarkRestrictedVertexVerticesKernelB2(
+    int vertexOffset, int tableOffset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subComputeRestrictedVertexB2);
+    dispatchCompute(vertexOffset, tableOffset, start, end);
+}
+
+void
+OsdGLSLComputeKernelBundle::ApplyCatmarkRestrictedVertexVerticesKernelA(
+    int vertexOffset, int tableOffset, int start, int end) {
+
+    glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subComputeRestrictedVertexA);
     dispatchCompute(vertexOffset, tableOffset, start, end);
 }
 

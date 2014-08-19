@@ -306,6 +306,41 @@ __kernel void computeEdge(__global float *vertex,
     }
 }
 
+__kernel void computeRestrictedEdge(__global float *vertex,
+                                    __global float *varying,
+                                    __global int *E_IT,
+                                    int vertexOffset, int varyingOffset,
+                                    int offset, int tableOffset,
+                                    int start, int end) {
+
+    int i = start + get_global_id(0) + tableOffset;
+    int vid = start + get_global_id(0) + offset;
+    int eidx0 = E_IT[4*i+0];
+    int eidx1 = E_IT[4*i+1];
+    int eidx2 = E_IT[4*i+2];
+    int eidx3 = E_IT[4*i+3];
+    vertex += vertexOffset;
+    varying += (varying ? varyingOffset :0);
+
+    struct Vertex dst;
+    struct Varying dstVarying;
+    clearVertex(&dst);
+    clearVarying(&dstVarying);
+
+    addWithWeight(&dst, vertex, eidx0, 0.25f);
+    addWithWeight(&dst, vertex, eidx1, 0.25f);
+    addWithWeight(&dst, vertex, eidx2, 0.25f);
+    addWithWeight(&dst, vertex, eidx3, 0.25f);
+
+    writeVertex(vertex, vid, &dst);
+
+    if (varying) {
+        addVaryingWithWeight(&dstVarying, varying, eidx0, 0.5f);
+        addVaryingWithWeight(&dstVarying, varying, eidx1, 0.5f);
+        writeVarying(varying, vid, &dstVarying);
+    }
+}
+
 __kernel void computeVertexA(__global float *vertex,
                              __global float *varying,
                              __global int *V_ITa,
@@ -382,6 +417,107 @@ __kernel void computeVertexB(__global float *vertex,
     for (int j = 0; j < n; ++j) {
         addWithWeight(&dst, vertex, V_IT[h+j*2], weight * wp);
         addWithWeight(&dst, vertex, V_IT[h+j*2+1], weight * wp);
+    }
+    writeVertex(vertex, vid, &dst);
+
+    if (varying) {
+        struct Varying dstVarying;
+        clearVarying(&dstVarying);
+        addVaryingWithWeight(&dstVarying, varying, p, 1.0f);
+        writeVarying(varying, vid, &dstVarying);
+    }
+}
+
+__kernel void computeRestrictedVertexA(__global float *vertex,
+                                       __global float *varying,
+                                       __global int *V_ITa,
+                                       int vertexOffset, int varyingOffset,
+                                       int offset, int tableOffset,
+                                       int start, int end) {
+
+    int i = start + get_global_id(0) + tableOffset;
+    int vid = start + get_global_id(0) + offset;
+    int p     = V_ITa[5*i+2];
+    int eidx0 = V_ITa[5*i+3];
+    int eidx1 = V_ITa[5*i+4];
+    vertex += vertexOffset;
+    varying += (varying ? varyingOffset :0);
+
+    struct Vertex dst;
+    clearVertex(&dst);
+    addWithWeight(&dst, vertex, p, 0.75f);
+    addWithWeight(&dst, vertex, eidx0, 0.125f);
+    addWithWeight(&dst, vertex, eidx1, 0.125f);
+    writeVertex(vertex, vid, &dst);
+
+    if (varying) {
+        struct Varying dstVarying;
+        clearVarying(&dstVarying);
+        addVaryingWithWeight(&dstVarying, varying, p, 1.0f);
+        writeVarying(varying, vid, &dstVarying);
+    }
+}
+
+__kernel void computeRestrictedVertexB1(__global float *vertex,
+                                        __global float *varying,
+                                        __global int *V_ITa,
+                                        __global int *V_IT,
+                                        int vertexOffset, int varyingOffset,
+                                        int offset, int tableOffset,
+                                        int start, int end) {
+
+    int i = start + get_global_id(0) + tableOffset;
+    int vid = start + get_global_id(0) + offset;
+    int h = V_ITa[5*i];
+    int p = V_ITa[5*i+2];
+    vertex += vertexOffset;
+    varying += (varying ? varyingOffset :0);
+
+    struct Vertex dst;
+    clearVertex(&dst);
+
+    addWithWeight(&dst, vertex, p, 0.5f);
+
+    for (int j = 0; j < 8; ++j, ++h) {
+        addWithWeight(&dst, vertex, V_IT[h], 0.0625f);
+    }
+    writeVertex(vertex, vid, &dst);
+
+    if (varying) {
+        struct Varying dstVarying;
+        clearVarying(&dstVarying);
+        addVaryingWithWeight(&dstVarying, varying, p, 1.0f);
+        writeVarying(varying, vid, &dstVarying);
+    }
+}
+
+__kernel void computeRestrictedVertexB2(__global float *vertex,
+                                        __global float *varying,
+                                        __global int *V_ITa,
+                                        __global int *V_IT,
+                                        int vertexOffset, int varyingOffset,
+                                        int offset, int tableOffset,
+                                        int start, int end) {
+
+    int i = start + get_global_id(0) + tableOffset;
+    int vid = start + get_global_id(0) + offset;
+    int h = V_ITa[5*i];
+    int n = V_ITa[5*i+1];
+    int p = V_ITa[5*i+2];
+    vertex += vertexOffset;
+    varying += (varying ? varyingOffset :0);
+
+    float wp = 1.0f/(float)(n*n);
+    float wv = (n-2.0f) * n * wp;
+
+    struct Vertex dst;
+    clearVertex(&dst);
+
+    addWithWeight(&dst, vertex, p, wv);
+
+    for (int j = 0; j < n; ++j) {
+        addWithWeight(&dst, vertex, V_IT[h+j*2], wp);
+        addWithWeight(&dst, vertex, V_IT[h+j*2+1], wp);
     }
     writeVertex(vertex, vid, &dst);
 

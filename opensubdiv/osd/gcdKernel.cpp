@@ -151,6 +151,29 @@ void OsdGcdComputeEdge(
                           vertexOffset, tableOffset, start_e, end_e);
 }
 
+void OsdGcdComputeRestrictedEdge(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    const int *E_IT,    int vertexOffset, int tableOffset, int start, int end,
+    dispatch_queue_t gcdq) {
+
+    const int workSize = end-start;
+    dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
+        const int start_i = start + blockIdx*GCD_WORK_STRIDE;
+        const int end_i = start_i + GCD_WORK_STRIDE;
+        OsdCpuComputeRestrictedEdge(vertex, varying, vertexDesc, varyingDesc,
+                                    E_IT,
+                                    vertexOffset, tableOffset, start_i, end_i);
+    });
+    const int start_e = end - workSize%GCD_WORK_STRIDE;
+    const int end_e = end;
+    if (start_e < end_e)
+        OsdCpuComputeRestrictedEdge(vertex, varying, vertexDesc, varyingDesc,
+                                    E_IT,
+                                    vertexOffset, tableOffset, start_e, end_e);
+}
+
 void OsdGcdComputeVertexA(
     float * vertex, float * varying,
     OsdVertexBufferDescriptor const &vertexDesc,
@@ -197,6 +220,78 @@ void OsdGcdComputeVertexB(
         OsdCpuComputeVertexB(vertex, varying, vertexDesc, varyingDesc,
                              V_ITa, V_IT, V_W,
                              vertexOffset, tableOffset, start_e, end_e);
+}
+
+void OsdGcdComputeRestrictedVertexA(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    const int *V_ITa,
+    int vertexOffset, int tableOffset, int start, int end,
+    dispatch_queue_t gcdq) {
+
+    const int workSize = end-start;
+    dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
+        const int start_i = start + blockIdx*GCD_WORK_STRIDE;
+        const int end_i = start_i + GCD_WORK_STRIDE;
+        OsdCpuComputeRestrictedVertexA(vertex, varying, vertexDesc, varyingDesc,
+                                       V_ITa,
+                                       vertexOffset, tableOffset, start_i, end_i);
+    });
+    const int start_e = end - workSize%GCD_WORK_STRIDE;
+    const int end_e = end;
+    if (start_e < end_e)
+        OsdCpuComputeRestrictedVertexA(vertex, varying, vertexDesc, varyingDesc,
+                                       V_ITa,
+                                       vertexOffset, tableOffset, start_e, end_e);
+}
+
+void OsdGcdComputeRestrictedVertexB1(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    const int *V_ITa, const int *V_IT,
+    int vertexOffset, int tableOffset, int start, int end,
+    dispatch_queue_t gcdq) {
+
+    const int workSize = end-start;
+    dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
+        const int start_i = start + blockIdx*GCD_WORK_STRIDE;
+        const int end_i = start_i + GCD_WORK_STRIDE;
+        OsdCpuComputeRestrictedVertexB1(vertex, varying, vertexDesc, varyingDesc,
+                                        V_ITa, V_IT,
+                                        vertexOffset, tableOffset, start_i, end_i);
+    });
+    const int start_e = end - workSize%GCD_WORK_STRIDE;
+    const int end_e = end;
+    if (start_e < end_e)
+        OsdCpuComputeRestrictedVertexB1(vertex, varying, vertexDesc, varyingDesc,
+                                        V_ITa, V_IT,
+                                        vertexOffset, tableOffset, start_e, end_e);
+}
+
+void OsdGcdComputeRestrictedVertexB2(
+    float * vertex, float * varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    const int *V_ITa, const int *V_IT,
+    int vertexOffset, int tableOffset, int start, int end,
+    dispatch_queue_t gcdq) {
+
+    const int workSize = end-start;
+    dispatch_apply(workSize/GCD_WORK_STRIDE, gcdq, ^(size_t blockIdx){
+        const int start_i = start + blockIdx*GCD_WORK_STRIDE;
+        const int end_i = start_i + GCD_WORK_STRIDE;
+        OsdCpuComputeRestrictedVertexB2(vertex, varying, vertexDesc, varyingDesc,
+                                        V_ITa, V_IT,
+                                        vertexOffset, tableOffset, start_i, end_i);
+    });
+    const int start_e = end - workSize%GCD_WORK_STRIDE;
+    const int end_e = end;
+    if (start_e < end_e)
+        OsdCpuComputeRestrictedVertexB2(vertex, varying, vertexDesc, varyingDesc,
+                                        V_ITa, V_IT,
+                                        vertexOffset, tableOffset, start_e, end_e);
 }
 
 void OsdGcdComputeLoopVertexB(
@@ -281,7 +376,7 @@ void OsdGcdComputeBilinearVertex(
 void OsdGcdEditVertexAdd(
     float * vertex,
     OsdVertexBufferDescriptor const &vertexDesc,
-    int primVarOffset, int primVarWidth,
+    int primVarOffset, int /*primVarWidth*/,
     int vertexOffset, int tableOffset,
     int start, int end,
     const unsigned int *editIndices, const float *editValues,
@@ -304,7 +399,7 @@ void OsdGcdEditVertexAdd(
 void OsdGcdEditVertexSet(
     float * vertex,
     OsdVertexBufferDescriptor const &vertexDesc,
-    int primVarOffset, int primVarWidth,
+    int primVarOffset, int /*primVarWidth*/,
     int vertexOffset, int tableOffset,
     int start, int end,
     const unsigned int *editIndices, const float *editValues,

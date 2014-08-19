@@ -378,7 +378,6 @@ public:
     {};
 };
 
-
 void OsdTbbComputeEdge(
     float *vertex, float *varying,
     OsdVertexBufferDescriptor const &vertexDesc,
@@ -388,6 +387,76 @@ void OsdTbbComputeEdge(
     tbb::blocked_range<int> range(start, end, grain_size);
     TBBEdgeKernel kernel(vertex, varying, vertexDesc, varyingDesc, E_IT, E_W,
                          vertexOffset, tableOffset);
+    tbb::parallel_for(range, kernel);
+}
+
+class TBBRestrictedEdgeKernel {
+    float        *vertex;
+    float        *varying;
+    OsdVertexBufferDescriptor vertexDesc;
+    OsdVertexBufferDescriptor varyingDesc;
+    int const    *E_IT;
+    int           vertexOffset;
+    int           tableOffset;
+
+public:
+    void operator() (tbb::blocked_range<int> const &r) const {
+        for (int i = r.begin() + tableOffset; i < r.end() + tableOffset; i++) {
+            int eidx0 = E_IT[4*i+0];
+            int eidx1 = E_IT[4*i+1];
+            int eidx2 = E_IT[4*i+2];
+            int eidx3 = E_IT[4*i+3];
+
+            int dstIndex = i + vertexOffset - tableOffset;
+            clear(vertex, dstIndex, vertexDesc);
+            clear(varying, dstIndex, varyingDesc);
+
+            addWithWeight(vertex, dstIndex, eidx0, 0.25f, vertexDesc);
+            addWithWeight(vertex, dstIndex, eidx1, 0.25f, vertexDesc);
+            addWithWeight(vertex, dstIndex, eidx2, 0.25f, vertexDesc);
+            addWithWeight(vertex, dstIndex, eidx3, 0.25f, vertexDesc);
+            addWithWeight(varying, dstIndex, eidx0, 0.5f, varyingDesc);
+            addWithWeight(varying, dstIndex, eidx1, 0.5f, varyingDesc);
+        }
+    }
+
+    TBBRestrictedEdgeKernel(TBBRestrictedEdgeKernel const &other)
+    {
+        this->vertex = other.vertex;
+        this->varying= other.varying;
+        this->vertexDesc = other.vertexDesc;
+        this->varyingDesc = other.varyingDesc;
+        this->E_IT   = other.E_IT;
+        this->vertexOffset = other.vertexOffset;
+        this->tableOffset  = other.tableOffset;
+    }
+
+    TBBRestrictedEdgeKernel(float                     *vertex_in,
+                            float                     *varying_in,
+                            OsdVertexBufferDescriptor const &vertexDesc_in,
+                            OsdVertexBufferDescriptor const &varyingDesc_in,
+                            int const                 *E_IT_in,
+                            int                        vertexOffset_in,
+                            int                        tableOffset_in) :
+                            vertex (vertex_in),
+                            varying(varying_in),
+                            vertexDesc(vertexDesc_in),
+                            varyingDesc(varyingDesc_in),
+                            E_IT   (E_IT_in),
+                            vertexOffset(vertexOffset_in),
+                            tableOffset(tableOffset_in)
+    {};
+};
+
+void OsdTbbComputeRestrictedEdge(
+    float *vertex, float *varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    int const *E_IT, int vertexOffset, int tableOffset,
+    int start, int end) {
+    tbb::blocked_range<int> range(start, end, grain_size);
+    TBBRestrictedEdgeKernel kernel(vertex, varying, vertexDesc, varyingDesc, E_IT,
+                                   vertexOffset, tableOffset);
     tbb::parallel_for(range, kernel);
 }
 
@@ -586,6 +655,226 @@ void OsdTbbComputeVertexB(
     TBBVertexKernelB kernel(vertex, varying, vertexDesc, varyingDesc,
                             V_ITa, V_IT, V_W,
                             vertexOffset, tableOffset);
+    tbb::parallel_for(range, kernel);
+}
+
+class TBBRestrictedVertexKernelA {
+    float        *vertex;
+    float        *varying;
+    OsdVertexBufferDescriptor vertexDesc;
+    OsdVertexBufferDescriptor varyingDesc;
+    int const    *V_ITa;
+    int           vertexOffset;
+    int           tableOffset;
+
+public:
+    void operator() (tbb::blocked_range<int> const &r) const {
+        for (int i = r.begin() + tableOffset; i < r.end() + tableOffset; i++) {
+            int p     = V_ITa[5*i+2];
+            int eidx0 = V_ITa[5*i+3];
+            int eidx1 = V_ITa[5*i+4];
+
+            int dstIndex = i + vertexOffset - tableOffset;
+
+            clear(vertex, dstIndex, vertexDesc);
+            clear(varying, dstIndex, varyingDesc);
+            addWithWeight(vertex, dstIndex, p, 0.75f, vertexDesc);
+            addWithWeight(vertex, dstIndex, eidx0, 0.125f, vertexDesc);
+            addWithWeight(vertex, dstIndex, eidx1, 0.125f, vertexDesc);
+            addWithWeight(varying, dstIndex, p, 1.0f, varyingDesc);
+        }
+    }
+
+    TBBRestrictedVertexKernelA(TBBRestrictedVertexKernelA const &other)
+    {
+        this->vertex = other.vertex;
+        this->varying= other.varying;
+        this->vertexDesc = other.vertexDesc;
+        this->varyingDesc = other.varyingDesc;
+        this->V_ITa  = other.V_ITa;
+        this->vertexOffset = other.vertexOffset;
+        this->tableOffset  = other.tableOffset;
+    }
+
+    TBBRestrictedVertexKernelA(float                     *vertex_in,
+                               float                     *varying_in,
+                               OsdVertexBufferDescriptor const &vertexDesc_in,
+                               OsdVertexBufferDescriptor const &varyingDesc_in,
+                               int const                 *V_ITa_in,
+                               int                        vertexOffset_in,
+                               int                        tableOffset_in) :
+                               vertex (vertex_in),
+                               varying(varying_in),
+                               vertexDesc(vertexDesc_in),
+                               varyingDesc(varyingDesc_in),
+                               V_ITa  (V_ITa_in),
+                               vertexOffset(vertexOffset_in),
+                               tableOffset(tableOffset_in)
+    {};
+};
+
+void OsdTbbComputeRestrictedVertexA(
+    float *vertex, float *varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    int const *V_ITa, int vertexOffset, int tableOffset,
+    int start, int end) {
+    tbb::blocked_range<int> range(start, end, grain_size);
+    TBBRestrictedVertexKernelA kernel(vertex, varying, vertexDesc, varyingDesc,
+                                      V_ITa,
+                                      vertexOffset, tableOffset);
+    tbb::parallel_for(range, kernel);
+}
+
+class TBBRestrictedVertexKernelB1 {
+    float        *vertex;
+    float        *varying;
+    OsdVertexBufferDescriptor vertexDesc;
+    OsdVertexBufferDescriptor varyingDesc;
+    int const    *V_ITa;
+    int const    *V_IT;
+    int           vertexOffset;
+    int           tableOffset;
+
+public:
+    void operator() (tbb::blocked_range<int> const &r) const {
+        for (int i = r.begin() + tableOffset; i < r.end() + tableOffset; i++) {
+            int h = V_ITa[5*i];
+            int p = V_ITa[5*i+2];
+
+            int dstIndex = i + vertexOffset - tableOffset;
+            clear(vertex, dstIndex, vertexDesc);
+            clear(varying, dstIndex, varyingDesc);
+
+            addWithWeight(vertex, dstIndex, p, 0.5f, vertexDesc);
+
+            for (int j = 0; j < 8; ++j)
+                addWithWeight(vertex, dstIndex, V_IT[h+j], 0.0625f, vertexDesc);
+            addWithWeight(varying, dstIndex, p, 1.0f, varyingDesc);
+        }
+    }
+
+    TBBRestrictedVertexKernelB1(TBBRestrictedVertexKernelB1 const &other)
+    {
+        this->vertex = other.vertex;
+        this->varying= other.varying;
+        this->vertexDesc = other.vertexDesc;
+        this->varyingDesc = other.varyingDesc;
+        this->V_ITa  = other.V_ITa;
+        this->V_IT   = other.V_IT;
+        this->vertexOffset = other.vertexOffset;
+        this->tableOffset  = other.tableOffset;
+    }
+
+    TBBRestrictedVertexKernelB1(float                     *vertex_in,
+                                float                     *varying_in,
+                                OsdVertexBufferDescriptor const &vertexDesc_in,
+                                OsdVertexBufferDescriptor const &varyingDesc_in,
+                                int const                 *V_ITa_in,
+                                int const                 *V_IT_in,
+                                int                        vertexOffset_in,
+                                int                        tableOffset_in) :
+                                vertex (vertex_in),
+                                varying(varying_in),
+                                vertexDesc(vertexDesc_in),
+                                varyingDesc(varyingDesc_in),
+                                V_ITa  (V_ITa_in),
+                                V_IT   (V_IT_in),
+                                vertexOffset(vertexOffset_in),
+                                tableOffset(tableOffset_in)
+    {};
+};
+
+void OsdTbbComputeRestrictedVertexB1(
+    float *vertex, float *varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    int const *V_ITa, int const *V_IT,
+    int vertexOffset, int tableOffset, int start, int end) {
+
+    tbb::blocked_range<int> range(start, end, grain_size);
+    TBBRestrictedVertexKernelB1 kernel(vertex, varying, vertexDesc, varyingDesc,
+                                       V_ITa, V_IT,
+                                       vertexOffset, tableOffset);
+    tbb::parallel_for(range, kernel);
+}
+
+class TBBRestrictedVertexKernelB2 {
+    float        *vertex;
+    float        *varying;
+    OsdVertexBufferDescriptor vertexDesc;
+    OsdVertexBufferDescriptor varyingDesc;
+    int const    *V_ITa;
+    int const    *V_IT;
+    int           vertexOffset;
+    int           tableOffset;
+
+public:
+    void operator() (tbb::blocked_range<int> const &r) const {
+        for (int i = r.begin() + tableOffset; i < r.end() + tableOffset; i++) {
+            int h = V_ITa[5*i];
+            int n = V_ITa[5*i+1];
+            int p = V_ITa[5*i+2];
+
+            float wp = 1.0f/static_cast<float>(n*n);
+            float wv = (n-2.0f) * n * wp;
+
+            int dstIndex = i + vertexOffset - tableOffset;
+            clear(vertex, dstIndex, vertexDesc);
+            clear(varying, dstIndex, varyingDesc);
+
+            addWithWeight(vertex, dstIndex, p, wv, vertexDesc);
+
+            for (int j = 0; j < n; ++j) {
+                addWithWeight(vertex, dstIndex, V_IT[h+j*2], wp, vertexDesc);
+                addWithWeight(vertex, dstIndex, V_IT[h+j*2+1], wp, vertexDesc);
+            }
+            addWithWeight(varying, dstIndex, p, 1.0f, varyingDesc);
+        }
+    }
+
+    TBBRestrictedVertexKernelB2(TBBRestrictedVertexKernelB2 const &other)
+    {
+        this->vertex = other.vertex;
+        this->varying= other.varying;
+        this->vertexDesc = other.vertexDesc;
+        this->varyingDesc = other.varyingDesc;
+        this->V_ITa  = other.V_ITa;
+        this->V_IT   = other.V_IT;
+        this->vertexOffset = other.vertexOffset;
+        this->tableOffset  = other.tableOffset;
+    }
+
+    TBBRestrictedVertexKernelB2(float                     *vertex_in,
+                                float                     *varying_in,
+                                OsdVertexBufferDescriptor const &vertexDesc_in,
+                                OsdVertexBufferDescriptor const &varyingDesc_in,
+                                int const                 *V_ITa_in,
+                                int const                 *V_IT_in,
+                                int                        vertexOffset_in,
+                                int                        tableOffset_in) :
+                                vertex (vertex_in),
+                                varying(varying_in),
+                                vertexDesc(vertexDesc_in),
+                                varyingDesc(varyingDesc_in),
+                                V_ITa  (V_ITa_in),
+                                V_IT   (V_IT_in),
+                                vertexOffset(vertexOffset_in),
+                                tableOffset(tableOffset_in)
+    {};
+};
+
+void OsdTbbComputeRestrictedVertexB2(
+    float *vertex, float *varying,
+    OsdVertexBufferDescriptor const &vertexDesc,
+    OsdVertexBufferDescriptor const &varyingDesc,
+    int const *V_ITa, int const *V_IT,
+    int vertexOffset, int tableOffset, int start, int end) {
+
+    tbb::blocked_range<int> range(start, end, grain_size);
+    TBBRestrictedVertexKernelB2 kernel(vertex, varying, vertexDesc, varyingDesc,
+                                       V_ITa, V_IT,
+                                       vertexOffset, tableOffset);
     tbb::parallel_for(range, kernel);
 }
 

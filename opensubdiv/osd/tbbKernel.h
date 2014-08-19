@@ -56,14 +56,21 @@ void OsdTbbComputeTriQuadFace(float * vertex, float * varying,
 void OsdTbbComputeEdge(float *vertex, float * varying,
                        OsdVertexBufferDescriptor const &vertexDesc,
                        OsdVertexBufferDescriptor const &varyingDesc,
-                       int const *E_IT, float const *E_ITa,
+                       int const *E_IT, float const *E_W,
                        int vertexOffset, int tableOffset,
                        int start, int end);
+
+void OsdTbbComputeRestrictedEdge(float *vertex, float * varying,
+                                 OsdVertexBufferDescriptor const &vertexDesc,
+                                 OsdVertexBufferDescriptor const &varyingDesc,
+                                 int const *E_IT,
+                                 int vertexOffset, int tableOffset,
+                                 int start, int end);
 
 void OsdTbbComputeVertexA(float *vertex, float * varying,
                           OsdVertexBufferDescriptor const &vertexDesc,
                           OsdVertexBufferDescriptor const &varyingDesc,
-                          int const *V_ITa, float const *V_IT,
+                          int const *V_ITa, float const *V_W,
                           int vertexOffset, int tableOffset,
                           int start, int end, int pass);
 
@@ -73,6 +80,27 @@ void OsdTbbComputeVertexB(float *vertex, float * varying,
                           int const *V_ITa, int const *V_IT, float const *V_W,
                           int vertexOffset, int tableOffset,
                           int start, int end);
+
+void OsdTbbComputeRestrictedVertexA(float *vertex, float * varying,
+                                    OsdVertexBufferDescriptor const &vertexDesc,
+                                    OsdVertexBufferDescriptor const &varyingDesc,
+                                    int const *V_ITa,
+                                    int vertexOffset, int tableOffset,
+                                    int start, int end);
+
+void OsdTbbComputeRestrictedVertexB1(float *vertex, float * varying,
+                                     OsdVertexBufferDescriptor const &vertexDesc,
+                                     OsdVertexBufferDescriptor const &varyingDesc,
+                                     int const *V_ITa, int const *V_IT,
+                                     int vertexOffset, int tableOffset,
+                                     int start, int end);
+
+void OsdTbbComputeRestrictedVertexB2(float *vertex, float * varying,
+                                     OsdVertexBufferDescriptor const &vertexDesc,
+                                     OsdVertexBufferDescriptor const &varyingDesc,
+                                     int const *V_ITa, int const *V_IT,
+                                     int vertexOffset, int tableOffset,
+                                     int start, int end);
 
 void OsdTbbComputeLoopVertexB(float *vertex, float * varying,
                               OsdVertexBufferDescriptor const &vertexDesc,

@@ -267,6 +267,34 @@ OsdCLComputeController::ApplyCatmarkEdgeVerticesKernel(
 }
 
 void
+OsdCLComputeController::ApplyCatmarkRestrictedEdgeVerticesKernel(
+    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
+
+    assert(context);
+
+    cl_int ciErrNum;
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
+    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkRestrictedEdgeKernel();
+
+    cl_mem E_IT = context->GetTable(FarSubdivisionTables::E_IT)->GetDevicePtr();
+
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), &E_IT);
+    clSetKernelArg(kernel, 3, sizeof(int), &_currentBindState.vertexDesc.offset);
+    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.varyingDesc.offset);
+    clSetKernelArg(kernel, 5, sizeof(int), batch.GetVertexOffsetPtr());
+    clSetKernelArg(kernel, 6, sizeof(int), batch.GetTableOffsetPtr());
+    clSetKernelArg(kernel, 7, sizeof(int), batch.GetStartPtr());
+    clSetKernelArg(kernel, 8, sizeof(int), batch.GetEndPtr());
+
+    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
+                                      kernel, 1, NULL, globalWorkSize,
+                                      NULL, 0, NULL, NULL);
+    CL_CHECK_ERROR(ciErrNum, "restricted edge kernel %d\n", ciErrNum);
+}
+
+void
 OsdCLComputeController::ApplyCatmarkVertexVerticesKernelB(
     FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
 
@@ -360,6 +388,94 @@ OsdCLComputeController::ApplyCatmarkVertexVerticesKernelA2(
                                       kernel, 1, NULL, globalWorkSize,
                                       NULL, 0, NULL, NULL);
     CL_CHECK_ERROR(ciErrNum, "vertex kernel A2 %d\n", ciErrNum);
+}
+
+void
+OsdCLComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB1(
+    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
+
+    assert(context);
+
+    cl_int ciErrNum;
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
+    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkRestrictedVertexKernelB1();
+
+    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
+    cl_mem V_IT = context->GetTable(FarSubdivisionTables::V_IT)->GetDevicePtr();
+
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
+    clSetKernelArg(kernel, 3, sizeof(cl_mem), &V_IT);
+    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.vertexDesc.offset);
+    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.varyingDesc.offset);
+    clSetKernelArg(kernel, 6, sizeof(int), batch.GetVertexOffsetPtr());
+    clSetKernelArg(kernel, 7, sizeof(int), batch.GetTableOffsetPtr());
+    clSetKernelArg(kernel, 8, sizeof(int), batch.GetStartPtr());
+    clSetKernelArg(kernel, 9, sizeof(int), batch.GetEndPtr());
+
+    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
+                                      kernel, 1, NULL, globalWorkSize,
+                                      NULL, 0, NULL, NULL);
+    CL_CHECK_ERROR(ciErrNum, "restricted vertex kernel B1 %d\n", ciErrNum);
+}
+
+void
+OsdCLComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB2(
+    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
+
+    assert(context);
+
+    cl_int ciErrNum;
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
+    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkRestrictedVertexKernelB2();
+
+    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
+    cl_mem V_IT = context->GetTable(FarSubdivisionTables::V_IT)->GetDevicePtr();
+
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
+    clSetKernelArg(kernel, 3, sizeof(cl_mem), &V_IT);
+    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.vertexDesc.offset);
+    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.varyingDesc.offset);
+    clSetKernelArg(kernel, 6, sizeof(int), batch.GetVertexOffsetPtr());
+    clSetKernelArg(kernel, 7, sizeof(int), batch.GetTableOffsetPtr());
+    clSetKernelArg(kernel, 8, sizeof(int), batch.GetStartPtr());
+    clSetKernelArg(kernel, 9, sizeof(int), batch.GetEndPtr());
+
+    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
+                                      kernel, 1, NULL, globalWorkSize,
+                                      NULL, 0, NULL, NULL);
+    CL_CHECK_ERROR(ciErrNum, "restricted vertex kernel B2 %d\n", ciErrNum);
+}
+
+void
+OsdCLComputeController::ApplyCatmarkRestrictedVertexVerticesKernelA(
+    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
+
+    assert(context);
+
+    cl_int ciErrNum;
+    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
+    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkRestrictedVertexKernelA();
+
+    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
+
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
+    clSetKernelArg(kernel, 3, sizeof(int), &_currentBindState.vertexDesc.offset);
+    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.varyingDesc.offset);
+    clSetKernelArg(kernel, 5, sizeof(int), batch.GetVertexOffsetPtr());
+    clSetKernelArg(kernel, 6, sizeof(int), batch.GetTableOffsetPtr());
+    clSetKernelArg(kernel, 7, sizeof(int), batch.GetStartPtr());
+    clSetKernelArg(kernel, 8, sizeof(int), batch.GetEndPtr());
+
+    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
+                                      kernel, 1, NULL, globalWorkSize,
+                                      NULL, 0, NULL, NULL);
+    CL_CHECK_ERROR(ciErrNum, "restricted vertex kernel A %d\n", ciErrNum);
 }
 
 void

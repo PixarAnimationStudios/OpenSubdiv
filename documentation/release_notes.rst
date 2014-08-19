@@ -31,6 +31,37 @@ Release Notes
 
 ----
 
+Release 2.6.0
+=============
+
+**New Features**
+    - Add subdivision kernels for ARM NEON
+    - Add OsdUtilVertexSplit which creates a vertex-varying data table by duplicating
+      vertices in a `FarMesh`
+    - Add basic functions to work with FV data via evaluator API
+
+**Changes**
+    - Added Catmark restricted vertex compute kernels that optimize for vertices
+      with no semi-sharp creases
+    - Fix accessor omissions in osd/mesh.h
+    - Add support for different subdivision schemes for OsdUtilMesh
+
+**Bug Fixes**
+    - Fix crashes when using rather low-end cards like Intel ones
+    - Fix a bug in the creation of an edge-vertex kernel batch
+    - Fix mismatch in declaration and usage of OsdCudaComputeRestrictedVertexA 
+    - Fix a bug in the vertex order for restricted Catmark vertex-vertex kernel batches
+    - Fix a bug in FarCatmarkSubdivisionTablesFactory that prevented the
+      CATMARK_QUAD_FACE_VERTEX kernel from being selected for subdivision
+      level 2 or greater.
+    - Fix a bug in OsdUtilVertexSplit that occurs when getting the address of
+      the end of a std::vector
+    - Fix error in createCLBuffer that occurs when the buffer size is zero
+    - Fix a bug in the CUDA computeRestrictedEdge kernel
+    - Fix duplicate variables with identical name
+    - Fix osdutil build errors
+    - Fix cmake diagnostic messsage
+
 Release 2.5.1
 =============
 
@@ -39,8 +70,8 @@ Release 2.5.1
       optimization that takes advantage of all-quads or all-triange-and-quads meshes
 
 **Bug Fixes**
-    - Fixed a compiler error in the GLSL Transform Feedback kernels on OS X
-    - Fixed boundary interpolation in osdutil
+    - Fix a compiler error in the GLSL Transform Feedback kernels on OS X
+    - Fix boundary interpolation in osdutil
     - Fix bilinear stencil tangent computions
 
 Release 2.5.0
@@ -53,25 +84,23 @@ Release 2.5.0
     - Add GLSL compute kernel to glBatchViewer
     - Add TBB compute kernel to glBatchViewer
     - Add a PullDown widget to our HUD in examples/common
-        - GUI updates & cosmetic changes to GL example code
+    - GUI updates & cosmetic changes to GL example code
     - Adding a programmable image shader to gl_hud
-        - Code cleanup for GLFrameBuffer in examples/common
+    - Code cleanup for GLFrameBuffer in examples/common
     - Implement C-API accessor to evaluator topology (osdutil)
     - Add command line option to CMake's options
     - Add a CMake option to disable OpenCL
     - Add a FindCLEW.cmake module in anticipation of using CLEW as a dependency
-        - Integrate CLEW into osd library and examples
+    - Integrate CLEW into osd library and examples
 
 **Changes**
     - Change interleaved buffer support in OsdCompute: 
-        - Removed OsdVertexDescriptor and replaced with OsdVertexBufferDescriptor
-        - Reorganize ComputeContext and ComputeController.
-        - Reorganize EvalStencilContext and EvalStencilController 
-
-          Moved transient states (current vertex buffer etc) to controller
-        - Reorganize EvalLimitContext and EvalLimitController
-        
-          Moved transient states (current vertex buffer etc) to controller
+    - Removed OsdVertexDescriptor and replaced with OsdVertexBufferDescriptor
+    - Reorganize ComputeContext and ComputeController.
+    - Reorganize EvalStencilContext and EvalStencilController 
+      Moved transient states (current vertex buffer etc) to controller
+    - Reorganize EvalLimitContext and EvalLimitController
+      Moved transient states (current vertex buffer etc) to controller
     - Fix adaptive isolation of sharp corner vertices
     - Fix incorrect FarMeshFactory logic for isolating multiple corner vertices in corner patches
     - Change EvalLimit Gregory patch kernels to the large weights table to accomodate higher valences
@@ -80,14 +109,14 @@ Release 2.5.0
     - Decrease compiler warning thresholds and fix outstanding warnings
     - Make PTex support optional
     - Add a NO_MAYA flag to CMakeLists to disable all Autodesk Maya dependencies in the build
-        - Document NO_MAYA command line option
+    - Document NO_MAYA command line option
 
 **Bug Fixes**
     - Fix mistakenly deleted memory barrier in glsl OsdCompute kernel.
     - Fix shape_utils genRIB function to use streams correctly.
     - Temporary workaround for the synchronization bug of glsl compute kernel
     - Fix Hud display for higher DPI (MBP retina)
-        - Fix Hud (d3d11)
+    - Fix Hud (d3d11)
     - Fix examples to use GL timer query to measure the GPU draw timing more precisely
     - Fix glViewer: stop updating during freeze.
     - Fix file permissions on farPatchTablesFactory.h
@@ -101,17 +130,17 @@ Release 2.5.0
     - Return success status from openSubdiv_finishEvaluatorDescr() (osdutil)
     - Remove debugging std::cout calls (osdutil)
     - Build errors & warnings:
-        - Fix OSX Core Profile build (GLFrameBuffer)
-        - Fix ptexViewer build error on OSX
-        - Fix framebuffer shader compiling for OSX
-        - Reordering includes to address a compile error on OSX/glew environment
-        - Fix compilation errors with CLEW enabled
-        - Fix icc build problems
-        - Fix compiler warnings in OsdClVertexBuffer
-        - Fix compilation error on windows+msvc2013 
-        - Fix build warnings/errors with VS2010 Pro
-        - Fix Windows build warning in FarPatchTablesFactory
-        - Fix doxygen generation errors
+    - Fix OSX Core Profile build (GLFrameBuffer)
+    - Fix ptexViewer build error on OSX
+    - Fix framebuffer shader compiling for OSX
+    - Reordering includes to address a compile error on OSX/glew environment
+    - Fix compilation errors with CLEW enabled
+    - Fix icc build problems
+    - Fix compiler warnings in OsdClVertexBuffer
+    - Fix compilation error on windows+msvc2013 
+    - Fix build warnings/errors with VS2010 Pro
+    - Fix Windows build warning in FarPatchTablesFactory
+    - Fix doxygen generation errors
 
 
 Release 2.4.1
@@ -131,30 +160,30 @@ Release 2.4.0
 
 **New Features**
     - Adding functionality to store uniform face-varying data across multiple levels of subdivision
-    - Add OsdUtilPatchPartitioner
-        It splits patcharray into subsets so that clients can draw partial surfaces
-        for both adaptive and uniform.
+    - Add OsdUtilPatchPartitioner.
+      It splits patcharray into subsets so that clients can draw partial surfaces
+      for both adaptive and uniform.
 
 **Changes**
     - Remove FarMesh dependency from Osd*Context.
     - Use DSA APIs for GL buffer update (if available).
     - Refactor Far API
-        - replace void- of all kernel applications with CONTEXT template parameter.
-          It eliminates many static_casts from void- for both far and osd classes.
-        - move the big switch-cases of far default kernel launches out of Refine so
-          that osd controllers can arbitrary mix default kernels and custom kernels.
-        - change FarKernelBatch::kernelType from enum to int, clients can add
-          custom kernel types.
-        - remove a back-pointer to farmesh from subdivision table.
-        - untemplate all subdivision table classes and template their compute methods
-          instead. Those methods take a typed vertex storage.
-        - remove an unused argument FarMesh from the constructor of subdivision
-          table factories.
+    - replace void- of all kernel applications with CONTEXT template parameter.
+      It eliminates many static_casts from void- for both far and osd classes.
+    - move the big switch-cases of far default kernel launches out of Refine so
+      that osd controllers can arbitrary mix default kernels and custom kernels.
+    - change FarKernelBatch::kernelType from enum to int, clients can add
+      custom kernel types.
+    - remove a back-pointer to farmesh from subdivision table.
+    - untemplate all subdivision table classes and template their compute methods
+      instead. Those methods take a typed vertex storage.
+    - remove an unused argument FarMesh from the constructor of subdivision
+      table factories.
     - Refactor FarSubdivisionTables.
-        Delete scheme specialized subdivision tables. The base class FarSubdivisionTables
-        already has all tables, so we just need scheme enum to identify which scheme
-        the subdivision tables belong to. This brings a lot of code cleanups around far
-        factory classes.
+      Delete scheme specialized subdivision tables. The base class FarSubdivisionTables
+      already has all tables, so we just need scheme enum to identify which scheme
+      the subdivision tables belong to. This brings a lot of code cleanups around far
+      factory classes.
     - Move FarMultiMeshFactory to OsdUtil.
     - Move table splicing functions of FarMultiMeshFactory into factories
     - Change PxOsdUtil prefix to final OsdUtil prefix.

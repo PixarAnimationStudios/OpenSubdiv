@@ -126,11 +126,19 @@ protected:
 
     void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
+    void ApplyCatmarkRestrictedEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
+
     void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext const *context) const;
 
     void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext const *context) const;
 
     void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyCatmarkRestrictedVertexVerticesKernelB1(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyCatmarkRestrictedVertexVerticesKernelB2(FarKernelBatch const &batch, ComputeContext const *context) const;
+
+    void ApplyCatmarkRestrictedVertexVerticesKernelA(FarKernelBatch const &batch, ComputeContext const *context) const;
 
 
     void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
@@ -182,6 +190,18 @@ protected:
     }
     void unbind() {
         _currentBindState.Reset();
+    }
+    float * getVertexBuffer() const {
+        return _currentBindState.vertexBuffer;
+    }
+    float * getVaryingBuffer() const {
+        return _currentBindState.varyingBuffer;
+    }
+    OsdVertexBufferDescriptor const & getVertexDesc() const {
+        return _currentBindState.vertexDesc;
+    }
+    OsdVertexBufferDescriptor const & getVaryingDesc() const {
+        return _currentBindState.varyingDesc;
     }
 
 private:

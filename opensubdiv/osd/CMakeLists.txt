@@ -159,6 +159,30 @@ endif()
 list(APPEND DOXY_HEADER_FILES ${GL_PTEX_PUBLIC_HEADERS} ${DX_PTEX_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
+set(NEON_PUBLIC_HEADERS
+    neonComputeContext.h
+    neonComputeController.h
+)
+
+set(NEON_PRIVATE_HEADERS
+    neonKernel.h
+)
+
+if(NEON_FOUND)
+    enable_language(ASM)
+    list(APPEND CPU_SOURCE_FILES
+        neonComputeContext.cpp
+        neonComputeController.cpp
+        neonKernel.cpp
+        neonKernel.S
+    )
+    list(APPEND PUBLIC_HEADER_FILES ${NEON_PUBLIC_HEADERS})
+    list(APPEND PRIVATE_HEADER_FILES ${NEON_PRIVATE_HEADERS})
+endif()
+
+list(APPEND DOXY_HEADER_FILES ${NEON_PUBLIC_HEADERS})
+
+#-------------------------------------------------------------------------------
 set(OPENMP_PUBLIC_HEADERS
     ompKernel.h
     ompComputeController.h
@@ -500,12 +524,20 @@ if (NOT NO_LIB)
             $<TARGET_OBJECTS:osd_cpu_obj>
         )
 
-        set_target_properties(osd_dynamic_cpu
-            PROPERTIES
-                OUTPUT_NAME osdCPU
-                CLEAN_DIRECT_OUTPUT 1
-                SOVERSION ${OSD_SONAME}
-            )
+        if (NOT ANDROID)
+            set_target_properties(osd_dynamic_cpu
+                PROPERTIES
+                    OUTPUT_NAME osdCPU
+                    CLEAN_DIRECT_OUTPUT 1
+                    SOVERSION ${OSD_SONAME}
+                )
+        else()
+            set_target_properties(osd_dynamic_cpu
+                PROPERTIES
+                    OUTPUT_NAME osdCPU
+                    CLEAN_DIRECT_OUTPUT 1
+                )
+        endif()
 
         target_link_libraries(osd_dynamic_cpu
             ${PLATFORM_CPU_LIBRARIES}
@@ -517,12 +549,20 @@ if (NOT NO_LIB)
             ${KERNEL_FILES}
         )
 
-        set_target_properties(osd_dynamic_gpu
-            PROPERTIES
-                OUTPUT_NAME osdGPU
-                CLEAN_DIRECT_OUTPUT 1
-                SOVERSION ${OSD_SONAME}
-            )
+        if (NOT ANDROID)
+            set_target_properties(osd_dynamic_gpu
+                PROPERTIES
+                    OUTPUT_NAME osdGPU
+                    CLEAN_DIRECT_OUTPUT 1
+                    SOVERSION ${OSD_SONAME}
+                )
+        else()
+            set_target_properties(osd_dynamic_gpu
+                PROPERTIES
+                    OUTPUT_NAME osdGPU
+                    CLEAN_DIRECT_OUTPUT 1
+                )
+        endif()
 
         target_link_libraries(osd_dynamic_gpu
             osd_dynamic_cpu

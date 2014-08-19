@@ -175,6 +175,10 @@ public:
     template <class U>
     void computeCatmarkEdgePoints(int vertexOffset, int tableOffset, int start, int end, U * vsrc) const;
 
+    // Compute-kernel applied to vertices resulting from the refinement of a smooth or sharp edge.
+    template <class U>
+    void computeCatmarkRestrictedEdgePoints(int vertexOffset, int tableOffset, int start, int end, U * vsrc) const;
+
     // Compute-kernel applied to vertices resulting from the refinement of a vertex
     // Kernel "A" Handles the k_Crease and k_Corner rules
     template <class U>
@@ -184,6 +188,22 @@ public:
     // Kernel "B" Handles the k_Smooth and k_Dart rules
     template <class U>
     void computeCatmarkVertexPointsB(int vertexOffset, int tableOffset, int start, int end, U * vsrc) const;
+
+    // Compute-kernel applied to vertices resulting from the refinement of a smooth or sharp vertex
+    // Kernel "A" handles the k_Crease and k_Corner rules
+    template <class U>
+    void computeCatmarkRestrictedVertexPointsA(int vertexOffset, int tableOffset, int start, int end, U * vsrc) const;
+
+    // Compute-kernel applied to vertices resulting from the refinement of a smooth or sharp vertex
+    // Kernel "B1" handles the regular k_Smooth and k_Dart rules
+    template <class U>
+    void computeCatmarkRestrictedVertexPointsB1(int vertexOffset, int tableOffset, int start, int end, U * vsrc) const;
+
+    // Compute-kernel applied to vertices resulting from the refinement of a smooth or sharp vertex
+    // Kernel "B2" handles the irregular k_Smooth and k_Dart rules
+    template <class U>
+    void computeCatmarkRestrictedVertexPointsB2(int vertexOffset, int tableOffset, int start, int end, U * vsrc) const;
+
 
     // -------------------------------------------------------------------------
     // Loop scheme
@@ -417,8 +437,8 @@ FarSubdivisionTables::computeCatmarkTriQuadFacePoints( int vertexOffset, int tab
         int fidx2 = _F_IT[tableOffset + 4 * i + 2];
         int fidx3 = _F_IT[tableOffset + 4 * i + 3];
 
-        bool triangle = (fidx3 == fidx2);
-        float weight = triangle ? 1.0f / 3.0f : 1.0f / 4.0f;
+        bool isTriangle = (fidx3 == fidx2);
+        float weight = isTriangle ? 1.0f / 3.0f : 1.0f / 4.0f;
 
         vdst->Clear();
         vdst->AddWithWeight(vsrc[fidx0], weight);
@@ -427,7 +447,7 @@ FarSubdivisionTables::computeCatmarkTriQuadFacePoints( int vertexOffset, int tab
         vdst->AddVaryingWithWeight(vsrc[fidx1], weight);
         vdst->AddWithWeight(vsrc[fidx2], weight);
         vdst->AddVaryingWithWeight(vsrc[fidx2], weight);
-        if (!triangle) {
+        if (not isTriangle) {
             vdst->AddWithWeight(vsrc[fidx3], weight);
             vdst->AddVaryingWithWeight(vsrc[fidx3], weight);
         }
@@ -466,6 +486,33 @@ FarSubdivisionTables::computeCatmarkEdgePoints( int vertexOffset, int tableOffse
             vdst->AddWithWeight( vsrc[eidx3], faceWeight );
         }
 
+        vdst->AddVaryingWithWeight( vsrc[eidx0], 0.5f );
+        vdst->AddVaryingWithWeight( vsrc[eidx1], 0.5f );
+    }
+}
+
+//
+// Restricted edge-vertices compute Kernel - completely re-entrant
+//
+
+template <class U> void
+FarSubdivisionTables::computeCatmarkRestrictedEdgePoints( int vertexOffset, int tableOffset, int start, int end, U * vsrc ) const {
+
+    U * vdst = vsrc + vertexOffset + start;
+
+    for (int i=start+tableOffset; i<end+tableOffset; ++i, ++vdst ) {
+
+        vdst->Clear();
+
+        int eidx0 = this->_E_IT[4*i+0],
+            eidx1 = this->_E_IT[4*i+1],
+            eidx2 = this->_E_IT[4*i+2],
+            eidx3 = this->_E_IT[4*i+3];
+
+        vdst->AddWithWeight( vsrc[eidx0], 0.25f );
+        vdst->AddWithWeight( vsrc[eidx1], 0.25f );
+        vdst->AddWithWeight( vsrc[eidx2], 0.25f );
+        vdst->AddWithWeight( vsrc[eidx3], 0.25f );
         vdst->AddVaryingWithWeight( vsrc[eidx0], 0.5f );
         vdst->AddVaryingWithWeight( vsrc[eidx1], 0.5f );
     }
@@ -537,6 +584,76 @@ FarSubdivisionTables::computeCatmarkVertexPointsB( int vertexOffset, int tableOf
         for (int j=0; j<n; ++j) {
             vdst->AddWithWeight( vsrc[this->_V_IT[h+j*2  ]], weight * wp );
             vdst->AddWithWeight( vsrc[this->_V_IT[h+j*2+1]], weight * wp );
+        }
+        vdst->AddVaryingWithWeight( vsrc[p], 1.0f );
+    }
+}
+
+// single-pass kernel handling k_Crease and k_Corner rules
+template <class U> void
+FarSubdivisionTables::computeCatmarkRestrictedVertexPointsA( int vertexOffset, int tableOffset, int start, int end, U * vsrc ) const {
+
+    U * vdst = vsrc + vertexOffset + start;
+
+    for (int i=start+tableOffset; i<end+tableOffset; ++i, ++vdst ) {
+
+        vdst->Clear();
+
+        int     p=this->_V_ITa[5*i+2],   // index of the parent vertex
+            eidx0=this->_V_ITa[5*i+3],   // index of the first crease rule edge
+            eidx1=this->_V_ITa[5*i+4];   // index of the second crease rule edge
+
+        vdst->AddWithWeight( vsrc[p], 0.75f );
+        vdst->AddWithWeight( vsrc[eidx0], 0.125f );
+        vdst->AddWithWeight( vsrc[eidx1], 0.125f );
+        vdst->AddVaryingWithWeight( vsrc[p], 1.0f );
+    }
+}
+
+// single-pass kernel handling regular k_Smooth and k_Dart rules
+template <class U> void
+FarSubdivisionTables::computeCatmarkRestrictedVertexPointsB1( int vertexOffset, int tableOffset, int start, int end, U * vsrc ) const {
+
+    U * vdst = vsrc + vertexOffset + start;
+
+    for (int i=start+tableOffset; i<end+tableOffset; ++i, ++vdst ) {
+
+        vdst->Clear();
+
+        int h = this->_V_ITa[5*i  ],     // offset of the vertices in the _V_IT array
+            p = this->_V_ITa[5*i+2];     // index of the parent vertex
+
+        vdst->AddWithWeight( vsrc[p], 0.5f );
+
+        for (int j=0; j<8; ++j, ++h)
+            vdst->AddWithWeight( vsrc[this->_V_IT[h]], 0.0625f );
+
+        vdst->AddVaryingWithWeight( vsrc[p], 1.0f );
+    }
+}
+
+// single-pass kernel handling irregular k_Smooth and k_Dart rules
+template <class U> void
+FarSubdivisionTables::computeCatmarkRestrictedVertexPointsB2( int vertexOffset, int tableOffset, int start, int end, U * vsrc ) const {
+
+    U * vdst = vsrc + vertexOffset + start;
+
+    for (int i=start+tableOffset; i<end+tableOffset; ++i, ++vdst ) {
+
+        vdst->Clear();
+
+        int h = this->_V_ITa[5*i  ],     // offset of the vertices in the _V_IT array
+            n = this->_V_ITa[5*i+1],     // number of vertices in the _V_IT array (valence)
+            p = this->_V_ITa[5*i+2];     // index of the parent vertex
+
+        float wp = 1.0f/(n*n),
+              wv = (n-2.0f)*n*wp;
+
+        vdst->AddWithWeight( vsrc[p], wv );
+
+        for (int j=0; j<n; ++j) {
+            vdst->AddWithWeight( vsrc[this->_V_IT[h+j*2  ]], wp );
+            vdst->AddWithWeight( vsrc[this->_V_IT[h+j*2+1]], wp );
         }
         vdst->AddVaryingWithWeight( vsrc[p], 1.0f );
     }

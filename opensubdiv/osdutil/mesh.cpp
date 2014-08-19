@@ -26,7 +26,9 @@
 
 #define HBR_ADAPTIVE
 #include "../hbr/mesh.h"
+#include "../hbr/bilinear.h"
 #include "../hbr/catmark.h"
+#include "../hbr/loop.h"
 #include "../far/stencilTablesFactory.h"
 #include "../osd/vertex.h"
 
@@ -57,7 +59,8 @@ OsdUtilMesh<T>::~OsdUtilMesh()
 
 template <class T>  bool
 OsdUtilMesh<T>::Initialize(const OsdUtilSubdivTopology &topology,
-                             std::string *errorMessage)
+                             std::string *errorMessage,
+                             Scheme scheme)
 {
     
     if (not topology.IsValid(errorMessage)) {
@@ -67,9 +70,24 @@ OsdUtilMesh<T>::Initialize(const OsdUtilSubdivTopology &topology,
     _t = topology;    
 
     static HbrCatmarkSubdivision<T>  _catmark;
-    
+    static HbrBilinearSubdivision<T>  _bilinear;
+    static HbrLoopSubdivision<T>  _loop;
+
+    HbrSubdivision<T> *subdivisions;
+    switch (scheme) {
+        case SCHEME_CATMARK:
+            subdivisions = &_catmark;
+            break;
+        case SCHEME_BILINEAR:
+            subdivisions = &_bilinear;
+            break;
+        case SCHEME_LOOP:
+            subdivisions = &_loop;
+            break;
+    }
+
     if (_t.fvNames.empty()) {
-        _hmesh = new HbrMesh<T>(&_catmark);
+        _hmesh = new HbrMesh<T>(subdivisions);
     } else {
 
         int fvarcount = (int) _t.fvNames.size();
@@ -85,7 +103,7 @@ OsdUtilMesh<T>::Initialize(const OsdUtilSubdivTopology &topology,
         }
 
         _hmesh = new HbrMesh<T>(
-            &_catmark, fvarcount, &_fvarindices[0],
+            subdivisions, fvarcount, &_fvarindices[0],
             &_fvarwidths[0], fvarcount);
     }
 
