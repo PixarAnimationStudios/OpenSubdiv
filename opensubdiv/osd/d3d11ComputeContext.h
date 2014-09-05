@@ -27,129 +27,92 @@
 
 #include "../version.h"
 
-#include "../far/subdivisionTables.h"
-#include "../far/vertexEditTables.h"
-#include "../osd/vertex.h"
-#include "../osd/vertexDescriptor.h"
 #include "../osd/nonCopyable.h"
 
-#include <D3D11.h>
-
-#include <vector>
-
-struct ID3D11Buffer;
-struct ID3D11Device;
 struct ID3D11DeviceContext;
-struct ID3D11ShaderResourceView;
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdD3D11ComputeKernelBundle;
+namespace Far{ class StencilTables; }
 
-class OsdD3D11ComputeTable : OsdNonCopyable<OsdD3D11ComputeTable> {
-public:
-    template<typename T>
-        OsdD3D11ComputeTable(const std::vector<T> &table, ID3D11DeviceContext *deviceContext, DXGI_FORMAT format) {
-        createBuffer((int)table.size() * sizeof(T), table.empty() ? NULL : &table[0], format, (int)table.size(), deviceContext);
-    }
-
-    virtual ~OsdD3D11ComputeTable();
-
-    ID3D11Buffer * GetBuffer() const;
-    ID3D11ShaderResourceView * GetSRV() const;
-
-private:
-    void createBuffer(int size, const void *ptr, DXGI_FORMAT format, int numElements, ID3D11DeviceContext *deviceContext);
-
-    ID3D11Buffer * _buffer;
-    ID3D11ShaderResourceView * _srv;
-};
-
-class OsdD3D11ComputeHEditTable : OsdNonCopyable<OsdD3D11ComputeHEditTable> {
-public:
-    OsdD3D11ComputeHEditTable(const FarVertexEditTables::VertexEditBatch &batch,
-                              ID3D11DeviceContext *deviceContext);
-
-    virtual ~OsdD3D11ComputeHEditTable();
-
-    const OsdD3D11ComputeTable * GetPrimvarIndices() const;
-
-    const OsdD3D11ComputeTable * GetEditValues() const;
-
-    int GetOperation() const;
-
-    int GetPrimvarOffset() const;
-
-    int GetPrimvarWidth() const;
-
-private:
-    OsdD3D11ComputeTable *_primvarIndicesTable;
-    OsdD3D11ComputeTable *_editValuesTable;
-
-    int _operation;
-    int _primvarOffset;
-    int _primvarWidth;
-};
+namespace Osd {
 
 ///
 /// \brief D3D Refine Context
 ///
-/// The D3D implementation of the Refine module contextual functionality. 
+/// The D3D implementation of the Refine module contextual functionality.
 ///
-/// Contexts interface the serialized topological data pertaining to the 
-/// geometric primitives with the capabilities of the selected discrete 
+/// Contexts interface the serialized topological data pertaining to the
+/// geometric primitives with the capabilities of the selected discrete
 /// compute device.
 ///
-class OsdD3D11ComputeContext : public OsdNonCopyable<OsdD3D11ComputeContext> {
+class D3D11ComputeContext : public NonCopyable<D3D11ComputeContext> {
 public:
-    /// Creates an OsdD3D11ComputeContext instance
+
+    /// Creates an D3D11ComputeContext instance
     ///
-    /// @param subdivisionTables  the FarSubdivisionTables used for this Context.
+    /// @param vertexStencilTables   The Far::StencilTables used for vertex
+    ///                              interpolation
     ///
-    /// @param vertexEditTables   the FarVertexEditTables used for this Context.
+    /// @param varyingStencilTables  The Far::StencilTables used for varying
+    ///                              interpolation
     ///
-    /// @param deviceContext  D3D device
+    /// @param deviceContext         The D3D device
     ///
-    static OsdD3D11ComputeContext * Create(FarSubdivisionTables const *subdivisionTables,
-                                           FarVertexEditTables const *vertexEditTables,
-                                           ID3D11DeviceContext *deviceContext);
+    static D3D11ComputeContext * Create(ID3D11DeviceContext *deviceContext,
+                                           Far::StencilTables const * vertexStencilTables,
+                                           Far::StencilTables const * varyingStencilTables=0);
 
     /// Destructor
-    virtual ~OsdD3D11ComputeContext();
+    virtual ~D3D11ComputeContext();
 
-    /// Returns one of the vertex refinement tables.
+    /// Returns true if the Context has a 'vertex' interpolation stencil table
+    bool HasVertexStencilTables() const;
+
+    /// Returns true if the Context has a 'varying' interpolation stencil table
+    bool HasVaryingStencilTables() const;
+
+    /// Returns the number of control vertices
+    int GetNumControlVertices() const {
+        return _numControlVertices;
+    }
+
+    /// Binds D3D11 buffers containing stencils for 'vertex' interpolation
     ///
-    /// @param tableIndex the type of table
+    /// @param deviceContext         The D3D device
     ///
-    const OsdD3D11ComputeTable * GetTable(int tableIndex) const;
+    void BindVertexStencilTables(ID3D11DeviceContext *deviceContext) const;
 
-    /// Returns the number of hierarchical edit tables
-    int GetNumEditTables() const;
-
-    /// Returns a specific hierarchical edit table
+    /// Binds D3D11 buffers containing stencils for 'varying' interpolation
     ///
-    /// @param tableIndex the index of the table
+    /// @param deviceContext         The D3D device
     ///
-    const OsdD3D11ComputeHEditTable * GetEditTable(int tableIndex) const;
+    void BindVaryingStencilTables(ID3D11DeviceContext *deviceContext) const;
 
-    void BindShaderStorageBuffers(ID3D11DeviceContext *deviceContext) const;
-
-    void UnbindShaderStorageBuffers(ID3D11DeviceContext *deviceContext) const;
-
-    void BindEditShaderStorageBuffers(int editIndex, ID3D11DeviceContext *deviceContext) const;
-
-    void UnbindEditShaderStorageBuffers(ID3D11DeviceContext *deviceContext) const;
+    /// Unbinds D3D11 stencil buffers
+    ///
+    /// @param deviceContext         The D3D device
+    ///
+    void UnbindStencilTables(ID3D11DeviceContext *deviceContext) const;
 
 protected:
-    explicit OsdD3D11ComputeContext(FarSubdivisionTables const *subdivisionTables,
-                                    FarVertexEditTables const *vertexEditTables,
-                                    ID3D11DeviceContext *deviceContext);
+
+    explicit D3D11ComputeContext(ID3D11DeviceContext *deviceContext,
+                                    Far::StencilTables const * vertexStencilTables,
+                                    Far::StencilTables const * varyingStencilTables);
 
 private:
-    std::vector<OsdD3D11ComputeTable*> _tables;
-    std::vector<OsdD3D11ComputeHEditTable*> _editTables;
+
+    class D3D11StencilTables;
+
+    D3D11StencilTables * _vertexStencilTables,
+                       * _varyingStencilTables;
+
+    int _numControlVertices;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

@@ -1,0 +1,183 @@
+This text file is written to accompany a specific set of revisions to source in opensubdiv/far for
+review.  Those changes are currently the addition of new classes independent of other Far classes,
+and so no changes to existing Far source is included.  We do want to make use of the new classes
+within far, and there is code to build a FarMesh from them, but that is being deferred for now.
+
+The new Far classes package up the functionality provided in Vtr for public use -- either directly
+within Far or indirectly eventually though Osd.  The two new classes are as follows:
+
+    1) TopologyRefiner - a class encapsulating the topology of a refined mesh
+    2) TopologyRefinerFactory<MESH> - a factory class template specialized by users (in
+       terms of their mesh class) to construct TopologyRefiner as quickly as possible
+
+These classes are the least well defined of the recent additions, but given they provide the public
+interface to all of the improvements proposed, they potentially warrant the most attention.
+
+These two classes were initially defined and used as an alternative to construct a FarMesh<U> from
+refined topology generated now in Vtr.  TopologyRefiner exists as one of what Manuel has been
+referring to as "a modular framework of tables".  While the bigger picture is less clear to me,
+TopologyRefiner is purely topological and I see it being useful to construct or be associated with
+other table classes in Far.
+
+
+1)  Class containing effienctly refined hierarchical topology:
+
+Header:
+    far/topologyRefiner.h
+
+Synopsis:
+    TopologyRefiner is analogous to FarMesh<U> in that it is the building block for many other
+useful classes in OpenSubdiv, but its purpose is more specific.  It is intended to store the
+topology of an arbitrarily refined subdivision hierarchy to support the construction of subdivision
+tables, patch tables, stencil tables, etc.
+
+To what degree it is to be publicly accessible is still unclear.  It could be considered only a
+supporting class for the other table types, but there is no reason we can't expose access to it for
+public inspection.  Internally it is in the Vtr form that was most amenable to refinement -- which
+was to separate the subdivision levels out as separate objects.  All component indices within Vtr
+are relative to the level in which they are defined, so their indices can be considered "local" to
+each level.  There is a trend within OpenSubdiv to index all components of an arbitrary hierarchy
+"globally", i.e. as part of one large aggregated array, so that preference may exist here.
+
+I'm not in favor of trying to automatically map between these global and local indices as part of
+an interface to TopologyRefiner -- there is just too much oppotunity for unnecessary mapping back
+and forth in a sequence of queries.  I would prefer to having a mapping defined and leave it up to
+the client to map local to global indices when they need them.
+
+Another possibility is converting the entire set of levels into an aggregate set of arrays -- more
+akin to FarSubdivisionTables.  While there may be some value in that, I would prefer to avoid it,
+partly for the reasons that follow.
+
+One public usage I would like to see of TopologyRefiner is the ability to re-refine them once used
+for one purpose to satisfy another.  With Vtr its a simple matter to "slice" off any set of lower
+levels in the hierarchy and regenerate them differently -- the base level and all specification of
+edits are const once created and don't need to be regenerated from the clients mesh.  With
+appropriate use of shared pointers, its also possible to share Vtr::Level's between instances of
+TopologyRefiner, e.g. share the base level between two instances and selectively (potentially
+adaptively) refine different areas of the mesh independently.
+
+Aside from public access to topology, TopologyRefiner::Refine(...) is internally where simple
+specifications of refinement (currently uniform or feature-adaptive with a level argument) will
+be translated into refinement operations within Vtr.  Feature-adaptive refinement is a special
+case of "sparse" or "selective" refinement, and so the feature-adaptive logic will exist internal
+to TopologyRefiner and translate the feature-analysis into a simpler topological specification of
+refinement to Vtr.
+
+The longer term intent is that the public Refine(...) operation eventually be overloaded to allow
+clients more selective control of refinement.  While TopologyRefiner is a purely topological class,
+and so free of any definitions of vertex data, there is no reason we cannot in future extend the
+interface to include some kind of functor or template parameter that would allow clients to both
+compute and inspect vertices at a particular level in order to make decisions as to what to refine
+for the next.
+
+The near term goal for TopologyRefiner is to build on the extensions being added to the Vtr classes
+that will support selective refinement so that the feature-adaptive analysis can be completed.
+
+Questions:
+    - use of local vs global indexing in any topology queries
+    - accessibility and definition of Refine() method (perhaps accessible only to Factory)
+
+
+2) Factory class to construct TopologyRefiner from client meshes:
+
+Header:
+    far/topologyRefinerFactory.h
+
+Synopsis:
+    This is one of the most important of the proposed extensions, as it becomes the entry point
+to OpenSubdiv for many users in future, but has had the least effort put into it in terms of
+defining the specific interface.  The priority thus far has been to get some of the underlying
+infrastructure in place (i.e. Vtr and Sdc) and all that has been done here has been to support
+limited testing and validation.  There is still a lot more to be done with the TopologyRefiner
+themselves, i.e. the support for feature-adaptive or selective refinement, so many of the details
+here can still be deferred.  But I do want to get some validation or consensus on the approach
+that we want to take here.
+
+Given that we now have a much more efficient refinement implementation in terms of a new data
+representation (Vtr), the remaining task is to map/convert data in a client's mesh into this
+form as quickly as possible.  There was a lot of discussion about this early on, e.g. mention of
+Adaptors or Convertors that would facilitate this task and so avoid the need for the HbrMesh.
+What occurred to me at some point was that, given a public interface to access the topology of
+TopologyRefiner, rather than constructing layers of new abstraction that would result in its
+construction, it would be a lot simpler to just use a similar interface to construct it.  More
+specifically, since the interface to access it involves inspecting small arrays associated with
+components, by providing a (protected) interface to populate these arrays, we have most of what
+we need.  Since a client's boundary-rep knows best how to identify the data we want, it seemed
+best to leave it to the client to gather that data and simply provide a location to store it,
+rather than trying to define a suite of mesh traversal utilities that the client would need to
+define to do so.
+
+So the approach taken was to follow a common pattern in Far to use Factory classes to construct
+instances of TopologyRefiner and provide some kind of derivation or specialization by the client
+to optimize the process for their representation.  Using FarMesh<> as an example, its Factory
+class constructed its instances from HbrMesh.  Similarly the TopologyRefiner's Factory class will
+construct its instances from a client's mesh (of unknown type).  Given the need to manage an
+instance of a client's mesh type in the Factory, I opted for template specialization over
+inheritance.
+
+The TopologyRefinerFactory class is a class template parameterized by and specialized for the
+client's mesh class, i.e. TopologyRefinerFactory<MESH>.  The template provides the high-level
+construction of the tables, with the requirement that two methods will be specialized.  These two
+methods serve the following two purposes:
+
+    - specify the sizes of topological data so that tables can be pre-allocated
+    - assign the topological data to the newly allocated tables
+
+As noted above, the assumption here is that the client's boundary-rep knows best how to retrieve
+the data that we require most efficiently, so we want to interfere with it as little as possible.
+After the factory class gathers sizing information and allocates appropriate memory, we provide
+the client with iterators/locations of the appropriate tables to be populated (using the same
+kind of Array classes and interface used to access the tables).  The client is expected to load
+a complete topological description and can optionally load other tables, i.e.:
+
+    - the six topological relations required by Vtr, oriented when manifold
+    - sharpness values for edges and/or vertices (optional)
+    - additional tags related to the components, e.g. holes (optional)
+
+While there is plenty of opportunity for user error here, that is no different from any other
+conversion process.  Given we control the construction process through the Factory class, we do
+have ample opportunity to insert runtime validation, and to vary that level of validation at
+any time on an instance of the Factory.
+
+A common base class was later created for the factory class, i.e.:
+
+    template <class MESH>
+    class TopologyRefinerFactory : public TopologyRefinerFactoryBase
+
+both to provide common code independent of <MESH> and also potentially to protect core code from
+unwanted specialization (though this is difficult given it must be independent of <MESH>).  This
+is a work in progress and the value of this base class is dubious.  I would prefer more of the core
+code be in a protected base class, but the choice (necessity) to specialize a template parameter
+complicates that.  If we are not concerned with users specializing what they should not, at their
+own risk, then the motivation is reduced.
+
+Remember that the current implementation is very rough.  The basic structure was put in place and
+has served the needs of my testing, but the interfaces to TopologyRefiner are still not well
+defined and so how a client is really expected to accomplish this needs more detail.  Some of the
+comments may also indicate what might exist in future rather than what does now, so don't take
+some of them literally.
+
+It's worth noting that the pattern of existing use of Factory classes within Far is not always
+suitable to our goals here, and FarMesh in particular.  For instance, FarMeshFactory takes the
+HbrMesh on construction and refines it -- at considerable cost.  Instances of FarMesh that are
+created then use a commonly refined HbrMesh within the factory.  With TopologyRefiner we are
+trying to avoid any unnecessary data duplication or copying for the common case of a single
+instance.  So we do not want to create anything on Factory construction that must then be
+transferred to a newly created instance.  Having something in the Factory that could be shared by
+one or more instances, e.g. the base level of the tables (which remains const under refinement),
+is more desirable, but without any shared pointer model within OSD yet, I do not suggest pursuing
+that.
+
+So for the time being there is uncertainty as to what TopologyRefinerFactory<MESH> should do on
+construction versus its Create() method that generates the new instance of TopologyRefiner.  For
+now the Factory construction does almost nothing -- it takes neither an instance of a clients.
+mesh or refinement parameters associated with it.  These are instead passed to Create().  Given
+that TopologyRefiner itself may have public methods to re-refine itself, the role of the Factory
+class is greatly reduced.
+
+Upcoming work:
+    - will need a Factory specialized for HbrMesh<T> at some point for testing
+
+Questions:
+    - what should the Factory do on construction vs its Create() method?
+    - how best to simplify and communicate the needs of the clients' specializations?

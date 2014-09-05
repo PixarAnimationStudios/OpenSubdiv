@@ -31,14 +31,16 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 /// \brief Describes vertex elements in interleaved data buffers
-struct OsdVertexBufferDescriptor {
+struct VertexBufferDescriptor {
 
     /// Default Constructor
-    OsdVertexBufferDescriptor() : offset(0), length(0), stride(0) { }
+    VertexBufferDescriptor() : offset(0), length(0), stride(0) { }
 
     /// Constructor
-    OsdVertexBufferDescriptor(int o, int l, int s) : offset(o), length(l), stride(s) { }
+    VertexBufferDescriptor(int o, int l, int s) : offset(o), length(l), stride(s) { }
 
     /// True if the descriptor values are internally consistent
     bool IsValid() const {
@@ -47,7 +49,7 @@ struct OsdVertexBufferDescriptor {
 
     /// True if the 'other' descriptor can be used as a destination for
     /// data evaluations.
-    bool CanEval( OsdVertexBufferDescriptor const & other ) const {
+    bool CanEval( VertexBufferDescriptor const & other ) const {
         return (IsValid() and
                 other.IsValid() and
                 (length==other.length));
@@ -59,7 +61,7 @@ struct OsdVertexBufferDescriptor {
     }
 
     /// True if the descriptors are identical
-    bool operator == ( OsdVertexBufferDescriptor const other ) const {
+    bool operator == ( VertexBufferDescriptor const other ) const {
         return (offset == other.offset and
                 length == other.length and
                 stride == other.stride);
@@ -69,6 +71,8 @@ struct OsdVertexBufferDescriptor {
     int length;  // number or length of the data
     int stride;  // stride to the next element
 };
+
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

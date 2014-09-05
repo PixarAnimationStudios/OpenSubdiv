@@ -32,20 +32,22 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 ///
 /// \brief Concrete vertex buffer class for GLSL subvision and OpenGL drawing.
 ///
-/// OsdGLVertexBuffer implements OsdGLVertexBufferInterface. An instance
+/// GLVertexBuffer implements GLVertexBufferInterface. An instance
 /// of this buffer class can be passed to OsdGLComputeController
 /// and OsdGLDrawController
 ///
-class OsdGLVertexBuffer {
+class GLVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static OsdGLVertexBuffer * Create(int numElements, int numVertices);
+    static GLVertexBuffer * Create(int numElements, int numVertices);
 
     /// Destructor.
-    ~OsdGLVertexBuffer();
+    ~GLVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
@@ -62,7 +64,7 @@ public:
 
 protected:
     /// Constructor.
-    OsdGLVertexBuffer(int numElements, int numVertices);
+    GLVertexBuffer(int numElements, int numVertices);
 
     /// Allocates VBO for this buffer.
     /// Returns true if success.
@@ -73,6 +75,8 @@ private:
     int _numVertices;
     GLuint _vbo;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

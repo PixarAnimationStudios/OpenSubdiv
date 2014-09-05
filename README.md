@@ -8,6 +8,11 @@ Feel free to use it and let us know what you think.
 
 For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://graphics.pixar.com).
 
+# 3.0 ALPHA Release
+
+The OpenSubdiv 3.0 release is still early in its development cycle. As such, all APIs, code examples and documentation are subject to change at any time, without notice or backward compatibility with existing code. Please consult the [release notes](http://graphics.pixar.com/opensubdiv/docs_3x_alpha/intro.html) for more details about the features and improvements contained in this new release.
+
+The 3.0 Beta release is tentatively scheduled for late Q4 2014.  
 
 ## Git Flow
 
@@ -31,6 +36,7 @@ Required:
 Optional:
 * [GLEW](http://sourceforge.net/projects/glew/) (Windows/Linux only)
 * [CUDA](http://developer.nvidia.com/category/zone/cuda-zone)
+* [TBB] (https://www.threadingbuildingblocks.org/)
 * [OpenCL](http://www.khronos.org/opencl/)
 * [GLFW](http://www.glfw.org/)
 * [Ptex](https://github.com/wdas/ptex)
@@ -56,16 +62,17 @@ Optional:
 
 -DNO_LIB=1        // disable the opensubdiv libs build (caveat emptor)
 -DNO_EXAMPLES=1   // disable examples build
+-DNO_TUTORIALS=1  // disable tutorials build
 -DNO_REGRESSION=1 // disable regression tests build
--DNO_PYTHON=1     // disable Python SWIG build
 -DNO_MAYA=1       // disable Maya plugin build
 -DNO_PTEX=1       // disable PTex support
 -DNO_DOC=1        // disable documentation build
 -DNO_OMP=1        // disable OpenMP
+-DNO_TBB=1        // disable TBB
 -DNO_CUDA=1       // disable CUDA
 -DNO_OPENCL=1     // disable OpenCL
+-DNO_OPENGL=1     // disable OpenGL
 -DNO_CLEW=1       // disable CLEW wrapper library
--DNO_GCD=1        // disable GrandCentralDispatch on OSX
 ````
 
 The paths to Maya, Ptex, GLFW, and GLEW can also be specified through the

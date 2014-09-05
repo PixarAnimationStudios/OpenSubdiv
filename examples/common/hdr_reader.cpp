@@ -98,11 +98,11 @@ unsigned char *loadHdr(const char *filename, HdrInfo *info, bool convertToFloat)
         for (int i = 1; i < n; ++i) {
             if (buffer[i] == 'X') {
                 if (not (info->flag & HDR_Y_MAJOR)) info->flag |= HDR_X_MAJOR;
-                info->flag |= (buffer[i-1] == '-') ? HDR_X_DEC : 0;
+                info->flag |= (char)((buffer[i-1] == '-') ? HDR_X_DEC : 0);
                 info->width = atoi(&buffer[i+1]);
             } else if (buffer[i] == 'Y') {
                 if (not (info->flag & HDR_X_MAJOR)) info->flag |= HDR_Y_MAJOR;
-                info->flag |= (buffer[i-1] == '-') ? HDR_Y_DEC : 0;
+                info->flag |= (char)((buffer[i-1] == '-') ? HDR_Y_DEC : 0);
                 info->height = atoi(&buffer[i+1]);
             }
         }

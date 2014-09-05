@@ -44,12 +44,16 @@ DESCRIPTION
 uniform and feature adaptive subdivision schemes to a collection of geometric
 shapes. Multiple controls are available to experiment with the algorithms.
 
+.. image:: images/dxviewer.png 
+   :width: 400px
+   :align: center
+   :target: images/dxviewer.png 
 
 .. container:: impnotip
 
    * **Note:** 
      
-      dxViewer requires Microsoft's DirectX 11 SDK
+      dxViewer requires Microsoft's DirectX D3D11 SDK
 
 OPTIONS
 =======
@@ -62,16 +66,5 @@ OPTIONS
   Number of repetitions of the animtion loop (default=0 is infinite)
 
 
-SEE ALSO
-========
 
-`Code Examples <code_examples.html>`__, \
-`glViewer <glviewer.html>`__, \
-`glBatchViewer <glbatchviewer.html>`__, \
-`glStencilViewer <glstencilviewer.html>`__, \
-`ptexViewer <ptexviewer.html>`__, \
-`paintTest <painttest.html>`__, \
-`limitEval <limiteval.html>`__, \
-`dxViewer <dxviewer.html>`__, \
-`uvViewer <uvviewer.html>`__, \
-
+.. include:: examples_see_also.rst

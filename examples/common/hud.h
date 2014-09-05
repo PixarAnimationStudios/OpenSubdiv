@@ -74,9 +74,9 @@ public:
 
     int AddPullDown(const char *label, int x, int y, int width,
                     PullDownCallback callback=0, int shortcut=0);
-    
+
     void AddPullDownButton(int handle, const char *label, int value, bool checked=false);
-    
+
     bool KeyDown(int key);
 
     bool MouseClick(int x, int y);
@@ -129,16 +129,16 @@ protected:
             value = std::max(std::min(v, max), min);
         }
     };
-    
+
     struct PullDown : public Item {
 
-        bool open; 
+        bool open;
         int selected;
         std::vector<char const *> labels;
         std::vector<int> values;
         int shortcut;
         PullDownCallback callback;
-        
+
         void SetSelected(int idx) {
             if (idx>=0 and idx<(int)labels.size()) {
                 selected=idx;

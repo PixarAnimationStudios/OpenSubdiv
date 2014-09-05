@@ -130,7 +130,7 @@ Hud::KeyDown(int key)
             ++it->selected;
             if (it->selected>=(int)it->labels.size()) {
                  it->selected=0;
-            }                
+            }
             it->callback(it->values[it->selected]);
             _requiresRebuildStatic = true;
             return true;
@@ -219,7 +219,7 @@ Hud::MouseMotion(int x, int /* y */)
         int bx = it->x > 0 ? it->x : _windowWidth + it->x;
         it->SetValue(((x-bx-FONT_CHAR_WIDTH/2)/float(it->w))*(it->max - it->min) + it->min);
         it->callback(it->value, it->callbackData);
-        _requiresRebuildStatic = true;        
+        _requiresRebuildStatic = true;
     }
 }
 
@@ -320,9 +320,9 @@ Hud::AddSlider(const char *label, float min, float max, float value,
     _requiresRebuildStatic = true;
 }
 
-int 
+int
 Hud::AddPullDown(const char *label, int x, int y, int width,
-                 PullDownCallback callback, int shortcut) 
+                 PullDownCallback callback, int shortcut)
 {
 
     PullDown pd;
@@ -335,18 +335,18 @@ Hud::AddPullDown(const char *label, int x, int y, int width,
     pd.selected = 0;
     pd.callback = callback;
     pd.shortcut = shortcut;
-    
+
     _pulldowns.push_back(pd);
     _requiresRebuildStatic = true;
-    
+
     return (int)_pulldowns.size()-1;
 }
 
-void 
+void
 Hud::AddPullDownButton(int handle, const char *label, int value, bool checked)
 {
     if (handle < (int)_pulldowns.size()) {
-        
+
         PullDown & pulldown = _pulldowns[handle];
 
         pulldown.labels.push_back(label);
@@ -356,7 +356,7 @@ Hud::AddPullDownButton(int handle, const char *label, int value, bool checked)
         }
     }
 }
-    
+
 
 
 int
@@ -425,7 +425,7 @@ Hud::drawString(std::vector<float> &vboSource,
                 int x, int y, float r, float g, float b, const char *c)
 {
     while (*c) {
-        char ch = (*c) & 0x7f;
+        char ch = (char)((*c) & 0x7f);
         x = drawChar(vboSource, x, y, r, g, b, ch);
         c++;
     }
@@ -488,7 +488,7 @@ Hud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
             x = drawChar(_staticVboSource, x, y, 1, 1, 1, FONT_RADIO_BUTTON_ON);
             drawString(_staticVboSource, x, y, 1, 1, 0, it->label.c_str());
         } else {
-            x = drawChar(_staticVboSource, x, y, 1, 1, 1, ' ');
+            x = drawChar(_staticVboSource, x, y, 1, 1, 1, FONT_RADIO_BUTTON_OFF);
             drawString(_staticVboSource, x, y, .5f, .5f, .5f, it->label.c_str());
         }
     }
@@ -534,7 +534,7 @@ Hud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
 
         x = drawString(_staticVboSource, x, y, .5f, .5f, .5f, it->label.c_str());
         x += FONT_CHAR_WIDTH;
-        
+
         if (it->open) {
             x = drawChar(_staticVboSource, x, y, 1, 1, 0, FONT_ARROW_DOWN);
             x += FONT_CHAR_WIDTH;
@@ -550,7 +550,7 @@ Hud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
             x += FONT_CHAR_WIDTH;
             drawString(_staticVboSource, x, y, 1, 1, 0, it->labels[it->selected]);
         }
-    }      
+    }
 
     drawString(_staticVboSource, _windowWidth-80, _windowHeight-48, .5, .5, .5,
                "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f");
@@ -567,7 +567,7 @@ Hud::Flush()
     }
 
     if (_requiresRebuildStatic)
-        Rebuild(_windowWidth, _windowHeight, _framebufferWidth, _framebufferHeight);
+        this->Rebuild(_windowWidth, _windowHeight, _framebufferWidth, _framebufferHeight);
 
     return true;
 }

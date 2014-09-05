@@ -27,9 +27,6 @@
 
 #include "../version.h"
 
-#include "../far/subdivisionTables.h"
-#include "../far/vertexEditTables.h"
-#include "../osd/vertex.h"
 #include "../osd/nonCopyable.h"
 #include "../osd/opencl.h"
 
@@ -38,103 +35,93 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdCLKernelBundle;
+namespace Far{ class StencilTables; }
 
-
-class OsdCLTable : OsdNonCopyable<OsdCLTable> {
-public:
-    template<typename T>
-    OsdCLTable(const std::vector<T> &table, cl_context clContext) {
-        createCLBuffer(table.size() * sizeof(T), table.empty() ? NULL : &table[0], clContext);
-    }
-
-    virtual ~OsdCLTable();
-
-    cl_mem GetDevicePtr() const;
-
-private:
-    void createCLBuffer(size_t size, const void *ptr, cl_context clContext);
-    cl_mem _devicePtr;
-};
-
-
-class OsdCLHEditTable : OsdNonCopyable<OsdCLHEditTable> {
-public:
-    OsdCLHEditTable(const FarVertexEditTables::
-                    VertexEditBatch &batch, cl_context clContext);
-
-    virtual ~OsdCLHEditTable();
-
-    const OsdCLTable * GetPrimvarIndices() const;
-
-    const OsdCLTable * GetEditValues() const;
-
-    int GetOperation() const;
-
-    int GetPrimvarOffset() const;
-
-    int GetPrimvarWidth() const;
-
-private:
-    OsdCLTable *_primvarIndicesTable;
-    OsdCLTable *_editValuesTable;
-
-    int _operation;
-    int _primvarOffset;
-    int _primvarWidth;
-};
+namespace Osd {
 
 ///
 /// \brief OpenCL Refine Context
 ///
-/// The OpenCL implementation of the Refine module contextual functionality. 
+/// The OpenCL-Compute implementation of the Refine module contextual functionality.
 ///
-/// Contexts interface the serialized topological data pertaining to the 
-/// geometric primitives with the capabilities of the selected discrete 
+/// Contexts interface the serialized topological data pertaining to the
+/// geometric primitives with the capabilities of the selected discrete
 /// compute device.
 ///
-class OsdCLComputeContext : public OsdNonCopyable<OsdCLComputeContext> {
+class CLComputeContext : public NonCopyable<CLComputeContext> {
 
 public:
-    /// Creates an OsdCLComputeContext instance
+    /// Creates an CLComputeContext instance
     ///
-    /// @param subdivisionTables the FarSubdivisionTables used for this Context.
+    /// @param clContext             An active OpenCL compute context
     ///
-    /// @param vertexEditTables the FarVertexEditTables used for this Context.
+    /// @param vertexStencilTables   The Far::StencilTables used for vertex
+    ///                              interpolation
     ///
-    /// @param clContext  a valid active OpenCL context
+    /// @param varyingStencilTables  The Far::StencilTables used for varying
+    ///                              interpolation
     ///
-    static OsdCLComputeContext * Create(FarSubdivisionTables const *subdivisionTables,
-                                        FarVertexEditTables const *vertexEditTables,
-                                        cl_context clContext);
+    static CLComputeContext * Create(cl_context clContext,
+                                        Far::StencilTables const * vertexStencilTables,
+                                        Far::StencilTables const * varyingStencilTables=0);
 
     /// Destructor
-    virtual ~OsdCLComputeContext();
+    virtual ~CLComputeContext();
 
-    /// Returns one of the vertex refinement tables.
-    ///
-    /// @param tableIndex the type of table
-    ///
-    const OsdCLTable * GetTable(int tableIndex) const;
 
-    /// Returns the number of hierarchical edit tables
-    int GetNumEditTables() const;
+    /// Returns true if the Context has a 'vertex' interpolation stencil table
+    bool HasVertexStencilTables() const;
 
-    /// Returns a specific hierarchical edit table
-    ///
-    /// @param tableIndex the index of the table
-    ///
-    const OsdCLHEditTable * GetEditTable(int tableIndex) const;
+    /// Returns true if the Context has a 'varying' interpolation stencil table
+    bool HasVaryingStencilTables() const;
+
+    /// Returns the number of control vertices
+    int GetNumControlVertices() const {
+        return _numControlVertices;
+    }
+
+    /// Returns the Cuda buffer containing vertex-stencil stencil sizes
+    cl_mem GetVertexStencilTablesSizes() const;
+
+    /// Returns the Cuda buffer containing vertex-stencil stencil offsets
+    cl_mem GetVertexStencilTablesOffsets() const;
+
+    /// Returns the Cuda buffer containing vertex-stencil stencil indices
+    cl_mem GetVertexStencilTablesIndices() const;
+
+    /// Returns the Cuda buffer containing vertex-stencil stencil weights
+    cl_mem GetVertexStencilTablesWeights() const;
+
+
+    /// Returns the Cuda buffer containing Varying-stencil stencil sizes
+    cl_mem GetVaryingStencilTablesSizes() const;
+
+    /// Returns the Cuda buffer containing Varying-stencil stencil offsets
+    cl_mem GetVaryingStencilTablesOffsets() const;
+
+    /// Returns the Cuda buffer containing Varying-stencil stencil indices
+    cl_mem GetVaryingStencilTablesIndices() const;
+
+    /// Returns the Cuda buffer containing Varying-stencil stencil weights
+    cl_mem GetVaryingStencilTablesWeights() const;
+
 
 protected:
-    explicit OsdCLComputeContext(FarSubdivisionTables const *subdivisionTables,
-                                 FarVertexEditTables const *vertexEditTables,
+    explicit CLComputeContext(Far::StencilTables const * vertexStencilTables,
+                                 Far::StencilTables const * varyingStencilTables,
                                  cl_context clContext);
 
 private:
-    std::vector<OsdCLTable*> _tables;
-    std::vector<OsdCLHEditTable*> _editTables;
+
+    class CLStencilTables;
+
+    CLStencilTables * _vertexStencilTables,
+                    * _varyingStencilTables;
+
+    int _numControlVertices;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

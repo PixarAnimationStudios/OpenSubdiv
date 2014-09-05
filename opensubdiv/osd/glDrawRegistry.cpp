@@ -32,7 +32,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdGLDrawConfig::~OsdGLDrawConfig()
+namespace Osd {
+
+GLDrawConfig::~GLDrawConfig()
 {
     glDeleteProgram(program);
 }
@@ -55,13 +57,13 @@ static const char *transitionShaderSource =
 ;
 #endif
 
-OsdGLDrawRegistryBase::~OsdGLDrawRegistryBase() {}
+GLDrawRegistryBase::~GLDrawRegistryBase() {}
 
-OsdGLDrawSourceConfig *
-OsdGLDrawRegistryBase::_CreateDrawSourceConfig(
-    OsdDrawContext::PatchDescriptor const & desc)
+GLDrawSourceConfig *
+GLDrawRegistryBase::_CreateDrawSourceConfig(
+    DrawContext::PatchDescriptor const & desc)
 {
-    OsdGLDrawSourceConfig * sconfig = _NewDrawSourceConfig();
+    GLDrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     sconfig->commonShader.source = commonShaderSource;
@@ -79,9 +81,9 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(
         sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
     }
 
-    if (desc.GetPattern() == FarPatchTables::NON_TRANSITION) {
+    if (desc.GetPattern() == Far::PatchTables::NON_TRANSITION) {
         switch (desc.GetType()) {
-        case FarPatchTables::REGULAR:
+        case Far::PatchTables::REGULAR:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
             sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_BSPLINE_SHADER");
@@ -92,7 +94,7 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
             break;
-        case FarPatchTables::BOUNDARY:
+        case Far::PatchTables::BOUNDARY:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
             sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_BSPLINE_SHADER");
@@ -104,7 +106,7 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
             break;
-        case FarPatchTables::CORNER:
+        case Far::PatchTables::CORNER:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
             sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_BSPLINE_SHADER");
@@ -116,7 +118,7 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
             break;
-        case FarPatchTables::GREGORY:
+        case Far::PatchTables::GREGORY:
             sconfig->vertexShader.source = gregoryShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
             sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_GREGORY_SHADER");
@@ -127,7 +129,7 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_GREGORY_SHADER");
             break;
-        case FarPatchTables::GREGORY_BOUNDARY:
+        case Far::PatchTables::GREGORY_BOUNDARY:
             sconfig->vertexShader.source = gregoryShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
             sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_GREGORY_SHADER");
@@ -174,9 +176,9 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(
         sconfig->tessControlShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
         sconfig->tessEvalShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
 
-        if (desc.GetType() == FarPatchTables::BOUNDARY) {
+        if (desc.GetType() == Far::PatchTables::BOUNDARY) {
             sconfig->tessControlShader.AddDefine("OSD_PATCH_BOUNDARY");
-        } else if (desc.GetType() == FarPatchTables::CORNER) {
+        } else if (desc.GetType() == Far::PatchTables::CORNER) {
             sconfig->tessControlShader.AddDefine("OSD_PATCH_CORNER");
         }
     }
@@ -188,8 +190,8 @@ OsdGLDrawRegistryBase::_CreateDrawSourceConfig(
 static GLuint
 _CompileShader(
         GLenum shaderType,
-        OpenSubdiv::OsdDrawShaderSource const & common,
-        OpenSubdiv::OsdDrawShaderSource const & source)
+        OpenSubdiv::Osd::DrawShaderSource const & common,
+        OpenSubdiv::Osd::DrawShaderSource const & source)
 {
     const char *sources[4];
     std::stringstream definitions;
@@ -221,7 +223,7 @@ _CompileShader(
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
         char * infoLog = new char[infoLogLength];
         glGetShaderInfoLog(shader, infoLogLength, NULL, infoLog);
-        OsdError(OSD_GLSL_COMPILE_ERROR,
+        Error(OSD_GLSL_COMPILE_ERROR,
                  "Error compiling GLSL shader: %s\nDefines: \n%s\n",
                  infoLog, defString.c_str());
         delete[] infoLog;
@@ -230,14 +232,14 @@ _CompileShader(
     return shader;
 }
 
-OsdGLDrawConfig *
-OsdGLDrawRegistryBase::_CreateDrawConfig(
-        OsdDrawContext::PatchDescriptor const & /* desc */,
-        OsdGLDrawSourceConfig const * sconfig) 
+GLDrawConfig *
+GLDrawRegistryBase::_CreateDrawConfig(
+        DrawContext::PatchDescriptor const & /* desc */,
+        GLDrawSourceConfig const * sconfig) 
 {
     assert(sconfig);
 
-    OsdGLDrawConfig * config = _NewDrawConfig();
+    GLDrawConfig * config = _NewDrawConfig();
     assert(config);
 
     GLuint vertexShader =
@@ -296,7 +298,7 @@ OsdGLDrawRegistryBase::_CreateDrawConfig(
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
         char * infoLog = new char[infoLogLength];
         glGetProgramInfoLog(program, infoLogLength, NULL, infoLog);
-        OsdError(OSD_GLSL_LINK_ERROR,
+        Error(OSD_GLSL_LINK_ERROR,
                  "Error linking GLSL program: %s\n", infoLog);
         delete[] infoLog;
     }
@@ -306,5 +308,7 @@ OsdGLDrawRegistryBase::_CreateDrawConfig(
     return config;
 }
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

@@ -34,11 +34,11 @@
 #include <osd/cpuD3D11VertexBuffer.h>
 #include <osd/cpuComputeContext.h>
 #include <osd/cpuComputeController.h>
-OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
+OpenSubdiv::Osd::CpuComputeController * g_cpuComputeController = NULL;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
     #include <osd/ompComputeController.h>
-    OpenSubdiv::OsdOmpComputeController * g_ompComputeController = NULL;
+    OpenSubdiv::Osd::OmpComputeController * g_ompComputeController = NULL;
 #endif
 
 #undef OPENSUBDIV_HAS_OPENCL    // XXX: dyu OpenCL D3D11 interop needs work...
@@ -51,7 +51,7 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
 
     cl_context g_clContext;
     cl_command_queue g_clQueue;
-    OpenSubdiv::OsdCLComputeController * g_clComputeController = NULL;
+    OpenSubdiv::Osd::CLComputeController * g_clComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
@@ -63,24 +63,24 @@ OpenSubdiv::OsdCpuComputeController * g_cpuComputeController = NULL;
     #include <cuda_d3d11_interop.h>
 
     bool g_cudaInitialized = false;
-    OpenSubdiv::OsdCudaComputeController * g_cudaComputeController = NULL;
+    OpenSubdiv::Osd::CudaComputeController * g_cudaComputeController = NULL;
 #endif
 
 #include <osd/d3d11VertexBuffer.h>
 #include <osd/d3d11ComputeContext.h>
 #include <osd/d3d11ComputeController.h>
-OpenSubdiv::OsdD3D11ComputeController * g_d3d11ComputeController = NULL;
+OpenSubdiv::Osd::D3D11ComputeController * g_d3d11ComputeController = NULL;
 
 #include <osd/d3d11Mesh.h>
-OpenSubdiv::OsdD3D11MeshInterface *g_mesh;
+OpenSubdiv::Osd::D3D11MeshInterface *g_mesh;
 
 #include "Ptexture.h"
 #include "PtexUtils.h"
 
+#include <common/vtr_utils.h>
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/d3d11_hud.h"
-#include "../../regression/common/shape_utils.h"
 
 static const char *g_shaderSource =
 #include "shader.gen.h"
@@ -90,15 +90,12 @@ static const char *g_shaderSource =
 #include <cfloat>
 #include <fstream>
 #include <string>
+#include <iostream>
+#include <iterator>
 #include <sstream>
 #include <vector>
 
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }
-
-typedef OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>     OsdHbrMesh;
-typedef OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex>   OsdHbrVertex;
-typedef OpenSubdiv::HbrFace<OpenSubdiv::OsdVertex>     OsdHbrFace;
-typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
 
 enum KernelType { kCPU = 0,
                   kOPENMP = 1,
@@ -220,10 +217,10 @@ float g_animTime = 0;
 std::vector<float> g_positions,
                    g_normals;
 
-OpenSubdiv::OsdD3D11PtexMipmapTexture * g_osdPTexImage = 0;
-OpenSubdiv::OsdD3D11PtexMipmapTexture * g_osdPTexDisplacement = 0;
-OpenSubdiv::OsdD3D11PtexMipmapTexture * g_osdPTexOcclusion = 0;
-OpenSubdiv::OsdD3D11PtexMipmapTexture * g_osdPTexSpecular = 0;
+OpenSubdiv::Osd::D3D11PtexMipmapTexture * g_osdPTexImage = 0;
+OpenSubdiv::Osd::D3D11PtexMipmapTexture * g_osdPTexDisplacement = 0;
+OpenSubdiv::Osd::D3D11PtexMipmapTexture * g_osdPTexOcclusion = 0;
+OpenSubdiv::Osd::D3D11PtexMipmapTexture * g_osdPTexSpecular = 0;
 const char * g_ptexColorFilename;
 
 ID3D11Device * g_pd3dDevice = NULL;
@@ -245,24 +242,28 @@ bool g_bDone = false;
 
 //------------------------------------------------------------------------------
 static void
-calcNormals(OsdHbrMesh * mesh, std::vector<float> const & pos, std::vector<float> & result ) {
+calcNormals(OpenSubdiv::Far::TopologyRefiner * refiner,
+    std::vector<float> const & pos, std::vector<float> & result ) {
+
+    typedef OpenSubdiv::Far::IndexArray IndexArray;
 
     // calc normal vectors
-    int nverts = (int)pos.size()/3;
+    int nverts = refiner->GetNumVertices(0),
+        nfaces = refiner->GetNumFaces(0);
 
-    int nfaces = mesh->GetNumCoarseFaces();
-    for (int i = 0; i < nfaces; ++i) {
-        OsdHbrFace * f = mesh->GetFace(i);
+    for (int face = 0; face < nfaces; ++face) {
 
-        float const * p0 = &pos[f->GetVertex(0)->GetID()*3],
-                    * p1 = &pos[f->GetVertex(1)->GetID()*3],
-                    * p2 = &pos[f->GetVertex(2)->GetID()*3];
+        IndexArray fverts = refiner->GetFaceVertices(0, face);
+
+        float const * p0 = &pos[fverts[0]*3],
+                    * p1 = &pos[fverts[1]*3],
+                    * p2 = &pos[fverts[2]*3];
 
         float n[3];
         cross(n, p0, p1, p2);
 
-        for (int j = 0; j < f->GetNumVertices(); j++) {
-            int idx = f->GetVertex(j)->GetID() * 3;
+        for (int vert = 0; vert < fverts.size(); ++vert) {
+            int idx = fverts[vert] * 3;
             result[idx  ] += n[0];
             result[idx+1] += n[1];
             result[idx+2] += n[2];
@@ -318,45 +319,56 @@ updateGeom() {
 
 //-------------------------------------------------------------------------------
 static void
-fitFrame()
-{
+fitFrame() {
     g_pan[0] = g_pan[1] = 0;
     g_dolly = g_size;
 }
 
 //-------------------------------------------------------------------------------
-template <class T>
-OpenSubdiv::HbrMesh<T> * createPTexGeo(PtexTexture * r)
-{
-    PtexMetaData* meta = r->getMetaData();
-    if (meta->numKeys() < 3) return NULL;
+Shape *
+createPTexGeo(PtexTexture * r) {
 
-    const float* vp;
-    const int *vi, *vc;
+    PtexMetaData* meta = r->getMetaData();
+
+    if (meta->numKeys() < 3) {
+        return NULL;
+    }
+
+    float const * vp;
+    int const *vi, *vc;
     int nvp, nvi, nvc;
 
     meta->getValue("PtexFaceVertCounts", vc, nvc);
-    if (nvc == 0)
+    if (nvc == 0) {
         return NULL;
-
+    }
     meta->getValue("PtexVertPositions", vp, nvp);
-    if (nvp == 0)
+    if (nvp == 0) {
         return NULL;
-
+    }
     meta->getValue("PtexFaceVertIndices", vi, nvi);
-    if (nvi == 0)
+    if (nvi == 0) {
         return NULL;
+    }
 
-    static OpenSubdiv::HbrCatmarkSubdivision<T>  _catmark;
-    static OpenSubdiv::HbrBilinearSubdivision<T>  _bilinear;
-    OpenSubdiv::HbrMesh<T> * mesh;
-    if (g_scheme == 0)
-        mesh = new OpenSubdiv::HbrMesh<T>(&_catmark);
-    else
-        mesh = new OpenSubdiv::HbrMesh<T>(&_bilinear);
+    Shape * shape = new Shape;
 
-    g_positions.clear();
-    g_positions.reserve(nvp);
+    shape->scheme = kCatmark;
+
+    shape->verts.resize(nvp);
+    for (int i=0; i<nvp; ++i) {
+        shape->verts[i] = vp[i];
+    }
+
+    shape->nvertsPerFace.resize(nvc);
+    for (int i=0; i<nvc; ++i) {
+        shape->nvertsPerFace[i] = vc[i];
+    }
+
+    shape->faceverts.resize(nvi);
+    for (int i=0; i<nvi; ++i) {
+        shape->faceverts[i] = vi[i];
+    }
 
     // compute model bounding
     float min[3] = {vp[0], vp[1], vp[2]};
@@ -364,37 +376,18 @@ OpenSubdiv::HbrMesh<T> * createPTexGeo(PtexTexture * r)
     for (int i = 0; i < nvp/3; ++i) {
         for (int j = 0; j < 3; ++j) {
             float v = vp[i*3+j];
-            g_positions.push_back(v);
             min[j] = std::min(min[j], v);
             max[j] = std::max(max[j], v);
         }
-        mesh->NewVertex(i, T());
     }
+
     for (int j = 0; j < 3; ++j) {
         g_center[j] = (min[j] + max[j]) * 0.5f;
         g_size += (max[j]-min[j])*(max[j]-min[j]);
     }
     g_size = sqrtf(g_size);
 
-    const int *fv = vi;
-    for (int i = 0, ptxidx = 0; i < nvc; ++i) {
-        int nv = vc[i];
-        OpenSubdiv::HbrFace<T> * face = mesh->NewFace(nv, (int *)fv, 0);
-
-        face->SetPtexIndex(ptxidx);
-        if (nv != 4)
-            ptxidx += nv;
-        else
-            ptxidx++;
-
-        fv += nv;
-    }
-    mesh->SetInterpolateBoundaryMethod(OpenSubdiv::HbrMesh<T>::k_InterpolateBoundaryEdgeOnly);
-//  set creases here
-//  applyTags<T>( mesh, sh );
-    mesh->Finish();
-
-    return mesh;
+    return shape;
 }
 
 //------------------------------------------------------------------------------
@@ -437,10 +430,10 @@ union Effect {
     }
 };
 
-typedef std::pair<OpenSubdiv::OsdDrawContext::PatchDescriptor, Effect> EffectDesc;
+typedef std::pair<OpenSubdiv::Osd::DrawContext::PatchDescriptor, Effect> EffectDesc;
 
 
-class EffectDrawRegistry : public OpenSubdiv::OsdD3D11DrawRegistry<EffectDesc> {
+class EffectDrawRegistry : public OpenSubdiv::Osd::D3D11DrawRegistry<EffectDesc> {
 
 protected:
     virtual ConfigType *
@@ -474,8 +467,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc, ID3D11Device 
         sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
 
     bool quad = true;
-    if (desc.first.GetType() == OpenSubdiv::FarPatchTables::QUADS ||
-        desc.first.GetType() == OpenSubdiv::FarPatchTables::TRIANGLES) {
+    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS ||
+        desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.target = "vs_5_0";
         sconfig->vertexShader.entry = "vs_main";
@@ -598,8 +591,8 @@ EffectDrawRegistry::_CreateDrawConfig(
         ID3D11Device * pd3dDevice,
         ID3D11InputLayout ** ppInputLayout,
         D3D11_INPUT_ELEMENT_DESC const * pInputElementDescs,
-        int numInputElements)
-{
+        int numInputElements) {
+
     ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig,
         pd3dDevice, ppInputLayout, pInputElementDescs, numInputElements);
     assert(config);
@@ -610,9 +603,9 @@ EffectDrawRegistry::_CreateDrawConfig(
 EffectDrawRegistry effectRegistry;
 
 //------------------------------------------------------------------------------
-OpenSubdiv::OsdD3D11PtexMipmapTexture *
-createPtex(const char *filename)
-{
+OpenSubdiv::Osd::D3D11PtexMipmapTexture *
+createPtex(const char *filename) {
+
     Ptex::String ptexError;
     printf("Loading ptex : %s\n", filename);
 
@@ -630,8 +623,8 @@ createPtex(const char *filename)
         printf("Error in reading %s\n", filename);
         exit(1);
     }
-    OpenSubdiv::OsdD3D11PtexMipmapTexture *osdPtex =
-        OpenSubdiv::OsdD3D11PtexMipmapTexture::Create(g_pd3dDeviceContext,
+    OpenSubdiv::Osd::D3D11PtexMipmapTexture *osdPtex =
+        OpenSubdiv::Osd::D3D11PtexMipmapTexture::Create(g_pd3dDeviceContext,
                                                       ptex, g_maxMipmapLevels);
 
     ptex->release();
@@ -643,9 +636,9 @@ createPtex(const char *filename)
     return osdPtex;
 }
 
+//------------------------------------------------------------------------------
 void
-createOsdMesh(int level, int kernel)
-{
+createOsdMesh(int level, int kernel) {
     Ptex::String ptexError;
     PtexTexture *ptexColor = PtexTexture::open(g_ptexColorFilename, ptexError, true);
     if (ptexColor == NULL) {
@@ -654,11 +647,37 @@ createOsdMesh(int level, int kernel)
     }
 
     // generate Hbr representation from ptex
-    OsdHbrMesh * hmesh = createPTexGeo<OpenSubdiv::OsdVertex>(ptexColor);
-    if (hmesh == NULL) return;
+    Shape * shape = createPTexGeo(ptexColor);
+    if (not shape) {
+        return;
+    }
+
+    g_positions=shape->verts;
+
+    typedef OpenSubdiv::Far::IndexArray IndexArray;
+
+    // create Vtr mesh (topology)
+    OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);
+    OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
+
+    OpenSubdiv::Far::TopologyRefiner * refiner =
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
+
+    // save coarse topology (used for coarse mesh drawing)
+
+    // create cage edge index
+    int nedges = refiner->GetNumEdges(0);
+    std::vector<int> edgeIndices(nedges*2);
+    for(int i=0; i<nedges; ++i) {
+        IndexArray verts = refiner->GetEdgeVertices(0, i);
+        edgeIndices[i*2  ]=verts[0];
+        edgeIndices[i*2+1]=verts[1];
+    }
+
+    delete shape;
 
     g_normals.resize(g_positions.size(), 0.0f);
-    calcNormals(hmesh, g_positions, g_normals);
+    calcNormals(refiner, g_positions, g_normals);
 
     delete g_mesh;
     g_mesh = NULL;
@@ -666,35 +685,35 @@ createOsdMesh(int level, int kernel)
     // Adaptive refinement currently supported only for catmull-clark scheme
     bool doAdaptive = (g_adaptive != 0 and g_scheme == 0);
 
-    OpenSubdiv::OsdMeshBitset bits;
-    bits.set(OpenSubdiv::MeshAdaptive, doAdaptive);
-    bits.set(OpenSubdiv::MeshPtexData, true);
+    OpenSubdiv::Osd::MeshBitset bits;
+    bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
+    bits.set(OpenSubdiv::Osd::MeshPtexData, true);
 
     int numVertexElements = 6; //g_adaptive ? 3 : 6;
     int numVaryingElements = 0;
 
     if (kernel == kCPU) {
         if (not g_cpuComputeController) {
-            g_cpuComputeController = new OpenSubdiv::OsdCpuComputeController();
+            g_cpuComputeController = new OpenSubdiv::Osd::CpuComputeController();
         }
-        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuD3D11VertexBuffer,
-                                         OpenSubdiv::OsdCpuComputeController,
-                                         OpenSubdiv::OsdD3D11DrawContext>(
+        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuD3D11VertexBuffer,
+                                         OpenSubdiv::Osd::CpuComputeController,
+                                         OpenSubdiv::Osd::D3D11DrawContext>(
                                                 g_cpuComputeController,
-                                                hmesh,
+                                                refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
                                                 level, bits, g_pd3dDeviceContext);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         if (not g_ompComputeController) {
-            g_ompComputeController = new OpenSubdiv::OsdOmpComputeController();
+            g_ompComputeController = new OpenSubdiv::Osd::OmpComputeController();
         }
-        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCpuD3D11VertexBuffer,
-                                         OpenSubdiv::OsdOmpComputeController,
-                                         OpenSubdiv::OsdD3D11DrawContext>(
+        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuD3D11VertexBuffer,
+                                         OpenSubdiv::Osd::OmpComputeController,
+                                         OpenSubdiv::Osd::D3D11DrawContext>(
                                                 g_ompComputeController,
-                                                hmesh,
+                                                refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
                                                 level, bits, g_pd3dDeviceContext);
@@ -702,13 +721,13 @@ createOsdMesh(int level, int kernel)
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if (kernel == kCL) {
         if (not g_clComputeController) {
-            g_clComputeController = new OpenSubdiv::OsdCLComputeController(g_clContext, g_clQueue);
+            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(g_clContext, g_clQueue);
         }
-        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCLD3D11VertexBuffer,
-                                         OpenSubdiv::OsdCLComputeController,
-                                         OpenSubdiv::OsdD3D11DrawContext>(
+        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLD3D11VertexBuffer,
+                                         OpenSubdiv::Osd::CLComputeController,
+                                         OpenSubdiv::Osd::D3D11DrawContext>(
                                                 g_clComputeController,
-                                                hmesh,
+                                                refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
                                                 level, bits, g_pd3dDeviceContext);
@@ -716,26 +735,26 @@ createOsdMesh(int level, int kernel)
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (kernel == kCUDA) {
         if (not g_cudaComputeController) {
-            g_cudaComputeController = new OpenSubdiv::OsdCudaComputeController();
+            g_cudaComputeController = new OpenSubdiv::Osd::CudaComputeController();
         }
-        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdCudaD3D11VertexBuffer,
-                                         OpenSubdiv::OsdCudaComputeController,
-                                         OpenSubdiv::OsdD3D11DrawContext>(
+        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::OsdCudaD3D11VertexBuffer,
+                                         OpenSubdiv::Osd::CudaComputeController,
+                                         OpenSubdiv::Osd::D3D11DrawContext>(
                                                 g_cudaComputeController,
-                                                hmesh,
+                                                refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
                                                 level, bits, g_pd3dDeviceContext);
 #endif
     } else if (g_kernel == kDirectCompute) {
         if (not g_d3d11ComputeController) {
-            g_d3d11ComputeController = new OpenSubdiv::OsdD3D11ComputeController(g_pd3dDeviceContext);
+            g_d3d11ComputeController = new OpenSubdiv::Osd::D3D11ComputeController(g_pd3dDeviceContext);
         }
-        g_mesh = new OpenSubdiv::OsdMesh<OpenSubdiv::OsdD3D11VertexBuffer,
-                                         OpenSubdiv::OsdD3D11ComputeController,
-                                         OpenSubdiv::OsdD3D11DrawContext>(
+        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::D3D11VertexBuffer,
+                                         OpenSubdiv::Osd::D3D11ComputeController,
+                                         OpenSubdiv::Osd::D3D11DrawContext>(
                                                 g_d3d11ComputeController,
-                                                hmesh,
+                                                refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
                                                 level, bits, g_pd3dDeviceContext);
@@ -743,16 +762,13 @@ createOsdMesh(int level, int kernel)
         printf("Unsupported kernel %s\n", getKernelName(kernel));
     }
 
-    // Hbr mesh can be deleted
-    delete hmesh;
-
     updateGeom();
 }
 
 //------------------------------------------------------------------------------
 static void
-bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
-{
+bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patch) {
+
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
 
     // input layout
@@ -923,9 +939,10 @@ bindProgram(Effect effect, OpenSubdiv::OsdDrawContext::PatchArray const & patch)
     }
 }
 
+//------------------------------------------------------------------------------
 static void
-drawModel()
-{
+drawModel() {
+
     ID3D11Buffer *buffer = g_mesh->BindVertexBuffer();
     assert(buffer);
 
@@ -933,18 +950,18 @@ drawModel()
     UINT hOffsets = 0;
     g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &buffer, &hStrides, &hOffsets);
 
-    OpenSubdiv::OsdDrawContext::PatchArrayVector const & patches =
-        g_mesh->GetDrawContext()->patchArrays;
+    OpenSubdiv::Osd::DrawContext::PatchArrayVector const & patches =
+        g_mesh->GetDrawContext()->GetPatchArrays();
 
     g_pd3dDeviceContext->IASetIndexBuffer(g_mesh->GetDrawContext()->patchIndexBuffer,
                                           DXGI_FORMAT_R32_UINT, 0);
 
     // patch drawing
     for (int i = 0; i < (int)patches.size(); ++i) {
-        OpenSubdiv::OsdDrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
         D3D11_PRIMITIVE_TOPOLOGY topology;
-        // if (patch.GetDescriptor().GetType() != OpenSubdiv::FarPatchTables::REGULAR) continue;
+        // if (patch.GetDescriptor().GetType() != OpenSubdiv::Far::PatchTables::REGULAR) continue;
 
         if (g_mesh->GetDrawContext()->IsAdaptive()) {
             switch (patch.GetDescriptor().GetNumControlVertices()) {
@@ -999,8 +1016,8 @@ drawModel()
 
 //------------------------------------------------------------------------------
 static void
-display()
-{
+display() {
+
     float color[4] = {0.006f, 0.006f, 0.006f, 1.0f};
     g_pd3dDeviceContext->ClearRenderTargetView(g_pSwapChainRTV, color);
 
@@ -1098,7 +1115,7 @@ quit() {
     SAFE_RELEASE(g_pSwapChain);
     SAFE_RELEASE(g_pd3dDeviceContext);
     SAFE_RELEASE(g_pd3dDevice);
-    
+
     delete g_cpuComputeController;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
@@ -1139,14 +1156,13 @@ keyboard(char key) {
 
 //------------------------------------------------------------------------------
 static void
-callbackWireframe(int b)
-{
+callbackWireframe(int b) {
     g_wire = b;
 }
 
 static void
-callbackKernel(int k)
-{
+callbackKernel(int k) {
+
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
@@ -1168,36 +1184,30 @@ callbackKernel(int k)
 }
 
 static void
-callbackScheme(int s)
-{
+callbackScheme(int s) {
     g_scheme = s;
     createOsdMesh(g_level, g_kernel);
 }
 static void
-callbackLevel(int l)
-{
+callbackLevel(int l) {
     g_level = l;
     createOsdMesh(g_level, g_kernel);
 }
 static void
-callbackColor(int c)
-{
+callbackColor(int c) {
     g_color = c;
 }
 static void
-callbackDisplacement(int d)
-{
+callbackDisplacement(int d) {
     g_displacement = d;
 }
 static void
-callbackNormal(int n)
-{
+callbackNormal(int n) {
     g_normal = n;
 }
 
 static void
-callbackCheckBox(bool checked, int button)
-{
+callbackCheckBox(bool checked, int button) {
     bool rebuild = false;
 
     switch (button) {
@@ -1240,8 +1250,7 @@ callbackCheckBox(bool checked, int button)
 }
 
 static void
-callbackSlider(float value, int data)
-{
+callbackSlider(float value, int data) {
     switch (data) {
     case 0:
         g_mipmapBias = value;
@@ -1253,8 +1262,7 @@ callbackSlider(float value, int data)
 }
 
 static void
-initHUD()
-{
+initHUD() {
     g_hud = new D3D11hud(g_pd3dDeviceContext);
     g_hud->Init(g_width, g_height);
 
@@ -1375,8 +1383,8 @@ initHUD()
 
 //------------------------------------------------------------------------------
 static bool
-initD3D11(HWND hWnd)
-{
+initD3D11(HWND hWnd) {
+
     D3D_DRIVER_TYPE driverTypes[] = {
         D3D_DRIVER_TYPE_HARDWARE,
         D3D_DRIVER_TYPE_WARP,
@@ -1384,7 +1392,7 @@ initD3D11(HWND hWnd)
     };
 
     UINT numDriverTypes = ARRAYSIZE(driverTypes);
-    
+
     DXGI_SWAP_CHAIN_DESC hDXGISwapChainDesc;
     hDXGISwapChainDesc.BufferDesc.Width = g_width;
     hDXGISwapChainDesc.BufferDesc.Height = g_height;
@@ -1401,7 +1409,7 @@ initD3D11(HWND hWnd)
     hDXGISwapChainDesc.Windowed = TRUE;
     hDXGISwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
     hDXGISwapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    
+
     // create device and swap chain
     HRESULT hr;
     D3D_DRIVER_TYPE hDriverType = D3D_DRIVER_TYPE_NULL;
@@ -1487,8 +1495,8 @@ initD3D11(HWND hWnd)
 }
 
 static bool
-updateRenderTarget(HWND hWnd)
-{
+updateRenderTarget(HWND hWnd) {
+
     RECT rc;
     GetClientRect(hWnd, &rc);
     UINT width = rc.right - rc.left;
@@ -1512,7 +1520,7 @@ updateRenderTarget(HWND hWnd)
         MessageBoxW(hWnd, L"SwpChain GetBuffer", L"Err", MB_ICONSTOP);
         return false;
     }
-    
+
     // create render target from the back buffer
     if(FAILED(g_pd3dDevice->CreateRenderTargetView(hpBackBuffer, NULL, &g_pSwapChainRTV))){
         MessageBoxW(hWnd, L"CreateRenderTargetView", L"Err", MB_ICONSTOP);
@@ -1559,14 +1567,14 @@ updateRenderTarget(HWND hWnd)
     vp.MinDepth = 0.0f;
     vp.MaxDepth = 1.0f;
     g_pd3dDeviceContext->RSSetViewports(1, &vp);
-    
+
     return true;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::OsdErrorType err, const char *message)
-{
+callbackError(OpenSubdiv::Osd::ErrorType err, const char *message) {
+
     std::ostringstream s;
     s << "OsdError: " << err << "\n";
     s << message;
@@ -1575,8 +1583,8 @@ callbackError(OpenSubdiv::OsdErrorType err, const char *message)
 
 //------------------------------------------------------------------------------
 static LRESULT WINAPI
-msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
+msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+
     switch(msg)
     {
         case WM_KEYDOWN:
@@ -1614,8 +1622,8 @@ msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 }
 
 static std::vector<std::string>
-tokenize(std::string const & src)
-{
+tokenize(std::string const & src) {
+
     std::vector<std::string> result;
 
     std::stringstream input(src);
@@ -1627,8 +1635,8 @@ tokenize(std::string const & src)
 }
 
 int WINAPI
-WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
-{
+WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow) {
+
     // register window class
     TCHAR szWindowClass[] = "OPENSUBDIV_EXAMPLE";
     WNDCLASS wcex;
@@ -1648,8 +1656,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
     RECT rect = { 0, 0, g_width, g_height };
     AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
 
+    static const char windowTitle[] = "OpenSubdiv dxPtexViewer " OPENSUBDIV_VERSION_STRING;
+
     HWND hWnd = CreateWindow(szWindowClass,
-                        "OpenSubdiv DirectX Ptex Viewer",
+                        windowTitle,
                         WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                         CW_USEDEFAULT,
                         CW_USEDEFAULT,
@@ -1698,7 +1708,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
         }
     }
 
-    OsdSetErrorCallback(callbackError);
+    OpenSubdiv::Osd::SetErrorCallback(callbackError);
 
     g_ptexColorFilename = colorFilename;
     if (g_ptexColorFilename == NULL) {

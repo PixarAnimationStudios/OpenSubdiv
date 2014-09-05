@@ -27,8 +27,12 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdDrawConfig::~OsdDrawConfig() {}
-OsdDrawSourceConfig::~OsdDrawSourceConfig() {}
+namespace Osd {
 
-} // end namespace OPENSUBDIV_VERSION
+DrawConfig::~DrawConfig() {}
+DrawSourceConfig::~DrawSourceConfig() {}
+
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

@@ -22,255 +22,237 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/subdivisionTables.h"
-#include "../far/vertexEditTables.h"
-#include "../osd/debug.h"
-#include "../osd/error.h"
+#include "../far/stencilTables.h"
+
 #include "../osd/d3d11ComputeContext.h"
-#include "../osd/d3d11KernelBundle.h"
+#include "../osd/error.h"
 
 #include <D3D11.h>
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }
 
-void
-OsdD3D11ComputeTable::createBuffer(int size, const void *ptr, DXGI_FORMAT format, int numElements,
-                                   ID3D11DeviceContext *deviceContext) {
+// ----------------------------------------------------------------------------
 
-    if (size == 0) {
-        _buffer = NULL;
-        _srv = NULL;
-        return;
+struct D3D11Table {
+
+    D3D11Table() : buffer(0), srv(0) { }
+
+    ~D3D11Table() {
+        SAFE_RELEASE(buffer);
+        SAFE_RELEASE(srv);
     }
 
-    ID3D11Device *device = NULL;
-    deviceContext->GetDevice(&device);
-    assert(device);
-
-    D3D11_BUFFER_DESC bd;
-    bd.ByteWidth = size;
-    bd.Usage = D3D11_USAGE_IMMUTABLE;
-    bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    bd.CPUAccessFlags = 0;
-    bd.MiscFlags = 0;
-    bd.StructureByteStride = 0;
-    D3D11_SUBRESOURCE_DATA initData;
-    initData.pSysMem = ptr;
-    HRESULT hr = device->CreateBuffer(&bd, &initData, &_buffer);
-    if (FAILED(hr)) {
-        OsdError(OSD_D3D11_COMPUTE_BUFFER_CREATE_ERROR,
-                 "Error creating compute table buffer\n");
-        return;
+    bool IsValid() const {
+        return (buffer and srv);
     }
 
-    D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
-    ZeroMemory(&srvd, sizeof(srvd));
-    srvd.Format = format;
-    srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-    srvd.Buffer.FirstElement = 0;
-    srvd.Buffer.NumElements = numElements;
-    hr = device->CreateShaderResourceView(_buffer, &srvd, &_srv);
-    if (FAILED(hr)) {
-        OsdError(OSD_D3D11_COMPUTE_BUFFER_CREATE_ERROR,
-                 "Error creating compute table shader resource view\n");
-        return;
+    template <class T> void initialize(std::vector<T> const & src,
+        DXGI_FORMAT format, ID3D11DeviceContext *deviceContext) {
+
+        size_t size = src.size()*sizeof(T);
+
+        if (size==0) {
+            buffer = 0;
+            srv = 0;
+            return;
+        }
+
+        ID3D11Device *device = 0;
+        deviceContext->GetDevice(&device);
+        assert(device);
+
+        D3D11_BUFFER_DESC bd;
+        bd.ByteWidth = (unsigned int)size;
+        bd.Usage = D3D11_USAGE_IMMUTABLE;
+        bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        bd.CPUAccessFlags = 0;
+        bd.MiscFlags = 0;
+        bd.StructureByteStride = 0;
+
+        D3D11_SUBRESOURCE_DATA initData;
+        initData.pSysMem = &src.at(0);
+
+        HRESULT hr = device->CreateBuffer(&bd, &initData, &buffer);
+        if (FAILED(hr)) {
+            Error(OSD_D3D11_COMPUTE_BUFFER_CREATE_ERROR,
+                     "Error creating compute table buffer\n");
+            return;
+        }
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
+        ZeroMemory(&srvd, sizeof(srvd));
+        srvd.Format = format;
+        srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+        srvd.Buffer.FirstElement = 0;
+        srvd.Buffer.NumElements = (unsigned int)src.size();
+
+        hr = device->CreateShaderResourceView(buffer, &srvd, &srv);
+        if (FAILED(hr)) {
+            Error(OSD_D3D11_COMPUTE_BUFFER_CREATE_ERROR,
+                     "Error creating compute table shader resource view\n");
+            return;
+        }
     }
-}
 
-OsdD3D11ComputeTable::~OsdD3D11ComputeTable() {
+    ID3D11Buffer * buffer;
+    ID3D11ShaderResourceView * srv;
+};
 
-    SAFE_RELEASE(_buffer);
-    SAFE_RELEASE(_srv);
-}
-
-ID3D11Buffer *
-OsdD3D11ComputeTable::GetBuffer() const {
-
-    return _buffer;
-}
-
-ID3D11ShaderResourceView *
-OsdD3D11ComputeTable::GetSRV() const {
-
-    return _srv;
-}
 
 // ----------------------------------------------------------------------------
 
-OsdD3D11ComputeHEditTable::OsdD3D11ComputeHEditTable(
-    const FarVertexEditTables::VertexEditBatch &batch, ID3D11DeviceContext *deviceContext)
-    : _primvarIndicesTable(new OsdD3D11ComputeTable(batch.GetVertexIndices(), deviceContext, DXGI_FORMAT_R32_UINT)),
-      _editValuesTable(new OsdD3D11ComputeTable(batch.GetValues(), deviceContext, DXGI_FORMAT_R32_FLOAT)) {
+class D3D11ComputeContext::D3D11StencilTables {
 
-    _operation = batch.GetOperation();
-    _primvarOffset = batch.GetPrimvarIndex();
-    _primvarWidth = batch.GetPrimvarWidth();
-}
+public:
 
-OsdD3D11ComputeHEditTable::~OsdD3D11ComputeHEditTable() {
+    D3D11StencilTables(Far::StencilTables const & stencilTables,
+        ID3D11DeviceContext *deviceContext) {
 
-    delete _primvarIndicesTable;
-    delete _editValuesTable;
-}
+        // convert unsigned char sizes buffer to ints (HLSL does not have uint8 type)
+        std::vector<int> const sizes(stencilTables.GetSizes().begin(),
+            stencilTables.GetSizes().end());
 
-const OsdD3D11ComputeTable *
-OsdD3D11ComputeHEditTable::GetPrimvarIndices() const {
+        _sizes.initialize(sizes, DXGI_FORMAT_R32_SINT, deviceContext);
 
-    return _primvarIndicesTable;
-}
+        _offsets.initialize(stencilTables.GetOffsets(), DXGI_FORMAT_R32_SINT, deviceContext);
 
-const OsdD3D11ComputeTable *
-OsdD3D11ComputeHEditTable::GetEditValues() const {
+        _indices.initialize(stencilTables.GetControlIndices(), DXGI_FORMAT_R32_SINT, deviceContext);
 
-    return _editValuesTable;
-}
+        _weights.initialize(stencilTables.GetWeights(), DXGI_FORMAT_R32_FLOAT, deviceContext);
+    }
 
-int
-OsdD3D11ComputeHEditTable::GetOperation() const {
+    bool IsValid() const {
+        return _sizes.IsValid() and _offsets.IsValid() and
+            _indices.IsValid() and _weights.IsValid();
+    }
 
-    return _operation;
-}
+    D3D11Table const & GetSizes() const {
+        return _sizes;
+    }
 
-int
-OsdD3D11ComputeHEditTable::GetPrimvarOffset() const {
+    D3D11Table const & GetOffsets() const {
+        return _offsets;
+    }
 
-    return _primvarOffset;
-}
+    D3D11Table const & GetIndices() const {
+        return _indices;
+    }
 
-int
-OsdD3D11ComputeHEditTable::GetPrimvarWidth() const {
+    D3D11Table const & GetWeights() const {
+        return _weights;
+    }
 
-    return _primvarWidth;
-}
+    void Bind(ID3D11DeviceContext * deviceContext) const {
+        ID3D11ShaderResourceView *SRViews[] = {
+            _sizes.srv,
+            _offsets.srv,
+            _indices.srv,
+            _weights.srv
+        };
+        deviceContext->CSSetShaderResources(1, 4, SRViews); // t1-t4
+    }
+
+    static void Unbind(ID3D11DeviceContext * deviceContext) {
+        ID3D11ShaderResourceView *SRViews[] = { 0, 0, 0, 0 };
+        deviceContext->CSSetShaderResources(1, 4, SRViews);
+    }
+
+
+private:
+
+    D3D11Table _sizes,
+               _offsets,
+               _indices,
+               _weights;
+};
 
 // ----------------------------------------------------------------------------
 
-OsdD3D11ComputeContext::OsdD3D11ComputeContext(
-    FarSubdivisionTables const *subdivisionTables,
-    FarVertexEditTables const *vertexEditTables,
-    ID3D11DeviceContext *deviceContext) {
+D3D11ComputeContext::D3D11ComputeContext(
+    ID3D11DeviceContext *deviceContext,
+        Far::StencilTables const * vertexStencilTables,
+            Far::StencilTables const * varyingStencilTables) :
+                _vertexStencilTables(0), _varyingStencilTables(0),
+                    _numControlVertices(0) {
 
-    // allocate 5 or 7 tables
-    // XXXtakahito: Although _tables size depends on table type, F_IT is set
-    // to NULL even in loop case, to determine the condition in
-    // bindShaderStorageBuffer()...
-    _tables.resize(7, 0);
-
-    _tables[FarSubdivisionTables::E_IT]  = new OsdD3D11ComputeTable(subdivisionTables->Get_E_IT(), deviceContext, DXGI_FORMAT_R32_SINT);
-    _tables[FarSubdivisionTables::V_IT]  = new OsdD3D11ComputeTable(subdivisionTables->Get_V_IT(), deviceContext, DXGI_FORMAT_R32_UINT);
-    _tables[FarSubdivisionTables::V_ITa] = new OsdD3D11ComputeTable(subdivisionTables->Get_V_ITa(), deviceContext, DXGI_FORMAT_R32_SINT);
-    _tables[FarSubdivisionTables::E_W]   = new OsdD3D11ComputeTable(subdivisionTables->Get_E_W(), deviceContext, DXGI_FORMAT_R32_FLOAT);
-    _tables[FarSubdivisionTables::V_W]   = new OsdD3D11ComputeTable(subdivisionTables->Get_V_W(), deviceContext, DXGI_FORMAT_R32_FLOAT);
-
-    if (subdivisionTables->GetNumTables() > 5) {
-        _tables[FarSubdivisionTables::F_IT]  = new OsdD3D11ComputeTable(subdivisionTables->Get_F_IT(), deviceContext, DXGI_FORMAT_R32_UINT);
-        _tables[FarSubdivisionTables::F_ITa] = new OsdD3D11ComputeTable(subdivisionTables->Get_F_ITa(), deviceContext, DXGI_FORMAT_R32_SINT);
-    } else {
-        _tables[FarSubdivisionTables::F_IT] = NULL;
-        _tables[FarSubdivisionTables::F_ITa] = NULL;
+    if (vertexStencilTables) {
+        _vertexStencilTables =
+            new D3D11StencilTables(*vertexStencilTables, deviceContext);
+        _numControlVertices = vertexStencilTables->GetNumControlVertices();
     }
 
-    // create hedit tables
-    if (vertexEditTables) {
-        int numEditBatches = vertexEditTables->GetNumBatches();
-        _editTables.reserve(numEditBatches);
-        for (int i = 0; i < numEditBatches; ++i) {
-            const FarVertexEditTables::VertexEditBatch & edit =
-                vertexEditTables->GetBatch(i);
-            _editTables.push_back(new OsdD3D11ComputeHEditTable(edit, deviceContext));
+    if (varyingStencilTables) {
+        _varyingStencilTables =
+            new D3D11StencilTables(*varyingStencilTables, deviceContext);
+
+        if (_numControlVertices) {
+            assert(_numControlVertices==varyingStencilTables->GetNumControlVertices());
+        } else {
+            _numControlVertices = varyingStencilTables->GetNumControlVertices();
         }
     }
 }
 
-OsdD3D11ComputeContext::~OsdD3D11ComputeContext() {
+D3D11ComputeContext::~D3D11ComputeContext() {
+    delete _vertexStencilTables;
+    delete _varyingStencilTables;
+}
 
-    for (size_t i = 0; i < _tables.size(); ++i) {
-        delete _tables[i];
+
+// ----------------------------------------------------------------------------
+
+bool
+D3D11ComputeContext::HasVertexStencilTables() const {
+    return _vertexStencilTables ? _vertexStencilTables->IsValid() : false;
+}
+
+bool
+D3D11ComputeContext::HasVaryingStencilTables() const {
+    return _varyingStencilTables ? _varyingStencilTables->IsValid() : false;
+}
+
+// ----------------------------------------------------------------------------
+
+void
+D3D11ComputeContext::BindVertexStencilTables(ID3D11DeviceContext *deviceContext) const {
+    if (_vertexStencilTables) {
+        _vertexStencilTables->Bind(deviceContext);
     }
-    for (size_t i = 0; i < _editTables.size(); ++i) {
-        delete _editTables[i];
+}
+
+void
+D3D11ComputeContext::BindVaryingStencilTables(ID3D11DeviceContext *deviceContext) const {
+    if (_varyingStencilTables) {
+        _varyingStencilTables->Bind(deviceContext);
     }
 }
 
-const OsdD3D11ComputeTable *
-OsdD3D11ComputeContext::GetTable(int tableIndex) const {
-
-    return _tables[tableIndex];
-}
-
-int
-OsdD3D11ComputeContext::GetNumEditTables() const {
-
-    return static_cast<int>(_editTables.size());
-}
-
-const OsdD3D11ComputeHEditTable *
-OsdD3D11ComputeContext::GetEditTable(int tableIndex) const {
-
-    return _editTables[tableIndex];
-}
-
-OsdD3D11ComputeContext *
-OsdD3D11ComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
-                               FarVertexEditTables const *vertexEditTables,
-                               ID3D11DeviceContext *deviceContext) {
-
-    return new OsdD3D11ComputeContext(subdivisionTables, vertexEditTables, deviceContext);
-}
-
 void
-OsdD3D11ComputeContext::BindEditShaderStorageBuffers(int editIndex,
-                                                     ID3D11DeviceContext *deviceContext) const {
-
-    const OsdD3D11ComputeHEditTable * edit = _editTables[editIndex];
-    const OsdD3D11ComputeTable * primvarIndices = edit->GetPrimvarIndices();
-    const OsdD3D11ComputeTable * editValues = edit->GetEditValues();
-
-    ID3D11ShaderResourceView *SRViews[] = {
-        primvarIndices->GetSRV(),
-        editValues->GetSRV(),
-    };
-    deviceContext->CSSetShaderResources(9, 2, SRViews); // t9-t10
+D3D11ComputeContext::UnbindStencilTables(ID3D11DeviceContext *deviceContext) const {
+    D3D11StencilTables::Unbind(deviceContext);
 }
 
-void
-OsdD3D11ComputeContext::UnbindEditShaderStorageBuffers(ID3D11DeviceContext *deviceContext) const {
 
-    ID3D11ShaderResourceView *SRViews[] = { 0, 0 };
-    deviceContext->CSSetShaderResources(9, 2, SRViews); // t9-t10
+// ----------------------------------------------------------------------------
+
+D3D11ComputeContext *
+D3D11ComputeContext::Create(ID3D11DeviceContext *deviceContext,
+    Far::StencilTables const * vertexStencilTables,
+        Far::StencilTables const * varyingStencilTables) {
+
+    D3D11ComputeContext *result =
+        new D3D11ComputeContext(deviceContext, vertexStencilTables, varyingStencilTables);
+
+    return result;
 }
 
-void
-OsdD3D11ComputeContext::BindShaderStorageBuffers(ID3D11DeviceContext *deviceContext) const {
-
-    // XXX: should be better handling for loop subdivision.
-    if (_tables[FarSubdivisionTables::F_IT]) {
-        ID3D11ShaderResourceView *SRViews[] = {
-            _tables[FarSubdivisionTables::F_IT]->GetSRV(),
-            _tables[FarSubdivisionTables::F_ITa]->GetSRV(),
-        };
-        deviceContext->CSSetShaderResources(2, 2, SRViews); // t2-t3
-    }
-
-    ID3D11ShaderResourceView *SRViews[] = {
-        _tables[FarSubdivisionTables::E_IT]->GetSRV(),
-        _tables[FarSubdivisionTables::V_IT]->GetSRV(),
-        _tables[FarSubdivisionTables::V_ITa]->GetSRV(),
-        _tables[FarSubdivisionTables::E_W]->GetSRV(),
-        _tables[FarSubdivisionTables::V_W]->GetSRV(),
-    };
-    deviceContext->CSSetShaderResources(4, 5, SRViews); // t4-t8
-}
-
-void
-OsdD3D11ComputeContext::UnbindShaderStorageBuffers(ID3D11DeviceContext *deviceContext) const {
-
-    ID3D11ShaderResourceView *SRViews[] = { 0, 0, 0, 0, 0, 0, 0 };
-    deviceContext->CSSetShaderResources(2, 7, SRViews); // t2-t8
-}
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

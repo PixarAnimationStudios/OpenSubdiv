@@ -30,7 +30,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-static OsdErrorCallbackFunc errorFunc = 0;
+namespace Osd {
+
+static ErrorCallbackFunc errorFunc = 0;
 
 static char const * errors[] = {
     "OSD_NO_ERROR",
@@ -48,12 +50,12 @@ static char const * errors[] = {
     "OSD_D3D11_BUFFER_MAP_ERROR"
 };
 
-void OsdSetErrorCallback(OsdErrorCallbackFunc func) {
+void SetErrorCallback(ErrorCallbackFunc func) {
 
     errorFunc = func;
 }
 
-void OsdError(OsdErrorType err) {
+void Error(ErrorType err) {
 
     if (errorFunc) {
         errorFunc(err, NULL);
@@ -62,7 +64,7 @@ void OsdError(OsdErrorType err) {
     }
 }
 
-void OsdError(OsdErrorType err, const char *format, ...) {
+void Error(ErrorType err, const char *format, ...) {
 
     char message[10240];
     va_list argptr;
@@ -77,14 +79,14 @@ void OsdError(OsdErrorType err, const char *format, ...) {
     }
 }
 
-static OsdWarningCallbackFunc warningFunc = 0;
+static WarningCallbackFunc warningFunc = 0;
 
-void OsdSetWarningCallback(OsdWarningCallbackFunc func) {
+void SetWarningCallback(WarningCallbackFunc func) {
 
     warningFunc = func;
 }
 
-void OsdWarning(const char *format, ...) {
+void Warning(const char *format, ...) {
 
     char message[10240];
     va_list argptr;
@@ -98,6 +100,8 @@ void OsdWarning(const char *format, ...) {
         printf("OSD_WARNING : %s\n", message);
     }
 }
+
+} // end namespace 
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

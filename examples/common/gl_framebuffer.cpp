@@ -188,7 +188,7 @@ GLFrameBuffer::compileProgram(char const * src, char const * defines) {
     if (colorMap != -1)
         glUniform1i(colorMap, 0);  // GL_TEXTURE0
 
-    GLint normalMap = glGetUniformLocation(program, "normalMap");
+    GLint colorMap = glGetUniformLocation(program, "normalMap");
     if (normalMap != -1)
         glUniform1i(normalMap, 1);  // GL_TEXTURE1
 

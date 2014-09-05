@@ -64,7 +64,7 @@ float csf(uint n, uint j)
 // Patches.TessVertexGregory
 //----------------------------------------------------------
 
-Buffer<float> OsdVertexBuffer : register( t0 );
+Buffer<float> VertexBuffer : register( t0 );
 Buffer<int> OsdValenceBuffer : register( t1 );
 
 void vs_main_patches( in InputVertex input,
@@ -121,37 +121,37 @@ void vs_main_patches( in InputVertex input,
 #endif
 
         float3 neighbor =
-            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor)],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+1)],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+2)]);
+            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor)],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+1)],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+2)]);
 
         uint idx_diagonal = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 1 + 1)]);
 
         float3 diagonal =
-            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
+            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
 
         uint idx_neighbor_p = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*ip + 0 + 1)]);
 
         float3 neighbor_p =
-            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p)],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p+1)],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p+2)]);
+            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p)],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p+1)],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p+2)]);
 
         uint idx_neighbor_m = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 0 + 1)]);
 
         float3 neighbor_m =
-            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m)],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m+1)],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m+2)]);
+            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m)],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m+1)],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m+2)]);
 
         uint idx_diagonal_m = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 1 + 1)]);
 
         float3 diagonal_m =
-            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m)],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)]);
+            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m)],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)]);
 
         f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0f + diagonal) / (float(valence)+5.0f);
 
@@ -184,24 +184,24 @@ void vs_main_patches( in InputVertex input,
     if (ivalence < 0) {
         if (valence > 2) {
             output.position = (
-                float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
-                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
-                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) +
-                float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
-                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
-                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) +
+                float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
+                       VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
+                       VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) +
+                float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
+                       VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
+                       VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) +
                 4.0f * pos)/6.0f;        
         } else {
             output.position = pos;                    
         }
 
         output.e0 = ( 
-            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) -
-            float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
-                   OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) 
+            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) -
+            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) 
             )/6.0;
 
         float k = float(float(valence) - 1.0f);    //k is the number of faces
@@ -215,17 +215,17 @@ void vs_main_patches( in InputVertex input,
         int idx_diagonal = OsdValenceBuffer[int((vID) * (2*OSD_MAX_VALENCE+1) + 2*zerothNeighbor + 1 + 1)];
         idx_diagonal = abs(idx_diagonal);
         float3 diagonal =
-                float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
-                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
-                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
+                float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
+                       VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
+                       VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
 
         output.e1 = gamma * pos + 
-            alpha_0k * float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
-                              OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
-                              OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) +
-            alpha_0k * float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
-                              OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
-                              OsdVertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) +
+            alpha_0k * float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
+                              VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
+                              VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) +
+            alpha_0k * float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
+                              VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
+                              VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) +
             beta_0 * diagonal;
 
         for (uint x=1; x<valence - 1; ++x) {
@@ -237,16 +237,16 @@ void vs_main_patches( in InputVertex input,
             idx_neighbor = abs(idx_neighbor);
 
             float3 neighbor =
-                float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor)],
-                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+1)],
-                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+2)]);
+                float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor)],
+                       VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+1)],
+                       VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+2)]);
 
             idx_diagonal = OsdValenceBuffer[int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 1 + 1)];
 
             diagonal =
-                float3(OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
-                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
-                       OsdVertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
+                float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
+                       VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
+                       VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
 
             output.e1 += alpha * neighbor + beta * diagonal;                         
         }

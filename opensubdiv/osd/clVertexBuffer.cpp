@@ -30,29 +30,31 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCLVertexBuffer::OsdCLVertexBuffer(int numElements, int numVertices,
+namespace Osd {
+
+CLVertexBuffer::CLVertexBuffer(int numElements, int numVertices,
                                      cl_context /* clContext */)
     : _numElements(numElements), _numVertices(numVertices), _clMemory(NULL) {
 
 }
 
-OsdCLVertexBuffer::~OsdCLVertexBuffer() {
+CLVertexBuffer::~CLVertexBuffer() {
 
     clReleaseMemObject(_clMemory);
 }
 
-OsdCLVertexBuffer *
-OsdCLVertexBuffer::Create(int numElements, int numVertices,
+CLVertexBuffer *
+CLVertexBuffer::Create(int numElements, int numVertices,
                           cl_context clContext) {
-    OsdCLVertexBuffer *instance =
-        new OsdCLVertexBuffer(numElements, numVertices, clContext);
+    CLVertexBuffer *instance =
+        new CLVertexBuffer(numElements, numVertices, clContext);
     if (instance->allocate(clContext)) return instance;
     delete instance;
     return NULL;
 }
 
 void
-OsdCLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue queue) {
+CLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue queue) {
 
     size_t size = _numElements * numVertices * sizeof(float);
     size_t offset = startVertex * _numElements * sizeof(float);
@@ -61,25 +63,25 @@ OsdCLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices
 }
 
 int
-OsdCLVertexBuffer::GetNumElements() const {
+CLVertexBuffer::GetNumElements() const {
 
     return _numElements;
 }
 
 int
-OsdCLVertexBuffer::GetNumVertices() const {
+CLVertexBuffer::GetNumVertices() const {
 
     return _numVertices;
 }
 
 cl_mem
-OsdCLVertexBuffer::BindCLBuffer(cl_command_queue /* queue */) {
+CLVertexBuffer::BindCLBuffer(cl_command_queue /* queue */) {
 
     return _clMemory;
 }
 
 bool
-OsdCLVertexBuffer::allocate(cl_context clContext) {
+CLVertexBuffer::allocate(cl_context clContext) {
     assert(clContext);
     int size = _numVertices * _numElements * sizeof(float);
     cl_int err;
@@ -92,6 +94,8 @@ OsdCLVertexBuffer::allocate(cl_context clContext) {
     if (err != CL_SUCCESS) return false;
     return true;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

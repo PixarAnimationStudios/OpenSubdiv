@@ -69,10 +69,9 @@ a character of 30,000 polygons to the second level of subdivision (500,000 polyg
 Being able to perform the same operation in less than 3ms allows the user to interact
 with the smooth, accurate limit surface at all times.
 
-.. image:: images/efficient_subdivision.png 
-   :height: 400px
+.. image:: images/osd_splash.png 
    :align: center
-   :target: images/efficient_subdivision.png 
+   :target: images/osd_splash.png 
 
 
 

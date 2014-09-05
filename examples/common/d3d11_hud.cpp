@@ -48,7 +48,7 @@ static const char *s_VS =
     " return vout;\n"
     "}";
 
-static const char *s_PS = 
+static const char *s_PS =
     "struct pixelIn { float4 pos : SV_POSITION; float4 color : COLOR0; float2 uv : TEXCOORD0; };\n"
     "Texture2D tx : register(t0); \n"
     "SamplerState sm : register(s0); \n"
@@ -86,9 +86,9 @@ D3D11hud::~D3D11hud()
 }
 
 void
-D3D11hud::Init(int width, int height)
+D3D11hud::Init(int width, int height, int frameBufferWidth, int frameBufferHeight)
 {
-    Hud::Init(width, height, width, height);
+    Hud::Init(width, height, frameBufferWidth, frameBufferHeight);
 
     ID3D11Device *device = NULL;
     _deviceContext->GetDevice(&device);
@@ -111,11 +111,11 @@ D3D11hud::Init(int width, int height)
     subData.pSysMem = font_image;
     subData.SysMemPitch = FONT_TEXTURE_WIDTH*4;
     subData.SysMemSlicePitch = FONT_TEXTURE_WIDTH*FONT_TEXTURE_HEIGHT*4;
-    
+
     HRESULT hr = device->CreateTexture2D(&texDesc, &subData, &_fontTexture);
     assert(_fontTexture);
 
-    // shader resource view 
+    // shader resource view
     D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
     ZeroMemory(&srvDesc, sizeof(srvDesc));
     srvDesc.Format = texDesc.Format;
@@ -177,7 +177,7 @@ D3D11hud::Init(int width, int height)
     device->CreateRasterizerState(&rasDesc, &_rasterizerState);
     assert(_rasterizerState);
 
-    // constant buffer 
+    // constant buffer
     D3D11_BUFFER_DESC cbDesc;
     cbDesc.Usage = D3D11_USAGE_DYNAMIC;
     cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -190,9 +190,9 @@ D3D11hud::Init(int width, int height)
 }
 
 void
-D3D11hud::Rebuild(int width, int height)
+D3D11hud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
 {
-    Hud::Rebuild(width, height, width, height);
+    Hud::Rebuild(width, height, framebufferWidth, framebufferHeight);
 
     SAFE_RELEASE(_staticVbo);
 
@@ -222,7 +222,7 @@ D3D11hud::Rebuild(int width, int height)
 bool
 D3D11hud::Flush()
 {
-    if (!Hud::Flush()) 
+    if (!Hud::Flush())
         return false;
 
     // update dynamic text

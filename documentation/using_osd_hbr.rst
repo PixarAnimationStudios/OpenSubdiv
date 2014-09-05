@@ -32,6 +32,19 @@ Using Hbr
 
 ----
 
+.. container:: notebox
+
+   **Note**
+
+       As of OpenSubdiv 3.0, all **Hbr** dependencies have been removed from the
+       core APIs (**Sdc**, **Vtr**, **Far**, **Osd**). The legacy source code of
+       **Hbr** is provided purely for regression and legacy purposes. If your code
+       is currently depending on Hbr functionaliy, we recommend migrating to the
+       newer APIs as we cannot guarantee that this code will be maintained in
+       future releases.
+       For more information see the `3.0 release notes <release_notes.html>`_
+
+
 Vertex Template API
 ===================
 
@@ -100,29 +113,25 @@ does not support arbitrary variables or varying interpolation.
 
 In some cases, if only topological analysis is required, the class can be left un-implemented.
 Far and Osd for instance store vertex data in serialized interleaved vectors. Here
-is the OsdVertex class for reference:
+is the Osd::Vertex class for reference:
 
 .. code:: c++
 
-    class OsdVertex {
+    class Vertex {
     public:
-        OsdVertex() {}
+        Vertex() {}
 
-        OsdVertex(int index) {}
+        Vertex(int /* index */) {}
 
-        OsdVertex(OsdVertex const & src) {}
+        Vertex(Vertex const & /* src */) {}
 
-        void AddWithWeight(OsdVertex const & i, float weight, void * = 0) {}
+        void AddWithWeight(Vertex const & /* i */, float /* weight */, void * = 0) {}
 
-        void AddVaryingWithWeight(const OsdVertex & i, float weight, void * = 0) {}
+        void AddVaryingWithWeight(const Vertex & /* i */, float /* weight */, void * = 0) {}
 
         void Clear(void * = 0) {}
 
-        void ApplyVertexEdit(HbrVertexEdit<OsdVertex> const &) { }
-
         void ApplyVertexEdit(FarVertexEdit const &) { }
-
-        void ApplyMovingVertexEdit(HbrMovingVertexEdit<OsdVertex> const &) { }
     };
 
 

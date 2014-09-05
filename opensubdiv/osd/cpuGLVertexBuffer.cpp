@@ -31,12 +31,14 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCpuGLVertexBuffer::OsdCpuGLVertexBuffer(int numElements, int numVertices)
+namespace Osd {
+
+CpuGLVertexBuffer::CpuGLVertexBuffer(int numElements, int numVertices)
     : _numElements(numElements), _numVertices(numVertices),
       _vbo(0), _cpuBuffer(0), _dataDirty(true) {
 }
 
-OsdCpuGLVertexBuffer::~OsdCpuGLVertexBuffer() {
+CpuGLVertexBuffer::~CpuGLVertexBuffer() {
 
     delete[] _cpuBuffer;
     
@@ -45,43 +47,43 @@ OsdCpuGLVertexBuffer::~OsdCpuGLVertexBuffer() {
     }
 }
 
-OsdCpuGLVertexBuffer *
-OsdCpuGLVertexBuffer::Create(int numElements, int numVertices) {
-    OsdCpuGLVertexBuffer *instance =
-        new OsdCpuGLVertexBuffer(numElements, numVertices);
+CpuGLVertexBuffer *
+CpuGLVertexBuffer::Create(int numElements, int numVertices) {
+    CpuGLVertexBuffer *instance =
+        new CpuGLVertexBuffer(numElements, numVertices);
     if (instance->allocate()) return instance;
     delete instance;
     return NULL;
 }
 
 void
-OsdCpuGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
+CpuGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
 
     memcpy(_cpuBuffer + startVertex * GetNumElements(), src, GetNumElements() * numVertices * sizeof(float));
     _dataDirty = true;
 }
 
 int
-OsdCpuGLVertexBuffer::GetNumElements() const {
+CpuGLVertexBuffer::GetNumElements() const {
 
     return _numElements;
 }
 
 int
-OsdCpuGLVertexBuffer::GetNumVertices() const {
+CpuGLVertexBuffer::GetNumVertices() const {
 
     return _numVertices;
 }
 
 float*
-OsdCpuGLVertexBuffer::BindCpuBuffer() {
+CpuGLVertexBuffer::BindCpuBuffer() {
 
     _dataDirty = true; // caller might modify data
     return _cpuBuffer;
 }
 
 GLuint
-OsdCpuGLVertexBuffer::BindVBO() {
+CpuGLVertexBuffer::BindVBO() {
 
     if (not _dataDirty)
         return _vbo;
@@ -101,12 +103,14 @@ OsdCpuGLVertexBuffer::BindVBO() {
 }
 
 bool
-OsdCpuGLVertexBuffer::allocate() {
+CpuGLVertexBuffer::allocate() {
 
     _cpuBuffer = new float[GetNumElements() * GetNumVertices()];
     _dataDirty = true;
     return true;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

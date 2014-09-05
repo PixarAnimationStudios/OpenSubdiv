@@ -34,9 +34,11 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Far {
+
 /// \brief An quadtree-based map connecting coarse faces to their sub-patches
 ///
-/// FarPatchTables::PatchArrays contain lists of patches that represent the limit
+/// PatchTables::PatchArrays contain lists of patches that represent the limit
 /// surface of a mesh, sorted by their topological type. These arrays break the
 /// connection between coarse faces and their sub-patches. 
 ///
@@ -44,10 +46,10 @@ namespace OPENSUBDIV_VERSION {
 /// parametric location, can efficiently return a handle to the sub-patch that
 /// contains this location.
 ///
-class FarPatchMap {
+class PatchMap {
 public:
 
-    /// \brief Handle that can be used as unique patch identifier within FarPatchTables
+    /// \brief Handle that can be used as unique patch identifier within PatchTables
     struct Handle {
         unsigned int patchArrayIdx,  // OsdPatchArray containing the patch
                      patchIdx,       // Absolute index of the patch
@@ -56,9 +58,9 @@ public:
 
     /// \brief Constructor
     ///
-    /// @param patchTables  A valid set of FarPatchTables
+    /// @param patchTables  A valid set of PatchTables
     ///
-    FarPatchMap( FarPatchTables const & patchTables );
+    PatchMap( PatchTables const & patchTables );
 
     /// \brief Returns a handle to the sub-patch of the face at the given (u,v).
     /// Note : the faceid corresponds to quadrangulated face indices (ie. quads
@@ -76,7 +78,7 @@ public:
     Handle const * FindPatch( int faceid, float u, float v ) const;
     
 private:
-    inline void initialize( FarPatchTables const & patchTables );
+    inline void initialize( PatchTables const & patchTables );
 
     // Quadtree node with 4 children
     struct QuadNode {
@@ -117,19 +119,19 @@ private:
     //
     template <class T> static int resolveQuadrant(T & median, T & u, T & v);
 
-    std::vector<Handle>   _handles;  // all the patches in the FarPatchTable
+    std::vector<Handle>   _handles;  // all the patches in the PatchTable
     std::vector<QuadNode> _quadtree; // quadtree nodes
 };
 
 // Constructor
 inline
-FarPatchMap::FarPatchMap( FarPatchTables const & patchTables ) {
+PatchMap::PatchMap( PatchTables const & patchTables ) {
     initialize( patchTables );
 }
 
 // sets all the children to point to the patch of index patchIdx
 inline void
-FarPatchMap::QuadNode::SetChild(int patchIdx) {
+PatchMap::QuadNode::SetChild(int patchIdx) {
     for (int i=0; i<4; ++i) {
         children[i].isSet=true;
         children[i].isLeaf=true;
@@ -139,7 +141,7 @@ FarPatchMap::QuadNode::SetChild(int patchIdx) {
 
 // sets the child in "quadrant" to point to the node or patch of the given index
 inline void 
-FarPatchMap::QuadNode::SetChild(unsigned char quadrant, int idx, bool isLeaf) {
+PatchMap::QuadNode::SetChild(unsigned char quadrant, int idx, bool isLeaf) {
     assert(quadrant<4);
     children[quadrant].isSet  = true;
     children[quadrant].isLeaf = isLeaf;
@@ -147,8 +149,8 @@ FarPatchMap::QuadNode::SetChild(unsigned char quadrant, int idx, bool isLeaf) {
 }
 
 // adds a child to a parent node and pushes it back on the tree
-inline FarPatchMap::QuadNode * 
-FarPatchMap::addChild( QuadTree & quadtree, QuadNode * parent, int quadrant ) {
+inline PatchMap::QuadNode * 
+PatchMap::addChild( QuadTree & quadtree, QuadNode * parent, int quadrant ) {
     quadtree.push_back(QuadNode());
     int idx = (int)quadtree.size()-1;
     parent->SetChild(quadrant, idx, false);
@@ -158,7 +160,7 @@ FarPatchMap::addChild( QuadTree & quadtree, QuadNode * parent, int quadrant ) {
 // given a median, transforms the (u,v) to the quadrant they point to, and
 // return the quadrant index.
 template <class T> int 
-FarPatchMap::resolveQuadrant(T & median, T & u, T & v) {
+PatchMap::resolveQuadrant(T & median, T & u, T & v) {
     int quadrant = -1;
 
     if (u<median) {
@@ -181,10 +183,10 @@ FarPatchMap::resolveQuadrant(T & median, T & u, T & v) {
 }
 
 /// Returns a handle to the sub-patch of the face at the given (u,v).
-inline FarPatchMap::Handle const * 
-FarPatchMap::FindPatch( int faceid, float u, float v ) const {
+inline PatchMap::Handle const * 
+PatchMap::FindPatch( int faceid, float u, float v ) const {
     
-    if (faceid>(int)_quadtree.size())
+    if (faceid>=(int)_quadtree.size())
         return NULL;
 
     assert( (u>=0.0f) and (u<=1.0f) and (v>=0.0f) and (v<=1.0f) );
@@ -220,30 +222,30 @@ FarPatchMap::FindPatch( int faceid, float u, float v ) const {
 
 // Constructor
 inline void
-FarPatchMap::initialize( FarPatchTables const & patchTables ) {
+PatchMap::initialize( PatchTables const & patchTables ) {
 
     int nfaces = 0, npatches = (int)patchTables.GetNumPatches();
         
     if (not npatches)
         return;
         
-    FarPatchTables::PatchArrayVector const & patchArrays =
+    PatchTables::PatchArrayVector const & patchArrays =
         patchTables.GetPatchArrayVector();
 
-    FarPatchTables::PatchParamTable const & paramTable =
+    PatchTables::PatchParamTable const & paramTable =
         patchTables.GetPatchParamTable();
 
     // populate subpatch handles vector
     _handles.resize(npatches);
     for (int arrayIdx=0, current=0; arrayIdx<(int)patchArrays.size(); ++arrayIdx) {
     
-        FarPatchTables::PatchArray const & parray = patchArrays[arrayIdx];
+        PatchTables::PatchArray const & parray = patchArrays[arrayIdx];
 
         int ringsize = parray.GetDescriptor().GetNumControlVertices();
         
         for (unsigned int j=0; j < parray.GetNumPatches(); ++j) {
             
-            FarPatchParam const & param = paramTable[parray.GetPatchIndex()+j];
+            PatchParam const & param = paramTable[parray.GetPatchIndex()+j];
             
             Handle & h = _handles[current];
 
@@ -270,13 +272,13 @@ FarPatchMap::initialize( FarPatchTables const & patchTables ) {
     // populate the quadtree from the FarPatchArrays sub-patches
     for (int i=0, handleIdx=0; i<(int)patchArrays.size(); ++i) {
     
-        FarPatchTables::PatchArray const & parray = patchArrays[i];
+        PatchTables::PatchArray const & parray = patchArrays[i];
 
         for (unsigned int j=0; j < parray.GetNumPatches(); ++j, ++handleIdx) {
         
-            FarPatchParam const & param = paramTable[parray.GetPatchIndex()+j];
+            PatchParam const & param = paramTable[parray.GetPatchIndex()+j];
 
-            FarPatchParam::BitField bits = param.bitField;
+            PatchParam::BitField bits = param.bitField;
 
             unsigned char depth = bits.GetDepth();
             
@@ -324,6 +326,8 @@ FarPatchMap::initialize( FarPatchTables const & patchTables ) {
     // copy the resulting quadtree to eliminate un-unused vector capacity
     _quadtree = quadtree;
 }
+
+} // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

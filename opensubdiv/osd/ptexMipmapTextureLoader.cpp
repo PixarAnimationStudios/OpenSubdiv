@@ -36,9 +36,11 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 // sample neighbor pixels and populate around blocks
 void
-OsdPtexMipmapTextureLoader::Block::guttering(OsdPtexMipmapTextureLoader *loader,
+PtexMipmapTextureLoader::Block::guttering(PtexMipmapTextureLoader *loader,
                                              PtexTexture *ptex, int level,
                                              int wid, int hei,
                                              unsigned char *pptr, int bpp,
@@ -155,7 +157,7 @@ OsdPtexMipmapTextureLoader::Block::guttering(OsdPtexMipmapTextureLoader *loader,
 }
 
 void
-OsdPtexMipmapTextureLoader::Block::Generate(OsdPtexMipmapTextureLoader *loader,
+PtexMipmapTextureLoader::Block::Generate(PtexMipmapTextureLoader *loader,
                                             PtexTexture *ptex,
                                             unsigned char *destination,
                                             int bpp, int wid, int maxLevels)
@@ -200,7 +202,7 @@ OsdPtexMipmapTextureLoader::Block::Generate(OsdPtexMipmapTextureLoader *loader,
 }
 
 void
-OsdPtexMipmapTextureLoader::Block::SetSize(unsigned char ulog2_,
+PtexMipmapTextureLoader::Block::SetSize(unsigned char ulog2_,
                                            unsigned char vlog2_, bool mipmap)
 {
     ulog2 = ulog2_;
@@ -221,7 +223,7 @@ OsdPtexMipmapTextureLoader::Block::SetSize(unsigned char ulog2_,
 
 // ---------------------------------------------------------------------------
 
-struct OsdPtexMipmapTextureLoader::Page
+struct PtexMipmapTextureLoader::Page
 {
     struct Slot
     {
@@ -292,7 +294,7 @@ struct OsdPtexMipmapTextureLoader::Page
         return false;
     }
 
-    void Generate(OsdPtexMipmapTextureLoader *loader, PtexTexture *ptex,
+    void Generate(PtexMipmapTextureLoader *loader, PtexTexture *ptex,
                   unsigned char *destination,
                   int bpp, int width, int maxLevels) {
         for (BlockList::iterator it = _blocks.begin();
@@ -323,7 +325,7 @@ private:
 // ---------------------------------------------------------------------------
 
 // Utility class for Ptex corner iteration
-class OsdPtexMipmapTextureLoader::CornerIterator
+class PtexMipmapTextureLoader::CornerIterator
 {
 public:
     CornerIterator(PtexTexture *ptex, int face, int edge, int8_t reslog2) :
@@ -447,7 +449,7 @@ private:
 
 // ---------------------------------------------------------------------------
 
-OsdPtexMipmapTextureLoader::OsdPtexMipmapTextureLoader(PtexTexture *ptex,
+PtexMipmapTextureLoader::PtexMipmapTextureLoader(PtexTexture *ptex,
                                                        int maxNumPages,
                                                        int maxLevels,
                                                        size_t targetMemory,
@@ -480,7 +482,7 @@ OsdPtexMipmapTextureLoader::OsdPtexMipmapTextureLoader(PtexTexture *ptex,
     generateBuffers();
 }
 
-OsdPtexMipmapTextureLoader::~OsdPtexMipmapTextureLoader()
+PtexMipmapTextureLoader::~PtexMipmapTextureLoader()
 {
     for (size_t i = 0; i < _pages.size(); ++i) {
         delete _pages[i];
@@ -492,7 +494,7 @@ OsdPtexMipmapTextureLoader::~OsdPtexMipmapTextureLoader()
 // resample border texels for guttering
 //
 int
-OsdPtexMipmapTextureLoader::resampleBorder(int face, int edgeId,
+PtexMipmapTextureLoader::resampleBorder(int face, int edgeId,
                                            unsigned char *result,
                                            int dstLength, int bpp,
                                            float srcStart, float srcEnd)
@@ -590,7 +592,7 @@ flipBuffer(unsigned char *buffer, int length, int bpp)
 
 // sample neighbor face's edge
 void
-OsdPtexMipmapTextureLoader::sampleNeighbor(unsigned char *border, int face,
+PtexMipmapTextureLoader::sampleNeighbor(unsigned char *border, int face,
                                            int edge, int length, int bpp)
 {
     const Ptex::FaceInfo &fi = _ptex->getFaceInfo(face);
@@ -659,7 +661,7 @@ OsdPtexMipmapTextureLoader::sampleNeighbor(unsigned char *border, int face,
 // get corner pixel by traversing all adjacent faces around vertex
 //
 bool
-OsdPtexMipmapTextureLoader::getCornerPixel(float *resultPixel, int numchannels,
+PtexMipmapTextureLoader::getCornerPixel(float *resultPixel, int numchannels,
                                            int face, int edge,
                                            int8_t reslog2)
 {
@@ -785,7 +787,7 @@ OsdPtexMipmapTextureLoader::getCornerPixel(float *resultPixel, int numchannels,
 }
 
 int
-OsdPtexMipmapTextureLoader::getLevelDiff(int face, int edge)
+PtexMipmapTextureLoader::getLevelDiff(int face, int edge)
 {
     // returns the highest mipmap level difference around the vertex
     // at face/edge
@@ -806,7 +808,7 @@ OsdPtexMipmapTextureLoader::getLevelDiff(int face, int edge)
 }
 
 void
-OsdPtexMipmapTextureLoader::optimizePacking(int maxNumPages,
+PtexMipmapTextureLoader::optimizePacking(int maxNumPages,
                                             size_t targetMemory)
 {
     size_t numTexels = 0;
@@ -930,7 +932,7 @@ OsdPtexMipmapTextureLoader::optimizePacking(int maxNumPages,
 }
 
 void
-OsdPtexMipmapTextureLoader::generateBuffers()
+PtexMipmapTextureLoader::generateBuffers()
 {
     // ptex layout struct
     // struct Layout {
@@ -997,6 +999,8 @@ OsdPtexMipmapTextureLoader::generateBuffers()
 #endif
 }
 
+
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

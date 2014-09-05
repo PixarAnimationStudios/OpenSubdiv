@@ -27,10 +27,6 @@
 
 #include "../version.h"
 
-#include "../far/subdivisionTables.h"
-#include "../far/vertexEditTables.h"
-#include "../osd/vertex.h"
-#include "../osd/vertexDescriptor.h"
 #include "../osd/nonCopyable.h"
 
 #include <stdlib.h>
@@ -38,97 +34,60 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-struct OsdVertexDescriptor;
+namespace Far{ class StencilTables; }
 
-class OsdCpuTable : private OsdNonCopyable<OsdCpuTable> {
-public:
-    template<typename T>
-    explicit OsdCpuTable(const std::vector<T> &table) {
-        createCpuBuffer(table.size() * sizeof(T), table.empty() ? NULL : &table[0]);
-    }
-
-    virtual ~OsdCpuTable();
-
-    void * GetBuffer() const;
-
-private:
-    void createCpuBuffer(size_t size, const void *ptr);
-
-    void *_devicePtr;
-};
-
-class OsdCpuHEditTable : private OsdNonCopyable<OsdCpuHEditTable> {
-public:
-    OsdCpuHEditTable(const FarVertexEditTables::VertexEditBatch &batch);
-
-    virtual ~OsdCpuHEditTable();
-
-    const OsdCpuTable * GetPrimvarIndices() const;
-
-    const OsdCpuTable * GetEditValues() const;
-
-    int GetOperation() const;
-
-    int GetPrimvarOffset() const;
-
-    int GetPrimvarWidth() const;
-
-private:
-    OsdCpuTable *_primvarIndicesTable;
-    OsdCpuTable *_editValuesTable;
-
-    int _operation;
-    int _primvarOffset;
-    int _primvarWidth;
-};
+namespace Osd {
 
 ///
-/// \brief CPU Refine Context
+/// \brief CPU Compute Context
 ///
-/// The CPU implementation of the Refine module contextual functionality. 
+/// The CPU implementation of the Compute module contextual functionality.
 ///
-/// Contexts interface the serialized topological data pertaining to the 
-/// geometric primitives with the capabilities of the selected discrete 
-/// compute device.
+/// The Osd Compute module provides functionality to interpolate primitive
+/// variable data according to a subdivision scheme.
 ///
-class OsdCpuComputeContext : private OsdNonCopyable<OsdCpuComputeContext> {
+/// Contexts provide an interface between the serialized topological data
+/// of a geometric primitive and the computation resources of a compute device.
+///
+class CpuComputeContext : private NonCopyable<CpuComputeContext> {
 
 public:
-    /// Creates an OsdCpuComputeContext instance
+    /// Creates an CpuComputeContext instance
     ///
-    /// @param subdivisionTables the FarSubdivisionTables used for this Context.
+    /// @param vertexStencilTables   The Far::StencilTables used for vertex
+    ///                              interpolation
     ///
-    /// @param vertexEditTables the FarVertexEditTables used for this Context.
+    /// @param varyingStencilTables  The Far::StencilTables used for varying
+    ///                              interpolation
     ///
-    static OsdCpuComputeContext * Create(FarSubdivisionTables const *subdivisionTables,
-                                         FarVertexEditTables const *vertexEditTables);
+    static CpuComputeContext * Create(Far::StencilTables const * vertexStencilTables,
+                                         Far::StencilTables const * varyingStencilTables=0);
 
     /// Destructor
-    virtual ~OsdCpuComputeContext();
+    virtual ~CpuComputeContext();
 
-    /// Returns one of the vertex refinement tables.
-    ///
-    /// @param tableIndex the type of table
-    ///
-    const OsdCpuTable * GetTable(int tableIndex) const;
+    /// Returns the stencils data applied by this context for vertex interpolation
+    Far::StencilTables const * GetVertexStencilTables() const {
+        return _vertexStencilTables;
+    }
 
-    /// Returns the number of hierarchical edit tables
-    int GetNumEditTables() const;
-
-    /// Returns a specific hierarchical edit table
-    ///
-    /// @param tableIndex the index of the table
-    ///
-    const OsdCpuHEditTable * GetEditTable(int tableIndex) const;
+    /// Returns the stencils data applied by this context for varying interpolation
+    Far::StencilTables const * GetVaryingStencilTables() const {
+        return _varyingStencilTables;
+    }
 
 protected:
-    explicit OsdCpuComputeContext(FarSubdivisionTables const *subdivisionTables,
-                                  FarVertexEditTables const *vertexEditTables);
+
+    explicit CpuComputeContext(Far::StencilTables const * vertexStencilTables,
+                                  Far::StencilTables const * varyingStencilTables=0);
 
 private:
-    std::vector<OsdCpuTable*> _tables;
-    std::vector<OsdCpuHEditTable*> _editTables;
+
+    Far::StencilTables const * _vertexStencilTables,
+                           * _varyingStencilTables;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

@@ -34,6 +34,8 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 // block : atomic texture unit, points to the texels contained in a face
 //
 //  |-----------------------|   |-----------------------|
@@ -50,7 +52,7 @@ namespace OPENSUBDIV_VERSION {
 //  |        ures           |   |         ures          |
 //  |-----------------------|   |-----------------------|
 //
-struct OsdPtexTextureLoader::block {
+struct PtexTextureLoader::block {
 
     int idx;                    // PTex face index
 
@@ -71,10 +73,10 @@ struct OsdPtexTextureLoader::block {
 
     // returns a "distance" metric from the native texel resolution
     int8_t distanceFromNative( ) const {
-        int8_t udist = native.ulog2-current.ulog2,
-               vdist = native.vlog2-current.vlog2;
+        int8_t udist = (int8_t)(native.ulog2-current.ulog2),
+               vdist = (int8_t)(native.vlog2-current.vlog2);
 
-        return udist * udist + vdist * vdist;
+        return (int8_t)(udist * udist + vdist * vdist);
     }
 
     // desirability predicates for resolution scaling optimizations
@@ -126,7 +128,7 @@ struct OsdPtexTextureLoader::block {
 //  |                          |             |..........................|
 //  |--------------------------|             |--------------------------|
 //
-struct OsdPtexTextureLoader::page {
+struct PtexTextureLoader::page {
 
     //----------------------------------------------------------------
     // slot : rectangular block of available texels in a page
@@ -217,7 +219,7 @@ struct OsdPtexTextureLoader::page {
     friend std::ostream & operator <<(std::ostream &s, const page & p);
 };
 
-OsdPtexTextureLoader::OsdPtexTextureLoader( PtexTexture * p,
+PtexTextureLoader::PtexTextureLoader( PtexTexture * p,
                                       int gutterWidth, int pageMargin) :
     _ptex(p), _indexBuffer( NULL ), _layoutBuffer( NULL ), _texelBuffer(NULL),
     _gutterWidth(gutterWidth), _pageMargin(pageMargin)
@@ -240,25 +242,25 @@ OsdPtexTextureLoader::OsdPtexTextureLoader( PtexTexture * p,
     _txc = _txn;
 }
 
-OsdPtexTextureLoader::~OsdPtexTextureLoader() 
+PtexTextureLoader::~PtexTextureLoader() 
 {
     ClearPages();
 }
 
 unsigned long int
-OsdPtexTextureLoader::GetNumBlocks( ) const {
+PtexTextureLoader::GetNumBlocks( ) const {
     return (unsigned long int)_blocks.size();
 }
 
 unsigned long int
-OsdPtexTextureLoader::GetNumPages( ) const {
+PtexTextureLoader::GetNumPages( ) const {
     return (unsigned long int)_pages.size();
 }
 
 // attempt to re-size per-face resolutions to hit the uncompressed texel
 // memory use requirement
 void
-OsdPtexTextureLoader::OptimizeResolution( unsigned long int memrec )
+PtexTextureLoader::OptimizeResolution( unsigned long int memrec )
 {
     unsigned long int txrec = memrec / _bpp;
 
@@ -359,7 +361,7 @@ OsdPtexTextureLoader::OptimizeResolution( unsigned long int memrec )
 
 // greedy packing of blocks into pages
 void
-OsdPtexTextureLoader::OptimizePacking( int maxnumpages )
+PtexTextureLoader::OptimizePacking( int maxnumpages )
 {
     if (_blocks.size()==0)
         return;
@@ -650,8 +652,8 @@ getCornerPixel(PtexTexture *ptex, float *resultPixel, int numchannels,
         valence++;
         
         if (valence > 255) {
-            OsdWarning("High valence detected in %s : invalid adjacency around "
-                       "face %d", ptex->path(), face);
+            Warning("High valence detected in %s : invalid adjacency around "
+                    "face %d", ptex->path(), face);
             break;
         }
         
@@ -705,7 +707,7 @@ getCornerPixel(PtexTexture *ptex, float *resultPixel, int numchannels,
 
 // sample neighbor pixels and populate around blocks
 static void
-guttering(PtexTexture *_ptex, OsdPtexTextureLoader::block *b, unsigned char *pptr,
+guttering(PtexTexture *_ptex, PtexTextureLoader::block *b, unsigned char *pptr,
           int bpp, int pagesize, int stride, int gwidth)
 {
     unsigned char * lineBuffer = new unsigned char[pagesize * bpp];
@@ -821,7 +823,7 @@ guttering(PtexTexture *_ptex, OsdPtexTextureLoader::block *b, unsigned char *ppt
 // prepares the data for the texture samplers used by the GLSL tables to render
 // PTex texels
 bool
-OsdPtexTextureLoader::GenerateBuffers( )
+PtexTextureLoader::GenerateBuffers( )
 {
     if (_pages.size()==0) return false;
 
@@ -867,7 +869,7 @@ OsdPtexTextureLoader::GenerateBuffers( )
 }
 
 void
-OsdPtexTextureLoader::ClearBuffers( )
+PtexTextureLoader::ClearBuffers( )
 {   delete [] _indexBuffer;
     delete [] _layoutBuffer;
     delete [] _texelBuffer;
@@ -876,7 +878,7 @@ OsdPtexTextureLoader::ClearBuffers( )
 // returns a ratio of texels wasted in the final GPU texture : anything under 5%
 // is pretty good compared to our previous solution...
 float
-OsdPtexTextureLoader::EvaluateWaste( ) const
+PtexTextureLoader::EvaluateWaste( ) const
 {
     unsigned long int wasted=0;
     for( unsigned long int i=0; i<_pages.size(); i++ ) {
@@ -888,25 +890,25 @@ OsdPtexTextureLoader::EvaluateWaste( ) const
 }
 
 void
-OsdPtexTextureLoader::ClearPages( )
+PtexTextureLoader::ClearPages( )
 {   for( unsigned long int i=0; i<_pages.size(); i++ )
         delete _pages[i];
     _pages.clear();
 }
 
 void
-OsdPtexTextureLoader::PrintBlocks() const
+PtexTextureLoader::PrintBlocks() const
 { for( unsigned long int i=0; i<_blocks.size(); ++i )
     std::cout<<_blocks[i]<<std::endl;
 }
 
 void
-OsdPtexTextureLoader::PrintPages() const
+PtexTextureLoader::PrintPages() const
 { for( unsigned long int i=0; i<_pages.size(); ++i )
     std::cout<<*(_pages[i])<<std::endl;
 }
 
-std::ostream & operator <<(std::ostream &s, const OsdPtexTextureLoader::block & b)
+std::ostream & operator <<(std::ostream &s, const PtexTextureLoader::block & b)
 { s<<"block "<<b.idx<<" = { ";
   s<<"native=("<<b.native.u()<<","<<b.native.v()<<") ";
   s<<"current=("<<b.current.u()<<","<<b.current.v()<<") ";
@@ -914,22 +916,24 @@ std::ostream & operator <<(std::ostream &s, const OsdPtexTextureLoader::block & 
   return s;
 }
 
-std::ostream & operator <<(std::ostream &s, const OsdPtexTextureLoader::page & p)
+std::ostream & operator <<(std::ostream &s, const PtexTextureLoader::page & p)
 {
   s<<"page {\n";
   s<<"        slots {";
-  for (OsdPtexTextureLoader::page::slist::const_iterator i=p.slots.begin(); i!=p.slots.end(); ++i)
+  for (PtexTextureLoader::page::slist::const_iterator i=p.slots.begin(); i!=p.slots.end(); ++i)
     s<<" { "<<i->u<<" "<<i->v<<" "<<i->ures<<" "<<i->vres<<"} ";
   s<<"        }\n";
 
   s<<"        blocks {";
-  for (OsdPtexTextureLoader::page::blist::const_iterator i=p.blocks.begin(); i!=p.blocks.end(); ++i)
+  for (PtexTextureLoader::page::blist::const_iterator i=p.blocks.begin(); i!=p.blocks.end(); ++i)
     s<<" "<< **i;
   s<<"        }\n";
 
   s<<"}";
   return s;
 }
+
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

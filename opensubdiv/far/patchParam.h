@@ -32,6 +32,8 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Far {
+
 /// \brief Local patch parameterization descriptor
 ///
 /// Coarse mesh faces are split into sets of patches in both uniform and feature
@@ -54,7 +56,7 @@ namespace OPENSUBDIV_VERSION {
 /// Note : the bitfield is not expanded in the struct due to differences in how
 ///        GPU & CPU compilers pack bit-fields and endian-ness.
 ///
-struct FarPatchParam {
+struct PatchParam {
     unsigned int faceIndex:32; // Ptex face index
     
     struct BitField {
@@ -144,7 +146,7 @@ struct FarPatchParam {
 };
 
 inline float 
-FarPatchParam::BitField::GetParamFraction( ) const {
+PatchParam::BitField::GetParamFraction( ) const {
     if (NonQuadRoot()) {
         return 1.0f / float( 1 << (GetDepth()-1) );
     } else {
@@ -153,7 +155,7 @@ FarPatchParam::BitField::GetParamFraction( ) const {
 }
 
 inline void
-FarPatchParam::BitField::Normalize( float & u, float & v ) const {
+PatchParam::BitField::Normalize( float & u, float & v ) const {
 
     float frac = GetParamFraction();
 
@@ -167,7 +169,7 @@ FarPatchParam::BitField::Normalize( float & u, float & v ) const {
 }
 
 inline void 
-FarPatchParam::BitField::Rotate( float & u, float & v ) const {
+PatchParam::BitField::Rotate( float & u, float & v ) const {
     switch( GetRotation() ) {
          case 0 : break;
          case 1 : { float tmp=v; v=1.0f-u; u=tmp; } break;
@@ -177,6 +179,8 @@ FarPatchParam::BitField::Rotate( float & u, float & v ) const {
              assert(0);
     }
 }
+
+} // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

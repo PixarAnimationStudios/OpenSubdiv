@@ -26,7 +26,7 @@
 #include <typeinfo>
 #include <iostream>
 
-#include "../common/shape_utils.h"
+#include "../../regression/common/hbr_utils.h"
 
 //
 // Generates a baseline data set for the hbr_regression tool
@@ -46,10 +46,10 @@ struct xyzVV {
 
    ~xyzVV( ) { }
 
-    void     AddWithWeight(const xyzVV& src, float weight, void * =0 ) { 
-        _pos[0]+=weight*src._pos[0]; 
-        _pos[1]+=weight*src._pos[1]; 
-        _pos[2]+=weight*src._pos[2]; 
+    void     AddWithWeight(const xyzVV& src, float weight, void * =0 ) {
+        _pos[0]+=weight*src._pos[0];
+        _pos[1]+=weight*src._pos[1];
+        _pos[2]+=weight*src._pos[2];
     }
 
     void     AddVaryingWithWeight(const xyzVV& , float, void * =0 ) { }
@@ -102,36 +102,36 @@ typedef OpenSubdiv::HbrVertexOperator<xyzVV> xyzVertexOperator;
 static void generate( char const * shapeStr, char const * name, int levels, Scheme scheme=kCatmark ) {
 
     assert(shapeStr);
-    
+
     xyzmesh * mesh = simpleHbr<xyzVV>(shapeStr, scheme, 0);
-    
+
     //int nvf = 4;
     //if ( typeid(*(mesh->GetSubdivision())) ==
     //    typeid( OpenSubdiv::HbrLoopSubdivision<xyzVV>) )
     //    nvf = 3;
-    
+
     int firstface=0, lastface=mesh->GetNumFaces(),
         firstvert=0, lastvert=mesh->GetNumVertices();
-    
+
     for (int l=0; l<levels; ++l ) {
-    
+
         std::stringstream fname ;
         fname << name << "_level" << l << ".obj";
-    
+
         printf("    writing \"%s\"\n", fname.str().c_str());
-    
+
         FILE * handle = fopen( fname.str().c_str(), "w" );
         if (not handle) {
             printf("Could not open \"%s\" - aborting.\n", fname.str().c_str());
             exit(0);
         }
-    
+
         // subdivide up to current level
         for (int i=firstface; i<lastface; ++i) {
             xyzface * f = mesh->GetFace(i);
             f->Refine();
         }
-        
+
         firstface = lastface;
         lastface = mesh->GetNumFaces();
         //nfaces = lastface - firstface;
@@ -142,24 +142,24 @@ static void generate( char const * shapeStr, char const * name, int levels, Sche
 
         //fprintf(handle, "static char const * %s = \n", fname.str().c_str());
         fprintf(handle, "# This file uses centimeters as units for non-parametric coordinates.\n");
-        
+
         for (int i=firstvert; i<lastvert; ++i) {
             const float * pos = mesh->GetVertex(i)->GetData().GetPos();
             fprintf(handle, "v  %.*g %.*g %.*g\n", 9, pos[0], 9, pos[1], 9, pos[2]);
         }
-              
+
         fprintf(handle, "s off\n");
-        
+
         for (int i=firstface; i<lastface; ++i) {
             xyzface * f = mesh->GetFace(i);
-            
+
             fprintf(handle, "f ");
             for (int j=0; j<f->GetNumVertices();) {
-            
+
                 int vert = f->GetVertex(j)->GetID()-firstvert;
-                
+
                 fprintf(handle, "%d", vert+1);
-                
+
                 if (++j<f->GetNumVertices())
                     fprintf(handle, " ");
             }
@@ -192,7 +192,7 @@ static void parseArgs(int argc, char ** argv) {
 
     if (argc==1)
         usage(argv[0]);
-    
+
     for (int i=1; i<argc; ++i) {
         if (not strcmp(argv[i],"-shape")) {
             if (i<(argc-1))
@@ -202,12 +202,12 @@ static void parseArgs(int argc, char ** argv) {
                 exit(0);
             }
         } else if (not strcmp(argv[i],"-scheme")) {
-        
+
             const char * scheme = NULL;
-            
+
             if (i<(argc-1))
                 scheme = argv[++i];
-            
+
             if (not strcmp(scheme,"bilinear"))
                 g_scheme = kBilinear;
             else if (not strcmp(scheme,"catmark"))
@@ -235,9 +235,9 @@ int main(int argc, char ** argv) {
     initShapes();
 
     parseArgs(argc, argv);
-    
+
     if ( g_objfile.size() ) {
-        
+
         FILE * handle = fopen( g_objfile.c_str(), "rt" );
         if (not handle) {
             printf("Could not open \"%s\" - aborting.\n", g_objfile.c_str());
@@ -256,26 +256,26 @@ int main(int argc, char ** argv) {
         }
 
         fclose(handle);
-        
-        generate( shapeStr, 
-                  g_objfile.c_str(), 
-                  levels, 
+
+        generate( shapeStr,
+                  g_objfile.c_str(),
+                  levels,
                   g_scheme );
-        
+
         delete [] shapeStr;
     } else if (g_shapeindex>=0) {
-        
+
         if (g_shapeindex==(int)g_shapes.size()) {
             for (int i=0; i<(int)g_shapes.size(); ++i)
-                 generate( g_shapes[i].data.c_str(), 
-                           g_shapes[i].name.c_str(), 
-                           levels, 
+                 generate( g_shapes[i].data.c_str(),
+                           g_shapes[i].name.c_str(),
+                           levels,
                            g_shapes[i].scheme);
-                
+
         } else
-            generate( g_shapes[g_shapeindex].data.c_str(), 
-                      g_shapes[g_shapeindex].name.c_str(), 
-                      levels, 
+            generate( g_shapes[g_shapeindex].data.c_str(),
+                      g_shapes[g_shapeindex].name.c_str(),
+                      levels,
                       g_shapes[g_shapeindex].scheme);
     }
 }

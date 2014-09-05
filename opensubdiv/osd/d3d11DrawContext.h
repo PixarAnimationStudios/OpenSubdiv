@@ -47,45 +47,42 @@ struct ID3D11DeviceContext;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 /// \brief D3D11 specialized DrawContext class
 ///
-/// OsdD3D11DrawContext implements the OSD drawing interface with Microsoft(c)
+/// D3D11DrawContext implements the OSD drawing interface with Microsoft(c)
 /// DirectX D3D11 API.
 /// Some functionality may be disabled depending on compile and run-time driver
 /// support.
 ///
-/// Contexts interface the serialized topological data pertaining to the 
-/// geometric primitives with the capabilities of the selected discrete 
+/// Contexts interface the serialized topological data pertaining to the
+/// geometric primitives with the capabilities of the selected discrete
 /// compute device.
 ///
-class OsdD3D11DrawContext : public OsdDrawContext {
+class D3D11DrawContext : public DrawContext {
 public:
     typedef ID3D11Buffer * VertexBufferBinding;
 
-    virtual ~OsdD3D11DrawContext();
+    virtual ~D3D11DrawContext();
 
-    /// \brief Create an OsdD3D11DrawContext from FarPatchTables
+    /// \brief Create an D3D11DrawContext from Far::PatchTables
     ///
-    /// @param patchTables          a valid set of FarPatchTables
+    /// @param patchTables          A valid set of Far::PatchTables
     ///
-    /// @param pd3d11DeviceContext  a device context
+    /// @param pd3d11DeviceContext  A device context
     ///
-    /// @param numVertexElements    the number of vertex elements
+    /// @param numVertexElements    The number of vertex elements
     ///
-    /// @param requireFVarData      set to true to enable face-varying data to be 
-    ///                             carried over from the Far data structures.
-    ///
-    ///
-    static OsdD3D11DrawContext *Create(FarPatchTables const *patchTables,
+    static D3D11DrawContext *Create(Far::PatchTables const *patchTables,
                                        ID3D11DeviceContext *pd3d11DeviceContext,
-                                       int numVertexElements,
-                                       bool requireFVarData=false);
+                                       int numVertexElements);
 
     /// Set vbo as a vertex texture (for gregory patch drawing)
     ///
-    /// @param vbo                  the vertex buffer object to update
+    /// @param vbo                  The vertex buffer object to update
     ///
-    /// @param pd3d11DeviceContext  a device context
+    /// @param pd3d11DeviceContext  A device context
     ///
     template<class VERTEX_BUFFER>
     void UpdateVertexTexture(VERTEX_BUFFER *vbo, ID3D11DeviceContext *pd3d11DeviceContext) {
@@ -100,8 +97,9 @@ public:
 
     ID3D11Buffer             *ptexCoordinateBuffer;
     ID3D11ShaderResourceView *ptexCoordinateBufferSRV;
+
     ID3D11Buffer             *fvarDataBuffer;
-    ID3D11Buffer             *fvarDataBufferSRV;
+    ID3D11ShaderResourceView *fvarDataBufferSRV;
 
     ID3D11ShaderResourceView *vertexBufferSRV;
     ID3D11Buffer             *vertexValenceBuffer;
@@ -109,14 +107,30 @@ public:
     ID3D11Buffer             *quadOffsetBuffer;
     ID3D11ShaderResourceView *quadOffsetBufferSRV;
 
+    /// Sets face-varying data buffer
+    ///
+    /// @param patchTables          A valid set of Far::PatchTables
+    ///
+    /// @param pd3d11DeviceContext  A device context
+    ///
+    /// @param fvarWidth            Total face-varying primvar data width in fvarData
+    ///
+    /// @param fvarData             Vector containing the face-varying data
+    ///
+    /// @return                     True if the operation was successful
+    ///
+    bool SetFVarDataTexture(Far::PatchTables const & patchTables,
+                            ID3D11DeviceContext *pd3d11DeviceContext,
+                            int fvarWidth, FVarData const & fvarData);
+
 private:
-    OsdD3D11DrawContext();
+    D3D11DrawContext();
+
 
     // allocate buffers from patchTables
-    bool create(FarPatchTables const *patchTables,
+    bool create(Far::PatchTables const &patchTables,
                 ID3D11DeviceContext *pd3d11DeviceContext,
-                int numVertexElements,
-                bool requireFVarData);
+                int numVertexElements);
 
     void updateVertexTexture(ID3D11Buffer *vbo,
                              ID3D11DeviceContext *pd3d11DeviceContext,
@@ -126,7 +140,9 @@ private:
     int _numVertices;
 };
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv

@@ -31,20 +31,22 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 ///
 /// \brief Concrete vertex buffer class for OpenCL subvision.
 ///
-/// OsdCLVertexBuffer implements OsdCLVertexBufferInterface. An instance of this
-/// buffer class can be passed to OsdCLComputeController
+/// CLVertexBuffer implements CLVertexBufferInterface. An instance of this
+/// buffer class can be passed to CLComputeController
 ///
-class OsdCLVertexBuffer {
+class CLVertexBuffer {
 
 public:
     /// Creator. Returns NULL if error.
-    static OsdCLVertexBuffer * Create(int numElements, int numVertices, cl_context clContext);
+    static CLVertexBuffer * Create(int numElements, int numVertices, cl_context clContext);
 
     /// Destructor.
-    ~OsdCLVertexBuffer();
+    ~CLVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
@@ -61,7 +63,7 @@ public:
 
 protected:
     /// Constructor.
-    OsdCLVertexBuffer(int numElements, int numVertices, cl_context clContext);
+    CLVertexBuffer(int numElements, int numVertices, cl_context clContext);
 
     /// Allocates CL memory for this buffer.
     /// Returns true if success.
@@ -72,6 +74,8 @@ private:
     int _numVertices;
     cl_mem _clMemory;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

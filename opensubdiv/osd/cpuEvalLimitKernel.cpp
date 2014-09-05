@@ -35,12 +35,14 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 void
 evalBilinear(float u, float v,
              unsigned int const * vertexIndices,
-             OsdVertexBufferDescriptor const & inDesc,
+             VertexBufferDescriptor const & inDesc,
              float const * inQ,
-             OsdVertexBufferDescriptor const & outDesc,
+             VertexBufferDescriptor const & outDesc,
              float * outQ) {
 
     assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
@@ -93,9 +95,9 @@ evalCubicBSpline(float u, float B[4], float BU[4]) {
 void
 evalBSpline(float u, float v,
             unsigned int const * vertexIndices,
-            OsdVertexBufferDescriptor const & inDesc,
+            VertexBufferDescriptor const & inDesc,
             float const * inQ,
-            OsdVertexBufferDescriptor const & outDesc,
+            VertexBufferDescriptor const & outDesc,
             float * outQ,
             float * outDQU,
             float * outDQV ) {
@@ -161,9 +163,9 @@ evalBSpline(float u, float v,
 void
 evalBoundary(float u, float v,
              unsigned int const * vertexIndices,
-             OsdVertexBufferDescriptor const & inDesc,
+             VertexBufferDescriptor const & inDesc,
              float const * inQ,
-             OsdVertexBufferDescriptor const & outDesc,
+             VertexBufferDescriptor const & outDesc,
              float * outQ,
              float * outDQU,
              float * outDQV ) {
@@ -262,9 +264,9 @@ evalBoundary(float u, float v,
 void
 evalCorner(float u, float v,
            unsigned int const * vertexIndices,
-           OsdVertexBufferDescriptor const & inDesc,
+           VertexBufferDescriptor const & inDesc,
            float const * inQ,
-           OsdVertexBufferDescriptor const & outDesc,
+           VertexBufferDescriptor const & outDesc,
            float * outQ,
            float * outDQU,
            float * outDQV ) {
@@ -430,9 +432,9 @@ evalGregory(float u, float v,
             int const * vertexValenceBuffer,
             unsigned int const  * quadOffsetBuffer,
             int maxValence,
-            OsdVertexBufferDescriptor const & inDesc,
+            VertexBufferDescriptor const & inDesc,
             float const * inQ,
-            OsdVertexBufferDescriptor const & outDesc,
+            VertexBufferDescriptor const & outDesc,
             float * outQ,
             float * outDQU,
             float * outDQV )
@@ -688,9 +690,9 @@ evalGregoryBoundary(float u, float v,
                     int const * vertexValenceBuffer,
                     unsigned int const  * quadOffsetBuffer,
                     int maxValence,
-                    OsdVertexBufferDescriptor const & inDesc,
+                    VertexBufferDescriptor const & inDesc,
                     float const * inQ,
-                    OsdVertexBufferDescriptor const & outDesc,
+                    VertexBufferDescriptor const & outDesc,
                     float * outQ,
                     float * outDQU,
                     float * outDQV )
@@ -1087,6 +1089,7 @@ evalGregoryBoundary(float u, float v,
     }
 }
 
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

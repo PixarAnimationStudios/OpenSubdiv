@@ -143,7 +143,7 @@ inverseMatrix(float *d, const float *m) {
 
     float det = m[0] * d[0] + m[1] * d[4] + m[2] * d[8] + m[3] * d[12];
 
-    if (det == 0) return;
+    if (det == 0.0f) return;
     det = 1.0f / det;
 
     for (int i = 0; i < 16; i++)
@@ -154,7 +154,7 @@ inline void
 perspective(float *m, float fovy, float aspect, float znear, float zfar)
 {
     float r = 2 * (float)M_PI * fovy / 360.0F;
-    float t = 1.0f / tan(r*0.5f);
+    float t = 1.0f / tanf(r*0.5f);
     m[0] = t/aspect;
     m[1] = m[2] = m[3] = 0.0;
     m[4] = 0.0;
@@ -205,8 +205,8 @@ inline void
 rotate(float *m, float angle, float x, float y, float z)
 {
     float r = 2 * (float) M_PI * angle/360.0f;
-    float c = cos(r);
-    float s = sin(r);
+    float c = cosf(r);
+    float s = sinf(r);
     float t[16];
     t[0] = x*x*(1-c)+c;
     t[1] = y*x*(1-c)+z*s;

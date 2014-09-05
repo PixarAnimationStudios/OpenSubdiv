@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/dispatcher.h"
+#include "../far/kernelBatchDispatcher.h"
 #include "../osd/clComputeContext.h"
 #include "../osd/vertexDescriptor.h"
 #include "../osd/opencl.h"
@@ -37,21 +37,23 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdCLKernelBundle;
+namespace Osd {
 
-/// \brief Compute controller for launching OpenCL subdivision kernels.
+class CLKernelBundle;
+
+/// \brief Compute controller for launching OpenCL Compute subdivision kernels.
 ///
-/// OsdCLComputeController is a compute controller class to launch
-/// OpenCL subdivision kernels. It requires OsdCLVertexBufferInterface
+/// CLComputeController is a compute controller class to launch
+/// OpenCL subdivision kernels. It requires CLVertexBufferInterface
 /// as arguments of Refine function.
 ///
 /// Controller entities execute requests from Context instances that they share
 /// common interfaces with. Controllers are attached to discrete compute devices
 /// and share the devices resources with Context entities.
 ///
-class OsdCLComputeController {
+class CLComputeController {
 public:
-    typedef OsdCLComputeContext ComputeContext;
+    typedef CLComputeContext ComputeContext;
 
     /// Constructor.
     ///
@@ -59,61 +61,62 @@ public:
     ///
     /// @param queue a valid non-zero OpenCL command queue
     ///
-    OsdCLComputeController(cl_context clContext, cl_command_queue queue);
+    CLComputeController(cl_context clContext, cl_command_queue queue);
 
     /// Destructor.
-    ~OsdCLComputeController();
+    ~CLComputeController();
 
-    /// Launch subdivision kernels and apply to given vertex buffers.
+    /// Execute subdivision kernels and apply to given vertex buffers.
     ///
-    /// @param  context       the OsdCpuContext to apply refinement operations to
+    /// @param  context       The CLContext to apply refinement operations to
     ///
-    /// @param  batches       vector of batches of vertices organized by operative 
+    /// @param  batches       Vector of batches of vertices organized by operative
     ///                       kernel
     ///
-    /// @param  vertexBuffer  vertex-interpolated data buffer
+    /// @param  vertexBuffer  Vertex-interpolated data buffer
     ///
-    /// @param  varyingBuffer varying-interpolated data buffer
-    ///
-    /// @param  vertexDesc    the descriptor of vertex elements to be refined.
+    /// @param  vertexDesc    The descriptor of vertex elements to be refined.
     ///                       if it's null, all primvars in the vertex buffer
     ///                       will be refined.
     ///
-    /// @param  varyingDesc   the descriptor of varying elements to be refined.
-    ///                       if it's null, all primvars in the varying buffer
+    /// @param  varyingBuffer Vertex-interpolated data buffer
+    ///
+    /// @param  varyingDesc   The descriptor of varying elements to be refined.
+    ///                       if it's null, all primvars in the vertex buffer
     ///                       will be refined.
     ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Refine(ComputeContext const *context,
-                FarKernelBatchVector const &batches,
-                VERTEX_BUFFER *vertexBuffer,
-                VARYING_BUFFER *varyingBuffer,
-                OsdVertexBufferDescriptor const *vertexDesc=NULL,
-                OsdVertexBufferDescriptor const *varyingDesc=NULL) {
+        void Compute( CLComputeContext const * context,
+                      Far::KernelBatchVector const & batches,
+                      VERTEX_BUFFER  * vertexBuffer,
+                      VARYING_BUFFER * varyingBuffer,
+                      VertexBufferDescriptor const * vertexDesc=NULL,
+                      VertexBufferDescriptor const * varyingDesc=NULL ){
 
         if (batches.empty()) return;
 
         bind(vertexBuffer, varyingBuffer, vertexDesc, varyingDesc);
 
-        FarDispatcher::Refine(this, context, batches, /*maxlevel*/-1);
+        Far::KernelBatchDispatcher::Apply(this, context, batches, /*maxlevel*/ -1);
 
         unbind();
     }
 
-    /// Launch subdivision kernels and apply to given vertex buffers.
+    /// Execute subdivision kernels and apply to given vertex buffers.
     ///
-    /// @param  context       the OsdCpuContext to apply refinement operations to
+    /// @param  context       The CLContext to apply refinement operations to
     ///
-    /// @param  batches       vector of batches of vertices organized by operative 
+    /// @param  batches       Vector of batches of vertices organized by operative
     ///                       kernel
     ///
-    /// @param  vertexBuffer  vertex-interpolated data buffer
+    /// @param  vertexBuffer  Vertex-interpolated data buffer
     ///
     template<class VERTEX_BUFFER>
-    void Refine(ComputeContext const *context,
-                FarKernelBatchVector const &batches,
-                VERTEX_BUFFER *vertexBuffer) {
-        Refine(context, batches, vertexBuffer, (VERTEX_BUFFER*)NULL);
+        void Compute(CLComputeContext const * context,
+                     Far::KernelBatchVector const & batches,
+                     VERTEX_BUFFER *vertexBuffer) {
+
+        Compute<VERTEX_BUFFER>(context, batches, vertexBuffer, (VERTEX_BUFFER*)0);
     }
 
     /// Waits until all running subdivision kernels finish.
@@ -126,108 +129,83 @@ public:
     cl_command_queue GetCommandQueue() const { return _clQueue; }
 
 protected:
-    friend class FarDispatcher;
 
-    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
+    friend class Far::KernelBatchDispatcher;
 
-    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-
-    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkQuadFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkTriQuadFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkRestrictedEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkRestrictedVertexVerticesKernelB1(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkRestrictedVertexVerticesKernelB2(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkRestrictedVertexVerticesKernelA(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-
-    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-
-    void ApplyVertexEdits(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-
-    OsdCLKernelBundle * getKernelBundle(
-        OsdVertexBufferDescriptor const &vertexDesc,
-        OsdVertexBufferDescriptor const &varyingDesc);
+    void ApplyStencilTableKernel(Far::KernelBatch const &batch,
+        ComputeContext const *context);
 
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying,
-              OsdVertexBufferDescriptor const *vertexDesc,
-              OsdVertexBufferDescriptor const *varyingDesc) {
+        void bind( VERTEX_BUFFER * vertexBuffer,
+                   VARYING_BUFFER * varyingBuffer,
+                   VertexBufferDescriptor const * vertexDesc,
+                   VertexBufferDescriptor const * varyingDesc ) {
 
         // if the vertex buffer descriptor is specified, use it.
         // otherwise, assumes the data is tightly packed in the vertex buffer.
         if (vertexDesc) {
             _currentBindState.vertexDesc = *vertexDesc;
         } else {
-            int numElements = vertex ? vertex->GetNumElements() : 0;
-            _currentBindState.vertexDesc = OsdVertexBufferDescriptor(
-                0, numElements, numElements);
+            int numElements = vertexBuffer ? vertexBuffer->GetNumElements() : 0;
+            _currentBindState.vertexDesc =
+                VertexBufferDescriptor(0, numElements, numElements);
         }
+
         if (varyingDesc) {
             _currentBindState.varyingDesc = *varyingDesc;
         } else {
-            int numElements = varying ? varying->GetNumElements() : 0;
-            _currentBindState.varyingDesc = OsdVertexBufferDescriptor(
-                0, numElements, numElements);
+            int numElements = varyingBuffer ? varyingBuffer->GetNumElements() : 0;
+            _currentBindState.varyingDesc =
+                VertexBufferDescriptor(0, numElements, numElements);
         }
 
-        _currentBindState.vertexBuffer = vertex ? vertex->BindCLBuffer(_clQueue) : 0;
-        _currentBindState.varyingBuffer = varying ? varying->BindCLBuffer(_clQueue) : 0;
-        _currentBindState.kernelBundle = getKernelBundle(_currentBindState.vertexDesc,
-                                                         _currentBindState.varyingDesc);
+        _currentBindState.vertexBuffer = vertexBuffer ?
+            vertexBuffer->BindCLBuffer(_clQueue) : 0;
+        _currentBindState.varyingBuffer = varyingBuffer ?
+            varyingBuffer->BindCLBuffer(_clQueue) : 0;
     }
 
     void unbind() {
         _currentBindState.Reset();
     }
 
+
 private:
+
+    class KernelBundle;
+
+    // Bind state is a transitional state during refinement.
+    // It doesn't take an ownership of the vertex buffers.
     struct BindState {
-        BindState() : vertexBuffer(NULL), varyingBuffer(NULL), kernelBundle(NULL) {}
+
+        BindState() : vertexBuffer(0), varyingBuffer(0) { }
+
         void Reset() {
             vertexBuffer = varyingBuffer = NULL;
             vertexDesc.Reset();
             varyingDesc.Reset();
-            kernelBundle = NULL;
         }
-        cl_mem vertexBuffer;
-        cl_mem varyingBuffer;
-        OsdVertexBufferDescriptor vertexDesc;
-        OsdVertexBufferDescriptor varyingDesc;
-        OsdCLKernelBundle *kernelBundle;
+
+        cl_mem vertexBuffer,
+               varyingBuffer;
+
+        VertexBufferDescriptor vertexDesc,
+                                  varyingDesc;
     };
 
     BindState _currentBindState;
 
+    KernelBundle const * getKernel(VertexBufferDescriptor const &desc);
+
+    typedef std::vector<KernelBundle *> KernelRegistry;
+
+    KernelRegistry _kernelRegistry;
+
     cl_context _clContext;
     cl_command_queue _clQueue;
-    std::vector<OsdCLKernelBundle *> _kernelRegistry;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

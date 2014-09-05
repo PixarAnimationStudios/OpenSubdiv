@@ -32,32 +32,34 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCLD3D11VertexBuffer::OsdCLD3D11VertexBuffer(int numElements, int numVertices,
+namespace Osd {
+
+CLD3D11VertexBuffer::CLD3D11VertexBuffer(int numElements, int numVertices,
                                                cl_context clContext, ID3D11Device *device) 
     : _numElements(numElements), _numVertices(numVertices),
       _d3d11Buffer(NULL), _clMemory(NULL), _clQueue(NULL), _clMapped(false) {
 ;
 }
 
-OsdCLD3D11VertexBuffer::~OsdCLD3D11VertexBuffer() {
+CLD3D11VertexBuffer::~CLD3D11VertexBuffer() {
 
     unmap();
     clReleaseMemObject(_clMemory);
     _d3d11Buffer->Release();
 }
 
-OsdCLD3D11VertexBuffer *
-OsdCLD3D11VertexBuffer::Create(int numElements, int numVertices,
+CLD3D11VertexBuffer *
+CLD3D11VertexBuffer::Create(int numElements, int numVertices,
                                cl_context clContext, ID3D11Device *device) {
-    OsdCLD3D11VertexBuffer *instance =
-        new OsdCLD3D11VertexBuffer(numElements, numVertices, clContext, device);
+    CLD3D11VertexBuffer *instance =
+        new CLD3D11VertexBuffer(numElements, numVertices, clContext, device);
     if (instance->allocate(clContext, device)) return instance;
     delete instance;
     return NULL;
 }
 
 void
-OsdCLD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue queue) {
+CLD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue queue) {
 
     size_t size = numVertices * _numElements * sizeof(float);
     size_t offset = startVertex * _numElements * sizeof(float);
@@ -67,21 +69,21 @@ OsdCLD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVer
 }
 
 cl_mem
-OsdCLD3D11VertexBuffer::BindCLBuffer(cl_command_queue queue) {
+CLD3D11VertexBuffer::BindCLBuffer(cl_command_queue queue) {
 
     map(queue);
     return _clMemory;
 }
 
 ID3D11Buffer *
-OsdCLD3D11VertexBuffer::BindD3D11Buffer(ID3D11DeviceContext *deviceContext) {
+CLD3D11VertexBuffer::BindD3D11Buffer(ID3D11DeviceContext *deviceContext) {
 
     unmap();
     return _d3d11Buffer;
 }
 
 bool
-OsdCLD3D11VertexBuffer::allocate(cl_context clContext, ID3D11Device *device) {
+CLD3D11VertexBuffer::allocate(cl_context clContext, ID3D11Device *device) {
 
     D3D11_BUFFER_DESC hBufferDesc;
     hBufferDesc.ByteWidth           = _numElements * _numVertices * sizeof(float);
@@ -94,7 +96,7 @@ OsdCLD3D11VertexBuffer::allocate(cl_context clContext, ID3D11Device *device) {
     HRESULT hr;
     hr = device->CreateBuffer(&hBufferDesc, NULL, &_d3d11Buffer);
     if(FAILED(hr)) {
-        OsdError(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR, "Fail in CreateBuffer\n");
+        Error(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR, "Fail in CreateBuffer\n");
         return false;
     }
 
@@ -107,7 +109,7 @@ OsdCLD3D11VertexBuffer::allocate(cl_context clContext, ID3D11Device *device) {
 }
 
 void
-OsdCLD3D11VertexBuffer::map(cl_command_queue queue) {
+CLD3D11VertexBuffer::map(cl_command_queue queue) {
 
     if (_clMapped) return;
     _clQueue = queue;
@@ -116,13 +118,15 @@ OsdCLD3D11VertexBuffer::map(cl_command_queue queue) {
 }
 
 void
-OsdCLD3D11VertexBuffer::unmap() {
+CLD3D11VertexBuffer::unmap() {
     
     if (not _clMapped) return;
     clEnqueueReleaseD3D11ObjectsKHR(_clQueue, 1, &_clMemory, 0, 0, 0);
     _clMapped = false;
 }
 
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

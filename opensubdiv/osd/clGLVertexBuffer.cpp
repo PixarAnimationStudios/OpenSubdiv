@@ -31,7 +31,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCLGLVertexBuffer::OsdCLGLVertexBuffer(int numElements,
+namespace Osd {
+
+CLGLVertexBuffer::CLGLVertexBuffer(int numElements,
                                          int numVertices,
                                          cl_context /* clContext */)
     : _numElements(numElements), _numVertices(numVertices),
@@ -39,25 +41,25 @@ OsdCLGLVertexBuffer::OsdCLGLVertexBuffer(int numElements,
 
 }
 
-OsdCLGLVertexBuffer::~OsdCLGLVertexBuffer() {
+CLGLVertexBuffer::~CLGLVertexBuffer() {
 
     unmap();
     clReleaseMemObject(_clMemory);
     glDeleteBuffers(1, &_vbo);
 }
 
-OsdCLGLVertexBuffer *
-OsdCLGLVertexBuffer::Create(int numElements, int numVertices, cl_context clContext)
+CLGLVertexBuffer *
+CLGLVertexBuffer::Create(int numElements, int numVertices, cl_context clContext)
 {
-    OsdCLGLVertexBuffer *instance =
-        new OsdCLGLVertexBuffer(numElements, numVertices, clContext);
+    CLGLVertexBuffer *instance =
+        new CLGLVertexBuffer(numElements, numVertices, clContext);
     if (instance->allocate(clContext)) return instance;
     delete instance;
     return NULL;
 }
 
 void
-OsdCLGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue queue) {
+CLGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue queue) {
 
     size_t size = numVertices * _numElements * sizeof(float);
     size_t offset = startVertex * _numElements * sizeof(float);
@@ -67,33 +69,33 @@ OsdCLGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertic
 }
 
 int
-OsdCLGLVertexBuffer::GetNumElements() const {
+CLGLVertexBuffer::GetNumElements() const {
 
     return _numElements;
 }
 
 int
-OsdCLGLVertexBuffer::GetNumVertices() const {
+CLGLVertexBuffer::GetNumVertices() const {
 
     return _numVertices;
 }
 
 cl_mem
-OsdCLGLVertexBuffer::BindCLBuffer(cl_command_queue queue) {
+CLGLVertexBuffer::BindCLBuffer(cl_command_queue queue) {
 
     map(queue);
     return _clMemory;
 }
 
 GLuint
-OsdCLGLVertexBuffer::BindVBO() {
+CLGLVertexBuffer::BindVBO() {
 
     unmap();
     return _vbo;
 }
 
 bool
-OsdCLGLVertexBuffer::allocate(cl_context clContext) {
+CLGLVertexBuffer::allocate(cl_context clContext) {
 
     assert(clContext);
 
@@ -125,7 +127,7 @@ OsdCLGLVertexBuffer::allocate(cl_context clContext) {
 }
 
 void
-OsdCLGLVertexBuffer::map(cl_command_queue queue) {
+CLGLVertexBuffer::map(cl_command_queue queue) {
 
     if (_clMapped) return;    // XXX: what if another queue is given?
     _clQueue = queue;
@@ -134,12 +136,14 @@ OsdCLGLVertexBuffer::map(cl_command_queue queue) {
 }
 
 void
-OsdCLGLVertexBuffer::unmap() {
+CLGLVertexBuffer::unmap() {
 
     if (not _clMapped) return;
     clEnqueueReleaseGLObjects(_clQueue, 1, &_clMemory, 0, 0, 0);
     _clMapped = false;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

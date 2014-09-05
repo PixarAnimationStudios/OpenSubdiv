@@ -24,22 +24,26 @@
 
 #include "../osd/drawContext.h"
 
+#include <cstring>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdDrawContext::~OsdDrawContext() {}
+namespace Osd {
+
+DrawContext::~DrawContext() {}
 
 void
-OsdDrawContext::ConvertPatchArrays(FarPatchTables::PatchArrayVector const &farPatchArrays,
-                                   OsdDrawContext::PatchArrayVector &osdPatchArrays,
-                                   int maxValence, int numElements)
-{
+DrawContext::ConvertPatchArrays(Far::PatchTables::PatchArrayVector const &farPatchArrays,
+                                   DrawContext::PatchArrayVector &osdPatchArrays,
+                                   int maxValence, int numElements) {
+
     // create patch arrays for drawing (while duplicating subpatches for transition patch arrays)
     static int subPatchCounts[] = { 1, 3, 4, 4, 4, 2 }; // number of subpatches for patterns
 
     int numTotalPatchArrays = 0;
     for (int i = 0; i < (int)farPatchArrays.size(); ++i) {
-        FarPatchTables::TransitionPattern pattern = farPatchArrays[i].GetDescriptor().GetPattern();
+        Far::PatchTables::TransitionPattern pattern = farPatchArrays[i].GetDescriptor().GetPattern();
         numTotalPatchArrays += subPatchCounts[(int)pattern];
     }
 
@@ -48,11 +52,11 @@ OsdDrawContext::ConvertPatchArrays(FarPatchTables::PatchArrayVector const &farPa
     osdPatchArrays.reserve(numTotalPatchArrays);
 
     for (int i = 0; i < (int)farPatchArrays.size(); ++i) {
-        FarPatchTables::TransitionPattern pattern = farPatchArrays[i].GetDescriptor().GetPattern();
+        Far::PatchTables::TransitionPattern pattern = farPatchArrays[i].GetDescriptor().GetPattern();
         int numSubPatches = subPatchCounts[(int)pattern];
 
-        FarPatchTables::PatchArray const &parray = farPatchArrays[i];
-        FarPatchTables::Descriptor srcDesc = parray.GetDescriptor();
+        Far::PatchTables::PatchArray const &parray = farPatchArrays[i];
+        Far::PatchTables::Descriptor srcDesc = parray.GetDescriptor();
 
         for (int j = 0; j < numSubPatches; ++j) {
             PatchDescriptor desc(srcDesc, maxValence, j, numElements);
@@ -62,7 +66,32 @@ OsdDrawContext::ConvertPatchArrays(FarPatchTables::PatchArrayVector const &farPa
     }
 }
 
-} // end namespace OPENSUBDIV_VERSION
+void
+DrawContext::packFVarData(Far::PatchTables const & patchTables,
+                             int fvarWidth, FVarData const & src, FVarData & dst) {
+
+    assert(fvarWidth and (not src.empty()));
+
+    Far::PatchTables::FVarPatchTables const * fvarPatchTables =
+        patchTables.GetFVarPatchTables();
+    assert(fvarPatchTables);
+
+    // OsdMesh only accesses channel 0
+    std::vector<unsigned int> const & indices = fvarPatchTables->GetPatchVertices(0);
+
+    dst.resize(indices.size() * fvarWidth);
+    float * ptr = &dst[0];
+
+    for (int fvert=0; fvert<(int)indices.size(); ++fvert, ptr+=fvarWidth) {
+
+        int index = indices[fvert] * fvarWidth;
+        assert(index<(int)dst.size());
+
+        memcpy(ptr, &src[index], fvarWidth*sizeof(float));
+    }
+}
+
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
-
-

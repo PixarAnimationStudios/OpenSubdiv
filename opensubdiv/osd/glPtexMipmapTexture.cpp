@@ -32,12 +32,14 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdGLPtexMipmapTexture::OsdGLPtexMipmapTexture()
+namespace Osd {
+
+GLPtexMipmapTexture::GLPtexMipmapTexture()
     : _width(0), _height(0), _depth(0), _layout(0), _texels(0), _memoryUsage(0)
 {
 }
 
-OsdGLPtexMipmapTexture::~OsdGLPtexMipmapTexture()
+GLPtexMipmapTexture::~GLPtexMipmapTexture()
 {
     if (glIsTexture(_layout))
        glDeleteTextures(1, &_layout);
@@ -78,21 +80,21 @@ genTextureBuffer(GLenum format, GLsizeiptr size, GLvoid const * data)
     return result;
 }
 
-OsdGLPtexMipmapTexture *
-OsdGLPtexMipmapTexture::Create(PtexTexture * reader,
+GLPtexMipmapTexture *
+GLPtexMipmapTexture::Create(PtexTexture * reader,
                                int maxLevels,
                                size_t targetMemory)
 {
-    OsdGLPtexMipmapTexture * result = NULL;
+    GLPtexMipmapTexture * result = NULL;
 
     GLint maxNumPages = 0;
     glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &maxNumPages);
 
     // Read the ptexture data and pack the texels
-    OsdPtexMipmapTextureLoader loader(reader,
-                                      maxNumPages,
-                                      maxLevels,
-                                      targetMemory);
+    PtexMipmapTextureLoader loader(reader,
+                                   maxNumPages,
+                                   maxLevels,
+                                   targetMemory);
 
     // Setup GPU memory
     int numFaces = loader.GetNumFaces();
@@ -138,7 +140,7 @@ OsdGLPtexMipmapTexture::Create(PtexTexture * reader,
 //    loader.ClearBuffers();
 
     // Return the Osd Ptexture object
-    result = new OsdGLPtexMipmapTexture;
+    result = new GLPtexMipmapTexture;
 
     result->_width = loader.GetPageWidth();
     result->_height = loader.GetPageHeight();
@@ -152,6 +154,8 @@ OsdGLPtexMipmapTexture::Create(PtexTexture * reader,
 
     return result;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

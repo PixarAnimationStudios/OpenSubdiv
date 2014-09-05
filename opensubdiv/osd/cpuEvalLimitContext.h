@@ -38,7 +38,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdCpuEvalLimitContext : public OsdEvalLimitContext {
+namespace Osd {
+
+class CpuEvalLimitContext : public EvalLimitContext {
 public:
 
     /// \brief Factory
@@ -46,23 +48,23 @@ public:
     /// Note : the patchtables is expected to be feature-adaptive and have ptex
     ///        coordinates tables.
     /// 
-    /// @param patchTables      a pointer to an initialized FarPatchTables
+    /// @param patchTables      a pointer to an initialized Far::PatchTables
     ///
     /// @param requireFVarData  flag for generating face-varying data
     ///
-    static OsdCpuEvalLimitContext * Create(FarPatchTables const *patchTables,
+    static CpuEvalLimitContext * Create(Far::PatchTables const &patchTables,
                                            bool requireFVarData=false);
 
-    virtual ~OsdCpuEvalLimitContext();
+    virtual ~CpuEvalLimitContext();
 
 
     /// Returns the vector of patch arrays
-    const FarPatchTables::PatchArrayVector & GetPatchArrayVector() const {
+    const Far::PatchTables::PatchArrayVector & GetPatchArrayVector() const {
         return _patchArrays;
     }
     
     /// Returns the vector of per-patch parametric data
-    const std::vector<FarPatchParam::BitField> & GetPatchBitFields() const {
+    const std::vector<Far::PatchParam::BitField> & GetPatchBitFields() const {
         return _patchBitFields;
     }
 
@@ -72,12 +74,12 @@ public:
     }
 
     /// Returns the vertex-valence buffer used for Gregory patch computations
-    FarPatchTables::VertexValenceTable const & GetVertexValenceTable() const {
+    Far::PatchTables::VertexValenceTable const & GetVertexValenceTable() const {
         return _vertexValenceTable;
     }
 
     /// Returns the Quad-Offsets buffer used for Gregory patch computations
-    FarPatchTables::QuadOffsetTable const & GetQuadOffsetTable() const {
+    Far::PatchTables::QuadOffsetTable const & GetQuadOffsetTable() const {
         return _quadOffsetTable;
     }
     
@@ -92,7 +94,7 @@ public:
     }
 
     /// Returns a map that can connect a faceId to a list of children patches
-    FarPatchMap const & GetPatchMap() const {
+    Far::PatchMap const & GetPatchMap() const {
         return *_patchMap;
     }
 
@@ -102,26 +104,28 @@ public:
     }
 
 protected:
-    explicit OsdCpuEvalLimitContext(FarPatchTables const *patchTables, bool requireFVarData);
+    explicit CpuEvalLimitContext(Far::PatchTables const & patchTables, bool requireFVarData);
 
 private:
 
     // Topology data for a mesh
-    FarPatchTables::PatchArrayVector     _patchArrays;    // patch descriptor for each patch in the mesh
-    FarPatchTables::PTable               _patches;        // patch control vertices
-    std::vector<FarPatchParam::BitField> _patchBitFields; // per-patch parametric info
+    Far::PatchTables::PatchArrayVector     _patchArrays;    // patch descriptor for each patch in the mesh
+    Far::PatchTables::PTable               _patches;        // patch control vertices
+    std::vector<Far::PatchParam::BitField> _patchBitFields; // per-patch parametric info
     
-    FarPatchTables::VertexValenceTable   _vertexValenceTable; // extra Gregory patch data buffers
-    FarPatchTables::QuadOffsetTable      _quadOffsetTable;
+    Far::PatchTables::VertexValenceTable   _vertexValenceTable; // extra Gregory patch data buffers
+    Far::PatchTables::QuadOffsetTable      _quadOffsetTable;
 
     std::vector<float>                   _fvarData;
 
-    FarPatchMap * _patchMap;           // map of the sub-patches given a face index
+    Far::PatchMap * _patchMap;           // map of the sub-patches given a face index
 
     int _maxValence, 
         _fvarwidth;
 };
 
+
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

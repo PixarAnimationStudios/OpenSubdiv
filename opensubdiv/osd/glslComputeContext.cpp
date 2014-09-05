@@ -22,235 +22,188 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../osd/debug.h"
-#include "../osd/error.h"
-#include "../osd/glslComputeContext.h"
-#include "../osd/glslKernelBundle.h"
+#include "../far/stencilTables.h"
 
+#include "../osd/error.h"
+//#include "../osd/debug.h"
+#include "../osd/glslComputeContext.h"
 #include "../osd/opengl.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-void
-OsdGLSLComputeTable::createBuffer(size_t size, const void *ptr) {
+namespace Osd {
 
-    glGenBuffers(1, &_devicePtr);
+// -----------------------------------------------------------------------------
+
+template <class T> GLuint
+createGLSLBuffer(std::vector<T> const & src) {
+
+    GLuint devicePtr=0;
+
+    glGenBuffers(1, &devicePtr);
 
 #if defined(GL_EXT_direct_state_access)
     if (glNamedBufferDataEXT) {
-        glNamedBufferDataEXT(_devicePtr, size, ptr, GL_STATIC_DRAW);
+        glNamedBufferDataEXT(devicePtr, src.size()*sizeof(T), &src.at(0), GL_STATIC_DRAW);
     } else {
 #else
     {
 #endif
         GLint prev = 0;
         glGetIntegerv(GL_SHADER_STORAGE_BUFFER_BINDING, &prev);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, _devicePtr);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, size, ptr, GL_STATIC_DRAW);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, devicePtr);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, src.size()*sizeof(T), &src.at(0), GL_STATIC_DRAW);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, prev);
     }
-/*
-  CHECK_GL_ERROR("UpdateTable tableIndex %d, size %ld, buffer =%d\n",
-  tableIndex, size, _tableBuffers[tableIndex]);
-*/
+
+    //OSD_DEBUG_CHECK_GL_ERROR("createGLSLBuffer size %ld", src.size());
+    return devicePtr;
 }
 
-OsdGLSLComputeTable::~OsdGLSLComputeTable() {
+// -----------------------------------------------------------------------------
 
-    glDeleteBuffers(1, &_devicePtr);
-}
+class GLSLComputeContext::GLSLStencilTables {
 
-GLuint
-OsdGLSLComputeTable::GetBuffer() const {
+public:
 
-    return _devicePtr;
-}
-
-// ----------------------------------------------------------------------------
-
-OsdGLSLComputeHEditTable::OsdGLSLComputeHEditTable(
-    const FarVertexEditTables::VertexEditBatch &batch)
-    : _primvarIndicesTable(new OsdGLSLComputeTable(batch.GetVertexIndices())),
-      _editValuesTable(new OsdGLSLComputeTable(batch.GetValues())) {
-
-    _operation = batch.GetOperation();
-    _primvarOffset = batch.GetPrimvarIndex();
-    _primvarWidth = batch.GetPrimvarWidth();
-}
-
-OsdGLSLComputeHEditTable::~OsdGLSLComputeHEditTable() {
-
-    delete _primvarIndicesTable;
-    delete _editValuesTable;
-}
-
-const OsdGLSLComputeTable *
-OsdGLSLComputeHEditTable::GetPrimvarIndices() const {
-
-    return _primvarIndicesTable;
-}
-
-const OsdGLSLComputeTable *
-OsdGLSLComputeHEditTable::GetEditValues() const {
-
-    return _editValuesTable;
-}
-
-int
-OsdGLSLComputeHEditTable::GetOperation() const {
-
-    return _operation;
-}
-
-int
-OsdGLSLComputeHEditTable::GetPrimvarOffset() const {
-
-    return _primvarOffset;
-}
-
-int
-OsdGLSLComputeHEditTable::GetPrimvarWidth() const {
-
-    return _primvarWidth;
-}
-
-// ----------------------------------------------------------------------------
-
-OsdGLSLComputeContext::OsdGLSLComputeContext(
-    FarSubdivisionTables const *subdivisionTables,
-    FarVertexEditTables const *vertexEditTables) {
-
-    // allocate 5 or 7 tables
-    // XXXtakahito: Although _tables size depends on table type, F_IT is set
-    // to NULL even in loop case, to determine the condition in
-    // bindShaderStorageBuffer()...
-    _tables.resize(7, 0);
-
-    _tables[FarSubdivisionTables::E_IT]  = new OsdGLSLComputeTable(subdivisionTables->Get_E_IT());
-    _tables[FarSubdivisionTables::V_IT]  = new OsdGLSLComputeTable(subdivisionTables->Get_V_IT());
-    _tables[FarSubdivisionTables::V_ITa] = new OsdGLSLComputeTable(subdivisionTables->Get_V_ITa());
-    _tables[FarSubdivisionTables::E_W]   = new OsdGLSLComputeTable(subdivisionTables->Get_E_W());
-    _tables[FarSubdivisionTables::V_W]   = new OsdGLSLComputeTable(subdivisionTables->Get_V_W());
-
-    if (subdivisionTables->GetNumTables() > 5) {
-        // catmark, bilinear
-        _tables[FarSubdivisionTables::F_IT]  = new OsdGLSLComputeTable(subdivisionTables->Get_F_IT());
-        _tables[FarSubdivisionTables::F_ITa] = new OsdGLSLComputeTable(subdivisionTables->Get_F_ITa());
-    } else {
-        // loop
-        _tables[FarSubdivisionTables::F_IT] = NULL;
-        _tables[FarSubdivisionTables::F_ITa] = NULL;
+    GLSLStencilTables(Far::StencilTables const & stencilTables) {
+        _sizes = createGLSLBuffer(stencilTables.GetSizes());
+        _offsets = createGLSLBuffer(stencilTables.GetOffsets());
+        _indices = createGLSLBuffer(stencilTables.GetControlIndices());
+        _weights = createGLSLBuffer(stencilTables.GetWeights());
     }
 
-    // create hedit tables
-    if (vertexEditTables) {
-        int numEditBatches = vertexEditTables->GetNumBatches();
-        _editTables.reserve(numEditBatches);
-        for (int i = 0; i < numEditBatches; ++i) {
-            const FarVertexEditTables::VertexEditBatch & edit =
-                vertexEditTables->GetBatch(i);
-            _editTables.push_back(new OsdGLSLComputeHEditTable(edit));
+    ~GLSLStencilTables() {
+        glDeleteBuffers(1, &_sizes);
+        glDeleteBuffers(1, &_offsets);
+        glDeleteBuffers(1, &_weights);
+        glDeleteBuffers(1, &_indices);
+    }
+
+    bool IsValid() const {
+        return _sizes and _offsets and _indices and _weights;
+    }
+
+    GLuint GetSizes() const {
+        return _sizes;
+    }
+
+    GLuint GetOffsets() const {
+        return _offsets;
+    }
+
+    GLuint GetIndices() const {
+        return _indices;
+    }
+
+    GLuint GetWeights() const {
+        return _weights;
+    }
+
+    void Bind() const {
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _sizes);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _offsets);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _indices);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _weights);
+    }
+
+    static void Unbind() {
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, 0);
+
+        glUseProgram(0);
+    }
+
+private:
+
+    GLuint _sizes,
+           _offsets,
+           _indices,
+           _weights;
+};
+
+// -----------------------------------------------------------------------------
+
+GLSLComputeContext::GLSLComputeContext(
+    Far::StencilTables const * vertexStencilTables,
+        Far::StencilTables const * varyingStencilTables) :
+            _vertexStencilTables(0), _varyingStencilTables(0),
+                _numControlVertices(0) {
+
+    if (vertexStencilTables) {
+        _vertexStencilTables = new GLSLStencilTables(*vertexStencilTables);
+        _numControlVertices = vertexStencilTables->GetNumControlVertices();
+    }
+
+    if (varyingStencilTables) {
+        _varyingStencilTables = new GLSLStencilTables(*varyingStencilTables);
+
+        if (_numControlVertices) {
+            assert(_numControlVertices==varyingStencilTables->GetNumControlVertices());
+        } else {
+            _numControlVertices = varyingStencilTables->GetNumControlVertices();
         }
     }
 }
 
-OsdGLSLComputeContext::~OsdGLSLComputeContext() {
+GLSLComputeContext::~GLSLComputeContext() {
+    delete _vertexStencilTables;
+    delete _varyingStencilTables;
+}
 
-    for (size_t i = 0; i < _tables.size(); ++i) {
-        delete _tables[i];
+// ----------------------------------------------------------------------------
+
+bool
+GLSLComputeContext::HasVertexStencilTables() const {
+    return _vertexStencilTables ? _vertexStencilTables->IsValid() : false;
+}
+
+bool
+GLSLComputeContext::HasVaryingStencilTables() const {
+    return _varyingStencilTables ? _varyingStencilTables->IsValid() : false;
+}
+
+// ----------------------------------------------------------------------------
+
+
+void
+GLSLComputeContext::BindVertexStencilTables() const {
+    if (_vertexStencilTables) {
+        _vertexStencilTables->Bind();
     }
-    for (size_t i = 0; i < _editTables.size(); ++i) {
-        delete _editTables[i];
-    }
-}
-
-const OsdGLSLComputeTable *
-OsdGLSLComputeContext::GetTable(int tableIndex) const {
-
-    return _tables[tableIndex];
-}
-
-int
-OsdGLSLComputeContext::GetNumEditTables() const {
-
-    return static_cast<int>(_editTables.size());
-}
-
-const OsdGLSLComputeHEditTable *
-OsdGLSLComputeContext::GetEditTable(int tableIndex) const {
-
-    return _editTables[tableIndex];
-}
-
-OsdGLSLComputeContext *
-OsdGLSLComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
-                              FarVertexEditTables const *vertexEditTables) {
-
-    return new OsdGLSLComputeContext(subdivisionTables, vertexEditTables);
 }
 
 void
-OsdGLSLComputeContext::BindEditShaderStorageBuffers(int editIndex) const {
-
-    const OsdGLSLComputeHEditTable * edit = _editTables[editIndex];
-    const OsdGLSLComputeTable * primvarIndices = edit->GetPrimvarIndices();
-    const OsdGLSLComputeTable * editValues = edit->GetEditValues();
-
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9,
-                     primvarIndices->GetBuffer());
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10,
-                     editValues->GetBuffer());
-}
-
-void
-OsdGLSLComputeContext::UnbindEditShaderStorageBuffers() const {
-
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, 0);
-}
-
-void
-OsdGLSLComputeContext::BindShaderStorageBuffers() const {
-
-    // 0 and 1 are reserved for vertex/varying buffer bindings.
-    if (_tables[FarSubdivisionTables::F_IT]) {
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2,
-                         _tables[FarSubdivisionTables::F_IT]->GetBuffer());
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3,
-                         _tables[FarSubdivisionTables::F_ITa]->GetBuffer());
+GLSLComputeContext::BindVaryingStencilTables() const {
+    if (_varyingStencilTables) {
+        _varyingStencilTables->Bind();
     }
-
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4,
-                     _tables[FarSubdivisionTables::E_IT]->GetBuffer());
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5,
-                     _tables[FarSubdivisionTables::V_IT]->GetBuffer());
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6,
-                     _tables[FarSubdivisionTables::V_ITa]->GetBuffer());
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7,
-                     _tables[FarSubdivisionTables::E_W]->GetBuffer());
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8,
-                     _tables[FarSubdivisionTables::V_W]->GetBuffer());
 }
 
 void
-OsdGLSLComputeContext::UnbindShaderStorageBuffers() const {
-
-    // 0 and 1 are reserved for vertex/varying buffer bindings.
-    if (_tables[FarSubdivisionTables::F_IT]) {
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
-    }
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, 0);
-
-    glUseProgram(0);
-
-    OSD_DEBUG_CHECK_GL_ERROR("UnbindTextures");
+GLSLComputeContext::UnbindStencilTables() const {
+    GLSLStencilTables::Unbind();
 }
+
+
+// -----------------------------------------------------------------------------
+
+GLSLComputeContext *
+GLSLComputeContext::Create(Far::StencilTables const * vertexStencilTables,
+                              Far::StencilTables const * varyingStencilTables) {
+
+    GLSLComputeContext *result =
+        new GLSLComputeContext(vertexStencilTables, varyingStencilTables);
+
+    return result;
+}
+
+// -----------------------------------------------------------------------------
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

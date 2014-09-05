@@ -23,31 +23,49 @@
 #
 
 #-------------------------------------------------------------------------------
+# source & headers
+set(SOURCE_FILES
+     patchTablesFactory.cpp
+     stencilTablesFactory.cpp
+     topologyRefiner.cpp
+     topologyRefinerFactory.cpp
+)
+
 set(PUBLIC_HEADER_FILES
-    bilinearSubdivisionTablesFactory.h
-    catmarkSubdivisionTablesFactory.h
-    dispatcher.h
     kernelBatch.h
-    kernelBatchFactory.h
-    loopSubdivisionTablesFactory.h
-    meshFactory.h
-    mesh.h
+    kernelBatchDispatcher.h
     patchParam.h
     patchMap.h
     patchTables.h
     patchTablesFactory.h
     stencilTablesFactory.h
     stencilTables.h
-    subdivisionTables.h
-    subdivisionTablesFactory.h
-    vertexEditTables.h
-    vertexEditTablesFactory.h
-)    
+    topologyRefiner.h
+    topologyRefinerFactory.h
+    types.h
+)
+
+set(PRIVATE_HEADER_FILES )
+
+set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
 
 #-------------------------------------------------------------------------------
-_add_doxy_headers( "${PUBLIC_HEADER_FILES}" )
+if (NOT NO_LIB)
 
-install( 
+    # Compile objs first for both the CPU and GPU libs -----
+    add_library(far_obj
+        OBJECT
+            ${SOURCE_FILES}
+            ${PRIVATE_HEADER_FILES}
+            ${PUBLIC_HEADER_FILES}
+    )
+
+endif()
+
+#-------------------------------------------------------------------------------
+_add_doxy_headers( "${DOXY_HEADER_FILES}" )
+
+install(
     FILES
         ${PUBLIC_HEADER_FILES}
     DESTINATION

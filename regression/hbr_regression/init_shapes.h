@@ -28,7 +28,7 @@ struct shaperec {
 
     shaperec(char const * iname, std::string const & idata, Scheme ischeme) :
         name(iname), data(idata), scheme(ischeme) { }
-    
+
     std::string name,
                 data;
     Scheme      scheme;

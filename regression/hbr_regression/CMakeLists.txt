@@ -26,6 +26,7 @@ include_directories("${PROJECT_SOURCE_DIR}/opensubdiv")
 
 _add_possibly_cuda_executable(hbr_regression
    main.cpp
+    $<TARGET_OBJECTS:regression_common_obj>
 )
 
 # This is waht we "should" be using but we need to escape the backslash and cmake
@@ -45,6 +46,7 @@ add_definitions(
 
 _add_executable(hbr_baseline
    baseline.cpp
+    $<TARGET_OBJECTS:regression_common_obj>
 )
 
 install(TARGETS hbr_baseline DESTINATION "${CMAKE_BINDIR_BASE}")
