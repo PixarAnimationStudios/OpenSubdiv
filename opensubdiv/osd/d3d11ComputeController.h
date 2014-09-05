@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/dispatcher.h"
+#include "../far/kernelBatchDispatcher.h"
 #include "../osd/d3d11ComputeContext.h"
 #include "../osd/vertexDescriptor.h"
 
@@ -35,202 +35,186 @@
 
 struct ID3D11DeviceContext;
 struct ID3D11Query;
+struct ID3D11UnorderedAccessView;
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdD3D11ComputeKernelBundle;
+namespace Osd {
 
-/// \brief Compute controller for launching D3D11Compute transform feedback
-/// subdivision kernels.
+/// \brief Compute controller for launching D3D11 Compute subdivision kernels.
 ///
-/// OsdD3D11ComputeController is a compute controller class to launch
+/// D3D11ComputeController is a compute controller class to launch
 /// D3D11Compute transfrom feedback subdivision kernels. It requires
-/// OsdD3D11VertexBufferInterface as arguments of Refine function.
+/// GLVertexBufferInterface as arguments of Refine function.
 ///
 /// Controller entities execute requests from Context instances that they share
 /// common interfaces with. Controllers are attached to discrete compute devices
 /// and share the devices resources with Context entities.
 ///
-class OsdD3D11ComputeController {
+class D3D11ComputeController {
 public:
-    typedef OsdD3D11ComputeContext ComputeContext;
+    typedef D3D11ComputeContext ComputeContext;
 
     /// Constructor.
     ///
     /// @param deviceContext  a valid instanciated D3D11 device context
     ///
-    OsdD3D11ComputeController(ID3D11DeviceContext *deviceContext);
+    D3D11ComputeController(ID3D11DeviceContext *deviceContext);
 
     /// Destructor.
-    ~OsdD3D11ComputeController();
+    ~D3D11ComputeController();
 
-    /// Launch subdivision kernels and apply to given vertex buffers.
+    /// Execute subdivision kernels and apply to given vertex buffers.
     ///
-    /// @param  context       the OsdCpuContext to apply refinement operations to
+    /// @param  context       The D3D11Context to apply refinement operations to
     ///
-    /// @param  batches       vector of batches of vertices organized by operative 
+    /// @param  batches       Vector of batches of vertices organized by operative
     ///                       kernel
     ///
-    /// @param  vertexBuffer  vertex-interpolated data buffer
+    /// @param  vertexBuffer  Vertex-interpolated data buffer
     ///
-    /// @param  varyingBuffer varying-interpolated data buffer
-    ///
-    /// @param  vertexDesc    the descriptor of vertex elements to be refined.
+    /// @param  vertexDesc    The descriptor of vertex elements to be refined.
     ///                       if it's null, all primvars in the vertex buffer
     ///                       will be refined.
     ///
-    /// @param  varyingDesc   the descriptor of varying elements to be refined.
-    ///                       if it's null, all primvars in the varying buffer
+    /// @param  varyingBuffer Vertex-interpolated data buffer
+    ///
+    /// @param  varyingDesc   The descriptor of varying elements to be refined.
+    ///                       if it's null, all primvars in the vertex buffer
     ///                       will be refined.
     ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Refine(OsdD3D11ComputeContext const *context,
-                FarKernelBatchVector const &batches,
-                VERTEX_BUFFER *vertexBuffer,
-                VARYING_BUFFER *varyingBuffer,
-                OsdVertexBufferDescriptor const *vertexDesc=NULL,
-                OsdVertexBufferDescriptor const *varyingDesc=NULL) {
+        void Compute( D3D11ComputeContext const * context,
+                      Far::KernelBatchVector const & batches,
+                      VERTEX_BUFFER  * vertexBuffer,
+                      VARYING_BUFFER * varyingBuffer,
+                      VertexBufferDescriptor const * vertexDesc=NULL,
+                      VertexBufferDescriptor const * varyingDesc=NULL ){
 
         if (batches.empty()) return;
 
-        bind(vertexBuffer, varyingBuffer, vertexDesc, varyingDesc);
-        context->BindShaderStorageBuffers(_deviceContext);
+        if (vertexBuffer) {
+            bind(vertexBuffer, vertexDesc);
 
-        FarDispatcher::Refine(this,
-                              context,
-                              batches,
-                              -1);
+            context->BindVertexStencilTables(_deviceContext);
 
-        context->UnbindShaderStorageBuffers(_deviceContext);
+            Far::KernelBatchDispatcher::Apply(this, context, batches, /*maxlevel*/ -1);
+        }
+
+        if (varyingBuffer) {
+            bind(varyingBuffer, varyingDesc);
+
+            context->BindVaryingStencilTables(_deviceContext);
+
+            Far::KernelBatchDispatcher::Apply(this, context, batches, /*maxlevel*/ -1);
+        }
+
+        context->UnbindStencilTables(_deviceContext);
+
         unbind();
     }
 
-    /// Launch subdivision kernels and apply to given vertex buffers.
+    /// Execute subdivision kernels and apply to given vertex buffers.
     ///
-    /// @param  context       the OsdCpuContext to apply refinement operations to
+    /// @param  context       The D3D11Context to apply refinement operations to
     ///
-    /// @param  batches       vector of batches of vertices organized by operative 
+    /// @param  batches       Vector of batches of vertices organized by operative
     ///                       kernel
     ///
-    /// @param  vertexBuffer  vertex-interpolated data buffer
+    /// @param  vertexBuffer  Vertex-interpolated data buffer
     ///
     template<class VERTEX_BUFFER>
-    void Refine(OsdD3D11ComputeContext const *context,
-                FarKernelBatchVector const &batches,
-                VERTEX_BUFFER *vertexBuffer) {
-        Refine(context, batches, vertexBuffer, (VERTEX_BUFFER*)NULL);
+        void Compute(D3D11ComputeContext const * context,
+                     Far::KernelBatchVector const & batches,
+                     VERTEX_BUFFER *vertexBuffer) {
+
+        Compute<VERTEX_BUFFER>(context, batches, vertexBuffer, (VERTEX_BUFFER*)0);
     }
 
     /// Waits until all running subdivision kernels finish.
     void Synchronize();
 
 protected:
-    friend class FarDispatcher;
-    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
 
-    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
+    friend class Far::KernelBatchDispatcher;
 
-    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
+    void ApplyStencilTableKernel(Far::KernelBatch const &batch,
+        ComputeContext const *context) const;
 
+    template<class BUFFER>
+        void bind( BUFFER * buffer,
+                   VertexBufferDescriptor const * desc ) {
 
-    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
+        assert(buffer);
 
-    void ApplyCatmarkQuadFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkTriQuadFaceVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkRestrictedEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkRestrictedVertexVerticesKernelB1(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkRestrictedVertexVerticesKernelB2(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyCatmarkRestrictedVertexVerticesKernelA(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-
-    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-
-    void ApplyVertexEdits(FarKernelBatch const &batch, ComputeContext const *context) const;
-
-    OsdD3D11ComputeKernelBundle * getKernels(OsdVertexBufferDescriptor const &vertexDesc,
-                                             OsdVertexBufferDescriptor const &varyingDesc);
-
-    void bindShaderResources();
-
-    void unbindShaderResources();
-
-    template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying,
-              OsdVertexBufferDescriptor const *vertexDesc,
-              OsdVertexBufferDescriptor const *varyingDesc) {
-
-        // if the vertex buffer descriptor is specified, use it.
+        // if the vertex buffer descriptor is specified, use it
         // otherwise, assumes the data is tightly packed in the vertex buffer.
-        if (vertexDesc) {
-            _currentBindState.vertexDesc = *vertexDesc;
+        if (desc) {
+            _currentBindState.desc = *desc;
         } else {
-            int numElements = vertex ? vertex->GetNumElements() : 0;
-            _currentBindState.vertexDesc = OsdVertexBufferDescriptor(
-                0, numElements, numElements);
-        }
-        if (varyingDesc) {
-            _currentBindState.varyingDesc = *varyingDesc;
-        } else {
-            int numElements = varying ? varying->GetNumElements() : 0;
-            _currentBindState.varyingDesc = OsdVertexBufferDescriptor(
-                0, numElements, numElements);
+            int numElements = buffer ? buffer->GetNumElements() : 0;
+            _currentBindState.desc =
+                VertexBufferDescriptor(0, numElements, numElements);
         }
 
-        _currentBindState.vertexBuffer = vertex ? vertex->BindD3D11UAV(_deviceContext) : 0;
-        _currentBindState.varyingBuffer = varying ? varying->BindD3D11UAV(_deviceContext) : 0;
-        _currentBindState.kernelBundle = getKernels(_currentBindState.vertexDesc,
-                                                    _currentBindState.varyingDesc);
-        bindShaderResources();
+        _currentBindState.buffer = buffer->BindD3D11UAV(_deviceContext);
+
+        _currentBindState.kernelBundle = getKernel(_currentBindState.desc);
+
+        bindBuffer();
     }
 
+
+    // Unbinds any previously bound vertex and varying data buffers.
     void unbind() {
         _currentBindState.Reset();
-
-        unbindShaderResources();
+        unbindBuffer();
     }
 
+    // binds the primvar data buffer
+    void bindBuffer();
+
+    // unbinds the primvar data buffer
+    void unbindBuffer();
+
+
 private:
+
+    ID3D11DeviceContext *_deviceContext;
+    ID3D11Query *_query;
+
+    class KernelBundle;
+
+    // Bind state is a transitional state during refinement.
+    // It doesn't take an ownership of the vertex buffers.
     struct BindState {
-        BindState() : vertexBuffer(0), varyingBuffer(0), kernelBundle(NULL) {}
+
+        BindState() : buffer(0), kernelBundle(0) { }
+
         void Reset() {
-            vertexBuffer = varyingBuffer = 0;
-            vertexDesc.Reset();
-            varyingDesc.Reset();
+            buffer = 0;
+            desc.Reset();
+            kernelBundle = 0;
         }
-        ID3D11UnorderedAccessView *vertexBuffer;
-        ID3D11UnorderedAccessView *varyingBuffer;
-        OsdVertexBufferDescriptor vertexDesc;
-        OsdVertexBufferDescriptor varyingDesc;
-        OsdD3D11ComputeKernelBundle *kernelBundle;
+
+        ID3D11UnorderedAccessView * buffer;
+
+        VertexBufferDescriptor desc;
+
+        KernelBundle const * kernelBundle;
     };
 
     BindState _currentBindState;
 
-    ID3D11DeviceContext *_deviceContext;
-    ID3D11Query *_query;
-    std::vector<OsdD3D11ComputeKernelBundle *> _kernelRegistry;
+    typedef std::vector<KernelBundle *> KernelRegistry;
+
+    KernelBundle const * getKernel(VertexBufferDescriptor const &desc);
+
+    KernelRegistry _kernelRegistry;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

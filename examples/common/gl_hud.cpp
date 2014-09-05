@@ -198,7 +198,7 @@ void
 GLhud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
 {
     Hud::Rebuild(width, height, framebufferWidth, framebufferHeight);
-    
+
     if (not _staticVbo)
         return;
 
@@ -250,4 +250,3 @@ GLhud::Flush()
 
     return true;
 }
-

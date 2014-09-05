@@ -30,27 +30,29 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCudaVertexBuffer::OsdCudaVertexBuffer(int numElements, int numVertices)
+namespace Osd {
+
+CudaVertexBuffer::CudaVertexBuffer(int numElements, int numVertices)
     : _numElements(numElements),
       _numVertices(numVertices),
       _cudaMem(0) {
 }
 
-OsdCudaVertexBuffer::~OsdCudaVertexBuffer() {
+CudaVertexBuffer::~CudaVertexBuffer() {
     if (_cudaMem) cudaFree(_cudaMem);
 }
 
-OsdCudaVertexBuffer *
-OsdCudaVertexBuffer::Create(int numElements, int numVertices) {
-    OsdCudaVertexBuffer *instance =
-        new OsdCudaVertexBuffer(numElements, numVertices);
+CudaVertexBuffer *
+CudaVertexBuffer::Create(int numElements, int numVertices) {
+    CudaVertexBuffer *instance =
+        new CudaVertexBuffer(numElements, numVertices);
     if (instance->allocate()) return instance;
     delete instance;
     return NULL;
 }
 
 void
-OsdCudaVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
+CudaVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
 
     size_t size = _numElements * numVertices * sizeof(float);
 
@@ -59,25 +61,25 @@ OsdCudaVertexBuffer::UpdateData(const float *src, int startVertex, int numVertic
 }
 
 int
-OsdCudaVertexBuffer::GetNumElements() const {
+CudaVertexBuffer::GetNumElements() const {
 
     return _numElements;
 }
 
 int
-OsdCudaVertexBuffer::GetNumVertices() const {
+CudaVertexBuffer::GetNumVertices() const {
 
     return _numVertices;
 }
 
 float *
-OsdCudaVertexBuffer::BindCudaBuffer() {
+CudaVertexBuffer::BindCudaBuffer() {
 
     return static_cast<float*>(_cudaMem);
 }
 
 bool
-OsdCudaVertexBuffer::allocate() {
+CudaVertexBuffer::allocate() {
     int size = _numElements * _numVertices * sizeof(float);
 
     cudaError_t err = cudaMalloc(&_cudaMem, size);
@@ -85,6 +87,8 @@ OsdCudaVertexBuffer::allocate() {
     if (err != cudaSuccess) return false;
     return true;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

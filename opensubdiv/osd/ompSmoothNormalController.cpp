@@ -34,6 +34,8 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 inline void
 cross(float *n, const float *p0, const float *p1, const float *p2) {
 
@@ -49,10 +51,10 @@ cross(float *n, const float *p0, const float *p1, const float *p2) {
     n[2] *= rn;
 }
 
-void OsdOmpSmoothNormalController::_smootheNormals(
-    OsdCpuSmoothNormalContext * context) {
+void OmpSmoothNormalController::_smootheNormals(
+    CpuSmoothNormalContext * context) {
 
-    OsdVertexBufferDescriptor const & iDesc = context->GetInputVertexDescriptor(),
+    VertexBufferDescriptor const & iDesc = context->GetInputVertexDescriptor(),
                                     & oDesc = context->GetOutputVertexDescriptor();
 
     assert(iDesc.length==3 and oDesc.length==3);
@@ -62,7 +64,7 @@ void OsdOmpSmoothNormalController::_smootheNormals(
 
     std::vector<unsigned int> const & verts = context->GetControlVertices();
 
-    FarPatchTables::PatchArrayVector const & parrays = context->GetPatchArrayVector();
+    Far::PatchTables::PatchArrayVector const & parrays = context->GetPatchArrayVector();
 
     if (verts.empty() or parrays.empty() or (not iBuffer) or (not oBuffer)) {
         return;
@@ -70,14 +72,14 @@ void OsdOmpSmoothNormalController::_smootheNormals(
 
     for (int i=0; i<(int)parrays.size(); ++i) {
 
-        FarPatchTables::PatchArray const & pa = parrays[i];
+        Far::PatchTables::PatchArray const & pa = parrays[i];
 
-        FarPatchTables::Type type = pa.GetDescriptor().GetType();
+        Far::PatchTables::Type type = pa.GetDescriptor().GetType();
 
 
-        if (type==FarPatchTables::QUADS or type==FarPatchTables::TRIANGLES) {
+        if (type==Far::PatchTables::QUADS or type==Far::PatchTables::TRIANGLES) {
 
-            int nv = FarPatchTables::Descriptor::GetNumControlVertices(type);
+            int nv = Far::PatchTables::Descriptor::GetNumControlVertices(type);
 
             // if necessary, reset all normal values to 0
             if (context->GetResetMemory()) {
@@ -117,15 +119,17 @@ void OsdOmpSmoothNormalController::_smootheNormals(
 
 }
 
-OsdOmpSmoothNormalController::OsdOmpSmoothNormalController() {
+OmpSmoothNormalController::OmpSmoothNormalController() {
 }
 
-OsdOmpSmoothNormalController::~OsdOmpSmoothNormalController() {
+OmpSmoothNormalController::~OmpSmoothNormalController() {
 }
 
 void
-OsdOmpSmoothNormalController::Synchronize() {
+OmpSmoothNormalController::Synchronize() {
 }
+
+} // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

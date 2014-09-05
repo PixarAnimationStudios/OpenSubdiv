@@ -47,6 +47,7 @@ endif()
 _add_glfw_executable(glStencilViewer
     main.cpp
     "${INC_FILES}"
+    $<TARGET_OBJECTS:regression_common_obj>
     $<TARGET_OBJECTS:examples_common_obj>
 )
 

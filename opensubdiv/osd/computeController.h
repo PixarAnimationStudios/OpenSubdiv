@@ -30,6 +30,8 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 /*!
   \page sequence_page API sequence diagrams
 
@@ -47,13 +49,15 @@ namespace OPENSUBDIV_VERSION {
  */
 
 // XXX: do we really need this base class?
-class OsdComputeController {
+class ComputeController {
 public:
-    virtual ~OsdComputeController() {}
+    virtual ~ComputeController() {}
 
 protected:
-    OsdComputeController() {}
+    ComputeController() {}
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

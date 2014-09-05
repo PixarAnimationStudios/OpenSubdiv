@@ -51,7 +51,7 @@ public:
                          int framebufferWidth, int framebufferHeight);
 
     virtual bool Flush();
-    
+
     void SetFrameBuffer(GLFrameBuffer * frameBuffer) {
         if (not _frameBuffer) {
             _frameBuffer = frameBuffer;
@@ -62,6 +62,10 @@ public:
 
     GLFrameBuffer * GetFrameBuffer() {
         return _frameBuffer;
+    }
+
+    GLuint GetFontTexture() const {
+        return _fontTexture;
     }
 
 private:

@@ -49,11 +49,13 @@ struct D3D11_INPUT_ELEMENT_DESC;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-struct OsdD3D11DrawConfig : public OsdDrawConfig {
-    OsdD3D11DrawConfig() :
+namespace Osd {
+
+struct D3D11DrawConfig : public DrawConfig {
+    D3D11DrawConfig() :
         vertexShader(0), hullShader(0), domainShader(0),
         geometryShader(0), pixelShader(0) {}
-    virtual ~OsdD3D11DrawConfig();
+    virtual ~D3D11DrawConfig();
 
     ID3D11VertexShader   *vertexShader;
     ID3D11HullShader     *hullShader;
@@ -64,28 +66,28 @@ struct OsdD3D11DrawConfig : public OsdDrawConfig {
 
 //------------------------------------------------------------------------------
 
-struct OsdD3D11DrawSourceConfig {
-    OsdDrawShaderSource commonShader;
-    OsdDrawShaderSource vertexShader;
-    OsdDrawShaderSource hullShader;
-    OsdDrawShaderSource domainShader;
-    OsdDrawShaderSource geometryShader;
-    OsdDrawShaderSource pixelShader;
+struct D3D11DrawSourceConfig {
+    DrawShaderSource commonShader;
+    DrawShaderSource vertexShader;
+    DrawShaderSource hullShader;
+    DrawShaderSource domainShader;
+    DrawShaderSource geometryShader;
+    DrawShaderSource pixelShader;
 };
 
 
 //------------------------------------------------------------------------------
 
-class OsdD3D11DrawRegistryBase {
+class D3D11DrawRegistryBase {
 
 public:
-    typedef OsdDrawContext::PatchDescriptor DescType;
-    typedef OsdD3D11DrawConfig ConfigType;
-    typedef OsdD3D11DrawSourceConfig SourceConfigType;
+    typedef DrawContext::PatchDescriptor DescType;
+    typedef D3D11DrawConfig ConfigType;
+    typedef D3D11DrawSourceConfig SourceConfigType;
 
-    OsdD3D11DrawRegistryBase(bool enablePtex=false) : _enablePtex(enablePtex) { }
+    D3D11DrawRegistryBase(bool enablePtex=false) : _enablePtex(enablePtex) { }
 
-    virtual ~OsdD3D11DrawRegistryBase();
+    virtual ~D3D11DrawRegistryBase();
 
     bool IsPtexEnabled() const {
         return _enablePtex;
@@ -115,13 +117,13 @@ private:
 
 //------------------------------------------------------------------------------
 
-template <class DESC_TYPE = OsdDrawContext::PatchDescriptor,
-          class CONFIG_TYPE = OsdD3D11DrawConfig,
-          class SOURCE_CONFIG_TYPE = OsdD3D11DrawSourceConfig>
-class OsdD3D11DrawRegistry : public OsdD3D11DrawRegistryBase {
+template <class DESC_TYPE = DrawContext::PatchDescriptor,
+          class CONFIG_TYPE = D3D11DrawConfig,
+          class SOURCE_CONFIG_TYPE = D3D11DrawSourceConfig>
+class D3D11DrawRegistry : public D3D11DrawRegistryBase {
 
 public:
-    typedef OsdD3D11DrawRegistryBase BaseRegistry;
+    typedef D3D11DrawRegistryBase BaseRegistry;
 
     typedef DESC_TYPE DescType;
     typedef CONFIG_TYPE ConfigType;
@@ -130,7 +132,7 @@ public:
     typedef std::map<DescType, ConfigType *> ConfigMap;
 
 public:
-    virtual ~OsdD3D11DrawRegistry() {
+    virtual ~D3D11DrawRegistry() {
         Reset();
     }
 
@@ -191,7 +193,9 @@ private:
     ConfigMap _configMap;
 };
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv

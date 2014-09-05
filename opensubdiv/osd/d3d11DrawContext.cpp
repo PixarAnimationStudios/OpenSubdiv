@@ -22,7 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/dispatcher.h"
 #include "../osd/d3d11DrawContext.h"
 
 #include <D3D11.h>
@@ -32,7 +31,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdD3D11DrawContext::OsdD3D11DrawContext() :
+namespace Osd {
+
+D3D11DrawContext::D3D11DrawContext() :
     patchIndexBuffer(NULL),
     ptexCoordinateBuffer(NULL),
     ptexCoordinateBufferSRV(NULL),
@@ -46,7 +47,7 @@ OsdD3D11DrawContext::OsdD3D11DrawContext() :
 {
 }
 
-OsdD3D11DrawContext::~OsdD3D11DrawContext()
+D3D11DrawContext::~D3D11DrawContext()
 {
     if (patchIndexBuffer) patchIndexBuffer->Release();
     if (ptexCoordinateBuffer) ptexCoordinateBuffer->Release();
@@ -60,14 +61,13 @@ OsdD3D11DrawContext::~OsdD3D11DrawContext()
     if (quadOffsetBufferSRV) quadOffsetBufferSRV->Release();
 };
 
-OsdD3D11DrawContext *
-OsdD3D11DrawContext::Create(FarPatchTables const *patchTables,
+D3D11DrawContext *
+D3D11DrawContext::Create(Far::PatchTables const *patchTables,
                             ID3D11DeviceContext *pd3d11DeviceContext,
-                            int numVertexElements,
-                            bool requireFVarData)
+                            int numVertexElements)
 {
-    OsdD3D11DrawContext * result = new OsdD3D11DrawContext();
-    if (result->create(patchTables, pd3d11DeviceContext, numVertexElements, requireFVarData))
+    D3D11DrawContext * result = new D3D11DrawContext();
+    if (result->create(*patchTables, pd3d11DeviceContext, numVertexElements))
         return result;
 
     delete result;
@@ -75,22 +75,21 @@ OsdD3D11DrawContext::Create(FarPatchTables const *patchTables,
 }
 
 bool
-OsdD3D11DrawContext::create(FarPatchTables const *patchTables,
+D3D11DrawContext::create(Far::PatchTables const &patchTables,
                             ID3D11DeviceContext *pd3d11DeviceContext,
-                            int numVertexElements,
-                            bool requireFVarData)
+                            int numVertexElements)
 {
     // adaptive patches
-    _isAdaptive = true;
+    _isAdaptive = patchTables.IsFeatureAdaptive();
 
     ID3D11Device *pd3d11Device = NULL;
     pd3d11DeviceContext->GetDevice(&pd3d11Device);
     assert(pd3d11Device);
 
-    ConvertPatchArrays(patchTables->GetPatchArrayVector(), patchArrays, patchTables->GetMaxValence(), numVertexElements);
+    ConvertPatchArrays(patchTables.GetPatchArrayVector(), _patchArrays, patchTables.GetMaxValence(), numVertexElements);
 
-    FarPatchTables::PTable const & ptables = patchTables->GetPatchTable();
-    FarPatchTables::PatchParamTable const & ptexCoordTables = patchTables->GetPatchParamTable();
+    Far::PatchTables::PTable const & ptables = patchTables.GetPatchTable();
+    Far::PatchTables::PatchParamTable const & ptexCoordTables = patchTables.GetPatchParamTable();
     int totalPatchIndices = (int)ptables.size();
     int totalPatches = (int)ptexCoordTables.size();
 
@@ -118,7 +117,7 @@ OsdD3D11DrawContext::create(FarPatchTables const *patchTables,
     pd3d11DeviceContext->Unmap(patchIndexBuffer, 0);
 
     // create patch param buffer
-    bd.ByteWidth = totalPatches * sizeof(FarPatchParam);
+    bd.ByteWidth = totalPatches * sizeof(Far::PatchParam);
     bd.Usage = D3D11_USAGE_DYNAMIC;
     bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -145,12 +144,12 @@ OsdD3D11DrawContext::create(FarPatchTables const *patchTables,
         return false;
     }
     unsigned int * ptexBuffer = (unsigned int *) mappedResource.pData;
-    memcpy(ptexBuffer, &ptexCoordTables[0], totalPatches * sizeof(FarPatchParam));
+    memcpy(ptexBuffer, &ptexCoordTables[0], totalPatches * sizeof(Far::PatchParam));
     pd3d11DeviceContext->Unmap(ptexCoordinateBuffer, 0);
 
     // create vertex valence buffer and vertex texture
-    FarPatchTables::VertexValenceTable const &
-        valenceTable = patchTables->GetVertexValenceTable();
+    Far::PatchTables::VertexValenceTable const &
+        valenceTable = patchTables.GetVertexValenceTable();
 
     if (not valenceTable.empty()) {
         D3D11_BUFFER_DESC bd;
@@ -179,8 +178,8 @@ OsdD3D11DrawContext::create(FarPatchTables const *patchTables,
         }
     }
 
-    FarPatchTables::QuadOffsetTable const &
-        quadOffsetTable = patchTables->GetQuadOffsetTable();
+    Far::PatchTables::QuadOffsetTable const &
+        quadOffsetTable = patchTables.GetQuadOffsetTable();
 
     if (not quadOffsetTable.empty()) {
         D3D11_BUFFER_DESC bd;
@@ -212,9 +211,51 @@ OsdD3D11DrawContext::create(FarPatchTables const *patchTables,
     return true;
 }
 
+bool
+D3D11DrawContext::SetFVarDataTexture(Far::PatchTables const & patchTables,
+                                        ID3D11DeviceContext *pd3d11DeviceContext,
+                                        int fvarWidth, FVarData const & fvarData) {
+
+    if (not fvarData.empty()) {
+
+        FVarData fvarDataTable;
+        
+        packFVarData(patchTables, fvarWidth, fvarData, fvarDataTable);
+
+        ID3D11Device *pd3d11Device = NULL;
+        pd3d11DeviceContext->GetDevice(&pd3d11Device);
+        assert(pd3d11Device);
+
+        D3D11_BUFFER_DESC bd;
+        bd.ByteWidth = UINT(fvarDataTable.size() * sizeof(float));
+        bd.Usage = D3D11_USAGE_DEFAULT;
+        bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        bd.CPUAccessFlags = 0;
+        bd.MiscFlags = 0;
+        bd.StructureByteStride = sizeof(float);
+        D3D11_SUBRESOURCE_DATA initData;
+        initData.pSysMem = &fvarDataTable[0];
+        HRESULT hr = pd3d11Device->CreateBuffer(&bd, &initData, &fvarDataBuffer);
+        if (FAILED(hr)) {
+            return false;
+        }
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
+        ZeroMemory(&srvd, sizeof(srvd));
+        srvd.Format = DXGI_FORMAT_R32_FLOAT;
+        srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+        srvd.Buffer.FirstElement = 0;
+        srvd.Buffer.NumElements = UINT(fvarDataTable.size());
+        hr = pd3d11Device->CreateShaderResourceView(fvarDataBuffer, &srvd, &fvarDataBufferSRV);
+        if (FAILED(hr)) {
+            return false;
+        }
+    }
+    return true;
+}
 
 void
-OsdD3D11DrawContext::updateVertexTexture(ID3D11Buffer *vbo,
+D3D11DrawContext::updateVertexTexture(ID3D11Buffer *vbo,
                                          ID3D11DeviceContext *pd3d11DeviceContext,
                                          int numVertices,
                                          int numVertexElements)
@@ -235,5 +276,7 @@ OsdD3D11DrawContext::updateVertexTexture(ID3D11Buffer *vbo,
     }
 }
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

@@ -24,7 +24,7 @@
 
 #include <stdio.h>
 
-#include "../common/shape_utils.h"
+#include "../../regression/common/hbr_utils.h"
 
 //
 // Regression testing matching Hbr to a pre-generated data-set
@@ -106,7 +106,7 @@ typedef OpenSubdiv::HbrVertexOperator<xyzVV> xyzVertexOperator;
 
 #include "./init_shapes.h"
 
-static shape * readShape( char const * fname ) {
+static Shape * readShape( char const * fname, Scheme scheme ) {
 
     FILE * handle = fopen( fname, "rt" );
     if (not handle) {
@@ -129,7 +129,7 @@ static shape * readShape( char const * fname ) {
 
     shapeStr[size]='\0';
 
-    return shape::parseShape( shapeStr, 1 );
+    return Shape::parseObj( shapeStr, scheme, 1 );
 }
 
 #define STR(x) x
@@ -204,7 +204,7 @@ static int checkMesh( shaperec const & r, int levels ) {
         fname << g_baseline_path <<  r.name << "_level" << l << ".obj";
 
 
-        shape * sh = readShape( fname.str().c_str() );
+        Shape * sh = readShape( fname.str().c_str(), r.scheme );
         assert(sh);
 
         // subdivide up to current level
@@ -255,18 +255,18 @@ static int checkMesh( shaperec const & r, int levels ) {
                 }
             }
         }
-        
+
         if (errcount) {
-            
+
             std::stringstream errfile;
             errfile << r.name << "_level" << l << "_error.obj";
-            
-            writeObj(errfile.str().c_str(), mesh, 
+
+            writeObj(errfile.str().c_str(), mesh,
                 firstface, lastface, firstvert, lastvert);
-            
+
             printf("\n  wrote: %s\n", errfile.str().c_str());
         }
-        
+
         delete sh;
         count += errcount;
     }

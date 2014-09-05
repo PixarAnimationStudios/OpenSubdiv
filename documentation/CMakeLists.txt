@@ -30,20 +30,20 @@ if (DOXYGEN_FOUND)
 
     add_custom_target(doc_doxy
             ${DOXYGEN_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy"
-        WORKING_DIRECTORY 
+        WORKING_DIRECTORY
             "${CMAKE_BINARY_DIR}/public_headers/"
         DEPENDS
             public_headers
-        COMMENT 
+        COMMENT
             "Generating API documentation with Doxygen" VERBATIM
     )
 
     list(APPEND DOC_TARGETS doc_doxy)
 
-    install( 
+    install(
         DIRECTORY
             "${CMAKE_CURRENT_BINARY_DIR}/doxy_html"
-        DESTINATION 
+        DESTINATION
             "${CMAKE_DOCDIR_BASE}"
     )
 
@@ -54,6 +54,7 @@ else()
 
 endif()
 
+find_package(PythonInterp 2.6)
 
 # ReST - HTML documentation
 if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
@@ -62,32 +63,53 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
          search.html
     )
 
-    set(RST_FILES 
+    set(RST_FILES
         additional_resources.rst
         api_overview.rst
         cmake_build.rst
         code_examples.rst
         dxviewer.rst
+        dxptexviewer.rst
         far_overview.rst
         getting_started.rst
-        glviewer.rst
+        glevallimit.rst
+        glfvarviewer.rst
+        glpainttest.rst
+        glptexviewer.rst
+        glsharetopology.rst
         glstencilviewer.rst
-        glbatchviewer.rst
+        glviewer.rst
         hbr_overview.rst
-        intro.rst 
-        limiteval.rst
+        intro.rst
         maya_osdpolysmooth.rst
         osd_overview.rst
-        painttest.rst
-        ptexviewer.rst
-        release_notes.rst 
-        subdivision_surfaces.rst 
+        release_notes.rst
+        release_notes_2x.rst
+        sdc_overview.rst
+        subdivision_surfaces.rst
+        tutorials.rst
         using_osd.rst
         using_osd_compile.rst
         using_osd_hbr.rst
         using_osd_textures.rst
-        uvviewer.rst
+        vtr_overview.rst
     )
+
+
+    # Configure release number in RST template file
+
+    # Replace '_' with '.'
+    string(REGEX REPLACE "(_)" "." RELEASE_STRING ${OpenSubdiv_VERSION})
+
+    # Remove starting 'v' character
+    string(REGEX REPLACE "^v" "" RELEASE_STRING ${RELEASE_STRING})
+
+    # Format API version string
+    set(RELEASE_STRING "Release ${RELEASE_STRING}")
+
+    # Replace string in navigation bar
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/rst_template.txt"
+                   "${CMAKE_CURRENT_BINARY_DIR}/rst_template.txt" )
 
     # process rst markup files
     foreach(src ${RST_FILES})
@@ -97,17 +119,17 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         set(outfile "${CMAKE_CURRENT_BINARY_DIR}/${BASENAME}.html")
 
         add_custom_command(
-            OUTPUT 
+            OUTPUT
                 "${outfile}"
-            COMMAND 
+            COMMAND
                 "${RST2HTML_EXECUTABLE}"
-            ARGS 
+            ARGS
                 --date
                 --time
-                --no-xml-declaration 
+                --no-xml-declaration
                 --initial-header-level=3
                 --strip-comments
-                --template="${CMAKE_CURRENT_SOURCE_DIR}/rst_template.txt"
+                --template="${CMAKE_CURRENT_BINARY_DIR}/rst_template.txt"
                 --stylesheet=css/rst.css
                 --link-stylesheet
                 "${infile}" "${outfile}"
@@ -119,13 +141,13 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
 
         list(APPEND RST_TARGETS ${src})
 
-        install( 
+        install(
             FILES
                 "${outfile}"
-            DESTINATION 
+            DESTINATION
                 "${CMAKE_DOCDIR_BASE}"
-            PERMISSIONS 
-                OWNER_READ GROUP_READ WORLD_READ 
+            PERMISSIONS
+                OWNER_READ GROUP_READ WORLD_READ
         )
 
     endforeach()
@@ -148,15 +170,15 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
 
         list(APPEND HTML_TARGETS ${src})
 
-        install( 
+        install(
             FILES
                 "${outfile}"
-            DESTINATION 
+            DESTINATION
                 "${CMAKE_DOCDIR_BASE}"
         )
     endforeach()
 
-    # copy the site resources to the build area so that the 
+    # copy the site resources to the build area so that the
     # documentation can be read without an install
     add_custom_target(doc_html_images
         COMMAND
@@ -180,41 +202,41 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
             "${CMAKE_CURRENT_SOURCE_DIR}/processHtml.py"
             "${CMAKE_CURRENT_BINARY_DIR}"
             "${CMAKE_CURRENT_SOURCE_DIR}/nav_template.txt"
-        DEPENDS 
+        DEPENDS
             ${HTML_TARGETS}
             ${RST_TARGETS}
             doc_tipuesearch
     )
 
-    add_custom_target(doc_html 
-        DEPENDS 
-            search_index 
+    add_custom_target(doc_html
+        DEPENDS
+            search_index
             ${HTML_TARGETS}
             ${RST_TARGETS}
-            doc_html_images 
-            doc_html_css 
+            doc_html_images
+            doc_html_css
             doc_tipuesearch
     )
 
-    install( 
+    install(
         DIRECTORY
             "${CMAKE_CURRENT_BINARY_DIR}/tipuesearch"
-        DESTINATION 
+        DESTINATION
             "${CMAKE_DOCDIR_BASE}"
     )
 
 
-    install( 
+    install(
         DIRECTORY
             "${CMAKE_CURRENT_BINARY_DIR}/images"
-        DESTINATION 
+        DESTINATION
             "${CMAKE_DOCDIR_BASE}"
     )
 
-    install( 
+    install(
         DIRECTORY
             "${CMAKE_CURRENT_BINARY_DIR}/css"
-        DESTINATION 
+        DESTINATION
             "${CMAKE_DOCDIR_BASE}"
     )
 

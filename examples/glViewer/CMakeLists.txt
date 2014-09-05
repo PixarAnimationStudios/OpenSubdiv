@@ -55,9 +55,11 @@ _stringify("${SHADER_FILES}" INC_FILES)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 _add_glfw_executable(glViewer
-    viewer.cpp
+    glViewer.cpp
     "${SHADER_FILES}"
     "${INC_FILES}"
+    $<TARGET_OBJECTS:regression_common_obj>
+    $<TARGET_OBJECTS:regression_vtr_utils_obj>
     $<TARGET_OBJECTS:examples_common_obj>
 )
 

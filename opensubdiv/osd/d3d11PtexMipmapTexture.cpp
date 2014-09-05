@@ -33,14 +33,16 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdD3D11PtexMipmapTexture::OsdD3D11PtexMipmapTexture()
+namespace Osd {
+
+D3D11PtexMipmapTexture::D3D11PtexMipmapTexture()
     : _width(0), _height(0), _depth(0),
       _layout(0), _texels(0),
       _layoutSRV(0), _texelsSRV(0)
 {
 }
 
-OsdD3D11PtexMipmapTexture::~OsdD3D11PtexMipmapTexture()
+D3D11PtexMipmapTexture::~D3D11PtexMipmapTexture()
 {
     if (_layout) _layout->Release();
     if (_layoutSRV) _layoutSRV->Release();
@@ -66,7 +68,7 @@ genTextureBuffer(ID3D11DeviceContext *deviceContext, int size, void const * data
     deviceContext->GetDevice(&device);
     hr = device->CreateBuffer(&hBufferDesc, NULL, &buffer);
     if (FAILED(hr)) {
-        OsdError(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Error(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
                  "Fail in CreateBuffer\n");
         return 0;
     }
@@ -75,7 +77,7 @@ genTextureBuffer(ID3D11DeviceContext *deviceContext, int size, void const * data
     hr = deviceContext->Map(buffer, 0,
                             D3D11_MAP_WRITE_DISCARD, 0, &resource);
     if (FAILED(hr)) {
-        OsdError(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Error(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
                  "Fail in Map buffer\n");
         buffer->Release();
         return 0;
@@ -86,17 +88,17 @@ genTextureBuffer(ID3D11DeviceContext *deviceContext, int size, void const * data
     return buffer;
 }
 
-OsdD3D11PtexMipmapTexture *
-OsdD3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
+D3D11PtexMipmapTexture *
+D3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
                                   PtexTexture * reader,
                                   int maxLevels) {
 
-    OsdD3D11PtexMipmapTexture * result = NULL;
+    D3D11PtexMipmapTexture * result = NULL;
 
     int maxNumPages = D3D10_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
 
     // Read the ptex data and pack the texels
-    OsdPtexMipmapTextureLoader loader(reader, maxNumPages, maxLevels);
+    Osd::PtexMipmapTextureLoader loader(reader, maxNumPages, maxLevels);
 
     int numFaces = loader.GetNumFaces();
 
@@ -198,7 +200,7 @@ OsdD3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
     if (FAILED(hr)) return NULL;
 
 
-    result = new OsdD3D11PtexMipmapTexture;
+    result = new D3D11PtexMipmapTexture;
 
     result->_width = loader.GetPageWidth();
     result->_height = loader.GetPageHeight();
@@ -214,6 +216,8 @@ OsdD3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
 
     return result;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

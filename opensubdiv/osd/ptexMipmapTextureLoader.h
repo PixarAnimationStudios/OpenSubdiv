@@ -36,15 +36,17 @@ class PtexTexture;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdPtexMipmapTextureLoader {
+namespace Osd {
+
+class PtexMipmapTextureLoader {
 public:
-    OsdPtexMipmapTextureLoader(PtexTexture *ptex,
+    PtexMipmapTextureLoader(PtexTexture *ptex,
                                int maxNumPages,
                                int maxLevels = -1,
                                size_t targetMemory = 0,
                                bool seamlessMipmap = true);
 
-    ~OsdPtexMipmapTextureLoader();
+    ~PtexMipmapTextureLoader();
 
     const unsigned char * GetLayoutBuffer() const {
         return _layoutBuffer;
@@ -108,7 +110,7 @@ private:
         uint16_t adjSizeDiffs;     // maximum tile size difference around each vertices
         int8_t   ulog2, vlog2;     // texel dimension log2 (original tile)
 
-        void Generate(OsdPtexMipmapTextureLoader *loader, PtexTexture *ptex,
+        void Generate(PtexMipmapTextureLoader *loader, PtexTexture *ptex,
                       unsigned char *destination,
                       int bpp, int width, int maxLevels);
 
@@ -118,7 +120,7 @@ private:
             return width*height;
         }
 
-        void guttering(OsdPtexMipmapTextureLoader *loader, PtexTexture *ptex,
+        void guttering(PtexMipmapTextureLoader *loader, PtexTexture *ptex,
                        int level, int width, int height,
                        unsigned char *pptr, int bpp, int stride);
 
@@ -156,6 +158,8 @@ private:
     size_t _memoryUsage;
 };
 
+
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

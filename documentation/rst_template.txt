@@ -32,6 +32,11 @@ ul.creatorFooterNav {
                     </div>
           
 					<!-- TOP NAVIGATION MENU -->
+                    <ul class="creatorMainNav floatLeft" id="menu">
+                        <li class="creatorMainNav">
+                            <a href="release_notes.html">${RELEASE_STRING}</a>
+                        </li>
+                    </ul>
                     <ul class="creatorMainNav floatRight" id="menu">
                         <li class="" id="navbarId-23704">
                             <a href="intro.html">User Docs</a>

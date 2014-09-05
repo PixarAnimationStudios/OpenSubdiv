@@ -1,20 +1,20 @@
 <!--
      Copyright 2013 Pixar
-  
+
      Licensed under the Apache License, Version 2.0 (the "Apache License")
      with the following modification; you may not use this file except in
      compliance with the Apache License and the following modification to it:
      Section 6. Trademarks. is deleted and replaced with:
-  
+
      6. Trademarks. This License does not grant permission to use the trade
         names, trademarks, service marks, or product names of the Licensor
         and its affiliates, except as required to comply with Section 4(c) of
         the License and to reproduce the content of the NOTICE file.
-  
+
      You may obtain a copy of the Apache License at
-  
+
          http://www.apache.org/licenses/LICENSE-2.0
-  
+
      Unless required by applicable law or agreed to in writing, software
      distributed under the Apache License with the above modification is
      distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -33,13 +33,16 @@
     <div class="quickLinks">
         <ul>
             <li><a href="intro.html">Introduction</a></li>
-            <li><a href="getting_started.html">Getting Started</a></li>
-            <li><a href="cmake_build.html">Building OpenSubdiv</a></li>
-            <li><a href="code_examples.html">Code Examples</a></li>
+                <ul>
+                    <li><a href="getting_started.html">Getting Started</a></li>
+                    <li><a href="cmake_build.html">Building OpenSubdiv</a></li>
+                    <li><a href="code_examples.html">Code Examples</a></li>
+                </ul>
+                <p></p>
             <li><a href="subdivision_surfaces.html">Subdivision Surfaces</a>
                 <ul>
                     <li><a href="subdivision_surfaces.html#introduction">Introduction</a></li>
-                    <li><a href="subdivision_surfaces.html#manifold-geometry">Topology</a></li>
+                    <li><a href="subdivision_surfaces.html#arbitrary-topology">Topology</a></li>
                     <li><a href="subdivision_surfaces.html#boundary-interpolation-rules">Boundary Interpolation</a></li>
                     <li><a href="subdivision_surfaces.html#semi-sharp-creases">Semi-Sharp Creases</a></li>
                     <li><a href="subdivision_surfaces.html#hierarchical-edits">Hierarchical Edits</a></li>
@@ -47,35 +50,42 @@
                     <li><a href="subdivision_surfaces.html#feature-adaptive-subdivision">Feature Adaptive</a></li>
                 </ul>
             </li>
-            <li><a href="api_overview.html">APIs Overview</a>
+            <p></p>
+            <li><a href="using_osd.html">OpenSubdiv</a>
                 <ul>
-                    <li><a href="hbr_overview.html">Hbr</a></li>
-                    <li><a href="far_overview.html">Far</a></li>
-                    <ul>
-                        <li><a href="far_overview.html#subdivision-tables">Subdivision Tables</a></li>
-                        <li><a href="far_overview.html#patch-tables">Patch Tables</a></li>
-                        <li><a href="far_overview.html#stencil-tables">Stencil Tables</a></li>
-                    </ul>
-                    <li><a href="osd_overview.html">Osd</a></li>
-                </ul>
-            </li>
-            <li><a href="using_osd.html">Using OpenSubdiv</a>
-                <ul>
+                    <li><a href="api_overview.html">API Overview</a>
+                        <li><a href="osd_overview.html">Osd</a></li>
+                        <li><a href="far_overview.html">Far</a></li>
+                        <ul>
+                            <li><a href="far_overview.html#topology-refiner">Topology Refiner</a></li>
+                            <li><a href="far_overview.html#stencil-tables">Stencil Tables</a></li>
+                            <li><a href="far_overview.html#patch-tables">Patch Tables</a></li>
+                        </ul>
+                        <li><a href="vtr_overview.html">Vtr</a></li>
+                        <li><a href="sdc_overview.html">Sdc</a></li>
+                    </li>
+                    <p></p>
+                    <li><a href="tutorials.html">Tutorials</a>
                     <li><a href="using_osd_compile.html#compiling-linking">Compiling & Linking</a></li>
-                    <li><a href="using_osd_hbr.html">Manipulating Topology</a></li>
-                    <li><a href="using_osd.html">Writing Shaders</a></li>
+                    <li><a href="">Writing Shaders</a></li>
                     <li><a href="using_osd_textures.html">Textures</a></li>
-                    <li><a href="using_osd.html">Primitive Batching</a></li>
+                    <p></p>
+                    <li><a href="hbr_overview.html">(Hbr)</a></li>
+                    <ul>
+                        <li><a href="using_osd_hbr.html">(Using Hbr)</a></li>
+                    </ul>
                 </ul>
             </li>
+            <p></p>
             <li><a href="additional_resources.html">Additional Resources</a>
                 <ul>
                     <li><a href="http://graphics.pixar.com/opensubdiv/forum.html">Forum</a>
                     <li><a href="additional_resources.html#links">Links</a>
-                    <li><a href="additional_resources.html#tutorials">Tutorials</a>
                     <li><a href="additional_resources.html#videos">Videos</a>
                 </ul>
+            <p></p>
             <li><a href="release_notes.html">Release Notes</a>
+            <p></p>
             <li><a href="doxy_html/index.html" target="_blank">Doxygen</a></li>
         </ul>
     </div>

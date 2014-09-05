@@ -30,18 +30,20 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 /// \brief Concrete vertex buffer class for cpu subvision.
 ///
-/// OsdCpuVertexBuffer implements the OsdVertexBufferInterface. An instance
-/// of this buffer class can be passed to OsdCpuComputeController
+/// CpuVertexBuffer implements the VertexBufferInterface. An instance
+/// of this buffer class can be passed to CpuComputeController
 ///
-class OsdCpuVertexBuffer {
+class CpuVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static OsdCpuVertexBuffer * Create(int numElements, int numVertices);
+    static CpuVertexBuffer * Create(int numElements, int numVertices);
 
     /// Destructor.
-    ~OsdCpuVertexBuffer();
+    ~CpuVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
@@ -58,7 +60,7 @@ public:
 
 protected:
     /// Constructor.
-    OsdCpuVertexBuffer(int numElements, int numVertices);
+    CpuVertexBuffer(int numElements, int numVertices);
 
 private:
     int _numElements;
@@ -66,6 +68,8 @@ private:
     float *_cpuBuffer;
 };
 
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

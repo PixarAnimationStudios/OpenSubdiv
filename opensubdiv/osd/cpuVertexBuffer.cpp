@@ -29,7 +29,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCpuVertexBuffer::OsdCpuVertexBuffer(int numElements, int numVertices)
+namespace Osd {
+
+CpuVertexBuffer::CpuVertexBuffer(int numElements, int numVertices)
     : _numElements(numElements),
       _numVertices(numVertices),
       _cpuBuffer(NULL) {
@@ -37,41 +39,43 @@ OsdCpuVertexBuffer::OsdCpuVertexBuffer(int numElements, int numVertices)
     _cpuBuffer = new float[numElements * numVertices];
 }
 
-OsdCpuVertexBuffer::~OsdCpuVertexBuffer() {
+CpuVertexBuffer::~CpuVertexBuffer() {
 
     delete[] _cpuBuffer;
 }
 
-OsdCpuVertexBuffer *
-OsdCpuVertexBuffer::Create(int numElements, int numVertices) {
+CpuVertexBuffer *
+CpuVertexBuffer::Create(int numElements, int numVertices) {
 
-    return new OsdCpuVertexBuffer(numElements, numVertices);
+    return new CpuVertexBuffer(numElements, numVertices);
 }
 
 void
-OsdCpuVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
+CpuVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
 
     memcpy(_cpuBuffer + startVertex * _numElements,
            src, GetNumElements() * numVertices * sizeof(float));
 }
 
 int
-OsdCpuVertexBuffer::GetNumElements() const {
+CpuVertexBuffer::GetNumElements() const {
 
     return _numElements;
 }
 
 int
-OsdCpuVertexBuffer::GetNumVertices() const {
+CpuVertexBuffer::GetNumVertices() const {
 
     return _numVertices;
 }
 
 float*
-OsdCpuVertexBuffer::BindCpuBuffer() {
+CpuVertexBuffer::BindCpuBuffer() {
 
     return _cpuBuffer;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

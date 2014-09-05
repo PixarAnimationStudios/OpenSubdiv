@@ -267,12 +267,17 @@ cbuffer Lighting : register( b2 ) {
     LightSource lightSource[NUM_LIGHTS];
 };
 
+
+cbuffer Material : register( b3 ){
+    float4 materialColor;
+}
+
 float4
 lighting(float3 Peye, float3 Neye)
 {
     float4 color = float4(0.0, 0.0, 0.0, 0.0);
     //float4 material = float4(0.4, 0.4, 0.8, 1);
-    float4 material = float4(0.13, 0.13, 0.61, 1); // sRGB (gamma 2.2)
+    //float4 material = float4(0.13, 0.13, 0.61, 1); // sRGB (gamma 2.2)
 
     for (int i = 0; i < NUM_LIGHTS; ++i) {
 
@@ -287,8 +292,8 @@ lighting(float3 Peye, float3 Neye)
         float d = max(0.0, dot(n, l));
         float s = pow(max(0.0, dot(n, h)), 500.0f);
 
-        color += lightSource[i].ambient * material
-            + d * lightSource[i].diffuse * material
+        color += lightSource[i].ambient * materialColor
+            + d * lightSource[i].diffuse * materialColor
             + s * lightSource[i].specular;
     }
 

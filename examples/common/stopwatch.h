@@ -38,6 +38,8 @@ class Stopwatch {
 public:
 
 #ifndef _WINDOWS
+    Stopwatch() : _totalElapsed(0) { }
+
     void Start() {
         struct timeval l_rtime;
         gettimeofday(&l_rtime,0);
@@ -60,7 +62,7 @@ public:
         return _totalElapsed;
     }
 #else
-    Stopwatch() {
+    Stopwatch() : _totalElapsed(0) {
         QueryPerformanceFrequency(&_frequency);
     }
 

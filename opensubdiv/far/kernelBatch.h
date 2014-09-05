@@ -32,6 +32,7 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Far {
 
 /// \brief A GP Compute Kernel descriptor.
 ///
@@ -39,179 +40,39 @@ namespace OPENSUBDIV_VERSION {
 /// application of dedicated compute kernels. OpenSubdiv groups these vertices
 /// in batches based on their topology in order to minimize the number of kernel
 /// switches to process a given primitive.
-/// 
-///       [Subdivision table for kernel k]
-///        ------+---------------------------------+-----
-///              |   Prim p, Level n               |
-///        ------+---------------------------------+-----
-///              |             | batch range |     |
-///        ------+---------------------------------+-----
-///              ^             ^             ^     
-///        tableOffset       start          end
-///                            .             .
-///                            .             .
-///                            .             .
-///      [VBO]                 .             .
-///        ------+---------------------------------+-----
-///              |   Prim p, Kernel k, Level n     |
-///        ------+---------------------------------+-----
-///              |             | batch range |     | 
-///        ------+---------------------------------+-----
-///              ^             ^             ^
-///        vertexOffset      start          end
 ///
-class FarKernelBatch {
+struct KernelBatch {
 
 public:
 
     enum KernelType {
-        FIRST_KERNEL_TYPE = 1,
-        CATMARK_FACE_VERTEX = FIRST_KERNEL_TYPE,
-        CATMARK_QUAD_FACE_VERTEX,
-        CATMARK_TRI_QUAD_FACE_VERTEX,
-        CATMARK_EDGE_VERTEX,
-        CATMARK_RESTRICTED_EDGE_VERTEX,
-        CATMARK_VERT_VERTEX_A1,
-        CATMARK_VERT_VERTEX_A2,
-        CATMARK_VERT_VERTEX_B,
-        CATMARK_RESTRICTED_VERT_VERTEX_A,
-        CATMARK_RESTRICTED_VERT_VERTEX_B1,
-        CATMARK_RESTRICTED_VERT_VERTEX_B2,
-        LOOP_EDGE_VERTEX,
-        LOOP_VERT_VERTEX_A1,
-        LOOP_VERT_VERTEX_A2,
-        LOOP_VERT_VERTEX_B,
-        BILINEAR_FACE_VERTEX,
-        BILINEAR_EDGE_VERTEX,
-        BILINEAR_VERT_VERTEX,
-        HIERARCHICAL_EDIT,
-        NUM_KERNEL_TYPES,
-        USER_DEFINED_KERNEL_START = NUM_KERNEL_TYPES
+        KERNEL_UNKNOWN=0,
+        KERNEL_STENCIL_TABLE,
+        KERNEL_USER_DEFINED
     };
 
     /// \brief Constructor.
     /// 
-    /// @param kernelType    the type of compute kernel kernel
+    /// @param _kernelType    The type of compute kernel kernel
     ///
-    /// @param level         the level of subdivision of the vertices in the batch
+    /// @param _level         The level of subdivision of the vertices in the batch
     ///
-    /// @param tableIndex    edit index (for the hierarchical edit kernels only)
+    /// @param _start         Index of the first vertex in the batch
     ///
-    /// @param start         index of the first vertex in the batch
+    /// @param _end           Index of the last vertex in the batch
     ///
-    /// @param end           index of the last vertex in the batch
-    ///
-    /// @param tableOffset   XXXX
-    ///
-    /// @param vertexOffset  XXXX
-    ///
-    /// @param meshIndex     XXXX
-    ///
-    FarKernelBatch( int kernelType,
-                    int level,
-                    int tableIndex,
-                    int start,
-                    int end,
-                    int tableOffset,
-                    int vertexOffset,
-                    int meshIndex=0) :
-        _kernelType(kernelType),
-        _level(level),
-        _tableIndex(tableIndex),
-        _start(start),
-        _end(end),
-        _tableOffset(tableOffset),
-        _vertexOffset(vertexOffset),
-        _meshIndex(meshIndex) {
-    }
+    KernelBatch( int _kernelType, int _level, int _start, int _end ) :
+        kernelType(_kernelType), level(_level), start(_start), end(_end) { }
 
-    /// \brief Returns the type of kernel to apply to the vertices in the batch.
-    int GetKernelType() const {
-        return _kernelType;
-    }
-
-
-    /// \brief Returns the subdivision level of the vertices in the batch
-    int GetLevel() const {
-        return _level;
-    }
-
-
-    
-    /// \brief Returns the index of the first vertex in the batch
-    int GetStart() const {
-        return _start;
-    }
-
-    /// \brief Returns the index of the first vertex in the batch
-    const int * GetStartPtr() const {
-        return & _start;
-    }
-
-
-    
-    /// \brief Returns the index of the last vertex in the batch
-    int GetEnd() const {
-        return _end;
-    }
-
-    /// \brief Returns the index of the last vertex in the batch
-    const int * GetEndPtr() const {
-        return & _end;
-    }
-
-
-
-    /// \brief Returns the edit index (for the hierarchical edit kernels only)
-    int GetTableIndex() const {
-        return _tableIndex;
-    }
-    
-
-
-    /// \brief Returns
-    int GetTableOffset() const {
-        return _tableOffset;
-    }
-
-    /// \brief Returns
-    const int * GetTableOffsetPtr() const {
-        return & _tableOffset;
-    }
-
-
-
-    /// \brief Returns
-    int GetVertexOffset() const {
-        return _vertexOffset;
-    }
-
-    /// \brief Returns
-    const int * GetVertexOffsetPtr() const {
-        return & _vertexOffset;
-    }
-
-
-    /// \brief Returns the mesh index (used in batching)
-    int GetMeshIndex() const {
-        return _meshIndex;
-    }
-
-private:
-    friend class FarKernelBatchFactory;
-    template <class X, class Y> friend class FarSubdivisionTablesFactory;
-
-    int _kernelType;
-    int _level;
-    int _tableIndex;
-    int _start;
-    int _end;
-    int _tableOffset;
-    int _vertexOffset;
-    int _meshIndex;
+    int kernelType,   // the type of compute kernel kernel
+        level,        // the level of subdivision of the vertices in the batch
+        start,        // index of the first vertex in the batch
+        end;          // index of the last vertex in the batch
 };
 
-typedef std::vector<FarKernelBatch> FarKernelBatchVector;
+typedef std::vector<KernelBatch> KernelBatchVector;
+
+} // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

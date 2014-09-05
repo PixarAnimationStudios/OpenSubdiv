@@ -38,39 +38,26 @@ of the software.
    :widths: 50 50
 
    * - | `glViewer <glviewer.html>`_
-       | `glBatchViewer <glbatchviewer.html>`_
-       | `glStencilViewer <glstencilviewer.html>`_
-     - | `limitEval <limiteval.html>`_
-       | `paintTest <painttest.html>`_
-       | `ptexViewer <ptexviewer.html>`_
-       | `uvViewer <uvviewer.html>`_
+       | `glPtexViewer <glptexviewer.html>`_
+       | `glEvalLimit <glevallimit.html>`_
+     - | `glStencilViewer <glstencilviewer.html>`_
+       | `glPaintTest <glpainttest.html>`_
+       | `glShareTopology <glsharetopology.html>`_
+       | `glFVarViewer <glfvarviewer.html>`_
 
 .. list-table:: **DirectX examples**
    :class: quickref
    :widths: 50 50
 
    * - | `dxViewer <dxviewer.html>`_
-     - |
+     - | `dxPtexViewer <dxptexviewer.html>`_
 
 .. list-table:: **Plugin examples**
    :class: quickref
-   :widths: 50 50
+   :widths: 50
 
    * - | `osdPolySmooth <maya_osdpolysmooth.html>`_
-       | `mayaViewer <mayaviewer.html>`_
-     - | `mayaPtexViewer <mayaptexviewer.html>`_
 
-|
-
-.. container:: notebox
-
-   **Note:**
-   the mayaViewer and mayaPtexViewer plugins are currently unsupported and they
-   may fail to compile or work with current versions of OpenSubdiv. These were
-   originally written for the sole purpose of live demonstrations and the code
-   is provided only as an implementation example.
-
-|
 
 ----
 

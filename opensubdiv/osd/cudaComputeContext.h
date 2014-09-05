@@ -27,10 +27,6 @@
 
 #include "../version.h"
 
-#include "../far/subdivisionTables.h"
-#include "../far/vertexEditTables.h"
-#include "../osd/vertex.h"
-#include "../osd/vertexDescriptor.h"
 #include "../osd/nonCopyable.h"
 
 #include <stdlib.h>
@@ -39,106 +35,90 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdCudaTable : OsdNonCopyable<OsdCudaTable> {
-public:
-    template<typename T>
-    static OsdCudaTable * Create(const std::vector<T> &table) {
-        OsdCudaTable *result = new OsdCudaTable();
-        if (not result->createCudaBuffer(table.size() * sizeof(T), table.empty() ? NULL : &table[0])) {
-            delete result;
-            return NULL;
-        }
-        return result;
-    }
+namespace Far{ class StencilTables; }
 
-    virtual ~OsdCudaTable();
-
-    void * GetCudaMemory() const;
-
-private:
-    OsdCudaTable() : _devicePtr(NULL) {}
-
-    bool createCudaBuffer(size_t size, const void *ptr);
-
-    void *_devicePtr;
-};
-
-class OsdCudaHEditTable : OsdNonCopyable<OsdCudaHEditTable> {
-public:
-    static OsdCudaHEditTable * Create(const FarVertexEditTables::VertexEditBatch &batch);
-
-    virtual ~OsdCudaHEditTable();
-
-    const OsdCudaTable * GetPrimvarIndices() const;
-
-    const OsdCudaTable * GetEditValues() const;
-
-    int GetOperation() const;
-
-    int GetPrimvarOffset() const;
-
-    int GetPrimvarWidth() const;
-
-private:
-    OsdCudaHEditTable();
-
-    OsdCudaTable *_primvarIndicesTable;
-    OsdCudaTable *_editValuesTable;
-
-    int _operation;
-    int _primvarOffset;
-    int _primvarWidth;
-};
+namespace Osd {
 
 ///
 /// \brief CUDA Refine Context
 ///
-/// The CUDA implementation of the Refine module contextual functionality. 
+/// The CUDA implementation of the Refine module contextual functionality.
 ///
-/// Contexts interface the serialized topological data pertaining to the 
-/// geometric primitives with the capabilities of the selected discrete 
+/// Contexts interface the serialized topological data pertaining to the
+/// geometric primitives with the capabilities of the selected discrete
 /// compute device.
 ///
-class OsdCudaComputeContext : public OsdNonCopyable<OsdCudaComputeContext> {
+class CudaComputeContext : public NonCopyable<CudaComputeContext> {
 
 public:
-    /// Creates an OsdCudaComputeContext instance
+
+    /// Creates an CudaComputeContext instance
     ///
-    /// @param subdivisionTables the FarSubdivisionTables used for this Context.
+    /// @param vertexStencilTables   The Far::StencilTables used for vertex
+    ///                              interpolation
     ///
-    /// @param vertexEditTables the FarVertexEditTables used for this Context.
+    /// @param varyingStencilTables  The Far::StencilTables used for varying
+    ///                              interpolation
     ///
-    static OsdCudaComputeContext * Create(FarSubdivisionTables const *subdivisionTables,
-                                          FarVertexEditTables const *vertexEditTables);
+    static CudaComputeContext * Create(Far::StencilTables const * vertexStencilTables,
+                                          Far::StencilTables const * varyingStencilTables=0);
 
     /// Destructor
-    virtual ~OsdCudaComputeContext();
+    virtual ~CudaComputeContext();
 
-    /// Returns one of the vertex refinement tables.
-    ///
-    /// @param tableIndex the type of table
-    ///
-    const OsdCudaTable * GetTable(int tableIndex) const;
+    /// Returns true if the Context has a 'vertex' interpolation stencil table
+    bool HasVertexStencilTables() const;
 
-    /// Returns the number of hierarchical edit tables
-    int GetNumEditTables() const;
+    /// Returns true if the Context has a 'varying' interpolation stencil table
+    bool HasVaryingStencilTables() const;
 
-    /// Returns a specific hierarchical edit table
-    ///
-    /// @param tableIndex the index of the table
-    ///
-    const OsdCudaHEditTable * GetEditTable(int tableIndex) const;
+    /// Returns the number of control vertices
+    int GetNumControlVertices() const {
+        return _numControlVertices;
+    }
+
+    /// Returns the Cuda buffer containing vertex-stencil stencil sizes
+    void * GetVertexStencilTablesSizes() const;
+
+    /// Returns the Cuda buffer containing vertex-stencil stencil offsets
+    void * GetVertexStencilTablesOffsets() const;
+
+    /// Returns the Cuda buffer containing vertex-stencil stencil indices
+    void * GetVertexStencilTablesIndices() const;
+
+    /// Returns the Cuda buffer containing vertex-stencil stencil weights
+    void * GetVertexStencilTablesWeights() const;
+
+
+    /// Returns the Cuda buffer containing Varying-stencil stencil sizes
+    void * GetVaryingStencilTablesSizes() const;
+
+    /// Returns the Cuda buffer containing Varying-stencil stencil offsets
+    void * GetVaryingStencilTablesOffsets() const;
+
+    /// Returns the Cuda buffer containing Varying-stencil stencil indices
+    void * GetVaryingStencilTablesIndices() const;
+
+    /// Returns the Cuda buffer containing Varying-stencil stencil weights
+    void * GetVaryingStencilTablesWeights() const;
+
 
 protected:
-    OsdCudaComputeContext();
 
-    bool initialize(FarSubdivisionTables const *subdivisionTables,
-                    FarVertexEditTables const *vertexEditTables);
+    explicit CudaComputeContext(Far::StencilTables const * vertexStencilTables,
+                                   Far::StencilTables const * varyingStencilTables);
 
 private:
-    std::vector<OsdCudaTable*> _tables;
-    std::vector<OsdCudaHEditTable*> _editTables;
+
+    class CudaStencilTables;
+
+    CudaStencilTables * _vertexStencilTables,
+                      * _varyingStencilTables;
+
+    int _numControlVertices;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

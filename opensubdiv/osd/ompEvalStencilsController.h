@@ -36,17 +36,19 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 ///
 /// \brief CPU stencils evaluation controller
 ///
-/// OsdCpuStencilsController is a compute controller class to launch
+/// CpuStencilsController is a compute controller class to launch
 /// single threaded CPU stencil evalution kernels.
 ///
 /// Controller entities execute requests from Context instances that they share
 /// common interfaces with. Controllers are attached to discrete compute devices
 /// and share the devices resources with Context entities.
 ///
-class OsdOmpEvalStencilsController {
+class OmpEvalStencilsController {
 public:
 
     /// \brief Constructor.
@@ -54,10 +56,10 @@ public:
     /// @param numThreads specifies how many openmp parallel threads to use.
     ///                   -1 attempts to use all available processors.
     ///
-    OsdOmpEvalStencilsController(int numThreads=-1);
+    OmpEvalStencilsController(int numThreads=-1);
 
     /// \brief Destructor.
-    ~OsdOmpEvalStencilsController();
+    ~OmpEvalStencilsController();
 
 
     /// \brief Applies stencil weights to the control vertex data
@@ -65,9 +67,9 @@ public:
     /// Applies the stencil weights to the control vertex data to evaluate the
     /// interpolated limit positions at the parametric locations of the stencils
     ///
-    /// @param context          the OsdCpuEvalStencilsContext with the stencil weights
+    /// @param context          the CpuEvalStencilsContext with the stencil weights
     ///
-    /// @param controlDataDesc  vertex buffer descriptor for the control vertex data 
+    /// @param controlDataDesc  vertex buffer descriptor for the control vertex data
     ///
     /// @param controlVertices  vertex buffer with the control vertices data
     ///
@@ -76,9 +78,9 @@ public:
     /// @param outputData       output vertex buffer for the interpolated data
     ///
     template<class CONTROL_BUFFER, class OUTPUT_BUFFER>
-    int UpdateValues( OsdCpuEvalStencilsContext * context,
-                      OsdVertexBufferDescriptor const & controlDataDesc, CONTROL_BUFFER *controlVertices,
-                      OsdVertexBufferDescriptor const & outputDataDesc, OUTPUT_BUFFER *outputData ) {
+    int UpdateValues( CpuEvalStencilsContext * context,
+                      VertexBufferDescriptor const & controlDataDesc, CONTROL_BUFFER *controlVertices,
+                      VertexBufferDescriptor const & outputDataDesc, OUTPUT_BUFFER *outputData ) {
 
         if (not context->GetStencilTables()->GetNumStencils())
             return 0;
@@ -88,9 +90,9 @@ public:
         bindControlData( controlDataDesc, controlVertices );
 
         bindOutputData( outputDataDesc, outputData );
-        
+
         int n = _UpdateValues( context );
-        
+
         unbind();
 
         return n;
@@ -101,9 +103,9 @@ public:
     /// Computes the U and V derivative stencils to the control vertex data at
     /// the parametric locations contained in each stencil
     ///
-    /// @param context          the OsdCpuEvalStencilsContext with the stencil weights
+    /// @param context          the CpuEvalStencilsContext with the stencil weights
     ///
-    /// @param controlDataDesc  vertex buffer descriptor for the control vertex data 
+    /// @param controlDataDesc  vertex buffer descriptor for the control vertex data
     ///
     /// @param controlVertices  vertex buffer with the control vertices data
     ///
@@ -116,22 +118,22 @@ public:
     /// @param outputDvData     output vertex buffer for the V derivative data
     ///
     template<class CONTROL_BUFFER, class OUTPUT_BUFFER>
-    int UpdateDerivs( OsdCpuEvalStencilsContext * context,
-                      OsdVertexBufferDescriptor const & controlDataDesc, CONTROL_BUFFER *controlVertices,
-                      OsdVertexBufferDescriptor const & outputDuDesc, OUTPUT_BUFFER *outputDuData, 
-                      OsdVertexBufferDescriptor const & outputDvDesc, OUTPUT_BUFFER *outputDvData ) {
-                       
+    int UpdateDerivs( CpuEvalStencilsContext * context,
+                      VertexBufferDescriptor const & controlDataDesc, CONTROL_BUFFER *controlVertices,
+                      VertexBufferDescriptor const & outputDuDesc, OUTPUT_BUFFER *outputDuData,
+                      VertexBufferDescriptor const & outputDvDesc, OUTPUT_BUFFER *outputDvData ) {
+
         if (not context->GetStencilTables()->GetNumStencils())
             return 0;
 
         bindControlData( controlDataDesc, controlVertices );
 
         bindOutputDerivData( outputDuDesc, outputDuData, outputDvDesc, outputDvData );
-        
+
         int n = _UpdateDerivs( context );
-        
+
         unbind();
-        
+
         return n;
     }
 
@@ -142,7 +144,7 @@ protected:
 
     /// \brief Binds control vertex data buffer
     template<class VERTEX_BUFFER>
-    void bindControlData(OsdVertexBufferDescriptor const & controlDataDesc, VERTEX_BUFFER *controlData ) {
+    void bindControlData(VertexBufferDescriptor const & controlDataDesc, VERTEX_BUFFER *controlData ) {
 
         _currentBindState.controlData = controlData ? controlData->BindCpuBuffer() : 0;
         _currentBindState.controlDataDesc = controlDataDesc;
@@ -151,17 +153,17 @@ protected:
 
     /// \brief Binds output vertex data buffer
     template<class VERTEX_BUFFER>
-    void bindOutputData( OsdVertexBufferDescriptor const & outputDataDesc, VERTEX_BUFFER *outputData ) {
+    void bindOutputData( VertexBufferDescriptor const & outputDataDesc, VERTEX_BUFFER *outputData ) {
 
         _currentBindState.outputData = outputData ? outputData->BindCpuBuffer() : 0;
         _currentBindState.outputDataDesc = outputDataDesc;
     }
-    
+
     /// \brief Binds output derivative vertex data buffer
     template<class VERTEX_BUFFER>
-    void bindOutputDerivData( OsdVertexBufferDescriptor const & outputDuDesc, VERTEX_BUFFER *outputDu, 
-                              OsdVertexBufferDescriptor const & outputDvDesc, VERTEX_BUFFER *outputDv ) {
-                              
+    void bindOutputDerivData( VertexBufferDescriptor const & outputDuDesc, VERTEX_BUFFER *outputDu,
+                              VertexBufferDescriptor const & outputDvDesc, VERTEX_BUFFER *outputDv ) {
+
         _currentBindState.outputUDeriv = outputDu ? outputDu ->BindCpuBuffer() : 0;
         _currentBindState.outputVDeriv = outputDv ? outputDv->BindCpuBuffer() : 0;
         _currentBindState.outputDuDesc = outputDuDesc;
@@ -175,8 +177,8 @@ protected:
 
 private:
 
-    int _UpdateValues( OsdCpuEvalStencilsContext * context );
-    int _UpdateDerivs( OsdCpuEvalStencilsContext * context );
+    int _UpdateValues( CpuEvalStencilsContext * context );
+    int _UpdateDerivs( CpuEvalStencilsContext * context );
 
     int _numThreads;
 
@@ -185,7 +187,7 @@ private:
     struct BindState {
 
         BindState() : controlData(0), outputData(0), outputUDeriv(0), outputVDeriv(0) { }
-        
+
         void Reset() {
             controlData = outputData = outputUDeriv = outputVDeriv = NULL;
             controlDataDesc.Reset();
@@ -195,7 +197,7 @@ private:
         }
 
         // transient mesh data
-        OsdVertexBufferDescriptor controlDataDesc,
+        VertexBufferDescriptor controlDataDesc,
                                   outputDataDesc,
                                   outputDuDesc,
                                   outputDvDesc;
@@ -205,9 +207,11 @@ private:
               * outputUDeriv,
               * outputVDeriv;
     };
-    
+
     BindState _currentBindState;
 };
+
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

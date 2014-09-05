@@ -36,21 +36,23 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 /// \brief Concrete vertex buffer class for cuda subvision and OpenGL drawing.
 ///
-/// OsdCudaGLVertexBuffer implements OsdCudaVertexBufferInterface and
-/// OsdGLVertexBufferInterface.
+/// CudaGLVertexBuffer implements CudaVertexBufferInterface and
+/// GLVertexBufferInterface.
 ///
 /// The buffer interop between Cuda and GL is handled automatically when a 
 /// client calls BindCudaBuffer and BindVBO methods.
 ///
-class OsdCudaGLVertexBuffer {
+class CudaGLVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static OsdCudaGLVertexBuffer * Create(int numElements, int numVertices);
+    static CudaGLVertexBuffer * Create(int numElements, int numVertices);
 
     /// Destructor.
-    ~OsdCudaGLVertexBuffer();
+    ~CudaGLVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
@@ -72,7 +74,7 @@ public:
 
 protected:
     /// Constructor.
-    OsdCudaGLVertexBuffer(int numElements, int numVertices);
+    CudaGLVertexBuffer(int numElements, int numVertices);
 
     /// Allocates VBO for this buffer and register as a cuda resource.
     /// Returns true if success.
@@ -91,6 +93,8 @@ private:
     void *_devicePtr;
     struct cudaGraphicsResource *_cudaResource;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

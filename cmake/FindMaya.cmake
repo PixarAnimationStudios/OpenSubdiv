@@ -56,6 +56,7 @@ if(APPLE)
         HINTS
             "${MAYA_LOCATION}"
             "$ENV{MAYA_LOCATION}"
+            "/Applications/Autodesk/maya2015/Maya.app/Contents"
             "/Applications/Autodesk/maya2014/Maya.app/Contents"
             "/Applications/Autodesk/maya2013.5/Maya.app/Contents"
             "/Applications/Autodesk/maya2013/Maya.app/Contents"
@@ -82,6 +83,8 @@ if(UNIX)
         HINTS
             "${MAYA_LOCATION}"
             "$ENV{MAYA_LOCATION}"
+            "/usr/autodesk/maya2015-x64"
+            "/usr/autodesk/maya2014-x64"
             "/usr/autodesk/maya2013-x64"
             "/usr/autodesk/maya2012.17-x64"
             "/usr/autodesk/maya2012-x64"
@@ -107,6 +110,10 @@ if(WIN32)
         HINTS
             "${MAYA_LOCATION}"
             "$ENV{MAYA_LOCATION}"
+            "C:/Program Files/Autodesk/Maya2015.5-x64"
+            "C:/Program Files/Autodesk/Maya2015.5"
+            "C:/Program Files/Autodesk/Maya2014.5-x64"
+            "C:/Program Files/Autodesk/Maya2014.5"
             "C:/Program Files/Autodesk/Maya2013.5-x64"
             "C:/Program Files/Autodesk/Maya2013.5"
             "C:/Program Files (x86)/Autodesk/Maya2013.5"

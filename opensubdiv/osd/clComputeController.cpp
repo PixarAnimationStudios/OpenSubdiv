@@ -23,632 +23,243 @@
 //
 
 #include "../osd/clComputeController.h"
-#include "../osd/clComputeContext.h"
-#include "../osd/clKernelBundle.h"
 #include "../osd/error.h"
-#include "../osd/opencl.h"
 
 #if defined(_WIN32)
     #include <windows.h>
 #endif
 
-#include <string.h>
 #include <algorithm>
-
-// XXX: Error handling
-#ifdef NDEBUG
-#define CL_CHECK_ERROR(x, ...)
-#else
-#define CL_CHECK_ERROR(x, ...) {                     \
-        if (x != CL_SUCCESS) {                       \
-            OsdError(OSD_CL_RUNTIME_ERROR, "%d", x); \
-            OsdError(OSD_CL_RUNTIME_ERROR, __VA_ARGS__); } }
-#endif
+#include <string.h>
+#include <sstream>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCLComputeController::OsdCLComputeController(cl_context clContext,
-                                               cl_command_queue queue) :
-    _clContext(clContext), _clQueue(queue) {
+namespace Osd {
+
+static const char *clSource =
+#include "clKernel.gen.h"
+;
+
+// -----------------------------------------------------------------------------
+
+static cl_kernel buildKernel(cl_program prog, const char * name) {
+
+    cl_int errNum;
+    cl_kernel k = clCreateKernel(prog, name, &errNum);
+
+    if (errNum != CL_SUCCESS) {
+        Error(OSD_CL_KERNEL_CREATE_ERROR, "buildKernel '%s' (%d)\n", name, errNum);
+    }
+    return k;
 }
 
-OsdCLComputeController::~OsdCLComputeController() {
+// -----------------------------------------------------------------------------
 
-    for (std::vector<OsdCLKernelBundle*>::iterator it = _kernelRegistry.begin();
+class CLComputeController::KernelBundle :
+    NonCopyable<CLComputeController::KernelBundle> {
+
+public:
+
+    bool Compile(cl_context clContext, VertexBufferDescriptor const & desc) {
+
+        cl_int errNum;
+
+        _desc = VertexBufferDescriptor(0, desc.length, desc.stride);
+
+        std::ostringstream defines;
+        defines << "#define OFFSET " << _desc.offset << "\n"
+                << "#define LENGTH " << _desc.length << "\n"
+                << "#define STRIDE " << _desc.stride << "\n";
+        std::string defineStr = defines.str();
+
+        const char *sources[] = { defineStr.c_str(), clSource };
+        _program = clCreateProgramWithSource(clContext, 2, sources, 0, &errNum);
+        if (errNum!=CL_SUCCESS) {
+            Error(OSD_CL_PROGRAM_BUILD_ERROR,
+                "clCreateProgramWithSource (%d)", errNum);
+        }
+
+        errNum = clBuildProgram(_program, 0, NULL, NULL, NULL, NULL);
+        if (errNum != CL_SUCCESS) {
+            Error(OSD_CL_PROGRAM_BUILD_ERROR, "clBuildProgram (%d) \n", errNum);
+
+            cl_int numDevices = 0;
+            clGetContextInfo(clContext,
+                CL_CONTEXT_NUM_DEVICES, sizeof(cl_uint), &numDevices, NULL);
+
+            cl_device_id *devices = new cl_device_id[numDevices];
+            clGetContextInfo(clContext, CL_CONTEXT_DEVICES,
+                sizeof(cl_device_id)*numDevices, devices, NULL);
+
+            for (int i = 0; i < numDevices; ++i) {
+                char cBuildLog[10240];
+                clGetProgramBuildInfo(_program, devices[i],
+                    CL_PROGRAM_BUILD_LOG, sizeof(cBuildLog), cBuildLog, NULL);
+                Error(OSD_CL_PROGRAM_BUILD_ERROR, cBuildLog);
+            }
+            delete[] devices;
+
+            return false;
+        }
+
+        // compile all cl compute kernels
+        _stencilsKernel = buildKernel(_program, "computeStencils");
+
+        return true;
+    }
+
+    cl_kernel GetStencilsKernel() const {
+        return _stencilsKernel;
+    }
+
+    struct Match {
+
+        Match(VertexBufferDescriptor const & d) : desc(d) { }
+
+        bool operator() (KernelBundle const * kernel) {
+            return (desc.length==kernel->_desc.length and
+                    desc.stride==kernel->_desc.stride);
+        }
+
+        VertexBufferDescriptor desc;
+    };
+
+private:
+
+    cl_program _program;
+
+    cl_kernel _stencilsKernel;
+
+    VertexBufferDescriptor _desc;
+};
+
+// ----------------------------------------------------------------------------
+
+void
+CLComputeController::ApplyStencilTableKernel(
+    Far::KernelBatch const &batch, ComputeContext const *context) {
+
+    assert(context);
+
+    cl_int errNum;
+
+    size_t globalWorkSize[1] = { (size_t)(batch.end - batch.start) };
+
+    int ncvs = context->GetNumControlVertices();
+
+    if (context->HasVertexStencilTables()) {
+
+        KernelBundle const * bundle = getKernel(_currentBindState.vertexDesc);
+
+        cl_kernel kernel = bundle->GetStencilsKernel();
+
+        cl_mem sizes = context->GetVertexStencilTablesSizes(),
+               offsets = context->GetVertexStencilTablesOffsets(),
+               indices = context->GetVertexStencilTablesIndices(),
+               weights = context->GetVertexStencilTablesWeights();
+
+        clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
+
+        clSetKernelArg(kernel, 1, sizeof(cl_mem), &sizes);
+        clSetKernelArg(kernel, 2, sizeof(cl_mem), &offsets);
+        clSetKernelArg(kernel, 3, sizeof(cl_mem), &indices);
+        clSetKernelArg(kernel, 4, sizeof(cl_mem), &weights);
+
+        clSetKernelArg(kernel, 5, sizeof(int), &batch.start);
+        clSetKernelArg(kernel, 6, sizeof(int), &batch.end);
+
+        clSetKernelArg(kernel, 7, sizeof(int), &_currentBindState.vertexDesc.offset);
+        clSetKernelArg(kernel, 8, sizeof(int), &ncvs);
+
+        errNum = clEnqueueNDRangeKernel(
+            _clQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, NULL);
+        if (errNum!=CL_SUCCESS) {
+            Error(OSD_CL_RUNTIME_ERROR,
+                "ApplyStencilTableKernel (%d) ", errNum);
+        }
+    }
+
+    if (context->HasVaryingStencilTables()) {
+
+        KernelBundle const * bundle = getKernel(_currentBindState.varyingDesc);
+
+        cl_kernel kernel = bundle->GetStencilsKernel();
+
+        cl_mem sizes = context->GetVaryingStencilTablesSizes(),
+               offsets = context->GetVaryingStencilTablesOffsets(),
+               indices = context->GetVaryingStencilTablesIndices(),
+               weights = context->GetVaryingStencilTablesWeights();
+
+        clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.varyingBuffer);
+
+        clSetKernelArg(kernel, 1, sizeof(cl_mem), &sizes);
+        clSetKernelArg(kernel, 2, sizeof(cl_mem), &offsets);
+        clSetKernelArg(kernel, 3, sizeof(cl_mem), &indices);
+        clSetKernelArg(kernel, 4, sizeof(cl_mem), &weights);
+
+        clSetKernelArg(kernel, 5, sizeof(int), &batch.start);
+        clSetKernelArg(kernel, 6, sizeof(int), &batch.end);
+
+        clSetKernelArg(kernel, 7, sizeof(int), &_currentBindState.varyingDesc.offset);
+        clSetKernelArg(kernel, 8, sizeof(int), &ncvs);
+
+        errNum = clEnqueueNDRangeKernel(
+            _clQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, NULL);
+        if (errNum!=CL_SUCCESS) {
+            Error(OSD_CL_RUNTIME_ERROR,
+                "ApplyStencilTableKernel (%d)", errNum);
+        }
+    }
+}
+
+
+// ----------------------------------------------------------------------------
+
+CLComputeController::KernelBundle const *
+CLComputeController::getKernel(VertexBufferDescriptor const &desc) {
+
+    KernelRegistry::iterator it =
+        std::find_if(_kernelRegistry.begin(), _kernelRegistry.end(),
+            KernelBundle::Match(desc));
+
+    if (it != _kernelRegistry.end()) {
+        return *it;
+    } else {
+        KernelBundle * kernelBundle = new KernelBundle();
+        kernelBundle->Compile(_clContext, desc);
+        _kernelRegistry.push_back(kernelBundle);
+        return kernelBundle;
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+CLComputeController::CLComputeController(
+    cl_context clContext, cl_command_queue queue) :
+         _clContext(clContext), _clQueue(queue) {
+}
+
+CLComputeController::~CLComputeController() {
+    for (KernelRegistry::iterator it = _kernelRegistry.begin();
         it != _kernelRegistry.end(); ++it) {
         delete *it;
     }
 }
 
+// ----------------------------------------------------------------------------
+
 void
-OsdCLComputeController::Synchronize() {
+CLComputeController::Synchronize() {
 
     clFinish(_clQueue);
 }
 
-OsdCLKernelBundle *
-OsdCLComputeController::getKernelBundle(
-    OsdVertexBufferDescriptor const &vertexDesc,
-    OsdVertexBufferDescriptor const &varyingDesc) {
 
-    std::vector<OsdCLKernelBundle*>::iterator it =
-        std::find_if(_kernelRegistry.begin(), _kernelRegistry.end(),
-                     OsdCLKernelBundle::Match(vertexDesc,
-                                              varyingDesc));
+// -----------------------------------------------------------------------------
 
-    if (it != _kernelRegistry.end()) {
-        return *it;
-    } else {
-        OsdCLKernelBundle *kernelBundle = new OsdCLKernelBundle();
-        _kernelRegistry.push_back(kernelBundle);
-        kernelBundle->Compile(_clContext,
-                              vertexDesc,
-                              varyingDesc);
-        return kernelBundle;
-    }
-}
-
-void
-OsdCLComputeController::ApplyBilinearFaceVerticesKernel(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    ApplyCatmarkFaceVerticesKernel(batch, context);
-}
-
-void
-OsdCLComputeController::ApplyBilinearEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetBilinearEdgeKernel();
-
-    cl_mem E_IT = context->GetTable(FarSubdivisionTables::E_IT)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &E_IT);
-    clSetKernelArg(kernel, 3, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetEndPtr());
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "bilinear edge kernel %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyBilinearVertexVerticesKernel(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetBilinearVertexKernel();
-
-    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
-    clSetKernelArg(kernel, 3, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetEndPtr());
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "bilinear vertex kernel 1 %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyCatmarkFaceVerticesKernel(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkFaceKernel();
-
-    cl_mem F_IT = context->GetTable(FarSubdivisionTables::F_IT)->GetDevicePtr();
-    cl_mem F_ITa = context->GetTable(FarSubdivisionTables::F_ITa)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &F_IT);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), &F_ITa);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 9, sizeof(int), batch.GetEndPtr());
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "face kernel %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyCatmarkQuadFaceVerticesKernel(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkQuadFaceKernel();
-
-    cl_mem F_IT = context->GetTable(FarSubdivisionTables::F_IT)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &F_IT);
-    clSetKernelArg(kernel, 3, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetEndPtr());
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "quad face kernel %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyCatmarkTriQuadFaceVerticesKernel(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkTriQuadFaceKernel();
-
-    cl_mem F_IT = context->GetTable(FarSubdivisionTables::F_IT)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &F_IT);
-    clSetKernelArg(kernel, 3, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetEndPtr());
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "tri quad face kernel %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyCatmarkEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkEdgeKernel();
-
-    cl_mem E_IT = context->GetTable(FarSubdivisionTables::E_IT)->GetDevicePtr();
-    cl_mem E_W = context->GetTable(FarSubdivisionTables::E_W)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &E_IT);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), &E_W);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 9, sizeof(int), batch.GetEndPtr());
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "edge kernel %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyCatmarkRestrictedEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkRestrictedEdgeKernel();
-
-    cl_mem E_IT = context->GetTable(FarSubdivisionTables::E_IT)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &E_IT);
-    clSetKernelArg(kernel, 3, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetEndPtr());
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "restricted edge kernel %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyCatmarkVertexVerticesKernelB(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkVertexKernelB();
-
-    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
-    cl_mem V_IT = context->GetTable(FarSubdivisionTables::V_IT)->GetDevicePtr();
-    cl_mem V_W = context->GetTable(FarSubdivisionTables::V_W)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), &V_IT);
-    clSetKernelArg(kernel, 4, sizeof(cl_mem), &V_W);
-    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 6, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 9, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 10, sizeof(int), batch.GetEndPtr());
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "vertex kernel B %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyCatmarkVertexVerticesKernelA1(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    int ipass = false;
-    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkVertexKernelA();
-
-    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
-    cl_mem V_W = context->GetTable(FarSubdivisionTables::V_W)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), &V_W);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 9, sizeof(int), batch.GetEndPtr());
-    clSetKernelArg(kernel, 10, sizeof(int), &ipass);
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "vertex kernel A1 %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyCatmarkVertexVerticesKernelA2(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    int ipass = true;
-    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkVertexKernelA();
-
-    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
-    cl_mem V_W = context->GetTable(FarSubdivisionTables::V_W)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), &V_W);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 9, sizeof(int), batch.GetEndPtr());
-    clSetKernelArg(kernel, 10, sizeof(int), &ipass);
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "vertex kernel A2 %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB1(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkRestrictedVertexKernelB1();
-
-    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
-    cl_mem V_IT = context->GetTable(FarSubdivisionTables::V_IT)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), &V_IT);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 9, sizeof(int), batch.GetEndPtr());
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "restricted vertex kernel B1 %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB2(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkRestrictedVertexKernelB2();
-
-    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
-    cl_mem V_IT = context->GetTable(FarSubdivisionTables::V_IT)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), &V_IT);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 9, sizeof(int), batch.GetEndPtr());
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "restricted vertex kernel B2 %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyCatmarkRestrictedVertexVerticesKernelA(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetCatmarkRestrictedVertexKernelA();
-
-    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
-    clSetKernelArg(kernel, 3, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetEndPtr());
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "restricted vertex kernel A %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyLoopEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetLoopEdgeKernel();
-
-    cl_mem E_IT = context->GetTable(FarSubdivisionTables::E_IT)->GetDevicePtr();
-    cl_mem E_W = context->GetTable(FarSubdivisionTables::E_W)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &E_IT);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), &E_W);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 9, sizeof(int), batch.GetEndPtr());
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "edge kernel %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyLoopVertexVerticesKernelB(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    cl_kernel kernel = _currentBindState.kernelBundle->GetLoopVertexKernelB();
-
-    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
-    cl_mem V_IT = context->GetTable(FarSubdivisionTables::V_IT)->GetDevicePtr();
-    cl_mem V_W = context->GetTable(FarSubdivisionTables::V_W)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), &V_IT);
-    clSetKernelArg(kernel, 4, sizeof(cl_mem), &V_W);
-    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 6, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 9, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 10, sizeof(int), batch.GetEndPtr());
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "vertex kernel 1 %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyLoopVertexVerticesKernelA1(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    int ipass = false;
-    cl_kernel kernel = _currentBindState.kernelBundle->GetLoopVertexKernelA();
-
-    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
-    cl_mem V_W = context->GetTable(FarSubdivisionTables::V_W)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), &V_W);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 9, sizeof(int), batch.GetEndPtr());
-    clSetKernelArg(kernel, 10, sizeof(int), &ipass);
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "vertex kernel 2 %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyLoopVertexVerticesKernelA2(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-    int ipass = true;
-    cl_kernel kernel = _currentBindState.kernelBundle->GetLoopVertexKernelA();
-
-    cl_mem V_ITa = context->GetTable(FarSubdivisionTables::V_ITa)->GetDevicePtr();
-    cl_mem V_W = context->GetTable(FarSubdivisionTables::V_W)->GetDevicePtr();
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &_currentBindState.varyingBuffer);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &V_ITa);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), &V_W);
-    clSetKernelArg(kernel, 4, sizeof(int), &_currentBindState.vertexDesc.offset);
-    clSetKernelArg(kernel, 5, sizeof(int), &_currentBindState.varyingDesc.offset);
-    clSetKernelArg(kernel, 6, sizeof(int), batch.GetVertexOffsetPtr());
-    clSetKernelArg(kernel, 7, sizeof(int), batch.GetTableOffsetPtr());
-    clSetKernelArg(kernel, 8, sizeof(int), batch.GetStartPtr());
-    clSetKernelArg(kernel, 9, sizeof(int), batch.GetEndPtr());
-    clSetKernelArg(kernel, 10, sizeof(int), &ipass);
-
-    ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                      kernel, 1, NULL, globalWorkSize,
-                                      NULL, 0, NULL, NULL);
-    CL_CHECK_ERROR(ciErrNum, "vertex kernel 2 %d\n", ciErrNum);
-}
-
-void
-OsdCLComputeController::ApplyVertexEdits(
-    FarKernelBatch const &batch, OsdCLComputeContext const *context) const {
-
-    assert(context);
-
-    cl_int ciErrNum;
-    size_t globalWorkSize[1] = { (size_t)(batch.GetEnd() - batch.GetStart()) };
-
-    const OsdCLHEditTable * edit = context->GetEditTable(batch.GetTableIndex());
-    assert(edit);
-
-    const OsdCLTable * primvarIndices = edit->GetPrimvarIndices();
-    const OsdCLTable * editValues = edit->GetEditValues();
-
-    cl_mem indices = primvarIndices->GetDevicePtr();
-    cl_mem values = editValues->GetDevicePtr();
-    int primvarOffset = edit->GetPrimvarOffset();
-    int primvarWidth = edit->GetPrimvarWidth();
-
-    if (edit->GetOperation() == FarVertexEdit::Add) {
-        cl_kernel kernel = _currentBindState.kernelBundle->GetVertexEditAdd();
-
-        clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
-        clSetKernelArg(kernel, 1, sizeof(cl_mem), &indices);
-        clSetKernelArg(kernel, 2, sizeof(cl_mem), &values);
-        clSetKernelArg(kernel, 3, sizeof(int), &_currentBindState.vertexDesc.offset);
-        clSetKernelArg(kernel, 4, sizeof(int), &primvarOffset);
-        clSetKernelArg(kernel, 5, sizeof(int), &primvarWidth);
-        clSetKernelArg(kernel, 6, sizeof(int), batch.GetVertexOffsetPtr());
-        clSetKernelArg(kernel, 7, sizeof(int), batch.GetTableOffsetPtr());
-        clSetKernelArg(kernel, 8, sizeof(int), batch.GetStartPtr());
-        clSetKernelArg(kernel, 9, sizeof(int), batch.GetEndPtr());
-
-        ciErrNum = clEnqueueNDRangeKernel(_clQueue,
-                                          kernel, 1, NULL, globalWorkSize,
-                                          NULL, 0, NULL, NULL);
-        
-        CL_CHECK_ERROR(ciErrNum, "vertex edit %d %d\n", batch.GetTableIndex(), ciErrNum);
-
-    } else if (edit->GetOperation() == FarVertexEdit::Set) {
-        // XXXX TODO
-    }
-}
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv
-

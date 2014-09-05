@@ -36,7 +36,9 @@ class PtexTexture;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-/// OsdGLPTexture : implements simple support for ptex textures
+namespace Osd {
+
+/// GLPTexture : implements simple support for ptex textures
 ///
 /// The current implementation declares _texels as a GL_TEXTURE_2D_ARRAY of
 /// n pages of a resolution that matches that of the largest face in the PTex file.
@@ -54,9 +56,9 @@ namespace OPENSUBDIV_VERSION {
 /// class provides ptex face index lookup table as a texture buffer object that
 /// can be accessed by GLSL shaders.
 ///
-class OsdGLPtexTexture : OsdNonCopyable<OsdGLPtexTexture> {
+class GLPtexTexture : NonCopyable<GLPtexTexture> {
 public:
-    static OsdGLPtexTexture * Create(PtexTexture * reader,
+    static GLPtexTexture * Create(PtexTexture * reader,
                                   unsigned long int targetMemory = 0,
                                   int gutterWidth = 0,
                                   int pageMargin = 0);
@@ -72,10 +74,10 @@ public:
     /// Returns the texels texture array.
     GLuint GetTexelsTexture() const { return _texels; }
 
-    ~OsdGLPtexTexture();
+    ~GLPtexTexture();
 
 private:
-    OsdGLPtexTexture();
+    GLPtexTexture();
 
     GLsizei _width,   // widht / height / depth of the 3D texel buffer
             _height,
@@ -87,6 +89,8 @@ private:
            _layout,   // per-face lookup table (vec4 : top-left corner & width / height)
            _texels;   // texel data
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

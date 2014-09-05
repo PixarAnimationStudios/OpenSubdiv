@@ -31,6 +31,7 @@ set(EXAMPLES_COMMON_SOURCE_FILES
     font_image.cpp
     hdr_reader.cpp
     hud.cpp
+    objAnim.cpp
     patchColors.cpp
 )
 
@@ -40,6 +41,7 @@ set(EXAMPLES_COMMON_HEADER_FILES
     font_image.h
     hdr_reader.h
     hud.h
+    objAnim.h
     patchColors.h
     simple_math.h
     stopwatch.h

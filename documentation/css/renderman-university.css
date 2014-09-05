@@ -52,7 +52,7 @@
 }
 .coursewareBackground ul li {
 	padding-left: 6px!important;
-	list-style-type:square!important;
+	list-style-type:disc!important;
 }
 .coursewareBackground h1, .coursewareBackground h2, .coursewareBackground h1 a, .coursewareBackground h2 a {
 	padding-bottom:10px;

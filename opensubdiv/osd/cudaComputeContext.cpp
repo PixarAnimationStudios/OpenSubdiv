@@ -22,192 +22,185 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "../far/stencilTables.h"
+
 #include "../osd/cudaComputeContext.h"
 
 #include <cuda_runtime.h>
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-bool
-OsdCudaTable::createCudaBuffer(size_t size, const void *ptr) {
+namespace Osd {
 
-    cudaError_t err = cudaMalloc(&_devicePtr, size);
+// ----------------------------------------------------------------------------
+
+template <class T> void *
+createCudaBuffer(std::vector<T> const & src) {
+
+    void * devicePtr=0;
+
+    size_t size = src.size()*sizeof(T);
+
+    cudaError_t err = cudaMalloc(&devicePtr, size);
     if (err != cudaSuccess) {
-        return false;
+        return devicePtr;
     }
 
-    err = cudaMemcpy(_devicePtr, ptr, size, cudaMemcpyHostToDevice);
+    err = cudaMemcpy(devicePtr, &src.at(0), size, cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
-        cudaFree(_devicePtr);
-        _devicePtr = NULL;
-        return false;
+        cudaFree(devicePtr);
+        return 0;
     }
-    return true;
+    return devicePtr;
 }
 
-OsdCudaTable::~OsdCudaTable() {
+// ----------------------------------------------------------------------------
 
-    if (_devicePtr) cudaFree(_devicePtr);
+class CudaComputeContext::CudaStencilTables {
+
+public:
+
+    CudaStencilTables(Far::StencilTables const & stencilTables) {
+        _sizes = createCudaBuffer(stencilTables.GetSizes());
+        _offsets = createCudaBuffer(stencilTables.GetOffsets());
+        _indices = createCudaBuffer(stencilTables.GetControlIndices());
+        _weights = createCudaBuffer(stencilTables.GetWeights());
+    }
+
+    ~CudaStencilTables() {
+        if (_sizes) { cudaFree(_sizes); }
+        if (_offsets) { cudaFree(_offsets); }
+        if (_indices) { cudaFree(_indices); }
+        if (_weights) { cudaFree(_weights); }
+    }
+
+    bool IsValid() const {
+        return _sizes and _offsets and _indices and _weights;
+    }
+
+    void * GetSizes() const {
+        return _sizes;
+    }
+
+    void * GetOffsets() const {
+        return _offsets;
+    }
+
+    void * GetIndices() const {
+        return _indices;
+    }
+
+    void * GetWeights() const {
+        return _weights;
+    }
+
+private:
+    void * _sizes,
+         * _offsets,
+         * _indices,
+         * _weights;
+};
+
+// ----------------------------------------------------------------------------
+
+CudaComputeContext::CudaComputeContext(
+    Far::StencilTables const * vertexStencilTables,
+        Far::StencilTables const * varyingStencilTables) :
+            _vertexStencilTables(0), _varyingStencilTables(0),
+                _numControlVertices(0) {
+
+    if (vertexStencilTables) {
+        _vertexStencilTables = new CudaStencilTables(*vertexStencilTables);
+        _numControlVertices = vertexStencilTables->GetNumControlVertices();
+    }
+
+    if (varyingStencilTables) {
+        _varyingStencilTables = new CudaStencilTables(*varyingStencilTables);
+
+        if (_numControlVertices) {
+            assert(_numControlVertices==varyingStencilTables->GetNumControlVertices());
+        } else {
+            _numControlVertices = varyingStencilTables->GetNumControlVertices();
+        }
+    }
+}
+
+CudaComputeContext::~CudaComputeContext() {
+    delete _vertexStencilTables;
+    delete _varyingStencilTables;
+}
+
+// ----------------------------------------------------------------------------
+
+bool
+CudaComputeContext::HasVertexStencilTables() const {
+    return _vertexStencilTables ? _vertexStencilTables->IsValid() : false;
+}
+
+bool
+CudaComputeContext::HasVaryingStencilTables() const {
+    return _varyingStencilTables ? _varyingStencilTables->IsValid() : false;
+}
+
+// ----------------------------------------------------------------------------
+
+void *
+CudaComputeContext::GetVertexStencilTablesSizes() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetSizes() : 0;
 }
 
 void *
-OsdCudaTable::GetCudaMemory() const {
+CudaComputeContext::GetVertexStencilTablesOffsets() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetOffsets() : 0;
+}
 
-    return _devicePtr;
+void *
+CudaComputeContext::GetVertexStencilTablesIndices() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetIndices() : 0;
+}
+
+void *
+CudaComputeContext::GetVertexStencilTablesWeights() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetWeights() : 0;
 }
 
 // ----------------------------------------------------------------------------
 
-OsdCudaHEditTable::OsdCudaHEditTable() 
-    : _primvarIndicesTable(NULL), _editValuesTable(NULL) {
+void *
+CudaComputeContext::GetVaryingStencilTablesSizes() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetSizes() : 0;
 }
 
-OsdCudaHEditTable::~OsdCudaHEditTable() {
-
-    delete _primvarIndicesTable;
-    delete _editValuesTable;
+void *
+CudaComputeContext::GetVaryingStencilTablesOffsets() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetOffsets() : 0;
 }
 
-OsdCudaHEditTable *
-OsdCudaHEditTable::Create(const FarVertexEditTables::VertexEditBatch &batch) {
-
-    OsdCudaHEditTable *result = new OsdCudaHEditTable();
-
-    result->_operation = batch.GetOperation();
-    result->_primvarOffset = batch.GetPrimvarIndex();
-    result->_primvarWidth = batch.GetPrimvarWidth();
-    result->_primvarIndicesTable = OsdCudaTable::Create(batch.GetVertexIndices());
-    result->_editValuesTable = OsdCudaTable::Create(batch.GetValues());
-
-    if (result->_primvarIndicesTable == NULL or
-        result->_editValuesTable == NULL) {
-        delete result;
-        return NULL;
-    }
-    return result;
+void *
+CudaComputeContext::GetVaryingStencilTablesIndices() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetIndices() : 0;
 }
 
-const OsdCudaTable *
-OsdCudaHEditTable::GetPrimvarIndices() const {
-
-    return _primvarIndicesTable;
-}
-
-const OsdCudaTable *
-OsdCudaHEditTable::GetEditValues() const {
-
-    return _editValuesTable;
-}
-
-int
-OsdCudaHEditTable::GetOperation() const {
-
-    return _operation;
-}
-
-int
-OsdCudaHEditTable::GetPrimvarOffset() const {
-
-    return _primvarOffset;
-}
-
-int
-OsdCudaHEditTable::GetPrimvarWidth() const {
-
-    return _primvarWidth;
+void *
+CudaComputeContext::GetVaryingStencilTablesWeights() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetWeights() : 0;
 }
 
 // ----------------------------------------------------------------------------
 
-OsdCudaComputeContext::OsdCudaComputeContext() {
-}
+CudaComputeContext *
+CudaComputeContext::Create(Far::StencilTables const * vertexStencilTables,
+                              Far::StencilTables const * varyingStencilTables) {
 
-OsdCudaComputeContext::~OsdCudaComputeContext() {
+    CudaComputeContext *result =
+        new CudaComputeContext(vertexStencilTables, varyingStencilTables);
 
-    for (size_t i = 0; i < _tables.size(); ++i) {
-        delete _tables[i];
-    }
-    for (size_t i = 0; i < _editTables.size(); ++i) {
-        delete _editTables[i];
-    }
-}
-
-bool
-OsdCudaComputeContext::initialize(FarSubdivisionTables const *subdivisionTables,
-                                  FarVertexEditTables const *vertexEditTables) {
-
-    // allocate 5 or 7 tables
-    _tables.resize(subdivisionTables->GetNumTables(), 0);
-
-    _tables[FarSubdivisionTables::E_IT]  = OsdCudaTable::Create(subdivisionTables->Get_E_IT());
-    _tables[FarSubdivisionTables::V_IT]  = OsdCudaTable::Create(subdivisionTables->Get_V_IT());
-    _tables[FarSubdivisionTables::V_ITa] = OsdCudaTable::Create(subdivisionTables->Get_V_ITa());
-    _tables[FarSubdivisionTables::E_W]   = OsdCudaTable::Create(subdivisionTables->Get_E_W());
-    _tables[FarSubdivisionTables::V_W]   = OsdCudaTable::Create(subdivisionTables->Get_V_W());
-
-    if (subdivisionTables->GetNumTables() > 5) {
-        _tables[FarSubdivisionTables::F_IT]  = OsdCudaTable::Create(subdivisionTables->Get_F_IT());
-        _tables[FarSubdivisionTables::F_ITa] = OsdCudaTable::Create(subdivisionTables->Get_F_ITa());
-    }
-
-    // error check
-    for (size_t i = 0; i < _tables.size(); ++i) {
-        if (_tables[i] == NULL) {
-            return false;
-        }
-    }
-
-    // create hedit tables
-    if (vertexEditTables) {
-        int numEditBatches = vertexEditTables->GetNumBatches();
-        _editTables.reserve(numEditBatches);
-        for (int i = 0; i < numEditBatches; ++i) {
-            const FarVertexEditTables::VertexEditBatch & edit =
-                vertexEditTables->GetBatch(i);
-
-            _editTables.push_back(OsdCudaHEditTable::Create(edit));
-        }
-    }
-
-    // error check
-    for (size_t i = 0; i < _editTables.size(); ++i) {
-        if (_editTables[i] == NULL) return false;
-    }
-
-    return true;
-}
-
-const OsdCudaTable *
-OsdCudaComputeContext::GetTable(int tableIndex) const {
-
-    return _tables[tableIndex];
-}
-
-int
-OsdCudaComputeContext::GetNumEditTables() const {
-
-    return static_cast<int>(_editTables.size());
-}
-
-const OsdCudaHEditTable *
-OsdCudaComputeContext::GetEditTable(int tableIndex) const {
-
-    return _editTables[tableIndex];
-}
-
-OsdCudaComputeContext *
-OsdCudaComputeContext::Create(FarSubdivisionTables const *subdivisionTables,
-                              FarVertexEditTables const *vertexEditTables) {
-
-    OsdCudaComputeContext *result = new OsdCudaComputeContext();
-
-    if (result->initialize(subdivisionTables, vertexEditTables) == false) {
-        delete result;
-        return NULL;
-    }
     return result;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

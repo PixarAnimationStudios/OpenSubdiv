@@ -22,116 +22,295 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "../osd/error.h"
+//#define OSD_DEBUG_BUILD
+#include "../osd/debug.h"
 #include "../osd/glslTransformFeedbackComputeController.h"
 #include "../osd/glslTransformFeedbackComputeContext.h"
-#include "../osd/glslTransformFeedbackKernelBundle.h"
-
 #include "../osd/opengl.h"
 
 #include <algorithm>
 #include <cassert>
+#include <cstdio>
+#include <iostream>
+#include <sstream>
+
+#if _MSC_VER
+    #define snprintf _snprintf
+#endif
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdGLSLTransformFeedbackComputeController::OsdGLSLTransformFeedbackComputeController() :
-    _vertexTexture(0), _varyingTexture(0), _vao(0) {
-}
+namespace Osd {
 
-OsdGLSLTransformFeedbackComputeController::~OsdGLSLTransformFeedbackComputeController() {
+static const char *shaderSource =
+#include "../osd/glslTransformFeedbackKernel.gen.h"
+;
 
-    for (std::vector<OsdGLSLTransformFeedbackKernelBundle*>::iterator it =
-             _kernelRegistry.begin();
-         it != _kernelRegistry.end(); ++it) {
-        delete *it;
-    }
-    if (_vertexTexture) glDeleteTextures(1, &_vertexTexture);
-    if (_varyingTexture) glDeleteTextures(1, &_varyingTexture);
-}
+static const char *shaderDefines = ""
+#ifdef OPT_CATMARK_V_IT_VEC2
+"#define OPT_CATMARK_V_IT_VEC2\n"
+#endif
+#ifdef OPT_E0_IT_VEC4
+"#define OPT_E0_IT_VEC4\n"
+#endif
+#ifdef OPT_E0_S_VEC2
+"#define OPT_E0_S_VEC2\n"
+#endif
+;
 
-void
-OsdGLSLTransformFeedbackComputeController::Synchronize() {
-
-    glFinish();
-}
-
-OsdGLSLTransformFeedbackKernelBundle *
-OsdGLSLTransformFeedbackComputeController::getKernels(
-    OsdVertexBufferDescriptor const &vertexDesc,
-    OsdVertexBufferDescriptor const &varyingDesc,
-    bool interleaved) {
-
-    std::vector<OsdGLSLTransformFeedbackKernelBundle*>::iterator it =
-        std::find_if(_kernelRegistry.begin(), _kernelRegistry.end(),
-                     OsdGLSLTransformFeedbackKernelBundle::Match(
-                         vertexDesc, varyingDesc, interleaved));
-
-    if (it != _kernelRegistry.end()) {
-        return *it;
-    } else {
-        OsdGLSLTransformFeedbackKernelBundle *kernelBundle =
-            new OsdGLSLTransformFeedbackKernelBundle();
-        _kernelRegistry.push_back(kernelBundle);
-        kernelBundle->Compile(vertexDesc, varyingDesc, interleaved);
-        return kernelBundle;
-    }
-}
-
+// ----------------------------------------------------------------------------
 static void
-bindTexture(GLint samplerUniform, GLuint texture, int unit) {
-
-    if (samplerUniform == -1) return;
-    glUniform1i(samplerUniform, unit);
+bindTexture(GLint sampler, GLuint texture, int unit) {
+    if (sampler==-1) {
+        return;
+    }
+    glUniform1i(sampler, unit);
     glActiveTexture(GL_TEXTURE0 + unit);
     glBindTexture(GL_TEXTURE_BUFFER, texture);
     glActiveTexture(GL_TEXTURE0);
 }
 
+// ----------------------------------------------------------------------------
+
+class GLSLTransformFeedbackComputeController::KernelBundle :
+    NonCopyable<GLSLTransformFeedbackComputeController::KernelBundle> {
+
+public:
+
+    KernelBundle() :
+        _program(0),
+        _uniformSizes(0),
+        _uniformOffsets(0),
+        _uniformIndices(0),
+        _uniformWeights(0),
+        _uniformStart(0),
+        _uniformEnd(0),
+        _uniformOffset(0) { }
+
+    ~KernelBundle() {
+        if (_program) {
+            glDeleteProgram(_program);
+        }
+    }
+
+    void UseProgram(int primvarOffset) const {
+        glUseProgram(_program);
+        glUniform1i(_uniformOffset, primvarOffset);
+    }
+
+    bool Compile(VertexBufferDescriptor const & desc) {
+
+        _desc = VertexBufferDescriptor(0, desc.length, desc.stride);
+
+        if (_program) {
+            glDeleteProgram(_program);
+            _program=0;
+        }
+        _program = glCreateProgram();
+
+        GLuint shader = glCreateShader(GL_VERTEX_SHADER);
+
+        std::ostringstream defines;
+        defines << "#define LENGTH " << desc.length << "\n"
+                << "#define STRIDE " << desc.stride << "\n";
+        std::string defineStr = defines.str();
+
+        const char *shaderSources[3];
+        shaderSources[0] = defineStr.c_str();
+        shaderSources[1] = shaderDefines;
+        shaderSources[2] = shaderSource;
+        glShaderSource(shader, 3, shaderSources, NULL);
+        glCompileShader(shader);
+        glAttachShader(_program, shader);
+
+        std::vector<std::string> outputs;
+        std::vector<const char *> pOutputs;
+        {
+            // vertex data (may include custom vertex data) and varying data
+            // are stored into the same buffer, interleaved.
+            //
+            // (gl_SkipComponents1)
+            // outVertexData[0]
+            // outVertexData[1]
+            // outVertexData[2]
+            // (gl_SkipComponents1)
+            //
+            char attrName[32];
+            for (int i = 0; i < desc.offset; ++i) {
+                outputs.push_back("gl_SkipComponents1");
+            }
+            for (int i = 0; i < desc.length; ++i) {
+                snprintf(attrName, 32, "outVertexBuffer[%d]", i);
+                outputs.push_back(attrName);
+            }
+            for (int i = desc.offset + desc.length; i < desc.stride; ++i) {
+                outputs.push_back("gl_SkipComponents1");
+            }
+
+            // convert to char* array
+            for (size_t i = 0; i < outputs.size(); ++i) {
+                pOutputs.push_back(&outputs[i][0]);
+            }
+        }
+
+        glTransformFeedbackVaryings(_program, (GLsizei)outputs.size(),
+                                    &pOutputs[0], GL_INTERLEAVED_ATTRIBS);
+
+        GLint linked = 0;
+        glLinkProgram(_program);
+        glGetProgramiv(_program, GL_LINK_STATUS, &linked);
+
+        if (linked == GL_FALSE) {
+            char buffer[1024];
+            glGetShaderInfoLog(shader, 1024, NULL, buffer);
+            Error(OSD_GLSL_LINK_ERROR, buffer);
+
+            glGetProgramInfoLog(_program, 1024, NULL, buffer);
+            Error(OSD_GLSL_LINK_ERROR, buffer);
+
+            glDeleteProgram(_program);
+            _program = 0;
+            return false;
+        }
+
+        glDeleteShader(shader);
+
+        _subStencilKernel = glGetSubroutineIndex(
+            _program, GL_VERTEX_SHADER, "computeStencil");
+
+        // set uniform locations for compute kernels
+        _primvarBuffer  = glGetUniformLocation(_program, "vertexBuffer");
+
+        _uniformSizes   = glGetUniformLocation(_program, "sizes");
+        _uniformOffsets = glGetUniformLocation(_program, "offsets");
+        _uniformIndices = glGetUniformLocation(_program, "indices");
+        _uniformWeights = glGetUniformLocation(_program, "weights");
+
+        _uniformStart   = glGetUniformLocation(_program, "batchStart");
+        _uniformEnd     = glGetUniformLocation(_program, "batchEnd");
+
+        _uniformOffset  = glGetUniformLocation(_program, "primvarOffset");
+
+        OSD_DEBUG_CHECK_GL_ERROR("KernelBundle::Compile");
+
+        return true;
+    }
+
+    GLint GetPrimvarBufferLocation() const {
+        return _primvarBuffer;
+    }
+
+    GLint GetSizesLocation() const {
+        return _uniformSizes;
+    }
+
+    GLint GetOffsetsLocation() const {
+        return _uniformOffsets;
+    }
+    GLint GetIndicesLocation() const {
+        return _uniformIndices;
+    }
+    GLint GetWeightsLocation() const {
+        return _uniformWeights;
+    }
+
+    void TransformPrimvarBuffer(GLuint primvarBuffer,
+        int offset, int numCVs, int start, int end) const {
+
+        assert(end >= start);
+
+        // set batch range
+        glUniform1i(_uniformStart,  start);
+        glUniform1i(_uniformEnd,    end);
+        glUniform1i(_uniformOffset, offset);
+
+        int count = end - start,
+            stride = _desc.stride*sizeof(float);
+
+        glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER,
+            0, primvarBuffer, (start + numCVs)*stride, count*stride);
+
+        glBeginTransformFeedback(GL_POINTS);
+
+        glDrawArrays(GL_POINTS, 0, count);
+
+        glEndTransformFeedback();
+
+        glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
+
+        //OSD_DEBUG_CHECK_GL_ERROR("TransformPrimvarBuffer\n");
+    }
+
+    void ApplyStencilTableKernel(Far::KernelBatch const &batch,
+        GLuint primvarBuffer, int offset, int numCVs) const {
+
+        glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subStencilKernel);
+
+        TransformPrimvarBuffer(primvarBuffer,
+            offset, numCVs, batch.start, batch.end);
+    }
+
+    struct Match {
+
+        Match(VertexBufferDescriptor const & d) : desc(d) { }
+
+        bool operator() (KernelBundle const * kernel) {
+            return (desc.length==kernel->_desc.length and
+                    desc.stride==kernel->_desc.stride);
+        }
+
+        VertexBufferDescriptor desc;
+    };
+
+private:
+
+    GLuint _program;
+
+    GLuint _subStencilKernel; // stencil compute kernel GLSL subroutine
+
+    GLint _primvarBuffer;
+
+    GLint _uniformSizes,     // uniform paramaeters for kernels
+          _uniformOffsets,
+          _uniformIndices,
+          _uniformWeights,
+
+          _uniformStart,     // batch
+          _uniformEnd,
+
+          _uniformOffset;    // GL primvar buffer descriptor
+
+    VertexBufferDescriptor _desc; // primvar buffer descriptor
+};
+
+// ----------------------------------------------------------------------------
 void
-OsdGLSLTransformFeedbackComputeController::bindResources() {
+GLSLTransformFeedbackComputeController::bindBufferAndProgram(
+    GLuint & feedbackTexture) {
 
     glEnable(GL_RASTERIZER_DISCARD);
-    _currentBindState.kernelBundle->UseProgram(_currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset);
+    _currentBindState.kernelBundle->UseProgram(/*primvarOffset*/0);
 
-    // bind vertex texture
-    if (_currentBindState.vertexBuffer) {
-        if (not _vertexTexture) glGenTextures(1, &_vertexTexture);
+    if (not feedbackTexture) {
+        glGenTextures(1, &feedbackTexture);
 #if defined(GL_EXT_direct_state_access)
         if (glTextureBufferEXT) {
-            glTextureBufferEXT(_vertexTexture, GL_TEXTURE_BUFFER, GL_R32F, _currentBindState.vertexBuffer);
+            glTextureBufferEXT(feedbackTexture, GL_TEXTURE_BUFFER, GL_R32F,
+                _currentBindState.buffer);
         } else {
 #else
         {
 #endif
-            glBindTexture(GL_TEXTURE_BUFFER, _vertexTexture);
-            glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, _currentBindState.vertexBuffer);
+            glBindTexture(GL_TEXTURE_BUFFER, feedbackTexture);
+            glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, _currentBindState.buffer);
             glBindTexture(GL_TEXTURE_BUFFER, 0);
         }
     }
 
-    if (_currentBindState.varyingBuffer) {
-        if (not _varyingTexture) glGenTextures(1, &_varyingTexture);
-#if defined(GL_EXT_direct_state_access)
-        if (glTextureBufferEXT) {
-            glTextureBufferEXT(_varyingTexture, GL_TEXTURE_BUFFER, GL_R32F, _currentBindState.varyingBuffer);
-        } else {
-#else
-        {
-#endif
-            glBindTexture(GL_TEXTURE_BUFFER, _varyingTexture);
-            glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, _currentBindState.varyingBuffer);
-            glBindTexture(GL_TEXTURE_BUFFER, 0);
-        }
-    }
-
-    if (_vertexTexture)
-        bindTexture(_currentBindState.kernelBundle->GetVertexUniformLocation(), _vertexTexture, 0);
-    if (_varyingTexture)
-        bindTexture(_currentBindState.kernelBundle->GetVaryingUniformLocation(), _varyingTexture, 1);
-
-    // bind vertex texture image (for edit kernel)
-    glUniform1i(_currentBindState.kernelBundle->GetVertexBufferImageUniformLocation(), 0);
-    glBindImageTexture(0, _vertexTexture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
+    bindTexture(
+        _currentBindState.kernelBundle->GetPrimvarBufferLocation(), feedbackTexture, 0);
 
     // bind vertex array
     // always create new one, to be safe with multiple contexts.
@@ -139,268 +318,111 @@ OsdGLSLTransformFeedbackComputeController::bindResources() {
     glBindVertexArray(_vao);
 }
 
+// ----------------------------------------------------------------------------
+
 void
-OsdGLSLTransformFeedbackComputeController::unbindResources() {
+GLSLTransformFeedbackComputeController::bindContextStencilTables(
+    ComputeContext const *context, bool varying) {
+
+    GLint sizesLocation   = _currentBindState.kernelBundle->GetSizesLocation(),
+          offsetsLocation = _currentBindState.kernelBundle->GetOffsetsLocation(),
+          indicesLocation = _currentBindState.kernelBundle->GetIndicesLocation(),
+          weightsLocation = _currentBindState.kernelBundle->GetWeightsLocation();
+
+    if (not varying) {
+        bindTexture(sizesLocation,   context->GetVertexStencilTablesSizes(), 1);
+        bindTexture(offsetsLocation, context->GetVertexStencilTablesOffsets(), 2);
+        bindTexture(indicesLocation, context->GetVertexStencilTablesIndices(), 3);
+        bindTexture(weightsLocation, context->GetVertexStencilTablesWeights(), 4);
+    } else {
+        bindTexture(sizesLocation,   context->GetVaryingStencilTablesSizes(), 1);
+        bindTexture(offsetsLocation, context->GetVaryingStencilTablesOffsets(), 2);
+        bindTexture(indicesLocation, context->GetVaryingStencilTablesIndices(), 3);
+        bindTexture(weightsLocation, context->GetVaryingStencilTablesWeights(), 4);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+void
+GLSLTransformFeedbackComputeController::unbindResources() {
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_BUFFER, 0);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_BUFFER, 0);
-
-    // unbind vertex texture image
-    glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
 
     glDisable(GL_RASTERIZER_DISCARD);
     glUseProgram(0);
     glActiveTexture(GL_TEXTURE0);
 
-    // unbind vertex array
     glBindVertexArray(0);
     glDeleteVertexArrays(1, &_vao);
 }
 
-void
-OsdGLSLTransformFeedbackComputeController::ApplyBilinearFaceVerticesKernel(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
+// ----------------------------------------------------------------------------
 
-    assert(context);
+GLSLTransformFeedbackComputeController::KernelBundle const *
+GLSLTransformFeedbackComputeController::getKernel(
+    VertexBufferDescriptor const &desc) {
 
-    _currentBindState.kernelBundle->ApplyBilinearFaceVerticesKernel(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
+    KernelRegistry::iterator it =
+        std::find_if(_kernelRegistry.begin(), _kernelRegistry.end(),
+            KernelBundle::Match(desc));
 
-void
-OsdGLSLTransformFeedbackComputeController::ApplyBilinearEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyBilinearEdgeVerticesKernel(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyBilinearVertexVerticesKernel(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyBilinearVertexVerticesKernel(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyCatmarkFaceVerticesKernel(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyCatmarkFaceVerticesKernel(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyCatmarkQuadFaceVerticesKernel(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyCatmarkQuadFaceVerticesKernel(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyCatmarkTriQuadFaceVerticesKernel(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyCatmarkTriQuadFaceVerticesKernel(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyCatmarkEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyCatmarkEdgeVerticesKernel(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyCatmarkRestrictedEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyCatmarkRestrictedEdgeVerticesKernel(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelB(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyCatmarkVertexVerticesKernelB(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelA1(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyCatmarkVertexVerticesKernelA(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyCatmarkVertexVerticesKernelA2(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyCatmarkVertexVerticesKernelA(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB1(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyCatmarkRestrictedVertexVerticesKernelB1(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyCatmarkRestrictedVertexVerticesKernelB2(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyCatmarkRestrictedVertexVerticesKernelB2(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyCatmarkRestrictedVertexVerticesKernelA(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyCatmarkRestrictedVertexVerticesKernelA(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyLoopEdgeVerticesKernel(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyLoopEdgeVerticesKernel(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelB(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyLoopVertexVerticesKernelB(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelA1(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyLoopVertexVerticesKernelA(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyLoopVertexVerticesKernelA2(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    _currentBindState.kernelBundle->ApplyLoopVertexVerticesKernelA(
-        _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-        _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
-}
-
-void
-OsdGLSLTransformFeedbackComputeController::ApplyVertexEdits(
-    FarKernelBatch const &batch, OsdGLSLTransformFeedbackComputeContext const *context) const {
-
-    assert(context);
-
-    const OsdGLSLTransformFeedbackHEditTable * edit = context->GetEditTable(batch.GetTableIndex());
-    assert(edit);
-
-    context->BindEditTextures(batch.GetTableIndex(), _currentBindState.kernelBundle);
-
-    int primvarOffset = edit->GetPrimvarOffset();
-    int primvarWidth = edit->GetPrimvarWidth();
-
-    if (edit->GetOperation() == FarVertexEdit::Add) {
-        _currentBindState.kernelBundle->ApplyEditAdd(
-            _currentBindState.vertexBuffer, _currentBindState.varyingBuffer,
-            _currentBindState.vertexDesc.offset, _currentBindState.varyingDesc.offset,
-            primvarOffset, primvarWidth,
-            batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+    if (it != _kernelRegistry.end()) {
+        return *it;
     } else {
-        // XXX: edit SET is not implemented yet.
+        KernelBundle * kernelBundle = new KernelBundle();
+        kernelBundle->Compile(desc);
+        _kernelRegistry.push_back(kernelBundle);
+        return kernelBundle;
     }
-    
-    context->UnbindEditTextures();
 }
+
+// ----------------------------------------------------------------------------
+
+void
+GLSLTransformFeedbackComputeController::ApplyStencilTableKernel(
+    Far::KernelBatch const &batch,
+        GLSLTransformFeedbackComputeContext const *context) const {
+
+    assert(context);
+
+    _currentBindState.kernelBundle->ApplyStencilTableKernel(batch,
+        _currentBindState.buffer, _currentBindState.desc.offset,
+            context->GetNumControlVertices());
+}
+
+
+// ----------------------------------------------------------------------------
+
+GLSLTransformFeedbackComputeController::GLSLTransformFeedbackComputeController() :
+    _vertexTexture(0), _varyingTexture(0), _vao(0) {
+}
+
+GLSLTransformFeedbackComputeController::~GLSLTransformFeedbackComputeController() {
+
+    for (KernelRegistry::iterator it = _kernelRegistry.begin();
+        it != _kernelRegistry.end(); ++it) {
+        delete *it;
+    }
+    if (_vertexTexture) {
+        glDeleteTextures(1, &_vertexTexture);
+    }
+    if (_varyingTexture) {
+        glDeleteTextures(1, &_varyingTexture);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+void
+GLSLTransformFeedbackComputeController::Synchronize() {
+    glFinish();
+}
+
+
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

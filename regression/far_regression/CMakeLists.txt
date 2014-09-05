@@ -31,6 +31,7 @@ set(SOURCE_FILES
 
 _add_executable(far_regression
     ${SOURCE_FILES}
+    $<TARGET_OBJECTS:regression_common_obj>
 )
 
 target_link_libraries(far_regression)

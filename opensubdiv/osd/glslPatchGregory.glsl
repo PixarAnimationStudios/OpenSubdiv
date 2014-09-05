@@ -57,7 +57,7 @@ float csf(uint n, uint j)
 //----------------------------------------------------------
 #ifdef OSD_PATCH_VERTEX_GREGORY_SHADER
 
-uniform samplerBuffer OsdVertexBuffer;
+uniform samplerBuffer VertexBuffer;
 uniform isamplerBuffer OsdValenceBuffer;
 
 layout (location=0) in vec4 position;
@@ -71,9 +71,9 @@ out block {
 vec3 readVertex(uint vertexIndex)
 {
     vertexIndex += OsdBaseVertex();
-    return vec3(texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*vertexIndex)).x,
-                texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*vertexIndex+1)).x,
-                texelFetch(OsdVertexBuffer, int(OSD_NUM_ELEMENTS*vertexIndex+2)).x);
+    return vec3(texelFetch(VertexBuffer, int(OSD_NUM_ELEMENTS*vertexIndex)).x,
+                texelFetch(VertexBuffer, int(OSD_NUM_ELEMENTS*vertexIndex+1)).x,
+                texelFetch(VertexBuffer, int(OSD_NUM_ELEMENTS*vertexIndex+2)).x);
 }
 
 void main()

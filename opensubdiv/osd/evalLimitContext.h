@@ -35,14 +35,16 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 
 /// \brief Coordinates set on a limit surface
 ///
-class OsdEvalCoords {
+class EvalCoords {
 
 public:
 
-    OsdEvalCoords() { }
+    EvalCoords() { }
 
     /// \brief Constructor
     ///
@@ -52,7 +54,7 @@ public:
     ///
     /// @param y parametric location on face
     ///
-    OsdEvalCoords(int f, float x, float y) : face(f), u(x), v(y) { }
+    EvalCoords(int f, float x, float y) : face(f), u(x), v(y) { }
     
     unsigned int face; //  Ptex face ID
     float u,v;         // local face (u,v)
@@ -63,18 +65,20 @@ public:
 ///
 /// A stub class to derive LimitEval context classes.
 ///
-class OsdEvalLimitContext : private OsdNonCopyable<OsdEvalLimitContext> {
+class EvalLimitContext : private NonCopyable<EvalLimitContext> {
 
 public:
     /// \brief Destructor.
-    virtual ~OsdEvalLimitContext();
+    virtual ~EvalLimitContext();
 
 protected:
-    explicit OsdEvalLimitContext(FarPatchTables const *patchTables);
+    explicit EvalLimitContext(Far::PatchTables const & patchTables);
 
 private:
     bool _adaptive;
 };
+
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

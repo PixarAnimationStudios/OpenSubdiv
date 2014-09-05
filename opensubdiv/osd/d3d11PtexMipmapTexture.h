@@ -38,9 +38,11 @@ struct ID3D11ShaderResourceView;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdD3D11PtexMipmapTexture : OsdNonCopyable<OsdD3D11PtexMipmapTexture> {
+namespace Osd {
+
+class D3D11PtexMipmapTexture : NonCopyable<D3D11PtexMipmapTexture> {
 public:
-    static OsdD3D11PtexMipmapTexture * Create(ID3D11DeviceContext *deviceContext,
+    static D3D11PtexMipmapTexture * Create(ID3D11DeviceContext *deviceContext,
                                               PtexTexture * reader,
                                               int maxLevels=10);
 
@@ -55,10 +57,10 @@ public:
 
     ID3D11ShaderResourceView **GetTexelsSRV() { return &_texelsSRV; }
 
-    ~OsdD3D11PtexMipmapTexture();
+    ~D3D11PtexMipmapTexture();
 
 private:
-    OsdD3D11PtexMipmapTexture();
+    D3D11PtexMipmapTexture();
 
     int _width,   // widht / height / depth of the 3D texel buffer
         _height,
@@ -71,6 +73,8 @@ private:
     ID3D11ShaderResourceView *_layoutSRV;
     ID3D11ShaderResourceView *_texelsSRV;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

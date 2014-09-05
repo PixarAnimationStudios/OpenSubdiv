@@ -30,19 +30,21 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 /// \brief Concrete vertex buffer class for Cuda subvision.
 ///
-/// OsdCudaVertexBuffer implements OsdCudaVertexBufferInterface.
-/// An instance of this buffer class can be passed to OsdCudaComputeController
+/// CudaVertexBuffer implements CudaVertexBufferInterface.
+/// An instance of this buffer class can be passed to CudaComputeController
 ///
-class OsdCudaVertexBuffer {
+class CudaVertexBuffer {
 
 public:
     /// Creator. Returns NULL if error.
-    static OsdCudaVertexBuffer * Create(int numElements, int numVertices);
+    static CudaVertexBuffer * Create(int numElements, int numVertices);
 
     /// Destructor.
-    ~OsdCudaVertexBuffer();
+    ~CudaVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
@@ -59,7 +61,7 @@ public:
 
 protected:
     /// Constructor.
-    OsdCudaVertexBuffer(int numElements, int numVertices);
+    CudaVertexBuffer(int numElements, int numVertices);
 
     /// Allocates Cuda memory for this buffer.
     /// Returns true if success.
@@ -71,6 +73,8 @@ private:
     void *_cudaMem;
 
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

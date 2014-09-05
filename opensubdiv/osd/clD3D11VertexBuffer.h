@@ -42,24 +42,26 @@ struct ID3D11DeviceContext;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 ///
 /// \brief Concrete vertex buffer class for OpenCL subvision and DirectX
 /// drawing.
 ///
-/// OsdD3D11VertexBuffer implements OsdCLVertexBufferInterface and
-/// OsdD3D11VertexBufferInterface.
+/// D3D11VertexBuffer implements CLVertexBufferInterface and
+/// D3D11VertexBufferInterface.
 ///
-/// An instance of this buffer class can be passed to OsdD3D11ComputeController.
+/// An instance of this buffer class can be passed to D3D11ComputeController.
 ///
-class OsdCLD3D11VertexBuffer {
+class CLD3D11VertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static OsdCLD3D11VertexBuffer * Create(int numElements, 
+    static CLD3D11VertexBuffer * Create(int numElements, 
                                            int numVertices,
                                            cl_context clContext,
                                            ID3D11Device *device);
     /// Destructor.
-    virtual ~OsdCLD3D11VertexBuffer();
+    virtual ~CLD3D11VertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
@@ -79,7 +81,7 @@ public:
 
 protected:
     /// Constructor.
-    OsdCLD3D11VertexBuffer(int numElements, 
+    CLD3D11VertexBuffer(int numElements, 
                            int numVertices, 
                            cl_context clContext, 
                            ID3D11Device *device);
@@ -104,6 +106,8 @@ private:
     bool _clMapped;
 
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

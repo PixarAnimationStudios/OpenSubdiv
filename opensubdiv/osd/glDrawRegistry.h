@@ -37,39 +37,41 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-struct OsdGLDrawConfig : public OsdDrawConfig {
+namespace Osd {
 
-    OsdGLDrawConfig() :
+struct GLDrawConfig : public DrawConfig {
+
+    GLDrawConfig() :
         program(0) { }
 
-    virtual ~OsdGLDrawConfig();
+    virtual ~GLDrawConfig();
 
     GLuint program;
 };
 
 //------------------------------------------------------------------------------
 
-struct OsdGLDrawSourceConfig : public OsdDrawSourceConfig {
-    OsdDrawShaderSource commonShader;
-    OsdDrawShaderSource vertexShader;
-    OsdDrawShaderSource tessControlShader;
-    OsdDrawShaderSource tessEvalShader;
-    OsdDrawShaderSource geometryShader;
-    OsdDrawShaderSource fragmentShader;
+struct GLDrawSourceConfig : public DrawSourceConfig {
+    DrawShaderSource commonShader;
+    DrawShaderSource vertexShader;
+    DrawShaderSource tessControlShader;
+    DrawShaderSource tessEvalShader;
+    DrawShaderSource geometryShader;
+    DrawShaderSource fragmentShader;
 };
 
 //------------------------------------------------------------------------------
 
-class OsdGLDrawRegistryBase {
+class GLDrawRegistryBase {
 
 public:
-    typedef OsdDrawContext::PatchDescriptor DescType;
-    typedef OsdGLDrawConfig ConfigType;
-    typedef OsdGLDrawSourceConfig SourceConfigType;
+    typedef DrawContext::PatchDescriptor DescType;
+    typedef GLDrawConfig ConfigType;
+    typedef GLDrawSourceConfig SourceConfigType;
 
-    OsdGLDrawRegistryBase(bool enablePtex=false) : _enablePtex(enablePtex) { }
+    GLDrawRegistryBase(bool enablePtex=false) : _enablePtex(enablePtex) { }
 
-    virtual ~OsdGLDrawRegistryBase();
+    virtual ~GLDrawRegistryBase();
 
     bool IsPtexEnabled() const {
         return _enablePtex;
@@ -99,22 +101,22 @@ private:
 
 //------------------------------------------------------------------------------
 
-template <class DESC_TYPE = OsdDrawContext::PatchDescriptor,
-          class CONFIG_TYPE = OsdGLDrawConfig,
-          class SOURCE_CONFIG_TYPE = OsdGLDrawSourceConfig >
+template <class DESC_TYPE = DrawContext::PatchDescriptor,
+          class CONFIG_TYPE = GLDrawConfig,
+          class SOURCE_CONFIG_TYPE = GLDrawSourceConfig >
 
-class OsdGLDrawRegistry : public OsdGLDrawRegistryBase {
+class GLDrawRegistry : public GLDrawRegistryBase {
 
 public:
     typedef DESC_TYPE DescType;
     typedef CONFIG_TYPE ConfigType;
     typedef SOURCE_CONFIG_TYPE SourceConfigType;
 
-    typedef OsdGLDrawRegistryBase BaseRegistry;
+    typedef GLDrawRegistryBase BaseRegistry;
 
     typedef std::map<DescType, ConfigType *> ConfigMap;
 
-    virtual ~OsdGLDrawRegistry() {
+    virtual ~GLDrawRegistry() {
         Reset();
     }
 
@@ -162,7 +164,9 @@ private:
     ConfigMap _configMap;
 };
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv

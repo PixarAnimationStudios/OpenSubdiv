@@ -23,80 +23,77 @@
 #
 
 
+add_subdirectory(common)
 
-if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
+if (NOT NO_OPENGL)
+    if (OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
 
-    # optional dependency - enables screenshots in some examples
-    find_package(PNG)
-    if (PNG_FOUND)
-        include_directories("${PNG_INCLUDE_DIRS}")
-        list(APPEND PLATFORM_LIBRARIES "${PNG_LIBRARIES}")
-        add_definitions(-DOPENSUBDIV_HAS_PNG)
+        # optional dependency - enables screenshots in some examples
+        find_package(PNG)
+        if (PNG_FOUND)
+            include_directories("${PNG_INCLUDE_DIRS}")
+            list(APPEND PLATFORM_LIBRARIES "${PNG_LIBRARIES}")
+            add_definitions(-DOPENSUBDIV_HAS_PNG)
+        endif()
+
+
+        add_subdirectory(glViewer)
+        add_subdirectory(glEvalLimit)
+        add_subdirectory(glShareTopology)
+        add_subdirectory(glFVarViewer)
+        #add_subdirectory(glStencilViewer)
+
+        if (CMAKE_COMPILER_IS_CLANGCC)
+            # This code is intended for debugging only
+            # and currently only compiles with Clang.
+            add_subdirectory(vtrViewer)
+        endif()
+
+        if (OPENGL_4_3_FOUND AND (NOT APPLE))
+            add_subdirectory(glPaintTest)
+        endif()
+
+        if (PTEX_FOUND)
+            add_subdirectory(glPtexViewer)
+        endif()
+
+    else()
+
+        set(MISSING "")
+
+        if (NOT OPENGL_FOUND)
+            list(APPEND MISSING OpenGL)
+        endif()
+
+        if (NOT GLEW_FOUND)
+            list(APPEND MISSING glew)
+        endif()
+
+        if (NOT GLFW_FOUND)
+            list(APPEND MISSING glfw)
+        endif()
+
+        message(WARNING
+            "The following libraries could not be found : ${MISSING}.  "
+            "The glViewer and ptexViewer examples will not be available.  "
+            "If you have these libraries installed, please specify their "
+            "path to cmake (through the GLEW_LOCATION and GLFW_LOCATION "
+            "command line arguments or environment variables)."
+        )
     endif()
-
-    add_subdirectory(common)
-    
-    add_subdirectory(glViewer)
-    add_subdirectory(glBatchViewer)
-    add_subdirectory(glStencilViewer)
-    add_subdirectory(simpleCpu)
-    add_subdirectory(limitEval)
-    add_subdirectory(tessellateObjFile)
-    add_subdirectory(uvViewer)
-    add_subdirectory(facePartition)
-    add_subdirectory(topologySharing)
-
-    if(OPENGL_4_3_FOUND AND (NOT APPLE))
-        add_subdirectory(paintTest)
-    endif()
-
-    if(PTEX_FOUND)
-        add_subdirectory(ptexViewer)
-    endif()
-
-else()
-
-    set(MISSING "")
-
-    if (NOT OPENGL_FOUND)
-        list(APPEND MISSING OpenGL)
-    endif()
-
-    if (NOT GLEW_FOUND)
-        list(APPEND MISSING glew)
-    endif()
-
-    if (NOT GLFW_FOUND)
-        list(APPEND MISSING glfw)
-    endif()
-
-    message(WARNING
-        "The following libraries could not be found : ${MISSING}.  "
-        "The glViewer and ptexViewer examples will not be available.  "
-        "If you have these libraries installed, please specify their "
-        "path to cmake (through the GLEW_LOCATION and GLFW_LOCATION "
-        "command line arguments or environment variables)."
-    )
 endif()
 
-if(DXSDK_FOUND)
+if (DXSDK_FOUND)
 
    add_subdirectory(dxViewer)
 
-   if(PTEX_FOUND)
+   if (PTEX_FOUND)
        add_subdirectory(dxPtexViewer)
    endif()
 
 endif()
 
 
-if(MAYA_FOUND AND (NOT NO_MAYA))
-    add_subdirectory(osdPolySmooth)
-
-    # manuelk: the following plugins are disabled until further notice
-
-    #add_subdirectory(mayaViewer)
-    #if(PTEX_FOUND)
-        #add_subdirectory(mayaPtexViewer)
-    #endif()
+if (MAYA_FOUND AND (NOT NO_MAYA))
+    add_subdirectory(mayaPolySmooth)
 endif()

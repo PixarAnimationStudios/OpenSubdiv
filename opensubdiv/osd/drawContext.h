@@ -35,21 +35,23 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 /// \brief Base DrawContext class
 ///
-/// OsdDrawContext derives several sub-classes with API specific functionality
-/// (GL, D3D11, ...). 
+/// DrawContext derives several sub-classes with API specific functionality
+/// (GL, D3D11, ...).
 ///
 /// Current specificiation GPU hardware tessellation limitations require transition
-/// patches to be split-up into several triangular bi-cubic sub-patches. 
-/// OsdDrawContext processes FarPatchArrays from FarPatchTables and generates the
+/// patches to be split-up into several triangular bi-cubic sub-patches.
+/// DrawContext processes FarPatchArrays from Far::PatchTables and generates the
 /// additional sets of sub-patches.
 ///
-/// Contexts interface the serialized topological data pertaining to the 
-/// geometric primitives with the capabilities of the selected discrete 
+/// Contexts interface the serialized topological data pertaining to the
+/// geometric primitives with the capabilities of the selected discrete
 /// compute device.
 ///
-class OsdDrawContext {
+class DrawContext {
 
 public:
 
@@ -63,24 +65,24 @@ public:
         ///
         /// @param subPatch     Index of the triangulated sub-patch for the given
         ///                     transition pattern. Transition patches need to be
-        ///                     split into multiple sub-patches in order to be 
-        ///                     rendered with hardware tessellation. 
+        ///                     split into multiple sub-patches in order to be
+        ///                     rendered with hardware tessellation.
         ///
         /// @param numElements  The size of the vertex and varying data per-vertex
         ///                     (in floats)
         ///
-        PatchDescriptor(FarPatchTables::Descriptor farDesc, unsigned char maxValence,
+        PatchDescriptor(Far::PatchTables::Descriptor farDesc, unsigned char maxValence,
                     unsigned char subPatch, unsigned char numElements) :
             _farDesc(farDesc), _maxValence(maxValence), _subPatch(subPatch), _numElements(numElements) { }
 
 
         /// Returns the type of the patch
-        FarPatchTables::Type GetType() const {
+        Far::PatchTables::Type GetType() const {
             return _farDesc.GetType();
         }
 
         /// Returns the transition pattern of the patch if any (5 types)
-        FarPatchTables::TransitionPattern GetPattern() const {
+        Far::PatchTables::TransitionPattern GetPattern() const {
             return _farDesc.GetPattern();
         }
 
@@ -122,7 +124,7 @@ public:
         bool operator == ( PatchDescriptor const other ) const;
 
     private:
-        FarPatchTables::Descriptor _farDesc;
+        Far::PatchTables::Descriptor _farDesc;
         unsigned char _maxValence;
         unsigned char _subPatch;
         unsigned char _numElements;
@@ -137,7 +139,7 @@ public:
         ///
         /// @param range  The range of vertex indices
         ///
-        PatchArray(PatchDescriptor desc, FarPatchTables::PatchArray::ArrayRange const & range) :
+        PatchArray(PatchDescriptor desc, Far::PatchTables::PatchArray::ArrayRange const & range) :
             _desc(desc), _range(range) { }
 
         /// Returns a patch descriptor defining the type of patches in the array
@@ -151,7 +153,7 @@ public:
         }
 
         /// Returns a array range struct
-        FarPatchTables::PatchArray::ArrayRange const & GetArrayRange() const {
+        Far::PatchTables::PatchArray::ArrayRange const & GetArrayRange() const {
             return _range;
         }
 
@@ -189,39 +191,50 @@ public:
 
     private:
         PatchDescriptor _desc;
-        FarPatchTables::PatchArray::ArrayRange _range;
+        Far::PatchTables::PatchArray::ArrayRange _range;
     };
 
-    typedef std::vector<PatchArray> PatchArrayVector;
-
     /// Constructor
-    OsdDrawContext() : _isAdaptive(false) {}
-    
+    DrawContext() : _isAdaptive(false) {}
+
     /// Descrtuctor
-    virtual ~OsdDrawContext();
+    virtual ~DrawContext();
 
     /// Returns true if the primitive attached to the context uses feature adaptive
     /// subdivision
-    bool IsAdaptive() const { return _isAdaptive; }
+    bool IsAdaptive() const {
+        return _isAdaptive;
+    }
+
+    typedef std::vector<PatchArray> PatchArrayVector;
+
+    PatchArrayVector const & GetPatchArrays() const {
+        return _patchArrays;
+    }
 
     // processes FarPatchArrays and inserts requisite sub-patches for the arrays
     // containing transition patches
-    static void ConvertPatchArrays(FarPatchTables::PatchArrayVector const &farPatchArrays,
-                                   OsdDrawContext::PatchArrayVector &osdPatchArrays,
+    static void ConvertPatchArrays(Far::PatchTables::PatchArrayVector const &farPatchArrays,
+                                   DrawContext::PatchArrayVector &osdPatchArrays,
                                    int maxValence, int numElements);
 
-public:  
-    // XXXX: move to private member
-    PatchArrayVector patchArrays;
+
+    typedef std::vector<float> FVarData;
 
 protected:
+
+     static void packFVarData(Far::PatchTables const & patchTables,
+                              int fvarWidth, FVarData const & src, FVarData & dst);
+
+    // XXXX: move to private member
+    PatchArrayVector _patchArrays;
 
     bool _isAdaptive;
 };
 
 // Allows ordering of patches by type
 inline bool
-OsdDrawContext::PatchDescriptor::operator < ( PatchDescriptor const other ) const
+DrawContext::PatchDescriptor::operator < ( PatchDescriptor const other ) const
 {
     return _farDesc < other._farDesc or (_farDesc == other._farDesc and
           (_subPatch < other._subPatch or ((_subPatch == other._subPatch) and
@@ -231,7 +244,7 @@ OsdDrawContext::PatchDescriptor::operator < ( PatchDescriptor const other ) cons
 
 // True if the descriptors are identical
 inline bool
-OsdDrawContext::PatchDescriptor::operator == ( PatchDescriptor const other ) const
+DrawContext::PatchDescriptor::operator == ( PatchDescriptor const other ) const
 {
     return _farDesc == other._farDesc and
            _subPatch == other._subPatch and
@@ -241,7 +254,9 @@ OsdDrawContext::PatchDescriptor::operator == ( PatchDescriptor const other ) con
 
 
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv

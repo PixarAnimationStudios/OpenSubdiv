@@ -35,30 +35,32 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCudaGLVertexBuffer::OsdCudaGLVertexBuffer(int numElements, int numVertices)
+namespace Osd {
+
+CudaGLVertexBuffer::CudaGLVertexBuffer(int numElements, int numVertices)
     : _numElements(numElements), _numVertices(numVertices),
       _vbo(0), _devicePtr(0), _cudaResource(0) {
 }
 
-OsdCudaGLVertexBuffer::~OsdCudaGLVertexBuffer() {
+CudaGLVertexBuffer::~CudaGLVertexBuffer() {
 
     unmap();
     cudaGraphicsUnregisterResource(_cudaResource);
     glDeleteBuffers(1, &_vbo);
 }
 
-OsdCudaGLVertexBuffer *
-OsdCudaGLVertexBuffer::Create(int numElements, int numVertices) {
-    OsdCudaGLVertexBuffer *instance =
-        new OsdCudaGLVertexBuffer(numElements, numVertices);
+CudaGLVertexBuffer *
+CudaGLVertexBuffer::Create(int numElements, int numVertices) {
+    CudaGLVertexBuffer *instance =
+        new CudaGLVertexBuffer(numElements, numVertices);
     if (instance->allocate()) return instance;
-    OsdError(OSD_CUDA_GL_ERROR,"OsdCudaGLVertexBuffer::Create failed.\n");
+    Error(OSD_CUDA_GL_ERROR,"CudaGLVertexBuffer::Create failed.\n");
     delete instance;
     return NULL;
 }
 
 void
-OsdCudaGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
+CudaGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
 
     map();
     cudaError_t err = cudaMemcpy((float*)_devicePtr + _numElements * startVertex,
@@ -66,38 +68,38 @@ OsdCudaGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVert
                                  _numElements * numVertices * sizeof(float),
                                  cudaMemcpyHostToDevice);
     if (err != cudaSuccess)
-        OsdError(OSD_CUDA_GL_ERROR, "OsdCudaGLVertexBuffer::UpdateData failed. : %s\n",
+        Error(OSD_CUDA_GL_ERROR, "CudaGLVertexBuffer::UpdateData failed. : %s\n",
                  cudaGetErrorString(err));
 }
 
 int
-OsdCudaGLVertexBuffer::GetNumElements() const {
+CudaGLVertexBuffer::GetNumElements() const {
 
     return _numElements;
 }
 
 int
-OsdCudaGLVertexBuffer::GetNumVertices() const {
+CudaGLVertexBuffer::GetNumVertices() const {
 
     return _numVertices;
 }
 
 float *
-OsdCudaGLVertexBuffer::BindCudaBuffer() {
+CudaGLVertexBuffer::BindCudaBuffer() {
 
     map();
     return static_cast<float*>(_devicePtr);
 }
 
 GLuint
-OsdCudaGLVertexBuffer::BindVBO() {
+CudaGLVertexBuffer::BindVBO() {
 
     unmap();
     return _vbo;
 }
 
 bool
-OsdCudaGLVertexBuffer::allocate() {
+CudaGLVertexBuffer::allocate() {
 
     int size = _numElements * _numVertices * sizeof(float);
 
@@ -124,7 +126,7 @@ OsdCudaGLVertexBuffer::allocate() {
 }
 
 void
-OsdCudaGLVertexBuffer::map() {
+CudaGLVertexBuffer::map() {
 
     if (_devicePtr) return;
     size_t num_bytes;
@@ -132,23 +134,25 @@ OsdCudaGLVertexBuffer::map() {
 
     cudaError_t err = cudaGraphicsMapResources(1, &_cudaResource, 0);
     if (err != cudaSuccess)
-        OsdError(OSD_CUDA_GL_ERROR, "OsdCudaGLVertexBuffer::map failed.\n%s\n", cudaGetErrorString(err));
+        Error(OSD_CUDA_GL_ERROR, "CudaGLVertexBuffer::map failed.\n%s\n", cudaGetErrorString(err));
     err = cudaGraphicsResourceGetMappedPointer(&ptr, &num_bytes, _cudaResource);
     if (err != cudaSuccess)
-        OsdError(OSD_CUDA_GL_ERROR, "OsdCudaGLVertexBuffer::map failed.\n%s\n", cudaGetErrorString(err));
+        Error(OSD_CUDA_GL_ERROR, "CudaGLVertexBuffer::map failed.\n%s\n", cudaGetErrorString(err));
     _devicePtr = ptr;
 }
 
 void
-OsdCudaGLVertexBuffer::unmap() {
+CudaGLVertexBuffer::unmap() {
 
     if (_devicePtr == NULL) return;
     cudaError_t err = cudaGraphicsUnmapResources(1, &_cudaResource, 0);
     if (err != cudaSuccess)
-        OsdError(OSD_CUDA_GL_ERROR, "OsdCudaGLVertexBuffer::unmap failed.\n%s\n", cudaGetErrorString(err));
+        Error(OSD_CUDA_GL_ERROR, "CudaGLVertexBuffer::unmap failed.\n%s\n", cudaGetErrorString(err));
     _devicePtr = NULL;
 }
 
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

@@ -38,7 +38,9 @@ struct ID3D11DeviceContext;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-/// OsdD3D11PtexTexture : implements simple support for ptex textures
+namespace Osd {
+
+/// D3D11PtexTexture : implements simple support for ptex textures
 ///
 /// The current implementation declares _texels as a TEXTURE2D_ARRAY of
 /// n pages of a resolution that matches that of the largest face in the PTex file.
@@ -52,13 +54,13 @@ namespace OPENSUBDIV_VERSION {
 /// indirection tables, which provide then texture coordinates for the texels stored in
 /// the _texels texture array.
 ///
-/// Hbr provides per-face support for a ptex face indexing scheme. OsdD3D11DrawContext
+/// Hbr provides per-face support for a ptex face indexing scheme. D3D11DrawContext
 /// class provides ptex face index lookup table as a texture buffer object that
 /// can be accessed by HLSL shaders.
 ///
-class OsdD3D11PtexTexture : OsdNonCopyable<OsdD3D11PtexTexture> {
+class D3D11PtexTexture : NonCopyable<D3D11PtexTexture> {
 public:
-    static OsdD3D11PtexTexture * Create(ID3D11DeviceContext *deviceContext,
+    static D3D11PtexTexture * Create(ID3D11DeviceContext *deviceContext,
                                      PtexTexture * reader,
                                      unsigned long int targetMemory = 0,
                                      int gutterWidth = 0,
@@ -75,10 +77,10 @@ public:
     /// Returns the texels texture array.
     ID3D11Texture2D *GetTexelsTexture() const { return _texels; }
 
-    ~OsdD3D11PtexTexture();
+    ~D3D11PtexTexture();
 
 private:
-    OsdD3D11PtexTexture();
+    D3D11PtexTexture();
 
     int _width,   // widht / height / depth of the 3D texel buffer
         _height,
@@ -91,6 +93,8 @@ private:
                              // (vec4 : top-left corner & width / height)
     ID3D11Texture2D *_texels;   // texel data
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

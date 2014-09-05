@@ -33,19 +33,21 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdOmpSmoothNormalController {
+namespace Osd {
+
+class OmpSmoothNormalController {
 
 public:
 
     /// Constructor
-    OsdOmpSmoothNormalController();
+    OmpSmoothNormalController();
 
     /// Destructor
-    ~OsdOmpSmoothNormalController();
+    ~OmpSmoothNormalController();
 
     /// Computes smooth vertex normals
     template<class VERTEX_BUFFER>
-    void SmootheNormals( OsdCpuSmoothNormalContext * context,
+    void SmootheNormals( CpuSmoothNormalContext * context,
                          VERTEX_BUFFER * iBuffer, int iOfs,
                          VERTEX_BUFFER * oBuffer, int oOfs ) {
 
@@ -63,8 +65,10 @@ public:
 
 private:
 
-    void _smootheNormals(OsdCpuSmoothNormalContext * context);
+    void _smootheNormals(CpuSmoothNormalContext * context);
 };
+
+} // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

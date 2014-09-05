@@ -27,7 +27,7 @@
 #include <far/meshFactory.h>
 #include <far/dispatcher.h>
 
-#include "../common/shape_utils.h"
+#include "../../regression/common/hbr_utils.h"
 
 //
 // Regression testing matching Far to Hbr (default CPU implementation)

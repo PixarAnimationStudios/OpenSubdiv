@@ -105,6 +105,8 @@ static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
 #endif
     delete[] clPlatformIDs;
 
+    int clDeviceUsed = 0;
+
 #if defined(__APPLE__)
     *clContext = clCreateContext(props, 0, NULL, clLogMessagesToStdoutAPPLE, NULL, &ciErrNum);
     if (ciErrNum != CL_SUCCESS) {
@@ -122,16 +124,64 @@ static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
     cl_device_id *clDevices = new cl_device_id[numDevices];
     clGetGLContextInfoAPPLE(*clContext, kCGLContext, CL_CGL_DEVICES_FOR_SUPPORTED_VIRTUAL_SCREENS_APPLE, numDevices * sizeof(cl_device_id), clDevices, NULL);
 #else
+
+    // get the number of GPU devices available to the platform
     cl_uint numDevices = 0;
     clGetDeviceIDs(cpPlatform, CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
     if (numDevices == 0) {
-        printf("No sharable devices.\n");
+        printf("No CL GPU device found.\n");
         return false;
     }
+
+    // create the device list
     cl_device_id *clDevices = new cl_device_id[numDevices];
     clGetDeviceIDs(cpPlatform, CL_DEVICE_TYPE_GPU, numDevices, clDevices, NULL);
 
-    *clContext = clCreateContext(props, numDevices, clDevices, NULL, NULL, &ciErrNum);
+#define GL_SHARING_EXTENSION "cl_khr_gl_sharing"
+
+    // find a device that supports sharing with GL (SLI / X-fire configurations)
+    bool sharingSupported=false;
+    for (int i=0; i<(int)numDevices; ++i) {
+
+        size_t extensionSize;
+        ciErrNum = clGetDeviceInfo(clDevices[i], CL_DEVICE_EXTENSIONS, 0, NULL, &extensionSize );
+        if (ciErrNum != CL_SUCCESS) {
+            printf("Error %d in clGetDeviceInfo\n", ciErrNum);
+            return false;
+        }
+        
+        if (extensionSize>0) {
+            char* extensions = (char*)malloc(extensionSize);
+            ciErrNum = clGetDeviceInfo(clDevices[i], CL_DEVICE_EXTENSIONS, extensionSize, extensions, &extensionSize);
+            if (ciErrNum != CL_SUCCESS) {
+                printf("Error %d in clGetDeviceInfo\n", ciErrNum);
+                return false;
+            }
+            std::string stdDevString(extensions);
+            free(extensions);
+            size_t szOldPos = 0, szSpacePos = stdDevString.find(' ', szOldPos); // extensions string is space delimited
+            while (szSpacePos != stdDevString.npos) {
+                if (strcmp(GL_SHARING_EXTENSION, 
+                    stdDevString.substr(szOldPos, szSpacePos - szOldPos).c_str())==0) {
+                    clDeviceUsed = i;
+                    sharingSupported = true;
+                    break;
+                }
+                do {
+                    szOldPos = szSpacePos + 1;
+                    szSpacePos = stdDevString.find(' ', szOldPos);
+                } while (szSpacePos == szOldPos);
+            }
+        }
+    }
+
+    if (not sharingSupported) {
+        printf("No device found that supports CL/GL context sharing\n");
+        delete[] clDevices;
+        return false;
+    }
+
+    *clContext = clCreateContext(props, 1, &clDevices[clDeviceUsed], NULL, NULL, &ciErrNum);
     if (ciErrNum != CL_SUCCESS) {
         printf("Error %d in clCreateContext\n", ciErrNum);
         delete[] clDevices;
@@ -139,7 +189,7 @@ static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
     }
 #endif
 
-    *clQueue = clCreateCommandQueue(*clContext, clDevices[0], 0, &ciErrNum);
+    *clQueue = clCreateCommandQueue(*clContext, clDevices[clDeviceUsed], 0, &ciErrNum);
     delete[] clDevices;
     if (ciErrNum != CL_SUCCESS) {
         printf("Error %d in clCreateCommandQueue\n", ciErrNum);

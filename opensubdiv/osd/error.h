@@ -30,6 +30,8 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 typedef enum {
     OSD_NO_ERROR,
     OSD_INTERNAL_CODING_ERROR,
@@ -44,23 +46,23 @@ typedef enum {
     OSD_D3D11_COMPUTE_BUFFER_CREATE_ERROR,
     OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
     OSD_D3D11_BUFFER_MAP_ERROR
-} OsdErrorType;
+} ErrorType;
 
 
 
-typedef void (*OsdErrorCallbackFunc)(OsdErrorType err, const char *message);
+typedef void (*ErrorCallbackFunc)(ErrorType err, const char *message);
 
 /// Sets the error callback function (default is "printf")
 ///
 /// @param func function pointer to the callback function
 ///
-void OsdSetErrorCallback(OsdErrorCallbackFunc func);
+void SetErrorCallback(ErrorCallbackFunc func);
 
 /// Sends an OSD error 
 ///
 /// @param err the error type
 ///
-void OsdError(OsdErrorType err);
+void Error(ErrorType err);
 
 /// Sends an OSD error with a message
 ///
@@ -68,24 +70,26 @@ void OsdError(OsdErrorType err);
 ///
 /// @param format  the format of the message (followed by arguments)
 ///
-void OsdError(OsdErrorType err, const char *format, ...);
+void Error(ErrorType err, const char *format, ...);
 
 
 /// Sets the warning callback function (default is "printf")
-typedef void (*OsdWarningCallbackFunc)(const char *message);
+typedef void (*WarningCallbackFunc)(const char *message);
 
 /// Sets the warning callback function (default is "printf")
 ///
 /// @param func function pointer to the callback function
 ///
-void OsdSetWarningCallback(OsdWarningCallbackFunc func);
+void SetWarningCallback(WarningCallbackFunc func);
 
 /// Sends an OSD warning message
 ///
 /// @param format  the format of the message (followed by arguments)
 ///
-void OsdWarning(const char *format, ...);
+void Warning(const char *format, ...);
 
+
+} // end namespace 
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
