@@ -343,7 +343,7 @@ TopologyRefinerFactory<Converter>::assignComponentTags(
     }
 }
 
-#ifndef _MSC_VER
+#ifdef _MSC_VER
 template <>
 void
 TopologyRefinerFactory<Converter>::assignFaceVaryingTopology(
