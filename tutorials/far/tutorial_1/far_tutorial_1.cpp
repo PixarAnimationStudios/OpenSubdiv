@@ -343,6 +343,19 @@ TopologyRefinerFactory<Converter>::assignComponentTags(
     }
 }
 
+#ifndef _MSC_VER
+template <>
+void
+TopologyRefinerFactory<Converter>::assignFaceVaryingTopology(
+    TopologyRefiner & /* refiner */, Converter const & /* conv */) {
+
+    // Because of the way MSVC++ specializes templated functions, we had to
+    // remove the default stubs in Far::TopologyRefinerFactory. In this
+    // example, no face-varying data is being added, but we still need to
+    // implement a template specialization or MSVC++ linker fails.
+}
+#endif
+
 } // namespace Far
 
 } // namespace OPENSUBDIV_VERSION
