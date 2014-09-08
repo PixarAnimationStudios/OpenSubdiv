@@ -187,17 +187,110 @@ protect core code from unwanted specialization.
 Far::PatchTables
 ================
 
+
+The patch tables are a serialized topology represenation. This container is
+generated using *Far::PatchTablesFactory* from an instance
+*Far::TopologyRefiner* after a refinement has been applied. The
+FarPatchTablesFactory traverses the data-structures of the TopologyRefiner and
+serializes the sub-faces into collections of bi-linear and bi-cubic patches, as
+dictated by the refinement mode (uniform or adaptive). The patches are then
+sorted into arrays based on their types.
+
+PatchArray
+**********
+
+The patch table is a collection of control vertex indices. Meshes are decomposed
+into a collection of sub-patches, which can be of different types. Each type
+has different requirements for the internal organization of its
+control-vertices. a PatchArray contains a sequence of multiple patches that
+share a common set of attributes.
+
+.. image:: images/far_patchtables.png
+   :align: center
+   :target: images/far_patchtables.png
+
+
+Each PatchArray contains a patch *Descriptor* that provides the fundamental
+description of the patches in the array. This includes the patches *type*,
+*pattern* and *rotation*.
+
+The PatchArray *ArrayRange* provides the indices necessary to track the records
+of individual patches in the tables.
+
+Patch Types
+***********
+
+The following are the different patch types that can be represented in the
+PatchTables:
+
++-------------------------------------------------------------------------+
+|                                                                         |
++=====================+===================================================+
+| NON_PATCH           | *"Undefined"* patch type                          |
++---------------------+---------------------------------------------------+
+|  POINTS             | Points : useful for cage drawing                  |
++---------------------+---------------------------------------------------+
+|  LINES              | Lines : useful for cage drawing                   |
++---------------------+---------------------------------------------------+
+| QUADS               | Bi-linear quads-only patches                      |
++---------------------+---------------------------------------------------+
+| TRIANGLES           | Bi-linear triangles-only mesh                     |
++---------------------+---------------------------------------------------+
+|  LOOP               | Loop patch (currently unsupported)                |
++---------------------+---------------------------------------------------+
+|  REGULAR            | Feature-adaptive bicubic patches                  |
++---------------------+                                                   |
+|  BOUNDARY           |                                                   |
++---------------------+                                                   |
+|  CORNER             |                                                   |
++---------------------+                                                   |
+|  GREGORY            |                                                   |
++---------------------+                                                   |
+|  GREGORY_BOUNDARY   |                                                   |
++---------------------+---------------------------------------------------+
+
+The type of a patch dictates the number of control vertices expected in the
+table. The main types are *Regular*, *Boundary*, *Corner* and *Gregory* patches,
+with 16, 12, 9 and 4 control vertices respectively.
+
+.. image:: images/far_patchtypes.png
+   :align: center
+   :target: images/far_patchtypes.png
+
+.. container:: notebox
+
+    **Alpha Issues**
+
+    The current ordering of control vertices for *Regular*, *Boundary* and
+    *Corner* patches is based on inconsistent legacy implementation of GPU
+    shaders.
+    
+    We intend to consolidate the code gathering the 0-Ring and the 1-Ring, so
+    that we can eventually get rid of the current re-ordering step applied
+    to the control vertex indices.
+    
+    We also intend to consolidate all bi-cubic patche types into using 16
+    control vertices, which will deprecate the *Boundary* and *Corner* types.
+    
+Patch Transitions
+*****************
+
+.. image:: images/far_patchtransitions.png
+   :align: center
+   :target: images/far_patchtransitions.png
+
+
 .. include:: under_development.rst
 
 
 Far::StencilTables
 ==================
 
-.. include:: under_development.rst
-
 The base container for stencil data is the StencilTables class. As with most
 other Far entities, it has an associated StencilTablesFactory that requires
 a TopologyRefiner:
+
+.. include:: under_development.rst
 
 .. image:: images/far_stencil5.png
    :align: center

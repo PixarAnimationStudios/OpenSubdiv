@@ -42,20 +42,21 @@ Enabling workflows at larger scales will require improvements on several fronts:
 
 * Handle more primitives, but with fewer overheads:
 
-    * Reduce Compute kernel launches using stencils instead of subdivision tables
+    * Reduce Compute kernel launches,which we will achieve using stencils instead
+      of subdivision tables
     * Reduce Draw calls by addressing the combinatorial explosion of tessellation
       shaders
     * Provide back-ends for next-gen APIs (D3D12, Mantle, Metal, GL 5.x)
 
-* More semi-sharp creases: feature isolation needs to become much more efficient to
-  allow for complete creative freedom in using the feature.
+* Handle more semi-sharp creases: feature isolation needs to become much more
+  efficient to allow for complete creative freedom in using the feature.
 * Faster topology analysis
 
 
 Release 3.0
 ===========
 
-OpenSubdiv 3.0 represents a landmark release with very profound changes to the
+OpenSubdiv 3.0 represents a landmark release, with very profound changes to the
 core algorithms. While providing faster, more efficient, and more flexible
 subdivision code remains our principal goal, OpenSubdiv 3.0 introduces many
 improvements that constitute a fairly radical departures from our previous
@@ -64,10 +65,13 @@ code releases.
 Improved performance
 ********************
 
-OpenSubdiv 3.0 introduces new data structures and algorithms that greatly
-enhance performance over previous versions. The 3.0 release focuses mostly on
-the CPU side, and  should provide "out-of-the-box" speed-ups close to an order
-of magnitude for topology refinement and analysis (both uniform and adaptive).
+Release 3.0.0 of OpenSubdiv introduces a set of new data structures and
+algorithms that greatly enhance performance over previous versions.
+
+This release focuses mostly on the CPU side, and  should provide
+"out-of-the-box" speed-ups close to an order of magnitude for topology
+refinement and analysis (both uniform and adaptive). Please note: a very large
+portion of the 2.x code base has been completely replaced or deprecated.
 
 On the GPU side, the replacement of subdivision tables with stencils allows
 us to remove several bottlenecks in the Compute area that can yield as much as
@@ -75,6 +79,10 @@ us to remove several bottlenecks in the Compute area that can yield as much as
 reduce the dozens of kernel launches required per primitive to a single one (this
 was a known issue on certain mobile platforms). Compute calls batching is now
 trivial.
+
+We will continue releasing features and improvements through the release cycle,
+both to match the feature set of previous releases, and to further the general
+optimization strategy described above.
 
 New topology entry-points
 *************************
@@ -101,17 +109,17 @@ The documentation for Vtr can be found `here <vtr_overview.html>`__
 New treatment of face-varying data
 **********************************
 
-With Hbr no longer the entry point for clients, OpenSubdiv 3.0 provides a new
-interface to face-varying data.  Previous versions required FVar data to be
-assigned by value to the vertex for each face, and whether or not the set of
-values around a vertex was continuous was determined by comparing these values
-later. In some cases this could result in two values that were not meant to be
-shared being "welded" together.
+With Hbr no longer being the entry point for client-code, OpenSubdiv 3.0 has to
+provide a new interface to face-varying data. Previous versions required
+face-varying data to be assigned by value to the vertex for each face, and
+whether or not the set of values around a vertex was continuous was determined
+by comparing these values later. In some cases this could result in two values
+that were not meant to be shared being "welded" together.
 
 Face-varying data is now specified topologically. Just as the vertex topology
 is defined from a set of vertices and integer references to these vertices for
 the vertex of each face, face-varying topology is defined from a set of values
-and integer references to these values for the vertex of each face.  So if
+and integer references to these values for the vertex of each face. So if
 values are to be considered distinct around a vertex, they are given distinct
 indices and no comparison of values is ever performed.
 
@@ -133,8 +141,8 @@ support semi-sharp creasing, the formulae for the refinement masks of each
 subdivision scheme, etc.
 
 Sdc provides the low-level nuts and bolts to provide a subdivision
-implementation consistent with OpenSubdiv. It is used internally by Vtr but
-can also provide clients with an existing implementation of their own with the
+implementation consistent with OpenSubdiv. It is used internally by Vtr but can
+also provide client-code with an existing implementation of their own with the
 details to make that implementation consistent with OpenSubdiv.
 
 The documentation for Sdc can be found `here <sdc_overview.html>`__
@@ -160,45 +168,60 @@ parties, the following changes are being investigated:
 In these cases, features are not being removed but simply re-expressed in what
 is hoped to be a clearer interface.
 
+We will welcome feedback and constructive comments as we deploy these changes.
+We hope to converge toward a general consensus and lock these APIs by the end
+of Beta cycle.
+
 Hierarchical Edits
 ++++++++++++++++++
 
 Currently Hierarchical Edits have been marked as "extended specification" and
 support for hierarchical features has been removed from the 3.0 release. This
 decision allows for great simplifications of many areas of the subdivision
-algorithms. If we can identify legitimate use cases for hierarchical tags, we
+algorithms. If we can identify legitimate use-cases for hierarchical tags, we
 will consider re-implementing them in future releases, as time and resources
 allow.
 
 Introducing Stencil Tables
 **************************
 
-OpenSubdiv 3.0 replaces the serialized subdivision tables with factorized stencil
-tables. Subdivision tables as implemented in 2.x releases still contain a fairly
-large amount of data inter-dependencies which incur penalties for using more
-fences or kernel launches. Most of these dependencies have now been factorized
-away in the pre-computation stage, yielding *stencil tables* instead.
+OpenSubdiv 3.0 replaces the serialized subdivision tables with factorized
+stencil tables. Subdivision tables as implemented in 2.x releases still contain
+a fairly large amount of data inter-dependencies, which incur penalties from
+fences or force addition kernel launches. Most of these dependencies have now
+been factorized away in the pre-computation stage, yielding *stencil tables*
+instead.
 
 Stencils remove all data dependencies and simplify all the computations into a
 single trivial kernel. This simplification results in a faster pre-computation
 stage, faster execution on GPU, and fewer driver overheads. The new stencil
 tables Compute back-end is supported on all the same platforms as previous
-releases.
+releases (except GCD).
 
 New Source-Code Style
 *********************
 
 OpenSubdiv 3.0 replaces naming prefixes with C++ namespaces for all API layers,
-bringing the source style more in line with contemporary and specifications
+bringing the source style more in line with contemporary specifications
 (mostly inspired from the `Google C++ Style Guide
 <http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml>`__).
 
-The large-scale changes introduced in this release generally breaks
-compatibility with existing client-code. This gives us the opportunity to
-effect some much needed updates to our code-style guidelines and general
-conventions, throughout the entire OpenSubdiv code-base. We are hoping to
-drastically improve the quality, consistency and readability of the source
-code.
+The large-scale changes introduced in this release generally break compatibility
+with existing client-code. However, this gives us the opportunity to effect
+some much needed updates to our code-style guidelines and general conventions,
+throughout the entire OpenSubdiv code-base. We are hoping to drastically
+improve the quality, consistency and readability of the source code.
+
+New Tutorials
+*************
+
+Documentation has been re-organized and fleshed out (although there is still a
+lot of work remaining). Because the "code examples" have been generally overly
+complicated, with this release we are introducing a number of new `tutorials
+<tutorials.html>`__. We are trying to keep these tutorials as simple as
+possible, with no external dependencies (although some of them generate OBJ or
+Maya MEL scripts as a way of visualizing the output). We are planning on releasing
+more tutorials as time and resources allow.
 
 Alpha Release Notes
 ===================
@@ -228,7 +251,7 @@ features and interfaces have been finalized in an official 'Beta' Release.
         #. Refactor Far::TopologyRefiner interpolation functions:
            Templated interpolation methods such as Interpolate<T>(),
            InterpolateFaceVarying<T>(), Limit<T>() are not finalized yet. Both
-           the methods prototypes as well the interface required for T are
+           the methods prototypes as well the interface required for **T** are
            likely to change before Beta release.
 
         #. Face-varying interpolation rules:
@@ -246,7 +269,7 @@ features and interfaces have been finalized in an official 'Beta' Release.
 
         #. Implement arbitrary and discrete limit stencils:
            Subdivision tables have been replaced with discrete vertex stencils.
-           We would like to add functionality for stencils that push these
+           We would like to add functionality for stencils to push these
            vertices to the limit, as well as generate stencils for arbitrary
            locations on the limit surface (a feature currently available in
            2.x). This work is contingent on the implementation of limit masks.
