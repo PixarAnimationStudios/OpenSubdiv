@@ -325,7 +325,7 @@ void
 main()
 {
 #ifdef GEOMETRY_UV_VIEW
-    outColor = edgeColor(vec4(0.5));
+    outColor = edgeColor(vec4(0.9));
     return;
 
 #else

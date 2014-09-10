@@ -775,6 +775,8 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
 static void
 display() {
 
+    g_hud.GetFrameBuffer()->Bind();
+
     Stopwatch s;
     s.Start();
 
@@ -868,6 +870,8 @@ display() {
 
     drawCageEdges();
     drawCageVertices();
+
+    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     // ---------------------------------------------
     // uv viewport
@@ -1114,12 +1118,15 @@ callbackPropagateCorners(bool b, int /* button */) {
 static void
 initHUD() {
 
-    int windowWidth = g_width, windowHeight = g_height;
+    int windowWidth = g_width, windowHeight = g_height,
+        frameBufferWidth = g_width, frameBufferHeight = g_height;
 
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
-    g_hud.Init(windowWidth, windowHeight);
+    g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
+
+    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     int shading_pulldown = g_hud.AddPullDown("Shading (W)", 300, 10, 250, callbackDisplayStyle, 'w');
     g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
@@ -1163,7 +1170,7 @@ initHUD() {
 static void
 initGL() {
 
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glCullFace(GL_BACK);
