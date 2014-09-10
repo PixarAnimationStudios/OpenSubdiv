@@ -678,6 +678,9 @@ drawSamples() {
 //------------------------------------------------------------------------------
 static void
 display() {
+
+    g_hud.GetFrameBuffer()->Bind();
+
     Stopwatch s;
     s.Start();
 
@@ -713,6 +716,8 @@ display() {
 
     if (g_drawCageVertices)
         drawCageVertices();
+
+    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -909,12 +914,16 @@ callbackDisplayVaryingColors(int mode)
 static void
 initHUD()
 {
-    int windowWidth = g_width, windowHeight = g_height;
+    int windowWidth = g_width, windowHeight = g_height,
+        frameBufferWidth = g_width, frameBufferHeight = g_height;
 
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+    glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 
     g_hud.Init(windowWidth, windowHeight);
+
+    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     g_hud.AddCheckBox("Cage Edges (H)", true, 10, 10, callbackDisplayCageEdges, 0, 'h');
     g_hud.AddCheckBox("Cage Verts (J)", true, 10, 30, callbackDisplayCageVertices, 0, 'j');
@@ -942,7 +951,7 @@ initHUD()
 static void
 initGL()
 {
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glCullFace(GL_BACK);
