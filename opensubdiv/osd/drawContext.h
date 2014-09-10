@@ -212,6 +212,12 @@ public:
         return _patchArrays;
     }
 
+    /// The writable accessor to the internal patch array (tentative).
+    /// We should have a different api something like ConvertPatchArrays().
+    PatchArrayVector &GetPatchArrays() {
+        return _patchArrays;
+    }
+
     // processes FarPatchArrays and inserts requisite sub-patches for the arrays
     // containing transition patches
     static void ConvertPatchArrays(Far::PatchTables::PatchArrayVector const &farPatchArrays,

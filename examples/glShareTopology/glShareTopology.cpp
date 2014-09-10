@@ -260,12 +260,12 @@ public:
 protected:
 
     TopologyBase(Far::PatchTables const * patchTables) {
-
         _drawContext = Osd::GLDrawContext::Create(patchTables, 7);
     }
 
     void updateVertexBufferStride(int stride) {
-        Osd::DrawContext::PatchArrayVector patchArrays =
+        // modifying patchArrays in drawcontext.
+        Osd::DrawContext::PatchArrayVector &patchArrays =
             _drawContext->GetPatchArrays();
         for (int i = 0; i < (int)patchArrays.size(); ++i) {
             Osd::DrawContext::PatchDescriptor desc = patchArrays[i].GetDescriptor();
