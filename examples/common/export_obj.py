@@ -34,22 +34,11 @@ meshFn = OpenMaya.MFnMesh(path)
 
 points = OpenMaya.MPointArray()
 normals = OpenMaya.MFloatVectorArray()
+u = OpenMaya.MFloatArray()
+v = OpenMaya.MFloatArray()
 meshFn.getPoints(points)
 meshFn.getVertexNormals(True, normals);
-
-f = open('out.obj', 'w')
-
-for i in range(0,points.length()):
-    f.write('v %f %f %f\n' % (points[i].x, points[i].y, points[i].z))
-
-for i in range(0,points.length()):
-    f.write('vt 0 0 \n')
-    
-for i in range(0,normals.length()):
-    f.write('vn %f %f %f\n' % (normals[i].x, normals[i].y, normals[i].z))
-
-f.write('s off\n')
-
+meshFn.getUVs(u, v, "map1")
 vertexCount = OpenMaya.MIntArray()
 vertexList = OpenMaya.MIntArray()
 meshFn.getVertices(vertexCount, vertexList)
@@ -57,15 +46,41 @@ edgeIds = OpenMaya.MUintArray()
 edgeCreaseData = OpenMaya.MDoubleArray()
 vtxIds = OpenMaya.MUintArray()
 vtxCreaseData = OpenMaya.MDoubleArray()
-meshFn.getCreaseEdges(edgeIds, edgeCreaseData)
-#meshFn.getCreaseVertices(vtxIds, vtxCreaseData)
+try:
+    meshFn.getCreaseEdges(edgeIds, edgeCreaseData)
+except:
+    pass
+try:
+    meshFn.getCreaseVertices(vtxIds, vtxCreaseData)
+except:
+    pass
+
+f = open('out.obj', 'w')
+
+for i in range(0,points.length()):
+    f.write('v %f %f %f\n' % (points[i].x, points[i].y, points[i].z))
+
+for i in range(0,u.length()):
+    f.write('vt %f %f \n' % (u[i], v[i]))
+
+for i in range(0,normals.length()):
+    f.write('vn %f %f %f\n' % (normals[i].x, normals[i].y, normals[i].z))
+
+f.write('s off\n')
 
 vindex = 0
 for i in range(0,vertexCount.length()):
     f.write('f')
     for j in range(0, vertexCount[i]):
         v = vertexList[vindex] + 1
-        f.write(' %d/%d/%d' % (v, v, v))
+
+        sutil = OpenMaya.MScriptUtil()
+        sutil.createFromInt(0)
+        uvptr = sutil.asIntPtr()
+        meshFn.getPolygonUVid(i, j, uvptr, 'map1')
+        uv = sutil.getInt(uvptr) + 1
+
+        f.write(' %d/%d/%d' % (v, uv, v))
         vindex = vindex+1
     f.write('\n')
 
@@ -76,7 +91,7 @@ if vtxIds.length() > 0:
     for i in range(0,vtxCreaseData.length()):
         f.write(' %f' % vtxCreaseData[i])
     f.write('\n')
-    
+
 for i in range(0, edgeIds.length()):
     edgeIt = OpenMaya.MItMeshEdge(path)
     dummy = OpenMaya.MScriptUtil().asIntPtr()
