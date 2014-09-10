@@ -473,8 +473,7 @@ GLuint g_queries[2] = {0, 0};
 GLuint g_vao = 0;
 
 static void
-checkGLErrors(std::string const & where = "")
-{
+checkGLErrors(std::string const & where = "") {
     GLuint err;
     while ((err = glGetError()) != GL_NO_ERROR) {
         std::cerr << "GL error: "
@@ -750,8 +749,8 @@ protected:
 };
 
 EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
-{
+EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
+
     Effect effect = desc.second;
 
     SourceConfigType * sconfig =
@@ -829,8 +828,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 EffectDrawRegistry::ConfigType *
 EffectDrawRegistry::_CreateDrawConfig(
         DescType const & desc,
-        SourceConfigType const * sconfig)
-{
+        SourceConfigType const * sconfig) {
+
     ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig);
     assert(config);
 
@@ -894,15 +893,15 @@ EffectDrawRegistry::_CreateDrawConfig(
 EffectDrawRegistry effectRegistry;
 
 static Effect
-GetEffect()
-{
+GetEffect() {
+
     return Effect(g_displayStyle);
 }
 
 //------------------------------------------------------------------------------
 static GLuint
-bindProgram(Effect effect, Osd::DrawContext::PatchArray const & patch)
-{
+bindProgram(Effect effect, Osd::DrawContext::PatchArray const & patch) {
+
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
     EffectDrawRegistry::ConfigType *
         config = effectRegistry.GetDrawConfig(effectDesc);
@@ -1013,10 +1012,11 @@ bindProgram(Effect effect, Osd::DrawContext::PatchArray const & patch)
 static int
 drawPatches(Osd::DrawContext::PatchArrayVector const &patches,
             int instanceIndex,
-            GLfloat const *color)
-{
+            GLfloat const *color) {
+
     int numDrawCalls = 0;
     for (int i=0; i<(int)patches.size(); ++i) {
+
         Osd::DrawContext::PatchArray const & patch = patches[i];
 
         Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
@@ -1081,8 +1081,12 @@ drawPatches(Osd::DrawContext::PatchArrayVector const &patches,
     }
     return numDrawCalls;
 }
+
+//------------------------------------------------------------------------------
 static void
 display() {
+
+    g_hud.GetFrameBuffer()->Bind();
 
     Stopwatch s;
     s.Start();
@@ -1179,6 +1183,8 @@ display() {
     glGetQueryObjectuiv(g_queries[1], GL_QUERY_RESULT, &timeElapsed);
 #endif
     float drawGpuTime = timeElapsed / 1000.0f / 1000.0f;
+
+    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -1277,8 +1283,8 @@ void windowClose(GLFWwindow*) {
 }
 
 static void
-rebuildInstances()
-{
+rebuildInstances() {
+
     delete g_instances;
     if (g_displayStyle == kVaryingInterleaved) {
         g_instances = g_topology->CreateInstances(
@@ -1305,8 +1311,8 @@ rebuildInstances()
 }
 
 static void
-rebuildOsdMesh()
-{
+rebuildOsdMesh() {
+
     static SimpleShape g_modelCube =
         SimpleShape(catmark_cube, "catmark_cube", kCatmark);
     //static SimpleShape g_modelBishop =
@@ -1351,8 +1357,8 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 //------------------------------------------------------------------------------
 
 static void
-callbackKernel(int k)
-{
+callbackKernel(int k) {
+
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
@@ -1375,29 +1381,29 @@ callbackKernel(int k)
 }
 
 static void
-callbackLevel(int l)
-{
+callbackLevel(int l) {
+
     g_level = l;
     rebuildOsdMesh();
 }
 
 static void
-callbackSlider(float value, int /* data */)
-{
+callbackSlider(float value, int /* data */) {
+
     g_numInstances = (int)value;
     rebuildInstances();
 }
 
 static void
-callbackDisplayStyle(int b)
-{
+callbackDisplayStyle(int b) {
+
     g_displayStyle = b;
     rebuildInstances();
 }
 
 static void
-callbackAdaptive(bool checked, int /* a */)
-{
+callbackAdaptive(bool checked, int /* a */) {
+
     if (Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
         g_adaptive = checked;
         rebuildOsdMesh();
@@ -1405,8 +1411,8 @@ callbackAdaptive(bool checked, int /* a */)
 }
 
 static void
-callbackCheckBox(bool checked, int button)
-{
+callbackCheckBox(bool checked, int button) {
+
     switch (button) {
     case kHUD_CB_FREEZE:
         g_freeze = checked;
@@ -1415,14 +1421,18 @@ callbackCheckBox(bool checked, int button)
 }
 
 static void
-initHUD()
-{
-    int windowWidth = g_width, windowHeight = g_height;
+initHUD() {
+
+    int windowWidth = g_width, windowHeight = g_height,
+        frameBufferWidth = g_width, frameBufferHeight = g_height;
 
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+    glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 
     g_hud.Init(windowWidth, windowHeight);
+
+    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     int shading_pulldown = g_hud.AddPullDown("Shading (W)", 10, 10, 250, callbackDisplayStyle, 'w');
     g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
@@ -1475,9 +1485,9 @@ initHUD()
 
 //------------------------------------------------------------------------------
 static void
-initGL()
-{
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+initGL() {
+
+    glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glCullFace(GL_BACK);
@@ -1500,16 +1510,16 @@ idle() {
 
 //------------------------------------------------------------------------------
 static void
-callbackError(Osd::ErrorType err, const char *message)
-{
+callbackError(Osd::ErrorType err, const char *message) {
+
     printf("OsdError: %d\n", err);
     printf("%s", message);
 }
 
 //------------------------------------------------------------------------------
 static void
-setGLCoreProfile()
-{
+setGLCoreProfile() {
+
     #define glfwOpenWindowHint glfwWindowHint
     #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
@@ -1531,8 +1541,8 @@ setGLCoreProfile()
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char ** argv)
-{
+int main(int argc, char ** argv) {
+
     std::string str;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "-d")) {
