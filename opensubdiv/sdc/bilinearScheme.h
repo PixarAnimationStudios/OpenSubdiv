@@ -62,7 +62,7 @@ Scheme<TYPE_BILINEAR>::ComputeVertexVertexMask(VERTEX const& vertex, MASK& mask,
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_BILINEAR>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<TYPE_BILINEAR>::assignInteriorLimitMask(VERTEX const& /* vertex */, MASK& posMask) const {
 
     posMask.SetNumVertexWeights(1);
     posMask.SetNumEdgeWeights(0);
@@ -82,7 +82,7 @@ Scheme<TYPE_BILINEAR>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMa
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_BILINEAR>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
+Scheme<TYPE_BILINEAR>::assignInteriorLimitTangentMasks(VERTEX const& /* vertex */,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     tan1Mask.SetNumVertexWeights(1);

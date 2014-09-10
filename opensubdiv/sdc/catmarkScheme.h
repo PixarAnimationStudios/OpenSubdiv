@@ -257,7 +257,7 @@ Scheme<TYPE_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMas
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignBoundaryLimitTangentMasks(VERTEX const& vertex,
+Scheme<TYPE_CATMARK>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     tan1Mask.SetNumVertexWeights(1);
