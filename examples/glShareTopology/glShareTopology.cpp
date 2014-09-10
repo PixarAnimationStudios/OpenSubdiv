@@ -1483,6 +1483,8 @@ initHUD() {
         sprintf(level, "Lv. %d", i);
         g_hud.AddRadioButton(3, level, i==2, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
     }
+
+    g_hud.Rebuild(g_width, g_height);
 }
 
 //------------------------------------------------------------------------------
