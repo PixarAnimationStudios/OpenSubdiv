@@ -547,6 +547,8 @@ display() {
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
 
+    glEnable(GL_DEPTH_TEST);
+
     if (! g_transformUB) {
         glGenBuffers(1, &g_transformUB);
         glBindBuffer(GL_UNIFORM_BUFFER, g_transformUB);

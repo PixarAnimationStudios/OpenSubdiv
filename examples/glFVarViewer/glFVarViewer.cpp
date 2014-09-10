@@ -804,6 +804,8 @@ display() {
     scale(g_transformData.UvViewMatrix, g_uvScale, g_uvScale, 1);
     translate(g_transformData.UvViewMatrix, -g_uvPan[0], -g_uvPan[1], 0);
 
+    glEnable(GL_DEPTH_TEST);
+
     // make sure that the vertex buffer is interoped back as a GL resources.
     g_mesh->BindVertexBuffer();
 

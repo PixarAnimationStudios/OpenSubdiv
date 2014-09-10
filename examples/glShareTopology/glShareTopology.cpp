@@ -1110,6 +1110,8 @@ display() {
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
 
+    glEnable(GL_DEPTH_TEST);
+
     // make sure that the vertex buffer is interoped back as a GL resources.
     g_instances->BindVertexBuffer();
 
