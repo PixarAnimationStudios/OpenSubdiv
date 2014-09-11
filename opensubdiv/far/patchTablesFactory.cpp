@@ -379,8 +379,10 @@ PatchTablesFactory::allocateFVarTables( TopologyRefiner const & refiner,
 
             assert(not parrays.empty());
             nverts *= parrays[0].GetDescriptor().GetNumFVarControlVertices();
-            assert(nverts>0);
+            if (options.triangulateQuads)
+                nverts *= 2;
 
+            assert(nverts>0);
             fvarTables->_channels[channel].patchVertIndices.resize(nverts);
         }
     } else {
@@ -548,8 +550,8 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
 
     assert(refiner.IsUniform());
 
-    bool triangulateQuads = (options.triangulateQuads and
-        refiner.GetSchemeType()==Sdc::TYPE_LOOP);
+    options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::TYPE_BILINEAR or
+                                 refiner.GetSchemeType()==Sdc::TYPE_CATMARK);
 
     int maxvalence = refiner.getLevel(0).getMaxValence(),
         maxlevel = refiner.GetMaxLevel(),
@@ -558,10 +560,14 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
         nCVs = 0;
 
     PatchTables::Type ptype = PatchTables::NON_PATCH;
-    switch (refiner.GetSchemeType()) {
-        case Sdc::TYPE_BILINEAR :
-        case Sdc::TYPE_CATMARK  : ptype = PatchTables::QUADS; break;
-        case Sdc::TYPE_LOOP     : ptype = PatchTables::TRIANGLES; break;
+    if (options.triangulateQuads) {
+        ptype = PatchTables::TRIANGLES;
+    } else {
+        switch (refiner.GetSchemeType()) {
+            case Sdc::TYPE_BILINEAR :
+            case Sdc::TYPE_CATMARK  : ptype = PatchTables::QUADS; break;
+            case Sdc::TYPE_LOOP     : ptype = PatchTables::TRIANGLES; break;
+        }
     }
     assert(ptype!=PatchTables::NON_PATCH);
 
@@ -588,10 +594,9 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
     for (int level=firstlevel, poffset=0, voffset=0; level<=maxlevel; ++level) {
 
         int npatches = refiner.GetNumFaces(level);
-        if (triangulateQuads) {
-            assert(ptype==PatchTables::QUADS);
+        if (options.triangulateQuads)
             npatches *= 2;
-        }
+
         if (level>=firstlevel) {
             parrays.push_back(PatchTables::PatchArray(desc, voffset, poffset, npatches, 0));
             voffset += npatches * nCVs;
@@ -626,7 +631,7 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
 
     int * levelFVarVertOffsets = 0;
     if (tables->_fvarPatchTables) {
-         levelFVarVertOffsets = (int *)alloca(refiner.GetNumFVarChannels());
+         levelFVarVertOffsets = (int *)alloca(refiner.GetNumFVarChannels()*sizeof(int));
          memset(levelFVarVertOffsets, 0, refiner.GetNumFVarChannels()*sizeof(int));
     }
 
@@ -648,7 +653,7 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
                     gatherFVarPatchVertices(refiner, level, face, 0, levelFVarVertOffsets, fptr);
                 }
 
-                if (triangulateQuads) {
+                if (options.triangulateQuads) {
                     // Triangulate the quadrilateral: {v0,v1,v2,v3} -> {v0,v1,v2},{v3,v0,v2}.
                     *iptr = *(iptr - 4); // copy v0 index
                     ++iptr;
@@ -661,7 +666,9 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
                     if (tables->_fvarPatchTables) {
                         for (int channel=0; channel<refiner.GetNumFVarChannels(); ++channel) {
                             *fptr[channel] = *(fptr[channel]-4); // copy fv0 index
+                            ++fptr[channel];
                             *fptr[channel] = *(fptr[channel]-3); // copy fv2 index
+                            ++fptr[channel];
                         }
                     }
                 }
