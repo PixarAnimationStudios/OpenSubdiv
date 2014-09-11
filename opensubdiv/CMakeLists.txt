@@ -182,12 +182,20 @@ if (NOT NO_LIB)
             $<TARGET_OBJECTS:osd_cpu_obj>
         )
 
-        set_target_properties(osd_dynamic_cpu
-            PROPERTIES
-                OUTPUT_NAME osdCPU
-                CLEAN_DIRECT_OUTPUT 1
-                SOVERSION ${OSD_SONAME}
-            )
+        if (NOT ANDROID)
+            set_target_properties(osd_dynamic_cpu
+                PROPERTIES
+                    OUTPUT_NAME osdCPU
+                    CLEAN_DIRECT_OUTPUT 1
+                    SOVERSION ${OSD_SONAME}
+                )
+        else()
+            set_target_properties(osd_dynamic_cpu
+                PROPERTIES
+                    OUTPUT_NAME osdCPU
+                    CLEAN_DIRECT_OUTPUT 1
+                )
+        endif()
 
         target_link_libraries(osd_dynamic_cpu
             ${PLATFORM_CPU_LIBRARIES}
@@ -202,12 +210,20 @@ if (NOT NO_LIB)
             ${CUDA_KERNEL_FILES}
         )
 
-        set_target_properties(osd_dynamic_gpu
-            PROPERTIES
-                OUTPUT_NAME osdGPU
-                CLEAN_DIRECT_OUTPUT 1
-                SOVERSION ${OSD_SONAME}
-            )
+        if (NOT ANDROID)
+            set_target_properties(osd_dynamic_gpu
+                PROPERTIES
+                    OUTPUT_NAME osdGPU
+                    CLEAN_DIRECT_OUTPUT 1
+                    SOVERSION ${OSD_SONAME}
+                )
+        else()
+            set_target_properties(osd_dynamic_gpu
+                PROPERTIES
+                    OUTPUT_NAME osdGPU
+                    CLEAN_DIRECT_OUTPUT 1
+                )
+        endif()
 
         target_link_libraries(osd_dynamic_gpu
             osd_dynamic_cpu
