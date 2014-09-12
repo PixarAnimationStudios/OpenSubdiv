@@ -200,15 +200,15 @@ __global__ void computeStencilsNv(float const *__restrict cvs,
   }
 }
 
-template< int NUM_THREADS_PER_BLOCK > 
-__global__ void computeStencilsNv_v4(float const *__restrict cvs, 
+template< int NUM_THREADS_PER_BLOCK >
+__global__ void computeStencilsNv_v4(float const *__restrict cvs,
                                      float * vbuffer,
                                      unsigned char const *__restrict sizes,
                                      int const *__restrict offsets,
                                      int const *__restrict indices,
                                      float const *__restrict weights,
-                                     int start, 
-                                     int end) 
+                                     int start,
+                                     int end)
 {
   // Iterate over the vertices.
   for( int i = start + blockIdx.x*NUM_THREADS_PER_BLOCK + threadIdx.x ; i < end ; i += gridDim.x*NUM_THREADS_PER_BLOCK )
@@ -232,7 +232,7 @@ __global__ void computeStencilsNv_v4(float const *__restrict cvs,
   }
 }
 
-#endif USE_NVIDIA_OPTIMIZATION
+#endif // USE_NVIDIA_OPTIMIZATION
 
 // -----------------------------------------------------------------------------
 
@@ -276,7 +276,7 @@ CudaComputeStencils(float const *cvs, float * dst,
     if( length==4 && stride==length ) {
       int gridDim = min(2048, (end-start+256-1)/256);
       computeStencilsNv_v4<256><<<gridDim, 256>>>(cvs, dst, sizes, offsets, indices, weights, start, end);
-      return; 
+      return;
     }
 #else
     OPT_KERNEL(3, computeStencils, 512, 32, (cvs, dst, sizes, offsets, indices, weights, start, end));
