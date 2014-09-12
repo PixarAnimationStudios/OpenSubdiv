@@ -42,11 +42,13 @@
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
-#include <common/hbr_utils.h>
+#include <common/vtr_utils.h>
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
+#include "../common/gl_common.h"
 #include "../common/gl_hud.h"
 
+#include <far/patchTablesFactory.h>
 #include <far/stencilTablesFactory.h>
 
 #include <osd/cpuGLVertexBuffer.h>
@@ -57,6 +59,7 @@ GLFWmonitor* g_primary=0;
 #include <cfloat>
 #include <list>
 #include <vector>
+#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <stdlib.h>
@@ -123,134 +126,15 @@ GLuint g_cageEdgeVAO = 0,
 
 GLhud g_hud;
 
+
 //------------------------------------------------------------------------------
-struct SimpleShape {
-    std::string  name;
-    Scheme       scheme;
-    std::string  data;
 
-    SimpleShape() { }
-    SimpleShape( std::string const & idata, char const * iname, Scheme ischeme )
-        : name(iname), scheme(ischeme), data(idata) { }
-};
-
-std::vector<SimpleShape> g_defaultShapes;
+#include "init_shapes.h"
 
 int g_currentShape = 0;
 
-static void
-initializeShapes( ) {
-
-#include <shapes/catmark_cube_corner0.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_cube_corner0, "catmark_cube_corner0", kCatmark));
-
-#include <shapes/catmark_cube_corner1.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_cube_corner1, "catmark_cube_corner1", kCatmark));
-
-#include <shapes/catmark_cube_corner2.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_cube_corner2, "catmark_cube_corner2", kCatmark));
-
-#include <shapes/catmark_cube_corner3.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_cube_corner3, "catmark_cube_corner3", kCatmark));
-
-#include <shapes/catmark_cube_corner4.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_cube_corner4, "catmark_cube_corner4", kCatmark));
-
-#include <shapes/catmark_cube_creases0.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_cube_creases0, "catmark_cube_creases0", kCatmark));
-
-#include <shapes/catmark_cube_creases1.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_cube_creases1, "catmark_cube_creases1", kCatmark));
-
-#include <shapes/catmark_cube.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_cube, "catmark_cube", kCatmark));
-
-#include <shapes/catmark_dart_edgecorner.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_dart_edgecorner, "catmark_dart_edgecorner", kCatmark));
-
-#include <shapes/catmark_dart_edgeonly.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_dart_edgeonly, "catmark_dart_edgeonly", kCatmark));
-
-#include <shapes/catmark_edgecorner.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_edgecorner ,"catmark_edgecorner", kCatmark));
-
-#include <shapes/catmark_edgeonly.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_edgeonly, "catmark_edgeonly", kCatmark));
-
-#include <shapes/catmark_gregory_test1.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_gregory_test1, "catmark_gregory_test1", kCatmark));
-
-#include <shapes/catmark_gregory_test2.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_gregory_test2, "catmark_gregory_test2", kCatmark));
-
-#include <shapes/catmark_gregory_test3.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_gregory_test3, "catmark_gregory_test3", kCatmark));
-
-#include <shapes/catmark_gregory_test4.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_gregory_test4, "catmark_gregory_test4", kCatmark));
-
-#include <shapes/catmark_hole_test1.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_hole_test1, "catmark_hole_test1", kCatmark));
-
-#include <shapes/catmark_hole_test2.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_hole_test2, "catmark_hole_test2", kCatmark));
-
-#include <shapes/catmark_pyramid_creases0.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_pyramid_creases0, "catmark_pyramid_creases0", kCatmark));
-
-#include <shapes/catmark_pyramid_creases1.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_pyramid_creases1, "catmark_pyramid_creases1", kCatmark));
-
-#include <shapes/catmark_pyramid.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_pyramid, "catmark_pyramid", kCatmark));
-
-#include <shapes/catmark_tent_creases0.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_tent_creases0, "catmark_tent_creases0", kCatmark));
-
-#include <shapes/catmark_tent_creases1.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_tent_creases1, "catmark_tent_creases1", kCatmark));
-
-#include <shapes/catmark_tent.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_tent, "catmark_tent", kCatmark));
-
-#include <shapes/catmark_torus.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_torus, "catmark_torus", kCatmark));
-
-#include <shapes/catmark_torus_creases0.h>
-    g_defaultShapes.push_back(SimpleShape(catmark_torus_creases0, "catmark_torus_creases0", kCatmark));
-
-}
-
-typedef OpenSubdiv::HbrMesh<OpenSubdiv::FarStencilFactoryVertex>      HMesh;
-typedef OpenSubdiv::HbrFace<OpenSubdiv::FarStencilFactoryVertex>      HFace;
-typedef OpenSubdiv::HbrVertex<OpenSubdiv::FarStencilFactoryVertex>    HVertex;
-typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::FarStencilFactoryVertex>  HHalfedge;
-
 //------------------------------------------------------------------------------
-static void
-createCoarseMesh( HMesh * const hmesh, int nfaces ) {
-    // save coarse topology (used for coarse mesh drawing)
-    g_coarseEdges.clear();
-    g_coarseEdgeSharpness.clear();
-    g_coarseVertexSharpness.clear();
-
-    for(int i=0; i<nfaces; ++i) {
-        HFace *face = hmesh->GetFace(i);
-        int nv = face->GetNumVertices();
-        for(int j=0; j<nv; ++j) {
-            g_coarseEdges.push_back(face->GetVertex(j)->GetID());
-            g_coarseEdges.push_back(face->GetVertex((j+1)%nv)->GetID());
-            g_coarseEdgeSharpness.push_back(face->GetEdge(j)->GetSharpness());
-        }
-    }
-    int nv = hmesh->GetNumVertices();
-    for(int i=0; i<nv; ++i) {
-        g_coarseVertexSharpness.push_back(hmesh->GetVertex(i)->GetSharpness());
-    }
-}
-
-//------------------------------------------------------------------------------
-FarStencilTables g_controlStencils;
+Far::LimitStencilTables const * g_controlStencils;
 
 class StencilType {
 public:
@@ -269,32 +153,32 @@ public:
 };
 
 // Control vertex positions (P(xyz))
-OsdCpuVertexBuffer * g_controlValues=0;
+Osd::CpuVertexBuffer * g_controlValues=0;
 
 // Display VBO (collects outputs of updated stencils)
-OsdCpuGLVertexBuffer * g_stencilValues=0;
+Osd::CpuGLVertexBuffer * g_stencilValues=0;
 
 // Display 3 lines for each stencil sample (utan, vtan, normal)
 // 18 elements : [ P (xyz), P+dPdu (xyz),
 //                 P (xyz), P+dPdv (xyz),
 //                 P (xyz), P+N (xyz)    ]
-OsdVertexBufferDescriptor g_controlDesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 3 ),
-                          g_outputDataDesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 18 ),
-                          g_outputDuDesc( /*offset*/ 3, /*legnth*/ 3, /*stride*/ 18 ),
-                          g_outputDvDesc( /*offset*/ 9, /*legnth*/ 3, /*stride*/ 18 );
+Osd::VertexBufferDescriptor g_controlDesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 3 ),
+                            g_outputDataDesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 18 ),
+                            g_outputDuDesc( /*offset*/ 3, /*legnth*/ 3, /*stride*/ 18 ),
+                            g_outputDvDesc( /*offset*/ 9, /*legnth*/ 3, /*stride*/ 18 );
 
-OsdCpuEvalStencilsContext * g_evalCtx=0;
+Osd::CpuEvalStencilsContext * g_evalCtx=0;
 
-OsdCpuEvalStencilsController g_evalCpuCtrl;
+Osd::CpuEvalStencilsController g_evalCpuCtrl;
 
 #if defined(OPENSUBDIV_HAS_OPENMP)
     #include <osd/ompEvalStencilsController.h>
-    OsdOmpEvalStencilsController g_evalOmpCtrl;
+    Osd::OmpEvalStencilsController g_evalOmpCtrl;
 #endif
 
 #ifdef OPENSUBDIV_HAS_TBB
     #include <osd/tbbEvalStencilsController.h>
-    OsdTbbEvalStencilsController g_evalTbbCtrl;
+    Osd::TbbEvalStencilsController g_evalTbbCtrl;
 #endif
 
 
@@ -326,15 +210,18 @@ updateGeom() {
     Stopwatch s;
     s.Start();
 
+    float * ptr = g_stencilValues->BindCpuBuffer();
+    memset(ptr, 0, g_controlStencils->GetNumStencils() * 18 * sizeof(float));
+
     // Uppdate random points by applying point & tangent stencils
     switch (g_kernel) {
         case kCPU: {
-            g_evalCpuCtrl.UpdateValues<OsdCpuVertexBuffer,OsdCpuGLVertexBuffer>(
+            g_evalCpuCtrl.UpdateValues<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
                 g_evalCtx,
                 g_controlDesc, g_controlValues,
                 g_outputDataDesc, g_stencilValues );
 
-            g_evalCpuCtrl.UpdateDerivs<OsdCpuVertexBuffer,OsdCpuGLVertexBuffer>(
+            g_evalCpuCtrl.UpdateDerivs<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
                 g_evalCtx,
                 g_controlDesc, g_controlValues,
                 g_outputDuDesc, g_stencilValues,
@@ -343,12 +230,12 @@ updateGeom() {
 
 #if defined(OPENSUBDIV_HAS_OPENMP)
         case kOPENMP: {
-            g_evalOmpCtrl.UpdateValues<OsdCpuVertexBuffer,OsdCpuGLVertexBuffer>(
+            g_evalOmpCtrl.UpdateValues<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
                 g_evalCtx,
                 g_controlDesc, g_controlValues,
                 g_outputDataDesc, g_stencilValues );
 
-            g_evalOmpCtrl.UpdateDerivs<OsdCpuVertexBuffer,OsdCpuGLVertexBuffer>(
+            g_evalOmpCtrl.UpdateDerivs<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
                 g_evalCtx,
                 g_controlDesc, g_controlValues,
                 g_outputDuDesc, g_stencilValues,
@@ -358,12 +245,12 @@ updateGeom() {
 
 #if defined(OPENSUBDIV_HAS_TBB)
         case kTBB: {
-            g_evalTbbCtrl.UpdateValues<OsdCpuVertexBuffer,OsdCpuGLVertexBuffer>(
+            g_evalTbbCtrl.UpdateValues<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
                 g_evalCtx,
                 g_controlDesc, g_controlValues,
                 g_outputDataDesc, g_stencilValues );
 
-            g_evalTbbCtrl.UpdateDerivs<OsdCpuVertexBuffer,OsdCpuGLVertexBuffer>(
+            g_evalTbbCtrl.UpdateDerivs<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
                 g_evalCtx,
                 g_controlDesc, g_controlValues,
                 g_outputDuDesc, g_stencilValues,
@@ -377,9 +264,9 @@ updateGeom() {
     s.Stop();
     g_evalTime = float(s.GetElapsed() * 1000.0f);
 
+    assert(g_controlStencils);
 
-    float * ptr = g_stencilValues->BindCpuBuffer();
-    for (int i=0; i < g_controlStencils.GetNumStencils(); ++i, ptr+=18) {
+    for (int i=0; i < g_controlStencils->GetNumStencils(); ++i, ptr+=18) {
 
         float * p      = ptr,
               * utan   = ptr + 3,
@@ -408,72 +295,88 @@ updateGeom() {
 //------------------------------------------------------------------------------
 
 static void
-createMesh( const std::string &shape, Scheme scheme=kCatmark ) {
+createMesh(ShapeDesc const & shapeDesc, int isolationLevel) {
 
-    HMesh * mesh = simpleHbr<OpenSubdiv::FarStencilFactoryVertex>(shape.c_str(), scheme, g_orgPositions, true);
+    typedef Far::IndexArray IndexArray;
+    typedef Far::LimitStencilTablesFactory::LocationArray LocationArray;
 
-    int nverts = (int)g_orgPositions.size() / 3,
-        nfaces = mesh->GetNumFaces();
+    Shape const * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
-    createCoarseMesh(mesh, nfaces);
+    // create Vtr mesh (topology)
+    OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);
+    OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
-    // Generate control stencils for random (u,v) locations on each face
+    OpenSubdiv::Far::TopologyRefiner * refiner =
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
 
-    // Clear previous stencils if any
-    g_controlStencils.Clear();
+    // save coarse topology (used for coarse mesh drawing)
+    int nedges = refiner->GetNumEdges(0),
+        nverts = refiner->GetNumVertices(0);
 
-    OpenSubdiv::FarStencilTablesFactory<> factory(mesh);
+    g_coarseEdges.resize(nedges*2);
+    g_coarseEdgeSharpness.resize(nedges);
+    g_coarseVertexSharpness.resize(nverts);
 
-    g_nsamplesDrawn = 0;
+    for(int i=0; i<nedges; ++i) {
+        IndexArray verts = refiner->GetEdgeVertices(0, i);
+        g_coarseEdges[i*2  ]=verts[0];
+        g_coarseEdges[i*2+1]=verts[1];
+        g_coarseEdgeSharpness[i]=refiner->GetEdgeSharpness(0, i);
+    }
+
+    for(int i=0; i<nverts; ++i) {
+        g_coarseVertexSharpness[i]=refiner->GetVertexSharpness(0, i);
+    }
+
+    g_orgPositions=shape->verts;
+
+    refiner->RefineAdaptive(isolationLevel, /*full topo*/ false);
+
+    Far::PatchTables const * patchTables = Far::PatchTablesFactory::Create(*refiner);
+
+    int nfaces = refiner->GetNumPtexFaces();
+
+    float * u = new float[g_nsamples*nfaces], * uPtr = u,
+          * v = new float[g_nsamples*nfaces], * vPtr = v;
+
+    std::vector<LocationArray> locs(nfaces);
 
     srand( static_cast<int>(2147483647) ); // use a large Pell prime number
+    for (int face=0; face<nfaces; ++face) {
+    
+        LocationArray & larray = locs[face];
+        larray.faceID = face;
+        larray.numLocations = g_nsamples;
+        larray.u = uPtr;
+        larray.v = vPtr;
 
-    // Generate set of random (u,v) locations for the face
-    float * u = new float[g_nsamples],
-          * v = new float[g_nsamples];
-
-    for (int i=0; i<nfaces; ++i) {
-
-        HFace * f = mesh->GetFace(i);
-
-        for (int j=0; j<g_nsamples; ++j) {
-            u[j] = (float)rand()/(float)RAND_MAX;
-            v[j] = (float)rand()/(float)RAND_MAX;
-        }
-
-        int nv = f->GetNumVertices();
-
-        if (nv==4) {
-
-            factory.SetCurrentFace(i);
-
-            g_nsamplesDrawn += factory.AppendStencils( &g_controlStencils, g_nsamples, u, v, g_isolationLevel );
-
-        } else {
-
-            // if the face is not a quad, we have to iterate over sub-quad(rants)
-            for (int j=0; j<f->GetNumVertices(); ++j) {
-
-                factory.SetCurrentFace(i,j);
-
-                g_nsamplesDrawn += factory.AppendStencils( &g_controlStencils, g_nsamples/nv, u, v, g_isolationLevel );
-            }
+        for (int j=0; j<g_nsamples; ++j, ++uPtr, ++vPtr) {
+            *uPtr = (float)rand()/(float)RAND_MAX;
+            *vPtr = (float)rand()/(float)RAND_MAX;
         }
     }
+
+    delete g_controlStencils;
+    g_controlStencils = Far::LimitStencilTablesFactory::Create(*refiner, *patchTables, locs);
 
     delete [] u;
     delete [] v;
 
+    g_nsamplesDrawn = g_controlStencils->GetNumStencils();
+
     // Create control vertex buffer (layout: [ P(xyz) ] )
     delete g_controlValues;
-    g_controlValues = OsdCpuVertexBuffer::Create(3, nverts);
+    g_controlValues = Osd::CpuVertexBuffer::Create(3, nverts);
 
     // Create eval context & data buffers
     delete g_evalCtx;
-    g_evalCtx = OsdCpuEvalStencilsContext::Create(&g_controlStencils);
+    g_evalCtx = Osd::CpuEvalStencilsContext::Create(g_controlStencils);
 
     delete g_stencilValues;
-    g_stencilValues = OsdCpuGLVertexBuffer::Create(3, g_controlStencils.GetNumStencils() * 6 );
+    g_stencilValues = Osd::CpuGLVertexBuffer::Create(3, g_controlStencils->GetNumStencils() * 6 );
+
+    delete shape;
+    delete refiner;
 
     updateGeom();
 
@@ -483,30 +386,7 @@ createMesh( const std::string &shape, Scheme scheme=kCatmark ) {
     glBindBuffer(GL_ARRAY_BUFFER, g_stencilValues->BindVBO());
 
     glBindVertexArray(0);
-}
 
-//------------------------------------------------------------------------------
-static void
-checkGLErrors(std::string const & where = "")
-{
-    GLuint err;
-    while ((err = glGetError()) != GL_NO_ERROR) {
-
-        std::cerr << "GL error: "
-                  << (where.empty() ? "" : where + " ")
-                  << err << "\n";
-    }
-}
-
-//------------------------------------------------------------------------------
-static GLuint
-compileShader(GLenum shaderType, const char *source)
-{
-    GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, &source, NULL);
-    glCompileShader(shader);
-    checkGLErrors("compileShader");
-    return shader;
 }
 
 //------------------------------------------------------------------------------
@@ -620,8 +500,8 @@ GLSLProgram g_cageProgram,
 
 //------------------------------------------------------------------------------
 static bool
-linkDefaultPrograms()
-{
+linkDefaultPrograms() {
+
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     #define GLSL_VERSION_DEFINE "#version 400\n"
 #else
@@ -686,8 +566,8 @@ linkDefaultPrograms()
 }
 //------------------------------------------------------------------------------
 static inline void
-setSharpnessColor(float s, float *r, float *g, float *b)
-{
+setSharpnessColor(float s, float *r, float *g, float *b) {
+
     //  0.0       2.0       4.0
     // green --- yellow --- red
     *r = std::min(1.0f, s * 0.5f);
@@ -791,7 +671,7 @@ drawStencils() {
 
     glBindVertexArray(g_stencilsVAO);
 
-    int numEdges = g_controlStencils.GetNumStencils() * 3;
+    int numEdges = g_controlStencils->GetNumStencils() * 3;
 
     g_samplesProgram.EnableVertexAttributes();
 
@@ -808,6 +688,9 @@ drawStencils() {
 //------------------------------------------------------------------------------
 static void
 display() {
+
+    g_hud.GetFrameBuffer()->Bind();
+
     Stopwatch s;
     s.Start();
 
@@ -836,13 +719,14 @@ display() {
         drawCageVertices();
 
     drawStencils();
-
     s.Stop();
     float drawCpuTime = float(s.GetElapsed() * 1000.0f);
     s.Start();
     glFinish();
     s.Stop();
     float drawGpuTime = float(s.GetElapsed() * 1000.0f);
+
+    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -859,7 +743,7 @@ display() {
     }
     glFinish();
 
-    checkGLErrors("display leave");
+    //checkGLErrors("display leave");
 }
 
 //------------------------------------------------------------------------------
@@ -933,16 +817,16 @@ void windowClose(GLFWwindow*) {
 
 //------------------------------------------------------------------------------
 static void
-rebuildMesh()
-{
-    createMesh( g_defaultShapes[g_currentShape].data, g_defaultShapes[ g_currentShape ].scheme );
+rebuildMesh() {
+
+    createMesh( g_defaultShapes[g_currentShape], g_isolationLevel );
 }
 
 
 //------------------------------------------------------------------------------
 static void
-setSamples(bool add)
-{
+setSamples(bool add) {
+
     g_nsamples += add ? 1000 : -1000;
 
     g_nsamples = std::max(0, g_nsamples);
@@ -970,14 +854,14 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 
 //------------------------------------------------------------------------------
 static void
-callbackKernel(int k)
-{
+callbackKernel(int k) {
+
     g_kernel = k;
 }
 
 static void
-callbackLevel(int l)
-{
+callbackLevel(int l) {
+
     g_isolationLevel = l;
 
     rebuildMesh();
@@ -986,22 +870,22 @@ callbackLevel(int l)
 
 //------------------------------------------------------------------------------
 static void
-callbackAnimate(bool checked, int /* m */)
-{
+callbackAnimate(bool checked, int /* m */) {
+
     g_moveScale = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackFreeze(bool checked, int /* f */)
-{
+callbackFreeze(bool checked, int /* f */) {
+
     g_freeze = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackDisplayCageVertices(bool checked, int /* d */)
-{
+callbackDisplayCageVertices(bool checked, int /* d */) {
+
     g_drawCageVertices = checked;
 }
 
@@ -1014,8 +898,8 @@ callbackDisplayCageEdges(bool checked, int /* d */)
 
 //------------------------------------------------------------------------------
 static void
-callbackModel(int m)
-{
+callbackModel(int m) {
+
     if (m < 0)
         m = 0;
 
@@ -1029,14 +913,18 @@ callbackModel(int m)
 
 //------------------------------------------------------------------------------
 static void
-initHUD()
-{
-    int windowWidth = g_width, windowHeight = g_height;
+initHUD() {
+
+    int windowWidth = g_width, windowHeight = g_height,
+        frameBufferWidth = g_width, frameBufferHeight = g_height;
 
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+    glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 
-    g_hud.Init(windowWidth, windowHeight);
+    g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
+
+    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     g_hud.AddCheckBox("Cage Edges (H)", true, 10, 10, callbackDisplayCageEdges, 0, 'h');
     g_hud.AddCheckBox("Cage Verts (J)", true, 10, 30, callbackDisplayCageVertices, 0, 'j');
@@ -1066,9 +954,9 @@ initHUD()
 
 //------------------------------------------------------------------------------
 static void
-initGL()
-{
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+initGL() {
+
+    glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glCullFace(GL_BACK);
@@ -1096,8 +984,8 @@ uninitGL() {
 
 //------------------------------------------------------------------------------
 static void
-setGLCoreProfile()
-{
+setGLCoreProfile() {
+
     #define glfwOpenWindowHint glfwWindowHint
     #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
@@ -1131,12 +1019,12 @@ int main(int argc, char **argv) {
                 ss << ifs.rdbuf();
                 ifs.close();
                 str = ss.str();
-                g_defaultShapes.push_back(SimpleShape(str.c_str(), argv[1], kCatmark));
+                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
             }
         }
     }
 
-    initializeShapes();
+    initShapes();
 
     if (not glfwInit()) {
         printf("Failed to initialize GLFW\n");

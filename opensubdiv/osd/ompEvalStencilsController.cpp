@@ -44,7 +44,7 @@ OmpEvalStencilsController::_UpdateValues( CpuEvalStencilsContext * context ) {
 
     int result=0;
 
-    Far::StencilTables const * stencils = context->GetStencilTables();
+    Far::LimitStencilTables const * stencils = context->GetStencilTables();
 
     int nstencils = stencils->GetNumStencils();
     if (not nstencils)
@@ -94,7 +94,7 @@ OmpEvalStencilsController::_UpdateDerivs( CpuEvalStencilsContext * context ) {
 
     int result=0;
 
-    Far::StencilTables const * stencils = context->GetStencilTables();
+    Far::LimitStencilTables const * stencils = context->GetStencilTables();
 
     int nstencils = stencils->GetNumStencils();
     if (not nstencils)

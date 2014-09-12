@@ -73,6 +73,10 @@ public:
         return *_size;
     }
 
+    unsigned char * GetSizePtr() const {
+        return _size;
+    }
+
     /// \brief Returns the control vertices indices
     int const * GetVertexIndices() const {
         return _indices;
@@ -93,6 +97,7 @@ public:
 
 protected:
     friend class StencilTablesFactory;
+    friend class LimitStencilTablesFactory;
 
     unsigned char * _size;
     int           * _indices;
@@ -160,20 +165,29 @@ public:
     /// @param start          (skip to )index of first value to update
     ///
     /// @param end            Index of last value to update
-    ///    
+    ///
     template <class T>
     void UpdateValues(T const *controlValues, T *values, int start=-1, int end=-1) const {
 
         _Update(controlValues, values, _weights, start, end);
     }
 
-private:
+    /// \brief Clears the stencils from the table
+    void Clear() {
+        _numControlVertices=0;
+        _sizes.clear();
+        _offsets.clear();
+        _indices.clear();
+        _weights.clear();
+    }
+
+protected:
 
     // Update values by appling cached stencil weights to new control values
     template <class T> void _Update( T const *controlValues, T *values,
         std::vector<float> const & valueWeights, int start, int end) const;
 
-private:
+protected:
 
     friend class StencilTablesFactory;
 
@@ -235,6 +249,10 @@ public:
     }
 
 private:
+
+    friend class StencilTablesFactory;
+    friend class LimitStencilTablesFactory;
+
     float * _duWeights,  // pointer to stencil u derivative limit weights
           * _dvWeights;  // pointer to stencil v derivative limit weights
 };
@@ -281,8 +299,16 @@ public:
         _Update(controlValues, vderivs, _dvWeights, start, end);
     }
 
+    /// \brief Clears the stencils from the table
+    void Clear() {
+        StencilTables::Clear();
+        _duWeights.clear();
+        _dvWeights.clear();
+    }
 
 private:
+    friend class LimitStencilTablesFactory;
+
     std::vector<float>  _duWeights,  // u derivative limit stencil weights
                         _dvWeights;  // v derivative limit stencil weights
 };

@@ -25,6 +25,7 @@
 #-------------------------------------------------------------------------------
 # source & headers
 set(SOURCE_FILES
+     patchMap.cpp
      patchTablesFactory.cpp
      stencilTablesFactory.cpp
      topologyRefiner.cpp

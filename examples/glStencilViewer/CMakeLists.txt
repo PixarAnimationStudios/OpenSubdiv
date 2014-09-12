@@ -45,9 +45,10 @@ if( OPENCL_FOUND )
 endif()
 
 _add_glfw_executable(glStencilViewer
-    main.cpp
+    glStencilViewer.cpp
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
+    $<TARGET_OBJECTS:regression_vtr_utils_obj>
     $<TARGET_OBJECTS:examples_common_obj>
 )
 

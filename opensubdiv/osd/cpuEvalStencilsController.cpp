@@ -42,7 +42,7 @@ CpuEvalStencilsController::_UpdateValues( CpuEvalStencilsContext * context ) {
 
     int result=0;
 
-    Far::StencilTables const * stencils = context->GetStencilTables();
+    Far::LimitStencilTables const * stencils = context->GetStencilTables();
 
     int nstencils = stencils->GetNumStencils();
     if (not nstencils)
@@ -62,8 +62,8 @@ CpuEvalStencilsController::_UpdateValues( CpuEvalStencilsContext * context ) {
     if ((not ctrl) or (not out))
         return result;
 
-    int const * sizes = &stencils->GetSizes().at(0),
-              * index = &stencils->GetControlIndices().at(0);
+    unsigned char const * sizes = &stencils->GetSizes().at(0);
+    int const * index = &stencils->GetControlIndices().at(0);
 
     float const * weight = &stencils->GetWeights().at(0);
 
@@ -90,7 +90,7 @@ CpuEvalStencilsController::_UpdateDerivs( CpuEvalStencilsContext * context ) {
 
     int result=0;
 
-    Far::StencilTables const * stencils = context->GetStencilTables();
+    Far::LimitStencilTables const * stencils = context->GetStencilTables();
 
     int nstencils = stencils->GetNumStencils();
     if (not nstencils)
@@ -112,8 +112,8 @@ CpuEvalStencilsController::_UpdateDerivs( CpuEvalStencilsContext * context ) {
     if ((not ctrl) or (not du) or (not dv))
         return result;
 
-    int const * sizes = &stencils->GetSizes().at(0),
-              * index = &stencils->GetControlIndices().at(0);
+    unsigned char const * sizes = &stencils->GetSizes().at(0);
+    int const * index = &stencils->GetControlIndices().at(0);
 
     float const * duweight = &stencils->GetDuWeights().at(0),
                 * dvweight = &stencils->GetDvWeights().at(0);

@@ -33,6 +33,8 @@ set(CPU_SOURCE_FILES
     cpuEvalLimitContext.cpp
     cpuEvalLimitController.cpp
     cpuEvalLimitKernel.cpp
+    cpuEvalStencilsContext.cpp
+    cpuEvalStencilsController.cpp
     cpuSmoothNormalContext.cpp
     cpuSmoothNormalController.cpp
     cpuVertexBuffer.cpp
@@ -58,6 +60,8 @@ set(PUBLIC_HEADER_FILES
     cpuComputeController.h
     cpuEvalLimitContext.h
     cpuEvalLimitController.h
+    cpuEvalStencilsContext.h
+    cpuEvalStencilsController.h
     cpuSmoothNormalContext.h
     cpuSmoothNormalController.h
     cpuVertexBuffer.h
@@ -123,7 +127,7 @@ list(APPEND DOXY_HEADER_FILES ${GL_PTEX_PUBLIC_HEADERS} ${DX_PTEX_PUBLIC_HEADERS
 set(OPENMP_PUBLIC_HEADERS
     ompKernel.h
     ompComputeController.h
-#    ompEvalStencilsController.h
+    ompEvalStencilsController.h
     ompSmoothNormalController.h
 )
 
@@ -131,7 +135,7 @@ if(OPENMP_FOUND )
     list(APPEND CPU_SOURCE_FILES
         ompKernel.cpp
         ompComputeController.cpp
-#        ompEvalStencilsController.cpp
+        ompEvalStencilsController.cpp
         ompSmoothNormalController.cpp
     )
 
@@ -148,7 +152,7 @@ list(APPEND DOXY_HEADER_FILES ${OPENMP_PUBLIC_HEADERS})
 set(TBB_PUBLIC_HEADERS
     tbbKernel.h
     tbbComputeController.h
-#    tbbEvalStencilsController.h
+    tbbEvalStencilsController.h
     tbbSmoothNormalController.h
 )
 
@@ -158,7 +162,7 @@ if( TBB_FOUND )
     list(APPEND CPU_SOURCE_FILES
         tbbKernel.cpp
         tbbComputeController.cpp
-#        tbbEvalStencilsController.cpp
+        tbbEvalStencilsController.cpp
         tbbSmoothNormalController.cpp
     )
 

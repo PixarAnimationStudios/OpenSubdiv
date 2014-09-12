@@ -28,15 +28,21 @@
 #include "../version.h"
 
 #include "../far/kernelBatch.h"
+#include "../far/patchTables.h"
+
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
+class TopologyRefiner;
+
 class Stencil;
 class StencilTables;
-class TopologyRefiner;
+class LimitStencil;
+class LimitStencilTables;
 
 /// \brief A specialized factory for StencilTables
 ///
@@ -52,18 +58,18 @@ public:
 
     enum Mode {
         INTERPOLATE_VERTEX=0,
-        INTERPOLATE_VARYING
+        INTERPOLATE_VARYING,
     };
 
     struct Options {
-    
+
         Options() : interpolationMode(INTERPOLATE_VERTEX),
-                    generateOffsets(false),    
-                    generateAllLevels(true),   
+                    generateOffsets(false),
+                    generateAllLevels(true),
                     sortBySize(false) { }
-    
+
         int interpolationMode : 2, ///< interpolation mode
-            generateOffsets   : 1, ///< populate optional "_offsets" field          
+            generateOffsets   : 1, ///< populate optional "_offsets" field
             generateAllLevels : 1, ///< vertices at all levels or highest only
             sortBySize        : 1; ///< sort stencils by size (within a level)
     };
@@ -97,8 +103,40 @@ private:
     // (Sort &) Copy a vector of stencils into StencilTables
     template <class T> static void copyStencils(std::vector<T> & src,
         Stencil & dst, bool sortBySize);
-        
+
     std::vector<int> _remap;
+};
+
+/// \brief A specialized factory for LimitStencilTables
+///
+class LimitStencilTablesFactory {
+
+public:
+
+    struct LocationArray {
+
+        LocationArray() : faceID(-1), numLocations(0), u(0), v(0) { }
+
+        int faceID,
+            numLocations;
+
+        float const * u,
+                    * v;
+    };
+
+    typedef std::vector<LocationArray> LocationArrayVec;
+
+    static LimitStencilTables const * Create(TopologyRefiner const & refiner,
+        PatchTables const & patchTables,
+            LocationArrayVec const & locationArrays);
+
+private:
+
+    // Copy a stencil into StencilTables
+    template <class T> static void copyLimitStencil(T const & src, LimitStencil & dst);
+
+    template <class T> static void copyLimitStencils(std::vector<T> & src,
+        LimitStencil & dst);
 };
 
 
