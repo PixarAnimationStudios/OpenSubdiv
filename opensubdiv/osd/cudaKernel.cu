@@ -174,7 +174,7 @@ __global__ void computeStencilsNv(float const *__restrict cvs,
   for( ; i < end ; i += gridDim.x*NUM_OUTPUTS_PER_BLOCK )
   {
     // Each thread computes an element of the final vertex.
-    float x[NUM_ELEMENTS == 4 ? 4 : 1] = {0.f};
+    float x = 0.f;
 
     // Load the offset and the size for each vertex. We have NUM_THREADS_PER_VERTEX threads loading the same value.
     const int offset_i = offsets[i], size_i = sizes[i];
@@ -189,33 +189,46 @@ __global__ void computeStencilsNv(float const *__restrict cvs,
       smem_weights[elementIdx] = j_it < j_end ? weights[j_it] : 0.f;
 
       // Thread now collaborates to load the vertices.
-      if( NUM_ELEMENTS == 4 )
-      {
-        if( j_it < j_end )
-        {
-          float w = smem_weights[elementIdx];
-          float4 tmp = reinterpret_cast<const float4 *__restrict>(cvs)[smem_indices[elementIdx]];
-          x[0] += w*tmp.x;
-          x[1] += w*tmp.y;
-          x[2] += w*tmp.z;
-          x[3] += w*tmp.w;
-        }
-        j += 4;
-      }
-      else
-      {
-        #pragma unroll
-        for( int k = 0 ; k < NUM_ELEMENTS ; ++k, ++j )
-          if( j < j_end )
-            x[0] += smem_weights[k] * cvs[smem_indices[k]*NUM_ELEMENTS + elementIdx];
-      }
+      #pragma unroll
+      for( int k = 0 ; k < NUM_ELEMENTS ; ++k, ++j )
+        if( j < j_end )
+          x += smem_weights[k] * cvs[smem_indices[k]*NUM_ELEMENTS + elementIdx];
     }
 
     // Store the vertex.
-    if( NUM_ELEMENTS == 4 )
-      reinterpret_cast<float4*>(vbuffer)[i] = make_float4(x[0], x[1], x[2], x[3]);
-    else
-      vbuffer[NUM_ELEMENTS*i + elementIdx] = x[0];
+    vbuffer[NUM_ELEMENTS*i + elementIdx] = x;
+  }
+}
+
+template< int NUM_THREADS_PER_BLOCK > 
+__global__ void computeStencilsNv_v4(float const *__restrict cvs, 
+                                     float * vbuffer,
+                                     unsigned char const *__restrict sizes,
+                                     int const *__restrict offsets,
+                                     int const *__restrict indices,
+                                     float const *__restrict weights,
+                                     int start, 
+                                     int end) 
+{
+  // Iterate over the vertices.
+  for( int i = start + blockIdx.x*NUM_THREADS_PER_BLOCK + threadIdx.x ; i < end ; i += gridDim.x*NUM_THREADS_PER_BLOCK )
+  {
+    // Each thread computes an element of the final vertex.
+    float4 x = make_float4(0.f, 0.f, 0.f, 0.f);
+
+    // Iterate over the stencil.
+    for( int j = offsets[i], j_end = offsets[i]+sizes[i] ; j < j_end ; ++j )
+    {
+      float w = weights[j];
+      float4 tmp = reinterpret_cast<const float4 *__restrict>(cvs)[indices[j]];
+      x.x += w*tmp.x;
+      x.y += w*tmp.y;
+      x.z += w*tmp.z;
+      x.w += w*tmp.w;
+    }
+
+    // Store the vertex.
+    reinterpret_cast<float4*>(vbuffer)[i] = x;
   }
 }
 
@@ -259,7 +272,12 @@ CudaComputeStencils(float const *cvs, float * dst,
 
 #ifdef USE_NVIDIA_OPTIMIZATION
     OPT_KERNEL_NVIDIA(3, computeStencilsNv, 2048, 256, (cvs, dst, sizes, offsets, indices, weights, start, end));
-    OPT_KERNEL_NVIDIA(4, computeStencilsNv, 2048, 256, (cvs, dst, sizes, offsets, indices, weights, start, end));
+    //OPT_KERNEL_NVIDIA(4, computeStencilsNv, 2048, 256, (cvs, dst, sizes, offsets, indices, weights, start, end));
+    if( length==4 && stride==length ) {
+      int gridDim = min(2048, (end-start+256-1)/256);
+      computeStencilsNv_v4<256><<<gridDim, 256>>>(cvs, dst, sizes, offsets, indices, weights, start, end);
+      return; 
+    }
 #else
     OPT_KERNEL(3, computeStencils, 512, 32, (cvs, dst, sizes, offsets, indices, weights, start, end));
     OPT_KERNEL(4, computeStencils, 512, 32, (cvs, dst, sizes, offsets, indices, weights, start, end));
