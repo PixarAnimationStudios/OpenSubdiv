@@ -136,22 +136,6 @@ int g_currentShape = 0;
 //------------------------------------------------------------------------------
 Far::LimitStencilTables const * g_controlStencils;
 
-class StencilType {
-public:
-
-    void Clear() {
-        memset( &x, 0, sizeof(StencilType));
-    }
-
-    void AddWithWeight( StencilType const & cv, float weight  ) {
-        x += cv.x * weight;
-        y += cv.y * weight;
-        z += cv.z * weight;
-    }
-
-    float x,y,z;
-};
-
 // Control vertex positions (P(xyz))
 Osd::CpuVertexBuffer * g_controlValues=0;
 
@@ -183,8 +167,8 @@ Osd::CpuEvalStencilsController g_evalCpuCtrl;
 
 
 //------------------------------------------------------------------------------
-#define SCALE_TAN 0.01f
-#define SCALE_NORM 0.01f
+#define SCALE_TAN 0.02f
+#define SCALE_NORM 0.02f
 
 static void
 updateGeom() {
