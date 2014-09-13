@@ -1031,7 +1031,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    static const char windowTitle[] = "OpenSubdiv glStencilViewer";
+    static const char windowTitle[] = "OpenSubdiv glStencilViewer " OPENSUBDIV_VERSION_STRING;
 
 #define CORE_PROFILE
 #ifdef CORE_PROFILE
