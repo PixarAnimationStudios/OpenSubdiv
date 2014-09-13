@@ -59,13 +59,13 @@ static const char *transitionShaderSource =
 
 GLDrawRegistryBase::~GLDrawRegistryBase() {}
 
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
 GLDrawSourceConfig *
 GLDrawRegistryBase::_CreateDrawSourceConfig(
     DrawContext::PatchDescriptor const & desc)
 {
     GLDrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     sconfig->commonShader.source = commonShaderSource;
     
     if (IsPtexEnabled()) {
@@ -182,10 +182,17 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->tessControlShader.AddDefine("OSD_PATCH_CORNER");
         }
     }
-#endif
 
     return sconfig;
 }
+#else
+GLDrawSourceConfig *
+GLDrawRegistryBase::_CreateDrawSourceConfig(
+    DrawContext::PatchDescriptor const &)
+{
+    return _NewDrawSourceConfig();
+}
+#endif
 
 static GLuint
 _CompileShader(

@@ -334,6 +334,29 @@ TopologyRefinerFactory<MESH>::assignComponentTags(TopologyRefiner& /* refiner */
 
 #endif
 
+//
+// Specialization for raw topology data
+//
+template <>
+void
+TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::resizeComponentTopology(
+    TopologyRefiner & refiner, TopologyDescriptor const & desc);
+
+template <>
+void
+TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignComponentTopology(
+    TopologyRefiner & refiner, TopologyDescriptor const & desc);
+
+template <>
+void
+TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignFaceVaryingTopology(
+    TopologyRefiner & refiner, TopologyDescriptor const & desc);
+
+template <>
+void
+TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignComponentTags(
+    TopologyRefiner & refiner, TopologyDescriptor const & desc);
+
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION

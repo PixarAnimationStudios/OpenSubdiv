@@ -176,6 +176,7 @@ GLDrawContext::create(Far::PatchTables const & patchTables, int numVertexElement
     return true;
 }
 
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
 bool
 GLDrawContext::SetFVarDataTexture(
     Far::PatchTables const & patchTables, int fvarWidth, FVarData const & fvarData) {
@@ -192,11 +193,19 @@ GLDrawContext::SetFVarDataTexture(
     }
     return false;
 }
+#else
+bool
+GLDrawContext::SetFVarDataTexture(
+    Far::PatchTables const &, int, FVarData const &) {
 
+    return false;
+}
+#endif
+
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
 void
 GLDrawContext::updateVertexTexture(GLuint vbo)
 {
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
 
 #if defined(GL_EXT_direct_state_access)
     if (glTextureBufferEXT) {
@@ -209,9 +218,13 @@ GLDrawContext::updateVertexTexture(GLuint vbo)
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
         glBindTexture(GL_TEXTURE_BUFFER, 0);
     }
-
-#endif
 }
+#else
+void
+GLDrawContext::updateVertexTexture(GLuint)
+{
+}
+#endif
 
 
 }  // end namespace Osd
