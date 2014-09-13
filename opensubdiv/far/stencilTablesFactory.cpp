@@ -1079,7 +1079,7 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
 
                 getBSplineWeightsAtUV(u, v, Q, Qdu, Qdv);
 
-                float scale = (1 << bits.GetDepth());
+                float scale = float(1 << bits.GetDepth());
                 for (int k=0; k<16; ++k) {
                     Qdu[k] *= scale;
                     Qdv[k] *= scale;
