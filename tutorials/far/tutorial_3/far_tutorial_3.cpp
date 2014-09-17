@@ -179,7 +179,7 @@ int main(int, char **) {
 
     // Create a face-varying channel descriptor
     Descriptor::FVarChannel uvs;
-    uvs.numValues = 24; // 6 faces * 4 vertices each
+    uvs.numValues = g_nuvs;
     uvs.valueIndices = g_uvIndices;
 
     // Add the channel topology to the main descriptor
