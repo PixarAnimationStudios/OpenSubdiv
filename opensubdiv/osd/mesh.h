@@ -127,6 +127,7 @@ public:
             MeshBitset bits = MeshBitset()) :
 
             _refiner(refiner),
+            _patchTables(0),
             _vertexBuffer(0),
             _varyingBuffer(0),
             _computeContext(0),
@@ -146,12 +147,16 @@ public:
 
     Mesh(ComputeController * computeController,
             Far::TopologyRefiner * refiner,
+            Far::PatchTables * patchTables,
+            Far::KernelBatchVector const & kernelBatches,
             VertexBuffer * vertexBuffer,
             VertexBuffer * varyingBuffer,
             ComputeContext * computeContext,
             DrawContext * drawContext) :
 
             _refiner(refiner),
+            _patchTables(patchTables),
+            _kernelBatches(kernelBatches),
             _vertexBuffer(vertexBuffer),
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),

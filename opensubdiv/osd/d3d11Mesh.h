@@ -77,6 +77,8 @@ public:
 
     Mesh(ComputeController * computeController,
             Far::TopologyRefiner * refiner,
+            Far::PatchTables * patchTables,
+            Far::KernelBatchVector const & kernelBatches,
             VertexBuffer * vertexBuffer,
             VertexBuffer * varyingBuffer,
             ComputeContext * computeContext,
@@ -84,6 +86,8 @@ public:
             ID3D11DeviceContext *d3d11DeviceContext) :
 
             _refiner(refiner),
+            _patchTables(patchTables),
+            _kernelBatches(kernelBatches),
             _vertexBuffer(vertexBuffer),
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
@@ -280,6 +284,8 @@ public:
 
     Mesh(ComputeController * computeController,
             Far::TopologyRefiner * refiner,
+            Far::PatchTables * patchTables,
+            Far::KernelBatchVector const & kernelBatches,
             VertexBuffer * vertexBuffer,
             VertexBuffer * varyingBuffer,
             ComputeContext * computeContext,
@@ -287,6 +293,8 @@ public:
             ID3D11DeviceContext *d3d11DeviceContext) :
 
             _refiner(refiner),
+            _patchTables(patchTables),
+            _kernelBatches(kernelBatches),
             _vertexBuffer(vertexBuffer),
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
