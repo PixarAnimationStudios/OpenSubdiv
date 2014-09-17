@@ -120,6 +120,24 @@ class StencilTables {
 
 public:
 
+    /// \brief Public constructor
+    ///
+    /// @param numControlVertices   Number of control vertices
+    ///
+    /// @param sizes                Number of coefficients for each stencil
+    ///
+    /// @param offsets              Offset to the start of each stencil
+    ///
+    /// @param indices              Indices of contributing coarse vertices
+    ///
+    /// @param weights              Stencil weight coefficients
+    ///
+    StencilTables(int numControlVertices, std::vector<unsigned char> const & sizes,
+        std::vector<int> const & offsets, std::vector<int> const & indices,
+        std::vector<float> const & weights)
+        : _numControlVertices(numControlVertices), _sizes(sizes), _offsets(offsets),
+          _indices(indices), _weights(weights) { }
+
     /// \brief Returns the number of stencils in the table
     int GetNumStencils() const {
         return (int)_sizes.size();
@@ -182,6 +200,8 @@ public:
     }
 
 protected:
+
+    StencilTables() { }
 
     // Update values by appling cached stencil weights to new control values
     template <class T> void _Update( T const *controlValues, T *values,
