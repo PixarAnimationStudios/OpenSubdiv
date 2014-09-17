@@ -550,6 +550,7 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
 
     assert(refiner.IsUniform());
 
+    // ensure that triangulateQuads is only set for quadrilateral schemes
     options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::TYPE_BILINEAR or
                                  refiner.GetSchemeType()==Sdc::TYPE_CATMARK);
 
