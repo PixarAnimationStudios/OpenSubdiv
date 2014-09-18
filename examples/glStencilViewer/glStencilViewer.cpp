@@ -696,6 +696,8 @@ display() {
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
 
+    glEnable(GL_DEPTH_TEST);
+
     if (g_drawCageEdges)
         drawCageEdges();
 
