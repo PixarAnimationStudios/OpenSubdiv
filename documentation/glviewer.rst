@@ -49,10 +49,10 @@ DESCRIPTION
 uniform and feature adaptive subdivision schemes to a collection of geometric
 shapes. Multiple controls are available to experiment with the algorithms.
 
-.. image:: images/glviewer.jpg 
+.. image:: images/glviewer.png 
    :width: 400px
    :align: center
-   :target: images/glviewer.jpg 
+   :target: images/glviewer.png 
 
 OPTIONS
 =======

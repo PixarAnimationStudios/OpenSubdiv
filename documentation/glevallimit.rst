@@ -45,10 +45,10 @@ Eval module. On the given shape, random samples are generated in local u,v space
 Vertex, varying and face-varying data is then computed on the surface limit and
 displayed as colors. Multiple controls are available to experiment with the algorithms.
 
-.. image:: images/evalLimit_hedit0.jpg 
+.. image:: images/glevallimit.jpg 
    :width: 400px
    :align: center
-   :target: images/evalLimit_hedit0.jpg 
+   :target: images/glevallimit.jpg 
 
 OPTIONS
 =======
