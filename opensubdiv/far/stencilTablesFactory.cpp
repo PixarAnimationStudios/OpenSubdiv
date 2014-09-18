@@ -407,7 +407,7 @@ void
 ProtoStencilAllocator::PushBackVertex(
     ProtoStencil & stencil, int index, float weight) {
 
-    assert(weight>0.0f);
+    assert(weight!=0.0f);
 
     unsigned char * size    = getSize(stencil.GetID());
     int           * indices = getIndices(stencil.GetID());
@@ -600,18 +600,24 @@ ProtoStencil::AddWithWeight(ProtoStencil const & src, float weight) {
 
     for (int i=0; i<*srcSize; ++i) {
 
+        assert(srcWeights[i]!=0.0f);
+        float w = weight * srcWeights[i];
+
+        if (w==0.0f) {
+            continue;
+        }
+
         int vertIndex = srcIndices[i];
 
         // Attempt to locate the vertex index in the list of supporting vertices
         // of the destination stencil.
         int n = findVertex(vertIndex);
         if (n<0) {
-            _alloc->PushBackVertex(*this, vertIndex, weight * srcWeights[i]);
+            _alloc->PushBackVertex(*this, vertIndex, w);
         } else {
             float * dstWeights = _alloc->getWeights(this->GetID());
-            assert(srcWeights[i]>0.0f);
-            dstWeights[n] += weight * srcWeights[i];
-            assert(dstWeights[n]>0.0f);
+            dstWeights[n] += w;
+            assert(dstWeights[n]!=0.0f);
         }
     }
 }
@@ -662,8 +668,8 @@ ProtoLimitStencil::AddWithWeight(int vertIndex,
               * dstDvWeights = _alloc->getDvWeights(this->GetID());
 
           dstWeights[n] += weight;
-        dstDuWeights[n] += duWeight;
-        dstDvWeights[n] += dvWeight;
+          dstDuWeights[n] += duWeight;
+          dstDvWeights[n] += dvWeight;
     }
 }
 
@@ -684,21 +690,25 @@ ProtoLimitStencil::AddWithWeight(Stencil const & src,
 
         int vertIndex = srcIndices[i];
 
+        float srcWeight = srcWeights[i];
+
+        if (srcWeight==0.0f) {
+            continue;
+        }
+
         int n = findVertex(vertIndex);
 
         if (n<0) {
             _alloc->PushBackVertex(*this, vertIndex,
-                weight * srcWeights[i], duWeight, dvWeight);
+                weight * srcWeight, duWeight*srcWeight, dvWeight*srcWeight);
         } else {
             float   * dstWeights = _alloc->getWeights(this->GetID()),
                   * dstDuWeights = _alloc->getDuWeights(this->GetID()),
                   * dstDvWeights = _alloc->getDvWeights(this->GetID());
 
-            //assert(srcWeights[i]!=0.0f);
-
-              dstWeights[n] += weight * srcWeights[i];
-            dstDuWeights[n] += duWeight * srcWeights[i];
-            dstDvWeights[n] += dvWeight * srcWeights[i];
+              dstWeights[n] +=   weight * srcWeight;
+            dstDuWeights[n] += duWeight * srcWeight;
+            dstDvWeights[n] += dvWeight * srcWeight;
         }
     }
 }
@@ -718,15 +728,18 @@ getBSplineWeights(float t, float point[4], float deriv[3]) {
           t3 = 3*t2*t,
           w0 = 1 - t;
 
+    assert(point);
     point[0] = (w0*w0*w0) / 6.0f;
     point[1] = (t3 - 6.0f*t2 + 4.0f) / 6.0f;
     point[2] = (3.0f*t2 - t3 + 3.0f*t + 1.0f) / 6.0f;
     point[3] = t3 / 18.0f;
 
+
     // The weights for the three uniform quadratic basis functions are:
     // (1/2)(1-t)^2
     // (1/2)(1 + 2t - 2t^2)
     // (1/2)t^2
+
     if (deriv) {
         deriv[0] = 0.5f * w0 * w0;
         deriv[1] = 0.5f + t - t2;
@@ -734,9 +747,21 @@ getBSplineWeights(float t, float point[4], float deriv[3]) {
     }
 }
 
+typedef OpenSubdiv::Far::PatchParam::BitField BitField;
+
 static void
-getBSplineWeightsAtUV(float u, float v,
+getBSplineWeightsAtUV(BitField bits, float u, float v,
     float point[16], float deriv1[16], float deriv2[16]) {
+
+    int const rots[4][16] = { { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+                              { 12, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3 },
+                              { 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 },
+                              { 3, 7, 11, 15, 2, 6, 10, 14, 1, 5, 9, 13, 0, 4, 8, 12 } };
+
+    bits.Normalize(u, v);
+
+    assert(bits.GetRotation()<4);
+    int const * r = rots[bits.GetRotation()];
 
     float uWeights[4], vWeights[4], duWeights[3], dvWeights[3];
 
@@ -750,7 +775,7 @@ getBSplineWeightsAtUV(float u, float v,
         memset(point,  0, 16*sizeof(float));
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                point[4*i+j] += uWeights[j] * vWeights[i];
+                point[r[4*i+j]] += uWeights[j] * vWeights[i];
             }
         }
     }
@@ -767,10 +792,10 @@ getBSplineWeightsAtUV(float u, float v,
             float prevWeight = 0.0f;
             for (int j = 0; j < 3; ++j) {
                 float weight = duWeights[j]*vWeights[i];
-                deriv1[4*i+j] += prevWeight - weight;
+                deriv1[r[4*i+j]] += prevWeight - weight;
                 prevWeight = weight;
             }
-            deriv1[4*i+3]+=prevWeight;
+            deriv1[r[4*i+3]]+=prevWeight;
         }
 
         memset(deriv2, 0, 16*sizeof(float));
@@ -778,10 +803,10 @@ getBSplineWeightsAtUV(float u, float v,
             float prevWeight = 0.0f;
             for (int i = 0; i < 3; ++i) {
                 float weight = uWeights[j]*dvWeights[i];
-                deriv2[4*i+j]+=prevWeight - weight;
+                deriv2[r[4*i+j]]+=prevWeight - weight;
                 prevWeight = weight;
             }
-            deriv2[12+j] += prevWeight;
+            deriv2[r[12+j]] += prevWeight;
         }
     }
 }
@@ -1064,12 +1089,13 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
 
             if (handle) {
 
+                // XXXX manuelk - the bicubic limit patch interpolation code
+                // below will be refactored into Far::PatchTables as a templated
+                // Limit<VERTEX>() function
+
                 // normalize & rotate (u,v) to the sub-patch
                 PatchParam::BitField const & bits =
                     paramTable[handle->patchIdx].bitField;
-
-                bits.Normalize(u, v);
-                bits.Rotate(u, v);
 
                 PatchTables::PatchArray const & parray =
                     parrayVec[handle->patchArrayIdx];
@@ -1077,7 +1103,7 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
                 unsigned int const * cvs =
                     &ptable[ parray.GetVertIndex() + handle->vertexOffset ];
 
-                getBSplineWeightsAtUV(u, v, Q, Qdu, Qdv);
+                getBSplineWeightsAtUV(bits, u, v, Q, Qdu, Qdv);
 
                 float scale = float(1 << bits.GetDepth());
                 for (int k=0; k<16; ++k) {
@@ -1093,180 +1119,119 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
                 PatchTables::Type type = parray.GetDescriptor().GetType();
                 if (type==PatchTables::REGULAR) {
 
-                    if (cvStencils->GetNumStencils()) {
-                        for (int k=0; k<16; ++k) {
-                            int cv = cvs[k];
-                            if (cv<numCoarseVerts) {
-                                dst.AddWithWeight(cv, Q[k], Qdu[k], Qdv[k]);
-                            } else {
-                                Stencil src = cvStencils->GetStencil(cv-numCoarseVerts);
-                                dst.AddWithWeight(src, Q[k], Qdu[k], Qdv[k]);
-                            }
-                        }
-                    } else {
+                    //
+                    //  v0 -- v1 -- v2 -- v3
+                    //   |.....|.....|.....|
+                    //   |.....|.....|.....|
+                    //  v4 -- v5 -- v6 -- v7
+                    //   |.....|.....|.....|
+                    //   |.....|.....|.....|
+                    //  v8 -- v9 -- v10-- v11
+                    //   |.....|.....|.....|
+                    //   |.....|.....|.....|
+                    //  v12-- v13-- v14-- v15
+                    //
+
+                    if (bits.GetDepth()==0) {
                         for (int k=0; k<16; ++k) {
                             dst.AddWithWeight(cvs[k], Q[k], Qdu[k], Qdv[k]);
                         }
+                    } else {
+                        for (int k=0; k<16; ++k) {
+                            dst.AddWithWeight(cvStencils->GetStencil(cvs[k]-numCoarseVerts), Q[k], Qdu[k], Qdv[k]);
+                        }
                     }
+
                 } else if (type==PatchTables::BOUNDARY) {
 
-                    if (cvStencils->GetNumStencils()) {
-
-                        // mirror the missing vertices (M)
-                        //
-                        //  M0 -- M1 -- M2 -- M3 (corner)
-                        //   |     |     |     |
-                        //   |     |     |     |
-                        //  v0 -- v1 -- v2 -- v3    M : mirrored
-                        //   |.....|.....|.....|
-                        //   |.....|.....|.....|
-                        //  v4 -- v5 -- v6 -- v7    v : original Cv
-                        //   |.....|.....|.....|
-                        //   |.....|.....|.....|
-                        //  v8 -- v9 -- v10-- v11
-                        //
+                    // mirror the missing vertices (M)
+                    //
+                    //  M0 -- M1 -- M2 -- M3 (corner)
+                    //   |     |     |     |
+                    //   |     |     |     |
+                    //  v0 -- v1 -- v2 -- v3    M : mirrored
+                    //   |.....|.....|.....|
+                    //   |.....|.....|.....|
+                    //  v4 -- v5 -- v6 -- v7    v : original Cv
+                    //   |.....|.....|.....|
+                    //   |.....|.....|.....|
+                    //  v8 -- v9 -- v10-- v11
+                    //
+                    if (bits.GetDepth()==0) {
                         for (int k=0; k<4; ++k) {
-                            int cv0 = cvs[k],
-                                cv1 = cvs[k+4];
-
-                            if (cv0<numCoarseVerts) {
-                                dst.AddWithWeight(cv0, 2.0f*Q[k], 2.0f*Qdu[k], 2.0f*Qdv[k]);
-                            } else {
-                                Stencil src = cvStencils->GetStencil(cv0-numCoarseVerts);
-                                dst.AddWithWeight(src, 2.0f*Q[k], 2.0f*Qdu[k], 2.0f*Qdv[k]);
-                            }
-
-                            if (cv1<numCoarseVerts) {
-                                dst.AddWithWeight(cv1, -1.0f*Q[k], -1.0f*Qdu[k], -1.0f*Qdv[k]);
-                            } else {
-                                Stencil src = cvStencils->GetStencil(cv1-numCoarseVerts);
-                                dst.AddWithWeight(src, -1.0f*Q[k], -1.0f*Qdu[k], -1.0f*Qdv[k]);
-                            }
+                            dst.AddWithWeight(cvs[k],    2.0f*Q[k],  2.0f*Qdu[k],  2.0f*Qdv[k]);
+                            dst.AddWithWeight(cvs[k+4], -1.0f*Q[k], -1.0f*Qdu[k], -1.0f*Qdv[k]);
                         }
-
-                        // weight v0 - v11
                         for (int k=0; k<12; ++k) {
-                            int cv = cvs[k];
-                            if (cv<numCoarseVerts) {
-                                dst.AddWithWeight(cv, Q[k+4], Qdu[k+4], Qdv[k+4]);
-                            } else {
-                                Stencil src = cvStencils->GetStencil(cv-numCoarseVerts);
-                                dst.AddWithWeight(src, Q[k+4], Qdu[k+4], Qdv[k+4]);
-                            }
+                            dst.AddWithWeight(cvs[k], Q[k+4], Qdu[k+4], Qdv[k+4]);
                         }
                     } else {
                         for (int k=0; k<4; ++k) {
-                            int cv0 = cvs[k],
-                                cv1 = cvs[k+4];
-                            dst.AddWithWeight(cv0,  2.0f*Q[k],  2.0f*Qdu[k],  2.0f*Qdv[k]);
-                            dst.AddWithWeight(cv1, -1.0f*Q[k], -1.0f*Qdu[k], -1.0f*Qdv[k]);
+                            dst.AddWithWeight(cvStencils->GetStencil(cvs[k  ]-numCoarseVerts),  2.0f*Q[k],  2.0f*Qdu[k],  2.0f*Qdv[k]);
+                            dst.AddWithWeight(cvStencils->GetStencil(cvs[k+4]-numCoarseVerts), -1.0f*Q[k], -1.0f*Qdu[k], -1.0f*Qdv[k]);
                         }
                         for (int k=0; k<12; ++k) {
-                            int cv = cvs[k];
-                            dst.AddWithWeight(cv, Q[k+4], Qdu[k+4], Qdv[k+4]);
+                            dst.AddWithWeight(cvStencils->GetStencil(cvs[k]-numCoarseVerts), Q[k+4], Qdu[k+4], Qdv[k+4]);
                         }
                     }
+
                 } else if (type==PatchTables::CORNER) {
-                    if (cvStencils->GetNumStencils()) {
 
-                        // mirror the missing vertices (M)
-                        //
-                        //  M0 -- M1 -- M2 -- M3 (corner)
-                        //   |     |     |     |
-                        //   |     |     |     |
-                        //  v0 -- v1 -- v2 -- M4    M : mirrored
-                        //   |.....|.....|     |
-                        //   |.....|.....|     |
-                        //  v3.--.v4.--.v5 -- M5    v : original Cv
-                        //   |.....|.....|     |
-                        //   |.....|.....|     |
-                        //  v6 -- v7 -- v8 -- M6
-                        //
+                    // mirror the missing vertices (M)
+                    //
+                    //  M0 -- M1 -- M2 -- M3 (corner)
+                    //   |     |     |     |
+                    //   |     |     |     |
+                    //  v0 -- v1 -- v2 -- M4    M : mirrored
+                    //   |.....|.....|     |
+                    //   |.....|.....|     |
+                    //  v3.--.v4.--.v5 -- M5    v : original Cv
+                    //   |.....|.....|     |
+                    //   |.....|.....|     |
+                    //  v6 -- v7 -- v8 -- M6
+                    //
+                    if (bits.GetDepth()==0) {
                         for (int k=0; k<3; ++k) { // M0 - M2
-                            int cv0 = cvs[k],
-                                cv1 = cvs[k+3];
-
-                            if (cv0<numCoarseVerts) {
-                                dst.AddWithWeight(cv0, 2.0f*Q[k], 2.0f*Qdu[k], 2.0f*Qdv[k]);
-                            } else {
-                                Stencil src = cvStencils->GetStencil(cv0-numCoarseVerts);
-                                dst.AddWithWeight(src, 2.0f*Q[k], 2.0f*Qdu[k], 2.0f*Qdv[k]);
-                            }
-
-                            if (cv1<numCoarseVerts) {
-                                dst.AddWithWeight(cv1, -1.0f*Q[k], -1.0f*Qdu[k], -1.0f*Qdv[k]);
-                            } else {
-                                Stencil src = cvStencils->GetStencil(cv1-numCoarseVerts);
-                                dst.AddWithWeight(src, -1.0f*Q[k], -1.0f*Qdu[k], -1.0f*Qdv[k]);
-                            }
+                            dst.AddWithWeight(cvs[k  ],  2.0f*Q[k],  2.0f*Qdu[k],  2.0f*Qdv[k]);
+                            dst.AddWithWeight(cvs[k+3], -1.0f*Q[k], -1.0f*Qdu[k], -1.0f*Qdv[k]);
                         }
-
                         for (int k=0; k<3; ++k) { // M4 - M6
-                            int cv0 = cvs[k*3+2],
-                                cv1 = cvs[k*3+1],
-                                widx = (k+1)*4 + 3;
-
-                            if (cv0<numCoarseVerts) {
-                                dst.AddWithWeight(cv0, 2.0f*Q[widx], 2.0f*Qdu[widx], 2.0f*Qdv[widx]);
-                            } else {
-                                Stencil src = cvStencils->GetStencil(cv0-numCoarseVerts);
-                                dst.AddWithWeight(src, 2.0f*Q[widx], 2.0f*Qdu[widx], 2.0f*Qdv[widx]);
-                            }
-
-                            if (cv1<numCoarseVerts) {
-                                dst.AddWithWeight(cv1, -1.0f*Q[widx], -1.0f*Qdu[widx], -1.0f*Qdv[widx]);
-                            } else {
-                                Stencil src = cvStencils->GetStencil(cv1-numCoarseVerts);
-                                dst.AddWithWeight(src, -1.0f*Q[widx], -1.0f*Qdu[widx], -1.0f*Qdv[widx]);
-                            }
+                            int idx = (k+1)*4 + 3;
+                            dst.AddWithWeight(cvs[k*3+2],  2.0f*Q[idx],  2.0f*Qdu[idx],  2.0f*Qdv[idx]);
+                            dst.AddWithWeight(cvs[k*3+1], -1.0f*Q[idx], -1.0f*Qdu[idx], -1.0f*Qdv[idx]);
                         }
-                        
-
-                        {   // M3 = -2.v1 + 4.v2 + v4 - 2.v5
-                            int cv = cvs[1];
-                            if (cv<numCoarseVerts) {
-                                dst.AddWithWeight(cv, -2.0f*Q[3], -2.0f*Qdu[3], -2.0f*Qdv[3]);
-                            } else {
-                                Stencil src = cvStencils->GetStencil(cv-numCoarseVerts);
-                                dst.AddWithWeight(src, -2.0f*Q[3], -2.0f*Qdu[3], -2.0f*Qdv[3]);
-                            }
-                            cv = cvs[2];
-                            if (cv<numCoarseVerts) {
-                                dst.AddWithWeight(cv, 4.0f*Q[3], 4.0f*Qdu[3], 4.0f*Qdv[3]);
-                            } else {
-                                Stencil src = cvStencils->GetStencil(cv-numCoarseVerts);
-                                dst.AddWithWeight(src, 4.0f*Q[3], 4.0f*Qdu[3], 4.0f*Qdv[3]);
-                            }
-                            cv = cvs[4];
-                            if (cv<numCoarseVerts) {
-                                dst.AddWithWeight(cv, Q[3], Qdu[3], Qdv[3]);
-                            } else {
-                                Stencil src = cvStencils->GetStencil(cv-numCoarseVerts);
-                                dst.AddWithWeight(src, Q[3], Qdu[3], Qdv[3]);
-                            }
-                            cv = cvs[5];
-                            if (cv<numCoarseVerts) {
-                                dst.AddWithWeight(cv, -2.0f*Q[3], -2.0f*Qdu[3], -2.0f*Qdv[3]);
-                            } else {
-                                Stencil src = cvStencils->GetStencil(cv-numCoarseVerts);
-                                dst.AddWithWeight(src, -2.0f*Q[3], -2.0f*Qdu[3], -2.0f*Qdv[3]);
-                            }
-                        }
-
-                        // weight v0 - v8
-                        for (int y=0; y<3; ++y) {
+                        // M3 = -2.v1 + 4.v2 + v4 - 2.v5
+                        dst.AddWithWeight(cvs[1], -2.0f*Q[3], -2.0f*Qdu[3], -2.0f*Qdv[3]);
+                        dst.AddWithWeight(cvs[2],  4.0f*Q[3],  4.0f*Qdu[3],  4.0f*Qdv[3]);
+                        dst.AddWithWeight(cvs[4],  1.0f*Q[3],  1.0f*Qdu[3],  1.0f*Qdv[3]);
+                        dst.AddWithWeight(cvs[5], -2.0f*Q[3], -2.0f*Qdu[3], -2.0f*Qdv[3]);
+                        for (int y=0; y<3; ++y) { // v0 - v8
                             for (int x=0; x<3; ++x) {
-                                int cv = cvs[y*3+x], widx = y*4+x+4;
-                                if (cv<numCoarseVerts) {
-                                    dst.AddWithWeight(cv, Q[widx], Qdu[widx], Qdv[widx]);
-                                } else {
-                                    Stencil src = cvStencils->GetStencil(cv-numCoarseVerts);
-                                    dst.AddWithWeight(src, Q[widx], Qdu[widx], Qdv[widx]);
-                                }
+                                int idx = y*4+x+4;
+                                dst.AddWithWeight(cvs[y*3+x], Q[idx], Qdu[idx], Qdv[idx]);
                             }
                         }
                     } else {
-                        assert(0); // feature adaptive is not supposed to produce corner patches at 0 depth
+                        for (int k=0; k<3; ++k) { // M0 - M2
+                            dst.AddWithWeight(cvStencils->GetStencil(cvs[k  ]-numCoarseVerts),  2.0f*Q[k],  2.0f*Qdu[k],  2.0f*Qdv[k]);
+                            dst.AddWithWeight(cvStencils->GetStencil(cvs[k+3]-numCoarseVerts), -1.0f*Q[k], -1.0f*Qdu[k], -1.0f*Qdv[k]);
+                        }
+                        for (int k=0; k<3; ++k) { // M4 - M6
+                            int idx = (k+1)*4 + 3;
+                            dst.AddWithWeight(cvStencils->GetStencil(cvs[k*3+2]-numCoarseVerts),  2.0f*Q[idx],  2.0f*Qdu[idx],  2.0f*Qdv[idx]);
+                            dst.AddWithWeight(cvStencils->GetStencil(cvs[k*3+1]-numCoarseVerts), -1.0f*Q[idx], -1.0f*Qdu[idx], -1.0f*Qdv[idx]);
+                        }
+                        // M3 = -2.v1 + 4.v2 + v4 - 2.v5
+                        dst.AddWithWeight(cvStencils->GetStencil(cvs[1]-numCoarseVerts), -2.0f*Q[3], -2.0f*Qdu[3], -2.0f*Qdv[3]);
+                        dst.AddWithWeight(cvStencils->GetStencil(cvs[2]-numCoarseVerts),  4.0f*Q[3],  4.0f*Qdu[3],  4.0f*Qdv[3]);
+                        dst.AddWithWeight(cvStencils->GetStencil(cvs[4]-numCoarseVerts),  1.0f*Q[3],  1.0f*Qdu[3],  1.0f*Qdv[3]);
+                        dst.AddWithWeight(cvStencils->GetStencil(cvs[5]-numCoarseVerts), -2.0f*Q[3], -2.0f*Qdu[3], -2.0f*Qdv[3]);
+                        for (int y=0; y<3; ++y) { // v0 - v8
+                            for (int x=0; x<3; ++x) {
+                                int idx = y*4+x+4;
+                                dst.AddWithWeight(cvStencils->GetStencil(cvs[y*3+x]-numCoarseVerts), Q[idx], Qdu[idx], Qdv[idx]);
+                            }
+                        }
                     }
                 } else {
                     // XXXX Gregory or die ?
