@@ -329,10 +329,10 @@ createMesh(ShapeDesc const & shapeDesc, int isolationLevel) {
     for (int face=0; face<nfaces; ++face) {
     
         LocationArray & larray = locs[face];
-        larray.faceID = face;
+        larray.ptexIdx = face;
         larray.numLocations = g_nsamples;
-        larray.u = uPtr;
-        larray.v = vPtr;
+        larray.s = uPtr;
+        larray.t = vPtr;
 
         for (int j=0; j<g_nsamples; ++j, ++uPtr, ++vPtr) {
             *uPtr = (float)rand()/(float)RAND_MAX;

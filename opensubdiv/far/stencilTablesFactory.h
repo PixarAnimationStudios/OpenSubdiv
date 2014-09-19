@@ -65,13 +65,15 @@ public:
 
         Options() : interpolationMode(INTERPOLATE_VERTEX),
                     generateOffsets(false),
+                    generateControlVerts(false),
                     generateAllLevels(true),
                     sortBySize(false) { }
 
-        int interpolationMode : 2, ///< interpolation mode
-            generateOffsets   : 1, ///< populate optional "_offsets" field
-            generateAllLevels : 1, ///< vertices at all levels or highest only
-            sortBySize        : 1; ///< sort stencils by size (within a level)
+        int interpolationMode    : 2, ///< interpolation mode
+            generateOffsets      : 1, ///< populate optional "_offsets" field
+            generateControlVerts : 1, ///< generate stencils for control vertices
+            generateAllLevels    : 1, ///< vertices at all levels or highest only
+            sortBySize           : 1; ///< sort stencils by size (within a level)
     };
 
     /// \brief Instantiates StencilTables from TopologyRefiner that have been
@@ -104,24 +106,34 @@ private:
     template <class T> static void copyStencils(std::vector<T> & src,
         Stencil & dst, bool sortBySize);
 
+    // Generate stencils for the control vertices (single weight = 1.0f)
+    static void generateControlVertStencils(int numControlVerts, Stencil & dst);
+
     std::vector<int> _remap;
 };
 
 /// \brief A specialized factory for LimitStencilTables
 ///
+/// The LimitStencilTablesFactory creates tables of limit stencils. Limit
+/// stencils can interpolate any arbitrary location of the limit surface.
+///
+/// Locations are expressed as a combination of ptex face index and normalized
+/// (s,t) patch coordinates
+///
 class LimitStencilTablesFactory {
 
 public:
 
+    /// \brief Descriptor for limit surface locations
     struct LocationArray {
 
-        LocationArray() : faceID(-1), numLocations(0), u(0), v(0) { }
+        LocationArray() : ptexIdx(-1), numLocations(0), s(0), t(0) { }
 
-        int faceID,
-            numLocations;
+        int ptexIdx,        ///< ptex face index
+            numLocations;   ///< number of (u,v) coordinates in the array
 
-        float const * u,
-                    * v;
+        float const * s,    ///< array of u coordinates
+                    * t;    ///< array of v coordinates
     };
 
     typedef std::vector<LocationArray> LocationArrayVec;

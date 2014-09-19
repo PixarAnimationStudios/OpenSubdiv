@@ -26,6 +26,7 @@
 # source & headers
 set(SOURCE_FILES
      patchMap.cpp
+     patchTables.cpp
      patchTablesFactory.cpp
      stencilTablesFactory.cpp
      topologyRefiner.cpp
@@ -39,8 +40,8 @@ set(PUBLIC_HEADER_FILES
     patchMap.h
     patchTables.h
     patchTablesFactory.h
-    stencilTablesFactory.h
     stencilTables.h
+    stencilTablesFactory.h
     topologyRefiner.h
     topologyRefinerFactory.h
     types.h

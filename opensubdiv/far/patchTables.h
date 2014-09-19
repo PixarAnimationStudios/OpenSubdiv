@@ -303,6 +303,13 @@ public:
 
     typedef std::vector<PatchArray> PatchArrayVector;
 
+    /// \brief Handle that can be used as unique patch identifier within PatchTables
+    struct PatchHandle {
+        unsigned int patchArrayIdx,  // OsdPatchArray containing the patch
+                     patchIdx,       // Absolute index of the patch
+                     vertexOffset;   // Offset to the first CV of the patch
+    };
+
     /// \brief Get the table of patch control vertices
     PTable const & GetPatchTable() const { return _patches; }
 
@@ -450,19 +457,43 @@ public:
     /// @param maxValence        Highest vertex valence allowed in the mesh
     ///
     PatchTables(PatchArrayVector const & patchArrays,
-                   PTable const & patches,
-                   VertexValenceTable const * vertexValences,
-                   QuadOffsetTable const * quadOffsets,
-                   PatchParamTable const * patchParams,
-                   FVarPatchTables const * fvarPatchTables,
-                   int maxValence);
+                PTable const & patches,
+                VertexValenceTable const * vertexValences,
+                QuadOffsetTable const * quadOffsets,
+                PatchParamTable const * patchParams,
+                FVarPatchTables const * fvarPatchTables,
+                int maxValence);
 
     /// \brief Destructor
     ~PatchTables() { delete _fvarPatchTables; }
 
+    /// \brief Interpolate the (s,y) parametric location of a patch
+    ///
+    /// @param handle  A patch handle indentifying the sub-patch containing the
+    ///                (s,t) location
+    ///
+    /// @param s       Patch coordinate (in coarse face normalized space)
+    ///
+    /// @param t       Patch coordinate (in coarse face normalized space)
+    ///
+    /// @param src     Source primvar buffer (control vertices data)
+    ///
+    /// @param dst     Destination primvar buffer (limit surface data)
+    ///
+    template <class T, class U> void Interpolate(PatchHandle const & handle,
+        float s, float t, T const src, U * dst) const;
+
+
 private:
 
     friend class PatchTablesFactory;
+
+    // Returns bi-cubic interpolation coefficients for a given (u,v) location
+    // on a b-spline patch
+    static void getBSplineWeightsAtUV(PatchParam::BitField bits, float s, float t,
+        float point[16], float deriv1[16], float deriv2[16]);
+
+private:
 
     // Returns the array of patches of type "desc", or NULL if there aren't any in the primitive
     inline PatchArray * findPatchArray( Descriptor desc );
@@ -795,6 +826,155 @@ inline int
 PatchTables::GetNumPatches() const {
     // there is one PatchParam record for each patch in the mesh
     return (int)GetPatchParamTable().size();
+}
+
+template <class T, class U>
+inline void
+InterpolateRegularPatch(unsigned int const * cvs,
+    float const * Q, float const *Qd1, float const *Qd2,
+        T const src, U * dst) {
+
+    //
+    //  v0 -- v1 -- v2 -- v3
+    //   |.....|.....|.....|
+    //   |.....|.....|.....|
+    //  v4 -- v5 -- v6 -- v7
+    //   |.....|.....|.....|
+    //   |.....|.....|.....|
+    //  v8 -- v9 -- v10-- v11
+    //   |.....|.....|.....|
+    //   |.....|.....|.....|
+    //  v12-- v13-- v14-- v15
+    //
+    for (int k=0; k<16; ++k) {
+        dst->AddWithWeight(src[cvs[k]], Q[k], Qd1[k], Qd2[k]);
+    }
+}
+
+template <class T, class U>
+inline void
+InterpolateBoundaryPatch(unsigned int const * cvs,
+    float const * Q, float const *Qd1, float const *Qd2,
+        T const src, U * dst) {
+
+    // mirror the missing vertices (M)
+    //
+    //  M0 -- M1 -- M2 -- M3 (corner)
+    //   |     |     |     |
+    //   |     |     |     |
+    //  v0 -- v1 -- v2 -- v3    M : mirrored
+    //   |.....|.....|.....|
+    //   |.....|.....|.....|
+    //  v4 -- v5 -- v6 -- v7    v : original Cv
+    //   |.....|.....|.....|
+    //   |.....|.....|.....|
+    //  v8 -- v9 -- v10-- v11
+    //
+    for (int k=0; k<4; ++k) { // M0 - M3
+        dst->AddWithWeight(src[cvs[k]],    2.0f*Q[k],  2.0f*Qd1[k],  2.0f*Qd2[k]);
+        dst->AddWithWeight(src[cvs[k+4]], -1.0f*Q[k], -1.0f*Qd1[k], -1.0f*Qd2[k]);
+    }
+    for (int k=0; k<12; ++k) {
+        dst->AddWithWeight(src[cvs[k]], Q[k+4], Qd1[k+4], Qd2[k+4]);
+    }
+}
+
+template <class T, class U>
+inline void
+InterpolateCornerPatch(unsigned int const * cvs,
+    float const * Q, float const *Qd1, float const *Qd2,
+        T const src, U * dst) {
+
+    // mirror the missing vertices (M)
+    //
+    //  M0 -- M1 -- M2 -- M3 (corner)
+    //   |     |     |     |
+    //   |     |     |     |
+    //  v0 -- v1 -- v2 -- M4    M : mirrored
+    //   |.....|.....|     |
+    //   |.....|.....|     |
+    //  v3.--.v4.--.v5 -- M5    v : original Cv
+    //   |.....|.....|     |
+    //   |.....|.....|     |
+    //  v6 -- v7 -- v8 -- M6
+    //
+    for (int k=0; k<3; ++k) { // M0 - M2
+        dst->AddWithWeight(src[cvs[k  ]],  2.0f*Q[k],  2.0f*Qd1[k],  2.0f*Qd2[k]);
+        dst->AddWithWeight(src[cvs[k+3]], -1.0f*Q[k], -1.0f*Qd1[k], -1.0f*Qd2[k]);
+    }
+    for (int k=0; k<3; ++k) { // M4 - M6
+        int idx = (k+1)*4 + 3;
+        dst->AddWithWeight(src[cvs[k*3+2]],  2.0f*Q[idx],  2.0f*Qd1[idx],  2.0f*Qd2[idx]);
+        dst->AddWithWeight(src[cvs[k*3+1]], -1.0f*Q[idx], -1.0f*Qd1[idx], -1.0f*Qd2[idx]);
+    }
+    // M3 = -2.v1 + 4.v2 + v4 - 2.v5
+    dst->AddWithWeight(src[cvs[1]], -2.0f*Q[3], -2.0f*Qd1[3], -2.0f*Qd2[3]);
+    dst->AddWithWeight(src[cvs[2]],  4.0f*Q[3],  4.0f*Qd1[3],  4.0f*Qd2[3]);
+    dst->AddWithWeight(src[cvs[4]],  1.0f*Q[3],  1.0f*Qd1[3],  1.0f*Qd2[3]);
+    dst->AddWithWeight(src[cvs[5]], -2.0f*Q[3], -2.0f*Qd1[3], -2.0f*Qd2[3]);
+    for (int y=0; y<3; ++y) { // v0 - v8
+        for (int x=0; x<3; ++x) {
+            int idx = y*4+x+4;
+            dst->AddWithWeight(src[cvs[y*3+x]], Q[idx], Qd1[idx], Qd2[idx]);
+        }
+    }
+}
+
+// Interpolates the limit position of a parametric location on a patch
+template <class T, class U>
+inline void
+PatchTables::Interpolate(PatchHandle const & handle, float s, float t,
+    T const src, U * dst) const {
+
+    assert(dst);
+
+    dst->Clear();
+
+    PatchTables::PatchArray const & parray =
+        _patchArrays[handle.patchArrayIdx];
+
+    unsigned int const * cvs =
+        &_patches[parray.GetVertIndex() + handle.vertexOffset];
+
+    PatchParam::BitField const & bits =
+        _paramTable[handle.patchIdx].bitField;
+
+    bits.Normalize(s,t);
+
+    Type ptype = parray.GetDescriptor().GetType();
+
+    if (ptype>=REGULAR and ptype<=CORNER) {
+
+        float Q[16], Qd1[16], Qd2[16];
+
+        getBSplineWeightsAtUV(bits, s, t, Q, Qd1, Qd2);
+
+        float scale = float(1 << bits.GetDepth());
+        for (int k=0; k<16; ++k) {
+            Qd1[k] *= scale;
+            Qd2[k] *= scale;
+        }
+        
+        dst->Clear();
+
+        switch (ptype) {
+            case REGULAR:
+                InterpolateRegularPatch(cvs, Q, Qd1, Qd2, src, dst);
+                break;
+            case BOUNDARY:
+                InterpolateBoundaryPatch(cvs, Q, Qd1, Qd2, src, dst);
+                break;
+            case CORNER:
+                InterpolateCornerPatch(cvs, Q, Qd1, Qd2, src, dst);
+                break;
+            default:
+                assert(0);
+        }
+    } else if (ptype>=GREGORY and ptype<=GREGORY_BOUNDARY) {
+
+    } else {
+        assert(0);
+    }
 }
 
 } // end namespace Far

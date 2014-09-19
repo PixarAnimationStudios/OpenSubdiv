@@ -49,12 +49,7 @@ namespace Far {
 class PatchMap {
 public:
 
-    /// \brief Handle that can be used as unique patch identifier within PatchTables
-    struct Handle {
-        unsigned int patchArrayIdx,  // OsdPatchArray containing the patch
-                     patchIdx,       // Absolute index of the patch
-                     vertexOffset;   // Offset to the first CV of the patch
-    };
+    typedef PatchTables::PatchHandle Handle;
 
     /// \brief Constructor
     ///

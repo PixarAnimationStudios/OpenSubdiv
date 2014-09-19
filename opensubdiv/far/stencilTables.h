@@ -69,10 +69,12 @@ public:
         _weights = other._weights;
     }
 
+    /// \brief Returns the size of the stencil
     int GetSize() const {
         return *_size;
     }
 
+    /// \brief Returns the size of the stencil as a pointer
     unsigned char * GetSizePtr() const {
         return _size;
     }
@@ -125,6 +127,7 @@ public:
         return (int)_sizes.size();
     }
 
+    /// \brief Returns the number of control vertices indexed in the table
     int GetNumControlVertices() const {
         return _numControlVertices;
     }
@@ -150,6 +153,11 @@ public:
     /// \brief Returns the stencil interpolation weights
     std::vector<float> const & GetWeights() const {
         return _weights;
+    }
+
+    /// \brief Returns the stencil at index i in the tables
+    Stencil operator[] (int index) const {
+        return GetStencil(index);
     }
 
     /// \brief Updates point values based on the control values
@@ -349,6 +357,8 @@ StencilTables::_Update(T const *controlValues, T *values,
 // Returns a Stencil at index i in the table
 inline Stencil
 StencilTables::GetStencil(int i) const {
+
+    assert((not _offsets.empty()) and i<(int)_offsets.size());
 
     int ofs = _offsets[i];
 
