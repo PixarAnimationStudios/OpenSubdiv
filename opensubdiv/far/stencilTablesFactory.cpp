@@ -976,7 +976,7 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
                 ProtoLimitStencil & dst =
                     alloc.GetLimitStencils()[currentStencil];
 
-                patchTables.Interpolate(*handle, s, t, *cvStencils, &dst);
+                patchTables.Limit(*handle, s, t, *cvStencils, &dst);
 
                 ++numLimitStencils;
             }

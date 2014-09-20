@@ -55,6 +55,10 @@ or in your local ``<repository root>/turorials``.
    :width: 100px
    :target: images/far_tutorial_3.0.png
 
+.. |far_tut_6| image:: images/far_tutorial_6.0.png
+   :width: 100px
+   :target: images/far_tutorial_6.0.png
+
 .. list-table:: **Far Tutorials**
    :class: quickref
    :widths: 50 50
@@ -77,11 +81,11 @@ or in your local ``<repository root>/turorials``.
        | |far_tut_1|
        |
      - | **Tutorial 3**
-       | Building on tutorial 0, this example shows how to instantiate a simple mesh, 
-         refine it uniformly and then interpolate both 'vertex' and 'face-varying'    
-         primvar data.                                                                
-         The resulting interpolated data is output as an 'obj' file, with the         
-         'face-varying' data recorded in the uv texture layout.                       
+       | Building on tutorial 0, this example shows how to instantiate a simple mesh,
+         refine it uniformly and then interpolate both 'vertex' and 'face-varying'
+         primvar data.
+         The resulting interpolated data is output as an 'obj' file, with the
+         'face-varying' data recorded in the uv texture layout.
        | |far_tut_3|
        |
        | **Tutorial 4**
@@ -92,6 +96,11 @@ or in your local ``<repository root>/turorials``.
        | This tutorial shows how to create and manipulate both 'vertex' and 'varying'
          FarStencilTables to interpolate 2 primvar data buffers: vertex positions and
          vertex colors.
+       |
+       | **Tutorial 6**
+       | This tutorial shows how to interpolate surface limits at arbitrary
+         parametric locations using feature adaptive Far::PatchTables.
+       | |far_tut_6|
        |
 
 ----

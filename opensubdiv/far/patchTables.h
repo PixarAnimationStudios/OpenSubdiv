@@ -480,7 +480,7 @@ public:
     ///
     /// @param dst     Destination primvar buffer (limit surface data)
     ///
-    template <class T, class U> void Interpolate(PatchHandle const & handle,
+    template <class T, class U> void Limit(PatchHandle const & handle,
         float s, float t, T const src, U * dst) const;
 
 
@@ -923,7 +923,7 @@ InterpolateCornerPatch(unsigned int const * cvs,
 // Interpolates the limit position of a parametric location on a patch
 template <class T, class U>
 inline void
-PatchTables::Interpolate(PatchHandle const & handle, float s, float t,
+PatchTables::Limit(PatchHandle const & handle, float s, float t,
     T const src, U * dst) const {
 
     assert(dst);
