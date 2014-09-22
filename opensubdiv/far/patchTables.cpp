@@ -67,20 +67,19 @@ void
 PatchTables::getBSplineWeightsAtUV(PatchParam::BitField bits, float s, float t,
     float point[16], float deriv1[16], float deriv2[16]) {
 
-    int const rots[4][16] = { { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
-                              { 12, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3 },
-                              { 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 },
-                              { 3, 7, 11, 15, 2, 6, 10, 14, 1, 5, 9, 13, 0, 4, 8, 12 } };
-
-    //bits.Normalize(u, v);
+    int const rots[4][16] =
+        { { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+          { 12, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3 },
+          { 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 },
+          { 3, 7, 11, 15, 2, 6, 10, 14, 1, 5, 9, 13, 0, 4, 8, 12 } };
 
     assert(bits.GetRotation()<4);
     int const * r = rots[bits.GetRotation()];
 
-    float uWeights[4], vWeights[4], duWeights[3], dvWeights[3];
+    float sWeights[4], tWeights[4], d1Weights[3], d2Weights[3];
 
-    getBSplineWeights(s, point ? uWeights : 0, deriv1 ? duWeights : 0);
-    getBSplineWeights(t, point ? vWeights : 0, deriv2 ? dvWeights : 0);
+    getBSplineWeights(s, point ? sWeights : 0, deriv1 ? d1Weights : 0);
+    getBSplineWeights(t, point ? tWeights : 0, deriv2 ? d2Weights : 0);
 
     if (point) {
 
@@ -89,7 +88,7 @@ PatchTables::getBSplineWeightsAtUV(PatchParam::BitField bits, float s, float t,
         memset(point,  0, 16*sizeof(float));
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                point[r[4*i+j]] += uWeights[j] * vWeights[i];
+                point[r[4*i+j]] += sWeights[j] * tWeights[i];
             }
         }
     }
@@ -105,7 +104,7 @@ PatchTables::getBSplineWeightsAtUV(PatchParam::BitField bits, float s, float t,
         for (int i = 0; i < 4; ++i) {
             float prevWeight = 0.0f;
             for (int j = 0; j < 3; ++j) {
-                float weight = duWeights[j]*vWeights[i];
+                float weight = d1Weights[j]*tWeights[i];
                 deriv1[r[4*i+j]] += prevWeight - weight;
                 prevWeight = weight;
             }
@@ -116,7 +115,7 @@ PatchTables::getBSplineWeightsAtUV(PatchParam::BitField bits, float s, float t,
         for (int j = 0; j < 4; ++j) {
             float prevWeight = 0.0f;
             for (int i = 0; i < 3; ++i) {
-                float weight = uWeights[j]*dvWeights[i];
+                float weight = sWeights[j]*d2Weights[i];
                 deriv2[r[4*i+j]]+=prevWeight - weight;
                 prevWeight = weight;
             }

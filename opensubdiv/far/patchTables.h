@@ -467,7 +467,7 @@ public:
     /// \brief Destructor
     ~PatchTables() { delete _fvarPatchTables; }
 
-    /// \brief Interpolate the (s,y) parametric location of a patch
+    /// \brief Interpolate the (s,t) parametric location of a patch
     ///
     /// @param handle  A patch handle indentifying the sub-patch containing the
     ///                (s,t) location
@@ -928,8 +928,6 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
 
     assert(dst);
 
-    dst->Clear();
-
     PatchTables::PatchArray const & parray =
         _patchArrays[handle.patchArrayIdx];
 
@@ -954,7 +952,7 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
             Qd1[k] *= scale;
             Qd2[k] *= scale;
         }
-        
+
         dst->Clear();
 
         switch (ptype) {
