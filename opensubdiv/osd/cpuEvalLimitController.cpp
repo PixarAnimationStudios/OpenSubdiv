@@ -51,24 +51,24 @@ computeSubPatchCoords( CpuEvalLimitContext * context, unsigned int patchIdx, flo
 
 // Vertex interpolation of a sample at the limit
 int
-CpuEvalLimitController::EvalLimitSample( EvalCoords const & coord,
+CpuEvalLimitController::EvalLimitSample( LimitLocation const & coord,
                                          CpuEvalLimitContext * context,
                                          VertexBufferDescriptor const & outDesc,
                                          float * outQ,
                                          float * outDQU,
                                          float * outDQV ) const {
 
-    float u=coord.u,
-          v=coord.v;
+    float s=coord.s,
+          t=coord.t;
 
-    Far::PatchMap::Handle const * handle = context->GetPatchMap().FindPatch( coord.face, u, v );
+    Far::PatchMap::Handle const * handle = context->GetPatchMap().FindPatch( coord.ptexIndex, s, t );
 
     // the map may not be able to return a handle if there is a hole or the face
     // index is incorrect
     if (not handle)
         return 0;
 
-    computeSubPatchCoords(context, handle->patchIdx, u, v);
+    computeSubPatchCoords(context, handle->patchIdx, s, t);
 
     Far::PatchTables::PatchArray const & parray = context->GetPatchArrayVector()[ handle->patchArrayIdx ];
 
@@ -84,27 +84,27 @@ CpuEvalLimitController::EvalLimitSample( EvalCoords const & coord,
 
         switch( parray.GetDescriptor().GetType() ) {
 
-            case Far::PatchTables::REGULAR  : evalBSpline( v, u, cvs,
+            case Far::PatchTables::REGULAR  : evalBSpline( t, s, cvs,
                                                          vertexData.inDesc,
                                                          vertexData.in,
                                                          outDesc,
                                                          out, outDu, outDv );
                                             break;
 
-            case Far::PatchTables::BOUNDARY : evalBoundary( v, u, cvs,
+            case Far::PatchTables::BOUNDARY : evalBoundary( t, s, cvs,
                                                           vertexData.inDesc,
                                                           vertexData.in,
                                                           outDesc,
                                                           out, outDu, outDv );
                                             break;
 
-            case Far::PatchTables::CORNER   : evalCorner( v, u, cvs,
+            case Far::PatchTables::CORNER   : evalCorner( t, s, cvs,
                                                         vertexData.inDesc,
                                                         vertexData.in,
                                                         outDesc,
                                                         out, outDu, outDv );
                                             break;
-            case Far::PatchTables::GREGORY  : evalGregory( v, u, cvs,
+            case Far::PatchTables::GREGORY  : evalGregory( t, s, cvs,
                                                          &context->GetVertexValenceTable()[0],
                                                          &context->GetQuadOffsetTable()[ parray.GetQuadOffsetIndex() + handle->vertexOffset ],
                                                          context->GetMaxValence(),
@@ -115,7 +115,7 @@ CpuEvalLimitController::EvalLimitSample( EvalCoords const & coord,
                                             break;
 
             case Far::PatchTables::GREGORY_BOUNDARY :
-                                            evalGregoryBoundary( v, u, cvs,
+                                            evalGregoryBoundary( t, s, cvs,
                                                                  &context->GetVertexValenceTable()[0],
                                                                  &context->GetQuadOffsetTable()[ parray.GetQuadOffsetIndex() + handle->vertexOffset ],
                                                                  context->GetMaxValence(),
@@ -134,20 +134,20 @@ CpuEvalLimitController::EvalLimitSample( EvalCoords const & coord,
 
 // Vertex interpolation of samples at the limit
 int
-CpuEvalLimitController::_EvalLimitSample( EvalCoords const & coords,
+CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
                                           CpuEvalLimitContext * context,
                                           unsigned int index ) const {
-    float u=coords.u,
-          v=coords.v;
+    float s=coords.s,
+          t=coords.t;
 
-    Far::PatchMap::Handle const * handle = context->GetPatchMap().FindPatch( coords.face, u, v );
+    Far::PatchMap::Handle const * handle = context->GetPatchMap().FindPatch( coords.ptexIndex, s, t );
 
     // the map may not be able to return a handle if there is a hole or the face
     // index is incorrect
     if (not handle)
         return 0;
 
-    computeSubPatchCoords(context, handle->patchIdx, u, v);
+    computeSubPatchCoords(context, handle->patchIdx, s, t);
 
     Far::PatchTables::PatchArray const & parray = context->GetPatchArrayVector()[ handle->patchArrayIdx ];
 
@@ -168,27 +168,27 @@ CpuEvalLimitController::_EvalLimitSample( EvalCoords const & coords,
             // Based on patch type - go execute interpolation
             switch( parray.GetDescriptor().GetType() ) {
 
-                case Far::PatchTables::REGULAR  : evalBSpline( v, u, cvs,
+                case Far::PatchTables::REGULAR  : evalBSpline( t, s, cvs,
                                                              vertexData.inDesc,
                                                              vertexData.in,
                                                              vertexData.outDesc,
                                                              out, outDu, outDv );
                                                 break;
 
-                case Far::PatchTables::BOUNDARY : evalBoundary( v, u, cvs,
+                case Far::PatchTables::BOUNDARY : evalBoundary( t, s, cvs,
                                                               vertexData.inDesc,
                                                               vertexData.in,
                                                               vertexData.outDesc,
                                                               out, outDu, outDv );
                                                 break;
 
-                case Far::PatchTables::CORNER   : evalCorner( v, u, cvs,
+                case Far::PatchTables::CORNER   : evalCorner( t, s, cvs,
                                                             vertexData.inDesc,
                                                             vertexData.in,
                                                             vertexData.outDesc,
                                                             out, outDu, outDv );
                                                 break;
-                case Far::PatchTables::GREGORY  : evalGregory( v, u, cvs,
+                case Far::PatchTables::GREGORY  : evalGregory( t, s, cvs,
                                                              &context->GetVertexValenceTable()[0],
                                                              &context->GetQuadOffsetTable()[ parray.GetQuadOffsetIndex() + handle->vertexOffset ],
                                                              context->GetMaxValence(),
@@ -199,7 +199,7 @@ CpuEvalLimitController::_EvalLimitSample( EvalCoords const & coords,
                                                 break;
 
                 case Far::PatchTables::GREGORY_BOUNDARY :
-                                                evalGregoryBoundary( v, u, cvs,
+                                                evalGregoryBoundary( t, s, cvs,
                                                                      &context->GetVertexValenceTable()[0],
                                                                      &context->GetQuadOffsetTable()[ parray.GetQuadOffsetIndex() + handle->vertexOffset ],
                                                                      context->GetMaxValence(),
@@ -233,7 +233,7 @@ CpuEvalLimitController::_EvalLimitSample( EvalCoords const & coords,
                                      cvs[indices[type][2]],
                                      cvs[indices[type][3]]  };
 
-        evalBilinear( v, u, zeroRing,
+        evalBilinear( t, s, zeroRing,
                       varyingData.inDesc,
                       varyingData.in,
                       varyingData.outDesc,
@@ -258,7 +258,7 @@ CpuEvalLimitController::_EvalLimitSample( EvalCoords const & coords,
 
             static unsigned int zeroRing[4] = {0,1,2,3};
 
-            evalBilinear( v, u, zeroRing,
+            evalBilinear( t, s, zeroRing,
                           facevaryingData.inDesc,
                           &fvarData[ handle->patchIdx * 4 * context->GetFVarWidth() ],
                           facevaryingData.outDesc,

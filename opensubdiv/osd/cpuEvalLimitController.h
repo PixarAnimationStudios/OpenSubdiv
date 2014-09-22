@@ -158,7 +158,7 @@ public:
     ///
     /// @return 1 if the sample was found
     ///
-    int EvalLimitSample( EvalCoords const & coord,
+    int EvalLimitSample( LimitLocation const & coord,
                          CpuEvalLimitContext * context,
                          VertexBufferDescriptor const & outDesc,
                          float * outQ,
@@ -179,7 +179,7 @@ public:
     /// @return the number of samples found (0 if the location was tagged as a hole
     ///         or the coordinate was invalid)
     ///
-    int EvalLimitSample( EvalCoords const & coords,
+    int EvalLimitSample( LimitLocation const & coords,
                          CpuEvalLimitContext * context,
                          unsigned int index ) const {
         if (not context)
@@ -254,7 +254,7 @@ protected:
 
 private:
 
-    int _EvalLimitSample( EvalCoords const & coords,
+    int _EvalLimitSample( LimitLocation const & coords,
                           CpuEvalLimitContext * context,
                           unsigned int index ) const;
 

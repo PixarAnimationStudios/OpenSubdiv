@@ -86,9 +86,10 @@ std::vector<int>   g_coarseEdges;
 std::vector<float> g_coarseEdgeSharpness;
 std::vector<float> g_coarseVertexSharpness;
 
-enum DrawMode { kUV=0,
-                kVARYING=1,
-                kFACEVARYING=2 };
+enum DrawMode { kRANDOM=0,
+                kUV=1,
+                kVARYING=2,
+                kFACEVARYING=3 };
 
 int   g_running = 1,
       g_width = 1024,
@@ -130,6 +131,8 @@ Stopwatch g_fpsTimer;
 int g_nsamples=1000,
     g_nsamplesFound=0;
 
+float g_motionSpeed = 2.5f;
+
 GLuint g_cageEdgeVAO = 0,
        g_cageEdgeVBO = 0,
        g_cageVertexVAO = 0,
@@ -140,25 +143,37 @@ GLhud g_hud;
 
 //------------------------------------------------------------------------------
 static int
-createRandomSamples( int nfaces, int nsamples, std::vector<Osd::EvalCoords> & coords ) {
+createRandomSamples(int nfaces, int nsamples,
+    std::vector<Osd::LimitLocation> & coords) {
 
     coords.resize(nfaces * nsamples);
 
-    Osd::EvalCoords * coord = &coords[0];
+    Osd::LimitLocation * coord = &coords[0];
 
     // large Pell prime number
     srand( static_cast<int>(2147483647) );
 
     for (int i=0; i<nfaces; ++i) {
         for (int j=0; j<nsamples; ++j) {
-            coord->face = i;
-            coord->u = (float)rand()/(float)RAND_MAX;
-            coord->v = (float)rand()/(float)RAND_MAX;
+            coord->ptexIndex = i;
+            coord->s = (float)rand()/(float)RAND_MAX;
+            coord->t = (float)rand()/(float)RAND_MAX;
             ++coord;
         }
     }
 
     return (int)coords.size();
+}
+
+static void
+createRandomMotionVec(int nsamples, std::vector<float> & motion) {
+
+    int size = nsamples*2;
+
+    motion.resize(size);
+    for (int i=0; i<size; ++i) {
+        motion[i] = 2.0f*(float)rand()/(float)RAND_MAX - 1.0f;
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -222,8 +237,10 @@ getNumPtexFaces(OpenSubdiv::Far::TopologyRefiner const & refiner) {
 }
 
 //------------------------------------------------------------------------------
-Osd::CpuVertexBuffer * g_vertexData=0,
-                   * g_varyingData=0;
+Far::TopologyRefiner * g_topologyRefiner = 0;
+
+Osd::CpuVertexBuffer * g_vertexData = 0,
+                   * g_varyingData = 0;
 
 Osd::CpuComputeContext * g_computeCtx = 0;
 
@@ -241,11 +258,43 @@ Osd::VertexBufferDescriptor g_idesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 3 ),
                           g_fvidesc( /*offset*/ 0, /*legnth*/ 2, /*stride*/ 2 ),
                           g_fvodesc( /*offset*/ 3, /*legnth*/ 2, /*stride*/ 6 );
 
-std::vector<Osd::EvalCoords> g_coords;
+std::vector<Osd::LimitLocation> g_coords;
+
+std::vector<float> g_velocities;
 
 Osd::CpuGLVertexBuffer * g_Q=0,
                      * g_dQu=0,
                      * g_dQv=0;
+
+//------------------------------------------------------------------------------
+inline void
+checkBoundaries(Osd::LimitLocation & loc) {
+
+    int boundary = -1;
+
+    // mirror boundaries
+    if (loc.s <= 0.0f) {
+        boundary = 3;
+        loc.s = 1.0f;
+    } else if (loc.s >= 1.0f) {
+        boundary = 1;
+        loc.s = 0.0f;
+    }
+
+    if (loc.t <= 0.0f) {
+        boundary = 0;
+        loc.t = 1.0f;
+    } else if (loc.t >= 1.0f) {
+        boundary = 2;
+        loc.t = 0.0f;
+    }
+
+    if (boundary<0) {
+        return;
+    }
+
+
+}
 
 //------------------------------------------------------------------------------
 static void
@@ -295,7 +344,8 @@ updateGeom() {
 
         case kFACEVARYING : //g_evalCtrl.BindFacevaryingBuffers( g_fvidesc, g_fvodesc, g_Q ); break;
 
-        case kUV :
+        case kRANDOM      :
+        case kUV          :
 
         default : g_evalCtrl.Unbind(); break;
     }
@@ -304,11 +354,19 @@ updateGeom() {
     // outside of the parallel loop
     g_evalCtrl.BindVertexBuffers( g_idesc, g_vertexData, g_odesc, g_Q, g_dQu, g_dQv );
 
+    float motionScale = 0.0001f * g_motionSpeed * (1.0f+g_evalTime);
+
 #define USE_OPENMP
 #if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
     #pragma omp parallel for
 #endif
     for (int i=0; i<(int)g_coords.size(); ++i) {
+
+        // apply velocity
+        g_coords[i].s += motionScale * g_velocities[i*2];
+        g_coords[i].t += motionScale * g_velocities[i*2+1];
+
+        checkBoundaries(g_coords[i]);
 
         int n = g_evalCtrl.EvalLimitSample( g_coords[i], g_evalCtx, i );
 
@@ -316,9 +374,9 @@ updateGeom() {
             // point colors
             switch (g_drawMode) {
                 case kUV : { float * color = g_Q->BindCpuBuffer() + i*g_Q->GetNumElements()  + 3;
-                             color[0] = g_coords[i].u;
+                             color[0] = g_coords[i].s;
                              color[1] = 0.0f;
-                             color[2] = g_coords[i].v; } break;
+                             color[2] = g_coords[i].t; } break;
 
                 case kVARYING : break;
 
@@ -357,7 +415,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
     OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
-    OpenSubdiv::Far::TopologyRefiner * refiner =
+    delete g_topologyRefiner;
+    OpenSubdiv::Far::TopologyRefiner * g_topologyRefiner =
         OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
 
     g_orgPositions=shape->verts;
@@ -365,16 +424,18 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 
     delete shape;
 
-    int nptexfaces = getNumPtexFaces(*refiner),
+    int nptexfaces = getNumPtexFaces(*g_topologyRefiner),
         nsamples = createRandomSamples( nptexfaces, g_nsamples, g_coords ),
         nverts = 0;
 
-    createCoarseMesh(*refiner);
+    createRandomMotionVec(nsamples, g_velocities);
+
+    createCoarseMesh(*g_topologyRefiner);
 
     {
-        refiner->RefineAdaptive(level);
+        g_topologyRefiner->RefineAdaptive(level);
 
-        nverts = refiner->GetNumVerticesTotal();
+        nverts = g_topologyRefiner->GetNumVerticesTotal();
 
         Far::StencilTablesFactory::Options options;
         options.generateOffsets=true;
@@ -382,11 +443,11 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 
         // Generate stencil tables
         Far::StencilTables const * vertexStencils =
-            Far::StencilTablesFactory::Create(*refiner, options);
+            Far::StencilTablesFactory::Create(*g_topologyRefiner, options);
 
         options.interpolationMode = Far::StencilTablesFactory::INTERPOLATE_VARYING;
         Far::StencilTables const * varyingStencils =
-            Far::StencilTablesFactory::Create(*refiner, options);
+            Far::StencilTablesFactory::Create(*g_topologyRefiner, options);
 
         g_kernelBatches.clear();
         g_kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
@@ -394,7 +455,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 
         // Generate adaptive patch tables
         Far::PatchTables const * patchTables =
-             Far::PatchTablesFactory::Create(*refiner);
+             Far::PatchTablesFactory::Create(*g_topologyRefiner);
 
         // Create a Compute context, used to "pose" the vertices
         delete g_computeCtx;
@@ -404,8 +465,6 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         delete g_evalCtx;
         g_evalCtx = Osd::CpuEvalLimitContext::Create(*patchTables);
     }
-
-    delete refiner;
 
     {   // Create vertex data buffer & populate w/ positions
         delete g_vertexData;
@@ -422,6 +481,14 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         delete g_Q;
         g_Q = Osd::CpuGLVertexBuffer::Create(6,nsamples);
         memset( g_Q->BindCpuBuffer(), 0, nsamples*6*sizeof(float));
+        if (g_drawMode==kRANDOM) {
+            float * colors = g_Q->BindCpuBuffer() + 3;
+            for (int i=0; i<g_Q->GetNumVertices(); ++i, colors+=6) {
+                colors[0] = (float)rand()/(float)RAND_MAX;
+                colors[1] = (float)rand()/(float)RAND_MAX;
+                colors[2] = (float)rand()/(float)RAND_MAX;
+            }
+        }
 
         delete g_dQu;
         g_dQu = Osd::CpuGLVertexBuffer::Create(6,nsamples);
@@ -724,6 +791,7 @@ display() {
         double fps = 1.0/g_fpsTimer.GetElapsed();
         g_fpsTimer.Start();
 
+        g_hud.DrawString(10, -150, "Particle Speed ([) (]): %.1f", g_motionSpeed);
         g_hud.DrawString(10, -120, "# Samples  : (%d/%d)", g_nsamplesFound, g_Q->GetNumVertices());
         g_hud.DrawString(10, -100, "Compute    : %.3f ms", g_computeTime);
         g_hud.DrawString(10, -80,  "Eval       : %.3f ms", g_evalTime);
@@ -816,8 +884,7 @@ void windowClose(GLFWwindow*) {
 
 //------------------------------------------------------------------------------
 static void
-setSamples(bool add)
-{
+setSamples(bool add) {
     g_nsamples += add ? 1000 : -1000;
 
     g_nsamples = std::max(0, g_nsamples);
@@ -839,22 +906,24 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 
         case '-': setSamples(false); break;
 
+        case '[': g_motionSpeed = std::max(0.0f, g_motionSpeed-0.1f); break;
+
+        case ']': g_motionSpeed = std::max(1.0f, g_motionSpeed+0.1f); break;
+
         case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
     }
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::Osd::ErrorType err, const char *message)
-{
+callbackError(OpenSubdiv::Osd::ErrorType err, const char *message) {
     printf("OsdError: %d\n", err);
     printf("%s", message);
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackModel(int m)
-{
+callbackModel(int m) {
     if (m < 0)
         m = 0;
 
@@ -867,44 +936,38 @@ callbackModel(int m)
 
 //------------------------------------------------------------------------------
 static void
-callbackLevel(int l)
-{
+callbackLevel(int l) {
     g_level = l;
     createOsdMesh(g_defaultShapes[g_currentShape], g_level);
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackAnimate(bool checked, int /* m */)
-{
-    g_moveScale = checked;
+callbackAnimate(bool checked, int /* m */) {
+    g_moveScale = checked * 3.0f;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackFreeze(bool checked, int /* f */)
-{
+callbackFreeze(bool checked, int /* f */) {
     g_freeze = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackDisplayCageVertices(bool checked, int /* d */)
-{
+callbackDisplayCageVertices(bool checked, int /* d */) {
     g_drawCageVertices = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackDisplayCageEdges(bool checked, int /* d */)
-{
+callbackDisplayCageEdges(bool checked, int /* d */) {
     g_drawCageEdges = checked;
 }
 
 //------------------------------------------------------------------------------
 static void
-callbackDisplayVaryingColors(int mode)
-{
+callbackDisplayVaryingColors(int mode) {
     g_drawMode = mode;
     createOsdMesh(g_defaultShapes[g_currentShape], g_level);
 }
@@ -912,8 +975,7 @@ callbackDisplayVaryingColors(int mode)
 
 //------------------------------------------------------------------------------
 static void
-initHUD()
-{
+initHUD() {
     int windowWidth = g_width, windowHeight = g_height,
         frameBufferWidth = g_width, frameBufferHeight = g_height;
 
@@ -931,6 +993,7 @@ initHUD()
     g_hud.AddCheckBox("Freeze (spc)", false, 10, 70, callbackFreeze, 0, ' ');
 
     int shading_pulldown = g_hud.AddPullDown("Shading (W)", 250, 10, 250, callbackDisplayVaryingColors, 'w');
+    g_hud.AddPullDownButton(shading_pulldown, "Random", kRANDOM, g_drawMode==kRANDOM);
     g_hud.AddPullDownButton(shading_pulldown, "(u,v)", kUV, g_drawMode==kUV);
     g_hud.AddPullDownButton(shading_pulldown, "Varying", kVARYING, g_drawMode==kVARYING);
     g_hud.AddPullDownButton(shading_pulldown, "FaceVarying", kFACEVARYING, g_drawMode==kFACEVARYING);
@@ -951,8 +1014,8 @@ initHUD()
 
 //------------------------------------------------------------------------------
 static void
-initGL()
-{
+initGL() {
+
     glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -979,8 +1042,8 @@ uninitGL() {
 
 //------------------------------------------------------------------------------
 static void
-setGLCoreProfile()
-{
+setGLCoreProfile() {
+
     #define glfwOpenWindowHint glfwWindowHint
     #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
