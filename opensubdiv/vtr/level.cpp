@@ -142,11 +142,9 @@ Level::validateTopology() const {
                 }
             }
             if (!vertFaceOfFaceExists) {
+                printf("Error in fIndex = %d:  correlation of vert %d failed\n", fIndex, i);
+                if (returnOnFirstError) return false;
                 isValid = false;
-                if (returnOnFirstError) {
-                    printf("Error in fIndex = %d:  correlation of vert %d failed\n", fIndex, i);
-                    return isValid;
-                }
             }
         }
     }
@@ -175,11 +173,9 @@ Level::validateTopology() const {
                 }
             }
             if (!edgeFaceOfFaceExists) {
+                printf("Error in fIndex = %d:  correlation of edge %d failed\n", fIndex, i);
+                if (returnOnFirstError) return false;
                 isValid = false;
-                if (returnOnFirstError) {
-                    printf("Error in fIndex = %d:  correlation of edge %d failed\n", fIndex, i);
-                    return isValid;
-                }
             }
         }
     }
@@ -207,11 +203,46 @@ Level::validateTopology() const {
                 }
             }
             if (!vertEdgeOfEdgeExists) {
+                printf("Error in eIndex = %d:  correlation of vert %d failed\n", eIndex, i);
+                if (returnOnFirstError) return false;
                 isValid = false;
-                if (returnOnFirstError) {
-                    printf("Error in eIndex = %d:  correlation of vert %d failed\n", eIndex, i);
-                    return isValid;
-                }
+            }
+        }
+    }
+
+    //  Verify that vert-faces and vert-edges are properly ordered and in sync:
+    //      - currently this requires the relations exactly match those that we construct from
+    //        the ordering method, i.e. we do not allow rotations for interior vertices.
+    Index * indexBuffer = (Index*) alloca(2 * _maxValence * sizeof(Index));
+
+    for (int vIndex = 0; vIndex < getNumVertices(); ++vIndex) {
+        if (_vertTags[vIndex]._incomplete || _vertTags[vIndex]._nonManifold) continue;
+
+        IndexArray const vFaces = getVertexFaces(vIndex);
+        IndexArray const vEdges = getVertexEdges(vIndex);
+
+        Index * vFacesOrdered = indexBuffer;
+        Index * vEdgesOrdered = indexBuffer + vFaces.size();
+
+        if (!orderVertexFacesAndEdges(vIndex, vFacesOrdered, vEdgesOrdered)) {
+            printf("Error in vIndex = %d:  cannot orient incident faces and edges\n", vIndex);
+            if (returnOnFirstError) return false;
+            isValid = false;
+        }
+        for (int i = 0; i < vFaces.size(); ++i) {
+            if (vFaces[i] != vFacesOrdered[i]) {
+                printf("Error in vIndex = %d:  orientation failure at incident face %d\n", vIndex, i);
+                if (returnOnFirstError) return false;
+                isValid = false;
+                break;
+            }
+        }
+        for (int i = 0; i < vEdges.size(); ++i) {
+            if (vEdges[i] != vEdgesOrdered[i]) {
+                printf("Error in vIndex = %d:  orientation failure at incident edge %d\n", vIndex, i);
+                if (returnOnFirstError) return false;
+                isValid = false;
+                break;
             }
         }
     }
@@ -224,20 +255,16 @@ Level::validateTopology() const {
 
         IndexArray const eVerts = getEdgeVertices(eIndex);
         if (eVerts[0] == eVerts[1]) {
+            printf("Error in eIndex = %d:  degenerate edge not tagged marked non-manifold\n", eIndex);
+            if (returnOnFirstError) return false;
             isValid = false;
-            if (returnOnFirstError) {
-                printf("Error in eIndex = %d:  degenerate edge not tagged marked non-manifold\n", eIndex);
-                return isValid;
-            }
         }
 
         IndexArray const eFaces = getEdgeFaces(eIndex);
         if ((eFaces.size() < 1) || (eFaces.size() > 2)) {
+            printf("Error in eIndex = %d:  edge with %d faces not tagged non-manifold\n", eIndex, eFaces.size());
+            if (returnOnFirstError) return false;
             isValid = false;
-            if (returnOnFirstError) {
-                printf("Error in eIndex = %d:  edge with %d faces not tagged non-manifold\n", eIndex, eFaces.size());
-                return isValid;
-            }
         }
     }
     return isValid;
@@ -1150,10 +1177,10 @@ namespace {
 }
 
 bool
-Level::orderVertexFacesAndEdges(Index vIndex) {
+Level::orderVertexFacesAndEdges(Index vIndex, Index * vFacesOrdered, Index * vEdgesOrdered) const {
 
-    IndexArray vEdges = this->getVertexEdges(vIndex);
-    IndexArray vFaces = this->getVertexFaces(vIndex);
+    IndexArray const vEdges = this->getVertexEdges(vIndex);
+    IndexArray const vFaces = this->getVertexFaces(vIndex);
 
     int fCount = vFaces.size();
     int eCount = vEdges.size();
@@ -1199,18 +1226,15 @@ Level::orderVertexFacesAndEdges(Index vIndex) {
     //  this vertex is really locally manifold, we will end up back at the
     //  starting edge or at the other singular edge of a boundary:
     //
-    Index * vFacesOrdered = (Index *)alloca(fCount*sizeof(Index)),
-             * vEdgesOrdered = (Index *)alloca(eCount*sizeof(Index));
-
-    int orderedEdgesCount = 1;
-    int orderedFacesCount = 1;
+    int eCountOrdered = 1;
+    int fCountOrdered = 1;
 
     vFacesOrdered[0] = fStart;
     vEdgesOrdered[0] = eStart;
 
     Index eFirst = eStart;
 
-    while (orderedEdgesCount < eCount) {
+    while (eCountOrdered < eCount) {
         //
         //  Find the next edge, i.e. the one counter-clockwise to the last:
         //
@@ -1230,9 +1254,9 @@ Level::orderVertexFacesAndEdges(Index vIndex) {
         //  Add the next edge and if more faces to visit (not at the end of
         //  a boundary) look to its opposite face:
         //
-        vEdgesOrdered[orderedEdgesCount++] = eNext;
+        vEdgesOrdered[eCountOrdered++] = eNext;
 
-        if (orderedFacesCount < fCount) {
+        if (fCountOrdered < fCount) {
             IndexArray const eFaces = this->getEdgeFaces(eNext);
 
             if (eFaces.size() == 0) return false;
@@ -1241,18 +1265,30 @@ Level::orderVertexFacesAndEdges(Index vIndex) {
             fStart  = eFaces[eFaces[0] == fStart];
             fvStart = findInArray(this->getFaceEdges(fStart), eNext);
 
-            vFacesOrdered[orderedFacesCount++] = fStart;
+            vFacesOrdered[fCountOrdered++] = fStart;
         }
         eStart = eNext;
     }
-    assert(orderedEdgesCount == eCount);
-    assert(orderedFacesCount == fCount);
-
-    //  All faces and edges have been ordered -- apply and return:
-    std::memcpy(&vFaces[0], vFacesOrdered, fCount * sizeof(Index));
-    std::memcpy(&vEdges[0], vEdgesOrdered, eCount * sizeof(Index));
-
+    assert(eCountOrdered == eCount);
+    assert(fCountOrdered == fCount);
     return true;
+}
+
+bool
+Level::orderVertexFacesAndEdges(Index vIndex) {
+
+    IndexArray vFaces = this->getVertexFaces(vIndex);
+    IndexArray vEdges = this->getVertexEdges(vIndex);
+
+    Index * vFacesOrdered = (Index *)alloca((vFaces.size() + vEdges.size()) * sizeof(Index));
+    Index * vEdgesOrdered = vFacesOrdered + vFaces.size();
+
+    if (orderVertexFacesAndEdges(vIndex, vFacesOrdered, vEdgesOrdered)) {
+        std::memcpy(&vFaces[0], vFacesOrdered, vFaces.size() * sizeof(Index));
+        std::memcpy(&vEdges[0], vEdgesOrdered, vEdges.size() * sizeof(Index));
+        return true;
+    }
+    return false;
 }
 
 //

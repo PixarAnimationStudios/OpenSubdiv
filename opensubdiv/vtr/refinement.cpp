@@ -33,23 +33,9 @@
 
 #include <cassert>
 #include <cstdio>
+#include <utility>
 
 
-//
-//  NOTES on short-cuts and assumptions...
-//      This was developed to prototype some ideas, and some issues were simplified
-//  (or just plain ignored) in order to validate the more general cases first.  Use
-//  the following list of keywords to search for notes in comments where these issues
-//  are discussed:
-//
-//  ORDERING:
-//      - shortcuts that may not order incident components as ultimately desired
-//          - typically the vert-face and/or vert-edge relations
-//          - vert-face much more critical than vert-edge (which is debatable)
-//      - these won't affect refinement but will affect patch construction
-//      - failure to address will lead to topology validation failures once ordering
-//        has been added to validation
-//
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -470,13 +456,16 @@ Refinement::populateFaceEdgesFromParentFaces() {
                 int jPrev = j ? (j - 1) : (pFaceVertCount - 1);
 
                 //
-                //  We have two edges thate are children of parent edges, and two child
+                //  We have two edges that are children of parent edges, and two child
                 //  edges perpendicular to these from the interior of the parent face:
                 //
                 //  Identifying the former should be simpler -- after identifying the two
                 //  parent edges, we have to identify which child-edge corresponds to this
                 //  vertex.  This may be ambiguous with a degenerate edge (DEGEN) if tested
                 //  this way, and may warrant higher level inspection of the parent face...
+                //  
+                //  EDGE_IN_FACE -- having the edge-in-face local index would help to
+                //  remove the ambiguity and simplify this.
                 //
                 Index pCornerVert = pFaceVerts[j];
 
@@ -528,12 +517,11 @@ Refinement::populateEdgeVerticesFromParentFaces() {
     //        - identify parent edge's vert-child
     //
     for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
-        IndexArray const pFaceEdges = _parent->getFaceEdges(pFace);
-
-        IndexArray const pFaceChildren = getFaceChildEdges(pFace);
+        IndexArray const pFaceEdges      = _parent->getFaceEdges(pFace);
+        IndexArray const pFaceChildEdges = getFaceChildEdges(pFace);
 
         for (int j = 0; j < pFaceEdges.size(); ++j) {
-            Index cEdge = pFaceChildren[j];
+            Index cEdge = pFaceChildEdges[j];
             if (IndexIsValid(cEdge)) {
                 IndexArray cEdgeVerts = _child->getEdgeVertices(cEdge);
 
@@ -642,6 +630,7 @@ Refinement::populateEdgeFacesFromParentEdges() {
             //
             //  Each parent face may contribute an incident child face:
             //
+            //  EDGE_IN_FACE:
             //      This is awkward, and would be greatly simplified by storing the
             //  "edge in face" for each edge-face (as we do for "vert in face" of
             //  the vert-faces, etc.).  For each incident face we then immediately
@@ -675,6 +664,7 @@ Refinement::populateEdgeFacesFromParentEdges() {
 
                 int pFaceValence = pFaceVerts.size();
 
+                //  EDGE_IN_FACE -- want to remove this search...
                 int edgeInFace = 0;
                 for ( ; pFaceEdges[edgeInFace] != pEdge; ++edgeInFace) ;
 
@@ -766,7 +756,8 @@ Refinement::populateVertexFacesFromParentEdges() {
         int cVertFaceCount = 0;
         for (int i = 0; i < pEdgeFaces.size(); ++i) {
             //
-            //  identify the parent edge within this parent face -- this is where
+            //  EDGE_IN_FACE:
+            //      Identify the parent edge within this parent face -- this is where
             //  augmenting the edge-face relation with the "child index" is useful:
             //
             Index pFaceIndex  = pEdgeFaces[i];
@@ -866,7 +857,7 @@ Refinement::populateVertexEdgesFromParentFaces() {
         //
         IndexArray const pFaceVerts = parent.getFaceVertices(fIndex);
 
-        IndexArray const pFaceChildren = this->getFaceChildEdges(fIndex);
+        IndexArray const pFaceChildEdges = this->getFaceChildEdges(fIndex);
 
         //
         //  Reserve enough vert-edges, populate and trim to the actual size:
@@ -876,10 +867,16 @@ Refinement::populateVertexEdgesFromParentFaces() {
         IndexArray      cVertEdges  = child.getVertexEdges(cVertIndex);
         LocalIndexArray cVertInEdge = child.getVertexEdgeLocalIndices(cVertIndex);
 
+        //
+        //  Need to ensure correct ordering here when complete -- we want the "leading"
+        //  edge of each child face first.  The child vert is in the center of a new
+        //  face to boundaries only occur when incomplete...
+        //
         int cVertEdgeCount = 0;
         for (int j = 0; j < pFaceVerts.size(); ++j) {
-            if (IndexIsValid(pFaceChildren[j])) {
-                cVertEdges[cVertEdgeCount] = pFaceChildren[j];
+            int jLeadingEdge = j ? (j - 1) : (pFaceVerts.size() - 1);
+            if (IndexIsValid(pFaceChildEdges[jLeadingEdge])) {
+                cVertEdges[cVertEdgeCount] = pFaceChildEdges[jLeadingEdge];
                 cVertInEdge[cVertEdgeCount] = 0;
                 cVertEdgeCount++;
             }
@@ -900,9 +897,8 @@ Refinement::populateVertexEdgesFromParentEdges() {
         //
         //  First inspect the parent edge -- its parent faces then its child edges:
         //
-        IndexArray const pEdgeFaces = parent.getEdgeFaces(eIndex);
-
-        IndexArray const pEdgeChild = this->getEdgeChildEdges(eIndex);
+        IndexArray const pEdgeFaces      = parent.getEdgeFaces(eIndex);
+        IndexArray const pEdgeChildEdges = this->getEdgeChildEdges(eIndex);
 
         //
         //  Reserve enough vert-edges, populate and trim to the actual size:
@@ -913,24 +909,56 @@ Refinement::populateVertexEdgesFromParentEdges() {
         LocalIndexArray cVertInEdge = child.getVertexEdgeLocalIndices(cVertIndex);
 
         //
-        //  For each face incident the parent edge -- assign the edge within
-        //  that parent face (perpendicular to the parent edge) if valid:
+        //  We need to order the incident edges around the vertex appropriately:
+        //      - one child edge of the parent edge ("leading" in face 0)
+        //      - child edge of face 0
+        //      - the other child edge of the parent edge ("trailing" in face 0)
+        //      - child edges of all remaining faces
+        //  This is a bit awkward with the current implmentation -- given the way
+        //  the child edge of a face is indentified.  Until we clean it up, deal
+        //  with the two child edges of the parent edge first followed by all faces
+        //  then swap the second child of the parent with the child of the first
+        //  face.
+        //
+        //  Also be careful to place the child edges of the parent edge correctly.
+        //  As edges are not directed their orientation may vary.
         //
         int cVertEdgeCount = 0;
 
+        if (IndexIsValid(pEdgeChildEdges[0])) {
+            cVertEdges[cVertEdgeCount] = pEdgeChildEdges[0];
+            cVertInEdge[cVertEdgeCount] = 0;
+            cVertEdgeCount++;
+        }
+        if (IndexIsValid(pEdgeChildEdges[1])) {
+            cVertEdges[cVertEdgeCount] = pEdgeChildEdges[1];
+            cVertInEdge[cVertEdgeCount] = 0;
+            cVertEdgeCount++;
+        }
+
+        bool swapChildEdgesOfParent    = false;
+        bool swapChildEdgeAndFace0Edge = false;
         for (int i = 0; i < pEdgeFaces.size(); ++i) {
             Index pFace = pEdgeFaces[i];
 
-            IndexArray const pFaceEdges = parent.getFaceEdges(pFace);
-
+            IndexArray const pFaceEdges      = parent.getFaceEdges(pFace);
             IndexArray const pFaceChildEdges = this->getFaceChildEdges(pFace);
 
             //
-            //  Identify the parent edge within this parent face -- this is where
-            //  augmenting the edge-face relation with the "child index" is useful:
+            //  EDGE_IN_FACE:
+            //      Identify the parent edge within this parent face -- this is where
+            //  augmenting the edge-face relation with the "local index" is useful:
             //
             int edgeInFace = 0;
             for ( ; pFaceEdges[edgeInFace] != eIndex; ++edgeInFace) ;
+
+            if ((i == 0) && (cVertEdgeCount == 2)) {
+                swapChildEdgeAndFace0Edge = IndexIsValid(pFaceChildEdges[edgeInFace]);
+                if (swapChildEdgeAndFace0Edge) {
+                    swapChildEdgesOfParent = (parent.getFaceVertices(pFace)[edgeInFace] ==
+                                              parent.getEdgeVertices(eIndex)[0]);
+                }
+            }
 
             if (IndexIsValid(pFaceChildEdges[edgeInFace])) {
                 cVertEdges[cVertEdgeCount] = pFaceChildEdges[edgeInFace];
@@ -938,32 +966,15 @@ Refinement::populateVertexEdgesFromParentEdges() {
                 cVertEdgeCount++;
             }
         }
-        int edgeFromFaceCount = cVertEdgeCount;
 
-        //
-        //  For the two possible child edges of the parent edge -- assign if valid:
-        //
-        for (int i = 0; i < 2; ++i) {
-            if (IndexIsValid(pEdgeChild[i])) {
-                cVertEdges[cVertEdgeCount] = pEdgeChild[i];
-                cVertInEdge[cVertEdgeCount] = 0;
-                cVertEdgeCount++;
+        //  Now swap the child edges of the parent as needed:
+        if (swapChildEdgeAndFace0Edge) {
+            if (swapChildEdgesOfParent) {
+                std::swap(cVertEdges[0],  cVertEdges[1]);
+                //  both local indices 0 -- no need to swap
             }
-        }
-        int edgeFromEdgeCount = cVertEdgeCount - edgeFromFaceCount;
-
-        //
-        //  Note we have ignored the ORDERING of the edges here -- generating those
-        //  perpendicular to the parent edge first and then its children.  A simple
-        //  permutation of the results can produce a more desirable ordering, but we
-        //  need a bit more information gathered above, e.g. (f0,f1,ex) is ambiguous
-        //  as to whether it should be (f0,e0,f1) or (f1,e1,f0)...
-        //
-        //  Do we need to bother here?  Is ORDERING of vert-edges ever necessary?
-        //
-        if (cVertEdgeCount == 4) {
-        } else if (edgeFromFaceCount == 2) {
-        } else if (edgeFromEdgeCount == 2) {
+            std::swap(cVertEdges[1],  cVertEdges[2]);
+            std::swap(cVertInEdge[1], cVertInEdge[2]);
         }
 
         child.trimVertexEdges(cVertIndex, cVertEdgeCount);
@@ -1731,6 +1742,14 @@ Refinement::propagateComponentTags() {
     propagateVertexTagsFromParentFaces();
     propagateVertexTagsFromParentEdges();
     propagateVertexTagsFromParentVertices();
+
+    if (!_uniform) {
+        for (Index cVert = 0; cVert < _child->getNumVertices(); ++cVert) {
+            if (_childVertexTag[cVert]._incomplete) {
+                _child->_vertTags[cVert]._incomplete = true;
+            }
+        }
+    }
 }
 
 void

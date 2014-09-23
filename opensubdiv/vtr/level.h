@@ -143,6 +143,7 @@ public:
         VTagSize _infSharp     : 1;  // fixed
         VTagSize _semiSharp    : 1;  // variable
         VTagSize _rule         : 4;  // variable when _semiSharp
+        VTagSize _incomplete   : 1;  // variable for sparse refinement
 
         //  On deck -- coming soon...
         //VTagSize _constSharp   : 1;  // variable when _semiSharp
@@ -341,7 +342,8 @@ protected:
 
     //  Methods supporting the above:
     void orientIncidentComponents();
-    bool orderVertexFacesAndEdges(int vIndex);
+    bool orderVertexFacesAndEdges(Index vIndex, Index* vFaces, Index* vEdges) const;
+    bool orderVertexFacesAndEdges(Index vIndex);
     void populateLocalIndices();
 
 protected:
