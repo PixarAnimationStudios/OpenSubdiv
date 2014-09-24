@@ -42,18 +42,18 @@ namespace Vtr {
 //  level in order to fully define supported further refinement of selected components.
 //
 inline void
-SparseSelector::markSelection() {
+SparseSelector::initializeSelection() {
 
     if (!_selected) {
         _refine->initializeSparseSelectionTags();
+        _selected = true;
     }
-    _selected = true;
 }
 
 void
 SparseSelector::selectVertex(Index parentVertex) {
 
-    markSelection();
+    initializeSelection();
 
     //  Don't bother to test-and-set here, just set
     markVertexSelected(parentVertex);
@@ -62,24 +62,26 @@ SparseSelector::selectVertex(Index parentVertex) {
 void
 SparseSelector::selectEdge(Index parentEdge) {
 
-    markSelection();
+    initializeSelection();
 
     if (!wasEdgeSelected(parentEdge)) {
+        markEdgeSelected(parentEdge);
+
         //  Mark the two end vertices:
         IndexArray const eVerts = _refine->parent().getEdgeVertices(parentEdge);
         markVertexSelected(eVerts[0]);
         markVertexSelected(eVerts[1]);
-
-        markEdgeSelected(parentEdge);
     }
 }
 
 void
 SparseSelector::selectFace(Index parentFace) {
 
-    markSelection();
+    initializeSelection();
 
     if (!wasFaceSelected(parentFace)) {
+        markFaceSelected(parentFace);
+
         //  Mark the face's incident verts and edges as selected:
         IndexArray const fEdges = _refine->parent().getFaceEdges(parentFace);
         IndexArray const fVerts = _refine->parent().getFaceVertices(parentFace);
@@ -88,25 +90,6 @@ SparseSelector::selectFace(Index parentFace) {
             markEdgeSelected(fEdges[i]);
             markVertexSelected(fVerts[i]);
         }
-        markFaceSelected(parentFace);
-    }
-}
-
-void
-SparseSelector::selectVertexFaces(Index parentVertex) {
-
-    markSelection();
-
-    //
-    //  Unclear if this will still be useful -- regardless, we can no longer tag the
-    //  vertex to distinguish it being selected by incidence of a selected face or
-    //  selected explicitly here.
-    //
-    IndexArray const vertFaces = _refine->parent().getVertexFaces(parentVertex);
-    for (int i = 0; i < vertFaces.size(); ++i) {
-        if (wasFaceSelected(vertFaces[i])) continue;
-
-        selectFace(vertFaces[i]);
     }
 }
 

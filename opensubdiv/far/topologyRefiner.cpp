@@ -227,21 +227,15 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology) {
         refinement.initialize(parentLevel, childLevel);
 
         //
-        //  Initialize a Selector to mark a sparse set of components for refinement.  The
-        //  previous refinement may include tags on its child components that are relevant,
-        //  which is why the Selector identifies it.
+        //  Initialize a Selector to mark a sparse set of components for refinement.  Refine
+        //  if something was selected, otherwise terminate refinement and trim the Level and
+        //  Refinement vectors to remove the curent refinement and child that were in progress:
         //
         Vtr::SparseSelector selector(refinement);
-        selector.setPreviousRefinement((i-1) ? &_refinements[i-2] : 0);
 
-        catmarkFeatureAdaptiveSelectorByFace(selector);
-        //catmarkFeatureAdaptiveSelector(selector);
+        //  Scheme-specific methods may become part of the Selector...
+        catmarkFeatureAdaptiveSelector(selector);
 
-        //
-        //  Continue refining if something selected, otherwise terminate refinement and trim
-        //  the Level and Refinement vectors to remove the curent refinement and child that
-        //  were in progress:
-        //
         if (!selector.isSelectionEmpty()) {
             refinement.refine(refineOptions);
 
@@ -261,286 +255,81 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology) {
 }
 
 //
-//   Below is a prototype of a method to select features for sparse refinement at each level.
+//   Catmark-specific method for feature-adaptive selection for sparse refinement at each level.
+//
 //   It assumes we have a freshly initialized Vtr::SparseSelector (i.e. nothing already selected)
 //   and will select all relevant topological features for inclusion in the subsequent sparse
 //   refinement.
 //
-//   A couple general points on "feature adaptive selection" in general...
-//
-//   1)  With appropriate topological tags on the components, i.e. which vertices are
-//       extra-ordinary, non-manifold, etc., there's no reason why this can't be written
-//       in a way that is independent of the subdivision scheme.  All of the creasing
-//       cases are independent, leaving only the regularity associated with the scheme.
-//
-//   2)  Since feature adaptive refinement is all about the generation of patches, it is
-//       inherently more concerned with the topology of faces than of vertices or edges.
-//       In order to fully exploit the generation of regular patches in the presence of
-//       infinitely sharp edges, we need to consider the face as a whole and not trigger
-//       refinement based on a vertex, e.g. an extra-ordinary vertex may be present, but
-//       with all infinitely sharp edges around it, every patch is potentially a regular
-//       corner.  It is currently difficult to extract all that is needed from the edges
-//       and vertices of a face, but once more tags are added to the edges and vertices,
-//       this can be greatly simplified.
-//
-//  So once more tagging of components is in place, I favor a more face-centric approach than
-//  what exists below.  We should be able to iterate through the faces once and make optimal
-//  decisions without any additional passes through the vertices or edges here.  Most common
-//  cases will be readily detected, i.e. smooth regular patches or those with any semi-sharp
-//  feature, leaving only those with a mixture of smooth and infinitely sharp features for
-//  closer analysis.
-//
-//  Given that we cannot avoid the need to traverse the face list for level 0 in order to
-//  identify irregular faces for subdivision, we will hopefully only have to visit N faces
-//  and skip the additional traversal of the N vertices and 2*N edges present here.  The
-//  argument against the face-centric approach is that shared vertices and edges are
-//  inspected multiple times, but with relevant data stored in tags in these components,
-//  that work should be minimal.
+//   With appropriate topological tags on the components, i.e. which vertices are extra-ordinary,
+//   non-manifold, etc., there's no reason why this can't be written in a way that is independent
+//   of the subdivision scheme.  All of the creasing cases are independent, leaving only the
+//   regularity associated with the scheme.
 //
 void
 TopologyRefiner::catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector) {
 
     Vtr::Level const& level = selector.getRefinement().parent();
 
-    //
-    //  For faces, we only need to select irregular faces from level 0 -- which will
-    //  generate an extra-ordinary vertex in its interior:
-    //
-    //  Not so fast...
-    //      According to far/meshFactory.h, we must also account for the following cases:
-    //
-    //  "Quad-faces with 2 non-consecutive boundaries need to be flagged for refinement as
-    //  boundary patches."
-    //
-    //       o ........ o ........ o ........ o
-    //       .          |          |          .     ... boundary edge
-    //       .          |   needs  |          .
-    //       .          |   flag   |          .     --- regular edge
-    //       .          |          |          .
-    //       o ........ o ........ o ........ o
-    //
-    //  ... presumably because this type of "incomplete" B-spline patch is not supported by
-    //  the set of patch types in PatchTables (though it is regular).
-    //
-    //  And additionally we must isolate sharp corners if they are on a face with any
-    //  more boundary edges (than the two defining the corner).  So in the above diagram,
-    //  if all corners are sharp, then all three faces need to be subdivided, but only
-    //  the one level.
-    //
-    //  Fortunately this only needs to be tested at level 0 too -- its analogous to the
-    //  isolation required of extra-ordinary patches, required here for regular patches
-    //  since only a specific set of B-spline boundary patches is supported.
-    //
-    //  Arguably, for the sharp corner case, we can deal with that during the vertex
-    //  traversal, but it requires knowledge of a greater topological neighborhood than
-    //  the vertex itself -- knowledge we have when detecting the opposite boundary case
-    //  and so might as well detect here.  Whether the corner is sharp or not is irrelevant
-    //  as both the extraordinary smooth, or the regular sharp cases need isolation.
-    //
-    if (level.getDepth() == 0) {
-        for (Vtr::Index face = 0; face < level.getNumFaces(); ++face) {
-            Vtr::IndexArray const faceVerts = level.getFaceVertices(face);
-
-            if (faceVerts.size() != 4) {
-                selector.selectFace(face);
-            } else {
-                Vtr::IndexArray const faceEdges = level.getFaceEdges(face);
-
-                int boundaryEdgeSum = (level.getEdgeFaces(faceEdges[0]).size() == 1) +
-                                      (level.getEdgeFaces(faceEdges[1]).size() == 1) +
-                                      (level.getEdgeFaces(faceEdges[2]).size() == 1) +
-                                      (level.getEdgeFaces(faceEdges[3]).size() == 1);
-                if ((boundaryEdgeSum > 2) || ((boundaryEdgeSum == 2) &&
-                    (level.getEdgeFaces(faceEdges[0]).size() == level.getEdgeFaces(faceEdges[2]).size()))) {
-                    selector.selectFace(face);
-                }
-            }
-        }
-    }
-
-    //
-    //  For vertices, we want to immediatly skip neighboring vertices generated from the
-    //  previous level (the percentage will typically be high enough to warrant immediate
-    //  culling, as the will include all perimeter vertices).
-    //
-    //  Sharp vertices are complicated by the corner case -- an infinitely sharp corner is
-    //  considered a regular feature and not sharp, but a corner with any other sharpness
-    //  will eventually become extraordinary once its sharpness has decayed -- so it is
-    //  both sharp and irregular.
-    //
-    //  Any vertex that is a dart should be selected -- regardless of the sharpness value.
-    //  Later inspection of edge sharpness may skip some faces bounding infinitely sharp
-    //  edges (since they are regular), so the test for Dart here ensures that the ends
-    //  of edge chains are isolated.
-    //
-    //  For the remaining topological cases, non-manifold vertices should be considered
-    //  along with extra-ordinary -- both being considered "irregular" (i.e. !regular).
-    //
-    //  Tagging considerations:
-    //      All of the above information can be embedded in a vertex tag and most of these
-    //  properties are inherited/propogate by refinement and so do not warrant repeated
-    //  re-determination at every level.  The above tags include:
-    //      - completeness (wrt parent -- can change each level -- sparse only)
-    //      - semi-sharp or "fixed Rule" (Hbr's "volatil", can change)
-    //      - Rule
-    //      - hard (infinitely sharp)
-    //      - regular (wrt both subdiv scheme and topology)
-    //      - manifold
-    //
-    for (Vtr::Index vert = 0; vert < level.getNumVertices(); ++vert) {
-        if (selector.isVertexIncomplete(vert)) continue;
-
-        bool selectVertex = false;
-
-        float vertSharpness = level.getVertexSharpness(vert);
-        if (vertSharpness > 0.0) {
-            selectVertex = (level.getVertexFaces(vert).size() != 1) || (vertSharpness < Sdc::Crease::SHARPNESS_INFINITE);
-        } else if (level.getVertexRule(vert) == Sdc::Crease::RULE_DART) {
-            selectVertex = true;
-        } else {
-            Vtr::IndexArray const vertFaces = level.getVertexFaces(vert);
-            Vtr::IndexArray const vertEdges = level.getVertexEdges(vert);
-
-            //  Should be non-manifold test -- remaining cases assume manifold...
-            if (vertFaces.size() == vertEdges.size()) {
-                selectVertex = (vertFaces.size() != 4);
-            } else {
-                selectVertex = (vertFaces.size() != 2);
-            }
-        }
-        if (selectVertex) {
-            selector.selectVertexFaces(vert);
-        }
-    }
-
-    //
-    //  For edges, we only care about sharp edges, so we can immediately skip all smooth.
-    //
-    //  That leaves us dealing with sharp edges that may in the interior or on a boundary.
-    //  A boundary edge is always a (regular) B-spline boundary, unless something at an end
-    //  vertex makes it otherwise.  But any end vertex that would make the edge irregular
-    //  should already have been detected above.  So I'm pretty sure we can just skip all
-    //  boundary edges.
-    //
-    //  So reject boundaries, but in a way that includes non-manifold edges for selection.
-    //
-    //  If the edge is infinitely sharp, perform further inspection (of neighboring faces)
-    //  to see if the incident faces are regular -- if not, select the face, not the end
-    //  vertices.
-    //
-    //  And as for vertices, skip incomplete neighboring vertices from the previous level.
-    //
-    for (Vtr::Index edge = 0; edge < level.getNumEdges(); ++edge) {
-        float               edgeSharpness = level.getEdgeSharpness(edge);
-        Vtr::IndexArray const edgeFaces     = level.getEdgeFaces(edge);
-
-        if ((edgeSharpness <= 0.0) || (edgeFaces.size() < 2)) continue;
-
-        if (edgeSharpness < Sdc::Crease::SHARPNESS_INFINITE) {
-            //
-            //  Semi-sharp -- definitely mark both end vertices (will have been marked above
-            //  in future when semi-sharp vertex tag in place):
-            //
-            Vtr::IndexArray const edgeVerts = level.getEdgeVertices(edge);
-            if (!selector.isVertexIncomplete(edgeVerts[0])) {
-                selector.selectVertexFaces(edgeVerts[0]);
-            }
-            if (!selector.isVertexIncomplete(edgeVerts[1])) {
-                selector.selectVertexFaces(edgeVerts[1]);
-            }
-        } else {
-            //
-            //  If infinitely sharp, skip this edge if all incident faces are otherwise regular
-            //  (if they are not, the vertex selection above will have marked them)
-            //
-            bool edgeFacesAreRegular = true;
-
-            for (int i = 0; i < edgeFaces.size(); ++i) {
-                Vtr::IndexArray const faceEdges = level.getFaceEdges(edgeFaces[i]);
-
-                bool edgeFaceIsRegular = false;
-                if (faceEdges.size() == 4) {
-                    int singularEdgeSum = (level.getEdgeSharpness(faceEdges[0]) >= Sdc::Crease::SHARPNESS_INFINITE) +
-                                          (level.getEdgeSharpness(faceEdges[1]) >= Sdc::Crease::SHARPNESS_INFINITE) +
-                                          (level.getEdgeSharpness(faceEdges[2]) >= Sdc::Crease::SHARPNESS_INFINITE) +
-                                          (level.getEdgeSharpness(faceEdges[3]) >= Sdc::Crease::SHARPNESS_INFINITE);
-                    edgeFaceIsRegular = (singularEdgeSum == 1);
-                } else {
-                    edgeFaceIsRegular = false;
-                }
-                if (!edgeFaceIsRegular) {
-                    selector.selectFace(edgeFaces[i]);
-                }
-            }
-
-            if (!edgeFacesAreRegular) {
-                //  We need to select this edge, but only select the end vertices that are not
-                //  creases -- a crease vertex that needs isolation will be identified by other
-                //  means (e.g. a semi-sharp edge on the other side)
-                Vtr::IndexArray const edgeVerts = level.getEdgeVertices(edge);
-                for (int i = 0; i < 2; ++i) {
-                    if (!selector.isVertexIncomplete(edgeVerts[i]) &&
-                        (level.getVertexRule(edgeVerts[i]) != Sdc::Crease::RULE_CREASE)) {
-                        selector.selectVertexFaces(edgeVerts[i]);
-                    }
-                }
-            }
-        }
-    }
-}
-
-void
-TopologyRefiner::catmarkFeatureAdaptiveSelectorByFace(Vtr::SparseSelector& selector) {
-
-    Vtr::Level const& level = selector.getRefinement().parent();
-
     for (Vtr::Index face = 0; face < level.getNumFaces(); ++face) {
         Vtr::IndexArray const faceVerts = level.getFaceVertices(face);
 
-        bool selectFace = false;
+        //
+        //  Testing irregular faces is only necessary at level 0, and potentially warrants
+        //  separating out as the caller can detect these (and generically as long as we
+        //  can identify an irregular face for all schemes):
+        //
         if (faceVerts.size() != 4) {
-            //  Only necessary at level 0, and potentially warrants separating
-            //  to a separate method -- we need to also ensure that all adjacent
-            //  faces to this one are also selected (so don't bother selecting
-            //  this one here).
-            //
-            //  This is the only place other faces are selected as a side effect.
-            //  In general we don't need to test if faces were already selected,
-            //  but this case may ultimiately force us to do so, or pay the price
-            //  of such faces being selected twice in level 0.
+            //  
+            //  We need to also ensure that all adjacent faces to this are selected, so we
+            //  select every face incident every vertex of the face.  This is the only place
+            //  where other faces are selected as a side effect and somewhat undermines the
+            //  whole intent of the per-face traversal.
             //
             Vtr::IndexArray const fVerts = level.getFaceVertices(face);
             for (int i = 0; i < fVerts.size(); ++i) {
-                selector.selectVertexFaces(fVerts[i]);
+                IndexArray const fVertFaces = level.getVertexFaces(fVerts[i]);
+                for (int j = 0; j < fVertFaces.size(); ++j) {
+                    selector.selectFace(fVertFaces[j]);
+                }
             }
-        } else {
-            Vtr::Level::VTag compFaceTag = level.getFaceCompositeVTag(faceVerts);
+            continue;
+        }
 
-            if (compFaceTag._xordinary || compFaceTag._semiSharp) {
-                selectFace = true;
-            } else if (compFaceTag._rule & Sdc::Crease::RULE_DART) {
-                //  Get this case out of the way before testing hard features
-                selectFace = true;
-            } else if (compFaceTag._nonManifold) {
-                //  Warrants further inspection -- isolate for now
-                //    - will want to defer inf-sharp treatment to below
-                selectFace = true;
-            } else if (!(compFaceTag._rule & Sdc::Crease::RULE_SMOOTH)) {
-                //  None of the vertices is Smooth, so we have all vertices
-                //  either Crease or Corner -- though some may be regular
-                //  patches, this currently warrants isolation as we only
-                //  support regular patches with one corner or one boundary.
-                selectFace = true;
-            } else {
-                //  This leaves us with at least one Smooth vertex (and so two
-                //  smooth adjacent edges of the quad) and the rest hard Creases
-                //  or Corners.  This includes the regular corner and boundary
-                //  cases that we don't want to isolate, but leaves a few others
-                //  that do warrant isolation -- needing further inspection.
-                //
-                //  For now go with the boundary cases and don't isolate...
-                selectFace = false;
-            }
+        //
+        //  Combine the tags for all vertices of the face and quickly accept/reject based on
+        //  the presence/absence of properties where we can (further inspection is likely to
+        //  be necessary in some cases, particularly when we start trying to be clever about
+        //  minimizing refinement for inf-sharp creases, etc.):
+        //
+        Vtr::Level::VTag compFaceTag = level.getFaceCompositeVTag(faceVerts);
+        if (compFaceTag._incomplete) {
+            continue;
+        }
+
+        bool selectFace = false;
+        if (compFaceTag._xordinary || compFaceTag._semiSharp) {
+            selectFace = true;
+        } else if (compFaceTag._rule & Sdc::Crease::RULE_DART) {
+            //  Get this case out of the way before testing hard features
+            selectFace = true;
+        } else if (compFaceTag._nonManifold) {
+            //  Warrants further inspection -- isolate for now
+            //    - will want to defer inf-sharp treatment to below
+            selectFace = true;
+        } else if (!(compFaceTag._rule & Sdc::Crease::RULE_SMOOTH)) {
+            //  None of the vertices is Smooth, so we have all vertices either Crease or Corner,
+            //  though some may be regular patches, this currently warrants isolation as we only
+            //  support regular patches with one corner or one boundary.
+            selectFace = true;
+        } else {
+            //  This leaves us with at least one Smooth vertex (and so two smooth adjacent edges
+            //  of the quad) and the rest hard Creases or Corners.  This includes the regular
+            //  corner and boundary cases that we don't want to isolate, but leaves a few others
+            //  that do warrant isolation -- needing further inspection.
+            //
+            //  For now go with the boundary cases and don't isolate...
+            selectFace = false;
         }
         if (selectFace) {
             selector.selectFace(face);

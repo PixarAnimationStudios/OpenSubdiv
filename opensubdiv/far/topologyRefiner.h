@@ -456,9 +456,7 @@ protected:
     }
 
 private:
-    //  Prototype -- mainly for illustrative purposes right now...
     void catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector);
-    void catmarkFeatureAdaptiveSelectorByFace(Vtr::SparseSelector& selector);
 
     template <class T, class U> void interpolateChildVertsFromFaces(Vtr::Refinement const &, T const * src, U * dst) const;
     template <class T, class U> void interpolateChildVertsFromEdges(Vtr::Refinement const &, T const * src, U * dst) const;
