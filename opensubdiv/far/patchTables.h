@@ -481,7 +481,7 @@ public:
     /// @param dst     Destination primvar buffer (limit surface data)
     ///
     template <class T, class U> void Limit(PatchHandle const & handle,
-        float s, float t, T const src, U * dst) const;
+        float s, float t, T const & src, U * dst) const;
 
 
 private:
@@ -832,7 +832,7 @@ template <class T, class U>
 inline void
 InterpolateRegularPatch(unsigned int const * cvs,
     float const * Q, float const *Qd1, float const *Qd2,
-        T const src, U * dst) {
+        T const & src, U * dst) {
 
     //
     //  v0 -- v1 -- v2 -- v3
@@ -855,7 +855,7 @@ template <class T, class U>
 inline void
 InterpolateBoundaryPatch(unsigned int const * cvs,
     float const * Q, float const *Qd1, float const *Qd2,
-        T const src, U * dst) {
+        T const & src, U * dst) {
 
     // mirror the missing vertices (M)
     //
@@ -883,7 +883,7 @@ template <class T, class U>
 inline void
 InterpolateCornerPatch(unsigned int const * cvs,
     float const * Q, float const *Qd1, float const *Qd2,
-        T const src, U * dst) {
+        T const & src, U * dst) {
 
     // mirror the missing vertices (M)
     //
@@ -924,7 +924,7 @@ InterpolateCornerPatch(unsigned int const * cvs,
 template <class T, class U>
 inline void
 PatchTables::Limit(PatchHandle const & handle, float s, float t,
-    T const src, U * dst) const {
+    T const & src, U * dst) const {
 
     assert(dst);
 
