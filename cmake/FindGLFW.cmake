@@ -110,6 +110,8 @@ else ()
     else ()
         # (*)NIX
         
+        find_package(Threads REQUIRED)
+
         find_package(X11 REQUIRED)
         
         if(NOT X11_Xrandr_FOUND)
@@ -124,7 +126,7 @@ else ()
             message(FATAL_ERROR "Xcursor library not found - required for GLFW")
         endif()
 
-        list(APPEND GLFW_x11_LIBRARY "${X11_Xrandr_LIB}" "${X11_Xxf86vm_LIB}" "${X11_Xcursor_LIB}" -lrt)
+        list(APPEND GLFW_x11_LIBRARY "${X11_Xrandr_LIB}" "${X11_Xxf86vm_LIB}" "${X11_Xcursor_LIB}" "${CMAKE_THREAD_LIBS_INIT}" -lrt -lXi)
 
         find_library( GLFW_glfw_LIBRARY
             NAMES 

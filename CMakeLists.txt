@@ -110,6 +110,13 @@ set(CMAKE_MODULE_PATH
 )
 
 #-------------------------------------------------------------------------------
+# OpenSubdiv trips bugs in some older gcc versions
+if (CMAKE_COMPILER_IS_GNUCC)
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8)
+        message(FATAL_ERROR "g++ 4.8 or newer required")
+    endif()
+endif()
+
 # Detect Clang (until a cmake version provides built-in variables)
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set(CMAKE_COMPILER_IS_CLANGCC 1)
@@ -134,7 +141,7 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(OSD_COMPILER_FLAGS)
 
 # Disable spurrious warnings in gcc builds and clang
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
+if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
 
     # Turn on all warnings
     if(CMAKE_COMPILER_IS_ICC)
