@@ -156,9 +156,7 @@ public:
     }
 
     /// \brief Returns the stencil at index i in the tables
-    Stencil operator[] (int index) const {
-        return GetStencil(index);
-    }
+    Stencil operator[] (int index) const;
 
     /// \brief Updates point values based on the control values
     ///
@@ -365,6 +363,12 @@ StencilTables::GetStencil(int i) const {
     return Stencil( const_cast<unsigned char *>(&_sizes[i]),
                        const_cast<int *>(&_indices[ofs]),
                        const_cast<float *>(&_weights[ofs]) );
+}
+
+inline Stencil
+StencilTables::operator[] (int index) const {
+
+    return GetStencil(index);
 }
 
 } // end namespace Far
