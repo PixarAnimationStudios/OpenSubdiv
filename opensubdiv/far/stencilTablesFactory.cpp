@@ -759,12 +759,14 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
         return result;
     }
 
-    ProtoStencilAllocator::Mode mode;
+    ProtoStencilAllocator::Mode mode=ProtoStencilAllocator::INTERPOLATE_VERTEX;
     switch (options.interpolationMode) {
         case INTERPOLATE_VERTEX:
             mode = ProtoStencilAllocator::INTERPOLATE_VERTEX; break;
         case INTERPOLATE_VARYING:
             mode = ProtoStencilAllocator::INTERPOLATE_VARYING; break;
+        default:
+            assert(0);
     }
 
     std::vector<ProtoStencilAllocator> allocators(
