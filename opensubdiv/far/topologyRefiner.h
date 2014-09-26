@@ -377,6 +377,20 @@ public:
     /// \brief Returns the ptex face index given a coarse face 'f' or -1
     int GetPtexIndex(Index f) const;
 
+    /// \brief Returns ptex face adjacency information for a given coarse face
+    ///
+    /// @param face      coarse face index
+    ///
+    /// @param quadrant  quadrant index if 'face' is not a quad (the local ptex
+    //                   sub-face index). Must be less than the number of face
+    //                   vertices.
+    ///
+    /// @param adjFaces  ptex face indices of adjacent faces
+    ///
+    /// @param adjFaces  ptex edge indices of adjacent faces
+    ///
+    void GetPtexAdjacency(int face, int quadrant,
+        int adjFaces[4], int adjEdges[4]) const;
 
     //
     //  Debugging aides:
@@ -474,7 +488,7 @@ private:
     void initializePtexIndices() const;
 
 private:
-    //  The following should be private but leaving it open while still early...
+
     Sdc::Type    _subdivType;
     Sdc::Options _subdivOptions;
 
@@ -484,7 +498,7 @@ private:
     std::vector<Vtr::Level>      _levels;
     std::vector<Vtr::Refinement> _refinements;
 
-    std::vector<Index>         _ptexIndices;
+    std::vector<Index> _ptexIndices;
 };
 
 template <class T, class U>
@@ -807,7 +821,7 @@ TopologyRefiner::InterpolateFaceVarying(T const * src, U * dst, int channel) con
     for (int level=1; level<=GetMaxLevel(); ++level) {
 
         InterpolateFaceVarying(level, src, dst, channel);
-        
+
         src = dst;
         dst += _levels[level].getNumFVarValues();
     }

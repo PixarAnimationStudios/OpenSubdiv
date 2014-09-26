@@ -110,7 +110,9 @@ TopologyRefiner::GetNumFVarValuesTotal(int channel) const {
     return sum;
 }
 
-
+//
+//  Ptex information accessors
+//
 template <Sdc::Type SCHEME_TYPE> void
 computePtexIndices(Vtr::Level const & coarseLevel, std::vector<int> & ptexIndices) {
     int nfaces = coarseLevel.getNumFaces();
@@ -149,10 +151,135 @@ TopologyRefiner::GetPtexIndex(Index f) const {
     if (_ptexIndices.empty()) {
         initializePtexIndices();
     }
-    if (f<((int)_ptexIndices.size()-1)) {
-        return _ptexIndices[f];
+    assert(f<(int)_ptexIndices.size());
+    return _ptexIndices[f];
+}
+
+namespace {
+    // Returns the face adjacent to 'face' along edge 'edge'
+    inline Index
+    getAdjacentFace(Vtr::Level const & level, Index edge, Index face) {
+        IndexArray adjFaces = level.getEdgeFaces(edge);
+        if (adjFaces.size()!=2) {
+            return -1;
+        }
+        return (adjFaces[0]==face) ? adjFaces[1] : adjFaces[0];
     }
-    return -1;
+}
+
+void
+TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
+        int adjFaces[4], int adjEdges[4]) const {
+
+    assert(GetSchemeType()==Sdc::TYPE_CATMARK);
+
+    if (_ptexIndices.empty()) {
+        initializePtexIndices();
+    }
+
+    Vtr::Level const & level = _levels[0];
+
+    IndexArray fedges = level.getFaceEdges(face);
+
+    if (fedges.size()==4) {
+
+        // Regular ptex quad face
+        for (int i=0; i<4; ++i) {
+            int edge = fedges[i];
+            IndexArray efaces = level.getEdgeFaces(edge);
+            Index adjface = getAdjacentFace(level, edge, face);
+            if (adjface==-1) {
+                adjFaces[i] = -1;  // boundary or non-manifold
+                adjEdges[i] = 0;
+            } else {
+
+                IndexArray aedges = level.getFaceEdges(adjface);
+                if (aedges.size()==4) {
+                    adjFaces[i] = _ptexIndices[adjface];
+                    adjEdges[i] = aedges.FindIndexIn4Tuple(edge);
+                    assert(adjEdges[i]!=-1);
+                } else {
+                    // neighbor is a sub-face
+                    adjFaces[i] = _ptexIndices[adjface] +
+                                  (aedges.FindIndex(edge)+1)%aedges.size();
+                    adjEdges[i] = 3;
+                }
+                assert(adjFaces[i]!=-1);
+            }
+        }
+    } else {
+
+        //  Ptex sub-face 'quadrant' (non-quad)
+        //
+        // Ptex adjacency pattern for non-quads:
+        //
+        //             v2
+        /*             o
+        //            / \
+        //           /   \
+        //          /0   3\
+        //         /       \
+        //        o_ 1   2 _o
+        //       /  -_   _-  \
+        //      /  2  -o-  1  \
+        //     /3      |      0\
+        //    /       1|2       \
+        //   /    0    |    3    \
+        //  o----------o----------o
+        // v0                     v1
+        */
+        assert(quadrant>=0 and quadrant<fedges.size());
+
+        int nextQuadrant = (quadrant+1) % fedges.size(),
+            prevQuadrant = (quadrant+fedges.size()-1) % fedges.size();
+
+        {   // resolve neighbors within the sub-face (edges 1 & 2)
+            adjFaces[1] = _ptexIndices[face] + nextQuadrant;
+            adjEdges[1] = 2;
+
+            adjFaces[2] = _ptexIndices[face] + prevQuadrant;
+            adjEdges[2] = 1;
+        }
+
+        {   // resolve neighbor outisde the sub-face (edge 0)
+            int edge0 = fedges[quadrant];
+            Index adjface0 = getAdjacentFace(level, edge0, face);
+            if (adjface0==-1) {
+                adjFaces[0] = -1;  // boundary or non-manifold
+                adjEdges[0] = 0;
+            } else {
+                IndexArray afedges = level.getFaceEdges(adjface0);
+                if (afedges.size()==4) {
+                   adjFaces[0] = _ptexIndices[adjface0];
+                   adjEdges[0] = afedges.FindIndexIn4Tuple(edge0);
+                } else {
+                   int subedge = (afedges.FindIndex(edge0)+1)%afedges.size();
+                   adjFaces[0] = _ptexIndices[adjface0] + subedge;
+                   adjEdges[0] = 3;
+                }
+                assert(adjFaces[0]!=-1);
+            }
+
+            // resolve neighbor outisde the sub-face (edge 3)
+            int edge3 = fedges[prevQuadrant];
+            Index adjface3 = getAdjacentFace(level, edge3, face);
+            if (adjface3==-1) {
+                adjFaces[3]=-1;  // boundary or non-manifold
+                adjEdges[3]=0;
+            } else {
+                IndexArray afedges = level.getFaceEdges(adjface3);
+                if (afedges.size()==4) {
+                   adjFaces[3] = _ptexIndices[adjface3];
+                   adjEdges[3] = afedges.FindIndexIn4Tuple(edge3);
+                } else {
+                   int subedge = afedges.FindIndex(edge3);
+                   adjFaces[3] = _ptexIndices[adjface3] + subedge;
+                   adjEdges[3] = 0;
+                }
+                assert(adjFaces[3]!=-1);
+            }
+        }
+    }
 }
 
 
@@ -280,7 +407,7 @@ TopologyRefiner::catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector) {
         //  can identify an irregular face for all schemes):
         //
         if (faceVerts.size() != 4) {
-            //  
+            //
             //  We need to also ensure that all adjacent faces to this are selected, so we
             //  select every face incident every vertex of the face.  This is the only place
             //  where other faces are selected as a side effect and somewhat undermines the

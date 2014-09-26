@@ -480,17 +480,6 @@ Level::getFaceCompositeVTag(IndexArray const& faceVerts) const {
 namespace {
     template <typename INT_TYPE>
     inline INT_TYPE fastMod4(INT_TYPE value) { return (value & 0x3); }
-
-    inline int
-    fastFindIn4(Index value, IndexArray const& array) {
-
-        if (value == array[0]) return 0;
-        if (value == array[1]) return 1;
-        if (value == array[2]) return 2;
-        if (value == array[3]) return 3;
-        assert("fastFindIn4() did not find expected value!" == 0);
-        return -1;
-    }
 }
 
 //
@@ -592,7 +581,7 @@ Level::gatherQuadRegularInteriorPatchVertices(
         IndexArray      vFaces   = level.getVertexFaces(v);
         LocalIndexArray vInFaces = level.getVertexFaceLocalIndices(v);
 
-        int thisFaceInVFaces = fastFindIn4(thisFace, vFaces);
+        int thisFaceInVFaces = vFaces.FindIndexIn4Tuple(thisFace);
         int intFaceInVFaces  = fastMod4(thisFaceInVFaces + 2);
 
         Index intFace    = vFaces[intFaceInVFaces];

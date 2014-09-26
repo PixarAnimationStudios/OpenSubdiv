@@ -26,6 +26,8 @@
 
 #include "../version.h"
 
+#include <cassert>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -77,6 +79,25 @@ public:
     reference operator[](int index) { return _begin[index]; }
     iterator  begin()               { return _begin; }
     iterator  end()                 { return _begin + _size; }
+
+    size_type FindIndexIn4Tuple(value_type value) const {
+        assert(_size>=4);
+        if (value == _begin[0]) return 0;
+        if (value == _begin[1]) return 1;
+        if (value == _begin[2]) return 2;
+        if (value == _begin[3]) return 3;
+        assert("FindIndexIn4Tuple() did not find expected value!" == 0);
+        return -1;
+    }
+
+    size_type FindIndex(value_type value) const {
+        for (size_type i=0; i<size(); ++i) {
+            if (value==_begin[i]) {
+                return i;
+            }
+        }
+        return -1;
+    }
 
 protected:
     value_type* _begin;
