@@ -211,6 +211,7 @@ TopologyRefinerFactoryBase::applyComponentTagsAndBoundarySharpness(TopologyRefin
         } else {
             vTag._xordinary = (vFaces.size() != 4);
         }
+        vTag._incomplete = 0;
     }
 
     //
