@@ -1149,7 +1149,16 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
                 U & vdst = dst[cVertValue];
 
                 vdst.Clear();
-                vdst.AddWithWeight(src[pVertValue], 1.0);
+                if (parentFVar.isValueCorner(parentFVar.getVertexValueIndex(vert, pSibling))) {
+                    vdst.AddWithWeight(src[pVertValue], 1.0f);
+                } else {
+                    Index pEndValues[2];
+                    parentFVar.getVertexCreaseEndValues(vert, pSibling, pEndValues);
+
+                    vdst.AddWithWeight(src[pEndValues[0]], 0.125f);
+                    vdst.AddWithWeight(src[pEndValues[1]], 0.125f);
+                    vdst.AddWithWeight(src[pVertValue], 0.75f);
+                }
             }
         }
     }

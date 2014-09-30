@@ -79,6 +79,7 @@ public:
 
     void propagateEdgeTags();
     void propagateValueTags();
+    void propagateValueCreases();
 
 
 public:

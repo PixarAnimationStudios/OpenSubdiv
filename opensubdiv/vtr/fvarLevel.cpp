@@ -49,7 +49,7 @@ namespace Vtr {
 //  Simple (for now) constructor and destructor:
 //
 FVarLevel::FVarLevel(Level const& level) :
-    _level(level), _isLinear(false), _valueCount(0) {
+    _level(level), _isLinear(false), _hasSmoothBoundaries(false), _valueCount(0) {
 }
 
 FVarLevel::~FVarLevel() {
@@ -86,111 +86,62 @@ FVarLevel::resizeComponents() {
 
 
 //
-//  Initialize the component tags once all face-values have been assigned:
-//      - edge traversal:
-//          - finding and testing the values at matching ends of the edge
-//          - marking the bitfields according to the result
-//          - is it worth marking vertices as "mismatch"?
-//              - need more vertex analysis later
-//              - will only be marking discts verts
-//              - no iteration of edge-verts, unlike vert-edges
-//          - (consider) marking incident faces as "mismatch"
-//      - vertex traversal:
-//          - mismatches previously identified in edge traversal:
-//              - should be able to skip vertices that match
-//          - need to identify number/index of values for each
-//          - should be able to identify topology per value during iteration:
-//              - one "in a row" will be a corner, "crease" otherwise
+//  Initialize the component tags once all face-values have been assigned...
 //
-//  WAIT -- consider the following vertex-oriented alternative...
-//      - vertex traversal:
-//          - iterate through all successive face-vert values:
-//              - each successive mismatch identifies an edge discty at one end
-//                  - mark the edge mismatch
-//                  - mark the discts end (which is trivially known from local index)
-//              - "spans" of values identifies their topology
-//                  - beware disjoint spans -- effectively corners
-//              - set of unique values gathered in process
-//          * NOTE - does not capture the dart/boundary case
-//              - single value consistent around vertex -- no discts edge detected
-//              - remember this is not a Dart but a true boundary, i.e. a Crease
-//              - could mark vertex when marking edge, but order-dependent:
-//                  - if just need to mark mismatch, could be sufficient:
-//                      - one value but mismatch implies Dart
-//              - single value may be at the center of multiple discts edges:
-//                  - value becomes Corner then instead of Crease
+//  Constructing the mapping between vertices and their face-varying values involves:
 //
-//  Implications:
-//      - both the edge-traversal and the vertex traversal want to compare indices
-//      - pros/cons for vertex traversal:
-//          - pro:  1/2 as many verts as edges
-//          - pro:  directly identifies adjacent face-vert values (via local index)
-//          - CON:  knowledge of discts edges absent (cts at vertex, discts end of edge)
-//      - pros/cons for edge traversal:
-//          - pro:  can mark incident verts and faces mismatched in process
-//          - CON:  2x as many edges as verts
-//          - CON:  requires search to find edge in each adjacent face
-//      - vertex traversal seems preferable, but CON is significant:
-//          - could need to test "other end of each edge":
-//              - unfortunate in that pair-wise test succeeding now slowed down
-//                in ALL cases -- even when everything matches
-//          - could mark "other end vertex" when marking any edge discts:
-//              - would result in "revisiting" a vertex
-//              - what are implications of identifying opposite end-splits later?
-//                  - currently matched becomes mismatched, crease
-//                  - single mismatched becomes mismatched, corner
-//                  - multiple mismatched is awkward to deal with:
-//                      - spans that may be crease fragmented -- how?
-//                          - depending on span size may produce:
-//                              - two Creases, two Corners, one of each...
-//  Best of both worlds:
-//      - double vertex traversal:
-//          - first intializes edge tags and marks opposite vertex mismatched
-//              - may also identify value-per-vertex counts
-//          - second (sparse) will analyze local topology
+//      - iteration through all vertices to mark edge discontinuities and classify
+//      - allocation of vectors mapping vertices to their multiple (sibling) values
+//      - iteration through all vertices and their distinct values to tag topologically
+//
+//  Once values have been identified for each vertex and tagged, refinement propagates
+//  the tags to child values using more simplified logic (child values inherit the
+//  topology of their parent) and no futher analysis is required.
 //
 void
 FVarLevel::completeTopologyFromFaceValues() {
 
     //
-    //  REMEMBER!!!
-    //      .... that "mismatches" may also occur where the topology matches, but options
-    //  specify different treatment, e.g. boundary and corner interpolation rules.  So we
-    //  should inspect both the VVar and FVar boundary rules and determine when to mark
-    //  such features as mismatched.
-    //
-    //  Note that this affects typical exterior boundaries in addition to corners -- a
-    //  geometrically smooth disk may end up with piecewise linear UV boundaries.
-    //
-    //  Not sure what the precedence is here, particuarly "propagate corner" vs the choice
-    //  of "fvar boundary interpolation" -- will need to check with Hbr.
+    //  Assign some members and local variables based on the interpolation options (the
+    //  members reflect queries that are made elsewhere):
     //
     _isLinear = (_options.GetFVarBoundaryInterpolation() == Sdc::Options::FVAR_BOUNDARY_BILINEAR);
 
-    bool geomCornersAreSharp = (_options.GetVVarBoundaryInterpolation() == Sdc::Options::VVAR_BOUNDARY_EDGE_AND_CORNER);
-    bool fvarCornersAreSharp = (_options.GetFVarBoundaryInterpolation() != Sdc::Options::FVAR_BOUNDARY_EDGE_ONLY);
-    bool fvarPropagateCorner = false;
+    _hasSmoothBoundaries = (_options.GetFVarBoundaryInterpolation() != Sdc::Options::FVAR_BOUNDARY_BILINEAR) &&
+                           (_options.GetFVarBoundaryInterpolation() != Sdc::Options::FVAR_BOUNDARY_ALWAYS_SHARP);
 
-    fvarCornersAreSharp = fvarPropagateCorner ? geomCornersAreSharp : fvarCornersAreSharp;
+    bool geomCornersAreSmooth   = (_options.GetVVarBoundaryInterpolation() != Sdc::Options::VVAR_BOUNDARY_EDGE_AND_CORNER);
+    bool fvarCornersAreSharp    = (_options.GetFVarBoundaryInterpolation() != Sdc::Options::FVAR_BOUNDARY_EDGE_ONLY);
 
-    bool mismatchCorners = (fvarCornersAreSharp != geomCornersAreSharp);
+    bool makeCornersSharp = geomCornersAreSmooth && fvarCornersAreSharp;
+
+    bool sharpenAllIfAnyCorner = (_options.GetFVarBoundaryInterpolation() == Sdc::Options::FVAR_BOUNDARY_EDGE_AND_CORNER_PROP);
 
     //
-    //  Iterate through the vertices first to identify discts edges -- this is better done
-    //  than iterating through the edges because:
+    //  Its awkward and potentially inefficient to try and accomplish everything in one
+    //  pass over the vertices...
     //
-    //      - there are typically twice as many edges as vertices
+    //  Make a first pass through the vertices to identify discts edges and to determine
+    //  the number of values-per-vertex for subsequent allocation.  The presence of a
+    //  discts edge warrants marking vertices at BOTH ends as having mismatched topology
+    //  wrt the vertices (part of why full topological analysis is deferred).
     //
-    //      - the ordering of incident faces of a vertex make retrieval/comparison of
-    //        adjacent pairs of face-varying values much more efficient
+    //  So this first pass will allocate/initialize the overall structure of the topology.
+    //  Given N vertices and M (as yet unknown) sibling values, the first pass achieves
+    //  the following:
     //
-    //  Since an edge may be discts at only one end, but the vertex at the cts end still
-    //  needs to be aware of such a discontinuity, we mark the opposite vertex for any
-    //  edge that is found to be discts.
+    //      - assigns the number of siblings for each of the N vertices
+    //          - determining the total number of siblings M in the process
+    //      - assigns the sibling offsets for each of the N vertices
+    //      - assigns the vert-value tags (partially) for the first N vertices (matches or not)
+    //      - initializes the vert-face siblings for all N vertices
+    //  and
+    //      - tags any incident edges as discts
     //
-    //  In the process, we will initialize the "sibling" values associated with both the
-    //  face-verts and the vert-faces.  These are both 0-initialized and only updated when
-    //  discontinuities are encountered.
+    //  The second pass initializes remaining members based on the total number of siblings
+    //  M after allocating appropriate vectors dependent on M.
+    //
+    //  Still looking or opportunities to economize effort between the two passes...
     //
     ValueTag valueTagMatch(false);
     ValueTag valueTagMismatch(true);
@@ -200,9 +151,9 @@ FVarLevel::completeTopologyFromFaceValues() {
 
     int const maxValence = _level.getMaxValence();
 
-    Index * indexBuffer   = (Index *)alloca(maxValence*sizeof(Index));
-    int *      valueBuffer   = (int *)alloca(maxValence*sizeof(int));
-    Sibling  * siblingBuffer = (Sibling *)alloca(maxValence*sizeof(Sibling));
+    Index *   indexBuffer   = (Index *)alloca(maxValence*sizeof(Index));
+    int *     valueBuffer   = (int *)alloca(maxValence*sizeof(int));
+    Sibling * siblingBuffer = (Sibling *)alloca(maxValence*sizeof(Sibling));
 
     int * uniqueValues = valueBuffer;
 
@@ -226,7 +177,7 @@ FVarLevel::completeTopologyFromFaceValues() {
         uniqueValues[uniqueValueCount++] = vValues[0];
         vSiblings[0] = 0;
 
-        bool vIsBoundary = (vEdges.size() != vFaces.size());
+        bool vIsBoundary = _level._vertTags[vIndex]._boundary;
         for (int i = vIsBoundary; i < vFaces.size(); ++i) {
             int iPrev = i ? (i - 1) : (vFaces.size() - 1);
 
@@ -278,6 +229,21 @@ FVarLevel::completeTopologyFromFaceValues() {
         }
 
         //
+        //  While we've tagged the vertex as having mismatched FVar topology in the presence of
+        //  any discts edges, we also need to account for different treatment of vertices along
+        //  geometric boundaries if the FVar interpolation rules affect them:
+        //
+        if (vIsBoundary && !_vertValueTags[vIndex]._mismatch) {
+            if (vFaces.size() == 1) {
+                if (makeCornersSharp) {
+                    _vertValueTags[vIndex]._mismatch = true;
+                }
+            } else if (!_hasSmoothBoundaries) {
+                _vertValueTags[vIndex]._mismatch = true;
+            }
+        }
+
+        //
         //  Make note of any extra values that will be added after one-per-vertex:
         //
         int siblingCount = uniqueValueCount - 1;
@@ -297,16 +263,21 @@ FVarLevel::completeTopologyFromFaceValues() {
     }
 
     //
-    //  Allocate space for the values -- we already have tags for those corresponding to each
-    //  vertex (and those tags have been updated above), so append tags indicating the mismatch
-    //  for all of the sibling values detected:
+    //  Now that we know the total number of additional sibling values (M values in addition
+    //  to the N vertex values) allocate space to accomodate all N + M values.  Note that we
+    //  we already have tags for the first N partially initialized (matching or not) so just
+    //  append tags for the additional M sibling values (all M initialized as mismatched).
     //
     _vertValueIndices.resize(totalValueCount);
     _vertValueTags.resize(totalValueCount, valueTagMismatch);
 
+    if (_hasSmoothBoundaries) {
+        _vertValueCreaseEnds.resize(totalValueCount * 2);
+    }
+
     //
-    //  Now a second pass through the vertices to identify the local face-varying topology
-    //  in more detail -- tagging each FVar value associated with the vertex:
+    //  Now the second pass through the vertices to identify the local face-varying topology
+    //  in more detail -- tagging each FVar value associated with each vertex:
     //
     //  REMEMBER -- we want a ValueTag for each instance of the value at each vertex, i.e.
     //  per vertex-value.  At level 0, given user input, the number of vertex-values may
@@ -315,33 +286,22 @@ FVarLevel::completeTopologyFromFaceValues() {
     //  of vertex-values is what we need for refinement to "unweld" them, and the tag for
     //  each will indicate refinement rules for its children.
     //
-    for (int vIndex = 0; vIndex < _level.getNumVertices(); ++vIndex) {
-        ValueTag& vTag = _vertValueTags[vIndex];
+    ValueTag valueTagCorner = valueTagMismatch;
+    valueTagCorner._crease = false;
 
+    ValueTag valueTagCrease = valueTagMismatch;
+    valueTagCrease._crease = true;
+
+    for (int vIndex = 0; vIndex < _level.getNumVertices(); ++vIndex) {
         IndexArray const      vFaces  = _level.getVertexFaces(vIndex);
         LocalIndexArray const vInFace = _level.getVertexFaceLocalIndices(vIndex);
-
-        //
-        //  At this point, mismatches have only been determined by the presence of edges
-        //  that are discontinuous.  We may still have boundary/corner vertices that match
-        //  topologically, but need to be treated differently (i.e. they do not match) due
-        //  to boundary interpolation rules.  So update the "matched" status of boundary
-        //  vertices before continuing to the general treatment for all cases:
-        //
-        bool vIsBoundary = _level._vertTags[vIndex]._boundary;
-        if (vIsBoundary && !vTag._mismatch) {
-            bool vIsCorner = (vFaces.size() == 1);
-            if (vIsCorner) {
-                vTag._mismatch = mismatchCorners;
-            }
-        }
 
         //
         //  If the face-varying topology around this vertex matches the vertex topology,
         //  there is little more to do -- except for level 0 where there may not be a
         //  1-to-1 correspondence between given values and vertex-values:
         //
-        if (!vTag._mismatch) {
+        if (!_vertValueTags[vIndex]._mismatch) {
             if (_level.getDepth() == 0) {
                 _vertValueIndices[vIndex] = _faceVertValues[_level.getOffsetOfFaceVertices(vFaces[0]) + vInFace[0]];
             } else {
@@ -356,16 +316,8 @@ FVarLevel::completeTopologyFromFaceValues() {
         //  be appended to the set of 1-per-vertex.
         //
         //  When the topology does not match, we need to gather the unique values around
-        //  this vertex and tag each according to its more localized topology.
-        //
-        //  Special cases to consider:
-        //      - one mismatched value:  should be a crease (corner if linear or boundary?)
-        //      - one value per face-vert:  all will be corners (hard or smooth?)
-        //
-        //  The general case will involve identifying "spans" via discts edges.  Any value
-        //  that has more than one instance split over multiple spans must be a hard corner.
-        //
-        //  For now, make each unique value a hard corner to get something working:
+        //  this vertex and tag each according to its more localized topology, i.e. is
+        //  it a boundary/crease or a corner.
         //
         IndexArray const      vEdges  = _level.getVertexEdges(vIndex);
         LocalIndexArray const vInEdge = _level.getVertexEdgeLocalIndices(vIndex);
@@ -373,56 +325,155 @@ FVarLevel::completeTopologyFromFaceValues() {
         int vSiblingCount  = _vertSiblingCounts[vIndex];
         int vSiblingOffset = _vertSiblingOffsets[vIndex];
 
+        SiblingArray const vFaceSiblings = getVertexFaceSiblings(vIndex);
+
         //
-        //  Gather the unique set of values and relevant topological information for each
-        //  as we go...
+        //  Assign the value indices for the vertex and all of its siblings and determine
+        //  the "valence" for each value (i.e. the number of faces in which it occurs):
         //
-        int vvCount = 1 + vSiblingCount;
-        int * vvIndices = indexBuffer;
-        //int vvSrcFaces[vvCount];
+        int * vSiblingValences = indexBuffer;
+        vSiblingValences[0] = 1;
+        for (int i = 1; i <= vSiblingCount; ++i) {
+            vSiblingValences[i] = 0;
+        }
 
-        Index lastValue = _faceVertValues[_level.getOffsetOfFaceVertices(vFaces[0]) + vInFace[0]];
-
-        vvCount = 1;
-        vvIndices[0]  = lastValue;
-        //vvSrcFaces[0] = 0;
-
+        int vSiblingIndex = 1;
+        Index * vertValueSiblingIndices = &_vertValueIndices[vSiblingOffset];
+        _vertValueIndices[vIndex] = _faceVertValues[_level.getOffsetOfFaceVertices(vFaces[0]) + vInFace[0]];
         for (int i = 1; i < vFaces.size(); ++i) {
-            Index nextValue = _faceVertValues[_level.getOffsetOfFaceVertices(vFaces[i]) + vInFace[i]];
+            if (vFaceSiblings[i] == vSiblingIndex) {
+                *vertValueSiblingIndices++ = _faceVertValues[_level.getOffsetOfFaceVertices(vFaces[i]) + vInFace[i]];
+                vSiblingIndex++;
+            }
+            vSiblingValences[vFaceSiblings[i]]++;
+        }
+        assert(vSiblingIndex == (1 + vSiblingCount));
 
-            if (lastValue != nextValue) {
-                bool nextValueIsNew = (vvCount == 1) || ((vvCount == 2) && (vvIndices[0] != nextValue)) ||
-                                      (std::find(vvIndices, vvIndices + vvCount, nextValue) == vvIndices + vvCount);
-                if (nextValueIsNew) {
-                    vvIndices[vvCount]  = nextValue;
-                    //vvSrcFaces[vvCount] = i;
-                    vvCount ++;
+        //
+        //  Test for conditions that make all vertex values sharp and tag all as corners when so:
+        //
+        bool sharpenAllValuesSinceOneCornerPresent = false;
+        if (sharpenAllIfAnyCorner) {
+            for (int i = 0; i <= vSiblingCount; ++i) {
+                if (vSiblingValences[i] == 1) {
+                    sharpenAllValuesSinceOneCornerPresent = true;
+                    break;
                 }
             }
-            lastValue = nextValue;
         }
-        assert(vvCount == (1 + vSiblingCount));
+        bool makeAllVertexValuesSharp = !_hasSmoothBoundaries ||
+                                        sharpenAllValuesSinceOneCornerPresent ||
+                                        _level._vertTags[vIndex]._nonManifold;
+
+        if (makeAllVertexValuesSharp) {
+            _vertValueTags[vIndex] = valueTagCorner;
+            for (int i = 0; i < vSiblingCount; ++i) {
+                _vertValueTags[vSiblingOffset + i] = valueTagCorner;
+            }
+            continue;
+        }
 
         //
-        //  Assign tags to the vertex' primary value and sibling values:
+        //  Inspect each vertex value and tag as corner or crease accordingly:
         //
-        ValueTag valueTag;
-        valueTag._mismatch = true;
-        valueTag._corner = true;
-        valueTag._crease = false;
+        for (int i = 0; i <= vSiblingCount; ++i) {
+            Index valueIndex = (i == 0) ? vIndex : (vSiblingOffset + i - 1);
 
-        _vertValueIndices[vIndex] = vvIndices[0];
-        _vertValueTags[vIndex]    = valueTag;
+            ValueTag& valueTag = _vertValueTags[valueIndex];
 
-        for (int i = 0; i < vSiblingCount; ++i) {
-            _vertValueIndices[vSiblingOffset + i] = vvIndices[1 + i];
-            _vertValueTags[vSiblingOffset + i]    = valueTag;
+            bool isDisjoint = (vSiblingValences[i] == 0);
+            bool isCorner = (vSiblingValences[i] == 1);
+            if ((isCorner && fvarCornersAreSharp) || isDisjoint) {
+                valueTag = valueTagCorner;
+                continue;
+            }
+
+            //
+            //  We have a crease value -- identify the two neighboring values:
+            //
+            //  This should really be done more efficiently in a single iteration
+            //  in conjunction with determining valence, etc., e.g. identify the
+            //  first and last face for each continuous sector.  This is only done
+            //  once for the cage and the results propagated through refinement,
+            //  so revisit if it appears to take more time than it should.
+            //
+            LocalIndex * endFaces = &_vertValueCreaseEnds[2 * valueIndex];
+
+            if (isCorner) {
+                //  A smooth corner -- all three values are in the same face:
+                int j;
+                for (j = 0; vFaceSiblings[j] != i; ++j) ;
+                endFaces[0] = j;
+                endFaces[1] = j;
+            } else if (vSiblingCount == 0) {
+                //  Single value -- a mismatched boundary or interior dart:
+                if (vEdges.size() > vFaces.size()) {
+                    endFaces[0] = 0;
+                    endFaces[1] = vFaces.size() - 1;
+                } else {
+                    for (int j = 0; j < vEdges.size(); ++j) {
+                        if (_edgeTags[vEdges[j]]._mismatch) {
+                            endFaces[0] = j;
+                            endFaces[1] = (j ? j : vFaces.size()) - 1;
+                            break;
+                        }
+                    }
+                }
+            } else if ((i == 0) && (vFaceSiblings[vFaceSiblings.size() - 1] == 0)) {
+                //  The "span" wraps around the start of an interior vertex:
+                int j;
+                for (j = vFaceSiblings.size() - 1; (vFaceSiblings[j] == 0); --j) ;
+                endFaces[0] = j + 1;
+                for (j = 0; (vFaceSiblings[j] == 0); ++j) ;
+                endFaces[1] = j - 1;
+            } else {
+                int j;
+                for (j = 0; vFaceSiblings[j] != i; ++j) ;
+                endFaces[0] = j;
+                for (j = vFaceSiblings.size() - 1; vFaceSiblings[j] != i; --j) ;
+                endFaces[1] = j;
+            }
+            valueTag = valueTagCrease;
         }
     }
-    //printf("completed topology...\n");
-    //print();
-    //printf("validating...\n");
-    //assert(validate());
+//    printf("completed fvar topology...\n");
+//    print();
+//    printf("validating...\n");
+//    assert(validate());
+}
+
+//
+//  Values tagged as creases have their two "end values" identified relative to the incident
+//  faces of the vertex for compact storage and quick retrieval.  This methods identifies the
+//  values for the two ends of such a crease value:
+//
+void
+FVarLevel::getVertexCreaseEndValues(Index vIndex, Sibling vSibling, Index endValues[2]) const
+{
+    int creaseEndOffset = 2 * getVertexValueIndex(vIndex, vSibling);
+
+    LocalIndex vertFace0 = _vertValueCreaseEnds[creaseEndOffset];
+    LocalIndex vertFace1 = _vertValueCreaseEnds[creaseEndOffset + 1];
+
+    IndexArray const      vFaces  = _level.getVertexFaces(vIndex);
+    LocalIndexArray const vInFace = _level.getVertexFaceLocalIndices(vIndex);
+
+    LocalIndex endInFace0 = vInFace[vertFace0];
+    LocalIndex endInFace1 = vInFace[vertFace1];
+    if (_level.getDepth() > 0) {
+        endInFace0 = (endInFace0 + 1) % 4;
+        endInFace1 = (endInFace1 + 3) % 4;
+    } else {
+        //  Avoid the costly % N for potential N-sided faces at level 0...
+        endInFace0++;
+        if (endInFace0 == _level.getNumFaceVertices(vFaces[vertFace0])) {
+            endInFace0 = 0;
+        }
+        endInFace1 = (endInFace1 ? endInFace1 : _level.getNumFaceVertices(vFaces[vertFace1])) - 1;
+    }
+
+    endValues[0] = _faceVertValues[_level.getOffsetOfFaceVertices(vFaces[vertFace0]) + endInFace0];
+    endValues[1] = _faceVertValues[_level.getOffsetOfFaceVertices(vFaces[vertFace1]) + endInFace1];
 }
 
 //
@@ -561,6 +612,12 @@ FVarLevel::print() const {
         printf("values =%4d", _vertValueIndices[i]);
         for (int j = 0; j < sCount; ++j) {
             printf("%4d", _vertValueIndices[sOffset + j]);
+        }
+        if (sCount) {
+            printf(", crease =%4d", _vertValueTags[i]._crease);
+            for (int j = 0; j < sCount; ++j) {
+                printf("%4d", _vertValueTags[sOffset + j]._crease);
+            }
         }
         printf("\n");
     }
