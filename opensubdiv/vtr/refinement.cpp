@@ -1651,6 +1651,7 @@ Refinement::propagateVertexTagsFromParentFaces() {
     vTag._infSharp    = 0;
     vTag._semiSharp   = 0;
     vTag._rule        = Sdc::Crease::RULE_SMOOTH;
+    vTag._incomplete  = 0;
 
     if (_parent->_depth > 0) {
         for (Index cVert = 0; cVert < _childVertFromFaceCount; ++cVert) {
@@ -1706,6 +1707,7 @@ Refinement::propagateVertexTagsFromParentEdges() {
         cVertTag._semiSharp = pEdgeTag._semiSharp;
         cVertTag._rule = (Level::VTag::VTagSize)((pEdgeTag._semiSharp || pEdgeTag._infSharp)
                        ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH);
+        cVertTag._incomplete = 0;
     }
 }
 void
