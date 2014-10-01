@@ -1112,9 +1112,9 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                     getQuadOffsets(*level, faceIndex, quad_G_C1_P);
                     quad_G_C1_P += 4;
 
-                    int bIndex = (patchTag._boundaryIndex+1)%4;
+                    //int bIndex = (patchTag._boundaryIndex+1)%4;
 
-                    pptrs.GB = computePatchParam(refiner, i, faceIndex, bIndex, pptrs.GB);
+                    pptrs.GB = computePatchParam(refiner, i, faceIndex, 0, pptrs.GB);
 
                     if (tables->_fvarPatchTables) {
                         gatherFVarPatchVertices(refiner, i, faceIndex, 0, levelFVarVertOffsets, fptrs.GB);
