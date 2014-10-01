@@ -88,8 +88,6 @@ int   g_frame = 0,
 OpenSubdiv::Sdc::Options::FVarBoundaryInterpolation  g_fvarBoundary =
     OpenSubdiv::Sdc::Options::FVAR_BOUNDARY_BILINEAR;
 
-int   g_fvarPropagateCorners = 0;
-
 // GUI variables
 int   g_fullscreen = 0,
       g_freeze = 0,
@@ -1105,15 +1103,9 @@ callbackBoundary(int b) {
         case 0 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_BILINEAR; break;
         case 1 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_EDGE_ONLY; break;
         case 2 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER; break;
-        case 3 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_ALWAYS_SHARP; break;
+        case 3 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER_PROP; break;
+        case 4 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_ALWAYS_SHARP; break;
     }
-    rebuildOsdMesh();
-}
-
-static void
-callbackPropagateCorners(bool b, int /* button */) {
-
-    g_fvarPropagateCorners = b;
     rebuildOsdMesh();
 }
 
@@ -1146,21 +1138,17 @@ initHUD() {
 
     typedef OpenSubdiv::Sdc::Options SdcOptions;
 
-    g_hud.AddRadioButton(2, "Boundary none (B)",
-                         g_fvarBoundary == SdcOptions::FVAR_BOUNDARY_BILINEAR,
-                         10, 10, callbackBoundary, SdcOptions::FVAR_BOUNDARY_BILINEAR, 'b');
-    g_hud.AddRadioButton(2, "Boundary edge only",
-                         g_fvarBoundary == SdcOptions::FVAR_BOUNDARY_EDGE_ONLY,
-                         10, 30, callbackBoundary, SdcOptions::FVAR_BOUNDARY_EDGE_ONLY, 'b');
-    g_hud.AddRadioButton(2, "Boundary edge and corners",
-                         g_fvarBoundary == SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER,
-                         10, 50, callbackBoundary, SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER, 'b');
-    g_hud.AddRadioButton(2, "Boundary always sharp",
-                         g_fvarBoundary == SdcOptions::FVAR_BOUNDARY_ALWAYS_SHARP,
-                         10, 70, callbackBoundary, SdcOptions::FVAR_BOUNDARY_ALWAYS_SHARP, 'b');
-
-    g_hud.AddCheckBox("Propagate corners (C)", g_fvarPropagateCorners != 0,
-                      10, 110, callbackPropagateCorners, 0, 'c');
+    int boundary_pulldown = g_hud.AddPullDown("Boundary (B)", 10, 10, 250, callbackBoundary, 'b');
+    g_hud.AddPullDownButton(boundary_pulldown, "Bilinear",
+        SdcOptions::FVAR_BOUNDARY_BILINEAR, g_fvarBoundary==SdcOptions::FVAR_BOUNDARY_BILINEAR);
+    g_hud.AddPullDownButton(boundary_pulldown, "Edge Only",
+        SdcOptions::FVAR_BOUNDARY_EDGE_ONLY, g_fvarBoundary==SdcOptions::FVAR_BOUNDARY_EDGE_ONLY);
+    g_hud.AddPullDownButton(boundary_pulldown, "Edge Corner",
+        SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER, g_fvarBoundary==SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER);
+    g_hud.AddPullDownButton(boundary_pulldown, "Edge Corner (Propagate)",
+        SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER_PROP, g_fvarBoundary==SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER_PROP);
+    g_hud.AddPullDownButton(boundary_pulldown, "Always Sharp",
+        SdcOptions::FVAR_BOUNDARY_ALWAYS_SHARP, g_fvarBoundary==SdcOptions::FVAR_BOUNDARY_ALWAYS_SHARP);
 
     int pulldown_handle = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
