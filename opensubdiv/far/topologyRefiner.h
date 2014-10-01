@@ -387,7 +387,7 @@ public:
     ///
     /// @param adjFaces  ptex face indices of adjacent faces
     ///
-    /// @param adjFaces  ptex edge indices of adjacent faces
+    /// @param adjEdges  ptex edge indices of adjacent faces
     ///
     void GetPtexAdjacency(int face, int quadrant,
         int adjFaces[4], int adjEdges[4]) const;
