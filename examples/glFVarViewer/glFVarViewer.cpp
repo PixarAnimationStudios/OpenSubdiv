@@ -1100,11 +1100,21 @@ callbackBoundary(int b) {
     typedef OpenSubdiv::Sdc::Options SdcOptions;
 
     switch (b) {
-        case 0 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_BILINEAR; break;
-        case 1 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_EDGE_ONLY; break;
-        case 2 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER; break;
-        case 3 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER_PROP; break;
-        case 4 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_ALWAYS_SHARP; break;
+
+        case SdcOptions::FVAR_BOUNDARY_BILINEAR :
+            g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_BILINEAR; break;
+
+        case SdcOptions::FVAR_BOUNDARY_EDGE_ONLY :
+            g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_EDGE_ONLY; break;
+
+        case SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER :
+            g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER; break;
+
+        case SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER_PROP :
+            g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER_PROP; break;
+
+        case SdcOptions::FVAR_BOUNDARY_ALWAYS_SHARP :
+            g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_ALWAYS_SHARP; break;
     }
     rebuildOsdMesh();
 }
