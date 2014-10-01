@@ -46,6 +46,8 @@ endif()
 
 _add_glfw_executable(glEvalLimit
     glEvalLimit.cpp
+    particles.cpp
+    particles.h
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
     $<TARGET_OBJECTS:examples_common_obj>
