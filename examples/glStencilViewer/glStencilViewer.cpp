@@ -91,6 +91,8 @@ int   g_running = 1,
       g_freeze=0,
       g_repeatCount;
 
+bool g_bilinear=false;
+
 float g_rotate[2] = {0, 0},
       g_dolly = 5,
       g_pan[2] = {0, 0},
@@ -314,9 +316,11 @@ createMesh(ShapeDesc const & shapeDesc, int isolationLevel) {
 
     g_orgPositions=shape->verts;
 
-    refiner->RefineAdaptive(isolationLevel, /*full topo*/ false);
-
-    Far::PatchTables const * patchTables = Far::PatchTablesFactory::Create(*refiner);
+    if (g_bilinear) {
+        refiner->RefineUniform(isolationLevel, /*full topo*/ true);
+    } else {
+        refiner->RefineAdaptive(isolationLevel, /*full topo*/ false);
+    }
 
     int nfaces = refiner->GetNumPtexFaces();
 
@@ -327,7 +331,7 @@ createMesh(ShapeDesc const & shapeDesc, int isolationLevel) {
 
     srand( static_cast<int>(2147483647) ); // use a large Pell prime number
     for (int face=0; face<nfaces; ++face) {
-    
+
         LocationArray & larray = locs[face];
         larray.ptexIdx = face;
         larray.numLocations = g_nsamples;
@@ -341,7 +345,7 @@ createMesh(ShapeDesc const & shapeDesc, int isolationLevel) {
     }
 
     delete g_controlStencils;
-    g_controlStencils = Far::LimitStencilTablesFactory::Create(*refiner, *patchTables, locs);
+    g_controlStencils = Far::LimitStencilTablesFactory::Create(*refiner, locs);
 
     delete [] u;
     delete [] v;
@@ -815,7 +819,7 @@ setSamples(bool add) {
 
     g_nsamples += add ? 1000 : -1000;
 
-    g_nsamples = std::max(0, g_nsamples);
+    g_nsamples = std::max(1000, g_nsamples);
 
     rebuildMesh();
 }
@@ -877,10 +881,16 @@ callbackDisplayCageVertices(bool checked, int /* d */) {
 
 //------------------------------------------------------------------------------
 static void
-callbackDisplayCageEdges(bool checked, int /* d */)
-{
+callbackDisplayCageEdges(bool checked, int /* d */) {
     g_drawCageEdges = checked;
 }
+
+static void
+callbackBilinear(bool checked, int /* a */) {
+    g_bilinear = checked;
+    rebuildMesh();
+}
+
 
 //------------------------------------------------------------------------------
 static void
@@ -916,6 +926,8 @@ initHUD() {
     g_hud.AddCheckBox("Cage Verts (J)", true, 10, 30, callbackDisplayCageVertices, 0, 'j');
     g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 10, 50, callbackAnimate, 0, 'm');
     g_hud.AddCheckBox("Freeze (spc)", false, 10, 70, callbackFreeze, 0, ' ');
+
+    g_hud.AddCheckBox("Bilinear Stencils (`)", g_bilinear!=0, 10, 190, callbackBilinear, 0, '`');
 
     int compute_pulldown = g_hud.AddPullDown("Compute (K)", 250, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);

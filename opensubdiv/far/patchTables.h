@@ -467,7 +467,105 @@ public:
     /// \brief Destructor
     ~PatchTables() { delete _fvarPatchTables; }
 
-    /// \brief Interpolate the (s,t) parametric location of a patch
+public:
+
+    //
+    // Interpolation methods
+    //
+
+    /// \brief Interpolate the (s,t) parametric location of a *bilinear* patch
+    ///
+    /// \note This method can only be used on uniform PatchTables of quads (see
+    ///       IsFeatureAdaptive() method)
+    ///
+    /// @param handle  A patch handle indentifying the sub-patch containing the
+    ///                (s,t) location
+    ///
+    /// @param s       Patch coordinate (in coarse face normalized space)
+    ///
+    /// @param t       Patch coordinate (in coarse face normalized space)
+    ///
+    /// @param src     Source primvar buffer (control vertices data)
+    ///
+    /// @param dst     Destination primvar buffer (limit surface data)
+    ///
+    template <class T, class U> void Interpolate(PatchHandle const & handle,
+        float s, float t, T const & src, U * dst) const;
+
+    /// \brief Interpolate the (s,t) parametric location of a bilinear (quad)
+    /// patch
+    ///
+    template <class T, class U> static void
+    InterpolateBilinear(unsigned int const * cvs, float s, float t,
+        T const & src, U * dst);
+
+    /// \brief Interpolate the (s,t) parametric location of a regular bicubic
+    ///        patch
+    ///
+    /// @param cvs     Array of 16 control vertex indices
+    ///
+    /// @param Q       Array of 16 bicubic weights for the control vertices
+    ///
+    /// @param Qd1     Array of 16 bicubic 's' tangent weights for the control
+    ///                vertices
+    ///
+    /// @param Qd2     Array of 16 bicubic 't' tangent weights for the control
+    ///                vertices
+    ///
+    /// @param src     Source primvar buffer (control vertices data)
+    ///
+    /// @param dst     Destination primvar buffer (limit surface data)
+    ///
+    template <class T, class U> static void
+    InterpolateRegularPatch(unsigned int const * cvs,
+        float const * Q, float const *Qd1, float const *Qd2, T const & src, U * dst);
+
+    /// \brief Interpolate the (s,t) parametric location of a boundary bicubic
+    ///        patch
+    ///
+    /// @param cvs     Array of 12 control vertex indices
+    ///
+    /// @param Q       Array of 12 bicubic weights for the control vertices
+    ///
+    /// @param Qd1     Array of 12 bicubic 's' tangent weights for the control
+    ///                vertices
+    ///
+    /// @param Qd2     Array of 12 bicubic 't' tangent weights for the control
+    ///                vertices
+    ///
+    /// @param src     Source primvar buffer (control vertices data)
+    ///
+    /// @param dst     Destination primvar buffer (limit surface data)
+    ///
+    template <class T, class U> static void
+    InterpolateBoundaryPatch(unsigned int const * cvs,
+        float const * Q, float const *Qd1, float const *Qd2, T const & src, U * dst);
+
+    /// \brief Interpolate the (s,t) parametric location of a corner bicubic
+    ///        patch
+    ///
+    /// @param cvs     Array of 9 control vertex indices
+    ///
+    /// @param Q       Array of 9 bicubic weights for the control vertices
+    ///
+    /// @param Qd1     Array of 9 bicubic 's' tangent weights for the control
+    ///                vertices
+    ///
+    /// @param Qd2     Array of 9 bicubic 't' tangent weights for the control
+    ///                vertices
+    ///
+    /// @param src     Source primvar buffer (control vertices data)
+    ///
+    /// @param dst     Destination primvar buffer (limit surface data)
+    ///
+    template <class T, class U> static void
+    InterpolateCornerPatch(unsigned int const * cvs,
+        float const * Q, float const *Qd1, float const *Qd2, T const & src, U * dst);
+
+    /// \brief Interpolate the (s,t) parametric location of a *bicubic* patch
+    ///
+    /// \note This method can only be used on feature adaptive PatchTables (ie.
+    ///       IsFeatureAdaptive() is false)
     ///
     /// @param handle  A patch handle indentifying the sub-patch containing the
     ///                (s,t) location
@@ -482,7 +580,6 @@ public:
     ///
     template <class T, class U> void Limit(PatchHandle const & handle,
         float s, float t, T const & src, U * dst) const;
-
 
 private:
 
@@ -830,7 +927,25 @@ PatchTables::GetNumPatches() const {
 
 template <class T, class U>
 inline void
-InterpolateRegularPatch(unsigned int const * cvs,
+PatchTables::InterpolateBilinear(unsigned int const * cvs, float s, float t,
+    T const & src, U * dst) {
+
+    float os = 1.0f - s,
+          ot = 1.0f - t,
+            Q[4] = { os*ot,  s*ot, s*t, os*t },
+          dQ1[4] = { t-1.0f,   ot,   t,   -t },
+          dQ2[4] = { s-1.0f,   -s,   s,   os };
+
+
+    for (int k=0; k<4; ++k) {
+        dst->AddWithWeight(src[cvs[k]], Q[k], dQ1[k], dQ2[k]);
+    }
+}
+
+
+template <class T, class U>
+inline void
+PatchTables::InterpolateRegularPatch(unsigned int const * cvs,
     float const * Q, float const *Qd1, float const *Qd2,
         T const & src, U * dst) {
 
@@ -853,7 +968,7 @@ InterpolateRegularPatch(unsigned int const * cvs,
 
 template <class T, class U>
 inline void
-InterpolateBoundaryPatch(unsigned int const * cvs,
+PatchTables::InterpolateBoundaryPatch(unsigned int const * cvs,
     float const * Q, float const *Qd1, float const *Qd2,
         T const & src, U * dst) {
 
@@ -881,7 +996,7 @@ InterpolateBoundaryPatch(unsigned int const * cvs,
 
 template <class T, class U>
 inline void
-InterpolateCornerPatch(unsigned int const * cvs,
+PatchTables::InterpolateCornerPatch(unsigned int const * cvs,
     float const * Q, float const *Qd1, float const *Qd2,
         T const & src, U * dst) {
 
@@ -923,10 +1038,37 @@ InterpolateCornerPatch(unsigned int const * cvs,
 // Interpolates the limit position of a parametric location on a patch
 template <class T, class U>
 inline void
+PatchTables::Interpolate(PatchHandle const & handle, float s, float t,
+    T const & src, U * dst) const {
+
+    assert(dst and (not IsFeatureAdaptive()));
+
+    PatchTables::PatchArray const & parray =
+        _patchArrays[handle.patchArrayIdx];
+
+    unsigned int const * cvs =
+        &_patches[parray.GetVertIndex() + handle.vertexOffset];
+
+    PatchParam::BitField const & bits =
+        _paramTable[handle.patchIdx].bitField;
+
+    bits.Normalize(s,t);
+
+    Type ptype = parray.GetDescriptor().GetType();
+    assert(ptype==QUADS);
+
+    dst->Clear();
+
+    InterpolateBilinear(cvs, s, t, src, dst);
+}
+
+// Interpolates the limit position of a parametric location on a patch
+template <class T, class U>
+inline void
 PatchTables::Limit(PatchHandle const & handle, float s, float t,
     T const & src, U * dst) const {
 
-    assert(dst);
+    assert(dst and IsFeatureAdaptive());
 
     PatchTables::PatchArray const & parray =
         _patchArrays[handle.patchArrayIdx];

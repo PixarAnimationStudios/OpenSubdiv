@@ -23,6 +23,7 @@
 //
 
 #include "../far/stencilTablesFactory.h"
+#include "../far/patchTablesFactory.h"
 #include "../far/patchMap.h"
 #include "../far/stencilTables.h"
 #include "../far/topologyRefiner.h"
@@ -923,13 +924,15 @@ LimitStencilTablesFactory::copyLimitStencils(
 
 LimitStencilTables const *
 LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
-    PatchTables const & patchTables, LocationArrayVec const & locationArrays) {
+    LocationArrayVec const & locationArrays, StencilTables const * cvStencils,
+        PatchTables const * patchTables) {
 
-    assert(not refiner.IsUniform());
+    bool uniform = refiner.IsUniform();
 
     // Compute the total number of stencils to generate
     int numStencils=0, numLimitStencils=0;
     for (int i=0; i<(int)locationArrays.size(); ++i) {
+        assert(locationArrays[i].numLocations>=0);
         numStencils += locationArrays[i].numLocations;
     }
 
@@ -937,20 +940,46 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
         return 0;
     }
 
-    // Generate stencils for the control vertices
-    // note: the control vertices of the mesh are added as single-index
-    //       stencils of weight 1.0f
-    StencilTablesFactory::Options options;
-    options.generateAllLevels=true;
-    options.generateControlVerts=true;
-    options.generateOffsets=true;
+    int maxlevel = refiner.GetMaxLevel();
 
-    StencilTables const * cvStencils =
-        StencilTablesFactory::Create(refiner, options);
+    StencilTables const * _cvStencils = cvStencils;
+    if (not _cvStencils) {
+        // Generate stencils for the control vertices
+        // note: the control vertices of the mesh are added as single-index
+        //       stencils of weight 1.0f
+        StencilTablesFactory::Options options;
+        options.generateAllLevels = uniform ? false :true;
+        options.generateControlVerts = true;
+        options.generateOffsets = true;
 
+        _cvStencils = StencilTablesFactory::Create(refiner, options);
+    } else {
+        // sanity checks
+        if (_cvStencils->GetNumStencils() != uniform ?
+            refiner.GetNumVertices(maxlevel) :
+                refiner.GetNumVerticesTotal()) {
+                return 0;
+        }
+    }
+    
+    PatchTables const * _patchTables = patchTables;
+    if (not patchTables) {
+        _patchTables = PatchTablesFactory::Create(refiner);
+    } else {
+        // sanity checks
+        if (patchTables->IsFeatureAdaptive()==uniform) {
+            // XXXX smart pointers /grumble
+            if (not cvStencils) {
+                delete _cvStencils;
+            }
+            return 0;
+        }
+    }
+    
+    assert( _patchTables and _cvStencils );
 
     // Create a patch-map to locate sub-patches faster
-    PatchMap patchmap( patchTables );
+    PatchMap patchmap( *_patchTables );
 
     // Create a pool allocator to accumulate ProtoLimitStencils
     ProtoStencilAllocator alloc(refiner,
@@ -959,6 +988,9 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
     alloc.Resize(numStencils);
 
     // Generate limit stencils for locations
+    
+    // XXXX manuelk we can make uniform much faster with a dedicated 
+    //              code path that does not use PatchTables
     for (int i=0, currentStencil=0; i<(int)locationArrays.size(); ++i) {
 
         LocationArray const & array = locationArrays[i];
@@ -978,14 +1010,15 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
                 ProtoLimitStencil & dst =
                     alloc.GetLimitStencils()[currentStencil];
 
-                patchTables.Limit(*handle, s, t, *cvStencils, &dst);
-
+                if (uniform) {
+                    _patchTables->Interpolate(*handle, s, t, *_cvStencils, &dst);
+                } else {
+                    _patchTables->Limit(*handle, s, t, *_cvStencils, &dst);
+                }
                 ++numLimitStencils;
             }
         }
     }
-
-    delete cvStencils;
 
     // Sort & Copy the proto stencils into the limit stencil tables
     LimitStencilTables * result = new LimitStencilTables;
@@ -1013,6 +1046,14 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
         generateOffsets(result->_sizes, result->_offsets);
     }
     result->_numControlVertices = refiner.GetNumVertices(0);
+
+    if (not cvStencils) {
+        delete _cvStencils;
+    }
+
+    if (not patchTables) {
+        delete _patchTables;
+    }
 
     return result;
 }

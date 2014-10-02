@@ -83,7 +83,7 @@ public:
     ///       been refined in the TopologyRefiner. Use RefineUniform() or
     ///       RefineAdaptive() before constructing the stencils.
     ///
-    /// @param refiner  The TopologyRefiner containing the refined topology
+    /// @param refiner  The TopologyRefiner containing the topology
     ///
     /// @param options    Options controlling the creation of the tables
     ///
@@ -115,10 +115,13 @@ private:
 /// \brief A specialized factory for LimitStencilTables
 ///
 /// The LimitStencilTablesFactory creates tables of limit stencils. Limit
-/// stencils can interpolate any arbitrary location of the limit surface.
+/// stencils can interpolate any arbitrary location on the limit surface.
+/// The stencils will be bilinear if the surface is refined uniformly, and
+/// bicubic if feature adaptive isolation is used instead.
 ///
-/// Locations are expressed as a combination of ptex face index and normalized
-/// (s,t) patch coordinates
+/// Surface locations are expressed as a combination of ptex face index and
+/// normalized (s,t) patch coordinates. The factory exposes the LocationArray
+/// struct as a container for these location descriptors.
 ///
 class LimitStencilTablesFactory {
 
@@ -138,9 +141,26 @@ public:
 
     typedef std::vector<LocationArray> LocationArrayVec;
 
+    /// \brief Instantiates LimitStencilTables from a TopologyRefiner that has
+    ///        been refined either uniformly or adaptively.
+    ///
+    /// @param refiner          The TopologyRefiner containing the topology
+    ///
+    /// @param locationArrays   An array of surface location descriptors
+    ///                         (see LocationArray)
+    ///
+    /// @param cvStencils       A set of StencilTables generated from the
+    ///                         TopologyRefiner (optional: prevents redundant
+    ///                         instanciation of the tables if available)
+    ///
+    /// @param patchTables      A set of PatchTables generated from the
+    ///                         TopologyRefiner (optional: prevents redundant
+    ///                         instanciation of the tables if available)
+    ///
     static LimitStencilTables const * Create(TopologyRefiner const & refiner,
-        PatchTables const & patchTables,
-            LocationArrayVec const & locationArrays);
+        LocationArrayVec const & locationArrays,
+            StencilTables const * cvStencils=0,
+                PatchTables const * patchTables=0);
 
 private:
 
