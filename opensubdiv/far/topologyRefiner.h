@@ -198,6 +198,8 @@ public:
 
     template <class T, class U> void InterpolateFaceVarying(int level, T const * src, U * dst, int channel = 0) const;
 
+    template <class T, class U> void LimitFaceVarying(T const * src, U * dst, int channel = 0) const;
+
 
     /// \brief Apply vertex interpolation limit weights to a primvar buffer
     ///
@@ -600,7 +602,7 @@ TopologyRefiner::interpolateChildVertsFromEdges(
 
         eHood.SetIndex(edge);
 
-        Sdc::Crease::Rule pRule = (parent.getEdgeSharpness(edge) > 0.0) ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH;
+        Sdc::Crease::Rule pRule = (parent.getEdgeSharpness(edge) > 0.0f) ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH;
         Sdc::Crease::Rule cRule = child.getVertexRule(cVert);
 
         scheme.ComputeEdgeVertexMask(eHood, eMask, pRule, cRule);
@@ -668,12 +670,23 @@ TopologyRefiner::interpolateChildVertsFromVerts(
 
         //  Apply the weights to the parent vertex, the vertices opposite its incident
         //  edges, and the child vertices of its incident faces:
+        //
+        //  In order to improve numerical precision, its better to apply smaller weights
+        //  first, so begin with the face-weights followed by the edge-weights and the
+        //  vertex weight last.
         U & vdst = dst[cVert];
 
         vdst.Clear();
-        vdst.AddWithWeight(src[vert], vVertWeight);
-        vdst.AddVaryingWithWeight(src[vert], 1.0f);
 
+        if (vMask.GetNumFaceWeights() > 0) {
+
+            for (int i = 0; i < vFaces.size(); ++i) {
+
+                Vtr::Index cVertOfFace = refinement.getFaceChildVertex(vFaces[i]);
+                assert(Vtr::IndexIsValid(cVertOfFace));
+                vdst.AddWithWeight(dst[cVertOfFace], vFaceWeights[i]);
+            }
+        }
         if (vMask.GetNumEdgeWeights() > 0) {
 
             for (int i = 0; i < vEdges.size(); ++i) {
@@ -684,15 +697,9 @@ TopologyRefiner::interpolateChildVertsFromVerts(
                 vdst.AddWithWeight(src[pVertOppositeEdge], vEdgeWeights[i]);
             }
         }
-        if (vMask.GetNumFaceWeights() > 0) {
+        vdst.AddWithWeight(src[vert], vVertWeight);
 
-            for (int i = 0; i < vFaces.size(); ++i) {
-
-                Vtr::Index cVertOfFace = refinement.getFaceChildVertex(vFaces[i]);
-                assert(Vtr::IndexIsValid(cVertOfFace));
-                vdst.AddWithWeight(dst[cVertOfFace], vFaceWeights[i]);
-            }
-        }
+        vdst.AddVaryingWithWeight(src[vert], 1.0f);
     }
 }
 
@@ -931,7 +938,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromEdges(
             if (!isLinearFVar) {
                 eHood.SetIndex(edge);
 
-                Sdc::Crease::Rule pRule = (parent.getEdgeSharpness(edge) > 0.0) ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH;
+                Sdc::Crease::Rule pRule = (parent.getEdgeSharpness(edge) > 0.0f) ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH;
                 Sdc::Crease::Rule cRule = child.getVertexRule(cVert);
 
                 scheme.ComputeEdgeVertexMask(eHood, eMask, pRule, cRule);
@@ -1095,14 +1102,27 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
             //  indirection is necessary.  We can use a vertex index directly for "dst" when
             //  it matches.
             //
+            //  As with applying the mask to vertex data, in order to improve numerical
+            //  precision, its better to apply smaller weights first, so begin with the
+            //  face-weights followed by the edge-weights and the vertex weight last.
+            //
             Vtr::Index pVertValue = parentFVar.getVertexValue(vert);
             Vtr::Index cVertValue = cVert;
 
             U & vdst = dst[cVertValue];
 
             vdst.Clear();
-            vdst.AddWithWeight(src[pVertValue], vVertWeight);
+            if (vMask.GetNumFaceWeights() > 0) {
 
+                Vtr::IndexArray const vFaces = parent.getVertexFaces(vert);
+
+                for (int i = 0; i < vFaces.size(); ++i) {
+
+                    Vtr::Index cVertOfFace = refinement.getFaceChildVertex(vFaces[i]);
+                    assert(Vtr::IndexIsValid(cVertOfFace));
+                    vdst.AddWithWeight(dst[cVertOfFace], vFaceWeights[i]);
+                }
+            }
             if (vMask.GetNumEdgeWeights() > 0) {
 
                 //  WORK-IN-PROGRESS -- using this switch for comparative purposes only...
@@ -1123,21 +1143,11 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
                 }
 
             }
-            if (vMask.GetNumFaceWeights() > 0) {
-
-                Vtr::IndexArray const vFaces = parent.getVertexFaces(vert);
-
-                for (int i = 0; i < vFaces.size(); ++i) {
-
-                    Vtr::Index cVertOfFace = refinement.getFaceChildVertex(vFaces[i]);
-                    assert(Vtr::IndexIsValid(cVertOfFace));
-                    vdst.AddWithWeight(dst[cVertOfFace], vFaceWeights[i]);
-                }
-            }
+            vdst.AddWithWeight(src[pVertValue], vVertWeight);
         } else {
             //
-            //  Mismatched vert-verts may be either on corners or creases -- for now we
-            //  are presuming the hard-corner case (and so need to revisit this...)
+            //  Each FVar value associated with a vertex will be either a corner or a crease,
+            //  or potentially in transition from corner to crease:
             //
             for (int cSibling = 0; cSibling < childFVar.getNumVertexValues(cVert); ++cSibling) {
                 int pSibling = refineFVar.getChildValueParentSource(cVert, cSibling);
@@ -1208,19 +1218,14 @@ TopologyRefiner::Limit(T const * src, U * dst) const {
 
         //  Apply the weights to the vertex, the vertices opposite its incident
         //  edges, and the opposite vertices of its incident faces:
+        //
+        //  As with applying refinment masks to vertex data, in order to improve
+        //  numerical precision, its better to apply smaller weights first, so
+        //  begin with the face-weights followed by the edge-weights and the vertex
+        //  weight last.
         U & vdst = dst[vert];
 
         vdst.Clear();
-        vdst.AddWithWeight(src[vert], vWeights[0]);
-
-        if (vMask.GetNumEdgeWeights() > 0) {
-            for (int i = 0; i < vEdges.size(); ++i) {
-                IndexArray const eVerts = level.getEdgeVertices(vEdges[i]);
-                Index vertOppositeEdge = (eVerts[0] == vert) ? eVerts[1] : eVerts[0];
-
-                vdst.AddWithWeight(src[vertOppositeEdge], eWeights[i]);
-            }
-        }
         if (vMask.GetNumFaceWeights() > 0) {
             IndexArray const      vFaces = level.getVertexFaces(vert);
             LocalIndexArray const vInFace = level.getVertexFaceLocalIndices(vert);
@@ -1229,6 +1234,114 @@ TopologyRefiner::Limit(T const * src, U * dst) const {
                 Index      vertOppositeFace = level.getFaceVertices(vFaces[i])[vOppInFace];
 
                 vdst.AddWithWeight(src[vertOppositeFace], fWeights[i]);
+            }
+        }
+        if (vMask.GetNumEdgeWeights() > 0) {
+            for (int i = 0; i < vEdges.size(); ++i) {
+                IndexArray const eVerts = level.getEdgeVertices(vEdges[i]);
+                Index vertOppositeEdge = (eVerts[0] == vert) ? eVerts[1] : eVerts[0];
+
+                vdst.AddWithWeight(src[vertOppositeEdge], eWeights[i]);
+            }
+        }
+        vdst.AddWithWeight(src[vert], vWeights[0]);
+    }
+}
+
+template <class T, class U>
+inline void
+TopologyRefiner::LimitFaceVarying(T const * src, U * dst, int channel) const {
+
+    assert(_subdivType == Sdc::TYPE_CATMARK);
+    Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_subdivOptions);
+
+    assert(GetMaxLevel() > 0);
+    Vtr::Level const &      level       = _levels[GetMaxLevel()];
+    Vtr::FVarLevel const &  fvarChannel = *level._fvarChannels[channel];
+
+    int maxWeightsPerMask = 1 + 2 * level.getMaxValence();
+
+    float * weightBuffer = (float *)alloca(maxWeightsPerMask * sizeof(float));
+    Index * indexBuffer  = (Index *)alloca(level.getMaxValence() * sizeof(Index));
+
+    //  This is a bit obscure -- assign both parent and child as last level
+    Vtr::VertexInterface vHood(level, level);
+
+    for (int vert = 0; vert < level.getNumVertices(); ++vert) {
+
+        bool fvarVertMatchesVertex = fvarChannel.vertexTopologyMatches(vert);
+        if (fvarChannel._isLinear && fvarVertMatchesVertex) {
+            Vtr::Index srcValueIndex = fvarChannel.getVertexValue(vert);
+            Vtr::Index dstValueIndex = vert;
+
+            U & vdst = dst[dstValueIndex];
+
+            vdst.Clear();
+            vdst.AddWithWeight(src[srcValueIndex], 1.0f);
+        } else if (fvarVertMatchesVertex) {
+            //
+            //  Compute the limit mask based on vertex topology:
+            //
+            IndexArray const vEdges = level.getVertexEdges(vert);
+
+            float * vWeights = weightBuffer,
+                  * eWeights = vWeights + 1,
+                  * fWeights = eWeights + vEdges.size();
+
+            Vtr::MaskInterface vMask(vWeights, eWeights, fWeights);
+
+            vHood.SetIndex(vert, vert);
+
+            scheme.ComputeVertexLimitMask(vHood, vMask);
+
+            //
+            //  Apply mask to corresponding FVar values for neighboring vertices:
+            //
+            Vtr::Index vVertValue = fvarChannel.getVertexValue(vert);
+
+            U & vdst = dst[vVertValue];
+
+            vdst.Clear();
+            if (vMask.GetNumFaceWeights() > 0) {
+                IndexArray const      vFaces = level.getVertexFaces(vert);
+                LocalIndexArray const vInFace = level.getVertexFaceLocalIndices(vert);
+
+                for (int i = 0; i < vFaces.size(); ++i) {
+                    LocalIndex vOppInFace = (vInFace[i] + 2) & 3;
+                    Index      vValueOppositeFace = fvarChannel.getFaceValues(vFaces[i])[vOppInFace];
+
+                    vdst.AddWithWeight(src[vValueOppositeFace], fWeights[i]);
+                }
+            }
+            if (vMask.GetNumEdgeWeights() > 0) {
+                Index * vEdgeValues = indexBuffer;
+                fvarChannel.getVertexEdgeValues(vert, vEdgeValues);
+
+                for (int i = 0; i < vEdges.size(); ++i) {
+                    vdst.AddWithWeight(src[vEdgeValues[i]], eWeights[i]);
+                }
+            }
+            vdst.AddWithWeight(src[vVertValue], vWeights[0]);
+        } else {
+            //
+            //  Sibling FVar values associated with a vertex will be either a corner or a crease:
+            //
+            for (int vSibling = 0; vSibling < fvarChannel.getNumVertexValues(vert); ++vSibling) {
+                Vtr::Index vVertValue = fvarChannel.getVertexValue(vert, vSibling);
+
+                U & vdst = dst[vVertValue];
+
+                vdst.Clear();
+                if (fvarChannel.isValueCorner(fvarChannel.getVertexValueIndex(vert, vSibling))) {
+                    vdst.AddWithWeight(src[vVertValue], 1.0f);
+                } else {
+                    Index vEndValues[2];
+                    fvarChannel.getVertexCreaseEndValues(vert, vSibling, vEndValues);
+
+                    vdst.AddWithWeight(src[vEndValues[0]], 1.0f/6.0f);
+                    vdst.AddWithWeight(src[vEndValues[1]], 1.0f/6.0f);
+                    vdst.AddWithWeight(src[vVertValue], 2.0f/3.0f);
+                }
             }
         }
     }
