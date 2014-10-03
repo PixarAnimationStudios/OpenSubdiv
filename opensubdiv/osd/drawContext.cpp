@@ -85,7 +85,7 @@ DrawContext::packFVarData(Far::PatchTables const & patchTables,
     for (int fvert=0; fvert<(int)indices.size(); ++fvert, ptr+=fvarWidth) {
 
         int index = indices[fvert] * fvarWidth;
-        assert(index<(int)dst.size());
+        assert(index<(int)src.size());
 
         memcpy(ptr, &src[index], fvarWidth*sizeof(float));
     }
