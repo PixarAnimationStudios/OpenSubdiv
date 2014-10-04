@@ -521,7 +521,9 @@ void main()
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
-    vec3 BUCP[4], DUCP[4], CUCP[4];
+    vec3 BUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)),
+         DUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)),
+         CUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0));
     vec3 dUU = vec3(0);
     vec3 dVV = vec3(0);
     vec3 dUV = vec3(0);
@@ -529,10 +531,6 @@ void main()
     Univar4x4(u, B, D, C);
 
     for (int i=0; i<4; ++i) {
-        BUCP[i] = vec3(0);
-        DUCP[i] = vec3(0);
-        CUCP[i] = vec3(0);
-
         for (uint j=0; j<4; ++j) {
             // reverse face front
             vec3 A = q[i + 4*j];
@@ -587,14 +585,12 @@ void main()
 
 #else
     float B[4], D[4];
-    vec3 BUCP[4], DUCP[4];
+    vec3 BUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)),
+         DUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0));
 
     Univar4x4(u, B, D);
 
     for (int i=0; i<4; ++i) {
-        BUCP[i] =  vec3(0);
-        DUCP[i] =  vec3(0);
-
         for (uint j=0; j<4; ++j) {
             // reverse face front
             vec3 A = q[i + 4*j];

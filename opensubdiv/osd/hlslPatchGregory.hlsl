@@ -78,7 +78,7 @@ void vs_main_patches( in InputVertex input,
     output.valence = ivalence;
     uint valence = uint(abs(ivalence));
 
-    float3 f[OSD_MAX_VALENCE]; 
+    float3 f[OSD_MAX_VALENCE];
     float3 pos = input.position.xyz;
     float3 opos = float3(0,0,0);
 
@@ -91,8 +91,8 @@ void vs_main_patches( in InputVertex input,
 #endif
 
     for (uint i=0; i<valence; ++i) {
-        uint im=(i+valence-1)%valence; 
-        uint ip=(i+1)%valence; 
+        uint im=(i+valence-1)%valence;
+        uint ip=(i+1)%valence;
 
         uint idx_neighbor = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 0 + 1)]);
 
@@ -115,7 +115,7 @@ void vs_main_patches( in InputVertex input,
                     boundaryEdgeNeighbors[0] = boundaryEdgeNeighbors[1];
                     boundaryEdgeNeighbors[1] = tmp;
                     zerothNeighbor = i;
-                } 
+                }
             }
         }
 #endif
@@ -190,18 +190,18 @@ void vs_main_patches( in InputVertex input,
                 float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
                        VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
                        VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) +
-                4.0f * pos)/6.0f;        
+                4.0f * pos)/6.0f;
         } else {
-            output.position = pos;                    
+            output.position = pos;
         }
 
-        output.e0 = ( 
+        output.e0 = (
             float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
                    VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
                    VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) -
             float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
                    VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) 
+                   VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)])
             )/6.0;
 
         float k = float(float(valence) - 1.0f);    //k is the number of faces
@@ -209,7 +209,7 @@ void vs_main_patches( in InputVertex input,
         float s = sin(M_PI/k);
         float gamma = -(4.0f*s)/(3.0f*k+c);
         float alpha_0k = -((1.0f+2.0f*c)*sqrt(1.0f+c))/((3.0f*k+c)*sqrt(1.0f-c));
-        float beta_0 = s/(3.0f*k + c); 
+        float beta_0 = s/(3.0f*k + c);
 
 
         int idx_diagonal = OsdValenceBuffer[int((vID) * (2*OSD_MAX_VALENCE+1) + 2*zerothNeighbor + 1 + 1)];
@@ -219,7 +219,7 @@ void vs_main_patches( in InputVertex input,
                        VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
                        VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
 
-        output.e1 = gamma * pos + 
+        output.e1 = gamma * pos +
             alpha_0k * float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
                               VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
                               VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) +
@@ -248,11 +248,11 @@ void vs_main_patches( in InputVertex input,
                        VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
                        VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
 
-            output.e1 += alpha * neighbor + beta * diagonal;                         
+            output.e1 += alpha * neighbor + beta * diagonal;
         }
 
         output.e1 /= 3.0f;
-    } 
+    }
 #endif
 }
 
@@ -326,8 +326,8 @@ GregDomainVertex hs_main_patches(
     uint np = abs(patch[ip].valence);
     uint nm = abs(patch[im].valence);
 
-    // Control Vertices based on : 
-    // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation" 
+    // Control Vertices based on :
+    // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation"
     // Loop, Schaefer, Ni, Castafio (ACM ToG Siggraph Asia 2009)
     //
     //  P3         e3-      e2+         E2
@@ -377,19 +377,19 @@ GregDomainVertex hs_main_patches(
     }
     if (patch[im].valence < 0) {
         nm = (nm-1)*2;
-    }  
+    }
     if (patch[ip].valence < 0) {
         np = (np-1)*2;
     }
 
     if (patch[i].valence > 2) {
         Ep = patch[i].position + (patch[i].e0*csf(n-3, 2*start) + patch[i].e1*csf(n-3, 2*start + 1));
-        Em = patch[i].position + (patch[i].e0*csf(n-3, 2*prev) +  patch[i].e1*csf(n-3, 2*prev + 1)); 
+        Em = patch[i].position + (patch[i].e0*csf(n-3, 2*prev) +  patch[i].e1*csf(n-3, 2*prev + 1));
 
         float s1=3-2*csf(n-3,2)-csf(np-3,2);
         float s2=2*csf(n-3,2);
 
-        Fp = (csf(np-3,2)*patch[i].position + s1*Ep + s2*Em_ip + patch[i].r[start])/3.0f; 
+        Fp = (csf(np-3,2)*patch[i].position + s1*Ep + s2*Em_ip + patch[i].r[start])/3.0f;
         s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
         Fm = (csf(nm-3,2)*patch[i].position + s1*Em + s2*Ep_im - patch[i].r[prev])/3.0f;
 
@@ -406,7 +406,7 @@ GregDomainVertex hs_main_patches(
         float s1 = 3-2*csf(n-3,2)-csf(np-3,2);
         float s2 = 2*csf(n-3,2);
 
-        Fp = (csf(np-3,2)*patch[i].position + s1*Ep + s2*Em_ip + patch[i].r[start])/3.0f; 
+        Fp = (csf(np-3,2)*patch[i].position + s1*Ep + s2*Em_ip + patch[i].r[start])/3.0f;
         s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
         Fm = (csf(nm-3,2)*patch[i].position + s1*Em + s2*Ep_im - patch[i].r[prev])/3.0f;
 
@@ -531,7 +531,11 @@ void ds_main_patches(
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
-    float3 BUCP[4], DUCP[4], CUCP[4];
+
+    float3 BUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)},
+           DUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)},
+           CUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)};
+
     float3 dUU = float3(0, 0, 0);
     float3 dVV = float3(0, 0, 0);
     float3 dUV = float3(0, 0, 0);
@@ -539,10 +543,6 @@ void ds_main_patches(
     Univar4x4(u, B, D, C);
 
     for (int i=0; i<4; ++i) {
-        BUCP[i] = float3(0, 0, 0);
-        DUCP[i] = float3(0, 0, 0);
-        CUCP[i] = float3(0, 0, 0);
-
         for (uint j=0; j<4; ++j) {
             // reverse face front
             float3 A = q[i + 4*j];
@@ -597,14 +597,12 @@ void ds_main_patches(
 
 #else
     float B[4], D[4];
-    float3 BUCP[4], DUCP[4];
+    float3 BUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)},
+           DUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)};
 
     Univar4x4(uv.x, B, D);
 
     for (int i=0; i<4; ++i) {
-        BUCP[i] =  float3(0, 0, 0);
-        DUCP[i] =  float3(0, 0, 0);
-
         for (uint j=0; j<4; ++j) {
             // reverse face front
             float3 A = q[i + 4*j];

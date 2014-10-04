@@ -233,21 +233,18 @@ void main()
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
-    vec3 BUCP[4], DUCP[4], CUCP[4];
+    vec3 BUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)),
+         DUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)),
+         CUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0));
     Univar4x4(UV.x, B, D, C);
 #else
     float B[4], D[4];
-    vec3 BUCP[4], DUCP[4];
+    vec3 BUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)),
+         DUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0));
     Univar4x4(UV.x, B, D);
 #endif
 
     for (int i=0; i<4; ++i) {
-        BUCP[i] = vec3(0);
-        DUCP[i] = vec3(0);
-#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-        CUCP[i] = vec3(0);
-#endif
-
         for (int j=0; j<4; ++j) {
 #if OSD_TRANSITION_ROTATE == 1
             vec3 A = inpt[4*(3-j) + i].v.position.xyz;

@@ -201,12 +201,12 @@ float4 PtexLookupQuadratic(out float4 du,
     d[8] = data[int3(cX+1, cY+1, ppack.page)];
 
     float B[3], D[3];
-    float4 BUCP[3], DUCP[3];
+    float4 BUCP[3] = {float4(0,0,0,0), float4(0,0,0,0), float4(0,0,0,0)},
+           DUCP[3] = {float4(0,0,0,0), float4(0,0,0,0), float4(0,0,0,0)};
+
     evalQuadraticBSpline(y, B, D);
 
     for (int i = 0; i < 3; ++i) {
-        BUCP[i] = float4(0, 0, 0, 0);
-        DUCP[i] = float4(0, 0, 0, 0);
         for (int j = 0; j < 3; j++) {
             float4 A = d[i*3+j];
             BUCP[i] += A * B[j];
