@@ -56,6 +56,9 @@ namespace Vtr {
 //
 
 class FVarRefinement {
+public:
+    typedef FVarLevel::Sibling      Sibling;
+    typedef FVarLevel::SiblingArray SiblingArray;
 
 public:
     FVarRefinement(Refinement const& refinement, FVarLevel& parent, FVarLevel& child);
@@ -80,6 +83,10 @@ public:
     void propagateEdgeTags();
     void propagateValueTags();
     void propagateValueCreases();
+    void reclassifySemisharpValues();
+
+    float getFractionalWeight(Index pVert, Sibling pSibling,
+                              Index cVert, Sibling cSibling) const;
 
 
 public:

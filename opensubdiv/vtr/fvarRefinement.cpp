@@ -94,6 +94,7 @@ FVarRefinement::applyRefinement() {
     propagateValueTags();
     if (_child->_hasSmoothBoundaries) {
         propagateValueCreases();
+        reclassifySemisharpValues();
     }
 
     //
@@ -361,8 +362,12 @@ FVarRefinement::propagateValueTags() {
     //  as corner or crease depending on the presence of creases in the parent:
     //
     FVarLevel::ValueTag valTagMismatch(true);
+    valTagMismatch._crease    = false;
+    valTagMismatch._semiSharp = false;
+
     FVarLevel::ValueTag valTagCrease(true);
-    valTagCrease._crease = true;
+    valTagCrease._crease    = true;
+    valTagCrease._semiSharp = false;
 
     FVarLevel::ValueTag& valTagSplitEdge = _parent->_hasSmoothBoundaries ? valTagCrease : valTagMismatch;
 
@@ -421,7 +426,7 @@ FVarRefinement::propagateValueCreases() {
         if (!_child->_vertValueTags[cVert]._mismatch) continue;
         if (_refinement._childVertexTag[cVert]._incomplete) continue;
 
-        if (_child->_vertValueTags[cVert]._crease) {
+        if (!_child->isValueInfSharp(cVert)) {
             LocalIndex * sibling0Ends = &_child->_vertValueCreaseEnds[2 * cVert];
             sibling0Ends[0] = 0;
             sibling0Ends[1] = 1;
@@ -429,7 +434,7 @@ FVarRefinement::propagateValueCreases() {
         int vSiblingCount = _child->_vertSiblingCounts[cVert];
         if (vSiblingCount) {
             int cOffset = _child->_vertSiblingOffsets[cVert];
-            if (_child->_vertValueTags[cOffset]._crease) {
+            if (!_child->isValueInfSharp(cOffset)) {
                 LocalIndex * sibling1Ends = &_child->_vertValueCreaseEnds[2 * cOffset];
                 sibling1Ends[0] = 2;
                 sibling1Ends[1] = 3;
@@ -439,7 +444,8 @@ FVarRefinement::propagateValueCreases() {
 
     //
     //  For each child vertex from a vertex that has FVar values and is complete, initialize
-    //  the crease-ends for those values tagged as smooth boundaries:
+    //  the crease-ends for those values tagged as smooth or semi-sharp (to become smooth
+    //  eventually):
     //
     for (int i = 0; i < _refinement._childVertFromVertCount; ++i, ++cVert) {
         if (!_child->_vertValueTags[cVert]._mismatch) continue;
@@ -447,7 +453,7 @@ FVarRefinement::propagateValueCreases() {
 
         Index pVert = _refinement.getChildVertexParentIndex(cVert);
 
-        if (_child->_vertValueTags[cVert]._crease) {
+        if (!_child->isValueInfSharp(cVert)) {
             LocalIndex * pSiblingEnds = &_parent->_vertValueCreaseEnds[2 * pVert];
             LocalIndex * cSiblingEnds = &_child->_vertValueCreaseEnds[2 * cVert];
 
@@ -463,13 +469,121 @@ FVarRefinement::propagateValueCreases() {
             LocalIndex * cSiblingEnds = &_child->_vertValueCreaseEnds[2 * cSiblingOffset];
 
             for (int j = 0; j < vSiblingCount; ++j, cSiblingEnds += 2, pSiblingEnds += 2) {
-                if (_child->_vertValueTags[cSiblingOffset + j]._crease) {
+                if (!_child->isValueInfSharp(cSiblingOffset + j)) {
                     cSiblingEnds[0] = pSiblingEnds[0];
                     cSiblingEnds[1] = pSiblingEnds[1];
                 }
             }
         }
     }
+}
+
+void
+FVarRefinement::reclassifySemisharpValues() {
+
+    //
+    //  Reclassify the tags of semi-sharp vertex values to smooth creases according to
+    //  changes in sharpness:
+    //
+    //  Vertex values introduced on edge-verts can never be semi-sharp as they will be
+    //  introduced on discts edges, which are implicitly infinitely sharp, so we can
+    //  skip them entirely.
+    //
+    //  So we just need to deal with those values descended from parent vertices that
+    //  were semi-sharp.  The child values will have inherited the semi-sharp tag from
+    //  their parent values -- we will be able to clear it in many simple cases but
+    //  ultimately will need to inspect each value:
+    //
+    FVarLevel::ValueTag valTagCrease(true);
+    valTagCrease._crease    = true;
+    valTagCrease._semiSharp = false;
+
+    FVarLevel::ValueTag valTagSemiSharp(true);
+    valTagSemiSharp._crease    = false;
+    valTagSemiSharp._semiSharp = true;
+
+    Index cVert = _refinement._childVertFromFaceCount + _refinement._childVertFromEdgeCount;
+
+    for (int i = 0; i < _refinement._childVertFromVertCount; ++i, ++cVert) {
+        if (!_child->_vertValueTags[cVert]._mismatch) continue;
+        if (_refinement._childVertexTag[cVert]._incomplete) continue;
+
+        //  Remember the child vertex may no longer be semisharp when the parent was:
+        Index pVert = _refinement.getChildVertexParentIndex(cVert);
+        if (!_refinement._parent->_vertTags[pVert]._semiSharp) continue;
+
+        //  If the child vertex sharpness is non-zero, all values remain unaffected:
+        if (!Sdc::Crease::IsSmooth(_refinement._child->_vertSharpness[cVert])) continue;
+
+        //
+        //  We are left with some or no semi-sharp edges in the child vertex.  If none
+        //  left the child-vertex will no longer be semi-sharp and we can just clear
+        //  those values marked as semi-sharp.  Otherwise, its simplest to assume all
+        //  semi-sharp edges have decayed (so clearing them again) and using the
+        //  remaining semi-sharp edges to reset those values that still are.
+        //
+        //  So convert all semi-sharp tags to creases and reset those that remain if
+        //  the child vertex is still tagged as semi-sharp:
+        //
+        int vSiblingOffset = _child->_vertSiblingOffsets[cVert];
+        int vSiblingCount  = _child->_vertSiblingCounts[cVert];
+        int vValueCount    = 1 + vSiblingCount;
+        for (int j = 0; j < vValueCount; ++j) {
+            int vValueIndex = (j == 0) ? cVert : (vSiblingOffset + j - 1);
+
+            if (_child->isValueSemiSharp(vValueIndex)) {
+                _child->_vertValueTags[vValueIndex] = valTagCrease;
+            }
+        }
+        if (!_refinement._child->_vertTags[cVert]._semiSharp) continue;
+
+        //
+        //  Identify the remaining semi-sharp edges and the corresponding values that
+        //  should be retained as semi-sharp:
+        //
+        SiblingArray const vFaceSiblings = _child->getVertexFaceSiblings(cVert);
+
+        IndexArray const cVertEdges = _refinement._child->getVertexEdges(cVert);
+        for (int j = 0; j < cVertEdges.size(); ++j) {
+            if (_refinement._child->_edgeTags[cVertEdges[j]]._semiSharp) {
+                int jPrev = j ? (j - 1) : (vFaceSiblings.size() - 1);
+                if (vFaceSiblings[jPrev] == vFaceSiblings[j]) {
+                    int vSibling = vFaceSiblings[j];
+                    int vValueIndex = (vSibling == 0) ? cVert : (vSiblingOffset + vSibling - 1);
+
+                    _child->_vertValueTags[vValueIndex] = valTagSemiSharp;
+                }
+            }
+        }
+    }
+}
+
+float
+FVarRefinement::getFractionalWeight(Index pVert, Sibling /* pSibling */,
+                                    Index cVert, Sibling /* cSibling */) const
+{
+    //  Should only be called when the parent was semi-sharp but this child vertex
+    //  value (not necessarily the child vertex as a whole) is no longer semi-sharp:
+    assert(_refinement._parent->_vertTags[pVert]._semiSharp);
+
+    float pVertSharpness = _refinement._parent->_vertSharpness[pVert];
+    float cVertSharpness = _refinement._child->_vertSharpness[cVert];
+
+    //
+    //  Need to identify sharpness values for edges within the spans for both the
+    //  parent and child...
+    //
+    int     numValueEdges  = 0;
+    float * pEdgeSharpness = 0;
+    float * cEdgeSharpness = 0;
+
+    if (Sdc::Crease::IsSmooth(pVertSharpness)) {
+        printf("Warning -- FVarRefinement::getFractionalWeight() currently ignores edge sharpness...\n");
+        //  Consider fully sharp until we gather and average the edge sharpness values... 
+        return 1.0;
+    }
+    return Sdc::Crease(_refinement._schemeOptions).ComputeFractionalWeightAtVertex(
+        pVertSharpness, cVertSharpness, numValueEdges, pEdgeSharpness, cEdgeSharpness);
 }
 
 } // end namespace Vtr

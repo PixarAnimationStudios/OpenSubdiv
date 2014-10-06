@@ -1148,6 +1148,9 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
             //
             //  Each FVar value associated with a vertex will be either a corner or a crease,
             //  or potentially in transition from corner to crease:
+            //      - if the CHILD is a corner, we have no transition but a corner
+            //      - otherwise if the PARENT is a crease too, we have no transition but a creas
+            //      - otherwise the parent must be a corner and the child a crease.
             //
             for (int cSibling = 0; cSibling < childFVar.getNumVertexValues(cVert); ++cSibling) {
                 int pSibling = refineFVar.getChildValueParentSource(cVert, cSibling);
@@ -1159,15 +1162,29 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
                 U & vdst = dst[cVertValue];
 
                 vdst.Clear();
-                if (parentFVar.isValueCorner(parentFVar.getVertexValueIndex(vert, pSibling))) {
+                if (childFVar.isValueCorner(childFVar.getVertexValueIndex(cVert, cSibling))) {
                     vdst.AddWithWeight(src[pVertValue], 1.0f);
                 } else {
+                    //
+                    //  We have either a crease or a transition from corner to crease -- in
+                    //  either case, we need the end values for the crease:
+                    //
                     Index pEndValues[2];
                     parentFVar.getVertexCreaseEndValues(vert, pSibling, pEndValues);
 
-                    vdst.AddWithWeight(src[pEndValues[0]], 0.125f);
-                    vdst.AddWithWeight(src[pEndValues[1]], 0.125f);
-                    vdst.AddWithWeight(src[pVertValue], 0.75f);
+                    float vWeight = 0.75f;
+                    float eWeight = 0.125f;
+
+                    if (parentFVar.isValueSemiSharp(parentFVar.getVertexValueIndex(vert, pSibling))) {
+                        float wCorner = refineFVar.getFractionalWeight(vert, pSibling, cVert, cSibling);
+                        float wCrease = 1.0f - wCorner;
+
+                        vWeight = wCrease * 0.75f + wCorner;
+                        eWeight = wCrease * 0.125f;
+                    }
+                    vdst.AddWithWeight(src[pEndValues[0]], eWeight);
+                    vdst.AddWithWeight(src[pEndValues[1]], eWeight);
+                    vdst.AddWithWeight(src[pVertValue], vWeight);
                 }
             }
         }

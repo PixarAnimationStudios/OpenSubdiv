@@ -115,8 +115,9 @@ public:
 
         typedef unsigned char ValueTagSize;
 
-        ValueTagSize _mismatch : 1;  // local FVar topology does not match
-        ValueTagSize _crease   : 1;  // value is a crease, otherwise a corner
+        ValueTagSize _mismatch  : 1;  // local FVar topology does not match
+        ValueTagSize _crease    : 1;  // value is a crease, otherwise a corner
+        ValueTagSize _semiSharp : 1;  // value is a corner decaying to crease
     };
 
 public:
@@ -149,8 +150,12 @@ public:
     SiblingArray const getVertexFaceSiblings(Index faceIndex) const;
 
     //  Queries specific to values:
-    bool isValueCrease(Index valueIndex) const { return  _vertValueTags[valueIndex]._crease; }
-    bool isValueCorner(Index valueIndex) const { return !_vertValueTags[valueIndex]._crease; }
+    bool isValueCrease(Index valueIndex) const    { return _vertValueTags[valueIndex]._crease; }
+    bool isValueCorner(Index valueIndex) const    { return !_vertValueTags[valueIndex]._crease; }
+    bool isValueSemiSharp(Index valueIndex) const { return _vertValueTags[valueIndex]._semiSharp; }
+    bool isValueInfSharp(Index valueIndex) const  { return !_vertValueTags[valueIndex]._semiSharp &&
+                                                           !_vertValueTags[valueIndex]._crease; }
+                                                           
 
     //  Higher-level topological queries, i.e. values in a neighborhood:
     void getEdgeFaceValues(Index eIndex, int fIncToEdge, Index valuesPerVert[2]) const;
@@ -175,6 +180,15 @@ public:
     void initializeFaceValuesFromFaceVertices();
     void initializeFaceValuesFromVertexFaceSiblings(int firstVertex = 0);
     void buildFaceVertexSiblingsFromVertexFaceSiblings(std::vector<Sibling>& fvSiblings) const;
+
+    //  Information about the "span" for a value:
+    struct ValueSpan {
+        LocalIndex _size;
+        LocalIndex _start;
+        LocalIndex _disjoint;
+        LocalIndex _semiSharp;
+    };
+    void gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const;
 
     bool validate() const;
     void print() const;

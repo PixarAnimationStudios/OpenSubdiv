@@ -311,7 +311,12 @@ FVarLevel::completeTopologyFromFaceValues() {
     //  vertex and to inspect local face-varying topology in more detail when necessary:
     //
     ValueTag valueTagCrease = valueTagMismatch;
-    valueTagCrease._crease = true;
+    valueTagCrease._crease    = true;
+    valueTagCrease._semiSharp = false;
+
+    ValueTag valueTagSemiSharp = valueTagMismatch;
+    valueTagSemiSharp._crease    = false;
+    valueTagSemiSharp._semiSharp = true;
 
     for (int vIndex = 0; vIndex < _level.getNumVertices(); ++vIndex) {
         IndexArray const      vFaces  = _level.getVertexFaces(vIndex);
@@ -350,9 +355,16 @@ FVarLevel::completeTopologyFromFaceValues() {
         //  further inspection there may be other cases where all are determined to be
         //  sharp, but use what information we can now to avoid that inspection:
         //
-        bool vIsBoundary = _level._vertTags[vIndex]._boundary;
+        //  Regarding sharpness of the vertex itself, its vertex tags reflect the inf-
+        //  or semi-sharp nature of the vertex and edges around it, so be careful not
+        //  to assume too much from say, the presence of an incident inf-sharp edge.
+        //  We can make clear decisions based on the sharpness of the vertex itself.
+        //
+        bool  vIsBoundary = _level._vertTags[vIndex]._boundary;
+        float vSharpness  = _level._vertSharpness[vIndex];
 
         bool allCornersAreSharp = !_hasSmoothBoundaries ||
+                                  Sdc::Crease::IsInfinite(vSharpness) ||
                                   (sharpenAllIfMoreThan2 && (vValueCount > 2)) ||
                                   (sharpenDarts && (vValueCount == 1) && !vIsBoundary) ||
                                    _level._vertTags[vIndex]._nonManifold;
@@ -363,69 +375,15 @@ FVarLevel::completeTopologyFromFaceValues() {
         //
         //  Values may be a mix of sharp corners and smooth boundaries...
         //
-        //  Gather information about the "span" of faces for each value.  The "size" (number
-        //  of faces in which each value occurs), is most immediately useful in determining
-        //  whether a value is a corner or smooth boundary, while other properties such as
-        //  the first face and whether or not the span is interrupted by a discts edge (and
-        //  so made "disjoint") are useful to fully qualify smooth boundaries.
+        //  Gather information about the "span" of faces for each value.  Use the results
+        //  in one last chance for all values to be made sharp via interpolation options...
         //
-        struct ValueSpan {
-            LocalIndex _size;
-            LocalIndex _start;
-            LocalIndex _disjoint;
-        };
-        assert(sizeof(ValueSpan) < sizeof(int));
+        assert(sizeof(ValueSpan) <= sizeof(int));
         ValueSpan * vValueSpans = (ValueSpan *) indexBuffer;
         memset(vValueSpans, 0, vValueCount * sizeof(ValueSpan));
 
-        IndexArray const      vEdges  = _level.getVertexEdges(vIndex);
-        LocalIndexArray const vInEdge = _level.getVertexEdgeLocalIndices(vIndex);
+        gatherValueSpans(vIndex, vValueSpans);
 
-        if (vValueCount == 1) {
-            //  Mark an interior dart disjoint if more than one discts edge:
-            for (int i = 0; i < vEdges.size(); ++i) {
-                if (_edgeTags[vEdges[i]]._mismatch) {
-                    if (vValueSpans[0]._size) {
-                        vValueSpans[0]._disjoint = true;
-                        break;
-                    } else {
-                        vValueSpans[0]._size  = (LocalIndex) vFaces.size();
-                        vValueSpans[0]._start = (LocalIndex) i;
-                    }
-                }
-            }
-        } else {
-            //  Walk around the vertex and accumulate span info for each value -- be
-            //  careful about the span for the first value "wrapping" around:
-            vValueSpans[0]._size  = 1;
-            vValueSpans[0]._start = 0;
-            if (_edgeTags[vEdges[0]]._mismatch && !vIsBoundary) {
-                vValueSpans[0]._disjoint = (vFaceSiblings[vFaces.size() - 1] == 0);
-            }
-            for (int i = 1; i < vFaces.size(); ++i) {
-                if (_edgeTags[vEdges[i]]._mismatch) {
-                    if (vFaceSiblings[i] == vFaceSiblings[i-1]) {
-                        ++ vValueSpans[vFaceSiblings[i]]._disjoint;
-                    } else {
-                        //  If we have already set the span for this value, mark disjoint
-                        if (vValueSpans[vFaceSiblings[i]]._size > 0) {
-                            ++ vValueSpans[vFaceSiblings[i]]._disjoint;
-                        }
-                        vValueSpans[vFaceSiblings[i]]._start = (LocalIndex) i;
-                    }
-                }
-                ++ vValueSpans[vFaceSiblings[i]]._size;
-            }
-            //  If the span for value 0 has wrapped around, decrement the disjoint added
-            //  at the interior edge where it started the closing part of the span:
-            if ((vFaceSiblings[vFaces.size() - 1] == 0) && !vIsBoundary) {
-                -- vValueSpans[0]._disjoint;
-            }
-        }
-
-        //
-        //  Last chance for all values to be made sharp via interpolation options...
-        //
         bool testForSmoothBoundaries = true;
         if (sharpenAllIfAnyCorner) {
             for (int i = 0; i < vValueCount; ++i) {
@@ -435,18 +393,25 @@ FVarLevel::completeTopologyFromFaceValues() {
                 }
             }
         }
+
+        //
+        //  Test each vertex value to determine if it is a smooth boundary (crease) -- if not
+        //  disjoint and not a sharp corner, tag as a smooth boundary and identify its ends.
+        //  Note if semi-sharp, and do not tag it as a crease now -- the refinement will tag
+        //  it once all sharpness has decayed to zero:
+        //
         if (testForSmoothBoundaries) {
-            //
-            //  Inspect each vertex value -- if not disjoint and not a sharp corner, tag as a
-            //  smooth boundary and identify its ends:
-            //
             for (int i = 0; i < vValueCount; ++i) {
                 ValueSpan& vSpan = vValueSpans[i];
 
                 if (!vSpan._disjoint && ((vSpan._size > 1) || !fvarCornersAreSharp)) {
                     Index valueIndex = (i == 0) ? vIndex : (vSiblingOffset + i - 1);
 
-                    _vertValueTags[valueIndex] = valueTagCrease;
+                    if ((vSpan._semiSharp > 0) || (vSharpness > 0)) {
+                        _vertValueTags[valueIndex] = valueTagSemiSharp;
+                    } else {
+                        _vertValueTags[valueIndex] = valueTagCrease;
+                    }
 
                     LocalIndex * endFaces = &_vertValueCreaseEnds[2 * valueIndex];
 
@@ -641,6 +606,10 @@ FVarLevel::print() const {
             printf(", crease =%4d", _vertValueTags[i]._crease);
             for (int j = 0; j < sCount; ++j) {
                 printf("%4d", _vertValueTags[sOffset + j]._crease);
+            }
+            printf(", semi-sharp =%2d", (int)_vertValueTags[i]._semiSharp);
+            for (int j = 0; j < sCount; ++j) {
+                printf("%2d", _vertValueTags[sOffset + j]._semiSharp);
             }
         }
         printf("\n");
@@ -865,6 +834,87 @@ printf("    edge[] tag mismatch = %d\n", _edgeTags[eIndex]._mismatch);
             }
         }
 //printf("                            edge-value[%d] = %4d\n", i, valuesPerEdge[i]);
+    }
+}
+
+//
+//  Gather information about the "span" of faces for each value:
+//
+//  This method is only invoked when the spans for values may be smooth boundaries and
+//  other criteria that make all sharp (e.g. a non-manifold vertex) have been considered.
+//
+//  The "size" (number of faces in which each value occurs), is most immediately useful
+//  in determining whether a value is a corner or smooth boundary, while other properties
+//  such as the first face and whether or not the span is interrupted by a discts edge
+//  (and so made "disjoint") or semi-sharp or infinite edges, are useful to fully qualify
+//  smooth boundaries by the caller.
+//
+void
+FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
+
+    IndexArray const vEdges = _level.getVertexEdges(vIndex);
+    IndexArray const vFaces = _level.getVertexFaces(vIndex);
+
+    SiblingArray const vFaceSiblings = getVertexFaceSiblings(vIndex);
+
+    bool vHasSingleValue = (_vertSiblingCounts[vIndex] == 0);
+    bool vIsBoundary = vEdges.size() > vFaces.size();
+
+    if (vHasSingleValue) {
+        //  Mark an interior dart disjoint if more than one discts edge:
+        for (int i = 0; i < vEdges.size(); ++i) {
+            if (_edgeTags[vEdges[i]]._mismatch) {
+                if (vValueSpans[0]._size) {
+                    vValueSpans[0]._disjoint = true;
+                    break;
+                } else {
+                    vValueSpans[0]._size  = (LocalIndex) vFaces.size();
+                    vValueSpans[0]._start = (LocalIndex) i;
+                }
+            } else if (_level._edgeTags[vEdges[i]]._infSharp) {
+                vValueSpans[0]._disjoint = true;
+                break;
+            } else if (_level._edgeTags[vEdges[i]]._semiSharp) {
+                ++ vValueSpans[0]._semiSharp;
+            }
+        }
+    } else {
+        //  Walk around the vertex and accumulate span info for each value -- be
+        //  careful about the span for the first value "wrapping" around:
+        vValueSpans[0]._size  = 1;
+        vValueSpans[0]._start = 0;
+        if (!vIsBoundary && (vFaceSiblings[vFaces.size() - 1] == 0)) {
+            if (_edgeTags[vEdges[0]]._mismatch) {
+                vValueSpans[0]._disjoint = true;
+            } else if (_level._edgeTags[vEdges[0]]._infSharp) {
+                vValueSpans[0]._disjoint = true;
+            } else if (_level._edgeTags[vEdges[0]]._semiSharp) {
+                ++ vValueSpans[0]._semiSharp;
+            }
+        }
+        for (int i = 1; i < vFaces.size(); ++i) {
+            if (vFaceSiblings[i] == vFaceSiblings[i-1]) {
+                if (_edgeTags[vEdges[i]]._mismatch) {
+                    ++ vValueSpans[vFaceSiblings[i]]._disjoint;
+                } else if (_level._edgeTags[vEdges[i]]._infSharp) {
+                    vValueSpans[vFaceSiblings[i]]._disjoint = true;
+                } else if (_level._edgeTags[vEdges[i]]._semiSharp) {
+                    ++ vValueSpans[vFaceSiblings[i]]._semiSharp;
+                }
+            } else {
+                //  If we have already set the span for this value, mark disjoint
+                if (vValueSpans[vFaceSiblings[i]]._size > 0) {
+                    ++ vValueSpans[vFaceSiblings[i]]._disjoint;
+                }
+                vValueSpans[vFaceSiblings[i]]._start = (LocalIndex) i;
+            }
+            ++ vValueSpans[vFaceSiblings[i]]._size;
+        }
+        //  If the span for value 0 has wrapped around, decrement the disjoint added
+        //  at the interior edge where it started the closing part of the span:
+        if ((vFaceSiblings[vFaces.size() - 1] == 0) && !vIsBoundary) {
+            -- vValueSpans[0]._disjoint;
+        }
     }
 }
 
