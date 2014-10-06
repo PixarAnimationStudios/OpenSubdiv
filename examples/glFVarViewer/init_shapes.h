@@ -57,6 +57,7 @@ static std::vector<ShapeDesc> g_defaultShapes;
 #include <shapes/catmark_flap2.h>
 #include <shapes/catmark_fvar_bound0.h>
 #include <shapes/catmark_fvar_bound1.h>
+#include <shapes/catmark_fvar_bound2.h>
 #include <shapes/catmark_gregory_test1.h>
 #include <shapes/catmark_gregory_test2.h>
 #include <shapes/catmark_gregory_test3.h>
@@ -113,6 +114,7 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_flap2",            catmark_flap2,            kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_fvar_bound0",      catmark_fvar_bound0,      kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_fvar_bound1",      catmark_fvar_bound1,      kCatmark ) );
+    g_defaultShapes.push_back( ShapeDesc("catmark_fvar_bound2",      catmark_fvar_bound2,      kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test1",    catmark_gregory_test1,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test2",    catmark_gregory_test2,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test3",    catmark_gregory_test3,    kCatmark ) );
