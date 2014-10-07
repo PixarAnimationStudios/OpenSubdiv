@@ -172,7 +172,12 @@ FVarLevel::completeTopologyFromFaceValues() {
     //  Still looking or opportunities to economize effort between the two passes...
     //
     ValueTag valueTagMatch(false);
+    valueTagMatch._crease = false;
+    valueTagMatch._semiSharp = false;
+
     ValueTag valueTagMismatch(true);
+    valueTagMismatch._crease = false;
+    valueTagMismatch._semiSharp = false;
 
     _vertValueTags.resize(_level.getNumVertices(), valueTagMatch);
     _vertFaceSiblings.resize(_level.getNumVertexFacesTotal(), 0);
