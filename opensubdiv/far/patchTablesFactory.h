@@ -57,9 +57,9 @@ public:
                     triangulateQuads(false),
                     generateFVarTables(false) { }
 
-        int generateAllLevels : 1,  ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
-            triangulateQuads  : 1,  ///< Triangulate 'QUADS' primitives (Uniform mode only)
-            generateFVarTables : 1; ///< Generate face-varying patch tables
+        unsigned int generateAllLevels : 1,  ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
+                     triangulateQuads  : 1,  ///< Triangulate 'QUADS' primitives (Uniform mode only)
+                    generateFVarTables : 1;  ///< Generate face-varying patch tables
     };
 
     /// \brief Factory constructor for PatchTables
@@ -105,7 +105,7 @@ private:
     static PatchParam * computePatchParam( TopologyRefiner const & refiner, int level,
                                               int face, int rotation, PatchParam * coord );
 
-    static void getQuadOffsets(Vtr::Level const & level, int face, unsigned int * result);
+    static void getQuadOffsets(Vtr::Level const & level, int face, Index * result);
 
 private:
 };

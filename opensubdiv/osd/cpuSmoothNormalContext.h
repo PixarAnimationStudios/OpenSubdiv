@@ -94,12 +94,12 @@ public:
     }
 
     /// Returns the vector of patch arrays
-    const Far::PatchTables::PatchArrayVector & GetPatchArrayVector() const {
+    Far::PatchTables::PatchArrayVector const & GetPatchArrayVector() const {
         return _patchArrays;
     }
 
     /// The ordered array of control vertex indices for all the patches
-    const std::vector<unsigned int> & GetControlVertices() const {
+    Far::PatchTables::PTable const & GetControlVertices() const {
         return _patches;
     }
 
@@ -153,7 +153,7 @@ private:
     Far::PatchTables::PTable               _patches;        // patch control vertices
 
     VertexBufferDescriptor _iDesc,
-                              _oDesc;
+                           _oDesc;
 
     int _numVertices;
 

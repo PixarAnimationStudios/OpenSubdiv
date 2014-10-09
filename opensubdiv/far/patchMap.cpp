@@ -45,7 +45,7 @@ PatchMap::QuadNode::SetChild(int patchIdx) {
 }
 
 // sets the child in "quadrant" to point to the node or patch of the given index
-void 
+void
 PatchMap::QuadNode::SetChild(unsigned char quadrant, int idx, bool isLeaf) {
     assert(quadrant<4);
     children[quadrant].isSet  = true;
@@ -54,7 +54,7 @@ PatchMap::QuadNode::SetChild(unsigned char quadrant, int idx, bool isLeaf) {
 }
 
 // adds a child to a parent node and pushes it back on the tree
-PatchMap::QuadNode * 
+PatchMap::QuadNode *
 PatchMap::addChild( QuadTree & quadtree, QuadNode * parent, int quadrant ) {
     quadtree.push_back(QuadNode());
     int idx = (int)quadtree.size()-1;
@@ -65,11 +65,11 @@ PatchMap::addChild( QuadTree & quadtree, QuadNode * parent, int quadrant ) {
 void
 PatchMap::initialize( PatchTables const & patchTables ) {
 
-    int nfaces = 0, npatches = (int)patchTables.GetNumPatches();
-        
+    int nfaces = 0, npatches = (int)patchTables.GetNumPatchesTotal();
+
     if (not npatches)
         return;
-        
+
     PatchTables::PatchArrayVector const & patchArrays =
         patchTables.GetPatchArrayVector();
 
@@ -79,23 +79,23 @@ PatchMap::initialize( PatchTables const & patchTables ) {
     // populate subpatch handles vector
     _handles.resize(npatches);
     for (int arrayIdx=0, current=0; arrayIdx<(int)patchArrays.size(); ++arrayIdx) {
-    
+
         PatchTables::PatchArray const & parray = patchArrays[arrayIdx];
 
         int ringsize = parray.GetDescriptor().GetNumControlVertices();
-        
-        for (unsigned int j=0; j < parray.GetNumPatches(); ++j) {
-            
+
+        for (Index j=0; j < parray.GetNumPatches(); ++j) {
+
             PatchParam const & param = paramTable[parray.GetPatchIndex()+j];
-            
+
             Handle & h = _handles[current];
 
             h.patchArrayIdx = arrayIdx;
-            h.patchIdx      = (unsigned int)current;
+            h.patchIdx      = current;
             h.vertexOffset  = j * ringsize;
 
             nfaces = std::max(nfaces, (int)param.faceIndex);
-            
+
             ++current;
         }
     }
@@ -106,40 +106,40 @@ PatchMap::initialize( PatchTables const & patchTables ) {
 
     // reserve memory for the octree nodes (size is a worse-case approximation)
     quadtree.reserve( nfaces + npatches );
-    
+
     // each coarse face has a root node associated to it that we need to initialize
     quadtree.resize(nfaces);
-    
+
     // populate the quadtree from the FarPatchArrays sub-patches
     for (int i=0, handleIdx=0; i<(int)patchArrays.size(); ++i) {
-    
+
         PatchTables::PatchArray const & parray = patchArrays[i];
 
-        for (unsigned int j=0; j < parray.GetNumPatches(); ++j, ++handleIdx) {
-        
+        for (int j=0; j < parray.GetNumPatches(); ++j, ++handleIdx) {
+
             PatchParam const & param = paramTable[parray.GetPatchIndex()+j];
 
             PatchParam::BitField bits = param.bitField;
 
             unsigned char depth = bits.GetDepth();
-            
+
             QuadNode * node = &quadtree[ param.faceIndex ];
-            
+
             if (depth==(bits.NonQuadRoot() ? 1 : 0)) {
                 // special case : regular BSpline face w/ no sub-patches
                 node->SetChild( handleIdx );
                 continue;
-            } 
-                  
+            }
+
             int u = bits.GetU(),
                 v = bits.GetV(),
                 pdepth = bits.NonQuadRoot() ? depth-2 : depth-1,
                 half = 1 << pdepth;
-            
+
             for (unsigned char k=0; k<depth; ++k) {
 
                 int delta = half >> 1;
-                
+
                 int quadrant = resolveQuadrant(half, u, v);
                 assert(quadrant>=0);
 

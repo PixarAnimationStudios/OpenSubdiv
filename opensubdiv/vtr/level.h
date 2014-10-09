@@ -232,9 +232,9 @@ public:
     //  is the best place for them for now...
 
     //  Irritating that the PatchTables use "unsigned int" for indices instead of "int":
-    int gatherQuadRegularInteriorPatchVertices(Index fIndex, unsigned int patchVerts[], int rotation = 0) const;
-    int gatherQuadRegularBoundaryPatchVertices(Index fIndex, unsigned int patchVerts[], int boundaryEdgeInFace) const;
-    int gatherQuadRegularCornerPatchVertices(  Index fIndex, unsigned int patchVerts[], int cornerVertInFace) const;
+    int gatherQuadRegularInteriorPatchVertices(Index fIndex, Index patchVerts[], int rotation = 0) const;
+    int gatherQuadRegularBoundaryPatchVertices(Index fIndex, Index patchVerts[], int boundaryEdgeInFace) const;
+    int gatherQuadRegularCornerPatchVertices(  Index fIndex, Index patchVerts[], int cornerVertInFace) const;
 
     int gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int ringVerts[]) const;
 

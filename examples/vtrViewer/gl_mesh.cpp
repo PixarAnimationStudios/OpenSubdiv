@@ -454,7 +454,7 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
 
             int ncvs = pa.GetDescriptor().GetNumControlVertices();
 
-            unsigned int const * cvs = &ptable[pa.GetVertIndex()];
+            OpenSubdiv::Far::Index const * cvs = &ptable[pa.GetVertIndex()];
 
             for (int j=0; j<(int)pa.GetNumPatches(); ++j, cvs+=ncvs) {
 
@@ -475,7 +475,7 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
 
     { // face color component ------------------------------
 
-        int nfaces = patchTables.GetNumPatches();
+        int nfaces = patchTables.GetNumPatchesTotal();
 
         std::vector<float> & vbo = _vbo[COMP_FACE];
         vbo.resize(nverts*3);
@@ -493,7 +493,7 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
 
             int ncvs = pa.GetDescriptor().GetNumControlVertices();
 
-            unsigned int const * cvs = &ptable[pa.GetVertIndex()];
+            OpenSubdiv::Far::Index const * cvs = &ptable[pa.GetVertIndex()];
 
             for (int j=0; j<(int)pa.GetNumPatches(); ++j, ++face, cvs+=ncvs) {
 

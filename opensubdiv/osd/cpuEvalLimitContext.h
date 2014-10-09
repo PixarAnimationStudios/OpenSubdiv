@@ -69,7 +69,7 @@ public:
     }
 
     /// The ordered array of control vertex indices for all the patches
-    const std::vector<unsigned int> & GetControlVertices() const {
+    const std::vector<Far::Index> & GetControlVertices() const {
         return _patches;
     }
 

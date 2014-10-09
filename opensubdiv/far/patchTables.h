@@ -28,7 +28,10 @@
 #include "../version.h"
 
 #include "../far/patchParam.h"
+#include "../far/patchParam.h"
 #include "../far/types.h"
+
+#include "../sdc/type.h"
 
 #include <cstdlib>
 #include <cassert>
@@ -49,21 +52,22 @@ namespace Far {
 class PatchTables {
 
 public:
-    typedef std::vector<unsigned int>  PTable;
-    typedef std::vector<int>           VertexValenceTable;
-    typedef std::vector<unsigned int>  QuadOffsetTable;
+
+    typedef std::vector<Index>      PTable;
+    typedef std::vector<Index>      VertexValenceTable;
+    typedef std::vector<Index>      QuadOffsetTable;
     typedef std::vector<PatchParam> PatchParamTable;
 
     enum Type {
         NON_PATCH = 0,     ///< undefined
 
-        POINTS,            ///< points  (useful for cage drawing)
-        LINES,             ///< lines   (useful for cage drawing)
+        POINTS,            ///< points (useful for cage drawing)
+        LINES,             ///< lines  (useful for cage drawing)
 
         QUADS,             ///< bilinear quads-only patches
         TRIANGLES,         ///< bilinear triangles-only mesh
 
-        LOOP,              ///< Loop patch  (unsupported)
+        LOOP,              ///< Loop patch  (currently unsupported)
 
         REGULAR,           ///< feature-adaptive bicubic patches
         BOUNDARY,
@@ -81,6 +85,8 @@ public:
         PATTERN4
     };
 
+public:
+
     /// \brief Describes the type of a patch
     ///
     /// Uniquely identifies all the types of patches in a mesh :
@@ -95,9 +101,6 @@ public:
     ///   BOUNDARY, CORNER, GREGORY, GREGORY_BOUNDARY. These bicubic patches are
     ///   also further distinguished by a transition pattern as well as a rotational
     ///   orientation.
-    ///
-    /// An iterator class is provided as a convenience to enumerate over the set
-    /// of valid feature adaptive patch descriptors.
     ///
     class Descriptor {
 
@@ -147,73 +150,30 @@ public:
             return GetNumFVarControlVertices( this->GetType() );
         }
 
-        /// Returns a vector of all the legal patch descriptors
-        static inline std::vector<Descriptor> const & GetAllValidDescriptors();
-
         /// \brief Allows ordering of patches by type
         inline bool operator < ( Descriptor const other ) const;
 
         /// \brief True if the descriptors are identical
         inline bool operator == ( Descriptor const other ) const;
 
-        /// \brief Descriptor Iterator
-        /// Iterates through the patches in the following preset order
-        ///
-        /// ANY order:
-        ///        POINTS
-        ///        LINES
-        ///        QUADS
-        ///        TRIANGLES
-        ///        LOOP
-        ///
-        /// FEATURE_ADAPTIVE_CATMARK order:
-        ///
-        ///       NON_TRANSITION ( REGULAR
-        ///                         BOUNDARY
-        ///                         CORNER
-        ///                         GREGORY
-        ///                         GREGORY_BOUNDARY )
-        ///
-        ///        PATTERN0 ( REGULAR
-        ///                   BOUNDARY ROT0 ROT1 ROT2 ROT3
-        ///                   CORNER   ROT0 ROT1 ROT2 ROT3 )
-        ///
-        ///        PATTERN1 ( REGULAR
-        ///                   BOUNDARY ROT0 ROT1 ROT2 ROT3
-        ///                   CORNER   ROT0 ROT1 ROT2 ROT3 )
-        ///        ...
-        ///
-        ///        NON_TRANSITION NON_PATCH ROT0 (end)
-        ///
-        class iterator;
-
-        enum PrimType {
-            ANY,
-            FEATURE_ADAPTIVE_CATMARK
-        };
-
-        /// \brief Returns a patch type iterator
-        /// @param type       if type=ANY then the iterater points to type POINTS
-        ///                   if type=FEATURE_ADAPTIVE_CATMARK then the iterator
-        ///                   points to type NON_TRANSITION REGULAR
-        static iterator begin(PrimType type);
-
-        /// \brief Returns an iterator to the end of the list of patch types (NON_PATCH)
-        static iterator end();
-
     private:
         friend class PatchTablesFactory;
-        friend class iterator;
 
         unsigned int  _type:4;
         unsigned int  _pattern:3;
         unsigned int  _rotation:2;
     };
 
+    typedef std::vector<Descriptor> DescriptorVector;
+
+    /// \brief Returns a vector of all the legal patch descriptors for the
+    ///        given adaptive subdivision scheme
+    static DescriptorVector const & GetAdaptiveDescriptors(Sdc::Type type);
 
 
+public:
 
-    /// \brief Describes an array of patches of the same type
+    /// \brief Array of patches of the same type
     class PatchArray {
 
     public:
@@ -233,8 +193,9 @@ public:
         /// @param quadOffsetIndex  absolute index of the first quad offset
         ///                         entry
         ///
-        PatchArray( Descriptor desc, unsigned int vertIndex, unsigned int patchIndex, unsigned int npatches, unsigned int quadOffsetIndex ) :
-            _desc(desc), _range(vertIndex, patchIndex, npatches, quadOffsetIndex) { }
+        PatchArray( Descriptor desc, Index vertIndex, Index patchIndex,
+            Index npatches, Index quadOffsetIndex ) :
+                _desc(desc), _range(vertIndex, patchIndex, npatches, quadOffsetIndex) { }
 
         /// Returns a patch descriptor defining the type of patches in the array
         Descriptor GetDescriptor() const {
@@ -246,24 +207,26 @@ public:
 
             /// \brief Constructor
             ///
-            /// @param ivertIndex        absolute index to the first control vertex
-            ///                          of the first patch in the PTable
+            /// @param vIndex     absolute index to the first control vertex
+            ///                   of the first patch in the PTable
             ///
-            /// @param ipatchIndex       absolute index of the first patch in the
-            ///                          array
+            /// @param pIndex     absolute index of the first patch in the
+            ///                   array
             ///
-            /// @param inpatches         number of patches in the array
+            /// @param npatches   number of patches in the array
             ///
-            /// @param iquadOffsetIndex  absolute index of the first quad offset
-            ///                          entry
+            /// @param qoIndex    absolute index of the first quad offset
+            ///                   entry
             ///
-            ArrayRange( unsigned int ivertIndex, unsigned int ipatchIndex, unsigned int inpatches, unsigned int iquadOffsetIndex ) :
-                vertIndex(ivertIndex), patchIndex(ipatchIndex), npatches(inpatches), quadOffsetIndex(iquadOffsetIndex) { }
+            ArrayRange( Index vIndex, Index pIndex, int npatches, Index qoIndex ) :
+                npatches(npatches), vertIndex(vIndex), patchIndex(pIndex),
+                    quadOffsetIndex(qoIndex) { }
 
-            unsigned int vertIndex,       // absolute index to the first control vertex of the first patch in the PTable
-                         patchIndex,      // absolute index of the first patch in the array
-                         npatches,        // number of patches in the array
-                         quadOffsetIndex; // absolute index of the first quad offset entry
+            int npatches;          ///< number of patches in the array
+
+            Index vertIndex,       ///< absolute index to the first control vertex of the first patch in the PTable
+                  patchIndex,      ///< absolute index of the first patch in the array
+                  quadOffsetIndex; ///< absolute index of the first quad offset entry
         };
 
         /// \brief Returns a array range struct
@@ -273,23 +236,23 @@ public:
 
         /// \brief Returns the index of the first control vertex of the first patch
         /// of this array in the global PTable
-        unsigned int GetVertIndex() const {
+        Index GetVertIndex() const {
             return _range.vertIndex;
         }
 
         /// \brief Returns the global index of the first patch in this array (Used to
         /// access param / fvar table data)
-        unsigned int GetPatchIndex() const {
+        Index GetPatchIndex() const {
             return _range.patchIndex;
         }
 
         /// \brief Returns the number of patches in the array
-        unsigned int GetNumPatches() const {
+        int GetNumPatches() const {
             return _range.npatches;
         }
 
         /// \brief Returns the index to the first entry in the QuadOffsetTable
-        unsigned int GetQuadOffsetIndex() const {
+        Index GetQuadOffsetIndex() const {
             return _range.quadOffsetIndex;
         }
 
@@ -305,9 +268,9 @@ public:
 
     /// \brief Handle that can be used as unique patch identifier within PatchTables
     struct PatchHandle {
-        unsigned int patchArrayIdx,  // OsdPatchArray containing the patch
-                     patchIdx,       // Absolute index of the patch
-                     vertexOffset;   // Offset to the first CV of the patch
+        Index patchArrayIdx,  ///< OsdPatchArray containing the patch
+              patchIdx,       ///< Index of the patch in the OsdPatchArray
+              vertexOffset;   ///< Relative offset to the first CV of the patch in the patch array
     };
 
     /// \brief Get the table of patch control vertices
@@ -331,7 +294,7 @@ public:
     /// @return       a pointer to the PatchArray or NULL if the mesh is not uniformly
     ///               subdivided or the level cannot be found.
     ///
-    PatchArray const * GetPatchArray(int level=0) const;
+    PatchArray const * GetUniformPatchArray(int level=0) const;
 
     /// \brief Returns a pointer to the vertex indices of uniformly subdivided faces
     ///
@@ -348,7 +311,7 @@ public:
     /// @return       a pointer to the first vertex index or NULL if the mesh
     ///               is not uniformly subdivided or the level cannot be found.
     ///
-    unsigned int const * GetFaceVertices(int level=0) const;
+    Index const * GetUniformFaceVertices(int level=0) const;
 
     /// \brief Returns the number of faces in a uniformly subdivided mesh at a given level
     ///
@@ -365,7 +328,7 @@ public:
     /// @return       the number of faces in the mesh given the subdivision level
     ///               or -1 if the mesh is not uniform or the level is incorrect.
     ///
-    int GetNumFaces(int level=0) const;
+    int GetNumUniformFaces(int level=0) const;
 
     /// \brief Returns a vertex valence table used by Gregory patches
     VertexValenceTable const & GetVertexValenceTable() const { return _vertexValenceTable; }
@@ -376,23 +339,23 @@ public:
     /// \brief Returns a PatchParamTable for each type of patch
     PatchParamTable const & GetPatchParamTable() const { return _paramTable; }
 
-    /// \brief Ringsize of Regular Patches in table.
-    static short GetRegularPatchRingsize() { return 16; }
+    /// \brief Number of control vertices of Regular Patches in table.
+    static short GetRegularPatchSize() { return 16; }
 
-    /// \brief Ringsize of Boundary Patches in table.
-    static short GetBoundaryPatchRingsize() { return 12; }
+    /// \brief Number of control vertices of Boundary Patches in table.
+    static short GetBoundaryPatchSize() { return 12; }
 
-    /// \brief Ringsize of Boundary Patches in table.
-    static short GetCornerPatchRingsize() { return 9; }
+    /// \brief Number of control vertices of Boundary Patches in table.
+    static short GetCornerPatchSize() { return 9; }
 
-    /// \brief Ringsize of Gregory (and Gregory Boundary) Patches in table.
-    static short GetGregoryPatchRingsize() { return 4; }
+    /// \brief Number of control vertices of Gregory (and Gregory Boundary) Patches in table.
+    static short GetGregoryPatchSize() { return 4; }
 
     /// \brief Returns the total number of patches stored in the tables
-    int GetNumPatches() const;
+    int GetNumPatchesTotal() const;
 
     /// \brief Returns the total number of control vertex indices in the tables
-    int GetNumControlVertices() const;
+    int GetNumControlVerticesTotal() const;
 
     /// \brief Returns max vertex valence
     int GetMaxValence() const { return _maxValence; }
@@ -421,7 +384,7 @@ public:
         ///
         /// @param channel  Then face-varying primvar channel index
         ///
-        std::vector<unsigned int> const & GetPatchVertices(int channel) const {
+        std::vector<Index> const & GetPatchVertices(int channel) const {
             return _channels[channel].patchVertIndices;
         }
 
@@ -431,7 +394,7 @@ public:
         struct Channel {
             friend class PatchTablesFactory;
 
-            std::vector<unsigned int> patchVertIndices; // face-varying vertex indices
+            std::vector<Index> patchVertIndices; // face-varying vertex indices
         };
 
         std::vector<Channel> _channels; // face-varying primvar channels
@@ -496,7 +459,7 @@ public:
     /// patch
     ///
     template <class T, class U> static void
-    InterpolateBilinear(unsigned int const * cvs, float s, float t,
+    InterpolateBilinear(Index const * cvs, float s, float t,
         T const & src, U * dst);
 
     /// \brief Interpolate the (s,t) parametric location of a regular bicubic
@@ -517,7 +480,7 @@ public:
     /// @param dst     Destination primvar buffer (limit surface data)
     ///
     template <class T, class U> static void
-    InterpolateRegularPatch(unsigned int const * cvs,
+    InterpolateRegularPatch(Index const * cvs,
         float const * Q, float const *Qd1, float const *Qd2, T const & src, U * dst);
 
     /// \brief Interpolate the (s,t) parametric location of a boundary bicubic
@@ -538,7 +501,7 @@ public:
     /// @param dst     Destination primvar buffer (limit surface data)
     ///
     template <class T, class U> static void
-    InterpolateBoundaryPatch(unsigned int const * cvs,
+    InterpolateBoundaryPatch(Index const * cvs,
         float const * Q, float const *Qd1, float const *Qd2, T const & src, U * dst);
 
     /// \brief Interpolate the (s,t) parametric location of a corner bicubic
@@ -559,7 +522,7 @@ public:
     /// @param dst     Destination primvar buffer (limit surface data)
     ///
     template <class T, class U> static void
-    InterpolateCornerPatch(unsigned int const * cvs,
+    InterpolateCornerPatch(Index const * cvs,
         float const * Q, float const *Qd1, float const *Qd2, T const & src, U * dst);
 
     /// \brief Interpolate the (s,t) parametric location of a *bicubic* patch
@@ -593,7 +556,11 @@ private:
 private:
 
     // Returns the array of patches of type "desc", or NULL if there aren't any in the primitive
-    inline PatchArray * findPatchArray( Descriptor desc );
+    PatchArray * findPatchArray( Descriptor desc );
+
+    static DescriptorVector const & getBilinearDescriptors();
+    static DescriptorVector const & getAdaptiveCatmarkDescriptors();
+    static DescriptorVector const & getAdaptiveLoopDescriptors();
 
     // Private constructor
     PatchTables( int maxvalence ) : _fvarPatchTables(0), _maxValence(maxvalence) { }
@@ -602,13 +569,13 @@ private:
 
     PTable               _patches;            // Indices of the control vertices of the patches
 
-    VertexValenceTable   _vertexValenceTable; // vertex valence table (for Gregory patches)
+    VertexValenceTable   _vertexValenceTable; // Vertex valence table (for Gregory patches)
 
-    QuadOffsetTable      _quadOffsetTable;    // quad offsets table (for Gregory patches)
+    QuadOffsetTable      _quadOffsetTable;    // Quad offsets table (for Gregory patches)
 
-    PatchParamTable      _paramTable;
+    PatchParamTable      _paramTable;         // PatchParam bitfields (one per patch)
 
-    FVarPatchTables const * _fvarPatchTables; // sparse face-varying patch table
+    FVarPatchTables const * _fvarPatchTables; // sparse face-varying patch table (one per patch)
 
     // highest vertex valence allowed in the mesh (used for Gregory
     // vertexValance & quadOffset tables)
@@ -619,214 +586,21 @@ private:
 
 };
 
-/// \brief Descriptor iterator class
-class PatchTables::Descriptor::iterator {
-    public:
-
-        /// Constructor
-        iterator() : _pos(-1) {}
-
-        /// Copy Constructor
-        iterator(Descriptor desc);
-
-        /// Iteration increment operator
-        iterator & operator ++ ();
-
-        /// True of the two descriptors are identical
-        bool operator == ( iterator const & other ) const {
-            return (_pos==other._pos);
-        }
-
-        /// True if the two descriptors are different
-        bool operator != ( iterator const & other ) const {
-            return not (*this==other);
-        }
-
-        /// Dereferencing operator
-        Descriptor const * operator -> () const {
-            return  getValue();
-        }
-
-        /// Dereferencing operator
-        Descriptor const & operator * () const {
-            return *getValue();
-        }
-
-    private:
-        inline Descriptor const * getValue() const;
-
-        int _pos;
-};
-
-// Iterator constructor
-inline PatchTables::Descriptor::iterator::iterator(Descriptor desc) {
-
-    _pos = -1;
-    std::vector<Descriptor> const & descs =
-        Descriptor::GetAllValidDescriptors();
-
-    for (int i=0; i<(int)descs.size(); ++i) {
-        if (descs[i] == desc) {
-            _pos = i;
-            break;
-        }
-    }
-}
-
-// Iteration increment operator
-inline PatchTables::Descriptor::iterator &
-PatchTables::Descriptor::iterator::operator ++ () {
-
-    if (++_pos>=(int)Descriptor::GetAllValidDescriptors().size()) {
-        _pos = -1;
-    }
-    return *this;
-}
-
-inline PatchTables::Descriptor const *
-PatchTables::Descriptor::iterator::getValue() const {
-
-    static Descriptor _nonpatch;
-
-    std::vector<Descriptor> const & descs =
-        Descriptor::GetAllValidDescriptors();
-
-    if (_pos>=0 and _pos<(int)descs.size()) {
-        return &descs[_pos];
-    }
-
-    return &_nonpatch;
-}
-
-inline std::vector<PatchTables::Descriptor> const &
-PatchTables::Descriptor::GetAllValidDescriptors() {
-
-    static std::vector<Descriptor> _descriptors;
-
-    if (_descriptors.empty()) {
-        _descriptors.reserve(55);
-
-        // non-patch primitives
-        for (int i=POINTS; i<=LOOP; ++i) {
-            _descriptors.push_back( Descriptor(i, NON_TRANSITION, 0) );
-        }
-
-        // non-transition patches
-        for (int i=REGULAR; i<=GREGORY_BOUNDARY; ++i) {
-            _descriptors.push_back( Descriptor(i, NON_TRANSITION, 0) );
-        }
-
-        // transition patches
-        for (int i=PATTERN0; i<=PATTERN4; ++i) {
-
-            _descriptors.push_back( Descriptor(REGULAR, i, 0) );
-
-            // 4 rotations for boundary & corner patches
-            for (int j=0; j<4; ++j) {
-                _descriptors.push_back( Descriptor(BOUNDARY, i, j) );
-            }
-
-            for (int j=0; j<4; ++j) {
-                _descriptors.push_back( Descriptor(CORNER, i, j) );
-            }
-        }
-    }
-
-    return _descriptors;
-}
-
-// Returns an iterator to the first type of patch (REGULAR NON_TRANSITION ROT0)
-inline PatchTables::Descriptor::iterator
-PatchTables::Descriptor::begin(PrimType type) {
-    switch (type) {
-        case ANY:
-            return iterator( Descriptor(POINTS, NON_TRANSITION, 0) );
-        case FEATURE_ADAPTIVE_CATMARK:
-            return iterator( Descriptor(REGULAR, NON_TRANSITION, 0) );
-        default:
-            return iterator( Descriptor() );
-    }
-}
-
-// Returns an iterator to the end of the list of patch types (NON_PATCH)
-inline PatchTables::Descriptor::iterator
-PatchTables::Descriptor::end() {
-    return iterator( Descriptor() );
-}
-
-// Constructor
-inline
-PatchTables::PatchTables(PatchArrayVector const & patchArrays,
-                               PTable const & patches,
-                               VertexValenceTable const * vertexValences,
-                               QuadOffsetTable const * quadOffsets,
-                               PatchParamTable const * patchParams,
-                               FVarPatchTables const * fvarPatchTables,
-                               int maxValence) :
-    _patchArrays(patchArrays),
-    _patches(patches),
-    _fvarPatchTables(fvarPatchTables),
-    _maxValence(maxValence),
-    _numPtexFaces(0) {
-
-    // copy other tables if exist
-    if (vertexValences)
-        _vertexValenceTable = *vertexValences;
-    if (quadOffsets)
-        _quadOffsetTable = *quadOffsets;
-    if (patchParams)
-        _paramTable = *patchParams;
-}
-
-inline bool
-PatchTables::IsFeatureAdaptive() const {
-
-    // the vertex valence table is only used by Gregory patches, so the PatchTables
-    // contain feature adaptive patches if this is not empty.
-    if (not _vertexValenceTable.empty())
-        return true;
-
-    PatchArrayVector const & parrays = GetPatchArrayVector();
-
-    // otherwise, we have to check each patch array
-    for (int i=0; i<(int)parrays.size(); ++i) {
-
-        if (parrays[i].GetDescriptor().GetType() >= REGULAR and
-            parrays[i].GetDescriptor().GetType() <= GREGORY_BOUNDARY)
-            return true;
-
-    }
-    return false;
-}
-
 // Returns the number of control vertices expected for a patch of this type
 inline short
 PatchTables::Descriptor::GetNumControlVertices( PatchTables::Type type ) {
     switch (type) {
-        case REGULAR           : return PatchTables::GetRegularPatchRingsize();
+        case REGULAR           : return PatchTables::GetRegularPatchSize();
         case QUADS             : return 4;
         case GREGORY           :
-        case GREGORY_BOUNDARY  : return PatchTables::GetGregoryPatchRingsize();
-        case BOUNDARY          : return PatchTables::GetBoundaryPatchRingsize();
-        case CORNER            : return PatchTables::GetCornerPatchRingsize();
+        case GREGORY_BOUNDARY  : return PatchTables::GetGregoryPatchSize();
+        case BOUNDARY          : return PatchTables::GetBoundaryPatchSize();
+        case CORNER            : return PatchTables::GetCornerPatchSize();
         case TRIANGLES         : return 3;
         case LINES             : return 2;
         case POINTS            : return 1;
         default : return -1;
     }
-}
-
-// Returns the total number of control vertex indices in the tables
-inline int
-PatchTables::GetNumControlVertices() const {
-
-    int result=0;
-    for (int i=0; i<(int)_patchArrays.size(); ++i) {
-        result += _patchArrays[i].GetDescriptor().GetNumControlVertices() *
-                  _patchArrays[i].GetNumPatches();
-    }
-
-    return result;
 }
 
 // Returns the number of face-varying control vertices expected for a patch of this type
@@ -846,51 +620,6 @@ PatchTables::Descriptor::GetNumFVarControlVertices( PatchTables::Type type ) {
     }
 }
 
-// Returns a pointer to the PatchArry of uniformly subdivided faces at 'level'
-inline PatchTables::PatchArray const *
-PatchTables::GetPatchArray(int level) const {
-
-    if (IsFeatureAdaptive())
-        return NULL;
-
-    PatchArrayVector const & parrays = GetPatchArrayVector();
-
-    if (parrays.empty())
-        return NULL;
-
-    if (level < 1) {
-        return &(*parrays.rbegin());
-    } else if ((level-1) < (int)parrays.size() ) {
-        return &parrays[level-1];
-    }
-
-    return NULL;
-}
-
-// Returns a pointer to the vertex indices of uniformly subdivided faces
-inline unsigned int const *
-PatchTables::GetFaceVertices(int level) const {
-
-    PatchArray const * parray = GetPatchArray(level);
-
-    if (parray) {
-        return &GetPatchTable()[ parray->GetVertIndex() ];
-    }
-    return NULL;
-}
-
-// Returns the number of faces in a uniformly subdivided mesh at a given level
-inline int
-PatchTables::GetNumFaces(int level) const {
-
-    PatchArray const * parray = GetPatchArray(level);
-
-    if (parray) {
-        return parray->GetNumPatches();
-    }
-    return -1;
-}
-
 // Allows ordering of patches by type
 inline bool
 PatchTables::Descriptor::operator < ( Descriptor const other ) const {
@@ -907,27 +636,9 @@ PatchTables::Descriptor::operator == ( Descriptor const other ) const {
               _rotation == other._rotation;
 }
 
-// Returns a pointer to the array of patches matching the descriptor
-inline PatchTables::PatchArray *
-PatchTables::findPatchArray( PatchTables::Descriptor desc ) {
-
-    for (int i=0; i<(int)_patchArrays.size(); ++i) {
-        if (_patchArrays[i].GetDescriptor()==desc)
-            return &_patchArrays[i];
-    }
-    return 0;
-}
-
-// Returns the total number of patches stored in the tables
-inline int
-PatchTables::GetNumPatches() const {
-    // there is one PatchParam record for each patch in the mesh
-    return (int)GetPatchParamTable().size();
-}
-
 template <class T, class U>
 inline void
-PatchTables::InterpolateBilinear(unsigned int const * cvs, float s, float t,
+PatchTables::InterpolateBilinear(Index const * cvs, float s, float t,
     T const & src, U * dst) {
 
     float os = 1.0f - s,
@@ -935,7 +646,6 @@ PatchTables::InterpolateBilinear(unsigned int const * cvs, float s, float t,
             Q[4] = { os*ot,  s*ot, s*t, os*t },
           dQ1[4] = { t-1.0f,   ot,   t,   -t },
           dQ2[4] = { s-1.0f,   -s,   s,   os };
-
 
     for (int k=0; k<4; ++k) {
         dst->AddWithWeight(src[cvs[k]], Q[k], dQ1[k], dQ2[k]);
@@ -945,7 +655,7 @@ PatchTables::InterpolateBilinear(unsigned int const * cvs, float s, float t,
 
 template <class T, class U>
 inline void
-PatchTables::InterpolateRegularPatch(unsigned int const * cvs,
+PatchTables::InterpolateRegularPatch(Index const * cvs,
     float const * Q, float const *Qd1, float const *Qd2,
         T const & src, U * dst) {
 
@@ -968,7 +678,7 @@ PatchTables::InterpolateRegularPatch(unsigned int const * cvs,
 
 template <class T, class U>
 inline void
-PatchTables::InterpolateBoundaryPatch(unsigned int const * cvs,
+PatchTables::InterpolateBoundaryPatch(Index const * cvs,
     float const * Q, float const *Qd1, float const *Qd2,
         T const & src, U * dst) {
 
@@ -996,7 +706,7 @@ PatchTables::InterpolateBoundaryPatch(unsigned int const * cvs,
 
 template <class T, class U>
 inline void
-PatchTables::InterpolateCornerPatch(unsigned int const * cvs,
+PatchTables::InterpolateCornerPatch(Index const * cvs,
     float const * Q, float const *Qd1, float const *Qd2,
         T const & src, U * dst) {
 
@@ -1046,7 +756,7 @@ PatchTables::Interpolate(PatchHandle const & handle, float s, float t,
     PatchTables::PatchArray const & parray =
         _patchArrays[handle.patchArrayIdx];
 
-    unsigned int const * cvs =
+    Index const * cvs =
         &_patches[parray.GetVertIndex() + handle.vertexOffset];
 
     PatchParam::BitField const & bits =
@@ -1073,7 +783,7 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
     PatchTables::PatchArray const & parray =
         _patchArrays[handle.patchArrayIdx];
 
-    unsigned int const * cvs =
+    Index const * cvs =
         &_patches[parray.GetVertIndex() + handle.vertexOffset];
 
     PatchParam::BitField const & bits =

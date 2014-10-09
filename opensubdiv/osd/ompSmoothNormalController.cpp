@@ -62,7 +62,7 @@ void OmpSmoothNormalController::_smootheNormals(
     float const * iBuffer = context->GetCurrentInputVertexBuffer() + iDesc.offset;
     float * oBuffer = context->GetCurrentOutputVertexBuffer() + oDesc.offset;
 
-    std::vector<unsigned int> const & verts = context->GetControlVertices();
+    Far::PatchTables::PTable const & verts = context->GetControlVertices();
 
     Far::PatchTables::PatchArrayVector const & parrays = context->GetPatchArrayVector();
 

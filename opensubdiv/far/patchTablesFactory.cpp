@@ -87,10 +87,10 @@ struct PatchTypes {
     }
 };
 
-typedef PatchTypes<unsigned int*>   PatchCVPointers;
-typedef PatchTypes<PatchParam *> PatchParamPointers;
+typedef PatchTypes<Index *>         PatchCVPointers;
+typedef PatchTypes<PatchParam *>    PatchParamPointers;
 typedef PatchTypes<int>             PatchCounters;
-typedef PatchTypes<unsigned int **> PatchFVarPointers;
+typedef PatchTypes<Index **>        PatchFVarPointers;
 
 //
 //  A simple struct containing all information gathered about a face that is relevant
@@ -311,20 +311,20 @@ typedef std::vector<PatchFaceTag>   PatchTagVector;
 //
 namespace {
     inline void
-    offsetAndPermuteIndices(unsigned int const indices[], unsigned int count,
-                            unsigned int offset, unsigned int const permutation[],
-                            unsigned int result[]) {
+    offsetAndPermuteIndices(Far::Index const indices[], int count,
+                            Far::Index offset, int const permutation[],
+                            Far::Index result[]) {
 
         if (permutation) {
-            for (unsigned int i = 0; i < count; ++i) {
+            for (int i = 0; i < count; ++i) {
                 result[i] = offset + indices[permutation[i]];
             }
         } else if (offset) {
-            for (unsigned int i = 0; i < count; ++i) {
+            for (int i = 0; i < count; ++i) {
                 result[i] = offset + indices[i];
             }
         } else {
-            std::memcpy(result, indices, count * sizeof(unsigned int));
+            std::memcpy(result, indices, count * sizeof(Far::Index));
         }
     }
 } // namespace anon
@@ -339,7 +339,7 @@ PatchTablesFactory::allocateTables(PatchTables * tables, int /* nlevels */) {
 
     PatchTables::PatchArrayVector const & parrays = tables->GetPatchArrayVector();
 
-    int nverts = tables->GetNumControlVertices();
+    int nverts = tables->GetNumControlVerticesTotal();
 
     int npatches = 0;
     for (int i=0; i<(int)parrays.size(); ++i) {
@@ -488,7 +488,7 @@ PatchTablesFactory::computePatchParam(TopologyRefiner const & refiner,
 //  Populate the quad-offsets table used by Gregory patches
 //
 void
-PatchTablesFactory::getQuadOffsets(Vtr::Level const& level, Vtr::Index fIndex, unsigned int offsets[]) {
+PatchTablesFactory::getQuadOffsets(Vtr::Level const& level, Vtr::Index fIndex, Index offsets[]) {
 
     Vtr::IndexArray fVerts = level.getFaceVertices(fIndex);
 
@@ -507,7 +507,7 @@ PatchTablesFactory::getQuadOffsets(Vtr::Level const& level, Vtr::Index fIndex, u
         }
         assert(thisFaceInVFaces != -1);
 
-        unsigned int vOffsets[2];
+        Index vOffsets[2];
         vOffsets[0] = thisFaceInVFaces;
         vOffsets[1] = (thisFaceInVFaces + 1)%vEdges.size();
         // we have to use the number of incident edges to modulo the local index
@@ -534,7 +534,7 @@ PatchTablesFactory::Create( TopologyRefiner const & refiner, Options options ) {
 
 static void
 gatherFVarPatchVertices(TopologyRefiner const & refiner,
-    int level, int faceIndex, int rotation, int const * levelOffsets, unsigned int ** fptrs) {
+    int level, Index faceIndex, int rotation, Index const * levelOffsets, Index ** fptrs) {
 
     for (int channel=0; channel<refiner.GetNumFVarChannels(); ++channel) {
         IndexArray const & fverts = refiner.GetFVarFaceValues(level, faceIndex, channel);
@@ -615,25 +615,25 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
     //
     //  Now populate the patches:
     //
-    unsigned int   * iptr = &tables->_patches[0];
-    PatchParam  * pptr = &tables->_paramTable[0];
-    unsigned int  ** fptr=0;
+    Index          * iptr = &tables->_patches[0];
+    PatchParam     * pptr = &tables->_paramTable[0];
+    Index         ** fptr = 0;
 
     if (tables->_fvarPatchTables) {
         int nchannels = refiner.GetNumFVarChannels();
-        fptr = (unsigned int **)alloca(nchannels*sizeof(unsigned int *));
+        fptr = (Index **)alloca(nchannels*sizeof(Index *));
         for (int channel=0; channel<nchannels; ++channel) {
-            fptr[channel] = const_cast<unsigned int *>(
+            fptr[channel] = const_cast<Index *>(
                 &tables->_fvarPatchTables->_channels[channel].patchVertIndices[0]);
         }
     }
 
-    int levelVertOffset = options.generateAllLevels ? 0 : refiner.GetNumVertices(0);
+    Index levelVertOffset = options.generateAllLevels ? 0 : refiner.GetNumVertices(0);
 
-    int * levelFVarVertOffsets = 0;
+    Index * levelFVarVertOffsets = 0;
     if (tables->_fvarPatchTables) {
-         levelFVarVertOffsets = (int *)alloca(refiner.GetNumFVarChannels()*sizeof(int));
-         memset(levelFVarVertOffsets, 0, refiner.GetNumFVarChannels()*sizeof(int));
+         levelFVarVertOffsets = (Index *)alloca(refiner.GetNumFVarChannels()*sizeof(Index));
+         memset(levelFVarVertOffsets, 0, refiner.GetNumFVarChannels()*sizeof(Index));
     }
 
     for (int level=1; level<=maxlevel; ++level) {
@@ -715,11 +715,15 @@ PatchTablesFactory::createAdaptive( TopologyRefiner const & refiner, Options opt
     PatchTables::PatchArrayVector & parray = tables->_patchArrays;
     parray.reserve( patchInventory.getNumPatchArrays() );
 
-    int voffset=0, poffset=0, qoffset=0;
 
-    for (Descriptor::iterator it=Descriptor::begin(Descriptor::FEATURE_ADAPTIVE_CATMARK);
-            it!=Descriptor::end(); ++it) {
-        pushPatchArray( *it, parray, patchInventory.getValue(*it), &voffset, &poffset, &qoffset );
+    // sort through the inventory and push back non-empty patch arrays
+    typedef PatchTables::DescriptorVector DescVec;
+
+    DescVec const & descs = PatchTables::GetAdaptiveDescriptors(Sdc::TYPE_CATMARK);
+
+    int voffset=0, poffset=0, qoffset=0;
+    for (DescVec::const_iterator it=descs.begin(); it!=descs.end(); ++it) {
+        pushPatchArray(*it, parray, patchInventory.getValue(*it), &voffset, &poffset, &qoffset );
     }
 
     tables->_numPtexFaces = refiner.GetNumPtexFaces();
@@ -946,9 +950,9 @@ PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
 //
 void
 PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
-                                                PatchCounters const &   patchInventory,
-                                                PatchTagVector const &  patchTags,
-                                                PatchTables *        tables ) {
+                                             PatchCounters const &   patchInventory,
+                                             PatchTagVector const &  patchTags,
+                                             PatchTables *        tables ) {
 
     //
     //  Setup convenience pointers at the beginning of each patch array for each
@@ -958,7 +962,12 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
     PatchParamPointers pptrs;
     PatchFVarPointers  fptrs;
 
-    for (Descriptor::iterator it=Descriptor::begin(Descriptor::FEATURE_ADAPTIVE_CATMARK); it!=Descriptor::end(); ++it) {
+    typedef PatchTables::DescriptorVector DescVec;
+
+    DescVec const & descs = PatchTables::GetAdaptiveDescriptors(Sdc::TYPE_CATMARK);
+
+    for (DescVec::const_iterator it=descs.begin(); it!=descs.end(); ++it) {
+
         PatchTables::PatchArray * pa = tables->findPatchArray(*it);
 
         if (not pa) continue;
@@ -970,10 +979,10 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
             int nchannels = refiner.GetNumFVarChannels(),
                 ncvs = pa->GetDescriptor().GetNumFVarControlVertices(); // XXXX manuelk this will break with bi-cubic fvar interp !!!
 
-            unsigned int ** fptr = (unsigned int **)alloca(nchannels*sizeof(unsigned int *));
+            Index ** fptr = (Index **)alloca(nchannels*sizeof(Index *));
             for (int channel=0; channel<nchannels; ++channel) {
 
-                fptr[channel] = (unsigned int *)&tables->_fvarPatchTables->
+                fptr[channel] = (Index *)&tables->_fvarPatchTables->
                     _channels[channel].patchVertIndices[pa->GetPatchIndex()*ncvs];
             }
             fptrs.getValue( *it ) = fptr;
@@ -1016,14 +1025,14 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
             if (!patchTag._hasPatch) continue;
 
             if (patchTag._isRegular) {
-                unsigned int   patchVerts[16];
+                Index patchVerts[16];
 
                 int tIndex = patchTag._transitionType;
                 int rIndex = patchTag._transitionRot;
                 int bIndex = patchTag._boundaryIndex;
 
                 if (patchTag._boundaryCount == 0) {
-                    unsigned int const permuteInterior[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
+                    int const permuteInterior[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
 
                     level->gatherQuadRegularInteriorPatchVertices(faceIndex, patchVerts, rIndex);
                     offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteInterior, iptrs.R[tIndex]);
@@ -1055,7 +1064,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                     //  else dependent on the boundary orientation.
                     //
                     if (patchTag._boundaryCount == 1) {
-                        unsigned int const permuteBoundary[12] = { 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 };
+                        int const permuteBoundary[12] = { 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 };
 
                         level->gatherQuadRegularBoundaryPatchVertices(faceIndex, patchVerts, bIndex);
                         offsetAndPermuteIndices(patchVerts, 12, levelVertOffset, permuteBoundary, iptrs.B[tIndex][rIndex]);
@@ -1067,7 +1076,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                             gatherFVarPatchVertices(refiner, i, faceIndex, bIndex, levelFVarVertOffsets, fptrs.B[tIndex][rIndex]);
                         }
                     } else {
-                        unsigned int const permuteCorner[9] = { 8, 3, 0, 7, 2, 1, 6, 5, 4 };
+                        int const permuteCorner[9] = { 8, 3, 0, 7, 2, 1, 6, 5, 4 };
 
                         level->gatherQuadRegularCornerPatchVertices(faceIndex, patchVerts, bIndex);
                         offsetAndPermuteIndices(patchVerts, 9, levelVertOffset, permuteCorner, iptrs.C[tIndex][rIndex]);

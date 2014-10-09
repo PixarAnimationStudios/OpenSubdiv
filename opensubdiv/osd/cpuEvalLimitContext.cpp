@@ -60,7 +60,7 @@ CpuEvalLimitContext::CpuEvalLimitContext(Far::PatchTables const & patchTables, b
     _maxValence = patchTables.GetMaxValence();
     
     // Copy the bitfields, the faceId will be the key to our map
-    int npatches = patchTables.GetNumPatches();
+    int npatches = patchTables.GetNumPatchesTotal();
     
     _patchBitFields.reserve(npatches);
 
@@ -75,7 +75,7 @@ CpuEvalLimitContext::CpuEvalLimitContext(Far::PatchTables const & patchTables, b
 
             Far::PatchTables::PatchArray const & pa = _patchArrays[arrayId];
 
-            for (unsigned int j=0; j < pa.GetNumPatches(); ++j) {
+            for (int j=0; j < pa.GetNumPatches(); ++j) {
                 _patchBitFields.push_back( pptr++->bitField );
             }
         }

@@ -553,7 +553,7 @@ Level::gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int 
 //
 int
 Level::gatherQuadRegularInteriorPatchVertices(
-    Index thisFace, unsigned int ringVerts[], int rotation) const {
+    Index thisFace, Index ringVerts[], int rotation) const {
 
     Level const& level = *this;
 
@@ -623,7 +623,7 @@ Level::gatherQuadRegularInteriorPatchVertices(
 //
 int
 Level::gatherQuadRegularBoundaryPatchVertices(
-    Index face, int unsigned ringVerts[], int boundaryEdgeInFace) const {
+    Index face, Index ringVerts[], int boundaryEdgeInFace) const {
 
     Level const& level = *this;
 
@@ -725,7 +725,7 @@ Level::gatherQuadRegularBoundaryPatchVertices(
 //
 int
 Level::gatherQuadRegularCornerPatchVertices(
-    Index face, unsigned int ringVerts[], int cornerVertInFace) const {
+    Index face, Index ringVerts[], int cornerVertInFace) const {
 
     Level const& level = *this;
 

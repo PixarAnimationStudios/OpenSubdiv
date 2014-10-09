@@ -66,15 +66,15 @@ public:
         int           numVertices,
                       numFaces;
 
-        int const   * vertsPerFace,
+        Index const * vertsPerFace,
                     * vertIndices;
 
         int           numCreases;
-        int const   * creaseVertexIndexPairs;
+        Index const * creaseVertexIndexPairs;
         float const * creaseWeights;
 
         int           numCorners;
-        int const   * cornerVertexIndices;
+        Index const * cornerVertexIndices;
         float const * cornerWeights;
 
         //  Face-varying data channel -- value indices correspond to vertex indices,

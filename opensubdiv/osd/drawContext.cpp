@@ -77,7 +77,7 @@ DrawContext::packFVarData(Far::PatchTables const & patchTables,
     assert(fvarPatchTables);
 
     // OsdMesh only accesses channel 0
-    std::vector<unsigned int> const & indices = fvarPatchTables->GetPatchVertices(0);
+    std::vector<Far::Index> const & indices = fvarPatchTables->GetPatchVertices(0);
 
     dst.resize(indices.size() * fvarWidth);
     float * ptr = &dst[0];

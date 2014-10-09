@@ -40,7 +40,7 @@ namespace Far {
 ///
 /// PatchTables::PatchArrays contain lists of patches that represent the limit
 /// surface of a mesh, sorted by their topological type. These arrays break the
-/// connection between coarse faces and their sub-patches. 
+/// connection between coarse faces and their sub-patches.
 ///
 /// The PatchMap provides a quad-tree based lookup structure that, given a singular
 /// parametric location, can efficiently return a handle to the sub-patch that
@@ -71,8 +71,9 @@ public:
     ///                limit surface is tagged as a hole at the given location
     ///
     Handle const * FindPatch( int faceid, float u, float v ) const;
-    
+
 private:
+
     inline void initialize( PatchTables const & patchTables );
 
     // Quadtree node with 4 children
@@ -88,7 +89,7 @@ private:
 
         // sets the child in "quadrant" to point to the node or patch of the given index
         void SetChild(unsigned char quadrant, int child, bool isLeaf=true);
-        
+
         Child children[4];
     };
 
@@ -96,7 +97,7 @@ private:
 
     // adds a child to a parent node and pushes it back on the tree
     static QuadNode * addChild( QuadTree & quadtree, QuadNode * parent, int quadrant );
-    
+
     // given a median, transforms the (u,v) to the quadrant they point to, and
     // return the quadrant index.
     //
@@ -120,7 +121,7 @@ private:
 
 // given a median, transforms the (u,v) to the quadrant they point to, and
 // return the quadrant index.
-template <class T> int 
+template <class T> int
 PatchMap::resolveQuadrant(T & median, T & u, T & v) {
     int quadrant = -1;
 
@@ -144,9 +145,9 @@ PatchMap::resolveQuadrant(T & median, T & u, T & v) {
 }
 
 /// Returns a handle to the sub-patch of the face at the given (u,v).
-inline PatchMap::Handle const * 
+inline PatchMap::Handle const *
 PatchMap::FindPatch( int faceid, float u, float v ) const {
-    
+
     if (faceid>=(int)_quadtree.size())
         return NULL;
 
@@ -160,20 +161,20 @@ PatchMap::FindPatch( int faceid, float u, float v ) const {
     for (int depth=0; depth<0xFF; ++depth) {
 
         float delta = half * 0.5f;
-        
+
         int quadrant = resolveQuadrant( half, u, v );
         assert(quadrant>=0);
-        
+
         // is the quadrant a hole ?
         if (not node->children[quadrant].isSet)
             return 0;
-        
+
         if (node->children[quadrant].isLeaf) {
             return &_handles[node->children[quadrant].idx];
         } else {
             node = &_quadtree[node->children[quadrant].idx];
         }
-        
+
         half = delta;
     }
 

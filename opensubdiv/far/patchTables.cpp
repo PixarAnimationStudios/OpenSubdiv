@@ -29,6 +29,8 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Far {
+
 static void
 getBSplineWeights(float t, float point[4], float deriv[3]) {
 
@@ -60,8 +62,6 @@ getBSplineWeights(float t, float point[4], float deriv[3]) {
         deriv[2] = 0.5f * t2;
     }
 }
-
-namespace Far {
 
 void
 PatchTables::getBSplineWeightsAtUV(PatchParam::BitField bits, float s, float t,
@@ -96,10 +96,10 @@ PatchTables::getBSplineWeightsAtUV(PatchParam::BitField bits, float s, float t,
     if (deriv1 and deriv2) {
 
         // Compute the tangent stencil. This is done by taking the tensor
-        // product between the quadratic weights computed for u and the cubic
-        // weights computed for v. The stencil is constructed using
+        // product between the quadratic weights computed for s and the cubic
+        // weights computed for t. The stencil is constructed using
         // differences between consecutive vertices in each row (i.e.
-        // in the u direction).
+        // in the s direction).
         memset(deriv1, 0, 16*sizeof(float));
         for (int i = 0; i < 4; ++i) {
             float prevWeight = 0.0f;
@@ -122,6 +122,186 @@ PatchTables::getBSplineWeightsAtUV(PatchParam::BitField bits, float s, float t,
             deriv2[r[12+j]] += prevWeight;
         }
     }
+}
+
+//
+// Constructor
+//
+PatchTables::PatchTables(PatchArrayVector const & patchArrays,
+                         PTable const & patches,
+                         VertexValenceTable const * vertexValences,
+                         QuadOffsetTable const * quadOffsets,
+                         PatchParamTable const * patchParams,
+                         FVarPatchTables const * fvarPatchTables,
+                         int maxValence) :
+    _patchArrays(patchArrays),
+    _patches(patches),
+    _fvarPatchTables(fvarPatchTables),
+    _maxValence(maxValence),
+    _numPtexFaces(0) {
+
+    // copy other tables if exist
+    if (vertexValences)
+        _vertexValenceTable = *vertexValences;
+    if (quadOffsets)
+        _quadOffsetTable = *quadOffsets;
+    if (patchParams)
+        _paramTable = *patchParams;
+}
+
+bool
+PatchTables::IsFeatureAdaptive() const {
+
+    // the vertex valence table is only used by Gregory patches, so the PatchTables
+    // contain feature adaptive patches if this is not empty.
+    if (not _vertexValenceTable.empty())
+        return true;
+
+    PatchArrayVector const & parrays = GetPatchArrayVector();
+
+    // otherwise, we have to check each patch array
+    for (int i=0; i<(int)parrays.size(); ++i) {
+
+        if (parrays[i].GetDescriptor().GetType() >= REGULAR and
+            parrays[i].GetDescriptor().GetType() <= GREGORY_BOUNDARY)
+            return true;
+
+    }
+    return false;
+}
+int
+PatchTables::GetNumPatchesTotal() const {
+    // there is one PatchParam record for each patch in the mesh
+    return (int)GetPatchParamTable().size();
+}
+int
+PatchTables::GetNumControlVerticesTotal() const {
+
+    int result=0;
+    for (int i=0; i<(int)_patchArrays.size(); ++i) {
+        result += _patchArrays[i].GetDescriptor().GetNumControlVertices() *
+                  _patchArrays[i].GetNumPatches();
+    }
+
+    return result;
+}
+
+//
+// Uniform accessors
+//
+PatchTables::PatchArray const *
+PatchTables::GetUniformPatchArray(int level) const {
+
+    if (IsFeatureAdaptive())
+        return NULL;
+
+    PatchArrayVector const & parrays = GetPatchArrayVector();
+
+    if (parrays.empty())
+        return NULL;
+
+    if (level < 1) {
+        return &(*parrays.rbegin());
+    } else if ((level-1) < (int)parrays.size() ) {
+        return &parrays[level-1];
+    }
+
+    return NULL;
+}
+Index const *
+PatchTables::GetUniformFaceVertices(int level) const {
+
+    PatchArray const * parray = GetUniformPatchArray(level);
+
+    if (parray) {
+        return &GetPatchTable()[ parray->GetVertIndex() ];
+    }
+    return NULL;
+}
+int
+PatchTables::GetNumUniformFaces(int level) const {
+
+    PatchArray const * parray = GetUniformPatchArray(level);
+
+    if (parray) {
+        return parray->GetNumPatches();
+    }
+    return -1;
+}
+
+//
+// Returns a pointer to the array of patches matching the descriptor
+//
+PatchTables::PatchArray *
+PatchTables::findPatchArray( PatchTables::Descriptor desc ) {
+
+    for (int i=0; i<(int)_patchArrays.size(); ++i) {
+        if (_patchArrays[i].GetDescriptor()==desc)
+            return &_patchArrays[i];
+    }
+    return 0;
+}
+
+
+//
+// Lists of patch Descriptors for each subdivision scheme
+//
+PatchTables::DescriptorVector const &
+PatchTables::getAdaptiveCatmarkDescriptors() {
+
+    static DescriptorVector _descriptors;
+
+    if (_descriptors.empty()) {
+
+        _descriptors.reserve(50);
+
+        // non-transition patches
+        for (int i=REGULAR; i<=GREGORY_BOUNDARY; ++i) {
+            _descriptors.push_back( Descriptor(i, NON_TRANSITION, 0) );
+        }
+
+        // transition patches
+        for (int i=PATTERN0; i<=PATTERN4; ++i) {
+
+            _descriptors.push_back( Descriptor(REGULAR, i, 0) );
+
+            // 4 rotations for boundary & corner patches
+            for (int j=0; j<4; ++j) {
+                _descriptors.push_back( Descriptor(BOUNDARY, i, j) );
+            }
+
+            for (int j=0; j<4; ++j) {
+                _descriptors.push_back( Descriptor(CORNER, i, j) );
+            }
+        }
+    }
+    return _descriptors;
+}
+
+PatchTables::DescriptorVector const &
+PatchTables::getAdaptiveLoopDescriptors() {
+
+    static DescriptorVector _descriptors;
+
+    if (_descriptors.empty()) {
+        _descriptors.reserve(1);
+        _descriptors.push_back( Descriptor(LOOP, NON_TRANSITION, 0) );
+    }
+    return _descriptors;
+}
+
+PatchTables::DescriptorVector const &
+PatchTables::GetAdaptiveDescriptors(Sdc::Type type) {
+
+    static DescriptorVector _empty;
+
+    switch (type) {
+        case Sdc::TYPE_CATMARK : return getAdaptiveCatmarkDescriptors();
+        case Sdc::TYPE_LOOP    : return getAdaptiveLoopDescriptors();
+        default:
+          assert(0);
+    }
+    return _empty;
 }
 
 } // end namespace Far

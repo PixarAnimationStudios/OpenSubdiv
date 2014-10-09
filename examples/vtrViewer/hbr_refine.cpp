@@ -437,10 +437,10 @@ private:
     static OpenSubdiv::Far::PatchParam * computePatchParam(Hface const *f, OpenSubdiv::Far::PatchParam *coord);
 
     // Populates an array of indices with the "one-ring" vertices for the given face
-    static unsigned int * getOneRing( Hface const * f, int ringsize, unsigned int const * remap, unsigned int * result );
+    static Far::Index * getOneRing( Hface const * f, int ringsize, Far::Index const * remap, Far::Index * result );
 
     // Populates the Gregory patch quad offsets table
-    static void getQuadOffsets( Hface const * f, unsigned int * result );
+    static void getQuadOffsets( Hface const * f, Far::Index * result );
 
     // The number of patches in the mesh
     static int getNumPatches( Far::PatchTables::PatchArrayVector const & parrays );
@@ -471,7 +471,7 @@ private:
     };
 
     typedef PatchTypes<OpenSubdiv::Far::PatchParam *> ParamPointers;
-    typedef PatchTypes<unsigned int*>               CVPointers;
+    typedef PatchTypes<Far::Index*>                 CVPointers;
     typedef PatchTypes<float *>                     FVarPointers;
     typedef PatchTypes<int>                         Counter;
 
@@ -587,7 +587,7 @@ Far::PatchTablesFactory::getNumPatches( Far::PatchTables::PatchArrayVector const
 void
 Far::PatchTablesFactory::allocateTables( Far::PatchTables * tables, int /* nlevels */, int fvarwidth ) {
 
-    int nverts = tables->GetNumControlVertices(),
+    int nverts = tables->GetNumControlVerticesTotal(),
         npatches = getNumPatches(tables->GetPatchArrayVector());
 
     if (nverts==0 or npatches==0)
@@ -817,9 +817,9 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
     }
 
 
-    static const unsigned int remapRegular        [16] = {5,6,10,9,4,0,1,2,3,7,11,15,14,13,12,8};
-    static const unsigned int remapRegularBoundary[12] = {1,2,6,5,0,3,7,11,10,9,8,4};
-    static const unsigned int remapRegularCorner  [ 9] = {1,2,5,4,0,8,7,6,3};
+    static const Far::Index remapRegular        [16] = {5,6,10,9,4,0,1,2,3,7,11,15,14,13,12,8};
+    static const Far::Index remapRegularBoundary[12] = {1,2,6,5,0,3,7,11,10,9,8,4};
+    static const Far::Index remapRegularCorner  [ 9] = {1,2,5,4,0,8,7,6,3};
 
     int fvarwidth=0;
 
@@ -829,11 +829,12 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
     Far::PatchTables::PatchArrayVector & parray = result->_patchArrays;
     parray.reserve( patchCtr.getNumPatchArrays() );
 
+    typedef PatchTables::DescriptorVector DescVec;
+
+    DescVec const & catmarkDescs = Far::PatchTables::GetAdaptiveDescriptors(Sdc::TYPE_CATMARK);
+
     int voffset=0, poffset=0, qoffset=0;
-
-
-    for (Descriptor::iterator it=Descriptor::begin(Descriptor::FEATURE_ADAPTIVE_CATMARK);
-        it!=Descriptor::end(); ++it) {
+    for (DescVec::const_iterator it=catmarkDescs.begin(); it!=catmarkDescs.end(); ++it) {
 
         pushPatchArray( *it, parray, patchCtr.getValue(*it), &voffset, &poffset, &qoffset );
     }
@@ -854,8 +855,7 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
     ParamPointers pptrs;
     FVarPointers  fptrs;
 
-    for (Descriptor::iterator it=Descriptor::begin(Descriptor::FEATURE_ADAPTIVE_CATMARK);
-        it!=Descriptor::end(); ++it) {
+    for (DescVec::const_iterator it=catmarkDescs.begin(); it!=catmarkDescs.end(); ++it) {
 
         Far::PatchTables::PatchArray * pa = result->findPatchArray(*it);
 
@@ -1072,9 +1072,9 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
 
 //------------------------------------------------------------------------------
 // The One Ring vertices to rule them all !
-unsigned int *
+Far::Index *
 Far::PatchTablesFactory::getOneRing(Hface const * f,
-    int ringsize, unsigned int const * remap, unsigned int * result) {
+    int ringsize, Far::Index const * remap, Far::Index * result) {
 
     assert( f and f->GetNumVertices()==4 and ringsize >=4 );
 
@@ -1204,7 +1204,7 @@ Far::PatchTablesFactory::getOneRing(Hface const * f,
 //------------------------------------------------------------------------------
 // Populate the quad-offsets table used by Gregory patches
 void
-Far::PatchTablesFactory::getQuadOffsets(Hface const * f, unsigned int * result) {
+Far::PatchTablesFactory::getQuadOffsets(Hface const * f, Far::Index * result) {
 
     assert(result and f and f->GetNumVertices()==4);
 

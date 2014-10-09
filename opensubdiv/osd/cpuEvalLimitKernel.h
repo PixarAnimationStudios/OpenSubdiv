@@ -29,6 +29,8 @@
 
 #include "../osd/vertexDescriptor.h"
 
+#include "../far/types.h"
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -36,7 +38,7 @@ namespace Osd {
 
 void
 evalBilinear(float u, float v,
-             unsigned int const * vertexIndices,
+             Far::Index const * vertexIndices,
              VertexBufferDescriptor const & inDesc,
              float const * inQ,
              VertexBufferDescriptor const & outDesc,
@@ -44,7 +46,7 @@ evalBilinear(float u, float v,
 
 void
 evalBSpline(float u, float v, 
-            unsigned int const * vertexIndices,
+            Far::Index const * vertexIndices,
             VertexBufferDescriptor const & inDesc,
             float const * inQ, 
             VertexBufferDescriptor const & outDesc,
@@ -54,7 +56,7 @@ evalBSpline(float u, float v,
 
 void
 evalBoundary(float u, float v, 
-             unsigned int const * vertexIndices,
+             Far::Index const * vertexIndices,
              VertexBufferDescriptor const & inDesc,
              float const * inQ,
              VertexBufferDescriptor const & outDesc,
@@ -64,7 +66,7 @@ evalBoundary(float u, float v,
 
 void
 evalCorner(float u, float v, 
-           unsigned int const * vertexIndices,
+           Far::Index const * vertexIndices,
            VertexBufferDescriptor const & inDesc,
            float const * inQ,
            VertexBufferDescriptor const & outDesc,
@@ -74,9 +76,9 @@ evalCorner(float u, float v,
 
 void
 evalGregory(float u, float v,
-            unsigned int const * vertexIndices,
-            int const * vertexValenceBuffer,
-            unsigned int const  * quadOffsetBuffer,
+            Far::Index const * vertexIndices,
+            Far::Index const * vertexValenceBuffer,
+            Far::Index const * quadOffsetBuffer,
             int maxValence,
             VertexBufferDescriptor const & inDesc,
             float const * inQ, 
@@ -87,9 +89,9 @@ evalGregory(float u, float v,
 
 void
 evalGregoryBoundary(float u, float v,
-                    unsigned int const * vertexIndices,
-                    int const * vertexValenceBuffer,
-                    unsigned int const  * quadOffsetBuffer,
+                    Far::Index const * vertexIndices,
+                    Far::Index const * vertexValenceBuffer,
+                    Far::Index const * quadOffsetBuffer,
                     int maxValence,
                     VertexBufferDescriptor const & inDesc,
                     float const * inQ,

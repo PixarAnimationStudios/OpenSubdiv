@@ -84,7 +84,7 @@ class TBBSmoothNormalKernel {
     float const * _iBuffer;
     float * _oBuffer;
 
-    unsigned int const * _vertIndices;
+    Far::Index const * _vertIndices;
 
     int _iStride,
         _oStride,
@@ -131,7 +131,7 @@ public:
                            int iStride,
                            float * oBuffer,
                            int oStride,
-                           unsigned int const * vertIndices,
+                           Far::Index const * vertIndices,
                            int numVertices ) :
         _iBuffer(iBuffer),
         _oBuffer(oBuffer),
@@ -153,7 +153,7 @@ void TbbSmoothNormalController::_smootheNormals(
     float const * iBuffer = context->GetCurrentInputVertexBuffer() + iDesc.offset;
     float * oBuffer = context->GetCurrentOutputVertexBuffer() + oDesc.offset;
 
-    std::vector<unsigned int> const & verts = context->GetControlVertices();
+    std::vector<Far::Index> const & verts = context->GetControlVertices();
 
     Far::PatchTables::PatchArrayVector const & parrays = context->GetPatchArrayVector();
 

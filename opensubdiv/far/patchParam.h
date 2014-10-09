@@ -27,6 +27,8 @@
 
 #include "../version.h"
 
+#include "../far/types.h"
+
 #include <cassert>
 
 namespace OpenSubdiv {
@@ -57,7 +59,7 @@ namespace Far {
 ///        GPU & CPU compilers pack bit-fields and endian-ness.
 ///
 struct PatchParam {
-    unsigned int faceIndex:32; // Ptex face index
+    Index faceIndex:32; // Ptex face index
     
     struct BitField {
         unsigned int field:32;
@@ -133,7 +135,7 @@ struct PatchParam {
     /// @param depth subdivision level of the patch
     /// @param nonquad true if the root face is not a quad
     ///
-    void Set( unsigned int faceid, short u, short v, unsigned char rots, unsigned char depth, bool nonquad ) {
+    void Set( Index faceid, short u, short v, unsigned char rots, unsigned char depth, bool nonquad ) {
         faceIndex = faceid;
         bitField.Set(u,v,rots,depth,nonquad);
     }

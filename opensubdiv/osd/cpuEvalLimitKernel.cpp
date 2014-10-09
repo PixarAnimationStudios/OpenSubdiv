@@ -39,7 +39,7 @@ namespace Osd {
 
 void
 evalBilinear(float u, float v,
-             unsigned int const * vertexIndices,
+             Far::Index const * vertexIndices,
              VertexBufferDescriptor const & inDesc,
              float const * inQ,
              VertexBufferDescriptor const & outDesc,
@@ -94,7 +94,7 @@ evalCubicBSpline(float u, float B[4], float BU[4]) {
 
 void
 evalBSpline(float u, float v,
-            unsigned int const * vertexIndices,
+            Far::Index const * vertexIndices,
             VertexBufferDescriptor const & inDesc,
             float const * inQ,
             VertexBufferDescriptor const & outDesc,
@@ -162,7 +162,7 @@ evalBSpline(float u, float v,
 
 void
 evalBoundary(float u, float v,
-             unsigned int const * vertexIndices,
+             Far::Index const * vertexIndices,
              VertexBufferDescriptor const & inDesc,
              float const * inQ,
              VertexBufferDescriptor const & outDesc,
@@ -263,7 +263,7 @@ evalBoundary(float u, float v,
 
 void
 evalCorner(float u, float v,
-           unsigned int const * vertexIndices,
+           Far::Index const * vertexIndices,
            VertexBufferDescriptor const & inDesc,
            float const * inQ,
            VertexBufferDescriptor const & outDesc,
@@ -393,8 +393,8 @@ static float ef[27] = {
 };
 
 inline void
-univar4x4(float u, float B[4], float D[4])
-{
+univar4x4(float u, float B[4], float D[4]) {
+
     float t = u;
     float s = 1.0f - u;
 
@@ -416,8 +416,7 @@ univar4x4(float u, float B[4], float D[4])
 }
 
 inline float
-csf(unsigned int n, unsigned int j)
-{
+csf(Far::Index n, Far::Index j) {
     if (j%2 == 0) {
         return cosf((2.0f * float(M_PI) * float(float(j-0)/2.0f))/(float(n)+3.0f));
     } else {
@@ -428,17 +427,17 @@ csf(unsigned int n, unsigned int j)
 
 void
 evalGregory(float u, float v,
-            unsigned int const * vertexIndices,
-            int const * vertexValenceBuffer,
-            unsigned int const  * quadOffsetBuffer,
+            Far::Index const * vertexIndices,
+            Far::Index const * vertexValenceBuffer,
+            Far::Index const * quadOffsetBuffer,
             int maxValence,
             VertexBufferDescriptor const & inDesc,
             float const * inQ,
             VertexBufferDescriptor const & outDesc,
             float * outQ,
             float * outDQU,
-            float * outDQV )
-{
+            float * outDQV ) {
+
     // vertex
 
     // make sure that we have enough space to store results
@@ -476,8 +475,8 @@ evalGregory(float u, float v,
         int vofs = vid*length;
 
         for (int i=0; i<valence; ++i) {
-            unsigned int im = (i+valence-1)%valence,
-                         ip = (i+1)%valence;
+            Far::Index im = (i+valence-1)%valence,
+                       ip = (i+1)%valence;
 
             int idx_neighbor   = valenceTable[2*i  + 0 + 1];
             int idx_diagonal   = valenceTable[2*i  + 1 + 1];
@@ -557,7 +556,7 @@ evalGregory(float u, float v,
         int ip = (vid+1)%4;
         int im = (vid+3)%4;
         int n = valences[vid];
-        unsigned int const *quadOffsets = quadOffsetBuffer;
+        Far::Index const *quadOffsets = quadOffsetBuffer;
 
         int start = quadOffsets[vid] & 0x00ff;
         int prev = (quadOffsets[vid] & 0xff00) / 256;
@@ -568,11 +567,11 @@ evalGregory(float u, float v,
             Em[ofs] = opos[ofs] + e0[ofs] * csf(n-3, 2*prev ) + e1[ofs]*csf(n-3, 2*prev + 1);
         }
 
-        unsigned int np = valences[ip],
-                     nm = valences[im];
+        Far::Index np = valences[ip],
+                   nm = valences[im];
 
-        unsigned int prev_p = (quadOffsets[ip] & 0xff00) / 256,
-                    start_m = quadOffsets[im] & 0x00ff;
+        Far::Index prev_p = (quadOffsets[ip] & 0xff00) / 256,
+                   start_m = quadOffsets[im] & 0x00ff;
 
         float *Em_ip=(float*)alloca(length*sizeof(float)),
               *Ep_im=(float*)alloca(length*sizeof(float));
@@ -686,17 +685,17 @@ evalGregory(float u, float v,
 
 void
 evalGregoryBoundary(float u, float v,
-                    unsigned int const * vertexIndices,
-                    int const * vertexValenceBuffer,
-                    unsigned int const  * quadOffsetBuffer,
+                    Far::Index const * vertexIndices,
+                    Far::Index const * vertexValenceBuffer,
+                    Far::Index const * quadOffsetBuffer,
                     int maxValence,
                     VertexBufferDescriptor const & inDesc,
                     float const * inQ,
                     VertexBufferDescriptor const & outDesc,
                     float * outQ,
                     float * outDQU,
-                    float * outDQV )
-{
+                    float * outDQV ) {
+
     // vertex
 
     // make sure that we have enough space to store results
@@ -736,15 +735,15 @@ evalGregoryBoundary(float u, float v,
         memcpy(pos, inOffset + vertexID*inDesc.stride, length*sizeof(float));
 
         int boundaryEdgeNeighbors[2];
-        unsigned int currNeighbor = 0,
-                     ibefore=0,
-                     zerothNeighbor=0;
+        Far::Index currNeighbor = 0,
+                   ibefore=0,
+                   zerothNeighbor=0;
 
         rp=r+vid*maxValence*length;
 
         for (int i=0; i<ivalence; ++i) {
-            unsigned int im = (i+ivalence-1)%ivalence,
-                         ip = (i+1)%ivalence;
+            Far::Index im = (i+ivalence-1)%ivalence,
+                       ip = (i+1)%ivalence;
 
             int idx_neighbor   = valenceTable[2*i  + 0 + 1];
             int idx_diagonal   = valenceTable[2*i  + 1 + 1];
@@ -800,7 +799,7 @@ evalGregoryBoundary(float u, float v,
         }
 
         for (int i=0; i<ivalence; ++i) {
-            unsigned int im = (i+ivalence-1)%ivalence;
+            Far::Index im = (i+ivalence-1)%ivalence;
             for (int k=0; k<length; ++k) {
                 float e = 0.5f*(f[i*length+k]+f[im*length+k]);
                 e0[vofs+k] += csf(ivalence-3, 2*i  ) * e;
@@ -845,7 +844,7 @@ evalGregoryBoundary(float u, float v,
             }
 
             for (int x=1; x<ivalence-1; ++x) {
-                unsigned int curri = ((x + zerothNeighbor)%ivalence);
+                Far::Index curri = ((x + zerothNeighbor)%ivalence);
                 float alpha = (4.0f*sinf((float(M_PI) * float(x))/k))/(3.0f*k+c);
                 float beta = (sinf((float(M_PI) * float(x))/k) + sinf((float(M_PI) * float(x+1))/k))/(3.0f*k+c);
 
@@ -900,27 +899,27 @@ evalGregoryBoundary(float u, float v,
 
     for (int vid=0; vid<4; ++vid) {
 
-        unsigned int ip = (vid+1)%4,
-                     im = (vid+3)%4,
-                     n = abs(valences[vid]),
-                     ivalence = n;
+        Far::Index ip = (vid+1)%4,
+                   im = (vid+3)%4,
+                   n = abs(valences[vid]),
+                   ivalence = n;
 
-        const unsigned int *quadOffsets = quadOffsetBuffer;
+        Far::Index const *quadOffsets = quadOffsetBuffer;
 
         int vofs = vid * length;
 
-        unsigned int   start =  quadOffsets[vid] & 0x00ff,
-                        prev = (quadOffsets[vid] & 0xff00) / 256,
-                          np = abs(valences[ip]),
-                          nm = abs(valences[im]),
-                     start_m =  quadOffsets[im] & 0x00ff,
-                      prev_p = (quadOffsets[ip] & 0xff00) / 256;
+        Far::Index   start =  quadOffsets[vid] & 0x00ff,
+                      prev = (quadOffsets[vid] & 0xff00) / 256,
+                        np = abs(valences[ip]),
+                        nm = abs(valences[im]),
+                   start_m =  quadOffsets[im] & 0x00ff,
+                    prev_p = (quadOffsets[ip] & 0xff00) / 256;
 
         float *Em_ip=(float*)alloca(length*sizeof(float)),
               *Ep_im=(float*)alloca(length*sizeof(float));
 
         if (valences[ip]<-2) {
-            unsigned int j = (np + prev_p - zerothNeighbors[ip]) % np;
+            Far::Index j = (np + prev_p - zerothNeighbors[ip]) % np;
             for (int k=0, ipofs=ip*length; k<length; ++k, ++ipofs) {
                 Em_ip[k] = opos[ipofs] + cosf((float(M_PI)*j)/float(np-1))*e0[ipofs] + sinf((float(M_PI)*j)/float(np-1))*e1[ipofs];
             }
@@ -931,7 +930,7 @@ evalGregoryBoundary(float u, float v,
         }
 
         if (valences[im]<-2) {
-            unsigned int j = (nm + start_m - zerothNeighbors[im]) % nm;
+            Far::Index j = (nm + start_m - zerothNeighbors[im]) % nm;
             for (int k=0, imofs=im*length; k<length; ++k, ++imofs) {
                 Ep_im[k] = opos[imofs] + cosf((float(M_PI)*j)/float(nm-1))*e0[imofs] + sinf((float(M_PI)*j)/float(nm-1))*e1[imofs];
             }
@@ -965,8 +964,8 @@ evalGregoryBoundary(float u, float v,
                 Fm[ofs] = (csf(nm-3,2)*opos[ofs] + s3*Em[ofs] + s2*Ep_im[k] - rp[prev*length+k])/3.0f;
             }
         } else if (valences[vid] < -2) {
-            unsigned int jp = (ivalence + start - zerothNeighbors[vid]) % ivalence,
-                         jm = (ivalence + prev  - zerothNeighbors[vid]) % ivalence;
+            Far::Index jp = (ivalence + start - zerothNeighbors[vid]) % ivalence,
+                       jm = (ivalence + prev  - zerothNeighbors[vid]) % ivalence;
 
             float s1 = 3-2*csf(n-3,2)-csf(np-3,2),
                   s2 = 2*csf(n-3,2),

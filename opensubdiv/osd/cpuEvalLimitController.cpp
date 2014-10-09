@@ -72,7 +72,8 @@ CpuEvalLimitController::EvalLimitSample( LimitLocation const & coord,
 
     Far::PatchTables::PatchArray const & parray = context->GetPatchArrayVector()[ handle->patchArrayIdx ];
 
-    unsigned int const * cvs = &context->GetControlVertices()[ parray.GetVertIndex() + handle->vertexOffset ];
+    Far::Index const * cvs =
+        &context->GetControlVertices()[ parray.GetVertIndex() + handle->vertexOffset ];
 
     VertexData const & vertexData = _currentBindState.vertexData;
 
@@ -149,9 +150,11 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
 
     computeSubPatchCoords(context, handle->patchIdx, s, t);
 
-    Far::PatchTables::PatchArray const & parray = context->GetPatchArrayVector()[ handle->patchArrayIdx ];
+    Far::PatchTables::PatchArray const & parray =
+        context->GetPatchArrayVector()[ handle->patchArrayIdx ];
 
-    unsigned int const * cvs = &context->GetControlVertices()[ parray.GetVertIndex() + handle->vertexOffset ];
+    Far::Index const * cvs =
+        &context->GetControlVertices()[ parray.GetVertIndex() + handle->vertexOffset ];
 
     VertexData const & vertexData = _currentBindState.vertexData;
 
@@ -228,10 +231,10 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
 
         int offset = varyingData.outDesc.stride * index;
 
-        unsigned int zeroRing[4] = { cvs[indices[type][0]],
-                                     cvs[indices[type][1]],
-                                     cvs[indices[type][2]],
-                                     cvs[indices[type][3]]  };
+        Far::Index zeroRing[4] = { cvs[indices[type][0]],
+                                   cvs[indices[type][1]],
+                                   cvs[indices[type][2]],
+                                   cvs[indices[type][3]]  };
 
         evalBilinear( t, s, zeroRing,
                       varyingData.inDesc,
@@ -256,7 +259,7 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
 
             int offset = facevaryingData.outDesc.stride * index;
 
-            static unsigned int zeroRing[4] = {0,1,2,3};
+            static Far::Index zeroRing[4] = {0,1,2,3};
 
             evalBilinear( t, s, zeroRing,
                           facevaryingData.inDesc,

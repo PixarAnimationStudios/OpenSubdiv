@@ -58,11 +58,11 @@ void CpuSmoothNormalController::_smootheNormals(
     float const * iBuffer = context->GetCurrentInputVertexBuffer() + iDesc.offset;
     float * oBuffer = context->GetCurrentOutputVertexBuffer() + oDesc.offset;
 
-    std::vector<unsigned int> const & verts = context->GetControlVertices();
+    Far::PatchTables::PTable const & cvs = context->GetControlVertices();
 
     Far::PatchTables::PatchArrayVector const & parrays = context->GetPatchArrayVector();
 
-    if (verts.empty() or parrays.empty() or (not iBuffer) or (not oBuffer)) {
+    if (cvs.empty() or parrays.empty() or (not iBuffer) or (not oBuffer)) {
         return;
     }
 
@@ -88,9 +88,9 @@ void CpuSmoothNormalController::_smootheNormals(
             for (int j=0, idx=pa.GetVertIndex(); j<(int)pa.GetNumPatches(); ++j, idx+=nv) {
 
 
-                float const * p0 = iBuffer + verts[idx+0]*iDesc.stride,
-                            * p1 = iBuffer + verts[idx+1]*iDesc.stride,
-                            * p2 = iBuffer + verts[idx+2]*iDesc.stride;
+                float const * p0 = iBuffer + cvs[idx+0]*iDesc.stride,
+                            * p1 = iBuffer + cvs[idx+1]*iDesc.stride,
+                            * p2 = iBuffer + cvs[idx+2]*iDesc.stride;
 
                 // compute face normal
                 float n[3];
@@ -99,7 +99,7 @@ void CpuSmoothNormalController::_smootheNormals(
                 // add normal to all vertices of the face
                 for (int k=0; k<nv; ++k) {
 
-                    float * dst = oBuffer + verts[idx+k]*oDesc.stride;
+                    float * dst = oBuffer + cvs[idx+k]*oDesc.stride;
 
                     dst[0] += n[0];
                     dst[1] += n[1];

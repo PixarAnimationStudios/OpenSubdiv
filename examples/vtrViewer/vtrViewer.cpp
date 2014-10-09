@@ -312,7 +312,7 @@ createHbrMesh(Shape * shape, int maxlevel) {
 
             patchTables = CreatePatchTables(*hmesh, maxvalence);
 
-            patchTables->GetNumPatches();
+            patchTables->GetNumPatchesTotal();
 
             delete patchTables;
         } else {
@@ -527,7 +527,8 @@ createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
 
     int ncvs = g_currentPatchDesc.GetNumControlVertices();
 
-    unsigned int const * cvs = &ptable[pa->GetVertIndex()] + ncvs*patchID;
+    OpenSubdiv::Far::Index const * cvs =
+        &ptable[pa->GetVertIndex()] + ncvs*patchID;
 
     static char buf[16];
     for (int i=0; i<ncvs; ++i) {
@@ -568,7 +569,8 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
 
             int ncvs = pa.GetDescriptor().GetNumControlVertices();
 
-            unsigned int const * cvs = &ptable[pa.GetVertIndex()] + ncvs*j;
+            OpenSubdiv::Far::Index const * cvs =
+                &ptable[pa.GetVertIndex()] + ncvs*j;
 
             int * remap = 0;
             switch (pa.GetDescriptor().GetType()) {
@@ -614,7 +616,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
 
         patchTables = OpenSubdiv::Far::PatchTablesFactory::Create(*refiner);
 
-        g_numPatches = patchTables->GetNumPatches();
+        g_numPatches = patchTables->GetNumPatchesTotal();
     } else {
         refiner->RefineUniform(maxlevel, /*fullTopology*/true);
     }
