@@ -81,10 +81,10 @@ public:
 
         assert(_stencils and _ctrlData and _length and _outStride and _outData);
 
-        int offset = _stencils->GetOffsets()[r.begin()];
+        Far::Index offset = _stencils->GetOffsets()[r.begin()];
 
         unsigned char const * sizes = &_stencils->GetSizes()[r.begin()];
-        int const * index = &_stencils->GetControlIndices()[offset];
+        Far::Index const * index = &_stencils->GetControlIndices()[offset];
 
         float const * weight;
 

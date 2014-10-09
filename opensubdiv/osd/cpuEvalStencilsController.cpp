@@ -63,7 +63,7 @@ CpuEvalStencilsController::_UpdateValues( CpuEvalStencilsContext * context ) {
         return result;
 
     unsigned char const * sizes = &stencils->GetSizes().at(0);
-    int const * index = &stencils->GetControlIndices().at(0);
+    Far::Index const * index = &stencils->GetControlIndices().at(0);
 
     float const * weight = &stencils->GetWeights().at(0);
 
@@ -113,7 +113,7 @@ CpuEvalStencilsController::_UpdateDerivs( CpuEvalStencilsContext * context ) {
         return result;
 
     unsigned char const * sizes = &stencils->GetSizes().at(0);
-    int const * index = &stencils->GetControlIndices().at(0);
+    Far::Index const * index = &stencils->GetControlIndices().at(0);
 
     float const * duweight = &stencils->GetDuWeights().at(0),
                 * dvweight = &stencils->GetDvWeights().at(0);

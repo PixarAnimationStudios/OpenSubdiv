@@ -39,6 +39,8 @@ namespace {
 
 class ProtoStencilAllocator;
 
+typedef OpenSubdiv::Far::Index Index;
+
 //------------------------------------------------------------------------------
 
 //
@@ -53,7 +55,7 @@ class ProtoStencil {
 public:
 
     // Return stencil unique ID in pool allocator
-    int GetID() const {
+    Index GetID() const {
         return _ID;
     }
 
@@ -76,7 +78,7 @@ public:
     int GetSize() const;
 
     // Returns a pointer to the vertex indices of the stencil
-    int const * GetIndices() const;
+    Index const * GetIndices() const;
 
     // Returns a pointer to the vertex weights of the stencil
     float const * GetWeights() const;
@@ -94,11 +96,11 @@ protected:
     friend class ProtoStencilAllocator;
 
     // Returns the location of vertex 'vertex' in the stencil indices or -1
-    int findVertex(int vertex);
+    Index findVertex(Index vertex);
 
 protected:
 
-    int _ID;                        // Stencil ID in allocator
+    Index _ID;                        // Stencil ID in allocator
     ProtoStencilAllocator * _alloc; // Pool allocator
 };
 
@@ -181,12 +183,12 @@ public:
     // Append a support vertex of index 'index' and weight 'weight' to the
     // Stencil 'stencil' (use findVertex() to make sure it does not exist
     // yet)
-    void PushBackVertex(ProtoStencil & stencil, int index, float weight);
+    void PushBackVertex(ProtoStencil & stencil, Index index, float weight);
 
     // Append a support vertex of index 'index' and weight 'weight' to the
     // LimitStencil 'stencil' (use findVertex() to make sure it does not exist
     // yet)
-    void PushBackVertex(ProtoLimitStencil & stencil, int index,
+    void PushBackVertex(ProtoLimitStencil & stencil, Index index,
         float weight, float duweight, float dvweight);
 
     // Allocate enough memory to hold 'numStencils' Stencils
@@ -201,13 +203,13 @@ private:
     friend class ProtoLimitStencil;
 
     // returns the size of the stencil
-    unsigned char * getSize(int stencilID) {
+    unsigned char * getSize(Index stencilID) {
         assert(stencilID<(int)_sizes.size());
         return &_sizes[stencilID];
     }
 
     // returns the indices of the stencil
-    int * getIndices(int stencilID) {
+    Index * getIndices(Index stencilID) {
         if (*getSize(stencilID)<_maxsize) {
             return &_indices[stencilID*_maxsize];
         } else {
@@ -220,7 +222,7 @@ private:
     }
 
     // returns the weights of the stencil
-    float * getWeights(int stencilID) {
+    float * getWeights(Index stencilID) {
         if (*getSize(stencilID)<_maxsize) {
             return &_weights[stencilID*_maxsize];
         } else {
@@ -233,7 +235,7 @@ private:
     }
 
     // returns the U derivative weights of the stencil
-    float * getDuWeights(int stencilID) {
+    float * getDuWeights(Index stencilID) {
         assert(GetMode()==INTERPOLATE_LIMITS);
         if (*getSize(stencilID)<_maxsize) {
             return &_duWeights[stencilID*_maxsize];
@@ -243,7 +245,7 @@ private:
     }
 
     // returns the V derivative weights of the stencil
-    float * getDvWeights(int stencilID) {
+    float * getDvWeights(Index stencilID) {
         assert(GetMode()==INTERPOLATE_LIMITS);
         if (*getSize(stencilID)<_maxsize) {
             return &_dvWeights[stencilID*_maxsize];
@@ -261,7 +263,7 @@ private:
     ProtoStencilVec _stencils;
 
     std::vector<unsigned char> _sizes;    // temp stencils data (as SOA)
-    std::vector<int>           _indices;
+    std::vector<Index>    _indices;
     std::vector<float>         _weights;
     std::vector<float>         _duWeights;
     std::vector<float>         _dvWeights;
@@ -272,7 +274,7 @@ private:
     //
     struct BigStencil {
 
-        BigStencil(int size, int const * iindices, float const * iweights) {
+        BigStencil(int size, Index const * iindices, float const * iweights) {
             indices.reserve(size+5); indices.resize(size);
             weights.reserve(size+5); weights.resize(size);
             memcpy(&indices.at(0), iindices, size*sizeof(int) );
@@ -293,7 +295,7 @@ private:
     //
     struct BigLimitStencil : public BigStencil {
 
-        BigLimitStencil(int size, int const * iindices, float const * iweights,
+        BigLimitStencil(int size, Index const * iindices, float const * iweights,
             float const * iduWeights, float const * idvWeights) :
                 BigStencil(size, iindices, iweights) {
 
@@ -362,7 +364,7 @@ ProtoStencilAllocator::Resize(int numStencils) {
     // Pre-allocate the Stencils
     _stencils.resize(numStencils);
 
-    for (int i=currentSize; i<numStencils; ++i) {
+    for (Index i=currentSize; i<numStencils; ++i) {
         _stencils[i]._ID = i;
         _stencils[i]._alloc = this;
     }
@@ -397,12 +399,12 @@ ProtoStencilAllocator::Resize(int numStencils) {
 // yet)
 void
 ProtoStencilAllocator::PushBackVertex(
-    ProtoStencil & stencil, int index, float weight) {
+    ProtoStencil & stencil, Index index, float weight) {
 
     assert(weight!=0.0f);
 
     unsigned char * size    = getSize(stencil.GetID());
-    int           * indices = getIndices(stencil.GetID());
+    Index    * indices = getIndices(stencil.GetID());
     float         * weights = getWeights(stencil.GetID());
 
 
@@ -438,13 +440,13 @@ ProtoStencilAllocator::PushBackVertex(
 // LimitStencil 'stencil' (use findVertex() to make sure it does not exist
 // yet)
 void
-ProtoStencilAllocator::PushBackVertex(ProtoLimitStencil & stencil, int index,
-    float weight, float duweight, float dvweight) {
+ProtoStencilAllocator::PushBackVertex(ProtoLimitStencil & stencil,
+    Index index, float weight, float duweight, float dvweight) {
 
     assert(weight!=0.0f);
 
     unsigned char * size    = getSize(stencil.GetID());
-    int           * indices = getIndices(stencil.GetID());
+    Index    * indices = getIndices(stencil.GetID());
     float         * weights = getWeights(stencil.GetID()),
                   * duweights = getDuWeights(stencil.GetID()),
                   * dvweights = getDvWeights(stencil.GetID());
@@ -499,7 +501,7 @@ ProtoStencil::GetSize() const {
 }
 
 // Returns a pointer to the vertex indices of the stencil
-int const *
+Index const *
 ProtoStencil::GetIndices() const {
     return _alloc->getIndices(this->GetID());
 }
@@ -538,12 +540,12 @@ ProtoStencil::Print() const {
 }
 
 // Find the location of vertex 'vertex' in the stencil indices.
-inline int
-ProtoStencil::findVertex(int vertex) {
+inline Index
+ProtoStencil::findVertex(Index vertex) {
 
     // XXXX manuelk serial search -> we can figure out something better ?
     unsigned char * size    = _alloc->getSize(this->GetID());
-    int           * indices = _alloc->getIndices(this->GetID());
+    Index    * indices = _alloc->getIndices(this->GetID());
     for (int i=0; i<*size; ++i) {
         if (indices[i]==vertex)
             return i;
@@ -562,13 +564,13 @@ ProtoStencil::Clear() {
 
 // Weighted add of a coarse vertex
 inline void
-ProtoStencil::AddWithWeight(int vertIndex, float weight) {
+ProtoStencil::AddWithWeight(Index vertIndex, float weight) {
 
     if (weight==0.0f) {
         return;
     }
 
-    int n = findVertex(vertIndex);
+    Index n = findVertex(vertIndex);
     if (n<0) {
         _alloc->PushBackVertex(*this, vertIndex, weight);
     } else {
@@ -587,7 +589,7 @@ ProtoStencil::AddWithWeight(ProtoStencil const & src, float weight) {
     }
 
     unsigned char const * srcSize    = src._alloc->getSize(src.GetID());
-    int const           * srcIndices = src._alloc->getIndices(src.GetID());
+    Index const    * srcIndices = src._alloc->getIndices(src.GetID());
     float const         * srcWeights = src._alloc->getWeights(src.GetID());
 
     for (int i=0; i<*srcSize; ++i) {
@@ -599,11 +601,11 @@ ProtoStencil::AddWithWeight(ProtoStencil const & src, float weight) {
             continue;
         }
 
-        int vertIndex = srcIndices[i];
+        Index vertIndex = srcIndices[i];
 
         // Attempt to locate the vertex index in the list of supporting vertices
         // of the destination stencil.
-        int n = findVertex(vertIndex);
+        Index n = findVertex(vertIndex);
         if (n<0) {
             _alloc->PushBackVertex(*this, vertIndex, w);
         } else {
@@ -615,7 +617,7 @@ ProtoStencil::AddWithWeight(ProtoStencil const & src, float weight) {
 }
 
 inline void
-ProtoStencil::AddVaryingWithWeight(int vertIndex, float weight) {
+ProtoStencil::AddVaryingWithWeight(Index vertIndex, float weight) {
 
     if (_alloc->GetMode()==ProtoStencilAllocator::INTERPOLATE_VARYING) {
         AddWithWeight(vertIndex, weight);
@@ -653,12 +655,12 @@ ProtoLimitStencil::AddWithWeight(Stencil const & src,
     }
 
     unsigned char const * srcSize    = src.GetSizePtr();
-    int const           * srcIndices = src.GetVertexIndices();
+    Index const    * srcIndices = src.GetVertexIndices();
     float const         * srcWeights = src.GetWeights();
 
     for (int i=0; i<*srcSize; ++i) {
 
-        int vertIndex = srcIndices[i];
+        Index vertIndex = srcIndices[i];
 
         float srcWeight = srcWeights[i];
 
@@ -666,7 +668,7 @@ ProtoLimitStencil::AddWithWeight(Stencil const & src,
             continue;
         }
 
-        int n = findVertex(vertIndex);
+        Index n = findVertex(vertIndex);
 
         if (n<0) {
             _alloc->PushBackVertex(*this, vertIndex,
@@ -694,12 +696,13 @@ namespace Far {
 
 static void
 generateOffsets(std::vector<unsigned char> const & sizes,
-    std::vector<int> & offsets ) {
+    std::vector<Index> & offsets ) {
 
-    for (int i=0, ofs=0; i<(int)sizes.size(); ++i ) {
+    Index offset=0;
+    for (int i=0; i<(int)sizes.size(); ++i ) {
         //assert(sizes[i]!=0);
-        offsets[i]=ofs;
-        ofs+=sizes[i];
+        offsets[i]=offset;
+        offset+=sizes[i];
     }
 }
 
@@ -708,7 +711,7 @@ template <> void
 StencilTablesFactory::copyStencil(ProtoStencil const & src, Stencil & dst) {
 
     unsigned char size = (unsigned char)src.GetSize();
-    int const * indices = src.GetIndices();
+    Index const * indices = src.GetIndices();
     float const * weights = src.GetWeights();
 
     *dst._size = size;
@@ -793,7 +796,7 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
         if (level==1) {
 
             // coarse vertices have a single index and a weight of 1.0f
-            int * srcStencils = new int[refiner.GetNumVertices(0)];
+            Index * srcStencils = new Index[refiner.GetNumVertices(0)];
             for (int i=0; i<refiner.GetNumVertices(0); ++i) {
                 srcStencils[i]=i;
             }
@@ -895,7 +898,7 @@ LimitStencilTablesFactory::copyLimitStencil(
     ProtoLimitStencil const & src, LimitStencil & dst) {
 
     unsigned char size = (unsigned char)src.GetSize();
-    int const * indices = src.GetIndices();
+    Index const * indices = src.GetIndices();
     float const * weights = src.GetWeights(),
                 * duWeights = src.GetDuWeights(),
                 * dvWeights = src.GetDvWeights();

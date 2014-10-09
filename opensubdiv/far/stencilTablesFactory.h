@@ -50,8 +50,6 @@ class LimitStencilTables;
 ///       TopologyRefiner need to be remapped to their new location in the
 ///       vertex buffer.
 ///
-//        XXXX manuelk remap table creation not implemented yet !
-//
 class StencilTablesFactory {
 
 public:
@@ -69,11 +67,11 @@ public:
                     generateAllLevels(true),
                     sortBySize(false) { }
 
-        int interpolationMode    : 2, ///< interpolation mode
-            generateOffsets      : 1, ///< populate optional "_offsets" field
-            generateControlVerts : 1, ///< generate stencils for control vertices
-            generateAllLevels    : 1, ///< vertices at all levels or highest only
-            sortBySize           : 1; ///< sort stencils by size (within a level)
+        unsigned int interpolationMode    : 2, ///< interpolation mode
+                     generateOffsets      : 1, ///< populate optional "_offsets" field
+                     generateControlVerts : 1, ///< generate stencils for control vertices
+                     generateAllLevels    : 1, ///< vertices at all levels or highest only
+                     sortBySize           : 1; ///< sort stencils by size (within a level)
     };
 
     /// \brief Instantiates StencilTables from TopologyRefiner that have been

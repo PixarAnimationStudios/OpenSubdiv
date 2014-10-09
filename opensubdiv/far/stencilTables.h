@@ -27,6 +27,8 @@
 
 #include "../version.h"
 
+#include "../far/types.h"
+
 #include <cassert>
 #include <vector>
 
@@ -55,8 +57,8 @@ public:
     /// @param weights  Table pointer to the vertex weights of the stencil
     ///
     Stencil(unsigned char * size,
-               int * indices,
-               float * weights)
+            Index * indices,
+            float * weights)
         : _size(size),
           _indices(indices),
           _weights(weights) {
@@ -80,7 +82,7 @@ public:
     }
 
     /// \brief Returns the control vertices indices
-    int const * GetVertexIndices() const {
+    Index const * GetVertexIndices() const {
         return _indices;
     }
 
@@ -102,7 +104,7 @@ protected:
     friend class LimitStencilTablesFactory;
 
     unsigned char * _size;
-    int           * _indices;
+    Index         * _indices;
     float         * _weights;
 };
 
@@ -141,12 +143,12 @@ public:
     }
 
     /// \brief Returns the offset to a given stencil (factory may leave empty)
-    std::vector<int> const & GetOffsets() const {
+    std::vector<Index> const & GetOffsets() const {
         return _offsets;
     }
 
     /// \brief Returns the indices of the control vertices
-    std::vector<int> const & GetControlIndices() const {
+    std::vector<Index> const & GetControlIndices() const {
         return _indices;
     }
 
@@ -200,7 +202,7 @@ protected:
     int _numControlVertices;              // number of control vertices
 
     std::vector<unsigned char> _sizes;    // number of coeffiecient for each stencil
-    std::vector<int>           _offsets,  // offset to the start of each stencil
+    std::vector<Index>         _offsets,  // offset to the start of each stencil
                                _indices;  // indices of contributing coarse vertices
     std::vector<float>         _weights;  // stencil weight coefficients
 };
@@ -225,10 +227,10 @@ public:
     /// @param dvWeights Table pointer to the 'v' derivative weights
     ///
     LimitStencil( unsigned char * size,
-                     int * indices,
-                     float * weights,
-                     float * duWeights,
-                     float * dvWeights )
+                  Index * indices,
+                  float * weights,
+                  float * duWeights,
+                  float * dvWeights )
         : Stencil(size, indices, weights),
           _duWeights(duWeights),
           _dvWeights(dvWeights) {
@@ -325,11 +327,11 @@ template <class T> void
 StencilTables::_Update(T const *controlValues, T *values,
     std::vector<float> const &valueWeights, int start, int end) const {
 
-    int const * indices = &_indices.at(0);
+    Index const * indices = &_indices.at(0);
     float const * weights = &valueWeights.at(0);
 
     if (start>0) {
-        assert(start<(int)_offsets.size());
+        assert(start<(Index)_offsets.size());
         indices += _offsets[start];
         weights += _offsets[start];
         values += start;
@@ -358,11 +360,11 @@ StencilTables::GetStencil(int i) const {
 
     assert((not _offsets.empty()) and i<(int)_offsets.size());
 
-    int ofs = _offsets[i];
+    Index ofs = _offsets[i];
 
     return Stencil( const_cast<unsigned char *>(&_sizes[i]),
-                       const_cast<int *>(&_indices[ofs]),
-                       const_cast<float *>(&_weights[ofs]) );
+                    const_cast<Index *>(&_indices[ofs]),
+                    const_cast<float *>(&_weights[ofs]) );
 }
 
 inline Stencil
