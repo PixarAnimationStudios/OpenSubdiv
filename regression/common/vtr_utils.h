@@ -78,10 +78,12 @@ GetSdcOptions(Shape const & shape) {
                 continue;
             }
             switch( t->intargs[0] ) {
-                case 0 : result.SetFVarBoundaryInterpolation(Options::FVAR_BOUNDARY_BILINEAR); break;
-                case 1 : result.SetFVarBoundaryInterpolation(Options::FVAR_BOUNDARY_EDGE_AND_CORNER); break;
-                case 2 : result.SetFVarBoundaryInterpolation(Options::FVAR_BOUNDARY_EDGE_ONLY); break;
-                case 3 : result.SetFVarBoundaryInterpolation(Options::FVAR_BOUNDARY_ALWAYS_SHARP); break;
+                case 0 : result.SetFVarLinearInterpolation(Options::FVAR_LINEAR_NONE); break;
+                case 1 : result.SetFVarLinearInterpolation(Options::FVAR_LINEAR_CORNERS_ONLY); break;
+                case 2 : result.SetFVarLinearInterpolation(Options::FVAR_LINEAR_CORNERS_PLUS1); break;
+                case 3 : result.SetFVarLinearInterpolation(Options::FVAR_LINEAR_CORNERS_PLUS2); break;
+                case 4 : result.SetFVarLinearInterpolation(Options::FVAR_LINEAR_BOUNDARIES); break;
+                case 5 : result.SetFVarLinearInterpolation(Options::FVAR_LINEAR_ALL); break;
                 default: printf("unknown interpolate boundary : %d\n", t->intargs[0] ); break;
             }
         } else if (t->name=="facevaryingpropagatecorners") {

@@ -117,20 +117,26 @@ ConvertMayaVVarBoundary(short boundaryMethod) {
     return Sdc::VVAR_BOUNDARY_NONE;
 }
 
-static OpenSubdiv::Sdc::Options::FVarBoundaryInterpolation
-ConvertMayaFVarBoundary(short boundaryMethod) {
+// XXXX note: This function converts the options exposed in Maya's GUI which are
+//            based on prman legacy face-varying boundary interpolation rules.
+//            As a result, some OpenSubdiv 3.0 FVar interpolation rules are not
+//            exposed, and the some of the ones exposed fix incorrect behavior
+//            from legacy prman code, so the results are not 100% backward compatible.
+static OpenSubdiv::Sdc::Options::FVarLinearInterpolation
+ConvertMayaFVarBoundary(short boundaryMethod, bool propagateCorner) {
 
     typedef OpenSubdiv::Sdc::Options Sdc;
 
     switch (boundaryMethod) {
-        case k_BoundaryMethod_InterpolateBoundaryNone          : return Sdc::FVAR_BOUNDARY_BILINEAR;
-        case k_BoundaryMethod_InterpolateBoundaryEdgeOnly      : return Sdc::FVAR_BOUNDARY_EDGE_ONLY;
-        case k_BoundaryMethod_InterpolateBoundaryEdgeAndCorner : return Sdc::FVAR_BOUNDARY_EDGE_AND_CORNER;
-        case k_BoundaryMethod_InterpolateBoundaryAlwaysSharp   : return Sdc::FVAR_BOUNDARY_ALWAYS_SHARP;
+        case k_BoundaryMethod_InterpolateBoundaryNone          : return Sdc::FVAR_LINEAR_ALL;
+        case k_BoundaryMethod_InterpolateBoundaryEdgeOnly      : return Sdc::FVAR_LINEAR_NONE;
+        case k_BoundaryMethod_InterpolateBoundaryEdgeAndCorner : 
+            return propagateCorner ? Sdc::FVAR_LINEAR_CORNERS_PLUS2 : Sdc::FVAR_LINEAR_CORNERS_PLUS1;
+        case k_BoundaryMethod_InterpolateBoundaryAlwaysSharp   : return Sdc::FVAR_LINEAR_BOUNDARIES;
         default: ;
     }
     MGlobal::displayError("FVar InterpolateBoundaryMethod value out of range. Using \"none\"");
-    return Sdc::FVAR_BOUNDARY_BILINEAR;
+    return Sdc::FVAR_LINEAR_ALL;
 }
 
 // ====================================
@@ -609,7 +615,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             MObject inMeshObj        = data.inputValue(a_inputPolymesh).asMesh();
             short vertBoundaryMethod = data.inputValue(a_vertBoundaryMethod).asShort();
             short fvarBoundaryMethod = data.inputValue(a_fvarBoundaryMethod).asShort();
-//XXXX            bool  fvarPropCorners    = data.inputValue(a_fvarPropagateCorners).asBool();
+            bool  fvarPropCorners    = data.inputValue(a_fvarPropagateCorners).asBool();
             bool  smoothTriangles    = data.inputValue(a_smoothTriangles).asBool();
             short creaseMethodVal    = data.inputValue(a_creaseMethod).asShort();
 
@@ -628,7 +634,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             //
             OpenSubdiv::Sdc::Options options;
             options.SetVVarBoundaryInterpolation(ConvertMayaVVarBoundary(vertBoundaryMethod));
-            options.SetFVarBoundaryInterpolation(ConvertMayaFVarBoundary(fvarBoundaryMethod));
+            options.SetFVarLinearInterpolation(ConvertMayaFVarBoundary(fvarBoundaryMethod, fvarPropCorners));
             options.SetCreasingMethod(creaseMethodVal ?
                  OpenSubdiv::Sdc::Options::CREASE_CHAIKIN : OpenSubdiv::Sdc::Options::CREASE_UNIFORM);
             options.SetTriangleSubdivision(smoothTriangles ?

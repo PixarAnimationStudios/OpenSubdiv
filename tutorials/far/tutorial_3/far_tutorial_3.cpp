@@ -168,7 +168,7 @@ int main(int, char **) {
 
     Sdc::Options options;
     options.SetVVarBoundaryInterpolation(Sdc::Options::VVAR_BOUNDARY_EDGE_ONLY);
-    options.SetFVarBoundaryInterpolation(Sdc::Options::FVAR_BOUNDARY_BILINEAR);
+    options.SetFVarLinearInterpolation(Sdc::Options::FVAR_LINEAR_NONE);
 
     // Populate a topology descriptor with our raw data
     Descriptor desc;
