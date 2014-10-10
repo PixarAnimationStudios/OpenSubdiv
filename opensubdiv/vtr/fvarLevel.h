@@ -78,8 +78,6 @@ namespace Vtr {
 class FVarLevel {
 
 public:
-    typedef Sdc::Options::FVarBoundaryInterpolation   BoundaryInterpolation;
-
     typedef LocalIndex      Sibling;
     typedef LocalIndexArray SiblingArray;
 

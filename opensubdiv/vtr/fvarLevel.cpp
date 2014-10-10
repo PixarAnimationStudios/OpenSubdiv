@@ -112,15 +112,15 @@ FVarLevel::completeTopologyFromFaceValues() {
     using Sdc::Options;
 
     Options::VVarBoundaryInterpolation geomOptions = _options.GetVVarBoundaryInterpolation();
-    Options::FVarBoundaryInterpolation fvarOptions = _options.GetFVarBoundaryInterpolation();
+    Options::FVarLinearInterpolation   fvarOptions = _options.GetFVarLinearInterpolation();
 
-    _isLinear = (fvarOptions == Options::FVAR_BOUNDARY_BILINEAR);
+    _isLinear = (fvarOptions == Options::FVAR_LINEAR_ALL);
 
-    _hasSmoothBoundaries = (fvarOptions != Options::FVAR_BOUNDARY_BILINEAR) &&
-                           (fvarOptions != Options::FVAR_BOUNDARY_ALWAYS_SHARP);
+    _hasSmoothBoundaries = (fvarOptions != Options::FVAR_LINEAR_ALL) &&
+                           (fvarOptions != Options::FVAR_LINEAR_BOUNDARIES);
 
     bool geomCornersAreSmooth = (geomOptions != Options::VVAR_BOUNDARY_EDGE_AND_CORNER);
-    bool fvarCornersAreSharp  = (fvarOptions != Options::FVAR_BOUNDARY_EDGE_ONLY);
+    bool fvarCornersAreSharp  = (fvarOptions != Options::FVAR_LINEAR_NONE);
 
     bool makeCornersSharp = geomCornersAreSmooth && fvarCornersAreSharp;
 
@@ -140,8 +140,9 @@ FVarLevel::completeTopologyFromFaceValues() {
     //  values in cases where there are more than 2 values at a vertex, its unclear what the intent of
     //  "propagate corners" is if more than 2 are present.
     //
-    bool sharpenAllIfMoreThan2 = fvarCornersAreSharp;
-    bool sharpenAllIfAnyCorner = (fvarOptions == Options::FVAR_BOUNDARY_EDGE_AND_CORNER_PROP);
+    bool sharpenAllIfMoreThan2 = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS1) ||
+                                 (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS2);
+    bool sharpenAllIfAnyCorner = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS2);
 
     bool sharpenDarts = sharpenAllIfAnyCorner || !_hasSmoothBoundaries;
 
