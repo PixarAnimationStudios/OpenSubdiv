@@ -151,7 +151,7 @@ enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
                    kHUD_CB_FREEZE,
                    kHUD_CB_DISPLAY_PATCH_COUNTS };
 
-int g_currentShape = 8;
+int g_currentShape = 0;
 
 ObjAnim const * g_objAnim = 0;
 
