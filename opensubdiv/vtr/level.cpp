@@ -782,7 +782,93 @@ Level::gatherQuadRegularCornerPatchVertices(
     return 9;
 }
 
+bool
+Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *rotationOut) const {
 
+    // Note: this function is called twice for the same patch, at topologyRefiner and patchTablesFactory.
+    // we may want to cache the result to improve the Far performance.
+    // To do so, FTag needs to be extended to store isSingleCrease(bool), sharpness(float) and rotation(0-3).
+    //
+    Vtr::IndexArray const fVerts = this->getFaceVertices(face);
+
+    // the face has to be quad
+    if (fVerts.size() != 4) return false;
+
+    // if there's any corner vertex, return false.
+    for (int i = 0; i < fVerts.size(); ++i) {
+        if (this->getVertexSharpness(fVerts[i]) > 0)
+            return false;
+    }
+
+    // make sure there's only one edge with sharpness
+    Vtr::IndexArray const fEdges = this->getFaceEdges(face);
+    float sharpness = 0.0f;
+    int rotation = 0;
+    for (int i = 0; i < fEdges.size(); ++i) {
+        float s = this->getEdgeSharpness(fEdges[i]);
+        if (s > 0.0f) {
+            if (sharpness > 0.0f) {
+                // found more than one sharp edges.
+                return false;
+            }
+            sharpness = s;
+            rotation = i;
+        }
+    }
+
+    //  rotation = 0
+    //         |     |     |     |
+    //      ---5-----4-----15----14---
+    //         |     ||    |     |
+    //         |     ||    |     |
+    //      ---6-----0-----3-----13---
+    //         |     ||    |     |
+    //         |     ||    |     |
+    //      ---7-----1-----2-----12---
+    //         |     ||    |     |
+    //         |     ||    |     |
+    //      ---8-----9-----10----11---
+    //         |     |     |     |
+
+    int v[4];
+    v[0] = fVerts[(0+rotation)%4];  // crease
+    v[1] = fVerts[(1+rotation)%4];  // crease
+    v[2] = fVerts[(2+rotation)%4];  // smooth
+    v[3] = fVerts[(3+rotation)%4];  // smooth
+
+    // check the edges around v[0], v[1]
+    for (int i = 0; i < 2; ++i) {
+        Vtr::IndexArray const vEdges = this->getVertexEdges(v[i]);
+        if (vEdges.size() != 4) return false;
+        int nSharpEdges = 0;
+        float sharpnesses[4];
+        for (int j = 0; j < 4; ++j) {
+            sharpnesses[j] = this->getEdgeSharpness(vEdges[j]);
+            if (sharpnesses[j] > 0.0f) {
+                if (++nSharpEdges == 3) return false;
+            }
+        }
+        // sharpnesses have to be [0, x, 0, x] or [x, 0, x, 0]
+        if (sharpnesses[0] != sharpnesses[2] or
+            sharpnesses[1] != sharpnesses[3]) {
+            return false;
+        }
+    }
+    // check the edges around v[2], v[3]
+    for (int i = 2; i < 4; ++i) {
+        Vtr::IndexArray const vEdges = this->getVertexEdges(v[i]);
+        if (vEdges.size() != 4) return false;
+        // all edges have to be smooth
+        for (int j = 0; j < 4; ++j) {
+            float sharpness = this->getEdgeSharpness(vEdges[j]);
+            if (sharpness > 0.0f) return false;
+        }
+    }
+
+    if (sharpnessOut) *sharpnessOut = sharpness;
+    if (rotationOut) *rotationOut = rotation;
+    return true;
+}
 
 //
 //  What follows is an internal/anonymous class and protected methods to complete all

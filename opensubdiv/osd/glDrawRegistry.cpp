@@ -94,6 +94,19 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
             break;
+        case Far::PatchTables::SINGLE_CREASE:
+            sconfig->vertexShader.source = bsplineShaderSource;
+            sconfig->vertexShader.version = "#version 410\n";
+            sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_BSPLINE_SHADER");
+            sconfig->tessControlShader.source = bsplineShaderSource;
+            sconfig->tessControlShader.version = "#version 410\n";
+            sconfig->tessControlShader.AddDefine("OSD_PATCH_TESS_CONTROL_BSPLINE_SHADER");
+            sconfig->tessControlShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
+            sconfig->tessEvalShader.source = bsplineShaderSource;
+            sconfig->tessEvalShader.version = "#version 410\n";
+            sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
+            sconfig->tessEvalShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
+            break;
         case Far::PatchTables::BOUNDARY:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
@@ -176,7 +189,10 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
         sconfig->tessControlShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
         sconfig->tessEvalShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
 
-        if (desc.GetType() == Far::PatchTables::BOUNDARY) {
+        if (desc.GetType() == Far::PatchTables::SINGLE_CREASE) {
+            sconfig->tessControlShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
+            sconfig->tessEvalShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
+        } else if (desc.GetType() == Far::PatchTables::BOUNDARY) {
             sconfig->tessControlShader.AddDefine("OSD_PATCH_BOUNDARY");
         } else if (desc.GetType() == Far::PatchTables::CORNER) {
             sconfig->tessControlShader.AddDefine("OSD_PATCH_CORNER");

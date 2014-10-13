@@ -53,13 +53,18 @@ public:
 
     struct Options {
 
-        Options() : generateAllLevels(false),
-                    triangulateQuads(false),
-                    generateFVarTables(false) { }
+        Options(unsigned int maxIsolationLevel=10) : generateAllLevels(false),
+                                                     triangulateQuads(false),
+                                                     generateFVarTables(false),
+                                                     useSingleCreasePatch(false),
+                                                     maxIsolationLevel(maxIsolationLevel)
+                                                     { }
 
-        unsigned int generateAllLevels : 1,  ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
-                     triangulateQuads  : 1,  ///< Triangulate 'QUADS' primitives (Uniform mode only)
-                    generateFVarTables : 1;  ///< Generate face-varying patch tables
+        unsigned int generateAllLevels : 1,    ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
+                     triangulateQuads  : 1,    ///< Triangulate 'QUADS' primitives (Uniform mode only)
+                     generateFVarTables : 1,   ///< Generate face-varying patch tables
+                     useSingleCreasePatch : 1, ///< Use single crease patch
+                     maxIsolationLevel : 4;    ///< Cap the sharpnness of single creased patches to be consistent to other feature isolations.
     };
 
     /// \brief Factory constructor for PatchTables
@@ -84,15 +89,17 @@ private:
     //  High-level methods for identifying and populating patches associated with faces:
     static void identifyAdaptivePatches( TopologyRefiner const &     refiner,
                                          PatchTypes<int> &           patchInventory,
-                                         std::vector<PatchFaceTag> & patchTags);
+                                         std::vector<PatchFaceTag> & patchTags,
+                                         Options options );
 
     static void populateAdaptivePatches( TopologyRefiner const &           refiner,
                                          PatchTypes<int> const &           patchInventory,
                                          std::vector<PatchFaceTag> const & patchTags,
-                                         PatchTables *                  tables);
+                                         PatchTables *                  tables,
+                                         Options options );
 
     //  Methods for allocating and managing the patch table data arrays:
-    static void allocateTables( PatchTables * tables, int nlevels );
+    static void allocateTables( PatchTables * tables, int nlevels, bool hasSharpness );
 
     static FVarPatchTables * allocateFVarTables( TopologyRefiner const & refiner,
                                                  PatchTables const & tables,
@@ -103,9 +110,11 @@ private:
                                 int npatches, int * voffset, int * poffset, int * qoffset );
 
     static PatchParam * computePatchParam( TopologyRefiner const & refiner, int level,
-                                              int face, int rotation, PatchParam * coord );
+                                           int face, int rotation, PatchParam * coord );
 
     static void getQuadOffsets(Vtr::Level const & level, int face, Index * result);
+
+    static int assignSharpnessIndex( PatchTables *tables, float sharpness );
 
 private:
 };

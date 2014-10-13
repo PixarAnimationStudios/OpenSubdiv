@@ -47,11 +47,12 @@ namespace OPENSUBDIV_VERSION {
 namespace Osd {
 
 enum MeshBits {
-    MeshAdaptive          = 0,
-    MeshInterleaveVarying = 1,
-    MeshPtexData          = 2,
-    MeshFVarData          = 3,
-    NUM_MESH_BITS         = 4,
+    MeshAdaptive             = 0,
+    MeshInterleaveVarying    = 1,
+    MeshPtexData             = 2,
+    MeshFVarData             = 3,
+    MeshUseSingleCreasePatch = 4,
+    NUM_MESH_BITS            = 5,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
@@ -96,12 +97,12 @@ protected:
                 refiner.GetNumVerticesTotal();
     }
 
-    static inline void refineMesh(Far::TopologyRefiner & refiner, int level, bool adaptive) {
+    static inline void refineMesh(Far::TopologyRefiner & refiner, int level, bool adaptive, bool singleCreasePatch) {
 
         bool fullTopologyInLastLevel = refiner.GetNumFVarChannels()>0;
 
         if (adaptive) {
-            refiner.RefineAdaptive(level, fullTopologyInLastLevel);
+            refiner.RefineAdaptive(level, fullTopologyInLastLevel, singleCreasePatch);
         } else {
             refiner.RefineUniform(level, fullTopologyInLastLevel);
         }
@@ -136,13 +137,13 @@ public:
 
         assert(_refiner);
 
-        MeshInterface<DRAW_CONTEXT>::refineMesh(*_refiner, level, bits.test(MeshAdaptive));
+        MeshInterface<DRAW_CONTEXT>::refineMesh(*_refiner, level, bits.test(MeshAdaptive), bits.test(MeshUseSingleCreasePatch));
 
         initializeVertexBuffers(numVertexElements, numVaryingElements, bits);
 
         initializeComputeContext(numVertexElements, numVaryingElements);
 
-        initializeDrawContext(numVertexElements, bits);
+        initializeDrawContext(numVertexElements, level, bits);
     }
 
     Mesh(ComputeController * computeController,
@@ -248,12 +249,13 @@ private:
         delete varyingStencils;
     }
 
-    void initializeDrawContext(int numElements, MeshBitset bits) {
+    void initializeDrawContext(int numElements, int level, MeshBitset bits) {
 
         assert(_refiner and _vertexBuffer);
 
-        Far::PatchTablesFactory::Options options;
+        Far::PatchTablesFactory::Options options(level);
         options.generateFVarTables = bits.test(MeshFVarData);
+        options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
         _patchTables = Far::PatchTablesFactory::Create(*_refiner);
 

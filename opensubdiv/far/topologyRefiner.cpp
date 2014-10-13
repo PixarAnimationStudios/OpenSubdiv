@@ -41,7 +41,8 @@ TopologyRefiner::TopologyRefiner(Sdc::Type schemeType, Sdc::Options schemeOption
     _subdivType(schemeType),
     _subdivOptions(schemeOptions),
     _isUniform(true),
-    _maxLevel(0) {
+    _maxLevel(0),
+    _useSingleCreasePatch(false) {
 
     //  Need to revisit allocation scheme here -- want to use smart-ptrs for these
     //  but will probably have to settle for explicit new/delete...
@@ -318,7 +319,7 @@ TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
 
 
 void
-TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology) {
+TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSingleCreasePatch) {
 
     assert(_levels[0].getNumVertices() > 0);  //  Make sure the base level has been initialized
     assert(_subdivType == Sdc::TYPE_CATMARK);
@@ -328,6 +329,7 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology) {
     //
     _isUniform = false;
     _maxLevel = subdivLevel;
+    _useSingleCreasePatch = useSingleCreasePatch;
 
     //  Should we presize all or grow one at a time as needed?
     _levels.resize(subdivLevel + 1);
@@ -435,7 +437,7 @@ TopologyRefiner::catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector) {
         }
 
         bool selectFace = false;
-        if (compFaceTag._xordinary || compFaceTag._semiSharp) {
+        if (compFaceTag._xordinary) {
             selectFace = true;
         } else if (compFaceTag._rule & Sdc::Crease::RULE_DART) {
             //  Get this case out of the way before testing hard features
@@ -449,6 +451,15 @@ TopologyRefiner::catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector) {
             //  though some may be regular patches, this currently warrants isolation as we only
             //  support regular patches with one corner or one boundary.
             selectFace = true;
+        } else if (compFaceTag._semiSharp) {
+            // if this is regular and the adjacent edges have same sharpness
+            // and no vertex corner sharpness,
+            // we can stop refinning and use single-crease patch.
+            if (_useSingleCreasePatch) {
+                selectFace = ! level.isSingleCreasePatch(face);
+            } else {
+                selectFace = true;
+            }
         } else {
             //  This leaves us with at least one Smooth vertex (and so two smooth adjacent edges
             //  of the quad) and the rest hard Creases or Corners.  This includes the regular

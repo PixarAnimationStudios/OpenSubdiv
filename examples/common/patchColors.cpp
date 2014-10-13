@@ -24,7 +24,8 @@
 
 #include "patchColors.h"
 
-static float _colors[4][5][4] = {{{1.0f,  1.0f,  1.0f,  1.0f},   // regular
+static float _colors[5][6][4] = {{{1.0f,  1.0f,  1.0f,  1.0f},   // regular
+                                  {1.0f,  0.5f,  0.5f,  1.0f},   // single crease
                                   {0.8f,  0.0f,  0.0f,  1.0f},   // boundary
                                   {0.0f,  1.0f,  0.0f,  1.0f},   // corner
                                   {1.0f,  1.0f,  0.0f,  1.0f},   // gregory
@@ -35,6 +36,12 @@ static float _colors[4][5][4] = {{{1.0f,  1.0f,  1.0f,  1.0f},   // regular
                                   {0.0f,  0.5f,  0.5f,  1.0f},   // regular pattern 2
                                   {0.5f,  0.0f,  1.0f,  1.0f},   // regular pattern 3
                                   {1.0f,  0.5f,  1.0f,  1.0f}},  // regular pattern 4
+
+                                 {{1.0f,  0.7f,  0.6f,  1.0f},   // single crease pattern 0
+                                  {1.0f,  0.7f,  0.6f,  1.0f},   // single crease pattern 1
+                                  {1.0f,  0.7f,  0.6f,  1.0f},   // single crease pattern 2
+                                  {1.0f,  0.7f,  0.6f,  1.0f},   // single crease pattern 3
+                                  {1.0f,  0.7f,  0.6f,  1.0f}},  // single crease pattern 4
 
                                  {{0.0f,  0.0f,  0.75f, 1.0f},   // boundary pattern 0
                                   {0.0f,  0.2f,  0.75f, 1.0f},   // boundary pattern 1

@@ -114,7 +114,9 @@ public:
     /// @param fullTopologyInLastLevel  Skip secondary topological relationships
     ///                                 at the highest level of refinement.
     ///
-    void RefineAdaptive(int maxLevel, bool fullTopologyInLastLevel = false);
+    /// @param useSingleCreasePatch     Use single crease patch and stop isolation if it's applicable
+    ///
+    void RefineAdaptive(int maxLevel, bool fullTopologyInLastLevel = false, bool useSingleCreasePatch = false);
 
     /// \brief Unrefine the topology (keep control cage)
     void Unrefine();
@@ -496,6 +498,7 @@ private:
 
     bool _isUniform;
     int  _maxLevel;
+    bool _useSingleCreasePatch;
 
     std::vector<Vtr::Level>      _levels;
     std::vector<Vtr::Refinement> _refinements;

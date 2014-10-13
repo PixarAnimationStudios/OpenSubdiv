@@ -46,6 +46,7 @@ struct PatchTypes {
                      NUM_ROTATIONS=4;
 
     TYPE R[NUM_TRANSITIONS],                   // regular patch
+         S[NUM_TRANSITIONS][NUM_ROTATIONS],    // single-crease patch
          B[NUM_TRANSITIONS][NUM_ROTATIONS],    // boundary patch (4 rotations)
          C[NUM_TRANSITIONS][NUM_ROTATIONS],    // corner patch (4 rotations)
          G,                                    // gregory patch
@@ -57,6 +58,7 @@ struct PatchTypes {
     TYPE & getValue( PatchTables::Descriptor desc ) {
         switch (desc.GetType()) {
             case PatchTables::REGULAR          : return R[desc.GetPattern()];
+            case PatchTables::SINGLE_CREASE    : return S[desc.GetPattern()][desc.GetRotation()];
             case PatchTables::BOUNDARY         : return B[desc.GetPattern()][desc.GetRotation()];
             case PatchTables::CORNER           : return C[desc.GetPattern()][desc.GetRotation()];
             case PatchTables::GREGORY          : return G;
@@ -76,6 +78,7 @@ struct PatchTypes {
             if (R[i]) ++result;
 
             for (int j=0; j<4; ++j) {
+                if (S[i][j]) ++result;
                 if (B[i][j]) ++result;
                 if (C[i][j]) ++result;
 
@@ -85,10 +88,21 @@ struct PatchTypes {
         if (GB) ++result;
         return result;
     }
+
+    // Returns true if there's any single-crease patch
+    bool hasSingleCreasedPatches() const {
+        for (int i=0; i<6; ++i) {
+            for (int j=0; j<4; ++j) {
+                if (S[i][j]) return true;
+            }
+        }
+        return false;
+    }
 };
 
 typedef PatchTypes<Index *>         PatchCVPointers;
 typedef PatchTypes<PatchParam *>    PatchParamPointers;
+typedef PatchTypes<Index *>         SharpnessIndexPointers;
 typedef PatchTypes<int>             PatchCounters;
 typedef PatchTypes<Index **>        PatchFVarPointers;
 
@@ -131,6 +145,7 @@ public:
     unsigned int   _boundaryIndex   : 2;
     unsigned int   _boundaryCount   : 3;
     unsigned int   _hasBoundaryEdge : 3;
+    unsigned int   _isSingleCrease  : 1;
 
     void clear() { std::memset(this, 0, sizeof(*this)); }
 
@@ -251,6 +266,39 @@ public:
         }
     }
 
+    void assignTransitionRotationForSingleCrease(int transitionEdgeMask) {
+        //
+        // Single crease transition patches.
+        //
+        // rotate edgemask by boundaryIndex to align the creased edge
+        //
+        transitionEdgeMask = ((transitionEdgeMask >> _boundaryIndex) |
+                              (transitionEdgeMask << (4-_boundaryIndex))) % 16;
+
+        /*
+           edgemask  type    : rotation to match to shader
+           0000  0 : NONE    : 0
+           0001  1 : ONE     : 0
+           0010  2 : ONE     : 3
+           0011  3 : TWO_ADJ : 3
+           0100  4 : ONE     : 2
+           0101  5 : TWO_OPP : 0
+           0110  6 : TWO_ADJ : 2
+           0111  7 : THREE   : 1  (needs verify)
+           1000  8 : ONE     : 1
+           1001  9 : TWO_ADJ : 0
+           1010 10 : TWO_OPP : 1
+           1011 11 : THREE   : 2  (needs verify)
+           1100 12 : TWO_ADJ : 1
+           1101 13 : THREE   : 3
+           1110 14 : THREE   : 0  (needs verify)
+           1111 15 : ALL     : 0
+        */
+        static int transitionRots[16] = {0, 0, 3, 3, 2, 0, 2, 1, 1, 0,  1,  2,  1,  3,  0,  0 };
+
+        _transitionRot = transitionRots[transitionEdgeMask];
+    }
+
     void assignTransitionPropertiesFromEdgeMask(int transitionEdgeMask) {
         //
         //  Note the transition rotations will be a function of the boundary rotations, and
@@ -286,6 +334,8 @@ public:
         //  results below are a function of both transition and boundary properties...
         if (transitionEdgeMask == 0) {
             _transitionRot = 0;
+        } else if (_boundaryCount == 0 and _isSingleCrease) {
+                assignTransitionRotationForSingleCrease(transitionEdgeMask);
         } else if (_boundaryCount == 0) {
             // XXXX manuelk Rotations are mostly a direct map of the transitionEdgeMask
             //                  Except for:
@@ -335,7 +385,7 @@ namespace {
 //  Reserves tables based on the contents of the PatchArrayVector in the PatchTables:
 //
 void
-PatchTablesFactory::allocateTables(PatchTables * tables, int /* nlevels */) {
+PatchTablesFactory::allocateTables(PatchTables * tables, int /* nlevels */, bool hasSharpness) {
 
     PatchTables::PatchArrayVector const & parrays = tables->GetPatchArrayVector();
 
@@ -352,6 +402,10 @@ PatchTablesFactory::allocateTables(PatchTables * tables, int /* nlevels */) {
     tables->_patches.resize( nverts );
 
     tables->_paramTable.resize( npatches );
+
+    if (hasSharpness) {
+        tables->_sharpnessIndexTable.resize( npatches );
+    }
 }
 
 PatchTables::FVarPatchTables *
@@ -518,6 +572,20 @@ PatchTablesFactory::getQuadOffsets(Vtr::Level const& level, Vtr::Index fIndex, I
 }
 
 //
+//  Indexing sharpnesses
+//
+int
+PatchTablesFactory::assignSharpnessIndex( PatchTables *tables, float sharpness ) {
+
+    // linear search
+    for (int i=0; i<(int)tables->_sharpnessValues.size(); ++i) {
+        if (tables->_sharpnessValues[i] == sharpness) return i;
+    }
+    tables->_sharpnessValues.push_back(sharpness);
+    return (int)tables->_sharpnessValues.size()-1;
+}
+
+//
 //  We should be able to use a single Create() method for both the adaptive and uniform
 //  cases.  In the past, more additional arguments were passed to the uniform version,
 //  but that may no longer be necessary (see notes in the uniform version below)...
@@ -606,7 +674,7 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
     }
 
     // Allocate various tables
-    allocateTables( tables, 0 );
+    allocateTables( tables, 0, /*hasSharpness=*/false );
 
     if (options.generateFVarTables) {
         tables->_fvarPatchTables = allocateFVarTables( refiner, *tables, options );
@@ -701,7 +769,7 @@ PatchTablesFactory::createAdaptive( TopologyRefiner const & refiner, Options opt
     PatchCounters             patchInventory;
     std::vector<PatchFaceTag> patchTags;
 
-    identifyAdaptivePatches(refiner, patchInventory, patchTags);
+    identifyAdaptivePatches(refiner, patchInventory, patchTags, options);
 
     //
     //  Create the instance of the tables and allocate and initialize its members based on
@@ -729,7 +797,8 @@ PatchTablesFactory::createAdaptive( TopologyRefiner const & refiner, Options opt
     tables->_numPtexFaces = refiner.GetNumPtexFaces();
 
     // Allocate various tables
-    allocateTables( tables, 0 );
+    bool hasSharpness = patchInventory.hasSingleCreasedPatches();
+    allocateTables( tables, 0, hasSharpness );
 
     if (options.generateFVarTables) {
         tables->_fvarPatchTables = allocateFVarTables( refiner, *tables, options );
@@ -743,7 +812,7 @@ PatchTablesFactory::createAdaptive( TopologyRefiner const & refiner, Options opt
     //
     //  Now populate the patches:
     //
-    populateAdaptivePatches(refiner, patchInventory, patchTags, tables);
+    populateAdaptivePatches(refiner, patchInventory, patchTags, tables, options);
 
     return tables;
 }
@@ -755,9 +824,9 @@ PatchTablesFactory::createAdaptive( TopologyRefiner const & refiner, Options opt
 //
 void
 PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
-                                                PatchCounters &         patchInventory,
-                                                PatchTagVector &        patchTags ) {
-
+                                             PatchCounters &         patchInventory,
+                                             PatchTagVector &        patchTags,
+                                             Options                 options ) {
     //
     //  Iterate through the levels of refinement to inspect and tag components with information
     //  relative to patch generation.  We allocate all of the tags locally and use them to
@@ -866,6 +935,24 @@ PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
             int boundaryEdgeMask = 0;
 
             bool hasBoundaryVertex = compFaceVertTag._boundary;
+
+            // single crease patch optimization
+            if (options.useSingleCreasePatch and
+                !compFaceVertTag._xordinary and compFaceVertTag._semiSharp and not hasBoundaryVertex) {
+
+                float sharpness = 0;
+                int rotation = 0;
+                if (level->isSingleCreasePatch(faceIndex, &sharpness, &rotation)) {
+
+                    // cap sharpness to the max isolation level
+                    float cappedSharpness = std::min(sharpness, (float)(options.maxIsolationLevel-i));
+                    if (cappedSharpness > 0) {
+                        patchTag._isSingleCrease = true;
+                        patchTag._boundaryIndex = (rotation + 2) % 4;
+                    }
+                }
+            }
+
             if (hasBoundaryVertex) {
                 Vtr::IndexArray const& fEdges = level->getFaceEdges(faceIndex);
 
@@ -924,8 +1011,10 @@ PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
                 int transIndex = patchTag._transitionType;
                 int transRot   = patchTag._transitionRot;
 
-                if (patchTag._boundaryCount == 0) {
+                if (!patchTag._isSingleCrease && patchTag._boundaryCount == 0) {
                     patchInventory.R[transIndex]++;
+                } else if (patchTag._isSingleCrease && patchTag._boundaryCount == 0) {
+                    patchInventory.S[transIndex][transRot]++;
                 } else if (patchTag._boundaryCount == 1) {
                     patchInventory.B[transIndex][transRot]++;
                 } else {
@@ -952,7 +1041,8 @@ void
 PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                                              PatchCounters const &   patchInventory,
                                              PatchTagVector const &  patchTags,
-                                             PatchTables *        tables ) {
+                                             PatchTables *           tables,
+                                             Options                 options ) {
 
     //
     //  Setup convenience pointers at the beginning of each patch array for each
@@ -961,6 +1051,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
     PatchCVPointers    iptrs;
     PatchParamPointers pptrs;
     PatchFVarPointers  fptrs;
+    SharpnessIndexPointers sptrs;
 
     typedef PatchTables::DescriptorVector DescVec;
 
@@ -974,6 +1065,9 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
 
         iptrs.getValue( *it ) = &tables->_patches[pa->GetVertIndex()];
         pptrs.getValue( *it ) = &tables->_paramTable[pa->GetPatchIndex()];
+        if (patchInventory.hasSingleCreasedPatches()) {
+            sptrs.getValue( *it ) = &tables->_sharpnessIndexTable[pa->GetPatchIndex()];
+        }
 
         if (tables->_fvarPatchTables) {
             int nchannels = refiner.GetNumFVarChannels(),
@@ -1031,7 +1125,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                 int rIndex = patchTag._transitionRot;
                 int bIndex = patchTag._boundaryIndex;
 
-                if (patchTag._boundaryCount == 0) {
+                if (!patchTag._isSingleCrease && patchTag._boundaryCount == 0) {
                     int const permuteInterior[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
 
                     level->gatherQuadRegularInteriorPatchVertices(faceIndex, patchVerts, rIndex);
@@ -1063,7 +1157,23 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                     //  It may be that a separate "face rotation" flag is warranted if we need something
                     //  else dependent on the boundary orientation.
                     //
-                    if (patchTag._boundaryCount == 1) {
+                    if (patchTag._isSingleCrease && patchTag._boundaryCount==0) {
+                        int const permuteInterior[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
+                        level->gatherQuadRegularInteriorPatchVertices(faceIndex, patchVerts, bIndex);
+                        offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteInterior, iptrs.S[tIndex][rIndex]);
+
+                        int creaseEdge = (bIndex+2)%4;
+                        float sharpness = level->getEdgeSharpness((level->getFaceEdges(faceIndex)[creaseEdge]));
+                        sharpness = std::min(sharpness, (float)(options.maxIsolationLevel-i));
+
+                        iptrs.S[tIndex][rIndex] += 16;
+                        pptrs.S[tIndex][rIndex] = computePatchParam(refiner, i, faceIndex, rIndex, pptrs.S[tIndex][rIndex]);
+                        *sptrs.S[tIndex][rIndex]++ = assignSharpnessIndex(tables, sharpness);
+
+                        if (tables->_fvarPatchTables) {
+                            gatherFVarPatchVertices(refiner, i, faceIndex, rIndex, levelFVarVertOffsets, fptrs.S[tIndex][rIndex]);
+                        }
+                    } else if (patchTag._boundaryCount == 1) {
                         int const permuteBoundary[12] = { 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 };
 
                         level->gatherQuadRegularBoundaryPatchVertices(faceIndex, patchVerts, bIndex);

@@ -137,7 +137,28 @@ SetTransitionTessLevels(vec3 cp[OSD_PATCH_INPUT_SIZE], int patchLevel)
     vv0 = pv5;
     vv1 = (pv5 + pv7) * 0.125 + pv6 * 0.75;
 #endif
+#elif defined OSD_PATCH_SINGLE_CREASE
+    // apply smooth, sharp or fractional-semisharp (linear interpolate) rules
+    float weight = min(1, GetSharpness());
+
+    // XXX: current rotation of single-crease patch is inconsistent
+    // to boundary patch. should be fixed.
+#if OSD_TRANSITION_ROTATE == 2
+    vv0 = mix(vv0, (pv4 + pv6) * 0.125 + pv5 * 0.75, weight);
+    vv1 = mix(vv1, (pv5 + pv7) * 0.125 + pv6 * 0.75, weight);
+#elif OSD_TRANSITION_ROTATE == 3
+    vv1 = mix(vv1, (pv2 + pv10) * 0.125 + pv6 * 0.75, weight);
+    vv2 = mix(vv2, (pv6 + pv14) * 0.125 + pv10 * 0.75, weight);
+#elif OSD_TRANSITION_ROTATE == 0
+    vv2 = mix(vv2, (pv9 + pv11) * 0.125 + pv10 * 0.75, weight);
+    vv3 = mix(vv3, (pv8 + pv10) * 0.125 + pv9 * 0.75, weight);
+#elif OSD_TRANSITION_ROTATE == 1
+    vv3 = mix(vv3, (pv5 + pv13) * 0.125 + pv9 * 0.75, weight);
+    vv0 = mix(vv0, (pv1 + pv9) * 0.125 + pv5 * 0.75, weight);
 #endif
+
+#endif
+
 
 #ifdef OSD_TRANSITION_PATTERN00
     gl_TessLevelOuter[0] = TessAdaptive(ev01, pv9) * 0.5;
@@ -154,6 +175,7 @@ SetTransitionTessLevels(vec3 cp[OSD_PATCH_INPUT_SIZE], int patchLevel)
 
     gl_TessLevelInner[0] =
         (gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2]) * 0.25;
+
 #endif
 #ifdef OSD_TRANSITION_PATTERN02
     gl_TessLevelOuter[0] = TessAdaptive(ev01, vv0);

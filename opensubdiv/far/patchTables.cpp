@@ -253,19 +253,23 @@ PatchTables::getAdaptiveCatmarkDescriptors() {
 
     if (_descriptors.empty()) {
 
-        _descriptors.reserve(50);
+        _descriptors.reserve(71);
 
-        // non-transition patches
+        // non-transition patches : 6
         for (int i=REGULAR; i<=GREGORY_BOUNDARY; ++i) {
             _descriptors.push_back( Descriptor(i, NON_TRANSITION, 0) );
         }
 
-        // transition patches
+        // transition patches (1 + 4 * 3) * 5 = 65
         for (int i=PATTERN0; i<=PATTERN4; ++i) {
 
             _descriptors.push_back( Descriptor(REGULAR, i, 0) );
 
-            // 4 rotations for boundary & corner patches
+            // 4 rotations for single-crease, boundary and corner patches
+            for (int j=0; j<4; ++j) {
+                _descriptors.push_back( Descriptor(SINGLE_CREASE, i, j) );
+            }
+
             for (int j=0; j<4; ++j) {
                 _descriptors.push_back( Descriptor(BOUNDARY, i, j) );
             }

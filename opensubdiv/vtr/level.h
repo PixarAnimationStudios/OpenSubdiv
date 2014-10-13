@@ -238,6 +238,8 @@ public:
 
     int gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int ringVerts[]) const;
 
+    bool isSingleCreasePatch(Index face, float* sharpnessOut=NULL, int* rotationOut=NULL) const;
+
 protected:
 
     friend class Refinement;

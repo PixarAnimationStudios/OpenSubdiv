@@ -70,6 +70,7 @@ public:
         LOOP,              ///< Loop patch  (currently unsupported)
 
         REGULAR,           ///< feature-adaptive bicubic patches
+        SINGLE_CREASE,
         BOUNDARY,
         CORNER,
         GREGORY,
@@ -339,6 +340,12 @@ public:
     /// \brief Returns a PatchParamTable for each type of patch
     PatchParamTable const & GetPatchParamTable() const { return _paramTable; }
 
+    /// \brief Returns a sharpness index table for each type of patch (if exists)
+    std::vector<int> const &GetSharpnessIndexTable() const { return _sharpnessIndexTable; }
+
+    /// \brief Returns sharpness values (if exists)
+    std::vector<float> const &GetSharpnessValues() const { return _sharpnessValues; }
+
     /// \brief Number of control vertices of Regular Patches in table.
     static short GetRegularPatchSize() { return 16; }
 
@@ -577,6 +584,10 @@ private:
 
     FVarPatchTables const * _fvarPatchTables; // sparse face-varying patch table (one per patch)
 
+    std::vector<int>     _sharpnessIndexTable;// Indices of single-crease sharpness (one per patch)
+
+    std::vector<float>   _sharpnessValues;    // Sharpness values.
+
     // highest vertex valence allowed in the mesh (used for Gregory
     // vertexValance & quadOffset tables)
     int _maxValence;
@@ -591,6 +602,7 @@ inline short
 PatchTables::Descriptor::GetNumControlVertices( PatchTables::Type type ) {
     switch (type) {
         case REGULAR           : return PatchTables::GetRegularPatchSize();
+        case SINGLE_CREASE     : return PatchTables::GetRegularPatchSize();
         case QUADS             : return 4;
         case GREGORY           :
         case GREGORY_BOUNDARY  : return PatchTables::GetGregoryPatchSize();
@@ -608,6 +620,7 @@ inline short
 PatchTables::Descriptor::GetNumFVarControlVertices( PatchTables::Type type ) {
     switch (type) {
         case REGULAR           : // We only support bilinear interpolation for now,
+        case SINGLE_CREASE     :
         case QUADS             : // so all these patches only carry 4 CVs.
         case GREGORY           :
         case GREGORY_BOUNDARY  :
@@ -810,6 +823,10 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
         switch (ptype) {
             case REGULAR:
                 InterpolateRegularPatch(cvs, Q, Qd1, Qd2, src, dst);
+                break;
+            case SINGLE_CREASE:
+                // TODO: implement InterpolateSingleCreasePatch().
+                //InterpolateRegularPatch(cvs, Q, Qd1, Qd2, src, dst);
                 break;
             case BOUNDARY:
                 InterpolateBoundaryPatch(cvs, Q, Qd1, Qd2, src, dst);
