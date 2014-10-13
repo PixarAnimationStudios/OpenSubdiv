@@ -74,8 +74,9 @@ FVarLevel::resizeComponents() {
     _faceVertValues.resize(_level.getNumFaceVerticesTotal());
 
     //  Per-edge members:
-    _edgeTags.resize(_level.getNumEdges());
-    std::memset(&_edgeTags[0], 0, _level.getNumEdges() * sizeof(ETag));
+    ETag edgeTagMatch;
+    edgeTagMatch.clear();
+    _edgeTags.resize(_level.getNumEdges(), edgeTagMatch);
 
     //  Per-vertex members:
     _vertSiblingCounts.resize(_level.getNumVertices(), 0);
@@ -140,11 +141,14 @@ FVarLevel::completeTopologyFromFaceValues() {
     //  values in cases where there are more than 2 values at a vertex, its unclear what the intent of
     //  "propagate corners" is if more than 2 are present.
     //
-    bool sharpenAllIfMoreThan2 = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS1) ||
-                                 (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS2);
-    bool sharpenAllIfAnyCorner = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS2);
+    bool cornersPlus1 = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS1);
+    bool cornersPlus2 = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS2);
 
-    bool sharpenDarts = sharpenAllIfAnyCorner || !_hasSmoothBoundaries;
+    bool considerEntireVertex = cornersPlus1 || cornersPlus2;
+
+    bool sharpenAllIfMoreThan2 = considerEntireVertex;
+    bool sharpenAllIfAnyCorner = cornersPlus2;
+    bool sharpenDarts          = cornersPlus2 || !_hasSmoothBoundaries;
 
     //
     //  Its awkward and potentially inefficient to try and accomplish everything in one
@@ -172,13 +176,11 @@ FVarLevel::completeTopologyFromFaceValues() {
     //
     //  Still looking or opportunities to economize effort between the two passes...
     //
-    ValueTag valueTagMatch(false);
-    valueTagMatch._crease = false;
-    valueTagMatch._semiSharp = false;
+    ValueTag valueTagMatch;
+    valueTagMatch.clear();
 
-    ValueTag valueTagMismatch(true);
-    valueTagMismatch._crease = false;
-    valueTagMismatch._semiSharp = false;
+    ValueTag valueTagMismatch = valueTagMatch;
+    valueTagMismatch._mismatch = true;
 
     _vertValueTags.resize(_level.getNumVertices(), valueTagMatch);
     _vertFaceSiblings.resize(_level.getNumVertexFacesTotal(), 0);
@@ -223,7 +225,7 @@ FVarLevel::completeTopologyFromFaceValues() {
             } else {
                 //  Tag the corresponding edge as discts:
                 Index eIndex = vEdges[i];
-                ETag&    eTag   = _edgeTags[eIndex];
+                ETag& eTag   = _edgeTags[eIndex];
 
                 if (vInEdge[i] == 0) {
                     eTag._disctsV0 = true;
@@ -317,11 +319,9 @@ FVarLevel::completeTopologyFromFaceValues() {
     //  vertex and to inspect local face-varying topology in more detail when necessary:
     //
     ValueTag valueTagCrease = valueTagMismatch;
-    valueTagCrease._crease    = true;
-    valueTagCrease._semiSharp = false;
+    valueTagCrease._crease = true;
 
     ValueTag valueTagSemiSharp = valueTagMismatch;
-    valueTagSemiSharp._crease    = false;
     valueTagSemiSharp._semiSharp = true;
 
     for (int vIndex = 0; vIndex < _level.getNumVertices(); ++vIndex) {

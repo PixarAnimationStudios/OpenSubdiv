@@ -320,7 +320,9 @@ FVarRefinement::propagateEdgeTags() {
     //              - child edge for the matching end inherits tag
     //              - child edge at the other end is doubly discts
     //
-    FVarLevel::ETag eTagMatch(false);
+    FVarLevel::ETag eTagMatch;
+    eTagMatch.clear();
+    eTagMatch._mismatch = false;
 
     for (int eIndex = 0; eIndex < _refinement._childEdgeFromFaceCount; ++eIndex) {
         _child->_edgeTags[eIndex] = eTagMatch;
@@ -350,7 +352,8 @@ FVarRefinement::propagateValueTags() {
     //
     //  Values from face-vertices -- all match:
     //
-    FVarLevel::ValueTag valTagMatch(false);
+    FVarLevel::ValueTag valTagMatch;
+    valTagMatch.clear();
 
     Index cVert = 0;
     for (cVert = 0; cVert < _refinement._childVertFromFaceCount; ++cVert) {
@@ -361,13 +364,11 @@ FVarRefinement::propagateValueTags() {
     //  Values from edge-vertices -- for edges that are split, tag as mismatched and tag
     //  as corner or crease depending on the presence of creases in the parent:
     //
-    FVarLevel::ValueTag valTagMismatch(true);
-    valTagMismatch._crease    = false;
-    valTagMismatch._semiSharp = false;
+    FVarLevel::ValueTag valTagMismatch = valTagMatch;
+    valTagMismatch._mismatch = true;
 
-    FVarLevel::ValueTag valTagCrease(true);
-    valTagCrease._crease    = true;
-    valTagCrease._semiSharp = false;
+    FVarLevel::ValueTag valTagCrease = valTagMismatch;
+    valTagCrease._crease = true;
 
     FVarLevel::ValueTag& valTagSplitEdge = _parent->_hasSmoothBoundaries ? valTagCrease : valTagMismatch;
 
@@ -494,12 +495,14 @@ FVarRefinement::reclassifySemisharpValues() {
     //  their parent values -- we will be able to clear it in many simple cases but
     //  ultimately will need to inspect each value:
     //
-    FVarLevel::ValueTag valTagCrease(true);
-    valTagCrease._crease    = true;
-    valTagCrease._semiSharp = false;
+    FVarLevel::ValueTag valTagCrease;
+    valTagCrease.clear();
+    valTagCrease._mismatch = true;
+    valTagCrease._crease   = true;
 
-    FVarLevel::ValueTag valTagSemiSharp(true);
-    valTagSemiSharp._crease    = false;
+    FVarLevel::ValueTag valTagSemiSharp;
+    valTagSemiSharp.clear();
+    valTagSemiSharp._mismatch = true;
     valTagSemiSharp._semiSharp = true;
 
     Index cVert = _refinement._childVertFromFaceCount + _refinement._childVertFromEdgeCount;
@@ -559,31 +562,54 @@ FVarRefinement::reclassifySemisharpValues() {
 }
 
 float
-FVarRefinement::getFractionalWeight(Index pVert, Sibling /* pSibling */,
+FVarRefinement::getFractionalWeight(Index pVert, Sibling pSibling,
                                     Index cVert, Sibling /* cSibling */) const
 {
+    FVarLevel const& parentFVar = *_parent;
+    Level     const& parent     = *_refinement._parent;
+    Level     const& child      = *_refinement._child;
+
     //  Should only be called when the parent was semi-sharp but this child vertex
     //  value (not necessarily the child vertex as a whole) is no longer semi-sharp:
-    assert(_refinement._parent->_vertTags[pVert]._semiSharp);
-
-    float pVertSharpness = _refinement._parent->_vertSharpness[pVert];
-    float cVertSharpness = _refinement._child->_vertSharpness[cVert];
+    assert(parent._vertTags[pVert]._semiSharp);
+    assert(!child._vertTags[cVert]._incomplete);
 
     //
     //  Need to identify sharpness values for edges within the spans for both the
     //  parent and child...
     //
-    int     numValueEdges  = 0;
-    float * pEdgeSharpness = 0;
-    float * cEdgeSharpness = 0;
+    //  Consider gathering the complete parent and child sharpness vectors outside
+    //  this method and re-using them for each sibling, i.e. passing them to this
+    //  method somehow.  We may also need them there for mask-related purposes...
+    //
+    IndexArray const pVertEdges = parent.getVertexEdges(pVert);
+    IndexArray const cVertEdges = child.getVertexEdges(cVert);
 
-    if (Sdc::Crease::IsSmooth(pVertSharpness)) {
-        printf("Warning -- FVarRefinement::getFractionalWeight() currently ignores edge sharpness...\n");
-        //  Consider fully sharp until we gather and average the edge sharpness values... 
-        return 1.0;
+    float * pEdgeSharpness = (float*) alloca(2 * pVertEdges.size() * sizeof(float));
+    float * cEdgeSharpness = pEdgeSharpness + pVertEdges.size();
+
+    int                pValueIndex  = parentFVar.getVertexValueIndex(pVert, pSibling);
+    LocalIndex const * pSiblingEnds = &parentFVar._vertValueCreaseEnds[2 * pValueIndex];
+
+    int interiorEdgeCount = 0;
+    if (pSiblingEnds[1] > pSiblingEnds[0]) {
+        for (int i = pSiblingEnds[0] + 1; i <= pSiblingEnds[1]; ++i, ++interiorEdgeCount) {
+            pEdgeSharpness[interiorEdgeCount] = parent._edgeSharpness[pVertEdges[i]];
+            cEdgeSharpness[interiorEdgeCount] = child._edgeSharpness[cVertEdges[i]];
+        }
+    } else if (pSiblingEnds[0] > pSiblingEnds[1]) {
+        for (int i = pSiblingEnds[0] + 1; i < pVertEdges.size(); ++i, ++interiorEdgeCount) {
+            pEdgeSharpness[interiorEdgeCount] = parent._edgeSharpness[pVertEdges[i]];
+            cEdgeSharpness[interiorEdgeCount] = child._edgeSharpness[cVertEdges[i]];
+        }
+        for (int i = 0; i <= pSiblingEnds[1]; ++i, ++interiorEdgeCount) {
+            pEdgeSharpness[interiorEdgeCount] = parent._edgeSharpness[pVertEdges[i]];
+            cEdgeSharpness[interiorEdgeCount] = child._edgeSharpness[cVertEdges[i]];
+        }
     }
     return Sdc::Crease(_refinement._schemeOptions).ComputeFractionalWeightAtVertex(
-        pVertSharpness, cVertSharpness, numValueEdges, pEdgeSharpness, cEdgeSharpness);
+            parent._vertSharpness[pVert], child._vertSharpness[cVert],
+            interiorEdgeCount, pEdgeSharpness, cEdgeSharpness);
 }
 
 } // end namespace Vtr

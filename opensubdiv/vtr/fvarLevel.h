@@ -91,7 +91,8 @@ public:
     //
     struct ETag {
         ETag() { }
-        ETag(bool mismatch) : _mismatch(mismatch) { }
+
+        void clear() { std::memset(this, 0, sizeof(ETag)); }
 
         typedef unsigned char ETagSize;
 
@@ -109,7 +110,8 @@ public:
     //
     struct ValueTag {
         ValueTag() { }
-        ValueTag(bool mismatch) : _mismatch(mismatch) { }
+
+        void clear() { std::memset(this, 0, sizeof(ValueTag)); }
 
         typedef unsigned char ValueTagSize;
 
