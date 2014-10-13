@@ -1167,11 +1167,11 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                         sharpness = std::min(sharpness, (float)(options.maxIsolationLevel-i));
 
                         iptrs.S[tIndex][rIndex] += 16;
-                        pptrs.S[tIndex][rIndex] = computePatchParam(refiner, i, faceIndex, rIndex, pptrs.S[tIndex][rIndex]);
+                        pptrs.S[tIndex][rIndex] = computePatchParam(refiner, i, faceIndex, bIndex, pptrs.S[tIndex][rIndex]);
                         *sptrs.S[tIndex][rIndex]++ = assignSharpnessIndex(tables, sharpness);
 
                         if (tables->_fvarPatchTables) {
-                            gatherFVarPatchVertices(refiner, i, faceIndex, rIndex, levelFVarVertOffsets, fptrs.S[tIndex][rIndex]);
+                            gatherFVarPatchVertices(refiner, i, faceIndex, bIndex, levelFVarVertOffsets, fptrs.S[tIndex][rIndex]);
                         }
                     } else if (patchTag._boundaryCount == 1) {
                         int const permuteBoundary[12] = { 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 };
