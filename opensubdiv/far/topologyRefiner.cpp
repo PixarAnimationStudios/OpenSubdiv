@@ -299,20 +299,6 @@ TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
     }
 }
 
-void 
-TopologyRefiner::allocateLevels(int maxlevel) {
-
-    assert((int)_levels.size()==1 and _refinements.empty());
-    _levels.resize(maxlevel + 1);
-    for (int i=1; i<(int)_levels.size(); ++i) {
-        _levels[i] = new Vtr::Level;
-    }
-    _refinements.resize(maxlevel);
-    for (int i=0; i<(int)_refinements.size(); ++i) {
-        _refinements[i] = new Vtr::Refinement;
-    }
-}
-
 //
 //  Main refinement method -- allocating and initializing levels and refinements:
 //
@@ -328,8 +314,6 @@ TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
     _isUniform = true;
     _maxLevel = maxLevel;
 
-    allocateLevels(_maxLevel);
-
     //
     //  Initialize refinement options for Vtr -- adjusting full-topology for the last level:
     //
@@ -339,9 +323,16 @@ TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
     for (int i = 1; i <= maxLevel; ++i) {
         refineOptions._faceTopologyOnly = fullTopology ? false : (i == maxLevel);
 
-        _refinements[i-1]->setScheme(_subdivType, _subdivOptions);
-        _refinements[i-1]->initialize(getLevel(i-1), getLevel(i));
-        _refinements[i-1]->refine(refineOptions);
+        Vtr::Level& parentLevel     = getLevel(i-1);
+        Vtr::Level& childLevel      = *(new Vtr::Level);
+        Vtr::Refinement& refinement = *(new Vtr::Refinement);
+
+        refinement.setScheme(_subdivType, _subdivOptions);
+        refinement.initialize(parentLevel, childLevel);
+        refinement.refine(refineOptions);
+
+        _levels.push_back(&childLevel);
+        _refinements.push_back(&refinement);
     }
 }
 
@@ -359,9 +350,6 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSing
     _maxLevel = subdivLevel;
     _useSingleCreasePatch = useSingleCreasePatch;
 
-    //  Should we presize all or grow one at a time as needed?
-    allocateLevels(_maxLevel);
-
     //
     //  Initialize refinement options for Vtr:
     //
@@ -376,37 +364,39 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSing
         refineOptions._faceTopologyOnly = false;
 
         Vtr::Level& parentLevel     = getLevel(i-1);
-        Vtr::Level& childLevel      = getLevel(i);
-        Vtr::Refinement& refinement = getRefinement(i-1);
+        Vtr::Level& childLevel      = *(new Vtr::Level);
+        Vtr::Refinement& refinement = *(new Vtr::Refinement);
 
         refinement.setScheme(_subdivType, _subdivOptions);
         refinement.initialize(parentLevel, childLevel);
 
         //
-        //  Initialize a Selector to mark a sparse set of components for refinement.  Refine
-        //  if something was selected, otherwise terminate refinement and trim the Level and
-        //  Refinement vectors to remove the curent refinement and child that were in progress:
+        //  Initialize a Selector to mark a sparse set of components for refinement.  If
+        //  nothing was selected, discard the new refinement and child level, trim the
+        //  maximum level and stop refinining any further.  Otherwise, refine and append
+        //  the new refinement and child.
+        //
+        //  Note that if we support the "full topology at last level" option properly,
+        //  we should prune the previous level generated, as it is now the last...
         //
         Vtr::SparseSelector selector(refinement);
 
-        //  Scheme-specific methods may become part of the Selector...
         catmarkFeatureAdaptiveSelector(selector);
+        if (selector.isSelectionEmpty()) {
+            _maxLevel = i - 1;
 
-        if (!selector.isSelectionEmpty()) {
-            refinement.refine(refineOptions);
-
-            //childLevel.print(&refinement);
-            //assert(childLevel.validateTopology());
-        } else {
-            //  Note that if we support the "full topology at last level" option properly,
-            //  we should prune the previous level generated, as it is now the last...
-            int maxLevel = i - 1;
-
-            _maxLevel = maxLevel;
-            _levels.resize(maxLevel + 1);
-            _refinements.resize(maxLevel);
+            delete &refinement;
+            delete &childLevel;
             break;
         }
+
+        refinement.refine(refineOptions);
+
+        _levels.push_back(&childLevel);
+        _refinements.push_back(&refinement);
+
+        //childLevel.print(&refinement);
+        //assert(childLevel.validateTopology());
     }
 }
 

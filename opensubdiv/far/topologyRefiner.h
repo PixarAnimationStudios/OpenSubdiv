@@ -474,8 +474,6 @@ protected:
         getBaseLevel().populateLocalIndices();
     }
     
-    void allocateLevels(int maxlevel);
-
 private:
     void catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector);
 
@@ -836,7 +834,7 @@ TopologyRefiner::InterpolateFaceVarying(T const * src, U * dst, int channel) con
         InterpolateFaceVarying(level, src, dst, channel);
 
         src = dst;
-        dst += _levels[level]->getNumFVarValues();
+        dst += getLevel(level).getNumFVarValues();
     }
 }
 
@@ -1216,7 +1214,7 @@ TopologyRefiner::Limit(T const * src, U * dst) const {
     Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_subdivOptions);
 
     assert(GetMaxLevel() > 0);
-    Vtr::Level const & level = _levels[GetMaxLevel()];
+    Vtr::Level const & level = getLevel(GetMaxLevel());
 
     int maxWeightsPerMask = 1 + 2 * level.getMaxValence();
 
@@ -1279,7 +1277,7 @@ TopologyRefiner::LimitFaceVarying(T const * src, U * dst, int channel) const {
     Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_subdivOptions);
 
     assert(GetMaxLevel() > 0);
-    Vtr::Level const &      level       = _levels[GetMaxLevel()];
+    Vtr::Level const &      level       = getLevel(GetMaxLevel());
     Vtr::FVarLevel const &  fvarChannel = *level._fvarChannels[channel];
 
     int maxWeightsPerMask = 1 + 2 * level.getMaxValence();
