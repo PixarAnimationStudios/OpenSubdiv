@@ -224,37 +224,37 @@ public:
 
     /// \brief Returns the number of vertices at a given level of refinement
     int GetNumVertices(int level) const {
-        return _levels[level].getNumVertices();
+        return _levels[level]->getNumVertices();
     }
 
     /// \brief Returns the number of edges at a given level of refinement
     int GetNumEdges(int level) const {
-        return _levels[level].getNumEdges();
+        return _levels[level]->getNumEdges();
     }
 
     /// \brief Returns the number of face vertex indices at a given level of refinement
     int GetNumFaces(int level) const {
-        return _levels[level].getNumFaces();
+        return _levels[level]->getNumFaces();
     }
 
     /// \brief Returns the number of faces at a given level of refinement
     int GetNumFaceVertices(int level) const {
-        return _levels[level].getNumFaceVerticesTotal();
+        return _levels[level]->getNumFaceVerticesTotal();
     }
 
     /// \brief Returns the sharpness of a given edge (at 'level' of refinement)
     float GetEdgeSharpness(int level, Index edge) const {
-        return _levels[level].getEdgeSharpness(edge);
+        return _levels[level]->getEdgeSharpness(edge);
     }
 
     /// \brief Returns the sharpness of a given vertex (at 'level' of refinement)
     float GetVertexSharpness(int level, Index vert) const {
-        return _levels[level].getVertexSharpness(vert);
+        return _levels[level]->getVertexSharpness(vert);
     }
 
     /// \brief Returns the subdivision rule of a given vertex (at 'level' of refinement)
     Sdc::Crease::Rule GetVertexRule(int level, Index vert) const {
-        return _levels[level].getVertexRule(vert);
+        return _levels[level]->getVertexRule(vert);
     }
 
 
@@ -265,48 +265,48 @@ public:
 
     /// \brief Returns the vertices of a 'face' at 'level'
     IndexArray const GetFaceVertices(int level, Index face) const {
-        return _levels[level].getFaceVertices(face);
+        return _levels[level]->getFaceVertices(face);
     }
 
     /// \brief Returns the edges of a 'face' at 'level'
     IndexArray const GetFaceEdges(   int level, Index face) const {
-        return _levels[level].getFaceEdges(face);
+        return _levels[level]->getFaceEdges(face);
     }
 
     /// \brief Returns the vertices of an 'edge' at 'level' (2 of them)
     IndexArray const GetEdgeVertices(int level, Index edge) const {
-        return _levels[level].getEdgeVertices(edge);
+        return _levels[level]->getEdgeVertices(edge);
     }
 
     /// \brief Returns the faces incident to 'edge' at 'level'
     IndexArray const GetEdgeFaces(   int level, Index edge) const {
-        return _levels[level].getEdgeFaces(edge);
+        return _levels[level]->getEdgeFaces(edge);
     }
 
     /// \brief Returns the faces incident to 'vertex' at 'level'
     IndexArray const GetVertexFaces( int level, Index vert) const {
-        return _levels[level].getVertexFaces(vert);
+        return _levels[level]->getVertexFaces(vert);
     }
 
     /// \brief Returns the edges incident to 'vertex' at 'level'
     IndexArray const GetVertexEdges( int level, Index vert) const {
-        return _levels[level].getVertexEdges(vert);
+        return _levels[level]->getVertexEdges(vert);
     }
 
     /// \brief Returns the local face indices of vertex 'vert' at 'level'
     LocalIndexArray const VertexFaceLocalIndices(int level, Index vert) const {
-        return _levels[level].getVertexFaceLocalIndices(vert);
+        return _levels[level]->getVertexFaceLocalIndices(vert);
     }
 
     /// \brief Returns the local edge indices of vertex 'vert' at 'level'
     LocalIndexArray const VertexEdgeLocalIndices(int level, Index vert) const {
-        return _levels[level].getVertexEdgeLocalIndices(vert);
+        return _levels[level]->getVertexEdgeLocalIndices(vert);
     }
 
     /// \brief Returns the edge with vertices'v0' and 'v1' (or -1 if they are
     ///  not connected)
     Index FindEdge(int level, Index v0, Index v1) const {
-        return _levels[level].findEdge(v0, v1);
+        return _levels[level]->findEdge(v0, v1);
     }
 
 
@@ -317,7 +317,7 @@ public:
 
     /// \brief Returns the number of face-varying channels in the tables
     int GetNumFVarChannels() const {
-        return _levels[0].getNumFVarChannels();
+        return _levels[0]->getNumFVarChannels();
     }
 
     /// \brief Returns the total number of face-varying values in all levels
@@ -325,12 +325,12 @@ public:
 
     /// \brief Returns the number of face-varying values at a given level of refinement
     int GetNumFVarValues(int level, int channel = 0) const {
-        return _levels[level].getNumFVarValues(channel);
+        return _levels[level]->getNumFVarValues(channel);
     }
 
     /// \brief Returns the face-varying values of a 'face' at 'level'
     IndexArray const GetFVarFaceValues(int level, Index face, int channel = 0) const {
-        return _levels[level].getFVarFaceValues(face, channel);
+        return _levels[level]->getFVarFaceValues(face, channel);
     }
 
 
@@ -342,32 +342,32 @@ public:
 
     /// \brief Returns the child faces of face 'f' at 'level'
     IndexArray const GetFaceChildFaces(int level, Index f) const {
-        return _refinements[level].getFaceChildFaces(f);
+        return _refinements[level]->getFaceChildFaces(f);
     }
 
     /// \brief Returns the child edges of face 'f' at 'level'
     IndexArray const GetFaceChildEdges(int level, Index f) const {
-        return _refinements[level].getFaceChildEdges(f);
+        return _refinements[level]->getFaceChildEdges(f);
     }
 
     /// \brief Returns the child edges of edge 'e' at 'level'
     IndexArray const GetEdgeChildEdges(int level, Index e) const {
-        return _refinements[level].getEdgeChildEdges(e);
+        return _refinements[level]->getEdgeChildEdges(e);
     }
 
     /// \brief Returns the child vertex of face 'f' at 'level'
     Index GetFaceChildVertex(  int level, Index f) const {
-        return _refinements[level].getFaceChildVertex(f);
+        return _refinements[level]->getFaceChildVertex(f);
     }
 
     /// \brief Returns the child vertex of edge 'e' at 'level'
     Index GetEdgeChildVertex(  int level, Index e) const {
-        return _refinements[level].getEdgeChildVertex(e);
+        return _refinements[level]->getEdgeChildVertex(e);
     }
 
     /// \brief Returns the child vertex of vertex 'v' at 'level'
     Index GetVertexChildVertex(int level, Index v) const {
-        return _refinements[level].getVertexChildVertex(v);
+        return _refinements[level]->getVertexChildVertex(v);
     }
 
 
@@ -403,12 +403,12 @@ public:
 
     /// \brief Returns true if the topology of 'level' is valid
     bool ValidateTopology(int level) const {
-        return _levels[level].validateTopology();
+        return _levels[level]->validateTopology();
     }
 
     /// \brief Prints topology information to console
     void PrintTopology(int level, bool children = true) const {
-        _levels[level].print(children ? &_refinements[level] : 0);
+        _levels[level]->print(children ? _refinements[level] : 0);
     }
 
 
@@ -423,55 +423,58 @@ protected:
     friend class PatchTablesFactory;
 
     int                   getNumLevels() const { return (int)_levels.size(); }
-    Vtr::Level            & getBaseLevel() { return _levels.front(); }
-    Vtr::Level            & getLevel(int l) { return _levels[l]; }
-    Vtr::Level const      & getLevel(int l) const { return _levels[l]; }
-    Vtr::Refinement const & getRefinement(int l) const { return _refinements[l]; }
+    Vtr::Level            & getBaseLevel() { return *_levels.front(); }
+    Vtr::Level            & getLevel(int l) { return *_levels[l]; }
+    Vtr::Level const      & getLevel(int l) const { return *_levels[l]; }
+    Vtr::Refinement       & getRefinement(int l) { return *_refinements[l]; }
+    Vtr::Refinement const & getRefinement(int l) const { return *_refinements[l]; }
 
     int getNumBaseFaces() const    { return GetNumFaces(0); }
     int getNumBaseEdges() const    { return GetNumEdges(0); }
     int getNumBaseVertices() const { return GetNumVertices(0); }
 
     //  Sizing specifications required before allocation:
-    void setNumBaseFaces(   int count) { _levels[0].resizeFaces(count); }
-    void setNumBaseEdges(   int count) { _levels[0].resizeEdges(count); }
-    void setNumBaseVertices(int count) { _levels[0].resizeVertices(count); }
+    void setNumBaseFaces(   int count) { _levels[0]->resizeFaces(count); }
+    void setNumBaseEdges(   int count) { _levels[0]->resizeEdges(count); }
+    void setNumBaseVertices(int count) { _levels[0]->resizeVertices(count); }
 
-    void setNumBaseFaceVertices(Index f, int count) { _levels[0].resizeFaceVertices(f, count); }
-    void setNumBaseEdgeFaces(   Index e, int count) { _levels[0].resizeEdgeFaces(e, count); }
-    void setNumBaseVertexFaces( Index v, int count) { _levels[0].resizeVertexFaces(v, count); }
-    void setNumBaseVertexEdges( Index v, int count) { _levels[0].resizeVertexEdges(v, count); }
+    void setNumBaseFaceVertices(Index f, int count) { _levels[0]->resizeFaceVertices(f, count); }
+    void setNumBaseEdgeFaces(   Index e, int count) { _levels[0]->resizeEdgeFaces(e, count); }
+    void setNumBaseVertexFaces( Index v, int count) { _levels[0]->resizeVertexFaces(v, count); }
+    void setNumBaseVertexEdges( Index v, int count) { _levels[0]->resizeVertexEdges(v, count); }
 
     //  Access to populate the base level topology after allocation:
-    IndexArray setBaseFaceVertices(Index f) { return _levels[0].getFaceVertices(f); }
-    IndexArray setBaseFaceEdges(   Index f) { return _levels[0].getFaceEdges(f); }
-    IndexArray setBaseEdgeVertices(Index e) { return _levels[0].getEdgeVertices(e); }
-    IndexArray setBaseEdgeFaces(   Index e) { return _levels[0].getEdgeFaces(e); }
-    IndexArray setBaseVertexFaces( Index v) { return _levels[0].getVertexFaces(v); }
-    IndexArray setBaseVertexEdges( Index v) { return _levels[0].getVertexEdges(v); }
+    IndexArray setBaseFaceVertices(Index f) { return _levels[0]->getFaceVertices(f); }
+    IndexArray setBaseFaceEdges(   Index f) { return _levels[0]->getFaceEdges(f); }
+    IndexArray setBaseEdgeVertices(Index e) { return _levels[0]->getEdgeVertices(e); }
+    IndexArray setBaseEdgeFaces(   Index e) { return _levels[0]->getEdgeFaces(e); }
+    IndexArray setBaseVertexFaces( Index v) { return _levels[0]->getVertexFaces(v); }
+    IndexArray setBaseVertexEdges( Index v) { return _levels[0]->getVertexEdges(v); }
 
     //  Not sure yet if we will determine these internally...
-    LocalIndexArray setBaseVertexFaceLocalIndices(Index v) { return _levels[0].getVertexFaceLocalIndices(v); }
-    LocalIndexArray setBaseVertexEdgeLocalIndices(Index v) { return _levels[0].getVertexEdgeLocalIndices(v); }
+    LocalIndexArray setBaseVertexFaceLocalIndices(Index v) { return _levels[0]->getVertexFaceLocalIndices(v); }
+    LocalIndexArray setBaseVertexEdgeLocalIndices(Index v) { return _levels[0]->getVertexEdgeLocalIndices(v); }
 
     //  Optionally available to get/set sharpness values:
-    float& baseEdgeSharpness(Index e)   { return _levels[0].getEdgeSharpness(e); }
-    float& baseVertexSharpness(Index v) { return _levels[0].getVertexSharpness(v); }
+    float& baseEdgeSharpness(Index e)   { return _levels[0]->getEdgeSharpness(e); }
+    float& baseVertexSharpness(Index v) { return _levels[0]->getVertexSharpness(v); }
 
     //  Face-varying modifiers for constructing face-varying channels:
     int createFVarChannel(int numValues) {
-        return _levels[0].createFVarChannel(numValues, _subdivOptions);
+        return _levels[0]->createFVarChannel(numValues, _subdivOptions);
     }
     int createFVarChannel(int numValues, Sdc::Options const& options) {
-        return _levels[0].createFVarChannel(numValues, options);
+        return _levels[0]->createFVarChannel(numValues, options);
     }
-    void completeFVarChannelTopology(int channel = 0) { _levels[0].completeFVarChannelTopology(channel); }
+    void completeFVarChannelTopology(int channel = 0) { _levels[0]->completeFVarChannelTopology(channel); }
 
-    IndexArray getBaseFVarFaceValues(Index face, int channel = 0) { return _levels[0].getFVarFaceValues(face, channel); }
+    IndexArray getBaseFVarFaceValues(Index face, int channel = 0) { return _levels[0]->getFVarFaceValues(face, channel); }
 
     void populateLocalIndices() {
         getBaseLevel().populateLocalIndices();
     }
+    
+    void allocateLevels(int maxlevel);
 
 private:
     void catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector);
@@ -500,8 +503,8 @@ private:
     int  _maxLevel;
     bool _useSingleCreasePatch;
 
-    std::vector<Vtr::Level>      _levels;
-    std::vector<Vtr::Refinement> _refinements;
+    std::vector<Vtr::Level *>      _levels;
+    std::vector<Vtr::Refinement *> _refinements;
 
     std::vector<Index> _ptexIndices;
 };
@@ -527,7 +530,7 @@ TopologyRefiner::Interpolate(int level, T const * src, U * dst) const {
 
     assert(level>0 and level<=(int)_refinements.size());
 
-    Vtr::Refinement const & refinement = _refinements[level-1];
+    Vtr::Refinement const & refinement = getRefinement(level-1);
 
     interpolateChildVertsFromFaces(refinement, src, dst);
     interpolateChildVertsFromEdges(refinement, src, dst);
@@ -731,7 +734,7 @@ TopologyRefiner::InterpolateVarying(int level, T const * src, U * dst) const {
 
     assert(level>0 and level<=(int)_refinements.size());
 
-    Vtr::Refinement const & refinement = _refinements[level-1];
+    Vtr::Refinement const & refinement = getRefinement(level-1);
 
     varyingInterpolateChildVertsFromFaces(refinement, src, dst);
     varyingInterpolateChildVertsFromEdges(refinement, src, dst);
@@ -833,7 +836,7 @@ TopologyRefiner::InterpolateFaceVarying(T const * src, U * dst, int channel) con
         InterpolateFaceVarying(level, src, dst, channel);
 
         src = dst;
-        dst += _levels[level].getNumFVarValues();
+        dst += _levels[level]->getNumFVarValues();
     }
 }
 
@@ -843,7 +846,7 @@ TopologyRefiner::InterpolateFaceVarying(int level, T const * src, U * dst, int c
 
     assert(level>0 and level<=(int)_refinements.size());
 
-    Vtr::Refinement const & refinement = _refinements[level-1];
+    Vtr::Refinement const & refinement = getRefinement(level-1);
 
     faceVaryingInterpolateChildVertsFromFaces(refinement, src, dst, channel);
     faceVaryingInterpolateChildVertsFromEdges(refinement, src, dst, channel);

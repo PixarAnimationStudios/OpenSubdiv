@@ -46,16 +46,32 @@ TopologyRefiner::TopologyRefiner(Sdc::Type schemeType, Sdc::Options schemeOption
 
     //  Need to revisit allocation scheme here -- want to use smart-ptrs for these
     //  but will probably have to settle for explicit new/delete...
-    _levels.reserve(8);
-    _levels.resize(1);
+    _levels.reserve(10);
+    _levels.push_back(new Vtr::Level);
 }
 
-TopologyRefiner::~TopologyRefiner() { }
+TopologyRefiner::~TopologyRefiner() {
+
+    for (int i=0; i<(int)_levels.size(); ++i) {
+        delete _levels[i];
+    }
+
+    for (int i=0; i<(int)_refinements.size(); ++i) {
+        delete _refinements[i];
+    }
+}
 
 void
 TopologyRefiner::Unrefine() {
+
     if (_levels.size()) {
+        for (int i=1; i<(int)_levels.size(); ++i) {
+            delete _levels[i];
+        }
         _levels.resize(1);
+    }
+    for (int i=0; i<(int)_refinements.size(); ++i) {
+        delete _refinements[i];
     }
     _refinements.clear();
 }
@@ -74,7 +90,7 @@ int
 TopologyRefiner::GetNumVerticesTotal() const {
     int sum = 0;
     for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i].getNumVertices();
+        sum += _levels[i]->getNumVertices();
     }
     return sum;
 }
@@ -82,7 +98,7 @@ int
 TopologyRefiner::GetNumEdgesTotal() const {
     int sum = 0;
     for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i].getNumEdges();
+        sum += _levels[i]->getNumEdges();
     }
     return sum;
 }
@@ -90,7 +106,7 @@ int
 TopologyRefiner::GetNumFacesTotal() const {
     int sum = 0;
     for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i].getNumFaces();
+        sum += _levels[i]->getNumFaces();
     }
     return sum;
 }
@@ -98,7 +114,7 @@ int
 TopologyRefiner::GetNumFaceVerticesTotal() const {
     int sum = 0;
     for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i].getNumFaceVerticesTotal();
+        sum += _levels[i]->getNumFaceVerticesTotal();
     }
     return sum;
 }
@@ -106,7 +122,7 @@ int
 TopologyRefiner::GetNumFVarValuesTotal(int channel) const {
     int sum = 0;
     for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i].getNumFVarValues(channel);
+        sum += _levels[i]->getNumFVarValues(channel);
     }
     return sum;
 }
@@ -132,11 +148,11 @@ TopologyRefiner::initializePtexIndices() const {
     std::vector<int> & indices = const_cast<std::vector<int> &>(_ptexIndices);
     switch (GetSchemeType()) {
         case Sdc::TYPE_BILINEAR:
-            computePtexIndices<Sdc::TYPE_BILINEAR>(_levels[0], indices); break;
+            computePtexIndices<Sdc::TYPE_BILINEAR>(getLevel(0), indices); break;
         case Sdc::TYPE_CATMARK :
-            computePtexIndices<Sdc::TYPE_CATMARK>(_levels[0], indices); break;
+            computePtexIndices<Sdc::TYPE_CATMARK>(getLevel(0), indices); break;
         case Sdc::TYPE_LOOP    :
-            computePtexIndices<Sdc::TYPE_LOOP>(_levels[0], indices); break;
+            computePtexIndices<Sdc::TYPE_LOOP>(getLevel(0), indices); break;
     }
 }
 int
@@ -178,7 +194,7 @@ TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
         initializePtexIndices();
     }
 
-    Vtr::Level const & level = _levels[0];
+    Vtr::Level const & level = getLevel(0);
 
     IndexArray fedges = level.getFaceEdges(face);
 
@@ -283,6 +299,19 @@ TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
     }
 }
 
+void 
+TopologyRefiner::allocateLevels(int maxlevel) {
+
+    assert((int)_levels.size()==1 and _refinements.empty());
+    _levels.resize(maxlevel + 1);
+    for (int i=1; i<(int)_levels.size(); ++i) {
+        _levels[i] = new Vtr::Level;
+    }
+    _refinements.resize(maxlevel);
+    for (int i=0; i<(int)_refinements.size(); ++i) {
+        _refinements[i] = new Vtr::Refinement;
+    }
+}
 
 //
 //  Main refinement method -- allocating and initializing levels and refinements:
@@ -290,7 +319,7 @@ TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
 void
 TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
 
-    assert(_levels[0].getNumVertices() > 0);  //  Make sure the base level has been initialized
+    assert(_levels[0]->getNumVertices() > 0);  //  Make sure the base level has been initialized
     assert(_subdivType == Sdc::TYPE_CATMARK);
 
     //
@@ -299,8 +328,7 @@ TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
     _isUniform = true;
     _maxLevel = maxLevel;
 
-    _levels.resize(maxLevel + 1);
-    _refinements.resize(maxLevel);
+    allocateLevels(_maxLevel);
 
     //
     //  Initialize refinement options for Vtr -- adjusting full-topology for the last level:
@@ -311,9 +339,9 @@ TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
     for (int i = 1; i <= maxLevel; ++i) {
         refineOptions._faceTopologyOnly = fullTopology ? false : (i == maxLevel);
 
-        _refinements[i-1].setScheme(_subdivType, _subdivOptions);
-        _refinements[i-1].initialize(_levels[i-1], _levels[i]);
-        _refinements[i-1].refine(refineOptions);
+        _refinements[i-1]->setScheme(_subdivType, _subdivOptions);
+        _refinements[i-1]->initialize(getLevel(i-1), getLevel(i));
+        _refinements[i-1]->refine(refineOptions);
     }
 }
 
@@ -321,7 +349,7 @@ TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
 void
 TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSingleCreasePatch) {
 
-    assert(_levels[0].getNumVertices() > 0);  //  Make sure the base level has been initialized
+    assert(_levels[0]->getNumVertices() > 0);  //  Make sure the base level has been initialized
     assert(_subdivType == Sdc::TYPE_CATMARK);
 
     //
@@ -332,8 +360,7 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSing
     _useSingleCreasePatch = useSingleCreasePatch;
 
     //  Should we presize all or grow one at a time as needed?
-    _levels.resize(subdivLevel + 1);
-    _refinements.resize(subdivLevel);
+    allocateLevels(_maxLevel);
 
     //
     //  Initialize refinement options for Vtr:
@@ -348,9 +375,9 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSing
         //  its topology if we don't use the full depth
         refineOptions._faceTopologyOnly = false;
 
-        Vtr::Level& parentLevel     = _levels[i-1];
-        Vtr::Level& childLevel      = _levels[i];
-        Vtr::Refinement& refinement = _refinements[i-1];
+        Vtr::Level& parentLevel     = getLevel(i-1);
+        Vtr::Level& childLevel      = getLevel(i);
+        Vtr::Refinement& refinement = getRefinement(i-1);
 
         refinement.setScheme(_subdivType, _subdivOptions);
         refinement.initialize(parentLevel, childLevel);
@@ -482,7 +509,7 @@ TopologyRefiner::ComputeMaskWeights() {
     assert(_subdivType == Sdc::TYPE_CATMARK);
 
     for (int i = 0; i < _maxLevel; ++i) {
-        _refinements[i].computeMaskWeights();
+        _refinements[i]->computeMaskWeights();
     }
 }
 #endif
