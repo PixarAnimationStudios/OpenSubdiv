@@ -49,16 +49,6 @@ struct Vertex {
     // Minimal required interface ----------------------
     Vertex() { }
 
-    Vertex(Vertex const & src) {
-        _position[0] = src._position[0];
-        _position[1] = src._position[1];
-        _position[1] = src._position[1];
-
-        _color[0] = src._color[0];
-        _color[1] = src._color[1];
-        _color[1] = src._color[1];
-    }
-
     void Clear( void * =0 ) {
         _position[0]=_position[1]=_position[2]=0.0f;
         _color[0]=_color[1]=_color[2]=0.0f;
