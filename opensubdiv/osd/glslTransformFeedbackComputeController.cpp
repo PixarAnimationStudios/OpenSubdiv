@@ -117,11 +117,12 @@ public:
                 << "#define STRIDE " << desc.stride << "\n";
         std::string defineStr = defines.str();
 
-        const char *shaderSources[3];
-        shaderSources[0] = defineStr.c_str();
-        shaderSources[1] = shaderDefines;
-        shaderSources[2] = shaderSource;
-        glShaderSource(shader, 3, shaderSources, NULL);
+        const char *shaderSources[4] = {"#version 420\n", 0, 0, 0};
+        
+        shaderSources[1] = defineStr.c_str();
+        shaderSources[2] = shaderDefines;
+        shaderSources[3] = shaderSource;
+        glShaderSource(shader, 4, shaderSources, NULL);
         glCompileShader(shader);
         glAttachShader(_program, shader);
 

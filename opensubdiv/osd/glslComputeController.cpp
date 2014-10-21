@@ -93,10 +93,10 @@ public:
                 << "#define WORK_GROUP_SIZE " << _workGroupSize << "\n";
         std::string defineStr = defines.str();
 
-        const char *shaderSources[3];
-        shaderSources[0] = defineStr.c_str();
-        shaderSources[1] = shaderSource;
-        glShaderSource(shader, 2, shaderSources, NULL);
+        const char *shaderSources[3] = {"#version 430\n", 0, 0};
+        shaderSources[1] = defineStr.c_str();
+        shaderSources[2] = shaderSource;
+        glShaderSource(shader, 3, shaderSources, NULL);
         glCompileShader(shader);
         glAttachShader(_program, shader);
 
