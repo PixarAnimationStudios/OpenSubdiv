@@ -364,7 +364,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         // interpolation)
         Far::StencilTablesFactory::Options options;
         options.generateOffsets=true;
-        options.generateAllLevels=true;
+        options.generateIntermediateLevels=true;
 
         Far::StencilTables const * vertexStencils =
             Far::StencilTablesFactory::Create(*g_topologyRefiner, options);

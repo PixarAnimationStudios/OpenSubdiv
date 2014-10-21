@@ -460,14 +460,14 @@ public:
     /// @param dst     Destination primvar buffer (limit surface data)
     ///
     template <class T, class U> void Interpolate(PatchHandle const & handle,
-        float s, float t, T const & src, U * dst) const;
+        float s, float t, T const & src, U & dst) const;
 
     /// \brief Interpolate the (s,t) parametric location of a bilinear (quad)
     /// patch
     ///
     template <class T, class U> static void
     InterpolateBilinear(Index const * cvs, float s, float t,
-        T const & src, U * dst);
+        T const & src, U & dst);
 
     /// \brief Interpolate the (s,t) parametric location of a regular bicubic
     ///        patch
@@ -488,7 +488,7 @@ public:
     ///
     template <class T, class U> static void
     InterpolateRegularPatch(Index const * cvs,
-        float const * Q, float const *Qd1, float const *Qd2, T const & src, U * dst);
+        float const * Q, float const *Qd1, float const *Qd2, T const & src, U & dst);
 
     /// \brief Interpolate the (s,t) parametric location of a boundary bicubic
     ///        patch
@@ -509,7 +509,7 @@ public:
     ///
     template <class T, class U> static void
     InterpolateBoundaryPatch(Index const * cvs,
-        float const * Q, float const *Qd1, float const *Qd2, T const & src, U * dst);
+        float const * Q, float const *Qd1, float const *Qd2, T const & src, U & dst);
 
     /// \brief Interpolate the (s,t) parametric location of a corner bicubic
     ///        patch
@@ -530,7 +530,7 @@ public:
     ///
     template <class T, class U> static void
     InterpolateCornerPatch(Index const * cvs,
-        float const * Q, float const *Qd1, float const *Qd2, T const & src, U * dst);
+        float const * Q, float const *Qd1, float const *Qd2, T const & src, U & dst);
 
     /// \brief Interpolate the (s,t) parametric location of a *bicubic* patch
     ///
@@ -549,7 +549,7 @@ public:
     /// @param dst     Destination primvar buffer (limit surface data)
     ///
     template <class T, class U> void Limit(PatchHandle const & handle,
-        float s, float t, T const & src, U * dst) const;
+        float s, float t, T const & src, U & dst) const;
 
 private:
 
@@ -652,7 +652,7 @@ PatchTables::Descriptor::operator == ( Descriptor const other ) const {
 template <class T, class U>
 inline void
 PatchTables::InterpolateBilinear(Index const * cvs, float s, float t,
-    T const & src, U * dst) {
+    T const & src, U & dst) {
 
     float os = 1.0f - s,
           ot = 1.0f - t,
@@ -661,7 +661,7 @@ PatchTables::InterpolateBilinear(Index const * cvs, float s, float t,
           dQ2[4] = { s-1.0f,   -s,   s,   os };
 
     for (int k=0; k<4; ++k) {
-        dst->AddWithWeight(src[cvs[k]], Q[k], dQ1[k], dQ2[k]);
+        dst.AddWithWeight(src[cvs[k]], Q[k], dQ1[k], dQ2[k]);
     }
 }
 
@@ -670,7 +670,7 @@ template <class T, class U>
 inline void
 PatchTables::InterpolateRegularPatch(Index const * cvs,
     float const * Q, float const *Qd1, float const *Qd2,
-        T const & src, U * dst) {
+        T const & src, U & dst) {
 
     //
     //  v0 -- v1 -- v2 -- v3
@@ -685,7 +685,7 @@ PatchTables::InterpolateRegularPatch(Index const * cvs,
     //  v12-- v13-- v14-- v15
     //
     for (int k=0; k<16; ++k) {
-        dst->AddWithWeight(src[cvs[k]], Q[k], Qd1[k], Qd2[k]);
+        dst.AddWithWeight(src[cvs[k]], Q[k], Qd1[k], Qd2[k]);
     }
 }
 
@@ -693,7 +693,7 @@ template <class T, class U>
 inline void
 PatchTables::InterpolateBoundaryPatch(Index const * cvs,
     float const * Q, float const *Qd1, float const *Qd2,
-        T const & src, U * dst) {
+        T const & src, U & dst) {
 
     // mirror the missing vertices (M)
     //
@@ -709,11 +709,11 @@ PatchTables::InterpolateBoundaryPatch(Index const * cvs,
     //  v8 -- v9 -- v10-- v11
     //
     for (int k=0; k<4; ++k) { // M0 - M3
-        dst->AddWithWeight(src[cvs[k]],    2.0f*Q[k],  2.0f*Qd1[k],  2.0f*Qd2[k]);
-        dst->AddWithWeight(src[cvs[k+4]], -1.0f*Q[k], -1.0f*Qd1[k], -1.0f*Qd2[k]);
+        dst.AddWithWeight(src[cvs[k]],    2.0f*Q[k],  2.0f*Qd1[k],  2.0f*Qd2[k]);
+        dst.AddWithWeight(src[cvs[k+4]], -1.0f*Q[k], -1.0f*Qd1[k], -1.0f*Qd2[k]);
     }
     for (int k=0; k<12; ++k) {
-        dst->AddWithWeight(src[cvs[k]], Q[k+4], Qd1[k+4], Qd2[k+4]);
+        dst.AddWithWeight(src[cvs[k]], Q[k+4], Qd1[k+4], Qd2[k+4]);
     }
 }
 
@@ -721,7 +721,7 @@ template <class T, class U>
 inline void
 PatchTables::InterpolateCornerPatch(Index const * cvs,
     float const * Q, float const *Qd1, float const *Qd2,
-        T const & src, U * dst) {
+        T const & src, U & dst) {
 
     // mirror the missing vertices (M)
     //
@@ -737,23 +737,23 @@ PatchTables::InterpolateCornerPatch(Index const * cvs,
     //  v6 -- v7 -- v8 -- M6
     //
     for (int k=0; k<3; ++k) { // M0 - M2
-        dst->AddWithWeight(src[cvs[k  ]],  2.0f*Q[k],  2.0f*Qd1[k],  2.0f*Qd2[k]);
-        dst->AddWithWeight(src[cvs[k+3]], -1.0f*Q[k], -1.0f*Qd1[k], -1.0f*Qd2[k]);
+        dst.AddWithWeight(src[cvs[k  ]],  2.0f*Q[k],  2.0f*Qd1[k],  2.0f*Qd2[k]);
+        dst.AddWithWeight(src[cvs[k+3]], -1.0f*Q[k], -1.0f*Qd1[k], -1.0f*Qd2[k]);
     }
     for (int k=0; k<3; ++k) { // M4 - M6
         int idx = (k+1)*4 + 3;
-        dst->AddWithWeight(src[cvs[k*3+2]],  2.0f*Q[idx],  2.0f*Qd1[idx],  2.0f*Qd2[idx]);
-        dst->AddWithWeight(src[cvs[k*3+1]], -1.0f*Q[idx], -1.0f*Qd1[idx], -1.0f*Qd2[idx]);
+        dst.AddWithWeight(src[cvs[k*3+2]],  2.0f*Q[idx],  2.0f*Qd1[idx],  2.0f*Qd2[idx]);
+        dst.AddWithWeight(src[cvs[k*3+1]], -1.0f*Q[idx], -1.0f*Qd1[idx], -1.0f*Qd2[idx]);
     }
     // M3 = -2.v1 + 4.v2 + v4 - 2.v5
-    dst->AddWithWeight(src[cvs[1]], -2.0f*Q[3], -2.0f*Qd1[3], -2.0f*Qd2[3]);
-    dst->AddWithWeight(src[cvs[2]],  4.0f*Q[3],  4.0f*Qd1[3],  4.0f*Qd2[3]);
-    dst->AddWithWeight(src[cvs[4]],  1.0f*Q[3],  1.0f*Qd1[3],  1.0f*Qd2[3]);
-    dst->AddWithWeight(src[cvs[5]], -2.0f*Q[3], -2.0f*Qd1[3], -2.0f*Qd2[3]);
+    dst.AddWithWeight(src[cvs[1]], -2.0f*Q[3], -2.0f*Qd1[3], -2.0f*Qd2[3]);
+    dst.AddWithWeight(src[cvs[2]],  4.0f*Q[3],  4.0f*Qd1[3],  4.0f*Qd2[3]);
+    dst.AddWithWeight(src[cvs[4]],  1.0f*Q[3],  1.0f*Qd1[3],  1.0f*Qd2[3]);
+    dst.AddWithWeight(src[cvs[5]], -2.0f*Q[3], -2.0f*Qd1[3], -2.0f*Qd2[3]);
     for (int y=0; y<3; ++y) { // v0 - v8
         for (int x=0; x<3; ++x) {
             int idx = y*4+x+4;
-            dst->AddWithWeight(src[cvs[y*3+x]], Q[idx], Qd1[idx], Qd2[idx]);
+            dst.AddWithWeight(src[cvs[y*3+x]], Q[idx], Qd1[idx], Qd2[idx]);
         }
     }
 }
@@ -762,9 +762,9 @@ PatchTables::InterpolateCornerPatch(Index const * cvs,
 template <class T, class U>
 inline void
 PatchTables::Interpolate(PatchHandle const & handle, float s, float t,
-    T const & src, U * dst) const {
+    T const & src, U & dst) const {
 
-    assert(dst and (not IsFeatureAdaptive()));
+    assert(not IsFeatureAdaptive());
 
     PatchTables::PatchArray const & parray =
         _patchArrays[handle.patchArrayIdx];
@@ -780,7 +780,7 @@ PatchTables::Interpolate(PatchHandle const & handle, float s, float t,
     Type ptype = parray.GetDescriptor().GetType();
     assert(ptype==QUADS);
 
-    dst->Clear();
+    dst.Clear();
 
     InterpolateBilinear(cvs, s, t, src, dst);
 }
@@ -789,9 +789,9 @@ PatchTables::Interpolate(PatchHandle const & handle, float s, float t,
 template <class T, class U>
 inline void
 PatchTables::Limit(PatchHandle const & handle, float s, float t,
-    T const & src, U * dst) const {
+    T const & src, U & dst) const {
 
-    assert(dst and IsFeatureAdaptive());
+    assert(IsFeatureAdaptive());
 
     PatchTables::PatchArray const & parray =
         _patchArrays[handle.patchArrayIdx];
@@ -818,7 +818,7 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
             Qd2[k] *= scale;
         }
 
-        dst->Clear();
+        dst.Clear();
 
         switch (ptype) {
             case REGULAR:

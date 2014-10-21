@@ -177,7 +177,7 @@ private:
 
         Far::StencilTablesFactory::Options options;
         options.generateOffsets=true;
-        options.generateAllLevels=_refiner->IsUniform() ? false : true;
+        options.generateIntermediateLevels=_refiner->IsUniform() ? false : true;
 
         Far::StencilTables const * vertexStencils=0, * varyingStencils=0;
 
@@ -389,7 +389,7 @@ private:
 
         Far::StencilTablesFactory::Options options;
         options.generateOffsets=true;
-        options.generateAllLevels=_refiner->IsUniform() ? false : true;
+        options.generateIntermediateLevels=_refiner->IsUniform() ? false : true;
 
         Far::StencilTables const * vertexStencils=0, * varyingStencils=0;
 

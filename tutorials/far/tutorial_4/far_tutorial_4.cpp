@@ -121,7 +121,7 @@ int main(int, char **) {
     // Use the FarStencilTables factory to create discrete stencil tables
     // note: we only want stencils for the highest refinement level.
     Far::StencilTablesFactory::Options options;
-    options.generateAllLevels=false;
+    options.generateIntermediateLevels=false;
     options.generateOffsets=true;
     
     Far::StencilTables const * stencilTables =

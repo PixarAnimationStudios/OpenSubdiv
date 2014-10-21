@@ -87,7 +87,7 @@ int main(int, char **) {
         // Far tutorials)
         Far::StencilTablesFactory::Options options;
         options.generateOffsets=true;
-        options.generateAllLevels=false;
+        options.generateIntermediateLevels=false;
 
         Far::StencilTables const * stencilTables =
             Far::StencilTablesFactory::Create(*refiner, options);

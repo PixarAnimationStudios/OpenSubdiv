@@ -628,7 +628,7 @@ createOsdMesh( const std::string &shapeStr, int level, Scheme scheme=kCatmark ) 
     {
         Far::StencilTablesFactory::Options options;
         options.generateOffsets = true;
-        options.generateAllLevels = doAdaptive ? true : false;
+        options.generateIntermediateLevels = doAdaptive ? true : false;
 
         vertexStencils = Far::StencilTablesFactory::Create(*refiner, options);
 

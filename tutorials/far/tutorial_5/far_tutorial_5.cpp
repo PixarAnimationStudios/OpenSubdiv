@@ -125,7 +125,7 @@ int main(int, char **) {
 
     // Use the Far::StencilTables factory to create discrete stencil tables
     Far::StencilTablesFactory::Options options;
-    options.generateAllLevels=false; // only the highest refinement level.
+    options.generateIntermediateLevels=false; // only the highest refinement level.
     options.generateOffsets=true;
 
     //

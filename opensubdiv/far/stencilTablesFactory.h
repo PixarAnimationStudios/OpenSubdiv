@@ -46,10 +46,6 @@ class LimitStencilTables;
 
 /// \brief A specialized factory for StencilTables
 ///
-/// Note: when using 'sortBySize', vertex indices from PatchTables or
-///       TopologyRefiner need to be remapped to their new location in the
-///       vertex buffer.
-///
 class StencilTablesFactory {
 
 public:
@@ -64,14 +60,18 @@ public:
         Options() : interpolationMode(INTERPOLATE_VERTEX),
                     generateOffsets(false),
                     generateControlVerts(false),
-                    generateAllLevels(true),
-                    sortBySize(false) { }
+                    generateIntermediateLevels(true),
+                    factorizeIntermediateLevels(true),
+                    maxLevel(10) { }
 
-        unsigned int interpolationMode    : 2, ///< interpolation mode
-                     generateOffsets      : 1, ///< populate optional "_offsets" field
-                     generateControlVerts : 1, ///< generate stencils for control vertices
-                     generateAllLevels    : 1, ///< vertices at all levels or highest only
-                     sortBySize           : 1; ///< sort stencils by size (within a level)
+        unsigned int interpolationMode           : 2, ///< interpolation mode
+                     generateOffsets             : 1, ///< populate optional "_offsets" field
+                     generateControlVerts        : 1, ///< generate stencils for control-vertices
+                     generateIntermediateLevels  : 1, ///< vertices at all levels or highest only
+                     factorizeIntermediateLevels : 1, ///< accumulate stencil weights from control
+                                                      ///  vertices or from the stencils of the 
+                                                      ///  previous level
+                     maxLevel                    : 4; ///< generate stencils up to 'maxLevel'
     };
 
     /// \brief Instantiates StencilTables from TopologyRefiner that have been
@@ -97,17 +97,8 @@ public:
 
 private:
 
-    // Copy a stencil into StencilTables
-    template <class T> static void copyStencil(T const & src, Stencil & dst);
-
-    // (Sort &) Copy a vector of stencils into StencilTables
-    template <class T> static void copyStencils(std::vector<T> & src,
-        Stencil & dst, bool sortBySize);
-
-    // Generate stencils for the control vertices (single weight = 1.0f)
+    // Generate stencils for the coarse control-vertices (single weight = 1.0f)
     static void generateControlVertStencils(int numControlVerts, Stencil & dst);
-
-    std::vector<int> _remap;
 };
 
 /// \brief A specialized factory for LimitStencilTables
@@ -159,14 +150,6 @@ public:
         LocationArrayVec const & locationArrays,
             StencilTables const * cvStencils=0,
                 PatchTables const * patchTables=0);
-
-private:
-
-    // Copy a stencil into StencilTables
-    template <class T> static void copyLimitStencil(T const & src, LimitStencil & dst);
-
-    template <class T> static void copyLimitStencils(std::vector<T> & src,
-        LimitStencil & dst);
 };
 
 

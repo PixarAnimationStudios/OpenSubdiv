@@ -89,9 +89,10 @@ public:
     int GetNumFaceVerticesTotal() const;
 
 
-    //
-    //  High level refinement and related methods:
-    //
+    //@{
+    ///  @name High level refinement and related methods
+    ///
+
     //  XXXX barfowl --  need some variants here for different refinement
     //                   options, i.e. single refine method plus struct
     //                   RefineOptions
@@ -127,12 +128,42 @@ public:
 #ifdef _VTR_COMPUTE_MASK_WEIGHTS_ENABLED
     void ComputeMaskWeights();
 #endif
+    //@}
 
-
-    //
-    //  Primvar data interpolation:
-    //
-
+    //@{
+    ///  @name Primvar data interpolation
+    ///
+    /// \anchor templating
+    ///
+    /// \note Interpolation methods template both the source and destination
+    ///       data buffer functors. Client-code is expected to provide classes
+    ///       that implement functors specific to its primitive variable data
+    ///       layout. Functor classes must implement the following interface:
+    ///       <br><br> \code{.cpp}
+    ///
+    ///       class MySourceFunctor {
+    ///       };
+    ///
+    ///       class MyDestinationFunctor {
+    ///           void Clear();
+    ///           void AddWithWeight(MySource const & src, float weight);
+    ///           void AddWithWeight(MyDestination const & src, float weight);
+    ///       };
+    ///
+    ///       \endcode
+    ///       <br>
+    ///       It is possible to implement a single interface only and use it as
+    ///       both source and destination.
+    ///       <br><br>
+    ///       Functors are expected to be arrays of instances, passed either as
+    ///       direct pointers or with a container (ex. std::vector<MyFunctor>).
+    ///       Some interpolation methods however allow passing functors by
+    ///       reference: this allows to work transparently with arrays and
+    ///       containers (or other scheme that overload the '[]' operator)
+    ///       <br><br>
+    ///       See the <a href=http://internal-graphics.pixar.com/opensubdiv/docs/tutorials.html>
+    ///       Far tutorials</a> for code examples.
+    ///
 
     /// \brief Apply vertex and varying interpolation weights to a primvar
     ///        buffer
@@ -140,9 +171,9 @@ public:
     /// The destination buffer must allocate an array of data for all the
     /// refined vertices (at least GetNumVerticesTotal()-GetNumVertices(0))
     ///
-    /// @param src  Source primvar buffer (control vertex data)
+    /// @param src  Source primvar buffer (\ref templating control vertex data)
     ///
-    /// @param dst  Destination primvar buffer (refined vertex data)
+    /// @param dst  Destination primvar buffer (\ref templating refined vertex data)
     ///
     template <class T, class U> void Interpolate(T const * src, U * dst) const;
 
@@ -155,11 +186,11 @@ public:
     ///
     /// @param level  The refinement level
     ///
-    /// @param src    Source primvar buffer (control vertex data)
+    /// @param src    Source primvar buffer (\ref templating control vertex data)
     ///
-    /// @param dst    Destination primvar buffer (refined vertex data)
+    /// @param dst    Destination primvar buffer (\ref templating refined vertex data)
     ///
-    template <class T, class U> void Interpolate(int level, T const * src, U * dst) const;
+    template <class T, class U> void Interpolate(int level, T const & src, U & dst) const;
 
 
     /// \brief Apply only varying interpolation weights to a primvar buffer
@@ -170,9 +201,9 @@ public:
     /// The destination buffer must allocate an array of data for all the
     /// refined vertices (at least GetNumVerticesTotal()-GetNumVertices(0))
     ///
-    /// @param src  Source primvar buffer (control vertex data)
+    /// @param src  Source primvar buffer (\ref templating control vertex data)
     ///
-    /// @param dst  Destination primvar buffer (refined vertex data)
+    /// @param dst  Destination primvar buffer (\ref templating refined vertex data)
     ///
     template <class T, class U> void InterpolateVarying(T const * src, U * dst) const;
 
@@ -187,20 +218,20 @@ public:
     ///
     /// @param level  The refinement level
     ///
-    /// @param src    Source primvar buffer (control vertex data)
+    /// @param src    Source primvar buffer (\ref templating control vertex data)
     ///
-    /// @param dst    Destination primvar buffer (refined vertex data)
+    /// @param dst    Destination primvar buffer (\ref templating refined vertex data)
     ///
-    template <class T, class U> void InterpolateVarying(int level, T const * src, U * dst) const;
+    template <class T, class U> void InterpolateVarying(int level, T const & src, U & dst) const;
 
     /// \brief Apply face-varying interpolation weights to a primvar buffer
     //         associated with a particular face-varying channel
     ///
     template <class T, class U> void InterpolateFaceVarying(T const * src, U * dst, int channel = 0) const;
 
-    template <class T, class U> void InterpolateFaceVarying(int level, T const * src, U * dst, int channel = 0) const;
+    template <class T, class U> void InterpolateFaceVarying(int level, T const & src, U & dst, int channel = 0) const;
 
-    template <class T, class U> void LimitFaceVarying(T const * src, U * dst, int channel = 0) const;
+    template <class T, class U> void LimitFaceVarying(T const & src, U * dst, int channel = 0) const;
 
 
     /// \brief Apply vertex interpolation limit weights to a primvar buffer
@@ -214,12 +245,13 @@ public:
     ///
     /// @param dst  Destination primvar buffer (vertex data at the limit)
     ///
-    template <class T, class U> void Limit(T const * src, U * dst) const;
+    template <class T, class U> void Limit(T const & src, U * dst) const;
 
+    //@}
 
-    //
-    //  Inspection of components per level:
-    //
+    //@{
+    /// @name Inspection of components per level
+    ///
 
 
     /// \brief Returns the number of vertices at a given level of refinement
@@ -257,10 +289,11 @@ public:
         return _levels[level]->getVertexRule(vert);
     }
 
+    //@}
 
-    //
-    //  Topological relations -- incident/adjacent components:
-    //
+    //@{
+    /// @name Topological relations -- incident/adjacent components
+    ///
 
 
     /// \brief Returns the vertices of a 'face' at 'level'
@@ -309,10 +342,11 @@ public:
         return _levels[level]->findEdge(v0, v1);
     }
 
+    //@}
 
-    //
-    //  Inspection of face-varying channels and their contents:
-    //
+    //@{
+    /// @name Inspection of face-varying channels and their contents:
+    ///
 
 
     /// \brief Returns the number of face-varying channels in the tables
@@ -333,11 +367,13 @@ public:
         return _levels[level]->getFVarFaceValues(face, channel);
     }
 
+    //@}
 
-    //
-    //  Parent-to-child relationships, i.e. relationships between components in one level
-    //  and the next (entries may be invalid if sparse):
-    //
+    //@{
+    /// @name Parent-to-child relationships,
+    /// Telationships between components in one level
+    /// and the next (entries may be invalid if sparse):
+    ///
 
 
     /// \brief Returns the child faces of face 'f' at 'level'
@@ -370,10 +406,12 @@ public:
         return _refinements[level]->getVertexChildVertex(v);
     }
 
+    //@}
 
-    //
-    //  Ptex:
-    //
+
+    //@{
+    /// Ptex
+    ///
 
     /// \brief Returns the number of ptex faces in the mesh
     int GetNumPtexFaces() const;
@@ -396,10 +434,11 @@ public:
     void GetPtexAdjacency(int face, int quadrant,
         int adjFaces[4], int adjEdges[4]) const;
 
-    //
-    //  Debugging aides:
-    //
+    //@}
 
+    //@{
+    /// @name Debugging aides
+    ///
 
     /// \brief Returns true if the topology of 'level' is valid
     bool ValidateTopology(int level) const {
@@ -411,6 +450,7 @@ public:
         _levels[level]->print(children ? _refinements[level] : 0);
     }
 
+    //@}
 
 protected:
 
@@ -473,21 +513,21 @@ protected:
     void populateLocalIndices() {
         getBaseLevel().populateLocalIndices();
     }
-    
+
 private:
     void catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector);
 
-    template <class T, class U> void interpolateChildVertsFromFaces(Vtr::Refinement const &, T const * src, U * dst) const;
-    template <class T, class U> void interpolateChildVertsFromEdges(Vtr::Refinement const &, T const * src, U * dst) const;
-    template <class T, class U> void interpolateChildVertsFromVerts(Vtr::Refinement const &, T const * src, U * dst) const;
+    template <class T, class U> void interpolateChildVertsFromFaces(Vtr::Refinement const &, T const & src, U & dst) const;
+    template <class T, class U> void interpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst) const;
+    template <class T, class U> void interpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst) const;
 
-    template <class T, class U> void varyingInterpolateChildVertsFromFaces(Vtr::Refinement const &, T const * src, U * dst) const;
-    template <class T, class U> void varyingInterpolateChildVertsFromEdges(Vtr::Refinement const &, T const * src, U * dst) const;
-    template <class T, class U> void varyingInterpolateChildVertsFromVerts(Vtr::Refinement const &, T const * src, U * dst) const;
+    template <class T, class U> void varyingInterpolateChildVertsFromFaces(Vtr::Refinement const &, T const & src, U & dst) const;
+    template <class T, class U> void varyingInterpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst) const;
+    template <class T, class U> void varyingInterpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst) const;
 
-    template <class T, class U> void faceVaryingInterpolateChildVertsFromFaces(Vtr::Refinement const &, T const * src, U * dst, int channel) const;
-    template <class T, class U> void faceVaryingInterpolateChildVertsFromEdges(Vtr::Refinement const &, T const * src, U * dst, int channel) const;
-    template <class T, class U> void faceVaryingInterpolateChildVertsFromVerts(Vtr::Refinement const &, T const * src, U * dst, int channel) const;
+    template <class T, class U> void faceVaryingInterpolateChildVertsFromFaces(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
+    template <class T, class U> void faceVaryingInterpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
+    template <class T, class U> void faceVaryingInterpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
 
 
     void initializePtexIndices() const;
@@ -524,7 +564,7 @@ TopologyRefiner::Interpolate(T const * src, U * dst) const {
 
 template <class T, class U>
 inline void
-TopologyRefiner::Interpolate(int level, T const * src, U * dst) const {
+TopologyRefiner::Interpolate(int level, T const & src, U & dst) const {
 
     assert(level>0 and level<=(int)_refinements.size());
 
@@ -538,7 +578,7 @@ TopologyRefiner::Interpolate(int level, T const * src, U * dst) const {
 template <class T, class U>
 inline void
 TopologyRefiner::interpolateChildVertsFromFaces(
-    Vtr::Refinement const & refinement, T const * src, U * dst) const {
+    Vtr::Refinement const & refinement, T const & src, U & dst) const {
 
     Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_subdivOptions);
 
@@ -563,15 +603,13 @@ TopologyRefiner::interpolateChildVertsFromFaces(
         scheme.ComputeFaceVertexMask(fHood, fMask);
 
         //  Apply the weights to the parent face's vertices:
-        U & vdst = dst[cVert];
-
-        vdst.Clear();
+        dst[cVert].Clear();
 
         for (int i = 0; i < fVerts.size(); ++i) {
 
-            vdst.AddWithWeight(src[fVerts[i]], fVertWeights[i]);
+            dst[cVert].AddWithWeight(src[fVerts[i]], fVertWeights[i]);
 
-            vdst.AddVaryingWithWeight(src[fVerts[i]], fVaryingWeight);
+            dst[cVert].AddVaryingWithWeight(src[fVerts[i]], fVaryingWeight);
         }
     }
 }
@@ -579,7 +617,7 @@ TopologyRefiner::interpolateChildVertsFromFaces(
 template <class T, class U>
 inline void
 TopologyRefiner::interpolateChildVertsFromEdges(
-    Vtr::Refinement const & refinement, T const * src, U * dst) const {
+    Vtr::Refinement const & refinement, T const & src, U & dst) const {
 
     assert(_subdivType == Sdc::TYPE_CATMARK);
     Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_subdivOptions);
@@ -613,14 +651,12 @@ TopologyRefiner::interpolateChildVertsFromEdges(
 
         //  Apply the weights to the parent edges's vertices and (if applicable) to
         //  the child vertices of its incident faces:
-        U & vdst = dst[cVert];
+        dst[cVert].Clear();
+        dst[cVert].AddWithWeight(src[eVerts[0]], eVertWeights[0]);
+        dst[cVert].AddWithWeight(src[eVerts[1]], eVertWeights[1]);
 
-        vdst.Clear();
-        vdst.AddWithWeight(src[eVerts[0]], eVertWeights[0]);
-        vdst.AddWithWeight(src[eVerts[1]], eVertWeights[1]);
-
-        vdst.AddVaryingWithWeight(src[eVerts[0]], 0.5f);
-        vdst.AddVaryingWithWeight(src[eVerts[1]], 0.5f);
+        dst[cVert].AddVaryingWithWeight(src[eVerts[0]], 0.5f);
+        dst[cVert].AddVaryingWithWeight(src[eVerts[1]], 0.5f);
 
         if (eMask.GetNumFaceWeights() > 0) {
 
@@ -628,7 +664,7 @@ TopologyRefiner::interpolateChildVertsFromEdges(
 
                 Vtr::Index cVertOfFace = refinement.getFaceChildVertex(eFaces[i]);
                 assert(Vtr::IndexIsValid(cVertOfFace));
-                vdst.AddWithWeight(dst[cVertOfFace], eFaceWeights[i]);
+                dst[cVert].AddWithWeight(dst[cVertOfFace], eFaceWeights[i]);
             }
         }
     }
@@ -637,7 +673,7 @@ TopologyRefiner::interpolateChildVertsFromEdges(
 template <class T, class U>
 inline void
 TopologyRefiner::interpolateChildVertsFromVerts(
-    Vtr::Refinement const & refinement, T const * src, U * dst) const {
+    Vtr::Refinement const & refinement, T const & src, U & dst) const {
 
     assert(_subdivType == Sdc::TYPE_CATMARK);
     Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_subdivOptions);
@@ -678,9 +714,7 @@ TopologyRefiner::interpolateChildVertsFromVerts(
         //  In order to improve numerical precision, its better to apply smaller weights
         //  first, so begin with the face-weights followed by the edge-weights and the
         //  vertex weight last.
-        U & vdst = dst[cVert];
-
-        vdst.Clear();
+        dst[cVert].Clear();
 
         if (vMask.GetNumFaceWeights() > 0) {
 
@@ -688,7 +722,7 @@ TopologyRefiner::interpolateChildVertsFromVerts(
 
                 Vtr::Index cVertOfFace = refinement.getFaceChildVertex(vFaces[i]);
                 assert(Vtr::IndexIsValid(cVertOfFace));
-                vdst.AddWithWeight(dst[cVertOfFace], vFaceWeights[i]);
+                dst[cVert].AddWithWeight(dst[cVertOfFace], vFaceWeights[i]);
             }
         }
         if (vMask.GetNumEdgeWeights() > 0) {
@@ -698,12 +732,12 @@ TopologyRefiner::interpolateChildVertsFromVerts(
                 Vtr::IndexArray const eVerts = parent.getEdgeVertices(vEdges[i]);
                 Vtr::Index pVertOppositeEdge = (eVerts[0] == vert) ? eVerts[1] : eVerts[0];
 
-                vdst.AddWithWeight(src[pVertOppositeEdge], vEdgeWeights[i]);
+                dst[cVert].AddWithWeight(src[pVertOppositeEdge], vEdgeWeights[i]);
             }
         }
-        vdst.AddWithWeight(src[vert], vVertWeight);
+        dst[cVert].AddWithWeight(src[vert], vVertWeight);
 
-        vdst.AddVaryingWithWeight(src[vert], 1.0f);
+        dst[cVert].AddVaryingWithWeight(src[vert], 1.0f);
     }
 }
 
@@ -728,7 +762,7 @@ TopologyRefiner::InterpolateVarying(T const * src, U * dst) const {
 
 template <class T, class U>
 inline void
-TopologyRefiner::InterpolateVarying(int level, T const * src, U * dst) const {
+TopologyRefiner::InterpolateVarying(int level, T const & src, U & dst) const {
 
     assert(level>0 and level<=(int)_refinements.size());
 
@@ -742,7 +776,7 @@ TopologyRefiner::InterpolateVarying(int level, T const * src, U * dst) const {
 template <class T, class U>
 inline void
 TopologyRefiner::varyingInterpolateChildVertsFromFaces(
-    Vtr::Refinement const & refinement, T const * src, U * dst) const {
+    Vtr::Refinement const & refinement, T const & src, U & dst) const {
 
     const Vtr::Level& parent = refinement.parent();
 
@@ -757,12 +791,10 @@ TopologyRefiner::varyingInterpolateChildVertsFromFaces(
         float fVaryingWeight = 1.0f / (float) fVerts.size();
 
         //  Apply the weights to the parent face's vertices:
-        U & vdst = dst[cVert];
-
-        vdst.Clear();
+        dst[cVert].Clear();
 
         for (int i = 0; i < fVerts.size(); ++i) {
-            vdst.AddVaryingWithWeight(src[fVerts[i]], fVaryingWeight);
+            dst[cVert].AddVaryingWithWeight(src[fVerts[i]], fVaryingWeight);
         }
     }
 }
@@ -770,7 +802,7 @@ TopologyRefiner::varyingInterpolateChildVertsFromFaces(
 template <class T, class U>
 inline void
 TopologyRefiner::varyingInterpolateChildVertsFromEdges(
-    Vtr::Refinement const & refinement, T const * src, U * dst) const {
+    Vtr::Refinement const & refinement, T const & src, U & dst) const {
 
     assert(_subdivType == Sdc::TYPE_CATMARK);
 
@@ -786,19 +818,17 @@ TopologyRefiner::varyingInterpolateChildVertsFromEdges(
         Vtr::IndexArray const eVerts = parent.getEdgeVertices(edge);
 
         //  Apply the weights to the parent edges's vertices
-        U & vdst = dst[cVert];
+        dst[cVert].Clear();
 
-        vdst.Clear();
-
-        vdst.AddVaryingWithWeight(src[eVerts[0]], 0.5f);
-        vdst.AddVaryingWithWeight(src[eVerts[1]], 0.5f);
+        dst[cVert].AddVaryingWithWeight(src[eVerts[0]], 0.5f);
+        dst[cVert].AddVaryingWithWeight(src[eVerts[1]], 0.5f);
     }
 }
 
 template <class T, class U>
 inline void
 TopologyRefiner::varyingInterpolateChildVertsFromVerts(
-    Vtr::Refinement const & refinement, T const * src, U * dst) const {
+    Vtr::Refinement const & refinement, T const & src, U & dst) const {
 
     assert(_subdivType == Sdc::TYPE_CATMARK);
 
@@ -811,10 +841,8 @@ TopologyRefiner::varyingInterpolateChildVertsFromVerts(
             continue;
 
         //  Apply the weights to the parent vertex
-        U & vdst = dst[cVert];
-
-        vdst.Clear();
-        vdst.AddVaryingWithWeight(src[vert], 1.0f);
+        dst[cVert].Clear();
+        dst[cVert].AddVaryingWithWeight(src[vert], 1.0f);
     }
 }
 
@@ -840,7 +868,7 @@ TopologyRefiner::InterpolateFaceVarying(T const * src, U * dst, int channel) con
 
 template <class T, class U>
 inline void
-TopologyRefiner::InterpolateFaceVarying(int level, T const * src, U * dst, int channel) const {
+TopologyRefiner::InterpolateFaceVarying(int level, T const & src, U & dst, int channel) const {
 
     assert(level>0 and level<=(int)_refinements.size());
 
@@ -854,7 +882,7 @@ TopologyRefiner::InterpolateFaceVarying(int level, T const * src, U * dst, int c
 template <class T, class U>
 inline void
 TopologyRefiner::faceVaryingInterpolateChildVertsFromFaces(
-    Vtr::Refinement const & refinement, T const * src, U * dst, int channel) const {
+    Vtr::Refinement const & refinement, T const & src, U & dst, int channel) const {
 
     Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_subdivOptions);
 
@@ -882,12 +910,10 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromFaces(
         scheme.ComputeFaceVertexMask(fHood, fMask);
 
         //  Apply the weights to the parent face's vertices:
-        U & vdst = dst[cVert];
-
-        vdst.Clear();
+        dst[cVert].Clear();
 
         for (int i = 0; i < fValues.size(); ++i) {
-            vdst.AddWithWeight(src[fValues[i]], fValueWeights[i]);
+            dst[cVert].AddWithWeight(src[fValues[i]], fValueWeights[i]);
         }
     }
 }
@@ -895,7 +921,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromFaces(
 template <class T, class U>
 inline void
 TopologyRefiner::faceVaryingInterpolateChildVertsFromEdges(
-    Vtr::Refinement const & refinement, T const * src, U * dst, int channel) const {
+    Vtr::Refinement const & refinement, T const & src, U & dst, int channel) const {
 
     assert(_subdivType == Sdc::TYPE_CATMARK);
     Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_subdivOptions);
@@ -980,11 +1006,9 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromEdges(
                 parentFVar.getEdgeFaceValues(edge, 0, eVertValues);
             }
 
-            U & vdst = dst[cVert];
-
-            vdst.Clear();
-            vdst.AddWithWeight(src[eVertValues[0]], eVertWeights[0]);
-            vdst.AddWithWeight(src[eVertValues[1]], eVertWeights[1]);
+            dst[cVert].Clear();
+            dst[cVert].AddWithWeight(src[eVertValues[0]], eVertWeights[0]);
+            dst[cVert].AddWithWeight(src[eVertValues[1]], eVertWeights[1]);
 
             if (eMask.GetNumFaceWeights() > 0) {
 
@@ -994,7 +1018,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromEdges(
 
                     Vtr::Index cVertOfFace = refinement.getFaceChildVertex(eFaces[i]);
                     assert(Vtr::IndexIsValid(cVertOfFace));
-                    vdst.AddWithWeight(dst[cVertOfFace], eFaceWeights[i]);
+                    dst[cVert].AddWithWeight(dst[cVertOfFace], eFaceWeights[i]);
                 }
             }
         } else {
@@ -1013,11 +1037,11 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromEdges(
 
                 parentFVar.getEdgeFaceValues(edge, eFaceIndex, eVertValues);
 
-                U & vdst = dst[childFVar.getVertexValue(cVert, i)];
+                Index idx = childFVar.getVertexValue(cVert, i);
 
-                vdst.Clear();
-                vdst.AddWithWeight(src[eVertValues[0]], 0.5);
-                vdst.AddWithWeight(src[eVertValues[1]], 0.5);
+                dst[idx].Clear();
+                dst[idx].AddWithWeight(src[eVertValues[0]], 0.5);
+                dst[idx].AddWithWeight(src[eVertValues[1]], 0.5);
             }
         }
     }
@@ -1026,7 +1050,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromEdges(
 template <class T, class U>
 inline void
 TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
-    Vtr::Refinement const & refinement, T const * src, U * dst, int channel) const {
+    Vtr::Refinement const & refinement, T const & src, U & dst, int channel) const {
 
     assert(_subdivType == Sdc::TYPE_CATMARK);
     Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_subdivOptions);
@@ -1057,10 +1081,8 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
             Vtr::Index pVertValue = parentFVar.getVertexValue(vert);
             Vtr::Index cVertValue = cVert;
 
-            U & vdst = dst[cVertValue];
-
-            vdst.Clear();
-            vdst.AddWithWeight(src[pVertValue], 1.0f);
+            dst[cVertValue].Clear();
+            dst[cVertValue].AddWithWeight(src[pVertValue], 1.0f);
             continue;
         }
 
@@ -1113,9 +1135,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
             Vtr::Index pVertValue = parentFVar.getVertexValue(vert);
             Vtr::Index cVertValue = cVert;
 
-            U & vdst = dst[cVertValue];
-
-            vdst.Clear();
+            dst[cVertValue].Clear();
             if (vMask.GetNumFaceWeights() > 0) {
 
                 Vtr::IndexArray const vFaces = parent.getVertexFaces(vert);
@@ -1124,7 +1144,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
 
                     Vtr::Index cVertOfFace = refinement.getFaceChildVertex(vFaces[i]);
                     assert(Vtr::IndexIsValid(cVertOfFace));
-                    vdst.AddWithWeight(dst[cVertOfFace], vFaceWeights[i]);
+                    dst[cVertValue].AddWithWeight(dst[cVertOfFace], vFaceWeights[i]);
                 }
             }
             if (vMask.GetNumEdgeWeights() > 0) {
@@ -1136,18 +1156,18 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
                         Vtr::IndexArray const eVerts = parent.getEdgeVertices(vEdges[i]);
                         Vtr::Index pVertOppositeEdge = (eVerts[0] == vert) ? eVerts[1] : eVerts[0];
 
-                        vdst.AddWithWeight(src[pVertOppositeEdge], vEdgeWeights[i]);
+                        dst[cVertValue].AddWithWeight(src[pVertOppositeEdge], vEdgeWeights[i]);
                     }
                 } else {
                     parentFVar.getVertexEdgeValues(vert, vEdgeValues);
 
                     for (int i = 0; i < vEdges.size(); ++i) {
-                        vdst.AddWithWeight(src[vEdgeValues[i]], vEdgeWeights[i]);
+                        dst[cVertValue].AddWithWeight(src[vEdgeValues[i]], vEdgeWeights[i]);
                     }
                 }
 
             }
-            vdst.AddWithWeight(src[pVertValue], vVertWeight);
+            dst[cVertValue].AddWithWeight(src[pVertValue], vVertWeight);
         } else {
             //
             //  Each FVar value associated with a vertex will be either a corner or a crease,
@@ -1163,11 +1183,9 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
                 Vtr::Index pVertValue = parentFVar.getVertexValue(vert, pSibling);
                 Vtr::Index cVertValue = childFVar.getVertexValue(cVert, cSibling);
 
-                U & vdst = dst[cVertValue];
-
-                vdst.Clear();
+                dst[cVertValue].Clear();
                 if (childFVar.isValueCorner(childFVar.getVertexValueIndex(cVert, cSibling))) {
-                    vdst.AddWithWeight(src[pVertValue], 1.0f);
+                    dst[cVertValue].AddWithWeight(src[pVertValue], 1.0f);
                 } else {
                     //
                     //  We have either a crease or a transition from corner to crease -- in
@@ -1186,9 +1204,9 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
                         vWeight = wCrease * 0.75f + wCorner;
                         eWeight = wCrease * 0.125f;
                     }
-                    vdst.AddWithWeight(src[pEndValues[0]], eWeight);
-                    vdst.AddWithWeight(src[pEndValues[1]], eWeight);
-                    vdst.AddWithWeight(src[pVertValue], vWeight);
+                    dst[cVertValue].AddWithWeight(src[pEndValues[0]], eWeight);
+                    dst[cVertValue].AddWithWeight(src[pEndValues[1]], eWeight);
+                    dst[cVertValue].AddWithWeight(src[pVertValue], vWeight);
                 }
             }
         }
@@ -1197,7 +1215,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
 
 template <class T, class U>
 inline void
-TopologyRefiner::Limit(T const * src, U * dst) const {
+TopologyRefiner::Limit(T const & src, U * dst) const {
 
     //
     //  Work in progress...
@@ -1244,9 +1262,8 @@ TopologyRefiner::Limit(T const * src, U * dst) const {
         //  numerical precision, its better to apply smaller weights first, so
         //  begin with the face-weights followed by the edge-weights and the vertex
         //  weight last.
-        U & vdst = dst[vert];
 
-        vdst.Clear();
+        dst[vert].Clear();
         if (vMask.GetNumFaceWeights() > 0) {
             IndexArray const      vFaces = level.getVertexFaces(vert);
             LocalIndexArray const vInFace = level.getVertexFaceLocalIndices(vert);
@@ -1254,7 +1271,7 @@ TopologyRefiner::Limit(T const * src, U * dst) const {
                 LocalIndex vOppInFace = (vInFace[i] + 2) & 3;
                 Index      vertOppositeFace = level.getFaceVertices(vFaces[i])[vOppInFace];
 
-                vdst.AddWithWeight(src[vertOppositeFace], fWeights[i]);
+                dst[vert].AddWithWeight(src[vertOppositeFace], fWeights[i]);
             }
         }
         if (vMask.GetNumEdgeWeights() > 0) {
@@ -1262,16 +1279,16 @@ TopologyRefiner::Limit(T const * src, U * dst) const {
                 IndexArray const eVerts = level.getEdgeVertices(vEdges[i]);
                 Index vertOppositeEdge = (eVerts[0] == vert) ? eVerts[1] : eVerts[0];
 
-                vdst.AddWithWeight(src[vertOppositeEdge], eWeights[i]);
+                dst[vert].AddWithWeight(src[vertOppositeEdge], eWeights[i]);
             }
         }
-        vdst.AddWithWeight(src[vert], vWeights[0]);
+        dst[vert].AddWithWeight(src[vert], vWeights[0]);
     }
 }
 
 template <class T, class U>
 inline void
-TopologyRefiner::LimitFaceVarying(T const * src, U * dst, int channel) const {
+TopologyRefiner::LimitFaceVarying(T const & src, U * dst, int channel) const {
 
     assert(_subdivType == Sdc::TYPE_CATMARK);
     Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_subdivOptions);
@@ -1295,10 +1312,8 @@ TopologyRefiner::LimitFaceVarying(T const * src, U * dst, int channel) const {
             Vtr::Index srcValueIndex = fvarChannel.getVertexValue(vert);
             Vtr::Index dstValueIndex = vert;
 
-            U & vdst = dst[dstValueIndex];
-
-            vdst.Clear();
-            vdst.AddWithWeight(src[srcValueIndex], 1.0f);
+            dst[dstValueIndex].Clear();
+            dst[dstValueIndex].AddWithWeight(src[srcValueIndex], 1.0f);
         } else if (fvarVertMatchesVertex) {
             //
             //  Compute the limit mask based on vertex topology:
@@ -1320,9 +1335,7 @@ TopologyRefiner::LimitFaceVarying(T const * src, U * dst, int channel) const {
             //
             Vtr::Index vVertValue = fvarChannel.getVertexValue(vert);
 
-            U & vdst = dst[vVertValue];
-
-            vdst.Clear();
+            dst[vVertValue].Clear();
             if (vMask.GetNumFaceWeights() > 0) {
                 IndexArray const      vFaces = level.getVertexFaces(vert);
                 LocalIndexArray const vInFace = level.getVertexFaceLocalIndices(vert);
@@ -1331,7 +1344,7 @@ TopologyRefiner::LimitFaceVarying(T const * src, U * dst, int channel) const {
                     LocalIndex vOppInFace = (vInFace[i] + 2) & 3;
                     Index      vValueOppositeFace = fvarChannel.getFaceValues(vFaces[i])[vOppInFace];
 
-                    vdst.AddWithWeight(src[vValueOppositeFace], fWeights[i]);
+                    dst[vVertValue].AddWithWeight(src[vValueOppositeFace], fWeights[i]);
                 }
             }
             if (vMask.GetNumEdgeWeights() > 0) {
@@ -1339,10 +1352,10 @@ TopologyRefiner::LimitFaceVarying(T const * src, U * dst, int channel) const {
                 fvarChannel.getVertexEdgeValues(vert, vEdgeValues);
 
                 for (int i = 0; i < vEdges.size(); ++i) {
-                    vdst.AddWithWeight(src[vEdgeValues[i]], eWeights[i]);
+                    dst[vVertValue].AddWithWeight(src[vEdgeValues[i]], eWeights[i]);
                 }
             }
-            vdst.AddWithWeight(src[vVertValue], vWeights[0]);
+            dst[vVertValue].AddWithWeight(src[vVertValue], vWeights[0]);
         } else {
             //
             //  Sibling FVar values associated with a vertex will be either a corner or a crease:
@@ -1350,18 +1363,16 @@ TopologyRefiner::LimitFaceVarying(T const * src, U * dst, int channel) const {
             for (int vSibling = 0; vSibling < fvarChannel.getNumVertexValues(vert); ++vSibling) {
                 Vtr::Index vVertValue = fvarChannel.getVertexValue(vert, vSibling);
 
-                U & vdst = dst[vVertValue];
-
-                vdst.Clear();
+                dst[vVertValue].Clear();
                 if (fvarChannel.isValueCorner(fvarChannel.getVertexValueIndex(vert, vSibling))) {
-                    vdst.AddWithWeight(src[vVertValue], 1.0f);
+                    dst[vVertValue].AddWithWeight(src[vVertValue], 1.0f);
                 } else {
                     Index vEndValues[2];
                     fvarChannel.getVertexCreaseEndValues(vert, vSibling, vEndValues);
 
-                    vdst.AddWithWeight(src[vEndValues[0]], 1.0f/6.0f);
-                    vdst.AddWithWeight(src[vEndValues[1]], 1.0f/6.0f);
-                    vdst.AddWithWeight(src[vVertValue], 2.0f/3.0f);
+                    dst[vVertValue].AddWithWeight(src[vEndValues[0]], 1.0f/6.0f);
+                    dst[vVertValue].AddWithWeight(src[vEndValues[1]], 1.0f/6.0f);
+                    dst[vVertValue].AddWithWeight(src[vVertValue], 2.0f/3.0f);
                 }
             }
         }
