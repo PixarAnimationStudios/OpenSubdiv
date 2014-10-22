@@ -1115,7 +1115,8 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
+    SSAOGLFrameBuffer * fb = (SSAOGLFrameBuffer *)g_hud.GetFrameBuffer();
+    fb->Bind();
 
     Stopwatch s;
     s.Start();
@@ -1134,7 +1135,7 @@ display() {
     translate(g_transformData.ModelViewMatrix,
               -g_center[0], -g_center[1], -g_center[2]);
     perspective(g_transformData.ProjectionMatrix,
-                45.0f, (float)aspect, 1.0f, 500.0f);
+                45.0f, (float)aspect, fb->IsActive() ? 1.0f : 0.0001f, 500.0f);
     multMatrix(g_transformData.ModelViewProjectionMatrix,
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
@@ -1255,7 +1256,7 @@ display() {
     if (g_drawCageVertices)
         drawCageVertices();
 
-    g_hud.GetFrameBuffer()->ApplyImageShader();
+    fb->ApplyImageShader();
 
     GLuint numPrimsGenerated = 0;
     GLuint timeElapsed = 0;
