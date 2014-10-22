@@ -649,8 +649,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
     {
         OpenSubdiv::Far::StencilTablesFactory::Options options;
         options.generateOffsets=true;
-        options.generateAllLevels=true;
-        options.sortBySize=false;
+        options.generateIntermediateLevels=true;
 
         OpenSubdiv::Far::StencilTables const * stencilTables =
             OpenSubdiv::Far::StencilTablesFactory::Create(*refiner, options);
