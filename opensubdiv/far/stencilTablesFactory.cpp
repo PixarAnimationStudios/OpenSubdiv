@@ -86,9 +86,11 @@ public:
     // Adds the contribution of a supporting vertex that was not yet
     // in the stencil
     void PushBackVertex(Index stencil, Index vert, float weight) {
+        assert(weight!=0.0f);
         unsigned char & size = _sizes[stencil];
-        Index idx = stencil * _maxsize + size;
+        Index idx = stencil*_maxsize;
         if (size < (_maxsize-1)) {
+            idx += size;
             _indices[idx] = vert;
             _weights[idx] = weight;
         } else {
@@ -210,10 +212,11 @@ public:
 
     void PushBackVertex(Index stencil,
         Index vert, float weight, float tan1Weight, float tan2Weight) {
-
+        assert(weight!=0.0f);
         unsigned char & size = this->_sizes[stencil];
-        Index idx = stencil * this->_maxsize + size;
+        Index idx = stencil*this->_maxsize;
         if (size < (this->_maxsize-1)) {
+            idx += size;
             this->_indices[idx] = vert;
             this->_weights[idx] = weight;
             this->_tan1Weights[idx] = tan1Weight;
