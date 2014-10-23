@@ -380,7 +380,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         if (not g_cudaComputeController) {
             g_cudaComputeController = new OpenSubdiv::Osd::CudaComputeController();
         }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::OsdCudaD3D11VertexBuffer,
+        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaD3D11VertexBuffer,
                                          OpenSubdiv::Osd::CudaComputeController,
                                          OpenSubdiv::Osd::D3D11DrawContext>(
                                                 g_cudaComputeController,
