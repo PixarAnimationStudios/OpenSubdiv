@@ -230,8 +230,8 @@ vec4 PtexLookupQuadratic(out vec4 du,
     d[8] = texelFetch(data, ivec3(cX+1, cY+1, ppack.page), 0);
 
     float B[3], D[3];
-    vec4 BUCP[3] = vec4[3](vec4(0,0,0), vec4(0,0,0), vec4(0,0,0)),
-         DUCP[3] = vec4[3](vec4(0,0,0), vec4(0,0,0), vec4(0,0,0));
+    vec4 BUCP[3] = vec4[3](vec4(0,0,0,0), vec4(0,0,0,0), vec4(0,0,0,0)),
+         DUCP[3] = vec4[3](vec4(0,0,0,0), vec4(0,0,0,0), vec4(0,0,0,0));
     evalQuadraticBSpline(y, B, D);
 
     for (int i = 0; i < 3; ++i) {
