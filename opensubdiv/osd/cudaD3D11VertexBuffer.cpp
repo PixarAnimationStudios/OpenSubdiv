@@ -141,6 +141,7 @@ CudaD3D11VertexBuffer::unmap() {
     _cudaBuffer = NULL;
 }
 
+}  // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
