@@ -131,8 +131,9 @@ Stopwatch g_fpsTimer;
 //------------------------------------------------------------------------------
 int g_nparticles=0,
     g_nsamples=101,
-    g_nsamplesFound=0,
-    g_randomStart=1;
+    g_nsamplesFound=0;
+
+bool g_randomStart=true;
 
 GLuint g_cageEdgeVAO = 0,
        g_cageEdgeVBO = 0,
