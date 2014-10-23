@@ -82,9 +82,11 @@ in block {
 
 out block {
     ControlVertex v;
+#if defined OSD_PATCH_SINGLE_CREASE
     vec4 P1;
     vec4 P2;
     float sharpness;
+#endif
     OSD_USER_VARYING_DECLARE
 } outpt[];
 
@@ -275,9 +277,11 @@ void main()
 
 in block {
     ControlVertex v;
+#if defined OSD_PATCH_SINGLE_CREASE
     vec4 P1;
     vec4 P2;
     float sharpness;
+#endif
     OSD_USER_VARYING_DECLARE
 } inpt[];
 
