@@ -287,7 +287,7 @@ public:
 
         initializeComputeContext(numVertexElements, numVaryingElements);
 
-        initializeDrawContext(numElements, bits);
+        initializeDrawContext(numElements, level, bits);
     }
 
     Mesh(ComputeController * computeController,
@@ -413,11 +413,11 @@ private:
         delete varyingStencils;
     }
 
-    void initializeDrawContext(int numElements, MeshBitset bits) {
+    void initializeDrawContext(int numElements, int level, MeshBitset bits) {
 
         assert(_refiner and _vertexBuffer);
 
-        Far::PatchTablesFactory::Options options;
+        Far::PatchTablesFactory::Options options(level);
         options.generateFVarTables = bits.test(MeshFVarData);
 
         _patchTables = Far::PatchTablesFactory::Create(*_refiner);
