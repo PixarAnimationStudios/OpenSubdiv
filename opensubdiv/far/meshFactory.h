@@ -311,25 +311,6 @@ FarMeshFactory<T,U>::refine( HbrMesh<T> * mesh, int maxlevel ) {
 
                 if (not f->IsHole()) {
                     f->Refine();
-                } else {
-
-                    // Hole faces need to maintain the 1-ring of vertices so we
-                    // have to create an extra row of children faces around the
-                    // hole.
-                    HbrHalfedge<T> * e = f->GetFirstEdge();
-                    for (int j=0; j<f->GetNumVertices(); ++j) {
-                        assert(e);
-                        if (e->GetRightFace() and (not e->GetRightFace()->IsHole())) {
-
-                            // RefineFaceAtVertex only creates a single child face
-                            // centered on the passed vertex
-                            HbrSubdivision<T> * s = mesh->GetSubdivision();
-                            s->RefineFaceAtVertex(mesh,f,e->GetOrgVertex());
-                            s->RefineFaceAtVertex(mesh,f,e->GetDestVertex());
-                        }
-
-                        e = e->GetNext();
-                    }
                 }
             }
         }
