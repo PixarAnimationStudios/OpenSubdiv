@@ -385,7 +385,7 @@ GLFrameBuffer::Screenshot() const {
 
 
 SSAOGLFrameBuffer::SSAOGLFrameBuffer() :
-              _active(1),
+              _active(0),
               _radius(0),
               _scale(0),
               _gamma(0),
@@ -399,22 +399,24 @@ static const char *g_ssaoShaderSource =
 void
 SSAOGLFrameBuffer::Init(int width, int height) {
 
-    setProgram( compileProgram(g_ssaoShaderSource) );
-
     GLFrameBuffer::Init(width, height);
 
-    GLuint program = getProgram();
+    if (_active) {
+        setProgram( compileProgram(g_ssaoShaderSource) );
 
-    glUseProgram(program);
-    _radius = glGetUniformLocation(program, "radius");
-    _scale = glGetUniformLocation(program, "scale");
-    _gamma = glGetUniformLocation(program, "gamma");
-    _contrast = glGetUniformLocation(program, "contrast");
+        GLuint program = getProgram();
 
-    SetRadius(0.01f);
-    SetScale(300.0f);
-    SetContrast(1.0f);
-    SetGamma(1.0f);
+        glUseProgram(program);
+        _radius = glGetUniformLocation(program, "radius");
+        _scale = glGetUniformLocation(program, "scale");
+        _gamma = glGetUniformLocation(program, "gamma");
+        _contrast = glGetUniformLocation(program, "contrast");
+
+        SetRadius(0.01f);
+        SetScale(300.0f);
+        SetContrast(1.0f);
+        SetGamma(1.0f);
+    }
 
     checkGLErrors("SSAOGLFrameBuffer::Init");
 }
