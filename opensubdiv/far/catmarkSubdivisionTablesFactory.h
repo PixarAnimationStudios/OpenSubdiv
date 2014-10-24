@@ -548,9 +548,12 @@ FarCatmarkSubdivisionTablesFactory<T,U>::CompareVertices( HbrVertex<T> const * x
     assert( rankx!=0xFF and ranky!=0xFF );
 
     // Arrange regular vertices before irregular vertices within the same kernel
-    if ((rankx <= 2 and ranky <= 2) or (rankx >= 3 and rankx <= 7 and ranky >= 3 and ranky <= 7) or (rankx >= 8 and ranky >= 8))
-        return x->GetValence() == 4 and y->GetValence() != 4;
-    else
+    if ((rankx <= 2 and ranky <= 2) or (rankx >= 3 and rankx <= 7 and
+         ranky >= 3 and ranky <= 7) or (rankx >= 8 and ranky >= 8)) {
+         int v0 = x->IsSingular() ? 0 : x->GetValence(),
+             v1 = y->IsSingular() ? 0 : y->GetValence();
+        return v0 == 4 and v1 != 4;
+    } else
         return rankx < ranky;
 }
 
