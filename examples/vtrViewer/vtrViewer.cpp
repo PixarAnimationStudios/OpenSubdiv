@@ -949,7 +949,7 @@ reshape(GLFWwindow *, int width, int height) {
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
-    g_hud.Rebuild(windowWidth, windowHeight);
+    g_hud.Rebuild(windowWidth, windowHeight, width, height);
 }
 
 //------------------------------------------------------------------------------
@@ -1075,11 +1075,13 @@ static void
 initHUD()
 {
     int windowWidth = g_width, windowHeight = g_height;
+    int frameBufferWidth = g_width, frameBufferHeight = g_height;
 
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+    glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 
-    g_hud.Init(windowWidth, windowHeight);
+    g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
     g_hud.SetFrameBuffer(new GLFrameBuffer);
 

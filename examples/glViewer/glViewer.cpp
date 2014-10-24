@@ -1671,7 +1671,7 @@ initHUD()
 
     g_hud.AddCheckBox("Show patch counts", g_displayPatchCounts!=0, -280, -20, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COUNTS);
 
-    g_hud.Rebuild(g_width, g_height);
+    g_hud.Rebuild(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 }
 
 //------------------------------------------------------------------------------

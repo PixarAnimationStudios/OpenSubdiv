@@ -797,7 +797,7 @@ reshape(GLFWwindow *, int width, int height) {
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
-    g_hud.Rebuild(windowWidth, windowHeight);
+    g_hud.Rebuild(windowWidth, windowHeight, width, height);
 }
 
 //------------------------------------------------------------------------------

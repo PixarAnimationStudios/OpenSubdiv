@@ -1276,7 +1276,7 @@ reshape(GLFWwindow *, int width, int height) {
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
-    g_hud.Rebuild(windowWidth, windowHeight);
+    g_hud.Rebuild(windowWidth, windowHeight, width, height);
 }
 
 //------------------------------------------------------------------------------
@@ -1432,7 +1432,7 @@ initHUD() {
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
     glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 
-    g_hud.Init(windowWidth, windowHeight);
+    g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
     g_hud.SetFrameBuffer(new GLFrameBuffer);
 
@@ -1484,7 +1484,7 @@ initHUD() {
         g_hud.AddRadioButton(3, level, i==2, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
     }
 
-    g_hud.Rebuild(g_width, g_height);
+    g_hud.Rebuild(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 }
 
 //------------------------------------------------------------------------------

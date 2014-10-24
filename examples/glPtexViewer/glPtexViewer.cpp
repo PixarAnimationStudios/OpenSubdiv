@@ -537,7 +537,7 @@ reshape(GLFWwindow *, int width, int height) {
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
-    g_hud.Rebuild(windowWidth, windowHeight);
+    g_hud.Rebuild(windowWidth, windowHeight, width, height);
 
     // resize framebuffers
     glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
@@ -2468,7 +2468,7 @@ int main(int argc, char ** argv) {
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
-    g_hud.Init(windowWidth, windowHeight);
+    g_hud.Init(windowWidth, windowHeight, g_width, g_height);
 
     if (occlusionFilename != NULL) {
         g_hud.AddCheckBox("Ambient Occlusion (A)", g_occlusion,

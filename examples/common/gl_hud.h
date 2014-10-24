@@ -37,14 +37,6 @@ public:
     GLhud();
     ~GLhud();
 
-    void Init(int width, int height) {
-        Init(width, height, width, height);
-    }
-
-    void Rebuild(int width, int height) {
-        Rebuild(width, height, width, height);
-    }
-
     virtual void Init(int width, int height, int framebufferWidth, int framebufferHeight);
 
     virtual void Rebuild(int width, int height,
