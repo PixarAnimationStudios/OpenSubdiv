@@ -1210,8 +1210,15 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
                     float vWeight = 0.75f;
                     float eWeight = 0.125f;
 
-                    if (parentFVar.isValueSemiSharp(parentFVar.getVertexValueIndex(vert, pSibling))) {
-                        float wCorner = refineFVar.getFractionalWeight(vert, pSibling, cVert, cSibling);
+                    int pVertValueIndex = parentFVar.getVertexValueIndex(vert, pSibling);
+                    if (parentFVar.isValueSemiSharp(pVertValueIndex)) {
+                        //
+                        //  If made sharp because of the other sibling, use the fractional weight
+                        //  from that other sibling (should only occur when there are 2):
+                        //
+                        float wCorner = parentFVar.isValueDepSharp(pVertValueIndex)
+                                      ? refineFVar.getFractionalWeight(vert, !pSibling, cVert, !cSibling)
+                                      : refineFVar.getFractionalWeight(vert, pSibling, cVert, cSibling);
                         float wCrease = 1.0f - wCorner;
 
                         vWeight = wCrease * 0.75f + wCorner;

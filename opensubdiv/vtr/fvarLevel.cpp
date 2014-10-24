@@ -49,7 +49,11 @@ namespace Vtr {
 //  Simple (for now) constructor and destructor:
 //
 FVarLevel::FVarLevel(Level const& level) :
-    _level(level), _isLinear(false), _hasSmoothBoundaries(false), _valueCount(0) {
+    _level(level),
+    _isLinear(false),
+    _hasSmoothBoundaries(false),
+    _hasDependentSharpness(false),
+    _valueCount(0) {
 }
 
 FVarLevel::~FVarLevel() {
@@ -108,7 +112,8 @@ FVarLevel::completeTopologyFromFaceValues() {
     //
     //  Given the growing number of options and behaviors to support, this is likely going
     //  to get another pass.  It may be worth identifying the behavior for each "feature",
-    //  i.e. determine smooth or sharp for corners, creases and darts...
+    //  i.e. determine smooth or sharp for corners, creases and darts, but the fact that
+    //  the rule for one value may be dependent on that of another complicates this.
     //
     using Sdc::Options;
 
@@ -120,35 +125,17 @@ FVarLevel::completeTopologyFromFaceValues() {
     _hasSmoothBoundaries = (fvarOptions != Options::FVAR_LINEAR_ALL) &&
                            (fvarOptions != Options::FVAR_LINEAR_BOUNDARIES);
 
+    _hasDependentSharpness = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS1) ||
+                             (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS2);
+
     bool geomCornersAreSmooth = (geomOptions != Options::VVAR_BOUNDARY_EDGE_AND_CORNER);
     bool fvarCornersAreSharp  = (fvarOptions != Options::FVAR_LINEAR_NONE);
 
     bool makeCornersSharp = geomCornersAreSmooth && fvarCornersAreSharp;
 
-    //
-    //  Two "options" conditionally sharpen all values for a vertex depending on the collective topology
-    //  around the vertex rather than of the topology of the value itself within its disjoint region.
-    //
-    //  Historically Hbr will sharpen all values if there are more than 3 values associated with a vertex
-    //  (making at least 3 discts or boundary edges) while the option to sharpen corners is enabled.  This
-    //  is still being done for now but is not desirable in some cases and may become optional (consider
-    //  two adjacent UV sets with smooth UV boundaries, then splitting one of them in two -- the other
-    //  UV set will have its boundary sharpened at the vertex where the other was split).
-    //
-    //  The "propogate corners" associated with the smooth boundary and sharp corners option will sharpen
-    //  all values if any one is a corner.  This preserves the sharpness of a concave corner in regular
-    //  areas where one face is made a corner.  Since the above option has historically sharpened all
-    //  values in cases where there are more than 2 values at a vertex, its unclear what the intent of
-    //  "propagate corners" is if more than 2 are present.
-    //
-    bool cornersPlus1 = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS1);
-    bool cornersPlus2 = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS2);
+    bool sharpenBothIfOneCorner  = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS2);
 
-    bool considerEntireVertex = cornersPlus1 || cornersPlus2;
-
-    bool sharpenAllIfMoreThan2 = considerEntireVertex;
-    bool sharpenAllIfAnyCorner = cornersPlus2;
-    bool sharpenDarts          = cornersPlus2 || !_hasSmoothBoundaries;
+    bool sharpenDarts = sharpenBothIfOneCorner || !_hasSmoothBoundaries;
 
     //
     //  Its awkward and potentially inefficient to try and accomplish everything in one
@@ -324,6 +311,9 @@ FVarLevel::completeTopologyFromFaceValues() {
     ValueTag valueTagSemiSharp = valueTagMismatch;
     valueTagSemiSharp._semiSharp = true;
 
+    ValueTag valueTagDepSharp = valueTagSemiSharp;
+    valueTagDepSharp._depSharp = true;
+
     for (int vIndex = 0; vIndex < _level.getNumVertices(); ++vIndex) {
         IndexArray const      vFaces  = _level.getVertexFaces(vIndex);
         LocalIndexArray const vInFace = _level.getVertexFaceLocalIndices(vIndex);
@@ -371,7 +361,7 @@ FVarLevel::completeTopologyFromFaceValues() {
 
         bool allCornersAreSharp = !_hasSmoothBoundaries ||
                                   Sdc::Crease::IsInfinite(vSharpness) ||
-                                  (sharpenAllIfMoreThan2 && (vValueCount > 2)) ||
+                                  (_hasDependentSharpness && (vValueCount > 2)) ||
                                   (sharpenDarts && (vValueCount == 1) && !vIsBoundary) ||
                                    _level._vertTags[vIndex]._nonManifold;
         if (allCornersAreSharp) {
@@ -379,10 +369,8 @@ FVarLevel::completeTopologyFromFaceValues() {
         }
 
         //
-        //  Values may be a mix of sharp corners and smooth boundaries...
-        //
-        //  Gather information about the "span" of faces for each value.  Use the results
-        //  in one last chance for all values to be made sharp via interpolation options...
+        //  Values may be a mix of sharp corners and smooth boundaries -- start by
+        //  gathering information about the "span" of faces for each value:
         //
         assert(sizeof(ValueSpan) <= sizeof(int));
         ValueSpan * vValueSpans = (ValueSpan *) indexBuffer;
@@ -390,43 +378,58 @@ FVarLevel::completeTopologyFromFaceValues() {
 
         gatherValueSpans(vIndex, vValueSpans);
 
-        bool testForSmoothBoundaries = true;
-        if (sharpenAllIfAnyCorner) {
-            for (int i = 0; i < vValueCount; ++i) {
-                if (vValueSpans[i]._size == 1) {
-                    testForSmoothBoundaries = false;
-                    break;
-                }
+        //
+        //  Spans are identified as sharp (disjoint) or smooth based on their own local
+        //  topology, but depending on the specified options, the sharpness of one span
+        //  may be dependent on the sharpness of another.  Mark both as infinitely sharp
+        //  where possible to avoid re-assessing this dependency as sharpness is reduced
+        //  during refinement.
+        //
+        allCornersAreSharp = false;
+
+        bool hasDependentValuesToSharpen = false;
+        if (_hasDependentSharpness && (vValueCount == 2)) {
+            //  Detect interior inf-sharp (or discts) edge:
+            allCornersAreSharp = vValueSpans[0]._disjoint || vValueSpans[1]._disjoint;
+
+            //  Detect a sharp corner, making both sharp:
+            if (sharpenBothIfOneCorner) {
+                allCornersAreSharp |= (vValueSpans[0]._size == 1) || (vValueSpans[1]._size == 1);
             }
+
+            //  If only one semi-sharp, need to mark the other as dependent on it:
+            hasDependentValuesToSharpen = vValueSpans[0]._semiSharp != vValueSpans[1]._semiSharp;
+        }
+        if (allCornersAreSharp) {
+            continue;
         }
 
         //
-        //  Test each vertex value to determine if it is a smooth boundary (crease) -- if not
-        //  disjoint and not a sharp corner, tag as a smooth boundary and identify its ends.
-        //  Note if semi-sharp, and do not tag it as a crease now -- the refinement will tag
-        //  it once all sharpness has decayed to zero:
+        //  Inspect each vertex value to determine if it is a smooth boundary (crease) and tag
+        //  it accordingly.  If not semi-sharp, be sure to consider those values sharpened by
+        //  the topology of other values.
         //
-        if (testForSmoothBoundaries) {
-            for (int i = 0; i < vValueCount; ++i) {
-                ValueSpan& vSpan = vValueSpans[i];
+        for (int i = 0; i < vValueCount; ++i) {
+            ValueSpan& vSpan = vValueSpans[i];
 
-                if (!vSpan._disjoint && ((vSpan._size > 1) || !fvarCornersAreSharp)) {
-                    Index valueIndex = (i == 0) ? vIndex : (vSiblingOffset + i - 1);
+            if (!vSpan._disjoint && ((vSpan._size > 1) || !fvarCornersAreSharp)) {
+                Index valueIndex = (i == 0) ? vIndex : (vSiblingOffset + i - 1);
 
-                    if ((vSpan._semiSharp > 0) || (vSharpness > 0)) {
-                        _vertValueTags[valueIndex] = valueTagSemiSharp;
-                    } else {
-                        _vertValueTags[valueIndex] = valueTagCrease;
-                    }
+                if ((vSpan._semiSharp > 0) || Sdc::Crease::IsSharp(vSharpness)) {
+                    _vertValueTags[valueIndex] = valueTagSemiSharp;
+                } else if (hasDependentValuesToSharpen) {
+                    _vertValueTags[valueIndex] = valueTagDepSharp;
+                } else {
+                    _vertValueTags[valueIndex] = valueTagCrease;
+                }
 
-                    LocalIndex * endFaces = &_vertValueCreaseEnds[2 * valueIndex];
+                LocalIndex * endFaces = &_vertValueCreaseEnds[2 * valueIndex];
 
-                    endFaces[0] = vSpan._start;
-                    if ((i == 0) && (vSpan._start != 0)) {
-                        endFaces[1] = (LocalIndex) (vSpan._start + vSpan._size - 1 - vFaces.size());
-                    } else {
-                        endFaces[1] = vSpan._start + vSpan._size - 1;
-                    }
+                endFaces[0] = vSpan._start;
+                if ((i == 0) && (vSpan._start != 0)) {
+                    endFaces[1] = (LocalIndex) (vSpan._start + vSpan._size - 1 - vFaces.size());
+                } else {
+                    endFaces[1] = vSpan._start + vSpan._size - 1;
                 }
             }
         }

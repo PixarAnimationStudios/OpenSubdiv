@@ -77,9 +77,10 @@ FVarRefinement::applyRefinement() {
     //
     //  Transfer basic properties from the parent to child level:
     //
-    _child->_options             = _parent->_options;
-    _child->_isLinear            = _parent->_isLinear;
-    _child->_hasSmoothBoundaries = _parent->_hasSmoothBoundaries;
+    _child->_options               = _parent->_options;
+    _child->_isLinear              = _parent->_isLinear;
+    _child->_hasSmoothBoundaries   = _parent->_hasSmoothBoundaries;
+    _child->_hasDependentSharpness = _parent->_hasDependentSharpness;
 
     //
     //  It's difficult to know immediately how many child values arise from the
@@ -495,6 +496,8 @@ FVarRefinement::reclassifySemisharpValues() {
     //  their parent values -- we will be able to clear it in many simple cases but
     //  ultimately will need to inspect each value:
     //
+    bool hasDependentSharpness = _parent->_hasDependentSharpness;
+
     FVarLevel::ValueTag valTagCrease;
     valTagCrease.clear();
     valTagCrease._mismatch = true;
@@ -521,41 +524,69 @@ FVarRefinement::reclassifySemisharpValues() {
         //
         //  We are left with some or no semi-sharp edges in the child vertex.  If none
         //  left the child-vertex will no longer be semi-sharp and we can just clear
-        //  those values marked as semi-sharp.  Otherwise, its simplest to assume all
-        //  semi-sharp edges have decayed (so clearing them again) and using the
-        //  remaining semi-sharp edges to reset those values that still are.
-        //
-        //  So convert all semi-sharp tags to creases and reset those that remain if
-        //  the child vertex is still tagged as semi-sharp:
+        //  those values marked as semi-sharp and continue:
         //
         int vSiblingOffset = _child->_vertSiblingOffsets[cVert];
         int vSiblingCount  = _child->_vertSiblingCounts[cVert];
         int vValueCount    = 1 + vSiblingCount;
+
+        if (!_refinement._child->_vertTags[cVert]._semiSharp) {
+            for (int j = 0; j < vValueCount; ++j) {
+                int vValueIndex = (j == 0) ? cVert : (vSiblingOffset + j - 1);
+
+                if (_child->isValueSemiSharp(vValueIndex)) {
+                    _child->_vertValueTags[vValueIndex] = valTagCrease;
+                }
+            }
+            continue;
+        }
+
+        //
+        //  There are some semi-sharp edges left.  For those values tagged as semi-sharp,
+        //  see if they are still semi-sharp and clear those that are not:
+        //
+        IndexArray const cVertEdges = _refinement._child->getVertexEdges(cVert);
+
         for (int j = 0; j < vValueCount; ++j) {
             int vValueIndex = (j == 0) ? cVert : (vSiblingOffset + j - 1);
 
-            if (_child->isValueSemiSharp(vValueIndex)) {
-                _child->_vertValueTags[vValueIndex] = valTagCrease;
+            FVarLevel::ValueTag & cValueTag = _child->_vertValueTags[vValueIndex];
+
+            if (cValueTag._semiSharp && !cValueTag._depSharp) {
+                LocalIndex * vCreaseEnds = &_child->_vertValueCreaseEnds[2 * vValueIndex];
+
+                bool isStillSemiSharp = false;
+                if (vCreaseEnds[1] > vCreaseEnds[0]) {
+                    for (int k = vCreaseEnds[0] + 1; !isStillSemiSharp && (k <= vCreaseEnds[1]); ++k) {
+                        isStillSemiSharp = _refinement._child->_edgeTags[cVertEdges[k]]._semiSharp;
+                    }
+                } else if (vCreaseEnds[0] > vCreaseEnds[1]) {
+                    for (int k = vCreaseEnds[0] + 1; !isStillSemiSharp && (k < cVertEdges.size()); ++k) {
+                        isStillSemiSharp = _refinement._child->_edgeTags[cVertEdges[k]]._semiSharp;
+                    }
+                    for (int k = 0; !isStillSemiSharp && (k <= vCreaseEnds[1]); ++k) {
+                        isStillSemiSharp = _refinement._child->_edgeTags[cVertEdges[k]]._semiSharp;
+                    }
+                }
+                if (!isStillSemiSharp) {
+                    cValueTag = valTagCrease;
+                }
             }
         }
-        if (!_refinement._child->_vertTags[cVert]._semiSharp) continue;
 
         //
-        //  Identify the remaining semi-sharp edges and the corresponding values that
-        //  should be retained as semi-sharp:
+        //  Now account for "dependent sharpness" (only matters when we have two values) --
+        //  if one was dependent/sharpened based on the other being sharp, clear the dependency
+        //  tag if it is no longer sharp:
         //
-        SiblingArray const vFaceSiblings = _child->getVertexFaceSiblings(cVert);
+        if ((vValueCount == 2) && hasDependentSharpness) {
+            FVarLevel::ValueTag & v0Tag = _child->_vertValueTags[cVert];
+            FVarLevel::ValueTag & v1Tag = _child->_vertValueTags[vSiblingOffset];
 
-        IndexArray const cVertEdges = _refinement._child->getVertexEdges(cVert);
-        for (int j = 0; j < cVertEdges.size(); ++j) {
-            if (_refinement._child->_edgeTags[cVertEdges[j]]._semiSharp) {
-                int jPrev = j ? (j - 1) : (vFaceSiblings.size() - 1);
-                if (vFaceSiblings[jPrev] == vFaceSiblings[j]) {
-                    int vSibling = vFaceSiblings[j];
-                    int vValueIndex = (vSibling == 0) ? cVert : (vSiblingOffset + vSibling - 1);
-
-                    _child->_vertValueTags[vValueIndex] = valTagSemiSharp;
-                }
+            if (v0Tag._depSharp && !v1Tag._semiSharp) {
+                v0Tag._depSharp = false;
+            } else if (v1Tag._depSharp && !v0Tag._semiSharp) {
+                v1Tag._depSharp = false;
             }
         }
     }
@@ -563,8 +594,8 @@ FVarRefinement::reclassifySemisharpValues() {
 
 float
 FVarRefinement::getFractionalWeight(Index pVert, Sibling pSibling,
-                                    Index cVert, Sibling /* cSibling */) const
-{
+                                    Index cVert, Sibling /* cSibling */) const {
+
     FVarLevel const& parentFVar = *_parent;
     Level     const& parent     = *_refinement._parent;
     Level     const& child      = *_refinement._child;

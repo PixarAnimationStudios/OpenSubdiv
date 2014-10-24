@@ -118,6 +118,7 @@ public:
         ValueTagSize _mismatch  : 1;  // local FVar topology does not match
         ValueTagSize _crease    : 1;  // value is a crease, otherwise a corner
         ValueTagSize _semiSharp : 1;  // value is a corner decaying to crease
+        ValueTagSize _depSharp  : 1;  // value a corner by dependency on another
     };
 
 public:
@@ -155,6 +156,7 @@ public:
     bool isValueSemiSharp(Index valueIndex) const { return _vertValueTags[valueIndex]._semiSharp; }
     bool isValueInfSharp(Index valueIndex) const  { return !_vertValueTags[valueIndex]._semiSharp &&
                                                            !_vertValueTags[valueIndex]._crease; }
+    bool isValueDepSharp(Index valueIndex) const  { return _vertValueTags[valueIndex]._depSharp; }
                                                            
 
     //  Higher-level topological queries, i.e. values in a neighborhood:
@@ -201,6 +203,7 @@ public:
 
     bool _isLinear;
     bool _hasSmoothBoundaries;
+    bool _hasDependentSharpness;
     int  _valueCount;
 
     //
