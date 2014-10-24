@@ -319,14 +319,15 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
             }
         }
     }
-
+    if (desc.numHoles>0) {
+        for (int i=0; i<desc.numHoles; ++i) {
+            refiner.setBaseFaceHole(desc.holeIndices[i], true);
+        }
+    }
 }
 
-TopologyRefinerFactoryBase::TopologyDescriptor::TopologyDescriptor() :
-    numVertices(0), numFaces(0), vertsPerFace(0), vertIndices(0),
-        numCreases(0), creaseVertexIndexPairs(0), creaseWeights(0),
-            numCorners(0), cornerVertexIndices(0), cornerWeights(0),
-                numFVarChannels(0), fvarChannels(0) {
+TopologyRefinerFactoryBase::TopologyDescriptor::TopologyDescriptor() {
+    memset(this, 0, sizeof(TopologyDescriptor));
 }
 
 } // end namespace Far

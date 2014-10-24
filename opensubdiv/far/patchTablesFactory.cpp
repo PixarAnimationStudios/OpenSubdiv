@@ -665,6 +665,11 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
     for (int level=firstlevel, poffset=0, voffset=0; level<=maxlevel; ++level) {
 
         int npatches = refiner.GetNumFaces(level);
+        if (refiner.HasHoles()) {
+            npatches -= refiner.GetNumHoles(level);
+        }
+        assert(npatches>=0);
+        
         if (options.triangulateQuads)
             npatches *= 2;
 
@@ -711,6 +716,10 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
         int nfaces = refiner.GetNumFaces(level);
         if (level>=firstlevel) {
             for (int face=0; face<nfaces; ++face) {
+            
+                if (refiner.HasHoles() and refiner.IsHole(level, face)) {
+                    continue;
+                }
 
                 IndexArray const & fverts = refiner.GetFaceVertices(level, face);
 
@@ -867,6 +876,11 @@ PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
         Vtr::Refinement::SparseTag const * vtrFaceTags = refineNext ? &refineNext->_parentFaceTag[0] : 0;
 
         for (int faceIndex = 0; faceIndex < level->getNumFaces(); ++faceIndex) {
+        
+            if (level->isHole(faceIndex)) {
+                continue;
+            }
+        
             Vtr::Refinement::SparseTag vtrFaceTag = vtrFaceTags ? vtrFaceTags[faceIndex] : Vtr::Refinement::SparseTag();
             PatchFaceTag&            patchTag   = levelPatchTags[faceIndex];
 
@@ -1116,9 +1130,15 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
         const PatchFaceTag * levelPatchTags = &patchTags[levelFaceOffset];
 
         for (int faceIndex = 0; faceIndex < level->getNumFaces(); ++faceIndex) {
-            const PatchFaceTag& patchTag = levelPatchTags[faceIndex];
 
-            if (!patchTag._hasPatch) continue;
+            if (level->isHole(faceIndex)) {
+                continue;
+            }
+
+            const PatchFaceTag& patchTag = levelPatchTags[faceIndex];
+            if (not patchTag._hasPatch) { 
+                continue;
+            }
 
             if (patchTag._isRegular) {
                 Index patchVerts[16];

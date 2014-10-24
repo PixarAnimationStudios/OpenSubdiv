@@ -227,6 +227,16 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
             }
         }
     }
+    { // Hole tags
+        for (int i=0; i<(int)shape.tags.size(); ++i) {
+            Shape::tag * t = shape.tags[i];
+            if (t->name=="hole") {
+                for (int j=0; j<(int)t->intargs.size(); ++j) {
+                    refiner.setBaseFaceHole(t->intargs[j], true);
+                }
+            }
+        }
+    }
 }
 
 } // namespace Far

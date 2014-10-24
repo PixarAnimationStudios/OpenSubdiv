@@ -221,6 +221,10 @@ public:
 
     Index findEdge(Index v0Index, Index v1Index) const;
 
+    // Holes    
+    void setHole(Index faceIndex, bool b);
+    bool isHole(Index faceIndex) const;
+
 public:
     //  Debugging aides -- unclear what will persist...
     bool validateTopology() const;
@@ -392,15 +396,15 @@ protected:
     std::vector<Index> _faceVertCountsAndOffsets;  // 2 per face, redundant after level 0
     std::vector<Index> _faceVertIndices;           // 3 or 4 per face, variable at level 0
     std::vector<Index> _faceEdgeIndices;           // matches face-vert indices
-    std::vector<FTag>     _faceTags;                  // 1 per face:  includes "hole" tag
+    std::vector<FTag>  _faceTags;                  // 1 per face:  includes "hole" tag
 
     //  Per-edge:
     std::vector<Index> _edgeVertIndices;           // 2 per edge
     std::vector<Index> _edgeFaceCountsAndOffsets;  // 2 per edge
     std::vector<Index> _edgeFaceIndices;           // varies with faces per edge
 
-    std::vector<Sharpness> _edgeSharpness;             // 1 per edge
-    std::vector<ETag>         _edgeTags;                  // 1 per edge:  manifold, boundary, etc.
+    std::vector<Sharpness> _edgeSharpness;         // 1 per edge
+    std::vector<ETag>      _edgeTags;              // 1 per edge:  manifold, boundary, etc.
 
     //  Per-vertex:
     std::vector<Index>      _vertFaceCountsAndOffsets;  // 2 per vertex
@@ -412,7 +416,7 @@ protected:
     std::vector<LocalIndex> _vertEdgeLocalIndices;      // varies with valence, 8-bit for now
 
     std::vector<Sharpness>  _vertSharpness;             // 1 per vertex
-    std::vector<VTag>          _vertTags;                  // 1 per vertex:  manifold, Sdc::Rule, etc.
+    std::vector<VTag>       _vertTags;                  // 1 per vertex:  manifold, Sdc::Rule, etc.
 
     //  Face-varying channels:
     std::vector<FVarLevel*> _fvarChannels;
@@ -598,6 +602,18 @@ Level::getVertexSharpness(Index vertIndex) {
 inline Sdc::Crease::Rule
 Level::getVertexRule(Index vertIndex) const {
     return (Sdc::Crease::Rule) _vertTags[vertIndex]._rule;
+}
+
+//
+//  Access/modify hole tag:
+//
+inline void 
+Level::setHole(Index faceIndex, bool b) {
+    _faceTags[faceIndex]._hole = b;
+}
+inline bool
+Level::isHole(Index faceIndex) const {
+    return _faceTags[faceIndex]._hole;
 }
 
 //

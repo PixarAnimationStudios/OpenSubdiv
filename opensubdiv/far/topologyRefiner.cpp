@@ -41,8 +41,9 @@ TopologyRefiner::TopologyRefiner(Sdc::Type schemeType, Sdc::Options schemeOption
     _subdivType(schemeType),
     _subdivOptions(schemeOptions),
     _isUniform(true),
-    _maxLevel(0),
-    _useSingleCreasePatch(false) {
+    _hasHoles(false),
+    _useSingleCreasePatch(false),
+    _maxLevel(0) {
 
     //  Need to revisit allocation scheme here -- want to use smart-ptrs for these
     //  but will probably have to settle for explicit new/delete...
@@ -123,6 +124,18 @@ TopologyRefiner::GetNumFVarValuesTotal(int channel) const {
     int sum = 0;
     for (int i = 0; i < (int)_levels.size(); ++i) {
         sum += _levels[i]->getNumFVarValues(channel);
+    }
+    return sum;
+}
+
+int
+TopologyRefiner::GetNumHoles(int level) const {
+    int sum = 0;
+    Vtr::Level const & lvl = getLevel(level);
+    for (Index face = 0; face < lvl.getNumFaces(); ++face) {
+        if (lvl.isHole(face)) {
+            ++sum;
+        }
     }
     return sum;
 }
@@ -418,6 +431,11 @@ TopologyRefiner::catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector) {
     Vtr::Level const& level = selector.getRefinement().parent();
 
     for (Vtr::Index face = 0; face < level.getNumFaces(); ++face) {
+    
+        if (level.isHole(face)) {
+            continue;
+        }
+    
         Vtr::IndexArray const faceVerts = level.getFaceVertices(face);
 
         //

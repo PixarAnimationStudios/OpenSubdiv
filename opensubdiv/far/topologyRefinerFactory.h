@@ -76,6 +76,9 @@ public:
         int           numCorners;
         Index const * cornerVertexIndices;
         float const * cornerWeights;
+        
+        int           numHoles;
+        Index const * holeIndices;
 
         //  Face-varying data channel -- value indices correspond to vertex indices,
         //  i.e. one for every vertex of every face:

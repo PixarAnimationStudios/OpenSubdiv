@@ -70,6 +70,9 @@ public:
 
     /// \brief Returns true if uniform subdivision has been applied
     bool IsUniform() const   { return _isUniform; }
+    
+    /// \ brief Returns true if faces have been tagged as holes
+    bool HasHoles() const { return _hasHoles; }
 
     /// \brief Returns the highest level of refinement
     int  GetMaxLevel() const { return _maxLevel; }
@@ -87,7 +90,6 @@ public:
 
     /// \brief Returns the total number of face vertices in all levels
     int GetNumFaceVerticesTotal() const;
-
 
     //@{
     ///  @name High level refinement and related methods
@@ -269,6 +271,9 @@ public:
         return _levels[level]->getNumFaces();
     }
 
+    /// \brief Returns the number of faces marked as holes at the given level
+    int GetNumHoles(int level) const;
+
     /// \brief Returns the number of faces at a given level of refinement
     int GetNumFaceVertices(int level) const {
         return _levels[level]->getNumFaceVerticesTotal();
@@ -302,8 +307,13 @@ public:
     }
 
     /// \brief Returns the edges of a 'face' at 'level'
-    IndexArray const GetFaceEdges(   int level, Index face) const {
+    IndexArray const GetFaceEdges(int level, Index face) const {
         return _levels[level]->getFaceEdges(face);
+    }
+
+    /// \brief Returns true if 'face' at 'level' is tagged as a hole
+    bool IsHole(int level, Index face) const {
+        return _levels[level]->isHole(face);
     }
 
     /// \brief Returns the vertices of an 'edge' at 'level' (2 of them)
@@ -498,6 +508,8 @@ protected:
     //  Optionally available to get/set sharpness values:
     float& baseEdgeSharpness(Index e)   { return _levels[0]->getEdgeSharpness(e); }
     float& baseVertexSharpness(Index v) { return _levels[0]->getVertexSharpness(v); }
+    
+    void setBaseFaceHole(Index f, bool b) { _levels[0]->setHole(f, b); _hasHoles |= b; }
 
     //  Face-varying modifiers for constructing face-varying channels:
     int createFVarChannel(int numValues) {
@@ -537,9 +549,10 @@ private:
     Sdc::Type    _subdivType;
     Sdc::Options _subdivOptions;
 
-    bool _isUniform;
-    int  _maxLevel;
-    bool _useSingleCreasePatch;
+    unsigned char  _isUniform : 1,
+                   _hasHoles : 1,
+                   _useSingleCreasePatch : 1,
+                   _maxLevel : 4;
 
     std::vector<Vtr::Level *>      _levels;
     std::vector<Vtr::Refinement *> _refinements;
