@@ -261,6 +261,8 @@ public:
         } else if (_transitionType == TRANS_TWO_ADJ) {
             int const edgeMaskPerBoundary[] = { 6, 12, 9, 3 };
             _transitionRot = 1 + (edgeMaskPerBoundary[_boundaryIndex] == transitionEdgeMask);
+        } else if (_transitionType == TRANS_THREE) {
+            _transitionRot = 0;
         } else {
             _transitionRot = 1;
         }
