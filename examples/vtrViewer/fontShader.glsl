@@ -22,6 +22,10 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#if __VERSION__ < 420
+    #define centroid
+#endif
+
 layout(std140) uniform Transform {
     mat4 ModelViewMatrix;
     mat4 ProjectionMatrix;
@@ -64,7 +68,7 @@ layout(triangle_strip, max_vertices = NVERTS) out;
 in block {
     vec4 position;
     vec4 data;
-} inpt[NVERTS];
+} inpt[];
 
 out block {
     vec4 position;
@@ -152,7 +156,7 @@ const vec4 colors[9] = vec4[9](vec4(0.9,0.9,0.9,1.0),
 
 void main()
 {
-    vec4 bitmap = texture2D(font, inpt.uv);
+    vec4 bitmap = texture(font, inpt.uv);
     if (bitmap.a == 0.0) discard;
 
     outColor = bitmap * colors[inpt.colorId];

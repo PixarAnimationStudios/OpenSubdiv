@@ -69,7 +69,7 @@ void GLFont::bindProgram() {
 
         _program = glCreateProgram();
 
-        static char const versionStr[] = "#version 330\n",
+        static char const versionStr[] = "#version 410\n",
                           vtxDefineStr[] = "#define VERTEX_SHADER\n",
                           geoDefineStr[] = "#define GEOMETRY_SHADER\n",
                           fragDefineStr[] = "#define FRAGMENT_SHADER\n";

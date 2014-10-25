@@ -22,6 +22,10 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#if __VERSION__ < 420
+    #define centroid
+#endif
+
 layout(std140) uniform Transform {
     mat4 ModelViewMatrix;
     mat4 ProjectionMatrix;
@@ -176,7 +180,7 @@ main()
 
     vec4 faceColor = texelFetch(faceColors, gl_PrimitiveID);
     
-    vec4 tex = texture2D(faceTexture, inpt.v.tessCoord);
+    vec4 tex = texture(faceTexture, inpt.v.tessCoord);
 
     vec4 Cf = lighting(diffuseColor * faceColor * tex, inpt.v.position.xyz, N);
 
