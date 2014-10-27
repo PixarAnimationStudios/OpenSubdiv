@@ -105,7 +105,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
     string(REGEX REPLACE "^v" "" RELEASE_STRING ${RELEASE_STRING})
 
     # Format API version string
-    set(RELEASE_STRING "Release ${RELEASE_STRING}")
+    set(RELEASE_STRING "${RELEASE_STRING}")
 
     # Replace string in navigation bar
     configure_file("${CMAKE_CURRENT_SOURCE_DIR}/rst_template.txt"

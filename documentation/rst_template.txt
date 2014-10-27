@@ -18,6 +18,9 @@ ul.creatorFooterNav {
     margin-top: 10px;
     margin-left: 10px;
 }
+ul.creatorMainNav li a {
+    font-size: 12px !important;
+}
 </style>
 %(body_prefix)s
 %(body_pre_docinfo)s
@@ -38,18 +41,19 @@ ul.creatorFooterNav {
                         </li>
                     </ul>
                     <ul class="creatorMainNav floatRight" id="menu">
-                        <li class="" id="navbarId-23704">
+                        <li class="mainSubNavigation marginR12 marginL12" id="navbarId-23704">
                             <a href="intro.html">User Docs</a>
                         </li>
-                        <li class="" id="navbarId-23887">
+                        <li class="mainSubNavigation marginR12 marginL12" id="navbarId-23887">
                             <a href="doxy_html/index.html">API Docs</a>
                         </li>
-                        <li class="" id="navbarId-23703">
-                            <a href="http://graphics.pixar.com/opensubdiv/forum.html">Forum</a>
-                        </li>
-                        <li class="" id="navbarId-23944">
+                        <li class="mainSubNavigation marginR12 marginL12" id="navbarId-23944">
                             <a href="release_notes.html">Release Notes</a>
                         </li>
+                        <li class="mainSubNavigation marginR15 marginL12" id="navbarId-23703">
+                            <a href="http://graphics.pixar.com/opensubdiv/forum.html">Forum</a>
+                        </li>
+                        <a class="blueButton marginR0 marginL0" style="width:70px" href="https://github.com/PixarAnimationStudios/OpenSubdiv">Github</a>
                     </ul>
                 </div><!-- close mainSiteNavigation -->
             </div><!-- close center -->
@@ -95,11 +99,11 @@ ul.creatorFooterNav {
         <li class="" id="navbarId-23887">
             <a href="doxy_html/index.html">API Docs</a>
         </li>
-        <li class="" id="navbarId-23703">
-            <a href="http://graphics.pixar.com/opensubdiv/forum.html">Forum</a>
-        </li>
         <li class="" id="navbarId-23944">
             <a href="release_notes.html">Release Notes</a>
+        </li>
+        <li class="" id="navbarId-23703">
+            <a href="http://graphics.pixar.com/opensubdiv/forum.html">Forum</a>
         </li>
     </ul><!-- end bottom navigation menu -->
 
