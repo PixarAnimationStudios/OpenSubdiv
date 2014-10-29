@@ -489,6 +489,7 @@ Far::PatchTablesFactory::PatchTypes<TYPE>::getValue( Far::PatchTables::Descripto
 
     switch (desc.GetType()) {
         case Far::PatchTables::REGULAR          : return R[desc.GetPattern()];
+        case Far::PatchTables::SINGLE_CREASE    : break;
         case Far::PatchTables::BOUNDARY         : return B[desc.GetPattern()][desc.GetRotation()];
         case Far::PatchTables::CORNER           : return C[desc.GetPattern()][desc.GetRotation()];
         case Far::PatchTables::GREGORY          : return G;

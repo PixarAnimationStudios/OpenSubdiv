@@ -575,6 +575,7 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
             int * remap = 0;
             switch (pa.GetDescriptor().GetType()) {
                 case FPatchTables::REGULAR:          remap = regular; break;
+                case FPatchTables::SINGLE_CREASE:    remap = boundary; break;
                 case FPatchTables::BOUNDARY:         remap = boundary; break;
                 case FPatchTables::CORNER:           remap = corner; break;
                 case FPatchTables::GREGORY:
@@ -866,8 +867,8 @@ display() {
         g_fpsTimer.Start();
 
         { // display selectde patch info
-            static char const * patchTypes[11] = { "undefined", "points", "lines",
-                "quads", "tris", "loop", "regular", "boundary", "corner",
+            static char const * patchTypes[12] = { "undefined", "points", "lines",
+                "quads", "tris", "loop", "regular", "single crease", "boundary", "corner",
                     "gregory", "gregory-boundary" };
 
             if (g_Adaptive and g_currentPatch) {
