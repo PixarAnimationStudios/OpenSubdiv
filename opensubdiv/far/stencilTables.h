@@ -177,7 +177,7 @@ public:
     template <class T>
     void UpdateValues(T const *controlValues, T *values, int start=-1, int end=-1) const {
 
-        _Update(controlValues, values, _weights, start, end);
+        update(controlValues, values, _weights, start, end);
     }
 
     /// \brief Clears the stencils from the table
@@ -192,8 +192,14 @@ public:
 protected:
 
     // Update values by appling cached stencil weights to new control values
-    template <class T> void _Update( T const *controlValues, T *values,
+    template <class T> void update( T const *controlValues, T *values,
         std::vector<float> const & valueWeights, int start, int end) const;
+
+    // Populate the offsets table from the stencil sizes in _sizes (factory helper)
+    void generateOffsets();
+
+    // Resize the table arrays (factory helper)
+    void resize(int nstencils, int nelems);
 
 protected:
 
@@ -303,8 +309,8 @@ public:
     void UpdateDerivs(T const *controlValues, T *uderivs, T *vderivs,
         int start=-1, int end=-1) const {
 
-        _Update(controlValues, uderivs, _duWeights, start, end);
-        _Update(controlValues, vderivs, _dvWeights, start, end);
+        update(controlValues, uderivs, _duWeights, start, end);
+        update(controlValues, vderivs, _dvWeights, start, end);
     }
 
     /// \brief Clears the stencils from the table
@@ -317,6 +323,10 @@ public:
 private:
     friend class LimitStencilTablesFactory;
 
+    // Resize the table arrays (factory helper)
+    void resize(int nstencils, int nelems);
+
+private:
     std::vector<float>  _duWeights,  // u derivative limit stencil weights
                         _dvWeights;  // v derivative limit stencil weights
 };
@@ -324,7 +334,7 @@ private:
 
 // Update values by appling cached stencil weights to new control values
 template <class T> void
-StencilTables::_Update(T const *controlValues, T *values,
+StencilTables::update(T const *controlValues, T *values,
     std::vector<float> const &valueWeights, int start, int end) const {
 
     Index const * indices = &_indices.at(0);
@@ -354,6 +364,25 @@ StencilTables::_Update(T const *controlValues, T *values,
     }
 }
 
+inline void
+StencilTables::generateOffsets() {
+    Index offset=0;
+    int noffsets = (int)_sizes.size();
+    _offsets.resize(noffsets);
+    for (int i=0; i<(int)_sizes.size(); ++i ) {
+        _offsets[i]=offset;
+        offset+=_sizes[i];
+    }
+}
+
+inline void
+StencilTables::resize(int nstencils, int nelems) {
+
+    _sizes.resize(nstencils);
+    _indices.resize(nelems);
+    _weights.resize(nelems);
+}
+
 // Returns a Stencil at index i in the table
 inline Stencil
 StencilTables::GetStencil(int i) const {
@@ -369,9 +398,17 @@ StencilTables::GetStencil(int i) const {
 
 inline Stencil
 StencilTables::operator[] (int index) const {
-
     return GetStencil(index);
 }
+
+inline void
+LimitStencilTables::resize(int nstencils, int nelems) {
+
+    StencilTables::resize(nstencils, nelems);
+    _duWeights.resize(nelems);
+    _dvWeights.resize(nelems);
+}
+
 
 } // end namespace Far
 

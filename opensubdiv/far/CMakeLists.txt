@@ -25,12 +25,16 @@
 #-------------------------------------------------------------------------------
 # source & headers
 set(SOURCE_FILES
-     patchMap.cpp
-     patchTables.cpp
-     patchTablesFactory.cpp
-     stencilTablesFactory.cpp
-     topologyRefiner.cpp
-     topologyRefinerFactory.cpp
+    patchMap.cpp
+    patchTables.cpp
+    patchTablesFactory.cpp
+    stencilTablesFactory.cpp
+    topologyRefiner.cpp
+    topologyRefinerFactory.cpp
+)
+
+set(PRIVATE_HEADER_FILES
+    protoStencil.h
 )
 
 set(PUBLIC_HEADER_FILES

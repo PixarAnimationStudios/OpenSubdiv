@@ -69,7 +69,7 @@ public:
                      generateControlVerts        : 1, ///< generate stencils for control-vertices
                      generateIntermediateLevels  : 1, ///< vertices at all levels or highest only
                      factorizeIntermediateLevels : 1, ///< accumulate stencil weights from control
-                                                      ///  vertices or from the stencils of the 
+                                                      ///  vertices or from the stencils of the
                                                       ///  previous level
                      maxLevel                    : 4; ///< generate stencils up to 'maxLevel'
     };
