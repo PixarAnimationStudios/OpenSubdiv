@@ -337,11 +337,13 @@ template <class T> void
 StencilTables::update(T const *controlValues, T *values,
     std::vector<float> const &valueWeights, int start, int end) const {
 
+    unsigned char const * sizes = &_sizes.at(0);
     Index const * indices = &_indices.at(0);
     float const * weights = &valueWeights.at(0);
 
     if (start>0) {
         assert(start<(Index)_offsets.size());
+        sizes += start;
         indices += _offsets[start];
         weights += _offsets[start];
         values += start;
@@ -352,13 +354,13 @@ StencilTables::update(T const *controlValues, T *values,
     }
 
     int nstencils = end - std::max(0, start);
-    for (int i=0; i<nstencils; ++i) {
+    for (int i=0; i<nstencils; ++i, ++sizes) {
 
         // Zero out the result accumulators
         values[i].Clear();
 
         // For each element in the array, add the coefs contribution
-        for (int j=0; j<_sizes[i]; ++j, ++indices, ++weights) {
+        for (int j=0; j<*sizes; ++j, ++indices, ++weights) {
             values[i].AddWithWeight( controlValues[*indices], *weights );
         }
     }
