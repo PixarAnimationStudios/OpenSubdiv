@@ -819,7 +819,7 @@ evalGregoryBoundary(float u, float v,
                                     inOffset[boundaryEdgeNeighbors[1]*inDesc.stride+k] + 4.0f*pos[k])/6.0f;
                 }
             } else {
-                memcpy(opos, pos, length*sizeof(float));
+                memcpy(opos+vofs, pos, length*sizeof(float));
             }
 
             float k = float(float(ivalence) - 1.0f);    //k is the number of faces
