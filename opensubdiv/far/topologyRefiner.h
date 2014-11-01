@@ -322,17 +322,17 @@ public:
     }
 
     /// \brief Returns the faces incident to 'edge' at 'level'
-    IndexArray const GetEdgeFaces(   int level, Index edge) const {
+    IndexArray const GetEdgeFaces(int level, Index edge) const {
         return _levels[level]->getEdgeFaces(edge);
     }
 
     /// \brief Returns the faces incident to 'vertex' at 'level'
-    IndexArray const GetVertexFaces( int level, Index vert) const {
+    IndexArray const GetVertexFaces(int level, Index vert) const {
         return _levels[level]->getVertexFaces(vert);
     }
 
     /// \brief Returns the edges incident to 'vertex' at 'level'
-    IndexArray const GetVertexEdges( int level, Index vert) const {
+    IndexArray const GetVertexEdges(int level, Index vert) const {
         return _levels[level]->getVertexEdges(vert);
     }
 
@@ -344,6 +344,14 @@ public:
     /// \brief Returns the local edge indices of vertex 'vert' at 'level'
     LocalIndexArray const VertexEdgeLocalIndices(int level, Index vert) const {
         return _levels[level]->getVertexEdgeLocalIndices(vert);
+    }
+
+    bool FaceIsRegular(int level, Index face) const {
+        Vtr::IndexArray const& fVerts =
+            _levels[level]->getFaceVertices(face);
+        Vtr::Level::VTag compFaceVertTag =
+            _levels[level]->getFaceCompositeVTag(fVerts);
+        return not compFaceVertTag._xordinary;
     }
 
     /// \brief Returns the edge with vertices'v0' and 'v1' (or -1 if they are
@@ -471,6 +479,7 @@ protected:
     friend class TopologyRefinerFactory;
     friend class TopologyRefinerFactoryBase;
     friend class PatchTablesFactory;
+    friend class GregoryBasisFactory;
 
     int                   getNumLevels() const { return (int)_levels.size(); }
     Vtr::Level            & getBaseLevel() { return *_levels.front(); }

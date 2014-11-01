@@ -189,7 +189,6 @@ protected:
 
     typedef std::map<int, BIG_PROTOSTENCIL *> BigStencilMap;
     BigStencilMap _bigStencils;
-
 };
 
 template <typename PROTOSTENCIL, class BIG_PROTOSTENCIL>
