@@ -136,24 +136,6 @@ GLMesh::~GLMesh() {
 
 //------------------------------------------------------------------------------
 void
-GLMesh::Initialize(Options options, TopologyRefiner const & refiner,
-    PatchTables const * patchTables, float const * vertexData) {
-
-    if (patchTables) {
-        initializeBuffers(options, refiner, *patchTables, vertexData);
-    } else {
-        initializeBuffers(options, refiner, vertexData);
-    }
-
-    _numComps[COMP_FACE] = (int)_eao[COMP_FACE].size();
-    _numComps[COMP_EDGE] = (int)_eao[COMP_EDGE].size();
-    _numComps[COMP_VERT] = (int)_eao[COMP_VERT].size();
-
-    InitializeDeviceBuffers();
-}
-
-//------------------------------------------------------------------------------
-void
 GLMesh::initializeVertexComponentBuffer(float const * vertData, int nverts) {
 
     std::vector<float> & vbo = _vbo[COMP_VERT];
@@ -170,6 +152,110 @@ GLMesh::initializeVertexComponentBuffer(float const * vertData, int nverts) {
         // populate EAO
         eao[vert] = vert;
     }
+}
+
+//------------------------------------------------------------------------------
+void
+GLMesh::Initialize(Options options,
+    int nverts, int nfaces, int * vertsperface, int * faceverts,
+        float const * vertexData) {
+
+
+    { // vertex color component ----------------------------
+
+        initializeVertexComponentBuffer(vertexData, nverts);
+
+        std::vector<float> & vbo = _vbo[COMP_VERT];
+
+        for (int vert=0, ofs=3; vert<nverts; ++vert) {
+            setSolidColor(&vbo[ofs+=6]);
+        }
+    }
+    { // edge color component ------------------------------
+        int nedges = nfaces;
+
+        std::vector<float> & vbo = _vbo[COMP_EDGE];
+        vbo.resize(nedges * 2 * 6);
+
+        std::vector<int> & eao = _eao[COMP_EDGE];
+        eao.resize(nedges*2);
+
+        for (int edge=0; edge<nedges; ++edge) {
+        
+            // edge mode expects faces with 2 verts (aka edges) as input
+            assert(vertsperface[edge]==2);
+
+            eao[edge*2  ] = edge*2;
+            eao[edge*2+1] = edge*2+1;
+
+            int const * verts = faceverts + edge*2;
+
+            float * v0 = &vbo[edge*2*6],
+                  * v1 = v0+6;
+
+            // copy position
+            memcpy(v0, vertexData + verts[0]*3, sizeof(float)*3);
+            memcpy(v1, vertexData + verts[1]*3, sizeof(float)*3);
+
+            // default to solid color
+            setSolidColor(v0+3);
+            setSolidColor(v1+3);
+        }
+    }
+    { // face component ------------------------------------
+
+        std::vector<float> & vbo = _vbo[COMP_FACE];
+        vbo.resize(nverts * 3);
+
+        memcpy(&vbo[0], vertexData, nverts*sizeof(float)*3);
+
+        int nfaceverts = 0;
+        for (int i=0; i<nfaces; ++i) {
+            nfaceverts += vertsperface[i];
+        }
+
+        std::vector<int> & eao = _eao[COMP_FACE];
+        eao.resize(nfaceverts);
+
+        _faceColors.resize(nfaces*4);
+
+        int const * fverts = faceverts;
+        for (int face=0, ofs=0; face<nfaces; ++face) {
+
+            int nverts = vertsperface[face];
+            for (int vert=0; vert<nverts; ++vert) {
+                eao[ofs++] = fverts[vert];
+            }
+
+            setSolidColor(&_faceColors[face*4]);
+
+            fverts += nverts;
+        }
+    }
+
+    _numComps[COMP_FACE] = (int)_eao[COMP_FACE].size();
+    _numComps[COMP_EDGE] = (int)_eao[COMP_EDGE].size();
+    _numComps[COMP_VERT] = (int)_eao[COMP_VERT].size();
+
+    InitializeDeviceBuffers();
+}
+
+//------------------------------------------------------------------------------
+void
+GLMesh::Initialize(Options options, TopologyRefiner const & refiner,
+    PatchTables const * patchTables, float const * vertexData) {
+
+    if (patchTables) {
+        initializeBuffers(options, refiner, *patchTables, vertexData);
+    } else {
+        initializeBuffers(options, refiner, vertexData);
+    }
+
+    _numComps[COMP_FACE] = (int)_eao[COMP_FACE].size();
+    _numComps[COMP_EDGE] = (int)_eao[COMP_EDGE].size();
+    _numComps[COMP_VERT] = (int)_eao[COMP_VERT].size();
+
+    InitializeDeviceBuffers();
 }
 
 //------------------------------------------------------------------------------

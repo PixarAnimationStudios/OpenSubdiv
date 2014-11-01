@@ -50,6 +50,7 @@ GLFWmonitor* g_primary=0;
 #include <osd/vertex.h>
 #include <osd/cpuGLVertexBuffer.h>
 
+#include <far/gregoryBasis.h>
 #include <far/patchTablesFactory.h>
 #include <far/stencilTables.h>
 #include <far/stencilTablesFactory.h>
@@ -77,7 +78,7 @@ GLFWmonitor* g_primary=0;
 
 //------------------------------------------------------------------------------
 int g_level = 2,
-    g_currentShape = 0;
+    g_currentShape = 18;
 
 enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
                    kHUD_CB_DISPLAY_CAGE_VERTS,
@@ -101,7 +102,8 @@ int   g_fullscreen = 0,
 int   g_displayPatchColor    = 1,
       g_drawCageEdges        = 1,
       g_drawCageVertices     = 0,
-      g_HbrDrawMode          = kDRAW_NONE,
+      g_drawGregoryBasis     = true,
+      g_HbrDrawMode          = kDRAW_WIREFRAME,
       g_HbrDrawVertIDs       = false,
       g_HbrDrawEdgeSharpness = false,
       g_HbrDrawFaceIDs       = false,
@@ -114,7 +116,7 @@ int   g_displayPatchColor    = 1,
       g_VtrDrawEdgeSharpness = false,
       g_numPatches           = 0,
       g_currentPatch         = 0,
-      g_Adaptive             = false;
+      g_Adaptive             = true;
 
 OpenSubdiv::Far::PatchTables::Descriptor g_currentPatchDesc;
 
@@ -492,7 +494,7 @@ createFaceNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 }
 
 //------------------------------------------------------------------------------
-// generate display IDs for Vtr faces
+// generate display vert IDs for the selected Vtr patch
 static void
 createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
     std::vector<Vertex> const & vertexBuffer) {
@@ -535,6 +537,83 @@ createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
         snprintf(buf, 16, "%d", i);
         g_font->Print3D(vertexBuffer[cvs[i]].GetPos(), buf, 1);
     }
+}
+
+//------------------------------------------------------------------------------
+// generate display IDs for Vtr Gregory basis
+
+static GLMesh gregoryWire;
+
+static void
+createGregoryBasis(OpenSubdiv::Far::TopologyRefiner const & refiner,
+    std::vector<Vertex> const & vertexBuffer) {
+
+    int level = refiner.GetMaxLevel(),
+        nfaces = refiner.GetNumFaces(level);
+
+    int vertOffset = 0;
+    for (int i=0; i<level; ++i) {
+        vertOffset += refiner.GetNumVertices(i);
+    }
+
+    std::vector<int> vertsperedge, edgeindices;
+    std::vector<Vertex> edgeverts;
+
+    for (int face=0; face<nfaces; ++face) {
+        bool regular = refiner.FaceIsRegular(level, face);
+        if (not regular) {
+            OpenSubdiv::Far::GregoryBasis const * gbasis =
+                OpenSubdiv::Far::GregoryBasisFactory::Create(refiner, face);
+
+
+            {   // initialize wireframe
+
+                static int  basisedges[40] = {  0,  1,  0,  2,  1,  3,  2,  4,
+                                                5,  6,  5,  7,  6,  8,  7,  9, 
+                                               10, 11, 10, 12, 11, 13, 12, 14, 
+                                               15, 16, 15, 17, 16, 18, 17, 19,
+                                                1,  7,  6, 12, 11, 17, 16,  2  };
+
+                int nedges = (int)vertsperedge.size();
+                
+                vertsperedge.resize(nedges+20);
+                edgeindices.resize(nedges*2+40);
+
+                int * vpe = &vertsperedge[nedges],
+                    * ev = &edgeindices[nedges*2];
+                for (int i=0; i<20; ++i) {
+                    vpe[i] = 2;
+                    ev[i*2] = basisedges[i*2] + nedges;
+                    ev[i*2+1] = basisedges[i*2+1] + nedges;
+                }
+            }    
+
+            std::vector<Vertex> gverts(20);
+            gbasis->Evaluate(&vertexBuffer[vertOffset], &gverts[0]);
+
+            static char buf[16];
+            for (int i=0; i<4; ++i) {
+                int vid = i * 5;
+                snprintf(buf, 16, " P%d", i);
+                g_font->Print3D(gverts[vid].GetPos(), buf, 3);
+                snprintf(buf, 16, " Ep%d", i);
+                g_font->Print3D(gverts[vid+1].GetPos(), buf, 3);
+                snprintf(buf, 16, " Em%d", i);
+                g_font->Print3D(gverts[vid+2].GetPos(), buf, 3);
+                snprintf(buf, 16, " Fp%d", i);
+                g_font->Print3D(gverts[vid+3].GetPos(), buf, 3);
+                snprintf(buf, 16, " Fm%d", i);
+                g_font->Print3D(gverts[vid+4].GetPos(), buf, 3);
+            }
+            delete gbasis;
+            
+            edgeverts.insert(edgeverts.end(), gverts.begin(), gverts.end());
+        }
+    }
+
+    GLMesh::Options options;
+    gregoryWire.Initialize(options, (int)edgeverts.size(), (int)vertsperedge.size(),
+        &vertsperedge[0], &edgeindices[0], (float const * )&edgeverts[0]);
 }
 
 //------------------------------------------------------------------------------
@@ -671,8 +750,12 @@ createVtrMesh(Shape * shape, int maxlevel) {
         createPtexNumbers(*patchTables, vertexBuffer);
     }
 
-    if (g_Adaptive and patchTables) {
+    if (g_Adaptive and g_drawGregoryBasis) {
         createPatchNumbers(*patchTables, vertexBuffer);
+    }
+
+    if (g_Adaptive and g_drawGregoryBasis) {
+        createGregoryBasis(*refiner, vertexBuffer);
     }
 
     createEdgeNumbers(*refiner, vertexBuffer, g_VtrDrawEdgeIDs!=0, g_VtrDrawEdgeSharpness!=0);
@@ -845,6 +928,11 @@ display() {
         g_vtr_glmesh.Draw(comp, g_transformUB, g_lightingUB);
     }
 
+    if (g_Adaptive and g_drawGregoryBasis) {
+        gregoryWire.Draw(GLMesh::COMP_VERT, g_transformUB, g_lightingUB);
+        gregoryWire.Draw(GLMesh::COMP_EDGE, g_transformUB, g_lightingUB);
+    }
+
     assert(g_font);
     g_font->Draw(g_transformUB);
 
@@ -866,7 +954,7 @@ display() {
         double fps = 1.0/g_fpsTimer.GetElapsed();
         g_fpsTimer.Start();
 
-        { // display selectde patch info
+        { // display selected patch info
             static char const * patchTypes[12] = { "undefined", "points", "lines",
                 "quads", "tris", "loop", "regular", "single crease", "boundary", "corner",
                     "gregory", "gregory-boundary" };
