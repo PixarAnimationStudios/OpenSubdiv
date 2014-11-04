@@ -40,7 +40,14 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+//  Forward declaration of friend classes:
+namespace Far {
+    class TopologyRefiner;
+}
 namespace Vtr {
+    class Refinement;
+    class FVarRefinement;
+}
 
 //
 //  FVarLevel:
@@ -74,14 +81,19 @@ namespace Vtr {
 //      Everything is being declared public for now to facilitate access until its
 //  clearer how this functionality will be provided.
 //
+namespace Vtr {
 
 class FVarLevel {
+protected:
+    friend class Level;
+    friend class Refinement;
+    friend class FVarRefinement;
+    friend class Far::TopologyRefiner;
 
-public:
+protected:
     typedef LocalIndex      Sibling;
     typedef LocalIndexArray SiblingArray;
 
-public:
     //
     //  Component tags -- trying to minimize the types needed here:
     //
@@ -113,6 +125,13 @@ public:
 
         void clear() { std::memset(this, 0, sizeof(ValueTag)); }
 
+        bool isMismatch() const  { return _mismatch; }
+        bool isCrease() const    { return _crease; }
+        bool isCorner() const    { return !_crease; }
+        bool isSemiSharp() const { return _semiSharp; }
+        bool isInfSharp() const  { return !_semiSharp && !_crease; }
+        bool isDepSharp() const  { return _depSharp; }
+
         typedef unsigned char ValueTagSize;
 
         ValueTagSize _mismatch  : 1;  // local FVar topology does not match
@@ -121,67 +140,76 @@ public:
         ValueTagSize _depSharp  : 1;  // value a corner by dependency on another
     };
 
-public:
+    typedef Vtr::Array<ValueTag> ValueTagArray;
+
+    //
+    //  Simple struct containing the "end faces" of a crease, i.e. the faces which
+    //  contain the FVar values to be used when interpolating the crease.  (Prefer
+    //  the struct over std::pair for its member names)
+    //
+    struct CreaseEndPair {
+        LocalIndex _startFace;
+        LocalIndex _endFace;
+    };
+
+    typedef Vtr::Array<CreaseEndPair> CreaseEndPairArray;
+
+protected:
     FVarLevel(Level const& level);
     ~FVarLevel();
 
-    //  Const methods:
-    //
-    //  Inventory of the face-varying level itself:
+    //  Queries for the entire channel:
     Level const& getLevel() const { return _level; }
-
-    int getDepth() const       { return _level.getDepth(); }
-    int getNumFaces() const    { return _level.getNumFaces(); }
-    int getNumEdges() const    { return _level.getNumEdges(); }
-    int getNumVertices() const { return _level.getNumVertices(); }
 
     int getNumValues() const          { return _valueCount; }
     int getNumFaceValuesTotal() const { return (int) _faceVertValues.size(); }
 
     //  Queries per face:
     IndexArray const getFaceValues(Index fIndex) const;
+    IndexArray       getFaceValues(Index fIndex);
+
+    //  Queries per edge:
+    ETag getEdgeTag(Index eIndex) const          { return _edgeTags[eIndex]; }
+    bool edgeTopologyMatches(Index eIndex) const { return !getEdgeTag(eIndex)._mismatch; }
 
     //  Queries per vertex (and its potential sibling values):
-    bool vertexTopologyMatches(Index vIndex) const { return !_vertValueTags[vIndex]._mismatch; }
+    int   getNumVertexValues(Index v) const                  { return _vertSiblingCounts[v]; }
+    Index getVertexValueOffset(Index v, Sibling i = 0) const { return _vertSiblingOffsets[v] + i; }
 
-    int   getNumVertexValues(Index vIndex) const;
-    Index getVertexValueIndex(Index vIndex, Sibling sibling = 0) const;
-    Index getVertexValue(Index vIndex, Sibling sibling = 0) const;
+    Index getVertexValue(Index v, Sibling i = 0) const { return _vertValueIndices[getVertexValueOffset(v,i)]; }
 
-    SiblingArray const getVertexFaceSiblings(Index faceIndex) const;
+    //  Methods to access/modify array properties per vertex:
+    IndexArray const getVertexValues(Index vIndex) const;
+    IndexArray       getVertexValues(Index vIndex);
 
-    //  Queries specific to values:
-    bool isValueCrease(Index valueIndex) const    { return _vertValueTags[valueIndex]._crease; }
-    bool isValueCorner(Index valueIndex) const    { return !_vertValueTags[valueIndex]._crease; }
-    bool isValueSemiSharp(Index valueIndex) const { return _vertValueTags[valueIndex]._semiSharp; }
-    bool isValueInfSharp(Index valueIndex) const  { return !_vertValueTags[valueIndex]._semiSharp &&
-                                                           !_vertValueTags[valueIndex]._crease; }
-    bool isValueDepSharp(Index valueIndex) const  { return _vertValueTags[valueIndex]._depSharp; }
-                                                           
+    ValueTagArray const getVertexValueTags(Index vIndex) const;
+    ValueTagArray       getVertexValueTags(Index vIndex);
+
+    CreaseEndPairArray const getVertexValueCreaseEnds(Index vIndex) const;
+    CreaseEndPairArray       getVertexValueCreaseEnds(Index vIndex);
+
+    SiblingArray const getVertexFaceSiblings(Index vIndex) const;
+    SiblingArray       getVertexFaceSiblings(Index vIndex);
+
+    //  Queries per value:
+    ValueTag getValueTag(Index valueIndex) const          { return _vertValueTags[valueIndex]; }
+    bool     valueTopologyMatches(Index valueIndex) const { return !getValueTag(valueIndex)._mismatch; }
 
     //  Higher-level topological queries, i.e. values in a neighborhood:
     void getEdgeFaceValues(Index eIndex, int fIncToEdge, Index valuesPerVert[2]) const;
     void getVertexEdgeValues(Index vIndex, Index valuesPerEdge[]) const;
     void getVertexCreaseEndValues(Index vIndex, Sibling sibling, Index endValues[2]) const;
 
-    //  Currently the sibling value storage and indexing is being reconsidered...
-    //    int                 getNumVertexSiblings(Index vIndex) const;
-    //    IndexArray const getVertexSiblingValues(Index vIndex) const;
-
-    //  Non-const methods -- modifiers to be protected:
-    //
-    //  Array modifiers for the per-face and vertex-face data:
-    IndexArray getFaceValues(Index fIndex);
-    SiblingArray  getVertexFaceSiblings(Index vIndex);
-
+    //  Initialization and allocation helpers:
     void setOptions(Sdc::Options const& options);
+    void resizeVertexValues(int numVertexValues);
     void resizeValues(int numValues);
     void resizeComponents();
 
+    //  Topological analysis methods -- tagging and face-value population:
     void completeTopologyFromFaceValues();
     void initializeFaceValuesFromFaceVertices();
-    void initializeFaceValuesFromVertexFaceSiblings(int firstVertex = 0);
-    void buildFaceVertexSiblingsFromVertexFaceSiblings(std::vector<Sibling>& fvSiblings) const;
+    void initializeFaceValuesFromVertexFaceSiblings();
 
     //  Information about the "span" for a value:
     struct ValueSpan {
@@ -192,10 +220,12 @@ public:
     };
     void gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const;
 
+    //  Debugging methods:
     bool validate() const;
     void print() const;
+    void buildFaceVertexSiblingsFromVertexFaceSiblings(std::vector<Sibling>& fvSiblings) const;
 
-public:
+protected:
     Level const & _level;
 
     //  Options vary between channels:
@@ -207,9 +237,15 @@ public:
     int  _valueCount;
 
     //
-    //  Vectors recording face-varying topology -- values-per-face, which edges
-    //  are discts wrt the FVar data, the one-to-many mapping between vertices and 
-    //  their sibling values, etc.  We use 8-bit "local indices" where possible.
+    //  Vectors recording face-varying topology including tags that help propagate
+    //  data through the refinement hierarchy.  Vectors are not sparse but most use
+    //  8-bit values relative to the local topology.
+    //
+    //  The vector of face-values is actually redundant here, but is constructed as
+    //  it is most convenient for clients.  It represents almost half the memory of
+    //  the topology (4 32-bit integers per face) and not surprisingly, populating
+    //  it takes a considerable amount of the refinement time (1/3).  We can reduce
+    //  both if we are willing to compute these on demand for clients.
     //
     //  Per-face (matches face-verts of corresponding level):
     std::vector<Index> _faceVertValues;
@@ -223,9 +259,9 @@ public:
     std::vector<Sibling>  _vertFaceSiblings;
 
     //  Per-value:
-    std::vector<Index>      _vertValueIndices;
-    std::vector<ValueTag>   _vertValueTags;
-    std::vector<LocalIndex> _vertValueCreaseEnds;
+    std::vector<Index>         _vertValueIndices;
+    std::vector<ValueTag>      _vertValueTags;
+    std::vector<CreaseEndPair> _vertValueCreaseEnds;
 };
 
 //
@@ -261,34 +297,49 @@ FVarLevel::getVertexFaceSiblings(Index vIndex) {
     return SiblingArray(&_vertFaceSiblings[vOffset], vCount);
 }
 
-//
-//  Access the values associated with each vertex:
-//
-/*
-inline int
-FVarLevel::getNumVertexSiblings(Index vertexIndex) const
-{
-    return _vertSiblingCounts[vertexIndex];
-}
 inline IndexArray const
-FVarLevel::getVertexSiblingValues(Index vIndex) const
+FVarLevel::getVertexValues(Index vIndex) const
 {
-    int vCount  = _vertSiblingCounts[vIndex];
-    int vOffset = _vertSiblingOffsets[vIndex];
+    int vCount  = getNumVertexValues(vIndex);
+    int vOffset = getVertexValueOffset(vIndex);
     return IndexArray(&_vertValueIndices[vOffset], vCount);
 }
-*/
-inline int
-FVarLevel::getNumVertexValues(Index vertexIndex) const {
-    return 1 + _vertSiblingCounts[vertexIndex];
+inline IndexArray
+FVarLevel::getVertexValues(Index vIndex)
+{
+    int vCount  = getNumVertexValues(vIndex);
+    int vOffset = getVertexValueOffset(vIndex);
+    return IndexArray(&_vertValueIndices[vOffset], vCount);
 }
-inline Index
-FVarLevel::getVertexValueIndex(Index vIndex, Sibling vSibling) const {
-    return vSibling ? (_vertSiblingOffsets[vIndex] + vSibling - 1) : vIndex;
+
+inline FVarLevel::ValueTagArray const
+FVarLevel::getVertexValueTags(Index vIndex) const
+{
+    int vCount  = getNumVertexValues(vIndex);
+    int vOffset = getVertexValueOffset(vIndex);
+    return ValueTagArray(&_vertValueTags[vOffset], vCount);
 }
-inline Index
-FVarLevel::getVertexValue(Index vIndex, Sibling vSibling) const {
-    return _vertValueIndices[getVertexValueIndex(vIndex, vSibling)];
+inline FVarLevel::ValueTagArray
+FVarLevel::getVertexValueTags(Index vIndex)
+{
+    int vCount  = getNumVertexValues(vIndex);
+    int vOffset = getVertexValueOffset(vIndex);
+    return ValueTagArray(&_vertValueTags[vOffset], vCount);
+}
+
+inline FVarLevel::CreaseEndPairArray const
+FVarLevel::getVertexValueCreaseEnds(Index vIndex) const
+{
+    int vCount  = getNumVertexValues(vIndex);
+    int vOffset = getVertexValueOffset(vIndex);
+    return CreaseEndPairArray(&_vertValueCreaseEnds[vOffset], vCount);
+}
+inline FVarLevel::CreaseEndPairArray
+FVarLevel::getVertexValueCreaseEnds(Index vIndex)
+{
+    int vCount  = getNumVertexValues(vIndex);
+    int vOffset = getVertexValueOffset(vIndex);
+    return CreaseEndPairArray(&_vertValueCreaseEnds[vOffset], vCount);
 }
 
 } // end namespace Vtr

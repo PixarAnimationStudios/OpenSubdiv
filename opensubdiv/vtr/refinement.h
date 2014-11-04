@@ -125,6 +125,10 @@ public:
     int getNumChildVerticesFromEdges() const    { return _childVertFromEdgeCount; }
     int getNumChildVerticesFromVertices() const { return _childVertFromVertCount; }
 
+    Index getFirstChildVertexFromFaces() const    { return 0; }
+    Index getFirstChildVertexFromEdges() const    { return _childVertFromFaceCount; }
+    Index getFirstChildVertexFromVertices() const { return _childVertFromFaceCount + _childVertFromEdgeCount; }
+
     Index getFaceChildVertex(Index f) const   { return _faceChildVertIndex[f]; }
     Index getEdgeChildVertex(Index e) const   { return _edgeChildVertIndex[e]; }
     Index getVertexChildVertex(Index v) const { return _vertChildVertIndex[v]; }
@@ -136,7 +140,7 @@ public:
     //  Child-to-parent relationships (not yet complete -- unclear how we will define the
     //  "type" of the parent component, e.g. vertex, edge or face):
     Index getChildFaceParentFace(Index f) const     { return _childFaceParentIndex[f]; }
-    int      getChildFaceInParentFace(Index f) const   { return _childFaceTag[f]._indexInParent; }
+    int   getChildFaceInParentFace(Index f) const   { return _childFaceTag[f]._indexInParent; }
 
     Index getChildEdgeParentIndex(Index e) const    { return _childEdgeParentIndex[e]; }
 
