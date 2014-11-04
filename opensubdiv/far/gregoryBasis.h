@@ -40,8 +40,18 @@ class GregoryBasis {
 
 public:
 
-    template <class T>
-    void Evaluate(T const * controlValues, T values[20]) const {
+    /// \brief Updates point values based on the control values
+    ///
+    /// \note The destination buffers are assumed to have allocated at least
+    ///       \c GetNumStencils() elements.
+    ///
+    /// @param controlValues  Buffer with primvar data for the control vertices
+    ///
+    /// @param values         Destination buffer for the interpolated primvar
+    ///                       data
+    ///
+    template <class T, class U>
+    void Evaluate(T const & controlValues, U values[20]) const {
 
         Index const * indices = &_indices.at(0);
         float const * weights = &_weights.at(0);
@@ -71,18 +81,49 @@ class GregoryBasisFactory {
 
 public:
 
+    //
+    // Single patch GregoryBasis basis factory
+    //
+
+    /// \brief Instantiates a GregoryBasis from a TopologyRefiner that has been
+    ///        refined adaptively for a given face.
+    ///
+    /// @param refiner    The TopologyRefiner containing the topology
+    ///
+    /// @param faceIndex  The index of the face (level is assumed to be MaxLevel)
+    ///
     static GregoryBasis const * Create(TopologyRefiner const & refiner, Index faceIndex);
+
+    /// \brief Returns the maximum valence of a vertex in the mesh that the
+    ///        Gregory patches can handle
+    static int GetMaxValence();
+
+public:
+
+    //
+    // Multi-patch Gregory stencils factory
+    //
+
+    // This factory accumulates Gregory patch basis into StencilTables
+    //
+    // Note: the TopologyRefiner and StencilTables references are held for the
+    //       lifespan of the factory - neither can be deleted or modified while
+    //       this factory is active.
+    //
+    GregoryBasisFactory(TopologyRefiner const & refiner,
+        StencilTables const & stencils, int numpatches, int maxvalence);
+
+    // Creates a basis for the face and adds it to the stencil pool allocator
+    bool AddPatchBasis(Index faceIndex);
+
+    // After all the patches have been collected, create the final table
+    StencilTables const * CreateStencilTables();
 
 private:
 
-    GregoryBasisFactory(StencilTables const & stencils, int numpatches, int maxvalence);
-    
-    bool AddBasis(TopologyRefiner const & refiner, Index faceIndex);
-
-    friend class Point;
-    friend struct ProtoBasis;
-    
     int _currentStencil;
+
+    TopologyRefiner const & _refiner; // XXXX these should be smart pointers !
 
     StencilTables const & _stencils;
     StencilAllocator _alloc;

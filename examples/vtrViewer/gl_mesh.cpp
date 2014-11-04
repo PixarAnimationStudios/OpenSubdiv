@@ -156,7 +156,7 @@ GLMesh::initializeVertexComponentBuffer(float const * vertData, int nverts) {
 
 //------------------------------------------------------------------------------
 void
-GLMesh::Initialize(Options options,
+GLMesh::Initialize(Options /* options */,
     int nverts, int nfaces, int * vertsperface, int * faceverts,
         float const * vertexData) {
 

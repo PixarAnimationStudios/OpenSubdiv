@@ -40,17 +40,19 @@ namespace Far {
 // Proto-stencil Pool Allocator classes
 //
 // Strategy: allocate up-front a data pool for supporting PROTOSTENCILS of a size
-// slightly above average. For the (rare) BIG_PROTOSTENCILS that require more support
-// vertices, switch to (slow) heap allocation.
+// (maxsize) slightly above average. For the (rare) BIG_PROTOSTENCILS that
+// require more support vertices, switch to (slow) heap allocation.
 //
 template <typename PROTOSTENCIL, class BIG_PROTOSTENCIL>
 class Allocator {
 
 public:
 
+    // Constructor
     Allocator(int maxSize, bool interpolateVarying=false) :
         _maxsize(maxSize), _interpolateVarying(interpolateVarying) { }
 
+    // Returns the number of stencils in the allocator
     int GetNumStencils() const {
         return (int)_sizes.size();
     }
@@ -64,6 +66,8 @@ public:
         return nverts;
     }
 
+    // Returns true if the pool allocator executes AddVaryingWithWeight
+    // factorization
     bool GetInterpolateVarying() const {
         return _interpolateVarying;
     }
@@ -81,10 +85,10 @@ public:
 
     // Adds the contribution of a supporting vertex that was not yet
     // in the stencil
-    void PushBackVertex(Index stencil, Index vert, float weight) {
+    void PushBackVertex(Index protoStencil, Index vert, float weight) {
         assert(weight!=0.0f);
-        unsigned char & size = _sizes[stencil];
-        Index idx = stencil*_maxsize;
+        unsigned char & size = _sizes[protoStencil];
+        Index idx = protoStencil*_maxsize;
         if (size < (_maxsize-1)) {
             idx += size;
             _indices[idx] = vert;
@@ -93,11 +97,11 @@ public:
             BIG_PROTOSTENCIL * dst = 0;
             if (size==(_maxsize-1)) {
                 dst = new BIG_PROTOSTENCIL(size, &_indices[idx], &_weights[idx]);
-                assert(_bigStencils.find(stencil)==_bigStencils.end());
-                _bigStencils[stencil] = dst;
+                assert(_bigStencils.find(protoStencil)==_bigStencils.end());
+                _bigStencils[protoStencil] = dst;
             } else {
-                assert(_bigStencils.find(stencil)!=_bigStencils.end());
-                dst = _bigStencils[stencil];
+                assert(_bigStencils.find(protoStencil)!=_bigStencils.end());
+                dst = _bigStencils[protoStencil];
             }
             dst->_indices.push_back(vert);
             dst->_weights.push_back(weight);
@@ -105,14 +109,11 @@ public:
         ++size;
     }
 
-    unsigned char GetSize(Index stencil) const {
-        assert(stencil<(int)_sizes.size());
-        return _sizes[stencil];
-    }
-
-    Index FindVertex(Index stencil, Index vert) {
-        int size = _sizes[stencil];
-        Index const * indices = GetIndices(stencil);
+    // Returns the local index in 'stencil' of a given vertex index, or
+    // INDEX_INVALID if the stencil does not contain this vertex
+    int FindVertex(Index protoStencil, Index vert) {
+        int size = _sizes[protoStencil];
+        Index const * indices = GetIndices(protoStencil);
         for (int i=0; i<size; ++i) {
             if (indices[i]==vert) {
                 return i;
@@ -121,82 +122,102 @@ public:
         return Vtr::INDEX_INVALID;
     }
 
-    bool IsBigStencil(Index stencil) const {
-        assert(stencil<(int)_sizes.size());
-        return _sizes[stencil]>=_maxsize;
+    // Returns true of the stencil does not fit in the pool allocator and
+    // has been moved to the 'big' (slow) allocation pool
+    bool IsBigStencil(Index protoStencil) const {
+        assert(protoStencil<(int)_sizes.size());
+        return _sizes[protoStencil]>=_maxsize;
     }
 
-    Index * GetIndices(Index stencil) {
-        if (not IsBigStencil(stencil)) {
-            return &_indices[stencil*_maxsize];
+    // Returns the size of a given proto-stencil
+    unsigned char GetSize(Index protoStencil) const {
+        assert(protoStencil<(int)_sizes.size());
+        return _sizes[protoStencil];
+    }
+
+    // Resolve memory pool and return a pointer to the indices of a given
+    // proto-stencil
+    Index * GetIndices(Index protoStencil) {
+        if (not IsBigStencil(protoStencil)) {
+            return &_indices[protoStencil*_maxsize];
         } else {
-            assert(_bigStencils.find(stencil)!=_bigStencils.end());
-            return &_bigStencils[stencil]->_indices[0];
+            assert(_bigStencils.find(protoStencil)!=_bigStencils.end());
+            return &_bigStencils[protoStencil]->_indices[0];
         }
     }
 
-    float * GetWeights(Index stencil) {
-        if (not IsBigStencil(stencil)) {
-            return &_weights[stencil*_maxsize];
+    // Resolve memory pool and return a pointer to the weights of a given
+    // proto-stencil
+    float * GetWeights(Index protoStencil) {
+        if (not IsBigStencil(protoStencil)) {
+            return &_weights[protoStencil*_maxsize];
         } else {
-            assert(_bigStencils.find(stencil)!=_bigStencils.end());
-            return &_bigStencils[stencil]->_weights[0];
+            assert(_bigStencils.find(protoStencil)!=_bigStencils.end());
+            return &_bigStencils[protoStencil]->_weights[0];
         }
     }
 
-    PROTOSTENCIL operator[] (Index i) {
+    // Returns the proto-stencil at a given index
+    PROTOSTENCIL operator[] (Index protoStencil) {
         // If the allocator is empty, AddWithWeight() expects a coarse control
         // vertex instead of a stencil and we only need to pass the index
-        return PROTOSTENCIL(i, this->GetNumStencils()>0 ? this : 0);
+        return PROTOSTENCIL(protoStencil, this->GetNumStencils()>0 ? this : 0);
     }
 
-    PROTOSTENCIL operator[] (Index i) const {
+    // Returns the proto-stencil at a given index
+    PROTOSTENCIL operator[] (Index protoStencil) const {
         // If the allocator is empty, AddWithWeight() expects a coarse control
         // vertex instead of a stencil and we only need to pass the index
-        return PROTOSTENCIL(i, this->GetNumStencils()>0 ?
+        return PROTOSTENCIL(protoStencil, this->GetNumStencils()>0 ?
             const_cast<Allocator<PROTOSTENCIL, BIG_PROTOSTENCIL> *>(this) : 0);
     }
 
-    void ClearStencil(Index stencil) {
-        memset(GetWeights(stencil), 0, _sizes[stencil]*sizeof(float));
-    }
-
-    unsigned char CopyStencil(Index i, Index * indices, float * weights) {
-        unsigned char size = GetSize(i);
-        memcpy(indices, this->GetIndices(i), size*sizeof(Index));
-        memcpy(weights, this->GetWeights(i), size*sizeof(float));
+    // Copy the proto-stencil out of the pool
+    unsigned char CopyStencil(Index protoStencil,
+        Index * indices, float * weights) {
+        unsigned char size = GetSize(protoStencil);
+        memcpy(indices, this->GetIndices(protoStencil), size*sizeof(Index));
+        memcpy(weights, this->GetWeights(protoStencil), size*sizeof(float));
         return size;
     }
 
 protected:
 
+    // delete 'slow' memory pool
     void clearBigStencils() {
         typename BigStencilMap::iterator it;
         for (it=_bigStencils.begin(); it!=_bigStencils.end(); ++it) {
             delete it->second;
         }
+        _bigStencils.clear();
     }
 
 protected:
 
-    int _maxsize;
+    int _maxsize; // max size of stencil that fits in the 'fast' pool
 
-    bool _interpolateVarying;
+    bool _interpolateVarying;             // true for varying interpolation
 
-    std::vector<unsigned char> _sizes;
+    std::vector<unsigned char> _sizes;    // 'fast' memory pool
     std::vector<int>           _indices;
     std::vector<float>         _weights;
 
     typedef std::map<int, BIG_PROTOSTENCIL *> BigStencilMap;
-    BigStencilMap _bigStencils;
+    BigStencilMap _bigStencils;           // 'slow' memory pool
 };
 
+//
+// Specialization of the Allocator for stencils with tangents that require
+// additional derivative weights.
+//
 template <typename PROTOSTENCIL, class BIG_PROTOSTENCIL>
 class LimitAllocator : public Allocator<PROTOSTENCIL, BIG_PROTOSTENCIL> {
 
 public:
 
-    LimitAllocator(int maxSize) : Allocator<PROTOSTENCIL, BIG_PROTOSTENCIL>(maxSize) { }
+    // Constructor
+    LimitAllocator(int maxSize) :
+        Allocator<PROTOSTENCIL, BIG_PROTOSTENCIL>(maxSize) { }
 
     void Resize(int size) {
         Allocator<PROTOSTENCIL, BIG_PROTOSTENCIL>::Resize(size);
@@ -205,11 +226,11 @@ public:
         _tan2Weights.resize(nelems);
     }
 
-    void PushBackVertex(Index stencil,
+    void PushBackVertex(Index protoStencil,
         Index vert, float weight, float tan1Weight, float tan2Weight) {
         assert(weight!=0.0f);
-        unsigned char & size = this->_sizes[stencil];
-        Index idx = stencil*this->_maxsize;
+        unsigned char & size = this->_sizes[protoStencil];
+        Index idx = protoStencil*this->_maxsize;
         if (size < (this->_maxsize-1)) {
             idx += size;
             this->_indices[idx] = vert;
@@ -219,13 +240,14 @@ public:
         } else {
             BIG_PROTOSTENCIL * dst = 0;
             if (size==(this->_maxsize-1)) {
-                dst = new BIG_PROTOSTENCIL(size, &this->_indices[idx],
-                    &this->_weights[idx], &this->_tan1Weights[idx], &this->_tan2Weights[idx]);
-                assert(this->_bigStencils.find(stencil)==this->_bigStencils.end());
-                this->_bigStencils[stencil] = dst;
+                dst = new BIG_PROTOSTENCIL(size,
+                    &this->_indices[idx], &this->_weights[idx],
+                        &this->_tan1Weights[idx], &this->_tan2Weights[idx]);
+                assert(this->_bigStencils.find(protoStencil)==this->_bigStencils.end());
+                this->_bigStencils[protoStencil] = dst;
             } else {
-                assert(this->_bigStencils.find(stencil)!=this->_bigStencils.end());
-                dst = this->_bigStencils[stencil];
+                assert(this->_bigStencils.find(protoStencil)!=this->_bigStencils.end());
+                dst = this->_bigStencils[protoStencil];
             }
             dst->_indices.push_back(vert);
             dst->_weights.push_back(weight);
@@ -235,41 +257,42 @@ public:
         ++size;
     }
 
-    float * GetTan1Weights(Index stencil) {
-        if (not this->IsBigStencil(stencil)) {
-            return &_tan1Weights[stencil*this->_maxsize];
+    float * GetTan1Weights(Index protoStencil) {
+        if (not this->IsBigStencil(protoStencil)) {
+            return &_tan1Weights[protoStencil*this->_maxsize];
         } else {
-            assert(this->_bigStencils.find(stencil)!=this->_bigStencils.end());
-            return &this->_bigStencils[stencil]->_tan1Weights[0];
+            assert(this->_bigStencils.find(protoStencil)!=this->_bigStencils.end());
+            return &this->_bigStencils[protoStencil]->_tan1Weights[0];
         }
     }
 
-    float * GetTan2Weights(Index stencil) {
-        if (not this->IsBigStencil(stencil)) {
-            return &_tan2Weights[stencil*this->_maxsize];
+    float * GetTan2Weights(Index protoStencil) {
+        if (not this->IsBigStencil(protoStencil)) {
+            return &_tan2Weights[protoStencil*this->_maxsize];
         } else {
-            assert(this->_bigStencils.find(stencil)!=this->_bigStencils.end());
-            return &this->_bigStencils[stencil]->_tan2Weights[0];
+            assert(this->_bigStencils.find(protoStencil)!=this->_bigStencils.end());
+            return &this->_bigStencils[protoStencil]->_tan2Weights[0];
         }
     }
 
-    PROTOSTENCIL operator[] (Index i) {
+    PROTOSTENCIL operator[] (Index protoStencil) {
         assert(this->GetNumStencils()>0);
-        return PROTOSTENCIL(i, this);
+        return PROTOSTENCIL(protoStencil, this);
     }
 
-    void ClearStencil(Index stencil) {
-        Allocator<PROTOSTENCIL, BIG_PROTOSTENCIL>::ClearStencil(stencil);
-        memset(GetTan1Weights(stencil), 0, this->_sizes[stencil]*sizeof(float));
-        memset(GetTan2Weights(stencil), 0, this->_sizes[stencil]*sizeof(float));
+    void ClearStencil(Index protoStencil) {
+        Allocator<PROTOSTENCIL, BIG_PROTOSTENCIL>::ClearStencil(protoStencil);
+        memset(GetTan1Weights(protoStencil), 0, this->_sizes[protoStencil]*sizeof(float));
+        memset(GetTan2Weights(protoStencil), 0, this->_sizes[protoStencil]*sizeof(float));
     }
 
-    unsigned char CopyLimitStencil(Index i, Index * indices,
-        float * weights, float * tan1Weights, float * tan2Weights) {
+    unsigned char CopyLimitStencil(Index protoStencil,
+        Index * indices, float * weights, float * tan1Weights, float * tan2Weights) {
         unsigned char size =
-            Allocator<PROTOSTENCIL, BIG_PROTOSTENCIL>::CopyStencil(i, indices, weights);
-        memcpy(tan1Weights, this->GetTan1Weights(i), size*sizeof(Index));
-        memcpy(tan2Weights, this->GetTan2Weights(i), size*sizeof(float));
+            Allocator<PROTOSTENCIL, BIG_PROTOSTENCIL>::CopyStencil(
+                protoStencil, indices, weights);
+        memcpy(tan1Weights, this->GetTan1Weights(protoStencil), size*sizeof(Index));
+        memcpy(tan2Weights, this->GetTan2Weights(protoStencil), size*sizeof(float));
         return size;
     }
 
@@ -281,8 +304,8 @@ private:
 //
 // 'Big' Proto stencil classes
 //
-// When proto-stencils exceed _maxsize, fall back to dynamically
-// allocated "BigStencils"
+// When proto-stencils exceed _maxsize, fall back to dynamically allocated
+// "BigStencils" (with 'Limit' specialization to handle tangents)
 //
 struct BigStencil {
 
@@ -299,9 +322,11 @@ struct BigStencil {
 };
 struct BigLimitStencil : public BigStencil {
 
-    BigLimitStencil(unsigned char size, Index const * indices,
-        float const * weights, float const * tan1Weights,  float const * tan2Weights) :
-            BigStencil(size, indices, weights) {
+    BigLimitStencil(unsigned char size,
+        Index const * indices, float const * weights,
+            float const * tan1Weights,  float const * tan2Weights) :
+                BigStencil(size, indices, weights) {
+
         _tan1Weights.reserve(size+5); _tan1Weights.resize(size);
         memcpy(&_tan1Weights.at(0), tan1Weights, size*sizeof(float));
         _tan2Weights.reserve(size+5); _tan2Weights.resize(size);
@@ -327,9 +352,11 @@ public:
         _id(id), _alloc(alloc) { }
 
     void Clear() {
-        _alloc->ClearStencil(_id);
+        // Clear() can only ever be called on an empty stencil: nothing to do
+        assert(_alloc->GetSize(_id)==0);
     }
 
+    // Factorize from a proto-stencil allocator
     void AddWithWeight(ProtoStencil const & src, float weight) {
 
         if(weight==0.0f) {
@@ -342,24 +369,7 @@ public:
             Index const * srcIndices = src._alloc->GetIndices(src._id);
             float const * srcWeights = src._alloc->GetWeights(src._id);
 
-            for (unsigned char i=0; i<srcSize; ++i) {
-
-                assert(srcWeights[i]!=0.0f);
-                float w = weight * srcWeights[i];
-
-                if (w==0.0f) {
-                    continue;
-                }
-
-                Index vertIndex = srcIndices[i],
-                      n = _alloc->FindVertex(_id, vertIndex);
-                if (Vtr::IndexIsValid(n)) {
-                    _alloc->GetWeights(_id)[n] += w;
-                    assert(_alloc->GetWeights(_id)[n]!=0.0f);
-                } else {
-                    _alloc->PushBackVertex(_id, vertIndex, w);
-                }
-            }
+            addWithWeight(weight, srcSize, srcIndices, srcWeights);
         } else {
             // Coarse vertex contribution
             Index n = _alloc->FindVertex(_id, src._id);
@@ -372,15 +382,55 @@ public:
         }
     }
 
+    // Factorize from a finished stencil table
+    void AddWithWeight(StencilTables const & table, Index idx, float weight) {
+
+        assert(idx<table.GetNumStencils());
+
+        if(weight==0.0f) {
+            return;
+        }
+
+        unsigned char srcSize = table.GetSizes()[idx];
+        Index offset = table.GetOffsets()[idx];
+        Index const * srcIndices = &table.GetControlIndices()[offset];
+        float const * srcWeights = &table.GetWeights()[offset];
+
+        addWithWeight(weight, srcSize, srcIndices, srcWeights);
+    }
+
     void AddVaryingWithWeight(ProtoStencil const & src, float weight) {
         if (_alloc->GetInterpolateVarying()) {
             AddWithWeight(src, weight);
         }
     }
 
-private:
+protected:
 
     friend class ProtoLimitStencil;
+
+    void addWithWeight(float weight, unsigned char srcSize,
+        Index const * srcIndices, float const * srcWeights) {
+
+        for (unsigned char i=0; i<srcSize; ++i) {
+
+            assert(srcWeights[i]!=0.0f);
+
+            float w = weight * srcWeights[i];
+            if (w==0.0f) {
+                continue;
+            }
+
+            Index vertIndex = srcIndices[i],
+                  n = _alloc->FindVertex(_id, vertIndex);
+            if (Vtr::IndexIsValid(n)) {
+                _alloc->GetWeights(_id)[n] += w;
+                assert(_alloc->GetWeights(_id)[n]!=0.0f);
+            } else {
+                _alloc->PushBackVertex(_id, vertIndex, w);
+            }
+        }
+    }
 
     Index _id;
     Allocator<ProtoStencil, BigStencil> * _alloc;
@@ -395,12 +445,14 @@ typedef Allocator<ProtoStencil, BigStencil> StencilAllocator;
 class ProtoLimitStencil {
 
 public:
+
     ProtoLimitStencil(Index id,
         LimitAllocator<ProtoLimitStencil, BigLimitStencil> * alloc) :
             _id(id), _alloc(alloc) { }
 
     void Clear() {
-        _alloc->ClearStencil(_id);
+        // Clear() can only ever be called on an empty stencil: nothing to do
+        assert(_alloc->GetSize(_id)==0);
     }
 
     void AddWithWeight(Stencil const & src,

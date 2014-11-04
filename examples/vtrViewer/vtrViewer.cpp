@@ -115,6 +115,7 @@ int   g_displayPatchColor    = 1,
       g_VtrDrawPtexIDs       = false,
       g_VtrDrawEdgeSharpness = false,
       g_numPatches           = 0,
+      g_maxValence           = 0,
       g_currentPatch         = 0,
       g_Adaptive             = true;
 
@@ -546,68 +547,68 @@ static GLMesh gregoryWire;
 
 static void
 createGregoryBasis(OpenSubdiv::Far::TopologyRefiner const & refiner,
-    std::vector<Vertex> const & vertexBuffer) {
+    OpenSubdiv::Far::StencilTables const & stencils, int maxvalence,
+        std::vector<Vertex> const & vertexBuffer) {
 
     int level = refiner.GetMaxLevel(),
         nfaces = refiner.GetNumFaces(level);
 
-    int vertOffset = 0;
-    for (int i=0; i<level; ++i) {
-        vertOffset += refiner.GetNumVertices(i);
+    std::vector<OpenSubdiv::Far::Index> gpatches(nfaces);
+    for (int face=0; face<nfaces; ++face) {
+        if (not refiner.FaceIsRegular(level, face)) {
+            gpatches.push_back(face);
+        }
     }
 
-    std::vector<int> vertsperedge, edgeindices;
-    std::vector<Vertex> edgeverts;
+    int npatches = (int)gpatches.size();
 
-    for (int face=0; face<nfaces; ++face) {
-        bool regular = refiner.FaceIsRegular(level, face);
-        if (not regular) {
-            OpenSubdiv::Far::GregoryBasis const * gbasis =
-                OpenSubdiv::Far::GregoryBasisFactory::Create(refiner, face);
+    OpenSubdiv::Far::GregoryBasisFactory factory(
+        refiner, stencils, npatches, maxvalence);
 
+    for (int i=0; i<npatches; ++i) {
+        factory.AddPatchBasis(gpatches[i]);
+    }
+    
+    OpenSubdiv::Far::StencilTables const * gstencils =
+        factory.CreateStencilTables();
 
-            {   // initialize wireframe
+    int nedges = npatches * 20;
 
-                static int  basisedges[40] = {  0,  1,  0,  2,  1,  3,  2,  4,
-                                                5,  6,  5,  7,  6,  8,  7,  9, 
-                                               10, 11, 10, 12, 11, 13, 12, 14, 
-                                               15, 16, 15, 17, 16, 18, 17, 19,
-                                                1,  7,  6, 12, 11, 17, 16,  2  };
+    std::vector<int> vertsperedge(nedges), edgeindices(nedges*2);
+    std::vector<Vertex> edgeverts(npatches*20);
+    gstencils->UpdateValues(&vertexBuffer[0], &edgeverts[0]);
 
-                int nedges = (int)vertsperedge.size();
-                
-                vertsperedge.resize(nedges+20);
-                edgeindices.resize(nedges*2+40);
+    for (int patch=0; patch<npatches; ++patch) {
 
-                int * vpe = &vertsperedge[nedges],
-                    * ev = &edgeindices[nedges*2];
-                for (int i=0; i<20; ++i) {
-                    vpe[i] = 2;
-                    ev[i*2] = basisedges[i*2] + nedges;
-                    ev[i*2+1] = basisedges[i*2+1] + nedges;
-                }
-            }    
+        static int  basisedges[40] = {  0,  1,  0,  2,  1,  3,  2,  4,
+                                        5,  6,  5,  7,  6,  8,  7,  9, 
+                                       10, 11, 10, 12, 11, 13, 12, 14, 
+                                       15, 16, 15, 17, 16, 18, 17, 19,
+                                        1,  7,  6, 12, 11, 17, 16,  2  };
 
-            std::vector<Vertex> gverts(20);
-            gbasis->Evaluate(&vertexBuffer[vertOffset], &gverts[0]);
+        int offset = patch * 20,
+            * vpe = &vertsperedge[offset],
+            * indices = &edgeindices[patch * 40];
+        for (int i=0; i<20; ++i) {
+            vpe[i] = 2;
+            indices[i*2] = basisedges[i*2] + offset;
+            indices[i*2+1] =basisedges[i*2+1] + offset;
+        }
 
-            static char buf[16];
-            for (int i=0; i<4; ++i) {
-                int vid = i * 5;
-                snprintf(buf, 16, " P%d", i);
-                g_font->Print3D(gverts[vid].GetPos(), buf, 3);
-                snprintf(buf, 16, " Ep%d", i);
-                g_font->Print3D(gverts[vid+1].GetPos(), buf, 3);
-                snprintf(buf, 16, " Em%d", i);
-                g_font->Print3D(gverts[vid+2].GetPos(), buf, 3);
-                snprintf(buf, 16, " Fp%d", i);
-                g_font->Print3D(gverts[vid+3].GetPos(), buf, 3);
-                snprintf(buf, 16, " Fm%d", i);
-                g_font->Print3D(gverts[vid+4].GetPos(), buf, 3);
-            }
-            delete gbasis;
-            
-            edgeverts.insert(edgeverts.end(), gverts.begin(), gverts.end());
+        Vertex const * verts = &edgeverts[offset];
+        static char buf[16];
+        for (int i=0; i<4; ++i) {
+            int vid = i * 5;
+            snprintf(buf, 16, " P%d", i);
+            g_font->Print3D(verts[vid].GetPos(), buf, 3);
+            snprintf(buf, 16, " Ep%d", i);
+            g_font->Print3D(verts[vid+1].GetPos(), buf, 3);
+            snprintf(buf, 16, " Em%d", i);
+            g_font->Print3D(verts[vid+2].GetPos(), buf, 3);
+            snprintf(buf, 16, " Fp%d", i);
+            g_font->Print3D(verts[vid+3].GetPos(), buf, 3);
+            snprintf(buf, 16, " Fm%d", i);
+            g_font->Print3D(verts[vid+4].GetPos(), buf, 3);
         }
     }
 
@@ -697,6 +698,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
         patchTables = OpenSubdiv::Far::PatchTablesFactory::Create(*refiner);
 
         g_numPatches = patchTables->GetNumPatchesTotal();
+        g_maxValence = patchTables->GetMaxValence();
     } else {
         refiner->RefineUniform(maxlevel, /*fullTopology*/true);
     }
@@ -726,12 +728,13 @@ createVtrMesh(Shape * shape, int maxlevel) {
         //printf("          %f ms (total)\n", float(s.GetTotalElapsed())*1000.0f);
     }
 #else
+    OpenSubdiv::Far::StencilTables const * stencilTables = 0;
     {
         OpenSubdiv::Far::StencilTablesFactory::Options options;
         options.generateOffsets=true;
         options.generateIntermediateLevels=true;
 
-        OpenSubdiv::Far::StencilTables const * stencilTables =
+        stencilTables =
             OpenSubdiv::Far::StencilTablesFactory::Create(*refiner, options);
 
         stencilTables->UpdateValues(verts, verts + ncoarseverts);
@@ -755,7 +758,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
     }
 
     if (g_Adaptive and g_drawGregoryBasis) {
-        createGregoryBasis(*refiner, vertexBuffer);
+        createGregoryBasis(*refiner, *stencilTables, g_maxValence, vertexBuffer);
     }
 
     createEdgeNumbers(*refiner, vertexBuffer, g_VtrDrawEdgeIDs!=0, g_VtrDrawEdgeSharpness!=0);
@@ -780,6 +783,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
 
     delete refiner;
     delete patchTables;
+    delete stencilTables;
 }
 
 //------------------------------------------------------------------------------
