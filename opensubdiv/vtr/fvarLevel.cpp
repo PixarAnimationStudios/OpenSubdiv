@@ -723,26 +723,7 @@ FVarLevel::getEdgeFaceValues(Index eIndex, int fIncToEdge, Index valuesPerVert[2
 
         //  This is another of those irritating times where I want to have the edge-in-face
         //  local indices stored with each edge-face...
-        /*
-        IndexArray const fEdges  = _level.getFaceEdges(eFace);
-        IndexArray const fVerts  = _level.getFaceVertices(eFace);
-        IndexArray const fValues = getFaceValues(eFace);
-
-        for (int i = 0; i < fEdges.size(); ++i) {
-            if (fEdges[i] == eIndex) {
-                int i0 = i;
-                int i1 = (i + 1) % fEdges.size();
-
-                if (fVerts[i0] != eVerts[0]) {
-                    std::swap(i0, i1);
-                }
-                valuesPerVert[0] = fValues[i0];
-                valuesPerVert[1] = fValues[i1];
-                return;
-            }
-        }
-        */
-
+        //
         //  This is about as fast as we're going to get with a search and still leaves
         //  this function showing a considerable part of edge-vertex interpolation (down
         //  from 40% to 25%)...
@@ -750,33 +731,54 @@ FVarLevel::getEdgeFaceValues(Index eIndex, int fIncToEdge, Index valuesPerVert[2
         IndexArray const fEdges  = _level.getFaceEdges(eFace);
         IndexArray const fValues = getFaceValues(eFace);
 
+        int edgeInFace = 0;
         if (fEdges.size() == 4) {
             if (fEdges[0] == eIndex) {
                 valuesPerVert[0] = fValues[0];
                 valuesPerVert[1] = fValues[1];
+                edgeInFace = 0;
             } else if (fEdges[1] == eIndex) {
                 valuesPerVert[0] = fValues[1];
                 valuesPerVert[1] = fValues[2];
+                edgeInFace = 1;
             } else if (fEdges[2] == eIndex) {
                 valuesPerVert[0] = fValues[2];
                 valuesPerVert[1] = fValues[3];
+                edgeInFace = 2;
             } else {
                 valuesPerVert[0] = fValues[3];
                 valuesPerVert[1] = fValues[0];
+                edgeInFace = 3;
             }
         } else if (fEdges.size() == 3) {
             if (fEdges[0] == eIndex) {
                 valuesPerVert[0] = fValues[0];
                 valuesPerVert[1] = fValues[1];
+                edgeInFace = 0;
             } else if (fEdges[1] == eIndex) {
                 valuesPerVert[0] = fValues[1];
                 valuesPerVert[1] = fValues[2];
+                edgeInFace = 1;
             } else {
                 valuesPerVert[0] = fValues[2];
                 valuesPerVert[1] = fValues[0];
+                edgeInFace = 2;
             }
         } else {
-            assert(fEdges.size() <= 4);
+            for (int i = 0; i < fEdges.size(); ++i) {
+                if (fEdges[i] == eIndex) {
+                    valuesPerVert[0] = fValues[i];
+                    valuesPerVert[1] = fValues[(i+1) % fEdges.size()];
+                    edgeInFace = i;
+                    break;
+                }
+            }
+        }
+
+        //  Given the way these two end-values are used (both weights the same) we really
+        //  don't need to ensure the value pair matches the vertex pair...
+        if (eVerts[0] != _level.getFaceVertices(eFace)[edgeInFace]) {
+            std::swap(valuesPerVert[0], valuesPerVert[1]);
         }
     } else {
         valuesPerVert[0] = getVertexValue(eVerts[0]);
