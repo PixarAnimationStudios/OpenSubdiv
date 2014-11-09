@@ -431,7 +431,7 @@ FVarLevel::completeTopologyFromFaceValues() {
                 if ((i == 0) && (vSpan._start != 0)) {
                     vValueCreaseEnds[i]._endFace = (LocalIndex) (vSpan._start + vSpan._size - 1 - vFaces.size());
                 } else {
-                    vValueCreaseEnds[i]._endFace = vSpan._start + vSpan._size - 1;
+                    vValueCreaseEnds[i]._endFace = (LocalIndex) (vSpan._start + vSpan._size - 1);
                 }
             }
         }
@@ -458,8 +458,8 @@ FVarLevel::getVertexCreaseEndValues(Index vIndex, Sibling vSibling, Index endVal
     IndexArray const      vFaces  = _level.getVertexFaces(vIndex);
     LocalIndexArray const vInFace = _level.getVertexFaceLocalIndices(vIndex);
 
-    LocalIndex endInFace0 = vInFace[vertFace0];
-    LocalIndex endInFace1 = vInFace[vertFace1];
+    int endInFace0 = vInFace[vertFace0];
+    int endInFace1 = vInFace[vertFace1];
     if (_level.getDepth() > 0) {
         endInFace0 = (endInFace0 + 1) % 4;
         endInFace1 = (endInFace1 + 3) % 4;

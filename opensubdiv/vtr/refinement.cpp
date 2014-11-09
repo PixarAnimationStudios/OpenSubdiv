@@ -42,7 +42,7 @@ namespace OPENSUBDIV_VERSION {
 namespace Vtr {
 
 //
-//  Simple constructor and destructor -- consider inline if they remain simple...
+//  Simple constructor, destructor and basic initializers:
 //
 Refinement::Refinement() :
     _parent(0),
@@ -55,7 +55,13 @@ Refinement::Refinement() :
     _childEdgeFromEdgeCount(0),
     _childVertFromFaceCount(0),
     _childVertFromEdgeCount(0),
-    _childVertFromVertCount(0) {
+    _childVertFromVertCount(0),
+    _firstChildFaceFromFace(0),
+    _firstChildEdgeFromFace(0),
+    _firstChildEdgeFromEdge(0),
+    _firstChildVertFromFace(0),
+    _firstChildVertFromEdge(0),
+    _firstChildVertFromVert(0) {
 }
 
 Refinement::~Refinement() {
@@ -87,14 +93,127 @@ Refinement::setScheme(Sdc::Type const& schemeType, Sdc::Options const& schemeOpt
 
     _schemeType = schemeType;
     _schemeOptions = schemeOptions;
+
+    assert((schemeType == Sdc::TYPE_CATMARK) || (schemeType == Sdc::TYPE_BILINEAR));
+    _quadSplit = true;
+}
+
+void
+Refinement::initializeChildComponentCounts() {
+
+    //
+    //  Assign the child's component counts/inventory based on the child components identified:
+    //
+    _child->_faceCount = _childFaceFromFaceCount;
+    _child->_edgeCount = _childEdgeFromFaceCount + _childEdgeFromEdgeCount;
+    _child->_vertCount = _childVertFromFaceCount + _childVertFromEdgeCount + _childVertFromVertCount;
+}
+
+void
+Refinement::initializeSparseSelectionTags() {
+
+    _parentFaceTag.resize(_parent->getNumFaces());
+    _parentEdgeTag.resize(_parent->getNumEdges());
+    _parentVertexTag.resize(_parent->getNumVertices());
 }
 
 
 //
-//  Methods for preparing for refinement:
+//  The main refinement method -- provides a high-level overview of refinement:
+//
+//  The refinement process is as follows:
+//      - determine a mapping from parent components to their potential child components
+//          - for sparse refinement this mapping will be partial
+//      - determine the reverse mapping from chosen child components back to their parents
+//          - previously this was optional -- not strictly necessary and comes at added cost
+//          - does simplify iteration of child components when refinement is sparse
+//      - propagate/initialize component Tags from parents to their children
+//          - knowing these Tags for a child component simplifies dealing with it later
+//      - subdivide the topology, i.e. populate all topology relations for the child Level
+//          - any subset of the 6 relations in a Level can be created
+//          - using the minimum required in the last Level is very advantageous
+//      - subdivide the sharpness values in the child Level
+//      - subdivide face-varying channels in the child Level
 //
 void
-Refinement::allocateParentToChildMapping() {
+Refinement::refine(Options refineOptions) {
+
+    //  This will become redundant when/if assigned on construction:
+    assert(_parent && _child);
+
+    _uniform = !refineOptions._sparse;
+
+    //
+    //  Initialize the parent-to-child and reverse child-to-parent mappings and propagate
+    //  component tags to the new child components:
+    //
+    populateParentToChildMapping();
+
+    initializeChildComponentCounts();
+
+    populateChildToParentMapping();
+
+    propagateComponentTags();
+
+    //
+    //  Subdivide the topology -- populating only those of the 6 relations specified:
+    //
+    Relations relationsToPopulate;
+    if (refineOptions._faceTopologyOnly) {
+        relationsToPopulate.setAll(false);
+        relationsToPopulate._faceVertices = true;
+    } else {
+        relationsToPopulate.setAll(true);
+    }
+    subdivideTopology(relationsToPopulate);
+
+    //
+    //  Subdivide the sharpness values and face-varying channels:
+    //    - note there is some dependency of the vertex tag/Rule for semi-sharp vertices
+    //
+    subdivideSharpnessValues();
+
+    //  We may have an option here to suppress face-varying channels...
+    bool refineOptions_faceVaryingChannels = true;
+    if (refineOptions_faceVaryingChannels) {
+        subdivideFVarChannels();
+    }
+
+    //  Various debugging support:
+    //
+    //printf("Vertex refinement to level %d completed...\n", _child->getDepth());
+    //_child->print();
+    //printf("  validating refinement to level %d...\n", _child->getDepth());
+    //_child->validateTopology();
+    //assert(_child->validateTopology());
+}
+
+
+//
+//  Methods for construct the parent-to-child mapping
+//
+void
+Refinement::populateParentToChildMapping() {
+
+    allocateParentChildIndices();
+
+    //
+    //  If sparse refinement, mark indices of any components in addition to those selected
+    //  so that we have the full neighborhood for selected components:
+    //
+    if (!_uniform) {
+        //  Make sure the selection was non-empty -- currently unsupported...
+        if (_parentVertexTag.size() == 0) {
+            assert("Unsupported empty sparse refinement detected in Refinement" == 0);
+        }
+        markSparseChildComponentIndices();
+    }
+
+    populateParentChildIndices();
+}
+
+void
+Refinement::allocateParentChildIndices() {
 
     //
     //  Initialize the vectors of indices mapping parent components to those child components
@@ -122,6 +241,13 @@ Refinement::allocateParentToChildMapping() {
     } else {
         assert("Non-quad splitting not yet supported\n" == 0);
 
+        //  Beware these child-counts when Loop subdivision supports N-sided faces in the cage
+        //      - there will 2*(N-2) additional face-child-faces for each N-sided face
+        //      - there will 2*(N-2)+1 additional face-child-edges for each N-sided face
+        //      - there will 1 face-child-vertex for each N-sided face
+        //  Can consider these reasonable estimates and grow as needed later -- but be clear
+        //  about it if so.
+
         faceChildFaceCount = _parent->getNumFaces() * 4;
         faceChildEdgeCount = (int) _parent->_faceEdgeIndices.size();
         edgeChildEdgeCount = (int) _parent->_edgeVertIndices.size();
@@ -144,6 +270,117 @@ Refinement::allocateParentToChildMapping() {
     _faceChildVertIndex.resize(faceChildVertCount, initValue);
     _edgeChildVertIndex.resize(edgeChildVertCount, initValue);
     _vertChildVertIndex.resize(vertChildVertCount, initValue);
+}
+
+namespace {
+    inline bool isSparseIndexMarked(Index index)   { return index != 0; }
+
+    inline int
+    sequenceSparseIndexVector(IndexVector& indexVector, int baseValue = 0) {
+        int validCount = 0;
+        for (int i = 0; i < (int) indexVector.size(); ++i) {
+            indexVector[i] = isSparseIndexMarked(indexVector[i])
+                           ? (baseValue + validCount++) : INDEX_INVALID;
+        }
+        return validCount;
+    }
+
+    inline int
+    sequenceFullIndexVector(IndexVector& indexVector, int baseValue = 0) {
+        int indexCount = (int) indexVector.size();
+        for (int i = 0; i < indexCount; ++i) {
+            indexVector[i] = baseValue++;
+        }
+        return indexCount;
+    }
+}
+
+void
+Refinement::populateParentChildIndices() {
+
+    //
+    //  Two vertex orderings are under consideration -- the current/original orders
+    //  vertices originating from faces first (historically these were relied upon
+    //  to compute the rest of the vertices) while ordering vertices from vertices
+    //  first is being considered (advantageous as it preserves the index of a parent
+    //  vertex at all subsequent levels).
+    //
+    //  Other than defining the same ordering for refinement face-varying channels
+    //  (which can be inferred from settings here) the rest of the code should be
+    //  invariant to vertex ordering.
+    //
+    bool faceVertsFirst = true;
+
+    //
+    //  These two blocks now differ only in the utility function that assigns the
+    //  sequential values to the index vectors -- so parameterization/simplification
+    //  is now possible...
+    //
+    if (_uniform) {
+        //  child faces:
+        _firstChildFaceFromFace = 0;
+        _childFaceFromFaceCount = sequenceFullIndexVector(_faceChildFaceIndices, _firstChildFaceFromFace);
+
+        //  child edges:
+        _firstChildEdgeFromFace = 0;
+        _childEdgeFromFaceCount = sequenceFullIndexVector(_faceChildEdgeIndices, _firstChildEdgeFromFace);
+
+        _firstChildEdgeFromEdge = _childEdgeFromFaceCount;
+        _childEdgeFromEdgeCount = sequenceFullIndexVector(_edgeChildEdgeIndices, _firstChildEdgeFromEdge);
+
+        //  child vertices:
+        if (faceVertsFirst) {
+            _firstChildVertFromFace = 0;
+            _childVertFromFaceCount = sequenceFullIndexVector(_faceChildVertIndex, _firstChildVertFromFace);
+
+            _firstChildVertFromEdge = _firstChildVertFromFace + _childVertFromFaceCount;
+            _childVertFromEdgeCount = sequenceFullIndexVector(_edgeChildVertIndex, _firstChildVertFromEdge);
+
+            _firstChildVertFromVert = _firstChildVertFromEdge + _childVertFromEdgeCount;
+            _childVertFromVertCount = sequenceFullIndexVector(_vertChildVertIndex, _firstChildVertFromVert);
+        } else {
+            _firstChildVertFromVert = 0;
+            _childVertFromVertCount = sequenceFullIndexVector(_vertChildVertIndex, _firstChildVertFromVert);
+
+            _firstChildVertFromFace = _firstChildVertFromVert + _childVertFromVertCount;
+            _childVertFromFaceCount = sequenceFullIndexVector(_faceChildVertIndex, _firstChildVertFromFace);
+
+            _firstChildVertFromEdge = _firstChildVertFromFace + _childVertFromFaceCount;
+            _childVertFromEdgeCount = sequenceFullIndexVector(_edgeChildVertIndex, _firstChildVertFromEdge);
+        }
+    } else {
+        //  child faces:
+        _firstChildFaceFromFace = 0;
+        _childFaceFromFaceCount = sequenceSparseIndexVector(_faceChildFaceIndices, _firstChildFaceFromFace);
+
+        //  child edges:
+        _firstChildEdgeFromFace = 0;
+        _childEdgeFromFaceCount = sequenceSparseIndexVector(_faceChildEdgeIndices, _firstChildEdgeFromFace);
+
+        _firstChildEdgeFromEdge = _childEdgeFromFaceCount;
+        _childEdgeFromEdgeCount = sequenceSparseIndexVector(_edgeChildEdgeIndices, _firstChildEdgeFromEdge);
+
+        //  child vertices:
+        if (faceVertsFirst) {
+            _firstChildVertFromFace = 0;
+            _childVertFromFaceCount = sequenceSparseIndexVector(_faceChildVertIndex, _firstChildVertFromFace);
+
+            _firstChildVertFromEdge = _firstChildVertFromFace + _childVertFromFaceCount;
+            _childVertFromEdgeCount = sequenceSparseIndexVector(_edgeChildVertIndex, _firstChildVertFromEdge);
+
+            _firstChildVertFromVert = _firstChildVertFromEdge + _childVertFromEdgeCount;
+            _childVertFromVertCount = sequenceSparseIndexVector(_vertChildVertIndex, _firstChildVertFromVert);
+        } else {
+            _firstChildVertFromVert = 0;
+            _childVertFromVertCount = sequenceSparseIndexVector(_vertChildVertIndex, _firstChildVertFromVert);
+
+            _firstChildVertFromFace = _firstChildVertFromVert + _childVertFromVertCount;
+            _childVertFromFaceCount = sequenceSparseIndexVector(_faceChildVertIndex, _firstChildVertFromFace);
+
+            _firstChildVertFromEdge = _firstChildVertFromFace + _childVertFromFaceCount;
+            _childVertFromEdgeCount = sequenceSparseIndexVector(_edgeChildVertIndex, _firstChildVertFromEdge);
+        }
+    }
 }
 
 void
@@ -182,125 +419,506 @@ Refinement::printParentToChildMapping() const {
 }
 
 
-namespace {
-    inline bool isSparseIndexMarked(Index index)   { return index != 0; }
+//
+//  Methods to construct the child-to-parent mapping:
+//
+void
+Refinement::populateChildToParentMapping() {
 
-    inline int
-    sequenceSparseIndexVector(IndexVector& indexVector, int baseValue = 0) {
-        int validCount = 0;
-        for (int i = 0; i < (int) indexVector.size(); ++i) {
-            indexVector[i] = isSparseIndexMarked(indexVector[i])
-                           ? (baseValue + validCount++) : INDEX_INVALID;
+    ChildTag initialChildTags[2][4];
+    for (int i = 0; i < 2; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            ChildTag & tag = initialChildTags[i][j];
+
+            tag._incomplete    = (unsigned char)i;
+            tag._parentType    = 0;
+            tag._indexInParent = (unsigned char)j;
         }
-        return validCount;
     }
 
-    inline int
-    sequenceFullIndexVector(IndexVector& indexVector, int baseValue = 0) {
-        int indexCount = (int) indexVector.size();
-        for (int i = 0; i < indexCount; ++i) {
-            indexVector[i] = baseValue++;
-        }
-        return indexCount;
-    }
+    populateFaceParentVectors(initialChildTags);
+    populateEdgeParentVectors(initialChildTags);
+    populateVertexParentVectors(initialChildTags);
 }
 
 void
-Refinement::initializeSparseSelectionTags() {
+Refinement::populateFaceParentVectors(ChildTag const initialChildTags[2][4]) {
 
-    _parentFaceTag.resize(_parent->getNumFaces());
-    _parentEdgeTag.resize(_parent->getNumEdges());
-    _parentVertexTag.resize(_parent->getNumVertices());
+    _childFaceTag.resize(_child->getNumFaces());
+    _childFaceParentIndex.resize(_child->getNumFaces());
+
+    populateFaceParentFromParentFaces(initialChildTags);
 }
-
 void
-Refinement::populateParentToChildMapping() {
-
-    allocateParentToChildMapping();
+Refinement::populateFaceParentFromParentFaces(ChildTag const initialChildTags[2][4]) {
 
     if (_uniform) {
-        //
-        //  We should be able to replace this separate initialization and sequencing in one
-        //  iteration -- we just need to separate the allocation and initialization that are
-        //  currently combined in the following initialization method:
-        //
-        //  child faces:
-        _childFaceFromFaceCount = sequenceFullIndexVector(_faceChildFaceIndices);
+        Index cFace = getFirstChildFaceFromFaces();
+        for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
+            IndexArray pVerts = _parent->getFaceVertices(pFace);
 
-        //  child edges:
-        _childEdgeFromFaceCount = sequenceFullIndexVector(_faceChildEdgeIndices);
-        _childEdgeFromEdgeCount = sequenceFullIndexVector(_edgeChildEdgeIndices, _childEdgeFromFaceCount);
+            //  Make this dependent on parent face's child count not its face-verts
+            assert(_quadSplit);
+            if (pVerts.size() == 4) {
+                _childFaceTag[cFace + 0] = initialChildTags[0][0];
+                _childFaceTag[cFace + 1] = initialChildTags[0][1];
+                _childFaceTag[cFace + 2] = initialChildTags[0][2];
+                _childFaceTag[cFace + 3] = initialChildTags[0][3];
 
-        //  child vertices:
-        _childVertFromFaceCount = sequenceFullIndexVector(_faceChildVertIndex);
-        _childVertFromEdgeCount = sequenceFullIndexVector(_edgeChildVertIndex, _childVertFromFaceCount);
-        _childVertFromVertCount = sequenceFullIndexVector(_vertChildVertIndex, _childVertFromFaceCount +
-                                                                               _childVertFromEdgeCount);
-    } else {
-        //
-        //  Since the parent-to-child mapping is not sparse, we initialize it and then mark
-        //  child components that are required from the parent components selected, or the
-        //  neighborhoods around them to support their limit.
-        //
-        //  Make sure the selection was non-empty -- currently unsupported...
-        if (_parentVertexTag.size() == 0) {
-            assert("Unsupported empty sparse refinement detected in Refinement" == 0);
+                _childFaceParentIndex[cFace + 0] = pFace;
+                _childFaceParentIndex[cFace + 1] = pFace;
+                _childFaceParentIndex[cFace + 2] = pFace;
+                _childFaceParentIndex[cFace + 3] = pFace;
+
+                cFace += 4;
+            } else {
+                for (int i = 0; i < pVerts.size(); ++i, ++cFace) {
+                    _childFaceTag[cFace] = initialChildTags[0][i];
+                    _childFaceParentIndex[cFace] = pFace;
+                }
+            }
         }
-        markSparseChildComponents();
+    } else {
+        //  Child faces of faces:
+        for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
+            bool incomplete = !_parentFaceTag[pFace]._selected;
 
-        //
-        //  Assign the sequences of child components by inspecting what was marked:
-        //
-        //  Note that for vertices (and edges) the sequence is assembled from three source vectors
-        //  for vertices originating from faces, edges and vertices:
-        //
-        //  child faces:
-        _childFaceFromFaceCount = sequenceSparseIndexVector(_faceChildFaceIndices);
+            IndexArray cFaces = getFaceChildFaces(pFace);
+            assert(_quadSplit);
+            if (!incomplete && (cFaces.size() == 4)) {
+                _childFaceTag[cFaces[0]] = initialChildTags[0][0];
+                _childFaceTag[cFaces[1]] = initialChildTags[0][1];
+                _childFaceTag[cFaces[2]] = initialChildTags[0][2];
+                _childFaceTag[cFaces[3]] = initialChildTags[0][3];
 
-        //  child edges:
-        _childEdgeFromFaceCount = sequenceSparseIndexVector(_faceChildEdgeIndices);
-        _childEdgeFromEdgeCount = sequenceSparseIndexVector(_edgeChildEdgeIndices, _childEdgeFromFaceCount);
-
-        //  child vertices:
-        _childVertFromFaceCount = sequenceSparseIndexVector(_faceChildVertIndex);
-        _childVertFromEdgeCount = sequenceSparseIndexVector(_edgeChildVertIndex, _childVertFromFaceCount);
-        _childVertFromVertCount = sequenceSparseIndexVector(_vertChildVertIndex, _childVertFromFaceCount +
-                                                                                 _childVertFromEdgeCount);
+                _childFaceParentIndex[cFaces[0]] = pFace;
+                _childFaceParentIndex[cFaces[1]] = pFace;
+                _childFaceParentIndex[cFaces[2]] = pFace;
+                _childFaceParentIndex[cFaces[3]] = pFace;
+            } else {
+                for (int i = 0; i < cFaces.size(); ++i) {
+                    if (IndexIsValid(cFaces[i])) {
+                        _childFaceTag[cFaces[i]] = initialChildTags[incomplete][i];
+                        _childFaceParentIndex[cFaces[i]] = pFace;
+                    }
+                }
+            }
+        }
     }
 }
 
 void
-Refinement::createChildComponents() {
+Refinement::populateEdgeParentVectors(ChildTag const initialChildTags[2][4]) {
 
-    //
-    //  Assign the child's component counts/inventory based on the child components identified:
-    //
-    _child->_faceCount = _childFaceFromFaceCount;
-    _child->_edgeCount = _childEdgeFromFaceCount + _childEdgeFromEdgeCount;
-    _child->_vertCount = _childVertFromFaceCount + _childVertFromEdgeCount + _childVertFromVertCount;
+    _childEdgeTag.resize(_child->getNumEdges());
+    _childEdgeParentIndex.resize(_child->getNumEdges());
+
+    populateEdgeParentFromParentFaces(initialChildTags);
+    populateEdgeParentFromParentEdges(initialChildTags);
+}
+void
+Refinement::populateEdgeParentFromParentFaces(ChildTag const initialChildTags[2][4]) {
+
+    if (_uniform) {
+        Index cEdge = getFirstChildEdgeFromFaces();
+        for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
+            IndexArray pVerts = _parent->getFaceVertices(pFace);
+
+            //  Make this dependent on parent face's child count not its face-verts
+            assert(_quadSplit);
+            if (pVerts.size() == 4) {
+                _childEdgeTag[cEdge + 0] = initialChildTags[0][0];
+                _childEdgeTag[cEdge + 1] = initialChildTags[0][1];
+                _childEdgeTag[cEdge + 2] = initialChildTags[0][2];
+                _childEdgeTag[cEdge + 3] = initialChildTags[0][3];
+
+                _childEdgeParentIndex[cEdge + 0] = pFace;
+                _childEdgeParentIndex[cEdge + 1] = pFace;
+                _childEdgeParentIndex[cEdge + 2] = pFace;
+                _childEdgeParentIndex[cEdge + 3] = pFace;
+
+                cEdge += 4;
+            } else {
+                for (int i = 0; i < pVerts.size(); ++i, ++cEdge) {
+                    _childEdgeTag[cEdge] = initialChildTags[0][i];
+                    _childEdgeParentIndex[cEdge] = pFace;
+                }
+            }
+        }
+    } else {
+        for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
+            bool incomplete = !_parentFaceTag[pFace]._selected;
+
+            IndexArray cEdges = getFaceChildEdges(pFace);
+            assert(_quadSplit);
+            if (!incomplete && (cEdges.size() == 4)) {
+                _childEdgeTag[cEdges[0]] = initialChildTags[0][0];
+                _childEdgeTag[cEdges[1]] = initialChildTags[0][1];
+                _childEdgeTag[cEdges[2]] = initialChildTags[0][2];
+                _childEdgeTag[cEdges[3]] = initialChildTags[0][3];
+
+                _childEdgeParentIndex[cEdges[0]] = pFace;
+                _childEdgeParentIndex[cEdges[1]] = pFace;
+                _childEdgeParentIndex[cEdges[2]] = pFace;
+                _childEdgeParentIndex[cEdges[3]] = pFace;
+            } else {
+                for (int i = 0; i < cEdges.size(); ++i) {
+                    if (IndexIsValid(cEdges[i])) {
+                        _childEdgeTag[cEdges[i]] = initialChildTags[incomplete][i];
+                        _childEdgeParentIndex[cEdges[i]] = pFace;
+                    }
+                }
+            }
+        }
+    }
+}
+void
+Refinement::populateEdgeParentFromParentEdges(ChildTag const initialChildTags[2][4]) {
+
+    if (_uniform) {
+        Index cEdge = getFirstChildEdgeFromEdges();
+        for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge, cEdge += 2) {
+            _childEdgeTag[cEdge + 0] = initialChildTags[0][0];
+            _childEdgeTag[cEdge + 1] = initialChildTags[0][1];
+
+            _childEdgeParentIndex[cEdge + 0] = pEdge;
+            _childEdgeParentIndex[cEdge + 1] = pEdge;
+        }
+    } else {
+        for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge) {
+            bool incomplete = !_parentEdgeTag[pEdge]._selected;
+
+            IndexArray cEdges = getEdgeChildEdges(pEdge);
+            if (!incomplete) {
+                _childEdgeTag[cEdges[0]] = initialChildTags[0][0];
+                _childEdgeTag[cEdges[1]] = initialChildTags[0][1];
+
+                _childEdgeParentIndex[cEdges[0]] = pEdge;
+                _childEdgeParentIndex[cEdges[1]] = pEdge;
+            } else {
+                for (int i = 0; i < 2; ++i) {
+                    if (IndexIsValid(cEdges[i])) {
+                        _childEdgeTag[cEdges[i]] = initialChildTags[incomplete][i];
+                        _childEdgeParentIndex[cEdges[i]] = pEdge;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void
+Refinement::populateVertexParentVectors(ChildTag const initialChildTags[2][4]) {
+
+    if (_uniform) {
+        _childVertexTag.resize(_child->getNumVertices(), initialChildTags[0][0]);
+    } else {
+        _childVertexTag.resize(_child->getNumVertices(), initialChildTags[1][0]);
+    }
+    _childVertexParentIndex.resize(_child->getNumVertices());
+
+    populateVertexParentFromParentFaces(initialChildTags);
+    populateVertexParentFromParentEdges(initialChildTags);
+    populateVertexParentFromParentVertices(initialChildTags);
+}
+void
+Refinement::populateVertexParentFromParentFaces(ChildTag const initialChildTags[2][4]) {
+
+    if (_uniform) {
+        Index cVert = getFirstChildVertexFromFaces();
+        for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace, ++cVert) {
+            //  Child tag was initialized as the complete and only child when allocated
+
+            _childVertexParentIndex[cVert] = pFace;
+        }
+    } else {
+        ChildTag const & completeChildTag = initialChildTags[0][0];
+
+        for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
+            Index cVert = _faceChildVertIndex[pFace];
+            if (IndexIsValid(cVert)) {
+                //  Child tag was initialized as incomplete -- reset if complete:
+                if (_parentFaceTag[pFace]._selected) {
+                    _childVertexTag[cVert] = completeChildTag;
+                }
+                _childVertexParentIndex[cVert] = pFace;
+            }
+        }
+    }
+}
+void
+Refinement::populateVertexParentFromParentEdges(ChildTag const initialChildTags[2][4]) {
+
+    if (_uniform) {
+        Index cVert = getFirstChildVertexFromEdges();
+        for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge, ++cVert) {
+            //  Child tag was initialized as the complete and only child when allocated
+
+            _childVertexParentIndex[cVert] = pEdge;
+        }
+    } else {
+        ChildTag const & completeChildTag = initialChildTags[0][0];
+
+        for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge) {
+            Index cVert = _edgeChildVertIndex[pEdge];
+            if (IndexIsValid(cVert)) {
+                //  Child tag was initialized as incomplete -- reset if complete:
+                if (_parentEdgeTag[pEdge]._selected) {
+                    _childVertexTag[cVert] = completeChildTag;
+                }
+                _childVertexParentIndex[cVert] = pEdge;
+            }
+        }
+    }
+}
+void
+Refinement::populateVertexParentFromParentVertices(ChildTag const initialChildTags[2][4]) {
+
+    if (_uniform) {
+        Index cVert = getFirstChildVertexFromVertices();
+        for (Index pVert = 0; pVert < _parent->getNumVertices(); ++pVert, ++cVert) {
+            //  Child tag was initialized as the complete and only child when allocated
+
+            _childVertexParentIndex[cVert] = pVert;
+        }
+    } else {
+        ChildTag const & completeChildTag = initialChildTags[0][0];
+
+        for (Index pVert = 0; pVert < _parent->getNumVertices(); ++pVert) {
+            Index cVert = _vertChildVertIndex[pVert];
+            if (IndexIsValid(cVert)) {
+                //  Child tag was initialized as incomplete but these should be complete:
+                _childVertexTag[cVert] = completeChildTag;
+                _childVertexParentIndex[cVert] = pVert;
+            }
+        }
+    }
 }
 
 
 //
-//  Before we can refine the topological relations, we want to have the vectors
-//  sized appropriately so that we can (potentially) distribute the computation
-//  over chunks of these vectors.
-//
-//  This is non-trivial in the case of sparse subdivision, but there are still
-//  some opportunities for concurrency within these...
-//
-//  We will know the maximal size of each relation based on the origin of the
-//  child component -- so we could over-allocate.  If the refinement is very
-//  sparse the greatest savings will come from the small number of components
-//  and the overhead in the relations of each should be miminal (there should
-//  be a mix between maximal and minimal size given the mix of both interior
-//  and exterior components when sparse).
-//
-//  Is it worth populating the counts concurrently, then making a single
-//  pass through them to assemble the offsets?
+//  Methods to propagate/initialize child component tags from their parent component:
 //
 void
-Refinement::initializeFaceVertexCountsAndOffsets() {
+Refinement::propagateComponentTags() {
+
+    populateFaceTagVectors();
+    populateEdgeTagVectors();
+    populateVertexTagVectors();
+}
+
+void
+Refinement::populateFaceTagVectors() {
+
+    _child->_faceTags.resize(_child->getNumFaces());
+
+    populateFaceTagsFromParentFaces();
+}
+void
+Refinement::populateFaceTagsFromParentFaces() {
+
+    //
+    //  Tags for faces originating from faces are inherited from the parent face:
+    //
+    Index cFace    = getFirstChildFaceFromFaces();
+    Index cFaceEnd = cFace + getNumChildFacesFromFaces();
+    for ( ; cFace < cFaceEnd; ++cFace) {
+        _child->_faceTags[cFace] = _parent->_faceTags[_childFaceParentIndex[cFace]];
+    }
+}
+
+void
+Refinement::populateEdgeTagVectors() {
+
+    _child->_edgeTags.resize(_child->getNumEdges());
+
+    populateEdgeTagsFromParentFaces();
+    populateEdgeTagsFromParentEdges();
+}
+void
+Refinement::populateEdgeTagsFromParentFaces() {
+
+    //
+    //  Tags for edges originating from faces are all constant:
+    //
+    Level::ETag eTag;
+    eTag._nonManifold = 0;
+    eTag._boundary    = 0;
+    eTag._infSharp    = 0;
+    eTag._semiSharp   = 0;
+
+    Index cEdge    = getFirstChildEdgeFromFaces();
+    Index cEdgeEnd = cEdge + getNumChildEdgesFromFaces();
+    for ( ; cEdge < cEdgeEnd; ++cEdge) {
+        _child->_edgeTags[cEdge] = eTag;
+    }
+}
+void
+Refinement::populateEdgeTagsFromParentEdges() {
+
+    //
+    //  Tags for edges originating from edges are inherited from the parent edge:
+    //
+    Index cEdge    = getFirstChildEdgeFromEdges();
+    Index cEdgeEnd = cEdge + getNumChildEdgesFromEdges();
+    for ( ; cEdge < cEdgeEnd; ++cEdge) {
+        _child->_edgeTags[cEdge] = _parent->_edgeTags[_childEdgeParentIndex[cEdge]];
+    }
+}
+
+void
+Refinement::populateVertexTagVectors() {
+
+    _child->_vertTags.resize(_child->getNumVertices());
+
+    populateVertexTagsFromParentFaces();
+    populateVertexTagsFromParentEdges();
+    populateVertexTagsFromParentVertices();
+
+    if (!_uniform) {
+        for (Index cVert = 0; cVert < _child->getNumVertices(); ++cVert) {
+            if (_childVertexTag[cVert]._incomplete) {
+                _child->_vertTags[cVert]._incomplete = true;
+            }
+        }
+    }
+}
+void
+Refinement::populateVertexTagsFromParentFaces() {
+
+    //
+    //  Similarly, tags for vertices originating from faces are all constant -- with the
+    //  unfortunate exception of refining level 0, where the faces may be N-sided and so
+    //  introduce new vertices that need to be tagged as extra-ordinary:
+    //
+    Level::VTag vTag;
+    vTag._nonManifold = 0;
+    vTag._xordinary   = 0;
+    vTag._boundary    = 0;
+    vTag._infSharp    = 0;
+    vTag._semiSharp   = 0;
+    vTag._rule        = Sdc::Crease::RULE_SMOOTH;
+    vTag._incomplete  = 0;
+
+    Index cVert    = getFirstChildVertexFromFaces();
+    Index cVertEnd = cVert + getNumChildVerticesFromFaces();
+
+    if (_parent->_depth > 0) {
+        for ( ; cVert < cVertEnd; ++cVert) {
+            _child->_vertTags[cVert] = vTag;
+        }
+    } else {
+        int regFaceVertCount = _quadSplit ? 4 : 3;
+
+        for ( ; cVert < cVertEnd; ++cVert) {
+            _child->_vertTags[cVert] = vTag;
+
+            if (_parent->getNumFaceVertices(_childVertexParentIndex[cVert]) != regFaceVertCount) {
+                _child->_vertTags[cVert]._xordinary = true;
+            }
+        }
+    }
+}
+void
+Refinement::populateVertexTagsFromParentEdges() {
+
+    //
+    //  Tags for vertices originating from edges are initialized according to the tags
+    //  of the parent edge:
+    //
+    for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge) {
+        Index cVert = _edgeChildVertIndex[pEdge];
+        if (!IndexIsValid(cVert)) continue;
+
+        Level::ETag const& pEdgeTag = _parent->_edgeTags[pEdge];
+        Level::VTag&       cVertTag = _child->_vertTags[cVert];
+
+        cVertTag._nonManifold = pEdgeTag._nonManifold;
+        cVertTag._xordinary   = false;
+        cVertTag._boundary    = pEdgeTag._boundary;
+        cVertTag._infSharp    = false;
+
+        cVertTag._semiSharp = pEdgeTag._semiSharp;
+        cVertTag._rule = (Level::VTag::VTagSize)((pEdgeTag._semiSharp || pEdgeTag._infSharp)
+                       ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH);
+        cVertTag._incomplete = 0;
+    }
+}
+void
+Refinement::populateVertexTagsFromParentVertices() {
+
+    //
+    //  Tags for vertices originating from vertices are inherited from the parent vertex:
+    //
+    Index cVert    = getFirstChildVertexFromVertices();
+    Index cVertEnd = cVert + getNumChildVerticesFromVertices();
+    for ( ; cVert < cVertEnd; ++cVert) {
+        _child->_vertTags[cVert] = _parent->_vertTags[_childVertexParentIndex[cVert]];
+    }
+}
+
+
+
+//
+//  Methods to subdivide the topology:
+//
+//  The main method to subdivide topology is fairly simple -- given a set of relations
+//  to populate it simply tests and populates each relation separately.  The method for
+//  each relation is responsible for appropriate allocation and initialization of all
+//  data involved.
+//
+void
+Refinement::subdivideTopology(Relations const& applyTo) {
+
+    if (applyTo._faceVertices) {
+        populateFaceVertexRelation();
+    }
+    if (applyTo._faceEdges) {
+        populateFaceEdgeRelation();
+    }
+    if (applyTo._edgeVertices) {
+        populateEdgeVertexRelation();
+    }
+    if (applyTo._edgeFaces) {
+        populateEdgeFaceRelation();
+    }
+    if (applyTo._vertexFaces) {
+        populateVertexFaceRelation();
+    }
+    if (applyTo._vertexEdges) {
+        populateVertexEdgeRelation();
+    }
+
+    //
+    //  Additional members of the child Level not specific to any relation...
+    //      - note in the case of max-valence, the child's max-valence may be less
+    //  than the parent if that maximal parent vertex was not included in the sparse
+    //  refinement (possible when sparse refinement is more general).
+    //
+    _child->_maxValence = _parent->_maxValence;
+}
+
+
+//
+//  Methods to populate the face-vertex relation of the child Level:
+//      - child faces only originate from parent faces
+//
+void
+Refinement::populateFaceVertexRelation() {
+
+    //  Both face-vertex and face-edge share the face-vertex counts/offsets, so be sure
+    //  not to re-initialize it if already done:
+    //
+    if (_child->_faceVertCountsAndOffsets.size() == 0) {
+        populateFaceVertexCountsAndOffsets();
+    }
+    _child->_faceVertIndices.resize(_child->getNumFaces() * (_quadSplit ? 4 : 3));
+
+    populateFaceVerticesFromParentFaces();
+}
+
+void
+Refinement::populateFaceVertexCountsAndOffsets() {
 
     Level& child = *_child;
 
@@ -310,78 +928,19 @@ Refinement::initializeFaceVertexCountsAndOffsets() {
     //  account for possibility of both quads and tris...
     //
     child._faceVertCountsAndOffsets.resize(child.getNumFaces() * 2);
-    for (int i = 0; i < child.getNumFaces(); ++i) {
-        child._faceVertCountsAndOffsets[i*2 + 0] = 4;
-        child._faceVertCountsAndOffsets[i*2 + 1] = i << 2;
+    if (_quadSplit) {
+        for (int i = 0; i < child.getNumFaces(); ++i) {
+            child._faceVertCountsAndOffsets[i*2 + 0] = 4;
+            child._faceVertCountsAndOffsets[i*2 + 1] = i << 2;
+        }
+    } else {
+        for (int i = 0; i < child.getNumFaces(); ++i) {
+            child._faceVertCountsAndOffsets[i*2 + 0] = 3;
+            child._faceVertCountsAndOffsets[i*2 + 1] = i * 3;
+        }
     }
 }
-void
-Refinement::initializeEdgeFaceCountsAndOffsets() {
 
-    //
-    //  Be aware of scheme-specific decisions here, e.g.:
-    //      - inspection of sparse child faces for edges from faces
-    //      - no guaranteed "neighborhood" around Bilinear verts from verts
-    //
-    //  If uniform subdivision, face count of a child edge will be:
-    //      - 2 for edges from parent faces
-    //      - same as parent edge for edges from parent edges
-    //  If sparse subdivision, face count of a child edge will be:
-    //      - 1 or 2 depending on child faces in parent face
-    //          - requires inspection if not all child faces present
-    //      ? same as parent edge for edges from parent edges
-    //          - given end vertex must have its full set of child faces
-    //          - not for Bilinear -- only if neighborhood is non-zero
-    //
-}
-void
-Refinement::initializeVertexFaceCountsAndOffsets() {
-
-    //
-    //  Be aware of scheme-specific decisions here, e.g.:
-    //      - no verts from parent faces for Loop
-    //      - more interior edges and faces for verts from parent edges for Loop
-    //      - no guaranteed "neighborhood" around Bilinear verts from verts
-    //
-    //  If uniform subdivision, vert-face count will be:
-    //      - 4 for verts from parent faces (for catmark)
-    //      - 2x number in parent edge for verts from parent edges
-    //      - same as parent vert for verts from parent verts
-    //  If sparse subdivision, vert-face count will be:
-    //      - the number of child faces in parent face
-    //      - 1 or 2x number in parent edge for verts from parent edges
-    //          - where the 1 or 2 is number of child edges of parent edge
-    //      - same as parent vert for verts from parent verts (catmark)
-    //
-}
-void
-Refinement::initializeVertexEdgeCountsAndOffsets() {
-
-    //
-    //  Be aware of scheme-specific decisions here, e.g.:
-    //      - no verts from parent faces for Loop
-    //      - more interior edges and faces for verts from parent edges for Loop
-    //      - no guaranteed "neighborhood" around Bilinear verts from verts
-    //
-    //  If uniform subdivision, vert-edge count will be:
-    //      - 4 for verts from parent faces (for catmark)
-    //      - 2 + N faces incident parent edge for verts from parent edges
-    //      - same as parent vert for verts from parent verts
-    //  If sparse subdivision, vert-edge count will be:
-    //      - non-trivial function of child faces in parent face
-    //          - 1 child face will always result in 2 child edges
-    //          * 2 child faces can mean 3 or 4 child edges
-    //          - 3 child faces will always result in 4 child edges
-    //      - 1 or 2 + N faces incident parent edge for verts from parent edges
-    //          - where the 1 or 2 is number of child edges of parent edge
-    //          - any end vertex will require all N child faces (catmark)
-    //      - same as parent vert for verts from parent verts (catmark)
-    //
-}
-
-//
-//  Face-vert and face-edge topology propagation -- faces only originate from faces:
-//
 void
 Refinement::populateFaceVerticesFromParentFaces() {
 
@@ -391,6 +950,7 @@ Refinement::populateFaceVerticesFromParentFaces() {
     //    - use parent components incident the parent face:
     //        - use the interior face-vert, corner vert-vert and two edge-verts
     //
+    assert(_quadSplit);
     for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
         IndexArray const pFaceVerts = _parent->getFaceVertices(pFace);
         IndexArray const pFaceEdges = _parent->getFaceEdges(pFace);
@@ -430,6 +990,25 @@ Refinement::populateFaceVerticesFromParentFaces() {
     }
 }
 
+
+//
+//  Methods to populate the face-vertex relation of the child Level:
+//      - child faces only originate from parent faces
+//
+void
+Refinement::populateFaceEdgeRelation() {
+
+    //  Both face-vertex and face-edge share the face-vertex counts/offsets, so be sure
+    //  not to re-initialize it if already done:
+    //
+    if (_child->_faceVertCountsAndOffsets.size() == 0) {
+        populateFaceVertexCountsAndOffsets();
+    }
+    _child->_faceEdgeIndices.resize(_child->getNumFaces() * (_quadSplit ? 4 : 3));
+
+    populateFaceEdgesFromParentFaces();
+}
+
 void
 Refinement::populateFaceEdgesFromParentFaces() {
 
@@ -439,6 +1018,7 @@ Refinement::populateFaceEdgesFromParentFaces() {
     //    - use parent components incident the parent face:
     //        - use the two interior face-edges and the two boundary edge-edges
     //
+    assert(_quadSplit);
     for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
         IndexArray const pFaceVerts = _parent->getFaceVertices(pFace);
         IndexArray const pFaceEdges = _parent->getFaceEdges(pFace);
@@ -505,8 +1085,18 @@ Refinement::populateFaceEdgesFromParentFaces() {
 }
 
 //
-//  Edge-vert topology propagation -- two functions for face or edge origin:
+//  Methods to populate the edge-vertex relation of the child Level:
+//      - child edges originate from parent faces and edges
 //
+void
+Refinement::populateEdgeVertexRelation() {
+
+    _child->_edgeVertIndices.resize(_child->getNumEdges() * 2);
+
+    populateEdgeVerticesFromParentFaces();
+    populateEdgeVerticesFromParentEdges();
+}
+
 void
 Refinement::populateEdgeVerticesFromParentFaces() {
 
@@ -516,6 +1106,7 @@ Refinement::populateEdgeVerticesFromParentFaces() {
     //    - identify parent edge perpendicular to face's child edge:
     //        - identify parent edge's vert-child
     //
+    assert(_quadSplit);
     for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
         IndexArray const pFaceEdges      = _parent->getFaceEdges(pFace);
         IndexArray const pFaceChildEdges = getFaceChildEdges(pFace);
@@ -560,8 +1151,55 @@ Refinement::populateEdgeVerticesFromParentEdges() {
 }
 
 //
-//  Edge-face topology propagation -- two functions for face or edge origin:
+//  Methods to populate the edge-face relation of the child Level:
+//      - child edges originate from parent faces and edges
+//      - sparse refinement poses challenges with allocation here
+//          - we need to update the counts/offsets as we populate
 //
+void
+Refinement::populateEdgeFaceRelation() {
+
+    const Level& parent = *_parent;
+          Level& child  = *_child;
+
+    //
+    //  Notes on allocating/initializing the edge-face counts/offsets vector:
+    //
+    //  Be aware of scheme-specific decisions here, e.g.:
+    //      - inspection of sparse child faces for edges from faces
+    //      - no guaranteed "neighborhood" around Bilinear verts from verts
+    //
+    //  If uniform subdivision, face count of a child edge will be:
+    //      - 2 for new interior edges from parent faces
+    //          == 2 * number of parent face verts for both quad- and tri-split
+    //      - same as parent edge for edges from parent edges
+    //  If sparse subdivision, face count of a child edge will be:
+    //      - 1 or 2 for new interior edge depending on child faces in parent face
+    //          - requires inspection if not all child faces present
+    //      ? same as parent edge for edges from parent edges
+    //          - given end vertex must have its full set of child faces
+    //          - not for Bilinear -- only if neighborhood is non-zero
+    //      - could at least make a quick traversal of components and use the above
+    //        two points to get much closer estimate than what is used for uniform
+    //
+    int childEdgeFaceIndexSizeEstimate = (int)parent._faceVertIndices.size() * 2 +
+                                         (int)parent._edgeFaceIndices.size() * 2;
+
+    child._edgeFaceCountsAndOffsets.resize(child.getNumEdges() * 2);
+    child._edgeFaceIndices.resize(childEdgeFaceIndexSizeEstimate);
+
+    populateEdgeFacesFromParentFaces();
+    populateEdgeFacesFromParentEdges();
+
+    //  Revise the over-allocated estimate based on what is used (as indicated in the
+    //  count/offset for the last vertex) and trim the index vector accordingly:
+    childEdgeFaceIndexSizeEstimate = child.getNumEdgeFaces(child.getNumEdges()-1) +
+                                     child.getOffsetOfEdgeFaces(child.getNumEdges()-1);
+    child._edgeFaceIndices.resize(childEdgeFaceIndexSizeEstimate);
+
+    child._maxEdgeFaces = parent._maxEdgeFaces;
+}
+
 void
 Refinement::populateEdgeFacesFromParentFaces() {
 
@@ -570,6 +1208,7 @@ Refinement::populateEdgeFacesFromParentFaces() {
     //  ahead of time and is populated incrementally, so we cannot
     //  thread this yet...
     //
+    assert(_quadSplit);
     for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
         IndexArray const pFaceChildFaces = getFaceChildFaces(pFace);
         IndexArray const pFaceChildEdges = getFaceChildEdges(pFace);
@@ -610,6 +1249,7 @@ Refinement::populateEdgeFacesFromParentEdges() {
     //  ahead of time and is populated incrementally, so we cannot
     //  thread this yet...
     //
+    assert(_quadSplit);
     for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge) {
         IndexArray const pEdgeVerts = _parent->getEdgeVertices(pEdge);
         IndexArray const pEdgeFaces = _parent->getEdgeFaces(pEdge);
@@ -683,18 +1323,75 @@ Refinement::populateEdgeFacesFromParentEdges() {
 
 
 //
-//  Vert-face topology propagation -- three functions for face, edge or vert origin:
+//  Methods to populate the vertex-face relation of the child Level:
+//      - child vertices originate from parent faces, edges and vertices
+//      - sparse refinement poses challenges with allocation here:
+//          - we need to update the counts/offsets as we populate
+//          - note this imposes ordering constraints and inhibits concurrency
 //
-//  Remember for these that the corresponding counts/offsets for each component are
-//  not yet known and so are also populated by these functions.  This does impose an
-//  ordering requirement here and inhibits concurrency.
-//
+void
+Refinement::populateVertexFaceRelation() {
+
+    const Level& parent = *_parent;
+          Level& child  = *_child;
+
+    //
+    //  Notes on allocating/initializing the vertex-face counts/offsets vector:
+    //
+    //  Be aware of scheme-specific decisions here, e.g.:
+    //      - no verts from parent faces for Loop (unless N-gons supported)
+    //      - more interior edges and faces for verts from parent edges for Loop
+    //      - no guaranteed "neighborhood" around Bilinear verts from verts
+    //
+    //  If uniform subdivision, vert-face count will be (catmark or loop):
+    //      - 4 or 0 for verts from parent faces (for catmark)
+    //      - 2x or 3x number in parent edge for verts from parent edges
+    //      - same as parent vert for verts from parent verts
+    //  If sparse subdivision, vert-face count will be:
+    //      - the number of child faces in parent face
+    //      - 1 or 2x number in parent edge for verts from parent edges
+    //          - where the 1 or 2 is number of child edges of parent edge
+    //      - same as parent vert for verts from parent verts (catmark)
+    //
+    int childVertFaceIndexSizeEstimate;
+    if (_quadSplit) {
+        childVertFaceIndexSizeEstimate = (int)parent._faceVertIndices.size()
+                                       + (int)parent._edgeFaceIndices.size() * 2
+                                       + (int)parent._vertFaceIndices.size();
+    } else {
+        childVertFaceIndexSizeEstimate = (int)parent._edgeFaceIndices.size() * 3
+                                       + (int)parent._vertFaceIndices.size();
+    }
+
+    child._vertFaceCountsAndOffsets.resize(child.getNumVertices() * 2);
+    child._vertFaceIndices.resize(         childVertFaceIndexSizeEstimate);
+    child._vertFaceLocalIndices.resize(    childVertFaceIndexSizeEstimate);
+
+    if (getFirstChildVertexFromFaces() == 0) {
+        populateVertexFacesFromParentFaces();
+        populateVertexFacesFromParentEdges();
+        populateVertexFacesFromParentVertices();
+    } else {
+        populateVertexFacesFromParentVertices();
+        populateVertexFacesFromParentFaces();
+        populateVertexFacesFromParentEdges();
+    }
+
+    //  Revise the over-allocated estimate based on what is used (as indicated in the
+    //  count/offset for the last vertex) and trim the index vectors accordingly:
+    childVertFaceIndexSizeEstimate = child.getNumVertexFaces(child.getNumVertices()-1) +
+                                     child.getOffsetOfVertexFaces(child.getNumVertices()-1);
+    child._vertFaceIndices.resize(     childVertFaceIndexSizeEstimate);
+    child._vertFaceLocalIndices.resize(childVertFaceIndexSizeEstimate);
+}
+
 void
 Refinement::populateVertexFacesFromParentFaces() {
 
     const Level& parent = *this->_parent;
           Level& child  = *this->_child;
 
+    assert(_quadSplit);
     for (int fIndex = 0; fIndex < parent.getNumFaces(); ++fIndex) {
         int cVertIndex = this->_faceChildVertIndex[fIndex];
         if (!IndexIsValid(cVertIndex)) continue;
@@ -736,6 +1433,7 @@ Refinement::populateVertexFacesFromParentEdges() {
     const Level& parent = *this->_parent;
           Level& child  = *this->_child;
 
+    assert(_quadSplit);
     for (int pEdgeIndex = 0; pEdgeIndex < parent.getNumEdges(); ++pEdgeIndex) {
         int cVertIndex = this->_edgeChildVertIndex[pEdgeIndex];
         if (!IndexIsValid(cVertIndex)) continue;
@@ -827,6 +1525,7 @@ Refinement::populateVertexFacesFromParentVertices() {
 
             Index cFace = this->getFaceChildFaces(pFace)[pFaceChild];
             if (IndexIsValid(cFace)) {
+                assert(_quadSplit);
                 //  Note orientation wrt incident parent faces -- quad vs non-quad...
                 int pFaceCount = parent.getFaceVertices(pFace).size();
 
@@ -840,14 +1539,79 @@ Refinement::populateVertexFacesFromParentVertices() {
 }
 
 //
-//  Vert-edge topology propagation -- three functions for face, edge or vert origin:
+//  Methods to populate the vertex-edge relation of the child Level:
+//      - child vertices originate from parent faces, edges and vertices
+//      - sparse refinement poses challenges with allocation here:
+//          - we need to update the counts/offsets as we populate
+//          - note this imposes ordering constraints and inhibits concurrency
 //
+void
+Refinement::populateVertexEdgeRelation() {
+
+    const Level& parent = *_parent;
+          Level& child  = *_child;
+
+    //
+    //  Notes on allocating/initializing the vertex-edge counts/offsets vector:
+    //
+    //  Be aware of scheme-specific decisions here, e.g.:
+    //      - no verts from parent faces for Loop
+    //      - more interior edges and faces for verts from parent edges for Loop
+    //      - no guaranteed "neighborhood" around Bilinear verts from verts
+    //
+    //  If uniform subdivision, vert-edge count will be:
+    //      - 4 or 0 for verts from parent faces (for catmark)
+    //      - 2 + N or 2 + 2*N faces incident parent edge for verts from parent edges
+    //      - same as parent vert for verts from parent verts
+    //  If sparse subdivision, vert-edge count will be:
+    //      - non-trivial function of child faces in parent face
+    //          - 1 child face will always result in 2 child edges
+    //          * 2 child faces can mean 3 or 4 child edges
+    //          - 3 child faces will always result in 4 child edges
+    //      - 1 or 2 + N faces incident parent edge for verts from parent edges
+    //          - where the 1 or 2 is number of child edges of parent edge
+    //          - any end vertex will require all N child faces (catmark)
+    //      - same as parent vert for verts from parent verts (catmark)
+    //
+    int childVertEdgeIndexSizeEstimate;
+    if (_quadSplit) {
+        childVertEdgeIndexSizeEstimate = (int)parent._faceVertIndices.size()
+                                       + (int)parent._edgeFaceIndices.size() + parent.getNumEdges() * 2
+                                       + (int)parent._vertEdgeIndices.size();
+    } else {
+        childVertEdgeIndexSizeEstimate = (int)parent._edgeFaceIndices.size() * 2 + parent.getNumEdges() * 2
+                                       + (int)parent._vertEdgeIndices.size();
+    }
+
+    child._vertEdgeCountsAndOffsets.resize(child.getNumVertices() * 2);
+    child._vertEdgeIndices.resize(         childVertEdgeIndexSizeEstimate);
+    child._vertEdgeLocalIndices.resize(    childVertEdgeIndexSizeEstimate);
+
+    if (getFirstChildVertexFromFaces() == 0) {
+        populateVertexEdgesFromParentFaces();
+        populateVertexEdgesFromParentEdges();
+        populateVertexEdgesFromParentVertices();
+    } else {
+        populateVertexEdgesFromParentVertices();
+        populateVertexEdgesFromParentFaces();
+        populateVertexEdgesFromParentEdges();
+    }
+
+    //  Revise the over-allocated estimate based on what is used (as indicated in the
+    //  count/offset for the last vertex) and trim the index vectors accordingly:
+    childVertEdgeIndexSizeEstimate = child.getNumVertexEdges(child.getNumVertices()-1) +
+                                     child.getOffsetOfVertexEdges(child.getNumVertices()-1);
+    child._vertEdgeIndices.resize(     childVertEdgeIndexSizeEstimate);
+    child._vertEdgeLocalIndices.resize(childVertEdgeIndexSizeEstimate);
+}
+
 void
 Refinement::populateVertexEdgesFromParentFaces() {
 
     const Level& parent = *this->_parent;
           Level& child  = *this->_child;
 
+    assert(_quadSplit);
     for (int fIndex = 0; fIndex < parent.getNumFaces(); ++fIndex) {
         int cVertIndex = this->_faceChildVertIndex[fIndex];
         if (!IndexIsValid(cVertIndex)) continue;
@@ -890,6 +1654,7 @@ Refinement::populateVertexEdgesFromParentEdges() {
     const Level& parent = *this->_parent;
           Level& child  = *this->_child;
 
+    assert(_quadSplit);
     for (int eIndex = 0; eIndex < parent.getNumEdges(); ++eIndex) {
         int cVertIndex = this->_edgeChildVertIndex[eIndex];
         if (!IndexIsValid(cVertIndex)) continue;
@@ -1022,361 +1787,29 @@ Refinement::populateVertexEdgesFromParentVertices() {
 
 
 //
-//  The main refinement method...
-//
-//  Note the kinds of child components that are generated:
-//    - faces generate child faces, edges and verts
-//    - edges generate child edges and verts
-//    - verts generate child verts only
-//
-//  The general approach here will be as follows:
-//    - mark incident child components to be generated:
-//        - assume all for now but need this for holes, adaptive, etc.
-//        - unclear what strategy of child component marking is best:
-//            - beginning with a set of parent faces, hole markers, etc.
-//            - need to mark children of all parent faces, but also all/some
-//              of the adjacent parent faces
-//            - marking of child faces needs to also identify/mark child edges
-//            - marking of child faces needs to also identify/mark child verts
-//    - take inventory of what is marked to resize child vectors
-//        ? new members to retain these counts for other purposes:
-//            - mFaceChildFaceCount
-//            - mFaceChildEdgeCount
-//            - mFaceChildVertCount
-//            - mEdgeChildEdgeCount
-//            - mEdgeChildVertCount
-//            - mVertChildVertCount
-//        - child components the sum of the above:
-//            - new face count = face-faces
-//            - new edge count = face-edges + edge-edges
-//            - new vert count = face-verts + edge-verts + vert-verts
-//    - generate/identify child components between parent and child level:
-//        - child vertices from all parent faces
-//        - child vertices from all parent edges
-//        - child vertices from all parent vertices
-//        - child edges from all parent edges
-//        - child edges from all parent faces
-//        - child faces from all parent faces
-//    - populate topology relations:
-//        - iterate through each child of each parent component
-//            - populate "uninherited" relations directly
-//                - includes face-vert, edge-vert, face-edge
-//                - these will always be completely defined
-//            - populate "inherited" relations by mapping parent->child
-//                - includes vert-face, vert-edge, edge-face
-//                - assume one-to-one mapping with parent relation for now
-//                    - will be subset of parent for holes, adaptive, etc.
-//        - need full complement of parent-child relations
-//    - subdivide sharpness values for edges or verts, if present
-//        ? hier-edits for sharpness to be applied before/after?
-//    ? re-classify/propagate vertex "masks"
-//    ? compute mask weights for all child verts
-//        - should mirror the parents topological relations
-//    * interpolate -- now deferred externally
+//  Methods to subdivide sharpness values:
 //
 void
-Refinement::refine(Options refineOptions) {
-
-    assert(_parent && _child);
-
-    _uniform = !refineOptions._sparse;
+Refinement::subdivideSharpnessValues() {
 
     //
-    //  First determine the inventory of child components by populating the parent-to-child
-    //  vectors and identifying the future child components as we take inventory:
+    //  Subdividing edge and vertex sharpness values are independent, but in order
+    //  to maintain proper classification/tagging of components as semi-sharp, both
+    //  must be computed and the neighborhood inspected to properly update the
+    //  status.
     //
-    populateParentToChildMapping();
-
-    createChildComponents();
-
-    //
-    //  The child-to-parent mapping is used subsequently to iterate through components.
-    //  Consider merging the tag propation with it as the required iteration through the
-    //  parent components and conditional assigment could serve both purposes:
-    //
-    //  Note that some tags will need to be revised after subdividing sharpness values
-    //
-    populateChildToParentMapping();
-
-    propagateComponentTags();
-
-    //
-    //  We can often suppress full topology generation in the last level -- the parent topology
-    //  and subdivided sharpness values are enough to be able to interpolate vertex data.  How
-    //  to best identify and specify what aspects should be refined is still unclear.
-    //
-    Relations relationsToPopulate;
-    if (refineOptions._faceTopologyOnly) {
-        relationsToPopulate.setAll(false);
-        relationsToPopulate._faceVertices = true;
-    } else {
-        relationsToPopulate.setAll(true);
-    }
-
-    subdivideTopology(relationsToPopulate);
-
-    //
-    //  Subdividing sharpness values and classifying child vertices -- note the issue relating
-    //  the subdivision of edge-sharpness and classification of the vertex of a parent edge:  a
-    //  case can be made for classifying while computing sharpness values.
-    //
-    //  WORK IN PROGRESS:
-    //      Considering modifying both of these to make use of the new component tags and the
-    //  child-to-parent mapping.  In particular, if the edge or vertex is not semi-sharp, the
-    //  value can just be copied from the parent.  Otherwise a newly computed semi-sharp edge
-    //  of vertex sharpness will also need to be inspected and the "semisharp" tag adjusted
-    //  accordingly.  And, in the case of the vertex, the "rule" needs to be recomputed for
-    //  any "semisharp" vertex as any of its "semisharp" edges may have changed.
+    //  It is possible to clear the semi-sharp status when propagating the tags and
+    //  to reset it (potentially multiple times) when updating the sharpness values.
+    //  The vertex subdivision Rule is also affected by this, which complicates the
+    //  process.  So for now we apply a post-process to explicitly handle all
+    //  semi-sharp vertices.
     //
     subdivideEdgeSharpness();
     subdivideVertexSharpness();
 
-    //  Until reclassification of semisharp features is handled when subdivided, we will need
-    //  to call a post-process to adjust the semisharp and rule tags:
-    //
     reclassifySemisharpVertices();
-
-    //
-    //  Refine the topology for any face-varying channels:
-    //
-    bool refineOptions_faceVaryingChannels = true;
-
-    if (refineOptions_faceVaryingChannels) {
-        subdivideFVarChannels();
-    }
 }
 
-
-//
-//  The main method to subdivide the topology -- requires sizing and initialization of
-//  child topology vectors and then appropriate assignment of them.
-//
-void
-Refinement::subdivideTopology(Relations const& applyTo) {
-
-    const Level& parent = *_parent;
-          Level& child  = *_child;
-
-    //
-    //  Sizing and population of the topology vectors:
-    //
-    //  We have 6 relations to populate, but the way a child component's topology is
-    //  determined depends on the nature of its origin from its parent components:
-    //
-    //      - face-verts:  originate from parent faces
-    //      - face-edges:  originate from parent faces
-    //      - edge-verts:  originate from parent faces or edges
-    //      - edge-faces:  originate from parent faces or edges
-    //      - vert-faces:  originate from parent faces or edges or verts
-    //      - vert-edges:  originate from parent faces or edges or verts
-    //
-    //  Each relation has 1-3 cases of origin and so 1-3 methods of population.
-    //
-    //  It may be worth pairing up the two relations for each child component type,
-    //  i.e. populating them together as they share the same type of origin, but keeping
-    //  them separate may prove more efficient in general (writing to one destination at
-    //  at a time) as well as provide opportunities for threading.
-    //
-    //  Note on sizing:
-    //      All faces now quads or tris, so the face-* relation sizes should be known.
-    //  For edge and vert relations, where the number of incident components is more
-    //  variable, we allocate/offset assuming 1-to-1 correspondence between child and
-    //  parent incident components (which will be true for uniform subdivision), then
-    //  "compress" later on-the-fly as we determine the subset of parent components
-    //  that contribute children to the neighborhood (not really "compressing" here
-    //  but more initializing as we go and adjusting the counts and offsets to reflect
-    //  the actual valences -- so we never pack/move the vector elements).
-    //      Some of the above inhibits concurrency in the mapping of the child indices
-    //  from the parent.  Knowing all of the counts/offsets before applying the mapping
-    //  would be helpful.  Current count/offset vectors are:
-    //
-    //      - face-verts, also used by/shared with face-edges
-    //      - edge-faces
-    //      - vert-faces
-    //      - vert-edges, not shared with vert-faces to allow non-manifold cases
-    //
-    //  So we have 6 relations to transform and 4 count/offset vectors required -- 3
-    //  of which are currently assembled incrementally.  The two that are not build:
-    //
-    //      - face-edges, we share the face-vert counts/offsets
-    //      - edge-verts, no need -- constant size of 2
-    //
-    //  There are many times were using a constant offset may be preferable, e.g. when
-    //  all faces are quads or tris, there are no fin-edges, etc.  Not retrieving the
-    //  offsets from memory would be beneficial, but branching at a fine-grain level
-    //  to do so may defeat the purpose...
-    //
-
-    //
-    //  Face relations -- both face-verts and face-edges share the same counts/offsets:
-    //
-    if (applyTo._faceVertices || applyTo._faceEdges) {
-        initializeFaceVertexCountsAndOffsets();
-
-        //  Face-verts -- allocate and populate:
-        if (applyTo._faceVertices) {
-            child._faceVertIndices.resize(child.getNumFaces() * 4);
-            populateFaceVerticesFromParentFaces();
-        }
-        //  Face-edges -- allocate and populate:
-        if (applyTo._faceEdges) {
-            child._faceEdgeIndices.resize(child.getNumFaces() * 4);
-            populateFaceEdgesFromParentFaces();
-        }
-    }
-
-    //
-    //  Edge relations -- edge-verts and edge-faces can be populated independently:
-    //
-    //  Edge-verts -- allocate and populate:
-    if (applyTo._edgeVertices) {
-        child._edgeVertIndices.resize(child.getNumEdges() * 2);
-
-        populateEdgeVerticesFromParentFaces();
-        populateEdgeVerticesFromParentEdges();
-    }
-
-    //  Edge-faces:
-    //      NOTE we do not know the exact counts/offsets here because of the
-    //  potentially sparse subdivision.  If we must compute this incrementally,
-    //  i.e. as we populate the edge-face indices, we will not be able to thread
-    //  that operation.  See populateEdgeFaceCountsAndOffsets() for possibilities
-    //  of pre-computing these.
-    //
-    if (applyTo._edgeFaces) {
-        //  Empty stub to eventually replace the incremental assembly that follows:
-        initializeEdgeFaceCountsAndOffsets();
-
-        int childEdgeFaceIndexSizeEstimate = (int)parent._faceVertIndices.size() * 2 +
-                                             (int)parent._edgeFaceIndices.size() * 2;
-
-        child._edgeFaceCountsAndOffsets.resize(child.getNumEdges() * 2);
-        child._edgeFaceIndices.resize(         childEdgeFaceIndexSizeEstimate);
-
-        populateEdgeFacesFromParentFaces();
-        populateEdgeFacesFromParentEdges();
-
-        //  Revise the over-allocated estimate based on what is used (as indicated in the
-        //  count/offset for the last vertex) and trim the index vector accordingly:
-        childEdgeFaceIndexSizeEstimate = child.getNumEdgeFaces(child.getNumEdges()-1) +
-                                         child.getOffsetOfEdgeFaces(child.getNumEdges()-1);
-        child._edgeFaceIndices.resize(childEdgeFaceIndexSizeEstimate);
-
-        child._maxEdgeFaces = parent._maxEdgeFaces;
-    }
-
-    //
-    //  Vert relations -- vert-faces and vert-edges can be populated independently:
-    //
-    //  Vert-faces:
-    //      We know the number of counts/offsets required, but we do not yet know how
-    //  many total incident faces we will have -- given we are generating a potential
-    //  subset of the number of children possible, allocate for the maximum and trim
-    //  once its determined how many were used.
-    //      The upper-bound for allocation is determined by the incidence vectors for
-    //  the parent components, e.g. assuming fully populated, the total number of faces
-    //  incident all vertices that are generated from parent faces is equal to the size
-    //  of the parent's face-vert index vector.  Similar deductions can be made for
-    //  for those originating from parent edges and verts.
-    //      If this over-allocation proves excessive, we can get a more reasonable
-    //  estimate, or even the exact size, by iterating though topology/child vectors.
-    //
-    //      The bigger issue here though is that not having the counts/offsets known
-    //  and updating it incrementally inhibits threading.  So consider figuring out the
-    //  counts/offsets before remapping the topology:
-    //      - if uniform subdivision, vert-face count will be:
-    //          - 4 for verts from parent faces (for catmark)
-    //          - 2x number in parent edge for verts from parent edges
-    //          - same as parent vert for verts from parent verts
-    //      - if sparse subdivision, vert-face count will be:
-    //          - the number of child faces in parent face
-    //          - 1 or 2x number in parent edge for verts from parent edges
-    //              - where the 1 or 2 is number of child edges of parent edge
-    //          - same as parent vert for verts from parent verts (catmark)
-    //
-    //  Note a couple of these metrics are Catmark-dependent, i.e. assuming 4 child
-    //  faces per face, but more subtely the assumption that a child vert from a
-    //  parent vert will have the same valence -- this will only be true if the
-    //  subd Scheme requires a "neighborhood of 1", which will have been taken into
-    //  account when marking/generating children.
-    //
-    if (applyTo._vertexFaces) {
-        //  Empty stub to eventually replace the incremental assembly that follows:
-        initializeVertexFaceCountsAndOffsets();
-
-        int childVertFaceIndexSizeEstimate = (int)parent._faceVertIndices.size()
-                                            + (int)parent._edgeFaceIndices.size() * 2
-                                            + (int)parent._vertFaceIndices.size();
-
-        child._vertFaceCountsAndOffsets.resize(child.getNumVertices() * 2);
-        child._vertFaceIndices.resize(         childVertFaceIndexSizeEstimate);
-        child._vertFaceLocalIndices.resize(    childVertFaceIndexSizeEstimate);
-
-        populateVertexFacesFromParentFaces();
-        populateVertexFacesFromParentEdges();
-        populateVertexFacesFromParentVertices();
-
-        //  Revise the over-allocated estimate based on what is used (as indicated in the
-        //  count/offset for the last vertex) and trim the index vectors accordingly:
-        childVertFaceIndexSizeEstimate = child.getNumVertexFaces(child.getNumVertices()-1) +
-                                         child.getOffsetOfVertexFaces(child.getNumVertices()-1);
-        child._vertFaceIndices.resize(     childVertFaceIndexSizeEstimate);
-        child._vertFaceLocalIndices.resize(childVertFaceIndexSizeEstimate);
-    }
-
-    //  Vert-edges:
-    //      As for vert-faces, we know the number of counts/offsets required, but we do
-    //  not yet know how many total incident edges we will have.  So over-estimate and
-    //  trim after population, similar to above for face-verts.
-    //
-    //  See also notes above regarding attempts to determine counts/offsets before we
-    //  start to remap the components:
-    //      - if uniform subdivision, vert-edge count will be:
-    //          - 4 for verts from parent faces (for catmark)
-    //          - 2 + N faces incident parent edge for verts from parent edges
-    //          - same as parent vert for verts from parent verts
-    //      - if sparse subdivision, vert-edge count will be:
-    //          - non-trivial function of child faces in parent face
-    //              - 1 child face will always result in 2 child edges
-    //              * 2 child faces can mean 3 or 4 child edges
-    //              - 3 child faces will always result in 4 child edges
-    //          - 1 or 2 + N faces incident parent edge for verts from parent edges
-    //              - where the 1 or 2 is number of child edges of parent edge
-    //              - any end vertex will require all N child faces (catmark)
-    //          - same as parent vert for verts from parent verts (catmark)
-    //
-    if (applyTo._vertexEdges) {
-        //  Empty stub to eventually replace the incremental assembly that follows:
-        initializeVertexEdgeCountsAndOffsets();
-
-        int childVertEdgeIndexSizeEstimate = (int)parent._faceVertIndices.size()
-                                           + (int)parent._edgeFaceIndices.size() + parent.getNumEdges() * 2
-                                           + (int)parent._vertEdgeIndices.size();
-
-        child._vertEdgeCountsAndOffsets.resize(child.getNumVertices() * 2);
-        child._vertEdgeIndices.resize(         childVertEdgeIndexSizeEstimate);
-        child._vertEdgeLocalIndices.resize(    childVertEdgeIndexSizeEstimate);
-
-        populateVertexEdgesFromParentFaces();
-        populateVertexEdgesFromParentEdges();
-        populateVertexEdgesFromParentVertices();
-
-        //  Revise the over-allocated estimate based on what is used (as indicated in the
-        //  count/offset for the last vertex) and trim the index vectors accordingly:
-        childVertEdgeIndexSizeEstimate = child.getNumVertexEdges(child.getNumVertices()-1) +
-                                         child.getOffsetOfVertexEdges(child.getNumVertices()-1);
-        child._vertEdgeIndices.resize(     childVertEdgeIndexSizeEstimate);
-        child._vertEdgeLocalIndices.resize(childVertEdgeIndexSizeEstimate);
-    }
-    child._maxValence = parent._maxValence;
-}
-
-
-//
-//  Sharpness subdivision methods:
-//      Subdividing vertex sharpness is relatively trivial -- most complexity is in
-//  the edge sharpness given its varying computation methods.
-//
 void
 Refinement::subdivideEdgeSharpness() {
 
@@ -1400,16 +1833,14 @@ Refinement::subdivideEdgeSharpness() {
     //  non-trivial creasing method like Chaikin is used.  This is not being
     //  done now but is worth considering...
     //
-    //  Only deal with the subrange of edges originating from edges:
-    int cEdgeBegin = _childEdgeFromFaceCount;
-    int cEdgeEnd   =  _child->getNumEdges();
-
     float * pVertEdgeSharpness = 0;
     if (!creasing.IsUniform()) {
         pVertEdgeSharpness = (float *)alloca(_parent->getMaxValence() * sizeof(float));
     }
 
-    for (Index cEdge = cEdgeBegin; cEdge < cEdgeEnd; ++cEdge) {
+    Index cEdge    = getFirstChildEdgeFromEdges();
+    Index cEdgeEnd = cEdge + getNumChildEdgesFromEdges();
+    for ( ; cEdge < cEdgeEnd; ++cEdge) {
         Sharpness&   cSharpness = _child->_edgeSharpness[cEdge];
         Level::ETag& cEdgeTag   = _child->_edgeTags[cEdge];
 
@@ -1450,8 +1881,8 @@ Refinement::subdivideVertexSharpness() {
     //  above.  Only those originating from vertices require "subdivided" values:
     //
     //  Only deal with the subrange of vertices originating from vertices:
-    int cVertBegin = _childVertFromFaceCount + _childVertFromEdgeCount;
-    int cVertEnd   = _child->getNumVertices();
+    Index cVertBegin = getFirstChildVertexFromVertices();
+    Index cVertEnd   = cVertBegin + getNumChildVerticesFromVertices();
 
     for (Index cVert = cVertBegin; cVert < cVertEnd; ++cVert) {
         Sharpness&   cSharpness = _child->_vertSharpness[cVert];
@@ -1486,10 +1917,10 @@ Refinement::reclassifySemisharpVertices() {
     //  reset the semisharp tag and the associated Rule according to the sharpness pair for the
     //  subdivided edges (note this may be better handled when the edge sharpness is computed):
     //
-    int vertFromEdgeMin = _childVertFromFaceCount;
-    int vertFromEdgeMax = vertFromEdgeMin + _childVertFromEdgeCount;
+    Index vertFromEdgeBegin = getFirstChildVertexFromEdges();
+    Index vertFromEdgeEnd   = vertFromEdgeBegin + getNumChildVerticesFromEdges();
 
-    for (Index cVert = vertFromEdgeMin; cVert < vertFromEdgeMax; ++cVert) {
+    for (Index cVert = vertFromEdgeBegin; cVert < vertFromEdgeEnd; ++cVert) {
         Level::VTag& cVertTag = _child->_vertTags[cVert];
         if (!cVertTag._semiSharp) continue;
 
@@ -1524,10 +1955,10 @@ Refinement::reclassifySemisharpVertices() {
     //  In both cases, we count the number of sharp and semisharp child edges incident the
     //  child vertex and adjust the "semisharp" and "rule" tags accordingly.
     //
-    int vertFromVertMin = vertFromEdgeMax;
-    int vertFromVertMax = vertFromVertMin + _childVertFromVertCount;
+    Index vertFromVertBegin = getFirstChildVertexFromVertices();
+    Index vertFromVertEnd   = vertFromVertBegin + getNumChildVerticesFromVertices();
 
-    for (Index cVert = vertFromVertMin; cVert < vertFromVertMax; ++cVert) {
+    for (Index cVert = vertFromVertBegin; cVert < vertFromVertEnd; ++cVert) {
         Level::VTag& cVertTag = _child->_vertTags[cVert];
         if (!cVertTag._semiSharp) continue;
 
@@ -1572,6 +2003,9 @@ Refinement::reclassifySemisharpVertices() {
     }
 }
 
+//
+//  Methods to subdivide face-varying channels:
+//
 void
 Refinement::subdivideFVarChannels() {
 
@@ -1593,480 +2027,6 @@ Refinement::subdivideFVarChannels() {
         this->_fvarChannels.push_back(refineFVar);
     }
 }
-
-
-//
-//  Methods to propagate/initialize component tags according to their parent component:
-//
-void
-Refinement::propagateFaceTagsFromParentFaces() {
-
-    //
-    //  Tags for faces originating from faces are inherited from the parent face:
-    //
-    for (Index cFace = 0; cFace < _child->getNumFaces(); ++cFace) {
-        _child->_faceTags[cFace] = _parent->_faceTags[_childFaceParentIndex[cFace]];
-    }
-    /*
-    for (int pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
-        Level::FTag const& fTag = _parent->_faceTags[pFace];
-
-        IndexArray const pFaceChildFaces = getFaceChildFaces(pFace);
-        for (int i = 0; i < pFaceChildFaces.size(); ++i) {
-            Index cFace = pFaceChildFaces[i];
-
-            if (IndexIsValid(cFace)) _child->_faceTags[cFace] = fTag;
-        }
-    }
-    */
-}
-void
-Refinement::propagateEdgeTagsFromParentFaces() {
-
-    //
-    //  Tags for edges originating from faces are all constant:
-    //
-    Level::ETag eTag;
-    eTag._nonManifold = 0;
-    eTag._boundary    = 0;
-    eTag._infSharp    = 0;
-    eTag._semiSharp   = 0;
-
-    for (Index cEdge = 0; cEdge < _childEdgeFromFaceCount; ++cEdge) {
-        _child->_edgeTags[cEdge] = eTag;
-    }
-}
-void
-Refinement::propagateVertexTagsFromParentFaces() {
-
-    //
-    //  Similarly, tags for vertices originating from faces are all constant -- with the
-    //  unfortunate exception of refining level 0, where the faces may be N-sided and so
-    //  introduce new vertices that need to be tagged as extra-ordinary:
-    //
-    Level::VTag vTag;
-    vTag._nonManifold = 0;
-    vTag._xordinary   = 0;
-    vTag._boundary    = 0;
-    vTag._infSharp    = 0;
-    vTag._semiSharp   = 0;
-    vTag._rule        = Sdc::Crease::RULE_SMOOTH;
-    vTag._incomplete  = 0;
-
-    if (_parent->_depth > 0) {
-        for (Index cVert = 0; cVert < _childVertFromFaceCount; ++cVert) {
-            _child->_vertTags[cVert] = vTag;
-        }
-    } else {
-        for (Index cVert = 0; cVert < _childVertFromFaceCount; ++cVert) {
-            _child->_vertTags[cVert] = vTag;
-            if (_parent->getNumFaceVertices(_childVertexParentIndex[cVert]) != 4) {
-                _child->_vertTags[cVert]._xordinary = true;
-            }
-        }
-    }
-}
-void
-Refinement::propagateEdgeTagsFromParentEdges() {
-
-    //
-    //  Tags for edges originating from edges are inherited from the parent edge:
-    //
-    for (Index cEdge = _childEdgeFromFaceCount; cEdge < _child->getNumEdges(); ++cEdge) {
-        _child->_edgeTags[cEdge] = _parent->_edgeTags[_childEdgeParentIndex[cEdge]];
-    }
-    /*
-    for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge) {
-        Level::ETag const& pEdgeTag = _parent->_edgeTags[pEdge];
-        IndexArray const   cEdges   = getEdgeChildEdges(pEdge);
-
-        if (IndexIsValid(cEdges[0])) _child->_edgeTags[cEdges[0]] = pEdgeTag;
-        if (IndexIsValid(cEdges[1])) _child->_edgeTags[cEdges[1]] = pEdgeTag;
-    }
-    */
-}
-void
-Refinement::propagateVertexTagsFromParentEdges() {
-
-    //
-    //  Tags for vertices originating from edges are initialized according to the tags
-    //  of the parent edge:
-    //
-    for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge) {
-        Index cVert = _edgeChildVertIndex[pEdge];
-        if (!IndexIsValid(cVert)) continue;
-
-        Level::ETag const& pEdgeTag = _parent->_edgeTags[pEdge];
-        Level::VTag&       cVertTag = _child->_vertTags[cVert];
-
-        cVertTag._nonManifold = pEdgeTag._nonManifold;
-        cVertTag._xordinary   = false;
-        cVertTag._boundary    = pEdgeTag._boundary;
-        cVertTag._infSharp    = false;
-
-        cVertTag._semiSharp = pEdgeTag._semiSharp;
-        cVertTag._rule = (Level::VTag::VTagSize)((pEdgeTag._semiSharp || pEdgeTag._infSharp)
-                       ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH);
-        cVertTag._incomplete = 0;
-    }
-}
-void
-Refinement::propagateVertexTagsFromParentVertices() {
-
-    //
-    //  Tags for vertices originating from vertices are inherited from the parent vertex:
-    //
-    for (Index cVert = _childVertFromFaceCount + _childVertFromEdgeCount;
-                  cVert < _child->getNumVertices(); ++cVert) {
-        _child->_vertTags[cVert] = _parent->_vertTags[_childVertexParentIndex[cVert]];
-    }
-    /*
-    for (Index pVert = 0; pVert < _parent->getNumVertices(); ++pVert) {
-        Index cVert = _vertChildVertIndex[pVert];
-
-        if (IndexIsValid(cVert)) _child->_vertTags[cVert] = _parent->_vertTags[pVert];
-    }
-    */
-}
-
-void
-Refinement::propagateComponentTags() {
-
-    _child->_faceTags.resize(_child->getNumFaces());
-    _child->_edgeTags.resize(_child->getNumEdges());
-    _child->_vertTags.resize(_child->getNumVertices());
-
-    propagateFaceTagsFromParentFaces();
-
-    propagateEdgeTagsFromParentFaces();
-    propagateEdgeTagsFromParentEdges();
-
-    propagateVertexTagsFromParentFaces();
-    propagateVertexTagsFromParentEdges();
-    propagateVertexTagsFromParentVertices();
-
-    if (!_uniform) {
-        for (Index cVert = 0; cVert < _child->getNumVertices(); ++cVert) {
-            if (_childVertexTag[cVert]._incomplete) {
-                _child->_vertTags[cVert]._incomplete = true;
-            }
-        }
-    }
-}
-
-void
-Refinement::populateChildToParentTags() {
-
-    ChildTag childTags[2][4];
-    for (int i = 0; i < 2; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            ChildTag& tag = childTags[i][j];
-            tag._incomplete    = (unsigned char)i;
-            tag._parentType    = 0;
-            tag._indexInParent = (unsigned char)j;
-        }
-    }
-
-    if (_uniform) {
-        Index cFace = 0;
-        for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
-            IndexArray pVerts = _parent->getFaceVertices(pFace);
-            if (pVerts.size() == 4) {
-                _childFaceTag[cFace + 0] = childTags[0][0];
-                _childFaceTag[cFace + 1] = childTags[0][1];
-                _childFaceTag[cFace + 2] = childTags[0][2];
-                _childFaceTag[cFace + 3] = childTags[0][3];
-
-                _childFaceParentIndex[cFace + 0] = pFace;
-                _childFaceParentIndex[cFace + 1] = pFace;
-                _childFaceParentIndex[cFace + 2] = pFace;
-                _childFaceParentIndex[cFace + 3] = pFace;
-
-                cFace += 4;
-            } else {
-                for (int i = 0; i < pVerts.size(); ++i, ++cFace) {
-                    _childFaceTag[cFace] = childTags[0][i];
-                    _childFaceParentIndex[cFace] = pFace;
-                }
-            }
-        }
-
-        Index cEdge = 0;
-        for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
-            IndexArray pVerts = _parent->getFaceVertices(pFace);
-            if (pVerts.size() == 4) {
-                _childEdgeTag[cEdge + 0] = childTags[0][0];
-                _childEdgeTag[cEdge + 1] = childTags[0][1];
-                _childEdgeTag[cEdge + 2] = childTags[0][2];
-                _childEdgeTag[cEdge + 3] = childTags[0][3];
-
-                _childEdgeParentIndex[cEdge + 0] = pFace;
-                _childEdgeParentIndex[cEdge + 1] = pFace;
-                _childEdgeParentIndex[cEdge + 2] = pFace;
-                _childEdgeParentIndex[cEdge + 3] = pFace;
-
-                cEdge += 4;
-            } else {
-                for (int i = 0; i < pVerts.size(); ++i, ++cEdge) {
-                    _childEdgeTag[cEdge] = childTags[0][i];
-                    _childEdgeParentIndex[cEdge] = pFace;
-                }
-            }
-        }
-        for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge, cEdge += 2) {
-            _childEdgeTag[cEdge + 0] = childTags[0][0];
-            _childEdgeTag[cEdge + 1] = childTags[0][1];
-
-            _childEdgeParentIndex[cEdge + 0] = pEdge;
-            _childEdgeParentIndex[cEdge + 1] = pEdge;
-        }
-
-        Index cVert = 0;
-        for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace, ++cVert) {
-            _childVertexTag[cVert] = childTags[0][0];
-            _childVertexParentIndex[cVert] = pFace;
-        }
-        for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge, ++cVert) {
-            _childVertexTag[cVert] = childTags[0][0];
-            _childVertexParentIndex[cVert] = pEdge;
-        }
-        for (Index pVert = 0; pVert < _parent->getNumVertices(); ++pVert, ++cVert) {
-            _childVertexTag[cVert] = childTags[0][0];
-            _childVertexParentIndex[cVert] = pVert;
-        }
-    } else {
-        //  Child faces of faces:
-        for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
-            bool incomplete = !_parentFaceTag[pFace]._selected;
-
-            IndexArray cFaces = getFaceChildFaces(pFace);
-            if (!incomplete && (cFaces.size() == 4)) {
-                _childFaceTag[cFaces[0]] = childTags[0][0];
-                _childFaceTag[cFaces[1]] = childTags[0][1];
-                _childFaceTag[cFaces[2]] = childTags[0][2];
-                _childFaceTag[cFaces[3]] = childTags[0][3];
-
-                _childFaceParentIndex[cFaces[0]] = pFace;
-                _childFaceParentIndex[cFaces[1]] = pFace;
-                _childFaceParentIndex[cFaces[2]] = pFace;
-                _childFaceParentIndex[cFaces[3]] = pFace;
-            } else {
-                for (int i = 0; i < cFaces.size(); ++i) {
-                    if (IndexIsValid(cFaces[i])) {
-                        _childFaceTag[cFaces[i]] = childTags[incomplete][i];
-                        _childFaceParentIndex[cFaces[i]] = pFace;
-                    }
-                }
-            }
-        }
-
-        //  Child edges of faces and edges:
-        for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
-            bool incomplete = !_parentFaceTag[pFace]._selected;
-
-            IndexArray cEdges = getFaceChildEdges(pFace);
-            if (!incomplete && (cEdges.size() == 4)) {
-                _childEdgeTag[cEdges[0]] = childTags[0][0];
-                _childEdgeTag[cEdges[1]] = childTags[0][1];
-                _childEdgeTag[cEdges[2]] = childTags[0][2];
-                _childEdgeTag[cEdges[3]] = childTags[0][3];
-
-                _childEdgeParentIndex[cEdges[0]] = pFace;
-                _childEdgeParentIndex[cEdges[1]] = pFace;
-                _childEdgeParentIndex[cEdges[2]] = pFace;
-                _childEdgeParentIndex[cEdges[3]] = pFace;
-            } else {
-                for (int i = 0; i < cEdges.size(); ++i) {
-                    if (IndexIsValid(cEdges[i])) {
-                        _childEdgeTag[cEdges[i]] = childTags[incomplete][i];
-                        _childEdgeParentIndex[cEdges[i]] = pFace;
-                    }
-                }
-            }
-        }
-        for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge) {
-            bool incomplete = !_parentEdgeTag[pEdge]._selected;
-
-            IndexArray cEdges = getEdgeChildEdges(pEdge);
-            if (!incomplete) {
-                _childEdgeTag[cEdges[0]] = childTags[0][0];
-                _childEdgeTag[cEdges[1]] = childTags[0][1];
-
-                _childEdgeParentIndex[cEdges[0]] = pEdge;
-                _childEdgeParentIndex[cEdges[1]] = pEdge;
-            } else {
-                for (int i = 0; i < 2; ++i) {
-                    if (IndexIsValid(cEdges[i])) {
-                        _childEdgeTag[cEdges[i]] = childTags[incomplete][i];
-                        _childEdgeParentIndex[cEdges[i]] = pEdge;
-                    }
-                }
-            }
-        }
-
-        //  Child vertices of faces, edges and vertices:
-        for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
-            Index cVert = _faceChildVertIndex[pFace];
-            if (IndexIsValid(cVert)) {
-                bool incomplete = !_parentFaceTag[pFace]._selected;
-
-                _childVertexTag[cVert] = childTags[incomplete][0];
-                _childVertexParentIndex[cVert] = pFace;
-            }
-        }
-        for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge) {
-            Index cVert = _edgeChildVertIndex[pEdge];
-            if (IndexIsValid(cVert)) {
-                bool incomplete = !_parentEdgeTag[pEdge]._selected;
-
-                _childVertexTag[cVert] = childTags[incomplete][0];
-                _childVertexParentIndex[cVert] = pEdge;
-            }
-        }
-        for (Index pVert = 0; pVert < _parent->getNumVertices(); ++pVert) {
-            Index cVert = _vertChildVertIndex[pVert];
-            if (IndexIsValid(cVert)) {
-                _childVertexTag[cVert] = childTags[0][0];
-                _childVertexParentIndex[cVert] = pVert;
-            }
-        }
-    }
-}
-
-void
-Refinement::populateChildToParentIndices() {
-}
-
-void
-Refinement::populateChildToParentMapping() {
-    assert(_quadSplit);
-
-    _childVertexParentIndex.resize(_child->getNumVertices());
-    _childEdgeParentIndex.resize(_child->getNumEdges());
-    _childFaceParentIndex.resize(_child->getNumFaces());
-
-    _childVertexTag.resize(_child->getNumVertices());
-    _childEdgeTag.resize(_child->getNumEdges());
-    _childFaceTag.resize(_child->getNumFaces());
-
-    populateChildToParentIndices();
-
-    populateChildToParentTags();
-}
-
-#ifdef _VTR_COMPUTE_MASK_WEIGHTS_ENABLED
-void
-Refinement::computeMaskWeights() {
-
-    const Level& parent = *this->_parent;
-          Level& child  = *this->_child;
-
-    assert(child.getNumVertices() != 0);
-
-    _faceVertWeights.resize(parent.faceVertCount());
-    _edgeVertWeights.resize(parent.edgeVertCount());
-    _edgeFaceWeights.resize(parent.edgeFaceCount());
-    _vertVertWeights.resize(parent.getNumVertices());
-    _vertEdgeWeights.resize(parent.vertEdgeCount());
-    _vertFaceWeights.resize(parent.vertEdgeCount());
-
-    //
-    //  Hard-coding this for Catmark temporarily for testing...
-    //
-    assert(_schemeType == Sdc::TYPE_CATMARK);
-
-    Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_schemeOptions);
-
-    if (_childVertFromFaceCount) {
-        for (int pFace = 0; pFace < parent.getNumFaces(); ++pFace) {
-            Index cVert = _faceChildVertIndex[pFace];
-            if (!IndexIsValid(cVert)) continue;
-
-            int    fVertCount   = parent.faceVertCount(pFace);
-            int    fVertOffset  = parent.faceVertOffset(pFace);
-            float* fVertWeights = &_faceVertWeights[fVertOffset];
-
-            MaskInterface fMask(fVertWeights, 0, 0);
-            FaceInterface fHood(fVertCount);
-
-            scheme.ComputeFaceVertexMask(fHood, fMask);
-        }
-    }
-    if (_childVertFromEdgeCount) {
-        EdgeInterface eHood(parent);
-
-        for (int pEdge = 0; pEdge < parent.getNumEdges(); ++pEdge) {
-            Index cVert = _edgeChildVertIndex[pEdge];
-            if (!IndexIsValid(cVert)) continue;
-
-            //
-            //  Update the locations for the mask weights:
-            //
-            int    eFaceCount   = parent.edgeFaceCount(pEdge);
-            int    eFaceOffset  = parent.edgeFaceOffset(pEdge);
-            float* eFaceWeights = &_edgeFaceWeights[eFaceOffset];
-            float* eVertWeights = &_edgeVertWeights[2 * pEdge];
-
-            MaskInterface eMask(eVertWeights, 0, eFaceWeights);
-
-            //
-            //  Identify the parent and child and compute weights -- note that the face
-            //  weights may not be populated, so set them to zero if not:
-            //
-            eHood.SetIndex(pEdge);
-
-            Sdc::Rule pRule = (parent._edgeSharpness[pEdge] > 0.0) ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH;
-            Sdc::Rule cRule = child.getVertexRule(cVert);
-
-            scheme.ComputeEdgeVertexMask(eHood, eMask, pRule, cRule);
-
-            if (eMask.GetFaceWeightCount() == 0) {
-                std::fill(eFaceWeights, eFaceWeights + eFaceCount, 0.0);
-            }
-        }
-    }
-    if (_childVertFromVertCount) {
-        VertexInterface vHood(parent, child);
-
-        for (int pVert = 0; pVert < parent.getNumVertices(); ++pVert) {
-            Index cVert = _vertChildVertIndex[pVert];
-            if (!IndexIsValid(cVert)) continue;
-
-            //
-            //  Update the locations for the mask weights:
-            //
-            float* vVertWeights = &_vertVertWeights[pVert];
-
-            int    vEdgeCount   = parent.vertEdgeCount(pVert);
-            int    vEdgeOffset  = parent.vertEdgeOffset(pVert);
-            float* vEdgeWeights = &_vertEdgeWeights[vEdgeOffset];
-
-            int    vFaceCount   = parent.vertFaceCount(pVert);
-            int    vFaceOffset  = parent.vertFaceOffset(pVert);
-            float* vFaceWeights = &_vertFaceWeights[vFaceOffset];
-
-            MaskInterface vMask(vVertWeights, vEdgeWeights, vFaceWeights);
-
-            //
-            //  Initialize the neighborhood and gather the pre-determined Rules:
-            //
-            vHood.SetIndex(pVert, cVert);
-
-            Sdc::Rule pRule = parent.vertRule(pVert);
-            Sdc::Rule cRule = child.vertRule(cVert);
-
-            scheme.ComputeVertexVertexMask(vHood, vMask, pRule, cRule);
-
-            if (vMask.GetEdgeWeightCount() == 0) {
-                std::fill(vEdgeWeights, vEdgeWeights + vEdgeCount, 0.0);
-            }
-            if (vMask.GetFaceWeightCount() == 0) {
-                std::fill(vFaceWeights, vFaceWeights + vFaceCount, 0.0);
-            }
-        }
-    }
-}
-#endif
 
 
 //
@@ -2128,7 +2088,7 @@ namespace {
 }
 
 void
-Refinement::markSparseChildComponents() {
+Refinement::markSparseChildComponentIndices() {
 
     assert(_parentEdgeTag.size() > 0);
     assert(_parentFaceTag.size() > 0);
@@ -2289,6 +2249,120 @@ Refinement::markSparseChildComponents() {
         }
     }
 }
+
+
+#ifdef _VTR_COMPUTE_MASK_WEIGHTS_ENABLED
+void
+Refinement::computeMaskWeights() {
+
+    const Level& parent = *this->_parent;
+          Level& child  = *this->_child;
+
+    assert(child.getNumVertices() != 0);
+
+    _faceVertWeights.resize(parent.faceVertCount());
+    _edgeVertWeights.resize(parent.edgeVertCount());
+    _edgeFaceWeights.resize(parent.edgeFaceCount());
+    _vertVertWeights.resize(parent.getNumVertices());
+    _vertEdgeWeights.resize(parent.vertEdgeCount());
+    _vertFaceWeights.resize(parent.vertEdgeCount());
+
+    //
+    //  Hard-coding this for Catmark temporarily for testing...
+    //
+    assert(_schemeType == Sdc::TYPE_CATMARK);
+    Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_schemeOptions);
+
+    if (_childVertFromFaceCount) {
+        for (int pFace = 0; pFace < parent.getNumFaces(); ++pFace) {
+            Index cVert = _faceChildVertIndex[pFace];
+            if (!IndexIsValid(cVert)) continue;
+
+            int    fVertCount   = parent.faceVertCount(pFace);
+            int    fVertOffset  = parent.faceVertOffset(pFace);
+            float* fVertWeights = &_faceVertWeights[fVertOffset];
+
+            MaskInterface fMask(fVertWeights, 0, 0);
+            FaceInterface fHood(fVertCount);
+
+            scheme.ComputeFaceVertexMask(fHood, fMask);
+        }
+    }
+    if (_childVertFromEdgeCount) {
+        EdgeInterface eHood(parent);
+
+        for (int pEdge = 0; pEdge < parent.getNumEdges(); ++pEdge) {
+            Index cVert = _edgeChildVertIndex[pEdge];
+            if (!IndexIsValid(cVert)) continue;
+
+            //
+            //  Update the locations for the mask weights:
+            //
+            int    eFaceCount   = parent.edgeFaceCount(pEdge);
+            int    eFaceOffset  = parent.edgeFaceOffset(pEdge);
+            float* eFaceWeights = &_edgeFaceWeights[eFaceOffset];
+            float* eVertWeights = &_edgeVertWeights[2 * pEdge];
+
+            MaskInterface eMask(eVertWeights, 0, eFaceWeights);
+
+            //
+            //  Identify the parent and child and compute weights -- note that the face
+            //  weights may not be populated, so set them to zero if not:
+            //
+            eHood.SetIndex(pEdge);
+
+            Sdc::Rule pRule = (parent._edgeSharpness[pEdge] > 0.0) ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH;
+            Sdc::Rule cRule = child.getVertexRule(cVert);
+
+            scheme.ComputeEdgeVertexMask(eHood, eMask, pRule, cRule);
+
+            if (eMask.GetFaceWeightCount() == 0) {
+                std::fill(eFaceWeights, eFaceWeights + eFaceCount, 0.0);
+            }
+        }
+    }
+    if (_childVertFromVertCount) {
+        VertexInterface vHood(parent, child);
+
+        for (int pVert = 0; pVert < parent.getNumVertices(); ++pVert) {
+            Index cVert = _vertChildVertIndex[pVert];
+            if (!IndexIsValid(cVert)) continue;
+
+            //
+            //  Update the locations for the mask weights:
+            //
+            float* vVertWeights = &_vertVertWeights[pVert];
+
+            int    vEdgeCount   = parent.vertEdgeCount(pVert);
+            int    vEdgeOffset  = parent.vertEdgeOffset(pVert);
+            float* vEdgeWeights = &_vertEdgeWeights[vEdgeOffset];
+
+            int    vFaceCount   = parent.vertFaceCount(pVert);
+            int    vFaceOffset  = parent.vertFaceOffset(pVert);
+            float* vFaceWeights = &_vertFaceWeights[vFaceOffset];
+
+            MaskInterface vMask(vVertWeights, vEdgeWeights, vFaceWeights);
+
+            //
+            //  Initialize the neighborhood and gather the pre-determined Rules:
+            //
+            vHood.SetIndex(pVert, cVert);
+
+            Sdc::Rule pRule = parent.vertRule(pVert);
+            Sdc::Rule cRule = child.vertRule(cVert);
+
+            scheme.ComputeVertexVertexMask(vHood, vMask, pRule, cRule);
+
+            if (vMask.GetEdgeWeightCount() == 0) {
+                std::fill(vEdgeWeights, vEdgeWeights + vEdgeCount, 0.0);
+            }
+            if (vMask.GetFaceWeightCount() == 0) {
+                std::fill(vFaceWeights, vFaceWeights + vFaceCount, 0.0);
+            }
+        }
+    }
+}
+#endif
 
 } // end namespace Vtr
 

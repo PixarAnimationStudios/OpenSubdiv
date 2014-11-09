@@ -261,19 +261,40 @@ FVarRefinement::populateChildValuesForVertexVertex(Index cVert, Index pVert) {
 void
 FVarRefinement::populateChildValues() {
 
-    //  For values from face-vertices, they are guaranteed to be continuous, so there is
-    //  nothing we need do here -- other than skipping them and starting with the first
-    //  child vertex after all face vertices.
     //
-    //  For values from edge-vertices and vertex-vertices, identify all associated values
-    //  for those that do not have matching topology -- those that do will have been
-    //  initialized appropriately on construction.
+    //  Be sure to match the same vertex ordering as Refinement, i.e. face-vertices
+    //  first vs vertex-vertices first, etc.  A few optimizations within the use of
+    //  face-varying data take advantage of this assumption.
     //
-    //  The "sibling offset" is an offset into the member vectors where sibling values are
-    //  "located".  Every vertex has at least one value and so that value is located at the
-    //  index of the vertex -- all additional values are located after the one-per-vertex.
+    //  Right now there are only two orderings under consideration, and its unclear
+    //  whether only one will be supported or both.  Until that's determined, assert
+    //  the conditions we expect for these two.
     //
     _childFVar._valueCount = 0;
+
+    if (_refinement.getFirstChildVertexFromVertices() > 0) {
+        assert((_refinement.getFirstChildVertexFromFaces() <=
+                _refinement.getFirstChildVertexFromEdges()) &&
+               (_refinement.getFirstChildVertexFromEdges() <
+                _refinement.getFirstChildVertexFromVertices()));
+
+        populateChildValuesFromFaceVertices();
+        populateChildValuesFromEdgeVertices();
+        populateChildValuesFromVertexVertices();
+    } else {
+        assert((_refinement.getFirstChildVertexFromVertices() <
+                _refinement.getFirstChildVertexFromFaces()) &&
+               (_refinement.getFirstChildVertexFromFaces() <=
+                _refinement.getFirstChildVertexFromEdges()));
+
+        populateChildValuesFromVertexVertices();
+        populateChildValuesFromFaceVertices();
+        populateChildValuesFromEdgeVertices();
+    }
+}
+
+void
+FVarRefinement::populateChildValuesFromFaceVertices() {
 
     Index cVert    = _refinement.getFirstChildVertexFromFaces();
     Index cVertEnd = cVert + _refinement.getNumChildVerticesFromFaces();
@@ -282,9 +303,12 @@ FVarRefinement::populateChildValues() {
         _childFVar._vertSiblingCounts[cVert]  = 1;
         _childFVar._valueCount ++;
     }
+}
+void
+FVarRefinement::populateChildValuesFromEdgeVertices() {
 
-    cVert    = _refinement.getFirstChildVertexFromEdges();
-    cVertEnd = cVert + _refinement.getNumChildVerticesFromEdges();
+    Index cVert    = _refinement.getFirstChildVertexFromEdges();
+    Index cVertEnd = cVert + _refinement.getNumChildVerticesFromEdges();
     for ( ; cVert < cVertEnd; ++cVert) {
         Index pEdge = _refinement.getChildVertexParentIndex(cVert);
 
@@ -298,9 +322,12 @@ FVarRefinement::populateChildValues() {
             _childFVar._valueCount += cValueCount;
         }
     }
+}
+void
+FVarRefinement::populateChildValuesFromVertexVertices() {
 
-    cVert    = _refinement.getFirstChildVertexFromVertices();
-    cVertEnd = cVert + _refinement.getNumChildVerticesFromVertices();
+    Index cVert    = _refinement.getFirstChildVertexFromVertices();
+    Index cVertEnd = cVert + _refinement.getNumChildVerticesFromVertices();
     for ( ; cVert < cVertEnd; ++cVert) {
         Index pVert = _refinement.getChildVertexParentIndex(cVert);
 
@@ -360,15 +387,16 @@ FVarRefinement::propagateValueTags() {
     //
 
     //
-    //  Values from face-vertices -- all match:
+    //  Values from face-vertices -- all match and are sequential:
     //
     FVarLevel::ValueTag valTagMatch;
     valTagMatch.clear();
 
-    Index cVert    = _refinement.getFirstChildVertexFromFaces();
-    Index cVertEnd = cVert + _refinement.getNumChildVerticesFromFaces();
-    for ( ; cVert < cVertEnd; ++cVert) {
-        _childFVar._vertValueTags[cVert] = valTagMatch;
+    Index cVert      = _refinement.getFirstChildVertexFromFaces();
+    Index cVertEnd   = cVert + _refinement.getNumChildVerticesFromFaces();
+    Index cVertValue = _childFVar.getVertexValueOffset(cVert);
+    for ( ; cVert < cVertEnd; ++cVert, ++cVertValue) {
+        _childFVar._vertValueTags[cVertValue] = valTagMatch;
     }
 
     //

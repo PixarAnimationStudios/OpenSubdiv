@@ -84,7 +84,10 @@ protected:
 
     void estimateAndAllocateChildValues();
     void populateChildValues();
+    void populateChildValuesFromFaceVertices();
+    void populateChildValuesFromEdgeVertices();
     int  populateChildValuesForEdgeVertex(Index cVert, Index pEdge);
+    void populateChildValuesFromVertexVertices();
     int  populateChildValuesForVertexVertex(Index cVert, Index pVert);
     void trimAndFinalizeChildValues();
 
