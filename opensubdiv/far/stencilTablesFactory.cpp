@@ -208,7 +208,9 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
 
     StencilTables const * cvstencils = cvStencils;
     if (not cvstencils) {
-        // Generate stencils for the control vertices
+        // Generate stencils for the control vertices - this is necessary to
+        // properly factorize patches with control vertices at level 0 (natural
+        // regular patches, such as in a torus)
         // note: the control vertices of the mesh are added as single-index
         //       stencils of weight 1.0f
         StencilTablesFactory::Options options;
@@ -236,7 +238,11 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
         // infer the patches fairly easily from the refiner. Once more tags
         // have been added to the refiner, maybe we can remove the need for the
         // patch tables.
-        patchtables = PatchTablesFactory::Create(refiner);
+
+        OpenSubdiv::Far::PatchTablesFactory::Options options;
+        options.adaptiveStencilTables = cvstencils;
+
+        patchtables = PatchTablesFactory::Create(refiner, options);
     } else {
         // Sanity checks
         if (patchTables->IsFeatureAdaptive()==uniform) {

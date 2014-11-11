@@ -584,7 +584,38 @@ GregoryBasisFactory::GregoryBasisFactory(TopologyRefiner const & refiner,
     StencilTables const & stencils, int numpatches, int maxvalence) :
         _currentStencil(0), _refiner(refiner),
             _stencils(stencils), _alloc(GetNumMaxElems(maxvalence)) {
+
+    // Sanity check: the mesh must be adaptively refined
+    assert(not _refiner.IsUniform());
+
     _alloc.Resize(numpatches * 20);
+
+    // Gregory limit stencils have indices that are relative to the level
+    // (maxlevel) of subdivision. These indices need to be offset to match
+    // the indices from the multi-level adaptive stencil tables.
+    // In addition: stencil tables can be built with singular stencils
+    // (single weight of 1.0f) as place-holders for coarse mesh vertices,
+    // which also needs to be accounted for.
+    _stencilsOffset=-1;
+    {         int maxlevel = _refiner.GetMaxLevel(),
+            nverts = _refiner.GetNumVerticesTotal(),
+            nstencils = _stencils.GetNumStencils();
+        if (nstencils==nverts) {
+
+            // the table contain stencils for the control vertices
+            _stencilsOffset = nverts - _refiner.GetNumVertices(maxlevel);
+
+        } else if (nstencils==(nverts-_refiner.GetNumVertices(0))) {
+
+            // the table does not contain stencils for the control vertices
+            _stencilsOffset = nverts - _refiner.GetNumVertices(maxlevel)
+                - _refiner.GetNumVertices(0);
+
+        } else {
+            // these are not the stencils you are looking for...
+            assert(0);
+        }
+    }
 }
 inline void
 factorizeBasisVertex(StencilTables const & stencils, Point const & p, ProtoStencil dst) {
@@ -603,13 +634,6 @@ GregoryBasisFactory::AddPatchBasis(Index faceIndex) {
     // Gregory patches only exist on the hight
     Vtr::Level const & level = _refiner.getLevel(_refiner.GetMaxLevel());
 
-    // Sanity checks: the mesh must be adaptively refined and the stencil tables
-    //                must have the correct size to factorize all the CVs at
-    //                intermediate subdivision levels back to the coarse mesh.
-    assert( (not _refiner.IsUniform()) and
-            (_stencils.GetNumStencils() ==
-                _refiner.GetNumVerticesTotal()-_refiner.GetNumVertices(0)) );
-
     if (level.getMaxValence()>GetMaxValence()) {
         // The proto-basis closed-form table limits valence to 'MAX_VALENCE'
         return false;
@@ -620,12 +644,9 @@ GregoryBasisFactory::AddPatchBasis(Index faceIndex) {
     ProtoBasis basis(level, faceIndex);
 
     // The basis vertex indices are currently local to maxlevel: need to offset
-    //  to match layout of adaptive StencilTables
-    int voffset = 0;
-    for (int i=1; i<_refiner.GetMaxLevel(); ++i) {
-        voffset += _refiner.GetNumVertices(i);
-    }
-    basis.OffsetIndices(voffset);
+    // to match layout of adaptive StencilTables (see factory constructor above)
+    assert(_stencilsOffset>=0);
+    basis.OffsetIndices(_stencilsOffset);
 
     // Factorize the basis CVs with the stencil tables: the basis is now
     // expressed as a linear combination of vertices from the coarse control
@@ -642,7 +663,7 @@ GregoryBasisFactory::AddPatchBasis(Index faceIndex) {
     return true;
 }
 StencilTables const *
-GregoryBasisFactory::CreateStencilTables( ) {
+GregoryBasisFactory::CreateStencilTables(int const permute[20]) {
 
     // Finalize the stencil tables from the temporary pool allocator
     StencilTables * result = new StencilTables;
@@ -657,8 +678,17 @@ GregoryBasisFactory::CreateStencilTables( ) {
     Stencil dst(&result->_sizes.at(0),
         &result->_indices.at(0), &result->_weights.at(0));
 
-    for (int i=0; i<_alloc.GetNumStencils(); ++i) {
-        *dst._size = _alloc.CopyStencil(i, dst._indices, dst._weights);
+    for (int i=0; i<nstencils; ++i) {
+
+        Index index = i;
+        if (permute) {
+            int localIndex = i % 20,
+                baseIndex = i - localIndex;
+            index = baseIndex + permute[localIndex];
+        }
+
+        *dst._size = _alloc.CopyStencil(index, dst._indices, dst._weights);
+
         dst.Next();
     }
 

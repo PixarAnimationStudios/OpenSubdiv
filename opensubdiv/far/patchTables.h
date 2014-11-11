@@ -28,7 +28,7 @@
 #include "../version.h"
 
 #include "../far/patchParam.h"
-#include "../far/patchParam.h"
+#include "../far/stencilTables.h"
 #include "../far/types.h"
 
 #include "../sdc/type.h"
@@ -74,7 +74,8 @@ public:
         BOUNDARY,
         CORNER,
         GREGORY,
-        GREGORY_BOUNDARY
+        GREGORY_BOUNDARY,
+        GREGORY_BASIS
     };
 
     enum TransitionPattern {
@@ -337,6 +338,9 @@ public:
     /// \brief Returns a quad offsets table used by Gregory patches
     QuadOffsetTable const & GetQuadOffsetTable() const { return _quadOffsetTable; }
 
+    /// \brief Returns a stencil table for the control vertices of end-cap patches
+    StencilTables const * GetEndCapStencilTables() const { return _endcapStencilTables; }
+
     /// \brief Returns a PatchParamTable for each type of patch
     PatchParamTable const & GetPatchParamTable() const { return _paramTable; }
 
@@ -357,6 +361,9 @@ public:
 
     /// \brief Number of control vertices of Gregory (and Gregory Boundary) Patches in table.
     static short GetGregoryPatchSize() { return 4; }
+
+    /// \brief Number of control vertices of Gregory patch basis (20)
+    static short GetGregoryBasisSize() { return 20; }
 
     /// \brief Returns the total number of patches stored in the tables
     int GetNumPatchesTotal() const;
@@ -430,12 +437,13 @@ public:
                 PTable const & patches,
                 VertexValenceTable const * vertexValences,
                 QuadOffsetTable const * quadOffsets,
+                StencilTables const * endcapStencilTables,
                 PatchParamTable const * patchParams,
                 FVarPatchTables const * fvarPatchTables,
                 int maxValence);
 
     /// \brief Destructor
-    ~PatchTables() { delete _fvarPatchTables; }
+    ~PatchTables();
 
 public:
 
@@ -532,6 +540,30 @@ public:
     InterpolateCornerPatch(Index const * cvs,
         float const * Q, float const *Qd1, float const *Qd2, T const & src, U & dst);
 
+    /// \brief Interpolate the (s,t) parametric location of a Gregory bicubic
+    ///        patch
+    ///
+    /// @param basisStencils  Stencil tables driving the 20 CV basis of the patches
+    ///
+    /// @param stencilIndex   Index of the first CV stencil in the basis stencils tables
+    ///
+    /// @param Q              Array of 9 bicubic weights for the control vertices
+    ///
+    /// @param Qd1            Array of 9 bicubic 's' tangent weights for the control
+    ///                       vertices
+    ///
+    /// @param Qd2            Array of 9 bicubic 't' tangent weights for the control
+    ///                       vertices
+    ///
+    /// @param src            Source primvar buffer (control vertices data)
+    ///
+    /// @param dst            Destination primvar buffer (limit surface data)
+    ///
+    template <class T, class U> static void
+    InterpolateGregoryPatch(StencilTables const * basisStencils, int stencilIndex,
+        float s, float t, float const * Q, float const *Qd1, float const *Qd2,
+            T const & src, U & dst);
+
     /// \brief Interpolate the (s,t) parametric location of a *bicubic* patch
     ///
     /// \note This method can only be used on feature adaptive PatchTables (ie.
@@ -555,10 +587,15 @@ private:
 
     friend class PatchTablesFactory;
 
-    // Returns bi-cubic interpolation coefficients for a given (u,v) location
+    enum TensorBasis {
+        BASIS_BEZIER,
+        BASIS_BSPLINE
+    };
+
+    // Returns bi-cubic interpolation coefficients for a given (s,t) location
     // on a b-spline patch
-    static void getBSplineWeightsAtUV(PatchParam::BitField bits, float s, float t,
-        float point[16], float deriv1[16], float deriv2[16]);
+    static void getBasisWeightsAtUV(TensorBasis basis, PatchParam::BitField bits,
+        float s, float t, float point[16], float deriv1[16], float deriv2[16]);
 
 private:
 
@@ -569,31 +606,47 @@ private:
     static DescriptorVector const & getAdaptiveCatmarkDescriptors();
     static DescriptorVector const & getAdaptiveLoopDescriptors();
 
-    // Private constructor
-    PatchTables( int maxvalence ) : _fvarPatchTables(0), _maxValence(maxvalence) { }
+    // Factory constructor
+    PatchTables(int maxvalence) : _maxValence(maxvalence),
+        _endcapStencilTables(0), _fvarPatchTables(0) { }
 
-    PatchArrayVector     _patchArrays;        // Vector of descriptors for arrays of patches
+private:
 
-    PTable               _patches;            // Indices of the control vertices of the patches
+    //
+    // Topology
+    //
+
+    int _maxValence,   // highest vertex valence found in the mesh
+        _numPtexFaces; // total number of ptex faces
+
+    PatchArrayVector     _patchArrays;  // Vector of descriptors for arrays of patches
+    PTable               _patches;      // Indices of the control vertices of the patches
+    PatchParamTable      _paramTable;   // PatchParam bitfields (one per patch)
+
+    //
+    // Extraordinary vertex closed-form evaluation
+    //
+
+    // XXXX manuelk end-cap stencils will obsolete the other tables
 
     VertexValenceTable   _vertexValenceTable; // Vertex valence table (for Gregory patches)
-
     QuadOffsetTable      _quadOffsetTable;    // Quad offsets table (for Gregory patches)
 
-    PatchParamTable      _paramTable;         // PatchParam bitfields (one per patch)
+    StencilTables const * _endcapStencilTables;
+
+    //
+    // Face-varying data
+    //
 
     FVarPatchTables const * _fvarPatchTables; // sparse face-varying patch table (one per patch)
 
-    std::vector<int>     _sharpnessIndexTable;// Indices of single-crease sharpness (one per patch)
+    //
+    // 'single-crease' patch sharpness tables
+    //
 
-    std::vector<float>   _sharpnessValues;    // Sharpness values.
+    std::vector<Index>   _sharpnessIndexTable; // Indices of single-crease sharpness (one per patch)
+    std::vector<float>   _sharpnessValues;     // Sharpness values.
 
-    // highest vertex valence allowed in the mesh (used for Gregory
-    // vertexValance & quadOffset tables)
-    int _maxValence;
-
-    // number of total ptex faces in quads or triangles(loop)
-    int _numPtexFaces;
 
 };
 
@@ -606,6 +659,7 @@ PatchTables::Descriptor::GetNumControlVertices( PatchTables::Type type ) {
         case QUADS             : return 4;
         case GREGORY           :
         case GREGORY_BOUNDARY  : return PatchTables::GetGregoryPatchSize();
+        case GREGORY_BASIS     : return PatchTables::GetGregoryBasisSize();
         case BOUNDARY          : return PatchTables::GetBoundaryPatchSize();
         case CORNER            : return PatchTables::GetCornerPatchSize();
         case TRIANGLES         : return 3;
@@ -624,6 +678,7 @@ PatchTables::Descriptor::GetNumFVarControlVertices( PatchTables::Type type ) {
         case QUADS             : // so all these patches only carry 4 CVs.
         case GREGORY           :
         case GREGORY_BOUNDARY  :
+        case GREGORY_BASIS     :
         case BOUNDARY          :
         case CORNER            : return 4;
         case TRIANGLES         : return 3;
@@ -758,6 +813,108 @@ PatchTables::InterpolateCornerPatch(Index const * cvs,
     }
 }
 
+template <class T, class U>
+inline void
+PatchTables::InterpolateGregoryPatch(StencilTables const * basisStencils,
+    int stencilIndex, float s, float t,
+        float const * Q, float const *Qd1, float const *Qd2,
+            T const & src, U & dst) {
+
+        float ss = 1-s,
+              tt = 1-t;
+// remark #1572: floating-point equality and inequality comparisons are unreliable
+#ifdef __INTEL_COMPILER
+#pragma warning disable 1572
+#endif
+        float d11 = s+t;   if(s+t==0.0f)   d11 = 1.0f;
+        float d12 = ss+t;  if(ss+t==0.0f)  d12 = 1.0f;
+        float d21 = s+tt;  if(s+tt==0.0f)  d21 = 1.0f;
+        float d22 = ss+tt; if(ss+tt==0.0f) d22 = 1.0f;
+#ifdef __INTEL_COMPILER
+#pragma warning enable 1572
+#endif
+
+        float weights[4][2] = { {  s/d11,  t/d11 },
+                                { ss/d12,  t/d12 },
+                                {  s/d21, tt/d21 },
+                                { ss/d22, tt/d22 } };
+
+        //
+        //  P3         e3-      e2+         P2
+        //     O--------O--------O--------O
+        //     |        |        |        |
+        //     |        |        |        |
+        //     |        | f3-    | f2+    |
+        //     |        O        O        |
+        // e3+ O------O            O------O e2-
+        //     |     f3+          f2-     |
+        //     |                          |
+        //     |                          |
+        //     |      f0-         f1+     |
+        // e0- O------O            O------O e1+
+        //     |        O        O        |
+        //     |        | f0+    | f1-    |
+        //     |        |        |        |
+        //     |        |        |        |
+        //     O--------O--------O--------O
+        //  P0         e0+      e1-         P1
+        //
+        // XXXX manuelk re-order stencils in factory and get rid of permutation ?
+        int const permute[16] =
+            { 0, 1, 7, 5, 2, -1, -1, 6, 16, -1, -1, 12, 15, 17, 11, 10 };
+
+        for (int i=0, fcount=0; i<16; ++i) {
+
+            int index = permute[i],
+                offset = stencilIndex;
+
+            if (index==-1) {
+
+                // 0-ring vertex: blend 2 extra basis CVs
+                int const fpermute[4][2] = { {3, 4}, {9, 8}, {19, 18}, {13, 14} };
+
+                assert(fcount < 4);
+                int v0 = fpermute[fcount][0],
+                    v1 = fpermute[fcount][1];
+
+                Stencil s0 = basisStencils->GetStencil(offset + v0),
+                        s1 = basisStencils->GetStencil(offset + v1);
+
+                float w0=weights[fcount][0],
+                      w1=weights[fcount][1];
+
+                {
+                    Index const * srcIndices = s0.GetVertexIndices();
+                    float const * srcWeights = s0.GetWeights();
+                    for (int j=0; j<s0.GetSize(); ++j) {
+                        dst.AddWithWeight(src[srcIndices[j]],
+                            Q[i]*w0*srcWeights[j], Qd1[i]*w0*srcWeights[j],
+                                Qd2[i]*w0*srcWeights[j]);
+                    }
+                }
+                {
+                    Index const * srcIndices = s1.GetVertexIndices();
+                    float const * srcWeights = s1.GetWeights();
+                    for (int j=0; j<s1.GetSize(); ++j) {
+                        dst.AddWithWeight(src[srcIndices[j]],
+                            Q[i]*w1*srcWeights[j], Qd1[i]*w1*srcWeights[j],
+                                Qd2[i]*w1*srcWeights[j]);
+                    }
+                }
+                ++fcount;
+            } else {
+                Stencil s = basisStencils->GetStencil(offset + index);
+                Index const * srcIndices = s.GetVertexIndices();
+                float const * srcWeights = s.GetWeights();
+                for (int j=0; j<s.GetSize(); ++j) {
+                    dst.AddWithWeight( src[srcIndices[j]],
+                        Q[i]*srcWeights[j], Qd1[i]*srcWeights[j],
+                             Qd2[i]*srcWeights[j]);
+                }
+            }
+        }
+}
+
 // Interpolates the limit position of a parametric location on a patch
 template <class T, class U>
 inline void
@@ -796,29 +953,22 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
     PatchTables::PatchArray const & parray =
         _patchArrays[handle.patchArrayIdx];
 
-    Index const * cvs =
-        &_patches[parray.GetVertIndex() + handle.vertexOffset];
-
     PatchParam::BitField const & bits =
         _paramTable[handle.patchIdx].bitField;
-
     bits.Normalize(s,t);
 
     Type ptype = parray.GetDescriptor().GetType();
 
+    dst.Clear();
+
+    float Q[16], Qd1[16], Qd2[16];
+
     if (ptype>=REGULAR and ptype<=CORNER) {
 
-        float Q[16], Qd1[16], Qd2[16];
+        getBasisWeightsAtUV(BASIS_BSPLINE, bits, s, t, Q, Qd1, Qd2);
 
-        getBSplineWeightsAtUV(bits, s, t, Q, Qd1, Qd2);
-
-        float scale = float(1 << bits.GetDepth());
-        for (int k=0; k<16; ++k) {
-            Qd1[k] *= scale;
-            Qd2[k] *= scale;
-        }
-
-        dst.Clear();
+        Index const * cvs =
+            &_patches[parray.GetVertIndex() + handle.vertexOffset];
 
         switch (ptype) {
             case REGULAR:
@@ -834,10 +984,21 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
             case CORNER:
                 InterpolateCornerPatch(cvs, Q, Qd1, Qd2, src, dst);
                 break;
+            case GREGORY:
+            case GREGORY_BOUNDARY:
+                assert(0);
+                break;
             default:
                 assert(0);
         }
-    } else if (ptype>=GREGORY and ptype<=GREGORY_BOUNDARY) {
+    } else if (ptype==GREGORY_BASIS) {
+
+        assert(_endcapStencilTables);
+
+        getBasisWeightsAtUV(BASIS_BEZIER, bits, s, t, Q, Qd1, Qd2);
+
+        InterpolateGregoryPatch(_endcapStencilTables, handle.vertexOffset,
+            s, t, Q, Qd1, Qd2, src, dst);
 
     } else {
         assert(0);

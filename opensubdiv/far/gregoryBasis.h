@@ -117,13 +117,15 @@ public:
     bool AddPatchBasis(Index faceIndex);
 
     // After all the patches have been collected, create the final table
-    StencilTables const * CreateStencilTables();
+    StencilTables const * CreateStencilTables(int const permute[20]=0);
 
 private:
 
     int _currentStencil;
 
     TopologyRefiner const & _refiner; // XXXX these should be smart pointers !
+
+    Index _stencilsOffset;
 
     StencilTables const & _stencils;
     StencilAllocator _alloc;

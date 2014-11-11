@@ -37,7 +37,9 @@ namespace Vtr { class Level; }
 
 namespace Far {
 
+class StencilTables;
 class TopologyRefiner;
+
 template <typename T> struct PatchTypes;
 struct PatchFaceTag;
 
@@ -53,18 +55,21 @@ public:
 
     struct Options {
 
-        Options(unsigned int maxIsolationLevel=10) : generateAllLevels(false),
-                                                     triangulateQuads(false),
-                                                     generateFVarTables(false),
-                                                     useSingleCreasePatch(false),
-                                                     maxIsolationLevel(maxIsolationLevel)
-                                                     { }
+        Options(unsigned int maxIsolationLevel=10) :
+             generateAllLevels(false),
+             triangulateQuads(false),
+             generateFVarTables(false),
+             useSingleCreasePatch(false),
+             maxIsolationLevel(maxIsolationLevel),
+             adaptiveStencilTables(0) { }
 
         unsigned int generateAllLevels : 1,    ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
                      triangulateQuads  : 1,    ///< Triangulate 'QUADS' primitives (Uniform mode only)
                      generateFVarTables : 1,   ///< Generate face-varying patch tables
                      useSingleCreasePatch : 1, ///< Use single crease patch
                      maxIsolationLevel : 4;    ///< Cap the sharpnness of single creased patches to be consistent to other feature isolations.
+
+        StencilTables const * adaptiveStencilTables;
     };
 
     /// \brief Factory constructor for PatchTables

@@ -21,8 +21,9 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#include "../far/patchTables.h"
 #include "../far/patchTablesFactory.h"
+#include "../far/gregoryBasis.h"
+#include "../far/patchTables.h"
 #include "../far/topologyRefiner.h"
 #include "../vtr/level.h"
 #include "../vtr/refinement.h"
@@ -50,7 +51,8 @@ struct PatchTypes {
          B[NUM_TRANSITIONS][NUM_ROTATIONS],    // boundary patch (4 rotations)
          C[NUM_TRANSITIONS][NUM_ROTATIONS],    // corner patch (4 rotations)
          G,                                    // gregory patch
-         GB;                                   // gregory boundary patch
+         GB,                                   // gregory boundary patch
+         GP;                                   // gregory basis patch
 
     PatchTypes() { std::memset(this, 0, sizeof(PatchTypes<TYPE>)); }
 
@@ -63,6 +65,7 @@ struct PatchTypes {
             case PatchTables::CORNER           : return C[desc.GetPattern()][desc.GetRotation()];
             case PatchTables::GREGORY          : return G;
             case PatchTables::GREGORY_BOUNDARY : return GB;
+            case PatchTables::GREGORY_BASIS    : return GP;
             default : assert(0);
         }
         // can't be reached (suppress compiler warning)
@@ -86,6 +89,7 @@ struct PatchTypes {
         }
         if (G) ++result;
         if (GB) ++result;
+        if (GP) ++result;
         return result;
     }
 
@@ -468,13 +472,11 @@ void
 PatchTablesFactory::pushPatchArray( PatchTables::Descriptor desc,
                                        PatchTables::PatchArrayVector & parray,
                                        int npatches, int * voffset, int * poffset, int * qoffset ) {
-
     if (npatches>0) {
         parray.push_back( PatchTables::PatchArray(desc, *voffset, *poffset, npatches, *qoffset) );
-
         *voffset += npatches * desc.GetNumControlVertices();
-        *poffset += npatches;
         *qoffset += (desc.GetType() == PatchTables::GREGORY) ? npatches * desc.GetNumControlVertices() : 0;
+        *poffset += npatches;
     }
 }
 
@@ -669,7 +671,7 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
             npatches -= refiner.GetNumHoles(level);
         }
         assert(npatches>=0);
-        
+
         if (options.triangulateQuads)
             npatches *= 2;
 
@@ -716,7 +718,7 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
         int nfaces = refiner.GetNumFaces(level);
         if (level>=firstlevel) {
             for (int face=0; face<nfaces; ++face) {
-            
+
                 if (refiner.HasHoles() and refiner.IsHole(level, face)) {
                     continue;
                 }
@@ -876,11 +878,11 @@ PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
         Vtr::Refinement::SparseTag const * vtrFaceTags = refineNext ? &refineNext->_parentFaceTag[0] : 0;
 
         for (int faceIndex = 0; faceIndex < level->getNumFaces(); ++faceIndex) {
-        
+
             if (level->isHole(faceIndex)) {
                 continue;
             }
-        
+
             Vtr::Refinement::SparseTag vtrFaceTag = vtrFaceTags ? vtrFaceTags[faceIndex] : Vtr::Refinement::SparseTag();
             PatchFaceTag&            patchTag   = levelPatchTags[faceIndex];
 
@@ -1037,10 +1039,16 @@ PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
                     patchInventory.C[transIndex][transRot]++;
                 }
             } else {
-                if (patchTag._boundaryCount == 0) {
-                    patchInventory.G++;
+                // if end-cap patches use a stencils-driven basis, we don't need
+                // to track regular / boundary cases
+                if (not options.adaptiveStencilTables) {
+                    if (patchTag._boundaryCount == 0) {
+                        patchInventory.G++;
+                    } else {
+                        patchInventory.GB++;
+                    }
                 } else {
-                    patchInventory.GB++;
+                    patchInventory.GP++;
                 }
             }
         }
@@ -1108,9 +1116,18 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
     //  To avoid gathering vertex neighborhoods for all vertices, identify vertices involved in
     //  gregory patches as the faces are traversed, to be gathered later:
     //
-    bool hasGregoryPatches = (patchInventory.G > 0) or (patchInventory.GB > 0);
+    GregoryBasisFactory * gregoryStencilsFactory = 0;
+    bool hasGregoryPatches = (patchInventory.G > 0) or (patchInventory.GB > 0) or (patchInventory.GP > 0);
     if (hasGregoryPatches) {
-        gregoryVertexFlags.resize(refiner.GetNumVerticesTotal(), false);
+
+        StencilTables const * adaptiveStencils = options.adaptiveStencilTables;
+        if (adaptiveStencils and patchInventory.GP>0) {
+            int maxvalence = refiner.getLevel(0).getMaxValence();
+            gregoryStencilsFactory =
+                new GregoryBasisFactory(refiner, *adaptiveStencils, patchInventory.GP, maxvalence);
+        } else {
+            gregoryVertexFlags.resize(refiner.GetNumVerticesTotal(), false);
+        }
     }
 
     //
@@ -1136,7 +1153,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
             }
 
             const PatchFaceTag& patchTag = levelPatchTags[faceIndex];
-            if (not patchTag._hasPatch) { 
+            if (not patchTag._hasPatch) {
                 continue;
             }
 
@@ -1224,41 +1241,53 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                     }
                 }
             } else {
-                if (patchTag._boundaryCount == 0) {
-                    // Gregory Regular Patch (4 CVs + quad-offsets / valence tables)
-                    Vtr::IndexArray const faceVerts = level->getFaceVertices(faceIndex);
-                    for (int j = 0; j < 4; ++j) {
-                        iptrs.G[j] = faceVerts[j] + levelVertOffset;
-                        gregoryVertexFlags[iptrs.G[j]] = true;
-                    }
-                    iptrs.G += 4;
+                if (gregoryStencilsFactory) {
+                    // Gregory basis end-cap (20 CVs - no quad-offsets / valence tables)
+                    assert(i==refiner.GetMaxLevel());
+                    gregoryStencilsFactory->AddPatchBasis(faceIndex);
 
-                    getQuadOffsets(*level, faceIndex, quad_G_C0_P);
-                    quad_G_C0_P += 4;
-
-                    pptrs.G = computePatchParam(refiner, i, faceIndex, 0, pptrs.G);
+                    pptrs.GP = computePatchParam(refiner, i, faceIndex, 0, pptrs.GP);
 
                     if (tables->_fvarPatchTables) {
-                        gatherFVarPatchVertices(refiner, i, faceIndex, 0, levelFVarVertOffsets, fptrs.G);
+                        gatherFVarPatchVertices(refiner, i, faceIndex, 0, levelFVarVertOffsets, fptrs.GP);
                     }
                 } else {
-                    // Gregory Boundary Patch (4 CVs + quad-offsets / valence tables)
-                    Vtr::IndexArray const faceVerts = level->getFaceVertices(faceIndex);
-                    for (int j = 0; j < 4; ++j) {
-                        iptrs.GB[j] = faceVerts[j] + levelVertOffset;
-                        gregoryVertexFlags[iptrs.GB[j]] = true;
-                    }
-                    iptrs.GB += 4;
+                    if (patchTag._boundaryCount == 0) {
+                        // Gregory Regular Patch (4 CVs + quad-offsets / valence tables)
+                        Vtr::IndexArray const faceVerts = level->getFaceVertices(faceIndex);
+                        for (int j = 0; j < 4; ++j) {
+                            iptrs.G[j] = faceVerts[j] + levelVertOffset;
+                            gregoryVertexFlags[iptrs.G[j]] = true;
+                        }
+                        iptrs.G += 4;
 
-                    getQuadOffsets(*level, faceIndex, quad_G_C1_P);
-                    quad_G_C1_P += 4;
+                        getQuadOffsets(*level, faceIndex, quad_G_C0_P);
+                        quad_G_C0_P += 4;
 
-                    //int bIndex = (patchTag._boundaryIndex+1)%4;
+                        pptrs.G = computePatchParam(refiner, i, faceIndex, 0, pptrs.G);
 
-                    pptrs.GB = computePatchParam(refiner, i, faceIndex, 0, pptrs.GB);
+                        if (tables->_fvarPatchTables) {
+                            gatherFVarPatchVertices(refiner, i, faceIndex, 0, levelFVarVertOffsets, fptrs.G);
+                        }
+                    } else {
+                        // Gregory Boundary Patch (4 CVs + quad-offsets / valence tables)
+                        Vtr::IndexArray const faceVerts = level->getFaceVertices(faceIndex);
+                        for (int j = 0; j < 4; ++j) {
+                            iptrs.GB[j] = faceVerts[j] + levelVertOffset;
+                            gregoryVertexFlags[iptrs.GB[j]] = true;
+                        }
+                        iptrs.GB += 4;
 
-                    if (tables->_fvarPatchTables) {
-                        gatherFVarPatchVertices(refiner, i, faceIndex, 0, levelFVarVertOffsets, fptrs.GB);
+                        getQuadOffsets(*level, faceIndex, quad_G_C1_P);
+                        quad_G_C1_P += 4;
+
+                        //int bIndex = (patchTag._boundaryIndex+1)%4;
+
+                        pptrs.GB = computePatchParam(refiner, i, faceIndex, 0, pptrs.GB);
+
+                        if (tables->_fvarPatchTables) {
+                            gatherFVarPatchVertices(refiner, i, faceIndex, 0, levelFVarVertOffsets, fptrs.GB);
+                        }
                     }
                 }
             }
@@ -1271,6 +1300,12 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                 levelFVarVertOffsets[channel] += refiner.GetNumFVarValues(i, channel);
             }
         }
+    }
+
+    if (gregoryStencilsFactory) {
+        tables->_endcapStencilTables =
+            gregoryStencilsFactory->CreateStencilTables();
+        delete gregoryStencilsFactory;
     }
 
     //
