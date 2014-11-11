@@ -458,7 +458,8 @@ private:
              B[NUM_TRANSITIONS][NUM_ROTATIONS],    // boundary patch (4 rotations)
              C[NUM_TRANSITIONS][NUM_ROTATIONS],    // corner patch (4 rotations)
              G,                                    // gregory patch
-             GB;                                   // gregory boundary patch
+             GB,                                   // gregory boundary patch
+             GP;                                   // gregory basis
 
         PatchTypes() { memset(this, 0, sizeof(PatchTypes<TYPE>)); }
 
@@ -494,6 +495,7 @@ Far::PatchTablesFactory::PatchTypes<TYPE>::getValue( Far::PatchTables::Descripto
         case Far::PatchTables::CORNER           : return C[desc.GetPattern()][desc.GetRotation()];
         case Far::PatchTables::GREGORY          : return G;
         case Far::PatchTables::GREGORY_BOUNDARY : return GB;
+        case Far::PatchTables::GREGORY_BASIS    : return GP;
         default : assert(0);
     }
     // can't be reached (suppress compiler warning)

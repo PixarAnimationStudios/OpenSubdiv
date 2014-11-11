@@ -404,6 +404,7 @@ getNumEdges(int numCVs) {
         case 12: return 4;
 //        case 16: return 24;
         case 16: return  4;
+        case 20: return  4;
         default:
             assert(0);
     }
@@ -451,6 +452,7 @@ getEdgeList(int numCVs) {
         case  9: return edgeList9; break;
         case 12: return edgeList12; break;
         case 16: return edgeList16; break;
+        case 20: return edgeList4; break;
         default:
             assert(0);
     }

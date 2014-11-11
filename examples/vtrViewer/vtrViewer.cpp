@@ -546,43 +546,38 @@ createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
 static GLMesh gregoryWire;
 
 static void
-createGregoryBasis(OpenSubdiv::Far::TopologyRefiner const & refiner,
-    OpenSubdiv::Far::StencilTables const & stencils, int maxvalence,
+createGregoryBasis(OpenSubdiv::Far::PatchTables const & patchTables,
         std::vector<Vertex> const & vertexBuffer) {
 
-    int level = refiner.GetMaxLevel(),
-        nfaces = refiner.GetNumFaces(level);
+    typedef OpenSubdiv::Far::PatchTables FPatchTables;
 
-    std::vector<OpenSubdiv::Far::Index> gpatches(nfaces);
-    for (int face=0; face<nfaces; ++face) {
-        if (not refiner.FaceIsRegular(level, face)) {
-            gpatches.push_back(face);
+    FPatchTables::PatchArrayVector const & parrays =
+         patchTables.GetPatchArrayVector();
+
+    int npatches = 0;
+    for (int i=0; i<(int)parrays.size(); ++i) {
+        FPatchTables::PatchArray const & pa = parrays[i];
+        if (pa.GetDescriptor().GetType()==FPatchTables::GREGORY_BASIS) {
+            npatches = pa.GetNumPatches();
+            break;
         }
     }
 
-    int npatches = (int)gpatches.size();
-
-    OpenSubdiv::Far::GregoryBasisFactory factory(
-        refiner, stencils, npatches, maxvalence);
-
-    for (int i=0; i<npatches; ++i) {
-        factory.AddPatchBasis(gpatches[i]);
-    }
-    
-    OpenSubdiv::Far::StencilTables const * gstencils =
-        factory.CreateStencilTables();
-
     int nedges = npatches * 20;
-
     std::vector<int> vertsperedge(nedges), edgeindices(nedges*2);
     std::vector<Vertex> edgeverts(npatches*20);
+
+    OpenSubdiv::Far::StencilTables const * gstencils =
+        patchTables.GetEndCapStencilTables();
+    assert(gstencils);
+
     gstencils->UpdateValues(&vertexBuffer[0], &edgeverts[0]);
 
     for (int patch=0; patch<npatches; ++patch) {
 
         static int  basisedges[40] = {  0,  1,  0,  2,  1,  3,  2,  4,
-                                        5,  6,  5,  7,  6,  8,  7,  9, 
-                                       10, 11, 10, 12, 11, 13, 12, 14, 
+                                        5,  6,  5,  7,  6,  8,  7,  9,
+                                       10, 11, 10, 12, 11, 13, 12, 14,
                                        15, 16, 15, 17, 16, 18, 17, 19,
                                         1,  7,  6, 12, 11, 17, 16,  2  };
 
@@ -592,7 +587,7 @@ createGregoryBasis(OpenSubdiv::Far::TopologyRefiner const & refiner,
         for (int i=0; i<20; ++i) {
             vpe[i] = 2;
             indices[i*2] = basisedges[i*2] + offset;
-            indices[i*2+1] =basisedges[i*2+1] + offset;
+            indices[i*2+1] = basisedges[i*2+1] + offset;
         }
 
         Vertex const * verts = &edgeverts[offset];
@@ -615,6 +610,7 @@ createGregoryBasis(OpenSubdiv::Far::TopologyRefiner const & refiner,
     GLMesh::Options options;
     gregoryWire.Initialize(options, (int)edgeverts.size(), (int)vertsperedge.size(),
         &vertsperedge[0], &edgeindices[0], (float const * )&edgeverts[0]);
+
 }
 
 //------------------------------------------------------------------------------
@@ -689,26 +685,19 @@ createVtrMesh(Shape * shape, int maxlevel) {
     OpenSubdiv::Far::TopologyRefiner * refiner =
         OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
 
-    OpenSubdiv::Far::PatchTables * patchTables = 0;
-
     if (g_Adaptive) {
-
         refiner->RefineAdaptive(maxlevel, /*fullTopology*/true);
-
-        patchTables = OpenSubdiv::Far::PatchTablesFactory::Create(*refiner);
-
-        g_numPatches = patchTables->GetNumPatchesTotal();
-        g_maxValence = patchTables->GetMaxValence();
     } else {
         refiner->RefineUniform(maxlevel, /*fullTopology*/true);
     }
-    s.Stop();
+
+    //
+    // Stencils
+    //
 
     // create vertex primvar data buffer
     std::vector<Vertex> vertexBuffer(refiner->GetNumVerticesTotal());
     Vertex * verts = &vertexBuffer[0];
-
-    //printf("Vtr time: %f ms (topology)\n", float(s.GetElapsed())*1000.0f);
 
     // copy coarse vertices positions
     int ncoarseverts = shape->GetNumVertices();
@@ -741,6 +730,29 @@ createVtrMesh(Shape * shape, int maxlevel) {
     }
 #endif
 
+    //
+    // Patch tables
+    //
+
+    OpenSubdiv::Far::PatchTables * patchTables = 0;
+    if (g_Adaptive) {
+        assert(stencilTables);
+
+        OpenSubdiv::Far::PatchTablesFactory::Options options;
+        options.adaptiveStencilTables = stencilTables;
+        patchTables = OpenSubdiv::Far::PatchTablesFactory::Create(*refiner, options);
+
+        g_numPatches = patchTables->GetNumPatchesTotal();
+        g_maxValence = patchTables->GetMaxValence();
+    }
+    s.Stop();
+
+    //
+    // Misc display
+    //
+
+    //printf("Vtr time: %f ms (topology)\n", float(s.GetElapsed())*1000.0f);
+
     if (g_VtrDrawVertIDs) {
         createVertNumbers(*refiner, vertexBuffer);
     }
@@ -758,7 +770,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
     }
 
     if (g_Adaptive and g_drawGregoryBasis) {
-        createGregoryBasis(*refiner, *stencilTables, g_maxValence, vertexBuffer);
+        createGregoryBasis(*patchTables, vertexBuffer);
     }
 
     createEdgeNumbers(*refiner, vertexBuffer, g_VtrDrawEdgeIDs!=0, g_VtrDrawEdgeSharpness!=0);
