@@ -386,6 +386,23 @@ namespace {
 } // namespace anon
 
 
+// Indirection for number of control vertices for a given patch to allow
+// override for patch types with dynamic basis (like stencil-based Gregory
+// end caps)
+static int
+GetNumControlVertices(PatchTables::Descriptor const & desc) {
+
+    int result = desc.GetNumControlVertices();
+
+    // The Gregory basis patch uses 20 control vertices generated from
+    // a dedicated stencil table which stores its vertex indices. However,
+    // for varying interpolation, we need the vertex indices of the 0-ring
+    // stored in the _patches indexing table.
+    if (desc.GetType()==PatchTables::GREGORY_BASIS) {
+        result = 4;
+    }
+    return result;
+}
 
 //
 //  Reserves tables based on the contents of the PatchArrayVector in the PatchTables:
@@ -399,7 +416,7 @@ PatchTablesFactory::allocateTables(PatchTables * tables, int /* nlevels */, bool
     for (int i=0; i<(int)parrays.size(); ++i) {
 
         int nps = parrays[i].GetNumPatches(),
-            ncvs = parrays[i].GetDescriptor().GetNumControlVertices();
+            ncvs = GetNumControlVertices(parrays[i].GetDescriptor());
 
         npatches += nps;
         nverts += ncvs * nps;
@@ -473,12 +490,12 @@ PatchTablesFactory::allocateFVarTables( TopologyRefiner const & refiner,
 //
 void
 PatchTablesFactory::pushPatchArray( PatchTables::Descriptor desc,
-                                       PatchTables::PatchArrayVector & parray,
-                                       int npatches, int * voffset, int * poffset, int * qoffset ) {
+                                    PatchTables::PatchArrayVector & parray,
+                                    int npatches, int * voffset, int * poffset, int * qoffset ) {
     if (npatches>0) {
         parray.push_back( PatchTables::PatchArray(desc, *voffset, *poffset, npatches, *qoffset) );
-        *voffset += npatches * desc.GetNumControlVertices();
-        *qoffset += (desc.GetType() == PatchTables::GREGORY) ? npatches * desc.GetNumControlVertices() : 0;
+        *voffset += npatches * GetNumControlVertices(desc);
+        *qoffset += (desc.GetType() == PatchTables::GREGORY) ? npatches * GetNumControlVertices(desc) : 0;
         *poffset += npatches;
     }
 }
@@ -1252,7 +1269,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                         iptrs.GP[j] = faceVerts[j] + levelVertOffset;
                         gregoryVertexFlags[iptrs.GP[j]] = true;
                     }
-                    iptrs.GP += 20;
+                    iptrs.GP += 4;
                     gregoryStencilsFactory->AddPatchBasis(faceIndex);
 
                     pptrs.GP = computePatchParam(refiner, i, faceIndex, 0, pptrs.GP);

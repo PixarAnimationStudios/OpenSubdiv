@@ -162,12 +162,12 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
     Far::PatchTables::PatchArray const & parray =
         context->GetPatchArrayVector()[ handle->patchArrayIdx ];
 
-    Far::Index const * cvs =
-        &context->GetControlVertices()[ parray.GetVertIndex() + handle->vertexOffset ];
-
     VertexData const & vertexData = _currentBindState.vertexData;
 
     if (vertexData.in) {
+
+        Far::Index const * cvs =
+            &context->GetControlVertices()[ parray.GetVertIndex() + handle->vertexOffset ];
 
         int offset = vertexData.outDesc.stride * index;
 
@@ -240,26 +240,41 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
 
     if (varyingData.in and varyingData.out) {
 
-        static int indices[6][4] = { {5, 6,10, 9},  // regular
-                                     {1, 2, 6, 5},  // boundary
-                                     {1, 2, 5, 4},  // corner
-                                     {0, 1, 2, 3},  // gregory
-                                     {0, 1, 2, 3},  // gregory boundary
-                                     {0, 1, 2, 3} };// gregory basis
+        static int const zeroRings[6][4] = { {5, 6,10, 9},   // regular
+                                             {1, 2, 6, 5},   // boundary / single-crease
+                                             {1, 2, 5, 4},   // corner
+                                             {0, 1, 2, 3} }; // no permutation
 
-        // XXXX manuelk For now, PatchTables allocate 20 CV indices but only
-        //              populate the first 4 with the indices of the verts on
-        //              the 0 ring. This is not optimal and will probably change
-        //              soon
+        int const * permute = 0;
+        switch (parray.GetDescriptor().GetType()) {
+            case Far::PatchTables::REGULAR          : permute = zeroRings[0]; break;
+            case Far::PatchTables::SINGLE_CREASE    :
+            case Far::PatchTables::BOUNDARY         : permute = zeroRings[1]; break;
+            case Far::PatchTables::CORNER           : permute = zeroRings[2]; break;
+            case Far::PatchTables::GREGORY          :
+            case Far::PatchTables::GREGORY_BOUNDARY :
+            case Far::PatchTables::GREGORY_BASIS    : permute = zeroRings[3]; break;
+            default:
+                assert(0);
+        };
 
-        int type = (int)(parray.GetDescriptor().GetType() - Far::PatchTables::REGULAR);
+        Far::Index const * cvs = &context->GetControlVertices()[parray.GetVertIndex()];
+        if (parray.GetDescriptor().GetType()==Far::PatchTables::GREGORY_BASIS) {
+            // XXXX Far::PatchMap stores vertexOffset based on a ringsize of 20 for
+            //      Gregory patch, stored in a stencil table. The Ptable however
+            //      contains the 0-ring with 4 vertices only, so we need to adjust
+            //      this offset
+            cvs += handle->vertexOffset / 5;
+        } else {
+            cvs += handle->vertexOffset;
+        }
 
         int offset = varyingData.outDesc.stride * index;
 
-        Far::Index zeroRing[4] = { cvs[indices[type][0]],
-                                   cvs[indices[type][1]],
-                                   cvs[indices[type][2]],
-                                   cvs[indices[type][3]]  };
+        Far::Index zeroRing[4] = { cvs[permute[0]],
+                                   cvs[permute[1]],
+                                   cvs[permute[2]],
+                                   cvs[permute[3]]  };
 
         evalBilinear( t, s, zeroRing,
                       varyingData.inDesc,
@@ -284,7 +299,7 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
 
             int offset = facevaryingData.outDesc.stride * index;
 
-            static Far::Index zeroRing[4] = {0,1,2,3};
+            static int const zeroRing[4] = {0,1,2,3};
 
             evalBilinear( t, s, zeroRing,
                           facevaryingData.inDesc,
