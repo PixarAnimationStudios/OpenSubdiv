@@ -23,6 +23,7 @@
 //
 
 #include "../osd/cpuEvalLimitKernel.h"
+#include "../far/stencilTables.h"
 
 #include <math.h>
 #include <cstdio>
@@ -66,7 +67,6 @@ evalBilinear(float u, float v,
         }
     }
 }
-
 
 inline void
 evalCubicBSpline(float u, float B[4], float BU[4]) {
@@ -375,6 +375,211 @@ evalCorner(float u, float v,
         }
     }
 }
+
+inline void
+evalCubicBezier(float u, float B[4], float BU[3]) {
+    float u2 = u*u,
+          w0 = 1.0f - u,
+          w2 = w0 * w0;
+
+    B[0] = w0*w2;
+    B[1] = 3.0f * u * w2;
+    B[2] = 3.0f * u2 * w0;
+    B[3] = u*u2;
+
+    if (BU) {
+        BU[0] = w2;
+        BU[1] = 2.0f * u * w0;
+        BU[2] = u2;
+    }
+}
+
+void
+evalGregoryBasis(float u, float v,
+                 Far::StencilTables const & basisStencils,
+                 int stencilIndex,
+                 VertexBufferDescriptor const & inDesc,
+                 float const * inQ, 
+                 VertexBufferDescriptor const & outDesc,
+                 float * outQ, 
+                 float * outDQU,
+                 float * outDQV ) {
+
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
+
+    int length = inDesc.length;
+
+    bool evalDeriv = (outDQU or outDQV);
+
+    float S[4], T[4], DS[3], DT[3];
+    evalCubicBezier(u, S, evalDeriv ? DS : 0);
+    evalCubicBezier(v, T, evalDeriv ? DT : 0);
+
+    float BU[16], DU[16], DV[16];
+    memset(BU, 0, 16*sizeof(float));
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+            BU[4*i+j] += S[j] * T[i];
+        }
+    }
+
+    if (evalDeriv) {
+        memset(DU, 0, 16*sizeof(float));
+        for (int i=0; i<4; ++i) {
+            float pw = 0.0f;
+            for (int j=0; j<3; ++j) {
+                float w = DS[j] * T[i];
+                DU[4*i+j] += pw - w;
+                pw = w;
+            }
+            DU[4*i+3]+=pw;
+        }
+        memset(DV, 0, 16*sizeof(float));
+        for (int j=0; j<4; ++j) {
+            float pw = 0.0f;
+            for (int i=0; i<3; ++i) {
+                float w = S[j] * DT[i];
+                DV[4*i+j] += pw - w;
+                pw = w;
+            }
+            DV[12+j]+=pw;
+        }
+    }
+
+    float const *inOffset = inQ + inDesc.offset;
+
+    float * Q = outQ + outDesc.offset,
+          * dQU = outDQU + outDesc.offset,
+          * dQV = outDQV + outDesc.offset;
+
+    // clear result
+    memset(Q, 0, length*sizeof(float));
+    if (evalDeriv) {
+        memset(dQU, 0, length*sizeof(float));
+        memset(dQV, 0, length*sizeof(float));
+    }
+
+    float uu = 1-u,
+          vv = 1-v;
+// remark #1572: floating-point equality and inequality comparisons are unreliable
+#ifdef __INvEL_COMPILER
+#pragma warning diuable 1572
+#endif
+    float d11 = u+v;   if(u+v==0.0f)   d11 = 1.0f;
+    float d12 = uu+v;  if(uu+v==0.0f)  d12 = 1.0f;
+    float d21 = u+vv;  if(u+vv==0.0f)  d21 = 1.0f;
+    float d22 = uu+vv; if(uu+vv==0.0f) d22 = 1.0f;
+#ifdef __INvEL_COMPILER
+#pragma warning enable 1572
+#endif
+
+    float weights[4][2] = { {  u/d11,  v/d11 },
+                            { uu/d12,  v/d12 },
+                            {  u/d21, vv/d21 },
+                            { uu/d22, vv/d22 } };
+
+    //
+    //  P3         e3-      e2+         P2
+    //     O--------O--------O--------O
+    //     |        |        |        |
+    //     |        |        |        |
+    //     |        | f3-    | f2+    |
+    //     |        O        O        |
+    // e3+ O------O            O------O e2-
+    //     |     f3+          f2-     |
+    //     |                          |
+    //     |                          |
+    //     |      f0-         f1+     |
+    // e0- O------O            O------O e1+
+    //     |        O        O        |
+    //     |        | f0+    | f1-    |
+    //     |        |        |        |
+    //     |        |        |        |
+    //     O--------O--------O--------O
+    //  P0         e0+      e1-         P1
+    //
+
+    // XXXX manuelk re-order stencils in factory and get rid of permutation ?
+    static int const permute[16] =
+        { 0, 1, 7, 5, 2, -1, -1, 6, 16, -1, -1, 12, 15, 17, 11, 10 };
+
+    int offset = stencilIndex;
+
+    for (int i=0, fcount=0; i<16; ++i) {
+
+        int index = permute[i];
+
+        if (index==-1) {
+
+            // 0-ring vertex: blend 2 extra basis CVs
+            static int const fpermute[4][2] = { {3, 4}, {9, 8}, {19, 18}, {13, 14} };
+
+            assert(fcount < 4);
+            int v0 = fpermute[fcount][0],
+                v1 = fpermute[fcount][1];
+
+            Far::Stencil s0 = basisStencils.GetStencil(offset + v0),
+                         s1 = basisStencils.GetStencil(offset + v1);
+
+            float w0=weights[fcount][0],
+                  w1=weights[fcount][1];
+
+            {
+                Far::Index const * srcIndices = s0.GetVertexIndices();
+                float const * srcWeights = s0.GetWeights();
+                for (int j=0; j<s0.GetSize(); ++j) {
+                    float const * in = inOffset + srcIndices[j]*inDesc.stride;
+                    float w = BU[i] * w0 * srcWeights[j],
+                          dw1 = DU[i] * w0 * srcWeights[j],
+                          dw2 = DV[i] * w0 * srcWeights[j];
+                    for (int k=0; k<length; ++k) {
+                        Q[k] += in[k] * w;
+                        if (evalDeriv) {
+                            dQU[k] += in[k] * dw1;
+                            dQV[k] += in[k] * dw2;
+                        }
+                    }
+                }
+            }
+            {
+                Far::Index const * srcIndices = s1.GetVertexIndices();
+                float const * srcWeights = s1.GetWeights();
+                for (int j=0; j<s1.GetSize(); ++j) {
+                    float const * in = inOffset + srcIndices[j]*inDesc.stride;
+                    float w = BU[i] * w1 * srcWeights[j],
+                          dw1 = DU[i] * w1 * srcWeights[j],
+                          dw2 = DV[i] * w1 * srcWeights[j];
+                    for (int k=0; k<length; ++k) {
+                        Q[k] += in[k] * w;
+                        if (evalDeriv) {
+                            dQU[k] += in[k] * dw1;
+                            dQV[k] += in[k] * dw2;
+                        }
+                    }
+                }
+            }
+            ++fcount;
+        } else {
+            Far::Stencil s = basisStencils.GetStencil(offset + index);
+            Far::Index const * srcIndices = s.GetVertexIndices();
+            float const * srcWeights = s.GetWeights();
+            for (int j=0; j<s.GetSize(); ++j) {
+                float const * in = inOffset + srcIndices[j]*inDesc.stride;
+                float w = BU[i] * srcWeights[j],
+                      dw1 = DU[i] * srcWeights[j],
+                      dw2 = DV[i] * srcWeights[j];
+                for (int k=0; k<length; ++k) {
+                    Q[k] += in[k] * w;
+                    if (evalDeriv) {
+                        dQU[k] += in[k] * dw1;
+                        dQV[k] += in[k] * dw2;
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 /*
 static float ef[7] = {

@@ -125,6 +125,15 @@ CpuEvalLimitController::EvalLimitSample( LimitLocation const & coord,
                                                                  outDesc,
                                                                  out, outDu, outDv );
                                             break;
+            case Far::PatchTables::GREGORY_BASIS :
+                                            assert(context->GetEndCapStencilTables().GetNumStencils()>0);
+                                            evalGregoryBasis( t, s,
+                                                              context->GetEndCapStencilTables(),
+                                                              handle->vertexOffset,
+                                                              vertexData.inDesc,
+                                                              vertexData.in,
+                                                              vertexData.outDesc,
+                                                              out, outDu, outDv );
             default:
                 assert(0);
         }
@@ -211,6 +220,16 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
                                                                      vertexData.outDesc,
                                                                      out, outDu, outDv );
                                                 break;
+                case Far::PatchTables::GREGORY_BASIS :
+                                                assert(context->GetEndCapStencilTables().GetNumStencils()>0);
+                                                evalGregoryBasis( s, t,
+                                                                  context->GetEndCapStencilTables(),
+                                                                  handle->vertexOffset,
+                                                                  vertexData.inDesc,
+                                                                  vertexData.in,
+                                                                  vertexData.outDesc,
+                                                                  out, outDu, outDv );
+                                                break;
                 default:
                     assert(0);
             }
@@ -221,11 +240,17 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
 
     if (varyingData.in and varyingData.out) {
 
-        static int indices[5][4] = { {5, 6,10, 9},  // regular
+        static int indices[6][4] = { {5, 6,10, 9},  // regular
                                      {1, 2, 6, 5},  // boundary
                                      {1, 2, 5, 4},  // corner
                                      {0, 1, 2, 3},  // gregory
-                                     {0, 1, 2, 3} };// gregory boundary
+                                     {0, 1, 2, 3},  // gregory boundary
+                                     {0, 1, 2, 3} };// gregory basis
+
+        // XXXX manuelk For now, PatchTables allocate 20 CV indices but only
+        //              populate the first 4 with the indices of the verts on
+        //              the 0 ring. This is not optimal and will probably change
+        //              soon
 
         int type = (int)(parray.GetDescriptor().GetType() - Far::PatchTables::REGULAR);
 

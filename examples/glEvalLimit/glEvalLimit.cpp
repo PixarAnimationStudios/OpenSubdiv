@@ -363,16 +363,16 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         // Generate stencil tables to update the bi-cubic patches control
         // vertices after they have been re-posed (both for vertex & varying
         // interpolation)
-        Far::StencilTablesFactory::Options options;
-        options.generateOffsets=true;
-        options.generateIntermediateLevels=true;
+        Far::StencilTablesFactory::Options soptions;
+        soptions.generateOffsets=true;
+        soptions.generateIntermediateLevels=true;
 
         Far::StencilTables const * vertexStencils =
-            Far::StencilTablesFactory::Create(*g_topologyRefiner, options);
+            Far::StencilTablesFactory::Create(*g_topologyRefiner, soptions);
 
-        options.interpolationMode = Far::StencilTablesFactory::INTERPOLATE_VARYING;
+        soptions.interpolationMode = Far::StencilTablesFactory::INTERPOLATE_VARYING;
         Far::StencilTables const * varyingStencils =
-            Far::StencilTablesFactory::Create(*g_topologyRefiner, options);
+            Far::StencilTablesFactory::Create(*g_topologyRefiner, soptions);
 
         g_kernelBatches.clear();
         g_kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
@@ -384,8 +384,10 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 
 
         // Generate bi-cubic patch tables for the limit surface
+        Far::PatchTablesFactory::Options poptions;
+        poptions.adaptiveStencilTables = vertexStencils;
         Far::PatchTables const * patchTables =
-             Far::PatchTablesFactory::Create(*g_topologyRefiner);
+             Far::PatchTablesFactory::Create(*g_topologyRefiner, poptions);
 
         // Create a limit Eval context with the patch tables
         delete g_evalCtx;

@@ -590,8 +590,17 @@ Far::PatchTablesFactory::getNumPatches( Far::PatchTables::PatchArrayVector const
 void
 Far::PatchTablesFactory::allocateTables( Far::PatchTables * tables, int /* nlevels */, int fvarwidth ) {
 
-    int nverts = tables->GetNumControlVerticesTotal(),
-        npatches = getNumPatches(tables->GetPatchArrayVector());
+    PatchTables::PatchArrayVector const & parrays = tables->GetPatchArrayVector();
+
+    int nverts = 0, npatches = 0;
+    for (int i=0; i<(int)parrays.size(); ++i) {
+
+        int nps = parrays[i].GetNumPatches(),
+            ncvs = parrays[i].GetDescriptor().GetNumControlVertices();
+
+        npatches += nps;
+        nverts += ncvs * nps;
+    }
 
     if (nverts==0 or npatches==0)
         return;

@@ -395,11 +395,14 @@ PatchTablesFactory::allocateTables(PatchTables * tables, int /* nlevels */, bool
 
     PatchTables::PatchArrayVector const & parrays = tables->GetPatchArrayVector();
 
-    int nverts = tables->GetNumControlVerticesTotal();
-
-    int npatches = 0;
+    int nverts = 0, npatches = 0;
     for (int i=0; i<(int)parrays.size(); ++i) {
-        npatches += parrays[i].GetNumPatches();
+
+        int nps = parrays[i].GetNumPatches(),
+            ncvs = parrays[i].GetDescriptor().GetNumControlVertices();
+
+        npatches += nps;
+        nverts += ncvs * nps;
     }
 
     if (nverts==0 or npatches==0)
@@ -1125,9 +1128,8 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
             int maxvalence = refiner.getLevel(0).getMaxValence();
             gregoryStencilsFactory =
                 new GregoryBasisFactory(refiner, *adaptiveStencils, patchInventory.GP, maxvalence);
-        } else {
-            gregoryVertexFlags.resize(refiner.GetNumVerticesTotal(), false);
         }
+        gregoryVertexFlags.resize(refiner.GetNumVerticesTotal(), false);
     }
 
     //
@@ -1244,6 +1246,13 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                 if (gregoryStencilsFactory) {
                     // Gregory basis end-cap (20 CVs - no quad-offsets / valence tables)
                     assert(i==refiner.GetMaxLevel());
+                    // Gregory Boundary Patch (4 CVs 0-ring for varying interpolation)
+                    Vtr::IndexArray const faceVerts = level->getFaceVertices(faceIndex);
+                    for (int j = 0; j < 4; ++j) {
+                        iptrs.GP[j] = faceVerts[j] + levelVertOffset;
+                        gregoryVertexFlags[iptrs.GP[j]] = true;
+                    }
+                    iptrs.GP += 20;
                     gregoryStencilsFactory->AddPatchBasis(faceIndex);
 
                     pptrs.GP = computePatchParam(refiner, i, faceIndex, 0, pptrs.GP);

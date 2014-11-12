@@ -38,6 +38,10 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Far {
+    class StencilTables;
+}
+
 namespace Osd {
 
 class CpuEvalLimitContext : public EvalLimitContext {
@@ -47,7 +51,7 @@ public:
     /// Returns an EvalLimitContext from the given far patch tables.
     /// Note : the patchtables is expected to be feature-adaptive and have ptex
     ///        coordinates tables.
-    /// 
+    ///
     /// @param patchTables      a pointer to an initialized Far::PatchTables
     ///
     /// @param requireFVarData  flag for generating face-varying data
@@ -62,7 +66,7 @@ public:
     const Far::PatchTables::PatchArrayVector & GetPatchArrayVector() const {
         return _patchArrays;
     }
-    
+
     /// Returns the vector of per-patch parametric data
     const std::vector<Far::PatchParam::BitField> & GetPatchBitFields() const {
         return _patchBitFields;
@@ -82,12 +86,16 @@ public:
     Far::PatchTables::QuadOffsetTable const & GetQuadOffsetTable() const {
         return _quadOffsetTable;
     }
-    
+
+    Far::StencilTables const & GetEndCapStencilTables() const {
+        return _endcapStencilTables;
+    }
+
     /// Returns the face-varying data patch table
     std::vector<float> const & GetFVarData() const {
         return _fvarData;
     }
-    
+
     /// Returns the number of floats in a datum of the face-varying data table
     int GetFVarWidth() const {
         return _fvarwidth;
@@ -112,15 +120,16 @@ private:
     Far::PatchTables::PatchArrayVector     _patchArrays;    // patch descriptor for each patch in the mesh
     Far::PatchTables::PTable               _patches;        // patch control vertices
     std::vector<Far::PatchParam::BitField> _patchBitFields; // per-patch parametric info
-    
+
     Far::PatchTables::VertexValenceTable   _vertexValenceTable; // extra Gregory patch data buffers
     Far::PatchTables::QuadOffsetTable      _quadOffsetTable;
+    Far::StencilTables                     _endcapStencilTables;
 
-    std::vector<float>                   _fvarData;
+    std::vector<float>                     _fvarData;
 
     Far::PatchMap * _patchMap;           // map of the sub-patches given a face index
 
-    int _maxValence, 
+    int _maxValence,
         _fvarwidth;
 };
 

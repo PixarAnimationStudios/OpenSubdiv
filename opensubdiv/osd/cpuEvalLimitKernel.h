@@ -34,6 +34,10 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Far {
+    class StencilTables;
+}
+
 namespace Osd {
 
 void
@@ -73,6 +77,17 @@ evalCorner(float u, float v,
            float * outQ,
            float * outDQU,
            float * outDQV );
+
+void
+evalGregoryBasis(float u, float v,
+                 Far::StencilTables const & basisStencils,
+                 int stencilIndex,
+                 VertexBufferDescriptor const & inDesc,
+                 float const * inQ, 
+                 VertexBufferDescriptor const & outDesc,
+                 float * outQ, 
+                 float * outDQU,
+                 float * outDQV );
 
 void
 evalGregory(float u, float v,

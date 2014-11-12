@@ -369,7 +369,9 @@ public:
     int GetNumPatchesTotal() const;
 
     /// \brief Returns the total number of control vertex indices in the tables
-    int GetNumControlVerticesTotal() const;
+    int GetNumControlVerticesTotal() const {
+        return (int)_patches.size();
+    }
 
     /// \brief Returns max vertex valence
     int GetMaxValence() const { return _maxValence; }
@@ -820,99 +822,99 @@ PatchTables::InterpolateGregoryPatch(StencilTables const * basisStencils,
         float const * Q, float const *Qd1, float const *Qd2,
             T const & src, U & dst) {
 
-        float ss = 1-s,
-              tt = 1-t;
+    float ss = 1-s,
+          tt = 1-t;
 // remark #1572: floating-point equality and inequality comparisons are unreliable
 #ifdef __INTEL_COMPILER
 #pragma warning disable 1572
 #endif
-        float d11 = s+t;   if(s+t==0.0f)   d11 = 1.0f;
-        float d12 = ss+t;  if(ss+t==0.0f)  d12 = 1.0f;
-        float d21 = s+tt;  if(s+tt==0.0f)  d21 = 1.0f;
-        float d22 = ss+tt; if(ss+tt==0.0f) d22 = 1.0f;
+    float d11 = s+t;   if(s+t==0.0f)   d11 = 1.0f;
+    float d12 = ss+t;  if(ss+t==0.0f)  d12 = 1.0f;
+    float d21 = s+tt;  if(s+tt==0.0f)  d21 = 1.0f;
+    float d22 = ss+tt; if(ss+tt==0.0f) d22 = 1.0f;
 #ifdef __INTEL_COMPILER
 #pragma warning enable 1572
 #endif
 
-        float weights[4][2] = { {  s/d11,  t/d11 },
-                                { ss/d12,  t/d12 },
-                                {  s/d21, tt/d21 },
-                                { ss/d22, tt/d22 } };
+    float weights[4][2] = { {  s/d11,  t/d11 },
+                            { ss/d12,  t/d12 },
+                            {  s/d21, tt/d21 },
+                            { ss/d22, tt/d22 } };
 
-        //
-        //  P3         e3-      e2+         P2
-        //     O--------O--------O--------O
-        //     |        |        |        |
-        //     |        |        |        |
-        //     |        | f3-    | f2+    |
-        //     |        O        O        |
-        // e3+ O------O            O------O e2-
-        //     |     f3+          f2-     |
-        //     |                          |
-        //     |                          |
-        //     |      f0-         f1+     |
-        // e0- O------O            O------O e1+
-        //     |        O        O        |
-        //     |        | f0+    | f1-    |
-        //     |        |        |        |
-        //     |        |        |        |
-        //     O--------O--------O--------O
-        //  P0         e0+      e1-         P1
-        //
-        // XXXX manuelk re-order stencils in factory and get rid of permutation ?
-        int const permute[16] =
-            { 0, 1, 7, 5, 2, -1, -1, 6, 16, -1, -1, 12, 15, 17, 11, 10 };
+    //
+    //  P3         e3-      e2+         P2
+    //     O--------O--------O--------O
+    //     |        |        |        |
+    //     |        |        |        |
+    //     |        | f3-    | f2+    |
+    //     |        O        O        |
+    // e3+ O------O            O------O e2-
+    //     |     f3+          f2-     |
+    //     |                          |
+    //     |                          |
+    //     |      f0-         f1+     |
+    // e0- O------O            O------O e1+
+    //     |        O        O        |
+    //     |        | f0+    | f1-    |
+    //     |        |        |        |
+    //     |        |        |        |
+    //     O--------O--------O--------O
+    //  P0         e0+      e1-         P1
+    //
+    // XXXX manuelk re-order stencils in factory and get rid of permutation ?
+    int const permute[16] =
+        { 0, 1, 7, 5, 2, -1, -1, 6, 16, -1, -1, 12, 15, 17, 11, 10 };
 
-        for (int i=0, fcount=0; i<16; ++i) {
+    for (int i=0, fcount=0; i<16; ++i) {
 
-            int index = permute[i],
-                offset = stencilIndex;
+        int index = permute[i],
+            offset = stencilIndex;
 
-            if (index==-1) {
+        if (index==-1) {
 
-                // 0-ring vertex: blend 2 extra basis CVs
-                int const fpermute[4][2] = { {3, 4}, {9, 8}, {19, 18}, {13, 14} };
+            // 0-ring vertex: blend 2 extra basis CVs
+            int const fpermute[4][2] = { {3, 4}, {9, 8}, {19, 18}, {13, 14} };
 
-                assert(fcount < 4);
-                int v0 = fpermute[fcount][0],
-                    v1 = fpermute[fcount][1];
+            assert(fcount < 4);
+            int v0 = fpermute[fcount][0],
+                v1 = fpermute[fcount][1];
 
-                Stencil s0 = basisStencils->GetStencil(offset + v0),
-                        s1 = basisStencils->GetStencil(offset + v1);
+            Stencil s0 = basisStencils->GetStencil(offset + v0),
+                    s1 = basisStencils->GetStencil(offset + v1);
 
-                float w0=weights[fcount][0],
-                      w1=weights[fcount][1];
+            float w0=weights[fcount][0],
+                  w1=weights[fcount][1];
 
-                {
-                    Index const * srcIndices = s0.GetVertexIndices();
-                    float const * srcWeights = s0.GetWeights();
-                    for (int j=0; j<s0.GetSize(); ++j) {
-                        dst.AddWithWeight(src[srcIndices[j]],
-                            Q[i]*w0*srcWeights[j], Qd1[i]*w0*srcWeights[j],
-                                Qd2[i]*w0*srcWeights[j]);
-                    }
-                }
-                {
-                    Index const * srcIndices = s1.GetVertexIndices();
-                    float const * srcWeights = s1.GetWeights();
-                    for (int j=0; j<s1.GetSize(); ++j) {
-                        dst.AddWithWeight(src[srcIndices[j]],
-                            Q[i]*w1*srcWeights[j], Qd1[i]*w1*srcWeights[j],
-                                Qd2[i]*w1*srcWeights[j]);
-                    }
-                }
-                ++fcount;
-            } else {
-                Stencil s = basisStencils->GetStencil(offset + index);
-                Index const * srcIndices = s.GetVertexIndices();
-                float const * srcWeights = s.GetWeights();
-                for (int j=0; j<s.GetSize(); ++j) {
-                    dst.AddWithWeight( src[srcIndices[j]],
-                        Q[i]*srcWeights[j], Qd1[i]*srcWeights[j],
-                             Qd2[i]*srcWeights[j]);
+            {
+                Index const * srcIndices = s0.GetVertexIndices();
+                float const * srcWeights = s0.GetWeights();
+                for (int j=0; j<s0.GetSize(); ++j) {
+                    dst.AddWithWeight(src[srcIndices[j]],
+                        Q[i]*w0*srcWeights[j], Qd1[i]*w0*srcWeights[j],
+                            Qd2[i]*w0*srcWeights[j]);
                 }
             }
+            {
+                Index const * srcIndices = s1.GetVertexIndices();
+                float const * srcWeights = s1.GetWeights();
+                for (int j=0; j<s1.GetSize(); ++j) {
+                    dst.AddWithWeight(src[srcIndices[j]],
+                        Q[i]*w1*srcWeights[j], Qd1[i]*w1*srcWeights[j],
+                            Qd2[i]*w1*srcWeights[j]);
+                }
+            }
+            ++fcount;
+        } else {
+            Stencil s = basisStencils->GetStencil(offset + index);
+            Index const * srcIndices = s.GetVertexIndices();
+            float const * srcWeights = s.GetWeights();
+            for (int j=0; j<s.GetSize(); ++j) {
+                dst.AddWithWeight( src[srcIndices[j]],
+                    Q[i]*srcWeights[j], Qd1[i]*srcWeights[j],
+                         Qd2[i]*srcWeights[j]);
+            }
         }
+    }
 }
 
 // Interpolates the limit position of a parametric location on a patch

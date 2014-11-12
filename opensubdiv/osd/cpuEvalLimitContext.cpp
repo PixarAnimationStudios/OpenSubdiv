@@ -56,6 +56,10 @@ CpuEvalLimitContext::CpuEvalLimitContext(Far::PatchTables const & patchTables, b
     _vertexValenceTable = patchTables.GetVertexValenceTable();
     
     _quadOffsetTable = patchTables.GetQuadOffsetTable();
+
+    if (patchTables.GetEndCapStencilTables()) {
+        _endcapStencilTables = *patchTables.GetEndCapStencilTables();
+    }
     
     _maxValence = patchTables.GetMaxValence();
     

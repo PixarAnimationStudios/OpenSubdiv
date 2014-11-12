@@ -221,17 +221,6 @@ PatchTables::GetNumPatchesTotal() const {
     // there is one PatchParam record for each patch in the mesh
     return (int)GetPatchParamTable().size();
 }
-int
-PatchTables::GetNumControlVerticesTotal() const {
-
-    int result=0;
-    for (int i=0; i<(int)_patchArrays.size(); ++i) {
-        result += _patchArrays[i].GetDescriptor().GetNumControlVertices() *
-                  _patchArrays[i].GetNumPatches();
-    }
-
-    return result;
-}
 
 //
 // Uniform accessors
