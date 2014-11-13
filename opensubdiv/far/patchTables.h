@@ -429,6 +429,9 @@ public:
     ///
     /// @param quadOffsets       Quad offset table
     ///
+    /// @param endcapStencilTables  StencilTables used to generate the 20 CV basis
+    ///                             of Gregory patches
+    ///
     /// @param fvarPatchTables   Indices of the face-varying control vertices of the patches
     ///
     /// @param patchParams       Local patch parameterization
@@ -548,6 +551,10 @@ public:
     /// @param basisStencils  Stencil tables driving the 20 CV basis of the patches
     ///
     /// @param stencilIndex   Index of the first CV stencil in the basis stencils tables
+    ///
+    /// @param s              Patch coordinate (in coarse face normalized space)
+    ///
+    /// @param t              Patch coordinate (in coarse face normalized space)
     ///
     /// @param Q              Array of 9 bicubic weights for the control vertices
     ///
