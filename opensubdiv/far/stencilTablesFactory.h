@@ -83,10 +83,25 @@ public:
     ///
     /// @param refiner  The TopologyRefiner containing the topology
     ///
-    /// @param options    Options controlling the creation of the tables
+    /// @param options  Options controlling the creation of the tables
     ///
     static StencilTables const * Create(TopologyRefiner const & refiner,
         Options options = Options());
+
+
+    /// \brief Instantiates StencilTables by concatenating an array of existing
+    ///        stencil tables.
+    ///
+    /// \note This factory checks that the stencil tables point to the same set
+    ///       of supporting control vertices - no re-indexing is done.
+    ///       GetNumControlVertices() *must* return the same value for all input
+    ///       tables.
+    ///
+    /// @param numTables Number of input StencilTables
+    ///
+    /// @param tables    Array of input StencilTables
+    ///
+    static StencilTables const * Create(int numTables, StencilTables const ** tables);
 
     /// \brief Returns a KernelBatch applying all the stencil in the tables
     ///        to primvar data.

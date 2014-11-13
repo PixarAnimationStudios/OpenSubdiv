@@ -187,6 +187,55 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
 
 //------------------------------------------------------------------------------
 
+StencilTables const *
+StencilTablesFactory::Create(int numTables, StencilTables const ** tables) {
+
+    StencilTables * result = new StencilTables;
+
+    if ( (numTables<=0) or (not tables)) {
+        return result;
+    }
+
+    int ncvs = tables[0]->GetNumControlVertices(),
+        nstencils = 0,
+        nelems = 0;
+
+    for (int i=0; i<numTables; ++i) {
+
+        StencilTables const & st = *tables[i];
+
+        if (st.GetNumControlVertices()!=ncvs) {
+            return result;
+        }
+        nstencils += st.GetNumStencils();
+        nelems += (int)st.GetControlIndices().size();
+    }
+
+    result->resize(nstencils, nelems);
+
+    result->_numControlVertices = ncvs;
+
+    Index * indices = &result->_indices[0];
+    float * weights = &result->_weights[0];
+    for (int i=0; i<numTables; ++i) {
+        StencilTables const & st = *tables[i];
+
+        int size = (int)st._indices.size();        
+        memcpy(indices, &st._indices[0], size*sizeof(Index));
+        memcpy(weights, &st._weights[0], size*sizeof(float));
+        
+        indices += size;
+        weights += size;
+    }
+
+    // have to re-generate offsets from scratch
+    result->generateOffsets();
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
+
 LimitStencilTables const *
 LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
     LocationArrayVec const & locationArrays, StencilTables const * cvStencils,
