@@ -81,10 +81,12 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         glviewer.rst
         hbr_overview.rst
         intro.rst
+        license.rst
         maya_osdpolysmooth.rst
         osd_overview.rst
         release_notes.rst
         release_notes_2x.rst
+        roadmap.rst
         sdc_overview.rst
         subdivision_surfaces.rst
         tutorials.rst

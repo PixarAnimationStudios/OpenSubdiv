@@ -40,7 +40,7 @@ ul.creatorMainNav li a {
                             <a href="release_notes.html">${RELEASE_STRING}</a>
                         </li>
                     </ul>
-                    <ul class="creatorMainNav floatRight" id="menu">
+                    <ul class="creatorMainNav floatNav" id="menu">
                         <li class="mainSubNavigation marginR12 marginL12" id="navbarId-23704">
                             <a href="intro.html">User Docs</a>
                         </li>

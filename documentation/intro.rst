@@ -25,13 +25,13 @@
 Introduction
 ------------
 
+.. image:: images/geri.jpg 
+   :width: 100%
+   :align: center
+
 .. contents::
    :local:
    :backlinks: none
-
-.. image:: images/geri.jpg 
-   :width: 600px
-   :align: center
 
 ----
 
@@ -144,6 +144,7 @@ any contributors' trademarks. In other words, you can use OpenSubdiv to make a
 product, but you cannot use a Luxo Lamp (or other character, etc.) when marketing 
 your product.
 
+`License Header <license.html>`_
 
 ----
 
@@ -159,7 +160,8 @@ on Apache. They are found in the code repository (`individual form
 Please email the signed CLA to opensubdiv-cla@pixar.com.
 
 
-For more details about OpenSubdiv, see `Pixar Graphics Technologies <http:  graphics.pixar.com>`__.
+For more details about OpenSubdiv and other Pixar projects, see
+`Pixar Graphics Technologies <http://graphics.pixar.com>`__.
 
 ----
 
