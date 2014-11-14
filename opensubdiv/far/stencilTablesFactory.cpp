@@ -213,20 +213,24 @@ StencilTablesFactory::Create(int numTables, StencilTables const ** tables) {
 
     result->resize(nstencils, nelems);
 
-    result->_numControlVertices = ncvs;
-
+    unsigned char * sizes = &result->_sizes[0];
     Index * indices = &result->_indices[0];
     float * weights = &result->_weights[0];
     for (int i=0; i<numTables; ++i) {
         StencilTables const & st = *tables[i];
 
-        int size = (int)st._indices.size();        
-        memcpy(indices, &st._indices[0], size*sizeof(Index));
-        memcpy(weights, &st._weights[0], size*sizeof(float));
+        int nstencils = st.GetNumStencils(),
+            nelems = (int)st._indices.size();        
+        memcpy(sizes, &st._sizes[0], nstencils*sizeof(unsigned char));
+        memcpy(indices, &st._indices[0], nelems*sizeof(Index));
+        memcpy(weights, &st._weights[0], nelems*sizeof(float));
         
-        indices += size;
-        weights += size;
+        sizes += nstencils;
+        indices += nelems;
+        weights += nelems;
     }
+
+    result->_numControlVertices = ncvs;
 
     // have to re-generate offsets from scratch
     result->generateOffsets();
