@@ -204,15 +204,12 @@ PatchTables::IsFeatureAdaptive() const {
     if (not _vertexValenceTable.empty())
         return true;
 
-    PatchArrayVector const & parrays = GetPatchArrayVector();
-
     // otherwise, we have to check each patch array
+    PatchArrayVector const & parrays = GetPatchArrayVector();
     for (int i=0; i<(int)parrays.size(); ++i) {
-
         if (parrays[i].GetDescriptor().GetType() >= REGULAR and
-            parrays[i].GetDescriptor().GetType() <= GREGORY_BOUNDARY)
+            parrays[i].GetDescriptor().GetType() <= GREGORY_BASIS)
             return true;
-
     }
     return false;
 }
