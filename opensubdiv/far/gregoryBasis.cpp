@@ -665,11 +665,15 @@ GregoryBasisFactory::AddPatchBasis(Index faceIndex) {
 StencilTables const *
 GregoryBasisFactory::CreateStencilTables(int const permute[20]) {
 
-    // Finalize the stencil tables from the temporary pool allocator
-    StencilTables * result = new StencilTables;
-
     int nstencils = (int)_alloc.GetNumStencils(),
            nelems = _alloc.GetNumVerticesTotal();
+
+    if (nstencils==0 or nelems==0) {
+        return 0;
+    }
+
+    // Finalize the stencil tables from the temporary pool allocator
+    StencilTables * result = new StencilTables;
 
     result->_numControlVertices = _refiner.GetNumVertices(0);
 
