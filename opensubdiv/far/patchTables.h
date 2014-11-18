@@ -926,7 +926,7 @@ PatchTables::InterpolateGregoryPatch(StencilTables const * basisStencils,
     }
 }
 
-// Interpolates the limit position of a parametric location on a patch
+// Interpolates the limit position of a parametric location on a bilinear patch
 template <class T, class U>
 inline void
 PatchTables::Interpolate(PatchHandle const & handle, float s, float t,
@@ -936,6 +936,7 @@ PatchTables::Interpolate(PatchHandle const & handle, float s, float t,
 
     PatchTables::PatchArray const & parray =
         _patchArrays[handle.patchArrayIdx];
+    assert(parray.GetDescriptor().GetType()==QUADS);
 
     Index const * cvs =
         &_patches[parray.GetVertIndex() + handle.vertexOffset];
@@ -945,8 +946,6 @@ PatchTables::Interpolate(PatchHandle const & handle, float s, float t,
 
     bits.Normalize(s,t);
 
-    Type ptype = parray.GetDescriptor().GetType();
-    assert(ptype==QUADS);
 
     dst.Clear();
 
