@@ -75,7 +75,7 @@ class Refinement {
 
 public:
     Refinement(Level const & parent, Level & child, Sdc::Options const& schemeOptions);
-    ~Refinement();
+    virtual ~Refinement();
 
     Level const& parent() const { return *_parent; }
     Level const& child() const  { return *_child; }
