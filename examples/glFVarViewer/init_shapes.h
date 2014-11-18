@@ -80,6 +80,8 @@ static std::vector<ShapeDesc> g_defaultShapes;
 #include <shapes/catmark_torus.h>
 #include <shapes/catmark_torus_creases0.h>
 
+#include <shapes/bilinear_cube.h>
+
 #include <shapes/loop_cube_creases0.h>
 #include <shapes/loop_cube_creases1.h>
 #include <shapes/loop_cube.h>
@@ -93,7 +95,6 @@ static std::vector<ShapeDesc> g_defaultShapes;
 
 //------------------------------------------------------------------------------
 static void initShapes() {
-//    g_defaultShapes.push_back( ShapeDesc("bilinear_cube",            bilinear_cube,            kBilinear) );
 
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_corner0",     catmark_cube_corner0,     kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_corner1",     catmark_cube_corner1,     kCatmark ) );
@@ -139,17 +140,17 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_pawn",             catmark_pawn,             kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_rook",             catmark_rook,             kCatmark ) );
 
-//    g_defaultShapes.push_back( ShapeDesc("bilinear_cube",            bilinear_cube,            kBilinear ) );
+    g_defaultShapes.push_back( ShapeDesc("bilinear_cube",            bilinear_cube,            kBilinear ) );
 
-//    g_defaultShapes.push_back( ShapeDesc("loop_cube_creases0",       loop_cube_creases0,       kLoop ) );
-//    g_defaultShapes.push_back( ShapeDesc("loop_cube_creases1",       loop_cube_creases1,       kLoop ) );
-//    g_defaultShapes.push_back( ShapeDesc("loop_cube",                loop_cube,                kLoop ) );
-//    g_defaultShapes.push_back( ShapeDesc("loop_icosahedron",         loop_icosahedron,         kLoop ) );
-//    g_defaultShapes.push_back( ShapeDesc("loop_saddle_edgecorner",   loop_saddle_edgecorner,   kLoop ) );
-//    g_defaultShapes.push_back( ShapeDesc("loop_saddle_edgeonly",     loop_saddle_edgeonly,     kLoop ) );
-//    g_defaultShapes.push_back( ShapeDesc("loop_triangle_edgecorner", loop_triangle_edgecorner, kLoop ) );
-//    g_defaultShapes.push_back( ShapeDesc("loop_triangle_edgeonly",   loop_triangle_edgeonly,   kLoop ) );
-//    g_defaultShapes.push_back( ShapeDesc("loop_chaikin0",            loop_chaikin0,            kLoop ) );
-//    g_defaultShapes.push_back( ShapeDesc("loop_chaikin1",            loop_chaikin1,            kLoop ) );
+    g_defaultShapes.push_back( ShapeDesc("loop_cube_creases0",       loop_cube_creases0,       kLoop ) );
+    g_defaultShapes.push_back( ShapeDesc("loop_cube_creases1",       loop_cube_creases1,       kLoop ) );
+    g_defaultShapes.push_back( ShapeDesc("loop_cube",                loop_cube,                kLoop ) );
+    g_defaultShapes.push_back( ShapeDesc("loop_icosahedron",         loop_icosahedron,         kLoop ) );
+    g_defaultShapes.push_back( ShapeDesc("loop_saddle_edgecorner",   loop_saddle_edgecorner,   kLoop ) );
+    g_defaultShapes.push_back( ShapeDesc("loop_saddle_edgeonly",     loop_saddle_edgeonly,     kLoop ) );
+    g_defaultShapes.push_back( ShapeDesc("loop_triangle_edgecorner", loop_triangle_edgecorner, kLoop ) );
+    g_defaultShapes.push_back( ShapeDesc("loop_triangle_edgeonly",   loop_triangle_edgeonly,   kLoop ) );
+    g_defaultShapes.push_back( ShapeDesc("loop_chaikin0",            loop_chaikin0,            kLoop ) );
+    g_defaultShapes.push_back( ShapeDesc("loop_chaikin1",            loop_chaikin1,            kLoop ) );
 }
 //------------------------------------------------------------------------------
