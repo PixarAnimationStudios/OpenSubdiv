@@ -244,8 +244,14 @@ protected:
 
             int faceWeightCount = this->GetNumFaceWeights();
             if (faceWeightCount) {
+                //
+                //  If combining face weights, be sure their interpretation (i.e. face-centers
+                //  or opposite vertices) is properly set in the destination mask:
+                //
                 if (dst.GetNumFaceWeights() == 0) {
                     dst.SetNumFaceWeights(faceWeightCount);
+                    dst.SetFaceWeightsForFaceCenters(this->AreFaceWeightsForFaceCenters());
+
                     for (int i = 0; i < faceWeightCount; ++i) {
                         dst.FaceWeight(i) = thisCoeff * this->FaceWeight(i);
                     }
