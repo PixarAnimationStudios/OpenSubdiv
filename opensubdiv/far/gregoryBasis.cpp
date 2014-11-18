@@ -214,13 +214,6 @@ Point::Copy(int ** size, Index ** indices, float ** weights) const {
     ++(*size);
 }
 
-// Because MSVC does not support VLAs, we have to run alloca() in a macro and
-// call in-place constructors - it's only been standardized for 15 years after
-// all...
-#define AllocaPointsArrays(variable, npoints) \
-    Point * variable = (Point *)alloca(npoints*sizeof(Point)); \
-    { for (int i=0; i<npoints; ++i) { new (&variable[i]) Point; } }
-
 //
 // ProtoBasis
 //
@@ -323,6 +316,13 @@ ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex) {
         zerothNeighbors[4];
 
     Index * manifoldRing = (int *)alloca((maxvalence+2)*2 * sizeof(int));
+
+// Because MSVC does not support VLAs, we have to run alloca() in a macro and
+// call in-place constructors - it's only been standardized for 15 years after
+// all...
+#define AllocaPointsArrays(variable, npoints) \
+    Point * variable = (Point *)alloca(npoints*sizeof(Point)); \
+    { for (int i=0; i<npoints; ++i) { new (&variable[i]) Point; } }
 
     AllocaPointsArrays(f, maxvalence);
     AllocaPointsArrays(r, maxvalence*4);
@@ -617,9 +617,8 @@ GregoryBasisFactory::GregoryBasisFactory(TopologyRefiner const & refiner,
         }
     }
 }
-inline void
+static inline void
 factorizeBasisVertex(StencilTables const & stencils, Point const & p, ProtoStencil dst) {
-
     // Use the Allocator to factorize the Gregory patch influence CVs with the
     // supporting CVs from the stencil tables.
     dst.Clear();

@@ -638,10 +638,12 @@ private:
 
     // XXXX manuelk end-cap stencils will obsolete the other tables
 
+    StencilTables const * _endcapStencilTables;
+#ifdef ENDCAP_TOPOPOLGY
+    PTable                _endcapTopology;
+#endif
     VertexValenceTable   _vertexValenceTable; // Vertex valence table (for Gregory patches)
     QuadOffsetTable      _quadOffsetTable;    // Quad offsets table (for Gregory patches)
-
-    StencilTables const * _endcapStencilTables;
 
     //
     // Face-varying data

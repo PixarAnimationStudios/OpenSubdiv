@@ -28,6 +28,7 @@
 #include "../vtr/level.h"
 #include "../vtr/refinement.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 
@@ -359,7 +360,7 @@ public:
     }
 };
 
-typedef std::vector<PatchFaceTag>   PatchTagVector;
+typedef std::vector<PatchFaceTag> PatchTagVector;
 
 
 //
@@ -412,20 +413,20 @@ PatchTablesFactory::allocateTables(PatchTables * tables, int /* nlevels */, bool
 
     PatchTables::PatchArrayVector const & parrays = tables->GetPatchArrayVector();
 
-    int nverts = 0, npatches = 0;
+    int ncvs = 0, npatches = 0;
     for (int i=0; i<(int)parrays.size(); ++i) {
 
         int nps = parrays[i].GetNumPatches(),
-            ncvs = GetNumControlVertices(parrays[i].GetDescriptor());
+            ringsize = GetNumControlVertices(parrays[i].GetDescriptor());
 
         npatches += nps;
-        nverts += ncvs * nps;
+        ncvs += ringsize * nps;
     }
 
-    if (nverts==0 or npatches==0)
+    if (ncvs==0 or npatches==0)
         return;
 
-    tables->_patches.resize( nverts );
+    tables->_patches.resize( ncvs );
 
     tables->_paramTable.resize( npatches );
 
@@ -562,13 +563,98 @@ PatchTablesFactory::computePatchParam(TopologyRefiner const & refiner,
     return ++coord;
 }
 
+// XXXX manuelk work in progress for end-cap topology gathering
+#ifdef ENDCAP_TOPOPOLGY
+//
+// Populate the topology table used by Gregory-basis patches
+//
+// Note: 'faceIndex' values are expected to be sorted in ascending order !!!
+static int
+gatherGregoryBasisTopology(Vtr::Level const& level, Index faceIndex, int numVertices,
+    PatchFaceTag const * levelPatchTags,
+        bool skip[0], std::vector<Index> & basisIndices, PatchTables::PTable & topology) {
+
+    assert(not topology.empty());
+    Index * dest = &topology[basisIndices.size()*20];
+
+    assert(Vtr::INDEX_INVALID==0xFFFFFFFF);
+    memset(dest, 0xFF, 20*sizeof(Index));
+
+    IndexArray fedges = level.getFaceEdges(faceIndex);
+    assert(fedges.size()==4);
+
+    for (int i=0; i<4; ++i) {
+        Index edge = fedges[i],
+              adjface = 0;
+
+        { // Gather adjacent faces
+            IndexArray adjfaces = level.getEdgeFaces(edge);
+            for (int i=0; i<adjfaces.size(); ++i) {
+                if (adjfaces[i]==faceIndex) {
+                    // XXXX manuelk if 'edge' is non-manifold, arbitrarily pick the
+                    // next face in the list of adjacent faces
+                    adjface = (adjfaces[(i+1)%adjfaces.size()]);
+                    break;
+                }
+            }
+        }
+        // We are looking for adjacent faces that:
+        // - exist (no boundary)
+        // - have alraedy been processed (known CV indices)
+        // - are also Gregory basis patches
+        if (adjface!=Vtr::INDEX_INVALID and (adjface < faceIndex) and
+            (not levelPatchTags[adjface]._isRegular)) {
+
+            IndexArray aedges = level.getFaceEdges(adjface);
+            int aedge = aedges.FindIndexIn4Tuple(edge);
+            assert(aedge!=Vtr::INDEX_INVALID);
+
+            // Find index of basis in the list of basis already generated
+            struct compare {
+                static int op(void const * a, void const * b) {
+                   return *(Index *)a - *(Index *)b;
+                }
+            };
+
+            Index * ptr = (Index *)std::bsearch( &adjface, &basisIndices[0],
+                basisIndices.size(), sizeof(Index), compare::op);
+
+            int srcBasisIdx = ptr - &basisIndices[0];
+            assert(ptr and srcBasisIdx>=0 and srcBasisIdx<(int)basisIndices.size());
+
+            // Copy the indices of CVs from the face on the other side of the
+            // shared edge
+            static int const gregoryEdgeVerts[4][4] = { { 0,  1,  7,  5},
+                                                        { 5,  6, 12, 10},
+                                                        {10, 11, 17, 15},
+                                                        {15, 16,  2,  0} };
+            Index * src = &topology[srcBasisIdx*20];
+            for (int j=0; j<4; ++j) {
+                dest[i*4+j] = src[gregoryEdgeVerts[aedge][j]];
+            }
+
+            skip[i] = true;
+        } else {
+            skip[i] = false;
+        }
+    }
+    for (int i=0; i<20; ++i) {
+        if (dest[i]==Vtr::INDEX_INVALID) {
+            dest[i] = numVertices++;
+        }
+    }
+    basisIndices.push_back(faceIndex);
+    return numVertices;
+}
+#endif
 //
 //  Populate the quad-offsets table used by Gregory patches
 //
 void
-PatchTablesFactory::getQuadOffsets(Vtr::Level const& level, Vtr::Index fIndex, Index offsets[]) {
+PatchTablesFactory::getQuadOffsets(
+    Vtr::Level const& level, Index faceIndex, Index offsets[]) {
 
-    Vtr::IndexArray fVerts = level.getFaceVertices(fIndex);
+    Vtr::IndexArray fVerts = level.getFaceVertices(faceIndex);
 
     for (int i = 0; i < 4; ++i) {
 
@@ -578,7 +664,7 @@ PatchTablesFactory::getQuadOffsets(Vtr::Level const& level, Vtr::Index fIndex, I
 
         int thisFaceInVFaces = -1;
         for (int j = 0; j < vFaces.size(); ++j) {
-            if (fIndex == vFaces[j]) {
+            if (faceIndex == vFaces[j]) {
                 thisFaceInVFaces = j;
                 break;
             }
@@ -594,6 +680,7 @@ PatchTablesFactory::getQuadOffsets(Vtr::Level const& level, Vtr::Index fIndex, I
         offsets[i] = vOffsets[0] | (vOffsets[1] << 8);
     }
 }
+
 
 //
 //  Indexing sharpnesses
@@ -1136,15 +1223,27 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
     //  To avoid gathering vertex neighborhoods for all vertices, identify vertices involved in
     //  gregory patches as the faces are traversed, to be gathered later:
     //
-    GregoryBasisFactory * gregoryStencilsFactory = 0;
     bool hasGregoryPatches = (patchInventory.G > 0) or (patchInventory.GB > 0) or (patchInventory.GP > 0);
+    GregoryBasisFactory * gregoryStencilsFactory = 0;
+#ifdef ENDCAP_TOPOPOLGY
+    int numGregoryBasisVertices=0;
+    std::vector<Index> gregoryBasisIndices;
+#endif
     if (hasGregoryPatches) {
 
         StencilTables const * adaptiveStencils = options.adaptiveStencilTables;
         if (adaptiveStencils and patchInventory.GP>0) {
-            int maxvalence = refiner.getLevel(0).getMaxValence();
+
+            int maxvalence = refiner.getLevel(0).getMaxValence(),
+                npatches = patchInventory.GP;
+
             gregoryStencilsFactory =
-                new GregoryBasisFactory(refiner, *adaptiveStencils, patchInventory.GP, maxvalence);
+                new GregoryBasisFactory(refiner, *adaptiveStencils, npatches, maxvalence);
+
+#ifdef ENDCAP_TOPOPOLGY
+            gregoryBasisIndices.reserve(npatches);
+            tables->_endcapTopology.resize(npatches*20);
+#endif
         }
         gregoryVertexFlags.resize(refiner.GetNumVerticesTotal(), false);
     }
@@ -1270,6 +1369,12 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                         gregoryVertexFlags[iptrs.GP[j]] = true;
                     }
                     iptrs.GP += 4;
+
+#ifdef ENDCAP_TOPOPOLGY
+                    bool edgeSkip[4];
+                    numGregoryBasisVertices = gatherGregoryBasisTopology(*level, faceIndex, numGregoryBasisVertices,
+                        levelPatchTags, edgeSkip, gregoryBasisIndices, tables->_endcapTopology);
+#endif
                     gregoryStencilsFactory->AddPatchBasis(faceIndex);
 
                     pptrs.GP = computePatchParam(refiner, i, faceIndex, 0, pptrs.GP);
@@ -1343,7 +1448,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
     //  the vast majority of vertices that are not associated with gregory patches -- by having previously
     //  marked those that are associated above and skipping all others.
     //
-    if (hasGregoryPatches) {
+    if ((patchInventory.G > 0) or (patchInventory.GB > 0)) {
         const int SizePerVertex = 2*tables->_maxValence + 1;
 
         PatchTables::VertexValenceTable & vTable = tables->_vertexValenceTable;
