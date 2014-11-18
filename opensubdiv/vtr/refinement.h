@@ -56,9 +56,16 @@ class FVarRefinement;
 //  (adaptive or otherwise selective), so not all components in the parent level will spawn
 //  components in the child level.
 //
+//  Refinement is an abstract class and expects subclasses corresponding to the different types
+//  of topological splits that the supported subdivisions schemes collectively require, i.e. those
+//  list in Sdc::SplitType.  Note the virtual requirements expected of the subclasses in the list
+//  of protected methods -- they differ mainly in the topology that is created in the child Level
+//  and not the propagation of tags through refinement, subdivision of sharpness values of the
+//  treatment of face-varying data.  The primary subclasses are QuadRefinement and TriRefinement.
+//
 //  At a high level, all that is necessary in terms of interface is to construct, initialize
 //  (linking the two levels), optionally select components for sparse refinement (via use of the
-//  SparseSelector) and call the refine() method.  This is the usage expected in FarTopologyRefiner.
+//  SparseSelector) and call the refine() method.  This usage is expected of Far::TopologyRefiner.
 //
 //  Since we really want this class to be restricted from public access eventually, all methods
 //  begin with lower case (as is the convention for protected methods) and the list of friends
@@ -67,14 +74,10 @@ class FVarRefinement;
 class Refinement {
 
 public:
-    Refinement();
+    Refinement(Level const & parent, Level & child, Sdc::Options const& schemeOptions);
     ~Refinement();
 
-    void setScheme(Sdc::Type const& schemeType, Sdc::Options const& schemeOptions);
-    void initialize(Level& parent, Level& child);
-
     Level const& parent() const { return *_parent; }
-
     Level const& child() const  { return *_child; }
     Level&       child()        { return *_child; }
 
@@ -203,20 +206,26 @@ protected:
     };
 
 //
-//  Remaining methods really should remain private...
+//  Remaining methods should remain protected -- for use by subclasses...
 //
-private:
+protected:
     //
     //  Methods involved in constructing the parent-to-child mapping -- when the
     //  refinement is sparse, additional methods are needed to identify the selection:
     //
     void populateParentToChildMapping();
-
-    void allocateParentChildIndices();
     void populateParentChildIndices();
+    void printParentToChildMapping() const;
+
+    virtual void allocateParentChildIndices() = 0;
+
+    //  Supporting method for sparse refinement:
     void initializeSparseSelectionTags();
     void markSparseChildComponentIndices();
-    void printParentToChildMapping() const;
+    void markSparseVertexChildren();
+    void markSparseEdgeChildren();
+
+    virtual void markSparseFaceChildren() = 0;
 
     void initializeChildComponentCounts();
 
@@ -278,30 +287,12 @@ private:
 
     void subdivideTopology(Relations const& relationsToSubdivide);
 
-    void populateFaceVertexRelation();
-    void populateFaceVertexCountsAndOffsets();
-    void populateFaceVerticesFromParentFaces();
-
-    void populateFaceEdgeRelation();
-    void populateFaceEdgesFromParentFaces();
-
-    void populateEdgeVertexRelation();
-    void populateEdgeVerticesFromParentFaces();
-    void populateEdgeVerticesFromParentEdges();
-
-    void populateEdgeFaceRelation();
-    void populateEdgeFacesFromParentFaces();
-    void populateEdgeFacesFromParentEdges();
-
-    void populateVertexFaceRelation();
-    void populateVertexFacesFromParentFaces();
-    void populateVertexFacesFromParentEdges();
-    void populateVertexFacesFromParentVertices();
-
-    void populateVertexEdgeRelation();
-    void populateVertexEdgesFromParentFaces();
-    void populateVertexEdgesFromParentEdges();
-    void populateVertexEdgesFromParentVertices();
+    virtual void populateFaceVertexRelation() = 0;
+    virtual void populateFaceEdgeRelation() = 0;
+    virtual void populateEdgeVertexRelation() = 0;
+    virtual void populateEdgeFaceRelation() = 0;
+    virtual void populateVertexFaceRelation() = 0;
+    virtual void populateVertexEdgeRelation() = 0;
 
     //
     //  Methods involved in subdividing and inspecting sharpness values:
@@ -317,20 +308,23 @@ private:
     //
     void subdivideFVarChannels();
 
-private:
+protected:
     //
     //  Data members -- the logical grouping of some of these (and methods that make use
     //  of them) may lead to grouping them into a few utility classes or structs...
     //
     friend class Level;  //  Access for some debugging information
 
-    Level* _parent;
-    Level* _child;
+    //  Defined on construction:
+    Level const * _parent;
+    Level *       _child;
+    Sdc::Options  _options;
 
-    Sdc::Type    _schemeType;
-    Sdc::Options _schemeOptions;
+    //  Defined by the subclass:
+    Sdc::Split _splitType;
+    int        _regFaceSize;
 
-    bool _quadSplit;  // generalize this to Sdc::Split later
+    //  Determined by the refinement options:
     bool _uniform;
 
     //
@@ -358,6 +352,14 @@ private:
     //  that have not spawned all child components will have their missing children
     //  marked as invalid.
     //
+    //  NOTE the "Array" members here.  Often vectors within the Level can be shared
+    //  with the Refinement, and an Array instance is used to do so.  If not shared
+    //  the subclass just initializes the Array members after allocating its own local
+    //  vector members.
+    //
+    IndexArray _faceChildFaceCountsAndOffsets;
+    IndexArray _faceChildEdgeCountsAndOffsets;
+
     IndexVector _faceChildFaceIndices;  // *cannot* always use face-vert counts/offsets
     IndexVector _faceChildEdgeIndices;  // can use face-vert counts/offsets
     IndexVector _faceChildVertIndex;
@@ -424,33 +426,27 @@ public:
 inline IndexArray const
 Refinement::getFaceChildFaces(Index parentFace) const {
 
-    //
-    //  Note this will need to vary based on the topological split applied...
-    //
-    return IndexArray(&_faceChildFaceIndices[_parent->getOffsetOfFaceVertices(parentFace)],
-                                                _parent->getNumFaceVertices(parentFace));
+    return IndexArray(&_faceChildFaceIndices[_faceChildFaceCountsAndOffsets[2*parentFace+1]],
+                                             _faceChildFaceCountsAndOffsets[2*parentFace]);
 }
 inline IndexArray
 Refinement::getFaceChildFaces(Index parentFace) {
 
-    return IndexArray(&_faceChildFaceIndices[_parent->getOffsetOfFaceVertices(parentFace)],
-                                                _parent->getNumFaceVertices(parentFace));
+    return IndexArray(&_faceChildFaceIndices[_faceChildFaceCountsAndOffsets[2*parentFace+1]],
+                                             _faceChildFaceCountsAndOffsets[2*parentFace]);
 }
 
 inline IndexArray const
 Refinement::getFaceChildEdges(Index parentFace) const {
 
-    //
-    //  Note this *may* need to vary based on the topological split applied...
-    //
-    return IndexArray(&_faceChildEdgeIndices[_parent->getOffsetOfFaceVertices(parentFace)],
-                                                _parent->getNumFaceVertices(parentFace));
+    return IndexArray(&_faceChildEdgeIndices[_faceChildEdgeCountsAndOffsets[2*parentFace+1]],
+                                             _faceChildEdgeCountsAndOffsets[2*parentFace]);
 }
 inline IndexArray
 Refinement::getFaceChildEdges(Index parentFace) {
 
-    return IndexArray(&_faceChildEdgeIndices[_parent->getOffsetOfFaceVertices(parentFace)],
-                                                _parent->getNumFaceVertices(parentFace));
+    return IndexArray(&_faceChildEdgeIndices[_faceChildEdgeCountsAndOffsets[2*parentFace+1]],
+                                             _faceChildEdgeCountsAndOffsets[2*parentFace]);
 }
 
 inline IndexArray const

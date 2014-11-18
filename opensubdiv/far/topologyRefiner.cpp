@@ -23,6 +23,8 @@
 //
 #include "../far/topologyRefiner.h"
 #include "../vtr/sparseSelector.h"
+#include "../vtr/quadRefinement.h"
+#include "../vtr/triRefinement.h"
 
 #include <cassert>
 #include <cstdio>
@@ -319,13 +321,14 @@ void
 TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
 
     assert(_levels[0]->getNumVertices() > 0);  //  Make sure the base level has been initialized
-    assert(_subdivType == Sdc::TYPE_CATMARK);
 
     //
     //  Allocate the stack of levels and the refinements between them:
     //
     _isUniform = true;
     _maxLevel = maxLevel;
+
+    Sdc::Split splitType = (_subdivType == Sdc::TYPE_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
 
     //
     //  Initialize refinement options for Vtr -- adjusting full-topology for the last level:
@@ -336,16 +339,19 @@ TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
     for (int i = 1; i <= maxLevel; ++i) {
         refineOptions._faceTopologyOnly = fullTopology ? false : (i == maxLevel);
 
-        Vtr::Level& parentLevel     = getLevel(i-1);
-        Vtr::Level& childLevel      = *(new Vtr::Level);
-        Vtr::Refinement& refinement = *(new Vtr::Refinement);
+        Vtr::Level& parentLevel = getLevel(i-1);
+        Vtr::Level& childLevel  = *(new Vtr::Level);
 
-        refinement.setScheme(_subdivType, _subdivOptions);
-        refinement.initialize(parentLevel, childLevel);
-        refinement.refine(refineOptions);
+        Vtr::Refinement* refinement = 0;
+        if (splitType == Sdc::SPLIT_TO_QUADS) {
+            refinement = new Vtr::QuadRefinement(parentLevel, childLevel, _subdivOptions);
+        } else {
+            refinement = new Vtr::TriRefinement(parentLevel, childLevel, _subdivOptions);
+        }
+        refinement->refine(refineOptions);
 
         _levels.push_back(&childLevel);
-        _refinements.push_back(&refinement);
+        _refinements.push_back(refinement);
     }
 }
 
@@ -354,7 +360,6 @@ void
 TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSingleCreasePatch) {
 
     assert(_levels[0]->getNumVertices() > 0);  //  Make sure the base level has been initialized
-    assert(_subdivType == Sdc::TYPE_CATMARK);
 
     //
     //  Allocate the stack of levels and the refinements between them:
@@ -371,6 +376,8 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSing
     refineOptions._sparse           = true;
     refineOptions._faceTopologyOnly = !fullTopology;
 
+    Sdc::Split splitType = (_subdivType == Sdc::TYPE_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
+
     for (int i = 1; i <= subdivLevel; ++i) {
         //  Keeping full topology on for debugging -- may need to go back a level and "prune"
         //  its topology if we don't use the full depth
@@ -378,10 +385,13 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSing
 
         Vtr::Level& parentLevel     = getLevel(i-1);
         Vtr::Level& childLevel      = *(new Vtr::Level);
-        Vtr::Refinement& refinement = *(new Vtr::Refinement);
 
-        refinement.setScheme(_subdivType, _subdivOptions);
-        refinement.initialize(parentLevel, childLevel);
+        Vtr::Refinement* refinement = 0;
+        if (splitType == Sdc::SPLIT_TO_QUADS) {
+            refinement = new Vtr::QuadRefinement(parentLevel, childLevel, _subdivOptions);
+        } else {
+            refinement = new Vtr::TriRefinement(parentLevel, childLevel, _subdivOptions);
+        }
 
         //
         //  Initialize a Selector to mark a sparse set of components for refinement.  If
@@ -392,43 +402,51 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSing
         //  Note that if we support the "full topology at last level" option properly,
         //  we should prune the previous level generated, as it is now the last...
         //
-        Vtr::SparseSelector selector(refinement);
+        Vtr::SparseSelector selector(*refinement);
 
-        catmarkFeatureAdaptiveSelector(selector);
+        selectFeatureAdaptiveComponents(selector);
         if (selector.isSelectionEmpty()) {
             _maxLevel = i - 1;
 
-            delete &refinement;
+            delete refinement;
             delete &childLevel;
             break;
         }
 
-        refinement.refine(refineOptions);
+        refinement->refine(refineOptions);
 
         _levels.push_back(&childLevel);
-        _refinements.push_back(&refinement);
+        _refinements.push_back(refinement);
 
-        //childLevel.print(&refinement);
+        //childLevel.print(refinement);
         //assert(childLevel.validateTopology());
     }
 }
 
 //
-//   Catmark-specific method for feature-adaptive selection for sparse refinement at each level.
+//   Method for selecting components for sparse refinement based on the feature-adaptive needs
+//   of patch generation.
 //
 //   It assumes we have a freshly initialized Vtr::SparseSelector (i.e. nothing already selected)
 //   and will select all relevant topological features for inclusion in the subsequent sparse
 //   refinement.
 //
-//   With appropriate topological tags on the components, i.e. which vertices are extra-ordinary,
-//   non-manifold, etc., there's no reason why this can't be written in a way that is independent
-//   of the subdivision scheme.  All of the creasing cases are independent, leaving only the
-//   regularity associated with the scheme.
+//   This was originally written specific to the quad-centric Catmark scheme and was since
+//   generalized to support Loop given the enhanced tagging of components based on the scheme.
+//   Any further enhancements here, e.g. new approaches for dealing with infinitely sharp
+//   creases, should be aware of the intended generality.  Ultimately it may not be worth 
+//   trying to keep this general and we will be better off specializing it for each scheme.
+//   The fact that this method is intimately tied to patch generation also begs for it to
+//   become part of a class that encompasses both the feature adaptive tagging and the
+//   identification of the intended patch that result from it.
 //
 void
-TopologyRefiner::catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector) {
+TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) {
 
     Vtr::Level const& level = selector.getRefinement().parent();
+
+    int  regularFaceSize           =  selector.getRefinement()._regFaceSize;
+    bool considerSingleCreasePatch = _useSingleCreasePatch && (regularFaceSize == 4);
 
     for (Vtr::Index face = 0; face < level.getNumFaces(); ++face) {
     
@@ -440,10 +458,9 @@ TopologyRefiner::catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector) {
 
         //
         //  Testing irregular faces is only necessary at level 0, and potentially warrants
-        //  separating out as the caller can detect these (and generically as long as we
-        //  can identify an irregular face for all schemes):
+        //  separating out as the caller can detect these:
         //
-        if (faceVerts.size() != 4) {
+        if (faceVerts.size() != regularFaceSize) {
             //
             //  We need to also ensure that all adjacent faces to this are selected, so we
             //  select every face incident every vertex of the face.  This is the only place
@@ -490,7 +507,7 @@ TopologyRefiner::catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector) {
             // if this is regular and the adjacent edges have same sharpness
             // and no vertex corner sharpness,
             // we can stop refinning and use single-crease patch.
-            if (_useSingleCreasePatch) {
+            if (considerSingleCreasePatch) {
                 selectFace = ! level.isSingleCreasePatch(face);
             } else {
                 selectFace = true;

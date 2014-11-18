@@ -27,6 +27,7 @@ set(PUBLIC_HEADER_FILES
     bilinearScheme.h
     catmarkScheme.h
     crease.h
+    loopScheme.h
     options.h
     scheme.h
     type.h

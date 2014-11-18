@@ -30,8 +30,10 @@ set(SOURCE_FILES
      fvarLevel.cpp
      fvarRefinement.cpp
      level.cpp
+     quadRefinement.cpp
      refinement.cpp
      sparseSelector.cpp
+     triRefinement.cpp
 )
 
 set(PUBLIC_HEADER_FILES
@@ -40,8 +42,10 @@ set(PUBLIC_HEADER_FILES
      fvarRefinement.h
      level.h
      maskInterfaces.h
+     quadRefinement.h
      refinement.h
      sparseSelector.h
+     triRefinement.h
      types.h
 )
 

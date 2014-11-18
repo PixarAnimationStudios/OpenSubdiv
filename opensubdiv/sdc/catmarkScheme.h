@@ -61,6 +61,7 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) cons
     mask.SetNumVertexWeights(2);
     mask.SetNumEdgeWeights(0);
     mask.SetNumFaceWeights(faceCount);
+    mask.SetFaceWeightsForFaceCenters(true);
 
     //
     //  Determine if we need to inspect incident faces and apply alternate weighting for
@@ -133,6 +134,7 @@ Scheme<TYPE_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask
     mask.SetNumVertexWeights(1);
     mask.SetNumEdgeWeights(valence);
     mask.SetNumFaceWeights(0);
+    mask.SetFaceWeightsForFaceCenters(false);
 
     Weight vWeight = 0.75f;
     Weight eWeight = 0.125f;
@@ -184,6 +186,7 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask
     mask.SetNumVertexWeights(1);
     mask.SetNumEdgeWeights(valence);
     mask.SetNumFaceWeights(valence);
+    mask.SetFaceWeightsForFaceCenters(true);
 
     Weight vWeight = (Weight)(valence - 2) / (Weight)valence;
     Weight fWeight = 1.0f / (Weight)(valence * valence);
@@ -211,6 +214,7 @@ Scheme<TYPE_CATMARK>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMas
     posMask.SetNumVertexWeights(1);
     posMask.SetNumEdgeWeights(valence);
     posMask.SetNumFaceWeights(0);
+    posMask.SetFaceWeightsForFaceCenters(false);
 
     Weight vWeight = 2.0f / 3.0f;
     Weight eWeight = 1.0f / 6.0f;
@@ -236,6 +240,7 @@ Scheme<TYPE_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMas
     posMask.SetNumVertexWeights(1);
     posMask.SetNumEdgeWeights(valence);
     posMask.SetNumFaceWeights(valence);
+    posMask.SetFaceWeightsForFaceCenters(false);
 
     //  Probably a good idea to test for and assign the regular case as a special case:
 
@@ -263,11 +268,13 @@ Scheme<TYPE_CATMARK>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */
     tan1Mask.SetNumVertexWeights(1);
     tan1Mask.SetNumEdgeWeights(0);
     tan1Mask.SetNumFaceWeights(0);
+    tan1Mask.SetFaceWeightsForFaceCenters(false);
     tan1Mask.VertexWeight(0) = 0.0f;
 
     tan2Mask.SetNumVertexWeights(1);
     tan2Mask.SetNumEdgeWeights(0);
     tan2Mask.SetNumFaceWeights(0);
+    tan2Mask.SetFaceWeightsForFaceCenters(false);
     tan2Mask.VertexWeight(0) = 0.0f;
 }
 
@@ -286,10 +293,12 @@ Scheme<TYPE_CATMARK>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
     tan1Mask.SetNumVertexWeights(1);
     tan1Mask.SetNumEdgeWeights(valence);
     tan1Mask.SetNumFaceWeights(0);
+    tan1Mask.SetFaceWeightsForFaceCenters(false);
 
     tan2Mask.SetNumVertexWeights(1);
     tan2Mask.SetNumEdgeWeights(valence);
     tan2Mask.SetNumFaceWeights(0);
+    tan2Mask.SetFaceWeightsForFaceCenters(false);
 
     tan1Mask.VertexWeight(0) = 0.0f;
     tan2Mask.VertexWeight(0) = 0.0f;

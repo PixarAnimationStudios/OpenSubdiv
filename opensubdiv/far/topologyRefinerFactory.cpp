@@ -155,6 +155,13 @@ TopologyRefinerFactoryBase::applyComponentTagsAndBoundarySharpness(TopologyRefin
     //  Process the Vertex tags now -- for some tags (semi-sharp and its rule) we need
     //  to inspect all incident edges:
     //
+    int schemeRegularBoundaryValence = 2;
+    int schemeRegularInteriorValence = 4;
+    if (refiner.GetSchemeType() == Sdc::TYPE_LOOP) {
+        schemeRegularBoundaryValence = 3;
+        schemeRegularInteriorValence = 6;
+    }
+
     for (Vtr::Index vIndex = 0; vIndex < baseLevel.getNumVertices(); ++vIndex) {
         Vtr::Level::VTag& vTag       = baseLevel._vertTags[vIndex];
         float&          vSharpness = baseLevel._vertSharpness[vIndex];
@@ -201,15 +208,13 @@ TopologyRefinerFactoryBase::applyComponentTagsAndBoundarySharpness(TopologyRefin
         //  Assign topological tags -- note that the "xordinary" (or conversely a "regular")
         //  tag is still being considered, but regardless, it depends on the Sdc::Scheme...
         //
-        assert(refiner.GetSchemeType() == Sdc::TYPE_CATMARK);
-
         vTag._boundary = (vFaces.size() < vEdges.size());
         if (isCorner) {
             vTag._xordinary = !sharpenCornerVerts;
         } else if (vTag._boundary) {
-            vTag._xordinary = (vFaces.size() != 2);
+            vTag._xordinary = (vFaces.size() != schemeRegularBoundaryValence);
         } else {
-            vTag._xordinary = (vFaces.size() != 4);
+            vTag._xordinary = (vFaces.size() != schemeRegularInteriorValence);
         }
         vTag._incomplete = 0;
     }

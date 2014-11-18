@@ -451,8 +451,23 @@ FVarRefinement::propagateValueCreases() {
 
     //
     //  For each child vertex from an edge that has FVar values and is complete, initialize
-    //  the crease-ends for those values tagged as smooth boundaries:
+    //  the crease-ends for those values tagged as smooth boundaries
     //
+    //  Note that this does depend on the nature of the topological split, i.e. how many
+    //  child faces are incident the new child vertex for each face that becomes a crease,
+    //  so identify constants to be used in each iteration first:
+    //
+    LocalIndex crease0StartFace = 0;
+    LocalIndex crease0EndFace   = 1;
+    LocalIndex crease1StartFace = 2;
+    LocalIndex crease1EndFace   = 3;
+
+    if (_refinement._splitType == Sdc::SPLIT_TO_TRIS) {
+        crease0EndFace   = 2;
+        crease1StartFace = 3;
+        crease1EndFace   = 5;
+    }
+
     Index cVert    = _refinement.getFirstChildVertexFromEdges();
     Index cVertEnd = cVert + _refinement.getNumChildVerticesFromEdges();
     for ( ; cVert < cVertEnd; ++cVert) {
@@ -464,12 +479,12 @@ FVarRefinement::propagateValueCreases() {
         FVarLevel::CreaseEndPairArray cValueCreaseEnds = _childFVar.getVertexValueCreaseEnds(cVert);
 
         if (!cValueTags[0].isInfSharp()) {
-            cValueCreaseEnds[0]._startFace = 0;
-            cValueCreaseEnds[0]._endFace   = 1;
+            cValueCreaseEnds[0]._startFace = crease0StartFace;
+            cValueCreaseEnds[0]._endFace   = crease0EndFace;
         }
         if ((cValueTags.size() > 1) && !cValueTags[1].isInfSharp()) {
-            cValueCreaseEnds[1]._startFace = 2;
-            cValueCreaseEnds[1]._endFace   = 3;
+            cValueCreaseEnds[1]._startFace = crease1StartFace;
+            cValueCreaseEnds[1]._endFace   = crease1EndFace;
         }
     }
 
@@ -645,7 +660,7 @@ FVarRefinement::getFractionalWeight(Index pVert, LocalIndex pSibling,
             cEdgeSharpness[interiorEdgeCount] = _childLevel._edgeSharpness[cVertEdges[i]];
         }
     }
-    return Sdc::Crease(_refinement._schemeOptions).ComputeFractionalWeightAtVertex(
+    return Sdc::Crease(_refinement._options).ComputeFractionalWeightAtVertex(
             _parentLevel._vertSharpness[pVert], _childLevel._vertSharpness[cVert],
             interiorEdgeCount, pEdgeSharpness, cEdgeSharpness);
 }

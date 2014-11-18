@@ -334,14 +334,18 @@ Level::print(const Refinement* pRefinement) const {
     printf("    Face relations:\n");
     printf("      face-vert counts/offset = %lu\n", (unsigned long)_faceVertCountsAndOffsets.size());
     printf("      face-vert indices = %lu\n", (unsigned long)_faceVertIndices.size());
-    for (int i = 0; printFaceVerts && i < getNumFaces(); ++i) {
-        printf("        face %4d verts:  ", i);
-        printIndexArray(getFaceVertices(i));
+    if (_faceVertIndices.size()) {
+        for (int i = 0; printFaceVerts && i < getNumFaces(); ++i) {
+            printf("        face %4d verts:  ", i);
+            printIndexArray(getFaceVertices(i));
+        }
     }
     printf("      face-edge indices = %lu\n", (unsigned long)_faceEdgeIndices.size());
-    for (int i = 0; printFaceEdges && i < getNumFaces(); ++i) {
-        printf("        face %4d edges:  ", i);
-        printIndexArray(getFaceEdges(i));
+    if (_faceEdgeIndices.size()) {
+        for (int i = 0; printFaceEdges && i < getNumFaces(); ++i) {
+            printf("        face %4d edges:  ", i);
+            printIndexArray(getFaceEdges(i));
+        }
     }
     printf("      face tags = %lu\n", (unsigned long)_faceTags.size());
     for (int i = 0; printFaceTags && i < (int)_faceTags.size(); ++i) {
@@ -359,15 +363,19 @@ Level::print(const Refinement* pRefinement) const {
 
     printf("    Edge relations:\n");
     printf("      edge-vert indices = %lu\n", (unsigned long)_edgeVertIndices.size());
-    for (int i = 0; printEdgeVerts && i < getNumEdges(); ++i) {
-        printf("        edge %4d verts:  ", i);
-        printIndexArray(getEdgeVertices(i));
+    if (_edgeVertIndices.size()) {
+        for (int i = 0; printEdgeVerts && i < getNumEdges(); ++i) {
+            printf("        edge %4d verts:  ", i);
+            printIndexArray(getEdgeVertices(i));
+        }
     }
     printf("      edge-face counts/offset = %lu\n", (unsigned long)_edgeFaceCountsAndOffsets.size());
     printf("      edge-face indices = %lu\n", (unsigned long)_edgeFaceIndices.size());
-    for (int i = 0; printEdgeFaces && i < getNumEdges(); ++i) {
-        printf("        edge %4d faces:  ", i);
-        printIndexArray(getEdgeFaces(i));
+    if (_edgeFaceIndices.size()) {
+        for (int i = 0; printEdgeFaces && i < getNumEdges(); ++i) {
+            printf("        edge %4d faces:  ", i);
+            printIndexArray(getEdgeFaces(i));
+        }
     }
     if (pRefinement) {
         printf("      edge child-verts = %lu\n", (unsigned long)pRefinement->_edgeChildVertIndex.size());
@@ -393,22 +401,26 @@ Level::print(const Refinement* pRefinement) const {
     printf("      vert-face counts/offset = %lu\n", (unsigned long)_vertFaceCountsAndOffsets.size());
     printf("      vert-face indices  = %lu\n", (unsigned long)_vertFaceIndices.size());
     printf("      vert-face children = %lu\n", (unsigned long)_vertFaceLocalIndices.size());
-    for (int i = 0; printVertFaces && i < getNumVertices(); ++i) {
-        printf("        vert %4d faces:  ", i);
-        printIndexArray(getVertexFaces(i));
+    if (_vertFaceIndices.size()) {
+        for (int i = 0; printVertFaces && i < getNumVertices(); ++i) {
+            printf("        vert %4d faces:  ", i);
+            printIndexArray(getVertexFaces(i));
 
-        printf("             face-verts:  ");
-        printIndexArray(getVertexFaceLocalIndices(i));
+            printf("             face-verts:  ");
+            printIndexArray(getVertexFaceLocalIndices(i));
+        }
     }
     printf("      vert-edge counts/offset = %lu\n", (unsigned long)_vertEdgeCountsAndOffsets.size());
     printf("      vert-edge indices  = %lu\n", (unsigned long)_vertEdgeIndices.size());
     printf("      vert-edge children = %lu\n", (unsigned long)_vertEdgeLocalIndices.size());
-    for (int i = 0; printVertEdges && i < getNumVertices(); ++i) {
-        printf("        vert %4d edges:  ", i);
-        printIndexArray(getVertexEdges(i));
+    if (_vertEdgeIndices.size()) {
+        for (int i = 0; printVertEdges && i < getNumVertices(); ++i) {
+            printf("        vert %4d edges:  ", i);
+            printIndexArray(getVertexEdges(i));
 
-        printf("             edge-verts:  ");
-        printIndexArray(getVertexEdgeLocalIndices(i));
+            printf("             edge-verts:  ");
+            printIndexArray(getVertexEdgeLocalIndices(i));
+        }
     }
     if (pRefinement) {
         printf("      vert child-verts = %lu\n", (unsigned long)pRefinement->_vertChildVertIndex.size());
@@ -1190,6 +1202,12 @@ Level::completeTopologyFromFaceVertices() {
     orientIncidentComponents();
 
     populateLocalIndices();
+
+//printf("Vertex topology completed...\n");
+//this->print();
+//printf("  validating vertex topology...\n");
+//this->validateTopology();
+//assert(this->validateTopology());
 }
 
 void

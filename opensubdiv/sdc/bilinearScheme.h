@@ -67,6 +67,7 @@ Scheme<TYPE_BILINEAR>::assignInteriorLimitMask(VERTEX const& /* vertex */, MASK&
     posMask.SetNumVertexWeights(1);
     posMask.SetNumEdgeWeights(0);
     posMask.SetNumFaceWeights(0);
+    posMask.SetFaceWeightsForFaceCenters(false);
 
     posMask.VertexWeight(0) = 1.0f;
 }
@@ -88,10 +89,12 @@ Scheme<TYPE_BILINEAR>::assignInteriorLimitTangentMasks(VERTEX const& /* vertex *
     tan1Mask.SetNumVertexWeights(1);
     tan1Mask.SetNumEdgeWeights(0);
     tan1Mask.SetNumFaceWeights(0);
+    tan1Mask.SetFaceWeightsForFaceCenters(false);
 
     tan2Mask.SetNumVertexWeights(1);
     tan2Mask.SetNumEdgeWeights(0);
     tan2Mask.SetNumFaceWeights(0);
+    tan2Mask.SetFaceWeightsForFaceCenters(false);
 
     tan1Mask.VertexWeight(0) = 0.0f;
     tan2Mask.VertexWeight(0) = 0.0f;

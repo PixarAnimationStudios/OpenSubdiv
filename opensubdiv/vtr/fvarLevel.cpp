@@ -452,28 +452,23 @@ FVarLevel::getVertexCreaseEndValues(Index vIndex, Sibling vSibling, Index endVal
 {
     CreaseEndPairArray vValueCreaseEnds = getVertexValueCreaseEnds(vIndex);
 
-    LocalIndex vertFace0 = vValueCreaseEnds[vSibling]._startFace;
-    LocalIndex vertFace1 = vValueCreaseEnds[vSibling]._endFace;
-
     IndexArray const      vFaces  = _level.getVertexFaces(vIndex);
     LocalIndexArray const vInFace = _level.getVertexFaceLocalIndices(vIndex);
 
+    LocalIndex vertFace0 = vValueCreaseEnds[vSibling]._startFace;
+    LocalIndex vertFace1 = vValueCreaseEnds[vSibling]._endFace;
+
+    IndexArray const face0Values = getFaceValues(vFaces[vertFace0]);
+    IndexArray const face1Values = getFaceValues(vFaces[vertFace1]);
+
     int endInFace0 = vInFace[vertFace0];
     int endInFace1 = vInFace[vertFace1];
-    if (_level.getDepth() > 0) {
-        endInFace0 = (endInFace0 + 1) % 4;
-        endInFace1 = (endInFace1 + 3) % 4;
-    } else {
-        //  Avoid the costly % N for potential N-sided faces at level 0...
-        endInFace0++;
-        if (endInFace0 == _level.getNumFaceVertices(vFaces[vertFace0])) {
-            endInFace0 = 0;
-        }
-        endInFace1 = (endInFace1 ? endInFace1 : _level.getNumFaceVertices(vFaces[vertFace1])) - 1;
-    }
 
-    endValues[0] = _faceVertValues[_level.getOffsetOfFaceVertices(vFaces[vertFace0]) + endInFace0];
-    endValues[1] = _faceVertValues[_level.getOffsetOfFaceVertices(vFaces[vertFace1]) + endInFace1];
+    endInFace0 = (endInFace0 == (face0Values.size() - 1)) ? 0 : (endInFace0 + 1);
+    endInFace1 = (endInFace1 ? endInFace1 : face1Values.size()) - 1;
+
+    endValues[0] = face0Values[endInFace0];
+    endValues[1] = face1Values[endInFace1];
 }
 
 //
@@ -809,9 +804,15 @@ FVarLevel::getVertexEdgeValues(Index vIndex, Index valuesPerEdge[]) const {
         if (getNumVertexValues(vOther) == 1) {
             valuesPerEdge[i] = isBaseLevel ? getVertexValue(vOther) : getVertexValueOffset(vOther);
         } else if (vIsBoundary && (i == (vEdges.size() - 1))) {
-            valuesPerEdge[i] = getFaceValues(vFaces[i-1])[(vInFace[i-1] + 3) % 4];
+            IndexArray const fValues = getFaceValues(vFaces[i-1]);
+
+            int prevInFace = vInFace[i-1] ? (vInFace[i-1] - 1) : (fValues.size() - 1);
+            valuesPerEdge[i] = fValues[prevInFace];
         } else {
-            valuesPerEdge[i] = getFaceValues(vFaces[i])[(vInFace[i] + 1) % 4];
+            IndexArray const fValues = getFaceValues(vFaces[i]);
+
+            int nextInFace = (vInFace[i] == (fValues.size() - 1)) ? 0 : (vInFace[i] + 1);
+            valuesPerEdge[i] = fValues[nextInFace];
         }
     }
 }

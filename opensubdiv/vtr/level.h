@@ -51,6 +51,8 @@ namespace Far {
 namespace Vtr {
 
 class Refinement;
+class QuadRefinement;
+class TriRefinement;
 class FVarRefinement;
 class FVarLevel;
 
@@ -247,6 +249,8 @@ public:
 protected:
 
     friend class Refinement;
+    friend class QuadRefinement;
+    friend class TriRefinement;
     friend class FVarRefinement;
     friend class FVarLevel;
 
@@ -352,14 +356,14 @@ protected:
     bool orderVertexFacesAndEdges(Index vIndex);
     void populateLocalIndices();
 
+    IndexArray const shareFaceVertCountsAndOffsets() const;
+
 protected:
-    //  Its debatable whether we should retain a Type or Options associated with
-    //  a subdivision scheme here.  A Level is pure topology now.  The Refinement
-    //  that create it was influenced by subdivision Type and Options, and both
-    //  are now stored as members of the Refinement.
     //
-    //Sdc::Type    _schemeType;
-    //Sdc::Options _schemeOptions;
+    //  A Level is independent of subdivision scheme or options.  While it may have been
+    //  affected by them in its construction, they are not associated with it -- a Level
+    //  is pure topology and any subdivision parameters are external.
+    //
 
     //  Simple members for inventory, etc.
     int _faceCount;
@@ -682,6 +686,11 @@ Level::resizeVertexEdges(int totalVertEdgeCount) {
 
     _vertEdgeIndices.resize(totalVertEdgeCount);
     _vertEdgeLocalIndices.resize(totalVertEdgeCount);
+}
+
+inline IndexArray const
+Level::shareFaceVertCountsAndOffsets() const {
+    return IndexArray(&_faceVertCountsAndOffsets[0], (int)_faceVertCountsAndOffsets.size());
 }
 
 } // end namespace Vtr

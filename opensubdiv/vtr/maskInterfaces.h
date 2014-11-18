@@ -75,6 +75,9 @@ public:  //  Generic interface expected of <typename MASK>:
     Weight& EdgeWeight(  int index) { return _edgeWeights[index]; }
     Weight& FaceWeight(  int index) { return _faceWeights[index]; }
 
+    bool AreFaceWeightsForFaceCenters() const  { return _faceWeightsForFaceCenters; }
+    void SetFaceWeightsForFaceCenters(bool on) { _faceWeightsForFaceCenters = on; }
+
 private:
     Weight* _vertWeights;
     Weight* _edgeWeights;
@@ -83,6 +86,8 @@ private:
     int _vertCount;
     int _edgeCount;
     int _faceCount;
+
+    bool _faceWeightsForFaceCenters;
 };
 
 
