@@ -472,6 +472,14 @@ setEdge(std::vector<float> & vbo, int edge, float const * vertData, int v0, int 
     memcpy(dst0+3, color, sizeof(float)*3);
     memcpy(dst1+3, color, sizeof(float)*3);
 }
+inline int
+getRingSize(OpenSubdiv::Far::PatchTables::Descriptor desc) {
+    if (desc.GetType()==OpenSubdiv::Far::PatchTables::GREGORY_BASIS) {
+        return 4;
+    } else {
+        return desc.GetNumControlVertices();
+    }
+}    
 
 //------------------------------------------------------------------------------
 void
@@ -540,7 +548,7 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
                 color = getAdaptivePatchColor(pa.GetDescriptor());
             }
 
-            int ncvs = pa.GetDescriptor().GetNumControlVertices();
+            int ncvs = getRingSize(pa.GetDescriptor());
 
             OpenSubdiv::Far::Index const * cvs = &ptable[pa.GetVertIndex()];
 
@@ -579,7 +587,7 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
 
             PatchTables::PatchArray const & pa = parrays[i];
 
-            int ncvs = pa.GetDescriptor().GetNumControlVertices();
+            int ncvs = getRingSize(pa.GetDescriptor());
 
             OpenSubdiv::Far::Index const * cvs = &ptable[pa.GetVertIndex()];
 
@@ -601,7 +609,7 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
                     eao[face*4+2] = cvs[ 5];
                     eao[face*4+3] = cvs[ 4];
                 } else {
-                    memcpy(&eao[face*4], cvs, 4*sizeof(int));
+                    memcpy(&eao[face*4], cvs, 4*sizeof(OpenSubdiv::Far::Index));
                 }
 
                 if (options.faceColorMode==FACECOLOR_BY_PATCHTYPE) {

@@ -24,12 +24,13 @@
 
 #include "patchColors.h"
 
-static float _colors[5][6][4] = {{{1.0f,  1.0f,  1.0f,  1.0f},   // regular
+static float _colors[5][7][4] = {{{1.0f,  1.0f,  1.0f,  1.0f},   // regular
                                   {1.0f,  0.5f,  0.5f,  1.0f},   // single crease
                                   {0.8f,  0.0f,  0.0f,  1.0f},   // boundary
                                   {0.0f,  1.0f,  0.0f,  1.0f},   // corner
                                   {1.0f,  1.0f,  0.0f,  1.0f},   // gregory
-                                  {1.0f,  0.5f,  0.0f,  1.0f}},  // gregory boundary
+                                  {1.0f,  0.5f,  0.0f,  1.0f},   // gregory boundary
+                                  {1.0f,  1.0f,  0.0f,  1.0f}},  // gregory basis
 
                                  {{0.0f,  1.0f,  1.0f,  1.0f},   // regular pattern 0
                                   {0.0f,  0.5f,  1.0f,  1.0f},   // regular pattern 1

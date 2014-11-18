@@ -77,8 +77,8 @@ GLFWmonitor* g_primary=0;
 #include <sstream>
 
 //------------------------------------------------------------------------------
-int g_level = 2,
-    g_currentShape = 18;
+int g_level = 3,
+    g_currentShape = 7;
 
 enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
                    kHUD_CB_DISPLAY_CAGE_VERTS,
@@ -102,7 +102,6 @@ int   g_fullscreen = 0,
 int   g_displayPatchColor    = 1,
       g_drawCageEdges        = 1,
       g_drawCageVertices     = 0,
-      g_drawGregoryBasis     = true,
       g_HbrDrawMode          = kDRAW_WIREFRAME,
       g_HbrDrawVertIDs       = false,
       g_HbrDrawEdgeSharpness = false,
@@ -114,6 +113,7 @@ int   g_displayPatchColor    = 1,
       g_VtrDrawFaceIDs       = false,
       g_VtrDrawPtexIDs       = false,
       g_VtrDrawEdgeSharpness = false,
+      g_VtrDrawGregogyBasis  = false,
       g_numPatches           = 0,
       g_maxValence           = 0,
       g_currentPatch         = 0,
@@ -765,11 +765,11 @@ createVtrMesh(Shape * shape, int maxlevel) {
         createPtexNumbers(*patchTables, vertexBuffer);
     }
 
-    if (g_Adaptive and g_drawGregoryBasis) {
+    if (g_Adaptive) {
         createPatchNumbers(*patchTables, vertexBuffer);
     }
 
-    if (g_Adaptive and g_drawGregoryBasis) {
+    if (g_Adaptive and g_VtrDrawGregogyBasis) {
         createGregoryBasis(*patchTables, vertexBuffer);
     }
 
@@ -944,7 +944,7 @@ display() {
         g_vtr_glmesh.Draw(comp, g_transformUB, g_lightingUB);
     }
 
-    if (g_Adaptive and g_drawGregoryBasis) {
+    if (g_Adaptive and g_VtrDrawGregogyBasis) {
         gregoryWire.Draw(GLMesh::COMP_VERT, g_transformUB, g_lightingUB);
         gregoryWire.Draw(GLMesh::COMP_EDGE, g_transformUB, g_lightingUB);
     }
@@ -1164,6 +1164,7 @@ callbackDrawIDs(bool checked, int button) {
         case 6: g_VtrDrawFaceIDs = checked; break;
         case 7: g_VtrDrawPtexIDs = checked; break;
         case 8: g_VtrDrawEdgeSharpness = checked; break;
+        case 9: g_VtrDrawGregogyBasis = checked; break;
         default: break;
     }
     rebuildOsdMeshes();
@@ -1217,8 +1218,9 @@ initHUD()
     g_hud.AddCheckBox("Face IDs",   g_VtrDrawFaceIDs!=0, 10, 255, callbackDrawIDs, 6);
     g_hud.AddCheckBox("Ptex IDs",   g_VtrDrawPtexIDs!=0, 10, 275, callbackDrawIDs, 7);
     g_hud.AddCheckBox("Edge Sharp", g_VtrDrawEdgeSharpness!=0, 10, 295, callbackDrawIDs, 8);
+    g_hud.AddCheckBox("Gregory Basis", g_VtrDrawGregogyBasis!=0, 10, 315, callbackDrawIDs, 9);
 
-    g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 320, callbackAdaptive, 0, '`');
+    g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 350, callbackAdaptive, 0, '`');
 
 
     g_hud.AddSlider("Font Scale", 0.0f, 0.1f, 0.025f,
@@ -1227,7 +1229,7 @@ initHUD()
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(3, level, i==g_level, 10, 315+i*20, callbackLevel, i, '0'+(i%10));
+        g_hud.AddRadioButton(3, level, i==g_level, 10, 380+i*20, callbackLevel, i, '0'+(i%10));
     }
 
     int shapes_pulldown = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
