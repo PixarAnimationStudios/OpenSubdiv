@@ -254,7 +254,7 @@ Scheme<TYPE_LOOP>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) 
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_LOOP>::assignBoundaryLimitTangentMasks(VERTEX const& vertex,
+Scheme<TYPE_LOOP>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     //  Need to dig up formulae for this case...
