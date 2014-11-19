@@ -356,6 +356,9 @@ vertex data to a higher level of refinement.
 .. image:: images/far_stencil8.png
    :align: center
 
+See implementation details, see the Far cascading stencil `tutorial
+<tutorials.html>`_
+
 Limit Stencils
 **************
 

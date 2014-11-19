@@ -80,7 +80,7 @@ or in your local ``<repository root>/turorials``.
          data.
        | |far_tut_1|
        |
-     - | **Tutorial 3**
+       | **Tutorial 3**
        | Building on tutorial 0, this example shows how to instantiate a simple mesh,
          refine it uniformly and then interpolate both 'vertex' and 'face-varying'
          primvar data.
@@ -88,7 +88,7 @@ or in your local ``<repository root>/turorials``.
          'face-varying' data recorded in the uv texture layout.
        | |far_tut_3|
        |
-       | **Tutorial 4**
+     - | **Tutorial 4**
        | This tutorial shows how to create and manipulate FarStencilTables. We use the
          factorized stencils to interpolate vertex primvar data buffers.
        |
@@ -101,6 +101,10 @@ or in your local ``<repository root>/turorials``.
        | This tutorial shows how to interpolate surface limits at arbitrary
          parametric locations using feature adaptive Far::PatchTables.
        | |far_tut_6|
+       |
+       | **Tutorial 7**
+       | This tutorial shows how to create and manipulate tables of cascading
+         stencils to apply hierarchical vertex edits.
        |
 
 ----

@@ -22,23 +22,18 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-set(TUTORIALS
-    tutorial_0
-    tutorial_1
-    tutorial_2
-    tutorial_3
-    tutorial_4
-    tutorial_5
-    tutorial_6
-    tutorial_7
+include_directories("${PROJECT_SOURCE_DIR}/opensubdiv")
+
+set(SOURCE_FILES
+    far_tutorial_7.cpp
 )
 
-foreach(tutorial ${TUTORIALS})
+_add_executable(far_tutorial_7
+    ${SOURCE_FILES}
+    $<TARGET_OBJECTS:sdc_obj>
+    $<TARGET_OBJECTS:vtr_obj>
+    $<TARGET_OBJECTS:far_obj>
+)
 
-    add_subdirectory("${tutorial}")
+install(TARGETS far_tutorial_7 DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
 
-    list(APPEND TUTORIAL_TARGETS "far_${tutorial}")
-
-endforeach()
-
-add_custom_target(far_tutorials DEPENDS ${TUTORIAL_TARGETS})
