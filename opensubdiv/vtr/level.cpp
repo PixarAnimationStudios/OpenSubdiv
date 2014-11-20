@@ -483,15 +483,22 @@ Level::getFaceCompositeVTag(IndexArray const& faceVerts) const {
 //  patch tables factory is preferable.
 //
 //  Note a couple of nuisances...
-//      - these are currently specialized methods for quad-meshes
-//      - debatable whether we should include the four face-verts in the face functions
+//      - debatable whether we should include the face's face-verts in the face functions
 //          - we refer to the result as a "patch" when we do
 //          - otherwise a "ring" of vertices is more appropriate
-//      - some OSD containers for the results want unsigned int and others int
 //
 namespace {
     template <typename INT_TYPE>
-    inline INT_TYPE fastMod4(INT_TYPE value) { return (value & 0x3); }
+    inline INT_TYPE fastMod4(INT_TYPE value) {
+
+        return (value & 0x3);
+    }
+
+    template <class ARRAY_OF_TYPE, class TYPE>
+    inline TYPE otherOfTwo(ARRAY_OF_TYPE const& arrayOfTwo, TYPE const& value) {
+
+        return arrayOfTwo[value == arrayOfTwo[0]];
+    }
 }
 
 //
@@ -537,7 +544,7 @@ Level::gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int 
 }
 
 //
-//  Gathering the 16 vertices of a quad-regular boundary patch:
+//  Gathering the 16 vertices of a quad-regular interior patch:
 //      - the neighborhood of the face is assumed to be quad-regular
 //
 //  Ordering of resulting vertices:
@@ -794,6 +801,266 @@ Level::gatherQuadRegularCornerPatchVertices(
     return 9;
 }
 
+//
+//  Gathering the 12 vertices of a tri-regular interior patch:
+//      - the neighborhood of the face is assumed to be tri-regular
+//
+//  Ordering of resulting vertices:
+//      The three vertices of the triangle begin the sequence, followed by counter-clockwise
+//  traversal of the outer ring of vertices -- beginning with the vertex incident V0 such
+//  that the ring is symmetric about the triangle.
+/*
+//                   3           11
+//                   X - - - - - X
+//                 /   \       /   \
+//               /       \ 0 /       \
+//          4  X - - - - - X - - - - - X 10
+//           /   \       / * \       /   \
+//         /       \   / * * * \   /       \
+//    5  X - - - - - X - - - - - X - - - - - X  9
+//         \       / 1 \       / 2 \       /
+//           \   /       \   /       \   /
+//             X - - - - - X - - - - - X
+//             6           7           8
+*/
+int
+Level::gatherTriRegularInteriorPatchVertices(Index fIndex, Index points[12], int rotation) const
+{
+    IndexArray const fVerts = getFaceVertices(fIndex);
+    IndexArray const fEdges = getFaceEdges(fIndex);
+
+    int index0 = 0;
+    int index1 = 1;
+    int index2 = 2;
+    if (rotation) {
+        index0 = rotation % 3;
+        index1 = (rotation + 1) % 3;
+        index2 = (rotation + 2) % 3;
+    }
+
+    Index v0 = fVerts[index0];
+    Index v1 = fVerts[index1];
+    Index v2 = fVerts[index2];
+
+    IndexArray const v0Edges = getVertexEdges(v0);
+    IndexArray const v1Edges = getVertexEdges(v1);
+    IndexArray const v2Edges = getVertexEdges(v2);
+
+    int e0InV0Edges = v0Edges.FindIndex(fEdges[index0]);
+    int e1InV1Edges = v1Edges.FindIndex(fEdges[index1]);
+    int e2InV2Edges = v2Edges.FindIndex(fEdges[index2]);
+
+    points[ 0] = v0;
+    points[ 1] = v1;
+    points[ 2] = v2;
+
+    points[11] = otherOfTwo(getEdgeVertices(v0Edges[(e0InV0Edges + 3) % 6]), v0);
+    points[ 3] = otherOfTwo(getEdgeVertices(v0Edges[(e0InV0Edges + 4) % 6]), v0);
+    points[ 4] = otherOfTwo(getEdgeVertices(v0Edges[(e0InV0Edges + 5) % 6]), v0);
+
+    points[ 5] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 3) % 6]), v1);
+    points[ 6] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 4) % 6]), v1);
+    points[ 7] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 5) % 6]), v1);
+
+    points[ 8] = otherOfTwo(getEdgeVertices(v2Edges[(e2InV2Edges + 3) % 6]), v2);
+    points[ 9] = otherOfTwo(getEdgeVertices(v2Edges[(e2InV2Edges + 4) % 6]), v2);
+    points[10] = otherOfTwo(getEdgeVertices(v2Edges[(e2InV2Edges + 5) % 6]), v2);
+
+    return 12;
+}
+
+//
+//  Gathering the 9 vertices of a tri-regular "boundary edge" patch:
+//      - the neighborhood of the face is assumed to be tri-regular
+//      - referred to as "boundary edge" as the boundary occurs on the edge of the triangle
+//
+//  Boundary edge:
+//
+/*                   6           5
+//                   X - - - - - X
+//                 /   \       /   \
+//               /       \ 2 /       \
+//          7  X - - - - - X - - - - - X  4
+//           /   \       / * \       /   \
+//         /       \   / * * * \   /       \
+//    8  X - - - - - X - - - - - X - - - - - X  3
+//                   0           1
+*/
+int
+Level::gatherTriRegularBoundaryEdgePatchVertices(Index fIndex, Index points[], int boundaryFaceEdge) const
+{
+    IndexArray const fVerts = getFaceVertices(fIndex);
+
+    Index v0 = fVerts[boundaryFaceEdge];
+    Index v1 = fVerts[(boundaryFaceEdge + 1) % 3];
+    Index v2 = fVerts[(boundaryFaceEdge + 2) % 3];
+
+    IndexArray const v0Edges = getVertexEdges(v0);
+    IndexArray const v1Edges = getVertexEdges(v1);
+    IndexArray const v2Edges = getVertexEdges(v2);
+
+    int e1InV2Edges = v2Edges.FindIndex(v1Edges[2]);
+
+    points[0] = v0;
+    points[1] = v1;
+    points[2] = v2;
+
+    points[3] = otherOfTwo(getEdgeVertices(v1Edges[0]), v1);
+
+    points[4] = otherOfTwo(getEdgeVertices(v2Edges[(e1InV2Edges + 1) % 6]), v2);
+    points[5] = otherOfTwo(getEdgeVertices(v2Edges[(e1InV2Edges + 2) % 6]), v2);
+    points[6] = otherOfTwo(getEdgeVertices(v2Edges[(e1InV2Edges + 3) % 6]), v2);
+    points[7] = otherOfTwo(getEdgeVertices(v2Edges[(e1InV2Edges + 4) % 6]), v2);
+
+    points[8] = otherOfTwo(getEdgeVertices(v0Edges[3]), v0);
+
+    return 9;
+}
+
+//
+//  Gathering the 10 vertices of a tri-regular "boundary vertex" patch:
+//      - the neighborhood of the face is assumed to be tri-regular
+//      - referred to as "boundary vertex" as the boundary occurs on the vertex of the triangle
+//
+//  Boundary vertex:
+/*
+//                         0
+//          3  X - - - - - X - - - - - X  9
+//           /   \       / * \       /   \
+//         /       \   / * * * \   /       \
+//    4  X - - - - - X - - - - - X - - - - - X  8
+//         \       / 1 \       / 2 \       /
+//           \   /       \   /       \   /
+//             X - - - - - X - - - - - X
+//             5           6           7
+*/
+int
+Level::gatherTriRegularBoundaryVertexPatchVertices(Index fIndex, Index points[], int boundaryFaceVert) const
+{
+    IndexArray const fVerts = getFaceVertices(fIndex);
+    IndexArray const fEdges = getFaceEdges(fIndex);
+
+    Index v0 = fVerts[boundaryFaceVert];
+    Index v1 = fVerts[(boundaryFaceVert + 1) % 3];
+    Index v2 = fVerts[(boundaryFaceVert + 2) % 3];
+
+    Index e1 = fEdges[boundaryFaceVert];
+    Index e2 = fEdges[(boundaryFaceVert + 2) % 3];
+
+    IndexArray const v1Edges = getVertexEdges(v1);
+    IndexArray const v2Edges = getVertexEdges(v2);
+
+    int e1InV1Edges = v1Edges.FindIndex(e1);
+    int e2InV2Edges = v2Edges.FindIndex(e2);
+
+    points[0] = v0;
+    points[1] = v1;
+    points[2] = v2;
+
+    points[3] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 1) % 6]), v1);
+    points[4] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 2) % 6]), v1);
+    points[5] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 3) % 6]), v1);
+    points[6] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 4) % 6]), v1);
+
+    points[7] = otherOfTwo(getEdgeVertices(v2Edges[(e2InV2Edges + 3) % 6]), v2);
+    points[8] = otherOfTwo(getEdgeVertices(v2Edges[(e2InV2Edges + 4) % 6]), v2);
+    points[9] = otherOfTwo(getEdgeVertices(v2Edges[(e2InV2Edges + 5) % 6]), v2);
+
+    return 10;
+}
+
+//
+//  Gathering the 6 vertices of a tri-regular "corner vertex" patch:
+//      - the neighborhood of the face is assumed to be tri-regular
+//      - referred to as "corner vertex" to disambiguate it from another corner case
+//          - another boundary case shares the edge with the corner triangle
+//
+//  Corner vertex:
+/*
+//                         0
+//                         X
+//                       / * \
+//                     / * * * \
+//                   X - - - - - X
+//                 / 1 \       / 2 \
+//               /       \   /       \
+//             X - - - - - X - - - - - X
+//             3           4           5
+*/
+int
+Level::gatherTriRegularCornerVertexPatchVertices(Index fIndex, Index points[], int cornerFaceVert) const
+{
+    IndexArray const fVerts = getFaceVertices(fIndex);
+
+    Index v0 = fVerts[cornerFaceVert];
+    Index v1 = fVerts[(cornerFaceVert + 1) % 3];
+    Index v2 = fVerts[(cornerFaceVert + 2) % 3];
+
+    IndexArray const v1Edges = getVertexEdges(v1);
+    IndexArray const v2Edges = getVertexEdges(v2);
+
+    points[0] = v0;
+    points[1] = v1;
+    points[2] = v2;
+
+    points[3] = otherOfTwo(getEdgeVertices(v1Edges[0]), v1);
+    points[4] = otherOfTwo(getEdgeVertices(v1Edges[1]), v1);
+    points[5] = otherOfTwo(getEdgeVertices(v2Edges[3]), v2);
+
+    return 6;
+}
+
+//
+//  Gathering the 8 vertices of a tri-regular "corner edge" patch:
+//      - the neighborhood of the face is assumed to be tri-regular
+//      - referred to as "corner edge" to disambiguate it from the vertex corner case
+//          - this faces shares the edge with a corner triangle
+//
+//  Corner edge:
+/*
+//                   6           5
+//                   X - - - - - X
+//                 /   \       /   \
+//               /       \ 2 /       \
+//          7  X - - - - - X - - - - - X  4
+//               \       / * \       /
+//                 \   / * * * \   /
+//                   X - - - - - X
+//                   0 \       / 1
+//                       \   /
+//                         X
+//                         3
+*/
+int
+Level::gatherTriRegularCornerEdgePatchVertices(Index fIndex, Index points[], int cornerFaceEdge) const
+{
+    IndexArray const fVerts = getFaceVertices(fIndex);
+    IndexArray const fEdges = getFaceEdges(fIndex);
+
+    Index v0 = fVerts[cornerFaceEdge];
+    Index v1 = fVerts[(cornerFaceEdge + 1) % 3];
+    Index v2 = fVerts[(cornerFaceEdge + 2) % 3];
+
+    IndexArray const v0Edges = getVertexEdges(v0);
+    IndexArray const v1Edges = getVertexEdges(v1);
+
+    points[0] = v0;
+    points[1] = v1;
+    points[2] = v2;
+
+    points[3] = otherOfTwo(getEdgeVertices(v1Edges[3]), v1);
+    points[4] = otherOfTwo(getEdgeVertices(v1Edges[0]), v1);
+    points[7] = otherOfTwo(getEdgeVertices(v0Edges[3]), v0);
+
+    IndexArray const v4Edges = getVertexEdges(points[4]);
+    IndexArray const v7Edges = getVertexEdges(points[7]);
+
+    points[5] = otherOfTwo(getEdgeVertices(v4Edges[v4Edges.size() - 3]), v1);
+    points[6] = otherOfTwo(getEdgeVertices(v7Edges[2]), v1);
+
+    return 8;
+}
+
 bool
 Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *rotationOut) const {
 
@@ -808,7 +1075,7 @@ Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *rotationOut) co
 
     // if there's any corner vertex, return false.
     for (int i = 0; i < fVerts.size(); ++i) {
-        if (this->getVertexSharpness(fVerts[i]) > 0)
+        if (this->getVertexSharpness(fVerts[i]) > 0.0f)
             return false;
     }
 
@@ -872,8 +1139,7 @@ Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *rotationOut) co
         if (vEdges.size() != 4) return false;
         // all edges have to be smooth
         for (int j = 0; j < 4; ++j) {
-            float sharpness = this->getEdgeSharpness(vEdges[j]);
-            if (sharpness > 0.0f) return false;
+            if (this->getEdgeSharpness(vEdges[j]) > 0.0f) return false;
         }
     }
 

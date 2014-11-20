@@ -237,12 +237,17 @@ public:
     //  High-level topology queries -- these are likely to be moved elsewhere, but here
     //  is the best place for them for now...
 
-    //  Irritating that the PatchTables use "unsigned int" for indices instead of "int":
+    int gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int ringVerts[]) const;
+
     int gatherQuadRegularInteriorPatchVertices(Index fIndex, Index patchVerts[], int rotation = 0) const;
     int gatherQuadRegularBoundaryPatchVertices(Index fIndex, Index patchVerts[], int boundaryEdgeInFace) const;
     int gatherQuadRegularCornerPatchVertices(  Index fIndex, Index patchVerts[], int cornerVertInFace) const;
 
-    int gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int ringVerts[]) const;
+    int gatherTriRegularInteriorPatchVertices(      Index fIndex, Index patchVerts[], int rotation = 0) const;
+    int gatherTriRegularBoundaryVertexPatchVertices(Index fIndex, Index patchVerts[], int boundaryVertInFace) const;
+    int gatherTriRegularBoundaryEdgePatchVertices(  Index fIndex, Index patchVerts[], int boundaryEdgeInFace) const;
+    int gatherTriRegularCornerVertexPatchVertices(  Index fIndex, Index patchVerts[], int cornerVertInFace) const;
+    int gatherTriRegularCornerEdgePatchVertices(    Index fIndex, Index patchVerts[], int cornerEdgeInFace) const;
 
     bool isSingleCreasePatch(Index face, float* sharpnessOut=NULL, int* rotationOut=NULL) const;
 
