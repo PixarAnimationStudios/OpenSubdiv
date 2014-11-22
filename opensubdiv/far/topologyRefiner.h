@@ -552,6 +552,9 @@ private:
     template <Sdc::Type SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
     template <Sdc::Type SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
 
+    template <Sdc::Type SCHEME, class T, class U> void limit(T const & src, U * dst) const;
+
+    template <Sdc::Type SCHEME, class T, class U> void faceVaryingLimit(T const & src, U * dst, int channel) const;
 
     void initializePtexIndices() const;
 
@@ -1301,6 +1304,25 @@ template <class T, class U>
 inline void
 TopologyRefiner::Limit(T const & src, U * dst) const {
 
+    assert(GetMaxLevel() > 0);
+
+    switch (_subdivType) {
+    case Sdc::TYPE_CATMARK:
+        limit<Sdc::TYPE_CATMARK>(src, dst);
+        break;
+    case Sdc::TYPE_LOOP:
+        limit<Sdc::TYPE_LOOP>(src, dst);
+        break;
+    case Sdc::TYPE_BILINEAR:
+        limit<Sdc::TYPE_BILINEAR>(src, dst);
+        break;
+    }
+}
+
+template <Sdc::Type SCHEME, class T, class U>
+inline void
+TopologyRefiner::limit(T const & src, U * dst) const {
+
     //
     //  Work in progress...
     //      - does not support tangents yet (unclear how)
@@ -1311,11 +1333,8 @@ TopologyRefiner::Limit(T const & src, U * dst) const {
     //      - currently requires one refinement to get rid of N-sided faces:
     //          - could limit regular vertices from level 0
     //
+    Sdc::Scheme<SCHEME> scheme(_subdivOptions);
 
-    assert(_subdivType == Sdc::TYPE_CATMARK);
-    Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_subdivOptions);
-
-    assert(GetMaxLevel() > 0);
     Vtr::Level const & level = getLevel(GetMaxLevel());
 
     int maxWeightsPerMask = 1 + 2 * level.getMaxValence();
@@ -1354,8 +1373,11 @@ TopologyRefiner::Limit(T const & src, U * dst) const {
             IndexArray const      vFaces = level.getVertexFaces(vert);
             LocalIndexArray const vInFace = level.getVertexFaceLocalIndices(vert);
             for (int i = 0; i < vFaces.size(); ++i) {
-                LocalIndex vOppInFace = (vInFace[i] + 2) & 3;
-                Index      vertOppositeFace = level.getFaceVertices(vFaces[i])[vOppInFace];
+                IndexArray const fVerts = level.getFaceVertices(vFaces[i]);
+
+                LocalIndex vOppInFace = (vInFace[i] + 2);
+                if (vOppInFace >= fVerts.size()) vOppInFace -= (LocalIndex)fVerts.size();
+                Index vertOppositeFace = level.getFaceVertices(vFaces[i])[vOppInFace];
 
                 dst[vert].AddWithWeight(src[vertOppositeFace], fWeights[i]);
             }
@@ -1376,10 +1398,27 @@ template <class T, class U>
 inline void
 TopologyRefiner::LimitFaceVarying(T const & src, U * dst, int channel) const {
 
-    assert(_subdivType == Sdc::TYPE_CATMARK);
-    Sdc::Scheme<Sdc::TYPE_CATMARK> scheme(_subdivOptions);
-
     assert(GetMaxLevel() > 0);
+
+    switch (_subdivType) {
+    case Sdc::TYPE_CATMARK:
+        faceVaryingLimit<Sdc::TYPE_CATMARK>(src, dst, channel);
+        break;
+    case Sdc::TYPE_LOOP:
+        faceVaryingLimit<Sdc::TYPE_LOOP>(src, dst, channel);
+        break;
+    case Sdc::TYPE_BILINEAR:
+        faceVaryingLimit<Sdc::TYPE_BILINEAR>(src, dst, channel);
+        break;
+    }
+}
+
+template <Sdc::Type SCHEME, class T, class U>
+inline void
+TopologyRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
+
+    Sdc::Scheme<SCHEME> scheme(_subdivOptions);
+
     Vtr::Level const &      level       = getLevel(GetMaxLevel());
     Vtr::FVarLevel const &  fvarChannel = *level._fvarChannels[channel];
 

@@ -574,6 +574,9 @@ Scheme<SCHEME>::ComputeVertexLimitMask(VERTEX const& vertex,
 {
     if (vertex.GetNumFaces() == vertex.GetNumEdges()) {
         assignInteriorLimitMask(vertex, mask);
+    } else if ((vertex.GetNumFaces() == 1) &&
+               (_options.GetVVarBoundaryInterpolation() == Sdc::Options::VVAR_BOUNDARY_EDGE_AND_CORNER)) {
+        assignCornerMaskForVertex(vertex, mask);
     } else {
         assignBoundaryLimitMask(vertex, mask);
     }

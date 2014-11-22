@@ -168,7 +168,7 @@ Scheme<TYPE_LOOP>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask) c
     mask.SetNumFaceWeights(0);
     mask.SetFaceWeightsForFaceCenters(false);
 
-    //  Specialize for the regular case (1/16 per edge-vert + 5/8 for the vert itself):
+    //  Specialize for the regular case:  1/16 per edge-vert, 5/8 for the vert itself:
     Weight eWeight = (Weight) 0.0625f;
     Weight vWeight = (Weight) 0.625f;
 
@@ -234,13 +234,19 @@ Scheme<TYPE_LOOP>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) 
     posMask.SetNumFaceWeights(0);
     posMask.SetFaceWeightsForFaceCenters(false);
 
-    Weight invValence = 1.0f / valence;
+    //  Specialize for the regular case:  1/12 per edge-vert, 1/2 for the vert itself:
+    Weight eWeight = 1.0f / 12.0f;
+    Weight vWeight = 0.5f;
 
-    Weight beta = 0.25f * cosf((Weight)M_PI * 2.0f * invValence) + 0.375f;
-    beta = (0.625f - (beta * beta)) * invValence;;
+    if (valence != 6) {
+        Weight invValence = 1.0f / valence;
 
-    Weight eWeight = 1.0f / (valence + 3.0f / (8.0f * beta));
-    Weight vWeight = (Weight)(1.0f - (eWeight * valence));
+        Weight beta = 0.25f * cosf((Weight)M_PI * 2.0f * invValence) + 0.375f;
+        beta = (0.625f - (beta * beta)) * invValence;;
+
+        eWeight = 1.0f / (valence + 3.0f / (8.0f * beta));
+        vWeight = (Weight)(1.0f - (eWeight * valence));
+    }
 
     posMask.VertexWeight(0) = vWeight;
     for (int i = 0; i < valence; ++i) {
