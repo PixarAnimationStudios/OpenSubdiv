@@ -65,42 +65,36 @@ PatchMap::addChild( QuadTree & quadtree, QuadNode * parent, int quadrant ) {
 void
 PatchMap::initialize( PatchTables const & patchTables ) {
 
-    int nfaces = 0, npatches = (int)patchTables.GetNumPatchesTotal();
+    int nfaces = 0,
+        narrays = (int)patchTables.GetNumPatchArrays(),
+        npatches = (int)patchTables.GetNumPatchesTotal();
 
-    if (not npatches)
+    if (not narrays or not npatches)
         return;
-
-    PatchTables::PatchArrayVector const & patchArrays =
-        patchTables.GetPatchArrayVector();
-
-    PatchTables::PatchParamTable const & paramTable =
-        patchTables.GetPatchParamTable();
 
     // populate subpatch handles vector
     _handles.resize(npatches);
-    for (int arrayIdx=0, current=0; arrayIdx<(int)patchArrays.size(); ++arrayIdx) {
 
-        PatchTables::PatchArray const & parray = patchArrays[arrayIdx];
+    for (int parray=0, current=0; parray<narrays; ++parray) {
 
-        int ringsize = parray.GetDescriptor().GetNumControlVertices();
+        PatchParamArray params = patchTables.GetPatchParams(parray);
 
-        for (Index j=0; j < parray.GetNumPatches(); ++j) {
+        int ringsize = patchTables.GetPatchArrayDescriptor(parray).GetNumControlVertices();
 
-            PatchParam const & param = paramTable[parray.GetPatchIndex()+j];
+        for (Index j=0; j < patchTables.GetNumPatches(parray); ++j) {
 
             Handle & h = _handles[current];
 
-            h.patchArrayIdx = arrayIdx;
-            h.patchIdx      = current;
-            h.vertexOffset  = j * ringsize;
+            h.arrayIndex = parray;
+            h.patchIndex = current;
+            h.vertIndex  = j * ringsize;
 
-            nfaces = std::max(nfaces, (int)param.faceIndex);
+            nfaces = std::max(nfaces, (int)params[j].faceIndex);
 
             ++current;
         }
     }
     ++nfaces;
-
     // temporary vector to hold the quadtree while under construction
     std::vector<QuadNode> quadtree;
 
@@ -111,23 +105,21 @@ PatchMap::initialize( PatchTables const & patchTables ) {
     quadtree.resize(nfaces);
 
     // populate the quadtree from the FarPatchArrays sub-patches
-    for (int i=0, handleIdx=0; i<(int)patchArrays.size(); ++i) {
+    for (Index parray=0, handleIndex=0; parray<narrays; ++parray) {
 
-        PatchTables::PatchArray const & parray = patchArrays[i];
+        PatchParamArray params = patchTables.GetPatchParams(parray);
 
-        for (int j=0; j < parray.GetNumPatches(); ++j, ++handleIdx) {
+        for (int i=0; i < patchTables.GetNumPatches(parray); ++i, ++handleIndex) {
 
-            PatchParam const & param = paramTable[parray.GetPatchIndex()+j];
-
-            PatchParam::BitField bits = param.bitField;
+            PatchParam::BitField bits = params[i].bitField;
 
             unsigned char depth = bits.GetDepth();
 
-            QuadNode * node = &quadtree[ param.faceIndex ];
+            QuadNode * node = &quadtree[ params[i].faceIndex ];
 
             if (depth==(bits.NonQuadRoot() ? 1 : 0)) {
                 // special case : regular BSpline face w/ no sub-patches
-                node->SetChild( handleIdx );
+                node->SetChild( handleIndex );
                 continue;
             }
 
@@ -136,7 +128,7 @@ PatchMap::initialize( PatchTables const & patchTables ) {
                 pdepth = bits.NonQuadRoot() ? depth-2 : depth-1,
                 half = 1 << pdepth;
 
-            for (unsigned char k=0; k<depth; ++k) {
+            for (unsigned char j=0; j<depth; ++j) {
 
                 int delta = half >> 1;
 
@@ -145,10 +137,10 @@ PatchMap::initialize( PatchTables const & patchTables ) {
 
                 half = delta;
 
-                if (k==pdepth) {
+                if (j==pdepth) {
                    // we have reached the depth of the sub-patch : add a leaf
                    assert( not node->children[quadrant].isSet );
-                   node->SetChild(quadrant, handleIdx, true);
+                   node->SetChild(quadrant, handleIndex, true);
                    break;
                 } else {
                     // travel down the child node of the corresponding quadrant

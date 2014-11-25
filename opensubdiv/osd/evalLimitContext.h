@@ -40,9 +40,7 @@ namespace Osd {
 
 /// \brief Coordinates set on a limit surface
 ///
-class LimitLocation {
-
-public:
+struct LimitLocation {
 
     LimitLocation() { }
 
@@ -56,7 +54,7 @@ public:
     ///
     LimitLocation(int f, float x, float y) : ptexIndex(f), s(x), t(y) { }
 
-    int ptexIndex;      ///< ptex face index  
+    int ptexIndex;      ///< ptex face index
 
     float s, t;         ///< parametric location on face
 };

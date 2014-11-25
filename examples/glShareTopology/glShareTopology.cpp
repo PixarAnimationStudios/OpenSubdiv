@@ -764,8 +764,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     const char *glslVersion = "#version 330\n";
 #endif
 
-    if (desc.first.GetType() == Far::PatchTables::QUADS or
-        desc.first.GetType() == Far::PatchTables::TRIANGLES) {
+    if (desc.first.GetType() == Far::PatchDescriptor::QUADS or
+        desc.first.GetType() == Far::PatchDescriptor::TRIANGLES) {
         sconfig->vertexShader.source = shaderSource;
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
@@ -781,12 +781,12 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     sconfig->fragmentShader.version = glslVersion;
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
-    if (desc.first.GetType() == Far::PatchTables::QUADS) {
+    if (desc.first.GetType() == Far::PatchDescriptor::QUADS) {
         // uniform catmark, bilinear
         sconfig->geometryShader.AddDefine("PRIM_QUAD");
         sconfig->fragmentShader.AddDefine("PRIM_QUAD");
         sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else if (desc.first.GetType() == Far::PatchTables::TRIANGLES) {
+    } else if (desc.first.GetType() == Far::PatchDescriptor::TRIANGLES) {
         // uniform loop
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
@@ -1020,15 +1020,15 @@ drawPatches(Osd::DrawContext::PatchArrayVector const &patches,
         Osd::DrawContext::PatchArray const & patch = patches[i];
 
         Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
-        Far::PatchTables::Type patchType = desc.GetType();
+        Far::PatchDescriptor::Type patchType = desc.GetType();
 
         GLenum primType;
 
         switch(patchType) {
-        case Far::PatchTables::QUADS:
+        case Far::PatchDescriptor::QUADS:
             primType = GL_LINES_ADJACENCY;
             break;
-        case Far::PatchTables::TRIANGLES:
+        case Far::PatchDescriptor::TRIANGLES:
             primType = GL_TRIANGLES;
             break;
         default:

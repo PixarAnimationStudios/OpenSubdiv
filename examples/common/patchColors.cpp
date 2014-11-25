@@ -56,26 +56,25 @@ static float _colors[5][7][4] = {{{1.0f,  1.0f,  1.0f,  1.0f},   // regular
                                   {0.25f, 0.25f, 0.25f, 1.0f},   // corner pattern 3
                                   {0.25f, 0.25f, 0.25f, 1.0f}}}; // corner pattern 4
 
-typedef OpenSubdiv::Far::PatchTables FarPatchTables;
-
+typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
 
 float const *
-getAdaptivePatchColor(FarPatchTables::Descriptor const & desc) {
+getAdaptivePatchColor(Descriptor const & desc) {
 
-    if (desc.GetPattern()==FarPatchTables::NON_TRANSITION) {
-        return _colors[0][(int)(desc.GetType()-FarPatchTables::REGULAR)];
+    if (desc.GetPattern()==Descriptor::NON_TRANSITION) {
+        return _colors[0][(int)(desc.GetType()-Descriptor::REGULAR)];
     } else {
-        return _colors[(int)(desc.GetType()-FarPatchTables::REGULAR)+1][(int)desc.GetPattern()-1];
+        return _colors[(int)(desc.GetType()-Descriptor::REGULAR)+1][(int)desc.GetPattern()-1];
     }
 }
 
 float const *
 getAdaptivePatchColor(OpenSubdiv::Osd::DrawContext::PatchDescriptor const & desc) {
 
-    if (desc.GetPattern()==FarPatchTables::NON_TRANSITION) {
-        return _colors[0][(int)(desc.GetType()-FarPatchTables::REGULAR)];
+    if (desc.GetPattern()==Descriptor::NON_TRANSITION) {
+        return _colors[0][(int)(desc.GetType()-Descriptor::REGULAR)];
     } else {
-        return _colors[(int)(desc.GetType()-FarPatchTables::REGULAR)+1][(int)desc.GetPattern()-1];
+        return _colors[(int)(desc.GetType()-Descriptor::REGULAR)+1][(int)desc.GetPattern()-1];
     }
 }
 

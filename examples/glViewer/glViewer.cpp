@@ -840,6 +840,8 @@ protected:
 EffectDrawRegistry::SourceConfigType *
 EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 {
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+
     Effect effect = desc.second;
 
     SourceConfigType * sconfig =
@@ -853,8 +855,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     const char *glslVersion = "#version 330\n";
 #endif
 
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS or
-        desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    if (desc.first.GetType() == Descriptor::QUADS or
+        desc.first.GetType() == Descriptor::TRIANGLES) {
         sconfig->vertexShader.source = shaderSource;
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
@@ -870,12 +872,12 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     sconfig->fragmentShader.version = glslVersion;
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS) {
+    if (desc.first.GetType() == Descriptor::QUADS) {
         // uniform catmark, bilinear
         sconfig->geometryShader.AddDefine("PRIM_QUAD");
         sconfig->fragmentShader.AddDefine("PRIM_QUAD");
         sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    } else if (desc.first.GetType() == Descriptor::TRIANGLES) {
         // uniform loop
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
@@ -1169,7 +1171,7 @@ display() {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
         OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
-        OpenSubdiv::Far::PatchTables::Type patchType = desc.GetType();
+        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
         int patchPattern = desc.GetPattern();
         int patchRotation = desc.GetRotation();
         int subPatch = desc.GetSubPatch();
@@ -1182,10 +1184,10 @@ display() {
         GLenum primType;
 
         switch(patchType) {
-        case OpenSubdiv::Far::PatchTables::QUADS:
+        case OpenSubdiv::Far::PatchDescriptor::QUADS:
             primType = GL_LINES_ADJACENCY;
             break;
-        case OpenSubdiv::Far::PatchTables::TRIANGLES:
+        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
             primType = GL_TRIANGLES;
             break;
         default:
@@ -1276,51 +1278,53 @@ display() {
 
     if (g_hud.IsVisible()) {
 
+        typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+
         double fps = 1.0/elapsed;
 
         if (g_displayPatchCounts) {
             int x = -280;
             int y = -480;
             g_hud.DrawString(x, y, "NonPatch         : %d",
-                             patchCount[OpenSubdiv::Far::PatchTables::QUADS][0][0]); y += 20;
+                             patchCount[Descriptor::QUADS][0][0]); y += 20;
             g_hud.DrawString(x, y, "Regular          : %d",
-                             patchCount[OpenSubdiv::Far::PatchTables::REGULAR][0][0]); y+= 20;
+                             patchCount[Descriptor::REGULAR][0][0]); y+= 20;
             g_hud.DrawString(x, y, "Boundary         : %d",
-                             patchCount[OpenSubdiv::Far::PatchTables::BOUNDARY][0][0]); y+= 20;
+                             patchCount[Descriptor::BOUNDARY][0][0]); y+= 20;
             g_hud.DrawString(x, y, "Corner           : %d",
-                             patchCount[OpenSubdiv::Far::PatchTables::CORNER][0][0]); y+= 20;
+                             patchCount[Descriptor::CORNER][0][0]); y+= 20;
             g_hud.DrawString(x, y, "Single Crease    : %d",
-                             patchCount[OpenSubdiv::Far::PatchTables::SINGLE_CREASE][0][0]); y+= 20;
+                             patchCount[Descriptor::SINGLE_CREASE][0][0]); y+= 20;
             g_hud.DrawString(x, y, "Gregory          : %d",
-                             patchCount[OpenSubdiv::Far::PatchTables::GREGORY][0][0]); y+= 20;
+                             patchCount[Descriptor::GREGORY][0][0]); y+= 20;
             g_hud.DrawString(x, y, "Boundary Gregory : %d",
-                             patchCount[OpenSubdiv::Far::PatchTables::GREGORY_BOUNDARY][0][0]); y+= 20;
+                             patchCount[Descriptor::GREGORY_BOUNDARY][0][0]); y+= 20;
             g_hud.DrawString(x, y, "Trans. Regular   : %d %d %d %d %d",
-                             patchCount[OpenSubdiv::Far::PatchTables::REGULAR][OpenSubdiv::Far::PatchTables::PATTERN0][0],
-                             patchCount[OpenSubdiv::Far::PatchTables::REGULAR][OpenSubdiv::Far::PatchTables::PATTERN1][0],
-                             patchCount[OpenSubdiv::Far::PatchTables::REGULAR][OpenSubdiv::Far::PatchTables::PATTERN2][0],
-                             patchCount[OpenSubdiv::Far::PatchTables::REGULAR][OpenSubdiv::Far::PatchTables::PATTERN3][0],
-                             patchCount[OpenSubdiv::Far::PatchTables::REGULAR][OpenSubdiv::Far::PatchTables::PATTERN4][0]); y+= 20;
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN0][0],
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN1][0],
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN2][0],
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN3][0],
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN4][0]); y+= 20;
             for (int i=0; i < 5; i++) {
                 g_hud.DrawString(x, y, "Trans. Boundary%d : %d %d %d %d", i,
-                                 patchCount[OpenSubdiv::Far::PatchTables::BOUNDARY][i+1][0],
-                                 patchCount[OpenSubdiv::Far::PatchTables::BOUNDARY][i+1][1],
-                                 patchCount[OpenSubdiv::Far::PatchTables::BOUNDARY][i+1][2],
-                                 patchCount[OpenSubdiv::Far::PatchTables::BOUNDARY][i+1][3]); y+= 20;
+                                 patchCount[Descriptor::BOUNDARY][i+1][0],
+                                 patchCount[Descriptor::BOUNDARY][i+1][1],
+                                 patchCount[Descriptor::BOUNDARY][i+1][2],
+                                 patchCount[Descriptor::BOUNDARY][i+1][3]); y+= 20;
             }
             for (int i=0; i < 5; i++) {
                 g_hud.DrawString(x, y, "Trans. Corner%d  : %d %d %d %d", i,
-                                 patchCount[OpenSubdiv::Far::PatchTables::CORNER][i+1][0],
-                                 patchCount[OpenSubdiv::Far::PatchTables::CORNER][i+1][1],
-                                 patchCount[OpenSubdiv::Far::PatchTables::CORNER][i+1][2],
-                                 patchCount[OpenSubdiv::Far::PatchTables::CORNER][i+1][3]); y+= 20;
+                                 patchCount[Descriptor::CORNER][i+1][0],
+                                 patchCount[Descriptor::CORNER][i+1][1],
+                                 patchCount[Descriptor::CORNER][i+1][2],
+                                 patchCount[Descriptor::CORNER][i+1][3]); y+= 20;
             }
             for (int i=0; i < 5; i++) {
                 g_hud.DrawString(x, y, "Trans. Single Crease%d : %d %d %d %d", i,
-                                 patchCount[OpenSubdiv::Far::PatchTables::SINGLE_CREASE][i+1][0],
-                                 patchCount[OpenSubdiv::Far::PatchTables::SINGLE_CREASE][i+1][1],
-                                 patchCount[OpenSubdiv::Far::PatchTables::SINGLE_CREASE][i+1][2],
-                                 patchCount[OpenSubdiv::Far::PatchTables::SINGLE_CREASE][i+1][3]); y+= 20;
+                                 patchCount[Descriptor::SINGLE_CREASE][i+1][0],
+                                 patchCount[Descriptor::SINGLE_CREASE][i+1][1],
+                                 patchCount[Descriptor::SINGLE_CREASE][i+1][2],
+                                 patchCount[Descriptor::SINGLE_CREASE][i+1][3]); y+= 20;
             }
         }
 

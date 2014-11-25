@@ -71,18 +71,18 @@ public:
         /// @param numElements  The size of the vertex and varying data per-vertex
         ///                     (in floats)
         ///
-        PatchDescriptor(Far::PatchTables::Descriptor farDesc, unsigned char maxValence,
+        PatchDescriptor(Far::PatchDescriptor farDesc, unsigned char maxValence,
                     unsigned char subPatch, unsigned char numElements) :
             _farDesc(farDesc), _maxValence(maxValence), _subPatch(subPatch), _numElements(numElements) { }
 
 
         /// Returns the type of the patch
-        Far::PatchTables::Type GetType() const {
+        Far::PatchDescriptor::Type GetType() const {
             return _farDesc.GetType();
         }
 
         /// Returns the transition pattern of the patch if any (5 types)
-        Far::PatchTables::TransitionPattern GetPattern() const {
+        Far::PatchDescriptor::TransitionPattern GetPattern() const {
             return _farDesc.GetPattern();
         }
 
@@ -124,23 +124,33 @@ public:
         bool operator == ( PatchDescriptor const other ) const;
 
     private:
-        Far::PatchTables::Descriptor _farDesc;
+        Far::PatchDescriptor _farDesc;
         unsigned char _maxValence;
         unsigned char _subPatch;
         unsigned char _numElements;
     };
 
+    typedef Far::Index Index;
+
     class PatchArray {
     public:
         /// Constructor
         ///
-        /// @param desc   Patch descriptor defines the type, pattern, rotation of
-        ///               the patches in the array
+        /// @param desc       Patch descriptor defines the type, pattern, rotation of
+        ///                   the patches in the array
         ///
-        /// @param range  The range of vertex indices
+        /// @param npatches   The number of patches in the array
         ///
-        PatchArray(PatchDescriptor desc, Far::PatchTables::PatchArray::ArrayRange const & range) :
-            _desc(desc), _range(range) { }
+        /// @param vertIndex  Index of the first control vertex in the array
+        ///
+        /// @param patchIndex Index of the first patch in the array
+        ///
+        /// @param qoIndex    Index of the first quad-offset entry
+        ///
+        PatchArray(PatchDescriptor desc, int npatches,
+            Index vertIndex, Index patchIndex, Index qoIndex) :
+                _desc(desc), _npatches(npatches),
+                    _vertIndex(vertIndex), _patchIndex(patchIndex), _quadOffsetIndex(qoIndex) { }
 
         /// Returns a patch descriptor defining the type of patches in the array
         PatchDescriptor GetDescriptor() const {
@@ -152,46 +162,44 @@ public:
             _desc = desc;
         }
 
-        /// Returns a array range struct
-        Far::PatchTables::PatchArray::ArrayRange const & GetArrayRange() const {
-            return _range;
-        }
-
         /// Returns the index of the first control vertex of the first patch
         /// of this array in the global PTable
         unsigned int GetVertIndex() const {
-            return _range.vertIndex;
+            return _vertIndex;
         }
 
         /// Returns the global index of the first patch in this array (Used to
         /// access ptex / fvar table data)
         unsigned int GetPatchIndex() const {
-            return _range.patchIndex;
+            return _patchIndex;
         }
 
         /// Returns the number of patches in the array
         unsigned int GetNumPatches() const {
-            return _range.npatches;
+            return _npatches;
         }
 
         /// Returns the number of patch indices in the array
         unsigned int GetNumIndices() const {
-            return _range.npatches * _desc.GetNumControlVertices();
+            return _npatches * _desc.GetNumControlVertices();
         }
 
         /// Returns the offset of quad offset table
         unsigned int GetQuadOffsetIndex() const {
-            return _range.quadOffsetIndex;
+            return _quadOffsetIndex;
         }
 
         /// Set num patches (used at batch glomming)
         void SetNumPatches(int npatches) {
-            _range.npatches = npatches;
+            _npatches = npatches;
         }
 
     private:
         PatchDescriptor _desc;
-        Far::PatchTables::PatchArray::ArrayRange _range;
+        int _npatches;
+        Index _vertIndex,
+              _patchIndex,
+              _quadOffsetIndex;
     };
 
     /// Constructor
@@ -220,17 +228,19 @@ public:
 
     // processes FarPatchArrays and inserts requisite sub-patches for the arrays
     // containing transition patches
-    static void ConvertPatchArrays(Far::PatchTables::PatchArrayVector const &farPatchArrays,
-                                   DrawContext::PatchArrayVector &osdPatchArrays,
-                                   int maxValence, int numElements);
+    static void ConvertPatchArrays(Far::PatchTables const &patchTables,
+        DrawContext::PatchArrayVector &osdPatchArrays, int maxValence, int numElements);
 
 
     typedef std::vector<float> FVarData;
 
 protected:
 
+     static void packPatchVerts(Far::PatchTables const & patchTables,
+         std::vector<Index> & dst);
+
      static void packFVarData(Far::PatchTables const & patchTables,
-                              int fvarWidth, FVarData const & src, FVarData & dst);
+         int fvarWidth, FVarData const & src, FVarData & dst);
 
     // XXXX: move to private member
     PatchArrayVector _patchArrays;

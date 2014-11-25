@@ -55,6 +55,56 @@ void OmpSmoothNormalController::_smootheNormals(
     CpuSmoothNormalContext * context) {
 
     VertexBufferDescriptor const & iDesc = context->GetInputVertexDescriptor(),
+                                 & oDesc = context->GetOutputVertexDescriptor();
+
+    assert(iDesc.length==3 and oDesc.length==3);
+
+    float * oBuffer = context->GetCurrentOutputVertexBuffer() + oDesc.offset;
+    if (context->GetResetMemory()) {
+
+#pragma omp parallel for
+        for (int j=0; j<context->GetNumVertices(); ++j) {
+            float * ptr = oBuffer + j * oDesc.stride;
+            memset(ptr, 0, oDesc.length*sizeof(float));
+        }
+    }
+
+    {   // note: quads only !
+        float const * iBuffer = context->GetCurrentInputVertexBuffer() + iDesc.offset;
+
+        Far::Index const * fverts = context->GetFaceVertices();
+
+        int nfaces = context->GetNumFaces();
+
+#pragma omp parallel for
+        for (int i=0; i<nfaces; ++i) {
+
+            int idx = i*4;
+
+            float const * p0 = iBuffer + fverts[idx+0]*iDesc.stride,
+                        * p1 = iBuffer + fverts[idx+1]*iDesc.stride,
+                        * p2 = iBuffer + fverts[idx+2]*iDesc.stride;
+
+            // compute face normal
+            float n[3];
+            cross( n, p0, p1, p2 );
+
+            // add normal to all vertices of the face
+            for (int j=0; j<4; ++j) {
+                float * dst = oBuffer + fverts[idx+j]*oDesc.stride;
+                dst[0] += n[0];
+                dst[1] += n[1];
+                dst[2] += n[2];
+            }
+        }
+    }
+}
+
+/*
+void OmpSmoothNormalController::_smootheNormals(
+    CpuSmoothNormalContext * context) {
+
+    VertexBufferDescriptor const & iDesc = context->GetInputVertexDescriptor(),
                                     & oDesc = context->GetOutputVertexDescriptor();
 
     assert(iDesc.length==3 and oDesc.length==3);
@@ -118,7 +168,7 @@ void OmpSmoothNormalController::_smootheNormals(
     }
 
 }
-
+*/
 OmpSmoothNormalController::OmpSmoothNormalController() {
 }
 

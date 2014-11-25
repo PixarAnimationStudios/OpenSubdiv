@@ -119,7 +119,7 @@ GLDrawContext::create(Far::PatchTables const & patchTables, int numVertexElement
     _isAdaptive = patchTables.IsFeatureAdaptive();
 
     // Process PTable
-    Far::PatchTables::PTable const & ptables = patchTables.GetPatchTable();
+    Far::PatchTables::PatchVertsTable const & ptables = patchTables.GetPatchControlVerticesTable();
 
     glGenBuffers(1, &_patchIndexBuffer);
 
@@ -137,8 +137,8 @@ GLDrawContext::create(Far::PatchTables const & patchTables, int numVertexElement
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 
-    DrawContext::ConvertPatchArrays(patchTables.GetPatchArrayVector(),
-        _patchArrays, patchTables.GetMaxValence(), numVertexElements);
+    DrawContext::ConvertPatchArrays(patchTables, _patchArrays,
+        patchTables.GetMaxValence(), numVertexElements);
 
     // allocate and initialize additional buffer data
 
@@ -156,15 +156,15 @@ GLDrawContext::create(Far::PatchTables const & patchTables, int numVertexElement
 
 
     // create quad offset table buffer
-    Far::PatchTables::QuadOffsetTable const &
-        quadOffsetTable = patchTables.GetQuadOffsetTable();
+    Far::PatchTables::QuadOffsetsTable const &
+        quadOffsetTable = patchTables.GetQuadOffsetsTable();
 
     if (not quadOffsetTable.empty())
         _quadOffsetsTextureBuffer = createTextureBuffer(quadOffsetTable, GL_R32I);
 
 
     // create ptex coordinate buffer
-    Far::PatchTables::PatchParamTable const &
+    Far::PatchParamTable const &
         patchParamTables = patchTables.GetPatchParamTable();
 
     if (not patchParamTables.empty()) {

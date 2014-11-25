@@ -399,9 +399,9 @@ evalGregoryBasis(float u, float v,
                  Far::StencilTables const & basisStencils,
                  int stencilIndex,
                  VertexBufferDescriptor const & inDesc,
-                 float const * inQ, 
+                 float const * inQ,
                  VertexBufferDescriptor const & outDesc,
-                 float * outQ, 
+                 float * outQ,
                  float * outDQU,
                  float * outDQV ) {
 
@@ -634,7 +634,7 @@ void
 evalGregory(float u, float v,
             Far::Index const * vertexIndices,
             Far::Index const * vertexValenceBuffer,
-            Far::Index const * quadOffsetBuffer,
+            unsigned int const * quadOffsetBuffer,
             int maxValence,
             VertexBufferDescriptor const & inDesc,
             float const * inQ,
@@ -761,7 +761,7 @@ evalGregory(float u, float v,
         int ip = (vid+1)%4;
         int im = (vid+3)%4;
         int n = valences[vid];
-        Far::Index const *quadOffsets = quadOffsetBuffer;
+        unsigned int const *quadOffsets = quadOffsetBuffer;
 
         int start = quadOffsets[vid] & 0x00ff;
         int prev = (quadOffsets[vid] & 0xff00) / 256;
@@ -892,7 +892,7 @@ void
 evalGregoryBoundary(float u, float v,
                     Far::Index const * vertexIndices,
                     Far::Index const * vertexValenceBuffer,
-                    Far::Index const * quadOffsetBuffer,
+                    unsigned int const * quadOffsetBuffer,
                     int maxValence,
                     VertexBufferDescriptor const & inDesc,
                     float const * inQ,
@@ -1109,7 +1109,7 @@ evalGregoryBoundary(float u, float v,
                    n = abs(valences[vid]),
                    ivalence = n;
 
-        Far::Index const *quadOffsets = quadOffsetBuffer;
+        unsigned int const *quadOffsets = quadOffsetBuffer;
 
         int vofs = vid * length;
 

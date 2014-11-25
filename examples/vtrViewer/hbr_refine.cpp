@@ -421,7 +421,7 @@ public:
 
 private:
 
-    typedef Far::PatchTables::Descriptor Descriptor;
+    typedef Far::PatchDescriptor Descriptor;
 
     // Returns true if one of v's neighboring faces has vertices carrying the tag "wasTagged"
     static bool vertexHasTaggedNeighbors(Hvertex * v);
@@ -440,7 +440,7 @@ private:
     static Far::Index * getOneRing( Hface const * f, int ringsize, Far::Index const * remap, Far::Index * result );
 
     // Populates the Gregory patch quad offsets table
-    static void getQuadOffsets( Hface const * f, Far::Index * result );
+    static void getQuadOffsets( Hface const * f, unsigned int * result );
 
     // The number of patches in the mesh
     static int getNumPatches( Far::PatchTables::PatchArrayVector const & parrays );
@@ -464,7 +464,7 @@ private:
         PatchTypes() { memset(this, 0, sizeof(PatchTypes<TYPE>)); }
 
         // Returns the number of patches based on the patch type in the descriptor
-        TYPE & getValue( Far::PatchTables::Descriptor desc );
+        TYPE & getValue( Descriptor desc );
 
         // Counts the number of arrays required to store each type of patch used
         // in the primitive
@@ -476,26 +476,20 @@ private:
     typedef PatchTypes<float *>                     FVarPointers;
     typedef PatchTypes<int>                         Counter;
 
-    // Creates a PatchArray and appends it to a vector and keeps track of both
-    // vertex and patch offsets
-    static void pushPatchArray( Descriptor desc,
-                                Far::PatchTables::PatchArrayVector & parray,
-                                int npatches, int * voffset, int * poffset, int * qoffset );
-
 };
 
 //------------------------------------------------------------------------------
 template <class TYPE> TYPE &
-Far::PatchTablesFactory::PatchTypes<TYPE>::getValue( Far::PatchTables::Descriptor desc ) {
+Far::PatchTablesFactory::PatchTypes<TYPE>::getValue( Far::PatchDescriptor desc ) {
 
     switch (desc.GetType()) {
-        case Far::PatchTables::REGULAR          : return R[desc.GetPattern()];
-        case Far::PatchTables::SINGLE_CREASE    : break;
-        case Far::PatchTables::BOUNDARY         : return B[desc.GetPattern()][desc.GetRotation()];
-        case Far::PatchTables::CORNER           : return C[desc.GetPattern()][desc.GetRotation()];
-        case Far::PatchTables::GREGORY          : return G;
-        case Far::PatchTables::GREGORY_BOUNDARY : return GB;
-        case Far::PatchTables::GREGORY_BASIS    : return GP;
+        case Far::PatchDescriptor::REGULAR          : return R[desc.GetPattern()];
+        case Far::PatchDescriptor::SINGLE_CREASE    : break;
+        case Far::PatchDescriptor::BOUNDARY         : return B[desc.GetPattern()][desc.GetRotation()];
+        case Far::PatchDescriptor::CORNER           : return C[desc.GetPattern()][desc.GetRotation()];
+        case Far::PatchDescriptor::GREGORY          : return G;
+        case Far::PatchDescriptor::GREGORY_BOUNDARY : return GB;
+        case Far::PatchDescriptor::GREGORY_BASIS    : return GP;
         default : assert(0);
     }
     // can't be reached (suppress compiler warning)
@@ -574,7 +568,7 @@ Far::PatchTablesFactory::computeCornerPatchRotation( Hface * f ) {
     }
     return rot;
 }
-
+/*
 int
 Far::PatchTablesFactory::getNumPatches( Far::PatchTables::PatchArrayVector const & parrays ) {
 
@@ -585,37 +579,31 @@ Far::PatchTablesFactory::getNumPatches( Far::PatchTables::PatchArrayVector const
 
     return result;
 }
-
+*/
 //------------------------------------------------------------------------------
 void
 Far::PatchTablesFactory::allocateTables( Far::PatchTables * tables, int /* nlevels */, int fvarwidth ) {
 
-    PatchTables::PatchArrayVector const & parrays = tables->GetPatchArrayVector();
-
     int nverts = 0, npatches = 0;
-    for (int i=0; i<(int)parrays.size(); ++i) {
-
-        int nps = parrays[i].GetNumPatches(),
-            ncvs = parrays[i].GetDescriptor().GetNumControlVertices();
-
-        npatches += nps;
-        nverts += ncvs * nps;
+    for (int i=0; i<tables->GetNumPatchArrays(); ++i) {
+        npatches += tables->GetNumPatches(i);
+        nverts += tables->GetNumControlVertices(i);
     }
 
     if (nverts==0 or npatches==0)
         return;
 
-    tables->_patches.resize( nverts );
+    tables->_patchVerts.resize( nverts );
 
     tables->_paramTable.resize( npatches );
 
     if (fvarwidth>0) {
-        Far::PatchTables::PatchArrayVector const & parrays = tables->GetPatchArrayVector();
-        int nfvarverts = 0;
-        for (int i=0; i<(int)parrays.size(); ++i) {
-            nfvarverts += parrays[i].GetNumPatches() *
-                          (parrays[i].GetDescriptor().GetType() == Far::PatchTables::TRIANGLES ? 3 : 4);
-        }
+        //Far::PatchTables::PatchArrayVector const & parrays = tables->GetPatchArrayVector();
+        //int nfvarverts = 0;
+        //for (int i=0; i<(int)parrays.size(); ++i) {
+        //    nfvarverts += parrays[i].GetNumPatches() *
+        //                  (parrays[i].GetDescriptor().GetType() == Far::PatchTables::TRIANGLES ? 3 : 4);
+        //}
 
         //tables->_fvarData._data.resize( nfvarverts * fvarwidth );
 
@@ -707,17 +695,17 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
                     switch (boundaryVerts) {
 
                         case 0 : {   // Regular patch
-                                     patchCtr.R[Far::PatchTables::NON_TRANSITION]++;
+                                     patchCtr.R[Far::PatchDescriptor::NON_TRANSITION]++;
                                  } break;
 
                         case 2 : {   // Boundary patch
                                      f->_adaptiveFlags.rots=computeBoundaryPatchRotation(f);
-                                     patchCtr.B[Far::PatchTables::NON_TRANSITION][0]++;
+                                     patchCtr.B[Far::PatchDescriptor::NON_TRANSITION][0]++;
                                  } break;
 
                         case 3 : {   // Corner patch
                                      f->_adaptiveFlags.rots=computeCornerPatchRotation(f);
-                                     patchCtr.C[Far::PatchTables::NON_TRANSITION][0]++;
+                                     patchCtr.C[Far::PatchDescriptor::NON_TRANSITION][0]++;
                                  } break;
 
                         default : break;
@@ -838,17 +826,15 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
     Far::PatchTables * result = new Far::PatchTables(maxvalence);
 
     // Populate the patch array descriptors
-    Far::PatchTables::PatchArrayVector & parray = result->_patchArrays;
-    parray.reserve( patchCtr.getNumPatchArrays() );
+    result->reservePatchArrays(patchCtr.getNumPatchArrays());
 
-    typedef PatchTables::DescriptorVector DescVec;
+    typedef Far::PatchDescriptorVector DescVec;
 
-    DescVec const & catmarkDescs = Far::PatchTables::GetAdaptiveDescriptors(Sdc::TYPE_CATMARK);
+    DescVec const & catmarkDescs = Far::PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::TYPE_CATMARK);
 
     int voffset=0, poffset=0, qoffset=0;
     for (DescVec::const_iterator it=catmarkDescs.begin(); it!=catmarkDescs.end(); ++it) {
-
-        pushPatchArray( *it, parray, patchCtr.getValue(*it), &voffset, &poffset, &qoffset );
+        result->pushPatchArray(*it, patchCtr.getValue(*it), &voffset, &poffset, &qoffset );
     }
 
     //result->_fvarData._fvarWidth = fvarwidth;
@@ -858,7 +844,7 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
     allocateTables( result, 0, fvarwidth );
 
     if ((patchCtr.G > 0) or (patchCtr.GB > 0)) { // Quad-offsets tables (for Gregory patches)
-        result->_quadOffsetTable.resize( patchCtr.G*4 + patchCtr.GB*4 );
+        result->_quadOffsetsTable.resize( patchCtr.G*4 + patchCtr.GB*4 );
     }
 
     // Setup convenience pointers at the beginning of each patch array for each
@@ -869,20 +855,17 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
 
     for (DescVec::const_iterator it=catmarkDescs.begin(); it!=catmarkDescs.end(); ++it) {
 
-        Far::PatchTables::PatchArray * pa = result->findPatchArray(*it);
-
-        if (not pa)
+        Index arrayIndex = result->findPatchArray(*it);
+        if (arrayIndex==Vtr::INDEX_INVALID) {
             continue;
+        }
 
-        iptrs.getValue( *it ) = &result->_patches[pa->GetVertIndex()];
-        pptrs.getValue( *it ) = &result->_paramTable[pa->GetPatchIndex()];
-
-        //if (fvarwidth>0)
-        //    fptrs.getValue( *it ) = &result->_fvarData._data[pa->GetPatchIndex() * 4 * fvarwidth];
+        iptrs.getValue( *it ) = result->getPatchArrayVertices(arrayIndex).begin();
+        pptrs.getValue( *it ) = result->getPatchParams(arrayIndex).begin();
     }
 
-    Far::PatchTables::QuadOffsetTable::value_type *quad_G_C0_P = patchCtr.G>0 ? &result->_quadOffsetTable[0] : 0;
-    Far::PatchTables::QuadOffsetTable::value_type *quad_G_C1_P = patchCtr.GB>0 ? &result->_quadOffsetTable[patchCtr.G*4] : 0;
+    unsigned int * quad_G_C0_P = patchCtr.G>0 ? &result->_quadOffsetsTable[0] : 0,
+                 * quad_G_C1_P = patchCtr.GB>0 ? &result->_quadOffsetsTable[patchCtr.G*4] : 0;
 
     // Populate patch index tables with vertex indices
     for (int i=0; i<nfaces; ++i) {
@@ -896,7 +879,7 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
             if (f->_adaptiveFlags.patchType==Hface::kFull) {
                 if (not f->_adaptiveFlags.isExtraordinary and f->_adaptiveFlags.bverts!=1) {
 
-                    int pattern = Far::PatchTables::NON_TRANSITION,
+                    int pattern = Far::PatchDescriptor::NON_TRANSITION,
                         rot = 0;
 
                     switch (f->_adaptiveFlags.bverts) {
@@ -1216,7 +1199,7 @@ Far::PatchTablesFactory::getOneRing(Hface const * f,
 //------------------------------------------------------------------------------
 // Populate the quad-offsets table used by Gregory patches
 void
-Far::PatchTablesFactory::getQuadOffsets(Hface const * f, Far::Index * result) {
+Far::PatchTablesFactory::getQuadOffsets(Hface const * f, unsigned int * result) {
 
     assert(result and f and f->GetNumVertices()==4);
 

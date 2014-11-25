@@ -67,11 +67,11 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
     GLDrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
     sconfig->commonShader.source = commonShaderSource;
-    
+
     if (IsPtexEnabled()) {
         sconfig->commonShader.source += ptexShaderSource;
     }
-    
+
     {
         std::ostringstream ss;
         ss << (int)desc.GetMaxValence();
@@ -81,9 +81,9 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
         sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
     }
 
-    if (desc.GetPattern() == Far::PatchTables::NON_TRANSITION) {
+    if (desc.GetPattern() == Far::PatchDescriptor::NON_TRANSITION) {
         switch (desc.GetType()) {
-        case Far::PatchTables::REGULAR:
+        case Far::PatchDescriptor::REGULAR:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
             sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_BSPLINE_SHADER");
@@ -94,7 +94,7 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
             break;
-        case Far::PatchTables::SINGLE_CREASE:
+        case Far::PatchDescriptor::SINGLE_CREASE:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
             sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_BSPLINE_SHADER");
@@ -107,7 +107,7 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
             break;
-        case Far::PatchTables::BOUNDARY:
+        case Far::PatchDescriptor::BOUNDARY:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
             sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_BSPLINE_SHADER");
@@ -119,7 +119,7 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
             break;
-        case Far::PatchTables::CORNER:
+        case Far::PatchDescriptor::CORNER:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
             sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_BSPLINE_SHADER");
@@ -131,7 +131,7 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
             break;
-        case Far::PatchTables::GREGORY:
+        case Far::PatchDescriptor::GREGORY:
             sconfig->vertexShader.source = gregoryShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
             sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_GREGORY_SHADER");
@@ -142,7 +142,7 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_GREGORY_SHADER");
             break;
-        case Far::PatchTables::GREGORY_BOUNDARY:
+        case Far::PatchDescriptor::GREGORY_BOUNDARY:
             sconfig->vertexShader.source = gregoryShaderSource;
             sconfig->vertexShader.version = "#version 410\n";
             sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_GREGORY_SHADER");
@@ -189,12 +189,12 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
         sconfig->tessControlShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
         sconfig->tessEvalShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
 
-        if (desc.GetType() == Far::PatchTables::SINGLE_CREASE) {
+        if (desc.GetType() == Far::PatchDescriptor::SINGLE_CREASE) {
             sconfig->tessControlShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
-        } else if (desc.GetType() == Far::PatchTables::BOUNDARY) {
+        } else if (desc.GetType() == Far::PatchDescriptor::BOUNDARY) {
             sconfig->tessControlShader.AddDefine("OSD_PATCH_BOUNDARY");
-        } else if (desc.GetType() == Far::PatchTables::CORNER) {
+        } else if (desc.GetType() == Far::PatchDescriptor::CORNER) {
             sconfig->tessControlShader.AddDefine("OSD_PATCH_CORNER");
         }
     }
@@ -258,7 +258,7 @@ _CompileShader(
 GLDrawConfig *
 GLDrawRegistryBase::_CreateDrawConfig(
         DrawContext::PatchDescriptor const & /* desc */,
-        GLDrawSourceConfig const * sconfig) 
+        GLDrawSourceConfig const * sconfig)
 {
     assert(sconfig);
 

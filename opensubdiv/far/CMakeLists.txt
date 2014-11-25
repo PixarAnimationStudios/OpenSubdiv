@@ -26,6 +26,7 @@
 # source & headers
 set(SOURCE_FILES
     gregoryBasis.cpp
+    patchDescriptor.cpp
     patchMap.cpp
     patchTables.cpp
     patchTablesFactory.cpp
@@ -42,6 +43,7 @@ set(PUBLIC_HEADER_FILES
     gregoryBasis.h
     kernelBatch.h
     kernelBatchDispatcher.h
+    patchDescriptor.h
     patchParam.h
     patchMap.h
     patchTables.h

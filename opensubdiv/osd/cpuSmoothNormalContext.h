@@ -30,11 +30,16 @@
 #include "../osd/nonCopyable.h"
 #include "../osd/vertexDescriptor.h"
 #include "../osd/vertex.h"
+#include "../far/types.h"
 
-#include "../far/patchTables.h"
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
+
+namespace Far {
+    class TopologyRefiner;
+}
 
 namespace Osd {
 
@@ -44,7 +49,9 @@ public:
 
     /// Creates an CpuComputeContext instance
     ///
-    /// @param patchTables  The Far::PatchTables used for this Context.
+    /// @param refiner      The uniformly refined Far::TopologyRefiner
+    ///
+    /// @param level        Refinement level used to generate normals
     ///
     /// @param resetMemory  Set to true if the target vertex buffer needs its
     ///                     memory reset before accumulating the averaged normals.
@@ -53,7 +60,7 @@ public:
     ///                     been reset and this step can be skipped to save time.
     ///
     static CpuSmoothNormalContext * Create(
-        Far::PatchTables const *patchTables, bool resetMemory=false);
+        Far::TopologyRefiner const & refiner, int level, bool resetMemory=false);
 
     /// Binds a vertex and a varying data buffers to the context. Binding ensures
     /// that data buffers are properly inter-operated between Contexts and
@@ -93,15 +100,20 @@ public:
         _numVertices = 0;
     }
 
-    /// Returns the vector of patch arrays
-    Far::PatchTables::PatchArrayVector const & GetPatchArrayVector() const {
-        return _patchArrays;
+    Far::Index const * GetFaceVertices() const {
+        return &_faceVerts[0];
     }
 
-    /// The ordered array of control vertex indices for all the patches
-    Far::PatchTables::PTable const & GetControlVertices() const {
-        return _patches;
+
+    int GetNumFaces() const {
+        return (int)_faceVerts.size()/4;
     }
+
+    /// Returns the number of vertices in output vertex buffer
+    int GetNumVertices() const {
+        return _numVertices;
+    }
+
 
     /// Returns a pointer to the data of the input buffer
     float const * GetCurrentInputVertexBuffer() const {
@@ -124,11 +136,6 @@ public:
         return _oDesc;
     }
 
-    /// Returns the number of vertices in output vertex buffer
-    int GetNumVertices() const {
-        return _numVertices;
-    }
-
     /// Returns whether the controller needs to reset the vertex buffer before
     /// accumulating smooth normals
     bool GetResetMemory() const {
@@ -143,14 +150,13 @@ public:
 
 protected:
     // Constructor
-    explicit CpuSmoothNormalContext(
-        Far::PatchTables const *patchTables, bool resetMemory);
+    explicit CpuSmoothNormalContext(Far::TopologyRefiner const & refiner,
+        int level, bool resetMemory);
 
 private:
 
     // Topology data for a mesh
-    Far::PatchTables::PatchArrayVector     _patchArrays;    // patch descriptor for each patch in the mesh
-    Far::PatchTables::PTable               _patches;        // patch control vertices
+    std::vector<Far::Index> _faceVerts; // patch control vertices
 
     VertexBufferDescriptor _iDesc,
                            _oDesc;

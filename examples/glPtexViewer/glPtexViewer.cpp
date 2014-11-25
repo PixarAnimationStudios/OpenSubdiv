@@ -728,14 +728,14 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
 #endif
 
     int nverts = 4;
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS) {
+    if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS) {
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
         if (effect.displacement) {
             sconfig->geometryShader.AddDefine("FLAT_NORMALS");
         }
-    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::LINES) {
+    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::LINES) {
         nverts = 2;
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.version = glslVersion;
@@ -1578,14 +1578,14 @@ drawModel() {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
         OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
-        OpenSubdiv::Far::PatchTables::Type patchType = desc.GetType();
+        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
         GLenum primType;
         switch (patchType) {
-        case OpenSubdiv::Far::PatchTables::QUADS:
+        case OpenSubdiv::Far::PatchDescriptor::QUADS:
             primType = GL_LINES_ADJACENCY;
             break;
-        case OpenSubdiv::Far::PatchTables::TRIANGLES:
+        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
             primType = GL_TRIANGLES;
             break;
         default:
@@ -1749,10 +1749,11 @@ drawCageEdges() {
 
     Effect effect;
     effect.value = 0;
+
+    typedef OpenSubdiv::Far::PatchDescriptor FDesc;
+
     OpenSubdiv::Osd::DrawContext::PatchDescriptor desc(
-        OpenSubdiv::Far::PatchTables::Descriptor(OpenSubdiv::Far::PatchTables::LINES,
-            OpenSubdiv::Far::PatchTables::NON_TRANSITION, 0),
-                    0, 0, 0);
+        FDesc(FDesc::LINES, FDesc::NON_TRANSITION, 0), 0, 0, 0);
     EffectDrawRegistry::ConfigType *config = getInstance(effect, desc);
     glUseProgram(config->program);
 

@@ -34,16 +34,18 @@ namespace Osd {
 DrawContext::~DrawContext() {}
 
 void
-DrawContext::ConvertPatchArrays(Far::PatchTables::PatchArrayVector const &farPatchArrays,
-                                   DrawContext::PatchArrayVector &osdPatchArrays,
-                                   int maxValence, int numElements) {
+DrawContext::ConvertPatchArrays(Far::PatchTables const &patchTables,
+    PatchArrayVector &osdPatchArrays, int maxValence, int numElements) {
 
     // create patch arrays for drawing (while duplicating subpatches for transition patch arrays)
     static int subPatchCounts[] = { 1, 3, 4, 4, 4, 2 }; // number of subpatches for patterns
 
     int numTotalPatchArrays = 0;
-    for (int i = 0; i < (int)farPatchArrays.size(); ++i) {
-        Far::PatchTables::TransitionPattern pattern = farPatchArrays[i].GetDescriptor().GetPattern();
+    for (int array=0; array < patchTables.GetNumPatchArrays(); ++array) {
+
+        Far::PatchDescriptor::TransitionPattern pattern =
+            patchTables.GetPatchArrayDescriptor(array).GetPattern();
+
         numTotalPatchArrays += subPatchCounts[(int)pattern];
     }
 
@@ -51,24 +53,50 @@ DrawContext::ConvertPatchArrays(Far::PatchTables::PatchArrayVector const &farPat
     osdPatchArrays.clear();
     osdPatchArrays.reserve(numTotalPatchArrays);
 
-    for (int i = 0; i < (int)farPatchArrays.size(); ++i) {
-        Far::PatchTables::TransitionPattern pattern = farPatchArrays[i].GetDescriptor().GetPattern();
-        int numSubPatches = subPatchCounts[(int)pattern];
+    int narrays = patchTables.GetNumPatchArrays();
+    for (int array=0, pidx=0, vidx=0, qidx=0; array<narrays; ++array) {
 
-        Far::PatchTables::PatchArray const &parray = farPatchArrays[i];
-        Far::PatchTables::Descriptor srcDesc = parray.GetDescriptor();
+        Far::PatchDescriptor srcDesc = patchTables.GetPatchArrayDescriptor(array);
 
-        for (int j = 0; j < numSubPatches; ++j) {
-            PatchDescriptor desc(srcDesc, maxValence, j, numElements);
+        int npatches = patchTables.GetNumPatches(array),
+            nsubpatches = subPatchCounts[(int)srcDesc.GetPattern()],
+            nverts = srcDesc.GetNumControlVertices();
 
-            osdPatchArrays.push_back(PatchArray(desc, parray.GetArrayRange()));
+        for (int i = 0; i < nsubpatches; ++i) {
+
+            PatchDescriptor desc(srcDesc, maxValence, i, numElements);
+
+            osdPatchArrays.push_back(PatchArray(desc, npatches, vidx, pidx, qidx));
         }
+
+        vidx += npatches * nverts;
+        pidx += npatches;
+        qidx += (srcDesc.GetType() == Far::PatchDescriptor::GREGORY) ? npatches*nverts  : 0;
+    }
+}
+
+// note : it is likely that Far::PatchTables::GetPatchControlVerticesTable()
+//        will eventually be deprecated if control vertices cannot be kept
+//        in a single linear array of indices. This function will help
+//        packing patch control vertices for GPU buffers.
+void
+DrawContext::packPatchVerts(Far::PatchTables const & patchTables,
+    std::vector<Index> & dst) {
+
+    dst.resize(patchTables.GetNumControlVerticesTotal());
+    Index * ptr = &dst[0];
+
+    int narrays = patchTables.GetNumPatchArrays();
+    for (int array=0; array<narrays; ++array) {
+        Far::IndexArray verts = patchTables.GetPatchArrayVertices(array);
+        memcpy(ptr, verts.begin(), verts.size()*sizeof(Index));
+        ptr += verts.size();
     }
 }
 
 void
 DrawContext::packFVarData(Far::PatchTables const & patchTables,
-                             int fvarWidth, FVarData const & src, FVarData & dst) {
+    int fvarWidth, FVarData const & src, FVarData & dst) {
 
     assert(fvarWidth and (not src.empty()));
 

@@ -88,8 +88,8 @@ D3D11DrawContext::create(Far::PatchTables const &patchTables,
 
     ConvertPatchArrays(patchTables.GetPatchArrayVector(), _patchArrays, patchTables.GetMaxValence(), numVertexElements);
 
-    Far::PatchTables::PTable const & ptables = patchTables.GetPatchTable();
-    Far::PatchTables::PatchParamTable const & ptexCoordTables = patchTables.GetPatchParamTable();
+    Far::PatchTables::PatchVertsTable const & ptables = patchTables.GetPatchControlVerticesTable();
+    Far::PatchParamTable const & ptexCoordTables = patchTables.GetPatchParamTable();
     int totalPatchIndices = (int)ptables.size();
     int totalPatches = (int)ptexCoordTables.size();
 
@@ -178,8 +178,8 @@ D3D11DrawContext::create(Far::PatchTables const &patchTables,
         }
     }
 
-    Far::PatchTables::QuadOffsetTable const &
-        quadOffsetTable = patchTables.GetQuadOffsetTable();
+    Far::PatchTables::QuadOffsetsTable const &
+        quadOffsetTable = patchTables.GetQuadOffsetsTable();
 
     if (not quadOffsetTable.empty()) {
         D3D11_BUFFER_DESC bd;
@@ -219,7 +219,7 @@ D3D11DrawContext::SetFVarDataTexture(Far::PatchTables const & patchTables,
     if (not fvarData.empty()) {
 
         FVarData fvarDataTable;
-        
+
         packFVarData(patchTables, fvarWidth, fvarData, fvarDataTable);
 
         ID3D11Device *pd3d11Device = NULL;

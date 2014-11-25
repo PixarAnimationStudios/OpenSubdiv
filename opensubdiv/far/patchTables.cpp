@@ -92,6 +92,58 @@ getBSplineWeights(float t, float point[4], float deriv[3]) {
 }
 
 void
+getBoxSplineWeights(float v, float w, float B[12])
+{
+    float u = 1.0f - v - w;
+
+    //
+    //  The 12 basis functions of the quartic box spline (unscaled by their common
+    //  factor of 1/12 until later, and formatted to make it easy to spot any
+    //  typing errors):
+    //
+    //      15 terms for the 3 points above the triangle corners
+    //       9 terms for the 3 points on faces opposite the triangle edges
+    //       2 terms for the 6 points on faces opposite the triangle corners
+    //
+    //  Powers of each variable for notational convenience:
+    float u2 = u*u;
+    float u3 = u*u2;
+    float u4 = u*u3;
+    float v2 = v*v;
+    float v3 = v*v2;
+    float v4 = v*v3;
+    float w2 = w*w;
+    float w3 = w*w2;
+    float w4 = w*w3;
+
+    //  And now the basis functions:
+    B[ 0] = u4 + 2.0f*u3*v;
+    B[ 1] = u4 + 2.0f*u3*w;
+    B[ 8] = w4 + 2.0f*w3*u;
+    B[11] = w4 + 2.0f*w3*v;
+    B[ 9] = v4 + 2.0f*v3*w;
+    B[ 5] = v4 + 2.0f*v3*u;
+
+    B[ 2] = u4 + 2.0f*u3*w + 6.0f*u3*v + 6.0f*u2*v*w + 12.0f*u2*v2 +
+            v4 + 2.0f*v3*w + 6.0f*v3*u + 6.0f*v2*u*w;
+    B[ 4] = w4 + 2.0f*w3*v + 6.0f*w3*u + 6.0f*w2*u*v + 12.0f*w2*u2 +
+            u4 + 2.0f*u3*v + 6.0f*u3*w + 6.0f*u2*v*w;
+    B[10] = v4 + 2.0f*v3*u + 6.0f*v3*w + 6.0f*v2*w*u + 12.0f*v2*w2 +
+            w4 + 2.0f*w3*u + 6.0f*w3*v + 6.0f*w3*u*v;
+
+    B[ 3] = v4 + 6*v3*w + 8*v3*u + 36*v2*w*u + 24*v2*u2 + 24*v*u3 +
+            w4 + 6*w3*v + 8*w3*u + 36*w2*v*u + 24*w2*u2 + 24*w*u3 + 6*u4 + 60*u2*v*w + 12*v2*w2;
+    B[ 6] = w4 + 6*w3*u + 8*w3*v + 36*w2*u*v + 24*w2*v2 + 24*w*v3 +
+            u4 + 6*u3*w + 8*u3*v + 36*u2*v*w + 24*u2*v2 + 24*u*v3 + 6*v4 + 60*v2*w*u + 12*w2*u2;
+    B[ 7] = u4 + 6*u3*v + 8*u3*w + 36*u2*v*w + 24*u2*w2 + 24*u*w3 +
+            v4 + 6*v3*u + 8*v3*w + 36*v2*u*w + 24*v2*w2 + 24*v*w3 + 6*w4 + 60*w2*u*v + 12*u2*v2;
+
+    for (int i = 0; i < 12; ++i) {
+        B[i] *= 1.0f / 12.0f;
+    }
+}
+
+void
 PatchTables::getBasisWeightsAtUV(TensorBasis basis, PatchParam::BitField bits,
     float s, float t, float point[16], float deriv1[16], float deriv2[16]) {
 
@@ -164,31 +216,30 @@ PatchTables::getBasisWeightsAtUV(TensorBasis basis, PatchParam::BitField bits,
     }
 }
 
-//
-// Constructor
-//
-PatchTables::PatchTables(PatchArrayVector const & patchArrays,
-                         PTable const & patches,
-                         VertexValenceTable const * vertexValences,
-                         QuadOffsetTable const * quadOffsets,
-                         StencilTables const * endcapStencilTables,
-                         PatchParamTable const * patchParams,
-                         FVarPatchTables const * fvarPatchTables,
-                         int maxValence) :
-    _maxValence(maxValence),
-    _numPtexFaces(0),
-    _patchArrays(patchArrays),
-    _patches(patches),
-    _endcapStencilTables(endcapStencilTables),
-    _fvarPatchTables(fvarPatchTables) {
+PatchTables::PatchTables(int maxvalence) :
+    _maxValence(maxvalence), _endcapStencilTables(0), _fvarPatchTables(0) { }
 
-    // copy other tables if exist
-    if (vertexValences)
-        _vertexValenceTable = *vertexValences;
-    if (quadOffsets)
-        _quadOffsetTable = *quadOffsets;
-    if (patchParams)
-        _paramTable = *patchParams;
+// Copy constructor
+// XXXX manuelk we need to eliminate this constructor (C++11 smart pointers)
+PatchTables::PatchTables(PatchTables const & src) :
+    _maxValence(src._maxValence),
+    _numPtexFaces(src._numPtexFaces),
+    _patchArrays(src._patchArrays),
+    _patchVerts(src._patchVerts),
+    _paramTable(src._paramTable),
+#ifdef ENDCAP_TOPOPOLGY
+    _endcapTopology(src._endcapTopology),
+#endif
+    _quadOffsetsTable(src._quadOffsetsTable),
+    _vertexValenceTable(src._vertexValenceTable),
+    _sharpnessIndices(src._sharpnessIndices),
+    _sharpnessValues(src._sharpnessValues) {
+
+    _endcapStencilTables = src._endcapStencilTables ?
+        new StencilTables(*src._endcapStencilTables) : 0;
+
+    _fvarPatchTables = src._fvarPatchTables ?
+        new FVarPatchTables(*src._fvarPatchTables) : 0;
 }
 
 PatchTables::~PatchTables() {
@@ -196,149 +247,230 @@ PatchTables::~PatchTables() {
     delete _fvarPatchTables;
 }
 
+//
+// PatchArrays
+//
+
+struct PatchTables::PatchArray {
+
+    PatchArray(PatchDescriptor d, int np, Index v, Index p, Index qo) :
+            desc(d), numPatches(np), vertIndex(v),
+                patchIndex(p), quadOffsetIndex (qo) { }
+
+    PatchDescriptor desc;  // type of patches in the array
+
+    int numPatches;          // number of patches in the array
+
+    Index vertIndex,       // index to the first control vertex
+          patchIndex,      // index of the first patch in the array
+          quadOffsetIndex; // index of the first quad offset entry
+};
+
+inline PatchTables::PatchArray &
+PatchTables::getPatchArray(Index arrayIndex) {
+    assert(arrayIndex<(Index)GetNumPatchArrays());
+    return _patchArrays[arrayIndex];
+}
+
+inline PatchTables::PatchArray const &
+PatchTables::getPatchArray(Index arrayIndex) const {
+    assert(arrayIndex<(Index)GetNumPatchArrays());
+    return _patchArrays[arrayIndex];
+}
+
+void
+PatchTables::reservePatchArrays(int numPatchArrays) {
+    _patchArrays.reserve(numPatchArrays);
+}
+
+inline int
+getPatchSize(PatchDescriptor desc) {
+    int size = desc.GetNumControlVertices();
+    // XXXX manuelk we do not store the topology for Gregory Basis
+    // patch types yet - so point to the 4 corners of the 0-ring
+    if (desc.GetType() == PatchDescriptor::GREGORY_BASIS) {
+        size = 4;
+    }
+    return size;
+}
+
+void
+PatchTables::pushPatchArray(PatchDescriptor desc, int npatches,
+    Index * vidx, Index * pidx, Index * qoidx) {
+
+    if (npatches>0) {
+        _patchArrays.push_back(PatchArray(
+            desc, npatches, *vidx, *pidx, qoidx ? *qoidx : 0));
+        int nverts = getPatchSize(desc);
+        *vidx += npatches * nverts;
+        *pidx += npatches;
+        if (qoidx) {
+            *qoidx += (desc.GetType() == PatchDescriptor::GREGORY) ?
+                npatches*nverts  : 0;
+        }
+    }
+}
+
+Index *
+PatchTables::getSharpnessIndices(int arrayIndex) {
+    return &_sharpnessIndices[getPatchArray(arrayIndex).patchIndex];
+}
+
+float *
+PatchTables::getSharpnessValues(int arrayIndex) {
+    return &_sharpnessValues[getPatchArray(arrayIndex).patchIndex];
+}
+
+PatchDescriptor
+PatchTables::GetPatchDescriptor(PatchHandle const & handle) const {
+    return getPatchArray(handle.arrayIndex).desc;
+}
+
+PatchDescriptor
+PatchTables::GetPatchArrayDescriptor(int arrayIndex) const {
+    return getPatchArray(arrayIndex).desc;
+}
+
+int
+PatchTables::GetNumPatchArrays() const {
+    return (int)_patchArrays.size();
+}
+int
+PatchTables::GetNumPatches(int arrayIndex) const {
+    return getPatchArray(arrayIndex).numPatches;
+}
+int
+PatchTables::GetNumControlVertices(int arrayIndex) const {
+    PatchArray const & pa = getPatchArray(arrayIndex);
+    return pa.numPatches * getPatchSize(pa.desc);
+}
+
+IndexArray
+PatchTables::getPatchArrayVertices(int arrayIndex) {
+    PatchArray const & pa = getPatchArray(arrayIndex);
+    int size = getPatchSize(pa.desc);
+    assert(pa.vertIndex<(Index)_patchVerts.size());
+    return IndexArray(&_patchVerts[pa.vertIndex], pa.numPatches * size);
+}
+IndexArray const
+PatchTables::GetPatchArrayVertices(int arrayIndex) const {
+    PatchArray const & pa = getPatchArray(arrayIndex);
+    int size = getPatchSize(pa.desc);
+    assert(pa.vertIndex<(Index)_patchVerts.size());
+    return IndexArray(&_patchVerts[pa.vertIndex], pa.numPatches * size);
+}
+
+IndexArray const
+PatchTables::GetPatchVertices(PatchHandle const & handle) const {
+    PatchArray const & pa = getPatchArray(handle.arrayIndex);
+
+    Index vert = pa.vertIndex;
+    // XXXX manuelk we do not store the topology for Gregory Basis
+    // patch types yet - so point to the 4 corners of the 0-ring
+    vert += (pa.desc.GetType() == PatchDescriptor::GREGORY_BASIS) ?
+        handle.vertIndex / 5 : handle.vertIndex;
+    assert(vert<(Index)_patchVerts.size());
+    return IndexArray(&_patchVerts[vert], getPatchSize(pa.desc));
+}
+IndexArray const
+PatchTables::GetPatchVertices(int arrayIndex, int patchIndex) const {
+    PatchArray const & pa = getPatchArray(arrayIndex);
+    int size = getPatchSize(pa.desc);
+    assert((pa.vertIndex + patchIndex*size)<(Index)_patchVerts.size());
+    return IndexArray(&_patchVerts[pa.vertIndex + patchIndex*size], size);
+}
+
+PatchParam
+PatchTables::GetPatchParam(PatchHandle const & handle) const {
+    assert(handle.patchIndex < (Index)_paramTable.size());
+    return _paramTable[handle.patchIndex];
+}
+PatchParam
+PatchTables::GetPatchParam(int arrayIndex, int patchIndex) const {
+    PatchArray const & pa = getPatchArray(arrayIndex);
+    assert((pa.patchIndex + patchIndex) < (int)_paramTable.size());
+    return _paramTable[pa.patchIndex + patchIndex];
+}
+PatchParamArray
+PatchTables::getPatchParams(int arrayIndex) {
+    PatchArray const & pa = getPatchArray(arrayIndex);
+    return PatchParamArray(&_paramTable[pa.patchIndex], pa.numPatches);
+}
+PatchParamArray const
+PatchTables::GetPatchParams(int arrayIndex) const {
+    PatchArray const & pa = getPatchArray(arrayIndex);
+    return PatchParamArray(&_paramTable[pa.patchIndex], pa.numPatches);
+}
+
+float
+PatchTables::GetSingleCreasePatchSharpnessValue(PatchHandle const & handle) const {
+    assert((handle.patchIndex) < (int)_sharpnessIndices.size());
+    Index index = _sharpnessIndices[handle.patchIndex];
+    if (index == Vtr::INDEX_INVALID) {
+        return 0.0f;
+    }
+    assert(index < (Index)_sharpnessValues.size());
+    return _sharpnessValues[index];
+}
+float
+PatchTables::GetSingleCreasePatchSharpnessValue(int arrayIndex, int patchIndex) const {
+    PatchArray const & pa = getPatchArray(arrayIndex);
+    assert((pa.patchIndex + patchIndex) < (int)_sharpnessIndices.size());
+    Index index = _sharpnessIndices[pa.patchIndex + patchIndex];
+    if (index == Vtr::INDEX_INVALID) {
+        return 0.0f;
+    }
+    assert(index < (Index)_sharpnessValues.size());
+    return _sharpnessValues[index];
+}
+
+PatchTables::QuadOffsetsArray const
+PatchTables::GetPatchQuadOffsets(PatchHandle const & handle) const {
+    PatchArray const & pa = getPatchArray(handle.arrayIndex);
+    return Vtr::Array<unsigned int>(&_quadOffsetsTable[pa.quadOffsetIndex + handle.vertIndex], 4);
+}
+
+IndexArray
+PatchTables::getFVarVerts(int arrayIndex, int channel) {
+    PatchArray const & pa = getPatchArray(arrayIndex);
+    assert(_fvarPatchTables and (channel<(int)_fvarPatchTables->_channels.size()));
+    std::vector<Index> & verts = _fvarPatchTables->_channels[channel].patchVertIndices;
+    int ofs = pa.patchIndex * pa.desc.GetNumFVarControlVertices();
+    return IndexArray(&verts[ofs],pa.numPatches * pa.desc.GetNumFVarControlVertices());
+}
+
 bool
 PatchTables::IsFeatureAdaptive() const {
 
-    // the vertex valence table is only used by Gregory patches, so the PatchTables
-    // contain feature adaptive patches if this is not empty.
-    if (not _vertexValenceTable.empty())
+    // check for presence of tables only used by adaptive patches
+    if (not _vertexValenceTable.empty() or _endcapStencilTables)
         return true;
 
     // otherwise, we have to check each patch array
-    PatchArrayVector const & parrays = GetPatchArrayVector();
-    for (int i=0; i<(int)parrays.size(); ++i) {
-        if (parrays[i].GetDescriptor().GetType() >= REGULAR and
-            parrays[i].GetDescriptor().GetType() <= GREGORY_BASIS)
+    for (int i=0; i<GetNumPatchArrays(); ++i) {
+        PatchDescriptor const & desc = _patchArrays[i].desc;
+        if (desc.GetType()>=PatchDescriptor::REGULAR and
+            desc.GetType()<=PatchDescriptor::GREGORY_BASIS) {
             return true;
+        }
     }
     return false;
 }
+
 int
 PatchTables::GetNumPatchesTotal() const {
     // there is one PatchParam record for each patch in the mesh
-    return (int)GetPatchParamTable().size();
+    return (int)_paramTable.size();
 }
 
-//
-// Uniform accessors
-//
-PatchTables::PatchArray const *
-PatchTables::GetUniformPatchArray(int level) const {
-
-    if (IsFeatureAdaptive())
-        return NULL;
-
-    PatchArrayVector const & parrays = GetPatchArrayVector();
-
-    if (parrays.empty())
-        return NULL;
-
-    if (level < 1) {
-        return &(*parrays.rbegin());
-    } else if ((level-1) < (int)parrays.size() ) {
-        return &parrays[level-1];
-    }
-
-    return NULL;
-}
-Index const *
-PatchTables::GetUniformFaceVertices(int level) const {
-
-    PatchArray const * parray = GetUniformPatchArray(level);
-
-    if (parray) {
-        return &GetPatchTable()[ parray->GetVertIndex() ];
-    }
-    return NULL;
-}
-int
-PatchTables::GetNumUniformFaces(int level) const {
-
-    PatchArray const * parray = GetUniformPatchArray(level);
-
-    if (parray) {
-        return parray->GetNumPatches();
-    }
-    return -1;
-}
-
-//
-// Returns a pointer to the array of patches matching the descriptor
-//
-PatchTables::PatchArray *
-PatchTables::findPatchArray( PatchTables::Descriptor desc ) {
-
+// Returns the first array of patches matching the descriptor
+Index
+PatchTables::findPatchArray(PatchDescriptor desc) {
     for (int i=0; i<(int)_patchArrays.size(); ++i) {
-        if (_patchArrays[i].GetDescriptor()==desc)
-            return &_patchArrays[i];
+        if (_patchArrays[i].desc==desc)
+            return i;
     }
-    return 0;
-}
-
-
-//
-// Lists of patch Descriptors for each subdivision scheme
-//
-PatchTables::DescriptorVector const &
-PatchTables::getAdaptiveCatmarkDescriptors() {
-
-    static DescriptorVector _descriptors;
-
-    if (_descriptors.empty()) {
-
-        _descriptors.reserve(71);
-
-        // non-transition patches : 6
-        for (int i=REGULAR; i<=GREGORY_BASIS; ++i) {
-            _descriptors.push_back( Descriptor(i, NON_TRANSITION, 0) );
-        }
-
-        // transition patches (1 + 4 * 3) * 5 = 65
-        for (int i=PATTERN0; i<=PATTERN4; ++i) {
-
-            _descriptors.push_back( Descriptor(REGULAR, i, 0) );
-
-            // 4 rotations for single-crease, boundary and corner patches
-            for (int j=0; j<4; ++j) {
-                _descriptors.push_back( Descriptor(SINGLE_CREASE, i, j) );
-            }
-
-            for (int j=0; j<4; ++j) {
-                _descriptors.push_back( Descriptor(BOUNDARY, i, j) );
-            }
-
-            for (int j=0; j<4; ++j) {
-                _descriptors.push_back( Descriptor(CORNER, i, j) );
-            }
-        }
-    }
-    return _descriptors;
-}
-
-PatchTables::DescriptorVector const &
-PatchTables::getAdaptiveLoopDescriptors() {
-
-    static DescriptorVector _descriptors;
-
-    if (_descriptors.empty()) {
-        _descriptors.reserve(1);
-        _descriptors.push_back( Descriptor(LOOP, NON_TRANSITION, 0) );
-    }
-    return _descriptors;
-}
-
-PatchTables::DescriptorVector const &
-PatchTables::GetAdaptiveDescriptors(Sdc::Type type) {
-
-    static DescriptorVector _empty;
-
-    switch (type) {
-        case Sdc::TYPE_CATMARK : return getAdaptiveCatmarkDescriptors();
-        case Sdc::TYPE_LOOP    : return getAdaptiveLoopDescriptors();
-        default:
-          assert(0);
-    }
-    return _empty;
+    return Vtr::INDEX_INVALID;
 }
 
 } // end namespace Far

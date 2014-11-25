@@ -84,7 +84,6 @@ public:
 
 private:
 
-    typedef PatchTables::Descriptor Descriptor;
     typedef PatchTables::FVarPatchTables FVarPatchTables;
 
     static PatchTables * createUniform( TopologyRefiner const & refiner, Options options );
@@ -110,14 +109,10 @@ private:
                                                  PatchTables const & tables,
                                                  Options options );
 
-    static void pushPatchArray( PatchTables::Descriptor desc,
-                                PatchTables::PatchArrayVector & parray,
-                                int npatches, int * voffset, int * poffset, int * qoffset );
-
     static PatchParam * computePatchParam( TopologyRefiner const & refiner, int level,
                                            int face, int rotation, PatchParam * coord );
 
-    static void getQuadOffsets(Vtr::Level const & level, int face, Index * result);
+    static void getQuadOffsets(Vtr::Level const & level, int face, unsigned int * result);
 
     static int assignSharpnessIndex( PatchTables *tables, float sharpness );
 

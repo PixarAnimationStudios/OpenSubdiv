@@ -27,13 +27,15 @@
 
 #include "../version.h"
 
-#include "../osd/cpuEvalLimitContext.h"
 #include "../osd/vertexDescriptor.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
+
+struct LimitLocation;
+class CpuEvalLimitContext;
 
 /// \brief CPU controler for limit surface evaluation.
 ///
@@ -123,14 +125,17 @@ public:
     ///
     /// @param iDesc  data descriptor shared by all input data buffers
     ///
+    /// @param inQ    input face-varying data
+    ///
     /// @param oDesc  data descriptor shared by all output data buffers
     ///
     /// @param outQ   output face-varying data
     ///
-    template<class OUTPUT_BUFFER>
-    void BindFacevaryingBuffers( VertexBufferDescriptor const & iDesc,
+    template<class INPUT_BUFFER, class OUTPUT_BUFFER>
+    void BindFacevaryingBuffers( VertexBufferDescriptor const & iDesc, INPUT_BUFFER *inQ,
                                  VertexBufferDescriptor const & oDesc, OUTPUT_BUFFER *outQ ) {
         _currentBindState.facevaryingData.inDesc = iDesc;
+        _currentBindState.facevaryingData.in = inQ ? inQ->BindCpuBuffer() : 0;
 
         _currentBindState.facevaryingData.outDesc = oDesc;
         _currentBindState.facevaryingData.out = outQ ? outQ->BindCpuBuffer() : 0;
@@ -238,17 +243,18 @@ protected:
     // Facevarying interpolated streams
     struct FacevaryingData {
 
-        FacevaryingData() : out(0) { }
+        FacevaryingData() : in(0), out(0) { }
 
         void Reset() {
-            out = NULL;
+            in = out = NULL;
             inDesc.Reset();
             outDesc.Reset();
         }
 
         VertexBufferDescriptor inDesc,
-                                  outDesc;
-        float * out;
+                               outDesc;
+        float * in,
+              * out;
     };
 
 

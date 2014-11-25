@@ -49,17 +49,17 @@ evalBilinear(float u, float v,
              float * outQ);
 
 void
-evalBSpline(float u, float v, 
+evalBSpline(float u, float v,
             Far::Index const * vertexIndices,
             VertexBufferDescriptor const & inDesc,
-            float const * inQ, 
+            float const * inQ,
             VertexBufferDescriptor const & outDesc,
-            float * outQ, 
+            float * outQ,
             float * outDQU,
             float * outDQV );
 
 void
-evalBoundary(float u, float v, 
+evalBoundary(float u, float v,
              Far::Index const * vertexIndices,
              VertexBufferDescriptor const & inDesc,
              float const * inQ,
@@ -69,7 +69,7 @@ evalBoundary(float u, float v,
              float * outDQV );
 
 void
-evalCorner(float u, float v, 
+evalCorner(float u, float v,
            Far::Index const * vertexIndices,
            VertexBufferDescriptor const & inDesc,
            float const * inQ,
@@ -83,9 +83,9 @@ evalGregoryBasis(float u, float v,
                  Far::StencilTables const & basisStencils,
                  int stencilIndex,
                  VertexBufferDescriptor const & inDesc,
-                 float const * inQ, 
+                 float const * inQ,
                  VertexBufferDescriptor const & outDesc,
-                 float * outQ, 
+                 float * outQ,
                  float * outDQU,
                  float * outDQV );
 
@@ -93,12 +93,12 @@ void
 evalGregory(float u, float v,
             Far::Index const * vertexIndices,
             Far::Index const * vertexValenceBuffer,
-            Far::Index const * quadOffsetBuffer,
+            unsigned int const * quadOffsetBuffer,
             int maxValence,
             VertexBufferDescriptor const & inDesc,
-            float const * inQ, 
+            float const * inQ,
             VertexBufferDescriptor const & outDesc,
-            float * outQ, 
+            float * outQ,
             float * outDQU,
             float * outDQV );
 
@@ -106,7 +106,7 @@ void
 evalGregoryBoundary(float u, float v,
                     Far::Index const * vertexIndices,
                     Far::Index const * vertexValenceBuffer,
-                    Far::Index const * quadOffsetBuffer,
+                    unsigned int const * quadOffsetBuffer,
                     int maxValence,
                     VertexBufferDescriptor const & inDesc,
                     float const * inQ,

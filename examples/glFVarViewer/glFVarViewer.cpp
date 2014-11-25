@@ -564,8 +564,10 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     const char *glslVersion = "#version 330\n";
 #endif
 
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS or
-        desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+
+    if (desc.first.GetType() == Descriptor::QUADS or
+        desc.first.GetType() == Descriptor::TRIANGLES) {
         sconfig->vertexShader.source = shaderSource;
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
@@ -584,12 +586,12 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     sconfig->commonShader.AddDefine("OSD_FVAR_WIDTH", "2");
 
 
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS) {
+    if (desc.first.GetType() == Descriptor::QUADS) {
         // uniform catmark, bilinear
         sconfig->geometryShader.AddDefine("PRIM_QUAD");
         sconfig->fragmentShader.AddDefine("PRIM_QUAD");
         sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    } else if (desc.first.GetType() == Descriptor::TRIANGLES) {
         // uniform loop
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
@@ -820,15 +822,15 @@ display() {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
         OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
-        OpenSubdiv::Far::PatchTables::Type patchType = desc.GetType();
+        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
         GLenum primType;
 
         switch (patchType) {
-        case OpenSubdiv::Far::PatchTables::QUADS:
+        case OpenSubdiv::Far::PatchDescriptor::QUADS:
             primType = GL_LINES_ADJACENCY;
             break;
-        case OpenSubdiv::Far::PatchTables::TRIANGLES:
+        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
             primType = GL_TRIANGLES;
             break;
         default:
@@ -887,15 +889,15 @@ display() {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
         OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
-        OpenSubdiv::Far::PatchTables::Type patchType = desc.GetType();
+        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
         GLenum primType;
 
         switch (patchType) {
-        case OpenSubdiv::Far::PatchTables::QUADS:
+        case OpenSubdiv::Far::PatchDescriptor::QUADS:
             primType = GL_LINES_ADJACENCY;
             break;
-        case OpenSubdiv::Far::PatchTables::TRIANGLES:
+        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
             primType = GL_TRIANGLES;
             break;
         default:

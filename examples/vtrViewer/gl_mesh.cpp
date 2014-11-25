@@ -473,8 +473,8 @@ setEdge(std::vector<float> & vbo, int edge, float const * vertData, int v0, int 
     memcpy(dst1+3, color, sizeof(float)*3);
 }
 inline int
-getRingSize(OpenSubdiv::Far::PatchTables::Descriptor desc) {
-    if (desc.GetType()==OpenSubdiv::Far::PatchTables::GREGORY_BASIS) {
+getRingSize(OpenSubdiv::Far::PatchDescriptor desc) {
+    if (desc.GetType()==OpenSubdiv::Far::PatchDescriptor::GREGORY_BASIS) {
         return 4;
     } else {
         return desc.GetNumControlVertices();
@@ -510,23 +510,17 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
         }
     }
 
-    typedef OpenSubdiv::Far::PatchTables PatchTables;
-
-    PatchTables::PTable const & ptable =
-        patchTables.GetPatchTable();
-
-    PatchTables::PatchArrayVector const & parrays =
-        patchTables.GetPatchArrayVector();
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
 
     { // edge color component ------------------------------
 
         int nedges = 0;
 
-        for (int i=0; i<(int)parrays.size(); ++i) {
+        for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
 
-            int ncvs = parrays[i].GetDescriptor().GetNumControlVertices();
+            int ncvs = getRingSize(patchTables.GetPatchArrayDescriptor(array));
 
-            nedges += parrays[i].GetNumPatches() * getNumEdges(ncvs);
+            nedges += patchTables.GetNumPatches(array) * getNumEdges(ncvs);
         }
         std::vector<float> & vbo = _vbo[COMP_EDGE];
         vbo.resize(nedges * 2 * 6);
@@ -540,23 +534,25 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
 
         float const * color=solidColor;
 
-        for (int i=0, edge=0; i<(int)parrays.size(); ++i) {
+        for (int array=0, edge=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
 
-            PatchTables::PatchArray const & pa = parrays[i];
+            OpenSubdiv::Far::PatchDescriptor desc =
+                patchTables.GetPatchArrayDescriptor(array);
 
             if (options.edgeColorMode==EDGECOLOR_BY_PATCHTYPE) {
-                color = getAdaptivePatchColor(pa.GetDescriptor());
+                color = getAdaptivePatchColor(desc);
             }
 
-            int ncvs = getRingSize(pa.GetDescriptor());
+            int ncvs = getRingSize(desc);
 
-            OpenSubdiv::Far::Index const * cvs = &ptable[pa.GetVertIndex()];
+            for (int patch=0; patch<patchTables.GetNumPatches(array); ++patch) {
 
-            for (int j=0; j<(int)pa.GetNumPatches(); ++j, cvs+=ncvs) {
+                OpenSubdiv::Far::IndexArray const cvs =
+                    patchTables.GetPatchVertices(array, patch);
 
                 int const * edgeList=getEdgeList(ncvs);
 
-                for (int k=0; k<getNumEdges(ncvs); ++k, ++edge) {
+                for (int k=0; k<getNumEdges(cvs.size()); ++k, ++edge) {
 
                     eao[edge*2  ] = edge*2;
                     eao[edge*2+1] = edge*2+1;
@@ -583,37 +579,39 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
         _faceColors.resize(nfaces*4, 1.0f);
 
         // default to solid color
-        for (int i=0, face=0; i<(int)parrays.size(); ++i) {
+        for (int array=0, face=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
 
-            PatchTables::PatchArray const & pa = parrays[i];
+            OpenSubdiv::Far::PatchDescriptor desc =
+               patchTables.GetPatchArrayDescriptor(array);
 
-            int ncvs = getRingSize(pa.GetDescriptor());
+            //int ncvs = getRingSize(desc);
 
-            OpenSubdiv::Far::Index const * cvs = &ptable[pa.GetVertIndex()];
+            for (int patch=0; patch<patchTables.GetNumPatches(array); ++patch, ++face) {
 
-            for (int j=0; j<(int)pa.GetNumPatches(); ++j, ++face, cvs+=ncvs) {
+                OpenSubdiv::Far::IndexArray const cvs =
+                    patchTables.GetPatchVertices(array, patch);
 
-                if (pa.GetDescriptor().GetType()==PatchTables::REGULAR) {
+                if (desc.GetType()==Descriptor::REGULAR) {
                     eao[face*4  ] = cvs[ 5];
                     eao[face*4+1] = cvs[ 6];
                     eao[face*4+2] = cvs[10];
                     eao[face*4+3] = cvs[ 9];
-                } else if (pa.GetDescriptor().GetType()==PatchTables::BOUNDARY) {
+                } else if (desc.GetType()==Descriptor::BOUNDARY) {
                     eao[face*4  ] = cvs[ 2];
                     eao[face*4+1] = cvs[ 6];
                     eao[face*4+2] = cvs[ 5];
                     eao[face*4+3] = cvs[ 1];
-                } else if (pa.GetDescriptor().GetType()==PatchTables::CORNER) {
+                } else if (desc.GetType()==Descriptor::CORNER) {
                     eao[face*4  ] = cvs[ 1];
                     eao[face*4+1] = cvs[ 2];
                     eao[face*4+2] = cvs[ 5];
                     eao[face*4+3] = cvs[ 4];
                 } else {
-                    memcpy(&eao[face*4], cvs, 4*sizeof(OpenSubdiv::Far::Index));
+                    memcpy(&eao[face*4], cvs.begin(), 4*sizeof(OpenSubdiv::Far::Index));
                 }
 
                 if (options.faceColorMode==FACECOLOR_BY_PATCHTYPE) {
-                    float const * color = getAdaptivePatchColor(pa.GetDescriptor());
+                    float const * color = getAdaptivePatchColor(desc);
                     memcpy(&_faceColors[face*4], color, 4*sizeof(float));
                 } else {
                     setSolidColor(&_faceColors[face*4]);

@@ -146,52 +146,33 @@ void TbbSmoothNormalController::_smootheNormals(
     CpuSmoothNormalContext * context) {
 
     VertexBufferDescriptor const & iDesc = context->GetInputVertexDescriptor(),
-                                    & oDesc = context->GetOutputVertexDescriptor();
+                                 & oDesc = context->GetOutputVertexDescriptor();
 
     assert(iDesc.length==3 and oDesc.length==3);
 
-    float const * iBuffer = context->GetCurrentInputVertexBuffer() + iDesc.offset;
     float * oBuffer = context->GetCurrentOutputVertexBuffer() + oDesc.offset;
+    if (context->GetResetMemory()) {
 
-    std::vector<Far::Index> const & verts = context->GetControlVertices();
-
-    Far::PatchTables::PatchArrayVector const & parrays = context->GetPatchArrayVector();
-
-    if (verts.empty() or parrays.empty() or (not iBuffer) or (not oBuffer)) {
-        return;
+        TBBResetKernel resetKernel(oBuffer, oDesc.stride);
+        tbb::blocked_range<int> range(0, context->GetNumVertices(), grain_size);
+        tbb::parallel_for(range, resetKernel);
     }
 
-    for (int i=0; i<(int)parrays.size(); ++i) {
+    {   // note: quads only !
+        float const * iBuffer = context->GetCurrentInputVertexBuffer() + iDesc.offset;
 
-        Far::PatchTables::PatchArray const & pa = parrays[i];
+        Far::Index const * fverts = context->GetFaceVertices();
 
-        Far::PatchTables::Type type = pa.GetDescriptor().GetType();
+        int nfaces = context->GetNumFaces();
 
-        if (type==Far::PatchTables::QUADS or type==Far::PatchTables::TRIANGLES) {
+        TBBSmoothNormalKernel smoothNormalkernel( iBuffer,
+                                                  iDesc.stride,
+                                                  oBuffer,
+                                                  oDesc.stride,
+                                                  fverts, 4 );
 
-
-            // if necessary, reset all normal values to 0
-            if (context->GetResetMemory()) {
-
-                TBBResetKernel resetKernel(oBuffer, oDesc.stride);
-                tbb::blocked_range<int> range(0, context->GetNumVertices(), grain_size);
-                tbb::parallel_for(range, resetKernel);
-            }
-
-            {
-                int nv = Far::PatchTables::Descriptor::GetNumControlVertices(type);
-                TBBSmoothNormalKernel smoothNormalkernel( iBuffer,
-                                                          iDesc.stride,
-                                                          oBuffer,
-                                                          oDesc.stride,
-                                                          &verts[pa.GetVertIndex()],
-                                                          nv);
-
-                tbb::blocked_range<int> range(0, pa.GetNumPatches(), grain_size);
-                tbb::parallel_for(range, smoothNormalkernel);
-            }
-
-        }
+        tbb::blocked_range<int> range(0, nfaces, grain_size);
+        tbb::parallel_for(range, smoothNormalkernel);
     }
 }
 

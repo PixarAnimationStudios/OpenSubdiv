@@ -119,7 +119,7 @@ int   g_displayPatchColor    = 1,
       g_currentPatch         = 0,
       g_Adaptive             = true;
 
-OpenSubdiv::Far::PatchTables::Descriptor g_currentPatchDesc;
+OpenSubdiv::Far::PatchDescriptor g_currentPatchDesc;
 
 float g_rotate[2] = {0, 0},
       g_dolly = 5,
@@ -503,38 +503,30 @@ createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
     if (not g_currentPatch)
         return;
 
-    int patchID = g_currentPatch-1;
-
-    OpenSubdiv::Far::PatchTables::PatchArrayVector const & parrays =
-         patchTables.GetPatchArrayVector();
+    int patchID = g_currentPatch-1,
+        patchArray = -1;
 
     // Find PatchArray containing our patch
-    OpenSubdiv::Far::PatchTables::PatchArray const * pa=0;
-    for (int i=0; i<(int)parrays.size(); ++i) {
-        int npatches = parrays[i].GetNumPatches();
+    for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
+        int npatches = patchTables.GetNumPatches(array);
         if (patchID >= npatches) {
             patchID -= npatches;
         } else {
-            pa = &parrays[i];
+            patchArray = array;
             break;
         }
     }
-    if (not pa) {
+    if (patchArray==-1) {
         return;
     }
 
-    OpenSubdiv::Far::PatchTables::PTable const & ptable =
-        patchTables.GetPatchTable();
+    g_currentPatchDesc = patchTables.GetPatchArrayDescriptor(patchArray);
 
-    g_currentPatchDesc = pa->GetDescriptor();
-
-    int ncvs = g_currentPatchDesc.GetNumControlVertices();
-
-    OpenSubdiv::Far::Index const * cvs =
-        &ptable[pa->GetVertIndex()] + ncvs*patchID;
+    OpenSubdiv::Far::IndexArray const cvs =
+        patchTables.GetPatchVertices(patchArray, patchID);
 
     static char buf[16];
-    for (int i=0; i<ncvs; ++i) {
+    for (int i=0; i<cvs.size(); ++i) {
         snprintf(buf, 16, "%d", i);
         g_font->Print3D(vertexBuffer[cvs[i]].GetPos(), buf, 1);
     }
@@ -549,16 +541,14 @@ static void
 createGregoryBasis(OpenSubdiv::Far::PatchTables const & patchTables,
         std::vector<Vertex> const & vertexBuffer) {
 
-    typedef OpenSubdiv::Far::PatchTables FPatchTables;
-
-    FPatchTables::PatchArrayVector const & parrays =
-         patchTables.GetPatchArrayVector();
+    typedef OpenSubdiv::Far::PatchTables PatchTables;
+    typedef OpenSubdiv::Far::PatchDescriptor PatchDescriptor;
 
     int npatches = 0;
-    for (int i=0; i<(int)parrays.size(); ++i) {
-        FPatchTables::PatchArray const & pa = parrays[i];
-        if (pa.GetDescriptor().GetType()==FPatchTables::GREGORY_BASIS) {
-            npatches = pa.GetNumPatches();
+    for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
+        if (patchTables.GetPatchArrayDescriptor(array).GetType()==
+            PatchDescriptor::GREGORY_BASIS) {
+            npatches = patchTables.GetNumPatches(array);
             break;
         }
     }
@@ -619,16 +609,7 @@ static void
 createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
     std::vector<Vertex> const & vertexBuffer) {
 
-    typedef OpenSubdiv::Far::PatchTables FPatchTables;
-
-    FPatchTables::PatchParamTable const & pparams =
-         patchTables.GetPatchParamTable();
-
-    FPatchTables::PTable const & ptable =
-        patchTables.GetPatchTable();
-
-    FPatchTables::PatchArrayVector const & parrays =
-         patchTables.GetPatchArrayVector();
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
 
     static char buf[16];
 
@@ -637,25 +618,22 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
                corner[4]   = {1, 2, 4, 5},
                gregory[4]  = {0, 1, 2, 3};
 
-    for (int i=0, patch=0; i<(int)parrays.size(); ++i) {
+    for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
 
-        FPatchTables::PatchArray const & pa = parrays[i];
+        for (int patch=0; patch<(int)patchTables.GetNumPatches(array); ++patch) {
 
-        for (int j=0; j<(int)pa.GetNumPatches(); ++j, ++patch) {
-
-            int ncvs = pa.GetDescriptor().GetNumControlVertices();
-
-            OpenSubdiv::Far::Index const * cvs =
-                &ptable[pa.GetVertIndex()] + ncvs*j;
+            OpenSubdiv::Far::IndexArray const cvs =
+                patchTables.GetPatchVertices(array, patch);
 
             int * remap = 0;
-            switch (pa.GetDescriptor().GetType()) {
-                case FPatchTables::REGULAR:          remap = regular; break;
-                case FPatchTables::SINGLE_CREASE:    remap = boundary; break;
-                case FPatchTables::BOUNDARY:         remap = boundary; break;
-                case FPatchTables::CORNER:           remap = corner; break;
-                case FPatchTables::GREGORY:
-                case FPatchTables::GREGORY_BOUNDARY: remap = gregory; break;
+            switch (patchTables.GetPatchArrayDescriptor(array).GetType()) {
+                case Descriptor::REGULAR:          remap = regular; break;
+                case Descriptor::SINGLE_CREASE:    remap = boundary; break;
+                case Descriptor::BOUNDARY:         remap = boundary; break;
+                case Descriptor::CORNER:           remap = corner; break;
+                case Descriptor::GREGORY:
+                case Descriptor::GREGORY_BOUNDARY:
+                case Descriptor::GREGORY_BASIS:    remap = gregory; break;
                 default:
                     assert(0);
             }
@@ -665,7 +643,7 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
                 center.AddWithWeight(vertexBuffer[cvs[remap[k]]], 0.25f);
             }
 
-            snprintf(buf, 16, "%d", pparams[patch].faceIndex);
+            snprintf(buf, 16, "%d", patchTables.GetPatchParam(array, patch).faceIndex);
             g_font->Print3D(center.GetPos(), buf, 1);
         }
     }
