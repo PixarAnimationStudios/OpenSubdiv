@@ -61,11 +61,11 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
     StencilTables * result = new StencilTables;
 
     int maxlevel = std::min(int(options.maxLevel), refiner.GetMaxLevel());
-    if (maxlevel==0) {
+    if (maxlevel==0 and (not options.generateControlVerts)) {
         return result;
     }
 
-    // maxsize reflects the size of the default supporting basis factorized
+    // 'maxsize' reflects the size of the default supporting basis factorized
     // in the stencils, with a little bit of head-room. Each subdivision scheme
     // has a set valence for 'regular' vertices, which drives the size of the
     // supporting basis of control-vertices. The goal is to reduce the number
@@ -101,7 +101,7 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
     StencilAllocator * srcAlloc = &allocators[0],
                      * dstAlloc = &allocators[1];
 
-    ///
+    //
     // Interpolate stencils for each refinement level using
     // TopologyRefiner::InterpolateLevel<>()
     //
@@ -220,11 +220,11 @@ StencilTablesFactory::Create(int numTables, StencilTables const ** tables) {
         StencilTables const & st = *tables[i];
 
         int nstencils = st.GetNumStencils(),
-            nelems = (int)st._indices.size();        
+            nelems = (int)st._indices.size();
         memcpy(sizes, &st._sizes[0], nstencils*sizeof(unsigned char));
         memcpy(indices, &st._indices[0], nelems*sizeof(Index));
         memcpy(weights, &st._weights[0], nelems*sizeof(float));
-        
+
         sizes += nstencils;
         indices += nelems;
         weights += nelems;
