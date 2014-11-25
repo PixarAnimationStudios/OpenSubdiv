@@ -489,12 +489,12 @@ EffectDrawRegistry::_CreateDrawSourceConfig(
     sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
 
     bool smoothNormals = false;
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS ||
-        desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS ||
+        desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::TRIANGLES) {
         sconfig->vertexShader.source = shaderSource;
         sconfig->vertexShader.target = "vs_5_0";
         sconfig->vertexShader.entry = "vs_main";
-    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::TRIANGLES) {
         if (effect.displayStyle == kQuadWire) effect.displayStyle = kTriWire;
         if (effect.displayStyle == kQuadFill) effect.displayStyle = kTriFill;
         if (effect.displayStyle == kQuadLine) effect.displayStyle = kTriLine;

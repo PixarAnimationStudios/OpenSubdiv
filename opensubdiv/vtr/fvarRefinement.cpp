@@ -435,10 +435,11 @@ FVarRefinement::propagateValueTags() {
         Index pVert = _refinement.getChildVertexParentIndex(cVert);
         assert(!_refinement._childVertexTag[cVert]._incomplete);
 
-        FVarLevel::ValueTagArray pValueTags = _parentFVar.getVertexValueTags(pVert);
+        FVarLevel::ValueTagArray const pValueTags = _parentFVar.getVertexValueTags(pVert);
         FVarLevel::ValueTagArray cValueTags = _childFVar.getVertexValueTags(cVert);
 
-        std::copy(pValueTags.begin(), pValueTags.end(), cValueTags.begin());
+        memcpy(cValueTags.begin(), pValueTags.begin(),
+            pValueTags.size()*sizeof(FVarLevel::ValueTag));
     }
 }
 

@@ -86,7 +86,8 @@ D3D11DrawContext::create(Far::PatchTables const &patchTables,
     pd3d11DeviceContext->GetDevice(&pd3d11Device);
     assert(pd3d11Device);
 
-    ConvertPatchArrays(patchTables.GetPatchArrayVector(), _patchArrays, patchTables.GetMaxValence(), numVertexElements);
+    DrawContext::ConvertPatchArrays(patchTables, _patchArrays,
+        patchTables.GetMaxValence(), numVertexElements);
 
     Far::PatchTables::PatchVertsTable const & ptables = patchTables.GetPatchControlVerticesTable();
     Far::PatchParamTable const & ptexCoordTables = patchTables.GetPatchParamTable();

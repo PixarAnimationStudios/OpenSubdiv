@@ -467,8 +467,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc, ID3D11Device 
         sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
 
     bool quad = true;
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS ||
-        desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS ||
+        desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::TRIANGLES) {
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.target = "vs_5_0";
         sconfig->vertexShader.entry = "vs_main";
