@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="css/default.css" type="text/css" />
 <link rel="stylesheet" href="css/flavor.css" type="text/css" />
 <link rel="stylesheet" href="css/renderman-university.css" type="text/css" />
+<link rel="stylesheet" href="css/pygments.css" type="text/css" />
 <style>
 #mainContentContainer {
     left: 15px;

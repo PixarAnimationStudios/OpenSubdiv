@@ -65,19 +65,19 @@ or in your local ``<repository root>/turorials``.
 
    * - | **Tutorial 0**
        | This tutorial presents in a very succint way the requisite steps to
-         instantiate a Far mesh from simple topological data.
+         instantiate a Far mesh from simple topological data. `[code] <far_tutorial_0.html>`__
        | |far_tut_0|
        |
        | **Tutorial 1**
        | This tutorial shows how to interface a high-level topology representation
          with Far for better efficiency. In tutorial 0, we showed how to instantiate
          topology from a simple face-vertex list. Here we will show how to take
-         advantage of more complex data structures.
+         advantage of more complex data structures. `[code] <far_tutorial_1.html>`__
        |
        | **Tutorial 2**
        | Building on tutorial 0, this example shows how to instantiate a simple mesh,
          refine it uniformly and then interpolate both 'vertex' and 'varying' primvar
-         data.
+         data. `[code] <far_tutorial_2.html>`__
        | |far_tut_1|
        |
        | **Tutorial 3**
@@ -85,26 +85,26 @@ or in your local ``<repository root>/turorials``.
          refine it uniformly and then interpolate both 'vertex' and 'face-varying'
          primvar data.
          The resulting interpolated data is output as an 'obj' file, with the
-         'face-varying' data recorded in the uv texture layout.
+         'face-varying' data recorded in the uv texture layout.  `[code] <far_tutorial_3.html>`__
        | |far_tut_3|
        |
      - | **Tutorial 4**
        | This tutorial shows how to create and manipulate FarStencilTables. We use the
-         factorized stencils to interpolate vertex primvar data buffers.
+         factorized stencils to interpolate vertex primvar data buffers. `[code] <far_tutorial_4.html>`__
        |
        | **Tutorial 5**
        | This tutorial shows how to create and manipulate both 'vertex' and 'varying'
          FarStencilTables to interpolate 2 primvar data buffers: vertex positions and
-         vertex colors.
+         vertex colors. `[code] <far_tutorial_5.html>`__
        |
        | **Tutorial 6**
        | This tutorial shows how to interpolate surface limits at arbitrary
-         parametric locations using feature adaptive Far::PatchTables.
+         parametric locations using feature adaptive Far::PatchTables. `[code] <far_tutorial_6.html>`__
        | |far_tut_6|
        |
        | **Tutorial 7**
        | This tutorial shows how to create and manipulate tables of cascading
-         stencils to apply hierarchical vertex edits.
+         stencils to apply hierarchical vertex edits. `[code] <far_tutorial_7.html>`__
        |
 
 ----
@@ -115,7 +115,7 @@ or in your local ``<repository root>/turorials``.
 
    * - | **Tutorial 0**
        | This tutorial demonstrates the manipulation of Osd 'Compute' 'Contexts' and
-         'Controllers'.
+         'Controllers'.  `[code] <osd_tutorial_0.html>`__
        |
      - |
 
@@ -129,14 +129,14 @@ or in your local ``<repository root>/turorials``.
 
    * - | **Tutorial 0**
        | This tutorial presents, in a very succint way, the requisite steps to
-         instantiate an Hbr mesh from simple topological data.
+         instantiate an Hbr mesh from simple topological data. `[code] <hbr_tutorial_0.html>`__
        |
        | **Tutorial 1**
        | This tutorial shows how to safely create Hbr meshes from arbitrary topology.
          Because Hbr is a half-edge data structure, it cannot represeent non-manifold
          topology. Ensuring that the geometry used is manifold is a requirement to use
          Hbr safely. This tutorial presents some simple tests to detect inappropriate
-         topology.
+         topology. `[code] <hbr_tutorial_1.html>`__
        |
      - | **Tutorial 2**
        | This tutorial shows how to subdivide uniformly a simple Hbr mesh. We are
@@ -145,7 +145,7 @@ or in your local ``<repository root>/turorials``.
          used in hbr_tutorial_0. We then apply the Refine() function sequentially
          to all the faces in the mesh to generate several levels of uniform
          subdivision. The resulting data is then dumped to the terminal in Wavefront
-         OBJ format for inspection.
+         OBJ format for inspection. `[code] <hbr_tutorial_2.html>`__
        | |hbr_tut_2|
        |
 
