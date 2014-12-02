@@ -55,14 +55,16 @@ def WriteToFile(outputfile, content):
 #-------------------------------------------------------------------------------
 # Reformats the C++ tutorial file as a ReST file for publication on the
 # documentation site
-def Process(srcfile):
+def Process(srcfile, title):
 
     basename = os.path.basename(srcfile)
 
     rest = "\n"
 
     rest += basename+"\n"
-    rest += ("-" * len(basename))+"\n"
+    rest += ("-" * len(basename))+"\n\n"
+
+    rest += "`<https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/tutorials/"+title+">`_\n"
 
     rest += ("\n"
              "----\n"
@@ -83,7 +85,7 @@ def Process(srcfile):
 
 #-------------------------------------------------------------------------------
 def Usage():
-    print str(sys.argv[0])+" <input file> <output file>"
+    print str(sys.argv[0])+" <input file> <output file> <title>"
     exit(1);
 
 
@@ -93,11 +95,12 @@ def Usage():
 # XXXX manuelk we should have this script traverse the tutorials folders and
 #              automatically generate both the ReST from the C++ code as well
 #              as the tutorials.rst file based on what is found
-if (len(sys.argv)!=3):
+if (len(sys.argv)!=4):
     Usage()
 
 srcfile = str(sys.argv[1])
-rest = Process(srcfile)
+title = str(sys.argv[3])
+rest = Process(srcfile, title)
 
 dstfile = str(sys.argv[2])
 WriteToFile(dstfile, rest)

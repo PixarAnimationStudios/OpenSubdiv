@@ -190,6 +190,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
                 "${CMAKE_CURRENT_SOURCE_DIR}/processTutorials.py"
                 "${infile}"
                 "${rstfile}"
+                "${tutorial}"
             DEPENDS
                 ${infile}
                 "${CMAKE_CURRENT_SOURCE_DIR}/processTutorials.py"
