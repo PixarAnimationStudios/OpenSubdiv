@@ -316,9 +316,22 @@ FarSubdivisionTablesFactory<T,U>::getVertexDepth(HbrVertex<T> * v) {
         // Un-connected vertices do not have a face pointer, so we have to seek
         // the parent. Note : subdivision tables can only work with face-vertices,
         // so we assert out of the other types.
-        HbrFace<T> * parent = v->GetParentFace();
-        assert(parent);
-        return parent->GetDepth()+1;
+        {   HbrFace<T> * parent = v->GetParentFace();
+            if (parent) {
+                return parent->GetDepth()+1;
+            }
+        }
+        {   HbrHalfedge<T> * parent = v->GetParentEdge();
+            if (parent) {
+                return parent->GetFace()->GetDepth()+1;
+            }
+        }
+        {   HbrVertex<T> * parent = v->GetParentVertex();
+            if (parent) {
+                return getVertexDepth(parent)+1;
+            }
+        }
+        return 0;
     }
 }
 
