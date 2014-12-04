@@ -55,14 +55,14 @@
 .kr { color: #6ab825; font-weight: bold } /* Keyword.Reserved */
 .name.attribute { color: #bbbbbb } /* Name.Attribute */
 .name.builtin { color: #24909d } /* Name.Builtin */
-.name.class { color: #447fcf; text-decoration: underline } /* Name.Class */
+.name.class { color: #447fcf; font-weight: bold } /* Name.Class */
 .name.constant { color: #40ffff } /* Name.Constant */
 .name.decorator { color: #ffa500 } /* Name.Decorator */
 .name.entity { color: #d0d0d0 } /* Name.Entity */
 .name.exception { color: #bbbbbb } /* Name.Exception */
 .name-function { color: #447fcf } /* Name.Function */
 .name.label { color: #d0d0d0 } /* Name.Label */
-.name.namespace { color: #447fcf; text-decoration: underline } /* Name.Namespace */
+.name.namespace { color: #447fcf; } /* Name.Namespace */
 .name.other { color: #d0d0d0 } /* Name.Other */
 .name.property { color: #d0d0d0 } /* Name.Property */
 .name.tag { color: #6ab825; font-weight: bold } /* Name.Tag */
