@@ -23,7 +23,7 @@
 //
 
 #include "../osd/d3d11DrawRegistry.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #include <D3D11.h>
 #include <D3Dcompiler.h>
@@ -228,7 +228,7 @@ _CompileShader(
                             dwShaderFlags, 0, &pBlob, &pBlobError);
     if (FAILED(hr)) {
         if ( pBlobError != NULL ) {
-            Error(OSD_D3D11_COMPILE_ERROR,
+            Far::Error(Far::FAR_RUNTIME_ERROR,
                      "Error compiling HLSL shader: %s\n",
                      (CHAR*)pBlobError->GetBufferPointer());
             pBlobError->Release();

@@ -25,7 +25,7 @@
 #include "../far/stencilTables.h"
 
 #include "../osd/d3d11ComputeContext.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #include <D3D11.h>
 #include <vector>
@@ -80,7 +80,7 @@ struct D3D11Table {
 
         HRESULT hr = device->CreateBuffer(&bd, &initData, &buffer);
         if (FAILED(hr)) {
-            Error(OSD_D3D11_COMPUTE_BUFFER_CREATE_ERROR,
+            Far::Error(Far::FAR_RUNTIME_ERROR,
                      "Error creating compute table buffer\n");
             return;
         }
@@ -94,7 +94,7 @@ struct D3D11Table {
 
         hr = device->CreateShaderResourceView(buffer, &srvd, &srv);
         if (FAILED(hr)) {
-            Error(OSD_D3D11_COMPUTE_BUFFER_CREATE_ERROR,
+            Far::Error(Far::FAR_RUNTIME_ERROR,
                      "Error creating compute table shader resource view\n");
             return;
         }

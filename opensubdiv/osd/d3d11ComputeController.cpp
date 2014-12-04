@@ -23,7 +23,7 @@
 //
 
 #include "../osd/d3d11ComputeController.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 #include "../osd/vertexDescriptor.h"
 
 #define INITGUID        // for IID_ID3D11ShaderReflection
@@ -116,7 +116,7 @@ public:
                                 &computeShaderBuffer, &errorBuffer);
         if (FAILED(hr)) {
             if (errorBuffer != NULL) {
-                Error(OSD_D3D11_COMPILE_ERROR,
+                Far::Error(Far::FAR_RUNTIME_ERROR,
                          "Error compiling HLSL shader: %s\n",
                          (CHAR*)errorBuffer->GetBufferPointer());
                 errorBuffer->Release();

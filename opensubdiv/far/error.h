@@ -33,11 +33,11 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 typedef enum {
-    NO_ERROR,                 ///< No error. Move along.
-    FATAL_ERROR,              ///< Issue a fatal error and end the program.
-    INTERNAL_CODING_ERROR,    ///< Issue an internal programming error, but continue execution.
-    CODING_ERROR,             ///< Issue a generic programming error, but continue execution.
-    RUNTIME_ERROR             ///< Issue a generic runtime error, but continue execution.
+    FAR_NO_ERROR,               ///< No error. Move along.
+    FAR_FATAL_ERROR,            ///< Issue a fatal error and end the program.
+    FAR_INTERNAL_CODING_ERROR,  ///< Issue an internal programming error, but continue execution.
+    FAR_CODING_ERROR,           ///< Issue a generic programming error, but continue execution.
+    FAR_RUNTIME_ERROR           ///< Issue a generic runtime error, but continue execution.
 } ErrorType;
 
 typedef void (*ErrorCallbackFunc)(ErrorType err, const char *message);
@@ -48,7 +48,7 @@ typedef void (*ErrorCallbackFunc)(ErrorType err, const char *message);
 ///
 void SetErrorCallback(ErrorCallbackFunc func);
 
-/// Sends an OSD error 
+/// Sends an OSD error
 ///
 /// @param err the error type
 ///
@@ -79,7 +79,7 @@ void SetWarningCallback(WarningCallbackFunc func);
 void Warning(const char *format, ...);
 
 
-} // end namespace 
+} // end namespace
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

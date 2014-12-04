@@ -43,7 +43,7 @@ createCLBuffer(std::vector<T> const & src, cl_context clContext) {
             src.size()*sizeof(T), (void*)(&src.at(0)), &errNum);
 
     if (errNum!=CL_SUCCESS) {
-        Far::Error(Far::RUNTIME_ERROR, "clCreateBuffer: %d", errNum);
+        Far::Error(Far::FAR_RUNTIME_ERROR, "clCreateBuffer: %d", errNum);
     }
 
     return devicePtr;

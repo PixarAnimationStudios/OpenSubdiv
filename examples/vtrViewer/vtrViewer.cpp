@@ -46,7 +46,6 @@ GLFWmonitor* g_primary=0;
     #define snprintf _snprintf
 #endif
 
-#include <osd/error.h>
 #include <osd/vertex.h>
 #include <osd/cpuGLVertexBuffer.h>
 

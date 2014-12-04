@@ -342,8 +342,8 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
 template <>
 void
 TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::reportInvalidTopology(
-    char const * msg, TopologyDescriptor const& mesh) {
-    reportInvalidTopology(msg, mesh);
+    char const * msg, TopologyDescriptor const& /* mesh */) {
+    Warning(msg);
 }
 
 TopologyRefinerFactoryBase::TopologyDescriptor::TopologyDescriptor() {

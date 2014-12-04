@@ -23,7 +23,7 @@
 //
 
 #include "../osd/cpuD3D11VertexBuffer.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #include <D3D11.h>
 #include <cassert>
@@ -92,7 +92,7 @@ CpuD3D11VertexBuffer::BindD3D11Buffer(ID3D11DeviceContext *deviceContext) {
                                     D3D11_MAP_WRITE_DISCARD, 0, &resource);
 
     if (FAILED(hr)) {
-        Error(OSD_D3D11_BUFFER_MAP_ERROR, "Fail to map buffer\n");
+        Far::Error(Far::FAR_RUNTIME_ERROR, "Fail to map buffer\n");
         return NULL;
     }
 
@@ -122,7 +122,7 @@ CpuD3D11VertexBuffer::allocate(ID3D11Device *device) {
     HRESULT hr;
     hr = device->CreateBuffer(&hBufferDesc, NULL, &_d3d11Buffer);
     if (FAILED(hr)) {
-        Error(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Fail in CreateBuffer\n");
         return false;
     }

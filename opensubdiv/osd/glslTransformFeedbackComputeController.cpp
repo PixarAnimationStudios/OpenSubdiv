@@ -166,10 +166,10 @@ public:
         if (linked == GL_FALSE) {
             char buffer[1024];
             glGetShaderInfoLog(shader, 1024, NULL, buffer);
-            Far::Error(Far::RUNTIME_ERROR, buffer);
+            Far::Error(Far::FAR_RUNTIME_ERROR, buffer);
 
             glGetProgramInfoLog(_program, 1024, NULL, buffer);
-            Far::Error(Far::RUNTIME_ERROR, buffer);
+            Far::Error(Far::FAR_RUNTIME_ERROR, buffer);
 
             glDeleteProgram(_program);
             _program = 0;

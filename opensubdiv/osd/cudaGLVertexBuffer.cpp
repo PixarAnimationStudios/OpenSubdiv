@@ -53,7 +53,7 @@ CudaGLVertexBuffer::Create(int numElements, int numVertices) {
     CudaGLVertexBuffer *instance =
         new CudaGLVertexBuffer(numElements, numVertices);
     if (instance->allocate()) return instance;
-    Far::Error(Far::RUNTIME_ERROR,"CudaGLVertexBuffer::Create failed.\n");
+    Far::Error(Far::FAR_RUNTIME_ERROR,"CudaGLVertexBuffer::Create failed.\n");
     delete instance;
     return NULL;
 }
@@ -67,7 +67,7 @@ CudaGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertice
                                  _numElements * numVertices * sizeof(float),
                                  cudaMemcpyHostToDevice);
     if (err != cudaSuccess)
-        Far::Error(Far::RUNTIME_ERROR, "CudaGLVertexBuffer::UpdateData failed. : %s\n",
+        Far::Error(Far::FAR_RUNTIME_ERROR, "CudaGLVertexBuffer::UpdateData failed. : %s\n",
                  cudaGetErrorString(err));
 }
 
@@ -133,10 +133,10 @@ CudaGLVertexBuffer::map() {
 
     cudaError_t err = cudaGraphicsMapResources(1, &_cudaResource, 0);
     if (err != cudaSuccess)
-        Far::Error(Far::RUNTIME_ERROR, "CudaGLVertexBuffer::map failed.\n%s\n", cudaGetErrorString(err));
+        Far::Error(Far::FAR_RUNTIME_ERROR, "CudaGLVertexBuffer::map failed.\n%s\n", cudaGetErrorString(err));
     err = cudaGraphicsResourceGetMappedPointer(&ptr, &num_bytes, _cudaResource);
     if (err != cudaSuccess)
-        Far::Error(Far::RUNTIME_ERROR, "CudaGLVertexBuffer::map failed.\n%s\n", cudaGetErrorString(err));
+        Far::Error(Far::FAR_RUNTIME_ERROR, "CudaGLVertexBuffer::map failed.\n%s\n", cudaGetErrorString(err));
     _devicePtr = ptr;
 }
 
@@ -146,7 +146,7 @@ CudaGLVertexBuffer::unmap() {
     if (_devicePtr == NULL) return;
     cudaError_t err = cudaGraphicsUnmapResources(1, &_cudaResource, 0);
     if (err != cudaSuccess)
-       Far::Error(Far::RUNTIME_ERROR, "CudaGLVertexBuffer::unmap failed.\n%s\n", cudaGetErrorString(err));
+       Far::Error(Far::FAR_RUNTIME_ERROR, "CudaGLVertexBuffer::unmap failed.\n%s\n", cudaGetErrorString(err));
     _devicePtr = NULL;
 }
 

@@ -246,7 +246,7 @@ _CompileShader(
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
         char * infoLog = new char[infoLogLength];
         glGetShaderInfoLog(shader, infoLogLength, NULL, infoLog);
-        Far::Error(Far::RUNTIME_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                    "Error compiling GLSL shader: %s\nDefines: \n%s\n",
                  infoLog, defString.c_str());
         delete[] infoLog;
@@ -321,7 +321,7 @@ GLDrawRegistryBase::_CreateDrawConfig(
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
         char * infoLog = new char[infoLogLength];
         glGetProgramInfoLog(program, infoLogLength, NULL, infoLog);
-        Far::Error(Far::RUNTIME_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                    "Error linking GLSL program: %s\n", infoLog);
         delete[] infoLog;
     }

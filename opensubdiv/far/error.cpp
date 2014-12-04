@@ -35,11 +35,11 @@ namespace Far {
 static ErrorCallbackFunc errorFunc = 0;
 
 static char const * errors[] = {
-    "NO_ERROR",
-    "FATAL_ERROR",
-    "INTERNAL_CODING_ERROR",
-    "CODING_ERROR",
-    "RUNTIME_ERROR"
+    "FAR_NO_ERROR",
+    "FAR_FATAL_ERROR",
+    "FAR_INTERNAL_CODING_ERROR",
+    "FAR_CODING_ERROR",
+    "FAR_RUNTIME_ERROR"
 };
 
 void SetErrorCallback(ErrorCallbackFunc func) {

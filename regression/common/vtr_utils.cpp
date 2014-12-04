@@ -81,3 +81,135 @@ InterpolateFVarData(OpenSubdiv::Far::TopologyRefiner & refiner,
         refiner.InterpolateFaceVarying(src, dst, channel);
     }
 }
+
+//------------------------------------------------------------------------------
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
+namespace Far {
+
+template <>
+void
+TopologyRefinerFactory<Shape>::resizeComponentTopology(
+    Far::TopologyRefiner & refiner, Shape const & shape) {
+
+    int nfaces = shape.GetNumFaces(),
+        nverts = shape.GetNumVertices();
+
+    refiner.setNumBaseFaces(nfaces);
+    for (int i=0; i<nfaces; ++i) {
+
+        int nv = shape.nvertsPerFace[i];
+        refiner.setNumBaseFaceVertices(i, nv);
+    }
+
+    // Vertices and vert-faces and vert-edges
+    refiner.setNumBaseVertices(nverts);
+}
+
+//----------------------------------------------------------
+template <>
+void
+TopologyRefinerFactory<Shape>::assignComponentTopology(
+    Far::TopologyRefiner & refiner, Shape const & shape) {
+
+    { // Face relations:
+        int nfaces = refiner.getNumBaseFaces();
+
+        for (int i=0, ofs=0; i < nfaces; ++i) {
+
+            Far::IndexArray dstFaceVerts = refiner.setBaseFaceVertices(i);
+            //IndexArray dstFaceEdges = refiner.setBaseFaceEdges(i);
+
+            for (int j=0; j<dstFaceVerts.size(); ++j) {
+                dstFaceVerts[j] = shape.faceverts[ofs++];
+            }
+        }
+    }
+}
+
+//----------------------------------------------------------
+template <>
+void
+TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
+    Far::TopologyRefiner & refiner, Shape const & shape) {
+
+    // UV layyout (we only parse 1 channel)
+    if (not shape.faceuvs.empty()) {
+
+        int nfaces = refiner.getNumBaseFaces(),
+           channel = refiner.createFVarChannel( (int)shape.faceuvs.size() );
+
+        for (int i=0, ofs=0; i < nfaces; ++i) {
+
+            Far::IndexArray dstFaceUVs =
+                refiner.getBaseFVarFaceValues(i, channel);
+
+            for (int j=0; j<dstFaceUVs.size(); ++j) {
+                dstFaceUVs[j] = shape.faceuvs[ofs++];
+            }
+        }
+    }
+}
+
+//----------------------------------------------------------
+template <>
+void
+TopologyRefinerFactory<Shape>::assignComponentTags(
+    Far::TopologyRefiner & refiner, Shape const & shape) {
+
+
+    for (int i=0; i<(int)shape.tags.size(); ++i) {
+
+        Shape::tag * t = shape.tags[i];
+
+        if (t->name=="crease") {
+
+            for (int j=0; j<(int)t->intargs.size()-1; j += 2) {
+
+                OpenSubdiv::Vtr::Index edge = refiner.FindEdge(/*level*/0, t->intargs[j], t->intargs[j+1]);
+                if (edge==OpenSubdiv::Vtr::INDEX_INVALID) {
+                    printf("cannot find edge for crease tag (%d,%d)\n", t->intargs[j], t->intargs[j+1] );
+                } else {
+                    int nfloat = (int) t->floatargs.size();
+                    refiner.baseEdgeSharpness(edge) =
+                        std::max(0.0f, ((nfloat > 1) ? t->floatargs[j] : t->floatargs[0]));
+                }
+            }
+        } else if (t->name=="corner") {
+
+            for (int j=0; j<(int)t->intargs.size(); ++j) {
+                int vertex = t->intargs[j];
+                if (vertex<0 or vertex>=refiner.GetNumVertices(/*level*/0)) {
+                    printf("cannot find vertex for corner tag (%d)\n", vertex );
+                } else {
+                    int nfloat = (int) t->floatargs.size();
+                    refiner.baseVertexSharpness(vertex) =
+                        std::max(0.0f, ((nfloat > 1) ? t->floatargs[j] : t->floatargs[0]));
+                }
+            }
+        }
+    }
+    { // Hole tags
+        for (int i=0; i<(int)shape.tags.size(); ++i) {
+            Shape::tag * t = shape.tags[i];
+            if (t->name=="hole") {
+                for (int j=0; j<(int)t->intargs.size(); ++j) {
+                    refiner.setBaseFaceHole(t->intargs[j], true);
+                }
+            }
+        }
+    }
+}
+
+template <>
+void
+TopologyRefinerFactory<Shape>::reportInvalidTopology(char const * msg, Shape const& /* shape */) {
+    Warning(msg);
+}
+
+} // namespace Far
+
+} // namespace OPENSUBDIV_VERSION
+} // namespace OpenSubdiv
