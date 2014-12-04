@@ -22,7 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -30,24 +30,16 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-namespace Osd {
+namespace Far {
 
 static ErrorCallbackFunc errorFunc = 0;
 
 static char const * errors[] = {
-    "OSD_NO_ERROR",
-    "OSD_INTERNAL_CODING_ERROR",
-    "OSD_CL_PROGRAM_BUILD_ERROR",
-    "OSD_CL_KERNEL_CREATE_ERROR",
-    "OSD_CL_RUNTIME_ERROR",
-    "OSD_CUDA_GL_ERROR",
-    "OSD_GL_ERROR",
-    "OSD_GLSL_COMPILE_ERROR",
-    "OSD_GLSL_LINK_ERROR",
-    "OSD_D3D11_COMPILE_ERROR",
-    "OSD_D3D11_COMPUTE_BUFFER_CREATE_ERROR",
-    "OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR",
-    "OSD_D3D11_BUFFER_MAP_ERROR"
+    "NO_ERROR",
+    "FATAL_ERROR",
+    "INTERNAL_CODING_ERROR",
+    "CODING_ERROR",
+    "RUNTIME_ERROR"
 };
 
 void SetErrorCallback(ErrorCallbackFunc func) {
@@ -71,7 +63,7 @@ void Error(ErrorType err, const char *format, ...) {
     va_start(argptr, format);
     vsnprintf(message, 10240, format, argptr);
     va_end(argptr);
-    
+
     if (errorFunc) {
         errorFunc(err, message);
     } else {
@@ -93,15 +85,15 @@ void Warning(const char *format, ...) {
     va_start(argptr, format);
     vsnprintf(message, 10240, format, argptr);
     va_end(argptr);
-    
+
     if (warningFunc) {
         warningFunc(message);
     } else {
-        printf("OSD_WARNING : %s\n", message);
+        printf("WARNING : %s\n", message);
     }
 }
 
-} // end namespace 
+} // end namespace
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

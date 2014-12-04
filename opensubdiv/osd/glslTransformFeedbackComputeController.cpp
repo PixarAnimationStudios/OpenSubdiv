@@ -22,12 +22,12 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../osd/error.h"
 //#define OSD_DEBUG_BUILD
 #include "../osd/debug.h"
 #include "../osd/glslTransformFeedbackComputeController.h"
 #include "../osd/glslTransformFeedbackComputeContext.h"
 #include "../osd/opengl.h"
+#include "../far/error.h"
 
 #include <algorithm>
 #include <cassert>
@@ -118,7 +118,7 @@ public:
         std::string defineStr = defines.str();
 
         const char *shaderSources[4] = {"#version 420\n", 0, 0, 0};
-        
+
         shaderSources[1] = defineStr.c_str();
         shaderSources[2] = shaderDefines;
         shaderSources[3] = shaderSource;
@@ -166,10 +166,10 @@ public:
         if (linked == GL_FALSE) {
             char buffer[1024];
             glGetShaderInfoLog(shader, 1024, NULL, buffer);
-            Error(OSD_GLSL_LINK_ERROR, buffer);
+            Far::Error(Far::RUNTIME_ERROR, buffer);
 
             glGetProgramInfoLog(_program, 1024, NULL, buffer);
-            Error(OSD_GLSL_LINK_ERROR, buffer);
+            Far::Error(Far::RUNTIME_ERROR, buffer);
 
             glDeleteProgram(_program);
             _program = 0;

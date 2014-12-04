@@ -24,7 +24,6 @@
 
 #include "../far/stencilTables.h"
 
-#include "../osd/error.h"
 //#include "../osd/debug.h"
 #include "../osd/glslComputeContext.h"
 #include "../osd/opengl.h"

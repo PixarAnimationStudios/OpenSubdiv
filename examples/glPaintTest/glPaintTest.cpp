@@ -42,10 +42,10 @@
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
-#include <osd/error.h>
 #include <osd/vertex.h>
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
+#include <far/error.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -1105,9 +1105,8 @@ idle() {
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::Osd::ErrorType err, const char *message) {
-
-    printf("OsdError: %d\n", err);
+callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
+    printf("Error: %d\n", err);
     printf("%s", message);
 }
 
@@ -1153,7 +1152,7 @@ int main(int argc, char ** argv) {
         }
     }
     initShapes();
-    OpenSubdiv::Osd::SetErrorCallback(callbackError);
+    OpenSubdiv::Far::SetErrorCallback(callbackError);
 
     if (not glfwInit()) {
         printf("Failed to initialize GLFW\n");

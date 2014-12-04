@@ -25,6 +25,7 @@
 #-------------------------------------------------------------------------------
 # source & headers
 set(SOURCE_FILES
+    error.cpp
     gregoryBasis.cpp
     patchDescriptor.cpp
     patchMap.cpp
@@ -40,6 +41,7 @@ set(PRIVATE_HEADER_FILES
 )
 
 set(PUBLIC_HEADER_FILES
+    error.h
     gregoryBasis.h
     kernelBatch.h
     kernelBatchDispatcher.h

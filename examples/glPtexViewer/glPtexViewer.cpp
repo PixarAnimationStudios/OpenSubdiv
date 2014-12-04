@@ -55,10 +55,10 @@ GLFWmonitor* g_primary = 0;
     #include <png.h>
 #endif
 
-#include <osd/error.h>
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
 #include <osd/glPtexMipmapTexture.h>
+#include <far/error.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -2294,8 +2294,8 @@ void usage(const char *program) {
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::Osd::ErrorType err, const char *message) {
-    printf("OsdError: %d\n", err);
+callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
+    printf("Error: %d\n", err);
     printf("%s", message);
 }
 
@@ -2376,7 +2376,7 @@ int main(int argc, char ** argv) {
         }
     }
 
-    OpenSubdiv::Osd::SetErrorCallback(callbackError);
+    OpenSubdiv::Far::SetErrorCallback(callbackError);
 
     g_shaderSource = g_defaultShaderSource;
     reloadShaderFile();

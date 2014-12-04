@@ -23,7 +23,6 @@
 //
 
 #include "../osd/ptexMipmapTextureLoader.h"
-#include "../osd/error.h"
 
 #include <Ptexture.h>
 #include <vector>
@@ -127,7 +126,7 @@ PtexMipmapTextureLoader::Block::guttering(PtexMipmapTextureLoader *loader,
                +---*---|
                | D/E\C |
                | /   \ |
-               |/     \| 
+               |/     \|
                +-------+
          */
 
@@ -835,7 +834,7 @@ PtexMipmapTextureLoader::optimizePacking(int maxNumPages,
 
             // pick a smaller mipmap
             numTexels -= block->GetNumTexels();
-            block->SetSize((unsigned char)(block->ulog2-1), 
+            block->SetSize((unsigned char)(block->ulog2-1),
                            (unsigned char)(block->vlog2-1), _maxLevels != 0);
             numTexels += block->GetNumTexels();
 

@@ -91,15 +91,15 @@ private:
     static PatchTables * createAdaptive( TopologyRefiner const & refiner, Options options );
 
     //  High-level methods for identifying and populating patches associated with faces:
-    static void identifyAdaptivePatches( TopologyRefiner const &     refiner,
-                                         PatchTypes<int> &           patchInventory,
+    static void identifyAdaptivePatches( TopologyRefiner const & refiner,
+                                         PatchTypes<int> & patchInventory,
                                          std::vector<PatchFaceTag> & patchTags,
                                          Options options );
 
-    static void populateAdaptivePatches( TopologyRefiner const &           refiner,
-                                         PatchTypes<int> const &           patchInventory,
+    static void populateAdaptivePatches( TopologyRefiner const & refiner,
+                                         PatchTypes<int> const & patchInventory,
                                          std::vector<PatchFaceTag> const & patchTags,
-                                         PatchTables *                  tables,
+                                         PatchTables * tables,
                                          Options options );
 
     //  Methods for allocating and managing the patch table data arrays:

@@ -25,10 +25,10 @@
 #include <D3D11.h>
 #include <D3Dcompiler.h>
 
-#include <osd/error.h>
 #include <osd/vertex.h>
 #include <osd/d3d11DrawContext.h>
 #include <osd/d3d11DrawRegistry.h>
+#include <far/error.h>
 
 #include <osd/cpuD3D11VertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -1347,10 +1347,10 @@ updateRenderTarget(HWND hWnd) {
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::Osd::ErrorType err, const char *message) {
+callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
 
     std::ostringstream s;
-    s << "OsdError: " << err << "\n";
+    s << "Error: " << err << "\n";
     s << message;
     OutputDebugString(s.str().c_str());
 }
@@ -1476,7 +1476,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
 
     initShapes();
 
-    OpenSubdiv::Osd::SetErrorCallback(callbackError);
+    OpenSubdiv::Far::SetErrorCallback(callbackError);
 
     initD3D11(hWnd);
 

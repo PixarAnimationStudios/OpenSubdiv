@@ -26,7 +26,6 @@
 
 #include "../osd/cpuComputeContext.h"
 #include "../osd/cpuKernel.h"
-#include "../osd/error.h"
 
 #include <cstring>
 
@@ -55,7 +54,7 @@ CpuComputeContext::CpuComputeContext(
 
 // ----------------------------------------------------------------------------
 
-CpuComputeContext::~CpuComputeContext() { 
+CpuComputeContext::~CpuComputeContext() {
 
     delete _vertexStencilTables;
     delete _varyingStencilTables;

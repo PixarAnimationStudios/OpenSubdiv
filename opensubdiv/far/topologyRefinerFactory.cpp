@@ -21,12 +21,13 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#include "../sdc/type.h"
-#include "../sdc/options.h"
-#include "../sdc/crease.h"
-#include "../vtr/level.h"
-#include "../far/topologyRefiner.h"
 #include "../far/topologyRefinerFactory.h"
+#include "../far/topologyRefiner.h"
+#include "../vtr/level.h"
+
+#if _MSC_VER
+#define snprintf _snprintf
+#endif
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -78,8 +79,8 @@ TopologyRefinerFactoryBase::validateComponentTopologySizing(TopologyRefiner& ref
     }
 }
 
-void
-TopologyRefinerFactoryBase::validateVertexComponentTopologyAssignment(TopologyRefiner& refiner) {
+bool
+TopologyRefinerFactoryBase::validateVertexComponentTopologyAssignment(TopologyRefiner& refiner, char * msg) {
 
     Vtr::Level& baseLevel = refiner.getBaseLevel();
 
@@ -97,13 +98,15 @@ TopologyRefinerFactoryBase::validateVertexComponentTopologyAssignment(TopologyRe
 
     bool applyValidation = false;
     if (applyValidation) {
-        if (!baseLevel.validateTopology()) {
-            printf("Invalid topology detected in TopologyRefinerFactory (%s)\n",
+        if (not baseLevel.validateTopology()) {
+            snprintf(msg, 1024, "Invalid topology detected in TopologyRefinerFactory (%s)\n",
                 completeMissingTopology ? "partially specified and completed" : "fully specified");
             //baseLevel.print();
             assert(false);
+            return false;
         }
     }
+    return true;
 }
 
 void
@@ -306,7 +309,10 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
             if (idx!=Vtr::INDEX_INVALID) {
                 refiner.baseEdgeSharpness(idx) = desc.creaseWeights[edge];
             } else {
-                // XXXX report error !
+                char msg[1024];
+                snprintf(msg, 1024, "Edge %d specified to be sharp does not exist (%d, %d)",
+                    edge, vertIndexPairs[0], vertIndexPairs[1]);
+                reportInvalidTopology(msg, desc);
             }
         }
     }
@@ -317,10 +323,12 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
 
             int idx = desc.cornerVertexIndices[vert];
 
-            if (idx < refiner.GetNumVertices(0)) {
+            if (idx > 0 and idx < refiner.GetNumVertices(0)) {
                 refiner.baseVertexSharpness(idx) = desc.cornerWeights[vert];
             } else {
-                // XXXX report error !
+                char msg[1024];
+                snprintf(msg, 1024, "Vertex %d specified to be sharp does not exist", idx);
+                reportInvalidTopology(msg, desc);
             }
         }
     }
@@ -329,6 +337,13 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
             refiner.setBaseFaceHole(desc.holeIndices[i], true);
         }
     }
+}
+
+template <>
+void
+TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::reportInvalidTopology(
+    char const * msg, TopologyDescriptor const& mesh) {
+    reportInvalidTopology(msg, mesh);
 }
 
 TopologyRefinerFactoryBase::TopologyDescriptor::TopologyDescriptor() {

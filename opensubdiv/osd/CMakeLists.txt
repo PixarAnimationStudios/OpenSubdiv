@@ -40,7 +40,6 @@ set(CPU_SOURCE_FILES
     cpuVertexBuffer.cpp
     drawContext.cpp
     drawRegistry.cpp
-    error.cpp
     evalLimitContext.cpp
 )
 
@@ -65,7 +64,6 @@ set(PUBLIC_HEADER_FILES
     cpuSmoothNormalContext.h
     cpuSmoothNormalController.h
     cpuVertexBuffer.h
-    error.h
     evalLimitContext.h
     mesh.h
     nonCopyable.h

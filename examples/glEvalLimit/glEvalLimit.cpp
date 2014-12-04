@@ -48,10 +48,10 @@ GLFWmonitor* g_primary=0;
 #include <osd/cpuEvalLimitController.h>
 #include <osd/cpuVertexBuffer.h>
 #include <osd/cpuGLVertexBuffer.h>
-#include <osd/error.h>
 #include <osd/drawContext.h>
 #include <osd/mesh.h>
 #include <osd/vertex.h>
+#include <far/error.h>
 
 #include <common/vtr_utils.h>
 #include "../common/stopwatch.h"
@@ -844,8 +844,8 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::Osd::ErrorType err, const char *message) {
-    printf("OsdError: %d\n", err);
+callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
+    printf("Error: %d\n", err);
     printf("%s", message);
 }
 
@@ -1017,7 +1017,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    Osd::SetErrorCallback(callbackError);
+    Far::SetErrorCallback(callbackError);
 
 
     initShapes();

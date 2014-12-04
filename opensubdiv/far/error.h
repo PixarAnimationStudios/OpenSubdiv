@@ -22,33 +22,23 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_ERROR_H
-#define OSD_ERROR_H
+#ifndef FAR_ERROR_H
+#define FAR_ERROR_H
 
 #include "../version.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-namespace Osd {
+namespace Far {
 
 typedef enum {
-    OSD_NO_ERROR,
-    OSD_INTERNAL_CODING_ERROR,
-    OSD_CL_PROGRAM_BUILD_ERROR,
-    OSD_CL_KERNEL_CREATE_ERROR,
-    OSD_CL_RUNTIME_ERROR,
-    OSD_CUDA_GL_ERROR,
-    OSD_GL_ERROR,
-    OSD_GLSL_COMPILE_ERROR,
-    OSD_GLSL_LINK_ERROR,
-    OSD_D3D11_COMPILE_ERROR,
-    OSD_D3D11_COMPUTE_BUFFER_CREATE_ERROR,
-    OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
-    OSD_D3D11_BUFFER_MAP_ERROR
+    NO_ERROR,                 ///< No error. Move along.
+    FATAL_ERROR,              ///< Issue a fatal error and end the program.
+    INTERNAL_CODING_ERROR,    ///< Issue an internal programming error, but continue execution.
+    CODING_ERROR,             ///< Issue a generic programming error, but continue execution.
+    RUNTIME_ERROR             ///< Issue a generic runtime error, but continue execution.
 } ErrorType;
-
-
 
 typedef void (*ErrorCallbackFunc)(ErrorType err, const char *message);
 
@@ -96,4 +86,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif // OSD_ERROR_H
+#endif // FAR_ERROR_H

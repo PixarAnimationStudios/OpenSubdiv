@@ -27,6 +27,7 @@
 #include "../version.h"
 
 #include "../far/topologyRefiner.h"
+#include "../far/error.h"
 
 #include <cassert>
 
@@ -100,7 +101,7 @@ public:
 protected:
 
     static void validateComponentTopologySizing(TopologyRefiner& refiner);
-    static void validateVertexComponentTopologyAssignment(TopologyRefiner& refiner);
+    static bool validateVertexComponentTopologyAssignment(TopologyRefiner& refiner, char * msg);
     static void validateFaceVaryingComponentTopologyAssignment(TopologyRefiner& refiner);
 
     static void applyComponentTagsAndBoundarySharpness(TopologyRefiner& refiner);
@@ -122,12 +123,6 @@ template <class MESH>
 class TopologyRefinerFactory : public TopologyRefinerFactoryBase {
 
 public:
-
-    /// \brief Constructor
-    TopologyRefinerFactory() : TopologyRefinerFactoryBase() { }
-
-    /// \brief Destructor
-    ~TopologyRefinerFactory() { }
 
     /// \brief Instantiates TopologyRefiner from client-provided topological
     ///        representation.
@@ -164,6 +159,8 @@ protected:
     //  Optional:
     static void assignFaceVaryingTopology(TopologyRefiner& refiner, MESH const& mesh);
     static void assignComponentTags(TopologyRefiner& refiner, MESH const& mesh);
+    static void reportInvalidTopology(char const * msg, MESH const& mesh);
+    
 
 protected:
 
@@ -206,7 +203,10 @@ TopologyRefinerFactory<MESH>::populateBaseLevel(TopologyRefiner& refiner, MESH c
 
     //  Required specialization for MESH:
     assignComponentTopology(refiner, mesh);
-    validateVertexComponentTopologyAssignment(refiner);
+    char msg[1024];
+    if (not validateVertexComponentTopologyAssignment(refiner, msg)) {
+        reportInvalidTopology(msg, mesh);
+    }
 
     //  Optional specialization for MESH:
     assignComponentTags(refiner, mesh);
@@ -335,6 +335,18 @@ TopologyRefinerFactory<MESH>::assignComponentTags(TopologyRefiner& /* refiner */
     //
 }
 
+template <class MESH>
+void
+TopologyRefinerFactory<MESH>::reportInvalidTopology(char const * msg, MESH const& /* mesh */) {
+
+    //
+    //  Optional topology validation error reporting:
+    //      This method is called whenever the factory encounters topology validation
+    //  errors. By default, the Far::Warning callback  is used.
+    //
+    Warning(msg);
+}
+
 #endif
 
 //
@@ -359,6 +371,11 @@ template <>
 void
 TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignComponentTags(
     TopologyRefiner & refiner, TopologyDescriptor const & desc);
+
+template <>
+void
+TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::reportInvalidTopology(
+    char const * msg, TopologyDescriptor const& /* mesh */);
 
 } // end namespace Far
 

@@ -52,10 +52,9 @@ CpuSmoothNormalContext *
 CpuSmoothNormalContext::Create(Far::TopologyRefiner const & refiner,
     int level, bool resetMemory) {
 
-    int maxlevel = refiner.GetMaxLevel();
-    assert((not refiner.IsUniform()) and (maxlevel>0) and
-        (level>0) and (level<maxlevel));
-
+    assert((not refiner.IsUniform()) and
+           (refiner.GetMaxLevel()>0) and
+           (level>0) and (level<refiner.GetMaxLevel()));
     return new CpuSmoothNormalContext(refiner, level, resetMemory);
 }
 

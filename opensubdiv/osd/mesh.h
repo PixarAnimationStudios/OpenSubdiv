@@ -33,7 +33,6 @@
 #include "../far/stencilTables.h"
 #include "../far/stencilTablesFactory.h"
 
-#include "../osd/error.h"
 #include "../osd/vertex.h"
 #include "../osd/vertexDescriptor.h"
 
