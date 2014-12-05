@@ -458,7 +458,7 @@ public:
     void AddWithWeight(Stencil const & src,
         float weight, float tan1Weight, float tan2Weight) {
 
-        if(weight==0.0f and tan1Weight==0.0f and tan1Weight==0.0f) {
+        if(weight==0.0f and tan1Weight==0.0f and tan2Weight==0.0f) {
             return;
         }
 
@@ -484,7 +484,6 @@ public:
                 _alloc->PushBackVertex(_id, vertIndex,
                     weight*w, tan1Weight*w, tan2Weight*w);
             }
-
         }
     }
 
