@@ -339,10 +339,10 @@ updateGeom() {
 
         nverts = g_objAnim->GetShape()->GetNumVertices(),
 
-        vertex.reserve(nverts*stride);
+        vertex.resize(nverts*stride);
 
         if (g_displayStyle == kVaryingColor) {
-            varying.reserve(nverts*4);
+            varying.resize(nverts*4);
         }
 
         g_objAnim->InterpolatePositions(g_animTime, &vertex[0], stride);
