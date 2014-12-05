@@ -426,7 +426,7 @@ protected:
 
     // Returns bi-cubic interpolation coefficients for a given (s,t) location
     // on a b-spline patch
-    static void getBasisWeightsAtUV(TensorBasis basis, PatchParam::BitField bits,
+    static void getBasisWeights(TensorBasis basis, PatchParam::BitField bits,
         float s, float t, float point[16], float deriv1[16], float deriv2[16]);
 
 protected:
@@ -752,7 +752,7 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
 
     if (ptype>=PatchDescriptor::REGULAR and ptype<=PatchDescriptor::CORNER) {
 
-        getBasisWeightsAtUV(BASIS_BSPLINE, bits, s, t, Q, Qd1, Qd2);
+        getBasisWeights(BASIS_BSPLINE, bits, s, t, Q, Qd1, Qd2);
 
         IndexArray cvs = GetPatchVertices(handle);
 
@@ -781,7 +781,7 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
 
         assert(_endcapStencilTables);
 
-        getBasisWeightsAtUV(BASIS_BEZIER, bits, s, t, Q, Qd1, Qd2);
+        getBasisWeights(BASIS_BEZIER, bits, s, t, Q, Qd1, Qd2);
 
         InterpolateGregoryPatch(_endcapStencilTables, handle.vertIndex,
             s, t, Q, Qd1, Qd2, src, dst);

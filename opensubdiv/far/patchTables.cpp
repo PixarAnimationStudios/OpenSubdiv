@@ -92,8 +92,8 @@ getBSplineWeights(float t, float point[4], float deriv[3]) {
 }
 
 void
-getBoxSplineWeights(float v, float w, float B[12])
-{
+getBoxSplineWeights(float v, float w, float B[12]) {
+
     float u = 1.0f - v - w;
 
     //
@@ -144,7 +144,7 @@ getBoxSplineWeights(float v, float w, float B[12])
 }
 
 void
-PatchTables::getBasisWeightsAtUV(TensorBasis basis, PatchParam::BitField bits,
+PatchTables::getBasisWeights(TensorBasis basis, PatchParam::BitField bits,
     float s, float t, float point[16], float deriv1[16], float deriv2[16]) {
 
     int const rots[4][16] =
@@ -186,17 +186,31 @@ PatchTables::getBasisWeightsAtUV(TensorBasis basis, PatchParam::BitField bits,
         // differences between consecutive vertices in each row (i.e.
         // in the s direction).
         memset(deriv1, 0, 16*sizeof(float));
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0, k = 0; i < 4; ++i) {
             float prevWeight = 0.0f;
             for (int j = 0; j < 3; ++j) {
                 float weight = d1Weights[j]*tWeights[i];
-                deriv1[rot[4*i+j]] += prevWeight - weight;
+                deriv1[rot[k++]] += prevWeight - weight;
                 prevWeight = weight;
             }
-            deriv1[rot[4*i+3]]+=prevWeight;
+            deriv1[rot[k++]]+=prevWeight;
         }
 
         memset(deriv2, 0, 16*sizeof(float));
+#define FASTER_TENSOR
+#ifdef FASTER_TENSOR
+        // XXXX manuelk this might be slightly more efficient ?
+        float dW[4];
+        dW[0] = - d2Weights[0];
+        dW[1] = d2Weights[0] - d2Weights[1];
+        dW[2] = d2Weights[1] - d2Weights[2];
+        dW[3] = d2Weights[2];
+        for (int i = 0, k = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                deriv2[rot[k++]] = sWeights[j] * dW[i];
+            }
+        }
+#else
         for (int j = 0; j < 4; ++j) {
             float prevWeight = 0.0f;
             for (int i = 0; i < 3; ++i) {
@@ -206,7 +220,7 @@ PatchTables::getBasisWeightsAtUV(TensorBasis basis, PatchParam::BitField bits,
             }
             deriv2[rot[12+j]] += prevWeight;
         }
-
+#endif
         // Scale derivatives up based on level of subdivision
         float scale = float(1 << bits.GetDepth());
         for (int k=0; k<16; ++k) {
