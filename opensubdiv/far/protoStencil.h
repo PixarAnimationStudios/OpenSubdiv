@@ -228,7 +228,7 @@ public:
 
     void PushBackVertex(Index protoStencil,
         Index vert, float weight, float tan1Weight, float tan2Weight) {
-        assert(weight!=0.0f);
+        assert(weight!=0.0f or tan1Weight!=0.0f or tan2Weight!=0.0f);
         unsigned char & size = this->_sizes[protoStencil];
         Index idx = protoStencil*this->_maxsize;
         if (size < (this->_maxsize-1)) {
@@ -458,7 +458,7 @@ public:
     void AddWithWeight(Stencil const & src,
         float weight, float tan1Weight, float tan2Weight) {
 
-        if(weight==0.0f) {
+        if(weight==0.0f and tan1Weight==0.0f and tan1Weight==0.0f) {
             return;
         }
 
