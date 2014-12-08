@@ -188,7 +188,7 @@ You can then use CMake to configure and generate an Xcode project:
 ````
 mkdir build-ios
 cd build-ios
-cmake -DCMAKE_TOOLCHAIN_FILE=[path to iOS.cmake] -GXcode ..
+cmake -DNO_CUDA=1 -DCMAKE_TOOLCHAIN_FILE=[path to iOS.cmake] -GXcode ..
 
 xcodebuild -target install -configuration Debug
 ````

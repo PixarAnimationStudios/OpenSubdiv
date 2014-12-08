@@ -43,6 +43,10 @@ if(ANDROID)
     )
 
 elseif(IOS)
+    FIND_PATH( OPENGLES_INCLUDE_DIR
+        OpenGLES/ES2/gl.h
+    )
+
     FIND_LIBRARY( OPENGLES_FRAMEWORKS OpenGLES )
 
     if(OPENGLES_FRAMEWORKS)
