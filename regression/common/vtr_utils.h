@@ -243,7 +243,8 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
 
 template <>
 inline void
-TopologyRefinerFactory<Shape>::reportInvalidTopology(char const * msg, Shape const& /* shape */) {
+TopologyRefinerFactory<Shape>::reportInvalidTopology(
+    TopologyRefinerFactory::TopologyError /* errCode */, char const * msg, Shape const & /* shape */) {
     Warning(msg);
 }
 

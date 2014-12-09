@@ -35,6 +35,9 @@
 #include <vector>
 #include <map>
 
+#if _MSC_VER
+    #define snprintf _snprintf
+#endif
 
 //
 //  Level:
@@ -69,6 +72,35 @@ Level::~Level() {
 }
 
 
+char const *
+Level::getTopologyErrorString(TopologyError errCode) {
+
+    static char const * _errors[] = {
+        "MISSING_EDGE_FACES",
+        "MISSING_EDGE_VERTS",
+        "MISSING_FACE_EDGES",
+        "MISSING_FACE_VERTS",
+        "MISSING_VERT_FACES",
+        "MISSING_VERT_EDGES",
+
+        "FAILED_CORRELATION_EDGE_FACE",
+        "FAILED_CORRELATION_FACE_VERT",
+        "FAILED_CORRELATION_FACE_EDGE",
+
+        "FAILED_ORIENTATION_INCIDENT_EDGE",
+        "FAILED_ORIENTATION_INCIDENT_FACE",
+        "FAILED_ORIENTATION_INCIDENT_FACES_EDGES",
+
+        "DEGENERATE_EDGE",
+        "NON_MANIFOLD_EDGE",
+
+        "INVALID_CREASE_EDGE",
+        "INVALID_CREASE_VERT"
+    };
+
+    return _errors[errCode];
+}
+
 //
 //  Debugging method to validate topology, i.e. verify appropriate symmetry
 //  between the relations, etc.
@@ -95,8 +127,17 @@ Level::~Level() {
 //      - consider using a mask/struct to choose what to validate, i.e.:
 //          - bool validate(ValidateOptions const& options) const;
 //
+
+#define REPORT(code, format, ...) \
+    if (callback) { \
+        char const * errStr = getTopologyErrorString(code); \
+        char msg[1024]; \
+        snprintf(msg, 1024, "%s - "format, errStr, ##__VA_ARGS__); \
+        callback(code, msg, clientData); \
+    }
+
 bool
-Level::validateTopology() const {
+Level::validateTopology(ValidationCallback callback, void const * clientData) const {
 
     //
     //  Verify internal topological consistency (eventually a Level method?):
@@ -120,8 +161,12 @@ Level::validateTopology() const {
 
     //  Verify each face-vert has corresponding vert-face and child:
     if ((getNumFaceVerticesTotal() == 0) || (getNumVertexFacesTotal() == 0)) {
-        if (getNumFaceVerticesTotal() == 0) printf("Error:  missing face-verts\n");
-        if (getNumVertexFacesTotal() == 0) printf("Error:  missing vert-faces\n");
+        if (getNumFaceVerticesTotal() == 0) {
+            REPORT(TOPOLOGY_MISSING_FACE_VERTS, "missing face-verts");
+        }
+        if (getNumVertexFacesTotal() == 0) {
+            REPORT(TOPOLOGY_MISSING_VERT_FACES, "missing vert-faces");
+        }
         return false;
     }
     for (int fIndex = 0; fIndex < getNumFaces(); ++fIndex) {
@@ -142,7 +187,8 @@ Level::validateTopology() const {
                 }
             }
             if (!vertFaceOfFaceExists) {
-                printf("Error in fIndex = %d:  correlation of vert %d failed\n", fIndex, i);
+                REPORT(TOPOLOGY_FAILED_CORRELATION_FACE_VERT,
+                    "face %d correlation of vert %d failed", fIndex, i);
                 if (returnOnFirstError) return false;
                 isValid = false;
             }
@@ -151,8 +197,12 @@ Level::validateTopology() const {
 
     //  Verify each face-edge has corresponding edge-face:
     if ((getNumEdgeFacesTotal() == 0) || (getNumFaceEdgesTotal() == 0)) {
-        if (getNumEdgeFacesTotal() == 0) printf("Error:  missing edge-faces\n");
-        if (getNumFaceEdgesTotal() == 0) printf("Error:  missing face-edges\n");
+        if (getNumEdgeFacesTotal() == 0) {
+            REPORT(TOPOLOGY_MISSING_EDGE_FACES, "missing edge-faces");
+        }
+        if (getNumFaceEdgesTotal() == 0) {
+            REPORT(TOPOLOGY_MISSING_FACE_EDGES, "missing face-edges");
+        }
         return false;
     }
     for (int fIndex = 0; fIndex < getNumFaces(); ++fIndex) {
@@ -173,7 +223,8 @@ Level::validateTopology() const {
                 }
             }
             if (!edgeFaceOfFaceExists) {
-                printf("Error in fIndex = %d:  correlation of edge %d failed\n", fIndex, i);
+                REPORT(TOPOLOGY_FAILED_CORRELATION_FACE_VERT,
+                     "face %d correlation of edge %d failed", fIndex, i);
                 if (returnOnFirstError) return false;
                 isValid = false;
             }
@@ -182,8 +233,12 @@ Level::validateTopology() const {
 
     //  Verify each edge-vert has corresponding vert-edge and child:
     if ((getNumEdgeVerticesTotal() == 0) || (getNumVertexEdgesTotal() == 0)) {
-        if (getNumEdgeVerticesTotal() == 0) printf("Error:  missing edge-verts\n");
-        if (getNumVertexEdgesTotal() == 0) printf("Error:  missing vert-edges\n");
+        if (getNumEdgeVerticesTotal() == 0) {
+            REPORT(TOPOLOGY_MISSING_EDGE_VERTS, "missing edge-verts");
+        }
+        if (getNumVertexEdgesTotal() == 0) {
+            REPORT(TOPOLOGY_MISSING_VERT_EDGES, "missing vert-edges");
+        }
         return false;
     }
     for (int eIndex = 0; eIndex < getNumEdges(); ++eIndex) {
@@ -203,7 +258,8 @@ Level::validateTopology() const {
                 }
             }
             if (!vertEdgeOfEdgeExists) {
-                printf("Error in eIndex = %d:  correlation of vert %d failed\n", eIndex, i);
+                REPORT(TOPOLOGY_FAILED_CORRELATION_FACE_VERT,
+                    "edge %d correlation of vert %d failed", eIndex, i);
                 if (returnOnFirstError) return false;
                 isValid = false;
             }
@@ -225,13 +281,15 @@ Level::validateTopology() const {
         Index * vEdgesOrdered = indexBuffer + vFaces.size();
 
         if (!orderVertexFacesAndEdges(vIndex, vFacesOrdered, vEdgesOrdered)) {
-            printf("Error in vIndex = %d:  cannot orient incident faces and edges\n", vIndex);
+            REPORT(TOPOLOGY_FAILED_ORIENTATION_INCIDENT_FACES_EDGES,
+                "vertex %d cannot orient incident faces and edges", vIndex);
             if (returnOnFirstError) return false;
             isValid = false;
         }
         for (int i = 0; i < vFaces.size(); ++i) {
             if (vFaces[i] != vFacesOrdered[i]) {
-                printf("Error in vIndex = %d:  orientation failure at incident face %d\n", vIndex, i);
+                REPORT(TOPOLOGY_FAILED_ORIENTATION_INCIDENT_FACE,
+                    "vertex %d orientation failure at incident face %d", vIndex, i);
                 if (returnOnFirstError) return false;
                 isValid = false;
                 break;
@@ -239,7 +297,8 @@ Level::validateTopology() const {
         }
         for (int i = 0; i < vEdges.size(); ++i) {
             if (vEdges[i] != vEdgesOrdered[i]) {
-                printf("Error in vIndex = %d:  orientation failure at incident edge %d\n", vIndex, i);
+                REPORT(TOPOLOGY_FAILED_ORIENTATION_INCIDENT_EDGE,
+                    "vertex %d orientation failure at incident edge %d", vIndex, i);
                 if (returnOnFirstError) return false;
                 isValid = false;
                 break;
@@ -255,14 +314,16 @@ Level::validateTopology() const {
 
         IndexArray const eVerts = getEdgeVertices(eIndex);
         if (eVerts[0] == eVerts[1]) {
-            printf("Error in eIndex = %d:  degenerate edge not tagged marked non-manifold\n", eIndex);
+            REPORT(TOPOLOGY_DEGENERATE_EDGE,
+                "Error in eIndex = %d:  degenerate edge not tagged marked non-manifold", eIndex);
             if (returnOnFirstError) return false;
             isValid = false;
         }
 
         IndexArray const eFaces = getEdgeFaces(eIndex);
         if ((eFaces.size() < 1) || (eFaces.size() > 2)) {
-            printf("Error in eIndex = %d:  edge with %d faces not tagged non-manifold\n", eIndex, eFaces.size());
+            REPORT(TOPOLOGY_NON_MANIFOLD_EDGE,
+                "edge %d with %d incident faces not tagged non-manifold", eIndex, eFaces.size());
             if (returnOnFirstError) return false;
             isValid = false;
         }

@@ -101,9 +101,7 @@ public:
 protected:
 
     static void validateComponentTopologySizing(TopologyRefiner& refiner);
-    static bool validateVertexComponentTopologyAssignment(TopologyRefiner& refiner, char * msg);
     static void validateFaceVaryingComponentTopologyAssignment(TopologyRefiner& refiner);
-
     static void applyComponentTagsAndBoundarySharpness(TopologyRefiner& refiner);
 };
 
@@ -159,7 +157,10 @@ protected:
     //  Optional:
     static void assignFaceVaryingTopology(TopologyRefiner& refiner, MESH const& mesh);
     static void assignComponentTags(TopologyRefiner& refiner, MESH const& mesh);
-    static void reportInvalidTopology(char const * msg, MESH const& mesh);
+
+    typedef Vtr::Level::TopologyError TopologyError;
+
+    static void reportInvalidTopology(TopologyError errCode, char const * msg, MESH const& mesh);
     
 
 protected:
@@ -203,9 +204,37 @@ TopologyRefinerFactory<MESH>::populateBaseLevel(TopologyRefiner& refiner, MESH c
 
     //  Required specialization for MESH:
     assignComponentTopology(refiner, mesh);
-    char msg[1024];
-    if (not validateVertexComponentTopologyAssignment(refiner, msg)) {
-        reportInvalidTopology(msg, mesh);
+
+    Vtr::Level& baseLevel = refiner.getBaseLevel();
+
+    //
+    //  In the future we may want the ability to complete aspects of the topology that
+    //  are incovenient for clients to specify, e.g. the local indices associated with
+    //  some relations, orienting the vertex relations, etc.  For the near term we'll be
+    //  assuming only face-vertices have been specified and the absence of edges will
+    //  trigger the construction of everything else:
+    //
+    bool completeMissingTopology = (refiner.getBaseLevel().getNumEdges() == 0);
+    if (completeMissingTopology) {
+        //  Need to invoke some Vtr::Level method to "fill in" the missing topology...
+        baseLevel.completeTopologyFromFaceVertices();
+    }
+
+    // XXXX manuelk TODO : client code should control this
+    bool applyValidation = false;
+    if (applyValidation) {
+
+        Vtr::Level::ValidationCallback callback =
+            reinterpret_cast<Vtr::Level::ValidationCallback>(reportInvalidTopology);
+        
+        if (not baseLevel.validateTopology(callback, &mesh)) {
+            char msg[1024];
+            snprintf(msg, 1024, "Invalid topology detected in TopologyRefinerFactory (%s)\n",
+                completeMissingTopology ? "partially specified and completed" : "fully specified");
+            Warning(msg);
+            //baseLevel.print();
+            assert(false);
+        }
     }
 
     //  Optional specialization for MESH:
@@ -337,14 +366,14 @@ TopologyRefinerFactory<MESH>::assignComponentTags(TopologyRefiner& /* refiner */
 
 template <class MESH>
 void
-TopologyRefinerFactory<MESH>::reportInvalidTopology(char const * msg, MESH const& /* mesh */) {
+TopologyRefinerFactory<MESH>::reportInvalidTopology(
+    TopologyError /* errCode */, char const * /* msg */, MESH const& /* mesh */) {
 
     //
     //  Optional topology validation error reporting:
     //      This method is called whenever the factory encounters topology validation
-    //  errors. By default, the Far::Warning callback  is used.
+    //  errors. By default, nothing is reported
     //
-    Warning(msg);
 }
 
 #endif
@@ -375,7 +404,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
 template <>
 void
 TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::reportInvalidTopology(
-    char const * msg, TopologyDescriptor const& /* mesh */);
+    TopologyError errCode, char const * msg, TopologyDescriptor const& /* mesh */);
 
 } // end namespace Far
 

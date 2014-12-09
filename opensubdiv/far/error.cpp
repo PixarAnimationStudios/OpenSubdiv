@@ -24,8 +24,9 @@
 
 #include "../far/error.h"
 
-#include <stdarg.h>
-#include <stdio.h>
+#include <cassert>
+#include <cstdarg>
+#include <cstdio>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -52,11 +53,13 @@ void Error(ErrorType err) {
     if (errorFunc) {
         errorFunc(err, NULL);
     } else {
-        printf("%s\n",errors[err]);
+        fprintf(stderr, "Error : %s\n",errors[err]);
     }
 }
 
 void Error(ErrorType err, const char *format, ...) {
+
+    assert(err!=FAR_NO_ERROR);
 
     char message[10240];
     va_list argptr;
@@ -67,7 +70,7 @@ void Error(ErrorType err, const char *format, ...) {
     if (errorFunc) {
         errorFunc(err, message);
     } else {
-        printf("%s : %s\n",errors[err], message);
+        printf("Error %s : %s\n",errors[err], message);
     }
 }
 
@@ -89,7 +92,7 @@ void Warning(const char *format, ...) {
     if (warningFunc) {
         warningFunc(message);
     } else {
-        printf("WARNING : %s\n", message);
+        fprintf(stdout, "Warning : %s\n", message);
     }
 }
 

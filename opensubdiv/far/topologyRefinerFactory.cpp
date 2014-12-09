@@ -26,7 +26,7 @@
 #include "../vtr/level.h"
 
 #if _MSC_VER
-#define snprintf _snprintf
+    #define snprintf _snprintf
 #endif
 
 namespace OpenSubdiv {
@@ -77,36 +77,6 @@ TopologyRefinerFactoryBase::validateComponentTopologySizing(TopologyRefiner& ref
         assert(baseLevel.getNumVertexFacesTotal() > 0);
         assert(baseLevel.getNumVertexEdgesTotal() > 0);
     }
-}
-
-bool
-TopologyRefinerFactoryBase::validateVertexComponentTopologyAssignment(TopologyRefiner& refiner, char * msg) {
-
-    Vtr::Level& baseLevel = refiner.getBaseLevel();
-
-    //
-    //  In future we may want the ability to complete aspects of the topology that are incovenient
-    //  for clients to specify, e.g. the local indices associated with some relations, orienting
-    //  the vertex relations, etc.  For the near term we'll be assuming only face-vertices have
-    //  been specified and the absence of edges will trigger the construction of everything else:
-    //
-    bool completeMissingTopology = (baseLevel.getNumEdges() == 0);
-    if (completeMissingTopology) {
-        //  Need to invoke some Vtr::Level method to "fill in" the missing topology...
-        baseLevel.completeTopologyFromFaceVertices();
-    }
-
-    bool applyValidation = false;
-    if (applyValidation) {
-        if (not baseLevel.validateTopology()) {
-            snprintf(msg, 1024, "Invalid topology detected in TopologyRefinerFactory (%s)\n",
-                completeMissingTopology ? "partially specified and completed" : "fully specified");
-            //baseLevel.print();
-            assert(false);
-            return false;
-        }
-    }
-    return true;
 }
 
 void
@@ -312,7 +282,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
                 char msg[1024];
                 snprintf(msg, 1024, "Edge %d specified to be sharp does not exist (%d, %d)",
                     edge, vertIndexPairs[0], vertIndexPairs[1]);
-                reportInvalidTopology(msg, desc);
+                reportInvalidTopology(Vtr::Level::TOPOLOGY_INVALID_CREASE_EDGE, msg, desc);
             }
         }
     }
@@ -328,7 +298,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
             } else {
                 char msg[1024];
                 snprintf(msg, 1024, "Vertex %d specified to be sharp does not exist", idx);
-                reportInvalidTopology(msg, desc);
+                reportInvalidTopology(Vtr::Level::TOPOLOGY_INVALID_CREASE_VERT, msg, desc);
             }
         }
     }
@@ -342,7 +312,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
 template <>
 void
 TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::reportInvalidTopology(
-    char const * msg, TopologyDescriptor const& /* mesh */) {
+    TopologyError /* errCode */, char const * msg, TopologyDescriptor const& /* mesh */) {
     Warning(msg);
 }
 

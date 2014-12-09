@@ -228,8 +228,36 @@ public:
     bool isHole(Index faceIndex) const;
 
 public:
+
     //  Debugging aides -- unclear what will persist...
-    bool validateTopology() const;
+    enum TopologyError {
+        TOPOLOGY_MISSING_EDGE_FACES=0,
+        TOPOLOGY_MISSING_EDGE_VERTS,
+        TOPOLOGY_MISSING_FACE_EDGES,
+        TOPOLOGY_MISSING_FACE_VERTS,
+        TOPOLOGY_MISSING_VERT_FACES,
+        TOPOLOGY_MISSING_VERT_EDGES,
+
+        TOPOLOGY_FAILED_CORRELATION_EDGE_FACE,
+        TOPOLOGY_FAILED_CORRELATION_FACE_VERT,
+        TOPOLOGY_FAILED_CORRELATION_FACE_EDGE,
+
+        TOPOLOGY_FAILED_ORIENTATION_INCIDENT_EDGE,
+        TOPOLOGY_FAILED_ORIENTATION_INCIDENT_FACE,
+        TOPOLOGY_FAILED_ORIENTATION_INCIDENT_FACES_EDGES,
+
+        TOPOLOGY_DEGENERATE_EDGE,
+        TOPOLOGY_NON_MANIFOLD_EDGE,
+
+        TOPOLOGY_INVALID_CREASE_EDGE,
+        TOPOLOGY_INVALID_CREASE_VERT
+    };
+
+    static char const * getTopologyErrorString(TopologyError errCode);
+
+    typedef void (* ValidationCallback)(TopologyError errCode, char const * msg, void const * clientData);
+
+    bool validateTopology(ValidationCallback callback=0, void const * clientData=0) const;
 
     void print(const Refinement* parentRefinement = 0) const;
 
