@@ -113,8 +113,7 @@ public:
                 _fvarLinInterp(FVAR_LINEAR_ALL),
                 _nonManInterp(NON_MANIFOLD_NONE),
                 _creasingMethod(CREASE_UNIFORM),
-                _triangleSub(TRI_SUB_NORMAL),
-                _hbrCompatible(false) { }
+                _triangleSub(TRI_SUB_NORMAL) { }
     ~Options() { }
 
     //
@@ -135,22 +134,13 @@ public:
     TriangleSubdivision GetTriangleSubdivision() const { return (TriangleSubdivision) _triangleSub; }
     void SetTriangleSubdivision(TriangleSubdivision t) { _triangleSub = t; }
 
-    //
-    //  This may be premature, but it is useful to have some kind of flag so that users can be assured
-    //  the options and meshes they specify are compliant with Hbr, RenderMan, etc.  How to measure that
-    //  is still ill-defined given versions of Hbr, prMan will evolve...
-    //
-    bool GetHbrCompatibility() const { return _hbrCompatible; }
-    void SetHbrCompatibility(bool onOrOff) { _hbrCompatible = onOrOff; }
-
 private:
     //  Bitfield members:
-    unsigned int _vvarBoundInterp : 2;
-    unsigned int _fvarLinInterp   : 3;
-    unsigned int _nonManInterp    : 2;
-    unsigned int _creasingMethod  : 2;
-    unsigned int _triangleSub     : 2;
-    unsigned int _hbrCompatible   : 1;
+    unsigned int _vvarBoundInterp : 2,
+                 _fvarLinInterp   : 3,
+                 _nonManInterp    : 2,
+                 _creasingMethod  : 2,
+                 _triangleSub     : 2;
 };
 
 } // end namespace sdc
