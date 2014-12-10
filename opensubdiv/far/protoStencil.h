@@ -52,6 +52,11 @@ public:
     Allocator(int maxSize, bool interpolateVarying=false) :
         _maxsize(maxSize), _interpolateVarying(interpolateVarying) { }
 
+	~Allocator()
+	{
+		clearBigStencils();
+	}
+
     // Returns the number of stencils in the allocator
     int GetNumStencils() const {
         return (int)_sizes.size();
