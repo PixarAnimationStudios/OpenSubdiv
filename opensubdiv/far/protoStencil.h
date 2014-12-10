@@ -52,8 +52,7 @@ public:
     Allocator(int maxSize, bool interpolateVarying=false) :
         _maxsize(maxSize), _interpolateVarying(interpolateVarying) { }
 
-	~Allocator()
-	{
+	~Allocator() {
 		clearBigStencils();
 	}
 
