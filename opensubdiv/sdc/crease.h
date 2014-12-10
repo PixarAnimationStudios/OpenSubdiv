@@ -190,6 +190,7 @@ private:
     Options _options;
 };
 
+// XXXX manuelk non-manifold is not implemented yet - return infintely sharp as default for now
 
 //
 //  Non-trivial inline declarations:
@@ -207,26 +208,6 @@ Crease::SharpenBoundaryVertex(float vertexSharpness) const {
     return (_options.GetVVarBoundaryInterpolation() == Options::VVAR_BOUNDARY_EDGE_AND_CORNER) ?
             SHARPNESS_INFINITE : vertexSharpness;
 }
-
-inline float
-Crease::SharpenNonManifoldEdge(float edgeSharpness) const {
-
-    //  Shouldn't we error/assert somehow if indicated that non-manifold not supported?
-    //  assert(_options.GetNonManifoldInterpolation() != Options::NON_MANIFOLD_NONE);
-
-    return (_options.GetNonManifoldInterpolation() == Options::NON_MANIFOLD_SHARP) ?
-            SHARPNESS_INFINITE : edgeSharpness;
-}
-inline float
-Crease::SharpenNonManifoldVertex(float vertexSharpness) const {
-
-    //  Shouldn't we error/assert somehow if indicated that non-manifold not supported?
-    //  assert(_options.GetNonManifoldInterpolation() != Options::NON_MANIFOLD_NONE);
-
-    return (_options.GetNonManifoldInterpolation() == Options::NON_MANIFOLD_SHARP) ?
-            SHARPNESS_INFINITE : vertexSharpness;
-}
-
 
 inline float
 Crease::decrementSharpness(float sharpness) const {

@@ -44,7 +44,7 @@ namespace Sdc {
 //  it remains a set of bit-fields (essentially an int) and so remains light weight and
 //  easily passed down by value.
 //
-//  ALPHA NOTES:
+//  BETA NOTES:
 //      Several of these options are being reconsidered in light of the divergence of
 //  OSD 3.0 from Hbr.  In some cases the options can be expressed more clearly and free
 //  of any RenderMan legacy for future use.  Details are noted below:
@@ -74,7 +74,7 @@ namespace Sdc {
 //          - hoping we can get rid of this due to lack of interest/use
 //          - specific to Catmark and only at level 0
 //      "NonManifoldInterpolation":
-//          - hoping we can get rid of this due to lack of interest/use
+//          - not implemented yet
 //
 class Options {
 public:
@@ -100,18 +100,12 @@ public:
         TRI_SUB_OLD,
         TRI_SUB_NEW
     };
-    enum NonManifoldInterpolation {
-        NON_MANIFOLD_NONE = 0,
-        NON_MANIFOLD_SMOOTH,
-        NON_MANIFOLD_SHARP
-    };
 
 public:
 
     //  Trivial constructor and destructor:
     Options() : _vvarBoundInterp(VVAR_BOUNDARY_NONE),
                 _fvarLinInterp(FVAR_LINEAR_ALL),
-                _nonManInterp(NON_MANIFOLD_NONE),
                 _creasingMethod(CREASE_UNIFORM),
                 _triangleSub(TRI_SUB_NORMAL) { }
     ~Options() { }
@@ -128,9 +122,6 @@ public:
     CreasingMethod GetCreasingMethod() const { return (CreasingMethod) _creasingMethod; }
     void SetCreasingMethod(CreasingMethod c) { _creasingMethod = c; }
 
-    NonManifoldInterpolation GetNonManifoldInterpolation() const { return (NonManifoldInterpolation) _nonManInterp; }
-    void SetNonManifoldInterpolation(NonManifoldInterpolation n) { _nonManInterp = n; }
-
     TriangleSubdivision GetTriangleSubdivision() const { return (TriangleSubdivision) _triangleSub; }
     void SetTriangleSubdivision(TriangleSubdivision t) { _triangleSub = t; }
 
@@ -138,7 +129,6 @@ private:
     //  Bitfield members:
     unsigned int _vvarBoundInterp : 2,
                  _fvarLinInterp   : 3,
-                 _nonManInterp    : 2,
                  _creasingMethod  : 2,
                  _triangleSub     : 2;
 };

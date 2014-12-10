@@ -106,7 +106,7 @@ TopologyRefinerFactoryBase::applyComponentTagsAndBoundarySharpness(TopologyRefin
     Sdc::Crease  creasing(options);
 
     bool sharpenCornerVerts    = (options.GetVVarBoundaryInterpolation() == Sdc::Options::VVAR_BOUNDARY_EDGE_AND_CORNER);
-    bool sharpenNonManFeatures = (options.GetNonManifoldInterpolation() == Sdc::Options::NON_MANIFOLD_SHARP);
+    bool sharpenNonManFeatures = true; //(options.GetNonManifoldInterpolation() == Sdc::Options::NON_MANIFOLD_SHARP);
 
     //
     //  Process the Edge tags first, as Vertex tags (notably the Rule) are dependent on

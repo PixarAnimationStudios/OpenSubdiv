@@ -55,7 +55,6 @@ GetSdcOptions(Shape const & shape) {
     result.SetVVarBoundaryInterpolation(Options::VVAR_BOUNDARY_EDGE_ONLY);
     result.SetCreasingMethod(Options::CREASE_UNIFORM);
     result.SetTriangleSubdivision(Options::TRI_SUB_NORMAL);
-    result.SetNonManifoldInterpolation(Options::NON_MANIFOLD_SHARP);
 
     for (int i=0; i<(int)shape.tags.size(); ++i) {
 
