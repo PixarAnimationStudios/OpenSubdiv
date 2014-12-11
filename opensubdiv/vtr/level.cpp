@@ -75,30 +75,47 @@ Level::~Level() {
 char const *
 Level::getTopologyErrorString(TopologyError errCode) {
 
-    static char const * _errors[] = {
-        "MISSING_EDGE_FACES",
-        "MISSING_EDGE_VERTS",
-        "MISSING_FACE_EDGES",
-        "MISSING_FACE_VERTS",
-        "MISSING_VERT_FACES",
-        "MISSING_VERT_EDGES",
+    switch (errCode) {
+        case TOPOLOGY_MISSING_EDGE_FACES :
+            return "MISSING_EDGE_FACES";
+        case TOPOLOGY_MISSING_EDGE_VERTS :
+            return "MISSING_EDGE_VERTS";
+        case TOPOLOGY_MISSING_FACE_EDGES :
+            return "MISSING_FACE_EDGES";
+        case TOPOLOGY_MISSING_FACE_VERTS :
+            return "MISSING_FACE_VERTS";
+        case TOPOLOGY_MISSING_VERT_FACES :
+            return "MISSING_VERT_FACES";
+        case TOPOLOGY_MISSING_VERT_EDGES :
+            return "MISSING_VERT_EDGES";
 
-        "FAILED_CORRELATION_EDGE_FACE",
-        "FAILED_CORRELATION_FACE_VERT",
-        "FAILED_CORRELATION_FACE_EDGE",
+        case TOPOLOGY_FAILED_CORRELATION_EDGE_FACE :
+            return "FAILED_CORRELATION_EDGE_FACE";
+        case TOPOLOGY_FAILED_CORRELATION_FACE_VERT :
+            return "FAILED_CORRELATION_FACE_VERT";
+        case TOPOLOGY_FAILED_CORRELATION_FACE_EDGE :
+            return "FAILED_CORRELATION_FACE_EDGE";
 
-        "FAILED_ORIENTATION_INCIDENT_EDGE",
-        "FAILED_ORIENTATION_INCIDENT_FACE",
-        "FAILED_ORIENTATION_INCIDENT_FACES_EDGES",
+        case TOPOLOGY_FAILED_ORIENTATION_INCIDENT_EDGE :
+            return "FAILED_ORIENTATION_INCIDENT_EDGE";
+        case TOPOLOGY_FAILED_ORIENTATION_INCIDENT_FACE :
+            return "FAILED_ORIENTATION_INCIDENT_FACE";
+        case TOPOLOGY_FAILED_ORIENTATION_INCIDENT_FACES_EDGES :
+            return "FAILED_ORIENTATION_INCIDENT_FACES_EDGES";
 
-        "DEGENERATE_EDGE",
-        "NON_MANIFOLD_EDGE",
+        case TOPOLOGY_DEGENERATE_EDGE :
+            return "DEGENERATE_EDGE";
+        case TOPOLOGY_NON_MANIFOLD_EDGE :
+            return "NON_MANIFOLD_EDGE";
 
-        "INVALID_CREASE_EDGE",
-        "INVALID_CREASE_VERT"
-    };
+        case TOPOLOGY_INVALID_CREASE_EDGE :
+            return "INVALID_CREASE_EDGE";
+        case TOPOLOGY_INVALID_CREASE_VERT :
+            return "INVALID_CREASE_VERT";
 
-    return _errors[errCode];
+        default:
+            assert(0);
+    }
 }
 
 //
