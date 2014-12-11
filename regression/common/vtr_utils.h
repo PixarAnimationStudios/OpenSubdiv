@@ -54,7 +54,7 @@ GetSdcOptions(Shape const & shape) {
 
     result.SetVVarBoundaryInterpolation(Options::VVAR_BOUNDARY_EDGE_ONLY);
     result.SetCreasingMethod(Options::CREASE_UNIFORM);
-    result.SetTriangleSubdivision(Options::TRI_SUB_NORMAL);
+    result.SetTriangleSubdivision(Options::TRI_SUB_CATMARK);
 
     for (int i=0; i<(int)shape.tags.size(); ++i) {
 
@@ -91,12 +91,6 @@ GetSdcOptions(Shape const & shape) {
                 assert(0);
             } else
                 printf( "expecting single int argument for \"facevaryingpropagatecorners\"\n" );
-        } else if (t->name=="smoothtriangles") {
-
-            if (shape.scheme!=kCatmark) {
-                printf("the \"smoothtriangles\" tag can only be applied to Catmark meshes\n");
-                continue;
-            }
         } else if (t->name=="creasemethod") {
 
             if ((int)t->stringargs.size()==0) {
@@ -104,12 +98,26 @@ GetSdcOptions(Shape const & shape) {
                 continue;
             }
 
-            if( t->stringargs[0]=="normal" )
+            if (t->stringargs[0]=="normal") {
                 result.SetCreasingMethod(Options::CREASE_UNIFORM);
-            else if( t->stringargs[0]=="chaikin" )
+            } else if (t->stringargs[0]=="chaikin") {
                 result.SetCreasingMethod(Options::CREASE_CHAIKIN);
-            else
+            } else {
                 printf("the \"creasemethod\" tag only accepts \"normal\" or \"chaikin\" as value (%s)\n", t->stringargs[0].c_str());
+            }
+        } else if (t->name=="smoothtriangles") {
+
+            if (shape.scheme!=kCatmark) {
+                printf("the \"smoothtriangles\" tag can only be applied to Catmark meshes\n");
+                continue;
+            }
+            if (t->stringargs[0]=="catmark") {
+                result.SetTriangleSubdivision(Options::TRI_SUB_CATMARK);
+            } else if (t->stringargs[0]=="smooth") {
+                result.SetTriangleSubdivision(Options::TRI_SUB_SMOOTH);
+            } else {
+                printf("the \"smoothtriangles\" tag only accepts \"catmark\" or \"smooth\" as value (%s)\n", t->stringargs[0].c_str());
+            }
         }
     }
 

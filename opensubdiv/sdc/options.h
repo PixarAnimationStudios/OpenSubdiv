@@ -96,9 +96,8 @@ public:
         CREASE_CHAIKIN
     };
     enum TriangleSubdivision {
-        TRI_SUB_NORMAL = 0,
-        TRI_SUB_OLD,
-        TRI_SUB_NEW
+        TRI_SUB_CATMARK = 0,
+        TRI_SUB_SMOOTH
     };
 
 public:
@@ -107,7 +106,7 @@ public:
     Options() : _vvarBoundInterp(VVAR_BOUNDARY_NONE),
                 _fvarLinInterp(FVAR_LINEAR_ALL),
                 _creasingMethod(CREASE_UNIFORM),
-                _triangleSub(TRI_SUB_NORMAL) { }
+                _triangleSub(TRI_SUB_CATMARK) { }
     ~Options() { }
 
     //

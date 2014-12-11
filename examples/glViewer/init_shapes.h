@@ -76,6 +76,8 @@ static std::vector<ShapeDesc> g_defaultShapes;
 #include <shapes/catmark_pyramid_creases1.h>
 #include <shapes/catmark_pyramid.h>
 #include <shapes/catmark_rook.h>
+#include <shapes/catmark_smoothtris0.h>
+#include <shapes/catmark_smoothtris1.h>
 #include <shapes/catmark_square_hedit0.h>
 #include <shapes/catmark_square_hedit1.h>
 #include <shapes/catmark_square_hedit2.h>
@@ -141,6 +143,8 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_tent",             catmark_tent,             kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_torus",            catmark_torus,            kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_torus_creases0",   catmark_torus_creases0,   kCatmark ) );
+    g_defaultShapes.push_back( ShapeDesc("catmark_smoothtris0",      catmark_smoothtris0,      kCatmark ) );
+    g_defaultShapes.push_back( ShapeDesc("catmark_smoothtris1",      catmark_smoothtris1,      kCatmark ) );
 //    g_defaultShapes.push_back( ShapeDesc("catmark_square_hedit0",    catmark_square_hedit0,    kCatmark ) );
 //    g_defaultShapes.push_back( ShapeDesc("catmark_square_hedit1",    catmark_square_hedit1,    kCatmark ) );
 //    g_defaultShapes.push_back( ShapeDesc("catmark_square_hedit2",    catmark_square_hedit2,    kCatmark ) );

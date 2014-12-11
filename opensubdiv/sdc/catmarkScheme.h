@@ -69,7 +69,7 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) cons
     //
     bool face0IsTri = false;
     bool face1IsTri = false;
-    bool useTriangleOption = (_options.GetTriangleSubdivision() != Options::TRI_SUB_NORMAL);
+    bool useTriangleOption = (_options.GetTriangleSubdivision() == Options::TRI_SUB_SMOOTH);
     if (useTriangleOption) {
         if (faceCount == 2) {
             //
@@ -88,7 +88,7 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) cons
         }
     }
 
-    if (!useTriangleOption) {
+    if (not useTriangleOption) {
         mask.VertexWeight(0) = 0.25f;
         mask.VertexWeight(1) = 0.25f;
 
@@ -103,7 +103,7 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) cons
         }
     } else {
         //
-        //  This mimics the implementation in Hbr in terms of order of operations:
+        //  This mimics the implementation in Hbr in terms of order of operations.
         //
         const Weight CATMARK_SMOOTH_TRI_EDGE_WEIGHT = 0.470f;
 

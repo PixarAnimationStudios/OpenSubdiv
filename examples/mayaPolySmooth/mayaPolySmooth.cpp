@@ -638,7 +638,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             options.SetCreasingMethod(creaseMethodVal ?
                  OpenSubdiv::Sdc::Options::CREASE_CHAIKIN : OpenSubdiv::Sdc::Options::CREASE_UNIFORM);
             options.SetTriangleSubdivision(smoothTriangles ?
-                 OpenSubdiv::Sdc::Options::TRI_SUB_NEW : OpenSubdiv::Sdc::Options::TRI_SUB_OLD);
+                 OpenSubdiv::Sdc::Options::TRI_SUB_SMOOTH : OpenSubdiv::Sdc::Options::TRI_SUB_CATMARK);
 
             float maxCreaseSharpness=0.0f;
             OpenSubdiv::Far::TopologyRefiner * refiner =
