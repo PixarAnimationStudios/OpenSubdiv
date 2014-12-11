@@ -67,16 +67,21 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) cons
     //  Determine if we need to inspect incident faces and apply alternate weighting for
     //  triangles -- and if so, determine which of the two are triangles.
     //
-    //  (Is this really used?  Would be nice if we could deprecate this option...)
-    //
     bool face0IsTri = false;
     bool face1IsTri = false;
     bool useTriangleOption = (_options.GetTriangleSubdivision() != Options::TRI_SUB_NORMAL);
     if (useTriangleOption) {
         if (faceCount == 2) {
             //
-            //  Need to inspect/gather valence of incident faces here...
+            //  Ideally we want to avoid this inspection when we have already subdivided at
+            //  least once -- need something in the Edge interface to help avoid this, e.g.
+            //  an IsRegular() query, the subdivision level...
             //
+            int vertsPerFace[2];
+            edge.GetNumVerticesPerFace(vertsPerFace);
+
+            face0IsTri = (vertsPerFace[0] == 3);
+            face1IsTri = (vertsPerFace[1] == 3);
             useTriangleOption = face0IsTri || face1IsTri;
         } else {
             useTriangleOption = false;
@@ -98,8 +103,7 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) cons
         }
     } else {
         //
-        //  This mimics the implementation in Hbr in terms of order of operations.  If
-        //  the triangle-subdivision option can be deprecated we can remove this block:
+        //  This mimics the implementation in Hbr in terms of order of operations:
         //
         const Weight CATMARK_SMOOTH_TRI_EDGE_WEIGHT = 0.470f;
 
