@@ -42,8 +42,7 @@
 //
 
 
-#include <sdc/type.h>
-#include <far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
 
 //------------------------------------------------------------------------------
 

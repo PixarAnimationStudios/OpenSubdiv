@@ -40,9 +40,9 @@
 // systems that show the tangent and bi-tangent at the random samples locations.
 //
 
-#include <far/topologyRefinerFactory.h>
-#include <far/patchTablesFactory.h>
-#include <far/patchMap.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/patchTablesFactory.h>
+#include <opensubdiv/far/patchMap.h>
 
 #include <cassert>
 #include <cstdio>

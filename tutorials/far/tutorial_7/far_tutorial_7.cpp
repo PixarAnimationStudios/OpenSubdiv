@@ -41,9 +41,9 @@
 // of refinement of the original cube.
 //
 
-#include <far/topologyRefinerFactory.h>
-#include <far/stencilTables.h>
-#include <far/stencilTablesFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/stencilTables.h>
+#include <opensubdiv/far/stencilTablesFactory.h>
 
 #include <cstdio>
 #include <cstring>

@@ -30,11 +30,11 @@
 // 'Controllers'.
 //
 
-#include <far/topologyRefinerFactory.h>
-#include <far/stencilTablesFactory.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-#include <osd/cpuVertexBuffer.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/stencilTablesFactory.h>
+#include <opensubdiv/osd/cpuComputeContext.h>
+#include <opensubdiv/osd/cpuComputeController.h>
+#include <opensubdiv/osd/cpuVertexBuffer.h>
 
 #include <cstdio>
 #include <cstring>

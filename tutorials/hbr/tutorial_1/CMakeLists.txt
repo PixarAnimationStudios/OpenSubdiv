@@ -22,8 +22,6 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-include_directories("${PROJECT_SOURCE_DIR}/opensubdiv")
-
 set(SOURCE_FILES
     hbr_tutorial_1.cpp
 )

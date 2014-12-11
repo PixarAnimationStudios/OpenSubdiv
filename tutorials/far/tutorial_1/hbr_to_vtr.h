@@ -30,7 +30,7 @@
 #include <hbr/cornerEdit.h>
 #include <hbr/holeEdit.h>
 
-#include <far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
 
 #include <typeinfo>
 #include <cassert>

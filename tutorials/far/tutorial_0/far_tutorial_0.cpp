@@ -30,7 +30,7 @@
 // instantiate a Far mesh from simple topological data.
 //
 
-#include <far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
 
 #include <cstdio>
 

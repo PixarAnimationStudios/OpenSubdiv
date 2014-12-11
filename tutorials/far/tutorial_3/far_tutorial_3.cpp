@@ -33,7 +33,7 @@
 // 'face-varying' data recorded in the uv texture layout.
 //
 
-#include <far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
 
 #include <cstdio>
 

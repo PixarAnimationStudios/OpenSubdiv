@@ -30,8 +30,8 @@
 // instantiate an Hbr mesh from simple topological data.
 //
 
-#include <hbr/mesh.h>
-#include <hbr/catmark.h>
+#include <opensubdiv/hbr/mesh.h>
+#include <opensubdiv/hbr/catmark.h>
 
 #include <cstdio>
 

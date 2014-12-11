@@ -31,7 +31,7 @@
 // data.
 //
 
-#include <far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
 
 #include <cstdio>
 
