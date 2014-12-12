@@ -198,14 +198,14 @@ private:
 inline float
 Crease::SharpenBoundaryEdge(float edgeSharpness) const {
 
-    return (_options.GetVVarBoundaryInterpolation() != Options::VVAR_BOUNDARY_NONE) ?
+    return (_options.GetVtxBoundaryInterpolation() != Options::VTX_BOUNDARY_NONE) ?
             SHARPNESS_INFINITE : edgeSharpness;
 }
 
 inline float
 Crease::SharpenBoundaryVertex(float vertexSharpness) const {
 
-    return (_options.GetVVarBoundaryInterpolation() == Options::VVAR_BOUNDARY_EDGE_AND_CORNER) ?
+    return (_options.GetVtxBoundaryInterpolation() == Options::VTX_BOUNDARY_EDGE_AND_CORNER) ?
             SHARPNESS_INFINITE : vertexSharpness;
 }
 

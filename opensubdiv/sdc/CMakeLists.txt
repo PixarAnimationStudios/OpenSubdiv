@@ -49,15 +49,12 @@ set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 if (NOT NO_LIB)
-
-    # Compile objs first for both the CPU and GPU libs -----
     add_library(sdc_obj
         OBJECT
             ${SOURCE_FILES}
             ${PRIVATE_HEADER_FILES}
             ${PUBLIC_HEADER_FILES}
     )
-
 endif()
 
 #-------------------------------------------------------------------------------

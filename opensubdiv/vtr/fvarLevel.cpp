@@ -132,7 +132,7 @@ FVarLevel::completeTopologyFromFaceValues() {
     //
     using Sdc::Options;
 
-    Options::VVarBoundaryInterpolation geomOptions = _options.GetVVarBoundaryInterpolation();
+    Options::VtxBoundaryInterpolation geomOptions = _options.GetVtxBoundaryInterpolation();
     Options::FVarLinearInterpolation   fvarOptions = _options.GetFVarLinearInterpolation();
 
     _isLinear = (fvarOptions == Options::FVAR_LINEAR_ALL);
@@ -143,7 +143,7 @@ FVarLevel::completeTopologyFromFaceValues() {
     _hasDependentSharpness = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS1) ||
                              (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS2);
 
-    bool geomCornersAreSmooth = (geomOptions != Options::VVAR_BOUNDARY_EDGE_AND_CORNER);
+    bool geomCornersAreSmooth = (geomOptions != Options::VTX_BOUNDARY_EDGE_AND_CORNER);
     bool fvarCornersAreSharp  = (fvarOptions != Options::FVAR_LINEAR_NONE);
 
     bool makeSmoothCornersSharp = geomCornersAreSmooth && fvarCornersAreSharp;

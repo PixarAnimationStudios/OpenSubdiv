@@ -102,19 +102,19 @@ enum CreaseMethod {
     k_creaseMethod_chaikin = 1
 };
 
-static OpenSubdiv::Sdc::Options::VVarBoundaryInterpolation
-ConvertMayaVVarBoundary(short boundaryMethod) {
+static OpenSubdiv::Sdc::Options::VtxBoundaryInterpolation
+ConvertMayaVtxBoundary(short boundaryMethod) {
 
     typedef OpenSubdiv::Sdc::Options Sdc;
 
     switch (boundaryMethod) {
-        case k_BoundaryMethod_InterpolateBoundaryNone          : return Sdc::VVAR_BOUNDARY_NONE;
-        case k_BoundaryMethod_InterpolateBoundaryEdgeOnly      : return Sdc::VVAR_BOUNDARY_EDGE_ONLY;
-        case k_BoundaryMethod_InterpolateBoundaryEdgeAndCorner : return Sdc::VVAR_BOUNDARY_EDGE_AND_CORNER;
+        case k_BoundaryMethod_InterpolateBoundaryNone          : return Sdc::VTX_BOUNDARY_NONE;
+        case k_BoundaryMethod_InterpolateBoundaryEdgeOnly      : return Sdc::VTX_BOUNDARY_EDGE_ONLY;
+        case k_BoundaryMethod_InterpolateBoundaryEdgeAndCorner : return Sdc::VTX_BOUNDARY_EDGE_AND_CORNER;
         default: ;
     }
-    MGlobal::displayError("VVar InterpolateBoundaryMethod value out of range. Using \"none\"");
-    return Sdc::VVAR_BOUNDARY_NONE;
+    MGlobal::displayError("VTX InterpolateBoundaryMethod value out of range. Using \"none\"");
+    return Sdc::VTX_BOUNDARY_NONE;
 }
 
 // XXXX note: This function converts the options exposed in Maya's GUI which are
@@ -135,7 +135,7 @@ ConvertMayaFVarBoundary(short boundaryMethod, bool propagateCorner) {
         case k_BoundaryMethod_InterpolateBoundaryAlwaysSharp   : return Sdc::FVAR_LINEAR_BOUNDARIES;
         default: ;
     }
-    MGlobal::displayError("FVar InterpolateBoundaryMethod value out of range. Using \"none\"");
+    MGlobal::displayError("FVar InterpolateMethod value out of range. Using \"none\"");
     return Sdc::FVAR_LINEAR_ALL;
 }
 
@@ -633,7 +633,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             // Create Far topology
             //
             OpenSubdiv::Sdc::Options options;
-            options.SetVVarBoundaryInterpolation(ConvertMayaVVarBoundary(vertBoundaryMethod));
+            options.SetVtxBoundaryInterpolation(ConvertMayaVtxBoundary(vertBoundaryMethod));
             options.SetFVarLinearInterpolation(ConvertMayaFVarBoundary(fvarBoundaryMethod, fvarPropCorners));
             options.SetCreasingMethod(creaseMethodVal ?
                  OpenSubdiv::Sdc::Options::CREASE_CHAIKIN : OpenSubdiv::Sdc::Options::CREASE_UNIFORM);

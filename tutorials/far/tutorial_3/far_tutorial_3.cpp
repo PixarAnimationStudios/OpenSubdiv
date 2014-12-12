@@ -167,7 +167,7 @@ int main(int, char **) {
     Sdc::Type type = OpenSubdiv::Sdc::TYPE_CATMARK;
 
     Sdc::Options options;
-    options.SetVVarBoundaryInterpolation(Sdc::Options::VVAR_BOUNDARY_EDGE_ONLY);
+    options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
     options.SetFVarLinearInterpolation(Sdc::Options::FVAR_LINEAR_NONE);
 
     // Populate a topology descriptor with our raw data

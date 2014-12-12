@@ -169,7 +169,7 @@ createTopologyRefiner() {
     Sdc::Type type = OpenSubdiv::Sdc::TYPE_CATMARK;
 
     Sdc::Options options;
-    options.SetVVarBoundaryInterpolation(Sdc::Options::VVAR_BOUNDARY_EDGE_ONLY);
+    options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
 
     Descriptor desc;
     desc.numVertices  = g_nverts;

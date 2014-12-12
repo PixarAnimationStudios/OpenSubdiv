@@ -167,7 +167,7 @@ public:
 
     Sdc::Options GetOptions() const {
         Sdc::Options options;
-        options.SetVVarBoundaryInterpolation(Sdc::Options::VVAR_BOUNDARY_EDGE_ONLY);
+        options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
         return options;
     }
 

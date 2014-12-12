@@ -31,102 +31,101 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Sdc {
 
-//
-//  This header contains all supported options that can be applied to a subdivision
-//  scheme to affect the shape of the limit surface.  These differ from approximations
-//  that may be applied at a higher level, i.e. options to limit the level of feature
-//  adaptive subdivision, options to ignore fractional creasing, or creasing entirely,
-//  etc.  These options define the shape of a particular limit surface, including the
-//  "shape" of primitive variable data associated with it.
-//
-//  The intent is that these sets of options be defined at a high-level and propagated
-//  into the lowest-level computation in support of each subdivision scheme.  Ideally
-//  it remains a set of bit-fields (essentially an int) and so remains light weight and
-//  easily passed down by value.
-//
 //  BETA NOTES:
 //      Several of these options are being reconsidered in light of the divergence of
-//  OSD 3.0 from Hbr.  In some cases the options can be expressed more clearly and free
-//  of any RenderMan legacy for future use.  Details are noted below:
-//      "CreasingMethod"
-//          - note the change from the default "Normal" method to "Uniform"
-//      "VVarBoundaryInterpolation"
-//          - both name and enumerations being reconsidered
-//          - the "VVar" prefix was misguided on my part (barfowl)
-//          - "boundary interpolation" is a potential misnomer as it only affects corners
+//  OSD 3.0 from Hbr. In some cases the options can be expressed more clearly and free
+//  of any RenderMan legacy for future use. Details are noted below:
+//      "VtxBoundaryInterpolation"
 //          - its effect is to sharpen edges/corners, but edges are always sharpened
 //          - the "None" case serves no purpose (and would be discouraged)
 //      "FVarLinearInterpolation":
-//          - this replaces the combination of the "face varying boundary interpolation"
-//            enum and "propagate corner" boolean
-//          - functional equivalence with previous modes is as follows:
-//              LINEAR_NONE          == "edge only" (smooth everywhere)
-//              LINEAR_CORNERS_ONLY  == (no prior equivalent)
-//              LINEAR_CORNERS_PLUS1 == "edge and corner"
-//              LINEAR_CORNERS_PLUS2 == "edge and corner" with "propagate corners"
-//              LINEAR_BOUNDARIES    == "always sharp"
-//              LINEAR_ALL           == "bilinear"
 //          - the new "corner only" mode will sharpen corners and NEVER sharpen smooth
 //            boundaries, which we believe to be expected when sharping corners -- the
 //            old "edge and corner" mode would sharpen boundaries under some situations
 //            (e.g. more than three fvar values at a vertex)
-//      "TriangleSubdivision":
-//          - hoping we can get rid of this due to lack of interest/use
-//          - specific to Catmark and only at level 0
 //      "NonManifoldInterpolation":
-//          - not implemented yet
+//          - rules still need to be defined and implemented
 //
+
+///
+///  \brief All supported options applying to subdivision scheme.
+///
+///  The Options class contains all supported options that can be applied to a
+///  subdivision scheme to affect the shape of the limit surface.  These differ from
+///  approximations that may be applied at a higher level, i.e. options to limit the
+///  level of feature adaptive subdivision, options to ignore fractional creasing,
+///  or creasing entirely, etc. These options define the shape of a particular
+///  limit surface, including the "shape" of primitive variable data associated with
+///  it.
+///
+///  The intent is that these sets of options be defined at a high-level and
+///  propagated into the lowest-level computation in support of each subdivision
+///  scheme.  Ideally it remains a set of bit-fields (essentially an int) and so
+///  remains light weight and easily passed down by value.
+///
 class Options {
 public:
-    enum VVarBoundaryInterpolation {
-        VVAR_BOUNDARY_NONE = 0,
-        VVAR_BOUNDARY_EDGE_ONLY,
-        VVAR_BOUNDARY_EDGE_AND_CORNER
+    enum VtxBoundaryInterpolation {
+        VTX_BOUNDARY_NONE = 0,        ///< do not interpolate boundaries
+        VTX_BOUNDARY_EDGE_ONLY,       ///< sharpen edges
+        VTX_BOUNDARY_EDGE_AND_CORNER  ///< sharpen edges and corners
     };
     enum FVarLinearInterpolation {
-        FVAR_LINEAR_NONE = 0,
-        FVAR_LINEAR_CORNERS_ONLY,
-        FVAR_LINEAR_CORNERS_PLUS1,
-        FVAR_LINEAR_CORNERS_PLUS2,
-        FVAR_LINEAR_BOUNDARIES,
-        FVAR_LINEAR_ALL
+        FVAR_LINEAR_NONE = 0,         ///< smooth everywhere ("edge only")
+        FVAR_LINEAR_CORNERS_ONLY,     ///< sharpen corners only
+        FVAR_LINEAR_CORNERS_PLUS1,    ///< ("edge corner")
+        FVAR_LINEAR_CORNERS_PLUS2,    ///< ("edge and corner + propagate corner")
+        FVAR_LINEAR_BOUNDARIES,       ///< sharpen all boundaries ("always sharp")
+        FVAR_LINEAR_ALL               ///< bilinear interpolation q("bilinear")
     };
     enum CreasingMethod {
-        CREASE_UNIFORM = 0,
-        CREASE_CHAIKIN
+        CREASE_UNIFORM = 0,           ///< Catmark rule
+        CREASE_CHAIKIN                ///< Chaikin rule
     };
     enum TriangleSubdivision {
-        TRI_SUB_CATMARK = 0,
-        TRI_SUB_SMOOTH
+        TRI_SUB_CATMARK = 0,          ///< Catmark weights (Catmark scheme only)
+        TRI_SUB_SMOOTH                ///< "smooth triangle" weights (Catmark scheme only)
     };
 
 public:
 
-    //  Trivial constructor and destructor:
-    Options() : _vvarBoundInterp(VVAR_BOUNDARY_NONE),
+    Options() : _vtxBoundInterp(VTX_BOUNDARY_NONE),
                 _fvarLinInterp(FVAR_LINEAR_ALL),
                 _creasingMethod(CREASE_UNIFORM),
                 _triangleSub(TRI_SUB_CATMARK) { }
-    ~Options() { }
 
     //
     //  Trivial get/set methods:
     //
-    VVarBoundaryInterpolation GetVVarBoundaryInterpolation() const { return (VVarBoundaryInterpolation) _vvarBoundInterp; }
-    void SetVVarBoundaryInterpolation(VVarBoundaryInterpolation b) { _vvarBoundInterp = b; }
 
+    /// \brief Set vertex boundary interpolation rule
+    VtxBoundaryInterpolation GetVtxBoundaryInterpolation() const { return (VtxBoundaryInterpolation) _vtxBoundInterp; }
+
+    /// \brief Get vertex boundary interpolation rule
+    void SetVtxBoundaryInterpolation(VtxBoundaryInterpolation b) { _vtxBoundInterp = b; }
+
+    /// \brief Get face-varying interpolation rule
     FVarLinearInterpolation GetFVarLinearInterpolation() const { return (FVarLinearInterpolation) _fvarLinInterp; }
+
+    /// \brief Set face-varying interpolation rule
     void SetFVarLinearInterpolation(FVarLinearInterpolation b) { _fvarLinInterp = b; }
 
+    /// \brief Get edge crease rule
     CreasingMethod GetCreasingMethod() const { return (CreasingMethod) _creasingMethod; }
+
+    /// \brief Set edge crease rule
     void SetCreasingMethod(CreasingMethod c) { _creasingMethod = c; }
 
+    /// \brief Get triangle subdivsion weights rule (Catmark scheme only !)
     TriangleSubdivision GetTriangleSubdivision() const { return (TriangleSubdivision) _triangleSub; }
+
+    /// \brief Set triangle subdivsion weights rule (Catmark scheme only !)
     void SetTriangleSubdivision(TriangleSubdivision t) { _triangleSub = t; }
 
 private:
+
     //  Bitfield members:
-    unsigned int _vvarBoundInterp : 2,
+    unsigned int _vtxBoundInterp  : 2,
                  _fvarLinInterp   : 3,
                  _creasingMethod  : 2,
                  _triangleSub     : 2;

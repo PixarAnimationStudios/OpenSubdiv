@@ -52,7 +52,7 @@ GetSdcOptions(Shape const & shape) {
 
     Options result;
 
-    result.SetVVarBoundaryInterpolation(Options::VVAR_BOUNDARY_EDGE_ONLY);
+    result.SetVtxBoundaryInterpolation(Options::VTX_BOUNDARY_EDGE_ONLY);
     result.SetCreasingMethod(Options::CREASE_UNIFORM);
     result.SetTriangleSubdivision(Options::TRI_SUB_CATMARK);
 
@@ -66,9 +66,9 @@ GetSdcOptions(Shape const & shape) {
                 continue;
             }
             switch( t->intargs[0] ) {
-                case 0 : result.SetVVarBoundaryInterpolation(Options::VVAR_BOUNDARY_NONE); break;
-                case 1 : result.SetVVarBoundaryInterpolation(Options::VVAR_BOUNDARY_EDGE_AND_CORNER); break;
-                case 2 : result.SetVVarBoundaryInterpolation(Options::VVAR_BOUNDARY_EDGE_ONLY); break;
+                case 0 : result.SetVtxBoundaryInterpolation(Options::VTX_BOUNDARY_NONE); break;
+                case 1 : result.SetVtxBoundaryInterpolation(Options::VTX_BOUNDARY_EDGE_AND_CORNER); break;
+                case 2 : result.SetVtxBoundaryInterpolation(Options::VTX_BOUNDARY_EDGE_ONLY); break;
                 default: printf("unknown interpolate boundary : %d\n", t->intargs[0] ); break;
             }
         } else if (t->name=="facevaryinginterpolateboundary") {

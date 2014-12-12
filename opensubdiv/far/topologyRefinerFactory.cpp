@@ -105,7 +105,7 @@ TopologyRefinerFactoryBase::applyComponentTagsAndBoundarySharpness(TopologyRefin
     Sdc::Options options = refiner.GetSchemeOptions();
     Sdc::Crease  creasing(options);
 
-    bool sharpenCornerVerts    = (options.GetVVarBoundaryInterpolation() == Sdc::Options::VVAR_BOUNDARY_EDGE_AND_CORNER);
+    bool sharpenCornerVerts    = (options.GetVtxBoundaryInterpolation() == Sdc::Options::VTX_BOUNDARY_EDGE_AND_CORNER);
     bool sharpenNonManFeatures = true; //(options.GetNonManifoldInterpolation() == Sdc::Options::NON_MANIFOLD_SHARP);
 
     //
