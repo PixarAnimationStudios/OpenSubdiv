@@ -212,7 +212,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::resizeCo
 
     for (int face=0; face<desc.numFaces; ++face) {
 
-        refiner.setNumBaseFaceVertices(face, desc.vertsPerFace[face]);
+        refiner.setNumBaseFaceVertices(face, desc.numVertsPerFace[face]);
     }
 }
 
@@ -227,7 +227,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
 
         for (int vert=0; vert<dstFaceVerts.size(); ++vert) {
 
-            dstFaceVerts[vert] = desc.vertIndices[idx++];
+            dstFaceVerts[vert] = desc.vertIndicesPerFace[idx++];
         }
     }
 }

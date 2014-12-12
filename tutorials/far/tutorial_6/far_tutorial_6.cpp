@@ -249,8 +249,8 @@ createTopologyRefiner() {
     Descriptor desc;
     desc.numVertices = g_nverts;
     desc.numFaces = g_nfaces;
-    desc.vertsPerFace = g_vertsperface;
-    desc.vertIndices = g_faceverts;
+    desc.numVertsPerFace = g_vertsperface;
+    desc.vertIndicesPerFace = g_faceverts;
     desc.numCreases = g_ncreases;
     desc.creaseVertexIndexPairs = g_creaseverts;
     desc.creaseWeights = g_creaseweights;

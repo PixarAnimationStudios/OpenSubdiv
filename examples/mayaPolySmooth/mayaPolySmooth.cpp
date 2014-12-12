@@ -342,8 +342,8 @@ gatherTopology( MFnMesh const & inMeshFn,
     int * vertsPerFace = new int[desc.numFaces],
         * vertIndices = new int[inMeshFn.numFaceVertices()];
 
-    desc.vertsPerFace = vertsPerFace;
-    desc.vertIndices = vertIndices;
+    desc.numVertsPerFace = vertsPerFace;
+    desc.vertIndicesPerFace = vertIndices;
 
     // Create Topology
 
@@ -386,8 +386,8 @@ gatherTopology( MFnMesh const & inMeshFn,
     OpenSubdiv::Far::TopologyRefiner * refiner =
         OpenSubdiv::Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);
 
-    delete [] desc.vertsPerFace;
-    delete [] desc.vertIndices;
+    delete [] desc.numVertsPerFace;
+    delete [] desc.vertIndicesPerFace;
 
     delete [] desc.creaseVertexIndexPairs;
     delete [] desc.creaseWeights;

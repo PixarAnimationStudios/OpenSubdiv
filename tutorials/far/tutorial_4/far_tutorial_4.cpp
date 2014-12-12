@@ -172,10 +172,10 @@ createTopologyRefiner() {
     options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
 
     Descriptor desc;
-    desc.numVertices  = g_nverts;
-    desc.numFaces     = g_nfaces;
-    desc.vertsPerFace = g_vertsperface;
-    desc.vertIndices  = g_vertIndices;
+    desc.numVertices = g_nverts;
+    desc.numFaces = g_nfaces;
+    desc.numVertsPerFace = g_vertsperface;
+    desc.vertIndicesPerFace = g_vertIndices;
 
     // Instantiate a FarTopologyRefiner from the descriptor.
     return Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);

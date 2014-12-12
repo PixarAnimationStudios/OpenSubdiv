@@ -67,8 +67,8 @@ public:
         int           numVertices,
                       numFaces;
 
-        Index const * vertsPerFace,
-                    * vertIndices;
+        int const   * numVertsPerFace;
+        Index const * vertIndicesPerFace;
 
         int           numCreases;
         Index const * creaseVertexIndexPairs;
