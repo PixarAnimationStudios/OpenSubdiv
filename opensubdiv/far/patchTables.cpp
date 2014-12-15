@@ -366,15 +366,15 @@ PatchTables::getPatchArrayVertices(int arrayIndex) {
     assert(pa.vertIndex<(Index)_patchVerts.size());
     return IndexArray(&_patchVerts[pa.vertIndex], pa.numPatches * size);
 }
-IndexArray const
+ConstIndexArray
 PatchTables::GetPatchArrayVertices(int arrayIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     int size = getPatchSize(pa.desc);
     assert(pa.vertIndex<(Index)_patchVerts.size());
-    return IndexArray(&_patchVerts[pa.vertIndex], pa.numPatches * size);
+    return ConstIndexArray(&_patchVerts[pa.vertIndex], pa.numPatches * size);
 }
 
-IndexArray const
+ConstIndexArray
 PatchTables::GetPatchVertices(PatchHandle const & handle) const {
     PatchArray const & pa = getPatchArray(handle.arrayIndex);
 
@@ -384,14 +384,14 @@ PatchTables::GetPatchVertices(PatchHandle const & handle) const {
     vert += (pa.desc.GetType() == PatchDescriptor::GREGORY_BASIS) ?
         handle.vertIndex / 5 : handle.vertIndex;
     assert(vert<(Index)_patchVerts.size());
-    return IndexArray(&_patchVerts[vert], getPatchSize(pa.desc));
+    return ConstIndexArray(&_patchVerts[vert], getPatchSize(pa.desc));
 }
-IndexArray const
+ConstIndexArray
 PatchTables::GetPatchVertices(int arrayIndex, int patchIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     int size = getPatchSize(pa.desc);
     assert((pa.vertIndex + patchIndex*size)<(Index)_patchVerts.size());
-    return IndexArray(&_patchVerts[pa.vertIndex + patchIndex*size], size);
+    return ConstIndexArray(&_patchVerts[pa.vertIndex + patchIndex*size], size);
 }
 
 PatchParam
@@ -410,10 +410,10 @@ PatchTables::getPatchParams(int arrayIndex) {
     PatchArray const & pa = getPatchArray(arrayIndex);
     return PatchParamArray(&_paramTable[pa.patchIndex], pa.numPatches);
 }
-PatchParamArray const
+ConstPatchParamArray const
 PatchTables::GetPatchParams(int arrayIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
-    return PatchParamArray(&_paramTable[pa.patchIndex], pa.numPatches);
+    return ConstPatchParamArray(&_paramTable[pa.patchIndex], pa.numPatches);
 }
 
 float
@@ -438,10 +438,10 @@ PatchTables::GetSingleCreasePatchSharpnessValue(int arrayIndex, int patchIndex) 
     return _sharpnessValues[index];
 }
 
-PatchTables::QuadOffsetsArray const
+PatchTables::ConstQuadOffsetsArray
 PatchTables::GetPatchQuadOffsets(PatchHandle const & handle) const {
     PatchArray const & pa = getPatchArray(handle.arrayIndex);
-    return Vtr::Array<unsigned int>(&_quadOffsetsTable[pa.quadOffsetIndex + handle.vertIndex], 4);
+    return Vtr::ConstArray<unsigned int>(&_quadOffsetsTable[pa.quadOffsetIndex + handle.vertIndex], 4);
 }
 
 IndexArray

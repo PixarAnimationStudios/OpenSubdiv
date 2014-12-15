@@ -273,7 +273,7 @@ getKernelName(int kernel) {
 static void
 createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=kCatmark) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 

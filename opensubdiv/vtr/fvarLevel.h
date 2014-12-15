@@ -91,9 +91,6 @@ protected:
     friend class Far::TopologyRefiner;
 
 protected:
-    typedef LocalIndex      Sibling;
-    typedef LocalIndexArray SiblingArray;
-
     //
     //  Component tags -- trying to minimize the types needed here:
     //
@@ -140,6 +137,7 @@ protected:
         ValueTagSize _depSharp  : 1;  // value a corner by dependency on another
     };
 
+    typedef Vtr::ConstArray<ValueTag> ConstValueTagArray;
     typedef Vtr::Array<ValueTag> ValueTagArray;
 
     //
@@ -152,7 +150,13 @@ protected:
         LocalIndex _endFace;
     };
 
+    typedef Vtr::ConstArray<CreaseEndPair> ConstCreaseEndPairArray;
     typedef Vtr::Array<CreaseEndPair> CreaseEndPairArray;
+
+    typedef LocalIndex      Sibling;
+
+    typedef ConstLocalIndexArray ConstSiblingArray;
+    typedef LocalIndexArray SiblingArray;
 
 protected:
     FVarLevel(Level const& level);
@@ -165,7 +169,7 @@ protected:
     int getNumFaceValuesTotal() const { return (int) _faceVertValues.size(); }
 
     //  Queries per face:
-    IndexArray const getFaceValues(Index fIndex) const;
+    ConstIndexArray  getFaceValues(Index fIndex) const;
     IndexArray       getFaceValues(Index fIndex);
 
     //  Queries per edge:
@@ -179,16 +183,16 @@ protected:
     Index getVertexValue(Index v, Sibling i = 0) const { return _vertValueIndices[getVertexValueOffset(v,i)]; }
 
     //  Methods to access/modify array properties per vertex:
-    IndexArray const getVertexValues(Index vIndex) const;
+    ConstIndexArray  getVertexValues(Index vIndex) const;
     IndexArray       getVertexValues(Index vIndex);
 
-    ValueTagArray const getVertexValueTags(Index vIndex) const;
+    ConstValueTagArray  getVertexValueTags(Index vIndex) const;
     ValueTagArray       getVertexValueTags(Index vIndex);
 
-    CreaseEndPairArray const getVertexValueCreaseEnds(Index vIndex) const;
+    ConstCreaseEndPairArray  getVertexValueCreaseEnds(Index vIndex) const;
     CreaseEndPairArray       getVertexValueCreaseEnds(Index vIndex);
 
-    SiblingArray const getVertexFaceSiblings(Index vIndex) const;
+    ConstSiblingArray  getVertexFaceSiblings(Index vIndex) const;
     SiblingArray       getVertexFaceSiblings(Index vIndex);
 
     //  Queries per value:
@@ -267,12 +271,12 @@ protected:
 //
 //  Access/modify the values associated with each face:
 //
-inline IndexArray const
+inline ConstIndexArray
 FVarLevel::getFaceValues(Index fIndex) const {
 
     int vCount  = _level._faceVertCountsAndOffsets[fIndex*2];
     int vOffset = _level._faceVertCountsAndOffsets[fIndex*2+1];
-    return IndexArray(&_faceVertValues[vOffset], vCount);
+    return ConstIndexArray(&_faceVertValues[vOffset], vCount);
 }
 inline IndexArray
 FVarLevel::getFaceValues(Index fIndex) {
@@ -282,12 +286,12 @@ FVarLevel::getFaceValues(Index fIndex) {
     return IndexArray(&_faceVertValues[vOffset], vCount);
 }
 
-inline FVarLevel::SiblingArray const
+inline FVarLevel::ConstSiblingArray
 FVarLevel::getVertexFaceSiblings(Index vIndex) const {
 
     int vCount  = _level._vertFaceCountsAndOffsets[vIndex*2];
     int vOffset = _level._vertFaceCountsAndOffsets[vIndex*2+1];
-    return SiblingArray(&_vertFaceSiblings[vOffset], vCount);
+    return ConstSiblingArray(&_vertFaceSiblings[vOffset], vCount);
 }
 inline FVarLevel::SiblingArray
 FVarLevel::getVertexFaceSiblings(Index vIndex) {
@@ -297,12 +301,12 @@ FVarLevel::getVertexFaceSiblings(Index vIndex) {
     return SiblingArray(&_vertFaceSiblings[vOffset], vCount);
 }
 
-inline IndexArray const
+inline ConstIndexArray
 FVarLevel::getVertexValues(Index vIndex) const
 {
     int vCount  = getNumVertexValues(vIndex);
     int vOffset = getVertexValueOffset(vIndex);
-    return IndexArray(&_vertValueIndices[vOffset], vCount);
+    return ConstIndexArray(&_vertValueIndices[vOffset], vCount);
 }
 inline IndexArray
 FVarLevel::getVertexValues(Index vIndex)
@@ -312,12 +316,12 @@ FVarLevel::getVertexValues(Index vIndex)
     return IndexArray(&_vertValueIndices[vOffset], vCount);
 }
 
-inline FVarLevel::ValueTagArray const
+inline FVarLevel::ConstValueTagArray
 FVarLevel::getVertexValueTags(Index vIndex) const
 {
     int vCount  = getNumVertexValues(vIndex);
     int vOffset = getVertexValueOffset(vIndex);
-    return ValueTagArray(&_vertValueTags[vOffset], vCount);
+    return ConstValueTagArray(&_vertValueTags[vOffset], vCount);
 }
 inline FVarLevel::ValueTagArray
 FVarLevel::getVertexValueTags(Index vIndex)
@@ -327,12 +331,12 @@ FVarLevel::getVertexValueTags(Index vIndex)
     return ValueTagArray(&_vertValueTags[vOffset], vCount);
 }
 
-inline FVarLevel::CreaseEndPairArray const
+inline FVarLevel::ConstCreaseEndPairArray
 FVarLevel::getVertexValueCreaseEnds(Index vIndex) const
 {
     int vCount  = getNumVertexValues(vIndex);
     int vOffset = getVertexValueOffset(vIndex);
-    return CreaseEndPairArray(&_vertValueCreaseEnds[vOffset], vCount);
+    return ConstCreaseEndPairArray(&_vertValueCreaseEnds[vOffset], vCount);
 }
 inline FVarLevel::CreaseEndPairArray
 FVarLevel::getVertexValueCreaseEnds(Index vIndex)

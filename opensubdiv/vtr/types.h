@@ -69,8 +69,11 @@ inline bool IndexIsValid(Index index) { return (index != INDEX_INVALID); }
 //
 typedef std::vector<Index>  IndexVector;
 
-typedef Array<Index>        IndexArray;
-typedef Array<LocalIndex>   LocalIndexArray;
+typedef Array<Index>             IndexArray;
+typedef ConstArray<Index>        ConstIndexArray;
+
+typedef Array<LocalIndex>        LocalIndexArray;
+typedef ConstArray<LocalIndex>   ConstLocalIndexArray;
 
 
 } // end namespace Vtr

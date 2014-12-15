@@ -72,7 +72,7 @@ STParticles::STParticles(Refiner const & refiner, int nparticles, bool centered)
 
         for (int face=0, ptexface=0; face<nfaces; ++face) {
 
-            OpenSubdiv::Far::IndexArray fverts =
+            OpenSubdiv::Far::ConstIndexArray fverts =
                 refiner.GetFaceVertices(0, face);
 
             if (fverts.size()==4) {

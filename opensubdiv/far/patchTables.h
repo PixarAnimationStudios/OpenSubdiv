@@ -134,13 +134,13 @@ public:
     PatchDescriptor GetPatchDescriptor(PatchHandle const & handle) const;
 
     /// \brief Returns the control vertex indices for the patch identified by 'handle'
-    IndexArray const GetPatchVertices(PatchHandle const & handle) const;
+    ConstIndexArray GetPatchVertices(PatchHandle const & handle) const;
 
     /// \brief Returns a PatchParam for the patch identified by 'handle'
     PatchParam GetPatchParam(PatchHandle const & handle) const;
 
     /// \brief Returns the control vertex indices for the patch 'patch' in array 'array'
-    IndexArray const GetPatchVertices(int array, int patch) const;
+    ConstIndexArray GetPatchVertices(int array, int patch) const;
 
     /// \brief Returns the PatchParam for the patch 'patch' in array 'array'
     PatchParam GetPatchParam(int array, int patch) const;
@@ -168,10 +168,10 @@ public:
     PatchDescriptor GetPatchArrayDescriptor(int array) const;
 
     /// \brief Returns the control vertex indices for the patches in array 'array'
-    IndexArray const GetPatchArrayVertices(int array) const;
+    ConstIndexArray GetPatchArrayVertices(int array) const;
 
     /// \brief Returns the PatchParams for the patches in array 'array'
-    PatchParamArray const GetPatchParams(int array) const;
+    ConstPatchParamArray const GetPatchParams(int array) const;
     //@}
 
 
@@ -183,10 +183,10 @@ public:
     /// \brief Accessors for end-cap patch additional data
     ///
 
-    typedef Vtr::Array<unsigned int> QuadOffsetsArray;
+    typedef Vtr::ConstArray<unsigned int> ConstQuadOffsetsArray;
 
     /// \brief Returns the 'QuadOffsets' for the Gregory patch identified by 'handle'
-    QuadOffsetsArray const GetPatchQuadOffsets(PatchHandle const & handle) const;
+    ConstQuadOffsetsArray GetPatchQuadOffsets(PatchHandle const & handle) const;
 
     typedef std::vector<Index> VertexValenceTable;
 
@@ -720,7 +720,7 @@ PatchTables::Interpolate(PatchHandle const & handle, float s, float t,
 
     assert(not IsFeatureAdaptive());
 
-    IndexArray cvs = GetPatchVertices(handle);
+    ConstIndexArray cvs = GetPatchVertices(handle);
 
     PatchParam::BitField const & bits =
         _paramTable[handle.patchIndex].bitField;
@@ -754,7 +754,7 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
 
         getBasisWeights(BASIS_BSPLINE, bits, s, t, Q, Qd1, Qd2);
 
-        IndexArray cvs = GetPatchVertices(handle);
+        ConstIndexArray cvs = GetPatchVertices(handle);
 
         switch (ptype) {
             case PatchDescriptor::REGULAR:

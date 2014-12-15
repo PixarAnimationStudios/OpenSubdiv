@@ -478,7 +478,7 @@ getKernelName(int kernel) {
 static void
 createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=kCatmark) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     bool doAnim = g_objAnim and g_currentShape==0;
 

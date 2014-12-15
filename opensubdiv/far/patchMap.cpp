@@ -77,7 +77,7 @@ PatchMap::initialize( PatchTables const & patchTables ) {
 
     for (int parray=0, current=0; parray<narrays; ++parray) {
 
-        PatchParamArray params = patchTables.GetPatchParams(parray);
+        ConstPatchParamArray params = patchTables.GetPatchParams(parray);
 
         int ringsize = patchTables.GetPatchArrayDescriptor(parray).GetNumControlVertices();
 
@@ -107,7 +107,7 @@ PatchMap::initialize( PatchTables const & patchTables ) {
     // populate the quadtree from the FarPatchArrays sub-patches
     for (Index parray=0, handleIndex=0; parray<narrays; ++parray) {
 
-        PatchParamArray params = patchTables.GetPatchParams(parray);
+        ConstPatchParamArray params = patchTables.GetPatchParams(parray);
 
         for (int i=0; i < patchTables.GetNumPatches(parray); ++i, ++handleIndex) {
 

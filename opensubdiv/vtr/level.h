@@ -173,7 +173,7 @@ public:
         //FTagSize _hasEdits : 1;  // variable
     };
 
-    VTag getFaceCompositeVTag(IndexArray const& faceVerts) const;
+    VTag getFaceCompositeVTag(ConstIndexArray & faceVerts) const;
 
 public:
     Level();
@@ -206,15 +206,15 @@ public:
     //  valence we'll us an 8- or 16-bit integer.
     //
     //  Methods to access the six topological relations:
-    IndexArray const getFaceVertices(Index faceIndex) const;
-    IndexArray const getFaceEdges(Index faceIndex) const;
-    IndexArray const getEdgeVertices(Index edgeIndex) const;
-    IndexArray const getEdgeFaces(Index edgeIndex) const;
-    IndexArray const getVertexFaces(Index vertIndex) const;
-    IndexArray const getVertexEdges(Index vertIndex) const;
+    ConstIndexArray getFaceVertices(Index faceIndex) const;
+    ConstIndexArray getFaceEdges(Index faceIndex) const;
+    ConstIndexArray getEdgeVertices(Index edgeIndex) const;
+    ConstIndexArray getEdgeFaces(Index edgeIndex) const;
+    ConstIndexArray getVertexFaces(Index vertIndex) const;
+    ConstIndexArray getVertexEdges(Index vertIndex) const;
 
-    LocalIndexArray const getVertexFaceLocalIndices(Index vertIndex) const;
-    LocalIndexArray const getVertexEdgeLocalIndices(Index vertIndex) const;
+    ConstLocalIndexArray getVertexFaceLocalIndices(Index vertIndex) const;
+    ConstLocalIndexArray getVertexEdgeLocalIndices(Index vertIndex) const;
 
     //  Replace these with access to sharpness buffers/arrays rather than elements:
     Sharpness getEdgeSharpness(Index edgeIndex) const;
@@ -223,7 +223,7 @@ public:
 
     Index findEdge(Index v0Index, Index v1Index) const;
 
-    // Holes    
+    // Holes
     void setHole(Index faceIndex, bool b);
     bool isHole(Index faceIndex) const;
 
@@ -326,7 +326,7 @@ protected:
     int getNumFVarChannels() const { return (int) _fvarChannels.size(); }
     int getNumFVarValues(int channel = 0) const;
 
-    IndexArray const getFVarFaceValues(Index faceIndex, int channel = 0) const;
+    ConstIndexArray  getFVarFaceValues(Index faceIndex, int channel = 0) const;
     IndexArray       getFVarFaceValues(Index faceIndex, int channel = 0);
 
     void completeFVarChannelTopology(int channel = 0);
@@ -381,7 +381,7 @@ protected:
     //  until we decide where, the required implementation is defined here.
     //
     void completeTopologyFromFaceVertices();
-    Index findEdge(Index v0, Index v1, IndexArray const& v0Edges) const;
+    Index findEdge(Index v0, Index v1, ConstIndexArray v0Edges) const;
 
     //  Methods supporting the above:
     void orientIncidentComponents();
@@ -389,7 +389,7 @@ protected:
     bool orderVertexFacesAndEdges(Index vIndex);
     void populateLocalIndices();
 
-    IndexArray const shareFaceVertCountsAndOffsets() const;
+    IndexArray shareFaceVertCountsAndOffsets() const;
 
 protected:
     //
@@ -462,9 +462,9 @@ protected:
 //
 //  Access/modify the vertices indicent a given face:
 //
-inline IndexArray const
+inline ConstIndexArray
 Level::getFaceVertices(Index faceIndex) const {
-    return IndexArray(&_faceVertIndices[_faceVertCountsAndOffsets[faceIndex*2+1]],
+    return ConstIndexArray(&_faceVertIndices[_faceVertCountsAndOffsets[faceIndex*2+1]],
                           _faceVertCountsAndOffsets[faceIndex*2]);
 }
 inline IndexArray
@@ -488,9 +488,9 @@ Level::resizeFaceVertices(Index faceIndex, int count) {
 //
 //  Access/modify the edges indicent a given face:
 //
-inline IndexArray const
+inline ConstIndexArray
 Level::getFaceEdges(Index faceIndex) const {
-    return IndexArray(&_faceEdgeIndices[_faceVertCountsAndOffsets[faceIndex*2+1]],
+    return ConstIndexArray(&_faceEdgeIndices[_faceVertCountsAndOffsets[faceIndex*2+1]],
                           _faceVertCountsAndOffsets[faceIndex*2]);
 }
 inline IndexArray
@@ -502,9 +502,9 @@ Level::getFaceEdges(Index faceIndex) {
 //
 //  Access/modify the faces indicent a given vertex:
 //
-inline IndexArray const
+inline ConstIndexArray
 Level::getVertexFaces(Index vertIndex) const {
-    return IndexArray(&_vertFaceIndices[_vertFaceCountsAndOffsets[vertIndex*2+1]],
+    return ConstIndexArray(&_vertFaceIndices[_vertFaceCountsAndOffsets[vertIndex*2+1]],
                           _vertFaceCountsAndOffsets[vertIndex*2]);
 }
 inline IndexArray
@@ -513,9 +513,9 @@ Level::getVertexFaces(Index vertIndex) {
                           _vertFaceCountsAndOffsets[vertIndex*2]);
 }
 
-inline LocalIndexArray const
+inline ConstLocalIndexArray
 Level::getVertexFaceLocalIndices(Index vertIndex) const {
-    return LocalIndexArray(&_vertFaceLocalIndices[_vertFaceCountsAndOffsets[vertIndex*2+1]],
+    return ConstLocalIndexArray(&_vertFaceLocalIndices[_vertFaceCountsAndOffsets[vertIndex*2+1]],
                                _vertFaceCountsAndOffsets[vertIndex*2]);
 }
 inline LocalIndexArray
@@ -539,9 +539,9 @@ Level::trimVertexFaces(Index vertIndex, int count) {
 //
 //  Access/modify the edges indicent a given vertex:
 //
-inline IndexArray const
+inline ConstIndexArray
 Level::getVertexEdges(Index vertIndex) const {
-    return IndexArray(&_vertEdgeIndices[_vertEdgeCountsAndOffsets[vertIndex*2+1]],
+    return ConstIndexArray(&_vertEdgeIndices[_vertEdgeCountsAndOffsets[vertIndex*2+1]],
                           _vertEdgeCountsAndOffsets[vertIndex*2]);
 }
 inline IndexArray
@@ -550,9 +550,9 @@ Level::getVertexEdges(Index vertIndex) {
                           _vertEdgeCountsAndOffsets[vertIndex*2]);
 }
 
-inline LocalIndexArray const
+inline ConstLocalIndexArray
 Level::getVertexEdgeLocalIndices(Index vertIndex) const {
-    return LocalIndexArray(&_vertEdgeLocalIndices[_vertEdgeCountsAndOffsets[vertIndex*2+1]],
+    return ConstLocalIndexArray(&_vertEdgeLocalIndices[_vertEdgeCountsAndOffsets[vertIndex*2+1]],
                                _vertEdgeCountsAndOffsets[vertIndex*2]);
 }
 inline LocalIndexArray
@@ -578,9 +578,9 @@ Level::trimVertexEdges(Index vertIndex, int count) {
 //
 //  Access/modify the vertices indicent a given edge:
 //
-inline IndexArray const
+inline ConstIndexArray
 Level::getEdgeVertices(Index edgeIndex) const {
-    return IndexArray(&_edgeVertIndices[edgeIndex*2], 2);
+    return ConstIndexArray(&_edgeVertIndices[edgeIndex*2], 2);
 }
 inline IndexArray
 Level::getEdgeVertices(Index edgeIndex) {
@@ -590,9 +590,9 @@ Level::getEdgeVertices(Index edgeIndex) {
 //
 //  Access/modify the faces indicent a given edge:
 //
-inline IndexArray const
+inline ConstIndexArray
 Level::getEdgeFaces(Index edgeIndex) const {
-    return IndexArray(&_edgeFaceIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
+    return ConstIndexArray(&_edgeFaceIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
                           _edgeFaceCountsAndOffsets[edgeIndex*2]);
 }
 inline IndexArray
@@ -644,7 +644,7 @@ Level::getVertexRule(Index vertIndex) const {
 //
 //  Access/modify hole tag:
 //
-inline void 
+inline void
 Level::setHole(Index faceIndex, bool b) {
     _faceTags[faceIndex]._hole = b;
 }
@@ -721,9 +721,12 @@ Level::resizeVertexEdges(int totalVertEdgeCount) {
     _vertEdgeLocalIndices.resize(totalVertEdgeCount);
 }
 
-inline IndexArray const
+inline IndexArray
 Level::shareFaceVertCountsAndOffsets() const {
-    return IndexArray(&_faceVertCountsAndOffsets[0], (int)_faceVertCountsAndOffsets.size());
+    // XXXX manuelk we have to force const casting here (classes don't 'share'
+    // members usually...)
+    return IndexArray(const_cast<Index *>(&_faceVertCountsAndOffsets[0]),
+        (int)_faceVertCountsAndOffsets.size());
 }
 
 } // end namespace Vtr

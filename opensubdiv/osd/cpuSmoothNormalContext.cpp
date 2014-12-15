@@ -43,7 +43,7 @@ CpuSmoothNormalContext::CpuSmoothNormalContext(
     Far::Index * dest = &_faceVerts[0];
 
     for (int face=0; face<nfaces; ++face, dest+=4) {
-        Far::IndexArray fverts = refiner.GetFaceVertices(level, face);
+        Far::ConstIndexArray fverts = refiner.GetFaceVertices(level, face);
         memcpy(dest, fverts.begin(), 4 * sizeof(Far::Index));
     }
 }

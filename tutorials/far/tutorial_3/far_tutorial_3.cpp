@@ -254,8 +254,8 @@ int main(int, char **) {
         // Print faces
         for (int face=0; face<refiner->GetNumFaces(maxlevel); ++face) {
 
-            Far::IndexArray fverts = refiner->GetFaceVertices(maxlevel, face),
-                          fvverts = refiner->GetFVarFaceValues(maxlevel, face, channel);
+            Far::ConstIndexArray fverts = refiner->GetFaceVertices(maxlevel, face),
+                                 fvverts = refiner->GetFVarFaceValues(maxlevel, face, channel);
 
             // all refined Catmark faces should be quads
             assert(fverts.size()==4 and fvverts.size()==4);

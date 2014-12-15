@@ -522,7 +522,7 @@ convertToMayaMeshData(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
     MStatus status;
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     int maxlevel = refiner.GetMaxLevel(),
         nfaces = refiner.GetNumFaces(maxlevel);

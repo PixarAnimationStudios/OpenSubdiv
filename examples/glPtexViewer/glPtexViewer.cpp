@@ -359,7 +359,7 @@ static void
 calcNormals(OpenSubdiv::Far::TopologyRefiner * refiner,
     std::vector<float> const & pos, std::vector<float> & result ) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     // calc normal vectors
     int nverts = refiner->GetNumVertices(0),
@@ -998,7 +998,7 @@ createOsdMesh(int level, int kernel) {
 
     g_positions=shape->verts;
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     // create Vtr mesh (topology)
     OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);

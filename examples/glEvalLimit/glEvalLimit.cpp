@@ -161,7 +161,7 @@ createRandomColors(int nverts, int stride, float * colors) {
 static void
 createCoarseMesh(OpenSubdiv::Far::TopologyRefiner const & refiner) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     // save coarse topology (used for coarse mesh drawing)
     int nedges = refiner.GetNumEdges(0),

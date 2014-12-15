@@ -496,7 +496,7 @@ PatchTablesFactory::computePatchParam(TopologyRefiner const & refiner,
             nonquad = true;
             // If the root face is not a quad, we need to offset the ptex index
             // CCW to match the correct child face
-            Vtr::IndexArray children = refinement.getFaceChildFaces(parentFaceIndex);
+            Vtr::ConstIndexArray children = refinement.getFaceChildFaces(parentFaceIndex);
             for (int j=0; j<children.size(); ++j) {
                 if (children[j]==faceIndex) {
                     childIndexInParent = j;
@@ -612,12 +612,12 @@ void
 PatchTablesFactory::getQuadOffsets(
     Vtr::Level const& level, Index faceIndex, unsigned int offsets[]) {
 
-    Vtr::IndexArray fVerts = level.getFaceVertices(faceIndex);
+    Vtr::ConstIndexArray fVerts = level.getFaceVertices(faceIndex);
 
     for (int i = 0; i < 4; ++i) {
 
-        Vtr::Index      vIndex = fVerts[i];
-        Vtr::IndexArray vFaces = level.getVertexFaces(vIndex),
+        Vtr::Index vIndex = fVerts[i];
+        Vtr::ConstIndexArray vFaces = level.getVertexFaces(vIndex),
                       vEdges = level.getVertexEdges(vIndex);
 
         int thisFaceInVFaces = -1;
@@ -674,7 +674,7 @@ gatherFVarPatchVertices(TopologyRefiner const & refiner,
     int level, Index faceIndex, int rotation, Index const * levelOffsets, Index ** fptrs) {
 
     for (int channel=0; channel<refiner.GetNumFVarChannels(); ++channel) {
-        IndexArray const & fverts = refiner.GetFVarFaceValues(level, faceIndex, channel);
+        ConstIndexArray fverts = refiner.GetFVarFaceValues(level, faceIndex, channel);
         for (int vert=0; vert<fverts.size(); ++vert) {
             fptrs[channel][vert] = levelOffsets[channel] + fverts[(vert+rotation)%4];
         }
@@ -777,7 +777,7 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
                     continue;
                 }
 
-                IndexArray const & fverts = refiner.GetFaceVertices(level, face);
+                ConstIndexArray fverts = refiner.GetFaceVertices(level, face);
 
                 for (int vert=0; vert<fverts.size(); ++vert) {
                     *iptr++ = levelVertOffset + fverts[vert];
@@ -959,7 +959,7 @@ PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
                 continue;
             }
 
-            Vtr::IndexArray const& fVerts = level->getFaceVertices(faceIndex);
+            Vtr::ConstIndexArray fVerts = level->getFaceVertices(faceIndex);
             assert(fVerts.size() == 4);
 
             if (!isLevelFirst and (refinePrev->_childVertexTag[fVerts[0]]._incomplete or
@@ -1024,7 +1024,7 @@ PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
             }
 
             if (hasBoundaryVertex) {
-                Vtr::IndexArray const& fEdges = level->getFaceEdges(faceIndex);
+                Vtr::ConstIndexArray fEdges = level->getFaceEdges(faceIndex);
 
                 boundaryEdgeMask = ((level->_edgeTags[fEdges[0]]._boundary) << 0) |
                                    ((level->_edgeTags[fEdges[1]]._boundary) << 1) |
@@ -1309,7 +1309,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                     // Gregory basis end-cap (20 CVs - no quad-offsets / valence tables)
                     assert(i==refiner.GetMaxLevel());
                     // Gregory Boundary Patch (4 CVs 0-ring for varying interpolation)
-                    Vtr::IndexArray const faceVerts = level->getFaceVertices(faceIndex);
+                    Vtr::ConstIndexArray faceVerts = level->getFaceVertices(faceIndex);
                     for (int j = 0; j < 4; ++j) {
                         iptrs.GP[j] = faceVerts[j] + levelVertOffset;
                         gregoryVertexFlags[iptrs.GP[j]] = true;
@@ -1331,7 +1331,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                 } else {
                     if (patchTag._boundaryCount == 0) {
                         // Gregory Regular Patch (4 CVs + quad-offsets / valence tables)
-                        Vtr::IndexArray const faceVerts = level->getFaceVertices(faceIndex);
+                        Vtr::ConstIndexArray faceVerts = level->getFaceVertices(faceIndex);
                         for (int j = 0; j < 4; ++j) {
                             iptrs.G[j] = faceVerts[j] + levelVertOffset;
                             gregoryVertexFlags[iptrs.G[j]] = true;
@@ -1348,7 +1348,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                         }
                     } else {
                         // Gregory Boundary Patch (4 CVs + quad-offsets / valence tables)
-                        Vtr::IndexArray const faceVerts = level->getFaceVertices(faceIndex);
+                        Vtr::ConstIndexArray faceVerts = level->getFaceVertices(faceIndex);
                         for (int j = 0; j < 4; ++j) {
                             iptrs.GB[j] = faceVerts[j] + levelVertOffset;
                             gregoryVertexFlags[iptrs.GB[j]] = true;

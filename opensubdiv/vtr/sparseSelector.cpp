@@ -68,7 +68,7 @@ SparseSelector::selectEdge(Index parentEdge) {
         markEdgeSelected(parentEdge);
 
         //  Mark the two end vertices:
-        IndexArray const eVerts = _refine->parent().getEdgeVertices(parentEdge);
+        ConstIndexArray eVerts = _refine->parent().getEdgeVertices(parentEdge);
         markVertexSelected(eVerts[0]);
         markVertexSelected(eVerts[1]);
     }
@@ -83,8 +83,8 @@ SparseSelector::selectFace(Index parentFace) {
         markFaceSelected(parentFace);
 
         //  Mark the face's incident verts and edges as selected:
-        IndexArray const fEdges = _refine->parent().getFaceEdges(parentFace);
-        IndexArray const fVerts = _refine->parent().getFaceVertices(parentFace);
+        ConstIndexArray fEdges = _refine->parent().getFaceEdges(parentFace),
+                        fVerts = _refine->parent().getFaceVertices(parentFace);
 
         for (int i = 0; i < fVerts.size(); ++i) {
             markEdgeSelected(fEdges[i]);

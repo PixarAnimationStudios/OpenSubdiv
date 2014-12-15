@@ -208,8 +208,8 @@ struct Mapper {
 
         maps.resize(refiner->GetMaxLevel()+1);
 
-        typedef OpenSubdiv::Far::Index      Index;
-        typedef OpenSubdiv::Far::IndexArray IndexArray;
+        typedef OpenSubdiv::Far::Index Index;
+        typedef OpenSubdiv::Far::ConstIndexArray ConstIndexArray;
 
         {   // Populate base level
             // note : topological ordering is identical between Hbr and Vtr for the
@@ -229,7 +229,7 @@ struct Mapper {
 
             for (int edge = 0; edge <nedges; ++edge) {
 
-                IndexArray vtrVerts = refiner->GetEdgeVertices(0, edge);
+                ConstIndexArray vtrVerts = refiner->GetEdgeVertices(0, edge);
 
                 Hvertex const * v0 = hmesh->GetVertex(vtrVerts[0]),
                               * v1 = hmesh->GetVertex(vtrVerts[1]);
@@ -263,7 +263,7 @@ struct Mapper {
                 // populate child faces
                 Hface * f = previous.faces[face];
 
-                IndexArray childFaces = refiner->GetFaceChildFaces(level-1, face);
+                ConstIndexArray childFaces = refiner->GetFaceChildFaces(level-1, face);
                 assert(childFaces.size()==f->GetNumVertices());
 
                 for (int i=0; i<childFaces.size(); ++i) {
@@ -297,7 +297,7 @@ struct Mapper {
             // populate child edges
             for (int edge=0; edge < refiner->GetNumEdges(level); ++edge) {
 
-                IndexArray vtrVerts = refiner->GetEdgeVertices(level, edge);
+                ConstIndexArray vtrVerts = refiner->GetEdgeVertices(level, edge);
 
                 Hvertex const * v0 = current.verts[vtrVerts[0]],
                               * v1 = current.verts[vtrVerts[1]];

@@ -88,7 +88,7 @@ DrawContext::packPatchVerts(Far::PatchTables const & patchTables,
 
     int narrays = patchTables.GetNumPatchArrays();
     for (int array=0; array<narrays; ++array) {
-        Far::IndexArray verts = patchTables.GetPatchArrayVertices(array);
+        Far::ConstIndexArray verts = patchTables.GetPatchArrayVertices(array);
         memcpy(ptr, verts.begin(), verts.size()*sizeof(Index));
         ptr += verts.size();
     }

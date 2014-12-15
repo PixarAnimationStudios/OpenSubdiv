@@ -152,7 +152,7 @@ computePtexIndices(Vtr::Level const & coarseLevel, std::vector<int> & ptexIndice
     int ptexID=0;
     for (int i = 0; i < nfaces; ++i) {
         ptexIndices[i] = ptexID;
-        Vtr::IndexArray fverts = coarseLevel.getFaceVertices(i);
+        Vtr::ConstIndexArray fverts = coarseLevel.getFaceVertices(i);
         ptexID += fverts.size()==Sdc::TypeTraits<SCHEME_TYPE>::RegularFaceValence() ? 1 : fverts.size();
     }
     // last entry contains the number of ptex texture faces
@@ -191,7 +191,7 @@ namespace {
     // Returns the face adjacent to 'face' along edge 'edge'
     inline Index
     getAdjacentFace(Vtr::Level const & level, Index edge, Index face) {
-        IndexArray adjFaces = level.getEdgeFaces(edge);
+        Far::ConstIndexArray adjFaces = level.getEdgeFaces(edge);
         if (adjFaces.size()!=2) {
             return -1;
         }
@@ -211,21 +211,20 @@ TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
 
     Vtr::Level const & level = getLevel(0);
 
-    IndexArray fedges = level.getFaceEdges(face);
+    ConstIndexArray fedges = level.getFaceEdges(face);
 
     if (fedges.size()==4) {
 
         // Regular ptex quad face
         for (int i=0; i<4; ++i) {
             int edge = fedges[i];
-            IndexArray efaces = level.getEdgeFaces(edge);
             Index adjface = getAdjacentFace(level, edge, face);
             if (adjface==-1) {
                 adjFaces[i] = -1;  // boundary or non-manifold
                 adjEdges[i] = 0;
             } else {
 
-                IndexArray aedges = level.getFaceEdges(adjface);
+                ConstIndexArray aedges = level.getFaceEdges(adjface);
                 if (aedges.size()==4) {
                     adjFaces[i] = _ptexIndices[adjface];
                     adjEdges[i] = aedges.FindIndexIn4Tuple(edge);
@@ -280,7 +279,7 @@ TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
                 adjFaces[0] = -1;  // boundary or non-manifold
                 adjEdges[0] = 0;
             } else {
-                IndexArray afedges = level.getFaceEdges(adjface0);
+                ConstIndexArray afedges = level.getFaceEdges(adjface0);
                 if (afedges.size()==4) {
                    adjFaces[0] = _ptexIndices[adjface0];
                    adjEdges[0] = afedges.FindIndexIn4Tuple(edge0);
@@ -299,7 +298,7 @@ TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
                 adjFaces[3]=-1;  // boundary or non-manifold
                 adjEdges[3]=0;
             } else {
-                IndexArray afedges = level.getFaceEdges(adjface3);
+                ConstIndexArray afedges = level.getFaceEdges(adjface3);
                 if (afedges.size()==4) {
                    adjFaces[3] = _ptexIndices[adjface3];
                    adjEdges[3] = afedges.FindIndexIn4Tuple(edge3);
@@ -454,7 +453,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
             continue;
         }
     
-        Vtr::IndexArray const faceVerts = level.getFaceVertices(face);
+        Vtr::ConstIndexArray faceVerts = level.getFaceVertices(face);
 
         //
         //  Testing irregular faces is only necessary at level 0, and potentially warrants
@@ -467,9 +466,9 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
             //  where other faces are selected as a side effect and somewhat undermines the
             //  whole intent of the per-face traversal.
             //
-            Vtr::IndexArray const fVerts = level.getFaceVertices(face);
+            Vtr::ConstIndexArray fVerts = level.getFaceVertices(face);
             for (int i = 0; i < fVerts.size(); ++i) {
-                IndexArray const fVertFaces = level.getVertexFaces(fVerts[i]);
+                ConstIndexArray fVertFaces = level.getVertexFaces(fVerts[i]);
                 for (int j = 0; j < fVertFaces.size(); ++j) {
                     selector.selectFace(fVertFaces[j]);
                 }

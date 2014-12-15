@@ -304,12 +304,12 @@ public:
 
 
     /// \brief Returns the vertices of a 'face' at 'level'
-    IndexArray const GetFaceVertices(int level, Index face) const {
+    ConstIndexArray GetFaceVertices(int level, Index face) const {
         return _levels[level]->getFaceVertices(face);
     }
 
     /// \brief Returns the edges of a 'face' at 'level'
-    IndexArray const GetFaceEdges(int level, Index face) const {
+    ConstIndexArray GetFaceEdges(int level, Index face) const {
         return _levels[level]->getFaceEdges(face);
     }
 
@@ -319,38 +319,37 @@ public:
     }
 
     /// \brief Returns the vertices of an 'edge' at 'level' (2 of them)
-    IndexArray const GetEdgeVertices(int level, Index edge) const {
+    ConstIndexArray GetEdgeVertices(int level, Index edge) const {
         return _levels[level]->getEdgeVertices(edge);
     }
 
     /// \brief Returns the faces incident to 'edge' at 'level'
-    IndexArray const GetEdgeFaces(int level, Index edge) const {
+    ConstIndexArray GetEdgeFaces(int level, Index edge) const {
         return _levels[level]->getEdgeFaces(edge);
     }
 
     /// \brief Returns the faces incident to 'vertex' at 'level'
-    IndexArray const GetVertexFaces(int level, Index vert) const {
+    ConstIndexArray GetVertexFaces(int level, Index vert) const {
         return _levels[level]->getVertexFaces(vert);
     }
 
     /// \brief Returns the edges incident to 'vertex' at 'level'
-    IndexArray const GetVertexEdges(int level, Index vert) const {
+    ConstIndexArray GetVertexEdges(int level, Index vert) const {
         return _levels[level]->getVertexEdges(vert);
     }
 
     /// \brief Returns the local face indices of vertex 'vert' at 'level'
-    LocalIndexArray const VertexFaceLocalIndices(int level, Index vert) const {
+    ConstLocalIndexArray VertexFaceLocalIndices(int level, Index vert) const {
         return _levels[level]->getVertexFaceLocalIndices(vert);
     }
 
     /// \brief Returns the local edge indices of vertex 'vert' at 'level'
-    LocalIndexArray const VertexEdgeLocalIndices(int level, Index vert) const {
+    ConstLocalIndexArray VertexEdgeLocalIndices(int level, Index vert) const {
         return _levels[level]->getVertexEdgeLocalIndices(vert);
     }
 
     bool FaceIsRegular(int level, Index face) const {
-        Vtr::IndexArray const& fVerts =
-            _levels[level]->getFaceVertices(face);
+        ConstIndexArray fVerts = _levels[level]->getFaceVertices(face);
         Vtr::Level::VTag compFaceVertTag =
             _levels[level]->getFaceCompositeVTag(fVerts);
         return not compFaceVertTag._xordinary;
@@ -383,7 +382,7 @@ public:
     }
 
     /// \brief Returns the face-varying values of a 'face' at 'level'
-    IndexArray const GetFVarFaceValues(int level, Index face, int channel = 0) const {
+    ConstIndexArray const GetFVarFaceValues(int level, Index face, int channel = 0) const {
         return _levels[level]->getFVarFaceValues(face, channel);
     }
 
@@ -397,17 +396,17 @@ public:
 
 
     /// \brief Returns the child faces of face 'f' at 'level'
-    IndexArray const GetFaceChildFaces(int level, Index f) const {
+    ConstIndexArray GetFaceChildFaces(int level, Index f) const {
         return _refinements[level]->getFaceChildFaces(f);
     }
 
     /// \brief Returns the child edges of face 'f' at 'level'
-    IndexArray const GetFaceChildEdges(int level, Index f) const {
+    ConstIndexArray GetFaceChildEdges(int level, Index f) const {
         return _refinements[level]->getFaceChildEdges(f);
     }
 
     /// \brief Returns the child edges of edge 'e' at 'level'
-    IndexArray const GetEdgeChildEdges(int level, Index e) const {
+    ConstIndexArray GetEdgeChildEdges(int level, Index e) const {
         return _refinements[level]->getEdgeChildEdges(e);
     }
 
@@ -634,7 +633,7 @@ TopologyRefiner::interpolateChildVertsFromFaces(
             continue;
 
         //  Declare and compute mask weights for this vertex relative to its parent face:
-        Vtr::IndexArray const fVerts = parent.getFaceVertices(face);
+        ConstIndexArray fVerts = parent.getFaceVertices(face);
 
         float fVaryingWeight = 1.0f / (float) fVerts.size();
 
@@ -677,8 +676,8 @@ TopologyRefiner::interpolateChildVertsFromEdges(
             continue;
 
         //  Declare and compute mask weights for this vertex relative to its parent edge:
-        Vtr::IndexArray const eVerts = parent.getEdgeVertices(edge);
-        Vtr::IndexArray const eFaces = parent.getEdgeFaces(edge);
+        ConstIndexArray eVerts = parent.getEdgeVertices(edge),
+                        eFaces = parent.getEdgeFaces(edge);
 
         Vtr::MaskInterface eMask(eVertWeights, 0, eFaceWeights);
 
@@ -710,8 +709,8 @@ TopologyRefiner::interpolateChildVertsFromEdges(
                     dst[cVert].AddWithWeight(dst[cVertOfFace], eFaceWeights[i]);
                 } else {
                     Vtr::Index            pFace      = eFaces[i];
-                    Vtr::IndexArray const pFaceEdges = parent.getFaceEdges(pFace);
-                    Vtr::IndexArray const pFaceVerts = parent.getFaceVertices(pFace);
+                    ConstIndexArray pFaceEdges = parent.getFaceEdges(pFace),
+                                    pFaceVerts = parent.getFaceVertices(pFace);
 
                     int eInFace = 0;
                     for ( ; pFaceEdges[eInFace] != edge; ++eInFace ) ;
@@ -748,8 +747,8 @@ TopologyRefiner::interpolateChildVertsFromVerts(
             continue;
 
         //  Declare and compute mask weights for this vertex relative to its parent edge:
-        Vtr::IndexArray const vEdges = parent.getVertexEdges(vert);
-        Vtr::IndexArray const vFaces = parent.getVertexFaces(vert);
+        ConstIndexArray vEdges = parent.getVertexEdges(vert),
+                        vFaces = parent.getVertexFaces(vert);
 
         float   vVertWeight,
               * vEdgeWeights = weightBuffer,
@@ -786,7 +785,7 @@ TopologyRefiner::interpolateChildVertsFromVerts(
 
             for (int i = 0; i < vEdges.size(); ++i) {
 
-                Vtr::IndexArray const eVerts = parent.getEdgeVertices(vEdges[i]);
+                ConstIndexArray eVerts = parent.getEdgeVertices(vEdges[i]);
                 Vtr::Index pVertOppositeEdge = (eVerts[0] == vert) ? eVerts[1] : eVerts[0];
 
                 dst[cVert].AddWithWeight(src[pVertOppositeEdge], vEdgeWeights[i]);
@@ -843,7 +842,7 @@ TopologyRefiner::varyingInterpolateChildVertsFromFaces(
         if (!Vtr::IndexIsValid(cVert))
             continue;
 
-        Vtr::IndexArray const fVerts = parent.getFaceVertices(face);
+        ConstIndexArray fVerts = parent.getFaceVertices(face);
 
         float fVaryingWeight = 1.0f / (float) fVerts.size();
 
@@ -870,7 +869,7 @@ TopologyRefiner::varyingInterpolateChildVertsFromEdges(
             continue;
 
         //  Declare and compute mask weights for this vertex relative to its parent edge:
-        Vtr::IndexArray const eVerts = parent.getEdgeVertices(edge);
+        ConstIndexArray eVerts = parent.getEdgeVertices(edge);
 
         //  Apply the weights to the parent edges's vertices
         dst[cVert].Clear();
@@ -975,7 +974,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromFaces(
         //  get the wrong one using the face-vertex index directly.
 
         //  Declare and compute mask weights for this vertex relative to its parent face:
-        Vtr::IndexArray const fValues = parentFVar.getFaceValues(face);
+        ConstIndexArray fValues = parentFVar.getFaceValues(face);
 
         Vtr::MaskInterface fMask(fValueWeights, 0, 0);
         Vtr::FaceInterface fHood(fValues.size());
@@ -1032,7 +1031,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromEdges(
         if (!Vtr::IndexIsValid(cVert))
             continue;
 
-        Vtr::IndexArray const cVertValues = childFVar.getVertexValues(cVert);
+        ConstIndexArray cVertValues = childFVar.getVertexValues(cVert);
 
         bool fvarEdgeVertMatchesVertex = childFVar.valueTopologyMatches(cVertValues[0]);
         if (fvarEdgeVertMatchesVertex) {
@@ -1081,7 +1080,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromEdges(
 
             if (eMask.GetNumFaceWeights() > 0) {
 
-                Vtr::IndexArray const eFaces = parentLevel.getEdgeFaces(edge);
+                ConstIndexArray  eFaces = parentLevel.getEdgeFaces(edge);
 
                 for (int i = 0; i < eFaces.size(); ++i) {
                     if (eMask.AreFaceWeightsForFaceCenters()) {
@@ -1093,8 +1092,8 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromEdges(
                         dst[cVertValue].AddWithWeight(dst[cValueOfFace], eFaceWeights[i]);
                     } else {
                         Vtr::Index            pFace      = eFaces[i];
-                        Vtr::IndexArray const pFaceEdges = parentLevel.getFaceEdges(pFace);
-                        Vtr::IndexArray const pFaceVerts = parentLevel.getFaceVertices(pFace);
+                        ConstIndexArray pFaceEdges = parentLevel.getFaceEdges(pFace),
+                                        pFaceVerts = parentLevel.getFaceVertices(pFace);
 
                         int eInFace = 0;
                         for ( ; pFaceEdges[eInFace] != edge; ++eInFace ) ;
@@ -1162,8 +1161,8 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
         if (!Vtr::IndexIsValid(cVert))
             continue;
 
-        Vtr::IndexArray const pVertValues = parentFVar.getVertexValues(vert);
-        Vtr::IndexArray const cVertValues = childFVar.getVertexValues(cVert);
+        ConstIndexArray pVertValues = parentFVar.getVertexValues(vert),
+                        cVertValues = childFVar.getVertexValues(cVert);
 
         bool fvarVertVertMatchesVertex = childFVar.valueTopologyMatches(cVertValues[0]);
         if (isLinearFVar && fvarVertVertMatchesVertex) {
@@ -1179,7 +1178,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
             //  (We really need to encapsulate this somewhere else for use here and in the
             //  general case)
             //
-            Vtr::IndexArray const vEdges = parentLevel.getVertexEdges(vert);
+            ConstIndexArray vEdges = parentLevel.getVertexEdges(vert);
 
             float   vVertWeight;
             float * vEdgeWeights = weightBuffer;
@@ -1225,7 +1224,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
             if (vMask.GetNumFaceWeights() > 0) {
                 assert(vMask.AreFaceWeightsForFaceCenters());
 
-                Vtr::IndexArray const vFaces = parentLevel.getVertexFaces(vert);
+                ConstIndexArray vFaces = parentLevel.getVertexFaces(vert);
 
                 for (int i = 0; i < vFaces.size(); ++i) {
 
@@ -1253,8 +1252,8 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
             //      - otherwise if the PARENT is a crease, both will be creases (no transition)
             //      - otherwise the parent must be a corner and the child a crease (transition)
             //
-            Vtr::FVarLevel::ValueTagArray const pValueTags = parentFVar.getVertexValueTags(vert);
-            Vtr::FVarLevel::ValueTagArray const cValueTags = childFVar.getVertexValueTags(cVert);
+            Vtr::FVarLevel::ConstValueTagArray pValueTags = parentFVar.getVertexValueTags(vert);
+            Vtr::FVarLevel::ConstValueTagArray cValueTags = childFVar.getVertexValueTags(cVert);
 
             for (int cSibling = 0; cSibling < cVertValues.size(); ++cSibling) {
                 int pSibling = refineFVar.getChildValueParentSource(cVert, cSibling);
@@ -1345,7 +1344,7 @@ TopologyRefiner::limit(T const & src, U * dst) const {
     Vtr::VertexInterface vHood(level, level);
 
     for (int vert = 0; vert < level.getNumVertices(); ++vert) {
-        IndexArray const vEdges = level.getVertexEdges(vert);
+        ConstIndexArray vEdges = level.getVertexEdges(vert);
 
         float * vWeights = weightBuffer,
               * eWeights = vWeights + 1,
@@ -1370,10 +1369,10 @@ TopologyRefiner::limit(T const & src, U * dst) const {
         if (vMask.GetNumFaceWeights() > 0) {
             assert(!vMask.AreFaceWeightsForFaceCenters());
 
-            IndexArray const      vFaces = level.getVertexFaces(vert);
-            LocalIndexArray const vInFace = level.getVertexFaceLocalIndices(vert);
+            ConstIndexArray      vFaces = level.getVertexFaces(vert);
+            ConstLocalIndexArray vInFace = level.getVertexFaceLocalIndices(vert);
             for (int i = 0; i < vFaces.size(); ++i) {
-                IndexArray const fVerts = level.getFaceVertices(vFaces[i]);
+                ConstIndexArray fVerts = level.getFaceVertices(vFaces[i]);
 
                 LocalIndex vOppInFace = (vInFace[i] + 2);
                 if (vOppInFace >= fVerts.size()) vOppInFace -= (LocalIndex)fVerts.size();
@@ -1384,7 +1383,7 @@ TopologyRefiner::limit(T const & src, U * dst) const {
         }
         if (vMask.GetNumEdgeWeights() > 0) {
             for (int i = 0; i < vEdges.size(); ++i) {
-                IndexArray const eVerts = level.getEdgeVertices(vEdges[i]);
+                ConstIndexArray eVerts = level.getEdgeVertices(vEdges[i]);
                 Index vertOppositeEdge = (eVerts[0] == vert) ? eVerts[1] : eVerts[0];
 
                 dst[vert].AddWithWeight(src[vertOppositeEdge], eWeights[i]);
@@ -1432,7 +1431,7 @@ TopologyRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
 
     for (int vert = 0; vert < level.getNumVertices(); ++vert) {
 
-        Vtr::IndexArray const vValues = fvarChannel.getVertexValues(vert);
+        ConstIndexArray vValues = fvarChannel.getVertexValues(vert);
 
         bool fvarVertMatchesVertex = fvarChannel.valueTopologyMatches(vValues[0]);
         if (fvarChannel._isLinear && fvarVertMatchesVertex) {
@@ -1445,7 +1444,7 @@ TopologyRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
             //
             //  Compute the limit mask based on vertex topology:
             //
-            IndexArray const vEdges = level.getVertexEdges(vert);
+            ConstIndexArray vEdges = level.getVertexEdges(vert);
 
             float * vWeights = weightBuffer,
                   * eWeights = vWeights + 1,
@@ -1466,11 +1465,11 @@ TopologyRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
             if (vMask.GetNumFaceWeights() > 0) {
                 assert(!vMask.AreFaceWeightsForFaceCenters());
 
-                IndexArray const      vFaces = level.getVertexFaces(vert);
-                LocalIndexArray const vInFace = level.getVertexFaceLocalIndices(vert);
+                ConstIndexArray      vFaces = level.getVertexFaces(vert);
+                ConstLocalIndexArray vInFace = level.getVertexFaceLocalIndices(vert);
 
                 for (int i = 0; i < vFaces.size(); ++i) {
-                    IndexArray faceValues = fvarChannel.getFaceValues(vFaces[i]);
+                    ConstIndexArray faceValues = fvarChannel.getFaceValues(vFaces[i]);
                     LocalIndex vOppInFace = vInFace[i] + 2;
                     if (vOppInFace >= faceValues.size()) vOppInFace -= faceValues.size();
 

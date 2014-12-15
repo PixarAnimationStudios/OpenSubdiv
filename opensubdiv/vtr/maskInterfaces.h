@@ -129,7 +129,7 @@ public:  //  Generic interface expected of <typename EDGE>:
     }
 
     void GetNumVerticesPerFace(int vertsPerFace[]) const {
-        IndexArray const eFaces = _level->getEdgeFaces(_eIndex);
+        ConstIndexArray eFaces = _level->getEdgeFaces(_eIndex);
         for (int i = 0; i < eFaces.size(); ++i) {
             vertsPerFace[i] = _level->getFaceVertices(eFaces[i]).size();
         }
@@ -164,7 +164,7 @@ public:  //  Generic interface expected of <typename VERT>:
 
     float  GetSharpness() const { return _parent->getVertexSharpness(_pIndex); }
     float* GetSharpnessPerEdge(float pSharpness[]) const {
-        IndexArray const pEdges = _parent->getVertexEdges(_pIndex);
+        ConstIndexArray pEdges = _parent->getVertexEdges(_pIndex);
         for (int i = 0; i < _eCount; ++i) {
             pSharpness[i] = _parent->getEdgeSharpness(pEdges[i]);
         }

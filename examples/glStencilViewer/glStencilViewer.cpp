@@ -283,7 +283,7 @@ updateGeom() {
 static void
 createMesh(ShapeDesc const & shapeDesc, int isolationLevel) {
 
-    typedef Far::IndexArray IndexArray;
+    typedef Far::ConstIndexArray IndexArray;
     typedef Far::LimitStencilTablesFactory::LocationArray LocationArray;
 
     Shape const * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);

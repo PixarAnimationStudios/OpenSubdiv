@@ -182,14 +182,14 @@ FVarRefinement::populateChildValuesForEdgeVertex(Index cVert, Index pEdge) {
     //  If we have a boundary edge with a mismatched end vertex, we only have one
     //  value and such cases were already initialized on construction, so return:
     //
-    IndexArray const pEdgeFaces = _parentLevel.getEdgeFaces(pEdge);
+    ConstIndexArray  pEdgeFaces = _parentLevel.getEdgeFaces(pEdge);
 
     if (pEdgeFaces.size() == 1) return 1;
     assert(pEdgeFaces.size() == 2);
 
     //  Determine the number of sibling values for the child vertex:
     //
-    IndexArray const cVertFaces = _childLevel.getVertexFaces(cVert);
+    ConstIndexArray  cVertFaces = _childLevel.getVertexFaces(cVert);
 
     int cValueCount = 1;
     if (cVertFaces.size() > 2) {
@@ -249,8 +249,8 @@ FVarRefinement::populateChildValuesForVertexVertex(Index cVert, Index pVert) {
         }
 
         // Update the vertex-face siblings:
-        FVarLevel::SiblingArray const pVertFaceSiblings = _parentFVar.getVertexFaceSiblings(pVert);
-        FVarLevel::SiblingArray       cVertFaceSiblings = _childFVar.getVertexFaceSiblings(cVert);
+        FVarLevel::ConstSiblingArray pVertFaceSiblings = _parentFVar.getVertexFaceSiblings(pVert);
+        FVarLevel::SiblingArray      cVertFaceSiblings = _childFVar.getVertexFaceSiblings(cVert);
         for (int j = 0; j < cVertFaceSiblings.size(); ++j) {
             cVertFaceSiblings[j] = pVertFaceSiblings[j];
         }
@@ -435,7 +435,7 @@ FVarRefinement::propagateValueTags() {
         Index pVert = _refinement.getChildVertexParentIndex(cVert);
         assert(!_refinement._childVertexTag[cVert]._incomplete);
 
-        FVarLevel::ValueTagArray const pValueTags = _parentFVar.getVertexValueTags(pVert);
+        FVarLevel::ConstValueTagArray pValueTags = _parentFVar.getVertexValueTags(pVert);
         FVarLevel::ValueTagArray cValueTags = _childFVar.getVertexValueTags(cVert);
 
         memcpy(cValueTags.begin(), pValueTags.begin(),
@@ -504,7 +504,7 @@ FVarRefinement::propagateValueCreases() {
 
         Index pVert = _refinement.getChildVertexParentIndex(cVert);
 
-        FVarLevel::CreaseEndPairArray pCreaseEnds = _parentFVar.getVertexValueCreaseEnds(pVert);
+        FVarLevel::ConstCreaseEndPairArray pCreaseEnds = _parentFVar.getVertexValueCreaseEnds(pVert);
         FVarLevel::CreaseEndPairArray cCreaseEnds = _childFVar.getVertexValueCreaseEnds(cVert);
 
         for (int j = 0; j < cValueTags.size(); ++j) {
@@ -576,7 +576,7 @@ FVarRefinement::reclassifySemisharpValues() {
         //
         FVarLevel::CreaseEndPairArray const cValueCreaseEnds = _childFVar.getVertexValueCreaseEnds(cVert);
 
-        IndexArray const cVertEdges = _childLevel.getVertexEdges(cVert);
+        ConstIndexArray  cVertEdges = _childLevel.getVertexEdges(cVert);
 
         for (int j = 0; j < cValueTags.size(); ++j) {
             if (cValueTags[j]._semiSharp && !cValueTags[j]._depSharp) {
@@ -634,8 +634,8 @@ FVarRefinement::getFractionalWeight(Index pVert, LocalIndex pSibling,
     //  this method and re-using them for each sibling, i.e. passing them to this
     //  method somehow.  We may also need them there for mask-related purposes...
     //
-    IndexArray const pVertEdges = _parentLevel.getVertexEdges(pVert);
-    IndexArray const cVertEdges = _childLevel.getVertexEdges(cVert);
+    ConstIndexArray  pVertEdges = _parentLevel.getVertexEdges(pVert);
+    ConstIndexArray  cVertEdges = _childLevel.getVertexEdges(cVert);
 
     float * pEdgeSharpness = (float*) alloca(2 * pVertEdges.size() * sizeof(float));
     float * cEdgeSharpness = pEdgeSharpness + pVertEdges.size();

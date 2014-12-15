@@ -190,11 +190,11 @@ FVarLevel::completeTopologyFromFaceValues() {
 
     int totalValueCount = 0;
     for (int vIndex = 0; vIndex < _level.getNumVertices(); ++vIndex) {
-        IndexArray const      vEdges  = _level.getVertexEdges(vIndex);
-        LocalIndexArray const vInEdge = _level.getVertexEdgeLocalIndices(vIndex);
+        ConstIndexArray       vEdges  = _level.getVertexEdges(vIndex);
+        ConstLocalIndexArray  vInEdge = _level.getVertexEdgeLocalIndices(vIndex);
 
-        IndexArray const      vFaces  = _level.getVertexFaces(vIndex);
-        LocalIndexArray const vInFace = _level.getVertexFaceLocalIndices(vIndex);
+        ConstIndexArray       vFaces  = _level.getVertexFaces(vIndex);
+        ConstLocalIndexArray  vInFace = _level.getVertexFaceLocalIndices(vIndex);
 
         //  Store the value for each vert-face locally -- we will identify the index
         //  of its sibling as we inspect them:
@@ -230,7 +230,7 @@ FVarLevel::completeTopologyFromFaceValues() {
                 eTag._mismatch = true;
 
                 //  Tag both end vertices as not matching topology:
-                IndexArray const eVerts = _level.getEdgeVertices(eIndex);
+                ConstIndexArray eVerts = _level.getEdgeVertices(eIndex);
                 vertexMismatch[eVerts[0]] = true;
                 vertexMismatch[eVerts[1]] = true;
 
@@ -318,8 +318,8 @@ FVarLevel::completeTopologyFromFaceValues() {
     //  vertex and to inspect and tag local face-varying topology for those that don't match:
     //
     for (int vIndex = 0; vIndex < _level.getNumVertices(); ++vIndex) {
-        IndexArray const      vFaces  = _level.getVertexFaces(vIndex);
-        LocalIndexArray const vInFace = _level.getVertexFaceLocalIndices(vIndex);
+        ConstIndexArray       vFaces  = _level.getVertexFaces(vIndex);
+        ConstLocalIndexArray  vInFace = _level.getVertexFaceLocalIndices(vIndex);
 
         //
         //  First step is to assign the values associated with the faces by retrieving them
@@ -334,7 +334,7 @@ FVarLevel::completeTopologyFromFaceValues() {
             continue;
         }
         if (vValues.size() > 1) {
-            SiblingArray const vFaceSiblings = getVertexFaceSiblings(vIndex);
+            ConstSiblingArray vFaceSiblings = getVertexFaceSiblings(vIndex);
 
             for (int i = 1, nextSibling = 1; i < vFaces.size(); ++i) {
                 if (vFaceSiblings[i] == nextSibling) {
@@ -448,18 +448,18 @@ FVarLevel::completeTopologyFromFaceValues() {
 //  values for the two ends of such a crease value:
 //
 void
-FVarLevel::getVertexCreaseEndValues(Index vIndex, Sibling vSibling, Index endValues[2]) const
-{
-    CreaseEndPairArray vValueCreaseEnds = getVertexValueCreaseEnds(vIndex);
+FVarLevel::getVertexCreaseEndValues(Index vIndex, Sibling vSibling, Index endValues[2]) const {
 
-    IndexArray const      vFaces  = _level.getVertexFaces(vIndex);
-    LocalIndexArray const vInFace = _level.getVertexFaceLocalIndices(vIndex);
+    ConstCreaseEndPairArray vValueCreaseEnds = getVertexValueCreaseEnds(vIndex);
+
+    ConstIndexArray      vFaces  = _level.getVertexFaces(vIndex);
+    ConstLocalIndexArray vInFace = _level.getVertexFaceLocalIndices(vIndex);
 
     LocalIndex vertFace0 = vValueCreaseEnds[vSibling]._startFace;
     LocalIndex vertFace1 = vValueCreaseEnds[vSibling]._endFace;
 
-    IndexArray const face0Values = getFaceValues(vFaces[vertFace0]);
-    IndexArray const face1Values = getFaceValues(vFaces[vertFace1]);
+    ConstIndexArray face0Values = getFaceValues(vFaces[vertFace0]);
+    ConstIndexArray face1Values = getFaceValues(vFaces[vertFace1]);
 
     int endInFace0 = vInFace[vertFace0];
     int endInFace1 = vInFace[vertFace1];
@@ -507,9 +507,9 @@ FVarLevel::validate() const {
     buildFaceVertexSiblingsFromVertexFaceSiblings(fvSiblingVector);
 
     for (int fIndex = 0; fIndex < _level.getNumFaces(); ++fIndex) {
-        IndexArray const fVerts    = _level.getFaceVertices(fIndex);
-        IndexArray const fValues   = getFaceValues(fIndex);
-        Sibling const*   fSiblings = &fvSiblingVector[_level.getOffsetOfFaceVertices(fIndex)];
+        ConstIndexArray     fVerts = _level.getFaceVertices(fIndex);
+        ConstIndexArray    fValues = getFaceValues(fIndex);
+        Sibling const  * fSiblings = &fvSiblingVector[_level.getOffsetOfFaceVertices(fIndex)];
 
         for (int fvIndex = 0; fvIndex < fVerts.size(); ++fvIndex) {
             Index vIndex = fVerts[fvIndex];
@@ -534,9 +534,9 @@ FVarLevel::validate() const {
     //  Verify that the vert-face siblings yield the expected value:
     //
     for (int vIndex = 0; vIndex < _level.getNumVertices(); ++vIndex) {
-        IndexArray const      vFaces    = _level.getVertexFaces(vIndex);
-        LocalIndexArray const vInFace   = _level.getVertexFaceLocalIndices(vIndex);
-        SiblingArray const    vSiblings = getVertexFaceSiblings(vIndex);
+        ConstIndexArray      vFaces    = _level.getVertexFaces(vIndex);
+        ConstLocalIndexArray vInFace   = _level.getVertexFaceLocalIndices(vIndex);
+        ConstSiblingArray    vSiblings = getVertexFaceSiblings(vIndex);
 
         for (int j = 0; j < vFaces.size(); ++j) {
             Sibling vSibling = vSiblings[j];
@@ -574,9 +574,9 @@ FVarLevel::print() const {
 
     printf("  Face values:\n");
     for (int i = 0; i < _level.getNumFaces(); ++i) {
-        IndexArray const fVerts    = _level.getFaceVertices(i);
-        IndexArray const fValues   = getFaceValues(i);
-        Sibling const*   fSiblings = &fvSiblingVector[_level.getOffsetOfFaceVertices(i)];
+        ConstIndexArray  fVerts    = _level.getFaceVertices(i);
+        ConstIndexArray  fValues   = getFaceValues(i);
+        Sibling const  * fSiblings = &fvSiblingVector[_level.getOffsetOfFaceVertices(i)];
 
         printf("    face%4d:  ", i);
 
@@ -602,14 +602,14 @@ FVarLevel::print() const {
 
         printf("    vert%4d:  vcount = %1d, voffset =%4d, ", i, vCount, vOffset);
 
-        IndexArray const vValues = getVertexValues(i);
+        ConstIndexArray vValues = getVertexValues(i);
 
         printf("values =");
         for (int j = 0; j < vValues.size(); ++j) {
             printf("%4d", vValues[j]);
         }
         if (vCount > 1) {
-            ValueTagArray const vValueTags = getVertexValueTags(i);
+            ConstValueTagArray vValueTags = getVertexValueTags(i);
 
             printf(", crease =");
             for (int j = 0; j < vValueTags.size(); ++j) {
@@ -627,7 +627,7 @@ FVarLevel::print() const {
     for (int i = 0; i < _level.getNumEdges(); ++i) {
         ETag const eTag = getEdgeTag(i);
         if (eTag._mismatch) {
-            IndexArray eVerts = _level.getEdgeVertices(i);
+            ConstIndexArray eVerts = _level.getEdgeVertices(i);
             printf("    edge%4d:  verts = [%4d%4d], discts = [%d,%d]\n", i, eVerts[0], eVerts[1],
                     eTag._disctsV0, eTag._disctsV1);
         }
@@ -647,8 +647,7 @@ FVarLevel::initializeFaceValuesFromFaceVertices() {
 
 
 void
-FVarLevel::initializeFaceValuesFromVertexFaceSiblings()
-{
+FVarLevel::initializeFaceValuesFromVertexFaceSiblings() {
     //
     //  Iterate through all face-values first and initialize them with the first value
     //  associated with each face-vertex.  Then make a second sparse pass through the
@@ -666,9 +665,9 @@ FVarLevel::initializeFaceValuesFromVertexFaceSiblings()
     //
     for (int vIndex = 0; vIndex < _level.getNumVertices(); ++vIndex) {
         if (getNumVertexValues(vIndex) > 1) {
-            IndexArray const      vFaces    = _level.getVertexFaces(vIndex);
-            LocalIndexArray const vInFace   = _level.getVertexFaceLocalIndices(vIndex);
-            SiblingArray const    vSiblings = getVertexFaceSiblings(vIndex);
+            ConstIndexArray      vFaces    = _level.getVertexFaces(vIndex);
+            ConstLocalIndexArray vInFace   = _level.getVertexFaceLocalIndices(vIndex);
+            ConstSiblingArray    vSiblings = getVertexFaceSiblings(vIndex);
 
             for (int j = 0; j < vFaces.size(); ++j) {
                 if (vSiblings[j]) {
@@ -690,9 +689,9 @@ FVarLevel::buildFaceVertexSiblingsFromVertexFaceSiblings(std::vector<Sibling>& f
     for (int vIndex = 0; vIndex < _level.getNumVertices(); ++vIndex) {
         //  We can skip cases of one sibling as we initialized to 0...
         if (getNumVertexValues(vIndex) > 1) {
-            IndexArray const      vFaces    = _level.getVertexFaces(vIndex);
-            LocalIndexArray const vInFace   = _level.getVertexFaceLocalIndices(vIndex);
-            SiblingArray const    vSiblings = getVertexFaceSiblings(vIndex);
+            ConstIndexArray      vFaces    = _level.getVertexFaces(vIndex);
+            ConstLocalIndexArray vInFace   = _level.getVertexFaceLocalIndices(vIndex);
+            ConstSiblingArray    vSiblings = getVertexFaceSiblings(vIndex);
 
             for (int j = 0; j < vFaces.size(); ++j) {
                 if (vSiblings[j] > 0) {
@@ -712,7 +711,7 @@ FVarLevel::buildFaceVertexSiblingsFromVertexFaceSiblings(std::vector<Sibling>& f
 void
 FVarLevel::getEdgeFaceValues(Index eIndex, int fIncToEdge, Index valuesPerVert[2]) const {
 
-    IndexArray const eVerts = _level.getEdgeVertices(eIndex);
+    ConstIndexArray eVerts = _level.getEdgeVertices(eIndex);
     if ((getNumVertexValues(eVerts[0]) > 1) || (getNumVertexValues(eVerts[1]) > 1)) {
         Index eFace = _level.getEdgeFaces(eIndex)[fIncToEdge];
 
@@ -723,8 +722,8 @@ FVarLevel::getEdgeFaceValues(Index eIndex, int fIncToEdge, Index valuesPerVert[2
         //  this function showing a considerable part of edge-vertex interpolation (down
         //  from 40% to 25%)...
         //
-        IndexArray const fEdges  = _level.getFaceEdges(eFace);
-        IndexArray const fValues = getFaceValues(eFace);
+        ConstIndexArray fEdges  = _level.getFaceEdges(eFace);
+        ConstIndexArray fValues = getFaceValues(eFace);
 
         int edgeInFace = 0;
         if (fEdges.size() == 4) {
@@ -784,18 +783,18 @@ FVarLevel::getEdgeFaceValues(Index eIndex, int fIncToEdge, Index valuesPerVert[2
 void
 FVarLevel::getVertexEdgeValues(Index vIndex, Index valuesPerEdge[]) const {
 
-    IndexArray const      vEdges  = _level.getVertexEdges(vIndex);
-    LocalIndexArray const vInEdge = _level.getVertexEdgeLocalIndices(vIndex);
+    ConstIndexArray      vEdges  = _level.getVertexEdges(vIndex);
+    ConstLocalIndexArray vInEdge = _level.getVertexEdgeLocalIndices(vIndex);
 
-    IndexArray const      vFaces  = _level.getVertexFaces(vIndex);
-    LocalIndexArray const vInFace = _level.getVertexFaceLocalIndices(vIndex);
+    ConstIndexArray      vFaces  = _level.getVertexFaces(vIndex);
+    ConstLocalIndexArray vInFace = _level.getVertexFaceLocalIndices(vIndex);
 
     bool vIsBoundary = (vEdges.size() > vFaces.size());
     bool isBaseLevel = (_level.getDepth() == 0);
 
     for (int i = 0; i < vEdges.size(); ++i) {
-        Index            eIndex = vEdges[i];
-        IndexArray const eVerts = _level.getEdgeVertices(eIndex);
+        Index           eIndex = vEdges[i];
+        ConstIndexArray eVerts = _level.getEdgeVertices(eIndex);
 
         //  Remember this method is for presumed continuous edges around the vertex:
         assert(edgeTopologyMatches(eIndex));
@@ -804,12 +803,12 @@ FVarLevel::getVertexEdgeValues(Index vIndex, Index valuesPerEdge[]) const {
         if (getNumVertexValues(vOther) == 1) {
             valuesPerEdge[i] = isBaseLevel ? getVertexValue(vOther) : getVertexValueOffset(vOther);
         } else if (vIsBoundary && (i == (vEdges.size() - 1))) {
-            IndexArray const fValues = getFaceValues(vFaces[i-1]);
+            ConstIndexArray fValues = getFaceValues(vFaces[i-1]);
 
             int prevInFace = vInFace[i-1] ? (vInFace[i-1] - 1) : (fValues.size() - 1);
             valuesPerEdge[i] = fValues[prevInFace];
         } else {
-            IndexArray const fValues = getFaceValues(vFaces[i]);
+            ConstIndexArray fValues = getFaceValues(vFaces[i]);
 
             int nextInFace = (vInFace[i] == (fValues.size() - 1)) ? 0 : (vInFace[i] + 1);
             valuesPerEdge[i] = fValues[nextInFace];
@@ -832,10 +831,10 @@ FVarLevel::getVertexEdgeValues(Index vIndex, Index valuesPerEdge[]) const {
 void
 FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
 
-    IndexArray const vEdges = _level.getVertexEdges(vIndex);
-    IndexArray const vFaces = _level.getVertexFaces(vIndex);
+    ConstIndexArray vEdges = _level.getVertexEdges(vIndex);
+    ConstIndexArray vFaces = _level.getVertexFaces(vIndex);
 
-    SiblingArray const vFaceSiblings = getVertexFaceSiblings(vIndex);
+    ConstSiblingArray vFaceSiblings = getVertexFaceSiblings(vIndex);
 
     bool vHasSingleValue = (getNumVertexValues(vIndex) == 1);
     bool vIsBoundary = vEdges.size() > vFaces.size();

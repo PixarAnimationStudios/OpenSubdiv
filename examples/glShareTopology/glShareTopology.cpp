@@ -601,7 +601,7 @@ createOsdMesh( const std::string &shapeStr, int level, Scheme scheme=kCatmark ) 
         for (int face=0; face < numFaces; ++face) {
 
             ptexIndexToFaceMapping[ptexIndex++] = face;
-            Far::IndexArray fverts = refiner->GetFaceVertices(0, face);
+            Far::ConstIndexArray fverts = refiner->GetFaceVertices(0, face);
             if ( (scheme==kCatmark or scheme==kBilinear) and fverts.size() != 4 ) {
                 for (int j = 0; j < (fverts.size()-1); ++j) {
                     ptexIndexToFaceMapping[ptexIndex++] = face;

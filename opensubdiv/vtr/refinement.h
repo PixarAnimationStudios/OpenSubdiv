@@ -143,9 +143,9 @@ public:
     Index getEdgeChildVertex(Index e) const   { return _edgeChildVertIndex[e]; }
     Index getVertexChildVertex(Index v) const { return _vertChildVertIndex[v]; }
 
-    IndexArray const getFaceChildFaces(Index parentFace) const;
-    IndexArray const getFaceChildEdges(Index parentFace) const;
-    IndexArray const getEdgeChildEdges(Index parentEdge) const;
+    ConstIndexArray  getFaceChildFaces(Index parentFace) const;
+    ConstIndexArray  getFaceChildEdges(Index parentFace) const;
+    ConstIndexArray  getEdgeChildEdges(Index parentEdge) const;
 
     //  Child-to-parent relationships (not yet complete -- unclear how we will define the
     //  "type" of the parent component, e.g. vertex, edge or face):
@@ -423,12 +423,13 @@ public:
 #endif
 };
 
-inline IndexArray const
+inline ConstIndexArray
 Refinement::getFaceChildFaces(Index parentFace) const {
 
-    return IndexArray(&_faceChildFaceIndices[_faceChildFaceCountsAndOffsets[2*parentFace+1]],
+    return ConstIndexArray(&_faceChildFaceIndices[_faceChildFaceCountsAndOffsets[2*parentFace+1]],
                                              _faceChildFaceCountsAndOffsets[2*parentFace]);
 }
+
 inline IndexArray
 Refinement::getFaceChildFaces(Index parentFace) {
 
@@ -436,10 +437,10 @@ Refinement::getFaceChildFaces(Index parentFace) {
                                              _faceChildFaceCountsAndOffsets[2*parentFace]);
 }
 
-inline IndexArray const
+inline ConstIndexArray
 Refinement::getFaceChildEdges(Index parentFace) const {
 
-    return IndexArray(&_faceChildEdgeIndices[_faceChildEdgeCountsAndOffsets[2*parentFace+1]],
+    return ConstIndexArray(&_faceChildEdgeIndices[_faceChildEdgeCountsAndOffsets[2*parentFace+1]],
                                              _faceChildEdgeCountsAndOffsets[2*parentFace]);
 }
 inline IndexArray
@@ -449,10 +450,10 @@ Refinement::getFaceChildEdges(Index parentFace) {
                                              _faceChildEdgeCountsAndOffsets[2*parentFace]);
 }
 
-inline IndexArray const
+inline ConstIndexArray
 Refinement::getEdgeChildEdges(Index parentEdge) const {
 
-    return IndexArray(&_edgeChildEdgeIndices[parentEdge*2], 2);
+    return ConstIndexArray(&_edgeChildEdgeIndices[parentEdge*2], 2);
 }
 
 inline IndexArray

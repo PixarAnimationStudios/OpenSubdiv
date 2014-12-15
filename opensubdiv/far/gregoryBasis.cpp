@@ -55,14 +55,14 @@ namespace OPENSUBDIV_VERSION {
 static void
 getQuadOffsets(Vtr::Level const& level, Vtr::Index fIndex, Vtr::Index offsets[]) {
 
-    Vtr::IndexArray fVerts = level.getFaceVertices(fIndex);
+    Far::ConstIndexArray fVerts = level.getFaceVertices(fIndex);
     assert(fVerts.size()==4);
 
     for (int i = 0; i < 4; ++i) {
 
         Vtr::Index      vIndex = fVerts[i];
-        Vtr::IndexArray vFaces = level.getVertexFaces(vIndex),
-                        vEdges = level.getVertexEdges(vIndex);
+        Vtr::ConstIndexArray vFaces = level.getVertexFaces(vIndex),
+                             vEdges = level.getVertexEdges(vIndex);
 
         int thisFaceInVFaces = -1;
         for (int j = 0; j < vFaces.size(); ++j) {
@@ -308,7 +308,7 @@ ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex) {
         0.0569311f, 0.0548745f, 0.0529621f
     };
 
-    Vtr::IndexArray const faceVerts = level.getFaceVertices(faceIndex);
+    Vtr::ConstIndexArray faceVerts = level.getFaceVertices(faceIndex);
     assert(faceVerts.size()==4);
 
     int maxvalence = level.getMaxValence(),

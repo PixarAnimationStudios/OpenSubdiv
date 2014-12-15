@@ -141,7 +141,8 @@ struct PatchParam {
 
 typedef std::vector<PatchParam> PatchParamTable;
 
-typedef Vtr::Array<PatchParam>  PatchParamArray;
+typedef Vtr::Array<PatchParam> PatchParamArray;
+typedef Vtr::ConstArray<PatchParam> ConstPatchParamArray;
 
 inline void
 PatchParam::BitField::Set( short u, short v, unsigned char rots, unsigned char depth, bool nonquad ) {

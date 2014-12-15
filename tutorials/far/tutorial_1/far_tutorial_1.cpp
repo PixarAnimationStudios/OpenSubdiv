@@ -314,14 +314,14 @@ TopologyRefinerFactory<Converter>::assignComponentTopology(
 
             //  Vert-Faces:
             IndexArray vertFaces = refiner.setBaseVertexFaces(vert);
-            LocalIndexArray vertInFaceIndices = refiner.setBaseVertexFaceLocalIndices(vert);
+            //LocalIndexArray vertInFaceIndices = refiner.setBaseVertexFaceLocalIndices(vert);
             for (int face=0; face<conv.GetNumVertexFaces(vert); ++face) {
                 vertFaces[face] = conv.GetVertexFaces(vert)[face];
             }
 
             //  Vert-Edges:
             IndexArray vertEdges = refiner.setBaseVertexEdges(vert);
-            LocalIndexArray vertInEdgeIndices = refiner.setBaseVertexEdgeLocalIndices(vert);
+            //LocalIndexArray vertInEdgeIndices = refiner.setBaseVertexEdgeLocalIndices(vert);
             for (int edge=0; edge<conv.GetNumVertexEdges(vert); ++edge) {
                 vertEdges[edge] = conv.GetVertexEdges(vert)[edge];
             }
@@ -453,7 +453,7 @@ int main(int, char **) {
         // Print faces
         for (int face=0; face<refiner->GetNumFaces(maxlevel); ++face) {
 
-            Far::IndexArray fverts = refiner->GetFaceVertices(maxlevel, face);
+            Far::ConstIndexArray fverts = refiner->GetFaceVertices(maxlevel, face);
 
             // all refined Catmark faces should be quads
             assert(fverts.size()==4);

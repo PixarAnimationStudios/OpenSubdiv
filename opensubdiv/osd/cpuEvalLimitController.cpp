@@ -75,7 +75,7 @@ CpuEvalLimitController::EvalLimitSample( LimitLocation const & coord,
 
         computeSubPatchCoords(ptables.GetPatchParam(*handle), s, t);
 
-        Far::IndexArray cvs = ptables.GetPatchVertices(*handle);
+        Far::ConstIndexArray cvs = ptables.GetPatchVertices(*handle);
 
         Far::PatchDescriptor desc = ptables.GetPatchDescriptor(*handle);
         switch( desc.GetType() ) {
@@ -159,7 +159,7 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
 
     Far::PatchDescriptor desc = ptables.GetPatchDescriptor(*handle);
 
-    Far::IndexArray cvs = ptables.GetPatchVertices(*handle);
+    Far::ConstIndexArray cvs = ptables.GetPatchVertices(*handle);
 
     if (vertexData.in) {
 

@@ -235,7 +235,7 @@ static void
 calcNormals(OpenSubdiv::Far::TopologyRefiner const & refiner,
     std::vector<float> const & pos, std::vector<float> & normals) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     // calc normal vectors
     int nverts = (int)pos.size()/3;
@@ -308,7 +308,7 @@ updateGeom() {
 static void
 createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 

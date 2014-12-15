@@ -263,7 +263,7 @@ void
 GLMesh::initializeBuffers(Options options,
     TopologyRefiner const & refiner, float const * vertexData) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     int maxlevel = refiner.GetMaxLevel(),
         nverts = refiner.GetNumVertices(maxlevel),
@@ -547,7 +547,7 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
 
             for (int patch=0; patch<patchTables.GetNumPatches(array); ++patch) {
 
-                OpenSubdiv::Far::IndexArray const cvs =
+                OpenSubdiv::Far::ConstIndexArray const cvs =
                     patchTables.GetPatchVertices(array, patch);
 
                 int const * edgeList=getEdgeList(ncvs);
@@ -588,7 +588,7 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
 
             for (int patch=0; patch<patchTables.GetNumPatches(array); ++patch, ++face) {
 
-                OpenSubdiv::Far::IndexArray const cvs =
+                OpenSubdiv::Far::ConstIndexArray const cvs =
                     patchTables.GetPatchVertices(array, patch);
 
                 if (desc.GetType()==Descriptor::REGULAR) {

@@ -140,10 +140,9 @@ void
 TriRefinement::populateFaceVerticesFromParentFaces() {
 
    for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
-        IndexArray const pFaceVerts = _parent->getFaceVertices(pFace);
-        IndexArray const pFaceEdges = _parent->getFaceEdges(pFace);
-
-        IndexArray const pFaceChildren = getFaceChildFaces(pFace);
+        ConstIndexArray const pFaceVerts = _parent->getFaceVertices(pFace),
+                              pFaceEdges = _parent->getFaceEdges(pFace),
+                              pFaceChildren = getFaceChildFaces(pFace);
 
         assert(pFaceVerts.size() == 3);
         assert(pFaceChildren.size() == 4);
@@ -219,11 +218,10 @@ void
 TriRefinement::populateFaceEdgesFromParentFaces() {
 
     for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
-        IndexArray const pFaceVerts = _parent->getFaceVertices(pFace);
-        IndexArray const pFaceEdges = _parent->getFaceEdges(pFace);
-
-        IndexArray const pFaceChildFaces = getFaceChildFaces(pFace);
-        IndexArray const pFaceChildEdges = getFaceChildEdges(pFace);
+        ConstIndexArray pFaceVerts = _parent->getFaceVertices(pFace),
+                        pFaceEdges = _parent->getFaceEdges(pFace),
+                        pFaceChildFaces = getFaceChildFaces(pFace),
+                        pFaceChildEdges = getFaceChildEdges(pFace);
 
         assert(pFaceChildFaces.size() == 4);
         assert(pFaceChildEdges.size() == 3);
@@ -231,7 +229,7 @@ TriRefinement::populateFaceEdgesFromParentFaces() {
         Index pEdgeChildEdges[3][2];
         for (int i = 0; i < 3; ++i) {
             Index            pEdge  = pFaceEdges[i];
-            IndexArray const cEdges = getEdgeChildEdges(pEdge);
+            ConstIndexArray cEdges = getEdgeChildEdges(pEdge);
 
             bool edgeReversedWrtFace = (pFaceVerts[i] != _parent->getEdgeVertices(pEdge)[0]);
 
@@ -288,8 +286,8 @@ void
 TriRefinement::populateEdgeVerticesFromParentFaces() {
 
     for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
-        IndexArray const pFaceEdges      = _parent->getFaceEdges(pFace);
-        IndexArray const pFaceChildEdges = getFaceChildEdges(pFace);
+        ConstIndexArray pFaceEdges      = _parent->getFaceEdges(pFace),
+                        pFaceChildEdges = getFaceChildEdges(pFace);
 
         assert(pFaceEdges.size() == 3);
         assert(pFaceChildEdges.size() == 3);
@@ -324,8 +322,8 @@ void
 TriRefinement::populateEdgeVerticesFromParentEdges() {
 
     for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge) {
-        IndexArray const pEdgeVerts      = _parent->getEdgeVertices(pEdge);
-        IndexArray const pEdgeChildEdges = getEdgeChildEdges(pEdge);
+        ConstIndexArray pEdgeVerts      = _parent->getEdgeVertices(pEdge),
+                        pEdgeChildEdges = getEdgeChildEdges(pEdge);
 
         if (IndexIsValid(pEdgeChildEdges[0])) {
             IndexArray cEdgeVerts = _child->getEdgeVertices(pEdgeChildEdges[0]);
@@ -381,8 +379,8 @@ void
 TriRefinement::populateEdgeFacesFromParentFaces() {
 
     for (Index pFace = 0; pFace < _parent->getNumFaces(); ++pFace) {
-        IndexArray const pFaceChildFaces = getFaceChildFaces(pFace);
-        IndexArray const pFaceChildEdges = getFaceChildEdges(pFace);
+        ConstIndexArray pFaceChildFaces = getFaceChildFaces(pFace),
+                        pFaceChildEdges = getFaceChildEdges(pFace);
 
         assert(pFaceChildFaces.size() == 4);
         assert(pFaceChildEdges.size() == 3);
@@ -415,10 +413,9 @@ void
 TriRefinement::populateEdgeFacesFromParentEdges() {
 
     for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge) {
-        IndexArray const pEdgeVerts = _parent->getEdgeVertices(pEdge);
-        IndexArray const pEdgeFaces = _parent->getEdgeFaces(pEdge);
-
-        IndexArray const pEdgeChildEdges = getEdgeChildEdges(pEdge);
+        ConstIndexArray const pEdgeVerts = _parent->getEdgeVertices(pEdge),
+                              pEdgeFaces = _parent->getEdgeFaces(pEdge),
+                              pEdgeChildEdges = getEdgeChildEdges(pEdge);
 
         for (int j = 0; j < 2; ++j) {
             Index cEdge = pEdgeChildEdges[j];
@@ -461,10 +458,9 @@ TriRefinement::populateEdgeFacesFromParentEdges() {
             for (int i = 0; i < pEdgeFaces.size(); ++i) {
                 Index pFace = pEdgeFaces[i];
 
-                IndexArray const pFaceEdges = _parent->getFaceEdges(pFace);
-                IndexArray const pFaceVerts = _parent->getFaceVertices(pFace);
-
-                IndexArray const pFaceChildren = getFaceChildFaces(pFace);
+                ConstIndexArray const pFaceEdges = _parent->getFaceEdges(pFace),
+                                      pFaceVerts = _parent->getFaceVertices(pFace),
+                                      pFaceChildren = getFaceChildFaces(pFace);
 
                 int pFaceValence = pFaceVerts.size();
 
@@ -532,8 +528,7 @@ TriRefinement::populateVertexFacesFromParentEdges() {
         int cVert = _edgeChildVertIndex[pEdge];
         if (!IndexIsValid(cVert)) continue;
 
-        IndexArray const pEdgeFaces = _parent->getEdgeFaces(pEdge);
-        IndexArray const pEdgeVerts = _parent->getEdgeVertices(pEdge);
+        ConstIndexArray pEdgeFaces = _parent->getEdgeFaces(pEdge);
 
         //
         //  Reserve enough vert-faces, populate and trim to the actual size:
@@ -550,10 +545,9 @@ TriRefinement::populateVertexFacesFromParentEdges() {
             //      Identify the parent edge within this parent face -- this is where
             //  augmenting the edge-face relation with the "child index" is useful:
             //
-            Index            pFace           = pEdgeFaces[i];
-            IndexArray const pFaceVerts      = _parent->getFaceVertices(pFace);
-            IndexArray const pFaceEdges      = _parent->getFaceEdges(pFace);
-            IndexArray const pFaceChildFaces = getFaceChildFaces(pFace);
+            Index           pFace           = pEdgeFaces[i];
+            ConstIndexArray pFaceEdges      = _parent->getFaceEdges(pFace),
+                            pFaceChildFaces = getFaceChildFaces(pFace);
 
             assert(pFaceEdges.size() == 3);
             assert(pFaceChildFaces.size() == 4);
@@ -612,8 +606,8 @@ TriRefinement::populateVertexFacesFromParentVertices() {
         //
         //  Inspect the parent vert's faces:
         //
-        IndexArray const      pVertFaces  = _parent->getVertexFaces(vIndex);
-        LocalIndexArray const pVertInFace = _parent->getVertexFaceLocalIndices(vIndex);
+        ConstIndexArray      pVertFaces  = _parent->getVertexFaces(vIndex);
+        ConstLocalIndexArray pVertInFace = _parent->getVertexFaceLocalIndices(vIndex);
 
         //
         //  Reserve enough vert-faces, populate and trim to the actual size:
@@ -704,9 +698,9 @@ TriRefinement::populateVertexEdgesFromParentEdges() {
         //
         //  First inspect the parent edge -- its parent faces then its child edges:
         //
-        IndexArray const pEdgeFaces      = _parent->getEdgeFaces(pEdge);
-        IndexArray const pEdgeVerts      = _parent->getEdgeVertices(pEdge);
-        IndexArray const pEdgeChildEdges = getEdgeChildEdges(pEdge);
+        ConstIndexArray pEdgeFaces      = _parent->getEdgeFaces(pEdge),
+                        pEdgeVerts      = _parent->getEdgeVertices(pEdge),
+                        pEdgeChildEdges = getEdgeChildEdges(pEdge);
 
         //
         //  Reserve enough vert-edges, populate and trim to the actual size:
@@ -734,8 +728,8 @@ TriRefinement::populateVertexEdgesFromParentEdges() {
         for (int i = 0; i < pEdgeFaces.size(); ++i) {
             Index pFace = pEdgeFaces[i];
 
-            IndexArray const pFaceEdges      = _parent->getFaceEdges(pFace);
-            IndexArray const pFaceChildEdges = getFaceChildEdges(pFace);
+            ConstIndexArray pFaceEdges      = _parent->getFaceEdges(pFace),
+                            pFaceChildEdges = getFaceChildEdges(pFace);
 
             //
             //  EDGE_IN_FACE:
@@ -791,8 +785,8 @@ TriRefinement::populateVertexEdgesFromParentVertices() {
         //
         //  Inspect the parent vert's edges first:
         //
-        IndexArray const      pVertEdges  = _parent->getVertexEdges(vIndex);
-        LocalIndexArray const pVertInEdge = _parent->getVertexEdgeLocalIndices(vIndex);
+        ConstIndexArray      pVertEdges  = _parent->getVertexEdges(vIndex);
+        ConstLocalIndexArray pVertInEdge = _parent->getVertexEdgeLocalIndices(vIndex);
 
         //
         //  Reserve enough vert-edges, populate and trim to the actual size:
@@ -858,7 +852,7 @@ TriRefinement::markSparseFaceChildren() {
         assert(fChildFaces.size() == 4);
         assert(fChildEdges.size() == 3);
 
-        IndexArray const fVerts = parent().getFaceVertices(pFace);
+        ConstIndexArray fVerts = parent().getFaceVertices(pFace);
 
         SparseTag& pFaceTag = _parentFaceTag[pFace];
 
@@ -883,7 +877,7 @@ TriRefinement::markSparseFaceChildren() {
                 //  If marked, see if we have any transitional edges, in which case we
                 //  need to include the middle face:
                 //
-                IndexArray const fEdges = parent().getFaceEdges(pFace);
+                ConstIndexArray fEdges = parent().getFaceEdges(pFace);
 
                 pFaceTag._transitional = (unsigned char)
                        ((_parentEdgeTag[fEdges[0]]._transitional << 0) |

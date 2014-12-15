@@ -409,7 +409,7 @@ createEdgeNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
             Vertex center(0.0f, 0.0f, 0.0f);
 
-            OpenSubdiv::Far::IndexArray const verts =
+            OpenSubdiv::Far::ConstIndexArray const verts =
                 refiner.GetEdgeVertices(maxlevel, i);
             assert(verts.size()==2);
 
@@ -452,7 +452,7 @@ createFaceNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
             Vertex center(0.0f, 0.0f, 0.0f);
 
-            OpenSubdiv::Far::IndexArray const verts =
+            OpenSubdiv::Far::ConstIndexArray const verts =
                 refiner.GetFaceVertices(maxlevel, face);
 
             float weight = 1.0f / (float)verts.size();
@@ -477,7 +477,7 @@ createFaceNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
                 Vertex center(0.0f, 0.0f, 0.0f);
 
-                OpenSubdiv::Far::IndexArray const verts =
+                OpenSubdiv::Far::ConstIndexArray const verts =
                     refiner.GetFaceVertices(level, face);
 
                 float weight = 1.0f / (float)verts.size();
@@ -521,7 +521,7 @@ createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
 
     g_currentPatchDesc = patchTables.GetPatchArrayDescriptor(patchArray);
 
-    OpenSubdiv::Far::IndexArray const cvs =
+    OpenSubdiv::Far::ConstIndexArray const cvs =
         patchTables.GetPatchVertices(patchArray, patchID);
 
     static char buf[16];
@@ -621,7 +621,7 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
 
         for (int patch=0; patch<(int)patchTables.GetNumPatches(array); ++patch) {
 
-            OpenSubdiv::Far::IndexArray const cvs =
+            OpenSubdiv::Far::ConstIndexArray const cvs =
                 patchTables.GetPatchVertices(array, patch);
 
             int * remap = 0;
