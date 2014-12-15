@@ -25,10 +25,6 @@
 #include "../far/topologyRefiner.h"
 #include "../vtr/level.h"
 
-#if _MSC_VER
-    #define snprintf _snprintf
-#endif
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

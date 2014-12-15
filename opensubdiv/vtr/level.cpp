@@ -116,6 +116,7 @@ Level::getTopologyErrorString(TopologyError errCode) {
         default:
             assert(0);
     }
+    return 0;
 }
 
 //

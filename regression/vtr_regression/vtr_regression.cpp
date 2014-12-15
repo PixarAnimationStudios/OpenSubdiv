@@ -150,11 +150,9 @@ interpolateVtrVertexData(ShapeDesc const & desc, int maxlevel, std::vector<xyzVV
     // Vtr interpolation
     Shape * shape = Shape::parseObj(desc.data.c_str(), desc.scheme);
 
-    FarTopoloyRefinerFactory refFactory;
-
-    FarTopoloyRefiner * refiner = refFactory.Create( GetSdcType(*shape),
-                                                   GetSdcOptions(*shape),
-                                                   *shape);
+    FarTopoloyRefiner * refiner =
+        FarTopoloyRefinerFactory::Create(
+            GetSdcType(*shape), GetSdcOptions(*shape), *shape);
     assert(refiner);
 
     refiner->RefineUniform(maxlevel, true /*full topology*/ );

@@ -345,6 +345,18 @@ TopologyRefinerFactory<Converter>::assignComponentTags(
 #ifdef _MSC_VER
 template <>
 void
+TopologyRefinerFactory<Converter>::reportInvalidTopology(
+    TopologyError /* errCode */, char const * msg, Converter const& /* mesh */) {
+
+    //
+    //  Optional topology validation error reporting:
+    //      This method is called whenever the factory encounters topology validation
+    //  errors. By default, nothing is reported
+    //
+    Warning(msg);
+}
+template <>
+void
 TopologyRefinerFactory<Converter>::assignFaceVaryingTopology(
     TopologyRefiner & /* refiner */, Converter const & /* conv */) {
 
