@@ -484,6 +484,7 @@ if (NOT NO_LIB)
     # Build static libs ------------------------------------
     add_library(osd_static_cpu
         STATIC
+        ../version.cpp
         $<TARGET_OBJECTS:osd_cpu_obj>
     )
     set_target_properties(osd_static_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
@@ -496,6 +497,7 @@ if (NOT NO_LIB)
     # the target then adds the other obj dependencies and include files
     _add_possibly_cuda_library(osd_static_gpu
         STATIC
+            ../version.cpp
             $<TARGET_OBJECTS:osd_gpu_obj>
             ${KERNEL_FILES}
     )
@@ -521,6 +523,7 @@ if (NOT NO_LIB)
         # generate dynamic-link targets
         add_library(osd_dynamic_cpu
             SHARED
+            ../version.cpp
             $<TARGET_OBJECTS:osd_cpu_obj>
         )
 
@@ -545,6 +548,7 @@ if (NOT NO_LIB)
 
         _add_possibly_cuda_library(osd_dynamic_gpu
             SHARED
+            ../version.cpp
             $<TARGET_OBJECTS:osd_gpu_obj>
             ${KERNEL_FILES}
         )

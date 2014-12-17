@@ -44,6 +44,7 @@ if (WIN32)
             "$ENV{DXSDK_ROOT}/Include"
             "C:/Program Files (x86)/Microsoft DirectX SDK*/Include"
             "C:/Program Files/Microsoft DirectX SDK*/Include"
+            "C:/Program Files (x86)/Windows Kits/8.1/Include/um"
     )
 
     if ("${CMAKE_GENERATOR}" MATCHES "[Ww]in64")
@@ -61,6 +62,7 @@ if (WIN32)
             "$ENV{DXSDK_ROOT}/Lib/${ARCH}"
             "C:/Program Files (x86)/Microsoft DirectX SDK*/Lib/${ARCH}"
             "C:/Program Files/Microsoft DirectX SDK*/Lib/${ARCH}"
+            "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/${ARCH}"
     )
 
     set(DXSDK_LIBRARY_DIR ${LIBRARY_DIR})
