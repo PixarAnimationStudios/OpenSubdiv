@@ -126,6 +126,17 @@ This case is fairly trivial: there is no possible way to exact a limit surface
 here, so the vertex simply has to be flagged as non-contributing, or discarded
 gracefully.
 
+.. container:: notebox
+
+    **Beta Issues**
+
+    As of 3.0.0 Beta release, support for non-manifold topology is not available
+    yet. The topology factories are currently set to report warnings when
+    non-manifold configurations are encountered and implicitly treat them as
+    sharp boundaries. We intend to fully specify and implement a set of
+    of interpolation rules in a future release of OpenSubdiv.
+
+
 ----
 
 Boundary Interpolation Rules
@@ -139,20 +150,19 @@ Vertex Data
 
 The following rule sets can be applied to vertex data interpolation:
 
-+------------------------+----------------------------------------------------------+
-| Mode                   | Behavior                                                 |
-+========================+==========================================================+
-| 0 - **None**           | No boundary interpolation behavior should occur          |
-|                        | (debug mode - boundaries are undefined)                  |
-+------------------------+----------------------------------------------------------+
-| 1 - **EdgeAndCorner**  | All the boundary edge-chains are sharp creases and       |
-|                        | boundary vertices with exactly two incident edges are    |
-|                        | sharp corners                                            |
-+------------------------+----------------------------------------------------------+
-| 2 - **EdgeOnly**       | All the boundary edge-chains are sharp creases; boundary |
-|                        | vertices are not affected                                |
-|                        |                                                          |
-+------------------------+----------------------------------------------------------+
++----------------------------------+----------------------------------------------------------+
+| Mode                             | Behavior                                                 |
++==================================+==========================================================+
+| **VTX_BOUNDARY_NONE**            | No boundary interpolation behavior should occur          |
+|                                  | (debug mode - boundaries are undefined)                  |
++----------------------------------+----------------------------------------------------------+
+| **VTX_BOUNDARY_EDGE_ONLY**       | All the boundary edge-chains are sharp creases and       |
+|                                  | boundary vertices with exactly two incident edges are    |
+|                                  | sharp corners                                            |
++----------------------------------+----------------------------------------------------------+
+| **VTX_BOUNDARY_EDGE_AND_CORNER** | All the boundary edge-chains are sharp creases; boundary |
+|                                  | vertices are not affected                                |
++----------------------------------+----------------------------------------------------------+
 
 On a quad example:
 
@@ -166,26 +176,21 @@ Face-varying Data
 
 The following rule sets can be applied to face-varying data interpolation:
 
-+--------+----------------------------------------------------------+
-| Mode   | Behavior                                                 |
-+========+==========================================================+
-| 0      | Bi-linear interpolation (no smoothing)                   |
-+--------+----------------------------------------------------------+
-| 1      | Smooth UV                                                |
-|        |                                                          |
-|        |                                                          |
-+--------+----------------------------------------------------------+
-| 2      | Same as (1) but does not infer the presence of corners   |
-|        | where two face-varying edges meet at a single faceA      |
-|        |                                                          |
-+--------+----------------------------------------------------------+
-| 3      | Smooth face-varying values only near vertices that are   |
-|        | not at a discontinuous boundary; all vertices on a       |
-|        | discontinuous boundary are subdivided with a sharp rule  |
-|        | (interpolated through).                                  |
-|        | This mode is designed to be compatible with ZBrush and   |
-|        | Maya's "smooth internal only" interpolation.             |
-+--------+----------------------------------------------------------+
++--------------------------------+------------------------------------------+
+| Mode                           | Behavior                                 |
++================================+==========================================+
+| **FVAR_LINEAR_NONE**           | smooth everywhere ("edge only")          |
++--------------------------------+------------------------------------------+
+| **FVAR_LINEAR_CORNERS_ONLY**   | sharpen corners only                     |
++--------------------------------+------------------------------------------+
+| **FVAR_LINEAR_CORNERS_PLUS1**  | "edge corner"                            |
++--------------------------------+------------------------------------------+
+| **FVAR_LINEAR_CORNERS_PLUS2**  | "edge and corner" + "propagate corner"   |
++--------------------------------+------------------------------------------+
+| **FVAR_LINEAR_BOUNDARIES**     | sharpen all boundaries ("always sharp")  |
++--------------------------------+------------------------------------------+
+| **FVAR_LINEAR_ALL**            | bilinear interpolation ("bilinear")      |
++--------------------------------+------------------------------------------+
 
 Unwrapped cube example:
 
@@ -198,6 +203,34 @@ Propagate Corners
 
 Face-varying interpolation mode 2 (*EdgeAndCorner*) can further be modified by
 the application of the *Propagate Corner* flag.
+
+----
+
+"Triangle Subdivision" Rule
+===========================
+
+The triangle subdivision rule is a rule added to the Catmull-Clark scheme that
+can be applied to all triangular faces; this rule was empirically determined to
+make triangles subdivide more smoothly. However, this rule breaks the nice
+property that two separate meshes can be joined seamlessly by overlapping their
+boundaries; i.e. when there are triangles at either boundary, it is impossible
+to join the meshes seamlessly
+
++---------------------+---------------------------------------------+
+| Mode                | Behavior                                    |
++=====================+=============================================+
+| **TRI_SUB_CATMARK** | Default Catmark scheme weights              |
++---------------------+---------------------------------------------+
+| **TRI_SUB_SMOOTH**  | "Smooth triangle" weights                   |
++---------------------+---------------------------------------------+
+
+Cylinder example :
+
+.. image:: images/smoothtriangles.png
+   :align: center
+   :height: 300
+   :target: images/smoothtriangles.png
+
 
 ----
 
@@ -237,6 +270,16 @@ Chaikin's curve subdivision algorithm improves the appearance of multi-edge
 semi-sharp creases with varying weights. The Chaikin rule interpolates the
 sharpness of incident edges.
 
++---------------------+---------------------------------------------+
+| Mode                | Behavior                                    |
++=====================+=============================================+
+| **CREASE_UNIFORM**  | Apply regular semi-sharp crease rules       |
++---------------------+---------------------------------------------+
+| **CREASE_CHAIKIN**  | Apply "Chaikin" semi-sharp crease rules     |
++---------------------+---------------------------------------------+
+
+Example of contiguous semi-sharp creases interpolation:
+
 .. image:: images/chaikin.png
    :align: center
    :target: images/chaikin.png
@@ -266,6 +309,18 @@ of detail.
    :align: center
    :height: 300
    :target: images/hedit_example1.png
+
+----
+
+.. container:: notebox
+
+    **Release Notes (3.0.0)**
+
+    Hierarchical Edits have been marked as "extended specification" and support for
+    hierarchical features has been removed from the 3.0 release. This decision
+    allows for great simplifications of many areas of the subdivision algorithms.
+    If we can identify legitimate use-cases for hierarchical tags, we will consider
+    re-implementing them in future releases, as time and resources allow.
 
 ----
 
@@ -379,15 +434,6 @@ Modifiable properties include:
    :align: center
    :height: 300
    :target: images/hedit_example5.png
-
-
-----
-
-Limitations
-***********
-
-.. include:: under_development.rst
-
 
 ----
 
