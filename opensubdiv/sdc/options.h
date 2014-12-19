@@ -76,7 +76,7 @@ public:
         FVAR_LINEAR_CORNERS_PLUS1,    ///< ("edge corner")
         FVAR_LINEAR_CORNERS_PLUS2,    ///< ("edge and corner + propagate corner")
         FVAR_LINEAR_BOUNDARIES,       ///< sharpen all boundaries ("always sharp")
-        FVAR_LINEAR_ALL               ///< bilinear interpolation q("bilinear")
+        FVAR_LINEAR_ALL               ///< bilinear interpolation ("bilinear")
     };
     enum CreasingMethod {
         CREASE_UNIFORM = 0,           ///< Catmark rule
