@@ -82,7 +82,7 @@ backbone used to construct or be associated with the other table classes in Far.
 
 .. container:: notebox
 
-    **Alpha Issues**
+    **Beta Issues**
 
     Interface issues needing attention:
 
@@ -263,7 +263,7 @@ with 16, 12, 9 and 4 control vertices respectively.
 
 .. container:: notebox
 
-    **Alpha Issues**
+    **Beta Issues**
 
     The current ordering of control vertices for *Regular*, *Boundary* and
     *Corner* patches is based on inconsistent legacy implementation of GPU

@@ -57,7 +57,7 @@ For more details, please see the `Release Notes <release_notes.html>`_.
 
     * subdivision 'specification' evaluation from users & community
 
-        * implement API for direct discrete evaluation
+        * implement API for discrete limit evaluation
         * support for bi-cubic face-varying interpolation (discrete & limit)
         * support for Loop limit evaluation
 
@@ -68,7 +68,8 @@ For more details, please see the `Release Notes <release_notes.html>`_.
 To Infinity & Beyond
 ====================
 
-The following is a list of projects and directions for OpenSubdiv over the course.
+The following is a list of pending projects and future directions for
+OpenSubdiv.
 
 Optimize Draw
 +++++++++++++
@@ -76,7 +77,7 @@ Optimize Draw
   source code. This causes back-end APIs to have to bind many shaders and
   burdens the drivers with many "draw" calls for each primitive, which does
   not scale well. Our goal is to ultimately try to reduce this burden back to
-  a single shader bind per primitive.
+  a single shader bind operation per primitive.
 
     - Reduce GPU shader variants:
 
@@ -86,25 +87,27 @@ Optimize Draw
 
   Note: this project has been started at Pixar.
 
-Dynamic adaptive isolation
-++++++++++++++++++++++++++
+Dynamic feature adaptive isolation (DFAS)
++++++++++++++++++++++++++++++++++++++++++
 
   Adaptive feature isolation can produce a large number of patches, especially
   when the model contains a lot of semi-sharp creases. We need a LOD solution
   that can dynamically isolate features based on distance to view-point.
-  Note: this project has been undertaken by Matthias Niessner
+
+  Note: this project has been undertaken by Matthias Niessner & Henry Schafer
 
 Implement a "high-level" API layer
 ++++++++++++++++++++++++++++++++++
 
   One of the original goals of the OpenSubdiv project is to provide a robust
   and simple API to display subdivision surfaces interactively. Now that the
-  algorithms and code base have matured, we would like to foster a consistent
+  algorithms and code-base have matured, we would like to foster a consistent
   implementation of subdivision surfaces suitable for adoption in the lower
   layers of the graphics stack, such as GPU drivers. We have been working on
   the draft of a "specification document" detailing the workings of a high-
   level interface for subdivision surface data and functionality. We need an
   implementation of this high-level API.
+
   Note: this project has been started at Pixar.
 
 Support for infinitely sharp creases
@@ -148,8 +151,9 @@ Documentation
 +++++++++++++
 
   In order to facilitate adoption of OpenSubdiv, we need to provide clear,
-  concise and exhaustive documentation of all APIs, and in particular:
+  concise and comprehensive documentation of all APIs. In particular:
 
-    * Flesh out high-level ReST documentation
+    * Update and flesh out high-level ReST documentation
+    * Clean up the Doxygen documentation
     * Expand code tutorials
 

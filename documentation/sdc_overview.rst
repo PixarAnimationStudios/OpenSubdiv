@@ -61,15 +61,9 @@ a general framework for defining customized subdivision schemes.
 
 .. container:: notebox
 
-    **Alpha Issues**
+    **Beta Issues**
 
-    Warnings of change:
-
-        * note change in creasing method from *"Normal"* to *"Uniform"* and
-          related use of *"Uniform"*
-        * all boundary interpolation choices in *Sdc::Options* are subject to change
-
-    Other changes under consideration:
+    Changes under consideration:
 
         * *<MASK>* face-weights to support face-centers and/or original vertices
         * merging *Sdc::TypeTraits<T>* into *Sdc::Scheme<T>* as static methods

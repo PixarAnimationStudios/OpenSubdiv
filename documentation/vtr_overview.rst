@@ -80,12 +80,11 @@ provided in the headers themselves.
 
 .. container:: notebox
 
-    **Alpha Issues**
+    **Beta Issues**
 
     Being intended for internal use, any changes to *Vtr* should not impact public
     interfaces.  Regardless, its worth noting some of the work planned:
 
-        * support for tri-split refinement required by Loop subdivision
         * addition of more per-component tags to propogate with refinement
           (e.g. holes, etc.)
         * encapsulation of any scheme-specific code into classes specific to the
