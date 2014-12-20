@@ -1215,6 +1215,11 @@ callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
 
 //------------------------------------------------------------------------------
 static void
+callbackErrorGLFW(int error, const char* description) {
+    fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
+}
+//------------------------------------------------------------------------------
+static void
 setGLCoreProfile() {
 
     #define glfwOpenWindowHint glfwWindowHint
@@ -1260,6 +1265,7 @@ int main(int argc, char ** argv) {
 
     OpenSubdiv::Far::SetErrorCallback(callbackError);
 
+    glfwSetErrorCallback(callbackErrorGLFW);
     if (not glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;

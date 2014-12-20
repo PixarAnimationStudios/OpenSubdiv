@@ -1479,14 +1479,12 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 
 //------------------------------------------------------------------------------
 static void
-rebuildOsdMesh()
-{
+rebuildOsdMesh() {
     createOsdMesh( g_defaultShapes[ g_currentShape ], g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
 }
 
 static void
-callbackDisplayStyle(int b)
-{
+callbackDisplayStyle(int b) {
     if (g_displayStyle == kVaryingColor or b == kVaryingColor or
         g_displayStyle == kInterleavedVaryingColor or b == kInterleavedVaryingColor or
         g_displayStyle == kFaceVaryingColor or b == kFaceVaryingColor) {
@@ -1499,8 +1497,7 @@ callbackDisplayStyle(int b)
 }
 
 static void
-callbackKernel(int k)
-{
+callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
@@ -1522,15 +1519,13 @@ callbackKernel(int k)
 }
 
 static void
-callbackLevel(int l)
-{
+callbackLevel(int l) {
     g_level = l;
     rebuildOsdMesh();
 }
 
 static void
-callbackModel(int m)
-{
+callbackModel(int m) {
     if (m < 0)
         m = 0;
 
@@ -1542,8 +1537,7 @@ callbackModel(int m)
 }
 
 static void
-callbackAdaptive(bool checked, int /* a */)
-{
+callbackAdaptive(bool checked, int /* a */) {
     if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
         g_adaptive = checked;
         rebuildOsdMesh();
@@ -1551,8 +1545,7 @@ callbackAdaptive(bool checked, int /* a */)
 }
 
 static void
-callbackSingleCreasePatch(bool checked, int /* a */)
-{
+callbackSingleCreasePatch(bool checked, int /* a */) {
     if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
         g_singleCreasePatch = checked;
         rebuildOsdMesh();
@@ -1560,8 +1553,7 @@ callbackSingleCreasePatch(bool checked, int /* a */)
 }
 
 static void
-callbackCheckBox(bool checked, int button)
-{
+callbackCheckBox(bool checked, int button) {
     switch (button) {
     case kHUD_CB_DISPLAY_CAGE_EDGES:
         g_drawCageEdges = checked;
@@ -1594,8 +1586,7 @@ callbackCheckBox(bool checked, int button)
 }
 
 static void
-initHUD()
-{
+initHUD() {
     int windowWidth = g_width, windowHeight = g_height;
     int frameBufferWidth = g_width, frameBufferHeight = g_height;
 
@@ -1680,8 +1671,7 @@ initHUD()
 
 //------------------------------------------------------------------------------
 static void
-initGL()
-{
+initGL() {
     glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -1712,15 +1702,19 @@ idle() {
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
+callbackErrorOsd(OpenSubdiv::Far::ErrorType err, const char *message) {
     printf("Error: %d\n", err);
     printf("%s", message);
 }
 
 //------------------------------------------------------------------------------
 static void
-setGLCoreProfile()
-{
+callbackErrorGLFW(int error, const char* description) {
+    fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
+}
+//------------------------------------------------------------------------------
+static void
+setGLCoreProfile() {
     #define glfwOpenWindowHint glfwWindowHint
     #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
@@ -1782,8 +1776,9 @@ int main(int argc, char ** argv) {
 
     g_fpsTimer.Start();
 
-    OpenSubdiv::Far::SetErrorCallback(callbackError);
+    OpenSubdiv::Far::SetErrorCallback(callbackErrorOsd);
 
+    glfwSetErrorCallback(callbackErrorGLFW);
     if (not glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;
