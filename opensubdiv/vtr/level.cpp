@@ -553,7 +553,22 @@ Level::getFaceCompositeVTag(ConstIndexArray & faceVerts) const {
     }
     return compTag;
 }
+Level::ETag
+Level::getFaceCompositeETag(ConstIndexArray & faceEdges) const {
 
+    ETag compTag = _edgeTags[faceEdges[0]];
+
+    for (int i = 1; i < faceEdges.size(); ++i) {
+        ETag const& edgeTag = _edgeTags[faceEdges[i]];
+
+        if (sizeof(ETag) == sizeof(unsigned char)) {
+            combineTags<ETag, unsigned char>(compTag, edgeTag);
+        } else {
+            assert("ETag size is uint_8 -- need to adjust composite tag code..." == 0);
+        }
+    }
+    return compTag;
+}
 
 //
 //  High-level topology gathering functions -- used mainly in patch construction.  These

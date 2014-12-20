@@ -1000,7 +1000,7 @@ PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
             assert(!compFaceVertTag._nonManifold);
 
             patchTag._hasPatch  = true;
-            patchTag._isRegular = !compFaceVertTag._xordinary;
+            patchTag._isRegular = not compFaceVertTag._xordinary;
 
             int boundaryEdgeMask = 0;
 
@@ -1008,17 +1008,22 @@ PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
 
             // single crease patch optimization
             if (options.useSingleCreasePatch and
-                !compFaceVertTag._xordinary and compFaceVertTag._semiSharp and not hasBoundaryVertex) {
+                not compFaceVertTag._xordinary and not hasBoundaryVertex) {
 
-                float sharpness = 0;
-                int rotation = 0;
-                if (level->isSingleCreasePatch(faceIndex, &sharpness, &rotation)) {
+                Vtr::ConstIndexArray fEdges = level->getFaceEdges(faceIndex);
+                Vtr::Level::ETag compFaceETag = level->getFaceCompositeETag(fEdges);
 
-                    // cap sharpness to the max isolation level
-                    float cappedSharpness = std::min(sharpness, (float)(options.maxIsolationLevel-i));
-                    if (cappedSharpness > 0) {
-                        patchTag._isSingleCrease = true;
-                        patchTag._boundaryIndex = (rotation + 2) % 4;
+                if (compFaceETag._semiSharp or compFaceETag._infSharp) {
+                    float sharpness = 0;
+                    int rotation = 0;
+                    if (level->isSingleCreasePatch(faceIndex, &sharpness, &rotation)) {
+
+                        // cap sharpness to the max isolation level
+                        float cappedSharpness = std::min(sharpness, (float)(options.maxIsolationLevel-i));
+                        if (cappedSharpness > 0) {
+                            patchTag._isSingleCrease = true;
+                            patchTag._boundaryIndex = (rotation + 2) % 4;
+                        }
                     }
                 }
             }

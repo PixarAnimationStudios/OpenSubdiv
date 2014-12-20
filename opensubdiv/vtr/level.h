@@ -175,6 +175,8 @@ public:
 
     VTag getFaceCompositeVTag(ConstIndexArray & faceVerts) const;
 
+    ETag getFaceCompositeETag(ConstIndexArray & faceEdges) const;
+
 public:
     Level();
     ~Level();

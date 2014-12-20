@@ -433,7 +433,7 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSing
 //   This was originally written specific to the quad-centric Catmark scheme and was since
 //   generalized to support Loop given the enhanced tagging of components based on the scheme.
 //   Any further enhancements here, e.g. new approaches for dealing with infinitely sharp
-//   creases, should be aware of the intended generality.  Ultimately it may not be worth 
+//   creases, should be aware of the intended generality.  Ultimately it may not be worth
 //   trying to keep this general and we will be better off specializing it for each scheme.
 //   The fact that this method is intimately tied to patch generation also begs for it to
 //   become part of a class that encompasses both the feature adaptive tagging and the
@@ -448,11 +448,11 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
     bool considerSingleCreasePatch = _useSingleCreasePatch && (regularFaceSize == 4);
 
     for (Vtr::Index face = 0; face < level.getNumFaces(); ++face) {
-    
+
         if (level.isHole(face)) {
             continue;
         }
-    
+
         Vtr::ConstIndexArray faceVerts = level.getFaceVertices(face);
 
         //
@@ -482,32 +482,32 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
         //  be necessary in some cases, particularly when we start trying to be clever about
         //  minimizing refinement for inf-sharp creases, etc.):
         //
-        Vtr::Level::VTag compFaceTag = level.getFaceCompositeVTag(faceVerts);
-        if (compFaceTag._incomplete) {
+        Vtr::Level::VTag compFaceVTag = level.getFaceCompositeVTag(faceVerts);
+        if (compFaceVTag._incomplete) {
             continue;
         }
 
         bool selectFace = false;
-        if (compFaceTag._xordinary) {
+        if (compFaceVTag._xordinary) {
             selectFace = true;
-        } else if (compFaceTag._rule & Sdc::Crease::RULE_DART) {
+        } else if (compFaceVTag._rule & Sdc::Crease::RULE_DART) {
             //  Get this case out of the way before testing hard features
             selectFace = true;
-        } else if (compFaceTag._nonManifold) {
+        } else if (compFaceVTag._nonManifold) {
             //  Warrants further inspection -- isolate for now
             //    - will want to defer inf-sharp treatment to below
             selectFace = true;
-        } else if (!(compFaceTag._rule & Sdc::Crease::RULE_SMOOTH)) {
+        } else if (!(compFaceVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
             //  None of the vertices is Smooth, so we have all vertices either Crease or Corner,
             //  though some may be regular patches, this currently warrants isolation as we only
             //  support regular patches with one corner or one boundary.
             selectFace = true;
-        } else if (compFaceTag._semiSharp) {
+        } else if (compFaceVTag._semiSharp) {
             // if this is regular and the adjacent edges have same sharpness
             // and no vertex corner sharpness,
             // we can stop refinning and use single-crease patch.
             if (considerSingleCreasePatch) {
-                selectFace = ! level.isSingleCreasePatch(face);
+                selectFace = not level.isSingleCreasePatch(face);
             } else {
                 selectFace = true;
             }
@@ -518,8 +518,26 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
             //  that do warrant isolation -- needing further inspection.
             //
             //  For now go with the boundary cases and don't isolate...
-            selectFace = false;
+            //selectFace = false;
         }
+
+        if (not selectFace) {
+            // Infinitely sharp edges do not influence vertex flags, but they need to
+            // isolated unless they can be treated as 'single-crease' cases.
+            // XXXX manuelk this will probably have to be revisited once infinitely
+            //              sharp creases are handled correctly.
+            Vtr::ConstIndexArray faceEdges = level.getFaceEdges(face);
+            Vtr::Level::ETag compFaceETag = level.getFaceCompositeETag(faceEdges);
+            if (compFaceETag._infSharp and not compFaceETag._boundary) {
+                // XXXX manuelk we are testing an 'and' aggregate of flags for all
+                // edges : this should be safe, because if the sharp edge is not
+                // the edge on the boundary, this face would have been selected
+                // with one of the previous tests
+                selectFace = considerSingleCreasePatch ?
+                    not level.isSingleCreasePatch(face) : true;
+            }
+        }
+
         if (selectFace) {
             selector.selectFace(face);
         }
