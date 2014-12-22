@@ -31,17 +31,9 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Sdc {
 
-//
-//  Enumerated type for all subdivisions schemes supported by OpenSubdiv:
-//
-//  Questions:
-//      In general, scoping of enumeration names is an issue given the lack of nested
-//  namespaces.  Originally I gave all other types a qualifying prefix to avoid conflicts
-//  but these names didn't seem to warrant it, but I added one later.
-//
-//  Note there is a similar Scheme enum in FarSubdivisionTables that includes UNKNOWN=0
-//  along with the same three constants.
-//
+///
+///  \brief Enumerated type for all subdivisions schemes supported by OpenSubdiv
+///
 enum Type {
     TYPE_BILINEAR,
     TYPE_CATMARK,
@@ -49,29 +41,32 @@ enum Type {
 };
 
 
-//
-//  Traits associated with all types -- these are specialized and instantiated for
-//  each of the supported types.
-//
-//  Traits do not vary with the topology or any options applied to the scheme.  They
-//  are intended to help construct more general queries about a subdivision scheme
-//  in a context where its details may be less well understood.  They serve little
-//  purpose in code specialized to the particular scheme, i.e. in code already
-//  specialized for Catmark, the values for these traits for the Catmark scheme are
-//  typically known and their usage well understood.
-//
-//  Question:
-//      Do we really need/want these TypeTraits, or will static methods on another
-//  class specialized for the type suffice, i.e. Scheme<SCHEME_TYPE>?
-//      If yes, there will be little in here other than Sdc::Type, which we may want
-//  to merge into <sdc/options.h>.
-//
+///
+///  \brief Enumerated type for all face splitting scheme
+///
 enum Split {
-    SPLIT_TO_QUADS,  // used by Catmark and Bilinear
-    SPLIT_TO_TRIS,   // used by Loop
-    SPLIT_HYBRID     // not currently used (potential future extension)
+    SPLIT_TO_QUADS,  ///< Used by Catmark and Bilinear
+    SPLIT_TO_TRIS,   ///< Used by Loop
+    SPLIT_HYBRID     ///< Not currently used (potential future extension)
 };
 
+///
+///  \brief Traits associated with all types. These are specialized and instantiated for
+///  each of the supported types.
+///
+///  Traits do not vary with the topology or any options applied to the scheme.  They
+///  are intended to help construct more general queries about a subdivision scheme
+///  in a context where its details may be less well understood.  They serve little
+///  purpose in code specialized to the particular scheme, i.e. in code already
+///  specialized for Catmark, the values for these traits for the Catmark scheme are
+///  typically known and their usage well understood.
+///
+//   Question:
+//       Do we really need/want these TypeTraits, or will static methods on another
+//   class specialized for the type suffice, i.e. Scheme<SCHEME_TYPE>?
+//       If yes, there will be little in here other than Sdc::Type, which we may want
+//   to merge into <sdc/options.h>.
+//
 template <Type SCHEME_TYPE>
 struct TypeTraits {
 

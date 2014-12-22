@@ -74,55 +74,55 @@ public:
     Options GetOptions() const { return _options; }
     void    SetOptions(const Options& newOptions) { _options = newOptions; }
 
-    //
-    //  Face-vertex masks - trivial for all current schemes:
-    //
+    ///
+    ///  \brief Face-vertex masks - trivial for all current schemes
+    ///
     template <typename FACE, typename MASK>
     void ComputeFaceVertexMask(FACE const& faceNeighborhood, MASK& faceVertexMask) const;
 
-    //
-    //  Edge-vertex masks:
-    //      If known, the Rule for the edge and/or the derived vertex can be specified to
-    //  accelerate the computation (though the Rule for the parent is trivially determined).
-    //  In particular, knowing the child rule can avoid the need to subdivide the sharpness
-    //  of the edge to see if it is a transitional crease that warrants fractional blending.
-    //
-    //  Whether to use the "Rules" in this interface is really debatable -- the parent Rule
-    //  is really based on the edge and its sharpness, while the child Rule is technically
-    //  based on the neighborhood of the child vertex, but it can be deduced from the two
-    //  child edges' sharpness.  So the Crease methods used to compute these rules differ
-    //  from those for the vertex-vertex mask.  Perhaps a simple pair of new methods for
-    //  Crease should be added specific to the edge-vertex case, i.e. one that takes a
-    //  single sharpness (for the parent rule) and one that takes a pair (for the child).
-    //
+    ///
+    ///  \brief Edge-vertex masks
+    ///      If known, the Rule for the edge and/or the derived vertex can be specified to
+    ///  accelerate the computation (though the Rule for the parent is trivially determined).
+    ///  In particular, knowing the child rule can avoid the need to subdivide the sharpness
+    ///  of the edge to see if it is a transitional crease that warrants fractional blending.
+    ///
+    ///  Whether to use the "Rules" in this interface is really debatable -- the parent Rule
+    ///  is really based on the edge and its sharpness, while the child Rule is technically
+    ///  based on the neighborhood of the child vertex, but it can be deduced from the two
+    ///  child edges' sharpness.  So the Crease methods used to compute these rules differ
+    ///  from those for the vertex-vertex mask.  Perhaps a simple pair of new methods for
+    ///  Crease should be added specific to the edge-vertex case, i.e. one that takes a
+    ///  single sharpness (for the parent rule) and one that takes a pair (for the child).
+    ///
     template <typename EDGE, typename MASK>
     void ComputeEdgeVertexMask(EDGE const& edgeNeighborhood, MASK& edgeVertexMask,
                                Crease::Rule parentRule = Crease::RULE_UNKNOWN,
                                Crease::Rule childRule = Crease::RULE_UNKNOWN) const;
 
-    //
-    //  Vertex-vertex masks:
-    //      If known, a single Rule or pair of Rules can be specified (indicating a crease
-    //  transition) to accelerate the computation.  Either no Rules, the first, or both should
-    //  be specified.  Specification of only the first Rule implies it to be true for both
-    //  (wish the compiler would allow such default value specification), i.e. no transition.
-    //  The case of knowing the parent Rule but deferring determination of the child Rule to
-    //  this method is not supported.
-    //
+    ///
+    ///  ]brief Vertex-vertex masks
+    ///      If known, a single Rule or pair of Rules can be specified (indicating a crease
+    ///  transition) to accelerate the computation.  Either no Rules, the first, or both should
+    ///  be specified.  Specification of only the first Rule implies it to be true for both
+    ///  (wish the compiler would allow such default value specification), i.e. no transition.
+    ///  The case of knowing the parent Rule but deferring determination of the child Rule to
+    ///  this method is not supported.
+    ///
     template <typename VERTEX, typename MASK>
     void ComputeVertexVertexMask(VERTEX const& vertexNeighborhood, MASK& vertexVertexMask,
                                     Crease::Rule parentRule = Crease::RULE_UNKNOWN,
                                     Crease::Rule childRule = Crease::RULE_UNKNOWN) const;
 
-    //
-    //  IN PROGRESS -- NOT YET FULLY FUNCTIONAL...
-    //
-    //  Masks for limit points and tangents -- note that these require the vertex be
-    //  suitably isolated such that its limit is well-defined.
-    //
-    //  These are stubs that are still being completed.  The position masks are now
-    //  supported but tangent masks need work.
-    //
+    ///
+    ///  \brief IN PROGRESS -- NOT YET FULLY FUNCTIONAL...
+    ///
+    ///  Masks for limit points and tangents -- note that these require the vertex be
+    ///  suitably isolated such that its limit is well-defined.
+    ///
+    ///  These are stubs that are still being completed.  The position masks are now
+    ///  supported but tangent masks need work.
+    ///
     template <typename VERTEX, typename MASK>
     void ComputeVertexLimitMask(VERTEX const& vertexNeighborhood, MASK& positionMask) const;
 
@@ -131,11 +131,11 @@ public:
                                                                   MASK& tangent1Mask,
                                                                   MASK& tangent2Mask) const;
 protected:
+
     //
     //  Supporting internal methods -- optionally implemented, depending on specialization:
     //
 
-    //
     //  Subdivision/refinement masks -- two for edge-vertices and three for vertex-vertices:
     //
     template <typename EDGE, typename MASK>
@@ -167,6 +167,7 @@ private:
     Options _options;
 
 protected:
+
     //
     //  Internal implementation support:
     //
