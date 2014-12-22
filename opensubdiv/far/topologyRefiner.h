@@ -140,18 +140,22 @@ public:
     /// \anchor templating
     ///
     /// \note Interpolation methods template both the source and destination
-    ///       data buffer functors. Client-code is expected to provide classes
-    ///       that implement functors specific to its primitive variable data
-    ///       layout. Functor classes must implement the following interface:
+    ///       data buffer classes. Client-code is expected to provide interfaces
+    ///       that implement the functions specific to its primitive variable
+    ///       data layout. Template APIs must implement the following:
     ///       <br><br> \code{.cpp}
     ///
-    ///       class MySourceFunctor {
+    ///       class MySource {
+    ///           MySource & operator[](int index);
     ///       };
     ///
-    ///       class MyDestinationFunctor {
+    ///       class MyDestination {
     ///           void Clear();
-    ///           void AddWithWeight(MySource const & src, float weight);
-    ///           void AddWithWeight(MyDestination const & src, float weight);
+    ///           void AddWithWeight(MySource const & value, float weight);
+    ///           void AddWithWeight(MyDestination const & value, float weight);
+    ///
+    ///           // optional
+    ///           void AddVaryingWithWeight(MySource const & value, float weight);
     ///       };
     ///
     ///       \endcode
@@ -159,9 +163,10 @@ public:
     ///       It is possible to implement a single interface only and use it as
     ///       both source and destination.
     ///       <br><br>
-    ///       Functors are expected to be arrays of instances, passed either as
-    ///       direct pointers or with a container (ex. std::vector<MyFunctor>).
-    ///       Some interpolation methods however allow passing functors by
+    ///       Primitive variable buffers are expected to be arrays of instances,
+    ///       passed either as direct pointers or with a container
+    ///       (ex. std::vector<MyVertex>).
+    ///       Some interpolation methods however allow passing the buffers by
     ///       reference: this allows to work transparently with arrays and
     ///       containers (or other scheme that overload the '[]' operator)
     ///       <br><br>
