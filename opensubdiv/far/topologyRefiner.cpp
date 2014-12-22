@@ -544,18 +544,6 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
     }
 }
 
-#ifdef _VTR_COMPUTE_MASK_WEIGHTS_ENABLED
-void
-TopologyRefiner::ComputeMaskWeights() {
-
-    assert(_subdivType == Sdc::TYPE_CATMARK);
-
-    for (int i = 0; i < _maxLevel; ++i) {
-        _refinements[i]->computeMaskWeights();
-    }
-}
-#endif
-
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION

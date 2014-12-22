@@ -128,10 +128,6 @@ public:
 
     /// \brief Clear the topology entirely
     void Clear();
-
-#ifdef _VTR_COMPUTE_MASK_WEIGHTS_ENABLED
-    void ComputeMaskWeights();
-#endif
     //@}
 
     //@{
