@@ -31,22 +31,6 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Sdc {
 
-//  BETA NOTES:
-//      Several of these options are being reconsidered in light of the divergence of
-//  OSD 3.0 from Hbr. In some cases the options can be expressed more clearly and free
-//  of any RenderMan legacy for future use. Details are noted below:
-//      "VtxBoundaryInterpolation"
-//          - its effect is to sharpen edges/corners, but edges are always sharpened
-//          - the "None" case serves no purpose (and would be discouraged)
-//      "FVarLinearInterpolation":
-//          - the new "corner only" mode will sharpen corners and NEVER sharpen smooth
-//            boundaries, which we believe to be expected when sharping corners -- the
-//            old "edge and corner" mode would sharpen boundaries under some situations
-//            (e.g. more than three fvar values at a vertex)
-//      "NonManifoldInterpolation":
-//          - rules still need to be defined and implemented
-//
-
 ///
 ///  \brief All supported options applying to subdivision scheme.
 ///
@@ -63,6 +47,23 @@ namespace Sdc {
 ///  scheme.  Ideally it remains a set of bit-fields (essentially an int) and so
 ///  remains light weight and easily passed down by value.
 ///
+
+//
+//  BETA NOTES:
+//      Several of these options are being reconsidered in light of the divergence of
+//  OSD 3.0 from Hbr. In some cases the options can be expressed more clearly and free
+//  of any RenderMan legacy for future use. Details are noted below:
+//      "VtxBoundaryInterpolation"
+//          - its effect is to sharpen edges/corners, but edges are always sharpened
+//          - the "None" case serves no purpose (and would be discouraged)
+//      "FVarLinearInterpolation":
+//          - the new "corner only" mode will sharpen corners and NEVER sharpen smooth
+//            boundaries, which we believe to be expected when sharping corners -- the
+//            old "edge and corner" mode would sharpen boundaries under some situations
+//            (e.g. more than three fvar values at a vertex)
+//      "NonManifoldInterpolation":
+//          - rules still need to be defined and implemented
+//
 class Options {
 public:
     enum VtxBoundaryInterpolation {

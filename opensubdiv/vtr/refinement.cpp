@@ -880,14 +880,14 @@ Refinement::subdivideEdgeSharpness() {
     Index cEdge    = getFirstChildEdgeFromEdges();
     Index cEdgeEnd = cEdge + getNumChildEdgesFromEdges();
     for ( ; cEdge < cEdgeEnd; ++cEdge) {
-        Sharpness&   cSharpness = _child->_edgeSharpness[cEdge];
+        float&       cSharpness = _child->_edgeSharpness[cEdge];
         Level::ETag& cEdgeTag   = _child->_edgeTags[cEdge];
 
         if (cEdgeTag._infSharp) {
             cSharpness = Sdc::Crease::SHARPNESS_INFINITE;
         } else if (cEdgeTag._semiSharp) {
-            Index       pEdge      = _childEdgeParentIndex[cEdge];
-            Sharpness   pSharpness = _parent->_edgeSharpness[pEdge];
+            Index pEdge      = _childEdgeParentIndex[cEdge];
+            float pSharpness = _parent->_edgeSharpness[pEdge];
 
             if (creasing.IsUniform()) {
                 cSharpness = creasing.SubdivideUniformSharpness(pSharpness);
@@ -924,14 +924,14 @@ Refinement::subdivideVertexSharpness() {
     Index cVertEnd   = cVertBegin + getNumChildVerticesFromVertices();
 
     for (Index cVert = cVertBegin; cVert < cVertEnd; ++cVert) {
-        Sharpness&   cSharpness = _child->_vertSharpness[cVert];
+        float&       cSharpness = _child->_vertSharpness[cVert];
         Level::VTag& cVertTag   = _child->_vertTags[cVert];
 
         if (cVertTag._infSharp) {
             cSharpness = Sdc::Crease::SHARPNESS_INFINITE;
         } else if (cVertTag._semiSharp) {
-            Index       pVert      = _childVertexParentIndex[cVert];
-            Sharpness   pSharpness = _parent->_vertSharpness[pVert];
+            Index pVert      = _childVertexParentIndex[cVert];
+            float pSharpness = _parent->_vertSharpness[pVert];
 
             cSharpness = creasing.SubdivideVertexSharpness(pSharpness);
 

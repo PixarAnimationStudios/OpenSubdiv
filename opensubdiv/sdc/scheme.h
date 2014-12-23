@@ -101,7 +101,7 @@ public:
                                Crease::Rule childRule = Crease::RULE_UNKNOWN) const;
 
     ///
-    ///  ]brief Vertex-vertex masks
+    ///  \brief Vertex-vertex masks
     ///      If known, a single Rule or pair of Rules can be specified (indicating a crease
     ///  transition) to accelerate the computation.  Either no Rules, the first, or both should
     ///  be specified.  Specification of only the first Rule implies it to be true for both

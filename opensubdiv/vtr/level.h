@@ -219,8 +219,8 @@ public:
     ConstLocalIndexArray getVertexEdgeLocalIndices(Index vertIndex) const;
 
     //  Replace these with access to sharpness buffers/arrays rather than elements:
-    Sharpness getEdgeSharpness(Index edgeIndex) const;
-    Sharpness getVertexSharpness(Index vertIndex) const;
+    float getEdgeSharpness(Index edgeIndex) const;
+    float getVertexSharpness(Index vertIndex) const;
     Sdc::Crease::Rule getVertexRule(Index vertIndex) const;
 
     Index findEdge(Index v0Index, Index v1Index) const;
@@ -318,8 +318,8 @@ protected:
     LocalIndexArray getVertexEdgeLocalIndices(Index vertIndex);
 
     //  Replace these with access to sharpness buffers/arrays rather than elements:
-    Sharpness& getEdgeSharpness(Index edgeIndex);
-    Sharpness& getVertexSharpness(Index vertIndex);
+    float& getEdgeSharpness(Index edgeIndex);
+    float& getVertexSharpness(Index vertIndex);
 
     //  Create, destroy and populate face-varying channels:
     int  createFVarChannel(int fvarValueCount, Sdc::Options const& options);
@@ -442,8 +442,8 @@ protected:
     std::vector<Index> _edgeFaceCountsAndOffsets;  // 2 per edge
     std::vector<Index> _edgeFaceIndices;           // varies with faces per edge
 
-    std::vector<Sharpness> _edgeSharpness;         // 1 per edge
-    std::vector<ETag>      _edgeTags;              // 1 per edge:  manifold, boundary, etc.
+    std::vector<float> _edgeSharpness;             // 1 per edge
+    std::vector<ETag>  _edgeTags;                  // 1 per edge:  manifold, boundary, etc.
 
     //  Per-vertex:
     std::vector<Index>      _vertFaceCountsAndOffsets;  // 2 per vertex
@@ -454,7 +454,7 @@ protected:
     std::vector<Index>      _vertEdgeIndices;           // varies with valence
     std::vector<LocalIndex> _vertEdgeLocalIndices;      // varies with valence, 8-bit for now
 
-    std::vector<Sharpness>  _vertSharpness;             // 1 per vertex
+    std::vector<float>      _vertSharpness;             // 1 per vertex
     std::vector<VTag>       _vertTags;                  // 1 per vertex:  manifold, Sdc::Rule, etc.
 
     //  Face-varying channels:
@@ -620,20 +620,20 @@ Level::trimEdgeFaces(Index edgeIndex, int count) {
 //
 //  Access/modify sharpness values:
 //
-inline Sharpness
+inline float
 Level::getEdgeSharpness(Index edgeIndex) const {
     return _edgeSharpness[edgeIndex];
 }
-inline Sharpness&
+inline float&
 Level::getEdgeSharpness(Index edgeIndex) {
     return _edgeSharpness[edgeIndex];
 }
 
-inline Sharpness
+inline float
 Level::getVertexSharpness(Index vertIndex) const {
     return _vertSharpness[vertIndex];
 }
-inline Sharpness&
+inline float&
 Level::getVertexSharpness(Index vertIndex) {
     return _vertSharpness[vertIndex];
 }
