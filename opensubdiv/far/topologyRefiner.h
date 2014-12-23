@@ -72,7 +72,7 @@ public:
 
     /// \brief Returns true if uniform subdivision has been applied
     bool IsUniform() const   { return _isUniform; }
-    
+
     /// \ brief Returns true if faces have been tagged as holes
     bool HasHoles() const { return _hasHoles; }
 
@@ -94,34 +94,55 @@ public:
     int GetNumFaceVerticesTotal() const;
 
     //@{
-    ///  @name High level refinement and related methods
+    ///  @name High-level refinement and related methods
     ///
 
-    //  XXXX barfowl --  need some variants here for different refinement
-    //                   options, i.e. single refine method plus struct
-    //                   RefineOptions
+    //
+    // Uniform refinement
     //
 
+    /// \brief Uniform refinement options
+    struct UniformOptions {
+
+        UniformOptions() :
+            fullTopologyInLastLevel(false) { }
+
+        unsigned int fullTopologyInLastLevel:1; ///< Skip secondary topological relationships
+                                                ///< at the highest level of refinement.
+    };
 
     /// \brief Refine the topology uniformly
     ///
-    /// @param maxLevel                 Highest level of subdivision refinement
+    /// @param maxLevel  Highest level of subdivision refinement
     ///
-    /// @param fullTopologyInLastLevel  Skip secondary topological relationships
-    ///                                 at the highest level of refinement.
+    /// @param options   Options controlling the creation of the tables
     ///
-    void RefineUniform(int maxLevel, bool fullTopologyInLastLevel = false);
+    void RefineUniform(int maxLevel, UniformOptions options=UniformOptions());
+
+    //
+    // Adaptive refinement
+    //
+
+    /// \brief Adaptive refinement options
+    struct AdaptiveOptions {
+
+        AdaptiveOptions() :
+            fullTopologyInLastLevel(false),
+            useSingleCreasePatch(false) { }
+
+        unsigned int fullTopologyInLastLevel:1, ///< Skip secondary topological relationships
+                                                ///< at the highest level of refinement.
+                     useSingleCreasePatch:1;    ///< Use 'single-crease' patch and stop
+                                                ///< isolation where applicable
+    };
 
     /// \brief Feature Adaptive topology refinement
     ///
-    /// @param maxLevel                 Highest level of subdivision refinement
+    /// @param maxLevel  Highest level of subdivision refinement
     ///
-    /// @param fullTopologyInLastLevel  Skip secondary topological relationships
-    ///                                 at the highest level of refinement.
+    /// @param options   Options controlling the creation of the tables
     ///
-    /// @param useSingleCreasePatch     Use single crease patch and stop isolation if it's applicable
-    ///
-    void RefineAdaptive(int maxLevel, bool fullTopologyInLastLevel = false, bool useSingleCreasePatch = false);
+    void RefineAdaptive(int maxLevel, AdaptiveOptions options=AdaptiveOptions());
 
     /// \brief Unrefine the topology (keep control cage)
     void Unrefine();
@@ -519,7 +540,7 @@ protected:
     //  Optionally available to get/set sharpness values:
     float& baseEdgeSharpness(Index e)   { return _levels[0]->getEdgeSharpness(e); }
     float& baseVertexSharpness(Index v) { return _levels[0]->getVertexSharpness(v); }
-    
+
     void setBaseFaceHole(Index f, bool b) { _levels[0]->setHole(f, b); _hasHoles |= b; }
 
     //  Face-varying modifiers for constructing face-varying channels:

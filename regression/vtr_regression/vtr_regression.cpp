@@ -141,21 +141,24 @@ interpolateHbrVertexData(ShapeDesc const & desc, int maxlevel) {
 }
 
 //------------------------------------------------------------------------------
-typedef OpenSubdiv::Far::TopologyRefiner               FarTopoloyRefiner;
-typedef OpenSubdiv::Far::TopologyRefinerFactory<Shape> FarTopoloyRefinerFactory;
+typedef OpenSubdiv::Far::TopologyRefiner               FarTopologyRefiner;
+typedef OpenSubdiv::Far::TopologyRefinerFactory<Shape> FarTopologyRefinerFactory;
 
-static FarTopoloyRefiner *
+static FarTopologyRefiner *
 interpolateVtrVertexData(ShapeDesc const & desc, int maxlevel, std::vector<xyzVV> & data) {
 
     // Vtr interpolation
     Shape * shape = Shape::parseObj(desc.data.c_str(), desc.scheme);
 
-    FarTopoloyRefiner * refiner =
-        FarTopoloyRefinerFactory::Create(
+    FarTopologyRefiner * refiner =
+        FarTopologyRefinerFactory::Create(
             GetSdcType(*shape), GetSdcOptions(*shape), *shape);
     assert(refiner);
 
-    refiner->RefineUniform(maxlevel, true /*full topology*/ );
+    FarTopologyRefiner::UniformOptions options;
+    options.fullTopologyInLastLevel=true;
+
+    refiner->RefineUniform(maxlevel, options);
 
     // populate coarse mesh positions
     data.resize(refiner->GetNumVerticesTotal());
@@ -200,7 +203,7 @@ struct Mapper {
 
     std::vector<LevelMap> maps;
 
-    Mapper(FarTopoloyRefiner * refiner, Hmesh * hmesh) {
+    Mapper(FarTopologyRefiner * refiner, Hmesh * hmesh) {
 
         assert(refiner and hmesh);
 
@@ -330,7 +333,7 @@ checkMesh(ShapeDesc const & desc, int maxlevel) {
     Hmesh *  hmesh =
         interpolateHbrVertexData(desc, maxlevel);
 
-    FarTopoloyRefiner * refiner =
+    FarTopologyRefiner * refiner =
         interpolateVtrVertexData(desc, maxlevel, vtrVertexData);
 
     {   // copy Hbr vertex data into a re-ordered buffer (for easier comparison)

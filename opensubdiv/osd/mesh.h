@@ -101,9 +101,16 @@ protected:
         bool fullTopologyInLastLevel = refiner.GetNumFVarChannels()>0;
 
         if (adaptive) {
-            refiner.RefineAdaptive(level, fullTopologyInLastLevel, singleCreasePatch);
+            Far::TopologyRefiner::AdaptiveOptions options;
+            options.fullTopologyInLastLevel = fullTopologyInLastLevel;
+            options.useSingleCreasePatch = singleCreasePatch;
+
+            refiner.RefineAdaptive(level, options);
         } else {
-            refiner.RefineUniform(level, fullTopologyInLastLevel);
+            Far::TopologyRefiner::UniformOptions options;
+            options.fullTopologyInLastLevel = fullTopologyInLastLevel;
+
+            refiner.RefineUniform(level, options);
         }
     }
 };

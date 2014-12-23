@@ -317,7 +317,7 @@ TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
 //  Main refinement method -- allocating and initializing levels and refinements:
 //
 void
-TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
+TopologyRefiner::RefineUniform(int maxLevel, UniformOptions options) {
 
     assert(_levels[0]->getNumVertices() > 0);  //  Make sure the base level has been initialized
 
@@ -336,7 +336,8 @@ TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
     refineOptions._sparse = false;
 
     for (int i = 1; i <= maxLevel; ++i) {
-        refineOptions._faceTopologyOnly = fullTopology ? false : (i == maxLevel);
+        refineOptions._faceTopologyOnly =
+            options.fullTopologyInLastLevel ? false : (i == maxLevel);
 
         Vtr::Level& parentLevel = getLevel(i-1);
         Vtr::Level& childLevel  = *(new Vtr::Level);
@@ -356,7 +357,7 @@ TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
 
 
 void
-TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSingleCreasePatch) {
+TopologyRefiner::RefineAdaptive(int subdivLevel, AdaptiveOptions options ) {
 
     assert(_levels[0]->getNumVertices() > 0);  //  Make sure the base level has been initialized
 
@@ -365,7 +366,7 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSing
     //
     _isUniform = false;
     _maxLevel = subdivLevel;
-    _useSingleCreasePatch = useSingleCreasePatch;
+    _useSingleCreasePatch = options.useSingleCreasePatch;
 
     //
     //  Initialize refinement options for Vtr:
@@ -373,7 +374,7 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology, bool useSing
     Vtr::Refinement::Options refineOptions;
 
     refineOptions._sparse           = true;
-    refineOptions._faceTopologyOnly = !fullTopology;
+    refineOptions._faceTopologyOnly = not options.fullTopologyInLastLevel;
 
     Sdc::Split splitType = (_subdivType == Sdc::TYPE_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
 

@@ -317,9 +317,17 @@ createMesh(ShapeDesc const & shapeDesc, int isolationLevel) {
     g_orgPositions=shape->verts;
 
     if (g_bilinear) {
-        refiner->RefineUniform(isolationLevel, /*full topo*/ true);
+        Far::TopologyRefiner::UniformOptions options;
+        options.fullTopologyInLastLevel = true;
+
+        refiner->RefineUniform(isolationLevel, options);
     } else {
-        refiner->RefineAdaptive(isolationLevel, /*full topo*/ false);
+
+        Far::TopologyRefiner::AdaptiveOptions options;
+        options.fullTopologyInLastLevel = false;
+        options.useSingleCreasePatch = false;
+
+        refiner->RefineAdaptive(isolationLevel, options);
     }
 
     int nfaces = refiner->GetNumPtexFaces();
