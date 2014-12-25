@@ -28,6 +28,7 @@
 #include "../version.h"
 
 #include "../osd/vertexDescriptor.h"
+#include "../far/patchParam.h"
 
 #include "../far/types.h"
 
@@ -49,7 +50,8 @@ evalBilinear(float u, float v,
              float * outQ);
 
 void
-evalBSpline(float u, float v,
+evalBSpline(Far::PatchParam::BitField bits,
+            float u, float v,
             Far::Index const * vertexIndices,
             VertexBufferDescriptor const & inDesc,
             float const * inQ,
@@ -59,7 +61,8 @@ evalBSpline(float u, float v,
             float * outDQV );
 
 void
-evalBoundary(float u, float v,
+evalBoundary(Far::PatchParam::BitField bits,
+             float u, float v,
              Far::Index const * vertexIndices,
              VertexBufferDescriptor const & inDesc,
              float const * inQ,
@@ -69,7 +72,8 @@ evalBoundary(float u, float v,
              float * outDQV );
 
 void
-evalCorner(float u, float v,
+evalCorner(Far::PatchParam::BitField bits,
+           float u, float v,
            Far::Index const * vertexIndices,
            VertexBufferDescriptor const & inDesc,
            float const * inQ,
@@ -79,7 +83,7 @@ evalCorner(float u, float v,
            float * outDQV );
 
 void
-evalGregoryBasis(float u, float v,
+evalGregoryBasis(Far::PatchParam::BitField bits, float u, float v,
                  Far::StencilTables const & basisStencils,
                  int stencilIndex,
                  VertexBufferDescriptor const & inDesc,
@@ -90,7 +94,7 @@ evalGregoryBasis(float u, float v,
                  float * outDQV );
 
 void
-evalGregory(float u, float v,
+evalGregory(Far::PatchParam::BitField bits, float u, float v,
             Far::Index const * vertexIndices,
             Far::Index const * vertexValenceBuffer,
             unsigned int const * quadOffsetBuffer,
@@ -103,7 +107,7 @@ evalGregory(float u, float v,
             float * outDQV );
 
 void
-evalGregoryBoundary(float u, float v,
+evalGregoryBoundary(Far::PatchParam::BitField bits, float u, float v,
                     Far::Index const * vertexIndices,
                     Far::Index const * vertexValenceBuffer,
                     unsigned int const * quadOffsetBuffer,

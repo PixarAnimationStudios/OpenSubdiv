@@ -67,68 +67,62 @@ CpuEvalLimitController::EvalLimitSample( LimitLocation const & coord,
 
     if (vertexData.in) {
 
-        float * out   = outQ ? outQ + outDesc.offset : 0,
-              * outDu = outDQU ? outDQU + outDesc.offset : 0,
-              * outDv = outDQV ? outDQV + outDesc.offset : 0;
-
         Far::PatchTables const & ptables = context->GetPatchTables();
 
-        computeSubPatchCoords(ptables.GetPatchParam(*handle), s, t);
+        Far::PatchParam pparam = ptables.GetPatchParam(*handle);
+        pparam.bitField.Normalize(s, t);
 
         Far::ConstIndexArray cvs = ptables.GetPatchVertices(*handle);
 
         Far::PatchDescriptor desc = ptables.GetPatchDescriptor(*handle);
-        switch( desc.GetType() ) {
-            case Desc::REGULAR  : evalBSpline( t, s, cvs.begin(),
+        switch (desc.GetType()) {
+            case Desc::REGULAR  : evalBSpline( pparam.bitField, s, t, cvs.begin(),
                                                vertexData.inDesc,
                                                vertexData.in,
                                                outDesc,
-                                               out, outDu, outDv );
+                                               outQ, outDQU, outDQV );
                                   break;
-
-            case Desc::BOUNDARY : evalBoundary( t, s, cvs.begin(),
+            case Desc::BOUNDARY : evalBoundary( pparam.bitField, s, t, cvs.begin(),
                                                 vertexData.inDesc,
                                                 vertexData.in,
                                                 outDesc,
-                                                out, outDu, outDv );
+                                                outQ, outDQU, outDQV );
                                   break;
-
-            case Desc::CORNER   : evalCorner( t, s, cvs.begin(),
+            case Desc::CORNER   : evalCorner( pparam.bitField, s, t, cvs.begin(),
                                               vertexData.inDesc,
                                               vertexData.in,
                                               outDesc,
-                                              out, outDu, outDv );
+                                              outQ, outDQU, outDQV );
                                   break;
-            case Desc::GREGORY  : evalGregory( t, s, cvs.begin(),
+            case Desc::GREGORY  : evalGregory( pparam.bitField, t, s, cvs.begin(),
                                                &ptables.GetVertexValenceTable()[0],
                                                ptables.GetPatchQuadOffsets(*handle).begin(),
                                                ptables.GetMaxValence(),
                                                vertexData.inDesc,
                                                vertexData.in,
                                                outDesc,
-                                               out, outDu, outDv );
+                                               outQ, outDQU, outDQV );
                                   break;
-
-            case Desc::GREGORY_BOUNDARY : evalGregoryBoundary( t, s, cvs.begin(),
+            case Desc::GREGORY_BOUNDARY : evalGregoryBoundary( pparam.bitField, t, s, cvs.begin(),
                                                                &ptables.GetVertexValenceTable()[0],
                                                                ptables.GetPatchQuadOffsets(*handle).begin(),
                                                                ptables.GetMaxValence(),
                                                                vertexData.inDesc,
                                                                vertexData.in,
                                                                outDesc,
-                                                               out, outDu, outDv );
+                                                               outQ, outDQU, outDQV );
                                           break;
             case Desc::GREGORY_BASIS : {
                                            Far::StencilTables const * stencils =
                                                ptables.GetEndCapStencilTables();
                                            assert(stencils and stencils->GetNumStencils()>0);
-                                           evalGregoryBasis( t, s,
+                                           evalGregoryBasis( pparam.bitField, s, t,
                                                              *stencils,
                                                              ptables.GetEndCapStencilIndex(*handle),
                                                              vertexData.inDesc,
                                                              vertexData.in,
                                                              vertexData.outDesc,
-                                                             out, outDu, outDv );
+                                                             outQ, outDQU, outDQV );
                                        } break;
             default:
                 assert(0);
@@ -157,44 +151,46 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
 
     Far::PatchTables const & ptables = context->GetPatchTables();
 
+    Far::PatchParam pparam = ptables.GetPatchParam(*handle);
+    pparam.bitField.Normalize(s, t);
+
     Far::PatchDescriptor desc = ptables.GetPatchDescriptor(*handle);
 
     Far::ConstIndexArray cvs = ptables.GetPatchVertices(*handle);
 
     if (vertexData.in) {
 
-        int offset = vertexData.outDesc.stride * index;
+        int offset = vertexData.outDesc.stride * index,
+            doffset = vertexData.outDesc.length * index;
 
         if (vertexData.out) {
 
+            // note : don't apply outDesc.offset here, it's done inside patch
+            // evaluation
             float * out   = vertexData.out+offset,
-                  * outDu = vertexData.outDu ? vertexData.outDu+offset : 0,
-                  * outDv = vertexData.outDv ? vertexData.outDv+offset : 0;
+                  * outDu = vertexData.outDu ? vertexData.outDu+doffset : 0,
+                  * outDv = vertexData.outDv ? vertexData.outDv+doffset : 0;
 
-            computeSubPatchCoords(ptables.GetPatchParam(*handle), s, t);
-
-            switch(desc.GetType()) {
-                case Desc::REGULAR  : evalBSpline( t, s, cvs.begin(),
+            switch (desc.GetType()) {
+                case Desc::REGULAR  : evalBSpline( pparam.bitField, s, t, cvs.begin(),
                                                    vertexData.inDesc,
                                                    vertexData.in,
                                                    vertexData.outDesc,
                                                    out, outDu, outDv );
                                       break;
-
-                case Desc::BOUNDARY : evalBoundary( t, s, cvs.begin(),
+                case Desc::BOUNDARY : evalBoundary( pparam.bitField, s, t, cvs.begin(),
                                                     vertexData.inDesc,
                                                     vertexData.in,
                                                     vertexData.outDesc,
                                                     out, outDu, outDv );
                                       break;
-
-                case Desc::CORNER   : evalCorner( t, s, cvs.begin(),
+                case Desc::CORNER   : evalCorner( pparam.bitField, s, t, cvs.begin(),
                                                   vertexData.inDesc,
                                                   vertexData.in,
                                                   vertexData.outDesc,
                                                   out, outDu, outDv );
                                       break;
-                case Desc::GREGORY  : evalGregory( t, s, cvs.begin(),
+                case Desc::GREGORY  : evalGregory( pparam.bitField, t, s, cvs.begin(),
                                                    &ptables.GetVertexValenceTable()[0],
                                                    ptables.GetPatchQuadOffsets(*handle).begin(),
                                                    ptables.GetMaxValence(),
@@ -203,8 +199,7 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
                                                    vertexData.outDesc,
                                                    out, outDu, outDv );
                                       break;
-
-                case Desc::GREGORY_BOUNDARY : evalGregoryBoundary( t, s, cvs.begin(),
+                case Desc::GREGORY_BOUNDARY : evalGregoryBoundary( pparam.bitField, t, s, cvs.begin(),
                                                                    &ptables.GetVertexValenceTable()[0],
                                                                    ptables.GetPatchQuadOffsets(*handle).begin(),
                                                                    ptables.GetMaxValence(),
@@ -217,7 +212,7 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
                                                Far::StencilTables const * stencils =
                                                    ptables.GetEndCapStencilTables();
                                                assert(stencils and stencils->GetNumStencils()>0);
-                                               evalGregoryBasis( s, t,
+                                               evalGregoryBasis( pparam.bitField, s, t,
                                                                  *stencils,
                                                                  ptables.GetEndCapStencilIndex(*handle),
                                                                  vertexData.inDesc,
@@ -230,6 +225,8 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
             }
         }
     }
+
+    pparam.bitField.Rotate(s, t);
 
     VaryingData const & varyingData = _currentBindState.varyingData;
 
@@ -282,7 +279,7 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
             // XXXX manuelk this assumes FVar data is ordered with 4 CVs / patch :
             //              bi-cubic FVar interpolation will require proper topology
             //              accessors in Far::PatchTables and this code will change
-            evalBilinear( t, s, zeroRing,
+            evalBilinear( s, t, zeroRing,
                           facevaryingData.inDesc,
                           &facevaryingData.in[handle->patchIndex*4*facevaryingData.outDesc.stride],
                           facevaryingData.outDesc,

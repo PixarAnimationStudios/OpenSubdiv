@@ -144,10 +144,10 @@ getBoxSplineWeights(float v, float w, float B[12]) {
 }
 
 void
-PatchTables::getBasisWeights(TensorBasis basis, PatchParam::BitField bits,
+PatchTables::GetBasisWeights(TensorBasis basis, PatchParam::BitField bits,
     float s, float t, float point[16], float deriv1[16], float deriv2[16]) {
 
-    int const rots[4][16] =
+    static int const rots[4][16] =
         { { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
           { 12, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3 },
           { 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 },

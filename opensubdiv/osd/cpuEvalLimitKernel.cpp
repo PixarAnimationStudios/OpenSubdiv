@@ -23,6 +23,7 @@
 //
 
 #include "../osd/cpuEvalLimitKernel.h"
+#include "../far/patchTables.h"
 #include "../far/stencilTables.h"
 
 #include <math.h>
@@ -68,6 +69,30 @@ evalBilinear(float u, float v,
     }
 }
 
+#ifdef TENSOR_PRODUCT_CUBIC_SPLINES
+
+// manuelk code was refactored to use the matrix formulation of cubic splines
+// exposed in Far::PatchTables for consistency. I am keeping these temporarily
+// for reference.
+
+inline void
+evalCubicBezier(float u, float B[4], float BU[3]) {
+    float u2 = u*u,
+          w0 = 1.0f - u,
+          w2 = w0 * w0;
+
+    B[0] = w0*w2;
+    B[1] = 3.0f * u * w2;
+    B[2] = 3.0f * u2 * w0;
+    B[3] = u*u2;
+
+    if (BU) {
+        BU[0] = w2;
+        BU[1] = 2.0f * u * w0;
+        BU[2] = u2;
+    }
+}
+
 inline void
 evalCubicBSpline(float u, float B[4], float BU[4]) {
     float t = u;
@@ -90,101 +115,107 @@ evalCubicBSpline(float u, float B[4], float BU[4]) {
     }
 }
 
+inline void
+univar4x4(float u, float B[4], float D[4]) {
 
+    float t = u;
+    float s = 1.0f - u;
+
+    float A0 = s * s;
+    float A1 = 2 * s * t;
+    float A2 = t * t;
+
+    B[0] = s * A0;
+    B[1] = t * A0 + s * A1;
+    B[2] = t * A1 + s * A2;
+    B[3] = t * A2;
+
+    if (D) {
+        D[0] =    - A0;
+        D[1] = A0 - A1;
+        D[2] = A1 - A2;
+        D[3] = A2;
+    }
+}
+
+#endif
 
 void
-evalBSpline(float u, float v,
+evalBSpline(Far::PatchParam::BitField bits,
+            float s, float t,
             Far::Index const * vertexIndices,
             VertexBufferDescriptor const & inDesc,
             float const * inQ,
             VertexBufferDescriptor const & outDesc,
             float * outQ,
-            float * outDQU,
-            float * outDQV ) {
+            float * outDQ1,
+            float * outDQ2 ) {
 
     // make sure that we have enough space to store results
     assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
-    bool evalDeriv = (outDQU or outDQV);
-
-    float B[4], D[4],
-          *BU=(float*)alloca(inDesc.length*4*sizeof(float)),
-          *DU=(float*)alloca(inDesc.length*4*sizeof(float));
-
-    memset(BU, 0, inDesc.length*4*sizeof(float));
-    memset(DU, 0, inDesc.length*4*sizeof(float));
-
-    evalCubicBSpline(u, B, evalDeriv ? D : 0);
+    float Q[16], dQ1[16], dQ2[16];
+    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BSPLINE, bits, s, t,
+        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
 
     float const * inOffset = inQ + inDesc.offset;
 
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
+    outQ += outDesc.offset;
 
-            float const * in = inOffset + vertexIndices[i+j*4]*inDesc.stride;
-
-            for (int k=0; k<inDesc.length; ++k) {
-
-                BU[i*inDesc.length+k] += in[k] * B[j];
-
-                if (evalDeriv)
-                    DU[i*inDesc.length+k] += in[k] * D[j];
-            }
-        }
+    memset(outQ, 0, inDesc.length*sizeof(float));
+    if (outDQ1) {
+        memset(outDQ1, 0, inDesc.length*sizeof(float));
+    }
+    if (outDQ2) {
+        memset(outDQ2, 0, inDesc.length*sizeof(float));
     }
 
-    evalCubicBSpline(v, B, evalDeriv ? D : 0);
 
-    float * Q = outQ + outDesc.offset,
-          * dQU = outDQU + outDesc.offset,
-          * dQV = outDQV + outDesc.offset;
+    for (int i=0; i<16; ++i) {
 
-    // clear result
-    memset(Q, 0, inDesc.length*sizeof(float));
-    if (evalDeriv) {
-        memset(dQU, 0, inDesc.length*sizeof(float));
-        memset(dQV, 0, inDesc.length*sizeof(float));
-    }
+        float const * in = inOffset + vertexIndices[i]*inDesc.stride;
 
-    for (int i=0; i<4; ++i) {
         for (int k=0; k<inDesc.length; ++k) {
-            Q[k] += BU[inDesc.length*i+k] * B[i];
-
-            if (evalDeriv) {
-                dQU[k] += DU[inDesc.length*i+k] * B[i];
-                dQV[k] += BU[inDesc.length*i+k] * D[i];
+            outQ[k] += Q[i] * in[k];
+            if (outDQ1) {
+                outDQ1[k] += dQ1[i] * in[k];
+            }
+            if (outDQ2) {
+                outDQ2[k] += dQ2[i] * in[k];
             }
         }
     }
 }
 
-
-
 void
-evalBoundary(float u, float v,
+evalBoundary(Far::PatchParam::BitField bits,
+             float s, float t,
              Far::Index const * vertexIndices,
              VertexBufferDescriptor const & inDesc,
              float const * inQ,
              VertexBufferDescriptor const & outDesc,
              float * outQ,
-             float * outDQU,
-             float * outDQV ) {
+             float * outDQ1,
+             float * outDQ2 ) {
 
+    // make sure that we have enough space to store results
     assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
-    bool evalDeriv = (outDQU or outDQV);
-
-    float B[4], D[4],
-          *BU=(float*)alloca(inDesc.length*4*sizeof(float)),
-          *DU=(float*)alloca(inDesc.length*4*sizeof(float));
-
-    memset(BU, 0, inDesc.length*4*sizeof(float));
-    memset(DU, 0, inDesc.length*4*sizeof(float));
-
-    evalCubicBSpline(u, B, evalDeriv ? D : 0);
+    float Q[16], dQ1[16], dQ2[16];
+    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BSPLINE, bits, s, t,
+        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
 
     float const * inOffset = inQ + inDesc.offset;
 
+    outQ += outDesc.offset;
+
+    memset(outQ, 0, inDesc.length*sizeof(float));
+    if (outDQ1) {
+        memset(outDQ1, 0, inDesc.length*sizeof(float));
+    }
+    if (outDQ2) {
+        memset(outDQ2, 0, inDesc.length*sizeof(float));
+    }
 
     // mirror the missing vertices (M)
     //
@@ -217,77 +248,52 @@ evalBoundary(float u, float v,
         M[3*inDesc.length+k] = 2.0f*v3[k] - v7[k];  // M4 = 2*v2 - v1
     }
 
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
+    for (int i=0; i<16; ++i) {
 
-            // swap the missing row of verts with our mirrored ones
-            float const * in = j==0 ? &M[i*inDesc.length] :
-                inOffset + vertexIndices[i+(j-1)*4]*inDesc.stride;
+        float const * in = i < 4 ?
+            M + i*inDesc.length : inOffset + vertexIndices[i-4]*inDesc.stride;
 
-            for (int k=0; k<inDesc.length; ++k) {
-
-                BU[i*inDesc.length+k] += in[k] * B[j];
-
-                if (evalDeriv)
-                    DU[i*inDesc.length+k] += in[k] * D[j];
-            }
-        }
-    }
-
-    evalCubicBSpline(v, B, evalDeriv ? D : 0);
-
-    float * Q = outQ + outDesc.offset,
-          * dQU = outDQU + outDesc.offset,
-          * dQV = outDQV + outDesc.offset;
-
-    // clear result
-    memset(Q, 0, inDesc.length*sizeof(float));
-    if (evalDeriv) {
-        memset(dQU, 0, inDesc.length*sizeof(float));
-        memset(dQV, 0, inDesc.length*sizeof(float));
-    }
-
-    for (int i=0; i<4; ++i) {
         for (int k=0; k<inDesc.length; ++k) {
-            Q[k] += BU[inDesc.length*i+k] * B[i];
-
-            if (evalDeriv) {
-                dQU[k] += DU[inDesc.length*i+k] * B[i];
-                dQV[k] += BU[inDesc.length*i+k] * D[i];
+            outQ[k] += Q[i] * in[k];
+            if (outDQ1) {
+                outDQ1[k] += dQ1[i] * in[k];
+            }
+            if (outDQ2) {
+                outDQ2[k] += dQ2[i] * in[k];
             }
         }
     }
 }
 
-
-
 void
-evalCorner(float u, float v,
+evalCorner(Far::PatchParam::BitField bits,
+           float s, float t,
            Far::Index const * vertexIndices,
            VertexBufferDescriptor const & inDesc,
            float const * inQ,
            VertexBufferDescriptor const & outDesc,
            float * outQ,
-           float * outDQU,
-           float * outDQV ) {
+           float * outDQ1,
+           float * outDQ2 ) {
 
+    // make sure that we have enough space to store results
     assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
-    int length = inDesc.length;
+    float Q[16], dQ1[16], dQ2[16];
+    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BSPLINE, bits, s, t,
+        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
 
-    bool evalDeriv = (outDQU or outDQV);
+    float const * inOffset = inQ + inDesc.offset;
 
-    float B[4], D[4],
-          *BU=(float*)alloca(length*4*sizeof(float)),
-          *DU=(float*)alloca(length*4*sizeof(float));
+    outQ += outDesc.offset;
 
-    memset(BU, 0, length*4*sizeof(float));
-    memset(DU, 0, length*4*sizeof(float));
-
-
-    evalCubicBSpline(u, B, evalDeriv ? D : 0);
-
-    float const *inOffset = inQ + inDesc.offset;
+    memset(outQ, 0, inDesc.length*sizeof(float));
+    if (outDQ1) {
+        memset(outDQ1, 0, inDesc.length*sizeof(float));
+    }
+    if (outDQ2) {
+        memset(outDQ2, 0, inDesc.length*sizeof(float));
+    }
 
     // mirror the missing vertices (M)
     //
@@ -302,7 +308,7 @@ evalCorner(float u, float v,
     //   |.....|.....|     |
     //  v6 -- v7 -- v8 -- M6
 
-    float *M = (float*)alloca(length*7*sizeof(float));
+    float *M = (float*)alloca(inDesc.length*7*sizeof(float));
 
     float const *v0 = inOffset + vertexIndices[0]*inDesc.stride,
                 *v1 = inOffset + vertexIndices[1]*inDesc.stride,
@@ -314,88 +320,47 @@ evalCorner(float u, float v,
                 *v8 = inOffset + vertexIndices[8]*inDesc.stride;
 
     for (int k=0; k<inDesc.length; ++k) {
-        M[0*length+k] = 2.0f*v0[k] - v3[k];  // M0 = 2*v0 - v3
-        M[1*length+k] = 2.0f*v1[k] - v4[k];  // M0 = 2*v1 - v4
-        M[2*length+k] = 2.0f*v2[k] - v5[k];  // M1 = 2*v2 - v5
+        M[0*inDesc.length+k] = 2.0f*v0[k] - v3[k];  // M0 = 2*v0 - v3
+        M[1*inDesc.length+k] = 2.0f*v1[k] - v4[k];  // M0 = 2*v1 - v4
+        M[2*inDesc.length+k] = 2.0f*v2[k] - v5[k];  // M1 = 2*v2 - v5
 
-        M[4*length+k] = 2.0f*v2[k] - v1[k];  // M4 = 2*v2 - v1
-        M[5*length+k] = 2.0f*v5[k] - v4[k];  // M5 = 2*v5 - v4
-        M[6*length+k] = 2.0f*v8[k] - v7[k];  // M6 = 2*v8 - v7
+        M[4*inDesc.length+k] = 2.0f*v2[k] - v1[k];  // M4 = 2*v2 - v1
+        M[5*inDesc.length+k] = 2.0f*v5[k] - v4[k];  // M5 = 2*v5 - v4
+        M[6*inDesc.length+k] = 2.0f*v8[k] - v7[k];  // M6 = 2*v8 - v7
 
         // M3 = 2*M2 - M1
-        M[3*length+k] = 2.0f*M[2*length+k] - M[1*length+k];
+        M[3*inDesc.length+k] = 2.0f*M[2*inDesc.length+k] - M[1*inDesc.length+k];
     }
 
     for (int i=0; i<4; ++i) {
         for (int j=0; j<4; ++j) {
 
-            float const * in = NULL;
-
+            float const * in = 0;
             if (j==0) { // (2)
-                in = &M[i*inDesc.length];
+                in = M + i*inDesc.length;
             } else if (i==3) {
-                in = &M[(j+3)*inDesc.length];
+                in = M + (j+3)*inDesc.length;
             } else {
                 in = inOffset + vertexIndices[i+(j-1)*3]*inDesc.stride;
             }
-
             assert(in);
 
-            for (int k=0; k<length; ++k) {
-
-                BU[i*length+k] += in[k] * B[j];
-
-                if (evalDeriv)
-                    DU[i*length+k] += in[k] * D[j];
+            int idx = j*4+i;
+            for (int k=0; k<inDesc.length; ++k) {
+                outQ[k] += Q[idx] * in[k];
+                if (outDQ1) {
+                    outDQ1[k] += dQ1[idx] * in[k];
+                }
+                if (outDQ2) {
+                    outDQ2[k] += dQ2[idx] * in[k];
+                }
             }
         }
-    }
-
-    evalCubicBSpline(v, B, evalDeriv ? D : 0);
-
-    float * Q = outQ + outDesc.offset,
-          * dQU = outDQU + outDesc.offset,
-          * dQV = outDQV + outDesc.offset;
-
-    // clear result
-    memset(Q, 0, length*sizeof(float));
-    if (evalDeriv) {
-        memset(dQU, 0, length*sizeof(float));
-        memset(dQV, 0, length*sizeof(float));
-    }
-
-    for (int i=0; i<4; ++i) {
-        for (int k=0; k<length; ++k) {
-            Q[k] += BU[length*i+k] * B[i];
-
-            if (evalDeriv) {
-                dQU[k] += DU[length*i+k] * B[i];
-                dQV[k] += BU[length*i+k] * D[i];
-            }
-        }
-    }
-}
-
-inline void
-evalCubicBezier(float u, float B[4], float BU[3]) {
-    float u2 = u*u,
-          w0 = 1.0f - u,
-          w2 = w0 * w0;
-
-    B[0] = w0*w2;
-    B[1] = 3.0f * u * w2;
-    B[2] = 3.0f * u2 * w0;
-    B[3] = u*u2;
-
-    if (BU) {
-        BU[0] = w2;
-        BU[1] = 2.0f * u * w0;
-        BU[2] = u2;
     }
 }
 
 void
-evalGregoryBasis(float u, float v,
+evalGregoryBasis(Far::PatchParam::BitField bits, float u, float v,
                  Far::StencilTables const & basisStencils,
                  int stencilIndex,
                  VertexBufferDescriptor const & inDesc,
@@ -409,54 +374,21 @@ evalGregoryBasis(float u, float v,
 
     int length = inDesc.length;
 
-    bool evalDeriv = (outDQU or outDQV);
-
-    float S[4], T[4], DS[3], DT[3];
-    evalCubicBezier(u, S, evalDeriv ? DS : 0);
-    evalCubicBezier(v, T, evalDeriv ? DT : 0);
-
     float BU[16], DU[16], DV[16];
-    memset(BU, 0, 16*sizeof(float));
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-            BU[4*i+j] += S[j] * T[i];
-        }
-    }
-
-    if (evalDeriv) {
-        memset(DU, 0, 16*sizeof(float));
-        for (int i=0; i<4; ++i) {
-            float pw = 0.0f;
-            for (int j=0; j<3; ++j) {
-                float w = DS[j] * T[i];
-                DU[4*i+j] += pw - w;
-                pw = w;
-            }
-            DU[4*i+3]+=pw;
-        }
-        memset(DV, 0, 16*sizeof(float));
-        for (int j=0; j<4; ++j) {
-            float pw = 0.0f;
-            for (int i=0; i<3; ++i) {
-                float w = S[j] * DT[i];
-                DV[4*i+j] += pw - w;
-                pw = w;
-            }
-            DV[12+j]+=pw;
-        }
-    }
+    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BEZIER, bits, u, v,
+        outQ ? BU : 0, outDQU ? DU : 0, outDQV ? DV : 0);
 
     float const *inOffset = inQ + inDesc.offset;
 
-    float * Q = outQ + outDesc.offset,
-          * dQU = outDQU + outDesc.offset,
-          * dQV = outDQV + outDesc.offset;
+    float * Q = outQ + outDesc.offset;
 
     // clear result
     memset(Q, 0, length*sizeof(float));
-    if (evalDeriv) {
-        memset(dQU, 0, length*sizeof(float));
-        memset(dQV, 0, length*sizeof(float));
+    if (outDQU) {
+        memset(outDQU, 0, length*sizeof(float));
+    }
+    if (outDQV) {
+        memset(outDQV, 0, length*sizeof(float));
     }
 
     float uu = 1-u,
@@ -531,12 +463,15 @@ evalGregoryBasis(float u, float v,
                     float const * in = inOffset + srcIndices[j]*inDesc.stride;
                     float w = BU[i] * w0 * srcWeights[j],
                           dw1 = DU[i] * w0 * srcWeights[j],
-                          dw2 = DV[i] * w0 * srcWeights[j];
+                          dw2 = DV[i] * w0 * srcWeights[
+j];
                     for (int k=0; k<length; ++k) {
                         Q[k] += in[k] * w;
-                        if (evalDeriv) {
-                            dQU[k] += in[k] * dw1;
-                            dQV[k] += in[k] * dw2;
+                        if (outDQU) {
+                            outDQU[k] += in[k] * dw1;
+                        }
+                        if (outDQV) {
+                            outDQV[k] += in[k] * dw2;
                         }
                     }
                 }
@@ -551,9 +486,11 @@ evalGregoryBasis(float u, float v,
                           dw2 = DV[i] * w1 * srcWeights[j];
                     for (int k=0; k<length; ++k) {
                         Q[k] += in[k] * w;
-                        if (evalDeriv) {
-                            dQU[k] += in[k] * dw1;
-                            dQV[k] += in[k] * dw2;
+                        if (outDQU) {
+                            outDQU[k] += in[k] * dw1;
+                        }
+                        if (outDQV) {
+                            outDQV[k] += in[k] * dw2;
                         }
                     }
                 }
@@ -570,16 +507,17 @@ evalGregoryBasis(float u, float v,
                       dw2 = DV[i] * srcWeights[j];
                 for (int k=0; k<length; ++k) {
                     Q[k] += in[k] * w;
-                    if (evalDeriv) {
-                        dQU[k] += in[k] * dw1;
-                        dQV[k] += in[k] * dw2;
+                    if (outDQU) {
+                        outDQU[k] += in[k] * dw1;
+                    }
+                    if (outDQV) {
+                        outDQV[k] += in[k] * dw2;
                     }
                 }
             }
         }
     }
 }
-
 
 /*
 static float ef[7] = {
@@ -597,29 +535,6 @@ static float ef[27] = {
     0.0569311f, 0.0548745f, 0.0529621f
 };
 
-inline void
-univar4x4(float u, float B[4], float D[4]) {
-
-    float t = u;
-    float s = 1.0f - u;
-
-    float A0 = s * s;
-    float A1 = 2 * s * t;
-    float A2 = t * t;
-
-    B[0] = s * A0;
-    B[1] = t * A0 + s * A1;
-    B[2] = t * A1 + s * A2;
-    B[3] = t * A2;
-
-    if (D) {
-        D[0] =    - A0;
-        D[1] = A0 - A1;
-        D[2] = A1 - A2;
-        D[3] = A2;
-    }
-}
-
 inline float
 csf(Far::Index n, Far::Index j) {
     if (j%2 == 0) {
@@ -631,7 +546,7 @@ csf(Far::Index n, Far::Index j) {
 
 
 void
-evalGregory(float u, float v,
+evalGregory(Far::PatchParam::BitField bits, float u, float v,
             Far::Index const * vertexIndices,
             Far::Index const * vertexValenceBuffer,
             unsigned int const * quadOffsetBuffer,
@@ -640,15 +555,11 @@ evalGregory(float u, float v,
             float const * inQ,
             VertexBufferDescriptor const & outDesc,
             float * outQ,
-            float * outDQU,
-            float * outDQV ) {
-
-    // vertex
+            float * outDQ1,
+            float * outDQ2 ) {
 
     // make sure that we have enough space to store results
     assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
-
-    bool evalDeriv = (outDQU or outDQV);
 
     int valences[4], length=inDesc.length;
 
@@ -724,8 +635,6 @@ evalGregory(float u, float v,
             e1[vofs+k] *= ef[valence-3];
         }
     }
-
-    // tess control
 
     // Control Vertices based on :
     // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation"
@@ -839,49 +748,32 @@ evalGregory(float u, float v,
     memcpy(q+14*length, p[11], length*sizeof(float));
     memcpy(q+15*length, p[10], length*sizeof(float));
 
-    float B[4], D[4],
-          *BU=(float*)alloca(inDesc.length*4*sizeof(float)),
-          *DU=(float*)alloca(inDesc.length*4*sizeof(float));
-    memset(BU, 0, inDesc.length*4*sizeof(float));
-    memset(DU, 0, inDesc.length*4*sizeof(float));
+    float Q[16], dQ1[16], dQ2[16];
+    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BEZIER, bits, u, v,
+        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
 
-    univar4x4(u, B, evalDeriv ? D : 0);
+    outQ += outDesc.offset;
 
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-
-            float const * in = q + (i+j*4)*length;
-
-            for (int k=0; k<inDesc.length; ++k) {
-
-                BU[i*inDesc.length+k] += in[k] * B[j];
-
-                if (evalDeriv)
-                    DU[i*inDesc.length+k] += in[k] * D[j];
-            }
-        }
+    memset(outQ, 0, inDesc.length*sizeof(float));
+    if (outDQ1) {
+        memset(outDQ1, 0, inDesc.length*sizeof(float));
+    }
+    if (outDQ2) {
+        memset(outDQ2, 0, inDesc.length*sizeof(float));
     }
 
-    univar4x4(v, B, evalDeriv ? D : 0);
 
-    float * Q = outQ + outDesc.offset;
-    float * dQU = outDQU + outDesc.offset;
-    float * dQV = outDQV + outDesc.offset;
+    for (int i=0; i<16; ++i) {
 
-    // clear result
-    memset(Q, 0, outDesc.length*sizeof(float));
-    if (evalDeriv) {
-        memset(dQU, 0, outDesc.length*sizeof(float));
-        memset(dQV, 0, outDesc.length*sizeof(float));
-    }
+        float const * in = q + i*length;
 
-    for (int i=0; i<4; ++i) {
         for (int k=0; k<inDesc.length; ++k) {
-            Q[k] += BU[inDesc.length*i+k] * B[i];
-
-            if (evalDeriv) {
-                dQU[k] += DU[inDesc.length*i+k] * B[i];
-                dQV[k] += BU[inDesc.length*i+k] * D[i];
+            outQ[k] += Q[i] * in[k];
+            if (outDQ1) {
+                outDQ1[k] += dQ1[i] * in[k];
+            }
+            if (outDQ2) {
+                outDQ2[k] += dQ2[i] * in[k];
             }
         }
     }
@@ -889,7 +781,7 @@ evalGregory(float u, float v,
 
 
 void
-evalGregoryBoundary(float u, float v,
+evalGregoryBoundary(Far::PatchParam::BitField bits, float u, float v,
                     Far::Index const * vertexIndices,
                     Far::Index const * vertexValenceBuffer,
                     unsigned int const * quadOffsetBuffer,
@@ -898,15 +790,13 @@ evalGregoryBoundary(float u, float v,
                     float const * inQ,
                     VertexBufferDescriptor const & outDesc,
                     float * outQ,
-                    float * outDQU,
-                    float * outDQV ) {
+                    float * outDQ1,
+                    float * outDQ2 ) {
 
     // vertex
 
     // make sure that we have enough space to store results
     assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
-
-    bool evalDeriv = (outDQU or outDQV);
 
     int valences[4], zerothNeighbors[4], length=inDesc.length;
 
@@ -1245,49 +1135,32 @@ evalGregoryBoundary(float u, float v,
     memcpy(q+14*length, p[11], length*sizeof(float));
     memcpy(q+15*length, p[10], length*sizeof(float));
 
-    float B[4], D[4],
-          *BU=(float*)alloca(inDesc.length*4*sizeof(float)),
-          *DU=(float*)alloca(inDesc.length*4*sizeof(float));
-    memset(BU, 0, inDesc.length*4*sizeof(float));
-    memset(DU, 0, inDesc.length*4*sizeof(float));
+    float Q[16], dQ1[16], dQ2[16];
+    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BEZIER, bits, u, v,
+        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
 
-    univar4x4(u, B, evalDeriv ? D : 0);
+    outQ += outDesc.offset;
 
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-
-            float const * in = q + (i+j*4)*length;
-
-            for (int k=0; k<inDesc.length; ++k) {
-
-                BU[i*inDesc.length+k] += in[k] * B[j];
-
-                if (evalDeriv)
-                    DU[i*inDesc.length+k] += in[k] * D[j];
-            }
-        }
+    memset(outQ, 0, inDesc.length*sizeof(float));
+    if (outDQ1) {
+        memset(outDQ1, 0, inDesc.length*sizeof(float));
+    }
+    if (outDQ2) {
+        memset(outDQ2, 0, inDesc.length*sizeof(float));
     }
 
-    univar4x4(v, B, evalDeriv ? D : 0);
 
-    float * Q = outQ + outDesc.offset;
-    float * dQU = outDQU + outDesc.offset;
-    float * dQV = outDQV + outDesc.offset;
+    for (int i=0; i<16; ++i) {
 
-    // clear result
-    memset(Q, 0, outDesc.length*sizeof(float));
-    if (evalDeriv) {
-        memset(dQU, 0, outDesc.length*sizeof(float));
-        memset(dQV, 0, outDesc.length*sizeof(float));
-    }
+        float const * in = q + i*length;
 
-    for (int i=0; i<4; ++i) {
         for (int k=0; k<inDesc.length; ++k) {
-            Q[k] += BU[inDesc.length*i+k] * B[i];
-
-            if (evalDeriv) {
-                dQU[k] += DU[inDesc.length*i+k] * B[i];
-                dQV[k] += BU[inDesc.length*i+k] * D[i];
+            outQ[k] += Q[i] * in[k];
+            if (outDQ1) {
+                outDQ1[k] += dQ1[i] * in[k];
+            }
+            if (outDQ2) {
+                outDQ2[k] += dQ2[i] * in[k];
             }
         }
     }

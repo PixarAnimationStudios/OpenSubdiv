@@ -412,24 +412,22 @@ public:
     template <class T, class U> void Limit(PatchHandle const & handle,
         float s, float t, T const & src, U & dst) const;
 
+    enum TensorBasis {
+        BASIS_BEZIER,    ///< Bi-cubic bezier patch basis
+        BASIS_BSPLINE    ///< Bi-cubic bspline patch basis
+    };
+
+    /// \brief Returns bi-cubic weights matrix for a given (s,t) location
+    /// on the patch
+    static void GetBasisWeights(TensorBasis basis, PatchParam::BitField bits,
+        float s, float t, float point[16], float deriv1[16], float deriv2[16]);
+
 protected:
 
     friend class PatchTablesFactory;
 
     // Factory constructor
     PatchTables(int maxvalence);
-
-    enum TensorBasis {
-        BASIS_BEZIER,
-        BASIS_BSPLINE
-    };
-
-    // Returns bi-cubic interpolation coefficients for a given (s,t) location
-    // on a b-spline patch
-    static void getBasisWeights(TensorBasis basis, PatchParam::BitField bits,
-        float s, float t, float point[16], float deriv1[16], float deriv2[16]);
-
-protected:
 
     void reservePatchArrays(int numPatchArrays);
 
@@ -752,7 +750,7 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
 
     if (ptype>=PatchDescriptor::REGULAR and ptype<=PatchDescriptor::CORNER) {
 
-        getBasisWeights(BASIS_BSPLINE, bits, s, t, Q, Qd1, Qd2);
+        GetBasisWeights(BASIS_BSPLINE, bits, s, t, Q, Qd1, Qd2);
 
         ConstIndexArray cvs = GetPatchVertices(handle);
 
@@ -781,7 +779,7 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
 
         assert(_endcapStencilTables);
 
-        getBasisWeights(BASIS_BEZIER, bits, s, t, Q, Qd1, Qd2);
+        GetBasisWeights(BASIS_BEZIER, bits, s, t, Q, Qd1, Qd2);
 
         InterpolateGregoryPatch(_endcapStencilTables, handle.vertIndex,
             s, t, Q, Qd1, Qd2, src, dst);

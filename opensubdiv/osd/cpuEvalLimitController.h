@@ -74,7 +74,9 @@ public:
     ///
     /// @param inQ     input vertex data
     ///
-    /// @param oDesc   data descriptor shared by all output data buffers
+    /// @param oDesc   data descriptor for the outQ data buffer
+    ///                -- derivative buffers do not have a descriptor and
+    ///                cannot be offset or padded with a stride (yet ?)
     ///
     /// @param outQ    output vertex data
     ///
@@ -102,7 +104,7 @@ public:
     ///
     /// @param inQ    input varying data
     ///
-    /// @param oDesc  data descriptor shared by all output data buffers
+    /// @param oDesc  data descriptor for the outQ data buffer
     ///
     /// @param outQ   output varying data
     ///
@@ -127,7 +129,7 @@ public:
     ///
     /// @param inQ    input face-varying data
     ///
-    /// @param oDesc  data descriptor shared by all output data buffers
+    /// @param oDesc  data descriptor for the outQ data buffer
     ///
     /// @param outQ   output face-varying data
     ///
@@ -153,7 +155,9 @@ public:
     ///
     /// @param context  the EvalLimitContext that the controller will evaluate
     ///
-    /// @param outDesc  data descriptor (offset, length, stride)
+    /// @param outDesc  data descriptor for the outQ data buffer
+    ///                 -- derivative buffers do not have a descriptor and
+    ///                 cannot be offset or padded with a stride (yet ?)
     ///
     /// @param outQ    output vertex data
     ///

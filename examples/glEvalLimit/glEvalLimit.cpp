@@ -415,12 +415,12 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         }
 
         delete g_dQs;
-        g_dQs = Osd::CpuGLVertexBuffer::Create(6,g_nparticles);
-        memset( g_dQs->BindCpuBuffer(), 0, g_nparticles*6*sizeof(float));
+        g_dQs = Osd::CpuGLVertexBuffer::Create(3,g_nparticles);
+        memset( g_dQs->BindCpuBuffer(), 0, g_nparticles*3*sizeof(float));
 
         delete g_dQt;
-        g_dQt = Osd::CpuGLVertexBuffer::Create(6,g_nparticles);
-        memset( g_dQt->BindCpuBuffer(), 0, g_nparticles*6*sizeof(float));
+        g_dQt = Osd::CpuGLVertexBuffer::Create(3,g_nparticles);
+        memset( g_dQt->BindCpuBuffer(), 0, g_nparticles*3*sizeof(float));
     }
 
     updateGeom();
@@ -439,8 +439,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 }
 
 //------------------------------------------------------------------------------
-struct Program
-{
+struct Program {
     GLuint program;
     GLuint uniformModelViewProjectionMatrix;
     GLuint attrPosition;
@@ -449,8 +448,7 @@ struct Program
 
 //------------------------------------------------------------------------------
 static void
-checkGLErrors(std::string const & where = "")
-{
+checkGLErrors(std::string const & where = "") {
     GLuint err;
     while ((err = glGetError()) != GL_NO_ERROR) {
 
@@ -462,8 +460,7 @@ checkGLErrors(std::string const & where = "")
 
 //------------------------------------------------------------------------------
 static GLuint
-compileShader(GLenum shaderType, const char *source)
-{
+compileShader(GLenum shaderType, const char *source) {
     GLuint shader = glCreateShader(shaderType);
     glShaderSource(shader, 1, &source, NULL);
     glCompileShader(shader);
@@ -473,8 +470,8 @@ compileShader(GLenum shaderType, const char *source)
 
 //------------------------------------------------------------------------------
 static bool
-linkDefaultProgram()
-{
+linkDefaultProgram() {
+
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     #define GLSL_VERSION_DEFINE "#version 400\n"
 #else
@@ -537,8 +534,7 @@ linkDefaultProgram()
 
 //------------------------------------------------------------------------------
 static inline void
-setSharpnessColor(float s, float *r, float *g, float *b)
-{
+setSharpnessColor(float s, float *r, float *g, float *b) {
     //  0.0       2.0       4.0
     // green --- yellow --- red
     *r = std::min(1.0f, s * 0.5f);
