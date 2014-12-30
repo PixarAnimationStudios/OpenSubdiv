@@ -115,7 +115,7 @@ int main(int, char **) {
 
     // Uniformly refine the topolgy up to 'maxlevel'.
     int maxlevel = 3;
-    refiner->RefineUniform( maxlevel );
+    refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
 
     // Use the FarStencilTables factory to create discrete stencil tables

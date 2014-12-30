@@ -663,16 +663,14 @@ createVtrMesh(Shape * shape, int maxlevel) {
         OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
 
     if (g_Adaptive) {
-        OpenSubdiv::Far::TopologyRefiner::AdaptiveOptions options;
+        OpenSubdiv::Far::TopologyRefiner::AdaptiveOptions options(maxlevel);
         options.fullTopologyInLastLevel = true;
         options.useSingleCreasePatch = false;
-
-        refiner->RefineAdaptive(maxlevel, options);
+        refiner->RefineAdaptive(options);
     } else {
-        OpenSubdiv::Far::TopologyRefiner::UniformOptions options;
+        OpenSubdiv::Far::TopologyRefiner::UniformOptions options(maxlevel);
         options.fullTopologyInLastLevel = true;
-
-        refiner->RefineUniform(maxlevel, options);
+        refiner->RefineUniform(options);
     }
 
     //

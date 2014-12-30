@@ -104,20 +104,20 @@ public:
     /// \brief Uniform refinement options
     struct UniformOptions {
 
-        UniformOptions() :
+        UniformOptions(int level) :
+            refinementLevel(level),
             fullTopologyInLastLevel(false) { }
 
-        unsigned int fullTopologyInLastLevel:1; ///< Skip secondary topological relationships
+        unsigned int refinementLevel:4,                   ///< Number of refinement iterations
+                     fullTopologyInLastLevel:1; ///< Skip secondary topological relationships
                                                 ///< at the highest level of refinement.
     };
 
     /// \brief Refine the topology uniformly
     ///
-    /// @param maxLevel  Highest level of subdivision refinement
+    /// @param options   Options controlling uniform refinement
     ///
-    /// @param options   Options controlling the creation of the tables
-    ///
-    void RefineUniform(int maxLevel, UniformOptions options=UniformOptions());
+    void RefineUniform(UniformOptions options);
 
     //
     // Adaptive refinement
@@ -126,11 +126,14 @@ public:
     /// \brief Adaptive refinement options
     struct AdaptiveOptions {
 
-        AdaptiveOptions() :
+        AdaptiveOptions(int level) :
+            isolationLevel(level),
             fullTopologyInLastLevel(false),
             useSingleCreasePatch(false) { }
 
-        unsigned int fullTopologyInLastLevel:1, ///< Skip secondary topological relationships
+        unsigned int isolationLevel:4,          ///< Number of iterations applied to isolate
+                                                ///< extraordinary vertices and creases
+                     fullTopologyInLastLevel:1, ///< Skip secondary topological relationships
                                                 ///< at the highest level of refinement.
                      useSingleCreasePatch:1;    ///< Use 'single-crease' patch and stop
                                                 ///< isolation where applicable
@@ -138,11 +141,9 @@ public:
 
     /// \brief Feature Adaptive topology refinement
     ///
-    /// @param maxLevel  Highest level of subdivision refinement
+    /// @param options   Options controlling adaptive refinement
     ///
-    /// @param options   Options controlling the creation of the tables
-    ///
-    void RefineAdaptive(int maxLevel, AdaptiveOptions options=AdaptiveOptions());
+    void RefineAdaptive(AdaptiveOptions options);
 
     /// \brief Unrefine the topology (keep control cage)
     void Unrefine();

@@ -356,7 +356,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
     {
         // Apply feature adaptive refinement to the mesh so that we can use the
         // limit evaluation API features.
-        g_topologyRefiner->RefineAdaptive(level);
+        Far::TopologyRefiner::AdaptiveOptions options(level);
+        g_topologyRefiner->RefineAdaptive(options);
 
         nverts = g_topologyRefiner->GetNumVerticesTotal();
 

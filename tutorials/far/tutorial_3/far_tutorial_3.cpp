@@ -192,10 +192,9 @@ int main(int, char **) {
     // Uniformly refine the topolgy up to 'maxlevel'
     // note: fullTopologyInLastLevel must be true to work with face-varying data
     {
-        Far::TopologyRefiner::UniformOptions options;
+        Far::TopologyRefiner::UniformOptions options(maxlevel);
         options.fullTopologyInLastLevel = true;
-
-        refiner->RefineUniform( maxlevel, options );
+        refiner->RefineUniform(options);
     }
 
     // Allocate & interpolate the 'vertex' primvar data (see tutorial 2 for

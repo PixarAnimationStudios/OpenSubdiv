@@ -281,7 +281,7 @@ updateGeom() {
 //------------------------------------------------------------------------------
 
 static void
-createMesh(ShapeDesc const & shapeDesc, int isolationLevel) {
+createMesh(ShapeDesc const & shapeDesc, int level) {
 
     typedef Far::ConstIndexArray IndexArray;
     typedef Far::LimitStencilTablesFactory::LocationArray LocationArray;
@@ -317,17 +317,14 @@ createMesh(ShapeDesc const & shapeDesc, int isolationLevel) {
     g_orgPositions=shape->verts;
 
     if (g_bilinear) {
-        Far::TopologyRefiner::UniformOptions options;
+        Far::TopologyRefiner::UniformOptions options(level);
         options.fullTopologyInLastLevel = true;
-
-        refiner->RefineUniform(isolationLevel, options);
+        refiner->RefineUniform(options);
     } else {
-
-        Far::TopologyRefiner::AdaptiveOptions options;
+        Far::TopologyRefiner::AdaptiveOptions options(level);
         options.fullTopologyInLastLevel = false;
         options.useSingleCreasePatch = false;
-
-        refiner->RefineAdaptive(isolationLevel, options);
+        refiner->RefineAdaptive(options);
     }
 
     int nfaces = refiner->GetNumPtexFaces();

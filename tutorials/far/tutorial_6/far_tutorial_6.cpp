@@ -140,7 +140,7 @@ int main(int, char **) {
     // Adaptively refine the topology with an isolation level capped at 3
     // because the sharpest crease in the shape is 3.0f (in g_creaseweights[])
     int maxIsolation = 3;
-    refiner->RefineAdaptive(maxIsolation);
+    refiner->RefineAdaptive(Far::TopologyRefiner::AdaptiveOptions(maxIsolation));
 
 
     // Create a buffer to hold the position of the

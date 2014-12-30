@@ -139,7 +139,7 @@ int main(int, char **) {
     Far::TopologyRefiner * refiner = createFarTopologyRefiner();
 
     // Uniformly refine the topolgy up to 'maxlevel'
-    refiner->RefineUniform( maxlevel );
+    refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
     // Allocate a buffer for vertex primvar data. The buffer length is set to
     // be the sum of all children vertices up to the highest level of refinement.

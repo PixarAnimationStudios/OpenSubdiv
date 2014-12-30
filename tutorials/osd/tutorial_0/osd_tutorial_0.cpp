@@ -165,7 +165,7 @@ createTopologyRefiner(int maxlevel) {
         Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);
 
     // Uniformly refine the topolgy up to 'maxlevel'
-    refiner->RefineUniform( maxlevel );
+    refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
     return refiner;
 }

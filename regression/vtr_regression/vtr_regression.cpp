@@ -155,10 +155,9 @@ interpolateVtrVertexData(ShapeDesc const & desc, int maxlevel, std::vector<xyzVV
             GetSdcType(*shape), GetSdcOptions(*shape), *shape);
     assert(refiner);
 
-    FarTopologyRefiner::UniformOptions options;
+    FarTopologyRefiner::UniformOptions options(maxlevel);
     options.fullTopologyInLastLevel=true;
-
-    refiner->RefineUniform(maxlevel, options);
+    refiner->RefineUniform(options);
 
     // populate coarse mesh positions
     data.resize(refiner->GetNumVerticesTotal());

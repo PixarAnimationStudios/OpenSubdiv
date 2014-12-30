@@ -619,9 +619,9 @@ createOsdMesh( const std::string &shapeStr, int level, Scheme scheme=kCatmark ) 
     bool doAdaptive = (g_adaptive!=0 and scheme==kCatmark);
 
     if (doAdaptive) {
-        refiner->RefineAdaptive(level);
+        refiner->RefineAdaptive(Far::TopologyRefiner::AdaptiveOptions(level));
     } else {
-        refiner->RefineUniform(level);
+        refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(level));
     }
 
     Far::StencilTables const * vertexStencils=0, * varyingStencils=0;

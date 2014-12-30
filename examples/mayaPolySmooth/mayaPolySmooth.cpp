@@ -647,7 +647,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             assert(refiner);
 
             // Refine & Interpolate
-            refiner->RefineUniform(subdivisionLevel);
+            refiner->RefineUniform(OpenSubdiv::Far::TopologyRefiner::UniformOptions(subdivisionLevel));
 
             Vertex const * controlVerts =
                 reinterpret_cast<Vertex const *>(inMeshFn.getRawPoints(&status));

@@ -317,7 +317,7 @@ TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
 //  Main refinement method -- allocating and initializing levels and refinements:
 //
 void
-TopologyRefiner::RefineUniform(int maxLevel, UniformOptions options) {
+TopologyRefiner::RefineUniform(UniformOptions options) {
 
     assert(_levels[0]->getNumVertices() > 0);  //  Make sure the base level has been initialized
 
@@ -325,7 +325,7 @@ TopologyRefiner::RefineUniform(int maxLevel, UniformOptions options) {
     //  Allocate the stack of levels and the refinements between them:
     //
     _isUniform = true;
-    _maxLevel = maxLevel;
+    _maxLevel = options.refinementLevel;
 
     Sdc::Split splitType = (_subdivType == Sdc::TYPE_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
 
@@ -335,9 +335,9 @@ TopologyRefiner::RefineUniform(int maxLevel, UniformOptions options) {
     Vtr::Refinement::Options refineOptions;
     refineOptions._sparse = false;
 
-    for (int i = 1; i <= maxLevel; ++i) {
+    for (int i = 1; i <= options.refinementLevel; ++i) {
         refineOptions._faceTopologyOnly =
-            options.fullTopologyInLastLevel ? false : (i == maxLevel);
+            options.fullTopologyInLastLevel ? false : (i == options.refinementLevel);
 
         Vtr::Level& parentLevel = getLevel(i-1);
         Vtr::Level& childLevel  = *(new Vtr::Level);
@@ -357,7 +357,7 @@ TopologyRefiner::RefineUniform(int maxLevel, UniformOptions options) {
 
 
 void
-TopologyRefiner::RefineAdaptive(int subdivLevel, AdaptiveOptions options ) {
+TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 
     assert(_levels[0]->getNumVertices() > 0);  //  Make sure the base level has been initialized
 
@@ -365,7 +365,7 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, AdaptiveOptions options ) {
     //  Allocate the stack of levels and the refinements between them:
     //
     _isUniform = false;
-    _maxLevel = subdivLevel;
+    _maxLevel = options.isolationLevel;
     _useSingleCreasePatch = options.useSingleCreasePatch;
 
     //
@@ -378,7 +378,7 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, AdaptiveOptions options ) {
 
     Sdc::Split splitType = (_subdivType == Sdc::TYPE_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
 
-    for (int i = 1; i <= subdivLevel; ++i) {
+    for (int i = 1; i <= options.isolationLevel; ++i) {
         //  Keeping full topology on for debugging -- may need to go back a level and "prune"
         //  its topology if we don't use the full depth
         refineOptions._faceTopologyOnly = false;
