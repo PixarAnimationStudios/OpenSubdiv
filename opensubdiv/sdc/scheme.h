@@ -130,6 +130,15 @@ public:
     void ComputeVertexLimitMask(VERTEX const& vertexNeighborhood, MASK& positionMask,
                                                                   MASK& tangent1Mask,
                                                                   MASK& tangent2Mask) const;
+
+    //
+    //  Static methods defining traits/properties of the scheme:
+    //
+    static Split GetTopologicalSplitType();
+    static int   GetRegularFaceSize();
+    static int   GetRegularVertexValence();
+    static int   GetLocalNeighborhoodSize();
+
 protected:
 
     //

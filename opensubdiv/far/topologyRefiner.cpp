@@ -145,37 +145,28 @@ TopologyRefiner::GetNumHoles(int level) const {
 //
 //  Ptex information accessors
 //
-template <Sdc::Type SCHEME_TYPE> void
-computePtexIndices(Vtr::Level const & coarseLevel, std::vector<int> & ptexIndices) {
+void
+TopologyRefiner::initializePtexIndices() const {
+    Vtr::Level const & coarseLevel = getLevel(0);
+    std::vector<int> & ptexIndices = const_cast<std::vector<int> &>(_ptexIndices);
+
     int nfaces = coarseLevel.getNumFaces();
     ptexIndices.resize(nfaces+1);
     int ptexID=0;
+    int regFaceSize = Sdc::TypeTraits::GetRegularFaceSize(GetSchemeType());
     for (int i = 0; i < nfaces; ++i) {
         ptexIndices[i] = ptexID;
         Vtr::ConstIndexArray fverts = coarseLevel.getFaceVertices(i);
-        ptexID += fverts.size()==Sdc::TypeTraits<SCHEME_TYPE>::RegularFaceValence() ? 1 : fverts.size();
+        ptexID += fverts.size()==regFaceSize ? 1 : fverts.size();
     }
     // last entry contains the number of ptex texture faces
     ptexIndices[nfaces]=ptexID;
-}
-void
-TopologyRefiner::initializePtexIndices() const {
-    std::vector<int> & indices = const_cast<std::vector<int> &>(_ptexIndices);
-    switch (GetSchemeType()) {
-        case Sdc::TYPE_BILINEAR:
-            computePtexIndices<Sdc::TYPE_BILINEAR>(getLevel(0), indices); break;
-        case Sdc::TYPE_CATMARK :
-            computePtexIndices<Sdc::TYPE_CATMARK>(getLevel(0), indices); break;
-        case Sdc::TYPE_LOOP    :
-            computePtexIndices<Sdc::TYPE_LOOP>(getLevel(0), indices); break;
-    }
 }
 int
 TopologyRefiner::GetNumPtexFaces() const {
     if (_ptexIndices.empty()) {
         initializePtexIndices();
     }
-    // see computePtexIndices()
     return _ptexIndices.back();
 }
 int

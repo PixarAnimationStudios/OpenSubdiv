@@ -38,10 +38,8 @@ set(PRIVATE_HEADER_FILES )
 #-------------------------------------------------------------------------------
 # source & headers
 set(SOURCE_FILES
-    bilinearTraits.cpp
-    catmarkTraits.cpp
     crease.cpp
-    loopTraits.cpp
+    typeTraits.cpp
 )
 
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})

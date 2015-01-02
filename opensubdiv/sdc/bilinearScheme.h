@@ -34,7 +34,27 @@ namespace OPENSUBDIV_VERSION {
 namespace Sdc {
 
 //
-//  Current specializations:
+//  Specializations for Scheme<TYPE_BILINEAR>:
+//
+
+//
+//  Bilinear traits:
+//
+template <>
+inline Split Scheme<TYPE_BILINEAR>::GetTopologicalSplitType() { return SPLIT_TO_QUADS; }
+
+template <>
+inline int Scheme<TYPE_BILINEAR>::GetRegularFaceSize() { return 4; }
+
+template <>
+inline int Scheme<TYPE_BILINEAR>::GetRegularVertexValence() { return 4; }
+
+template <>
+inline int Scheme<TYPE_BILINEAR>::GetLocalNeighborhoodSize() { return 0; }
+
+
+//
+//  Refinement masks:
 //
 template <>
 template <typename EDGE, typename MASK>

@@ -41,6 +41,22 @@ namespace Sdc {
 //
 
 //
+//  Catmark traits:
+//
+template <>
+inline Split Scheme<TYPE_CATMARK>::GetTopologicalSplitType() { return SPLIT_TO_QUADS; }
+
+template <>
+inline int Scheme<TYPE_CATMARK>::GetRegularFaceSize() { return 4; }
+
+template <>
+inline int Scheme<TYPE_CATMARK>::GetRegularVertexValence() { return 4; }
+
+template <>
+inline int Scheme<TYPE_CATMARK>::GetLocalNeighborhoodSize() { return 1; }
+
+
+//
 //  Masks for edge-vertices:  the hard Crease mask does not need to be specialized
 //  (simply the midpoint), so all that is left is the Smooth case:
 //

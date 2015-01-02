@@ -38,7 +38,25 @@ namespace Sdc {
 //
 //  Specializations for Sdc::Scheme<TYPE_LOOP>:
 //
+//
 
+//
+//  Loop traits:
+//
+template <>
+inline Split Scheme<TYPE_LOOP>::GetTopologicalSplitType() { return SPLIT_TO_TRIS; }
+
+template <>
+inline int Scheme<TYPE_LOOP>::GetRegularFaceSize() { return 3; }
+
+template <>
+inline int Scheme<TYPE_LOOP>::GetRegularVertexValence() { return 6; }
+
+template <>
+inline int Scheme<TYPE_LOOP>::GetLocalNeighborhoodSize() { return 1; }
+
+
+//
 //  Protected methods to assign the two types of masks for an edge-vertex --
 //  Crease and Smooth.
 //

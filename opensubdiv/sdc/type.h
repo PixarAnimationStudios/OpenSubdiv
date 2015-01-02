@@ -51,34 +51,19 @@ enum Split {
 };
 
 ///
-///  \brief Traits associated with all types. These are specialized and instantiated for
-///  each of the supported types.
+///  \brief Traits associated the types of all subdivision schemes -- parameterized by
+///  the scheme type.  All traits are also defined on the scheme itself.
 ///
-///  Traits do not vary with the topology or any options applied to the scheme.  They
-///  are intended to help construct more general queries about a subdivision scheme
-///  in a context where its details may be less well understood.  They serve little
-///  purpose in code specialized to the particular scheme, i.e. in code already
-///  specialized for Catmark, the values for these traits for the Catmark scheme are
-///  typically known and their usage well understood.
-///
-//   Question:
-//       Do we really need/want these TypeTraits, or will static methods on another
-//   class specialized for the type suffice, i.e. Scheme<SCHEME_TYPE>?
-//       If yes, there will be little in here other than Sdc::Type, which we may want
-//   to merge into <sdc/options.h>.
-//
-template <Type SCHEME_TYPE>
 struct TypeTraits {
 
-    static Type GetType() {
-        return SCHEME_TYPE;
-    }
+    static Type GetType(Type schemeType) { return schemeType; }
 
-    static Split       TopologicalSplitType();
-    static int         LocalNeighborhoodSize();
-    static int         RegularVertexValence();
-    static int         RegularFaceValence();
-    static char const* Label();
+    static Split GetTopologicalSplitType(Type schemeType);
+    static int   GetRegularFaceSize(Type schemeType);
+    static int   GetRegularVertexValence(Type schemeType);
+    static int   GetLocalNeighborhoodSize(Type schemeType);
+
+    static char const* GetName(Type schemeType);
 };
 
 
