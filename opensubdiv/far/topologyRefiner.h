@@ -544,6 +544,9 @@ protected:
 
     void setBaseFaceHole(Index f, bool b) { _levels[0]->setHole(f, b); _hasHoles |= b; }
 
+    void setBaseEdgeNonManifold(Index e, bool b) { _levels[0]->setEdgeNonManifold(e, b); }
+    void setBaseVertexNonManifold(Index v, bool b) { _levels[0]->setVertexNonManifold(v, b); }
+
     //  Face-varying modifiers for constructing face-varying channels:
     int createFVarChannel(int numValues) {
         return _levels[0]->createFVarChannel(numValues, _subdivOptions);

@@ -229,6 +229,13 @@ public:
     void setHole(Index faceIndex, bool b);
     bool isHole(Index faceIndex) const;
 
+    //  Manifold/non-manifold tags:
+    void setEdgeNonManifold(Index edgeIndex, bool b);
+    bool isEdgeNonManifold(Index edgeIndex) const;
+
+    void setVertexNonManifold(Index vertIndex, bool b);
+    bool isVertexNonManifold(Index vertIndex) const;
+
 public:
 
     //  Debugging aides -- unclear what will persist...
@@ -653,6 +660,27 @@ Level::setHole(Index faceIndex, bool b) {
 inline bool
 Level::isHole(Index faceIndex) const {
     return _faceTags[faceIndex]._hole;
+}
+
+//
+//  Access/modify non-manifold tags:
+//
+inline void
+Level::setEdgeNonManifold(Index edgeIndex, bool b) {
+    _edgeTags[edgeIndex]._nonManifold = b;
+}
+inline bool
+Level::isEdgeNonManifold(Index edgeIndex) const {
+    return _edgeTags[edgeIndex]._nonManifold;
+}
+
+inline void
+Level::setVertexNonManifold(Index vertIndex, bool b) {
+    _vertTags[vertIndex]._nonManifold = b;
+}
+inline bool
+Level::isVertexNonManifold(Index vertIndex) const {
+    return _vertTags[vertIndex]._nonManifold;
 }
 
 //
