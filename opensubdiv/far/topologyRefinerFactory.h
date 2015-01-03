@@ -105,8 +105,8 @@ public:
 protected:
 
     static void validateComponentTopologySizing(TopologyRefiner& refiner);
+    static void applyInternalTagsAndBoundarySharpness(TopologyRefiner& refiner);
     static void validateFaceVaryingComponentTopologyAssignment(TopologyRefiner& refiner);
-    static void applyComponentTagsAndBoundarySharpness(TopologyRefiner& refiner);
 };
 
 
@@ -165,12 +165,6 @@ protected:
     typedef Vtr::Level::TopologyError TopologyError;
 
     static void reportInvalidTopology(TopologyError errCode, char const * msg, MESH const& mesh);
-    
-
-protected:
-
-    //  Other protected details -- not to be specialized:
-    static void populateBaseLevel(TopologyRefiner& refiner, MESH const& mesh);
 };
 
 
@@ -181,75 +175,52 @@ template <class MESH>
 TopologyRefiner*
 TopologyRefinerFactory<MESH>::Create(Sdc::Type type, Sdc::Options options, MESH const& mesh) {
 
-    TopologyRefiner *refiner = new TopologyRefiner(type, options);
-
-    populateBaseLevel(*refiner, mesh);
-
-    return refiner;
-}
-
-template <class MESH>
-void
-TopologyRefinerFactory<MESH>::populateBaseLevel(TopologyRefiner& refiner, MESH const& mesh) {
+    TopologyRefiner & refiner = *(new TopologyRefiner(type, options));
 
     //
-    //  The following three methods may end up virtual:
-    //      - resize the component counts and relation counts for individual components:
-    //      - assign the topological relations for all components:
-    //      - assign any sharpness values, hole tags, etc:
-    //  Note that we can do some sanity checking (independent of the type MESH) between these
-    //  to ensure that a client has done what is necessary at each stage.
+    //  Construction of a specialized topology refiner involves four steps, each of which
+    //  typically involves a method that is specialized for MESH followed by one that takes
+    //  an action in response to it or in preparation for the next step.
     //
 
     //  Required specialization for MESH:
+    //
+    //  Sizing of the topology -- this is a required specialization for MESH.  This defines
+    //  an inventory of all components and their relations that is used to allocate buffers
+    //  to be efficiently populated in the subsequent topology assignment step.
+    //
     resizeComponentTopology(refiner, mesh);
 
     validateComponentTopologySizing(refiner);
 
-    //  Required specialization for MESH:
+    //
+    //  Assignment of the topology -- this is a required specialization for MESH.  If edges
+    //  are specified, all other topological relations are expected to be defined for them.
+    //  Otherwise edges and remaining topology will be completed from the face-vertices:
+    //
     assignComponentTopology(refiner, mesh);
 
-    Vtr::Level& baseLevel = refiner.getBaseLevel();
-
-    //
-    //  In the future we may want the ability to complete aspects of the topology that
-    //  are incovenient for clients to specify, e.g. the local indices associated with
-    //  some relations, orienting the vertex relations, etc.  For the near term we'll be
-    //  assuming only face-vertices have been specified and the absence of edges will
-    //  trigger the construction of everything else:
-    //
-    bool completeMissingTopology = (refiner.getBaseLevel().getNumEdges() == 0);
-    if (completeMissingTopology) {
-        //  Need to invoke some Vtr::Level method to "fill in" the missing topology...
-        baseLevel.completeTopologyFromFaceVertices();
+    if (refiner.getBaseLevel().getNumEdges() == 0) {
+        refiner.getBaseLevel().completeTopologyFromFaceVertices();
     }
 
-    // XXXX manuelk TODO : client code should control this
-    bool applyValidation = false;
-    if (applyValidation) {
-
-        Vtr::Level::ValidationCallback callback =
-            reinterpret_cast<Vtr::Level::ValidationCallback>(reportInvalidTopology);
-        
-        if (not baseLevel.validateTopology(callback, &mesh)) {
-            char msg[1024];
-            snprintf(msg, 1024, "Invalid topology detected in TopologyRefinerFactory (%s)\n",
-                completeMissingTopology ? "partially specified and completed" : "fully specified");
-            Warning(msg);
-            //baseLevel.print();
-            assert(false);
-        }
-    }
-
-    //  Optional specialization for MESH:
+    //
+    //  User assigned and internal tagging of components -- assignment of user tags is an
+    //  optional specialization for MESH:
+    //
     assignComponentTags(refiner, mesh);
 
-    //  Finalize the translation of the mesh after its full specification above:
-    applyComponentTagsAndBoundarySharpness(refiner);
+    applyInternalTagsAndBoundarySharpness(refiner);
 
-    //  Optional specialization for MESH:
+    //
+    //  Defining channels of face-varying primvar data -- assignment of the FVar topology is
+    //  an optional specialization for MESH:
+    //
     assignFaceVaryingTopology(refiner, mesh);
+
     validateFaceVaryingComponentTopologyAssignment(refiner);
+
+    return &refiner;
 }
 
 // XXXX manuelk MSVC specializes these templated functions which creates duplicated symbols
@@ -305,14 +276,14 @@ TopologyRefinerFactory<MESH>::assignComponentTopology(TopologyRefiner& /* refine
     //      Once the topology tables have been allocated, the six required topological
     //  relations can be directly populated using the following methods:
     //
-    //      void IndexArray TopologyRefiner::baseFaceVertices(Index face)
-    //      void IndexArray TopologyRefiner::baseFaceEdges(Index face)
+    //      IndexArray TopologyRefiner::setBaseFaceVertices(Index face)
+    //      IndexArray TopologyRefiner::setBaseFaceEdges(Index face)
     //
-    //      void IndexArray TopologyRefiner::baseEdgeVertices(Index edge)
-    //      void IndexArray TopologyRefiner::baseEdgeFaces(Index edge)
+    //      IndexArray TopologyRefiner::setBaseEdgeVertices(Index edge)
+    //      IndexArray TopologyRefiner::setBaseEdgeFaces(Index edge)
     //
-    //      void IndexArray TopologyRefiner::baseVertexEdges(Index vertex)
-    //      void IndexArray TopologyRefiner::baseVertexFaces(Index vertex)
+    //      IndexArray TopologyRefiner::setBaseVertexEdges(Index vertex)
+    //      IndexArray TopologyRefiner::setBaseVertexFaces(Index vertex)
     //
     //  For the last two relations -- the faces and edges incident a vertex -- there are
     //  also "local indices" that must be specified (considering doing this internally),
@@ -320,17 +291,22 @@ TopologyRefinerFactory<MESH>::assignComponentTopology(TopologyRefiner& /* refine
     //  within that face or edge, and so ranging from 0-3 for incident quads and 0-1 for
     //  incident edges.  These are assigned through similarly retrieved arrays:
     //
-    //      LocalIndexArray TopologyRefiner::baseVertexFaceLocalIndices(Index vertex)
-    //      LocalIndexArray TopologyRefiner::baseVertexEdgeLocalIndices(Index vertex)
+    //      LocalIndexArray TopologyRefiner::setBaseVertexFaceLocalIndices(Index vertex)
+    //      LocalIndexArray TopologyRefiner::setBaseVertexEdgeLocalIndices(Index vertex)
     //
-    //  As noted, we are considering determining these internally to avoid this complexity,
-    //  but that will require iteration through the sets of vertex-faces and edges to find
-    //  the location of the vertex within each.  If that is known at the time the incident
-    //  componets are assigned, they we can avoid that separate pass.
+    //  All components are assumed to be locally manifold and ordering of components in
+    //  the above relations is expected to be counter-clockwise.
     //
-    //  We also need to tag vertices as manifold or not here.  Failure to do so explicitly
-    //  will require the factory analyze the local neighborhood of each component, which
-    //  is costly and often unnecessary.
+    //  For non-manifold components, no ordering/orientation of incident components is
+    //  assumed or required, but be sure to explicitly tag such components (vertices as
+    //  edges) as non-manifold:
+    //
+    //      void TopologyRefiner::setBaseEdgeNonManifold(Index edge, bool b);
+    //
+    //      void TopologyRefiner::setBaseVertexNonManifold(Index vertex, bool b);
+    //
+    //  Also consider using TopologyRefiner::ValidateTopology() when debugging to ensure
+    //  that topolology has been completely and correctly specified.
     //
 }
 

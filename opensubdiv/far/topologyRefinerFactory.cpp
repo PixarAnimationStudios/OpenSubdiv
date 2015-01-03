@@ -41,24 +41,29 @@ TopologyRefinerFactoryBase::validateComponentTopologySizing(TopologyRefiner& ref
 
     Vtr::Level& baseLevel = refiner.getBaseLevel();
 
+    //
+    //  At minimum we require face-vertices (the total count of which can be determined
+    //  from the offsets accumulated during sizing pass) and we need to resize members
+    //  related to them to be populated during assignment:
+    //
     int vCount = baseLevel.getNumVertices();
-    int eCount = baseLevel.getNumEdges();
     int fCount = baseLevel.getNumFaces();
 
     assert((vCount > 0) && (fCount > 0));
 
-    //
-    //  This still needs a little work -- currently we are assuming all counts and offsets
-    //  have been assigned, but eventually only the counts will be assigined (in arbitrary
-    //  order) and we will need to accumulate the offsets to get the total sizes.  That
-    //  will require new methods on Vtr::Level -- we do not want direct member access here.
-    //
-    int fVertCount = 0;
-    for (int i = 0; i < fCount; ++i) {
-        fVertCount += baseLevel.getNumFaceVertices(i);
-    }
+    int fVertCount = baseLevel.getNumFaceVertices(fCount - 1) +
+                     baseLevel.getOffsetOfFaceVertices(fCount - 1);
+
     baseLevel.resizeFaceVertices(fVertCount);
     assert(baseLevel.getNumFaceVerticesTotal() > 0);
+
+    //
+    //  If edges were sized, all other topological relations must be sized with it, in
+    //  which case we allocate those members to be populated.  Otherwise, sizing of the
+    //  other topology members is deferred until the face-vertices are assigned and the
+    //  resulting relationships determined:
+    //
+    int eCount = baseLevel.getNumEdges();
 
     if (eCount > 0) {
         baseLevel.resizeFaceEdges(baseLevel.getNumFaceVerticesTotal());
@@ -84,13 +89,13 @@ TopologyRefinerFactoryBase::validateFaceVaryingComponentTopologyAssignment(Topol
 }
 
 //
-//  This method combines the initialization of component tags with the sharpening of edges and
-//  vertices according to the given boundary interpolation rule in the Options.  Since both
+//  This method combines the initialization of internal component tags with the sharpening of edges
+//  and vertices according to the given boundary interpolation rule in the Options.  Since both
 //  involve traversing the edge and vertex lists and noting the presence of boundaries -- best
 //  to do both at once...
 //
 void
-TopologyRefinerFactoryBase::applyComponentTagsAndBoundarySharpness(TopologyRefiner& refiner) {
+TopologyRefinerFactoryBase::applyInternalTagsAndBoundarySharpness(TopologyRefiner& refiner) {
 
     Vtr::Level&  baseLevel = refiner.getBaseLevel();
 
