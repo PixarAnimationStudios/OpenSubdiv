@@ -33,7 +33,7 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 static void
-getBeziereWeights(float t, float point[4], float deriv[3]) {
+getBezierWeights(float t, float point[4], float deriv[3]) {
 
     // The weights for the four uniform cubic Bezier basis functions are:
     // (1 - t)^3
@@ -162,8 +162,8 @@ PatchTables::GetBasisWeights(TensorBasis basis, PatchParam::BitField bits,
         getBSplineWeights(s, point ? sWeights : 0, deriv1 ? d1Weights : 0);
         getBSplineWeights(t, point ? tWeights : 0, deriv2 ? d2Weights : 0);
     } else if (basis==BASIS_BEZIER) {
-        getBeziereWeights(s, point ? sWeights : 0, deriv1 ? d1Weights : 0);
-        getBeziereWeights(t, point ? tWeights : 0, deriv2 ? d2Weights : 0);
+        getBezierWeights(s, point ? sWeights : 0, deriv1 ? d1Weights : 0);
+        getBezierWeights(t, point ? tWeights : 0, deriv2 ? d2Weights : 0);
     } else {
         assert(0);
     }
