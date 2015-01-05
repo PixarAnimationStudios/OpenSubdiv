@@ -111,7 +111,7 @@ public:
             refinementLevel(level),
             fullTopologyInLastLevel(false) { }
 
-        unsigned int refinementLevel:4,                   ///< Number of refinement iterations
+        unsigned int refinementLevel:4,         ///< Number of refinement iterations
                      fullTopologyInLastLevel:1; ///< Skip secondary topological relationships
                                                 ///< at the highest level of refinement.
     };

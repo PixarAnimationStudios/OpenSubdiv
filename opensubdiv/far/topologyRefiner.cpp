@@ -326,7 +326,7 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
     Vtr::Refinement::Options refineOptions;
     refineOptions._sparse = false;
 
-    for (int i = 1; i <= options.refinementLevel; ++i) {
+    for (int i = 1; i <= (int)options.refinementLevel; ++i) {
         refineOptions._faceTopologyOnly =
             options.fullTopologyInLastLevel ? false : (i == options.refinementLevel);
 
@@ -369,7 +369,7 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 
     Sdc::Split splitType = (_subdivType == Sdc::TYPE_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
 
-    for (int i = 1; i <= options.isolationLevel; ++i) {
+    for (int i = 1; i <= (int)options.isolationLevel; ++i) {
         //  Keeping full topology on for debugging -- may need to go back a level and "prune"
         //  its topology if we don't use the full depth
         refineOptions._faceTopologyOnly = false;
