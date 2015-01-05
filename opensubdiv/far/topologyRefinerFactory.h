@@ -200,8 +200,8 @@ TopologyRefinerFactory<MESH>::Create(Sdc::Type type, Sdc::Options options, MESH 
     //
     assignComponentTopology(refiner, mesh);
 
-    if (refiner.getBaseLevel().getNumEdges() == 0) {
-        refiner.getBaseLevel().completeTopologyFromFaceVertices();
+    if (refiner.getLevel(0).getNumEdges() == 0) {
+        refiner.getLevel(0).completeTopologyFromFaceVertices();
     }
 
     //
@@ -294,11 +294,16 @@ TopologyRefinerFactory<MESH>::assignComponentTopology(TopologyRefiner& /* refine
     //      LocalIndexArray TopologyRefiner::setBaseVertexFaceLocalIndices(Index vertex)
     //      LocalIndexArray TopologyRefiner::setBaseVertexEdgeLocalIndices(Index vertex)
     //
+    //  or, if the mesh is manifold, explicit assignment of these can be deferred and
+    //  all will be determined via:
+    //
+    //      void TopologyRefiner::populateBaseLocalIndices()
+    //
     //  All components are assumed to be locally manifold and ordering of components in
     //  the above relations is expected to be counter-clockwise.
     //
     //  For non-manifold components, no ordering/orientation of incident components is
-    //  assumed or required, but be sure to explicitly tag such components (vertices as
+    //  assumed or required, but be sure to explicitly tag such components (vertices and
     //  edges) as non-manifold:
     //
     //      void TopologyRefiner::setBaseEdgeNonManifold(Index edge, bool b);
@@ -318,10 +323,10 @@ TopologyRefinerFactory<MESH>::assignFaceVaryingTopology(TopologyRefiner& /* refi
     //  Optional assigning face-varying topology tables:
     //
     //  Create independent face-varying primitive variable channels:
-    //      int TopologyRefiner::createFVarChannel(int numValues)
+    //      int TopologyRefiner::createBaseFVarChannel(int numValues)
     //
     //  For each channel, populate the face-vertex values:
-    //      IndexArray TopologyRefiner::getBaseFVarFaceValues(Index face, int channel = 0)
+    //      IndexArray TopologyRefiner::setBaseFVarFaceValues(Index face, int channel = 0)
     //
 }
 
@@ -332,15 +337,12 @@ TopologyRefinerFactory<MESH>::assignComponentTags(TopologyRefiner& /* refiner */
     //
     //  Optional tagging:
     //      This is where any additional feature tags -- sharpness, holes, etc. -- can be
-    //  specified.  For now, this is limited to sharpness using the following:
+    //  specified using:
     //
-    //      float& TopologyRefiner::baseEdgeSharpness(Index edge)
-    //      float& TopologyRefiner::baseVertexSharpness(Index vertex)
+    //      void TopologyRefiner::setBaseEdgeSharpness(Index edge, float sharpness)
+    //      void TopologyRefiner::setBaseVertexSharpness(Index vertex, float sharpness)
     //
-    //  which can be used on the LHS of assignments.
-    //
-    //  Tagging holes will become available in the near future as sets of bitfields for
-    //  each component type are introduced and propogated through the refinement hierarchy.
+    //      void TopologyRefiner::setBaseFaceHole(Index face, bool hole)
     //
 }
 

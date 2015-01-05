@@ -447,12 +447,12 @@ FarTopologyRefinerFactory<OsdHbrConverter>::assignComponentTags(
             sharpness = std::max(sharpness, e->GetOpposite()->GetSharpness());
 
         }
-        refiner.baseEdgeSharpness(it->second) = sharpness;
+        refiner.setBaseEdgeSharpness(it->second, sharpness);
     }
 
     // Initialize vertex sharpness
     for (int i=0; i<refiner.GetNumVertices(/*level*/0); ++i) {
-        refiner.baseVertexSharpness(i) = hmesh.GetVertex(i)->GetSharpness();
+        refiner.setBaseVertexSharpness(i, hmesh.GetVertex(i)->GetSharpness());
     }
 
     // XXXX Initialize h-edits

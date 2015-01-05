@@ -906,7 +906,7 @@ PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
 
     PatchFaceTag * levelPatchTags = &patchTags[0];
 
-    for (int i = 0; i < (int)refiner.getNumLevels(); ++i) {
+    for (int i = 0; i < refiner.GetNumLevels(); ++i) {
         Vtr::Level const * level = &refiner.getLevel(i);
 
         //
@@ -922,7 +922,7 @@ PatchTablesFactory::identifyAdaptivePatches( TopologyRefiner const & refiner,
         //    - what Faces are "complete" (done for child vertices in Refinement)
         //
         bool isLevelFirst = (i == 0);
-        bool isLevelLast  = (i == ((int)refiner.getNumLevels() - 1));
+        bool isLevelLast  = (i == refiner.GetMaxLevel());
 
         Vtr::Refinement const * refinePrev = isLevelFirst ? 0 : &refiner.getRefinement(i-1);
         Vtr::Refinement const * refineNext = isLevelLast  ? 0 : &refiner.getRefinement(i);
@@ -1210,7 +1210,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
          memset(levelFVarVertOffsets, 0, refiner.GetNumFVarChannels()*sizeof(int));
     }
 
-    for (int i = 0; i < (int)refiner.getNumLevels(); ++i) {
+    for (int i = 0; i < refiner.GetNumLevels(); ++i) {
         Vtr::Level const * level = &refiner.getLevel(i);
 
         const PatchFaceTag * levelPatchTags = &patchTags[levelFaceOffset];
@@ -1406,7 +1406,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
         vTable.resize(refiner.GetNumVerticesTotal() * SizePerVertex);
 
         int vOffset = 0;
-        int levelLast = (int)refiner.getNumLevels() - 1;
+        int levelLast = refiner.GetMaxLevel();
         for (int i = 0; i <= levelLast; ++i) {
 
             Vtr::Level const * level = &refiner.getLevel(i);

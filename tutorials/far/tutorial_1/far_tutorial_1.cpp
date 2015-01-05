@@ -327,7 +327,7 @@ TopologyRefinerFactory<Converter>::assignComponentTopology(
         }
     }
 
-    refiner.populateLocalIndices();
+    refiner.populateBaseLocalIndices();
 };
 
 template <>
@@ -337,7 +337,7 @@ TopologyRefinerFactory<Converter>::assignComponentTags(
 
     // arbitrarily sharpen the 4 bottom edges of the pyramid to 2.5f
     for (int edge=0; edge<conv.GetNumEdges(); ++edge) {
-        refiner.baseEdgeSharpness(edge) = g_edgeCreases[edge];
+        refiner.setBaseEdgeSharpness(edge, g_edgeCreases[edge]);
     }
 }
 

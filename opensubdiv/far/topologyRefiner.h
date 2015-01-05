@@ -73,11 +73,14 @@ public:
     /// \brief Returns true if uniform subdivision has been applied
     bool IsUniform() const   { return _isUniform; }
 
-    /// \ brief Returns true if faces have been tagged as holes
-    bool HasHoles() const { return _hasHoles; }
+    /// \brief Returns the number of refinement levels
+    int  GetNumLevels() const { return (int)_levels.size(); }
 
     /// \brief Returns the highest level of refinement
     int  GetMaxLevel() const { return _maxLevel; }
+
+    /// \ brief Returns true if faces have been tagged as holes
+    bool HasHoles() const { return _hasHoles; }
 
     // XXXX barfowl -- should cache these internally for trivial return)
 
@@ -497,26 +500,12 @@ public:
 protected:
 
     //
-    //  For use by the Factory base and subclasses to construct the base level:
+    //  For use by the TopologyRefinerFactory<MESH> subclasses to construct the base level:
     //
     template <class MESH>
     friend class TopologyRefinerFactory;
-    friend class TopologyRefinerFactoryBase;
-    friend class PatchTablesFactory;
-    friend class GregoryBasisFactory;
 
-    int                   getNumLevels() const { return (int)_levels.size(); }
-    Vtr::Level            & getBaseLevel() { return *_levels.front(); }
-    Vtr::Level            & getLevel(int l) { return *_levels[l]; }
-    Vtr::Level const      & getLevel(int l) const { return *_levels[l]; }
-    Vtr::Refinement       & getRefinement(int l) { return *_refinements[l]; }
-    Vtr::Refinement const & getRefinement(int l) const { return *_refinements[l]; }
-
-    int getNumBaseFaces() const    { return GetNumFaces(0); }
-    int getNumBaseEdges() const    { return GetNumEdges(0); }
-    int getNumBaseVertices() const { return GetNumVertices(0); }
-
-    //  Sizing specifications required before allocation:
+    //  Topology sizing methods required before allocation:
     void setNumBaseFaces(   int count) { _levels[0]->resizeFaces(count); }
     void setNumBaseEdges(   int count) { _levels[0]->resizeEdges(count); }
     void setNumBaseVertices(int count) { _levels[0]->resizeVertices(count); }
@@ -526,7 +515,7 @@ protected:
     void setNumBaseVertexFaces( Index v, int count) { _levels[0]->resizeVertexFaces(v, count); }
     void setNumBaseVertexEdges( Index v, int count) { _levels[0]->resizeVertexEdges(v, count); }
 
-    //  Access to populate the base level topology after allocation:
+    //  Topology assignment methods to populate base level after allocation:
     IndexArray setBaseFaceVertices(Index f) { return _levels[0]->getFaceVertices(f); }
     IndexArray setBaseFaceEdges(   Index f) { return _levels[0]->getFaceEdges(f); }
     IndexArray setBaseEdgeVertices(Index e) { return _levels[0]->getEdgeVertices(e); }
@@ -534,33 +523,40 @@ protected:
     IndexArray setBaseVertexFaces( Index v) { return _levels[0]->getVertexFaces(v); }
     IndexArray setBaseVertexEdges( Index v) { return _levels[0]->getVertexEdges(v); }
 
-    //  Not sure yet if we will determine these internally...
     LocalIndexArray setBaseVertexFaceLocalIndices(Index v) { return _levels[0]->getVertexFaceLocalIndices(v); }
     LocalIndexArray setBaseVertexEdgeLocalIndices(Index v) { return _levels[0]->getVertexEdgeLocalIndices(v); }
 
-    //  Optionally available to get/set sharpness values:
-    float& baseEdgeSharpness(Index e)   { return _levels[0]->getEdgeSharpness(e); }
-    float& baseVertexSharpness(Index v) { return _levels[0]->getVertexSharpness(v); }
-
-    void setBaseFaceHole(Index f, bool b) { _levels[0]->setHole(f, b); _hasHoles |= b; }
+    void populateBaseLocalIndices() { _levels[0]->populateLocalIndices(); }
 
     void setBaseEdgeNonManifold(Index e, bool b) { _levels[0]->setEdgeNonManifold(e, b); }
     void setBaseVertexNonManifold(Index v, bool b) { _levels[0]->setVertexNonManifold(v, b); }
 
-    //  Face-varying modifiers for constructing face-varying channels:
-    int createFVarChannel(int numValues) {
-        return _levels[0]->createFVarChannel(numValues, _subdivOptions);
-    }
-    int createFVarChannel(int numValues, Sdc::Options const& options) {
-        return _levels[0]->createFVarChannel(numValues, options);
-    }
-    void completeFVarChannelTopology(int channel = 0) { _levels[0]->completeFVarChannelTopology(channel); }
+    //  Optional feature tagging methods for setting sharpness, holes, etc.:
+    void setBaseEdgeSharpness(Index e, float s)   { _levels[0]->getEdgeSharpness(e) = s; }
+    void setBaseVertexSharpness(Index v, float s) { _levels[0]->getVertexSharpness(v) = s; }
 
-    IndexArray getBaseFVarFaceValues(Index face, int channel = 0) { return _levels[0]->getFVarFaceValues(face, channel); }
+    void setBaseFaceHole(Index f, bool b) { _levels[0]->setHole(f, b); _hasHoles |= b; }
 
-    void populateLocalIndices() {
-        getBaseLevel().populateLocalIndices();
-    }
+    //  Optional methods for creating and assigning face-varying data channels:
+    int createBaseFVarChannel(int numValues)                              { return _levels[0]->createFVarChannel(numValues, _subdivOptions); }
+    int createBaseFVarChannel(int numValues, Sdc::Options const& options) { return _levels[0]->createFVarChannel(numValues, options); }
+
+    IndexArray setBaseFVarFaceValues(Index face, int channel = 0) { return _levels[0]->getFVarFaceValues(face, channel); }
+
+protected:
+
+    //
+    //  Lower level protected methods intended stricty for internal use:
+    //
+    friend class TopologyRefinerFactoryBase;
+    friend class PatchTablesFactory;
+    friend class GregoryBasisFactory;
+
+    Vtr::Level       & getLevel(int l)       { return *_levels[l]; }
+    Vtr::Level const & getLevel(int l) const { return *_levels[l]; }
+
+    Vtr::Refinement       & getRefinement(int l)       { return *_refinements[l]; }
+    Vtr::Refinement const & getRefinement(int l) const { return *_refinements[l]; }
 
 private:
     void selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector);

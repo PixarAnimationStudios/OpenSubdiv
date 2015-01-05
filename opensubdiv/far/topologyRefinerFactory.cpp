@@ -39,7 +39,7 @@ namespace Far {
 void
 TopologyRefinerFactoryBase::validateComponentTopologySizing(TopologyRefiner& refiner) {
 
-    Vtr::Level& baseLevel = refiner.getBaseLevel();
+    Vtr::Level& baseLevel = refiner.getLevel(0);
 
     //
     //  At minimum we require face-vertices (the total count of which can be determined
@@ -83,8 +83,10 @@ TopologyRefinerFactoryBase::validateComponentTopologySizing(TopologyRefiner& ref
 void
 TopologyRefinerFactoryBase::validateFaceVaryingComponentTopologyAssignment(TopologyRefiner& refiner) {
 
+    Vtr::Level& baseLevel = refiner.getLevel(0);
+
     for (int channel=0; channel<refiner.GetNumFVarChannels(); ++channel) {
-        refiner.completeFVarChannelTopology(channel);
+        baseLevel.completeFVarChannelTopology(channel);
     }
 }
 
@@ -97,7 +99,7 @@ TopologyRefinerFactoryBase::validateFaceVaryingComponentTopologyAssignment(Topol
 void
 TopologyRefinerFactoryBase::applyInternalTagsAndBoundarySharpness(TopologyRefiner& refiner) {
 
-    Vtr::Level&  baseLevel = refiner.getBaseLevel();
+    Vtr::Level&  baseLevel = refiner.getLevel(0);
 
     assert((int)baseLevel._edgeTags.size() == baseLevel.getNumEdges());
     assert((int)baseLevel._vertTags.size() == baseLevel.getNumVertices());
@@ -246,14 +248,14 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignFa
             int const* channelIndices = desc.fvarChannels[channel].valueIndices;
 
 #if defined(DEBUG) or defined(_DEBUG)
-            int channelIndex = refiner.createFVarChannel(channelSize);
+            int channelIndex = refiner.createBaseFVarChannel(channelSize);
             assert(channelIndex == channel);
 #else
-            refiner.createFVarChannel(channelSize);
+            refiner.createBaseFVarChannel(channelSize);
 #endif
             for (int face=0, idx=0; face<desc.numFaces; ++face) {
 
-                IndexArray dstFaceValues = refiner.getBaseFVarFaceValues(face, channel);
+                IndexArray dstFaceValues = refiner.setBaseFVarFaceValues(face, channel);
 
                 for (int vert=0; vert<dstFaceValues.size(); ++vert) {
 
@@ -278,7 +280,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
             Index idx = refiner.FindEdge(0, vertIndexPairs[0], vertIndexPairs[1]);
 
             if (idx!=Vtr::INDEX_INVALID) {
-                refiner.baseEdgeSharpness(idx) = desc.creaseWeights[edge];
+                refiner.setBaseEdgeSharpness(idx, desc.creaseWeights[edge]);
             } else {
                 char msg[1024];
                 snprintf(msg, 1024, "Edge %d specified to be sharp does not exist (%d, %d)",
@@ -295,7 +297,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
             int idx = desc.cornerVertexIndices[vert];
 
             if (idx > 0 and idx < refiner.GetNumVertices(0)) {
-                refiner.baseVertexSharpness(idx) = desc.cornerWeights[vert];
+                refiner.setBaseVertexSharpness(idx, desc.cornerWeights[vert]);
             } else {
                 char msg[1024];
                 snprintf(msg, 1024, "Vertex %d specified to be sharp does not exist", idx);

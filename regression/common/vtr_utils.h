@@ -160,7 +160,7 @@ TopologyRefinerFactory<Shape>::assignComponentTopology(
     Far::TopologyRefiner & refiner, Shape const & shape) {
 
     { // Face relations:
-        int nfaces = refiner.getNumBaseFaces();
+        int nfaces = refiner.GetNumFaces(0);
 
         for (int i=0, ofs=0; i < nfaces; ++i) {
 
@@ -183,13 +183,13 @@ TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
     // UV layyout (we only parse 1 channel)
     if (not shape.faceuvs.empty()) {
 
-        int nfaces = refiner.getNumBaseFaces(),
-           channel = refiner.createFVarChannel( (int)shape.faceuvs.size() );
+        int nfaces = refiner.GetNumFaces(0),
+           channel = refiner.createBaseFVarChannel( (int)shape.faceuvs.size() );
 
         for (int i=0, ofs=0; i < nfaces; ++i) {
 
             Far::IndexArray dstFaceUVs =
-                refiner.getBaseFVarFaceValues(i, channel);
+                refiner.setBaseFVarFaceValues(i, channel);
 
             for (int j=0; j<dstFaceUVs.size(); ++j) {
                 dstFaceUVs[j] = shape.faceuvs[ofs++];
@@ -218,8 +218,8 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
                     printf("cannot find edge for crease tag (%d,%d)\n", t->intargs[j], t->intargs[j+1] );
                 } else {
                     int nfloat = (int) t->floatargs.size();
-                    refiner.baseEdgeSharpness(edge) =
-                        std::max(0.0f, ((nfloat > 1) ? t->floatargs[j] : t->floatargs[0]));
+                    refiner.setBaseEdgeSharpness(edge,
+                        std::max(0.0f, ((nfloat > 1) ? t->floatargs[j] : t->floatargs[0])));
                 }
             }
         } else if (t->name=="corner") {
@@ -230,8 +230,8 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
                     printf("cannot find vertex for corner tag (%d)\n", vertex );
                 } else {
                     int nfloat = (int) t->floatargs.size();
-                    refiner.baseVertexSharpness(vertex) =
-                        std::max(0.0f, ((nfloat > 1) ? t->floatargs[j] : t->floatargs[0]));
+                    refiner.setBaseVertexSharpness(vertex,
+                        std::max(0.0f, ((nfloat > 1) ? t->floatargs[j] : t->floatargs[0])));
                 }
             }
         }
