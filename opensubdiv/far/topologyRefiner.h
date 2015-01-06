@@ -151,10 +151,6 @@ public:
     /// \brief Unrefine the topology (keep control cage)
     void Unrefine();
 
-    /// \brief Clear the topology entirely
-    void Clear();
-    //@}
-
     //@{
     ///  @name Primvar data interpolation
     ///
@@ -381,8 +377,8 @@ public:
         return not compFaceVertTag._xordinary;
     }
 
-    /// \brief Returns the edge with vertices'v0' and 'v1' (or -1 if they are
-    ///  not connected)
+    /// \brief Returns the edge with vertices 'v0' and 'v1' (or INDEX_INVALID if
+    ///  they are not connected)
     Index FindEdge(int level, Index v0, Index v1) const {
         return _levels[level]->findEdge(v0, v1);
     }

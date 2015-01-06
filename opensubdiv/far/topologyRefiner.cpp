@@ -79,12 +79,6 @@ TopologyRefiner::Unrefine() {
     _refinements.clear();
 }
 
-void
-TopologyRefiner::Clear() {
-    _levels.clear();
-    _refinements.clear();
-}
-
 
 //
 //  Accessors to the topology information:
