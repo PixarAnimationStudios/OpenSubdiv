@@ -30,7 +30,7 @@ set(PUBLIC_HEADER_FILES
     loopScheme.h
     options.h
     scheme.h
-    type.h
+    types.h
 )
 
 set(PRIVATE_HEADER_FILES )

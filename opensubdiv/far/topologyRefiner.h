@@ -26,7 +26,7 @@
 
 #include "../version.h"
 
-#include "../sdc/type.h"
+#include "../sdc/types.h"
 #include "../sdc/options.h"
 #include "../sdc/bilinearScheme.h"
 #include "../sdc/catmarkScheme.h"

@@ -21,8 +21,8 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef SDC_TYPE_H
-#define SDC_TYPE_H
+#ifndef SDC_TYPES_H
+#define SDC_TYPES_H
 
 #include "../version.h"
 

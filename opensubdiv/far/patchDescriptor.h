@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../sdc/type.h"
+#include "../sdc/types.h"
 
 #include <vector>
 
