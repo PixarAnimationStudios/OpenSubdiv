@@ -52,7 +52,7 @@ public:
 
     enum Mode {
         INTERPOLATE_VERTEX=0,
-        INTERPOLATE_VARYING,
+        INTERPOLATE_VARYING
     };
 
     struct Options {

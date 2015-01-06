@@ -45,7 +45,13 @@ static char const * errors[] = {
 
 void SetErrorCallback(ErrorCallbackFunc func) {
 
+#ifdef __INTEL_COMPILER
+#pragma warning disable 1711
+#endif
     errorFunc = func;
+#ifdef __INTEL_COMPILER
+#pragma warning enable 1711
+#endif
 }
 
 void Error(ErrorType err) {
@@ -78,7 +84,13 @@ static WarningCallbackFunc warningFunc = 0;
 
 void SetWarningCallback(WarningCallbackFunc func) {
 
+#ifdef __INTEL_COMPILER
+#pragma warning disable 1711
+#endif
     warningFunc = func;
+#ifdef __INTEL_COMPILER
+#pragma warning enable 1711
+#endif
 }
 
 void Warning(const char *format, ...) {

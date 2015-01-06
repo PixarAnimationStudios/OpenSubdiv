@@ -42,19 +42,21 @@ typedef enum {
 
 typedef void (*ErrorCallbackFunc)(ErrorType err, const char *message);
 
-/// Sets the error callback function (default is "printf")
+/// \brief Sets the error callback function (default is "printf")
+///
+/// \note This function is not thread-safe !
 ///
 /// @param func function pointer to the callback function
 ///
 void SetErrorCallback(ErrorCallbackFunc func);
 
-/// Sends an OSD error
+/// \brief Sends an OSD error
 ///
 /// @param err the error type
 ///
 void Error(ErrorType err);
 
-/// Sends an OSD error with a message
+/// \brief Sends an OSD error with a message
 ///
 /// @param err     the error type
 ///
@@ -63,16 +65,18 @@ void Error(ErrorType err);
 void Error(ErrorType err, const char *format, ...);
 
 
-/// Sets the warning callback function (default is "printf")
+/// \brief Sets the warning callback function (default is "printf")
 typedef void (*WarningCallbackFunc)(const char *message);
 
-/// Sets the warning callback function (default is "printf")
+/// \brief Sets the warning callback function (default is "printf")
+///
+/// \note This function is not thread-safe !
 ///
 /// @param func function pointer to the callback function
 ///
 void SetWarningCallback(WarningCallbackFunc func);
 
-/// Sends an OSD warning message
+/// \brief Sends an OSD warning message
 ///
 /// @param format  the format of the message (followed by arguments)
 ///

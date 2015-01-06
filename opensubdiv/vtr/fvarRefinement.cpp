@@ -318,7 +318,7 @@ FVarRefinement::populateChildValuesFromEdgeVertices() {
             _childFVar._valueCount ++;
         } else {
             int cValueCount = populateChildValuesForEdgeVertex(cVert, pEdge);
-            _childFVar._vertSiblingCounts[cVert] = cValueCount;
+            _childFVar._vertSiblingCounts[cVert] = (LocalIndex)cValueCount;
             _childFVar._valueCount += cValueCount;
         }
     }
@@ -337,7 +337,7 @@ FVarRefinement::populateChildValuesFromVertexVertices() {
             _childFVar._valueCount ++;
         } else {
             int cValueCount = populateChildValuesForVertexVertex(cVert, pVert);
-            _childFVar._vertSiblingCounts[cVert] = cValueCount;
+            _childFVar._vertSiblingCounts[cVert] = (LocalIndex)cValueCount;
             _childFVar._valueCount += cValueCount;
         }
     }

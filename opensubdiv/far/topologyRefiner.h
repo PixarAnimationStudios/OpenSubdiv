@@ -580,10 +580,10 @@ private:
     Sdc::Type    _subdivType;
     Sdc::Options _subdivOptions;
 
-    unsigned char  _isUniform : 1,
-                   _hasHoles : 1,
-                   _useSingleCreasePatch : 1,
-                   _maxLevel : 4;
+    unsigned int _isUniform : 1,
+                 _hasHoles : 1,
+                 _useSingleCreasePatch : 1,
+                 _maxLevel : 4;
 
     std::vector<Vtr::Level *>      _levels;
     std::vector<Vtr::Refinement *> _refinements;

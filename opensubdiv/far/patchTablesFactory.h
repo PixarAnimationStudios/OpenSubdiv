@@ -55,12 +55,12 @@ public:
 
     struct Options {
 
-        Options(unsigned int maxIsolationLevel=10) :
+        Options(unsigned int maxIsolation=10) :
              generateAllLevels(false),
              triangulateQuads(false),
              generateFVarTables(false),
              useSingleCreasePatch(false),
-             maxIsolationLevel(maxIsolationLevel),
+             maxIsolationLevel(maxIsolation),
              adaptiveStencilTables(0) { }
 
         unsigned int generateAllLevels : 1,    ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)

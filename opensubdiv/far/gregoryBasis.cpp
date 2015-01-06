@@ -465,10 +465,10 @@ ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex) {
             np = abs(valences[ip]),
             nm = abs(valences[im]);
 
-        LocalIndex start = quadOffsets[vid*2+0],
-                   prev = quadOffsets[vid*2+1],
-                   start_m = quadOffsets[im*2],
-                   prev_p = quadOffsets[ip*2+1];
+        Index start = quadOffsets[vid*2+0],
+              prev = quadOffsets[vid*2+1],
+              start_m = quadOffsets[im*2],
+              prev_p = quadOffsets[ip*2+1];
 
         Point Em_ip, Ep_im;
 
