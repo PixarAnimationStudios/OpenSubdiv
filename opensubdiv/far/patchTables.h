@@ -698,10 +698,10 @@ PatchTables::InterpolateGregoryPatch(StencilTables const * basisStencils,
             }
             ++fcount;
         } else {
-            Stencil s = basisStencils->GetStencil(offset + index);
-            Index const * srcIndices = s.GetVertexIndices();
-            float const * srcWeights = s.GetWeights();
-            for (int j=0; j<s.GetSize(); ++j) {
+            Stencil stencil = basisStencils->GetStencil(offset + index);
+            Index const * srcIndices = stencil.GetVertexIndices();
+            float const * srcWeights = stencil.GetWeights();
+            for (int j=0; j<stencil.GetSize(); ++j) {
                 dst.AddWithWeight( src[srcIndices[j]],
                     Q[i]*srcWeights[j], Qd1[i]*srcWeights[j],
                          Qd2[i]*srcWeights[j]);

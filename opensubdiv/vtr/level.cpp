@@ -35,7 +35,7 @@
 #include <vector>
 #include <map>
 
-#if _MSC_VER
+#ifdef _MSC_VER
     #define snprintf _snprintf
 #endif
 

@@ -127,16 +127,10 @@ struct PatchParam {
     /// @param depth subdivision level of the patch
     /// @param nonquad true if the root face is not a quad
     ///
-    void Set( Index faceid, short u, short v, unsigned char rots, unsigned char depth, bool nonquad ) {
-        faceIndex = faceid;
-        bitField.Set(u,v,rots,depth,nonquad);
-    }
+    void Set( Index faceid, short u, short v, unsigned char rots, unsigned char depth, bool nonquad );
 
     /// \brief Resets everything to 0
-    void Clear() {
-        faceIndex = 0;
-        bitField.Clear();
-    }
+    void Clear();
 };
 
 typedef std::vector<PatchParam> PatchParamTable;
@@ -187,6 +181,18 @@ PatchParam::BitField::Rotate( float & u, float & v ) const {
          default:
              assert(0);
     }
+}
+
+inline void
+PatchParam::Set( Index faceid, short u, short v, unsigned char rots, unsigned char depth, bool nonquad ) {
+    faceIndex = faceid;
+    bitField.Set(u,v,rots,depth,nonquad);
+}
+
+inline void
+PatchParam::Clear() {
+    faceIndex = 0;
+    bitField.Clear();
 }
 
 } // end namespace Far

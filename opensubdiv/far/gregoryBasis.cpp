@@ -443,10 +443,10 @@ ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex) {
                 Index idx_neighbor = manifoldRing[2*curri + 0],
                       idx_diagonal = manifoldRing[2*curri + 1];
 
-                Point neighbor(idx_neighbor),
-                      diagonal(idx_diagonal);
+                Point p_neighbor(idx_neighbor),
+                      p_diagonal(idx_diagonal);
 
-                e1[vid] += neighbor*alpha + diagonal*beta;
+                e1[vid] += p_neighbor*alpha + p_diagonal*beta;
             }
             e1[vid] /= 3.0f;
         }

@@ -219,15 +219,15 @@ StencilTablesFactory::Create(int numTables, StencilTables const ** tables) {
     for (int i=0; i<numTables; ++i) {
         StencilTables const & st = *tables[i];
 
-        int nstencils = st.GetNumStencils(),
-            nelems = (int)st._indices.size();
-        memcpy(sizes, &st._sizes[0], nstencils*sizeof(unsigned char));
-        memcpy(indices, &st._indices[0], nelems*sizeof(Index));
-        memcpy(weights, &st._weights[0], nelems*sizeof(float));
+        int st_nstencils = st.GetNumStencils(),
+            st_nelems = (int)st._indices.size();
+        memcpy(sizes, &st._sizes[0], st_nstencils*sizeof(unsigned char));
+        memcpy(indices, &st._indices[0], st_nelems*sizeof(Index));
+        memcpy(weights, &st._weights[0], st_nelems*sizeof(float));
 
-        sizes += nstencils;
-        indices += nelems;
-        weights += nelems;
+        sizes += st_nstencils;
+        indices += st_nelems;
+        weights += st_nelems;
     }
 
     result->_numControlVertices = ncvs;
