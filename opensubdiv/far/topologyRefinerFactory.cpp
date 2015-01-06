@@ -36,8 +36,8 @@ namespace Far {
 //  usage)
 //
 //
-void
-TopologyRefinerFactoryBase::validateComponentTopologySizing(TopologyRefiner& refiner) {
+bool
+TopologyRefinerFactoryBase::prepareComponentTopologySizing(TopologyRefiner& refiner) {
 
     Vtr::Level& baseLevel = refiner.getLevel(0);
 
@@ -78,27 +78,35 @@ TopologyRefinerFactoryBase::validateComponentTopologySizing(TopologyRefiner& ref
         assert(baseLevel.getNumVertexFacesTotal() > 0);
         assert(baseLevel.getNumVertexEdgesTotal() > 0);
     }
+    return true;
 }
 
-void
-TopologyRefinerFactoryBase::validateFaceVaryingComponentTopologyAssignment(TopologyRefiner& refiner) {
+bool
+TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& refiner, bool fullValidation) {
 
     Vtr::Level& baseLevel = refiner.getLevel(0);
 
-    for (int channel=0; channel<refiner.GetNumFVarChannels(); ++channel) {
-        baseLevel.completeFVarChannelTopology(channel);
+    if (baseLevel.getNumEdges() == 0) {
+        baseLevel.completeTopologyFromFaceVertices();
     }
+
+    bool valid = true;
+    if (fullValidation) {
+        //if (not baseLevel.validateTopology(...)) {
+        //}
+    }
+    return valid;
 }
 
-//
-//  This method combines the initialization of internal component tags with the sharpening of edges
-//  and vertices according to the given boundary interpolation rule in the Options.  Since both
-//  involve traversing the edge and vertex lists and noting the presence of boundaries -- best
-//  to do both at once...
-//
-void
-TopologyRefinerFactoryBase::applyInternalTagsAndBoundarySharpness(TopologyRefiner& refiner) {
+bool
+TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& refiner) {
 
+    //
+    //  This method combines the initialization of internal component tags with the sharpening
+    //  of edges and vertices according to the given boundary interpolation rule in the Options.
+    //  Since both involve traversing the edge and vertex lists and noting the presence of
+    //  boundaries -- best to do both at once...
+    //
     Vtr::Level&  baseLevel = refiner.getLevel(0);
 
     assert((int)baseLevel._edgeTags.size() == baseLevel.getNumEdges());
@@ -195,12 +203,20 @@ TopologyRefinerFactoryBase::applyInternalTagsAndBoundarySharpness(TopologyRefine
         vTag._incomplete = 0;
     }
 
-    //
-    //  Anything more to be done with Face tags? (eventually when processing edits perhaps)
-    //
-    //  for (Vtr::Index fIndex = 0; fIndex < baseLevel.getNumFaces(); ++fIndex) {
-    //  }
+    return true;
 }
+
+bool
+TopologyRefinerFactoryBase::prepareFaceVaryingChannels(TopologyRefiner& refiner) {
+
+    Vtr::Level& baseLevel = refiner.getLevel(0);
+
+    for (int channel=0; channel<refiner.GetNumFVarChannels(); ++channel) {
+        baseLevel.completeFVarChannelTopology(channel);
+    }
+    return true;
+}
+
 
 //
 // Specialization for raw topology data
