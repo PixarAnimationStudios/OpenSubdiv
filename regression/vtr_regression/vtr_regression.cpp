@@ -151,8 +151,8 @@ interpolateVtrVertexData(ShapeDesc const & desc, int maxlevel, std::vector<xyzVV
     Shape * shape = Shape::parseObj(desc.data.c_str(), desc.scheme);
 
     FarTopologyRefiner * refiner =
-        FarTopologyRefinerFactory::Create(
-            GetSdcType(*shape), GetSdcOptions(*shape), *shape);
+        FarTopologyRefinerFactory::Create(*shape,
+            FarTopologyRefinerFactory::Options(GetSdcType(*shape), GetSdcOptions(*shape)));
     assert(refiner);
 
     FarTopologyRefiner::UniformOptions options(maxlevel);

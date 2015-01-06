@@ -225,7 +225,8 @@ createOsdMesh() {
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // count ptex face id
     int numPtexFaces = refiner->GetNumPtexFaces();

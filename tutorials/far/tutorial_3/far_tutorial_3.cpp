@@ -187,7 +187,9 @@ int main(int, char **) {
     desc.fvarChannels = & uvs;
 
     // Instantiate a FarTopologyRefiner from the descriptor
-    Far::TopologyRefiner * refiner = Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);
+    Far::TopologyRefiner * refiner =
+        Far::TopologyRefinerFactory<Descriptor>::Create(desc,
+            Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 
     // Uniformly refine the topolgy up to 'maxlevel'
     // note: fullTopologyInLastLevel must be true to work with face-varying data

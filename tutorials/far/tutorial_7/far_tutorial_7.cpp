@@ -230,7 +230,8 @@ createTopologyRefiner() {
     desc.vertIndicesPerFace = g_vertIndices;
 
     // Instantiate a FarTopologyRefiner from the descriptor.
-    return Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);
+    return Far::TopologyRefinerFactory<Descriptor>::Create(desc,
+            Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 
 }
 

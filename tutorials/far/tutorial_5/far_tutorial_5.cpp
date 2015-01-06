@@ -229,7 +229,8 @@ createTopologyRefiner() {
 
     // Instantiate a FarTopologyRefiner from the descriptor.
     Far::TopologyRefiner * refiner =
-        Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);
+        Far::TopologyRefinerFactory<Descriptor>::Create(desc,
+            Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 
     return refiner;
 }

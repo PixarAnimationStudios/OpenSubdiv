@@ -660,7 +660,8 @@ createVtrMesh(Shape * shape, int maxlevel) {
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     if (g_Adaptive) {
         OpenSubdiv::Far::TopologyRefiner::AdaptiveOptions options(maxlevel);

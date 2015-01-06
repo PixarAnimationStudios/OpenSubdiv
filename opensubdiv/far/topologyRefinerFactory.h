@@ -120,6 +120,21 @@ class TopologyRefinerFactory : public TopologyRefinerFactoryBase {
 
 public:
 
+    struct Options {
+
+        Options(Sdc::Type sdcType = Sdc::TYPE_CATMARK, Sdc::Options sdcOptions = Sdc::Options()) :
+            schemeType(sdcType),
+            schemeOptions(sdcOptions),
+            validateFullTopology(false) { }
+
+        Sdc::Type    schemeType;                ///< The subdivision scheme type identifier
+        Sdc::Options schemeOptions;             ///< The full set of options for the scheme,
+                                                ///< e.g. boundary interpolation rules...
+        unsigned int validateFullTopology : 1;  ///< Apply more extensive validation of
+                                                ///< the constructed topology -- intended
+                                                ///< for debugging.
+    };
+
     /// \brief Instantiates TopologyRefiner from client-provided topological
     ///        representation.
     ///
@@ -128,15 +143,13 @@ public:
     ///  requires additional processing. If the client topological rep can
     ///  provide this information, it is highly recommended to do so.
     ///
-    /// @param type          The subdivision scheme
+    /// @param mesh       Client's topological representation (or a converter)
+    //
+    /// @param options    Options controlling the creation of the TopologyRefiner
     ///
-    /// @param options       Subdivion options (boundary interpolation rules...)
+    /// return            A new instance of TopologyRefiner or NULL for failure
     ///
-    /// @param mesh          Client topological representation (or a converter)
-    ///
-    /// return               An instance of TopologyRefiner or NULL for failure
-    ///
-    static TopologyRefiner* Create(Sdc::Type type, Sdc::Options options, MESH const& mesh);
+    static TopologyRefiner* Create(MESH const& mesh, Options options = Options());
 
 protected:
     //
@@ -170,9 +183,9 @@ protected:
 //
 template <class MESH>
 TopologyRefiner*
-TopologyRefinerFactory<MESH>::Create(Sdc::Type type, Sdc::Options options, MESH const& mesh) {
+TopologyRefinerFactory<MESH>::Create(MESH const& mesh, Options options) {
 
-    TopologyRefiner * refiner = new TopologyRefiner(type, options);
+    TopologyRefiner * refiner = new TopologyRefiner(options.schemeType, options.schemeOptions);
 
     //
     //  Construction of a specialized topology refiner involves four steps, each of which
@@ -202,8 +215,7 @@ TopologyRefinerFactory<MESH>::Create(Sdc::Type type, Sdc::Options options, MESH 
     if (valid) {
         assignComponentTopology(*refiner, mesh);
 
-        bool fullTopologyValidation = false;
-        valid = prepareComponentTopologyAssignment(*refiner, fullTopologyValidation);
+        valid = prepareComponentTopologyAssignment(*refiner, options.validateFullTopology);
     }
 
     //

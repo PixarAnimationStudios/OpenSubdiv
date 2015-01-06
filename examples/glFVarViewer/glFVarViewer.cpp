@@ -319,7 +319,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
     sdcoptions.SetFVarLinearInterpolation(g_fvarBoundary);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
     int nedges = refiner->GetNumEdges(0),

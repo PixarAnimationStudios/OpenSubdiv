@@ -384,7 +384,8 @@ gatherTopology( MFnMesh const & inMeshFn,
     float maxVertexCrease = getCreaseVertices( inMeshFn, desc );
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);
+        OpenSubdiv::Far::TopologyRefinerFactory<Descriptor>::Create(desc,
+            OpenSubdiv::Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 
     delete [] desc.numVertsPerFace;
     delete [] desc.vertIndicesPerFace;

@@ -333,7 +333,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 
     delete g_topologyRefiner;
     OpenSubdiv::Far::TopologyRefiner * g_topologyRefiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     g_orgPositions=shape->verts;
     g_positions.resize(g_orgPositions.size(), 0.0f);

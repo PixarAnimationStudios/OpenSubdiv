@@ -418,8 +418,9 @@ int main(int, char **) {
 
     Converter conv;
 
-    Far::TopologyRefiner * refiner = Far::TopologyRefinerFactory<Converter>::Create(
-        conv.GetType(), conv.GetOptions(), conv);
+    Far::TopologyRefiner * refiner =
+        Far::TopologyRefinerFactory<Converter>::Create(conv,
+                Far::TopologyRefinerFactory<Converter>::Options(conv.GetType(), conv.GetOptions()));
 
 
     int maxlevel = 5;
