@@ -105,7 +105,7 @@ Heritage
 
 This is the fifth-generation subdiv library in use by Pixar's proprietary animation 
 system in a lineage that started with code written by Tony DeRose and Tien Truong 
-for Geri\u2019s Game in 1996. Each generation has been a from-scratch rewrite that 
+for Geri's Game in 1996. Each generation has been a from-scratch rewrite that 
 has built upon our experience using subdivision surfaces to make animated films. 
 This code is live, so Pixar's changes to OpenSubdiv for current and future films 
 will be released as open source at the same time they are rolled out to Pixar 

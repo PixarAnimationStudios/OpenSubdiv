@@ -37,7 +37,7 @@ Release 3.0
 OpenSubdiv 3.0 represents a landmark release, with very profound changes to the
 core algorithms. While providing faster, more efficient, and more flexible
 subdivision code remains our principal goal, OpenSubdiv 3.0 introduces many
-improvements that constitute a fairly radical departures from our previous
+improvements that constitute a fairly radical departure from our previous
 versions.
 
 ----
@@ -76,7 +76,7 @@ was both redundant and inefficient.
 
 OpenSubdiv 3.0 introduces a new *intermediate* topological representation, named
 **Vtr** (Vectorized Topology Representation). The topological relationships
-held by Vtr can populated using either a high-level interface where simplicity
+held by Vtr can be populated using either a high-level interface where simplicity
 has been emphasized, or a lower-level interface for enhanced efficiency. Vtr is
 much more efficient for the kinds of topological analysis required by Far and
 additionally is more flexible in that it supports the specification of
@@ -141,13 +141,13 @@ Introducing Stencil Tables
 OpenSubdiv 3.0 replaces the serialized subdivision tables with factorized
 stencil tables. Subdivision tables as implemented in 2.x releases still contain
 a fairly large amount of data inter-dependencies, which incur penalties from
-fences or force addition kernel launches. Most of these dependencies have now
+fences or force additional kernel launches. Most of these dependencies have now
 been factorized away in the pre-computation stage, yielding *stencil tables*
 instead.
 
 Stencils remove all data dependencies and simplify all the computations into a
 single trivial kernel. This simplification results in a faster pre-computation
-stage, faster execution on GPU, and fewer driver overheads. The new stencil
+stage, faster execution on GPU, with fewer driver overheads. The new stencil
 tables Compute back-end is supported on all the same platforms as previous
 releases (except GCD).
 
@@ -280,7 +280,7 @@ adopters to start building upon these releases.
 
 Within 'Master' releases, we expect APIs to be backward compatible so that
 existing client code can seamlessly build against newer releases. Changes
-may include bug fixes as well as new features, 
+may include bug fixes as well as new features.
 
 .. container:: notebox
 
