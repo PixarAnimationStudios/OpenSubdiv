@@ -391,36 +391,6 @@ protected:
     //  Refinement data for face-varying channels present in the Levels being refined:
     //
     std::vector<FVarRefinement*> _fvarChannels;
-
-public:
-//#define _VTR_COMPUTE_MASK_WEIGHTS_ENABLED
-#ifdef _VTR_COMPUTE_MASK_WEIGHTS_ENABLED
-    //  TEMPORARY -- FOR ILLUSTRATIVE PURPOSES ONLY...
-    //
-    //  Mask for the child vertices stored relative to parent topology, i.e. weights
-    //  for a child face-vertex are stored relative to the parent face -- a weight for
-    //  each of the parent face's vertices.
-    //
-    //  Currently the full complement of weights is used and expected to be applied, e.g.
-    //  for a crease in the interior, there may be no face-vert weights in the stencil
-    //  and so no need to apply them, but we require all and so set these to zero for now.
-    //  We will need some kind of stencil type associated with each child vertex if we
-    //  are to avoid doing so in order to detect the difference.
-    //
-    //  Note this is potentially extremely wasteful in terms of memory when the set of
-    //  refined components in the child is small relative to the parent.  All possible
-    //  stencil weights (i.e. for uniform refinement) will be allocated here if the
-    //  corresonding counts/offset of the parent are to be used.
-    //
-    void computeMaskWeights();
-
-    std::vector<float> _faceVertWeights;  // matches parent face vert counts and offsets
-    std::vector<float> _edgeVertWeights;  // trivially 2 per parent edge
-    std::vector<float> _edgeFaceWeights;  // matches parent edge face counts and offsets
-    std::vector<float> _vertVertWeights;  // trivially 1 per parent vert
-    std::vector<float> _vertEdgeWeights;  // matches parent vert edge counts and offsets
-    std::vector<float> _vertFaceWeights;  // matches parent vert face counts and offsets
-#endif
 };
 
 inline ConstIndexArray
