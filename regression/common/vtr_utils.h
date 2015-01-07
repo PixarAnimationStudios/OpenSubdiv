@@ -32,15 +32,15 @@
 
 //------------------------------------------------------------------------------
 
-inline OpenSubdiv::Sdc::Type
+inline OpenSubdiv::Sdc::SchemeType
 GetSdcType(Shape const & shape) {
 
-    OpenSubdiv::Sdc::Type type=OpenSubdiv::Sdc::TYPE_CATMARK;
+    OpenSubdiv::Sdc::SchemeType type=OpenSubdiv::Sdc::SCHEME_CATMARK;
 
     switch (shape.scheme) {
-        case kBilinear: type = OpenSubdiv::Sdc::TYPE_BILINEAR; break;
-        case kCatmark : type = OpenSubdiv::Sdc::TYPE_CATMARK; break;
-        case kLoop    : type = OpenSubdiv::Sdc::TYPE_LOOP; break;
+        case kBilinear: type = OpenSubdiv::Sdc::SCHEME_BILINEAR; break;
+        case kCatmark : type = OpenSubdiv::Sdc::SCHEME_CATMARK; break;
+        case kLoop    : type = OpenSubdiv::Sdc::SCHEME_LOOP; break;
     }
     return type;
 }

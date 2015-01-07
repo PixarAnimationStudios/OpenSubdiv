@@ -36,7 +36,7 @@ namespace Sdc {
 
 
 //
-//  Specializations for Sdc::Scheme<TYPE_LOOP>:
+//  Specializations for Sdc::Scheme<SCHEME_LOOP>:
 //
 //
 
@@ -44,16 +44,16 @@ namespace Sdc {
 //  Loop traits:
 //
 template <>
-inline Split Scheme<TYPE_LOOP>::GetTopologicalSplitType() { return SPLIT_TO_TRIS; }
+inline Split Scheme<SCHEME_LOOP>::GetTopologicalSplitType() { return SPLIT_TO_TRIS; }
 
 template <>
-inline int Scheme<TYPE_LOOP>::GetRegularFaceSize() { return 3; }
+inline int Scheme<SCHEME_LOOP>::GetRegularFaceSize() { return 3; }
 
 template <>
-inline int Scheme<TYPE_LOOP>::GetRegularVertexValence() { return 6; }
+inline int Scheme<SCHEME_LOOP>::GetRegularVertexValence() { return 6; }
 
 template <>
-inline int Scheme<TYPE_LOOP>::GetLocalNeighborhoodSize() { return 1; }
+inline int Scheme<SCHEME_LOOP>::GetLocalNeighborhoodSize() { return 1; }
 
 
 //
@@ -66,7 +66,7 @@ inline int Scheme<TYPE_LOOP>::GetLocalNeighborhoodSize() { return 1; }
 template <>
 template <typename EDGE, typename MASK>
 inline void
-Scheme<TYPE_LOOP>::assignCreaseMaskForEdge(EDGE const&, MASK& mask) const
+Scheme<SCHEME_LOOP>::assignCreaseMaskForEdge(EDGE const&, MASK& mask) const
 {
     mask.SetNumVertexWeights(2);
     mask.SetNumEdgeWeights(0);
@@ -80,7 +80,7 @@ Scheme<TYPE_LOOP>::assignCreaseMaskForEdge(EDGE const&, MASK& mask) const
 template <>
 template <typename EDGE, typename MASK>
 inline void
-Scheme<TYPE_LOOP>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) const
+Scheme<SCHEME_LOOP>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) const
 {
     int faceCount = edge.GetNumFaces();
 
@@ -138,7 +138,7 @@ Scheme<TYPE_LOOP>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) const
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_LOOP>::assignCornerMaskForVertex(VERTEX const&, MASK& mask) const
+Scheme<SCHEME_LOOP>::assignCornerMaskForVertex(VERTEX const&, MASK& mask) const
 {
     mask.SetNumVertexWeights(1);
     mask.SetNumEdgeWeights(0);
@@ -151,7 +151,7 @@ Scheme<TYPE_LOOP>::assignCornerMaskForVertex(VERTEX const&, MASK& mask) const
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_LOOP>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask, float const edgeSharpness[]) const
+Scheme<SCHEME_LOOP>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask, float const edgeSharpness[]) const
 {
     typedef typename MASK::Weight Weight;
 
@@ -175,7 +175,7 @@ Scheme<TYPE_LOOP>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask, f
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_LOOP>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask) const
+Scheme<SCHEME_LOOP>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask) const
 {
     typedef typename MASK::Weight Weight;
 
@@ -215,7 +215,7 @@ Scheme<TYPE_LOOP>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask) c
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_LOOP>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_LOOP>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -240,7 +240,7 @@ Scheme<TYPE_LOOP>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) 
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_LOOP>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_LOOP>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -278,7 +278,7 @@ Scheme<TYPE_LOOP>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) 
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_LOOP>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */,
+Scheme<SCHEME_LOOP>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     //  Need to dig up formulae for this case...
@@ -299,7 +299,7 @@ Scheme<TYPE_LOOP>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */,
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_LOOP>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
+Scheme<SCHEME_LOOP>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     typedef typename MASK::Weight Weight;

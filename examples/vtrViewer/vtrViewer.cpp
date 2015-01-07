@@ -656,8 +656,8 @@ createVtrMesh(Shape * shape, int maxlevel) {
     s.Start();
 
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);
-    OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
+    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
+    OpenSubdiv::Sdc::Options    sdcoptions = GetSdcOptions(*shape);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
         OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,

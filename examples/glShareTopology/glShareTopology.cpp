@@ -572,7 +572,7 @@ createOsdMesh( const std::string &shapeStr, int level, Scheme scheme=kCatmark ) 
 
     Far::TopologyRefiner * refiner = 0;
     {
-        Sdc::Type type = GetSdcType(*shape);
+        Sdc::SchemeType type = GetSdcType(*shape);
         Sdc::Options options = GetSdcOptions(*shape);
 
         refiner = Far::TopologyRefinerFactory<Shape>::Create(*shape,

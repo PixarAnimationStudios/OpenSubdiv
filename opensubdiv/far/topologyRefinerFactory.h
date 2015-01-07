@@ -122,13 +122,13 @@ public:
 
     struct Options {
 
-        Options(Sdc::Type sdcType = Sdc::TYPE_CATMARK, Sdc::Options sdcOptions = Sdc::Options()) :
+        Options(Sdc::SchemeType sdcType = Sdc::SCHEME_CATMARK, Sdc::Options sdcOptions = Sdc::Options()) :
             schemeType(sdcType),
             schemeOptions(sdcOptions),
             validateFullTopology(false) { }
 
-        Sdc::Type    schemeType;                ///< The subdivision scheme type identifier
-        Sdc::Options schemeOptions;             ///< The full set of options for the scheme,
+        Sdc::SchemeType schemeType;             ///< The subdivision scheme type identifier
+        Sdc::Options    schemeOptions;          ///< The full set of options for the scheme,
                                                 ///< e.g. boundary interpolation rules...
         unsigned int validateFullTopology : 1;  ///< Apply more extensive validation of
                                                 ///< the constructed topology -- intended

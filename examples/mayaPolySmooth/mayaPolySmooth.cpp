@@ -309,7 +309,7 @@ getMayaFvarFieldParams(
 static OpenSubdiv::Far::TopologyRefiner *
 gatherTopology( MFnMesh const & inMeshFn,
                 MItMeshPolygon & inMeshItPolygon,
-                OpenSubdiv::Sdc::Type type,
+                OpenSubdiv::Sdc::SchemeType type,
                 OpenSubdiv::Sdc::Options options,
                 float * maxCreaseSharpness=0 ) {
 
@@ -628,7 +628,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             MCHECKERR(status, "ERROR getting inMeshItPolygon\n");
 
             // Convert attr values to OSD enums
-            OpenSubdiv::Sdc::Type type = OpenSubdiv::Sdc::TYPE_CATMARK;
+            OpenSubdiv::Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 
             //
             // Create Far topology

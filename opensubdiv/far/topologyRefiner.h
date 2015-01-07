@@ -59,13 +59,13 @@ class TopologyRefiner {
 public:
 
     /// \brief Constructor
-    TopologyRefiner(Sdc::Type type, Sdc::Options options = Sdc::Options());
+    TopologyRefiner(Sdc::SchemeType type, Sdc::Options options = Sdc::Options());
 
     /// \brief Destructor
     ~TopologyRefiner();
 
     /// \brief Returns the subdivision scheme
-    Sdc::Type    GetSchemeType() const    { return _subdivType; }
+    Sdc::SchemeType GetSchemeType() const    { return _subdivType; }
 
     /// \brief Returns the subdivision options
     Sdc::Options GetSchemeOptions() const { return _subdivOptions; }
@@ -557,28 +557,28 @@ protected:
 private:
     void selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector);
 
-    template <Sdc::Type SCHEME, class T, class U> void interpolateChildVertsFromFaces(Vtr::Refinement const &, T const & src, U & dst) const;
-    template <Sdc::Type SCHEME, class T, class U> void interpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst) const;
-    template <Sdc::Type SCHEME, class T, class U> void interpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void interpolateChildVertsFromFaces(Vtr::Refinement const &, T const & src, U & dst) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void interpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void interpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst) const;
 
     template <class T, class U> void varyingInterpolateChildVertsFromFaces(Vtr::Refinement const &, T const & src, U & dst) const;
     template <class T, class U> void varyingInterpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst) const;
     template <class T, class U> void varyingInterpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst) const;
 
-    template <Sdc::Type SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromFaces(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
-    template <Sdc::Type SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
-    template <Sdc::Type SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromFaces(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
 
-    template <Sdc::Type SCHEME, class T, class U> void limit(T const & src, U * dst) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void limit(T const & src, U * dst) const;
 
-    template <Sdc::Type SCHEME, class T, class U> void faceVaryingLimit(T const & src, U * dst, int channel) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingLimit(T const & src, U * dst, int channel) const;
 
     void initializePtexIndices() const;
 
 private:
 
-    Sdc::Type    _subdivType;
-    Sdc::Options _subdivOptions;
+    Sdc::SchemeType _subdivType;
+    Sdc::Options    _subdivOptions;
 
     unsigned int _isUniform : 1,
                  _hasHoles : 1,
@@ -613,25 +613,25 @@ TopologyRefiner::Interpolate(int level, T const & src, U & dst) const {
     Vtr::Refinement const & refinement = getRefinement(level-1);
 
     switch (_subdivType) {
-    case Sdc::TYPE_CATMARK:
-        interpolateChildVertsFromFaces<Sdc::TYPE_CATMARK>(refinement, src, dst);
-        interpolateChildVertsFromEdges<Sdc::TYPE_CATMARK>(refinement, src, dst);
-        interpolateChildVertsFromVerts<Sdc::TYPE_CATMARK>(refinement, src, dst);
+    case Sdc::SCHEME_CATMARK:
+        interpolateChildVertsFromFaces<Sdc::SCHEME_CATMARK>(refinement, src, dst);
+        interpolateChildVertsFromEdges<Sdc::SCHEME_CATMARK>(refinement, src, dst);
+        interpolateChildVertsFromVerts<Sdc::SCHEME_CATMARK>(refinement, src, dst);
         break;
-    case Sdc::TYPE_LOOP:
-        interpolateChildVertsFromFaces<Sdc::TYPE_LOOP>(refinement, src, dst);
-        interpolateChildVertsFromEdges<Sdc::TYPE_LOOP>(refinement, src, dst);
-        interpolateChildVertsFromVerts<Sdc::TYPE_LOOP>(refinement, src, dst);
+    case Sdc::SCHEME_LOOP:
+        interpolateChildVertsFromFaces<Sdc::SCHEME_LOOP>(refinement, src, dst);
+        interpolateChildVertsFromEdges<Sdc::SCHEME_LOOP>(refinement, src, dst);
+        interpolateChildVertsFromVerts<Sdc::SCHEME_LOOP>(refinement, src, dst);
         break;
-    case Sdc::TYPE_BILINEAR:
-        interpolateChildVertsFromFaces<Sdc::TYPE_BILINEAR>(refinement, src, dst);
-        interpolateChildVertsFromEdges<Sdc::TYPE_BILINEAR>(refinement, src, dst);
-        interpolateChildVertsFromVerts<Sdc::TYPE_BILINEAR>(refinement, src, dst);
+    case Sdc::SCHEME_BILINEAR:
+        interpolateChildVertsFromFaces<Sdc::SCHEME_BILINEAR>(refinement, src, dst);
+        interpolateChildVertsFromEdges<Sdc::SCHEME_BILINEAR>(refinement, src, dst);
+        interpolateChildVertsFromVerts<Sdc::SCHEME_BILINEAR>(refinement, src, dst);
         break;
     }
 }
 
-template <Sdc::Type SCHEME, class T, class U>
+template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 TopologyRefiner::interpolateChildVertsFromFaces(
     Vtr::Refinement const & refinement, T const & src, U & dst) const {
@@ -672,7 +672,7 @@ TopologyRefiner::interpolateChildVertsFromFaces(
     }
 }
 
-template <Sdc::Type SCHEME, class T, class U>
+template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 TopologyRefiner::interpolateChildVertsFromEdges(
     Vtr::Refinement const & refinement, T const & src, U & dst) const {
@@ -744,7 +744,7 @@ TopologyRefiner::interpolateChildVertsFromEdges(
     }
 }
 
-template <Sdc::Type SCHEME, class T, class U>
+template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 TopologyRefiner::interpolateChildVertsFromVerts(
     Vtr::Refinement const & refinement, T const & src, U & dst) const {
@@ -943,25 +943,25 @@ TopologyRefiner::InterpolateFaceVarying(int level, T const & src, U & dst, int c
     Vtr::Refinement const & refinement = getRefinement(level-1);
 
     switch (_subdivType) {
-    case Sdc::TYPE_CATMARK:
-        faceVaryingInterpolateChildVertsFromFaces<Sdc::TYPE_CATMARK>(refinement, src, dst, channel);
-        faceVaryingInterpolateChildVertsFromEdges<Sdc::TYPE_CATMARK>(refinement, src, dst, channel);
-        faceVaryingInterpolateChildVertsFromVerts<Sdc::TYPE_CATMARK>(refinement, src, dst, channel);
+    case Sdc::SCHEME_CATMARK:
+        faceVaryingInterpolateChildVertsFromFaces<Sdc::SCHEME_CATMARK>(refinement, src, dst, channel);
+        faceVaryingInterpolateChildVertsFromEdges<Sdc::SCHEME_CATMARK>(refinement, src, dst, channel);
+        faceVaryingInterpolateChildVertsFromVerts<Sdc::SCHEME_CATMARK>(refinement, src, dst, channel);
         break;
-    case Sdc::TYPE_LOOP:
-        faceVaryingInterpolateChildVertsFromFaces<Sdc::TYPE_LOOP>(refinement, src, dst, channel);
-        faceVaryingInterpolateChildVertsFromEdges<Sdc::TYPE_LOOP>(refinement, src, dst, channel);
-        faceVaryingInterpolateChildVertsFromVerts<Sdc::TYPE_LOOP>(refinement, src, dst, channel);
+    case Sdc::SCHEME_LOOP:
+        faceVaryingInterpolateChildVertsFromFaces<Sdc::SCHEME_LOOP>(refinement, src, dst, channel);
+        faceVaryingInterpolateChildVertsFromEdges<Sdc::SCHEME_LOOP>(refinement, src, dst, channel);
+        faceVaryingInterpolateChildVertsFromVerts<Sdc::SCHEME_LOOP>(refinement, src, dst, channel);
         break;
-    case Sdc::TYPE_BILINEAR:
-        faceVaryingInterpolateChildVertsFromFaces<Sdc::TYPE_BILINEAR>(refinement, src, dst, channel);
-        faceVaryingInterpolateChildVertsFromEdges<Sdc::TYPE_BILINEAR>(refinement, src, dst, channel);
-        faceVaryingInterpolateChildVertsFromVerts<Sdc::TYPE_BILINEAR>(refinement, src, dst, channel);
+    case Sdc::SCHEME_BILINEAR:
+        faceVaryingInterpolateChildVertsFromFaces<Sdc::SCHEME_BILINEAR>(refinement, src, dst, channel);
+        faceVaryingInterpolateChildVertsFromEdges<Sdc::SCHEME_BILINEAR>(refinement, src, dst, channel);
+        faceVaryingInterpolateChildVertsFromVerts<Sdc::SCHEME_BILINEAR>(refinement, src, dst, channel);
         break;
     }
 }
 
-template <Sdc::Type SCHEME, class T, class U>
+template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 TopologyRefiner::faceVaryingInterpolateChildVertsFromFaces(
     Vtr::Refinement const & refinement, T const & src, U & dst, int channel) const {
@@ -1008,7 +1008,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromFaces(
     }
 }
 
-template <Sdc::Type SCHEME, class T, class U>
+template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 TopologyRefiner::faceVaryingInterpolateChildVertsFromEdges(
     Vtr::Refinement const & refinement, T const & src, U & dst, int channel) const {
@@ -1151,7 +1151,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromEdges(
     }
 }
 
-template <Sdc::Type SCHEME, class T, class U>
+template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
     Vtr::Refinement const & refinement, T const & src, U & dst, int channel) const {
@@ -1324,19 +1324,19 @@ TopologyRefiner::Limit(T const & src, U * dst) const {
     assert(GetMaxLevel() > 0);
 
     switch (_subdivType) {
-    case Sdc::TYPE_CATMARK:
-        limit<Sdc::TYPE_CATMARK>(src, dst);
+    case Sdc::SCHEME_CATMARK:
+        limit<Sdc::SCHEME_CATMARK>(src, dst);
         break;
-    case Sdc::TYPE_LOOP:
-        limit<Sdc::TYPE_LOOP>(src, dst);
+    case Sdc::SCHEME_LOOP:
+        limit<Sdc::SCHEME_LOOP>(src, dst);
         break;
-    case Sdc::TYPE_BILINEAR:
-        limit<Sdc::TYPE_BILINEAR>(src, dst);
+    case Sdc::SCHEME_BILINEAR:
+        limit<Sdc::SCHEME_BILINEAR>(src, dst);
         break;
     }
 }
 
-template <Sdc::Type SCHEME, class T, class U>
+template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 TopologyRefiner::limit(T const & src, U * dst) const {
 
@@ -1418,19 +1418,19 @@ TopologyRefiner::LimitFaceVarying(T const & src, U * dst, int channel) const {
     assert(GetMaxLevel() > 0);
 
     switch (_subdivType) {
-    case Sdc::TYPE_CATMARK:
-        faceVaryingLimit<Sdc::TYPE_CATMARK>(src, dst, channel);
+    case Sdc::SCHEME_CATMARK:
+        faceVaryingLimit<Sdc::SCHEME_CATMARK>(src, dst, channel);
         break;
-    case Sdc::TYPE_LOOP:
-        faceVaryingLimit<Sdc::TYPE_LOOP>(src, dst, channel);
+    case Sdc::SCHEME_LOOP:
+        faceVaryingLimit<Sdc::SCHEME_LOOP>(src, dst, channel);
         break;
-    case Sdc::TYPE_BILINEAR:
-        faceVaryingLimit<Sdc::TYPE_BILINEAR>(src, dst, channel);
+    case Sdc::SCHEME_BILINEAR:
+        faceVaryingLimit<Sdc::SCHEME_BILINEAR>(src, dst, channel);
         break;
     }
 }
 
-template <Sdc::Type SCHEME, class T, class U>
+template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 TopologyRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
 

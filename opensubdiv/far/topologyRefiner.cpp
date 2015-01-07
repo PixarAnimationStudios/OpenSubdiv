@@ -39,7 +39,7 @@ namespace Far {
 //  Relatively trivial construction/destruction -- the base level (level[0]) needs
 //  to be explicitly initialized after construction and refinement then applied
 //
-TopologyRefiner::TopologyRefiner(Sdc::Type schemeType, Sdc::Options schemeOptions) :
+TopologyRefiner::TopologyRefiner(Sdc::SchemeType schemeType, Sdc::Options schemeOptions) :
     _subdivType(schemeType),
     _subdivOptions(schemeOptions),
     _isUniform(true),
@@ -147,7 +147,7 @@ TopologyRefiner::initializePtexIndices() const {
     int nfaces = coarseLevel.getNumFaces();
     ptexIndices.resize(nfaces+1);
     int ptexID=0;
-    int regFaceSize = Sdc::TypeTraits::GetRegularFaceSize(GetSchemeType());
+    int regFaceSize = Sdc::SchemeTypeTraits::GetRegularFaceSize(GetSchemeType());
     for (int i = 0; i < nfaces; ++i) {
         ptexIndices[i] = ptexID;
         Vtr::ConstIndexArray fverts = coarseLevel.getFaceVertices(i);
@@ -188,7 +188,7 @@ void
 TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
         int adjFaces[4], int adjEdges[4]) const {
 
-    assert(GetSchemeType()==Sdc::TYPE_CATMARK);
+    assert(GetSchemeType()==Sdc::SCHEME_CATMARK);
 
     if (_ptexIndices.empty()) {
         initializePtexIndices();
@@ -312,7 +312,7 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
     _isUniform = true;
     _maxLevel = options.refinementLevel;
 
-    Sdc::Split splitType = (_subdivType == Sdc::TYPE_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
+    Sdc::Split splitType = (_subdivType == Sdc::SCHEME_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
 
     //
     //  Initialize refinement options for Vtr -- adjusting full-topology for the last level:
@@ -361,7 +361,7 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
     refineOptions._sparse           = true;
     refineOptions._faceTopologyOnly = not options.fullTopologyInLastLevel;
 
-    Sdc::Split splitType = (_subdivType == Sdc::TYPE_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
+    Sdc::Split splitType = (_subdivType == Sdc::SCHEME_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
 
     for (int i = 1; i <= (int)options.isolationLevel; ++i) {
         //  Keeping full topology on for debugging -- may need to go back a level and "prune"

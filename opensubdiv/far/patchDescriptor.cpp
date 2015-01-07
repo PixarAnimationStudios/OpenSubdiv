@@ -91,14 +91,14 @@ getAdaptiveLoopDescriptors() {
     return _descriptors;
 }
 PatchDescriptorVector const &
-PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::Type type) {
+PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SchemeType type) {
 
     static PatchDescriptorVector _empty;
 
     switch (type) {
-        case Sdc::TYPE_BILINEAR : return _empty;
-        case Sdc::TYPE_CATMARK  : return getAdaptiveCatmarkDescriptors();
-        case Sdc::TYPE_LOOP     : return getAdaptiveLoopDescriptors();
+        case Sdc::SCHEME_BILINEAR : return _empty;
+        case Sdc::SCHEME_CATMARK  : return getAdaptiveCatmarkDescriptors();
+        case Sdc::SCHEME_LOOP     : return getAdaptiveLoopDescriptors();
         default:
           assert(0);
     }
