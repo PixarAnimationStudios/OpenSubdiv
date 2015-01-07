@@ -830,7 +830,7 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
 
     typedef Far::PatchDescriptorVector DescVec;
 
-    DescVec const & catmarkDescs = Far::PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::TYPE_CATMARK);
+    DescVec const & catmarkDescs = Far::PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SCHEME_CATMARK);
 
     int voffset=0, poffset=0, qoffset=0;
     for (DescVec::const_iterator it=catmarkDescs.begin(); it!=catmarkDescs.end(); ++it) {

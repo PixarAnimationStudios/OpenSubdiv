@@ -34,10 +34,10 @@ namespace Sdc {
 ///
 ///  \brief Enumerated type for all subdivisions schemes supported by OpenSubdiv
 ///
-enum Type {
-    TYPE_BILINEAR,
-    TYPE_CATMARK,
-    TYPE_LOOP
+enum SchemeType {
+    SCHEME_BILINEAR,
+    SCHEME_CATMARK,
+    SCHEME_LOOP
 };
 
 
@@ -54,16 +54,16 @@ enum Split {
 ///  \brief Traits associated the types of all subdivision schemes -- parameterized by
 ///  the scheme type.  All traits are also defined on the scheme itself.
 ///
-struct TypeTraits {
+struct SchemeTypeTraits {
 
-    static Type GetType(Type schemeType) { return schemeType; }
+    static SchemeType GetType(SchemeType schemeType) { return schemeType; }
 
-    static Split GetTopologicalSplitType(Type schemeType);
-    static int   GetRegularFaceSize(Type schemeType);
-    static int   GetRegularVertexValence(Type schemeType);
-    static int   GetLocalNeighborhoodSize(Type schemeType);
+    static Split GetTopologicalSplitType(SchemeType schemeType);
+    static int   GetRegularFaceSize(SchemeType schemeType);
+    static int   GetRegularVertexValence(SchemeType schemeType);
+    static int   GetLocalNeighborhoodSize(SchemeType schemeType);
 
-    static char const* GetName(Type schemeType);
+    static char const* GetName(SchemeType schemeType);
 };
 
 
@@ -73,4 +73,4 @@ struct TypeTraits {
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* SDC_TYPE_H */
+#endif /* SDC_TYPES_H */

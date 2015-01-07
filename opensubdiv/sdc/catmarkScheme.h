@@ -37,23 +37,23 @@ namespace OPENSUBDIV_VERSION {
 namespace Sdc {
 
 //
-//  Specializations for Scheme<TYPE_CATMARK>:
+//  Specializations for Scheme<SCHEME_CATMARK>:
 //
 
 //
 //  Catmark traits:
 //
 template <>
-inline Split Scheme<TYPE_CATMARK>::GetTopologicalSplitType() { return SPLIT_TO_QUADS; }
+inline Split Scheme<SCHEME_CATMARK>::GetTopologicalSplitType() { return SPLIT_TO_QUADS; }
 
 template <>
-inline int Scheme<TYPE_CATMARK>::GetRegularFaceSize() { return 4; }
+inline int Scheme<SCHEME_CATMARK>::GetRegularFaceSize() { return 4; }
 
 template <>
-inline int Scheme<TYPE_CATMARK>::GetRegularVertexValence() { return 4; }
+inline int Scheme<SCHEME_CATMARK>::GetRegularVertexValence() { return 4; }
 
 template <>
-inline int Scheme<TYPE_CATMARK>::GetLocalNeighborhoodSize() { return 1; }
+inline int Scheme<SCHEME_CATMARK>::GetLocalNeighborhoodSize() { return 1; }
 
 
 //
@@ -68,7 +68,7 @@ inline int Scheme<TYPE_CATMARK>::GetLocalNeighborhoodSize() { return 1; }
 template <>
 template <typename EDGE, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) const {
+Scheme<SCHEME_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -145,7 +145,7 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) cons
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask, float const edgeSharpness[]) const {
+Scheme<SCHEME_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask, float const edgeSharpness[]) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -184,7 +184,7 @@ Scheme<TYPE_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask) const {
+Scheme<SCHEME_CATMARK>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -225,7 +225,7 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_CATMARK>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -250,7 +250,7 @@ Scheme<TYPE_CATMARK>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMas
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -282,7 +282,7 @@ Scheme<TYPE_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMas
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */,
+Scheme<SCHEME_CATMARK>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     tan1Mask.SetNumVertexWeights(1);
@@ -301,7 +301,7 @@ Scheme<TYPE_CATMARK>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
+Scheme<SCHEME_CATMARK>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     typedef typename MASK::Weight Weight;

@@ -688,8 +688,8 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
     assert(refiner.IsUniform());
 
     // ensure that triangulateQuads is only set for quadrilateral schemes
-    options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::TYPE_BILINEAR or
-                                 refiner.GetSchemeType()==Sdc::TYPE_CATMARK);
+    options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::SCHEME_BILINEAR or
+                                 refiner.GetSchemeType()==Sdc::SCHEME_CATMARK);
 
     int maxvalence = refiner.getLevel(0).getMaxValence(),
         maxlevel = refiner.GetMaxLevel(),
@@ -701,9 +701,9 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
         ptype = PatchDescriptor::TRIANGLES;
     } else {
         switch (refiner.GetSchemeType()) {
-            case Sdc::TYPE_BILINEAR :
-            case Sdc::TYPE_CATMARK  : ptype = PatchDescriptor::QUADS; break;
-            case Sdc::TYPE_LOOP     : ptype = PatchDescriptor::TRIANGLES; break;
+            case Sdc::SCHEME_BILINEAR :
+            case Sdc::SCHEME_CATMARK  : ptype = PatchDescriptor::QUADS; break;
+            case Sdc::SCHEME_LOOP     : ptype = PatchDescriptor::TRIANGLES; break;
         }
     }
     assert(ptype!=PatchDescriptor::NON_PATCH);
@@ -852,7 +852,7 @@ PatchTablesFactory::createAdaptive( TopologyRefiner const & refiner, Options opt
     // sort through the inventory and push back non-empty patch arrays
     typedef PatchDescriptorVector DescVec;
 
-    DescVec const & descs = PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::TYPE_CATMARK);
+    DescVec const & descs = PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SCHEME_CATMARK);
 
     int voffset=0, poffset=0, qoffset=0;
     for (DescVec::const_iterator it=descs.begin(); it!=descs.end(); ++it) {
@@ -1136,7 +1136,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
 
     typedef PatchDescriptorVector DescVec;
 
-    DescVec const & descs = PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::TYPE_CATMARK);
+    DescVec const & descs = PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SCHEME_CATMARK);
 
     for (DescVec::const_iterator it=descs.begin(); it!=descs.end(); ++it) {
 

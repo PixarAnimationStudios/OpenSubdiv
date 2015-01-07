@@ -221,7 +221,7 @@ createOsdMesh() {
     g_orgPositions=shape->verts;
 
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);
+    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =

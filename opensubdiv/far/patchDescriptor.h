@@ -154,7 +154,7 @@ public:
 
     /// \brief Returns a vector of all the legal patch descriptors for the
     ///        given adaptive subdivision scheme
-    static std::vector<PatchDescriptor> const & GetAdaptivePatchDescriptors(Sdc::Type type);
+    static std::vector<PatchDescriptor> const & GetAdaptivePatchDescriptors(Sdc::SchemeType type);
 
     /// \brief Allows ordering of patches by type
     inline bool operator < ( PatchDescriptor const other ) const;

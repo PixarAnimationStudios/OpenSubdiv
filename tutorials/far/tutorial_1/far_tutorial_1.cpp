@@ -161,8 +161,8 @@ struct Converter {
 
 public:
 
-    Sdc::Type GetType() const {
-        return Sdc::TYPE_CATMARK;
+    Sdc::SchemeType GetType() const {
+        return Sdc::SCHEME_CATMARK;
     }
 
     Sdc::Options GetOptions() const {

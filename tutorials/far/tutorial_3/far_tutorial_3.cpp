@@ -164,7 +164,7 @@ int main(int, char **) {
 
     typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
 
-    Sdc::Type type = OpenSubdiv::Sdc::TYPE_CATMARK;
+    Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 
     Sdc::Options options;
     options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);

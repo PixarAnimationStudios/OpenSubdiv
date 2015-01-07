@@ -141,7 +141,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
     //
     int schemeRegularBoundaryValence = 2;
     int schemeRegularInteriorValence = 4;
-    if (refiner.GetSchemeType() == Sdc::TYPE_LOOP) {
+    if (refiner.GetSchemeType() == Sdc::SCHEME_LOOP) {
         schemeRegularBoundaryValence = 3;
         schemeRegularInteriorValence = 6;
     }

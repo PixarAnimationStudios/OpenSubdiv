@@ -62,7 +62,7 @@ namespace Sdc {
 ///  efficient retrieval, but subclasses can be created to gather it lazily if
 ///  desired.  
 ///
-template <Type SCHEME_TYPE>
+template <SchemeType SCHEME_TYPE>
 class Scheme {
 
 public:
@@ -291,7 +291,7 @@ protected:
 //  Crease and corner masks are common to most schemes -- the rest need to be provided
 //  for each Scheme specialization.
 //
-template <Sdc::Type SCHEME>
+template <SchemeType SCHEME>
 template <typename EDGE, typename MASK>
 inline void
 Scheme<SCHEME>::assignCreaseMaskForEdge(EDGE const&, MASK& mask) const {
@@ -305,7 +305,7 @@ Scheme<SCHEME>::assignCreaseMaskForEdge(EDGE const&, MASK& mask) const {
     mask.VertexWeight(1) = 0.5f;
 }
 
-template <Sdc::Type SCHEME>
+template <SchemeType SCHEME>
 template <typename VERTEX, typename MASK>
 inline void
 Scheme<SCHEME>::assignCornerMaskForVertex(VERTEX const&, MASK& mask) const {
@@ -322,7 +322,7 @@ Scheme<SCHEME>::assignCornerMaskForVertex(VERTEX const&, MASK& mask) const {
 //
 //  The computation of a face-vertex mask is trivial and consistent for all schemes:
 //
-template <Sdc::Type SCHEME>
+template <SchemeType SCHEME>
 template <typename FACE, typename MASK>
 void
 Scheme<SCHEME>::ComputeFaceVertexMask(FACE const& face, MASK& mask) const {
@@ -366,7 +366,7 @@ Scheme<SCHEME>::ComputeFaceVertexMask(FACE const& face, MASK& mask) const {
 //  assignments are legitimate for the parent and four for the child (Dart being only
 //  valid for the child and Corner for neither).  Results are undefined in these cases.
 //
-template <Sdc::Type SCHEME>
+template <SchemeType SCHEME>
 template <typename EDGE, typename MASK>
 void
 Scheme<SCHEME>::ComputeEdgeVertexMask(EDGE const&     edge,
@@ -486,7 +486,7 @@ Scheme<SCHEME>::ComputeEdgeVertexMask(EDGE const&     edge,
 //  so the child rule should be assigned to be the same (wish the compiler would allow this
 //  in default value assignment).
 //
-template <Type SCHEME>
+template <SchemeType SCHEME>
 template <typename VERTEX, typename MASK>
 void
 Scheme<SCHEME>::ComputeVertexVertexMask(VERTEX const&   vertex,
@@ -576,7 +576,7 @@ Scheme<SCHEME>::ComputeVertexVertexMask(VERTEX const&   vertex,
 //
 //  The computation of limit masks for vertices:
 //
-template <Type SCHEME>
+template <SchemeType SCHEME>
 template <typename VERTEX, typename MASK>
 void
 Scheme<SCHEME>::ComputeVertexLimitMask(VERTEX const& vertex,
@@ -592,7 +592,7 @@ Scheme<SCHEME>::ComputeVertexLimitMask(VERTEX const& vertex,
     }
 }
 
-template <Type SCHEME>
+template <SchemeType SCHEME>
 template <typename VERTEX, typename MASK>
 void
 Scheme<SCHEME>::ComputeVertexLimitMask(VERTEX const& vertex,

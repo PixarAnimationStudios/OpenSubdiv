@@ -32,7 +32,7 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Sdc {
 
-struct TypeTraitsEntry {
+struct TraitsEntry {
     char const * _name;
 
     Split _splitType;
@@ -41,52 +41,52 @@ struct TypeTraitsEntry {
     int   _localNeighborhood;
 };
 
-static const TypeTraitsEntry typeTraitsTable[3] = {
-    { "bilinear", Scheme<TYPE_BILINEAR>::GetTopologicalSplitType(),
-                  Scheme<TYPE_BILINEAR>::GetRegularFaceSize(),
-                  Scheme<TYPE_BILINEAR>::GetRegularVertexValence(),
-                  Scheme<TYPE_BILINEAR>::GetLocalNeighborhoodSize() },
-    { "catmark",  Scheme<TYPE_CATMARK>::GetTopologicalSplitType(),
-                  Scheme<TYPE_CATMARK>::GetRegularFaceSize(),
-                  Scheme<TYPE_CATMARK>::GetRegularVertexValence(),
-                  Scheme<TYPE_CATMARK>::GetLocalNeighborhoodSize() },
-    { "loop",     Scheme<TYPE_LOOP>::GetTopologicalSplitType(),
-                  Scheme<TYPE_LOOP>::GetRegularFaceSize(),
-                  Scheme<TYPE_LOOP>::GetRegularVertexValence(),
-                  Scheme<TYPE_LOOP>::GetLocalNeighborhoodSize() }
+static const TraitsEntry staticTraitsTable[3] = {
+    { "bilinear", Scheme<SCHEME_BILINEAR>::GetTopologicalSplitType(),
+                  Scheme<SCHEME_BILINEAR>::GetRegularFaceSize(),
+                  Scheme<SCHEME_BILINEAR>::GetRegularVertexValence(),
+                  Scheme<SCHEME_BILINEAR>::GetLocalNeighborhoodSize() },
+    { "catmark",  Scheme<SCHEME_CATMARK>::GetTopologicalSplitType(),
+                  Scheme<SCHEME_CATMARK>::GetRegularFaceSize(),
+                  Scheme<SCHEME_CATMARK>::GetRegularVertexValence(),
+                  Scheme<SCHEME_CATMARK>::GetLocalNeighborhoodSize() },
+    { "loop",     Scheme<SCHEME_LOOP>::GetTopologicalSplitType(),
+                  Scheme<SCHEME_LOOP>::GetRegularFaceSize(),
+                  Scheme<SCHEME_LOOP>::GetRegularVertexValence(),
+                  Scheme<SCHEME_LOOP>::GetLocalNeighborhoodSize() }
 };
 
 //
-//  Static methods for TypeTraits:
+//  Static methods for SchemeTypeTraits:
 //
 char const*
-TypeTraits::GetName(Type schemeType) {
+SchemeTypeTraits::GetName(SchemeType schemeType) {
 
-    return typeTraitsTable[schemeType]._name;
+    return staticTraitsTable[schemeType]._name;
 }
 
 Split
-TypeTraits::GetTopologicalSplitType(Type schemeType) {
+SchemeTypeTraits::GetTopologicalSplitType(SchemeType schemeType) {
 
-    return typeTraitsTable[schemeType]._splitType;
+    return staticTraitsTable[schemeType]._splitType;
 }
 
 int
-TypeTraits::GetRegularFaceSize(Type schemeType) {
+SchemeTypeTraits::GetRegularFaceSize(SchemeType schemeType) {
 
-    return typeTraitsTable[schemeType]._regularFaceSize;
+    return staticTraitsTable[schemeType]._regularFaceSize;
 }
 
 int
-TypeTraits::GetRegularVertexValence(Type schemeType) {
+SchemeTypeTraits::GetRegularVertexValence(SchemeType schemeType) {
 
-    return typeTraitsTable[schemeType]._regularVertexValence;
+    return staticTraitsTable[schemeType]._regularVertexValence;
 }
 
 int
-TypeTraits::GetLocalNeighborhoodSize(Type schemeType) {
+SchemeTypeTraits::GetLocalNeighborhoodSize(SchemeType schemeType) {
 
-    return typeTraitsTable[schemeType]._localNeighborhood;
+    return staticTraitsTable[schemeType]._localNeighborhood;
 }
 
 } // end namespace sdc

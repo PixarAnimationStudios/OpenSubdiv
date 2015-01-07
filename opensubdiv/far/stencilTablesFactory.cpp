@@ -80,11 +80,11 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
     bool interpolateVarying = false;
     switch (options.interpolationMode) {
         case INTERPOLATE_VERTEX: {
-                Sdc::Type type = refiner.GetSchemeType();
+                Sdc::SchemeType type = refiner.GetSchemeType();
                 switch (type) {
-                    case Sdc::TYPE_BILINEAR : maxsize = 5; break;
-                    case Sdc::TYPE_CATMARK  : maxsize = 17; break;
-                    case Sdc::TYPE_LOOP     : maxsize = 10; break;
+                    case Sdc::SCHEME_BILINEAR : maxsize = 5; break;
+                    case Sdc::SCHEME_CATMARK  : maxsize = 17; break;
+                    case Sdc::SCHEME_LOOP     : maxsize = 10; break;
                     default:
                         assert(0);
                 }
