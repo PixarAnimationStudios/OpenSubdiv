@@ -43,7 +43,7 @@ namespace Far {
 //
 //  TopologyRefinerFactoryBase:
 //      This is an abstract base class for subclasses that are intended to construct
-//  TopologyRefiner from a mesh class that defines the subclass.  The subclasses are
+//  TopologyRefiner from external mesh representations.  These subclasses are
 //  parameterized by the mesh type <class MESH>.  The base class provides all
 //  implementation details related to assembly and validation that are independent
 //  of the subclass' mesh type.
@@ -97,8 +97,11 @@ protected:
     //  Protected methods invoked by the subclass template to verify and process each
     //  stage of construction implemented by the subclass:
     //
+    typedef Vtr::Level::ValidationCallback TopologyCallback;
+
     static bool prepareComponentTopologySizing(TopologyRefiner& refiner);
-    static bool prepareComponentTopologyAssignment(TopologyRefiner& refiner, bool fullValidation);
+    static bool prepareComponentTopologyAssignment(TopologyRefiner& refiner, bool fullValidation,
+                                                   TopologyCallback callback, void const * callbackData);
     static bool prepareComponentTagsAndSharpness(TopologyRefiner& refiner);
     static bool prepareFaceVaryingChannels(TopologyRefiner& refiner);
 };
@@ -120,6 +123,8 @@ class TopologyRefinerFactory : public TopologyRefinerFactoryBase {
 
 public:
 
+    /// \brief Options related to the construction of each TopologyRefiner.
+    ///
     struct Options {
 
         Options(Sdc::SchemeType sdcType = Sdc::SCHEME_CATMARK, Sdc::Options sdcOptions = Sdc::Options()) :
@@ -152,26 +157,28 @@ public:
     static TopologyRefiner* Create(MESH const& mesh, Options options = Options());
 
 protected:
+    static bool populateBaseLevel(TopologyRefiner& refiner, MESH const& mesh, Options options);
+
     //
     //  Methods to be specialized that implement all details specific to class MESH required
     //  to convert MESH data to TopologyRefiner.  Note that some of these *must* be specialized
-    //  in order to complete construction.
+    //  in order to complete construction while some are optional.
     //
     //  There are two minimal construction requirements (to specify the size and content of
     //  all topology relations) and two optional (to specify feature tags and face-varying
     //  channels).
     //
-    //  See the comments in the generic stubs for details on how to write these.
+    //  See comments in the generic stubs or the tutorials for more details on writing these.
     //
     //  Required:
-    static void resizeComponentTopology(TopologyRefiner& refiner, MESH const& mesh);
-    static void assignComponentTopology(TopologyRefiner& refiner, MESH const& mesh);
+    static bool resizeComponentTopology(TopologyRefiner& refiner, MESH const& mesh);
+    static bool assignComponentTopology(TopologyRefiner& refiner, MESH const& mesh);
 
     //  Optional:
-    static void assignComponentTags(TopologyRefiner& refiner, MESH const& mesh);
-    static void assignFaceVaryingTopology(TopologyRefiner& refiner, MESH const& mesh);
+    static bool assignComponentTags(TopologyRefiner& refiner, MESH const& mesh);
+    static bool assignFaceVaryingTopology(TopologyRefiner& refiner, MESH const& mesh);
 
-    //  Optional miscellaneous:
+    //  Optional miscellaneous specializations -- error reporting, etc.:
     typedef Vtr::Level::TopologyError TopologyError;
 
     static void reportInvalidTopology(TopologyError errCode, char const * msg, MESH const& mesh);
@@ -187,68 +194,70 @@ TopologyRefinerFactory<MESH>::Create(MESH const& mesh, Options options) {
 
     TopologyRefiner * refiner = new TopologyRefiner(options.schemeType, options.schemeOptions);
 
+    if (not populateBaseLevel(*refiner, mesh, options)) {
+        delete refiner;
+        return 0;
+    }
+
+    // XXXX -- any state in the TopologyRefiner to update after the base level is complete?
+
+    return refiner;
+}
+
+template <class MESH>
+bool
+TopologyRefinerFactory<MESH>::populateBaseLevel(TopologyRefiner& refiner, MESH const& mesh, Options options) {
+
     //
     //  Construction of a specialized topology refiner involves four steps, each of which
     //  involves a method specialized for MESH followed by one that takes an action in
-    //  response to it or in preparation for the next step.  These preparation steps may
-    //  find fault in the work of the specialization, in which case construction will be
-    //  aborted.
+    //  response to it or in preparation for the next step.
     //
-    bool valid = true;
+    //  Both the specialized methods and those that follow them may find fault in the
+    //  construction and trigger failure at any time:
+    //
 
     //
     //  Sizing of the topology -- this is a required specialization for MESH.  This defines
     //  an inventory of all components and their relations that is used to allocate buffers
     //  to be efficiently populated in the subsequent topology assignment step.
     //
-    if (valid) {
-        resizeComponentTopology(*refiner, mesh);
-
-        valid = prepareComponentTopologySizing(*refiner);
-    }
+    if (not resizeComponentTopology(refiner, mesh)) return false;
+    if (not prepareComponentTopologySizing(refiner)) return false;
 
     //
     //  Assignment of the topology -- this is a required specialization for MESH.  If edges
     //  are specified, all other topological relations are expected to be defined for them.
     //  Otherwise edges and remaining topology will be completed from the face-vertices:
     //
-    if (valid) {
-        assignComponentTopology(*refiner, mesh);
-
-        valid = prepareComponentTopologyAssignment(*refiner, options.validateFullTopology);
-    }
+    bool             validate = options.validateFullTopology;
+    TopologyCallback callback = reinterpret_cast<TopologyCallback>(reportInvalidTopology);
+    void const *     userData = &mesh;
+        
+    if (not assignComponentTopology(refiner, mesh)) return false;
+    if (not prepareComponentTopologyAssignment(refiner, validate, callback, userData)) return false;
 
     //
     //  User assigned and internal tagging of components -- an optional specialization for
     //  MESH.  Allows the specification of sharpness values, holes, etc.
     //
-    if (valid) {
-        assignComponentTags(*refiner, mesh);
-
-        valid = prepareComponentTagsAndSharpness(*refiner);
-    }
+    if (not assignComponentTags(refiner, mesh)) return false;
+    if (not prepareComponentTagsAndSharpness(refiner)) return false;
 
     //
     //  Defining channels of face-varying primvar data -- an optional specialization for MESH.
     //
-    if (valid) {
-        assignFaceVaryingTopology(*refiner, mesh);
+    if (not assignFaceVaryingTopology(refiner, mesh)) return false;
+    if (not prepareFaceVaryingChannels(refiner)) return false;
 
-        valid = prepareFaceVaryingChannels(*refiner);
-    }
-
-    if (not valid) {
-        delete refiner;
-        refiner = 0;
-    }
-    return refiner;
+    return true;
 }
 
 // XXXX manuelk MSVC specializes these templated functions which creates duplicated symbols
 #ifndef _MSC_VER
 
 template <class MESH>
-void
+bool
 TopologyRefinerFactory<MESH>::resizeComponentTopology(TopologyRefiner& /* refiner */, MESH const& /* mesh */) {
 
     assert("Missing specialization for TopologyRefinerFactory<MESH>::resizeComponentTopology()" == 0);
@@ -284,10 +293,11 @@ TopologyRefinerFactory<MESH>::resizeComponentTopology(TopologyRefiner& /* refine
     //  allow the Tables to be allocated appropriately once and avoid any dynamic resizing as
     //  it grows.
     //
+    return false;
 }
 
 template <class MESH>
-void
+bool
 TopologyRefinerFactory<MESH>::assignComponentTopology(TopologyRefiner& /* refiner */, MESH const& /* mesh */) {
 
     assert("Missing specialization for TopologyRefinerFactory<MESH>::assignComponentTopology()" == 0);
@@ -334,10 +344,11 @@ TopologyRefinerFactory<MESH>::assignComponentTopology(TopologyRefiner& /* refine
     //  Also consider using TopologyRefiner::ValidateTopology() when debugging to ensure
     //  that topolology has been completely and correctly specified.
     //
+    return false;
 }
 
 template <class MESH>
-void
+bool
 TopologyRefinerFactory<MESH>::assignFaceVaryingTopology(TopologyRefiner& /* refiner */, MESH const& /* mesh */) {
 
     //
@@ -349,10 +360,11 @@ TopologyRefinerFactory<MESH>::assignFaceVaryingTopology(TopologyRefiner& /* refi
     //  For each channel, populate the face-vertex values:
     //      IndexArray TopologyRefiner::setBaseFVarFaceValues(Index face, int channel = 0)
     //
+    return true;
 }
 
 template <class MESH>
-void
+bool
 TopologyRefinerFactory<MESH>::assignComponentTags(TopologyRefiner& /* refiner */, MESH const& /* mesh */) {
 
     //
@@ -365,6 +377,7 @@ TopologyRefinerFactory<MESH>::assignComponentTags(TopologyRefiner& /* refiner */
     //
     //      void TopologyRefiner::setBaseFaceHole(Index face, bool hole)
     //
+    return true;
 }
 
 template <class MESH>
@@ -385,23 +398,23 @@ TopologyRefinerFactory<MESH>::reportInvalidTopology(
 // Specialization for raw topology data
 //
 template <>
-void
+bool
 TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::resizeComponentTopology(
     TopologyRefiner & refiner, TopologyDescriptor const & desc);
 
 template <>
-void
+bool
 TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignComponentTopology(
     TopologyRefiner & refiner, TopologyDescriptor const & desc);
 
 template <>
-void
-TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignFaceVaryingTopology(
+bool
+TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignComponentTags(
     TopologyRefiner & refiner, TopologyDescriptor const & desc);
 
 template <>
-void
-TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignComponentTags(
+bool
+TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignFaceVaryingTopology(
     TopologyRefiner & refiner, TopologyDescriptor const & desc);
 
 template <>

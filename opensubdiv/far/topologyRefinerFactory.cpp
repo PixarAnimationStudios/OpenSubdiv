@@ -82,18 +82,25 @@ TopologyRefinerFactoryBase::prepareComponentTopologySizing(TopologyRefiner& refi
 }
 
 bool
-TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& refiner, bool fullValidation) {
+TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& refiner, bool fullValidation,
+                                                               TopologyCallback callback, void const * callbackData) {
 
     Vtr::Level& baseLevel = refiner.getLevel(0);
 
-    if (baseLevel.getNumEdges() == 0) {
+    bool completeMissingTopology = (baseLevel.getNumEdges() == 0);
+    if (completeMissingTopology) {
         baseLevel.completeTopologyFromFaceVertices();
     }
 
     bool valid = true;
     if (fullValidation) {
-        //if (not baseLevel.validateTopology(...)) {
-        //}
+        valid = baseLevel.validateTopology(callback, callbackData);
+        if (not valid) {
+            char msg[1024];
+            snprintf(msg, 1024, "Invalid topology detected in TopologyRefinerFactory (%s)\n",
+                completeMissingTopology ? "partially specified and completed" : "fully specified");
+            Warning(msg);
+        }
     }
     return valid;
 }
@@ -222,7 +229,7 @@ TopologyRefinerFactoryBase::prepareFaceVaryingChannels(TopologyRefiner& refiner)
 // Specialization for raw topology data
 //
 template <>
-void
+bool
 TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::resizeComponentTopology(
     TopologyRefiner & refiner, TopologyDescriptor const & desc) {
 
@@ -233,10 +240,11 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::resizeCo
 
         refiner.setNumBaseFaceVertices(face, desc.numVertsPerFace[face]);
     }
+    return true;
 }
 
 template <>
-void
+bool
 TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignComponentTopology(
     TopologyRefiner & refiner, TopologyDescriptor const & desc) {
 
@@ -249,41 +257,11 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
             dstFaceVerts[vert] = desc.vertIndicesPerFace[idx++];
         }
     }
+    return true;
 }
 
 template <>
-void
-TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignFaceVaryingTopology(
-    TopologyRefiner & refiner, TopologyDescriptor const & desc) {
-
-    if (desc.numFVarChannels>0) {
-
-        for (int channel=0; channel<desc.numFVarChannels; ++channel) {
-
-            int        channelSize    = desc.fvarChannels[channel].numValues;
-            int const* channelIndices = desc.fvarChannels[channel].valueIndices;
-
-#if defined(DEBUG) or defined(_DEBUG)
-            int channelIndex = refiner.createBaseFVarChannel(channelSize);
-            assert(channelIndex == channel);
-#else
-            refiner.createBaseFVarChannel(channelSize);
-#endif
-            for (int face=0, idx=0; face<desc.numFaces; ++face) {
-
-                IndexArray dstFaceValues = refiner.setBaseFVarFaceValues(face, channel);
-
-                for (int vert=0; vert<dstFaceValues.size(); ++vert) {
-
-                    dstFaceValues[vert] = channelIndices[idx++];
-                }
-            }
-        }
-    }
-}
-
-template <>
-void
+bool
 TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignComponentTags(
     TopologyRefiner & refiner, TopologyDescriptor const & desc) {
 
@@ -326,6 +304,39 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
             refiner.setBaseFaceHole(desc.holeIndices[i], true);
         }
     }
+    return true;
+}
+
+template <>
+bool
+TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignFaceVaryingTopology(
+    TopologyRefiner & refiner, TopologyDescriptor const & desc) {
+
+    if (desc.numFVarChannels>0) {
+
+        for (int channel=0; channel<desc.numFVarChannels; ++channel) {
+
+            int        channelSize    = desc.fvarChannels[channel].numValues;
+            int const* channelIndices = desc.fvarChannels[channel].valueIndices;
+
+#if defined(DEBUG) or defined(_DEBUG)
+            int channelIndex = refiner.createBaseFVarChannel(channelSize);
+            assert(channelIndex == channel);
+#else
+            refiner.createBaseFVarChannel(channelSize);
+#endif
+            for (int face=0, idx=0; face<desc.numFaces; ++face) {
+
+                IndexArray dstFaceValues = refiner.setBaseFVarFaceValues(face, channel);
+
+                for (int vert=0; vert<dstFaceValues.size(); ++vert) {
+
+                    dstFaceValues[vert] = channelIndices[idx++];
+                }
+            }
+        }
+    }
+    return true;
 }
 
 template <>
