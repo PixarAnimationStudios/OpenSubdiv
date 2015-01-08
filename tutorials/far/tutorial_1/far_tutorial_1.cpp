@@ -227,7 +227,7 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 template <>
-void
+bool
 TopologyRefinerFactory<Converter>::resizeComponentTopology(
     TopologyRefiner & refiner, Converter const & conv) {
 
@@ -259,10 +259,11 @@ TopologyRefinerFactory<Converter>::resizeComponentTopology(
         refiner.setNumBaseVertexEdges(vert, ne);
         refiner.setNumBaseVertexFaces(vert, nf);
     }
+    return true;
 }
 
 template <>
-void
+bool
 TopologyRefinerFactory<Converter>::assignComponentTopology(
     TopologyRefiner & refiner, Converter const & conv) {
 
@@ -328,10 +329,12 @@ TopologyRefinerFactory<Converter>::assignComponentTopology(
     }
 
     refiner.populateBaseLocalIndices();
+
+    return true;
 };
 
 template <>
-void
+bool
 TopologyRefinerFactory<Converter>::assignComponentTags(
     TopologyRefiner & refiner, Converter const & conv) {
 
@@ -339,6 +342,7 @@ TopologyRefinerFactory<Converter>::assignComponentTags(
     for (int edge=0; edge<conv.GetNumEdges(); ++edge) {
         refiner.setBaseEdgeSharpness(edge, g_edgeCreases[edge]);
     }
+    return true;
 }
 
 #ifdef _MSC_VER
@@ -355,7 +359,7 @@ TopologyRefinerFactory<Converter>::reportInvalidTopology(
     Warning(msg);
 }
 template <>
-void
+bool
 TopologyRefinerFactory<Converter>::assignFaceVaryingTopology(
     TopologyRefiner & /* refiner */, Converter const & /* conv */) {
 
@@ -363,6 +367,7 @@ TopologyRefinerFactory<Converter>::assignFaceVaryingTopology(
     // remove the default stubs in Far::TopologyRefinerFactory. In this
     // example, no face-varying data is being added, but we still need to
     // implement a template specialization or MSVC++ linker fails.
+    return true;
 }
 #endif
 
