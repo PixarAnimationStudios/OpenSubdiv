@@ -140,10 +140,10 @@ D3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
             break;
         default:
             switch (numChannels) {
-                case 1: format = DXGI_FORMAT_R8_UINT; break;
-                case 2: format = DXGI_FORMAT_R8G8_UINT; break;
+                case 1: format = DXGI_FORMAT_R8_UNORM; break;
+                case 2: format = DXGI_FORMAT_R8G8_UNORM; break;
                 case 3: assert(false); break;
-                case 4: format = DXGI_FORMAT_R8G8B8A8_UINT; break;
+                case 4: format = DXGI_FORMAT_R8G8B8A8_UNORM; break;
             }
             bpp = numChannels;
             break;

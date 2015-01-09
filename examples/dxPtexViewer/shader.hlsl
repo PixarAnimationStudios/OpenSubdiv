@@ -79,7 +79,7 @@ int OsdPrimitiveIdBase()
     || defined(NORMAL_BIQUADRATIC_WG)
 
 Texture2DArray textureDisplace_Data : register(t6);
-Buffer<int> textureDisplace_Packing : register(t7);
+Buffer<uint> textureDisplace_Packing : register(t7);
 #endif
 
 #if defined(DISPLACEMENT_HW_BILINEAR) \
@@ -358,22 +358,23 @@ edgeColor(float4 Cfill, float4 edgeDistance)
 //  Pixel Shader
 // ---------------------------------------------------------------------------
 
+
 #if defined(COLOR_PTEX_NEAREST) ||     \
     defined(COLOR_PTEX_HW_BILINEAR) || \
     defined(COLOR_PTEX_BILINEAR) ||    \
     defined(COLOR_PTEX_BIQUADRATIC)
 Texture2DArray textureImage_Data : register(t4);
-Buffer<int> textureImage_Packing : register(t5);
+Buffer<uint> textureImage_Packing : register(t5);
 #endif
 
 #ifdef USE_PTEX_OCCLUSION
 Texture2DArray textureOcclusion_Data : register(t8);
-Buffer<int> textureOcclusion_Packing : register(t9);
+Buffer<uint> textureOcclusion_Packing : register(t9);
 #endif
 
 #ifdef USE_PTEX_SPECULAR
 Texture2DArray textureSpecular_Data : register(t10);
-Buffer<int> textureSpecular_Packing : register(t11);
+Buffer<uint> textureSpecular_Packing : register(t11);
 #endif
 
 void
