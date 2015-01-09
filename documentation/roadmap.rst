@@ -37,16 +37,20 @@ Roadmap
 
 For more details, please see the `Release Notes <release_notes.html>`_.
 
+3.0 Alpha Releases (Q4 2014):
+
+    * nearing feature complete : code is ready for early evaluation
+
 3.0 Beta Releases (Q1 2015):
 
     * subdivision 'specification' evaluation from users & community
 
-        * support for bi-cubic face-varying interpolation (discrete & limit)
-        * support for Loop limit evaluation
-
-3.0 Master Release (Q1 2015)
+3.0 Master Release (Q2 2015)
 
     * freeze subdivision 'specification' (enforce backward compatibility)
+    * add support for bi-cubic face-varying interpolation (discrete & limit)
+    * add support for Loop limit evaluation & draw
+
 
 To Infinity & Beyond
 ====================
@@ -77,7 +81,7 @@ Dynamic feature adaptive isolation (DFAS)
   when the model contains a lot of semi-sharp creases. We need a LOD solution
   that can dynamically isolate features based on distance to view-point.
 
-  Note: this project has been undertaken by Matthias Niessner & Henry Schafer
+  Note: paper from Matthias Niessner & Henry Schafer
 
 Implement a "high-level" API layer
 ++++++++++++++++++++++++++++++++++
@@ -91,7 +95,7 @@ Implement a "high-level" API layer
   level interface for subdivision surface data and functionality. We need an
   implementation of this high-level API.
 
-  Note: this project has been started at Pixar.
+  Note: this document drafting has been started at Pixar with partners.
 
 Support for infinitely sharp creases
 ++++++++++++++++++++++++++++++++++++
