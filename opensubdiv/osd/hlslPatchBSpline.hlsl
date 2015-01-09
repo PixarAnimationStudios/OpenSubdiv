@@ -332,7 +332,7 @@ void ds_main_patches(
     OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER;
 
     OSD_DISPLACEMENT_CALLBACK;
-
+	output.edgeDistance = 0;
     output.positionOut = mul(OsdProjectionMatrix(),
                              float4(output.position.xyz, 1.0f));
 }

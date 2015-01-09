@@ -637,6 +637,8 @@ void ds_main_patches(
 
     output.patchCoord = patch[0].patchCoord;
     output.patchCoord.xy = float2(v, u);
+	
+	output.edgeDistance = 0;
 
     OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER;
 

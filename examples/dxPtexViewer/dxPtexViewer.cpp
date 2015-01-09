@@ -1417,8 +1417,12 @@ initD3D11(HWND hWnd) {
     D3D_FEATURE_LEVEL hFeatureLevel = D3D_FEATURE_LEVEL_11_0;
     for(UINT driverTypeIndex=0; driverTypeIndex < numDriverTypes; driverTypeIndex++){
         hDriverType = driverTypes[driverTypeIndex];
+		unsigned int deviceFlags = 0;
+#ifndef NDEBUG		
+		deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
         hr = D3D11CreateDeviceAndSwapChain(NULL,
-                                           hDriverType, NULL, 0, NULL, 0,
+			hDriverType, NULL, deviceFlags, NULL, 0,
                                            D3D11_SDK_VERSION, &hDXGISwapChainDesc,
                                            &g_pSwapChain, &g_pd3dDevice,
                                            &hFeatureLevel, &g_pd3dDeviceContext);
@@ -1431,6 +1435,33 @@ initD3D11(HWND hWnd) {
         MessageBoxW(hWnd, L"D3D11CreateDeviceAndSwapChain", L"Err", MB_ICONSTOP);
         return false;
     }
+
+#ifndef NDEBUG
+	// set break points on directx errors
+	ID3D11Debug *d3dDebug = nullptr;
+	hr = g_pd3dDevice->QueryInterface(__uuidof(ID3D11Debug), (void**)&d3dDebug);
+	if (SUCCEEDED(hr)) {
+
+		ID3D11InfoQueue *d3dInfoQueue = nullptr;
+		hr = d3dDebug->QueryInterface(__uuidof(ID3D11InfoQueue), (void**)&d3dInfoQueue);
+		if (SUCCEEDED(hr)) {
+
+			d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, true);
+			d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, true);
+			d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, true);
+						
+			D3D11_MESSAGE_ID denied[] = { D3D11_MESSAGE_ID_SETPRIVATEDATA_CHANGINGPARAMS };
+			D3D11_INFO_QUEUE_FILTER filter;
+			memset(&filter, 0, sizeof(filter));
+			filter.DenyList.NumIDs = _countof(denied);
+			filter.DenyList.pIDList = denied;
+			d3dInfoQueue->AddStorageFilterEntries(&filter);
+
+			d3dInfoQueue->Release();
+		}
+		d3dDebug->Release();
+	}	
+#endif
 
     // create rasterizer
     D3D11_RASTERIZER_DESC rasterDesc;
