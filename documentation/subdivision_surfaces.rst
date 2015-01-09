@@ -106,10 +106,10 @@ This "fan" configuration shows an edge shared by 3 distinct faces.
    :target: images/nonmanifold_fan.png
 
 With this configuration, it is unclear which face should contribute to the
-limit surface, as 3 of them share the same edge (which incidentally breaks
+limit surface, as three of them share the same edge (which incidentally breaks
 half-edge cycles in said data-structures). Fan configurations are not limited
-to 3 incident faces: any configuration where an edge is shared by more than
-2 faces incurs the same problem.
+to three incident faces: any configuration where an edge is shared by more than
+two faces incurs the same problem.
 
 ----
 
@@ -130,11 +130,15 @@ gracefully.
 
     **Beta Issues**
 
-    As of 3.0.0 Beta release, support for non-manifold topology is not available
-    yet. The topology factories are currently set to report warnings when
-    non-manifold configurations are encountered and implicitly treat them as
-    sharp boundaries. We intend to fully specify and implement a set of
-    of interpolation rules in a future release of OpenSubdiv.
+    As of 3.0.0 Beta release, non-manifold topology has limited support.  Most
+    non-manifold configurations (with the exception of degenerate edges) are
+    supported for refinement and subdivision.  But some factories, such as the
+    patch tables, do not support them.  The interpolation associated with
+    non-manifold features currently treats them as infinitely sharp features --
+    smooth rules are possible but exactly what they should be is unclear.  We
+    intend to fully specify and implement a set of interpolation rules in a
+    future release of OpenSubdiv.  Until then the results should be considered
+    undefined.
 
 
 ----
@@ -142,11 +146,7 @@ gracefully.
 Boundary Interpolation Rules
 ============================
 
-Boundary interpolation rules control how boundary face edges and face-varying
-data are interpolated.
-
-Vertex Data
-***********
+Boundary interpolation rules control how boundary edges and vertices are interpolated.
 
 The following rule sets can be applied to vertex data interpolation:
 
@@ -156,12 +156,12 @@ The following rule sets can be applied to vertex data interpolation:
 | **VTX_BOUNDARY_NONE**            | No boundary interpolation behavior should occur          |
 |                                  | (debug mode - boundaries are undefined)                  |
 +----------------------------------+----------------------------------------------------------+
-| **VTX_BOUNDARY_EDGE_ONLY**       | All the boundary edge-chains are sharp creases and       |
-|                                  | boundary vertices with exactly two incident edges are    |
-|                                  | sharp corners                                            |
-+----------------------------------+----------------------------------------------------------+
-| **VTX_BOUNDARY_EDGE_AND_CORNER** | All the boundary edge-chains are sharp creases; boundary |
+| **VTX_BOUNDARY_EDGE_ONLY**       | All the boundary edge-chains are sharp creases; boundary |
 |                                  | vertices are not affected                                |
++----------------------------------+----------------------------------------------------------+
+| **VTX_BOUNDARY_EDGE_AND_CORNER** | All the boundary edge-chains are sharp creases and       |
+|                                  | boundary vertices with exactly one incident face are     |
+|                                  | sharp corners                                            |
 +----------------------------------+----------------------------------------------------------+
 
 On a quad example:
@@ -171,26 +171,37 @@ On a quad example:
    :target: images/vertex_boundary.png
 
 
-Face-varying Data
-*****************
+----
 
-The following rule sets can be applied to face-varying data interpolation:
+Face-Varying Interpolation Rules
+================================
 
-+--------------------------------+------------------------------------------+
-| Mode                           | Behavior                                 |
-+================================+==========================================+
-| **FVAR_LINEAR_NONE**           | smooth everywhere ("edge only")          |
-+--------------------------------+------------------------------------------+
-| **FVAR_LINEAR_CORNERS_ONLY**   | sharpen corners only                     |
-+--------------------------------+------------------------------------------+
-| **FVAR_LINEAR_CORNERS_PLUS1**  | "edge corner"                            |
-+--------------------------------+------------------------------------------+
-| **FVAR_LINEAR_CORNERS_PLUS2**  | "edge and corner" + "propagate corner"   |
-+--------------------------------+------------------------------------------+
-| **FVAR_LINEAR_BOUNDARIES**     | sharpen all boundaries ("always sharp")  |
-+--------------------------------+------------------------------------------+
-| **FVAR_LINEAR_ALL**            | bilinear interpolation ("bilinear")      |
-+--------------------------------+------------------------------------------+
+Face-varying data can follow the same interpolation behavior as vertex data, or it
+can be constrained to interpolate linearly around selective features from corners,
+boundaries to the entire interior of the mesh.
+
+The following rules can be applied to face-varying data interpolation:
+
++--------------------------------+-----------------------------------------------+
+| Mode                           | Behavior                                      |
++================================+===============================================+
+| **FVAR_LINEAR_NONE**           | smooth everywhere the mesh is smooth          |
++--------------------------------+-----------------------------------------------+
+| **FVAR_LINEAR_CORNERS_ONLY**   | sharpen corners only                          |
++--------------------------------+-----------------------------------------------+
+| **FVAR_LINEAR_CORNERS_PLUS1**  | sharpen corners plus some junctions           |
++--------------------------------+-----------------------------------------------+
+| **FVAR_LINEAR_CORNERS_PLUS2**  | sharpen corners plus more junctions and darts |
++--------------------------------+-----------------------------------------------+
+| **FVAR_LINEAR_BOUNDARIES**     | piecewise linear boundary edges and corners   |
++--------------------------------+-----------------------------------------------+
+| **FVAR_LINEAR_ALL**            | linear interpolation everywhere               |
++--------------------------------+-----------------------------------------------+
+
+These rules cannot make the interpolation of the face-varying data smoother than
+that of the vertices.  The presence of sharp features of the mesh created by
+sharpness values, boundary interpolation rules, or the subdivision scheme itself
+(e.g. Bilinear) take precedence.
 
 Unwrapped cube example:
 
@@ -198,11 +209,6 @@ Unwrapped cube example:
    :align: center
    :target: images/fvar_boundaries.png
 
-Propagate Corners
-+++++++++++++++++
-
-Face-varying interpolation mode 2 (*EdgeAndCorner*) can further be modified by
-the application of the *Propagate Corner* flag.
 
 ----
 

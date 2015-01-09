@@ -37,27 +37,10 @@ Roadmap
 
 For more details, please see the `Release Notes <release_notes.html>`_.
 
-3.0 Alpha Releases (Q3 2014):
-
-    * complete rewrite of the CPU subdivision core (collaboration with DWA)
-
-        * new intermediate topology representation
-        * new flexible topology front-ends
-        * clarification of face-varying interpolation rules
-        * support for non-manifold topology
-        * large performance gains in topology analysis code
-        * optimized adaptive isolation of edge creases
-        * faster evaluation with stencil factorization
-        * better numerical support around extraordinary vertices
-        * support for Loop subdivision
-        * deprecation of hierarchical edits
-        * deprecation of subdivision tables
-
-3.0 Beta Releases (Q4 2014 / Q1 2015):
+3.0 Beta Releases (Q1 2015):
 
     * subdivision 'specification' evaluation from users & community
 
-        * implement API for discrete limit evaluation
         * support for bi-cubic face-varying interpolation (discrete & limit)
         * support for Loop limit evaluation
 

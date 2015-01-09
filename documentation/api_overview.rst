@@ -67,7 +67,7 @@ Layers list in descending order:
   * **Sdc** (Subdivision Core)
 
 Client mesh data enters the API through the Far layer. Typically, results will
-be collected from the Osd layer. However, it is therefore possible to use
+be collected from the Osd layer. However, it is possible to use
 functionality from Far without introducing any dependency on Osd.
 
 Although there are several entry-points to provide topology and primitive variable
@@ -98,7 +98,7 @@ has been moved to an "implementation" layer.
 
 .. image:: images/api_representations.png
 
-**Representation** layers are for general purpose algorithms and differenciated by
+**Representation** layers are for general purpose algorithms and differentiated by
 the requirements placed on data represenation. See `Multiple Representations`_ for
 more details.
 

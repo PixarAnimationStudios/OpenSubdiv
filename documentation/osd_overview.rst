@@ -116,7 +116,7 @@ a series of regression tests that compare the methods to each other.
 
 .. container:: impnotip
 
-   * **Important**
+   * **Beta Issues**
 
       Face-varying smooth data interpolation is currently not supported in **Osd**.
       "Smooth UV" modes of various DCC applications are not supported (yet).

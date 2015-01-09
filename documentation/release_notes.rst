@@ -128,7 +128,7 @@ subdivision scheme, etc.
 
 Sdc provides the low-level nuts and bolts to provide a subdivision
 implementation consistent with OpenSubdiv. It is used internally by Vtr and
-Far. but can also provide client-code with an existing implementation of their
+Far but can also provide client-code with an existing implementation of their
 own with the details to make that implementation consistent with OpenSubdiv.
 
 The documentation for Sdc can be found `here <sdc_overview.html>`__
@@ -200,31 +200,44 @@ Since the various options are now presented through a new API (Sdc rather than
 Hbr), based on the history of some of these options and input from interested
 parties, the following changes have been implemented:
 
-    * The Sdc boundary interpolation enum has been renamed
-      *"VtxBoundaryInterpolation"*, with the following values:
+    * Between the Alpha and Beta releases, the naming of the boundary
+      interpolation enum was renamed *"VtxBoundaryInterpolation"*, with
+      the following values:
 
-        * VTX_BOUNDARY_NONE - (default)
+        * VTX_BOUNDARY_NONE (default)
         * VTX_BOUNDARY_EDGE_ONLY
         * VTX_BOUNDARY_EDGE_AND_CORNER
 
-      Funcationality remains unchanged.
-    * Legacy modes of the *"smoothtriangle"* rule have been removed. Values for
-      *"CreasingMethod"* are now:
+      Functionality remains unchanged.
+
+    * Legacy modes of the *"smoothtriangle"* rule have been removed (as they
+      were never actually enabled in the code). Values for *"TriangleSubdivision"*
+      are now:
 
         * TRI_SUB_CATMARK - Catmull-Clark weights (default)
         * TRI_SUB_SMOOTH - "smooth triangle" weights
 
+    * The naming of the standard creasing method has been changed from *Normal*
+      to *Uniform*.  Values for *"CreasingMethod"* are now:
 
-    * The current implementation of the *"Chaikin"* rule shows small
+        * CREASE_UNIFORM - the standard integer subtraction per level
+        * CREASE_CHAIKIN - use Chaikin averaging around vertices
+
+      The current implementation of the *"Chaikin"* rule shows small
       numerical differences with results obtained from Hbr in 2.x releases.
       Considering that the feature is rarely used and that the current
-      implementation is likely the more correct one, we are considering
-      declaring the current implementation as *the standard*. We will
-      review input from the community on this matter during Alpha and Beta
-      release cycles.
+      implementation is likely the more correct one, we consider the
+      current implementation as *the standard*. Aside from a conscious
+      deviation at boundaries (where infinitely sharp creases are now excluded
+      from the averaging in 3.0 to allow proper decay of a semi-sharp edge
+      to 0), all other deviations found have been identified as flaws in the
+      implementation of 2.x (and are not easily corrected).
+      
+      We will review input from the community on this matter during the Beta
+      release cycle.
 
-In these cases, features are not being removed but simply re-expressed in what
-is hoped to be a clearer interface.
+In all cases, features in active use are not being removed but simply
+re-expressed in what is hoped to be a clearer interface.
 
 We will welcome feedback and constructive comments as we deploy these changes.
 We hope to converge toward a general consensus and lock these APIs by the end
@@ -233,19 +246,46 @@ of Beta cycle.
 Face-varying Interpolation Rules
 ********************************
 
-Currently, all 5 of Hbr's legacy modes of face-varying interpolation
-are supported (with minor modifications where Hbr has been found to
-be incorrect). Additional modes have also been added to allow for
-better control around T-junction face-varying topologies.
+Face-varying interpolation was previously defined by a "boundary interpolation"
+enum with four modes and an additional boolean "propagate corners" option,
+which was little understood.  The latter was only used in conjunction with one
+of the four modes, so it was effectively a unique fifth choice.  Deeper analysis
+of all of these modes revealed unexpected and undesirable behavior in some common
+cases -- to an extent that could not simply be changed -- and so additions have
+been made to avoid such behavior.
 
-The new FVarLinearInterpolation enums are:
+All choices are now provided through a single "linear interpolation" enum --
+intentionally replacing the use of "boundary" in its naming as the choice also
+affects interior interpolation.  The naming now reflects the fact that
+interpolation is constrained to be linear where specified by the choice.
+
+All five of Hbr's original modes of face-varying interpolation are supported
+(with minor modifications where Hbr was found to be incorrect in the presence
+of semi-sharp creasing).  An additional mode has also been added to allow for
+additional control around T-junctions where multiple disjoint face-varying
+regions meet at a vertex.
+
+The new values for the *"FVarLinearInterpolation"* are:
 
     * FVAR_LINEAR_NONE          - smooth everywhere ("edge only")
     * FVAR_LINEAR_CORNERS_ONLY  - sharpen corners only
     * FVAR_LINEAR_CORNERS_PLUS1 - ("edge corner")
     * FVAR_LINEAR_CORNERS_PLUS2 - ("edge and corner + propagate corner")
-    * FVAR_LINEAR_BOUNDARIES    - sharpen all boundaries ("always sharp")
+    * FVAR_LINEAR_BOUNDARIES    - piecewise linear edges and corners ("always sharp")
     * FVAR_LINEAR_ALL           - bilinear interpolation ("bilinear") (default)
+
+Aside from the two "corners plus" modes that preserve Hbr behavior, all other
+modes are designed so that the interpolation of a disjoint face-varying region
+is not affected by changes to other regions that may share the same vertex. So
+the behavior of a disjoint region should be well understood and predictable
+when looking at it in isolation (e.g. with "corners only" one would expect to
+see linear constraints applied where there are topological corners or infinitely
+sharp creasing applied within the region, and nowhere else).  This is not true
+of the "plus" modes, and they are named to reflect the fact that more is taken
+into account where disjoint regions meet.
+
+These are illustrated in more detail elsewhere in the documentation, the tutorials
+and the example shapes.
 
 Hierarchical Edits
 ******************
@@ -266,12 +306,6 @@ Our intentions as open-source developers is to give as much access to our code,
 as early as possible, because we value and welcome the feedback from the
 community.
 
-The 'Alpha' release moniker means to us that our code is still far from being
-finalized. Although we are now close from being feature complete, our
-public-facing interfaces are still subject to change. Therefore, we do not
-recommend this version of OpenSubdiv be used in client applications until both
-features and interfaces have been locked and are ready for Beta release.
-
 With the 'Beta' release cycle, we hope to give stake-holders a time-window to
 provide feedback on decisions made and changes in the code that may impact
 them. Our Beta code is likely not feature-complete yet, but the general
@@ -284,39 +318,25 @@ may include bug fixes as well as new features.
 
 .. container:: notebox
 
-    **Beta Issues**
-
-    The following is a short list of issues or details that we may still have
-    to change before the master release:
-
-        #. Refactor Far::TopologyRefiner interpolation functions:
-           Templated interpolation methods such as Interpolate<T>(),
-           InterpolateFaceVarying<T>(), Limit<T>() are not finalized yet. Both
-           the methods prototypes as well the interface required for **T** are
-           likely to change before release.
-
-        #. Topology entry-point API:
-           The *advanced* topology entry point interface in
-           Far::TopologyRefinerFactory is not final yet. Some protected
-           accessors are likely to be renamed, added or removed before release.
-
-
     **Beta Features**
 
     The following is a short list of features that hopefully will land before
     the master release:
 
-        #. Limit Masks:
-           Currently, Sdc generates weighted masks to interpolate *vertex* and
-           *face-varying* primvar data between subdivision levels. We want to
-           add functionality to evaluate closed-form evaluation of weight masks
-           to interpolate primvar data at the limit.
+        #. Non-linear Face-varying Patches:
+           While the fundamental refinement and interpolation of face-varying
+           data is correct, it has been and remains linearly approximated in
+           the patches created in Far that are most used for evaluation and
+           display.  We want to update the patch tables to support non-linear
+           patches for the face-varying data.
 
-        #. Implement arbitrary and discrete limit stencils:
-           Subdivision tables have been replaced with discrete vertex stencils.
-           We would like to add functionality for stencils to push these
-           vertices to the limit. This work is contingent on the implementation
-           of limit masks.
+        #. Improved Robustness with Non-Manifold Topology:
+           With the replacement of Hbr with Vtr in 3.0, many non-manifold
+           topologies can be represented and effectively subdivided.  One
+           situation that was deferred is that of a "degenerate edge", i.e an
+           edge that has the same vertex at both ends.  Plans are to update
+           the refinement code within Vtr to do something reasonable in these
+           cases.
 
 
 ----
@@ -324,9 +344,10 @@ may include bug fixes as well as new features.
 3.x Release Cycle RoadMap
 =========================
 
-Within the 3.x release cycle we would like to address many of the issues related
-to scaling the application of subdivision surfaces to large amounts of
-primitives within typical graphics pipelines.
+Within the 3.x release cycle we would like to continue to address many of the
+issues related to scaling the application of subdivision surfaces to large amounts
+of primitives within typical graphics pipelines, as well as complete other
+functionality that has long been missing from evaluation and display.
 
 Enabling workflows at larger scales will require improvements on several fronts:
 
@@ -341,6 +362,15 @@ Enabling workflows at larger scales will require improvements on several fronts:
 * Handle more semi-sharp creases: feature isolation needs to become much more
   efficient to allow for complete creative freedom in using the feature.
 * Faster topology analysis
+
+As for missing functionality, as the potential standard for evaluation and display
+of subdivision surfaces, OpenSubdiv is still lacking in its support of subdivision
+schemes other than Catmark -- specifically Loop.  Ultimately the same level of
+performance and functionality achieved with Catmark should be available for Loop,
+which is more effective in dealing with triangle-based meshes.  With the refactoring
+of the core refinement code in 3.0, much more of the supporting code for the schemes
+can be shared so we have already reduced the effort to bring Loop up to par with
+Catmark.  We hope to take steps in this direction in an upcoming 3.x release.
 
 
 Release 2.x

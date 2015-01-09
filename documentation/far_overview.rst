@@ -80,17 +80,6 @@ public interface to all of the improvements proposed, they potentially warrant
 the most attention. Far::TopologyRefiner is purely topological and it is the
 backbone used to construct or be associated with the other table classes in Far.
 
-.. container:: notebox
-
-    **Beta Issues**
-
-    Interface issues needing attention:
-
-        * TopologyRefiner::Refine() needs more options (bundled in struct)
-        * TopologyRefiner::Interpolate() methods need revisiting
-        * considering simplifying TopologyRefiner interface overall -- may expose
-          TopologyLevel for public inspection
-        * specialization of TopologyRefinerFactory<MESH> needs more work
 
 Far::TopologyRefiner
 ********************
@@ -101,27 +90,27 @@ topology of an arbitrarily refined subdivision hierarchy to support the
 construction of `stencil tables <#patch-tables>`__, `patch tables
 <#patch-tables>`__,  etc.
 
-Aside from public access to topology, *TopologyRefiner::Refine(...)* is
-internally where simple specifications of refinement (currently uniform or
-feature-adaptive with a level argument) will be translated into refinement
-operations within Vtr. Feature-adaptive refinement is a special case of
-*"sparse"* or *"selective"* refinement, and so the feature-adaptive logic
-exists internal to TopologyRefiner and translates the feature-analysis into a
-simpler topological specification of refinement to Vtr.
+Aside from public access to topology, TopologyRefiner has public refinement
+methods (currently *RefineUniform()* and *RefineAdapative()*) where simple
+specifications of refinement will be translated into refinement operations
+within Vtr.  Feature-adaptive refinement is a special case of *"sparse"* or
+*"selective"* refinement, and so the feature-adaptive logic exists internal
+to TopologyRefiner and translates the feature-analysis into a simpler
+topological specification of refinement to Vtr.
 
 .. image:: images/topology_refiner.png
    :align: center
 
-The longer term intent is that the public Refine(...) operation eventually be
-overloaded to allow clients more selective control of refinement. While
+The longer term intent is that the public Refine...(...) operations eventually
+be overloaded to allow clients more selective control of refinement. While
 TopologyRefiner is a purely topological class, and so free of any definitions
 of vertex data, the public interface has been extended to include templated
-functors that allow clients to interpolate primitive variable data.
+methods that allow clients to interpolate primitive variable data.
 
 Far::TopologyRefinerFactory
 ***************************
 
-Consistent with other classes in Far instances of TopologyRefiner are created
+Consistent with other classes in Far, instances of TopologyRefiner are created
 by a factory class -- in this case Far::TopologyRefinerFactory.  This class
 is an important entry point for clients its task is to map/convert data in a
 client's mesh into the internal `Vtr <vtr_overview.html>`__ representation as
@@ -133,8 +122,8 @@ Since a client' mesh representation knows best how to identify the topological
 neighborhoods required, no generic implementation would provide the most
 direct means of conversion possible, and so we rely on specialization.  For
 situations where mesh data is not defined in a boundary representation, a
-simple container for raw mesh data is provided along with a Factory
-specialized to construct TopologyRefiners from it.
+simple container for raw mesh data is provided (TopologyDescriptro) along
+with a Factory specialized to construct TopologyRefiners from it.
 
 So there are two ways to create TopologyRefiners:
 
@@ -143,13 +132,25 @@ So there are two ways to create TopologyRefiners:
     * specialize TopologyRefinerFactory<class MESH> for more efficient
       conversion
 
-XXXX <insert blurb about Descriptor>
+TopologyDescriptor is a simple struct with pointers to raw mesh data in a
+form common to mesh constructors.  Topologically, the minimal requirement
+consists of:
+
+    * the number of vertices and faces of the mesh
+    * an array containing the number of vertices per face
+    * an array containing the vertices assigned to each face
+
+These last two define one of the six topological relations that are needed
+internally by Vtr, but this one relation is sufficient to construct the rest.
+Additional members are available to assign sharpness values per edge and/or
+vertex, hole tags to faces, or to define multiple sets (channels) of
+face-varying data.
 
 Specialization of TopologyRefinerFactory<class MESH> should be done with care
 as the goal here is to maximize the performance of the conversion and so
 minimize overhead due to runtime validation.  The template provides the
 high-level construction of the required topology vectors of the underlying
-Vtr, with the requirement that two methods will be specialized with the
+Vtr.  It requires the specification/specialization of two methods with the
 following purpose:
 
     * specify the sizes of topological data so that vectors can be pre-allocated
