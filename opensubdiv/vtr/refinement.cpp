@@ -214,7 +214,7 @@ void
 Refinement::populateParentChildIndices() {
 
     //
-    //  Two vertex orderings are under consideration -- the current/original orders
+    //  Two vertex orderings are under consideration -- the original mode orders
     //  vertices originating from faces first (historically these were relied upon
     //  to compute the rest of the vertices) while ordering vertices from vertices
     //  first is being considered (advantageous as it preserves the index of a parent
@@ -224,7 +224,7 @@ Refinement::populateParentChildIndices() {
     //  (which can be inferred from settings here) the rest of the code should be
     //  invariant to vertex ordering.
     //
-    bool faceVertsFirst = true;
+    bool faceVertsFirst = false;
 
     //
     //  These two blocks now differ only in the utility function that assigns the
