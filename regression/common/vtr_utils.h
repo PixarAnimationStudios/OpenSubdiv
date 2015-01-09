@@ -135,7 +135,7 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 template <>
-inline void
+inline bool
 TopologyRefinerFactory<Shape>::resizeComponentTopology(
     Far::TopologyRefiner & refiner, Shape const & shape) {
 
@@ -151,11 +151,13 @@ TopologyRefinerFactory<Shape>::resizeComponentTopology(
 
     // Vertices and vert-faces and vert-edges
     refiner.setNumBaseVertices(nverts);
+
+    return true;
 }
 
 //----------------------------------------------------------
 template <>
-inline void
+inline bool
 TopologyRefinerFactory<Shape>::assignComponentTopology(
     Far::TopologyRefiner & refiner, Shape const & shape) {
 
@@ -172,11 +174,12 @@ TopologyRefinerFactory<Shape>::assignComponentTopology(
             }
         }
     }
+    return true;
 }
 
 //----------------------------------------------------------
 template <>
-inline void
+inline bool
 TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
     Far::TopologyRefiner & refiner, Shape const & shape) {
 
@@ -196,11 +199,12 @@ TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
             }
         }
     }
+    return true;
 }
 
 //----------------------------------------------------------
 template <>
-inline void
+inline bool
 TopologyRefinerFactory<Shape>::assignComponentTags(
     Far::TopologyRefiner & refiner, Shape const & shape) {
 
@@ -216,6 +220,7 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
                 OpenSubdiv::Vtr::Index edge = refiner.FindEdge(/*level*/0, t->intargs[j], t->intargs[j+1]);
                 if (edge==OpenSubdiv::Vtr::INDEX_INVALID) {
                     printf("cannot find edge for crease tag (%d,%d)\n", t->intargs[j], t->intargs[j+1] );
+                    return false;
                 } else {
                     int nfloat = (int) t->floatargs.size();
                     refiner.setBaseEdgeSharpness(edge,
@@ -228,6 +233,7 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
                 int vertex = t->intargs[j];
                 if (vertex<0 or vertex>=refiner.GetNumVertices(/*level*/0)) {
                     printf("cannot find vertex for corner tag (%d)\n", vertex );
+                    return false;
                 } else {
                     int nfloat = (int) t->floatargs.size();
                     refiner.setBaseVertexSharpness(vertex,
@@ -246,6 +252,7 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
             }
         }
     }
+    return true;
 }
 
 template <>
