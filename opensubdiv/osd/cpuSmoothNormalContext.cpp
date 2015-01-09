@@ -23,6 +23,9 @@
 //
 
 #include "../osd/cpuSmoothNormalContext.h"
+#include "../far/topologyRefiner.h"
+
+#include <string.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -30,19 +33,29 @@ namespace OPENSUBDIV_VERSION {
 namespace Osd {
 
 CpuSmoothNormalContext::CpuSmoothNormalContext(
-    Far::PatchTables const *patchTables, bool resetMemory) :
+    Far::TopologyRefiner const & refiner, int level, bool resetMemory) :
         _numVertices(0), _resetMemory(resetMemory) {
 
-    // copy the data from the FarTables
-    _patches = patchTables->GetPatchTable();
+    int nfaces = refiner.GetNumFaces(level),
+        nverts = nfaces * 4;
 
-    _patchArrays = patchTables->GetPatchArrayVector();
+    _faceVerts.resize(nverts);
+    Far::Index * dest = &_faceVerts[0];
+
+    for (int face=0; face<nfaces; ++face, dest+=4) {
+        Far::ConstIndexArray fverts = refiner.GetFaceVertices(level, face);
+        memcpy(dest, fverts.begin(), 4 * sizeof(Far::Index));
+    }
 }
 
 CpuSmoothNormalContext *
-CpuSmoothNormalContext::Create(Far::PatchTables const *patchTables, bool resetMemory) {
+CpuSmoothNormalContext::Create(Far::TopologyRefiner const & refiner,
+    int level, bool resetMemory) {
 
-    return new CpuSmoothNormalContext(patchTables, resetMemory);
+    assert((not refiner.IsUniform()) and
+           (refiner.GetMaxLevel()>0) and
+           (level>0) and (level<refiner.GetMaxLevel()));
+    return new CpuSmoothNormalContext(refiner, level, resetMemory);
 }
 
 }  // end namespace Osd

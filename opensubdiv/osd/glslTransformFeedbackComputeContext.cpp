@@ -24,7 +24,6 @@
 
 #include "../far/stencilTables.h"
 
-#include "../osd/error.h"
 //#define OSD_DEBUG_BUILD
 //#include "../osd/debug.h"
 #include "../osd/glslTransformFeedbackComputeContext.h"

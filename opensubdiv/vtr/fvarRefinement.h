@@ -26,7 +26,7 @@
 
 #include "../version.h"
 
-#include "../sdc/type.h"
+#include "../sdc/types.h"
 #include "../sdc/crease.h"
 #include "../vtr/types.h"
 #include "../vtr/refinement.h"
@@ -40,53 +40,74 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-namespace Vtr {
+//
+//  Forward declaration of friend classes:
+//
+namespace Far {
+    class TopologyRefiner;
+}
 
 //
 //  FVarRefinement:
-//      A face-varying refinement is the subset of face-varying data required to
-//  support a "channel" of face-varying data.  Just as Refinement represents a
-//  mapping between a parent and child Level, the face-varying analog represents
-//  a mapping between a parent and child FVarLevel.
+//      A face-varying refinement contains data to support the refinement of a
+//  particular face-varying "channel".  Just as Refinement maintains a mapping
+//  between the components of a parent Level and its child, the face-varying
+//  analog maintains a mapping between the face-varying values of a parent
+//  FVarLevel and its child.
 //
-//  Its looking like this class may not be necessary...  Enough information exits
-//  between the pair of FVarLevels and their Levels to do most of what we
-//  want without needing to retain state information within the FVarRefinement as
-//  is essential in Refinement (i.e. the parent-to-child mapping and vice versa).
+//  It turns out there is little data necessary here, so the class consists
+//  mainly of methods that populate the child FVarLevel.  The mapping data in
+//  the refinement between Levels serves most purposes and all that is required
+//  in addition is a mapping from values in the child FVarLevel to the parent.
 //
+namespace Vtr {
 
 class FVarRefinement {
+protected:
+    friend class Refinement;
+    friend class Far::TopologyRefiner;
 
-public:
+protected:
     FVarRefinement(Refinement const& refinement, FVarLevel& parent, FVarLevel& child);
     ~FVarRefinement();
 
-    //  Const methods:
-    Refinement const& getRefinement() const { return _refinement; }
-
     int getChildValueParentSource(Index vIndex, int sibling) const {
-        return _childValueParentSource[_child->getVertexValueIndex(vIndex, (LocalIndex)sibling)];
+        return _childValueParentSource[_childFVar.getVertexValueOffset(vIndex, (LocalIndex)sibling)];
     }
+
+    float getFractionalWeight(Index pVert, LocalIndex pSibling,
+                              Index cVert, LocalIndex cSibling) const;
+
 
     //  Modifiers supporting application of the refinement:
     void applyRefinement();
 
     void estimateAndAllocateChildValues();
     void populateChildValues();
-    int  populateChildValuesForEdgeVertex(Index cVert, Index pEdge, int offset);
-    int  populateChildValuesForVertexVertex(Index cVert, Index pVert, int offset);
+    void populateChildValuesFromFaceVertices();
+    void populateChildValuesFromEdgeVertices();
+    int  populateChildValuesForEdgeVertex(Index cVert, Index pEdge);
+    void populateChildValuesFromVertexVertices();
+    int  populateChildValuesForVertexVertex(Index cVert, Index pVert);
     void trimAndFinalizeChildValues();
 
     void propagateEdgeTags();
     void propagateValueTags();
+    void propagateValueCreases();
+    void reclassifySemisharpValues();
 
-
-public:
-    //  The Refinement and familiar parent/child levels:
+protected:
+    //
+    //  Identify the Refinement, its Levels and assigned FVarLevels for more
+    //  immediate access -- child FVarLevel is non-const as it is to be assigned:
+    //
     Refinement const & _refinement;
 
-    FVarLevel * _parent;
-    FVarLevel * _child;
+    Level const &     _parentLevel;
+    FVarLevel const & _parentFVar;
+
+    Level const & _childLevel;
+    FVarLevel &   _childFVar;
 
     //  When refinement is sparse, we need a mapping between siblings of a vertex
     //  value in the parent and child -- and for some child values, there will not
@@ -94,13 +115,6 @@ public:
     //  be stored.  So we refer to the parent "source" rather than "sibling":
     //
     std::vector<LocalIndex> _childValueParentSource;
-
-    //
-    //  These members are needed during refine() but currently serve no purpose
-    //  after -- so we may not need this class persistent in the refine tables.
-    //
-    int _childSiblingFromEdgeCount;
-    int _childSiblingFromVertCount;
 };
 
 } // end namespace Vtr

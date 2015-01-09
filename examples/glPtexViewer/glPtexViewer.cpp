@@ -55,10 +55,10 @@ GLFWmonitor* g_primary = 0;
     #include <png.h>
 #endif
 
-#include <osd/error.h>
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
 #include <osd/glPtexMipmapTexture.h>
+#include <far/error.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -359,7 +359,7 @@ static void
 calcNormals(OpenSubdiv::Far::TopologyRefiner * refiner,
     std::vector<float> const & pos, std::vector<float> & result ) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     // calc normal vectors
     int nverts = refiner->GetNumVertices(0),
@@ -537,7 +537,7 @@ reshape(GLFWwindow *, int width, int height) {
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
-    g_hud.Rebuild(windowWidth, windowHeight);
+    g_hud.Rebuild(windowWidth, windowHeight, width, height);
 
     // resize framebuffers
     glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
@@ -728,14 +728,14 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
 #endif
 
     int nverts = 4;
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS) {
+    if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS) {
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
         if (effect.displacement) {
             sconfig->geometryShader.AddDefine("FLAT_NORMALS");
         }
-    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::LINES) {
+    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::LINES) {
         nverts = 2;
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.version = glslVersion;
@@ -998,14 +998,15 @@ createOsdMesh(int level, int kernel) {
 
     g_positions=shape->verts;
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);
+    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
 
@@ -1578,14 +1579,14 @@ drawModel() {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
         OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
-        OpenSubdiv::Far::PatchTables::Type patchType = desc.GetType();
+        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
         GLenum primType;
         switch (patchType) {
-        case OpenSubdiv::Far::PatchTables::QUADS:
+        case OpenSubdiv::Far::PatchDescriptor::QUADS:
             primType = GL_LINES_ADJACENCY;
             break;
-        case OpenSubdiv::Far::PatchTables::TRIANGLES:
+        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
             primType = GL_TRIANGLES;
             break;
         default:
@@ -1749,10 +1750,11 @@ drawCageEdges() {
 
     Effect effect;
     effect.value = 0;
+
+    typedef OpenSubdiv::Far::PatchDescriptor FDesc;
+
     OpenSubdiv::Osd::DrawContext::PatchDescriptor desc(
-        OpenSubdiv::Far::PatchTables::Descriptor(OpenSubdiv::Far::PatchTables::LINES,
-            OpenSubdiv::Far::PatchTables::NON_TRANSITION, 0),
-                    0, 0, 0);
+        FDesc(FDesc::LINES, FDesc::NON_TRANSITION, 0), 0, 0, 0);
     EffectDrawRegistry::ConfigType *config = getInstance(effect, desc);
     glUseProgram(config->program);
 
@@ -2293,11 +2295,16 @@ void usage(const char *program) {
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::Osd::ErrorType err, const char *message) {
-    printf("OsdError: %d\n", err);
+callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
+    printf("Error: %d\n", err);
     printf("%s", message);
 }
 
+//------------------------------------------------------------------------------
+static void
+callbackErrorGLFW(int error, const char* description) {
+    fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
+}
 //------------------------------------------------------------------------------
 static void
 setGLCoreProfile() {
@@ -2375,7 +2382,7 @@ int main(int argc, char ** argv) {
         }
     }
 
-    OpenSubdiv::Osd::SetErrorCallback(callbackError);
+    OpenSubdiv::Far::SetErrorCallback(callbackError);
 
     g_shaderSource = g_defaultShaderSource;
     reloadShaderFile();
@@ -2386,6 +2393,7 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
+    glfwSetErrorCallback(callbackErrorGLFW);
     if (not glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;
@@ -2468,7 +2476,7 @@ int main(int argc, char ** argv) {
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
-    g_hud.Init(windowWidth, windowHeight);
+    g_hud.Init(windowWidth, windowHeight, g_width, g_height);
 
     if (occlusionFilename != NULL) {
         g_hud.AddCheckBox("Ambient Occlusion (A)", g_occlusion,

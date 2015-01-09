@@ -36,66 +36,19 @@ namespace OPENSUBDIV_VERSION {
 namespace Osd {
 
 CpuEvalLimitContext *
-CpuEvalLimitContext::Create(Far::PatchTables const & patchTables, bool requireFVarData) {
+CpuEvalLimitContext::Create(Far::PatchTables const & patchTables) {
 
     // there is no limit with uniform subdivision
     if (not patchTables.IsFeatureAdaptive())
         return NULL;
-                                          
-    return new CpuEvalLimitContext(patchTables, requireFVarData);
+
+    return new CpuEvalLimitContext(patchTables);
 }
 
-CpuEvalLimitContext::CpuEvalLimitContext(Far::PatchTables const & patchTables, bool requireFVarData) :
-    EvalLimitContext(patchTables) {
-    
-    // copy the data from the FarTables
-    _patches = patchTables.GetPatchTable();
-
-    _patchArrays = patchTables.GetPatchArrayVector();
-    
-    _vertexValenceTable = patchTables.GetVertexValenceTable();
-    
-    _quadOffsetTable = patchTables.GetQuadOffsetTable();
-    
-    _maxValence = patchTables.GetMaxValence();
-    
-    // Copy the bitfields, the faceId will be the key to our map
-    int npatches = patchTables.GetNumPatches();
-    
-    _patchBitFields.reserve(npatches);
-
-    Far::PatchTables::PatchParamTable const & ptxTable =
-        patchTables.GetPatchParamTable();
-
-    if ( not ptxTable.empty() ) {
-
-        Far::PatchParam const * pptr = &ptxTable[0];
-
-        for (int arrayId = 0; arrayId < (int)_patchArrays.size(); ++arrayId) {
-
-            Far::PatchTables::PatchArray const & pa = _patchArrays[arrayId];
-
-            for (unsigned int j=0; j < pa.GetNumPatches(); ++j) {
-                _patchBitFields.push_back( pptr++->bitField );
-            }
-        }
-    }
-    
-    // Copy the face-varying table if necessary    
-    if (requireFVarData) {
-/* XXXX manuelk do fvar stuff here
-        _fvarwidth = patchTables.GetFVarData().GetFVarWidth();
-        if (_fvarwidth>0) {
-            _fvarData = patchTables.GetFVarData().GetAllData();
-        }
-*/        
-    }
-    
-    _patchMap = new Far::PatchMap( patchTables );
-}
-
-CpuEvalLimitContext::~CpuEvalLimitContext() {
-    delete _patchMap;
+CpuEvalLimitContext::CpuEvalLimitContext(Far::PatchTables const & patchTables) :
+    EvalLimitContext(patchTables),
+    _patchTables(patchTables),
+    _patchMap(patchTables) {
 }
 
 } // end namespace Osd

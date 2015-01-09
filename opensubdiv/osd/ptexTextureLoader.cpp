@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../osd/error.h"
 #include "../osd/ptexTextureLoader.h"
+#include "../far/error.h"
 
 #include <Ptexture.h>
 #include <algorithm>
@@ -242,7 +242,7 @@ PtexTextureLoader::PtexTextureLoader( PtexTexture * p,
     _txc = _txn;
 }
 
-PtexTextureLoader::~PtexTextureLoader() 
+PtexTextureLoader::~PtexTextureLoader()
 {
     ClearPages();
 }
@@ -650,13 +650,13 @@ getCornerPixel(PtexTexture *ptex, float *resultPixel, int numchannels,
     int valence = 0;
     do {
         valence++;
-        
+
         if (valence > 255) {
-            Warning("High valence detected in %s : invalid adjacency around "
-                    "face %d", ptex->path(), face);
+            Far::Warning("High valence detected in %s : invalid adjacency around "
+                         "face %d", ptex->path(), face);
             break;
         }
-        
+
         Ptex::FaceInfo info = ptex->getFaceInfo(currentFace);
         ptex->getPixel(currentFace,
                         uv[currentEdge][0] * (info.res.u()-1),
@@ -752,7 +752,7 @@ guttering(PtexTexture *_ptex, PtexTextureLoader::block *b, unsigned char *pptr,
         int dv = (b->v+gwidth*uv[edge][1]);
 
         /*  There are 3 cases when filling a corner pixel on gutter.
-            
+
             case 1: Regular 4 valence
                     We already have correct 'B' and 'C' pixels by edge resampling above.
                     so here only one more pixel 'D' is needed,
@@ -788,7 +788,7 @@ guttering(PtexTexture *_ptex, PtexTextureLoader::block *b, unsigned char *pptr,
                +---*---|
                | D/E\C |
                | /   \ |
-               |/     \| 
+               |/     \|
                +-------+
          */
 

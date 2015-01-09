@@ -22,6 +22,11 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
+
+include_directories(
+    "${PROJECT_SOURCE_DIR}/"
+)
+
 add_subdirectory(hbr)
 
 add_subdirectory(far)

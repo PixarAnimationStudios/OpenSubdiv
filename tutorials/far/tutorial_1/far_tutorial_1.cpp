@@ -42,8 +42,7 @@
 //
 
 
-#include <sdc/type.h>
-#include <far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
 
 //------------------------------------------------------------------------------
 
@@ -162,13 +161,13 @@ struct Converter {
 
 public:
 
-    Sdc::Type GetType() const {
-        return Sdc::TYPE_CATMARK;
+    Sdc::SchemeType GetType() const {
+        return Sdc::SCHEME_CATMARK;
     }
 
     Sdc::Options GetOptions() const {
         Sdc::Options options;
-        options.SetVVarBoundaryInterpolation(Sdc::Options::VVAR_BOUNDARY_EDGE_ONLY);
+        options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
         return options;
     }
 
@@ -228,7 +227,7 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 template <>
-void
+bool
 TopologyRefinerFactory<Converter>::resizeComponentTopology(
     TopologyRefiner & refiner, Converter const & conv) {
 
@@ -260,15 +259,15 @@ TopologyRefinerFactory<Converter>::resizeComponentTopology(
         refiner.setNumBaseVertexEdges(vert, ne);
         refiner.setNumBaseVertexFaces(vert, nf);
     }
+    return true;
 }
 
 template <>
-void
+bool
 TopologyRefinerFactory<Converter>::assignComponentTopology(
     TopologyRefiner & refiner, Converter const & conv) {
 
     typedef Far::IndexArray      IndexArray;
-    typedef Far::LocalIndexArray LocalIndexArray;
 
     { // Face relations:
         int nfaces = conv.GetNumFaces();
@@ -315,33 +314,62 @@ TopologyRefinerFactory<Converter>::assignComponentTopology(
 
             //  Vert-Faces:
             IndexArray vertFaces = refiner.setBaseVertexFaces(vert);
-            LocalIndexArray vertInFaceIndices = refiner.setBaseVertexFaceLocalIndices(vert);
+            //LocalIndexArray vertInFaceIndices = refiner.setBaseVertexFaceLocalIndices(vert);
             for (int face=0; face<conv.GetNumVertexFaces(vert); ++face) {
                 vertFaces[face] = conv.GetVertexFaces(vert)[face];
             }
 
             //  Vert-Edges:
             IndexArray vertEdges = refiner.setBaseVertexEdges(vert);
-            LocalIndexArray vertInEdgeIndices = refiner.setBaseVertexEdgeLocalIndices(vert);
+            //LocalIndexArray vertInEdgeIndices = refiner.setBaseVertexEdgeLocalIndices(vert);
             for (int edge=0; edge<conv.GetNumVertexEdges(vert); ++edge) {
                 vertEdges[edge] = conv.GetVertexEdges(vert)[edge];
             }
         }
     }
 
-    refiner.populateLocalIndices();
+    refiner.populateBaseLocalIndices();
+
+    return true;
 };
 
 template <>
-void
+bool
 TopologyRefinerFactory<Converter>::assignComponentTags(
     TopologyRefiner & refiner, Converter const & conv) {
 
     // arbitrarily sharpen the 4 bottom edges of the pyramid to 2.5f
     for (int edge=0; edge<conv.GetNumEdges(); ++edge) {
-        refiner.baseEdgeSharpness(edge) = g_edgeCreases[edge];
+        refiner.setBaseEdgeSharpness(edge, g_edgeCreases[edge]);
     }
+    return true;
 }
+
+#ifdef _MSC_VER
+template <>
+void
+TopologyRefinerFactory<Converter>::reportInvalidTopology(
+    TopologyError /* errCode */, char const * msg, Converter const& /* mesh */) {
+
+    //
+    //  Optional topology validation error reporting:
+    //      This method is called whenever the factory encounters topology validation
+    //  errors. By default, nothing is reported
+    //
+    Warning(msg);
+}
+template <>
+bool
+TopologyRefinerFactory<Converter>::assignFaceVaryingTopology(
+    TopologyRefiner & /* refiner */, Converter const & /* conv */) {
+
+    // Because of the way MSVC++ specializes templated functions, we had to
+    // remove the default stubs in Far::TopologyRefinerFactory. In this
+    // example, no face-varying data is being added, but we still need to
+    // implement a template specialization or MSVC++ linker fails.
+    return true;
+}
+#endif
 
 } // namespace Far
 
@@ -395,14 +423,15 @@ int main(int, char **) {
 
     Converter conv;
 
-    Far::TopologyRefiner * refiner = Far::TopologyRefinerFactory<Converter>::Create(
-        conv.GetType(), conv.GetOptions(), conv);
+    Far::TopologyRefiner * refiner =
+        Far::TopologyRefinerFactory<Converter>::Create(conv,
+                Far::TopologyRefinerFactory<Converter>::Options(conv.GetType(), conv.GetOptions()));
 
 
     int maxlevel = 5;
 
     // Uniformly refine the topolgy up to 'maxlevel'
-    refiner->RefineUniform( maxlevel );
+    refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
 
     // Allocate a buffer for vertex primvar data. The buffer length is set to
@@ -441,7 +470,7 @@ int main(int, char **) {
         // Print faces
         for (int face=0; face<refiner->GetNumFaces(maxlevel); ++face) {
 
-            Far::IndexArray fverts = refiner->GetFaceVertices(maxlevel, face);
+            Far::ConstIndexArray fverts = refiner->GetFaceVertices(maxlevel, face);
 
             // all refined Catmark faces should be quads
             assert(fverts.size()==4);

@@ -28,24 +28,24 @@
 #include "../version.h"
 
 #include "../far/kernelBatch.h"
+#include "../far/patchTables.h"
+
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
+class TopologyRefiner;
+
 class Stencil;
 class StencilTables;
-class TopologyRefiner;
+class LimitStencil;
+class LimitStencilTables;
 
 /// \brief A specialized factory for StencilTables
 ///
-/// Note: when using 'sortBySize', vertex indices from PatchTables or
-///       TopologyRefiner need to be remapped to their new location in the
-///       vertex buffer.
-///
-//        XXXX manuelk remap table creation not implemented yet !
-//
 class StencilTablesFactory {
 
 public:
@@ -56,16 +56,22 @@ public:
     };
 
     struct Options {
-    
+
         Options() : interpolationMode(INTERPOLATE_VERTEX),
-                    generateOffsets(false),    
-                    generateAllLevels(true),   
-                    sortBySize(false) { }
-    
-        int interpolationMode : 2, ///< interpolation mode
-            generateOffsets   : 1, ///< populate optional "_offsets" field          
-            generateAllLevels : 1, ///< vertices at all levels or highest only
-            sortBySize        : 1; ///< sort stencils by size (within a level)
+                    generateOffsets(false),
+                    generateControlVerts(false),
+                    generateIntermediateLevels(true),
+                    factorizeIntermediateLevels(true),
+                    maxLevel(10) { }
+
+        unsigned int interpolationMode           : 2, ///< interpolation mode
+                     generateOffsets             : 1, ///< populate optional "_offsets" field
+                     generateControlVerts        : 1, ///< generate stencils for control-vertices
+                     generateIntermediateLevels  : 1, ///< vertices at all levels or highest only
+                     factorizeIntermediateLevels : 1, ///< accumulate stencil weights from control
+                                                      ///  vertices or from the stencils of the
+                                                      ///  previous level
+                     maxLevel                    : 4; ///< generate stencils up to 'maxLevel'
     };
 
     /// \brief Instantiates StencilTables from TopologyRefiner that have been
@@ -75,12 +81,27 @@ public:
     ///       been refined in the TopologyRefiner. Use RefineUniform() or
     ///       RefineAdaptive() before constructing the stencils.
     ///
-    /// @param refiner  The TopologyRefiner containing the refined topology
+    /// @param refiner  The TopologyRefiner containing the topology
     ///
-    /// @param options    Options controlling the creation of the tables
+    /// @param options  Options controlling the creation of the tables
     ///
     static StencilTables const * Create(TopologyRefiner const & refiner,
         Options options = Options());
+
+
+    /// \brief Instantiates StencilTables by concatenating an array of existing
+    ///        stencil tables.
+    ///
+    /// \note This factory checks that the stencil tables point to the same set
+    ///       of supporting control vertices - no re-indexing is done.
+    ///       GetNumControlVertices() *must* return the same value for all input
+    ///       tables.
+    ///
+    /// @param numTables Number of input StencilTables
+    ///
+    /// @param tables    Array of input StencilTables
+    ///
+    static StencilTables const * Create(int numTables, StencilTables const ** tables);
 
     /// \brief Returns a KernelBatch applying all the stencil in the tables
     ///        to primvar data.
@@ -91,14 +112,59 @@ public:
 
 private:
 
-    // Copy a stencil into StencilTables
-    template <class T> static void copyStencil(T const & src, Stencil & dst);
+    // Generate stencils for the coarse control-vertices (single weight = 1.0f)
+    static void generateControlVertStencils(int numControlVerts, Stencil & dst);
+};
 
-    // (Sort &) Copy a vector of stencils into StencilTables
-    template <class T> static void copyStencils(std::vector<T> & src,
-        Stencil & dst, bool sortBySize);
-        
-    std::vector<int> _remap;
+/// \brief A specialized factory for LimitStencilTables
+///
+/// The LimitStencilTablesFactory creates tables of limit stencils. Limit
+/// stencils can interpolate any arbitrary location on the limit surface.
+/// The stencils will be bilinear if the surface is refined uniformly, and
+/// bicubic if feature adaptive isolation is used instead.
+///
+/// Surface locations are expressed as a combination of ptex face index and
+/// normalized (s,t) patch coordinates. The factory exposes the LocationArray
+/// struct as a container for these location descriptors.
+///
+class LimitStencilTablesFactory {
+
+public:
+
+    /// \brief Descriptor for limit surface locations
+    struct LocationArray {
+
+        LocationArray() : ptexIdx(-1), numLocations(0), s(0), t(0) { }
+
+        int ptexIdx,        ///< ptex face index
+            numLocations;   ///< number of (u,v) coordinates in the array
+
+        float const * s,    ///< array of u coordinates
+                    * t;    ///< array of v coordinates
+    };
+
+    typedef std::vector<LocationArray> LocationArrayVec;
+
+    /// \brief Instantiates LimitStencilTables from a TopologyRefiner that has
+    ///        been refined either uniformly or adaptively.
+    ///
+    /// @param refiner          The TopologyRefiner containing the topology
+    ///
+    /// @param locationArrays   An array of surface location descriptors
+    ///                         (see LocationArray)
+    ///
+    /// @param cvStencils       A set of StencilTables generated from the
+    ///                         TopologyRefiner (optional: prevents redundant
+    ///                         instanciation of the tables if available)
+    ///
+    /// @param patchTables      A set of PatchTables generated from the
+    ///                         TopologyRefiner (optional: prevents redundant
+    ///                         instanciation of the tables if available)
+    ///
+    static LimitStencilTables const * Create(TopologyRefiner const & refiner,
+        LocationArrayVec const & locationArrays,
+            StencilTables const * cvStencils=0,
+                PatchTables const * patchTables=0);
 };
 
 

@@ -25,8 +25,8 @@
 #include "../osd/glslComputeController.h"
 #include "../osd/vertexDescriptor.h"
 //#include "../osd/debug.h"
-#include "../osd/error.h"
 #include "../osd/opengl.h"
+#include "../far/error.h"
 
 #include <algorithm>
 #include <cassert>
@@ -93,10 +93,10 @@ public:
                 << "#define WORK_GROUP_SIZE " << _workGroupSize << "\n";
         std::string defineStr = defines.str();
 
-        const char *shaderSources[3];
-        shaderSources[0] = defineStr.c_str();
-        shaderSources[1] = shaderSource;
-        glShaderSource(shader, 2, shaderSources, NULL);
+        const char *shaderSources[3] = {"#version 430\n", 0, 0};
+        shaderSources[1] = defineStr.c_str();
+        shaderSources[2] = shaderSource;
+        glShaderSource(shader, 3, shaderSources, NULL);
         glCompileShader(shader);
         glAttachShader(_program, shader);
 
@@ -107,10 +107,10 @@ public:
         if (linked == GL_FALSE) {
             char buffer[1024];
             glGetShaderInfoLog(shader, 1024, NULL, buffer);
-            Error(OSD_GLSL_LINK_ERROR, buffer);
+            Far::Error(Far::FAR_RUNTIME_ERROR, buffer);
 
             glGetProgramInfoLog(_program, 1024, NULL, buffer);
-            Error(OSD_GLSL_LINK_ERROR, buffer);
+            Far::Error(Far::FAR_RUNTIME_ERROR, buffer);
 
             glDeleteProgram(_program);
             _program = 0;
@@ -151,7 +151,7 @@ public:
         Match(VertexBufferDescriptor const & d) : desc(d) { }
 
         bool operator() (KernelBundle const * kernel) {
-            return (desc.length==kernel->_desc.length and 
+            return (desc.length==kernel->_desc.length and
                     desc.stride==kernel->_desc.stride);
         }
 
@@ -161,19 +161,19 @@ public:
 protected:
 
     void dispatchCompute(int offset, int numCVs, int start, int end) const {
-    
+
         int count = end - start;
         if (count<=0) {
             return;
         }
-        
+
 
         glUniform1i(_uniformStart, start);
         glUniform1i(_uniformEnd, end);
 
         glUniform1i(_uniformOffset, offset);
         glUniform1i(_uniformNumCVs, numCVs);
-        
+
         glDispatchCompute(count/_workGroupSize + 1, 1, 1);
 
         // sync for later reading.
@@ -217,7 +217,7 @@ GLSLComputeController::ApplyStencilTableKernel(
     Far::KernelBatch const &batch, ComputeContext const *context) const {
 
     assert(context);
-    
+
     _currentBindState.kernelBundle->ApplyStencilTableKernel(
         batch, _currentBindState.desc.offset, context->GetNumControlVertices());
 }

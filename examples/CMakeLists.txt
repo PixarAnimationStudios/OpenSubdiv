@@ -22,26 +22,24 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
+# optional dependency - enables screenshots in some examples
+find_package(PNG)
+if (PNG_FOUND)
+    include_directories("${PNG_INCLUDE_DIRS}")
+    list(APPEND PLATFORM_LIBRARIES "${PNG_LIBRARIES}")
+    add_definitions(-DOPENSUBDIV_HAS_PNG)
+endif()
 
 add_subdirectory(common)
 
 if (NOT NO_OPENGL)
     if (OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
 
-        # optional dependency - enables screenshots in some examples
-        find_package(PNG)
-        if (PNG_FOUND)
-            include_directories("${PNG_INCLUDE_DIRS}")
-            list(APPEND PLATFORM_LIBRARIES "${PNG_LIBRARIES}")
-            add_definitions(-DOPENSUBDIV_HAS_PNG)
-        endif()
-
-
         add_subdirectory(glViewer)
         add_subdirectory(glEvalLimit)
         add_subdirectory(glShareTopology)
         add_subdirectory(glFVarViewer)
-        #add_subdirectory(glStencilViewer)
+        add_subdirectory(glStencilViewer)
 
         if (CMAKE_COMPILER_IS_CLANGCC)
             # This code is intended for debugging only

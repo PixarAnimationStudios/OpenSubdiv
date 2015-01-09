@@ -33,7 +33,7 @@
 // 'face-varying' data recorded in the uv texture layout.
 //
 
-#include <far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
 
 #include <cstdio>
 
@@ -164,22 +164,22 @@ int main(int, char **) {
 
     typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
 
-    Sdc::Type type = OpenSubdiv::Sdc::TYPE_CATMARK;
+    Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 
     Sdc::Options options;
-    options.SetVVarBoundaryInterpolation(Sdc::Options::VVAR_BOUNDARY_EDGE_ONLY);
-    options.SetFVarBoundaryInterpolation(Sdc::Options::FVAR_BOUNDARY_BILINEAR);
+    options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
+    options.SetFVarLinearInterpolation(Sdc::Options::FVAR_LINEAR_NONE);
 
     // Populate a topology descriptor with our raw data
     Descriptor desc;
     desc.numVertices  = g_nverts;
     desc.numFaces     = g_nfaces;
-    desc.vertsPerFace = g_vertsperface;
-    desc.vertIndices  = g_vertIndices;
+    desc.numVertsPerFace = g_vertsperface;
+    desc.vertIndicesPerFace  = g_vertIndices;
 
     // Create a face-varying channel descriptor
     Descriptor::FVarChannel uvs;
-    uvs.numValues = 24; // 6 faces * 4 vertices each
+    uvs.numValues = g_nuvs;
     uvs.valueIndices = g_uvIndices;
 
     // Add the channel topology to the main descriptor
@@ -187,12 +187,17 @@ int main(int, char **) {
     desc.fvarChannels = & uvs;
 
     // Instantiate a FarTopologyRefiner from the descriptor
-    Far::TopologyRefiner * refiner = Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);
+    Far::TopologyRefiner * refiner =
+        Far::TopologyRefinerFactory<Descriptor>::Create(desc,
+            Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 
     // Uniformly refine the topolgy up to 'maxlevel'
     // note: fullTopologyInLastLevel must be true to work with face-varying data
-    refiner->RefineUniform( maxlevel, /*fullTopology*/ true );
-
+    {
+        Far::TopologyRefiner::UniformOptions options(maxlevel);
+        options.fullTopologyInLastLevel = true;
+        refiner->RefineUniform(options);
+    }
 
     // Allocate & interpolate the 'vertex' primvar data (see tutorial 2 for
     // more details).
@@ -254,8 +259,8 @@ int main(int, char **) {
         // Print faces
         for (int face=0; face<refiner->GetNumFaces(maxlevel); ++face) {
 
-            Far::IndexArray fverts = refiner->GetFaceVertices(maxlevel, face),
-                          fvverts = refiner->GetFVarFaceValues(maxlevel, face, channel);
+            Far::ConstIndexArray fverts = refiner->GetFaceVertices(maxlevel, face),
+                                 fvverts = refiner->GetFVarFaceValues(maxlevel, face, channel);
 
             // all refined Catmark faces should be quads
             assert(fverts.size()==4 and fvverts.size()==4);

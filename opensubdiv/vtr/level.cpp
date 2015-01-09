@@ -21,7 +21,7 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#include "../sdc/type.h"
+#include "../sdc/types.h"
 #include "../sdc/crease.h"
 #include "../vtr/array.h"
 #include "../vtr/level.h"
@@ -35,6 +35,9 @@
 #include <vector>
 #include <map>
 
+#ifdef _MSC_VER
+    #define snprintf _snprintf
+#endif
 
 //
 //  Level:
@@ -69,6 +72,53 @@ Level::~Level() {
 }
 
 
+char const *
+Level::getTopologyErrorString(TopologyError errCode) {
+
+    switch (errCode) {
+        case TOPOLOGY_MISSING_EDGE_FACES :
+            return "MISSING_EDGE_FACES";
+        case TOPOLOGY_MISSING_EDGE_VERTS :
+            return "MISSING_EDGE_VERTS";
+        case TOPOLOGY_MISSING_FACE_EDGES :
+            return "MISSING_FACE_EDGES";
+        case TOPOLOGY_MISSING_FACE_VERTS :
+            return "MISSING_FACE_VERTS";
+        case TOPOLOGY_MISSING_VERT_FACES :
+            return "MISSING_VERT_FACES";
+        case TOPOLOGY_MISSING_VERT_EDGES :
+            return "MISSING_VERT_EDGES";
+
+        case TOPOLOGY_FAILED_CORRELATION_EDGE_FACE :
+            return "FAILED_CORRELATION_EDGE_FACE";
+        case TOPOLOGY_FAILED_CORRELATION_FACE_VERT :
+            return "FAILED_CORRELATION_FACE_VERT";
+        case TOPOLOGY_FAILED_CORRELATION_FACE_EDGE :
+            return "FAILED_CORRELATION_FACE_EDGE";
+
+        case TOPOLOGY_FAILED_ORIENTATION_INCIDENT_EDGE :
+            return "FAILED_ORIENTATION_INCIDENT_EDGE";
+        case TOPOLOGY_FAILED_ORIENTATION_INCIDENT_FACE :
+            return "FAILED_ORIENTATION_INCIDENT_FACE";
+        case TOPOLOGY_FAILED_ORIENTATION_INCIDENT_FACES_EDGES :
+            return "FAILED_ORIENTATION_INCIDENT_FACES_EDGES";
+
+        case TOPOLOGY_DEGENERATE_EDGE :
+            return "DEGENERATE_EDGE";
+        case TOPOLOGY_NON_MANIFOLD_EDGE :
+            return "NON_MANIFOLD_EDGE";
+
+        case TOPOLOGY_INVALID_CREASE_EDGE :
+            return "INVALID_CREASE_EDGE";
+        case TOPOLOGY_INVALID_CREASE_VERT :
+            return "INVALID_CREASE_VERT";
+
+        default:
+            assert(0);
+    }
+    return 0;
+}
+
 //
 //  Debugging method to validate topology, i.e. verify appropriate symmetry
 //  between the relations, etc.
@@ -95,8 +145,17 @@ Level::~Level() {
 //      - consider using a mask/struct to choose what to validate, i.e.:
 //          - bool validate(ValidateOptions const& options) const;
 //
+
+#define REPORT(code, format, ...) \
+    if (callback) { \
+        char const * errStr = getTopologyErrorString(code); \
+        char msg[1024]; \
+        snprintf(msg, 1024, "%s - "format, errStr, ##__VA_ARGS__); \
+        callback(code, msg, clientData); \
+    }
+
 bool
-Level::validateTopology() const {
+Level::validateTopology(ValidationCallback callback, void const * clientData) const {
 
     //
     //  Verify internal topological consistency (eventually a Level method?):
@@ -120,19 +179,23 @@ Level::validateTopology() const {
 
     //  Verify each face-vert has corresponding vert-face and child:
     if ((getNumFaceVerticesTotal() == 0) || (getNumVertexFacesTotal() == 0)) {
-        if (getNumFaceVerticesTotal() == 0) printf("Error:  missing face-verts\n");
-        if (getNumVertexFacesTotal() == 0) printf("Error:  missing vert-faces\n");
+        if (getNumFaceVerticesTotal() == 0) {
+            REPORT(TOPOLOGY_MISSING_FACE_VERTS, "missing face-verts");
+        }
+        if (getNumVertexFacesTotal() == 0) {
+            REPORT(TOPOLOGY_MISSING_VERT_FACES, "missing vert-faces");
+        }
         return false;
     }
     for (int fIndex = 0; fIndex < getNumFaces(); ++fIndex) {
-        IndexArray const fVerts      = getFaceVertices(fIndex);
+        ConstIndexArray     fVerts      = getFaceVertices(fIndex);
         int                 fVertCount  = fVerts.size();
 
         for (int i = 0; i < fVertCount; ++i) {
             Index vIndex = fVerts[i];
 
-            IndexArray const      vFaces = getVertexFaces(vIndex);
-            LocalIndexArray const vInFace = getVertexFaceLocalIndices(vIndex);
+            ConstIndexArray        vFaces = getVertexFaces(vIndex);
+            ConstLocalIndexArray  vInFace = getVertexFaceLocalIndices(vIndex);
 
             bool vertFaceOfFaceExists = false;
             for (int j = 0; j < vFaces.size(); ++j) {
@@ -142,29 +205,32 @@ Level::validateTopology() const {
                 }
             }
             if (!vertFaceOfFaceExists) {
+                REPORT(TOPOLOGY_FAILED_CORRELATION_FACE_VERT,
+                    "face %d correlation of vert %d failed", fIndex, i);
+                if (returnOnFirstError) return false;
                 isValid = false;
-                if (returnOnFirstError) {
-                    printf("Error in fIndex = %d:  correlation of vert %d failed\n", fIndex, i);
-                    return isValid;
-                }
             }
         }
     }
 
     //  Verify each face-edge has corresponding edge-face:
     if ((getNumEdgeFacesTotal() == 0) || (getNumFaceEdgesTotal() == 0)) {
-        if (getNumEdgeFacesTotal() == 0) printf("Error:  missing edge-faces\n");
-        if (getNumFaceEdgesTotal() == 0) printf("Error:  missing face-edges\n");
+        if (getNumEdgeFacesTotal() == 0) {
+            REPORT(TOPOLOGY_MISSING_EDGE_FACES, "missing edge-faces");
+        }
+        if (getNumFaceEdgesTotal() == 0) {
+            REPORT(TOPOLOGY_MISSING_FACE_EDGES, "missing face-edges");
+        }
         return false;
     }
     for (int fIndex = 0; fIndex < getNumFaces(); ++fIndex) {
-        IndexArray const fEdges      = getFaceEdges(fIndex);
+        ConstIndexArray  fEdges      = getFaceEdges(fIndex);
         int                 fEdgeCount  = fEdges.size();
 
         for (int i = 0; i < fEdgeCount; ++i) {
             int eIndex = fEdges[i];
 
-            IndexArray const eFaces      = getEdgeFaces(eIndex);
+            ConstIndexArray  eFaces      = getEdgeFaces(eIndex);
             int                 eFaceCount  = eFaces.size();
 
             bool edgeFaceOfFaceExists = false;
@@ -175,29 +241,32 @@ Level::validateTopology() const {
                 }
             }
             if (!edgeFaceOfFaceExists) {
+                REPORT(TOPOLOGY_FAILED_CORRELATION_FACE_VERT,
+                     "face %d correlation of edge %d failed", fIndex, i);
+                if (returnOnFirstError) return false;
                 isValid = false;
-                if (returnOnFirstError) {
-                    printf("Error in fIndex = %d:  correlation of edge %d failed\n", fIndex, i);
-                    return isValid;
-                }
             }
         }
     }
 
     //  Verify each edge-vert has corresponding vert-edge and child:
     if ((getNumEdgeVerticesTotal() == 0) || (getNumVertexEdgesTotal() == 0)) {
-        if (getNumEdgeVerticesTotal() == 0) printf("Error:  missing edge-verts\n");
-        if (getNumVertexEdgesTotal() == 0) printf("Error:  missing vert-edges\n");
+        if (getNumEdgeVerticesTotal() == 0) {
+            REPORT(TOPOLOGY_MISSING_EDGE_VERTS, "missing edge-verts");
+        }
+        if (getNumVertexEdgesTotal() == 0) {
+            REPORT(TOPOLOGY_MISSING_VERT_EDGES, "missing vert-edges");
+        }
         return false;
     }
     for (int eIndex = 0; eIndex < getNumEdges(); ++eIndex) {
-        IndexArray const eVerts = getEdgeVertices(eIndex);
+        ConstIndexArray  eVerts = getEdgeVertices(eIndex);
 
         for (int i = 0; i < 2; ++i) {
             Index vIndex = eVerts[i];
 
-            IndexArray const      vEdges = getVertexEdges(vIndex);
-            LocalIndexArray const vInEdge = getVertexEdgeLocalIndices(vIndex);
+            ConstIndexArray       vEdges = getVertexEdges(vIndex);
+            ConstLocalIndexArray  vInEdge = getVertexEdgeLocalIndices(vIndex);
 
             bool vertEdgeOfEdgeExists = false;
             for (int j = 0; j < vEdges.size(); ++j) {
@@ -207,11 +276,50 @@ Level::validateTopology() const {
                 }
             }
             if (!vertEdgeOfEdgeExists) {
+                REPORT(TOPOLOGY_FAILED_CORRELATION_FACE_VERT,
+                    "edge %d correlation of vert %d failed", eIndex, i);
+                if (returnOnFirstError) return false;
                 isValid = false;
-                if (returnOnFirstError) {
-                    printf("Error in eIndex = %d:  correlation of vert %d failed\n", eIndex, i);
-                    return isValid;
-                }
+            }
+        }
+    }
+
+    //  Verify that vert-faces and vert-edges are properly ordered and in sync:
+    //      - currently this requires the relations exactly match those that we construct from
+    //        the ordering method, i.e. we do not allow rotations for interior vertices.
+    Index * indexBuffer = (Index*) alloca(2 * _maxValence * sizeof(Index));
+
+    for (int vIndex = 0; vIndex < getNumVertices(); ++vIndex) {
+        if (_vertTags[vIndex]._incomplete || _vertTags[vIndex]._nonManifold) continue;
+
+        ConstIndexArray  vFaces = getVertexFaces(vIndex);
+        ConstIndexArray  vEdges = getVertexEdges(vIndex);
+
+        Index * vFacesOrdered = indexBuffer;
+        Index * vEdgesOrdered = indexBuffer + vFaces.size();
+
+        if (!orderVertexFacesAndEdges(vIndex, vFacesOrdered, vEdgesOrdered)) {
+            REPORT(TOPOLOGY_FAILED_ORIENTATION_INCIDENT_FACES_EDGES,
+                "vertex %d cannot orient incident faces and edges", vIndex);
+            if (returnOnFirstError) return false;
+            isValid = false;
+        }
+        for (int i = 0; i < vFaces.size(); ++i) {
+            if (vFaces[i] != vFacesOrdered[i]) {
+                REPORT(TOPOLOGY_FAILED_ORIENTATION_INCIDENT_FACE,
+                    "vertex %d orientation failure at incident face %d", vIndex, i);
+                if (returnOnFirstError) return false;
+                isValid = false;
+                break;
+            }
+        }
+        for (int i = 0; i < vEdges.size(); ++i) {
+            if (vEdges[i] != vEdgesOrdered[i]) {
+                REPORT(TOPOLOGY_FAILED_ORIENTATION_INCIDENT_EDGE,
+                    "vertex %d orientation failure at incident edge %d", vIndex, i);
+                if (returnOnFirstError) return false;
+                isValid = false;
+                break;
             }
         }
     }
@@ -222,22 +330,20 @@ Level::validateTopology() const {
         Level::ETag const& eTag = _edgeTags[eIndex];
         if (eTag._nonManifold) continue;
 
-        IndexArray const eVerts = getEdgeVertices(eIndex);
+        ConstIndexArray  eVerts = getEdgeVertices(eIndex);
         if (eVerts[0] == eVerts[1]) {
+            REPORT(TOPOLOGY_DEGENERATE_EDGE,
+                "Error in eIndex = %d:  degenerate edge not tagged marked non-manifold", eIndex);
+            if (returnOnFirstError) return false;
             isValid = false;
-            if (returnOnFirstError) {
-                printf("Error in eIndex = %d:  degenerate edge not tagged marked non-manifold\n", eIndex);
-                return isValid;
-            }
         }
 
-        IndexArray const eFaces = getEdgeFaces(eIndex);
+        ConstIndexArray  eFaces = getEdgeFaces(eIndex);
         if ((eFaces.size() < 1) || (eFaces.size() > 2)) {
+            REPORT(TOPOLOGY_NON_MANIFOLD_EDGE,
+                "edge %d with %d incident faces not tagged non-manifold", eIndex, eFaces.size());
+            if (returnOnFirstError) return false;
             isValid = false;
-            if (returnOnFirstError) {
-                printf("Error in eIndex = %d:  edge with %d faces not tagged non-manifold\n", eIndex, eFaces.size());
-                return isValid;
-            }
         }
     }
     return isValid;
@@ -250,7 +356,7 @@ Level::validateTopology() const {
 namespace {
     template <typename INT_TYPE>
     void
-    printIndexArray(Array<INT_TYPE> const& array) {
+    printIndexArray(ConstArray<INT_TYPE> const& array) {
 
         printf("%d [%d", array.size(), array[0]);
         for (int i = 1; i < array.size(); ++i) {
@@ -305,18 +411,22 @@ Level::print(const Refinement* pRefinement) const {
     printf("  Topology relation sizes:\n");
 
     printf("    Face relations:\n");
-    printf("      face-vert counts/offset = %lu\n", _faceVertCountsAndOffsets.size());
-    printf("      face-vert indices = %lu\n", _faceVertIndices.size());
-    for (int i = 0; printFaceVerts && i < getNumFaces(); ++i) {
-        printf("        face %4d verts:  ", i);
-        printIndexArray(getFaceVertices(i));
+    printf("      face-vert counts/offset = %lu\n", (unsigned long)_faceVertCountsAndOffsets.size());
+    printf("      face-vert indices = %lu\n", (unsigned long)_faceVertIndices.size());
+    if (_faceVertIndices.size()) {
+        for (int i = 0; printFaceVerts && i < getNumFaces(); ++i) {
+            printf("        face %4d verts:  ", i);
+            printIndexArray(getFaceVertices(i));
+        }
     }
-    printf("      face-edge indices = %lu\n", _faceEdgeIndices.size());
-    for (int i = 0; printFaceEdges && i < getNumFaces(); ++i) {
-        printf("        face %4d edges:  ", i);
-        printIndexArray(getFaceEdges(i));
+    printf("      face-edge indices = %lu\n", (unsigned long)_faceEdgeIndices.size());
+    if (_faceEdgeIndices.size()) {
+        for (int i = 0; printFaceEdges && i < getNumFaces(); ++i) {
+            printf("        face %4d edges:  ", i);
+            printIndexArray(getFaceEdges(i));
+        }
     }
-    printf("      face tags = %lu\n", _faceTags.size());
+    printf("      face tags = %lu\n", (unsigned long)_faceTags.size());
     for (int i = 0; printFaceTags && i < (int)_faceTags.size(); ++i) {
         FTag const& fTag = _faceTags[i];
         printf("        face %4d:", i);
@@ -324,35 +434,39 @@ Level::print(const Refinement* pRefinement) const {
         printf("\n");
     }
     if (pRefinement) {
-        printf("      face child-verts = %lu\n", pRefinement->_faceChildVertIndex.size());
+        printf("      face child-verts = %lu\n", (unsigned long)pRefinement->_faceChildVertIndex.size());
         for (int i = 0; printFaceChildVerts && i < (int)pRefinement->_faceChildVertIndex.size(); ++i) {
             printf("        face %4d child vert:  %d\n", i, pRefinement->_faceChildVertIndex[i]);
         }
     }
 
     printf("    Edge relations:\n");
-    printf("      edge-vert indices = %lu\n", _edgeVertIndices.size());
-    for (int i = 0; printEdgeVerts && i < getNumEdges(); ++i) {
-        printf("        edge %4d verts:  ", i);
-        printIndexArray(getEdgeVertices(i));
+    printf("      edge-vert indices = %lu\n", (unsigned long)_edgeVertIndices.size());
+    if (_edgeVertIndices.size()) {
+        for (int i = 0; printEdgeVerts && i < getNumEdges(); ++i) {
+            printf("        edge %4d verts:  ", i);
+            printIndexArray(getEdgeVertices(i));
+        }
     }
-    printf("      edge-face counts/offset = %lu\n", _edgeFaceCountsAndOffsets.size());
-    printf("      edge-face indices = %lu\n", _edgeFaceIndices.size());
-    for (int i = 0; printEdgeFaces && i < getNumEdges(); ++i) {
-        printf("        edge %4d faces:  ", i);
-        printIndexArray(getEdgeFaces(i));
+    printf("      edge-face counts/offset = %lu\n", (unsigned long)_edgeFaceCountsAndOffsets.size());
+    printf("      edge-face indices = %lu\n", (unsigned long)_edgeFaceIndices.size());
+    if (_edgeFaceIndices.size()) {
+        for (int i = 0; printEdgeFaces && i < getNumEdges(); ++i) {
+            printf("        edge %4d faces:  ", i);
+            printIndexArray(getEdgeFaces(i));
+        }
     }
     if (pRefinement) {
-        printf("      edge child-verts = %lu\n", pRefinement->_edgeChildVertIndex.size());
+        printf("      edge child-verts = %lu\n", (unsigned long)pRefinement->_edgeChildVertIndex.size());
         for (int i = 0; printEdgeChildVerts && i < (int)pRefinement->_edgeChildVertIndex.size(); ++i) {
             printf("        edge %4d child vert:  %d\n", i, pRefinement->_edgeChildVertIndex[i]);
         }
     }
-    printf("      edge sharpness = %lu\n", _edgeSharpness.size());
+    printf("      edge sharpness = %lu\n", (unsigned long)_edgeSharpness.size());
     for (int i = 0; printEdgeSharpness && i < (int)_edgeSharpness.size(); ++i) {
         printf("        edge %4d sharpness:  %f\n", i, _edgeSharpness[i]);
     }
-    printf("      edge tags = %lu\n", _edgeTags.size());
+    printf("      edge tags = %lu\n", (unsigned long)_edgeTags.size());
     for (int i = 0; printEdgeTags && i < (int)_edgeTags.size(); ++i) {
         ETag const& eTag = _edgeTags[i];
         printf("        edge %4d:", i);
@@ -363,37 +477,41 @@ Level::print(const Refinement* pRefinement) const {
     }
 
     printf("    Vert relations:\n");
-    printf("      vert-face counts/offset = %lu\n", _vertFaceCountsAndOffsets.size());
-    printf("      vert-face indices  = %lu\n", _vertFaceIndices.size());
-    printf("      vert-face children = %lu\n", _vertFaceLocalIndices.size());
-    for (int i = 0; printVertFaces && i < getNumVertices(); ++i) {
-        printf("        vert %4d faces:  ", i);
-        printIndexArray(getVertexFaces(i));
+    printf("      vert-face counts/offset = %lu\n", (unsigned long)_vertFaceCountsAndOffsets.size());
+    printf("      vert-face indices  = %lu\n", (unsigned long)_vertFaceIndices.size());
+    printf("      vert-face children = %lu\n", (unsigned long)_vertFaceLocalIndices.size());
+    if (_vertFaceIndices.size()) {
+        for (int i = 0; printVertFaces && i < getNumVertices(); ++i) {
+            printf("        vert %4d faces:  ", i);
+            printIndexArray(getVertexFaces(i));
 
-        printf("             face-verts:  ");
-        printIndexArray(getVertexFaceLocalIndices(i));
+            printf("             face-verts:  ");
+            printIndexArray(getVertexFaceLocalIndices(i));
+        }
     }
-    printf("      vert-edge counts/offset = %lu\n", _vertEdgeCountsAndOffsets.size());
-    printf("      vert-edge indices  = %lu\n", _vertEdgeIndices.size());
-    printf("      vert-edge children = %lu\n", _vertEdgeLocalIndices.size());
-    for (int i = 0; printVertEdges && i < getNumVertices(); ++i) {
-        printf("        vert %4d edges:  ", i);
-        printIndexArray(getVertexEdges(i));
+    printf("      vert-edge counts/offset = %lu\n", (unsigned long)_vertEdgeCountsAndOffsets.size());
+    printf("      vert-edge indices  = %lu\n", (unsigned long)_vertEdgeIndices.size());
+    printf("      vert-edge children = %lu\n", (unsigned long)_vertEdgeLocalIndices.size());
+    if (_vertEdgeIndices.size()) {
+        for (int i = 0; printVertEdges && i < getNumVertices(); ++i) {
+            printf("        vert %4d edges:  ", i);
+            printIndexArray(getVertexEdges(i));
 
-        printf("             edge-verts:  ");
-        printIndexArray(getVertexEdgeLocalIndices(i));
+            printf("             edge-verts:  ");
+            printIndexArray(getVertexEdgeLocalIndices(i));
+        }
     }
     if (pRefinement) {
-        printf("      vert child-verts = %lu\n", pRefinement->_vertChildVertIndex.size());
+        printf("      vert child-verts = %lu\n", (unsigned long)pRefinement->_vertChildVertIndex.size());
         for (int i = 0; printVertChildVerts && i < (int)pRefinement->_vertChildVertIndex.size(); ++i) {
             printf("        vert %4d child vert:  %d\n", i, pRefinement->_vertChildVertIndex[i]);
         }
     }
-    printf("      vert sharpness = %lu\n", _vertSharpness.size());
+    printf("      vert sharpness = %lu\n", (unsigned long)_vertSharpness.size());
     for (int i = 0; printVertSharpness && i < (int)_vertSharpness.size(); ++i) {
         printf("        vert %4d sharpness:  %f\n", i, _vertSharpness[i]);
     }
-    printf("      vert tags = %lu\n", _vertTags.size());
+    printf("      vert tags = %lu\n", (unsigned long)_vertTags.size());
     for (int i = 0; printVertTags && i < (int)_vertTags.size(); ++i) {
         VTag const& vTag = _vertTags[i];
         printf("        vert %4d:", i);
@@ -420,7 +538,7 @@ namespace {
 }
 
 Level::VTag
-Level::getFaceCompositeVTag(IndexArray const& faceVerts) const {
+Level::getFaceCompositeVTag(ConstIndexArray & faceVerts) const {
 
     VTag compTag = _vertTags[faceVerts[0]];
 
@@ -435,7 +553,22 @@ Level::getFaceCompositeVTag(IndexArray const& faceVerts) const {
     }
     return compTag;
 }
+Level::ETag
+Level::getFaceCompositeETag(ConstIndexArray & faceEdges) const {
 
+    ETag compTag = _edgeTags[faceEdges[0]];
+
+    for (int i = 1; i < faceEdges.size(); ++i) {
+        ETag const& edgeTag = _edgeTags[faceEdges[i]];
+
+        if (sizeof(ETag) == sizeof(unsigned char)) {
+            combineTags<ETag, unsigned char>(compTag, edgeTag);
+        } else {
+            assert("ETag size is uint_8 -- need to adjust composite tag code..." == 0);
+        }
+    }
+    return compTag;
+}
 
 //
 //  High-level topology gathering functions -- used mainly in patch construction.  These
@@ -444,25 +577,21 @@ Level::getFaceCompositeVTag(IndexArray const& faceVerts) const {
 //  patch tables factory is preferable.
 //
 //  Note a couple of nuisances...
-//      - these are currently specialized methods for quad-meshes
-//      - debatable whether we should include the four face-verts in the face functions
+//      - debatable whether we should include the face's face-verts in the face functions
 //          - we refer to the result as a "patch" when we do
 //          - otherwise a "ring" of vertices is more appropriate
-//      - some OSD containers for the results want unsigned int and others int
 //
 namespace {
     template <typename INT_TYPE>
-    inline INT_TYPE fastMod4(INT_TYPE value) { return (value & 0x3); }
+    inline INT_TYPE fastMod4(INT_TYPE value) {
 
-    inline int
-    fastFindIn4(Index value, IndexArray const& array) {
+        return (value & 0x3);
+    }
 
-        if (value == array[0]) return 0;
-        if (value == array[1]) return 1;
-        if (value == array[2]) return 2;
-        if (value == array[3]) return 3;
-        assert("fastFindIn4() did not find expected value!" == 0);
-        return -1;
+    template <class ARRAY_OF_TYPE, class TYPE>
+    inline TYPE otherOfTwo(ARRAY_OF_TYPE const& arrayOfTwo, TYPE const& value) {
+
+        return arrayOfTwo[value == arrayOfTwo[0]];
     }
 }
 
@@ -481,10 +610,10 @@ Level::gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int 
 
     Level const& level = *this;
 
-    IndexArray vEdges = level.getVertexEdges(vIndex);
+    ConstIndexArray vEdges = level.getVertexEdges(vIndex);
 
-    IndexArray      vFaces   = level.getVertexFaces(vIndex);
-    LocalIndexArray vInFaces = level.getVertexFaceLocalIndices(vIndex);
+    ConstIndexArray vFaces = level.getVertexFaces(vIndex);
+    ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(vIndex);
 
     bool isBoundary = (vEdges.size() > vFaces.size());
 
@@ -494,7 +623,7 @@ Level::gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int 
         //  For every incident quad, we want the two vertices clockwise in each face, i.e.
         //  the vertex at the end of the leading edge and the vertex opposite this one:
         //
-        IndexArray fVerts = level.getFaceVertices(vFaces[i]);
+        ConstIndexArray fVerts = level.getFaceVertices(vFaces[i]);
 
         int vInThisFace = vInFaces[i];
 
@@ -509,7 +638,7 @@ Level::gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int 
 }
 
 //
-//  Gathering the 16 vertices of a quad-regular boundary patch:
+//  Gathering the 16 vertices of a quad-regular interior patch:
 //      - the neighborhood of the face is assumed to be quad-regular
 //
 //  Ordering of resulting vertices:
@@ -537,7 +666,7 @@ Level::gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int 
 //
 int
 Level::gatherQuadRegularInteriorPatchVertices(
-    Index thisFace, unsigned int ringVerts[], int rotation) const {
+    Index thisFace, Index ringVerts[], int rotation) const {
 
     Level const& level = *this;
 
@@ -545,7 +674,7 @@ Level::gatherQuadRegularInteriorPatchVertices(
     //  For each of the four corner vertices, there is a face diagonally opposite
     //  the given/central face, within which are three vertices of the ring:
     //
-    IndexArray thisFaceVerts = level.getFaceVertices(thisFace);
+    ConstIndexArray thisFaceVerts = level.getFaceVertices(thisFace);
     if (rotation) {
         ringVerts[0] = thisFaceVerts[fastMod4(rotation)];
         ringVerts[1] = thisFaceVerts[fastMod4(rotation + 1)];
@@ -562,16 +691,16 @@ Level::gatherQuadRegularInteriorPatchVertices(
     for (int i = 0; i < 4; ++i) {
         Index v = ringVerts[i];
 
-        IndexArray      vFaces   = level.getVertexFaces(v);
-        LocalIndexArray vInFaces = level.getVertexFaceLocalIndices(v);
+        ConstIndexArray      vFaces   = level.getVertexFaces(v);
+        ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(v);
 
-        int thisFaceInVFaces = fastFindIn4(thisFace, vFaces);
+        int thisFaceInVFaces = vFaces.FindIndexIn4Tuple(thisFace);
         int intFaceInVFaces  = fastMod4(thisFaceInVFaces + 2);
 
         Index intFace    = vFaces[intFaceInVFaces];
         int      vInIntFace = vInFaces[intFaceInVFaces];
 
-        IndexArray intFaceVerts = level.getFaceVertices(intFace);
+        ConstIndexArray intFaceVerts = level.getFaceVertices(intFace);
 
         ringVerts[ringIndex++] = intFaceVerts[fastMod4(vInIntFace + 1)];
         ringVerts[ringIndex++] = intFaceVerts[fastMod4(vInIntFace + 2)];
@@ -607,7 +736,7 @@ Level::gatherQuadRegularInteriorPatchVertices(
 //
 int
 Level::gatherQuadRegularBoundaryPatchVertices(
-    Index face, int unsigned ringVerts[], int boundaryEdgeInFace) const {
+    Index face, Index ringVerts[], int boundaryEdgeInFace) const {
 
     Level const& level = *this;
 
@@ -620,16 +749,16 @@ Level::gatherQuadRegularBoundaryPatchVertices(
     int intV0InFace = interiorEdgeInFace;
     int intV1InFace = fastMod4(interiorEdgeInFace + 1);
 
-    IndexArray faceVerts = level.getFaceVertices(face);
+    ConstIndexArray faceVerts = level.getFaceVertices(face);
 
     Index v0 = faceVerts[intV0InFace];
     Index v1 = faceVerts[intV1InFace];
 
-    IndexArray v0Faces = level.getVertexFaces(v0);
-    IndexArray v1Faces = level.getVertexFaces(v1);
+    ConstIndexArray v0Faces = level.getVertexFaces(v0);
+    ConstIndexArray v1Faces = level.getVertexFaces(v1);
 
-    LocalIndexArray v0InFaces = level.getVertexFaceLocalIndices(v0);
-    LocalIndexArray v1InFaces = level.getVertexFaceLocalIndices(v1);
+    ConstLocalIndexArray v0InFaces = level.getVertexFaceLocalIndices(v0);
+    ConstLocalIndexArray v1InFaces = level.getVertexFaceLocalIndices(v1);
 
     int boundaryFaceInV0Faces = -1;
     int boundaryFaceInV1Faces = -1;
@@ -659,10 +788,10 @@ Level::gatherQuadRegularBoundaryPatchVertices(
     LocalIndex v1InNextFace = v1InFaces[nextFaceInV1Faces];
 
     //  Access the vertices of these four faces and assign to the ring:
-    IndexArray prevFaceVerts  = level.getFaceVertices(prevFace);
-    IndexArray intV0FaceVerts = level.getFaceVertices(intV0Face);
-    IndexArray intV1FaceVerts = level.getFaceVertices(intV1Face);
-    IndexArray nextFaceVerts  = level.getFaceVertices(nextFace);
+    ConstIndexArray prevFaceVerts  = level.getFaceVertices(prevFace);
+    ConstIndexArray intV0FaceVerts = level.getFaceVertices(intV0Face);
+    ConstIndexArray intV1FaceVerts = level.getFaceVertices(intV1Face);
+    ConstIndexArray nextFaceVerts  = level.getFaceVertices(nextFace);
 
     ringVerts[0] = faceVerts[fastMod4(boundaryEdgeInFace + 1)];
     ringVerts[1] = faceVerts[fastMod4(boundaryEdgeInFace + 2)];
@@ -709,17 +838,17 @@ Level::gatherQuadRegularBoundaryPatchVertices(
 //
 int
 Level::gatherQuadRegularCornerPatchVertices(
-    Index face, unsigned int ringVerts[], int cornerVertInFace) const {
+    Index face, Index ringVerts[], int cornerVertInFace) const {
 
     Level const& level = *this;
 
     int interiorFaceVert = fastMod4(cornerVertInFace + 2);
 
-    IndexArray faceVerts = level.getFaceVertices(face);
-    Index      intVert   = faceVerts[interiorFaceVert];
+    ConstIndexArray faceVerts = level.getFaceVertices(face);
+    Index intVert = faceVerts[interiorFaceVert];
 
-    IndexArray      intVertFaces   = level.getVertexFaces(intVert);
-    LocalIndexArray intVertInFaces = level.getVertexFaceLocalIndices(intVert);
+    ConstIndexArray      intVertFaces   = level.getVertexFaces(intVert);
+    ConstLocalIndexArray intVertInFaces = level.getVertexFaceLocalIndices(intVert);
 
     int cornerFaceInIntVertFaces = -1;
     for (int i = 0; i < intVertFaces.size(); ++i) {
@@ -746,9 +875,9 @@ Level::gatherQuadRegularCornerPatchVertices(
     LocalIndex intVertInNextFace = intVertInFaces[nextFaceInIntVertFaces];
 
     //  Access the vertices of these three faces and assign to the ring:
-    IndexArray prevFaceVerts = level.getFaceVertices(prevFace);
-    IndexArray intFaceVerts  = level.getFaceVertices(intFace);
-    IndexArray nextFaceVerts = level.getFaceVertices(nextFace);
+    ConstIndexArray prevFaceVerts = level.getFaceVertices(prevFace);
+    ConstIndexArray intFaceVerts  = level.getFaceVertices(intFace);
+    ConstIndexArray nextFaceVerts = level.getFaceVertices(nextFace);
 
     ringVerts[0] = faceVerts[         cornerVertInFace];
     ringVerts[1] = faceVerts[fastMod4(cornerVertInFace + 1)];
@@ -766,7 +895,351 @@ Level::gatherQuadRegularCornerPatchVertices(
     return 9;
 }
 
+//
+//  Gathering the 12 vertices of a tri-regular interior patch:
+//      - the neighborhood of the face is assumed to be tri-regular
+//
+//  Ordering of resulting vertices:
+//      The three vertices of the triangle begin the sequence, followed by counter-clockwise
+//  traversal of the outer ring of vertices -- beginning with the vertex incident V0 such
+//  that the ring is symmetric about the triangle.
+/*
+//                   3           11
+//                   X - - - - - X
+//                 /   \       /   \
+//               /       \ 0 /       \
+//          4  X - - - - - X - - - - - X 10
+//           /   \       / * \       /   \
+//         /       \   / * * * \   /       \
+//    5  X - - - - - X - - - - - X - - - - - X  9
+//         \       / 1 \       / 2 \       /
+//           \   /       \   /       \   /
+//             X - - - - - X - - - - - X
+//             6           7           8
+*/
+int
+Level::gatherTriRegularInteriorPatchVertices(Index fIndex, Index points[12], int rotation) const
+{
+    ConstIndexArray  fVerts = getFaceVertices(fIndex);
+    ConstIndexArray  fEdges = getFaceEdges(fIndex);
 
+    int index0 = 0;
+    int index1 = 1;
+    int index2 = 2;
+    if (rotation) {
+        index0 = rotation % 3;
+        index1 = (rotation + 1) % 3;
+        index2 = (rotation + 2) % 3;
+    }
+
+    Index v0 = fVerts[index0];
+    Index v1 = fVerts[index1];
+    Index v2 = fVerts[index2];
+
+    ConstIndexArray  v0Edges = getVertexEdges(v0);
+    ConstIndexArray  v1Edges = getVertexEdges(v1);
+    ConstIndexArray  v2Edges = getVertexEdges(v2);
+
+    int e0InV0Edges = v0Edges.FindIndex(fEdges[index0]);
+    int e1InV1Edges = v1Edges.FindIndex(fEdges[index1]);
+    int e2InV2Edges = v2Edges.FindIndex(fEdges[index2]);
+
+    points[ 0] = v0;
+    points[ 1] = v1;
+    points[ 2] = v2;
+
+    points[11] = otherOfTwo(getEdgeVertices(v0Edges[(e0InV0Edges + 3) % 6]), v0);
+    points[ 3] = otherOfTwo(getEdgeVertices(v0Edges[(e0InV0Edges + 4) % 6]), v0);
+    points[ 4] = otherOfTwo(getEdgeVertices(v0Edges[(e0InV0Edges + 5) % 6]), v0);
+
+    points[ 5] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 3) % 6]), v1);
+    points[ 6] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 4) % 6]), v1);
+    points[ 7] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 5) % 6]), v1);
+
+    points[ 8] = otherOfTwo(getEdgeVertices(v2Edges[(e2InV2Edges + 3) % 6]), v2);
+    points[ 9] = otherOfTwo(getEdgeVertices(v2Edges[(e2InV2Edges + 4) % 6]), v2);
+    points[10] = otherOfTwo(getEdgeVertices(v2Edges[(e2InV2Edges + 5) % 6]), v2);
+
+    return 12;
+}
+
+//
+//  Gathering the 9 vertices of a tri-regular "boundary edge" patch:
+//      - the neighborhood of the face is assumed to be tri-regular
+//      - referred to as "boundary edge" as the boundary occurs on the edge of the triangle
+//
+//  Boundary edge:
+//
+/*                   6           5
+//                   X - - - - - X
+//                 /   \       /   \
+//               /       \ 2 /       \
+//          7  X - - - - - X - - - - - X  4
+//           /   \       / * \       /   \
+//         /       \   / * * * \   /       \
+//    8  X - - - - - X - - - - - X - - - - - X  3
+//                   0           1
+*/
+int
+Level::gatherTriRegularBoundaryEdgePatchVertices(Index fIndex, Index points[], int boundaryFaceEdge) const
+{
+    ConstIndexArray  fVerts = getFaceVertices(fIndex);
+
+    Index v0 = fVerts[boundaryFaceEdge];
+    Index v1 = fVerts[(boundaryFaceEdge + 1) % 3];
+    Index v2 = fVerts[(boundaryFaceEdge + 2) % 3];
+
+    ConstIndexArray  v0Edges = getVertexEdges(v0);
+    ConstIndexArray  v1Edges = getVertexEdges(v1);
+    ConstIndexArray  v2Edges = getVertexEdges(v2);
+
+    int e1InV2Edges = v2Edges.FindIndex(v1Edges[2]);
+
+    points[0] = v0;
+    points[1] = v1;
+    points[2] = v2;
+
+    points[3] = otherOfTwo(getEdgeVertices(v1Edges[0]), v1);
+
+    points[4] = otherOfTwo(getEdgeVertices(v2Edges[(e1InV2Edges + 1) % 6]), v2);
+    points[5] = otherOfTwo(getEdgeVertices(v2Edges[(e1InV2Edges + 2) % 6]), v2);
+    points[6] = otherOfTwo(getEdgeVertices(v2Edges[(e1InV2Edges + 3) % 6]), v2);
+    points[7] = otherOfTwo(getEdgeVertices(v2Edges[(e1InV2Edges + 4) % 6]), v2);
+
+    points[8] = otherOfTwo(getEdgeVertices(v0Edges[3]), v0);
+
+    return 9;
+}
+
+//
+//  Gathering the 10 vertices of a tri-regular "boundary vertex" patch:
+//      - the neighborhood of the face is assumed to be tri-regular
+//      - referred to as "boundary vertex" as the boundary occurs on the vertex of the triangle
+//
+//  Boundary vertex:
+/*
+//                         0
+//          3  X - - - - - X - - - - - X  9
+//           /   \       / * \       /   \
+//         /       \   / * * * \   /       \
+//    4  X - - - - - X - - - - - X - - - - - X  8
+//         \       / 1 \       / 2 \       /
+//           \   /       \   /       \   /
+//             X - - - - - X - - - - - X
+//             5           6           7
+*/
+int
+Level::gatherTriRegularBoundaryVertexPatchVertices(Index fIndex, Index points[], int boundaryFaceVert) const
+{
+    ConstIndexArray  fVerts = getFaceVertices(fIndex);
+    ConstIndexArray  fEdges = getFaceEdges(fIndex);
+
+    Index v0 = fVerts[boundaryFaceVert];
+    Index v1 = fVerts[(boundaryFaceVert + 1) % 3];
+    Index v2 = fVerts[(boundaryFaceVert + 2) % 3];
+
+    Index e1 = fEdges[boundaryFaceVert];
+    Index e2 = fEdges[(boundaryFaceVert + 2) % 3];
+
+    ConstIndexArray  v1Edges = getVertexEdges(v1);
+    ConstIndexArray  v2Edges = getVertexEdges(v2);
+
+    int e1InV1Edges = v1Edges.FindIndex(e1);
+    int e2InV2Edges = v2Edges.FindIndex(e2);
+
+    points[0] = v0;
+    points[1] = v1;
+    points[2] = v2;
+
+    points[3] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 1) % 6]), v1);
+    points[4] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 2) % 6]), v1);
+    points[5] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 3) % 6]), v1);
+    points[6] = otherOfTwo(getEdgeVertices(v1Edges[(e1InV1Edges + 4) % 6]), v1);
+
+    points[7] = otherOfTwo(getEdgeVertices(v2Edges[(e2InV2Edges + 3) % 6]), v2);
+    points[8] = otherOfTwo(getEdgeVertices(v2Edges[(e2InV2Edges + 4) % 6]), v2);
+    points[9] = otherOfTwo(getEdgeVertices(v2Edges[(e2InV2Edges + 5) % 6]), v2);
+
+    return 10;
+}
+
+//
+//  Gathering the 6 vertices of a tri-regular "corner vertex" patch:
+//      - the neighborhood of the face is assumed to be tri-regular
+//      - referred to as "corner vertex" to disambiguate it from another corner case
+//          - another boundary case shares the edge with the corner triangle
+//
+//  Corner vertex:
+/*
+//                         0
+//                         X
+//                       / * \
+//                     / * * * \
+//                   X - - - - - X
+//                 / 1 \       / 2 \
+//               /       \   /       \
+//             X - - - - - X - - - - - X
+//             3           4           5
+*/
+int
+Level::gatherTriRegularCornerVertexPatchVertices(Index fIndex, Index points[], int cornerFaceVert) const
+{
+    ConstIndexArray  fVerts = getFaceVertices(fIndex);
+
+    Index v0 = fVerts[cornerFaceVert];
+    Index v1 = fVerts[(cornerFaceVert + 1) % 3];
+    Index v2 = fVerts[(cornerFaceVert + 2) % 3];
+
+    ConstIndexArray  v1Edges = getVertexEdges(v1);
+    ConstIndexArray  v2Edges = getVertexEdges(v2);
+
+    points[0] = v0;
+    points[1] = v1;
+    points[2] = v2;
+
+    points[3] = otherOfTwo(getEdgeVertices(v1Edges[0]), v1);
+    points[4] = otherOfTwo(getEdgeVertices(v1Edges[1]), v1);
+    points[5] = otherOfTwo(getEdgeVertices(v2Edges[3]), v2);
+
+    return 6;
+}
+
+//
+//  Gathering the 8 vertices of a tri-regular "corner edge" patch:
+//      - the neighborhood of the face is assumed to be tri-regular
+//      - referred to as "corner edge" to disambiguate it from the vertex corner case
+//          - this faces shares the edge with a corner triangle
+//
+//  Corner edge:
+/*
+//                   6           5
+//                   X - - - - - X
+//                 /   \       /   \
+//               /       \ 2 /       \
+//          7  X - - - - - X - - - - - X  4
+//               \       / * \       /
+//                 \   / * * * \   /
+//                   X - - - - - X
+//                   0 \       / 1
+//                       \   /
+//                         X
+//                         3
+*/
+int
+Level::gatherTriRegularCornerEdgePatchVertices(Index fIndex, Index points[], int cornerFaceEdge) const
+{
+    ConstIndexArray  fVerts = getFaceVertices(fIndex);
+
+    Index v0 = fVerts[cornerFaceEdge];
+    Index v1 = fVerts[(cornerFaceEdge + 1) % 3];
+    Index v2 = fVerts[(cornerFaceEdge + 2) % 3];
+
+    ConstIndexArray  v0Edges = getVertexEdges(v0);
+    ConstIndexArray  v1Edges = getVertexEdges(v1);
+
+    points[0] = v0;
+    points[1] = v1;
+    points[2] = v2;
+
+    points[3] = otherOfTwo(getEdgeVertices(v1Edges[3]), v1);
+    points[4] = otherOfTwo(getEdgeVertices(v1Edges[0]), v1);
+    points[7] = otherOfTwo(getEdgeVertices(v0Edges[3]), v0);
+
+    ConstIndexArray  v4Edges = getVertexEdges(points[4]);
+    ConstIndexArray  v7Edges = getVertexEdges(points[7]);
+
+    points[5] = otherOfTwo(getEdgeVertices(v4Edges[v4Edges.size() - 3]), v1);
+    points[6] = otherOfTwo(getEdgeVertices(v7Edges[2]), v1);
+
+    return 8;
+}
+
+bool
+Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *rotationOut) const {
+
+    // Note: this function is called twice for the same patch, at topologyRefiner and patchTablesFactory.
+    // we may want to cache the result to improve the Far performance.
+    // To do so, FTag needs to be extended to store isSingleCrease(bool), sharpness(float) and rotation(0-3).
+    //
+    Vtr::ConstIndexArray  fVerts = this->getFaceVertices(face);
+
+    // the face has to be quad
+    if (fVerts.size() != 4) return false;
+
+    // if there's any corner vertex, return false.
+    for (int i = 0; i < fVerts.size(); ++i) {
+        if (this->getVertexSharpness(fVerts[i]) > 0.0f)
+            return false;
+    }
+
+    // make sure there's only one edge with sharpness
+    Vtr::ConstIndexArray  fEdges = this->getFaceEdges(face);
+    float sharpness = 0.0f;
+    int rotation = 0;
+    for (int i = 0; i < fEdges.size(); ++i) {
+        float s = this->getEdgeSharpness(fEdges[i]);
+        if (s > 0.0f) {
+            if (sharpness > 0.0f) {
+                // found more than one sharp edges.
+                return false;
+            }
+            sharpness = s;
+            rotation = i;
+        }
+    }
+
+    //  rotation = 0
+    //         |     |     |     |
+    //      ---5-----4-----15----14---
+    //         |     ||    |     |
+    //         |     ||    |     |
+    //      ---6-----0-----3-----13---
+    //         |     ||    |     |
+    //         |     ||    |     |
+    //      ---7-----1-----2-----12---
+    //         |     ||    |     |
+    //         |     ||    |     |
+    //      ---8-----9-----10----11---
+    //         |     |     |     |
+
+    int v[4];
+    v[0] = fVerts[(0+rotation)%4];  // crease
+    v[1] = fVerts[(1+rotation)%4];  // crease
+    v[2] = fVerts[(2+rotation)%4];  // smooth
+    v[3] = fVerts[(3+rotation)%4];  // smooth
+
+    // check the edges around v[0], v[1]
+    for (int i = 0; i < 2; ++i) {
+        Vtr::ConstIndexArray  vEdges = this->getVertexEdges(v[i]);
+        if (vEdges.size() != 4) return false;
+        int nSharpEdges = 0;
+        float sharpnesses[4];
+        for (int j = 0; j < 4; ++j) {
+            sharpnesses[j] = this->getEdgeSharpness(vEdges[j]);
+            if (sharpnesses[j] > 0.0f) {
+                if (++nSharpEdges == 3) return false;
+            }
+        }
+        // sharpnesses have to be [0, x, 0, x] or [x, 0, x, 0]
+        if (sharpnesses[0] != sharpnesses[2] or
+            sharpnesses[1] != sharpnesses[3]) {
+            return false;
+        }
+    }
+    // check the edges around v[2], v[3]
+    for (int i = 2; i < 4; ++i) {
+        Vtr::ConstIndexArray  vEdges = this->getVertexEdges(v[i]);
+        if (vEdges.size() != 4) return false;
+        // all edges have to be smooth
+        for (int j = 0; j < 4; ++j) {
+            if (this->getEdgeSharpness(vEdges[j]) > 0.0f) return false;
+        }
+    }
+
+    if (sharpnessOut) *sharpnessOut = sharpness;
+    if (rotationOut) *rotationOut = rotation;
+    return true;
+}
 
 //
 //  What follows is an internal/anonymous class and protected methods to complete all
@@ -940,18 +1413,18 @@ namespace {
 //  Methods to populate the missing topology relations of the Level:
 //
 inline Index
-Level::findEdge(Index v0Index, Index v1Index, IndexArray const& v0Edges) const {
+Level::findEdge(Index v0Index, Index v1Index, ConstIndexArray v0Edges) const {
 
     if (v0Index != v1Index) {
         for (int j = 0; j < v0Edges.size(); ++j) {
-            IndexArray eVerts = this->getEdgeVertices(v0Edges[j]);
+            ConstIndexArray eVerts = this->getEdgeVertices(v0Edges[j]);
             if ((eVerts[0] == v1Index) || (eVerts[1] == v1Index)) {
                 return v0Edges[j];
             }
         }
     } else {
         for (int j = 0; j < v0Edges.size(); ++j) {
-            IndexArray eVerts = this->getEdgeVertices(v0Edges[j]);
+            ConstIndexArray eVerts = this->getEdgeVertices(v0Edges[j]);
             if (eVerts[0] == eVerts[1]) {
                 return v0Edges[j];
             }
@@ -1088,6 +1561,12 @@ Level::completeTopologyFromFaceVertices() {
     orientIncidentComponents();
 
     populateLocalIndices();
+
+//printf("Vertex topology completed...\n");
+//this->print();
+//printf("  validating vertex topology...\n");
+//this->validateTopology();
+//assert(this->validateTopology());
 }
 
 void
@@ -1144,16 +1623,16 @@ Level::orientIncidentComponents() {
 
 namespace {
     inline int
-    findInArray(IndexArray const& array, Index value) {
+    findInArray(ConstIndexArray array, Index value) {
         return (int)(std::find(array.begin(), array.end(), value) - array.begin());
     }
 }
 
 bool
-Level::orderVertexFacesAndEdges(Index vIndex) {
+Level::orderVertexFacesAndEdges(Index vIndex, Index * vFacesOrdered, Index * vEdgesOrdered) const {
 
-    IndexArray vEdges = this->getVertexEdges(vIndex);
-    IndexArray vFaces = this->getVertexFaces(vIndex);
+    ConstIndexArray  vEdges = this->getVertexEdges(vIndex);
+    ConstIndexArray  vFaces = this->getVertexFaces(vIndex);
 
     int fCount = vFaces.size();
     int eCount = vEdges.size();
@@ -1179,7 +1658,7 @@ Level::orderVertexFacesAndEdges(Index vIndex) {
         //  Boundary case -- start with (identify) the leading of two boundary edges:
 
         for (int i = 0; i < eCount; ++i) {
-            IndexArray const eFaces = this->getEdgeFaces(vEdges[i]);
+            ConstIndexArray  eFaces = this->getEdgeFaces(vEdges[i]);
             if (eFaces.size() == 1) {
                 eStart = vEdges[i];
                 fStart = eFaces[0];
@@ -1199,23 +1678,20 @@ Level::orderVertexFacesAndEdges(Index vIndex) {
     //  this vertex is really locally manifold, we will end up back at the
     //  starting edge or at the other singular edge of a boundary:
     //
-    Index * vFacesOrdered = (Index *)alloca(fCount*sizeof(Index)),
-             * vEdgesOrdered = (Index *)alloca(eCount*sizeof(Index));
-
-    int orderedEdgesCount = 1;
-    int orderedFacesCount = 1;
+    int eCountOrdered = 1;
+    int fCountOrdered = 1;
 
     vFacesOrdered[0] = fStart;
     vEdgesOrdered[0] = eStart;
 
     Index eFirst = eStart;
 
-    while (orderedEdgesCount < eCount) {
+    while (eCountOrdered < eCount) {
         //
         //  Find the next edge, i.e. the one counter-clockwise to the last:
         //
-        IndexArray const fVerts = this->getFaceVertices(fStart);
-        IndexArray const fEdges = this->getFaceEdges(fStart);
+        ConstIndexArray  fVerts = this->getFaceVertices(fStart);
+        ConstIndexArray  fEdges = this->getFaceEdges(fStart);
 
         int      feStart = fvStart;
         int      feNext  = feStart ? (feStart - 1) : (fVerts.size() - 1);
@@ -1230,10 +1706,10 @@ Level::orderVertexFacesAndEdges(Index vIndex) {
         //  Add the next edge and if more faces to visit (not at the end of
         //  a boundary) look to its opposite face:
         //
-        vEdgesOrdered[orderedEdgesCount++] = eNext;
+        vEdgesOrdered[eCountOrdered++] = eNext;
 
-        if (orderedFacesCount < fCount) {
-            IndexArray const eFaces = this->getEdgeFaces(eNext);
+        if (fCountOrdered < fCount) {
+            ConstIndexArray  eFaces = this->getEdgeFaces(eNext);
 
             if (eFaces.size() == 0) return false;
             if ((eFaces.size() == 1) && (eFaces[0] == fStart)) return false;
@@ -1241,18 +1717,30 @@ Level::orderVertexFacesAndEdges(Index vIndex) {
             fStart  = eFaces[eFaces[0] == fStart];
             fvStart = findInArray(this->getFaceEdges(fStart), eNext);
 
-            vFacesOrdered[orderedFacesCount++] = fStart;
+            vFacesOrdered[fCountOrdered++] = fStart;
         }
         eStart = eNext;
     }
-    assert(orderedEdgesCount == eCount);
-    assert(orderedFacesCount == fCount);
-
-    //  All faces and edges have been ordered -- apply and return:
-    std::memcpy(&vFaces[0], vFacesOrdered, fCount * sizeof(Index));
-    std::memcpy(&vEdges[0], vEdgesOrdered, eCount * sizeof(Index));
-
+    assert(eCountOrdered == eCount);
+    assert(fCountOrdered == fCount);
     return true;
+}
+
+bool
+Level::orderVertexFacesAndEdges(Index vIndex) {
+
+    IndexArray vFaces = this->getVertexFaces(vIndex);
+    IndexArray vEdges = this->getVertexEdges(vIndex);
+
+    Index * vFacesOrdered = (Index *)alloca((vFaces.size() + vEdges.size()) * sizeof(Index));
+    Index * vEdgesOrdered = vFacesOrdered + vFaces.size();
+
+    if (orderVertexFacesAndEdges(vIndex, vFacesOrdered, vEdgesOrdered)) {
+        std::memcpy(&vFaces[0], vFacesOrdered, vFaces.size() * sizeof(Index));
+        std::memcpy(&vEdges[0], vEdgesOrdered, vEdges.size() * sizeof(Index));
+        return true;
+    }
+    return false;
 }
 
 //
@@ -1283,7 +1771,7 @@ Level::getNumFVarValues(int channel) const {
     return _fvarChannels[channel]->getNumValues();
 }
 
-IndexArray const
+ConstIndexArray 
 Level::getFVarFaceValues(Index faceIndex, int channel) const {
     return _fvarChannels[channel]->getFaceValues(faceIndex);
 }

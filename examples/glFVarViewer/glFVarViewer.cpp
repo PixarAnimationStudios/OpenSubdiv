@@ -42,10 +42,10 @@
 GLFWwindow* g_window = 0;
 GLFWmonitor* g_primary = 0;
 
-#include <osd/error.h>
 #include <osd/vertex.h>
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
+#include <far/error.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -85,10 +85,8 @@ int g_currentShape = 0;
 int   g_frame = 0,
       g_repeatCount = 0;
 
-OpenSubdiv::Sdc::Options::FVarBoundaryInterpolation  g_fvarBoundary =
-    OpenSubdiv::Sdc::Options::FVAR_BOUNDARY_BILINEAR;
-
-int   g_fvarPropagateCorners = 0;
+OpenSubdiv::Sdc::Options::FVarLinearInterpolation  g_fvarBoundary =
+    OpenSubdiv::Sdc::Options::FVAR_LINEAR_ALL;
 
 // GUI variables
 int   g_fullscreen = 0,
@@ -237,7 +235,7 @@ static void
 calcNormals(OpenSubdiv::Far::TopologyRefiner const & refiner,
     std::vector<float> const & pos, std::vector<float> & normals) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     // calc normal vectors
     int nverts = (int)pos.size()/3;
@@ -310,18 +308,19 @@ updateGeom() {
 static void
 createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);
+    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
-    sdcoptions.SetFVarBoundaryInterpolation(g_fvarBoundary);
+    sdcoptions.SetFVarLinearInterpolation(g_fvarBoundary);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
     int nedges = refiner->GetNumEdges(0),
@@ -566,8 +565,10 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     const char *glslVersion = "#version 330\n";
 #endif
 
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS or
-        desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+
+    if (desc.first.GetType() == Descriptor::QUADS or
+        desc.first.GetType() == Descriptor::TRIANGLES) {
         sconfig->vertexShader.source = shaderSource;
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
@@ -586,12 +587,12 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     sconfig->commonShader.AddDefine("OSD_FVAR_WIDTH", "2");
 
 
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS) {
+    if (desc.first.GetType() == Descriptor::QUADS) {
         // uniform catmark, bilinear
         sconfig->geometryShader.AddDefine("PRIM_QUAD");
         sconfig->fragmentShader.AddDefine("PRIM_QUAD");
         sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    } else if (desc.first.GetType() == Descriptor::TRIANGLES) {
         // uniform loop
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
@@ -775,6 +776,8 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
 static void
 display() {
 
+    g_hud.GetFrameBuffer()->Bind();
+
     Stopwatch s;
     s.Start();
 
@@ -802,6 +805,8 @@ display() {
     scale(g_transformData.UvViewMatrix, g_uvScale, g_uvScale, 1);
     translate(g_transformData.UvViewMatrix, -g_uvPan[0], -g_uvPan[1], 0);
 
+    glEnable(GL_DEPTH_TEST);
+
     // make sure that the vertex buffer is interoped back as a GL resources.
     g_mesh->BindVertexBuffer();
 
@@ -818,15 +823,15 @@ display() {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
         OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
-        OpenSubdiv::Far::PatchTables::Type patchType = desc.GetType();
+        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
         GLenum primType;
 
         switch (patchType) {
-        case OpenSubdiv::Far::PatchTables::QUADS:
+        case OpenSubdiv::Far::PatchDescriptor::QUADS:
             primType = GL_LINES_ADJACENCY;
             break;
-        case OpenSubdiv::Far::PatchTables::TRIANGLES:
+        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
             primType = GL_TRIANGLES;
             break;
         default:
@@ -869,6 +874,8 @@ display() {
     drawCageEdges();
     drawCageVertices();
 
+    g_hud.GetFrameBuffer()->ApplyImageShader();
+
     // ---------------------------------------------
     // uv viewport
     glViewport(g_width/2, 0, g_width/2, g_height);
@@ -883,15 +890,15 @@ display() {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
         OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
-        OpenSubdiv::Far::PatchTables::Type patchType = desc.GetType();
+        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
         GLenum primType;
 
         switch (patchType) {
-        case OpenSubdiv::Far::PatchTables::QUADS:
+        case OpenSubdiv::Far::PatchDescriptor::QUADS:
             primType = GL_LINES_ADJACENCY;
             break;
-        case OpenSubdiv::Far::PatchTables::TRIANGLES:
+        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
             primType = GL_TRIANGLES;
             break;
         default:
@@ -1018,7 +1025,7 @@ reshape(GLFWwindow *, int width, int height) {
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
-    g_hud.Rebuild(windowWidth, windowHeight);
+    g_hud.Rebuild(windowWidth, windowHeight, width, height);
 }
 
 //------------------------------------------------------------------------------
@@ -1096,32 +1103,43 @@ callbackBoundary(int b) {
     typedef OpenSubdiv::Sdc::Options SdcOptions;
 
     switch (b) {
-        case 0 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_BILINEAR; break;
-        case 1 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_EDGE_ONLY; break;
-        case 2 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER; break;
-        case 3 : g_fvarBoundary = SdcOptions::FVAR_BOUNDARY_ALWAYS_SHARP; break;
+
+        case SdcOptions::FVAR_LINEAR_NONE :
+            g_fvarBoundary = SdcOptions::FVAR_LINEAR_NONE; break;
+
+        case SdcOptions::FVAR_LINEAR_CORNERS_ONLY :
+            g_fvarBoundary = SdcOptions::FVAR_LINEAR_CORNERS_ONLY; break;
+
+        case SdcOptions::FVAR_LINEAR_CORNERS_PLUS1 :
+            g_fvarBoundary = SdcOptions::FVAR_LINEAR_CORNERS_PLUS1; break;
+
+        case SdcOptions::FVAR_LINEAR_CORNERS_PLUS2 :
+            g_fvarBoundary = SdcOptions::FVAR_LINEAR_CORNERS_PLUS2; break;
+
+        case SdcOptions::FVAR_LINEAR_BOUNDARIES :
+            g_fvarBoundary = SdcOptions::FVAR_LINEAR_BOUNDARIES; break;
+
+        case SdcOptions::FVAR_LINEAR_ALL :
+            g_fvarBoundary = SdcOptions::FVAR_LINEAR_ALL; break;
+
     }
-    rebuildOsdMesh();
-}
-
-static void
-callbackPropagateCorners(bool b, int /* button */) {
-
-    g_fvarPropagateCorners = b;
     rebuildOsdMesh();
 }
 
 static void
 initHUD() {
 
-    int windowWidth = g_width, windowHeight = g_height;
+    int windowWidth = g_width, windowHeight = g_height,
+        frameBufferWidth = g_width, frameBufferHeight = g_height;
 
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
-    g_hud.Init(windowWidth, windowHeight);
+    g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 300, 10, 250, callbackDisplayStyle, 'w');
+    g_hud.SetFrameBuffer(new GLFrameBuffer);
+
+    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 375, 10, 250, callbackDisplayStyle, 'w');
     g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
     g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
     g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
@@ -1137,33 +1155,33 @@ initHUD() {
 
     typedef OpenSubdiv::Sdc::Options SdcOptions;
 
-    g_hud.AddRadioButton(2, "Boundary none (B)",
-                         g_fvarBoundary == SdcOptions::FVAR_BOUNDARY_BILINEAR,
-                         10, 10, callbackBoundary, SdcOptions::FVAR_BOUNDARY_BILINEAR, 'b');
-    g_hud.AddRadioButton(2, "Boundary edge only",
-                         g_fvarBoundary == SdcOptions::FVAR_BOUNDARY_EDGE_ONLY,
-                         10, 30, callbackBoundary, SdcOptions::FVAR_BOUNDARY_EDGE_ONLY, 'b');
-    g_hud.AddRadioButton(2, "Boundary edge and corners",
-                         g_fvarBoundary == SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER,
-                         10, 50, callbackBoundary, SdcOptions::FVAR_BOUNDARY_EDGE_AND_CORNER, 'b');
-    g_hud.AddRadioButton(2, "Boundary always sharp",
-                         g_fvarBoundary == SdcOptions::FVAR_BOUNDARY_ALWAYS_SHARP,
-                         10, 70, callbackBoundary, SdcOptions::FVAR_BOUNDARY_ALWAYS_SHARP, 'b');
-
-    g_hud.AddCheckBox("Propagate corners (C)", g_fvarPropagateCorners != 0,
-                      10, 110, callbackPropagateCorners, 0, 'c');
+    int boundary_pulldown = g_hud.AddPullDown("Boundary (B)", 10, 10, 250, callbackBoundary, 'b');
+    g_hud.AddPullDownButton(boundary_pulldown, "None (edge only)",
+        SdcOptions::FVAR_LINEAR_NONE, g_fvarBoundary==SdcOptions::FVAR_LINEAR_NONE);
+    g_hud.AddPullDownButton(boundary_pulldown, "Corners Only",
+        SdcOptions::FVAR_LINEAR_CORNERS_ONLY, g_fvarBoundary==SdcOptions::FVAR_LINEAR_CORNERS_ONLY);
+    g_hud.AddPullDownButton(boundary_pulldown, "Corners 1 (edge corner)",
+        SdcOptions::FVAR_LINEAR_CORNERS_PLUS1, g_fvarBoundary==SdcOptions::FVAR_LINEAR_CORNERS_PLUS1);
+    g_hud.AddPullDownButton(boundary_pulldown, "Corners 2 (edge corner prop)",
+        SdcOptions::FVAR_LINEAR_CORNERS_PLUS2, g_fvarBoundary==SdcOptions::FVAR_LINEAR_CORNERS_PLUS2);
+    g_hud.AddPullDownButton(boundary_pulldown, "Boundaries (always sharp)",
+        SdcOptions::FVAR_LINEAR_BOUNDARIES, g_fvarBoundary==SdcOptions::FVAR_LINEAR_BOUNDARIES);
+    g_hud.AddPullDownButton(boundary_pulldown, "All (bilinear)",
+        SdcOptions::FVAR_LINEAR_ALL, g_fvarBoundary==SdcOptions::FVAR_LINEAR_ALL);
 
     int pulldown_handle = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
         g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
     }
+
+    g_hud.Rebuild(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 }
 
 //------------------------------------------------------------------------------
 static void
 initGL() {
 
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glCullFace(GL_BACK);
@@ -1191,12 +1209,16 @@ idle() {
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::Osd::ErrorType err, const char *message) {
-
-    printf("OsdError: %d\n", err);
+callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
+    printf("Error: %d\n", err);
     printf("%s", message);
 }
 
+//------------------------------------------------------------------------------
+static void
+callbackErrorGLFW(int error, const char* description) {
+    fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
+}
 //------------------------------------------------------------------------------
 static void
 setGLCoreProfile() {
@@ -1242,8 +1264,9 @@ int main(int argc, char ** argv) {
 
     initShapes();
 
-    OpenSubdiv::Osd::SetErrorCallback(callbackError);
+    OpenSubdiv::Far::SetErrorCallback(callbackError);
 
+    glfwSetErrorCallback(callbackErrorGLFW);
     if (not glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;

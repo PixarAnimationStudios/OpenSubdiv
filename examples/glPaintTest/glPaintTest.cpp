@@ -42,10 +42,10 @@
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
-#include <osd/error.h>
 #include <osd/vertex.h>
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
+#include <far/error.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -149,8 +149,8 @@ int   g_currentFpsTimeSample = 0;
 Stopwatch g_fpsTimer;
 
 static void
-checkGLErrors(std::string const & where = "")
-{
+checkGLErrors(std::string const & where = "") {
+
     GLuint err;
     while ((err = glGetError()) != GL_NO_ERROR) {
         std::cerr << "GL error: "
@@ -221,11 +221,12 @@ createOsdMesh() {
     g_orgPositions=shape->verts;
 
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);
+    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // count ptex face id
     int numPtexFaces = refiner->GetNumPtexFaces();
@@ -357,8 +358,8 @@ protected:
 };
 
 EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
-{
+EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
+
     Effect effect = desc.second;
 
     SourceConfigType * sconfig =
@@ -421,8 +422,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 EffectDrawRegistry::ConfigType *
 EffectDrawRegistry::_CreateDrawConfig(
         DescType const & desc,
-        SourceConfigType const * sconfig)
-{
+        SourceConfigType const * sconfig) {
+
     ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig);
     assert(config);
 
@@ -465,8 +466,8 @@ EffectDrawRegistry effectRegistry;
 
 //------------------------------------------------------------------------------
 static GLuint
-bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patch)
-{
+bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patch) {
+
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
     EffectDrawRegistry::ConfigType *
         config = effectRegistry.GetDrawConfig(effectDesc);
@@ -523,6 +524,8 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
 static void
 display() {
 
+    g_hud.GetFrameBuffer()->Bind();
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glViewport(0, 0, g_width, g_height);
@@ -544,6 +547,8 @@ display() {
     multMatrix(g_transformData.ModelViewProjectionMatrix,
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
+
+    glEnable(GL_DEPTH_TEST);
 
     if (! g_transformUB) {
         glGenBuffers(1, &g_transformUB);
@@ -692,6 +697,8 @@ display() {
     GLuint numPrimsGenerated = 0;
     glGetQueryObjectuiv(g_primQuery, GL_QUERY_RESULT, &numPrimsGenerated);
 
+    g_hud.GetFrameBuffer()->ApplyImageShader();
+
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
         double fps = 1.0/g_fpsTimer.GetElapsed();
@@ -727,9 +734,10 @@ display() {
     glfwSwapBuffers(g_window);
 }
 
+//------------------------------------------------------------------------------
 void
-drawStroke(int x, int y)
-{
+drawStroke(int x, int y) {
+
     glViewport(0, 0, g_pageSize, g_pageSize);
 
     // prepare view matrix
@@ -910,7 +918,7 @@ reshape(GLFWwindow *, int width, int height) {
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
-    g_hud.Rebuild(windowWidth, windowHeight);
+    g_hud.Rebuild(windowWidth, windowHeight, width, height);
 
     // prepare depth texture
     if (g_depthTexture == 0) glGenTextures(1, &g_depthTexture);
@@ -960,28 +968,28 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 
 //------------------------------------------------------------------------------
 static void
-callbackWireframe(int b)
-{
+callbackWireframe(int b) {
+
     g_wire = b;
 }
 
 static void
-callbackDisplay(bool /* checked */, int n)
-{
+callbackDisplay(bool /* checked */, int n) {
+
     if (n == 0) g_displayColor = !g_displayColor;
     else if (n == 1) g_displayDisplacement = !g_displayDisplacement;
 }
 
 static void
-callbackLevel(int l)
-{
+callbackLevel(int l) {
+
     g_level = l;
     createOsdMesh();
 }
 
 static void
-callbackModel(int m)
-{
+callbackModel(int m) {
+
     if (m < 0)
         m = 0;
 
@@ -992,15 +1000,20 @@ callbackModel(int m)
     createOsdMesh();
 }
 
+//------------------------------------------------------------------------------
 static void
-initHUD()
-{
-    int windowWidth = g_width, windowHeight = g_height;
+initHUD() {
+
+    int windowWidth = g_width, windowHeight = g_height,
+        frameBufferWidth = g_width, frameBufferHeight = g_height;
 
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+    glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 
-    g_hud.Init(windowWidth, windowHeight);
+    g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
+
+    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     g_hud.AddCheckBox("Color (C)",  g_displayColor != 0, 10, 10, callbackDisplay, 0, 'c');
     g_hud.AddCheckBox("Displacement (D)",  g_displayDisplacement != 0, 10, 30, callbackDisplay, 1, 'd');
@@ -1020,13 +1033,15 @@ initHUD()
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
         g_hud.AddPullDownButton(pulldown_handle, g_defaultShapes[i].name.c_str(),i);
     }
+
+    g_hud.Rebuild(g_width, g_height, frameBufferWidth, frameBufferHeight);
 }
 
 //------------------------------------------------------------------------------
 static void
-initGL()
-{
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+initGL() {
+
+    glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glCullFace(GL_BACK);
@@ -1091,16 +1106,20 @@ idle() {
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::Osd::ErrorType err, const char *message)
-{
-    printf("OsdError: %d\n", err);
+callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
+    printf("Error: %d\n", err);
     printf("%s", message);
 }
 
 //------------------------------------------------------------------------------
 static void
-setGLCoreProfile()
-{
+callbackErrorGLFW(int error, const char* description) {
+    fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
+}
+//------------------------------------------------------------------------------
+static void
+setGLCoreProfile() {
+
     #define glfwOpenWindowHint glfwWindowHint
     #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
@@ -1118,8 +1137,8 @@ setGLCoreProfile()
 
 //------------------------------------------------------------------------------
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char ** argv) {
+
     bool fullscreen = false;
     std::string str;
     for (int i = 1; i < argc; ++i) {
@@ -1139,8 +1158,9 @@ int main(int argc, char ** argv)
         }
     }
     initShapes();
-    OpenSubdiv::Osd::SetErrorCallback(callbackError);
+    OpenSubdiv::Far::SetErrorCallback(callbackError);
 
+    glfwSetErrorCallback(callbackErrorGLFW);
     if (not glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;

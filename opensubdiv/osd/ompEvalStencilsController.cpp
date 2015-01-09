@@ -44,7 +44,7 @@ OmpEvalStencilsController::_UpdateValues( CpuEvalStencilsContext * context ) {
 
     int result=0;
 
-    Far::StencilTables const * stencils = context->GetStencilTables();
+    Far::LimitStencilTables const * stencils = context->GetStencilTables();
 
     int nstencils = stencils->GetNumStencils();
     if (not nstencils)
@@ -65,10 +65,10 @@ OmpEvalStencilsController::_UpdateValues( CpuEvalStencilsContext * context ) {
 #pragma omp parallel for
     for (int i=0; i<nstencils; ++i) {
 
-        int size = stencils->GetSizes()[i],
-            offset = stencils->GetOffsets()[i];
+        int size = stencils->GetSizes()[i];
+        Far::Index offset = stencils->GetOffsets()[i];
 
-        int const * index = &stencils->GetControlIndices().at(offset);
+        Far::Index const * index = &stencils->GetControlIndices().at(offset);
 
         float const * weight = &stencils->GetWeights().at(offset);
 
@@ -94,7 +94,7 @@ OmpEvalStencilsController::_UpdateDerivs( CpuEvalStencilsContext * context ) {
 
     int result=0;
 
-    Far::StencilTables const * stencils = context->GetStencilTables();
+    Far::LimitStencilTables const * stencils = context->GetStencilTables();
 
     int nstencils = stencils->GetNumStencils();
     if (not nstencils)
@@ -116,10 +116,10 @@ OmpEvalStencilsController::_UpdateDerivs( CpuEvalStencilsContext * context ) {
 #pragma omp parallel for
     for (int i=0; i<nstencils; ++i) {
 
-        int size = stencils->GetSizes()[i],
-            offset = stencils->GetOffsets()[i];
+        int size = stencils->GetSizes()[i];
+        Far::Index offset = stencils->GetOffsets()[i];
 
-        int const * index = &stencils->GetControlIndices().at(offset);
+        Far::Index const * index = &stencils->GetControlIndices().at(offset);
 
         float const * duweight = &stencils->GetDuWeights().at(offset),
                     * dvweight = &stencils->GetDvWeights().at(offset);

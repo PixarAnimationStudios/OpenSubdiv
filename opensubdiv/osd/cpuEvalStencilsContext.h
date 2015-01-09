@@ -48,20 +48,20 @@ public:
     ///
     /// @param stencils  a pointer to the Far::StencilTables
     ///
-    static CpuEvalStencilsContext * Create(Far::StencilTables const *stencils);
+    static CpuEvalStencilsContext * Create(Far::LimitStencilTables const *stencils);
 
     /// \brief Returns the Far::StencilTables applied
-    Far::StencilTables const * GetStencilTables() const {
+    Far::LimitStencilTables const * GetStencilTables() const {
         return _stencils;
     }
 
 protected:
 
-    CpuEvalStencilsContext(Far::StencilTables const *stencils);
+    CpuEvalStencilsContext(Far::LimitStencilTables const *stencils);
 
 private:
 
-    Far::StencilTables const * _stencils;
+    Far::LimitStencilTables const * _stencils;
 };
 
 } // end namespace Osd

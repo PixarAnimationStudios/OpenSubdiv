@@ -23,7 +23,7 @@
 //
 
 #include "../osd/clComputeController.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #if defined(_WIN32)
     #include <windows.h>
@@ -50,7 +50,7 @@ static cl_kernel buildKernel(cl_program prog, const char * name) {
     cl_kernel k = clCreateKernel(prog, name, &errNum);
 
     if (errNum != CL_SUCCESS) {
-        Error(OSD_CL_KERNEL_CREATE_ERROR, "buildKernel '%s' (%d)\n", name, errNum);
+        Far::Error(Far::FAR_RUNTIME_ERROR, "buildKernel '%s' (%d)\n", name, errNum);
     }
     return k;
 }
@@ -77,13 +77,13 @@ public:
         const char *sources[] = { defineStr.c_str(), clSource };
         _program = clCreateProgramWithSource(clContext, 2, sources, 0, &errNum);
         if (errNum!=CL_SUCCESS) {
-            Error(OSD_CL_PROGRAM_BUILD_ERROR,
+            Far::Error(Far::FAR_RUNTIME_ERROR,
                 "clCreateProgramWithSource (%d)", errNum);
         }
 
         errNum = clBuildProgram(_program, 0, NULL, NULL, NULL, NULL);
         if (errNum != CL_SUCCESS) {
-            Error(OSD_CL_PROGRAM_BUILD_ERROR, "clBuildProgram (%d) \n", errNum);
+           Far::Error(Far::FAR_RUNTIME_ERROR, "clBuildProgram (%d) \n", errNum);
 
             cl_int numDevices = 0;
             clGetContextInfo(clContext,
@@ -97,7 +97,7 @@ public:
                 char cBuildLog[10240];
                 clGetProgramBuildInfo(_program, devices[i],
                     CL_PROGRAM_BUILD_LOG, sizeof(cBuildLog), cBuildLog, NULL);
-                Error(OSD_CL_PROGRAM_BUILD_ERROR, cBuildLog);
+                Far::Error(Far::FAR_RUNTIME_ERROR, cBuildLog);
             }
             delete[] devices;
 
@@ -176,7 +176,7 @@ CLComputeController::ApplyStencilTableKernel(
         errNum = clEnqueueNDRangeKernel(
             _clQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, NULL);
         if (errNum!=CL_SUCCESS) {
-            Error(OSD_CL_RUNTIME_ERROR,
+            Far::Error(Far::FAR_RUNTIME_ERROR,
                 "ApplyStencilTableKernel (%d) ", errNum);
         }
     }
@@ -208,7 +208,7 @@ CLComputeController::ApplyStencilTableKernel(
         errNum = clEnqueueNDRangeKernel(
             _clQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, NULL);
         if (errNum!=CL_SUCCESS) {
-            Error(OSD_CL_RUNTIME_ERROR,
+            Far::Error(Far::FAR_RUNTIME_ERROR,
                 "ApplyStencilTableKernel (%d)", errNum);
         }
     }

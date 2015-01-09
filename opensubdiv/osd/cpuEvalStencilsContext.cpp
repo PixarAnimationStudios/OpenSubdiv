@@ -29,12 +29,12 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-CpuEvalStencilsContext::CpuEvalStencilsContext(Far::StencilTables const *stencils) :
+CpuEvalStencilsContext::CpuEvalStencilsContext(Far::LimitStencilTables const *stencils) :
     _stencils(stencils) {
 }
 
 CpuEvalStencilsContext *
-CpuEvalStencilsContext::Create(Far::StencilTables const *stencils) {
+CpuEvalStencilsContext::Create(Far::LimitStencilTables const *stencils) {
     return new CpuEvalStencilsContext(stencils);
 }
 

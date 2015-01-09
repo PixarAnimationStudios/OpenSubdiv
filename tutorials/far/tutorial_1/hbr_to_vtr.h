@@ -30,7 +30,7 @@
 #include <hbr/cornerEdit.h>
 #include <hbr/holeEdit.h>
 
-#include <far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
 
 #include <typeinfo>
 #include <cassert>
@@ -89,11 +89,11 @@ getSdcOptions( OpenSubdiv::HbrMesh<T> const & mesh, OpenSubdiv::SdcOptions * opt
     } else
         assert(0);
 
-    OpenSubdiv::SdcOptions::VVarBoundaryInterpolation  vvbi;
+    OpenSubdiv::SdcOptions::VtxBoundaryInterpolation  vvbi;
     switch (mesh.GetInterpolateBoundaryMethod()) {
-        case HMesh::k_InterpolateBoundaryNone:          vvbi=SdcOptions::VVAR_BOUNDARY_NONE; break;
-        case HMesh::k_InterpolateBoundaryEdgeOnly:      vvbi=SdcOptions::VVAR_BOUNDARY_EDGE_ONLY; break;
-        case HMesh::k_InterpolateBoundaryEdgeAndCorner: vvbi=SdcOptions::VVAR_BOUNDARY_EDGE_AND_CORNER; break;
+        case HMesh::k_InterpolateBoundaryNone:          vvbi=SdcOptions::VTX_BOUNDARY_NONE; break;
+        case HMesh::k_InterpolateBoundaryEdgeOnly:      vvbi=SdcOptions::VTX_BOUNDARY_EDGE_ONLY; break;
+        case HMesh::k_InterpolateBoundaryEdgeAndCorner: vvbi=SdcOptions::VTX_BOUNDARY_EDGE_AND_CORNER; break;
         default:
             assert(0);
     }
@@ -114,7 +114,7 @@ getSdcOptions( OpenSubdiv::HbrMesh<T> const & mesh, OpenSubdiv::SdcOptions * opt
         case HSubdiv::k_CreaseChaikin: creaseMethod=OpenSubdiv::SdcOptions::CREASE_CHAIKIN; break;
     };
 
-    options->SetVVarBoundaryInterpolation(vvbi);
+    options->SetVtxBoundaryInterpolation(vvbi);
     options->SetFVarBoundaryInterpolation(fvbi);
     options->SetCreasingMethod(creaseMethod);
     options->SetTriangleSubdivision(tris);
@@ -447,12 +447,12 @@ FarTopologyRefinerFactory<OsdHbrConverter>::assignComponentTags(
             sharpness = std::max(sharpness, e->GetOpposite()->GetSharpness());
 
         }
-        refiner.baseEdgeSharpness(it->second) = sharpness;
+        refiner.setBaseEdgeSharpness(it->second, sharpness);
     }
 
     // Initialize vertex sharpness
     for (int i=0; i<refiner.GetNumVertices(/*level*/0); ++i) {
-        refiner.baseVertexSharpness(i) = hmesh.GetVertex(i)->GetSharpness();
+        refiner.setBaseVertexSharpness(i, hmesh.GetVertex(i)->GetSharpness());
     }
 
     // XXXX Initialize h-edits

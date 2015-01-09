@@ -31,7 +31,7 @@
 // data.
 //
 
-#include <far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
 
 #include <cstdio>
 
@@ -48,16 +48,6 @@ struct Vertex {
 
     // Minimal required interface ----------------------
     Vertex() { }
-
-    Vertex(Vertex const & src) {
-        _position[0] = src._position[0];
-        _position[1] = src._position[1];
-        _position[1] = src._position[1];
-
-        _color[0] = src._color[0];
-        _color[1] = src._color[1];
-        _color[1] = src._color[1];
-    }
 
     void Clear( void * =0 ) {
         _position[0]=_position[1]=_position[2]=0.0f;
@@ -149,7 +139,7 @@ int main(int, char **) {
     Far::TopologyRefiner * refiner = createFarTopologyRefiner();
 
     // Uniformly refine the topolgy up to 'maxlevel'
-    refiner->RefineUniform( maxlevel );
+    refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
     // Allocate a buffer for vertex primvar data. The buffer length is set to
     // be the sum of all children vertices up to the highest level of refinement.
@@ -219,19 +209,21 @@ createFarTopologyRefiner() {
 
     typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
 
-    Sdc::Type type = OpenSubdiv::Sdc::TYPE_CATMARK;
+    Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 
     Sdc::Options options;
-    options.SetVVarBoundaryInterpolation(Sdc::Options::VVAR_BOUNDARY_EDGE_ONLY);
+    options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
 
     Descriptor desc;
     desc.numVertices  = g_nverts;
     desc.numFaces     = g_nfaces;
-    desc.vertsPerFace = g_vertsperface;
-    desc.vertIndices  = g_vertIndices;
+    desc.numVertsPerFace = g_vertsperface;
+    desc.vertIndicesPerFace  = g_vertIndices;
 
     // Instantiate a Far::TopologyRefiner from the descriptor
-    Far::TopologyRefiner * refiner = Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);
+    Far::TopologyRefiner * refiner =
+        Far::TopologyRefinerFactory<Descriptor>::Create(desc,
+            Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 
     return refiner;
 }

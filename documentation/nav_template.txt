@@ -34,9 +34,11 @@
         <ul>
             <li><a href="intro.html">Introduction</a></li>
                 <ul>
+                    <li><a href="license.html">License</a></li>
                     <li><a href="getting_started.html">Getting Started</a></li>
                     <li><a href="cmake_build.html">Building OpenSubdiv</a></li>
                     <li><a href="code_examples.html">Code Examples</a></li>
+                    <li><a href="roadmap.html">Roadmap</a></li>
                 </ul>
                 <p></p>
             <li><a href="subdivision_surfaces.html">Subdivision Surfaces</a>
@@ -57,9 +59,9 @@
                         <li><a href="osd_overview.html">Osd</a></li>
                         <li><a href="far_overview.html">Far</a></li>
                         <ul>
-                            <li><a href="far_overview.html#topology-refiner">Topology Refiner</a></li>
-                            <li><a href="far_overview.html#stencil-tables">Stencil Tables</a></li>
-                            <li><a href="far_overview.html#patch-tables">Patch Tables</a></li>
+                            <li><a href="far_overview.html#far-topologyrefiner">Topology Refiner</a></li>
+                            <li><a href="far_overview.html#far-patchtables">Patch Tables</a></li>
+                            <li><a href="far_overview.html#far-stenciltables">Stencil Tables</a></li>
                         </ul>
                         <li><a href="vtr_overview.html">Vtr</a></li>
                         <li><a href="sdc_overview.html">Sdc</a></li>

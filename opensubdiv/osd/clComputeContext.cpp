@@ -24,8 +24,8 @@
 
 #include "../far/stencilTables.h"
 
-#include "../osd/error.h"
 #include "../osd/clComputeContext.h"
+#include "../far/error.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -43,7 +43,7 @@ createCLBuffer(std::vector<T> const & src, cl_context clContext) {
             src.size()*sizeof(T), (void*)(&src.at(0)), &errNum);
 
     if (errNum!=CL_SUCCESS) {
-        Error(OSD_CL_RUNTIME_ERROR, "clCreateBuffer: %d", errNum);
+        Far::Error(Far::FAR_RUNTIME_ERROR, "clCreateBuffer: %d", errNum);
     }
 
     return devicePtr;

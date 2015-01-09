@@ -136,7 +136,7 @@ float TessAdaptive(float3 p0, float3 p1)
 #define OSD_DISPLACEMENT_CALLBACK
 #endif
 
-Buffer<int2> OsdPatchParamBuffer : register( t3 );
+Buffer<uint2> OsdPatchParamBuffer : register( t3 );
 
 #define GetPatchLevel(primitiveID)                                      \
     (OsdPatchParamBuffer[GetPrimitiveID(primitiveID)].y & 0xf)

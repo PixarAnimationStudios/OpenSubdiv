@@ -1,5 +1,5 @@
 //
-//   Copyright 2014 DreamWorks Animation LLC.
+//   Copyright 2013 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -21,48 +21,12 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#include "../sdc/type.h"
+
+#include "./version.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-namespace Sdc {
-
-//
-//  Specializations for TypeTraits<TYPE_BILINEAR>:
-//
-template <>
-Split
-TypeTraits<TYPE_BILINEAR>::TopologicalSplitType() {
-    return SPLIT_TO_QUADS;
-}
-
-template <>
-int
-TypeTraits<TYPE_BILINEAR>::LocalNeighborhoodSize() {
-    return 0;
-}
-
-template <>
-int
-TypeTraits<TYPE_BILINEAR>::RegularVertexValence() {
-    return 0;
-}
-
-template <>
-int
-TypeTraits<TYPE_BILINEAR>::RegularFaceValence() {
-    return 0;
-}
-
-template <>
-char const*
-TypeTraits<TYPE_BILINEAR>::Label() {
-    //  Might need to declare static here to keep all compilers happy...
-    return "bilinear";
-}
-
-} // end namespace sdc
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

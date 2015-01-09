@@ -46,10 +46,10 @@ GLFWmonitor* g_primary=0;
     #define snprintf _snprintf
 #endif
 
-#include <osd/error.h>
 #include <osd/vertex.h>
 #include <osd/cpuGLVertexBuffer.h>
 
+#include <far/gregoryBasis.h>
 #include <far/patchTablesFactory.h>
 #include <far/stencilTables.h>
 #include <far/stencilTablesFactory.h>
@@ -76,8 +76,8 @@ GLFWmonitor* g_primary=0;
 #include <sstream>
 
 //------------------------------------------------------------------------------
-int g_level = 2,
-    g_currentShape = 0;
+int g_level = 3,
+    g_currentShape = 7;
 
 enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
                    kHUD_CB_DISPLAY_CAGE_VERTS,
@@ -101,7 +101,7 @@ int   g_fullscreen = 0,
 int   g_displayPatchColor    = 1,
       g_drawCageEdges        = 1,
       g_drawCageVertices     = 0,
-      g_HbrDrawMode          = kDRAW_NONE,
+      g_HbrDrawMode          = kDRAW_WIREFRAME,
       g_HbrDrawVertIDs       = false,
       g_HbrDrawEdgeSharpness = false,
       g_HbrDrawFaceIDs       = false,
@@ -112,11 +112,13 @@ int   g_displayPatchColor    = 1,
       g_VtrDrawFaceIDs       = false,
       g_VtrDrawPtexIDs       = false,
       g_VtrDrawEdgeSharpness = false,
+      g_VtrDrawGregogyBasis  = false,
       g_numPatches           = 0,
+      g_maxValence           = 0,
       g_currentPatch         = 0,
-      g_Adaptive             = false;
+      g_Adaptive             = true;
 
-OpenSubdiv::Far::PatchTables::Descriptor g_currentPatchDesc;
+OpenSubdiv::Far::PatchDescriptor g_currentPatchDesc;
 
 float g_rotate[2] = {0, 0},
       g_dolly = 5,
@@ -312,7 +314,7 @@ createHbrMesh(Shape * shape, int maxlevel) {
 
             patchTables = CreatePatchTables(*hmesh, maxvalence);
 
-            patchTables->GetNumPatches();
+            patchTables->GetNumPatchesTotal();
 
             delete patchTables;
         } else {
@@ -407,7 +409,7 @@ createEdgeNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
             Vertex center(0.0f, 0.0f, 0.0f);
 
-            OpenSubdiv::Far::IndexArray const verts =
+            OpenSubdiv::Far::ConstIndexArray const verts =
                 refiner.GetEdgeVertices(maxlevel, i);
             assert(verts.size()==2);
 
@@ -450,7 +452,7 @@ createFaceNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
             Vertex center(0.0f, 0.0f, 0.0f);
 
-            OpenSubdiv::Far::IndexArray const verts =
+            OpenSubdiv::Far::ConstIndexArray const verts =
                 refiner.GetFaceVertices(maxlevel, face);
 
             float weight = 1.0f / (float)verts.size();
@@ -475,7 +477,7 @@ createFaceNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
                 Vertex center(0.0f, 0.0f, 0.0f);
 
-                OpenSubdiv::Far::IndexArray const verts =
+                OpenSubdiv::Far::ConstIndexArray const verts =
                     refiner.GetFaceVertices(level, face);
 
                 float weight = 1.0f / (float)verts.size();
@@ -492,7 +494,7 @@ createFaceNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 }
 
 //------------------------------------------------------------------------------
-// generate display IDs for Vtr faces
+// generate display vert IDs for the selected Vtr patch
 static void
 createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
     std::vector<Vertex> const & vertexBuffer) {
@@ -500,40 +502,104 @@ createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
     if (not g_currentPatch)
         return;
 
-    int patchID = g_currentPatch-1;
-
-    OpenSubdiv::Far::PatchTables::PatchArrayVector const & parrays =
-         patchTables.GetPatchArrayVector();
+    int patchID = g_currentPatch-1,
+        patchArray = -1;
 
     // Find PatchArray containing our patch
-    OpenSubdiv::Far::PatchTables::PatchArray const * pa=0;
-    for (int i=0; i<(int)parrays.size(); ++i) {
-        int npatches = parrays[i].GetNumPatches();
+    for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
+        int npatches = patchTables.GetNumPatches(array);
         if (patchID >= npatches) {
             patchID -= npatches;
         } else {
-            pa = &parrays[i];
+            patchArray = array;
             break;
         }
     }
-    if (not pa) {
+    if (patchArray==-1) {
         return;
     }
 
-    OpenSubdiv::Far::PatchTables::PTable const & ptable =
-        patchTables.GetPatchTable();
+    g_currentPatchDesc = patchTables.GetPatchArrayDescriptor(patchArray);
 
-    g_currentPatchDesc = pa->GetDescriptor();
-
-    int ncvs = g_currentPatchDesc.GetNumControlVertices();
-
-    unsigned int const * cvs = &ptable[pa->GetVertIndex()] + ncvs*patchID;
+    OpenSubdiv::Far::ConstIndexArray const cvs =
+        patchTables.GetPatchVertices(patchArray, patchID);
 
     static char buf[16];
-    for (int i=0; i<ncvs; ++i) {
+    for (int i=0; i<cvs.size(); ++i) {
         snprintf(buf, 16, "%d", i);
         g_font->Print3D(vertexBuffer[cvs[i]].GetPos(), buf, 1);
     }
+}
+
+//------------------------------------------------------------------------------
+// generate display IDs for Vtr Gregory basis
+
+static GLMesh gregoryWire;
+
+static void
+createGregoryBasis(OpenSubdiv::Far::PatchTables const & patchTables,
+        std::vector<Vertex> const & vertexBuffer) {
+
+    typedef OpenSubdiv::Far::PatchTables PatchTables;
+    typedef OpenSubdiv::Far::PatchDescriptor PatchDescriptor;
+
+    int npatches = 0;
+    for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
+        if (patchTables.GetPatchArrayDescriptor(array).GetType()==
+            PatchDescriptor::GREGORY_BASIS) {
+            npatches = patchTables.GetNumPatches(array);
+            break;
+        }
+    }
+
+    int nedges = npatches * 20;
+    std::vector<int> vertsperedge(nedges), edgeindices(nedges*2);
+    std::vector<Vertex> edgeverts(npatches*20);
+
+    OpenSubdiv::Far::StencilTables const * gstencils =
+        patchTables.GetEndCapStencilTables();
+    assert(gstencils);
+
+    gstencils->UpdateValues(&vertexBuffer[0], &edgeverts[0]);
+
+    for (int patch=0; patch<npatches; ++patch) {
+
+        static int  basisedges[40] = {  0,  1,  0,  2,  1,  3,  2,  4,
+                                        5,  6,  5,  7,  6,  8,  7,  9,
+                                       10, 11, 10, 12, 11, 13, 12, 14,
+                                       15, 16, 15, 17, 16, 18, 17, 19,
+                                        1,  7,  6, 12, 11, 17, 16,  2  };
+
+        int offset = patch * 20,
+            * vpe = &vertsperedge[offset],
+            * indices = &edgeindices[patch * 40];
+        for (int i=0; i<20; ++i) {
+            vpe[i] = 2;
+            indices[i*2] = basisedges[i*2] + offset;
+            indices[i*2+1] = basisedges[i*2+1] + offset;
+        }
+
+        Vertex const * verts = &edgeverts[offset];
+        static char buf[16];
+        for (int i=0; i<4; ++i) {
+            int vid = i * 5;
+            snprintf(buf, 16, " P%d", i);
+            g_font->Print3D(verts[vid].GetPos(), buf, 3);
+            snprintf(buf, 16, " Ep%d", i);
+            g_font->Print3D(verts[vid+1].GetPos(), buf, 3);
+            snprintf(buf, 16, " Em%d", i);
+            g_font->Print3D(verts[vid+2].GetPos(), buf, 3);
+            snprintf(buf, 16, " Fp%d", i);
+            g_font->Print3D(verts[vid+3].GetPos(), buf, 3);
+            snprintf(buf, 16, " Fm%d", i);
+            g_font->Print3D(verts[vid+4].GetPos(), buf, 3);
+        }
+    }
+
+    GLMesh::Options options;
+    gregoryWire.Initialize(options, (int)edgeverts.size(), (int)vertsperedge.size(),
+        &vertsperedge[0], &edgeindices[0], (float const * )&edgeverts[0]);
+
 }
 
 //------------------------------------------------------------------------------
@@ -542,16 +608,7 @@ static void
 createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
     std::vector<Vertex> const & vertexBuffer) {
 
-    typedef OpenSubdiv::Far::PatchTables FPatchTables;
-
-    FPatchTables::PatchParamTable const & pparams =
-         patchTables.GetPatchParamTable();
-
-    FPatchTables::PTable const & ptable =
-        patchTables.GetPatchTable();
-
-    FPatchTables::PatchArrayVector const & parrays =
-         patchTables.GetPatchArrayVector();
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
 
     static char buf[16];
 
@@ -560,23 +617,22 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
                corner[4]   = {1, 2, 4, 5},
                gregory[4]  = {0, 1, 2, 3};
 
-    for (int i=0, patch=0; i<(int)parrays.size(); ++i) {
+    for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
 
-        FPatchTables::PatchArray const & pa = parrays[i];
+        for (int patch=0; patch<(int)patchTables.GetNumPatches(array); ++patch) {
 
-        for (int j=0; j<(int)pa.GetNumPatches(); ++j, ++patch) {
-
-            int ncvs = pa.GetDescriptor().GetNumControlVertices();
-
-            unsigned int const * cvs = &ptable[pa.GetVertIndex()] + ncvs*j;
+            OpenSubdiv::Far::ConstIndexArray const cvs =
+                patchTables.GetPatchVertices(array, patch);
 
             int * remap = 0;
-            switch (pa.GetDescriptor().GetType()) {
-                case FPatchTables::REGULAR:          remap = regular; break;
-                case FPatchTables::BOUNDARY:         remap = boundary; break;
-                case FPatchTables::CORNER:           remap = corner; break;
-                case FPatchTables::GREGORY:
-                case FPatchTables::GREGORY_BOUNDARY: remap = gregory; break;
+            switch (patchTables.GetPatchArrayDescriptor(array).GetType()) {
+                case Descriptor::REGULAR:          remap = regular; break;
+                case Descriptor::SINGLE_CREASE:    remap = boundary; break;
+                case Descriptor::BOUNDARY:         remap = boundary; break;
+                case Descriptor::CORNER:           remap = corner; break;
+                case Descriptor::GREGORY:
+                case Descriptor::GREGORY_BOUNDARY:
+                case Descriptor::GREGORY_BASIS:    remap = gregory; break;
                 default:
                     assert(0);
             }
@@ -586,7 +642,7 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
                 center.AddWithWeight(vertexBuffer[cvs[remap[k]]], 0.25f);
             }
 
-            snprintf(buf, 16, "%d", pparams[patch].faceIndex);
+            snprintf(buf, 16, "%d", patchTables.GetPatchParam(array, patch).faceIndex);
             g_font->Print3D(center.GetPos(), buf, 1);
         }
     }
@@ -600,31 +656,31 @@ createVtrMesh(Shape * shape, int maxlevel) {
     s.Start();
 
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);
-    OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
+    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
+    OpenSubdiv::Sdc::Options    sdcoptions = GetSdcOptions(*shape);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
-
-    OpenSubdiv::Far::PatchTables * patchTables = 0;
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     if (g_Adaptive) {
-
-        refiner->RefineAdaptive(maxlevel, /*fullTopology*/true);
-
-        patchTables = OpenSubdiv::Far::PatchTablesFactory::Create(*refiner);
-
-        g_numPatches = patchTables->GetNumPatches();
+        OpenSubdiv::Far::TopologyRefiner::AdaptiveOptions options(maxlevel);
+        options.fullTopologyInLastLevel = true;
+        options.useSingleCreasePatch = false;
+        refiner->RefineAdaptive(options);
     } else {
-        refiner->RefineUniform(maxlevel, /*fullTopology*/true);
+        OpenSubdiv::Far::TopologyRefiner::UniformOptions options(maxlevel);
+        options.fullTopologyInLastLevel = true;
+        refiner->RefineUniform(options);
     }
-    s.Stop();
+
+    //
+    // Stencils
+    //
 
     // create vertex primvar data buffer
     std::vector<Vertex> vertexBuffer(refiner->GetNumVerticesTotal());
     Vertex * verts = &vertexBuffer[0];
-
-    //printf("Vtr time: %f ms (topology)\n", float(s.GetElapsed())*1000.0f);
 
     // copy coarse vertices positions
     int ncoarseverts = shape->GetNumVertices();
@@ -644,18 +700,41 @@ createVtrMesh(Shape * shape, int maxlevel) {
         //printf("          %f ms (total)\n", float(s.GetTotalElapsed())*1000.0f);
     }
 #else
+    OpenSubdiv::Far::StencilTables const * stencilTables = 0;
     {
         OpenSubdiv::Far::StencilTablesFactory::Options options;
         options.generateOffsets=true;
-        options.generateAllLevels=true;
-        options.sortBySize=false;
+        options.generateIntermediateLevels=true;
 
-        OpenSubdiv::Far::StencilTables const * stencilTables =
+        stencilTables =
             OpenSubdiv::Far::StencilTablesFactory::Create(*refiner, options);
 
         stencilTables->UpdateValues(verts, verts + ncoarseverts);
     }
 #endif
+
+    //
+    // Patch tables
+    //
+
+    OpenSubdiv::Far::PatchTables * patchTables = 0;
+    if (g_Adaptive) {
+        assert(stencilTables);
+
+        OpenSubdiv::Far::PatchTablesFactory::Options options;
+        options.adaptiveStencilTables = stencilTables;
+        patchTables = OpenSubdiv::Far::PatchTablesFactory::Create(*refiner, options);
+
+        g_numPatches = patchTables->GetNumPatchesTotal();
+        g_maxValence = patchTables->GetMaxValence();
+    }
+    s.Stop();
+
+    //
+    // Misc display
+    //
+
+    //printf("Vtr time: %f ms (topology)\n", float(s.GetElapsed())*1000.0f);
 
     if (g_VtrDrawVertIDs) {
         createVertNumbers(*refiner, vertexBuffer);
@@ -669,8 +748,12 @@ createVtrMesh(Shape * shape, int maxlevel) {
         createPtexNumbers(*patchTables, vertexBuffer);
     }
 
-    if (g_Adaptive and patchTables) {
+    if (g_Adaptive) {
         createPatchNumbers(*patchTables, vertexBuffer);
+    }
+
+    if (g_Adaptive and g_VtrDrawGregogyBasis) {
+        createGregoryBasis(*patchTables, vertexBuffer);
     }
 
     createEdgeNumbers(*refiner, vertexBuffer, g_VtrDrawEdgeIDs!=0, g_VtrDrawEdgeSharpness!=0);
@@ -695,6 +778,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
 
     delete refiner;
     delete patchTables;
+    delete stencilTables;
 }
 
 //------------------------------------------------------------------------------
@@ -843,6 +927,11 @@ display() {
         g_vtr_glmesh.Draw(comp, g_transformUB, g_lightingUB);
     }
 
+    if (g_Adaptive and g_VtrDrawGregogyBasis) {
+        gregoryWire.Draw(GLMesh::COMP_VERT, g_transformUB, g_lightingUB);
+        gregoryWire.Draw(GLMesh::COMP_EDGE, g_transformUB, g_lightingUB);
+    }
+
     assert(g_font);
     g_font->Draw(g_transformUB);
 
@@ -864,9 +953,9 @@ display() {
         double fps = 1.0/g_fpsTimer.GetElapsed();
         g_fpsTimer.Start();
 
-        { // display selectde patch info
-            static char const * patchTypes[11] = { "undefined", "points", "lines",
-                "quads", "tris", "loop", "regular", "boundary", "corner",
+        { // display selected patch info
+            static char const * patchTypes[12] = { "undefined", "points", "lines",
+                "quads", "tris", "loop", "regular", "single crease", "boundary", "corner",
                     "gregory", "gregory-boundary" };
 
             if (g_Adaptive and g_currentPatch) {
@@ -948,7 +1037,7 @@ reshape(GLFWwindow *, int width, int height) {
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
-    g_hud.Rebuild(windowWidth, windowHeight);
+    g_hud.Rebuild(windowWidth, windowHeight, width, height);
 }
 
 //------------------------------------------------------------------------------
@@ -1058,6 +1147,7 @@ callbackDrawIDs(bool checked, int button) {
         case 6: g_VtrDrawFaceIDs = checked; break;
         case 7: g_VtrDrawPtexIDs = checked; break;
         case 8: g_VtrDrawEdgeSharpness = checked; break;
+        case 9: g_VtrDrawGregogyBasis = checked; break;
         default: break;
     }
     rebuildOsdMeshes();
@@ -1074,11 +1164,13 @@ static void
 initHUD()
 {
     int windowWidth = g_width, windowHeight = g_height;
+    int frameBufferWidth = g_width, frameBufferHeight = g_height;
 
     // window size might not match framebuffer size on a high DPI display
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+    glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 
-    g_hud.Init(windowWidth, windowHeight);
+    g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
     g_hud.SetFrameBuffer(new GLFrameBuffer);
 
@@ -1109,8 +1201,9 @@ initHUD()
     g_hud.AddCheckBox("Face IDs",   g_VtrDrawFaceIDs!=0, 10, 255, callbackDrawIDs, 6);
     g_hud.AddCheckBox("Ptex IDs",   g_VtrDrawPtexIDs!=0, 10, 275, callbackDrawIDs, 7);
     g_hud.AddCheckBox("Edge Sharp", g_VtrDrawEdgeSharpness!=0, 10, 295, callbackDrawIDs, 8);
+    g_hud.AddCheckBox("Gregory Basis", g_VtrDrawGregogyBasis!=0, 10, 315, callbackDrawIDs, 9);
 
-    g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 320, callbackAdaptive, 0, '`');
+    g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 350, callbackAdaptive, 0, '`');
 
 
     g_hud.AddSlider("Font Scale", 0.0f, 0.1f, 0.025f,
@@ -1119,7 +1212,7 @@ initHUD()
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(3, level, i==g_level, 10, 315+i*20, callbackLevel, i, '0'+(i%10));
+        g_hud.AddRadioButton(3, level, i==g_level, 10, 380+i*20, callbackLevel, i, '0'+(i%10));
     }
 
     int shapes_pulldown = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');

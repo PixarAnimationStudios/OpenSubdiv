@@ -57,6 +57,14 @@ uniform mat4 Q = mat4(
     0.f,     1.f/6.f, 4.f/6.f, 1.f/6.f
 );
 
+// Infinite sharp
+uniform mat4 Mi = mat4(
+    1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
+    0.f,     4.f/6.f, 2.f/6.f, 0.f,
+    0.f,     2.f/6.f, 4.f/6.f, 0.f,
+    0.f,     0.f,     1.f,     0.f
+);
+
 // Boundary / Corner
 uniform mat4x3 B = mat4x3( 
     1.f,     0.f,     0.f,
@@ -74,10 +82,35 @@ in block {
 
 out block {
     ControlVertex v;
+#if defined OSD_PATCH_SINGLE_CREASE
+    vec4 P1;
+    vec4 P2;
+    float sharpness;
+#endif
     OSD_USER_VARYING_DECLARE
 } outpt[];
 
 #define ID gl_InvocationID
+
+// compute single-crease patch matrix
+mat4
+ComputeMatrixSimplified(float sharpness)
+{
+    float s = pow(2.0f, sharpness);
+    float s2 = s*s;
+    float s3 = s2*s;
+
+    mat4 m = mat4(
+        0, s + 1 + 3*s2 - s3, 7*s - 2 - 6*s2 + 2*s3, (1-s)*(s-1)*(s-1),
+        0,       (1+s)*(1+s),        6*s - 2 - 2*s2,       (s-1)*(s-1),
+        0,               1+s,               6*s - 2,               1-s,
+        0,                 1,               6*s - 2,                 1);
+
+    m /= (s*6.0);
+    m[0][0] = 1.0/6.0;
+
+    return m;
+}
 
 void main()
 {
@@ -98,6 +131,8 @@ void main()
         pos += B[j][k]*H[k];
     }
 
+    outpt[ID].v.position = vec4(pos, 1.0);
+
 #elif defined OSD_PATCH_CORNER
     vec3 H[3];
     for (int l=0; l<3; ++l) {
@@ -112,6 +147,8 @@ void main()
         pos += B[j][k]*H[k];
     }
 
+    outpt[ID].v.position = vec4(pos, 1.0);
+
 #else // not OSD_PATCH_BOUNDARY, not OSD_PATCH_CORNER
     vec3 H[4];
     for (int l=0; l<4; ++l) {
@@ -121,14 +158,39 @@ void main()
         }
     }
 
+#if defined OSD_PATCH_SINGLE_CREASE
+    float sharpness = GetSharpness();
+    float Sf = floor(sharpness);
+    float Sc = ceil(sharpness);
+    float Sr = fract(sharpness);
+    mat4 Mf = ComputeMatrixSimplified(Sf);
+    mat4 Mc = ComputeMatrixSimplified(Sc);
+    mat4 Mj = (1-Sr) * Mf + Sr * Mi;
+    mat4 Ms = (1-Sr) * Mf + Sr * Mc;
+
+    vec3 P = vec3(0);
+    vec3 P1 = vec3(0);
+    vec3 P2 = vec3(0);
+    for (int k=0; k<4; ++k) {
+        P  += Mi[j][k]*H[k]; // 0 to 1-2^(-Sf)
+        P1 += Mj[j][k]*H[k]; // 1-2^(-Sf) to 1-2^(-Sc)
+        P2 += Ms[j][k]*H[k]; // 1-2^(-Sc) to 1
+   }
+    outpt[ID].v.position = vec4(P, 1.0);
+    outpt[ID].P1 = vec4(P1, 1.0);
+    outpt[ID].P2 = vec4(P2, 1.0);
+    outpt[ID].sharpness = sharpness;
+
+#else  // REGULAR
     vec3 pos = vec3(0,0,0);
     for (int k=0; k<4; ++k) {
         pos += Q[j][k]*H[k];
     }
+    outpt[ID].v.position = vec4(pos, 1.0);
+#endif
 
 #endif
 
-    outpt[ID].v.position = vec4(pos, 1.0);
 
 #if defined OSD_PATCH_BOUNDARY
     const int p[16] = int[]( 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 );
@@ -215,6 +277,11 @@ void main()
 
 in block {
     ControlVertex v;
+#if defined OSD_PATCH_SINGLE_CREASE
+    vec4 P1;
+    vec4 P2;
+    float sharpness;
+#endif
     OSD_USER_VARYING_DECLARE
 } inpt[];
 
@@ -233,22 +300,46 @@ void main()
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
-    vec3 BUCP[4], DUCP[4], CUCP[4];
+    vec3 BUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)),
+         DUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)),
+         CUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0));
     Univar4x4(UV.x, B, D, C);
 #else
     float B[4], D[4];
-    vec3 BUCP[4], DUCP[4];
+    vec3 BUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)),
+         DUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0));
     Univar4x4(UV.x, B, D);
 #endif
 
-    for (int i=0; i<4; ++i) {
-        BUCP[i] = vec3(0);
-        DUCP[i] = vec3(0);
-#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-        CUCP[i] = vec3(0);
+#if defined OSD_PATCH_SINGLE_CREASE
+    float sharpness = inpt[0].sharpness;
+    float s0 = 1.0 - pow(2.0f, -floor(sharpness));
+    float s1 = 1.0 - pow(2.0f, -ceil(sharpness));
 #endif
 
+    for (int i=0; i<4; ++i) {
         for (int j=0; j<4; ++j) {
+#if defined OSD_PATCH_SINGLE_CREASE
+#if OSD_TRANSITION_ROTATE == 1
+            int k = 4*(3-j) + i;
+            float s = 1-UV.x;
+#elif OSD_TRANSITION_ROTATE == 2
+            int k = 4*(3-i) + (3-j);
+            float s = 1-UV.y;
+#elif OSD_TRANSITION_ROTATE == 3
+            int k = 4*j + (3-i);
+            float s = UV.x;
+#else // ROTATE=0 or non-transition
+            int k = 4*i + j;
+            float s = UV.y;
+#endif
+            vec3 A = (s < s0) ?
+                 inpt[k].v.position.xyz :
+                 ((s < s1) ?
+                  inpt[k].P1.xyz :
+                  inpt[k].P2.xyz);
+
+#else // !SINGLE_CREASE
 #if OSD_TRANSITION_ROTATE == 1
             vec3 A = inpt[4*(3-j) + i].v.position.xyz;
 #elif OSD_TRANSITION_ROTATE == 2
@@ -257,6 +348,7 @@ void main()
             vec3 A = inpt[4*j + (3-i)].v.position.xyz;
 #else // OSD_TRANSITION_ROTATE == 0, or non-transition patch
             vec3 A = inpt[4*i + j].v.position.xyz;
+#endif
 #endif
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];

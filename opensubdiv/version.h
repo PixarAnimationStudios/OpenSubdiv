@@ -25,6 +25,15 @@
 #ifndef OPENSUBDIV_VERSION_H
 #define OPENSUBDIV_VERSION_H
 
-#define OPENSUBDIV_VERSION v3_0_0_alpha
+#define OPENSUBDIV_VERSION v3_0_0_beta
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+} // end namespace OpenSubdiv
 
 #endif /* OPENSUBDIV_VERSION_H */

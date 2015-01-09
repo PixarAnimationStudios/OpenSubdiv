@@ -30,11 +30,11 @@
 // 'Controllers'.
 //
 
-#include <far/topologyRefinerFactory.h>
-#include <far/stencilTablesFactory.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-#include <osd/cpuVertexBuffer.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/stencilTablesFactory.h>
+#include <opensubdiv/osd/cpuComputeContext.h>
+#include <opensubdiv/osd/cpuComputeController.h>
+#include <opensubdiv/osd/cpuVertexBuffer.h>
 
 #include <cstdio>
 #include <cstring>
@@ -87,7 +87,7 @@ int main(int, char **) {
         // Far tutorials)
         Far::StencilTablesFactory::Options options;
         options.generateOffsets=true;
-        options.generateAllLevels=false;
+        options.generateIntermediateLevels=false;
 
         Far::StencilTables const * stencilTables =
             Far::StencilTablesFactory::Create(*refiner, options);
@@ -149,23 +149,24 @@ createTopologyRefiner(int maxlevel) {
 
     typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
 
-    Sdc::Type type = OpenSubdiv::Sdc::TYPE_CATMARK;
+    Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 
     Sdc::Options options;
-    options.SetVVarBoundaryInterpolation(Sdc::Options::VVAR_BOUNDARY_EDGE_ONLY);
+    options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
 
     Descriptor desc;
-    desc.numVertices  = g_nverts;
-    desc.numFaces     = g_nfaces;
-    desc.vertsPerFace = g_vertsperface;
-    desc.vertIndices  = g_vertIndices;
+    desc.numVertices = g_nverts;
+    desc.numFaces = g_nfaces;
+    desc.numVertsPerFace = g_vertsperface;
+    desc.vertIndicesPerFace = g_vertIndices;
 
     // Instantiate a FarTopologyRefiner from the descriptor
     Far::TopologyRefiner * refiner =
-        Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);
+        Far::TopologyRefinerFactory<Descriptor>::Create(desc,
+            Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 
     // Uniformly refine the topolgy up to 'maxlevel'
-    refiner->RefineUniform( maxlevel );
+    refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
     return refiner;
 }

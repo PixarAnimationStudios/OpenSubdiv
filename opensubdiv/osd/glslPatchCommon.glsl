@@ -184,6 +184,9 @@ uniform isamplerBuffer OsdPatchParamBuffer;
 #define GetPatchLevel()                                                 \
     (texelFetch(OsdPatchParamBuffer, GetPrimitiveID()).y & 0xf)
 
+#define GetSharpness()                          \
+    (intBitsToFloat(texelFetch(OsdPatchParamBuffer, GetPrimitiveID()).z))
+
 #define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
     {                                                                   \
         ivec2 ptexIndex = texelFetch(OsdPatchParamBuffer,               \

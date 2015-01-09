@@ -45,7 +45,7 @@ The functionality can be divided roughly into three sections:
 
     * types, traits and options for the supported subdivision schemes
     * computations required to support semi-sharp creasing
-    * computing mask weights for subdivided vertices for all schemes
+    * computations for mask weights of subdivided vertices for all schemes
 
 Overall the approach taken was to extract the functionality at as low a
 level as possible.  In some cases they are not far from being simple global
@@ -59,36 +59,21 @@ set of subdivision schemes that are supported.  It is not intended to be
 a general framework for defining customized subdivision schemes.
 
 
-.. container:: notebox
-
-    **Alpha Issues**
-
-    Warnings of change:
-
-        * note change in creasing method from *"Normal"* to *"Uniform"* and
-          related use of *"Uniform"*
-        * all boundary interpolation choices in *Sdc::Options* are subject to change
-
-    Other changes under consideration:
-
-        * *<MASK>* face-weights to support face-centers and/or original vertices
-        * merging *Sdc::TypeTraits<T>* into *Sdc::Scheme<T>* as static methods
-        * static initialization of creasing constants (for smooth and
-          infinitely sharp)
-        * how to document template paremeter interfaces, e.g. *<MASK>*,
-          *<FACE>*, etc.?
-
-
 Types, Traits and Options
 =========================
 
-The most basic type is the enum *Sdc::Type* that identifies the fixed set of
+The most basic type is the enum *Sdc::SchemeType* that identifies the fixed set of
 subdivision schemes supported by OpenSubdiv:  *Bilinear*, *Catmark* and *Loop*.
 With this alone, we intend to avoid all dynamic casting issues related to the
 scheme by simply adding members to the associated subclasses for inspection.
-In addition to the type enum itself, a class defining a set of
-*TypeTraits<Type TYPE>* for each scheme is provided along with the required
-specializations for each scheme.
+
+In addition to the type enum itself, a class defining a fixed set of traits
+associated with each scheme is provided.  While these traits are available as
+static methods in the interface of a class supporting more functionality for each
+scheme (to be described shortly), the *SchemeTypeTraits* provide queries of the
+traits for a variable of type *Sdc::SchemeType* -- enabling parameterization
+of code by the value of a trait without templates or virtual inheritance (a
+simple internal table of traits is constructed and trivially indexed).
 
 The second contribution is the collection of all variations in one place that can
 be applied to the subdivision schemes, i.e. the boundary interpolation rules,
@@ -104,6 +89,13 @@ passing them around as a group, it allows us to extend the set easily in future
 without the need to rewire a lot of interfaces to accomodate the new choice.
 Clients can enables new choices at the highest level and be assured that they will
 propagate to the lowest level where they are relevant.
+
+Unlike other "options" structs used elsewhere to specify variations of a
+particular method, *Sdc::Options* defines all options that affect the shape of
+the underlying limit surface of a subdivision mesh.  Other operations at higher
+levels in the library may have options that approximate the shape and so create
+a slightly different appearance, but *Sdc::Options* is a fundamental part of
+the definition of the true limit surface.
 
 
 Creasing support
@@ -156,16 +148,17 @@ for temporary use.
 Scheme-specific support
 =======================
 
-While the TypeTraits class provides traits for each subdivision scheme supported
-by OpenSubdiv (i.e. *Bilinear*, *Catmark* and *Loop*), the Scheme class
-provides methods for computing the various sets of weights used to compute new
+While the SchemeTypeTraits class provides traits for each subdivision scheme
+supported by OpenSubdiv (i.e. *Bilinear*, *Catmark* and *Loop*), the Scheme class
+provides these more directly, along with methods for computing the various sets
+of weights used to compute new
 vertices resulting from subdivision.  The collection of weights used to compute
 a single vertex at a new subdivision level is typically referred to as a
 *"mask"*.  The primary purpose of the Scheme class is to provide such masks in a
 manner both general and efficient.
 
 Each subdivision scheme has its own values for its masks, and each are provided
-as specializations of the template class *Scheme<Type TYPE>*. The intent is to
+as specializations of the template class *Scheme<SchemeType TYPE>*. The intent is to
 minimize the amount of code specific to each scheme.
 
 The computation of mask weights for subdivided vertices is the most significant
@@ -226,10 +219,8 @@ interior case that often dominates.  More on that in the details of the Scheme c
 Given that most of the complexity has been moved into the template parameters for
 the mask queries, the Scheme class remains fairly simple.  Like the Crease class,
 it is instantiated with a set of Options to avoid them cluttering the interface.
-It is currently little more than three methods for the mask queries for each vertex
-type. The set of masks may need to be extended in future to include limit masks
-and (potentially) masks for face-varying data sets (whose neighborhoods may vary in
-their definition).
+It is currently little more than a few methods for the limit and refinement masks
+for each vertex type, plus the few fixed traits of the scheme as static methods.
 
 The mask queries have been written in a way that greatly simplifies the
 specializations required for each scheme. The generic implementation for both

@@ -27,13 +27,15 @@
 
 #include "../version.h"
 
-#include "../osd/cpuEvalLimitContext.h"
 #include "../osd/vertexDescriptor.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
+
+struct LimitLocation;
+class CpuEvalLimitContext;
 
 /// \brief CPU controler for limit surface evaluation.
 ///
@@ -72,7 +74,9 @@ public:
     ///
     /// @param inQ     input vertex data
     ///
-    /// @param oDesc   data descriptor shared by all output data buffers
+    /// @param oDesc   data descriptor for the outQ data buffer
+    ///                -- derivative buffers do not have a descriptor and
+    ///                cannot be offset or padded with a stride (yet ?)
     ///
     /// @param outQ    output vertex data
     ///
@@ -100,7 +104,7 @@ public:
     ///
     /// @param inQ    input varying data
     ///
-    /// @param oDesc  data descriptor shared by all output data buffers
+    /// @param oDesc  data descriptor for the outQ data buffer
     ///
     /// @param outQ   output varying data
     ///
@@ -123,14 +127,17 @@ public:
     ///
     /// @param iDesc  data descriptor shared by all input data buffers
     ///
-    /// @param oDesc  data descriptor shared by all output data buffers
+    /// @param inQ    input face-varying data
+    ///
+    /// @param oDesc  data descriptor for the outQ data buffer
     ///
     /// @param outQ   output face-varying data
     ///
-    template<class OUTPUT_BUFFER>
-    void BindFacevaryingBuffers( VertexBufferDescriptor const & iDesc,
+    template<class INPUT_BUFFER, class OUTPUT_BUFFER>
+    void BindFacevaryingBuffers( VertexBufferDescriptor const & iDesc, INPUT_BUFFER *inQ,
                                  VertexBufferDescriptor const & oDesc, OUTPUT_BUFFER *outQ ) {
         _currentBindState.facevaryingData.inDesc = iDesc;
+        _currentBindState.facevaryingData.in = inQ ? inQ->BindCpuBuffer() : 0;
 
         _currentBindState.facevaryingData.outDesc = oDesc;
         _currentBindState.facevaryingData.out = outQ ? outQ->BindCpuBuffer() : 0;
@@ -148,7 +155,9 @@ public:
     ///
     /// @param context  the EvalLimitContext that the controller will evaluate
     ///
-    /// @param outDesc  data descriptor (offset, length, stride)
+    /// @param outDesc  data descriptor for the outQ data buffer
+    ///                 -- derivative buffers do not have a descriptor and
+    ///                 cannot be offset or padded with a stride (yet ?)
     ///
     /// @param outQ    output vertex data
     ///
@@ -158,7 +167,7 @@ public:
     ///
     /// @return 1 if the sample was found
     ///
-    int EvalLimitSample( EvalCoords const & coord,
+    int EvalLimitSample( LimitLocation const & coord,
                          CpuEvalLimitContext * context,
                          VertexBufferDescriptor const & outDesc,
                          float * outQ,
@@ -179,7 +188,7 @@ public:
     /// @return the number of samples found (0 if the location was tagged as a hole
     ///         or the coordinate was invalid)
     ///
-    int EvalLimitSample( EvalCoords const & coords,
+    int EvalLimitSample( LimitLocation const & coords,
                          CpuEvalLimitContext * context,
                          unsigned int index ) const {
         if (not context)
@@ -238,23 +247,24 @@ protected:
     // Facevarying interpolated streams
     struct FacevaryingData {
 
-        FacevaryingData() : out(0) { }
+        FacevaryingData() : in(0), out(0) { }
 
         void Reset() {
-            out = NULL;
+            in = out = NULL;
             inDesc.Reset();
             outDesc.Reset();
         }
 
         VertexBufferDescriptor inDesc,
-                                  outDesc;
-        float * out;
+                               outDesc;
+        float * in,
+              * out;
     };
 
 
 private:
 
-    int _EvalLimitSample( EvalCoords const & coords,
+    int _EvalLimitSample( LimitLocation const & coords,
                           CpuEvalLimitContext * context,
                           unsigned int index ) const;
 

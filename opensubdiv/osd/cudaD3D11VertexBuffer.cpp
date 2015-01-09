@@ -23,7 +23,7 @@
 //
 
 #include "../osd/cudaD3D11VertexBuffer.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #include <D3D11.h>
 #include <cuda_runtime.h>
@@ -108,7 +108,7 @@ CudaD3D11VertexBuffer::allocate(ID3D11Device *device) {
     HRESULT hr;
     hr = device->CreateBuffer(&hBufferDesc, NULL, &_d3d11Buffer);
     if(FAILED(hr)) {
-        Error(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Fail in CreateBuffer\n");
         return false;
     }
@@ -141,6 +141,7 @@ CudaD3D11VertexBuffer::unmap() {
     _cudaBuffer = NULL;
 }
 
+}  // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

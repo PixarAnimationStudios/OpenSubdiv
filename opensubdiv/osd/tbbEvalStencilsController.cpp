@@ -52,7 +52,7 @@ class StencilKernel {
 public:
     enum Mode { UNDEFINED, POINT, U_DERIV, V_DERIV };
 
-    StencilKernel( Far::StencilTables const * stencils,
+    StencilKernel( Far::LimitStencilTables const * stencils,
                    VertexBufferDescriptor ctrlDesc,
                    float const * ctrlData ) :
         _stencils(stencils),
@@ -81,10 +81,10 @@ public:
 
         assert(_stencils and _ctrlData and _length and _outStride and _outData);
 
-        int offset = _stencils->GetOffsets()[r.begin()];
+        Far::Index offset = _stencils->GetOffsets()[r.begin()];
 
-        int const * sizes = &_stencils->GetSizes()[r.begin()],
-                  * index = &_stencils->GetControlIndices()[offset];
+        unsigned char const * sizes = &_stencils->GetSizes()[r.begin()];
+        Far::Index const * index = &_stencils->GetControlIndices()[offset];
 
         float const * weight;
 
@@ -116,7 +116,8 @@ public:
     }
 
 private:
-    Far::StencilTables const * _stencils;
+
+    Far::LimitStencilTables const * _stencils;
 
     Mode _mode;
 
@@ -132,7 +133,7 @@ private:
 int
 TbbEvalStencilsController::_UpdateValues( CpuEvalStencilsContext * context ) {
 
-    Far::StencilTables const * stencils = context->GetStencilTables();
+    Far::LimitStencilTables const * stencils = context->GetStencilTables();
     if (not stencils)
         return 0;
 
@@ -159,7 +160,7 @@ TbbEvalStencilsController::_UpdateValues( CpuEvalStencilsContext * context ) {
 int
 TbbEvalStencilsController::_UpdateDerivs( CpuEvalStencilsContext * context ) {
 
-    Far::StencilTables const * stencils = context->GetStencilTables();
+    Far::LimitStencilTables const * stencils = context->GetStencilTables();
     if (not stencils)
         return 0;
 

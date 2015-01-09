@@ -40,7 +40,7 @@ namespace Far {
 ///
 /// PatchTables::PatchArrays contain lists of patches that represent the limit
 /// surface of a mesh, sorted by their topological type. These arrays break the
-/// connection between coarse faces and their sub-patches. 
+/// connection between coarse faces and their sub-patches.
 ///
 /// The PatchMap provides a quad-tree based lookup structure that, given a singular
 /// parametric location, can efficiently return a handle to the sub-patch that
@@ -49,12 +49,7 @@ namespace Far {
 class PatchMap {
 public:
 
-    /// \brief Handle that can be used as unique patch identifier within PatchTables
-    struct Handle {
-        unsigned int patchArrayIdx,  // OsdPatchArray containing the patch
-                     patchIdx,       // Absolute index of the patch
-                     vertexOffset;   // Offset to the first CV of the patch
-    };
+    typedef PatchTables::PatchHandle Handle;
 
     /// \brief Constructor
     ///
@@ -76,8 +71,9 @@ public:
     ///                limit surface is tagged as a hole at the given location
     ///
     Handle const * FindPatch( int faceid, float u, float v ) const;
-    
+
 private:
+
     inline void initialize( PatchTables const & patchTables );
 
     // Quadtree node with 4 children
@@ -93,7 +89,7 @@ private:
 
         // sets the child in "quadrant" to point to the node or patch of the given index
         void SetChild(unsigned char quadrant, int child, bool isLeaf=true);
-        
+
         Child children[4];
     };
 
@@ -101,7 +97,7 @@ private:
 
     // adds a child to a parent node and pushes it back on the tree
     static QuadNode * addChild( QuadTree & quadtree, QuadNode * parent, int quadrant );
-    
+
     // given a median, transforms the (u,v) to the quadrant they point to, and
     // return the quadrant index.
     //
@@ -123,43 +119,9 @@ private:
     std::vector<QuadNode> _quadtree; // quadtree nodes
 };
 
-// Constructor
-inline
-PatchMap::PatchMap( PatchTables const & patchTables ) {
-    initialize( patchTables );
-}
-
-// sets all the children to point to the patch of index patchIdx
-inline void
-PatchMap::QuadNode::SetChild(int patchIdx) {
-    for (int i=0; i<4; ++i) {
-        children[i].isSet=true;
-        children[i].isLeaf=true;
-        children[i].idx=patchIdx;
-    }
-}
-
-// sets the child in "quadrant" to point to the node or patch of the given index
-inline void 
-PatchMap::QuadNode::SetChild(unsigned char quadrant, int idx, bool isLeaf) {
-    assert(quadrant<4);
-    children[quadrant].isSet  = true;
-    children[quadrant].isLeaf = isLeaf;
-    children[quadrant].idx    = idx;
-}
-
-// adds a child to a parent node and pushes it back on the tree
-inline PatchMap::QuadNode * 
-PatchMap::addChild( QuadTree & quadtree, QuadNode * parent, int quadrant ) {
-    quadtree.push_back(QuadNode());
-    int idx = (int)quadtree.size()-1;
-    parent->SetChild(quadrant, idx, false);
-    return &(quadtree[idx]);
-}
-
 // given a median, transforms the (u,v) to the quadrant they point to, and
 // return the quadrant index.
-template <class T> int 
+template <class T> int
 PatchMap::resolveQuadrant(T & median, T & u, T & v) {
     int quadrant = -1;
 
@@ -183,9 +145,9 @@ PatchMap::resolveQuadrant(T & median, T & u, T & v) {
 }
 
 /// Returns a handle to the sub-patch of the face at the given (u,v).
-inline PatchMap::Handle const * 
+inline PatchMap::Handle const *
 PatchMap::FindPatch( int faceid, float u, float v ) const {
-    
+
     if (faceid>=(int)_quadtree.size())
         return NULL;
 
@@ -199,20 +161,20 @@ PatchMap::FindPatch( int faceid, float u, float v ) const {
     for (int depth=0; depth<0xFF; ++depth) {
 
         float delta = half * 0.5f;
-        
+
         int quadrant = resolveQuadrant( half, u, v );
         assert(quadrant>=0);
-        
+
         // is the quadrant a hole ?
         if (not node->children[quadrant].isSet)
             return 0;
-        
+
         if (node->children[quadrant].isLeaf) {
             return &_handles[node->children[quadrant].idx];
         } else {
             node = &_quadtree[node->children[quadrant].idx];
         }
-        
+
         half = delta;
     }
 
@@ -221,112 +183,6 @@ PatchMap::FindPatch( int faceid, float u, float v ) const {
 }
 
 // Constructor
-inline void
-PatchMap::initialize( PatchTables const & patchTables ) {
-
-    int nfaces = 0, npatches = (int)patchTables.GetNumPatches();
-        
-    if (not npatches)
-        return;
-        
-    PatchTables::PatchArrayVector const & patchArrays =
-        patchTables.GetPatchArrayVector();
-
-    PatchTables::PatchParamTable const & paramTable =
-        patchTables.GetPatchParamTable();
-
-    // populate subpatch handles vector
-    _handles.resize(npatches);
-    for (int arrayIdx=0, current=0; arrayIdx<(int)patchArrays.size(); ++arrayIdx) {
-    
-        PatchTables::PatchArray const & parray = patchArrays[arrayIdx];
-
-        int ringsize = parray.GetDescriptor().GetNumControlVertices();
-        
-        for (unsigned int j=0; j < parray.GetNumPatches(); ++j) {
-            
-            PatchParam const & param = paramTable[parray.GetPatchIndex()+j];
-            
-            Handle & h = _handles[current];
-
-            h.patchArrayIdx = arrayIdx;
-            h.patchIdx      = (unsigned int)current;
-            h.vertexOffset  = j * ringsize;
-
-            nfaces = std::max(nfaces, (int)param.faceIndex);
-            
-            ++current;
-        }
-    }
-    ++nfaces;
-
-    // temporary vector to hold the quadtree while under construction
-    std::vector<QuadNode> quadtree;
-
-    // reserve memory for the octree nodes (size is a worse-case approximation)
-    quadtree.reserve( nfaces + npatches );
-    
-    // each coarse face has a root node associated to it that we need to initialize
-    quadtree.resize(nfaces);
-    
-    // populate the quadtree from the FarPatchArrays sub-patches
-    for (int i=0, handleIdx=0; i<(int)patchArrays.size(); ++i) {
-    
-        PatchTables::PatchArray const & parray = patchArrays[i];
-
-        for (unsigned int j=0; j < parray.GetNumPatches(); ++j, ++handleIdx) {
-        
-            PatchParam const & param = paramTable[parray.GetPatchIndex()+j];
-
-            PatchParam::BitField bits = param.bitField;
-
-            unsigned char depth = bits.GetDepth();
-            
-            QuadNode * node = &quadtree[ param.faceIndex ];
-            
-            if (depth==(bits.NonQuadRoot() ? 1 : 0)) {
-                // special case : regular BSpline face w/ no sub-patches
-                node->SetChild( handleIdx );
-                continue;
-            } 
-                  
-            int u = bits.GetU(),
-                v = bits.GetV(),
-                pdepth = bits.NonQuadRoot() ? depth-2 : depth-1,
-                half = 1 << pdepth;
-            
-            for (unsigned char k=0; k<depth; ++k) {
-
-                int delta = half >> 1;
-                
-                int quadrant = resolveQuadrant(half, u, v);
-                assert(quadrant>=0);
-
-                half = delta;
-
-                if (k==pdepth) {
-                   // we have reached the depth of the sub-patch : add a leaf
-                   assert( not node->children[quadrant].isSet );
-                   node->SetChild(quadrant, handleIdx, true);
-                   break;
-                } else {
-                    // travel down the child node of the corresponding quadrant
-                    if (not node->children[quadrant].isSet) {
-                        // create a new branch in the quadrant
-                        node = addChild(quadtree, node, quadrant);
-                    } else {
-                        // travel down an existing branch
-                        node = &(quadtree[ node->children[quadrant].idx ]);
-                    }
-                }
-            }
-        }
-    }
-
-    // copy the resulting quadtree to eliminate un-unused vector capacity
-    _quadtree = quadtree;
-}
-
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION

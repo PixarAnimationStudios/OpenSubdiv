@@ -25,11 +25,11 @@
 #include <D3D11.h>
 #include <D3Dcompiler.h>
 
-#include <osd/error.h>
 #include <osd/vertex.h>
 #include <osd/d3d11DrawContext.h>
 #include <osd/d3d11DrawRegistry.h>
 #include <osd/d3d11PtexMipmapTexture.h>
+#include <far/error.h>
 
 #include <osd/cpuD3D11VertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -245,7 +245,7 @@ static void
 calcNormals(OpenSubdiv::Far::TopologyRefiner * refiner,
     std::vector<float> const & pos, std::vector<float> & result ) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     // calc normal vectors
     int nverts = refiner->GetNumVertices(0),
@@ -467,8 +467,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc, ID3D11Device 
         sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
 
     bool quad = true;
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS ||
-        desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS ||
+        desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::TRIANGLES) {
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.target = "vs_5_0";
         sconfig->vertexShader.entry = "vs_main";
@@ -654,14 +654,15 @@ createOsdMesh(int level, int kernel) {
 
     g_positions=shape->verts;
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);
+    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
 
@@ -737,7 +738,7 @@ createOsdMesh(int level, int kernel) {
         if (not g_cudaComputeController) {
             g_cudaComputeController = new OpenSubdiv::Osd::CudaComputeController();
         }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::OsdCudaD3D11VertexBuffer,
+        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaD3D11VertexBuffer,
                                          OpenSubdiv::Osd::CudaComputeController,
                                          OpenSubdiv::Osd::D3D11DrawContext>(
                                                 g_cudaComputeController,
@@ -1416,8 +1417,12 @@ initD3D11(HWND hWnd) {
     D3D_FEATURE_LEVEL hFeatureLevel = D3D_FEATURE_LEVEL_11_0;
     for(UINT driverTypeIndex=0; driverTypeIndex < numDriverTypes; driverTypeIndex++){
         hDriverType = driverTypes[driverTypeIndex];
+		unsigned int deviceFlags = 0;
+#ifndef NDEBUG		
+		deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
         hr = D3D11CreateDeviceAndSwapChain(NULL,
-                                           hDriverType, NULL, 0, NULL, 0,
+			hDriverType, NULL, deviceFlags, NULL, 0,
                                            D3D11_SDK_VERSION, &hDXGISwapChainDesc,
                                            &g_pSwapChain, &g_pd3dDevice,
                                            &hFeatureLevel, &g_pd3dDeviceContext);
@@ -1430,6 +1435,33 @@ initD3D11(HWND hWnd) {
         MessageBoxW(hWnd, L"D3D11CreateDeviceAndSwapChain", L"Err", MB_ICONSTOP);
         return false;
     }
+
+#ifndef NDEBUG
+	// set break points on directx errors
+	ID3D11Debug *d3dDebug = nullptr;
+	hr = g_pd3dDevice->QueryInterface(__uuidof(ID3D11Debug), (void**)&d3dDebug);
+	if (SUCCEEDED(hr)) {
+
+		ID3D11InfoQueue *d3dInfoQueue = nullptr;
+		hr = d3dDebug->QueryInterface(__uuidof(ID3D11InfoQueue), (void**)&d3dInfoQueue);
+		if (SUCCEEDED(hr)) {
+
+			d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, true);
+			d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, true);
+			d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, true);
+						
+			D3D11_MESSAGE_ID denied[] = { D3D11_MESSAGE_ID_SETPRIVATEDATA_CHANGINGPARAMS };
+			D3D11_INFO_QUEUE_FILTER filter;
+			memset(&filter, 0, sizeof(filter));
+			filter.DenyList.NumIDs = _countof(denied);
+			filter.DenyList.pIDList = denied;
+			d3dInfoQueue->AddStorageFilterEntries(&filter);
+
+			d3dInfoQueue->Release();
+		}
+		d3dDebug->Release();
+	}	
+#endif
 
     // create rasterizer
     D3D11_RASTERIZER_DESC rasterDesc;
@@ -1573,10 +1605,9 @@ updateRenderTarget(HWND hWnd) {
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::Osd::ErrorType err, const char *message) {
-
+callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
     std::ostringstream s;
-    s << "OsdError: " << err << "\n";
+    s << "Error: " << err << "\n";
     s << message;
     OutputDebugString(s.str().c_str());
 }
@@ -1708,7 +1739,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
         }
     }
 
-    OpenSubdiv::Osd::SetErrorCallback(callbackError);
+    OpenSubdiv::Far::SetErrorCallback(callbackError);
 
     g_ptexColorFilename = colorFilename;
     if (g_ptexColorFilename == NULL) {

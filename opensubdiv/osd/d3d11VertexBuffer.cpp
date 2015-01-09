@@ -23,7 +23,7 @@
 //
 
 #include "../osd/d3d11VertexBuffer.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #include <D3D11.h>
 #include <cassert>
@@ -70,7 +70,7 @@ D3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices
                                         D3D11_MAP_WRITE_DISCARD, 0, &resource);
 
     if (FAILED(hr)) {
-        Error(OSD_D3D11_BUFFER_MAP_ERROR, "Failed to map buffer\n");
+        Far::Error(Far::FAR_RUNTIME_ERROR, "Failed to map buffer\n");
         return;
     }
 
@@ -122,7 +122,7 @@ D3D11VertexBuffer::allocate(ID3D11Device *device) {
 
     HRESULT hr = device->CreateBuffer(&hBufferDesc, NULL, &_buffer);
     if (FAILED(hr)) {
-        Error(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Failed to create vertex buffer\n");
         return false;
     }
@@ -136,7 +136,7 @@ D3D11VertexBuffer::allocate(ID3D11Device *device) {
 
     hr = device->CreateBuffer(&hBufferDesc, NULL, &_uploadBuffer);
     if (FAILED(hr)) {
-        Error(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Failed to create upload vertex buffer\n");
         return false;
     }
@@ -149,7 +149,7 @@ D3D11VertexBuffer::allocate(ID3D11Device *device) {
     uavd.Buffer.NumElements = _numElements * _numVertices;
     hr = device->CreateUnorderedAccessView(_buffer, &uavd, &_uav);
     if (FAILED(hr)) {
-        Error(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Failed to create unordered access resource view\n");
         return false;
     }

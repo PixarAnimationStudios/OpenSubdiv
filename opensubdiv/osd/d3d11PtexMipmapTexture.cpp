@@ -24,7 +24,7 @@
 
 #include "../osd/d3d11PtexMipmapTexture.h"
 #include "../osd/ptexMipmapTextureLoader.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #include <Ptexture.h>
 #include <D3D11.h>
@@ -68,7 +68,7 @@ genTextureBuffer(ID3D11DeviceContext *deviceContext, int size, void const * data
     deviceContext->GetDevice(&device);
     hr = device->CreateBuffer(&hBufferDesc, NULL, &buffer);
     if (FAILED(hr)) {
-        Error(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Fail in CreateBuffer\n");
         return 0;
     }
@@ -77,7 +77,7 @@ genTextureBuffer(ID3D11DeviceContext *deviceContext, int size, void const * data
     hr = deviceContext->Map(buffer, 0,
                             D3D11_MAP_WRITE_DISCARD, 0, &resource);
     if (FAILED(hr)) {
-        Error(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Fail in Map buffer\n");
         buffer->Release();
         return 0;
@@ -140,10 +140,10 @@ D3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
             break;
         default:
             switch (numChannels) {
-                case 1: format = DXGI_FORMAT_R8_UINT; break;
-                case 2: format = DXGI_FORMAT_R8G8_UINT; break;
+                case 1: format = DXGI_FORMAT_R8_UNORM; break;
+                case 2: format = DXGI_FORMAT_R8G8_UNORM; break;
                 case 3: assert(false); break;
-                case 4: format = DXGI_FORMAT_R8G8B8A8_UINT; break;
+                case 4: format = DXGI_FORMAT_R8G8B8A8_UNORM; break;
             }
             bpp = numChannels;
             break;

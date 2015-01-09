@@ -28,6 +28,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <omp.h>
+#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

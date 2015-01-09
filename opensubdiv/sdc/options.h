@@ -31,128 +31,105 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Sdc {
 
+///
+///  \brief All supported options applying to subdivision scheme.
+///
+///  The Options class contains all supported options that can be applied to a
+///  subdivision scheme to affect the shape of the limit surface.  These differ from
+///  approximations that may be applied at a higher level, i.e. options to limit the
+///  level of feature adaptive subdivision, options to ignore fractional creasing,
+///  or creasing entirely, etc. These options define the shape of a particular
+///  limit surface, including the "shape" of primitive variable data associated with
+///  it.
+///
+///  The intent is that these sets of options be defined at a high-level and
+///  propagated into the lowest-level computation in support of each subdivision
+///  scheme.  Ideally it remains a set of bit-fields (essentially an int) and so
+///  remains light weight and easily passed down by value.
+///
+
 //
-//  This header contains all supported options that can be applied to a subdivision
-//  scheme to affect the shape of the limit surface.  These differ from approximations
-//  that may be applied at a higher level, i.e. options to limit the level of feature
-//  adaptive subdivision, options to ignore fractional creasing, or creasing entirely,
-//  etc.  These options define a particular limit surface.
-//
-//  The intent is that these sets of options be defined at a high-level and propagated
-//  into the lowest-level computation in support of each subdivision scheme.  Ideally
-//  it remains a set of bit-fields (essentially an int) and so remains light weight and
-//  easily passed down by value.
-//
-//  Questions:
-//      Should the individual enum's be nested within the class or independent?
-//
-//  Note:
-//      A case can be made that the CreaseMethod enum is better defined as part of the
-//  Crease class, but the goal is to try and put them all in one place.  We could define
-//  it there and aggregate it into Options here, but we need to be careful about the
-//  possibility of circular dependencies (nesting types in classes inhibits forward
-//  declaration).
+//  BETA NOTES:
+//      Several of these options are being reconsidered in light of the divergence of
+//  OSD 3.0 from Hbr. In some cases the options can be expressed more clearly and free
+//  of any RenderMan legacy for future use. Details are noted below:
+//      "VtxBoundaryInterpolation"
+//          - its effect is to sharpen edges/corners, but edges are always sharpened
+//          - the "None" case serves no purpose (and would be discouraged)
+//      "FVarLinearInterpolation":
+//          - the new "corner only" mode will sharpen corners and NEVER sharpen smooth
+//            boundaries, which we believe to be expected when sharping corners -- the
+//            old "edge and corner" mode would sharpen boundaries under some situations
+//            (e.g. more than three fvar values at a vertex)
+//      "NonManifoldInterpolation":
+//          - rules still need to be defined and implemented
 //
 class Options {
 public:
-
-    //  XXXX
-    //  Manuel suggested "VertexBoundaryInterpolation" here, but when used, that sounded
-    //  too much like boundary interpolation specific to a vertex -- I went with the VVar
-    //  and FVar naming here instead (abbreviating the FaceVaryingBoundaryInterpolation
-    //  that was suggested)...
-    //
-    enum VVarBoundaryInterpolation {
-        VVAR_BOUNDARY_NONE = 0,
-        VVAR_BOUNDARY_EDGE_ONLY,
-        VVAR_BOUNDARY_EDGE_AND_CORNER
+    enum VtxBoundaryInterpolation {
+        VTX_BOUNDARY_NONE = 0,        ///< do not interpolate boundaries
+        VTX_BOUNDARY_EDGE_ONLY,       ///< sharpen edges
+        VTX_BOUNDARY_EDGE_AND_CORNER  ///< sharpen edges and corners
     };
-
-    enum FVarBoundaryInterpolation {
-        FVAR_BOUNDARY_BILINEAR = 0,
-        FVAR_BOUNDARY_EDGE_ONLY,
-        FVAR_BOUNDARY_EDGE_AND_CORNER,
-        FVAR_BOUNDARY_ALWAYS_SHARP
+    enum FVarLinearInterpolation {
+        FVAR_LINEAR_NONE = 0,         ///< smooth everywhere ("edge only")
+        FVAR_LINEAR_CORNERS_ONLY,     ///< sharpen corners only
+        FVAR_LINEAR_CORNERS_PLUS1,    ///< ("edge corner")
+        FVAR_LINEAR_CORNERS_PLUS2,    ///< ("edge and corner + propagate corner")
+        FVAR_LINEAR_BOUNDARIES,       ///< sharpen all boundaries ("always sharp")
+        FVAR_LINEAR_ALL               ///< bilinear interpolation ("bilinear")
     };
-
-    //
-    //  Tony has expressed a preference of UNIFORM vs NORMAL here, which diverges from
-    //  Hbr/RenderMan, but makes a lot more sense as it allows us to distinguish between
-    //  uniform and non-uniform creasing computations (with uniform being trivial).
-    //
     enum CreasingMethod {
-        CREASE_UNIFORM = 0,
-        CREASE_CHAIKIN
+        CREASE_UNIFORM = 0,           ///< Catmark rule
+        CREASE_CHAIKIN                ///< Chaikin rule
     };
-
-    //
-    //  Is it possible to get rid of this entirely?  It is specific to Catmark, seems to
-    //  be little used and only applies to the first level of subdivision.  Getting rid
-    //  of the code that supports this (though it is localized) would be a relief...
-    //
     enum TriangleSubdivision {
-        TRI_SUB_NORMAL = 0,
-        TRI_SUB_OLD,
-        TRI_SUB_NEW
-    };
-
-    //
-    //  This is speculative for now and included for illustration purposes -- the simplest
-    //  set of interpolation rules for non-manifold features is to make them infinitely
-    //  sharp, which fits into existing evaluation schemes.  Allowing them to be smooth is
-    //  less well-defined and requires additional cases in the masks to properly support.
-    //
-    enum NonManifoldInterpolation {
-        NON_MANIFOLD_NONE = 0,
-        NON_MANIFOLD_SMOOTH,
-        NON_MANIFOLD_SHARP
+        TRI_SUB_CATMARK = 0,          ///< Catmark weights (Catmark scheme only)
+        TRI_SUB_SMOOTH                ///< "smooth triangle" weights (Catmark scheme only)
     };
 
 public:
 
-    //  Trivial constructor and destructor:
-    Options() : _vvarBoundInterp(VVAR_BOUNDARY_NONE),
-                   _fvarBoundInterp(FVAR_BOUNDARY_BILINEAR),
-                   _nonManInterp(NON_MANIFOLD_NONE),
-                   _creasingMethod(CREASE_UNIFORM),
-                   _triangleSub(TRI_SUB_NORMAL),
-                   _hbrCompatible(false) { }
-    ~Options() { }
+    Options() : _vtxBoundInterp(VTX_BOUNDARY_NONE),
+                _fvarLinInterp(FVAR_LINEAR_ALL),
+                _creasingMethod(CREASE_UNIFORM),
+                _triangleSub(TRI_SUB_CATMARK) { }
 
     //
     //  Trivial get/set methods:
     //
-    VVarBoundaryInterpolation GetVVarBoundaryInterpolation() const { return (VVarBoundaryInterpolation) _vvarBoundInterp; }
-    void SetVVarBoundaryInterpolation(VVarBoundaryInterpolation b) { _vvarBoundInterp = b; }
 
-    FVarBoundaryInterpolation GetFVarBoundaryInterpolation() const { return (FVarBoundaryInterpolation) _fvarBoundInterp; }
-    void SetFVarBoundaryInterpolation(FVarBoundaryInterpolation b) { _fvarBoundInterp = b; }
+    /// \brief Set vertex boundary interpolation rule
+    VtxBoundaryInterpolation GetVtxBoundaryInterpolation() const { return (VtxBoundaryInterpolation) _vtxBoundInterp; }
 
+    /// \brief Get vertex boundary interpolation rule
+    void SetVtxBoundaryInterpolation(VtxBoundaryInterpolation b) { _vtxBoundInterp = b; }
+
+    /// \brief Get face-varying interpolation rule
+    FVarLinearInterpolation GetFVarLinearInterpolation() const { return (FVarLinearInterpolation) _fvarLinInterp; }
+
+    /// \brief Set face-varying interpolation rule
+    void SetFVarLinearInterpolation(FVarLinearInterpolation b) { _fvarLinInterp = b; }
+
+    /// \brief Get edge crease rule
     CreasingMethod GetCreasingMethod() const { return (CreasingMethod) _creasingMethod; }
+
+    /// \brief Set edge crease rule
     void SetCreasingMethod(CreasingMethod c) { _creasingMethod = c; }
 
-    NonManifoldInterpolation GetNonManifoldInterpolation() const { return (NonManifoldInterpolation) _nonManInterp; }
-    void SetNonManifoldInterpolation(NonManifoldInterpolation n) { _nonManInterp = n; }
-
+    /// \brief Get triangle subdivsion weights rule (Catmark scheme only !)
     TriangleSubdivision GetTriangleSubdivision() const { return (TriangleSubdivision) _triangleSub; }
+
+    /// \brief Set triangle subdivsion weights rule (Catmark scheme only !)
     void SetTriangleSubdivision(TriangleSubdivision t) { _triangleSub = t; }
 
-    //
-    //  This may be premature, but it is useful to have some kind of flag so that users can be assured
-    //  the options and meshes they specify are compliant with Hbr, RenderMan, etc.  How to measure that
-    //  is still ill-defined given versions of Hbr, prMan will evolve...
-    //
-    bool GetHbrCompatibility() const { return _hbrCompatible; }
-    void SetHbrCompatibility(bool onOrOff) { _hbrCompatible = onOrOff; }
-
 private:
+
     //  Bitfield members:
-    unsigned int _vvarBoundInterp : 2;
-    unsigned int _fvarBoundInterp : 2;
-    unsigned int _nonManInterp    : 2;
-    unsigned int _creasingMethod  : 2;
-    unsigned int _triangleSub     : 2;
-    unsigned int _hbrCompatible   : 1;
+    unsigned int _vtxBoundInterp  : 2,
+                 _fvarLinInterp   : 3,
+                 _creasingMethod  : 2,
+                 _triangleSub     : 2;
 };
 
 } // end namespace sdc

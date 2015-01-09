@@ -31,9 +31,9 @@
 // vertex colors.
 //
 
-#include <far/topologyRefinerFactory.h>
-#include <far/stencilTables.h>
-#include <far/stencilTablesFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/stencilTables.h>
+#include <opensubdiv/far/stencilTablesFactory.h>
 
 #include <cstdio>
 #include <cstring>
@@ -119,13 +119,13 @@ int main(int, char **) {
 
     // Uniformly refine the topolgy up to 'maxlevel'.
     int maxlevel = 4;
-    refiner->RefineUniform( maxlevel );
+    refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
     int nverts = refiner->GetNumVertices(maxlevel);
 
     // Use the Far::StencilTables factory to create discrete stencil tables
     Far::StencilTablesFactory::Options options;
-    options.generateAllLevels=false; // only the highest refinement level.
+    options.generateIntermediateLevels=false; // only the highest refinement level.
     options.generateOffsets=true;
 
     //
@@ -216,20 +216,21 @@ createTopologyRefiner() {
 
     typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
 
-    Sdc::Type type = OpenSubdiv::Sdc::TYPE_CATMARK;
+    Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 
     Sdc::Options options;
-    options.SetVVarBoundaryInterpolation(Sdc::Options::VVAR_BOUNDARY_EDGE_ONLY);
+    options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
 
     Descriptor desc;
-    desc.numVertices  = g_nverts;
-    desc.numFaces     = g_nfaces;
-    desc.vertsPerFace = g_vertsperface;
-    desc.vertIndices  = g_vertIndices;
+    desc.numVertices = g_nverts;
+    desc.numFaces = g_nfaces;
+    desc.numVertsPerFace = g_vertsperface;
+    desc.vertIndicesPerFace = g_vertIndices;
 
     // Instantiate a FarTopologyRefiner from the descriptor.
     Far::TopologyRefiner * refiner =
-        Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);
+        Far::TopologyRefinerFactory<Descriptor>::Create(desc,
+            Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 
     return refiner;
 }

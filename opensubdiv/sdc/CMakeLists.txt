@@ -27,9 +27,10 @@ set(PUBLIC_HEADER_FILES
     bilinearScheme.h
     catmarkScheme.h
     crease.h
+    loopScheme.h
     options.h
     scheme.h
-    type.h
+    types.h
 )
 
 set(PRIVATE_HEADER_FILES )
@@ -37,10 +38,8 @@ set(PRIVATE_HEADER_FILES )
 #-------------------------------------------------------------------------------
 # source & headers
 set(SOURCE_FILES
-    bilinearTraits.cpp
-    catmarkTraits.cpp
     crease.cpp
-    loopTraits.cpp
+    typeTraits.cpp
 )
 
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
@@ -48,15 +47,12 @@ set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 if (NOT NO_LIB)
-
-    # Compile objs first for both the CPU and GPU libs -----
     add_library(sdc_obj
         OBJECT
             ${SOURCE_FILES}
             ${PRIVATE_HEADER_FILES}
             ${PUBLIC_HEADER_FILES}
     )
-
 endif()
 
 #-------------------------------------------------------------------------------

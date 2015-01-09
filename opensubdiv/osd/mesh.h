@@ -33,7 +33,6 @@
 #include "../far/stencilTables.h"
 #include "../far/stencilTablesFactory.h"
 
-#include "../osd/error.h"
 #include "../osd/vertex.h"
 #include "../osd/vertexDescriptor.h"
 
@@ -47,11 +46,12 @@ namespace OPENSUBDIV_VERSION {
 namespace Osd {
 
 enum MeshBits {
-    MeshAdaptive          = 0,
-    MeshInterleaveVarying = 1,
-    MeshPtexData          = 2,
-    MeshFVarData          = 3,
-    NUM_MESH_BITS         = 4,
+    MeshAdaptive             = 0,
+    MeshInterleaveVarying    = 1,
+    MeshPtexData             = 2,
+    MeshFVarData             = 3,
+    MeshUseSingleCreasePatch = 4,
+    NUM_MESH_BITS            = 5,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
@@ -96,14 +96,19 @@ protected:
                 refiner.GetNumVerticesTotal();
     }
 
-    static inline void refineMesh(Far::TopologyRefiner & refiner, int level, bool adaptive) {
+    static inline void refineMesh(Far::TopologyRefiner & refiner, int level, bool adaptive, bool singleCreasePatch) {
 
         bool fullTopologyInLastLevel = refiner.GetNumFVarChannels()>0;
 
         if (adaptive) {
-            refiner.RefineAdaptive(level, fullTopologyInLastLevel);
+            Far::TopologyRefiner::AdaptiveOptions options(level);
+            options.fullTopologyInLastLevel = fullTopologyInLastLevel;
+            options.useSingleCreasePatch = singleCreasePatch;
+            refiner.RefineAdaptive(options);
         } else {
-            refiner.RefineUniform(level, fullTopologyInLastLevel);
+            Far::TopologyRefiner::UniformOptions options(level);
+            options.fullTopologyInLastLevel = fullTopologyInLastLevel;
+            refiner.RefineUniform(options);
         }
     }
 };
@@ -127,6 +132,7 @@ public:
             MeshBitset bits = MeshBitset()) :
 
             _refiner(refiner),
+            _patchTables(0),
             _vertexBuffer(0),
             _varyingBuffer(0),
             _computeContext(0),
@@ -135,23 +141,27 @@ public:
 
         assert(_refiner);
 
-        MeshInterface<DRAW_CONTEXT>::refineMesh(*_refiner, level, bits.test(MeshAdaptive));
+        MeshInterface<DRAW_CONTEXT>::refineMesh(*_refiner, level, bits.test(MeshAdaptive), bits.test(MeshUseSingleCreasePatch));
 
         initializeVertexBuffers(numVertexElements, numVaryingElements, bits);
 
         initializeComputeContext(numVertexElements, numVaryingElements);
 
-        initializeDrawContext(numVertexElements, bits);
+        initializeDrawContext(numVertexElements, level, bits);
     }
 
     Mesh(ComputeController * computeController,
             Far::TopologyRefiner * refiner,
+            Far::PatchTables * patchTables,
+            Far::KernelBatchVector const & kernelBatches,
             VertexBuffer * vertexBuffer,
             VertexBuffer * varyingBuffer,
             ComputeContext * computeContext,
             DrawContext * drawContext) :
 
             _refiner(refiner),
+            _patchTables(patchTables),
+            _kernelBatches(kernelBatches),
             _vertexBuffer(vertexBuffer),
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
@@ -219,7 +229,7 @@ private:
 
         Far::StencilTablesFactory::Options options;
         options.generateOffsets=true;
-        options.generateAllLevels=_refiner->IsUniform() ? false : true;
+        options.generateIntermediateLevels=_refiner->IsUniform() ? false : true;
 
         Far::StencilTables const * vertexStencils=0, * varyingStencils=0;
 
@@ -243,12 +253,13 @@ private:
         delete varyingStencils;
     }
 
-    void initializeDrawContext(int numElements, MeshBitset bits) {
+    void initializeDrawContext(int numElements, int level, MeshBitset bits) {
 
         assert(_refiner and _vertexBuffer);
 
-        Far::PatchTablesFactory::Options options;
+        Far::PatchTablesFactory::Options options(level);
         options.generateFVarTables = bits.test(MeshFVarData);
+        options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
         _patchTables = Far::PatchTablesFactory::Create(*_refiner);
 

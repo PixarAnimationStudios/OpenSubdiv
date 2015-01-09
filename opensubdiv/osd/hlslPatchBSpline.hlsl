@@ -221,21 +221,18 @@ void ds_main_patches(
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
-    float3 BUCP[4], DUCP[4], CUCP[4];
+    float3 BUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)},
+           DUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)},
+           CUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)};
     Univar4x4(UV.x, B, D, C);
 #else
     float B[4], D[4];
-    float3 BUCP[4], DUCP[4];
+    float3 BUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)},
+           DUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)};
     Univar4x4(UV.x, B, D);
 #endif
 
     for (int i=0; i<4; ++i) {
-        BUCP[i] = float3(0,0,0);
-        DUCP[i] = float3(0,0,0);
-#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-        CUCP[i] = float3(0,0,0);
-#endif
-
         for (int j=0; j<4; ++j) {
 #if OSD_TRANSITION_ROTATE == 1
             float3 A = patch[4*(3-j) + i].position.xyz;
@@ -335,7 +332,7 @@ void ds_main_patches(
     OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER;
 
     OSD_DISPLACEMENT_CALLBACK;
-
+	output.edgeDistance = 0;
     output.positionOut = mul(OsdProjectionMatrix(),
                              float4(output.position.xyz, 1.0f));
 }

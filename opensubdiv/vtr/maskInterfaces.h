@@ -26,7 +26,7 @@
 
 #include "../version.h"
 
-#include "../sdc/type.h"
+#include "../sdc/types.h"
 #include "../sdc/crease.h"
 #include "../vtr/types.h"
 
@@ -75,6 +75,9 @@ public:  //  Generic interface expected of <typename MASK>:
     Weight& EdgeWeight(  int index) { return _edgeWeights[index]; }
     Weight& FaceWeight(  int index) { return _faceWeights[index]; }
 
+    bool AreFaceWeightsForFaceCenters() const  { return _faceWeightsForFaceCenters; }
+    void SetFaceWeightsForFaceCenters(bool on) { _faceWeightsForFaceCenters = on; }
+
 private:
     Weight* _vertWeights;
     Weight* _edgeWeights;
@@ -83,6 +86,8 @@ private:
     int _vertCount;
     int _edgeCount;
     int _faceCount;
+
+    bool _faceWeightsForFaceCenters;
 };
 
 
@@ -124,7 +129,7 @@ public:  //  Generic interface expected of <typename EDGE>:
     }
 
     void GetNumVerticesPerFace(int vertsPerFace[]) const {
-        IndexArray const eFaces = _level->getEdgeFaces(_eIndex);
+        ConstIndexArray eFaces = _level->getEdgeFaces(_eIndex);
         for (int i = 0; i < eFaces.size(); ++i) {
             vertsPerFace[i] = _level->getFaceVertices(eFaces[i]).size();
         }
@@ -159,7 +164,7 @@ public:  //  Generic interface expected of <typename VERT>:
 
     float  GetSharpness() const { return _parent->getVertexSharpness(_pIndex); }
     float* GetSharpnessPerEdge(float pSharpness[]) const {
-        IndexArray const pEdges = _parent->getVertexEdges(_pIndex);
+        ConstIndexArray pEdges = _parent->getVertexEdges(_pIndex);
         for (int i = 0; i < _eCount; ++i) {
             pSharpness[i] = _parent->getEdgeSharpness(pEdges[i]);
         }

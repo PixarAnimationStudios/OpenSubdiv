@@ -81,7 +81,11 @@ void main()
 uniform float alpha = 1.0;
 void main()
 {
-    outColor = alpha * texture(colorMap, outUV);
+    //background color as a vertical grey ramp
+    vec4 fgColor = texture(colorMap, outUV);
+    vec4 bgColor = vec4(mix(0.1, 0.5, sin(outUV.y*3.14159)));
+
+    outColor = mix(bgColor, fgColor, fgColor.a);
 }
 #endif
 

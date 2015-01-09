@@ -36,14 +36,9 @@ namespace OPENSUBDIV_VERSION {
 namespace Vtr {
 
 //
-//  A few types (and constants) are declared here while Vtr is being
-//  developed.  These tend to be used by more than one Vtr class, i.e.
-//  both Level and Refinement and are often present in their
-//  interfaces.
+//  A few types (and constants) for use within Vtr and potentially by its
+//  clients (appropriately exported and retyped)
 //
-//  Is the sharpness overkill -- perhaps sdc should define this...
-//
-typedef float Sharpness;
 
 //
 //  Indices -- note we can't use sized integer types like uint32_t, etc. as use of
@@ -63,22 +58,24 @@ static const Index  INDEX_INVALID = -1;
 inline bool IndexIsValid(Index index) { return (index != INDEX_INVALID); }
 
 //
-//  Note for aggregate types the use of "vector" wraps an std:;vector (typically a
-//  member variable) and is fully resizable and owns its own storage, whereas "array"
-//  is typically used in index a fixed subset of pre-allocated memory:
+//  Note for aggregate types that the use of "vector" in the name indicates a class
+//  that wraps an std:;vector (typically a member variable) which is fully resizable
+//  and owns its own storage, whereas "array" indicates a fixed block of pre-allocated
+//  memory:
 //
 typedef std::vector<Index>  IndexVector;
 
-typedef Array<Index>        IndexArray;
-typedef Array<LocalIndex>   LocalIndexArray;
+typedef Array<Index>             IndexArray;
+typedef ConstArray<Index>        ConstIndexArray;
+
+typedef Array<LocalIndex>        LocalIndexArray;
+typedef ConstArray<LocalIndex>   ConstLocalIndexArray;
 
 
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION
-
 using namespace OPENSUBDIV_VERSION;
-
 } // end namespace OpenSubdiv
 
 #endif /* VTR_TYPES_H */

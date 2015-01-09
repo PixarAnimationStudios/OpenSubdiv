@@ -30,9 +30,9 @@
 // factorized stencils to interpolate vertex primvar data buffers.
 //
 
-#include <far/topologyRefinerFactory.h>
-#include <far/stencilTables.h>
-#include <far/stencilTablesFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/stencilTables.h>
+#include <opensubdiv/far/stencilTablesFactory.h>
 
 #include <cstdio>
 #include <cstring>
@@ -115,13 +115,13 @@ int main(int, char **) {
 
     // Uniformly refine the topolgy up to 'maxlevel'.
     int maxlevel = 3;
-    refiner->RefineUniform( maxlevel );
+    refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
 
     // Use the FarStencilTables factory to create discrete stencil tables
     // note: we only want stencils for the highest refinement level.
     Far::StencilTablesFactory::Options options;
-    options.generateAllLevels=false;
+    options.generateIntermediateLevels=false;
     options.generateOffsets=true;
     
     Far::StencilTables const * stencilTables =
@@ -166,19 +166,20 @@ createTopologyRefiner() {
     // Populate a topology descriptor with our raw data.
     typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
 
-    Sdc::Type type = OpenSubdiv::Sdc::TYPE_CATMARK;
+    Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 
     Sdc::Options options;
-    options.SetVVarBoundaryInterpolation(Sdc::Options::VVAR_BOUNDARY_EDGE_ONLY);
+    options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
 
     Descriptor desc;
-    desc.numVertices  = g_nverts;
-    desc.numFaces     = g_nfaces;
-    desc.vertsPerFace = g_vertsperface;
-    desc.vertIndices  = g_vertIndices;
+    desc.numVertices = g_nverts;
+    desc.numFaces = g_nfaces;
+    desc.numVertsPerFace = g_vertsperface;
+    desc.vertIndicesPerFace = g_vertIndices;
 
     // Instantiate a FarTopologyRefiner from the descriptor.
-    return Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);
+    return Far::TopologyRefinerFactory<Descriptor>::Create(desc,
+                Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 
 }
 

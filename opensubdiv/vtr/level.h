@@ -26,7 +26,7 @@
 
 #include "../version.h"
 
-#include "../sdc/type.h"
+#include "../sdc/types.h"
 #include "../sdc/crease.h"
 #include "../sdc/options.h"
 #include "../vtr/types.h"
@@ -51,6 +51,8 @@ namespace Far {
 namespace Vtr {
 
 class Refinement;
+class QuadRefinement;
+class TriRefinement;
 class FVarRefinement;
 class FVarLevel;
 
@@ -143,6 +145,7 @@ public:
         VTagSize _infSharp     : 1;  // fixed
         VTagSize _semiSharp    : 1;  // variable
         VTagSize _rule         : 4;  // variable when _semiSharp
+        VTagSize _incomplete   : 1;  // variable for sparse refinement
 
         //  On deck -- coming soon...
         //VTagSize _constSharp   : 1;  // variable when _semiSharp
@@ -170,7 +173,9 @@ public:
         //FTagSize _hasEdits : 1;  // variable
     };
 
-    VTag getFaceCompositeVTag(IndexArray const& faceVerts) const;
+    VTag getFaceCompositeVTag(ConstIndexArray & faceVerts) const;
+
+    ETag getFaceCompositeETag(ConstIndexArray & faceEdges) const;
 
 public:
     Level();
@@ -203,26 +208,65 @@ public:
     //  valence we'll us an 8- or 16-bit integer.
     //
     //  Methods to access the six topological relations:
-    IndexArray const getFaceVertices(Index faceIndex) const;
-    IndexArray const getFaceEdges(Index faceIndex) const;
-    IndexArray const getEdgeVertices(Index edgeIndex) const;
-    IndexArray const getEdgeFaces(Index edgeIndex) const;
-    IndexArray const getVertexFaces(Index vertIndex) const;
-    IndexArray const getVertexEdges(Index vertIndex) const;
+    ConstIndexArray getFaceVertices(Index faceIndex) const;
+    ConstIndexArray getFaceEdges(Index faceIndex) const;
+    ConstIndexArray getEdgeVertices(Index edgeIndex) const;
+    ConstIndexArray getEdgeFaces(Index edgeIndex) const;
+    ConstIndexArray getVertexFaces(Index vertIndex) const;
+    ConstIndexArray getVertexEdges(Index vertIndex) const;
 
-    LocalIndexArray const getVertexFaceLocalIndices(Index vertIndex) const;
-    LocalIndexArray const getVertexEdgeLocalIndices(Index vertIndex) const;
+    ConstLocalIndexArray getVertexFaceLocalIndices(Index vertIndex) const;
+    ConstLocalIndexArray getVertexEdgeLocalIndices(Index vertIndex) const;
 
     //  Replace these with access to sharpness buffers/arrays rather than elements:
-    Sharpness getEdgeSharpness(Index edgeIndex) const;
-    Sharpness getVertexSharpness(Index vertIndex) const;
+    float getEdgeSharpness(Index edgeIndex) const;
+    float getVertexSharpness(Index vertIndex) const;
     Sdc::Crease::Rule getVertexRule(Index vertIndex) const;
 
     Index findEdge(Index v0Index, Index v1Index) const;
 
+    // Holes
+    void setHole(Index faceIndex, bool b);
+    bool isHole(Index faceIndex) const;
+
+    //  Manifold/non-manifold tags:
+    void setEdgeNonManifold(Index edgeIndex, bool b);
+    bool isEdgeNonManifold(Index edgeIndex) const;
+
+    void setVertexNonManifold(Index vertIndex, bool b);
+    bool isVertexNonManifold(Index vertIndex) const;
+
 public:
+
     //  Debugging aides -- unclear what will persist...
-    bool validateTopology() const;
+    enum TopologyError {
+        TOPOLOGY_MISSING_EDGE_FACES=0,
+        TOPOLOGY_MISSING_EDGE_VERTS,
+        TOPOLOGY_MISSING_FACE_EDGES,
+        TOPOLOGY_MISSING_FACE_VERTS,
+        TOPOLOGY_MISSING_VERT_FACES,
+        TOPOLOGY_MISSING_VERT_EDGES,
+
+        TOPOLOGY_FAILED_CORRELATION_EDGE_FACE,
+        TOPOLOGY_FAILED_CORRELATION_FACE_VERT,
+        TOPOLOGY_FAILED_CORRELATION_FACE_EDGE,
+
+        TOPOLOGY_FAILED_ORIENTATION_INCIDENT_EDGE,
+        TOPOLOGY_FAILED_ORIENTATION_INCIDENT_FACE,
+        TOPOLOGY_FAILED_ORIENTATION_INCIDENT_FACES_EDGES,
+
+        TOPOLOGY_DEGENERATE_EDGE,
+        TOPOLOGY_NON_MANIFOLD_EDGE,
+
+        TOPOLOGY_INVALID_CREASE_EDGE,
+        TOPOLOGY_INVALID_CREASE_VERT
+    };
+
+    static char const * getTopologyErrorString(TopologyError errCode);
+
+    typedef void (* ValidationCallback)(TopologyError errCode, char const * msg, void const * clientData);
+
+    bool validateTopology(ValidationCallback callback=0, void const * clientData=0) const;
 
     void print(const Refinement* parentRefinement = 0) const;
 
@@ -230,16 +274,25 @@ public:
     //  High-level topology queries -- these are likely to be moved elsewhere, but here
     //  is the best place for them for now...
 
-    //  Irritating that the PatchTables use "unsigned int" for indices instead of "int":
-    int gatherQuadRegularInteriorPatchVertices(Index fIndex, unsigned int patchVerts[], int rotation = 0) const;
-    int gatherQuadRegularBoundaryPatchVertices(Index fIndex, unsigned int patchVerts[], int boundaryEdgeInFace) const;
-    int gatherQuadRegularCornerPatchVertices(  Index fIndex, unsigned int patchVerts[], int cornerVertInFace) const;
-
     int gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int ringVerts[]) const;
+
+    int gatherQuadRegularInteriorPatchVertices(Index fIndex, Index patchVerts[], int rotation = 0) const;
+    int gatherQuadRegularBoundaryPatchVertices(Index fIndex, Index patchVerts[], int boundaryEdgeInFace) const;
+    int gatherQuadRegularCornerPatchVertices(  Index fIndex, Index patchVerts[], int cornerVertInFace) const;
+
+    int gatherTriRegularInteriorPatchVertices(      Index fIndex, Index patchVerts[], int rotation = 0) const;
+    int gatherTriRegularBoundaryVertexPatchVertices(Index fIndex, Index patchVerts[], int boundaryVertInFace) const;
+    int gatherTriRegularBoundaryEdgePatchVertices(  Index fIndex, Index patchVerts[], int boundaryEdgeInFace) const;
+    int gatherTriRegularCornerVertexPatchVertices(  Index fIndex, Index patchVerts[], int cornerVertInFace) const;
+    int gatherTriRegularCornerEdgePatchVertices(    Index fIndex, Index patchVerts[], int cornerEdgeInFace) const;
+
+    bool isSingleCreasePatch(Index face, float* sharpnessOut=NULL, int* rotationOut=NULL) const;
 
 protected:
 
     friend class Refinement;
+    friend class QuadRefinement;
+    friend class TriRefinement;
     friend class FVarRefinement;
     friend class FVarLevel;
 
@@ -272,8 +325,8 @@ protected:
     LocalIndexArray getVertexEdgeLocalIndices(Index vertIndex);
 
     //  Replace these with access to sharpness buffers/arrays rather than elements:
-    Sharpness& getEdgeSharpness(Index edgeIndex);
-    Sharpness& getVertexSharpness(Index vertIndex);
+    float& getEdgeSharpness(Index edgeIndex);
+    float& getVertexSharpness(Index vertIndex);
 
     //  Create, destroy and populate face-varying channels:
     int  createFVarChannel(int fvarValueCount, Sdc::Options const& options);
@@ -282,7 +335,7 @@ protected:
     int getNumFVarChannels() const { return (int) _fvarChannels.size(); }
     int getNumFVarValues(int channel = 0) const;
 
-    IndexArray const getFVarFaceValues(Index faceIndex, int channel = 0) const;
+    ConstIndexArray  getFVarFaceValues(Index faceIndex, int channel = 0) const;
     IndexArray       getFVarFaceValues(Index faceIndex, int channel = 0);
 
     void completeFVarChannelTopology(int channel = 0);
@@ -337,21 +390,22 @@ protected:
     //  until we decide where, the required implementation is defined here.
     //
     void completeTopologyFromFaceVertices();
-    Index findEdge(Index v0, Index v1, IndexArray const& v0Edges) const;
+    Index findEdge(Index v0, Index v1, ConstIndexArray v0Edges) const;
 
     //  Methods supporting the above:
     void orientIncidentComponents();
-    bool orderVertexFacesAndEdges(int vIndex);
+    bool orderVertexFacesAndEdges(Index vIndex, Index* vFaces, Index* vEdges) const;
+    bool orderVertexFacesAndEdges(Index vIndex);
     void populateLocalIndices();
 
+    IndexArray shareFaceVertCountsAndOffsets() const;
+
 protected:
-    //  Its debatable whether we should retain a Type or Options associated with
-    //  a subdivision scheme here.  A Level is pure topology now.  The Refinement
-    //  that create it was influenced by subdivision Type and Options, and both
-    //  are now stored as members of the Refinement.
     //
-    //Sdc::Type    _schemeType;
-    //Sdc::Options _schemeOptions;
+    //  A Level is independent of subdivision scheme or options.  While it may have been
+    //  affected by them in its construction, they are not associated with it -- a Level
+    //  is pure topology and any subdivision parameters are external.
+    //
 
     //  Simple members for inventory, etc.
     int _faceCount;
@@ -388,15 +442,15 @@ protected:
     std::vector<Index> _faceVertCountsAndOffsets;  // 2 per face, redundant after level 0
     std::vector<Index> _faceVertIndices;           // 3 or 4 per face, variable at level 0
     std::vector<Index> _faceEdgeIndices;           // matches face-vert indices
-    std::vector<FTag>     _faceTags;                  // 1 per face:  includes "hole" tag
+    std::vector<FTag>  _faceTags;                  // 1 per face:  includes "hole" tag
 
     //  Per-edge:
     std::vector<Index> _edgeVertIndices;           // 2 per edge
     std::vector<Index> _edgeFaceCountsAndOffsets;  // 2 per edge
     std::vector<Index> _edgeFaceIndices;           // varies with faces per edge
 
-    std::vector<Sharpness> _edgeSharpness;             // 1 per edge
-    std::vector<ETag>         _edgeTags;                  // 1 per edge:  manifold, boundary, etc.
+    std::vector<float> _edgeSharpness;             // 1 per edge
+    std::vector<ETag>  _edgeTags;                  // 1 per edge:  manifold, boundary, etc.
 
     //  Per-vertex:
     std::vector<Index>      _vertFaceCountsAndOffsets;  // 2 per vertex
@@ -407,8 +461,8 @@ protected:
     std::vector<Index>      _vertEdgeIndices;           // varies with valence
     std::vector<LocalIndex> _vertEdgeLocalIndices;      // varies with valence, 8-bit for now
 
-    std::vector<Sharpness>  _vertSharpness;             // 1 per vertex
-    std::vector<VTag>          _vertTags;                  // 1 per vertex:  manifold, Sdc::Rule, etc.
+    std::vector<float>      _vertSharpness;             // 1 per vertex
+    std::vector<VTag>       _vertTags;                  // 1 per vertex:  manifold, Sdc::Rule, etc.
 
     //  Face-varying channels:
     std::vector<FVarLevel*> _fvarChannels;
@@ -417,9 +471,9 @@ protected:
 //
 //  Access/modify the vertices indicent a given face:
 //
-inline IndexArray const
+inline ConstIndexArray
 Level::getFaceVertices(Index faceIndex) const {
-    return IndexArray(&_faceVertIndices[_faceVertCountsAndOffsets[faceIndex*2+1]],
+    return ConstIndexArray(&_faceVertIndices[_faceVertCountsAndOffsets[faceIndex*2+1]],
                           _faceVertCountsAndOffsets[faceIndex*2]);
 }
 inline IndexArray
@@ -443,9 +497,9 @@ Level::resizeFaceVertices(Index faceIndex, int count) {
 //
 //  Access/modify the edges indicent a given face:
 //
-inline IndexArray const
+inline ConstIndexArray
 Level::getFaceEdges(Index faceIndex) const {
-    return IndexArray(&_faceEdgeIndices[_faceVertCountsAndOffsets[faceIndex*2+1]],
+    return ConstIndexArray(&_faceEdgeIndices[_faceVertCountsAndOffsets[faceIndex*2+1]],
                           _faceVertCountsAndOffsets[faceIndex*2]);
 }
 inline IndexArray
@@ -457,9 +511,9 @@ Level::getFaceEdges(Index faceIndex) {
 //
 //  Access/modify the faces indicent a given vertex:
 //
-inline IndexArray const
+inline ConstIndexArray
 Level::getVertexFaces(Index vertIndex) const {
-    return IndexArray(&_vertFaceIndices[_vertFaceCountsAndOffsets[vertIndex*2+1]],
+    return ConstIndexArray(&_vertFaceIndices[_vertFaceCountsAndOffsets[vertIndex*2+1]],
                           _vertFaceCountsAndOffsets[vertIndex*2]);
 }
 inline IndexArray
@@ -468,9 +522,9 @@ Level::getVertexFaces(Index vertIndex) {
                           _vertFaceCountsAndOffsets[vertIndex*2]);
 }
 
-inline LocalIndexArray const
+inline ConstLocalIndexArray
 Level::getVertexFaceLocalIndices(Index vertIndex) const {
-    return LocalIndexArray(&_vertFaceLocalIndices[_vertFaceCountsAndOffsets[vertIndex*2+1]],
+    return ConstLocalIndexArray(&_vertFaceLocalIndices[_vertFaceCountsAndOffsets[vertIndex*2+1]],
                                _vertFaceCountsAndOffsets[vertIndex*2]);
 }
 inline LocalIndexArray
@@ -494,9 +548,9 @@ Level::trimVertexFaces(Index vertIndex, int count) {
 //
 //  Access/modify the edges indicent a given vertex:
 //
-inline IndexArray const
+inline ConstIndexArray
 Level::getVertexEdges(Index vertIndex) const {
-    return IndexArray(&_vertEdgeIndices[_vertEdgeCountsAndOffsets[vertIndex*2+1]],
+    return ConstIndexArray(&_vertEdgeIndices[_vertEdgeCountsAndOffsets[vertIndex*2+1]],
                           _vertEdgeCountsAndOffsets[vertIndex*2]);
 }
 inline IndexArray
@@ -505,9 +559,9 @@ Level::getVertexEdges(Index vertIndex) {
                           _vertEdgeCountsAndOffsets[vertIndex*2]);
 }
 
-inline LocalIndexArray const
+inline ConstLocalIndexArray
 Level::getVertexEdgeLocalIndices(Index vertIndex) const {
-    return LocalIndexArray(&_vertEdgeLocalIndices[_vertEdgeCountsAndOffsets[vertIndex*2+1]],
+    return ConstLocalIndexArray(&_vertEdgeLocalIndices[_vertEdgeCountsAndOffsets[vertIndex*2+1]],
                                _vertEdgeCountsAndOffsets[vertIndex*2]);
 }
 inline LocalIndexArray
@@ -533,9 +587,9 @@ Level::trimVertexEdges(Index vertIndex, int count) {
 //
 //  Access/modify the vertices indicent a given edge:
 //
-inline IndexArray const
+inline ConstIndexArray
 Level::getEdgeVertices(Index edgeIndex) const {
-    return IndexArray(&_edgeVertIndices[edgeIndex*2], 2);
+    return ConstIndexArray(&_edgeVertIndices[edgeIndex*2], 2);
 }
 inline IndexArray
 Level::getEdgeVertices(Index edgeIndex) {
@@ -545,9 +599,9 @@ Level::getEdgeVertices(Index edgeIndex) {
 //
 //  Access/modify the faces indicent a given edge:
 //
-inline IndexArray const
+inline ConstIndexArray
 Level::getEdgeFaces(Index edgeIndex) const {
-    return IndexArray(&_edgeFaceIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
+    return ConstIndexArray(&_edgeFaceIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
                           _edgeFaceCountsAndOffsets[edgeIndex*2]);
 }
 inline IndexArray
@@ -573,20 +627,20 @@ Level::trimEdgeFaces(Index edgeIndex, int count) {
 //
 //  Access/modify sharpness values:
 //
-inline Sharpness
+inline float
 Level::getEdgeSharpness(Index edgeIndex) const {
     return _edgeSharpness[edgeIndex];
 }
-inline Sharpness&
+inline float&
 Level::getEdgeSharpness(Index edgeIndex) {
     return _edgeSharpness[edgeIndex];
 }
 
-inline Sharpness
+inline float
 Level::getVertexSharpness(Index vertIndex) const {
     return _vertSharpness[vertIndex];
 }
-inline Sharpness&
+inline float&
 Level::getVertexSharpness(Index vertIndex) {
     return _vertSharpness[vertIndex];
 }
@@ -594,6 +648,39 @@ Level::getVertexSharpness(Index vertIndex) {
 inline Sdc::Crease::Rule
 Level::getVertexRule(Index vertIndex) const {
     return (Sdc::Crease::Rule) _vertTags[vertIndex]._rule;
+}
+
+//
+//  Access/modify hole tag:
+//
+inline void
+Level::setHole(Index faceIndex, bool b) {
+    _faceTags[faceIndex]._hole = b;
+}
+inline bool
+Level::isHole(Index faceIndex) const {
+    return _faceTags[faceIndex]._hole;
+}
+
+//
+//  Access/modify non-manifold tags:
+//
+inline void
+Level::setEdgeNonManifold(Index edgeIndex, bool b) {
+    _edgeTags[edgeIndex]._nonManifold = b;
+}
+inline bool
+Level::isEdgeNonManifold(Index edgeIndex) const {
+    return _edgeTags[edgeIndex]._nonManifold;
+}
+
+inline void
+Level::setVertexNonManifold(Index vertIndex, bool b) {
+    _vertTags[vertIndex]._nonManifold = b;
+}
+inline bool
+Level::isVertexNonManifold(Index vertIndex) const {
+    return _vertTags[vertIndex]._nonManifold;
 }
 
 //
@@ -662,6 +749,14 @@ Level::resizeVertexEdges(int totalVertEdgeCount) {
 
     _vertEdgeIndices.resize(totalVertEdgeCount);
     _vertEdgeLocalIndices.resize(totalVertEdgeCount);
+}
+
+inline IndexArray
+Level::shareFaceVertCountsAndOffsets() const {
+    // XXXX manuelk we have to force const casting here (classes don't 'share'
+    // members usually...)
+    return IndexArray(const_cast<Index *>(&_faceVertCountsAndOffsets[0]),
+        (int)_faceVertCountsAndOffsets.size());
 }
 
 } // end namespace Vtr

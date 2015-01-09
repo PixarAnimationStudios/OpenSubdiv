@@ -43,6 +43,9 @@ typedef Vtr::LocalIndex  LocalIndex;
 typedef Vtr::IndexArray       IndexArray;
 typedef Vtr::LocalIndexArray  LocalIndexArray;
 
+typedef Vtr::ConstIndexArray       ConstIndexArray;
+typedef Vtr::ConstLocalIndexArray  ConstLocalIndexArray;
+
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION

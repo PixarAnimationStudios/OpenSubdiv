@@ -60,6 +60,13 @@ indexable set (i.e. a vector or array) of vertices, edges and faces. The index
 of a component uniquely identifies it and properties are retrieved by referring
 to it by index.
 
+It's worth qualifying the term "topological" here and elsewhere -- we generally
+refer to "topology" as "subdivision topology" rather than "mesh topology".  A
+subdivision hierarchy is impacted by the presence of semi-sharp creasing, as
+the subdivision rules change in response to that creasing.  So subdivision
+topology includes the sharpness values assigned to edges and vertices that
+affect the semi-sharp creasing.
+
 The two primary classes in *Vtr* consist of:
 
     * `Vtr::Level <#vtrlevel>`__ - a class representing complete vertex topology
@@ -74,22 +81,15 @@ Others exist to represent the following:
     * mapping between face-varying topology at successive levels
     * common low-level utilities, e.g. simple array classes
 
-Contents along with current issues being addressed. More details may be
-provided in the headers themselves.
-
 
 .. container:: notebox
 
-    **Alpha Issues**
+    **Beta Issues**
 
     Being intended for internal use, any changes to *Vtr* should not impact public
     interfaces.  Regardless, its worth noting some of the work planned:
 
-        * support for tri-split refinement required by Loop subdivision
-        * addition of more per-component tags to propogate with refinement
-          (e.g. holes, etc.)
-        * encapsulation of any scheme-specific code into classes specific to the
-          schemes
+        * improve non-manifold support to handle degenerate edges
         * potential nesting of FVar classes within *Level* and *Refinement*
         * potential specializations for regular *Levels* and *Refinements*
 
@@ -173,11 +173,22 @@ strictly necessary after the refinement. Just as with construction, whatever
 classes are privileged to construct a *Level* are likely those that will be
 privileged to prune its contents when needed.
 
+The current implementation of Level is far from optimal though -- there are
+opportunities for improvement.  After one level of subdivision, the
+faces in a Level will be either all quads or tris.  Having specializations
+for these cases and using the more general case in support of N-sided faces
+for the base level only is one possibility.  Levels also allocate dozens of 
+vectors in which to store all data.  Since these vectors are of fixed size
+once created, they could be aggregated by partitioning one or a smaller
+number of larger block of memory into the desired pieces.  The desire to
+make some of these improvements is part of why Vtr is not directly exposed
+for public use and instead exposed via Far.
+
 
 Vtr::Refinement
 ===============
 
-While `Vtr::Level <#vtrlevel>`__ contains the topology for a subdivision level,
+While `Vtr::Level <#vtrlevel>`__ contains the topology for each subdivision level,
 *Vtr::Refinement*  is responsible for creating a new level via refinement of an
 existing one, and for maintaining the relationships between the components in
 the parent and child levels. So a simplified view of a subdivision hierarchy
@@ -199,6 +210,13 @@ just one form of this selective sparse refinement, the criteria being the
 topological features of interest (creases and extra-ordinary vertices). The
 intent is to eventually provide more flexibility to facilitate the refinement
 of particular regions of interest or more dynamic/adaptive needs.
+
+*Refinement* has also been subclassed according to the type of topological
+split being performed, i.e. splitting all faces into quads or tris via the
+*QuadRefinement* and *TriRefinement* subclasses.  As noted with *Vtr::Level*,
+there is further room for improvement in memory and/or performance here by
+combining more optimal specializations for both *Refinement* and *Level* --
+with consideration of separating the uniform and sparse cases.
 
 Parent-child and child-parent relationships
 *******************************************

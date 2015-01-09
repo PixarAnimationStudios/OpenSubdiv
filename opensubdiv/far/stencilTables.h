@@ -27,6 +27,8 @@
 
 #include "../version.h"
 
+#include "../far/types.h"
+
 #include <cassert>
 #include <vector>
 
@@ -55,8 +57,8 @@ public:
     /// @param weights  Table pointer to the vertex weights of the stencil
     ///
     Stencil(unsigned char * size,
-               int * indices,
-               float * weights)
+            Index * indices,
+            float * weights)
         : _size(size),
           _indices(indices),
           _weights(weights) {
@@ -69,12 +71,18 @@ public:
         _weights = other._weights;
     }
 
+    /// \brief Returns the size of the stencil
     int GetSize() const {
         return *_size;
     }
 
+    /// \brief Returns the size of the stencil as a pointer
+    unsigned char * GetSizePtr() const {
+        return _size;
+    }
+
     /// \brief Returns the control vertices indices
-    int const * GetVertexIndices() const {
+    Index const * GetVertexIndices() const {
         return _indices;
     }
 
@@ -92,10 +100,12 @@ public:
     }
 
 protected:
+    friend class GregoryBasisFactory;
     friend class StencilTablesFactory;
+    friend class LimitStencilTablesFactory;
 
     unsigned char * _size;
-    int           * _indices;
+    Index         * _indices;
     float         * _weights;
 };
 
@@ -120,12 +130,13 @@ public:
         return (int)_sizes.size();
     }
 
+    /// \brief Returns the number of control vertices indexed in the table
     int GetNumControlVertices() const {
         return _numControlVertices;
     }
 
     /// \brief Returns a Stencil at index i in the tables
-    Stencil GetStencil(int i) const;
+    Stencil GetStencil(Index i) const;
 
     /// \brief Returns the number of control vertices of each stencil in the table
     std::vector<unsigned char> const & GetSizes() const {
@@ -133,12 +144,12 @@ public:
     }
 
     /// \brief Returns the offset to a given stencil (factory may leave empty)
-    std::vector<int> const & GetOffsets() const {
+    std::vector<Index> const & GetOffsets() const {
         return _offsets;
     }
 
     /// \brief Returns the indices of the control vertices
-    std::vector<int> const & GetControlIndices() const {
+    std::vector<Index> const & GetControlIndices() const {
         return _indices;
     }
 
@@ -147,10 +158,13 @@ public:
         return _weights;
     }
 
+    /// \brief Returns the stencil at index i in the tables
+    Stencil operator[] (Index index) const;
+
     /// \brief Updates point values based on the control values
     ///
-    /// \note The destination buffers ('uderivs' & 'vderivs') are assumed to
-    ///       have allocated at least \c GetNumStencils() elements.
+    /// \note The destination buffers are assumed to have allocated at least
+    ///       \c GetNumStencils() elements.
     ///
     /// @param controlValues  Buffer with primvar data for the control vertices
     ///
@@ -160,27 +174,43 @@ public:
     /// @param start          (skip to )index of first value to update
     ///
     /// @param end            Index of last value to update
-    ///    
+    ///
     template <class T>
-    void UpdateValues(T const *controlValues, T *values, int start=-1, int end=-1) const {
+    void UpdateValues(T const *controlValues, T *values, Index start=-1, Index end=-1) const {
 
-        _Update(controlValues, values, _weights, start, end);
+        update(controlValues, values, _weights, start, end);
     }
 
-private:
+    /// \brief Clears the stencils from the table
+    void Clear() {
+        _numControlVertices=0;
+        _sizes.clear();
+        _offsets.clear();
+        _indices.clear();
+        _weights.clear();
+    }
+
+protected:
 
     // Update values by appling cached stencil weights to new control values
-    template <class T> void _Update( T const *controlValues, T *values,
-        std::vector<float> const & valueWeights, int start, int end) const;
+    template <class T> void update( T const *controlValues, T *values,
+        std::vector<float> const & valueWeights, Index start, Index end) const;
 
-private:
+    // Populate the offsets table from the stencil sizes in _sizes (factory helper)
+    void generateOffsets();
+
+    // Resize the table arrays (factory helper)
+    void resize(int nstencils, int nelems);
+
+protected:
 
     friend class StencilTablesFactory;
+    friend class GregoryBasisFactory;
 
     int _numControlVertices;              // number of control vertices
 
     std::vector<unsigned char> _sizes;    // number of coeffiecient for each stencil
-    std::vector<int>           _offsets,  // offset to the start of each stencil
+    std::vector<Index>         _offsets,  // offset to the start of each stencil
                                _indices;  // indices of contributing coarse vertices
     std::vector<float>         _weights;  // stencil weight coefficients
 };
@@ -205,10 +235,10 @@ public:
     /// @param dvWeights Table pointer to the 'v' derivative weights
     ///
     LimitStencil( unsigned char * size,
-                     int * indices,
-                     float * weights,
-                     float * duWeights,
-                     float * dvWeights )
+                  Index * indices,
+                  float * weights,
+                  float * duWeights,
+                  float * dvWeights )
         : Stencil(size, indices, weights),
           _duWeights(duWeights),
           _dvWeights(dvWeights) {
@@ -235,6 +265,10 @@ public:
     }
 
 private:
+
+    friend class StencilTablesFactory;
+    friend class LimitStencilTablesFactory;
+
     float * _duWeights,  // pointer to stencil u derivative limit weights
           * _dvWeights;  // pointer to stencil v derivative limit weights
 };
@@ -277,10 +311,22 @@ public:
     void UpdateDerivs(T const *controlValues, T *uderivs, T *vderivs,
         int start=-1, int end=-1) const {
 
-        _Update(controlValues, uderivs, _duWeights, start, end);
-        _Update(controlValues, vderivs, _dvWeights, start, end);
+        update(controlValues, uderivs, _duWeights, start, end);
+        update(controlValues, vderivs, _dvWeights, start, end);
     }
 
+    /// \brief Clears the stencils from the table
+    void Clear() {
+        StencilTables::Clear();
+        _duWeights.clear();
+        _dvWeights.clear();
+    }
+
+private:
+    friend class LimitStencilTablesFactory;
+
+    // Resize the table arrays (factory helper)
+    void resize(int nstencils, int nelems);
 
 private:
     std::vector<float>  _duWeights,  // u derivative limit stencil weights
@@ -290,14 +336,16 @@ private:
 
 // Update values by appling cached stencil weights to new control values
 template <class T> void
-StencilTables::_Update(T const *controlValues, T *values,
-    std::vector<float> const &valueWeights, int start, int end) const {
+StencilTables::update(T const *controlValues, T *values,
+    std::vector<float> const &valueWeights, Index start, Index end) const {
 
-    int const * indices = &_indices.at(0);
+    unsigned char const * sizes = &_sizes.at(0);
+    Index const * indices = &_indices.at(0);
     float const * weights = &valueWeights.at(0);
 
     if (start>0) {
-        assert(start<(int)_offsets.size());
+        assert(start<(Index)_offsets.size());
+        sizes += start;
         indices += _offsets[start];
         weights += _offsets[start];
         values += start;
@@ -308,28 +356,63 @@ StencilTables::_Update(T const *controlValues, T *values,
     }
 
     int nstencils = end - std::max(0, start);
-    for (int i=0; i<nstencils; ++i) {
+    for (int i=0; i<nstencils; ++i, ++sizes) {
 
         // Zero out the result accumulators
         values[i].Clear();
 
         // For each element in the array, add the coefs contribution
-        for (int j=0; j<_sizes[i]; ++j, ++indices, ++weights) {
+        for (int j=0; j<*sizes; ++j, ++indices, ++weights) {
             values[i].AddWithWeight( controlValues[*indices], *weights );
         }
     }
 }
 
+inline void
+StencilTables::generateOffsets() {
+    Index offset=0;
+    int noffsets = (int)_sizes.size();
+    _offsets.resize(noffsets);
+    for (int i=0; i<(int)_sizes.size(); ++i ) {
+        _offsets[i]=offset;
+        offset+=_sizes[i];
+    }
+}
+
+inline void
+StencilTables::resize(int nstencils, int nelems) {
+
+    _sizes.resize(nstencils);
+    _indices.resize(nelems);
+    _weights.resize(nelems);
+}
+
 // Returns a Stencil at index i in the table
 inline Stencil
-StencilTables::GetStencil(int i) const {
+StencilTables::GetStencil(Index i) const {
 
-    int ofs = _offsets[i];
+    assert((not _offsets.empty()) and i<(int)_offsets.size());
+
+    Index ofs = _offsets[i];
 
     return Stencil( const_cast<unsigned char *>(&_sizes[i]),
-                       const_cast<int *>(&_indices[ofs]),
-                       const_cast<float *>(&_weights[ofs]) );
+                    const_cast<Index *>(&_indices[ofs]),
+                    const_cast<float *>(&_weights[ofs]) );
 }
+
+inline Stencil
+StencilTables::operator[] (Index index) const {
+    return GetStencil(index);
+}
+
+inline void
+LimitStencilTables::resize(int nstencils, int nelems) {
+
+    StencilTables::resize(nstencils, nelems);
+    _duWeights.resize(nelems);
+    _dvWeights.resize(nelems);
+}
+
 
 } // end namespace Far
 

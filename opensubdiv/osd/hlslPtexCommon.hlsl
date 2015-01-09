@@ -36,7 +36,7 @@ struct PtexPacking {
     int height;
 };
 
-PtexPacking getPtexPacking(Buffer<int> packings, int faceID)
+PtexPacking getPtexPacking(Buffer<uint> packings, int faceID)
 {
     PtexPacking packing;
     packing.page    = packings[faceID*6+0].x;
@@ -72,7 +72,7 @@ int computeMipmapOffsetV(int h, int level)
     return (m & x) + (level&~1);
 }
 
-PtexPacking getPtexPacking(Buffer<int> packings, int faceID, int level)
+PtexPacking getPtexPacking(Buffer<uint> packings, int faceID, int level)
 {
     PtexPacking packing;
     packing.page    = packings[faceID*6+0].x;
@@ -112,7 +112,7 @@ void evalQuadraticBSpline(float u, out float B[3], out float BU[3])
 
 float4 PtexLookupNearest(float4 patchCoord,
                          Texture2DArray data,
-                         Buffer<int> packings)
+                         Buffer<uint> packings)
 {
     float2 uv = patchCoord.xy;
     int faceID = int(patchCoord.w);
@@ -125,7 +125,7 @@ float4 PtexLookupNearest(float4 patchCoord,
 float4 PtexLookupNearest(float4 patchCoord,
                          int level,
                          Texture2DArray data,
-                         Buffer<int> packings)
+                         Buffer<uint> packings)
 {
     float2 uv = patchCoord.xy;
     int faceID = int(patchCoord.w);
@@ -138,7 +138,7 @@ float4 PtexLookupNearest(float4 patchCoord,
 float4 PtexLookup(float4 patchCoord,
                   int level,
                   Texture2DArray data,
-                  Buffer<int> packings)
+                  Buffer<uint> packings)
 {
     float2 uv = patchCoord.xy;
     int faceID = int(patchCoord.w);
@@ -172,7 +172,7 @@ float4 PtexLookupQuadratic(out float4 du,
                            float4 patchCoord,
                            int level,
                            Texture2DArray data,
-                           Buffer<int> packings)
+                           Buffer<uint> packings)
 {
     float2 uv = patchCoord.xy;
     int faceID = int(patchCoord.w);
@@ -201,12 +201,12 @@ float4 PtexLookupQuadratic(out float4 du,
     d[8] = data[int3(cX+1, cY+1, ppack.page)];
 
     float B[3], D[3];
-    float4 BUCP[3], DUCP[3];
+    float4 BUCP[3] = {float4(0,0,0,0), float4(0,0,0,0), float4(0,0,0,0)},
+           DUCP[3] = {float4(0,0,0,0), float4(0,0,0,0), float4(0,0,0,0)};
+
     evalQuadraticBSpline(y, B, D);
 
     for (int i = 0; i < 3; ++i) {
-        BUCP[i] = float4(0, 0, 0, 0);
-        DUCP[i] = float4(0, 0, 0, 0);
         for (int j = 0; j < 3; j++) {
             float4 A = d[i*3+j];
             BUCP[i] += A * B[j];
@@ -238,7 +238,7 @@ float4 PtexLookupQuadratic(out float4 du,
 float4 PtexMipmapLookupNearest(float4 patchCoord,
                                int level,
                                Texture2DArray data,
-                               Buffer<int> packings)
+                               Buffer<uint> packings)
 {
 #if defined(SEAMLESS_MIPMAP)
     // diff level
@@ -262,7 +262,7 @@ float4 PtexMipmapLookupNearest(float4 patchCoord,
 float4 PtexMipmapLookup(float4 patchCoord,
                         float level,
                         Texture2DArray data,
-                        Buffer<int> packings)
+                        Buffer<uint> packings)
 {
 #if defined(SEAMLESS_MIPMAP)
     // diff level
@@ -288,7 +288,7 @@ float4 PtexMipmapLookupQuadratic(out float4 du,
                                  float4 patchCoord,
                                  float level,
                                  Texture2DArray data,
-                                 Buffer<int> packings)
+                                 Buffer<uint> packings)
 {
 #if defined(SEAMLESS_MIPMAP)
     // diff level
@@ -318,7 +318,7 @@ float4 PtexMipmapLookupQuadratic(out float4 du,
 float4 PtexMipmapLookupQuadratic(float4 patchCoord,
                                  float level,
                                  Texture2DArray data,
-                                 Buffer<int> packings)
+                                 Buffer<uint> packings)
 {
     float4 du, dv;
     return PtexMipmapLookupQuadratic(du, dv, patchCoord, level, data, packings);

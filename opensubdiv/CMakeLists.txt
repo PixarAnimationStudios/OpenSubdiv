@@ -139,6 +139,7 @@ if (NOT NO_LIB)
     # Build static libs ------------------------------------
     add_library(osd_static_cpu
         STATIC
+        version.cpp
         $<TARGET_OBJECTS:sdc_obj>
         $<TARGET_OBJECTS:vtr_obj>
         $<TARGET_OBJECTS:far_obj>
@@ -156,6 +157,7 @@ if (NOT NO_LIB)
     # the target then adds the other obj dependencies and include files
     _add_possibly_cuda_library(osd_static_gpu
         STATIC
+            version.cpp
             $<TARGET_OBJECTS:osd_gpu_obj>
             ${CUDA_KERNEL_FILES}
     )
@@ -176,18 +178,27 @@ if (NOT NO_LIB)
         #---------------------------------------------------
         add_library(osd_dynamic_cpu
             SHARED
+            version.cpp
             $<TARGET_OBJECTS:sdc_obj>
             $<TARGET_OBJECTS:vtr_obj>
             $<TARGET_OBJECTS:far_obj>
             $<TARGET_OBJECTS:osd_cpu_obj>
         )
 
-        set_target_properties(osd_dynamic_cpu
-            PROPERTIES
-                OUTPUT_NAME osdCPU
-                CLEAN_DIRECT_OUTPUT 1
-                SOVERSION ${OSD_SONAME}
-            )
+        if (NOT ANDROID)
+            set_target_properties(osd_dynamic_cpu
+                PROPERTIES
+                    OUTPUT_NAME osdCPU
+                    CLEAN_DIRECT_OUTPUT 1
+                    SOVERSION ${OSD_SONAME}
+                )
+        else()
+            set_target_properties(osd_dynamic_cpu
+                PROPERTIES
+                    OUTPUT_NAME osdCPU
+                    CLEAN_DIRECT_OUTPUT 1
+                )
+        endif()
 
         target_link_libraries(osd_dynamic_cpu
             ${PLATFORM_CPU_LIBRARIES}
@@ -198,16 +209,25 @@ if (NOT NO_LIB)
         #---------------------------------------------------
         _add_possibly_cuda_library(osd_dynamic_gpu
             SHARED
+            version.cpp
             $<TARGET_OBJECTS:osd_gpu_obj>
             ${CUDA_KERNEL_FILES}
         )
 
-        set_target_properties(osd_dynamic_gpu
-            PROPERTIES
-                OUTPUT_NAME osdGPU
-                CLEAN_DIRECT_OUTPUT 1
-                SOVERSION ${OSD_SONAME}
-            )
+        if (NOT ANDROID)
+            set_target_properties(osd_dynamic_gpu
+                PROPERTIES
+                    OUTPUT_NAME osdGPU
+                    CLEAN_DIRECT_OUTPUT 1
+                    SOVERSION ${OSD_SONAME}
+                )
+        else()
+            set_target_properties(osd_dynamic_gpu
+                PROPERTIES
+                    OUTPUT_NAME osdGPU
+                    CLEAN_DIRECT_OUTPUT 1
+                )
+        endif()
 
         target_link_libraries(osd_dynamic_gpu
             osd_dynamic_cpu

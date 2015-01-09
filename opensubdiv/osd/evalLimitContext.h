@@ -40,11 +40,9 @@ namespace Osd {
 
 /// \brief Coordinates set on a limit surface
 ///
-class EvalCoords {
+struct LimitLocation {
 
-public:
-
-    EvalCoords() { }
+    LimitLocation() { }
 
     /// \brief Constructor
     ///
@@ -54,10 +52,25 @@ public:
     ///
     /// @param y parametric location on face
     ///
-    EvalCoords(int f, float x, float y) : face(f), u(x), v(y) { }
-    
-    unsigned int face; //  Ptex face ID
-    float u,v;         // local face (u,v)
+    LimitLocation(int f, float x, float y) : ptexIndex(f), s(x), t(y) { }
+
+    int ptexIndex;      ///< ptex face index
+
+    float s, t;         ///< parametric location on face
+};
+
+class LimitLocationsArray {
+
+public:
+
+    /// \brief Constructor
+    LimitLocationsArray() : ptexIndex(-1), numLocations(0), s(0), t(0) { }
+
+    int ptexIndex,      ///< ptex face index
+        numLocations;   ///< number of (u,v) coordinates in the array
+
+    float const * s,    ///< array of u coordinates
+                * t;    ///< array of v coordinates
 };
 
 

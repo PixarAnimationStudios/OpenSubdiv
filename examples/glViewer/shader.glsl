@@ -358,7 +358,9 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
         min(min(inpt.edgeDistance[0], inpt.edgeDistance[1]),
             min(inpt.edgeDistance[2], inpt.edgeDistance[3]));
 #endif
-    vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
+    //vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
+    float v = 0.8;
+    vec4 Cedge = vec4(Cfill.r*v, Cfill.g*v, Cfill.b*v, 1);
     float p = exp2(-2 * d * d);
 
 #if defined(GEOMETRY_OUT_WIRE)

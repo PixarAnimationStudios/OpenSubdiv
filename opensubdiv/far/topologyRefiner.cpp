@@ -23,6 +23,8 @@
 //
 #include "../far/topologyRefiner.h"
 #include "../vtr/sparseSelector.h"
+#include "../vtr/quadRefinement.h"
+#include "../vtr/triRefinement.h"
 
 #include <cassert>
 #include <cstdio>
@@ -37,31 +39,43 @@ namespace Far {
 //  Relatively trivial construction/destruction -- the base level (level[0]) needs
 //  to be explicitly initialized after construction and refinement then applied
 //
-TopologyRefiner::TopologyRefiner(Sdc::Type schemeType, Sdc::Options schemeOptions) :
+TopologyRefiner::TopologyRefiner(Sdc::SchemeType schemeType, Sdc::Options schemeOptions) :
     _subdivType(schemeType),
     _subdivOptions(schemeOptions),
     _isUniform(true),
+    _hasHoles(false),
+    _useSingleCreasePatch(false),
     _maxLevel(0) {
 
     //  Need to revisit allocation scheme here -- want to use smart-ptrs for these
     //  but will probably have to settle for explicit new/delete...
-    _levels.reserve(8);
-    _levels.resize(1);
+    _levels.reserve(10);
+    _levels.push_back(new Vtr::Level);
 }
 
-TopologyRefiner::~TopologyRefiner() { }
+TopologyRefiner::~TopologyRefiner() {
+
+    for (int i=0; i<(int)_levels.size(); ++i) {
+        delete _levels[i];
+    }
+
+    for (int i=0; i<(int)_refinements.size(); ++i) {
+        delete _refinements[i];
+    }
+}
 
 void
 TopologyRefiner::Unrefine() {
+
     if (_levels.size()) {
+        for (int i=1; i<(int)_levels.size(); ++i) {
+            delete _levels[i];
+        }
         _levels.resize(1);
     }
-    _refinements.clear();
-}
-
-void
-TopologyRefiner::Clear() {
-    _levels.clear();
+    for (int i=0; i<(int)_refinements.size(); ++i) {
+        delete _refinements[i];
+    }
     _refinements.clear();
 }
 
@@ -73,7 +87,7 @@ int
 TopologyRefiner::GetNumVerticesTotal() const {
     int sum = 0;
     for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i].getNumVertices();
+        sum += _levels[i]->getNumVertices();
     }
     return sum;
 }
@@ -81,7 +95,7 @@ int
 TopologyRefiner::GetNumEdgesTotal() const {
     int sum = 0;
     for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i].getNumEdges();
+        sum += _levels[i]->getNumEdges();
     }
     return sum;
 }
@@ -89,7 +103,7 @@ int
 TopologyRefiner::GetNumFacesTotal() const {
     int sum = 0;
     for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i].getNumFaces();
+        sum += _levels[i]->getNumFaces();
     }
     return sum;
 }
@@ -97,7 +111,7 @@ int
 TopologyRefiner::GetNumFaceVerticesTotal() const {
     int sum = 0;
     for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i].getNumFaceVerticesTotal();
+        sum += _levels[i]->getNumFaceVerticesTotal();
     }
     return sum;
 }
@@ -105,43 +119,48 @@ int
 TopologyRefiner::GetNumFVarValuesTotal(int channel) const {
     int sum = 0;
     for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i].getNumFVarValues(channel);
+        sum += _levels[i]->getNumFVarValues(channel);
     }
     return sum;
 }
 
+int
+TopologyRefiner::GetNumHoles(int level) const {
+    int sum = 0;
+    Vtr::Level const & lvl = getLevel(level);
+    for (Index face = 0; face < lvl.getNumFaces(); ++face) {
+        if (lvl.isHole(face)) {
+            ++sum;
+        }
+    }
+    return sum;
+}
 
-template <Sdc::Type SCHEME_TYPE> void
-computePtexIndices(Vtr::Level const & coarseLevel, std::vector<int> & ptexIndices) {
+//
+//  Ptex information accessors
+//
+void
+TopologyRefiner::initializePtexIndices() const {
+    Vtr::Level const & coarseLevel = getLevel(0);
+    std::vector<int> & ptexIndices = const_cast<std::vector<int> &>(_ptexIndices);
+
     int nfaces = coarseLevel.getNumFaces();
     ptexIndices.resize(nfaces+1);
     int ptexID=0;
+    int regFaceSize = Sdc::SchemeTypeTraits::GetRegularFaceSize(GetSchemeType());
     for (int i = 0; i < nfaces; ++i) {
         ptexIndices[i] = ptexID;
-        Vtr::IndexArray fverts = coarseLevel.getFaceVertices(i);
-        ptexID += fverts.size()==Sdc::TypeTraits<SCHEME_TYPE>::RegularFaceValence() ? 1 : fverts.size();
+        Vtr::ConstIndexArray fverts = coarseLevel.getFaceVertices(i);
+        ptexID += fverts.size()==regFaceSize ? 1 : fverts.size();
     }
     // last entry contains the number of ptex texture faces
     ptexIndices[nfaces]=ptexID;
-}
-void
-TopologyRefiner::initializePtexIndices() const {
-    std::vector<int> & indices = const_cast<std::vector<int> &>(_ptexIndices);
-    switch (GetSchemeType()) {
-        case Sdc::TYPE_BILINEAR:
-            computePtexIndices<Sdc::TYPE_BILINEAR>(_levels[0], indices); break;
-        case Sdc::TYPE_CATMARK :
-            computePtexIndices<Sdc::TYPE_CATMARK>(_levels[0], indices); break;
-        case Sdc::TYPE_LOOP    :
-            computePtexIndices<Sdc::TYPE_LOOP>(_levels[0], indices); break;
-    }
 }
 int
 TopologyRefiner::GetNumPtexFaces() const {
     if (_ptexIndices.empty()) {
         initializePtexIndices();
     }
-    // see computePtexIndices()
     return _ptexIndices.back();
 }
 int
@@ -149,30 +168,151 @@ TopologyRefiner::GetPtexIndex(Index f) const {
     if (_ptexIndices.empty()) {
         initializePtexIndices();
     }
-    if (f<((int)_ptexIndices.size()-1)) {
-        return _ptexIndices[f];
-    }
-    return -1;
+    assert(f<(int)_ptexIndices.size());
+    return _ptexIndices[f];
 }
 
+namespace {
+    // Returns the face adjacent to 'face' along edge 'edge'
+    inline Index
+    getAdjacentFace(Vtr::Level const & level, Index edge, Index face) {
+        Far::ConstIndexArray adjFaces = level.getEdgeFaces(edge);
+        if (adjFaces.size()!=2) {
+            return -1;
+        }
+        return (adjFaces[0]==face) ? adjFaces[1] : adjFaces[0];
+    }
+}
+
+void
+TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
+        int adjFaces[4], int adjEdges[4]) const {
+
+    assert(GetSchemeType()==Sdc::SCHEME_CATMARK);
+
+    if (_ptexIndices.empty()) {
+        initializePtexIndices();
+    }
+
+    Vtr::Level const & level = getLevel(0);
+
+    ConstIndexArray fedges = level.getFaceEdges(face);
+
+    if (fedges.size()==4) {
+
+        // Regular ptex quad face
+        for (int i=0; i<4; ++i) {
+            int edge = fedges[i];
+            Index adjface = getAdjacentFace(level, edge, face);
+            if (adjface==-1) {
+                adjFaces[i] = -1;  // boundary or non-manifold
+                adjEdges[i] = 0;
+            } else {
+
+                ConstIndexArray aedges = level.getFaceEdges(adjface);
+                if (aedges.size()==4) {
+                    adjFaces[i] = _ptexIndices[adjface];
+                    adjEdges[i] = aedges.FindIndexIn4Tuple(edge);
+                    assert(adjEdges[i]!=-1);
+                } else {
+                    // neighbor is a sub-face
+                    adjFaces[i] = _ptexIndices[adjface] +
+                                  (aedges.FindIndex(edge)+1)%aedges.size();
+                    adjEdges[i] = 3;
+                }
+                assert(adjFaces[i]!=-1);
+            }
+        }
+    } else {
+
+        //  Ptex sub-face 'quadrant' (non-quad)
+        //
+        // Ptex adjacency pattern for non-quads:
+        //
+        //             v2
+        /*             o
+        //            / \
+        //           /   \
+        //          /0   3\
+        //         /       \
+        //        o_ 1   2 _o
+        //       /  -_   _-  \
+        //      /  2  -o-  1  \
+        //     /3      |      0\
+        //    /       1|2       \
+        //   /    0    |    3    \
+        //  o----------o----------o
+        // v0                     v1
+        */
+        assert(quadrant>=0 and quadrant<fedges.size());
+
+        int nextQuadrant = (quadrant+1) % fedges.size(),
+            prevQuadrant = (quadrant+fedges.size()-1) % fedges.size();
+
+        {   // resolve neighbors within the sub-face (edges 1 & 2)
+            adjFaces[1] = _ptexIndices[face] + nextQuadrant;
+            adjEdges[1] = 2;
+
+            adjFaces[2] = _ptexIndices[face] + prevQuadrant;
+            adjEdges[2] = 1;
+        }
+
+        {   // resolve neighbor outisde the sub-face (edge 0)
+            int edge0 = fedges[quadrant];
+            Index adjface0 = getAdjacentFace(level, edge0, face);
+            if (adjface0==-1) {
+                adjFaces[0] = -1;  // boundary or non-manifold
+                adjEdges[0] = 0;
+            } else {
+                ConstIndexArray afedges = level.getFaceEdges(adjface0);
+                if (afedges.size()==4) {
+                   adjFaces[0] = _ptexIndices[adjface0];
+                   adjEdges[0] = afedges.FindIndexIn4Tuple(edge0);
+                } else {
+                   int subedge = (afedges.FindIndex(edge0)+1)%afedges.size();
+                   adjFaces[0] = _ptexIndices[adjface0] + subedge;
+                   adjEdges[0] = 3;
+                }
+                assert(adjFaces[0]!=-1);
+            }
+
+            // resolve neighbor outisde the sub-face (edge 3)
+            int edge3 = fedges[prevQuadrant];
+            Index adjface3 = getAdjacentFace(level, edge3, face);
+            if (adjface3==-1) {
+                adjFaces[3]=-1;  // boundary or non-manifold
+                adjEdges[3]=0;
+            } else {
+                ConstIndexArray afedges = level.getFaceEdges(adjface3);
+                if (afedges.size()==4) {
+                   adjFaces[3] = _ptexIndices[adjface3];
+                   adjEdges[3] = afedges.FindIndexIn4Tuple(edge3);
+                } else {
+                   int subedge = afedges.FindIndex(edge3);
+                   adjFaces[3] = _ptexIndices[adjface3] + subedge;
+                   adjEdges[3] = 0;
+                }
+                assert(adjFaces[3]!=-1);
+            }
+        }
+    }
+}
 
 //
 //  Main refinement method -- allocating and initializing levels and refinements:
 //
 void
-TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
+TopologyRefiner::RefineUniform(UniformOptions options) {
 
-    assert(_levels[0].getNumVertices() > 0);  //  Make sure the base level has been initialized
-    assert(_subdivType == Sdc::TYPE_CATMARK);
+    assert(_levels[0]->getNumVertices() > 0);  //  Make sure the base level has been initialized
 
     //
     //  Allocate the stack of levels and the refinements between them:
     //
     _isUniform = true;
-    _maxLevel = maxLevel;
+    _maxLevel = options.refinementLevel;
 
-    _levels.resize(maxLevel + 1);
-    _refinements.resize(maxLevel);
+    Sdc::Split splitType = (_subdivType == Sdc::SCHEME_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
 
     //
     //  Initialize refinement options for Vtr -- adjusting full-topology for the last level:
@@ -180,31 +320,38 @@ TopologyRefiner::RefineUniform(int maxLevel, bool fullTopology) {
     Vtr::Refinement::Options refineOptions;
     refineOptions._sparse = false;
 
-    for (int i = 1; i <= maxLevel; ++i) {
-        refineOptions._faceTopologyOnly = fullTopology ? false : (i == maxLevel);
+    for (int i = 1; i <= (int)options.refinementLevel; ++i) {
+        refineOptions._faceTopologyOnly =
+            options.fullTopologyInLastLevel ? false : (i == options.refinementLevel);
 
-        _refinements[i-1].setScheme(_subdivType, _subdivOptions);
-        _refinements[i-1].initialize(_levels[i-1], _levels[i]);
-        _refinements[i-1].refine(refineOptions);
+        Vtr::Level& parentLevel = getLevel(i-1);
+        Vtr::Level& childLevel  = *(new Vtr::Level);
+
+        Vtr::Refinement* refinement = 0;
+        if (splitType == Sdc::SPLIT_TO_QUADS) {
+            refinement = new Vtr::QuadRefinement(parentLevel, childLevel, _subdivOptions);
+        } else {
+            refinement = new Vtr::TriRefinement(parentLevel, childLevel, _subdivOptions);
+        }
+        refinement->refine(refineOptions);
+
+        _levels.push_back(&childLevel);
+        _refinements.push_back(refinement);
     }
 }
 
 
 void
-TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology) {
+TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 
-    assert(_levels[0].getNumVertices() > 0);  //  Make sure the base level has been initialized
-    assert(_subdivType == Sdc::TYPE_CATMARK);
+    assert(_levels[0]->getNumVertices() > 0);  //  Make sure the base level has been initialized
 
     //
     //  Allocate the stack of levels and the refinements between them:
     //
     _isUniform = false;
-    _maxLevel = subdivLevel;
-
-    //  Should we presize all or grow one at a time as needed?
-    _levels.resize(subdivLevel + 1);
-    _refinements.resize(subdivLevel);
+    _maxLevel = options.isolationLevel;
+    _useSingleCreasePatch = options.useSingleCreasePatch;
 
     //
     //  Initialize refinement options for Vtr:
@@ -212,353 +359,176 @@ TopologyRefiner::RefineAdaptive(int subdivLevel, bool fullTopology) {
     Vtr::Refinement::Options refineOptions;
 
     refineOptions._sparse           = true;
-    refineOptions._faceTopologyOnly = !fullTopology;
+    refineOptions._faceTopologyOnly = not options.fullTopologyInLastLevel;
 
-    for (int i = 1; i <= subdivLevel; ++i) {
+    Sdc::Split splitType = (_subdivType == Sdc::SCHEME_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
+
+    for (int i = 1; i <= (int)options.isolationLevel; ++i) {
         //  Keeping full topology on for debugging -- may need to go back a level and "prune"
         //  its topology if we don't use the full depth
         refineOptions._faceTopologyOnly = false;
 
-        Vtr::Level& parentLevel     = _levels[i-1];
-        Vtr::Level& childLevel      = _levels[i];
-        Vtr::Refinement& refinement = _refinements[i-1];
+        Vtr::Level& parentLevel     = getLevel(i-1);
+        Vtr::Level& childLevel      = *(new Vtr::Level);
 
-        refinement.setScheme(_subdivType, _subdivOptions);
-        refinement.initialize(parentLevel, childLevel);
-
-        //
-        //  Initialize a Selector to mark a sparse set of components for refinement.  The
-        //  previous refinement may include tags on its child components that are relevant,
-        //  which is why the Selector identifies it.
-        //
-        Vtr::SparseSelector selector(refinement);
-        selector.setPreviousRefinement((i-1) ? &_refinements[i-2] : 0);
-
-        catmarkFeatureAdaptiveSelectorByFace(selector);
-        //catmarkFeatureAdaptiveSelector(selector);
-
-        //
-        //  Continue refining if something selected, otherwise terminate refinement and trim
-        //  the Level and Refinement vectors to remove the curent refinement and child that
-        //  were in progress:
-        //
-        if (!selector.isSelectionEmpty()) {
-            refinement.refine(refineOptions);
-
-            //childLevel.print(&refinement);
-            //assert(childLevel.validateTopology());
+        Vtr::Refinement* refinement = 0;
+        if (splitType == Sdc::SPLIT_TO_QUADS) {
+            refinement = new Vtr::QuadRefinement(parentLevel, childLevel, _subdivOptions);
         } else {
-            //  Note that if we support the "full topology at last level" option properly,
-            //  we should prune the previous level generated, as it is now the last...
-            int maxLevel = i - 1;
+            refinement = new Vtr::TriRefinement(parentLevel, childLevel, _subdivOptions);
+        }
 
-            _maxLevel = maxLevel;
-            _levels.resize(maxLevel + 1);
-            _refinements.resize(maxLevel);
+        //
+        //  Initialize a Selector to mark a sparse set of components for refinement.  If
+        //  nothing was selected, discard the new refinement and child level, trim the
+        //  maximum level and stop refinining any further.  Otherwise, refine and append
+        //  the new refinement and child.
+        //
+        //  Note that if we support the "full topology at last level" option properly,
+        //  we should prune the previous level generated, as it is now the last...
+        //
+        Vtr::SparseSelector selector(*refinement);
+
+        selectFeatureAdaptiveComponents(selector);
+        if (selector.isSelectionEmpty()) {
+            _maxLevel = i - 1;
+
+            delete refinement;
+            delete &childLevel;
             break;
         }
+
+        refinement->refine(refineOptions);
+
+        _levels.push_back(&childLevel);
+        _refinements.push_back(refinement);
+
+        //childLevel.print(refinement);
+        //assert(childLevel.validateTopology());
     }
 }
 
 //
-//   Below is a prototype of a method to select features for sparse refinement at each level.
+//   Method for selecting components for sparse refinement based on the feature-adaptive needs
+//   of patch generation.
+//
 //   It assumes we have a freshly initialized Vtr::SparseSelector (i.e. nothing already selected)
 //   and will select all relevant topological features for inclusion in the subsequent sparse
 //   refinement.
 //
-//   A couple general points on "feature adaptive selection" in general...
-//
-//   1)  With appropriate topological tags on the components, i.e. which vertices are
-//       extra-ordinary, non-manifold, etc., there's no reason why this can't be written
-//       in a way that is independent of the subdivision scheme.  All of the creasing
-//       cases are independent, leaving only the regularity associated with the scheme.
-//
-//   2)  Since feature adaptive refinement is all about the generation of patches, it is
-//       inherently more concerned with the topology of faces than of vertices or edges.
-//       In order to fully exploit the generation of regular patches in the presence of
-//       infinitely sharp edges, we need to consider the face as a whole and not trigger
-//       refinement based on a vertex, e.g. an extra-ordinary vertex may be present, but
-//       with all infinitely sharp edges around it, every patch is potentially a regular
-//       corner.  It is currently difficult to extract all that is needed from the edges
-//       and vertices of a face, but once more tags are added to the edges and vertices,
-//       this can be greatly simplified.
-//
-//  So once more tagging of components is in place, I favor a more face-centric approach than
-//  what exists below.  We should be able to iterate through the faces once and make optimal
-//  decisions without any additional passes through the vertices or edges here.  Most common
-//  cases will be readily detected, i.e. smooth regular patches or those with any semi-sharp
-//  feature, leaving only those with a mixture of smooth and infinitely sharp features for
-//  closer analysis.
-//
-//  Given that we cannot avoid the need to traverse the face list for level 0 in order to
-//  identify irregular faces for subdivision, we will hopefully only have to visit N faces
-//  and skip the additional traversal of the N vertices and 2*N edges present here.  The
-//  argument against the face-centric approach is that shared vertices and edges are
-//  inspected multiple times, but with relevant data stored in tags in these components,
-//  that work should be minimal.
+//   This was originally written specific to the quad-centric Catmark scheme and was since
+//   generalized to support Loop given the enhanced tagging of components based on the scheme.
+//   Any further enhancements here, e.g. new approaches for dealing with infinitely sharp
+//   creases, should be aware of the intended generality.  Ultimately it may not be worth
+//   trying to keep this general and we will be better off specializing it for each scheme.
+//   The fact that this method is intimately tied to patch generation also begs for it to
+//   become part of a class that encompasses both the feature adaptive tagging and the
+//   identification of the intended patch that result from it.
 //
 void
-TopologyRefiner::catmarkFeatureAdaptiveSelector(Vtr::SparseSelector& selector) {
+TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) {
 
     Vtr::Level const& level = selector.getRefinement().parent();
 
-    //
-    //  For faces, we only need to select irregular faces from level 0 -- which will
-    //  generate an extra-ordinary vertex in its interior:
-    //
-    //  Not so fast...
-    //      According to far/meshFactory.h, we must also account for the following cases:
-    //
-    //  "Quad-faces with 2 non-consecutive boundaries need to be flagged for refinement as
-    //  boundary patches."
-    //
-    //       o ........ o ........ o ........ o
-    //       .          |          |          .     ... boundary edge
-    //       .          |   needs  |          .
-    //       .          |   flag   |          .     --- regular edge
-    //       .          |          |          .
-    //       o ........ o ........ o ........ o
-    //
-    //  ... presumably because this type of "incomplete" B-spline patch is not supported by
-    //  the set of patch types in PatchTables (though it is regular).
-    //
-    //  And additionally we must isolate sharp corners if they are on a face with any
-    //  more boundary edges (than the two defining the corner).  So in the above diagram,
-    //  if all corners are sharp, then all three faces need to be subdivided, but only
-    //  the one level.
-    //
-    //  Fortunately this only needs to be tested at level 0 too -- its analogous to the
-    //  isolation required of extra-ordinary patches, required here for regular patches
-    //  since only a specific set of B-spline boundary patches is supported.
-    //
-    //  Arguably, for the sharp corner case, we can deal with that during the vertex
-    //  traversal, but it requires knowledge of a greater topological neighborhood than
-    //  the vertex itself -- knowledge we have when detecting the opposite boundary case
-    //  and so might as well detect here.  Whether the corner is sharp or not is irrelevant
-    //  as both the extraordinary smooth, or the regular sharp cases need isolation.
-    //
-    if (level.getDepth() == 0) {
-        for (Vtr::Index face = 0; face < level.getNumFaces(); ++face) {
-            Vtr::IndexArray const faceVerts = level.getFaceVertices(face);
-
-            if (faceVerts.size() != 4) {
-                selector.selectFace(face);
-            } else {
-                Vtr::IndexArray const faceEdges = level.getFaceEdges(face);
-
-                int boundaryEdgeSum = (level.getEdgeFaces(faceEdges[0]).size() == 1) +
-                                      (level.getEdgeFaces(faceEdges[1]).size() == 1) +
-                                      (level.getEdgeFaces(faceEdges[2]).size() == 1) +
-                                      (level.getEdgeFaces(faceEdges[3]).size() == 1);
-                if ((boundaryEdgeSum > 2) || ((boundaryEdgeSum == 2) &&
-                    (level.getEdgeFaces(faceEdges[0]).size() == level.getEdgeFaces(faceEdges[2]).size()))) {
-                    selector.selectFace(face);
-                }
-            }
-        }
-    }
-
-    //
-    //  For vertices, we want to immediatly skip neighboring vertices generated from the
-    //  previous level (the percentage will typically be high enough to warrant immediate
-    //  culling, as the will include all perimeter vertices).
-    //
-    //  Sharp vertices are complicated by the corner case -- an infinitely sharp corner is
-    //  considered a regular feature and not sharp, but a corner with any other sharpness
-    //  will eventually become extraordinary once its sharpness has decayed -- so it is
-    //  both sharp and irregular.
-    //
-    //  Any vertex that is a dart should be selected -- regardless of the sharpness value.
-    //  Later inspection of edge sharpness may skip some faces bounding infinitely sharp
-    //  edges (since they are regular), so the test for Dart here ensures that the ends
-    //  of edge chains are isolated.
-    //
-    //  For the remaining topological cases, non-manifold vertices should be considered
-    //  along with extra-ordinary -- both being considered "irregular" (i.e. !regular).
-    //
-    //  Tagging considerations:
-    //      All of the above information can be embedded in a vertex tag and most of these
-    //  properties are inherited/propogate by refinement and so do not warrant repeated
-    //  re-determination at every level.  The above tags include:
-    //      - completeness (wrt parent -- can change each level -- sparse only)
-    //      - semi-sharp or "fixed Rule" (Hbr's "volatil", can change)
-    //      - Rule
-    //      - hard (infinitely sharp)
-    //      - regular (wrt both subdiv scheme and topology)
-    //      - manifold
-    //
-    for (Vtr::Index vert = 0; vert < level.getNumVertices(); ++vert) {
-        if (selector.isVertexIncomplete(vert)) continue;
-
-        bool selectVertex = false;
-
-        float vertSharpness = level.getVertexSharpness(vert);
-        if (vertSharpness > 0.0) {
-            selectVertex = (level.getVertexFaces(vert).size() != 1) || (vertSharpness < Sdc::Crease::SHARPNESS_INFINITE);
-        } else if (level.getVertexRule(vert) == Sdc::Crease::RULE_DART) {
-            selectVertex = true;
-        } else {
-            Vtr::IndexArray const vertFaces = level.getVertexFaces(vert);
-            Vtr::IndexArray const vertEdges = level.getVertexEdges(vert);
-
-            //  Should be non-manifold test -- remaining cases assume manifold...
-            if (vertFaces.size() == vertEdges.size()) {
-                selectVertex = (vertFaces.size() != 4);
-            } else {
-                selectVertex = (vertFaces.size() != 2);
-            }
-        }
-        if (selectVertex) {
-            selector.selectVertexFaces(vert);
-        }
-    }
-
-    //
-    //  For edges, we only care about sharp edges, so we can immediately skip all smooth.
-    //
-    //  That leaves us dealing with sharp edges that may in the interior or on a boundary.
-    //  A boundary edge is always a (regular) B-spline boundary, unless something at an end
-    //  vertex makes it otherwise.  But any end vertex that would make the edge irregular
-    //  should already have been detected above.  So I'm pretty sure we can just skip all
-    //  boundary edges.
-    //
-    //  So reject boundaries, but in a way that includes non-manifold edges for selection.
-    //
-    //  If the edge is infinitely sharp, perform further inspection (of neighboring faces)
-    //  to see if the incident faces are regular -- if not, select the face, not the end
-    //  vertices.
-    //
-    //  And as for vertices, skip incomplete neighboring vertices from the previous level.
-    //
-    for (Vtr::Index edge = 0; edge < level.getNumEdges(); ++edge) {
-        float               edgeSharpness = level.getEdgeSharpness(edge);
-        Vtr::IndexArray const edgeFaces     = level.getEdgeFaces(edge);
-
-        if ((edgeSharpness <= 0.0) || (edgeFaces.size() < 2)) continue;
-
-        if (edgeSharpness < Sdc::Crease::SHARPNESS_INFINITE) {
-            //
-            //  Semi-sharp -- definitely mark both end vertices (will have been marked above
-            //  in future when semi-sharp vertex tag in place):
-            //
-            Vtr::IndexArray const edgeVerts = level.getEdgeVertices(edge);
-            if (!selector.isVertexIncomplete(edgeVerts[0])) {
-                selector.selectVertexFaces(edgeVerts[0]);
-            }
-            if (!selector.isVertexIncomplete(edgeVerts[1])) {
-                selector.selectVertexFaces(edgeVerts[1]);
-            }
-        } else {
-            //
-            //  If infinitely sharp, skip this edge if all incident faces are otherwise regular
-            //  (if they are not, the vertex selection above will have marked them)
-            //
-            bool edgeFacesAreRegular = true;
-
-            for (int i = 0; i < edgeFaces.size(); ++i) {
-                Vtr::IndexArray const faceEdges = level.getFaceEdges(edgeFaces[i]);
-
-                bool edgeFaceIsRegular = false;
-                if (faceEdges.size() == 4) {
-                    int singularEdgeSum = (level.getEdgeSharpness(faceEdges[0]) >= Sdc::Crease::SHARPNESS_INFINITE) +
-                                          (level.getEdgeSharpness(faceEdges[1]) >= Sdc::Crease::SHARPNESS_INFINITE) +
-                                          (level.getEdgeSharpness(faceEdges[2]) >= Sdc::Crease::SHARPNESS_INFINITE) +
-                                          (level.getEdgeSharpness(faceEdges[3]) >= Sdc::Crease::SHARPNESS_INFINITE);
-                    edgeFaceIsRegular = (singularEdgeSum == 1);
-                } else {
-                    edgeFaceIsRegular = false;
-                }
-                if (!edgeFaceIsRegular) {
-                    selector.selectFace(edgeFaces[i]);
-                }
-            }
-
-            if (!edgeFacesAreRegular) {
-                //  We need to select this edge, but only select the end vertices that are not
-                //  creases -- a crease vertex that needs isolation will be identified by other
-                //  means (e.g. a semi-sharp edge on the other side)
-                Vtr::IndexArray const edgeVerts = level.getEdgeVertices(edge);
-                for (int i = 0; i < 2; ++i) {
-                    if (!selector.isVertexIncomplete(edgeVerts[i]) &&
-                        (level.getVertexRule(edgeVerts[i]) != Sdc::Crease::RULE_CREASE)) {
-                        selector.selectVertexFaces(edgeVerts[i]);
-                    }
-                }
-            }
-        }
-    }
-}
-
-void
-TopologyRefiner::catmarkFeatureAdaptiveSelectorByFace(Vtr::SparseSelector& selector) {
-
-    Vtr::Level const& level = selector.getRefinement().parent();
+    int  regularFaceSize           =  selector.getRefinement()._regFaceSize;
+    bool considerSingleCreasePatch = _useSingleCreasePatch && (regularFaceSize == 4);
 
     for (Vtr::Index face = 0; face < level.getNumFaces(); ++face) {
-        Vtr::IndexArray const faceVerts = level.getFaceVertices(face);
+
+        if (level.isHole(face)) {
+            continue;
+        }
+
+        Vtr::ConstIndexArray faceVerts = level.getFaceVertices(face);
+
+        //
+        //  Testing irregular faces is only necessary at level 0, and potentially warrants
+        //  separating out as the caller can detect these:
+        //
+        if (faceVerts.size() != regularFaceSize) {
+            //
+            //  We need to also ensure that all adjacent faces to this are selected, so we
+            //  select every face incident every vertex of the face.  This is the only place
+            //  where other faces are selected as a side effect and somewhat undermines the
+            //  whole intent of the per-face traversal.
+            //
+            Vtr::ConstIndexArray fVerts = level.getFaceVertices(face);
+            for (int i = 0; i < fVerts.size(); ++i) {
+                ConstIndexArray fVertFaces = level.getVertexFaces(fVerts[i]);
+                for (int j = 0; j < fVertFaces.size(); ++j) {
+                    selector.selectFace(fVertFaces[j]);
+                }
+            }
+            continue;
+        }
+
+        //
+        //  Combine the tags for all vertices of the face and quickly accept/reject based on
+        //  the presence/absence of properties where we can (further inspection is likely to
+        //  be necessary in some cases, particularly when we start trying to be clever about
+        //  minimizing refinement for inf-sharp creases, etc.):
+        //
+        Vtr::Level::VTag compFaceVTag = level.getFaceCompositeVTag(faceVerts);
+        if (compFaceVTag._incomplete) {
+            continue;
+        }
 
         bool selectFace = false;
-        if (faceVerts.size() != 4) {
-            //  Only necessary at level 0, and potentially warrants separating
-            //  to a separate method -- we need to also ensure that all adjacent
-            //  faces to this one are also selected (so don't bother selecting
-            //  this one here).
-            //
-            //  This is the only place other faces are selected as a side effect.
-            //  In general we don't need to test if faces were already selected,
-            //  but this case may ultimiately force us to do so, or pay the price
-            //  of such faces being selected twice in level 0.
-            //
-            Vtr::IndexArray const fVerts = level.getFaceVertices(face);
-            for (int i = 0; i < fVerts.size(); ++i) {
-                selector.selectVertexFaces(fVerts[i]);
+        if (compFaceVTag._xordinary) {
+            selectFace = true;
+        } else if (compFaceVTag._rule & Sdc::Crease::RULE_DART) {
+            //  Get this case out of the way before testing hard features
+            selectFace = true;
+        } else if (compFaceVTag._nonManifold) {
+            //  Warrants further inspection -- isolate for now
+            //    - will want to defer inf-sharp treatment to below
+            selectFace = true;
+        } else if (!(compFaceVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
+            //  None of the vertices is Smooth, so we have all vertices either Crease or Corner,
+            //  though some may be regular patches, this currently warrants isolation as we only
+            //  support regular patches with one corner or one boundary.
+            selectFace = true;
+        } else if (compFaceVTag._semiSharp) {
+            // if this is regular and the adjacent edges have same sharpness
+            // and no vertex corner sharpness,
+            // we can stop refinning and use single-crease patch.
+            if (considerSingleCreasePatch) {
+                selectFace = not level.isSingleCreasePatch(face);
+            } else {
+                selectFace = true;
             }
         } else {
-            Vtr::Level::VTag compFaceTag = level.getFaceCompositeVTag(faceVerts);
+            //  This leaves us with at least one Smooth vertex (and so two smooth adjacent edges
+            //  of the quad) and the rest hard Creases or Corners.  This includes the regular
+            //  corner and boundary cases that we don't want to isolate, but leaves a few others
+            //  that do warrant isolation -- needing further inspection.
+            //
+            //  For now go with the boundary cases and don't isolate...
+            //selectFace = false;
+        }
 
-            if (compFaceTag._xordinary || compFaceTag._semiSharp) {
-                selectFace = true;
-            } else if (compFaceTag._rule & Sdc::Crease::RULE_DART) {
-                //  Get this case out of the way before testing hard features
-                selectFace = true;
-            } else if (compFaceTag._nonManifold) {
-                //  Warrants further inspection -- isolate for now
-                //    - will want to defer inf-sharp treatment to below
-                selectFace = true;
-            } else if (!(compFaceTag._rule & Sdc::Crease::RULE_SMOOTH)) {
-                //  None of the vertices is Smooth, so we have all vertices
-                //  either Crease or Corner -- though some may be regular
-                //  patches, this currently warrants isolation as we only
-                //  support regular patches with one corner or one boundary.
-                selectFace = true;
-            } else {
-                //  This leaves us with at least one Smooth vertex (and so two
-                //  smooth adjacent edges of the quad) and the rest hard Creases
-                //  or Corners.  This includes the regular corner and boundary
-                //  cases that we don't want to isolate, but leaves a few others
-                //  that do warrant isolation -- needing further inspection.
-                //
-                //  For now go with the boundary cases and don't isolate...
-                selectFace = false;
+        if (not selectFace) {
+            // Infinitely sharp edges do not influence vertex flags, but they need to
+            // isolated unless they can be treated as 'single-crease' cases.
+            // XXXX manuelk this will probably have to be revisited once infinitely
+            //              sharp creases are handled correctly.
+            Vtr::ConstIndexArray faceEdges = level.getFaceEdges(face);
+            Vtr::Level::ETag compFaceETag = level.getFaceCompositeETag(faceEdges);
+            if (compFaceETag._infSharp and not compFaceETag._boundary) {
+                // XXXX manuelk we are testing an 'and' aggregate of flags for all
+                // edges : this should be safe, because if the sharp edge is not
+                // the edge on the boundary, this face would have been selected
+                // with one of the previous tests
+                selectFace = considerSingleCreasePatch ?
+                    not level.isSingleCreasePatch(face) : true;
             }
         }
+
         if (selectFace) {
             selector.selectFace(face);
         }
     }
 }
-
-#ifdef _VTR_COMPUTE_MASK_WEIGHTS_ENABLED
-void
-TopologyRefiner::ComputeMaskWeights() {
-
-    assert(_subdivType == Sdc::TYPE_CATMARK);
-
-    for (int i = 0; i < _maxLevel; ++i) {
-        _refinements[i].computeMaskWeights();
-    }
-}
-#endif
 
 } // end namespace Far
 

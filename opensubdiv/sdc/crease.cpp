@@ -118,8 +118,10 @@ Crease::SubdivideEdgeSharpnessAtVertex(float         edgeSharpness,
     float sharpSum   = 0.0f;
     int   sharpCount = 0;
     for (int i = 0; i < incEdgeCountAtVertex; ++i) {
-        sharpCount += IsSharp(incEdgeSharpness[i]);
-        sharpSum   += incEdgeSharpness[i];
+        if (IsSemiSharp(incEdgeSharpness[i])) {
+            sharpCount ++;
+            sharpSum += incEdgeSharpness[i];
+        }
     }
     if (sharpCount > 1) {
         //  Chaikin rule is 3/4 original sharpness + 1/4 average of the others
@@ -155,8 +157,10 @@ Crease::SubdivideEdgeSharpnessesAroundVertex(int          edgeCount,
         float sharpSum   = 0.0f;
         int   sharpCount = 0;
         for (int i = 0; i < edgeCount; ++i) {
-            sharpCount += IsSharp(parentSharpness[i]);
-            sharpSum   += parentSharpness[i];
+            if (IsSemiSharp(parentSharpness[i])) {
+                sharpCount ++;
+                sharpSum += parentSharpness[i];
+            }
         }
 
         //

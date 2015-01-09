@@ -102,35 +102,41 @@ enum CreaseMethod {
     k_creaseMethod_chaikin = 1
 };
 
-static OpenSubdiv::Sdc::Options::VVarBoundaryInterpolation
-ConvertMayaVVarBoundary(short boundaryMethod) {
+static OpenSubdiv::Sdc::Options::VtxBoundaryInterpolation
+ConvertMayaVtxBoundary(short boundaryMethod) {
 
     typedef OpenSubdiv::Sdc::Options Sdc;
 
     switch (boundaryMethod) {
-        case k_BoundaryMethod_InterpolateBoundaryNone          : return Sdc::VVAR_BOUNDARY_NONE;
-        case k_BoundaryMethod_InterpolateBoundaryEdgeOnly      : return Sdc::VVAR_BOUNDARY_EDGE_ONLY;
-        case k_BoundaryMethod_InterpolateBoundaryEdgeAndCorner : return Sdc::VVAR_BOUNDARY_EDGE_AND_CORNER;
+        case k_BoundaryMethod_InterpolateBoundaryNone          : return Sdc::VTX_BOUNDARY_NONE;
+        case k_BoundaryMethod_InterpolateBoundaryEdgeOnly      : return Sdc::VTX_BOUNDARY_EDGE_ONLY;
+        case k_BoundaryMethod_InterpolateBoundaryEdgeAndCorner : return Sdc::VTX_BOUNDARY_EDGE_AND_CORNER;
         default: ;
     }
-    MGlobal::displayError("VVar InterpolateBoundaryMethod value out of range. Using \"none\"");
-    return Sdc::VVAR_BOUNDARY_NONE;
+    MGlobal::displayError("VTX InterpolateBoundaryMethod value out of range. Using \"none\"");
+    return Sdc::VTX_BOUNDARY_NONE;
 }
 
-static OpenSubdiv::Sdc::Options::FVarBoundaryInterpolation
-ConvertMayaFVarBoundary(short boundaryMethod) {
+// XXXX note: This function converts the options exposed in Maya's GUI which are
+//            based on prman legacy face-varying boundary interpolation rules.
+//            As a result, some OpenSubdiv 3.0 FVar interpolation rules are not
+//            exposed, and the some of the ones exposed fix incorrect behavior
+//            from legacy prman code, so the results are not 100% backward compatible.
+static OpenSubdiv::Sdc::Options::FVarLinearInterpolation
+ConvertMayaFVarBoundary(short boundaryMethod, bool propagateCorner) {
 
     typedef OpenSubdiv::Sdc::Options Sdc;
 
     switch (boundaryMethod) {
-        case k_BoundaryMethod_InterpolateBoundaryNone          : return Sdc::FVAR_BOUNDARY_BILINEAR;
-        case k_BoundaryMethod_InterpolateBoundaryEdgeOnly      : return Sdc::FVAR_BOUNDARY_EDGE_ONLY;
-        case k_BoundaryMethod_InterpolateBoundaryEdgeAndCorner : return Sdc::FVAR_BOUNDARY_EDGE_AND_CORNER;
-        case k_BoundaryMethod_InterpolateBoundaryAlwaysSharp   : return Sdc::FVAR_BOUNDARY_ALWAYS_SHARP;
+        case k_BoundaryMethod_InterpolateBoundaryNone          : return Sdc::FVAR_LINEAR_ALL;
+        case k_BoundaryMethod_InterpolateBoundaryEdgeOnly      : return Sdc::FVAR_LINEAR_NONE;
+        case k_BoundaryMethod_InterpolateBoundaryEdgeAndCorner : 
+            return propagateCorner ? Sdc::FVAR_LINEAR_CORNERS_PLUS2 : Sdc::FVAR_LINEAR_CORNERS_PLUS1;
+        case k_BoundaryMethod_InterpolateBoundaryAlwaysSharp   : return Sdc::FVAR_LINEAR_BOUNDARIES;
         default: ;
     }
-    MGlobal::displayError("FVar InterpolateBoundaryMethod value out of range. Using \"none\"");
-    return Sdc::FVAR_BOUNDARY_BILINEAR;
+    MGlobal::displayError("FVar InterpolateMethod value out of range. Using \"none\"");
+    return Sdc::FVAR_LINEAR_ALL;
 }
 
 // ====================================
@@ -303,7 +309,7 @@ getMayaFvarFieldParams(
 static OpenSubdiv::Far::TopologyRefiner *
 gatherTopology( MFnMesh const & inMeshFn,
                 MItMeshPolygon & inMeshItPolygon,
-                OpenSubdiv::Sdc::Type type,
+                OpenSubdiv::Sdc::SchemeType type,
                 OpenSubdiv::Sdc::Options options,
                 float * maxCreaseSharpness=0 ) {
 
@@ -336,8 +342,8 @@ gatherTopology( MFnMesh const & inMeshFn,
     int * vertsPerFace = new int[desc.numFaces],
         * vertIndices = new int[inMeshFn.numFaceVertices()];
 
-    desc.vertsPerFace = vertsPerFace;
-    desc.vertIndices = vertIndices;
+    desc.numVertsPerFace = vertsPerFace;
+    desc.vertIndicesPerFace = vertIndices;
 
     // Create Topology
 
@@ -378,10 +384,11 @@ gatherTopology( MFnMesh const & inMeshFn,
     float maxVertexCrease = getCreaseVertices( inMeshFn, desc );
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Descriptor>::Create(type, options, desc);
+        OpenSubdiv::Far::TopologyRefinerFactory<Descriptor>::Create(desc,
+            OpenSubdiv::Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 
-    delete [] desc.vertsPerFace;
-    delete [] desc.vertIndices;
+    delete [] desc.numVertsPerFace;
+    delete [] desc.vertIndicesPerFace;
 
     delete [] desc.creaseVertexIndexPairs;
     delete [] desc.creaseWeights;
@@ -516,7 +523,7 @@ convertToMayaMeshData(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
     MStatus status;
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     int maxlevel = refiner.GetMaxLevel(),
         nfaces = refiner.GetNumFaces(maxlevel);
@@ -609,7 +616,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             MObject inMeshObj        = data.inputValue(a_inputPolymesh).asMesh();
             short vertBoundaryMethod = data.inputValue(a_vertBoundaryMethod).asShort();
             short fvarBoundaryMethod = data.inputValue(a_fvarBoundaryMethod).asShort();
-//XXXX            bool  fvarPropCorners    = data.inputValue(a_fvarPropagateCorners).asBool();
+            bool  fvarPropCorners    = data.inputValue(a_fvarPropagateCorners).asBool();
             bool  smoothTriangles    = data.inputValue(a_smoothTriangles).asBool();
             short creaseMethodVal    = data.inputValue(a_creaseMethod).asShort();
 
@@ -621,18 +628,18 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             MCHECKERR(status, "ERROR getting inMeshItPolygon\n");
 
             // Convert attr values to OSD enums
-            OpenSubdiv::Sdc::Type type = OpenSubdiv::Sdc::TYPE_CATMARK;
+            OpenSubdiv::Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 
             //
             // Create Far topology
             //
             OpenSubdiv::Sdc::Options options;
-            options.SetVVarBoundaryInterpolation(ConvertMayaVVarBoundary(vertBoundaryMethod));
-            options.SetFVarBoundaryInterpolation(ConvertMayaFVarBoundary(fvarBoundaryMethod));
+            options.SetVtxBoundaryInterpolation(ConvertMayaVtxBoundary(vertBoundaryMethod));
+            options.SetFVarLinearInterpolation(ConvertMayaFVarBoundary(fvarBoundaryMethod, fvarPropCorners));
             options.SetCreasingMethod(creaseMethodVal ?
                  OpenSubdiv::Sdc::Options::CREASE_CHAIKIN : OpenSubdiv::Sdc::Options::CREASE_UNIFORM);
             options.SetTriangleSubdivision(smoothTriangles ?
-                 OpenSubdiv::Sdc::Options::TRI_SUB_NEW : OpenSubdiv::Sdc::Options::TRI_SUB_OLD);
+                 OpenSubdiv::Sdc::Options::TRI_SUB_SMOOTH : OpenSubdiv::Sdc::Options::TRI_SUB_CATMARK);
 
             float maxCreaseSharpness=0.0f;
             OpenSubdiv::Far::TopologyRefiner * refiner =
@@ -641,7 +648,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             assert(refiner);
 
             // Refine & Interpolate
-            refiner->RefineUniform(subdivisionLevel);
+            refiner->RefineUniform(OpenSubdiv::Far::TopologyRefiner::UniformOptions(subdivisionLevel));
 
             Vertex const * controlVerts =
                 reinterpret_cast<Vertex const *>(inMeshFn.getRawPoints(&status));

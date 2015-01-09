@@ -42,7 +42,7 @@
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
-#include <osd/error.h>
+#include <far/error.h>
 #include <osd/vertex.h>
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
@@ -148,7 +148,8 @@ enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
                    kHUD_CB_VIEW_LOD,
                    kHUD_CB_FRACTIONAL_SPACING,
                    kHUD_CB_PATCH_CULL,
-                   kHUD_CB_FREEZE };
+                   kHUD_CB_FREEZE,
+                   kHUD_CB_DISPLAY_PATCH_COUNTS };
 
 int g_currentShape = 0;
 
@@ -164,16 +165,18 @@ float g_animTime = 0;
 int   g_fullscreen = 0,
       g_freeze = 0,
       g_displayStyle = kWireShaded,
-      g_adaptive = 0,
+      g_adaptive = 1,
+      g_singleCreasePatch = 1,
       g_drawCageEdges = 1,
       g_drawCageVertices = 0,
       g_mbutton[3] = {0, 0, 0},
       g_running = 1;
 
 int   g_displayPatchColor = 1,
-      g_screenSpaceTess = 0,
-      g_fractionalSpacing = 0,
-      g_patchCull = 0;
+      g_screenSpaceTess = 1,
+      g_fractionalSpacing = 1,
+      g_patchCull = 0,
+      g_displayPatchCounts = 0;
 
 float g_rotate[2] = {0, 0},
       g_dolly = 5,
@@ -336,10 +339,10 @@ updateGeom() {
 
         nverts = g_objAnim->GetShape()->GetNumVertices(),
 
-        vertex.reserve(nverts*stride);
+        vertex.resize(nverts*stride);
 
         if (g_displayStyle == kVaryingColor) {
-            varying.reserve(nverts*4);
+            varying.resize(nverts*4);
         }
 
         g_objAnim->InterpolatePositions(g_animTime, &vertex[0], stride);
@@ -475,7 +478,7 @@ getKernelName(int kernel) {
 static void
 createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=kCatmark) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     bool doAnim = g_objAnim and g_currentShape==0;
 
@@ -487,11 +490,12 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     }
 
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);
+    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
     int nedges = refiner->GetNumEdges(0),
@@ -523,10 +527,12 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 
     // Adaptive refinement currently supported only for catmull-clark scheme
     bool doAdaptive = (g_adaptive!=0 and g_scheme==kCatmark),
-         interleaveVarying = g_displayStyle == kInterleavedVaryingColor;
+         interleaveVarying = g_displayStyle == kInterleavedVaryingColor,
+         doSingleCreasePatch = (g_singleCreasePatch!=0 and g_scheme==kCatmark);
 
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
+    bits.set(OpenSubdiv::Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
     bits.set(OpenSubdiv::Osd::MeshInterleaveVarying, interleaveVarying);
     bits.set(OpenSubdiv::Osd::MeshFVarData, g_displayStyle == kFaceVaryingColor);
 
@@ -835,6 +841,8 @@ protected:
 EffectDrawRegistry::SourceConfigType *
 EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 {
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+
     Effect effect = desc.second;
 
     SourceConfigType * sconfig =
@@ -848,8 +856,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     const char *glslVersion = "#version 330\n";
 #endif
 
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS or
-        desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    if (desc.first.GetType() == Descriptor::QUADS or
+        desc.first.GetType() == Descriptor::TRIANGLES) {
         sconfig->vertexShader.source = shaderSource;
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
@@ -865,12 +873,12 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
     sconfig->fragmentShader.version = glslVersion;
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS) {
+    if (desc.first.GetType() == Descriptor::QUADS) {
         // uniform catmark, bilinear
         sconfig->geometryShader.AddDefine("PRIM_QUAD");
         sconfig->fragmentShader.AddDefine("PRIM_QUAD");
         sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    } else if (desc.first.GetType() == Descriptor::TRIANGLES) {
         // uniform loop
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
@@ -1110,7 +1118,8 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
+    SSAOGLFrameBuffer * fb = (SSAOGLFrameBuffer *)g_hud.GetFrameBuffer();
+    fb->Bind();
 
     Stopwatch s;
     s.Start();
@@ -1129,7 +1138,7 @@ display() {
     translate(g_transformData.ModelViewMatrix,
               -g_center[0], -g_center[1], -g_center[2]);
     perspective(g_transformData.ProjectionMatrix,
-                45.0f, (float)aspect, 1.0f, 500.0f);
+                45.0f, (float)aspect, fb->IsActive() ? 1.0f : 0.0001f, 500.0f);
     multMatrix(g_transformData.ModelViewProjectionMatrix,
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
@@ -1148,7 +1157,9 @@ display() {
         g_mesh->GetDrawContext()->GetPatchArrays();
 
     // patch drawing
-    int patchCount[11][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
+    int patchCount[12][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
+    int numTotalPatches = 0;
+    int numDrawCalls = 0;
     memset(patchCount, 0, sizeof(patchCount));
 
     // primitive counting
@@ -1161,7 +1172,7 @@ display() {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
         OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
-        OpenSubdiv::Far::PatchTables::Type patchType = desc.GetType();
+        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
         int patchPattern = desc.GetPattern();
         int patchRotation = desc.GetRotation();
         int subPatch = desc.GetSubPatch();
@@ -1169,14 +1180,15 @@ display() {
         if (subPatch == 0) {
             patchCount[patchType][patchPattern][patchRotation] += patch.GetNumPatches();
         }
+        numTotalPatches += patch.GetNumPatches();
 
         GLenum primType;
 
         switch(patchType) {
-        case OpenSubdiv::Far::PatchTables::QUADS:
+        case OpenSubdiv::Far::PatchDescriptor::QUADS:
             primType = GL_LINES_ADJACENCY;
             break;
-        case OpenSubdiv::Far::PatchTables::TRIANGLES:
+        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
             primType = GL_TRIANGLES;
             break;
         default:
@@ -1223,6 +1235,7 @@ display() {
 
         glDrawElements(primType, patch.GetNumIndices(), GL_UNSIGNED_INT,
                        (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
+        ++numDrawCalls;
         if (g_displayStyle == kWire) {
             glEnable(GL_CULL_FACE);
         }
@@ -1246,7 +1259,7 @@ display() {
     if (g_drawCageVertices)
         drawCageVertices();
 
-    g_hud.GetFrameBuffer()->ApplyImageShader();
+    fb->ApplyImageShader();
 
     GLuint numPrimsGenerated = 0;
     GLuint timeElapsed = 0;
@@ -1266,49 +1279,68 @@ display() {
 
     if (g_hud.IsVisible()) {
 
+        typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+
         double fps = 1.0/elapsed;
 
-        int x = -280;
-        g_hud.DrawString(x, -360, "NonPatch         : %d",
-                         patchCount[OpenSubdiv::Far::PatchTables::QUADS][0][0]);
-        g_hud.DrawString(x, -340, "Regular          : %d",
-                         patchCount[OpenSubdiv::Far::PatchTables::REGULAR][0][0]);
-        g_hud.DrawString(x, -320, "Boundary         : %d",
-                         patchCount[OpenSubdiv::Far::PatchTables::BOUNDARY][0][0]);
-        g_hud.DrawString(x, -300, "Corner           : %d",
-                         patchCount[OpenSubdiv::Far::PatchTables::CORNER][0][0]);
-        g_hud.DrawString(x, -280, "Gregory          : %d",
-                         patchCount[OpenSubdiv::Far::PatchTables::GREGORY][0][0]);
-        g_hud.DrawString(x, -260, "Boundary Gregory : %d",
-                         patchCount[OpenSubdiv::Far::PatchTables::GREGORY_BOUNDARY][0][0]);
-        g_hud.DrawString(x, -240, "Trans. Regular   : %d %d %d %d %d",
-                         patchCount[OpenSubdiv::Far::PatchTables::REGULAR][OpenSubdiv::Far::PatchTables::PATTERN0][0],
-                         patchCount[OpenSubdiv::Far::PatchTables::REGULAR][OpenSubdiv::Far::PatchTables::PATTERN1][0],
-                         patchCount[OpenSubdiv::Far::PatchTables::REGULAR][OpenSubdiv::Far::PatchTables::PATTERN2][0],
-                         patchCount[OpenSubdiv::Far::PatchTables::REGULAR][OpenSubdiv::Far::PatchTables::PATTERN3][0],
-                         patchCount[OpenSubdiv::Far::PatchTables::REGULAR][OpenSubdiv::Far::PatchTables::PATTERN4][0]);
-        for (int i=0; i < 5; i++)
-            g_hud.DrawString(x, -220+i*20, "Trans. Boundary%d : %d %d %d %d", i,
-                             patchCount[OpenSubdiv::Far::PatchTables::BOUNDARY][i+1][0],
-                             patchCount[OpenSubdiv::Far::PatchTables::BOUNDARY][i+1][1],
-                             patchCount[OpenSubdiv::Far::PatchTables::BOUNDARY][i+1][2],
-                             patchCount[OpenSubdiv::Far::PatchTables::BOUNDARY][i+1][3]);
-        for (int i=0; i < 5; i++)
-            g_hud.DrawString(x, -100+i*20, "Trans. Corner%d  : %d %d %d %d", i,
-                             patchCount[OpenSubdiv::Far::PatchTables::CORNER][i+1][0],
-                             patchCount[OpenSubdiv::Far::PatchTables::CORNER][i+1][1],
-                             patchCount[OpenSubdiv::Far::PatchTables::CORNER][i+1][2],
-                             patchCount[OpenSubdiv::Far::PatchTables::CORNER][i+1][3]);
+        if (g_displayPatchCounts) {
+            int x = -280;
+            int y = -480;
+            g_hud.DrawString(x, y, "NonPatch         : %d",
+                             patchCount[Descriptor::QUADS][0][0]); y += 20;
+            g_hud.DrawString(x, y, "Regular          : %d",
+                             patchCount[Descriptor::REGULAR][0][0]); y+= 20;
+            g_hud.DrawString(x, y, "Boundary         : %d",
+                             patchCount[Descriptor::BOUNDARY][0][0]); y+= 20;
+            g_hud.DrawString(x, y, "Corner           : %d",
+                             patchCount[Descriptor::CORNER][0][0]); y+= 20;
+            g_hud.DrawString(x, y, "Single Crease    : %d",
+                             patchCount[Descriptor::SINGLE_CREASE][0][0]); y+= 20;
+            g_hud.DrawString(x, y, "Gregory          : %d",
+                             patchCount[Descriptor::GREGORY][0][0]); y+= 20;
+            g_hud.DrawString(x, y, "Boundary Gregory : %d",
+                             patchCount[Descriptor::GREGORY_BOUNDARY][0][0]); y+= 20;
+            g_hud.DrawString(x, y, "Trans. Regular   : %d %d %d %d %d",
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN0][0],
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN1][0],
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN2][0],
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN3][0],
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN4][0]); y+= 20;
+            for (int i=0; i < 5; i++) {
+                g_hud.DrawString(x, y, "Trans. Boundary%d : %d %d %d %d", i,
+                                 patchCount[Descriptor::BOUNDARY][i+1][0],
+                                 patchCount[Descriptor::BOUNDARY][i+1][1],
+                                 patchCount[Descriptor::BOUNDARY][i+1][2],
+                                 patchCount[Descriptor::BOUNDARY][i+1][3]); y+= 20;
+            }
+            for (int i=0; i < 5; i++) {
+                g_hud.DrawString(x, y, "Trans. Corner%d  : %d %d %d %d", i,
+                                 patchCount[Descriptor::CORNER][i+1][0],
+                                 patchCount[Descriptor::CORNER][i+1][1],
+                                 patchCount[Descriptor::CORNER][i+1][2],
+                                 patchCount[Descriptor::CORNER][i+1][3]); y+= 20;
+            }
+            for (int i=0; i < 5; i++) {
+                g_hud.DrawString(x, y, "Trans. Single Crease%d : %d %d %d %d", i,
+                                 patchCount[Descriptor::SINGLE_CREASE][i+1][0],
+                                 patchCount[Descriptor::SINGLE_CREASE][i+1][1],
+                                 patchCount[Descriptor::SINGLE_CREASE][i+1][2],
+                                 patchCount[Descriptor::SINGLE_CREASE][i+1][3]); y+= 20;
+            }
+        }
 
-        g_hud.DrawString(10, -180, "Tess level : %d", g_tessLevel);
-        g_hud.DrawString(10, -160, "Primitives : %d", numPrimsGenerated);
-        g_hud.DrawString(10, -140, "Vertices   : %d", g_mesh->GetNumVertices());
-        g_hud.DrawString(10, -120, "Scheme     : %s", g_scheme==kBilinear ? "BILINEAR" : (g_scheme == kLoop ? "LOOP" : "CATMARK"));
-        g_hud.DrawString(10, -100, "GPU Kernel : %.3f ms", g_gpuTime);
-        g_hud.DrawString(10, -80,  "CPU Kernel : %.3f ms", g_cpuTime);
-        g_hud.DrawString(10, -60,  "GPU Draw   : %.3f ms", drawGpuTime);
-        g_hud.DrawString(10, -40,  "CPU Draw   : %.3f ms", drawCpuTime);
-        g_hud.DrawString(10, -20,  "FPS        : %3.1f", fps);
+        int y = -220;
+        g_hud.DrawString(10, y, "Tess level : %d", g_tessLevel); y+= 20;
+        g_hud.DrawString(10, y, "Patches    : %d", numTotalPatches); y+= 20;
+        g_hud.DrawString(10, y, "Draw calls : %d", numDrawCalls); y+= 20;
+        g_hud.DrawString(10, y, "Primitives : %d", numPrimsGenerated); y+= 20;
+        g_hud.DrawString(10, y, "Vertices   : %d", g_mesh->GetNumVertices()); y+= 20;
+        g_hud.DrawString(10, y, "Scheme     : %s", g_scheme==kBilinear ? "BILINEAR" : (g_scheme == kLoop ? "LOOP" : "CATMARK")); y+= 20;
+        g_hud.DrawString(10, y, "GPU Kernel : %.3f ms", g_gpuTime); y+= 20;
+        g_hud.DrawString(10, y,  "CPU Kernel : %.3f ms", g_cpuTime); y+= 20;
+        g_hud.DrawString(10, y,  "GPU Draw   : %.3f ms", drawGpuTime); y+= 20;
+        g_hud.DrawString(10, y,  "CPU Draw   : %.3f ms", drawCpuTime); y+= 20;
+        g_hud.DrawString(10, y,  "FPS        : %3.1f", fps); y+= 20;
 
         g_hud.Flush();
     }
@@ -1448,14 +1480,12 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 
 //------------------------------------------------------------------------------
 static void
-rebuildOsdMesh()
-{
+rebuildOsdMesh() {
     createOsdMesh( g_defaultShapes[ g_currentShape ], g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
 }
 
 static void
-callbackDisplayStyle(int b)
-{
+callbackDisplayStyle(int b) {
     if (g_displayStyle == kVaryingColor or b == kVaryingColor or
         g_displayStyle == kInterleavedVaryingColor or b == kInterleavedVaryingColor or
         g_displayStyle == kFaceVaryingColor or b == kFaceVaryingColor) {
@@ -1468,8 +1498,7 @@ callbackDisplayStyle(int b)
 }
 
 static void
-callbackKernel(int k)
-{
+callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
@@ -1491,15 +1520,13 @@ callbackKernel(int k)
 }
 
 static void
-callbackLevel(int l)
-{
+callbackLevel(int l) {
     g_level = l;
     rebuildOsdMesh();
 }
 
 static void
-callbackModel(int m)
-{
+callbackModel(int m) {
     if (m < 0)
         m = 0;
 
@@ -1511,8 +1538,7 @@ callbackModel(int m)
 }
 
 static void
-callbackAdaptive(bool checked, int /* a */)
-{
+callbackAdaptive(bool checked, int /* a */) {
     if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
         g_adaptive = checked;
         rebuildOsdMesh();
@@ -1520,8 +1546,15 @@ callbackAdaptive(bool checked, int /* a */)
 }
 
 static void
-callbackCheckBox(bool checked, int button)
-{
+callbackSingleCreasePatch(bool checked, int /* a */) {
+    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
+        g_singleCreasePatch = checked;
+        rebuildOsdMesh();
+    }
+}
+
+static void
+callbackCheckBox(bool checked, int button) {
     switch (button) {
     case kHUD_CB_DISPLAY_CAGE_EDGES:
         g_drawCageEdges = checked;
@@ -1547,12 +1580,14 @@ callbackCheckBox(bool checked, int button)
     case kHUD_CB_FREEZE:
         g_freeze = checked;
         break;
+    case kHUD_CB_DISPLAY_PATCH_COUNTS:
+        g_displayPatchCounts = checked;
+        break;
     }
 }
 
 static void
-initHUD()
-{
+initHUD() {
     int windowWidth = g_width, windowHeight = g_height;
     int frameBufferWidth = g_width, frameBufferHeight = g_height;
 
@@ -1614,8 +1649,10 @@ initHUD()
         g_hud.AddPullDownButton(compute_pulldown, "GLSL Compute", kGLSLCompute);
     }
 #endif
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation())
+    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0, 10, 190, callbackAdaptive, 0, '`');
+        g_hud.AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0, 10, 210, callbackSingleCreasePatch, 0, 's');
+    }
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
@@ -1627,12 +1664,15 @@ initHUD()
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
         g_hud.AddPullDownButton(shapes_pulldown, g_defaultShapes[i].name.c_str(),i);
     }
+
+    g_hud.AddCheckBox("Show patch counts", g_displayPatchCounts!=0, -280, -20, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COUNTS);
+
+    g_hud.Rebuild(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 }
 
 //------------------------------------------------------------------------------
 static void
-initGL()
-{
+initGL() {
     glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -1663,16 +1703,19 @@ idle() {
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::Osd::ErrorType err, const char *message)
-{
-    printf("OsdError: %d\n", err);
+callbackErrorOsd(OpenSubdiv::Far::ErrorType err, const char *message) {
+    printf("Error: %d\n", err);
     printf("%s", message);
 }
 
 //------------------------------------------------------------------------------
 static void
-setGLCoreProfile()
-{
+callbackErrorGLFW(int error, const char* description) {
+    fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
+}
+//------------------------------------------------------------------------------
+static void
+setGLCoreProfile() {
     #define glfwOpenWindowHint glfwWindowHint
     #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
@@ -1694,8 +1737,8 @@ setGLCoreProfile()
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char ** argv)
-{
+int main(int argc, char ** argv) {
+
     bool fullscreen = false;
     std::string str;
     std::vector<char const *> animobjs;
@@ -1734,8 +1777,9 @@ int main(int argc, char ** argv)
 
     g_fpsTimer.Start();
 
-    OpenSubdiv::Osd::SetErrorCallback(callbackError);
+    OpenSubdiv::Far::SetErrorCallback(callbackErrorOsd);
 
+    glfwSetErrorCallback(callbackErrorGLFW);
     if (not glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;

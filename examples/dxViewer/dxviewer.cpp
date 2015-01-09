@@ -25,10 +25,10 @@
 #include <D3D11.h>
 #include <D3Dcompiler.h>
 
-#include <osd/error.h>
 #include <osd/vertex.h>
 #include <osd/d3d11DrawContext.h>
 #include <osd/d3d11DrawRegistry.h>
+#include <far/error.h>
 
 #include <osd/cpuD3D11VertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -273,16 +273,17 @@ getKernelName(int kernel) {
 static void
 createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=kCatmark) {
 
-    typedef OpenSubdiv::Far::IndexArray IndexArray;
+    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::Type       sdctype = GetSdcType(*shape);
+    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(sdctype, sdcoptions, *shape);
+        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
     int nedges = refiner->GetNumEdges(0),
@@ -380,7 +381,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         if (not g_cudaComputeController) {
             g_cudaComputeController = new OpenSubdiv::Osd::CudaComputeController();
         }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::OsdCudaD3D11VertexBuffer,
+        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaD3D11VertexBuffer,
                                          OpenSubdiv::Osd::CudaComputeController,
                                          OpenSubdiv::Osd::D3D11DrawContext>(
                                                 g_cudaComputeController,
@@ -489,12 +490,12 @@ EffectDrawRegistry::_CreateDrawSourceConfig(
     sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
 
     bool smoothNormals = false;
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::QUADS ||
-        desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS ||
+        desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::TRIANGLES) {
         sconfig->vertexShader.source = shaderSource;
         sconfig->vertexShader.target = "vs_5_0";
         sconfig->vertexShader.entry = "vs_main";
-    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchTables::TRIANGLES) {
+    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::TRIANGLES) {
         if (effect.displayStyle == kQuadWire) effect.displayStyle = kTriWire;
         if (effect.displayStyle == kQuadFill) effect.displayStyle = kTriFill;
         if (effect.displayStyle == kQuadLine) effect.displayStyle = kTriLine;
@@ -1347,10 +1348,10 @@ updateRenderTarget(HWND hWnd) {
 
 //------------------------------------------------------------------------------
 static void
-callbackError(OpenSubdiv::Osd::ErrorType err, const char *message) {
+callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
 
     std::ostringstream s;
-    s << "OsdError: " << err << "\n";
+    s << "Error: " << err << "\n";
     s << message;
     OutputDebugString(s.str().c_str());
 }
@@ -1476,7 +1477,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
 
     initShapes();
 
-    OpenSubdiv::Osd::SetErrorCallback(callbackError);
+    OpenSubdiv::Far::SetErrorCallback(callbackError);
 
     initD3D11(hWnd);
 

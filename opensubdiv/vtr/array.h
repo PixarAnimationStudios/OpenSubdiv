@@ -26,6 +26,8 @@
 
 #include "../version.h"
 
+#include <cassert>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -48,7 +50,7 @@ namespace Vtr {
 //  own memory and is simply an interface to memory stored elsewhere.
 //
 template <typename TYPE>
-class Array {
+class ConstArray {
 
 public:
     typedef TYPE value_type;
@@ -61,12 +63,11 @@ public:
     typedef TYPE* iterator;
 
 public:
-    Array() : _begin(0), _size(0) { }
-    Array(const Array<value_type>& array) : _begin(array._begin),
-                                                  _size(array._size) { }
-    Array(const value_type* ptr, size_type size) : _begin(const_cast<value_type*>(ptr)),
-                                                      _size(size) { }
-    ~Array() { }
+
+    ConstArray() : _begin(0), _size(0) { }
+
+    ConstArray(value_type const * ptr, size_type size) :
+        _begin(ptr), _size(size) { }
 
     size_type size() const { return _size; }
 
@@ -74,13 +75,66 @@ public:
     const_iterator  begin() const               { return _begin; }
     const_iterator  end() const                 { return _begin + _size; }
 
-    reference operator[](int index) { return _begin[index]; }
-    iterator  begin()               { return _begin; }
-    iterator  end()                 { return _begin + _size; }
+    size_type FindIndexIn4Tuple(value_type value) const {
+        assert(_size>=4);
+        if (value == _begin[0]) return 0;
+        if (value == _begin[1]) return 1;
+        if (value == _begin[2]) return 2;
+        if (value == _begin[3]) return 3;
+        assert("FindIndexIn4Tuple() did not find expected value!" == 0);
+        return -1;
+    }
+
+    size_type FindIndex(value_type value) const {
+        for (size_type i=0; i<size(); ++i) {
+            if (value==_begin[i]) {
+                return i;
+            }
+        }
+        return -1;
+    }
 
 protected:
-    value_type* _begin;
-    size_type   _size;
+    value_type const * _begin;
+    size_type _size;
+};
+
+template <typename TYPE>
+class Array : public ConstArray<TYPE> {
+
+public:
+    typedef TYPE value_type;
+    typedef int  size_type;
+
+    typedef TYPE const& const_reference;
+
+    typedef TYPE& reference;
+    typedef TYPE* iterator;
+
+public:
+
+    Array() : ConstArray<TYPE>() { }
+    
+    Array(value_type * ptr, size_type size) : ConstArray<TYPE>(ptr, size) { }
+
+public:
+
+    const_reference operator[](int index) const {
+        return ConstArray<TYPE>::_begin[index];
+    }
+
+    reference operator[](int index) {
+        return const_cast<reference>(ConstArray<TYPE>::_begin[index]);
+    }
+
+    iterator begin() {
+        return const_cast<iterator>(ConstArray<TYPE>::_begin);
+    }
+
+    iterator end() {
+        return const_cast<iterator>(ConstArray<TYPE>::_begin +
+            ConstArray<TYPE>::_size);
+    }
 };
 
 } // end namespace Vtr

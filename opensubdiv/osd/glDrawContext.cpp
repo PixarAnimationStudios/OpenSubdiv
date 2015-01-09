@@ -119,7 +119,7 @@ GLDrawContext::create(Far::PatchTables const & patchTables, int numVertexElement
     _isAdaptive = patchTables.IsFeatureAdaptive();
 
     // Process PTable
-    Far::PatchTables::PTable const & ptables = patchTables.GetPatchTable();
+    Far::PatchTables::PatchVertsTable const & ptables = patchTables.GetPatchControlVerticesTable();
 
     glGenBuffers(1, &_patchIndexBuffer);
 
@@ -137,8 +137,8 @@ GLDrawContext::create(Far::PatchTables const & patchTables, int numVertexElement
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 
-    DrawContext::ConvertPatchArrays(patchTables.GetPatchArrayVector(),
-        _patchArrays, patchTables.GetMaxValence(), numVertexElements);
+    DrawContext::ConvertPatchArrays(patchTables, _patchArrays,
+        patchTables.GetMaxValence(), numVertexElements);
 
     // allocate and initialize additional buffer data
 
@@ -156,19 +156,38 @@ GLDrawContext::create(Far::PatchTables const & patchTables, int numVertexElement
 
 
     // create quad offset table buffer
-    Far::PatchTables::QuadOffsetTable const &
-        quadOffsetTable = patchTables.GetQuadOffsetTable();
+    Far::PatchTables::QuadOffsetsTable const &
+        quadOffsetTable = patchTables.GetQuadOffsetsTable();
 
     if (not quadOffsetTable.empty())
         _quadOffsetsTextureBuffer = createTextureBuffer(quadOffsetTable, GL_R32I);
 
 
     // create ptex coordinate buffer
-    Far::PatchTables::PatchParamTable const &
+    Far::PatchParamTable const &
         patchParamTables = patchTables.GetPatchParamTable();
 
-    if (not patchParamTables.empty())
-        _patchParamTextureBuffer = createTextureBuffer(patchParamTables, GL_RG32I);
+    if (not patchParamTables.empty()) {
+        std::vector<int> const &sharpnessIndexTable = patchTables.GetSharpnessIndexTable();
+        if (sharpnessIndexTable.empty()) {
+            _patchParamTextureBuffer = createTextureBuffer(patchParamTables, GL_RG32I);
+        } else {
+            // if indexed sharpnesses exists, flatten them and interleave into 3-component buffer
+            std::vector<float> const &sharpnessValues = patchTables.GetSharpnessValues();
+            size_t nPatches = patchParamTables.size();
+            // PatchParam = sizeof(int)*2, 1 float for sharpness
+            std::vector<unsigned int> buffer(nPatches * 3);
+
+            for (size_t i = 0; i < nPatches; ++i) {
+                float sharpness = sharpnessValues[sharpnessIndexTable[i]];
+                buffer[i*3+0] = patchParamTables[i].faceIndex;
+                buffer[i*3+1] = patchParamTables[i].bitField.field;
+                buffer[i*3+2] = *((unsigned int *)&sharpness);
+            }
+
+            _patchParamTextureBuffer = createTextureBuffer(buffer, GL_RGB32I);
+        }
+    }
 
     glBindBuffer(GL_TEXTURE_BUFFER, 0);
 #endif
@@ -176,6 +195,7 @@ GLDrawContext::create(Far::PatchTables const & patchTables, int numVertexElement
     return true;
 }
 
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
 bool
 GLDrawContext::SetFVarDataTexture(
     Far::PatchTables const & patchTables, int fvarWidth, FVarData const & fvarData) {
@@ -192,11 +212,19 @@ GLDrawContext::SetFVarDataTexture(
     }
     return false;
 }
+#else
+bool
+GLDrawContext::SetFVarDataTexture(
+    Far::PatchTables const &, int, FVarData const &) {
 
+    return false;
+}
+#endif
+
+#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
 void
 GLDrawContext::updateVertexTexture(GLuint vbo)
 {
-#if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
 
 #if defined(GL_EXT_direct_state_access)
     if (glTextureBufferEXT) {
@@ -209,9 +237,13 @@ GLDrawContext::updateVertexTexture(GLuint vbo)
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo);
         glBindTexture(GL_TEXTURE_BUFFER, 0);
     }
-
-#endif
 }
+#else
+void
+GLDrawContext::updateVertexTexture(GLuint)
+{
+}
+#endif
 
 
 }  // end namespace Osd

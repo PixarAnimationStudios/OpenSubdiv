@@ -34,12 +34,32 @@ namespace OPENSUBDIV_VERSION {
 namespace Sdc {
 
 //
-//  Current specializations:
+//  Specializations for Scheme<SCHEME_BILINEAR>:
+//
+
+//
+//  Bilinear traits:
+//
+template <>
+inline Split Scheme<SCHEME_BILINEAR>::GetTopologicalSplitType() { return SPLIT_TO_QUADS; }
+
+template <>
+inline int Scheme<SCHEME_BILINEAR>::GetRegularFaceSize() { return 4; }
+
+template <>
+inline int Scheme<SCHEME_BILINEAR>::GetRegularVertexValence() { return 4; }
+
+template <>
+inline int Scheme<SCHEME_BILINEAR>::GetLocalNeighborhoodSize() { return 0; }
+
+
+//
+//  Refinement masks:
 //
 template <>
 template <typename EDGE, typename MASK>
 void
-Scheme<TYPE_BILINEAR>::ComputeEdgeVertexMask(EDGE const& edge, MASK& mask,
+Scheme<SCHEME_BILINEAR>::ComputeEdgeVertexMask(EDGE const& edge, MASK& mask,
                                                 Crease::Rule, Crease::Rule) const {
     //  This should be inline, otherwise trivially replicate it:
     assignCreaseMaskForEdge(edge, mask);
@@ -48,7 +68,7 @@ Scheme<TYPE_BILINEAR>::ComputeEdgeVertexMask(EDGE const& edge, MASK& mask,
 template <>
 template <typename VERTEX, typename MASK>
 void
-Scheme<TYPE_BILINEAR>::ComputeVertexVertexMask(VERTEX const& vertex, MASK& mask,
+Scheme<SCHEME_BILINEAR>::ComputeVertexVertexMask(VERTEX const& vertex, MASK& mask,
                                                   Crease::Rule, Crease::Rule) const {
     //  This should be inline, otherwise trivially replicate it:
     assignCornerMaskForVertex(vertex, mask);
@@ -62,11 +82,12 @@ Scheme<TYPE_BILINEAR>::ComputeVertexVertexMask(VERTEX const& vertex, MASK& mask,
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_BILINEAR>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_BILINEAR>::assignInteriorLimitMask(VERTEX const& /* vertex */, MASK& posMask) const {
 
     posMask.SetNumVertexWeights(1);
     posMask.SetNumEdgeWeights(0);
     posMask.SetNumFaceWeights(0);
+    posMask.SetFaceWeightsForFaceCenters(false);
 
     posMask.VertexWeight(0) = 1.0f;
 }
@@ -74,7 +95,7 @@ Scheme<TYPE_BILINEAR>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMa
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_BILINEAR>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_BILINEAR>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) const {
 
     assignInteriorLimitMask(vertex, posMask);
 }
@@ -82,16 +103,18 @@ Scheme<TYPE_BILINEAR>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMa
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_BILINEAR>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
+Scheme<SCHEME_BILINEAR>::assignInteriorLimitTangentMasks(VERTEX const& /* vertex */,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     tan1Mask.SetNumVertexWeights(1);
     tan1Mask.SetNumEdgeWeights(0);
     tan1Mask.SetNumFaceWeights(0);
+    tan1Mask.SetFaceWeightsForFaceCenters(false);
 
     tan2Mask.SetNumVertexWeights(1);
     tan2Mask.SetNumEdgeWeights(0);
     tan2Mask.SetNumFaceWeights(0);
+    tan2Mask.SetFaceWeightsForFaceCenters(false);
 
     tan1Mask.VertexWeight(0) = 0.0f;
     tan2Mask.VertexWeight(0) = 0.0f;
@@ -100,7 +123,7 @@ Scheme<TYPE_BILINEAR>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_BILINEAR>::assignBoundaryLimitTangentMasks(VERTEX const& vertex,
+Scheme<SCHEME_BILINEAR>::assignBoundaryLimitTangentMasks(VERTEX const& vertex,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     assignInteriorLimitTangentMasks(vertex, tan1Mask, tan2Mask);

@@ -37,8 +37,24 @@ namespace OPENSUBDIV_VERSION {
 namespace Sdc {
 
 //
-//  Specializations for Scheme<TYPE_CATMARK>:
+//  Specializations for Scheme<SCHEME_CATMARK>:
 //
+
+//
+//  Catmark traits:
+//
+template <>
+inline Split Scheme<SCHEME_CATMARK>::GetTopologicalSplitType() { return SPLIT_TO_QUADS; }
+
+template <>
+inline int Scheme<SCHEME_CATMARK>::GetRegularFaceSize() { return 4; }
+
+template <>
+inline int Scheme<SCHEME_CATMARK>::GetRegularVertexValence() { return 4; }
+
+template <>
+inline int Scheme<SCHEME_CATMARK>::GetLocalNeighborhoodSize() { return 1; }
+
 
 //
 //  Masks for edge-vertices:  the hard Crease mask does not need to be specialized
@@ -52,7 +68,7 @@ namespace Sdc {
 template <>
 template <typename EDGE, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) const {
+Scheme<SCHEME_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -61,28 +77,34 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) cons
     mask.SetNumVertexWeights(2);
     mask.SetNumEdgeWeights(0);
     mask.SetNumFaceWeights(faceCount);
+    mask.SetFaceWeightsForFaceCenters(true);
 
     //
     //  Determine if we need to inspect incident faces and apply alternate weighting for
     //  triangles -- and if so, determine which of the two are triangles.
     //
-    //  (Is this really used?  Would be nice if we could deprecate this option...)
-    //
     bool face0IsTri = false;
     bool face1IsTri = false;
-    bool useTriangleOption = (_options.GetTriangleSubdivision() != Options::TRI_SUB_NORMAL);
+    bool useTriangleOption = (_options.GetTriangleSubdivision() == Options::TRI_SUB_SMOOTH);
     if (useTriangleOption) {
         if (faceCount == 2) {
             //
-            //  Need to inspect/gather valence of incident faces here...
+            //  Ideally we want to avoid this inspection when we have already subdivided at
+            //  least once -- need something in the Edge interface to help avoid this, e.g.
+            //  an IsRegular() query, the subdivision level...
             //
+            int vertsPerFace[2];
+            edge.GetNumVerticesPerFace(vertsPerFace);
+
+            face0IsTri = (vertsPerFace[0] == 3);
+            face1IsTri = (vertsPerFace[1] == 3);
             useTriangleOption = face0IsTri || face1IsTri;
         } else {
             useTriangleOption = false;
         }
     }
 
-    if (!useTriangleOption) {
+    if (not useTriangleOption) {
         mask.VertexWeight(0) = 0.25f;
         mask.VertexWeight(1) = 0.25f;
 
@@ -97,8 +119,7 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) cons
         }
     } else {
         //
-        //  This mimics the implementation in Hbr in terms of order of operations.  If
-        //  the triangle-subdivision option can be deprecated we can remove this block:
+        //  This mimics the implementation in Hbr in terms of order of operations.
         //
         const Weight CATMARK_SMOOTH_TRI_EDGE_WEIGHT = 0.470f;
 
@@ -124,7 +145,7 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) cons
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask, float const edgeSharpness[]) const {
+Scheme<SCHEME_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask, float const edgeSharpness[]) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -133,6 +154,7 @@ Scheme<TYPE_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask
     mask.SetNumVertexWeights(1);
     mask.SetNumEdgeWeights(valence);
     mask.SetNumFaceWeights(0);
+    mask.SetFaceWeightsForFaceCenters(false);
 
     Weight vWeight = 0.75f;
     Weight eWeight = 0.125f;
@@ -162,7 +184,7 @@ Scheme<TYPE_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask) const {
+Scheme<SCHEME_CATMARK>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -184,6 +206,7 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask
     mask.SetNumVertexWeights(1);
     mask.SetNumEdgeWeights(valence);
     mask.SetNumFaceWeights(valence);
+    mask.SetFaceWeightsForFaceCenters(true);
 
     Weight vWeight = (Weight)(valence - 2) / (Weight)valence;
     Weight fWeight = 1.0f / (Weight)(valence * valence);
@@ -202,7 +225,7 @@ Scheme<TYPE_CATMARK>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_CATMARK>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -211,6 +234,7 @@ Scheme<TYPE_CATMARK>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMas
     posMask.SetNumVertexWeights(1);
     posMask.SetNumEdgeWeights(valence);
     posMask.SetNumFaceWeights(0);
+    posMask.SetFaceWeightsForFaceCenters(false);
 
     Weight vWeight = 2.0f / 3.0f;
     Weight eWeight = 1.0f / 6.0f;
@@ -226,7 +250,7 @@ Scheme<TYPE_CATMARK>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMas
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -236,6 +260,7 @@ Scheme<TYPE_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMas
     posMask.SetNumVertexWeights(1);
     posMask.SetNumEdgeWeights(valence);
     posMask.SetNumFaceWeights(valence);
+    posMask.SetFaceWeightsForFaceCenters(false);
 
     //  Probably a good idea to test for and assign the regular case as a special case:
 
@@ -257,24 +282,26 @@ Scheme<TYPE_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMas
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignBoundaryLimitTangentMasks(VERTEX const& vertex,
+Scheme<SCHEME_CATMARK>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     tan1Mask.SetNumVertexWeights(1);
     tan1Mask.SetNumEdgeWeights(0);
     tan1Mask.SetNumFaceWeights(0);
+    tan1Mask.SetFaceWeightsForFaceCenters(false);
     tan1Mask.VertexWeight(0) = 0.0f;
 
     tan2Mask.SetNumVertexWeights(1);
     tan2Mask.SetNumEdgeWeights(0);
     tan2Mask.SetNumFaceWeights(0);
+    tan2Mask.SetFaceWeightsForFaceCenters(false);
     tan2Mask.VertexWeight(0) = 0.0f;
 }
 
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<TYPE_CATMARK>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
+Scheme<SCHEME_CATMARK>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     typedef typename MASK::Weight Weight;
@@ -286,10 +313,12 @@ Scheme<TYPE_CATMARK>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
     tan1Mask.SetNumVertexWeights(1);
     tan1Mask.SetNumEdgeWeights(valence);
     tan1Mask.SetNumFaceWeights(0);
+    tan1Mask.SetFaceWeightsForFaceCenters(false);
 
     tan2Mask.SetNumVertexWeights(1);
     tan2Mask.SetNumEdgeWeights(valence);
     tan2Mask.SetNumFaceWeights(0);
+    tan2Mask.SetFaceWeightsForFaceCenters(false);
 
     tan1Mask.VertexWeight(0) = 0.0f;
     tan2Mask.VertexWeight(0) = 0.0f;

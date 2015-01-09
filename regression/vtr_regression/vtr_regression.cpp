@@ -141,23 +141,23 @@ interpolateHbrVertexData(ShapeDesc const & desc, int maxlevel) {
 }
 
 //------------------------------------------------------------------------------
-typedef OpenSubdiv::Far::TopologyRefiner               FarTopoloyRefiner;
-typedef OpenSubdiv::Far::TopologyRefinerFactory<Shape> FarTopoloyRefinerFactory;
+typedef OpenSubdiv::Far::TopologyRefiner               FarTopologyRefiner;
+typedef OpenSubdiv::Far::TopologyRefinerFactory<Shape> FarTopologyRefinerFactory;
 
-static FarTopoloyRefiner *
+static FarTopologyRefiner *
 interpolateVtrVertexData(ShapeDesc const & desc, int maxlevel, std::vector<xyzVV> & data) {
 
     // Vtr interpolation
     Shape * shape = Shape::parseObj(desc.data.c_str(), desc.scheme);
 
-    FarTopoloyRefinerFactory refFactory;
-
-    FarTopoloyRefiner * refiner = refFactory.Create( GetSdcType(*shape),
-                                                   GetSdcOptions(*shape),
-                                                   *shape);
+    FarTopologyRefiner * refiner =
+        FarTopologyRefinerFactory::Create(*shape,
+            FarTopologyRefinerFactory::Options(GetSdcType(*shape), GetSdcOptions(*shape)));
     assert(refiner);
 
-    refiner->RefineUniform(maxlevel, true /*full topology*/ );
+    FarTopologyRefiner::UniformOptions options(maxlevel);
+    options.fullTopologyInLastLevel=true;
+    refiner->RefineUniform(options);
 
     // populate coarse mesh positions
     data.resize(refiner->GetNumVerticesTotal());
@@ -202,14 +202,14 @@ struct Mapper {
 
     std::vector<LevelMap> maps;
 
-    Mapper(FarTopoloyRefiner * refiner, Hmesh * hmesh) {
+    Mapper(FarTopologyRefiner * refiner, Hmesh * hmesh) {
 
         assert(refiner and hmesh);
 
         maps.resize(refiner->GetMaxLevel()+1);
 
-        typedef OpenSubdiv::Far::Index      Index;
-        typedef OpenSubdiv::Far::IndexArray IndexArray;
+        typedef OpenSubdiv::Far::Index Index;
+        typedef OpenSubdiv::Far::ConstIndexArray ConstIndexArray;
 
         {   // Populate base level
             // note : topological ordering is identical between Hbr and Vtr for the
@@ -229,7 +229,7 @@ struct Mapper {
 
             for (int edge = 0; edge <nedges; ++edge) {
 
-                IndexArray vtrVerts = refiner->GetEdgeVertices(0, edge);
+                ConstIndexArray vtrVerts = refiner->GetEdgeVertices(0, edge);
 
                 Hvertex const * v0 = hmesh->GetVertex(vtrVerts[0]),
                               * v1 = hmesh->GetVertex(vtrVerts[1]);
@@ -263,7 +263,7 @@ struct Mapper {
                 // populate child faces
                 Hface * f = previous.faces[face];
 
-                IndexArray childFaces = refiner->GetFaceChildFaces(level-1, face);
+                ConstIndexArray childFaces = refiner->GetFaceChildFaces(level-1, face);
                 assert(childFaces.size()==f->GetNumVertices());
 
                 for (int i=0; i<childFaces.size(); ++i) {
@@ -297,7 +297,7 @@ struct Mapper {
             // populate child edges
             for (int edge=0; edge < refiner->GetNumEdges(level); ++edge) {
 
-                IndexArray vtrVerts = refiner->GetEdgeVertices(level, edge);
+                ConstIndexArray vtrVerts = refiner->GetEdgeVertices(level, edge);
 
                 Hvertex const * v0 = current.verts[vtrVerts[0]],
                               * v1 = current.verts[vtrVerts[1]];
@@ -332,7 +332,7 @@ checkMesh(ShapeDesc const & desc, int maxlevel) {
     Hmesh *  hmesh =
         interpolateHbrVertexData(desc, maxlevel);
 
-    FarTopoloyRefiner * refiner =
+    FarTopologyRefiner * refiner =
         interpolateVtrVertexData(desc, maxlevel, vtrVertexData);
 
     {   // copy Hbr vertex data into a re-ordered buffer (for easier comparison)

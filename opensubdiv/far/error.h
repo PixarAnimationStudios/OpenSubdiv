@@ -22,49 +22,41 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_ERROR_H
-#define OSD_ERROR_H
+#ifndef FAR_ERROR_H
+#define FAR_ERROR_H
 
 #include "../version.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-namespace Osd {
+namespace Far {
 
 typedef enum {
-    OSD_NO_ERROR,
-    OSD_INTERNAL_CODING_ERROR,
-    OSD_CL_PROGRAM_BUILD_ERROR,
-    OSD_CL_KERNEL_CREATE_ERROR,
-    OSD_CL_RUNTIME_ERROR,
-    OSD_CUDA_GL_ERROR,
-    OSD_GL_ERROR,
-    OSD_GLSL_COMPILE_ERROR,
-    OSD_GLSL_LINK_ERROR,
-    OSD_D3D11_COMPILE_ERROR,
-    OSD_D3D11_COMPUTE_BUFFER_CREATE_ERROR,
-    OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
-    OSD_D3D11_BUFFER_MAP_ERROR
+    FAR_NO_ERROR,               ///< No error. Move along.
+    FAR_FATAL_ERROR,            ///< Issue a fatal error and end the program.
+    FAR_INTERNAL_CODING_ERROR,  ///< Issue an internal programming error, but continue execution.
+    FAR_CODING_ERROR,           ///< Issue a generic programming error, but continue execution.
+    FAR_RUNTIME_ERROR           ///< Issue a generic runtime error, but continue execution.
 } ErrorType;
-
-
 
 typedef void (*ErrorCallbackFunc)(ErrorType err, const char *message);
 
-/// Sets the error callback function (default is "printf")
+/// \brief Sets the error callback function (default is "printf")
+///
+/// \note This function is not thread-safe !
 ///
 /// @param func function pointer to the callback function
 ///
 void SetErrorCallback(ErrorCallbackFunc func);
 
-/// Sends an OSD error 
+/// \brief Sends an OSD error
 ///
 /// @param err the error type
 ///
 void Error(ErrorType err);
 
-/// Sends an OSD error with a message
+/// \brief Sends an OSD error with a message
 ///
 /// @param err     the error type
 ///
@@ -73,27 +65,29 @@ void Error(ErrorType err);
 void Error(ErrorType err, const char *format, ...);
 
 
-/// Sets the warning callback function (default is "printf")
+/// \brief Sets the warning callback function (default is "printf")
 typedef void (*WarningCallbackFunc)(const char *message);
 
-/// Sets the warning callback function (default is "printf")
+/// \brief Sets the warning callback function (default is "printf")
+///
+/// \note This function is not thread-safe !
 ///
 /// @param func function pointer to the callback function
 ///
 void SetWarningCallback(WarningCallbackFunc func);
 
-/// Sends an OSD warning message
+/// \brief Sends an OSD warning message
 ///
 /// @param format  the format of the message (followed by arguments)
 ///
 void Warning(const char *format, ...);
 
 
-} // end namespace 
+} // end namespace
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif // OSD_ERROR_H
+#endif // FAR_ERROR_H

@@ -1,0 +1,94 @@
+/*
+     Copyright 2013 Pixar
+
+     Licensed under the Apache License, Version 2.0 (the "Apache License")
+     with the following modification; you may not use this file except in
+     compliance with the Apache License and the following modification to it:
+     Section 6. Trademarks. is deleted and replaced with:
+
+     6. Trademarks. This License does not grant permission to use the trade
+        names, trademarks, service marks, or product names of the Licensor
+        and its affiliates, except as required to comply with Section 4(c) of
+        the License and to reproduce the content of the NOTICE file.
+
+     You may obtain a copy of the Apache License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the Apache License with the above modification is
+     distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     KIND, either express or implied. See the Apache License for the specific
+     language governing permissions and limitations under the Apache License.
+*/
+
+/* Code Highlighting Styles */
+.hll { background-color: #404040 }
+.error { color: #a61717; background-color: #e3d2d2 } /* Error */
+.generic { color: #d0d0d0 } /* Generic */
+.literal { color: #000000 } /* Literal */
+.name { color: #000000 } /* Name */
+.operator { color: #000000 } /* Operator */
+.other { color: #d0d0d0 } /* Other */
+.punctuation { color: #000000 } /* Punctuation */
+.comment { color: #666666; font-style: italic } /* Comment */
+.comment.multiline { color: #666666; font-style: italic } /* Comment.Multiline */
+.comment.preproc { color: #0000FF; } /* Comment.Preproc */
+.comment.single { color: #666666; font-style: italic } /* Comment.Single */
+.comment.special { color: #e50808; font-weight: bold; background-color: #520000 } /* Comment.Special */
+.gd { color: #d22323 } /* Generic.Deleted */
+.ge { color: #d0d0d0; font-style: italic } /* Generic.Emph */
+.gr { color: #d22323 } /* Generic.Error */
+.gh { color: #ffffff; font-weight: bold } /* Generic.Heading */
+.gi { color: #589819 } /* Generic.Inserted */
+.go { color: #cccccc } /* Generic.Output */
+.gp { color: #aaaaaa } /* Generic.Prompt */
+.gs { color: #d0d0d0; font-weight: bold } /* Generic.Strong */
+.gu { color: #ffffff; text-decoration: underline } /* Generic.Subheading */
+.gt { color: #d22323 } /* Generic.Traceback */
+.keyword              { color: #bb2828; font-weight: bold } /* Keyword */
+.keyword.declaration  { color: #6ab825; font-weight: bold } /* Keyword.Declaration */
+.keyword.namespace    { color: #6ab825; font-weight: bold } /* Keyword.Namespace */
+.keyword.type         { color: #bb2828; font-weight: bold } /* Keyword.Type */
+.kc { color: #6ab825; font-weight: bold } /* Keyword.Constant */
+.kp { color: #6ab825 } /* Keyword.Pseudo */
+.kr { color: #6ab825; font-weight: bold } /* Keyword.Reserved */
+.name.attribute { color: #bbbbbb } /* Name.Attribute */
+.name.builtin { color: #24909d } /* Name.Builtin */
+.name.class { color: #447fcf; font-weight: bold } /* Name.Class */
+.name.constant { color: #40ffff } /* Name.Constant */
+.name.decorator { color: #ffa500 } /* Name.Decorator */
+.name.entity { color: #d0d0d0 } /* Name.Entity */
+.name.exception { color: #bbbbbb } /* Name.Exception */
+.name-function { color: #447fcf } /* Name.Function */
+.name.label { color: #d0d0d0 } /* Name.Label */
+.name.namespace { color: #447fcf; } /* Name.Namespace */
+.name.other { color: #d0d0d0 } /* Name.Other */
+.name.property { color: #d0d0d0 } /* Name.Property */
+.name.tag { color: #6ab825; font-weight: bold } /* Name.Tag */
+.name-variable { color: #40ffff } /* Name.Variable */
+.operator.word { color: #6ab825; font-weight: bold } /* Operator.Word */
+.whitespace { color: #666666 } /* Text.Whitespace */
+.literal.date                { color: #3677a9 } /* Literal.Date */
+.literal.number              { color: #006400 } /* Literal.Number */
+.literal.number.float        { color: #006400 } /* Literal.Number.Float */
+.literal.number.hex          { color: #006400 } /* Literal.Number.Hex */
+.literal.number.integer      { color: #006400 } /* Literal.Number.Integer */
+.literal.number.integer.long { color: #006400 } /* Literal.Number.Integer.Long */
+.literal.number.oct          { color: #3677a9 } /* Literal.Number.Oct */
+.literal.number.backtick     { color: #ed9d13 } /* Literal.String.Backtick */
+.literal.number.char         { color: #006400 } /* Literal.String.Char */
+.literal.number.doc          { color: #ed9d13 } /* Literal.String.Doc */
+.literal.number.double       { color: #ed9d13 } /* Literal.String.Double */
+.literal.string              { color: #006400 } /* Literal.String */
+.literal.string.escape       { color: #2E8B57 } /* Literal.String.Escape */
+.sh { color: #ed9d13 } /* Literal.String.Heredoc */
+.si { color: #ed9d13 } /* Literal.String.Interpol */
+.sx { color: #ffa500 } /* Literal.String.Other */
+.sr { color: #ed9d13 } /* Literal.String.Regex */
+.s1 { color: #ed9d13 } /* Literal.String.Single */
+.ss { color: #ed9d13 } /* Literal.String.Symbol */
+.bp { color: #24909d } /* Name.Builtin.Pseudo */
+.name.variable.class { color: #40ffff } /* Name.Variable.Class */
+.name.variable.global { color: #40ffff } /* Name.Variable.Global */
+.name.variable.instance { color: #40ffff } /* Name.Variable.Instance */

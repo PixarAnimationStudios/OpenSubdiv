@@ -108,6 +108,10 @@ public:
     virtual void BuildUI(GLhud * hud, int x, int y);
 
     void SetActive(bool value);
+    
+    bool IsActive() const {
+        return _active;
+    }
 
     void SetRadius(float value);
 
