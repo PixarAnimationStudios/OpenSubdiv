@@ -43,13 +43,13 @@ uniform float ef[27] = float[](
 );
 #endif
 
-float csf(uint n, uint j)
-{
-    if (j%2 == 0) {
-        return cos((2.0f * M_PI * float(float(j-0)/2.0f))/(float(n)+3.0f));
-    } else {
-        return sin((2.0f * M_PI * float(float(j-1)/2.0f))/(float(n)+3.0f));
-    }
+
+float cosfn(uint n, uint j) {
+    return cos((2.0f * M_PI * j)/float(n));
+}
+
+float sinfn(uint n, uint j) {
+    return sin((2.0f * M_PI * j)/float(n));    
 }
 
 //----------------------------------------------------------
@@ -164,8 +164,8 @@ void main()
     for(uint i=0; i<valence; ++i) {
         uint im = (i + valence -1) % valence;
         e = 0.5f * (f[i] + f[im]);
-        outpt.v.e0 += csf(valence-3, 2*i) *e;
-        outpt.v.e1 += csf(valence-3, 2*i + 1)*e;
+        outpt.v.e0 += cosfn(valence, i)*e;
+        outpt.v.e1 += sinfn(valence, i)*e;
     }
     outpt.v.e0 *= ef[valence - 3];
     outpt.v.e1 *= ef[valence - 3];
@@ -310,7 +310,7 @@ void main()
         uint j = (np + prev_p - inpt[ip].v.zerothNeighbor) % np;
         Em_ip = inpt[ip].v.position + cos((M_PI*j)/float(np-1))*inpt[ip].v.e0 + sin((M_PI*j)/float(np-1))*inpt[ip].v.e1;
     } else {
-        Em_ip = inpt[ip].v.position + inpt[ip].v.e0*csf(np-3, 2*prev_p ) + inpt[ip].v.e1*csf(np-3, 2*prev_p + 1);
+        Em_ip = inpt[ip].v.position + inpt[ip].v.e0*cosfn(np, prev_p ) + inpt[ip].v.e1*sinfn(np, prev_p);
     }
 
     vec3 Ep_im;
@@ -318,7 +318,7 @@ void main()
         uint j = (nm + start_m - inpt[im].v.zerothNeighbor) % nm;
         Ep_im = inpt[im].v.position + cos((M_PI*j)/float(nm-1))*inpt[im].v.e0 + sin((M_PI*j)/float(nm-1))*inpt[im].v.e1;
     } else {
-        Ep_im = inpt[im].v.position + inpt[im].v.e0*csf(nm-3, 2*start_m) + inpt[im].v.e1*csf(nm-3, 2*start_m + 1);
+        Ep_im = inpt[im].v.position + inpt[im].v.e0*cosfn(nm, start_m) + inpt[im].v.e1*sinfn(nm, start_m);
     }
 
     if (inpt[i].v.valence < 0) {
@@ -332,15 +332,15 @@ void main()
     }
 
     if (inpt[i].v.valence > 2) {
-        Ep = inpt[i].v.position + inpt[i].v.e0*csf(n-3, 2*start) + inpt[i].v.e1*csf(n-3, 2*start + 1);
-        Em = inpt[i].v.position + inpt[i].v.e0*csf(n-3, 2*prev ) + inpt[i].v.e1*csf(n-3, 2*prev + 1); 
+        Ep = inpt[i].v.position + inpt[i].v.e0*cosfn(n, start) + inpt[i].v.e1*sinfn(n, start);
+        Em = inpt[i].v.position + inpt[i].v.e0*cosfn(n, prev ) + inpt[i].v.e1*sinfn(n, prev); 
 
-        float s1=3-2*csf(n-3,2)-csf(np-3,2);
-        float s2=2*csf(n-3,2);
+        float s1=3-2*cosfn(n,1)-cosfn(np,1);
+        float s2=2*cosfn(n,1);
 
-        Fp = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f; 
+        Fp = (cosfn(np,1)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f; 
         s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
-        Fm = (csf(nm-3,2)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
+        Fm = (cosfn(nm,1)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
 
     } else if (inpt[i].v.valence < -2) {
         uint j = (valence + start - inpt[i].v.zerothNeighbor) % valence;
@@ -352,19 +352,19 @@ void main()
         vec3 Rp = ((-2.0f * inpt[i].v.org - 1.0f * inpt[im].v.org) + (2.0f * inpt[ip].v.org + 1.0f * inpt[(i+2)%4].v.org))/3.0f;
         vec3 Rm = ((-2.0f * inpt[i].v.org - 1.0f * inpt[ip].v.org) + (2.0f * inpt[im].v.org + 1.0f * inpt[(i+2)%4].v.org))/3.0f;
 
-        float s1 = 3-2*csf(n-3,2)-csf(np-3,2);
-        float s2 = 2*csf(n-3,2);
+        float s1 = 3-2*cosfn(n,1)-cosfn(np,1);
+        float s2 = 2*cosfn(n,1);
 
-        Fp = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f; 
+        Fp = (cosfn(np,1)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f; 
         s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
-        Fm = (csf(nm-3,2)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
+        Fm = (cosfn(nm,1)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
 
         if (inpt[im].v.valence < 0) {
-            s1 = 3-2*csf(n-3,2)-csf(np-3,2);
-            Fp = Fm = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f;
+            s1 = 3-2*cosfn(n,1)-cosfn(np,1);
+            Fp = Fm = (cosfn(np,1)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f;
         } else if (inpt[ip].v.valence < 0) {
             s1 = 3.0f-2.0f*cos(2.0f*M_PI/n)-cos(2.0f*M_PI/nm);
-            Fm = Fp = (csf(nm-3,2)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
+            Fm = Fp = (cosfn(nm,1)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
         }
 
     } else if (inpt[i].v.valence == -2) {
@@ -375,18 +375,18 @@ void main()
 
 #else // not OSD_PATCH_GREGORY_BOUNDARY
 
-    vec3 Ep = inpt[i].v.position + inpt[i].v.e0 * csf(n-3, 2*start) + inpt[i].v.e1*csf(n-3, 2*start + 1);
-    vec3 Em = inpt[i].v.position + inpt[i].v.e0 * csf(n-3, 2*prev ) + inpt[i].v.e1*csf(n-3, 2*prev + 1);
+    vec3 Ep = inpt[i].v.position + inpt[i].v.e0 * cosfn(n, start) + inpt[i].v.e1*sinfn(n, start);
+    vec3 Em = inpt[i].v.position + inpt[i].v.e0 * cosfn(n, prev ) + inpt[i].v.e1*sinfn(n, prev);
 
-    vec3 Em_ip = inpt[ip].v.position + inpt[ip].v.e0 * csf(np-3, 2*prev_p ) + inpt[ip].v.e1*csf(np-3, 2*prev_p + 1);
-    vec3 Ep_im = inpt[im].v.position + inpt[im].v.e0 * csf(nm-3, 2*start_m) + inpt[im].v.e1*csf(nm-3, 2*start_m + 1);
+    vec3 Em_ip = inpt[ip].v.position + inpt[ip].v.e0 * cosfn(np, prev_p ) + inpt[ip].v.e1*sinfn(np, prev_p);
+    vec3 Ep_im = inpt[im].v.position + inpt[im].v.e0 * cosfn(nm, start_m) + inpt[im].v.e1*sinfn(nm, start_m);
 
-    float s1 = 3-2*csf(n-3,2)-csf(np-3,2);
-    float s2 = 2*csf(n-3,2);
+    float s1 = 3-2*cosfn(n,1)-cosfn(np,1);
+    float s2 = 2*cosfn(n,1);
 
-    vec3 Fp = (csf(np-3,2)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f;
+    vec3 Fp = (cosfn(np,1)*inpt[i].v.position + s1*Ep + s2*Em_ip + inpt[i].v.r[start])/3.0f;
     s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
-    vec3 Fm = (csf(nm-3,2)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
+    vec3 Fm = (cosfn(nm,1)*inpt[i].v.position + s1*Em + s2*Ep_im - inpt[i].v.r[prev])/3.0f;
 
 #endif
 
