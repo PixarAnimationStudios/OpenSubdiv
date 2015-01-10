@@ -179,7 +179,8 @@ GLDrawContext::create(Far::PatchTables const & patchTables, int numVertexElement
             std::vector<unsigned int> buffer(nPatches * 3);
 
             for (size_t i = 0; i < nPatches; ++i) {
-                float sharpness = sharpnessValues[sharpnessIndexTable[i]];
+                float sharpness = sharpnessIndexTable[i] >=0 ?
+                    sharpnessValues[sharpnessIndexTable[i]] : 0.0f;
                 buffer[i*3+0] = patchParamTables[i].faceIndex;
                 buffer[i*3+1] = patchParamTables[i].bitField.field;
                 buffer[i*3+2] = *((unsigned int *)&sharpness);
