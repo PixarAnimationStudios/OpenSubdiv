@@ -8,12 +8,6 @@ Feel free to use it and let us know what you think.
 
 For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://graphics.pixar.com).
 
-# 3.0 ALPHA Release
-
-The OpenSubdiv 3.0 release is still early in its development cycle. As such, all APIs, code examples and documentation are subject to change at any time, without notice or backward compatibility with existing code. Please consult the [release notes](http://graphics.pixar.com/opensubdiv/docs_3x_alpha/intro.html) for more details about the features and improvements contained in this new release.
-
-The 3.0 Beta release is tentatively scheduled for late Q4 2014.  
-
 ## Git Flow
 
 We have adopted the git flow branching model. It is not necessary to use the git-flow extensions, though you may find them useful! But it will be helpful to read about the git flow branching model in order to understand the organization of branches and tags that you will find in the repository.
