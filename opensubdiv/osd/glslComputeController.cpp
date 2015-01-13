@@ -265,7 +265,7 @@ GLSLComputeController::bindBufferAndProgram() {
     if (_currentBindState.buffer)
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _currentBindState.buffer);
 
-    _currentBindState.kernelBundle->UseProgram(/*primvarOffset*/0);
+    _currentBindState.kernelBundle->UseProgram(_currentBindState.desc.offset);
 
     glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 }

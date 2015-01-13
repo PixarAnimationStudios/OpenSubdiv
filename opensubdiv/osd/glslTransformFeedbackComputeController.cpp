@@ -231,7 +231,9 @@ public:
             stride = _desc.stride*sizeof(float);
 
         glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER,
-            0, primvarBuffer, (start + numCVs)*stride, count*stride);
+                          0, primvarBuffer,
+                          (start + numCVs)*stride + offset*sizeof(float),
+                          count*stride);
 
         glBeginTransformFeedback(GL_POINTS);
 
