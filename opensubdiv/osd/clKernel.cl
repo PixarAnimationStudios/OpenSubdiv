@@ -65,6 +65,10 @@ __kernel void computeStencils( __global float * vertexBuffer,
 
     int current = get_global_id(0) + batchStart;
 
+	if (current>=batchEnd) {
+	    return;
+	}
+	
     struct Vertex dst;
     clear(&dst);
 
