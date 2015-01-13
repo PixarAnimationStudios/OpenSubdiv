@@ -86,7 +86,7 @@ void computeStencil() {
 
     int current = gl_VertexID + batchStart;
 
-    if (current>batchEnd) {
+    if (current>=batchEnd) {
         return;
     }
 

@@ -81,7 +81,7 @@ void computeStencil() {
 
     int current = int(gl_GlobalInvocationID.x) + batchStart;
 
-    if (current>batchEnd) {
+    if (current>=batchEnd) {
         return;
     }
 
