@@ -174,7 +174,7 @@ protected:
         glUniform1i(_uniformOffset, offset);
         glUniform1i(_uniformNumCVs, numCVs);
 
-        glDispatchCompute(count/_workGroupSize + 1, 1, 1);
+		glDispatchCompute((count + _workGroupSize - 1) / _workGroupSize, 1, 1);
 
         // sync for later reading.
         // XXX: in theory, just SHADER_STORAGE_BARRIER is needed here. However

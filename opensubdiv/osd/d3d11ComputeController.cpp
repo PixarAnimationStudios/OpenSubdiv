@@ -213,7 +213,7 @@ private:
         deviceContext->CSSetConstantBuffers(0, 1, &_uniformArgs); // b0
 
         deviceContext->CSSetShader(_computeShader, &kernel, 1);
-        deviceContext->Dispatch(count/_workGroupSize + 1, 1, 1);
+		deviceContext->Dispatch((count + _workGroupSize - 1) / _workGroupSize, 1, 1);
     }
 
 
