@@ -85,7 +85,7 @@ class ComputeStencil : IComputeKernel {
 
         int current = int(ID.x) + batchStart;
 
-        if (current>batchEnd) {
+        if (current>=batchEnd) {
             return;
         }
 
