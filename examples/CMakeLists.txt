@@ -22,7 +22,7 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-
+add_subdirectory(common)
 
 if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
 
@@ -34,8 +34,6 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
         add_definitions(-DOPENSUBDIV_HAS_PNG)
     endif()
 
-    add_subdirectory(common)
-    
     add_subdirectory(glViewer)
     add_subdirectory(glBatchViewer)
     add_subdirectory(glStencilViewer)
