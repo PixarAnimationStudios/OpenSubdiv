@@ -82,6 +82,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         hbr_overview.rst
         intro.rst
         license.rst
+        mod_notes.rst
         maya_osdpolysmooth.rst
         osd_overview.rst
         release_notes.rst

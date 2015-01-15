@@ -30,8 +30,6 @@ Roadmap
 
 ----
 
-.. include:: under_development.rst
-
 3.x Release Cycle
 =================
 
