@@ -32,7 +32,6 @@
 
 #include <cassert>
 #include <cstdlib>
-#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
