@@ -118,6 +118,11 @@ Refinement::refine(Options refineOptions) {
 
     _uniform = !refineOptions._sparse;
 
+    //  We may soon have an option here to suppress refinement of FVar channels...
+    bool refineOptions_ignoreFVarChannels = false;
+
+    bool optionallyRefineFVar = (_parent->getNumFVarChannels() > 0) && !refineOptions_ignoreFVarChannels;
+
     //
     //  Initialize the parent-to-child and reverse child-to-parent mappings and propagate
     //  component tags to the new child components:
@@ -131,7 +136,8 @@ Refinement::refine(Options refineOptions) {
     propagateComponentTags();
 
     //
-    //  Subdivide the topology -- populating only those of the 6 relations specified:
+    //  Subdivide the topology -- populating only those of the 6 relations specified
+    //  (though we do require the vertex-face relation for refining FVar channels):
     //
     Relations relationsToPopulate;
     if (refineOptions._faceTopologyOnly) {
@@ -140,6 +146,10 @@ Refinement::refine(Options refineOptions) {
     } else {
         relationsToPopulate.setAll(true);
     }
+    if (optionallyRefineFVar) {
+        relationsToPopulate._vertexFaces = true;
+    }
+
     subdivideTopology(relationsToPopulate);
 
     //
@@ -148,9 +158,7 @@ Refinement::refine(Options refineOptions) {
     //
     subdivideSharpnessValues();
 
-    //  We may have an option here to suppress face-varying channels...
-    bool refineOptions_faceVaryingChannels = true;
-    if (refineOptions_faceVaryingChannels) {
+    if (optionallyRefineFVar) {
         subdivideFVarChannels();
     }
 
