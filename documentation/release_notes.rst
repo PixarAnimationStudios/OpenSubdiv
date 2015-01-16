@@ -200,16 +200,6 @@ Since the various options are now presented through a new API (Sdc rather than
 Hbr), based on the history of some of these options and input from interested
 parties, the following changes have been implemented:
 
-    * Between the Alpha and Beta releases, the naming of the boundary
-      interpolation enum was renamed *"VtxBoundaryInterpolation"*, with
-      the following values:
-
-        * VTX_BOUNDARY_NONE (default)
-        * VTX_BOUNDARY_EDGE_ONLY
-        * VTX_BOUNDARY_EDGE_AND_CORNER
-
-      Functionality remains unchanged.
-
     * Legacy modes of the *"smoothtriangle"* rule have been removed (as they
       were never actually enabled in the code). Values for *"TriangleSubdivision"*
       are now:
