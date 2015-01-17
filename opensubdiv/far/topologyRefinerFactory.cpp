@@ -290,7 +290,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
 
             int idx = desc.cornerVertexIndices[vert];
 
-            if (idx > 0 and idx < refiner.GetNumVertices(0)) {
+            if (idx >= 0 and idx < refiner.GetNumVertices(0)) {
                 refiner.setBaseVertexSharpness(idx, desc.cornerWeights[vert]);
             } else {
                 char msg[1024];
