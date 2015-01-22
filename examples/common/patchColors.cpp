@@ -38,11 +38,11 @@ static float _colors[5][7][4] = {{{1.0f,  1.0f,  1.0f,  1.0f},   // regular
                                   {0.5f,  0.0f,  1.0f,  1.0f},   // regular pattern 3
                                   {1.0f,  0.5f,  1.0f,  1.0f}},  // regular pattern 4
 
-                                 {{1.0f,  0.7f,  0.6f,  1.0f},   // single crease pattern 0
-                                  {1.0f,  0.7f,  0.6f,  1.0f},   // single crease pattern 1
-                                  {1.0f,  0.7f,  0.6f,  1.0f},   // single crease pattern 2
-                                  {1.0f,  0.7f,  0.6f,  1.0f},   // single crease pattern 3
-                                  {1.0f,  0.7f,  0.6f,  1.0f}},  // single crease pattern 4
+                                 {{1.0f,  0.70f,  0.6f,  1.0f},   // single crease pattern 0
+                                  {1.0f,  0.65f,  0.6f,  1.0f},   // single crease pattern 1
+                                  {1.0f,  0.60f,  0.6f,  1.0f},   // single crease pattern 2
+                                  {1.0f,  0.55f,  0.6f,  1.0f},   // single crease pattern 3
+                                  {1.0f,  0.50f,  0.6f,  1.0f}},  // single crease pattern 4
 
                                  {{0.0f,  0.0f,  0.75f, 1.0f},   // boundary pattern 0
                                   {0.0f,  0.2f,  0.75f, 1.0f},   // boundary pattern 1
