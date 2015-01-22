@@ -29,6 +29,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cmath>
+#include <cstring>
 #include <fstream>
 #include <sstream>
 
@@ -53,6 +54,19 @@ ObjAnim::InterpolatePositions(float time, float * positions, int stride) const {
 
     int nkeys = GetNumKeyframes(),
         nverts = GetShape()->GetNumVertices();
+
+    assert(nkeys>0);
+
+    if (nkeys==1) {
+        // nothing to interpolate - just copy the coarse verts positions
+        float const * vert = &_positions[0][0];
+        for (int i = 0; i <nverts; ++i) {
+             memcpy( positions, vert, sizeof(float)*3);
+             positions += stride;
+             vert += 3;
+        }
+        return;
+    }
 
     const float fps = 24.0f;
 
