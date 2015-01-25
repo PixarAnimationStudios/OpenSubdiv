@@ -308,6 +308,7 @@ option(NO_CUDA "Disable CUDA backend" OFF)
 option(NO_OPENCL "Disable OpenCL backend" OFF)
 option(NO_CLEW "Disable CLEW wrapper library" OFF)
 option(NO_OPENGL "Disable OpenGL support")
+option(NO_DX "Disable DirectX support")
 
 # Check for dependencies
 if(NOT NO_OMP)
@@ -347,7 +348,7 @@ if (OPENGL_FOUND AND NOT IOS)
     endif()
 endif()
 
-if (WIN32)
+if (WIN32 AND NOT NO_DX)
    find_package(DXSDK)
 endif()
 
@@ -526,11 +527,11 @@ if (WIN32)
     # Windows until all the kinks can be worked out.
     set( OSD_LINK_TARGET osd_static_cpu osd_static_gpu )
 
-    if (DXSDK_FOUND)
+    if (DXSDK_FOUND AND NOT NO_DX)
         add_definitions(
             -DOPENSUBDIV_HAS_DX11SDK
         )
-    else()
+    elseif(NOT NO_DX)
         message(WARNING
             "DirectX11 SDK was not found. "
             "If you do have DXSDK installed and see this message, "
