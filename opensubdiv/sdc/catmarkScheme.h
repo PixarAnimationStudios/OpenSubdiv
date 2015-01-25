@@ -326,8 +326,8 @@ Scheme<SCHEME_CATMARK>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
     Weight alpha = (Weight) (2.0f * M_PI / valence);
     for (int i = 0; i < valence; ++i) {
         double alphaI = alpha * i;
-        tan1Mask.EdgeWeight(i) = cos(alphaI);
-        tan2Mask.EdgeWeight(i) = sin(alphaI);
+        tan1Mask.EdgeWeight(i) = std::cos(alphaI);
+        tan2Mask.EdgeWeight(i) = std::sin(alphaI);
     }
 }
 
