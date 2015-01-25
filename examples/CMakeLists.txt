@@ -81,7 +81,7 @@ if (NOT NO_OPENGL)
     endif()
 endif()
 
-if (DXSDK_FOUND)
+if (DXSDK_FOUND AND NOT NO_DX)
 
    add_subdirectory(dxViewer)
 
