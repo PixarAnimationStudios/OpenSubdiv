@@ -38,13 +38,6 @@ CpuEvalLimitController::CpuEvalLimitController() {
 CpuEvalLimitController::~CpuEvalLimitController() {
 }
 
-// normalize & rotate (u,v) to the sub-patch
-inline void
-computeSubPatchCoords(Far::PatchParam pparam, float & u, float & v ) {
-    pparam.bitField.Normalize(u, v);
-    pparam.bitField.Rotate(u, v);
-}
-
 // Vertex interpolation of a sample at the limit
 int
 CpuEvalLimitController::EvalLimitSample( LimitLocation const & coord,
@@ -70,7 +63,6 @@ CpuEvalLimitController::EvalLimitSample( LimitLocation const & coord,
         Far::PatchTables const & ptables = context->GetPatchTables();
 
         Far::PatchParam pparam = ptables.GetPatchParam(*handle);
-        pparam.bitField.Normalize(s, t);
 
         Far::ConstIndexArray cvs = ptables.GetPatchVertices(*handle);
 
@@ -124,6 +116,12 @@ CpuEvalLimitController::EvalLimitSample( LimitLocation const & coord,
                                                              vertexData.outDesc,
                                                              outQ, outDQU, outDQV );
                                        } break;
+            case Desc::QUADS  : evalBilinear( pparam.bitField, s, t, cvs.begin(),
+                                              vertexData.inDesc,
+                                              vertexData.in,
+                                              outDesc,
+                                              outQ, outDQU, outDQV );
+                                  break;
             default:
                 assert(0);
         }
@@ -152,7 +150,6 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
     Far::PatchTables const & ptables = context->GetPatchTables();
 
     Far::PatchParam pparam = ptables.GetPatchParam(*handle);
-    pparam.bitField.Normalize(s, t);
 
     Far::PatchDescriptor desc = ptables.GetPatchDescriptor(*handle);
 
@@ -220,13 +217,17 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
                                                                  vertexData.outDesc,
                                                                  out, outDu, outDv );
                                            } break;
+                case Desc::QUADS  : evalBilinear( pparam.bitField, s, t, cvs.begin(),
+                                                  vertexData.inDesc,
+                                                  vertexData.in,
+                                                  vertexData.outDesc,
+                                                  out, outDu, outDv );
+                                    break;
                 default:
                     assert(0);
             }
         }
     }
-
-    pparam.bitField.Rotate(s, t);
 
     VaryingData const & varyingData = _currentBindState.varyingData;
 
@@ -257,11 +258,11 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
                                    cvs[permute[2]],
                                    cvs[permute[3]]  };
 
-        evalBilinear( t, s, zeroRing,
+        evalBilinear( pparam.bitField, s, t, zeroRing,
                       varyingData.inDesc,
                       varyingData.in,
                       varyingData.outDesc,
-                      varyingData.out+offset);
+                      varyingData.out+offset, 0, 0);
 
     }
 
@@ -279,11 +280,11 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
             // XXXX manuelk this assumes FVar data is ordered with 4 CVs / patch :
             //              bi-cubic FVar interpolation will require proper topology
             //              accessors in Far::PatchTables and this code will change
-            evalBilinear( s, t, zeroRing,
+            evalBilinear( pparam.bitField, s, t, zeroRing,
                           facevaryingData.inDesc,
                           &facevaryingData.in[handle->patchIndex*4*facevaryingData.outDesc.stride],
                           facevaryingData.outDesc,
-                          facevaryingData.out+offset);
+                          facevaryingData.out+offset, 0, 0);
 
     }
     return 1;

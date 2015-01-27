@@ -27,6 +27,7 @@
 
 #include "../version.h"
 
+#include "../far/interpolate.h"
 #include "../far/patchDescriptor.h"
 #include "../far/patchParam.h"
 #include "../far/stencilTables.h"
@@ -298,9 +299,23 @@ public:
     /// \brief Interpolate the (s,t) parametric location of a bilinear (quad)
     /// patch
     ///
+    /// @param cvs     Array of 16 control vertex indices
+    ///
+    /// @param Q       Array of 16 bicubic weights for the control vertices
+    ///
+    /// @param Qd1     Array of 16 bicubic 's' tangent weights for the control
+    ///                vertices
+    ///
+    /// @param Qd2     Array of 16 bicubic 't' tangent weights for the control
+    ///                vertices
+    ///
+    /// @param src     Source primvar buffer (control vertices data)
+    ///
+    /// @param dst     Destination primvar buffer (limit surface data)
+    ///
     template <class T, class U> static void
-    InterpolateBilinear(Index const * cvs, float s, float t,
-        T const & src, U & dst);
+    InterpolateBilinearPatch(Index const * cvs,
+        float const * Q, float const *Qd1, float const *Qd2, T const & src, U & dst);
 
     /// \brief Interpolate the (s,t) parametric location of a regular bicubic
     ///        patch
@@ -412,16 +427,6 @@ public:
     template <class T, class U> void Limit(PatchHandle const & handle,
         float s, float t, T const & src, U & dst) const;
 
-    enum TensorBasis {
-        BASIS_BEZIER,    ///< Bi-cubic bezier patch basis
-        BASIS_BSPLINE    ///< Bi-cubic bspline patch basis
-    };
-
-    /// \brief Returns bi-cubic weights matrix for a given (s,t) location
-    /// on the patch
-    static void GetBasisWeights(TensorBasis basis, PatchParam::BitField bits,
-        float s, float t, float point[16], float deriv1[16], float deriv2[16]);
-
 protected:
 
     friend class PatchTablesFactory;
@@ -501,17 +506,18 @@ private:
 
 template <class T, class U>
 inline void
-PatchTables::InterpolateBilinear(Index const * cvs, float s, float t,
-    T const & src, U & dst) {
+PatchTables::InterpolateBilinearPatch(Index const * cvs,
+    float const * Q, float const *Qd1, float const *Qd2,
+        T const & src, U & dst) {
 
-    float os = 1.0f - s,
-          ot = 1.0f - t,
-            Q[4] = { os*ot,  s*ot, s*t, os*t },
-          dQ1[4] = { t-1.0f,   ot,   t,   -t },
-          dQ2[4] = { s-1.0f,   -s,   s,   os };
-
+    //
+    //  v0 -- v1
+    //   |.....|
+    //   |.....|
+    //  v3 -- v2
+    //
     for (int k=0; k<4; ++k) {
-        dst.AddWithWeight(src[cvs[k]], Q[k], dQ1[k], dQ2[k]);
+        dst.AddWithWeight(src[cvs[k]], Q[k], Qd1[k], Qd2[k]);
     }
 }
 
@@ -722,12 +728,13 @@ PatchTables::Interpolate(PatchHandle const & handle, float s, float t,
 
     PatchParam::BitField const & bits =
         _paramTable[handle.patchIndex].bitField;
-    bits.Normalize(s,t);
-
 
     dst.Clear();
 
-    InterpolateBilinear(cvs.begin(), s, t, src, dst);
+    float Q[4], Qd1[4], Qd2[4];
+    GetBilinearWeights(bits, s, t, Q, Qd1, Qd2);
+
+    InterpolateBilinearPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
 }
 
 // Interpolates the limit position of a parametric location on a patch
@@ -739,7 +746,6 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
     assert(IsFeatureAdaptive());
 
     PatchParam::BitField const & bits = _paramTable[handle.patchIndex].bitField;
-    bits.Normalize(s,t);
 
     PatchDescriptor::Type ptype =
         GetPatchArrayDescriptor(handle.arrayIndex).GetType();
@@ -750,7 +756,7 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
 
     if (ptype>=PatchDescriptor::REGULAR and ptype<=PatchDescriptor::CORNER) {
 
-        GetBasisWeights(BASIS_BSPLINE, bits, s, t, Q, Qd1, Qd2);
+        GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
 
         ConstIndexArray cvs = GetPatchVertices(handle);
 
@@ -779,7 +785,7 @@ PatchTables::Limit(PatchHandle const & handle, float s, float t,
 
         assert(_endcapStencilTables);
 
-        GetBasisWeights(BASIS_BEZIER, bits, s, t, Q, Qd1, Qd2);
+        GetBezierWeights(bits, s, t, Q, Qd1, Qd2);
 
         InterpolateGregoryPatch(_endcapStencilTables, handle.vertIndex,
             s, t, Q, Qd1, Qd2, src, dst);

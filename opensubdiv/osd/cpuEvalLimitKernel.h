@@ -42,12 +42,15 @@ namespace Far {
 namespace Osd {
 
 void
-evalBilinear(float u, float v,
+evalBilinear(Far::PatchParam::BitField bits,
+             float u, float v,
              Far::Index const * vertexIndices,
              VertexBufferDescriptor const & inDesc,
              float const * inQ,
              VertexBufferDescriptor const & outDesc,
-             float * outQ);
+             float * outQ,
+             float * outDQU,
+             float * outDQV);
 
 void
 evalBSpline(Far::PatchParam::BitField bits,

@@ -23,7 +23,7 @@
 //
 
 #include "../osd/cpuEvalLimitKernel.h"
-#include "../far/patchTables.h"
+#include "../far/interpolate.h"
 #include "../far/stencilTables.h"
 
 #include <math.h>
@@ -39,36 +39,6 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-void
-evalBilinear(float u, float v,
-             Far::Index const * vertexIndices,
-             VertexBufferDescriptor const & inDesc,
-             float const * inQ,
-             VertexBufferDescriptor const & outDesc,
-             float * outQ) {
-
-    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
-
-    float const * inOffset = inQ + inDesc.offset;
-
-    float * Q = outQ + outDesc.offset;
-
-    memset(Q, 0, inDesc.length*sizeof(float));
-
-    float ou = 1.0f - u,
-          ov = 1.0f - v,
-          w[4] = { ov*ou, v*ou, v*u, ov*u };
-
-    for (int i=0; i<4; ++i) {
-
-        float const * in = inOffset + vertexIndices[i]*inDesc.stride;
-
-        for (int k=0; k<inDesc.length; ++k) {
-            Q[k] += w[i] * in[k];
-        }
-    }
-}
-
 #ifdef TENSOR_PRODUCT_CUBIC_SPLINES
 
 // manuelk code was refactored to use the matrix formulation of cubic splines
@@ -76,7 +46,7 @@ evalBilinear(float u, float v,
 // for reference.
 
 inline void
-evalCubicBezier(float u, float B[4], float BU[3]) {
+cubicBezier(float u, float B[4], float BU[3]) {
     float u2 = u*u,
           w0 = 1.0f - u,
           w2 = w0 * w0;
@@ -94,7 +64,7 @@ evalCubicBezier(float u, float B[4], float BU[3]) {
 }
 
 inline void
-evalCubicBSpline(float u, float B[4], float BU[4]) {
+cubicBSpline(float u, float B[4], float BU[4]) {
     float t = u;
     float s = 1.0f - u;
 
@@ -141,6 +111,50 @@ univar4x4(float u, float B[4], float D[4]) {
 #endif
 
 void
+evalBilinear(Far::PatchParam::BitField bits,
+             float s, float t,
+             Far::Index const * vertexIndices,
+             VertexBufferDescriptor const & inDesc,
+             float const * inQ,
+             VertexBufferDescriptor const & outDesc,
+             float * outQ,
+             float * outDQ1,
+             float * outDQ2) {
+
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
+
+    float Q[4], dQ1[4], dQ2[4];
+    Far::GetBilinearWeights(bits, s, t, outQ ? Q:0, outDQ1 ? dQ1:0, outDQ2 ? dQ2:0);
+
+    float const * inOffset = inQ + inDesc.offset;
+
+    outQ += outDesc.offset;
+
+    memset(outQ, 0, inDesc.length*sizeof(float));
+    if (outDQ1) {
+        memset(outDQ1, 0, inDesc.length*sizeof(float));
+    }
+    if (outDQ2) {
+        memset(outDQ2, 0, inDesc.length*sizeof(float));
+    }
+
+    for (int i=0; i<4; ++i) {
+
+        float const * in = inOffset + vertexIndices[i]*inDesc.stride;
+
+        for (int k=0; k<inDesc.length; ++k) {
+            outQ[k] += Q[i] * in[k];
+            if (outDQ1) {
+                outDQ1[k] += dQ1[i] * in[k];
+            }
+            if (outDQ2) {
+                outDQ2[k] += dQ2[i] * in[k];
+            }
+        }
+    }
+}
+
+void
 evalBSpline(Far::PatchParam::BitField bits,
             float s, float t,
             Far::Index const * vertexIndices,
@@ -155,8 +169,7 @@ evalBSpline(Far::PatchParam::BitField bits,
     assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
     float Q[16], dQ1[16], dQ2[16];
-    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BSPLINE, bits, s, t,
-        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
+    Far::GetBSplineWeights(bits, s, t, outQ ? Q:0, outDQ1 ? dQ1:0, outDQ2 ? dQ2:0);
 
     float const * inOffset = inQ + inDesc.offset;
 
@@ -202,8 +215,7 @@ evalBoundary(Far::PatchParam::BitField bits,
     assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
     float Q[16], dQ1[16], dQ2[16];
-    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BSPLINE, bits, s, t,
-        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
+    Far::GetBSplineWeights(bits, s, t, outQ ? Q:0, outDQ1 ? dQ1:0, outDQ2 ? dQ2:0);
 
     float const * inOffset = inQ + inDesc.offset;
 
@@ -280,8 +292,7 @@ evalCorner(Far::PatchParam::BitField bits,
     assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
     float Q[16], dQ1[16], dQ2[16];
-    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BSPLINE, bits, s, t,
-        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
+    Far::GetBSplineWeights(bits, s, t, outQ ? Q:0, outDQ1 ? dQ1:0, outDQ2 ? dQ2:0);
 
     float const * inOffset = inQ + inDesc.offset;
 
@@ -375,8 +386,7 @@ evalGregoryBasis(Far::PatchParam::BitField bits, float u, float v,
     int length = inDesc.length;
 
     float BU[16], DU[16], DV[16];
-    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BEZIER, bits, u, v,
-        outQ ? BU : 0, outDQU ? DU : 0, outDQV ? DV : 0);
+    Far::GetBezierWeights(bits, u, v, outQ ? BU:0, outDQU ? DU:0, outDQV ? DV:0);
 
     float const *inOffset = inQ + inDesc.offset;
 
@@ -749,8 +759,7 @@ evalGregory(Far::PatchParam::BitField bits, float u, float v,
     memcpy(q+15*length, p[10], length*sizeof(float));
 
     float Q[16], dQ1[16], dQ2[16];
-    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BEZIER, bits, u, v,
-        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
+    Far::GetBezierWeights(bits, u, v, outQ ? Q:0, outDQ1 ? dQ1:0, outDQ2 ? dQ2:0);
 
     outQ += outDesc.offset;
 
@@ -1136,8 +1145,7 @@ evalGregoryBoundary(Far::PatchParam::BitField bits, float u, float v,
     memcpy(q+15*length, p[10], length*sizeof(float));
 
     float Q[16], dQ1[16], dQ2[16];
-    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BEZIER, bits, u, v,
-        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
+    Far::GetBezierWeights(bits, u, v, outQ ? Q : 0, outDQ1 ? dQ1:0, outDQ2 ? dQ2:0);
 
     outQ += outDesc.offset;
 
