@@ -441,6 +441,7 @@ protected:
 
     Index findPatchArray(PatchDescriptor desc);
 
+    Index getPatchIndex(int array, int patch) const;
     IndexArray getPatchArrayVertices(int arrayIndex);
     PatchParamArray getPatchParams(int arrayIndex);
 

@@ -127,6 +127,12 @@ PatchTables::pushPatchArray(PatchDescriptor desc, int npatches,
     }
 }
 
+Index
+PatchTables::getPatchIndex(int arrayIndex, int patchIndex) const {
+    PatchArray const & pa = getPatchArray(arrayIndex);
+    assert(patchIndex<pa.numPatches);
+    return pa.patchIndex + patchIndex;
+}
 Index *
 PatchTables::getSharpnessIndices(int arrayIndex) {
     return &_sharpnessIndices[getPatchArray(arrayIndex).patchIndex];
