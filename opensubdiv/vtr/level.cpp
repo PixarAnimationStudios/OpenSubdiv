@@ -665,31 +665,33 @@ Level::gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int 
 //         |     |     |     |
 //
 int
-Level::gatherQuadRegularInteriorPatchVertices(
-    Index thisFace, Index ringVerts[], int rotation) const {
+Level::gatherQuadRegularInteriorPatchPoints(
+    Index thisFace, Index patchPoints[], int rotation, int fvarChannel) const {
 
     Level const& level = *this;
 
+    assert((0 <= rotation) && (rotation < 4));
+    int const   rotationSequence[7] = { 0, 1, 2, 3, 0, 1, 2 };
+    int const * rotatedVerts = &rotationSequence[rotation];
+
+    ConstIndexArray thisFaceVerts = level.getFaceVertices(thisFace);
+
+    ConstIndexArray facePoints = (fvarChannel < 0) ? thisFaceVerts :
+                                 level.getFVarFaceValues(thisFace, fvarChannel);
+
+    patchPoints[0] = facePoints[rotatedVerts[0]];
+    patchPoints[1] = facePoints[rotatedVerts[1]];
+    patchPoints[2] = facePoints[rotatedVerts[2]];
+    patchPoints[3] = facePoints[rotatedVerts[3]];
+
     //
     //  For each of the four corner vertices, there is a face diagonally opposite
-    //  the given/central face, within which are three vertices of the ring:
+    //  the given/central face.  Each of these faces contains three points of the
+    //  entire ring of points around that given/central face.
     //
-    ConstIndexArray thisFaceVerts = level.getFaceVertices(thisFace);
-    if (rotation) {
-        ringVerts[0] = thisFaceVerts[fastMod4(rotation)];
-        ringVerts[1] = thisFaceVerts[fastMod4(rotation + 1)];
-        ringVerts[2] = thisFaceVerts[fastMod4(rotation + 2)];
-        ringVerts[3] = thisFaceVerts[fastMod4(rotation + 3)];
-    } else {
-        ringVerts[0] = thisFaceVerts[0];
-        ringVerts[1] = thisFaceVerts[1];
-        ringVerts[2] = thisFaceVerts[2];
-        ringVerts[3] = thisFaceVerts[3];
-    }
-
-    int ringIndex = 4;
+    int pointIndex = 4;
     for (int i = 0; i < 4; ++i) {
-        Index v = ringVerts[i];
+        Index v = thisFaceVerts[rotatedVerts[i]];
 
         ConstIndexArray      vFaces   = level.getVertexFaces(v);
         ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(v);
@@ -698,15 +700,16 @@ Level::gatherQuadRegularInteriorPatchVertices(
         int intFaceInVFaces  = fastMod4(thisFaceInVFaces + 2);
 
         Index intFace    = vFaces[intFaceInVFaces];
-        int      vInIntFace = vInFaces[intFaceInVFaces];
+        int   vInIntFace = vInFaces[intFaceInVFaces];
 
-        ConstIndexArray intFaceVerts = level.getFaceVertices(intFace);
+        facePoints = (fvarChannel < 0) ? level.getFaceVertices(intFace) :
+                     level.getFVarFaceValues(intFace, fvarChannel);
 
-        ringVerts[ringIndex++] = intFaceVerts[fastMod4(vInIntFace + 1)];
-        ringVerts[ringIndex++] = intFaceVerts[fastMod4(vInIntFace + 2)];
-        ringVerts[ringIndex++] = intFaceVerts[fastMod4(vInIntFace + 3)];
+        patchPoints[pointIndex++] = facePoints[fastMod4(vInIntFace + 1)];
+        patchPoints[pointIndex++] = facePoints[fastMod4(vInIntFace + 2)];
+        patchPoints[pointIndex++] = facePoints[fastMod4(vInIntFace + 3)];
     }
-    assert(ringIndex == 16);
+    assert(pointIndex == 16);
     return 16;
 }
 
@@ -729,14 +732,14 @@ Level::gatherQuadRegularInteriorPatchVertices(
 //         |     |x   x|     |
 //         |     |x   x|     |
 //      ---5-----1-----2-----10---
-//         |     |     |     |
+//         |     |v0 v1|     |
 //         |     |     |     |
 //      ---6-----7-----8-----9----
 //         |     |     |     |
 //
 int
-Level::gatherQuadRegularBoundaryPatchVertices(
-    Index face, Index ringVerts[], int boundaryEdgeInFace) const {
+Level::gatherQuadRegularBoundaryPatchPoints(
+    Index face, Index patchPoints[], int boundaryEdgeInFace, int fvarChannel) const {
 
     Level const& level = *this;
 
@@ -787,28 +790,47 @@ Level::gatherQuadRegularBoundaryPatchVertices(
     LocalIndex v1InIntFace  = v1InFaces[intFaceInV1Faces];
     LocalIndex v1InNextFace = v1InFaces[nextFaceInV1Faces];
 
-    //  Access the vertices of these four faces and assign to the ring:
-    ConstIndexArray prevFaceVerts  = level.getFaceVertices(prevFace);
-    ConstIndexArray intV0FaceVerts = level.getFaceVertices(intV0Face);
-    ConstIndexArray intV1FaceVerts = level.getFaceVertices(intV1Face);
-    ConstIndexArray nextFaceVerts  = level.getFaceVertices(nextFace);
+    //
+    //  Now that all faces of interest have been found, identify the point
+    //  indices within each face (i.e. the vertex or fvar-value index arrays)
+    //  and copy them into the patch points:
+    //
+    ConstIndexArray thisFacePoints,
+                    prevFacePoints,
+                    intV0FacePoints,
+                    intV1FacePoints,
+                    nextFacePoints;
 
-    ringVerts[0] = faceVerts[fastMod4(boundaryEdgeInFace + 1)];
-    ringVerts[1] = faceVerts[fastMod4(boundaryEdgeInFace + 2)];
-    ringVerts[2] = faceVerts[fastMod4(boundaryEdgeInFace + 3)];
-    ringVerts[3] = faceVerts[         boundaryEdgeInFace];
+    if (fvarChannel < 0) {
+        thisFacePoints  = faceVerts;
+        prevFacePoints  = level.getFaceVertices(prevFace);
+        intV0FacePoints = level.getFaceVertices(intV0Face);
+        intV1FacePoints = level.getFaceVertices(intV1Face);
+        nextFacePoints  = level.getFaceVertices(nextFace);
+    } else {
+        thisFacePoints  = level.getFVarFaceValues(face, fvarChannel);
+        prevFacePoints  = level.getFVarFaceValues(prevFace, fvarChannel);
+        intV0FacePoints = level.getFVarFaceValues(intV0Face, fvarChannel);
+        intV1FacePoints = level.getFVarFaceValues(intV1Face, fvarChannel);
+        nextFacePoints  = level.getFVarFaceValues(nextFace, fvarChannel);
+    }
 
-    ringVerts[4] = prevFaceVerts[fastMod4(v0InPrevFace + 2)];
+    patchPoints[0] = thisFacePoints[fastMod4(boundaryEdgeInFace + 1)];
+    patchPoints[1] = thisFacePoints[fastMod4(boundaryEdgeInFace + 2)];
+    patchPoints[2] = thisFacePoints[fastMod4(boundaryEdgeInFace + 3)];
+    patchPoints[3] = thisFacePoints[         boundaryEdgeInFace];
 
-    ringVerts[5] = intV0FaceVerts[fastMod4(v0InIntFace + 1)];
-    ringVerts[6] = intV0FaceVerts[fastMod4(v0InIntFace + 2)];
-    ringVerts[7] = intV0FaceVerts[fastMod4(v0InIntFace + 3)];
+    patchPoints[4] = prevFacePoints[fastMod4(v0InPrevFace + 2)];
 
-    ringVerts[8]  = intV1FaceVerts[fastMod4(v1InIntFace + 1)];
-    ringVerts[9]  = intV1FaceVerts[fastMod4(v1InIntFace + 2)];
-    ringVerts[10] = intV1FaceVerts[fastMod4(v1InIntFace + 3)];
+    patchPoints[5] = intV0FacePoints[fastMod4(v0InIntFace + 1)];
+    patchPoints[6] = intV0FacePoints[fastMod4(v0InIntFace + 2)];
+    patchPoints[7] = intV0FacePoints[fastMod4(v0InIntFace + 3)];
 
-    ringVerts[11] = nextFaceVerts[fastMod4(v1InNextFace + 2)];
+    patchPoints[8]  = intV1FacePoints[fastMod4(v1InIntFace + 1)];
+    patchPoints[9]  = intV1FacePoints[fastMod4(v1InIntFace + 2)];
+    patchPoints[10] = intV1FacePoints[fastMod4(v1InIntFace + 3)];
+
+    patchPoints[11] = nextFacePoints[fastMod4(v1InNextFace + 2)];
 
     return 12;
 }
@@ -837,8 +859,8 @@ Level::gatherQuadRegularBoundaryPatchVertices(
 //      |     |     |
 //
 int
-Level::gatherQuadRegularCornerPatchVertices(
-    Index face, Index ringVerts[], int cornerVertInFace) const {
+Level::gatherQuadRegularCornerPatchPoints(
+    Index face, Index patchPoints[], int cornerVertInFace, int fvarChannel) const {
 
     Level const& level = *this;
 
@@ -874,23 +896,40 @@ Level::gatherQuadRegularCornerPatchVertices(
     LocalIndex intVertInIntFace  = intVertInFaces[intFaceInIntVertFaces];
     LocalIndex intVertInNextFace = intVertInFaces[nextFaceInIntVertFaces];
 
-    //  Access the vertices of these three faces and assign to the ring:
-    ConstIndexArray prevFaceVerts = level.getFaceVertices(prevFace);
-    ConstIndexArray intFaceVerts  = level.getFaceVertices(intFace);
-    ConstIndexArray nextFaceVerts = level.getFaceVertices(nextFace);
+    //
+    //  Now that all faces of interest have been found, identify the point
+    //  indices within each face (i.e. the vertex or fvar-value index arrays)
+    //  and copy them into the patch points:
+    //
+    ConstIndexArray thisFacePoints,
+                    prevFacePoints,
+                    intFacePoints,
+                    nextFacePoints;
 
-    ringVerts[0] = faceVerts[         cornerVertInFace];
-    ringVerts[1] = faceVerts[fastMod4(cornerVertInFace + 1)];
-    ringVerts[2] = faceVerts[fastMod4(cornerVertInFace + 2)];
-    ringVerts[3] = faceVerts[fastMod4(cornerVertInFace + 3)];
+    if (fvarChannel < 0) {
+        thisFacePoints = faceVerts;
+        prevFacePoints = level.getFaceVertices(prevFace);
+        intFacePoints  = level.getFaceVertices(intFace);
+        nextFacePoints = level.getFaceVertices(nextFace);
+    } else {
+        thisFacePoints = level.getFVarFaceValues(face);
+        prevFacePoints = level.getFVarFaceValues(prevFace);
+        intFacePoints  = level.getFVarFaceValues(intFace);
+        nextFacePoints = level.getFVarFaceValues(nextFace);
+    }
 
-    ringVerts[4] = prevFaceVerts[fastMod4(intVertInPrevFace + 2)];
+    patchPoints[0] = thisFacePoints[         cornerVertInFace];
+    patchPoints[1] = thisFacePoints[fastMod4(cornerVertInFace + 1)];
+    patchPoints[2] = thisFacePoints[fastMod4(cornerVertInFace + 2)];
+    patchPoints[3] = thisFacePoints[fastMod4(cornerVertInFace + 3)];
 
-    ringVerts[5] = intFaceVerts[fastMod4(intVertInIntFace + 1)];
-    ringVerts[6] = intFaceVerts[fastMod4(intVertInIntFace + 2)];
-    ringVerts[7] = intFaceVerts[fastMod4(intVertInIntFace + 3)];
+    patchPoints[4] = prevFacePoints[fastMod4(intVertInPrevFace + 2)];
 
-    ringVerts[8] = nextFaceVerts[fastMod4(intVertInNextFace + 2)];
+    patchPoints[5] = intFacePoints[fastMod4(intVertInIntFace + 1)];
+    patchPoints[6] = intFacePoints[fastMod4(intVertInIntFace + 2)];
+    patchPoints[7] = intFacePoints[fastMod4(intVertInIntFace + 3)];
+
+    patchPoints[8] = nextFacePoints[fastMod4(intVertInNextFace + 2)];
 
     return 9;
 }
@@ -918,7 +957,7 @@ Level::gatherQuadRegularCornerPatchVertices(
 //             6           7           8
 */
 int
-Level::gatherTriRegularInteriorPatchVertices(Index fIndex, Index points[12], int rotation) const
+Level::gatherTriRegularInteriorPatchPoints(Index fIndex, Index points[12], int rotation) const
 {
     ConstIndexArray  fVerts = getFaceVertices(fIndex);
     ConstIndexArray  fEdges = getFaceEdges(fIndex);
@@ -981,7 +1020,7 @@ Level::gatherTriRegularInteriorPatchVertices(Index fIndex, Index points[12], int
 //                   0           1
 */
 int
-Level::gatherTriRegularBoundaryEdgePatchVertices(Index fIndex, Index points[], int boundaryFaceEdge) const
+Level::gatherTriRegularBoundaryEdgePatchPoints(Index fIndex, Index points[], int boundaryFaceEdge) const
 {
     ConstIndexArray  fVerts = getFaceVertices(fIndex);
 
@@ -1029,7 +1068,7 @@ Level::gatherTriRegularBoundaryEdgePatchVertices(Index fIndex, Index points[], i
 //             5           6           7
 */
 int
-Level::gatherTriRegularBoundaryVertexPatchVertices(Index fIndex, Index points[], int boundaryFaceVert) const
+Level::gatherTriRegularBoundaryVertexPatchPoints(Index fIndex, Index points[], int boundaryFaceVert) const
 {
     ConstIndexArray  fVerts = getFaceVertices(fIndex);
     ConstIndexArray  fEdges = getFaceEdges(fIndex);
@@ -1082,7 +1121,7 @@ Level::gatherTriRegularBoundaryVertexPatchVertices(Index fIndex, Index points[],
 //             3           4           5
 */
 int
-Level::gatherTriRegularCornerVertexPatchVertices(Index fIndex, Index points[], int cornerFaceVert) const
+Level::gatherTriRegularCornerVertexPatchPoints(Index fIndex, Index points[], int cornerFaceVert) const
 {
     ConstIndexArray  fVerts = getFaceVertices(fIndex);
 
@@ -1126,7 +1165,7 @@ Level::gatherTriRegularCornerVertexPatchVertices(Index fIndex, Index points[], i
 //                         3
 */
 int
-Level::gatherTriRegularCornerEdgePatchVertices(Index fIndex, Index points[], int cornerFaceEdge) const
+Level::gatherTriRegularCornerEdgePatchPoints(Index fIndex, Index points[], int cornerFaceEdge) const
 {
     ConstIndexArray  fVerts = getFaceVertices(fIndex);
 

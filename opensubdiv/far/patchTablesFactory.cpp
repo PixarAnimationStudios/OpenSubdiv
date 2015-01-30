@@ -1236,7 +1236,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                 if (!patchTag._isSingleCrease && patchTag._boundaryCount == 0) {
                     int const permuteInterior[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
 
-                    level->gatherQuadRegularInteriorPatchVertices(faceIndex, patchVerts, rIndex);
+                    level->gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, rIndex);
                     offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteInterior, iptrs.R[tIndex]);
 
                     iptrs.R[tIndex] += 16;
@@ -1267,7 +1267,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                     //
                     if (patchTag._isSingleCrease && patchTag._boundaryCount==0) {
                         int const permuteInterior[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
-                        level->gatherQuadRegularInteriorPatchVertices(faceIndex, patchVerts, bIndex);
+                        level->gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, bIndex);
                         offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteInterior, iptrs.S[tIndex][rIndex]);
 
                         int creaseEdge = (bIndex+2)%4;
@@ -1284,7 +1284,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                     } else if (patchTag._boundaryCount == 1) {
                         int const permuteBoundary[12] = { 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 };
 
-                        level->gatherQuadRegularBoundaryPatchVertices(faceIndex, patchVerts, bIndex);
+                        level->gatherQuadRegularBoundaryPatchPoints(faceIndex, patchVerts, bIndex);
                         offsetAndPermuteIndices(patchVerts, 12, levelVertOffset, permuteBoundary, iptrs.B[tIndex][rIndex]);
 
                         iptrs.B[tIndex][rIndex] += 12;
@@ -1296,7 +1296,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
                     } else {
                         int const permuteCorner[9] = { 8, 3, 0, 7, 2, 1, 6, 5, 4 };
 
-                        level->gatherQuadRegularCornerPatchVertices(faceIndex, patchVerts, bIndex);
+                        level->gatherQuadRegularCornerPatchPoints(faceIndex, patchVerts, bIndex);
                         offsetAndPermuteIndices(patchVerts, 9, levelVertOffset, permuteCorner, iptrs.C[tIndex][rIndex]);
 
                         bIndex = (bIndex+3)%4;

@@ -274,19 +274,29 @@ public:
     //  High-level topology queries -- these are likely to be moved elsewhere, but here
     //  is the best place for them for now...
 
+    bool isSingleCreasePatch(Index face, float* sharpnessOut=NULL, int* rotationOut=NULL) const;
+
     int gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int ringVerts[]) const;
 
-    int gatherQuadRegularInteriorPatchVertices(Index fIndex, Index patchVerts[], int rotation = 0) const;
-    int gatherQuadRegularBoundaryPatchVertices(Index fIndex, Index patchVerts[], int boundaryEdgeInFace) const;
-    int gatherQuadRegularCornerPatchVertices(  Index fIndex, Index patchVerts[], int cornerVertInFace) const;
+    //
+    //  When gathering "patch points" we may want the indices of the vertices or the corresponding
+    //  FVar values for a particular channel.  Both are represented and equally accessible within
+    //  the faces, so we allow all to be returned through these methods.  Setting the optional FVar
+    //  channel to -1 will retrieve indices of vertices instead of FVar values:
+    //
+    int gatherQuadRegularInteriorPatchPoints(Index fIndex, Index patchVerts[], int rotation = 0,
+                                                                               int fvarChannel = -1) const;
+    int gatherQuadRegularBoundaryPatchPoints(Index fIndex, Index patchVerts[], int boundaryEdgeInFace,
+                                                                               int fvarChannel = -1) const;
+    int gatherQuadRegularCornerPatchPoints(  Index fIndex, Index patchVerts[], int cornerVertInFace,
+                                                                               int fvarChannel = -1) const;
 
-    int gatherTriRegularInteriorPatchVertices(      Index fIndex, Index patchVerts[], int rotation = 0) const;
-    int gatherTriRegularBoundaryVertexPatchVertices(Index fIndex, Index patchVerts[], int boundaryVertInFace) const;
-    int gatherTriRegularBoundaryEdgePatchVertices(  Index fIndex, Index patchVerts[], int boundaryEdgeInFace) const;
-    int gatherTriRegularCornerVertexPatchVertices(  Index fIndex, Index patchVerts[], int cornerVertInFace) const;
-    int gatherTriRegularCornerEdgePatchVertices(    Index fIndex, Index patchVerts[], int cornerEdgeInFace) const;
-
-    bool isSingleCreasePatch(Index face, float* sharpnessOut=NULL, int* rotationOut=NULL) const;
+    //  WIP -- for future use, need to extend for face-varying...
+    int gatherTriRegularInteriorPatchPoints(      Index fIndex, Index patchVerts[], int rotation = 0) const;
+    int gatherTriRegularBoundaryVertexPatchPoints(Index fIndex, Index patchVerts[], int boundaryVertInFace) const;
+    int gatherTriRegularBoundaryEdgePatchPoints(  Index fIndex, Index patchVerts[], int boundaryEdgeInFace) const;
+    int gatherTriRegularCornerVertexPatchPoints(  Index fIndex, Index patchVerts[], int cornerVertInFace) const;
+    int gatherTriRegularCornerEdgePatchPoints(    Index fIndex, Index patchVerts[], int cornerEdgeInFace) const;
 
 protected:
 
