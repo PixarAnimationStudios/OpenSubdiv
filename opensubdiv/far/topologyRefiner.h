@@ -361,12 +361,12 @@ public:
     }
 
     /// \brief Returns the local face indices of vertex 'vert' at 'level'
-    ConstLocalIndexArray VertexFaceLocalIndices(int level, Index vert) const {
+    ConstLocalIndexArray GetVertexFaceLocalIndices(int level, Index vert) const {
         return _levels[level]->getVertexFaceLocalIndices(vert);
     }
 
     /// \brief Returns the local edge indices of vertex 'vert' at 'level'
-    ConstLocalIndexArray VertexEdgeLocalIndices(int level, Index vert) const {
+    ConstLocalIndexArray GetVertexEdgeLocalIndices(int level, Index vert) const {
         return _levels[level]->getVertexEdgeLocalIndices(vert);
     }
 
