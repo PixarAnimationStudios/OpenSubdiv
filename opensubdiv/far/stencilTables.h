@@ -192,7 +192,7 @@ public:
 
 protected:
 
-    // Update values by appling cached stencil weights to new control values
+    // Update values by applying cached stencil weights to new control values
     template <class T> void update( T const *controlValues, T *values,
         std::vector<float> const & valueWeights, Index start, Index end) const;
 
