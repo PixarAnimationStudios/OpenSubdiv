@@ -476,52 +476,64 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
         bool selectFace = false;
         if (compFaceVTag._xordinary) {
             selectFace = true;
-        } else if (compFaceVTag._rule & Sdc::Crease::RULE_DART) {
-            //  Get this case out of the way before testing hard features
-            selectFace = true;
         } else if (compFaceVTag._nonManifold) {
-            //  Warrants further inspection -- isolate for now
+            //  Warrants further inspection in future -- isolate for now
             //    - will want to defer inf-sharp treatment to below
             selectFace = true;
-        } else if (!(compFaceVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
-            //  None of the vertices is Smooth, so we have all vertices either Crease or Corner,
-            //  though some may be regular patches, this currently warrants isolation as we only
-            //  support regular patches with one corner or one boundary.
+        } else if (compFaceVTag._rule == Sdc::Crease::RULE_SMOOTH) {
+            //  Avoid isolation when ALL vertices are Smooth.  All vertices must be regular by
+            //  now and all vertices Smooth implies they are all interior vertices.  (If any
+            //  adjacent faces are not regular, this face will have been previously selected).
+            selectFace = false;
+        } else if (compFaceVTag._rule & Sdc::Crease::RULE_DART) {
+            //  Any occurrence of a Dart vertex requires isolation
+            selectFace = true;
+        } else if (not (compFaceVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
+            //  None of the vertices is Smooth, so we have all vertices either Crease or Corner.
+            //  Though some may be regular patches, this currently warrants isolation as we only
+            //  support regular patches with one corner or one boundary, i.e. with one or more
+            //  smooth interior vertices.
             selectFace = true;
         } else if (compFaceVTag._semiSharp) {
-            // if this is regular and the adjacent edges have same sharpness
-            // and no vertex corner sharpness,
-            // we can stop refinning and use single-crease patch.
-            if (considerSingleCreasePatch) {
+            //  Any semi-sharp feature at or around the vertex warrants isolation -- unless we
+            //  optimize for the single-crease patch, i.e. only edge sharpness of a constant value
+            //  along the entire regular patch boundary (quickly exclude the Corner case first):
+            if (considerSingleCreasePatch && not (compFaceVTag._rule & Sdc::Crease::RULE_CORNER)) {
                 selectFace = not level.isSingleCreasePatch(face);
             } else {
                 selectFace = true;
             }
-        } else {
-            //  This leaves us with at least one Smooth vertex (and so two smooth adjacent edges
-            //  of the quad) and the rest hard Creases or Corners.  This includes the regular
-            //  corner and boundary cases that we don't want to isolate, but leaves a few others
-            //  that do warrant isolation -- needing further inspection.
+        } else if (not compFaceVTag._boundary) {
+            //  At this point we are left with a mix of smooth and inf-sharp features.  If not
+            //  on a boundary, the interior inf-sharp features need isolation -- unless we are
+            //  again optimizing for the single-crease patch, infinitely sharp in this case.
             //
-            //  For now go with the boundary cases and don't isolate...
-            //selectFace = false;
-        }
-
-        if (not selectFace) {
-            // Infinitely sharp edges do not influence vertex flags, but they need to
-            // isolated unless they can be treated as 'single-crease' cases.
-            // XXXX manuelk this will probably have to be revisited once infinitely
-            //              sharp creases are handled correctly.
-            Vtr::ConstIndexArray faceEdges = level.getFaceEdges(face);
-            Vtr::Level::ETag compFaceETag = level.getFaceCompositeETag(faceEdges);
-            if (compFaceETag._infSharp and not compFaceETag._boundary) {
-                // XXXX manuelk we are testing an 'and' aggregate of flags for all
-                // edges : this should be safe, because if the sharp edge is not
-                // the edge on the boundary, this face would have been selected
-                // with one of the previous tests
-                selectFace = considerSingleCreasePatch ?
-                    not level.isSingleCreasePatch(face) : true;
+            //  Note this case of detecting a single-crease patch, while similar to the above,
+            //  is kept separate for the inf-sharp case:  a separate and much more efficient
+            //  test can be made for the inf-sharp case, and there are other opportunities here
+            //  to optimize for regular patches at infinitely sharp corners.
+            if (considerSingleCreasePatch && not (compFaceVTag._rule & Sdc::Crease::RULE_CORNER)) {
+                selectFace = not level.isSingleCreasePatch(face);
+            } else {
+                selectFace = true;
             }
+        } else if (not (compFaceVTag._rule & Sdc::Crease::RULE_CORNER)) {
+            //  We are now left with boundary faces -- if no Corner vertex, we have a mix of both
+            //  regular Smooth and Crease vertices on a boundary face, which can only be a regular
+            //  boundary patch, so don't isolate.
+            selectFace = false;
+        } else {
+            //  This is the last case with at least one Corner (infinitely-sharp) vertex and one
+            //  Smooth (interior) vertex.  Distinguish the regular corner case from others -- this
+            //  is where the _corner tag on the vertex would help but we still need ensure that no
+            //  vertex other than the corner is sharp, and so inspection of each is unavoidable...
+            uint boundaryCount = level._vertTags[faceVerts[0]]._boundary;
+            uint infSharpCount = level._vertTags[faceVerts[0]]._infSharp;
+            for (int i = 1; i < faceVerts.size(); ++i) {
+                boundaryCount += level._vertTags[faceVerts[i]]._boundary;
+                infSharpCount += level._vertTags[faceVerts[i]]._infSharp;
+            }
+            selectFace = (boundaryCount != 3) || (infSharpCount != 1);
         }
 
         if (selectFace) {
