@@ -527,8 +527,8 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
             //  Smooth (interior) vertex.  Distinguish the regular corner case from others -- this
             //  is where the _corner tag on the vertex would help but we still need ensure that no
             //  vertex other than the corner is sharp, and so inspection of each is unavoidable...
-            uint boundaryCount = level._vertTags[faceVerts[0]]._boundary;
-            uint infSharpCount = level._vertTags[faceVerts[0]]._infSharp;
+            unsigned int boundaryCount = level._vertTags[faceVerts[0]]._boundary,
+                         infSharpCount = level._vertTags[faceVerts[0]]._infSharp;
             for (int i = 1; i < faceVerts.size(); ++i) {
                 boundaryCount += level._vertTags[faceVerts[i]]._boundary;
                 infSharpCount += level._vertTags[faceVerts[i]]._infSharp;
