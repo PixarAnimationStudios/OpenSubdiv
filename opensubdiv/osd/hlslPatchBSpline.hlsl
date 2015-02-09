@@ -59,6 +59,14 @@ static float4x4 Q = {
     0.f,     1.f/6.f, 4.f/6.f, 1.f/6.f
 };
 
+// Infinite sharp
+static float4x4 Mi = {
+    1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
+    0.f,     4.f/6.f, 2.f/6.f, 0.f,
+    0.f,     2.f/6.f, 4.f/6.f, 0.f,
+    0.f,     0.f,     1.f,     0.f
+};
+
 // Boundary / Corner
 static float4x3 B = {
     1.f,     0.f,     0.f,
@@ -66,6 +74,27 @@ static float4x3 B = {
     2.f/6.f, 4.f/6.f, 0.f,
     1.f/6.f, 4.f/6.f, 1.f/6.f
 };
+
+// compute single-crease patch matrix
+float4x4
+ComputeMatrixSimplified(float sharpness)
+{
+    float s = pow(2.0f, sharpness);
+    float s2 = s*s;
+    float s3 = s2*s;
+
+    float4x4 m ={
+        0, s + 1 + 3*s2 - s3, 7*s - 2 - 6*s2 + 2*s3, (1-s)*(s-1)*(s-1),
+        0,       (1+s)*(1+s),        6*s - 2 - 2*s2,       (s-1)*(s-1),
+        0,               1+s,               6*s - 2,               1-s,
+        0,                 1,               6*s - 2,                 1 };
+
+    m /= (s*6.0);
+    m[0][0] = 1.0/6.0;
+
+    return m;
+}
+
 
 #ifdef OSD_PATCH_TRANSITION
     HS_CONSTANT_TRANSITION_FUNC_OUT
@@ -92,7 +121,7 @@ HSConstFunc(
 #ifdef OSD_PATCH_TRANSITION
     float3 cp[OSD_PATCH_INPUT_SIZE];
     for(int k = 0; k < OSD_PATCH_INPUT_SIZE; ++k) cp[k] = patch[k].position.xyz;
-    SetTransitionTessLevels(output, cp, patchLevel);
+    SetTransitionTessLevels(output, cp, patchLevel, primitiveID);
 #else
     #if defined OSD_PATCH_BOUNDARY
         const int p[4] = { 1, 2, 5, 6 };
@@ -172,15 +201,40 @@ HullVertex hs_main_patches(
         }
     }
 
+#if defined OSD_PATCH_SINGLE_CREASE
+    float sharpness = GetSharpness(primitiveID);
+    float Sf = floor(sharpness);
+    float Sc = ceil(sharpness);
+    float Sr = frac(sharpness);
+    float4x4 Mf = ComputeMatrixSimplified(Sf);
+    float4x4 Mc = ComputeMatrixSimplified(Sc);
+    float4x4 Mj = (1-Sr) * Mf + Sr * Mi;
+    float4x4 Ms = (1-Sr) * Mf + Sr * Mc;
+
+    float3 pos = float3(0,0,0);
+    float3 P1 = float3(0,0,0);
+    float3 P2 = float3(0,0,0);
+    for (int k=0; k<4; ++k) {
+        pos += Mi[j][k]*H[k]; // 0 to 1-2^(-Sf)
+        P1  += Mj[j][k]*H[k]; // 1-2^(-Sf) to 1-2^(-Sc)
+        P2  += Ms[j][k]*H[k]; // 1-2^(-Sc) to 1
+    }
+#else
     float3 pos = float3(0,0,0);
     for (int k=0; k<4; ++k){
         pos += Q[j][k]*H[k];
     }
+#endif
 
 #endif
 
     HullVertex output;
     output.position = float4(pos, 1.0);
+#if defined OSD_PATCH_SINGLE_CREASE
+    output.P1 = float4(P1, 1.0);
+    output.P2 = float4(P2, 1.0);
+    output.sharpness = sharpness;
+#endif
 
     int patchLevel = GetPatchLevel(primitiveID);
 
@@ -232,8 +286,35 @@ void ds_main_patches(
     Univar4x4(UV.x, B, D);
 #endif
 
+#if defined OSD_PATCH_SINGLE_CREASE
+    float sharpness = patch[0].sharpness;
+    float s0 = 1.0 - pow(2.0f, -floor(sharpness));
+    float s1 = 1.0 - pow(2.0f, -ceil(sharpness));
+#endif
+
     for (int i=0; i<4; ++i) {
         for (int j=0; j<4; ++j) {
+#if defined OSD_PATCH_SINGLE_CREASE
+#if OSD_TRANSITION_ROTATE == 1
+            int k = 4*(3-j) + i;
+            float s = 1-UV.x;
+#elif OSD_TRANSITION_ROTATE == 2
+            int k = 4*(3-i) + (3-j);
+            float s = 1-UV.y;
+#elif OSD_TRANSITION_ROTATE == 3
+            int k = 4*j + (3-i);
+            float s = UV.x;
+#else // ROTATE=0 or non-transition
+            int k = 4*i + j;
+            float s = UV.y;
+#endif
+            float3 A = (s < s0) ?
+                 patch[k].position.xyz :
+                 ((s < s1) ?
+                  patch[k].P1.xyz :
+                  patch[k].P2.xyz);
+
+#else // !SINGLE_CREASE
 #if OSD_TRANSITION_ROTATE == 1
             float3 A = patch[4*(3-j) + i].position.xyz;
 #elif OSD_TRANSITION_ROTATE == 2
@@ -242,6 +323,7 @@ void ds_main_patches(
             float3 A = patch[4*j + (3-i)].position.xyz;
 #else // OSD_TRANSITION_ROTATE == 0, or non-transition patch
             float3 A = patch[4*i + j].position.xyz;
+#endif
 #endif
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];

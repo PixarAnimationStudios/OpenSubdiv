@@ -47,8 +47,8 @@ struct HS_CONSTANT_TRANSITION_FUNC_OUT {
 //----------------------------------------------------------
 
 void
-SetTransitionTessLevels(inout HS_CONSTANT_TRANSITION_FUNC_OUT output, float3 cp[OSD_PATCH_INPUT_SIZE], int patchLevel)
-{
+SetTransitionTessLevels(inout HS_CONSTANT_TRANSITION_FUNC_OUT output, float3 cp[OSD_PATCH_INPUT_SIZE], int patchLevel, uint primitiveID) {
+
 #ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
     // These tables map the 9, 12, or 16 input control points onto the
     // canonical 16 control points for a regular patch.
@@ -145,6 +145,25 @@ SetTransitionTessLevels(inout HS_CONSTANT_TRANSITION_FUNC_OUT output, float3 cp[
     vv3 = (pv5 + pv13) * 0.125 + pv9 * 0.75;
     vv0 = pv5;
     vv1 = (pv5 + pv7) * 0.125 + pv6 * 0.75;
+#endif
+#elif defined OSD_PATCH_SINGLE_CREASE
+    // apply smooth, sharp or fractional-semisharp (linear interpolate) rules
+    float weight = min(1, GetSharpness(primitiveID));
+
+    // XXX: current rotation of single-crease patch is inconsistent
+    // to boundary patch. should be fixed.
+#if OSD_TRANSITION_ROTATE == 2
+    vv0 = lerp(vv0, (pv4 + pv6) * 0.125 + pv5 * 0.75, weight);
+    vv1 = lerp(vv1, (pv5 + pv7) * 0.125 + pv6 * 0.75, weight);
+#elif OSD_TRANSITION_ROTATE == 3
+    vv1 = lerp(vv1, (pv2 + pv10) * 0.125 + pv6 * 0.75, weight);
+    vv2 = lerp(vv2, (pv6 + pv14) * 0.125 + pv10 * 0.75, weight);
+#elif OSD_TRANSITION_ROTATE == 0
+    vv2 = lerp(vv2, (pv9 + pv11) * 0.125 + pv10 * 0.75, weight);
+    vv3 = lerp(vv3, (pv8 + pv10) * 0.125 + pv9 * 0.75, weight);
+#elif OSD_TRANSITION_ROTATE == 1
+    vv3 = lerp(vv3, (pv5 + pv13) * 0.125 + pv9 * 0.75, weight);
+    vv0 = lerp(vv0, (pv1 + pv9) * 0.125 + pv5 * 0.75, weight);
 #endif
 #endif
 

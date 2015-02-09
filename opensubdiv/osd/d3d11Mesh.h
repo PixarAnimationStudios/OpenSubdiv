@@ -199,6 +199,7 @@ private:
 
         Far::PatchTablesFactory::Options options(level);
         options.generateFVarTables = bits.test(MeshFVarData);
+        options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
         _patchTables = Far::PatchTablesFactory::Create(*_refiner, options);
 
@@ -405,6 +406,7 @@ private:
 
         Far::PatchTablesFactory::Options options(level);
         options.generateFVarTables = bits.test(MeshFVarData);
+        options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
         _patchTables = Far::PatchTablesFactory::Create(*_refiner, options);
 

@@ -97,6 +97,19 @@ D3D11DrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
             break;
+        case Far::PatchDescriptor::SINGLE_CREASE:
+            sconfig->vertexShader.source = bsplineShaderSource;
+            sconfig->vertexShader.target = "vs_5_0";
+            sconfig->vertexShader.entry = "vs_main_patches";
+            sconfig->hullShader.source = bsplineShaderSource;
+            sconfig->hullShader.target = "hs_5_0";
+            sconfig->hullShader.entry = "hs_main_patches";
+            sconfig->hullShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
+            sconfig->domainShader.source = bsplineShaderSource;
+            sconfig->domainShader.target = "ds_5_0";
+            sconfig->domainShader.entry = "ds_main_patches";
+            sconfig->domainShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
+            break;
         case Far::PatchDescriptor::BOUNDARY:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
@@ -179,7 +192,10 @@ D3D11DrawRegistryBase::_CreateDrawSourceConfig(
         sconfig->hullShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
         sconfig->domainShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
 
-        if (desc.GetType() == Far::PatchDescriptor::BOUNDARY) {
+        if (desc.GetType() == Far::PatchDescriptor::SINGLE_CREASE) {
+            sconfig->hullShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
+            sconfig->domainShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
+        } else if (desc.GetType() == Far::PatchDescriptor::BOUNDARY) {
             sconfig->hullShader.AddDefine("OSD_PATCH_BOUNDARY");
         } else if (desc.GetType() == Far::PatchDescriptor::CORNER) {
             sconfig->hullShader.AddDefine("OSD_PATCH_CORNER");

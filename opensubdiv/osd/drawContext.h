@@ -239,6 +239,9 @@ protected:
      static void packPatchVerts(Far::PatchTables const & patchTables,
          std::vector<Index> & dst);
 
+     static void packSharpnessValues(Far::PatchTables const & patchTables,
+         std::vector<unsigned int> & dst);
+
      static void packFVarData(Far::PatchTables const & patchTables,
          int fvarWidth, FVarData const & src, FVarData & dst);
 

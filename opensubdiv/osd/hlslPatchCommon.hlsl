@@ -50,6 +50,11 @@ struct HullVertex {
     float4 patchCoord : PATCHCOORD; // u, v, level, faceID
     int4 ptexInfo : PTEXINFO;       // u offset, v offset, 2^ptexlevel, rotation
     int3 clipFlag : CLIPFLAG;
+#if defined OSD_PATCH_SINGLE_CREASE
+    float4 P1 : POSITION1;
+    float4 P2 : POSITION2;
+    float sharpness : BLENDWEIGHT0;
+#endif
 };
 
 struct OutputVertex {
@@ -136,10 +141,17 @@ float TessAdaptive(float3 p0, float3 p1)
 #define OSD_DISPLACEMENT_CALLBACK
 #endif
 
-Buffer<uint2> OsdPatchParamBuffer : register( t3 );
+#if defined OSD_PATCH_SINGLE_CREASE
+    Buffer<uint3> OsdPatchParamBuffer : register( t3 );
+#else
+    Buffer<uint2> OsdPatchParamBuffer : register( t3 );
+#endif
 
 #define GetPatchLevel(primitiveID)                                      \
     (OsdPatchParamBuffer[GetPrimitiveID(primitiveID)].y & 0xf)
+
+#define GetSharpness(primitiveID)                                       \
+    (asfloat(OsdPatchParamBuffer[GetPrimitiveID(primitiveID)].z))
 
 #define OSD_COMPUTE_PTEX_COORD_HULL_SHADER                              \
     {                                                                   \

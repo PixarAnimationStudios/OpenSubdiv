@@ -95,6 +95,33 @@ DrawContext::packPatchVerts(Far::PatchTables const & patchTables,
 }
 
 void
+DrawContext::packSharpnessValues(Far::PatchTables const & patchTables,
+     std::vector<unsigned int> & dst) {
+
+    Far::PatchParamTable const & patchParamTables =
+        patchTables.GetPatchParamTable();
+
+    std::vector<int> const &sharpnessIndexTable =
+        patchTables.GetSharpnessIndexTable();
+
+    std::vector<float> const &sharpnessValues =
+        patchTables.GetSharpnessValues();
+
+    int  npatches = (int)patchParamTables.size();
+
+    // PatchParam = sizeof(int)*2, 1 float for sharpness
+    dst.resize(npatches * (2 + 1));
+
+    for (size_t i = 0; i < npatches; ++i) {
+        float sharpness = sharpnessIndexTable[i] >= 0 ?
+            sharpnessValues[sharpnessIndexTable[i]] : 0.0f;
+        dst[i*3+0] = patchParamTables[i].faceIndex;
+        dst[i*3+1] = patchParamTables[i].bitField.field;
+        dst[i*3+2] = *((unsigned int *)&sharpness);
+    }
+}
+
+void
 DrawContext::packFVarData(Far::PatchTables const & patchTables,
     int fvarWidth, FVarData const & src, FVarData & dst) {
 

@@ -122,7 +122,8 @@ enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
                    kHUD_CB_VIEW_LOD,
                    kHUD_CB_FRACTIONAL_SPACING,
                    kHUD_CB_PATCH_CULL,
-                   kHUD_CB_FREEZE };
+                   kHUD_CB_FREEZE,
+                   kHUD_CB_DISPLAY_PATCH_COUNTS };
 
 int g_currentShape = 0;
 
@@ -133,6 +134,7 @@ int   g_frame = 0,
 int   g_freeze = 0,
       g_wire = 2,
       g_adaptive = 1,
+      g_singleCreasePatch = 1,
       g_drawCageEdges = 1,
       g_drawCageVertices = 0,
       g_drawPatchCVs = 0,
@@ -142,7 +144,8 @@ int   g_freeze = 0,
 int   g_displayPatchColor = 1,
       g_screenSpaceTess = 0,
       g_fractionalSpacing = 0,
-      g_patchCull = 0;
+      g_patchCull = 0,
+      g_displayPatchCounts = 0;
 
 float g_rotate[2] = {0, 0},
       g_prev_x = 0,
@@ -314,10 +317,12 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     g_scheme = scheme;
 
     // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive!=0 and g_scheme==kCatmark);
+    bool doAdaptive = (g_adaptive!=0 and g_scheme==kCatmark),
+         doSingleCreasePatch = (g_singleCreasePatch!=0 and g_scheme==kCatmark);
 
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
+    bits.set(OpenSubdiv::Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
 
     int numVertexElements = 6;
     int numVaryingElements = 0;
@@ -827,8 +832,23 @@ display() {
 #endif
 
     // patch drawing
+    int patchCount[12][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
+    int numTotalPatches = 0;
+    int numDrawCalls = 0;
+
     for (int i=0; i<(int)patches.size(); ++i) {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+
+        OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
+        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
+        int patchPattern = desc.GetPattern();
+        int patchRotation = desc.GetRotation();
+        int subPatch = desc.GetSubPatch();
+
+        if (subPatch == 0) {
+            patchCount[patchType][patchPattern][patchRotation] += patch.GetNumPatches();
+        }
+        numTotalPatches += patch.GetNumPatches();
 
         D3D11_PRIMITIVE_TOPOLOGY topology;
 
@@ -869,10 +889,61 @@ display() {
         g_pd3dDeviceContext->DrawIndexed(patch.GetNumIndices(), patch.GetVertIndex(), 0);
     }
 
+    g_fpsTimer.Stop();
+    float elapsed = (float)g_fpsTimer.GetElapsed();
+    g_fpsTimer.Start();
+
     if (g_hud->IsVisible()) {
-        g_fpsTimer.Stop();
+
+        typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+
         double fps = 1.0/g_fpsTimer.GetElapsed();
-        g_fpsTimer.Start();
+
+        if (g_displayPatchCounts) {
+            int x = -280;
+            int y = -480;
+            g_hud->DrawString(x, y, "NonPatch         : %d",
+                             patchCount[Descriptor::QUADS][0][0]); y += 20;
+            g_hud->DrawString(x, y, "Regular          : %d",
+                             patchCount[Descriptor::REGULAR][0][0]); y+= 20;
+            g_hud->DrawString(x, y, "Boundary         : %d",
+                             patchCount[Descriptor::BOUNDARY][0][0]); y+= 20;
+            g_hud->DrawString(x, y, "Corner           : %d",
+                             patchCount[Descriptor::CORNER][0][0]); y+= 20;
+            g_hud->DrawString(x, y, "Single Crease    : %d",
+                             patchCount[Descriptor::SINGLE_CREASE][0][0]); y+= 20;
+            g_hud->DrawString(x, y, "Gregory          : %d",
+                             patchCount[Descriptor::GREGORY][0][0]); y+= 20;
+            g_hud->DrawString(x, y, "Boundary Gregory : %d",
+                             patchCount[Descriptor::GREGORY_BOUNDARY][0][0]); y+= 20;
+            g_hud->DrawString(x, y, "Trans. Regular   : %d %d %d %d %d",
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN0][0],
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN1][0],
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN2][0],
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN3][0],
+                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN4][0]); y+= 20;
+            for (int i=0; i < 5; i++) {
+                g_hud->DrawString(x, y, "Trans. Boundary%d : %d %d %d %d", i,
+                                 patchCount[Descriptor::BOUNDARY][i+1][0],
+                                 patchCount[Descriptor::BOUNDARY][i+1][1],
+                                 patchCount[Descriptor::BOUNDARY][i+1][2],
+                                 patchCount[Descriptor::BOUNDARY][i+1][3]); y+= 20;
+            }
+            for (int i=0; i < 5; i++) {
+                g_hud->DrawString(x, y, "Trans. Corner%d  : %d %d %d %d", i,
+                                 patchCount[Descriptor::CORNER][i+1][0],
+                                 patchCount[Descriptor::CORNER][i+1][1],
+                                 patchCount[Descriptor::CORNER][i+1][2],
+                                 patchCount[Descriptor::CORNER][i+1][3]); y+= 20;
+            }
+            for (int i=0; i < 5; i++) {
+                g_hud->DrawString(x, y, "Trans. Single Crease%d : %d %d %d %d", i,
+                                 patchCount[Descriptor::SINGLE_CREASE][i+1][0],
+                                 patchCount[Descriptor::SINGLE_CREASE][i+1][1],
+                                 patchCount[Descriptor::SINGLE_CREASE][i+1][2],
+                                 patchCount[Descriptor::SINGLE_CREASE][i+1][3]); y+= 20;
+            }
+        }
 
         g_hud->DrawString(10, -120, "Tess level : %d", g_tessLevel);
         g_hud->DrawString(10, -100, "Control Vertices = %d", g_mesh->GetNumVertices());
@@ -1064,6 +1135,12 @@ callbackAdaptive(bool checked, int a) {
 }
 
 static void
+callbackSingleCreasePatch(bool checked, int /* a */) {
+    g_singleCreasePatch = checked;
+    createOsdMesh(g_defaultShapes[g_currentShape], g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme);
+}
+
+static void
 callbackCheckBox(bool checked, int button) {
     switch (button) {
     case kHUD_CB_DISPLAY_CAGE_EDGES:
@@ -1092,6 +1169,9 @@ callbackCheckBox(bool checked, int button) {
         break;
     case kHUD_CB_FREEZE:
         g_freeze = checked;
+        break;
+    case kHUD_CB_DISPLAY_PATCH_COUNTS:
+        g_displayPatchCounts = checked;
         break;
     }
 }
@@ -1140,6 +1220,7 @@ initHUD() {
     g_hud->AddCheckBox("Frustum Patch Culling (B)", g_patchCull != 0,         10, 150, callbackCheckBox, kHUD_CB_PATCH_CULL, 'B');
 
     g_hud->AddCheckBox("Adaptive (`)", true, 10, 190, callbackAdaptive, 0, '`');
+    g_hud->AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0, 10, 210, callbackSingleCreasePatch, 0, 's');
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
@@ -1151,6 +1232,8 @@ initHUD() {
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
         g_hud->AddPullDownButton(shapes_pulldown, g_defaultShapes[i].name.c_str(),i);
     }
+
+    g_hud->AddCheckBox("Show patch counts", g_displayPatchCounts!=0, -280, -20, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COUNTS);
 
     callbackModel(g_currentShape);
 }

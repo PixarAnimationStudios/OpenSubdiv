@@ -86,17 +86,11 @@ D3D11DrawContext::create(Far::PatchTables const &patchTables,
     pd3d11DeviceContext->GetDevice(&pd3d11Device);
     assert(pd3d11Device);
 
-    DrawContext::ConvertPatchArrays(patchTables, _patchArrays,
-        patchTables.GetMaxValence(), numVertexElements);
-
+    // Process PTable
     Far::PatchTables::PatchVertsTable const & ptables = patchTables.GetPatchControlVerticesTable();
-    Far::PatchParamTable const & ptexCoordTables = patchTables.GetPatchParamTable();
-    int totalPatchIndices = (int)ptables.size();
-    int totalPatches = (int)ptexCoordTables.size();
 
-    // Allocate and fill index buffer.
     D3D11_BUFFER_DESC bd;
-    bd.ByteWidth = totalPatchIndices * sizeof(int);
+    bd.ByteWidth = (int)ptables.size() * sizeof(int);
     bd.Usage = D3D11_USAGE_DYNAMIC;
     bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
     bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -113,40 +107,66 @@ D3D11DrawContext::create(Far::PatchTables const &patchTables,
         return false;
     }
     unsigned int * indexBuffer = (unsigned int *) mappedResource.pData;
-    memcpy(indexBuffer, &ptables[0], totalPatchIndices * sizeof(unsigned int));
+    memcpy(indexBuffer, &ptables[0], ptables.size() * sizeof(unsigned int));
 
     pd3d11DeviceContext->Unmap(patchIndexBuffer, 0);
 
-    // create patch param buffer
-    bd.ByteWidth = totalPatches * sizeof(Far::PatchParam);
-    bd.Usage = D3D11_USAGE_DYNAMIC;
-    bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    bd.MiscFlags = 0;
-    bd.StructureByteStride = sizeof(unsigned int);
-    hr = pd3d11Device->CreateBuffer(&bd, NULL, &ptexCoordinateBuffer);
-    if (FAILED(hr)) {
-        return false;
-    }
+    DrawContext::ConvertPatchArrays(patchTables, _patchArrays,
+        patchTables.GetMaxValence(), numVertexElements);
 
-    D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
-    ZeroMemory(&srvd, sizeof(srvd));
-    srvd.Format = DXGI_FORMAT_R32G32_UINT;
-    srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-    srvd.Buffer.FirstElement = 0;
-    srvd.Buffer.NumElements = totalPatches;
-    hr = pd3d11Device->CreateShaderResourceView(ptexCoordinateBuffer, &srvd, &ptexCoordinateBufferSRV);
-    if (FAILED(hr)) {
-        return false;
-    }
+    // allocate and initialize additional buffer data
 
-    hr = pd3d11DeviceContext->Map(ptexCoordinateBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-    if (FAILED(hr)) {
-        return false;
+    // create ptex coordinate buffer
+    Far::PatchParamTable const & patchParamTables =
+        patchTables.GetPatchParamTable();
+
+    if (not patchParamTables.empty()) {
+
+        int numElements = (int)patchParamTables.size(),
+            elementSize = sizeof(Far::PatchParam);
+        unsigned int const * values =
+            reinterpret_cast<unsigned int const *>(&patchParamTables[0]);
+
+        std::vector<unsigned int> buffer;
+        
+        bool useSingleCrease = not patchTables.GetSharpnessIndexTable().empty();
+        
+        if (useSingleCrease) {
+            // if indexed sharpnesses exists, flatten them and interleave into 3-component buffer
+            packSharpnessValues(patchTables, buffer);
+            elementSize += sizeof(float);
+            values = &buffer[0];
+        }
+
+        bd.ByteWidth = numElements * elementSize;
+        bd.Usage = D3D11_USAGE_DYNAMIC;
+        bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        bd.MiscFlags = 0;
+        bd.StructureByteStride = sizeof(unsigned int);
+        hr = pd3d11Device->CreateBuffer(&bd, NULL, &ptexCoordinateBuffer);
+        if (FAILED(hr)) {
+            return false;
+        }
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
+        ZeroMemory(&srvd, sizeof(srvd));
+        srvd.Format = useSingleCrease ? DXGI_FORMAT_R32G32B32_UINT : DXGI_FORMAT_R32G32_UINT;
+        srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+        srvd.Buffer.FirstElement = 0;
+        srvd.Buffer.NumElements = numElements;
+        hr = pd3d11Device->CreateShaderResourceView(ptexCoordinateBuffer, &srvd, &ptexCoordinateBufferSRV);
+        if (FAILED(hr)) {
+            return false;
+        }
+        hr = pd3d11DeviceContext->Map(ptexCoordinateBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        if (FAILED(hr)) {
+            return false;
+        }
+        unsigned int * ptexBuffer = (unsigned int *) mappedResource.pData;
+        memcpy(ptexBuffer, values, numElements * elementSize);
+        pd3d11DeviceContext->Unmap(ptexCoordinateBuffer, 0);
     }
-    unsigned int * ptexBuffer = (unsigned int *) mappedResource.pData;
-    memcpy(ptexBuffer, &ptexCoordTables[0], totalPatches * sizeof(Far::PatchParam));
-    pd3d11DeviceContext->Unmap(ptexCoordinateBuffer, 0);
 
     // create vertex valence buffer and vertex texture
     Far::PatchTables::VertexValenceTable const &
