@@ -37,9 +37,10 @@ if (WIN32)
     find_path(GLEW_INCLUDE_DIR
         NAMES
             GL/glew.h
-        PATHS
+        HINTS
             "${GLEW_LOCATION}/include"
             "$ENV{GLEW_LOCATION}/include"
+        PATHS
             "$ENV{PROGRAMFILES}/GLEW/include"
             "${PROJECT_SOURCE_DIR}/extern/glew/include"
         DOC "The directory where GL/glew.h resides" )
@@ -53,9 +54,10 @@ if (WIN32)
     find_library(GLEW_LIBRARY
         NAMES
             glew GLEW glew32s glew32
-        PATHS
+        HINTS
             "${GLEW_LOCATION}/lib"
             "$ENV{GLEW_LOCATION}/lib"
+        PATHS
             "$ENV{PROGRAMFILES}/GLEW/lib"
             "${PROJECT_SOURCE_DIR}/extern/glew/bin"
             "${PROJECT_SOURCE_DIR}/extern/glew/lib"
@@ -68,9 +70,10 @@ if (${CMAKE_HOST_UNIX})
     find_path( GLEW_INCLUDE_DIR
         NAMES
             GL/glew.h
-        PATHS
+        HINTS
             "${GLEW_LOCATION}/include"
             "$ENV{GLEW_LOCATION}/include"
+        PATHS
             /usr/include
             /usr/local/include
             /sw/include
@@ -81,9 +84,10 @@ if (${CMAKE_HOST_UNIX})
     find_library( GLEW_LIBRARY
         NAMES
             GLEW glew
-        PATHS
+        HINTS
             "${GLEW_LOCATION}/lib"
             "$ENV{GLEW_LOCATION}/lib"
+        PATHS
             /usr/lib64
             /usr/lib
             /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}
