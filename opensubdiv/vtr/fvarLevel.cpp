@@ -119,7 +119,7 @@ FVarLevel::resizeValues(int valueCount) {
 //  topology of their parent) and no futher analysis is required.
 //
 void
-FVarLevel::completeTopologyFromFaceValues() {
+FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
     //
     //  Assign some members and local variables based on the interpolation options (the
@@ -133,7 +133,7 @@ FVarLevel::completeTopologyFromFaceValues() {
     using Sdc::Options;
 
     Options::VtxBoundaryInterpolation geomOptions = _options.GetVtxBoundaryInterpolation();
-    Options::FVarLinearInterpolation   fvarOptions = _options.GetFVarLinearInterpolation();
+    Options::FVarLinearInterpolation  fvarOptions = _options.GetFVarLinearInterpolation();
 
     _isLinear = (fvarOptions == Options::FVAR_LINEAR_ALL);
 
@@ -425,6 +425,9 @@ FVarLevel::completeTopologyFromFaceValues() {
                     vValueTags[i] = valueTagDepSharp;
                 } else {
                     vValueTags[i] = valueTagCrease;
+                }
+                if (vSpan._size != regularBoundaryValence) {
+                    vValueTags[i]._xordinary = true;
                 }
 
                 vValueCreaseEnds[i]._startFace = vSpan._start;
@@ -896,6 +899,27 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
         }
     }
 }
+
+//
+//  Miscellaneous utilities:
+//
+FVarLevel::ValueTag
+FVarLevel::getFaceCompositeValueTag(ConstIndexArray & faceValues) const {
+
+    typedef ValueTag::ValueTagSize ValueTagSize;
+
+    ValueTag       compTag = _vertValueTags[faceValues[0]];
+    ValueTagSize & compInt = *(reinterpret_cast<ValueTag::ValueTagSize *>(&compTag));
+
+    for (int i = 1; i < faceValues.size(); ++i) {
+        ValueTag const &     srcTag = _vertValueTags[faceValues[i]];
+        ValueTagSize const & srcInt = *(reinterpret_cast<ValueTagSize const *>(&srcTag));
+
+        compInt |= srcInt;
+    }
+    return compTag;
+}
+
 
 } // end namespace Vtr
 

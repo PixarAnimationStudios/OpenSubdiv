@@ -146,12 +146,8 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
     //  Process the Vertex tags now -- for some tags (semi-sharp and its rule) we need
     //  to inspect all incident edges:
     //
-    int schemeRegularBoundaryValence = 2;
-    int schemeRegularInteriorValence = 4;
-    if (refiner.GetSchemeType() == Sdc::SCHEME_LOOP) {
-        schemeRegularBoundaryValence = 3;
-        schemeRegularInteriorValence = 6;
-    }
+    int schemeRegularInteriorValence = Sdc::SchemeTypeTraits::GetRegularVertexValence(refiner.GetSchemeType());
+    int schemeRegularBoundaryValence = schemeRegularInteriorValence / 2;
 
     for (Vtr::Index vIndex = 0; vIndex < baseLevel.getNumVertices(); ++vIndex) {
         Vtr::Level::VTag& vTag       = baseLevel._vertTags[vIndex];
@@ -218,8 +214,11 @@ TopologyRefinerFactoryBase::prepareFaceVaryingChannels(TopologyRefiner& refiner)
 
     Vtr::Level& baseLevel = refiner.getLevel(0);
 
+    int regVertexValence   = Sdc::SchemeTypeTraits::GetRegularVertexValence(refiner.GetSchemeType());
+    int regBoundaryValence = regVertexValence / 2;
+
     for (int channel=0; channel<refiner.GetNumFVarChannels(); ++channel) {
-        baseLevel.completeFVarChannelTopology(channel);
+        baseLevel.completeFVarChannelTopology(channel, regBoundaryValence);
     }
     return true;
 }

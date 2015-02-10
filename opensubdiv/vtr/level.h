@@ -284,12 +284,14 @@ public:
     //  the faces, so we allow all to be returned through these methods.  Setting the optional FVar
     //  channel to -1 will retrieve indices of vertices instead of FVar values:
     //
-    int gatherQuadRegularInteriorPatchPoints(Index fIndex, Index patchVerts[], int rotation = 0,
-                                                                               int fvarChannel = -1) const;
-    int gatherQuadRegularBoundaryPatchPoints(Index fIndex, Index patchVerts[], int boundaryEdgeInFace,
-                                                                               int fvarChannel = -1) const;
-    int gatherQuadRegularCornerPatchPoints(  Index fIndex, Index patchVerts[], int cornerVertInFace,
-                                                                               int fvarChannel = -1) const;
+    int gatherQuadRegularInteriorPatchPoints(Index fIndex, Index patchPoints[], int rotation = 0,
+                                                                                int fvarChannel = -1) const;
+    int gatherQuadRegularBoundaryPatchPoints(Index fIndex, Index patchPoints[], int boundaryEdgeInFace,
+                                                                                int fvarChannel = -1) const;
+    int gatherQuadRegularCornerPatchPoints(  Index fIndex, Index patchPoints[], int cornerVertInFace,
+                                                                                int fvarChannel = -1) const;
+
+    int gatherQuadRegularRingAroundVertex(Index vIndex, Index ringPoints[], int fvarChannel = -1) const;
 
     //  WIP -- for future use, need to extend for face-varying...
     int gatherTriRegularInteriorPatchPoints(      Index fIndex, Index patchVerts[], int rotation = 0) const;
@@ -348,7 +350,7 @@ protected:
     ConstIndexArray  getFVarFaceValues(Index faceIndex, int channel = 0) const;
     IndexArray       getFVarFaceValues(Index faceIndex, int channel = 0);
 
-    void completeFVarChannelTopology(int channel = 0);
+    void completeFVarChannelTopology(int channel, int regBoundaryValence);
 
     //  Counts and offsets for all relation types:
     //      - these may be unwarranted if we let Refinement access members directly...

@@ -106,7 +106,6 @@ protected:
         typedef unsigned char ETagSize;
 
         ETagSize _mismatch : 1;  // local FVar topology does not match
-        ETagSize _boundary : 1;  // not continuous at both ends
         ETagSize _disctsV0 : 1;  // discontinuous at vertex 0
         ETagSize _disctsV1 : 1;  // discontinuous at vertex 1
     };
@@ -134,11 +133,14 @@ protected:
         ValueTagSize _mismatch  : 1;  // local FVar topology does not match
         ValueTagSize _crease    : 1;  // value is a crease, otherwise a corner
         ValueTagSize _semiSharp : 1;  // value is a corner decaying to crease
-        ValueTagSize _depSharp  : 1;  // value a corner by dependency on another
+        ValueTagSize _depSharp  : 1;  // value is a corner by dependency on another
+        ValueTagSize _xordinary : 1;  // value is an x-ordinary crease in the limit
     };
 
     typedef Vtr::ConstArray<ValueTag> ConstValueTagArray;
     typedef Vtr::Array<ValueTag> ValueTagArray;
+
+    ValueTag getFaceCompositeValueTag(ConstIndexArray & faceValues) const;
 
     //
     //  Simple struct containing the "end faces" of a crease, i.e. the faces which
@@ -167,6 +169,11 @@ protected:
 
     int getNumValues() const          { return _valueCount; }
     int getNumFaceValuesTotal() const { return (int) _faceVertValues.size(); }
+
+    bool isLinear() const            { return _isLinear; }
+    bool hasSmoothBoundaries() const { return _hasSmoothBoundaries; }
+
+    Sdc::Options getOptions() const { return _options; }
 
     //  Queries per face:
     ConstIndexArray  getFaceValues(Index fIndex) const;
@@ -211,7 +218,7 @@ protected:
     void resizeComponents();
 
     //  Topological analysis methods -- tagging and face-value population:
-    void completeTopologyFromFaceValues();
+    void completeTopologyFromFaceValues(int regBoundaryValence);
     void initializeFaceValuesFromFaceVertices();
     void initializeFaceValuesFromVertexFaceSiblings();
 
@@ -232,7 +239,7 @@ protected:
 protected:
     Level const & _level;
 
-    //  Options vary between channels:
+    //  Linear interpolation options vary between channels:
     Sdc::Options _options;
 
     bool _isLinear;

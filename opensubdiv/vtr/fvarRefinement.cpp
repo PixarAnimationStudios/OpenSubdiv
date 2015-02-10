@@ -565,7 +565,9 @@ FVarRefinement::reclassifySemisharpValues() {
         if (!_childLevel._vertTags[cVert]._semiSharp) {
             for (int j = 0; j < cValueTags.size(); ++j) {
                 if (cValueTags[j]._semiSharp) {
+                    FVarLevel::ValueTag cValueTagOld = cValueTags[j];
                     cValueTags[j] = valTagCrease;
+                    cValueTags[j]._xordinary = cValueTagOld._xordinary;
                 }
             }
             continue;
@@ -597,7 +599,9 @@ FVarRefinement::reclassifySemisharpValues() {
                     }
                 }
                 if (!isStillSemiSharp) {
+                    FVarLevel::ValueTag cValueTagOld = cValueTags[j];
                     cValueTags[j] = valTagCrease;
+                    cValueTags[j]._xordinary = cValueTagOld._xordinary;
                 }
             }
         }

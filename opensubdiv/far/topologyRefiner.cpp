@@ -430,9 +430,38 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
 
     Vtr::Level const& level = selector.getRefinement().parent();
 
-    int  regularFaceSize           =  selector.getRefinement()._regFaceSize;
-    bool considerSingleCreasePatch = _useSingleCreasePatch && (regularFaceSize == 4);
+    int  regularFaceSize             =  selector.getRefinement()._regFaceSize;
+    bool considerSingleCreasePatch   = _useSingleCreasePatch && (regularFaceSize == 4);
 
+    //
+    //  Face-varying consideration when isolating features:
+    //      - there must obviously be face-varying channels for any consideration
+    //      - we can ignore all purely linear face-varying channels -- a common case that
+    //        will allow us to avoid the repeated per-face inspection of FVar data
+    //      - may allow a subset of face-varying channels to be considered in future:
+    //
+    //  Note that some of this consideration can be given at the highest level and then
+    //  reflected potentially in the Selector, e.g. when all FVar channels are linear,
+    //  any request to inspect them can be overridden for all levels and not repeatedly
+    //  reassessed here for each level.
+    //
+    int  numFVarChannels      = level.getNumFVarChannels();
+    bool considerFVarChannels = (numFVarChannels > 0);
+
+    if (considerFVarChannels) {
+        considerFVarChannels = false;
+
+        for (int channel = 0; channel < numFVarChannels; ++channel) {
+            if (not level._fvarChannels[channel]->isLinear()) {
+                considerFVarChannels = true;
+                break;
+            }
+        }
+    }
+
+    //
+    //  Inspect each face and the properties tagged at all of its corners:
+    //
     for (Vtr::Index face = 0; face < level.getNumFaces(); ++face) {
 
         if (level.isHole(face)) {
@@ -536,6 +565,51 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
             selectFace = (boundaryCount != 3) || (infSharpCount != 1);
         }
 
+        //
+        //  If we have already decided to further isolate features on this face, there is no
+        //  reason to consider anything else.  Otherwise, inspect the face-varying channels (when
+        //  present) for similar irregular features requiring isolation:
+        //
+        if (not selectFace and considerFVarChannels) {
+            for (int channel = 0; channel < numFVarChannels; ++channel) {
+                Vtr::FVarLevel const & fvarLevel = *level._fvarChannels[channel];
+
+                //
+                //  Retrieve the counterpart to the face-vertices composite tag for the face-values
+                //  for this channel.  We can make some quick accept/reject tests but eventually we
+                //  will need to combine the face-vertex and face-varying topology to determine the
+                //  regularity of faces along face-varying boundaries.
+                //
+                Vtr::ConstIndexArray faceValues = fvarLevel.getFaceValues(face);
+
+                Vtr::FVarLevel::ValueTag compFVarFaceTag = fvarLevel.getFaceCompositeValueTag(faceValues);
+
+                //  No mismatch in topology -> no need to further isolate...
+                if (not compFVarFaceTag._mismatch) continue;
+
+                if (compFVarFaceTag._xordinary) {
+                    //  An xordinary boundary value always requires isolation:
+                    selectFace = true;
+                } else if (not fvarLevel.hasSmoothBoundaries()) {
+                    //  All values on piecewise linear boundaries currently require isolation -- this
+                    //  will be improved in future to only isolate those around the vertices at which
+                    //  the linear boundary discontinuities exist.
+                    selectFace = true;
+                } else {
+                    //  This is where things get complicated...
+                    //      We have a face that geometrically did not need isolation, so it is presumed
+                    //  to be somewhat regular with possible boundaries.  For face varying there will
+                    //  be additional boundaries created by discontinuous edges of the face.  This will
+                    //  either preserve the face-varying face as regular with more boundaries or it will
+                    //  introduce too many boundaries to the face -- the latter needing isolation.
+                    //
+                }
+
+                if (selectFace) break;
+            }
+        }
+
+        //  Finally, select the face for further refinement:
         if (selectFace) {
             selector.selectFace(face);
         }

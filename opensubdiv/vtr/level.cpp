@@ -530,10 +530,13 @@ namespace {
     template <typename TAG_TYPE, typename INT_TYPE>
     void
     combineTags(TAG_TYPE& dstTag, TAG_TYPE const& srcTag) {
-        INT_TYPE const* srcInt = reinterpret_cast<INT_TYPE const*>(&srcTag);
-        INT_TYPE *      dstInt = reinterpret_cast<INT_TYPE *>     (&dstTag);
 
-        *dstInt |= *srcInt;
+        assert(sizeof(TAG_TYPE) == sizeof(INT_TYPE));
+
+        INT_TYPE const & srcInt = *(reinterpret_cast<INT_TYPE const*>(&srcTag));
+        INT_TYPE &       dstInt = *(reinterpret_cast<INT_TYPE *>     (&dstTag));
+
+        dstInt |= srcInt;
     }
 }
 
@@ -543,13 +546,7 @@ Level::getFaceCompositeVTag(ConstIndexArray & faceVerts) const {
     VTag compTag = _vertTags[faceVerts[0]];
 
     for (int i = 1; i < faceVerts.size(); ++i) {
-        VTag const& vertTag = _vertTags[faceVerts[i]];
-
-        if (sizeof(VTag) == sizeof(unsigned short)) {
-            combineTags<VTag, unsigned short>(compTag, vertTag);
-        } else {
-            assert("VTag size is uint_32 -- need to adjust composite tag code..." == 0);
-        }
+        combineTags<VTag, VTag::VTagSize>(compTag, _vertTags[faceVerts[i]]);
     }
     return compTag;
 }
@@ -559,13 +556,7 @@ Level::getFaceCompositeETag(ConstIndexArray & faceEdges) const {
     ETag compTag = _edgeTags[faceEdges[0]];
 
     for (int i = 1; i < faceEdges.size(); ++i) {
-        ETag const& edgeTag = _edgeTags[faceEdges[i]];
-
-        if (sizeof(ETag) == sizeof(unsigned char)) {
-            combineTags<ETag, unsigned char>(compTag, edgeTag);
-        } else {
-            assert("ETag size is uint_8 -- need to adjust composite tag code..." == 0);
-        }
+        combineTags<ETag, ETag::ETagSize>(compTag, _edgeTags[faceEdges[i]]);
     }
     return compTag;
 }
@@ -608,6 +599,18 @@ namespace {
 int
 Level::gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int ringVerts[]) const {
 
+    int ringSize = gatherQuadRegularRingAroundVertex(vIndex, ringVerts, -1);
+    if (vOffset) {
+        for (int i = 0; i < ringSize; ++i) {
+            ringVerts[i] += vOffset;
+        }
+    }
+    return ringSize;
+}
+
+int
+Level::gatherQuadRegularRingAroundVertex(Index vIndex, int ringPoints[], int fvarChannel) const {
+
     Level const& level = *this;
 
     ConstIndexArray vEdges = level.getVertexEdges(vIndex);
@@ -623,15 +626,17 @@ Level::gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int 
         //  For every incident quad, we want the two vertices clockwise in each face, i.e.
         //  the vertex at the end of the leading edge and the vertex opposite this one:
         //
-        ConstIndexArray fVerts = level.getFaceVertices(vFaces[i]);
+        ConstIndexArray fPoints = (fvarChannel < 0)
+                                ? level.getFaceVertices(vFaces[i])
+                                : level.getFVarFaceValues(vFaces[i], fvarChannel);
 
         int vInThisFace = vInFaces[i];
 
-        ringVerts[ringIndex++] = vOffset + fVerts[fastMod4(vInThisFace + 1)];
-        ringVerts[ringIndex++] = vOffset + fVerts[fastMod4(vInThisFace + 2)];
+        ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 1)];
+        ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 2)];
 
         if (isBoundary && (i == (vFaces.size() - 1))) {
-            ringVerts[ringIndex++] = vOffset + fVerts[fastMod4(vInThisFace + 3)];
+            ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 3)];
         }
     }
     return ringIndex;
@@ -1821,8 +1826,8 @@ Level::getFVarFaceValues(Index faceIndex, int channel) {
 }
 
 void
-Level::completeFVarChannelTopology(int channel) {
-    return _fvarChannels[channel]->completeTopologyFromFaceValues();
+Level::completeFVarChannelTopology(int channel, int regBoundaryValence) {
+    return _fvarChannels[channel]->completeTopologyFromFaceValues(regBoundaryValence);
 }
 
 } // end namespace Vtr

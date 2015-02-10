@@ -391,22 +391,16 @@ public:
 
 
     /// \brief Returns the number of face-varying channels in the tables
-    int GetNumFVarChannels() const {
-        return _levels[0]->getNumFVarChannels();
-    }
+    int GetNumFVarChannels() const;
 
     /// \brief Returns the total number of face-varying values in all levels
     int GetNumFVarValuesTotal(int channel = 0) const;
 
     /// \brief Returns the number of face-varying values at a given level of refinement
-    int GetNumFVarValues(int level, int channel = 0) const {
-        return _levels[level]->getNumFVarValues(channel);
-    }
+    int GetNumFVarValues(int level, int channel = 0) const;
 
     /// \brief Returns the face-varying values of a 'face' at 'level'
-    ConstIndexArray const GetFVarFaceValues(int level, Index face, int channel = 0) const {
-        return _levels[level]->getFVarFaceValues(face, channel);
-    }
+    ConstIndexArray const GetFVarFaceValues(int level, Index face, int channel = 0) const;
 
     //@}
 
@@ -534,13 +528,12 @@ protected:
     void setBaseFaceHole(Index f, bool b) { _levels[0]->setHole(f, b); _hasHoles |= b; }
 
     //  Optional methods for creating and assigning face-varying data channels:
-    int createBaseFVarChannel(int numValues)                              { return _levels[0]->createFVarChannel(numValues, _subdivOptions); }
-    int createBaseFVarChannel(int numValues, Sdc::Options const& options) { return _levels[0]->createFVarChannel(numValues, options); }
+    int createBaseFVarChannel(int numValues);
+    int createBaseFVarChannel(int numValues, Sdc::Options const& options);
 
-    IndexArray setBaseFVarFaceValues(Index face, int channel = 0) { return _levels[0]->getFVarFaceValues(face, channel); }
+    IndexArray setBaseFVarFaceValues(Index face, int channel = 0);
 
 protected:
-
     //
     //  Lower level protected methods intended stricty for internal use:
     //
@@ -590,6 +583,41 @@ private:
 
     std::vector<Index> _ptexIndices;
 };
+
+
+inline int
+TopologyRefiner::GetNumFVarChannels() const {
+
+    return _levels[0]->getNumFVarChannels();
+}
+inline int
+TopologyRefiner::GetNumFVarValues(int level, int channel) const {
+
+    return _levels[level]->getNumFVarValues(channel);
+}
+inline ConstIndexArray const
+TopologyRefiner::GetFVarFaceValues(int level, Index face, int channel) const {
+
+    return _levels[level]->getFVarFaceValues(face, channel);
+}
+inline int
+TopologyRefiner::createBaseFVarChannel(int numValues) {
+
+    return _levels[0]->createFVarChannel(numValues, _subdivOptions);
+}
+inline int
+TopologyRefiner::createBaseFVarChannel(int numValues, Sdc::Options const& fvarOptions) {
+
+    Sdc::Options options = _subdivOptions;
+    options.SetFVarLinearInterpolation(fvarOptions.GetFVarLinearInterpolation());
+    return _levels[0]->createFVarChannel(numValues, options);
+}
+inline IndexArray
+TopologyRefiner::setBaseFVarFaceValues(Index face, int channel) {
+
+    return _levels[0]->getFVarFaceValues(face, channel);
+}
+
 
 template <class T, class U>
 inline void
