@@ -27,6 +27,7 @@
 
 #include "../version.h"
 
+#include "../far/types.h"
 #include "../sdc/types.h"
 
 #include <vector>
@@ -154,7 +155,7 @@ public:
 
     /// \brief Returns a vector of all the legal patch descriptors for the
     ///        given adaptive subdivision scheme
-    static std::vector<PatchDescriptor> const & GetAdaptivePatchDescriptors(Sdc::SchemeType type);
+    static Vtr::ConstArray<PatchDescriptor> GetAdaptivePatchDescriptors(Sdc::SchemeType type);
 
     /// \brief Allows ordering of patches by type
     inline bool operator < ( PatchDescriptor const other ) const;
@@ -170,7 +171,7 @@ private:
     unsigned int  _rotation:2;
 };
 
-typedef std::vector<PatchDescriptor> PatchDescriptorVector;
+typedef Vtr::ConstArray<PatchDescriptor> ConstPatchDescriptorArray;
 
 // Returns the number of control vertices expected for a patch of this type
 inline short

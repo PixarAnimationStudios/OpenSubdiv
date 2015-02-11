@@ -850,13 +850,13 @@ PatchTablesFactory::createAdaptive( TopologyRefiner const & refiner, Options opt
     tables->reservePatchArrays(patchInventory.getNumPatchArrays());
 
     // sort through the inventory and push back non-empty patch arrays
-    typedef PatchDescriptorVector DescVec;
-
-    DescVec const & descs = PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SCHEME_CATMARK);
+    ConstPatchDescriptorArray const & descs =
+        PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SCHEME_CATMARK);
 
     int voffset=0, poffset=0, qoffset=0;
-    for (DescVec::const_iterator it=descs.begin(); it!=descs.end(); ++it) {
-        tables->pushPatchArray(*it, patchInventory.getValue(*it), &voffset, &poffset, &qoffset );
+    for (int i=0; i<descs.size(); ++i) {
+        PatchDescriptor desc = descs[i];
+        tables->pushPatchArray(desc, patchInventory.getValue(desc), &voffset, &poffset, &qoffset );
     }
 
     tables->_numPtexFaces = refiner.GetNumPtexFaces();
@@ -1134,22 +1134,23 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
     PatchFVarPointers  fptrs;
     SharpnessIndexPointers sptrs;
 
-    typedef PatchDescriptorVector DescVec;
+    ConstPatchDescriptorArray const & descs =
+        PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SCHEME_CATMARK);
 
-    DescVec const & descs = PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SCHEME_CATMARK);
+    for (int i=0; i<descs.size(); ++i) {
 
-    for (DescVec::const_iterator it=descs.begin(); it!=descs.end(); ++it) {
+        PatchDescriptor desc = descs[i];
 
-        Index arrayIndex = tables->findPatchArray(*it);
+        Index arrayIndex = tables->findPatchArray(desc);
 
         if (arrayIndex==Vtr::INDEX_INVALID) {
             continue;
         }
 
-        iptrs.getValue( *it ) = tables->getPatchArrayVertices(arrayIndex).begin();
-        pptrs.getValue( *it ) = tables->getPatchParams(arrayIndex).begin();
+        iptrs.getValue(desc) = tables->getPatchArrayVertices(arrayIndex).begin();
+        pptrs.getValue(desc) = tables->getPatchParams(arrayIndex).begin();
         if (patchInventory.hasSingleCreasedPatches()) {
-            sptrs.getValue( *it ) = tables->getSharpnessIndices(arrayIndex);
+            sptrs.getValue(desc) = tables->getSharpnessIndices(arrayIndex);
         }
 
         if (tables->_fvarPatchTables) {
@@ -1161,7 +1162,7 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
 
                 fptr[channel] = tables->getFVarVerts(arrayIndex, channel).begin();
             }
-            fptrs.getValue( *it ) = fptr;
+            fptrs.getValue(desc) = fptr;
         }
     }
 
