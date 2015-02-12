@@ -696,6 +696,8 @@ PatchTablesFactory::createUniform( TopologyRefiner const & refiner, Options opti
         firstlevel = options.generateAllLevels ? 0 : maxlevel,
         nlevels = maxlevel-firstlevel+1;
 
+    if(maxvalence < 4) maxvalence = 4;
+    
     PatchDescriptor::Type ptype = PatchDescriptor::NON_PATCH;
     if (options.triangulateQuads) {
         ptype = PatchDescriptor::TRIANGLES;
@@ -843,7 +845,8 @@ PatchTablesFactory::createAdaptive( TopologyRefiner const & refiner, Options opt
     //  the inventory of patches determined above:
     //
     int maxValence = refiner.getLevel(0).getMaxValence();
-
+    if(maxValence < 4) maxValence = 4;
+    
     PatchTables * tables = new PatchTables(maxValence);
 
     // Populate the patch array descriptors
@@ -1188,7 +1191,8 @@ PatchTablesFactory::populateAdaptivePatches( TopologyRefiner const & refiner,
 
             int maxvalence = refiner.getLevel(0).getMaxValence(),
                 npatches = patchInventory.GP;
-
+            if(maxvalence < 4) maxvalence = 4;
+            
             gregoryStencilsFactory =
                 new GregoryBasisFactory(refiner, *adaptiveStencils, npatches, maxvalence);
 

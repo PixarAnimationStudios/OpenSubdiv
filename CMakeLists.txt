@@ -182,8 +182,7 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
                 NAMES
                     ${ICC_LIB}
                 PATHS
-                    ${ICC_LOCATION}/lib
-                    /opt/intel/lib/
+                    ${ICC_LIB_LOCATION}
                 PATH_SUFFIXES
                     ${ICC_LIB_ARCH}
             )
