@@ -77,7 +77,7 @@ FVarRefinement::applyRefinement() {
     _childFVar._options = _parentFVar._options;
 
     _childFVar._isLinear              = _parentFVar._isLinear;
-    _childFVar._hasSmoothBoundaries   = _parentFVar._hasSmoothBoundaries;
+    _childFVar._hasLinearBoundaries   = _parentFVar._hasLinearBoundaries;
     _childFVar._hasDependentSharpness = _parentFVar._hasDependentSharpness;
 
     //
@@ -91,7 +91,7 @@ FVarRefinement::applyRefinement() {
 
     propagateEdgeTags();
     propagateValueTags();
-    if (_childFVar._hasSmoothBoundaries) {
+    if (_childFVar.hasSmoothBoundaries()) {
         propagateValueCreases();
         reclassifySemisharpValues();
     }
@@ -163,7 +163,7 @@ void
 FVarRefinement::trimAndFinalizeChildValues() {
 
     _childFVar._vertValueTags.resize(_childFVar._valueCount);
-    if (_childFVar._hasSmoothBoundaries) {
+    if (_childFVar.hasSmoothBoundaries()) {
         _childFVar._vertValueCreaseEnds.resize(_childFVar._valueCount);
     }
 
@@ -409,7 +409,7 @@ FVarRefinement::propagateValueTags() {
     FVarLevel::ValueTag valTagCrease = valTagMismatch;
     valTagCrease._crease = true;
 
-    FVarLevel::ValueTag& valTagSplitEdge = _parentFVar._hasSmoothBoundaries ? valTagCrease : valTagMismatch;
+    FVarLevel::ValueTag& valTagSplitEdge = _parentFVar.hasSmoothBoundaries() ? valTagCrease : valTagMismatch;
 
     cVert    = _refinement.getFirstChildVertexFromEdges();
     cVertEnd = cVert + _refinement.getNumChildVerticesFromEdges();
@@ -418,10 +418,11 @@ FVarRefinement::propagateValueTags() {
 
         FVarLevel::ValueTagArray cValueTags = _childFVar.getVertexValueTags(cVert);
 
-        if (_parentFVar.edgeTopologyMatches(pEdge)) {
-            std::fill(cValueTags.begin(), cValueTags.end(), valTagMatch);
-        } else {
+        FVarLevel::ETag pEdgeTag = _parentFVar._edgeTags[pEdge];
+        if (pEdgeTag._mismatch || pEdgeTag._linear) {
             std::fill(cValueTags.begin(), cValueTags.end(), valTagSplitEdge);
+        } else {
+            std::fill(cValueTags.begin(), cValueTags.end(), valTagMatch);
         }
     }
 
@@ -446,7 +447,7 @@ FVarRefinement::propagateValueTags() {
 void
 FVarRefinement::propagateValueCreases() {
 
-    assert(_childFVar._hasSmoothBoundaries);
+    assert(_childFVar.hasSmoothBoundaries());
 
     //  Skip child vertices from faces:
 

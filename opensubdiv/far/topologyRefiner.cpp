@@ -566,12 +566,11 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
         }
 
         //
-        //  If we have already decided to further isolate features on this face, there is no
-        //  reason to consider anything else.  Otherwise, inspect the face-varying channels (when
-        //  present) for similar irregular features requiring isolation:
+        //  If still not selected, inspect the face-varying channels (when present) for similar
+        //  irregular features requiring isolation:
         //
         if (not selectFace and considerFVarChannels) {
-            for (int channel = 0; channel < numFVarChannels; ++channel) {
+            for (int channel = 0; not selectFace && (channel < numFVarChannels); ++channel) {
                 Vtr::FVarLevel const & fvarLevel = *level._fvarChannels[channel];
 
                 //
@@ -590,22 +589,33 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
                 if (compFVarFaceTag._xordinary) {
                     //  An xordinary boundary value always requires isolation:
                     selectFace = true;
-                } else if (not fvarLevel.hasSmoothBoundaries()) {
-                    //  All values on piecewise linear boundaries currently require isolation -- this
-                    //  will be improved in future to only isolate those around the vertices at which
-                    //  the linear boundary discontinuities exist.
-                    selectFace = true;
                 } else {
-                    //  This is where things get complicated...
-                    //      We have a face that geometrically did not need isolation, so it is presumed
-                    //  to be somewhat regular with possible boundaries.  For face varying there will
-                    //  be additional boundaries created by discontinuous edges of the face.  This will
-                    //  either preserve the face-varying face as regular with more boundaries or it will
-                    //  introduce too many boundaries to the face -- the latter needing isolation.
-                    //
-                }
+                    //  Combine the FVar topology tags (ValueTags) at corners with the vertex topology
+                    //  tags (VTags), then make similar inferences from the combined tags as was done
+                    //  for the face.
+                    Vtr::Level::VTag fvarVTags[4];
+                    Vtr::Level::VTag compFVarVTag = fvarLevel.getFaceCompositeValueAndVTag(
+                                                        faceValues, faceVerts, fvarVTags);
 
-                if (selectFace) break;
+                    if (not (compFVarVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
+                        //  No Smooth corners so too many boundaries/corners -- need to isolate:
+                        selectFace = true;
+                    } else if (not (compFVarVTag._rule & Sdc::Crease::RULE_CORNER)) {
+                        //  A mix of Smooth and Crease corners -- must be regular so don't isolate:
+                        selectFace = false;
+                    } else {
+                        //  Since FVar boundaries can be "sharpened" based on the linear interpolation
+                        //  rules, we again have to inspect more closely (as we did with the original
+                        //  face) to ensure we have a regular corner and not a sharpened crease:
+                        unsigned int boundaryCount = fvarVTags[0]._boundary,
+                                     infSharpCount = fvarVTags[0]._infSharp;
+                        for (int i = 1; i < faceVerts.size(); ++i) {
+                            boundaryCount += fvarVTags[i]._boundary;
+                            infSharpCount += fvarVTags[i]._infSharp;
+                        }
+                        selectFace = (boundaryCount != 3) || (infSharpCount != 1);
+                    }
+                }
             }
         }
 

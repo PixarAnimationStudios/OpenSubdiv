@@ -51,7 +51,7 @@ namespace Vtr {
 FVarLevel::FVarLevel(Level const& level) :
     _level(level),
     _isLinear(false),
-    _hasSmoothBoundaries(false),
+    _hasLinearBoundaries(false),
     _hasDependentSharpness(false),
     _valueCount(0) {
 }
@@ -94,7 +94,7 @@ FVarLevel::resizeVertexValues(int vertexValueCount) {
     valueTagMatch.clear();
     _vertValueTags.resize(vertexValueCount, valueTagMatch);
 
-    if (_hasSmoothBoundaries) {
+    if (hasSmoothBoundaries()) {
         _vertValueCreaseEnds.resize(vertexValueCount);
     }
 }
@@ -137,8 +137,8 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
     _isLinear = (fvarOptions == Options::FVAR_LINEAR_ALL);
 
-    _hasSmoothBoundaries = (fvarOptions != Options::FVAR_LINEAR_ALL) &&
-                           (fvarOptions != Options::FVAR_LINEAR_BOUNDARIES);
+    _hasLinearBoundaries = (fvarOptions == Options::FVAR_LINEAR_ALL) ||
+                           (fvarOptions == Options::FVAR_LINEAR_BOUNDARIES);
 
     _hasDependentSharpness = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS1) ||
                              (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS2);
@@ -150,7 +150,8 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
     bool sharpenBothIfOneCorner  = (fvarOptions == Options::FVAR_LINEAR_CORNERS_PLUS2);
 
-    bool sharpenDarts = sharpenBothIfOneCorner || !_hasSmoothBoundaries;
+    bool sharpenDarts = sharpenBothIfOneCorner || _hasLinearBoundaries;
+
 
     //
     //  Its awkward and potentially inefficient to try and accomplish everything in one
@@ -228,6 +229,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
                     eTag._disctsV1 = true;
                 }
                 eTag._mismatch = true;
+                eTag._linear = (ETag::ETagSize) _hasLinearBoundaries;
 
                 //  Tag both end vertices as not matching topology:
                 ConstIndexArray eVerts = _level.getEdgeVertices(eIndex);
@@ -265,12 +267,15 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         //  geometric boundaries if the FVar interpolation rules affect them:
         //
         if (vIsBoundary && !vertexMismatch[vIndex]) {
-            if (vFaces.size() == 1) {
+            if (_hasLinearBoundaries) {
+                vertexMismatch[vIndex] = true;
+
+                _edgeTags[vEdges[0]]._linear = true;
+                _edgeTags[vEdges[vEdges.size()-1]]._linear = true;
+            } else if (vFaces.size() == 1) {
                 if (makeSmoothCornersSharp) {
                     vertexMismatch[vIndex] = true;
                 }
-            } else if (!_hasSmoothBoundaries) {
-                vertexMismatch[vIndex] = true;
             }
         }
 
@@ -359,7 +364,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         bool  vIsBoundary = _level._vertTags[vIndex]._boundary;
         float vSharpness  = _level._vertSharpness[vIndex];
 
-        bool allCornersAreSharp = !_hasSmoothBoundaries ||
+        bool allCornersAreSharp = _hasLinearBoundaries ||
                                   Sdc::Crease::IsInfinite(vSharpness) ||
                                   (_hasDependentSharpness && (vValues.size() > 2)) ||
                                   (sharpenDarts && (vValues.size() == 1) && !vIsBoundary) ||
@@ -909,7 +914,7 @@ FVarLevel::getFaceCompositeValueTag(ConstIndexArray & faceValues) const {
     typedef ValueTag::ValueTagSize ValueTagSize;
 
     ValueTag       compTag = _vertValueTags[faceValues[0]];
-    ValueTagSize & compInt = *(reinterpret_cast<ValueTag::ValueTagSize *>(&compTag));
+    ValueTagSize & compInt = *(reinterpret_cast<ValueTagSize *>(&compTag));
 
     for (int i = 1; i < faceValues.size(); ++i) {
         ValueTag const &     srcTag = _vertValueTags[faceValues[i]];
@@ -920,6 +925,47 @@ FVarLevel::getFaceCompositeValueTag(ConstIndexArray & faceValues) const {
     return compTag;
 }
 
+Level::VTag
+FVarLevel::getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
+                                        ConstIndexArray & faceVerts,
+                                        Level::VTag * fvarVTags) const {
+
+    typedef Level::VTag            VertTag;
+    typedef Level::VTag::VTagSize  VertTagSize;
+    typedef ValueTag::ValueTagSize ValueTagSize;
+
+    //
+    //  Create a composite VTag for the face that augments the vertex corners' VTag's with
+    //  topological information about the FVar values at each corner.  Only when there is
+    //  a mismatch does the FVar value need to be inspected further:
+    //
+    VertTag       compVTag;
+    VertTagSize & compInt = *(reinterpret_cast<VertTagSize *>(&compVTag));
+
+    compInt = 0;
+    for (int i = 0; i < faceVerts.size(); ++i) {
+        VertTag &     srcVTag = fvarVTags[i];
+        VertTagSize & srcInt  = *(reinterpret_cast<VertTagSize *>(&srcVTag));
+
+        srcVTag = _level._vertTags[faceVerts[i]];
+
+        ValueTag const & srcValueTag = _vertValueTags[faceValues[i]];
+        if (srcValueTag._mismatch) {
+            if (srcValueTag.isCorner()) {
+                srcVTag._rule = (VertTagSize) Sdc::Crease::RULE_CORNER;
+                srcVTag._infSharp = true;
+            } else {
+                srcVTag._rule = (VertTagSize) Sdc::Crease::RULE_CREASE;
+                srcVTag._infSharp = false;
+            }
+            srcVTag._boundary = true;
+            srcVTag._xordinary = srcValueTag._xordinary;
+            srcVTag._nonManifold = false;
+        }
+        compInt |= srcInt;
+    }
+    return compVTag;
+}
 
 } // end namespace Vtr
 

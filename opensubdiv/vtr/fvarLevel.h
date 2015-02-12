@@ -108,6 +108,7 @@ protected:
         ETagSize _mismatch : 1;  // local FVar topology does not match
         ETagSize _disctsV0 : 1;  // discontinuous at vertex 0
         ETagSize _disctsV1 : 1;  // discontinuous at vertex 1
+        ETagSize _linear   : 1;  // linear boundary constraints
     };
 
     //
@@ -140,7 +141,11 @@ protected:
     typedef Vtr::ConstArray<ValueTag> ConstValueTagArray;
     typedef Vtr::Array<ValueTag> ValueTagArray;
 
-    ValueTag getFaceCompositeValueTag(ConstIndexArray & faceValues) const;
+    ValueTag    getFaceCompositeValueTag(ConstIndexArray & faceValues) const;
+
+    Level::VTag getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
+                                             ConstIndexArray & faceVerts,
+                                             Level::VTag *     fvarVTags) const;
 
     //
     //  Simple struct containing the "end faces" of a crease, i.e. the faces which
@@ -171,7 +176,8 @@ protected:
     int getNumFaceValuesTotal() const { return (int) _faceVertValues.size(); }
 
     bool isLinear() const            { return _isLinear; }
-    bool hasSmoothBoundaries() const { return _hasSmoothBoundaries; }
+    bool hasLinearBoundaries() const { return _hasLinearBoundaries; }
+    bool hasSmoothBoundaries() const { return not _hasLinearBoundaries; }
 
     Sdc::Options getOptions() const { return _options; }
 
@@ -243,7 +249,7 @@ protected:
     Sdc::Options _options;
 
     bool _isLinear;
-    bool _hasSmoothBoundaries;
+    bool _hasLinearBoundaries;
     bool _hasDependentSharpness;
     int  _valueCount;
 
