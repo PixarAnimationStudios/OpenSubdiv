@@ -828,12 +828,12 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
     // Populate the patch array descriptors
     result->reservePatchArrays(patchCtr.getNumPatchArrays());
 
-    typedef Far::PatchDescriptorVector DescVec;
+    typedef Far::ConstPatchDescriptorArray DescArray;
 
-    DescVec const & catmarkDescs = Far::PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SCHEME_CATMARK);
+    DescArray const & catmarkDescs = Far::PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SCHEME_CATMARK);
 
     int voffset=0, poffset=0, qoffset=0;
-    for (DescVec::const_iterator it=catmarkDescs.begin(); it!=catmarkDescs.end(); ++it) {
+    for (DescArray::const_iterator it=catmarkDescs.begin(); it!=catmarkDescs.end(); ++it) {
         result->pushPatchArray(*it, patchCtr.getValue(*it), &voffset, &poffset, &qoffset );
     }
 
@@ -853,7 +853,7 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
     ParamPointers pptrs;
     FVarPointers  fptrs;
 
-    for (DescVec::const_iterator it=catmarkDescs.begin(); it!=catmarkDescs.end(); ++it) {
+    for (DescArray::const_iterator it=catmarkDescs.begin(); it!=catmarkDescs.end(); ++it) {
 
         Index arrayIndex = result->findPatchArray(*it);
         if (arrayIndex==Vtr::INDEX_INVALID) {
