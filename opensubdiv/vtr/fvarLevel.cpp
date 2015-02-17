@@ -932,7 +932,6 @@ FVarLevel::getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
 
     typedef Level::VTag            VertTag;
     typedef Level::VTag::VTagSize  VertTagSize;
-    typedef ValueTag::ValueTagSize ValueTagSize;
 
     //
     //  Create a composite VTag for the face that augments the vertex corners' VTag's with
@@ -965,6 +964,37 @@ FVarLevel::getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
         compInt |= srcInt;
     }
     return compVTag;
+}
+
+Level::ETag
+FVarLevel::getFaceCompositeCombinedEdgeTag(ConstIndexArray & faceEdges,
+                                           Level::ETag *     fvarETags) const {
+
+    typedef Level::ETag            FaceETag;
+    typedef Level::ETag::ETagSize  FaceETagSize;
+
+    //
+    //  Create a composite ETag for the face that augments the edges ETag's with
+    //  topological information about the FVar values at each corner.  Only when there is
+    //  a mismatch does the FVar value need to be inspected further:
+    //
+    FaceETag       compETag;
+    FaceETagSize & compInt = *(reinterpret_cast<FaceETagSize *>(&compETag));
+
+    compInt = 0;
+    for (int i = 0; i < faceEdges.size(); ++i) {
+        FaceETag &     srcETag = fvarETags[i];
+        FaceETagSize & srcInt  = *(reinterpret_cast<FaceETagSize *>(&srcETag));
+
+        srcETag = _level._edgeTags[faceEdges[i]];
+
+        FVarLevel::ETag const & fvarETag = _edgeTags[faceEdges[i]];
+        if (fvarETag._mismatch) {
+            srcETag._boundary = true;
+        }
+        compInt |= srcInt;
+    }
+    return compETag;
 }
 
 } // end namespace Vtr

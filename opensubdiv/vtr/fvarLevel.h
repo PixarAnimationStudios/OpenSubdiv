@@ -147,6 +147,9 @@ protected:
                                              ConstIndexArray & faceVerts,
                                              Level::VTag *     fvarVTags) const;
 
+    Level::ETag getFaceCompositeCombinedEdgeTag(ConstIndexArray & faceEdges,
+                                                Level::ETag *     fvarETags) const;
+
     //
     //  Simple struct containing the "end faces" of a crease, i.e. the faces which
     //  contain the FVar values to be used when interpolating the crease.  (Prefer
