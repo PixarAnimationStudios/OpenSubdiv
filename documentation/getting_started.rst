@@ -76,7 +76,7 @@ Branches & Git Flow
 Since version 1.1.0, OpenSubdiv has adopted the `Git Flow
 <http://nvie.com/posts/a-successful-git-branching-model/>`__ branching model .
 
-Our active development branch is named *dev* : all new features and buf fixes should
+Our active development branch is named *dev* : all new features and bug fixes should
 be submitted to this branch. The changes submitted to the dev branch are periodically
 patched to the 'master' branch as new versions are released.
 
