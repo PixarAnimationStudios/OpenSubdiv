@@ -581,7 +581,8 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
                 //
                 Vtr::ConstIndexArray faceValues = fvarLevel.getFaceValues(face);
 
-                Vtr::FVarLevel::ValueTag compFVarFaceTag = fvarLevel.getFaceCompositeValueTag(faceValues);
+                Vtr::FVarLevel::ValueTag compFVarFaceTag =
+                        fvarLevel.getFaceCompositeValueTag(faceValues, faceVerts);
 
                 //  No mismatch in topology -> no need to further isolate...
                 if (not compFVarFaceTag._mismatch) continue;
@@ -594,8 +595,8 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
                     //  tags (VTags), then make similar inferences from the combined tags as was done
                     //  for the face.
                     Vtr::Level::VTag fvarVTags[4];
-                    Vtr::Level::VTag compFVarVTag = fvarLevel.getFaceCompositeValueAndVTag(
-                                                        faceValues, faceVerts, fvarVTags);
+                    Vtr::Level::VTag compFVarVTag =
+                            fvarLevel.getFaceCompositeValueAndVTag(faceValues, faceVerts, fvarVTags);
 
                     if (not (compFVarVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
                         //  No Smooth corners so too many boundaries/corners -- need to isolate:

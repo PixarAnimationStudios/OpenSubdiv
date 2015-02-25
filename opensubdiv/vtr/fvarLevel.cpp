@@ -909,15 +909,20 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
 //  Miscellaneous utilities:
 //
 FVarLevel::ValueTag
-FVarLevel::getFaceCompositeValueTag(ConstIndexArray & faceValues) const {
+FVarLevel::getFaceCompositeValueTag(ConstIndexArray & faceValues,
+                                    ConstIndexArray & faceVerts) const {
 
     typedef ValueTag::ValueTagSize ValueTagSize;
 
-    ValueTag       compTag = _vertValueTags[faceValues[0]];
+    ValueTag       compTag;
     ValueTagSize & compInt = *(reinterpret_cast<ValueTagSize *>(&compTag));
 
-    for (int i = 1; i < faceValues.size(); ++i) {
-        ValueTag const &     srcTag = _vertValueTags[faceValues[i]];
+    compInt = 0;
+    for (int i = 0; i < faceValues.size(); ++i) {
+        Index srcValueIndex = findVertexValueIndex(faceVerts[i], faceValues[i]);
+        assert(_vertValueIndices[srcValueIndex] == faceValues[i]);
+
+        ValueTag const &     srcTag = _vertValueTags[srcValueIndex];
         ValueTagSize const & srcInt = *(reinterpret_cast<ValueTagSize const *>(&srcTag));
 
         compInt |= srcInt;
@@ -948,7 +953,10 @@ FVarLevel::getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
 
         srcVTag = _level._vertTags[faceVerts[i]];
 
-        ValueTag const & srcValueTag = _vertValueTags[faceValues[i]];
+        Index srcValueIndex = findVertexValueIndex(faceVerts[i], faceValues[i]);
+        assert(_vertValueIndices[srcValueIndex] == faceValues[i]);
+
+        ValueTag const & srcValueTag = _vertValueTags[srcValueIndex];
         if (srcValueTag._mismatch) {
             if (srcValueTag.isCorner()) {
                 srcVTag._rule = (VertTagSize) Sdc::Crease::RULE_CORNER;

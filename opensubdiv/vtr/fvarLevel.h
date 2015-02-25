@@ -141,7 +141,8 @@ protected:
     typedef Vtr::ConstArray<ValueTag> ConstValueTagArray;
     typedef Vtr::Array<ValueTag> ValueTagArray;
 
-    ValueTag    getFaceCompositeValueTag(ConstIndexArray & faceValues) const;
+    ValueTag    getFaceCompositeValueTag(ConstIndexArray & faceValues,
+                                         ConstIndexArray & faceVerts) const;
 
     Level::VTag getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
                                              ConstIndexArray & faceVerts,
@@ -197,6 +198,8 @@ protected:
     Index getVertexValueOffset(Index v, Sibling i = 0) const { return _vertSiblingOffsets[v] + i; }
 
     Index getVertexValue(Index v, Sibling i = 0) const { return _vertValueIndices[getVertexValueOffset(v,i)]; }
+
+    Index findVertexValueIndex(Index vertexIndex, Index valueIndex) const;
 
     //  Methods to access/modify array properties per vertex:
     ConstIndexArray  getVertexValues(Index vIndex) const;
@@ -360,6 +363,18 @@ FVarLevel::getVertexValueCreaseEnds(Index vIndex)
     int vCount  = getNumVertexValues(vIndex);
     int vOffset = getVertexValueOffset(vIndex);
     return CreaseEndPairArray(&_vertValueCreaseEnds[vOffset], vCount);
+}
+
+inline Index
+FVarLevel::findVertexValueIndex(Index vertexIndex, Index valueIndex) const {
+
+    if (_level.getDepth() > 0) return valueIndex;
+
+    Index vvIndex = getVertexValueOffset(vertexIndex);
+    while (_vertValueIndices[vvIndex] != valueIndex) {
+        ++ vvIndex;
+    }
+    return vvIndex;
 }
 
 } // end namespace Vtr
