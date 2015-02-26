@@ -615,6 +615,18 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
                             infSharpCount += fvarVTags[i]._infSharp;
                         }
                         selectFace = (boundaryCount != 3) || (infSharpCount != 1);
+
+                        //  There is a possibility of a false positive at level 0 --  Smooth interior
+                        //  vertex with adjacent Corner and two opposite boundary Crease vertices
+                        //  (the topological corner tag catches this above).  Verify that the corner
+                        //  vertex is opposite the smooth vertex (and consider doing this above)...
+                        //
+                        if (not selectFace && (level.getDepth() == 0)) {
+                            if (fvarVTags[0]._infSharp && fvarVTags[2]._boundary) selectFace = true;
+                            if (fvarVTags[1]._infSharp && fvarVTags[3]._boundary) selectFace = true;
+                            if (fvarVTags[2]._infSharp && fvarVTags[0]._boundary) selectFace = true;
+                            if (fvarVTags[3]._infSharp && fvarVTags[1]._boundary) selectFace = true;
+                        }
                     }
                 }
             }
