@@ -554,16 +554,20 @@ FVarRefinement::reclassifySemisharpValues() {
         if (_refinement._childVertexTag[cVert]._incomplete) continue;
 
         //  If the parent vertex wasn't semi-sharp, the child vertex and values can't be:
-        Index pVert = _refinement.getChildVertexParentIndex(cVert);
-        if (!_parentLevel._vertTags[pVert]._semiSharp) continue;
+        Index       pVert     = _refinement.getChildVertexParentIndex(cVert);
+        Level::VTag pVertTags = _parentLevel._vertTags[pVert];
+
+        if (!pVertTags._semiSharp && !pVertTags._semiSharpEdges) continue;
 
         //  If the child vertex is still sharp, all values remain unaffected:
-        if (!Sdc::Crease::IsSmooth(_childLevel._vertSharpness[cVert])) continue;
+        Level::VTag cVertTags = _childLevel._vertTags[cVert];
+
+        if (cVertTags._semiSharp || cVertTags._infSharp) continue;
 
         //  If the child is no longer semi-sharp, we can just clear those values marked
         //  (i.e. make them creases, others may remain corners) and continue:
         //
-        if (!_childLevel._vertTags[cVert]._semiSharp) {
+        if (!cVertTags._semiSharp && !cVertTags._semiSharpEdges) {
             for (int j = 0; j < cValueTags.size(); ++j) {
                 if (cValueTags[j]._semiSharp) {
                     FVarLevel::ValueTag cValueTagOld = cValueTags[j];
@@ -625,11 +629,6 @@ FVarRefinement::reclassifySemisharpValues() {
 float
 FVarRefinement::getFractionalWeight(Index pVert, LocalIndex pSibling,
                                     Index cVert, LocalIndex /* cSibling */) const {
-
-    //  Should only be called when the parent was semi-sharp but this child vertex
-    //  value (not necessarily the child vertex as a whole) is no longer semi-sharp:
-    assert(_parentLevel._vertTags[pVert]._semiSharp);
-    assert(!_childLevel._vertTags[cVert]._incomplete);
 
     //
     //  Need to identify sharpness values for edges within the spans for both the

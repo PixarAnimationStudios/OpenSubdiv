@@ -135,17 +135,24 @@ public:
     //  level.
     //
     struct VTag {
-        typedef unsigned short VTagSize;
-
         VTag() { }
 
-        VTagSize _nonManifold  : 1;  // fixed
-        VTagSize _xordinary    : 1;  // fixed
-        VTagSize _boundary     : 1;  // fixed
-        VTagSize _infSharp     : 1;  // fixed
-        VTagSize _semiSharp    : 1;  // variable
-        VTagSize _rule         : 4;  // variable when _semiSharp
-        VTagSize _incomplete   : 1;  // variable for sparse refinement
+        //  When cleared, the VTag ALMOST represents a smooth, regular, interior
+        //  vertex -- the Type enum requires a bit be explicitly set for Smooth,
+        //  so that must be done explicitly if desired on initialization.
+        void clear() { std::memset(this, 0, sizeof(VTag)); }
+
+        typedef unsigned short VTagSize;
+
+        VTagSize _nonManifold     : 1;  // fixed
+        VTagSize _xordinary       : 1;  // fixed
+        VTagSize _boundary        : 1;  // fixed
+        VTagSize _corner          : 1;  // fixed
+        VTagSize _infSharp        : 1;  // fixed
+        VTagSize _semiSharp       : 1;  // variable
+        VTagSize _semiSharpEdges  : 1;  // variable
+        VTagSize _rule            : 4;  // variable when _semiSharp
+        VTagSize _incomplete      : 1;  // variable for sparse refinement
 
         //  On deck -- coming soon...
         //VTagSize _constSharp   : 1;  // variable when _semiSharp
@@ -153,9 +160,12 @@ public:
         //VTagSize _editsApplied : 1;  // variable
     };
     struct ETag {
-        typedef unsigned char ETagSize;
-
         ETag() { }
+
+        //  When cleared, the ETag represents a smooth, manifold, interior edge
+        void clear() { std::memset(this, 0, sizeof(ETag)); }
+
+        typedef unsigned char ETagSize;
 
         ETagSize _nonManifold  : 1;  // fixed
         ETagSize _boundary     : 1;  // fixed
@@ -163,9 +173,11 @@ public:
         ETagSize _semiSharp    : 1;  // variable
     };
     struct FTag {
-        typedef unsigned char FTagSize;
-
         FTag() { }
+
+        void clear() { std::memset(this, 0, sizeof(FTag)); }
+
+        typedef unsigned char FTagSize;
 
         FTagSize _hole  : 1;  // fixed
 

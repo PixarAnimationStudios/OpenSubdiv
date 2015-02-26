@@ -175,8 +175,9 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         //  Sharpen the vertex before using it in conjunction with incident edge
         //  properties to determine the semi-sharp tag and rule:
         //
-        bool isCorner = (vFaces.size() == 1) && (vEdges.size() == 2);
-        if (isCorner && sharpenCornerVerts) {
+        bool isTopologicalCorner = (vFaces.size() == 1) && (vEdges.size() == 2);
+        bool isSharpenedCorner =  isTopologicalCorner && sharpenCornerVerts;
+        if (isSharpenedCorner) {
             vSharpness = Sdc::Crease::SHARPNESS_INFINITE;
         } else if (vTag._nonManifold && sharpenNonManFeatures) {
             //  Don't sharpen the vertex if a non-manifold crease:
@@ -185,9 +186,9 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
             }
         }
 
-        vTag._infSharp = Sdc::Crease::IsInfinite(vSharpness);
-
-        vTag._semiSharp = Sdc::Crease::IsSemiSharp(vSharpness) || (semiSharpEdgeCount > 0);
+        vTag._infSharp       = Sdc::Crease::IsInfinite(vSharpness);
+        vTag._semiSharp      = Sdc::Crease::IsSemiSharp(vSharpness);
+        vTag._semiSharpEdges = (semiSharpEdgeCount > 0);
 
         vTag._rule = (Vtr::Level::VTag::VTagSize)creasing.DetermineVertexVertexRule(vSharpness, sharpEdgeCount);
 
@@ -196,8 +197,9 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         //  tag is still being considered, but regardless, it depends on the Sdc::Scheme...
         //
         vTag._boundary = (vFaces.size() < vEdges.size());
-        if (isCorner) {
-            vTag._xordinary = !sharpenCornerVerts;
+        vTag._corner = isSharpenedCorner;
+        if (vTag._corner) {
+            vTag._xordinary = false;
         } else if (vTag._boundary) {
             vTag._xordinary = (vFaces.size() != schemeRegularBoundaryValence);
         } else {

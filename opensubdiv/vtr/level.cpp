@@ -517,9 +517,11 @@ Level::print(const Refinement* pRefinement) const {
         printf("        vert %4d:", i);
         printf("  rule = %s",      ruleString((Sdc::Crease::Rule)vTag._rule));
         printf(", boundary = %d",  (int)vTag._boundary);
+        printf(", corner = %d",    (int)vTag._corner);
         printf(", xordinary = %d", (int)vTag._xordinary);
-        printf(", semiSharp = %d", (int)vTag._semiSharp);
         printf(", infSharp = %d",  (int)vTag._infSharp);
+        printf(", semiSharp = %d", (int)vTag._semiSharp);
+        printf(", semiSharpEdges = %d", (int)vTag._semiSharpEdges);
         printf("\n");
     }
     fflush(stdout);

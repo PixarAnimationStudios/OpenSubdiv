@@ -523,7 +523,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
             //  support regular patches with one corner or one boundary, i.e. with one or more
             //  smooth interior vertices.
             selectFace = true;
-        } else if (compFaceVTag._semiSharp) {
+        } else if (compFaceVTag._semiSharp || compFaceVTag._semiSharpEdges) {
             //  Any semi-sharp feature at or around the vertex warrants isolation -- unless we
             //  optimize for the single-crease patch, i.e. only edge sharpness of a constant value
             //  along the entire regular patch boundary (quickly exclude the Corner case first):
@@ -552,17 +552,25 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
             //  boundary patch, so don't isolate.
             selectFace = false;
         } else {
-            //  This is the last case with at least one Corner (infinitely-sharp) vertex and one
-            //  Smooth (interior) vertex.  Distinguish the regular corner case from others -- this
-            //  is where the _corner tag on the vertex would help but we still need ensure that no
-            //  vertex other than the corner is sharp, and so inspection of each is unavoidable...
-            unsigned int boundaryCount = level._vertTags[faceVerts[0]]._boundary,
-                         infSharpCount = level._vertTags[faceVerts[0]]._infSharp;
-            for (int i = 1; i < faceVerts.size(); ++i) {
-                boundaryCount += level._vertTags[faceVerts[i]]._boundary;
-                infSharpCount += level._vertTags[faceVerts[i]]._infSharp;
+            //  The last case with at least one Corner vertex and one Smooth (interior) vertex --
+            //  distinguish the regular corner case from others:
+            if (not compFaceVTag._corner) {
+                //  We may consider interior sharp corners as regular in future, but for now we
+                //  only accept a topological corner for the regular corner case:
+                selectFace = true;
+            } else if (level.getDepth() > 0) {
+                //  A true corner at a subdivided level -- adjacent verts must be Crease and the
+                //  opposite Smooth so we must have a regular corner:
+                selectFace = false;
+            } else {
+                //  Make sure the adjacent boundary vertices were not sharpened, or equivalently,
+                //  that only one corner is sharp:
+                unsigned int infSharpCount = level._vertTags[faceVerts[0]]._infSharp;
+                for (int i = 1; i < faceVerts.size(); ++i) {
+                    infSharpCount += level._vertTags[faceVerts[i]]._infSharp;
+                }
+                selectFace = (infSharpCount != 1);
             }
-            selectFace = (boundaryCount != 3) || (infSharpCount != 1);
         }
 
         //
