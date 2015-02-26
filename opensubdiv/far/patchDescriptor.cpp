@@ -25,6 +25,7 @@
 #include "../far/patchDescriptor.h"
 
 #include <cassert>
+#include <cstdio>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -146,6 +147,18 @@ PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SchemeType type) {
     }
     return ConstPatchDescriptorArray(0, 0);;
 }
+
+void
+PatchDescriptor::print() const {
+    static char const * types[13] = {
+        "NON_PATCH", "POINTS", "LINES", "QUADS", "TRIANGLES", "LOOP", "REGULAR",
+            "SINGLE_CREASE", "BOUNDARY", "CORNER", "GREGORY",
+                "GREGORY_BOUNDARY", "GREGORY_BASIS" };
+
+    printf("    type %s trans %d rot %d\n",
+        types[_type], _pattern, _rotation);
+}
+
 
 
 } // end namespace Far

@@ -47,13 +47,19 @@ struct Vertex {
 
    ~Vertex( ) { }
 
-    void AddWithWeight(const Vertex& src, float weight) {
+    void AddWithWeight(Vertex const & src, float weight) {
         _pos[0]+=weight*src._pos[0];
         _pos[1]+=weight*src._pos[1];
         _pos[2]+=weight*src._pos[2];
     }
 
-    void AddVaryingWithWeight(const Vertex& , float) { }
+    void AddWithWeight(Vertex const & src, float weight, float /* ds */, float /* dt */) {
+        _pos[0]+=weight*src._pos[0];
+        _pos[1]+=weight*src._pos[1];
+        _pos[2]+=weight*src._pos[2];
+    }
+
+    void AddVaryingWithWeight(Vertex const & , float) { }
 
     void Clear( void * =0 ) { _pos[0]=_pos[1]=_pos[2]=0.0f; }
 
@@ -82,7 +88,7 @@ struct Vertex {
 
     void ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<Vertex> &) { }
 
-    const float * GetPos() const { return _pos; }
+    float const * GetPos() const { return _pos; }
 
 private:
     float _pos[3];

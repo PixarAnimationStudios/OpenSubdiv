@@ -119,6 +119,16 @@ public:
         return (unsigned char)_rotation;
     }
 
+    /// \brief Returns true if the type is an adaptive patch
+    static inline bool IsAdaptive(Type type) {
+        return (type>=LOOP and type<=GREGORY_BASIS);
+    }
+
+    /// \brief Returns true if the type is an adaptive patch
+    bool IsAdaptive() const {
+        return IsAdaptive( this->GetType() );
+    }
+
     /// \brief Returns the number of control vertices expected for a patch of the
     /// type described
     static inline short GetNumControlVertices( Type t );
@@ -163,6 +173,9 @@ public:
     /// \brief True if the descriptors are identical
     inline bool operator == ( PatchDescriptor const other ) const;
 
+    // debug helper
+    void print() const;
+
 private:
     friend class PatchTablesFactory;
 
@@ -196,17 +209,17 @@ PatchDescriptor::GetNumControlVertices( Type type ) {
 inline short
 PatchDescriptor::GetNumFVarControlVertices( Type type ) {
     switch (type) {
-        case REGULAR           : // We only support bilinear interpolation for now,
-        case SINGLE_CREASE     :
-        case QUADS             : // so all these patches only carry 4 CVs.
-        case GREGORY           :
-        case GREGORY_BOUNDARY  :
-        case GREGORY_BASIS     :
-        case BOUNDARY          :
-        case CORNER            : return 4;
+        case REGULAR           : return GetRegularPatchSize();
+        case SINGLE_CREASE     : return GetRegularPatchSize();
+        case QUADS             : return 4;
         case TRIANGLES         : return 3;
+        case BOUNDARY          : return GetBoundaryPatchSize();
+        case CORNER            : return GetCornerPatchSize();
         case LINES             : return 2;
         case POINTS            : return 1;
+        case GREGORY_BASIS     : assert(0); return GetGregoryBasisPatchSize();
+        case GREGORY           :
+        case GREGORY_BOUNDARY  : assert(0); // unsupported types
         default : return -1;
     }
 }

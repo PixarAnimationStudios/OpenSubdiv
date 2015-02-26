@@ -71,6 +71,8 @@ public:
 
     size_type size() const { return _size; }
 
+    size_type empty() const { return _size==0; }
+
     const_reference operator[](int index) const { return _begin[index]; }
     const_iterator  begin() const               { return _begin; }
     const_iterator  end() const                 { return _begin + _size; }

@@ -88,11 +88,14 @@ public:
     /// \brief Instantiates a GregoryBasis from a TopologyRefiner that has been
     ///        refined adaptively for a given face.
     ///
-    /// @param refiner    The TopologyRefiner containing the topology
+    /// @param refiner     The TopologyRefiner containing the topology
     ///
-    /// @param faceIndex  The index of the face (level is assumed to be MaxLevel)
+    /// @param faceIndex   The index of the face (level is assumed to be MaxLevel)
     ///
-    static GregoryBasis const * Create(TopologyRefiner const & refiner, Index faceIndex);
+    /// @param fvarChannel Index of face-varying channel topology (default -1)
+    ///
+    static GregoryBasis const * Create(TopologyRefiner const & refiner,
+        Index faceIndex, int fvarChannel=-1);
 
     /// \brief Returns the maximum valence of a vertex in the mesh that the
     ///        Gregory patches can handle
@@ -104,14 +107,17 @@ public:
     // Multi-patch Gregory stencils factory
     //
 
-    // This factory accumulates Gregory patch basis into StencilTables
+    // XXXX need to add support for face-varying channel stencils
+
+    // This factory accumulates vertex Gregory patch basis into StencilTables
     //
     // Note: the TopologyRefiner and StencilTables references are held for the
     //       lifespan of the factory - neither can be deleted or modified while
     //       this factory is active.
     //
     GregoryBasisFactory(TopologyRefiner const & refiner,
-        StencilTables const & stencils, int numpatches, int maxvalence);
+        StencilTables const & stencils,
+            int numpatches, int maxvalence);
 
     // Creates a basis for the face and adds it to the stencil pool allocator
     bool AddPatchBasis(Index faceIndex);

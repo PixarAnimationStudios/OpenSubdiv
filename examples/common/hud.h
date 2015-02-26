@@ -127,6 +127,9 @@ protected:
 
         void SetValue(float v) {
             value = std::max(std::min(v, max), min);
+            if (intStep) {
+                value = (int)value;
+            }
         }
     };
 

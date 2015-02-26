@@ -187,7 +187,7 @@ TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
     if (not shape.faceuvs.empty()) {
 
         int nfaces = refiner.GetNumFaces(0),
-           channel = refiner.createBaseFVarChannel( (int)shape.faceuvs.size() );
+           channel = refiner.createBaseFVarChannel( (int)shape.uvs.size()/2 );
 
         for (int i=0, ofs=0; i < nfaces; ++i) {
 

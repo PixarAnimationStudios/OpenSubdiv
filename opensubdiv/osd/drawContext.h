@@ -27,13 +27,18 @@
 
 #include "../version.h"
 
-#include "../far/patchTables.h"
+#include "../far/patchDescriptor.h"
+#include "../far/types.h"
 
 #include <utility>
 #include <string>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
+
+namespace Far {
+    class PatchTables;
+}
 
 namespace Osd {
 

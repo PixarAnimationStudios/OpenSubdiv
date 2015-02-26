@@ -24,6 +24,8 @@
 
 #include "../osd/drawContext.h"
 
+#include "../far/patchTables.h"
+
 #include <cstring>
 
 namespace OpenSubdiv {
@@ -112,7 +114,7 @@ DrawContext::packSharpnessValues(Far::PatchTables const & patchTables,
     // PatchParam = sizeof(int)*2, 1 float for sharpness
     dst.resize(npatches * (2 + 1));
 
-    for (size_t i = 0; i < npatches; ++i) {
+    for (int i = 0; i < npatches; ++i) {
         float sharpness = sharpnessIndexTable[i] >= 0 ?
             sharpnessValues[sharpnessIndexTable[i]] : 0.0f;
         dst[i*3+0] = patchParamTables[i].faceIndex;
@@ -127,12 +129,8 @@ DrawContext::packFVarData(Far::PatchTables const & patchTables,
 
     assert(fvarWidth and (not src.empty()));
 
-    Far::PatchTables::FVarPatchTables const * fvarPatchTables =
-        patchTables.GetFVarPatchTables();
-    assert(fvarPatchTables);
-
-    // OsdMesh only accesses channel 0
-    std::vector<Far::Index> const & indices = fvarPatchTables->GetPatchVertices(0);
+    // XXXX OsdMesh only accesses channel 0
+    Far::ConstIndexArray indices = patchTables.GetFVarPatchesValues(0);
 
     dst.resize(indices.size() * fvarWidth);
     float * ptr = &dst[0];

@@ -198,6 +198,9 @@ public:
     void Initialize(Options options, TopologyRefiner const & refiner,
         PatchTables const * patchTables, float const * vertexData);
 
+    void InitializeFVar(Options options, TopologyRefiner const & refiner,
+        PatchTables const * patchTables, int channel, int tessFactor, float const * fvarData);
+
     void InitializeDeviceBuffers();
 
     // -----------------------------------------------------

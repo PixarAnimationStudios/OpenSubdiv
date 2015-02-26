@@ -167,8 +167,8 @@ GLMesh::Initialize(Options /* options */,
 
         std::vector<float> & vbo = _vbo[COMP_VERT];
 
-        for (int vert=0, ofs=3; vert<nverts; ++vert) {
-            setSolidColor(&vbo[ofs+=6]);
+        for (int vert=0, ofs=3; vert<nverts; ++vert, ofs+=6) {
+            setSolidColor(&vbo[ofs]);
         }
     }
     { // edge color component ------------------------------
@@ -181,14 +181,14 @@ GLMesh::Initialize(Options /* options */,
         eao.resize(nedges*2);
 
         for (int edge=0; edge<nedges; ++edge) {
-        
+
             // edge mode expects faces with 2 verts (aka edges) as input
             assert(vertsperface[edge]==2);
 
             eao[edge*2  ] = edge*2;
             eao[edge*2+1] = edge*2+1;
 
-            int const * verts = faceverts + edge*2;
+            int const * verts = &faceverts[edge*2];
 
             float * v0 = &vbo[edge*2*6],
                   * v1 = v0+6;
@@ -255,7 +255,7 @@ GLMesh::Initialize(Options options, TopologyRefiner const & refiner,
     _numComps[COMP_EDGE] = (int)_eao[COMP_EDGE].size();
     _numComps[COMP_VERT] = (int)_eao[COMP_VERT].size();
 
-    InitializeDeviceBuffers();
+    //InitializeDeviceBuffers();
 }
 
 //------------------------------------------------------------------------------
@@ -392,6 +392,131 @@ GLMesh::initializeBuffers(Options options,
 }
 
 //------------------------------------------------------------------------------
+inline void
+setEdge(std::vector<float> & vbo, int edge, float const * vertData, int v0, int v1, float const * color) {
+
+    float * dst0 = &vbo[edge*2*6],
+          * dst1 = dst0+6;
+
+    memcpy(dst0, vertData + (v0*3), sizeof(float)*3);
+    memcpy(dst1, vertData + (v1*3), sizeof(float)*3);
+
+    memcpy(dst0+3, color, sizeof(float)*3);
+    memcpy(dst1+3, color, sizeof(float)*3);
+}
+
+//------------------------------------------------------------------------------
+void
+GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
+    PatchTables const * patchTables, int channel, int tessFactor, float const * fvarData) {
+
+    int nverts = refiner.GetNumFVarValuesTotal(channel);
+
+    { // vertex color component ----------------------------
+
+        initializeVertexComponentBuffer(fvarData, nverts);
+
+        std::vector<float> & vbo = _vbo[COMP_VERT];
+
+        if (options.vertColorMode==VERTCOLOR_BY_LEVEL) {
+
+            for (int level=0, ofs=3; level<=refiner.GetMaxLevel(); ++level) {
+                for (int vert=0; vert<refiner.GetNumFVarValues(level); ++vert, ofs+=6) {
+                    assert(ofs<(int)vbo.size());
+                    setColorByLevel(level, &vbo[ofs]);
+                }
+            }
+        } else {
+
+            for (int vert=0, ofs=3; vert<nverts; ++vert) {
+                setSolidColor(&vbo[ofs+=6]);
+            }
+        }
+    }
+
+    if (tessFactor>0) {
+        // edge color component ------------------------------
+
+        int npatches = patchTables->GetNumPatchesTotal(),
+            nvertsperpatch = (tessFactor) * (tessFactor),
+            nedgesperpatch = (tessFactor-1) * (tessFactor*2+tessFactor-1),
+            //nverts = npatches * nvertsperpatch,
+            nedges = npatches * nedgesperpatch;
+
+        std::vector<float> & vbo = _vbo[COMP_EDGE];
+        vbo.resize(nedges * 2 * 6);
+
+        std::vector<int> & eao = _eao[COMP_EDGE];
+        eao.reserve(nedges*2);
+
+
+        // default to solid color
+
+        float const * color=0;
+
+        // wireframe indices
+        int * basisedges = (int *)alloca(2*nedgesperpatch*sizeof(int)),
+            * ptr = basisedges;
+        for (int i=0; i<(tessFactor-1); ++i) {       //  tess pattern :
+            for (int j=0; j<(tessFactor-1); ++j) {   //
+                *ptr++ = i*tessFactor + j;           //   o---o---o--
+                *ptr++ = i*tessFactor + j+1;         //   |\  |\  |
+                                                     //   | \ | \ |
+                *ptr++ = i * tessFactor + j;         //   |  \|  \|
+                *ptr++ = (i+1) * tessFactor + j;     //   o---o---o--
+                                                     //   |\  |\  |
+                *ptr++ = i * tessFactor + j;         //   | \ | \ |
+                *ptr++ = (i+1) * tessFactor + j+1;   //   |  \|  \|
+            }                                        //   o---o---o--
+            *ptr++ = (i+1) * tessFactor - 1;         //   |   |   |
+            *ptr++ = (i+2) * tessFactor - 1;
+
+            *ptr++ = tessFactor * (tessFactor-1) + i;
+            *ptr++ = tessFactor * (tessFactor-1) + i+1;
+        }
+
+        OpenSubdiv::Far::PatchTables::PatchHandle handle;
+        for (int patch=0, offset=0; patch<npatches; ++patch) {
+
+            if (options.edgeColorMode==EDGECOLOR_BY_PATCHTYPE) {
+
+                handle.patchIndex = patch;
+                OpenSubdiv::Far::PatchDescriptor::Type type =
+                    patchTables->GetFVarPatchType(channel, handle);
+
+                if (OpenSubdiv::Far::PatchDescriptor::IsAdaptive(type)) {
+                    color = getAdaptivePatchColor(
+                        OpenSubdiv::Far::PatchDescriptor(type, 0, 0));
+                } else {
+                    static float quadColor[3] = { 1.0f, 1.0f, 0.0f };
+                    color = quadColor;
+                }
+            }
+            assert(color);
+
+            for (int edge=0; edge<nedgesperpatch; ++edge) {
+
+                eao.push_back(eao.size());
+                eao.push_back(eao.size());
+
+                int v0 = offset + basisedges[edge*2],
+                    v1 = offset + basisedges[edge*2+1];
+
+                setEdge(vbo, patch*nedgesperpatch+edge, fvarData, v0, v1, color);
+            }
+
+            offset += nvertsperpatch;
+        }
+    }
+
+    _numComps[COMP_FACE] = (int)_eao[COMP_FACE].size();
+    _numComps[COMP_EDGE] = (int)_eao[COMP_EDGE].size();
+    _numComps[COMP_VERT] = (int)_eao[COMP_VERT].size();
+
+    InitializeDeviceBuffers();
+}
+
+//------------------------------------------------------------------------------
 // returns the number of edges in a patch with 'numCVs'
 inline int
 getNumEdges(int numCVs) {
@@ -459,19 +584,6 @@ getEdgeList(int numCVs) {
     return 0;
 }
 
-//------------------------------------------------------------------------------
-inline void
-setEdge(std::vector<float> & vbo, int edge, float const * vertData, int v0, int v1, float const * color) {
-
-    float * dst0 = &vbo[edge*2*6],
-          * dst1 = dst0+6;
-
-    memcpy(dst0, vertData + (v0*3), sizeof(float)*3);
-    memcpy(dst1, vertData + (v1*3), sizeof(float)*3);
-
-    memcpy(dst0+3, color, sizeof(float)*3);
-    memcpy(dst1+3, color, sizeof(float)*3);
-}
 inline int
 getRingSize(OpenSubdiv::Far::PatchDescriptor desc) {
     if (desc.GetType()==OpenSubdiv::Far::PatchDescriptor::GREGORY_BASIS) {
@@ -479,7 +591,7 @@ getRingSize(OpenSubdiv::Far::PatchDescriptor desc) {
     } else {
         return desc.GetNumControlVertices();
     }
-}    
+}
 
 //------------------------------------------------------------------------------
 void
@@ -692,8 +804,9 @@ GLMesh::InitializeDeviceBuffers() {
         checkGLErrors("init");
     }
 
-    assert(not _faceColors.empty());
-    _TBOfaceColors = createTextureBuffer(_faceColors, GL_RGBA32F);
+    if (not _faceColors.empty()) {
+        _TBOfaceColors = createTextureBuffer(_faceColors, GL_RGBA32F);
+    }
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);

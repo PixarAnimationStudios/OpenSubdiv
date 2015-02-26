@@ -387,7 +387,9 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 
         // Generate bi-cubic patch tables for the limit surface
         Far::PatchTablesFactory::Options poptions;
-        poptions.adaptiveStencilTables = vertexStencils;
+        // optional : pass the vertex stencils so that the factory can generate gregory basis
+        // stencils (faster evaluation)
+        poptions.adaptiveStencilTables = vertexStencils; 
         Far::PatchTables const * patchTables =
              Far::PatchTablesFactory::Create(*g_topologyRefiner, poptions);
 

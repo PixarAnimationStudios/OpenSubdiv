@@ -599,9 +599,10 @@ namespace {
 //  the last face.
 //
 int
-Level::gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int ringVerts[]) const {
+Level::gatherManifoldVertexRingFromIncidentQuads(
+    Index vIndex, int vOffset, int ringVerts[], int fvarChannel) const {
 
-    int ringSize = gatherQuadRegularRingAroundVertex(vIndex, ringVerts, -1);
+    int ringSize = gatherQuadRegularRingAroundVertex(vIndex, ringVerts, fvarChannel);
     if (vOffset) {
         for (int i = 0; i < ringSize; ++i) {
             ringVerts[i] += vOffset;
@@ -611,7 +612,8 @@ Level::gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int 
 }
 
 int
-Level::gatherQuadRegularRingAroundVertex(Index vIndex, int ringPoints[], int fvarChannel) const {
+Level::gatherQuadRegularRingAroundVertex(
+    Index vIndex, int ringPoints[], int fvarChannel) const {
 
     Level const& level = *this;
 
@@ -642,6 +644,37 @@ Level::gatherQuadRegularRingAroundVertex(Index vIndex, int ringPoints[], int fva
         }
     }
     return ringIndex;
+}
+
+//
+//  Gathering the 4 vertices of a quad:
+//      
+//        |     |  
+//      --0-----3--
+//        |x   x|  
+//        |x   x|  
+//      --1-----2--
+//        |     |  
+//      
+void
+Level::gatherQuadPoints(
+    Index thisFace, Index patchPoints[], int rotation, int fvarChannel) const {
+
+    Level const& level = *this;
+
+    assert((0 <= rotation) && (rotation < 4));
+    static int const   rotationSequence[7] = { 0, 1, 2, 3, 0, 1, 2 };
+    int const * rotatedVerts = &rotationSequence[rotation];
+
+    ConstIndexArray thisFaceVerts = level.getFaceVertices(thisFace);
+
+    ConstIndexArray facePoints = (fvarChannel < 0) ? thisFaceVerts :
+                                 level.getFVarFaceValues(thisFace, fvarChannel);
+
+    patchPoints[0] = facePoints[rotatedVerts[0]];
+    patchPoints[1] = facePoints[rotatedVerts[1]];
+    patchPoints[2] = facePoints[rotatedVerts[2]];
+    patchPoints[3] = facePoints[rotatedVerts[3]];
 }
 
 //
@@ -678,7 +711,7 @@ Level::gatherQuadRegularInteriorPatchPoints(
     Level const& level = *this;
 
     assert((0 <= rotation) && (rotation < 4));
-    int const   rotationSequence[7] = { 0, 1, 2, 3, 0, 1, 2 };
+    static int const   rotationSequence[7] = { 0, 1, 2, 3, 0, 1, 2 };
     int const * rotatedVerts = &rotationSequence[rotation];
 
     ConstIndexArray thisFaceVerts = level.getFaceVertices(thisFace);
@@ -1817,7 +1850,12 @@ Level::getNumFVarValues(int channel) const {
     return _fvarChannels[channel]->getNumValues();
 }
 
-ConstIndexArray 
+Sdc::Options
+Level::getFVarOptions(int channel) const {
+    return _fvarChannels[channel]->_options;
+}
+
+ConstIndexArray
 Level::getFVarFaceValues(Index faceIndex, int channel) const {
     return _fvarChannels[channel]->getFaceValues(faceIndex);
 }

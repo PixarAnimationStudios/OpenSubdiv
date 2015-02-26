@@ -370,6 +370,7 @@ public:
         return _levels[level]->getVertexEdgeLocalIndices(vert);
     }
 
+    /// \brief Returns true if the given face does not contain extraordinary vertices
     bool FaceIsRegular(int level, Index face) const {
         ConstIndexArray fVerts = _levels[level]->getFaceVertices(face);
         Vtr::Level::VTag compFaceVertTag =
@@ -392,6 +393,9 @@ public:
 
     /// \brief Returns the number of face-varying channels in the tables
     int GetNumFVarChannels() const;
+
+    /// \brief Returns the face-varying interpolation rule-set for a given channel
+    Sdc::Options::FVarLinearInterpolation GetFVarLinearInterpolation(int channel = 0) const;
 
     /// \brief Returns the total number of face-varying values in all levels
     int GetNumFVarValuesTotal(int channel = 0) const;
@@ -534,18 +538,22 @@ protected:
     IndexArray setBaseFVarFaceValues(Index face, int channel = 0);
 
 protected:
+
     //
-    //  Lower level protected methods intended stricty for internal use:
+    //  Lower level protected methods intended strictly for internal use:
     //
     friend class TopologyRefinerFactoryBase;
-    friend class PatchTablesFactory;
     friend class GregoryBasisFactory;
+    friend class PatchTablesFactory;
 
-    Vtr::Level       & getLevel(int l)       { return *_levels[l]; }
+    Vtr::Level & getLevel(int l) { return *_levels[l]; }
     Vtr::Level const & getLevel(int l) const { return *_levels[l]; }
 
-    Vtr::Refinement       & getRefinement(int l)       { return *_refinements[l]; }
+    Vtr::Refinement & getRefinement(int l) { return *_refinements[l]; }
     Vtr::Refinement const & getRefinement(int l) const { return *_refinements[l]; }
+
+    Vtr::FVarLevel & getFVarChannel(int l, int c) { return *_levels[l]->_fvarChannels[c]; }
+    Vtr::FVarLevel const & getFVarChannel(int l, int c) const { return *_levels[l]->_fvarChannels[c]; }
 
 private:
     void selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector);
@@ -589,6 +597,11 @@ inline int
 TopologyRefiner::GetNumFVarChannels() const {
 
     return _levels[0]->getNumFVarChannels();
+}
+inline Sdc::Options::FVarLinearInterpolation
+TopologyRefiner::GetFVarLinearInterpolation(int channel) const {
+
+    return _levels[0]->getFVarOptions(channel).GetFVarLinearInterpolation();
 }
 inline int
 TopologyRefiner::GetNumFVarValues(int level, int channel) const {

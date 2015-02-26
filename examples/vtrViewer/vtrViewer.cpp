@@ -98,27 +98,36 @@ int   g_fullscreen = 0,
       g_mbutton[3] = {0, 0, 0},
       g_running = 1;
 
-int   g_displayPatchColor    = 1,
-      g_drawCageEdges        = 1,
-      g_drawCageVertices     = 0,
-      g_HbrDrawMode          = kDRAW_WIREFRAME,
-      g_HbrDrawVertIDs       = false,
-      g_HbrDrawEdgeSharpness = false,
-      g_HbrDrawFaceIDs       = false,
-      g_HbrDrawPtexIDs       = false,
-      g_VtrDrawMode          = kDRAW_NONE,
-      g_VtrDrawVertIDs       = false,
-      g_VtrDrawEdgeIDs       = false,
-      g_VtrDrawFaceIDs       = false,
-      g_VtrDrawPtexIDs       = false,
-      g_VtrDrawEdgeSharpness = false,
-      g_VtrDrawGregogyBasis  = false,
-      g_numPatches           = 0,
-      g_maxValence           = 0,
-      g_currentPatch         = 0,
-      g_Adaptive             = true;
+int   g_displayPatchColor    = 1,               
+      g_drawCageEdges        = 1,               
+      g_drawCageVertices     = 0,               
+      g_HbrDrawMode          = kDRAW_WIREFRAME, 
+      g_HbrDrawVertIDs       = false,           
+      g_HbrDrawEdgeSharpness = false,           
+      g_HbrDrawFaceIDs       = false,           
+      g_HbrDrawPtexIDs       = false,           
+      g_VtrDrawMode          = kDRAW_NONE,      
+      g_VtrDrawVertIDs       = false,           
+      g_VtrDrawEdgeIDs       = false,           
+      g_VtrDrawFaceIDs       = false,           
+      g_VtrDrawPtexIDs       = false,           
+      g_VtrDrawEdgeSharpness = false,           
+      g_VtrDrawGregogyBasis  = false,           
+      g_VtrDrawFVarVerts     = false,           
+      g_VtrDrawFVarPatches   = false,           
+      g_VtrDrawFVarPatchTess = 5,               
+      g_numPatches           = 0,               
+      g_maxValence           = 0,               
+      g_currentPatch         = 0,               
+      g_Adaptive             = true;            
+
+typedef OpenSubdiv::Sdc::Options SdcOptions;
+
+SdcOptions::FVarLinearInterpolation g_fvarInterpolation =
+    SdcOptions::FVAR_LINEAR_ALL;
 
 OpenSubdiv::Far::PatchDescriptor g_currentPatchDesc;
+OpenSubdiv::Far::PatchDescriptor::Type g_currentFVarPatchType;
 
 float g_rotate[2] = {0, 0},
       g_dolly = 5,
@@ -532,6 +541,88 @@ createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
 }
 
 //------------------------------------------------------------------------------
+// generate display vert IDs for the selected Vtr FVar patch
+static void
+createFVarPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
+    std::vector<Vertex> const & fvarBuffer) {
+
+    static int channel = 0;
+
+    int patch = g_currentPatch-1;
+    static char buf[16];
+
+    if (patch>=0 and patch<patchTables.GetNumPatchesTotal()) {
+
+        OpenSubdiv::Far::PatchTables::PatchHandle handle;
+        handle.patchIndex = patch;
+
+        OpenSubdiv::Far::ConstIndexArray const cvs =
+            patchTables.GetFVarPatchValues(channel, handle);
+
+        for (int i=0; i<cvs.size(); ++i) {
+            snprintf(buf, 16, "%d", i);
+            g_font->Print3D(fvarBuffer[cvs[i]].GetPos(), buf, 2);
+        }
+
+        g_currentFVarPatchType = patchTables.GetFVarPatchType(channel, handle);
+    }
+}
+
+//------------------------------------------------------------------------------
+// generate display for Vtr FVar patches
+static GLMesh fvarVerts,
+              fvarWire;
+
+static void
+createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
+    OpenSubdiv::Far::PatchTables const & patchTables,
+        std::vector<Vertex> const & fvarBuffer) {
+
+    assert(not fvarBuffer.empty());
+
+    static int channel = 0;
+
+    if (g_VtrDrawFVarVerts) {
+        GLMesh::Options options;
+        options.vertColorMode = GLMesh::VERTCOLOR_BY_LEVEL;
+        fvarVerts.InitializeFVar(options, refiner, &patchTables, channel, 0, (float *)(&fvarBuffer[0]));
+    }
+
+    if (g_VtrDrawFVarPatches) {
+
+        // generate uniform tessellation for patches
+        int tessFactor = g_VtrDrawFVarPatchTess,
+            npatches = patchTables.GetNumPatchesTotal(),
+            nvertsperpatch = (tessFactor) * (tessFactor),
+            nverts = npatches * nvertsperpatch;
+
+        float * uvs = (float *)alloca(tessFactor);
+        for (int i=0; i<tessFactor; ++i) {
+            uvs[i] = (float)i/(tessFactor-1.0f);
+        }
+
+        std::vector<Vertex> verts(nverts);
+        memset(&verts[0], 0, verts.size()*sizeof(Vertex));
+
+        OpenSubdiv::Far::PatchTables::PatchHandle handle;
+
+        Vertex * vert = &verts[0];
+        for (int patch=0; patch<npatches; ++patch) {
+            for (int i=0; i<tessFactor; ++i) {
+                for (int j=0; j<tessFactor; ++j, ++vert) {
+                    handle.patchIndex = patch;
+                    patchTables.EvaluateFaceVarying(channel, handle, uvs[i], uvs[j], fvarBuffer, *vert);
+                }
+            }
+        }
+
+        GLMesh::Options options;
+        options.edgeColorMode = GLMesh::EDGECOLOR_BY_PATCHTYPE;
+        fvarWire.InitializeFVar(options, refiner, &patchTables, channel, tessFactor, (float *)(&verts[0]));
+    }
+}
+
+//------------------------------------------------------------------------------
 // generate display IDs for Vtr Gregory basis
 
 static GLMesh gregoryWire;
@@ -659,6 +750,8 @@ createVtrMesh(Shape * shape, int maxlevel) {
     OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options    sdcoptions = GetSdcOptions(*shape);
 
+    sdcoptions.SetFVarLinearInterpolation(g_fvarInterpolation);
+
     OpenSubdiv::Far::TopologyRefiner * refiner =
         OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
@@ -717,16 +810,44 @@ createVtrMesh(Shape * shape, int maxlevel) {
     // Patch tables
     //
 
+    std::vector<Vertex> fvarBuffer;
     OpenSubdiv::Far::PatchTables * patchTables = 0;
+    bool createFVarWire = g_VtrDrawFVarPatches or g_VtrDrawFVarVerts;
     if (g_Adaptive) {
         assert(stencilTables);
 
         OpenSubdiv::Far::PatchTablesFactory::Options options;
         options.adaptiveStencilTables = stencilTables;
+        options.generateFVarTables = createFVarWire;
+
         patchTables = OpenSubdiv::Far::PatchTablesFactory::Create(*refiner, options);
 
         g_numPatches = patchTables->GetNumPatchesTotal();
         g_maxValence = patchTables->GetMaxValence();
+
+        if (createFVarWire) {
+
+            // interpolate fvar values
+
+            //OpenSubdiv::Far::FVarPatchTables const * fvarTables =
+            //    patchTables->GetFVarPatchTables();
+            //assert(fvarTables);
+
+            int channel = 0;
+
+            // XXXX should use a (u,v) vertex class
+            fvarBuffer.resize(refiner->GetNumFVarValuesTotal(channel), 0.0f);
+            Vertex * values = &fvarBuffer[0];
+
+            int nCoarseValues = refiner->GetNumFVarValues(0);
+
+            for (int i=0; i<nCoarseValues; ++i) {
+                float const * ptr = &shape->uvs[i*2];
+                values[i].SetPosition(ptr[0],  ptr[1], 0.0f);
+            }
+
+            refiner->InterpolateFaceVarying(values, values + nCoarseValues);
+        }
     }
     s.Stop();
 
@@ -754,6 +875,11 @@ createVtrMesh(Shape * shape, int maxlevel) {
 
     if (g_Adaptive and g_VtrDrawGregogyBasis) {
         createGregoryBasis(*patchTables, vertexBuffer);
+    }
+
+    if (g_Adaptive and createFVarWire) {
+        createFVarPatches(*refiner, *patchTables, fvarBuffer);
+        createFVarPatchNumbers(*patchTables, fvarBuffer);
     }
 
     createEdgeNumbers(*refiner, vertexBuffer, g_VtrDrawEdgeIDs!=0, g_VtrDrawEdgeSharpness!=0);
@@ -932,6 +1058,13 @@ display() {
         gregoryWire.Draw(GLMesh::COMP_EDGE, g_transformUB, g_lightingUB);
     }
 
+    if (g_Adaptive and g_VtrDrawFVarVerts) {
+        fvarVerts.Draw(GLMesh::COMP_VERT, g_transformUB, g_lightingUB);
+    }
+    if (g_Adaptive and g_VtrDrawFVarPatches) {
+        fvarWire.Draw(GLMesh::COMP_EDGE, g_transformUB, g_lightingUB);
+    }
+
     assert(g_font);
     g_font->Draw(g_transformUB);
 
@@ -954,15 +1087,30 @@ display() {
         g_fpsTimer.Start();
 
         { // display selected patch info
-            static char const * patchTypes[12] = { "undefined", "points", "lines",
+            static char const * patchTypes[13] = { "undefined", "points", "lines",
                 "quads", "tris", "loop", "regular", "single crease", "boundary", "corner",
-                    "gregory", "gregory-boundary" };
+                    "gregory", "gregory-boundary", "gregory-basis" },
+                              * format0 = "Current Patch : %d/%d (%s - %d CVs)",
+                              * format1 = "Current Patch : %d/%d (%s - %d CVs) fvar: (%s - %d CVs)";
 
             if (g_Adaptive and g_currentPatch) {
-                g_hud.DrawString(g_width/2-100, 100, "Current Patch : %d/%d (%s - %d CVs)",
-                    g_currentPatch-1, g_numPatches,
-                        patchTypes[g_currentPatchDesc.GetType()],
-                            g_currentPatchDesc.GetNumControlVertices());
+                
+                if (g_VtrDrawFVarPatches or g_VtrDrawFVarVerts) {
+
+                    g_hud.DrawString(g_width/2-200, 225, format1,
+                        g_currentPatch-1, g_numPatches-1,
+                            patchTypes[g_currentPatchDesc.GetType()],
+                                g_currentPatchDesc.GetNumControlVertices(),
+                                    patchTypes[g_currentFVarPatchType],
+                                        OpenSubdiv::Far::PatchDescriptor::GetNumFVarControlVertices(
+                                            g_currentFVarPatchType));
+                } else {
+                    g_hud.DrawString(g_width/2-200, 225, format0,
+                        g_currentPatch-1, g_numPatches-1,
+                            patchTypes[g_currentPatchDesc.GetType()],
+                                g_currentPatchDesc.GetNumControlVertices(),
+                                    patchTypes[g_currentFVarPatchType]);
+                }
             }
         }
 
@@ -1148,6 +1296,10 @@ callbackDrawIDs(bool checked, int button) {
         case 7: g_VtrDrawPtexIDs = checked; break;
         case 8: g_VtrDrawEdgeSharpness = checked; break;
         case 9: g_VtrDrawGregogyBasis = checked; break;
+
+        case 10: g_VtrDrawFVarVerts = checked; break;
+        case 11: g_VtrDrawFVarPatches = checked; break;
+
         default: break;
     }
     rebuildOsdMeshes();
@@ -1159,10 +1311,44 @@ callbackScale(float value, int) {
     g_font->SetFontScale(value);
 }
 
+static void
+callbackFVarTess(float value, int) {
+
+    g_VtrDrawFVarPatchTess = (int)value;
+    rebuildOsdMeshes();
+}
+
+static void
+callbackFVarInterpolation(int b) {
+
+    switch (b) {
+
+        case SdcOptions::FVAR_LINEAR_NONE :
+            g_fvarInterpolation = SdcOptions::FVAR_LINEAR_NONE; break;
+
+        case SdcOptions::FVAR_LINEAR_CORNERS_ONLY :
+            g_fvarInterpolation = SdcOptions::FVAR_LINEAR_CORNERS_ONLY; break;
+
+        case SdcOptions::FVAR_LINEAR_CORNERS_PLUS1 :
+            g_fvarInterpolation = SdcOptions::FVAR_LINEAR_CORNERS_PLUS1; break;
+
+        case SdcOptions::FVAR_LINEAR_CORNERS_PLUS2 :
+            g_fvarInterpolation = SdcOptions::FVAR_LINEAR_CORNERS_PLUS2; break;
+
+        case SdcOptions::FVAR_LINEAR_BOUNDARIES :
+            g_fvarInterpolation = SdcOptions::FVAR_LINEAR_BOUNDARIES; break;
+
+        case SdcOptions::FVAR_LINEAR_ALL :
+            g_fvarInterpolation = SdcOptions::FVAR_LINEAR_ALL; break;
+
+    }
+    rebuildOsdMeshes();
+}
+
 //------------------------------------------------------------------------------
 static void
-initHUD()
-{
+initHUD() {
+
     int windowWidth = g_width, windowHeight = g_height;
     int frameBufferWidth = g_width, frameBufferHeight = g_height;
 
@@ -1219,6 +1405,26 @@ initHUD()
     for (int i = 0; i < (int)g_shapes.size(); ++i) {
         g_hud.AddPullDownButton(shapes_pulldown, g_shapes[i].name.c_str(),i, (g_currentShape==i));
     }
+
+   g_hud.AddCheckBox("FVar Verts",  g_VtrDrawFVarVerts!=0, 300, 10, callbackDrawIDs, 10);
+   g_hud.AddCheckBox("FVar Patches",  g_VtrDrawFVarPatches!=0, 300, 30, callbackDrawIDs, 11);
+
+   g_hud.AddSlider("FVar Tess", 1.0f, 10.0f, g_VtrDrawFVarPatchTess,
+                    300, 50, 25, true, callbackFVarTess, 0);
+
+    int fvar_pulldown = g_hud.AddPullDown("FVar Interpolation (i)", 300, 90, 250, callbackFVarInterpolation, 'i');
+    g_hud.AddPullDownButton(fvar_pulldown, "FVAR_LINEAR_NONE",
+        SdcOptions::FVAR_LINEAR_NONE, g_fvarInterpolation==SdcOptions::FVAR_LINEAR_NONE);
+    g_hud.AddPullDownButton(fvar_pulldown, "FVAR_LINEAR_CORNERS_ONLY",
+        SdcOptions::FVAR_LINEAR_CORNERS_ONLY, g_fvarInterpolation==SdcOptions::FVAR_LINEAR_CORNERS_ONLY);
+    g_hud.AddPullDownButton(fvar_pulldown, "FVAR_LINEAR_CORNERS_PLUS1",
+        SdcOptions::FVAR_LINEAR_CORNERS_PLUS1, g_fvarInterpolation==SdcOptions::FVAR_LINEAR_CORNERS_PLUS1);
+    g_hud.AddPullDownButton(fvar_pulldown, "FVAR_LINEAR_CORNERS_PLUS2",
+        SdcOptions::FVAR_LINEAR_CORNERS_PLUS2, g_fvarInterpolation==SdcOptions::FVAR_LINEAR_CORNERS_PLUS2);
+    g_hud.AddPullDownButton(fvar_pulldown, "FVAR_LINEAR_BOUNDARIES",
+        SdcOptions::FVAR_LINEAR_BOUNDARIES, g_fvarInterpolation==SdcOptions::FVAR_LINEAR_BOUNDARIES);
+    g_hud.AddPullDownButton(fvar_pulldown, "FVAR_LINEAR_ALL",
+        SdcOptions::FVAR_LINEAR_ALL, g_fvarInterpolation==SdcOptions::FVAR_LINEAR_ALL);
 
     if (not g_font) {
         g_font = new GLFont( g_hud.GetFontTexture() );

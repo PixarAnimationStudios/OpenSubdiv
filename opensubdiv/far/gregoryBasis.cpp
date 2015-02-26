@@ -23,6 +23,7 @@
 //
 
 #include "../far/gregoryBasis.h"
+#include "../far/error.h"
 #include "../far/topologyRefiner.h"
 
 #include <cassert>
@@ -53,14 +54,17 @@ namespace OPENSUBDIV_VERSION {
 // vertices.
 //
 static void
-getQuadOffsets(Vtr::Level const& level, Vtr::Index fIndex, Vtr::Index offsets[]) {
+getQuadOffsets(Vtr::Level const & level, Vtr::Index fIndex,
+    Vtr::Index offsets[], int fvarChannel=-1) {
 
-    Far::ConstIndexArray fVerts = level.getFaceVertices(fIndex);
-    assert(fVerts.size()==4);
+    Far::ConstIndexArray fPoints = (fvarChannel<0) ?
+        level.getFaceVertices(fIndex) :
+            level.getFVarFaceValues(fIndex, fvarChannel);
+    assert(fPoints.size()==4);
 
     for (int i = 0; i < 4; ++i) {
 
-        Vtr::Index      vIndex = fVerts[i];
+        Vtr::Index      vIndex = fPoints[i];
         Vtr::ConstIndexArray vFaces = level.getVertexFaces(vIndex),
                              vEdges = level.getVertexEdges(vIndex);
 
@@ -89,6 +93,18 @@ static const int MAX_VALENCE=30,
                  MAX_ELEMS = GetNumMaxElems(MAX_VALENCE);
 
 namespace Far {
+
+static inline bool
+checkMaxValence(Vtr::Level const & level) {
+    if (level.getMaxValence()>GregoryBasisFactory::GetMaxValence()) {
+        // The proto-basis closed-form table limits valence to 'MAX_VALENCE'
+        Error(FAR_RUNTIME_ERROR,
+            "Vertex valence %d exceeds maximum %d supported",
+                level.getMaxValence(), GregoryBasisFactory::GetMaxValence());
+        return false;
+    }
+    return true;
+}
 
 //
 // Basis point
@@ -222,7 +238,7 @@ Point::Copy(int ** size, Index ** indices, float ** weights) const {
 //
 struct ProtoBasis {
 
-    ProtoBasis(Vtr::Level const & level, Index faceIndex);
+    ProtoBasis(Vtr::Level const & level, Index faceIndex, int fvarChannel=-1);
 
     int GetNumElements() const;
 
@@ -296,7 +312,7 @@ inline float csf(Index n, Index j) {
         return sinf((2.0f * float(M_PI) * float(float(j-1)/2.0f))/(float(n)+3.0f));
     }
 }
-ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex) {
+ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex, int fvarChannel) {
 
     static float ef[MAX_VALENCE-3] = {
         0.812816f, 0.500000f, 0.363644f, 0.287514f,
@@ -308,8 +324,10 @@ ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex) {
         0.0569311f, 0.0548745f, 0.0529621f
     };
 
-    Vtr::ConstIndexArray faceVerts = level.getFaceVertices(faceIndex);
-    assert(faceVerts.size()==4);
+    Vtr::ConstIndexArray facePoints = (fvarChannel<0) ?
+        level.getFaceVertices(faceIndex) :
+            level.getFVarFaceValues(faceIndex, fvarChannel);
+    assert(facePoints.size()==4);
 
     int maxvalence = level.getMaxValence(),
         valences[4],
@@ -330,10 +348,13 @@ ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex) {
 
     for (int vid=0; vid<4; ++vid) {
 
-        org[vid] = faceVerts[vid];
+        org[vid] = facePoints[vid];
 
-        int ringSize = level.gatherManifoldVertexRingFromIncidentQuads(faceVerts[vid], 0, manifoldRing),
-            valence;
+        int ringSize =
+            level.gatherManifoldVertexRingFromIncidentQuads(
+                facePoints[vid], 0, manifoldRing, fvarChannel);
+
+        int valence;
         if (ringSize & 1) {
             // boundary vertex
             ++ringSize;
@@ -350,7 +371,7 @@ ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex) {
               zerothNeighbor=0,
               ibefore=0;
 
-        Point pos(faceVerts[vid]);
+        Point pos(facePoints[vid]);
 
         for (int i=0; i<ivalence; ++i) {
 
@@ -365,6 +386,11 @@ ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex) {
 
             bool boundaryNeighbor = (level.getVertexEdges(idx_neighbor).size() >
                 level.getVertexFaces(idx_neighbor).size());
+
+            if (fvarChannel>=0) {
+                // XXXX manuelk need logic to check for boundary in fvar
+                boundaryNeighbor = false;
+            }
 
             if (boundaryNeighbor) {
                 if (currentNeighbor<2) {
@@ -453,7 +479,7 @@ ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex) {
     }
 
     Index quadOffsets[8];
-    getQuadOffsets(level, faceIndex, quadOffsets);
+    getQuadOffsets(level, faceIndex, quadOffsets, fvarChannel);
 
     for (int vid=0; vid<4; ++vid) {
 
@@ -548,17 +574,17 @@ int GregoryBasisFactory::GetMaxValence() {
 // Stateless GregoryBasisFactory
 //
 GregoryBasis const *
-GregoryBasisFactory::Create(TopologyRefiner const & refiner, Index faceIndex) {
+GregoryBasisFactory::Create(TopologyRefiner const & refiner,
+    Index faceIndex, int fvarChannel) {
 
     // Gregory patches are end-caps: they only exist on max-level
     Vtr::Level const & level = refiner.getLevel(refiner.GetMaxLevel());
 
-    if (level.getMaxValence()>GetMaxValence()) {
-        // The proto-basis closed-form table limits valence to 'MAX_VALENCE'
+    if (not checkMaxValence(level)) {
         return 0;
     }
 
-    ProtoBasis basis(level, faceIndex);
+    ProtoBasis basis(level, faceIndex, fvarChannel);
 
     int nelems= basis.GetNumElements();
 
@@ -578,12 +604,13 @@ GregoryBasisFactory::Create(TopologyRefiner const & refiner, Index faceIndex) {
 }
 
 //
-// GregoryBasisFactory for StencilTables
+// GregoryBasisFactory for Vertex StencilTables
 //
 GregoryBasisFactory::GregoryBasisFactory(TopologyRefiner const & refiner,
-    StencilTables const & stencils, int numpatches, int maxvalence) :
-        _currentStencil(0), _refiner(refiner),
-            _stencils(stencils), _alloc(GetNumMaxElems(maxvalence)) {
+    StencilTables const & stencils,
+        int numpatches, int maxvalence) :
+            _currentStencil(0), _refiner(refiner),
+                _stencils(stencils), _alloc(GetNumMaxElems(maxvalence)) {
 
     // Sanity check: the mesh must be adaptively refined
     assert(not _refiner.IsUniform());
@@ -633,8 +660,7 @@ GregoryBasisFactory::AddPatchBasis(Index faceIndex) {
     // Gregory patches only exist on the hight
     Vtr::Level const & level = _refiner.getLevel(_refiner.GetMaxLevel());
 
-    if (level.getMaxValence()>GetMaxValence()) {
-        // The proto-basis closed-form table limits valence to 'MAX_VALENCE'
+    if (not checkMaxValence(level)) {
         return false;
     }
 

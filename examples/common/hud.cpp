@@ -511,7 +511,11 @@ Hud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
         int sx = x;
         x = drawString(_staticVboSource, x, y, 1, 1, 1, it->label.c_str());
         char value[16];
-        snprintf(value, 16, " : %.2f", it->value);
+        if (it->intStep) {
+            snprintf(value, 16, " : %d", (int)it->value);
+        } else {
+            snprintf(value, 16, " : %.2f", it->value);
+        }
         drawString(_staticVboSource, x, y, 1, 1, 1, value);
 
         // new line

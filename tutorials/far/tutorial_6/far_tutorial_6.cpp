@@ -182,7 +182,7 @@ int main(int, char **) {
             assert(handle);
 
             // Evaluate the limit frame
-            patchTables->Limit(*handle, s, t, &verts[0], samples[count]);
+            patchTables->Evaluate(*handle, s, t, &verts[0], samples[count]);
         }
     }
 

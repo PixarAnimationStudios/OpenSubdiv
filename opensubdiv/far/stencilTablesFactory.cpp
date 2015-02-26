@@ -339,9 +339,9 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
             if (handle) {
                 ProtoLimitStencil dst = alloc[currentStencil];
                 if (uniform) {
-                    patchtables->Interpolate(*handle, s, t, *cvstencils, dst);
+                    patchtables->EvaluateBilinear(*handle, s, t, *cvstencils, dst);
                 } else {
-                    patchtables->Limit(*handle, s, t, *cvstencils, dst);
+                    patchtables->Evaluate(*handle, s, t, *cvstencils, dst);
                 }
                 ++numLimitStencils;
             }

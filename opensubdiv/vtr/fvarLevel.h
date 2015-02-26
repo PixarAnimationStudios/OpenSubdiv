@@ -89,6 +89,7 @@ protected:
     friend class Refinement;
     friend class FVarRefinement;
     friend class Far::TopologyRefiner;
+    friend class Far::PatchTablesFactory;
 
 protected:
     //

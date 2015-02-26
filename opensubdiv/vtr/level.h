@@ -241,6 +241,12 @@ public:
     void setHole(Index faceIndex, bool b);
     bool isHole(Index faceIndex) const;
 
+    // Face-varying
+    Sdc::Options getFVarOptions(int channel = 0) const; 
+    int getNumFVarChannels() const { return (int) _fvarChannels.size(); }
+    int getNumFVarValues(int channel = 0) const;
+    ConstIndexArray getFVarFaceValues(Index faceIndex, int channel = 0) const;
+
     //  Manifold/non-manifold tags:
     void setEdgeNonManifold(Index edgeIndex, bool b);
     bool isEdgeNonManifold(Index edgeIndex) const;
@@ -288,8 +294,9 @@ public:
 
     bool isSingleCreasePatch(Index face, float* sharpnessOut=NULL, int* rotationOut=NULL) const;
 
-    int gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int ringVerts[]) const;
+    int gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int ringVerts[], int fvarChannel=-1) const;
 
+    void gatherQuadPoints(Index thisFace, Index patchPoints[], int rotation, int fvarChannel) const;
     //
     //  When gathering "patch points" we may want the indices of the vertices or the corresponding
     //  FVar values for a particular channel.  Both are represented and equally accessible within
@@ -356,11 +363,7 @@ protected:
     int  createFVarChannel(int fvarValueCount, Sdc::Options const& options);
     void destroyFVarChannel(int channel = 0);
 
-    int getNumFVarChannels() const { return (int) _fvarChannels.size(); }
-    int getNumFVarValues(int channel = 0) const;
-
-    ConstIndexArray  getFVarFaceValues(Index faceIndex, int channel = 0) const;
-    IndexArray       getFVarFaceValues(Index faceIndex, int channel = 0);
+    IndexArray getFVarFaceValues(Index faceIndex, int channel = 0);
 
     void completeFVarChannelTopology(int channel, int regBoundaryValence);
 
