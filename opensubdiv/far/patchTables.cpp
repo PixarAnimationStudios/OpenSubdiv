@@ -436,7 +436,7 @@ Vtr::Array<PatchDescriptor::Type>
 PatchTables::getFVarPatchTypes(int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     return Vtr::Array<PatchDescriptor::Type>(&c.patchTypes[0],
-        c.patchTypes.size());
+        (int)c.patchTypes.size());
 }
 Vtr::ConstArray<PatchDescriptor::Type>
 PatchTables::GetFVarPatchTypes(int channel) const {
@@ -445,18 +445,18 @@ PatchTables::GetFVarPatchTypes(int channel) const {
         return Vtr::ConstArray<PatchDescriptor::Type>(&c.patchesType, 1);
     } else {
         return Vtr::ConstArray<PatchDescriptor::Type>(&c.patchTypes[0],
-            c.patchTypes.size());
+            (int)c.patchTypes.size());
     }
 }
 ConstIndexArray
 PatchTables::GetFVarPatchesValues(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
-    return ConstIndexArray(&c.patchValues[0], c.patchValues.size());
+    return ConstIndexArray(&c.patchValues[0], (int)c.patchValues.size());
 }
 IndexArray
 PatchTables::getFVarPatchesValues(int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
-    return IndexArray(&c.patchValues[0], c.patchValues.size());
+    return IndexArray(&c.patchValues[0], (int)c.patchValues.size());
 }
 PatchDescriptor::Type
 PatchTables::getFVarPatchType(int channel, int patch) const {
