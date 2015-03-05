@@ -247,6 +247,9 @@ public:
     int getNumFVarValues(int channel = 0) const;
     ConstIndexArray getFVarFaceValues(Index faceIndex, int channel = 0) const;
 
+    FVarLevel & getFVarLevel(int channel = 0) { return *_fvarChannels[channel]; }
+    FVarLevel const & getFVarLevel(int channel = 0) const { return *_fvarChannels[channel]; }
+
     //  Manifold/non-manifold tags:
     void setEdgeNonManifold(Index edgeIndex, bool b);
     bool isEdgeNonManifold(Index edgeIndex) const;
@@ -294,15 +297,15 @@ public:
 
     bool isSingleCreasePatch(Index face, float* sharpnessOut=NULL, int* rotationOut=NULL) const;
 
-    int gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int ringVerts[], int fvarChannel=-1) const;
-
-    void gatherQuadPoints(Index thisFace, Index patchPoints[], int rotation, int fvarChannel) const;
     //
     //  When gathering "patch points" we may want the indices of the vertices or the corresponding
     //  FVar values for a particular channel.  Both are represented and equally accessible within
     //  the faces, so we allow all to be returned through these methods.  Setting the optional FVar
     //  channel to -1 will retrieve indices of vertices instead of FVar values:
     //
+    int gatherQuadLinearPatchPoints(Index fIndex, Index patchPoints[], int rotation = 0,
+                                                                       int fvarChannel = -1) const;
+
     int gatherQuadRegularInteriorPatchPoints(Index fIndex, Index patchPoints[], int rotation = 0,
                                                                                 int fvarChannel = -1) const;
     int gatherQuadRegularBoundaryPatchPoints(Index fIndex, Index patchPoints[], int boundaryEdgeInFace,

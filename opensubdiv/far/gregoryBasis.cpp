@@ -351,8 +351,8 @@ ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex, int fvarChanne
         org[vid] = facePoints[vid];
 
         int ringSize =
-            level.gatherManifoldVertexRingFromIncidentQuads(
-                facePoints[vid], 0, manifoldRing, fvarChannel);
+            level.gatherQuadRegularRingAroundVertex(
+                facePoints[vid], manifoldRing, fvarChannel);
 
         int valence;
         if (ringSize & 1) {

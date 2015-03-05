@@ -589,8 +589,8 @@ namespace {
 }
 
 //
-//  Gathering the one-ring of vertices from quads surrounding a manifold vertex:
-//      - the neighborhood of the vertex is assumed to be quad-regular
+//  Gathering the one-ring of vertices from quads surrounding a vertex:
+//      - the neighborhood of the vertex is assumed to be quad-regular (manifold)
 //
 //  Ordering of resulting vertices:
 //      The surrounding one-ring follows the ordering of the incident faces.  For each
@@ -598,19 +598,6 @@ namespace {
 //  vertex is on a boundary, a third vertex on the boundary edge will be contributed from
 //  the last face.
 //
-int
-Level::gatherManifoldVertexRingFromIncidentQuads(
-    Index vIndex, int vOffset, int ringVerts[], int fvarChannel) const {
-
-    int ringSize = gatherQuadRegularRingAroundVertex(vIndex, ringVerts, fvarChannel);
-    if (vOffset) {
-        for (int i = 0; i < ringSize; ++i) {
-            ringVerts[i] += vOffset;
-        }
-    }
-    return ringSize;
-}
-
 int
 Level::gatherQuadRegularRingAroundVertex(
     Index vIndex, int ringPoints[], int fvarChannel) const {
@@ -656,8 +643,8 @@ Level::gatherQuadRegularRingAroundVertex(
 //      --1-----2--
 //        |     |  
 //      
-void
-Level::gatherQuadPoints(
+int
+Level::gatherQuadLinearPatchPoints(
     Index thisFace, Index patchPoints[], int rotation, int fvarChannel) const {
 
     Level const& level = *this;
@@ -666,15 +653,16 @@ Level::gatherQuadPoints(
     static int const   rotationSequence[7] = { 0, 1, 2, 3, 0, 1, 2 };
     int const * rotatedVerts = &rotationSequence[rotation];
 
-    ConstIndexArray thisFaceVerts = level.getFaceVertices(thisFace);
-
-    ConstIndexArray facePoints = (fvarChannel < 0) ? thisFaceVerts :
+    ConstIndexArray facePoints = (fvarChannel < 0) ?
+                                 level.getFaceVertices(thisFace) :
                                  level.getFVarFaceValues(thisFace, fvarChannel);
 
     patchPoints[0] = facePoints[rotatedVerts[0]];
     patchPoints[1] = facePoints[rotatedVerts[1]];
     patchPoints[2] = facePoints[rotatedVerts[2]];
     patchPoints[3] = facePoints[rotatedVerts[3]];
+
+    return 4;
 }
 
 //

@@ -486,7 +486,7 @@ public:
 
     /// \brief Prints topology information to console
     void PrintTopology(int level, bool children = true) const {
-        _levels[level]->print(children ? _refinements[level] : 0);
+        _levels[level]->print((children && ((int)_refinements.size() > level)) ? _refinements[level] : 0);
     }
 
     //@}
@@ -551,9 +551,6 @@ protected:
 
     Vtr::Refinement & getRefinement(int l) { return *_refinements[l]; }
     Vtr::Refinement const & getRefinement(int l) const { return *_refinements[l]; }
-
-    Vtr::FVarLevel & getFVarChannel(int l, int c) { return *_levels[l]->_fvarChannels[c]; }
-    Vtr::FVarLevel const & getFVarChannel(int l, int c) const { return *_levels[l]->_fvarChannels[c]; }
 
 private:
     void selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector);

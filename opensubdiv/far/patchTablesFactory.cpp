@@ -664,7 +664,7 @@ PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
     for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
 
         Vtr::Level const & vtxLevel = refiner.getLevel(level);
-        Vtr::FVarLevel const & fvarLevel = refiner.getFVarChannel(level, *fvc);
+        Vtr::FVarLevel const & fvarLevel = vtxLevel.getFVarLevel(*fvc);
 
         if (refiner.GetFVarLinearInterpolation(*fvc)!=Sdc::Options::FVAR_LINEAR_ALL) {
 
@@ -719,8 +719,6 @@ PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
                 //  composite VTag:
                 //
                 Vtr::Level::VTag fvarVertTags[4];
-
-                ConstIndexArray faceVerts = vtxLevel.getFaceVertices(faceIndex);
 
                 Vtr::Level::VTag compFVarVTag =
                             fvarLevel.getFaceCompositeValueAndVTag(fvarValues, faceVerts, fvarVertTags);
@@ -805,7 +803,7 @@ PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
                 vtxLevel.gatherQuadRegularBoundaryPatchPoints(faceIndex, patchVerts, orientationIndex, *fvc);
                 permutation = permuteBoundary;
             } else if (fvarPatchType == PatchDescriptor::QUADS) {
-                vtxLevel.gatherQuadPoints(faceIndex, patchVerts, orientationIndex, *fvc);
+                vtxLevel.gatherQuadLinearPatchPoints(faceIndex, patchVerts, orientationIndex, *fvc);
                 permutation = 0;
             } else if (fvarPatchType == PatchDescriptor::GREGORY_BASIS) {
                 // XXXX
@@ -1165,12 +1163,12 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
 
                 if (generateFVarPatches) {
                     for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-                        ConstIndexArray fverts = refiner.GetFVarFaceValues(level, face, *fvc);
-                        for (int vert=0; vert<fverts.size(); ++vert) {
-                            assert((levelVertOffset + fverts[vert]) < (int)tables->getFVarPatchesValues(fvc.pos()).size());
-                            fptr[fvc.pos()][vert] = levelFVarVertOffsets[fvc.pos()] + fverts[vert];
+                        ConstIndexArray fvalues = refiner.GetFVarFaceValues(level, face, *fvc);
+                        for (int vert=0; vert<fvalues.size(); ++vert) {
+                            assert((levelVertOffset + fvalues[vert]) < (int)tables->getFVarPatchesValues(fvc.pos()).size());
+                            fptr[fvc.pos()][vert] = levelFVarVertOffsets[fvc.pos()] + fvalues[vert];
                         }
-                        fptr[fvc.pos()]+=fverts.size();
+                        fptr[fvc.pos()]+=fvalues.size();
                     }
                 }
 
@@ -1843,8 +1841,11 @@ PatchTablesFactory::populateAdaptivePatches(AdaptiveContext & context) {
                     //} else {
 
                         int * ringDest = vTableEntry + 1,
-                              ringSize = level->gatherManifoldVertexRingFromIncidentQuads(vIndex, vOffset, ringDest);
+                              ringSize = level->gatherQuadRegularRingAroundVertex(vIndex, ringDest);
 
+                        for (int j = 0; j < ringSize; ++j) {
+                            ringDest[j] += vOffset;
+                        }
                         if (ringSize & 1) {
                             // boundary vertex : duplicate boundary vertex index
                             // and store negative valence.
