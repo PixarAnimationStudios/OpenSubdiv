@@ -49,7 +49,7 @@ struct Vertex {
     Vertex(Vertex const & src) {
         _data[0] = src._data[0];
         _data[1] = src._data[1];
-        _data[1] = src._data[1];
+        _data[2] = src._data[2];
     }
 
     void Clear( void * =0 ) {

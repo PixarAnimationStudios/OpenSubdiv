@@ -498,7 +498,7 @@ struct Vertex {
     Vertex(Vertex const & src) {
         position[0] = src.position[0];
         position[1] = src.position[1];
-        position[1] = src.position[1];
+        position[2] = src.position[2];
     }
 
     void Clear( void * =0 ) {
