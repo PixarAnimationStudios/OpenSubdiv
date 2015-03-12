@@ -45,7 +45,7 @@ struct Vertex {
     Vertex(Vertex const & src) {
         _position[0] = src._position[0];
         _position[1] = src._position[1];
-        _position[1] = src._position[1];
+        _position[2] = src._position[2];
     }
 
     void Clear( void * =0 ) {
