@@ -187,7 +187,7 @@ public:
     ///       reference: this allows to work transparently with arrays and
     ///       containers (or other scheme that overload the '[]' operator)
     ///       <br><br>
-    ///       See the <a href=http://internal-graphics.pixar.com/opensubdiv/docs/tutorials.html>
+    ///       See the <a href=http://graphics.pixar.com/opensubdiv/docs/tutorials.html>
     ///       Far tutorials</a> for code examples.
     ///
 
