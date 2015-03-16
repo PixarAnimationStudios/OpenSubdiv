@@ -225,23 +225,23 @@ Level::validateTopology(ValidationCallback callback, void const * clientData) co
     }
     for (int fIndex = 0; fIndex < getNumFaces(); ++fIndex) {
         ConstIndexArray  fEdges      = getFaceEdges(fIndex);
-        int                 fEdgeCount  = fEdges.size();
+        int              fEdgeCount  = fEdges.size();
 
         for (int i = 0; i < fEdgeCount; ++i) {
             int eIndex = fEdges[i];
 
-            ConstIndexArray  eFaces      = getEdgeFaces(eIndex);
-            int                 eFaceCount  = eFaces.size();
+            ConstIndexArray       eFaces = getEdgeFaces(eIndex);
+            ConstLocalIndexArray eInFace = getEdgeFaceLocalIndices(eIndex);
 
             bool edgeFaceOfFaceExists = false;
-            for (int j = 0; j < eFaceCount; ++j) {
-                if (eFaces[j] == fIndex) {
+            for (int j = 0; j < eFaces.size(); ++j) {
+                if ((eFaces[j] == fIndex) && (eInFace[j] == i)) {
                     edgeFaceOfFaceExists = true;
                     break;
                 }
             }
             if (!edgeFaceOfFaceExists) {
-                REPORT(TOPOLOGY_FAILED_CORRELATION_FACE_VERT,
+                REPORT(TOPOLOGY_FAILED_CORRELATION_FACE_EDGE,
                      "face %d correlation of edge %d failed", fIndex, i);
                 if (returnOnFirstError) return false;
                 isValid = false;
@@ -449,11 +449,15 @@ Level::print(const Refinement* pRefinement) const {
         }
     }
     printf("      edge-face counts/offset = %lu\n", (unsigned long)_edgeFaceCountsAndOffsets.size());
-    printf("      edge-face indices = %lu\n", (unsigned long)_edgeFaceIndices.size());
+    printf("      edge-face indices       = %lu\n", (unsigned long)_edgeFaceIndices.size());
+    printf("      edge-face local-indices = %lu\n", (unsigned long)_edgeFaceLocalIndices.size());
     if (_edgeFaceIndices.size()) {
         for (int i = 0; printEdgeFaces && i < getNumEdges(); ++i) {
             printf("        edge %4d faces:  ", i);
             printIndexArray(getEdgeFaces(i));
+
+            printf("             face-edges:  ");
+            printIndexArray(getEdgeFaceLocalIndices(i));
         }
     }
     if (pRefinement) {
@@ -478,8 +482,8 @@ Level::print(const Refinement* pRefinement) const {
 
     printf("    Vert relations:\n");
     printf("      vert-face counts/offset = %lu\n", (unsigned long)_vertFaceCountsAndOffsets.size());
-    printf("      vert-face indices  = %lu\n", (unsigned long)_vertFaceIndices.size());
-    printf("      vert-face children = %lu\n", (unsigned long)_vertFaceLocalIndices.size());
+    printf("      vert-face indices       = %lu\n", (unsigned long)_vertFaceIndices.size());
+    printf("      vert-face local-indices = %lu\n", (unsigned long)_vertFaceLocalIndices.size());
     if (_vertFaceIndices.size()) {
         for (int i = 0; printVertFaces && i < getNumVertices(); ++i) {
             printf("        vert %4d faces:  ", i);
@@ -490,8 +494,8 @@ Level::print(const Refinement* pRefinement) const {
         }
     }
     printf("      vert-edge counts/offset = %lu\n", (unsigned long)_vertEdgeCountsAndOffsets.size());
-    printf("      vert-edge indices  = %lu\n", (unsigned long)_vertEdgeIndices.size());
-    printf("      vert-edge children = %lu\n", (unsigned long)_vertEdgeLocalIndices.size());
+    printf("      vert-edge indices       = %lu\n", (unsigned long)_vertEdgeIndices.size());
+    printf("      vert-edge local-indices = %lu\n", (unsigned long)_vertEdgeLocalIndices.size());
     if (_vertEdgeIndices.size()) {
         for (int i = 0; printVertEdges && i < getNumVertices(); ++i) {
             printf("        vert %4d edges:  ", i);
@@ -519,6 +523,7 @@ Level::print(const Refinement* pRefinement) const {
         printf(", boundary = %d",  (int)vTag._boundary);
         printf(", corner = %d",    (int)vTag._corner);
         printf(", xordinary = %d", (int)vTag._xordinary);
+        printf(", nonManifold = %d", (int)vTag._nonManifold);
         printf(", infSharp = %d",  (int)vTag._infSharp);
         printf(", semiSharp = %d", (int)vTag._semiSharp);
         printf(", semiSharpEdges = %d", (int)vTag._semiSharpEdges);
@@ -1347,12 +1352,13 @@ namespace {
 
     public:
         //  Methods dealing with the members for each component:
+        int        getNumCompMembers(Index index) const;
         IndexArray getCompMembers(Index index);
-        void          appendCompMember(Index index, Index member);
+        void       appendCompMember(Index index, Index member);
 
         //  Methods dealing with the components:
         void appendComponent();
-        void compressMemberIndices();
+        int  compressMemberIndices();
 
     public:
         int _compCount;
@@ -1378,6 +1384,12 @@ namespace {
             _countsAndOffsets[2*i+1] = i * _memberCountPerComp;
         }
         _regIndices.resize(_compCount * _memberCountPerComp);
+    }
+
+    inline int
+    DynamicRelation::getNumCompMembers(Index compIndex) const {
+
+        return _countsAndOffsets[2*compIndex];
     }
 
     inline IndexArray
@@ -1422,11 +1434,12 @@ namespace {
         ++ _compCount;
         _regIndices.resize(_compCount * _memberCountPerComp);
     }
-    void
+    int
     DynamicRelation::compressMemberIndices() {
 
         if (_irregIndices.size() == 0) {
             int memberCount = _countsAndOffsets[0];
+            int memberMax   = _countsAndOffsets[0];
             for (int i = 1; i < _compCount; ++i) {
                 int count  = _countsAndOffsets[2*i];
                 int offset = _countsAndOffsets[2*i + 1];
@@ -1435,8 +1448,10 @@ namespace {
 
                 _countsAndOffsets[2*i + 1] = memberCount;
                 memberCount += count;
+                memberMax    = std::max(memberMax, count);
             }
             _regIndices.resize(memberCount);
+            return memberMax;
         } else {
             //  Assign new offsets-per-component while determining if we can trivially compressed in place:
             bool cannotBeCompressedInPlace = false;
@@ -1457,13 +1472,20 @@ namespace {
                 tmpIndices.resize(memberCount);
             }
             IndexVector& dstIndices = cannotBeCompressedInPlace ? tmpIndices : _regIndices;
+
+            int memberMax = _memberCountPerComp;
             for (int i = 0; i < _compCount; ++i) {
                 int count = _countsAndOffsets[2*i];
 
                 Index *dstMembers = &dstIndices[_countsAndOffsets[2*i + 1]];
-                Index *srcMembers = (count <= _memberCountPerComp)
-                                     ? &_regIndices[i * _memberCountPerComp]
-                                     : &_irregIndices[i][0];
+                Index *srcMembers = 0;
+                
+                if (count <= _memberCountPerComp) {
+                     srcMembers = &_regIndices[i * _memberCountPerComp];
+                } else {
+                     srcMembers = &_irregIndices[i][0];
+                     memberMax = std::max(memberMax, count);
+                }
                 memmove(dstMembers, srcMembers, count * sizeof(Index));
             }
             if (cannotBeCompressedInPlace) {
@@ -1471,6 +1493,7 @@ namespace {
             } else {
                 _regIndices.resize(memberCount);
             }
+            return memberMax;
         }
     }
 }
@@ -1505,7 +1528,7 @@ Level::findEdge(Index v0Index, Index v1Index) const {
     return this->findEdge(v0Index, v1Index, this->getVertexEdges(v0Index));
 }
 
-void
+bool
 Level::completeTopologyFromFaceVertices() {
 
     //
@@ -1549,6 +1572,9 @@ Level::completeTopologyFromFaceVertices() {
     DynamicRelation dynVertFaces(this->_vertFaceCountsAndOffsets, this->_vertFaceIndices, avgSize);
     DynamicRelation dynVertEdges(this->_vertEdgeCountsAndOffsets, this->_vertEdgeIndices, avgSize);
 
+    //  Inspect each edge created and identify those that are non-manifold as we go:
+    IndexVector nonManifoldEdges;
+
     for (Index fIndex = 0; fIndex < fCount; ++fIndex) {
         IndexArray fVerts = this->getFaceVertices(fIndex);
         IndexArray fEdges = this->getFaceEdges(fIndex);
@@ -1557,13 +1583,38 @@ Level::completeTopologyFromFaceVertices() {
             Index v0Index = fVerts[i];
             Index v1Index = fVerts[(i+1) % fVerts.size()];
 
-            //  Look for the edge in v0's incident edge members:
-            IndexArray v0Edges = dynVertEdges.getCompMembers(v0Index);
+            //
+            //  If not degenerate, search for a previous occurrence of this edge [v0,v1]
+            //  in v0's incident edge members.  Otherwise, set the edge index as invalid
+            //  to trigger creation of a new/unique instance of the degenerate edge:
+            //
+            Index eIndex;
+            if (v0Index != v1Index) {
+                eIndex = this->findEdge(v0Index, v1Index, dynVertEdges.getCompMembers(v0Index));
+            } else {
+                eIndex = INDEX_INVALID;
+                nonManifoldEdges.push_back(this->_edgeCount);
+            }
 
-            Index eIndex = this->findEdge(v0Index, v1Index, v0Edges);
-
-            //  If no edge found, create/append a new one:
-            if (!IndexIsValid(eIndex)) {
+            //
+            //  If the edge already exists, see if is non-manifold, i.e. it has already been
+            //  added to two faces, or this face has the edge in the same orientation as the
+            //  first face (indicating opposite winding orders between the two faces).
+            //
+            //  Otherwise, create a new edge, append the new vertex pair [v0,v1] and update
+            //  the incidence relations for the edge and its end vertices and this face.
+            //
+            //  Regardless of whether or not the edge was new, update the edge-faces, the
+            //  face-edges and the vertex-faces for this vertex.
+            //
+            if (IndexIsValid(eIndex)) {
+                int eFaceCount = dynEdgeFaces.getNumCompMembers(eIndex);
+                if (eFaceCount > 1) {
+                    nonManifoldEdges.push_back(eIndex);
+                } else if (v0Index == this->getEdgeVertices(eIndex)[0]) {
+                    nonManifoldEdges.push_back(eIndex);
+                }
+            } else {
                 eIndex = (Index) this->_edgeCount;
 
                 this->_edgeCount ++;
@@ -1575,56 +1626,64 @@ Level::completeTopologyFromFaceVertices() {
                 dynVertEdges.appendCompMember(v0Index, eIndex);
                 dynVertEdges.appendCompMember(v1Index, eIndex);
             }
+
             dynEdgeFaces.appendCompMember(eIndex,  fIndex);
             dynVertFaces.appendCompMember(v0Index, fIndex);
 
             fEdges[i] = eIndex;
         }
-        _maxValence = std::max(_maxValence, fVerts.size());
     }
 
-    dynEdgeFaces.compressMemberIndices();
-    dynVertFaces.compressMemberIndices();
-    dynVertEdges.compressMemberIndices();
+    //
+    //  Compress the incident member vectors while determining the maximum for each.
+    //  Use these to set maximum relation count members and to test for valence or
+    //  other incident member overflow:  max edge-faces is simple, but for max-valence,
+    //  remember it was first initialized with the maximum of face-verts, so use its
+    //  existing value -- and some non-manifold cases can have #faces > #edges, so be
+    //  sure to consider both.
+    //
+    int maxEdgeFaces = dynEdgeFaces.compressMemberIndices();
+    int maxVertFaces = dynVertFaces.compressMemberIndices();
+    int maxVertEdges = dynVertEdges.compressMemberIndices();
+
+    _maxEdgeFaces = maxEdgeFaces;
+
+    assert(_maxValence > 0);
+    _maxValence = std::max(maxVertFaces, _maxValence);
+    _maxValence = std::max(maxVertEdges, _maxValence);
+
+    //  If max-edge-faces too large, max-valence must also be, so just need the one:
+    if (_maxValence > VALENCE_LIMIT) {
+        return false;
+    }
 
     //
-    //  At this point all incident members are associated with each component.  We now need
-    //  to populate the "local indices" for each -- accounting for on-manifold potential --
-    //  and orient each set.  There is little wortwhile advantage in having the local indices
-    //  available for the orientation as the orienting code "walks" around the components
-    //  independent of their given order.  And since determining the local indices is more
-    //  involved for non-manifold vertices (needing to deal with repeated entries) we are
-    //  better of orienting to determine manifold status and then computing local indices
-    //  according to the manifold status.
+    //  At this point all incident members are associated with each component.  We still
+    //  need to populate the "local indices" for each and orient manifold components in
+    //  counter-clockwise order.  First mark tag non-manifold edges and their incident
+    //  vertices so that we can trivially skip orienting these -- though some vertices
+    //  will be determined non-manifold as a result of a failure to orient them (and
+    //  will be marked accordingly when so detected).
     //
-    //  Resize edges with the Level to ensure anything else related to edges is created:
+    //  Finally, the local indices are assigned.  This is trivial for manifold components
+    //  as if component V is in component F, V will only occur once in F.  For non-manifold
+    //  cases V may occur multiple times in F -- we rely on such instances being successive
+    //  based on their original assignment above, which simplifies the task.
+    //
+    //  First resize edges to the new count to ensure anything related to edges is created:
     eCount = this->getNumEdges();
     this->resizeEdges(eCount);
 
-    for (Index eIndex = 0; eIndex < eCount; ++eIndex) {
-        Level::ETag& eTag = this->_edgeTags[eIndex];
+    for (int i = 0; i < (int)nonManifoldEdges.size(); ++i) {
+        Index eIndex = nonManifoldEdges[i];
 
-        IndexArray eFaces = this->getEdgeFaces(eIndex);
-        IndexArray eVerts = this->getEdgeVertices(eIndex);
+        _edgeTags[eIndex]._nonManifold = true;
 
-        _maxEdgeFaces = std::max(_maxEdgeFaces, eFaces.size());
-
-        if ((eFaces.size() < 1) || (eFaces.size() > 2)) {
-            eTag._nonManifold = true;
-        }
-        if (eVerts[0] == eVerts[1]) {
-            printf("ASSERTION - degenerate edges not yet supported!\n");
-            assert(eVerts[0] != eVerts[1]);
-
-            eTag._nonManifold = true;
-        }
-
-        //  Mark incident vertices non-manifold to avoid attempting to orient them:
-        if (eTag._nonManifold) {
-            this->_vertTags[eVerts[0]]._nonManifold = true;
-            this->_vertTags[eVerts[1]]._nonManifold = true;
-        }
+        IndexArray eVerts = getEdgeVertices(eIndex);
+        _vertTags[eVerts[0]]._nonManifold = true;
+        _vertTags[eVerts[1]]._nonManifold = true;
     }
+
     orientIncidentComponents();
 
     populateLocalIndices();
@@ -1634,28 +1693,42 @@ Level::completeTopologyFromFaceVertices() {
 //printf("  validating vertex topology...\n");
 //this->validateTopology();
 //assert(this->validateTopology());
+    return true;
 }
 
 void
 Level::populateLocalIndices() {
 
     //
-    //  We have two sets of local indices -- vert-faces and vert-edges:
+    //  We have three sets of local indices -- edge-faces, vert-faces and vert-edges:
     //
+    int eCount = this->getNumEdges();
     int vCount = this->getNumVertices();
 
     this->_vertFaceLocalIndices.resize(this->_vertFaceIndices.size());
     this->_vertEdgeLocalIndices.resize(this->_vertEdgeIndices.size());
+    this->_edgeFaceLocalIndices.resize(this->_edgeFaceIndices.size());
 
     for (Index vIndex = 0; vIndex < vCount; ++vIndex) {
         IndexArray      vFaces   = this->getVertexFaces(vIndex);
         LocalIndexArray vInFaces = this->getVertexFaceLocalIndices(vIndex);
 
+        //
+        //  We keep track of the last face during the iteration to detect when two
+        //  (or more) successive faces are the same -- indicating a degenerate edge
+        //  or other non-manifold situation.  If so, we continue to search from the
+        //  point of the last face's local index:
+        //
+        Index vFaceLast = INDEX_INVALID;
         for (int i = 0; i < vFaces.size(); ++i) {
             IndexArray fVerts = this->getFaceVertices(vFaces[i]);
 
-            int vInFaceIndex = (int)(std::find(fVerts.begin(), fVerts.end(), vIndex) - fVerts.begin());
+            int vStart = (vFaces[i] == vFaceLast) ? ((int)vInFaces[i-1] + 1) : 0;
+
+            int vInFaceIndex = (int)(std::find(fVerts.begin() + vStart, fVerts.end(), vIndex) - fVerts.begin());
             vInFaces[i] = (LocalIndex) vInFaceIndex;
+
+            vFaceLast = vFaces[i];
         }
     }
 
@@ -1666,20 +1739,50 @@ Level::populateLocalIndices() {
         for (int i = 0; i < vEdges.size(); ++i) {
             IndexArray eVerts = this->getEdgeVertices(vEdges[i]);
 
-            vInEdges[i] = (vIndex == eVerts[1]);
+            //
+            //  For degenerate edges, the first occurrence of the edge (which
+            //  are presumed successive) will get local index 0, the second 1.
+            //
+            if (eVerts[0] != eVerts[1]) {
+                vInEdges[i] = (vIndex == eVerts[1]);
+            } else {
+                vInEdges[i] = (i && (vEdges[i] == vEdges[i-1]));
+            }
         }
         _maxValence = std::max(_maxValence, vEdges.size());
+    }
+
+    for (Index eIndex = 0; eIndex < eCount; ++eIndex) {
+        IndexArray      eFaces   = this->getEdgeFaces(eIndex);
+        LocalIndexArray eInFaces = this->getEdgeFaceLocalIndices(eIndex);
+
+        //
+        //  We keep track of the last face during the iteration to detect when two
+        //  (or more) successive faces are the same -- indicating a degenerate edge
+        //  or other non-manifold situation.  If so, we continue to search from the
+        //  point of the last face's local index:
+        //
+        Index eFaceLast = INDEX_INVALID;
+        for (int i = 0; i < eFaces.size(); ++i) {
+            IndexArray fEdges = this->getFaceEdges(eFaces[i]);
+
+            int eStart = (eFaces[i] == eFaceLast) ? ((int)eInFaces[i-1] + 1) : 0;
+
+            int eInFaceIndex = (int)(std::find(fEdges.begin() + eStart, fEdges.end(), eIndex) - fEdges.begin());
+            eInFaces[i] = (LocalIndex) eInFaceIndex;
+
+            eFaceLast = eFaces[i];
+        }
     }
 }
 
 void
 Level::orientIncidentComponents() {
 
-    int vCount = this->getNumVertices();
+    int vCount = getNumVertices();
 
     for (Index vIndex = 0; vIndex < vCount; ++vIndex) {
-        Level::VTag vTag = this->_vertTags[vIndex];
-
+        Level::VTag & vTag = _vertTags[vIndex];
         if (!vTag._nonManifold) {
             if (!orderVertexFacesAndEdges(vIndex)) {
                 vTag._nonManifold = true;

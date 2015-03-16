@@ -971,7 +971,7 @@ Refinement::reclassifySemisharpVertices() {
 
         Index pEdge = _childVertexParentIndex[cVert];
 
-        IndexArray const cEdges = getEdgeChildEdges(pEdge);
+        ConstIndexArray cEdges = getEdgeChildEdges(pEdge);
 
         if (_childVertexTag[cVert]._incomplete) {
             //  One child edge likely missing -- assume Crease if remaining edge semi-sharp:
@@ -1025,7 +1025,7 @@ Refinement::reclassifySemisharpVertices() {
 
             bool cVertEdgesPresent = (_child->getNumVertexEdgesTotal() > 0);
             if (cVertEdgesPresent) {
-                IndexArray const cEdges = _child->getVertexEdges(cVert);
+                ConstIndexArray cEdges = _child->getVertexEdges(cVert);
 
                 for (int i = 0; i < cEdges.size(); ++i) {
                     Level::ETag cEdgeTag = _child->_edgeTags[cEdges[i]];

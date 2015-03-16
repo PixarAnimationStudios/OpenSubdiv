@@ -360,6 +360,11 @@ public:
         return _levels[level]->getVertexEdges(vert);
     }
 
+    /// \brief Returns the local face indices of edge 'edge' at 'level'
+    ConstLocalIndexArray GetEdgeFaceLocalIndices(int level, Index edge) const {
+        return _levels[level]->getEdgeFaceLocalIndices(edge);
+    }
+
     /// \brief Returns the local face indices of vertex 'vert' at 'level'
     ConstLocalIndexArray GetVertexFaceLocalIndices(int level, Index vert) const {
         return _levels[level]->getVertexFaceLocalIndices(vert);
@@ -404,7 +409,7 @@ public:
     int GetNumFVarValues(int level, int channel = 0) const;
 
     /// \brief Returns the face-varying values of a 'face' at 'level'
-    ConstIndexArray const GetFVarFaceValues(int level, Index face, int channel = 0) const;
+    ConstIndexArray GetFVarFaceValues(int level, Index face, int channel = 0) const;
 
     //@}
 
@@ -517,6 +522,7 @@ protected:
     IndexArray setBaseVertexFaces( Index v) { return _levels[0]->getVertexFaces(v); }
     IndexArray setBaseVertexEdges( Index v) { return _levels[0]->getVertexEdges(v); }
 
+    LocalIndexArray setBaseEdgeFaceLocalIndices(Index e)   { return _levels[0]->getEdgeFaceLocalIndices(e); }
     LocalIndexArray setBaseVertexFaceLocalIndices(Index v) { return _levels[0]->getVertexFaceLocalIndices(v); }
     LocalIndexArray setBaseVertexEdgeLocalIndices(Index v) { return _levels[0]->getVertexEdgeLocalIndices(v); }
 
@@ -605,7 +611,7 @@ TopologyRefiner::GetNumFVarValues(int level, int channel) const {
 
     return _levels[level]->getNumFVarValues(channel);
 }
-inline ConstIndexArray const
+inline ConstIndexArray
 TopologyRefiner::GetFVarFaceValues(int level, Index face, int channel) const {
 
     return _levels[level]->getFVarFaceValues(face, channel);

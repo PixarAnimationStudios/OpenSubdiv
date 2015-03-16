@@ -212,12 +212,14 @@ public:
     int getMaxEdgeFaces() const { return _maxEdgeFaces; }
 
     //  Methods to access the relation tables/indices -- note that for some relations
-    //  we store an additional "local index", e.g. for the case of vert-faces if one
-    //  of the faces F[i] is incident a vertex V, then L[i] is the "local index" in
-    //  F[i] of vertex V.  Once have only quads (or tris), this local index need only
-    //  occupy two bits and could conceivably be packed into the same integer as the
-    //  face index, but for now, given the need to support faces of potentially high
-    //  valence we'll us an 8- or 16-bit integer.
+    //  (i.e. those where a component is "contained by" a neighbor, or more generally
+    //  when the neighbor is a simplex of higher dimension) we store an additional
+    //  "local index", e.g. for the case of vert-faces if one of the faces F[i] is
+    //  incident a vertex V, then L[i] is the "local index" in F[i] of vertex V.
+    //  Once have only quads (or tris), this local index need only occupy two bits
+    //  and could conceivably be packed into the same integer as the face index, but
+    //  for now, given the need to support faces of potentially high valence we'll
+    //  us an 8- or 16-bit integer.
     //
     //  Methods to access the six topological relations:
     ConstIndexArray getFaceVertices(Index faceIndex) const;
@@ -227,6 +229,7 @@ public:
     ConstIndexArray getVertexFaces(Index vertIndex) const;
     ConstIndexArray getVertexEdges(Index vertIndex) const;
 
+    ConstLocalIndexArray getEdgeFaceLocalIndices(Index edgeIndex) const;
     ConstLocalIndexArray getVertexFaceLocalIndices(Index vertIndex) const;
     ConstLocalIndexArray getVertexEdgeLocalIndices(Index vertIndex) const;
 
@@ -349,13 +352,15 @@ protected:
     void resizeVertexEdges(int numVertexEdgesTotal);
 
     //  Modifiers to populate the relations for each component:
-    IndexArray      getFaceVertices(Index faceIndex);
-    IndexArray      getFaceEdges(Index faceIndex);
-    IndexArray      getEdgeVertices(Index edgeIndex);
-    IndexArray      getEdgeFaces(Index edgeIndex);
-    IndexArray      getVertexFaces(           Index vertIndex);
+    IndexArray getFaceVertices(Index faceIndex);
+    IndexArray getFaceEdges(Index faceIndex);
+    IndexArray getEdgeVertices(Index edgeIndex);
+    IndexArray getEdgeFaces(Index edgeIndex);
+    IndexArray getVertexFaces(Index vertIndex);
+    IndexArray getVertexEdges(Index vertIndex);
+
+    LocalIndexArray getEdgeFaceLocalIndices(Index edgeIndex);
     LocalIndexArray getVertexFaceLocalIndices(Index vertIndex);
-    IndexArray      getVertexEdges(           Index vertIndex);
     LocalIndexArray getVertexEdgeLocalIndices(Index vertIndex);
 
     //  Replace these with access to sharpness buffers/arrays rather than elements:
@@ -419,7 +424,7 @@ protected:
     //  externally (either a Factory outside Vtr or another Vtr construction helper), but
     //  until we decide where, the required implementation is defined here.
     //
-    void completeTopologyFromFaceVertices();
+    bool completeTopologyFromFaceVertices();
     Index findEdge(Index v0, Index v1, ConstIndexArray v0Edges) const;
 
     //  Methods supporting the above:
@@ -475,12 +480,13 @@ protected:
     std::vector<FTag>  _faceTags;                  // 1 per face:  includes "hole" tag
 
     //  Per-edge:
-    std::vector<Index> _edgeVertIndices;           // 2 per edge
-    std::vector<Index> _edgeFaceCountsAndOffsets;  // 2 per edge
-    std::vector<Index> _edgeFaceIndices;           // varies with faces per edge
+    std::vector<Index>      _edgeVertIndices;           // 2 per edge
+    std::vector<Index>      _edgeFaceCountsAndOffsets;  // 2 per edge
+    std::vector<Index>      _edgeFaceIndices;           // varies with faces per edge
+    std::vector<LocalIndex> _edgeFaceLocalIndices;      // varies with faces per edge
 
-    std::vector<float> _edgeSharpness;             // 1 per edge
-    std::vector<ETag>  _edgeTags;                  // 1 per edge:  manifold, boundary, etc.
+    std::vector<float>      _edgeSharpness;             // 1 per edge
+    std::vector<ETag>       _edgeTags;                  // 1 per edge:  manifold, boundary, etc.
 
     //  Per-vertex:
     std::vector<Index>      _vertFaceCountsAndOffsets;  // 2 per vertex
@@ -514,7 +520,6 @@ Level::getFaceVertices(Index faceIndex) {
 
 inline void
 Level::resizeFaceVertices(Index faceIndex, int count) {
-    assert(count < 256);
 
     int* countOffsetPair = &_faceVertCountsAndOffsets[faceIndex*2];
 
@@ -640,6 +645,17 @@ Level::getEdgeFaces(Index edgeIndex) {
                           _edgeFaceCountsAndOffsets[edgeIndex*2]);
 }
 
+inline ConstLocalIndexArray
+Level::getEdgeFaceLocalIndices(Index edgeIndex) const {
+    return ConstLocalIndexArray(&_edgeFaceLocalIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
+                               _edgeFaceCountsAndOffsets[edgeIndex*2]);
+}
+inline LocalIndexArray
+Level::getEdgeFaceLocalIndices(Index edgeIndex) {
+    return LocalIndexArray(&_edgeFaceLocalIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
+                           _edgeFaceCountsAndOffsets[edgeIndex*2]);
+}
+
 inline void
 Level::resizeEdgeFaces(Index edgeIndex, int count) {
     int* countOffsetPair = &_edgeFaceCountsAndOffsets[edgeIndex*2];
@@ -755,6 +771,7 @@ inline void
 Level::resizeEdgeFaces(int totalEdgeFaceCount) {
 
     _edgeFaceIndices.resize(totalEdgeFaceCount);
+    _edgeFaceLocalIndices.resize(totalEdgeFaceCount);
 }
 
 inline void

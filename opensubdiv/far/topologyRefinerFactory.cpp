@@ -51,9 +51,27 @@ TopologyRefinerFactoryBase::prepareComponentTopologySizing(TopologyRefiner& refi
 
     assert((vCount > 0) && (fCount > 0));
 
+    //  Make sure no face was defined that would lead to a valence overflow -- the max
+    //  valence has been initialized with the maximum number of face-vertices:
+    if (baseLevel.getMaxValence() > Vtr::VALENCE_LIMIT) {
+        char msg[1024];
+        snprintf(msg, 1024,
+                "Invalid topology specified : face with %d vertices > %d max.",
+                baseLevel.getMaxValence(), Vtr::VALENCE_LIMIT);
+        Warning(msg);
+        return false;
+    }
+
     int fVertCount = baseLevel.getNumFaceVertices(fCount - 1) +
                      baseLevel.getOffsetOfFaceVertices(fCount - 1);
 
+    if ((refiner.GetSchemeType() == Sdc::SCHEME_LOOP) && (fVertCount != (3 * fCount))) {
+        char msg[1024];
+        snprintf(msg, 1024,
+                "Invalid topology specified : non-triangular faces not supported by Loop scheme.");
+        Warning(msg);
+        return false;
+    }
     baseLevel.resizeFaceVertices(fVertCount);
     assert(baseLevel.getNumFaceVerticesTotal() > 0);
 
@@ -89,20 +107,28 @@ TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& 
 
     bool completeMissingTopology = (baseLevel.getNumEdges() == 0);
     if (completeMissingTopology) {
-        baseLevel.completeTopologyFromFaceVertices();
-    }
-
-    bool valid = true;
-    if (fullValidation) {
-        valid = baseLevel.validateTopology(callback, callbackData);
-        if (not valid) {
+        if (not baseLevel.completeTopologyFromFaceVertices()) {
             char msg[1024];
-            snprintf(msg, 1024, "Invalid topology detected in TopologyRefinerFactory (%s)\n",
-                completeMissingTopology ? "partially specified and completed" : "fully specified");
+            snprintf(msg, 1024,
+                    "Invalid topology detected : vertex with valence %d > %d max.",
+                    baseLevel.getMaxValence(), Vtr::VALENCE_LIMIT);
             Warning(msg);
+            return false;
         }
     }
-    return valid;
+
+    if (fullValidation) {
+        if (not baseLevel.validateTopology(callback, callbackData)) {
+            char msg[1024];
+            snprintf(msg, 1024,
+                     completeMissingTopology ?
+                    "Invalid topology detected as completed from partial specification." :
+                    "Invalid topology detected as fully specified.");
+            Warning(msg);
+            return false;
+        }
+    }
+    return true;
 }
 
 bool
@@ -153,18 +179,20 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         Vtr::Level::VTag& vTag       = baseLevel._vertTags[vIndex];
         float&          vSharpness = baseLevel._vertSharpness[vIndex];
 
-        Vtr::IndexArray const vEdges = baseLevel.getVertexEdges(vIndex);
-        Vtr::IndexArray const vFaces = baseLevel.getVertexFaces(vIndex);
+        Vtr::ConstIndexArray vEdges = baseLevel.getVertexEdges(vIndex);
+        Vtr::ConstIndexArray vFaces = baseLevel.getVertexFaces(vIndex);
 
         //
         //  Take inventory of properties of incident edges that affect this vertex:
         //
+        int boundaryEdgeCount    = 0;
         int infSharpEdgeCount    = 0;
         int semiSharpEdgeCount   = 0;
         int nonManifoldEdgeCount = 0;
         for (int i = 0; i < vEdges.size(); ++i) {
             Vtr::Level::ETag const& eTag = baseLevel._edgeTags[vEdges[i]];
 
+            boundaryEdgeCount    += eTag._boundary;
             infSharpEdgeCount    += eTag._infSharp;
             semiSharpEdgeCount   += eTag._semiSharp;
             nonManifoldEdgeCount += eTag._nonManifold;
@@ -180,8 +208,13 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         if (isSharpenedCorner) {
             vSharpness = Sdc::Crease::SHARPNESS_INFINITE;
         } else if (vTag._nonManifold && sharpenNonManFeatures) {
-            //  Don't sharpen the vertex if a non-manifold crease:
-            if (nonManifoldEdgeCount != 2) {
+            //
+            //  We avoid sharpening non-manifold vertices when they occur on interior
+            //  non-manifold creases, i.e. a pair of opposing non-manifold edges with
+            //  more than two incident faces.  In these cases there are more incident
+            //  faces than edges (1 more for each additional "fin") and no boundaries.
+            //
+            if (not ((nonManifoldEdgeCount == 2) && (boundaryEdgeCount == 0) && (vFaces.size() > vEdges.size()))) {
                 vSharpness = Sdc::Crease::SHARPNESS_INFINITE;
             }
         }
@@ -193,10 +226,10 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         vTag._rule = (Vtr::Level::VTag::VTagSize)creasing.DetermineVertexVertexRule(vSharpness, sharpEdgeCount);
 
         //
-        //  Assign topological tags -- note that the "xordinary" (or conversely a "regular")
-        //  tag is still being considered, but regardless, it depends on the Sdc::Scheme...
+        //  Assign topological tags -- note that the "xordinary" tag is not strictly
+        //  correct (or relevant) if non-manifold:
         //
-        vTag._boundary = (vFaces.size() < vEdges.size());
+        vTag._boundary = (boundaryEdgeCount > 0);
         vTag._corner = isSharpenedCorner;
         if (vTag._corner) {
             vTag._xordinary = false;
