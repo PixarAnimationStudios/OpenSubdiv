@@ -744,9 +744,10 @@ TriRefinement::populateVertexEdgesFromParentEdges() {
             ConstIndexArray pFaceChildEdges = getFaceChildEdges(pFace);
 
             //  Test the orientation of a non-degenerate edge in the first face:
-            if ((i == 0) && (pEdgeVerts[0] != pEdgeVerts[1])) {
-                pEdgeReversed = (_parent->getFaceVertices(pFace)[edgeInFace] != pEdgeVerts[0]);
-
+            if (i == 0) {
+                if (pEdgeVerts[0] != pEdgeVerts[1]) {
+                    pEdgeReversed = (_parent->getFaceVertices(pFace)[edgeInFace] != pEdgeVerts[0]);
+                }
                 cEdgeOfEdge0 = pEdgeChildEdges[!pEdgeReversed];
                 cEdgeOfEdge1 = pEdgeChildEdges[pEdgeReversed];
             }

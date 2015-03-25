@@ -475,6 +475,7 @@ Level::print(const Refinement* pRefinement) const {
         ETag const& eTag = _edgeTags[i];
         printf("        edge %4d:", i);
         printf("  boundary = %d",  (int)eTag._boundary);
+        printf(", nonManifold = %d", (int)eTag._nonManifold);
         printf(", semiSharp = %d", (int)eTag._semiSharp);
         printf(", infSharp = %d",  (int)eTag._infSharp);
         printf("\n");
@@ -1352,7 +1353,6 @@ namespace {
 
     public:
         //  Methods dealing with the members for each component:
-        int        getNumCompMembers(Index index) const;
         IndexArray getCompMembers(Index index);
         void       appendCompMember(Index index, Index member);
 
@@ -1384,12 +1384,6 @@ namespace {
             _countsAndOffsets[2*i+1] = i * _memberCountPerComp;
         }
         _regIndices.resize(_compCount * _memberCountPerComp);
-    }
-
-    inline int
-    DynamicRelation::getNumCompMembers(Index compIndex) const {
-
-        return _countsAndOffsets[2*compIndex];
     }
 
     inline IndexArray
@@ -1608,13 +1602,19 @@ Level::completeTopologyFromFaceVertices() {
             //  face-edges and the vertex-faces for this vertex.
             //
             if (IndexIsValid(eIndex)) {
-                int eFaceCount = dynEdgeFaces.getNumCompMembers(eIndex);
-                if (eFaceCount > 1) {
+                IndexArray eFaces = dynEdgeFaces.getCompMembers(eIndex);
+                if (eFaces[eFaces.size() - 1] == fIndex) {
+                    //  If the edge already occurs in this face, create a new instance:
+                    nonManifoldEdges.push_back(eIndex);
+                    nonManifoldEdges.push_back(this->_edgeCount);
+                    eIndex = INDEX_INVALID;
+                } else if (eFaces.size() > 1) {
                     nonManifoldEdges.push_back(eIndex);
                 } else if (v0Index == this->getEdgeVertices(eIndex)[0]) {
                     nonManifoldEdges.push_back(eIndex);
                 }
-            } else {
+            }
+            if (!IndexIsValid(eIndex)) {
                 eIndex = (Index) this->_edgeCount;
 
                 this->_edgeCount ++;
