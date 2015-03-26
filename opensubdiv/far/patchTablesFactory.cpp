@@ -1296,41 +1296,36 @@ PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
 
     PatchFaceTag * levelPatchTags = &context.patchTags[0];
 
-    for (int i = 0; i < refiner.GetNumLevels(); ++i) {
-        Vtr::Level const * level = &refiner.getLevel(i);
+    for (int levelIndex = 0; levelIndex < refiner.GetNumLevels(); ++levelIndex) {
+        Vtr::Level const * level = &refiner.getLevel(levelIndex);
 
         //
         //  Given components at Level[i], we need to be looking at Refinement[i] -- and not
         //  [i-1] -- because the Refinement has transitional information for its parent edges
-        //  and faces.  But we also need to be looking at Refinement[i-1] to know about the
-        //  ancestry of the components, i.e. are they "complete" wrt their ancestors (if not,
-        //  they are supporting components
+        //  and faces.
         //
         //  For components in this level, we want to determine:
         //    - what Edges are "transitional" (already done in Refinement for parent)
         //    - what Faces are "transitional" (already done in Refinement for parent)
-        //    - what Faces are "complete" (done for child vertices in Refinement)
+        //    - what Faces are "complete" (applied to this Level in previous refinement)
         //
-        bool isLevelFirst = (i == 0);
-        bool isLevelLast  = (i == refiner.GetMaxLevel());
+        Vtr::Refinement const            * refinement = 0;
+        Vtr::Refinement::SparseTag const * refinedFaceTags = 0;
 
-        Vtr::Refinement const * refinePrev = isLevelFirst ? 0 : &refiner.getRefinement(i-1);
-        Vtr::Refinement const * refineNext = isLevelLast  ? 0 : &refiner.getRefinement(i);
-
-        Vtr::Refinement::SparseTag const * vtrFaceTags = refineNext ? &refineNext->_parentFaceTag[0] : 0;
+        if (levelIndex < refiner.GetMaxLevel()) {
+            refinement      = &refiner.getRefinement(levelIndex);
+            refinedFaceTags = &refinement->_parentFaceTag[0];
+        }
 
         for (int faceIndex = 0; faceIndex < level->getNumFaces(); ++faceIndex) {
-
-            if (level->isHole(faceIndex)) {
-                continue;
-            }
-
-            Vtr::Refinement::SparseTag vtrFaceTag = vtrFaceTags ?
-                vtrFaceTags[faceIndex] : Vtr::Refinement::SparseTag();
 
             PatchFaceTag & patchTag = levelPatchTags[faceIndex];
             patchTag.clear();
             patchTag._hasPatch = false;
+
+            if (level->isHole(faceIndex)) {
+                continue;
+            }
 
             //
             //  This face does not warrant a patch under the following conditions:
@@ -1343,27 +1338,28 @@ PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
             //  last -- "incompleteness" -- indicates a face that exists to support the limit
             //  of some neighboring component, and which does not have its own neighborhood
             //  fully defined for its limit.  If any child vertex of a vertex of this face is
-            //  "incomplete", the face must be "incomplete" (note all faces in level 0 are
-            //  complete and do not warrant closer inspection).
+            //  "incomplete" (and all are tagged) the face must be "incomplete", so get the
+            //  "composite" tag which combines bits for all vertices:
             //
-            if (vtrFaceTag._selected) {
+            Vtr::Refinement::SparseTag refinedFaceTag = refinedFaceTags ?
+                refinedFaceTags[faceIndex] : Vtr::Refinement::SparseTag();
+
+            if (refinedFaceTag._selected) {
                 continue;
             }
 
             Vtr::ConstIndexArray fVerts = level->getFaceVertices(faceIndex);
             assert(fVerts.size() == 4);
 
-            if (!isLevelFirst and (refinePrev->_childVertexTag[fVerts[0]]._incomplete or
-                                   refinePrev->_childVertexTag[fVerts[1]]._incomplete or
-                                   refinePrev->_childVertexTag[fVerts[2]]._incomplete or
-                                   refinePrev->_childVertexTag[fVerts[3]]._incomplete)) {
+            Vtr::Level::VTag compFaceVertTag = level->getFaceCompositeVTag(fVerts);
+            if (compFaceVertTag._incomplete) {
                 continue;
             }
 
             //
             //  We have a quad that will be represented as a B-spline or Gregory patch.  Use
-            //  the "composite" tag for the face that combines tags for all face-verts -- we
-            //  can use it to quickly determine if any vertex is irregular or on a boundary.
+            //  the "composite" tag again to quickly determine if any vertex is irregular, on
+            //  a boundary, non-manifold, etc.
             //
             //  Inspect the edges for boundaries and transitional edges and pack results into
             //  4-bit masks.  We detect boundary edges rather than vertices as we hope to
@@ -1375,31 +1371,28 @@ PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
             //  As for transition detection, assign the transition properties (even if 0) as
             //  their rotations override boundary rotations (when no transition)
             //
-            //  NOTE on non-manifold support:
-            //      Patches from non-manifold verts are not yet supported -- the extraction
-            //  of patch points at corners currently assumes manifold.  Supporting interior
-            //  hard edges (below) will allow non-manifold patches with inf sharp boundaries.
+            //  NOTE on patches around non-manifold vertices:
+            //      In most the use of regular boundary or corner patches is what we want,
+            //  but in some, i.e. when a non-manifold vertex is infinitely sharp, using
+            //  such patches will create some discontinuities.  At this point non-manifold
+            //  support is still evolving and is not strictly defined, so this is left to
+            //  a later date to resolve.
             //
             //  NOTE on infinitely sharp (hard) edges:
             //      We should be able to adapt this later to detect hard (inf-sharp) edges
             //  rather than just boundary edges -- there is a similar tag per edge.  That
             //  should allow us to generate regular patches for interior hard features.
             //
-            Vtr::Level::VTag compFaceVertTag = level->getFaceCompositeVTag(fVerts);
-
-            //  Patches for non-manifold faces not yet supported (see above note)
-            assert(!compFaceVertTag._nonManifold);
+            bool hasBoundaryVertex    = compFaceVertTag._boundary;
+            bool hasNonManifoldVertex = compFaceVertTag._nonManifold;
+            bool hasXOrdinaryVertex   = compFaceVertTag._xordinary;
 
             patchTag._hasPatch  = true;
-            patchTag._isRegular = not compFaceVertTag._xordinary;
-
-            int boundaryEdgeMask = 0;
-
-            bool hasBoundaryVertex = compFaceVertTag._boundary;
+            patchTag._isRegular = not hasXOrdinaryVertex or hasNonManifoldVertex;
 
             // single crease patch optimization
             if (context.options.useSingleCreasePatch and
-                not compFaceVertTag._xordinary and not hasBoundaryVertex) {
+                not hasXOrdinaryVertex and not hasBoundaryVertex and not hasNonManifoldVertex) {
 
                 Vtr::ConstIndexArray fEdges = level->getFaceEdges(faceIndex);
                 Vtr::Level::ETag compFaceETag = level->getFaceCompositeETag(fEdges);
@@ -1410,7 +1403,8 @@ PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
                     if (level->isSingleCreasePatch(faceIndex, &sharpness, &rotation)) {
 
                         // cap sharpness to the max isolation level
-                        float cappedSharpness = std::min(sharpness, (float)(context.options.maxIsolationLevel-i));
+                        float cappedSharpness =
+                                std::min(sharpness, (float)(context.options.maxIsolationLevel - levelIndex));
                         if (cappedSharpness > 0) {
                             patchTag._isSingleCrease = true;
                             patchTag._boundaryIndex = (rotation + 2) % 4;
@@ -1419,13 +1413,22 @@ PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
                 }
             }
 
-            if (hasBoundaryVertex) {
+            //  Identify boundaries for both regular and xordinary patches -- non-manifold
+            //  edges and vertices are interpreted as boundaries for regular patches
+            if (hasBoundaryVertex or hasNonManifoldVertex) {
                 Vtr::ConstIndexArray fEdges = level->getFaceEdges(faceIndex);
 
-                boundaryEdgeMask = ((level->_edgeTags[fEdges[0]]._boundary) << 0) |
-                                   ((level->_edgeTags[fEdges[1]]._boundary) << 1) |
-                                   ((level->_edgeTags[fEdges[2]]._boundary) << 2) |
-                                   ((level->_edgeTags[fEdges[3]]._boundary) << 3);
+                int boundaryEdgeMask = ((level->_edgeTags[fEdges[0]]._boundary) << 0) |
+                                       ((level->_edgeTags[fEdges[1]]._boundary) << 1) |
+                                       ((level->_edgeTags[fEdges[2]]._boundary) << 2) |
+                                       ((level->_edgeTags[fEdges[3]]._boundary) << 3);
+                if (hasNonManifoldVertex) {
+                    int nonManEdgeMask = ((level->_edgeTags[fEdges[0]]._nonManifold) << 0) |
+                                         ((level->_edgeTags[fEdges[1]]._nonManifold) << 1) |
+                                         ((level->_edgeTags[fEdges[2]]._nonManifold) << 2) |
+                                         ((level->_edgeTags[fEdges[3]]._nonManifold) << 3);
+                    boundaryEdgeMask |= nonManEdgeMask;
+                }
 
                 if (boundaryEdgeMask) {
                     patchTag.assignBoundaryPropertiesFromEdgeMask(boundaryEdgeMask);
@@ -1435,44 +1438,64 @@ PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
                                            ((level->_vertTags[fVerts[2]]._boundary) << 2) |
                                            ((level->_vertTags[fVerts[3]]._boundary) << 3);
 
+                    if (hasNonManifoldVertex) {
+                        int nonManVertMask = ((level->_vertTags[fVerts[0]]._nonManifold) << 0) |
+                                             ((level->_vertTags[fVerts[1]]._nonManifold) << 1) |
+                                             ((level->_vertTags[fVerts[2]]._nonManifold) << 2) |
+                                             ((level->_vertTags[fVerts[3]]._nonManifold) << 3);
+                        boundaryVertMask |= nonManVertMask;
+                    }
                     patchTag.assignBoundaryPropertiesFromVertexMask(boundaryVertMask);
                 }
             }
-            patchTag.assignTransitionPropertiesFromEdgeMask(vtrFaceTag._transitional);
 
+            //  XXXX (barfowl) -- why are we approximating a smooth x-ordinary corner with
+            //  a sharp corner patch?  The boundary/corner points of the regular patch are
+            //  not even made colinear to make it smoother.  Something historical here...
             //
-            //  This treatment may become optional in future -- consider approximating smooth
-            //  corners with regular B-spline patches instead of Gregory.  The smooth corner
-            //  must be properly isolated from any other irregular vertices, otherwise the
-            //  Gregory patch is necessary.
+            //  So this treatment may become optional in future and is bracketed with a
+            //  condition now for that reason.  We approximate x-ordinary smooth corners
+            //  with regular B-spline patches instead of using a Gregory patch.  The smooth
+            //  corner must be properly isolated from any other irregular vertices (as it
+            //  will be at any level > 1) otherwise the Gregory patch is necessary.
             //
+            //  This flag to be initialized with a future option... ?
             bool approxSmoothCornerWithRegularPatch = true;
+
             if (approxSmoothCornerWithRegularPatch) {
                 if (!patchTag._isRegular and (patchTag._boundaryCount == 2)) {
                     //  We may have a sharp corner opposite/adjacent an xordinary vertex --
                     //  need to make sure there is only one xordinary vertex and that it
                     //  is the corner vertex.
-                    int xordCorner = 0;
-                    int xordCount = 0;
-                    if (level->_vertTags[fVerts[0]]._xordinary) { xordCount++; xordCorner = 0; }
-                    if (level->_vertTags[fVerts[1]]._xordinary) { xordCount++; xordCorner = 1; }
-                    if (level->_vertTags[fVerts[2]]._xordinary) { xordCount++; xordCorner = 2; }
-                    if (level->_vertTags[fVerts[3]]._xordinary) { xordCount++; xordCorner = 3; }
+                    if (levelIndex > 1) {
+                        patchTag._isRegular = true;
+                    } else {
+                        int xordVertex = 0;
+                        int xordCount = 0;
+                        if (level->_vertTags[fVerts[0]]._xordinary) { xordCount++; xordVertex = 0; }
+                        if (level->_vertTags[fVerts[1]]._xordinary) { xordCount++; xordVertex = 1; }
+                        if (level->_vertTags[fVerts[2]]._xordinary) { xordCount++; xordVertex = 2; }
+                        if (level->_vertTags[fVerts[3]]._xordinary) { xordCount++; xordVertex = 3; }
 
-                    if (xordCount == 1) {
-                        //  The two boundary edges must be either side of the corner vertex:
-                        int const expectedCornerEdgeMask[4] = { 8+1, 1+2, 2+4, 4+8 };
-                        if (boundaryEdgeMask == expectedCornerEdgeMask[xordCorner]) {
-                            patchTag._isRegular = true;
+                        if (xordCount == 1) {
+                            //  We require the vertex opposite the xordinary vertex be interior:
+                            if (not level->_vertTags[fVerts[(xordVertex + 2) % 4]]._boundary) {
+                                patchTag._isRegular = true;
+                            }
                         }
                     }
                 }
             }
 
             //
+            //  Now that all boundary features have have been identified and tagged, assign
+            //  the transition type for the patch before taking inventory.
+            //
             //  Identify and increment counts for regular patches (both non-transitional and
             //  transitional) and extra-ordinary patches (always non-transitional):
             //
+            patchTag.assignTransitionPropertiesFromEdgeMask(refinedFaceTag._transitional);
+
             if (patchTag._isRegular) {
                 int transIndex = patchTag._transitionType;
                 int transRot   = patchTag._transitionRot;
