@@ -46,14 +46,14 @@ GLFWwindow* g_window=0;
 #include <stdio.h>
 #include <cassert>
 
-#include <far/meshFactory.h>
-
 #include <osd/vertex.h>
 #include <osd/cpuVertexBuffer.h>
 #include <osd/cpuComputeController.h>
 #include <osd/cpuComputeContext.h>
 
 #include <osd/cpuGLVertexBuffer.h>
+
+#include <far/stencilTablesFactory.h>
 
 #ifdef OPENSUBDIV_HAS_CUDA
 #endif
@@ -67,7 +67,10 @@ GLFWwindow* g_window=0;
     #include "../../examples/common/clInit.h" // XXXX TODO move file out of examples
 #endif
 
+
+#include "../../regression/common/cmp_utils.h"
 #include "../../regression/common/hbr_utils.h"
+#include "../../regression/common/vtr_utils.h"
 
 //
 // Regression testing matching Osd to Hbr
@@ -81,6 +84,8 @@ GLFWwindow* g_window=0;
 // - only vertex interpolation is being tested at the moment.
 //
 #define PRECISION 1e-6
+
+using namespace OpenSubdiv;    
 
 //------------------------------------------------------------------------------
 enum BackendType {
@@ -145,21 +150,6 @@ struct xyzVV {
                  }
              }
 
-    void ApplyVertexEdit(OpenSubdiv::FarVertexEdit const & edit) {
-        const float *src = edit.GetEdit();
-        switch(edit.GetOperation()) {
-          case OpenSubdiv::FarVertexEdit::Set:
-            _pos[0] = src[0];
-            _pos[1] = src[1];
-            _pos[2] = src[2];
-            break;
-          case OpenSubdiv::FarVertexEdit::Add:
-            _pos[0] += src[0];
-            _pos[1] += src[1];
-            _pos[2] += src[2];
-            break;
-        }
-    }
     
     void     ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<xyzVV> &) { }
 
@@ -179,78 +169,62 @@ typedef OpenSubdiv::HbrHalfedge<xyzVV>       xyzhalfedge;
 typedef OpenSubdiv::HbrFaceOperator<xyzVV>   xyzFaceOperator;
 typedef OpenSubdiv::HbrVertexOperator<xyzVV> xyzVertexOperator;
 
-typedef OpenSubdiv::HbrMesh<OpenSubdiv::OsdVertex>     OsdHbrMesh;
-typedef OpenSubdiv::HbrVertex<OpenSubdiv::OsdVertex>   OsdHbrVertex;
-typedef OpenSubdiv::HbrFace<OpenSubdiv::OsdVertex>     OsdHbrFace;
-typedef OpenSubdiv::HbrHalfedge<OpenSubdiv::OsdVertex> OsdHbrHalfedge;
+typedef OpenSubdiv::Far::TopologyRefiner FarTopologyRefiner;
 
-//------------------------------------------------------------------------------
-// Returns true if a vertex or any of its parents is on a boundary
-bool 
-VertexOnBoundary( xyzvertex const * v ) {
-
-    if (not v)
-        return false;
-
-    if (v->OnBoundary())
-        return true;
-
-    xyzvertex const * pv = v->GetParentVertex();
-    if (pv)
-        return VertexOnBoundary(pv);
-    else {
-        xyzhalfedge const * pe = v->GetParentEdge();
-        if (pe) {
-              return VertexOnBoundary(pe->GetOrgVertex()) or
-                     VertexOnBoundary(pe->GetDestVertex());
-        } else {
-            xyzface const * pf = v->GetParentFace(), * rootf = pf;
-            while (pf) {
-                pf = pf->GetParent();
-                if (pf)
-                    rootf=pf;
-            }
-            if (rootf)
-                for (int i=0; i<rootf->GetNumVertices(); ++i)
-                    if (rootf->GetVertex(i)->OnBoundary())
-                        return true;
-        }
-    }
-    return false;
-}
 
 //------------------------------------------------------------------------------
 int 
-checkVertexBuffer( xyzmesh * hmesh, const float * vbData, int numElements, std::vector<int> const & remap) {
+checkVertexBuffer( 
+    const FarTopologyRefiner &refiner, xyzmesh * hmesh, 
+    const float * vbData, int numElements) {
 
     int count=0;
     float deltaAvg[3] = {0.0f, 0.0f, 0.0f},
           deltaCnt[3] = {0.0f, 0.0f, 0.0f};
 
-    int nverts = hmesh->GetNumVertices();
+    std::vector<xyzVV> hbrVertexData;
+    std::vector<bool>  hbrVertexOnBoundaryData;
+
+    // Only care about vertex on boundary conditions if the interpolate boundary
+    // is 'none'
+    std::vector<bool> *hbrVertexOnBoundaryPtr =
+        (hmesh->GetInterpolateBoundaryMethod() == 
+            xyzmesh::k_InterpolateBoundaryNone)
+        ? &hbrVertexOnBoundaryData
+        : NULL;
+
+
+    GetReorderedHbrVertexData(refiner, *hmesh, &hbrVertexData, 
+        hbrVertexOnBoundaryPtr);
+
+    //int nverts = hmesh->GetNumVertices();
+    int nverts = (int)hbrVertexData.size();
+
     for (int i=0; i<nverts; ++i) {
 
         xyzvertex * hv = hmesh->GetVertex(i);
 
-        const float * ov = & vbData[ remap[ hv->GetID() ] * numElements ];
+        const float * ov = & vbData[ i * numElements ];
 
-        // boundary interpolation rules set to "none" produce "undefined" vertices on
-        // boundary vertices : far does not match hbr for those, so skip comparison.
-        if ( hmesh->GetInterpolateBoundaryMethod()==xyzmesh::k_InterpolateBoundaryNone and
-             VertexOnBoundary(hv) )
+        // boundary interpolation rules set to "none" produce "undefined" 
+        // vertices on boundary vertices : far does not match hbr for those,
+        // so skip comparison.
+        if (hbrVertexOnBoundaryPtr and (*hbrVertexOnBoundaryPtr)[i])
              continue;
 
+        const float *hbrPos = hbrVertexData[i].GetPos();
 
-        if ( hv->GetData().GetPos()[0] != ov[0] )
+
+        if ( hbrPos[0] != ov[0] )
             deltaCnt[0]++;
-        if ( hv->GetData().GetPos()[1] != ov[1] )
+        if ( hbrPos[1] != ov[1] )
             deltaCnt[1]++;
-        if ( hv->GetData().GetPos()[2] != ov[2] )
+        if ( hbrPos[2] != ov[2] )
             deltaCnt[2]++;
 
-        float delta[3] = { hv->GetData().GetPos()[0] - ov[0],
-                           hv->GetData().GetPos()[1] - ov[1],
-                           hv->GetData().GetPos()[2] - ov[2] };
+        float delta[3] = { hbrPos[0] - ov[0],
+                           hbrPos[1] - ov[1],
+                           hbrPos[2] - ov[2] };
 
         deltaAvg[0]+=delta[0];
         deltaAvg[1]+=delta[1];
@@ -259,9 +233,9 @@ checkVertexBuffer( xyzmesh * hmesh, const float * vbData, int numElements, std::
         float dist = sqrtf( delta[0]*delta[0]+delta[1]*delta[1]+delta[2]*delta[2]);
         if ( dist > PRECISION ) {
             printf("// HbrVertex<T> %d fails : dist=%.10f (%.10f %.10f %.10f)"
-                   " (%.10f %.10f %.10f)\n", i, dist, hv->GetData().GetPos()[0],
-                                                      hv->GetData().GetPos()[1],
-                                                      hv->GetData().GetPos()[2],
+                   " (%.10f %.10f %.10f)\n", i, dist, hbrPos[0],
+                                                      hbrPos[1],
+                                                      hbrPos[2],
                                                       ov[0],
                                                       ov[1],
                                                       ov[2] );
@@ -288,41 +262,51 @@ checkVertexBuffer( xyzmesh * hmesh, const float * vbData, int numElements, std::
     return count;
 }
 
-//------------------------------------------------------------------------------
-static void 
-refine( xyzmesh * mesh, int maxlevel ) {
-
-    for (int l=0; l<maxlevel; ++l ) {
-        int nfaces = mesh->GetNumFaces();
-        for (int i=0; i<nfaces; ++i) {
-            xyzface * f = mesh->GetFace(i);
-            if (f->GetDepth()==l)
-                f->Refine();
-        }
-    }
-}
 
 //------------------------------------------------------------------------------
 static int 
-checkMeshCPU( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
-              const std::vector<float>& coarseverts,
-              xyzmesh * refmesh,
-              const std::vector<int>& remap) {
+checkMeshCPU( FarTopologyRefiner *refiner,
+              const std::vector<xyzVV>& coarseverts,
+              xyzmesh * refmesh) {
                   
-    static OpenSubdiv::OsdCpuComputeController *controller = new OpenSubdiv::OsdCpuComputeController();
+    static Osd::CpuComputeController *controller = 
+        new Osd::CpuComputeController();
+
+    Far::StencilTablesFactory::Options soptions;
+    soptions.generateOffsets = true;
+    soptions.generateIntermediateLevels = true;
+
+    Far::StencilTables const * vertexStencils =
+        Far::StencilTablesFactory::Create(*refiner, soptions);
+
+    soptions.interpolationMode = Far::StencilTablesFactory::INTERPOLATE_VARYING;
+    Far::StencilTables const * varyingStencils =
+        Far::StencilTablesFactory::Create(*refiner, soptions);
     
-    OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh->GetSubdivisionTables(), farmesh->GetVertexEditTables());
+    Osd::CpuComputeContext *context = 
+        Osd::CpuComputeContext::Create(
+                vertexStencils, varyingStencils);
+
+
+    assert(coarseverts.size() == refiner.GetNumVerticesTotal());
     
-    OpenSubdiv::OsdCpuVertexBuffer * vb = OpenSubdiv::OsdCpuVertexBuffer::Create(3, farmesh->GetNumVertices());
+    Osd::CpuVertexBuffer * vb = 
+        Osd::CpuVertexBuffer::Create(3, refiner->GetNumVerticesTotal());
     
-    vb->UpdateData( & coarseverts[0], 0, (int)coarseverts.size()/3 );
+    vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size() );
     
-    controller->Refine( context, farmesh->GetKernelBatches(), vb );
+    Far::KernelBatchVector kernelBatches;
+    kernelBatches.push_back(
+        Far::StencilTablesFactory::Create(*vertexStencils));
     
-    return checkVertexBuffer(refmesh, vb->BindCpuBuffer(), vb->GetNumElements(), remap);
+    controller->Compute( context, kernelBatches, vb );
+    
+    return checkVertexBuffer(*refiner, refmesh, vb->BindCpuBuffer(), 
+        vb->GetNumElements());
 }
 
 //------------------------------------------------------------------------------
+#if 0
 static int 
 checkMeshCPUGL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
                 const std::vector<float>& coarseverts,
@@ -341,8 +325,10 @@ checkMeshCPUGL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
     
     return checkVertexBuffer(refmesh, vb->BindCpuBuffer(), vb->GetNumElements(), remap);
 }
+#endif
 
 //------------------------------------------------------------------------------
+#if 0
 static int 
 checkMeshCL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
              const std::vector<float>& coarseverts,
@@ -376,6 +362,7 @@ checkMeshCL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
     return 0;
 #endif
 }
+#endif
 
 //------------------------------------------------------------------------------
 static int 
@@ -385,28 +372,31 @@ checkMesh( char const * msg, std::string const & shape, int levels, Scheme schem
 
     printf("- %s (scheme=%d)\n", msg, scheme);
 
-    xyzmesh * refmesh = simpleHbr<xyzVV>(shape.c_str(), scheme, 0);
+    xyzmesh * refmesh = 
+        interpolateHbrVertexData<xyzVV>(shape.c_str(), scheme, levels);
 
-    refine( refmesh, levels );
+    std::vector<xyzVV> vtrVertexData;
 
-
-    std::vector<float> coarseverts;
-
-    OsdHbrMesh * hmesh = simpleHbr<OpenSubdiv::OsdVertex>(shape.c_str(), scheme, coarseverts);
-
-    OpenSubdiv::FarMeshFactory<OpenSubdiv::OsdVertex> meshFactory(hmesh, levels);
-
-    OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex> * farmesh = meshFactory.Create();
-
-    std::vector<int> remap = meshFactory.GetRemappingTable();
+    FarTopologyRefiner *refiner =
+        InterpolateVtrVertexData(shape.c_str(), scheme, levels, 
+            vtrVertexData);
 
     switch (backend) {
-        case kBackendCPU   : result = checkMeshCPU(farmesh, coarseverts, refmesh, remap); break;
-        case kBackendCPUGL : result = checkMeshCPUGL(farmesh, coarseverts, refmesh, remap); break;
-        case kBackendCL    : result = checkMeshCL(farmesh, coarseverts, refmesh, remap); break;
+        case kBackendCPU:
+            result = checkMeshCPU(refiner, vtrVertexData, refmesh); 
+            break;
+            /*
+        case kBackendCPUGL: 
+            result = checkMeshCPUGL(farmesh, coarseverts, refmesh, remap); 
+            break;
+        case kBackendCL: 
+            result = checkMeshCL(farmesh, coarseverts, refmesh, remap);
+            break;
+            */
     }
 
-    delete hmesh;
+    delete refmesh;
+    delete refiner;
 
     return result;
 }
