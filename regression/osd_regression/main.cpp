@@ -202,8 +202,6 @@ checkVertexBuffer(
 
     for (int i=0; i<nverts; ++i) {
 
-        xyzvertex * hv = hmesh->GetVertex(i);
-
         const float * ov = & vbData[ i * numElements ];
 
         // boundary interpolation rules set to "none" produce "undefined" 
@@ -288,7 +286,7 @@ checkMeshCPU( FarTopologyRefiner *refiner,
                 vertexStencils, varyingStencils);
 
 
-    assert(coarseverts.size() == refiner.GetNumVerticesTotal());
+    assert(coarseverts.size() == refiner->GetNumVerticesTotal());
     
     Osd::CpuVertexBuffer * vb = 
         Osd::CpuVertexBuffer::Create(3, refiner->GetNumVerticesTotal());
