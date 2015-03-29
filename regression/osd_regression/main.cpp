@@ -260,6 +260,28 @@ checkVertexBuffer(
     return count;
 }
 
+//------------------------------------------------------------------------------
+static void
+buildContexAndStencilTables(
+    const FarTopologyRefiner &refiner,
+    Osd::CpuComputeContext **cpuComputeContext,
+    Far::StencilTables const **vertexStencils,
+    Far::StencilTables const **varyingStencils)
+{
+    Far::StencilTablesFactory::Options soptions;
+    soptions.generateOffsets = true;
+    soptions.generateIntermediateLevels = true;
+
+    *vertexStencils = Far::StencilTablesFactory::Create(refiner, soptions);
+
+    soptions.interpolationMode = Far::StencilTablesFactory::INTERPOLATE_VARYING;
+    *varyingStencils = Far::StencilTablesFactory::Create(refiner, soptions);
+    
+    *cpuComputeContext = Osd::CpuComputeContext::Create(
+        *vertexStencils, *varyingStencils);
+}
+
+
 
 //------------------------------------------------------------------------------
 static int 
@@ -270,20 +292,12 @@ checkMeshCPU( FarTopologyRefiner *refiner,
     static Osd::CpuComputeController *controller = 
         new Osd::CpuComputeController();
 
-    Far::StencilTablesFactory::Options soptions;
-    soptions.generateOffsets = true;
-    soptions.generateIntermediateLevels = true;
 
-    Far::StencilTables const * vertexStencils =
-        Far::StencilTablesFactory::Create(*refiner, soptions);
-
-    soptions.interpolationMode = Far::StencilTablesFactory::INTERPOLATE_VARYING;
-    Far::StencilTables const * varyingStencils =
-        Far::StencilTablesFactory::Create(*refiner, soptions);
-    
-    Osd::CpuComputeContext *context = 
-        Osd::CpuComputeContext::Create(
-                vertexStencils, varyingStencils);
+    Osd::CpuComputeContext *context;
+    Far::StencilTables const *vertexStencils;
+    Far::StencilTables const *varyingStencils;
+    buildContexAndStencilTables(*refiner,
+        &context, &vertexStencils, &varyingStencils);
 
 
     assert(coarseverts.size() == refiner->GetNumVerticesTotal());
@@ -298,41 +312,63 @@ checkMeshCPU( FarTopologyRefiner *refiner,
         Far::StencilTablesFactory::Create(*vertexStencils));
     
     controller->Compute( context, kernelBatches, vb );
-    
-    return checkVertexBuffer(*refiner, refmesh, vb->BindCpuBuffer(), 
+
+    int result = checkVertexBuffer(*refiner, refmesh, vb->BindCpuBuffer(), 
         vb->GetNumElements());
+
+    delete context;
+    delete vertexStencils;
+    delete varyingStencils;
+    delete vb;
+
+    return result;
 }
 
 //------------------------------------------------------------------------------
-#if 0
 static int 
-checkMeshCPUGL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
-                const std::vector<float>& coarseverts,
-                xyzmesh * refmesh,
-                const std::vector<int>& remap) {
-                    
-    static OpenSubdiv::OsdCpuComputeController *controller = new OpenSubdiv::OsdCpuComputeController();
+checkMeshCPUGL(FarTopologyRefiner *refiner,
+               const std::vector<xyzVV>& coarseverts,
+               xyzmesh * refmesh) {
+        
+    static Osd::CpuComputeController *controller = 
+        new Osd::CpuComputeController();
     
-    OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh->GetSubdivisionTables(), farmesh->GetVertexEditTables());
+    Osd::CpuComputeContext *context;
+    Far::StencilTables const *vertexStencils;
+    Far::StencilTables const *varyingStencils;
+    buildContexAndStencilTables(*refiner,
+        &context, &vertexStencils, &varyingStencils);
+
     
-    OpenSubdiv::OsdCpuGLVertexBuffer * vb = OpenSubdiv::OsdCpuGLVertexBuffer::Create(3, farmesh->GetNumVertices());
+    Osd::CpuGLVertexBuffer *vb = Osd::CpuGLVertexBuffer::Create(3, 
+        refiner->GetNumVerticesTotal());
     
-    vb->UpdateData( & coarseverts[0], 0, (int)coarseverts.size()/3 );
+    vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size() );
+
+    Far::KernelBatchVector kernelBatches;
+    kernelBatches.push_back(
+        Far::StencilTablesFactory::Create(*vertexStencils));
     
-    controller->Refine( context, farmesh->GetKernelBatches(), vb );
+    controller->Compute( context, kernelBatches, vb );
     
-    return checkVertexBuffer(refmesh, vb->BindCpuBuffer(), vb->GetNumElements(), remap);
+    int result = checkVertexBuffer(*refiner, refmesh, 
+        vb->BindCpuBuffer(), vb->GetNumElements());
+
+    delete context;
+    delete vertexStencils;
+    delete varyingStencils;
+    delete vb;
+    
+    return result;
 }
-#endif
+
 
 //------------------------------------------------------------------------------
-#if 0
 static int 
-checkMeshCL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
-             const std::vector<float>& coarseverts,
-             xyzmesh * refmesh,
-             const std::vector<int>& remap ) {
-
+checkMeshCL( FarTopologyRefiner *refiner,
+             const std::vector<xyzVV>& coarseverts,
+             xyzmesh * refmesh) {
+        
 #ifdef OPENSUBDIV_HAS_OPENCL
 
     static OpenSubdiv::OsdCLComputeController *controller = new OpenSubdiv::OsdCLComputeController(g_clContext, g_clQueue);
@@ -360,7 +396,6 @@ checkMeshCL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
     return 0;
 #endif
 }
-#endif
 
 //------------------------------------------------------------------------------
 static int 
@@ -383,14 +418,12 @@ checkMesh( char const * msg, std::string const & shape, int levels, Scheme schem
         case kBackendCPU:
             result = checkMeshCPU(refiner, vtrVertexData, refmesh); 
             break;
-            /*
         case kBackendCPUGL: 
-            result = checkMeshCPUGL(farmesh, coarseverts, refmesh, remap); 
+            result = checkMeshCPUGL(refiner, vtrVertexData, refmesh); 
             break;
         case kBackendCL: 
-            result = checkMeshCL(farmesh, coarseverts, refmesh, remap);
+            result = checkMeshCL(refiner, vtrVertexData, refmesh);
             break;
-            */
     }
 
     delete refmesh;
@@ -437,17 +470,21 @@ int checkBackend(int backend, int levels) {
 #define test_catmark_tent
 #define test_catmark_tent_creases0
 #define test_catmark_tent_creases1
-#define test_catmark_square_hedit0
-#define test_catmark_square_hedit1
-#define test_catmark_square_hedit2
-#define test_catmark_square_hedit3
 
-#define test_loop_triangle_edgeonly
-#define test_loop_triangle_edgecorner
-#define test_loop_icosahedron
-#define test_loop_cube
-#define test_loop_cube_creases0
-#define test_loop_cube_creases1
+
+// Hedits don't yet work.
+//#define test_catmark_square_hedit0
+//#define test_catmark_square_hedit1
+//#define test_catmark_square_hedit2
+//#define test_catmark_square_hedit3
+
+// Loop doesn't yet work.
+//#define test_loop_triangle_edgeonly
+//#define test_loop_triangle_edgecorner
+//#define test_loop_icosahedron
+//#define test_loop_cube
+//#define test_loop_cube_creases0
+//#define test_loop_cube_creases1
 
 #define test_bilinear_cube
 
