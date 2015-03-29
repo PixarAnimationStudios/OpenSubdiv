@@ -47,7 +47,6 @@ GetReorderedHbrVertexData(
     typedef OpenSubdiv::HbrFace<T>     Hface;
     typedef OpenSubdiv::HbrHalfedge<T> Hhalfedge;
 
-
     struct Mapper {
 
         struct LevelMap {
@@ -179,7 +178,7 @@ GetReorderedHbrVertexData(
 
     for (int level=0, ofs=0; level<(refiner.GetMaxLevel()+1); ++level) {
 
-       Mapper::LevelMap & map = mapper.maps[level];
+       typename Mapper::LevelMap & map = mapper.maps[level];
        for (int i=0; i<(int)map.verts.size(); ++i) {
             Hvertex * v = map.verts[i];
             if (hbrVertexOnBoundaryData) {

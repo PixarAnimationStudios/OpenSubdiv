@@ -161,7 +161,7 @@ InterpolateVtrVertexData(const char *shapeStr, Scheme scheme, int maxlevel,
                             shape->verts[i*3+2]);
     }
 
-    xyzVV * verts = &data[0];
+    T * verts = &data[0];
     refiner->Interpolate(verts, verts+refiner->GetNumVertices(0));
 
     delete shape;
