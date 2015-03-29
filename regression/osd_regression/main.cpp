@@ -262,9 +262,8 @@ checkVertexBuffer(
 
 //------------------------------------------------------------------------------
 static void
-buildContexAndStencilTables(
+buildStencilTables(
     const FarTopologyRefiner &refiner,
-    Osd::CpuComputeContext **cpuComputeContext,
     Far::StencilTables const **vertexStencils,
     Far::StencilTables const **varyingStencils)
 {
@@ -276,9 +275,6 @@ buildContexAndStencilTables(
 
     soptions.interpolationMode = Far::StencilTablesFactory::INTERPOLATE_VARYING;
     *varyingStencils = Far::StencilTablesFactory::Create(refiner, soptions);
-    
-    *cpuComputeContext = Osd::CpuComputeContext::Create(
-        *vertexStencils, *varyingStencils);
 }
 
 
@@ -293,11 +289,11 @@ checkMeshCPU( FarTopologyRefiner *refiner,
         new Osd::CpuComputeController();
 
 
-    Osd::CpuComputeContext *context;
     Far::StencilTables const *vertexStencils;
     Far::StencilTables const *varyingStencils;
-    buildContexAndStencilTables(*refiner,
-        &context, &vertexStencils, &varyingStencils);
+    buildStencilTables(*refiner, &vertexStencils, &varyingStencils);
+    Osd::CpuComputeContext *context = Osd::CpuComputeContext::Create(
+        vertexStencils, varyingStencils);
 
 
     assert(coarseverts.size() == refiner->GetNumVerticesTotal());
@@ -333,11 +329,11 @@ checkMeshCPUGL(FarTopologyRefiner *refiner,
     static Osd::CpuComputeController *controller = 
         new Osd::CpuComputeController();
     
-    Osd::CpuComputeContext *context;
     Far::StencilTables const *vertexStencils;
     Far::StencilTables const *varyingStencils;
-    buildContexAndStencilTables(*refiner,
-        &context, &vertexStencils, &varyingStencils);
+    buildStencilTables(*refiner, &vertexStencils, &varyingStencils);
+    Osd::CpuComputeContext *context = Osd::CpuComputeContext::Create(
+        vertexStencils, varyingStencils);
 
     
     Osd::CpuGLVertexBuffer *vb = Osd::CpuGLVertexBuffer::Create(3, 
@@ -371,15 +367,27 @@ checkMeshCL( FarTopologyRefiner *refiner,
         
 #ifdef OPENSUBDIV_HAS_OPENCL
 
-    static OpenSubdiv::OsdCLComputeController *controller = new OpenSubdiv::OsdCLComputeController(g_clContext, g_clQueue);
+    static Osd::CLComputeController *controller = 
+        new Osd::CLComputeController(g_clContext, g_clQueue);
+
+    Far::StencilTables const *vertexStencils;
+    Far::StencilTables const *varyingStencils;
+    buildStencilTables(*refiner, &vertexStencils, &varyingStencils);
+    Osd::CLComputeContext *context = Osd::CLComputeContext::Create(g_clContext, 
+        vertexStencils, varyingStencils);
+
+    Osd::CLGLVertexBuffer *vb = 
+        Osd::CLGLVertexBuffer::Create(3, refiner->GetNumVerticesTotal(), 
+            g_clContext);
     
-    OpenSubdiv::OsdCLComputeContext *context = OpenSubdiv::OsdCLComputeContext::Create(farmesh->GetSubdivisionTables(), farmesh->GetVertexEditTables(), g_clContext);
+    vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size(),
+        g_clQueue );
+
+    Far::KernelBatchVector kernelBatches;
+    kernelBatches.push_back(
+        Far::StencilTablesFactory::Create(*vertexStencils));
     
-    OpenSubdiv::OsdCLGLVertexBuffer * vb = OpenSubdiv::OsdCLGLVertexBuffer::Create(3, farmesh->GetNumVertices(), g_clContext);
-    
-    vb->UpdateData( & coarseverts[0], 0, (int)coarseverts.size()/3, g_clQueue );
-    
-    controller->Refine( context, farmesh->GetKernelBatches(), vb );
+    controller->Compute( context, kernelBatches, vb );
 
     // read data back from CL buffer
     size_t dataSize = vb->GetNumVertices() * vb->GetNumElements();
@@ -387,9 +395,14 @@ checkMeshCL( FarTopologyRefiner *refiner,
     
     clEnqueueReadBuffer (g_clQueue, vb->BindCLBuffer(g_clQueue), CL_TRUE, 0, dataSize * sizeof(float), data, 0, NULL, NULL);
     
-    int result = checkVertexBuffer(refmesh, data, vb->GetNumElements(), remap);
+    int result = checkVertexBuffer(
+        *refiner, refmesh, data, vb->GetNumElements());
     
     delete[] data;
+    delete context;
+    delete vertexStencils;
+    delete varyingStencils;
+    delete vb;
     
     return result;
 #else
