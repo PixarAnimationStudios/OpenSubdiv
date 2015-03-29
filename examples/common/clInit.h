@@ -36,6 +36,7 @@
 #include "osd/opencl.h"
 
 #include <cstdio>
+#include <string>
 
 static bool HAS_CL_VERSION_1_1 () {
 #ifdef OPENSUBDIV_HAS_OPENCL
