@@ -59,6 +59,11 @@ static bool HAS_CL_VERSION_1_1 () {
 }
 static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
 {
+    if (!clGetPlatformIDs) {
+        printf("Error clGetPlatformIDs call not bound.\n");
+        return false;
+    }
+
     cl_int ciErrNum;
 
     cl_platform_id cpPlatform = 0;
