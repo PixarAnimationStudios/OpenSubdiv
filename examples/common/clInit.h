@@ -57,16 +57,20 @@ static inline bool HAS_CL_VERSION_1_1 () {
     return false;
 #endif
 
+#ifndef _WIN32
     // Suppress unused function compiler warning.
     (void)HAS_CL_VERSION_1_1;
+#endif
 }
 
 static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
 {
-    if (!&clGetPlatformIDs) {
+#ifdef _WIN32
+    if (!clGetPlatformIDs) {
         printf("Error clGetPlatformIDs call not bound.\n");
         return false;
     }
+#endif
 
     cl_int ciErrNum;
 
