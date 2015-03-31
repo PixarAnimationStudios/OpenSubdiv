@@ -81,7 +81,8 @@ OsdGLSLComputeKernelBundle::Compile(
     GLuint shader = glCreateShader(GL_COMPUTE_SHADER);
 
     std::ostringstream defines;
-    defines << "#define NUM_VERTEX_ELEMENTS "  << _numVertexElements << "\n"
+    defines << "#version 430\n"
+            << "#define NUM_VERTEX_ELEMENTS "  << _numVertexElements << "\n"
             << "#define VERTEX_STRIDE "        << _vertexStride << "\n"
             << "#define NUM_VARYING_ELEMENTS " << _numVaryingElements << "\n"
             << "#define VARYING_STRIDE "       << _varyingStride << "\n"
