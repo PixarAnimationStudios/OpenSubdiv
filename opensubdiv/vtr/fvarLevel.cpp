@@ -183,80 +183,120 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
     int const maxValence = _level.getMaxValence();
 
-    Index *   indexBuffer   = (Index *)alloca(maxValence*sizeof(Index));
-    int *     valueBuffer   = (int *)alloca(maxValence*sizeof(int));
-    Sibling * siblingBuffer = (Sibling *)alloca(maxValence*sizeof(Sibling));
+    //  Curse MSVC again for no VLA's and the need to use alloca() -- review the use of
+    //  these further as some can be shared or potentially avoided entirely...
+    Index *     indexBuffer   = (Index *)alloca(maxValence*sizeof(Index));
+    int *       valueBuffer   = (int *)alloca(maxValence*sizeof(int));
+    Sibling *   siblingBuffer = (Sibling *)alloca(maxValence*sizeof(Sibling));
+    ValueSpan * spanBuffer    = (ValueSpan *)alloca(maxValence*sizeof(ValueSpan));
 
-    int * uniqueValues = valueBuffer;
+    int *     uniqueValues   = valueBuffer;
+    Sibling * vValueSiblings = siblingBuffer;
 
     int totalValueCount = 0;
     for (int vIndex = 0; vIndex < _level.getNumVertices(); ++vIndex) {
-        ConstIndexArray       vEdges  = _level.getVertexEdges(vIndex);
-        ConstLocalIndexArray  vInEdge = _level.getVertexEdgeLocalIndices(vIndex);
-
+        //
+        //  Retrieve the FVar values from each incident face and store locally for
+        //  use -- we will identify the index of its corresponding "sibling" as we
+        //  inspect them more closely later:
+        //
         ConstIndexArray       vFaces  = _level.getVertexFaces(vIndex);
         ConstLocalIndexArray  vInFace = _level.getVertexFaceLocalIndices(vIndex);
 
-        //  Store the value for each vert-face locally -- we will identify the index
-        //  of its sibling as we inspect them:
         Index * vValues = indexBuffer;
-        Sibling * vSiblings = siblingBuffer;
+
         for (int i = 0; i < vFaces.size(); ++i) {
             vValues[i] = _faceVertValues[_level.getOffsetOfFaceVertices(vFaces[i]) + vInFace[i]];
         }
 
-        int uniqueValueCount = 0;
-        uniqueValues[uniqueValueCount++] = vValues[0];
-        vSiblings[0] = 0;
+        //
+        //  Inspect the incident edges of the vertex and tag those whose FVar values are
+        //  discts between the two (or more) faces sharing that edge.  When manifold, we
+        //  know an edge is discts when two successive fvar-values differ -- so we will
+        //  make use of the local buffer of values.  Unfortunately we can't infer anything
+        //  about the edges for a non-manifold vertex, so that case will be more complex.
+        //
+        ConstIndexArray       vEdges  = _level.getVertexEdges(vIndex);
+        ConstLocalIndexArray  vInEdge = _level.getVertexEdgeLocalIndices(vIndex);
 
+        bool vIsManifold = !_level._vertTags[vIndex]._nonManifold;
         bool vIsBoundary = _level._vertTags[vIndex]._boundary;
-        for (int i = vIsBoundary; i < vFaces.size(); ++i) {
-            int iPrev = i ? (i - 1) : (vFaces.size() - 1);
 
-            if (vValues[iPrev] == vValues[i]) {
-                //  Beware the logic here when setting vSiblings[]...
-                if (i > 0) {
-                    vSiblings[i] = vSiblings[iPrev];
+        if (vIsManifold) {
+            //
+            //  We want to use face indices here as we are accessing the fvar-values per
+            //  face.  The indexing range here maps to the interior edges for boundary
+            //  and interior verts:
+            //
+            for (int i = vIsBoundary; i < vFaces.size(); ++i) {
+                int vFaceNext = i;
+                int vFacePrev = i ? (i - 1) : (vFaces.size() - 1);
+
+                if (vValues[vFaceNext] != vValues[vFacePrev]) {
+                    Index eIndex = vEdges[i];
+
+                    //  Tag both end vertices as not matching topology:
+                    ConstIndexArray eVerts = _level.getEdgeVertices(eIndex);
+                    vertexMismatch[eVerts[0]] = true;
+                    vertexMismatch[eVerts[1]] = true;
+
+                    //  Tag the corresponding edge as discts:
+                    ETag& eTag = _edgeTags[eIndex];
+
+                    eTag._disctsV0 = (eVerts[0] == vIndex);
+                    eTag._disctsV1 = (eVerts[1] == vIndex);
+                    eTag._mismatch = true;
+                    eTag._linear = (ETag::ETagSize) _hasLinearBoundaries;
                 }
-            } else {
-                //  Tag the corresponding edge as discts:
+            }
+        } else {
+            //
+            //  Unfortunately for non-manifold cases we can't make as much use of the
+            //  retrieved face-values as there is no correlation between the incident
+            //  edge and face lists.  So inspect each edge for continuity between its
+            //  faces in general -- which is awkward (and what we were hoping to avoid
+            //  by doing the overall vertex traversal to begin with):
+            //
+            for (int i = 0; i < vEdges.size(); ++i) {
                 Index eIndex = vEdges[i];
-                ETag& eTag   = _edgeTags[eIndex];
 
-                if (vInEdge[i] == 0) {
-                    eTag._disctsV0 = true;
-                } else {
-                    eTag._disctsV1 = true;
-                }
-                eTag._mismatch = true;
-                eTag._linear = (ETag::ETagSize) _hasLinearBoundaries;
+                ConstIndexArray eFaces  = _level.getEdgeFaces(eIndex);
+                if (eFaces.size() < 2) continue;
 
-                //  Tag both end vertices as not matching topology:
-                ConstIndexArray eVerts = _level.getEdgeVertices(eIndex);
-                vertexMismatch[eVerts[0]] = true;
-                vertexMismatch[eVerts[1]] = true;
+                ConstLocalIndexArray eInFace = _level.getEdgeFaceLocalIndices(eIndex);
+                ConstIndexArray      eVerts  = _level.getEdgeVertices(eIndex);
 
-                //  Add the "new" value if not already present:
-                if (i > 0) {
-                    //
-                    //  Use the block in the second pass which has been simplified -- we need to
-                    //  assign vSiblings[] here whether it matches or not...
-                    //
-                    vSiblings[i] = (Sibling) uniqueValueCount;
+                int   vertInEdge = vInEdge[i];
+                bool  markEdgeDiscts = false;
+                Index valueIndexInFace0;
+                for (int j = 0; !markEdgeDiscts && (j < eFaces.size()); ++j) {
+                    Index           fIndex  = eFaces[j];
+                    ConstIndexArray fVerts  = _level.getFaceVertices(fIndex);
+                    ConstIndexArray fValues = getFaceValues(fIndex);
 
-                    if (uniqueValueCount == 1) {
-                        uniqueValues[uniqueValueCount++] = vValues[i];
-                    } else if ((uniqueValueCount == 2) && (uniqueValues[0] != vValues[i])) {
-                        uniqueValues[uniqueValueCount++] = vValues[i];
+                    int edgeInFace   = eInFace[j];
+                    int edgeReversed = (eVerts[0] != fVerts[edgeInFace]);
+                    int vertInFace   = edgeInFace + (vertInEdge != edgeReversed);
+                    if (vertInFace == fVerts.size()) vertInFace = 0;
+
+                    if (j == 0) {
+                        valueIndexInFace0 = fValues[vertInFace];
                     } else {
-                        int* valueLast  = uniqueValues + uniqueValueCount;
-                        int* valueFound = std::find(uniqueValues, valueLast, vValues[i]);
-                        if (valueFound == valueLast) {
-                            uniqueValues[uniqueValueCount++] = vValues[i];
-                        } else {
-                            vSiblings[i] = (Sibling) (valueFound - uniqueValues);
-                        }
+                        markEdgeDiscts = (fValues[vertInFace] != valueIndexInFace0);
                     }
+                }
+                if (markEdgeDiscts) {
+                    //  Tag both end vertices as not matching topology:
+                    vertexMismatch[eVerts[0]] = true;
+                    vertexMismatch[eVerts[1]] = true;
+
+                    //  Tag the corresponding edge as discts:
+                    ETag& eTag = _edgeTags[eIndex];
+
+                    eTag._disctsV0 = (eVerts[0] == vIndex);
+                    eTag._disctsV1 = (eVerts[1] == vIndex);
+                    eTag._mismatch = true;
+                    eTag._linear = (ETag::ETagSize) _hasLinearBoundaries;
                 }
             }
         }
@@ -264,17 +304,62 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         //
         //  While we've tagged the vertex as having mismatched FVar topology in the presence of
         //  any discts edges, we also need to account for different treatment of vertices along
-        //  geometric boundaries if the FVar interpolation rules affect them:
+        //  geometric boundaries if the FVar interpolation rules affect them.  So inspect all
+        //  boundary vertices that have not already been tagged.
         //
         if (vIsBoundary && !vertexMismatch[vIndex]) {
             if (_hasLinearBoundaries) {
                 vertexMismatch[vIndex] = true;
 
-                _edgeTags[vEdges[0]]._linear = true;
-                _edgeTags[vEdges[vEdges.size()-1]]._linear = true;
+                if (vIsManifold) {
+                    _edgeTags[vEdges[0]]._linear = true;
+                    _edgeTags[vEdges[vEdges.size()-1]]._linear = true;
+                } else {
+                    for (int i = 0; i < vEdges.size(); ++i) {
+                        if (_level._edgeTags[vEdges[i]]._boundary) {
+                            _edgeTags[vEdges[i]]._linear = true;
+                        }
+                    }
+                }
             } else if (vFaces.size() == 1) {
                 if (makeSmoothCornersSharp) {
                     vertexMismatch[vIndex] = true;
+                }
+            }
+        }
+
+        //
+        //  Inspect the set of fvar-values around the vertex to identify the number of
+        //  unique values.  While doing so, associate a "sibling index" (over the range
+        //  of unique values) with each value around the vertex (this latter need makes
+        //  it harder to make simple use of std::sort() and uniq() on the set of values)
+        //
+        int uniqueValueCount = 1;
+
+        uniqueValues[0] = vValues[0];
+        vValueSiblings[0] = 0;
+
+        for (int i = 1; i < vFaces.size(); ++i) {
+            if (vValues[i] == vValues[i-1]) {
+                vValueSiblings[i] = vValueSiblings[i-1];
+            } else {
+                //  Add the "new" value if not already present -- unless found, the
+                //  sibling index will be for the next/new unique value:
+                vValueSiblings[i] = (Sibling) uniqueValueCount;
+
+                if (uniqueValueCount == 1) {
+                    uniqueValues[uniqueValueCount++] = vValues[i];
+                } else if ((uniqueValueCount == 2) && (uniqueValues[0] != vValues[i])) {
+                    uniqueValues[uniqueValueCount++] = vValues[i];
+                } else {
+                    int* uniqueBegin = uniqueValues;
+                    int* uniqueEnd   = uniqueValues + uniqueValueCount;
+                    int* uniqueFound = std::find(uniqueBegin, uniqueEnd, vValues[i]);
+                    if (uniqueFound == uniqueEnd) {
+                        uniqueValues[uniqueValueCount++] = vValues[i];
+                    } else {
+                        vValueSiblings[i] = (Sibling) (uniqueFound - uniqueBegin);
+                    }
                 }
             }
         }
@@ -291,7 +376,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         if (uniqueValueCount > 1) {
             SiblingArray vFaceSiblings = getVertexFaceSiblings(vIndex);
             for (int i = 0; i < vFaces.size(); ++i) {
-                vFaceSiblings[i] = vSiblings[i];
+                vFaceSiblings[i] = vValueSiblings[i];
             }
         }
     }
@@ -348,6 +433,17 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
             }
         }
 
+        //  XXXX (barfowl) -- this pre-emptive sharpening of values will need to be
+        //  revisited soon.  This intentionally avoids the overhead of identifying the
+        //  local topology of the values along its boundaries -- necessary for smooth
+        //  boundary values but not for sharp as far as refining and limiting the
+        //  values is concerned.  But ultimately we need more information than just
+        //  the sharp tag when it comes to identifying and gathering FVar patches.
+        //
+        //  Currently values for non-manifold vertices are sharpened, and that may
+        //  also need to be revisited.
+        //
+        //  Until then...
         //
         //  If all values for this vertex are to be designated as sharp, the value tags
         //  have already been initialized for this by default, so we can continue.  On
@@ -361,14 +457,11 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         //
         ValueTagArray vValueTags = getVertexValueTags(vIndex);
 
-        bool  vIsBoundary = _level._vertTags[vIndex]._boundary;
-        float vSharpness  = _level._vertSharpness[vIndex];
+        Level::VTag const vTag = _level._vertTags[vIndex];
 
-        bool allCornersAreSharp = _hasLinearBoundaries ||
-                                  Sdc::Crease::IsInfinite(vSharpness) ||
+        bool allCornersAreSharp = _hasLinearBoundaries || vTag._infSharp || vTag._nonManifold ||
                                   (_hasDependentSharpness && (vValues.size() > 2)) ||
-                                  (sharpenDarts && (vValues.size() == 1) && !vIsBoundary) ||
-                                   _level._vertTags[vIndex]._nonManifold;
+                                  (sharpenDarts && (vValues.size() == 1) && !vTag._boundary);
         if (allCornersAreSharp) {
             std::fill(vValueTags.begin(), vValueTags.end(), valueTagMismatch);
             continue;
@@ -376,20 +469,25 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
         //
         //  Values may be a mix of sharp corners and smooth boundaries -- start by
-        //  gathering information about the "span" of faces for each value:
+        //  gathering information about the "span" of faces for each value.
         //
-        assert(sizeof(ValueSpan) <= sizeof(int));
-        ValueSpan * vValueSpans = (ValueSpan *) indexBuffer;
+        //  Note that the term "span" presumes sequential and continuous, but the
+        //  result for a span may include multiple disconnected regions sharing the
+        //  common value -- think of a familiar non-manifold "bowtie" vertex in FVar
+        //  space.  Such spans are locally non-manifold but are marked as "disjoint"
+        //  to avoid overloading "non-manifold" here.
+        //
+        ValueSpan * vValueSpans = spanBuffer;
         memset(vValueSpans, 0, vValues.size() * sizeof(ValueSpan));
 
         gatherValueSpans(vIndex, vValueSpans);
 
         //
-        //  Spans are identified as sharp (disjoint) or smooth based on their own local
-        //  topology, but depending on the specified options, the sharpness of one span
-        //  may be dependent on the sharpness of another.  Mark both as infinitely sharp
-        //  where possible to avoid re-assessing this dependency as sharpness is reduced
-        //  during refinement.
+        //  Spans are identified as sharp or smooth based on their own local topology,
+        //  but the sharpness of one span may be dependent on the sharpness of another
+        //  if certain linear-interpolation options were specified.  Mark both as
+        //  infinitely sharp where possible (rather than semi-sharp) to avoid
+        //  re-assessing this dependency as sharpness is reduced during refinement.
         //
         allCornersAreSharp = false;
 
@@ -406,6 +504,8 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
             //  If only one semi-sharp, need to mark the other as dependent on it:
             hasDependentValuesToSharpen = vValueSpans[0]._semiSharp != vValueSpans[1]._semiSharp;
         }
+
+        //  XXXX (barfowl) -- see note above about this "pre-emptive" sharpening...
         if (allCornersAreSharp) {
             std::fill(vValueTags.begin(), vValueTags.end(), valueTagMismatch);
             continue;
@@ -424,7 +524,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
             if (vSpan._disjoint || ((vSpan._size == 1) && fvarCornersAreSharp)) {
                 vValueTags[i] = valueTagMismatch;
             } else {
-                if ((vSpan._semiSharp > 0) || Sdc::Crease::IsSharp(vSharpness)) {
+                if ((vSpan._semiSharp > 0) || vTag._semiSharp) {
                     vValueTags[i] = valueTagSemiSharp;
                 } else if (hasDependentValuesToSharpen) {
                     vValueTags[i] = valueTagDepSharp;
@@ -720,71 +820,30 @@ void
 FVarLevel::getEdgeFaceValues(Index eIndex, int fIncToEdge, Index valuesPerVert[2]) const {
 
     ConstIndexArray eVerts = _level.getEdgeVertices(eIndex);
-    if ((getNumVertexValues(eVerts[0]) > 1) || (getNumVertexValues(eVerts[1]) > 1)) {
-        Index eFace = _level.getEdgeFaces(eIndex)[fIncToEdge];
 
-        //  This is another of those irritating times where I want to have the edge-in-face
-        //  local indices stored with each edge-face...
-        //
-        //  This is about as fast as we're going to get with a search and still leaves
-        //  this function showing a considerable part of edge-vertex interpolation (down
-        //  from 40% to 25%)...
-        //
-        ConstIndexArray fEdges  = _level.getFaceEdges(eFace);
+    if ((getNumVertexValues(eVerts[0]) + getNumVertexValues(eVerts[1])) > 2) {
+        Index eFace   = _level.getEdgeFaces(eIndex)[fIncToEdge];
+        int   eInFace = _level.getEdgeFaceLocalIndices(eIndex)[fIncToEdge];
+
         ConstIndexArray fValues = getFaceValues(eFace);
 
-        int edgeInFace = 0;
-        if (fEdges.size() == 4) {
-            if (fEdges[0] == eIndex) {
-                valuesPerVert[0] = fValues[0];
-                valuesPerVert[1] = fValues[1];
-                edgeInFace = 0;
-            } else if (fEdges[1] == eIndex) {
-                valuesPerVert[0] = fValues[1];
-                valuesPerVert[1] = fValues[2];
-                edgeInFace = 1;
-            } else if (fEdges[2] == eIndex) {
-                valuesPerVert[0] = fValues[2];
-                valuesPerVert[1] = fValues[3];
-                edgeInFace = 2;
-            } else {
-                valuesPerVert[0] = fValues[3];
-                valuesPerVert[1] = fValues[0];
-                edgeInFace = 3;
-            }
-        } else if (fEdges.size() == 3) {
-            if (fEdges[0] == eIndex) {
-                valuesPerVert[0] = fValues[0];
-                valuesPerVert[1] = fValues[1];
-                edgeInFace = 0;
-            } else if (fEdges[1] == eIndex) {
-                valuesPerVert[0] = fValues[1];
-                valuesPerVert[1] = fValues[2];
-                edgeInFace = 1;
-            } else {
-                valuesPerVert[0] = fValues[2];
-                valuesPerVert[1] = fValues[0];
-                edgeInFace = 2;
-            }
-        } else {
-            for (int i = 0; i < fEdges.size(); ++i) {
-                if (fEdges[i] == eIndex) {
-                    valuesPerVert[0] = fValues[i];
-                    valuesPerVert[1] = fValues[(i+1) % fEdges.size()];
-                    edgeInFace = i;
-                    break;
-                }
-            }
-        }
+        valuesPerVert[0] = fValues[eInFace];
+        valuesPerVert[1] = fValues[((eInFace + 1) < fValues.size()) ? (eInFace + 1) : 0];
 
         //  Given the way these two end-values are used (both weights the same) we really
         //  don't need to ensure the value pair matches the vertex pair...
-        if (eVerts[0] != _level.getFaceVertices(eFace)[edgeInFace]) {
+        if (eVerts[0] != _level.getFaceVertices(eFace)[eInFace]) {
             std::swap(valuesPerVert[0], valuesPerVert[1]);
         }
     } else {
-        valuesPerVert[0] = getVertexValue(eVerts[0]);
-        valuesPerVert[1] = getVertexValue(eVerts[1]);
+        //  Remember the extra level of indirection at level 0 -- avoid it here:
+        if (_level.getDepth() > 0) {
+            valuesPerVert[0] = getVertexValueOffset(eVerts[0]);
+            valuesPerVert[1] = getVertexValueOffset(eVerts[1]);
+        } else {
+            valuesPerVert[0] = getVertexValue(eVerts[0]);
+            valuesPerVert[1] = getVertexValue(eVerts[1]);
+        }
     }
 }
 
@@ -797,7 +856,9 @@ FVarLevel::getVertexEdgeValues(Index vIndex, Index valuesPerEdge[]) const {
     ConstIndexArray      vFaces  = _level.getVertexFaces(vIndex);
     ConstLocalIndexArray vInFace = _level.getVertexFaceLocalIndices(vIndex);
 
-    bool vIsBoundary = (vEdges.size() > vFaces.size());
+    bool vIsBoundary = _level._vertTags[vIndex]._boundary;
+    bool vIsManifold = not _level._vertTags[vIndex]._nonManifold;
+
     bool isBaseLevel = (_level.getDepth() == 0);
 
     for (int i = 0; i < vEdges.size(); ++i) {
@@ -810,16 +871,30 @@ FVarLevel::getVertexEdgeValues(Index vIndex, Index valuesPerEdge[]) const {
         Index vOther = eVerts[!vInEdge[i]];
         if (getNumVertexValues(vOther) == 1) {
             valuesPerEdge[i] = isBaseLevel ? getVertexValue(vOther) : getVertexValueOffset(vOther);
-        } else if (vIsBoundary && (i == (vEdges.size() - 1))) {
-            ConstIndexArray fValues = getFaceValues(vFaces[i-1]);
+        } else if (vIsManifold) {
+            if (vIsBoundary && (i == (vEdges.size() - 1))) {
+                ConstIndexArray fValues = getFaceValues(vFaces[i-1]);
 
-            int prevInFace = vInFace[i-1] ? (vInFace[i-1] - 1) : (fValues.size() - 1);
-            valuesPerEdge[i] = fValues[prevInFace];
+                int prevInFace = vInFace[i-1] ? (vInFace[i-1] - 1) : (fValues.size() - 1);
+                valuesPerEdge[i] = fValues[prevInFace];
+            } else {
+                ConstIndexArray fValues = getFaceValues(vFaces[i]);
+
+                int nextInFace = (vInFace[i] == (fValues.size() - 1)) ? 0 : (vInFace[i] + 1);
+                valuesPerEdge[i] = fValues[nextInFace];
+            }
         } else {
-            ConstIndexArray fValues = getFaceValues(vFaces[i]);
+            Index eFace0   = _level.getEdgeFaces(eIndex)[0];
+            int   eInFace0 = _level.getEdgeFaceLocalIndices(eIndex)[0];
 
-            int nextInFace = (vInFace[i] == (fValues.size() - 1)) ? 0 : (vInFace[i] + 1);
-            valuesPerEdge[i] = fValues[nextInFace];
+            ConstIndexArray fVerts  = _level.getFaceVertices(eFace0);
+            ConstIndexArray fValues = getFaceValues(eFace0);
+            if (vOther == fVerts[eInFace0]) {
+                valuesPerEdge[i] = fValues[eInFace0];
+            } else {
+                int valueInFace = (eInFace0 == (fValues.size() - 1)) ? 0 : (eInFace0 + 1);
+                valuesPerEdge[i] = fValues[valueInFace];
+            }
         }
     }
 }
