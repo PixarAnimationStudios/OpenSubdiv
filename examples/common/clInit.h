@@ -63,10 +63,12 @@ static inline bool HAS_CL_VERSION_1_1 () {
 
 static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
 {
-    if (!&clGetPlatformIDs) {
-        printf("Error clGetPlatformIDs call not bound.\n");
+#ifdef OPENSUBDIV_HAS_CLEW
+    if (!clGetPlatformIDs) {
+        printf("Error clGetPlatformIDs function not bound.\n");
         return false;
     }
+#endif
 
     cl_int ciErrNum;
 
