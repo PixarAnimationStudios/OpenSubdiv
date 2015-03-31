@@ -124,9 +124,51 @@ GetSdcOptions(Shape const & shape) {
     return result;
 }
 
+//------------------------------------------------------------------------------
+
 void
 InterpolateFVarData(OpenSubdiv::Far::TopologyRefiner & refiner,
     Shape const & shape, std::vector<float> & fvarData);
+
+//------------------------------------------------------------------------------
+
+template <class T>
+OpenSubdiv::Far::TopologyRefiner *
+InterpolateVtrVertexData(const char *shapeStr, Scheme scheme, int maxlevel,
+    std::vector<T> &data) {
+
+    typedef OpenSubdiv::Far::TopologyRefiner FarTopologyRefiner;
+    typedef OpenSubdiv::Far::TopologyRefinerFactory<Shape> FarTopologyRefinerFactory;
+
+    // Vtr interpolation
+    Shape * shape = Shape::parseObj(shapeStr, scheme);
+
+    FarTopologyRefiner * refiner =
+        FarTopologyRefinerFactory::Create(*shape,
+            FarTopologyRefinerFactory::Options(
+                GetSdcType(*shape), GetSdcOptions(*shape)));
+    assert(refiner);
+
+    FarTopologyRefiner::UniformOptions options(maxlevel);
+    options.fullTopologyInLastLevel=true;
+    refiner->RefineUniform(options);
+
+    // populate coarse mesh positions
+    data.resize(refiner->GetNumVerticesTotal());
+    for (int i=0; i<refiner->GetNumVertices(0); i++) {
+        data[i].SetPosition(shape->verts[i*3+0],
+                            shape->verts[i*3+1],
+                            shape->verts[i*3+2]);
+    }
+
+    T * verts = &data[0];
+    refiner->Interpolate(verts, verts+refiner->GetNumVertices(0));
+
+    delete shape;
+    return refiner;
+}
+
+
 //------------------------------------------------------------------------------
 
 namespace OpenSubdiv {

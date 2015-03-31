@@ -27,6 +27,7 @@ set(REGRESSION_COMMON_SOURCE_FILES
 )
 
 set(REGRESSION_COMMON_HEADER_FILES
+    cmp_utils.h
     hbr_utils.h
     shape_utils.h
     vtr_utils.h

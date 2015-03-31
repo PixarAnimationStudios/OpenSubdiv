@@ -373,6 +373,11 @@ QuadRefinement::populateEdgeFaceRelation() {
     child._edgeFaceIndices.resize(     childEdgeFaceIndexSizeEstimate);
     child._edgeFaceLocalIndices.resize(childEdgeFaceIndexSizeEstimate);
 
+    // Update _maxEdgeFaces from the parent level before calling the 
+    // populateEdgeFacesFromParent methods below, as these may further
+    // update _maxEdgeFaces.
+    child._maxEdgeFaces = parent._maxEdgeFaces;
+
     populateEdgeFacesFromParentFaces();
     populateEdgeFacesFromParentEdges();
 
@@ -382,8 +387,6 @@ QuadRefinement::populateEdgeFaceRelation() {
                                      child.getOffsetOfEdgeFaces(child.getNumEdges()-1);
     child._edgeFaceIndices.resize(     childEdgeFaceIndexSizeEstimate);
     child._edgeFaceLocalIndices.resize(childEdgeFaceIndexSizeEstimate);
-
-    child._maxEdgeFaces = parent._maxEdgeFaces;
 }
 
 void
