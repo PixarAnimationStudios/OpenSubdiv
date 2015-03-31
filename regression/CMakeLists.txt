@@ -33,7 +33,7 @@ if (NOT NO_REGRESSION)
     add_subdirectory(vtr_regression)
 
     if(OPENGL_FOUND AND (GLEW_FOUND OR APPLE) AND GLFW_FOUND)
-    #    add_subdirectory(osd_regression)
+        add_subdirectory(osd_regression)
     else()
         set(MISSING "")
 

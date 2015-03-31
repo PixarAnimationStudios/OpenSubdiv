@@ -38,7 +38,7 @@
 #include <cstdio>
 #include <string>
 
-static bool HAS_CL_VERSION_1_1 () {
+static inline bool HAS_CL_VERSION_1_1 () {
 #ifdef OPENSUBDIV_HAS_OPENCL
      #ifdef OPENSUBDIV_HAS_CLEW
         static bool clewInitialized = false;
@@ -56,10 +56,14 @@ static bool HAS_CL_VERSION_1_1 () {
 #else
     return false;
 #endif
+
+    // Suppress unused function compiler warning.
+    (void)HAS_CL_VERSION_1_1;
 }
+
 static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
 {
-    if (!clGetPlatformIDs) {
+    if (!&clGetPlatformIDs) {
         printf("Error clGetPlatformIDs call not bound.\n");
         return false;
     }

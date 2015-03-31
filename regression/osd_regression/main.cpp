@@ -296,7 +296,7 @@ checkMeshCPU( FarTopologyRefiner *refiner,
         vertexStencils, varyingStencils);
 
 
-    assert(coarseverts.size() == refiner->GetNumVerticesTotal());
+    assert(coarseverts.size() == (size_t)refiner->GetNumVerticesTotal());
     
     Osd::CpuVertexBuffer * vb = 
         Osd::CpuVertexBuffer::Create(3, refiner->GetNumVerticesTotal());
