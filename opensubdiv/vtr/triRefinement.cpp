@@ -366,6 +366,11 @@ TriRefinement::populateEdgeFaceRelation() {
     _child->_edgeFaceIndices.resize(childEdgeFaceIndexSizeEstimate);
     _child->_edgeFaceLocalIndices.resize(childEdgeFaceIndexSizeEstimate);
 
+    // Update _maxEdgeFaces from the parent level before calling the 
+    // populateEdgeFacesFromParent methods below, as these may further
+    // update _maxEdgeFaces.
+    _child->_maxEdgeFaces = _parent->_maxEdgeFaces;
+
     populateEdgeFacesFromParentFaces();
     populateEdgeFacesFromParentEdges();
 
@@ -375,8 +380,6 @@ TriRefinement::populateEdgeFaceRelation() {
                                      _child->getOffsetOfEdgeFaces(_child->getNumEdges()-1);
     _child->_edgeFaceIndices.resize(childEdgeFaceIndexSizeEstimate);
     _child->_edgeFaceLocalIndices.resize(childEdgeFaceIndexSizeEstimate);
-
-    _child->_maxEdgeFaces = _parent->_maxEdgeFaces;
 }
 
 void
