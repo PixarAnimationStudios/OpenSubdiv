@@ -37,6 +37,7 @@ if (WIN32)
         HINTS
             "${TBB_LOCATION}/include"
             "$ENV{TBB_LOCATION}/include"
+        PATHS
             "$ENV{PROGRAMFILES}/Intel/TBB/include"
             /usr/include
             DOC "The directory where TBB headers reside")
@@ -47,6 +48,7 @@ elseif (APPLE)
         HINTS
             "${TBB_LOCATION}/include"
             "$ENV{TBB_LOCATION}/include"
+        PATHS
             DOC "The directory where TBB headers reside")
 else ()
     find_path(TBB_INCLUDE_DIR
@@ -55,6 +57,7 @@ else ()
         HINTS
             "${TBB_LOCATION}/include"
             "$ENV{TBB_LOCATION}/include"
+        PATHS
             /usr/include
             /usr/local/include
             /usr/openwin/share/include
