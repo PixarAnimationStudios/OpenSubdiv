@@ -98,14 +98,14 @@ protected:
 
     static inline void refineMesh(Far::TopologyRefiner & refiner, int level, bool adaptive, bool singleCreasePatch) {
 
-        bool fullTopologyInLastLevel = refiner.GetNumFVarChannels()>0;
-
         if (adaptive) {
             Far::TopologyRefiner::AdaptiveOptions options(level);
-            options.fullTopologyInLastLevel = fullTopologyInLastLevel;
             options.useSingleCreasePatch = singleCreasePatch;
             refiner.RefineAdaptive(options);
         } else {
+            //  This dependency on FVar channels should not be necessary
+            bool fullTopologyInLastLevel = refiner.GetNumFVarChannels()>0;
+
             Far::TopologyRefiner::UniformOptions options(level);
             options.fullTopologyInLastLevel = fullTopologyInLastLevel;
             refiner.RefineUniform(options);

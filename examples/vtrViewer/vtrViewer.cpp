@@ -758,7 +758,6 @@ createVtrMesh(Shape * shape, int maxlevel) {
 
     if (g_Adaptive) {
         OpenSubdiv::Far::TopologyRefiner::AdaptiveOptions options(maxlevel);
-        options.fullTopologyInLastLevel = true;
         options.useSingleCreasePatch = false;
         refiner->RefineAdaptive(options);
     } else {

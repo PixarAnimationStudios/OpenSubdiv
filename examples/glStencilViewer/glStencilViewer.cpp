@@ -323,7 +323,6 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
         refiner->RefineUniform(options);
     } else {
         Far::TopologyRefiner::AdaptiveOptions options(level);
-        options.fullTopologyInLastLevel = false;
         options.useSingleCreasePatch = false;
         refiner->RefineAdaptive(options);
     }
