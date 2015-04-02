@@ -56,9 +56,6 @@ static inline bool HAS_CL_VERSION_1_1 () {
 #else
     return false;
 #endif
-
-    // Suppress unused function compiler warning.
-    (void)HAS_CL_VERSION_1_1;
 }
 
 static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
