@@ -49,6 +49,8 @@ Refinement::Refinement(Level const & parent, Level & child, Sdc::Options const& 
     _child(&child),
     _options(options),
     _regFaceSize(-1),
+    _uniform(false),
+    _faceVertsFirst(false),
     _childFaceFromFaceCount(0),
     _childEdgeFromFaceCount(0),
     _childEdgeFromEdgeCount(0),
@@ -116,7 +118,8 @@ Refinement::refine(Options refineOptions) {
     //  This will become redundant when/if assigned on construction:
     assert(_parent && _child);
 
-    _uniform = !refineOptions._sparse;
+    _uniform        = !refineOptions._sparse;
+    _faceVertsFirst =  refineOptions._faceVertsFirst;
 
     //  We may soon have an option here to suppress refinement of FVar channels...
     bool refineOptions_ignoreFVarChannels = false;
@@ -140,7 +143,7 @@ Refinement::refine(Options refineOptions) {
     //  (though we do require the vertex-face relation for refining FVar channels):
     //
     Relations relationsToPopulate;
-    if (refineOptions._faceTopologyOnly) {
+    if (refineOptions._minimalTopology) {
         relationsToPopulate.setAll(false);
         relationsToPopulate._faceVertices = true;
     } else {
@@ -222,18 +225,12 @@ void
 Refinement::populateParentChildIndices() {
 
     //
-    //  Two vertex orderings are under consideration -- the original mode orders
-    //  vertices originating from faces first (historically these were relied upon
-    //  to compute the rest of the vertices) while ordering vertices from vertices
-    //  first is being considered (advantageous as it preserves the index of a parent
-    //  vertex at all subsequent levels).
-    //
-    //  Other than defining the same ordering for refinement face-varying channels
-    //  (which can be inferred from settings here) the rest of the code should be
-    //  invariant to vertex ordering.
-    //
-    bool faceVertsFirst = false;
-
+    //  Two vertex orderings are currently supported -- ordering vertices refined
+    //  from vertices first, or those refined from faces first.  Its possible this
+    //  may be extended to more possibilities.  Once the ordering is defined here,
+    //  other than analogous initialization in FVarRefinement, the treatment of
+    //  vertices in blocks based on origin should make the rest of the code
+    //  invariant to ordering changes.
     //
     //  These two blocks now differ only in the utility function that assigns the
     //  sequential values to the index vectors -- so parameterization/simplification
@@ -252,7 +249,7 @@ Refinement::populateParentChildIndices() {
         _childEdgeFromEdgeCount = sequenceFullIndexVector(_edgeChildEdgeIndices, _firstChildEdgeFromEdge);
 
         //  child vertices:
-        if (faceVertsFirst) {
+        if (_faceVertsFirst) {
             _firstChildVertFromFace = 0;
             _childVertFromFaceCount = sequenceFullIndexVector(_faceChildVertIndex, _firstChildVertFromFace);
 
@@ -284,7 +281,7 @@ Refinement::populateParentChildIndices() {
         _childEdgeFromEdgeCount = sequenceSparseIndexVector(_edgeChildEdgeIndices, _firstChildEdgeFromEdge);
 
         //  child vertices:
-        if (faceVertsFirst) {
+        if (_faceVertsFirst) {
             _firstChildVertFromFace = 0;
             _childVertFromFaceCount = sequenceSparseIndexVector(_faceChildVertIndex, _firstChildVertFromFace);
 
@@ -1081,6 +1078,25 @@ Refinement::subdivideFVarChannels() {
     }
 }
 
+//
+//  Methods to inherit properties between refinements in a hierarchy:
+//
+void
+Refinement::propagateBaseFace(Refinement const * grandParent) {
+
+    _childFaceBaseFaceIndex.resize(_child->_faceCount);
+
+    if (grandParent == 0) {
+        _childFaceBaseFaceIndex = _childFaceParentIndex;
+    } else {
+        IndexVector &       childBaseFace  = _childFaceBaseFaceIndex;
+        IndexVector const & parentBaseFace = grandParent->_childFaceBaseFaceIndex;
+
+        for (Index cFace = 0; cFace < _child->_faceCount; ++cFace) {
+            childBaseFace[cFace] = parentBaseFace[_childFaceParentIndex[cFace]];
+        }
+    }
+}
 
 //
 //  Marking of sparse child components -- including those selected and those neighboring...

@@ -275,29 +275,17 @@ FVarRefinement::populateChildValues() {
     //
     //  Be sure to match the same vertex ordering as Refinement, i.e. face-vertices
     //  first vs vertex-vertices first, etc.  A few optimizations within the use of
-    //  face-varying data take advantage of this assumption.
-    //
-    //  Right now there are only two orderings under consideration, and its unclear
-    //  whether only one will be supported or both.  Until that's determined, assert
-    //  the conditions we expect for these two.
+    //  face-varying data take advantage of this assumption, and it just makes sense
+    //  to be consistent (e.g. if there is a 1-to-1 correspondence between vertices
+    //  and their FVar-values, their children will correspond).
     //
     _childFVar._valueCount = 0;
 
-    if (_refinement.getFirstChildVertexFromVertices() > 0) {
-        assert((_refinement.getFirstChildVertexFromFaces() <=
-                _refinement.getFirstChildVertexFromEdges()) &&
-               (_refinement.getFirstChildVertexFromEdges() <
-                _refinement.getFirstChildVertexFromVertices()));
-
+    if (_refinement._faceVertsFirst) {
         populateChildValuesFromFaceVertices();
         populateChildValuesFromEdgeVertices();
         populateChildValuesFromVertexVertices();
     } else {
-        assert((_refinement.getFirstChildVertexFromVertices() <
-                _refinement.getFirstChildVertexFromFaces()) &&
-               (_refinement.getFirstChildVertexFromFaces() <=
-                _refinement.getFirstChildVertexFromEdges()));
-
         populateChildValuesFromVertexVertices();
         populateChildValuesFromFaceVertices();
         populateChildValuesFromEdgeVertices();

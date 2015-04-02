@@ -79,22 +79,23 @@ public:
     /// \brief Returns the highest level of refinement
     int  GetMaxLevel() const { return _maxLevel; }
 
+    /// \brief Returns the maximum vertex valence in all levels
+    int  GetMaxValence() const { return _maxValence; }
+
     /// \ brief Returns true if faces have been tagged as holes
     bool HasHoles() const { return _hasHoles; }
 
-    // XXXX barfowl -- should cache these internally for trivial return)
-
     /// \brief Returns the total number of vertices in all levels
-    int GetNumVerticesTotal() const;
+    int GetNumVerticesTotal() const { return _totalVertices; }
 
     /// \brief Returns the total number of edges in all levels
-    int GetNumEdgesTotal() const;
+    int GetNumEdgesTotal() const { return _totalEdges; }
 
     /// \brief Returns the total number of edges in all levels
-    int GetNumFacesTotal() const;
+    int GetNumFacesTotal() const { return _totalFaces; }
 
     /// \brief Returns the total number of face vertices in all levels
-    int GetNumFaceVerticesTotal() const;
+    int GetNumFaceVerticesTotal() const { return _totalFaceVertices; }
 
     //@{
     ///  @name High-level refinement and related methods
@@ -109,11 +110,18 @@ public:
 
         UniformOptions(int level) :
             refinementLevel(level),
+            applyBaseFacePerFace(false),
+            orderVerticesFromFacesFirst(false),
             fullTopologyInLastLevel(false) { }
 
-        unsigned int refinementLevel:4,         ///< Number of refinement iterations
-                     fullTopologyInLastLevel:1; ///< Skip secondary topological relationships
-                                                ///< at the highest level of refinement.
+        unsigned int refinementLevel:4,             ///< Number of refinement iterations
+                     applyBaseFacePerFace:1,        ///< For each refined face, record the index
+                                                    ///< of the base face from which it originates
+                     orderVerticesFromFacesFirst:1, ///< Order child vertices from faces first
+                                                    ///< instead of child vertices of vertices
+                     fullTopologyInLastLevel:1;     ///< Skip topological relationships in the last
+                                                    ///< level of refinement that are not needed for
+                                                    ///< interpolation (keep false if using limit).
     };
 
     /// \brief Refine the topology uniformly
@@ -121,6 +129,9 @@ public:
     /// @param options   Options controlling uniform refinement
     ///
     void RefineUniform(UniformOptions options);
+
+    /// \brief Returns the options specified on refinement
+    UniformOptions GetUniformOptions() const { return _uniformOptions; }
 
     //
     // Adaptive refinement
@@ -131,15 +142,18 @@ public:
 
         AdaptiveOptions(int level) :
             isolationLevel(level),
-            fullTopologyInLastLevel(false),
-            useSingleCreasePatch(false) { }
+            useSingleCreasePatch(false),
+            applyBaseFacePerFace(false),
+            orderVerticesFromFacesFirst(false) { }
 
-        unsigned int isolationLevel:4,          ///< Number of iterations applied to isolate
-                                                ///< extraordinary vertices and creases
-                     fullTopologyInLastLevel:1, ///< Skip secondary topological relationships
-                                                ///< at the highest level of refinement.
-                     useSingleCreasePatch:1;    ///< Use 'single-crease' patch and stop
-                                                ///< isolation where applicable
+        unsigned int isolationLevel:4,              ///< Number of iterations applied to isolate
+                                                    ///< extraordinary vertices and creases
+                     useSingleCreasePatch:1,        ///< Use 'single-crease' patch and stop
+                                                    ///< isolation where applicable
+                     applyBaseFacePerFace:1,        ///< For each refined face, record the index
+                                                    ///< of the base face from which it originates
+                     orderVerticesFromFacesFirst:1; ///< Order child vertices from faces first
+                                                    ///< instead of child vertices of vertices
     };
 
     /// \brief Feature Adaptive topology refinement
@@ -147,6 +161,9 @@ public:
     /// @param options   Options controlling adaptive refinement
     ///
     void RefineAdaptive(AdaptiveOptions options);
+
+    /// \brief Returns the options specified on refinement
+    AdaptiveOptions GetAdaptiveOptions() const { return _adaptiveOptions; }
 
     /// \brief Unrefine the topology (keep control cage)
     void Unrefine();
@@ -336,8 +353,8 @@ public:
     }
 
     /// \brief Returns true if 'face' at 'level' is tagged as a hole
-    bool IsHole(int level, Index face) const {
-        return _levels[level]->isHole(face);
+    bool IsFaceHole(int level, Index face) const {
+        return _levels[level]->isFaceHole(face);
     }
 
     /// \brief Returns the vertices of an 'edge' at 'level' (2 of them)
@@ -415,7 +432,7 @@ public:
 
     //@{
     /// @name Parent-to-child relationships,
-    /// Telationships between components in one level
+    /// Relationships between components in one level
     /// and the next (entries may be invalid if sparse):
     ///
 
@@ -452,6 +469,23 @@ public:
 
     //@}
 
+    //@{
+    /// @name Child-to-parent or child-to-base relationships,
+    /// Relationships between components in one level and the
+    /// previous or base level (to be called with level > 0):
+    ///
+
+    /// \brief Returns the parent face of face 'f' at 'level'
+    Index GetFaceParentFace(int level, Index f) const {
+        return _refinements[level-1]->getChildFaceParentFace(f);
+    }
+
+    /// \brief Returns the base face of face 'f' at 'level'
+    Index GetFaceBaseFace(int level, Index f) const {
+        return _refinements[level-1]->getChildFaceBaseFace(f);
+    }
+
+    //@}
 
     //@{
     /// Ptex
@@ -535,13 +569,16 @@ protected:
     void setBaseEdgeSharpness(Index e, float s)   { _levels[0]->getEdgeSharpness(e) = s; }
     void setBaseVertexSharpness(Index v, float s) { _levels[0]->getVertexSharpness(v) = s; }
 
-    void setBaseFaceHole(Index f, bool b) { _levels[0]->setHole(f, b); _hasHoles |= b; }
+    void setBaseFaceHole(Index f, bool b) { _levels[0]->setFaceHole(f, b); _hasHoles |= b; }
 
     //  Optional methods for creating and assigning face-varying data channels:
     int createBaseFVarChannel(int numValues);
     int createBaseFVarChannel(int numValues, Sdc::Options const& options);
 
     IndexArray setBaseFVarFaceValues(Index face, int channel = 0);
+
+    void setBaseMaxValence(int valence) { _levels[0]->setMaxValence(valence); }
+    void initializeBaseInventory() { initializeInventory(); }
 
 protected:
 
@@ -579,6 +616,12 @@ private:
 
     void initializePtexIndices() const;
 
+    void initializeInventory();
+    void updateInventory(Vtr::Level const & newLevel);
+
+    void appendLevel(Vtr::Level & newLevel);
+    void appendRefinement(Vtr::Refinement & newRefinement);
+
 private:
 
     Sdc::SchemeType _subdivType;
@@ -586,8 +629,18 @@ private:
 
     unsigned int _isUniform : 1,
                  _hasHoles : 1,
-                 _useSingleCreasePatch : 1,
                  _maxLevel : 4;
+
+    //  Options assigned on refinement:
+    UniformOptions  _uniformOptions;
+    AdaptiveOptions _adaptiveOptions;
+
+    //  Cumulative properties of all levels:
+    int _totalVertices;
+    int _totalEdges;
+    int _totalFaces;
+    int _totalFaceVertices;
+    int _maxValence;
 
     std::vector<Vtr::Level *>      _levels;
     std::vector<Vtr::Refinement *> _refinements;

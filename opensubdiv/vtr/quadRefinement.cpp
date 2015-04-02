@@ -966,10 +966,9 @@ QuadRefinement::markSparseFaceChildren() {
             int marked = false;
 
             for (int i = 0; i < fVerts.size(); ++i) {
-                //  NOTE - the mod 4 here will not work for N-gons (and want to avoid % anyway)
-                int iPrev = (i+3) % 4;
-
                 if (_parentVertexTag[fVerts[i]]._selected) {
+                    int iPrev = i ? (i - 1) : (fVerts.size() - 1);
+
                     markSparseIndexNeighbor(fChildFaces[i]);
 
                     markSparseIndexNeighbor(fChildEdges[i]);

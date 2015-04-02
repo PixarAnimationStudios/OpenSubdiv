@@ -44,8 +44,14 @@ TopologyRefiner::TopologyRefiner(Sdc::SchemeType schemeType, Sdc::Options scheme
     _subdivOptions(schemeOptions),
     _isUniform(true),
     _hasHoles(false),
-    _useSingleCreasePatch(false),
-    _maxLevel(0) {
+    _maxLevel(0),
+    _uniformOptions(0),
+    _adaptiveOptions(0),
+    _totalVertices(0),
+    _totalEdges(0),
+    _totalFaces(0),
+    _totalFaceVertices(0),
+    _maxValence(0) {
 
     //  Need to revisit allocation scheme here -- want to use smart-ptrs for these
     //  but will probably have to settle for explicit new/delete...
@@ -72,6 +78,7 @@ TopologyRefiner::Unrefine() {
             delete _levels[i];
         }
         _levels.resize(1);
+        initializeInventory();
     }
     for (int i=0; i<(int)_refinements.size(); ++i) {
         delete _refinements[i];
@@ -81,40 +88,71 @@ TopologyRefiner::Unrefine() {
 
 
 //
+//  Intializing and updating the component inventory:
+//
+void
+TopologyRefiner::initializeInventory() {
+
+    if (_levels.size()) {
+        assert(_levels.size() == 1);
+
+        Vtr::Level const & baseLevel = *_levels[0];
+
+        _totalVertices     = baseLevel.getNumVertices();
+        _totalEdges        = baseLevel.getNumEdges();
+        _totalFaces        = baseLevel.getNumFaces();
+        _totalFaceVertices = baseLevel.getNumFaceVerticesTotal();
+
+        _maxValence = baseLevel.getMaxValence();
+    } else {
+        _totalVertices     = 0;
+        _totalEdges        = 0;
+        _totalFaces        = 0;
+        _totalFaceVertices = 0;
+
+        _maxValence = 0;
+    }
+}
+
+void
+TopologyRefiner::updateInventory(Vtr::Level const & newLevel) {
+
+    _totalVertices     += newLevel.getNumVertices();
+    _totalEdges        += newLevel.getNumEdges();
+    _totalFaces        += newLevel.getNumFaces();
+    _totalFaceVertices += newLevel.getNumFaceVerticesTotal();
+
+    _maxValence = std::max(_maxValence, newLevel.getMaxValence());
+}
+
+void
+TopologyRefiner::appendLevel(Vtr::Level & newLevel) {
+
+    _levels.push_back(&newLevel);
+
+    updateInventory(newLevel); 
+}
+
+void
+TopologyRefiner::appendRefinement(Vtr::Refinement & newRefinement) {
+
+    //
+    //  There may be properties to transfer between refinements that cannot be passed on
+    //  when refining between the parent and child since they exist "above" the parent:
+    //
+    bool applyBaseFace = (_isUniform && _uniformOptions.applyBaseFacePerFace) ||
+                        (!_isUniform && _adaptiveOptions.applyBaseFacePerFace);
+    if (applyBaseFace) {
+        newRefinement.propagateBaseFace(_refinements.size() ? _refinements.back() : 0);
+    }
+
+    _refinements.push_back(&newRefinement);
+}
+
+
+//
 //  Accessors to the topology information:
 //
-int
-TopologyRefiner::GetNumVerticesTotal() const {
-    int sum = 0;
-    for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i]->getNumVertices();
-    }
-    return sum;
-}
-int
-TopologyRefiner::GetNumEdgesTotal() const {
-    int sum = 0;
-    for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i]->getNumEdges();
-    }
-    return sum;
-}
-int
-TopologyRefiner::GetNumFacesTotal() const {
-    int sum = 0;
-    for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i]->getNumFaces();
-    }
-    return sum;
-}
-int
-TopologyRefiner::GetNumFaceVerticesTotal() const {
-    int sum = 0;
-    for (int i = 0; i < (int)_levels.size(); ++i) {
-        sum += _levels[i]->getNumFaceVerticesTotal();
-    }
-    return sum;
-}
 int
 TopologyRefiner::GetNumFVarValuesTotal(int channel) const {
     int sum = 0;
@@ -129,7 +167,7 @@ TopologyRefiner::GetNumHoles(int level) const {
     int sum = 0;
     Vtr::Level const & lvl = getLevel(level);
     for (Index face = 0; face < lvl.getNumFaces(); ++face) {
-        if (lvl.isHole(face)) {
+        if (lvl.isFaceHole(face)) {
             ++sum;
         }
     }
@@ -309,6 +347,8 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
     //
     //  Allocate the stack of levels and the refinements between them:
     //
+    _uniformOptions = options;
+
     _isUniform = true;
     _maxLevel = options.refinementLevel;
 
@@ -318,10 +358,11 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
     //  Initialize refinement options for Vtr -- adjusting full-topology for the last level:
     //
     Vtr::Refinement::Options refineOptions;
-    refineOptions._sparse = false;
+    refineOptions._sparse              = false;
+    refineOptions._orderFaceVertsFirst = options.orderVerticesFromFacesFirst;
 
     for (int i = 1; i <= (int)options.refinementLevel; ++i) {
-        refineOptions._faceTopologyOnly =
+        refineOptions._minimalTopology =
             options.fullTopologyInLastLevel ? false : (i == options.refinementLevel);
 
         Vtr::Level& parentLevel = getLevel(i-1);
@@ -335,8 +376,8 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
         }
         refinement->refine(refineOptions);
 
-        _levels.push_back(&childLevel);
-        _refinements.push_back(refinement);
+        appendLevel(childLevel);
+        appendRefinement(*refinement);
     }
 }
 
@@ -349,24 +390,24 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
     //
     //  Allocate the stack of levels and the refinements between them:
     //
+    _adaptiveOptions = options;
+
     _isUniform = false;
     _maxLevel = options.isolationLevel;
-    _useSingleCreasePatch = options.useSingleCreasePatch;
 
     //
-    //  Initialize refinement options for Vtr:
+    //  Initialize refinement options for Vtr -- full topology is always generated in
+    //  the last level as expected usage is for patch retrieval:
     //
     Vtr::Refinement::Options refineOptions;
 
-    refineOptions._sparse           = true;
-    refineOptions._faceTopologyOnly = not options.fullTopologyInLastLevel;
+    refineOptions._sparse              = true;
+    refineOptions._minimalTopology     = false;
+    refineOptions._orderFaceVertsFirst = options.orderVerticesFromFacesFirst;
 
     Sdc::Split splitType = (_subdivType == Sdc::SCHEME_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
 
     for (int i = 1; i <= (int)options.isolationLevel; ++i) {
-        //  Keeping full topology on for debugging -- may need to go back a level and "prune"
-        //  its topology if we don't use the full depth
-        refineOptions._faceTopologyOnly = false;
 
         Vtr::Level& parentLevel     = getLevel(i-1);
         Vtr::Level& childLevel      = *(new Vtr::Level);
@@ -384,9 +425,6 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
         //  maximum level and stop refinining any further.  Otherwise, refine and append
         //  the new refinement and child.
         //
-        //  Note that if we support the "full topology at last level" option properly,
-        //  we should prune the previous level generated, as it is now the last...
-        //
         Vtr::SparseSelector selector(*refinement);
 
         selectFeatureAdaptiveComponents(selector);
@@ -400,11 +438,8 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 
         refinement->refine(refineOptions);
 
-        _levels.push_back(&childLevel);
-        _refinements.push_back(refinement);
-
-        //childLevel.print(refinement);
-        //assert(childLevel.validateTopology());
+        appendLevel(childLevel);
+        appendRefinement(*refinement);
     }
 }
 
@@ -430,8 +465,8 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
 
     Vtr::Level const& level = selector.getRefinement().parent();
 
-    int  regularFaceSize             =  selector.getRefinement()._regFaceSize;
-    bool considerSingleCreasePatch   = _useSingleCreasePatch && (regularFaceSize == 4);
+    int  regularFaceSize           =  selector.getRefinement()._regFaceSize;
+    bool considerSingleCreasePatch = _adaptiveOptions.useSingleCreasePatch && (regularFaceSize == 4);
 
     //
     //  Face-varying consideration when isolating features:
@@ -464,7 +499,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
     //
     for (Vtr::Index face = 0; face < level.getNumFaces(); ++face) {
 
-        if (level.isHole(face)) {
+        if (level.isFaceHole(face)) {
             continue;
         }
 

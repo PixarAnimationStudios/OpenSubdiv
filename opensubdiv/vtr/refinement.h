@@ -82,40 +82,36 @@ public:
     Level&       child()        { return *_child; }
 
     //
-    //  Options associated with the actual refinement operation, which are going to get
-    //  quite involved to ensure that the refinement of data that is not of interest can
-    //  be suppressed.  For now we have:
+    //  Options associated with the actual refinement operation, which may end up
+    //  quite involved if we want to allow for the refinement of data that is not
+    //  of interest to be suppressed.  For now we have:
     //
     //      "sparse": the alternative to uniform refinement, which requires that
     //          components be previously selected/marked to be included.
     //
-    //      "face topology only": this is one that may get broken down into a finer
+    //      "minimal topology": this is one that may get broken down into a finer
     //          set of options.  It suppresses "full topology" in the child level
-    //          and only generates what is necessary to define the list of faces.
-    //          This is only one of the six possible topological relations that
-    //          can be generated -- we may eventually want a flag for each.
+    //          and only generates what is minimally necessary for interpolation --
+    //          which requires at least the face-vertices for faces, but also the
+    //          vertex-faces for any face-varying channels present.  So it will
+    //          generate one or two of the six possible topological relations.
     //
-    //      "compute masks": this is intended to be temporary, along with the data
-    //          members associated with it -- it will trigger the computation and
-    //          storage of mask weights for all child vertices.  This is naively
-    //          stored at this point and exists only for reference.
-    //
-    //  Its still up for debate as to how finely these should be controlled, e.g.
-    //  for sparse refinement, we likely want full topology at the finest level to
-    //  allow for subsequent patch construction...
+    //  These are strictly controlled right now, e.g. for sparse refinement, we
+    //  currently enforce full topology at the finest level to allow for subsequent
+    //  patch construction.
     //
     struct Options {
-        Options() : _sparse(0),
-                    _faceTopologyOnly(0)
+        Options() : _sparse(false),
+                    _faceVertsFirst(false),
+                    _minimalTopology(false)
                     { }
 
-        unsigned int _sparse           : 1;
-        unsigned int _faceTopologyOnly : 1;
+        unsigned int _sparse          : 1;
+        unsigned int _faceVertsFirst  : 1;
+        unsigned int _minimalTopology : 1;
 
-        //  Currently under consideration:
-        //unsigned int _childToParentMap    : 1;
-        //unsigned int _ancestorFacePerFace : 1;
-        //unsigned int _computeMasks        : 1;
+        //  Still under consideration:
+        //unsigned int _childToParentMap : 1;
     };
 
     void refine(Options options = Options());
@@ -155,6 +151,9 @@ public:
     Index getChildEdgeParentIndex(Index e) const    { return _childEdgeParentIndex[e]; }
 
     Index getChildVertexParentIndex(Index v) const  { return _childVertexParentIndex[v]; }
+
+    //  Child-to-"ancestor" relationships:
+    Index getChildFaceBaseFace(Index f) const { return _childFaceBaseFaceIndex[f]; }
 
 //
 //  Non-public methods:
@@ -263,6 +262,8 @@ protected:
     void populateVertexTagsFromParentEdges();
     void populateVertexTagsFromParentVertices();
 
+    void propagateBaseFace(Refinement const * previousRefinement);
+
     //
     //  Methods (and types) involved in subdividing the topology -- though not
     //  fully exploited, any subset of the 6 relations can be generated:
@@ -326,6 +327,7 @@ protected:
 
     //  Determined by the refinement options:
     bool _uniform;
+    bool _faceVertsFirst;
 
     //
     //  Inventory and ordering of the types of child components:
@@ -391,6 +393,11 @@ protected:
     //  Refinement data for face-varying channels present in the Levels being refined:
     //
     std::vector<FVarRefinement*> _fvarChannels;
+
+    //
+    //  Child-to-base/ancestor mappings:
+    //
+    IndexVector _childFaceBaseFaceIndex;
 };
 
 inline ConstIndexArray

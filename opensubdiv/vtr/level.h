@@ -241,8 +241,8 @@ public:
     Index findEdge(Index v0Index, Index v1Index) const;
 
     // Holes
-    void setHole(Index faceIndex, bool b);
-    bool isHole(Index faceIndex) const;
+    void setFaceHole(Index faceIndex, bool b);
+    bool isFaceHole(Index faceIndex) const;
 
     // Face-varying
     Sdc::Options getFVarOptions(int channel = 0) const; 
@@ -351,6 +351,8 @@ protected:
     void resizeVertexFaces(int numVertexFacesTotal);
     void resizeVertexEdges(int numVertexEdgesTotal);
 
+    void setMaxValence(int maxValence);
+
     //  Modifiers to populate the relations for each component:
     IndexArray getFaceVertices(Index faceIndex);
     IndexArray getFaceEdges(Index faceIndex);
@@ -447,11 +449,14 @@ protected:
     int _edgeCount;
     int _vertCount;
 
-    //  TBD - "depth" is clearly useful in both the topological splitting and the
-    //  stencil queries so could be valuable in both.  As face-vert valence becomes
-    //  constant there is no need to store face-vert and face-edge counts so it has
-    //  value in Level, though perhaps specified as something other than "depth"
+    //  The "depth" member is clearly useful in both the topological splitting and the
+    //  stencil queries, but arguably it ties the Level to a hierarchy which counters
+    //  the idea if it being independent.
     int _depth;
+
+    //  Maxima to help clients manage sizing of data buffers.  Given "max valence",
+    //  the "max edge faces" is strictly redundant as it will always be less, but 
+    //  since it will typically be so much less (i.e. 2) it is kept for now.
     int _maxEdgeFaces;
     int _maxValence;
 
@@ -619,6 +624,11 @@ Level::trimVertexEdges(Index vertIndex, int count) {
     _vertEdgeCountsAndOffsets[vertIndex*2] = count;
 }
 
+inline void
+Level::setMaxValence(int valence) {
+    _maxValence = valence;
+}
+
 //
 //  Access/modify the vertices indicent a given edge:
 //
@@ -700,11 +710,11 @@ Level::getVertexRule(Index vertIndex) const {
 //  Access/modify hole tag:
 //
 inline void
-Level::setHole(Index faceIndex, bool b) {
+Level::setFaceHole(Index faceIndex, bool b) {
     _faceTags[faceIndex]._hole = b;
 }
 inline bool
-Level::isHole(Index faceIndex) const {
+Level::isFaceHole(Index faceIndex) const {
     return _faceTags[faceIndex]._hole;
 }
 

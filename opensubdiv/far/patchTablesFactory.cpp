@@ -1065,7 +1065,7 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
     options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::SCHEME_BILINEAR or
                                  refiner.GetSchemeType()==Sdc::SCHEME_CATMARK);
 
-    int maxvalence = refiner.getLevel(0).getMaxValence(),
+    int maxvalence = refiner.GetMaxValence(),
         maxlevel = refiner.GetMaxLevel(),
         firstlevel = options.generateAllLevels ? 0 : maxlevel,
         nlevels = maxlevel-firstlevel+1;
@@ -1150,7 +1150,7 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
         if (level>=firstlevel) {
             for (int face=0; face<nfaces; ++face) {
 
-                if (refiner.HasHoles() and refiner.IsHole(level, face)) {
+                if (refiner.HasHoles() and refiner.IsFaceHole(level, face)) {
                     continue;
                 }
 
@@ -1222,7 +1222,7 @@ PatchTablesFactory::createAdaptive(TopologyRefiner const & refiner, Options opti
     //  Create the instance of the tables and allocate and initialize its members based on
     //  the inventory of patches determined above:
     //
-    int maxValence = refiner.getLevel(0).getMaxValence();
+    int maxValence = refiner.GetMaxValence();
 
     context.tables = new PatchTables(maxValence);
 
@@ -1323,7 +1323,7 @@ PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
             patchTag.clear();
             patchTag._hasPatch = false;
 
-            if (level->isHole(faceIndex)) {
+            if (level->isFaceHole(faceIndex)) {
                 continue;
             }
 
@@ -1613,7 +1613,7 @@ PatchTablesFactory::populateAdaptivePatches(AdaptiveContext & context) {
 
             assert(not context.RequiresLegacyGregoryPatches());
 
-            int maxvalence = refiner.getLevel(0).getMaxValence(),
+            int maxvalence = refiner.GetMaxValence(),
                 npatches = context.patchInventory.GP;
 
             gregoryStencilsFactory =
@@ -1646,7 +1646,7 @@ PatchTablesFactory::populateAdaptivePatches(AdaptiveContext & context) {
 
         for (int faceIndex = 0; faceIndex < level->getNumFaces(); ++faceIndex) {
 
-            if (level->isHole(faceIndex)) {
+            if (level->isFaceHole(faceIndex)) {
                 continue;
             }
 

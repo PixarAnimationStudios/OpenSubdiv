@@ -115,6 +115,13 @@ TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& 
             Warning(msg);
             return false;
         }
+    } else {
+        if (baseLevel.getMaxValence() == 0) {
+            char msg[1024];
+            snprintf(msg, 1024, "Invalid topology detected : maximum valence not assigned.");
+            Warning(msg);
+            return false;
+        }
     }
 
     if (fullValidation) {
@@ -128,6 +135,9 @@ TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& 
             return false;
         }
     }
+
+    //  Now that we have a valid base level, initialize the Refiner's component inventory:
+    refiner.initializeBaseInventory();
     return true;
 }
 
