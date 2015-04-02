@@ -358,8 +358,8 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
     //  Initialize refinement options for Vtr -- adjusting full-topology for the last level:
     //
     Vtr::Refinement::Options refineOptions;
-    refineOptions._sparse              = false;
-    refineOptions._orderFaceVertsFirst = options.orderVerticesFromFacesFirst;
+    refineOptions._sparse         = false;
+    refineOptions._faceVertsFirst = options.orderVerticesFromFacesFirst;
 
     for (int i = 1; i <= (int)options.refinementLevel; ++i) {
         refineOptions._minimalTopology =
@@ -401,9 +401,9 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
     //
     Vtr::Refinement::Options refineOptions;
 
-    refineOptions._sparse              = true;
-    refineOptions._minimalTopology     = false;
-    refineOptions._orderFaceVertsFirst = options.orderVerticesFromFacesFirst;
+    refineOptions._sparse          = true;
+    refineOptions._minimalTopology = false;
+    refineOptions._faceVertsFirst  = options.orderVerticesFromFacesFirst;
 
     Sdc::Split splitType = (_subdivType == Sdc::SCHEME_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
 
