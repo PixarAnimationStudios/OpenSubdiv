@@ -60,6 +60,8 @@ GetReorderedHbrVertexData(
         Mapper(const OpenSubdiv::Far::TopologyRefiner &refiner, 
                const OpenSubdiv::HbrMesh<T> &hmesh) {
 
+            bool schemeIsLoop = (refiner.GetSchemeType() == OpenSubdiv::Sdc::SCHEME_LOOP);
+
             maps.resize(refiner.GetMaxLevel()+1);
 
             typedef OpenSubdiv::Far::Index Index;
@@ -118,17 +120,17 @@ GetReorderedHbrVertexData(
                     Hface * f = previous.faces[face];
 
                     ConstIndexArray childFaces = refiner.GetFaceChildFaces(level-1, face);
-                    assert(childFaces.size()==f->GetNumVertices());
-
                     for (int i=0; i<childFaces.size(); ++i) {
                         current.faces[childFaces[i]] = f->GetChild(i);
                     }
 
-                    // populate child face-verts
-                    Index childVert = refiner.GetFaceChildVertex(level-1, face);
-                    Hvertex * v = f->Subdivide();
-                    assert(v->GetParentFace());
-                    current.verts[childVert] = v;
+                    // populate child face-verts -- when present (none for Loop subdivision)
+                    if (!schemeIsLoop) {
+                        Hvertex * v = f->Subdivide();
+                        Index childVert = refiner.GetFaceChildVertex(level-1, face);
+                        assert(v->GetParentFace());
+                        current.verts[childVert] = v;
+                    }
                 }
 
                 for (int edge=0; edge < refiner.GetNumEdges(level-1); ++edge) {
