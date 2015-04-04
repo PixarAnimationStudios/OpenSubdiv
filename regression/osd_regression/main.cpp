@@ -485,19 +485,18 @@ int checkBackend(int backend, int levels) {
 #define test_catmark_tent_creases1
 
 
-// Hedits don't yet work.
+// hedits don't work.
 //#define test_catmark_square_hedit0
 //#define test_catmark_square_hedit1
 //#define test_catmark_square_hedit2
 //#define test_catmark_square_hedit3
 
-// Loop doesn't yet work.
-//#define test_loop_triangle_edgeonly
-//#define test_loop_triangle_edgecorner
-//#define test_loop_icosahedron
-//#define test_loop_cube
-//#define test_loop_cube_creases0
-//#define test_loop_cube_creases1
+#define test_loop_triangle_edgeonly
+#define test_loop_triangle_edgecorner
+#define test_loop_icosahedron
+#define test_loop_cube
+#define test_loop_cube_creases0
+#define test_loop_cube_creases1
 
 #define test_bilinear_cube
 
