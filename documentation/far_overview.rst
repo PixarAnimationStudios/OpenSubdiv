@@ -330,7 +330,7 @@ created by combining the list of control vertices from the 1-ring.
 With iterative subdivision, each refinement step is dependent upon the previous
 subdivision step being completed, and a substantial number of steps may be
 required in order approximate the limit : each subdivision step incurs an
-O(4:superscript:`n`) growing amount of computations.
+O(4\ :superscript:`n`) growing amount of computations.
 
 Instead, once the weights of the contributing coarse control vertices for a
 given refined vertex have been factorized, it is possible to apply the stencil
