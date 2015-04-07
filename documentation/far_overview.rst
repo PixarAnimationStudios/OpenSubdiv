@@ -274,9 +274,6 @@ with 16, 12, 9 and 4 control vertices respectively.
     that we can eventually get rid of the current re-ordering step applied
     to the control vertex indices.
 
-    We also intend to consolidate all bi-cubic patch types into using 16
-    control vertices, which will deprecate the *Boundary* and *Corner* types.
-
 Patch Transitions
 *****************
 

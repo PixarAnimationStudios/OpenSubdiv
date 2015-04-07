@@ -130,15 +130,13 @@ gracefully.
 
     **Beta Issues**
 
-    As of 3.0.0 Beta release, non-manifold topology has limited support.  Most
-    non-manifold configurations (with the exception of degenerate edges) are
-    supported for refinement and subdivision.  But some factories, such as the
-    patch tables, do not support them.  The interpolation associated with
-    non-manifold features currently treats them as infinitely sharp features --
-    smooth rules are possible but exactly what they should be is unclear.  We
-    intend to fully specify and implement a set of interpolation rules in a
-    future release of OpenSubdiv.  Until then the results should be considered
-    undefined.
+    As of 3.0.0 Beta release, most non-manifold configurations (with the 
+    exception of degenerate edges) are supported for refinement and subdivision.
+    The interpolation associated with non-manifold features currently treats 
+    them as infinitely sharp features -- smooth rules are possible but exactly
+    what they should be is unclear.  We intend to fully specify and implement a
+    set of interpolation rules in a future release of OpenSubdiv.  Until then 
+    the results should be considered undefined.
 
 
 ----
