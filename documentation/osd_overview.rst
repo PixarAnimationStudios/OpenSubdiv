@@ -146,6 +146,7 @@ HLSL-Compute **Compute** back-end can be paired effectively with a DX11
 HLSL-Shading **Draw** back-end. Some pairings however are not possible, as
 there may be no data inter-operation paths available (ex: transferring DX11
 compute SRVs to GL texture buffers).
+
 ----
 
 Contexts & Controllers

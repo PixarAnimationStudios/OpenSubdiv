@@ -38,8 +38,8 @@ Subdivision Core (Sdc)
 
 Sdc is the lowest level layer in OpenSubdiv.  Its intent is to separate
 the core subdivision details from any particular representation of a mesh
-(it was previously bound to Hbr) to facilate other classes both internal
-and external to OpenSubdiv generating consistent results.
+(it was previously bound to Hbr) to facilitate the generation of consistent
+results to other mesh representations, both internal and external to OpenSubdiv.
 
 The functionality can be divided roughly into three sections:
 
@@ -86,7 +86,7 @@ into a single object (the equivalent of an integer in this case) that are passed
 around to other Sdc classes and/or methods and are expected to be used at a higher
 level both within OpenSubdiv and externally.  By aggregating the options and
 passing them around as a group, it allows us to extend the set easily in future
-without the need to rewire a lot of interfaces to accomodate the new choice.
+without the need to rewire a lot of interfaces to accommodate the new choice.
 Clients can enables new choices at the highest level and be assured that they will
 propagate to the lowest level where they are relevant.
 
@@ -164,7 +164,7 @@ minimize the amount of code specific to each scheme.
 The computation of mask weights for subdivided vertices is the most significant
 contribution of Sdc. The use of semi-sharp creasing with each
 non-linear subdivision scheme complicates what are otherwise simple
-masks detemined solely by the topology, and packaging that functionality to
+masks determined solely by the topology, and packaging that functionality to
 achieve both the generality and efficiency desired has been a challenge.
 
 Mask queries are defined in the *Scheme* class template, which has
@@ -299,10 +299,10 @@ Methods dealing with the collections of weights defining a mask are typically
 parameterized by a *MASK* template parameter that contains the weights.  The set of
 mask weights is currently divided into vertex-weights, edge-weights and
 face-weights -- consistent with previous usage in OpenSubdiv and providing some
-useful correllation between the full set of weights and topology.  The
+useful correlation between the full set of weights and topology.  The
 vertex-weights refer to parent vertices incident the parent component from which a
 vertex originated, the edge-weights the vertices opposite incident edges of the
-parent, and the face-weights the center of indicent parent faces.  Note the latter
+parent, and the face-weights the center of incident parent faces.  Note the latter
 is **NOT** in terms of vertices of the parent but potentially vertices in the child
 originating from faces of the parent.  This has been done historically in
 OpenSubdiv but is finding less use -- particularly when it comes to providing
