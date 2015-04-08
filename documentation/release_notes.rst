@@ -147,7 +147,7 @@ instead.
 
 Stencils remove all data dependencies and simplify all the computations into a
 single trivial kernel. This simplification results in a faster pre-computation
-stage, faster execution on GPU, with fewer driver overheads. The new stencil
+stage, faster execution on GPU, with less driver overhead. The new stencil
 tables Compute back-end is supported on all the same platforms as previous
 releases (except GCD).
 
@@ -341,19 +341,19 @@ functionality that has long been missing from evaluation and display.
 
 Enabling workflows at larger scales will require improvements on several fronts:
 
-* Handle more primitives, but with fewer overheads:
+* Handle more primitives, but with less overhead:
 
-    * Reduce Compute kernel launches,which we will achieve using stencils instead
+    * Reduce Compute kernel launches, which we will achieve using stencils instead
       of subdivision tables
     * Reduce Draw calls by addressing the combinatorial explosion of tessellation
       shaders
-    * Provide back-ends for next-gen APIs (D3D12, Mantle, Metal, GL 5.x)
+    * Provide back-ends for next-gen APIs (D3D12, Mantle, Metal, Vulkan, etc.)
 
 * Handle more semi-sharp creases: feature isolation needs to become much more
   efficient to allow for complete creative freedom in using the feature.
 * Faster topology analysis
 
-As for missing functionality, as the potential standard for evaluation and display
+As the potential standard for evaluation and display
 of subdivision surfaces, OpenSubdiv is still lacking in its support of subdivision
 schemes other than Catmark -- specifically Loop.  Ultimately the same level of
 performance and functionality achieved with Catmark should be available for Loop,

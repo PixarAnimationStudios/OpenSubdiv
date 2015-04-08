@@ -274,9 +274,6 @@ with 16, 12, 9 and 4 control vertices respectively.
     that we can eventually get rid of the current re-ordering step applied
     to the control vertex indices.
 
-    We also intend to consolidate all bi-cubic patch types into using 16
-    control vertices, which will deprecate the *Boundary* and *Corner* types.
-
 Patch Transitions
 *****************
 
@@ -330,7 +327,7 @@ created by combining the list of control vertices from the 1-ring.
 With iterative subdivision, each refinement step is dependent upon the previous
 subdivision step being completed, and a substantial number of steps may be
 required in order approximate the limit : each subdivision step incurs an
-O(4:superscript:`n`) growing amount of computations.
+O(4\ :superscript:`n`) growing amount of computations.
 
 Instead, once the weights of the contributing coarse control vertices for a
 given refined vertex have been factorized, it is possible to apply the stencil
