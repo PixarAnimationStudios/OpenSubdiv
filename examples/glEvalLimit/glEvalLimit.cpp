@@ -376,26 +376,50 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         Far::StencilTables const * varyingStencils =
             Far::StencilTablesFactory::Create(*g_topologyRefiner, soptions);
 
-        g_kernelBatches.clear();
-        g_kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
-
-        // Create an Osd Compute context, used to "pose" the vertices with
-        // the stencils tables
-        delete g_computeCtx;
-        g_computeCtx = Osd::CpuComputeContext::Create(vertexStencils, varyingStencils);
-
-
         // Generate bi-cubic patch tables for the limit surface
         Far::PatchTablesFactory::Options poptions;
         // optional : pass the vertex stencils so that the factory can generate gregory basis
         // stencils (faster evaluation)
-        poptions.adaptiveStencilTables = vertexStencils; 
+        poptions.adaptiveStencilTables = vertexStencils;
+        poptions.adaptiveVaryingStencilTables = varyingStencils;
+
         Far::PatchTables const * patchTables =
              Far::PatchTablesFactory::Create(*g_topologyRefiner, poptions);
+
+        Far::StencilTables const *inStencils[] = {
+            vertexStencils, patchTables->GetEndCapVertexStencilTables()
+        };
+        Far::StencilTables const *concatStencils =
+            Far::StencilTablesFactory::Create(2, inStencils);
+
+        // add gregory basis vertices FIXME:
+        if (patchTables->GetEndCapVertexStencilTables()) {
+            nverts += patchTables->GetEndCapVertexStencilTables()->GetNumStencils();
+        }
+
+ 
+        Far::StencilTables const *concatVaryingStencils = varyingStencils;
+        if (varyingStencils and patchTables->GetEndCapVaryingStencilTables()) {
+            Far::StencilTables const *inVaryingStencils[] = {
+                varyingStencils, patchTables->GetEndCapVaryingStencilTables()
+            };
+            concatVaryingStencils =
+                Far::StencilTablesFactory::Create(2, inVaryingStencils);
+        }
+
+        // Create an Osd Compute context, used to "pose" the vertices with
+        // the stencils tables
+        delete g_computeCtx;
+        g_computeCtx = Osd::CpuComputeContext::Create(concatStencils, concatVaryingStencils);
+
 
         // Create a limit Eval context with the patch tables
         delete g_evalCtx;
         g_evalCtx = Osd::CpuEvalLimitContext::Create(*patchTables);
+
+        g_kernelBatches.clear();
+        g_kernelBatches.push_back(Far::StencilTablesFactory::Create(*concatStencils));
+ 
     }
 
     {   // Create vertex primvar buffer for the CVs

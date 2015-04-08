@@ -89,7 +89,8 @@ getQuadOffsets(Vtr::Level const & level, Vtr::Index fIndex,
     16 + maxvalence - 3
 
 // limit valence of 30 because we use a pre-computed closed-form 'ef' table
-static const int MAX_VALENCE=30,
+// XXXtakahito: revisit here to determine appropriate size
+static const int MAX_VALENCE=(30*2),
                  MAX_ELEMS = GetNumMaxElems(MAX_VALENCE);
 
 namespace Far {
@@ -271,6 +272,9 @@ struct ProtoBasis {
     //
 
     Point P[4], Ep[4], Em[4], Fp[4], Fm[4];
+
+    // for varying interpolation
+    Point V[4];
 };
 
 int
@@ -293,6 +297,7 @@ ProtoBasis::OffsetIndices(Index offset) {
         Em[vid].OffsetIndices(offset);
         Fp[vid].OffsetIndices(offset);
         Fm[vid].OffsetIndices(offset);
+        V[vid].OffsetIndices(offset);
     }
 }
 void
@@ -349,6 +354,8 @@ ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex, int fvarChanne
     for (int vid=0; vid<4; ++vid) {
 
         org[vid] = facePoints[vid];
+        // save for varying stencils
+        V[vid] = facePoints[vid];
 
         int ringSize =
             level.gatherQuadRegularRingAroundVertex(
@@ -595,6 +602,8 @@ GregoryBasisFactory::Create(TopologyRefiner const & refiner,
 
     basis.Copy(result->_sizes, &result->_indices[0], &result->_weights[0]);
 
+    // note: this function doesn't create varying stencils.
+
     for (int i=0, offset=0; i<20; ++i) {
         result->_offsets[i] = offset;
         offset += result->_sizes[i];
@@ -607,15 +616,19 @@ GregoryBasisFactory::Create(TopologyRefiner const & refiner,
 // GregoryBasisFactory for Vertex StencilTables
 //
 GregoryBasisFactory::GregoryBasisFactory(TopologyRefiner const & refiner,
-    StencilTables const & stencils,
-        int numpatches, int maxvalence) :
+                                         StencilTables const *stencils,
+                                         StencilTables const *varyingStencils,
+                                         int numpatches, int maxvalence) :
             _currentStencil(0), _refiner(refiner),
-                _stencils(stencils), _alloc(GetNumMaxElems(maxvalence)) {
+            _stencils(stencils), _varyingStencils(varyingStencils),
+            _alloc(GetNumMaxElems(maxvalence)),
+            _varyingAlloc(GetNumMaxElems(maxvalence)) {
 
     // Sanity check: the mesh must be adaptively refined
     assert(not _refiner.IsUniform());
 
     _alloc.Resize(numpatches * 20);
+    _varyingAlloc.Resize(numpatches * 20);
 
     // Gregory limit stencils have indices that are relative to the level
     // (maxlevel) of subdivision. These indices need to be offset to match
@@ -624,9 +637,10 @@ GregoryBasisFactory::GregoryBasisFactory(TopologyRefiner const & refiner,
     // (single weight of 1.0f) as place-holders for coarse mesh vertices,
     // which also needs to be accounted for.
     _stencilsOffset=-1;
-    {         int maxlevel = _refiner.GetMaxLevel(),
+    {
+        int maxlevel = _refiner.GetMaxLevel(),
             nverts = _refiner.GetNumVerticesTotal(),
-            nstencils = _stencils.GetNumStencils();
+            nstencils = _stencils->GetNumStencils();
         if (nstencils==nverts) {
 
             // the table contain stencils for the control vertices
@@ -645,17 +659,20 @@ GregoryBasisFactory::GregoryBasisFactory(TopologyRefiner const & refiner,
     }
 }
 static inline void
-factorizeBasisVertex(StencilTables const & stencils, Point const & p, ProtoStencil dst) {
+factorizeBasisVertex(StencilTables const * stencils, Point const & p, ProtoStencil dst) {
     // Use the Allocator to factorize the Gregory patch influence CVs with the
     // supporting CVs from the stencil tables.
+    if (!stencils) return;
+
     dst.Clear();
     for (int j=0; j<p.GetSize(); ++j) {
-        dst.AddWithWeight(stencils,
+        dst.AddWithWeight(*stencils,
             p.GetIndices()[j], p.GetWeights()[j]);
     }
 }
 bool
-GregoryBasisFactory::AddPatchBasis(Index faceIndex) {
+GregoryBasisFactory::AddPatchBasis(Index faceIndex,
+                                   bool verticesMask[4][5]) {
 
     // Gregory patches only exist on the hight
     Vtr::Level const & level = _refiner.getLevel(_refiner.GetMaxLevel());
@@ -677,21 +694,41 @@ GregoryBasisFactory::AddPatchBasis(Index faceIndex) {
     // expressed as a linear combination of vertices from the coarse control
     // mesh with no data dependencies
     for (int i=0; i<4; ++i) {
-        int offset = _currentStencil + i * 5;
-        factorizeBasisVertex(_stencils, basis.P[i],  _alloc[offset]);
-        factorizeBasisVertex(_stencils, basis.Ep[i], _alloc[offset+1]);
-        factorizeBasisVertex(_stencils, basis.Em[i], _alloc[offset+2]);
-        factorizeBasisVertex(_stencils, basis.Fp[i], _alloc[offset+3]);
-        factorizeBasisVertex(_stencils, basis.Fm[i], _alloc[offset+4]);
+        if (verticesMask[i][0]) {
+            factorizeBasisVertex(_stencils, basis.P[i],  _alloc[_currentStencil]);
+            // need varying stencils only for corners
+            factorizeBasisVertex(_varyingStencils, basis.V[i],  _varyingAlloc[_currentStencil]);
+            ++_currentStencil;
+        }
+        if (verticesMask[i][1]) {
+            factorizeBasisVertex(_stencils, basis.Ep[i], _alloc[_currentStencil]);
+            factorizeBasisVertex(_varyingStencils, basis.V[i],  _varyingAlloc[_currentStencil]);
+            ++_currentStencil;
+        }
+        if (verticesMask[i][2]) {
+            factorizeBasisVertex(_stencils, basis.Em[i], _alloc[_currentStencil]);
+            factorizeBasisVertex(_varyingStencils, basis.V[i],  _varyingAlloc[_currentStencil]);
+            ++_currentStencil;
+        }
+        if (verticesMask[i][3]) {
+            factorizeBasisVertex(_stencils, basis.Fp[i], _alloc[_currentStencil]);
+            factorizeBasisVertex(_varyingStencils, basis.V[i],  _varyingAlloc[_currentStencil]);
+            ++_currentStencil;
+        }
+        if (verticesMask[i][4]) {
+            factorizeBasisVertex(_stencils, basis.Fm[i], _alloc[_currentStencil]);
+            factorizeBasisVertex(_varyingStencils, basis.V[i],  _varyingAlloc[_currentStencil]);
+            ++_currentStencil;
+        }
     }
-    _currentStencil += 20;
     return true;
 }
 StencilTables const *
-GregoryBasisFactory::CreateStencilTables(int const permute[20]) {
+GregoryBasisFactory::createStencilTables(int const permute[20],
+                                         StencilAllocator &alloc) {
 
-    int nstencils = (int)_alloc.GetNumStencils(),
-           nelems = _alloc.GetNumVerticesTotal();
+    int nstencils = _currentStencil;
+    int nelems = alloc.GetNumVerticesTotal();
 
     if (nstencils==0 or nelems==0) {
         return 0;
@@ -716,7 +753,7 @@ GregoryBasisFactory::CreateStencilTables(int const permute[20]) {
             index = baseIndex + permute[localIndex];
         }
 
-        *dst._size = _alloc.CopyStencil(index, dst._indices, dst._weights);
+        *dst._size = alloc.CopyStencil(index, dst._indices, dst._weights);
 
         dst.Next();
     }

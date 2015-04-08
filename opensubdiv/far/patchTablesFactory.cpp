@@ -904,7 +904,6 @@ PatchTablesFactory::computePatchParam(TopologyRefiner const & refiner,
     return ++coord;
 }
 
-#ifdef ENDCAP_TOPOPOLGY
 // XXXX manuelk work in progress for end-cap topology gathering
 //
 // Populates the topology table used by Gregory-basis patches
@@ -913,17 +912,21 @@ PatchTablesFactory::computePatchParam(TopologyRefiner const & refiner,
 // Note 2: this code attempts to identify basis vertices shared along
 //         gregory patch edges
 static int
-gatherGregoryBasisTopology(Vtr::Level const& level, Index faceIndex, int numVertices,
-    PatchFaceTag const * levelPatchTags,
-        bool skip[0], std::vector<Index> & basisIndices, PatchTables::PTable & topology) {
+gatherGregoryBasisTopology(Vtr::Level const& level, Index faceIndex,
+                           int numGregoryBasisPatches,
+                           int numGregoryBasisVertices,
+                           PatchFaceTag const * levelPatchTags,
+                           std::vector<Index> & basisIndices,
+                           PatchTables::PatchVertsTable & topology,
+                           bool newVerticesMask[4][5]) {
 
     assert(not topology.empty());
-    Index * dest = &topology[basisIndices.size()*20];
+    Index * dest = &topology[numGregoryBasisPatches*20];
 
     assert(Vtr::INDEX_INVALID==0xFFFFFFFF);
     memset(dest, 0xFF, 20*sizeof(Index));
 
-    IndexArray fedges = level.getFaceEdges(faceIndex);
+    ConstIndexArray fedges = level.getFaceEdges(faceIndex);
     assert(fedges.size()==4);
 
     for (int i=0; i<4; ++i) {
@@ -931,7 +934,7 @@ gatherGregoryBasisTopology(Vtr::Level const& level, Index faceIndex, int numVert
               adjface = 0;
 
         { // Gather adjacent faces
-            IndexArray adjfaces = level.getEdgeFaces(edge);
+            ConstIndexArray adjfaces = level.getEdgeFaces(edge);
             for (int i=0; i<adjfaces.size(); ++i) {
                 if (adjfaces[i]==faceIndex) {
                     // XXXX manuelk if 'edge' is non-manifold, arbitrarily pick the
@@ -943,12 +946,12 @@ gatherGregoryBasisTopology(Vtr::Level const& level, Index faceIndex, int numVert
         }
         // We are looking for adjacent faces that:
         // - exist (no boundary)
-        // - have alraedy been processed (known CV indices)
+        // - have already been processed (known CV indices)
         // - are also Gregory basis patches
         if (adjface!=Vtr::INDEX_INVALID and (adjface < faceIndex) and
             (not levelPatchTags[adjface]._isRegular)) {
 
-            IndexArray aedges = level.getFaceEdges(adjface);
+            ConstIndexArray aedges = level.getFaceEdges(adjface);
             int aedge = aedges.FindIndexIn4Tuple(edge);
             assert(aedge!=Vtr::INDEX_INVALID);
 
@@ -963,6 +966,11 @@ gatherGregoryBasisTopology(Vtr::Level const& level, Index faceIndex, int numVert
                 basisIndices.size(), sizeof(Index), compare::op);
 
             int srcBasisIdx = ptr - &basisIndices[0];
+
+            if (!ptr) {
+                // if the adjface is hole, it won't be found
+                break;
+            }
             assert(ptr and srcBasisIdx>=0 and srcBasisIdx<(int)basisIndices.size());
 
             // Copy the indices of CVs from the face on the other side of the
@@ -973,23 +981,26 @@ gatherGregoryBasisTopology(Vtr::Level const& level, Index faceIndex, int numVert
                                                         {15, 16,  2,  0} };
             Index * src = &topology[srcBasisIdx*20];
             for (int j=0; j<4; ++j) {
-                dest[i*4+j] = src[gregoryEdgeVerts[aedge][j]];
+                // invert direction
+                dest[gregoryEdgeVerts[i][3-j]] = src[gregoryEdgeVerts[aedge][j]];
             }
-
-            skip[i] = true;
-        } else {
-            skip[i] = false;
         }
     }
-    for (int i=0; i<20; ++i) {
-        if (dest[i]==Vtr::INDEX_INVALID) {
-            dest[i] = numVertices++;
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 5; ++j) {
+            if (dest[i*5+j]==Vtr::INDEX_INVALID) {
+                // assign new vertex
+                dest[i*5+j] = numGregoryBasisVertices++;
+                newVerticesMask[i][j] = true;
+            } else {
+                // share vertex
+                newVerticesMask[i][j] = false;
+            }
         }
     }
     basisIndices.push_back(faceIndex);
-    return numVertices;
+    return numGregoryBasisVertices;
 }
-#endif
 
 //
 //  Indexing sharpnesses
@@ -1602,27 +1613,37 @@ PatchTablesFactory::populateAdaptivePatches(AdaptiveContext & context) {
     bool hasGregoryPatches =
         context.RequiresLegacyGregoryPatches() or context.RequiresGregoryBasisPatches();
     GregoryBasisFactory * gregoryStencilsFactory = 0;
-#ifdef ENDCAP_TOPOPOLGY
     int numGregoryBasisVertices=0;
+    int numGregoryBasisPatches=0;
     std::vector<Index> gregoryBasisIndices;
-#endif
+    std::vector<Index> endcapTopology;
     if (hasGregoryPatches) {
 
-        StencilTables const * adaptiveStencils = context.options.adaptiveStencilTables;
-        if (adaptiveStencils and context.RequiresGregoryBasisPatches()) {
+        StencilTables const * adaptiveVertexStencils =
+            context.options.adaptiveStencilTables;
+        StencilTables const * adaptiveVaryingStencils =
+            context.options.adaptiveVaryingStencilTables;
+
+        if (adaptiveVertexStencils and
+            context.RequiresGregoryBasisPatches()) {
 
             assert(not context.RequiresLegacyGregoryPatches());
 
             int maxvalence = refiner.GetMaxValence(),
                 npatches = context.patchInventory.GP;
 
-            gregoryStencilsFactory =
-                new GregoryBasisFactory(refiner, *adaptiveStencils, npatches, maxvalence);
 
-#ifdef ENDCAP_TOPOPOLGY
+            gregoryStencilsFactory =
+                new GregoryBasisFactory(refiner,
+                                        adaptiveVertexStencils,
+                                        adaptiveVaryingStencils,
+                                        npatches, maxvalence);
+
+            // XXX reconsider these variable names:
+            // gregoryBasisIndices holds patch indices,
+            // endcapTopology contains vert indices.
             gregoryBasisIndices.reserve(npatches);
-            tables->_endcapTopology.resize(npatches*20);
-#endif
+            endcapTopology.resize(npatches*20);
         }
         gregoryVertexFlags.resize(refiner.GetNumVerticesTotal(), false);
     }
@@ -1739,19 +1760,24 @@ PatchTablesFactory::populateAdaptivePatches(AdaptiveContext & context) {
                     // Gregory basis end-cap (20 CVs - no quad-offsets / valence tables)
                     assert(i==refiner.GetMaxLevel());
                     // Gregory Boundary Patch (4 CVs 0-ring for varying interpolation)
-                    Vtr::ConstIndexArray faceVerts = level->getFaceVertices(faceIndex);
-                    for (int j = 0; j < 4; ++j) {
-                        iptrs.GP[j] = faceVerts[j] + levelVertOffset;
-                        gregoryVertexFlags[iptrs.GP[j]] = true;
-                    }
-                    iptrs.GP += 4;
+                    bool newVerticesMask[4][5];
+                    numGregoryBasisVertices = gatherGregoryBasisTopology(*level, faceIndex,
+                                                                         numGregoryBasisPatches,
+                                                                         numGregoryBasisVertices,
+                                                                         levelPatchTags,
+                                                                         gregoryBasisIndices,
+                                                                         endcapTopology,
+                                                                         newVerticesMask);
+                    gregoryStencilsFactory->AddPatchBasis(faceIndex, newVerticesMask);
 
-#ifdef ENDCAP_TOPOPOLGY
-                    bool edgeSkip[4];
-                    numGregoryBasisVertices = gatherGregoryBasisTopology(*level, faceIndex, numGregoryBasisVertices,
-                        levelPatchTags, edgeSkip, gregoryBasisIndices, tables->_endcapTopology);
-#endif
-                    gregoryStencilsFactory->AddPatchBasis(faceIndex);
+                    // populate 20 indices with offset
+                    for (int j = 0; j < 20; ++j) {
+                        iptrs.GP[j] = endcapTopology[numGregoryBasisPatches*20+j]
+                            + refiner.GetNumVerticesTotal();
+                    }
+                    iptrs.GP += 20;
+
+                    ++numGregoryBasisPatches;
 
                     pptrs.GP = computePatchParam(refiner, i, faceIndex, 0, pptrs.GP);
 
@@ -1807,8 +1833,10 @@ PatchTablesFactory::populateAdaptivePatches(AdaptiveContext & context) {
     }
 
     if (gregoryStencilsFactory) {
-        tables->_endcapStencilTables =
-            gregoryStencilsFactory->CreateStencilTables();
+        tables->_endcapVertexStencilTables =
+            gregoryStencilsFactory->CreateVertexStencilTables();
+        tables->_endcapVaryingStencilTables =
+            gregoryStencilsFactory->CreateVaryingStencilTables();
         delete gregoryStencilsFactory;
     }
 

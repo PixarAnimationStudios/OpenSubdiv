@@ -190,40 +190,53 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
 StencilTables const *
 StencilTablesFactory::Create(int numTables, StencilTables const ** tables) {
 
-    StencilTables * result = new StencilTables;
+    // XXXtakahito:
+    // This function returns NULL for empty inputs or erroneous condition.
+    // It's convenient for skipping varying stencils etc, however,
+    // other Create() API returns an empty stencil instead of NULL.
+    // They need to be consistent.
 
     if ( (numTables<=0) or (not tables)) {
-        return result;
+        return NULL;
     }
 
-    int ncvs = tables[0]->GetNumControlVertices(),
+    int ncvs = -1,
         nstencils = 0,
         nelems = 0;
 
     for (int i=0; i<numTables; ++i) {
 
-        StencilTables const & st = *tables[i];
+        StencilTables const * st = tables[i];
+        // allow the tables could have a null entry.
+        if (!st) continue;
 
-        if (st.GetNumControlVertices()!=ncvs) {
-            return result;
+        if (ncvs >= 0 and st->GetNumControlVertices() != ncvs) {
+            return NULL;
         }
-        nstencils += st.GetNumStencils();
-        nelems += (int)st.GetControlIndices().size();
+        ncvs = st->GetNumControlVertices();
+        nstencils += st->GetNumStencils();
+        nelems += (int)st->GetControlIndices().size();
     }
 
+    if (ncvs == -1) {
+        return NULL;
+    }
+
+    StencilTables * result = new StencilTables;
     result->resize(nstencils, nelems);
 
     unsigned char * sizes = &result->_sizes[0];
     Index * indices = &result->_indices[0];
     float * weights = &result->_weights[0];
     for (int i=0; i<numTables; ++i) {
-        StencilTables const & st = *tables[i];
+        StencilTables const * st = tables[i];
+        if (!st) continue;
 
-        int st_nstencils = st.GetNumStencils(),
-            st_nelems = (int)st._indices.size();
-        memcpy(sizes, &st._sizes[0], st_nstencils*sizeof(unsigned char));
-        memcpy(indices, &st._indices[0], st_nelems*sizeof(Index));
-        memcpy(weights, &st._weights[0], st_nelems*sizeof(float));
+        int st_nstencils = st->GetNumStencils(),
+            st_nelems = (int)st->_indices.size();
+        memcpy(sizes, &st->_sizes[0], st_nstencils*sizeof(unsigned char));
+        memcpy(indices, &st->_indices[0], st_nelems*sizeof(Index));
+        memcpy(weights, &st->_weights[0], st_nelems*sizeof(float));
 
         sizes += st_nstencils;
         indices += st_nelems;

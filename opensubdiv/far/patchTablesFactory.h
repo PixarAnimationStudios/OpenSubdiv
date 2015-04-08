@@ -62,7 +62,9 @@ public:
              useFVarQuadEndCaps(true), // XXXX change to false when FVar Gregory is ready
              numFVarChannels(-1),
              fvarChannelIndices(0),
-             adaptiveStencilTables(0) { }
+             adaptiveStencilTables(0),
+             adaptiveVaryingStencilTables(0)
+        { }
 
         unsigned int generateAllLevels    : 1, ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
                      triangulateQuads     : 1, ///< Triangulate 'QUADS' primitives (Uniform mode only)
@@ -79,6 +81,7 @@ public:
         StencilTables const * adaptiveStencilTables;  ///< Passing a valid stencil table allows the factory to generate
                                                       ///< stencils for gregory patches and replace them with a much
                                                       ///< more efficient basis.
+        StencilTables const * adaptiveVaryingStencilTables;
     };
 
     /// \brief Factory constructor for PatchTables

@@ -174,11 +174,9 @@ public:
     }
 
     /// \brief Returns a stencil table for the control vertices of end-cap patches
-    StencilTables const * GetEndCapStencilTables() const { return _endcapStencilTables; }
+    StencilTables const * GetEndCapVertexStencilTables() const { return _endcapVertexStencilTables; }
+    StencilTables const * GetEndCapVaryingStencilTables() const { return _endcapVaryingStencilTables; }
 
-    Index GetEndCapStencilIndex(PatchHandle const & handle) const {
-        return handle.vertIndex;
-    }
     //@}
 
 
@@ -418,10 +416,8 @@ private:
 
     // XXXX manuelk end-cap stencils will obsolete the other tables
 
-    StencilTables const * _endcapStencilTables;
-#ifdef ENDCAP_TOPOPOLGY
-    std::vector<Index>    _endcapTopology;
-#endif
+    StencilTables const * _endcapVertexStencilTables;
+    StencilTables const * _endcapVaryingStencilTables;
     QuadOffsetsTable     _quadOffsetsTable;   // Quad offsets (for Gregory patches)
     VertexValenceTable   _vertexValenceTable; // Vertex valence table (for Gregory patches)
 
@@ -494,10 +490,10 @@ PatchTables::Evaluate(PatchHandle const & handle, float s, float t,
         }
     } else if (ptype==PatchDescriptor::GREGORY_BASIS) {
 
-        assert(_endcapStencilTables);
+        assert(_endcapVertexStencilTables);
 
         GetBezierWeights(bits, s, t, Q, Qd1, Qd2);
-        InterpolateGregoryPatch(_endcapStencilTables, handle.vertIndex,
+        InterpolateGregoryPatch(_endcapVertexStencilTables, handle.vertIndex,
             s, t, Q, Qd1, Qd2, src, dst);
 
     } else if (ptype==PatchDescriptor::QUADS) {
