@@ -965,7 +965,7 @@ gatherGregoryBasisTopology(Vtr::Level const& level, Index faceIndex,
             Index * ptr = (Index *)std::bsearch( &adjface, &basisIndices[0],
                 basisIndices.size(), sizeof(Index), compare::op);
 
-            int srcBasisIdx = ptr - &basisIndices[0];
+            int srcBasisIdx = (int)(ptr - &basisIndices[0]);
 
             if (!ptr) {
                 // if the adjface is hole, it won't be found
