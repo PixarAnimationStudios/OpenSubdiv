@@ -118,6 +118,7 @@ out block {
 void main()
 {
     outpt.v.position = ModelViewMatrix * position;
+    outpt.v.patchCoord = vec4(0);
     OSD_USER_VARYING_PER_VERTEX();
 }
 
