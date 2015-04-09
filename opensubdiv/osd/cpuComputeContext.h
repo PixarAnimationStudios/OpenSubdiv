@@ -61,7 +61,7 @@ public:
     ///                              interpolation
     ///
     static CpuComputeContext * Create(Far::StencilTables const * vertexStencilTables,
-                                         Far::StencilTables const * varyingStencilTables=0);
+                                      Far::StencilTables const * varyingStencilTables=0);
 
     /// Destructor
     virtual ~CpuComputeContext();

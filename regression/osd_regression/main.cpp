@@ -303,11 +303,7 @@ checkMeshCPU( FarTopologyRefiner *refiner,
     
     vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size() );
     
-    Far::KernelBatchVector kernelBatches;
-    kernelBatches.push_back(
-        Far::StencilTablesFactory::Create(*vertexStencils));
-    
-    controller->Compute( context, kernelBatches, vb );
+    controller->Compute( context, vb );
 
     int result = checkVertexBuffer(*refiner, refmesh, vb->BindCpuBuffer(), 
         vb->GetNumElements());
@@ -341,11 +337,7 @@ checkMeshCPUGL(FarTopologyRefiner *refiner,
     
     vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size() );
 
-    Far::KernelBatchVector kernelBatches;
-    kernelBatches.push_back(
-        Far::StencilTablesFactory::Create(*vertexStencils));
-    
-    controller->Compute( context, kernelBatches, vb );
+    controller->Compute( context, vb );
     
     int result = checkVertexBuffer(*refiner, refmesh, 
         vb->BindCpuBuffer(), vb->GetNumElements());
@@ -383,11 +375,7 @@ checkMeshCL( FarTopologyRefiner *refiner,
     vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size(),
         g_clQueue );
 
-    Far::KernelBatchVector kernelBatches;
-    kernelBatches.push_back(
-        Far::StencilTablesFactory::Create(*vertexStencils));
-    
-    controller->Compute( context, kernelBatches, vb );
+    controller->Compute( context, vb );
 
     // read data back from CL buffer
     size_t dataSize = vb->GetNumVertices() * vb->GetNumElements();

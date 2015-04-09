@@ -40,13 +40,16 @@ OmpComputeController::OmpComputeController(int numThreads) {
 
 void
 OmpComputeController::ApplyStencilTableKernel(
-    Far::KernelBatch const &batch, ComputeContext const *context) const {
+    ComputeContext const *context) const {
 
     assert(context);
 
     Far::StencilTables const * vertexStencils = context->GetVertexStencilTables();
 
     if (vertexStencils and _currentBindState.vertexBuffer) {
+
+        int start = 0;
+        int end = vertexStencils->GetNumStencils();
 
         VertexBufferDescriptor const & desc = _currentBindState.vertexDesc;
 
@@ -56,18 +59,21 @@ OmpComputeController::ApplyStencilTableKernel(
             vertexStencils->GetNumControlVertices() * desc.stride;
 
         OmpComputeStencils(_currentBindState.vertexDesc,
-                              srcBuffer, destBuffer,
-                              &vertexStencils->GetSizes().at(0),
-                              &vertexStencils->GetOffsets().at(0),
-                              &vertexStencils->GetControlIndices().at(0),
-                              &vertexStencils->GetWeights().at(0),
-                              batch.start,
-                              batch.end);
+                           srcBuffer, destBuffer,
+                           &vertexStencils->GetSizes().at(0),
+                           &vertexStencils->GetOffsets().at(0),
+                           &vertexStencils->GetControlIndices().at(0),
+                           &vertexStencils->GetWeights().at(0),
+                           start,
+                           end);
     }
 
     Far::StencilTables const * varyingStencils = context->GetVaryingStencilTables();
 
     if (varyingStencils and _currentBindState.varyingBuffer) {
+
+        int start = 0;
+        int end = varyingStencils->GetNumStencils();
 
         VertexBufferDescriptor const & desc = _currentBindState.varyingDesc;
 
@@ -77,13 +83,13 @@ OmpComputeController::ApplyStencilTableKernel(
             varyingStencils->GetNumControlVertices() * desc.stride;
 
         OmpComputeStencils(_currentBindState.varyingDesc,
-                              srcBuffer, destBuffer,
-                              &varyingStencils->GetSizes().at(0),
-                              &varyingStencils->GetOffsets().at(0),
-                              &varyingStencils->GetControlIndices().at(0),
-                              &varyingStencils->GetWeights().at(0),
-                              batch.start,
-                              batch.end);
+                           srcBuffer, destBuffer,
+                           &varyingStencils->GetSizes().at(0),
+                           &varyingStencils->GetOffsets().at(0),
+                           &varyingStencils->GetControlIndices().at(0),
+                           &varyingStencils->GetWeights().at(0),
+                           start,
+                           end);
     }
 }
 

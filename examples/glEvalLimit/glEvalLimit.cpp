@@ -197,8 +197,6 @@ Osd::CpuComputeContext * g_computeCtx = 0;
 
 Osd::CpuComputeController g_computeCtrl;
 
-Far::KernelBatchVector  g_kernelBatches;
-
 Osd::CpuEvalLimitContext * g_evalCtx = 0;
 
 Osd::CpuEvalLimitController g_evalCtrl;
@@ -242,7 +240,7 @@ updateGeom() {
 
     g_vertexData->UpdateData( &g_positions[0], 0, nverts);
 
-    g_computeCtrl.Compute(g_computeCtx, g_kernelBatches, g_vertexData, g_varyingData);
+    g_computeCtrl.Compute(g_computeCtx, g_vertexData, g_varyingData);
 
     s.Stop();
     g_computeTime = float(s.GetElapsed() * 1000.0f);
@@ -417,9 +415,6 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         delete g_evalCtx;
         g_evalCtx = Osd::CpuEvalLimitContext::Create(*patchTables);
 
-        g_kernelBatches.clear();
-        g_kernelBatches.push_back(Far::StencilTablesFactory::Create(*concatStencils));
- 
     }
 
     {   // Create vertex primvar buffer for the CVs

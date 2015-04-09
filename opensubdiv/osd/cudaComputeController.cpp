@@ -26,6 +26,7 @@
 
 #include <cuda_runtime.h>
 #include <string.h>
+#include <cassert>
 
 extern "C" {
 
@@ -46,7 +47,7 @@ namespace Osd {
 
 void
 CudaComputeController::ApplyStencilTableKernel(
-    Far::KernelBatch const &batch, ComputeContext const *context) const {
+    ComputeContext const *context) const {
 
     assert(context);
 
@@ -54,6 +55,9 @@ CudaComputeController::ApplyStencilTableKernel(
 
         int length = _currentBindState.vertexDesc.length,
             stride = _currentBindState.vertexDesc.stride;
+
+        int start = 0;
+        int end = context->GetNumStencilsInVertexStencilTables();
 
         float const * src = _currentBindState.GetVertexBufferAtOffset();
 
@@ -65,14 +69,17 @@ CudaComputeController::ApplyStencilTableKernel(
                                (int const *)context->GetVertexStencilTablesOffsets(),
                                (int const *)context->GetVertexStencilTablesIndices(),
                                (float const *)context->GetVertexStencilTablesWeights(),
-                               batch.start,
-                               batch.end);
+                               start,
+                               end);
     }
 
     if (context->HasVaryingStencilTables()) {
 
         int length = _currentBindState.varyingDesc.length,
             stride = _currentBindState.varyingDesc.stride;
+
+        int start = 0;
+        int end = context->GetNumStencilsInVaryingStencilTables();
 
         float const * src = _currentBindState.GetVaryingBufferAtOffset();
 
@@ -84,8 +91,8 @@ CudaComputeController::ApplyStencilTableKernel(
                                (int const *)context->GetVaryingStencilTablesOffsets(),
                                (int const *)context->GetVaryingStencilTablesIndices(),
                                (float const *)context->GetVaryingStencilTablesWeights(),
-                               batch.start,
-                               batch.end);
+                               start,
+                               end);
     }
 }
 

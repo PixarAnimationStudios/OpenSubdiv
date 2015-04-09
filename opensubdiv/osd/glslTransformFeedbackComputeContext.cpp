@@ -86,6 +86,7 @@ public:
         _offsets = createGLTextureBuffer(stencilTables.GetOffsets(), GL_R32I);
         _indices = createGLTextureBuffer(stencilTables.GetControlIndices(), GL_R32I);
         _weights = createGLTextureBuffer(stencilTables.GetWeights(), GL_R32F);
+        _numStencils = stencilTables.GetNumStencils();
     }
 
     ~GLStencilTables() {
@@ -115,12 +116,18 @@ public:
         return _weights;
     }
 
+    int GetNumStencils() const {
+        return _numStencils;
+    }
+
 private:
 
     GLuint _sizes,
            _offsets,
            _indices,
            _weights;
+
+    int _numStencils;
 };
 
 // -----------------------------------------------------------------------------
@@ -164,8 +171,17 @@ GLSLTransformFeedbackComputeContext::HasVaryingStencilTables() const {
     return _varyingStencilTables ? _varyingStencilTables->IsValid() : false;
 }
 
-// ----------------------------------------------------------------------------
+int
+GLSLTransformFeedbackComputeContext::GetNumStencilsInVertexStencilTables() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetNumStencils() : 0;
+}
 
+int
+GLSLTransformFeedbackComputeContext::GetNumStencilsInVaryingStencilTables() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetNumStencils() : 0;
+}
+
+// ----------------------------------------------------------------------------
 GLuint
 GLSLTransformFeedbackComputeContext::GetVertexStencilTablesSizes() const {
     return _vertexStencilTables ? _vertexStencilTables->GetSizes() : 0;

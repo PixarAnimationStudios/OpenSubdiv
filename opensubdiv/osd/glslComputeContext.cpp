@@ -71,6 +71,7 @@ public:
         _offsets = createGLSLBuffer(stencilTables.GetOffsets());
         _indices = createGLSLBuffer(stencilTables.GetControlIndices());
         _weights = createGLSLBuffer(stencilTables.GetWeights());
+        _numStencils = stencilTables.GetNumStencils();
     }
 
     ~GLSLStencilTables() {
@@ -100,6 +101,10 @@ public:
         return _weights;
     }
 
+    int GetNumStencils() const {
+        return _numStencils;
+    }
+
     void Bind() const {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _sizes);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _offsets);
@@ -122,6 +127,7 @@ private:
            _offsets,
            _indices,
            _weights;
+    int _numStencils;
 };
 
 // -----------------------------------------------------------------------------
@@ -130,7 +136,8 @@ GLSLComputeContext::GLSLComputeContext(
     Far::StencilTables const * vertexStencilTables,
         Far::StencilTables const * varyingStencilTables) :
             _vertexStencilTables(0), _varyingStencilTables(0),
-                _numControlVertices(0) {
+    _numControlVertices(0),
+    _numStencils(0) {
 
     if (vertexStencilTables) {
         _vertexStencilTables = new GLSLStencilTables(*vertexStencilTables);
@@ -165,8 +172,17 @@ GLSLComputeContext::HasVaryingStencilTables() const {
     return _varyingStencilTables ? _varyingStencilTables->IsValid() : false;
 }
 
-// ----------------------------------------------------------------------------
+int
+GLSLComputeContext::GetNumStencilsInVertexStencilTables() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetNumStencils() : false;
+}
 
+int
+GLSLComputeContext::GetNumStencilsInVaryingStencilTables() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetNumStencils() : false;
+}
+
+// ----------------------------------------------------------------------------
 
 void
 GLSLComputeContext::BindVertexStencilTables() const {

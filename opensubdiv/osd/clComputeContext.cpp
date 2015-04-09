@@ -60,6 +60,7 @@ public:
         _offsets = createCLBuffer(stencilTables.GetOffsets(), clContext);
         _indices = createCLBuffer(stencilTables.GetControlIndices(), clContext);
         _weights = createCLBuffer(stencilTables.GetWeights(), clContext);
+        _numStencils = stencilTables.GetNumStencils();
     }
 
     ~CLStencilTables() {
@@ -89,12 +90,17 @@ public:
         return _weights;
     }
 
+    int GetNumStencils() const {
+        return _numStencils;
+    }
+
 private:
 
     cl_mem _sizes,
            _offsets,
            _indices,
            _weights;
+    int _numStencils;
 };
 
 // -----------------------------------------------------------------------------
@@ -104,7 +110,7 @@ CLComputeContext::CLComputeContext(
         Far::StencilTables const * varyingStencilTables,
             cl_context clContext) :
                 _vertexStencilTables(0), _varyingStencilTables(0),
-                     _numControlVertices(0) {
+                _numControlVertices(0) {
 
     if (vertexStencilTables) {
         _vertexStencilTables = new CLStencilTables(*vertexStencilTables, clContext);
@@ -139,6 +145,15 @@ CLComputeContext::HasVaryingStencilTables() const {
     return _varyingStencilTables ? _varyingStencilTables->IsValid() : false;
 }
 
+int
+CLComputeContext::GetNumStencilsInVertexStencilTables() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetNumStencils() : 0;
+}
+
+int
+CLComputeContext::GetNumStencilsInVaryingStencilTables() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetNumStencils() : 0;
+}
 // ----------------------------------------------------------------------------
 
 cl_mem

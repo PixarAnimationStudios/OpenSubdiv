@@ -395,15 +395,6 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
     return result;
 }
 
-//------------------------------------------------------------------------------
-
-KernelBatch
-StencilTablesFactory::Create(StencilTables const &stencilTables) {
-
-    return KernelBatch( KernelBatch::KERNEL_STENCIL_TABLE,
-        -1, 0, stencilTables.GetNumStencils());
-}
-
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION

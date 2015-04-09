@@ -27,7 +27,6 @@
 
 #include "../version.h"
 
-#include "../far/kernelBatch.h"
 #include "../far/patchTables.h"
 
 #include <vector>
@@ -102,13 +101,6 @@ public:
     /// @param tables    Array of input StencilTables
     ///
     static StencilTables const * Create(int numTables, StencilTables const ** tables);
-
-    /// \brief Returns a KernelBatch applying all the stencil in the tables
-    ///        to primvar data.
-    ///
-    /// @param stencilTables The stencil tables to batch
-    ///
-    static KernelBatch Create(StencilTables const &stencilTables);
 
 private:
 

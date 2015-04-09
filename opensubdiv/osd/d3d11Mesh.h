@@ -78,7 +78,6 @@ public:
     Mesh(ComputeController * computeController,
             Far::TopologyRefiner * refiner,
             Far::PatchTables * patchTables,
-            Far::KernelBatchVector const & kernelBatches,
             VertexBuffer * vertexBuffer,
             VertexBuffer * varyingBuffer,
             ComputeContext * computeContext,
@@ -87,7 +86,6 @@ public:
 
             _refiner(refiner),
             _patchTables(patchTables),
-            _kernelBatches(kernelBatches),
             _vertexBuffer(vertexBuffer),
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
@@ -119,13 +117,14 @@ public:
         _varyingBuffer->UpdateData(varyingData, startVertex, numVerts, _d3d11DeviceContext);
     }
     virtual void Refine() {
-        _computeController->Compute(_computeContext, _kernelBatches, _vertexBuffer, _varyingBuffer);
+        _computeController->Compute(_computeContext, _vertexBuffer, _varyingBuffer);
     }
     virtual void Refine(VertexBufferDescriptor const *vertexDesc,
                         VertexBufferDescriptor const *varyingDesc,
                         bool interleaved) {
-        _computeController->Compute(_computeContext, _kernelBatches,
-                                    _vertexBuffer, (interleaved ? _vertexBuffer : _varyingBuffer),
+        _computeController->Compute(_computeContext,
+                                    _vertexBuffer,
+                                    (interleaved ? _vertexBuffer : _varyingBuffer),
                                     vertexDesc, varyingDesc);
     }
     virtual void Synchronize() {
@@ -176,8 +175,6 @@ private:
         if (numVertexElements>0) {
 
             vertexStencils = Far::StencilTablesFactory::Create(*_refiner, options);
-
-            _kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
         }
 
         if (numVaryingElements>0) {
@@ -235,7 +232,6 @@ private:
 
     Far::TopologyRefiner * _refiner;
     Far::PatchTables * _patchTables;
-    Far::KernelBatchVector _kernelBatches;
 
     VertexBuffer *_vertexBuffer;
     VertexBuffer *_varyingBuffer;
@@ -286,7 +282,6 @@ public:
     Mesh(ComputeController * computeController,
             Far::TopologyRefiner * refiner,
             Far::PatchTables * patchTables,
-            Far::KernelBatchVector const & kernelBatches,
             VertexBuffer * vertexBuffer,
             VertexBuffer * varyingBuffer,
             ComputeContext * computeContext,
@@ -295,7 +290,6 @@ public:
 
             _refiner(refiner),
             _patchTables(patchTables),
-            _kernelBatches(kernelBatches),
             _vertexBuffer(vertexBuffer),
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
@@ -324,12 +318,12 @@ public:
         _varyingBuffer->UpdateData(varyingData, startVertex, numVerts, _d3d11DeviceContext);
     }
     virtual void Refine() {
-        _computeController->Compute(_computeContext, _kernelBatches, _vertexBuffer, _varyingBuffer);
+        _computeController->Compute(_computeContext, _vertexBuffer, _varyingBuffer);
     }
     virtual void Refine(VertexBufferDescriptor const *vertexDesc,
                         VertexBufferDescriptor const *varyingDesc,
                         bool interleaved) {
-        _computeController->Compute(_computeContext, _kernelBatches,
+        _computeController->Compute(_computeContext,
                                     _vertexBuffer, (interleaved ? _vertexBuffer : _varyingBuffer),
                                     vertexDesc, varyingDesc);
     }
@@ -382,8 +376,6 @@ private:
         if (numVertexElements>0) {
 
             vertexStencils = Far::StencilTablesFactory::Create(*_refiner, options);
-
-            _kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
         }
 
         if (numVaryingElements>0) {
@@ -441,7 +433,6 @@ private:
 
     Far::TopologyRefiner * _refiner;
     Far::PatchTables * _patchTables;
-    Far::KernelBatchVector _kernelBatches;
 
     VertexBuffer *_vertexBuffer;
     VertexBuffer *_varyingBuffer;

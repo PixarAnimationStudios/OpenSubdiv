@@ -98,7 +98,6 @@ public:
     Mesh(ComputeController * computeController,
             Far::TopologyRefiner * refiner,
             Far::PatchTables * patchTables,
-            Far::KernelBatchVector const & kernelBatches,
             VertexBuffer * vertexBuffer,
             VertexBuffer * varyingBuffer,
             ComputeContext * computeContext,
@@ -106,7 +105,6 @@ public:
 
             _refiner(refiner),
             _patchTables(patchTables),
-            _kernelBatches(kernelBatches),
             _vertexBuffer(vertexBuffer),
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
@@ -140,14 +138,15 @@ public:
     }
 
     virtual void Refine() {
-        _computeController->Compute(_computeContext, _kernelBatches, _vertexBuffer, _varyingBuffer);
+        _computeController->Compute(_computeContext, _vertexBuffer, _varyingBuffer);
     }
 
     virtual void Refine(VertexBufferDescriptor const * vertexDesc,
                         VertexBufferDescriptor const * varyingDesc,
                         bool interleaved) {
-        _computeController->Compute(_computeContext, _kernelBatches,
-                                    _vertexBuffer, (interleaved ? _vertexBuffer : _varyingBuffer),
+        _computeController->Compute(_computeContext,
+                                    _vertexBuffer,
+                                    (interleaved ? _vertexBuffer : _varyingBuffer),
                                     vertexDesc, varyingDesc);
     }
 
@@ -255,8 +254,6 @@ private:
             varyingStencils = concatVaryingStencils;
         }
 
-        _kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
-
         _computeContext = ComputeContext::Create(vertexStencils,
                                                  varyingStencils);
 
@@ -279,7 +276,6 @@ private:
 
     Far::TopologyRefiner * _refiner;
     Far::PatchTables * _patchTables;
-    Far::KernelBatchVector _kernelBatches;
 
     VertexBuffer *_vertexBuffer;
     VertexBuffer *_varyingBuffer;
@@ -353,7 +349,6 @@ public:
     Mesh(ComputeController * computeController,
             Far::TopologyRefiner * refiner,
             Far::PatchTables * patchTables,
-            Far::KernelBatchVector const & kernelBatches,
             VertexBuffer * vertexBuffer,
             VertexBuffer * varyingBuffer,
             ComputeContext * computeContext,
@@ -363,7 +358,6 @@ public:
 
             _refiner(refiner),
             _patchTables(patchTables),
-            _kernelBatches(kernelBatches),
             _vertexBuffer(vertexBuffer),
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
@@ -395,14 +389,15 @@ public:
     }
 
     virtual void Refine() {
-        _computeController->Compute(_computeContext, _kernelBatches, _vertexBuffer, _varyingBuffer);
+        _computeController->Compute(_computeContext, _vertexBuffer, _varyingBuffer);
     }
 
     virtual void Refine(VertexBufferDescriptor const *vertexDesc,
                         VertexBufferDescriptor const *varyingDesc,
                         bool interleaved) {
-        _computeController->Compute(_computeContext, _kernelBatches,
-                                    _vertexBuffer, (interleaved ? _vertexBuffer : _varyingBuffer),
+        _computeController->Compute(_computeContext,
+                                    _vertexBuffer,
+                                    (interleaved ? _vertexBuffer : _varyingBuffer),
                                     vertexDesc, varyingDesc);
     }
 
@@ -499,8 +494,6 @@ private:
             Far::StencilTables const *concatStencils =
                 Far::StencilTablesFactory::Create(2, inStencils);
 
-            _kernelBatches.push_back(Far::StencilTablesFactory::Create(*concatStencils));
-
             Far::StencilTables const *inVaryingStencils[] = {
                 varyingStencils, endCapVaryingStencils
             };
@@ -513,7 +506,6 @@ private:
             delete varyingStencils;
             varyingStencils = concatVaryingStencils;
         }
-        _kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
 
         _computeContext = ComputeContext::Create(_clContext,
                                                  vertexStencils,
@@ -538,7 +530,6 @@ private:
 
     Far::TopologyRefiner * _refiner;
     Far::PatchTables * _patchTables;
-    Far::KernelBatchVector _kernelBatches;
 
     VertexBuffer *_vertexBuffer;
     VertexBuffer *_varyingBuffer;

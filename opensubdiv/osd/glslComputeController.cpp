@@ -24,7 +24,6 @@
 
 #include "../osd/glslComputeController.h"
 #include "../osd/vertexDescriptor.h"
-//#include "../osd/debug.h"
 #include "../osd/opengl.h"
 #include "../far/error.h"
 
@@ -138,12 +137,13 @@ public:
         return true;
     }
 
-    void ApplyStencilTableKernel(Far::KernelBatch const &batch, int offset, int numCVs) const {
+    void ApplyStencilTableKernel(int offset, int numCVs,
+                                 int start, int end) const {
 
         // select stencil GLSL subroutine
         glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subStencilKernel);
 
-        dispatchCompute(offset, numCVs, batch.start, batch.end);
+        dispatchCompute(offset, numCVs, start, end);
     }
 
     struct Match {
@@ -214,12 +214,20 @@ private:
 
 void
 GLSLComputeController::ApplyStencilTableKernel(
-    Far::KernelBatch const &batch, ComputeContext const *context) const {
+    ComputeContext const *context, int numStencils) const {
 
     assert(context);
 
+    // Note: GLSLComputeContext has a state, knowing whether vertex or
+    // varying stencil tables are being bound. GetNumStencils() reflects it.
+    // This structure will likely be revisited.
+
+    int start = 0;
+    int end = numStencils;
+
     _currentBindState.kernelBundle->ApplyStencilTableKernel(
-        batch, _currentBindState.desc.offset, context->GetNumControlVertices());
+        _currentBindState.desc.offset, context->GetNumControlVertices(),
+        start, end);
 }
 
 // ----------------------------------------------------------------------------

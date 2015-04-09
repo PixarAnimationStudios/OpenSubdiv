@@ -45,8 +45,6 @@ set(PUBLIC_HEADER_FILES
     error.h
     gregoryBasis.h
     interpolate.h
-    kernelBatch.h
-    kernelBatchDispatcher.h
     patchDescriptor.h
     patchParam.h
     patchMap.h

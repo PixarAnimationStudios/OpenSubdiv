@@ -87,7 +87,7 @@ public:
         _uniformWeights(0),
         _uniformStart(0),
         _uniformEnd(0),
-        _uniformOffset(0) { }
+        _uniformPrimvarOffset(0) { }
 
     ~KernelBundle() {
         if (_program) {
@@ -95,9 +95,8 @@ public:
         }
     }
 
-    void UseProgram(int primvarOffset) const {
+    void UseProgram() const {
         glUseProgram(_program);
-        glUniform1i(_uniformOffset, primvarOffset);
     }
 
     bool Compile(VertexBufferDescriptor const & desc) {
@@ -138,15 +137,19 @@ public:
             // outVertexData[2]
             // (gl_SkipComponents1)
             //
+            // note that "primvarOffset" in shader is still needed to read
+            // interleaved components even if gl_SkipComponents is used.
+            //
             char attrName[32];
-            for (int i = 0; i < desc.offset; ++i) {
+            int primvarOffset = (desc.offset % desc.stride);
+            for (int i = 0; i < primvarOffset; ++i) {
                 outputs.push_back("gl_SkipComponents1");
             }
             for (int i = 0; i < desc.length; ++i) {
                 snprintf(attrName, 32, "outVertexBuffer[%d]", i);
                 outputs.push_back(attrName);
             }
-            for (int i = desc.offset + desc.length; i < desc.stride; ++i) {
+            for (int i = primvarOffset + desc.length; i < desc.stride; ++i) {
                 outputs.push_back("gl_SkipComponents1");
             }
 
@@ -192,7 +195,7 @@ public:
         _uniformStart   = glGetUniformLocation(_program, "batchStart");
         _uniformEnd     = glGetUniformLocation(_program, "batchEnd");
 
-        _uniformOffset  = glGetUniformLocation(_program, "primvarOffset");
+        _uniformPrimvarOffset = glGetUniformLocation(_program, "primvarOffset");
 
         OSD_DEBUG_CHECK_GL_ERROR("KernelBundle::Compile");
 
@@ -225,14 +228,16 @@ public:
         // set batch range
         glUniform1i(_uniformStart,  start);
         glUniform1i(_uniformEnd,    end);
-        glUniform1i(_uniformOffset, offset);
+        glUniform1i(_uniformPrimvarOffset, offset);
 
         int count = end - start,
             stride = _desc.stride*sizeof(float);
 
+        // note: offset includes both "batching offset" and "primvar offset".
+        // 
         glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER,
                           0, primvarBuffer,
-                          (start + numCVs)*stride + offset*sizeof(float),
+                          (start + numCVs)*stride + (offset - offset%stride)*sizeof(float),
                           count*stride);
 
         glBeginTransformFeedback(GL_POINTS);
@@ -246,13 +251,14 @@ public:
         //OSD_DEBUG_CHECK_GL_ERROR("TransformPrimvarBuffer\n");
     }
 
-    void ApplyStencilTableKernel(Far::KernelBatch const &batch,
-        GLuint primvarBuffer, int offset, int numCVs) const {
+    void ApplyStencilTableKernel(GLuint primvarBuffer,
+                                 int offset, int numCVs,
+                                 int start, int end) const {
 
         glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subStencilKernel);
 
         TransformPrimvarBuffer(primvarBuffer,
-            offset, numCVs, batch.start, batch.end);
+                               offset, numCVs, start, end);
     }
 
     struct Match {
@@ -283,7 +289,7 @@ private:
           _uniformStart,     // batch
           _uniformEnd,
 
-          _uniformOffset;    // GL primvar buffer descriptor
+          _uniformPrimvarOffset;
 
     VertexBufferDescriptor _desc; // primvar buffer descriptor
 };
@@ -294,7 +300,7 @@ GLSLTransformFeedbackComputeController::bindBufferAndProgram(
     GLuint & feedbackTexture) {
 
     glEnable(GL_RASTERIZER_DISCARD);
-    _currentBindState.kernelBundle->UseProgram(/*primvarOffset*/0);
+    _currentBindState.kernelBundle->UseProgram();
 
     if (not feedbackTexture) {
         glGenTextures(1, &feedbackTexture);
@@ -385,14 +391,18 @@ GLSLTransformFeedbackComputeController::getKernel(
 
 void
 GLSLTransformFeedbackComputeController::ApplyStencilTableKernel(
-    Far::KernelBatch const &batch,
-        GLSLTransformFeedbackComputeContext const *context) const {
+    GLSLTransformFeedbackComputeContext const *context, int numStencils) const {
 
     assert(context);
 
-    _currentBindState.kernelBundle->ApplyStencilTableKernel(batch,
+    int start = 0;
+    int end = numStencils;
+
+    _currentBindState.kernelBundle->ApplyStencilTableKernel(
         _currentBindState.buffer, _currentBindState.desc.offset,
-            context->GetNumControlVertices());
+        context->GetNumControlVertices(),
+        start,
+        end);
 }
 
 
