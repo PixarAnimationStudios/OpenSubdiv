@@ -114,19 +114,26 @@ public:
     D3D11StencilTables(Far::StencilTables const & stencilTables,
         ID3D11DeviceContext *deviceContext) {
 
-        // convert unsigned char sizes buffer to ints (HLSL does not have uint8 type)
-        std::vector<int> const sizes(stencilTables.GetSizes().begin(),
-            stencilTables.GetSizes().end());
-
-        _sizes.initialize(sizes, DXGI_FORMAT_R32_SINT, deviceContext);
-
-        _offsets.initialize(stencilTables.GetOffsets(), DXGI_FORMAT_R32_SINT, deviceContext);
-
-        _indices.initialize(stencilTables.GetControlIndices(), DXGI_FORMAT_R32_SINT, deviceContext);
-
-        _weights.initialize(stencilTables.GetWeights(), DXGI_FORMAT_R32_FLOAT, deviceContext);
-
         _numStencils = stencilTables.GetNumStencils();
+        if (_numStencils > 0) {
+            // convert unsigned char sizes buffer to ints
+            // (HLSL does not have uint8 type)
+            std::vector<int> const sizes(stencilTables.GetSizes().begin(),
+                                         stencilTables.GetSizes().end());
+
+            _sizes.initialize(sizes,
+                              DXGI_FORMAT_R32_SINT,
+                              deviceContext);
+            _offsets.initialize(stencilTables.GetOffsets(),
+                                DXGI_FORMAT_R32_SINT,
+                                deviceContext);
+            _indices.initialize(stencilTables.GetControlIndices(),
+                                DXGI_FORMAT_R32_SINT,
+                                deviceContext);
+            _weights.initialize(stencilTables.GetWeights(),
+                                DXGI_FORMAT_R32_FLOAT,
+                                deviceContext);
+        }
     }
 
     bool IsValid() const {

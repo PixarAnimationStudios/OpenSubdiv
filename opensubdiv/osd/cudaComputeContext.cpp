@@ -63,11 +63,15 @@ class CudaComputeContext::CudaStencilTables {
 public:
 
     CudaStencilTables(Far::StencilTables const & stencilTables) {
-        _sizes = createCudaBuffer(stencilTables.GetSizes());
-        _offsets = createCudaBuffer(stencilTables.GetOffsets());
-        _indices = createCudaBuffer(stencilTables.GetControlIndices());
-        _weights = createCudaBuffer(stencilTables.GetWeights());
         _numStencils = stencilTables.GetNumStencils();
+        if (_numStencils > 0) {
+            _sizes = createCudaBuffer(stencilTables.GetSizes());
+            _offsets = createCudaBuffer(stencilTables.GetOffsets());
+            _indices = createCudaBuffer(stencilTables.GetControlIndices());
+            _weights = createCudaBuffer(stencilTables.GetWeights());
+        } else {
+            _sizes = _offsets = _indices = _weights = NULL;
+        }
     }
 
     ~CudaStencilTables() {

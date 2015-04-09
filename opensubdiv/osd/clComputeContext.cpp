@@ -56,11 +56,15 @@ class CLComputeContext::CLStencilTables {
 public:
 
     CLStencilTables(Far::StencilTables const & stencilTables, cl_context clContext) {
-        _sizes = createCLBuffer(stencilTables.GetSizes(), clContext);
-        _offsets = createCLBuffer(stencilTables.GetOffsets(), clContext);
-        _indices = createCLBuffer(stencilTables.GetControlIndices(), clContext);
-        _weights = createCLBuffer(stencilTables.GetWeights(), clContext);
         _numStencils = stencilTables.GetNumStencils();
+        if (_numStencils > 0) {
+            _sizes = createCLBuffer(stencilTables.GetSizes(), clContext);
+            _offsets = createCLBuffer(stencilTables.GetOffsets(), clContext);
+            _indices = createCLBuffer(stencilTables.GetControlIndices(), clContext);
+            _weights = createCLBuffer(stencilTables.GetWeights(), clContext);
+        } else {
+            _sizes = _offsets = _indices = _weights = NULL;
+        }
     }
 
     ~CLStencilTables() {

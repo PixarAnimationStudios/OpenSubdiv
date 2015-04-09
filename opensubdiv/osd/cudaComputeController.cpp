@@ -64,13 +64,15 @@ CudaComputeController::ApplyStencilTableKernel(
         float * dst = const_cast<float *>(src) +
             context->GetNumControlVertices() * stride;
 
-        CudaComputeStencils(src, dst, length, stride,
-                               (unsigned char const *)context->GetVertexStencilTablesSizes(),
-                               (int const *)context->GetVertexStencilTablesOffsets(),
-                               (int const *)context->GetVertexStencilTablesIndices(),
-                               (float const *)context->GetVertexStencilTablesWeights(),
-                               start,
-                               end);
+        if (end > start) {
+            CudaComputeStencils(src, dst, length, stride,
+                                (unsigned char const *)context->GetVertexStencilTablesSizes(),
+                                (int const *)context->GetVertexStencilTablesOffsets(),
+                                (int const *)context->GetVertexStencilTablesIndices(),
+                                (float const *)context->GetVertexStencilTablesWeights(),
+                                start,
+                                end);
+        }
     }
 
     if (context->HasVaryingStencilTables()) {
@@ -86,13 +88,15 @@ CudaComputeController::ApplyStencilTableKernel(
         float * dst = const_cast<float *>(src) +
             context->GetNumControlVertices() * stride;
 
-        CudaComputeStencils(src, dst, length, stride,
-                               (unsigned char const *)context->GetVaryingStencilTablesSizes(),
-                               (int const *)context->GetVaryingStencilTablesOffsets(),
-                               (int const *)context->GetVaryingStencilTablesIndices(),
-                               (float const *)context->GetVaryingStencilTablesWeights(),
-                               start,
-                               end);
+        if (end > start) {
+            CudaComputeStencils(src, dst, length, stride,
+                                (unsigned char const *)context->GetVaryingStencilTablesSizes(),
+                                (int const *)context->GetVaryingStencilTablesOffsets(),
+                                (int const *)context->GetVaryingStencilTablesIndices(),
+                                (float const *)context->GetVaryingStencilTablesWeights(),
+                                start,
+                                end);
+        }
     }
 }
 

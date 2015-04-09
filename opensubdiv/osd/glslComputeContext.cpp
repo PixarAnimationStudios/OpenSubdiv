@@ -67,18 +67,22 @@ class GLSLComputeContext::GLSLStencilTables {
 public:
 
     GLSLStencilTables(Far::StencilTables const & stencilTables) {
-        _sizes = createGLSLBuffer(stencilTables.GetSizes());
-        _offsets = createGLSLBuffer(stencilTables.GetOffsets());
-        _indices = createGLSLBuffer(stencilTables.GetControlIndices());
-        _weights = createGLSLBuffer(stencilTables.GetWeights());
         _numStencils = stencilTables.GetNumStencils();
+        if (_numStencils > 0) {
+            _sizes = createGLSLBuffer(stencilTables.GetSizes());
+            _offsets = createGLSLBuffer(stencilTables.GetOffsets());
+            _indices = createGLSLBuffer(stencilTables.GetControlIndices());
+            _weights = createGLSLBuffer(stencilTables.GetWeights());
+        } else {
+            _sizes = _offsets = _indices = _weights = 0;
+        }
     }
 
     ~GLSLStencilTables() {
-        glDeleteBuffers(1, &_sizes);
-        glDeleteBuffers(1, &_offsets);
-        glDeleteBuffers(1, &_weights);
-        glDeleteBuffers(1, &_indices);
+        if (_sizes)   glDeleteBuffers(1, &_sizes);
+        if (_offsets) glDeleteBuffers(1, &_offsets);
+        if (_weights) glDeleteBuffers(1, &_weights);
+        if (_indices) glDeleteBuffers(1, &_indices);
     }
 
     bool IsValid() const {

@@ -58,14 +58,16 @@ OmpComputeController::ApplyStencilTableKernel(
         float * destBuffer = _currentBindState.vertexBuffer + desc.offset +
             vertexStencils->GetNumControlVertices() * desc.stride;
 
-        OmpComputeStencils(_currentBindState.vertexDesc,
-                           srcBuffer, destBuffer,
-                           &vertexStencils->GetSizes().at(0),
-                           &vertexStencils->GetOffsets().at(0),
-                           &vertexStencils->GetControlIndices().at(0),
-                           &vertexStencils->GetWeights().at(0),
-                           start,
-                           end);
+        if (end > start) {
+            OmpComputeStencils(_currentBindState.vertexDesc,
+                               srcBuffer, destBuffer,
+                               &vertexStencils->GetSizes().at(0),
+                               &vertexStencils->GetOffsets().at(0),
+                               &vertexStencils->GetControlIndices().at(0),
+                               &vertexStencils->GetWeights().at(0),
+                               start,
+                               end);
+        }
     }
 
     Far::StencilTables const * varyingStencils = context->GetVaryingStencilTables();
@@ -82,14 +84,16 @@ OmpComputeController::ApplyStencilTableKernel(
         float * destBuffer = _currentBindState.varyingBuffer + desc.offset +
             varyingStencils->GetNumControlVertices() * desc.stride;
 
-        OmpComputeStencils(_currentBindState.varyingDesc,
-                           srcBuffer, destBuffer,
-                           &varyingStencils->GetSizes().at(0),
-                           &varyingStencils->GetOffsets().at(0),
-                           &varyingStencils->GetControlIndices().at(0),
-                           &varyingStencils->GetWeights().at(0),
-                           start,
-                           end);
+        if (end > start) {
+            OmpComputeStencils(_currentBindState.varyingDesc,
+                               srcBuffer, destBuffer,
+                               &varyingStencils->GetSizes().at(0),
+                               &varyingStencils->GetOffsets().at(0),
+                               &varyingStencils->GetControlIndices().at(0),
+                               &varyingStencils->GetWeights().at(0),
+                               start,
+                               end);
+        }
     }
 }
 
