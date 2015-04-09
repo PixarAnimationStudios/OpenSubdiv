@@ -51,7 +51,8 @@ enum MeshBits {
     MeshPtexData             = 2,
     MeshFVarData             = 3,
     MeshUseSingleCreasePatch = 4,
-    NUM_MESH_BITS            = 5,
+    MeshUseGregoryBasis      = 5,
+    NUM_MESH_BITS            = 6,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 

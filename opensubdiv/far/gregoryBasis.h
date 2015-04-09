@@ -116,16 +116,28 @@ public:
     //       this factory is active.
     //
     GregoryBasisFactory(TopologyRefiner const & refiner,
-        StencilTables const & stencils,
-            int numpatches, int maxvalence);
+                        StencilTables const * stencils,
+                        StencilTables const * varyingStencils,
+                        int numpatches, int maxvalence);
 
-    // Creates a basis for the face and adds it to the stencil pool allocator
-    bool AddPatchBasis(Index faceIndex);
+    // Creates a basis for the vertices specified in mask on the face and
+    // adds it to the stencil pool allocator
+    bool AddPatchBasis(Index faceIndex,
+                       bool newVerticesMask[4][5]);
 
     // After all the patches have been collected, create the final table
-    StencilTables const * CreateStencilTables(int const permute[20]=0);
+    StencilTables const * CreateVertexStencilTables(int const permute[20]=0) {
+        return createStencilTables(permute, _alloc);
+    }
+    StencilTables const * CreateVaryingStencilTables(int const permute[20]=0) {
+        return createStencilTables(permute, _varyingAlloc);
+    }
 
 private:
+
+    StencilTables const * createStencilTables(int const permute[20],
+                                              StencilAllocator &alloc);
+    // XXX: StencilAllocator method's constness needs to be fixed.
 
     int _currentStencil;
 
@@ -133,8 +145,10 @@ private:
 
     Index _stencilsOffset;
 
-    StencilTables const & _stencils;
+    StencilTables const * _stencils;
+    StencilTables const * _varyingStencils;
     StencilAllocator _alloc;
+    StencilAllocator _varyingAlloc;
 };
 
 } // end namespace Far

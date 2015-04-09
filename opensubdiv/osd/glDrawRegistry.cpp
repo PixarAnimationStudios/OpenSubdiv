@@ -52,6 +52,9 @@ static const char *bsplineShaderSource =
 static const char *gregoryShaderSource =
 #include "glslPatchGregory.gen.h"
 ;
+static const char *gregoryBasisShaderSource =
+#include "glslPatchGregoryBasis.gen.h"
+;
 static const char *transitionShaderSource =
 #include "glslPatchTransition.gen.h"
 ;
@@ -155,6 +158,17 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->tessEvalShader.version = "#version 410\n";
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_GREGORY_SHADER");
             sconfig->tessEvalShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
+            break;
+        case Far::PatchDescriptor::GREGORY_BASIS:
+            sconfig->vertexShader.source = gregoryBasisShaderSource;
+            sconfig->vertexShader.version = "#version 410\n";
+            sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_GREGORY_BASIS_SHADER");
+            sconfig->tessControlShader.source = gregoryBasisShaderSource;
+            sconfig->tessControlShader.version = "#version 410\n";
+            sconfig->tessControlShader.AddDefine("OSD_PATCH_TESS_CONTROL_GREGORY_BASIS_SHADER");
+            sconfig->tessEvalShader.source = gregoryBasisShaderSource;
+            sconfig->tessEvalShader.version = "#version 410\n";
+            sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_GREGORY_BASIS_SHADER");
             break;
         default: // POINTS, LINES, QUADS, TRIANGLES
             // do nothing

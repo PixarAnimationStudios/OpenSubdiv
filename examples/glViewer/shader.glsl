@@ -160,6 +160,7 @@ out block {
 void emit(int index, vec3 normal)
 {
     outpt.v.position = inpt[index].v.position;
+    outpt.v.patchCoord = inpt[index].v.patchCoord;
 #ifdef SMOOTH_NORMALS
     outpt.v.normal = inpt[index].v.normal;
 #else

@@ -93,7 +93,9 @@ struct ControlVertex {
     vec4 position;
     centroid vec4 patchCoord; // u, v, level, faceID
     ivec4 ptexInfo;  // U offset, V offset, 2^ptexlevel', rotation
+#ifdef OSD_ENABLE_PATCH_CULL
     ivec3 clipFlag;
+#endif
 };
 
 struct OutputVertex {

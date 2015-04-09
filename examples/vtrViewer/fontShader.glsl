@@ -103,7 +103,7 @@ vec2 computeUV( int c )
 
 }
 
-uniform float scale=0.025;
+uniform float scale=0.01;
 
 void main()
 {
@@ -116,10 +116,14 @@ void main()
 
     vec2 ofs = inpt[0].data.xy;
 
-    emit(0, scale * (vec2( 1.0, -2.0)+ofs), uv + dim);
-    emit(1, scale * (vec2( 1.0,  2.0)+ofs), vec2(uv.x+dim.x, uv.y));
-    emit(2, scale * (vec2(-1.0, -2.0)+ofs), vec2(uv.x,       uv.y+dim.y));
-    emit(3, scale * (vec2(-1.0,  2.0)+ofs), uv);
+    vec4 clipPos = ProjectionMatrix * inpt[0].position;
+
+    float s = scale * clipPos.w;
+
+    emit(0, s * (vec2( 1.0, -2.0)+ofs), uv + dim);
+    emit(1, s * (vec2( 1.0,  2.0)+ofs), vec2(uv.x+dim.x, uv.y));
+    emit(2, s * (vec2(-1.0, -2.0)+ofs), vec2(uv.x,       uv.y+dim.y));
+    emit(3, s * (vec2(-1.0,  2.0)+ofs), uv);
 
     EndPrimitive();
 }

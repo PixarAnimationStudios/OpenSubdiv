@@ -59,6 +59,7 @@ static std::vector<ShapeDesc> g_shapes;
 #include <shapes/catmark_fvar_bound0.h>
 #include <shapes/catmark_fvar_bound1.h>
 #include <shapes/catmark_fvar_bound2.h>
+#include <shapes/catmark_gregory_test0.h>
 #include <shapes/catmark_gregory_test1.h>
 #include <shapes/catmark_gregory_test2.h>
 #include <shapes/catmark_gregory_test3.h>
@@ -76,6 +77,8 @@ static std::vector<ShapeDesc> g_shapes;
 #include <shapes/catmark_tent.h>
 #include <shapes/catmark_torus.h>
 #include <shapes/catmark_torus_creases0.h>
+#include <shapes/catmark_smoothtris0.h>
+#include <shapes/catmark_smoothtris1.h>
 
 #include <shapes/loop_cube_creases0.h>
 #include <shapes/loop_cube_creases1.h>
@@ -113,6 +116,7 @@ static void initShapes() {
     g_shapes.push_back( ShapeDesc("catmark_fvar_bound0",      catmark_fvar_bound0,      kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_fvar_bound1",      catmark_fvar_bound1,      kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_fvar_bound2",      catmark_fvar_bound2,      kCatmark ) );
+    g_shapes.push_back( ShapeDesc("catmark_gregory_test0",    catmark_gregory_test0,    kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_gregory_test1",    catmark_gregory_test1,    kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_gregory_test2",    catmark_gregory_test2,    kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_gregory_test3",    catmark_gregory_test3,    kCatmark ) );
@@ -131,6 +135,8 @@ static void initShapes() {
     g_shapes.push_back( ShapeDesc("catmark_tent",             catmark_tent,             kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_torus",            catmark_torus,            kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_torus_creases0",   catmark_torus_creases0,   kCatmark ) );
+    g_shapes.push_back( ShapeDesc("catmark_smoothtris0",      catmark_smoothtris0,      kCatmark ) );
+    g_shapes.push_back( ShapeDesc("catmark_smoothtris1",      catmark_smoothtris1,      kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_car",              catmark_car,              kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_bishop",           catmark_bishop,           kCatmark ) );
 

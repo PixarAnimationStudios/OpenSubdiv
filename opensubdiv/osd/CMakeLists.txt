@@ -200,6 +200,7 @@ if( OPENGL_FOUND OR OPENGLES_FOUND )
             glslPatchCommon.glsl
             glslPatchBSpline.glsl
             glslPatchGregory.glsl
+            glslPatchGregoryBasis.glsl
             glslPatchTransition.glsl
             glslPtexCommon.glsl
         )

@@ -1033,6 +1033,7 @@ createOsdMesh(int level, int kernel) {
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
     bits.set(OpenSubdiv::Osd::MeshPtexData, true);
+    bits.set(OpenSubdiv::Osd::MeshUseGregoryBasis, true);
 
     int numVertexElements = g_adaptive ? 3 : 6;
     int numVaryingElements = 0;

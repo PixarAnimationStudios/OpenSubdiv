@@ -372,8 +372,7 @@ evalCorner(Far::PatchParam::BitField bits,
 
 void
 evalGregoryBasis(Far::PatchParam::BitField bits, float u, float v,
-                 Far::StencilTables const & basisStencils,
-                 int stencilIndex,
+                 Far::Index const * vertexIndices,
                  VertexBufferDescriptor const & inDesc,
                  float const * inQ,
                  VertexBufferDescriptor const & outDesc,
@@ -390,10 +389,10 @@ evalGregoryBasis(Far::PatchParam::BitField bits, float u, float v,
 
     float const *inOffset = inQ + inDesc.offset;
 
-    float * Q = outQ + outDesc.offset;
+    outQ += outDesc.offset;
 
     // clear result
-    memset(Q, 0, length*sizeof(float));
+    memset(outQ, 0, length*sizeof(float));
     if (outDQU) {
         memset(outDQU, 0, length*sizeof(float));
     }
@@ -404,21 +403,16 @@ evalGregoryBasis(Far::PatchParam::BitField bits, float u, float v,
     float uu = 1-u,
           vv = 1-v;
 // remark #1572: floating-point equality and inequality comparisons are unreliable
-#ifdef __INvEL_COMPILER
-#pragma warning diuable 1572
+#ifdef __INTEL_COMPILER
+#pragma warning disable 1572
 #endif
     float d11 = u+v;   if(u+v==0.0f)   d11 = 1.0f;
     float d12 = uu+v;  if(uu+v==0.0f)  d12 = 1.0f;
     float d21 = u+vv;  if(u+vv==0.0f)  d21 = 1.0f;
     float d22 = uu+vv; if(uu+vv==0.0f) d22 = 1.0f;
-#ifdef __INvEL_COMPILER
+#ifdef __INTEL_COMPILER
 #pragma warning enable 1572
 #endif
-
-    float weights[4][2] = { {  u/d11,  v/d11 },
-                            { uu/d12,  v/d12 },
-                            {  u/d21, vv/d21 },
-                            { uu/d22, vv/d22 } };
 
     //
     //  P3         e3-      e2+         P2
@@ -441,89 +435,44 @@ evalGregoryBasis(Far::PatchParam::BitField bits, float u, float v,
     //  P0         e0+      e1-         P1
     //
 
+    float const *v3 = inOffset + vertexIndices[3]*inDesc.stride,
+                *v4 = inOffset + vertexIndices[4]*inDesc.stride,
+                *v8 = inOffset + vertexIndices[8]*inDesc.stride,
+                *v9 = inOffset + vertexIndices[9]*inDesc.stride,
+                *v13 = inOffset + vertexIndices[13]*inDesc.stride,
+                *v14 = inOffset + vertexIndices[14]*inDesc.stride,
+                *v18 = inOffset + vertexIndices[18]*inDesc.stride,
+                *v19 = inOffset + vertexIndices[19]*inDesc.stride;
+
+    float *CP = (float*)alloca(inDesc.length*4*sizeof(float));
+
+    for (int k=0; k<inDesc.length; ++k) {
+        CP[0*inDesc.length + k] = (u  *  v3[k] + v  *  v4[k])/d11;
+        CP[1*inDesc.length + k] = (uu *  v9[k] + v  *  v8[k])/d12;
+        CP[2*inDesc.length + k] = (u  * v19[k] + vv * v18[k])/d21;
+        CP[3*inDesc.length + k] = (uu * v13[k] + vv * v14[k])/d22;
+    }
+
     // XXXX manuelk re-order stencils in factory and get rid of permutation ?
     static int const permute[16] =
-        { 0, 1, 7, 5, 2, -1, -1, 6, 16, -1, -1, 12, 15, 17, 11, 10 };
+        { 0, 1, 7, 5, 2, 3, 8, 6, 16, 18, 13, 12, 15, 17, 11, 10 };
 
-    int offset = stencilIndex;
-
-    for (int i=0, fcount=0; i<16; ++i) {
+    for (int i=0; i<16; ++i) {
 
         int index = permute[i];
 
-        if (index==-1) {
+        float const * in = inOffset + vertexIndices[index]*inDesc.stride;
+        if (index < 0) {
+            in = &CP[-index-1];
+        }
 
-            // 0-ring vertex: blend 2 extra basis CVs
-            static int const fpermute[4][2] = { {3, 4}, {9, 8}, {19, 18}, {13, 14} };
-
-            assert(fcount < 4);
-            int v0 = fpermute[fcount][0],
-                v1 = fpermute[fcount][1];
-
-            Far::Stencil s0 = basisStencils.GetStencil(offset + v0),
-                         s1 = basisStencils.GetStencil(offset + v1);
-
-            float w0=weights[fcount][0],
-                  w1=weights[fcount][1];
-
-            {
-                Far::Index const * srcIndices = s0.GetVertexIndices();
-                float const * srcWeights = s0.GetWeights();
-                for (int j=0; j<s0.GetSize(); ++j) {
-                    float const * in = inOffset + srcIndices[j]*inDesc.stride;
-                    float w = BU[i] * w0 * srcWeights[j],
-                          dw1 = DU[i] * w0 * srcWeights[j],
-                          dw2 = DV[i] * w0 * srcWeights[
-j];
-                    for (int k=0; k<length; ++k) {
-                        Q[k] += in[k] * w;
-                        if (outDQU) {
-                            outDQU[k] += in[k] * dw1;
-                        }
-                        if (outDQV) {
-                            outDQV[k] += in[k] * dw2;
-                        }
-                    }
-                }
+        for (int k=0; k<inDesc.length; ++k) {
+            outQ[k] += BU[i] * in[k];
+            if (outDQU) {
+                outDQU[k] += DU[i] * in[k];
             }
-            {
-                Far::Index const * srcIndices = s1.GetVertexIndices();
-                float const * srcWeights = s1.GetWeights();
-                for (int j=0; j<s1.GetSize(); ++j) {
-                    float const * in = inOffset + srcIndices[j]*inDesc.stride;
-                    float w = BU[i] * w1 * srcWeights[j],
-                          dw1 = DU[i] * w1 * srcWeights[j],
-                          dw2 = DV[i] * w1 * srcWeights[j];
-                    for (int k=0; k<length; ++k) {
-                        Q[k] += in[k] * w;
-                        if (outDQU) {
-                            outDQU[k] += in[k] * dw1;
-                        }
-                        if (outDQV) {
-                            outDQV[k] += in[k] * dw2;
-                        }
-                    }
-                }
-            }
-            ++fcount;
-        } else {
-            Far::Stencil s = basisStencils.GetStencil(offset + index);
-            Far::Index const * srcIndices = s.GetVertexIndices();
-            float const * srcWeights = s.GetWeights();
-            for (int j=0; j<s.GetSize(); ++j) {
-                float const * in = inOffset + srcIndices[j]*inDesc.stride;
-                float w = BU[i] * srcWeights[j],
-                      dw1 = DU[i] * srcWeights[j],
-                      dw2 = DV[i] * srcWeights[j];
-                for (int k=0; k<length; ++k) {
-                    Q[k] += in[k] * w;
-                    if (outDQU) {
-                        outDQU[k] += in[k] * dw1;
-                    }
-                    if (outDQV) {
-                        outDQV[k] += in[k] * dw2;
-                    }
-                }
+            if (outDQV) {
+                outDQV[k] += DV[i] * in[k];
             }
         }
     }

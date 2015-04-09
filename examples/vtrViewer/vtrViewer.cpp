@@ -635,23 +635,18 @@ createGregoryBasis(OpenSubdiv::Far::PatchTables const & patchTables,
     typedef OpenSubdiv::Far::PatchDescriptor PatchDescriptor;
 
     int npatches = 0;
+    int patchArray = 0;
     for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
         if (patchTables.GetPatchArrayDescriptor(array).GetType()==
             PatchDescriptor::GREGORY_BASIS) {
             npatches = patchTables.GetNumPatches(array);
+            patchArray = array;
             break;
         }
     }
 
     int nedges = npatches * 20;
     std::vector<int> vertsperedge(nedges), edgeindices(nedges*2);
-    std::vector<Vertex> edgeverts(npatches*20);
-
-    OpenSubdiv::Far::StencilTables const * gstencils =
-        patchTables.GetEndCapStencilTables();
-    assert(gstencils);
-
-    gstencils->UpdateValues(&vertexBuffer[0], &edgeverts[0]);
 
     for (int patch=0; patch<npatches; ++patch) {
 
@@ -664,33 +659,43 @@ createGregoryBasis(OpenSubdiv::Far::PatchTables const & patchTables,
         int offset = patch * 20,
             * vpe = &vertsperedge[offset],
             * indices = &edgeindices[patch * 40];
+
+        OpenSubdiv::Far::ConstIndexArray const cvs =
+            patchTables.GetPatchVertices(patchArray, patch);
+
         for (int i=0; i<20; ++i) {
             vpe[i] = 2;
-            indices[i*2] = basisedges[i*2] + offset;
-            indices[i*2+1] = basisedges[i*2+1] + offset;
+            indices[i*2] = cvs[basisedges[i*2]];
+            indices[i*2+1] = cvs[basisedges[i*2+1]];
         }
 
-        Vertex const * verts = &edgeverts[offset];
+        //Vertex const * verts = &edgeverts[offset];
         static char buf[16];
         for (int i=0; i<4; ++i) {
-            int vid = i * 5;
-            snprintf(buf, 16, " P%d", i);
-            g_font->Print3D(verts[vid].GetPos(), buf, 3);
-            snprintf(buf, 16, " Ep%d", i);
-            g_font->Print3D(verts[vid+1].GetPos(), buf, 3);
-            snprintf(buf, 16, " Em%d", i);
-            g_font->Print3D(verts[vid+2].GetPos(), buf, 3);
-            snprintf(buf, 16, " Fp%d", i);
-            g_font->Print3D(verts[vid+3].GetPos(), buf, 3);
-            snprintf(buf, 16, " Fm%d", i);
-            g_font->Print3D(verts[vid+4].GetPos(), buf, 3);
+            int vid = patch * 20 + i * 5;
+
+            const float *P  = vertexBuffer[cvs[i*5+0]].GetPos();
+            const float *Ep = vertexBuffer[cvs[i*5+1]].GetPos();
+            const float *Em = vertexBuffer[cvs[i*5+2]].GetPos();
+            const float *Fp = vertexBuffer[cvs[i*5+3]].GetPos();
+            const float *Fm = vertexBuffer[cvs[i*5+4]].GetPos();
+
+            snprintf(buf, 16, " P%d (%d)", i, vid);
+            g_font->Print3D(P, buf, 3);
+            snprintf(buf, 16, " Ep%d (%d)", i, vid+1);
+            g_font->Print3D(Ep, buf, 3);
+            snprintf(buf, 16, " Em%d (%d)", i, vid+2);
+            g_font->Print3D(Em, buf, 3);
+            snprintf(buf, 16, " Fp%d (%d)", i, vid+3);
+            g_font->Print3D(Fp, buf, 3);
+            snprintf(buf, 16, " Fm%d (%d)", i, vid+4);
+            g_font->Print3D(Fm, buf, 3);
         }
     }
 
     GLMesh::Options options;
-    gregoryWire.Initialize(options, (int)edgeverts.size(), (int)vertsperedge.size(),
-        &vertsperedge[0], &edgeindices[0], (float const * )&edgeverts[0]);
-
+    gregoryWire.Initialize(options, (int)vertexBuffer.size(), (int)vertsperedge.size(),
+                           &vertsperedge[0], &edgeindices[0], (float const *)&vertexBuffer[0]);
 }
 
 //------------------------------------------------------------------------------
@@ -770,17 +775,6 @@ createVtrMesh(Shape * shape, int maxlevel) {
     // Stencils
     //
 
-    // create vertex primvar data buffer
-    std::vector<Vertex> vertexBuffer(refiner->GetNumVerticesTotal());
-    Vertex * verts = &vertexBuffer[0];
-
-    // copy coarse vertices positions
-    int ncoarseverts = shape->GetNumVertices();
-    for (int i=0; i<ncoarseverts; ++i) {
-        float * ptr = &shape->verts[i*3];
-        verts[i].SetPosition(ptr[0], ptr[1], ptr[2]);
-    }
-
 //#define no_stencils
 #ifdef no_stencils
     {
@@ -800,8 +794,6 @@ createVtrMesh(Shape * shape, int maxlevel) {
 
         stencilTables =
             OpenSubdiv::Far::StencilTablesFactory::Create(*refiner, options);
-
-        stencilTables->UpdateValues(verts, verts + ncoarseverts);
     }
 #endif
 
@@ -848,6 +840,39 @@ createVtrMesh(Shape * shape, int maxlevel) {
             refiner->InterpolateFaceVarying(values, values + nCoarseValues);
         }
     }
+    // note: gregoryBasisStencilTables is owned by patchTables.
+    OpenSubdiv::Far::StencilTables const * gregoryBasisStencilTables =
+        patchTables->GetEndCapVertexStencilTables();
+
+    if (gregoryBasisStencilTables) {
+        OpenSubdiv::Far::StencilTables const *inStencilTables[] = {
+            stencilTables, gregoryBasisStencilTables
+        };
+        OpenSubdiv::Far::StencilTables const *concatStencilTables = 
+            concatStencilTables = OpenSubdiv::Far::StencilTablesFactory::Create(
+                2, inStencilTables);
+        delete stencilTables;
+        stencilTables = concatStencilTables;
+    }
+
+    int numTotalVerts = shape->GetNumVertices() + stencilTables->GetNumStencils();
+
+    // create vertex primvar data buffer
+    std::vector<Vertex> vertexBuffer(numTotalVerts);
+    Vertex * verts = &vertexBuffer[0];
+
+    // copy coarse vertices positions
+    int ncoarseverts = shape->GetNumVertices();
+    for (int i=0; i<ncoarseverts; ++i) {
+        float * ptr = &shape->verts[i*3];
+        verts[i].SetPosition(ptr[0], ptr[1], ptr[2]);
+    }
+
+    //
+    // apply stencils
+    //
+    stencilTables->UpdateValues(verts, verts + ncoarseverts);
+
     s.Stop();
 
     //
@@ -1391,7 +1416,7 @@ initHUD() {
     g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 350, callbackAdaptive, 0, '`');
 
 
-    g_hud.AddSlider("Font Scale", 0.0f, 0.1f, 0.025f,
+    g_hud.AddSlider("Font Scale", 0.0f, 0.1f, 0.01f,
                     -900, -50, 100, false, callbackScale, 0);
 
     for (int i = 1; i < 11; ++i) {

@@ -33,7 +33,9 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 PatchTables::PatchTables(int maxvalence) :
-    _maxValence(maxvalence), _endcapStencilTables(0) { }
+    _maxValence(maxvalence),
+    _endcapVertexStencilTables(0),
+    _endcapVaryingStencilTables(0) { }
 
 // Copy constructor
 // XXXX manuelk we need to eliminate this constructor (C++11 smart pointers)
@@ -43,21 +45,21 @@ PatchTables::PatchTables(PatchTables const & src) :
     _patchArrays(src._patchArrays),
     _patchVerts(src._patchVerts),
     _paramTable(src._paramTable),
-#ifdef ENDCAP_TOPOPOLGY
-    _endcapTopology(src._endcapTopology),
-#endif
     _quadOffsetsTable(src._quadOffsetsTable),
     _vertexValenceTable(src._vertexValenceTable),
     _fvarChannels(src._fvarChannels),
     _sharpnessIndices(src._sharpnessIndices),
     _sharpnessValues(src._sharpnessValues) {
 
-    _endcapStencilTables = src._endcapStencilTables ?
-        new StencilTables(*src._endcapStencilTables) : 0;
+    _endcapVertexStencilTables = src._endcapVertexStencilTables ?
+        new StencilTables(*src._endcapVertexStencilTables) : 0;
+    _endcapVaryingStencilTables = src._endcapVaryingStencilTables ?
+        new StencilTables(*src._endcapVaryingStencilTables) : 0;
 }
 
 PatchTables::~PatchTables() {
-    delete _endcapStencilTables;
+    delete _endcapVertexStencilTables;
+    delete _endcapVaryingStencilTables;
 }
 
 //
@@ -242,13 +244,7 @@ PatchTables::setBicubicFVarPatchChannelValues(int channel, int patchSize,
 
 inline int
 getPatchSize(PatchDescriptor desc) {
-    int size = desc.GetNumControlVertices();
-    // XXXX manuelk we do not store the topology for Gregory Basis
-    // patch types yet - so point to the 4 corners of the 0-ring
-    if (desc.GetType() == PatchDescriptor::GREGORY_BASIS) {
-        size = 4;
-    }
-    return size;
+    return desc.GetNumControlVertices();
 }
 
 void
@@ -339,13 +335,7 @@ PatchTables::GetPatchArrayVertices(int arrayIndex) const {
 ConstIndexArray
 PatchTables::GetPatchVertices(PatchHandle const & handle) const {
     PatchArray const & pa = getPatchArray(handle.arrayIndex);
-
-    Index vert = pa.vertIndex;
-    // XXXX manuelk we do not store the topology for Gregory Basis
-    // patch types yet - so point to the 4 corners of the 0-ring
-    vert += (pa.desc.GetType() == PatchDescriptor::GREGORY_BASIS) ?
-        handle.vertIndex / 5 : handle.vertIndex;
-    assert(vert<(Index)_patchVerts.size());
+    Index vert = pa.vertIndex + handle.vertIndex;
     return ConstIndexArray(&_patchVerts[vert], getPatchSize(pa.desc));
 }
 ConstIndexArray
@@ -409,7 +399,7 @@ bool
 PatchTables::IsFeatureAdaptive() const {
 
     // check for presence of tables only used by adaptive patches
-    if (not _vertexValenceTable.empty() or _endcapStencilTables)
+    if (not _vertexValenceTable.empty() or _endcapVertexStencilTables)
         return true;
 
     // otherwise, we have to check each patch array

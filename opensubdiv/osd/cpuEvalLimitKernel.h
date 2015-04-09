@@ -86,9 +86,9 @@ evalCorner(Far::PatchParam::BitField bits,
            float * outDQV );
 
 void
-evalGregoryBasis(Far::PatchParam::BitField bits, float u, float v,
-                 Far::StencilTables const & basisStencils,
-                 int stencilIndex,
+evalGregoryBasis(Far::PatchParam::BitField bits,
+                 float u, float v,
+                 Far::Index const *vertsIndices,
                  VertexBufferDescriptor const & inDesc,
                  float const * inQ,
                  VertexBufferDescriptor const & outDesc,

@@ -535,6 +535,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     bits.set(OpenSubdiv::Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
     bits.set(OpenSubdiv::Osd::MeshInterleaveVarying, interleaveVarying);
     bits.set(OpenSubdiv::Osd::MeshFVarData, g_displayStyle == kFaceVaryingColor);
+    bits.set(OpenSubdiv::Osd::MeshUseGregoryBasis, true);
 
     int numVertexElements = 3;
     int numVaryingElements =
@@ -1157,7 +1158,7 @@ display() {
         g_mesh->GetDrawContext()->GetPatchArrays();
 
     // patch drawing
-    int patchCount[12][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
+    int patchCount[13][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
     int numTotalPatches = 0;
     int numDrawCalls = 0;
     memset(patchCount, 0, sizeof(patchCount));
@@ -1300,6 +1301,8 @@ display() {
                              patchCount[Descriptor::GREGORY][0][0]); y+= 20;
             g_hud.DrawString(x, y, "Boundary Gregory : %d",
                              patchCount[Descriptor::GREGORY_BOUNDARY][0][0]); y+= 20;
+            g_hud.DrawString(x, y, "Gregory Basis    : %d",
+                             patchCount[Descriptor::GREGORY_BASIS][0][0]); y+= 20;
             g_hud.DrawString(x, y, "Trans. Regular   : %d %d %d %d %d",
                              patchCount[Descriptor::REGULAR][Descriptor::PATTERN0][0],
                              patchCount[Descriptor::REGULAR][Descriptor::PATTERN1][0],

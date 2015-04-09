@@ -105,12 +105,8 @@ CpuEvalLimitController::EvalLimitSample( LimitLocation const & coord,
                                                                outQ, outDQU, outDQV );
                                           break;
             case Desc::GREGORY_BASIS : {
-                                           Far::StencilTables const * stencils =
-                                               ptables.GetEndCapStencilTables();
-                                           assert(stencils and stencils->GetNumStencils()>0);
                                            evalGregoryBasis( pparam.bitField, s, t,
-                                                             *stencils,
-                                                             ptables.GetEndCapStencilIndex(*handle),
+                                                             cvs.begin(),
                                                              vertexData.inDesc,
                                                              vertexData.in,
                                                              vertexData.outDesc,
@@ -206,12 +202,8 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
                                                                    out, outDu, outDv );
                                               break;
                 case Desc::GREGORY_BASIS : {
-                                               Far::StencilTables const * stencils =
-                                                   ptables.GetEndCapStencilTables();
-                                               assert(stencils and stencils->GetNumStencils()>0);
                                                evalGregoryBasis( pparam.bitField, s, t,
-                                                                 *stencils,
-                                                                 ptables.GetEndCapStencilIndex(*handle),
+                                                                 cvs.begin(),
                                                                  vertexData.inDesc,
                                                                  vertexData.in,
                                                                  vertexData.outDesc,
@@ -236,7 +228,8 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
         static int const zeroRings[6][4] = { {5, 6,10, 9},   // regular
                                              {1, 2, 6, 5},   // boundary / single-crease
                                              {1, 2, 5, 4},   // corner
-                                             {0, 1, 2, 3} }; // no permutation
+                                             {0, 1, 2, 3},   // no permutation
+                                             {0, 5, 10, 15} }; // gregory basis
 
         int const * permute = 0;
         switch (desc.GetType()) {
@@ -245,8 +238,8 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
             case Desc::BOUNDARY         : permute = zeroRings[1]; break;
             case Desc::CORNER           : permute = zeroRings[2]; break;
             case Desc::GREGORY          :
-            case Desc::GREGORY_BOUNDARY :
-            case Desc::GREGORY_BASIS    : permute = zeroRings[3]; break;
+            case Desc::GREGORY_BOUNDARY : permute = zeroRings[3]; break;
+            case Desc::GREGORY_BASIS    : permute = zeroRings[4]; break;
             default:
                 assert(0);
         };
