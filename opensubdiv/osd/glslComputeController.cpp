@@ -118,8 +118,6 @@ public:
 
         glDeleteShader(shader);
 
-        _subStencilKernel = glGetSubroutineIndex(_program, GL_COMPUTE_SHADER, "computeStencil");
-
         // set uniform locations for compute kernels
         _uniformSizes   = glGetUniformLocation(_program, "sterncilSizes");
         _uniformOffsets = glGetUniformLocation(_program, "sterncilOffsets");
@@ -139,9 +137,6 @@ public:
 
     void ApplyStencilTableKernel(int offset, int numCVs,
                                  int start, int end) const {
-
-        // select stencil GLSL subroutine
-        glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subStencilKernel);
 
         dispatchCompute(offset, numCVs, start, end);
     }
@@ -190,8 +185,6 @@ protected:
 private:
 
     GLuint _program;
-
-    GLuint _subStencilKernel; // stencil compute kernel GLSL subroutine
 
     GLuint _uniformSizes,     // uniform paramaeters for kernels
            _uniformOffsets,

@@ -181,9 +181,6 @@ public:
 
         glDeleteShader(shader);
 
-        _subStencilKernel = glGetSubroutineIndex(
-            _program, GL_VERTEX_SHADER, "computeStencil");
-
         // set uniform locations for compute kernels
         _primvarBuffer  = glGetUniformLocation(_program, "vertexBuffer");
 
@@ -255,8 +252,6 @@ public:
                                  int offset, int numCVs,
                                  int start, int end) const {
 
-        glUniformSubroutinesuiv(GL_VERTEX_SHADER, 1, &_subStencilKernel);
-
         TransformPrimvarBuffer(primvarBuffer,
                                offset, numCVs, start, end);
     }
@@ -276,8 +271,6 @@ public:
 private:
 
     GLuint _program;
-
-    GLuint _subStencilKernel; // stencil compute kernel GLSL subroutine
 
     GLint _primvarBuffer;
 

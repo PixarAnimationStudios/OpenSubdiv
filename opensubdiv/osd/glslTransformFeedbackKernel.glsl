@@ -22,9 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-subroutine void computeKernelType();
-subroutine uniform computeKernelType computeKernel;
-
 //------------------------------------------------------------------------------
 
 uniform samplerBuffer vertexBuffer;
@@ -81,8 +78,7 @@ void writeVertex(Vertex v) {
 }
 
 //------------------------------------------------------------------------------
-subroutine(computeKernelType)
-void computeStencil() {
+void main() {
 
     int current = gl_VertexID + batchStart;
 
@@ -105,14 +101,6 @@ void computeStencil() {
     // the vertex buffer contains our control vertices at the beginning: don't
     // stomp on those !
     writeVertex(dst);
-}
-
-//------------------------------------------------------------------------------
-
-void main() {
-
-    // call subroutine
-    computeKernel();
 }
 
 //------------------------------------------------------------------------------
