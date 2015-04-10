@@ -27,7 +27,6 @@
 
 #include "../version.h"
 
-#include "../far/kernelBatchDispatcher.h"
 #include "../osd/cpuComputeContext.h"
 #include "../osd/vertexDescriptor.h"
 
@@ -64,9 +63,6 @@ public:
     ///
     /// @param  context       The CpuContext to apply refinement operations to
     ///
-    /// @param  batches       Vector of batches of vertices organized by operative
-    ///                       kernel
-    ///
     /// @param  vertexBuffer  Vertex-interpolated data buffer
     ///
     /// @param  vertexDesc    The descriptor of vertex elements to be refined.
@@ -81,17 +77,14 @@ public:
     ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
         void Compute( CpuComputeContext const * context,
-                      Far::KernelBatchVector const & batches,
                       VERTEX_BUFFER  * vertexBuffer,
                       VARYING_BUFFER * varyingBuffer,
                       VertexBufferDescriptor const * vertexDesc=NULL,
                       VertexBufferDescriptor const * varyingDesc=NULL ){
 
-        if (batches.empty()) return;
-
         bind(vertexBuffer, varyingBuffer, vertexDesc, varyingDesc);
 
-        Far::KernelBatchDispatcher::Apply(this, context, batches, /*maxlevel*/ -1);
+        ApplyStencilTableKernel(context);
 
         unbind();
     }
@@ -100,17 +93,13 @@ public:
     ///
     /// @param  context       The CpuContext to apply refinement operations to
     ///
-    /// @param  batches       Vector of batches of vertices organized by operative
-    ///                       kernel
-    ///
     /// @param  vertexBuffer  Vertex-interpolated data buffer
     ///
     template<class VERTEX_BUFFER>
         void Compute(CpuComputeContext const * context,
-                     Far::KernelBatchVector const & batches,
                      VERTEX_BUFFER *vertexBuffer) {
 
-        Compute<VERTEX_BUFFER>(context, batches, vertexBuffer, (VERTEX_BUFFER*)0);
+        Compute<VERTEX_BUFFER>(context, vertexBuffer, (VERTEX_BUFFER*)0);
     }
 
     /// Waits until all running subdivision kernels finish.
@@ -119,10 +108,7 @@ public:
 
 protected:
 
-    friend class Far::KernelBatchDispatcher;
-
-    void ApplyStencilTableKernel(Far::KernelBatch const &batch,
-        ComputeContext const *context) const;
+    void ApplyStencilTableKernel(ComputeContext const *context) const;
 
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
         void bind( VERTEX_BUFFER * vertexBuffer,

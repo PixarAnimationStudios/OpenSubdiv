@@ -295,8 +295,6 @@ public:
 
         _computeContext = ComputeContext::Create(vertexStencils, varyingStencils);
 
-        _kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
-
         _numVertices = vertexStencils->GetNumStencils() +
             vertexStencils->GetNumControlVertices();
     }
@@ -328,7 +326,6 @@ public:
                 globalVaryingDesc.stride);
 
             _computeController.Compute(_computeContext,
-                                      _kernelBatches,
                                       typedInstance->GetVertexBuffer(),
                                       typedInstance->GetVaryingBuffer(),
                                       &vertexDesc,
@@ -364,7 +361,6 @@ public:
 private:
     COMPUTE_CONTROLLER _computeController;
     ComputeContext *_computeContext;
-    Far::KernelBatchVector _kernelBatches;
 };
 
 // ---------------------------------------------------------------------------
@@ -393,8 +389,6 @@ Topology(Far::PatchTables const * patchTables,
         TopologyBase(patchTables), _computeController(g_clContext, g_clQueue) {
 
     _computeContext = ComputeContext::Create(g_clContext, vertexStencils, varyingStencils);
-
-    _kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
 
     _numVertices = vertexStencils->GetNumStencils() +
         vertexStencils->GetNumControlVertices();

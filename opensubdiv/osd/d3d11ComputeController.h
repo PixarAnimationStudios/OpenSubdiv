@@ -27,7 +27,6 @@
 
 #include "../version.h"
 
-#include "../far/kernelBatchDispatcher.h"
 #include "../osd/d3d11ComputeContext.h"
 #include "../osd/vertexDescriptor.h"
 
@@ -69,9 +68,6 @@ public:
     ///
     /// @param  context       The D3D11Context to apply refinement operations to
     ///
-    /// @param  batches       Vector of batches of vertices organized by operative
-    ///                       kernel
-    ///
     /// @param  vertexBuffer  Vertex-interpolated data buffer
     ///
     /// @param  vertexDesc    The descriptor of vertex elements to be refined.
@@ -86,20 +82,18 @@ public:
     ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
         void Compute( D3D11ComputeContext const * context,
-                      Far::KernelBatchVector const & batches,
                       VERTEX_BUFFER  * vertexBuffer,
                       VARYING_BUFFER * varyingBuffer,
                       VertexBufferDescriptor const * vertexDesc=NULL,
                       VertexBufferDescriptor const * varyingDesc=NULL ){
-
-        if (batches.empty()) return;
 
         if (vertexBuffer) {
             bind(vertexBuffer, vertexDesc);
 
             context->BindVertexStencilTables(_deviceContext);
 
-            Far::KernelBatchDispatcher::Apply(this, context, batches, /*maxlevel*/ -1);
+            ApplyStencilTableKernel(
+                context, context->GetNumStencilsInVertexStencilTables());
         }
 
         if (varyingBuffer) {
@@ -107,7 +101,8 @@ public:
 
             context->BindVaryingStencilTables(_deviceContext);
 
-            Far::KernelBatchDispatcher::Apply(this, context, batches, /*maxlevel*/ -1);
+            ApplyStencilTableKernel(
+                context, context->GetNumStencilsInVaryingStencilTables());
         }
 
         context->UnbindStencilTables(_deviceContext);
@@ -119,17 +114,13 @@ public:
     ///
     /// @param  context       The D3D11Context to apply refinement operations to
     ///
-    /// @param  batches       Vector of batches of vertices organized by operative
-    ///                       kernel
-    ///
     /// @param  vertexBuffer  Vertex-interpolated data buffer
     ///
     template<class VERTEX_BUFFER>
         void Compute(D3D11ComputeContext const * context,
-                     Far::KernelBatchVector const & batches,
                      VERTEX_BUFFER *vertexBuffer) {
 
-        Compute<VERTEX_BUFFER>(context, batches, vertexBuffer, (VERTEX_BUFFER*)0);
+        Compute<VERTEX_BUFFER>(context, vertexBuffer, (VERTEX_BUFFER*)0);
     }
 
     /// Waits until all running subdivision kernels finish.
@@ -137,10 +128,8 @@ public:
 
 protected:
 
-    friend class Far::KernelBatchDispatcher;
-
-    void ApplyStencilTableKernel(Far::KernelBatch const &batch,
-        ComputeContext const *context) const;
+    void ApplyStencilTableKernel(ComputeContext const *context,
+                                 int numStencils) const;
 
     template<class BUFFER>
         void bind( BUFFER * buffer,

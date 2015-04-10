@@ -63,10 +63,15 @@ class CudaComputeContext::CudaStencilTables {
 public:
 
     CudaStencilTables(Far::StencilTables const & stencilTables) {
-        _sizes = createCudaBuffer(stencilTables.GetSizes());
-        _offsets = createCudaBuffer(stencilTables.GetOffsets());
-        _indices = createCudaBuffer(stencilTables.GetControlIndices());
-        _weights = createCudaBuffer(stencilTables.GetWeights());
+        _numStencils = stencilTables.GetNumStencils();
+        if (_numStencils > 0) {
+            _sizes = createCudaBuffer(stencilTables.GetSizes());
+            _offsets = createCudaBuffer(stencilTables.GetOffsets());
+            _indices = createCudaBuffer(stencilTables.GetControlIndices());
+            _weights = createCudaBuffer(stencilTables.GetWeights());
+        } else {
+            _sizes = _offsets = _indices = _weights = NULL;
+        }
     }
 
     ~CudaStencilTables() {
@@ -96,11 +101,16 @@ public:
         return _weights;
     }
 
+    int GetNumStencils() const {
+        return _numStencils;
+    }
+
 private:
     void * _sizes,
          * _offsets,
          * _indices,
          * _weights;
+    int _numStencils;
 };
 
 // ----------------------------------------------------------------------------
@@ -142,6 +152,16 @@ CudaComputeContext::HasVertexStencilTables() const {
 bool
 CudaComputeContext::HasVaryingStencilTables() const {
     return _varyingStencilTables ? _varyingStencilTables->IsValid() : false;
+}
+
+int
+CudaComputeContext::GetNumStencilsInVertexStencilTables() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetNumStencils() : 0;
+}
+
+int
+CudaComputeContext::GetNumStencilsInVaryingStencilTables() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetNumStencils() : 0;
 }
 
 // ----------------------------------------------------------------------------

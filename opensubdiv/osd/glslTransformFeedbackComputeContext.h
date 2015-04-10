@@ -59,7 +59,7 @@ public:
     ///                              interpolation
     ///
     static GLSLTransformFeedbackComputeContext * Create(Far::StencilTables const * vertexStencilTables,
-                                                           Far::StencilTables const * varyingStencilTables=0);
+                                                        Far::StencilTables const * varyingStencilTables=0);
 
     /// Destructor
     virtual ~GLSLTransformFeedbackComputeContext();
@@ -74,6 +74,12 @@ public:
     int GetNumControlVertices() const {
         return _numControlVertices;
     }
+
+    /// Returns the number of stencils in vertex stencil table
+    int GetNumStencilsInVertexStencilTables() const;
+
+    /// Returns the number of stencils in varying stencil table
+    int GetNumStencilsInVaryingStencilTables() const;
 
     /// Returns the GL texture buffer containing vertex-stencil stencil sizes
     GLuint GetVertexStencilTablesSizes() const;

@@ -203,6 +203,7 @@ protected:
     void resize(int nstencils, int nelems);
 
 protected:
+    StencilTables() : _numControlVertices(0) {}
 
     friend class StencilTablesFactory;
     friend class GregoryBasisFactory;

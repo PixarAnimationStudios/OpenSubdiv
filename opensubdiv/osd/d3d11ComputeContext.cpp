@@ -114,17 +114,26 @@ public:
     D3D11StencilTables(Far::StencilTables const & stencilTables,
         ID3D11DeviceContext *deviceContext) {
 
-        // convert unsigned char sizes buffer to ints (HLSL does not have uint8 type)
-        std::vector<int> const sizes(stencilTables.GetSizes().begin(),
-            stencilTables.GetSizes().end());
+        _numStencils = stencilTables.GetNumStencils();
+        if (_numStencils > 0) {
+            // convert unsigned char sizes buffer to ints
+            // (HLSL does not have uint8 type)
+            std::vector<int> const sizes(stencilTables.GetSizes().begin(),
+                                         stencilTables.GetSizes().end());
 
-        _sizes.initialize(sizes, DXGI_FORMAT_R32_SINT, deviceContext);
-
-        _offsets.initialize(stencilTables.GetOffsets(), DXGI_FORMAT_R32_SINT, deviceContext);
-
-        _indices.initialize(stencilTables.GetControlIndices(), DXGI_FORMAT_R32_SINT, deviceContext);
-
-        _weights.initialize(stencilTables.GetWeights(), DXGI_FORMAT_R32_FLOAT, deviceContext);
+            _sizes.initialize(sizes,
+                              DXGI_FORMAT_R32_SINT,
+                              deviceContext);
+            _offsets.initialize(stencilTables.GetOffsets(),
+                                DXGI_FORMAT_R32_SINT,
+                                deviceContext);
+            _indices.initialize(stencilTables.GetControlIndices(),
+                                DXGI_FORMAT_R32_SINT,
+                                deviceContext);
+            _weights.initialize(stencilTables.GetWeights(),
+                                DXGI_FORMAT_R32_FLOAT,
+                                deviceContext);
+        }
     }
 
     bool IsValid() const {
@@ -146,6 +155,10 @@ public:
 
     D3D11Table const & GetWeights() const {
         return _weights;
+    }
+
+    int GetNumStencils() const {
+        return _numStencils;
     }
 
     void Bind(ID3D11DeviceContext * deviceContext) const {
@@ -170,6 +183,8 @@ private:
                _offsets,
                _indices,
                _weights;
+
+    int _numStencils;
 };
 
 // ----------------------------------------------------------------------------
@@ -215,6 +230,16 @@ D3D11ComputeContext::HasVertexStencilTables() const {
 bool
 D3D11ComputeContext::HasVaryingStencilTables() const {
     return _varyingStencilTables ? _varyingStencilTables->IsValid() : false;
+}
+
+int
+D3D11ComputeContext::GetNumStencilsInVertexStencilTables() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetNumStencils() : 0;
+}
+
+int
+D3D11ComputeContext::GetNumStencilsInVaryingStencilTables() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetNumStencils() : 0;
 }
 
 // ----------------------------------------------------------------------------

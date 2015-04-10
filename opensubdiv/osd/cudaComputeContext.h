@@ -77,6 +77,12 @@ public:
         return _numControlVertices;
     }
 
+    /// Returns the number of stencils in vertex stencil tables
+    int GetNumStencilsInVertexStencilTables() const;
+
+    /// Returns the number of stencils in varying stencil tables
+    int GetNumStencilsInVaryingStencilTables() const;
+
     /// Returns the Cuda buffer containing vertex-stencil stencil sizes
     void * GetVertexStencilTablesSizes() const;
 
