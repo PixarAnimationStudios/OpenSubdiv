@@ -37,6 +37,7 @@
 #include "../vtr/fvarRefinement.h"
 #include "../vtr/maskInterfaces.h"
 #include "../far/types.h"
+#include "../far/error.h"
 
 #include <vector>
 #include <cassert>
@@ -1418,7 +1419,11 @@ template <class T, class U>
 inline void
 TopologyRefiner::Limit(T const & src, U * dst) const {
 
-    assert(GetMaxLevel() > 0);
+    if (getLevel(GetMaxLevel()).getNumVertexEdgesTotal() == 0) {
+        Error(FAR_RUNTIME_ERROR,
+            "Cannot compute limit points -- last level of refinement does not include full topology.");
+        return;
+    }
 
     switch (_subdivType) {
     case Sdc::SCHEME_CATMARK:
@@ -1461,6 +1466,18 @@ TopologyRefiner::limit(T const & src, U * dst) const {
     for (int vert = 0; vert < level.getNumVertices(); ++vert) {
         ConstIndexArray vEdges = level.getVertexEdges(vert);
 
+        //  Incomplete vertices (present in sparse refinement) do not have their full
+        //  topological neighborhood to determine a proper limit -- just leave the
+        //  vertex at the refined location and continue to the next:
+        //
+        if (level._vertTags[vert]._incomplete || (vEdges.size() == 0)) {
+            dst[vert].Clear();
+            dst[vert].AddWithWeight(src[vert], 1.0);
+            continue;
+        }
+
+        //  Assign the mask weights to the common buffer and compute the mask:
+        //
         float * vWeights = weightBuffer,
               * eWeights = vWeights + 1,
               * fWeights = eWeights + vEdges.size();
@@ -1470,7 +1487,7 @@ TopologyRefiner::limit(T const & src, U * dst) const {
         //  This is a bit obscure -- child vertex index will be ignored here
         vHood.SetIndex(vert, vert);
 
-        scheme.ComputeVertexLimitMask(vHood, vMask);
+        scheme.ComputeVertexLimitMask(vHood, vMask, level.getVertexRule(vert));
 
         //  Apply the weights to the vertex, the vertices opposite its incident
         //  edges, and the opposite vertices of its incident faces:
@@ -1512,7 +1529,11 @@ template <class T, class U>
 inline void
 TopologyRefiner::LimitFaceVarying(T const & src, U * dst, int channel) const {
 
-    assert(GetMaxLevel() > 0);
+    if (getLevel(GetMaxLevel()).getNumVertexEdgesTotal() == 0) {
+        Error(FAR_RUNTIME_ERROR,
+            "Cannot compute limit points -- last level of refinement does not include full topology.");
+        return;
+    }
 
     switch (_subdivType) {
     case Sdc::SCHEME_CATMARK:
@@ -1546,21 +1567,31 @@ TopologyRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
 
     for (int vert = 0; vert < level.getNumVertices(); ++vert) {
 
+        ConstIndexArray vEdges  = level.getVertexEdges(vert);
         ConstIndexArray vValues = fvarChannel.getVertexValues(vert);
 
+        //  Incomplete vertices (present in sparse refinement) do not have their full
+        //  topological neighborhood to determine a proper limit -- just leave the
+        //  values (perhaps more than one per vertex) at the refined location.
+        //
+        //  The same can be done if the face-varying channel is purely linear.
+        //
+        bool isIncomplete = (level._vertTags[vert]._incomplete || (vEdges.size() == 0));
+        if (isIncomplete || fvarChannel._isLinear) {
+            for (int i = 0; i < vValues.size(); ++i) {
+                Vtr::Index vValue = vValues[i];
+
+                dst[vValue].Clear();
+                dst[vValue].AddWithWeight(src[vValue], 1.0f);
+            }
+            continue;
+        }
+
         bool fvarVertMatchesVertex = fvarChannel.valueTopologyMatches(vValues[0]);
-        if (fvarChannel._isLinear && fvarVertMatchesVertex) {
-            Vtr::Index srcValueIndex = fvarChannel.getVertexValue(vert);
-            Vtr::Index dstValueIndex = vValues[0];
+        if (fvarVertMatchesVertex) {
 
-            dst[dstValueIndex].Clear();
-            dst[dstValueIndex].AddWithWeight(src[srcValueIndex], 1.0f);
-        } else if (fvarVertMatchesVertex) {
+            //  Assign the mask weights to the common buffer and compute the mask:
             //
-            //  Compute the limit mask based on vertex topology:
-            //
-            ConstIndexArray vEdges = level.getVertexEdges(vert);
-
             float * vWeights = weightBuffer,
                   * eWeights = vWeights + 1,
                   * fWeights = eWeights + vEdges.size();
@@ -1569,7 +1600,7 @@ TopologyRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
 
             vHood.SetIndex(vert, vert);
 
-            scheme.ComputeVertexLimitMask(vHood, vMask);
+            scheme.ComputeVertexLimitMask(vHood, vMask, level.getVertexRule(vert));
 
             //
             //  Apply mask to corresponding FVar values for neighboring vertices:

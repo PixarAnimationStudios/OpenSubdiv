@@ -76,13 +76,12 @@ Scheme<SCHEME_BILINEAR>::ComputeVertexVertexMask(VERTEX const& vertex, MASK& mas
 
 
 //
-//  Limit masks for any bilinear vertex are the vertex itself, with all tangents being
-//  zero for now as tangents are not unique (what did Hbr do?):
+//  Limit masks for position -- the limit position of all vertices is the refined vertex.
 //
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_BILINEAR>::assignInteriorLimitMask(VERTEX const& /* vertex */, MASK& posMask) const {
+Scheme<SCHEME_BILINEAR>::assignCornerLimitMask(VERTEX const& /* vertex */, MASK& posMask) const {
 
     posMask.SetNumVertexWeights(1);
     posMask.SetNumEdgeWeights(0);
@@ -95,38 +94,65 @@ Scheme<SCHEME_BILINEAR>::assignInteriorLimitMask(VERTEX const& /* vertex */, MAS
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_BILINEAR>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_BILINEAR>::assignCreaseLimitMask(VERTEX const& vertex, MASK& posMask,
+                                               int const /* creaseEnds */[2]) const {
 
-    assignInteriorLimitMask(vertex, posMask);
+    assignCornerLimitMask(vertex, posMask);
 }
 
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_BILINEAR>::assignInteriorLimitTangentMasks(VERTEX const& /* vertex */,
+Scheme<SCHEME_BILINEAR>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) const {
+
+    assignCornerLimitMask(vertex, posMask);
+}
+
+//
+//  Limit masks for tangents -- these are ambibuous around all vertices.  Provide
+//  the tangents based on the incident edges of the first face.
+//
+template <>
+template <typename VERTEX, typename MASK>
+inline void
+Scheme<SCHEME_BILINEAR>::assignCornerLimitTangentMasks(VERTEX const& /* vertex */,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     tan1Mask.SetNumVertexWeights(1);
-    tan1Mask.SetNumEdgeWeights(0);
+    tan1Mask.SetNumEdgeWeights(2);
     tan1Mask.SetNumFaceWeights(0);
     tan1Mask.SetFaceWeightsForFaceCenters(false);
 
     tan2Mask.SetNumVertexWeights(1);
-    tan2Mask.SetNumEdgeWeights(0);
+    tan2Mask.SetNumEdgeWeights(2);
     tan2Mask.SetNumFaceWeights(0);
     tan2Mask.SetFaceWeightsForFaceCenters(false);
 
-    tan1Mask.VertexWeight(0) = 0.0f;
-    tan2Mask.VertexWeight(0) = 0.0f;
+    tan1Mask.VertexWeight(0) = -1.0f;
+    tan1Mask.EdgeWeight(0) = 1.0f;
+    tan1Mask.EdgeWeight(1) = 0.0f;
+
+    tan2Mask.VertexWeight(0) = -1.0f;
+    tan2Mask.EdgeWeight(0) = 0.0f;
+    tan2Mask.EdgeWeight(1) = 1.0f;
 }
 
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_BILINEAR>::assignBoundaryLimitTangentMasks(VERTEX const& vertex,
+Scheme<SCHEME_BILINEAR>::assignCreaseLimitTangentMasks(VERTEX const& vertex,
+        MASK& tan1Mask, MASK& tan2Mask, int const /* creaseEnds */[2]) const {
+
+    assignCornerLimitTangentMasks(vertex, tan1Mask, tan2Mask);
+}
+
+template <>
+template <typename VERTEX, typename MASK>
+inline void
+Scheme<SCHEME_BILINEAR>::assignSmoothLimitTangentMasks(VERTEX const& vertex,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
-    assignInteriorLimitTangentMasks(vertex, tan1Mask, tan2Mask);
+    assignCornerLimitTangentMasks(vertex, tan1Mask, tan2Mask);
 }
 
 } // end namespace sdc
