@@ -22,9 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-subroutine void computeKernelType();
-subroutine uniform computeKernelType computeKernel;
-
 //------------------------------------------------------------------------------
 
 uniform int batchStart = 0;
@@ -76,8 +73,7 @@ void addWithWeight(inout Vertex v, const Vertex src, float weight) {
 }
 
 //------------------------------------------------------------------------------
-subroutine(computeKernelType)
-void computeStencil() {
+void main() {
 
     int current = int(gl_GlobalInvocationID.x) + batchStart;
 
@@ -90,7 +86,7 @@ void computeStencil() {
 
     int offset = _offsets[current],
         size = int(_sizes[current]);
-    
+
     for (int i=0; i<size; ++i) {
         addWithWeight(dst, readVertex( _indices[offset+i] ), _weights[offset+i]);
     }
@@ -98,14 +94,6 @@ void computeStencil() {
     // the vertex buffer contains our control vertices at the beginning: don't
     // stomp on those !
     writeVertex(numCVs+current, dst);
-}
-
-//------------------------------------------------------------------------------
-
-void main()
-{
-    // call subroutine
-    computeKernel();
 }
 
 //------------------------------------------------------------------------------
