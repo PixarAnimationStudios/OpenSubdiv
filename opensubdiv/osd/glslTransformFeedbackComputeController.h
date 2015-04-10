@@ -31,6 +31,7 @@
 #include "../osd/vertexDescriptor.h"
 
 #include <vector>
+#include <cassert>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
