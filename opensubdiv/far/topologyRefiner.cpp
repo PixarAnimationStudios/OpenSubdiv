@@ -342,7 +342,16 @@ TopologyRefiner::GetPtexAdjacency(int face, int quadrant,
 void
 TopologyRefiner::RefineUniform(UniformOptions options) {
 
-    assert(_levels[0]->getNumVertices() > 0);  //  Make sure the base level has been initialized
+    if (_levels[0]->getNumVertices() == 0) {
+        Error(FAR_RUNTIME_ERROR,
+            "Cannot apply uniform refinement -- base level appears to be uninitialized.");
+        return;
+    }
+    if (_refinements.size()) {
+        Error(FAR_RUNTIME_ERROR,
+            "Cannot apply uniform refinement -- previous refinements already applied.");
+        return;
+    }
 
     //
     //  Allocate the stack of levels and the refinements between them:
@@ -385,7 +394,16 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
 void
 TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 
-    assert(_levels[0]->getNumVertices() > 0);  //  Make sure the base level has been initialized
+    if (_levels[0]->getNumVertices() == 0) {
+        Error(FAR_RUNTIME_ERROR,
+            "Cannot apply adaptive refinement -- base level appears to be uninitialized.");
+        return;
+    }
+    if (_refinements.size()) {
+        Error(FAR_RUNTIME_ERROR,
+            "Cannot apply adaptive refinement -- previous refinements already applied.");
+        return;
+    }
 
     //
     //  Allocate the stack of levels and the refinements between them:
