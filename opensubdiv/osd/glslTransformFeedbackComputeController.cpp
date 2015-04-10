@@ -116,7 +116,7 @@ public:
                 << "#define STRIDE " << desc.stride << "\n";
         std::string defineStr = defines.str();
 
-        const char *shaderSources[4] = {"#version 420\n", 0, 0, 0};
+        const char *shaderSources[4] = {"#version 410\n", 0, 0, 0};
 
         shaderSources[1] = defineStr.c_str();
         shaderSources[2] = shaderDefines;
