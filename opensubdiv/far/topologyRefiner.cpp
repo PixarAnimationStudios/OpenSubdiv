@@ -22,6 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 #include "../far/topologyRefiner.h"
+#include "../far/error.h"
 #include "../vtr/sparseSelector.h"
 #include "../vtr/quadRefinement.h"
 #include "../vtr/triRefinement.h"
