@@ -320,6 +320,22 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
         }
     }
 
+    // XXXtakahito revisit API once we refactor
+    // the relationship between stencil and patchtable
+
+    // concat stencils
+    if (not cvStencils) {
+        // if cvstencils is just created here
+
+        StencilTables const *inStencils[] = {
+            cvstencils, patchtables->GetEndCapVertexStencilTables()
+        };
+        StencilTables const *concatStencils =
+            StencilTablesFactory::Create(2, inStencils);
+        delete cvstencils;
+        cvstencils = concatStencils;
+    }
+
     assert(patchtables and cvstencils);
 
     // Create a patch-map to locate sub-patches faster

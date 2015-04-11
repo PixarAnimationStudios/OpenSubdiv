@@ -492,9 +492,10 @@ PatchTables::Evaluate(PatchHandle const & handle, float s, float t,
 
         assert(_endcapVertexStencilTables);
 
+        ConstIndexArray cvs = GetPatchVertices(handle);
+
         GetBezierWeights(bits, s, t, Q, Qd1, Qd2);
-        InterpolateGregoryPatch(_endcapVertexStencilTables, handle.vertIndex,
-            s, t, Q, Qd1, Qd2, src, dst);
+        InterpolateGregoryPatch(cvs.begin(), s, t, Q, Qd1, Qd2, src, dst);
 
     } else if (ptype==PatchDescriptor::QUADS) {
 
