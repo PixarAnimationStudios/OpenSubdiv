@@ -113,6 +113,20 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include "../common/patchColors.h"
 
 
+#if defined(OSD_USES_GLEW)
+static bool uses_tesselation_shaders(){
+
+	bool initialized = false, uses = false;
+	if (!initialized){
+		uses = glewGetExtension("GL_ARB_tessellation_shader") ||
+			(GLEW_VERSION_4_0
+			&& glewGetExtension("GL_ARB_tessellation_shader"));
+		initialized = true;
+	}
+	return initialized;
+}
+#endif
+
 /* Function to get the correct shader file based on the opengl version.
   The implentation varies depending if glew is available or not. In case
   is available the capabilities are queried during execution and the correct
@@ -139,8 +153,7 @@ static const char *shaderSource(){
 			//define that an extension is available but not an implementation 
 			//for it you cannnot trust in the glew header definitions to know that is 
 			//available, but you need to query it during runtime.
-			if (glewGetExtension("GL_ARB_tessellation_shader") ||
-				(GLEW_VERSION_4_0  && glewGetExtension("GL_ARB_tessellation_shader")))
+			if (uses_tesselation_shaders())
 				res = gen;
 			else
 				res = gen3;
@@ -958,11 +971,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 
     assert(sconfig);
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    const char *glslVersion = "#version 400\n";
-#else
-    const char *glslVersion = "#version 330\n";
-#endif
+	const std::string glslVersionStr = get_shader_version_include();
+    const char *glslVersion = glslVersionStr.c_str();
 
     if (desc.first.GetType() == Descriptor::QUADS or
         desc.first.GetType() == Descriptor::TRIANGLES) {
@@ -1289,6 +1299,17 @@ display() {
     glBeginQuery(GL_TIME_ELAPSED, g_queries[1]);
 #endif
 
+	bool tesselation_shaders =
+#if defined(OSD_USES_GLEW)
+		uses_tesselation_shaders()
+#else
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+		true
+#else
+		false
+#endif
+#endif
+		;
     for (int i=0; i<(int)patches.size(); ++i) {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
@@ -1313,42 +1334,44 @@ display() {
             primType = GL_TRIANGLES;
             break;
         default:
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-            primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
-#else
-            primType = GL_POINTS;
-#endif
+			if (tesselation_shaders){
+				primType = GL_PATCHES;
+				glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
+			}
+			else
+				primType = GL_POINTS;
         }
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        GLuint program = bindProgram(GetEffect(), patch);
+		if (tesselation_shaders){
+			GLuint program = bindProgram(GetEffect(), patch);
 
-        GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
+			GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
 
-        if (g_displayPatchColor and primType == GL_PATCHES) {
-            float const * color = getAdaptivePatchColor( desc );
-            glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
-        } else {
-            glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
-        }
+			if (g_displayPatchColor and primType == GL_PATCHES) {
+				float const * color = getAdaptivePatchColor(desc);
+				glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
+			}
+			else {
+				glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
+			}
 
-        GLuint uniformGregoryQuadOffsetBase =
-          glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
+			GLuint uniformGregoryQuadOffsetBase =
+				glGetUniformLocation(program, "GregoryQuadOffsetBase");
+			GLuint uniformPrimitiveIdBase =
+				glGetUniformLocation(program, "PrimitiveIdBase");
 
-        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
-                           patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformPrimitiveIdBase,
-                           patch.GetPatchIndex());
-#else
-        GLuint program = bindProgram(GetEffect(), patch);
-        GLint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
-        if (uniformPrimitiveIdBase != -1)
-            glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
-#endif
+			glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
+				patch.GetQuadOffsetIndex());
+			glProgramUniform1i(program, uniformPrimitiveIdBase,
+				patch.GetPatchIndex());
+		}
+		else{
+			GLuint program = bindProgram(GetEffect(), patch);
+			GLint uniformPrimitiveIdBase =
+				glGetUniformLocation(program, "PrimitiveIdBase");
+			if (uniformPrimitiveIdBase != -1)
+				glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
+		}
 
         if (g_displayStyle == kWire) {
             glDisable(GL_CULL_FACE);
@@ -1844,18 +1867,10 @@ setGLCoreProfile() {
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
 
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
 
-#else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
+
     glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
