@@ -1068,40 +1068,53 @@ EffectDrawRegistry::_CreateDrawConfig(
         glUniformBlockBinding(config->program, uboIndex, g_lightingBinding);
 
     GLint loc;
-#if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-    glUseProgram(config->program);
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glUniform1i(loc, 0); // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glUniform1i(loc, 1); // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glUniform1i(loc, 2); // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glUniform1i(loc, 3); // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
-        glUniform1i(loc, 4); // GL_TEXTURE4
-    }
+
+	bool use_ver_4_1_separate_shader_objects =
+#if defined(OSD_USES_GLEW)
+		!(GLEW_ARB_separate_shader_objects || GLEW_VERSION_4_1)
 #else
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
-    }
+#if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
+		false
+#else true;
 #endif
+#endif
+		;
+
+	if (use_ver_4_1_separate_shader_objects){
+		glUseProgram(config->program);
+		if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
+			glUniform1i(loc, 0); // GL_TEXTURE0
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
+			glUniform1i(loc, 1); // GL_TEXTURE1
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
+			glUniform1i(loc, 2); // GL_TEXTURE2
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
+			glUniform1i(loc, 3); // GL_TEXTURE3
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
+			glUniform1i(loc, 4); // GL_TEXTURE4
+		}
+	}
+	else{
+		if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
+		}
+	}
 
     return config;
 }
