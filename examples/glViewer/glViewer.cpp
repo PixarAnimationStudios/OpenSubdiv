@@ -112,13 +112,44 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include "../common/objAnim.h"
 #include "../common/patchColors.h"
 
-static const char *shaderSource =
+
+/* Function to get the correct shader file based on the opengl version.
+  The implentation varies depending if glew is available or not. In case
+  is available the capabilities are queried during execution and the correct
+  source is returned. If glew in not available during compile time the version
+  is determined*/
+static const char *shaderSource(){
+#if not defined(OSD_USES_GLEW)
+	return
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    #include "shader.gen.h"
+#include "shader.gen.h"
 #else
-    #include "shader_gl3.gen.h"
+#include "shader_gl3.gen.h"
 #endif
-;
+#else
+		static char *res = NULL;
+		if (!res){
+			static char *gen =
+#include "shader.gen.h"
+				;
+			static char *gen3 =
+#include "shader_gl3.gen.h"
+				;
+			//Determine the shader file to use. Since some opengl implementations
+			//define that an extension is available but not an implementation 
+			//for it you cannnot trust in the glew header definitions to know that is 
+			//available, but you need to query it during runtime.
+			if (glewGetExtension("GL_ARB_tessellation_shader") ||
+				(GLEW_VERSION_4_0  && glewGetExtension("GL_ARB_tessellation_shader")))
+				res = gen;
+			else
+				res = gen3;
+		}
+		return res;
+
+#endif
+
+}
 
 #include <cfloat>
 #include <vector>
@@ -346,14 +377,11 @@ static const std::string &get_shader_version_include(){
 static bool
 linkDefaultProgram() {
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    #define GLSL_VERSION_DEFINE "#version 400\n"
-#else
-    #define GLSL_VERSION_DEFINE "#version 150\n"
-#endif
+	const std::string glsl_version = get_shader_version_include();
 
-    static const char *vsSrc =
-        GLSL_VERSION_DEFINE
+
+    static const std::string vsSrc =
+		glsl_version +
         "in vec3 position;\n"
         "in vec3 color;\n"
         "out vec4 fragColor;\n"
@@ -364,8 +392,8 @@ linkDefaultProgram() {
         "                  vec4(position, 1);\n"
         "}\n";
 
-    static const char *fsSrc =
-        GLSL_VERSION_DEFINE
+    static const std::string fsSrc =
+		glsl_version +
         "in vec4 fragColor;\n"
         "out vec4 color;\n"
         "void main() {\n"
@@ -373,8 +401,8 @@ linkDefaultProgram() {
         "}\n";
 
     GLuint program = glCreateProgram();
-    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vsSrc);
-    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fsSrc);
+    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vsSrc.c_str());
+    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fsSrc.c_str());
 
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
@@ -938,18 +966,18 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 
     if (desc.first.GetType() == Descriptor::QUADS or
         desc.first.GetType() == Descriptor::TRIANGLES) {
-        sconfig->vertexShader.source = shaderSource;
+        sconfig->vertexShader.source = shaderSource();
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
     } else {
         sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
     }
 
-    sconfig->geometryShader.source = shaderSource;
+    sconfig->geometryShader.source = shaderSource();
     sconfig->geometryShader.version = glslVersion;
     sconfig->geometryShader.AddDefine("GEOMETRY_SHADER");
 
-    sconfig->fragmentShader.source = shaderSource;
+    sconfig->fragmentShader.source = shaderSource();
     sconfig->fragmentShader.version = glslVersion;
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
@@ -966,9 +994,9 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
     } else {
         // adaptive
-        sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
-        sconfig->tessControlShader.source = shaderSource + sconfig->tessControlShader.source;
-        sconfig->tessEvalShader.source = shaderSource + sconfig->tessEvalShader.source;
+        sconfig->vertexShader.source = shaderSource() + sconfig->vertexShader.source;
+        sconfig->tessControlShader.source = shaderSource() + sconfig->tessControlShader.source;
+        sconfig->tessEvalShader.source = shaderSource() + sconfig->tessEvalShader.source;
 
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
