@@ -122,7 +122,7 @@ Since a client' mesh representation knows best how to identify the topological
 neighborhoods required, no generic implementation would provide the most
 direct means of conversion possible, and so we rely on specialization.  For
 situations where mesh data is not defined in a boundary representation, a
-simple container for raw mesh data is provided (TopologyDescriptro) along
+simple container for raw mesh data is provided (TopologyDescriptor) along
 with a Factory specialized to construct TopologyRefiners from it.
 
 So there are two ways to create TopologyRefiners:
