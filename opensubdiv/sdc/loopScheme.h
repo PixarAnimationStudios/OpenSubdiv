@@ -298,7 +298,7 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) 
     }
 }
 
-//
+/*
 //  Limit masks for tangents:
 //
 //  A note on tangent magnitudes:
@@ -364,7 +364,7 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) 
 //
 //  The end result of these adjustments should be a set of limit tangents that are
 //  of similar magnitude over a regular mesh including boundaries and corners.
-//
+*/
 template <>
 template <typename VERTEX, typename MASK>
 inline void
