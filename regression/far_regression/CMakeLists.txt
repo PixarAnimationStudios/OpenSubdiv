@@ -25,16 +25,20 @@
 include_directories("${PROJECT_SOURCE_DIR}/opensubdiv")
 
 set(SOURCE_FILES
-    main.cpp
+    far_regression.cpp
 )
 
+set(PLATFORM_LIBRARIES
+    "${OSD_LINK_TARGET}"
+)
 
 _add_executable(far_regression
     ${SOURCE_FILES}
+    $<TARGET_OBJECTS:sdc_obj>
+    $<TARGET_OBJECTS:vtr_obj>
+    $<TARGET_OBJECTS:far_obj>
     $<TARGET_OBJECTS:regression_common_obj>
 )
-
-target_link_libraries(far_regression)
 
 install(TARGETS far_regression DESTINATION "${CMAKE_BINDIR_BASE}")
 
