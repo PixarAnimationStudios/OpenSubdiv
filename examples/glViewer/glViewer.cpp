@@ -486,7 +486,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     if (doAnim) {
         shape = g_objAnim->GetShape();
     } else {
-        shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
+        shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme, shapeDesc.lefthanded);
     }
 
     // create Vtr mesh (topology)

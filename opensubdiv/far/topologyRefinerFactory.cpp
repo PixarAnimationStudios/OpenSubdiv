@@ -296,9 +296,16 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
 
         IndexArray dstFaceVerts = refiner.setBaseFaceVertices(face);
 
-        for (int vert=0; vert<dstFaceVerts.size(); ++vert) {
+        if (desc.leftHanded) {
+            for (int vert=dstFaceVerts.size()-1; vert >=0; --vert) {
 
-            dstFaceVerts[vert] = desc.vertIndicesPerFace[idx++];
+                dstFaceVerts[vert] = desc.vertIndicesPerFace[idx++];
+            }
+        } else {
+            for (int vert=0; vert<dstFaceVerts.size(); ++vert) {
+
+                dstFaceVerts[vert] = desc.vertIndicesPerFace[idx++];
+            }
         }
     }
     return true;
@@ -373,9 +380,16 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignFa
 
                 IndexArray dstFaceValues = refiner.setBaseFVarFaceValues(face, channel);
 
-                for (int vert=0; vert<dstFaceValues.size(); ++vert) {
-
-                    dstFaceValues[vert] = channelIndices[idx++];
+                if (desc.leftHanded) {
+                    for (int vert=dstFaceValues.size(); vert >= 0; --vert) {
+                        
+                        dstFaceValues[vert] = channelIndices[idx++];
+                    }
+                } else {
+                    for (int vert=0; vert<dstFaceValues.size(); ++vert) {
+                        
+                        dstFaceValues[vert] = channelIndices[idx++];
+                    }
                 }
             }
         }
