@@ -105,7 +105,7 @@ ObjAnim::Create(std::vector<char const *> objFiles, bool axis) {
                 fflush(stdout);
                 std::string str = ss.str();
 
-                shape = Shape::parseObj(str.c_str(), kCatmark, axis);
+                shape = Shape::parseObj(str.c_str(), kCatmark, false, axis);
 
                 if (i==0) {
 
