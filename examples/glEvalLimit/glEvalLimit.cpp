@@ -426,7 +426,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         delete g_varyingData; g_varyingData = 0;
         if (g_drawMode==kVARYING) {
             g_varyingData = Osd::CpuVertexBuffer::Create(3, nverts);
-            g_varyingData->UpdateData( &g_varyingColors[0], 0, nverts);
+            g_varyingData->UpdateData( 
+                &g_varyingColors[0], 0, g_varyingColors.size()/3 );
         }
 
         // Create output buffers for the limit samples (position & tangents)
