@@ -71,7 +71,7 @@ struct Shape {
     };
 
     static Shape * parseObj(char const * Shapestr, Scheme schme,
-        bool lefthanded=false, int axis=1, bool parsemtl=false);
+        bool isLeftHanded=false, int axis=1, bool parsemtl=false);
 
     void parseMtllib(char const * stream);
 
@@ -100,7 +100,7 @@ struct Shape {
     std::vector<int>        facenormals;
     std::vector<tag *>      tags;
     Scheme                  scheme;
-    bool                lefthanded;
+    bool                    isLeftHanded;
 
     char FindMaterial(char const * name) {
         for (int i=0; i<(int)mtls.size(); ++i) {
