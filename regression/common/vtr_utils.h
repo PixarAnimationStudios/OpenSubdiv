@@ -169,7 +169,7 @@ TopologyRefinerFactory<Shape>::assignComponentTopology(
             Far::IndexArray dstFaceVerts = refiner.setBaseFaceVertices(i);
             //IndexArray dstFaceEdges = refiner.setBaseFaceEdges(i);
 
-            if (shape.lefthanded) {
+            if (shape.isLeftHanded) {
                 for (int j=dstFaceVerts.size()-1; j>=0; --j) {
                     dstFaceVerts[j] = shape.faceverts[ofs++];
                 }
@@ -200,7 +200,7 @@ TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
             Far::IndexArray dstFaceUVs =
                 refiner.setBaseFVarFaceValues(i, channel);
 
-            if (shape.lefthanded) {
+            if (shape.isLeftHanded) {
                 for (int j=dstFaceUVs.size()-1; j >= 0; --j) {
                     dstFaceUVs[j] = shape.faceuvs[ofs++];
                 }

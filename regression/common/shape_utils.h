@@ -51,7 +51,7 @@ struct Shape {
         std::vector<std::string> stringargs;
     };
 
-    static Shape * parseObj(char const * Shapestr, Scheme schme, bool lefthanded=false, int axis=1);
+    static Shape * parseObj(char const * Shapestr, Scheme schme, bool isLeftHanded=false, int axis=1);
 
     std::string genShape(char const * name) const;
 
@@ -78,7 +78,7 @@ struct Shape {
     std::vector<int>    facenormals;
     std::vector<tag *>  tags;
     Scheme              scheme;
-    bool                lefthanded;
+    bool                isLeftHanded;
 };
 
 //------------------------------------------------------------------------------

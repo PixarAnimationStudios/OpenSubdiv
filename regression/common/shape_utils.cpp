@@ -57,12 +57,12 @@ Shape::~Shape() {
 
 //------------------------------------------------------------------------------
 Shape * Shape::parseObj(char const * shapestr, Scheme shapescheme,
-                        bool lefthanded, int axis ) {
+                        bool isLeftHanded, int axis ) {
 
     Shape * s = new Shape;
 
     s->scheme = shapescheme;
-    s->lefthanded = lefthanded;
+    s->isLeftHanded = isLeftHanded;
 
     char * str=const_cast<char *>(shapestr), line[256];
     bool done = false;

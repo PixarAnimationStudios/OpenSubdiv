@@ -74,7 +74,7 @@ public:
         int           numHoles;
         Index const * holeIndices;
 
-        bool          leftHanded;
+        bool          isLeftHanded;
 
         //  Face-varying data channel -- value indices correspond to vertex indices,
         //  i.e. one for every vertex of every face:
