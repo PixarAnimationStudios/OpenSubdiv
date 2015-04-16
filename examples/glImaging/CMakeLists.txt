@@ -73,3 +73,5 @@ target_link_libraries(glImaging
 )
 
 install(TARGETS glImaging DESTINATION "${CMAKE_BINDIR_BASE}")
+
+add_test(glImaging ${EXECUTABLE_OUTPUT_PATH}/glImaging -w test -l 3 -s 256 256 -a)

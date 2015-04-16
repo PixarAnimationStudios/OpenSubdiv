@@ -62,3 +62,5 @@ target_link_libraries(osd_regression
 )
 
 install(TARGETS osd_regression DESTINATION "${CMAKE_BINDIR_BASE}")
+
+add_test(osd_regression ${EXECUTABLE_OUTPUT_PATH}/osd_regression)

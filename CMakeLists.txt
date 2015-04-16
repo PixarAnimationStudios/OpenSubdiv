@@ -682,6 +682,10 @@ endmacro()
 #-------------------------------------------------------------------------------
 # Build targets
 
+if (NOT NO_TEST)
+    enable_testing()
+endif()
+
 add_subdirectory(opensubdiv)
 
 if (NOT ANDROID AND NOT IOS) # XXXdyu
