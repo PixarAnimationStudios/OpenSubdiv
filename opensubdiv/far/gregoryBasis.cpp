@@ -364,8 +364,8 @@ ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex, int fvarChanne
         int valence;
         if (ringSize & 1) {
             // boundary vertex
-            ++ringSize;
             manifoldRing[ringSize] = manifoldRing[ringSize-1];
+            ++ringSize;
             valence = -ringSize/2;
         } else {
             valence = ringSize/2;
