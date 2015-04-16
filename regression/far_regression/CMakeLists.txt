@@ -42,3 +42,5 @@ _add_executable(far_regression
 
 install(TARGETS far_regression DESTINATION "${CMAKE_BINDIR_BASE}")
 
+add_test(far_regression ${EXECUTABLE_OUTPUT_PATH}/far_regression)
+
