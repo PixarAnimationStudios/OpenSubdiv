@@ -126,7 +126,8 @@ private:
          Options options, int npatches, PatchTables * tables);
 
     static PatchParam * computePatchParam(TopologyRefiner const & refiner,
-        int level, int face, int rotation, PatchParam * coord);
+        int level, int face, int rotation,
+        int boundaryMask, int transitionMask, PatchParam * coord);
 
     static int gatherFVarData(AdaptiveContext & state,
         int level, Index faceIndex, Index levelFaceOffset, int rotation, Index const * levelOffsets, Index fofss, Index ** fptrs);

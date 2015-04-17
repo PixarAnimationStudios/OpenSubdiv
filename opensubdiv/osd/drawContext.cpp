@@ -39,37 +39,21 @@ void
 DrawContext::ConvertPatchArrays(Far::PatchTables const &patchTables,
     PatchArrayVector &osdPatchArrays, int maxValence, int numElements) {
 
-    // create patch arrays for drawing (while duplicating subpatches for transition patch arrays)
-    static int subPatchCounts[] = { 1, 3, 4, 4, 4, 2 }; // number of subpatches for patterns
-
-    int numTotalPatchArrays = 0;
-    for (int array=0; array < patchTables.GetNumPatchArrays(); ++array) {
-
-        Far::PatchDescriptor::TransitionPattern pattern =
-            patchTables.GetPatchArrayDescriptor(array).GetPattern();
-
-        numTotalPatchArrays += subPatchCounts[(int)pattern];
-    }
+    int narrays = patchTables.GetNumPatchArrays();
 
     // allocate drawing patch arrays
     osdPatchArrays.clear();
-    osdPatchArrays.reserve(numTotalPatchArrays);
+    osdPatchArrays.reserve(narrays);
 
-    int narrays = patchTables.GetNumPatchArrays();
     for (int array=0, pidx=0, vidx=0, qidx=0; array<narrays; ++array) {
 
         Far::PatchDescriptor srcDesc = patchTables.GetPatchArrayDescriptor(array);
 
         int npatches = patchTables.GetNumPatches(array),
-            nsubpatches = subPatchCounts[(int)srcDesc.GetPattern()],
             nverts = srcDesc.GetNumControlVertices();
 
-        for (int i = 0; i < nsubpatches; ++i) {
-
-            PatchDescriptor desc(srcDesc, maxValence, i, numElements);
-
-            osdPatchArrays.push_back(PatchArray(desc, npatches, vidx, pidx, qidx));
-        }
+        PatchDescriptor desc(srcDesc, maxValence, numElements);
+        osdPatchArrays.push_back(PatchArray(desc, npatches, vidx, pidx, qidx));
 
         vidx += npatches * nverts;
         pidx += npatches;

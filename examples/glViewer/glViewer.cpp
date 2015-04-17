@@ -1158,7 +1158,7 @@ display() {
         g_mesh->GetDrawContext()->GetPatchArrays();
 
     // patch drawing
-    int patchCount[13][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
+    int patchCount[13]; // [Type] (see far/patchTables.h)
     int numTotalPatches = 0;
     int numDrawCalls = 0;
     memset(patchCount, 0, sizeof(patchCount));
@@ -1174,13 +1174,8 @@ display() {
 
         OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
-        int patchPattern = desc.GetPattern();
-        int patchRotation = desc.GetRotation();
-        int subPatch = desc.GetSubPatch();
 
-        if (subPatch == 0) {
-            patchCount[patchType][patchPattern][patchRotation] += patch.GetNumPatches();
-        }
+        patchCount[patchType] += patch.GetNumPatches();
         numTotalPatches += patch.GetNumPatches();
 
         GLenum primType;
@@ -1191,6 +1186,9 @@ display() {
             break;
         case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
             primType = GL_TRIANGLES;
+            break;
+        case OpenSubdiv::Far::PatchDescriptor::SINGLE_CREASE: // XXXdyu-patch-drawing
+            continue;
             break;
         default:
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
@@ -1288,48 +1286,21 @@ display() {
             int x = -280;
             int y = -480;
             g_hud.DrawString(x, y, "NonPatch         : %d",
-                             patchCount[Descriptor::QUADS][0][0]); y += 20;
+                             patchCount[Descriptor::QUADS]); y += 20;
             g_hud.DrawString(x, y, "Regular          : %d",
-                             patchCount[Descriptor::REGULAR][0][0]); y+= 20;
+                             patchCount[Descriptor::REGULAR]); y+= 20;
             g_hud.DrawString(x, y, "Boundary         : %d",
-                             patchCount[Descriptor::BOUNDARY][0][0]); y+= 20;
+                             patchCount[Descriptor::BOUNDARY]); y+= 20;
             g_hud.DrawString(x, y, "Corner           : %d",
-                             patchCount[Descriptor::CORNER][0][0]); y+= 20;
+                             patchCount[Descriptor::CORNER]); y+= 20;
             g_hud.DrawString(x, y, "Single Crease    : %d",
-                             patchCount[Descriptor::SINGLE_CREASE][0][0]); y+= 20;
+                             patchCount[Descriptor::SINGLE_CREASE]); y+= 20;
             g_hud.DrawString(x, y, "Gregory          : %d",
-                             patchCount[Descriptor::GREGORY][0][0]); y+= 20;
+                             patchCount[Descriptor::GREGORY]); y+= 20;
             g_hud.DrawString(x, y, "Boundary Gregory : %d",
-                             patchCount[Descriptor::GREGORY_BOUNDARY][0][0]); y+= 20;
+                             patchCount[Descriptor::GREGORY_BOUNDARY]); y+= 20;
             g_hud.DrawString(x, y, "Gregory Basis    : %d",
-                             patchCount[Descriptor::GREGORY_BASIS][0][0]); y+= 20;
-            g_hud.DrawString(x, y, "Trans. Regular   : %d %d %d %d %d",
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN0][0],
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN1][0],
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN2][0],
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN3][0],
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN4][0]); y+= 20;
-            for (int i=0; i < 5; i++) {
-                g_hud.DrawString(x, y, "Trans. Boundary%d : %d %d %d %d", i,
-                                 patchCount[Descriptor::BOUNDARY][i+1][0],
-                                 patchCount[Descriptor::BOUNDARY][i+1][1],
-                                 patchCount[Descriptor::BOUNDARY][i+1][2],
-                                 patchCount[Descriptor::BOUNDARY][i+1][3]); y+= 20;
-            }
-            for (int i=0; i < 5; i++) {
-                g_hud.DrawString(x, y, "Trans. Corner%d  : %d %d %d %d", i,
-                                 patchCount[Descriptor::CORNER][i+1][0],
-                                 patchCount[Descriptor::CORNER][i+1][1],
-                                 patchCount[Descriptor::CORNER][i+1][2],
-                                 patchCount[Descriptor::CORNER][i+1][3]); y+= 20;
-            }
-            for (int i=0; i < 5; i++) {
-                g_hud.DrawString(x, y, "Trans. Single Crease%d : %d %d %d %d", i,
-                                 patchCount[Descriptor::SINGLE_CREASE][i+1][0],
-                                 patchCount[Descriptor::SINGLE_CREASE][i+1][1],
-                                 patchCount[Descriptor::SINGLE_CREASE][i+1][2],
-                                 patchCount[Descriptor::SINGLE_CREASE][i+1][3]); y+= 20;
-            }
+                             patchCount[Descriptor::GREGORY_BASIS]); y+= 20;
         }
 
         int y = -220;

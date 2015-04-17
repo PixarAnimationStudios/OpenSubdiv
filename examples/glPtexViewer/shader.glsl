@@ -423,7 +423,85 @@ layout(std140) uniform Lighting {
 };
 
 #if defined COLOR_PATCHTYPE
+
 uniform vec4 overrideColor;
+
+vec4
+GetOverrideColor(int patchParam)
+{
+    const vec4 patchColors[7*6] = vec4[7*6](
+        vec4(1.0f,  1.0f,  1.0f,  1.0f),   // regular
+        vec4(0.0f,  1.0f,  1.0f,  1.0f),   // regular pattern 0
+        vec4(0.0f,  0.5f,  1.0f,  1.0f),   // regular pattern 1
+        vec4(0.0f,  0.5f,  0.5f,  1.0f),   // regular pattern 2
+        vec4(0.5f,  0.0f,  1.0f,  1.0f),   // regular pattern 3
+        vec4(1.0f,  0.5f,  1.0f,  1.0f),   // regular pattern 4
+
+        vec4(1.0f,  0.5f,  0.5f,  1.0f),   // single crease
+        vec4(1.0f,  0.70f,  0.6f,  1.0f),  // single crease pattern 0
+        vec4(1.0f,  0.65f,  0.6f,  1.0f),  // single crease pattern 1
+        vec4(1.0f,  0.60f,  0.6f,  1.0f),  // single crease pattern 2
+        vec4(1.0f,  0.55f,  0.6f,  1.0f),  // single crease pattern 3
+        vec4(1.0f,  0.50f,  0.6f,  1.0f),  // single crease pattern 4
+
+        vec4(0.8f,  0.0f,  0.0f,  1.0f),   // boundary
+        vec4(0.0f,  0.0f,  0.75f, 1.0f),   // boundary pattern 0
+        vec4(0.0f,  0.2f,  0.75f, 1.0f),   // boundary pattern 1
+        vec4(0.0f,  0.4f,  0.75f, 1.0f),   // boundary pattern 2
+        vec4(0.0f,  0.6f,  0.75f, 1.0f),   // boundary pattern 3
+        vec4(0.0f,  0.8f,  0.75f, 1.0f),   // boundary pattern 4
+
+        vec4(0.0f,  1.0f,  0.0f,  1.0f),   // corner
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 0
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 1
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 2
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 3
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 4
+
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f)    // gregory basis
+    );
+
+    int patchType = 0;
+#if defined OSD_PATCH_SINGLE_CREASE
+    patchType = 1;
+#elif defined OSD_PATCH_GREGORY
+    patchType = 4;
+#elif defined OSD_PATCH_GREGORY_BOUNDARY
+    patchType = 5;
+#elif defined OSD_PATCH_GREGORY_BASIS
+    patchType = 6;
+#endif
+    int edgeCount = bitCount((patchParam >> 4) & 0xf);
+    if (edgeCount == 1) {
+        patchType = 2; // BOUNDARY
+    }
+    if (edgeCount == 2) {
+        patchType = 3; // CORNER
+    }
+    int pattern = bitCount((patchParam >> 8) & 0xf);
+    int offset = 7*patchType + pattern;
+    return patchColors[offset];
+}
+
 #endif
 
 #if defined(NORMAL_HW_SCREENSPACE) || defined(NORMAL_SCREENSPACE)
@@ -597,7 +675,7 @@ main()
                                               textureImage_Data,
                                               textureImage_Packing);
 #elif defined COLOR_PATCHTYPE
-    vec4 texColor = edgeColor(lighting(overrideColor, inpt.v.position.xyz, normal, 1, 0));
+    vec4 texColor = edgeColor(lighting(GetOverrideColor(GetPatchParam()), inpt.v.position.xyz, normal, 1, 0));
     outColor = texColor;
     return;
 #elif defined COLOR_PATCHCOORD

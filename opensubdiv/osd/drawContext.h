@@ -68,32 +68,16 @@ public:
         ///
         /// @param maxValence   Highest vertex valence in the primitive
         ///
-        /// @param subPatch     Index of the triangulated sub-patch for the given
-        ///                     transition pattern. Transition patches need to be
-        ///                     split into multiple sub-patches in order to be
-        ///                     rendered with hardware tessellation.
-        ///
         /// @param numElements  The size of the vertex and varying data per-vertex
         ///                     (in floats)
         ///
-        PatchDescriptor(Far::PatchDescriptor farDesc, unsigned char maxValence,
-                    unsigned char subPatch, unsigned char numElements) :
-            _farDesc(farDesc), _maxValence(maxValence), _subPatch(subPatch), _numElements(numElements) { }
+        PatchDescriptor(Far::PatchDescriptor farDesc, unsigned char maxValence, unsigned char numElements) :
+            _farDesc(farDesc), _maxValence(maxValence), _numElements(numElements) { }
 
 
         /// Returns the type of the patch
         Far::PatchDescriptor::Type GetType() const {
             return _farDesc.GetType();
-        }
-
-        /// Returns the transition pattern of the patch if any (5 types)
-        Far::PatchDescriptor::TransitionPattern GetPattern() const {
-            return _farDesc.GetPattern();
-        }
-
-        /// Returns the rotation of the patch (4 rotations)
-        unsigned char GetRotation() const {
-            return _farDesc.GetRotation();
         }
 
         /// Returns the number of control vertices expected for a patch of the
@@ -105,11 +89,6 @@ public:
         /// Returns the max valence
         int GetMaxValence() const {
             return _maxValence;
-        }
-
-        /// Returns the subpatch id
-        int GetSubPatch() const {
-            return _subPatch;
         }
 
         /// Returns the number of vertex elements
@@ -131,7 +110,6 @@ public:
     private:
         Far::PatchDescriptor _farDesc;
         unsigned char _maxValence;
-        unsigned char _subPatch;
         unsigned char _numElements;
     };
 
@@ -261,9 +239,8 @@ inline bool
 DrawContext::PatchDescriptor::operator < ( PatchDescriptor const other ) const
 {
     return _farDesc < other._farDesc or (_farDesc == other._farDesc and
-          (_subPatch < other._subPatch or ((_subPatch == other._subPatch) and
           (_maxValence < other._maxValence or ((_maxValence == other._maxValence) and
-          (_numElements < other._numElements))))));
+          (_numElements < other._numElements))));
 }
 
 // True if the descriptors are identical
@@ -271,7 +248,6 @@ inline bool
 DrawContext::PatchDescriptor::operator == ( PatchDescriptor const other ) const
 {
     return _farDesc == other._farDesc and
-           _subPatch == other._subPatch and
            _maxValence == other._maxValence and
            _numElements == other._numElements;
 }

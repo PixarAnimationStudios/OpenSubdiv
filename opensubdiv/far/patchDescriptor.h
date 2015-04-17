@@ -51,11 +51,9 @@ namespace Far {
 ///
 /// Bitfield layout :
 ///
-///  Field      | Bits | Content
-///  -----------|:----:|------------------------------------------------------
-///  _type      | 4    | patch type
-///  _pattern   | 3    | patch transition pattern
-///  _rotation  | 2    | patch rotation
+///  Field       | Bits | Content
+///  ------------|:----:|------------------------------------------------------
+///  _type       | 4    | patch type
 ///
 class PatchDescriptor {
 
@@ -81,42 +79,23 @@ public:
         GREGORY_BASIS
     };
 
-    enum TransitionPattern {
-        NON_TRANSITION = 0,
-        PATTERN0,
-        PATTERN1,
-        PATTERN2,
-        PATTERN3,
-        PATTERN4
-    };
-
 public:
 
     /// \brief Default constructor.
     PatchDescriptor() :
-        _type(NON_PATCH), _pattern(NON_TRANSITION), _rotation(0) {}
+        _type(NON_PATCH) { }
 
     /// \brief Constructor
-    PatchDescriptor(int type, int pattern, unsigned char rotation) :
-        _type(type), _pattern(pattern), _rotation(rotation) { }
+    PatchDescriptor(int type) :
+        _type(type) { }
 
     /// \brief Copy Constructor
     PatchDescriptor( PatchDescriptor const & d ) :
-        _type(d.GetType()), _pattern(d.GetPattern()), _rotation(d.GetRotation()) { }
+        _type(d.GetType()) { }
 
     /// \brief Returns the type of the patch
     Type GetType() const {
         return (Type)_type;
-    }
-
-    /// \brief Returns the transition pattern of the patch if any (5 types)
-    TransitionPattern GetPattern() const {
-        return (TransitionPattern)_pattern;
-    }
-
-    /// \brief Returns the rotation of the patch (4 rotations)
-    unsigned char GetRotation() const {
-        return (unsigned char)_rotation;
     }
 
     /// \brief Returns true if the type is an adaptive patch
@@ -151,10 +130,10 @@ public:
     static short GetRegularPatchSize() { return 16; }
 
     /// \brief Number of control vertices of Boundary Patches in table.
-    static short GetBoundaryPatchSize() { return 12; }
+    static short GetBoundaryPatchSize() { return 16; }
 
     /// \brief Number of control vertices of Boundary Patches in table.
-    static short GetCornerPatchSize() { return 9; }
+    static short GetCornerPatchSize() { return 16; }
 
     /// \brief Number of control vertices of Gregory (and Gregory Boundary) Patches in table.
     static short GetGregoryPatchSize() { return 4; }
@@ -180,8 +159,6 @@ private:
     friend class PatchTablesFactory;
 
     unsigned int  _type:4;
-    unsigned int  _pattern:3;
-    unsigned int  _rotation:2;
 };
 
 typedef Vtr::ConstArray<PatchDescriptor> ConstPatchDescriptorArray;
@@ -227,17 +204,13 @@ PatchDescriptor::GetNumFVarControlVertices( Type type ) {
 // Allows ordering of patches by type
 inline bool
 PatchDescriptor::operator < ( PatchDescriptor const other ) const {
-    return _pattern < other._pattern or ((_pattern == other._pattern) and
-          (_type < other._type or ((_type == other._type) and
-          (_rotation < other._rotation))));
+    return (_type < other._type);
 }
 
 // True if the descriptors are identical
 inline bool
 PatchDescriptor::operator == ( PatchDescriptor const other ) const {
-    return     _pattern == other._pattern    and
-                  _type == other._type       and
-              _rotation == other._rotation;
+    return _type == other._type;
 }
 
 
