@@ -234,7 +234,6 @@ CpuEvalLimitController::_EvalLimitSample( LimitLocation const & coords,
         int const * permute = 0;
         switch (desc.GetType()) {
             case Desc::REGULAR          : permute = zeroRings[0]; break;
-            case Desc::SINGLE_CREASE    :
             case Desc::BOUNDARY         : permute = zeroRings[1]; break;
             case Desc::CORNER           : permute = zeroRings[2]; break;
             case Desc::GREGORY          :

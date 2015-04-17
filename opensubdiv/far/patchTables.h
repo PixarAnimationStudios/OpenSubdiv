@@ -461,29 +461,16 @@ PatchTables::Evaluate(PatchHandle const & handle, float s, float t,
 
     float Q[16], Qd1[16], Qd2[16];
 
-    if (ptype>=PatchDescriptor::REGULAR and ptype<=PatchDescriptor::SINGLE_CREASE) {
+    if (ptype==PatchDescriptor::REGULAR) {
 
         GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
 
         ConstIndexArray cvs = GetPatchVertices(handle);
 
-        switch (ptype) {
-            case PatchDescriptor::REGULAR:
-                InterpolateRegularPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-                // XXXdyu bits InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-                // XXXdyu bits InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-                break;
-            case PatchDescriptor::SINGLE_CREASE:
-                // TODO: implement InterpolateSingleCreasePatch().
-                //InterpolateRegularPatch(cvs, Q, Qd1, Qd2, src, dst);
-                break;
-            case PatchDescriptor::GREGORY:
-            case PatchDescriptor::GREGORY_BOUNDARY:
-                assert(0);
-                break;
-            default:
-                assert(0);
-        }
+        InterpolateRegularPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
+        // XXXdyu bits InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
+        // XXXdyu bits InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
+
     } else if (ptype==PatchDescriptor::GREGORY_BASIS) {
 
         assert(_endcapVertexStencilTables);

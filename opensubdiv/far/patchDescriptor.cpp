@@ -50,7 +50,6 @@ PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SchemeType type) {
 
         // XXXdyu-patch-drawing 
         PatchDescriptor(REGULAR),
-        PatchDescriptor(SINGLE_CREASE),
         PatchDescriptor(BOUNDARY),
         PatchDescriptor(CORNER),
         PatchDescriptor(GREGORY),

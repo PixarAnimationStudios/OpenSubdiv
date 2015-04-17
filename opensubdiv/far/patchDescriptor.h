@@ -45,7 +45,7 @@ namespace Far {
 ///   or TRIANGLES
 ///
 /// * Adaptively subdivided meshes contain bicubic patches of types REGULAR,
-///   BOUNDARY, SINGLE_CREASE, CORNER, GREGORY, GREGORY_BOUNDARY, GREGOYR_BASIS.
+///   BOUNDARY, CORNER, GREGORY, GREGORY_BOUNDARY, GREGOYR_BASIS.
 ///   These bicubic patches are also further distinguished by a transition
 ///   pattern as well as a rotational orientation.
 ///
@@ -71,7 +71,6 @@ public:
         LOOP,              ///< Loop patch
 
         REGULAR,           ///< feature-adaptive bicubic patches
-        SINGLE_CREASE,
         BOUNDARY,
         CORNER,
         GREGORY,
@@ -168,7 +167,6 @@ inline short
 PatchDescriptor::GetNumControlVertices( Type type ) {
     switch (type) {
         case REGULAR           : return GetRegularPatchSize();
-        case SINGLE_CREASE     : return GetRegularPatchSize();
         case QUADS             : return 4;
         case GREGORY           :
         case GREGORY_BOUNDARY  : return GetGregoryPatchSize();
@@ -187,7 +185,6 @@ inline short
 PatchDescriptor::GetNumFVarControlVertices( Type type ) {
     switch (type) {
         case REGULAR           : return GetRegularPatchSize();
-        case SINGLE_CREASE     : return GetRegularPatchSize();
         case QUADS             : return 4;
         case TRIANGLES         : return 3;
         case BOUNDARY          : return GetBoundaryPatchSize();

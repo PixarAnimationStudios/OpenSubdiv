@@ -176,7 +176,7 @@ int   g_displayPatchColor = 1,
       g_screenSpaceTess = 1,
       g_fractionalSpacing = 1,
       g_patchCull = 0,
-      g_displayPatchCounts = 0;
+      g_displayPatchCounts = 1;
 
 float g_rotate[2] = {0, 0},
       g_dolly = 5,
@@ -1187,9 +1187,6 @@ display() {
         case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
             primType = GL_TRIANGLES;
             break;
-        case OpenSubdiv::Far::PatchDescriptor::SINGLE_CREASE: // XXXdyu-patch-drawing
-            continue;
-            break;
         default:
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
             primType = GL_PATCHES;
@@ -1284,7 +1281,7 @@ display() {
 
         if (g_displayPatchCounts) {
             int x = -280;
-            int y = -480;
+            int y = -180;
             g_hud.DrawString(x, y, "NonPatch         : %d",
                              patchCount[Descriptor::QUADS]); y += 20;
             g_hud.DrawString(x, y, "Regular          : %d",
@@ -1293,8 +1290,6 @@ display() {
                              patchCount[Descriptor::BOUNDARY]); y+= 20;
             g_hud.DrawString(x, y, "Corner           : %d",
                              patchCount[Descriptor::CORNER]); y+= 20;
-            g_hud.DrawString(x, y, "Single Crease    : %d",
-                             patchCount[Descriptor::SINGLE_CREASE]); y+= 20;
             g_hud.DrawString(x, y, "Gregory          : %d",
                              patchCount[Descriptor::GREGORY]); y+= 20;
             g_hud.DrawString(x, y, "Boundary Gregory : %d",
