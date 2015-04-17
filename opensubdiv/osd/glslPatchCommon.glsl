@@ -183,10 +183,13 @@ float TessAdaptive(vec3 p0, vec3 p1)
 
 uniform isamplerBuffer OsdPatchParamBuffer;
 
+#define GetPatchParam()                                                 \
+    (texelFetch(OsdPatchParamBuffer, GetPrimitiveID()).y)
+
 #define GetPatchLevel()                                                 \
     (texelFetch(OsdPatchParamBuffer, GetPrimitiveID()).y & 0xf)
 
-#define GetSharpness()                          \
+#define GetSharpness()                                                  \
     (intBitsToFloat(texelFetch(OsdPatchParamBuffer, GetPrimitiveID()).z))
 
 #define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
@@ -194,12 +197,11 @@ uniform isamplerBuffer OsdPatchParamBuffer;
         ivec2 ptexIndex = texelFetch(OsdPatchParamBuffer,               \
                                      GetPrimitiveID()).xy;              \
         int faceID = ptexIndex.x;                                       \
-        int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1)); \
-        int u = (ptexIndex.y >> 17) & 0x3ff;                            \
-        int v = (ptexIndex.y >> 7) & 0x3ff;                             \
-        int rotation = (ptexIndex.y >> 5) & 0x3;                        \
+        int lv = 1 << ((ptexIndex.y & 0x7) - ((ptexIndex.y >> 3) & 1)); \
+        int u = (ptexIndex.y >> 22) & 0x3ff;                            \
+        int v = (ptexIndex.y >> 12) & 0x3ff;                            \
         outpt[ID].v.patchCoord.w = faceID+0.5;                          \
-        outpt[ID].v.ptexInfo = ivec4(u, v, lv, rotation);               \
+        outpt[ID].v.ptexInfo = ivec4(u, v, lv, 0);                      \
     }
 
 #define OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER                          \
@@ -207,57 +209,8 @@ uniform isamplerBuffer OsdPatchParamBuffer;
         vec2 uv = outpt.v.patchCoord.xy;                                \
         ivec2 p = inpt[0].v.ptexInfo.xy;                                \
         int lv = inpt[0].v.ptexInfo.z;                                  \
-        int rot = inpt[0].v.ptexInfo.w;                                 \
         outpt.v.tessCoord.xy = uv;                                      \
-        uv.xy = float(rot==0)*uv.xy                                     \
-            + float(rot==1)*vec2(1.0-uv.y, uv.x)                        \
-            + float(rot==2)*vec2(1.0-uv.x, 1.0-uv.y)                    \
-            + float(rot==3)*vec2(uv.y, 1.0-uv.x);                       \
-        outpt.v.patchCoord.xy = (uv * vec2(1.0)/lv) + vec2(p.x, p.y)/lv; \
-    }
-
-#define OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(ROTATE)                 \
-    {                                                               \
-        int rot = (inpt[0].v.ptexInfo.w + 4 - ROTATE)%4;            \
-        if (rot == 1) {                                             \
-            outpt.v.tangent = -BiTangent;                           \
-            outpt.v.bitangent = Tangent;                            \
-        } else if (rot == 2) {                                      \
-            outpt.v.tangent = -Tangent;                             \
-            outpt.v.bitangent = -BiTangent;                         \
-        } else if (rot == 3) {                                      \
-            outpt.v.tangent = BiTangent;                            \
-            outpt.v.bitangent = -Tangent;                           \
-        } else {                                                    \
-            outpt.v.tangent = Tangent;                              \
-            outpt.v.bitangent = BiTangent;                          \
-        }                                                           \
-    }
-
-#define OSD_COMPUTE_PTEX_COMPATIBLE_DERIVATIVES(ROTATE)             \
-    {                                                               \
-        int rot = (inpt[0].v.ptexInfo.w + 4 - ROTATE)%4;            \
-        if (rot == 1) {                                             \
-            outpt.v.tangent = -BiTangent;                           \
-            outpt.v.bitangent = Tangent;                            \
-            outpt.v.Nu = -Nv;                                       \
-            outpt.v.Nv = Nv;                                        \
-        } else if (rot == 2) {                                      \
-            outpt.v.tangent = -Tangent;                             \
-            outpt.v.bitangent = -BiTangent;                         \
-            outpt.v.Nu = -Nu;                                       \
-            outpt.v.Nv = -Nv;                                       \
-        } else if (rot == 3) {                                      \
-            outpt.v.tangent = BiTangent;                            \
-            outpt.v.bitangent = -Tangent;                           \
-            outpt.v.Nu = Nv;                                        \
-            outpt.v.Nv = -Nu;                                       \
-        } else {                                                    \
-            outpt.v.tangent = Tangent;                              \
-            outpt.v.bitangent = BiTangent;                          \
-            outpt.v.Nu = Nu;                                        \
-            outpt.v.Nv = Nv;                                        \
-        }                                                           \
+        outpt.v.patchCoord.xy = (uv * vec2(1.0)/lv) + vec2(p.x, p.y)/lv;\
     }
 
 // ----------------------------------------------------------------------------

@@ -461,7 +461,7 @@ PatchTables::Evaluate(PatchHandle const & handle, float s, float t,
 
     float Q[16], Qd1[16], Qd2[16];
 
-    if (ptype>=PatchDescriptor::REGULAR and ptype<=PatchDescriptor::CORNER) {
+    if (ptype>=PatchDescriptor::REGULAR and ptype<=PatchDescriptor::SINGLE_CREASE) {
 
         GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
 
@@ -470,16 +470,12 @@ PatchTables::Evaluate(PatchHandle const & handle, float s, float t,
         switch (ptype) {
             case PatchDescriptor::REGULAR:
                 InterpolateRegularPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
+                // XXXdyu bits InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
+                // XXXdyu bits InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
                 break;
             case PatchDescriptor::SINGLE_CREASE:
                 // TODO: implement InterpolateSingleCreasePatch().
                 //InterpolateRegularPatch(cvs, Q, Qd1, Qd2, src, dst);
-                break;
-            case PatchDescriptor::BOUNDARY:
-                InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-                break;
-            case PatchDescriptor::CORNER:
-                InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
                 break;
             case PatchDescriptor::GREGORY:
             case PatchDescriptor::GREGORY_BOUNDARY:
@@ -537,14 +533,8 @@ PatchTables::EvaluateFaceVarying(int channel, PatchHandle const & handle,
         case PatchDescriptor::REGULAR:
             GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
             InterpolateRegularPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-            break;
-        case PatchDescriptor::BOUNDARY:
-            GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
-            InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-            break;
-        case PatchDescriptor::CORNER:
-            GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
-            InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
+            // XXXdyu bits InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
+            // XXXdyu bits InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
             break;
         default:
             assert(0);

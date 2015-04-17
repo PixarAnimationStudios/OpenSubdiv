@@ -1755,7 +1755,7 @@ drawCageEdges() {
     typedef OpenSubdiv::Far::PatchDescriptor FDesc;
 
     OpenSubdiv::Osd::DrawContext::PatchDescriptor desc(
-        FDesc(FDesc::LINES, FDesc::NON_TRANSITION, 0), 0, 0, 0);
+        FDesc(FDesc::LINES), 0, 0);
     EffectDrawRegistry::ConfigType *config = getInstance(effect, desc);
     glUseProgram(config->program);
 

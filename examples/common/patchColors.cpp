@@ -24,57 +24,25 @@
 
 #include "patchColors.h"
 
-static float _colors[5][7][4] = {{{1.0f,  1.0f,  1.0f,  1.0f},   // regular
-                                  {1.0f,  0.5f,  0.5f,  1.0f},   // single crease
-                                  {0.8f,  0.0f,  0.0f,  1.0f},   // boundary
-                                  {0.0f,  1.0f,  0.0f,  1.0f},   // corner
-                                  {1.0f,  1.0f,  0.0f,  1.0f},   // gregory
-                                  {1.0f,  0.5f,  0.0f,  1.0f},   // gregory boundary
-                                  {1.0f,  0.7f,  0.3f,  1.0f}},  // gregory basis
-
-                                 {{0.0f,  1.0f,  1.0f,  1.0f},   // regular pattern 0
-                                  {0.0f,  0.5f,  1.0f,  1.0f},   // regular pattern 1
-                                  {0.0f,  0.5f,  0.5f,  1.0f},   // regular pattern 2
-                                  {0.5f,  0.0f,  1.0f,  1.0f},   // regular pattern 3
-                                  {1.0f,  0.5f,  1.0f,  1.0f}},  // regular pattern 4
-
-                                 {{1.0f,  0.70f,  0.6f,  1.0f},   // single crease pattern 0
-                                  {1.0f,  0.65f,  0.6f,  1.0f},   // single crease pattern 1
-                                  {1.0f,  0.60f,  0.6f,  1.0f},   // single crease pattern 2
-                                  {1.0f,  0.55f,  0.6f,  1.0f},   // single crease pattern 3
-                                  {1.0f,  0.50f,  0.6f,  1.0f}},  // single crease pattern 4
-
-                                 {{0.0f,  0.0f,  0.75f, 1.0f},   // boundary pattern 0
-                                  {0.0f,  0.2f,  0.75f, 1.0f},   // boundary pattern 1
-                                  {0.0f,  0.4f,  0.75f, 1.0f},   // boundary pattern 2
-                                  {0.0f,  0.6f,  0.75f, 1.0f},   // boundary pattern 3
-                                  {0.0f,  0.8f,  0.75f, 1.0f}},  // boundary pattern 4
-
-                                 {{0.25f, 0.25f, 0.25f, 1.0f},   // corner pattern 0
-                                  {0.25f, 0.25f, 0.25f, 1.0f},   // corner pattern 1
-                                  {0.25f, 0.25f, 0.25f, 1.0f},   // corner pattern 2
-                                  {0.25f, 0.25f, 0.25f, 1.0f},   // corner pattern 3
-                                  {0.25f, 0.25f, 0.25f, 1.0f}}}; // corner pattern 4
+static float _colors[7][4] = {{1.0f,  1.0f,  1.0f,  1.0f},   // regular
+                              {1.0f,  0.5f,  0.5f,  1.0f},   // single crease
+                              {0.8f,  0.0f,  0.0f,  1.0f},   // boundary
+                              {0.0f,  1.0f,  0.0f,  1.0f},   // corner
+                              {1.0f,  1.0f,  0.0f,  1.0f},   // gregory
+                              {1.0f,  0.5f,  0.0f,  1.0f},   // gregory boundary
+                              {1.0f,  0.7f,  0.3f,  1.0f}};  // gregory basis
 
 typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
 
 float const *
 getAdaptivePatchColor(Descriptor const & desc) {
 
-    if (desc.GetPattern()==Descriptor::NON_TRANSITION) {
-        return _colors[0][(int)(desc.GetType()-Descriptor::REGULAR)];
-    } else {
-        return _colors[(int)(desc.GetType()-Descriptor::REGULAR)+1][(int)desc.GetPattern()-1];
-    }
+    return _colors[(int)(desc.GetType()-Descriptor::REGULAR)];
 }
 
 float const *
 getAdaptivePatchColor(OpenSubdiv::Osd::DrawContext::PatchDescriptor const & desc) {
 
-    if (desc.GetPattern()==Descriptor::NON_TRANSITION) {
-        return _colors[0][(int)(desc.GetType()-Descriptor::REGULAR)];
-    } else {
-        return _colors[(int)(desc.GetType()-Descriptor::REGULAR)+1][(int)desc.GetPattern()-1];
-    }
+    return _colors[(int)(desc.GetType()-Descriptor::REGULAR)];
 }
 

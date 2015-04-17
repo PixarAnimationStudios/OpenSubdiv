@@ -43,94 +43,19 @@ PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SchemeType type) {
 
     static PatchDescriptor _loopDescriptors[] = {
         // XXXX work in progress !
-        PatchDescriptor(LOOP, NON_TRANSITION, 0)
+        PatchDescriptor(LOOP),
     };
 
     static PatchDescriptor _catmarkDescriptors[] = {
 
-        // non-transition patches : 7
-        PatchDescriptor(REGULAR,          NON_TRANSITION, 0),
-        PatchDescriptor(SINGLE_CREASE,    NON_TRANSITION, 0),
-        PatchDescriptor(BOUNDARY,         NON_TRANSITION, 0),
-        PatchDescriptor(CORNER,           NON_TRANSITION, 0),
-        PatchDescriptor(GREGORY,          NON_TRANSITION, 0),
-        PatchDescriptor(GREGORY_BOUNDARY, NON_TRANSITION, 0),
-        PatchDescriptor(GREGORY_BASIS,    NON_TRANSITION, 0),
-
-        // transition pattern 0
-        PatchDescriptor(REGULAR,       PATTERN0, 0),
-        PatchDescriptor(SINGLE_CREASE, PATTERN0, 0),
-        PatchDescriptor(SINGLE_CREASE, PATTERN0, 1),
-        PatchDescriptor(SINGLE_CREASE, PATTERN0, 2),
-        PatchDescriptor(SINGLE_CREASE, PATTERN0, 3),
-        PatchDescriptor(BOUNDARY,      PATTERN0, 0),
-        PatchDescriptor(BOUNDARY,      PATTERN0, 1),
-        PatchDescriptor(BOUNDARY,      PATTERN0, 2),
-        PatchDescriptor(BOUNDARY,      PATTERN0, 3),
-        PatchDescriptor(CORNER,        PATTERN0, 0),
-        PatchDescriptor(CORNER,        PATTERN0, 1),
-        PatchDescriptor(CORNER,        PATTERN0, 2),
-        PatchDescriptor(CORNER,        PATTERN0, 3),
-
-        // transition pattern 1
-        PatchDescriptor(REGULAR,       PATTERN1, 0),
-        PatchDescriptor(SINGLE_CREASE, PATTERN1, 0),
-        PatchDescriptor(SINGLE_CREASE, PATTERN1, 1),
-        PatchDescriptor(SINGLE_CREASE, PATTERN1, 2),
-        PatchDescriptor(SINGLE_CREASE, PATTERN1, 3),
-        PatchDescriptor(BOUNDARY,      PATTERN1, 0),
-        PatchDescriptor(BOUNDARY,      PATTERN1, 1),
-        PatchDescriptor(BOUNDARY,      PATTERN1, 2),
-        PatchDescriptor(BOUNDARY,      PATTERN1, 3),
-        PatchDescriptor(CORNER,        PATTERN1, 0),
-        PatchDescriptor(CORNER,        PATTERN1, 1),
-        PatchDescriptor(CORNER,        PATTERN1, 2),
-        PatchDescriptor(CORNER,        PATTERN1, 3),
-
-        // transition pattern 2
-        PatchDescriptor(REGULAR,       PATTERN2, 0),
-        PatchDescriptor(SINGLE_CREASE, PATTERN2, 0),
-        PatchDescriptor(SINGLE_CREASE, PATTERN2, 1),
-        PatchDescriptor(SINGLE_CREASE, PATTERN2, 2),
-        PatchDescriptor(SINGLE_CREASE, PATTERN2, 3),
-        PatchDescriptor(BOUNDARY,      PATTERN2, 0),
-        PatchDescriptor(BOUNDARY,      PATTERN2, 1),
-        PatchDescriptor(BOUNDARY,      PATTERN2, 2),
-        PatchDescriptor(BOUNDARY,      PATTERN2, 3),
-        PatchDescriptor(CORNER,        PATTERN2, 0),
-        PatchDescriptor(CORNER,        PATTERN2, 1),
-        PatchDescriptor(CORNER,        PATTERN2, 2),
-        PatchDescriptor(CORNER,        PATTERN2, 3),
-
-        // transition pattern 3
-        PatchDescriptor(REGULAR,       PATTERN3, 0),
-        PatchDescriptor(SINGLE_CREASE, PATTERN3, 0),
-        PatchDescriptor(SINGLE_CREASE, PATTERN3, 1),
-        PatchDescriptor(SINGLE_CREASE, PATTERN3, 2),
-        PatchDescriptor(SINGLE_CREASE, PATTERN3, 3),
-        PatchDescriptor(BOUNDARY,      PATTERN3, 0),
-        PatchDescriptor(BOUNDARY,      PATTERN3, 1),
-        PatchDescriptor(BOUNDARY,      PATTERN3, 2),
-        PatchDescriptor(BOUNDARY,      PATTERN3, 3),
-        PatchDescriptor(CORNER,        PATTERN3, 0),
-        PatchDescriptor(CORNER,        PATTERN3, 1),
-        PatchDescriptor(CORNER,        PATTERN3, 2),
-        PatchDescriptor(CORNER,        PATTERN3, 3),
-
-        // transition pattern 4
-        PatchDescriptor(REGULAR,       PATTERN4, 0),
-        PatchDescriptor(SINGLE_CREASE, PATTERN4, 0),
-        PatchDescriptor(SINGLE_CREASE, PATTERN4, 1),
-        PatchDescriptor(SINGLE_CREASE, PATTERN4, 2),
-        PatchDescriptor(SINGLE_CREASE, PATTERN4, 3),
-        PatchDescriptor(BOUNDARY,      PATTERN4, 0),
-        PatchDescriptor(BOUNDARY,      PATTERN4, 1),
-        PatchDescriptor(BOUNDARY,      PATTERN4, 2),
-        PatchDescriptor(BOUNDARY,      PATTERN4, 3),
-        PatchDescriptor(CORNER,        PATTERN4, 0),
-        PatchDescriptor(CORNER,        PATTERN4, 1),
-        PatchDescriptor(CORNER,        PATTERN4, 2),
-        PatchDescriptor(CORNER,        PATTERN4, 3),
+        // XXXdyu-patch-drawing 
+        PatchDescriptor(REGULAR),
+        PatchDescriptor(SINGLE_CREASE),
+        PatchDescriptor(BOUNDARY),
+        PatchDescriptor(CORNER),
+        PatchDescriptor(GREGORY),
+        PatchDescriptor(GREGORY_BOUNDARY),
+        PatchDescriptor(GREGORY_BASIS),
     };
 
     switch (type) {
@@ -155,8 +80,8 @@ PatchDescriptor::print() const {
             "SINGLE_CREASE", "BOUNDARY", "CORNER", "GREGORY",
                 "GREGORY_BOUNDARY", "GREGORY_BASIS" };
 
-    printf("    type %s trans %d rot %d\n",
-        types[_type], _pattern, _rotation);
+    printf("    type %s\n",
+        types[_type]);
 }
 
 
