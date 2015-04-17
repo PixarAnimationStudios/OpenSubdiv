@@ -1584,7 +1584,7 @@ PatchTablesFactory::populateAdaptivePatches(AdaptiveContext & context) {
                         level->gatherQuadRegularBoundaryPatchPoints(faceIndex, patchVerts, bIndex);
                         offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteBoundary, iptrs.R);
 
-                        bIndex = 3*((bIndex+1)&1);
+                        bIndex = (bIndex+1)%4;
 
                         iptrs.R += 16;
                         pptrs.R = computePatchParam(refiner, i, faceIndex, bIndex, boundaryMask, transitionMask, pptrs.R);
