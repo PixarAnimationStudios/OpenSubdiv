@@ -29,6 +29,12 @@
 
 patch out vec4 tessOuterLo, tessOuterHi;
 
+float
+TessAdaptiveRound(vec3 p0, vec3 p1)
+{
+    return round(TessAdaptive(p0, p1));
+}
+
 void
 GetTransitionTessLevels(vec3 cp[24], int patchParam, inout vec4 outer, inout vec2 inner)
 {
@@ -60,28 +66,28 @@ GetTransitionTessLevels(vec3 cp[24], int patchParam, inout vec4 outer, inout vec
     float tessAmount = GetTessLevel(GetPatchLevel());
 
     if (((patchParam >> 11) & 1) != 0) {
-        tessOuterLo[0] = TessAdaptive(cp[16], cp[17]);
-        tessOuterHi[0] = TessAdaptive(cp[17], cp[18]);
+        tessOuterLo[0] = TessAdaptiveRound(cp[23], cp[16]);
+        tessOuterHi[0] = TessAdaptiveRound(cp[22], cp[23]);
     } else {
-        tessOuterLo[0] = TessAdaptive(cp[5], cp[6]);
+        tessOuterLo[0] = TessAdaptiveRound(cp[5], cp[9]);
     }
     if (((patchParam >> 8) & 1) != 0) {
-        tessOuterLo[1] = TessAdaptive(cp[18], cp[19]);
-        tessOuterHi[1] = TessAdaptive(cp[19], cp[20]);
+        tessOuterLo[1] = TessAdaptiveRound(cp[16], cp[17]);
+        tessOuterHi[1] = TessAdaptiveRound(cp[17], cp[18]);
     } else {
-        tessOuterLo[1] = TessAdaptive(cp[6], cp[10]);
+        tessOuterLo[1] = TessAdaptiveRound(cp[5], cp[6]);
     }
     if (((patchParam >> 9) & 1) != 0) {
-        tessOuterHi[2] = TessAdaptive(cp[20], cp[21]);
-        tessOuterLo[2] = TessAdaptive(cp[21], cp[22]);
+        tessOuterLo[2] = TessAdaptiveRound(cp[18], cp[19]);
+        tessOuterHi[2] = TessAdaptiveRound(cp[19], cp[20]);
     } else {
-        tessOuterLo[2] = TessAdaptive(cp[9], cp[10]);
+        tessOuterLo[2] = TessAdaptiveRound(cp[6], cp[10]);
     }
     if (((patchParam >> 10) & 1) != 0) {
-        tessOuterHi[3] = TessAdaptive(cp[22], cp[23]);
-        tessOuterLo[3] = TessAdaptive(cp[23], cp[16]);
+        tessOuterLo[3] = TessAdaptiveRound(cp[21], cp[22]);
+        tessOuterHi[3] = TessAdaptiveRound(cp[20], cp[21]);
     } else {
-        tessOuterLo[3] = TessAdaptive(cp[5], cp[9]);
+        tessOuterLo[3] = TessAdaptiveRound(cp[9], cp[10]);
     }
 #else
     float tessAmount = GetTessLevel(GetPatchLevel());
@@ -90,11 +96,6 @@ GetTransitionTessLevels(vec3 cp[24], int patchParam, inout vec4 outer, inout vec
     tessOuterLo[1] = tessAmount;
     tessOuterLo[2] = tessAmount;
     tessOuterLo[3] = tessAmount;
-
-    tessOuterHi[0] = tessAmount * ((patchParam >> 11) & 1);
-    tessOuterHi[1] = tessAmount * ((patchParam >> 8) & 1);
-    tessOuterHi[2] = tessAmount * ((patchParam >> 9) & 1);
-    tessOuterHi[3] = tessAmount * ((patchParam >> 10) & 1);
 #endif
 
     outer = tessOuterLo + tessOuterHi;
@@ -109,18 +110,38 @@ GetTransitionTessLevels(vec3 cp[24], int patchParam, inout vec4 outer, inout vec
 //----------------------------------------------------------
 #ifdef OSD_PATCH_TESS_EVAL_BSPLINE_SHADER
 
-patch in vec4 tessOuterLow, tessOuterHigh;
+patch in vec4 tessOuterLo, tessOuterHi;
+
+float
+GetTransitionSplit(float t, float n0, float n1)
+{
+    float n = round(n0 + n1);
+    float ti = round(t * n);
+
+    if (ti <= n0) {
+        return 0.5 * (ti / n0);
+    } else {
+        return 0.5 * ((ti - n0) / n1) + 0.5;
+    }
+}
 
 vec2
-GetTransitionSubpatchUV()
+GetTransitionParameterization()
 {
-#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
-    // XXXdyu-patch-drawing debug -- just split along transitions
-    vec2 uv = gl_TessCoord.xy;
-#else
-    vec2 uv = gl_TessCoord.xy;
-#endif
-    return uv;
+    vec2 UV = gl_TessCoord.xy;
+    if (UV.x == 0 && tessOuterHi[0] > 0) {
+        UV.y = GetTransitionSplit(UV.y, tessOuterLo[0], tessOuterHi[0]);
+    } else
+    if (UV.y == 0 && tessOuterHi[1] > 0) {
+        UV.x = GetTransitionSplit(UV.x, tessOuterLo[1], tessOuterHi[1]);
+    } else
+    if (UV.x == 1 && tessOuterHi[2] > 0) {
+        UV.y = GetTransitionSplit(UV.y, tessOuterLo[2], tessOuterHi[2]);
+    } else
+    if (UV.y == 1 && tessOuterHi[3] > 0) {
+        UV.x = GetTransitionSplit(UV.x, tessOuterLo[3], tessOuterHi[3]);
+    }
+    return UV;
 }
 
 #endif

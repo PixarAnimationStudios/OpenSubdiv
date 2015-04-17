@@ -227,11 +227,13 @@ void main()
     layout(quads) in;
 #endif
 
+/* XXXdyu-patch-drawing support for frational spacing
 #if defined OSD_FRACTIONAL_ODD_SPACING
     layout(fractional_odd_spacing) in;
 #elif defined OSD_FRACTIONAL_EVEN_SPACING
     layout(fractional_even_spacing) in;
 #endif
+*/
 
 in block {
     ControlVertex v;
@@ -250,11 +252,7 @@ out block {
 
 void main()
 {
-#ifdef OSD_PATCH_TRANSITION
-    vec2 UV = GetTransitionSubpatchUV();
-#else
-    vec2 UV = gl_TessCoord.xy;
-#endif
+    vec2 UV = GetTransitionParameterization();
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
