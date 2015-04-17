@@ -115,22 +115,8 @@ typedef PatchTypes<Far::Index **>     PatchFVarPointers;
 //
 struct PatchFaceTag {
 public:
-    //  The HBR_ADAPTIVE TransitionType from <hbr/face.h> -- now named to more clearly
-    //  reflect the number and orientation of transitional edges.  Note that the values
-    //  assigned here need to match the intended purpose to remain consistent with Hbr:
-    enum TransitionType {
-        NONE          = 0,
-        TRANS_ONE     = 1,
-        TRANS_TWO_ADJ = 2,
-        TRANS_THREE   = 3,
-        TRANS_ALL     = 4,
-        TRANS_TWO_OPP = 5
-    };
-
-public:
     unsigned int   _hasPatch        : 1;
     unsigned int   _isRegular       : 1;
-    unsigned int   _isTransitional  : 1;
     unsigned int   _transitionMask  : 4;
     unsigned int   _boundaryMask    : 4;
     unsigned int   _boundaryIndex   : 2;
@@ -212,15 +198,6 @@ public:
     }
 
     void assignTransitionPropertiesFromEdgeMask(int transitionEdgeMask) {
-        //
-        //  Note the transition rotations will be a function of the boundary rotations, and
-        //  so boundary rotations/index should have been previously assigned:
-        //
-        //  As with the boundary rotation case, consider retrieving values from static 16-
-        //  entry lookup tables if possible (depending on the function involving boundary
-        //  rotations)...
-        //
-        _isTransitional = (_transitionMask != 0);
         _transitionMask = transitionEdgeMask;
     }
 };
