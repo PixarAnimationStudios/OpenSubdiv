@@ -74,7 +74,7 @@ in block {
 
 out block {
     ControlVertex v;
-#if defined OSD_PATCH_SINGLE_CREASE
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     vec4 P1;
     vec4 P2;
     float sharpness;
@@ -155,35 +155,47 @@ void main()
         }
     }
 
-#if defined OSD_PATCH_SINGLE_CREASE
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     float sharpness = GetSharpness();
-    float Sf = floor(sharpness);
-    float Sc = ceil(sharpness);
-    float Sr = fract(sharpness);
-    mat4 Mf = ComputeMatrixSimplified(Sf);
-    mat4 Mc = ComputeMatrixSimplified(Sc);
-    mat4 Mj = (1-Sr) * Mf + Sr * Mi;
-    mat4 Ms = (1-Sr) * Mf + Sr * Mc;
+    if (sharpness > 0) {
+        float Sf = floor(sharpness);
+        float Sc = ceil(sharpness);
+        float Sr = fract(sharpness);
+        mat4 Mf = ComputeMatrixSimplified(Sf);
+        mat4 Mc = ComputeMatrixSimplified(Sc);
+        mat4 Mj = (1-Sr) * Mf + Sr * Mi;
+        mat4 Ms = (1-Sr) * Mf + Sr * Mc;
 
-    vec3 P = vec3(0);
-    vec3 P1 = vec3(0);
-    vec3 P2 = vec3(0);
-    for (int k=0; k<4; ++k) {
-        P  += Mi[j][k]*H[k]; // 0 to 1-2^(-Sf)
-        P1 += Mj[j][k]*H[k]; // 1-2^(-Sf) to 1-2^(-Sc)
-        P2 += Ms[j][k]*H[k]; // 1-2^(-Sc) to 1
-   }
-    outpt[ID].v.position = vec4(P, 1.0);
-    outpt[ID].P1 = vec4(P1, 1.0);
-    outpt[ID].P2 = vec4(P2, 1.0);
-    outpt[ID].sharpness = sharpness;
-
-#else  // REGULAR
-    vec3 pos = vec3(0,0,0);
-    for (int k=0; k<4; ++k) {
-        pos += Q[j][k]*H[k];
+        vec3 P = vec3(0);
+        vec3 P1 = vec3(0);
+        vec3 P2 = vec3(0);
+        for (int k=0; k<4; ++k) {
+            P  += Mi[j][k]*H[k]; // 0 to 1-2^(-Sf)
+            P1 += Mj[j][k]*H[k]; // 1-2^(-Sf) to 1-2^(-Sc)
+            P2 += Ms[j][k]*H[k]; // 1-2^(-Sc) to 1
+        }
+        outpt[ID].v.position = vec4(P, 1.0);
+        outpt[ID].P1 = vec4(P1, 1.0);
+        outpt[ID].P2 = vec4(P2, 1.0);
+        outpt[ID].sharpness = sharpness;
+    } else {
+        vec3 pos = vec3(0,0,0);
+        for (int k=0; k<4; ++k) {
+            pos += Q[j][k]*H[k];
+        }
+        outpt[ID].v.position = vec4(pos, 1.0);
+        outpt[ID].P1 = vec4(0);
+        outpt[ID].P2 = vec4(0);
+        outpt[ID].sharpness = 0;
     }
-    outpt[ID].v.position = vec4(pos, 1.0);
+#else
+    {
+        vec3 pos = vec3(0,0,0);
+        for (int k=0; k<4; ++k) {
+            pos += Q[j][k]*H[k];
+        }
+        outpt[ID].v.position = vec4(pos, 1.0);
+    }
 #endif
 
     OSD_USER_VARYING_PER_CONTROL_POINT(ID, ID);
@@ -237,7 +249,7 @@ void main()
 
 in block {
     ControlVertex v;
-#if defined OSD_PATCH_SINGLE_CREASE
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     vec4 P1;
     vec4 P2;
     float sharpness;
@@ -247,6 +259,9 @@ in block {
 
 out block {
     OutputVertex v;
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    float sharpness;
+#endif
     OSD_USER_VARYING_DECLARE
 } outpt;
 
@@ -267,44 +282,60 @@ void main()
     Univar4x4(UV.x, B, D);
 #endif
 
-#if defined OSD_PATCH_SINGLE_CREASE
+    // ----------------------------------------------------------------
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    // sharpness
     float sharpness = inpt[0].sharpness;
-    float s0 = 1.0 - pow(2.0f, -floor(sharpness));
-    float s1 = 1.0 - pow(2.0f, -ceil(sharpness));
-#endif
+    if (sharpness != 0) {
+        float s0 = 1.0 - pow(2.0f, -floor(sharpness));
+        float s1 = 1.0 - pow(2.0f, -ceil(sharpness));
 
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-#if defined OSD_PATCH_SINGLE_CREASE
-#if OSD_TRANSITION_ROTATE == 1
-            int k = 4*(3-j) + i;
-            float s = 1-UV.x;
-#elif OSD_TRANSITION_ROTATE == 2
-            int k = 4*(3-i) + (3-j);
-            float s = 1-UV.y;
-#elif OSD_TRANSITION_ROTATE == 3
-            int k = 4*j + (3-i);
-            float s = UV.x;
-#else // ROTATE=0 or non-transition
-            int k = 4*i + j;
-            float s = UV.y;
-#endif
-            vec3 A = (s < s0) ?
-                 inpt[k].v.position.xyz :
-                 ((s < s1) ?
-                  inpt[k].P1.xyz :
-                  inpt[k].P2.xyz);
+        for (int i=0; i<4; ++i) {
+            for (int j=0; j<4; ++j) {
+                int k = 4*i + j;
+                float s = UV.y;
 
-#else // !SINGLE_CREASE
-            vec3 A = inpt[4*i + j].v.position.xyz;
-#endif
-            BUCP[i] += A * B[j];
-            DUCP[i] += A * D[j];
+                vec3 A = (s < s0) ?
+                    inpt[k].v.position.xyz :
+                    ((s < s1) ?
+                     inpt[k].P1.xyz :
+                     inpt[k].P2.xyz);
+
+                BUCP[i] += A * B[j];
+                DUCP[i] += A * D[j];
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-            CUCP[i] += A * C[j];
+                CUCP[i] += A * C[j];
 #endif
+            }
         }
+        outpt.sharpness = sharpness;
+    } else {
+        for (int i=0; i<4; ++i) {
+            for (int j=0; j<4; ++j) {
+                vec3 A = inpt[4*i + j].v.position.xyz;
+                BUCP[i] += A * B[j];
+                DUCP[i] += A * D[j];
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+                CUCP[i] += A * C[j];
+#endif
+            }
+        }
+        outpt.sharpness = 0;
     }
+#else
+    // ----------------------------------------------------------------
+        for (int i=0; i<4; ++i) {
+            for (int j=0; j<4; ++j) {
+                vec3 A = inpt[4*i + j].v.position.xyz;
+                BUCP[i] += A * B[j];
+                DUCP[i] += A * D[j];
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+                CUCP[i] += A * C[j];
+#endif
+            }
+        }
+#endif
+    // ----------------------------------------------------------------
 
     vec3 WorldPos  = vec3(0);
     vec3 Tangent   = vec3(0);

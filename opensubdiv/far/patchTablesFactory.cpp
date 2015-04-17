@@ -44,7 +44,6 @@ struct PatchTypes {
 
 
     TYPE R,    // regular patch
-         S,    // single-crease patch
          B,    // boundary patch (4 rotations)
          C,    // corner patch (4 rotations)
          G,    // gregory patch
@@ -57,7 +56,6 @@ struct PatchTypes {
     TYPE & getValue( Far::PatchDescriptor desc ) {
         switch (desc.GetType()) {
             case Far::PatchDescriptor::REGULAR          : return R;
-            case Far::PatchDescriptor::SINGLE_CREASE    : return S;
             case Far::PatchDescriptor::BOUNDARY         : return B;
             case Far::PatchDescriptor::CORNER           : return C;
             case Far::PatchDescriptor::GREGORY          : return G;
@@ -74,19 +72,12 @@ struct PatchTypes {
     int getNumPatchArrays() const {
         int result=0;
         if (R) ++result;
-        if (S) ++result;
         if (B) ++result;
         if (C) ++result;
         if (G) ++result;
         if (GB) ++result;
         if (GP) ++result;
         return result;
-    }
-
-    // Returns true if there's any single-crease patch
-    bool hasSingleCreasedPatches() const {
-        if (S) return true;
-        return false;
     }
 };
 
@@ -1105,7 +1096,7 @@ PatchTablesFactory::createAdaptive(TopologyRefiner const & refiner, Options opti
     context.tables->_numPtexFaces = refiner.GetNumPtexFaces();
 
     // Allocate various tables
-    bool hasSharpness = context.patchInventory.hasSingleCreasedPatches();
+    bool hasSharpness = context.options.useSingleCreasePatch;
     allocateVertexTables(context.tables, 0, hasSharpness);
 
     if (context.RequiresFVarPatches()) {
@@ -1360,10 +1351,8 @@ PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
 
             if (patchTag._isRegular) {
 
-                if (!patchTag._isSingleCrease and patchTag._boundaryCount == 0) {
+                if (patchTag._boundaryCount == 0) {
                     context.patchInventory.R++;
-                } else if (patchTag._isSingleCrease and patchTag._boundaryCount == 0) {
-                    context.patchInventory.S++;
                 } else if (patchTag._boundaryCount == 1) {
                     context.patchInventory.R++;
                 } else {
@@ -1424,7 +1413,7 @@ PatchTablesFactory::populateAdaptivePatches(AdaptiveContext & context) {
 
         iptrs.getValue(desc) = tables->getPatchArrayVertices(arrayIndex).begin();
         pptrs.getValue(desc) = tables->getPatchParams(arrayIndex).begin();
-        if (context.patchInventory.hasSingleCreasedPatches()) {
+        if (context.options.useSingleCreasePatch) {
             sptrs.getValue(desc) = tables->getSharpnessIndices(arrayIndex);
         }
 
@@ -1540,6 +1529,8 @@ PatchTablesFactory::populateAdaptivePatches(AdaptiveContext & context) {
 
                     iptrs.R += 16;
                     pptrs.R = computePatchParam(refiner, i, faceIndex, /*rotation*/0, /*boundary*/0, transitionMask, pptrs.R);
+                    // XXX: sharpness will be integrated into patch param soon.
+                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
 
                     fofss.R += gatherFVarData(context,
                         i, faceIndex, levelFaceOffset, /*rotation*/0, levelFVarVertOffsets, fofss.R, fptrs.R);
@@ -1566,18 +1557,18 @@ PatchTablesFactory::populateAdaptivePatches(AdaptiveContext & context) {
                     if (patchTag._isSingleCrease and patchTag._boundaryCount==0) {
                         int const permuteInterior[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
                         level->gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, bIndex);
-                        offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteInterior, iptrs.S);
+                        offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteInterior, iptrs.R);
 
                         int creaseEdge = (bIndex+2)%4;
                         float sharpness = level->getEdgeSharpness((level->getFaceEdges(faceIndex)[creaseEdge]));
                         sharpness = std::min(sharpness, (float)(context.options.maxIsolationLevel-i));
 
-                        iptrs.S += 16;
-                        pptrs.S = computePatchParam(refiner, i, faceIndex, bIndex, /*boundary*/0, transitionMask, pptrs.S);
-                        *sptrs.S++ = assignSharpnessIndex(sharpness, tables->_sharpnessValues);
+                        iptrs.R += 16;
+                        pptrs.R = computePatchParam(refiner, i, faceIndex, bIndex, /*boundary*/0, transitionMask, pptrs.R);
+                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(sharpness, tables->_sharpnessValues);
 
-                        fofss.S += gatherFVarData(context,
-                            i, faceIndex, levelFaceOffset, bIndex, levelFVarVertOffsets, fofss.S, fptrs.S);
+                        fofss.R += gatherFVarData(context,
+                            i, faceIndex, levelFaceOffset, bIndex, levelFVarVertOffsets, fofss.R, fptrs.R);
                     } else if (patchTag._boundaryCount == 1) {
                         int const permuteBoundary[16] = { -1, 4, 5, 6, -1, 0, 1, 7, -1, 3, 2, 8, -1, 11, 10, 9 };
 
@@ -1589,6 +1580,8 @@ PatchTablesFactory::populateAdaptivePatches(AdaptiveContext & context) {
                         iptrs.R += 16;
                         pptrs.R = computePatchParam(refiner, i, faceIndex, bIndex, boundaryMask, transitionMask, pptrs.R);
 
+                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
+
                         fofss.R += gatherFVarData(context,
                             i, faceIndex, levelFaceOffset, /*rotation*/0, levelFVarVertOffsets, fofss.R, fptrs.R);
                     } else {
@@ -1599,6 +1592,8 @@ PatchTablesFactory::populateAdaptivePatches(AdaptiveContext & context) {
 
                         iptrs.R += 16;
                         pptrs.R = computePatchParam(refiner, i, faceIndex, bIndex, boundaryMask, transitionMask, pptrs.R);
+
+                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
 
                         fofss.R += gatherFVarData(context,
                             i, faceIndex, levelFaceOffset, /*rotation*/0, levelFVarVertOffsets, fofss.R, fptrs.R);
