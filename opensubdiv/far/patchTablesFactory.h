@@ -37,7 +37,6 @@ namespace Vtr { class Level; }
 
 namespace Far {
 
-class StencilTables;
 class TopologyRefiner;
 
 
@@ -50,6 +49,55 @@ class TopologyRefiner;
 class PatchTablesFactory {
 
 public:
+    //  PatchFaceTag
+    //  A simple struct containing all information gathered about a face that is relevant
+    //  to constructing a patch for it (some of these enums should probably be defined more
+    //  as part of PatchTables)
+    //
+    //  Like the HbrFace<T>::AdaptiveFlags, this struct aggregates all of the face tags
+    //  supporting feature adaptive refinement.  For now it is not used elsewhere and can
+    //  remain local to this implementation, but we may want to move it into a header of
+    //  its own if it has greater use later.
+    //
+    //  Note that several properties being assigned here attempt to do so given a 4-bit
+    //  mask of properties at the edges or vertices of the quad.  Still not sure exactly
+    //  what will be done this way, but the goal is to create lookup tables (of size 16
+    //  for the 4 bits) to quickly determine was is needed, rather than iteration and
+    //  branching on the edges or vertices.
+    //
+    struct PatchFaceTag {
+    public:
+        unsigned int   _hasPatch        : 1;
+        unsigned int   _isRegular       : 1;
+        unsigned int   _transitionMask  : 4;
+        unsigned int   _boundaryMask    : 4;
+        unsigned int   _boundaryIndex   : 2;
+        unsigned int   _boundaryCount   : 3;
+        unsigned int   _hasBoundaryEdge : 3;
+        unsigned int   _isSingleCrease  : 1;
+
+        void clear();
+        void assignBoundaryPropertiesFromEdgeMask(int boundaryEdgeMask);
+        void assignBoundaryPropertiesFromVertexMask(int boundaryVertexMask);
+        void assignTransitionPropertiesFromEdgeMask(int transitionMask) {
+            _transitionMask = transitionMask;
+        }
+    };
+    typedef std::vector<PatchFaceTag> PatchTagVector;
+
+    //
+    // EndPatchFactory interface : this is an abstract base class which defines
+    //                             interfaces for endpatch generation strategy
+    //
+    class EndPatchFactory {
+    public:
+        virtual ~EndPatchFactory() {}
+
+        virtual PatchDescriptor::Type GetPatchType(PatchFaceTag const &tag) const = 0;
+        virtual ConstIndexArray GetTopology(Vtr::Level const& level, Index faceIndex,
+                                            PatchTablesFactory::PatchFaceTag const * levelPatchTags,
+                                            int levelVertOffset) = 0;
+    };
 
     struct Options {
 
@@ -61,9 +109,7 @@ public:
              generateFVarTables(false),
              useFVarQuadEndCaps(true), // XXXX change to false when FVar Gregory is ready
              numFVarChannels(-1),
-             fvarChannelIndices(0),
-             adaptiveStencilTables(0),
-             adaptiveVaryingStencilTables(0)
+             fvarChannelIndices(0)
         { }
 
         unsigned int generateAllLevels    : 1, ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
@@ -77,22 +123,22 @@ public:
 
         int          numFVarChannels;          ///< Number of channel indices and interpolation modes passed
         int const *  fvarChannelIndices;       ///< List containing the indices of the channels selected for the factory
-
-        StencilTables const * adaptiveStencilTables;  ///< Passing a valid stencil table allows the factory to generate
-                                                      ///< stencils for gregory patches and replace them with a much
-                                                      ///< more efficient basis.
-        StencilTables const * adaptiveVaryingStencilTables;
     };
 
     /// \brief Factory constructor for PatchTables
     ///
-    /// @param refiner  TopologyRefiner from which to generate patches
+    /// @param refiner              TopologyRefiner from which to generate patches
     ///
-    /// @param options       Options controlling the creation of the tables
+    /// @param options              Options controlling the creation of the tables
     ///
-    /// @return              A new instance of PatchTables
+    /// @param endPatchFactory      If provided, it accumulates end patches
+    ///                             for later patch/stencil generation
     ///
-    static PatchTables * Create(TopologyRefiner const & refiner, Options options=Options());
+    /// @return                     A new instance of PatchTables
+    ///
+    static PatchTables * Create(TopologyRefiner const & refiner,
+                                Options options=Options(),
+                                PatchTablesFactory::EndPatchFactory *endPatchFactory=NULL);
 
 private:
 
@@ -106,7 +152,8 @@ private:
 
     static PatchTables * createUniform(TopologyRefiner const & refiner, Options options);
 
-    static PatchTables * createAdaptive(TopologyRefiner const & refiner, Options options);
+    static PatchTables * createAdaptive(TopologyRefiner const & refiner, Options options,
+                                        EndPatchFactory *);
 
     //
     //  High-level methods for identifying and populating patches associated with faces:

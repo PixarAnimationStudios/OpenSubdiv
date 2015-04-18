@@ -27,6 +27,7 @@
 set(SOURCE_FILES
     error.cpp
     gregoryBasis.cpp
+    gregoryPatch.cpp
     interpolate.cpp
     patchDescriptor.cpp
     patchMap.cpp
@@ -44,6 +45,7 @@ set(PRIVATE_HEADER_FILES
 set(PUBLIC_HEADER_FILES
     error.h
     gregoryBasis.h
+    gregoryPatch.h
     interpolate.h
     patchDescriptor.h
     patchParam.h

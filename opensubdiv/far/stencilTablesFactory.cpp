@@ -22,6 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "../far/gregoryBasis.h"
 #include "../far/stencilTablesFactory.h"
 #include "../far/patchTablesFactory.h"
 #include "../far/patchMap.h"
@@ -59,6 +60,9 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
     Options options) {
 
     StencilTables * result = new StencilTables;
+
+    // always initialize numControlVertices (useful for torus case)
+    result->_numControlVertices = refiner.GetNumVertices(0);
 
     int maxlevel = std::min(int(options.maxLevel), refiner.GetMaxLevel());
     if (maxlevel==0 and (not options.generateControlVerts)) {
@@ -299,16 +303,28 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
 
     // If a stencil table was given, use it, otherwise, create a new one
     PatchTables const * patchtables = patchTables;
+    GregoryBasisFactory * gregoryBasisFactory = NULL;
     if (not patchTables) {
         // XXXX (manuelk) If no patch-tables was passed, we should be able to
         // infer the patches fairly easily from the refiner. Once more tags
         // have been added to the refiner, maybe we can remove the need for the
         // patch tables.
 
-        OpenSubdiv::Far::PatchTablesFactory::Options options;
-        options.adaptiveStencilTables = cvstencils;
+        PatchTablesFactory::Options options;
 
-        patchtables = PatchTablesFactory::Create(refiner, options);
+        gregoryBasisFactory = new GregoryBasisFactory(
+            refiner, /*shareBoundaryVertices=*/true);
+        patchtables = PatchTablesFactory::Create(refiner, options,
+                                                 gregoryBasisFactory);
+
+        if (not cvStencils) {
+            // if cvstencils is just created above
+            if (StencilTables const *stencilTablesWithGregoryBasis =
+                gregoryBasisFactory->CreateVertexStencilTables(cvstencils, true)) {
+                delete cvstencils;
+                cvstencils = stencilTablesWithGregoryBasis;
+            }
+        }
     } else {
         // Sanity checks
         if (patchTables->IsFeatureAdaptive()==uniform) {
@@ -318,22 +334,6 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
             }
             return 0;
         }
-    }
-
-    // XXXtakahito revisit API once we refactor
-    // the relationship between stencil and patchtable
-
-    // concat stencils
-    if (not cvStencils) {
-        // if cvstencils is just created here
-
-        StencilTables const *inStencils[] = {
-            cvstencils, patchtables->GetEndCapVertexStencilTables()
-        };
-        StencilTables const *concatStencils =
-            StencilTablesFactory::Create(2, inStencils);
-        delete cvstencils;
-        cvstencils = concatStencils;
     }
 
     assert(patchtables and cvstencils);
