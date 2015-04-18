@@ -587,8 +587,11 @@ protected:
     //  Lower level protected methods intended strictly for internal use:
     //
     friend class TopologyRefinerFactoryBase;
-    friend class GregoryBasisFactory;
-    friend class PatchTablesFactory;
+    friend class PatchTablesFactoryBase;
+    template <class T> friend class Far::PatchTablesFactoryT;
+    friend class EndCapLegacyGregoryPatchFactory;
+    friend class EndCapGregoryBasisPatchFactory;
+    friend class EndCapRegularPatchFactory;
 
     Vtr::Level & getLevel(int l) { return *_levels[l]; }
     Vtr::Level const & getLevel(int l) const { return *_levels[l]; }

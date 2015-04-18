@@ -30,6 +30,9 @@
 #include "../osd/mesh.h"
 #include "../osd/glDrawContext.h"
 #include "../osd/vertexDescriptor.h"
+#include "../far/endCapGregoryBasisPatchFactory.h"
+#include "../far/endCapLegacyGregoryPatchFactory.h"
+#include "../far/endCapRegularPatchFactory.h"
 
 #ifdef OPENSUBDIV_HAS_OPENCL
 #  include "../osd/clComputeController.h"
@@ -65,7 +68,8 @@ public:
             _varyingBuffer(0),
             _computeContext(0),
             _computeController(computeController),
-            _drawContext(0)
+            _drawContext(0),
+            _numVertices(0)
     {
 
         GLMeshInterface::refineMesh(*_refiner, level,
@@ -77,17 +81,12 @@ public:
         int numVaryingElementsNonInterleaved = 
             (bits.test(MeshInterleaveVarying) ? 0 : numVaryingElements);
 
-        initializeContext(numVertexElements, numVaryingElements,
+        // numVertices is computed from stencilTables (may or may not includes gregory basis vertices)
+        initializeContext(numVertexElements,
+                          numVaryingElements,
                           numVertexElementsInterleaved, level, bits);
 
-        int numVertices = GLMeshInterface::getNumVertices(*_refiner);
-
-        // FIXME: need a better API for numTotalVertices.
-        if (_patchTables->GetEndCapVertexStencilTables()) {
-            numVertices += _patchTables->GetEndCapVertexStencilTables()->GetNumStencils();
-        }
-
-        initializeVertexBuffers(numVertices,
+        initializeVertexBuffers(_numVertices,
                                 numVertexElementsInterleaved,
                                 numVaryingElementsNonInterleaved);
 
@@ -109,7 +108,8 @@ public:
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
             _computeController(computeController),
-            _drawContext(drawContext)
+            _drawContext(drawContext),
+            _numVertices(0)
     {
         _drawContext->UpdateVertexTexture(_vertexBuffer);
     }
@@ -123,11 +123,7 @@ public:
         delete _drawContext;
     }
 
-    virtual int GetNumVertices() const {
-        assert(_refiner);
-        return GLMeshInterface::getNumVertices(*_refiner);
-    }
-
+    virtual int GetNumVertices() const { return _numVertices; }
 
     virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
         _vertexBuffer->UpdateData(vertexData, startVertex, numVerts);
@@ -211,51 +207,72 @@ private:
             varyingStencils = Far::StencilTablesFactory::Create(*_refiner, options);
         }
 
-        assert(_refiner);
         Far::PatchTablesFactory::Options poptions(level);
         poptions.generateFVarTables = bits.test(MeshFVarData);
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
-        if (bits.test(MeshUseGregoryBasis)) {
-            poptions.adaptiveStencilTables = vertexStencils;
-            poptions.adaptiveVaryingStencilTables = varyingStencils;
-        }
+        if (bits.test(MeshEndCapRegular) and bits.test(MeshAdaptive)) {
+            // use regular endcap
+            Far::EndCapRegularPatchFactory *endCapFactory =
+                new Far::EndCapRegularPatchFactory(*_refiner);
+            _patchTables = Far::PatchTablesFactoryT<Far::EndCapRegularPatchFactory>::Create(*_refiner, poptions,
+                                                                                            endCapFactory);
+            if (endCapFactory) {
+                if (Far::StencilTables const *vertexStencilsWithGregoryBasis =
+                    endCapFactory->CreateVertexStencilTables(vertexStencils, true)) {
+                    delete vertexStencils;
+                    vertexStencils = vertexStencilsWithGregoryBasis;
+                }
 
-        _patchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
+                if (varyingStencils) {
+                    if (Far::StencilTables const *varyingStencilsWithGregoryBasis =
+                        endCapFactory->CreateVaryingStencilTables(varyingStencils, true)) {
+                        delete varyingStencils;
+                        varyingStencils = varyingStencilsWithGregoryBasis;
+                    }
+                }
+            }
+            delete endCapFactory;
+        } else if (bits.test(MeshEndCapGregoryBasis) and bits.test(MeshAdaptive)) {
+            // use gregory stencils
+            Far::EndCapGregoryBasisPatchFactory *gregoryBasisFactory =
+                new Far::EndCapGregoryBasisPatchFactory(*_refiner, /*share verts=*/true);
+            _patchTables = Far::PatchTablesFactoryT<Far::EndCapGregoryBasisPatchFactory>::Create(*_refiner, poptions, gregoryBasisFactory);
+            if (gregoryBasisFactory) {
+                if (Far::StencilTables const *vertexStencilsWithGregoryBasis =
+                    gregoryBasisFactory->CreateVertexStencilTables(vertexStencils, true)) {
+                    delete vertexStencils;
+                    vertexStencils = vertexStencilsWithGregoryBasis;
+                }
+
+                if (varyingStencils) {
+                    if (Far::StencilTables const *varyingStencilsWithGregoryBasis =
+                        gregoryBasisFactory->CreateVaryingStencilTables(varyingStencils, true)) {
+                        delete varyingStencils;
+                        varyingStencils = varyingStencilsWithGregoryBasis;
+                    }
+                }
+            }
+            delete gregoryBasisFactory;
+        } else if (bits.test(MeshEndCapLegacyGregory) and bits.test(MeshAdaptive)) {
+            // use legacy gregory
+            Far::EndCapLegacyGregoryPatchFactory *gregoryPatchFactory =
+                new Far::EndCapLegacyGregoryPatchFactory(*_refiner);
+            _patchTables = Far::PatchTablesFactoryT<Far::EndCapLegacyGregoryPatchFactory>::Create(*_refiner, poptions, gregoryPatchFactory);
+
+            gregoryPatchFactory->AddGregoryPatchTables(_patchTables);
+            delete gregoryPatchFactory;
+        } else {
+            _patchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
+        }
 
         _drawContext = DrawContext::Create(_patchTables, numElements);
-
-        // XXX: factory API fix needed
-        // merge greogry basis stencils
-        Far::StencilTables const * endCapVertexStencils =
-            _patchTables->GetEndCapVertexStencilTables();
-
-        if (endCapVertexStencils) {
-            Far::StencilTables const * endCapVaryingStencils =
-                _patchTables->GetEndCapVaryingStencilTables();
-
-            // concatinate vertexStencils and endCapStencils.
-            // note that endCapStensils is owned by patchTable.
-            Far::StencilTables const *inStencils[] = {
-                vertexStencils, endCapVertexStencils
-            };
-            Far::StencilTables const *concatStencils =
-                Far::StencilTablesFactory::Create(2, inStencils);
-
-            Far::StencilTables const *inVaryingStencils[] = {
-                varyingStencils, endCapVaryingStencils
-            };
-            Far::StencilTables const *concatVaryingStencils =
-                Far::StencilTablesFactory::Create(2, inVaryingStencils);
-
-            delete vertexStencils;
-            vertexStencils = concatStencils;
-            delete varyingStencils;
-            varyingStencils = concatVaryingStencils;
-        }
-
         _computeContext = ComputeContext::Create(vertexStencils,
                                                  varyingStencils);
+
+        // numvertices = coarse verts + refined verts + gregory basis verts
+        _numVertices = vertexStencils->GetNumControlVertices()
+            + vertexStencils->GetNumStencils();
 
         delete vertexStencils;
         delete varyingStencils;
@@ -284,6 +301,8 @@ private:
     ComputeController *_computeController;
 
     DrawContext *_drawContext;
+
+    int _numVertices;
 };
 
 #ifdef OPENSUBDIV_HAS_OPENCL
@@ -313,6 +332,7 @@ public:
             _computeContext(0),
             _computeController(computeController),
             _drawContext(0),
+            _numVertices(0),
             _clContext(clContext),
             _clQueue(clQueue)
     {
@@ -328,17 +348,11 @@ public:
         int numVaryingElementsNonInterleaved = 
             (bits.test(MeshInterleaveVarying) ? 0 : numVaryingElements);
 
-        initializeContext(numVertexElements, numVaryingElements,
+        initializeContext(numVertexElements,
+                          numVaryingElements,
                           numVertexElementsInterleaved, level, bits);
 
-        int numVertices = GLMeshInterface::getNumVertices(*_refiner);
-
-        // FIXME: need better API for total number of vertices.
-        if (_patchTables->GetEndCapVertexStencilTables()) {
-            numVertices += _patchTables->GetEndCapVertexStencilTables()->GetNumStencils();
-        }
-
-        initializeVertexBuffers(numVertices,
+        initializeVertexBuffers(_numVertices,
                                 numVertexElementsInterleaved,
                                 numVaryingElementsNonInterleaved);
 
@@ -363,6 +377,7 @@ public:
             _computeContext(computeContext),
             _computeController(computeController),
             _drawContext(drawContext),
+            _numVertices(0),
             _clContext(clContext),
             _clQueue(clQueue)
     {
@@ -378,7 +393,7 @@ public:
         delete _drawContext;
     }
 
-    virtual int GetNumVertices() const { return _refiner->GetNumVerticesTotal(); }
+    virtual int GetNumVertices() const { return _numVertices; }
 
     virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
         _vertexBuffer->UpdateData(vertexData, startVertex, numVerts, _clQueue);
@@ -462,54 +477,75 @@ private:
 
         _computeContext = ComputeContext::Create(_clContext, vertexStencils, varyingStencils);
 
-        assert(_refiner);
-
         Far::PatchTablesFactory::Options poptions(level);
         poptions.generateFVarTables = bits.test(MeshFVarData);
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
         // use gregory stencils
-        if (bits.test(MeshUseGregoryBasis)) {
-            poptions.adaptiveStencilTables = vertexStencils;
-            poptions.adaptiveVaryingStencilTables = varyingStencils;
-        }
 
-        _patchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
+        if (bits.test(MeshEndCapRegular) and bits.test(MeshAdaptive)) {
+            // use regular endcap
+            Far::EndCapRegularPatchFactory *endCapFactory =
+                new Far::EndCapRegularPatchFactory(*_refiner);
+            _patchTables = Far::PatchTablesFactoryT<Far::EndCapRegularPatchFactory>::Create(*_refiner, poptions,
+                                                                                            endCapFactory);
+            if (endCapFactory) {
+                if (Far::StencilTables const *vertexStencilsWithGregoryBasis =
+                    endCapFactory->CreateVertexStencilTables(vertexStencils, true)) {
+                    delete vertexStencils;
+                    vertexStencils = vertexStencilsWithGregoryBasis;
+                }
+
+                if (varyingStencils) {
+                    if (Far::StencilTables const *varyingStencilsWithGregoryBasis =
+                        endCapFactory->CreateVaryingStencilTables(varyingStencils, true)) {
+                        delete varyingStencils;
+                        varyingStencils = varyingStencilsWithGregoryBasis;
+                    }
+                }
+            }
+            delete endCapFactory;
+        } else if (bits.test(MeshEndCapGregoryBasis) and bits.test(MeshAdaptive)) {
+            // use gregory stencils
+            Far::EndCapGregoryBasisPatchFactory *gregoryBasisFactory =
+                new Far::EndCapGregoryBasisPatchFactory(*_refiner, /*share verts=*/true);
+            _patchTables = Far::PatchTablesFactoryT<Far::EndCapGregoryBasisPatchFactory>::Create(*_refiner, poptions, gregoryBasisFactory);
+            if (gregoryBasisFactory) {
+                if (Far::StencilTables const *vertexStencilsWithGregoryBasis =
+                    gregoryBasisFactory->CreateVertexStencilTables(vertexStencils, true)) {
+                    delete vertexStencils;
+                    vertexStencils = vertexStencilsWithGregoryBasis;
+                }
+
+                if (varyingStencils) {
+                    if (Far::StencilTables const *varyingStencilsWithGregoryBasis =
+                        gregoryBasisFactory->CreateVaryingStencilTables(varyingStencils, true)) {
+                        delete varyingStencils;
+                        varyingStencils = varyingStencilsWithGregoryBasis;
+                    }
+                }
+            }
+            delete gregoryBasisFactory;
+        } else if (bits.test(MeshEndCapLegacyGregory) and bits.test(MeshAdaptive)) {
+            // use legacy gregory
+            Far::EndCapLegacyGregoryPatchFactory *gregoryPatchFactory =
+                new Far::EndCapLegacyGregoryPatchFactory(*_refiner);
+            _patchTables = Far::PatchTablesFactoryT<Far::EndCapLegacyGregoryPatchFactory>::Create(*_refiner, poptions, gregoryPatchFactory);
+
+            gregoryPatchFactory->AddGregoryPatchTables(_patchTables);
+            delete gregoryPatchFactory;
+        } else {
+            _patchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
+        }
 
         _drawContext = DrawContext::Create(_patchTables, numElements);
-
-        Far::StencilTables const *endCapVertexStencils =
-            _patchTables->GetEndCapVertexStencilTables();
-
-        if (endCapVertexStencils) {
-            Far::StencilTables const *endCapVaryingStencils =
-                _patchTables->GetEndCapVaryingStencilTables();
-
-            // concatinate vertexStencils and endCapStencils.
-            // note that endCapStensils is owned by patchTable.
-            Far::StencilTables const *inStencils[] = {
-                vertexStencils, endCapVertexStencils
-            };
-
-            Far::StencilTables const *concatStencils =
-                Far::StencilTablesFactory::Create(2, inStencils);
-
-            Far::StencilTables const *inVaryingStencils[] = {
-                varyingStencils, endCapVaryingStencils
-            };
-
-            Far::StencilTables const *concatVaryingStencils =
-                Far::StencilTablesFactory::Create(2, inVaryingStencils);
-
-            delete vertexStencils;
-            vertexStencils = concatStencils;
-            delete varyingStencils;
-            varyingStencils = concatVaryingStencils;
-        }
-
         _computeContext = ComputeContext::Create(_clContext,
                                                  vertexStencils,
                                                  varyingStencils);
+
+        // numvertices = coarse verts + refined verts + gregory basis verts
+        _numVertices = vertexStencils->GetNumControlVertices()
+            + vertexStencils->GetNumStencils();
 
         delete vertexStencils;
         delete varyingStencils;
@@ -538,6 +574,7 @@ private:
     ComputeController *_computeController;
 
     DrawContext *_drawContext;
+    int _numVertices;
 
     cl_context _clContext;
     cl_command_queue _clQueue;

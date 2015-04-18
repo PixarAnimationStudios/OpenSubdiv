@@ -155,8 +155,6 @@ public:
     void print() const;
 
 private:
-    friend class PatchTablesFactory;
-
     unsigned int  _type:4;
 };
 

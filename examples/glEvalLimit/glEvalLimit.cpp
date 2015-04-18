@@ -51,6 +51,12 @@ GLFWmonitor* g_primary=0;
 #include <osd/drawContext.h>
 #include <osd/mesh.h>
 #include <osd/vertex.h>
+#include <far/gregoryBasis.h>
+#include <far/endCapGregoryBasisPatchFactory.h>
+#include <far/topologyRefiner.h>
+#include <far/stencilTablesFactory.h>
+#include <far/patchTablesFactory.h>
+
 #include <far/error.h>
 
 #include <common/vtr_utils.h>
@@ -358,8 +364,6 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         Far::TopologyRefiner::AdaptiveOptions options(level);
         g_topologyRefiner->RefineAdaptive(options);
 
-        nverts = g_topologyRefiner->GetNumVerticesTotal();
-
         // Generate stencil tables to update the bi-cubic patches control
         // vertices after they have been re-posed (both for vertex & varying
         // interpolation)
@@ -376,45 +380,42 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 
         // Generate bi-cubic patch tables for the limit surface
         Far::PatchTablesFactory::Options poptions;
-        // optional : pass the vertex stencils so that the factory can generate gregory basis
-        // stencils (faster evaluation)
-        poptions.adaptiveStencilTables = vertexStencils;
-        poptions.adaptiveVaryingStencilTables = varyingStencils;
+
+        Far::EndCapGregoryBasisPatchFactory *gregoryBasisFactory = new
+            Far::EndCapGregoryBasisPatchFactory(*g_topologyRefiner);
 
         Far::PatchTables const * patchTables =
-             Far::PatchTablesFactory::Create(*g_topologyRefiner, poptions);
+            Far::PatchTablesFactoryT<Far::EndCapGregoryBasisPatchFactory>::Create(
+                *g_topologyRefiner, poptions, gregoryBasisFactory);
 
-        Far::StencilTables const *inStencils[] = {
-            vertexStencils, patchTables->GetEndCapVertexStencilTables()
-        };
-        Far::StencilTables const *concatStencils =
-            Far::StencilTablesFactory::Create(2, inStencils);
-
-        // add gregory basis vertices FIXME:
-        if (patchTables->GetEndCapVertexStencilTables()) {
-            nverts += patchTables->GetEndCapVertexStencilTables()->GetNumStencils();
+        if (Far::StencilTables const * vertexStencilsWithGregoryBasis =
+            gregoryBasisFactory->CreateVertexStencilTables(vertexStencils, true)) {
+            delete vertexStencils;
+            vertexStencils = vertexStencilsWithGregoryBasis;
         }
-
- 
-        Far::StencilTables const *concatVaryingStencils = varyingStencils;
-        if (varyingStencils and patchTables->GetEndCapVaryingStencilTables()) {
-            Far::StencilTables const *inVaryingStencils[] = {
-                varyingStencils, patchTables->GetEndCapVaryingStencilTables()
-            };
-            concatVaryingStencils =
-                Far::StencilTablesFactory::Create(2, inVaryingStencils);
+        if (Far::StencilTables const *varyingStencilsWithGregoryBasis =
+            gregoryBasisFactory->CreateVaryingStencilTables(varyingStencils, true)) {
+            delete varyingStencils;
+            varyingStencils = varyingStencilsWithGregoryBasis;
         }
+        delete gregoryBasisFactory;
+
+        // total number of vertices = coarse verts + refined verts + gregory basis verts
+        nverts = vertexStencils->GetNumControlVertices() +
+            vertexStencils->GetNumStencils();
 
         // Create an Osd Compute context, used to "pose" the vertices with
         // the stencils tables
         delete g_computeCtx;
-        g_computeCtx = Osd::CpuComputeContext::Create(concatStencils, concatVaryingStencils);
-
+        g_computeCtx = Osd::CpuComputeContext::Create(vertexStencils,
+                                                      varyingStencils);
 
         // Create a limit Eval context with the patch tables
         delete g_evalCtx;
         g_evalCtx = Osd::CpuEvalLimitContext::Create(*patchTables);
 
+        delete vertexStencils;
+        delete varyingStencils;
     }
 
     {   // Create vertex primvar buffer for the CVs

@@ -412,8 +412,11 @@ RefineAdaptive(Hmesh & mesh, int maxlevel,
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
+namespace Far {
 
-class Far::PatchTablesFactory {
+// FIXME:
+// XXX: we need this class named PatchTablesFactoryBase because of friend access.
+class PatchTablesFactoryBase {
 
 public:
 
@@ -477,7 +480,7 @@ private:
 
 //------------------------------------------------------------------------------
 template <class TYPE> TYPE &
-Far::PatchTablesFactory::PatchTypes<TYPE>::getValue( Far::PatchDescriptor desc ) {
+Far::PatchTablesFactoryBase::PatchTypes<TYPE>::getValue( Far::PatchDescriptor desc ) {
 
     switch (desc.GetType()) {
         case Far::PatchDescriptor::REGULAR          : return R;
@@ -493,7 +496,7 @@ Far::PatchTablesFactory::PatchTypes<TYPE>::getValue( Far::PatchDescriptor desc )
 }
 
 template <class TYPE> int
-Far::PatchTablesFactory::PatchTypes<TYPE>::getNumPatchArrays() const {
+Far::PatchTablesFactoryBase::PatchTypes<TYPE>::getNumPatchArrays() const {
 
     int result=0;
     if (R) ++result;
@@ -509,7 +512,7 @@ Far::PatchTablesFactory::PatchTypes<TYPE>::getNumPatchArrays() const {
 // True if the surrounding faces are "tagged" (unsupported feature : watertight
 // critical patches)
 bool
-Far::PatchTablesFactory::vertexHasTaggedNeighbors(Hvertex * v) {
+Far::PatchTablesFactoryBase::vertexHasTaggedNeighbors(Hvertex * v) {
 
     assert(v);
 
@@ -533,7 +536,7 @@ Far::PatchTablesFactory::vertexHasTaggedNeighbors(Hvertex * v) {
 
 // Returns a rotation index for boundary patches (range [0-3])
 unsigned char
-Far::PatchTablesFactory::computeBoundaryPatchRotation( Hface * f ) {
+Far::PatchTablesFactoryBase::computeBoundaryPatchRotation( Hface * f ) {
     unsigned char rot=0;
     for (unsigned char i=0; i<4;++i) {
         if (f->GetVertex(i)->OnBoundary() and
@@ -546,7 +549,7 @@ Far::PatchTablesFactory::computeBoundaryPatchRotation( Hface * f ) {
 
 // Returns a rotation index for corner patches (range [0-3])
 unsigned char
-Far::PatchTablesFactory::computeCornerPatchRotation( Hface * f ) {
+Far::PatchTablesFactoryBase::computeCornerPatchRotation( Hface * f ) {
     unsigned char rot=0;
     for (unsigned char i=0; i<4; ++i) {
         if (not f->GetVertex((i+3)%4)->OnBoundary())
@@ -569,7 +572,7 @@ Far::PatchTablesFactory::getNumPatches( Far::PatchTables::PatchArrayVector const
 */
 //------------------------------------------------------------------------------
 void
-Far::PatchTablesFactory::allocateTables( Far::PatchTables * tables, int /* nlevels */, int fvarwidth ) {
+Far::PatchTablesFactoryBase::allocateTables( Far::PatchTables * tables, int /* nlevels */, int fvarwidth ) {
 
     int nverts = 0, npatches = 0;
     for (int i=0; i<tables->GetNumPatchArrays(); ++i) {
@@ -602,7 +605,7 @@ Far::PatchTablesFactory::allocateTables( Far::PatchTables * tables, int /* nleve
 
 //------------------------------------------------------------------------------
 Far::PatchTables const *
-Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
+Far::PatchTablesFactoryBase::Create(Hmesh & mesh, int maxvalence) {
 
     int nfaces = mesh.GetNumFaces();
 
@@ -1052,7 +1055,7 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
 //------------------------------------------------------------------------------
 // The One Ring vertices to rule them all !
 Far::Index *
-Far::PatchTablesFactory::getOneRing(Hface const * f,
+Far::PatchTablesFactoryBase::getOneRing(Hface const * f,
     int ringsize, Far::Index const * remap, Far::Index * result) {
 
     assert( f and f->GetNumVertices()==4 and ringsize >=4 );
@@ -1183,7 +1186,7 @@ Far::PatchTablesFactory::getOneRing(Hface const * f,
 //------------------------------------------------------------------------------
 // Populate the quad-offsets table used by Gregory patches
 void
-Far::PatchTablesFactory::getQuadOffsets(Hface const * f, unsigned int * result) {
+Far::PatchTablesFactoryBase::getQuadOffsets(Hface const * f, unsigned int * result) {
 
     assert(result and f and f->GetNumVertices()==4);
 
@@ -1259,7 +1262,7 @@ Far::PatchTablesFactory::getQuadOffsets(Hface const * f, unsigned int * result) 
 //------------------------------------------------------------------------------
 // Computes per-face or per-patch local ptex texture coordinates.
 OpenSubdiv::Far::PatchParam *
-Far::PatchTablesFactory::computePatchParam(Hface const * f, OpenSubdiv::Far::PatchParam *coord) {
+Far::PatchTablesFactoryBase::computePatchParam(Hface const * f, OpenSubdiv::Far::PatchParam *coord) {
 
     unsigned short u, v, ofs = 1;
     unsigned char depth;
@@ -1302,6 +1305,7 @@ Far::PatchTablesFactory::computePatchParam(Hface const * f, OpenSubdiv::Far::Pat
 
     return ++coord;
 }
+}
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
@@ -1312,7 +1316,7 @@ using namespace OPENSUBDIV_VERSION;
 OpenSubdiv::Far::PatchTables const *
 CreatePatchTables(Hmesh & mesh, int maxvalence) {
 
-    return OpenSubdiv::Far::PatchTablesFactory::Create(mesh, maxvalence);
+    return OpenSubdiv::Far::PatchTablesFactoryBase::Create(mesh, maxvalence);
 }
 
 //------------------------------------------------------------------------------
