@@ -22,7 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-static const std::string catmark_lefthanded =
+static const std::string catmark_lefthanded = std::string(
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "v -33.027301 -41.571537 0.897951\n"
 "v 33.683086 -41.571537 0.897951\n"
@@ -1023,6 +1023,7 @@ static const std::string catmark_lefthanded =
 "vt 0.000000 0.000000\n"
 "vt 1.000000 0.000000\n"
 "vt 1.000000 1.000000\n"
+    ) + std::string(
 "vt 0.000000 1.000000\n"
 "vt 0.000000 0.000000\n"
 "vt 1.000000 0.000000\n"
@@ -2023,6 +2024,7 @@ static const std::string catmark_lefthanded =
 "vn -0.608482 0.000000 -0.793567\n"
 "vn -0.608482 0.000000 -0.793567\n"
 "vn -0.608482 0.000000 -0.793567\n"
+    ) + std::string(
 "vn -0.608482 0.000000 -0.793567\n"
 "vn -0.000000 -0.603959 -0.797016\n"
 "vn -0.000000 -0.603959 -0.797016\n"
@@ -3694,4 +3696,4 @@ static const std::string catmark_lefthanded =
 "f 210/367/1488 428/834/1487 436/835/1509 218/368/1510\n"
 "s 34\n"
 "f 218/368/1511 436/835/1512 400/836/1432 182/365/1431\n"
-;
+);

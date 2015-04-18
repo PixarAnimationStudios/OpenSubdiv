@@ -74,7 +74,6 @@ D3D11DrawRegistryBase::_CreateDrawSourceConfig(
         sconfig->commonShader.source += ptexShaderSource;
     }
 
-
     {
         std::ostringstream ss;
         ss << (int)desc.GetMaxValence();
@@ -88,6 +87,8 @@ D3D11DrawRegistryBase::_CreateDrawSourceConfig(
     case Far::PatchDescriptor::REGULAR:
     case Far::PatchDescriptor::BOUNDARY:
     case Far::PatchDescriptor::CORNER:
+        sconfig->commonShader.AddDefine("OSD_PATCH_BSPLINE");
+        sconfig->commonShader.AddDefine("OSD_PATCH_ENABLE_SINGLE_CREASE");
         sconfig->vertexShader.source = bsplineShaderSource;
         sconfig->vertexShader.target = "vs_5_0";
         sconfig->vertexShader.entry = "vs_main_patches";
@@ -97,20 +98,6 @@ D3D11DrawRegistryBase::_CreateDrawSourceConfig(
         sconfig->domainShader.source = bsplineShaderSource;
         sconfig->domainShader.target = "ds_5_0";
         sconfig->domainShader.entry = "ds_main_patches";
-        break;
-    case Far::PatchDescriptor::SINGLE_CREASE:
-        sconfig->commonShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
-        sconfig->vertexShader.source = bsplineShaderSource;
-        sconfig->vertexShader.target = "vs_5_0";
-        sconfig->vertexShader.entry = "vs_main_patches";
-        sconfig->hullShader.source = bsplineShaderSource;
-        sconfig->hullShader.target = "hs_5_0";
-        sconfig->hullShader.entry = "hs_main_patches";
-        sconfig->hullShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
-        sconfig->domainShader.source = bsplineShaderSource;
-        sconfig->domainShader.target = "ds_5_0";
-        sconfig->domainShader.entry = "ds_main_patches";
-        sconfig->domainShader.AddDefine("OSD_PATCH_SINGLE_CREASE");
         break;
     case Far::PatchDescriptor::GREGORY:
         sconfig->commonShader.AddDefine("OSD_PATCH_GREGORY");
@@ -139,7 +126,7 @@ D3D11DrawRegistryBase::_CreateDrawSourceConfig(
         sconfig->domainShader.entry = "ds_main_patches";
         sconfig->domainShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
         break;
-    case Far::PatchDescriptor::GREGORY_BOUNDARY_BASIS:
+    case Far::PatchDescriptor::GREGORY_BASIS:
         // XXXdyu-patch-drawing gregory basis for d3d11
         break;
     default: // POINTS, LINES, QUADS, TRIANGLES

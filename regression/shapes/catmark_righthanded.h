@@ -22,7 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-static const std::string catmark_righthanded =
+static const std::string catmark_righthanded = std::string(
 "v -34.462782 -41.571537 0.897951\n"
 "v -101.173159 -41.571537 0.897951\n"
 "v -34.462779 -2.749826 0.897951\n"
@@ -1023,6 +1023,7 @@ static const std::string catmark_righthanded =
 "vt 1.000000 0.000000\n"
 "vt 1.000000 1.000000\n"
 "vt 0.000000 1.000000\n"
+    ) + std::string(
 "vt 0.000000 0.000000\n"
 "vt 1.000000 0.000000\n"
 "vt 1.000000 1.000000\n"
@@ -2024,6 +2025,7 @@ static const std::string catmark_righthanded =
 "vn -0.608485 0.000000 0.793566\n"
 "vn -0.608485 0.000000 0.793566\n"
 "vn -0.000000 0.603958 0.797016\n"
+    ) + std::string(
 "vn -0.000000 0.603958 0.797016\n"
 "vn -0.000000 0.603958 0.797016\n"
 "vn -0.000000 0.603958 0.797016\n"
@@ -3692,4 +3694,4 @@ static const std::string catmark_righthanded =
 "f 210/367/1488 428/834/1487 436/835/1509 218/368/1510\n"
 "s 34\n"
 "f 218/368/1511 436/835/1512 400/836/1432 182/365/1431\n"
-;
+);
