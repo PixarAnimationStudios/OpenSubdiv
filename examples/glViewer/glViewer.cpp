@@ -149,7 +149,10 @@ enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
                    kHUD_CB_FRACTIONAL_SPACING,
                    kHUD_CB_PATCH_CULL,
                    kHUD_CB_FREEZE,
-                   kHUD_CB_DISPLAY_PATCH_COUNTS };
+                   kHUD_CB_DISPLAY_PATCH_COUNTS,
+                   kHUD_CB_ADAPTIVE,
+                   kHUD_CB_SINGLE_CREASE_PATCH,
+                   kHUD_CB_GREGORY_BASIS_PATCH };
 
 int g_currentShape = 0;
 
@@ -167,6 +170,7 @@ int   g_fullscreen = 0,
       g_displayStyle = kWireShaded,
       g_adaptive = 1,
       g_singleCreasePatch = 1,
+      g_gregoryBasisPatch = 1,
       g_drawCageEdges = 1,
       g_drawCageVertices = 0,
       g_mbutton[3] = {0, 0, 0},
@@ -535,7 +539,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     bits.set(OpenSubdiv::Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
     bits.set(OpenSubdiv::Osd::MeshInterleaveVarying, interleaveVarying);
     bits.set(OpenSubdiv::Osd::MeshFVarData, g_displayStyle == kFaceVaryingColor);
-    bits.set(OpenSubdiv::Osd::MeshUseGregoryBasis, true);
+    bits.set(OpenSubdiv::Osd::MeshUseGregoryBasis, g_gregoryBasisPatch);
 
     int numVertexElements = 3;
     int numVaryingElements =
@@ -1507,23 +1511,27 @@ callbackModel(int m) {
 }
 
 static void
-callbackAdaptive(bool checked, int /* a */) {
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
-        g_adaptive = checked;
-        rebuildOsdMesh();
-    }
-}
-
-static void
-callbackSingleCreasePatch(bool checked, int /* a */) {
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
-        g_singleCreasePatch = checked;
-        rebuildOsdMesh();
-    }
-}
-
-static void
 callbackCheckBox(bool checked, int button) {
+
+    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
+        switch(button) {
+        case kHUD_CB_ADAPTIVE:
+            g_adaptive = checked;
+            rebuildOsdMesh();
+            return;
+        case kHUD_CB_SINGLE_CREASE_PATCH:
+            g_singleCreasePatch = checked;
+            rebuildOsdMesh();
+            return;
+        case kHUD_CB_GREGORY_BASIS_PATCH:
+            g_gregoryBasisPatch = checked;
+            rebuildOsdMesh();
+            return;
+        default:
+            break;
+        }
+    }
+
     switch (button) {
     case kHUD_CB_DISPLAY_CAGE_EDGES:
         g_drawCageEdges = checked;
@@ -1619,14 +1627,18 @@ initHUD() {
     }
 #endif
     if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
-        g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0, 10, 190, callbackAdaptive, 0, '`');
-        g_hud.AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0, 10, 210, callbackSingleCreasePatch, 0, 's');
+        g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0,
+                          10, 190, callbackCheckBox, kHUD_CB_ADAPTIVE, '`');
+        g_hud.AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0,
+                          10, 210, callbackCheckBox, kHUD_CB_SINGLE_CREASE_PATCH, 's');
+        g_hud.AddCheckBox("Gregory Basis Patch (G)", g_gregoryBasisPatch!=0,
+                          10, 230, callbackCheckBox, kHUD_CB_GREGORY_BASIS_PATCH, 'g');
     }
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(3, level, i==2, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
+        g_hud.AddRadioButton(3, level, i==2, 10, 230+i*20, callbackLevel, i, '0'+(i%10));
     }
 
     int shapes_pulldown = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');

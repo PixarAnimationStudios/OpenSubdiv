@@ -119,7 +119,8 @@ int   g_displayPatchColor    = 1,
       g_numPatches           = 0,               
       g_maxValence           = 0,               
       g_currentPatch         = 0,               
-      g_Adaptive             = true;            
+      g_Adaptive             = true,
+      g_useStencils          = true;
 
 typedef OpenSubdiv::Sdc::Options SdcOptions;
 
@@ -723,7 +724,6 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
             int * remap = 0;
             switch (patchTables.GetPatchArrayDescriptor(array).GetType()) {
                 case Descriptor::REGULAR:          remap = regular; break;
-                case Descriptor::SINGLE_CREASE:    remap = boundary; break;
                 case Descriptor::BOUNDARY:         remap = boundary; break;
                 case Descriptor::CORNER:           remap = corner; break;
                 case Descriptor::GREGORY:
@@ -751,67 +751,56 @@ createVtrMesh(Shape * shape, int maxlevel) {
     Stopwatch s;
     s.Start();
 
+    using namespace OpenSubdiv;
+
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
-    OpenSubdiv::Sdc::Options    sdcoptions = GetSdcOptions(*shape);
+    Sdc::SchemeType sdctype = GetSdcType(*shape);
+    Sdc::Options    sdcoptions = GetSdcOptions(*shape);
 
     sdcoptions.SetFVarLinearInterpolation(g_fvarInterpolation);
 
-    OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
-            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
+    Far::TopologyRefiner * refiner =
+        Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     if (g_Adaptive) {
-        OpenSubdiv::Far::TopologyRefiner::AdaptiveOptions options(maxlevel);
+        Far::TopologyRefiner::AdaptiveOptions options(maxlevel);
         options.useSingleCreasePatch = false;
         refiner->RefineAdaptive(options);
     } else {
-        OpenSubdiv::Far::TopologyRefiner::UniformOptions options(maxlevel);
+        Far::TopologyRefiner::UniformOptions options(maxlevel);
         options.fullTopologyInLastLevel = true;
         refiner->RefineUniform(options);
     }
 
-    //
-    // Stencils
-    //
-
-//#define no_stencils
-#ifdef no_stencils
-    {
-        s.Start();
-        // populate buffer with Vtr interpolated vertex data
-        refiner->Interpolate(verts, verts + ncoarseverts);
-        s.Stop();
-        //printf("          %f ms (interpolate)\n", float(s.GetElapsed())*1000.0f);
-        //printf("          %f ms (total)\n", float(s.GetTotalElapsed())*1000.0f);
-    }
-#else
-    OpenSubdiv::Far::StencilTables const * stencilTables = 0;
-    {
-        OpenSubdiv::Far::StencilTablesFactory::Options options;
-        options.generateOffsets=true;
-        options.generateIntermediateLevels=true;
-
-        stencilTables =
-            OpenSubdiv::Far::StencilTablesFactory::Create(*refiner, options);
-    }
-#endif
+    int numTotalVerts = refiner->GetNumVerticesTotal();
 
     //
     // Patch tables
     //
-
     std::vector<Vertex> fvarBuffer;
-    OpenSubdiv::Far::PatchTables * patchTables = 0;
+    Far::PatchTables * patchTables = 0;
     bool createFVarWire = g_VtrDrawFVarPatches or g_VtrDrawFVarVerts;
-    if (g_Adaptive) {
-        assert(stencilTables);
 
-        OpenSubdiv::Far::PatchTablesFactory::Options options;
-        options.adaptiveStencilTables = stencilTables;
+    // for stencil based gregory evaluation
+    Far::GregoryBasisFactory *gregoryBasisFactory = NULL;
+
+    if (g_Adaptive) {
+        Far::PatchTablesFactory::Options options;
         options.generateFVarTables = createFVarWire;
 
-        patchTables = OpenSubdiv::Far::PatchTablesFactory::Create(*refiner, options);
+        // use GregoryBasis as EndPatch strategy.
+        // we want to share boundary vertices of marginal gregory patches
+        // only if using stencils.
+        bool shareBoundaryVertices = g_useStencils;
+        gregoryBasisFactory = new Far::GregoryBasisFactory(
+            *refiner, shareBoundaryVertices);
+
+        patchTables = Far::PatchTablesFactory::Create(
+            *refiner, options, gregoryBasisFactory);
+
+        // increase vertex buffer for the additional gregory verts
+        numTotalVerts += gregoryBasisFactory->GetNumGregoryBasisVertices();
 
         g_numPatches = patchTables->GetNumPatchesTotal();
         g_maxValence = patchTables->GetMaxValence();
@@ -820,7 +809,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
 
             // interpolate fvar values
 
-            //OpenSubdiv::Far::FVarPatchTables const * fvarTables =
+            //Far::FVarPatchTables const * fvarTables =
             //    patchTables->GetFVarPatchTables();
             //assert(fvarTables);
 
@@ -836,26 +825,13 @@ createVtrMesh(Shape * shape, int maxlevel) {
                 float const * ptr = &shape->uvs[i*2];
                 values[i].SetPosition(ptr[0],  ptr[1], 0.0f);
             }
-
             refiner->InterpolateFaceVarying(values, values + nCoarseValues);
         }
     }
-    // note: gregoryBasisStencilTables is owned by patchTables.
-    OpenSubdiv::Far::StencilTables const * gregoryBasisStencilTables =
-        patchTables->GetEndCapVertexStencilTables();
 
-    if (gregoryBasisStencilTables) {
-        OpenSubdiv::Far::StencilTables const *inStencilTables[] = {
-            stencilTables, gregoryBasisStencilTables
-        };
-        OpenSubdiv::Far::StencilTables const *concatStencilTables = 
-            concatStencilTables = OpenSubdiv::Far::StencilTablesFactory::Create(
-                2, inStencilTables);
-        delete stencilTables;
-        stencilTables = concatStencilTables;
-    }
-
-    int numTotalVerts = shape->GetNumVertices() + stencilTables->GetNumStencils();
+    //
+    // interpolate vertices
+    //
 
     // create vertex primvar data buffer
     std::vector<Vertex> vertexBuffer(numTotalVerts);
@@ -868,11 +844,73 @@ createVtrMesh(Shape * shape, int maxlevel) {
         verts[i].SetPosition(ptr[0], ptr[1], ptr[2]);
     }
 
-    //
-    // apply stencils
-    //
-    stencilTables->UpdateValues(verts, verts + ncoarseverts);
+    s.Start();
+    if (g_useStencils) {
+        //
+        // Stencil interpolation
+        //
+        Far::StencilTables const * stencilTables = 0;
+        Far::StencilTablesFactory::Options options;
+        options.generateOffsets=true;
+        options.generateIntermediateLevels=true;
+        stencilTables = Far::StencilTablesFactory::Create(*refiner, options);
 
+        // append gregory basis stencils if needed
+        if (gregoryBasisFactory) {
+            if (Far::StencilTables const * stencilTablesWithGregoryBasis =
+                gregoryBasisFactory->CreateVertexStencilTables(stencilTables, /*append=*/true)) {
+                delete stencilTables;
+                stencilTables = stencilTablesWithGregoryBasis;
+            }
+        }
+
+        //
+        // apply stencils
+        //
+        stencilTables->UpdateValues(verts, verts + ncoarseverts);
+
+        delete stencilTables;
+    } else {
+        //
+        // TopologyRefiner interpolation
+        //
+        // populate buffer with Vtr interpolated vertex data
+        refiner->Interpolate(verts, verts + ncoarseverts);
+        //printf("          %f ms (interpolate)\n", float(s.GetElapsed())*1000.0f);
+        //printf("          %f ms (total)\n", float(s.GetTotalElapsed())*1000.0f);
+
+        // gregory basis evaluation (without stencils)
+        if (gregoryBasisFactory) {
+
+            // gregory basis is defined at the maximum level.
+            // all src verts exist in maximum level and indexed within the level
+            // and resulting gregory verts will be placed after all refined verts
+            Vertex * src = verts + refiner->GetNumVerticesTotal() - refiner->GetNumVertices(maxlevel);
+            Vertex * dst = verts + refiner->GetNumVerticesTotal();
+            int nPatchArrays = patchTables->GetNumPatchArrays();
+
+            for (int i = 0; i < nPatchArrays; ++i) {
+                Far::PatchDescriptor desc =
+                    patchTables->GetPatchArrayDescriptor(i);
+                if (desc.GetType() == Far::PatchDescriptor::GREGORY_BASIS) {
+
+                    int nPatches = patchTables->GetNumPatches(i);
+                    for (int j = 0; j < nPatches; ++j) {
+                        // GregoryBasisFactory knows faceIndex in VtrLevel for this patch
+                        int faceIndex = gregoryBasisFactory->GetFaceIndex(j);
+
+                        Far::GregoryBasis const *gregoryBasis =
+                            Far::GregoryBasisFactory::Create(*refiner, faceIndex);
+
+                        gregoryBasis->Evaluate(src, dst);
+                        dst += 20;
+
+                        delete gregoryBasis;
+                    }
+                }
+            }
+        }
+    }
     s.Stop();
 
     //
@@ -928,7 +966,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
 
     delete refiner;
     delete patchTables;
-    delete stencilTables;
+    delete gregoryBasisFactory;
 }
 
 //------------------------------------------------------------------------------
@@ -1284,6 +1322,13 @@ callbackAdaptive(bool checked, int /* a */)
 }
 
 static void
+callbackUseStencils(bool checked, int /* a */)
+{
+    g_useStencils = checked;
+    rebuildOsdMeshes();
+}
+
+static void
 callbackCheckBox(bool checked, int button) {
 
     switch (button) {
@@ -1413,7 +1458,8 @@ initHUD() {
     g_hud.AddCheckBox("Edge Sharp", g_VtrDrawEdgeSharpness!=0, 10, 295, callbackDrawIDs, 8);
     g_hud.AddCheckBox("Gregory Basis", g_VtrDrawGregogyBasis!=0, 10, 315, callbackDrawIDs, 9);
 
-    g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 350, callbackAdaptive, 0, '`');
+    g_hud.AddCheckBox("Use Stencils (s)", g_useStencils!=0, 10, 350, callbackUseStencils, 0, 's');
+    g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 370, callbackAdaptive, 0, '`');
 
 
     g_hud.AddSlider("Font Scale", 0.0f, 0.1f, 0.01f,
