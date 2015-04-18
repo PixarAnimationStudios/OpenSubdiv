@@ -417,7 +417,7 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
             vertex[i*numVertexElements+j] =
                 (shape->verts[i*3+j] - center[j])/radius;
         }
-        for (int j = 0; j < 4; ++j) {
+        for (int j = 0; j < 3; ++j) {
             vertex[i*numVertexElements+j+3] =
                 (shape->verts[i*3+j] - pmin[j])*2.0f/radius;
         }

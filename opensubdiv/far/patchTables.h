@@ -29,8 +29,6 @@
 
 #include "../far/interpolate.h"
 #include "../far/patchDescriptor.h"
-#include "../far/stencilTables.h"
-#include "../far/stencilTables.h"
 
 #include "../sdc/options.h"
 
@@ -172,10 +170,6 @@ public:
     VertexValenceTable const & GetVertexValenceTable() const {
         return _vertexValenceTable;
     }
-
-    /// \brief Returns a stencil table for the control vertices of end-cap patches
-    StencilTables const * GetEndCapVertexStencilTables() const { return _endcapVertexStencilTables; }
-    StencilTables const * GetEndCapVaryingStencilTables() const { return _endcapVaryingStencilTables; }
 
     //@}
 
@@ -337,6 +331,7 @@ public:
 protected:
 
     friend class PatchTablesFactory;
+    friend class GregoryPatchFactory;
 
     // Factory constructor
     PatchTables(int maxvalence);
@@ -414,10 +409,6 @@ private:
     // Extraordinary vertex closed-form evaluation
     //
 
-    // XXXX manuelk end-cap stencils will obsolete the other tables
-
-    StencilTables const * _endcapVertexStencilTables;
-    StencilTables const * _endcapVaryingStencilTables;
     QuadOffsetsTable     _quadOffsetsTable;   // Quad offsets (for Gregory patches)
     VertexValenceTable   _vertexValenceTable; // Vertex valence table (for Gregory patches)
 
@@ -472,8 +463,6 @@ PatchTables::Evaluate(PatchHandle const & handle, float s, float t,
         // XXXdyu bits InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
 
     } else if (ptype==PatchDescriptor::GREGORY_BASIS) {
-
-        assert(_endcapVertexStencilTables);
 
         ConstIndexArray cvs = GetPatchVertices(handle);
 

@@ -588,6 +588,7 @@ protected:
     //
     friend class TopologyRefinerFactoryBase;
     friend class GregoryBasisFactory;
+    friend class GregoryPatchFactory;
     friend class PatchTablesFactory;
 
     Vtr::Level & getLevel(int l) { return *_levels[l]; }

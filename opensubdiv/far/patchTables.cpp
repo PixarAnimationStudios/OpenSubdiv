@@ -33,9 +33,8 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 PatchTables::PatchTables(int maxvalence) :
-    _maxValence(maxvalence),
-    _endcapVertexStencilTables(0),
-    _endcapVaryingStencilTables(0) { }
+    _maxValence(maxvalence) {
+}
 
 // Copy constructor
 // XXXX manuelk we need to eliminate this constructor (C++11 smart pointers)
@@ -50,16 +49,9 @@ PatchTables::PatchTables(PatchTables const & src) :
     _fvarChannels(src._fvarChannels),
     _sharpnessIndices(src._sharpnessIndices),
     _sharpnessValues(src._sharpnessValues) {
-
-    _endcapVertexStencilTables = src._endcapVertexStencilTables ?
-        new StencilTables(*src._endcapVertexStencilTables) : 0;
-    _endcapVaryingStencilTables = src._endcapVaryingStencilTables ?
-        new StencilTables(*src._endcapVaryingStencilTables) : 0;
 }
 
 PatchTables::~PatchTables() {
-    delete _endcapVertexStencilTables;
-    delete _endcapVaryingStencilTables;
 }
 
 //
@@ -399,7 +391,7 @@ bool
 PatchTables::IsFeatureAdaptive() const {
 
     // check for presence of tables only used by adaptive patches
-    if (not _vertexValenceTable.empty() or _endcapVertexStencilTables)
+    if (not _vertexValenceTable.empty())
         return true;
 
     // otherwise, we have to check each patch array

@@ -486,7 +486,7 @@ GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
 
                 if (OpenSubdiv::Far::PatchDescriptor::IsAdaptive(type)) {
                     color = getAdaptivePatchColor(
-                        OpenSubdiv::Far::PatchDescriptor(type, 0, 0));
+                        OpenSubdiv::Far::PatchDescriptor(type));
                 } else {
                     static float quadColor[3] = { 1.0f, 1.0f, 0.0f };
                     color = quadColor;

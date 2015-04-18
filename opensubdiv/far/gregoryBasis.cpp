@@ -24,6 +24,7 @@
 
 #include "../far/gregoryBasis.h"
 #include "../far/error.h"
+#include "../far/stencilTablesFactory.h"
 #include "../far/topologyRefiner.h"
 
 #include <cassert>
@@ -85,144 +86,10 @@ getQuadOffsets(Vtr::Level const & level, Vtr::Index fIndex,
     }
 }
 
-#define GetNumMaxElems( maxvalence ) \
-    16 + maxvalence - 3
-
-// limit valence of 30 because we use a pre-computed closed-form 'ef' table
-// XXXtakahito: revisit here to determine appropriate size
-static const int MAX_VALENCE=(30*2),
-                 MAX_ELEMS = GetNumMaxElems(MAX_VALENCE);
-
 namespace Far {
 
-static inline bool
-checkMaxValence(Vtr::Level const & level) {
-    if (level.getMaxValence()>GregoryBasisFactory::GetMaxValence()) {
-        // The proto-basis closed-form table limits valence to 'MAX_VALENCE'
-        Error(FAR_RUNTIME_ERROR,
-            "Vertex valence %d exceeds maximum %d supported",
-                level.getMaxValence(), GregoryBasisFactory::GetMaxValence());
-        return false;
-    }
-    return true;
-}
-
-//
-// Basis point
-//
-// Implements arithmetic operators to manipulate the influence of the
-// 1-ring control vertices supporting the patch basis
-//
-class Point {
-
-public:
-
-    Point() : _size(0) { }
-
-    Point(Index idx, float weight = 1.0f) {
-        _size = 1;
-        _indices[0] = idx;
-        _weights[0] = weight;
-    }
-
-    Point(Point const & other) {
-        *this = other;
-    }
-
-    int GetSize() const {
-        return _size;
-    }
-
-    Index const * GetIndices() const {
-        return _indices;
-    }
-
-    float const * GetWeights() const {
-        return _weights;
-    }
-
-    Point & operator = (Point const & other) {
-        _size = other._size;
-        memcpy(_indices, other._indices, other._size*sizeof(Index));
-        memcpy(_weights, other._weights, other._size*sizeof(float));
-        return *this;
-    }
-
-    Point & operator += (Point const & other) {
-        for (int i=0; i<other._size; ++i) {
-            Index idx = findIndex(other._indices[i]);
-            _weights[idx] += other._weights[i];
-        }
-        return *this;
-    }
-
-    Point & operator -= (Point const & other) {
-        for (int i=0; i<other._size; ++i) {
-            Index idx = findIndex(other._indices[i]);
-            _weights[idx] -= other._weights[i];
-        }
-        return *this;
-    }
-
-    Point & operator *= (float f) {
-        for (int i=0; i<_size; ++i) {
-            _weights[i] *= f;
-        }
-        return *this;
-    }
-
-    Point & operator /= (float f) {
-       return (*this)*=(1.0f/f);
-    }
-
-    friend Point operator * (Point const & src, float f) {
-        Point p( src ); return p*=f;
-    }
-
-    friend Point operator / (Point const & src, float f) {
-        Point p( src ); return p*= (1.0f/f);
-    }
-
-    Point operator + (Point const & other) {
-        Point p(*this); return p+=other;
-    }
-
-    Point operator - (Point const & other) {
-        Point p(*this); return p-=other;
-    }
-
-    void OffsetIndices(Index offset) {
-        for (int i=0; i<_size; ++i) {
-            _indices[i] += offset;
-        }
-    }
-
-    void Copy(int ** size, Index ** indices, float ** weights) const;
-
-private:
-
-    int findIndex(Index idx) {
-        for (int i=0; i<_size; ++i) {
-            if (_indices[i]==idx) {
-                return i;
-            }
-        }
-        _indices[_size]=idx;
-        _weights[_size]=0.0f;
-        ++_size;
-        return _size-1;
-    }
-
-    int _size;
-    // XXXX this would really be better with VLA where we only allocate
-    // space based on the max vertex valence in the mesh, not the
-    // absolute maximum supported by the closed-form tangents table.
-    Index _indices[MAX_ELEMS];
-    float _weights[MAX_ELEMS];
-};
-
 void
-Point::Copy(int ** size, Index ** indices, float ** weights) const {
+GregoryBasisFactory::Point::Copy(int ** size, Index ** indices, float ** weights) const {
     memcpy(*indices, _indices, _size*sizeof(Index));
     memcpy(*weights, _weights, _size*sizeof(float));
     **size = _size;
@@ -237,13 +104,11 @@ Point::Copy(int ** size, Index ** indices, float ** weights) const {
 // Given a Vtr::Level and a face index, gathers all the influences of the 1-ring
 // that supports the 20 CVs of a Gregory patch basis.
 //
-struct ProtoBasis {
+struct GregoryBasisFactory::ProtoBasis {
 
     ProtoBasis(Vtr::Level const & level, Index faceIndex, int fvarChannel=-1);
 
     int GetNumElements() const;
-
-    void OffsetIndices(Index offset);
 
     void Copy(int * sizes, Index * indices, float * weights) const;
 
@@ -277,8 +142,21 @@ struct ProtoBasis {
     Point V[4];
 };
 
+static inline bool
+checkMaxValence(Vtr::Level const & level) {
+    if (level.getMaxValence()>GregoryBasisFactory::GetMaxValence()) {
+        // The proto-basis closed-form table limits valence to 'MAX_VALENCE'
+        Error(FAR_RUNTIME_ERROR,
+            "Vertex valence %d exceeds maximum %d supported",
+                level.getMaxValence(), GregoryBasisFactory::GetMaxValence());
+        return false;
+    }
+    return true;
+}
+
+
 int
-ProtoBasis::GetNumElements() const {
+GregoryBasisFactory::ProtoBasis::GetNumElements() const {
     int nelems=0;
     for (int vid=0; vid<4; ++vid) {
         nelems += P[vid].GetSize();
@@ -290,18 +168,7 @@ ProtoBasis::GetNumElements() const {
     return nelems;
 }
 void
-ProtoBasis::OffsetIndices(Index offset) {
-    for (int vid=0; vid<4; ++vid) {
-        P[vid].OffsetIndices(offset);
-        Ep[vid].OffsetIndices(offset);
-        Em[vid].OffsetIndices(offset);
-        Fp[vid].OffsetIndices(offset);
-        Fm[vid].OffsetIndices(offset);
-        V[vid].OffsetIndices(offset);
-    }
-}
-void
-ProtoBasis::Copy(int * sizes, Index * indices, float * weights) const {
+GregoryBasisFactory::ProtoBasis::Copy(int * sizes, Index * indices, float * weights) const {
     for (int vid=0; vid<4; ++vid) {
         P[vid].Copy(&sizes, &indices, &weights);
         Ep[vid].Copy(&sizes, &indices, &weights);
@@ -317,7 +184,7 @@ inline float csf(Index n, Index j) {
         return sinf((2.0f * float(M_PI) * float(float(j-1)/2.0f))/(float(n)+3.0f));
     }
 }
-ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex, int fvarChannel) {
+GregoryBasisFactory::ProtoBasis::ProtoBasis(Vtr::Level const & level, Index faceIndex, int fvarChannel) {
 
     static float ef[MAX_VALENCE-3] = {
         0.812816f, 0.500000f, 0.363644f, 0.287514f,
@@ -616,50 +483,22 @@ GregoryBasisFactory::Create(TopologyRefiner const & refiner,
 // GregoryBasisFactory for Vertex StencilTables
 //
 GregoryBasisFactory::GregoryBasisFactory(TopologyRefiner const & refiner,
-                                         StencilTables const *stencils,
-                                         StencilTables const *varyingStencils,
-                                         int numpatches, int maxvalence) :
-            _currentStencil(0), _refiner(refiner),
-            _stencils(stencils), _varyingStencils(varyingStencils),
-            _alloc(GetNumMaxElems(maxvalence)),
-            _varyingAlloc(GetNumMaxElems(maxvalence)) {
+                                         bool shareBoundaryVertices) :
+    _refiner(refiner), _maxvalence(0), _shareBoundaryVertices(shareBoundaryVertices),
+    numGregoryBasisVertices(0), numGregoryBasisPatches(0) {
 
     // Sanity check: the mesh must be adaptively refined
     assert(not _refiner.IsUniform());
 
-    _alloc.Resize(numpatches * 20);
-    _varyingAlloc.Resize(numpatches * 20);
+    _maxvalence = _refiner.GetMaxValence();
 
-    // Gregory limit stencils have indices that are relative to the level
-    // (maxlevel) of subdivision. These indices need to be offset to match
-    // the indices from the multi-level adaptive stencil tables.
-    // In addition: stencil tables can be built with singular stencils
-    // (single weight of 1.0f) as place-holders for coarse mesh vertices,
-    // which also needs to be accounted for.
-    _stencilsOffset=-1;
-    {
-        int maxlevel = _refiner.GetMaxLevel(),
-            nverts = _refiner.GetNumVerticesTotal(),
-            nstencils = _stencils->GetNumStencils();
-        if (nstencils==nverts) {
-
-            // the table contain stencils for the control vertices
-            _stencilsOffset = nverts - _refiner.GetNumVertices(maxlevel);
-
-        } else if (nstencils==(nverts-_refiner.GetNumVertices(0))) {
-
-            // the table does not contain stencils for the control vertices
-            _stencilsOffset = nverts - _refiner.GetNumVertices(maxlevel)
-                - _refiner.GetNumVertices(0);
-
-        } else {
-            // these are not the stencils you are looking for...
-            assert(0);
-        }
-    }
+    // would be great to reserve _pointArray here to something
 }
-static inline void
-factorizeBasisVertex(StencilTables const * stencils, Point const & p, ProtoStencil dst) {
+
+void
+GregoryBasisFactory::factorizeBasisVertex(StencilTables const * stencils,
+                                          GregoryBasisFactory::Point const & p,
+                                          ProtoStencil dst) {
     // Use the Allocator to factorize the Gregory patch influence CVs with the
     // supporting CVs from the stencil tables.
     if (!stencils) return;
@@ -670,8 +509,9 @@ factorizeBasisVertex(StencilTables const * stencils, Point const & p, ProtoStenc
             p.GetIndices()[j], p.GetWeights()[j]);
     }
 }
+
 bool
-GregoryBasisFactory::AddPatchBasis(Index faceIndex,
+GregoryBasisFactory::addPatchBasis(Index faceIndex,
                                    bool verticesMask[4][5]) {
 
     // Gregory patches only exist on the hight
@@ -685,53 +525,84 @@ GregoryBasisFactory::AddPatchBasis(Index faceIndex,
     // weights in a basis
     ProtoBasis basis(level, faceIndex);
 
-    // The basis vertex indices are currently local to maxlevel: need to offset
-    // to match layout of adaptive StencilTables (see factory constructor above)
-    assert(_stencilsOffset>=0);
-    basis.OffsetIndices(_stencilsOffset);
-
-    // Factorize the basis CVs with the stencil tables: the basis is now
-    // expressed as a linear combination of vertices from the coarse control
-    // mesh with no data dependencies
-    for (int i=0; i<4; ++i) {
+    for (int i = 0; i < 4; ++i) {
         if (verticesMask[i][0]) {
-            factorizeBasisVertex(_stencils, basis.P[i],  _alloc[_currentStencil]);
-            // need varying stencils only for corners
-            factorizeBasisVertex(_varyingStencils, basis.V[i],  _varyingAlloc[_currentStencil]);
-            ++_currentStencil;
+            _vertexStencils.push_back(basis.P[i]);
+            _varyingStencils.push_back(basis.V[i]);
         }
         if (verticesMask[i][1]) {
-            factorizeBasisVertex(_stencils, basis.Ep[i], _alloc[_currentStencil]);
-            factorizeBasisVertex(_varyingStencils, basis.V[i],  _varyingAlloc[_currentStencil]);
-            ++_currentStencil;
+            _vertexStencils.push_back(basis.Ep[i]);
+            _varyingStencils.push_back(basis.V[i]);
         }
         if (verticesMask[i][2]) {
-            factorizeBasisVertex(_stencils, basis.Em[i], _alloc[_currentStencil]);
-            factorizeBasisVertex(_varyingStencils, basis.V[i],  _varyingAlloc[_currentStencil]);
-            ++_currentStencil;
+            _vertexStencils.push_back(basis.Em[i]);
+            _varyingStencils.push_back(basis.V[i]);
         }
         if (verticesMask[i][3]) {
-            factorizeBasisVertex(_stencils, basis.Fp[i], _alloc[_currentStencil]);
-            factorizeBasisVertex(_varyingStencils, basis.V[i],  _varyingAlloc[_currentStencil]);
-            ++_currentStencil;
+            _vertexStencils.push_back(basis.Fp[i]);
+            _varyingStencils.push_back(basis.V[i]);
         }
         if (verticesMask[i][4]) {
-            factorizeBasisVertex(_stencils, basis.Fm[i], _alloc[_currentStencil]);
-            factorizeBasisVertex(_varyingStencils, basis.V[i],  _varyingAlloc[_currentStencil]);
-            ++_currentStencil;
+            _vertexStencils.push_back(basis.Fm[i]);
+            _varyingStencils.push_back(basis.V[i]);
         }
     }
     return true;
 }
 StencilTables const *
-GregoryBasisFactory::createStencilTables(int const permute[20],
-                                         StencilAllocator &alloc) {
+GregoryBasisFactory::createStencilTables(StencilTables const *baseStencils,
+                                         bool append,
+                                         std::vector<Point> const &gregoryStencils,
+                                         int const permute[20]) {
 
-    int nstencils = _currentStencil;
+    // Gregory limit stencils have indices that are relative to the level
+    // (maxlevel) of subdivision. These indices need to be offset to match
+    // the indices from the multi-level adaptive stencil tables.
+    // In addition: stencil tables can be built with singular stencils
+    // (single weight of 1.0f) as place-holders for coarse mesh vertices,
+    // which also needs to be accounted for.
+    int stencilsIndexOffset = 0;
+    {
+        int maxlevel = _refiner.GetMaxLevel();
+        int nverts = _refiner.GetNumVerticesTotal();
+        int nBaseStencils = baseStencils->GetNumStencils();
+        if (nBaseStencils == nverts) {
+
+            // the table contain stencils for the control vertices
+            stencilsIndexOffset = nverts - _refiner.GetNumVertices(maxlevel);
+
+        } else if (nBaseStencils == (nverts -_refiner.GetNumVertices(0))) {
+
+            // the table does not contain stencils for the control vertices
+            stencilsIndexOffset = nverts - _refiner.GetNumVertices(maxlevel)
+                - _refiner.GetNumVertices(0);
+
+        } else {
+            // these are not the stencils you are looking for...
+            assert(0);
+            return NULL;
+        }
+    }
+
+    int nStencils = (int)gregoryStencils.size();
+
+    // Factorize the basis CVs with the stencil tables: the basis is now
+    // expressed as a linear combination of vertices from the coarse control
+    // mesh with no data dependencies
+    StencilAllocator alloc(getNumMaxElements(_maxvalence));
+
+    alloc.Resize(nStencils);
+    for (int i = 0; i < nStencils; ++i) {
+        Point p = gregoryStencils[i];
+        p.OffsetIndices(stencilsIndexOffset);
+
+        factorizeBasisVertex(baseStencils, p, alloc[i]);
+    }
+
     int nelems = alloc.GetNumVerticesTotal();
 
-    if (nstencils==0 or nelems==0) {
-        return 0;
+    if (nStencils==0 or nelems==0) {
+        return NULL;
     }
 
     // Finalize the stencil tables from the temporary pool allocator
@@ -739,12 +610,12 @@ GregoryBasisFactory::createStencilTables(int const permute[20],
 
     result->_numControlVertices = _refiner.GetNumVertices(0);
 
-    result->resize(nstencils, nelems);
+    result->resize(nStencils, nelems);
 
     Stencil dst(&result->_sizes.at(0),
         &result->_indices.at(0), &result->_weights.at(0));
 
-    for (int i=0; i<nstencils; ++i) {
+    for (int i = 0; i < nStencils; ++i) {
 
         Index index = i;
         if (permute) {
@@ -760,9 +631,133 @@ GregoryBasisFactory::createStencilTables(int const permute[20],
 
     result->generateOffsets();
 
-    return result;
+    if (append) {
+        StencilTables const *inStencilTables[] = {
+            baseStencils, result
+        };
+        StencilTables const *concatStencilTables =
+            StencilTablesFactory::Create(2, inStencilTables);
+        delete result;
+        return concatStencilTables;
+    } else {
+        return result;
+    }
 }
 
+PatchDescriptor::Type
+GregoryBasisFactory::GetPatchType(
+    PatchTablesFactory::PatchFaceTag const &) const {
+
+    return PatchDescriptor::GREGORY_BASIS;
+}
+
+//
+// Populates the topology table used by Gregory-basis patches
+//
+// Note  : 'faceIndex' values are expected to be sorted in ascending order !!!
+// Note 2: this code attempts to identify basis vertices shared along
+//         gregory patch edges
+ConstIndexArray
+GregoryBasisFactory::GetTopology(Vtr::Level const& level, Index faceIndex,
+                                 PatchTablesFactory::PatchFaceTag const * levelPatchTags,
+                                 int /*not used: levelVertsOffset*/)
+{
+    // allocate indices (awkward)
+    // assert(Vtr::INDEX_INVALID==0xFFFFFFFF);
+    for (int i = 0; i < 20; ++i) {
+        topology.push_back(Vtr::INDEX_INVALID);
+    }
+    Index * dest = &topology[numGregoryBasisPatches*20];
+
+    ConstIndexArray fedges = level.getFaceEdges(faceIndex);
+    assert(fedges.size()==4);
+
+    int gregoryVertexOffset = _refiner.GetNumVerticesTotal();
+
+    if (_shareBoundaryVertices) {
+        for (int i=0; i<4; ++i) {
+            Index edge = fedges[i], adjface = 0;
+
+            { // Gather adjacent faces
+                ConstIndexArray adjfaces = level.getEdgeFaces(edge);
+                for (int i=0; i<adjfaces.size(); ++i) {
+                    if (adjfaces[i]==faceIndex) {
+                        // XXXX manuelk if 'edge' is non-manifold, arbitrarily pick the
+                        // next face in the list of adjacent faces
+                        adjface = (adjfaces[(i+1)%adjfaces.size()]);
+                        break;
+                    }
+                }
+            }
+            // We are looking for adjacent faces that:
+            // - exist (no boundary)
+            // - have already been processed (known CV indices)
+            // - are also Gregory basis patches
+            if (adjface!=Vtr::INDEX_INVALID and (adjface < faceIndex) and
+                (not levelPatchTags[adjface]._isRegular)) {
+
+                ConstIndexArray aedges = level.getFaceEdges(adjface);
+                int aedge = aedges.FindIndexIn4Tuple(edge);
+                assert(aedge!=Vtr::INDEX_INVALID);
+
+                // Find index of basis in the list of basis already generated
+                struct compare {
+                    static int op(void const * a, void const * b) {
+                        return *(Index *)a - *(Index *)b;
+                    }
+                };
+
+                Index * ptr = (Index *)std::bsearch( &adjface, &basisIndices[0],
+                                                     basisIndices.size(), sizeof(Index), compare::op);
+
+                int srcBasisIdx = (int)(ptr - &basisIndices[0]);
+
+                if (!ptr) {
+                    // if the adjface is hole, it won't be found
+                    break;
+                }
+                assert(ptr and srcBasisIdx>=0 and srcBasisIdx<(int)basisIndices.size());
+
+                // Copy the indices of CVs from the face on the other side of the
+                // shared edge
+                static int const gregoryEdgeVerts[4][4] = { { 0,  1,  7,  5},
+                                                            { 5,  6, 12, 10},
+                                                            {10, 11, 17, 15},
+                                                            {15, 16,  2,  0} };
+                Index * src = &topology[srcBasisIdx*20];
+                for (int j=0; j<4; ++j) {
+                    // invert direction
+                    // note that src  indices have already been offsetted.
+                    dest[gregoryEdgeVerts[i][3-j]] = src[gregoryEdgeVerts[aedge][j]];
+                }
+            }
+        }
+    }
+
+    bool newVerticesMask[4][5];
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 5; ++j) {
+            if (dest[i*5+j]==Vtr::INDEX_INVALID) {
+                // assign new vertex
+                dest[i*5+j] = numGregoryBasisVertices+ gregoryVertexOffset;
+                ++numGregoryBasisVertices;
+                newVerticesMask[i][j] = true;
+            } else {
+                // share vertex
+                newVerticesMask[i][j] = false;
+            }
+        }
+    }
+    basisIndices.push_back(faceIndex);
+
+    // add basis
+    addPatchBasis(faceIndex, newVerticesMask);
+
+    ++numGregoryBasisPatches;
+
+    // return cvs;
+    return ConstIndexArray(dest, 20);
+}
 
 } // end namespace Far
 

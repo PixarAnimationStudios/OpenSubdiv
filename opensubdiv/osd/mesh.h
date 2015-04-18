@@ -90,12 +90,6 @@ public:
 
 protected:
 
-    static inline int getNumVertices(Far::TopologyRefiner const & refiner) {
-        return refiner.IsUniform() ?
-            refiner.GetNumVertices(0) + refiner.GetNumVertices(refiner.GetMaxLevel()) :
-                refiner.GetNumVerticesTotal();
-    }
-
     static inline void refineMesh(Far::TopologyRefiner & refiner, int level, bool adaptive, bool singleCreasePatch) {
 
         if (adaptive) {
@@ -164,7 +158,7 @@ public:
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
             _computeController(computeController),
-            _drawContext(drawContext) { }
+            _drawContext(drawContext) {}
 
     virtual ~Mesh() {
         delete _refiner;
@@ -173,11 +167,6 @@ public:
         delete _varyingBuffer;
         delete _computeContext;
         delete _drawContext;
-    }
-
-    virtual int GetNumVertices() const {
-        assert(_refiner);
-        return MeshInterface<DRAW_CONTEXT>::getNumVertices(*_refiner);
     }
 
     virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
@@ -219,7 +208,6 @@ public:
     }
 
 private:
-
     void initializeComputeContext(int numVertexElements,
         int numVaryingElements ) {
 
@@ -282,7 +270,7 @@ private:
             _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices);
         }
         return numElements;
-   }
+    }
 
     Far::TopologyRefiner * _refiner;
     Far::PatchTables * _patchTables;
