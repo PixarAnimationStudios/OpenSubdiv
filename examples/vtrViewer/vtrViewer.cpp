@@ -723,7 +723,6 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
             int * remap = 0;
             switch (patchTables.GetPatchArrayDescriptor(array).GetType()) {
                 case Descriptor::REGULAR:          remap = regular; break;
-                case Descriptor::SINGLE_CREASE:    remap = boundary; break;
                 case Descriptor::BOUNDARY:         remap = boundary; break;
                 case Descriptor::CORNER:           remap = corner; break;
                 case Descriptor::GREGORY:
