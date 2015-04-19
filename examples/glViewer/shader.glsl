@@ -149,14 +149,18 @@ void main()
 layout(triangle_strip, max_vertices = EDGE_VERTS) out;
 in block {
     OutputVertex v;
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
     float sharpness;
+#endif
     OSD_USER_VARYING_DECLARE
 } inpt[EDGE_VERTS];
 
 out block {
     OutputVertex v;
     noperspective out vec4 edgeDistance;
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
     float sharpness;
+#endif
     OSD_USER_VARYING_DECLARE
 } outpt;
 
@@ -170,7 +174,9 @@ void emit(int index, vec3 normal)
     outpt.v.normal = normal;
 #endif
 
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
     outpt.sharpness = inpt[index].sharpness;
+#endif
 
 #ifdef VARYING_COLOR
     outpt.color = inpt[index].color;
@@ -302,7 +308,9 @@ void main()
 in block {
     OutputVertex v;
     noperspective in vec4 edgeDistance;
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
     float sharpness;
+#endif
     OSD_USER_VARYING_DECLARE
 } inpt;
 
@@ -451,7 +459,9 @@ getAdaptivePatchColor(int patchParam)
     }
 
     int pattern = bitCount((patchParam >> 8) & 0xf);
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
     if (inpt.sharpness > 0) pattern += 6;
+#endif
 
     return patchColors[6*patchType + pattern];
 }
