@@ -381,7 +381,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignFa
                 IndexArray dstFaceValues = refiner.setBaseFVarFaceValues(face, channel);
 
                 if (desc.isLeftHanded) {
-                    for (int vert=dstFaceValues.size(); vert >= 0; --vert) {
+                    for (int vert=dstFaceValues.size()-1; vert >= 0; --vert) {
                         
                         dstFaceValues[vert] = channelIndices[idx++];
                     }
