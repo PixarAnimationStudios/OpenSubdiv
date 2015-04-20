@@ -43,6 +43,7 @@
 #include <opensubdiv/far/topologyRefinerFactory.h>
 #include <opensubdiv/far/patchTablesFactory.h>
 #include <opensubdiv/far/patchMap.h>
+#include <opensubdiv/far/ptexIndices.h>
 
 #include <cassert>
 #include <cstdio>
@@ -160,10 +161,12 @@ int main(int, char **) {
     // Create a Far::PatchMap to help locating patches in the table
     Far::PatchMap patchmap(*patchTables);
 
+    // Create a Far::PtexIndices to help find indices of ptex faces.
+    Far::PtexIndices ptexIndices(*refiner);
 
     // Generate random samples on each ptex face
     int nsamples = 200,
-        nfaces = refiner->GetNumPtexFaces();
+        nfaces = ptexIndices.GetNumPtexFaces();
 
     std::vector<LimitFrame> samples(nsamples * nfaces);
 

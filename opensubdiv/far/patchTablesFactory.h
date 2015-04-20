@@ -37,6 +37,7 @@ namespace Vtr { class Level; }
 
 namespace Far {
 
+class PtexIndices;
 class TopologyRefiner;
 
 class PatchTablesFactoryBase {
@@ -130,6 +131,7 @@ protected:
          Options options, int npatches, PatchTables * tables);
 
     static PatchParam * computePatchParam(TopologyRefiner const & refiner,
+        PtexIndices const & ptexIndices,
         int level, int face, int rotation,
         int boundaryMask, int transitionMask, PatchParam * coord);
 
@@ -172,7 +174,8 @@ private:
 
     static void identifyAdaptivePatches(AdaptiveContext & state, ENDCAP_FACTORY *);
 
-    static void populateAdaptivePatches(AdaptiveContext & state, ENDCAP_FACTORY *);
+    static void populateAdaptivePatches(AdaptiveContext & state, 
+        PtexIndices const & ptexIndices, ENDCAP_FACTORY *);
 
 private:
 };

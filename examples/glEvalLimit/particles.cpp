@@ -24,12 +24,16 @@
 
 #include "particles.h"
 
+#include <far/ptexIndices.h>
+
 #include <cassert>
 
 STParticles::STParticles(Refiner const & refiner, int nparticles, bool centered) :
     _speed(1.0f) {
 
-    int nptexfaces = refiner.GetNumPtexFaces(),
+    OpenSubdiv::Far::PtexIndices ptexIndices(refiner);
+
+    int nptexfaces = ptexIndices.GetNumPtexFaces(),
         nsamples = nptexfaces * nparticles;
 
     srand(static_cast<int>(2147483647));
@@ -76,12 +80,12 @@ STParticles::STParticles(Refiner const & refiner, int nparticles, bool centered)
                 refiner.GetFaceVertices(0, face);
 
             if (fverts.size()==4) {
-                refiner.GetPtexAdjacency(face, 0, adjfaces, adjedges);
+                ptexIndices.GetPtexAdjacency(refiner, face, 0, adjfaces, adjedges);
                 _adjacency[ptexface] = FaceInfo(adjfaces, adjedges, false);
                 ++ptexface;
             } else {
                 for (int vert=0; vert<fverts.size(); ++vert) {
-                    refiner.GetPtexAdjacency(face, vert, adjfaces, adjedges);
+                    ptexIndices.GetPtexAdjacency(refiner, face, vert, adjfaces, adjedges);
                     _adjacency[ptexface+vert] =
                         FaceInfo(adjfaces, adjedges, true);
                 }

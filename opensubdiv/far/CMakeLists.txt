@@ -35,6 +35,7 @@ set(SOURCE_FILES
     patchMap.cpp
     patchTables.cpp
     patchTablesFactory.cpp
+    ptexIndices.cpp
     stencilTablesFactory.cpp
     topologyRefiner.cpp
     topologyRefinerFactory.cpp
@@ -56,6 +57,7 @@ set(PUBLIC_HEADER_FILES
     patchMap.h
     patchTables.h
     patchTablesFactory.h
+    ptexIndices.h
     stencilTables.h
     stencilTablesFactory.h
     topologyRefiner.h

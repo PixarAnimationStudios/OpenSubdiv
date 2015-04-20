@@ -46,6 +46,7 @@ GLFWmonitor* g_primary=0;
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
 #include <far/error.h>
+#include <far/ptexIndices.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -229,7 +230,8 @@ createOsdMesh() {
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // count ptex face id
-    int numPtexFaces = refiner->GetNumPtexFaces();
+    OpenSubdiv::Far::PtexIndices ptexIndices(*refiner);
+    int numPtexFaces = ptexIndices.GetNumPtexFaces();
 
     delete g_mesh;
     g_mesh = NULL;
