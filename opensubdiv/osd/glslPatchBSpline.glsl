@@ -85,7 +85,7 @@ out block {
 #define ID gl_InvocationID
 
 void
-reflectBoundaryEdges(inout vec3 cpt[24], int patchParam)
+reflectBoundaryEdges(inout vec3 cpt[16], int patchParam)
 {
     if (((patchParam >> 4) & 1) != 0) {
         cpt[0] = 2*cpt[4] - cpt[8];
@@ -138,7 +138,7 @@ void main()
     int i = ID%4;
     int j = ID/4;
 
-    vec3 position[24];
+    vec3 position[16];
     for (int i=0; i<16; ++i) {
         position[i] = inpt[i].v.position.xyz;
     }
@@ -209,12 +209,25 @@ void main()
 
     OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
 
+#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+    // Wait for all basis conversion to be finished
+    barrier();
+#endif
     if (ID == 0) {
         OSD_PATCH_CULL(OSD_PATCH_INPUT_SIZE);
 
         vec4 outerLevel = vec4(0);
         vec2 innerLevel = vec2(0);
+#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+        // Gather bezier control points to compute limit surface tess levels
+        vec3 cpBezier[16];
+        for (int i=0; i<16; ++i) {
+            cpBezier[i] = outpt[i].v.position.xyz;
+        }
+        GetTransitionTessLevels(cpBezier, patchParam, outerLevel, innerLevel);
+#else
         GetTransitionTessLevels(position, patchParam, outerLevel, innerLevel);
+#endif
 
         gl_TessLevelOuter[0] = outerLevel[0];
         gl_TessLevelOuter[1] = outerLevel[1];
