@@ -62,7 +62,7 @@ static float4x4 Mi = {
 };
 
 void
-reflectBoundaryEdges(inout float3 cpt[24], int patchParam)
+reflectBoundaryEdges(inout float3 cpt[16], int patchParam)
 {
     if (((patchParam >> 4) & 1) != 0) {
         cpt[0] = 2*cpt[4] - cpt[8];
@@ -114,15 +114,16 @@ ComputeMatrixSimplified(float sharpness)
 HS_CONSTANT_FUNC_OUT
 HSConstFunc(
     InputPatch<HullVertex, OSD_PATCH_INPUT_SIZE> patch,
+    OutputPatch<HullVertex, 16> bezierPatch,
     uint primitiveID : SV_PrimitiveID)
 {
     HS_CONSTANT_FUNC_OUT output;
     int patchParam = GetPatchParam(primitiveID);
     int patchLevel = GetPatchLevel(primitiveID);
 
-    float3 position[24];
+    float3 position[16];
     for (int p=0; p<16; ++p) {
-        position[p] = patch[p].position.xyz;
+        position[p] = bezierPatch[p].position.xyz;
     }
 
     reflectBoundaryEdges(position, patchParam);
@@ -143,7 +144,7 @@ HSConstFunc(
     output.tessLevelOuter[3] = outerLevel[3];
 
     output.tessLevelInner[0] = innerLevel[0];
-    output.tessLevelInner[1] = innerLevel[0];
+    output.tessLevelInner[1] = innerLevel[1];
 
     output.tessOuterLo = tessOuterLo;
     output.tessOuterHi = tessOuterHi;
@@ -164,7 +165,7 @@ HullVertex hs_main_patches(
     int i = ID%4;
     int j = ID/4;
 
-    float3 position[24];
+    float3 position[16];
     for (int p=0; p<16; ++p) {
         position[p] = patch[p].position.xyz;
     }

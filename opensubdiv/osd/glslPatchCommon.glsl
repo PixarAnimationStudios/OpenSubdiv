@@ -170,7 +170,7 @@ float TessAdaptive(vec3 p0, vec3 p1)
     // length of the projected edge itself to avoid problems near silhouettes.
     vec3 center = (p0 + p1) / 2.0;
     float diameter = distance(p0, p1);
-    return max(1.0, OsdTessLevel() * GetPostProjectionSphereExtent(center, diameter));
+    return round(max(1.0, OsdTessLevel() * GetPostProjectionSphereExtent(center, diameter)));
 }
 
 #ifndef OSD_DISPLACEMENT_CALLBACK
@@ -405,3 +405,32 @@ Univar4x4(in float u, out float B[4], out float D[4], out float C[4])
     C[2] = A1 - A2;
     C[3] = A2;
 }
+
+// ----------------------------------------------------------------------------
+
+vec3
+EvalBezier(vec3 cp[16], vec2 uv)
+{
+    vec3 BUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0));
+
+    float B[4], D[4];
+
+    Univar4x4(uv.x, B, D);
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+            vec3 A = cp[4*i + j];
+            BUCP[i] += A * B[j];
+        }
+    }
+
+    vec3 position = vec3(0);
+
+    Univar4x4(uv.y, B, D);
+    for (int k=0; k<4; ++k) {
+        position  += B[k] * BUCP[k];
+    }
+
+    return position;
+}
+
+// ----------------------------------------------------------------------------

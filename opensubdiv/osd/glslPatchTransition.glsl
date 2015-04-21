@@ -29,78 +29,183 @@
 
 patch out vec4 tessOuterLo, tessOuterHi;
 
-float
-TessAdaptiveRound(vec3 p0, vec3 p1)
+void
+GetTessLevelsUniform(vec3 cp[16], int patchParam)
 {
-    return round(TessAdaptive(p0, p1));
+    float tessAmount = GetTessLevel(GetPatchLevel());
+
+    tessOuterLo = vec4(tessAmount);
+    tessOuterHi = vec4(0);
 }
 
+//
+// Organization of B-spline and Bezier control points.
+//
+// Each patch is defined by 16 control points (labeled 0-15).
+//
+// The patch will be evaluated across the domain from (0,0) at
+// the lower-left to (1,1) at the upper-right. When computing
+// adaptive tessellation metrics, we consider refined vertex-vertex
+// and edge-vertex points along the transition edges of the patch
+// (labeled vv* and ev* respectively).
+//
+// The two segments of each transition edge are labeled Lo and Hi,
+// with the Lo segment occuring before the Hi segment along the
+// transition edge's domain parameterization. These Lo and Hi segment
+// tessellation levels determine how domain evaluation coordinates
+// are remapped along transition edges. The Hi segment value will
+// be zero for a non-transition edge.
+//
+// (0,1)                                         (1,1)
+//
+//   vv3                  ev23                   vv2
+//        |       Lo3       |       Hi3       |
+//      --O-----------O-----+-----O-----------O--
+//        | 12        | 13     14 |        15 |
+//        |           |           |           |
+//        |           |           |           |
+//    Hi0 |           |           |           | Hi2
+//        |           |           |           |
+//        O-----------O-----------O-----------O
+//        | 8         | 9      10 |        11 |
+//        |           |           |           |
+// ev03 --+           |           |           +-- ev12
+//        |           |           |           |
+//        | 4         | 5       6 |         7 |
+//        O-----------O-----------O-----------O
+//        |           |           |           |
+//    Lo0 |           |           |           | Lo2
+//        |           |           |           |
+//        |           |           |           |
+//        | 0         | 1       2 |         3 |
+//      --O-----------O-----+-----O-----------O--
+//        |       Lo1       |       Hi1       |
+//   vv0                  ev01                   vv1
+//
+// (0,0)                                         (1,0)
+//
+
 void
-GetTransitionTessLevels(vec3 cp[24], int patchParam, inout vec4 outer, inout vec2 inner)
+GetTessLevelsRefinedPoints(vec3 cp[16], int patchParam)
 {
     // Each edge of a transition patch is adjacent to one or two patches
     // at the next refined level of subdivision. We compute the corresponding
     // vertex-vertex and edge-vertex refined points along the edges of the
     // patch using Catmull-Clark subdivision stencil weights.
     // For simplicity, we let the optimizer discard unused computation.
-    cp[16] = (cp[0] + cp[2] + cp[8] + cp[10]) * 0.015625 +
-             (cp[1] + cp[4] + cp[6] + cp[9]) * 0.09375 + cp[5] * 0.5625;
-    cp[17] = (cp[1] + cp[2] + cp[9] + cp[10]) * 0.0625 + (cp[5] + cp[6]) * 0.375;
 
-    cp[18] = (cp[1] + cp[3] + cp[9] + cp[11]) * 0.015625 +
-             (cp[2] + cp[5] + cp[7] + cp[10]) * 0.09375 + cp[6] * 0.5625;
-    cp[19] = (cp[5] + cp[7] + cp[9] + cp[11]) * 0.0625 + (cp[6] + cp[10]) * 0.375;
+    vec3 vv0 = (cp[0] + cp[2] + cp[8] + cp[10]) * 0.015625 +
+               (cp[1] + cp[4] + cp[6] + cp[9]) * 0.09375 + cp[5] * 0.5625;
+    vec3 ev01 = (cp[1] + cp[2] + cp[9] + cp[10]) * 0.0625 +
+                (cp[5] + cp[6]) * 0.375;
 
-    cp[20] = (cp[5] + cp[7] + cp[13] + cp[15]) * 0.015625 +
-             (cp[6] + cp[9] + cp[11] + cp[14]) * 0.09375 + cp[10] * 0.5625;
-    cp[21] = (cp[5] + cp[6] + cp[13] + cp[14]) * 0.0625 + (cp[9] + cp[10]) * 0.375;
+    vec3 vv1 = (cp[1] + cp[3] + cp[9] + cp[11]) * 0.015625 +
+               (cp[2] + cp[5] + cp[7] + cp[10]) * 0.09375 + cp[6] * 0.5625;
+    vec3 ev12 = (cp[5] + cp[7] + cp[9] + cp[11]) * 0.0625 +
+                (cp[6] + cp[10]) * 0.375;
 
-    cp[22] = (cp[4] + cp[6] + cp[12] + cp[14]) * 0.015625 +
-             (cp[5] + cp[8] + cp[10] + cp[13]) * 0.09375 + cp[9] * 0.5625;
-    cp[23] = (cp[4] + cp[6] + cp[8] + cp[10]) * 0.0625 + (cp[5] + cp[9]) * 0.375;
+    vec3 vv2 = (cp[5] + cp[7] + cp[13] + cp[15]) * 0.015625 +
+               (cp[6] + cp[9] + cp[11] + cp[14]) * 0.09375 + cp[10] * 0.5625;
+    vec3 ev23 = (cp[5] + cp[6] + cp[13] + cp[14]) * 0.0625 +
+                (cp[9] + cp[10]) * 0.375;
+
+    vec3 vv3 = (cp[4] + cp[6] + cp[12] + cp[14]) * 0.015625 +
+               (cp[5] + cp[8] + cp[10] + cp[13]) * 0.09375 + cp[9] * 0.5625;
+    vec3 ev03 = (cp[4] + cp[6] + cp[8] + cp[10]) * 0.0625 +
+                (cp[5] + cp[9]) * 0.375;
 
     tessOuterLo = vec4(1);
     tessOuterHi = vec4(0);
 
-#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
-    float tessAmount = GetTessLevel(GetPatchLevel());
-
     if (((patchParam >> 11) & 1) != 0) {
-        tessOuterLo[0] = TessAdaptiveRound(cp[23], cp[16]);
-        tessOuterHi[0] = TessAdaptiveRound(cp[22], cp[23]);
+        tessOuterLo[0] = TessAdaptive(vv0, ev03);
+        tessOuterHi[0] = TessAdaptive(vv3, ev03);
     } else {
-        tessOuterLo[0] = TessAdaptiveRound(cp[5], cp[9]);
+        tessOuterLo[0] = TessAdaptive(cp[5], cp[9]);
     }
     if (((patchParam >> 8) & 1) != 0) {
-        tessOuterLo[1] = TessAdaptiveRound(cp[16], cp[17]);
-        tessOuterHi[1] = TessAdaptiveRound(cp[17], cp[18]);
+        tessOuterLo[1] = TessAdaptive(vv0, ev01);
+        tessOuterHi[1] = TessAdaptive(vv1, ev01);
     } else {
-        tessOuterLo[1] = TessAdaptiveRound(cp[5], cp[6]);
+        tessOuterLo[1] = TessAdaptive(cp[5], cp[6]);
     }
     if (((patchParam >> 9) & 1) != 0) {
-        tessOuterLo[2] = TessAdaptiveRound(cp[18], cp[19]);
-        tessOuterHi[2] = TessAdaptiveRound(cp[19], cp[20]);
+        tessOuterLo[2] = TessAdaptive(vv1, ev12);
+        tessOuterHi[2] = TessAdaptive(vv2, ev12);
     } else {
-        tessOuterLo[2] = TessAdaptiveRound(cp[6], cp[10]);
+        tessOuterLo[2] = TessAdaptive(cp[6], cp[10]);
     }
     if (((patchParam >> 10) & 1) != 0) {
-        tessOuterLo[3] = TessAdaptiveRound(cp[21], cp[22]);
-        tessOuterHi[3] = TessAdaptiveRound(cp[20], cp[21]);
+        tessOuterLo[3] = TessAdaptive(vv3, ev23);
+        tessOuterHi[3] = TessAdaptive(vv2, ev23);
     } else {
-        tessOuterLo[3] = TessAdaptiveRound(cp[9], cp[10]);
+        tessOuterLo[3] = TessAdaptive(cp[9], cp[10]);
     }
-#else
-    float tessAmount = GetTessLevel(GetPatchLevel());
+}
 
-    tessOuterLo[0] = tessAmount;
-    tessOuterLo[1] = tessAmount;
-    tessOuterLo[2] = tessAmount;
-    tessOuterLo[3] = tessAmount;
+void
+GetTessLevelsLimitPoints(vec3 cpBezier[16], int patchParam)
+{
+    // Each edge of a transition patch is adjacent to one or two patches
+    // at the next refined level of subdivision. When the patch control
+    // points have been converted to the Bezier basis, the control points
+    // at the four corners are on the limit surface (since a Bezier patch
+    // interpolates its corner control points). We can compute an adaptive
+    // tessellation level for transition edges on the limit surface by
+    // evaluating a limit position at the mid point of each transition edge.
+
+    tessOuterLo = vec4(1);
+    tessOuterHi = vec4(0);
+
+    if (((patchParam >> 11) & 1) != 0) {
+        vec3 ev03 = EvalBezier(cpBezier, vec2(0.0, 0.5));
+        tessOuterLo[0] = TessAdaptive(cpBezier[0], ev03);
+        tessOuterHi[0] = TessAdaptive(cpBezier[12], ev03);
+    } else {
+        tessOuterLo[0] = TessAdaptive(cpBezier[0], cpBezier[12]);
+    }
+    if (((patchParam >> 8) & 1) != 0) {
+        vec3 ev01 = EvalBezier(cpBezier, vec2(0.5, 0.0));
+        tessOuterLo[1] = TessAdaptive(cpBezier[0], ev01);
+        tessOuterHi[1] = TessAdaptive(cpBezier[3], ev01);
+    } else {
+        tessOuterLo[1] = TessAdaptive(cpBezier[0], cpBezier[3]);
+    }
+    if (((patchParam >> 9) & 1) != 0) {
+        vec3 ev12 = EvalBezier(cpBezier, vec2(1.0, 0.5));
+        tessOuterLo[2] = TessAdaptive(cpBezier[3], ev12);
+        tessOuterHi[2] = TessAdaptive(cpBezier[15], ev12);
+    } else {
+        tessOuterLo[2] = TessAdaptive(cpBezier[3], cpBezier[15]);
+    }
+    if (((patchParam >> 10) & 1) != 0) {
+        vec3 ev23 = EvalBezier(cpBezier, vec2(0.5, 1.0));
+        tessOuterLo[3] = TessAdaptive(cpBezier[12], ev23);
+        tessOuterHi[3] = TessAdaptive(cpBezier[15], ev23);
+    } else {
+        tessOuterLo[3] = TessAdaptive(cpBezier[12], cpBezier[15]);
+    }
+}
+
+void
+GetTransitionTessLevels(vec3 cp[16], int patchParam,
+                        inout vec4 outerLevel, inout vec2 innerLevel)
+{
+#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+    GetTessLevelsLimitPoints(cp, patchParam);
+#elif defined OSD_ENABLE_SCREENSPACE_TESSELLATION_REFINED
+    GetTessLevelsRefinedPoints(cp, patchParam);
+#else
+    GetTessLevelsUniform(cp, patchParam);
 #endif
 
-    outer = tessOuterLo + tessOuterHi;
-    inner[0] = (outer[0] + outer[2]) * 0.5;
-    inner[1] = (outer[1] + outer[3]) * 0.5;
+    // Outer levels are the sum of the Lo and Hi segments where the Hi
+    // segments will have a length of zero for non-transition edges.
+    outerLevel = tessOuterLo + tessOuterHi;
+
+    // Inner levels are the average the corresponding outer levels.
+    innerLevel[0] = (outerLevel[1] + outerLevel[3]) * 0.5;
+    innerLevel[1] = (outerLevel[0] + outerLevel[2]) * 0.5;
 }
 
 #endif
@@ -115,8 +220,7 @@ patch in vec4 tessOuterLo, tessOuterHi;
 float
 GetTransitionSplit(float t, float n0, float n1)
 {
-    float n = round(n0 + n1);
-    float ti = round(t * n);
+    float ti = round(t * (n0 + n1));
 
     if (ti <= n0) {
         return 0.5 * (ti / n0);
