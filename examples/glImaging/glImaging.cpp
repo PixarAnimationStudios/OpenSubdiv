@@ -379,7 +379,7 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
     bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
     bits.set(Osd::MeshInterleaveVarying, interleaveVarying);
     bits.set(Osd::MeshFVarData, false);
-    bits.set(Osd::MeshUseGregoryBasis, true);
+    bits.set(Osd::MeshEndCapGregoryBasis, true);
 
     int numVertexElements = 3 + 4; // XYZ, RGBA (interleaved)
     int numVaryingElements = 0;

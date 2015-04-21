@@ -50,8 +50,10 @@ enum MeshBits {
     MeshPtexData             = 2,
     MeshFVarData             = 3,
     MeshUseSingleCreasePatch = 4,
-    MeshUseGregoryBasis      = 5,
-    NUM_MESH_BITS            = 6,
+    MeshEndCapRegular        = 5,  // exclusive
+    MeshEndCapGregoryBasis   = 6,  // exclusive
+    MeshEndCapLegacyGregory  = 7,  // exclusive
+    NUM_MESH_BITS            = 8,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
@@ -89,12 +91,6 @@ public:
     virtual void SetFVarDataChannel(int fvarWidth, std::vector<float> const & fvarData) = 0;
 
 protected:
-
-    static inline int getNumVertices(Far::TopologyRefiner const & refiner) {
-        return refiner.IsUniform() ?
-            refiner.GetNumVertices(0) + refiner.GetNumVertices(refiner.GetMaxLevel()) :
-                refiner.GetNumVerticesTotal();
-    }
 
     static inline void refineMesh(Far::TopologyRefiner & refiner, int level, bool adaptive, bool singleCreasePatch) {
 
@@ -164,7 +160,7 @@ public:
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
             _computeController(computeController),
-            _drawContext(drawContext) { }
+            _drawContext(drawContext) {}
 
     virtual ~Mesh() {
         delete _refiner;
@@ -173,11 +169,6 @@ public:
         delete _varyingBuffer;
         delete _computeContext;
         delete _drawContext;
-    }
-
-    virtual int GetNumVertices() const {
-        assert(_refiner);
-        return MeshInterface<DRAW_CONTEXT>::getNumVertices(*_refiner);
     }
 
     virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
@@ -219,7 +210,6 @@ public:
     }
 
 private:
-
     void initializeComputeContext(int numVertexElements,
         int numVaryingElements ) {
 
@@ -253,7 +243,7 @@ private:
 
         assert(_refiner and _vertexBuffer);
 
-        Far::PatchTablesFactory::Options options(level);
+        Far::PatchTablesFactoryBase::Options options(level);
         options.generateFVarTables = bits.test(MeshFVarData);
         options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
@@ -282,7 +272,7 @@ private:
             _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices);
         }
         return numElements;
-   }
+    }
 
     Far::TopologyRefiner * _refiner;
     Far::PatchTables * _patchTables;
