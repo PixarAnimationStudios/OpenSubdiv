@@ -23,6 +23,7 @@
 //
 #include "../far/ptexIndices.h"
 
+#include "../far/error.h"
 #include "../vtr/level.h"
 
 #include <cassert>
@@ -44,6 +45,16 @@ PtexIndices::~PtexIndices() {
 
 void
 PtexIndices::initializePtexIndices(TopologyRefiner const &refiner) {
+
+    if (Sdc::SchemeTypeTraits::GetRegularFaceSize(refiner.GetSchemeType()) != 4)
+    {
+        Far::Error(FAR_CODING_ERROR,
+            "Ptex Indices may only be built for quad subdivision schemes "
+            "(e.g., catmark).");
+        // last entry contains the number of ptex texture faces
+        _ptexIndices.push_back(0);
+        return;
+    }
 
     Vtr::Level const & coarseLevel = refiner.getLevel(0);
 
@@ -90,7 +101,7 @@ PtexIndices::GetPtexAdjacency(
     int face, int quadrant,
     int adjFaces[4], int adjEdges[4]) const {
 
-    assert(refiner.GetSchemeType()==Sdc::SCHEME_CATMARK);
+    assert(Sdc::SchemeTypeTraits::GetRegularFaceSize(refiner.GetSchemeType()) == 4);
 
     Vtr::Level const & level = refiner.getLevel(0);
 
