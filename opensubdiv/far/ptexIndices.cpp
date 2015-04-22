@@ -46,8 +46,10 @@ PtexIndices::~PtexIndices() {
 void
 PtexIndices::initializePtexIndices(TopologyRefiner const &refiner) {
 
-    if (Sdc::SchemeTypeTraits::GetRegularFaceSize(refiner.GetSchemeType()) != 4)
-    {
+    int regFaceSize = Sdc::SchemeTypeTraits::GetRegularFaceSize(
+            refiner.GetSchemeType());
+
+    if (regFaceSize != 4) {
         Far::Error(FAR_CODING_ERROR,
             "Ptex Indices may only be built for quad subdivision schemes "
             "(e.g., catmark).");
@@ -61,8 +63,6 @@ PtexIndices::initializePtexIndices(TopologyRefiner const &refiner) {
     int nfaces = coarseLevel.getNumFaces();
     _ptexIndices.resize(nfaces+1);
     int ptexID=0;
-    int regFaceSize = Sdc::SchemeTypeTraits::GetRegularFaceSize(
-            refiner.GetSchemeType());
     for (int i = 0; i < nfaces; ++i) {
         _ptexIndices[i] = ptexID;
         Vtr::ConstIndexArray fverts = coarseLevel.getFaceVertices(i);
