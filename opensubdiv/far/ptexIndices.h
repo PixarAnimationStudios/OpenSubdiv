@@ -1,5 +1,5 @@
 //
-//   Copyright 2014 DreamWorks Animation LLC.
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -37,7 +37,11 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 ///
-///  \brief 
+/// \brief Object used to compute and query ptex face indices.
+///
+/// Given a refiner, constructing a PtexIndices object builds the mapping
+/// from coarse faces to ptex ids.  Once built, the object can be used to
+/// query the mapping.
 ///
 class PtexIndices {
 
