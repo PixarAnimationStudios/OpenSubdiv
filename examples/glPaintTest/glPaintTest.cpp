@@ -231,7 +231,7 @@ createOsdMesh() {
 
     // count ptex face id
     OpenSubdiv::Far::PtexIndices ptexIndices(*refiner);
-    int numPtexFaces = ptexIndices.GetNumPtexFaces();
+    int numPtexFaces = ptexIndices.GetNumFaces();
 
     delete g_mesh;
     g_mesh = NULL;

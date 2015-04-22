@@ -590,7 +590,7 @@ createOsdMesh( const std::string &shapeStr, int level, Scheme scheme=kCatmark ) 
 
         // create ptex index to coarse face index mapping
         Far::PtexIndices ptexIndices(*refiner);
-        int numPtexFaces = ptexIndices.GetNumPtexFaces();
+        int numPtexFaces = ptexIndices.GetNumFaces();
 
         // XXX: duped logic to simpleHbr
         std::vector<int> ptexIndexToFaceMapping(numPtexFaces);

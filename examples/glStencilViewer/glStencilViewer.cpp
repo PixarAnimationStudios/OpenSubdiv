@@ -329,7 +329,7 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
     }
 
     Far::PtexIndices ptexIndices(*refiner);
-    int nfaces = ptexIndices.GetNumPtexFaces();
+    int nfaces = ptexIndices.GetNumFaces();
 
     float * u = new float[g_nsamples*nfaces], * uPtr = u,
           * v = new float[g_nsamples*nfaces], * vPtr = v;

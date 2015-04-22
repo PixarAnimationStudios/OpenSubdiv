@@ -166,7 +166,7 @@ int main(int, char **) {
 
     // Generate random samples on each ptex face
     int nsamples = 200,
-        nfaces = ptexIndices.GetNumPtexFaces();
+        nfaces = ptexIndices.GetNumFaces();
 
     std::vector<LimitFrame> samples(nsamples * nfaces);
 

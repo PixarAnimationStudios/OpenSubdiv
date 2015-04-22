@@ -73,12 +73,12 @@ PtexIndices::initializePtexIndices(TopologyRefiner const &refiner) {
 }
 
 int
-PtexIndices::GetNumPtexFaces() const {
+PtexIndices::GetNumFaces() const {
     return _ptexIndices.back();
 }
 
 int
-PtexIndices::GetPtexIndex(Index f) const {
+PtexIndices::GetFaceId(Index f) const {
     assert(f<(int)_ptexIndices.size());
     return _ptexIndices[f];
 }
@@ -96,7 +96,7 @@ namespace {
 }
 
 void
-PtexIndices::GetPtexAdjacency(
+PtexIndices::GetAdjacency(
     TopologyRefiner const &refiner,
     int face, int quadrant,
     int adjFaces[4], int adjEdges[4]) const {

@@ -60,11 +60,11 @@ public:
 
     /// \brief Returns the number of ptex faces in the mesh
     ///
-    int GetNumPtexFaces() const;
+    int GetNumFaces() const;
 
     /// \brief Returns the ptex face index given a coarse face 'f' or -1
     ///
-    int GetPtexIndex(Index f) const;
+    int GetFaceId(Index f) const;
 
     /// \brief Returns ptex face adjacency information for a given coarse face
     ///
@@ -80,7 +80,7 @@ public:
     ///
     /// @param adjEdges  ptex edge indices of adjacent faces
     ///
-    void GetPtexAdjacency(
+    void GetAdjacency(
         TopologyRefiner const &refiner,
         int face, int quadrant,
         int adjFaces[4], int adjEdges[4]) const;

@@ -684,7 +684,7 @@ PatchTablesFactoryBase::computePatchParam(
         faceIndex = parentFaceIndex;
     }
 
-    Vtr::Index ptexIndex = ptexIndices.GetPtexIndex(faceIndex);
+    Vtr::Index ptexIndex = ptexIndices.GetFaceId(faceIndex);
     assert(ptexIndex!=-1);
 
     if (nonquad) {
@@ -764,7 +764,7 @@ PatchTablesFactoryBase::createUniform(TopologyRefiner const & refiner, Options o
     //
     PatchTables * tables = new PatchTables(maxvalence);
 
-    tables->_numPtexFaces = ptexIndices.GetNumPtexFaces();
+    tables->_numPtexFaces = ptexIndices.GetNumFaces();
 
     tables->reservePatchArrays(nlevels);
 
@@ -938,7 +938,7 @@ PatchTablesFactoryT<ENDCAP_FACTORY>::createAdaptive(TopologyRefiner const & refi
             context.patchInventory.getValue(desc), &voffset, &poffset, &qoffset );
     }
 
-    context.tables->_numPtexFaces = ptexIndices.GetNumPtexFaces();
+    context.tables->_numPtexFaces = ptexIndices.GetNumFaces();
 
     // Allocate various tables
     bool hasSharpness = context.options.useSingleCreasePatch;
