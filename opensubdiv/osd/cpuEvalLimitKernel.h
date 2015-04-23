@@ -28,73 +28,98 @@
 #include "../version.h"
 
 #include "../osd/vertexDescriptor.h"
+#include "../far/patchParam.h"
+
+#include "../far/types.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Far {
+    class StencilTables;
+}
+
+namespace Osd {
+
 void
 evalBilinear(float u, float v,
-             unsigned int const * vertexIndices,
-             OsdVertexBufferDescriptor const & inDesc,
+             Far::Index const * vertexIndices,
+             VertexBufferDescriptor const & inDesc,
              float const * inQ,
-             OsdVertexBufferDescriptor const & outDesc,
+             VertexBufferDescriptor const & outDesc,
              float * outQ);
 
 void
-evalBSpline(float u, float v, 
-            unsigned int const * vertexIndices,
-            OsdVertexBufferDescriptor const & inDesc,
-            float const * inQ, 
-            OsdVertexBufferDescriptor const & outDesc,
-            float * outQ, 
+evalBSpline(Far::PatchParam::BitField bits,
+            float u, float v,
+            Far::Index const * vertexIndices,
+            VertexBufferDescriptor const & inDesc,
+            float const * inQ,
+            VertexBufferDescriptor const & outDesc,
+            float * outQ,
             float * outDQU,
             float * outDQV );
 
 void
-evalBoundary(float u, float v, 
-             unsigned int const * vertexIndices,
-             OsdVertexBufferDescriptor const & inDesc,
+evalBoundary(Far::PatchParam::BitField bits,
+             float u, float v,
+             Far::Index const * vertexIndices,
+             VertexBufferDescriptor const & inDesc,
              float const * inQ,
-             OsdVertexBufferDescriptor const & outDesc,
+             VertexBufferDescriptor const & outDesc,
              float * outQ,
              float * outDQU,
              float * outDQV );
 
 void
-evalCorner(float u, float v, 
-           unsigned int const * vertexIndices,
-           OsdVertexBufferDescriptor const & inDesc,
+evalCorner(Far::PatchParam::BitField bits,
+           float u, float v,
+           Far::Index const * vertexIndices,
+           VertexBufferDescriptor const & inDesc,
            float const * inQ,
-           OsdVertexBufferDescriptor const & outDesc,
+           VertexBufferDescriptor const & outDesc,
            float * outQ,
            float * outDQU,
            float * outDQV );
 
 void
-evalGregory(float u, float v,
-            unsigned int const * vertexIndices,
-            int const * vertexValenceBuffer,
-            unsigned int const  * quadOffsetBuffer,
+evalGregoryBasis(Far::PatchParam::BitField bits, float u, float v,
+                 Far::StencilTables const & basisStencils,
+                 int stencilIndex,
+                 VertexBufferDescriptor const & inDesc,
+                 float const * inQ,
+                 VertexBufferDescriptor const & outDesc,
+                 float * outQ,
+                 float * outDQU,
+                 float * outDQV );
+
+void
+evalGregory(Far::PatchParam::BitField bits, float u, float v,
+            Far::Index const * vertexIndices,
+            Far::Index const * vertexValenceBuffer,
+            unsigned int const * quadOffsetBuffer,
             int maxValence,
-            OsdVertexBufferDescriptor const & inDesc,
-            float const * inQ, 
-            OsdVertexBufferDescriptor const & outDesc,
-            float * outQ, 
+            VertexBufferDescriptor const & inDesc,
+            float const * inQ,
+            VertexBufferDescriptor const & outDesc,
+            float * outQ,
             float * outDQU,
             float * outDQV );
 
 void
-evalGregoryBoundary(float u, float v,
-                    unsigned int const * vertexIndices,
-                    int const * vertexValenceBuffer,
-                    unsigned int const  * quadOffsetBuffer,
+evalGregoryBoundary(Far::PatchParam::BitField bits, float u, float v,
+                    Far::Index const * vertexIndices,
+                    Far::Index const * vertexValenceBuffer,
+                    unsigned int const * quadOffsetBuffer,
                     int maxValence,
-                    OsdVertexBufferDescriptor const & inDesc,
+                    VertexBufferDescriptor const & inDesc,
                     float const * inQ,
-                    OsdVertexBufferDescriptor const & outDesc,
+                    VertexBufferDescriptor const & outDesc,
                     float * outQ,
                     float * outDQU,
                     float * outDQV );
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

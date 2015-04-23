@@ -36,7 +36,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-struct OsdDrawShaderSource {
+namespace Osd {
+
+struct DrawShaderSource {
     typedef std::pair< std::string, std::string > Define;
     typedef std::vector< Define > DefineVector;
 
@@ -53,19 +55,21 @@ struct OsdDrawShaderSource {
     DefineVector defines;
 };
 
-struct OsdDrawConfig {
-    virtual ~OsdDrawConfig();
+struct DrawConfig {
+    virtual ~DrawConfig();
     // any base class behaviors?
 };
 
-struct OsdDrawSourceConfig {
-    virtual ~OsdDrawSourceConfig();
+struct DrawSourceConfig {
+    virtual ~DrawSourceConfig();
     // any base class behaviors?
 };
 
 ////////////////////////////////////////////////////////////
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv

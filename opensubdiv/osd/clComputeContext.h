@@ -27,162 +27,101 @@
 
 #include "../version.h"
 
-#include "../far/vertexEditTables.h"
-#include "../osd/vertex.h"
 #include "../osd/nonCopyable.h"
-
-#if defined(__APPLE__)
-    #include <OpenCL/opencl.h>
-#else
-    #include <CL/opencl.h>
-#endif
+#include "../osd/opencl.h"
 
 #include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdCLKernelBundle;
+namespace Far{ class StencilTables; }
 
-
-class OsdCLTable : OsdNonCopyable<OsdCLTable> {
-public:
-    template<typename T>
-        OsdCLTable(const std::vector<T> &table, cl_context clContext) {
-        createCLBuffer(table.size() * sizeof(T), table.empty() ? NULL : &table[0], clContext);
-    }
-
-    virtual ~OsdCLTable();
-
-    cl_mem GetDevicePtr() const;
-
-private:
-    void createCLBuffer(size_t size, const void *ptr, cl_context clContext);
-    cl_mem _devicePtr;
-};
-
-
-class OsdCLHEditTable : OsdNonCopyable<OsdCLHEditTable> {
-public:
-    OsdCLHEditTable(const FarVertexEditTables<OsdVertex>::
-                    VertexEditBatch &batch, cl_context clContext);
-
-    virtual ~OsdCLHEditTable();
-
-    const OsdCLTable * GetPrimvarIndices() const;
-
-    const OsdCLTable * GetEditValues() const;
-
-    int GetOperation() const;
-
-    int GetPrimvarOffset() const;
-
-    int GetPrimvarWidth() const;
-
-private:
-    OsdCLTable *_primvarIndicesTable;
-    OsdCLTable *_editValuesTable;
-
-    int _operation;
-    int _primvarOffset;
-    int _primvarWidth;
-};
+namespace Osd {
 
 ///
 /// \brief OpenCL Refine Context
 ///
-/// The OpenCL implementation of the Refine module contextual functionality. 
+/// The OpenCL-Compute implementation of the Refine module contextual functionality.
 ///
-/// Contexts interface the serialized topological data pertaining to the 
-/// geometric primitives with the capabilities of the selected discrete 
+/// Contexts interface the serialized topological data pertaining to the
+/// geometric primitives with the capabilities of the selected discrete
 /// compute device.
 ///
-class OsdCLComputeContext : public OsdNonCopyable<OsdCLComputeContext> {
+class CLComputeContext : public NonCopyable<CLComputeContext> {
 
 public:
-    /// Creates an OsdCLComputeContext instance
+    /// Creates an CLComputeContext instance
     ///
-    /// @param farmesh    the FarMesh used for this Context.
+    /// @param clContext             An active OpenCL compute context
     ///
-    /// @param clContext  a valid active OpenCL context
+    /// @param vertexStencilTables   The Far::StencilTables used for vertex
+    ///                              interpolation
     ///
-    static OsdCLComputeContext * Create(FarMesh<OsdVertex> const *farmesh,
-                                        cl_context clContext);
+    /// @param varyingStencilTables  The Far::StencilTables used for varying
+    ///                              interpolation
+    ///
+    static CLComputeContext * Create(cl_context clContext,
+                                        Far::StencilTables const * vertexStencilTables,
+                                        Far::StencilTables const * varyingStencilTables=0);
 
     /// Destructor
-    virtual ~OsdCLComputeContext();
+    virtual ~CLComputeContext();
 
-    /// Binds a vertex and a varying data buffers to the context. Binding ensures
-    /// that data buffers are properly inter-operated between Contexts and 
-    /// Controllers operating across multiple devices.
-    ///
-    /// @param vertex   a buffer containing vertex-interpolated primvar data
-    ///
-    /// @param varying  a buffer containing varying-interpolated primvar data
-    ///
-    /// @param clQueue  OpenCL command queue associated with the primvar data
-    ///
-    template<class VERTEX_BUFFER, class VARYING_BUFFER>
-        void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying, cl_command_queue clQueue) {
 
-        _currentVertexBuffer = vertex ? vertex->BindCLBuffer(clQueue) : NULL;
-        _currentVaryingBuffer = varying ? varying->BindCLBuffer(clQueue) : NULL;
+    /// Returns true if the Context has a 'vertex' interpolation stencil table
+    bool HasVertexStencilTables() const;
 
-        _clQueue = clQueue;
+    /// Returns true if the Context has a 'varying' interpolation stencil table
+    bool HasVaryingStencilTables() const;
+
+    /// Returns the number of control vertices
+    int GetNumControlVertices() const {
+        return _numControlVertices;
     }
 
-    /// Unbinds any previously bound vertex and varying data buffers.
-    void Unbind() {
-        _currentVertexBuffer = NULL;
-        _currentVaryingBuffer = NULL;
-        _clQueue = NULL;
-        _kernelBundle = NULL;
-    }
+    /// Returns the Cuda buffer containing vertex-stencil stencil sizes
+    cl_mem GetVertexStencilTablesSizes() const;
 
-    /// Returns one of the vertex refinement tables.
-    ///
-    /// @param tableIndex the type of table
-    ///
-    const OsdCLTable * GetTable(int tableIndex) const;
+    /// Returns the Cuda buffer containing vertex-stencil stencil offsets
+    cl_mem GetVertexStencilTablesOffsets() const;
 
-    /// Returns the number of hierarchical edit tables
-    int GetNumEditTables() const;
+    /// Returns the Cuda buffer containing vertex-stencil stencil indices
+    cl_mem GetVertexStencilTablesIndices() const;
 
-    /// Returns a specific hierarchical edit table
-    ///
-    /// @param tableIndex the index of the table
-    ///
-    const OsdCLHEditTable * GetEditTable(int tableIndex) const;
+    /// Returns the Cuda buffer containing vertex-stencil stencil weights
+    cl_mem GetVertexStencilTablesWeights() const;
 
-    /// Returns a CL handle to the vertex-interpolated data
-    cl_mem GetCurrentVertexBuffer() const;
 
-    /// Returns a CL handle to the varying-interpolated data
-    cl_mem GetCurrentVaryingBuffer() const;
+    /// Returns the Cuda buffer containing Varying-stencil stencil sizes
+    cl_mem GetVaryingStencilTablesSizes() const;
 
-    OsdCLKernelBundle * GetKernelBundle() const;
+    /// Returns the Cuda buffer containing Varying-stencil stencil offsets
+    cl_mem GetVaryingStencilTablesOffsets() const;
 
-    void SetKernelBundle(OsdCLKernelBundle *kernelBundle);
+    /// Returns the Cuda buffer containing Varying-stencil stencil indices
+    cl_mem GetVaryingStencilTablesIndices() const;
 
-    cl_command_queue GetCommandQueue() const;
+    /// Returns the Cuda buffer containing Varying-stencil stencil weights
+    cl_mem GetVaryingStencilTablesWeights() const;
 
-    void SetCommandQueue(cl_command_queue queue);
 
 protected:
-    explicit OsdCLComputeContext(FarMesh<OsdVertex> const *farMesh,
+    explicit CLComputeContext(Far::StencilTables const * vertexStencilTables,
+                                 Far::StencilTables const * varyingStencilTables,
                                  cl_context clContext);
 
 private:
-    std::vector<OsdCLTable*> _tables;
-    std::vector<OsdCLHEditTable*> _editTables;
 
-    cl_mem _currentVertexBuffer, 
-           _currentVaryingBuffer;
+    class CLStencilTables;
 
-    cl_command_queue _clQueue;
+    CLStencilTables * _vertexStencilTables,
+                    * _varyingStencilTables;
 
-    OsdCLKernelBundle *_kernelBundle;
+    int _numControlVertices;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

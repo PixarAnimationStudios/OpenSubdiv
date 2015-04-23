@@ -22,188 +22,184 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/mesh.h"
+#include "../far/stencilTables.h"
+
 #include "../osd/clComputeContext.h"
-#include "../osd/clKernelBundle.h"
+#include "../far/error.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-void
-OsdCLTable::createCLBuffer(size_t size, const void *ptr, cl_context clContext)
-{
-    cl_int ciErrNum;
-    _devicePtr = clCreateBuffer(
-        clContext, CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,
-        size, const_cast<void*>(ptr), &ciErrNum);
-}
+namespace Osd {
 
-OsdCLTable::~OsdCLTable() {
+// -----------------------------------------------------------------------------
 
-    if (_devicePtr) clReleaseMemObject(_devicePtr);
-}
+template <class T> cl_mem
+createCLBuffer(std::vector<T> const & src, cl_context clContext) {
 
-cl_mem
-OsdCLTable::GetDevicePtr() const {
+    cl_mem devicePtr=0; cl_int errNum;
 
-    return _devicePtr;
+    devicePtr = clCreateBuffer(clContext, CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,
+            src.size()*sizeof(T), (void*)(&src.at(0)), &errNum);
+
+    if (errNum!=CL_SUCCESS) {
+        Far::Error(Far::FAR_RUNTIME_ERROR, "clCreateBuffer: %d", errNum);
+    }
+
+    return devicePtr;
 }
 
 // -----------------------------------------------------------------------------
 
-OsdCLHEditTable::OsdCLHEditTable(
-    const FarVertexEditTables<OsdVertex>::VertexEditBatch &batch,
-    cl_context clContext)
-    : _primvarIndicesTable(new OsdCLTable(batch.GetVertexIndices(), clContext)),
-      _editValuesTable(new OsdCLTable(batch.GetValues(), clContext)) {
+class CLComputeContext::CLStencilTables {
 
-    _operation = batch.GetOperation();
-    _primvarOffset = batch.GetPrimvarIndex();
-    _primvarWidth = batch.GetPrimvarWidth();
-}
+public:
 
-OsdCLHEditTable::~OsdCLHEditTable() {
-
-    delete _primvarIndicesTable;
-    delete _editValuesTable;
-}
-
-const OsdCLTable *
-OsdCLHEditTable::GetPrimvarIndices() const {
-
-    return _primvarIndicesTable;
-}
-
-const OsdCLTable *
-OsdCLHEditTable::GetEditValues() const {
-
-    return _editValuesTable;
-}
-
-int
-OsdCLHEditTable::GetOperation() const {
-
-    return _operation;
-}
-
-int
-OsdCLHEditTable::GetPrimvarOffset() const {
-
-    return _primvarOffset;
-}
-
-int
-OsdCLHEditTable::GetPrimvarWidth() const {
-
-    return _primvarWidth;
-}
-
-// ----------------------------------------------------------------------------
-
-OsdCLComputeContext::OsdCLComputeContext(FarMesh<OsdVertex> const *farMesh,
-                                          cl_context clContext)
-    : _clQueue(NULL), _kernelBundle(NULL) {
-
-    FarSubdivisionTables<OsdVertex> const * farTables =
-        farMesh->GetSubdivisionTables();
-
-    // allocate 5 or 7 tables
-    _tables.resize(farTables->GetNumTables(), 0);
-
-    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdCLTable(farTables->Get_E_IT(), clContext);
-    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdCLTable(farTables->Get_V_IT(), clContext);
-    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdCLTable(farTables->Get_V_ITa(), clContext);
-    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdCLTable(farTables->Get_E_W(), clContext);
-    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdCLTable(farTables->Get_V_W(), clContext);
-
-    if (farTables->GetNumTables() > 5) {
-        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdCLTable(farTables->Get_F_IT(), clContext);
-        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdCLTable(farTables->Get_F_ITa(), clContext);
+    CLStencilTables(Far::StencilTables const & stencilTables, cl_context clContext) {
+        _sizes = createCLBuffer(stencilTables.GetSizes(), clContext);
+        _offsets = createCLBuffer(stencilTables.GetOffsets(), clContext);
+        _indices = createCLBuffer(stencilTables.GetControlIndices(), clContext);
+        _weights = createCLBuffer(stencilTables.GetWeights(), clContext);
     }
 
-    // create hedit tables
-    FarVertexEditTables<OsdVertex> const *editTables = farMesh->GetVertexEdit();
-    if (editTables) {
-        int numEditBatches = editTables->GetNumBatches();
-        _editTables.reserve(numEditBatches);
-        for (int i = 0; i < numEditBatches; ++i) {
-            const FarVertexEditTables<OsdVertex>::VertexEditBatch & edit =
-                editTables->GetBatch(i);
-            _editTables.push_back(new OsdCLHEditTable(edit, clContext));
+    ~CLStencilTables() {
+        if (_sizes) clReleaseMemObject(_sizes);
+        if (_offsets) clReleaseMemObject(_offsets);
+        if (_indices) clReleaseMemObject(_indices);
+        if (_weights) clReleaseMemObject(_weights);
+    }
+
+    bool IsValid() const {
+        return _sizes and _offsets and _indices and _weights;
+    }
+
+    cl_mem GetSizes() const {
+        return _sizes;
+    }
+
+    cl_mem GetOffsets() const {
+        return _offsets;
+    }
+
+    cl_mem GetIndices() const {
+        return _indices;
+    }
+
+    cl_mem GetWeights() const {
+        return _weights;
+    }
+
+private:
+
+    cl_mem _sizes,
+           _offsets,
+           _indices,
+           _weights;
+};
+
+// -----------------------------------------------------------------------------
+
+CLComputeContext::CLComputeContext(
+    Far::StencilTables const * vertexStencilTables,
+        Far::StencilTables const * varyingStencilTables,
+            cl_context clContext) :
+                _vertexStencilTables(0), _varyingStencilTables(0),
+                     _numControlVertices(0) {
+
+    if (vertexStencilTables) {
+        _vertexStencilTables = new CLStencilTables(*vertexStencilTables, clContext);
+        _numControlVertices = vertexStencilTables->GetNumControlVertices();
+    }
+
+    if (varyingStencilTables) {
+        _varyingStencilTables = new CLStencilTables(*varyingStencilTables, clContext);
+
+        if (_numControlVertices) {
+            assert(_numControlVertices==varyingStencilTables->GetNumControlVertices());
+        } else {
+            _numControlVertices = varyingStencilTables->GetNumControlVertices();
         }
     }
 }
 
-OsdCLComputeContext::~OsdCLComputeContext() {
-
-    for (size_t i = 0; i < _tables.size(); ++i) {
-        delete _tables[i];
-    }
-    for (size_t i = 0; i < _editTables.size(); ++i) {
-        delete _editTables[i];
-    }
+CLComputeContext::~CLComputeContext() {
+    delete _vertexStencilTables;
+    delete _varyingStencilTables;
 }
 
-const OsdCLTable *
-OsdCLComputeContext::GetTable(int tableIndex) const {
+// ----------------------------------------------------------------------------
 
-    return _tables[tableIndex];
+bool
+CLComputeContext::HasVertexStencilTables() const {
+    return _vertexStencilTables ? _vertexStencilTables->IsValid() : false;
 }
 
-int
-OsdCLComputeContext::GetNumEditTables() const {
-
-    return static_cast<int>(_editTables.size());
+bool
+CLComputeContext::HasVaryingStencilTables() const {
+    return _varyingStencilTables ? _varyingStencilTables->IsValid() : false;
 }
 
-const OsdCLHEditTable *
-OsdCLComputeContext::GetEditTable(int tableIndex) const {
+// ----------------------------------------------------------------------------
 
-    return _editTables[tableIndex];
+cl_mem
+CLComputeContext::GetVertexStencilTablesSizes() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetSizes() : 0;
 }
 
 cl_mem
-OsdCLComputeContext::GetCurrentVertexBuffer() const {
-
-    return _currentVertexBuffer;
+CLComputeContext::GetVertexStencilTablesOffsets() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetOffsets() : 0;
 }
 
 cl_mem
-OsdCLComputeContext::GetCurrentVaryingBuffer() const {
-
-    return _currentVaryingBuffer;
+CLComputeContext::GetVertexStencilTablesIndices() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetIndices() : 0;
 }
 
-OsdCLKernelBundle *
-OsdCLComputeContext::GetKernelBundle() const {
-
-    return _kernelBundle;
+cl_mem
+CLComputeContext::GetVertexStencilTablesWeights() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetWeights() : 0;
 }
 
-void
-OsdCLComputeContext::SetKernelBundle(OsdCLKernelBundle *kernelBundle) {
+// ----------------------------------------------------------------------------
 
-    _kernelBundle = kernelBundle;
+cl_mem
+CLComputeContext::GetVaryingStencilTablesSizes() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetSizes() : 0;
 }
 
-void
-OsdCLComputeContext::SetCommandQueue(cl_command_queue queue) {
-
-    _clQueue = queue;
+cl_mem
+CLComputeContext::GetVaryingStencilTablesOffsets() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetOffsets() : 0;
 }
 
-cl_command_queue
-OsdCLComputeContext::GetCommandQueue() const {
-
-    return _clQueue;
+cl_mem
+CLComputeContext::GetVaryingStencilTablesIndices() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetIndices() : 0;
 }
 
-OsdCLComputeContext *
-OsdCLComputeContext::Create(FarMesh<OsdVertex> const *farmesh, cl_context clContext) {
-
-    return new OsdCLComputeContext(farmesh, clContext);
+cl_mem
+CLComputeContext::GetVaryingStencilTablesWeights() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetWeights() : 0;
 }
+
+
+// -----------------------------------------------------------------------------
+
+CLComputeContext *
+CLComputeContext::Create(cl_context clContext,
+    Far::StencilTables const * vertexStencilTables,
+        Far::StencilTables const * varyingStencilTables) {
+
+    CLComputeContext *result =
+        new CLComputeContext(
+            vertexStencilTables, varyingStencilTables, clContext);
+
+    return result;
+}
+
+// -----------------------------------------------------------------------------
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv
-

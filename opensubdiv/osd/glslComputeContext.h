@@ -27,11 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/vertexEditTables.h"
-#include "../osd/vertex.h"
-#include "../osd/vertexDescriptor.h"
 #include "../osd/nonCopyable.h"
-
 #include "../osd/opengl.h"
 
 #include <vector>
@@ -39,183 +35,78 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdGLSLComputeKernelBundle;
+namespace Far{ class StencilTables; }
 
-
-class OsdGLSLComputeTable : OsdNonCopyable<OsdGLSLComputeTable> {
-public:
-    template<typename T>
-    explicit OsdGLSLComputeTable(const std::vector<T> &table) {
-        createBuffer(table.size() * sizeof(unsigned int), table.empty() ? NULL : &table[0]);
-    }
-
-    virtual ~OsdGLSLComputeTable();
-
-    GLuint GetBuffer() const;
-
-private:
-    void createBuffer(size_t size, const void *ptr);
-
-    GLuint _devicePtr;
-};
-
-
-class OsdGLSLComputeHEditTable : OsdNonCopyable<OsdGLSLComputeHEditTable> {
-public:
-    OsdGLSLComputeHEditTable(const FarVertexEditTables<OsdVertex>::
-                      VertexEditBatch &batch);
-
-    virtual ~OsdGLSLComputeHEditTable();
-
-    const OsdGLSLComputeTable * GetPrimvarIndices() const;
-
-    const OsdGLSLComputeTable * GetEditValues() const;
-
-    int GetOperation() const;
-
-    int GetPrimvarOffset() const;
-
-    int GetPrimvarWidth() const;
-
-private:
-    OsdGLSLComputeTable *_primvarIndicesTable;
-    OsdGLSLComputeTable *_editValuesTable;
-
-    int _operation;
-    int _primvarOffset;
-    int _primvarWidth;
-};
-
+namespace Osd {
 
 ///
 /// \brief GLSL-Compute Refine Context
 ///
-/// The GLSL-Compute implementation of the Refine module contextual functionality. 
+/// The GLSL-Compute implementation of the Refine module contextual functionality.
 ///
-/// Contexts interface the serialized topological data pertaining to the 
-/// geometric primitives with the capabilities of the selected discrete 
+/// Contexts interface the serialized topological data pertaining to the
+/// geometric primitives with the capabilities of the selected discrete
 /// compute device.
 ///
-class OsdGLSLComputeContext {
+class GLSLComputeContext {
 
 public:
-    /// Creates an OsdGLSLComputeContext instance
+    /// Creates an GLSLComputeContext instance
     ///
-    /// @param farmesh the FarMesh used for this Context.
+    /// @param vertexStencilTables   The Far::StencilTables used for vertex
+    ///                              interpolation
     ///
-    static OsdGLSLComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
+    /// @param varyingStencilTables  The Far::StencilTables used for varying
+    ///                              interpolation
+    ///
+    static GLSLComputeContext * Create(Far::StencilTables const * vertexStencilTables,
+                                          Far::StencilTables const * varyingStencilTables=0);
 
     /// Destructor
-    virtual ~OsdGLSLComputeContext();
+    virtual ~GLSLComputeContext();
 
-    /// Binds a vertex and a varying data buffers to the context. Binding ensures
-    /// that data buffers are properly inter-operated between Contexts and 
-    /// Controllers operating across multiple devices.
-    ///
-    /// @param vertex   a buffer containing vertex-interpolated primvar data
-    ///
-    /// @param varying  a buffer containing varying-interpolated primvar data
-    ///
-    template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
+    /// Returns true if the Context has a 'vertex' interpolation stencil table
+    bool HasVertexStencilTables() const;
 
-        _currentVertexBuffer = vertex ? vertex->BindVBO() : 0;
-        _currentVaryingBuffer = varying ? varying->BindVBO() : 0;
+    /// Returns true if the Context has a 'varying' interpolation stencil table
+    bool HasVaryingStencilTables() const;
 
-        _vdesc.numVertexElements = vertex ? vertex->GetNumElements() : 0;
-        _vdesc.numVaryingElements = varying ? varying->GetNumElements() : 0;
-
-        bindShaderStorageBuffers();
+    /// Returns the number of control vertices
+    int GetNumControlVertices() const {
+        return _numControlVertices;
     }
 
-    /// Unbinds any previously bound vertex and varying data buffers.
-    void Unbind() {
-        _currentVertexBuffer = 0;
-        _currentVaryingBuffer = 0;
+    /// Returns the Cuda buffer containing vertex-stencil stencil sizes
+    GLuint GetVertexStencilTablesSizes() const;
 
-        unbindShaderStorageBuffers();
-    }
+    /// Returns the Cuda buffer containing vertex-stencil stencil offsets
+    GLuint GetVertexStencilTablesOffsets() const;
 
-    /// Returns one of the vertex refinement tables.
-    ///
-    /// @param tableIndex the type of table
-    ///
-    const OsdGLSLComputeTable * GetTable(int tableIndex) const;
+    /// Binds GL buffers containing stencils for 'vertex' interpolation
+    void BindVertexStencilTables() const;
 
-    /// Returns the number of hierarchical edit tables
-    int GetNumEditTables() const;
+    /// Binds GL buffers containing stencils for 'varying' interpolation
+    void BindVaryingStencilTables() const;
 
-    /// Returns a specific hierarchical edit table
-    ///
-    /// @param tableIndex the index of the table
-    ///
-    const OsdGLSLComputeHEditTable * GetEditTable(int tableIndex) const;
-
-    /// Returns a handle to the vertex-interpolated buffer
-    GLuint GetCurrentVertexBuffer() const;
-
-    /// Returns a handle to the varying-interpolated buffer
-    GLuint GetCurrentVaryingBuffer() const;
-
-    /// Returns an OsdVertexDescriptor if vertex buffers have been bound.
-    ///
-    /// @return a descriptor for the format of the vertex data currently bound
-    ///
-    OsdVertexDescriptor const & GetVertexDescriptor() const {
-        return _vdesc;
-    }
-
-    OsdGLSLComputeKernelBundle * GetKernelBundle() const;
-
-    void SetKernelBundle(OsdGLSLComputeKernelBundle *kernelBundle);
-
-    void BindUniformBlockBilinearFace(GLuint program, int level);
-
-    void BindUniformBlockBilinearEdge(GLuint program, int level);
-
-    void BindUniformBlockBilinearVertex(GLuint program, int level);
-
-    void BindUniformBlockCatmarkFace(GLuint program, int level);
-
-    void BindUniformBlockCatmarkEdge(GLuint program, int level);
-
-    void BindUniformBlockCatmarkVertexA0(GLuint program, int level);
-
-    void BindUniformBlockCatmarkVertexA1(GLuint program, int level);
-
-    void BindUniformBlockCatmarkVertexB(GLuint program, int level);
-
-    void BindUniformBlockLoopEdge(GLuint program, int level);
-
-    void BindUniformBlockLoopVertexA(GLuint program, int level);
-
-    void BindUniformBlockLoopVertexB(GLuint program, int level);
-
-    void BindEditShaderStorageBuffers(int editIndex);
-
-    void UnbindEditShaderStorageBuffers();
+    /// Unbinds GL stencil buffers
+    void UnbindStencilTables() const;
 
 protected:
-    explicit OsdGLSLComputeContext(FarMesh<OsdVertex> const *farMesh);
 
-    void bindShaderStorageBuffers();
-
-    void unbindShaderStorageBuffers();
+    explicit GLSLComputeContext(Far::StencilTables const * vertexStencilTables,
+                                   Far::StencilTables const * varyingStencilTables);
 
 private:
-    std::vector<OsdGLSLComputeTable*> _tables;
-    std::vector<OsdGLSLComputeHEditTable*> _editTables;
 
-    GLuint _vertexTexture,
-           _varyingTexture;
+    class GLSLStencilTables;
 
-    OsdVertexDescriptor _vdesc;
+    GLSLStencilTables * _vertexStencilTables,
+                      * _varyingStencilTables;
 
-    GLuint _currentVertexBuffer, 
-           _currentVaryingBuffer;
-
-    OsdGLSLComputeKernelBundle * _kernelBundle;
+    int _numControlVertices;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

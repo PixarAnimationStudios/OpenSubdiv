@@ -1,26 +1,26 @@
-..  
+..
      Copyright 2013 Pixar
-  
+
      Licensed under the Apache License, Version 2.0 (the "Apache License")
      with the following modification; you may not use this file except in
      compliance with the Apache License and the following modification to it:
      Section 6. Trademarks. is deleted and replaced with:
-  
+
      6. Trademarks. This License does not grant permission to use the trade
         names, trademarks, service marks, or product names of the Licensor
         and its affiliates, except as required to comply with Section 4(c) of
         the License and to reproduce the content of the NOTICE file.
-  
+
      You may obtain a copy of the Apache License at
-  
+
          http://www.apache.org/licenses/LICENSE-2.0
-  
+
      Unless required by applicable law or agreed to in writing, software
      distributed under the Apache License with the above modification is
      distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
      KIND, either express or implied. See the Apache License for the specific
      language governing permissions and limitations under the Apache License.
-  
+
 
 Building with Cmake
 -------------------
@@ -37,28 +37,29 @@ Information on how to build OpenSubdiv
 Overview
 ========
 
-Assuming that you have `cloned <getting_started.html>`__ the source repository 
+Assuming that you have `cloned <getting_started.html>`__ the source repository
 and selected an appropriate release branch, the following instructions will
 walk you through the Cmake and configuration and build process.
 
 Cmake is a cross-platform, open-source build system. Cmake controls the compilation
-process using platform independent configuration files in order to generate 
+process using platform independent configuration files in order to generate
 makefiles and workspaces that are native to the platform of choice.
 
 The process involves the following steps:
-    1. Locate & build the requisite dependencies
-    2. Configure & run CMake to generate Makefiles / MSVC solution / XCode project
-    3. Run the build from make / MSVC / XCode
+
+    #. Locate & build the requisite dependencies
+    #. Configure & run CMake to generate Makefiles / MSVC solution / XCode project
+    #. Run the build from make / MSVC / XCode
 
 ----
 
 Step 1: Dependencies
 ====================
 
-Cmake will adapt the build based on which dependencies have been successfully 
+Cmake will adapt the build based on which dependencies have been successfully
 discovered and will disable certain features and code examples accordingly.
 
-Please refer to the documentation of each of the dependency packages for specific 
+Please refer to the documentation of each of the dependency packages for specific
 build and installation instructions.
 
 Required
@@ -71,7 +72,7 @@ ________
     - `Ptex <http://ptex.us/>`__ (support features for ptex textures and the
       ptexViewer example)
     - `Zlib <http://www.zlib.net/>`__ (required for Ptex under Windows)
-    - `GLEW <http://glew.sourceforge.net/>`__ (Windows/Linux only)
+    - `GLEW <http://glew.sourceforge.net/>`__
     - `CUDA <http://www.nvidia.com/object/cuda_home_new.html>`__
     - `TBB <http://www.threadingbuildingblocks.org/>`__
     - `OpenCL <http://www.khronos.org/opencl/>`__
@@ -105,7 +106,7 @@ The following configuration arguments can be passed to the cmake command line.
 
    -DCMAKE_INSTALL_PREFIX=[base path to install OpenSubdiv (default: Current directory)]
    -DCMAKE_LIBDIR_BASE=[library directory basename (default: lib)]
-   
+
    -DCUDA_TOOLKIT_ROOT_DIR=[path to CUDA]
    -DPTEX_LOCATION=[path to Ptex]
    -DGLEW_LOCATION=[path to GLEW]
@@ -113,30 +114,31 @@ The following configuration arguments can be passed to the cmake command line.
    -DMAYA_LOCATION=[path to Maya]
    -DTBB_LOCATION=[path to Intel's TBB]
    -DICC_LOCATION=[path to Intel's C++ Studio XE]
-   
+
    -DNO_LIB=1        // disable the opensubdiv libs build (caveat emptor)
    -DNO_EXAMPLES=1   // disable examples build
+   -DNO_TUTORIALS=1  // disable tutorials build
    -DNO_REGRESSION=1 // disable regression tests build
-   -DNO_PYTHON=1     // disable Python SWIG build
+   -DNO_MAYA=1       // disable Maya plugin build
+   -DNO_PTEX=1       // disable PTex support
    -DNO_DOC=1        // disable documentation build
    -DNO_OMP=1        // disable OpenMP
    -DNO_TBB=1        // disable TBB
    -DNO_CUDA=1       // disable CUDA
-   -DNO_GCD=1        // disable GrandCentralDispatch on OSX
+   -DNO_OPENCL=1     // disable OpenCL
+   -DNO_OPENGL=1     // disable OpenGL
+   -DNO_CLEW=1       // disable CLEW wrapper library
 
 Environment Variables
 _____________________
 
-The paths to Maya, Ptex, GLFW, and GLEW can also be specified through the 
-following environment variables: 
+The paths to Maya, Ptex, GLFW, GLEW and other dependencies can also be specified
+through the following environment variables:
 
 .. code:: c++
 
-   MAYA_LOCATION
-   PTEX_LOCATION
-   GLFW_LOCATION
-   GLEW_LOCATION.
-   
+   MAYA_LOCATION, PTEX_LOCATION, GLFW_LOCATION, GLEW_LOCATION
+
 Automated Script
 ________________
 
@@ -155,7 +157,7 @@ time. Here is a typical workflow:
 
 Where *cmake_setup* is a configuration script.
 
-Here is an example CMake configuration script for a full typical windows-based 
+Here is an example CMake configuration script for a full typical windows-based
 build that can be run in GitShell :
 
 .. code:: c++
@@ -180,7 +182,13 @@ build that can be run in GitShell :
     \cp -f c:/Users/opensubdiv/demo/src/zlib-1.2.7/contrib/vstudio/vc10/x64/ZlibDllRelease/zlibwapi.dll bin/Release/
     \cp -f c:/Users/opensubdiv/demo/src/ptex/x64/lib/Ptex.dll bin/Debug/
     \cp -f c:/Users/opensubdiv/demo/src/ptex/x64/lib/Ptex.dll bin/Release/
-    
+
+.. container:: impnotip
+
+   * **Important**
+
+      Notice that the following scripts start by **recursively removing** the *../build/* and
+      *../inst/* directories. Make sure you modify them to suit your build workflow.
 
 Here is a similar script for \*Nix-based platforms:
 
@@ -197,18 +205,24 @@ Here is a similar script for \*Nix-based platforms:
           -DCMAKE_BUILD_TYPE=Debug \
           ..
 
-.. container:: impnotip
+Here is a similar script for OSX:
 
-   * **Important**
+.. code:: c++
 
-      Notice that this script starts by **recursively removing** the *../build/* and 
-      *../inst/* directories. Make sure you modify this script to suit your build
-      workflow.
+    echo "*** Removing build"
+    cd ..; rm -rf build/ inst/; mkdir build; cd build;
+    echo "*** Running cmake"
+    cmake -DOPENGL_INCLUDE_DIR=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/OpenGL.framework/Headers \
+          -DGLFW_LOCATION=/Users/opensubdiv/dev/opensource/glfw/inst \
+          -DNO_OMP=1 -DNO_REGRESSION=0 \
+          -DCMAKE_INSTALL_PREFIX=../inst \
+          -DCMAKE_BUILD_TYPE=Debug \
+           .."
 
 Using Intel's C++ Studio XE
 ___________________________
 
-OpenSubdiv can be also be built with `Intel's C++ compiler <http://software.intel.com/en-us/intel-compilers>`__ 
+OpenSubdiv can be also be built with `Intel's C++ compiler <http://software.intel.com/en-us/intel-compilers>`__
 (icc). The default compiler can be overriden in CMake with the following configuration options:
 
 .. code:: c++
@@ -223,24 +237,50 @@ The installation location of the C++ Studio XE can be overriden with:
     -DICC_LOCATION=[path to Intel's C++ Studio XE]
 
 
+Using Clang
+___________
+
+CMake can also be overriden to use the `clang <http://clang.llvm.org/>`__ compilers by configuring the following options:
+
+.. code:: c++
+
+    -DCMAKE_CXX_COMPILER=clang++ \
+    -DCMAKE_C_COMPILER=clang \
+
+
 ----
 
 Step 3: Building
 ================
 
-The steps differ for different OS'es:
+CMake provides a cross-platform command-line build:
 
-    * *Windows* : 
+.. code:: c++
+
+    cmake --build . --target install --config Release
+
+Alternatively, you can native toolkits to launch the build. The steps differ for each OS:
+
+    * *Windows* :
         launch VC++ with the solution generated by cmake in your build directory.
 
-    * *OSX* : 
-        run xcodebuild in your build directory
+    * *OSX* :
+        run *make* in the build directory
 
-    * *\*Nix* : 
-        | run *make* in your build directory 
+    * *\*Nix* :
+        | run *make* in your build directory
         | - use the *clean* target to remove previous build results
         | - use *VERBOSE=1* for verbose build output
-    
+
+.. container:: notebox
+
+   **Note**
+       We recommend against using CMake's Xcode project generator (-G "Xcode") on OSX, as it seems to
+       generate some dependencies incorrectly. We recommend instead reverting to Makefiles on OSX, and
+       launching *make*, instead of *xcodebuild* to execute the build (make sure to install the command
+       line tools in Xcode)
+
+
 ----
 
 Build Targets
@@ -248,7 +288,7 @@ _____________
 
 Makefile-based builds allow the use of named target. Here are some of the more
 useful target names:
-    
+
    *osd_\<static\|dynamic\>_\<CPU\|GPU\>*
       | The core components of the OpenSubdiv libraries
       |
@@ -256,7 +296,7 @@ useful target names:
    *\<example_name\>*
       | Builds specific code examples by name (glViewer, ptexViewer...)
       |
-      
+
    *doc*
       | Builds ReST and doxygen documentation
       |

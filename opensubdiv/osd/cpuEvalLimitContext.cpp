@@ -33,102 +33,25 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCpuEvalLimitContext *
-OsdCpuEvalLimitContext::Create(FarMesh<OsdVertex> const * farmesh, bool requireFVarData) {
+namespace Osd {
 
-    assert(farmesh);
-    
-    // we do not support uniform yet
-    if (not farmesh->GetPatchTables())
+CpuEvalLimitContext *
+CpuEvalLimitContext::Create(Far::PatchTables const & patchTables) {
+
+    // there is no limit with uniform subdivision
+    if (not patchTables.IsFeatureAdaptive())
         return NULL;
-                                          
-    return new OsdCpuEvalLimitContext(farmesh, requireFVarData);
+
+    return new CpuEvalLimitContext(patchTables);
 }
 
-OsdCpuEvalLimitContext::OsdCpuEvalLimitContext(FarMesh<OsdVertex> const * farmesh, bool requireFVarData) :
-    OsdEvalLimitContext(farmesh) {
-    
-    FarPatchTables const * patchTables = farmesh->GetPatchTables();
-    assert(patchTables);
-
-    // copy the data from the FarTables
-    _patches = patchTables->GetPatchTable();
-
-    _patchArrays = patchTables->GetPatchArrayVector();
-    
-    _vertexValenceTable = patchTables->GetVertexValenceTable();
-    
-    _quadOffsetTable = patchTables->GetQuadOffsetTable();
-    
-    _maxValence = patchTables->GetMaxValence();
-    
-    // Copy the bitfields, the faceId will be the key to our map
-    int npatches = patchTables->GetNumPatches();
-    
-    _patchBitFields.reserve(npatches);
-
-    FarPatchTables::PatchParamTable const & ptxTable =
-        patchTables->GetPatchParamTable();
-
-    if ( not ptxTable.empty() ) {
-
-        FarPatchParam const * pptr = &ptxTable[0];
-
-        for (int arrayId = 0; arrayId < (int)_patchArrays.size(); ++arrayId) {
-
-            FarPatchTables::PatchArray const & pa = _patchArrays[arrayId];
-
-            for (unsigned int j=0; j < pa.GetNumPatches(); ++j) {
-                _patchBitFields.push_back( pptr++->bitField );
-            }
-        }
-    }
-    
-    // Copy the face-varying table if necessary    
-    if (requireFVarData) {
-        _fvarwidth = farmesh->GetTotalFVarWidth();
-        if (_fvarwidth>0) {
-            _fvarData = patchTables->GetFVarDataTable();
-        }
-    }
-    
-    _patchMap = new FarPatchMap( *patchTables );
+CpuEvalLimitContext::CpuEvalLimitContext(Far::PatchTables const & patchTables) :
+    EvalLimitContext(patchTables),
+    _patchTables(patchTables),
+    _patchMap(patchTables) {
 }
 
-OsdCpuEvalLimitContext::~OsdCpuEvalLimitContext() {
-    delete _patchMap;
-}
-
-void 
-OsdCpuEvalLimitContext::VertexData::Unbind() {
-
-    inDesc.Reset();
-    in.Unbind();
-
-    outDesc.Reset();
-    out.Unbind();
-    outDu.Unbind();
-    outDv.Unbind();
-}
-
-void 
-OsdCpuEvalLimitContext::VaryingData::Unbind() {
-
-    inDesc.Reset();
-    in.Unbind();
-
-    outDesc.Reset();
-    out.Unbind();
-}
-
-void 
-OsdCpuEvalLimitContext::FaceVaryingData::Unbind() {
-
-    inDesc.Reset();
-
-    outDesc.Reset();
-    out.Unbind();
-}
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

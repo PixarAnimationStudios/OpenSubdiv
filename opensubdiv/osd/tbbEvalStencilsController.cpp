@@ -32,16 +32,18 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 #define grain_size  200
 
-OsdTbbEvalStencilsController::OsdTbbEvalStencilsController(int numThreads) {
+TbbEvalStencilsController::TbbEvalStencilsController(int numThreads) {
 
     _numThreads = numThreads > 0 ? numThreads : tbb::task_scheduler_init::automatic;
 
    tbb::task_scheduler_init init(numThreads);
 }
 
-OsdTbbEvalStencilsController::~OsdTbbEvalStencilsController() {
+TbbEvalStencilsController::~TbbEvalStencilsController() {
 }
 
 
@@ -50,8 +52,8 @@ class StencilKernel {
 public:
     enum Mode { UNDEFINED, POINT, U_DERIV, V_DERIV };
 
-    StencilKernel( FarStencilTables const * stencils,
-                   OsdVertexBufferDescriptor ctrlDesc,
+    StencilKernel( Far::LimitStencilTables const * stencils,
+                   VertexBufferDescriptor ctrlDesc,
                    float const * ctrlData ) :
         _stencils(stencils),
         _mode(UNDEFINED),
@@ -63,7 +65,7 @@ public:
         _ctrlData = ctrlData + ctrlDesc.offset;
     }
 
-    bool SetOutput(Mode mode, OsdVertexBufferDescriptor outDesc, float * outData) {
+    bool SetOutput(Mode mode, VertexBufferDescriptor outDesc, float * outData) {
 
         if (_ctrlDesc.CanEval(outDesc)) {
             _mode = mode;
@@ -79,10 +81,10 @@ public:
 
         assert(_stencils and _ctrlData and _length and _outStride and _outData);
 
-        int offset = _stencils->GetOffsets()[r.begin()];
+        Far::Index offset = _stencils->GetOffsets()[r.begin()];
 
-        int const * sizes = &_stencils->GetSizes()[r.begin()],
-                  * index = &_stencils->GetControlIndices()[offset];
+        unsigned char const * sizes = &_stencils->GetSizes()[r.begin()];
+        Far::Index const * index = &_stencils->GetControlIndices()[offset];
 
         float const * weight;
 
@@ -114,11 +116,12 @@ public:
     }
 
 private:
-    FarStencilTables const * _stencils;
+
+    Far::LimitStencilTables const * _stencils;
 
     Mode _mode;
 
-    OsdVertexBufferDescriptor _ctrlDesc;
+    VertexBufferDescriptor _ctrlDesc;
     float const * _ctrlData;
 
     int _length,
@@ -128,9 +131,9 @@ private:
 };
 
 int
-OsdTbbEvalStencilsController::_UpdateValues( OsdCpuEvalStencilsContext * context ) {
+TbbEvalStencilsController::_UpdateValues( CpuEvalStencilsContext * context ) {
 
-    FarStencilTables const * stencils = context->GetStencilTables();
+    Far::LimitStencilTables const * stencils = context->GetStencilTables();
     if (not stencils)
         return 0;
 
@@ -138,13 +141,13 @@ OsdTbbEvalStencilsController::_UpdateValues( OsdCpuEvalStencilsContext * context
     if (not nstencils)
         return 0;
 
-    StencilKernel kernel( stencils, context->GetControlDataDescriptor(),
-                                    context->GetControlData() );
+    StencilKernel kernel( stencils, _currentBindState.controlDataDesc,
+                                    _currentBindState.controlData );
 
 
     if (not kernel.SetOutput( StencilKernel::POINT,
-                              context->GetOutputDataDescriptor(),
-                              context->GetOutputData() ))
+                              _currentBindState.outputDataDesc,
+                              _currentBindState.outputData ))
         return 0;
 
     tbb::blocked_range<int> range(0, nstencils, grain_size);
@@ -155,9 +158,9 @@ OsdTbbEvalStencilsController::_UpdateValues( OsdCpuEvalStencilsContext * context
 }
 
 int
-OsdTbbEvalStencilsController::_UpdateDerivs( OsdCpuEvalStencilsContext * context ) {
+TbbEvalStencilsController::_UpdateDerivs( CpuEvalStencilsContext * context ) {
 
-    FarStencilTables const * stencils = context->GetStencilTables();
+    Far::LimitStencilTables const * stencils = context->GetStencilTables();
     if (not stencils)
         return 0;
 
@@ -167,19 +170,19 @@ OsdTbbEvalStencilsController::_UpdateDerivs( OsdCpuEvalStencilsContext * context
 
     tbb::blocked_range<int> range(0, nstencils, grain_size);
 
-    StencilKernel kernel( stencils, context->GetControlDataDescriptor(),
-                                    context->GetControlData() );
+    StencilKernel kernel( stencils, _currentBindState.controlDataDesc,
+                                    _currentBindState.controlData );
 
     if (not kernel.SetOutput( StencilKernel::U_DERIV,
-                              context->GetDuDataDescriptor(),
-                              context->GetOutputUDerivData() ) )
+                              _currentBindState.outputDuDesc,
+                              _currentBindState.outputUDeriv ) )
         return 0;
 
     tbb::parallel_for(range, kernel);
 
     if (not kernel.SetOutput( StencilKernel::V_DERIV,
-                              context->GetDvDataDescriptor(),
-                              context->GetOutputVDerivData() ) )
+                              _currentBindState.outputDvDesc,
+                              _currentBindState.outputVDeriv ) )
         return 0;
 
     tbb::parallel_for(range, kernel);
@@ -188,9 +191,10 @@ OsdTbbEvalStencilsController::_UpdateDerivs( OsdCpuEvalStencilsContext * context
 }
 
 void
-OsdTbbEvalStencilsController::Synchronize() {
+TbbEvalStencilsController::Synchronize() {
 }
 
+} // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

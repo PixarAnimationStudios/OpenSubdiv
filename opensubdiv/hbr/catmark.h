@@ -477,7 +477,7 @@ HbrCatmarkSubdivision<T>::Refine(HbrMesh<T>* mesh, HbrFace<T>* face) {
             assert(childedge);
             if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                 HbrSubdivision<T>::SubdivideCreaseWeight(
-                    edge, edge->GetDestVertex(), childedge);
+                    edge, edge->GetOrgVertex(), childedge);
             }
             childedge->CopyFVarInfiniteSharpness(edge);
 
@@ -485,7 +485,7 @@ HbrCatmarkSubdivision<T>::Refine(HbrMesh<T>* mesh, HbrFace<T>* face) {
             assert(childedge);
             if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                 HbrSubdivision<T>::SubdivideCreaseWeight(
-                    prevedge, prevedge->GetOrgVertex(), childedge);
+                    prevedge, prevedge->GetDestVertex(), childedge);
             }
             childedge->CopyFVarInfiniteSharpness(prevedge);
 
@@ -558,7 +558,7 @@ HbrCatmarkSubdivision<T>::RefineFaceAtVertex(HbrMesh<T>* mesh, HbrFace<T>* face,
                 assert(childedge);
                 if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                     HbrSubdivision<T>::SubdivideCreaseWeight(
-                        edge, edge->GetDestVertex(), childedge);
+                        edge, edge->GetOrgVertex(), childedge);
                 }
                 childedge->CopyFVarInfiniteSharpness(edge);
 
@@ -566,7 +566,7 @@ HbrCatmarkSubdivision<T>::RefineFaceAtVertex(HbrMesh<T>* mesh, HbrFace<T>* face,
                 assert(childedge);
                 if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                     HbrSubdivision<T>::SubdivideCreaseWeight(
-                        prevedge, prevedge->GetOrgVertex(), childedge);
+                        prevedge, prevedge->GetDestVertex(), childedge);
                 }
                 childedge->CopyFVarInfiniteSharpness(prevedge);
 

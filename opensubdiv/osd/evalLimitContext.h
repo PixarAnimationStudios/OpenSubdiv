@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/mesh.h"
+#include "../far/patchTables.h"
 
 #include "../osd/nonCopyable.h"
 #include "../osd/vertex.h"
@@ -35,14 +35,14 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 
 /// \brief Coordinates set on a limit surface
 ///
-class OsdEvalCoords {
+struct LimitLocation {
 
-public:
-
-    OsdEvalCoords() { }
+    LimitLocation() { }
 
     /// \brief Constructor
     ///
@@ -52,10 +52,25 @@ public:
     ///
     /// @param y parametric location on face
     ///
-    OsdEvalCoords(int f, float x, float y) : face(f), u(x), v(y) { }
-    
-    unsigned int face; //  Ptex face ID
-    float u,v;         // local face (u,v)
+    LimitLocation(int f, float x, float y) : ptexIndex(f), s(x), t(y) { }
+
+    int ptexIndex;      ///< ptex face index
+
+    float s, t;         ///< parametric location on face
+};
+
+class LimitLocationsArray {
+
+public:
+
+    /// \brief Constructor
+    LimitLocationsArray() : ptexIndex(-1), numLocations(0), s(0), t(0) { }
+
+    int ptexIndex,      ///< ptex face index
+        numLocations;   ///< number of (u,v) coordinates in the array
+
+    float const * s,    ///< array of u coordinates
+                * t;    ///< array of v coordinates
 };
 
 
@@ -63,18 +78,20 @@ public:
 ///
 /// A stub class to derive LimitEval context classes.
 ///
-class OsdEvalLimitContext : OsdNonCopyable<OsdEvalLimitContext> {
+class EvalLimitContext : private NonCopyable<EvalLimitContext> {
 
 public:
     /// \brief Destructor.
-    virtual ~OsdEvalLimitContext();
+    virtual ~EvalLimitContext();
 
 protected:
-    explicit OsdEvalLimitContext(FarMesh<OsdVertex> const * farmesh);
+    explicit EvalLimitContext(Far::PatchTables const & patchTables);
 
 private:
     bool _adaptive;
 };
+
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

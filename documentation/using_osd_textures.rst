@@ -37,7 +37,6 @@ Ptex Face Indices
    :align: center
    :target: images/ptex_coarse.png
 
-
 Non-quad topology
 _________________
 
@@ -48,3 +47,6 @@ _________________
 
 Filtering
 _________
+
+.. include:: under_development.rst
+

@@ -82,6 +82,13 @@ p {
 	text-align: justify;
 	width: 230px;
 }
+.floatNav {
+	float:right;
+    width:460px;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
 .floatLeft {
 	float:left;
 }

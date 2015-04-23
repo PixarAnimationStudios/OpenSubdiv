@@ -35,18 +35,18 @@ if (WIN32)
         NAMES
             Ptexture.h
         PATHS
-            ${PTEX_LOCATION}/include
-            $ENV{PTEX_LOCATION}/include
-            $ENV{PROGRAMFILES}/Ptex/include
+            "${PTEX_LOCATION}/include"
+            "$ENV{PTEX_LOCATION}/include"
+            "$ENV{PROGRAMFILES}/Ptex/include"
             /usr/include
             DOC "The directory where Ptexture.h resides")
     find_library( PTEX_LIBRARY
         NAMES
             Ptex32 Ptex32s Ptex
         PATHS
-            ${PTEX_LOCATION}/lib
-            $ENV{PTEX_LOCATION}/lib
-            $ENV{PROGRAMFILES}/Ptex/lib
+            "${PTEX_LOCATION}/lib"
+            "$ENV{PTEX_LOCATION}/lib"
+            "$ENV{PROGRAMFILES}/Ptex/lib"
             /usr/lib
             /usr/lib/w32api
             /usr/local/lib
@@ -57,25 +57,25 @@ elseif (APPLE)
         NAMES
             Ptexture.h
         PATHS
-            ${PTEX_LOCATION}/include
-            $ENV{PTEX_LOCATION}/include
+            "${PTEX_LOCATION}/include"
+            "$ENV{PTEX_LOCATION}/include"
             DOC "The directory where Ptexture.h resides")
     find_library( PTEX_LIBRARY
         NAMES
             Ptex libPtex.a
         PATHS
-            ${PTEX_LOCATION}/lib
-            $ENV{PTEX_LOCATION}/lib
+            "${PTEX_LOCATION}/lib"
+            "$ENV{PTEX_LOCATION}/lib"
             DOC "The Ptex Library")
 else ()
     find_path( PTEX_INCLUDE_DIR
         NAMES
             Ptexture.h
         PATHS
-            ${PTEX_LOCATION}/include
-            ${PTEX_LOCATION}/include/wdas
-            $ENV{PTEX_LOCATION}/include
-            $ENV{PTEX_LOCATION}/include/wdas
+            "${PTEX_LOCATION}/include"
+            "${PTEX_LOCATION}/include/wdas"
+            "$ENV{PTEX_LOCATION}/include"
+            "$ENV{PTEX_LOCATION}/include/wdas"
             /usr/include
             /usr/local/include
             /usr/openwin/share/include
@@ -87,8 +87,8 @@ else ()
         NAMES
             Ptex wdasPtex
         PATHS
-            ${PTEX_LOCATION}/lib
-            $ENV{PTEX_LOCATION}/lib
+            "${PTEX_LOCATION}/lib"
+            "$ENV{PTEX_LOCATION}/lib"
             /usr/lib
             /usr/local/lib
             /usr/openwin/lib

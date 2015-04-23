@@ -35,39 +35,36 @@ SYNOPSIS
 .. parsed-literal:: 
    :class: codefhead
 
-   **dxViewer** [**-f**] *objfile(s)*
+   **dxViewer** [**-d** *isolation level*] [**-c** *animation loops*]  *objfile(s)*
 
 DESCRIPTION
 ===========
 
-``glViewer`` is a stand-alone application that showcases the application of 
+``dxViewer`` is a stand-alone application that showcases the application of 
 uniform and feature adaptive subdivision schemes to a collection of geometric
 shapes. Multiple controls are available to experiment with the algorithms.
 
+.. image:: images/dxviewer.png 
+   :width: 400px
+   :align: center
+   :target: images/dxviewer.png 
 
 .. container:: impnotip
 
    * **Note:** 
      
-      dxViewer requires Microsoft's DirectX 11 SDK
+      dxViewer requires Microsoft's DirectX D3D11 SDK
 
 OPTIONS
 =======
 
-**-f**
-  Launches the application in full-screen mode (if is supported by GLFW on the
-  OS)
+**-d** *isolation level*
+  Select the desired isolation level of adaptive feature isolation. This can be 
+  useful when trying to load large pieces of geometry.
 
-SEE ALSO
-========
+**-c** *animation frequency*
+  Number of repetitions of the animtion loop (default=0 is infinite)
 
-`Code Examples <code_examples.html>`__, \
-`glViewer <glviewer.html>`__, \
-`glBatchViewer <glbatchviewer.html>`__, \
-`glStencilViewer <glstencilviewer.html>`__, \
-`ptexViewer <ptexviewer.html>`__, \
-`paintTest <painttest.html>`__, \
-`limitEval <limiteval.html>`__, \
-`dxViewer <dxviewer.html>`__, \
-`uvViewer <uvviewer.html>`__, \
 
+
+.. include:: examples_see_also.rst

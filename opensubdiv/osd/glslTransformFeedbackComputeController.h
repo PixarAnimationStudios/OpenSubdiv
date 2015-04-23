@@ -27,125 +27,194 @@
 
 #include "../version.h"
 
-#include "../far/dispatcher.h"
+#include "../far/kernelBatchDispatcher.h"
 #include "../osd/glslTransformFeedbackComputeContext.h"
+#include "../osd/vertexDescriptor.h"
 
 #include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdGLSLTransformFeedbackKernelBundle;
+namespace Osd {
+
+class GLSLTransformFeedbackKernelBundle;
 
 /// \brief Compute controller for launching GLSLTransformFeedback transform feedback
 /// subdivision kernels.
 ///
-/// OsdGLSLTransformFeedbackComputeController is a compute controller class to launch
+/// GLSLTransformFeedbackComputeController is a compute controller class to launch
 /// GLSLTransformFeedback transfrom feedback subdivision kernels. It requires
-/// OsdGLVertexBufferInterface as arguments of Refine function.
+/// GLVertexBufferInterface as arguments of Refine function.
 ///
 /// Controller entities execute requests from Context instances that they share
 /// common interfaces with. Controllers are attached to discrete compute devices
 /// and share the devices resources with Context entities.
 ///
-class OsdGLSLTransformFeedbackComputeController {
+class GLSLTransformFeedbackComputeController {
 public:
-    typedef OsdGLSLTransformFeedbackComputeContext ComputeContext;
+    typedef GLSLTransformFeedbackComputeContext ComputeContext;
 
     /// Constructor.
-    OsdGLSLTransformFeedbackComputeController();
+    GLSLTransformFeedbackComputeController();
 
     /// Destructor.
-    ~OsdGLSLTransformFeedbackComputeController();
+    ~GLSLTransformFeedbackComputeController();
 
-    /// Launch subdivision kernels and apply to given vertex buffers.
+
+    /// Execute subdivision kernels and apply to given vertex buffers.
     ///
-    /// @param  context       the OsdCpuContext to apply refinement operations to
+    /// @param  context       The GLSLTransformFeedbackComputeContext to apply
+    ///                       refinement operations to
     ///
-    /// @param  batches       vector of batches of vertices organized by operative 
+    /// @param  batches       Vector of batches of vertices organized by operative
     ///                       kernel
     ///
-    /// @param  vertexBuffer  vertex-interpolated data buffer
+    /// @param  vertexBuffer  Vertex-interpolated data buffer
     ///
-    /// @param  varyingBuffer varying-interpolated data buffer
+    /// @param  vertexDesc    The descriptor of vertex elements to be refined.
+    ///                       if it's null, all primvars in the vertex buffer
+    ///                       will be refined.
+    ///
+    /// @param  varyingBuffer Vertex-interpolated data buffer
+    ///
+    /// @param  varyingDesc   The descriptor of varying elements to be refined.
+    ///                       if it's null, all primvars in the vertex buffer
+    ///                       will be refined.
     ///
     template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Refine(OsdGLSLTransformFeedbackComputeContext *context,
-                FarKernelBatchVector const &batches,
-                VERTEX_BUFFER *vertexBuffer,
-                VARYING_BUFFER *varyingBuffer) {
+        void Compute( GLSLTransformFeedbackComputeContext const * context,
+                      Far::KernelBatchVector const & batches,
+                      VERTEX_BUFFER  * vertexBuffer,
+                      VARYING_BUFFER * varyingBuffer,
+                      VertexBufferDescriptor const * vertexDesc=NULL,
+                      VertexBufferDescriptor const * varyingDesc=NULL ){
 
         if (batches.empty()) return;
 
-        int numVertexElements = vertexBuffer ? vertexBuffer->GetNumElements() : 0;
-        int numVaryingElements = varyingBuffer ? varyingBuffer->GetNumElements() : 0;
+        if (vertexBuffer) {
 
-        context->SetKernelBundle(getKernels(numVertexElements, numVaryingElements));
+            bind(vertexBuffer, vertexDesc, _vertexTexture);
 
-        context->Bind(vertexBuffer, varyingBuffer);
-        FarDispatcher::Refine(this,
-                              batches,
-                              -1,
-                              context);
-        context->Unbind();
+            bindContextStencilTables(context, false);
+
+            Far::KernelBatchDispatcher::Apply(this, context, batches, /*maxlevel*/ -1);
+        }
+
+        if (varyingBuffer) {
+
+            bind(varyingBuffer, varyingDesc, _varyingTexture);
+
+            bindContextStencilTables(context, true);
+
+            Far::KernelBatchDispatcher::Apply(this, context, batches, /*maxlevel*/ -1);
+        }
+        unbind();
     }
 
-    /// Launch subdivision kernels and apply to given vertex buffers.
+    /// Execute subdivision kernels and apply to given vertex buffers.
     ///
-    /// @param  context       the OsdCpuContext to apply refinement operations to
+    /// @param  context       The GLSLTransformFeedbackComputeContext to apply
+    ///                       refinement operations to
     ///
-    /// @param  batches       vector of batches of vertices organized by operative 
+    /// @param  batches       Vector of batches of vertices organized by operative
     ///                       kernel
     ///
-    /// @param  vertexBuffer  vertex-interpolated data buffer
+    /// @param  vertexBuffer  Vertex-interpolated data buffer
     ///
     template<class VERTEX_BUFFER>
-    void Refine(OsdGLSLTransformFeedbackComputeContext *context,
-                FarKernelBatchVector const &batches,
-                VERTEX_BUFFER *vertexBuffer) {
-        Refine(context, batches, vertexBuffer, (VERTEX_BUFFER*)NULL);
+        void Compute(GLSLTransformFeedbackComputeContext const * context,
+                     Far::KernelBatchVector const & batches,
+                     VERTEX_BUFFER *vertexBuffer) {
+
+        Compute<VERTEX_BUFFER>(context, batches, vertexBuffer, (VERTEX_BUFFER*)0);
     }
 
     /// Waits until all running subdivision kernels finish.
     void Synchronize();
 
 protected:
-    friend class FarDispatcher;
-    void ApplyBilinearFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
 
-    void ApplyBilinearEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+    friend class Far::KernelBatchDispatcher;
 
-    void ApplyBilinearVertexVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+    void ApplyStencilTableKernel(Far::KernelBatch const &batch,
+        ComputeContext const *context) const;
 
+    template<class BUFFER>
+        void bind( BUFFER * buffer, VertexBufferDescriptor const * desc,
+            GLuint feedbackTexture ) {
 
-    void ApplyCatmarkFaceVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+        assert(buffer);
 
-    void ApplyCatmarkEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+        // if the vertex buffer descriptor is specified, use it
+        // otherwise, assumes the data is tightly packed in the vertex buffer.
+        if (desc) {
+            _currentBindState.desc = *desc;
+        } else {
+            int numElements = buffer ? buffer->GetNumElements() : 0;
+            _currentBindState.desc =
+                VertexBufferDescriptor(0, numElements, numElements);
+        }
 
-    void ApplyCatmarkVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const;
+        _currentBindState.buffer = buffer->BindVBO();
 
-    void ApplyCatmarkVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const;
+        _currentBindState.kernelBundle = getKernel(_currentBindState.desc);
 
-    void ApplyCatmarkVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const;
+        bindBufferAndProgram(feedbackTexture);
+    }
 
+    // Unbinds any previously bound vertex and varying data buffers.
+    void unbind() {
+        _currentBindState.Reset();
+        unbindResources();
+    }
 
-    void ApplyLoopEdgeVerticesKernel(FarKernelBatch const &batch, void * clientdata) const;
+    // binds the primvar data buffer and compute program
+    void bindBufferAndProgram(GLuint & texture);
 
-    void ApplyLoopVertexVerticesKernelB(FarKernelBatch const &batch, void * clientdata) const;
+    // binds the stencil tables for 'vertex' interpolation
+    void bindContextStencilTables(ComputeContext const *context, bool varying=false);
 
-    void ApplyLoopVertexVerticesKernelA1(FarKernelBatch const &batch, void * clientdata) const;
-
-    void ApplyLoopVertexVerticesKernelA2(FarKernelBatch const &batch, void * clientdata) const;
-
-
-    void ApplyVertexEdits(FarKernelBatch const &batch, void * clientdata) const;
-
-    OsdGLSLTransformFeedbackKernelBundle * getKernels(int numVertexElements,
-                                                      int numVaryingElements);
+    // unbinds the primvar data buffer and compute program
+    void unbindResources();
 
 private:
-    std::vector<OsdGLSLTransformFeedbackKernelBundle *> _kernelRegistry;
+
+    class KernelBundle;
+
+    // Bind state is a transitional state during refinement.
+    // It doesn't take an ownership of the vertex buffers.
+    struct BindState {
+
+        BindState() : buffer(0), kernelBundle(0) { }
+
+        void Reset() {
+            buffer = 0;
+            desc.Reset();
+            kernelBundle = 0;
+        }
+
+        GLuint buffer;
+
+        VertexBufferDescriptor desc;
+
+        KernelBundle const * kernelBundle;
+    };
+
+    BindState _currentBindState;
+
+    typedef std::vector<KernelBundle *> KernelRegistry;
+
+    KernelBundle const * getKernel(VertexBufferDescriptor const &desc);
+
+    KernelRegistry _kernelRegistry;
+
+    GLuint _vertexTexture,
+           _varyingTexture,
+           _vao;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

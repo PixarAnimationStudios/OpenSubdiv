@@ -28,13 +28,17 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdEvalLimitContext::OsdEvalLimitContext(FarMesh<OsdVertex> const * farmesh) {
+namespace Osd {
 
-    _adaptive = farmesh->GetPatchTables()->IsFeatureAdaptive();
+EvalLimitContext::EvalLimitContext(Far::PatchTables const & patchTables) {
+
+    _adaptive = patchTables.IsFeatureAdaptive();
 }
 
-OsdEvalLimitContext::~OsdEvalLimitContext() {
+EvalLimitContext::~EvalLimitContext() {
 }
+
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

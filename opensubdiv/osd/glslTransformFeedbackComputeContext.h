@@ -27,11 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/vertexEditTables.h"
-#include "../osd/vertex.h"
-#include "../osd/vertexDescriptor.h"
 #include "../osd/nonCopyable.h"
-
 #include "../osd/opengl.h"
 
 #include <vector>
@@ -39,161 +35,88 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdGLSLTransformFeedbackKernelBundle;
+namespace Far{ class StencilTables; }
 
-class OsdGLSLTransformFeedbackTable : OsdNonCopyable<OsdGLSLTransformFeedbackTable> {
-public:
-    template<typename T>
-    OsdGLSLTransformFeedbackTable(const std::vector<T> &table, GLenum type) {
-        createTextureBuffer(table.size() * sizeof(unsigned int), table.empty() ? NULL : &table[0], type);
-    }
-
-    virtual ~OsdGLSLTransformFeedbackTable();
-
-    GLuint GetTexture() const;
-
-private:
-    void createTextureBuffer(size_t size, const void *ptr, GLenum type);
-
-    GLuint _devicePtr, 
-           _texture;
-};
-
-class OsdGLSLTransformFeedbackHEditTable : OsdNonCopyable<OsdGLSLTransformFeedbackHEditTable> {
-public:
-    OsdGLSLTransformFeedbackHEditTable(const FarVertexEditTables<OsdVertex>::
-                      VertexEditBatch &batch);
-
-    virtual ~OsdGLSLTransformFeedbackHEditTable();
-
-    const OsdGLSLTransformFeedbackTable * GetPrimvarIndices() const;
-
-    const OsdGLSLTransformFeedbackTable * GetEditValues() const;
-
-    int GetOperation() const;
-
-    int GetPrimvarOffset() const;
-
-    int GetPrimvarWidth() const;
-
-private:
-    OsdGLSLTransformFeedbackTable *_primvarIndicesTable;
-    OsdGLSLTransformFeedbackTable *_editValuesTable;
-
-    int _operation;
-    int _primvarOffset;
-    int _primvarWidth;
-};
+namespace Osd {
 
 ///
-/// \brief GLSL (transform-feedback) Refine Context
+/// \brief GLSL-Compute(transform-feedback) Refine Context
 ///
-/// The GLSL (transform-feedback) implementation of the Refine module contextual functionality. 
+/// The GLSL (transform-feedback) implementation of the Refine module contextual functionality.
 ///
-/// Contexts interface the serialized topological data pertaining to the 
-/// geometric primitives with the capabilities of the selected discrete 
+/// Contexts interface the serialized topological data pertaining to the
+/// geometric primitives with the capabilities of the selected discrete
 /// compute device.
 ///
-class OsdGLSLTransformFeedbackComputeContext {
+class GLSLTransformFeedbackComputeContext {
 public:
-    /// Creates an OsdGLSLTransformFeedbackComputeContext instance
+    /// Creates an GLSLTransformFeedbackComputeContext instance
     ///
-    /// @param farmesh the FarMesh used for this Context.
+    /// @param vertexStencilTables   The Far::StencilTables used for vertex
+    ///                              interpolation
     ///
-    static OsdGLSLTransformFeedbackComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
+    /// @param varyingStencilTables  The Far::StencilTables used for varying
+    ///                              interpolation
+    ///
+    static GLSLTransformFeedbackComputeContext * Create(Far::StencilTables const * vertexStencilTables,
+                                                           Far::StencilTables const * varyingStencilTables=0);
 
     /// Destructor
-    virtual ~OsdGLSLTransformFeedbackComputeContext();
+    virtual ~GLSLTransformFeedbackComputeContext();
 
-    /// Binds a vertex and a varying data buffers to the context. Binding ensures
-    /// that data buffers are properly inter-operated between Contexts and 
-    /// Controllers operating across multiple devices.
-    ///
-    /// @param vertex   a buffer containing vertex-interpolated primvar data
-    ///
-    /// @param varying  a buffer containing varying-interpolated primvar data
-    ///
-    template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
+    /// Returns true if the Context has a 'vertex' interpolation stencil table
+    bool HasVertexStencilTables() const;
 
-        _currentVertexBuffer = vertex ? vertex->BindVBO() : 0;
-        _currentVaryingBuffer = varying ? varying->BindVBO() : 0;
+    /// Returns true if the Context has a 'varying' interpolation stencil table
+    bool HasVaryingStencilTables() const;
 
-        _vdesc.numVertexElements = vertex ? vertex->GetNumElements() : 0;
-        _vdesc.numVaryingElements = varying ? varying->GetNumElements() : 0;
-
-        bind();
+    /// Returns the number of control vertices
+    int GetNumControlVertices() const {
+        return _numControlVertices;
     }
 
-    /// Unbinds any previously bound vertex and varying data buffers.
-    void Unbind() {
-        _currentVertexBuffer = 0;
-        _currentVaryingBuffer = 0;
-        unbind();
-    }
+    /// Returns the GL texture buffer containing vertex-stencil stencil sizes
+    GLuint GetVertexStencilTablesSizes() const;
 
-    /// Returns one of the vertex refinement tables.
-    ///
-    /// @param tableIndex the type of table
-    ///
-    const OsdGLSLTransformFeedbackTable * GetTable(int tableIndex) const;
+    /// Returns the GL texture buffer containing vertex-stencil stencil offsets
+    GLuint GetVertexStencilTablesOffsets() const;
 
-    /// Returns the number of hierarchical edit tables
-    int GetNumEditTables() const;
+    /// Returns the GL texture buffer containing vertex-stencil stencil indices
+    GLuint GetVertexStencilTablesIndices() const;
 
-    /// Returns a specific hierarchical edit table
-    ///
-    /// @param tableIndex the index of the table
-    ///
-    const OsdGLSLTransformFeedbackHEditTable * GetEditTable(int tableIndex) const;
+    /// Returns the GL texture buffer containing vertex-stencil stencil weights
+    GLuint GetVertexStencilTablesWeights() const;
 
-    /// Returns a handle to the vertex-interpolated buffer
-    GLuint GetCurrentVertexBuffer() const;
 
-    /// Returns a handle to the varying-interpolated buffer
-    GLuint GetCurrentVaryingBuffer() const;
+    /// Returns the GL texture buffer containing Varying-stencil stencil sizes
+    GLuint GetVaryingStencilTablesSizes() const;
 
-    /// Returns an OsdVertexDescriptor if vertex buffers have been bound.
-    ///
-    /// @return a descriptor for the format of the vertex data currently bound
-    ///
-    OsdVertexDescriptor const & GetVertexDescriptor() const {
-        return _vdesc;
-    }
+    /// Returns the GL texture buffer containing Varying-stencil stencil offsets
+    GLuint GetVaryingStencilTablesOffsets() const;
 
-    OsdGLSLTransformFeedbackKernelBundle * GetKernelBundle() const;
+    /// Returns the GL texture buffer containing Varying-stencil stencil indices
+    GLuint GetVaryingStencilTablesIndices() const;
 
-    void SetKernelBundle(OsdGLSLTransformFeedbackKernelBundle *kernelBundle);
+    /// Returns the GL texture buffer containing Varying-stencil stencil weights
+    GLuint GetVaryingStencilTablesWeights() const;
 
-    void BindEditTextures(int editIndex);
-
-    void UnbindEditTextures();
 
 protected:
-    explicit OsdGLSLTransformFeedbackComputeContext(FarMesh<OsdVertex> const *farMesh);
 
-    void bindTexture(GLint samplerUniform, GLuint texture, int unit);
-
-    void unbindTexture(GLuint unit);
-
-    void bind();
-
-    void unbind();
+    explicit GLSLTransformFeedbackComputeContext(Far::StencilTables const * vertexStencilTables,
+                                                    Far::StencilTables const * varyingStencilTables);
 
 private:
-    std::vector<OsdGLSLTransformFeedbackTable*> _tables;
-    std::vector<OsdGLSLTransformFeedbackHEditTable*> _editTables;
 
-    GLuint _vertexTexture,
-           _varyingTexture;
+    class GLStencilTables;
 
-    OsdVertexDescriptor _vdesc;
+    GLStencilTables * _vertexStencilTables,
+                      * _varyingStencilTables;
 
-    GLuint _currentVertexBuffer, 
-           _currentVaryingBuffer;
-
-    OsdGLSLTransformFeedbackKernelBundle * _kernelBundle;
+    int _numControlVertices;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

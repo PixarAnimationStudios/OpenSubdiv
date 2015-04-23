@@ -23,7 +23,7 @@
 //
 
 #include "../osd/cpuD3D11VertexBuffer.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #include <D3D11.h>
 #include <cassert>
@@ -32,56 +32,58 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdCpuD3D11VertexBuffer::OsdCpuD3D11VertexBuffer(int numElements,
+namespace Osd {
+
+CpuD3D11VertexBuffer::CpuD3D11VertexBuffer(int numElements,
                                                  int numVertices,
                                                  ID3D11Device *device)
     : _numElements(numElements), _numVertices(numVertices),
       _d3d11Buffer(NULL), _cpuBuffer(NULL) {
 }
 
-OsdCpuD3D11VertexBuffer::~OsdCpuD3D11VertexBuffer() {
+CpuD3D11VertexBuffer::~CpuD3D11VertexBuffer() {
 
     delete[] _cpuBuffer;
 
     if (_d3d11Buffer) _d3d11Buffer->Release();
 }
 
-OsdCpuD3D11VertexBuffer *
-OsdCpuD3D11VertexBuffer::Create(int numElements, int numVertices, ID3D11Device *device) {
+CpuD3D11VertexBuffer *
+CpuD3D11VertexBuffer::Create(int numElements, int numVertices, ID3D11Device *device) {
 
-    OsdCpuD3D11VertexBuffer *instance =
-        new OsdCpuD3D11VertexBuffer(numElements, numVertices, device);
+    CpuD3D11VertexBuffer *instance =
+        new CpuD3D11VertexBuffer(numElements, numVertices, device);
     if (instance->allocate(device)) return instance;
     delete instance;
     return NULL;
 }
 
 void
-OsdCpuD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, void *param) {
+CpuD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, void *param) {
 
     memcpy(_cpuBuffer + startVertex * _numElements, src, _numElements * numVertices * sizeof(float));
 }
 
 int
-OsdCpuD3D11VertexBuffer::GetNumElements() const {
+CpuD3D11VertexBuffer::GetNumElements() const {
 
     return _numElements;
 }
 
 int
-OsdCpuD3D11VertexBuffer::GetNumVertices() const {
+CpuD3D11VertexBuffer::GetNumVertices() const {
 
     return _numVertices;
 }
 
 float*
-OsdCpuD3D11VertexBuffer::BindCpuBuffer() {
+CpuD3D11VertexBuffer::BindCpuBuffer() {
 
     return _cpuBuffer;
 }
 
 ID3D11Buffer *
-OsdCpuD3D11VertexBuffer::BindD3D11Buffer(ID3D11DeviceContext *deviceContext) {
+CpuD3D11VertexBuffer::BindD3D11Buffer(ID3D11DeviceContext *deviceContext) {
 
     assert(deviceContext);
 
@@ -90,7 +92,7 @@ OsdCpuD3D11VertexBuffer::BindD3D11Buffer(ID3D11DeviceContext *deviceContext) {
                                     D3D11_MAP_WRITE_DISCARD, 0, &resource);
 
     if (FAILED(hr)) {
-        OsdError(OSD_D3D11_BUFFER_MAP_ERROR, "Fail to map buffer\n");
+        Far::Error(Far::FAR_RUNTIME_ERROR, "Fail to map buffer\n");
         return NULL;
     }
 
@@ -104,7 +106,7 @@ OsdCpuD3D11VertexBuffer::BindD3D11Buffer(ID3D11DeviceContext *deviceContext) {
 }
 
 bool
-OsdCpuD3D11VertexBuffer::allocate(ID3D11Device *device) {
+CpuD3D11VertexBuffer::allocate(ID3D11Device *device) {
 
     _cpuBuffer = new float[_numElements * _numVertices];
 
@@ -120,12 +122,14 @@ OsdCpuD3D11VertexBuffer::allocate(ID3D11Device *device) {
     HRESULT hr;
     hr = device->CreateBuffer(&hBufferDesc, NULL, &_d3d11Buffer);
     if (FAILED(hr)) {
-        OsdError(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Fail in CreateBuffer\n");
         return false;
     }
     return true;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

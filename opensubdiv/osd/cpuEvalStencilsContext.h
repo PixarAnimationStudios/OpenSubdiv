@@ -35,158 +35,36 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 ///
 /// \brief CPU stencils evaluation context
 ///
 ///
-class OsdCpuEvalStencilsContext : OsdNonCopyable<OsdCpuEvalStencilsContext> {
+class CpuEvalStencilsContext : private NonCopyable<CpuEvalStencilsContext> {
 
 public:
-    /// \brief Creates an OsdCpuEvalStencilsContext instance
+    /// \brief Creates an CpuEvalStencilsContext instance
     ///
-    /// @param stencils  a pointer to the FarStencilTables
+    /// @param stencils  a pointer to the Far::StencilTables
     ///
-    static OsdCpuEvalStencilsContext * Create(FarStencilTables const *stencils);
+    static CpuEvalStencilsContext * Create(Far::LimitStencilTables const *stencils);
 
-    /// \brief Binds control vertex data buffer
-    ///
-    /// Binding ensures that data buffers are properly inter-operated between
-    /// Contexts and Controllers operating across multiple devices.
-    ///
-    /// @param controlDataDesc  A buffer descriptor for the control vertices
-    ///                         data
-    ///
-    /// @param controlData      A buffer for the control vertices data
-    ///
-    template<class VERTEX_BUFFER>
-    void BindControlData(OsdVertexBufferDescriptor const & controlDataDesc, VERTEX_BUFFER *controlData ) {
-
-        _controlData = controlData ? controlData->BindCpuBuffer() : 0;
-        _controlDataDesc = controlDataDesc;
-
-    }
-
-    /// \brief Binds output vertex data buffer
-    ///
-    /// Binding ensures that data buffers are properly inter-operated between
-    /// Contexts and Controllers operating across multiple devices.
-    ///
-    /// @param outputDataDesc  A buffer descriptor for the output vertex 
-    ///                        interpolated data
-    ///
-    /// @param outputData      A buffer for vertex interpolated data
-    ///
-    template<class VERTEX_BUFFER>
-    void BindOutputData( OsdVertexBufferDescriptor const & outputDataDesc, VERTEX_BUFFER *outputData ) {
-
-        _outputData = outputData ? outputData->BindCpuBuffer() : 0;
-        _outputDataDesc = outputDataDesc;
-    }
-    
-    /// \brief Binds output derivative vertex data buffer
-    ///
-    /// Binding ensures that data buffers are properly inter-operated between
-    /// Contexts and Controllers operating across multiple devices.
-    ///
-    /// @param outputDuDesc  A buffer descriptor for the output U derivative
-    ///                      vertex data
-    ///
-    /// @param outputDu      A buffer for the output U derivative data
-    ///
-    /// @param outputDvDesc  A buffer descriptor for the output V derivative
-    ///                      vertex data
-    ///
-    /// @param outputDv      A buffer for the output V derivative data
-    ///
-    template<class VERTEX_BUFFER>
-    void BindOutputDerivData( OsdVertexBufferDescriptor const & outputDuDesc, VERTEX_BUFFER *outputDu, 
-                              OsdVertexBufferDescriptor const & outputDvDesc, VERTEX_BUFFER *outputDv ) {
-                              
-        _outputUDeriv = outputDu ? outputDu ->BindCpuBuffer() : 0;
-        _outputVDeriv = outputDv ? outputDv->BindCpuBuffer() : 0;
-        _outputDuDesc = outputDuDesc;
-        _outputDvDesc = outputDvDesc;
-    }
-
-    /// \brief Unbinds any previously bound vertex and varying data buffers.
-    void Unbind() {
-       _controlData = 0;
-       _controlDataDesc.Reset();
-
-       _outputData = 0;
-       _outputDataDesc.Reset();
-      
-       _outputUDeriv = 0;
-       _outputDuDesc.Reset();
-       
-       _outputVDeriv = 0;
-       _outputDvDesc.Reset();
-    }
-
-    /// \brief returns a pointer to the control vertex data
-    float const * GetControlData() const {
-        return _controlData;
-    }
-
-    /// \brief returns a pointer to the output vertex data
-    float * GetOutputData() {
-        return _outputData;
-    }
-
-    /// \brief returns a pointer to the output u-derivative vertex data
-    float * GetOutputUDerivData() {
-        return _outputUDeriv;
-    }
-
-    /// \brief returns a pointer to the output v-derivative vertex data
-    float * GetOutputVDerivData() {
-        return _outputVDeriv;
-    }
-
-    /// \brief Returns the vertex data descriptor for the control vertices buffer
-    OsdVertexBufferDescriptor GetControlDataDescriptor() const {
-        return _controlDataDesc;
-    }
-
-    /// \brief Returns the vertex data descriptor for the output vertices buffer
-    OsdVertexBufferDescriptor GetOutputDataDescriptor() const {
-        return _outputDataDesc;
-    }
-
-    /// \brief Returns the vertex data descriptor for the U derivatives data buffer
-    OsdVertexBufferDescriptor GetDuDataDescriptor() const {
-        return _outputDuDesc;
-    }
-
-    /// \brief Returns the vertex data descriptor for the V derivatives data buffer
-    OsdVertexBufferDescriptor GetDvDataDescriptor() const {
-        return _outputDvDesc;
-    }
-    
-
-    /// \brief Returns the FarStencilTables applied
-    FarStencilTables const * GetStencilTables() const {
+    /// \brief Returns the Far::StencilTables applied
+    Far::LimitStencilTables const * GetStencilTables() const {
         return _stencils;
     }
 
 protected:
 
-    OsdCpuEvalStencilsContext(FarStencilTables const *stencils);
+    CpuEvalStencilsContext(Far::LimitStencilTables const *stencils);
 
 private:
-    
-    FarStencilTables const * _stencils;
 
-    OsdVertexBufferDescriptor _controlDataDesc,
-                              _outputDataDesc,
-                              _outputDuDesc,
-                              _outputDvDesc;
-
-    float * _controlData,
-          * _outputData,
-          * _outputUDeriv,
-          * _outputVDeriv;
+    Far::LimitStencilTables const * _stencils;
 };
+
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

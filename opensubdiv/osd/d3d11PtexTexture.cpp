@@ -24,7 +24,7 @@
 
 #include "../osd/d3d11PtexTexture.h"
 #include "../osd/ptexTextureLoader.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #include <Ptexture.h>
 #include <D3D11.h>
@@ -33,11 +33,13 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdD3D11PtexTexture::OsdD3D11PtexTexture()
+namespace Osd {
+
+D3D11PtexTexture::D3D11PtexTexture()
     : _width(0), _height(0), _depth(0), _pages(0), _layout(0), _texels(0) {
 }
 
-OsdD3D11PtexTexture::~OsdD3D11PtexTexture() {
+D3D11PtexTexture::~D3D11PtexTexture() {
 
     // delete pages lookup ---------------------------------
     if (_pages) _pages->Release();
@@ -66,7 +68,7 @@ genTextureBuffer(ID3D11DeviceContext *deviceContext, int size, void const * data
     deviceContext->GetDevice(&device);
     hr = device->CreateBuffer(&hBufferDesc, NULL, &buffer);
     if (FAILED(hr)) {
-        OsdError(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Fail in CreateBuffer\n");
         return 0;
     }
@@ -75,7 +77,7 @@ genTextureBuffer(ID3D11DeviceContext *deviceContext, int size, void const * data
     hr = deviceContext->Map(buffer, 0,
                             D3D11_MAP_WRITE_DISCARD, 0, &resource);
     if (FAILED(hr)) {
-        OsdError(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Fail in Map buffer\n");
         buffer->Release();
         return 0;
@@ -86,17 +88,17 @@ genTextureBuffer(ID3D11DeviceContext *deviceContext, int size, void const * data
     return buffer;
 }
 
-OsdD3D11PtexTexture *
-OsdD3D11PtexTexture::Create(ID3D11DeviceContext *deviceContext,
+D3D11PtexTexture *
+D3D11PtexTexture::Create(ID3D11DeviceContext *deviceContext,
                          PtexTexture * reader,
                          unsigned long int targetMemory,
                          int gutterWidth,
                          int pageMargin) {
 
-    OsdD3D11PtexTexture * result = NULL;
+    D3D11PtexTexture * result = NULL;
 
     // Read the ptex data and pack the texels
-    OsdPtexTextureLoader ldr(reader, gutterWidth, pageMargin);
+    PtexTextureLoader ldr(reader, gutterWidth, pageMargin);
 
     unsigned long int nativeSize = ldr.GetNativeUncompressedSize(),
            targetSize = targetMemory;
@@ -190,7 +192,7 @@ OsdD3D11PtexTexture::Create(ID3D11DeviceContext *deviceContext,
     ldr.ClearBuffers();
 
     // Return the Osd PtexTexture object
-    result = new OsdD3D11PtexTexture;
+    result = new D3D11PtexTexture;
 
     result->_width = ldr.GetPageSize();
     result->_height = ldr.GetPageSize();
@@ -204,6 +206,8 @@ OsdD3D11PtexTexture::Create(ID3D11DeviceContext *deviceContext,
 
     return result;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

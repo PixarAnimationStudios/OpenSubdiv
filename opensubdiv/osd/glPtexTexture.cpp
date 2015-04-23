@@ -32,11 +32,13 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdGLPtexTexture::OsdGLPtexTexture()
+namespace Osd {
+
+GLPtexTexture::GLPtexTexture()
     : _width(0), _height(0), _depth(0), _pages(0), _layout(0), _texels(0) {
 }
 
-OsdGLPtexTexture::~OsdGLPtexTexture() {
+GLPtexTexture::~GLPtexTexture() {
 
     // delete pages lookup ---------------------------------
     if (glIsTexture(_pages))
@@ -70,16 +72,16 @@ genTextureBuffer(GLenum format, GLsizeiptr size, GLvoid const * data) {
     return result;
 }
 
-OsdGLPtexTexture *
-OsdGLPtexTexture::Create(PtexTexture * reader,
+GLPtexTexture *
+GLPtexTexture::Create(PtexTexture * reader,
                       unsigned long int targetMemory,
                       int gutterWidth,
                       int pageMargin) {
 
-    OsdGLPtexTexture * result = NULL;
+    GLPtexTexture * result = NULL;
 
     // Read the ptexture data and pack the texels
-    OsdPtexTextureLoader ldr(reader, gutterWidth, pageMargin);
+    PtexTextureLoader ldr(reader, gutterWidth, pageMargin);
 
     unsigned long int nativeSize = ldr.GetNativeUncompressedSize(),
            targetSize = targetMemory;
@@ -150,7 +152,7 @@ OsdGLPtexTexture::Create(PtexTexture * reader,
     ldr.ClearBuffers();
 
     // Return the Osd Ptexture object
-    result = new OsdGLPtexTexture;
+    result = new GLPtexTexture;
 
     result->_width = ldr.GetPageSize();
     result->_height = ldr.GetPageSize();
@@ -164,6 +166,8 @@ OsdGLPtexTexture::Create(PtexTexture * reader,
 
     return result;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

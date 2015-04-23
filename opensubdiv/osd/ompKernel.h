@@ -27,67 +27,26 @@
 
 #include "../version.h"
 
+#include "../osd/vertexDescriptor.h"
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-struct OsdVertexDescriptor;
+namespace Osd {
 
-void OsdOmpComputeFace(OsdVertexDescriptor const &vdesc,
-                       float * vertex, float * varying,
-                       const int *F_IT, const int *F_ITa,
-                       int vertexOffset, int tableOffset,
-                       int start, int end);
+struct VertexDescriptor;
 
-void OsdOmpComputeEdge(OsdVertexDescriptor const &vdesc,
-                       float *vertex, float * varying,
-                       const int *E_IT, const float *E_ITa,
-                       int vertexOffset, int tableOffset,
-                       int start, int end);
+void
+OmpComputeStencils(VertexBufferDescriptor const &vertexDesc,
+                      float const * vertexSrc,
+                      float * vertexDst,
+                      unsigned char const * sizes,
+                      int const * offsets,
+                      int const * indices,
+                      float const * weights,
+                      int start, int end);
 
-void OsdOmpComputeVertexA(OsdVertexDescriptor const &vdesc,
-                          float *vertex, float * varying,
-                          const int *V_ITa, const float *V_IT,
-                          int vertexOffset, int tableOffset,
-                          int start, int end, int pass);
-
-void OsdOmpComputeVertexB(OsdVertexDescriptor const &vdesc,
-                          float *vertex, float * varying,
-                          const int *V_ITa, const int *V_IT, const float *V_W,
-                          int vertexOffset, int tableOffset,
-                          int start, int end);
-
-void OsdOmpComputeLoopVertexB(OsdVertexDescriptor const &vdesc,
-                              float *vertex, float * varying,
-                              const int *V_ITa, const int *V_IT,
-                              const float *V_W,
-                              int vertexOffset, int tableOffset,
-                              int start, int end);
-
-void OsdOmpComputeBilinearEdge(OsdVertexDescriptor const &vdesc,
-                               float *vertex, float * varying,
-                               const int *E_IT,
-                               int vertexOffset, int tableOffset,
-                               int start, int end);
-
-void OsdOmpComputeBilinearVertex(OsdVertexDescriptor const &vdesc,
-                                 float *vertex, float * varying,
-                                 const int *V_ITa,
-                                 int vertexOffset, int tableOffset,
-                                 int start, int end);
-
-void OsdOmpEditVertexAdd(OsdVertexDescriptor const &vdesc, float *vertex,
-                         int primVarOffset, int primVarWidth,
-                         int vertexOffset, int tableOffset,
-                         int start, int end,
-                         const unsigned int *editIndices,
-                         const float *editValues);
-
-void OsdOmpEditVertexSet(OsdVertexDescriptor const &vdesc, float *vertex,
-                         int primVarOffset, int primVarWidth,
-                         int vertexOffset, int tableOffset,
-                         int start, int end,
-                         const unsigned int *editIndices,
-                         const float *editValues);
+} // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

@@ -28,34 +28,31 @@
 #include "../version.h"
 
 #include "../osd/opengl.h"
-
-#if defined(__APPLE__)
-    #include <OpenCL/opencl.h>
-#else
-    #include <CL/opencl.h>
-#endif
+#include "../osd/opencl.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 ///
 /// \brief Concrete vertex buffer class for OpenCL subvision and OpenGL drawing.
 ///
-/// OsdCLGLVertexBuffer implements OsdCLVertexBufferInterface and
-/// OsdGLVertexBufferInterface.
+/// CLGLVertexBuffer implements CLVertexBufferInterface and
+/// GLVertexBufferInterface.
 ///
 /// The buffer interop between OpenCL and GL is handled automatically when a
 /// client calls BindCLBuffer and BindVBO methods.
 ///
-class OsdCLGLVertexBuffer {
+class CLGLVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static OsdCLGLVertexBuffer * Create(int numElements, 
+    static CLGLVertexBuffer * Create(int numElements, 
                                         int numVertices, 
                                         cl_context clContext);
 
     /// Destructor.
-    ~OsdCLGLVertexBuffer();
+    ~CLGLVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
@@ -77,7 +74,7 @@ public:
 
 protected:
     /// Constructor.
-    OsdCLGLVertexBuffer(int numElements, int numVertices, cl_context clContext);
+    CLGLVertexBuffer(int numElements, int numVertices, cl_context clContext);
 
     /// Allocates VBO for this buffer and register as a CL resource.
     /// Returns true if success.
@@ -99,6 +96,8 @@ private:
     bool _clMapped;
 
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

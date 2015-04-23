@@ -32,7 +32,21 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h")
     file(STRINGS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h"
         OpenSubdiv_VERSION REGEX "^#define OPENSUBDIV_VERSION .*$")
     string(REPLACE "#define OPENSUBDIV_VERSION " "" OpenSubdiv_VERSION ${OpenSubdiv_VERSION})
+else()
+    message(FATAL_ERROR, "Cannot locate opensubdiv/version.h in CMAKE_SOURCE_DIR")
 endif()
+
+# Evaluate 'soname' from OSD version
+
+    # replace '_' with '.'
+    string(REGEX REPLACE "(_)" "." OSD_SONAME ${OpenSubdiv_VERSION})
+
+    # remove starting 'v' character
+    string(REGEX REPLACE "^v" "" OSD_SONAME ${OSD_SONAME})
+
+    add_definitions(
+        -DOPENSUBDIV_VERSION_STRING="${OSD_SONAME}"
+    )
 
 #-------------------------------------------------------------------------------
 
@@ -42,7 +56,7 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 #-------------------------------------------------------------------------------
 # Specify the default install path
 if (NOT DEFINED CMAKE_INSTALL_PREFIX)
-    SET( CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/ )
+    SET( CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/" )
 endif()
 
 if (NOT DEFINED CMAKE_INCDIR_BASE)
@@ -65,43 +79,44 @@ if (NOT DEFINED CMAKE_DOCDIR_BASE)
     set( CMAKE_DOCDIR_BASE share/doc/opensubdiv )
 else()
     if (IS_ABSOLUTE ${CMAKE_DOCDIR_BASE})
-        set( CMAKE_DOCDIR_BASE ${CMAKE_DOCDIR_BASE} )
+        set( CMAKE_DOCDIR_BASE "${CMAKE_DOCDIR_BASE}" )
     else()
-        set( CMAKE_DOCDIR_BASE ${CMAKE_INSTALL_PREFIX}/${CMAKE_DOCDIR_BASE} )
+        set( CMAKE_DOCDIR_BASE "${CMAKE_INSTALL_PREFIX}/${CMAKE_DOCDIR_BASE}" )
     endif()
 endif()
 
 # Allow install path to be overridden for cross-compile builds
 if(LIBRARY_OUTPUT_PATH_ROOT)
-    SET( CMAKE_INSTALL_PREFIX ${LIBRARY_OUTPUT_PATH_ROOT}/ )
+    SET( CMAKE_INSTALL_PREFIX "${LIBRARY_OUTPUT_PATH_ROOT}/" )
 endif()
 
 # Set the directory where the executables will be stored.
 set(EXECUTABLE_OUTPUT_PATH
-    ${PROJECT_BINARY_DIR}/bin
+    "${PROJECT_BINARY_DIR}/bin"
     CACHE PATH
     "Directory where executables will be stored"
 )
 
 # Set the directory where the libraries will be stored.
 set(LIBRARY_OUTPUT_PATH
-    ${PROJECT_BINARY_DIR}/lib
+    "${PROJECT_BINARY_DIR}/lib"
     CACHE PATH
     "Directory where all libraries will be stored"
 )
 
 # Specify the list of directories to search for cmake modules.
 set(CMAKE_MODULE_PATH
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmake
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
 )
 
-list(APPEND CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
-
-# add the automatically determined parts of the RPATH
-# which point to directories outside the build tree to the install RPATH
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 #-------------------------------------------------------------------------------
+# OpenSubdiv trips bugs in some older gcc versions
+if (CMAKE_COMPILER_IS_GNUCC)
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8)
+        message(FATAL_ERROR "g++ 4.8 or newer required")
+    endif()
+endif()
+
 # Detect Clang (until a cmake version provides built-in variables)
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set(CMAKE_COMPILER_IS_CLANGCC 1)
@@ -110,13 +125,30 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Intel")
 endif()
 
 
+if (NOT CMAKE_COMPILER_IS_ICC)
+    # Currently icc has a bug that asserts when linking rpaths containing long
+    # sequences of ':' that this command causes. The consequence is that examples
+    # built and installed using icc will not have an rpath pointing to the built
+    # OSD library which they depend on and will have to set LD_LIBRARY_PATH instead.
+    list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+endif()
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+
 set(OSD_COMPILER_FLAGS)
 
 # Disable spurrious warnings in gcc builds and clang
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
+if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
 
     # Turn on all warnings
-    list(APPEND OSD_COMPILER_FLAGS -Wall)
+    if(CMAKE_COMPILER_IS_ICC)
+        list(APPEND OSD_COMPILER_FLAGS -w2 -wd1572 -wd1418 -wd981 -wd383 -wd193 -wd444)
+    else()
+        list(APPEND OSD_COMPILER_FLAGS -Wall -Wextra)
+    endif()
 
     # HBR uses the offsetof macro on a templated struct, which appears
     # to spurriously set off this warning in both gccc and Clang
@@ -205,6 +237,9 @@ elseif(MSVC)
                     /W3     # Use warning level recommended for production purposes.
                     /WX     # Treat all compiler warnings as errors.
 
+                    # warning C4005: macro redefinition
+                    /wd4005
+
                     # these warnings are being triggered from inside VC's header files
                     # warning C4350: behavior change: 'member1' called instead of 'member2'
                     /wd4350
@@ -255,6 +290,25 @@ add_definitions(${OSD_COMPILER_FLAGS})
 # reloading of the generated Visual Studio project).
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 
+option(PTEX_LOCATION "Path to Ptex" "")
+option(GLEW_LOCATION "Path to GLEW" "")
+option(GLFW_LOCATION "Path to GLFW" "")
+option(MAYA_LOCATION "Path to Maya" "")
+
+option(NO_LIB "Disable the opensubdiv libs build (caveat emptor)" OFF)
+option(NO_EXAMPLES "Disable examples build" OFF)
+option(NO_TUTORIALS "Disable tutorials build" OFF)
+option(NO_REGRESSION "Disable regression tests build" OFF)
+option(NO_MAYA "Disable Maya plugin build" OFF)
+option(NO_PTEX "Disable PTex support" OFF)
+option(NO_DOC "Disable documentation build" OFF)
+option(NO_OMP "Disable OpenMP backend" OFF)
+option(NO_TBB "Disable TBB backend" OFF)
+option(NO_CUDA "Disable CUDA backend" OFF)
+option(NO_OPENCL "Disable OpenCL backend" OFF)
+option(NO_CLEW "Disable CLEW wrapper library" OFF)
+option(NO_OPENGL "Disable OpenGL support")
+
 # Check for dependencies
 if(NOT NO_OMP)
     find_package(OpenMP)
@@ -262,21 +316,30 @@ endif()
 if(NOT NO_TBB)
     find_package(TBB 4.0)
 endif()
-find_package(OpenGL)
+if (NOT NO_OPENGL)
+    find_package(OpenGL)
+endif()
 find_package(OpenGLES)
-find_package(OpenCL 1.1)
+if(NOT NO_OPENCL)
+    if(NOT NO_CLEW)
+        find_package(CLEW)
+    endif()
+    if (NOT CLEW_FOUND)
+        find_package(OpenCL 1.1)
+    else()
+        set(OPENCL_FOUND TRUE)
+    endif()
+endif()
 if(NOT NO_CUDA)
     find_package(CUDA 4.0)
 endif()
 if(NOT ANDROID AND NOT IOS)
-    find_package(GLFW 2.7.0)
+    find_package(GLFW 3.0.0)
 endif()
-find_package(PTex 2.0)
-find_package(PythonInterp 2.6)
-find_package(SWIG 1.3.40)
-find_package(Doxygen 1.8.4)
-find_package(Docutils 0.6)
-if (OPENGL_FOUND)
+if(NOT NO_PTEX)
+   find_package(PTex 2.0)
+endif()
+if (OPENGL_FOUND AND NOT IOS)
     if (APPLE)
         find_package(GLEW)
     else()
@@ -288,19 +351,20 @@ if (WIN32)
    find_package(DXSDK)
 endif()
 
-if (NOT NO_GCD AND APPLE)
-    set(GCD_FOUND 1)
+if (NOT NO_MAYA)
+find_package(Maya 201200)
 endif()
 
-find_package(Maya 201200)
+if (NOT NO_DOC)
+    find_package(Doxygen 1.8.4)
+    find_package(Docutils 0.6)
+else()
+    set(DOXYGEN_EXECUTABLE )
+endif()
 
 # Warn about missing dependencies that will cause parts of OpenSubdiv to be
 # disabled.  Also, add preprocessor defines that can be used in the source
 # code to determine if a specific dependency is present or not.
-
-if(GCD_FOUND)
-    add_definitions( -DOPENSUBDIV_HAS_GCD )
-endif()
 
 if(OPENMP_FOUND)
     add_definitions(
@@ -309,11 +373,13 @@ if(OPENMP_FOUND)
     )
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
 else()
-    message(WARNING
-        "OpenMP was not found : support for OMP parallel compute kernels "
-        "will be diabled in Osd.  If your compiler supports OpenMP "
-        "directives, please refer to the FindOpenMP.cmake shared module "
-        "in your cmake installation.")
+    if (NOT NO_OMP)
+        message(WARNING
+            "OpenMP was not found : support for OMP parallel compute kernels "
+            "will be disabled in Osd.  If your compiler supports OpenMP "
+            "directives, please refer to the FindOpenMP.cmake shared module "
+            "in your cmake installation.")
+    endif()
 endif()
 
 if(TBB_FOUND)
@@ -323,11 +389,13 @@ if(TBB_FOUND)
     )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TBB_CXX_FLAGS}")
 else()
-    message(WARNING
-        "TBB was not found : support for TBB parallel compute kernels "
-        "will be diabled in Osd.  If your compiler supports TBB "
-        "directives, please refer to the FindTBB.cmake shared module "
-        "in your cmake installation.")
+    if (NOT NO_TBB)
+        message(WARNING
+            "TBB was not found : support for TBB parallel compute kernels "
+            "will be disabled in Osd.  If your compiler supports TBB "
+            "directives, please refer to the FindTBB.cmake shared module "
+            "in your cmake installation.")
+    endif()
 endif()
 
 if(GLFW_FOUND AND (GLFW_VERSION VERSION_EQUAL 3.0 OR GLFW_VERSION VERSION_GREATER 3.0))
@@ -345,11 +413,13 @@ if(GLEW_FOUND AND OPENGL_4_2_FOUND)
         -DOPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     )
 else()
-    message(WARNING
-        "OpenGL 4.2 was not found : support for GLSL transform feedback kernels "
-        "will be disabled in Osd.  If you have an OpenGL SDK installed "
-        "(version 4.2 or above), please refer to the FindOpenGL.cmake "
-        "shared module in your cmake installation.")
+    if (NOT NO_OPENGL)
+        message(WARNING
+            "OpenGL 4.2 was not found : support for GLSL transform feedback kernels "
+            "will be disabled in Osd.  If you have an OpenGL SDK installed "
+            "(version 4.2 or above), please refer to the FindOpenGL.cmake "
+            "shared module in your cmake installation.")
+    endif()
 endif()
 
 # note : (GLSL compute shader kernels require GL 4.3)
@@ -358,11 +428,13 @@ if(GLEW_FOUND AND OPENGL_4_3_FOUND)
         -DOPENSUBDIV_HAS_GLSL_COMPUTE
     )
 else()
-    message(WARNING
-        "OpenGL 4.3 was not found : support for GLSL compute shader kernels "
-        "will be disabled in Osd.  If you have an OpenGL SDK installed "
-        "(version 4.3 or above), please refer to the FindOpenGL.cmake "
-        "shared module in your cmake installation.")
+    if (NOT NO_OPENGL)
+        message(WARNING
+            "OpenGL 4.3 was not found : support for GLSL compute shader kernels "
+            "will be disabled in Osd.  If you have an OpenGL SDK installed "
+            "(version 4.3 or above), please refer to the FindOpenGL.cmake "
+            "shared module in your cmake installation.")
+    endif()
 endif()
 
 if(OPENGLES_FOUND)
@@ -375,11 +447,27 @@ if(OPENCL_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_OPENCL
     )
+    if(CLEW_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_CLEW
+        )
+        set(OPENCL_INCLUDE_DIRS ${CLEW_INCLUDE_DIR})
+        set(OPENCL_LIBRARIES ${CLEW_LIBRARY} ${CMAKE_DL_LIBS})
+    else()
+        if (NOT NO_CLEW)
+            message(WARNING
+                "OpenCL was found, but CLEW was not. "
+                "Building with OpenCL support enabled, but the built binary "
+                "will not be portable to systems without OpenCL installed.")
+        endif()
+    endif()
 else()
-    message(WARNING
-        "OpenCL was not found : support for OpenCL parallel compute kernels "
-        "will be disabled in Osd.  If you have the OpenCL SDK installed, "
-        "please refer to the FindOpenCL.cmake in ${PROJECT_SOURCE_DIR}/cmake.")
+    if (NOT NO_OPENCL)
+        message(WARNING
+            "OpenCL was not found : support for OpenCL parallel compute kernels "
+            "will be disabled in Osd.  If you have the OpenCL SDK installed, "
+            "please refer to the FindOpenCL.cmake in ${PROJECT_SOURCE_DIR}/cmake.")
+    endif()
 endif()
 
 if(CUDA_FOUND)
@@ -387,10 +475,12 @@ if(CUDA_FOUND)
         -DOPENSUBDIV_HAS_CUDA
     )
 else()
-    message(WARNING
-        "CUDA was not found : support for CUDA parallel compute kernels "
-        "will be disabled in Osd.  If you have the CUDA SDK installed, please "
-        "refer to the FindCUDA.cmake shared module in your cmake installation.")
+    if (NOT NO_CUDA)
+        message(WARNING
+            "CUDA was not found : support for CUDA parallel compute kernels "
+            "will be disabled in Osd.  If you have the CUDA SDK installed, please "
+            "refer to the FindCUDA.cmake shared module in your cmake installation.")
+    endif()
 endif()
 
 if(PTEX_FOUND)
@@ -398,27 +488,30 @@ if(PTEX_FOUND)
         -DOPENSUBDIV_HAS_PTEX
     )
 else()
-    message(WARNING
-        "Ptex was not found : the OpenSubdiv Ptex example will not be "
-        "available.  If you do have Ptex installed and see this message, "
-        "please add your Ptex path to FindPTex.cmake in "
-        "${PROJECT_SOURCE_DIR}/cmake or set it through the PTEX_LOCATION "
-        "cmake command line argument or environment variable."
-    )
+    if(NOT NO_PTEX)
+        message(WARNING
+            "Ptex was not found : the OpenSubdiv Ptex example will not be "
+            "available.  If you do have Ptex installed and see this message, "
+            "please add your Ptex path to FindPTex.cmake in "
+            "${PROJECT_SOURCE_DIR}/cmake or set it through the PTEX_LOCATION "
+            "cmake command line argument or environment variable.")
+    endif()
 endif()
 
-if(MAYA_FOUND)
-    add_definitions(
-        -DOPENSUBDIV_HAS_MAYA
-    )
-else()
-    message(WARNING
-        "Maya was not found : the OpenSubdiv mayaViwer plugin will not be "
-        "available.  If you do have Maya installed and see this message, "
-        "please add your Maya path to FindMaya.cmake in "
-        "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
-        "cmake command line argument or environment variable."
-    )
+if (NOT NO_MAYA)
+    if(MAYA_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_MAYA
+        )
+    else()
+        message(WARNING
+            "Maya was not found : the OpenSubdiv mayaViwer plugin will not be "
+            "available.  If you do have Maya installed and see this message, "
+            "please add your Maya path to FindMaya.cmake in "
+            "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
+            "cmake command line argument or environment variable."
+        )
+    endif()
 endif()
 
 # Link examples & regressions dynamically against Osd
@@ -461,19 +554,19 @@ add_custom_target( public_headers )
 
 macro(_add_doxy_headers headers)
     if (NOT NO_DOC AND DOXYGEN_FOUND)
-        file(RELATIVE_PATH path ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR} )
+        file(RELATIVE_PATH path "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" )
 
         string(REPLACE  "/" "_" targetpath ${path})
 
         foreach (header ${headers})
 
-            set(infile ${CMAKE_CURRENT_SOURCE_DIR}/${header})
-            set(outfile ${CMAKE_BINARY_DIR}/public_headers/${path}/${header})
+            set(infile "${CMAKE_CURRENT_SOURCE_DIR}/${header}")
+            set(outfile "${CMAKE_BINARY_DIR}/public_headers/${path}/${header}")
             set(targetname "${targetpath}_${header}")
 
             add_custom_command(
                 OUTPUT
-                    ${outfile}
+                    "${outfile}"
                 COMMAND
                     ${CMAKE_COMMAND}
                 ARGS
@@ -482,7 +575,7 @@ macro(_add_doxy_headers headers)
                     ${infile}
             )
 
-            add_custom_target(${targetname} DEPENDS ${outfile})
+            add_custom_target(${targetname} DEPENDS "${outfile}")
 
             #set_target_properties(${targetname} PROPERTIES FOLDER "public_headers/")
 
@@ -493,6 +586,35 @@ macro(_add_doxy_headers headers)
     endif()
 endmacro()
 
+# Kernel Stringification
+# We want to use preprocessor include directives to include GLSL and OpenCL
+# kernel source files in cpp files, but since the sources contain newline
+# characters we would need raw string literals from C++11 to do this directly.
+# To avoid depending on C++11 we instead use a small tool called "line_quote"
+# to generate source files that are suitable for direct inclusion.
+function(_stringify src_files varname)
+
+    set(inc_files "")
+
+    foreach(src_file ${src_files})
+
+    string(REGEX REPLACE ".*[.](.*)" "\\1" extension "${src_file}")
+
+        string(REGEX REPLACE "(.*)[.].*" "\\1.gen.h" inc_file "${src_file}")
+        list(APPEND inc_files "${CMAKE_CURRENT_BINARY_DIR}/${inc_file}")
+
+        add_custom_command(
+            OUTPUT
+                "${CMAKE_CURRENT_BINARY_DIR}/${inc_file}"
+            COMMAND
+                stringify "${CMAKE_CURRENT_SOURCE_DIR}/${src_file}" "${CMAKE_CURRENT_BINARY_DIR}/${inc_file}"
+            DEPENDS
+                stringify "${CMAKE_CURRENT_SOURCE_DIR}/${src_file}"
+        )
+
+    endforeach()
+    set(${varname} ${inc_files} PARENT_SCOPE)
+endfunction()
 
 # Macro wrapper for adding a non-cuda dependent executable
 macro(_add_executable target)
@@ -559,7 +681,7 @@ endmacro()
 
 add_subdirectory(opensubdiv)
 
-if (NOT NO_REGRESSION AND NOT ANDROID AND NOT IOS) # XXXdyu
+if (NOT ANDROID AND NOT IOS) # XXXdyu
     add_subdirectory(regression)
 endif()
 
@@ -567,8 +689,8 @@ if (NOT NO_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-if (NOT NO_PYTHON)
-    add_subdirectory(python)
+if (NOT NO_TUTORIALS)
+    add_subdirectory(tutorials)
 endif()
 
 if (NOT NO_DOC)

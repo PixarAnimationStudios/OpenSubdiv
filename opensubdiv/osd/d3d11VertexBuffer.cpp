@@ -23,7 +23,7 @@
 //
 
 #include "../osd/d3d11VertexBuffer.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #include <D3D11.h>
 #include <cassert>
@@ -31,32 +31,34 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }
 
-OsdD3D11VertexBuffer::OsdD3D11VertexBuffer(int numElements, int numVertices,
+D3D11VertexBuffer::D3D11VertexBuffer(int numElements, int numVertices,
                                            ID3D11Device *device)
     : _numElements(numElements), _numVertices(numVertices), _buffer(0), _uploadBuffer(0), _uav(0) {
 }
 
-OsdD3D11VertexBuffer::~OsdD3D11VertexBuffer() {
+D3D11VertexBuffer::~D3D11VertexBuffer() {
 
     SAFE_RELEASE(_buffer);
     SAFE_RELEASE(_uploadBuffer);
     SAFE_RELEASE(_uav);
 }
 
-OsdD3D11VertexBuffer*
-OsdD3D11VertexBuffer::Create(int numElements, int numVertices,
+D3D11VertexBuffer*
+D3D11VertexBuffer::Create(int numElements, int numVertices,
                              ID3D11Device *device) {
-    OsdD3D11VertexBuffer *instance =
-        new OsdD3D11VertexBuffer(numElements, numVertices, device);
+    D3D11VertexBuffer *instance =
+        new D3D11VertexBuffer(numElements, numVertices, device);
     if (instance->allocate(device)) return instance;
     delete instance;
     return NULL;
 }
 
 void
-OsdD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices,
+D3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices,
                                  void *param) {
 
     ID3D11DeviceContext * pd3dDeviceContext =
@@ -68,7 +70,7 @@ OsdD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVerti
                                         D3D11_MAP_WRITE_DISCARD, 0, &resource);
 
     if (FAILED(hr)) {
-        OsdError(OSD_D3D11_BUFFER_MAP_ERROR, "Failed to map buffer\n");
+        Far::Error(Far::FAR_RUNTIME_ERROR, "Failed to map buffer\n");
         return;
     }
 
@@ -84,31 +86,31 @@ OsdD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVerti
 }
 
 int
-OsdD3D11VertexBuffer::GetNumElements() const {
+D3D11VertexBuffer::GetNumElements() const {
 
     return _numElements;
 }
 
 int
-OsdD3D11VertexBuffer::GetNumVertices() const {
+D3D11VertexBuffer::GetNumVertices() const {
 
     return _numVertices;
 }
 
 ID3D11Buffer *
-OsdD3D11VertexBuffer::BindD3D11Buffer(ID3D11DeviceContext *deviceContext) {
+D3D11VertexBuffer::BindD3D11Buffer(ID3D11DeviceContext *deviceContext) {
 
     return _buffer;
 }
 
 ID3D11UnorderedAccessView *
-OsdD3D11VertexBuffer::BindD3D11UAV(ID3D11DeviceContext *deviceContext) {
+D3D11VertexBuffer::BindD3D11UAV(ID3D11DeviceContext *deviceContext) {
 
     return _uav;
 }
 
 bool
-OsdD3D11VertexBuffer::allocate(ID3D11Device *device) {
+D3D11VertexBuffer::allocate(ID3D11Device *device) {
 
     D3D11_BUFFER_DESC hBufferDesc;
     hBufferDesc.ByteWidth = _numElements * _numVertices * sizeof(float);
@@ -120,7 +122,7 @@ OsdD3D11VertexBuffer::allocate(ID3D11Device *device) {
 
     HRESULT hr = device->CreateBuffer(&hBufferDesc, NULL, &_buffer);
     if (FAILED(hr)) {
-        OsdError(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Failed to create vertex buffer\n");
         return false;
     }
@@ -134,7 +136,7 @@ OsdD3D11VertexBuffer::allocate(ID3D11Device *device) {
 
     hr = device->CreateBuffer(&hBufferDesc, NULL, &_uploadBuffer);
     if (FAILED(hr)) {
-        OsdError(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Failed to create upload vertex buffer\n");
         return false;
     }
@@ -147,12 +149,14 @@ OsdD3D11VertexBuffer::allocate(ID3D11Device *device) {
     uavd.Buffer.NumElements = _numElements * _numVertices;
     hr = device->CreateUnorderedAccessView(_buffer, &uavd, &_uav);
     if (FAILED(hr)) {
-        OsdError(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Failed to create unordered access resource view\n");
         return false;
     }
     return true;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

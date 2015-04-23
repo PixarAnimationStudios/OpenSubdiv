@@ -53,6 +53,56 @@
 #endif
 
 //--------------------------------------------------------------
+// Uniforms / Uniform Blocks
+//--------------------------------------------------------------
+
+layout(std140) uniform Transform {
+    mat4 ModelViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 ModelViewProjectionMatrix;
+};
+
+layout(std140) uniform Tessellation {
+    float TessLevel;
+};
+
+uniform int GregoryQuadOffsetBase;
+uniform int PrimitiveIdBase;
+
+//--------------------------------------------------------------
+// Osd external functions
+//--------------------------------------------------------------
+
+mat4 OsdModelViewMatrix()
+{
+    return ModelViewMatrix;
+}
+mat4 OsdProjectionMatrix()
+{
+    return ProjectionMatrix;
+}
+mat4 OsdModelViewProjectionMatrix()
+{
+    return ModelViewProjectionMatrix;
+}
+float OsdTessLevel()
+{
+    return TessLevel;
+}
+int OsdGregoryQuadOffsetBase()
+{
+    return GregoryQuadOffsetBase;
+}
+int OsdPrimitiveIdBase()
+{
+    return PrimitiveIdBase;
+}
+int OsdBaseVertex()
+{
+    return 0;
+}
+
+//--------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------
 #ifdef VERTEX_SHADER
@@ -250,6 +300,7 @@ in block {
 } inpt;
 
 out vec4 outColor;
+out vec3 outNormal;
 
 #define NUM_LIGHTS 2
 
@@ -307,7 +358,9 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
         min(min(inpt.edgeDistance[0], inpt.edgeDistance[1]),
             min(inpt.edgeDistance[2], inpt.edgeDistance[3]));
 #endif
-    vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
+    //vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
+    float v = 0.8;
+    vec4 Cedge = vec4(Cfill.r*v, Cfill.g*v, Cfill.b*v, 1);
     float p = exp2(-2 * d * d);
 
 #if defined(GEOMETRY_OUT_WIRE)
@@ -342,6 +395,7 @@ main()
 #endif
 
     outColor = Cf;
+    outNormal = N;
 }
 #endif
 

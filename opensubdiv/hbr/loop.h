@@ -61,10 +61,10 @@ public:
     virtual HbrVertex<T>* Subdivide(HbrMesh<T>* mesh, HbrHalfedge<T>* edge);
     virtual HbrVertex<T>* Subdivide(HbrMesh<T>* mesh, HbrVertex<T>* vertex);
 
-    virtual bool VertexIsExtraordinary(HbrMesh<T> const * mesh, HbrVertex<T>* vertex) { return vertex->GetValence() != 6; }
+    virtual bool VertexIsExtraordinary(HbrMesh<T> const * /* mesh */, HbrVertex<T>* vertex) { return vertex->GetValence() != 6; }
     virtual bool FaceIsExtraordinary(HbrMesh<T> const * /* mesh */, HbrFace<T>* face) { return face->GetNumVertices() != 3; }
 
-    virtual int GetFaceChildrenCount(int nvertices) const { return 4; }
+    virtual int GetFaceChildrenCount(int /* nvertices */) const { return 4; }
 
 private:
 
@@ -483,14 +483,14 @@ HbrLoopSubdivision<T>::Refine(HbrMesh<T>* mesh, HbrFace<T>* face) {
             childedge = child->GetEdge(i);
             if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                 HbrSubdivision<T>::SubdivideCreaseWeight(
-                    edge, edge->GetDestVertex(), childedge);
+                    edge, edge->GetOrgVertex(), childedge);
             }
             childedge->CopyFVarInfiniteSharpness(edge);
 
             childedge = child->GetEdge((i+2)%3);
             if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                 HbrSubdivision<T>::SubdivideCreaseWeight(
-                    prevedge, prevedge->GetOrgVertex(), childedge);
+                    prevedge, prevedge->GetDestVertex(), childedge);
             }
             childedge->CopyFVarInfiniteSharpness(prevedge);
 
@@ -542,14 +542,14 @@ HbrLoopSubdivision<T>::RefineFaceAtVertex(HbrMesh<T>* mesh, HbrFace<T>* face, Hb
                 childedge = child->GetEdge(i);
                 if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                     HbrSubdivision<T>::SubdivideCreaseWeight(
-                        edge, edge->GetDestVertex(), childedge);
+                        edge, edge->GetOrgVertex(), childedge);
                 }
                 childedge->CopyFVarInfiniteSharpness(edge);
 
                 childedge = child->GetEdge((i+2)%3);
                 if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
                     HbrSubdivision<T>::SubdivideCreaseWeight(
-                        prevedge, prevedge->GetOrgVertex(), childedge);
+                        prevedge, prevedge->GetDestVertex(), childedge);
                 }
                 childedge->CopyFVarInfiniteSharpness(prevedge);
 
@@ -735,7 +735,7 @@ HbrLoopSubdivision<T>::HasLimit(HbrMesh<T>* mesh, HbrHalfedge<T>* edge) {
 
 template <class T>
 bool
-HbrLoopSubdivision<T>::HasLimit(HbrMesh<T>* mesh, HbrVertex<T>* vertex) {
+HbrLoopSubdivision<T>::HasLimit(HbrMesh<T>* /* mesh */, HbrVertex<T>* vertex) {
     vertex->GuaranteeNeighbors();
     switch (vertex->GetMask(false)) {
         case HbrVertex<T>::k_Smooth:
@@ -773,7 +773,7 @@ HbrLoopSubdivision<T>::HasLimit(HbrMesh<T>* mesh, HbrVertex<T>* vertex) {
 
 template <class T>
 HbrVertex<T>*
-HbrLoopSubdivision<T>::Subdivide(HbrMesh<T>* mesh, HbrFace<T>* face) {
+HbrLoopSubdivision<T>::Subdivide(HbrMesh<T>* /* mesh */, HbrFace<T>* /* face */) {
     // In loop subdivision, faces never subdivide
     assert(0);
     return 0;

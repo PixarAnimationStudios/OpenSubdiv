@@ -29,33 +29,35 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdOmpEvalStencilsController::OsdOmpEvalStencilsController(int numThreads) {
+namespace Osd {
+
+OmpEvalStencilsController::OmpEvalStencilsController(int numThreads) {
 
     _numThreads = (numThreads == -1) ? omp_get_num_procs() : numThreads;
 }
 
-OsdOmpEvalStencilsController::~OsdOmpEvalStencilsController() {
+OmpEvalStencilsController::~OmpEvalStencilsController() {
 }
 
 int
-OsdOmpEvalStencilsController::_UpdateValues( OsdCpuEvalStencilsContext * context ) {
+OmpEvalStencilsController::_UpdateValues( CpuEvalStencilsContext * context ) {
 
     int result=0;
 
-    FarStencilTables const * stencils = context->GetStencilTables();
+    Far::LimitStencilTables const * stencils = context->GetStencilTables();
 
     int nstencils = stencils->GetNumStencils();
     if (not nstencils)
         return result;
 
-    OsdVertexBufferDescriptor ctrlDesc = context->GetControlDataDescriptor(),
-                              outDesc = context->GetOutputDataDescriptor();
+    VertexBufferDescriptor ctrlDesc = _currentBindState.controlDataDesc,
+                              outDesc = _currentBindState.outputDataDesc;
 
     // make sure that we have control data to work with
     if (not ctrlDesc.CanEval(outDesc))
         return 0;
 
-    float const * ctrl = context->GetControlData() + ctrlDesc.offset;
+    float const * ctrl = _currentBindState.controlData + ctrlDesc.offset;
 
     if (not ctrl)
         return result;
@@ -63,14 +65,14 @@ OsdOmpEvalStencilsController::_UpdateValues( OsdCpuEvalStencilsContext * context
 #pragma omp parallel for
     for (int i=0; i<nstencils; ++i) {
 
-        int size = stencils->GetSizes()[i],
-            offset = stencils->GetOffsets()[i];
+        int size = stencils->GetSizes()[i];
+        Far::Index offset = stencils->GetOffsets()[i];
 
-        int const * index = &stencils->GetControlIndices().at(offset);
+        Far::Index const * index = &stencils->GetControlIndices().at(offset);
 
         float const * weight = &stencils->GetWeights().at(offset);
 
-        float * out = context->GetOutputData() + i * outDesc.stride + outDesc.offset;
+        float * out = _currentBindState.outputData + i * outDesc.stride + outDesc.offset;
 
         memset(out, 0, outDesc.length*sizeof(float));
 
@@ -88,25 +90,25 @@ OsdOmpEvalStencilsController::_UpdateValues( OsdCpuEvalStencilsContext * context
 }
 
 int
-OsdOmpEvalStencilsController::_UpdateDerivs( OsdCpuEvalStencilsContext * context ) {
+OmpEvalStencilsController::_UpdateDerivs( CpuEvalStencilsContext * context ) {
 
     int result=0;
 
-    FarStencilTables const * stencils = context->GetStencilTables();
+    Far::LimitStencilTables const * stencils = context->GetStencilTables();
 
     int nstencils = stencils->GetNumStencils();
     if (not nstencils)
         return result;
 
-    OsdVertexBufferDescriptor ctrlDesc = context->GetControlDataDescriptor(),
-                              duDesc = context->GetDuDataDescriptor(),
-                              dvDesc = context->GetDvDataDescriptor();
+    VertexBufferDescriptor ctrlDesc = _currentBindState.controlDataDesc,
+                              duDesc = _currentBindState.outputDuDesc,
+                              dvDesc = _currentBindState.outputDvDesc;
 
     // make sure that we have control data to work with
     if (not (ctrlDesc.CanEval(duDesc) and ctrlDesc.CanEval(dvDesc)))
         return 0;
 
-    float const * ctrl = context->GetControlData() + ctrlDesc.offset;
+    float const * ctrl = _currentBindState.controlData + ctrlDesc.offset;
 
     if (not ctrl)
         return result;
@@ -114,16 +116,16 @@ OsdOmpEvalStencilsController::_UpdateDerivs( OsdCpuEvalStencilsContext * context
 #pragma omp parallel for
     for (int i=0; i<nstencils; ++i) {
 
-        int size = stencils->GetSizes()[i],
-            offset = stencils->GetOffsets()[i];
+        int size = stencils->GetSizes()[i];
+        Far::Index offset = stencils->GetOffsets()[i];
 
-        int const * index = &stencils->GetControlIndices().at(offset);
+        Far::Index const * index = &stencils->GetControlIndices().at(offset);
 
         float const * duweight = &stencils->GetDuWeights().at(offset),
                     * dvweight = &stencils->GetDvWeights().at(offset);
 
-        float * du = context->GetOutputUDerivData() + i * duDesc.stride + duDesc.offset,
-              * dv = context->GetOutputVDerivData() + i * dvDesc.stride + dvDesc.offset;
+        float * du = _currentBindState.outputUDeriv + i * duDesc.stride + duDesc.offset,
+              * dv = _currentBindState.outputVDeriv + i * dvDesc.stride + dvDesc.offset;
 
         memset(du, 0, duDesc.length*sizeof(float));
         memset(dv, 0, dvDesc.length*sizeof(float));
@@ -143,9 +145,11 @@ OsdOmpEvalStencilsController::_UpdateDerivs( OsdCpuEvalStencilsContext * context
 }
 
 void
-OsdOmpEvalStencilsController::Synchronize() {
+OmpEvalStencilsController::Synchronize() {
 }
 
+
+} // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

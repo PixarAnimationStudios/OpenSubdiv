@@ -22,9 +22,7 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-)
+include_directories("${PROJECT_SOURCE_DIR}/opensubdiv")
 
 set(SOURCE_FILES
     main.cpp
@@ -33,9 +31,10 @@ set(SOURCE_FILES
 
 _add_executable(far_regression
     ${SOURCE_FILES}
+    $<TARGET_OBJECTS:regression_common_obj>
 )
 
 target_link_libraries(far_regression)
 
-install(TARGETS far_regression DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS far_regression DESTINATION "${CMAKE_BINDIR_BASE}")
 

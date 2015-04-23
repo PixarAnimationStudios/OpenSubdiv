@@ -1,8 +1,4 @@
 
-# ignore stringified kernels
-*.inc
-*.inc.rule
-
 # ignore build files
 /build*
 /inst*

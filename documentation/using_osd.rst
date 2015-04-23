@@ -29,22 +29,35 @@ Using OpenSubdiv
    :local:
    :backlinks: none
 
-.. image:: images/barb_1.jpg 
-   :width: 400px
+.. image:: images/osd_splash.png 
    :align: center
+   :target: images/osd_splash.png 
 
-Using OpenSubdiv
-================
+OpenSubdiv APIs
+===============
 
-.. list-table:: **OpenGL examples**
+.. list-table:: **APIs Overview**
+   :class: quickref
+   :widths: 50 50
+   
+   * - | `Overview <api_overview.html>`_
+     - | `Osd API <osd_overview.html>`_
+       | `Far API <far_overview.html>`_
+       | `Vtr API <vtr_overview.html>`_
+       | `Sdc API <sdc_overview.html>`_
+       | 
+
+
+
+Coding With OpenSubdiv
+======================
+
+.. list-table:: **General Topics**
    :class: quickref
    :widths: 50 50
    
    * - | `Compiling & Linking <using_osd_compile.html>`_
-       | `Textures <using_osd_textures.html>`_
-     - | `Manipulating Topology <using_osd_hbr.html>`_
-
-|
-
-
+       | `Tutorials <tutorials.html>`_
+     - | Writing Shaders
+       | `Textures (UV & Ptex) <using_osd_textures.html>`_
 

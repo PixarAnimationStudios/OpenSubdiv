@@ -23,8 +23,8 @@
 #
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${GLFW_INCLUDE_DIR}
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${GLFW_INCLUDE_DIR}"
 )
 
 set(SOURCE_FILES
@@ -32,26 +32,27 @@ set(SOURCE_FILES
 )
 
 set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
-    ${OPENGL_LIBRARY}
-    ${GLFW_LIBRARIES}
+    "${OSD_LINK_TARGET}"
+    "${OPENGL_LIBRARY}"
+    "${GLFW_LIBRARIES}"
 )
 
 if ( GLEW_FOUND )
-    include_directories(${GLEW_INCLUDE_DIR})
-    list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
+    include_directories("${GLEW_INCLUDE_DIR}")
+    list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
 endif()
 
 if ( OPENCL_FOUND )
     list(APPEND PLATFORM_LIBRARIES
-        ${OPENCL_LIBRARIES}
+        "${OPENCL_LIBRARIES}"
     )
-    include_directories( ${OPENCL_INCLUDE_DIRS} )
+    include_directories( "${OPENCL_INCLUDE_DIRS}" )
 endif()
 
 
 _add_possibly_cuda_executable(osd_regression
-    ${SOURCE_FILES}
+    "${SOURCE_FILES}"
+    $<TARGET_OBJECTS:regression_common_obj>
 )
 
 add_dependencies(osd_regression blarg )
@@ -60,4 +61,4 @@ target_link_libraries(osd_regression
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS osd_regression DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS osd_regression DESTINATION "${CMAKE_BINDIR_BASE}")

@@ -29,53 +29,35 @@ set(SHADER_FILES
 )
 
 set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
-    ${DXSDK_LIBRARIES}
+    "${OSD_LINK_TARGET}"
+    "${DXSDK_LIBRARIES}"
 )
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${PROJECT_SOURCE_DIR}/regression
-    ${DXSDK_INCLUDE_DIR}
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${PROJECT_SOURCE_DIR}/regression"
+    "${DXSDK_INCLUDE_DIR}"
 )
 
 set(SOURCE_FILES
-    ../common/font_image.cpp
-    ../common/hud.cpp
-    ../common/d3d11_hud.cpp
     dxViewer.cpp
 )
 
-#-------------------------------------------------------------------------------
-# Shader Stringification
-# We want to use preprocessor include directives to include GLSL and OpenCL
-# shader source files in cpp files, but since the sources contain newline
-# characters we would need raw string literals from C++11 to do this directly.
-# To avoid depending on C++11 we instead use a small tool called "line_quote"
-# to generate source files that are suitable for direct inclusion.
-foreach(shader_file ${SHADER_FILES})
+_stringify("${SHADER_FILES}" INC_FILES)
 
-    string(REGEX REPLACE ".*[.](.*)" "\\1" extension ${shader_file})
-
-    string(REGEX REPLACE "(.*)[.].*" "\\1.inc" inc_file ${shader_file})
-    list(APPEND INC_FILES ${inc_file})
-
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
-        COMMAND stringify ${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}
-            ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
-        DEPENDS stringify ${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}
-    )
-endforeach()
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 _add_possibly_cuda_executable(dxViewer WIN32
-    ${SOURCE_FILES}
-    ${SHADER_FILES}
-    ${INC_FILES}
+    "${SOURCE_FILES}"
+    "${SHADER_FILES}"
+    "${INC_FILES}"
+    $<TARGET_OBJECTS:regression_common_obj>
+    $<TARGET_OBJECTS:regression_vtr_utils_obj>
+    $<TARGET_OBJECTS:examples_common_obj>
 )
 
 target_link_libraries(dxViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS dxViewer DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS dxViewer DESTINATION "${CMAKE_BINDIR_BASE}")

@@ -24,22 +24,28 @@
 
 #include "../osd/drawContext.h"
 
+#include <cstring>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdDrawContext::~OsdDrawContext() {}
+namespace Osd {
+
+DrawContext::~DrawContext() {}
 
 void
-OsdDrawContext::ConvertPatchArrays(FarPatchTables::PatchArrayVector const &farPatchArrays,
-                                   OsdDrawContext::PatchArrayVector &osdPatchArrays,
-                                   int maxValence, int numElements)
-{
+DrawContext::ConvertPatchArrays(Far::PatchTables const &patchTables,
+    PatchArrayVector &osdPatchArrays, int maxValence, int numElements) {
+
     // create patch arrays for drawing (while duplicating subpatches for transition patch arrays)
     static int subPatchCounts[] = { 1, 3, 4, 4, 4, 2 }; // number of subpatches for patterns
 
     int numTotalPatchArrays = 0;
-    for (int i = 0; i < (int)farPatchArrays.size(); ++i) {
-        FarPatchTables::TransitionPattern pattern = farPatchArrays[i].GetDescriptor().GetPattern();
+    for (int array=0; array < patchTables.GetNumPatchArrays(); ++array) {
+
+        Far::PatchDescriptor::TransitionPattern pattern =
+            patchTables.GetPatchArrayDescriptor(array).GetPattern();
+
         numTotalPatchArrays += subPatchCounts[(int)pattern];
     }
 
@@ -47,67 +53,73 @@ OsdDrawContext::ConvertPatchArrays(FarPatchTables::PatchArrayVector const &farPa
     osdPatchArrays.clear();
     osdPatchArrays.reserve(numTotalPatchArrays);
 
-    for (int i = 0; i < (int)farPatchArrays.size(); ++i) {
-        FarPatchTables::TransitionPattern pattern = farPatchArrays[i].GetDescriptor().GetPattern();
-        int numSubPatches = subPatchCounts[(int)pattern];
+    int narrays = patchTables.GetNumPatchArrays();
+    for (int array=0, pidx=0, vidx=0, qidx=0; array<narrays; ++array) {
 
-        FarPatchTables::PatchArray const &parray = farPatchArrays[i];
-        FarPatchTables::Descriptor srcDesc = parray.GetDescriptor();
+        Far::PatchDescriptor srcDesc = patchTables.GetPatchArrayDescriptor(array);
 
-        for (int j = 0; j < numSubPatches; ++j) {
-            PatchDescriptor desc(srcDesc, maxValence, j, numElements);
+        int npatches = patchTables.GetNumPatches(array),
+            nsubpatches = subPatchCounts[(int)srcDesc.GetPattern()],
+            nverts = srcDesc.GetNumControlVertices();
 
-            osdPatchArrays.push_back(PatchArray(desc, parray.GetArrayRange()));
+        for (int i = 0; i < nsubpatches; ++i) {
+
+            PatchDescriptor desc(srcDesc, maxValence, i, numElements);
+
+            osdPatchArrays.push_back(PatchArray(desc, npatches, vidx, pidx, qidx));
         }
+
+        vidx += npatches * nverts;
+        pidx += npatches;
+        qidx += (srcDesc.GetType() == Far::PatchDescriptor::GREGORY) ? npatches*nverts  : 0;
     }
-/*    
-#if defined(GL_ES_VERSION_2_0)
-        // XXX: farmesh should have FarDensePatchTable for dense mesh indices.
-        //      instead of GetFaceVertices().
-        const FarSubdivisionTables<OsdVertex> *tables = farMesh->GetSubdivisionTables();
-        int level = tables->GetMaxLevel();
-        const std::vector<int> &indices = farMesh->GetFaceVertices(level-1);
-
-        int numIndices = (int)indices.size();
-
-        // Allocate and fill index buffer.
-        glGenBuffers(1, &patchIndexBuffer);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchIndexBuffer);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                     numIndices * sizeof(unsigned int), &(indices[0]), GL_STATIC_DRAW);
-
-
-        // OpenGLES 2 supports only triangle topologies for filled
-        // primitives i.e. not QUADS or PATCHES or LINES_ADJACENCY
-        // For the convenience of clients build build a triangles
-        // index buffer by splitting quads.
-        int numQuads = indices.size() / 4;
-        int numTrisIndices = numQuads * 6;
-
-        std::vector<short> trisIndices;
-        trisIndices.reserve(numTrisIndices);
-        for (int i=0; i<numQuads; ++i) {
-            const int * quad = &indices[i*4];
-            trisIndices.push_back(short(quad[0]));
-            trisIndices.push_back(short(quad[1]));
-            trisIndices.push_back(short(quad[2]));
-
-            trisIndices.push_back(short(quad[2]));
-            trisIndices.push_back(short(quad[3]));
-            trisIndices.push_back(short(quad[0]));
-        }
-
-        // Allocate and fill triangles index buffer.
-        glGenBuffers(1, &patchTrianglesIndexBuffer);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patchTrianglesIndexBuffer);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                     numTrisIndices * sizeof(short), &(trisIndices[0]), GL_STATIC_DRAW);
-#endif
-*/    
-    
 }
 
-} // end namespace OPENSUBDIV_VERSION
+// note : it is likely that Far::PatchTables::GetPatchControlVerticesTable()
+//        will eventually be deprecated if control vertices cannot be kept
+//        in a single linear array of indices. This function will help
+//        packing patch control vertices for GPU buffers.
+void
+DrawContext::packPatchVerts(Far::PatchTables const & patchTables,
+    std::vector<Index> & dst) {
+
+    dst.resize(patchTables.GetNumControlVerticesTotal());
+    Index * ptr = &dst[0];
+
+    int narrays = patchTables.GetNumPatchArrays();
+    for (int array=0; array<narrays; ++array) {
+        Far::ConstIndexArray verts = patchTables.GetPatchArrayVertices(array);
+        memcpy(ptr, verts.begin(), verts.size()*sizeof(Index));
+        ptr += verts.size();
+    }
+}
+
+void
+DrawContext::packFVarData(Far::PatchTables const & patchTables,
+    int fvarWidth, FVarData const & src, FVarData & dst) {
+
+    assert(fvarWidth and (not src.empty()));
+
+    Far::PatchTables::FVarPatchTables const * fvarPatchTables =
+        patchTables.GetFVarPatchTables();
+    assert(fvarPatchTables);
+
+    // OsdMesh only accesses channel 0
+    std::vector<Far::Index> const & indices = fvarPatchTables->GetPatchVertices(0);
+
+    dst.resize(indices.size() * fvarWidth);
+    float * ptr = &dst[0];
+
+    for (int fvert=0; fvert<(int)indices.size(); ++fvert, ptr+=fvarWidth) {
+
+        int index = indices[fvert] * fvarWidth;
+        assert(index<(int)src.size());
+
+        memcpy(ptr, &src[index], fvarWidth*sizeof(float));
+    }
+}
+
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
-
-

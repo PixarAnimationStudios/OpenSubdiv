@@ -58,7 +58,7 @@ std::string stringify( std::string const & line ) {
     return s.str();
 }
 
-int main(int argc, const char **argv) {
+int main(int argc, char **argv) {
 
     if (argc != 3) {
         std::cerr << "Usage: quoter input-file output-file" << std::endl;

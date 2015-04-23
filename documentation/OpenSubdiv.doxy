@@ -1224,7 +1224,7 @@ GENERATE_TREEVIEW      = YES
 # documentation. Note that a value of 0 will completely suppress the enum
 # values from appearing in the overview section.
 
-ENUM_VALUES_PER_LINE   = 4
+ENUM_VALUES_PER_LINE   = 1
 
 # If the treeview is enabled (see GENERATE_TREEVIEW) then this tag can be
 # used to set the initial width (in pixels) of the frame in which the tree

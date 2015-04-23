@@ -1,26 +1,26 @@
-..  
+..
      Copyright 2013 Pixar
-  
+
      Licensed under the Apache License, Version 2.0 (the "Apache License")
      with the following modification; you may not use this file except in
      compliance with the Apache License and the following modification to it:
      Section 6. Trademarks. is deleted and replaced with:
-  
+
      6. Trademarks. This License does not grant permission to use the trade
         names, trademarks, service marks, or product names of the Licensor
         and its affiliates, except as required to comply with Section 4(c) of
         the License and to reproduce the content of the NOTICE file.
-  
+
      You may obtain a copy of the Apache License at
-  
+
          http://www.apache.org/licenses/LICENSE-2.0
-  
+
      Unless required by applicable law or agreed to in writing, software
      distributed under the Apache License with the above modification is
      distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
      KIND, either express or implied. See the Apache License for the specific
      language governing permissions and limitations under the Apache License.
-  
+
 
 OSD Overview
 ------------
@@ -29,35 +29,39 @@ OSD Overview
    :local:
    :backlinks: none
 
+.. image:: images/api_layers_3_0.png
+   :width: 100px
+   :target: images/api_layers_3_0.png
+
 OpenSubdiv (Osd)
 ================
 
-**Osd** contains client-level code that uses *Far* to create concrete instances of 
-meshes. These meshes use precomputed tables from *Hbr* to perform table-driven 
-subdivision steps with a variety of massively parallel computational backend 
+**Osd** contains client-level code that uses *Far* to create concrete instances of
+meshes. These meshes use precomputed tables from *Far* to perform table-driven
+subdivision steps with a variety of massively parallel computational backend
 technologies. **Osd** supports both `uniform subdivision <subdivision_surfaces.html#uniform-subdivision>`__
-and `adaptive refinement <subdivision_surfaces.html#feature-adaptive-subdivision>`__ 
-with cubic patches. 
+and `adaptive refinement <subdivision_surfaces.html#feature-adaptive-subdivision>`__
+with cubic patches.
 
 ----
 
 Modular Architecture
 ====================
 
-With uniform subdivision the computational backend code performs Catmull-Clark 
-splitting and averaging on each face. 
+With uniform subdivision the computational backend code performs Catmull-Clark
+splitting and averaging on each face.
 
-With adaptive subdivision, the Catmull/Clark steps are used to compute the CVs 
+With adaptive subdivision, the Catmull/Clark steps are used to compute the CVs
 of cubic Bezier patches. On modern GPU architectures, bicubic patches can be
 drawn directly on screen at very high resolution using optimized tessellation
-shader paths. 
+shader paths.
 
 .. image:: images/osd_layers.png
 
-Finally, the general manipulation of high-order surfaces also requires functionality 
-outside of the scope of pure drawing. 
+Finally, the general manipulation of high-order surfaces also requires functionality
+outside of the scope of pure drawing.
 
-Following this pattern of general use, **Osd** can be broken down into 3 main 
+Following this pattern of general use, **Osd** can be broken down into 3 main
 modules : **Compute**, **Draw** and **Eval**.
 
 .. image:: images/osd_modules.png
@@ -66,9 +70,9 @@ modules : **Compute**, **Draw** and **Eval**.
 The modules are designed so that the data being manipulated can be shared and
 interoperated between modules (although not all paths are possible).
 
-These modules are identified by their name spaces (**OsdRefine**, **OsdDraw**,
-**OsdEval**) and encapsulate atomic functationality. The vertex data is carried 
-in interoperable buffers that can be exchanged between modules. 
+These modules are identified by their name spaces (**Compute**, **Draw**,
+**Eval**) and encapsulate atomic functationality. The vertex data is carried
+in interoperable buffers that can be exchanged between modules.
 
 The typical use pattern is to pose the coarse vertices of a mesh for a given frame.
 The buffer is submitted to the **Refine** module which applies the subdivision rules
@@ -84,7 +88,7 @@ being sent for display to the **Draw** module.
 OsdCompute
 **********
 
-The Compute module contains the code paths that manage the application of the 
+The Compute module contains the code paths that manage the application of the
 subdivision rules to the vertex data. This module is sufficient for uniform
 subdivision applications.
 
@@ -105,14 +109,14 @@ The Eval module provides computational APIs for the evaluation of vertex data at
 the limit, ray intersection and point projection.
 
 
-OpenSubdiv enforces the same results for the different computation backends with 
+OpenSubdiv enforces the same results for the different computation backends with
 a series of regression tests that compare the methods to each other.
 
 
 
 .. container:: impnotip
 
-   * **Important**
+   * **Beta Issues**
 
       Face-varying smooth data interpolation is currently not supported in **Osd**.
       "Smooth UV" modes of various DCC applications are not supported (yet).
@@ -131,18 +135,17 @@ illustrates the matrix of back-end APIs supported for each module.
 .. image:: images/osd_backends.png
    :align: center
 
-Since the **Compute** module performs mostly specialized interpolation computations,
-most GP-GPU and multi-core APIs can be deployed. If the end-goal is to draw the
-surface on screen, it can be very beneficial to move as much of these computations 
-to the same GPU device in order to minimize data transfers. 
+Since the **Compute** module performs mostly specialized interpolation
+computations, most GP-GPU and multi-core APIs can be deployed. If the end-goal
+is to draw the surface on screen, it can be very beneficial to move as much of
+these computations to the same GPU device in order to minimize data transfers.
 
-For instance: pairing a CUDA **Compute** back-end to an OpenGL **Draw** backend 
-could be a good choice on hardware and OS that supports both. Similarly, a
-DX11 HLSL-Compute **Compute** back-end can be paired effectively with a DX11 
-HLSL-Shading **Draw** back-end. Some pairings however are not possible, as there
-may be no data inter-operation paths available (ex: transferring DX11 compute SRVs
-to GL texture buffers).
-
+For instance: pairing a CUDA **Compute** back-end to an OpenGL **Draw** backend
+could be a good choice on hardware and OS that supports both. Similarly, a DX11
+HLSL-Compute **Compute** back-end can be paired effectively with a DX11
+HLSL-Shading **Draw** back-end. Some pairings however are not possible, as
+there may be no data inter-operation paths available (ex: transferring DX11
+compute SRVs to GL texture buffers).
 ----
 
 Contexts & Controllers
@@ -154,8 +157,8 @@ data between different APIs. This is achieved through a *"binding"* mechanism.
 Binding Vertex Buffers
 **********************
 
-Each back-end manages data of 2 types: specific to each primitive manipulated 
-(topology, vertex data...), and general state data that is shared by all the 
+Each back-end manages data of 2 types: specific to each primitive manipulated
+(topology, vertex data...), and general state data that is shared by all the
 primitives (compute kernels, device ID...). The first type is contained in a
 "Context" object, the latter manipulated through a singleton "Controller".
 
@@ -171,7 +174,7 @@ paired with a CUDA Controller).
 Vertex Buffer Inter-Op
 **********************
 
-When a Controller needs to perform an operation, it *"binds"* the Context, which 
+When a Controller needs to perform an operation, it *"binds"* the Context, which
 is the trigger to move the vertex data into the appropriate device memory pool
 (CPU to GPU, GPU to GPU...).
 
@@ -187,17 +190,17 @@ it uses.
 Example
 *******
 
-Here is an example of client code implementation for drawing surfaces using a 
-CUDA **Compute** module and an OpenGL **Draw** module. 
+Here is an example of client code implementation for drawing surfaces using a
+CUDA **Compute** module and an OpenGL **Draw** module.
 
 .. image:: images/osd_controllers_example1.png
    :align: center
 
-The client code will construct an OsdCudaComputeController and OsdCudaComputeContext
-for the **Compute** stage, along with an OsdGLDrawController and an OsdGLDrawContext.
+The client code will construct a CudaComputeController and CudaComputeContext
+for the **Compute** stage, along with an GLDrawController and a GLDrawContext.
 
-The critical components are the vertex buffers, which must be of type OsdCudaGLVertexBuffer.
-The Contexts and Controllers classes all are specializations of a templated *"Bind"*
-function which will leverage API specific code responsible for the inter-operation
-of the data between the API-specific back-ends.
-
+The critical components are the vertex buffers, which must be of type
+CudaGLVertexBuffer. The Contexts and Controllers classes all are
+specializations of a templated *"Bind"* function which will leverage API
+specific code responsible for the inter-operation of the data between the
+API-specific back-ends.

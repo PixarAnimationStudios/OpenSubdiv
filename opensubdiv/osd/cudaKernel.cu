@@ -24,676 +24,269 @@
 
 #include <assert.h>
 
-template<int N> struct DeviceVertex
-{
-    float pos[3];
-    float userVertexData[N];
+// -----------------------------------------------------------------------------
+template<int N> struct DeviceVertex {
 
-    __device__ void addWithWeight(const DeviceVertex<N> *src, float weight) {
-        pos[0] += src->pos[0] * weight;
-        pos[1] += src->pos[1] * weight;
-        pos[2] += src->pos[2] * weight;
-
-        for(int i = 0; i < N; ++i){
-            userVertexData[i] += src->userVertexData[i] * weight;
-        }
-    }
-    __device__ void clear() {
-        pos[0] = pos[1] = pos[2] = 0.0f;
-        for(int i = 0; i < N; ++i){
-            userVertexData[i] = 0.0f;
-        }
-    }
-};
-
-template<int N> struct DeviceVarying
-{
     float v[N];
 
-    __device__ void addVaryingWithWeight(const DeviceVarying<N> *src, float weight) {
+    __device__ void addWithWeight(DeviceVertex<N> const & src, float weight) {
+#pragma unroll
         for(int i = 0; i < N; ++i){
-            v[i] += src->v[i] * weight;
+            v[i] += src.v[i] * weight;
         }
     }
+
     __device__ void clear() {
+#pragma unroll
         for(int i = 0; i < N; ++i){
             v[i] = 0.0f;
         }
     }
 };
 
-// Specialize DeviceVarying for N=0 to avoid compile error:
+// Specialize DeviceVertex for N=0 to avoid compile error:
 // "flexible array member in otherwise empty struct"
-template<> struct DeviceVarying<0>
-{
-    __device__ void addVaryingWithWeight(const DeviceVarying<0> *src, float weight) {
-    }
-    __device__ void clear() {
-    }
+template<> struct DeviceVertex<0> {
+    __device__ void addWithWeight(DeviceVertex<0> &src, float weight) {}
+    __device__ void clear() {}
 };
 
-struct DeviceTable
-{
-    void **tables;
-    int *F0_IT;
-    int *F0_ITa;
-    int *E0_IT;
-    int *V0_IT;
-    int *V0_ITa;
-    float *E0_S;
-    float *V0_S;
-};
+// -----------------------------------------------------------------------------
 
 __device__ void clear(float *dst, int count)
 {
     for(int i = 0; i < count; ++i) dst[i] = 0;
 }
 
-__device__ void addWithWeight(float *dst, float *src, float weight, int count)
+__device__ void addWithWeight(float *dst, float const *src, float weight, int count)
 {
     for(int i = 0; i < count; ++i) dst[i] += src[i] * weight;
 }
 
-__device__ void addVaryingWithWeight(float *dst, float *src, float weight, int count)
-{
-    for(int i = 0; i < count; ++i) dst[i] += src[i] * weight;
-}
-
-template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
-computeFace(float *fVertex, float *fVaryings, int *F0_IT, int *F0_ITa, int offset, int tableOffset, int start, int end)
-{
-    DeviceVertex<NUM_USER_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_USER_VERTEX_ELEMENTS>*)fVertex;
-    DeviceVarying<NUM_VARYING_ELEMENTS> *varyings = (DeviceVarying<NUM_VARYING_ELEMENTS>*)fVaryings;
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i += blockDim.x * gridDim.x){
-        int h = F0_ITa[2*i];
-        int n = F0_ITa[2*i+1];
-        float weight = 1.0f/n;
-
-        DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
-        dst.clear();
-
-        if(NUM_VARYING_ELEMENTS > 0){
-            DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
-            dstVarying.clear();
-
-            for(int j=0; j<n; ++j){
-                int index = F0_IT[h+j];
-                dst.addWithWeight(&vertex[index], weight);
-                dstVarying.addVaryingWithWeight(&varyings[index], weight);
-            }
-            vertex[offset + i - tableOffset] = dst;
-            varyings[offset + i - tableOffset] = dstVarying;
-        }else{
-            for(int j=0; j<n; ++j){
-                int index = F0_IT[h+j];
-                dst.addWithWeight(&vertex[index], weight);
-            }
-            vertex[offset + i - tableOffset] = dst;
-        }
-    }
-}
-
-__global__ void
-computeFace(float *fVertex, int numVertexElements, float *fVaryings, int numVaryingElements,
-            int *F0_IT, int *F0_ITa, int offset, int tableOffset, int start, int end)
-{
-    for(int i = start + tableOffset +threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i += blockDim.x * gridDim.x){
-        int h = F0_ITa[2*i];
-        int n = F0_ITa[2*i+1];
-        float weight = 1.0f/n;
-
-        // XXX: can we use local stack like alloca?
-        float *dstVertex = fVertex + (i+offset-tableOffset)*numVertexElements;
-        clear(dstVertex, numVertexElements);
-        float *dstVarying = fVaryings + (i+offset-tableOffset)*numVaryingElements;
-        clear(dstVarying, numVaryingElements);
-
-        for(int j=0; j<n; ++j){
-            int index = F0_IT[h+j];
-            addWithWeight(dstVertex, fVertex + index*numVertexElements, weight, numVertexElements);
-            addVaryingWithWeight(dstVarying, fVaryings + index*numVaryingElements, weight, numVaryingElements);
-        }
-    }
-}
-
-template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
-computeEdge(float *fVertex, float *fVaryings, int *E0_IT, float *E0_S, int offset, int tableOffset, int start, int end)
-{
-    DeviceVertex<NUM_USER_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_USER_VERTEX_ELEMENTS>*)fVertex;
-    DeviceVarying<NUM_VARYING_ELEMENTS> *varyings = (DeviceVarying<NUM_VARYING_ELEMENTS>*)fVaryings;
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i+= blockDim.x * gridDim.x){
-        int eidx0 = E0_IT[4*i+0];
-        int eidx1 = E0_IT[4*i+1];
-        int eidx2 = E0_IT[4*i+2];
-        int eidx3 = E0_IT[4*i+3];
-
-        float vertWeight = E0_S[i*2+0];
-
-        // Fully sharp edge : vertWeight = 0.5f;
-        DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
-        dst.clear();
-
-        dst.addWithWeight(&vertex[eidx0], vertWeight);
-        dst.addWithWeight(&vertex[eidx1], vertWeight);
-
-        if(eidx2 > -1){
-            float faceWeight = E0_S[i*2+1];
-
-            dst.addWithWeight(&vertex[eidx2], faceWeight);
-            dst.addWithWeight(&vertex[eidx3], faceWeight);
-        }
-        vertex[offset+i-tableOffset] = dst;
-
-        if(NUM_VARYING_ELEMENTS > 0){
-            DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
-            dstVarying.clear();
-            dstVarying.addVaryingWithWeight(&varyings[eidx0], 0.5f);
-            dstVarying.addVaryingWithWeight(&varyings[eidx1], 0.5f);
-            varyings[offset+i-tableOffset] = dstVarying;
-        }
-    }
-}
-
-__global__ void
-computeEdge(float *fVertex, int numVertexElements, float *fVarying, int numVaryingElements,
-            int *E0_IT, float *E0_S, int offset, int tableOffset, int start, int end)
-{
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i+= blockDim.x * gridDim.x){
-        int eidx0 = E0_IT[4*i+0];
-        int eidx1 = E0_IT[4*i+1];
-        int eidx2 = E0_IT[4*i+2];
-        int eidx3 = E0_IT[4*i+3];
-
-        float vertWeight = E0_S[i*2+0];
-
-        // Fully sharp edge : vertWeight = 0.5f;
-        float *dstVertex = fVertex + (i+offset-tableOffset)*numVertexElements;
-        clear(dstVertex, numVertexElements);
-
-        addWithWeight(dstVertex, fVertex + eidx0*numVertexElements, vertWeight, numVertexElements);
-        addWithWeight(dstVertex, fVertex + eidx1*numVertexElements, vertWeight, numVertexElements);
-
-        if(eidx2 > -1){
-            float faceWeight = E0_S[i*2+1];
-
-            addWithWeight(dstVertex, fVertex + eidx2*numVertexElements, faceWeight, numVertexElements);
-            addWithWeight(dstVertex, fVertex + eidx3*numVertexElements, faceWeight, numVertexElements);
-        }
-
-        if(numVaryingElements > 0){
-            float *dstVarying = fVarying + (i+offset-tableOffset)*numVaryingElements;
-            clear(dstVarying, numVaryingElements);
-
-            addVaryingWithWeight(dstVarying, fVarying + eidx0*numVaryingElements, 0.5f, numVaryingElements);
-            addVaryingWithWeight(dstVarying, fVarying + eidx1*numVaryingElements, 0.5f, numVaryingElements);
-        }
-    }
-}
-
-template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
-computeVertexA(float *fVertex, float *fVaryings, int *V0_ITa, float *V0_S, int offset, int tableOffset, int start, int end, int pass)
-{
-    DeviceVertex<NUM_USER_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_USER_VERTEX_ELEMENTS>*)fVertex;
-    DeviceVarying<NUM_VARYING_ELEMENTS> *varyings = (DeviceVarying<NUM_VARYING_ELEMENTS>*)fVaryings;
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end+tableOffset; i += blockDim.x * gridDim.x){
-        int n     = V0_ITa[5*i+1];
-        int p     = V0_ITa[5*i+2];
-        int eidx0 = V0_ITa[5*i+3];
-        int eidx1 = V0_ITa[5*i+4];
-
-        float weight = (pass==1) ? V0_S[i] : 1.0f - V0_S[i];
-
-        // In the case of fractional weight, the weight must be inverted since
-        // the value is shared with the k_Smooth kernel (statistically the
-        // k_Smooth kernel runs much more often than this one)
-        if (weight>0.0f && weight<1.0f && n > 0)
-            weight=1.0f-weight;
-
-        DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
-        if (not pass) {
-            dst.clear();
-        } else {
-            dst = vertex[i+offset-tableOffset];
-        }
-
-        if (eidx0==-1 || (pass==0 && (n==-1)) ) {
-            dst.addWithWeight(&vertex[p], weight);
-        } else {
-            dst.addWithWeight(&vertex[p], weight * 0.75f);
-            dst.addWithWeight(&vertex[eidx0], weight * 0.125f);
-            dst.addWithWeight(&vertex[eidx1], weight * 0.125f);
-        }
-        vertex[i+offset-tableOffset] = dst;
-
-        if(NUM_VARYING_ELEMENTS > 0){
-            if(not pass){
-                DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
-                dstVarying.clear();
-                dstVarying.addVaryingWithWeight(&varyings[p], 1.0f);
-                varyings[i+offset-tableOffset] = dstVarying;
-            }
-        }
-    }
-}
-
-__global__ void
-computeVertexA(float *fVertex, int numVertexElements, float *fVaryings, int numVaryingElements,
-               int *V0_ITa, float *V0_S, int offset, int tableOffset, int start, int end, int pass)
-{
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i += blockDim.x * gridDim.x){
-        int n     = V0_ITa[5*i+1];
-        int p     = V0_ITa[5*i+2];
-        int eidx0 = V0_ITa[5*i+3];
-        int eidx1 = V0_ITa[5*i+4];
-
-        float weight = (pass==1) ? V0_S[i] : 1.0f - V0_S[i];
-
-        // In the case of fractional weight, the weight must be inverted since
-        // the value is shared with the k_Smooth kernel (statistically the
-        // k_Smooth kernel runs much more often than this one)
-        if (weight>0.0f && weight<1.0f && n > 0)
-            weight=1.0f-weight;
-
-        float *dstVertex = fVertex + (i+offset-tableOffset)*numVertexElements;
-        if (not pass) {
-            clear(dstVertex, numVertexElements);
-        }
-
-        if (eidx0==-1 || (pass==0 && (n==-1)) ) {
-            addWithWeight(dstVertex, fVertex + p*numVertexElements, weight, numVertexElements);
-        } else {
-            addWithWeight(dstVertex, fVertex + p*numVertexElements, weight*0.75f, numVertexElements);
-            addWithWeight(dstVertex, fVertex + eidx0*numVertexElements, weight*0.125f, numVertexElements);
-            addWithWeight(dstVertex, fVertex + eidx1*numVertexElements, weight*0.125f, numVertexElements);
-        }
-
-        if(numVaryingElements > 0){
-            if(not pass){
-                float *dstVarying = fVaryings + (i+offset-tableOffset)*numVaryingElements;
-                clear(dstVarying, numVaryingElements);
-                addVaryingWithWeight(dstVarying, fVaryings + p*numVaryingElements, 1.0f, numVaryingElements);
-            }
-        }
-    }
-
-}
-
-
-//texture <int, 1> texV0_IT;
-
-template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
-computeVertexB(float *fVertex, float *fVaryings,
-               const int *V0_ITa, const int *V0_IT, const float *V0_S, int offset, int tableOffset, int start, int end)
-{
-    DeviceVertex<NUM_USER_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_USER_VERTEX_ELEMENTS>*)fVertex;
-    DeviceVarying<NUM_VARYING_ELEMENTS> *varyings = (DeviceVarying<NUM_VARYING_ELEMENTS>*)fVaryings;
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i += blockDim.x * gridDim.x){
-        int h = V0_ITa[5*i];
-        int n = V0_ITa[5*i+1];
-        int p = V0_ITa[5*i+2];
-
-        float weight = V0_S[i];
-        float wp = 1.0f/float(n*n);
-        float wv = (n-2.0f) * n * wp;
-
-        DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
-        dst.clear();
-        dst.addWithWeight(&vertex[p], weight * wv);
-
-        for(int j = 0; j < n; ++j){
-            dst.addWithWeight(&vertex[V0_IT[h+j*2]], weight * wp);
-            dst.addWithWeight(&vertex[V0_IT[h+j*2+1]], weight * wp);
-//            int idx0 = tex1Dfetch(texV0_IT, h+j*2);
-//            int idx1 = tex1Dfetch(texV0_IT, h+j*2+1);
-//            dst.addWithWeight(&vertex[idx0], weight * wp);
-//            dst.addWithWeight(&vertex[idx1], weight * wp);
-        }
-        vertex[i+offset-tableOffset] = dst;
-
-        if(NUM_VARYING_ELEMENTS > 0){
-            DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
-            dstVarying.clear();
-            dstVarying.addVaryingWithWeight(&varyings[p], 1.0f);
-            varyings[i+offset-tableOffset] = dstVarying;
-        }
-    }
-}
-
-__global__ void
-computeVertexB(float *fVertex, int numVertexElements, float *fVaryings, int numVaryingElements,
-               const int *V0_ITa, const int *V0_IT, const float *V0_S, int offset, int tableOffset, int start, int end)
-{
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i += blockDim.x * gridDim.x){
-        int h = V0_ITa[5*i];
-        int n = V0_ITa[5*i+1];
-        int p = V0_ITa[5*i+2];
-
-        float weight = V0_S[i];
-        float wp = 1.0f/float(n*n);
-        float wv = (n-2.0f) * n * wp;
-
-        float *dstVertex = fVertex + (i+offset-tableOffset)*numVertexElements;
-        clear(dstVertex, numVertexElements);
-        addWithWeight(dstVertex, fVertex + p*numVertexElements, weight*wv, numVertexElements);
-
-        for(int j = 0; j < n; ++j){
-            addWithWeight(dstVertex, fVertex + V0_IT[h+j*2]*numVertexElements, weight*wp, numVertexElements);
-            addWithWeight(dstVertex, fVertex + V0_IT[h+j*2+1]*numVertexElements, weight*wp, numVertexElements);
-        }
-
-        if(numVaryingElements > 0){
-            float *dstVarying = fVaryings + (i+offset-tableOffset)*numVaryingElements;
-            clear(dstVarying, numVaryingElements);
-            addVaryingWithWeight(dstVarying, fVaryings + p*numVaryingElements, 1.0f, numVaryingElements);
-        }
-    }
-}
-
-
 // --------------------------------------------------------------------------------------------
 
-template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
-computeLoopVertexB(float *fVertex, float *fVaryings, int *V0_ITa, int *V0_IT, float *V0_S, int offset, int tableOffset, int start, int end)
-{
-    DeviceVertex<NUM_USER_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_USER_VERTEX_ELEMENTS>*)fVertex;
-    DeviceVarying<NUM_VARYING_ELEMENTS> *varyings = (DeviceVarying<NUM_VARYING_ELEMENTS>*)fVaryings;
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i += blockDim.x * gridDim.x){
-        int h = V0_ITa[5*i];
-        int n = V0_ITa[5*i+1];
-        int p = V0_ITa[5*i+2];
+template <int NUM_ELEMENTS> __global__ void
+computeStencils(float const * cvs, float * vbuffer,
+                unsigned char const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end) {
 
-        float weight = V0_S[i];
-        float wp = 1.0f/float(n);
-        float beta = 0.25f * __cosf(float(M_PI) * 2.0f * wp) + 0.375f;
-        beta = beta * beta;
-        beta = (0.625f - beta) * wp;
+    DeviceVertex<NUM_ELEMENTS> const * src =
+        (DeviceVertex<NUM_ELEMENTS> const *)cvs;
 
-        DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
+    DeviceVertex<NUM_ELEMENTS> * verts =
+        (DeviceVertex<NUM_ELEMENTS> *)vbuffer;
+
+    int first = start + threadIdx.x + blockIdx.x*blockDim.x;
+
+    for (int i=first; i<end; i += blockDim.x * gridDim.x) {
+
+        int const * lindices = indices + offsets[i];
+        float const * lweights = weights + offsets[i];
+
+        DeviceVertex<NUM_ELEMENTS> dst;
         dst.clear();
 
-        dst.addWithWeight(&vertex[p], weight * (1.0f - (beta * n)));
-
-        for(int j = 0; j < n; ++j){
-            dst.addWithWeight(&vertex[V0_IT[h+j]], weight * beta);
+        for (int j=0; j<sizes[i]; ++j) {
+            dst.addWithWeight(src[lindices[j]], lweights[j]);
         }
-        vertex[i+offset-tableOffset] = dst;
-
-        if(NUM_VARYING_ELEMENTS > 0){
-            DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
-            dstVarying.clear();
-            dstVarying.addVaryingWithWeight(&varyings[p], 1.0f);
-            varyings[i+offset-tableOffset] = dstVarying;
-        }
+        verts[i] = dst;
     }
 }
 
 __global__ void
-computeLoopVertexB(float *fVertex, int numVertexElements, float *fVaryings, int numVaryingElements,
-                   const int *V0_ITa, const int *V0_IT, const float *V0_S, int offset, int tableOffset, int start, int end)
-{
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i += blockDim.x * gridDim.x){
-        int h = V0_ITa[5*i];
-        int n = V0_ITa[5*i+1];
-        int p = V0_ITa[5*i+2];
+computeStencils(float const * cvs, float * dst,
+               int length, int stride,
+               unsigned char const * sizes,
+               int const * offsets,
+               int const * indices,
+               float const * weights,
+               int start, int end) {
 
-        float weight = V0_S[i];
-        float wp = 1.0f/float(n);
-        float beta = 0.25f * __cosf(float(M_PI) * 2.0f * wp) + 0.375f;
-        beta = beta * beta;
-        beta = (0.625f - beta) * wp;
+    int first = start + threadIdx.x + blockIdx.x*blockDim.x;
 
-        float *dstVertex = fVertex + (i+offset-tableOffset)*numVertexElements;
-        clear(dstVertex, numVertexElements);
-        addWithWeight(dstVertex, fVertex + p*numVertexElements, weight*(1.0f-(beta*n)), numVertexElements);
+    for (int i=first; i<end; i += blockDim.x * gridDim.x) {
 
-        for(int j = 0; j < n; ++j){
-            addWithWeight(dstVertex, fVertex + V0_IT[h+j]*numVertexElements, weight*beta, numVertexElements);
-        }
+        int const * lindices = indices + offsets[i];
+        float const * lweights = weights + offsets[i];
 
-        if(numVaryingElements > 0){
-            float *dstVarying = fVaryings + (i+offset-tableOffset)*numVaryingElements;
-            clear(dstVarying, numVaryingElements);
-            addVaryingWithWeight(dstVarying, fVaryings + p*numVaryingElements, 1.0f, numVaryingElements);
+        float * dstVert = dst + i*stride;
+        clear(dstVert, length);
+
+        for (int j=0; j<sizes[i]; ++j) {
+
+            float const * srcVert = cvs + lindices[j]*stride;
+
+            addWithWeight(dstVert, srcVert, lweights[j], length);
         }
     }
 }
 
-// --------------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
-template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
-computeBilinearEdge(float *fVertex, float *fVaryings, int *E0_IT, int offset, int tableOffset, int start, int end)
+#define USE_NVIDIA_OPTIMIZATION
+#ifdef USE_NVIDIA_OPTIMIZATION
+
+template< int NUM_ELEMENTS, int NUM_THREADS_PER_BLOCK >
+__global__ void computeStencilsNv(float const *__restrict cvs,
+                                  float * vbuffer,
+                                  unsigned char const *__restrict sizes,
+                                  int const *__restrict offsets,
+                                  int const *__restrict indices,
+                                  float const *__restrict weights,
+                                  int start,
+                                  int end)
 {
-    DeviceVertex<NUM_USER_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_USER_VERTEX_ELEMENTS>*)fVertex;
-    DeviceVarying<NUM_VARYING_ELEMENTS> *varyings = (DeviceVarying<NUM_VARYING_ELEMENTS>*)fVaryings;
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i+= blockDim.x * gridDim.x){
-        int eidx0 = E0_IT[2*i+0];
-        int eidx1 = E0_IT[2*i+1];
+  // Shared memory to stage indices/weights.
+  __shared__ int   smem_indices_buffer[NUM_THREADS_PER_BLOCK];
+  __shared__ float smem_weights_buffer[NUM_THREADS_PER_BLOCK];
 
-        DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
-        dst.clear();
+  // The size of a single warp.
+  const int WARP_SIZE = 32;
+  // The number of warps per block.
+  const int NUM_WARPS_PER_BLOCK = NUM_THREADS_PER_BLOCK / WARP_SIZE;
+  // The number of outputs computed by a single warp.
+  const int NUM_OUTPUTS_PER_WARP = WARP_SIZE / NUM_ELEMENTS;
+  // The number of outputs computed by a block of threads.
+  const int NUM_OUTPUTS_PER_BLOCK = NUM_OUTPUTS_PER_WARP*NUM_WARPS_PER_BLOCK;
+  // The number of active threads in a warp.
+  const int NUM_ACTIVE_THREADS_PER_WARP = NUM_OUTPUTS_PER_WARP * NUM_ELEMENTS;
 
-        dst.addWithWeight(&vertex[eidx0], 0.5f);
-        dst.addWithWeight(&vertex[eidx1], 0.5f);
+  // The number of the warp inside the block.
+  const int warpId = threadIdx.x / WARP_SIZE;
+  const int laneId = threadIdx.x % WARP_SIZE;
 
-        vertex[offset+i-tableOffset] = dst;
+  // We use NUM_ELEMENTS threads per output. Find which output/element a thread works on.
+  int outputIdx = warpId*NUM_OUTPUTS_PER_WARP + laneId/NUM_ELEMENTS, elementIdx = laneId%NUM_ELEMENTS;
 
-        if(NUM_VARYING_ELEMENTS > 0){
-            DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
-            dstVarying.clear();
-            dstVarying.addVaryingWithWeight(&varyings[eidx0], 0.5f);
-            dstVarying.addVaryingWithWeight(&varyings[eidx1], 0.5f);
-            varyings[offset+i-tableOffset] = dstVarying;
-        }
+  // Each output corresponds to a section of shared memory.
+  volatile int   *smem_indices = &smem_indices_buffer[warpId*WARP_SIZE + (laneId/NUM_ELEMENTS)*NUM_ELEMENTS];
+  volatile float *smem_weights = &smem_weights_buffer[warpId*WARP_SIZE + (laneId/NUM_ELEMENTS)*NUM_ELEMENTS];
+
+  // Disable threads that have nothing to do inside the warp.
+  int i = end;
+  if( laneId < NUM_ACTIVE_THREADS_PER_WARP )
+    i = start + blockIdx.x*NUM_OUTPUTS_PER_BLOCK + outputIdx;
+
+  // Iterate over the vertices.
+  for( ; i < end ; i += gridDim.x*NUM_OUTPUTS_PER_BLOCK )
+  {
+    // Each thread computes an element of the final vertex.
+    float x = 0.f;
+
+    // Load the offset and the size for each vertex. We have NUM_THREADS_PER_VERTEX threads loading the same value.
+    const int offset_i = offsets[i], size_i = sizes[i];
+
+    // Iterate over the stencil.
+    for( int j = offset_i, j_end = offset_i+size_i ; j < j_end ; )
+    {
+      int j_it = j + elementIdx;
+
+      // Load some indices and some weights. The transaction is coalesced.
+      smem_indices[elementIdx] = j_it < j_end ? indices[j_it] : 0;
+      smem_weights[elementIdx] = j_it < j_end ? weights[j_it] : 0.f;
+
+      // Thread now collaborates to load the vertices.
+      #pragma unroll
+      for( int k = 0 ; k < NUM_ELEMENTS ; ++k, ++j )
+        if( j < j_end )
+          x += smem_weights[k] * cvs[smem_indices[k]*NUM_ELEMENTS + elementIdx];
     }
+
+    // Store the vertex.
+    vbuffer[NUM_ELEMENTS*i + elementIdx] = x;
+  }
 }
 
-__global__ void
-computeBilinearEdge(float *fVertex, int numVertexElements, float *fVarying, int numVaryingElements,
-                    int *E0_IT, int offset, int tableOffset, int start, int end)
+template< int NUM_THREADS_PER_BLOCK >
+__global__ void computeStencilsNv_v4(float const *__restrict cvs,
+                                     float * vbuffer,
+                                     unsigned char const *__restrict sizes,
+                                     int const *__restrict offsets,
+                                     int const *__restrict indices,
+                                     float const *__restrict weights,
+                                     int start,
+                                     int end)
 {
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i+= blockDim.x * gridDim.x){
-        int eidx0 = E0_IT[2*i+0];
-        int eidx1 = E0_IT[2*i+1];
+  // Iterate over the vertices.
+  for( int i = start + blockIdx.x*NUM_THREADS_PER_BLOCK + threadIdx.x ; i < end ; i += gridDim.x*NUM_THREADS_PER_BLOCK )
+  {
+    // Each thread computes an element of the final vertex.
+    float4 x = make_float4(0.f, 0.f, 0.f, 0.f);
 
-        float *dstVertex = fVertex + (i+offset-tableOffset)*numVertexElements;
-        clear(dstVertex, numVertexElements);
-
-        addWithWeight(dstVertex, fVertex + eidx0*numVertexElements, 0.5f, numVertexElements);
-        addWithWeight(dstVertex, fVertex + eidx1*numVertexElements, 0.5f, numVertexElements);
-
-        if(numVaryingElements > 0){
-            float *dstVarying = fVarying + (i+offset-tableOffset)*numVaryingElements;
-            clear(dstVarying, numVaryingElements);
-
-            addVaryingWithWeight(dstVarying, fVarying + eidx0*numVaryingElements, 0.5f, numVaryingElements);
-            addVaryingWithWeight(dstVarying, fVarying + eidx1*numVaryingElements, 0.5f, numVaryingElements);
-        }
+    // Iterate over the stencil.
+    for( int j = offsets[i], j_end = offsets[i]+sizes[i] ; j < j_end ; ++j )
+    {
+      float w = weights[j];
+      float4 tmp = reinterpret_cast<const float4 *__restrict>(cvs)[indices[j]];
+      x.x += w*tmp.x;
+      x.y += w*tmp.y;
+      x.z += w*tmp.z;
+      x.w += w*tmp.w;
     }
+
+    // Store the vertex.
+    reinterpret_cast<float4*>(vbuffer)[i] = x;
+  }
 }
 
-template <int NUM_USER_VERTEX_ELEMENTS, int NUM_VARYING_ELEMENTS> __global__ void
-computeBilinearVertex(float *fVertex, float *fVaryings, int *V0_ITa, int offset, int tableOffset, int start, int end)
-{
-    DeviceVertex<NUM_USER_VERTEX_ELEMENTS> *vertex = (DeviceVertex<NUM_USER_VERTEX_ELEMENTS>*)fVertex;
-    DeviceVarying<NUM_VARYING_ELEMENTS> *varyings = (DeviceVarying<NUM_VARYING_ELEMENTS>*)fVaryings;
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i += blockDim.x * gridDim.x){
-        int p = V0_ITa[i];
+#endif // USE_NVIDIA_OPTIMIZATION
 
-        DeviceVertex<NUM_USER_VERTEX_ELEMENTS> dst;
-        dst.clear();
-
-        dst.addWithWeight(&vertex[p], 1.0f);
-        vertex[i+offset-tableOffset] = dst;
-
-        if(NUM_VARYING_ELEMENTS > 0){
-            DeviceVarying<NUM_VARYING_ELEMENTS> dstVarying;
-            dstVarying.clear();
-            dstVarying.addVaryingWithWeight(&varyings[p], 1.0f);
-            varyings[i+offset-tableOffset] = dstVarying;
-        }
-    }
-}
-
-__global__ void
-computeBilinearVertex(float *fVertex, int numVertexElements, float *fVaryings, int numVaryingElements,
-                      const int *V0_ITa, int offset, int tableOffset, int start, int end)
-{
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x; i < end + tableOffset; i += blockDim.x * gridDim.x){
-        int p = V0_ITa[i];
-
-        float *dstVertex = fVertex + (i+offset-tableOffset)*numVertexElements;
-        clear(dstVertex, numVertexElements);
-        addWithWeight(dstVertex, fVertex + p*numVertexElements, 1.0f, numVertexElements);
-
-        if(numVaryingElements > 0){
-            float *dstVarying = fVaryings + (i+offset-tableOffset)*numVaryingElements;
-            clear(dstVarying, numVaryingElements);
-            addVaryingWithWeight(dstVarying, fVaryings + p*numVaryingElements, 1.0f, numVaryingElements);
-        }
-    }
-}
-
-// --------------------------------------------------------------------------------------------
-
-__global__ void
-editVertexAdd(float *fVertex, int numVertexElements, int primVarOffset, int primVarWidth,
-              int vertexOffset, int tableOffset, int start, int end,
-              const int *editIndices, const float *editValues)
-{
-    for(int i = start + tableOffset + threadIdx.x + blockIdx.x*blockDim.x;
-        i < end + tableOffset;
-        i += blockDim.x * gridDim.x) {
-
-        float *dstVertex = fVertex + (editIndices[i] + vertexOffset) * numVertexElements + primVarOffset;
-
-        for(int j = 0; j < primVarWidth; j++) {
-            *dstVertex++ += editValues[i*primVarWidth + j];
-        }
-    }
-}
-
-// --------------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 #include "../version.h"
 
-// XXX: this macro usage is tentative. Since cuda kernel can't be dynamically configured,
-// still trying to find better way to have optimized kernel..
+#define OPT_KERNEL(NUM_ELEMENTS, KERNEL, X, Y, ARG) \
+    if (length==NUM_ELEMENTS && stride==length) {   \
+        KERNEL<NUM_ELEMENTS><<<X,Y>>>ARG;             \
+        return;                                     \
+    }
 
-#define OPT_KERNEL(NUM_USER_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS, KERNEL, X, Y, ARG) \
-    if(numUserVertexElements == NUM_USER_VERTEX_ELEMENTS && \
-       numVaryingElements == NUM_VARYING_ELEMENTS) \
-       { KERNEL<NUM_USER_VERTEX_ELEMENTS, NUM_VARYING_ELEMENTS><<<X,Y>>>ARG; \
-         return;  }
+#ifdef USE_NVIDIA_OPTIMIZATION
+#define OPT_KERNEL_NVIDIA(NUM_ELEMENTS, KERNEL, X, Y, ARG) \
+    if (length==NUM_ELEMENTS && stride==length) {   \
+        int gridDim = min(X, (end-start+Y-1)/Y); \
+        KERNEL<NUM_ELEMENTS, Y><<<gridDim, Y>>>ARG; \
+        return;                                     \
+    }
+#endif
 
 extern "C" {
 
-void OsdCudaComputeFace(float *vertex, float *varying,
-                        int numUserVertexElements, int numVaryingElements,
-                        int *F_IT, int *F_ITa, int offset, int tableOffset, int start, int end)
+void
+CudaComputeStencils(float const *cvs, float * dst,
+                    int length, int stride,
+                    unsigned char const * sizes,
+                    int const * offsets,
+                    int const * indices,
+                    float const * weights,
+                    int start, int end)
 {
-    //computeFace<3, 0><<<512,32>>>(vertex, varying, F_IT, F_ITa, offset, start, end);
-    OPT_KERNEL(0, 0, computeFace, 512, 32, (vertex, varying, F_IT, F_ITa, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeFace, 512, 32, (vertex, varying, F_IT, F_ITa, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeFace, 512, 32, (vertex, varying, F_IT, F_ITa, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeFace, 512, 32, (vertex, varying, F_IT, F_ITa, offset, tableOffset, start, end));
+    assert(cvs and dst and sizes and offsets and indices and weights and (end>=start));
 
-    // fallback kernel (slow)
-    computeFace<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
-                             F_IT, F_ITa, offset, tableOffset, start, end);
+    if (length==0 or stride==0) {
+        return;
+    }
+
+#ifdef USE_NVIDIA_OPTIMIZATION
+    OPT_KERNEL_NVIDIA(3, computeStencilsNv, 2048, 256, (cvs, dst, sizes, offsets, indices, weights, start, end));
+    //OPT_KERNEL_NVIDIA(4, computeStencilsNv, 2048, 256, (cvs, dst, sizes, offsets, indices, weights, start, end));
+    if( length==4 && stride==length ) {
+      int gridDim = min(2048, (end-start+256-1)/256);
+      computeStencilsNv_v4<256><<<gridDim, 256>>>(cvs, dst, sizes, offsets, indices, weights, start, end);
+      return;
+    }
+#else
+    OPT_KERNEL(3, computeStencils, 512, 32, (cvs, dst, sizes, offsets, indices, weights, start, end));
+    OPT_KERNEL(4, computeStencils, 512, 32, (cvs, dst, sizes, offsets, indices, weights, start, end));
+#endif
+
+    computeStencils <<<512, 32>>>(cvs, dst, length, stride,
+        sizes, offsets, indices, weights, start, end);
 }
 
-void OsdCudaComputeEdge(float *vertex, float *varying,
-                        int numUserVertexElements, int numVaryingElements,
-                        int *E_IT, float *E_W, int offset, int tableOffset, int start, int end)
-{
-    //computeEdge<0, 3><<<512,32>>>(vertex, varying, E_IT, E_W, offset, start, end);
-    OPT_KERNEL(0, 0, computeEdge, 512, 32, (vertex, varying, E_IT, E_W, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeEdge, 512, 32, (vertex, varying, E_IT, E_W, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeEdge, 512, 32, (vertex, varying, E_IT, E_W, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeEdge, 512, 32, (vertex, varying, E_IT, E_W, offset, tableOffset, start, end));
-
-    computeEdge<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
-                             E_IT, E_W, offset, tableOffset, start, end);
-}
-
-void OsdCudaComputeVertexA(float *vertex, float *varying,
-                           int numUserVertexElements, int numVaryingElements,
-                           int *V_ITa, float *V_W, int offset, int tableOffset, int start, int end, int pass)
-{
-//    computeVertexA<0, 3><<<512,32>>>(vertex, varying, V_ITa, V_W, offset, start, end, pass);
-    OPT_KERNEL(0, 0, computeVertexA, 512, 32, (vertex, varying, V_ITa, V_W, offset, tableOffset, start, end, pass));
-    OPT_KERNEL(0, 3, computeVertexA, 512, 32, (vertex, varying, V_ITa, V_W, offset, tableOffset, start, end, pass));
-    OPT_KERNEL(3, 0, computeVertexA, 512, 32, (vertex, varying, V_ITa, V_W, offset, tableOffset, start, end, pass));
-    OPT_KERNEL(3, 3, computeVertexA, 512, 32, (vertex, varying, V_ITa, V_W, offset, tableOffset, start, end, pass));
-
-    computeVertexA<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
-                                V_ITa, V_W, offset, tableOffset, start, end, pass);
-}
-
-void OsdCudaComputeVertexB(float *vertex, float *varying,
-                           int numUserVertexElements, int numVaryingElements,
-                           int *V_ITa, int *V_IT, float *V_W, int offset, int tableOffset, int start, int end)
-{
-//    computeVertexB<0, 3><<<512,32>>>(vertex, varying, V_ITa, V_IT, V_W, offset, start, end);
-    OPT_KERNEL(0, 0, computeVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-
-    computeVertexB<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
-                                V_ITa, V_IT, V_W, offset, tableOffset, start, end);
-}
-
-void OsdCudaComputeLoopVertexB(float *vertex, float *varying,
-                               int numUserVertexElements, int numVaryingElements,
-                               int *V_ITa, int *V_IT, float *V_W, int offset, int tableOffset, int start, int end)
-{
-//    computeLoopVertexB<0, 3><<<512,32>>>(vertex, varying, V_ITa, V_IT, V_W, offset, start, end);
-    OPT_KERNEL(0, 0, computeLoopVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeLoopVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeLoopVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeLoopVertexB, 512, 32, (vertex, varying, V_ITa, V_IT, V_W, offset, tableOffset, start, end));
-
-    computeLoopVertexB<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
-                                    V_ITa, V_IT, V_W, offset, tableOffset, start, end);
-}
-
-void OsdCudaComputeBilinearEdge(float *vertex, float *varying,
-                                int numUserVertexElements, int numVaryingElements,
-                                int *E_IT, int offset, int tableOffset, int start, int end)
-{
-    //computeBilinearEdge<0, 3><<<512,32>>>(vertex, varying, E_IT, offset, start, end);
-    OPT_KERNEL(0, 0, computeBilinearEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeBilinearEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeBilinearEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeBilinearEdge, 512, 32, (vertex, varying, E_IT, offset, tableOffset, start, end));
-
-    computeBilinearEdge<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
-                                     E_IT, offset, tableOffset, start, end);
-}
-
-void OsdCudaComputeBilinearVertex(float *vertex, float *varying,
-                                  int numUserVertexElements, int numVaryingElements,
-                                  int *V_ITa, int offset, int tableOffset, int start, int end)
-{
-//    computeBilinearVertex<0, 3><<<512,32>>>(vertex, varying, V_ITa, offset, start, end);
-    OPT_KERNEL(0, 0, computeBilinearVertex, 512, 32, (vertex, varying, V_ITa, offset, tableOffset, start, end));
-    OPT_KERNEL(0, 3, computeBilinearVertex, 512, 32, (vertex, varying, V_ITa, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 0, computeBilinearVertex, 512, 32, (vertex, varying, V_ITa, offset, tableOffset, start, end));
-    OPT_KERNEL(3, 3, computeBilinearVertex, 512, 32, (vertex, varying, V_ITa, offset, tableOffset, start, end));
-
-    computeBilinearVertex<<<512, 32>>>(vertex, 3+numUserVertexElements, varying, numVaryingElements,
-                                       V_ITa, offset, tableOffset, start, end);
-}
-
-void OsdCudaEditVertexAdd(float *vertex, int numUserVertexElements,
-                          int primVarOffset, int primVarWidth,
-                          int vertexOffset, int tableOffset,
-                          int start, int end, int *editIndices, float *editValues)
-{
-    editVertexAdd<<<512, 32>>>(vertex, 3+numUserVertexElements, primVarOffset, primVarWidth,
-                               vertexOffset, tableOffset, start, end,
-                               editIndices, editValues);
-}
+// -----------------------------------------------------------------------------
 
 }  /* extern "C" */

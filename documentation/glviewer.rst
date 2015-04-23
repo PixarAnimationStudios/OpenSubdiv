@@ -35,7 +35,12 @@ SYNOPSIS
 .. parsed-literal:: 
    :class: codefhead
 
-   **glViewer** [**-d** *isolation level*] [**-c** *animation loops*] [**-f**] *objfile(s)*
+   **glViewer**
+   [**-d** *isolation level*]
+   [**-c** *animation loops*]
+   [**-f**]
+   [**-axis**]
+   *objfile(s)*
 
 DESCRIPTION
 ===========
@@ -44,10 +49,10 @@ DESCRIPTION
 uniform and feature adaptive subdivision schemes to a collection of geometric
 shapes. Multiple controls are available to experiment with the algorithms.
 
-.. image:: images/glviewer.jpg 
+.. image:: images/glviewer.png 
    :width: 400px
    :align: center
-   :target: images/glviewer.jpg 
+   :target: images/glviewer.png 
 
 OPTIONS
 =======
@@ -63,15 +68,11 @@ OPTIONS
   Launches the application in full-screen mode (if is supported by GLFW on the
   OS)
 
-SEE ALSO
-========
+**-axis**
+  Swap Y-up / Z-up axis when loading obj files
 
-`Code Examples <code_examples.html>`__, \
-`glBatchViewer <glbatchviewer.html>`__, \
-`glStencilViewer <glstencilviewer.html>`__, \
-`ptexViewer <ptexviewer.html>`__, \
-`paintTest <painttest.html>`__, \
-`limitEval <limiteval.html>`__, \
-`dxViewer <dxviewer.html>`__, \
-`uvViewer <uvviewer.html>`__, \
+*objfile(s)*
+  A sequence of obj files used as an animation loop (the topology has to match
+  the data contained in all the ptex files !)
 
+.. include:: examples_see_also.rst

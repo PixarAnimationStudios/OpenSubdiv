@@ -24,7 +24,7 @@
 
 #include "../osd/d3d11PtexMipmapTexture.h"
 #include "../osd/ptexMipmapTextureLoader.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #include <Ptexture.h>
 #include <D3D11.h>
@@ -33,14 +33,16 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdD3D11PtexMipmapTexture::OsdD3D11PtexMipmapTexture()
+namespace Osd {
+
+D3D11PtexMipmapTexture::D3D11PtexMipmapTexture()
     : _width(0), _height(0), _depth(0),
       _layout(0), _texels(0),
       _layoutSRV(0), _texelsSRV(0)
 {
 }
 
-OsdD3D11PtexMipmapTexture::~OsdD3D11PtexMipmapTexture()
+D3D11PtexMipmapTexture::~D3D11PtexMipmapTexture()
 {
     if (_layout) _layout->Release();
     if (_layoutSRV) _layoutSRV->Release();
@@ -66,7 +68,7 @@ genTextureBuffer(ID3D11DeviceContext *deviceContext, int size, void const * data
     deviceContext->GetDevice(&device);
     hr = device->CreateBuffer(&hBufferDesc, NULL, &buffer);
     if (FAILED(hr)) {
-        OsdError(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Fail in CreateBuffer\n");
         return 0;
     }
@@ -75,7 +77,7 @@ genTextureBuffer(ID3D11DeviceContext *deviceContext, int size, void const * data
     hr = deviceContext->Map(buffer, 0,
                             D3D11_MAP_WRITE_DISCARD, 0, &resource);
     if (FAILED(hr)) {
-        OsdError(OSD_D3D11_VERTEX_BUFFER_CREATE_ERROR,
+        Far::Error(Far::FAR_RUNTIME_ERROR,
                  "Fail in Map buffer\n");
         buffer->Release();
         return 0;
@@ -86,17 +88,17 @@ genTextureBuffer(ID3D11DeviceContext *deviceContext, int size, void const * data
     return buffer;
 }
 
-OsdD3D11PtexMipmapTexture *
-OsdD3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
+D3D11PtexMipmapTexture *
+D3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
                                   PtexTexture * reader,
                                   int maxLevels) {
 
-    OsdD3D11PtexMipmapTexture * result = NULL;
+    D3D11PtexMipmapTexture * result = NULL;
 
     int maxNumPages = D3D10_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
 
     // Read the ptex data and pack the texels
-    OsdPtexMipmapTextureLoader loader(reader, maxNumPages, maxLevels);
+    Osd::PtexMipmapTextureLoader loader(reader, maxNumPages, maxLevels);
 
     int numFaces = loader.GetNumFaces();
 
@@ -109,42 +111,42 @@ OsdD3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
     int bpp = 0;
     int numChannels = reader->numChannels();
     switch (reader->dataType()) {
-    case Ptex::dt_uint16:
-        switch (numChannels) {
-        case 1: format = DXGI_FORMAT_R16_UINT; break;
-        case 2: format = DXGI_FORMAT_R16G16_UINT; break;
-        case 3: assert(false); break;
-        case 4: format = DXGI_FORMAT_R16G16B16A16_UINT; break;
-        }
-        bpp = numChannels * 2;
-        break;
-    case Ptex::dt_float:
-        switch (numChannels) {
-        case 1: format = DXGI_FORMAT_R32_FLOAT; break;
-        case 2: format = DXGI_FORMAT_R32G32_FLOAT; break;
-        case 3: format = DXGI_FORMAT_R32G32B32_FLOAT; break;
-        case 4: format = DXGI_FORMAT_R32G32B32A32_FLOAT; break;
-        }
-        bpp = numChannels * 4;
-        break;
-    case Ptex::dt_half:
-        switch (numChannels) {
-        case 1: format = DXGI_FORMAT_R16_FLOAT; break;
-        case 2: format = DXGI_FORMAT_R16G16_FLOAT; break;
-        case 3:assert(false); break;
-        case 4: format = DXGI_FORMAT_R16G16B16A16_FLOAT; break;
-        }
-        bpp = numChannels * 2;
-        break;
-    default:
-        switch (numChannels) {
-        case 1: format = DXGI_FORMAT_R8_UINT; break;
-        case 2: format = DXGI_FORMAT_R8G8_UINT; break;
-        case 3: assert(false); break;
-        case 4: format = DXGI_FORMAT_R8G8B8A8_UINT; break;
-        }
-        bpp = numChannels;
-        break;
+        case Ptex::dt_uint16:
+            switch (numChannels) {
+                case 1: format = DXGI_FORMAT_R16_UINT; break;
+                case 2: format = DXGI_FORMAT_R16G16_UINT; break;
+                case 3: assert(false); break;
+                case 4: format = DXGI_FORMAT_R16G16B16A16_UINT; break;
+            }
+            bpp = numChannels * 2;
+            break;
+        case Ptex::dt_float:
+            switch (numChannels) {
+                case 1: format = DXGI_FORMAT_R32_FLOAT; break;
+                case 2: format = DXGI_FORMAT_R32G32_FLOAT; break;
+                case 3: format = DXGI_FORMAT_R32G32B32_FLOAT; break;
+                case 4: format = DXGI_FORMAT_R32G32B32A32_FLOAT; break;
+            }
+            bpp = numChannels * 4;
+            break;
+        case Ptex::dt_half:
+            switch (numChannels) {
+                case 1: format = DXGI_FORMAT_R16_FLOAT; break;
+                case 2: format = DXGI_FORMAT_R16G16_FLOAT; break;
+                case 3:assert(false); break;
+                case 4: format = DXGI_FORMAT_R16G16B16A16_FLOAT; break;
+            }
+            bpp = numChannels * 2;
+            break;
+        default:
+            switch (numChannels) {
+                case 1: format = DXGI_FORMAT_R8_UNORM; break;
+                case 2: format = DXGI_FORMAT_R8G8_UNORM; break;
+                case 3: assert(false); break;
+                case 4: format = DXGI_FORMAT_R8G8B8A8_UNORM; break;
+            }
+            bpp = numChannels;
+            break;
     }
 
     // actual texels texture array
@@ -198,7 +200,7 @@ OsdD3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
     if (FAILED(hr)) return NULL;
 
 
-    result = new OsdD3D11PtexMipmapTexture;
+    result = new D3D11PtexMipmapTexture;
 
     result->_width = loader.GetPageWidth();
     result->_height = loader.GetPageHeight();
@@ -214,6 +216,8 @@ OsdD3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
 
     return result;
 }
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

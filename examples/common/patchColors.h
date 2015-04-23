@@ -27,8 +27,12 @@
 
 #include <osd/drawContext.h>
 
+#include <far/patchTables.h>
+
 // returns a unique color for each type of feature-adaptive patches
-float const * getAdaptivePatchColor(OpenSubdiv::OsdDrawContext::PatchDescriptor const & desc);
+float const * getAdaptivePatchColor(OpenSubdiv::Osd::DrawContext::PatchDescriptor const & desc);
+
+float const * getAdaptivePatchColor(OpenSubdiv::Far::PatchDescriptor const & desc);
 
 
 #endif /* COMMON_PATCH_COLORS_H */

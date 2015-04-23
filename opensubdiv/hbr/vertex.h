@@ -412,11 +412,10 @@ private:
 #ifdef HBR_ADAPTIVE
 public:
     struct adaptiveFlags {
-        unsigned subdivisions:4;
         unsigned isTagged:1;
         unsigned wasTagged:1;
         
-        adaptiveFlags() : subdivisions(0), isTagged(0), wasTagged(0) { }
+        adaptiveFlags() : isTagged(0), wasTagged(0) { }
     };
     
     adaptiveFlags _adaptiveFlags;
@@ -1524,6 +1523,9 @@ HbrVertex<T>::splitSingular() {
             }
         }
         w->Finish();
+#ifdef HBR_ADAPTIVE
+        mesh->addSplitVertex(w->GetID(), this->GetID());
+#endif
     }
 
     e = incidentEdges[0];

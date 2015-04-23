@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/mesh.h"
+#include "../far/patchTables.h"
 #include "../osd/drawContext.h"
 #include "../osd/drawRegistry.h"
 #include "../osd/vertex.h"
@@ -39,9 +39,11 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 /// \brief OpenGL specialized DrawContext class
 ///
-/// OsdGLDrawContext implements the OSD drawing interface with the OpenGL API.
+/// GLDrawContext implements the OSD drawing interface with the OpenGL API.
 /// Some functionality may be disabled depending on compile and run-time driver
 /// support.
 ///
@@ -49,20 +51,19 @@ namespace OPENSUBDIV_VERSION {
 /// geometric primitives with the capabilities of the selected discrete 
 /// compute device.
 ///
-class OsdGLDrawContext : public OsdDrawContext {
+class GLDrawContext : public DrawContext {
 public:
     typedef GLuint VertexBufferBinding;
 
-    virtual ~OsdGLDrawContext();
+    virtual ~GLDrawContext();
 
-    /// \brief Create an OsdGLDraContext from FarPatchTables
+    /// \brief Create an GLDraContext from Far::PatchTables
     ///
-    /// @param patchTables      a valid set of FarPatchTables
+    /// @param patchTables          a valid set of Far::PatchTables
     ///
-    /// @param requireFVarData  set to true to enable face-varying data to be 
-    ///                         carried over from the Far data structures.
+    /// @param numVertexElements    the number of vertex elements
     ///
-    static OsdGLDrawContext * Create(FarPatchTables const * patchTables, bool requireFVarData);
+    static GLDrawContext * Create(Far::PatchTables const * patchTables, int numVertexElements);
 
     /// Set vbo as a vertex texture (for gregory patch drawing)
     ///
@@ -71,7 +72,7 @@ public:
     template<class VERTEX_BUFFER>
     void UpdateVertexTexture(VERTEX_BUFFER *vbo) {
         if (vbo)
-            updateVertexTexture(vbo->BindVBO(), vbo->GetNumElements());
+            updateVertexTexture(vbo->BindVBO());
     }
 
     /// true if the GL version detected supports shader tessellation
@@ -81,13 +82,6 @@ public:
     GLuint GetPatchIndexBuffer() const {
         return _patchIndexBuffer;
     }
-
-#if defined(GL_ES_VERSION_2_0)
-    /// Returns the GL a VBO containing a triangulated version of the mesh
-    GLuint GetPatchTrianglesIndexBUffer() const {
-        return _patchTrianglesIndexBuffer;
-    }
-#endif
 
     /// Returns the GL texture buffer containing the patch local parameterization
     /// data
@@ -117,12 +111,22 @@ public:
         return _fvarDataTextureBuffer;
     }
 
-protected:
-    GLuint _patchIndexBuffer;
+    /// Sets face-varying data buffer
+    ///
+    /// @param patchTables      A valid set of Far::PatchTables
+    ///
+    /// @param fvarWidth        Total face-varying primvar data width in fvarData
+    ///
+    /// @param fvarData         Vector containing the face-varying data
+    ///
+    /// @return                 True if the operation was successful
+    ///
+    bool SetFVarDataTexture(Far::PatchTables const & patchTables,
+                            int fvarWidth, FVarData const & fvarData);
 
-#if defined(GL_ES_VERSION_2_0)
-    GLuint _patchTrianglesIndexBuffer;
-#endif
+protected:
+
+    GLuint _patchIndexBuffer;
 
     GLuint _patchParamTextureBuffer;
     GLuint _fvarDataTextureBuffer;
@@ -131,15 +135,17 @@ protected:
     GLuint _vertexValenceTextureBuffer;
     GLuint _quadOffsetsTextureBuffer;
 
-    OsdGLDrawContext();
+    GLDrawContext();
 
     // allocate buffers from patchTables
-    bool create(FarPatchTables const *patchTables, bool requireFVarData);
+    bool create(Far::PatchTables const & patchTables, int numElements);
 
-    void updateVertexTexture(GLuint vbo, int numElements);
+    void updateVertexTexture(GLuint vbo);
 };
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv

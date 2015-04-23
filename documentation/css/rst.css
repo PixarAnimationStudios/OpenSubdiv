@@ -466,6 +466,10 @@ code {
     font-weight: bold;
 }
 
+div.quickLinks {
+    margin-left: 15px;
+}
+
 div.navigation {
     position:fixed;
     width:245px;
@@ -482,6 +486,8 @@ div.navigation {
 
 div.navigation ul {
     list-style-image: url('../images/toggler0.gif');
+    margin-left: 0px;
+    padding-left: 20px;
 }
 
 div.navigation a:link,

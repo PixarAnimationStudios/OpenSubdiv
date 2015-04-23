@@ -34,6 +34,8 @@ class PtexTexture;
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 // Ptex reader helper - manages up/down sizing and texel packing of blocks into
 // texel pages and generate the GL texture buffers for rendering :
 //
@@ -82,14 +84,14 @@ namespace OPENSUBDIV_VERSION {
 //   * vec3 ( X ) = ( layout.u + X, layout.v + Y, page idx )
 //
 
-class OsdPtexTextureLoader {
+class PtexTextureLoader {
 public:
     struct block;
     struct page;
 
-    OsdPtexTextureLoader( PtexTexture *ptex, int gutterWidth, int pageMargin );
+    PtexTextureLoader( PtexTexture *ptex, int gutterWidth, int pageMargin );
 
-    ~OsdPtexTextureLoader();
+    ~PtexTextureLoader();
 
     unsigned short GetPageSize( ) const {
         return _pagesize;
@@ -163,6 +165,8 @@ private:
 
     int _gutterWidth, _pageMargin;
 };
+
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

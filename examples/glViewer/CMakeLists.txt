@@ -29,57 +29,42 @@ set(SHADER_FILES
      shader_gl3.glsl
 )
 
-set(PLATFORM_LIBRARIES
-    ${OSD_LINK_TARGET}
-    ${OPENGL_LIBRARY}
-    ${GLFW_LIBRARIES}
+include_directories(
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${PROJECT_SOURCE_DIR}/regression"
+    "${GLFW_INCLUDE_DIR}"
 )
 
-include_directories(
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-    ${PROJECT_SOURCE_DIR}/regression
-    ${GLFW_INCLUDE_DIR}
+list(APPEND PLATFORM_LIBRARIES
+    "${OSD_LINK_TARGET}"
+    "${OPENGL_LIBRARY}"
+    "${GLFW_LIBRARIES}"
 )
 
 if ( GLEW_FOUND )
-    include_directories(${GLEW_INCLUDE_DIR})
-    list(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
+    include_directories("${GLEW_INCLUDE_DIR}")
+    list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
 endif()
 
-#-------------------------------------------------------------------------------
-# Shader Stringification
-# We want to use preprocessor include directives to include GLSL and OpenCL
-# shader source files in cpp files, but since the sources contain newline
-# characters we would need raw string literals from C++11 to do this directly.
-# To avoid depending on C++11 we instead use a small tool called "line_quote"
-# to generate source files that are suitable for direct inclusion.
-foreach(shader_file ${SHADER_FILES})
+if( OPENCL_FOUND )
+    include_directories("${OPENCL_INCLUDE_DIRS}")
+endif()
 
-    string(REGEX REPLACE ".*[.](.*)" "\\1" extension ${shader_file})
+_stringify("${SHADER_FILES}" INC_FILES)
 
-    string(REGEX REPLACE "(.*)[.].*" "\\1.inc" inc_file ${shader_file})
-    list(APPEND INC_FILES ${inc_file})
-
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
-        COMMAND stringify ${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}
-            ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
-        DEPENDS stringify ${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}
-    )
-endforeach()
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 _add_glfw_executable(glViewer
-    viewer.cpp
-    ../common/font_image.cpp
-    ../common/hud.cpp
-    ../common/gl_hud.cpp
-    ../common/patchColors.cpp
-    ${SHADER_FILES}
-    ${INC_FILES}
+    glViewer.cpp
+    "${SHADER_FILES}"
+    "${INC_FILES}"
+    $<TARGET_OBJECTS:regression_common_obj>
+    $<TARGET_OBJECTS:regression_vtr_utils_obj>
+    $<TARGET_OBJECTS:examples_common_obj>
 )
 
 target_link_libraries(glViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS glViewer DESTINATION ${CMAKE_BINDIR_BASE})
+install(TARGETS glViewer DESTINATION "${CMAKE_BINDIR_BASE}")

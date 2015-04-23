@@ -23,25 +23,6 @@
 #
 
 #-------------------------------------------------------------------------------
-include_directories(
-    ${DXSDK_INCLUDE_DIR}
-    ${PROJECT_SOURCE_DIR}/opensubdiv
-)
-
-if( OPENGL_FOUND )
-    include_directories(
-        ${OPENGL_INCLUDE_DIR}
-    )
-    if (GLEW_FOUND)
-        include_directories(
-            ${GLEW_INCLUDE_DIR}
-        )
-    endif()
-elseif( OPENGLES_FOUND )
-    include_directories(
-        ${OPENGLES_INCLUDE_DIR}
-    )
-endif()
 
 #-------------------------------------------------------------------------------
 # source & headers
@@ -54,21 +35,17 @@ set(CPU_SOURCE_FILES
     cpuEvalLimitKernel.cpp
     cpuEvalStencilsContext.cpp
     cpuEvalStencilsController.cpp
+    cpuSmoothNormalContext.cpp
+    cpuSmoothNormalController.cpp
     cpuVertexBuffer.cpp
-    error.cpp
-    evalLimitContext.cpp
     drawContext.cpp
     drawRegistry.cpp
+    evalLimitContext.cpp
 )
 
-set(GPU_SOURCE_FILES
-)
+set(GPU_SOURCE_FILES )
 
-set(KERNEL_FILES
-)
-
-set(INC_FILES
-)
+set(INC_FILES )
 
 set(PRIVATE_HEADER_FILES
     debug.h
@@ -84,8 +61,9 @@ set(PUBLIC_HEADER_FILES
     cpuEvalLimitController.h
     cpuEvalStencilsContext.h
     cpuEvalStencilsController.h
+    cpuSmoothNormalContext.h
+    cpuSmoothNormalController.h
     cpuVertexBuffer.h
-    error.h
     evalLimitContext.h
     mesh.h
     nonCopyable.h
@@ -94,20 +72,6 @@ set(PUBLIC_HEADER_FILES
     drawRegistry.h
     vertex.h
     vertexDescriptor.h
-)
-
-#-------------------------------------------------------------------------------
-# platform dependent tweaks
-if(APPLE OR UNIX)
-    set(PLATFORM_COMPILE_FLAGS
-        -fPIC
-    )
-elseif(WIN32)
-
-endif()
-
-add_definitions(
-    ${PLATFORM_COMPILE_FLAGS}
 )
 
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
@@ -149,61 +113,61 @@ if( PTEX_FOUND )
             ${DX_PTEX_PUBLIC_HEADERS}
         )
     endif()
-    include_directories( ${PTEX_INCLUDE_DIR} )
+    include_directories( "${PTEX_INCLUDE_DIR}" )
     list(APPEND PLATFORM_CPU_LIBRARIES
         ${PTEX_LIBRARY}
     )
 endif()
 
-list(APPEND DOXY_HEADER_FILES
-    ${GL_PTEX_PUBLIC_HEADERS}
-    ${DX_PTEX_PUBLIC_HEADERS}
-)
+list(APPEND DOXY_HEADER_FILES ${GL_PTEX_PUBLIC_HEADERS} ${DX_PTEX_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
 set(OPENMP_PUBLIC_HEADERS
     ompKernel.h
     ompComputeController.h
     ompEvalStencilsController.h
+    ompSmoothNormalController.h
 )
 
-if( OPENMP_FOUND )
+if(OPENMP_FOUND )
     list(APPEND CPU_SOURCE_FILES
         ompKernel.cpp
         ompComputeController.cpp
         ompEvalStencilsController.cpp
+        ompSmoothNormalController.cpp
     )
 
     list(APPEND PUBLIC_HEADER_FILES ${OPENMP_PUBLIC_HEADERS})
 
     if (CMAKE_COMPILER_IS_GNUCXX)
-        list(APPEND PLATFORM_CPU_LIBRARIES
-            gomp
-        )
+        list(APPEND PLATFORM_CPU_LIBRARIES gomp)
     endif()
 endif()
 
 list(APPEND DOXY_HEADER_FILES ${OPENMP_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
+set(TBB_PUBLIC_HEADERS
+    tbbKernel.h
+    tbbComputeController.h
+    tbbEvalStencilsController.h
+    tbbSmoothNormalController.h
+)
+
 if( TBB_FOUND )
-    include_directories(
-        ${TBB_INCLUDE_DIR}
-    )
+    include_directories("${TBB_INCLUDE_DIR}")
+
     list(APPEND CPU_SOURCE_FILES
         tbbKernel.cpp
         tbbComputeController.cpp
         tbbEvalStencilsController.cpp
+        tbbSmoothNormalController.cpp
     )
-    list(APPEND PUBLIC_HEADER_FILES
-        tbbKernel.h
-        tbbComputeController.h
-        tbbEvalStencilsController.h
-    )
+
+    list(APPEND PUBLIC_HEADER_FILES ${TBB_PUBLIC_HEADERS})
+
     if (CMAKE_COMPILER_IS_GNUCXX)
-        list(APPEND PLATFORM_CPU_LIBRARIES
-            gomp
-        )
+        list(APPEND PLATFORM_CPU_LIBRARIES gomp)
     endif()
 
     list(APPEND PLATFORM_CPU_LIBRARIES
@@ -211,21 +175,7 @@ if( TBB_FOUND )
     )
 endif()
 
-#-------------------------------------------------------------------------------
-set(GCD_PUBLIC_HEADERS
-    gcdKernel.h
-    gcdComputeController.h
-)
-
-if( GCD_FOUND )
-    list(APPEND CPU_SOURCE_FILES
-        gcdKernel.cpp
-        gcdComputeController.cpp
-    )
-    list(APPEND PUBLIC_HEADER_FILES ${GCD_PUBLIC_HEADERS})
-endif()
-
-list(APPEND DOXY_HEADER_FILES ${GCD_PUBLIC_HEADERS})
+list(APPEND DOXY_HEADER_FILES ${TBB_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
 # GL code & dependencies
@@ -251,12 +201,9 @@ if( OPENGL_FOUND OR OPENGLES_FOUND )
             glslPatchBSpline.glsl
             glslPatchGregory.glsl
             glslPatchTransition.glsl
+            glslPtexCommon.glsl
         )
     endif()
-    list(APPEND PLATFORM_GPU_LIBRARIES
-        ${OPENGL_LIBRARY}
-        ${OPENGLES_LIBRARIES}
-    )
 endif()
 
 list(APPEND DOXY_HEADER_FILES ${GL_PUBLIC_HEADERS})
@@ -267,14 +214,12 @@ list(APPEND DOXY_HEADER_FILES ${GL_PUBLIC_HEADERS})
 set(GL_4_2_PUBLIC_HEADERS
     glslTransformFeedbackComputeContext.h
     glslTransformFeedbackComputeController.h
-    glslTransformFeedbackKernelBundle.h
 )
 
 if( OPENGL_4_2_FOUND )
     list(APPEND GPU_SOURCE_FILES
-        glslTransformFeedbackComputeController.cpp
         glslTransformFeedbackComputeContext.cpp
-        glslTransformFeedbackKernelBundle.cpp
+        glslTransformFeedbackComputeController.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES ${GL_4_2_PUBLIC_HEADERS})
     list(APPEND KERNEL_FILES
@@ -287,20 +232,19 @@ endif()
 
 list(APPEND DOXY_HEADER_FILES ${GL_4_2_PUBLIC_HEADERS})
 
+
 #-------------------------------------------------------------------------------
 # OpenGL 4.3 dependencies
 # note : (GLSL compute shader kernels require GL 4.3)
 set(GL_4_3_PUBLIC_HEADERS
         glslComputeContext.h
         glslComputeController.h
-        glslKernelBundle.h
 )
 
 if( OPENGL_4_3_FOUND )
     list(APPEND GPU_SOURCE_FILES
-        glslComputeController.cpp
         glslComputeContext.cpp
-        glslKernelBundle.cpp
+        glslComputeController.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES ${GL_4_3_PUBLIC_HEADERS})
     list(APPEND KERNEL_FILES
@@ -321,7 +265,6 @@ set(DXSDK_PUBLIC_HEADERS
     d3d11ComputeController.h
     d3d11DrawContext.h
     d3d11DrawRegistry.h
-    d3d11KernelBundle.h
     d3d11VertexBuffer.h
     d3d11Mesh.h
 )
@@ -332,7 +275,6 @@ if( DXSDK_FOUND )
         d3d11ComputeController.cpp
         d3d11DrawContext.cpp
         d3d11DrawRegistry.cpp
-        d3d11KernelBundle.cpp
         d3d11VertexBuffer.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES ${DXSDK_PUBLIC_HEADERS})
@@ -342,6 +284,7 @@ if( DXSDK_FOUND )
         hlslPatchBSpline.hlsl
         hlslPatchGregory.hlsl
         hlslPatchTransition.hlsl
+        hlslPtexCommon.hlsl
     )
     list(APPEND PLATFORM_GPU_LIBRARIES
         ${DXSDK_LIBRARIES}
@@ -356,12 +299,13 @@ set(OPENCL_PUBLIC_HEADERS
     clComputeContext.h
     clComputeController.h
     clVertexBuffer.h
+    opencl.h
 )
+
 if ( OPENCL_FOUND )
     list(APPEND GPU_SOURCE_FILES
-        clComputeController.cpp
         clComputeContext.cpp
-        clKernelBundle.cpp
+        clComputeController.cpp
         clVertexBuffer.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES ${OPENCL_PUBLIC_HEADERS})
@@ -371,15 +315,21 @@ if ( OPENCL_FOUND )
     list(APPEND PLATFORM_GPU_LIBRARIES
         ${OPENCL_LIBRARIES}
     )
-    include_directories( ${OPENCL_INCLUDE_DIRS} )
+    include_directories( "${OPENCL_INCLUDE_DIRS}" )
     if ( OPENGL_FOUND )
-        list(APPEND GPU_SOURCE_FILES
-            clGLVertexBuffer.cpp
-        )
-        list(APPEND PUBLIC_HEADER_FILES
-            clGLVertexBuffer.h
-        )
+        list(APPEND GPU_SOURCE_FILES clGLVertexBuffer.cpp)
+        list(APPEND PUBLIC_HEADER_FILES clGLVertexBuffer.h)
     endif()
+
+    # OpenCL D3D11 interop needs work...
+    #if ( DXSDK_FOUND )
+    #    list(APPEND GPU_SOURCE_FILES
+    #         clD3D11VertexBuffer.cpp
+    #    )
+    #    list(APPEND PUBLIC_HEADER_FILES
+    #         clD3D11VertexBuffer.h)
+    #    )
+    #endif()
 endif()
 
 list(APPEND DOXY_HEADER_FILES ${OPENCL_PUBLIC_HEADERS})
@@ -391,6 +341,7 @@ set(CUDA_PUBLIC_HEADERS
     cudaComputeController.h
     cudaVertexBuffer.h
 )
+
 if( CUDA_FOUND )
     list(APPEND GPU_SOURCE_FILES
         cudaComputeController.cpp
@@ -398,9 +349,10 @@ if( CUDA_FOUND )
         cudaVertexBuffer.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES ${CUDA_PUBLIC_HEADERS})
-    list(APPEND KERNEL_FILES
-        cudaKernel.cu
+    list(APPEND CUDA_KERNEL_FILES
+        osd/cudaKernel.cu
     )
+    set (CUDA_KERNEL_FILES ${CUDA_KERNEL_FILES} PARENT_SCOPE)
     if ( OPENGL_FOUND )
         list(APPEND GPU_SOURCE_FILES
             cudaGLVertexBuffer.cpp
@@ -427,133 +379,55 @@ endif()
 list(APPEND DOXY_HEADER_FILES ${CUDA_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
-# Kernel Stringification
-# We want to use preprocessor include directives to include GLSL and OpenCL
-# kernel source files in cpp files, but since the sources contain newline
-# characters we would need raw string literals from C++11 to do this directly.
-# To avoid depending on C++11 we instead use a small tool called "line_quote"
-# to generate source files that are suitable for direct inclusion.
-foreach(kernel_file ${KERNEL_FILES})
 
-    string(REGEX REPLACE ".*[.](.*)" "\\1" extension ${kernel_file})
+_stringify("${KERNEL_FILES}" INC_FILES)
 
-    if(NOT ${extension} STREQUAL "cu")
-
-        string(REGEX REPLACE "(.*)[.].*" "\\1.inc" inc_file ${kernel_file})
-        list(APPEND INC_FILES ${inc_file})
-
-        add_custom_command(
-            OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
-            COMMAND stringify ${CMAKE_CURRENT_SOURCE_DIR}/${kernel_file}
-                ${CMAKE_CURRENT_SOURCE_DIR}/${inc_file}
-            DEPENDS stringify ${CMAKE_CURRENT_SOURCE_DIR}/${kernel_file}
-        )
-
-    endif()
-endforeach()
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 #-------------------------------------------------------------------------------
 source_group("Kernels" FILES ${KERNEL_FILES})
 
 source_group("Inc" FILES ${INC_FILES})
 
-if (NOT NO_LIB)
+# Compile objs first for both the CPU and GPU libs -----
+add_library(osd_cpu_obj
+    OBJECT
+        ${CPU_SOURCE_FILES}
+        ${PRIVATE_HEADER_FILES}
+        ${PUBLIC_HEADER_FILES}
+)
 
-    add_library(osd_static_cpu
-        STATIC
-            ${CPU_SOURCE_FILES}
-            ${PRIVATE_HEADER_FILES}
-            ${PUBLIC_HEADER_FILES}
-    )
-    set_target_properties(osd_static_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
-
-    target_link_libraries(osd_static_cpu
-        ${PLATFORM_CPU_LIBRARIES}
-    )
-
-    _add_possibly_cuda_library(osd_static_gpu
-        STATIC
-            ${GPU_SOURCE_FILES}
-            ${PRIVATE_HEADER_FILES}
-            ${PUBLIC_HEADER_FILES}
-            ${KERNEL_FILES}
-            ${INC_FILES}
-    )
-    set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
-
-    target_link_libraries(osd_static_gpu
-        ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
-    )
-
-    install( TARGETS osd_static_cpu DESTINATION ${CMAKE_LIBDIR_BASE} )
-    install( TARGETS osd_static_gpu DESTINATION ${CMAKE_LIBDIR_BASE} )
-
-    if (NOT WIN32 AND NOT IOS)
-
-        # Evaluate 'soname' from OSD version
-
-        # replace '_' with '.'
-        string(REGEX REPLACE "(_)" "." OSD_SONAME ${OpenSubdiv_VERSION})
-
-        # remove starting 'v' character
-        string(REGEX REPLACE "^v" "" OSD_SONAME ${OSD_SONAME})
-
-        # generate dynamic-link targets
-        add_library(osd_dynamic_cpu
-            SHARED
-                ${CPU_SOURCE_FILES}
-                ${PRIVATE_HEADER_FILES}
-                ${PUBLIC_HEADER_FILES}
-        )
-
-        set_target_properties(osd_dynamic_cpu
-            PROPERTIES
-                OUTPUT_NAME osdCPU
-                CLEAN_DIRECT_OUTPUT 1
-                SOVERSION ${OSD_SONAME}
-            )
-
-        target_link_libraries(osd_dynamic_cpu
-            ${PLATFORM_CPU_LIBRARIES}
-        )
-
-        _add_possibly_cuda_library(osd_dynamic_gpu
-            SHARED
-                ${GPU_SOURCE_FILES}
-                ${PRIVATE_HEADER_FILES}
-                ${PUBLIC_HEADER_FILES}
-                ${KERNEL_FILES}
-                ${INC_FILES}
-        )
-
-        set_target_properties(osd_dynamic_gpu
-            PROPERTIES
-                OUTPUT_NAME osdGPU
-                CLEAN_DIRECT_OUTPUT 1
-                SOVERSION ${OSD_SONAME}
-            )
-
-        target_link_libraries(osd_dynamic_gpu
-            osd_dynamic_cpu
-            ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
-        )
-
-        install( TARGETS osd_dynamic_cpu LIBRARY DESTINATION ${CMAKE_LIBDIR_BASE} )
-        install( TARGETS osd_dynamic_gpu LIBRARY DESTINATION ${CMAKE_LIBDIR_BASE} )
-    endif()
-endif()
+add_library(osd_gpu_obj
+    OBJECT
+        ${GPU_SOURCE_FILES}
+        ${PRIVATE_HEADER_FILES}
+        ${PUBLIC_HEADER_FILES}
+        ${INC_FILES}
+)
 
 _add_doxy_headers( "${DOXY_HEADER_FILES}" )
 
-install( FILES ${PUBLIC_HEADER_FILES}
-         DESTINATION ${CMAKE_INCDIR_BASE}/osd
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+install(
+    FILES
+        ${PUBLIC_HEADER_FILES}
+    DESTINATION
+        "${CMAKE_INCDIR_BASE}/osd"
+    PERMISSIONS
+        OWNER_READ
+        GROUP_READ
+        WORLD_READ )
 
 
 if (ANDROID)
-    install( FILES Android.mk
-             DESTINATION ${LIBRARY_OUTPUT_PATH_ROOT}
-             PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+    install(
+        FILES
+            Android.mk
+        DESTINATION
+            "${LIBRARY_OUTPUT_PATH_ROOT}"
+        PERMISSIONS
+            OWNER_READ
+            GROUP_READ
+            WORLD_READ )
 endif()
 
 #-------------------------------------------------------------------------------

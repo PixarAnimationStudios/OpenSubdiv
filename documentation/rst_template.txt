@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="css/default.css" type="text/css" />
 <link rel="stylesheet" href="css/flavor.css" type="text/css" />
 <link rel="stylesheet" href="css/renderman-university.css" type="text/css" />
+<link rel="stylesheet" href="css/pygments.css" type="text/css" />
 <style>
 #mainContentContainer {
     left: 15px;
@@ -17,6 +18,9 @@ ul.creatorFooterNav {
     background-color: #333333;
     margin-top: 10px;
     margin-left: 10px;
+}
+ul.creatorMainNav li a {
+    font-size: 12px !important;
 }
 </style>
 %(body_prefix)s
@@ -32,19 +36,25 @@ ul.creatorFooterNav {
                     </div>
           
 					<!-- TOP NAVIGATION MENU -->
-                    <ul class="creatorMainNav floatRight" id="menu">
-                        <li class="" id="navbarId-23704">
+                    <ul class="creatorMainNav floatLeft" id="menu">
+                        <li class="creatorMainNav">
+                            <a href="release_notes.html">${RELEASE_STRING}</a>
+                        </li>
+                    </ul>
+                    <ul class="creatorMainNav floatNav" id="menu">
+                        <li class="mainSubNavigation marginR12 marginL12" id="navbarId-23704">
                             <a href="intro.html">User Docs</a>
                         </li>
-                        <li class="" id="navbarId-23887">
+                        <li class="mainSubNavigation marginR12 marginL12" id="navbarId-23887">
                             <a href="doxy_html/index.html">API Docs</a>
                         </li>
-                        <li class="" id="navbarId-23703">
-                            <a href="http://graphics.pixar.com/opensubdiv/forum.html">Forum</a>
-                        </li>
-                        <li class="" id="navbarId-23944">
+                        <li class="mainSubNavigation marginR12 marginL12" id="navbarId-23944">
                             <a href="release_notes.html">Release Notes</a>
                         </li>
+                        <li class="mainSubNavigation marginR15 marginL12" id="navbarId-23703">
+                            <a href="http://graphics.pixar.com/opensubdiv/forum.html">Forum</a>
+                        </li>
+                        <a class="blueButton marginR0 marginL0" style="width:70px" href="https://github.com/PixarAnimationStudios/OpenSubdiv">Github</a>
                     </ul>
                 </div><!-- close mainSiteNavigation -->
             </div><!-- close center -->
@@ -90,11 +100,11 @@ ul.creatorFooterNav {
         <li class="" id="navbarId-23887">
             <a href="doxy_html/index.html">API Docs</a>
         </li>
-        <li class="" id="navbarId-23703">
-            <a href="http://graphics.pixar.com/opensubdiv/forum.html">Forum</a>
-        </li>
         <li class="" id="navbarId-23944">
             <a href="release_notes.html">Release Notes</a>
+        </li>
+        <li class="" id="navbarId-23703">
+            <a href="http://graphics.pixar.com/opensubdiv/forum.html">Forum</a>
         </li>
     </ul><!-- end bottom navigation menu -->
 

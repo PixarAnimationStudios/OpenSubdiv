@@ -22,168 +22,55 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/mesh.h"
-#include "../far/dispatcher.h"
-#include "../far/catmarkSubdivisionTables.h"
-#include "../far/bilinearSubdivisionTables.h"
+#include "../far/stencilTables.h"
 
 #include "../osd/cpuComputeContext.h"
 #include "../osd/cpuKernel.h"
-#include "../osd/vertexDescriptor.h"
-#include "../osd/error.h"
 
 #include <cstring>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-void
-OsdCpuTable::createCpuBuffer(size_t size, const void *ptr) {
+namespace Osd {
 
-    _devicePtr = new unsigned char[size];
-    memcpy(_devicePtr, ptr, size);
-}
+// ----------------------------------------------------------------------------
 
-OsdCpuTable::~OsdCpuTable() {
+CpuComputeContext::CpuComputeContext(
+    Far::StencilTables const * vertexStencilTables,
+        Far::StencilTables const * varyingStencilTables) :
+            _vertexStencilTables(0), _varyingStencilTables(0) {
 
-    if (_devicePtr) 
-        delete [] (unsigned char *)_devicePtr;
-}
+    // XXXX manuelk we do not own the tables, so use copy-constructor for now
+    //              smart pointers eventually
+    if (vertexStencilTables) {
+        _vertexStencilTables = new Far::StencilTables(*vertexStencilTables);
+    }
 
-void *
-OsdCpuTable::GetBuffer() const {
-
-    return _devicePtr;
+    if (varyingStencilTables) {
+        _varyingStencilTables = new Far::StencilTables(*varyingStencilTables);
+    }
 }
 
 // ----------------------------------------------------------------------------
 
-OsdCpuHEditTable::OsdCpuHEditTable(
-    const FarVertexEditTables<OsdVertex>::VertexEditBatch &batch)
-    : _primvarIndicesTable(new OsdCpuTable(batch.GetVertexIndices())),
-      _editValuesTable(new OsdCpuTable(batch.GetValues())) {
+CpuComputeContext::~CpuComputeContext() {
 
-    _operation = batch.GetOperation();
-    _primvarOffset = batch.GetPrimvarIndex();
-    _primvarWidth = batch.GetPrimvarWidth();
+    delete _vertexStencilTables;
+    delete _varyingStencilTables;
 }
 
-OsdCpuHEditTable::~OsdCpuHEditTable() {
+// ----------------------------------------------------------------------------
 
-    delete _primvarIndicesTable;
-    delete _editValuesTable;
+CpuComputeContext *
+CpuComputeContext::Create(
+    Far::StencilTables const * vertexStencilTables,
+        Far::StencilTables const * varyingStencilTables) {
+
+    return new CpuComputeContext(vertexStencilTables, varyingStencilTables);
 }
 
-const OsdCpuTable *
-OsdCpuHEditTable::GetPrimvarIndices() const {
-
-    return _primvarIndicesTable;
-}
-
-const OsdCpuTable *
-OsdCpuHEditTable::GetEditValues() const {
-
-    return _editValuesTable;
-}
-
-int
-OsdCpuHEditTable::GetOperation() const {
-
-    return _operation;
-}
-
-int
-OsdCpuHEditTable::GetPrimvarOffset() const {
-
-    return _primvarOffset;
-}
-
-int
-OsdCpuHEditTable::GetPrimvarWidth() const {
-
-    return _primvarWidth;
-}
-
-OsdCpuComputeContext::OsdCpuComputeContext(FarMesh<OsdVertex> const *farMesh) {
-
-    FarSubdivisionTables<OsdVertex> const * farTables =
-        farMesh->GetSubdivisionTables();
-
-    // allocate 5 or 7 tables
-    _tables.resize(farTables->GetNumTables(), 0);
-
-    _tables[FarSubdivisionTables<OsdVertex>::E_IT]  = new OsdCpuTable(farTables->Get_E_IT());
-    _tables[FarSubdivisionTables<OsdVertex>::V_IT]  = new OsdCpuTable(farTables->Get_V_IT());
-    _tables[FarSubdivisionTables<OsdVertex>::V_ITa] = new OsdCpuTable(farTables->Get_V_ITa());
-    _tables[FarSubdivisionTables<OsdVertex>::E_W]   = new OsdCpuTable(farTables->Get_E_W());
-    _tables[FarSubdivisionTables<OsdVertex>::V_W]   = new OsdCpuTable(farTables->Get_V_W());
-
-    if (farTables->GetNumTables() > 5) {
-        _tables[FarSubdivisionTables<OsdVertex>::F_IT]  = new OsdCpuTable(farTables->Get_F_IT());
-        _tables[FarSubdivisionTables<OsdVertex>::F_ITa] = new OsdCpuTable(farTables->Get_F_ITa());
-    }
-
-    // create hedit tables
-    FarVertexEditTables<OsdVertex> const *editTables = farMesh->GetVertexEdit();
-    if (editTables) {
-        int numEditBatches = editTables->GetNumBatches();
-        _editTables.reserve(numEditBatches);
-        for (int i = 0; i < numEditBatches; ++i) {
-            const FarVertexEditTables<OsdVertex>::VertexEditBatch & edit =
-                editTables->GetBatch(i);
-
-            _editTables.push_back(new OsdCpuHEditTable(edit));
-        }
-    }
-    _currentVertexBuffer = 0;
-    _currentVaryingBuffer = 0;
-}
-
-OsdCpuComputeContext::~OsdCpuComputeContext() {
-
-    for (size_t i = 0; i < _tables.size(); ++i) {
-        delete _tables[i];
-    }
-    for (size_t i = 0; i < _editTables.size(); ++i) {
-        delete _editTables[i];
-    }
-}
-
-const OsdCpuTable *
-OsdCpuComputeContext::GetTable(int tableIndex) const {
-
-    return _tables[tableIndex];
-}
-
-int
-OsdCpuComputeContext::GetNumEditTables() const {
-
-    return static_cast<int>(_editTables.size());
-}
-
-const OsdCpuHEditTable *
-OsdCpuComputeContext::GetEditTable(int tableIndex) const {
-
-    return _editTables[tableIndex];
-}
-
-float *
-OsdCpuComputeContext::GetCurrentVertexBuffer() const {
-
-    return _currentVertexBuffer;
-}
-
-float *
-OsdCpuComputeContext::GetCurrentVaryingBuffer() const {
-
-    return _currentVaryingBuffer;
-}
-
-OsdCpuComputeContext *
-OsdCpuComputeContext::Create(FarMesh<OsdVertex> const *farmesh) {
-
-    return new OsdCpuComputeContext(farmesh);
-}
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

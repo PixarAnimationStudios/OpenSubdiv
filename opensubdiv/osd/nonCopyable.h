@@ -28,17 +28,21 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 template <class T>
-class OsdNonCopyable {
+class NonCopyable {
 
 protected:
-    OsdNonCopyable() {}
-    ~OsdNonCopyable() {}
+    NonCopyable() {}
+    ~NonCopyable() {}
 
 private:
-    OsdNonCopyable(const OsdNonCopyable &);
+    NonCopyable(const NonCopyable &);
     T & operator = (const T &);
 };
+
+} // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

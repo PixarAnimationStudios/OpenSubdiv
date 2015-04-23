@@ -454,14 +454,14 @@ HbrBilinearSubdivision<T>::Refine(HbrMesh<T>* mesh, HbrFace<T>* face) {
             childedge = vertex->Subdivide()->GetEdge(edge->Subdivide());
             assert(childedge);
             if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
-                HbrSubdivision<T>::SubdivideCreaseWeight(edge, edge->GetDestVertex(), childedge);
+                HbrSubdivision<T>::SubdivideCreaseWeight(edge, edge->GetOrgVertex(), childedge);
             }
             childedge->CopyFVarInfiniteSharpness(edge);
 
             childedge = prevedge->Subdivide()->GetEdge(vertex->Subdivide());
             assert(childedge);
             if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
-                HbrSubdivision<T>::SubdivideCreaseWeight(prevedge, prevedge->GetOrgVertex(), childedge);
+                HbrSubdivision<T>::SubdivideCreaseWeight(prevedge, prevedge->GetDestVertex(), childedge);
             }
             childedge->CopyFVarInfiniteSharpness(prevedge);
 
@@ -533,14 +533,14 @@ HbrBilinearSubdivision<T>::RefineFaceAtVertex(HbrMesh<T>* mesh, HbrFace<T>* face
                 childedge = vertex->Subdivide()->GetEdge(edge->Subdivide());
                 assert(childedge);
                 if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
-                    HbrSubdivision<T>::SubdivideCreaseWeight(edge, edge->GetDestVertex(), childedge);
+                    HbrSubdivision<T>::SubdivideCreaseWeight(edge, edge->GetOrgVertex(), childedge);
                 }
                 childedge->CopyFVarInfiniteSharpness(edge);
 
                 childedge = prevedge->Subdivide()->GetEdge(vertex->Subdivide());
                 assert(childedge);
                 if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
-                    HbrSubdivision<T>::SubdivideCreaseWeight(prevedge, prevedge->GetOrgVertex(), childedge);
+                    HbrSubdivision<T>::SubdivideCreaseWeight(prevedge, prevedge->GetDestVertex(), childedge);
                 }
                 childedge->CopyFVarInfiniteSharpness(prevedge);
 

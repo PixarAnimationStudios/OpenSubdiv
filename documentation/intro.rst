@@ -25,13 +25,13 @@
 Introduction
 ------------
 
+.. image:: images/geri.jpg 
+   :width: 100%
+   :align: center
+
 .. contents::
    :local:
    :backlinks: none
-
-.. image:: images/geri.jpg 
-   :width: 600px
-   :align: center
 
 ----
 
@@ -69,10 +69,9 @@ a character of 30,000 polygons to the second level of subdivision (500,000 polyg
 Being able to perform the same operation in less than 3ms allows the user to interact
 with the smooth, accurate limit surface at all times.
 
-.. image:: images/efficient_subdivision.png 
-   :height: 400px
+.. image:: images/osd_splash.png 
    :align: center
-   :target: images/efficient_subdivision.png 
+   :target: images/osd_splash.png 
 
 
 
@@ -106,7 +105,7 @@ Heritage
 
 This is the fifth-generation subdiv library in use by Pixar's proprietary animation 
 system in a lineage that started with code written by Tony DeRose and Tien Truong 
-for Geri\u2019s Game in 1996. Each generation has been a from-scratch rewrite that 
+for Geri's Game in 1996. Each generation has been a from-scratch rewrite that 
 has built upon our experience using subdivision surfaces to make animated films. 
 This code is live, so Pixar's changes to OpenSubdiv for current and future films 
 will be released as open source at the same time they are rolled out to Pixar 
@@ -145,6 +144,7 @@ any contributors' trademarks. In other words, you can use OpenSubdiv to make a
 product, but you cannot use a Luxo Lamp (or other character, etc.) when marketing 
 your product.
 
+`License Header <license.html>`_
 
 ----
 
@@ -160,7 +160,8 @@ on Apache. They are found in the code repository (`individual form
 Please email the signed CLA to opensubdiv-cla@pixar.com.
 
 
-For more details about OpenSubdiv, see `Pixar Graphics Technologies <http:  graphics.pixar.com>`__.
+For more details about OpenSubdiv and other Pixar projects, see
+`Pixar Graphics Technologies <http://graphics.pixar.com>`__.
 
 ----
 

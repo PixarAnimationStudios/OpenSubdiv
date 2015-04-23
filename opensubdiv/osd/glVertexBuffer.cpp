@@ -29,70 +29,90 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdGLVertexBuffer::OsdGLVertexBuffer(int numElements, int numVertices)
+namespace Osd {
+
+GLVertexBuffer::GLVertexBuffer(int numElements, int numVertices)
     : _numElements(numElements),
       _numVertices(numVertices),
       _vbo(0)
 {
 }
 
-OsdGLVertexBuffer::~OsdGLVertexBuffer() {
+GLVertexBuffer::~GLVertexBuffer() {
 
     glDeleteBuffers(1, &_vbo);
 }
 
-OsdGLVertexBuffer *
-OsdGLVertexBuffer::Create(int numElements, int numVertices) {
+GLVertexBuffer *
+GLVertexBuffer::Create(int numElements, int numVertices) {
 
-    OsdGLVertexBuffer *instance =
-        new OsdGLVertexBuffer(numElements, numVertices);
+    GLVertexBuffer *instance =
+        new GLVertexBuffer(numElements, numVertices);
     if (instance->allocate()) return instance;
     delete instance;
     return 0;
 }
 
 void
-OsdGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
+GLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
 
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
     int size = numVertices * _numElements * sizeof(float);
-    glBufferSubData(GL_ARRAY_BUFFER, startVertex * _numElements * sizeof(float), size, src);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+#if defined(GL_EXT_direct_state_access)
+    if (glNamedBufferSubDataEXT) {
+        glNamedBufferSubDataEXT(_vbo, startVertex * _numElements * sizeof(float), size, src);
+    } else {
+#else
+    {
+#endif
+        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+        glBufferSubData(GL_ARRAY_BUFFER, startVertex * _numElements * sizeof(float), size, src);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
 }
 
 int
-OsdGLVertexBuffer::GetNumElements() const {
+GLVertexBuffer::GetNumElements() const {
 
     return _numElements;
 }
 
 int
-OsdGLVertexBuffer::GetNumVertices() const {
+GLVertexBuffer::GetNumVertices() const {
 
     return _numVertices;
 }
 
 GLuint
-OsdGLVertexBuffer::BindVBO() {
+GLVertexBuffer::BindVBO() {
 
     return _vbo;
 }
 
 bool
-OsdGLVertexBuffer::allocate() {
-    
+GLVertexBuffer::allocate() {
+
     int size = _numElements * _numVertices * sizeof(float);
-    GLint prev = 0;
 
-    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
     glGenBuffers(1, &_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, size, 0, GL_STREAM_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, prev);
 
-//    if (glGetError() != GL_NO_ERROR) return false;
+#if defined(GL_EXT_direct_state_access)
+    if (glNamedBufferDataEXT) {
+        glNamedBufferDataEXT(_vbo, size, 0, GL_DYNAMIC_DRAW);
+    } else {
+#else
+    {
+#endif
+        GLint prev = 0;
+        glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
+        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+        glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, prev);
+    }
+
     return true;
 }
+
+}  // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

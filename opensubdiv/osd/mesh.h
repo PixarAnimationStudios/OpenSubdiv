@@ -27,38 +27,44 @@
 
 #include "../version.h"
 
-#include "../far/mesh.h"
-#include "../far/meshFactory.h"
-
-#include "../hbr/mesh.h"
+#include "../far/kernelBatch.h"
+#include "../far/topologyRefiner.h"
+#include "../far/patchTablesFactory.h"
+#include "../far/stencilTables.h"
+#include "../far/stencilTablesFactory.h"
 
 #include "../osd/vertex.h"
+#include "../osd/vertexDescriptor.h"
 
 #include <bitset>
+#include <cassert>
+#include <cstring>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-enum OsdMeshBits {
-    MeshAdaptive    = 0,
+namespace Osd {
 
-    MeshPtexData    = 1,
-    MeshFVarData    = 2,
-
-    NUM_MESH_BITS   = 3,
+enum MeshBits {
+    MeshAdaptive             = 0,
+    MeshInterleaveVarying    = 1,
+    MeshPtexData             = 2,
+    MeshFVarData             = 3,
+    MeshUseSingleCreasePatch = 4,
+    NUM_MESH_BITS            = 5,
 };
-typedef std::bitset<NUM_MESH_BITS> OsdMeshBitset;
+typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
 template <class DRAW_CONTEXT>
-class OsdMeshInterface {
+class MeshInterface {
 public:
     typedef DRAW_CONTEXT DrawContext;
     typedef typename DrawContext::VertexBufferBinding VertexBufferBinding;
 
 public:
-    OsdMeshInterface() { }
+    MeshInterface() { }
 
-    virtual ~OsdMeshInterface() { }
+    virtual ~MeshInterface() { }
 
     virtual int GetNumVertices() const = 0;
 
@@ -68,6 +74,10 @@ public:
 
     virtual void Refine() = 0;
 
+    virtual void Refine(VertexBufferDescriptor const *vertexDesc,
+                        VertexBufferDescriptor const *varyingDesc,
+                        bool interleaved) = 0;
+
     virtual void Synchronize() = 0;
 
     virtual DrawContext * GetDrawContext() = 0;
@@ -75,112 +85,225 @@ public:
     virtual VertexBufferBinding BindVertexBuffer() = 0;
 
     virtual VertexBufferBinding BindVaryingBuffer() = 0;
+
+    virtual void SetFVarDataChannel(int fvarWidth, std::vector<float> const & fvarData) = 0;
+
+protected:
+
+    static inline int getNumVertices(Far::TopologyRefiner const & refiner) {
+        return refiner.IsUniform() ?
+            refiner.GetNumVertices(0) + refiner.GetNumVertices(refiner.GetMaxLevel()) :
+                refiner.GetNumVerticesTotal();
+    }
+
+    static inline void refineMesh(Far::TopologyRefiner & refiner, int level, bool adaptive, bool singleCreasePatch) {
+
+        bool fullTopologyInLastLevel = refiner.GetNumFVarChannels()>0;
+
+        if (adaptive) {
+            Far::TopologyRefiner::AdaptiveOptions options(level);
+            options.fullTopologyInLastLevel = fullTopologyInLastLevel;
+            options.useSingleCreasePatch = singleCreasePatch;
+            refiner.RefineAdaptive(options);
+        } else {
+            Far::TopologyRefiner::UniformOptions options(level);
+            options.fullTopologyInLastLevel = fullTopologyInLastLevel;
+            refiner.RefineUniform(options);
+        }
+    }
 };
 
+
+
 template <class VERTEX_BUFFER, class COMPUTE_CONTROLLER, class DRAW_CONTEXT>
-class OsdMesh : public OsdMeshInterface<DRAW_CONTEXT> {
+class Mesh : public MeshInterface<DRAW_CONTEXT> {
 public:
     typedef VERTEX_BUFFER VertexBuffer;
     typedef COMPUTE_CONTROLLER ComputeController;
-    typedef typename ComputeController::ComputeContext ComputeContext; 
-    typedef DRAW_CONTEXT DrawContext; 
+    typedef typename ComputeController::ComputeContext ComputeContext;
+    typedef DRAW_CONTEXT DrawContext;
     typedef typename DrawContext::VertexBufferBinding VertexBufferBinding;
 
-    OsdMesh(ComputeController * computeController,
-            HbrMesh<OsdVertex> * hmesh,
+    Mesh(ComputeController * computeController,
+            Far::TopologyRefiner * refiner,
             int numVertexElements,
             int numVaryingElements,
             int level,
-            OsdMeshBitset bits = OsdMeshBitset()) :
+            MeshBitset bits = MeshBitset()) :
 
-            _farMesh(0),
+            _refiner(refiner),
+            _patchTables(0),
             _vertexBuffer(0),
             _varyingBuffer(0),
             _computeContext(0),
             _computeController(computeController),
-            _drawContext(0)
-    {
-        FarMeshFactory<OsdVertex> meshFactory(hmesh, level, bits.test(MeshAdaptive));
-        _farMesh = meshFactory.Create(bits.test(MeshFVarData));
-        
-        _initialize(numVertexElements, numVaryingElements, level, bits);
+            _drawContext(0) {
 
+        assert(_refiner);
+
+        MeshInterface<DRAW_CONTEXT>::refineMesh(*_refiner, level, bits.test(MeshAdaptive), bits.test(MeshUseSingleCreasePatch));
+
+        initializeVertexBuffers(numVertexElements, numVaryingElements, bits);
+
+        initializeComputeContext(numVertexElements, numVaryingElements);
+
+        initializeDrawContext(numVertexElements, level, bits);
     }
 
-    OsdMesh(ComputeController * computeController,
-            FarMesh<OsdVertex> * fmesh,
-            int numVertexElements,
-            int numVaryingElements,
-            int level,
-            OsdMeshBitset bits = OsdMeshBitset()) :
+    Mesh(ComputeController * computeController,
+            Far::TopologyRefiner * refiner,
+            Far::PatchTables * patchTables,
+            Far::KernelBatchVector const & kernelBatches,
+            VertexBuffer * vertexBuffer,
+            VertexBuffer * varyingBuffer,
+            ComputeContext * computeContext,
+            DrawContext * drawContext) :
 
-            _farMesh(fmesh),
-            _vertexBuffer(0),
-            _varyingBuffer(0),
-            _computeContext(0),
+            _refiner(refiner),
+            _patchTables(patchTables),
+            _kernelBatches(kernelBatches),
+            _vertexBuffer(vertexBuffer),
+            _varyingBuffer(varyingBuffer),
+            _computeContext(computeContext),
             _computeController(computeController),
-            _drawContext(0)
-    {
-        _initialize(numVertexElements, numVaryingElements, level, bits);
-    }
+            _drawContext(drawContext) { }
 
-    virtual ~OsdMesh() {
-        delete _farMesh;
+    virtual ~Mesh() {
+        delete _refiner;
+        delete _patchTables;
         delete _vertexBuffer;
         delete _varyingBuffer;
         delete _computeContext;
         delete _drawContext;
     }
 
-    virtual int GetNumVertices() const { return _farMesh->GetNumVertices(); }
+    virtual int GetNumVertices() const {
+        assert(_refiner);
+        return MeshInterface<DRAW_CONTEXT>::getNumVertices(*_refiner);
+    }
 
     virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
         _vertexBuffer->UpdateData(vertexData, startVertex, numVerts);
     }
+
     virtual void UpdateVaryingBuffer(float const *varyingData, int startVertex, int numVerts) {
         _varyingBuffer->UpdateData(varyingData, startVertex, numVerts);
     }
+
     virtual void Refine() {
-        _computeController->Refine(_computeContext, _farMesh->GetKernelBatches(), _vertexBuffer, _varyingBuffer);
+        _computeController->Compute(_computeContext, _kernelBatches, _vertexBuffer, _varyingBuffer);
     }
+
+    virtual void Refine(VertexBufferDescriptor const *vertexDesc, VertexBufferDescriptor const *varyingDesc) {
+        _computeController->Refine(_computeContext, _kernelBatches, _vertexBuffer, _varyingBuffer, vertexDesc, varyingDesc);
+    }
+
     virtual void Synchronize() {
         _computeController->Synchronize();
     }
+
     virtual VertexBufferBinding BindVertexBuffer() {
         return VertexBufferBinding(0);
     }
+
     virtual VertexBufferBinding BindVaryingBuffer() {
         return VertexBufferBinding(0);
     }
+
     virtual DrawContext * GetDrawContext() {
         return _drawContext;
     }
 
-private:
-
-    void _initialize( int numVertexElements,
-                      int numVaryingElements,
-                      int level,
-                      OsdMeshBitset bits) 
-    {
-        int numVertices = _farMesh->GetNumVertices();
-        if (numVertexElements)
-            _vertexBuffer = VertexBuffer::Create(numVertexElements, numVertices);
-        if (numVaryingElements)
-            _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices);
-        _computeContext = ComputeContext::Create(_farMesh);
-        _drawContext = DrawContext::Create(_farMesh->GetPatchTables(), bits.test(MeshFVarData));
+    virtual void SetFVarDataChannel(int fvarWidth, std::vector<float> const & fvarData) {
+        if (_patchTables and _drawContext and fvarWidth and (not fvarData.empty())) {
+            _drawContext->SetFVarDataTexture(*_patchTables, fvarWidth, fvarData);
+        }
     }
 
-    FarMesh<OsdVertex> *_farMesh;
-    VertexBuffer *_vertexBuffer;
-    VertexBuffer *_varyingBuffer;
-    ComputeContext *_computeContext;
-    ComputeController *_computeController;
+private:
+
+    void initializeComputeContext(int numVertexElements,
+        int numVaryingElements ) {
+
+        assert(_refiner);
+
+        Far::StencilTablesFactory::Options options;
+        options.generateOffsets=true;
+        options.generateIntermediateLevels=_refiner->IsUniform() ? false : true;
+
+        Far::StencilTables const * vertexStencils=0, * varyingStencils=0;
+
+        if (numVertexElements>0) {
+
+            vertexStencils = Far::StencilTablesFactory::Create(*_refiner, options);
+
+            _kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
+        }
+
+        if (numVaryingElements>0) {
+
+            options.interpolationMode = Far::StencilTablesFactory::INTERPOLATE_VARYING;
+
+            varyingStencils = Far::StencilTablesFactory::Create(*_refiner, options);
+        }
+
+        _computeContext = ComputeContext::Create(vertexStencils, varyingStencils);
+
+        delete vertexStencils;
+        delete varyingStencils;
+    }
+
+    void initializeDrawContext(int numElements, int level, MeshBitset bits) {
+
+        assert(_refiner and _vertexBuffer);
+
+        Far::PatchTablesFactory::Options options(level);
+        options.generateFVarTables = bits.test(MeshFVarData);
+        options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
+
+        _patchTables = Far::PatchTablesFactory::Create(*_refiner);
+
+        _drawContext = DrawContext::Create(
+            _patchTables, numElements, bits.test(MeshFVarData));
+
+        _drawContext->UpdateVertexTexture(_vertexBuffer);
+    }
+
+    int initializeVertexBuffers(int numVertexElements,
+        int numVaryingElements, MeshBitset bits) {
+
+        int numVertices = MeshInterface<DRAW_CONTEXT>::getNumVertices(*_refiner);
+
+        int numElements = numVertexElements +
+            (bits.test(MeshInterleaveVarying) ? numVaryingElements : 0);
+
+        if (numVertexElements) {
+
+            _vertexBuffer = VertexBuffer::Create(numElements, numVertices);
+        }
+
+        if (numVaryingElements>0 and (not bits.test(MeshInterleaveVarying))) {
+            _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices);
+        }
+        return numElements;
+   }
+
+    Far::TopologyRefiner * _refiner;
+    Far::PatchTables * _patchTables;
+    Far::KernelBatchVector _kernelBatches;
+
+    VertexBuffer * _vertexBuffer,
+                 * _varyingBuffer;
+
+    ComputeContext    * _computeContext;
+    ComputeController * _computeController;
+
     DrawContext *_drawContext;
 };
 
-}  // end namespace OPENSUBDIV_VERSION
+} // end namespace Osd
+
+} // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv

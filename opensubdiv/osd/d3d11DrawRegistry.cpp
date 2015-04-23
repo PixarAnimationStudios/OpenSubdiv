@@ -23,7 +23,7 @@
 //
 
 #include "../osd/d3d11DrawRegistry.h"
-#include "../osd/error.h"
+#include "../far/error.h"
 
 #include <D3D11.h>
 #include <D3Dcompiler.h>
@@ -33,7 +33,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdD3D11DrawConfig::~OsdD3D11DrawConfig()
+namespace Osd {
+
+D3D11DrawConfig::~D3D11DrawConfig()
 {
     if (vertexShader) vertexShader->Release();
     if (hullShader) hullShader->Release();
@@ -43,27 +45,36 @@ OsdD3D11DrawConfig::~OsdD3D11DrawConfig()
 }
 
 static const char *commonShaderSource =
-#include "hlslPatchCommon.inc"
+#include "hlslPatchCommon.gen.h"
+;
+static const char *ptexShaderSource =
+#include "hlslPtexCommon.gen.h"
 ;
 static const char *bsplineShaderSource =
-#include "hlslPatchBSpline.inc"
+#include "hlslPatchBSpline.gen.h"
 ;
 static const char *gregoryShaderSource =
-#include "hlslPatchGregory.inc"
+#include "hlslPatchGregory.gen.h"
 ;
 static const char *transitionShaderSource =
-#include "hlslPatchTransition.inc"
+#include "hlslPatchTransition.gen.h"
 ;
 
-OsdD3D11DrawRegistryBase::~OsdD3D11DrawRegistryBase() {}
+D3D11DrawRegistryBase::~D3D11DrawRegistryBase() {}
 
-OsdD3D11DrawSourceConfig *
-OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
-    OsdDrawContext::PatchDescriptor const & desc, ID3D11Device * pd3dDevice)
+D3D11DrawSourceConfig *
+D3D11DrawRegistryBase::_CreateDrawSourceConfig(
+    DrawContext::PatchDescriptor const & desc, ID3D11Device * pd3dDevice)
 {
-    OsdD3D11DrawSourceConfig * sconfig = _NewDrawSourceConfig();
+    D3D11DrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
     sconfig->commonShader.source = commonShaderSource;
+
+    if (IsPtexEnabled()) {
+        sconfig->commonShader.source += ptexShaderSource;
+    }
+
+
     {
         std::ostringstream ss;
         ss << (int)desc.GetMaxValence();
@@ -73,13 +84,9 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
         sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
     }
 
-    if (desc.GetPattern() == FarPatchTables::NON_TRANSITION) {
+    if (desc.GetPattern() == Far::PatchDescriptor::NON_TRANSITION) {
         switch (desc.GetType()) {
-        case FarPatchTables::QUADS:
-        case FarPatchTables::TRIANGLES:
-            // do nothing
-            break;
-        case FarPatchTables::REGULAR:
+        case Far::PatchDescriptor::REGULAR:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
@@ -90,7 +97,7 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
             break;
-        case FarPatchTables::BOUNDARY:
+        case Far::PatchDescriptor::BOUNDARY:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
@@ -102,7 +109,7 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
             break;
-        case FarPatchTables::CORNER:
+        case Far::PatchDescriptor::CORNER:
             sconfig->vertexShader.source = bsplineShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
@@ -114,7 +121,7 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
             break;
-        case FarPatchTables::GREGORY:
+        case Far::PatchDescriptor::GREGORY:
             sconfig->vertexShader.source = gregoryShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
@@ -125,7 +132,7 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->domainShader.target = "ds_5_0";
             sconfig->domainShader.entry = "ds_main_patches";
             break;
-        case FarPatchTables::GREGORY_BOUNDARY:
+        case Far::PatchDescriptor::GREGORY_BOUNDARY:
             sconfig->vertexShader.source = gregoryShaderSource;
             sconfig->vertexShader.target = "vs_5_0";
             sconfig->vertexShader.entry = "vs_main_patches";
@@ -139,9 +146,8 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
             sconfig->domainShader.entry = "ds_main_patches";
             sconfig->domainShader.AddDefine("OSD_PATCH_GREGORY_BOUNDARY");
             break;
-        default:
-            delete sconfig;
-            sconfig = NULL;
+        default: // POINTS, LINES, QUADS, TRIANGLES
+            // do nothing
             break;
         }
     } else { // pattern != NON_TRANSITION
@@ -173,9 +179,9 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
         sconfig->hullShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
         sconfig->domainShader.AddDefine("OSD_TRANSITION_ROTATE", ss.str());
 
-        if (desc.GetType() == FarPatchTables::BOUNDARY) {
+        if (desc.GetType() == Far::PatchDescriptor::BOUNDARY) {
             sconfig->hullShader.AddDefine("OSD_PATCH_BOUNDARY");
-        } else if (desc.GetType() == FarPatchTables::CORNER) {
+        } else if (desc.GetType() == Far::PatchDescriptor::CORNER) {
             sconfig->hullShader.AddDefine("OSD_PATCH_CORNER");
         }
     }
@@ -185,8 +191,8 @@ OsdD3D11DrawRegistryBase::_CreateDrawSourceConfig(
 
 static ID3DBlob *
 _CompileShader(
-        OsdDrawShaderSource const & common,
-        OsdDrawShaderSource const & source)
+        DrawShaderSource const & common,
+        DrawShaderSource const & source)
 {
     DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
 #ifdef _DEBUG
@@ -222,7 +228,7 @@ _CompileShader(
                             dwShaderFlags, 0, &pBlob, &pBlobError);
     if (FAILED(hr)) {
         if ( pBlobError != NULL ) {
-            OsdError(OSD_D3D11_COMPILE_ERROR,
+            Far::Error(Far::FAR_RUNTIME_ERROR,
                      "Error compiling HLSL shader: %s\n",
                      (CHAR*)pBlobError->GetBufferPointer());
             pBlobError->Release();
@@ -235,8 +241,8 @@ _CompileShader(
 
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }
 
-OsdD3D11DrawConfig*
-OsdD3D11DrawRegistryBase::_CreateDrawConfig(
+D3D11DrawConfig*
+D3D11DrawRegistryBase::_CreateDrawConfig(
         DescType const & desc,
         SourceConfigType const * sconfig,
         ID3D11Device * pd3dDevice,
@@ -312,7 +318,7 @@ OsdD3D11DrawRegistryBase::_CreateDrawConfig(
         SAFE_RELEASE(pBlob);
     }
 
-    OsdD3D11DrawConfig * config = _NewDrawConfig();
+    D3D11DrawConfig * config = _NewDrawConfig();
 
     config->vertexShader = vertexShader;
     config->hullShader = hullShader;
@@ -323,5 +329,7 @@ OsdD3D11DrawRegistryBase::_CreateDrawConfig(
     return config;
 }
 
-} // end namespace OPENSUBDIV_VERSION
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

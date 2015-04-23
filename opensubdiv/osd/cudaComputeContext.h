@@ -27,9 +27,6 @@
 
 #include "../version.h"
 
-#include "../far/vertexEditTables.h"
-#include "../osd/vertex.h"
-#include "../osd/vertexDescriptor.h"
 #include "../osd/nonCopyable.h"
 
 #include <stdlib.h>
@@ -38,158 +35,90 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdCudaTable : OsdNonCopyable<OsdCudaTable> {
-public:
-    template<typename T>
-    static OsdCudaTable * Create(const std::vector<T> &table) {
-        OsdCudaTable *result = new OsdCudaTable();
-        if (not result->createCudaBuffer(table.size() * sizeof(T), table.empty() ? NULL : &table[0])) {
-            delete result;
-            return NULL;
-        }
-        return result;
-    }
+namespace Far{ class StencilTables; }
 
-    virtual ~OsdCudaTable();
-
-    void * GetCudaMemory() const;
-
-private:
-    OsdCudaTable() : _devicePtr(NULL) {}
-
-    bool createCudaBuffer(size_t size, const void *ptr);
-
-    void *_devicePtr;
-};
-
-class OsdCudaHEditTable : OsdNonCopyable<OsdCudaHEditTable> {
-public:
-    static OsdCudaHEditTable * Create(const FarVertexEditTables<OsdVertex>::
-                                      VertexEditBatch &batch);
-
-    virtual ~OsdCudaHEditTable();
-
-    const OsdCudaTable * GetPrimvarIndices() const;
-
-    const OsdCudaTable * GetEditValues() const;
-
-    int GetOperation() const;
-
-    int GetPrimvarOffset() const;
-
-    int GetPrimvarWidth() const;
-
-private:
-    OsdCudaHEditTable();
-
-    OsdCudaTable *_primvarIndicesTable;
-    OsdCudaTable *_editValuesTable;
-
-    int _operation;
-    int _primvarOffset;
-    int _primvarWidth;
-};
+namespace Osd {
 
 ///
 /// \brief CUDA Refine Context
 ///
-/// The CUDA implementation of the Refine module contextual functionality. 
+/// The CUDA implementation of the Refine module contextual functionality.
 ///
-/// Contexts interface the serialized topological data pertaining to the 
-/// geometric primitives with the capabilities of the selected discrete 
+/// Contexts interface the serialized topological data pertaining to the
+/// geometric primitives with the capabilities of the selected discrete
 /// compute device.
 ///
-class OsdCudaComputeContext : public OsdNonCopyable<OsdCudaComputeContext> {
+class CudaComputeContext : public NonCopyable<CudaComputeContext> {
 
 public:
-    /// Creates an OsdCudaComputeContext instance
+
+    /// Creates an CudaComputeContext instance
     ///
-    /// @param farmesh the FarMesh used for this Context.
+    /// @param vertexStencilTables   The Far::StencilTables used for vertex
+    ///                              interpolation
     ///
-    static OsdCudaComputeContext * Create(FarMesh<OsdVertex> const *farmesh);
+    /// @param varyingStencilTables  The Far::StencilTables used for varying
+    ///                              interpolation
+    ///
+    static CudaComputeContext * Create(Far::StencilTables const * vertexStencilTables,
+                                          Far::StencilTables const * varyingStencilTables=0);
 
     /// Destructor
-    virtual ~OsdCudaComputeContext();
+    virtual ~CudaComputeContext();
 
-    /// Binds a vertex and a varying data buffers to the context. Binding ensures
-    /// that data buffers are properly inter-operated between Contexts and 
-    /// Controllers operating across multiple devices.
-    ///
-    /// @param vertex   a buffer containing vertex-interpolated primvar data
-    ///
-    /// @param varying  a buffer containing varying-interpolated primvar data
-    ///
-    template<class VERTEX_BUFFER, class VARYING_BUFFER>
-    void Bind(VERTEX_BUFFER *vertex, VARYING_BUFFER *varying) {
+    /// Returns true if the Context has a 'vertex' interpolation stencil table
+    bool HasVertexStencilTables() const;
 
-        if (vertex) {
-            _currentVertexBuffer = static_cast<float*>(vertex->BindCudaBuffer());
-            _vdesc.numVertexElements = vertex->GetNumElements();
-        } else {
-            _currentVertexBuffer = 0;
-            _vdesc.numVertexElements = 0;
-        }
+    /// Returns true if the Context has a 'varying' interpolation stencil table
+    bool HasVaryingStencilTables() const;
 
-        if (varying) {
-            _currentVaryingBuffer = static_cast<float*>(varying->BindCudaBuffer());
-            _vdesc.numVaryingElements = varying->GetNumElements();
-        } else {
-            _currentVaryingBuffer = 0;
-            _vdesc.numVaryingElements = 0;
-        }
+    /// Returns the number of control vertices
+    int GetNumControlVertices() const {
+        return _numControlVertices;
     }
 
-    /// Unbinds any previously bound vertex and varying data buffers.
-    void Unbind() {
-        _currentVertexBuffer = 0;
-        _currentVaryingBuffer = 0;
-    }
+    /// Returns the Cuda buffer containing vertex-stencil stencil sizes
+    void * GetVertexStencilTablesSizes() const;
 
-    /// Returns one of the vertex refinement tables.
-    ///
-    /// @param tableIndex the type of table
-    ///
-    const OsdCudaTable * GetTable(int tableIndex) const;
+    /// Returns the Cuda buffer containing vertex-stencil stencil offsets
+    void * GetVertexStencilTablesOffsets() const;
 
-    /// Returns the number of hierarchical edit tables
-    int GetNumEditTables() const;
+    /// Returns the Cuda buffer containing vertex-stencil stencil indices
+    void * GetVertexStencilTablesIndices() const;
 
-    /// Returns a specific hierarchical edit table
-    ///
-    /// @param tableIndex the index of the table
-    ///
-    const OsdCudaHEditTable * GetEditTable(int tableIndex) const;
+    /// Returns the Cuda buffer containing vertex-stencil stencil weights
+    void * GetVertexStencilTablesWeights() const;
 
-    /// Returns a pointer to the vertex-interpolated data
-    float * GetCurrentVertexBuffer() const;
 
-    /// Returns a pointer to the varying-interpolated data
-    float * GetCurrentVaryingBuffer() const;
+    /// Returns the Cuda buffer containing Varying-stencil stencil sizes
+    void * GetVaryingStencilTablesSizes() const;
 
-    /// Returns an OsdVertexDescriptor if vertex buffers have been bound.
-    ///
-    /// @return a descriptor for the format of the vertex data currently bound
-    ///
-    OsdVertexDescriptor const & GetVertexDescriptor() const {
-        return _vdesc;
-    }
+    /// Returns the Cuda buffer containing Varying-stencil stencil offsets
+    void * GetVaryingStencilTablesOffsets() const;
+
+    /// Returns the Cuda buffer containing Varying-stencil stencil indices
+    void * GetVaryingStencilTablesIndices() const;
+
+    /// Returns the Cuda buffer containing Varying-stencil stencil weights
+    void * GetVaryingStencilTablesWeights() const;
 
 
 protected:
-    OsdCudaComputeContext();
 
-    bool initialize(FarMesh<OsdVertex> const *farMesh);
+    explicit CudaComputeContext(Far::StencilTables const * vertexStencilTables,
+                                   Far::StencilTables const * varyingStencilTables);
 
 private:
-    std::vector<OsdCudaTable*> _tables;
-    std::vector<OsdCudaHEditTable*> _editTables;
 
-    
-    float *_currentVertexBuffer, // cuda buffers
-          *_currentVaryingBuffer;
+    class CudaStencilTables;
 
-    OsdVertexDescriptor _vdesc;
+    CudaStencilTables * _vertexStencilTables,
+                      * _varyingStencilTables;
+
+    int _numControlVertices;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

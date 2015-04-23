@@ -22,266 +22,79 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "../far/stencilTables.h"
 #include "../osd/cpuComputeContext.h"
 #include "../osd/cpuComputeController.h"
 #include "../osd/cpuKernel.h"
 
+#include <cassert>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
 
-OsdCpuComputeController::OsdCpuComputeController() {
+CpuComputeController::CpuComputeController() {
 }
 
-OsdCpuComputeController::~OsdCpuComputeController() {
-}
-
-void
-OsdCpuComputeController::ApplyBilinearFaceVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
-    assert(context);
-
-    OsdCpuComputeFace(
-        context->GetVertexDescriptor(),
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::F_IT)->GetBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::F_ITa)->GetBuffer(),
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+CpuComputeController::~CpuComputeController() {
 }
 
 void
-OsdCpuComputeController::ApplyBilinearEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
-    assert(context);
-
-    OsdCpuComputeBilinearEdge(
-        context->GetVertexDescriptor(),
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::E_IT)->GetBuffer(),
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+CpuComputeController::Synchronize() {
 }
 
 void
-OsdCpuComputeController::ApplyBilinearVertexVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+CpuComputeController::ApplyStencilTableKernel(
+    Far::KernelBatch const &batch, ComputeContext const *context) const {
 
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
     assert(context);
 
-    OsdCpuComputeBilinearVertex(
-        context->GetVertexDescriptor(),
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
+    Far::StencilTables const * vertexStencils = context->GetVertexStencilTables();
 
-void
-OsdCpuComputeController::ApplyCatmarkFaceVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+    if (vertexStencils and _currentBindState.vertexBuffer) {
 
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
-    assert(context);
+        VertexBufferDescriptor const & desc = _currentBindState.vertexDesc;
 
-    OsdCpuComputeFace(
-        context->GetVertexDescriptor(),
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::F_IT)->GetBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::F_ITa)->GetBuffer(),
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
+        float const * srcBuffer = _currentBindState.vertexBuffer + desc.offset;
 
-void
-OsdCpuComputeController::ApplyCatmarkEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+        float * destBuffer = _currentBindState.vertexBuffer + desc.offset +
+            vertexStencils->GetNumControlVertices() * desc.stride;
 
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
-    assert(context);
+        CpuComputeStencils(_currentBindState.vertexDesc,
+                              srcBuffer, destBuffer,
+                              &vertexStencils->GetSizes().at(0),
+                              &vertexStencils->GetOffsets().at(0),
+                              &vertexStencils->GetControlIndices().at(0),
+                              &vertexStencils->GetWeights().at(0),
+                              batch.start,
+                              batch.end);
+    }
 
-    OsdCpuComputeEdge(
-        context->GetVertexDescriptor(),
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::E_IT)->GetBuffer(),
-        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::E_W)->GetBuffer(),
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
+    Far::StencilTables const * varyingStencils = context->GetVaryingStencilTables();
 
-void
-OsdCpuComputeController::ApplyCatmarkVertexVerticesKernelB(
-    FarKernelBatch const &batch, void * clientdata) const {
+    if (varyingStencils and _currentBindState.varyingBuffer) {
 
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
-    assert(context);
+        VertexBufferDescriptor const & desc = _currentBindState.varyingDesc;
 
-    OsdCpuComputeVertexB(
-        context->GetVertexDescriptor(),
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_IT)->GetBuffer(),
-        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetBuffer(),
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
+        float const * srcBuffer = _currentBindState.varyingBuffer + desc.offset;
 
-void
-OsdCpuComputeController::ApplyCatmarkVertexVerticesKernelA1(
-    FarKernelBatch const &batch, void * clientdata) const {
+        float * destBuffer = _currentBindState.varyingBuffer + desc.offset +
+            varyingStencils->GetNumControlVertices() * desc.stride;
 
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
-    assert(context);
-
-    OsdCpuComputeVertexA(
-        context->GetVertexDescriptor(),
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
-        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetBuffer(),
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
-}
-
-void
-OsdCpuComputeController::ApplyCatmarkVertexVerticesKernelA2(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
-    assert(context);
-
-    OsdCpuComputeVertexA(
-        context->GetVertexDescriptor(),
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
-        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetBuffer(),
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
-}
-
-void
-OsdCpuComputeController::ApplyLoopEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
-    assert(context);
-
-    OsdCpuComputeEdge(
-        context->GetVertexDescriptor(),
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::E_IT)->GetBuffer(),
-        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::E_W)->GetBuffer(),
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdCpuComputeController::ApplyLoopVertexVerticesKernelB(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
-    assert(context);
-
-    OsdCpuComputeLoopVertexB(
-        context->GetVertexDescriptor(),
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_IT)->GetBuffer(),
-        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetBuffer(),
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdCpuComputeController::ApplyLoopVertexVerticesKernelA1(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
-    assert(context);
-
-    OsdCpuComputeVertexA(
-        context->GetVertexDescriptor(),
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
-        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetBuffer(),
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
-}
-
-void
-OsdCpuComputeController::ApplyLoopVertexVerticesKernelA2(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
-    assert(context);
-
-    OsdCpuComputeVertexA(
-        context->GetVertexDescriptor(),
-        context->GetCurrentVertexBuffer(),
-        context->GetCurrentVaryingBuffer(),
-        (const int*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_ITa)->GetBuffer(),
-        (const float*)context->GetTable(FarSubdivisionTables<OsdVertex>::V_W)->GetBuffer(),
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
-}
-
-void
-OsdCpuComputeController::ApplyVertexEdits(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdCpuComputeContext * context =
-        static_cast<OsdCpuComputeContext*>(clientdata);
-    assert(context);
-
-    const OsdCpuHEditTable *edit = context->GetEditTable(batch.GetTableIndex());
-    assert(edit);
-
-    const OsdCpuTable * primvarIndices = edit->GetPrimvarIndices();
-    const OsdCpuTable * editValues = edit->GetEditValues();
-
-    if (edit->GetOperation() == FarVertexEdit::Add) {
-        OsdCpuEditVertexAdd(context->GetVertexDescriptor(),
-                            context->GetCurrentVertexBuffer(),
-                            edit->GetPrimvarOffset(),
-                            edit->GetPrimvarWidth(),
-                            batch.GetVertexOffset(), 
-                            batch.GetTableOffset(), 
-                            batch.GetStart(), 
-                            batch.GetEnd(),
-                            static_cast<unsigned int*>(primvarIndices->GetBuffer()),
-                            static_cast<float*>(editValues->GetBuffer()));
-    } else if (edit->GetOperation() == FarVertexEdit::Set) {
-        OsdCpuEditVertexSet(context->GetVertexDescriptor(),
-                            context->GetCurrentVertexBuffer(),
-                            edit->GetPrimvarOffset(),
-                            edit->GetPrimvarWidth(),
-                            batch.GetVertexOffset(), 
-                            batch.GetTableOffset(), 
-                            batch.GetStart(), 
-                            batch.GetEnd(),
-                            static_cast<unsigned int*>(primvarIndices->GetBuffer()),
-                            static_cast<float*>(editValues->GetBuffer()));
+        CpuComputeStencils(_currentBindState.varyingDesc,
+                              srcBuffer, destBuffer,
+                              &varyingStencils->GetSizes().at(0),
+                              &varyingStencils->GetOffsets().at(0),
+                              &varyingStencils->GetControlIndices().at(0),
+                              &varyingStencils->GetWeights().at(0),
+                              batch.start,
+                              batch.end);
     }
 }
 
-void
-OsdCpuComputeController::Synchronize() {
-}
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

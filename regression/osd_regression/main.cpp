@@ -40,12 +40,8 @@
     #endif
 #endif
 
-#if defined(GLFW_VERSION_3)
-    #include <GLFW/glfw3.h>
-    GLFWwindow* g_window=0;
-#else
-    #include <GL/glfw.h>
-#endif
+#include <GLFW/glfw3.h>
+GLFWwindow* g_window=0;
 
 #include <stdio.h>
 #include <cassert>
@@ -71,7 +67,7 @@
     #include "../../examples/common/clInit.h" // XXXX TODO move file out of examples
 #endif
 
-#include "../common/shape_utils.h"
+#include "../../regression/common/hbr_utils.h"
 
 //
 // Regression testing matching Osd to Hbr
@@ -315,7 +311,7 @@ checkMeshCPU( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
                   
     static OpenSubdiv::OsdCpuComputeController *controller = new OpenSubdiv::OsdCpuComputeController();
     
-    OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh);
+    OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh->GetSubdivisionTables(), farmesh->GetVertexEditTables());
     
     OpenSubdiv::OsdCpuVertexBuffer * vb = OpenSubdiv::OsdCpuVertexBuffer::Create(3, farmesh->GetNumVertices());
     
@@ -335,7 +331,7 @@ checkMeshCPUGL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
                     
     static OpenSubdiv::OsdCpuComputeController *controller = new OpenSubdiv::OsdCpuComputeController();
     
-    OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh);
+    OpenSubdiv::OsdCpuComputeContext *context = OpenSubdiv::OsdCpuComputeContext::Create(farmesh->GetSubdivisionTables(), farmesh->GetVertexEditTables());
     
     OpenSubdiv::OsdCpuGLVertexBuffer * vb = OpenSubdiv::OsdCpuGLVertexBuffer::Create(3, farmesh->GetNumVertices());
     
@@ -357,7 +353,7 @@ checkMeshCL( OpenSubdiv::FarMesh<OpenSubdiv::OsdVertex>* farmesh,
 
     static OpenSubdiv::OsdCLComputeController *controller = new OpenSubdiv::OsdCLComputeController(g_clContext, g_clQueue);
     
-    OpenSubdiv::OsdCLComputeContext *context = OpenSubdiv::OsdCLComputeContext::Create(farmesh, g_clContext);
+    OpenSubdiv::OsdCLComputeContext *context = OpenSubdiv::OsdCLComputeContext::Create(farmesh->GetSubdivisionTables(), farmesh->GetVertexEditTables(), g_clContext);
     
     OpenSubdiv::OsdCLGLVertexBuffer * vb = OpenSubdiv::OsdCLGLVertexBuffer::Create(3, farmesh->GetNumVertices(), g_clContext);
     
@@ -717,7 +713,6 @@ main(int argc, char ** argv) {
 
     int width=10, height=10;
     
-#if GLFW_VERSION_MAJOR>=3
     static const char windowTitle[] = "OpenSubdiv OSD regression";
     if (not (g_window=glfwCreateWindow(width, height, windowTitle, NULL, NULL))) {
         printf("Failed to open window.\n");
@@ -725,13 +720,6 @@ main(int argc, char ** argv) {
         return 1;
     }
     glfwMakeContextCurrent(g_window);
-#else
-    if (glfwOpenWindow(width, height, 8, 8, 8, 8, 24, 8,GLFW_WINDOW) == GL_FALSE) {
-        printf("Failed to open window.\n");
-        glfwTerminate();
-        return 1;
-    }
-#endif
     
 #if defined(OSD_USES_GLEW)
     if (GLenum r = glewInit() != GLEW_OK) {

@@ -23,6 +23,8 @@
 //
 
 #include "../osd/cpuEvalLimitKernel.h"
+#include "../far/patchTables.h"
+#include "../far/stencilTables.h"
 
 #include <math.h>
 #include <cstdio>
@@ -35,23 +37,25 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 void
 evalBilinear(float u, float v,
-             unsigned int const * vertexIndices,
-             OsdVertexBufferDescriptor const & inDesc,
+             Far::Index const * vertexIndices,
+             VertexBufferDescriptor const & inDesc,
              float const * inQ,
-             OsdVertexBufferDescriptor const & outDesc,
+             VertexBufferDescriptor const & outDesc,
              float * outQ) {
 
-    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
     float const * inOffset = inQ + inDesc.offset;
 
     float * Q = outQ + outDesc.offset;
-    
+
     memset(Q, 0, inDesc.length*sizeof(float));
 
-    float ou = 1.0f - u, 
+    float ou = 1.0f - u,
           ov = 1.0f - v,
           w[4] = { ov*ou, v*ou, v*u, ov*u };
 
@@ -64,7 +68,30 @@ evalBilinear(float u, float v,
         }
     }
 }
-        
+
+#ifdef TENSOR_PRODUCT_CUBIC_SPLINES
+
+// manuelk code was refactored to use the matrix formulation of cubic splines
+// exposed in Far::PatchTables for consistency. I am keeping these temporarily
+// for reference.
+
+inline void
+evalCubicBezier(float u, float B[4], float BU[3]) {
+    float u2 = u*u,
+          w0 = 1.0f - u,
+          w2 = w0 * w0;
+
+    B[0] = w0*w2;
+    B[1] = 3.0f * u * w2;
+    B[2] = 3.0f * u2 * w0;
+    B[3] = u*u2;
+
+    if (BU) {
+        BU[0] = w2;
+        BU[1] = 2.0f * u * w0;
+        BU[2] = u2;
+    }
+}
 
 inline void
 evalCubicBSpline(float u, float B[4], float BU[4]) {
@@ -88,311 +115,9 @@ evalCubicBSpline(float u, float B[4], float BU[4]) {
     }
 }
 
-
-
-void
-evalBSpline(float u, float v, 
-            unsigned int const * vertexIndices,
-            OsdVertexBufferDescriptor const & inDesc,
-            float const * inQ, 
-            OsdVertexBufferDescriptor const & outDesc,
-            float * outQ, 
-            float * outDQU,
-            float * outDQV ) {
-
-    // make sure that we have enough space to store results
-    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
-
-    bool evalDeriv = (outDQU or outDQV);
-
-    float B[4], D[4],
-          *BU=(float*)alloca(inDesc.length*4*sizeof(float)),
-          *DU=(float*)alloca(inDesc.length*4*sizeof(float));
-    
-    memset(BU, 0, inDesc.length*4*sizeof(float));
-    memset(DU, 0, inDesc.length*4*sizeof(float));
-
-    evalCubicBSpline(u, B, evalDeriv ? D : 0);
-
-    float const * inOffset = inQ + inDesc.offset;
-
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-        
-            float const * in = inOffset + vertexIndices[i+j*4]*inDesc.stride;
-            
-            for (int k=0; k<inDesc.length; ++k) {
-            
-                BU[i*inDesc.length+k] += in[k] * B[j];
-                
-                if (evalDeriv)
-                    DU[i*inDesc.length+k] += in[k] * D[j];                
-            }
-        }
-    }
-
-    evalCubicBSpline(v, B, evalDeriv ? D : 0);
-
-    float * Q = outQ + outDesc.offset,
-          * dQU = outDQU + outDesc.offset,
-          * dQV = outDQV + outDesc.offset;
-
-    // clear result 
-    memset(Q, 0, inDesc.length*sizeof(float));
-    if (evalDeriv) {
-        memset(dQU, 0, inDesc.length*sizeof(float));
-        memset(dQV, 0, inDesc.length*sizeof(float));
-    }
-
-    for (int i=0; i<4; ++i) {
-        for (int k=0; k<inDesc.length; ++k) {
-            Q[k] += BU[inDesc.length*i+k] * B[i];
-            
-            if (evalDeriv) {
-                dQU[k] += DU[inDesc.length*i+k] * B[i];
-                dQV[k] += BU[inDesc.length*i+k] * D[i];
-            }
-        }
-    }    
-}             
-
-
-
-void
-evalBoundary(float u, float v, 
-             unsigned int const * vertexIndices,
-             OsdVertexBufferDescriptor const & inDesc,
-             float const * inQ,
-             OsdVertexBufferDescriptor const & outDesc,
-             float * outQ,
-             float * outDQU,
-             float * outDQV ) {
-
-    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
-
-    bool evalDeriv = (outDQU or outDQV);
-
-    float B[4], D[4],
-          *BU=(float*)alloca(inDesc.length*4*sizeof(float)),
-          *DU=(float*)alloca(inDesc.length*4*sizeof(float));
-    
-    memset(BU, 0, inDesc.length*4*sizeof(float));
-    memset(DU, 0, inDesc.length*4*sizeof(float));
-
-    evalCubicBSpline(u, B, evalDeriv ? D : 0);
-
-    float const * inOffset = inQ + inDesc.offset;
-
-
-    // mirror the missing vertices (M)
-    //
-    //  M0 -- M1 -- M2 -- M3 (corner)
-    //   |     |     |     |
-    //   |     |     |     |
-    //  v0 -- v1 -- v2 -- v3    M : mirrored
-    //   |.....|.....|.....|
-    //   |.....|.....|.....|
-    //  v4 -- v5 -- v6 -- v7    v : original Cv
-    //   |.....|.....|.....|
-    //   |.....|.....|.....|
-    //  v8 -- v9 -- v10-- v11
-    
-    float *M = (float*)alloca(inDesc.length*4*sizeof(float));
-
-    float const *v0 = inOffset + vertexIndices[0]*inDesc.stride,
-                *v1 = inOffset + vertexIndices[1]*inDesc.stride,
-                *v2 = inOffset + vertexIndices[2]*inDesc.stride,
-                *v3 = inOffset + vertexIndices[3]*inDesc.stride,
-                *v4 = inOffset + vertexIndices[4]*inDesc.stride,
-                *v5 = inOffset + vertexIndices[5]*inDesc.stride,
-                *v6 = inOffset + vertexIndices[6]*inDesc.stride,
-                *v7 = inOffset + vertexIndices[7]*inDesc.stride;
-
-    for (int k=0; k<inDesc.stride; ++k) {
-        M[0*inDesc.length+k] = 2.0f*v0[k] - v4[k];  // M0 = 2*v0 - v3
-        M[1*inDesc.length+k] = 2.0f*v1[k] - v5[k];  // M0 = 2*v1 - v4
-        M[2*inDesc.length+k] = 2.0f*v2[k] - v6[k];  // M1 = 2*v2 - v5
-        M[3*inDesc.length+k] = 2.0f*v3[k] - v7[k];  // M4 = 2*v2 - v1
-    }
-    
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-        
-            // swap the missing row of verts with our mirrored ones
-            float const * in = j==0 ? &M[i*inDesc.stride] :
-                inOffset + vertexIndices[i+(j-1)*4]*inDesc.stride;
-            
-            for (int k=0; k<inDesc.length; ++k) {
-            
-                BU[i*inDesc.length+k] += in[k] * B[j];
-                
-                if (evalDeriv)
-                    DU[i*inDesc.length+k] += in[k] * D[j];                
-            }
-        }
-    }
-
-    evalCubicBSpline(v, B, evalDeriv ? D : 0);
-
-    float * Q = outQ + outDesc.offset,
-          * dQU = outDQU + outDesc.offset,
-          * dQV = outDQV + outDesc.offset;
-
-    // clear result 
-    memset(Q, 0, inDesc.length*sizeof(float));
-    if (evalDeriv) {
-        memset(dQU, 0, inDesc.length*sizeof(float));
-        memset(dQV, 0, inDesc.length*sizeof(float));
-    }
-
-    for (int i=0; i<4; ++i) {
-        for (int k=0; k<inDesc.length; ++k) {
-            Q[k] += BU[inDesc.length*i+k] * B[i];
-            
-            if (evalDeriv) {
-                dQU[k] += DU[inDesc.length*i+k] * B[i];
-                dQV[k] += BU[inDesc.length*i+k] * D[i];
-            }
-        }
-    }    
-}
-
-
-
-void
-evalCorner(float u, float v, 
-           unsigned int const * vertexIndices,
-           OsdVertexBufferDescriptor const & inDesc,
-           float const * inQ,
-           OsdVertexBufferDescriptor const & outDesc,
-           float * outQ,
-           float * outDQU,
-           float * outDQV ) {
-
-    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
-
-    int length = inDesc.length;
-
-    bool evalDeriv = (outDQU or outDQV);
-
-    float B[4], D[4],
-          *BU=(float*)alloca(length*4*sizeof(float)),
-          *DU=(float*)alloca(length*4*sizeof(float));
-    
-    memset(BU, 0, length*4*sizeof(float));
-    memset(DU, 0, length*4*sizeof(float));
-
-
-    evalCubicBSpline(u, B, evalDeriv ? D : 0);
-
-    float const *inOffset = inQ + inDesc.offset;
-
-    // mirror the missing vertices (M)
-    //
-    //  M0 -- M1 -- M2 -- M3 (corner)
-    //   |     |     |     |
-    //   |     |     |     |
-    //  v0 -- v1 -- v2 -- M4    M : mirrored
-    //   |.....|.....|     |
-    //   |.....|.....|     |
-    //  v3.--.v4.--.v5 -- M5    v : original Cv
-    //   |.....|.....|     |
-    //   |.....|.....|     |
-    //  v6 -- v7 -- v8 -- M6
-    
-    float *M = (float*)alloca(length*7*sizeof(float));
-
-    float const *v0 = inOffset + vertexIndices[0]*inDesc.stride,
-                *v1 = inOffset + vertexIndices[1]*inDesc.stride,
-                *v2 = inOffset + vertexIndices[2]*inDesc.stride,
-                *v3 = inOffset + vertexIndices[3]*inDesc.stride,
-                *v4 = inOffset + vertexIndices[4]*inDesc.stride,
-                *v5 = inOffset + vertexIndices[5]*inDesc.stride,
-                *v7 = inOffset + vertexIndices[7]*inDesc.stride,
-                *v8 = inOffset + vertexIndices[8]*inDesc.stride;
-
-    for (int k=0; k<inDesc.stride; ++k) {
-        M[0*length+k] = 2.0f*v0[k] - v3[k];  // M0 = 2*v0 - v3
-        M[1*length+k] = 2.0f*v1[k] - v4[k];  // M0 = 2*v1 - v4
-        M[2*length+k] = 2.0f*v2[k] - v5[k];  // M1 = 2*v2 - v5
-
-        M[4*length+k] = 2.0f*v2[k] - v1[k];  // M4 = 2*v2 - v1
-        M[5*length+k] = 2.0f*v5[k] - v4[k];  // M5 = 2*v5 - v4
-        M[6*length+k] = 2.0f*v8[k] - v7[k];  // M6 = 2*v8 - v7
-        
-        // M3 = 2*M2 - M1
-        M[3*length+k] = 2.0f*M[2*length+k] - M[1*length+k];
-    }
-
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-        
-            float const * in = NULL;
-
-            if (j==0) { // (2)
-                in = &M[i*inDesc.stride];
-            } else if (i==3) {
-                in = &M[(j+3)*inDesc.stride];
-            } else {
-                in = inOffset + vertexIndices[i+(j-1)*3]*inDesc.stride;
-            }
-
-            assert(in);
-                        
-            for (int k=0; k<length; ++k) {
-            
-                BU[i*length+k] += in[k] * B[j];
-                
-                if (evalDeriv)
-                    DU[i*length+k] += in[k] * D[j];                
-            }
-        }
-    }
-
-    evalCubicBSpline(v, B, evalDeriv ? D : 0);
-
-    float * Q = outQ + outDesc.offset,
-          * dQU = outDQU + outDesc.offset,
-          * dQV = outDQV + outDesc.offset;
-
-    // clear result 
-    memset(Q, 0, length*sizeof(float));
-    if (evalDeriv) {
-        memset(dQU, 0, length*sizeof(float));
-        memset(dQV, 0, length*sizeof(float));
-    }
-
-    for (int i=0; i<4; ++i) {
-        for (int k=0; k<length; ++k) {
-            Q[k] += BU[length*i+k] * B[i];
-            
-            if (evalDeriv) {
-                dQU[k] += DU[length*i+k] * B[i];
-                dQV[k] += BU[length*i+k] * D[i];
-            }
-        }
-    }    
-}
-
-
-static float ef_small[7] = {
-    0.813008f, 0.500000f, 0.363636f, 0.287505f,
-    0.238692f, 0.204549f, 0.179211f };
-/*
-static float ef_large[27] = {
-    0.812816f, 0.500000f, 0.363644f, 0.287514f,
-    0.238688f, 0.204544f, 0.179229f, 0.159657f,
-    0.144042f, 0.131276f, 0.120632f, 0.111614f,
-    0.103872f, 0.09715f, 0.0912559f, 0.0860444f,
-    0.0814022f, 0.0772401f, 0.0734867f, 0.0700842f,
-    0.0669851f, 0.0641504f, 0.0615475f, 0.0591488f,
-    0.0569311f, 0.0548745f, 0.0529621f
-};
-*/
-
 inline void
-univar4x4(float u, float B[4], float D[4])
-{
+univar4x4(float u, float B[4], float D[4]) {
+
     float t = u;
     float s = 1.0f - u;
 
@@ -413,9 +138,405 @@ univar4x4(float u, float B[4], float D[4])
     }
 }
 
-inline float 
-csf(unsigned int n, unsigned int j)
-{
+#endif
+
+void
+evalBSpline(Far::PatchParam::BitField bits,
+            float s, float t,
+            Far::Index const * vertexIndices,
+            VertexBufferDescriptor const & inDesc,
+            float const * inQ,
+            VertexBufferDescriptor const & outDesc,
+            float * outQ,
+            float * outDQ1,
+            float * outDQ2 ) {
+
+    // make sure that we have enough space to store results
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
+
+    float Q[16], dQ1[16], dQ2[16];
+    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BSPLINE, bits, s, t,
+        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
+
+    float const * inOffset = inQ + inDesc.offset;
+
+    outQ += outDesc.offset;
+
+    memset(outQ, 0, inDesc.length*sizeof(float));
+    if (outDQ1) {
+        memset(outDQ1, 0, inDesc.length*sizeof(float));
+    }
+    if (outDQ2) {
+        memset(outDQ2, 0, inDesc.length*sizeof(float));
+    }
+
+
+    for (int i=0; i<16; ++i) {
+
+        float const * in = inOffset + vertexIndices[i]*inDesc.stride;
+
+        for (int k=0; k<inDesc.length; ++k) {
+            outQ[k] += Q[i] * in[k];
+            if (outDQ1) {
+                outDQ1[k] += dQ1[i] * in[k];
+            }
+            if (outDQ2) {
+                outDQ2[k] += dQ2[i] * in[k];
+            }
+        }
+    }
+}
+
+void
+evalBoundary(Far::PatchParam::BitField bits,
+             float s, float t,
+             Far::Index const * vertexIndices,
+             VertexBufferDescriptor const & inDesc,
+             float const * inQ,
+             VertexBufferDescriptor const & outDesc,
+             float * outQ,
+             float * outDQ1,
+             float * outDQ2 ) {
+
+    // make sure that we have enough space to store results
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
+
+    float Q[16], dQ1[16], dQ2[16];
+    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BSPLINE, bits, s, t,
+        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
+
+    float const * inOffset = inQ + inDesc.offset;
+
+    outQ += outDesc.offset;
+
+    memset(outQ, 0, inDesc.length*sizeof(float));
+    if (outDQ1) {
+        memset(outDQ1, 0, inDesc.length*sizeof(float));
+    }
+    if (outDQ2) {
+        memset(outDQ2, 0, inDesc.length*sizeof(float));
+    }
+
+    // mirror the missing vertices (M)
+    //
+    //  M0 -- M1 -- M2 -- M3 (corner)
+    //   |     |     |     |
+    //   |     |     |     |
+    //  v0 -- v1 -- v2 -- v3    M : mirrored
+    //   |.....|.....|.....|
+    //   |.....|.....|.....|
+    //  v4 -- v5 -- v6 -- v7    v : original Cv
+    //   |.....|.....|.....|
+    //   |.....|.....|.....|
+    //  v8 -- v9 -- v10-- v11
+
+    float *M = (float*)alloca(inDesc.length*4*sizeof(float));
+
+    float const *v0 = inOffset + vertexIndices[0]*inDesc.stride,
+                *v1 = inOffset + vertexIndices[1]*inDesc.stride,
+                *v2 = inOffset + vertexIndices[2]*inDesc.stride,
+                *v3 = inOffset + vertexIndices[3]*inDesc.stride,
+                *v4 = inOffset + vertexIndices[4]*inDesc.stride,
+                *v5 = inOffset + vertexIndices[5]*inDesc.stride,
+                *v6 = inOffset + vertexIndices[6]*inDesc.stride,
+                *v7 = inOffset + vertexIndices[7]*inDesc.stride;
+
+    for (int k=0; k<inDesc.length; ++k) {
+        M[0*inDesc.length+k] = 2.0f*v0[k] - v4[k];  // M0 = 2*v0 - v3
+        M[1*inDesc.length+k] = 2.0f*v1[k] - v5[k];  // M0 = 2*v1 - v4
+        M[2*inDesc.length+k] = 2.0f*v2[k] - v6[k];  // M1 = 2*v2 - v5
+        M[3*inDesc.length+k] = 2.0f*v3[k] - v7[k];  // M4 = 2*v2 - v1
+    }
+
+    for (int i=0; i<16; ++i) {
+
+        float const * in = i < 4 ?
+            M + i*inDesc.length : inOffset + vertexIndices[i-4]*inDesc.stride;
+
+        for (int k=0; k<inDesc.length; ++k) {
+            outQ[k] += Q[i] * in[k];
+            if (outDQ1) {
+                outDQ1[k] += dQ1[i] * in[k];
+            }
+            if (outDQ2) {
+                outDQ2[k] += dQ2[i] * in[k];
+            }
+        }
+    }
+}
+
+void
+evalCorner(Far::PatchParam::BitField bits,
+           float s, float t,
+           Far::Index const * vertexIndices,
+           VertexBufferDescriptor const & inDesc,
+           float const * inQ,
+           VertexBufferDescriptor const & outDesc,
+           float * outQ,
+           float * outDQ1,
+           float * outDQ2 ) {
+
+    // make sure that we have enough space to store results
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
+
+    float Q[16], dQ1[16], dQ2[16];
+    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BSPLINE, bits, s, t,
+        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
+
+    float const * inOffset = inQ + inDesc.offset;
+
+    outQ += outDesc.offset;
+
+    memset(outQ, 0, inDesc.length*sizeof(float));
+    if (outDQ1) {
+        memset(outDQ1, 0, inDesc.length*sizeof(float));
+    }
+    if (outDQ2) {
+        memset(outDQ2, 0, inDesc.length*sizeof(float));
+    }
+
+    // mirror the missing vertices (M)
+    //
+    //  M0 -- M1 -- M2 -- M3 (corner)
+    //   |     |     |     |
+    //   |     |     |     |
+    //  v0 -- v1 -- v2 -- M4    M : mirrored
+    //   |.....|.....|     |
+    //   |.....|.....|     |
+    //  v3.--.v4.--.v5 -- M5    v : original Cv
+    //   |.....|.....|     |
+    //   |.....|.....|     |
+    //  v6 -- v7 -- v8 -- M6
+
+    float *M = (float*)alloca(inDesc.length*7*sizeof(float));
+
+    float const *v0 = inOffset + vertexIndices[0]*inDesc.stride,
+                *v1 = inOffset + vertexIndices[1]*inDesc.stride,
+                *v2 = inOffset + vertexIndices[2]*inDesc.stride,
+                *v3 = inOffset + vertexIndices[3]*inDesc.stride,
+                *v4 = inOffset + vertexIndices[4]*inDesc.stride,
+                *v5 = inOffset + vertexIndices[5]*inDesc.stride,
+                *v7 = inOffset + vertexIndices[7]*inDesc.stride,
+                *v8 = inOffset + vertexIndices[8]*inDesc.stride;
+
+    for (int k=0; k<inDesc.length; ++k) {
+        M[0*inDesc.length+k] = 2.0f*v0[k] - v3[k];  // M0 = 2*v0 - v3
+        M[1*inDesc.length+k] = 2.0f*v1[k] - v4[k];  // M0 = 2*v1 - v4
+        M[2*inDesc.length+k] = 2.0f*v2[k] - v5[k];  // M1 = 2*v2 - v5
+
+        M[4*inDesc.length+k] = 2.0f*v2[k] - v1[k];  // M4 = 2*v2 - v1
+        M[5*inDesc.length+k] = 2.0f*v5[k] - v4[k];  // M5 = 2*v5 - v4
+        M[6*inDesc.length+k] = 2.0f*v8[k] - v7[k];  // M6 = 2*v8 - v7
+
+        // M3 = 2*M2 - M1
+        M[3*inDesc.length+k] = 2.0f*M[2*inDesc.length+k] - M[1*inDesc.length+k];
+    }
+
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+
+            float const * in = 0;
+            if (j==0) { // (2)
+                in = M + i*inDesc.length;
+            } else if (i==3) {
+                in = M + (j+3)*inDesc.length;
+            } else {
+                in = inOffset + vertexIndices[i+(j-1)*3]*inDesc.stride;
+            }
+            assert(in);
+
+            int idx = j*4+i;
+            for (int k=0; k<inDesc.length; ++k) {
+                outQ[k] += Q[idx] * in[k];
+                if (outDQ1) {
+                    outDQ1[k] += dQ1[idx] * in[k];
+                }
+                if (outDQ2) {
+                    outDQ2[k] += dQ2[idx] * in[k];
+                }
+            }
+        }
+    }
+}
+
+void
+evalGregoryBasis(Far::PatchParam::BitField bits, float u, float v,
+                 Far::StencilTables const & basisStencils,
+                 int stencilIndex,
+                 VertexBufferDescriptor const & inDesc,
+                 float const * inQ,
+                 VertexBufferDescriptor const & outDesc,
+                 float * outQ,
+                 float * outDQU,
+                 float * outDQV ) {
+
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
+
+    int length = inDesc.length;
+
+    float BU[16], DU[16], DV[16];
+    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BEZIER, bits, u, v,
+        outQ ? BU : 0, outDQU ? DU : 0, outDQV ? DV : 0);
+
+    float const *inOffset = inQ + inDesc.offset;
+
+    float * Q = outQ + outDesc.offset;
+
+    // clear result
+    memset(Q, 0, length*sizeof(float));
+    if (outDQU) {
+        memset(outDQU, 0, length*sizeof(float));
+    }
+    if (outDQV) {
+        memset(outDQV, 0, length*sizeof(float));
+    }
+
+    float uu = 1-u,
+          vv = 1-v;
+// remark #1572: floating-point equality and inequality comparisons are unreliable
+#ifdef __INvEL_COMPILER
+#pragma warning diuable 1572
+#endif
+    float d11 = u+v;   if(u+v==0.0f)   d11 = 1.0f;
+    float d12 = uu+v;  if(uu+v==0.0f)  d12 = 1.0f;
+    float d21 = u+vv;  if(u+vv==0.0f)  d21 = 1.0f;
+    float d22 = uu+vv; if(uu+vv==0.0f) d22 = 1.0f;
+#ifdef __INvEL_COMPILER
+#pragma warning enable 1572
+#endif
+
+    float weights[4][2] = { {  u/d11,  v/d11 },
+                            { uu/d12,  v/d12 },
+                            {  u/d21, vv/d21 },
+                            { uu/d22, vv/d22 } };
+
+    //
+    //  P3         e3-      e2+         P2
+    //     O--------O--------O--------O
+    //     |        |        |        |
+    //     |        |        |        |
+    //     |        | f3-    | f2+    |
+    //     |        O        O        |
+    // e3+ O------O            O------O e2-
+    //     |     f3+          f2-     |
+    //     |                          |
+    //     |                          |
+    //     |      f0-         f1+     |
+    // e0- O------O            O------O e1+
+    //     |        O        O        |
+    //     |        | f0+    | f1-    |
+    //     |        |        |        |
+    //     |        |        |        |
+    //     O--------O--------O--------O
+    //  P0         e0+      e1-         P1
+    //
+
+    // XXXX manuelk re-order stencils in factory and get rid of permutation ?
+    static int const permute[16] =
+        { 0, 1, 7, 5, 2, -1, -1, 6, 16, -1, -1, 12, 15, 17, 11, 10 };
+
+    int offset = stencilIndex;
+
+    for (int i=0, fcount=0; i<16; ++i) {
+
+        int index = permute[i];
+
+        if (index==-1) {
+
+            // 0-ring vertex: blend 2 extra basis CVs
+            static int const fpermute[4][2] = { {3, 4}, {9, 8}, {19, 18}, {13, 14} };
+
+            assert(fcount < 4);
+            int v0 = fpermute[fcount][0],
+                v1 = fpermute[fcount][1];
+
+            Far::Stencil s0 = basisStencils.GetStencil(offset + v0),
+                         s1 = basisStencils.GetStencil(offset + v1);
+
+            float w0=weights[fcount][0],
+                  w1=weights[fcount][1];
+
+            {
+                Far::Index const * srcIndices = s0.GetVertexIndices();
+                float const * srcWeights = s0.GetWeights();
+                for (int j=0; j<s0.GetSize(); ++j) {
+                    float const * in = inOffset + srcIndices[j]*inDesc.stride;
+                    float w = BU[i] * w0 * srcWeights[j],
+                          dw1 = DU[i] * w0 * srcWeights[j],
+                          dw2 = DV[i] * w0 * srcWeights[
+j];
+                    for (int k=0; k<length; ++k) {
+                        Q[k] += in[k] * w;
+                        if (outDQU) {
+                            outDQU[k] += in[k] * dw1;
+                        }
+                        if (outDQV) {
+                            outDQV[k] += in[k] * dw2;
+                        }
+                    }
+                }
+            }
+            {
+                Far::Index const * srcIndices = s1.GetVertexIndices();
+                float const * srcWeights = s1.GetWeights();
+                for (int j=0; j<s1.GetSize(); ++j) {
+                    float const * in = inOffset + srcIndices[j]*inDesc.stride;
+                    float w = BU[i] * w1 * srcWeights[j],
+                          dw1 = DU[i] * w1 * srcWeights[j],
+                          dw2 = DV[i] * w1 * srcWeights[j];
+                    for (int k=0; k<length; ++k) {
+                        Q[k] += in[k] * w;
+                        if (outDQU) {
+                            outDQU[k] += in[k] * dw1;
+                        }
+                        if (outDQV) {
+                            outDQV[k] += in[k] * dw2;
+                        }
+                    }
+                }
+            }
+            ++fcount;
+        } else {
+            Far::Stencil s = basisStencils.GetStencil(offset + index);
+            Far::Index const * srcIndices = s.GetVertexIndices();
+            float const * srcWeights = s.GetWeights();
+            for (int j=0; j<s.GetSize(); ++j) {
+                float const * in = inOffset + srcIndices[j]*inDesc.stride;
+                float w = BU[i] * srcWeights[j],
+                      dw1 = DU[i] * srcWeights[j],
+                      dw2 = DV[i] * srcWeights[j];
+                for (int k=0; k<length; ++k) {
+                    Q[k] += in[k] * w;
+                    if (outDQU) {
+                        outDQU[k] += in[k] * dw1;
+                    }
+                    if (outDQV) {
+                        outDQV[k] += in[k] * dw2;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/*
+static float ef[7] = {
+    0.813008f, 0.500000f, 0.363636f, 0.287505f,
+    0.238692f, 0.204549f, 0.179211f };
+*/
+
+static float ef[27] = {
+    0.812816f, 0.500000f, 0.363644f, 0.287514f,
+    0.238688f, 0.204544f, 0.179229f, 0.159657f,
+    0.144042f, 0.131276f, 0.120632f, 0.111614f,
+    0.103872f, 0.09715f, 0.0912559f, 0.0860444f,
+    0.0814022f, 0.0772401f, 0.0734867f, 0.0700842f,
+    0.0669851f, 0.0641504f, 0.0615475f, 0.0591488f,
+    0.0569311f, 0.0548745f, 0.0529621f
+};
+
+inline float
+csf(Far::Index n, Far::Index j) {
     if (j%2 == 0) {
         return cosf((2.0f * float(M_PI) * float(float(j-0)/2.0f))/(float(n)+3.0f));
     } else {
@@ -425,58 +546,54 @@ csf(unsigned int n, unsigned int j)
 
 
 void
-evalGregory(float u, float v,
-            unsigned int const * vertexIndices,
-            int const * vertexValenceBuffer,
-            unsigned int const  * quadOffsetBuffer,
+evalGregory(Far::PatchParam::BitField bits, float u, float v,
+            Far::Index const * vertexIndices,
+            Far::Index const * vertexValenceBuffer,
+            unsigned int const * quadOffsetBuffer,
             int maxValence,
-            OsdVertexBufferDescriptor const & inDesc,
-            float const * inQ, 
-            OsdVertexBufferDescriptor const & outDesc,
-            float * outQ, 
-            float * outDQU,
-            float * outDQV )
-{
-    // vertex
+            VertexBufferDescriptor const & inDesc,
+            float const * inQ,
+            VertexBufferDescriptor const & outDesc,
+            float * outQ,
+            float * outDQ1,
+            float * outDQ2 ) {
 
     // make sure that we have enough space to store results
-    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
-
-    bool evalDeriv = (outDQU or outDQV);
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
     int valences[4], length=inDesc.length;
-    
+
     float const * inOffset = inQ + inDesc.offset;
-    
+
     float  *r  = (float*)alloca((maxValence+2)*4*length*sizeof(float)), *rp,
            *e0 = r + maxValence*4*length,
            *e1 = e0 + 4*length;
     memset(r, 0, (maxValence+2)*4*length*sizeof(float));
-          
+
     float *f=(float*)alloca(maxValence*length*sizeof(float)),
           *pos=(float*)alloca(length*sizeof(float)),
           *opos=(float*)alloca(length*4*sizeof(float));
     memset(opos, 0, length*4*sizeof(float));
-    
+
     for (int vid=0; vid < 4; ++vid) {
-    
+
         int vertexID = vertexIndices[vid];
-        
+
         const int *valenceTable = vertexValenceBuffer + vertexID * (2*maxValence+1);
         int valence = abs(*valenceTable);
         assert(valence<=maxValence);
         valences[vid] = valence;
-        
+
         memcpy(pos, inOffset + vertexID*inDesc.stride, length*sizeof(float));
-        
+
         rp=r+vid*maxValence*length;
-        
+
         int vofs = vid*length;
-        
+
         for (int i=0; i<valence; ++i) {
-            unsigned int im = (i+valence-1)%valence,
-                         ip = (i+1)%valence;
-            
+            Far::Index im = (i+valence-1)%valence,
+                       ip = (i+1)%valence;
+
             int idx_neighbor   = valenceTable[2*i  + 0 + 1];
             int idx_diagonal   = valenceTable[2*i  + 1 + 1];
             int idx_neighbor_p = valenceTable[2*ip + 0 + 1];
@@ -488,22 +605,22 @@ evalGregory(float u, float v,
             float const * neighbor_p = inOffset + idx_neighbor_p * inDesc.stride;
             float const * neighbor_m = inOffset + idx_neighbor_m * inDesc.stride;
             float const * diagonal_m = inOffset + idx_diagonal_m * inDesc.stride;
-            
+
             float  *fp = f+i*length;
-        
+
             for (int k=0; k<length; ++k) {
                 fp[k] = (pos[k]*float(valence) + (neighbor_p[k]+neighbor[k])*2.0f + diagonal[k])/(float(valence)+5.0f);
-                
+
                 opos[vofs+k] += fp[k];
                 rp[i*length+k] =(neighbor_p[k]-neighbor_m[k])/3.0f + (diagonal[k]-diagonal_m[k])/6.0f;
             }
-            
+
         }
-        
+
         for (int k=0; k<length; ++k) {
             opos[vofs+k] /= valence;
         }
-        
+
         for (int i=0; i<valence; ++i) {
             int im = (i+valence-1)%valence;
             for (int k=0; k<length; ++k) {
@@ -512,17 +629,15 @@ evalGregory(float u, float v,
                 e1[vofs+k] += csf(valence-3, 2*i+1) * e;
             }
         }
-        
+
         for (int k=0; k<length; ++k) {
-            e0[vofs+k] *= ef_small[valence-3];
-            e1[vofs+k] *= ef_small[valence-3];
-        }       
+            e0[vofs+k] *= ef[valence-3];
+            e1[vofs+k] *= ef[valence-3];
+        }
     }
-    
-    // tess control
-    
-    // Control Vertices based on : 
-    // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation" 
+
+    // Control Vertices based on :
+    // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation"
     // Loop, Schaefer, Ni, Castafio (ACM ToG Siggraph Asia 2009)
     //
     //  P3         e3-      e2+         E2
@@ -545,13 +660,13 @@ evalGregory(float u, float v,
     //  P0         e0+      e1-         E1
     //
 
-    float *Ep=(float*)alloca(length*4*sizeof(float)), 
-          *Em=(float*)alloca(length*4*sizeof(float)), 
-          *Fp=(float*)alloca(length*4*sizeof(float)), 
+    float *Ep=(float*)alloca(length*4*sizeof(float)),
+          *Em=(float*)alloca(length*4*sizeof(float)),
+          *Fp=(float*)alloca(length*4*sizeof(float)),
           *Fm=(float*)alloca(length*4*sizeof(float));
 
     for (int vid=0; vid<4; ++vid) {
-    
+
         int ip = (vid+1)%4;
         int im = (vid+3)%4;
         int n = valences[vid];
@@ -561,20 +676,20 @@ evalGregory(float u, float v,
         int prev = (quadOffsets[vid] & 0xff00) / 256;
 
         for (int k=0, ofs=vid*length; k<length; ++k, ++ofs) {
-        
+
             Ep[ofs] = opos[ofs] + e0[ofs] * csf(n-3, 2*start) + e1[ofs]*csf(n-3, 2*start +1);
             Em[ofs] = opos[ofs] + e0[ofs] * csf(n-3, 2*prev ) + e1[ofs]*csf(n-3, 2*prev + 1);
         }
-        
-        unsigned int np = valences[ip],
-                     nm = valences[im];
 
-        unsigned int prev_p = (quadOffsets[ip] & 0xff00) / 256,
-                    start_m = quadOffsets[im] & 0x00ff;
-                    
-        float *Em_ip=(float*)alloca(length*sizeof(float)), 
+        Far::Index np = valences[ip],
+                   nm = valences[im];
+
+        Far::Index prev_p = (quadOffsets[ip] & 0xff00) / 256,
+                   start_m = quadOffsets[im] & 0x00ff;
+
+        float *Em_ip=(float*)alloca(length*sizeof(float)),
               *Ep_im=(float*)alloca(length*sizeof(float));
-        
+
         for (int k=0, ipofs=ip*length, imofs=im*length; k<length; ++k, ++ipofs, ++imofs) {
             Em_ip[k] = opos[ipofs] + e0[ipofs]*csf(np-3, 2*prev_p)  + e1[ipofs]*csf(np-3, 2*prev_p+1);
             Ep_im[k] = opos[imofs] + e0[imofs]*csf(nm-3, 2*start_m) + e1[imofs]*csf(nm-3, 2*start_m+1);
@@ -591,27 +706,33 @@ evalGregory(float u, float v,
         }
     }
 
-    float * p[20];    
-    for (int i=0, ofs=0; i<4; ++i, ofs+=length) {    
+    float * p[20];
+    for (int i=0, ofs=0; i<4; ++i, ofs+=length) {
         p[i*5+0] = opos + ofs;
         p[i*5+1] =   Ep + ofs;
         p[i*5+2] =   Em + ofs;
         p[i*5+3] =   Fp + ofs;
         p[i*5+4] =   Fm + ofs;
-    }    
+    }
 
     float U = 1-u, V=1-v;
+#ifdef __INTEL_COMPILER // remark #1572: floating-point equality and inequality comparisons are unreliable
+#pragma warning disable 1572
+#endif
     float d11 = u+v; if(u+v==0.0f) d11 = 1.0f;
     float d12 = U+v; if(U+v==0.0f) d12 = 1.0f;
     float d21 = u+V; if(u+V==0.0f) d21 = 1.0f;
     float d22 = U+V; if(U+V==0.0f) d22 = 1.0f;
-    
+#ifdef __INTEL_COMPILER
+#pragma warning enable 1572
+#endif
+
     float *q=(float*)alloca(length*16*sizeof(float));
     for (int k=0; k<length; ++k) {
         q[ 5*length+k] = (u*p[ 3][k] + v*p[ 4][k])/d11;
         q[ 6*length+k] = (U*p[ 9][k] + v*p[ 8][k])/d12;
         q[ 9*length+k] = (u*p[19][k] + V*p[18][k])/d21;
-        q[10*length+k] = (U*p[13][k] + V*p[14][k])/d22;        
+        q[10*length+k] = (U*p[13][k] + V*p[14][k])/d22;
     }
 
     memcpy(q+ 0*length, p[ 0], length*sizeof(float));
@@ -627,74 +748,55 @@ evalGregory(float u, float v,
     memcpy(q+14*length, p[11], length*sizeof(float));
     memcpy(q+15*length, p[10], length*sizeof(float));
 
-    float B[4], D[4], 
-          *BU=(float*)alloca(inDesc.length*4*sizeof(float)), 
-          *DU=(float*)alloca(inDesc.length*4*sizeof(float));
-    memset(BU, 0, inDesc.length*4*sizeof(float));
-    memset(DU, 0, inDesc.length*4*sizeof(float));
+    float Q[16], dQ1[16], dQ2[16];
+    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BEZIER, bits, u, v,
+        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
 
-    univar4x4(u, B, evalDeriv ? D : 0);
+    outQ += outDesc.offset;
 
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-        
-            float const * in = q + (i+j*4)*length;
-            
-            for (int k=0; k<inDesc.length; ++k) {
-            
-                BU[i*inDesc.length+k] += in[k] * B[j];
-                
-                if (evalDeriv)
-                    DU[i*inDesc.length+k] += in[k] * D[j];                
-            }
-        }
+    memset(outQ, 0, inDesc.length*sizeof(float));
+    if (outDQ1) {
+        memset(outDQ1, 0, inDesc.length*sizeof(float));
+    }
+    if (outDQ2) {
+        memset(outDQ2, 0, inDesc.length*sizeof(float));
     }
 
-    univar4x4(v, B, evalDeriv ? D : 0);
 
-    float * Q = outQ + outDesc.offset;
-    float * dQU = outDQU + outDesc.offset;
-    float * dQV = outDQV + outDesc.offset;
+    for (int i=0; i<16; ++i) {
 
-    // clear result 
-    memset(Q, 0, outDesc.length*sizeof(float));
-    if (evalDeriv) {
-        memset(dQU, 0, outDesc.length*sizeof(float));
-        memset(dQV, 0, outDesc.length*sizeof(float));
-    }
+        float const * in = q + i*length;
 
-    for (int i=0; i<4; ++i) {
         for (int k=0; k<inDesc.length; ++k) {
-            Q[k] += BU[inDesc.length*i+k] * B[i];
-            
-            if (evalDeriv) {
-                dQU[k] += DU[inDesc.length*i+k] * B[i];
-                dQV[k] += BU[inDesc.length*i+k] * D[i];
+            outQ[k] += Q[i] * in[k];
+            if (outDQ1) {
+                outDQ1[k] += dQ1[i] * in[k];
+            }
+            if (outDQ2) {
+                outDQ2[k] += dQ2[i] * in[k];
             }
         }
-    }    
+    }
 }
 
 
 void
-evalGregoryBoundary(float u, float v,
-                    unsigned int const * vertexIndices,
-                    int const * vertexValenceBuffer,
-                    unsigned int const  * quadOffsetBuffer,
+evalGregoryBoundary(Far::PatchParam::BitField bits, float u, float v,
+                    Far::Index const * vertexIndices,
+                    Far::Index const * vertexValenceBuffer,
+                    unsigned int const * quadOffsetBuffer,
                     int maxValence,
-                    OsdVertexBufferDescriptor const & inDesc,
+                    VertexBufferDescriptor const & inDesc,
                     float const * inQ,
-                    OsdVertexBufferDescriptor const & outDesc,
+                    VertexBufferDescriptor const & outDesc,
                     float * outQ,
-                    float * outDQU,
-                    float * outDQV )
-{    
+                    float * outDQ1,
+                    float * outDQ2 ) {
+
     // vertex
 
     // make sure that we have enough space to store results
-    assert( inDesc.length <= (outDesc.stride-outDesc.offset) );
-
-    bool evalDeriv = (outDQU or outDQV);
+    assert( outQ and inDesc.length <= (outDesc.stride-outDesc.offset) );
 
     int valences[4], zerothNeighbors[4], length=inDesc.length;
 
@@ -704,7 +806,7 @@ evalGregoryBoundary(float u, float v,
            *e0 = r + maxValence*4*length,
            *e1 = e0 + 4*length;
     memset(r, 0, (maxValence+2)*4*length*sizeof(float));
-          
+
     float *f=(float*)alloca(maxValence*length*sizeof(float)),
           *org=(float*)alloca(length*4*sizeof(float)),
           *opos=(float*)alloca(length*4*sizeof(float));
@@ -728,15 +830,15 @@ evalGregoryBoundary(float u, float v,
         memcpy(pos, inOffset + vertexID*inDesc.stride, length*sizeof(float));
 
         int boundaryEdgeNeighbors[2];
-        unsigned int currNeighbor = 0,
-                     ibefore=0, 
-                     zerothNeighbor=0;
+        Far::Index currNeighbor = 0,
+                   ibefore=0,
+                   zerothNeighbor=0;
 
         rp=r+vid*maxValence*length;
 
         for (int i=0; i<ivalence; ++i) {
-            unsigned int im = (i+ivalence-1)%ivalence,
-                         ip = (i+1)%ivalence;
+            Far::Index im = (i+ivalence-1)%ivalence,
+                       ip = (i+1)%ivalence;
 
             int idx_neighbor   = valenceTable[2*i  + 0 + 1];
             int idx_diagonal   = valenceTable[2*i  + 1 + 1];
@@ -744,9 +846,14 @@ evalGregoryBoundary(float u, float v,
             int idx_neighbor_m = valenceTable[2*im + 0 + 1];
             int idx_diagonal_m = valenceTable[2*im + 1 + 1];
 
-            int valenceNeighbor = vertexValenceBuffer[idx_neighbor * (2*maxValence+1)]; 
+            int valenceNeighbor = vertexValenceBuffer[idx_neighbor * (2*maxValence+1)];
             if (valenceNeighbor < 0) {
-                boundaryEdgeNeighbors[currNeighbor++] = idx_neighbor;
+
+                if (currNeighbor<2) {
+                    boundaryEdgeNeighbors[currNeighbor] = idx_neighbor;
+                }
+                currNeighbor++;
+
                 if (currNeighbor == 1)    {
                     ibefore = i;
                     zerothNeighbor = i;
@@ -756,7 +863,7 @@ evalGregoryBoundary(float u, float v,
                         boundaryEdgeNeighbors[0] = boundaryEdgeNeighbors[1];
                         boundaryEdgeNeighbors[1] = tmp;
                         zerothNeighbor = i;
-                    } 
+                    }
                 }
             }
 
@@ -775,7 +882,7 @@ evalGregoryBoundary(float u, float v,
                 rp[i*length+k] =(neighbor_p[k]-neighbor_m[k])/3.0f + (diagonal[k]-diagonal_m[k])/6.0f;
             }
         }
-        
+
         for (int k=0; k<length; ++k) {
             opos[vofs+k] /= ivalence;
         }
@@ -787,7 +894,7 @@ evalGregoryBoundary(float u, float v,
         }
 
         for (int i=0; i<ivalence; ++i) {
-            unsigned int im = (i+ivalence-1)%ivalence;
+            Far::Index im = (i+ivalence-1)%ivalence;
             for (int k=0; k<length; ++k) {
                 float e = 0.5f*(f[i*length+k]+f[im*length+k]);
                 e0[vofs+k] += csf(ivalence-3, 2*i  ) * e;
@@ -796,18 +903,18 @@ evalGregoryBoundary(float u, float v,
         }
 
         for (int k=0; k<length; ++k) {
-            e0[vofs+k] *= ef_small[ivalence-3];
-            e1[vofs+k] *= ef_small[ivalence-3];
+            e0[vofs+k] *= ef[ivalence-3];
+            e1[vofs+k] *= ef[ivalence-3];
         }
 
         if (valence<0) {
             if (ivalence>2) {
                 for (int k=0; k<length; ++k) {
-                    opos[vofs+k] = (inOffset[boundaryEdgeNeighbors[0]*inDesc.stride+k] + 
+                    opos[vofs+k] = (inOffset[boundaryEdgeNeighbors[0]*inDesc.stride+k] +
                                     inOffset[boundaryEdgeNeighbors[1]*inDesc.stride+k] + 4.0f*pos[k])/6.0f;
                 }
             } else {
-                memcpy(opos, pos, length*sizeof(float));
+                memcpy(opos+vofs, pos, length*sizeof(float));
             }
 
             float k = float(float(ivalence) - 1.0f);    //k is the number of faces
@@ -821,43 +928,43 @@ evalGregoryBoundary(float u, float v,
             assert(idx_diagonal>0);
             float const * diagonal = inOffset + idx_diagonal * inDesc.stride;
 
-            for (int k=0; k<length; ++k) {
-                e0[vofs+k] = (inOffset[boundaryEdgeNeighbors[0]*inDesc.stride+k] - 
-                              inOffset[boundaryEdgeNeighbors[1]*inDesc.stride+k])/6.0f;
+            for (int j=0; j<length; ++j) {
+                e0[vofs+j] = (inOffset[boundaryEdgeNeighbors[0]*inDesc.stride+j] -
+                              inOffset[boundaryEdgeNeighbors[1]*inDesc.stride+j])/6.0f;
 
-                e1[vofs+k] = gamma * pos[k] + beta_0 * diagonal[k] +                    
-                            (inOffset[boundaryEdgeNeighbors[0]*inDesc.stride+k] +
-                             inOffset[boundaryEdgeNeighbors[1]*inDesc.stride+k]) * alpha_0k;
+                e1[vofs+j] = gamma * pos[j] + beta_0 * diagonal[j] +
+                            (inOffset[boundaryEdgeNeighbors[0]*inDesc.stride+j] +
+                             inOffset[boundaryEdgeNeighbors[1]*inDesc.stride+j]) * alpha_0k;
 
             }
 
             for (int x=1; x<ivalence-1; ++x) {
-                unsigned int curri = ((x + zerothNeighbor)%ivalence);
+                Far::Index curri = ((x + zerothNeighbor)%ivalence);
                 float alpha = (4.0f*sinf((float(M_PI) * float(x))/k))/(3.0f*k+c);
                 float beta = (sinf((float(M_PI) * float(x))/k) + sinf((float(M_PI) * float(x+1))/k))/(3.0f*k+c);
 
-                int idx_neighbor = valenceTable[2*curri + 0 + 1],
+                int idx_neighbor = valenceTable[2*curri + 0 + 1];
                     idx_diagonal = valenceTable[2*curri + 1 + 1];
                 assert( idx_neighbor>0 and idx_diagonal>0 );
-                
-                float const * neighbor = inOffset + idx_neighbor * inDesc.stride,
-                            * diagonal = inOffset + idx_diagonal * inDesc.stride;
 
-                for (int k=0; k<length; ++k) {
-                    e1[vofs+k] += alpha*neighbor[k] + beta*diagonal[k];
+                float const * neighbor = inOffset + idx_neighbor * inDesc.stride;
+                              diagonal = inOffset + idx_diagonal * inDesc.stride;
+
+                for (int j=0; j<length; ++j) {
+                    e1[vofs+j] += alpha*neighbor[j] + beta*diagonal[j];
                 }
             }
 
-            for (int k=0; k<length; ++k) {
-                e1[vofs+k] /= 3.0f;
+            for (int j=0; j<length; ++j) {
+                e1[vofs+j] /= 3.0f;
             }
         }
     }
 
     // tess control
 
-    // Control Vertices based on : 
-    // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation" 
+    // Control Vertices based on :
+    // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation"
     // Loop, Schaefer, Ni, Castafio (ACM ToG Siggraph Asia 2009)
     //
     //  P3         e3-      e2+         E2
@@ -880,34 +987,34 @@ evalGregoryBoundary(float u, float v,
     //  P0         e0+      e1-         E1
     //
 
-    float *Ep=(float*)alloca(length*4*sizeof(float)), 
-          *Em=(float*)alloca(length*4*sizeof(float)), 
-          *Fp=(float*)alloca(length*4*sizeof(float)), 
+    float *Ep=(float*)alloca(length*4*sizeof(float)),
+          *Em=(float*)alloca(length*4*sizeof(float)),
+          *Fp=(float*)alloca(length*4*sizeof(float)),
           *Fm=(float*)alloca(length*4*sizeof(float));
 
     for (int vid=0; vid<4; ++vid) {
 
-        unsigned int ip = (vid+1)%4,
-                     im = (vid+3)%4,
-                     n = abs(valences[vid]),
-                     ivalence = n;
+        Far::Index ip = (vid+1)%4,
+                   im = (vid+3)%4,
+                   n = abs(valences[vid]),
+                   ivalence = n;
 
-        const unsigned int *quadOffsets = quadOffsetBuffer;
+        unsigned int const *quadOffsets = quadOffsetBuffer;
 
         int vofs = vid * length;
 
-        unsigned int   start =  quadOffsets[vid] & 0x00ff,
-                        prev = (quadOffsets[vid] & 0xff00) / 256,
-                          np = abs(valences[ip]),
-                          nm = abs(valences[im]),
-                     start_m =  quadOffsets[im] & 0x00ff,
-                      prev_p = (quadOffsets[ip] & 0xff00) / 256;
+        Far::Index   start =  quadOffsets[vid] & 0x00ff,
+                      prev = (quadOffsets[vid] & 0xff00) / 256,
+                        np = abs(valences[ip]),
+                        nm = abs(valences[im]),
+                   start_m =  quadOffsets[im] & 0x00ff,
+                    prev_p = (quadOffsets[ip] & 0xff00) / 256;
 
-        float *Em_ip=(float*)alloca(length*sizeof(float)), 
+        float *Em_ip=(float*)alloca(length*sizeof(float)),
               *Ep_im=(float*)alloca(length*sizeof(float));
 
         if (valences[ip]<-2) {
-            unsigned int j = (np + prev_p - zerothNeighbors[ip]) % np;
+            Far::Index j = (np + prev_p - zerothNeighbors[ip]) % np;
             for (int k=0, ipofs=ip*length; k<length; ++k, ++ipofs) {
                 Em_ip[k] = opos[ipofs] + cosf((float(M_PI)*j)/float(np-1))*e0[ipofs] + sinf((float(M_PI)*j)/float(np-1))*e1[ipofs];
             }
@@ -915,10 +1022,10 @@ evalGregoryBoundary(float u, float v,
             for (int k=0, ipofs=ip*length; k<length; ++k, ++ipofs) {
                 Em_ip[k] = opos[ipofs] + e0[ipofs]*csf(np-3,2*prev_p)  + e1[ipofs]*csf(np-3,2*prev_p+1);
             }
-        } 
+        }
 
         if (valences[im]<-2) {
-            unsigned int j = (nm + start_m - zerothNeighbors[im]) % nm;
+            Far::Index j = (nm + start_m - zerothNeighbors[im]) % nm;
             for (int k=0, imofs=im*length; k<length; ++k, ++imofs) {
                 Ep_im[k] = opos[imofs] + cosf((float(M_PI)*j)/float(nm-1))*e0[imofs] + sinf((float(M_PI)*j)/float(nm-1))*e1[imofs];
             }
@@ -933,7 +1040,7 @@ evalGregoryBoundary(float u, float v,
         }
         if (valences[im] < 0) {
             nm = (nm-1)*2;
-        }  
+        }
         if (valences[ip] < 0) {
             np = (np-1)*2;
         }
@@ -952,8 +1059,8 @@ evalGregoryBoundary(float u, float v,
                 Fm[ofs] = (csf(nm-3,2)*opos[ofs] + s3*Em[ofs] + s2*Ep_im[k] - rp[prev*length+k])/3.0f;
             }
         } else if (valences[vid] < -2) {
-            unsigned int jp = (ivalence + start - zerothNeighbors[vid]) % ivalence,
-                         jm = (ivalence + prev  - zerothNeighbors[vid]) % ivalence;
+            Far::Index jp = (ivalence + start - zerothNeighbors[vid]) % ivalence,
+                       jm = (ivalence + prev  - zerothNeighbors[vid]) % ivalence;
 
             float s1 = 3-2*csf(n-3,2)-csf(np-3,2),
                   s2 = 2*csf(n-3,2),
@@ -967,12 +1074,12 @@ evalGregoryBoundary(float u, float v,
             }
 
             if (valences[im]<0) {
-                float s1=3-2*csf(n-3,2)-csf(np-3,2);
+                s1=3-2*csf(n-3,2)-csf(np-3,2);
                 for (int k=0, ofs=vofs; k<length; ++k, ++ofs) {
                     Fp[ofs] = Fm[ofs] = (csf(np-3,2)*opos[ofs] + s1*Ep[ofs] + s2*Em_ip[k] + rp[start*length+k])/3.0f;
                 }
             } else if (valences[ip]<0) {
-                float s1 = 3.0f-2.0f*cosf(2.0f*float(M_PI)/n)-cosf(2.0f*float(M_PI)/nm);
+                s1 = 3.0f-2.0f*cosf(2.0f*float(M_PI)/n)-cosf(2.0f*float(M_PI)/nm);
                 for (int k=0, ofs=vofs; k<length; ++k, ++ofs) {
                     Fm[ofs] = Fp[ofs] = (csf(nm-3,2)*opos[ofs] + s1*Em[ofs] + s2*Ep_im[k] - rp[prev*length+k])/3.0f;
                 }
@@ -986,8 +1093,8 @@ evalGregoryBoundary(float u, float v,
         }
     }
 
-    float * p[20];    
-    for (int vid=0, ofs=0; vid<4; ++vid, ofs+=length) {    
+    float * p[20];
+    for (int vid=0, ofs=0; vid<4; ++vid, ofs+=length) {
         p[vid*5+0] = opos + ofs;
         p[vid*5+1] =   Ep + ofs;
         p[vid*5+2] =   Em + ofs;
@@ -996,17 +1103,23 @@ evalGregoryBoundary(float u, float v,
     }
 
     float U = 1-u, V=1-v;
+#ifdef __INTEL_COMPILER // remark #1572: floating-point equality and inequality comparisons are unreliable
+#pragma warning disable 1572
+#endif
     float d11 = u+v; if(u+v==0.0f) d11 = 1.0f;
     float d12 = U+v; if(U+v==0.0f) d12 = 1.0f;
     float d21 = u+V; if(u+V==0.0f) d21 = 1.0f;
     float d22 = U+V; if(U+V==0.0f) d22 = 1.0f;
+#ifdef __INTEL_COMPILER
+#pragma warning enable 1572
+#endif
 
     float *q=(float*)alloca(length*16*sizeof(float));
     for (int k=0; k<length; ++k) {
         q[ 5*length+k] = (u*p[ 3][k] + v*p[ 4][k])/d11;
         q[ 6*length+k] = (U*p[ 9][k] + v*p[ 8][k])/d12;
         q[ 9*length+k] = (u*p[19][k] + V*p[18][k])/d21;
-        q[10*length+k] = (U*p[13][k] + V*p[14][k])/d22;        
+        q[10*length+k] = (U*p[13][k] + V*p[14][k])/d22;
     }
 
     memcpy(q+ 0*length, p[ 0], length*sizeof(float));
@@ -1022,54 +1135,38 @@ evalGregoryBoundary(float u, float v,
     memcpy(q+14*length, p[11], length*sizeof(float));
     memcpy(q+15*length, p[10], length*sizeof(float));
 
-    float B[4], D[4], 
-          *BU=(float*)alloca(inDesc.length*4*sizeof(float)), 
-          *DU=(float*)alloca(inDesc.length*4*sizeof(float));
-    memset(BU, 0, inDesc.length*4*sizeof(float));
-    memset(DU, 0, inDesc.length*4*sizeof(float));
+    float Q[16], dQ1[16], dQ2[16];
+    Far::PatchTables::GetBasisWeights(Far::PatchTables::BASIS_BEZIER, bits, u, v,
+        outQ ? Q : 0, outDQ1 ? dQ1 : 0, outDQ2 ? dQ2 : 0);
 
-    univar4x4(u, B, evalDeriv ? D : 0);
+    outQ += outDesc.offset;
 
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-        
-            float const * in = q + (i+j*4)*length;
-            
-            for (int k=0; k<inDesc.length; ++k) {
-            
-                BU[i*inDesc.length+k] += in[k] * B[j];
-                
-                if (evalDeriv)
-                    DU[i*inDesc.length+k] += in[k] * D[j];                
-            }
-        }
+    memset(outQ, 0, inDesc.length*sizeof(float));
+    if (outDQ1) {
+        memset(outDQ1, 0, inDesc.length*sizeof(float));
+    }
+    if (outDQ2) {
+        memset(outDQ2, 0, inDesc.length*sizeof(float));
     }
 
-    univar4x4(v, B, evalDeriv ? D : 0);
 
-    float * Q = outQ + outDesc.offset;
-    float * dQU = outDQU + outDesc.offset;
-    float * dQV = outDQV + outDesc.offset;
+    for (int i=0; i<16; ++i) {
 
-    // clear result 
-    memset(Q, 0, outDesc.length*sizeof(float));
-    if (evalDeriv) {
-        memset(dQU, 0, outDesc.length*sizeof(float));
-        memset(dQV, 0, outDesc.length*sizeof(float));
-    }
+        float const * in = q + i*length;
 
-    for (int i=0; i<4; ++i) {
         for (int k=0; k<inDesc.length; ++k) {
-            Q[k] += BU[inDesc.length*i+k] * B[i];
-            
-            if (evalDeriv) {
-                dQU[k] += DU[inDesc.length*i+k] * B[i];
-                dQV[k] += BU[inDesc.length*i+k] * D[i];
+            outQ[k] += Q[i] * in[k];
+            if (outDQ1) {
+                outDQ1[k] += dQ1[i] * in[k];
+            }
+            if (outDQ2) {
+                outDQ2[k] += dQ2[i] * in[k];
             }
         }
     }
 }
 
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

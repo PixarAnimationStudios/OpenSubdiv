@@ -32,22 +32,24 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 ///
 /// \brief Concrete vertex buffer class for cpu subvision and OpenGL drawing.
 ///
-/// OsdCpuGLVertexBuffer implements OsdCpuVertexBufferInterface and 
-/// OsdGLVertexBufferInterface.
+/// CpuGLVertexBuffer implements CpuVertexBufferInterface and 
+/// GLVertexBufferInterface.
 ///
 /// The buffer interop between Cpu and GL is handled automatically when a
 /// client calls BindCpuBuffer and BindVBO methods.
 ///
-class OsdCpuGLVertexBuffer {
+class CpuGLVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static OsdCpuGLVertexBuffer * Create(int numElements, int numVertices);
+    static CpuGLVertexBuffer * Create(int numElements, int numVertices);
 
     /// Destructor.
-    ~OsdCpuGLVertexBuffer();
+    ~CpuGLVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
@@ -69,7 +71,7 @@ public:
 
 protected:
     /// Constructor.
-    OsdCpuGLVertexBuffer(int numElements, int numVertices);
+    CpuGLVertexBuffer(int numElements, int numVertices);
 
     /// Allocates VBO for this buffer. Returns true if success.
     bool allocate();
@@ -81,6 +83,8 @@ private:
     float *_cpuBuffer;
     bool _dataDirty;
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

@@ -30,14 +30,18 @@
 #include "../osd/nonCopyable.h"
 #include "../osd/opengl.h"
 
+#include <stdlib.h>
+
 class PtexTexture;
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class OsdGLPtexMipmapTexture : OsdNonCopyable<OsdGLPtexMipmapTexture> {
+namespace Osd {
+
+class GLPtexMipmapTexture : NonCopyable<GLPtexMipmapTexture> {
 public:
-    static OsdGLPtexMipmapTexture * Create(PtexTexture * reader,
+    static GLPtexMipmapTexture * Create(PtexTexture * reader,
                                            int maxLevels=-1,
                                            size_t targetMemory=0);
 
@@ -51,10 +55,10 @@ public:
     /// Returns the amount of allocated memory (in byte)
     size_t GetMemoryUsage() const { return _memoryUsage; }
 
-    ~OsdGLPtexMipmapTexture();
+    ~GLPtexMipmapTexture();
 
 private:
-    OsdGLPtexMipmapTexture();
+    GLPtexMipmapTexture();
 
     GLsizei _width,   // widht / height / depth of the 3D texel buffer
             _height,
@@ -67,6 +71,8 @@ private:
 
     size_t _memoryUsage;  // total amount of memory used (estimate)
 };
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;

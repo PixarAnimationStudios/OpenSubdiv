@@ -23,255 +23,264 @@
 //
 
 #include "../osd/glslComputeController.h"
-#include "../osd/glslComputeContext.h"
-#include "../osd/glslKernelBundle.h"
-
+#include "../osd/vertexDescriptor.h"
+//#include "../osd/debug.h"
 #include "../osd/opengl.h"
+#include "../far/error.h"
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
+#include <sstream>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-OsdGLSLComputeController::OsdGLSLComputeController() {
+namespace Osd {
+
+static const char *shaderSource =
+#include "../osd/glslComputeKernel.gen.h"
+;
+
+// ----------------------------------------------------------------------------
+
+class GLSLComputeController::KernelBundle :
+    NonCopyable<GLSLComputeController::KernelBundle> {
+
+public:
+
+    KernelBundle() :
+        _program(0),
+        _uniformSizes(0),
+        _uniformOffsets(0),
+        _uniformIndices(0),
+        _uniformWeights(0),
+        _uniformStart(0),
+        _uniformEnd(0),
+        _uniformOffset(0),
+        _uniformNumCVs(0),
+        _workGroupSize(64) { }
+
+    ~KernelBundle() {
+        if (_program) {
+            glDeleteProgram(_program);
+        }
+    }
+
+    void UseProgram(int primvarOffset) const {
+        glUseProgram(_program);
+        glUniform1i(_uniformOffset, primvarOffset);
+
+        //OSD_DEBUG_CHECK_GL_ERROR("UseProgram");
+    }
+
+    bool Compile(VertexBufferDescriptor const & desc) {
+
+        _desc = VertexBufferDescriptor(0, desc.length, desc.stride);
+
+        if (_program) {
+            glDeleteProgram(_program);
+            _program=0;
+        }
+        _program = glCreateProgram();
+
+        GLuint shader = glCreateShader(GL_COMPUTE_SHADER);
+
+        std::ostringstream defines;
+        defines << "#define OFFSET " << _desc.offset << "\n"
+                << "#define LENGTH " << _desc.length << "\n"
+                << "#define STRIDE " << _desc.stride << "\n"
+                << "#define WORK_GROUP_SIZE " << _workGroupSize << "\n";
+        std::string defineStr = defines.str();
+
+        const char *shaderSources[3] = {"#version 430\n", 0, 0};
+        shaderSources[1] = defineStr.c_str();
+        shaderSources[2] = shaderSource;
+        glShaderSource(shader, 3, shaderSources, NULL);
+        glCompileShader(shader);
+        glAttachShader(_program, shader);
+
+        GLint linked = 0;
+        glLinkProgram(_program);
+        glGetProgramiv(_program, GL_LINK_STATUS, &linked);
+
+        if (linked == GL_FALSE) {
+            char buffer[1024];
+            glGetShaderInfoLog(shader, 1024, NULL, buffer);
+            Far::Error(Far::FAR_RUNTIME_ERROR, buffer);
+
+            glGetProgramInfoLog(_program, 1024, NULL, buffer);
+            Far::Error(Far::FAR_RUNTIME_ERROR, buffer);
+
+            glDeleteProgram(_program);
+            _program = 0;
+            return false;
+        }
+
+        glDeleteShader(shader);
+
+        _subStencilKernel = glGetSubroutineIndex(_program, GL_COMPUTE_SHADER, "computeStencil");
+
+        // set uniform locations for compute kernels
+        _uniformSizes   = glGetUniformLocation(_program, "sterncilSizes");
+        _uniformOffsets = glGetUniformLocation(_program, "sterncilOffsets");
+        _uniformIndices = glGetUniformLocation(_program, "sterncilIndices");
+        _uniformWeights = glGetUniformLocation(_program, "sterncilIWeights");
+
+        _uniformStart   = glGetUniformLocation(_program, "batchStart");
+        _uniformEnd     = glGetUniformLocation(_program, "batchEnd");
+
+        _uniformOffset  = glGetUniformLocation(_program, "primvarOffset");
+        _uniformNumCVs  = glGetUniformLocation(_program, "numCVs");
+
+        //OSD_DEBUG_CHECK_GL_ERROR("Compile");
+
+        return true;
+    }
+
+    void ApplyStencilTableKernel(Far::KernelBatch const &batch, int offset, int numCVs) const {
+
+        // select stencil GLSL subroutine
+        glUniformSubroutinesuiv(GL_COMPUTE_SHADER, 1, &_subStencilKernel);
+
+        dispatchCompute(offset, numCVs, batch.start, batch.end);
+    }
+
+    struct Match {
+
+        Match(VertexBufferDescriptor const & d) : desc(d) { }
+
+        bool operator() (KernelBundle const * kernel) {
+            return (desc.length==kernel->_desc.length and
+                    desc.stride==kernel->_desc.stride);
+        }
+
+        VertexBufferDescriptor desc;
+    };
+
+protected:
+
+    void dispatchCompute(int offset, int numCVs, int start, int end) const {
+
+        int count = end - start;
+        if (count<=0) {
+            return;
+        }
+
+
+        glUniform1i(_uniformStart, start);
+        glUniform1i(_uniformEnd, end);
+
+        glUniform1i(_uniformOffset, offset);
+        glUniform1i(_uniformNumCVs, numCVs);
+
+        glDispatchCompute(count/_workGroupSize + 1, 1, 1);
+
+        // sync for later reading.
+        // XXX: in theory, just SHADER_STORAGE_BARRIER is needed here. However
+        // we found a problem (issue #295) with nvidia driver 331.49 / Quadro4000
+        // resulting in invalid vertices.
+        // Apparently adding TEXTURE_FETCH_BARRIER after a kernel fixes it.
+        // The workaroud is commented out, since it looks fixed as of driver 334.xx.
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+        //OSD_DEBUG_CHECK_GL_ERROR("dispatchCompute");
+    }
+
+private:
+
+    GLuint _program;
+
+    GLuint _subStencilKernel; // stencil compute kernel GLSL subroutine
+
+    GLuint _uniformSizes,     // uniform paramaeters for kernels
+           _uniformOffsets,
+           _uniformIndices,
+           _uniformWeights,
+
+           _uniformStart,     // batch
+           _uniformEnd,
+
+           _uniformOffset,    // GL primvar buffer descriptor
+           _uniformNumCVs;    // number of const control vertices padded at
+                              // the beginning of the buffer
+
+    VertexBufferDescriptor _desc; // primvar buffer descriptor
+
+    int _workGroupSize;
+};
+
+// ----------------------------------------------------------------------------
+
+void
+GLSLComputeController::ApplyStencilTableKernel(
+    Far::KernelBatch const &batch, ComputeContext const *context) const {
+
+    assert(context);
+
+    _currentBindState.kernelBundle->ApplyStencilTableKernel(
+        batch, _currentBindState.desc.offset, context->GetNumControlVertices());
 }
 
-OsdGLSLComputeController::~OsdGLSLComputeController() {
+// ----------------------------------------------------------------------------
 
-    for (std::vector<OsdGLSLComputeKernelBundle*>::iterator it =
-             _kernelRegistry.begin();
-         it != _kernelRegistry.end(); ++it) {
+GLSLComputeController::GLSLComputeController() { }
+
+GLSLComputeController::~GLSLComputeController() {
+    for (KernelRegistry::iterator it = _kernelRegistry.begin();
+        it != _kernelRegistry.end(); ++it) {
         delete *it;
     }
 }
 
+// ----------------------------------------------------------------------------
+
 void
-OsdGLSLComputeController::Synchronize() {
+GLSLComputeController::Synchronize() {
 
     glFinish();
 }
 
-OsdGLSLComputeKernelBundle *
-OsdGLSLComputeController::getKernels(int numVertexElements,
-                                     int numVaryingElements) {
+// ----------------------------------------------------------------------------
+GLSLComputeController::KernelBundle const *
+GLSLComputeController::getKernel(VertexBufferDescriptor const &desc) {
 
-    std::vector<OsdGLSLComputeKernelBundle*>::iterator it =
+    KernelRegistry::iterator it =
         std::find_if(_kernelRegistry.begin(), _kernelRegistry.end(),
-                     OsdGLSLComputeKernelBundle::Match(numVertexElements,
-                                                numVaryingElements));
+            KernelBundle::Match(desc));
+
     if (it != _kernelRegistry.end()) {
         return *it;
     } else {
-        OsdGLSLComputeKernelBundle *kernelBundle =
-            new OsdGLSLComputeKernelBundle();
+        KernelBundle * kernelBundle = new KernelBundle();
+        kernelBundle->Compile(desc);
         _kernelRegistry.push_back(kernelBundle);
-        kernelBundle->Compile(numVertexElements, numVaryingElements);
         return kernelBundle;
     }
 }
 
 void
-OsdGLSLComputeController::ApplyBilinearFaceVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+GLSLComputeController::bindBufferAndProgram() {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
+    if (_currentBindState.buffer)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _currentBindState.buffer);
 
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
+    _currentBindState.kernelBundle->UseProgram(/*primvarOffset*/0);
 
-    kernelBundle->ApplyBilinearFaceVerticesKernel(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 }
 
 void
-OsdGLSLComputeController::ApplyBilinearEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+GLSLComputeController::unbindBufferAndProgram() {
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
-
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyBilinearEdgeVerticesKernel(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
+    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
+    glUseProgram(0);
 }
 
-void
-OsdGLSLComputeController::ApplyBilinearVertexVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
+// ----------------------------------------------------------------------------
 
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
-
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyBilinearVertexVerticesKernel(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLComputeController::ApplyCatmarkFaceVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
-
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyCatmarkFaceVerticesKernel(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-
-
-void
-OsdGLSLComputeController::ApplyCatmarkEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
-
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyCatmarkEdgeVerticesKernel(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelB(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
-
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyCatmarkVertexVerticesKernelB(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelA1(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
-
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyCatmarkVertexVerticesKernelA(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
-}
-
-void
-OsdGLSLComputeController::ApplyCatmarkVertexVerticesKernelA2(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
-
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyCatmarkVertexVerticesKernelA(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
-}
-
-void
-OsdGLSLComputeController::ApplyLoopEdgeVerticesKernel(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
-
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyLoopEdgeVerticesKernel(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLComputeController::ApplyLoopVertexVerticesKernelB(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
-
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyLoopVertexVerticesKernelB(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd());
-}
-
-void
-OsdGLSLComputeController::ApplyLoopVertexVerticesKernelA1(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
-
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyLoopVertexVerticesKernelA(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), false);
-}
-
-void
-OsdGLSLComputeController::ApplyLoopVertexVerticesKernelA2(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
-
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    kernelBundle->ApplyLoopVertexVerticesKernelA(
-        batch.GetVertexOffset(), batch.GetTableOffset(), batch.GetStart(), batch.GetEnd(), true);
-}
-
-void
-OsdGLSLComputeController::ApplyVertexEdits(
-    FarKernelBatch const &batch, void * clientdata) const {
-
-    OsdGLSLComputeContext * context =
-        static_cast<OsdGLSLComputeContext*>(clientdata);
-    assert(context);
-
-    OsdGLSLComputeKernelBundle * kernelBundle = context->GetKernelBundle();
-
-    const OsdGLSLComputeHEditTable * edit = context->GetEditTable(batch.GetTableIndex());
-    assert(edit);
-
-    context->BindEditShaderStorageBuffers(batch.GetTableIndex());
-
-    int primvarOffset = edit->GetPrimvarOffset();
-    int primvarWidth = edit->GetPrimvarWidth();
-    
-    if (edit->GetOperation() == FarVertexEdit::Add) {
-        kernelBundle->ApplyEditAdd( primvarOffset, 
-                                    primvarWidth,
-                                    batch.GetVertexOffset(), 
-                                    batch.GetTableOffset(), 
-                                    batch.GetStart(), 
-                                    batch.GetEnd());
-    } else {
-        // XXX: edit SET is not implemented yet.
-    }
-    
-    context->UnbindEditShaderStorageBuffers();
-}
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

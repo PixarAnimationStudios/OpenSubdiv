@@ -23,7 +23,6 @@
 //
 
 #include "../osd/ptexMipmapTextureLoader.h"
-#include "../osd/error.h"
 
 #include <Ptexture.h>
 #include <vector>
@@ -36,19 +35,21 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+namespace Osd {
+
 // sample neighbor pixels and populate around blocks
 void
-OsdPtexMipmapTextureLoader::Block::guttering(OsdPtexMipmapTextureLoader *loader,
+PtexMipmapTextureLoader::Block::guttering(PtexMipmapTextureLoader *loader,
                                              PtexTexture *ptex, int level,
-                                             int width, int height,
+                                             int wid, int hei,
                                              unsigned char *pptr, int bpp,
                                              int stride)
 {
-    int lineBufferSize = std::max(width, height) * bpp;
+    int lineBufferSize = std::max(wid, hei) * bpp;
     unsigned char * lineBuffer = new unsigned char[lineBufferSize];
 
     for (int edge = 0; edge < 4; edge++) {
-        int len = (edge == 0 or edge == 2) ? width : height;
+        int len = (edge == 0 or edge == 2) ? wid : hei;
         loader->sampleNeighbor(lineBuffer, this->index, edge, len, bpp);
 
         unsigned char *s = lineBuffer, *d;
@@ -59,10 +60,10 @@ OsdPtexMipmapTextureLoader::Block::guttering(OsdPtexMipmapTextureLoader *loader,
                 d += bpp * (j + 1);
                 break;
             case Ptex::e_right:
-                d += stride * (j + 1) + bpp * (width+1);
+                d += stride * (j + 1) + bpp * (wid+1);
                 break;
             case Ptex::e_top:
-                d += stride * (height+1) + bpp*(len-j);
+                d += stride * (hei+1) + bpp*(len-j);
                 break;
             case Ptex::e_left:
                 d += stride * (len-j);
@@ -125,26 +126,26 @@ OsdPtexMipmapTextureLoader::Block::guttering(OsdPtexMipmapTextureLoader *loader,
                +---*---|
                | D/E\C |
                | /   \ |
-               |/     \| 
+               |/     \|
                +-------+
          */
 
         // seamless mipmap only works with square faces.
         if (loader->getCornerPixel(accumPixel, numchannels,
-                                   this->index, edge, bpp, this->ulog2-level)) {
+                                   this->index, edge, (int8_t)(this->ulog2-level))) {
             // case1, case 2
-            if (edge == 1 || edge == 2) du += width;
-            if (edge == 2 || edge == 3) dv += height;
+            if (edge == 1 || edge == 2) du += wid;
+            if (edge == 2 || edge == 3) dv += hei;
             unsigned char *d = pptr + dv*stride + du*bpp;
             Ptex::ConvertFromFloat(d, accumPixel,
                                    ptex->dataType(), numchannels);
         } else {
             // case 3, set accumPixel to the corner 4 pixels
-            if (edge == 1 || edge == 2) du += width - 1;
-            if (edge == 2 || edge == 3) dv += height - 1;
-            for (int u = 0; u < 2; ++u) {
-                for (int v = 0; v < 2; ++v) {
-                    unsigned char *d = pptr + (dv+u)*stride + (du+v)*bpp;
+            if (edge == 1 || edge == 2) du += wid - 1;
+            if (edge == 2 || edge == 3) dv += hei - 1;
+            for (int x = 0; x < 2; ++x) {
+                for (int y = 0; y < 2; ++y) {
+                    unsigned char *d = pptr + (dv+x)*stride + (du+y)*bpp;
                     Ptex::ConvertFromFloat(d, accumPixel,
                                            ptex->dataType(), numchannels);
                 }
@@ -155,16 +156,16 @@ OsdPtexMipmapTextureLoader::Block::guttering(OsdPtexMipmapTextureLoader *loader,
 }
 
 void
-OsdPtexMipmapTextureLoader::Block::Generate(OsdPtexMipmapTextureLoader *loader,
+PtexMipmapTextureLoader::Block::Generate(PtexMipmapTextureLoader *loader,
                                             PtexTexture *ptex,
                                             unsigned char *destination,
-                                            int bpp, int width, int maxLevels)
+                                            int bpp, int wid, int maxLevels)
 {
     const Ptex::FaceInfo &faceInfo = ptex->getFaceInfo(index);
-    int stride = bpp * width;
+    int stride = bpp * wid;
 
-    int ulog2 = this->ulog2;
-    int vlog2 = this->vlog2;
+    int ulog2_ = this->ulog2;
+    int vlog2_ = this->vlog2;
 
     int level = 0;
     int uofs = u, vofs = v;
@@ -173,30 +174,34 @@ OsdPtexMipmapTextureLoader::Block::Generate(OsdPtexMipmapTextureLoader *loader,
     // 2x2 subfaces.
     int limit = faceInfo.isSubface() ? 1 : 2;
 
-    while (ulog2 >= limit and vlog2 >= limit
+    // but if the base size is already less than limit, we'd like to pick it
+    // instead of nothing.
+    limit = std::min(std::min(limit, ulog2_), vlog2_);
+
+    while (ulog2_ >= limit and vlog2_ >= limit
            and (maxLevels == -1 or level <= maxLevels)) {
         if (level % 2 == 1)
-            uofs += (1<<(ulog2+1))+2;
+            uofs += (1<<(ulog2_+1))+2;
         if ((level > 0) and (level % 2 == 0))
-            vofs += (1<<(vlog2+1)) + 2;
+            vofs += (1<<(vlog2_+1)) + 2;
 
         unsigned char *dst = destination + vofs * stride + uofs * bpp;
         unsigned char *dstData = destination
             + (vofs + 1) * stride
             + (uofs + 1) * bpp;
-        ptex->getData(index, dstData, stride, Ptex::Res(ulog2, vlog2));
+        ptex->getData(index, dstData, stride, Ptex::Res(ulog2_, vlog2_));
 
-        guttering(loader, ptex, level, 1<<ulog2, 1<<vlog2, dst, bpp, stride);
+        guttering(loader, ptex, level, 1<<ulog2_, 1<<vlog2_, dst, bpp, stride);
 
-        --ulog2;
-        --vlog2;
+        --ulog2_;
+        --vlog2_;
         ++level;
     }
     nMipmaps = level;
 }
 
 void
-OsdPtexMipmapTextureLoader::Block::SetSize(unsigned char ulog2_,
+PtexMipmapTextureLoader::Block::SetSize(unsigned char ulog2_,
                                            unsigned char vlog2_, bool mipmap)
 {
     ulog2 = ulog2_;
@@ -211,19 +216,19 @@ OsdPtexMipmapTextureLoader::Block::SetSize(unsigned char ulog2_,
         h = h + 2;
     }
 
-    width = w;
-    height = h;
+    width = (int16_t)w;
+    height = (int16_t)h;
 }
 
 // ---------------------------------------------------------------------------
 
-struct OsdPtexMipmapTextureLoader::Page
+struct PtexMipmapTextureLoader::Page
 {
     struct Slot
     {
-        Slot(uint16_t u, uint16_t v,
-             uint16_t w, uint16_t h) :
-            u(u), v(v), width(w), height(h) { }
+        Slot(uint16_t u_, uint16_t v_,
+             uint16_t w_, uint16_t h_) :
+            u(u_), v(v_), width(w_), height(h_) { }
 
         uint16_t u, v, width, height;
 
@@ -288,7 +293,7 @@ struct OsdPtexMipmapTextureLoader::Page
         return false;
     }
 
-    void Generate(OsdPtexMipmapTextureLoader *loader, PtexTexture *ptex,
+    void Generate(PtexMipmapTextureLoader *loader, PtexTexture *ptex,
                   unsigned char *destination,
                   int bpp, int width, int maxLevels) {
         for (BlockList::iterator it = _blocks.begin();
@@ -319,7 +324,7 @@ private:
 // ---------------------------------------------------------------------------
 
 // Utility class for Ptex corner iteration
-class OsdPtexMipmapTextureLoader::CornerIterator
+class PtexMipmapTextureLoader::CornerIterator
 {
 public:
     CornerIterator(PtexTexture *ptex, int face, int edge, int8_t reslog2) :
@@ -338,7 +343,7 @@ public:
     }
 
     void GetPixel(float *resultPixel) {
-        int8_t r = _currentInfo.isSubface() ? _reslog2 - 1 : _reslog2;
+        int8_t r = (int8_t)(_currentInfo.isSubface() ? _reslog2 - 1 : _reslog2);
 
         // limit to the maximum ptex resolution
         r = std::min(std::min(r, _currentInfo.res.ulog2),
@@ -443,7 +448,7 @@ private:
 
 // ---------------------------------------------------------------------------
 
-OsdPtexMipmapTextureLoader::OsdPtexMipmapTextureLoader(PtexTexture *ptex,
+PtexMipmapTextureLoader::PtexMipmapTextureLoader(PtexTexture *ptex,
                                                        int maxNumPages,
                                                        int maxLevels,
                                                        size_t targetMemory,
@@ -463,7 +468,7 @@ OsdPtexMipmapTextureLoader::OsdPtexMipmapTextureLoader(PtexTexture *ptex,
         _blocks[i].index = i;
         if (seamlessMipmap) {
             // need to squarize ptex face
-            int s = std::min(faceInfo.res.ulog2, faceInfo.res.vlog2);
+            unsigned char s = std::min(faceInfo.res.ulog2, faceInfo.res.vlog2);
             _blocks[i].SetSize(s, s, _maxLevels != 0);
         } else {
             _blocks[i].SetSize(faceInfo.res.ulog2,
@@ -476,7 +481,7 @@ OsdPtexMipmapTextureLoader::OsdPtexMipmapTextureLoader(PtexTexture *ptex,
     generateBuffers();
 }
 
-OsdPtexMipmapTextureLoader::~OsdPtexMipmapTextureLoader()
+PtexMipmapTextureLoader::~PtexMipmapTextureLoader()
 {
     for (size_t i = 0; i < _pages.size(); ++i) {
         delete _pages[i];
@@ -488,7 +493,7 @@ OsdPtexMipmapTextureLoader::~OsdPtexMipmapTextureLoader()
 // resample border texels for guttering
 //
 int
-OsdPtexMipmapTextureLoader::resampleBorder(int face, int edgeId,
+PtexMipmapTextureLoader::resampleBorder(int face, int edgeId,
                                            unsigned char *result,
                                            int dstLength, int bpp,
                                            float srcStart, float srcEnd)
@@ -586,7 +591,7 @@ flipBuffer(unsigned char *buffer, int length, int bpp)
 
 // sample neighbor face's edge
 void
-OsdPtexMipmapTextureLoader::sampleNeighbor(unsigned char *border, int face,
+PtexMipmapTextureLoader::sampleNeighbor(unsigned char *border, int face,
                                            int edge, int length, int bpp)
 {
     const Ptex::FaceInfo &fi = _ptex->getFaceInfo(face);
@@ -655,9 +660,9 @@ OsdPtexMipmapTextureLoader::sampleNeighbor(unsigned char *border, int face,
 // get corner pixel by traversing all adjacent faces around vertex
 //
 bool
-OsdPtexMipmapTextureLoader::getCornerPixel(float *resultPixel, int numchannels,
+PtexMipmapTextureLoader::getCornerPixel(float *resultPixel, int numchannels,
                                            int face, int edge,
-                                           int bpp, int8_t reslog2)
+                                           int8_t reslog2)
 {
     const Ptex::FaceInfo &fi = _ptex->getFaceInfo(face);
 
@@ -781,7 +786,7 @@ OsdPtexMipmapTextureLoader::getCornerPixel(float *resultPixel, int numchannels,
 }
 
 int
-OsdPtexMipmapTextureLoader::getLevelDiff(int face, int edge)
+PtexMipmapTextureLoader::getLevelDiff(int face, int edge)
 {
     // returns the highest mipmap level difference around the vertex
     // at face/edge
@@ -802,7 +807,7 @@ OsdPtexMipmapTextureLoader::getLevelDiff(int face, int edge)
 }
 
 void
-OsdPtexMipmapTextureLoader::optimizePacking(int maxNumPages,
+PtexMipmapTextureLoader::optimizePacking(int maxNumPages,
                                             size_t targetMemory)
 {
     size_t numTexels = 0;
@@ -829,7 +834,8 @@ OsdPtexMipmapTextureLoader::optimizePacking(int maxNumPages,
 
             // pick a smaller mipmap
             numTexels -= block->GetNumTexels();
-            block->SetSize(block->ulog2-1, block->vlog2-1, _maxLevels != 0);
+            block->SetSize((unsigned char)(block->ulog2-1),
+                           (unsigned char)(block->vlog2-1), _maxLevels != 0);
             numTexels += block->GetNumTexels();
 
             // move to the last
@@ -907,11 +913,10 @@ OsdPtexMipmapTextureLoader::optimizePacking(int maxNumPages,
     for (BlockArray::iterator it = _blocks.begin(); it != _blocks.end(); ++it) {
         int face = it->index;
         uint16_t adjSizeDiffs = 0;
-        Ptex::Res baseRes = Ptex::Res(it->ulog2, it->vlog2);
         for (int edge = 0; edge < 4; ++edge) {
             int levelDiff = getLevelDiff(face, edge);
             adjSizeDiffs <<= 4;
-            adjSizeDiffs |= levelDiff;
+            adjSizeDiffs |= (uint16_t)levelDiff;
         }
         it->adjSizeDiffs = adjSizeDiffs;
         // printf("Block %d, %08x\n", it->index, adjSizeDiffs);
@@ -926,7 +931,7 @@ OsdPtexMipmapTextureLoader::optimizePacking(int maxNumPages,
 }
 
 void
-OsdPtexMipmapTextureLoader::generateBuffers()
+PtexMipmapTextureLoader::generateBuffers()
 {
     // ptex layout struct
     // struct Layout {
@@ -964,12 +969,12 @@ OsdPtexMipmapTextureLoader::generateBuffers()
             int ptexIndex = (*it)->index;
             uint16_t *p = (uint16_t*)(_layoutBuffer
                                       + sizeof(uint16_t)*6*ptexIndex);
-            *p++ = i;  // page
-            *p++ = (*it)->nMipmaps-1;
-            *p++ = (*it)->u+1;
-            *p++ = (*it)->v+1;
+            *p++ = (uint16_t)i;  // page
+            *p++ = (uint16_t)((*it)->nMipmaps-1);
+            *p++ = (uint16_t)((*it)->u+1);
+            *p++ = (uint16_t)((*it)->v+1);
             *p++ = (*it)->adjSizeDiffs;
-            *p++ = ((*it)->ulog2 << 8) | (*it)->vlog2;
+            *p++ = (uint16_t)(((*it)->ulog2 << 8) | (*it)->vlog2);
         }
     }
 
@@ -993,6 +998,8 @@ OsdPtexMipmapTextureLoader::generateBuffers()
 #endif
 }
 
+
+} // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

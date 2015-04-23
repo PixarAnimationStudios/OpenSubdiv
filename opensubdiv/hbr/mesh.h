@@ -427,16 +427,19 @@ private:
 
 #ifdef HBR_ADAPTIVE
 public:
-    enum SubdivisionMethod {
-        k_SubdivisionMethodNone,
-        k_SubdivisionMethodUniform,
-        k_SubdivisionMethodFeatureAdaptive
-    };
-    void SetSubdivisionMethod(SubdivisionMethod method) { _subdivisionMethod=method; }
-    SubdivisionMethod GetSubdivisionMethod() const { return _subdivisionMethod; }
+    std::vector<std::pair<int, int> > const & GetSplitVertices() const {
+        return m_splitVertices;
+    }
+
+protected:
+    friend class HbrVertex<T>;
+    
+    void addSplitVertex(int splitIdx, int orgIdx) {
+        m_splitVertices.push_back(std::pair<int,int>(splitIdx, orgIdx));
+    }
     
 private:
-    SubdivisionMethod _subdivisionMethod;
+    std::vector<std::pair<int, int> >  m_splitVertices;
 #endif
 };
 

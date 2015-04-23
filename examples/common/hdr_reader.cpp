@@ -71,8 +71,8 @@ unsigned char *loadHdr(const char *filename, HdrInfo *info, bool convertToFloat)
     memset(info, 0, sizeof(HdrInfo));
     info->exposure = 1.0;
 
-    unsigned char *dst = NULL, *line = NULL, *d;
-    float *fd;
+    unsigned char *dst=NULL, *line=NULL, *d=NULL;
+    float *fd=NULL;
 
     const int MAXLINE = 1024;
     char buffer[MAXLINE];
@@ -98,11 +98,11 @@ unsigned char *loadHdr(const char *filename, HdrInfo *info, bool convertToFloat)
         for (int i = 1; i < n; ++i) {
             if (buffer[i] == 'X') {
                 if (not (info->flag & HDR_Y_MAJOR)) info->flag |= HDR_X_MAJOR;
-                info->flag |= (buffer[i-1] == '-') ? HDR_X_DEC : 0;
+                info->flag |= (char)((buffer[i-1] == '-') ? HDR_X_DEC : 0);
                 info->width = atoi(&buffer[i+1]);
             } else if (buffer[i] == 'Y') {
                 if (not (info->flag & HDR_X_MAJOR)) info->flag |= HDR_Y_MAJOR;
-                info->flag |= (buffer[i-1] == '-') ? HDR_Y_DEC : 0;
+                info->flag |= (char)((buffer[i-1] == '-') ? HDR_Y_DEC : 0);
                 info->height = atoi(&buffer[i+1]);
             }
         }
