@@ -102,6 +102,27 @@ public:
     ///
     static StencilTables const * Create(int numTables, StencilTables const ** tables);
 
+
+    /// \brief Utility function for stencil splicing for endcap stencils.
+    ///
+    /// @param refiner              The TopologyRefiner containing the topology
+    ///
+    /// @param baseStencilTables    Input StencilTables for refined vertices
+    ///
+    /// @param endCapStencilTables  EndCap basis conversion stencils. This stenciltable
+    ///                             has to be relative to the max level of subdivision.
+    ///
+    /// @param factorize            If factorize sets to true, endcap stencils will be
+    ///                             factorized with supporting vertices from baseStencil
+    ///                             tables so that the endcap points can be computed
+    ///                             directly from control vertices.
+    ///
+    static StencilTables const * AppendEndCapStencilTables(
+        TopologyRefiner const &refiner,
+        StencilTables const *baseStencilTables,
+        StencilTables const *endCapStencilTables,
+        bool factorize = true);
+
 private:
 
     // Generate stencils for the coarse control-vertices (single weight = 1.0f)

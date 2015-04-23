@@ -31,7 +31,6 @@
 #include "../osd/d3d11ComputeController.h"
 #include "../osd/d3d11DrawContext.h"
 #include "../osd/d3d11VertexBuffer.h"
-#include "../far/endCapLegacyGregoryPatchFactory.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -193,11 +192,10 @@ private:
         Far::PatchTablesFactory::Options poptions(level);
         poptions.generateFVarTables = bits.test(MeshFVarData);
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
+        poptions.SetEndCapType(Far::PatchTablesFactory::Options::ENDCAP_LEGACY_GREGORY);
 
         // TODO: add gregory basis shader for DX11
-		Far::EndCapLegacyGregoryPatchFactory *gregoryPatchFactory = new Far::EndCapLegacyGregoryPatchFactory(*_refiner);
-		_patchTables = Far::PatchTablesFactoryT<Far::EndCapLegacyGregoryPatchFactory>::Create(*_refiner, poptions, gregoryPatchFactory);
-        gregoryPatchFactory->AddGregoryPatchTables(_patchTables);
+        _patchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
 
         _drawContext = DrawContext::Create(_patchTables,
                                            _d3d11DeviceContext,
@@ -210,7 +208,6 @@ private:
         _numVertices = vertexStencils->GetNumControlVertices()
             + vertexStencils->GetNumStencils();
 
-        delete gregoryPatchFactory;
         delete vertexStencils;
         delete varyingStencils;
     }
@@ -402,10 +399,9 @@ private:
         Far::PatchTablesFactory::Options poptions(level);
         poptions.generateFVarTables = bits.test(MeshFVarData);
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
+        poptions.SetEndCapType(Far::PatchTablesFactory::Options::ENDCAP_LEGACY_GREGORY);
 
-		Far::EndCapLegacyGregoryPatchFactory *gregoryPatchFactory = new Far::EndCapLegacyGregoryPatchFactory(*_refiner);
-		_patchTables = Far::PatchTablesFactoryT<Far::EndCapLegacyGregoryPatchFactory>::Create(*_refiner, poptions, gregoryPatchFactory);
-        gregoryPatchFactory->AddGregoryPatchTables(_patchTables);
+        _patchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
 
         _drawContext = DrawContext::Create(_patchTables,
                                            _d3d11DeviceContext,

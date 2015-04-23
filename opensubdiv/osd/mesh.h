@@ -50,7 +50,7 @@ enum MeshBits {
     MeshPtexData             = 2,
     MeshFVarData             = 3,
     MeshUseSingleCreasePatch = 4,
-    MeshEndCapRegular        = 5,  // exclusive
+    MeshEndCapBSplineBasis   = 5,  // exclusive
     MeshEndCapGregoryBasis   = 6,  // exclusive
     MeshEndCapLegacyGregory  = 7,  // exclusive
     NUM_MESH_BITS            = 8,
@@ -243,7 +243,7 @@ private:
 
         assert(_refiner and _vertexBuffer);
 
-        Far::PatchTablesFactoryBase::Options options(level);
+        Far::PatchTablesFactory::Options options(level);
         options.generateFVarTables = bits.test(MeshFVarData);
         options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 

@@ -40,7 +40,7 @@ namespace Far {
 class PtexIndices;
 class TopologyRefiner;
 
-class PatchTablesFactoryBase {
+class PatchTablesFactory {
 public:
     //  PatchFaceTag
     //  A simple struct containing all information gathered about a face that is relevant
@@ -80,21 +80,42 @@ public:
 
     struct Options {
 
+        enum EndCapType {
+            ENDCAP_NONE = 0,             ///< no endcap
+            ENDCAP_BILINEAR_BASIS,       ///< use bilinear quads (4 cp) as end-caps
+            ENDCAP_BSPLINE_BASIS,        ///< use BSpline basis patches (16 cp) as end-caps
+            ENDCAP_GREGORY_BASIS,        ///< use Gregory basis patches (20 cp) as end-caps
+            ENDCAP_LEGACY_GREGORY        ///< use legacy (2.x) Gregory patches (4 cp + valence table) as end-caps
+        };
+
         Options(unsigned int maxIsolation=10) :
              generateAllLevels(false),
              triangulateQuads(false),
              useSingleCreasePatch(false),
              maxIsolationLevel(maxIsolation),
+             endCapType(ENDCAP_GREGORY_BASIS),
+             shareEndCapPatchPoints(true),
              generateFVarTables(false),
              useFVarQuadEndCaps(true), // XXXX change to false when FVar Gregory is ready
              numFVarChannels(-1),
              fvarChannelIndices(0)
         { }
 
+        /// \brief Get endcap patch type
+        EndCapType GetEndCapType() const { return (EndCapType)endCapType; }
+
+        /// \brief Set endcap patch type
+        void SetEndCapType(EndCapType e) { endCapType = e; }
+
         unsigned int generateAllLevels    : 1, ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
                      triangulateQuads     : 1, ///< Triangulate 'QUADS' primitives (Uniform mode only)
                      useSingleCreasePatch : 1, ///< Use single crease patch
                      maxIsolationLevel    : 4, ///< Cap adaptive feature isolation to the given level (max. 10)
+
+                     // end-capping
+                     endCapType              : 3, ///< EndCapType
+                     shareEndCapPatchPoints  : 1, ///< Share endcap patch points among adjacent endcap patches.
+                                                  ///< currently only work with GregoryBasis.
 
                      // face-varying
                      generateFVarTables   : 1, ///< Generate face-varying patch tables
@@ -113,8 +134,9 @@ public:
     /// @return                     A new instance of PatchTables
     ///
     static PatchTables * Create(TopologyRefiner const & refiner,
-                                PatchTablesFactoryBase::Options options=Options());
-protected:
+                                Options options=Options());
+
+private:
     //
     // Private helper structures
     //
@@ -123,7 +145,20 @@ protected:
     //
     //  Methods for allocating and managing the patch table data arrays:
     //
-    static PatchTables * createUniform(TopologyRefiner const & refiner, Options options);
+    static PatchTables * createUniform(TopologyRefiner const & refiner,
+                                       Options options);
+
+    static PatchTables * createAdaptive(TopologyRefiner const & refiner,
+                                        Options options);
+
+    //
+    //  High-level methods for identifying and populating patches associated with faces:
+    //
+
+    static void identifyAdaptivePatches(AdaptiveContext & state);
+
+    static void populateAdaptivePatches(AdaptiveContext & state,
+                                        PtexIndices const &ptexIndices);
 
     static void allocateVertexTables(PatchTables * tables, int nlevels, bool hasSharpness);
 
@@ -140,62 +175,6 @@ protected:
                               Index const * levelOffsets, Index fofss, Index ** fptrs);
 
 };
-
-/// \brief a templated patchtable factory parameterized by end cap strategy class..
-///
-///
-template <typename ENDCAP_FACTORY>
-class PatchTablesFactoryT : public PatchTablesFactoryBase {
-
-public:
-
-    /// \brief Factory constructor for PatchTables
-    ///
-    /// @param refiner              TopologyRefiner from which to generate patches
-    ///
-    /// @param options              Options controlling the creation of the tables
-    ///
-    /// @param endCapFactory        If provided, it accumulates end patches
-    ///                             for later patch/stencil generation
-    ///
-    /// @return                     A new instance of PatchTables
-    ///
-    static PatchTables * Create(TopologyRefiner const & refiner,
-                                PatchTablesFactoryBase::Options options=Options(),
-                                ENDCAP_FACTORY *endCapFactory=NULL);
-
-private:
-    static PatchTables * createAdaptive(TopologyRefiner const & refiner, Options options,
-                                        ENDCAP_FACTORY *);
-
-    //
-    //  High-level methods for identifying and populating patches associated with faces:
-    //
-
-    static void identifyAdaptivePatches(AdaptiveContext & state, ENDCAP_FACTORY *);
-
-    static void populateAdaptivePatches(AdaptiveContext & state, 
-        PtexIndices const & ptexIndices, ENDCAP_FACTORY *);
-
-private:
-};
-
-/// \brief Default endcap factory (does nothing for end cap)
-///
-///
-class EndCapNoneFactory {
-public:
-    PatchDescriptor::Type GetPatchType(PatchTablesFactoryBase::PatchFaceTag const &) const {
-        return PatchDescriptor::NON_PATCH;
-    }
-    ConstIndexArray GetTopology(Vtr::Level const &/*level*/, Index /*faceIndex*/,
-                                PatchTablesFactoryBase::PatchFaceTag const * /*levelPatchTags*/,
-                                int /*levelVertOffset*/) {
-        return ConstIndexArray();
-    }
-};
-
-typedef PatchTablesFactoryT<EndCapNoneFactory> PatchTablesFactory;
 
 } // end namespace Far
 

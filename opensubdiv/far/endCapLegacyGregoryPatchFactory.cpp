@@ -24,6 +24,7 @@
 
 #include "../far/error.h"
 #include "../far/endCapLegacyGregoryPatchFactory.h"
+#include "../far/patchTables.h"
 #include "../far/topologyRefiner.h"
 #include "../vtr/level.h"
 
@@ -32,29 +33,21 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
-EndCapLegacyGregoryPatchFactory::EndCapLegacyGregoryPatchFactory(TopologyRefiner const &refiner) :
+EndCapLegacyGregoryPatchFactory::EndCapLegacyGregoryPatchFactory(
+    TopologyRefiner const &refiner) :
     _refiner(refiner) {
 }
 
-PatchDescriptor::Type
-EndCapLegacyGregoryPatchFactory::GetPatchType(PatchTablesFactoryBase::PatchFaceTag const &tag) const {
-
-    if (tag._boundaryCount) {
-        return PatchDescriptor::GREGORY_BOUNDARY;
-    } else {
-        return PatchDescriptor::GREGORY;
-    }
-}
-
 ConstIndexArray
-EndCapLegacyGregoryPatchFactory::GetTopology(Vtr::Level const& level, Index faceIndex,
-                                 PatchTablesFactoryBase::PatchFaceTag const * levelPatchTags,
-                                 int levelVertOffset) {
+EndCapLegacyGregoryPatchFactory::GetPatchPoints(
+    Vtr::Level const * level, Index faceIndex,
+    PatchTablesFactory::PatchFaceTag const * levelPatchTags,
+    int levelVertOffset) {
 
-    PatchTablesFactoryBase::PatchFaceTag patchTag = levelPatchTags[faceIndex];
+    PatchTablesFactory::PatchFaceTag patchTag = levelPatchTags[faceIndex];
 
     // Gregory Regular Patch (4 CVs + quad-offsets / valence tables)
-    Vtr::ConstIndexArray faceVerts = level.getFaceVertices(faceIndex);
+    Vtr::ConstIndexArray faceVerts = level->getFaceVertices(faceIndex);
 
     if (patchTag._boundaryCount) {
         for (int j = 0; j < 4; ++j) {
@@ -107,7 +100,7 @@ static void getQuadOffsets(
 }
 
 void
-EndCapLegacyGregoryPatchFactory::AddGregoryPatchTables(PatchTables *patchTables)
+EndCapLegacyGregoryPatchFactory::Finalize(PatchTables *patchTables)
 {
     // populate quad offsets
 

@@ -496,8 +496,8 @@ GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
 
             for (int edge=0; edge<nedgesperpatch; ++edge) {
 
-                eao.push_back(eao.size());
-                eao.push_back(eao.size());
+                eao.push_back((int)eao.size());
+                eao.push_back((int)eao.size());
 
                 int v0 = offset + basisedges[edge*2],
                     v1 = offset + basisedges[edge*2+1];

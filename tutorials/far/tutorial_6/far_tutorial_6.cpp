@@ -158,8 +158,7 @@ int main(int, char **) {
     // surface limit
     Far::EndCapGregoryBasisPatchFactory endcapFactory(*refiner);
     Far::PatchTables const * patchTables =
-        Far::PatchTablesFactoryT<Far::EndCapGregoryBasisPatchFactory>::Create(
-            *refiner, Far::PatchTablesFactory::Options(), &endcapFactory);
+        Far::PatchTablesFactory::Create(*refiner, Far::PatchTablesFactory::Options());
 
     // Create a Far::PatchMap to help locating patches in the table
     Far::PatchMap patchmap(*patchTables);

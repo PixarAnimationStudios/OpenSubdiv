@@ -41,12 +41,7 @@ if (NOT NO_OPENGL)
         add_subdirectory(glFVarViewer)
         add_subdirectory(glStencilViewer)
         add_subdirectory(glImaging)
-
-        if (CMAKE_COMPILER_IS_CLANGCC)
-            # This code is intended for debugging only
-            # and currently only compiles with Clang.
-            add_subdirectory(vtrViewer)
-        endif()
+        add_subdirectory(vtrViewer)
 
         if (OPENGL_4_3_FOUND AND (NOT APPLE))
             add_subdirectory(glPaintTest)

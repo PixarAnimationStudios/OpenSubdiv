@@ -380,25 +380,31 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 
         // Generate bi-cubic patch tables for the limit surface
         Far::PatchTablesFactory::Options poptions;
-
-        Far::EndCapGregoryBasisPatchFactory *gregoryBasisFactory = new
-            Far::EndCapGregoryBasisPatchFactory(*g_topologyRefiner);
+        poptions.SetEndCapType(
+            Far::PatchTablesFactory::Options::ENDCAP_GREGORY_BASIS);
 
         Far::PatchTables const * patchTables =
-            Far::PatchTablesFactoryT<Far::EndCapGregoryBasisPatchFactory>::Create(
-                *g_topologyRefiner, poptions, gregoryBasisFactory);
+            Far::PatchTablesFactory::Create(*g_topologyRefiner, poptions);
 
-        if (Far::StencilTables const * vertexStencilsWithGregoryBasis =
-            gregoryBasisFactory->CreateVertexStencilTables(vertexStencils, true)) {
+        // append endcap stencils
+        if (Far::StencilTables const *endCapVertexStencilTables =
+            patchTables->GetEndCapVertexStencilTables()) {
+            Far::StencilTables const *tables =
+                Far::StencilTablesFactory::AppendEndCapStencilTables(
+                    *g_topologyRefiner,
+                    vertexStencils, endCapVertexStencilTables);
             delete vertexStencils;
-            vertexStencils = vertexStencilsWithGregoryBasis;
+            vertexStencils = tables;
         }
-        if (Far::StencilTables const *varyingStencilsWithGregoryBasis =
-            gregoryBasisFactory->CreateVaryingStencilTables(varyingStencils, true)) {
+        if (Far::StencilTables const *endCapVaryingStencilTables =
+            patchTables->GetEndCapVaryingStencilTables()) {
+            Far::StencilTables const *tables =
+                Far::StencilTablesFactory::AppendEndCapStencilTables(
+                    *g_topologyRefiner,
+                    varyingStencils, endCapVaryingStencilTables);
             delete varyingStencils;
-            varyingStencils = varyingStencilsWithGregoryBasis;
+            varyingStencils = tables;
         }
-        delete gregoryBasisFactory;
 
         // total number of vertices = coarse verts + refined verts + gregory basis verts
         nverts = vertexStencils->GetNumControlVertices() +

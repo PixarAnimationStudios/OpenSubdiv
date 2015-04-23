@@ -102,8 +102,6 @@ public:
 protected:
     friend class StencilTablesFactory;
     friend class LimitStencilTablesFactory;
-    friend class EndCapGregoryBasisPatchFactory;
-    friend class EndCapRegularPatchFactory;
 
     unsigned char * _size;
     Index         * _indices;
@@ -207,8 +205,8 @@ protected:
     StencilTables() : _numControlVertices(0) {}
 
     friend class StencilTablesFactory;
-    friend class EndCapGregoryBasisPatchFactory;
-    friend class EndCapRegularPatchFactory;
+    // XXX: temporarily, GregoryBasis class will go away.
+    friend class GregoryBasis;
 
     int _numControlVertices;              // number of control vertices
 

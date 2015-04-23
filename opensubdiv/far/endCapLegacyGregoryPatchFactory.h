@@ -37,17 +37,31 @@ namespace Far {
 
 /// \brief    This factory generates legacy (OpenSubdiv 2.x) gregory patches.
 ///
+/// note: This is an internal use class in PatchTablesFactory.
+///       will be deprecated at some point.
+///
 class EndCapLegacyGregoryPatchFactory {
 public:
     EndCapLegacyGregoryPatchFactory(TopologyRefiner const & refiner);
 
-    PatchDescriptor::Type GetPatchType(PatchTablesFactoryBase::PatchFaceTag const &tag) const;
+    /// \brief Returns end patch point indices for \a faceIndex of \a level.
+    ///        Note that legacy gregory patch points exist in the max level
+    ///        of subdivision in the topologyRefiner.
+    ///        The returning indices are offsetted by levelVertOffset
+    ///
+    /// @param level            vtr refinement level
+    ///
+    /// @param faceIndex        vtr faceIndex at the level
+    ///
+    /// @param levelPatchTags   Array of patchTags for all faces in the level
+    ///
+    /// @param levelVertOffset  relative offset of patch vertex indices
+    ///
+    ConstIndexArray GetPatchPoints(Vtr::Level const * level, Index faceIndex,
+                                   PatchTablesFactory::PatchFaceTag const * levelPatchTags,
+                                   int levelVertOffset);
 
-    ConstIndexArray GetTopology(Vtr::Level const& level, Index faceIndex,
-                                PatchTablesFactoryBase::PatchFaceTag const * levelPatchTags,
-                                int levelVertOffset);
-
-    void AddGregoryPatchTables(PatchTables *patchTables);
+    void Finalize(PatchTables *patchTables);
 
 private:
     TopologyRefiner const &_refiner;

@@ -375,19 +375,44 @@ GregoryBasis::ProtoBasis::ProtoBasis(
     }
 }
 
+/*static*/
+StencilTables *
+GregoryBasis::CreateStencilTables(PointsVector const &stencils) {
 
-void
-GregoryBasis::Point::FactorizeBasisVertex(StencilTables const * stencils,
-                                          ProtoStencil dst) {
+    int nStencils = (int)stencils.size();
+    if (nStencils == 0) return NULL;
 
-    // Use the Allocator to factorize the Gregory patch influence CVs with the
-    // supporting CVs from the stencil tables.
-    if (!stencils) return;
-
-    dst.Clear();
-    for (int j = 0; j < _size; ++j) {
-        dst.AddWithWeight(*stencils, _indices[j], _weights[j]);
+    int nElements = 0;
+    for (int i = 0; i < nStencils; ++i) {
+        nElements += stencils[i].GetSize();
     }
+
+    // allocate destination
+    StencilTables *stencilTables = new StencilTables();
+
+    // XXX: do we need numControlVertices in stencilTables?
+    stencilTables->_numControlVertices = 0;
+    stencilTables->resize(nStencils, nElements);
+
+    unsigned char * sizes = &stencilTables->_sizes[0];
+    Index * indices = &stencilTables->_indices[0];
+    float * weights = &stencilTables->_weights[0];
+
+    for (int i = 0; i < nStencils; ++i) {
+        GregoryBasis::Point const &src = stencils[i];
+
+        int size = src.GetSize();
+        memcpy(indices, src.GetIndices(), size*sizeof(Index));
+        memcpy(weights, src.GetWeights(), size*sizeof(float));
+        *sizes = (int)size;
+
+        indices += size;
+        weights += size;
+        ++sizes;
+    }
+    stencilTables->generateOffsets();
+
+    return stencilTables;
 }
 
 } // end namespace Far

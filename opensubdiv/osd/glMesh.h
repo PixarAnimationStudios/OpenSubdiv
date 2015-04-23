@@ -30,9 +30,6 @@
 #include "../osd/mesh.h"
 #include "../osd/glDrawContext.h"
 #include "../osd/vertexDescriptor.h"
-#include "../far/endCapGregoryBasisPatchFactory.h"
-#include "../far/endCapLegacyGregoryPatchFactory.h"
-#include "../far/endCapRegularPatchFactory.h"
 
 #ifdef OPENSUBDIV_HAS_OPENCL
 #  include "../osd/clComputeController.h"
@@ -211,59 +208,39 @@ private:
         poptions.generateFVarTables = bits.test(MeshFVarData);
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
-        if (bits.test(MeshEndCapRegular) and bits.test(MeshAdaptive)) {
-            // use regular endcap
-            Far::EndCapRegularPatchFactory *endCapFactory =
-                new Far::EndCapRegularPatchFactory(*_refiner);
-            _patchTables = Far::PatchTablesFactoryT<Far::EndCapRegularPatchFactory>::Create(*_refiner, poptions,
-                                                                                            endCapFactory);
-            if (endCapFactory) {
-                if (Far::StencilTables const *vertexStencilsWithGregoryBasis =
-                    endCapFactory->CreateVertexStencilTables(vertexStencils, true)) {
-                    delete vertexStencils;
-                    vertexStencils = vertexStencilsWithGregoryBasis;
-                }
+        if (bits.test(MeshEndCapBSplineBasis)) {
+            poptions.SetEndCapType(Far::PatchTablesFactory::Options::ENDCAP_BSPLINE_BASIS);
+            // points on gregory basis endcap boundary can be shared among adjacent patches
+            // to save some stencils.
+            poptions.shareEndCapPatchPoints = true;
+        } else if (bits.test(MeshEndCapGregoryBasis)) {
+            poptions.SetEndCapType(Far::PatchTablesFactory::Options::ENDCAP_GREGORY_BASIS);
+        } else if (bits.test(MeshEndCapLegacyGregory)) {
+            poptions.SetEndCapType(Far::PatchTablesFactory::Options::ENDCAP_LEGACY_GREGORY);
+        }
 
-                if (varyingStencils) {
-                    if (Far::StencilTables const *varyingStencilsWithGregoryBasis =
-                        endCapFactory->CreateVaryingStencilTables(varyingStencils, true)) {
-                        delete varyingStencils;
-                        varyingStencils = varyingStencilsWithGregoryBasis;
-                    }
+        _patchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
+
+        // if there's endcap stencil, merge it into regular stencils.
+        if (_patchTables->GetEndCapVertexStencilTables()) {
+            if (Far::StencilTables const *vertexStencilsWithEndCap =
+                Far::StencilTablesFactory::AppendEndCapStencilTables(
+                    *_refiner,
+                    vertexStencils,
+                    _patchTables->GetEndCapVertexStencilTables())) {
+                delete vertexStencils;
+                vertexStencils = vertexStencilsWithEndCap;
+            }
+            if (varyingStencils) {
+                if (Far::StencilTables const *varyingStencilsWithEndCap =
+                    Far::StencilTablesFactory::AppendEndCapStencilTables(
+                        *_refiner,
+                        varyingStencils,
+                        _patchTables->GetEndCapVaryingStencilTables())) {
+                    delete varyingStencils;
+                    varyingStencils = varyingStencilsWithEndCap;
                 }
             }
-            delete endCapFactory;
-        } else if (bits.test(MeshEndCapGregoryBasis) and bits.test(MeshAdaptive)) {
-            // use gregory stencils
-            Far::EndCapGregoryBasisPatchFactory *gregoryBasisFactory =
-                new Far::EndCapGregoryBasisPatchFactory(*_refiner, /*share verts=*/true);
-            _patchTables = Far::PatchTablesFactoryT<Far::EndCapGregoryBasisPatchFactory>::Create(*_refiner, poptions, gregoryBasisFactory);
-            if (gregoryBasisFactory) {
-                if (Far::StencilTables const *vertexStencilsWithGregoryBasis =
-                    gregoryBasisFactory->CreateVertexStencilTables(vertexStencils, true)) {
-                    delete vertexStencils;
-                    vertexStencils = vertexStencilsWithGregoryBasis;
-                }
-
-                if (varyingStencils) {
-                    if (Far::StencilTables const *varyingStencilsWithGregoryBasis =
-                        gregoryBasisFactory->CreateVaryingStencilTables(varyingStencils, true)) {
-                        delete varyingStencils;
-                        varyingStencils = varyingStencilsWithGregoryBasis;
-                    }
-                }
-            }
-            delete gregoryBasisFactory;
-        } else if (bits.test(MeshEndCapLegacyGregory) and bits.test(MeshAdaptive)) {
-            // use legacy gregory
-            Far::EndCapLegacyGregoryPatchFactory *gregoryPatchFactory =
-                new Far::EndCapLegacyGregoryPatchFactory(*_refiner);
-            _patchTables = Far::PatchTablesFactoryT<Far::EndCapLegacyGregoryPatchFactory>::Create(*_refiner, poptions, gregoryPatchFactory);
-
-            gregoryPatchFactory->AddGregoryPatchTables(_patchTables);
-            delete gregoryPatchFactory;
-        } else {
-            _patchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
         }
 
         _drawContext = DrawContext::Create(_patchTables, numElements);
@@ -481,61 +458,40 @@ private:
         poptions.generateFVarTables = bits.test(MeshFVarData);
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
-        // use gregory stencils
+        if (bits.test(MeshEndCapBSplineBasis)) {
+            poptions.SetEndCapType(Far::PatchTablesFactory::Options::ENDCAP_BSPLINE_BASIS);
+        } else if (bits.test(MeshEndCapGregoryBasis)) {
+            poptions.SetEndCapType(Far::PatchTablesFactory::Options::ENDCAP_GREGORY_BASIS);
+            // points on gregory basis endcap boundary can be shared among adjacent patches
+            // to save some stencils.
+            poptions.shareEndCapPatchPoints = true;
+        } else if (bits.test(MeshEndCapLegacyGregory)) {
+            poptions.SetEndCapType(Far::PatchTablesFactory::Options::ENDCAP_LEGACY_GREGORY);
+        }
 
-        if (bits.test(MeshEndCapRegular) and bits.test(MeshAdaptive)) {
-            // use regular endcap
-            Far::EndCapRegularPatchFactory *endCapFactory =
-                new Far::EndCapRegularPatchFactory(*_refiner);
-            _patchTables = Far::PatchTablesFactoryT<Far::EndCapRegularPatchFactory>::Create(*_refiner, poptions,
-                                                                                            endCapFactory);
-            if (endCapFactory) {
-                if (Far::StencilTables const *vertexStencilsWithGregoryBasis =
-                    endCapFactory->CreateVertexStencilTables(vertexStencils, true)) {
-                    delete vertexStencils;
-                    vertexStencils = vertexStencilsWithGregoryBasis;
-                }
+        _patchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
 
-                if (varyingStencils) {
-                    if (Far::StencilTables const *varyingStencilsWithGregoryBasis =
-                        endCapFactory->CreateVaryingStencilTables(varyingStencils, true)) {
-                        delete varyingStencils;
-                        varyingStencils = varyingStencilsWithGregoryBasis;
-                    }
+        // if there's endcap stencils, merge it into regular stencils.
+        if (_patchTables->GetEndCapVertexStencilTables()) {
+            // append stencils
+            if (Far::StencilTables const *vertexStencilsWithEndCap =
+                Far::StencilTablesFactory::AppendEndCapStencilTables(
+                    *_refiner,
+                    vertexStencils,
+                    _patchTables->GetEndCapVertexStencilTables())) {
+                delete vertexStencils;
+                vertexStencils = vertexStencilsWithEndCap;
+            }
+            if (varyingStencils) {
+                if (Far::StencilTables const *varyingStencilsWithEndCap =
+                    Far::StencilTablesFactory::AppendEndCapStencilTables(
+                        *_refiner,
+                        varyingStencils,
+                        _patchTables->GetEndCapVaryingStencilTables())) {
+                    delete varyingStencils;
+                    varyingStencils = varyingStencilsWithEndCap;
                 }
             }
-            delete endCapFactory;
-        } else if (bits.test(MeshEndCapGregoryBasis) and bits.test(MeshAdaptive)) {
-            // use gregory stencils
-            Far::EndCapGregoryBasisPatchFactory *gregoryBasisFactory =
-                new Far::EndCapGregoryBasisPatchFactory(*_refiner, /*share verts=*/true);
-            _patchTables = Far::PatchTablesFactoryT<Far::EndCapGregoryBasisPatchFactory>::Create(*_refiner, poptions, gregoryBasisFactory);
-            if (gregoryBasisFactory) {
-                if (Far::StencilTables const *vertexStencilsWithGregoryBasis =
-                    gregoryBasisFactory->CreateVertexStencilTables(vertexStencils, true)) {
-                    delete vertexStencils;
-                    vertexStencils = vertexStencilsWithGregoryBasis;
-                }
-
-                if (varyingStencils) {
-                    if (Far::StencilTables const *varyingStencilsWithGregoryBasis =
-                        gregoryBasisFactory->CreateVaryingStencilTables(varyingStencils, true)) {
-                        delete varyingStencils;
-                        varyingStencils = varyingStencilsWithGregoryBasis;
-                    }
-                }
-            }
-            delete gregoryBasisFactory;
-        } else if (bits.test(MeshEndCapLegacyGregory) and bits.test(MeshAdaptive)) {
-            // use legacy gregory
-            Far::EndCapLegacyGregoryPatchFactory *gregoryPatchFactory =
-                new Far::EndCapLegacyGregoryPatchFactory(*_refiner);
-            _patchTables = Far::PatchTablesFactoryT<Far::EndCapLegacyGregoryPatchFactory>::Create(*_refiner, poptions, gregoryPatchFactory);
-
-            gregoryPatchFactory->AddGregoryPatchTables(_patchTables);
-            delete gregoryPatchFactory;
-        } else {
-            _patchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
         }
 
         _drawContext = DrawContext::Create(_patchTables, numElements);

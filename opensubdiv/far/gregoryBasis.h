@@ -38,6 +38,10 @@ class TopologyRefiner;
 
 /// \brief Container for gregory basis stencils
 ///
+/// XXXtakahito: Currently these classes are being used by EndPatch factories.
+///              These classes will likely go away once we get limit masks
+///              from SchemeWorker.
+///
 class GregoryBasis {
 
 public:
@@ -174,8 +178,6 @@ public:
             ++(*size);
         }
 
-        void FactorizeBasisVertex(StencilTables const * stencils,
-                                  ProtoStencil dst);
     private:
 
         int findIndex(Index idx) {
@@ -241,6 +243,10 @@ public:
         // for varying interpolation
         Point V[4];
     };
+
+    typedef std::vector<GregoryBasis::Point> PointsVector;
+
+    static StencilTables *CreateStencilTables(PointsVector const &stencils);
 
 private:
 

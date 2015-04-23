@@ -633,7 +633,6 @@ static void
 createGregoryBasis(OpenSubdiv::Far::PatchTables const & patchTables,
         std::vector<Vertex> const & vertexBuffer) {
 
-    typedef OpenSubdiv::Far::PatchTables PatchTables;
     typedef OpenSubdiv::Far::PatchDescriptor PatchDescriptor;
 
     int npatches = 0;
@@ -783,26 +782,18 @@ createVtrMesh(Shape * shape, int maxlevel) {
     Far::PatchTables * patchTables = 0;
     bool createFVarWire = g_VtrDrawFVarPatches or g_VtrDrawFVarVerts;
 
-    // for stencil based gregory evaluation
-    Far::EndCapGregoryBasisPatchFactory *gregoryBasisFactory = NULL;
-
     if (g_Adaptive) {
         Far::PatchTablesFactory::Options options;
         options.generateFVarTables = createFVarWire;
-
-        // use GregoryBasis as EndPatch strategy.
-        // we want to share boundary vertices of marginal gregory patches
-        // only if using stencils.
-        bool shareBoundaryVertices = g_useStencils;
-        gregoryBasisFactory = new Far::EndCapGregoryBasisPatchFactory(
-            *refiner, shareBoundaryVertices);
+        options.shareEndCapPatchPoints = false;
 
         patchTables =
-            Far::PatchTablesFactoryT<Far::EndCapGregoryBasisPatchFactory>::Create(
-            *refiner, options, gregoryBasisFactory);
+            Far::PatchTablesFactory::Create(*refiner, options);
 
-        // increase vertex buffer for the additional gregory verts
-        numTotalVerts += gregoryBasisFactory->GetNumGregoryBasisVertices();
+        // increase vertex buffer for the additional endcap verts
+        if (patchTables->GetEndCapVertexStencilTables()) {
+            numTotalVerts += patchTables->GetEndCapVertexStencilTables()->GetNumStencils();
+        }
 
         g_numPatches = patchTables->GetNumPatchesTotal();
         g_maxValence = patchTables->GetMaxValence();
@@ -818,7 +809,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
             int channel = 0;
 
             // XXXX should use a (u,v) vertex class
-            fvarBuffer.resize(refiner->GetNumFVarValuesTotal(channel), 0.0f);
+            fvarBuffer.resize(refiner->GetNumFVarValuesTotal(channel), 0);
             Vertex * values = &fvarBuffer[0];
 
             int nCoarseValues = refiner->GetNumFVarValues(0);
@@ -857,12 +848,14 @@ createVtrMesh(Shape * shape, int maxlevel) {
         options.generateIntermediateLevels=true;
         stencilTables = Far::StencilTablesFactory::Create(*refiner, options);
 
-        // append gregory basis stencils if needed
-        if (gregoryBasisFactory) {
-            if (Far::StencilTables const * stencilTablesWithGregoryBasis =
-                gregoryBasisFactory->CreateVertexStencilTables(stencilTables, /*append=*/true)) {
+        // append endpatch stencils if needed
+        if (patchTables->GetEndCapVertexStencilTables()) {
+            if (Far::StencilTables const * stencilTablesWithEndCap =
+                Far::StencilTablesFactory::AppendEndCapStencilTables(
+                    *refiner, stencilTables,
+                    patchTables->GetEndCapVertexStencilTables())) {
                 delete stencilTables;
-                stencilTables = stencilTablesWithGregoryBasis;
+                stencilTables = stencilTablesWithEndCap;
             }
         }
 
@@ -881,37 +874,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
         //printf("          %f ms (interpolate)\n", float(s.GetElapsed())*1000.0f);
         //printf("          %f ms (total)\n", float(s.GetTotalElapsed())*1000.0f);
 
-        // gregory basis evaluation (without stencils)
-        if (gregoryBasisFactory) {
-
-            // gregory basis is defined at the maximum level.
-            // all src verts exist in maximum level and indexed within the level
-            // and resulting gregory verts will be placed after all refined verts
-            Vertex * src = verts + refiner->GetNumVerticesTotal() - refiner->GetNumVertices(maxlevel);
-            Vertex * dst = verts + refiner->GetNumVerticesTotal();
-            int nPatchArrays = patchTables->GetNumPatchArrays();
-
-            for (int i = 0; i < nPatchArrays; ++i) {
-                Far::PatchDescriptor desc =
-                    patchTables->GetPatchArrayDescriptor(i);
-                if (desc.GetType() == Far::PatchDescriptor::GREGORY_BASIS) {
-
-                    int nPatches = patchTables->GetNumPatches(i);
-                    for (int j = 0; j < nPatches; ++j) {
-                        // GregoryBasisFactory knows faceIndex in VtrLevel for this patch
-                        int faceIndex = gregoryBasisFactory->GetFaceIndex(j);
-
-                        Far::GregoryBasis const *gregoryBasis =
-                            Far::EndCapGregoryBasisPatchFactory::Create(*refiner, faceIndex);
-
-                        gregoryBasis->Evaluate(src, dst);
-                        dst += 20;
-
-                        delete gregoryBasis;
-                    }
-                }
-            }
-        }
+        // TODO: endpatch basis conversion comes here
     }
     s.Stop();
 
@@ -968,7 +931,6 @@ createVtrMesh(Shape * shape, int maxlevel) {
 
     delete refiner;
     delete patchTables;
-    delete gregoryBasisFactory;
 }
 
 //------------------------------------------------------------------------------
@@ -1481,7 +1443,7 @@ initHUD() {
    g_hud.AddCheckBox("FVar Verts",  g_VtrDrawFVarVerts!=0, 300, 10, callbackDrawIDs, 10);
    g_hud.AddCheckBox("FVar Patches",  g_VtrDrawFVarPatches!=0, 300, 30, callbackDrawIDs, 11);
 
-   g_hud.AddSlider("FVar Tess", 1.0f, 10.0f, g_VtrDrawFVarPatchTess,
+   g_hud.AddSlider("FVar Tess", 1.0f, 10.0f, (float)g_VtrDrawFVarPatchTess,
                     300, 50, 25, true, callbackFVarTess, 0);
 
     int fvar_pulldown = g_hud.AddPullDown("FVar Interpolation (i)", 300, 90, 250, callbackFVarInterpolation, 'i');
