@@ -26,12 +26,16 @@
 
 struct ShapeDesc {
 
-    ShapeDesc(char const * iname, std::string const & idata, Scheme ischeme) :
-        name(iname), data(idata), scheme(ischeme) { }
+    ShapeDesc(char const * iname, std::string const & idata, Scheme ischeme,
+              bool iisLeftHanded=false, float iprecision=0.0f) :
+        name(iname), data(idata), scheme(ischeme), isLeftHanded(iisLeftHanded),
+        precision(iprecision) { }
 
     std::string name,
                 data;
     Scheme      scheme;
+    bool        isLeftHanded;
+    float       precision;
 };
 
 static std::vector<ShapeDesc> g_shapes;
@@ -61,6 +65,7 @@ static std::vector<ShapeDesc> g_shapes;
 #include "../shapes/catmark_gregory_test4.h"
 #include "../shapes/catmark_gregory_test5.h"
 #include "../shapes/catmark_helmet.h"
+#include "../shapes/catmark_lefthanded.h"
 #include "../shapes/catmark_pyramid_creases0.h"
 #include "../shapes/catmark_pyramid_creases1.h"
 #include "../shapes/catmark_pyramid.h"
@@ -124,6 +129,7 @@ static void initShapes() {
     g_shapes.push_back( ShapeDesc("catmark_torus",            catmark_torus,            kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_torus_creases0",   catmark_torus_creases0,   kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_helmet",           catmark_helmet,           kCatmark ) );
+    g_shapes.push_back( ShapeDesc("catmark_lefthanded",       catmark_lefthanded,       kCatmark, true /*isLeftHanded*/, 1e-4 /*precision*/ ) );
 
     g_shapes.push_back( ShapeDesc("loop_cube_creases0",       loop_cube_creases0,       kLoop ) );
     g_shapes.push_back( ShapeDesc("loop_cube_creases1",       loop_cube_creases1,       kLoop ) );

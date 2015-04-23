@@ -36,7 +36,7 @@
 // Regression testing matching Far to Hbr (default CPU implementation)
 //
 // Notes:
-// - precision is currently held at 1e-6
+// - precision is currently held at 1e-6, unless overriden in the input shape descriptor.
 //
 // - results cannot be bitwise identical as some vertex interpolations
 //   are not happening in the same order.
@@ -162,6 +162,8 @@ checkMesh(ShapeDesc const & desc, int maxlevel) {
 
     int nverts = (int)vtrVertexData.size();
 
+    float precision = desc.precision != 0.0f ? desc.precision : PRECISION;
+
     for (int i=0; i<nverts; ++i) {
 
         xyzVV & hbrVert = hbrVertexData[i],
@@ -188,7 +190,7 @@ checkMesh(ShapeDesc const & desc, int maxlevel) {
         deltaAvg[2]+=delta[2];
 
         float dist = sqrtf( delta[0]*delta[0]+delta[1]*delta[1]+delta[2]*delta[2]);
-        if ( dist > PRECISION ) {
+        if ( dist > precision ) {
             if (not g_debugmode)
                 printf("// HbrVertex<T> %d fails : dist=%.10f (%.10f %.10f %.10f)"
                        " (%.10f %.10f %.10f)\n", i, dist, hbrVert.GetPos()[0],
