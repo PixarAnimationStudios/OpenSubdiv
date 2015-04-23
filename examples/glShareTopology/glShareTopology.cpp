@@ -47,6 +47,7 @@ GLFWmonitor* g_primary=0;
 #include <osd/glDrawRegistry.h>
 #include <osd/glMesh.h>
 #include <far/error.h>
+#include <far/ptexIndices.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -588,7 +589,8 @@ createOsdMesh( const std::string &shapeStr, int level, Scheme scheme=kCatmark ) 
         }
 
         // create ptex index to coarse face index mapping
-        int numPtexFaces = refiner->GetNumPtexFaces();
+        Far::PtexIndices ptexIndices(*refiner);
+        int numPtexFaces = ptexIndices.GetNumFaces();
 
         // XXX: duped logic to simpleHbr
         std::vector<int> ptexIndexToFaceMapping(numPtexFaces);
