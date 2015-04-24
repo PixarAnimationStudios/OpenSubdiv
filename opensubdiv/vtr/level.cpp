@@ -672,6 +672,111 @@ Level::gatherQuadLinearPatchPoints(
 }
 
 //
+//  Gathering the 16 vertices of a quad-regular patch:
+//      - the neighborhood of the face is assumed to be quad-regular
+//        except for the boundaries specified by boundaryMask
+//
+//  Ordering of resulting vertices:
+//      A complete sequence of 16 vertices is returned including values for
+//  non-existent vertices along boundary and corner edges. The locations of
+//  boundary edges are determined by the specified boundaryMask.
+//      For boundary and corner edges, INDEX_INVALID will be returned for
+//  the corresponding undefined patch vertices. The four vertices of the
+//  face begin the patch.
+//
+//         |     |     |     |
+//      ---5-----4-----15----14---
+//         |     |     |     |
+//         |     |     |     |
+//      ---6-----0-----3-----13---
+//         |     |x   x|     |
+//         |     |x   x|     |
+//      ---7-----1-----2-----12---
+//         |     |     |     |
+//         |     |     |     |
+//      ---8-----9-----10----11---
+//         |     |     |     |
+//
+int
+Level::gatherQuadRegularPatchPoints(
+    Index thisFace, Index patchPoints[], int boundaryMask, int rotation, int fvarChannel) const {
+
+    Level const& level = *this;
+
+    assert((0 <= rotation) && (rotation < 4));
+    static int const   rotationSequence[7] = { 0, 1, 2, 3, 0, 1, 2 };
+    int const * rotatedVerts = &rotationSequence[rotation];
+
+    ConstIndexArray thisFaceVerts = level.getFaceVertices(thisFace);
+
+    ConstIndexArray facePoints = (fvarChannel < 0) ? thisFaceVerts :
+                                 level.getFVarFaceValues(thisFace, fvarChannel);
+
+    patchPoints[0] = facePoints[rotatedVerts[0]];
+    patchPoints[1] = facePoints[rotatedVerts[1]];
+    patchPoints[2] = facePoints[rotatedVerts[2]];
+    patchPoints[3] = facePoints[rotatedVerts[3]];
+
+    int undefinedPoint = INDEX_INVALID;
+
+    //
+    //  For each of the four corner vertices, there may be a face diagonally opposite
+    //  the given/central face.  Each of these faces contains three points of the
+    //  entire ring of points around that given/central face.
+    //
+    int pointIndex = 4;
+    for (int i = 0; i < 4; ++i) {
+        Index v = thisFaceVerts[rotatedVerts[i]];
+
+        ConstIndexArray      vFaces   = level.getVertexFaces(v);
+        ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(v);
+
+        if (vFaces.size() == 1) {
+            // corner
+            patchPoints[pointIndex++] = undefinedPoint;
+            patchPoints[pointIndex++] = undefinedPoint;
+            patchPoints[pointIndex++] = undefinedPoint;
+        } else if (vFaces.size() == 2) {
+            // boundary
+            int thisFaceInVFaces = vFaces.FindIndex(thisFace);
+            int otherFaceInVFaces  = 1 - thisFaceInVFaces;
+
+            Index otherFace    = vFaces[otherFaceInVFaces];
+            int   vInOtherFace = vInFaces[otherFaceInVFaces];
+
+            facePoints = (fvarChannel < 0) ? level.getFaceVertices(otherFace) :
+                         level.getFVarFaceValues(otherFace, fvarChannel);
+
+            if (boundaryMask & (1<<i)) {
+                patchPoints[pointIndex++] = facePoints[fastMod4(vInOtherFace + 3)];
+                patchPoints[pointIndex++] = undefinedPoint;
+                patchPoints[pointIndex++] = undefinedPoint;
+            } else {
+                patchPoints[pointIndex++] = undefinedPoint;
+                patchPoints[pointIndex++] = undefinedPoint;
+                patchPoints[pointIndex++] = facePoints[fastMod4(vInOtherFace + 1)];
+            }
+        } else {
+            // interior
+            int thisFaceInVFaces = vFaces.FindIndexIn4Tuple(thisFace);
+            int intFaceInVFaces  = fastMod4(thisFaceInVFaces + 2);
+
+            Index intFace    = vFaces[intFaceInVFaces];
+            int   vInIntFace = vInFaces[intFaceInVFaces];
+
+            facePoints = (fvarChannel < 0) ? level.getFaceVertices(intFace) :
+                         level.getFVarFaceValues(intFace, fvarChannel);
+
+            patchPoints[pointIndex++] = facePoints[fastMod4(vInIntFace + 1)];
+            patchPoints[pointIndex++] = facePoints[fastMod4(vInIntFace + 2)];
+            patchPoints[pointIndex++] = facePoints[fastMod4(vInIntFace + 3)];
+        }
+    }
+    assert(pointIndex == 16);
+    return 16;
+}
+
+//
 //  Gathering the 16 vertices of a quad-regular interior patch:
 //      - the neighborhood of the face is assumed to be quad-regular
 //
