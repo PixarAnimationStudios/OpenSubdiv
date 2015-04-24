@@ -27,7 +27,6 @@
 
 #include "../version.h"
 
-#include "../far/kernelBatch.h"
 #include "../far/topologyRefiner.h"
 #include "../far/patchTablesFactory.h"
 #include "../far/stencilTables.h"
@@ -51,8 +50,10 @@ enum MeshBits {
     MeshPtexData             = 2,
     MeshFVarData             = 3,
     MeshUseSingleCreasePatch = 4,
-    MeshUseGregoryBasis      = 5,
-    NUM_MESH_BITS            = 6,
+    MeshEndCapRegular        = 5,  // exclusive
+    MeshEndCapGregoryBasis   = 6,  // exclusive
+    MeshEndCapLegacyGregory  = 7,  // exclusive
+    NUM_MESH_BITS            = 8,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
@@ -90,12 +91,6 @@ public:
     virtual void SetFVarDataChannel(int fvarWidth, std::vector<float> const & fvarData) = 0;
 
 protected:
-
-    static inline int getNumVertices(Far::TopologyRefiner const & refiner) {
-        return refiner.IsUniform() ?
-            refiner.GetNumVertices(0) + refiner.GetNumVertices(refiner.GetMaxLevel()) :
-                refiner.GetNumVerticesTotal();
-    }
 
     static inline void refineMesh(Far::TopologyRefiner & refiner, int level, bool adaptive, bool singleCreasePatch) {
 
@@ -154,7 +149,6 @@ public:
     Mesh(ComputeController * computeController,
             Far::TopologyRefiner * refiner,
             Far::PatchTables * patchTables,
-            Far::KernelBatchVector const & kernelBatches,
             VertexBuffer * vertexBuffer,
             VertexBuffer * varyingBuffer,
             ComputeContext * computeContext,
@@ -162,12 +156,11 @@ public:
 
             _refiner(refiner),
             _patchTables(patchTables),
-            _kernelBatches(kernelBatches),
             _vertexBuffer(vertexBuffer),
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
             _computeController(computeController),
-            _drawContext(drawContext) { }
+            _drawContext(drawContext) {}
 
     virtual ~Mesh() {
         delete _refiner;
@@ -176,11 +169,6 @@ public:
         delete _varyingBuffer;
         delete _computeContext;
         delete _drawContext;
-    }
-
-    virtual int GetNumVertices() const {
-        assert(_refiner);
-        return MeshInterface<DRAW_CONTEXT>::getNumVertices(*_refiner);
     }
 
     virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
@@ -192,11 +180,11 @@ public:
     }
 
     virtual void Refine() {
-        _computeController->Compute(_computeContext, _kernelBatches, _vertexBuffer, _varyingBuffer);
+        _computeController->Compute(_computeContext, _vertexBuffer, _varyingBuffer);
     }
 
     virtual void Refine(VertexBufferDescriptor const *vertexDesc, VertexBufferDescriptor const *varyingDesc) {
-        _computeController->Refine(_computeContext, _kernelBatches, _vertexBuffer, _varyingBuffer, vertexDesc, varyingDesc);
+        _computeController->Refine(_computeContext, _vertexBuffer, _varyingBuffer, vertexDesc, varyingDesc);
     }
 
     virtual void Synchronize() {
@@ -222,7 +210,6 @@ public:
     }
 
 private:
-
     void initializeComputeContext(int numVertexElements,
         int numVaryingElements ) {
 
@@ -237,8 +224,6 @@ private:
         if (numVertexElements>0) {
 
             vertexStencils = Far::StencilTablesFactory::Create(*_refiner, options);
-
-            _kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
         }
 
         if (numVaryingElements>0) {
@@ -258,7 +243,7 @@ private:
 
         assert(_refiner and _vertexBuffer);
 
-        Far::PatchTablesFactory::Options options(level);
+        Far::PatchTablesFactoryBase::Options options(level);
         options.generateFVarTables = bits.test(MeshFVarData);
         options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
@@ -287,11 +272,10 @@ private:
             _varyingBuffer = VertexBuffer::Create(numVaryingElements, numVertices);
         }
         return numElements;
-   }
+    }
 
     Far::TopologyRefiner * _refiner;
     Far::PatchTables * _patchTables;
-    Far::KernelBatchVector _kernelBatches;
 
     VertexBuffer * _vertexBuffer,
                  * _varyingBuffer;

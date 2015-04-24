@@ -31,6 +31,7 @@
 #include "../osd/d3d11ComputeController.h"
 #include "../osd/d3d11DrawContext.h"
 #include "../osd/d3d11VertexBuffer.h"
+#include "../far/endCapLegacyGregoryPatchFactory.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -63,22 +64,27 @@ public:
             _computeContext(0),
             _computeController(computeController),
             _drawContext(0),
+            _numVertices(0),
             _d3d11DeviceContext(d3d11DeviceContext)
     {
         D3D11MeshInterface::refineMesh(*_refiner, level, bits.test(MeshAdaptive), bits.test(MeshUseSingleCreasePatch));
 
-        int numElements =
-            initializeVertexBuffers(numVertexElements, numVaryingElements, bits);
+        initializeContext(numVertexElements,
+                          numVaryingElements,
+                          numVertexElements, /* interleaved stride */
+                          level, bits);
 
-        initializeComputeContext(numVertexElements, numVaryingElements);
+        initializeVertexBuffers(_numVertices,
+                                numVertexElements,
+                                numVaryingElements);
 
-        initializeDrawContext(numElements, level, bits);
+        // for classic gregory patch -- will retire
+        _drawContext->UpdateVertexTexture(_vertexBuffer, _d3d11DeviceContext);
     }
 
     Mesh(ComputeController * computeController,
             Far::TopologyRefiner * refiner,
             Far::PatchTables * patchTables,
-            Far::KernelBatchVector const & kernelBatches,
             VertexBuffer * vertexBuffer,
             VertexBuffer * varyingBuffer,
             ComputeContext * computeContext,
@@ -87,12 +93,12 @@ public:
 
             _refiner(refiner),
             _patchTables(patchTables),
-            _kernelBatches(kernelBatches),
             _vertexBuffer(vertexBuffer),
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
             _computeController(computeController),
             _drawContext(drawContext),
+            _numVertices(0),
             _d3d11DeviceContext(d3d11DeviceContext)
     {
         _drawContext->UpdateVertexTexture(_vertexBuffer, _d3d11DeviceContext);
@@ -107,10 +113,7 @@ public:
         delete _drawContext;
     }
 
-    virtual int GetNumVertices() const {
-        assert(_refiner);
-        return D3D11MeshInterface::getNumVertices(*_refiner);
-    }
+    virtual int GetNumVertices() const { return _numVertices; }
 
     virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
         _vertexBuffer->UpdateData(vertexData, startVertex, numVerts, _d3d11DeviceContext);
@@ -119,13 +122,14 @@ public:
         _varyingBuffer->UpdateData(varyingData, startVertex, numVerts, _d3d11DeviceContext);
     }
     virtual void Refine() {
-        _computeController->Compute(_computeContext, _kernelBatches, _vertexBuffer, _varyingBuffer);
+        _computeController->Compute(_computeContext, _vertexBuffer, _varyingBuffer);
     }
     virtual void Refine(VertexBufferDescriptor const *vertexDesc,
                         VertexBufferDescriptor const *varyingDesc,
                         bool interleaved) {
-        _computeController->Compute(_computeContext, _kernelBatches,
-                                    _vertexBuffer, (interleaved ? _vertexBuffer : _varyingBuffer),
+        _computeController->Compute(_computeContext,
+                                    _vertexBuffer,
+                                    (interleaved ? _vertexBuffer : _varyingBuffer),
                                     vertexDesc, varyingDesc);
     }
     virtual void Synchronize() {
@@ -162,8 +166,9 @@ public:
 
 private:
 
-    void initializeComputeContext(int numVertexElements,
-        int numVaryingElements ) {
+    void initializeContext(int numVertexElements,
+                           int numVaryingElements,
+                           int numElements, int level, MeshBitset bits) {
 
         assert(_refiner);
 
@@ -176,8 +181,6 @@ private:
         if (numVertexElements>0) {
 
             vertexStencils = Far::StencilTablesFactory::Create(*_refiner, options);
-
-            _kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
         }
 
         if (numVaryingElements>0) {
@@ -187,55 +190,51 @@ private:
             varyingStencils = Far::StencilTablesFactory::Create(*_refiner, options);
         }
 
-        _computeContext = ComputeContext::Create(vertexStencils, varyingStencils);
+        Far::PatchTablesFactory::Options poptions(level);
+        poptions.generateFVarTables = bits.test(MeshFVarData);
+        poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
+        // TODO: add gregory basis shader for DX11
+		Far::EndCapLegacyGregoryPatchFactory *gregoryPatchFactory = new Far::EndCapLegacyGregoryPatchFactory(*_refiner);
+		_patchTables = Far::PatchTablesFactoryT<Far::EndCapLegacyGregoryPatchFactory>::Create(*_refiner, poptions, gregoryPatchFactory);
+        gregoryPatchFactory->AddGregoryPatchTables(_patchTables);
+
+        _drawContext = DrawContext::Create(_patchTables,
+                                           _d3d11DeviceContext,
+                                           numElements);
+
+        _computeContext = ComputeContext::Create(vertexStencils,
+                                                 varyingStencils);
+
+        // numvertices = coarse verts + refined verts + gregory basis verts
+        _numVertices = vertexStencils->GetNumControlVertices()
+            + vertexStencils->GetNumStencils();
+
+        delete gregoryPatchFactory;
         delete vertexStencils;
         delete varyingStencils;
     }
 
-    void initializeDrawContext(int numElements, int level, MeshBitset bits) {
-
-        assert(_refiner and _vertexBuffer);
-
-        Far::PatchTablesFactory::Options options(level);
-        options.generateFVarTables = bits.test(MeshFVarData);
-        options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
-
-        _patchTables = Far::PatchTablesFactory::Create(*_refiner, options);
-
-        _drawContext = DrawContext::Create(
-            _patchTables, _d3d11DeviceContext, numElements);
-
-        _drawContext->UpdateVertexTexture(_vertexBuffer, _d3d11DeviceContext);
-    }
-
-    int initializeVertexBuffers(int numVertexElements,
-        int numVaryingElements, MeshBitset bits) {
+    void initializeVertexBuffers(int numVertices,
+                                 int numVertexElements,
+                                 int numVaryingElements) {
 
         ID3D11Device * pd3d11Device;
         _d3d11DeviceContext->GetDevice(&pd3d11Device);
 
-        int numVertices = D3D11MeshInterface::getNumVertices(*_refiner);
-
-        int numElements = numVertexElements +
-            (bits.test(MeshInterleaveVarying) ? numVaryingElements : 0);
-
         if (numVertexElements) {
-
             _vertexBuffer =
-                VertexBuffer::Create(numElements, numVertices, pd3d11Device);
+                VertexBuffer::Create(numVertexElements, numVertices, pd3d11Device);
         }
 
-        if (numVaryingElements>0 and (not bits.test(MeshInterleaveVarying))) {
+        if (numVaryingElements) {
             _varyingBuffer =
                 VertexBuffer::Create(numVaryingElements, numVertices, pd3d11Device);
         }
-        return numElements;
     }
 
     Far::TopologyRefiner * _refiner;
     Far::PatchTables * _patchTables;
-    Far::KernelBatchVector _kernelBatches;
 
     VertexBuffer *_vertexBuffer;
     VertexBuffer *_varyingBuffer;
@@ -243,6 +242,7 @@ private:
     ComputeContext *_computeContext;
     ComputeController *_computeController;
     DrawContext *_drawContext;
+    int _numVertices;
 
     ID3D11DeviceContext *_d3d11DeviceContext;
 };
@@ -271,22 +271,29 @@ public:
             _computeContext(0),
             _computeController(computeController),
             _drawContext(0),
+            _numVertices(0),
             _d3d11DeviceContext(d3d11DeviceContext)
     {
-        D3D11MeshInterface::refineMesh(*_refiner, level, bits.test(MeshAdaptive), bits.test(MeshUseSingleCreasePatch));
+        D3D11MeshInterface::refineMesh(*_refiner, level,
+                                       bits.test(MeshAdaptive),
+                                       bits.test(MeshUseSingleCreasePatch));
 
-        int numElements =
-            initializeVertexBuffers(numVertexElements, numVaryingElements, bits);
+        initializeContext(numVertexElements,
+                          numVaryingElements,
+                          numVertexElements, /* interleaved stride */
+                          level, bits);
 
-        initializeComputeContext(numVertexElements, numVaryingElements);
+        initializeVertexBuffers(_numVertices,
+                                numVertexElements,
+                                numVaryingElements);
 
-        initializeDrawContext(numElements, level, bits);
+        // for classic gregory patch -- will retire
+        _drawContext->UpdateVertexTexture(_vertexBuffer, _d3d11DeviceContext);
     }
 
     Mesh(ComputeController * computeController,
             Far::TopologyRefiner * refiner,
             Far::PatchTables * patchTables,
-            Far::KernelBatchVector const & kernelBatches,
             VertexBuffer * vertexBuffer,
             VertexBuffer * varyingBuffer,
             ComputeContext * computeContext,
@@ -295,12 +302,12 @@ public:
 
             _refiner(refiner),
             _patchTables(patchTables),
-            _kernelBatches(kernelBatches),
             _vertexBuffer(vertexBuffer),
             _varyingBuffer(varyingBuffer),
             _computeContext(computeContext),
             _computeController(computeController),
             _drawContext(drawContext),
+            _numVertices(0),
             _d3d11DeviceContext(d3d11DeviceContext)
     {
         _drawContext->UpdateVertexTexture(_vertexBuffer, _d3d11DeviceContext);
@@ -315,7 +322,7 @@ public:
         delete _drawContext;
     }
 
-    virtual int GetNumVertices() const { return _refiner->GetNumVerticesTotal(); }
+    virtual int GetNumVertices() const { return _numVertices; }
 
     virtual void UpdateVertexBuffer(float const *vertexData, int startVertex, int numVerts) {
         _vertexBuffer->UpdateData(vertexData, startVertex, numVerts, _d3d11DeviceContext);
@@ -324,12 +331,12 @@ public:
         _varyingBuffer->UpdateData(varyingData, startVertex, numVerts, _d3d11DeviceContext);
     }
     virtual void Refine() {
-        _computeController->Compute(_computeContext, _kernelBatches, _vertexBuffer, _varyingBuffer);
+        _computeController->Compute(_computeContext, _vertexBuffer, _varyingBuffer);
     }
     virtual void Refine(VertexBufferDescriptor const *vertexDesc,
                         VertexBufferDescriptor const *varyingDesc,
                         bool interleaved) {
-        _computeController->Compute(_computeContext, _kernelBatches,
+        _computeController->Compute(_computeContext,
                                     _vertexBuffer, (interleaved ? _vertexBuffer : _varyingBuffer),
                                     vertexDesc, varyingDesc);
     }
@@ -368,8 +375,9 @@ public:
 private:
 
 
-    void initializeComputeContext(int numVertexElements,
-        int numVaryingElements ) {
+    void initializeContext(int numVertexElements,
+                           int numVaryingElements,
+                           int numElements, int level, MeshBitset bits) {
 
         assert(_refiner);
 
@@ -382,8 +390,6 @@ private:
         if (numVertexElements>0) {
 
             vertexStencils = Far::StencilTablesFactory::Create(*_refiner, options);
-
-            _kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
         }
 
         if (numVaryingElements>0) {
@@ -393,55 +399,54 @@ private:
             varyingStencils = Far::StencilTablesFactory::Create(*_refiner, options);
         }
 
+        Far::PatchTablesFactory::Options poptions(level);
+        poptions.generateFVarTables = bits.test(MeshFVarData);
+        poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
+
+		Far::EndCapLegacyGregoryPatchFactory *gregoryPatchFactory = new Far::EndCapLegacyGregoryPatchFactory(*_refiner);
+		_patchTables = Far::PatchTablesFactoryT<Far::EndCapLegacyGregoryPatchFactory>::Create(*_refiner, poptions, gregoryPatchFactory);
+        gregoryPatchFactory->AddGregoryPatchTables(_patchTables);
+
+        _drawContext = DrawContext::Create(_patchTables,
+                                           _d3d11DeviceContext,
+                                           numElements);
+
         _computeContext =
             ComputeContext::Create(_d3d11DeviceContext, vertexStencils, varyingStencils);
+
+        // numvertices = coarse verts + refined verts + gregory basis verts
+        if (vertexStencils) {
+            _numVertices = vertexStencils->GetNumControlVertices()
+                + vertexStencils->GetNumStencils();
+        } else {
+            // if no stencils (torus), ask refiner.
+            _numVertices = _refiner->GetNumVertices(0);
+        }
 
         delete vertexStencils;
         delete varyingStencils;
     }
 
-    void initializeDrawContext(int numElements, int level, MeshBitset bits) {
-
-        assert(_refiner and _vertexBuffer);
-
-        Far::PatchTablesFactory::Options options(level);
-        options.generateFVarTables = bits.test(MeshFVarData);
-        options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
-
-        _patchTables = Far::PatchTablesFactory::Create(*_refiner, options);
-
-        _drawContext = DrawContext::Create(
-            _patchTables, _d3d11DeviceContext, numElements);
-
-        _drawContext->UpdateVertexTexture(_vertexBuffer, _d3d11DeviceContext);
-    }
-
-    int initializeVertexBuffers(int numVertexElements,
-        int numVaryingElements, MeshBitset bits) {
+    void initializeVertexBuffers(int numVertices,
+                                 int numVertexElements,
+                                 int numVaryingElements) {
 
         ID3D11Device * pd3d11Device;
         _d3d11DeviceContext->GetDevice(&pd3d11Device);
 
-        int numVertices = D3D11MeshInterface::getNumVertices(*_refiner);
-
-        int numElements = numVertexElements +
-            (bits.test(MeshInterleaveVarying) ? numVaryingElements : 0);
-
         if (numVertexElements) {
             _vertexBuffer =
-                VertexBuffer::Create(numElements, numVertices, pd3d11Device);
+                VertexBuffer::Create(numVertexElements, numVertices, pd3d11Device);
         }
 
-        if (numVaryingElements>0 and (not bits.test(MeshInterleaveVarying))) {
+        if (numVaryingElements) {
             _varyingBuffer =
                 VertexBuffer::Create(numVaryingElements, numVertices, pd3d11Device);
         }
-        return numElements;
     }
 
     Far::TopologyRefiner * _refiner;
     Far::PatchTables * _patchTables;
-    Far::KernelBatchVector _kernelBatches;
 
     VertexBuffer *_vertexBuffer;
     VertexBuffer *_varyingBuffer;
@@ -449,6 +454,7 @@ private:
     ComputeContext *_computeContext;
     ComputeController *_computeController;
     DrawContext *_drawContext;
+    int _numVertices;
 
     ID3D11DeviceContext *_d3d11DeviceContext;
 };

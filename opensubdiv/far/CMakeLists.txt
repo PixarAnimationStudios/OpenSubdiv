@@ -26,12 +26,16 @@
 # source & headers
 set(SOURCE_FILES
     error.cpp
+    endCapLegacyGregoryPatchFactory.cpp
+    endCapGregoryBasisPatchFactory.cpp
+    endCapRegularPatchFactory.cpp
     gregoryBasis.cpp
     interpolate.cpp
     patchDescriptor.cpp
     patchMap.cpp
     patchTables.cpp
     patchTablesFactory.cpp
+    ptexIndices.cpp
     stencilTablesFactory.cpp
     topologyRefiner.cpp
     topologyRefinerFactory.cpp
@@ -43,15 +47,17 @@ set(PRIVATE_HEADER_FILES
 
 set(PUBLIC_HEADER_FILES
     error.h
+    endCapLegacyGregoryPatchFactory.h
+    endCapGregoryBasisPatchFactory.h
+    endCapRegularPatchFactory.h
     gregoryBasis.h
     interpolate.h
-    kernelBatch.h
-    kernelBatchDispatcher.h
     patchDescriptor.h
     patchParam.h
     patchMap.h
     patchTables.h
     patchTablesFactory.h
+    ptexIndices.h
     stencilTables.h
     stencilTablesFactory.h
     topologyRefiner.h

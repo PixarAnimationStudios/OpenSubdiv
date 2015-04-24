@@ -76,10 +76,16 @@ public:
         return _numControlVertices;
     }
 
-    /// Returns the Cuda buffer containing vertex-stencil stencil sizes
+    /// Returns the number of stencils in vertex stencil table
+    int GetNumStencilsInVertexStencilTables() const;
+
+    /// Returns the number of stencils in varying stencil table
+    int GetNumStencilsInVaryingStencilTables() const;
+
+    /// Returns the GL buffer containing vertex-stencil stencil sizes
     GLuint GetVertexStencilTablesSizes() const;
 
-    /// Returns the Cuda buffer containing vertex-stencil stencil offsets
+    /// Returns the GL buffer containing vertex-stencil stencil offsets
     GLuint GetVertexStencilTablesOffsets() const;
 
     /// Binds GL buffers containing stencils for 'vertex' interpolation
@@ -104,6 +110,7 @@ private:
                       * _varyingStencilTables;
 
     int _numControlVertices;
+    int _numStencils;
 };
 
 }  // end namespace Osd

@@ -40,6 +40,7 @@ if (NOT NO_OPENGL)
         add_subdirectory(glShareTopology)
         add_subdirectory(glFVarViewer)
         add_subdirectory(glStencilViewer)
+        add_subdirectory(glImaging)
 
         if (CMAKE_COMPILER_IS_CLANGCC)
             # This code is intended for debugging only

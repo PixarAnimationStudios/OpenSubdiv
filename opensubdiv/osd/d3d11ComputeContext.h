@@ -78,6 +78,12 @@ public:
         return _numControlVertices;
     }
 
+    /// Returns the number of stencils in vertex stencil table
+    int GetNumStencilsInVertexStencilTables() const;
+
+    /// Returns the number of stencils in varying stencil table
+    int GetNumStencilsInVaryingStencilTables() const;
+
     /// Binds D3D11 buffers containing stencils for 'vertex' interpolation
     ///
     /// @param deviceContext         The D3D device

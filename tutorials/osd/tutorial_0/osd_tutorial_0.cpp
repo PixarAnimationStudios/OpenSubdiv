@@ -75,8 +75,6 @@ int main(int, char **) {
 
     Osd::CpuComputeContext * context=0;
 
-    Far::KernelBatchVector batches;
-
     //
     // Setup phase
     //
@@ -91,9 +89,6 @@ int main(int, char **) {
 
         Far::StencilTables const * stencilTables =
             Far::StencilTablesFactory::Create(*refiner, options);
-
-        // We need a kernel batch to dispatch Compute launches
-        batches.push_back(Far::StencilTablesFactory::Create(*stencilTables));
 
         // Create an Osd Compute Context from the stencil tables
         context = Osd::CpuComputeContext::Create(stencilTables);
@@ -122,7 +117,7 @@ int main(int, char **) {
         vbuffer->UpdateData(g_verts, 0, nCoarseVerts);
 
         // Launch the computation
-        controller.Compute(context, batches, vbuffer);
+        controller.Compute(context, vbuffer);
     }
 
     { // Visualization with Maya : print a MEL script that generates particles

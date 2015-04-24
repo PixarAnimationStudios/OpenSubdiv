@@ -22,12 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifdef OSD_TRANSITION_TRIANGLE_SUBPATCH
-    #define HS_DOMAIN "tri"
-#else
-    #define HS_DOMAIN "quad"
-#endif
-
 #if defined OSD_FRACTIONAL_ODD_SPACING
     #define HS_PARTITION "fractional_odd"
 #elif defined OSD_FRACTIONAL_EVEN_SPACING
@@ -67,13 +61,34 @@ static float4x4 Mi = {
     0.f,     0.f,     1.f,     0.f
 };
 
-// Boundary / Corner
-static float4x3 B = {
-    1.f,     0.f,     0.f,
-    4.f/6.f, 2.f/6.f, 0.f,
-    2.f/6.f, 4.f/6.f, 0.f,
-    1.f/6.f, 4.f/6.f, 1.f/6.f
-};
+void
+reflectBoundaryEdges(inout float3 cpt[16], int patchParam)
+{
+    if (((patchParam >> 4) & 1) != 0) {
+        cpt[0] = 2*cpt[4] - cpt[8];
+        cpt[1] = 2*cpt[5] - cpt[9];
+        cpt[2] = 2*cpt[6] - cpt[10];
+        cpt[3] = 2*cpt[7] - cpt[11];
+    }
+    if (((patchParam >> 4) & 2) != 0) {
+        cpt[3] = 2*cpt[2] - cpt[1];
+        cpt[7] = 2*cpt[6] - cpt[5];
+        cpt[11] = 2*cpt[10] - cpt[9];
+        cpt[15] = 2*cpt[14] - cpt[13];
+    }
+    if (((patchParam >> 4) & 4) != 0) {
+        cpt[12] = 2*cpt[8] - cpt[4];
+        cpt[13] = 2*cpt[9] - cpt[5];
+        cpt[14] = 2*cpt[10] - cpt[6];
+        cpt[15] = 2*cpt[11] - cpt[7];
+    }
+    if (((patchParam >> 4) & 8) != 0) {
+        cpt[0] = 2*cpt[1] - cpt[2];
+        cpt[4] = 2*cpt[5] - cpt[6];
+        cpt[8] = 2*cpt[9] - cpt[10];
+        cpt[12] = 2*cpt[13] - cpt[14];
+    }
+}
 
 // compute single-crease patch matrix
 float4x4
@@ -96,62 +111,48 @@ ComputeMatrixSimplified(float sharpness)
 }
 
 
-#ifdef OSD_PATCH_TRANSITION
-    HS_CONSTANT_TRANSITION_FUNC_OUT
-#else
-    HS_CONSTANT_FUNC_OUT
-#endif
+HS_CONSTANT_FUNC_OUT
 HSConstFunc(
     InputPatch<HullVertex, OSD_PATCH_INPUT_SIZE> patch,
+    OutputPatch<HullVertex, 16> bezierPatch,
     uint primitiveID : SV_PrimitiveID)
 {
-#ifdef OSD_PATCH_TRANSITION
-    HS_CONSTANT_TRANSITION_FUNC_OUT output;
-#else
     HS_CONSTANT_FUNC_OUT output;
-#endif
+    int patchParam = GetPatchParam(primitiveID);
     int patchLevel = GetPatchLevel(primitiveID);
 
-#ifdef OSD_TRANSITION_TRIANGLE_SUBPATCH
-    OSD_PATCH_CULL_TRIANGLE(OSD_PATCH_INPUT_SIZE);
-#else
+    float3 position[16];
+    for (int p=0; p<16; ++p) {
+        position[p] = bezierPatch[p].position.xyz;
+    }
+
+    reflectBoundaryEdges(position, patchParam);
+
     OSD_PATCH_CULL(OSD_PATCH_INPUT_SIZE);
-#endif
 
-#ifdef OSD_PATCH_TRANSITION
-    float3 cp[OSD_PATCH_INPUT_SIZE];
-    for(int k = 0; k < OSD_PATCH_INPUT_SIZE; ++k) cp[k] = patch[k].position.xyz;
-    SetTransitionTessLevels(output, cp, patchLevel, primitiveID);
-#else
-    #if defined OSD_PATCH_BOUNDARY
-        const int p[4] = { 1, 2, 5, 6 };
-    #elif defined OSD_PATCH_CORNER
-        const int p[4] = { 1, 2, 4, 5 };
-    #else
-        const int p[4] = { 5, 6, 9, 10 };
-    #endif
+    float4 outerLevel = float4(0,0,0,0);
+    float4 innerLevel = float4(0,0,0,0);
+    float4 tessOuterLo = float4(0,0,0,0);
+    float4 tessOuterHi = float4(0,0,0,0);
+    GetTransitionTessLevels(position, patchParam, patchLevel,
+                            outerLevel, innerLevel,
+                            tessOuterLo, tessOuterHi);
 
-    #ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
-        output.tessLevelOuter[0] = TessAdaptive(patch[p[0]].position.xyz, patch[p[2]].position.xyz);
-        output.tessLevelOuter[1] = TessAdaptive(patch[p[0]].position.xyz, patch[p[1]].position.xyz);
-        output.tessLevelOuter[2] = TessAdaptive(patch[p[1]].position.xyz, patch[p[3]].position.xyz);
-        output.tessLevelOuter[3] = TessAdaptive(patch[p[2]].position.xyz, patch[p[3]].position.xyz);
-        output.tessLevelInner[0] = max(output.tessLevelOuter[1], output.tessLevelOuter[3]);
-        output.tessLevelInner[1] = max(output.tessLevelOuter[0], output.tessLevelOuter[2]);
-    #else
-        output.tessLevelInner[0] = GetTessLevel(patchLevel);
-        output.tessLevelInner[1] = GetTessLevel(patchLevel);
-        output.tessLevelOuter[0] = GetTessLevel(patchLevel);
-        output.tessLevelOuter[1] = GetTessLevel(patchLevel);
-        output.tessLevelOuter[2] = GetTessLevel(patchLevel);
-        output.tessLevelOuter[3] = GetTessLevel(patchLevel);
-    #endif
-#endif
+    output.tessLevelOuter[0] = outerLevel[0];
+    output.tessLevelOuter[1] = outerLevel[1];
+    output.tessLevelOuter[2] = outerLevel[2];
+    output.tessLevelOuter[3] = outerLevel[3];
+
+    output.tessLevelInner[0] = innerLevel[0];
+    output.tessLevelInner[1] = innerLevel[1];
+
+    output.tessOuterLo = tessOuterLo;
+    output.tessOuterHi = tessOuterHi;
 
     return output;
 }
 
-[domain(HS_DOMAIN)]
+[domain("quad")]
 [partitioning(HS_PARTITION)]
 [outputtopology("triangle_cw")]
 [outputcontrolpoints(16)]
@@ -164,76 +165,61 @@ HullVertex hs_main_patches(
     int i = ID%4;
     int j = ID/4;
 
-#if defined OSD_PATCH_BOUNDARY
-    float3 H[3];
-    for (int l=0; l<3; ++l) {
-        H[l] = float3(0,0,0);
-        for (int k=0; k<4; ++k) {
-            H[l] += Q[i][k] * patch[l*4 + k].position.xyz;
-        }
+    float3 position[16];
+    for (int p=0; p<16; ++p) {
+        position[p] = patch[p].position.xyz;
     }
 
-    float3 pos = float3(0,0,0);
-    for (int k=0; k<3; ++k) {
-        pos += B[j][k]*H[k];
-    }
+    int patchParam = GetPatchParam(primitiveID);
 
-#elif defined OSD_PATCH_CORNER
-    float3 H[3];
-    for (int l=0; l<3; ++l) {
-        H[l] = float3(0,0,0);
-        for (int k=0; k<3; ++k) {
-            H[l] += B[3-i][2-k] * patch[l*3 + k].position.xyz;
-        }
-    }
+    reflectBoundaryEdges(position, patchParam);
 
-    float3 pos = float3(0,0,0);
-    for (int k=0; k<3; ++k) {
-        pos += B[j][k]*H[k];
-    }
-
-#else // not OSD_PATCH_BOUNDARY, not OSD_PATCH_CORNER
     float3 H[4];
     for (int l=0; l<4; ++l) {
         H[l] = float3(0,0,0);
         for(int k=0; k<4; ++k) {
-            H[l] += Q[i][k] * patch[l*4 + k].position.xyz;
+            H[l] += Q[i][k] * position[l*4 + k];
         }
     }
 
-#if defined OSD_PATCH_SINGLE_CREASE
+    HullVertex output;
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     float sharpness = GetSharpness(primitiveID);
-    float Sf = floor(sharpness);
-    float Sc = ceil(sharpness);
-    float Sr = frac(sharpness);
-    float4x4 Mf = ComputeMatrixSimplified(Sf);
-    float4x4 Mc = ComputeMatrixSimplified(Sc);
-    float4x4 Mj = (1-Sr) * Mf + Sr * Mi;
-    float4x4 Ms = (1-Sr) * Mf + Sr * Mc;
+    if (sharpness > 0) {
+        float Sf = floor(sharpness);
+        float Sc = ceil(sharpness);
+        float Sr = frac(sharpness);
+        float4x4 Mf = ComputeMatrixSimplified(Sf);
+        float4x4 Mc = ComputeMatrixSimplified(Sc);
+        float4x4 Mj = (1-Sr) * Mf + Sr * Mi;
+        float4x4 Ms = (1-Sr) * Mf + Sr * Mc;
 
-    float3 pos = float3(0,0,0);
-    float3 P1 = float3(0,0,0);
-    float3 P2 = float3(0,0,0);
-    for (int k=0; k<4; ++k) {
-        pos += Mi[j][k]*H[k]; // 0 to 1-2^(-Sf)
-        P1  += Mj[j][k]*H[k]; // 1-2^(-Sf) to 1-2^(-Sc)
-        P2  += Ms[j][k]*H[k]; // 1-2^(-Sc) to 1
+        float3 pos = float3(0,0,0);
+        float3 P1 = float3(0,0,0);
+        float3 P2 = float3(0,0,0);
+        for (int k=0; k<4; ++k) {
+            pos += Mi[j][k]*H[k]; // 0 to 1-2^(-Sf)
+            P1  += Mj[j][k]*H[k]; // 1-2^(-Sf) to 1-2^(-Sc)
+            P2  += Ms[j][k]*H[k]; // 1-2^(-Sc) to 1
+        }
+        output.position = float4(pos, 1.0);
+        output.P1 = float4(P1, 1.0);
+        output.P2 = float4(P2, 1.0);
+        output.sharpness = sharpness;
+    } else {
+        float3 pos = float3(0,0,0);
+        for (int k=0; k<4; ++k){
+            pos += Q[j][k]*H[k];
+        }
+        output.position = float4(pos, 1.0);
+        output.sharpness = 0;
     }
 #else
     float3 pos = float3(0,0,0);
     for (int k=0; k<4; ++k){
         pos += Q[j][k]*H[k];
     }
-#endif
-
-#endif
-
-    HullVertex output;
     output.position = float4(pos, 1.0);
-#if defined OSD_PATCH_SINGLE_CREASE
-    output.P1 = float4(P1, 1.0);
-    output.P2 = float4(P2, 1.0);
-    output.sharpness = sharpness;
 #endif
 
     int patchLevel = GetPatchLevel(primitiveID);
@@ -252,26 +238,14 @@ HullVertex hs_main_patches(
 // Patches.DomainBSpline
 //----------------------------------------------------------
 
-[domain(HS_DOMAIN)]
+[domain("quad")]
 void ds_main_patches(
-#ifdef OSD_PATCH_TRANSITION
-    in HS_CONSTANT_TRANSITION_FUNC_OUT input,
-#else
     in HS_CONSTANT_FUNC_OUT input,
-#endif
     in OutputPatch<HullVertex, 16> patch,
-#ifdef OSD_TRANSITION_TRIANGLE_SUBPATCH
-    in float3 domainCoord : SV_DomainLocation,
-#else
     in float2 domainCoord : SV_DomainLocation,
-#endif
     out OutputVertex output )
 {
-#ifdef OSD_PATCH_TRANSITION
-    float2 UV = GetTransitionSubpatchUV(domainCoord);
-#else
-    float2 UV = domainCoord;
-#endif
+    float2 UV = GetTransitionParameterization(input, domainCoord);
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
@@ -286,52 +260,60 @@ void ds_main_patches(
     Univar4x4(UV.x, B, D);
 #endif
 
-#if defined OSD_PATCH_SINGLE_CREASE
+    // ----------------------------------------------------------------
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    // sharpness
     float sharpness = patch[0].sharpness;
-    float s0 = 1.0 - pow(2.0f, -floor(sharpness));
-    float s1 = 1.0 - pow(2.0f, -ceil(sharpness));
-#endif
+    if (sharpness != 0) {
+        float s0 = 1.0 - pow(2.0f, -floor(sharpness));
+        float s1 = 1.0 - pow(2.0f, -ceil(sharpness));
 
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-#if defined OSD_PATCH_SINGLE_CREASE
-#if OSD_TRANSITION_ROTATE == 1
-            int k = 4*(3-j) + i;
-            float s = 1-UV.x;
-#elif OSD_TRANSITION_ROTATE == 2
-            int k = 4*(3-i) + (3-j);
-            float s = 1-UV.y;
-#elif OSD_TRANSITION_ROTATE == 3
-            int k = 4*j + (3-i);
-            float s = UV.x;
-#else // ROTATE=0 or non-transition
-            int k = 4*i + j;
-            float s = UV.y;
-#endif
-            float3 A = (s < s0) ?
-                 patch[k].position.xyz :
-                 ((s < s1) ?
-                  patch[k].P1.xyz :
-                  patch[k].P2.xyz);
+        for (int i=0; i<4; ++i) {
+            for (int j=0; j<4; ++j) {
+                int k = 4*i + j;
+                float s = UV.y;
 
-#else // !SINGLE_CREASE
-#if OSD_TRANSITION_ROTATE == 1
-            float3 A = patch[4*(3-j) + i].position.xyz;
-#elif OSD_TRANSITION_ROTATE == 2
-            float3 A = patch[4*(3-i) + (3-j)].position.xyz;
-#elif OSD_TRANSITION_ROTATE == 3
-            float3 A = patch[4*j + (3-i)].position.xyz;
-#else // OSD_TRANSITION_ROTATE == 0, or non-transition patch
-            float3 A = patch[4*i + j].position.xyz;
-#endif
-#endif
-            BUCP[i] += A * B[j];
-            DUCP[i] += A * D[j];
+                float3 A = (s < s0) ?
+                     patch[k].position.xyz :
+                     ((s < s1) ?
+                      patch[k].P1.xyz :
+                      patch[k].P2.xyz);
+
+                BUCP[i] += A * B[j];
+                DUCP[i] += A * D[j];
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-            CUCP[i] += A * C[j];
+                CUCP[i] += A * C[j];
 #endif
+            }
         }
+        output.sharpness = sharpness;
+    } else {
+        for (int i=0; i<4; ++i) {
+            for (int j=0; j<4; ++j) {
+                float3 A = patch[4*i + j].position.xyz;
+                BUCP[i] += A * B[j];
+                DUCP[i] += A * D[j];
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+                CUCP[i] += A * C[j];
+#endif
+            }
+        }
+        output.sharpness = 0;
     }
+#else
+    // ----------------------------------------------------------------
+        for (int i=0; i<4; ++i) {
+            for (int j=0; j<4; ++j) {
+                float3 A = patch[4*i + j].position.xyz;
+                BUCP[i] += A * B[j];
+                DUCP[i] += A * D[j];
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+                CUCP[i] += A * C[j];
+#endif
+            }
+        }
+#endif
+    // ----------------------------------------------------------------
 
     float3 WorldPos  = float3(0,0,0);
     float3 Tangent   = float3(0,0,0);
@@ -378,7 +360,10 @@ void ds_main_patches(
     Nu = Nu/length(n) - n * (dot(Nu,n)/pow(dot(n,n), 1.5));
     Nv = Nv/length(n) - n * (dot(Nv,n)/pow(dot(n,n), 1.5));
 
-    OSD_COMPUTE_PTEX_COMPATIBLE_DERIVATIVES(OSD_TRANSITION_ROTATE);
+    output.tangent = Tangent;
+    output.bitangent = BiTangent;
+    output.Nu = Nu;
+    output.Nv = Nv;
 #else
     Univar4x4(UV.y, B, D);
 
@@ -393,7 +378,8 @@ void ds_main_patches(
 
     float3 normal = normalize(cross(Tangent, BiTangent));
 
-    OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(OSD_TRANSITION_ROTATE);
+    output.tangent = Tangent;
+    output.bitangent = BiTangent;
 #endif
 
     output.position = float4(WorldPos, 1.0f);
@@ -401,20 +387,13 @@ void ds_main_patches(
 
     output.patchCoord = patch[0].patchCoord;
 
-#if OSD_TRANSITION_ROTATE == 1
-    output.patchCoord.xy = float2(UV.y, 1.0-UV.x);
-#elif OSD_TRANSITION_ROTATE == 2
-    output.patchCoord.xy = float2(1.0-UV.x, 1.0-UV.y);
-#elif OSD_TRANSITION_ROTATE == 3
-    output.patchCoord.xy = float2(1.0-UV.y, UV.x);
-#else // OSD_TRANNSITION_ROTATE == 0, or non-transition patch
     output.patchCoord.xy = float2(UV.x, UV.y);
-#endif
 
     OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER;
 
     OSD_DISPLACEMENT_CALLBACK;
-	output.edgeDistance = 0;
+
     output.positionOut = mul(OsdProjectionMatrix(),
                              float4(output.position.xyz, 1.0f));
+    output.edgeDistance = 0;
 }

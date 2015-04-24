@@ -26,6 +26,8 @@
 #define FAR_GREGORY_BASIS_H
 
 #include "../far/protoStencil.h"
+#include "../vtr/level.h"
+#include <cstring>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -64,91 +66,191 @@ public:
         }
     }
 
+    static const int MAX_VALENCE = (30*2);
+    static const int MAX_ELEMS = (16 + MAX_VALENCE);
+
+    // limit valence of 30 because we use a pre-computed closed-form 'ef' table
+    // XXXtakahito: revisit here to determine appropriate size
+    //              or remove fixed size limit and use Sdc mask
+    static int getNumMaxElements(int maxValence) {
+        return (16 + maxValence);
+    }
+
+    //
+    // Basis point
+    //
+    // Implements arithmetic operators to manipulate the influence of the
+    // 1-ring control vertices supporting the patch basis
+    //
+    class Point {
+    public:
+
+        Point() : _size(0) { }
+
+        Point(Index idx, float weight = 1.0f) {
+            _size = 1;
+            _indices[0] = idx;
+            _weights[0] = weight;
+        }
+
+        Point(Point const & other) {
+            *this = other;
+        }
+
+        int GetSize() const {
+            return _size;
+        }
+
+        Index const * GetIndices() const {
+            return _indices;
+        }
+
+        float const * GetWeights() const {
+            return _weights;
+        }
+
+        Point & operator = (Point const & other) {
+            _size = other._size;
+            memcpy(_indices, other._indices, other._size*sizeof(Index));
+            memcpy(_weights, other._weights, other._size*sizeof(float));
+            return *this;
+        }
+
+        Point & operator += (Point const & other) {
+            for (int i=0; i<other._size; ++i) {
+                Index idx = findIndex(other._indices[i]);
+                _weights[idx] += other._weights[i];
+            }
+            return *this;
+        }
+
+        Point & operator -= (Point const & other) {
+            for (int i=0; i<other._size; ++i) {
+                Index idx = findIndex(other._indices[i]);
+                _weights[idx] -= other._weights[i];
+            }
+            return *this;
+        }
+
+        Point & operator *= (float f) {
+            for (int i=0; i<_size; ++i) {
+                _weights[i] *= f;
+            }
+            return *this;
+        }
+
+        Point & operator /= (float f) {
+            return (*this)*=(1.0f/f);
+        }
+
+        friend Point operator * (Point const & src, float f) {
+            Point p( src ); return p*=f;
+        }
+
+        friend Point operator / (Point const & src, float f) {
+            Point p( src ); return p*= (1.0f/f);
+        }
+
+        Point operator + (Point const & other) {
+            Point p(*this); return p+=other;
+        }
+
+        Point operator - (Point const & other) {
+            Point p(*this); return p-=other;
+        }
+
+        void OffsetIndices(Index offset) {
+            for (int i=0; i<_size; ++i) {
+                _indices[i] += offset;
+            }
+        }
+
+        void Copy(int ** size, Index ** indices, float ** weights) const {
+            memcpy(*indices, _indices, _size*sizeof(Index));
+            memcpy(*weights, _weights, _size*sizeof(float));
+            **size = _size;
+            *indices += _size;
+            *weights += _size;
+            ++(*size);
+        }
+
+        void FactorizeBasisVertex(StencilTables const * stencils,
+                                  ProtoStencil dst);
+    private:
+
+        int findIndex(Index idx) {
+            for (int i=0; i<_size; ++i) {
+                if (_indices[i]==idx) {
+                    return i;
+                }
+            }
+            _indices[_size]=idx;
+            _weights[_size]=0.0f;
+            ++_size;
+            return _size-1;
+        }
+
+        int _size;
+        // XXXX this would really be better with VLA where we only allocate
+        // space based on the max vertex valence in the mesh, not the
+        // absolute maximum supported by the closed-form tangents table.
+        Index _indices[MAX_ELEMS];
+        float _weights[MAX_ELEMS];
+    };
+
+    //
+    // ProtoBasis
+    //
+    // Given a Vtr::Level and a face index, gathers all the influences of the 1-ring
+    // that supports the 20 CVs of a Gregory patch basis.
+    //
+    struct ProtoBasis {
+
+        ProtoBasis(Vtr::Level const & level, Index faceIndex, int fvarChannel=-1);
+
+        int GetNumElements() const;
+
+        void Copy(int * sizes, Index * indices, float * weights) const;
+
+        // Control Vertices based on :
+        // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation"
+        // Loop, Schaefer, Ni, Castafio (ACM ToG Siggraph Asia 2009)
+        //
+        //  P3         e3-      e2+         P2
+        //     O--------O--------O--------O
+        //     |        |        |        |
+        //     |        |        |        |
+        //     |        | f3-    | f2+    |
+        //     |        O        O        |
+        // e3+ O------O            O------O e2-
+        //     |     f3+          f2-     |
+        //     |                          |
+        //     |                          |
+        //     |      f0-         f1+     |
+        // e0- O------O            O------O e1+
+        //     |        O        O        |
+        //     |        | f0+    | f1-    |
+        //     |        |        |        |
+        //     |        |        |        |
+        //     O--------O--------O--------O
+        //  P0         e0+      e1-         P1
+        //
+
+        Point P[4], Ep[4], Em[4], Fp[4], Fm[4];
+
+        // for varying interpolation
+        Point V[4];
+    };
+
 private:
 
-    friend class GregoryBasisFactory;
+    friend class EndCapGregoryBasisPatchFactory;
 
     int _sizes[20],
         _offsets[20];
 
     std::vector<Index> _indices;
     std::vector<float> _weights;
-};
-
-/// \brief A specialized factory to gather Gregory basis control vertices
-///
-class GregoryBasisFactory {
-
-public:
-
-    //
-    // Single patch GregoryBasis basis factory
-    //
-
-    /// \brief Instantiates a GregoryBasis from a TopologyRefiner that has been
-    ///        refined adaptively for a given face.
-    ///
-    /// @param refiner     The TopologyRefiner containing the topology
-    ///
-    /// @param faceIndex   The index of the face (level is assumed to be MaxLevel)
-    ///
-    /// @param fvarChannel Index of face-varying channel topology (default -1)
-    ///
-    static GregoryBasis const * Create(TopologyRefiner const & refiner,
-        Index faceIndex, int fvarChannel=-1);
-
-    /// \brief Returns the maximum valence of a vertex in the mesh that the
-    ///        Gregory patches can handle
-    static int GetMaxValence();
-
-public:
-
-    //
-    // Multi-patch Gregory stencils factory
-    //
-
-    // XXXX need to add support for face-varying channel stencils
-
-    // This factory accumulates vertex Gregory patch basis into StencilTables
-    //
-    // Note: the TopologyRefiner and StencilTables references are held for the
-    //       lifespan of the factory - neither can be deleted or modified while
-    //       this factory is active.
-    //
-    GregoryBasisFactory(TopologyRefiner const & refiner,
-                        StencilTables const * stencils,
-                        StencilTables const * varyingStencils,
-                        int numpatches, int maxvalence);
-
-    // Creates a basis for the vertices specified in mask on the face and
-    // adds it to the stencil pool allocator
-    bool AddPatchBasis(Index faceIndex,
-                       bool newVerticesMask[4][5]);
-
-    // After all the patches have been collected, create the final table
-    StencilTables const * CreateVertexStencilTables(int const permute[20]=0) {
-        return createStencilTables(permute, _alloc);
-    }
-    StencilTables const * CreateVaryingStencilTables(int const permute[20]=0) {
-        return createStencilTables(permute, _varyingAlloc);
-    }
-
-private:
-
-    StencilTables const * createStencilTables(int const permute[20],
-                                              StencilAllocator &alloc);
-    // XXX: StencilAllocator method's constness needs to be fixed.
-
-    int _currentStencil;
-
-    TopologyRefiner const & _refiner; // XXXX these should be smart pointers !
-
-    Index _stencilsOffset;
-
-    StencilTables const * _stencils;
-    StencilTables const * _varyingStencils;
-    StencilAllocator _alloc;
-    StencilAllocator _varyingAlloc;
 };
 
 } // end namespace Far

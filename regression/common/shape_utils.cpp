@@ -105,8 +105,8 @@ Shape * Shape::parseObj(char const * shapestr, Scheme shapescheme,
                           while( (nitems=sscanf(cp, "%d/%d/%d", &vi, &ti, &ni))>0) {
                               nverts++;
                               s->faceverts.push_back(vi-1);
-                              if(nitems >= 1) s->faceuvs.push_back(ti-1);
-                              if(nitems >= 2) s->facenormals.push_back(ni-1);
+                              if(nitems > 1) s->faceuvs.push_back(ti-1);
+                              if(nitems > 2) s->facenormals.push_back(ni-1);
                               while (*cp && *cp != ' ') cp++;
                               while (*cp == ' ') cp++;
                           }

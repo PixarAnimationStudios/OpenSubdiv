@@ -454,17 +454,19 @@ evalGregoryBasis(Far::PatchParam::BitField bits, float u, float v,
     }
 
     // XXXX manuelk re-order stencils in factory and get rid of permutation ?
-    static int const permute[16] =
-        { 0, 1, 7, 5, 2, 3, 8, 6, 16, 18, 13, 12, 15, 17, 11, 10 };
+
+    // negative values mean that a blended cp needed.
+    static int const permute[16] = {  0,  1,  7,  5,
+                                      2, -1, -2,  6,
+                                     16, -3, -4, 12,
+                                     15, 17, 11, 10 };
 
     for (int i=0; i<16; ++i) {
-
         int index = permute[i];
 
-        float const * in = inOffset + vertexIndices[index]*inDesc.stride;
-        if (index < 0) {
-            in = &CP[-index-1];
-        }
+        float const * in = (index >= 0)
+            ? inOffset + vertexIndices[index]*inDesc.stride
+            : &CP[(-index-1)*inDesc.length];
 
         for (int k=0; k<inDesc.length; ++k) {
             outQ[k] += BU[i] * in[k];

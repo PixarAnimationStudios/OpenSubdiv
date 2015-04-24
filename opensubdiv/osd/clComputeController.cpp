@@ -32,6 +32,7 @@
 #include <algorithm>
 #include <string.h>
 #include <sstream>
+#include <cassert>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -138,18 +139,20 @@ private:
 // ----------------------------------------------------------------------------
 
 void
-CLComputeController::ApplyStencilTableKernel(
-    Far::KernelBatch const &batch, ComputeContext const *context) {
+CLComputeController::ApplyStencilTableKernel(ComputeContext const *context) {
 
     assert(context);
 
     cl_int errNum;
 
-    size_t globalWorkSize[1] = { (size_t)(batch.end - batch.start) };
+    size_t globalWorkSize = 0;
 
     int ncvs = context->GetNumControlVertices();
 
     if (context->HasVertexStencilTables()) {
+        int start = 0;
+        int end = context->GetNumStencilsInVertexStencilTables();
+        globalWorkSize = (size_t)(end - start);
 
         KernelBundle const * bundle = getKernel(_currentBindState.vertexDesc);
 
@@ -167,14 +170,14 @@ CLComputeController::ApplyStencilTableKernel(
         clSetKernelArg(kernel, 3, sizeof(cl_mem), &indices);
         clSetKernelArg(kernel, 4, sizeof(cl_mem), &weights);
 
-        clSetKernelArg(kernel, 5, sizeof(int), &batch.start);
-        clSetKernelArg(kernel, 6, sizeof(int), &batch.end);
+        clSetKernelArg(kernel, 5, sizeof(int), &start);
+        clSetKernelArg(kernel, 6, sizeof(int), &end);
 
         clSetKernelArg(kernel, 7, sizeof(int), &_currentBindState.vertexDesc.offset);
         clSetKernelArg(kernel, 8, sizeof(int), &ncvs);
 
         errNum = clEnqueueNDRangeKernel(
-            _clQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, NULL);
+            _clQueue, kernel, 1, NULL, &globalWorkSize, NULL, 0, NULL, NULL);
         if (errNum!=CL_SUCCESS) {
             Far::Error(Far::FAR_RUNTIME_ERROR,
                 "ApplyStencilTableKernel (%d) ", errNum);
@@ -182,6 +185,9 @@ CLComputeController::ApplyStencilTableKernel(
     }
 
     if (context->HasVaryingStencilTables()) {
+        int start = 0;
+        int end = context->GetNumStencilsInVaryingStencilTables();
+        globalWorkSize = (size_t)(end - start);
 
         KernelBundle const * bundle = getKernel(_currentBindState.varyingDesc);
 
@@ -199,14 +205,14 @@ CLComputeController::ApplyStencilTableKernel(
         clSetKernelArg(kernel, 3, sizeof(cl_mem), &indices);
         clSetKernelArg(kernel, 4, sizeof(cl_mem), &weights);
 
-        clSetKernelArg(kernel, 5, sizeof(int), &batch.start);
-        clSetKernelArg(kernel, 6, sizeof(int), &batch.end);
+        clSetKernelArg(kernel, 5, sizeof(int), &start);
+        clSetKernelArg(kernel, 6, sizeof(int), &end);
 
         clSetKernelArg(kernel, 7, sizeof(int), &_currentBindState.varyingDesc.offset);
         clSetKernelArg(kernel, 8, sizeof(int), &ncvs);
 
         errNum = clEnqueueNDRangeKernel(
-            _clQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, NULL);
+            _clQueue, kernel, 1, NULL, &globalWorkSize, NULL, 0, NULL, NULL);
         if (errNum!=CL_SUCCESS) {
             Far::Error(Far::FAR_RUNTIME_ERROR,
                 "ApplyStencilTableKernel (%d)", errNum);

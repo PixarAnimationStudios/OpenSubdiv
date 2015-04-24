@@ -115,21 +115,22 @@ public:
                                     Crease::Rule childRule = Crease::RULE_UNKNOWN) const;
 
     ///
-    ///  \brief IN PROGRESS -- NOT YET FULLY FUNCTIONAL...
-    ///
-    ///  Masks for limit points and tangents -- note that these require the vertex be
-    ///  suitably isolated such that its limit is well-defined.
-    ///
-    ///  These are stubs that are still being completed.  The position masks are now
-    ///  supported but tangent masks need work.
+    ///  \brief Limit masks for vertices -- position and tangents
+    ///      These presume that a vertex is suitably isolated for its limit to be well-defined
+    ///  and, unlike the refinement masks, the subdivision Rule for the vertex (presumably at
+    ///  its last level of refinement) is required rather than being optional.  In the
+    ///  presence of semi-sharp creasing that has not decayed to zero, the limit is unknown
+    ///  and it is up to the caller to provide the Rule for either a smooth or sharp limit in
+    ///  such cases.
     ///
     template <typename VERTEX, typename MASK>
-    void ComputeVertexLimitMask(VERTEX const& vertexNeighborhood, MASK& positionMask) const;
+    void ComputeVertexLimitMask(VERTEX const& vertexNeighborhood, MASK& positionMask,
+                                Crease::Rule vertexRule) const;
 
     template <typename VERTEX, typename MASK>
     void ComputeVertexLimitMask(VERTEX const& vertexNeighborhood, MASK& positionMask,
-                                                                  MASK& tangent1Mask,
-                                                                  MASK& tangent2Mask) const;
+                                MASK& tangent1Mask, MASK& tangent2Mask,
+                                Crease::Rule vertexRule) const;
 
     //
     //  Static methods defining traits/properties of the scheme:
@@ -155,22 +156,26 @@ protected:
     template <typename VERTEX, typename MASK>
     void assignCornerMaskForVertex(VERTEX const& edge, MASK& mask) const;
     template <typename VERTEX, typename MASK>
-    void assignCreaseMaskForVertex(VERTEX const& edge, MASK& mask, float const sharpness[]) const;
+    void assignCreaseMaskForVertex(VERTEX const& edge, MASK& mask, int const creaseEnds[2]) const;
     template <typename VERTEX, typename MASK>
     void assignSmoothMaskForVertex(VERTEX const& edge, MASK& mask) const;
 
     //
-    //  Limit masks for position and tangents -- boundary and interior cases for both:
+    //  Limit masks for position and tangents at vertices -- three cases for each:
     //
     template <typename VERTEX, typename MASK>
-    void assignBoundaryLimitMask(VERTEX const& vertex, MASK& pos) const;
+    void assignCornerLimitMask(VERTEX const& vertex, MASK& pos) const;
     template <typename VERTEX, typename MASK>
-    void assignInteriorLimitMask(VERTEX const& vertex, MASK& pos) const;
+    void assignCreaseLimitMask(VERTEX const& vertex, MASK& pos, int const creaseEnds[2]) const;
+    template <typename VERTEX, typename MASK>
+    void assignSmoothLimitMask(VERTEX const& vertex, MASK& pos) const;
 
     template <typename VERTEX, typename MASK>
-    void assignBoundaryLimitTangentMasks(VERTEX const& vertex, MASK& tan1, MASK& tan2) const;
+    void assignCornerLimitTangentMasks(VERTEX const& vertex, MASK& tan1, MASK& tan2) const;
     template <typename VERTEX, typename MASK>
-    void assignInteriorLimitTangentMasks(VERTEX const& vertex, MASK& tan1, MASK& tan2) const;
+    void assignCreaseLimitTangentMasks(VERTEX const& vertex, MASK& tan1, MASK& tan2, int const creaseEnds[2]) const;
+    template <typename VERTEX, typename MASK>
+    void assignSmoothLimitTangentMasks(VERTEX const& vertex, MASK& tan1, MASK& tan2) const;
 
 private:
     Options _options;
@@ -521,15 +526,17 @@ Scheme<SCHEME>::ComputeVertexVertexMask(VERTEX const&   vertex,
         pEdgeSharpness   = vertex.GetSharpnessPerEdge(pEdgeSharpnessBuffer);
 
         if (pRule == Crease::RULE_UNKNOWN) {
-            Crease crease(_options);
-            pRule = crease.DetermineVertexVertexRule(pVertexSharpness, valence, pEdgeSharpness);
+            pRule = Crease(_options).DetermineVertexVertexRule(pVertexSharpness, valence, pEdgeSharpness);
         }
     }
     if ((pRule == Crease::RULE_SMOOTH) || (pRule == Crease::RULE_DART)) {
         assignSmoothMaskForVertex(vertex, mask);
         return;  //  As done on entry, we can return immediately if parent is Smooth/Dart
     } else if (pRule == Crease::RULE_CREASE) {
-        assignCreaseMaskForVertex(vertex, mask, pEdgeSharpness);
+        int creaseEnds[2];
+        Crease(_options).GetSharpEdgePairOfCrease(pEdgeSharpness, valence, creaseEnds);
+
+        assignCreaseMaskForVertex(vertex, mask, creaseEnds);
     } else {
         assignCornerMaskForVertex(vertex, mask);
     }
@@ -561,7 +568,10 @@ Scheme<SCHEME>::ComputeVertexVertexMask(VERTEX const&   vertex,
     if ((cRule == Crease::RULE_SMOOTH) || (cRule == Crease::RULE_DART)) {
         assignSmoothMaskForVertex(vertex, cMask);
     } else if (cRule == Crease::RULE_CREASE) {
-        assignCreaseMaskForVertex(vertex, cMask, cEdgeSharpness);
+        int creaseEnds[2];
+        Crease(_options).GetSharpEdgePairOfCrease(cEdgeSharpness, valence, creaseEnds);
+
+        assignCreaseMaskForVertex(vertex, cMask, creaseEnds);
     } else {
         assignCornerMaskForVertex(vertex, cMask);
     }
@@ -580,15 +590,21 @@ template <SchemeType SCHEME>
 template <typename VERTEX, typename MASK>
 void
 Scheme<SCHEME>::ComputeVertexLimitMask(VERTEX const& vertex,
-                                       MASK&         mask) const {
+                                       MASK&         mask,
+                                       Crease::Rule  rule) const {
 
-    if (vertex.GetNumFaces() == vertex.GetNumEdges()) {
-        assignInteriorLimitMask(vertex, mask);
-    } else if ((vertex.GetNumFaces() == 1) &&
-               (_options.GetVtxBoundaryInterpolation() == Sdc::Options::VTX_BOUNDARY_EDGE_AND_CORNER)) {
-        assignCornerMaskForVertex(vertex, mask);
+    if ((rule == Crease::RULE_SMOOTH) || (rule == Crease::RULE_DART)) {
+        assignSmoothLimitMask(vertex, mask);
+    } else if (rule == Crease::RULE_CREASE) {
+        float * edgeSharpness = (float *)alloca(vertex.GetNumEdges() * sizeof(float));
+        vertex.GetSharpnessPerEdge(edgeSharpness);
+
+        int creaseEnds[2];
+        Crease(_options).GetSharpEdgePairOfCrease(edgeSharpness, vertex.GetNumEdges(), creaseEnds);
+
+        assignCreaseLimitMask(vertex, mask, creaseEnds);
     } else {
-        assignBoundaryLimitMask(vertex, mask);
+        assignCornerLimitMask(vertex, mask);
     }
 }
 
@@ -598,14 +614,24 @@ void
 Scheme<SCHEME>::ComputeVertexLimitMask(VERTEX const& vertex,
                                        MASK&         posMask,
                                        MASK&         tan1Mask,
-                                       MASK&         tan2Mask) const {
+                                       MASK&         tan2Mask,
+                                       Crease::Rule  rule) const {
 
-    if (vertex.GetNumFaces() == vertex.GetNumEdges()) {
-        assignInteriorLimitMask(vertex, posMask);
-        assignInteriorLimitTangentMasks(vertex, tan1Mask, tan2Mask);
+    if ((rule == Crease::RULE_SMOOTH) || (rule == Crease::RULE_DART)) {
+        assignSmoothLimitMask(vertex, posMask);
+        assignSmoothLimitTangentMasks(vertex, tan1Mask, tan2Mask);
+    } else if (rule == Crease::RULE_CREASE) {
+        float * edgeSharpness = (float *)alloca(vertex.GetNumEdges() * sizeof(float));
+        vertex.GetSharpnessPerEdge(edgeSharpness);
+
+        int creaseEnds[2];
+        Crease(_options).GetSharpEdgePairOfCrease(edgeSharpness, vertex.GetNumEdges(), creaseEnds);
+
+        assignCreaseLimitMask(vertex, posMask, creaseEnds);
+        assignCreaseLimitTangentMasks(vertex, tan1Mask, tan2Mask, creaseEnds);
     } else {
-        assignBoundaryLimitMask(vertex, posMask);
-        assignBoundaryLimitTangentMasks(vertex, tan1Mask, tan2Mask);
+        assignCornerLimitMask(vertex, posMask);
+        assignCornerLimitTangentMasks(vertex, tan1Mask, tan2Mask);
     }
 }
 

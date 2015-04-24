@@ -47,6 +47,7 @@ GLFWmonitor* g_primary=0;
 #include <osd/glDrawRegistry.h>
 #include <osd/glMesh.h>
 #include <far/error.h>
+#include <far/ptexIndices.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
@@ -295,8 +296,6 @@ public:
 
         _computeContext = ComputeContext::Create(vertexStencils, varyingStencils);
 
-        _kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
-
         _numVertices = vertexStencils->GetNumStencils() +
             vertexStencils->GetNumControlVertices();
     }
@@ -328,7 +327,6 @@ public:
                 globalVaryingDesc.stride);
 
             _computeController.Compute(_computeContext,
-                                      _kernelBatches,
                                       typedInstance->GetVertexBuffer(),
                                       typedInstance->GetVaryingBuffer(),
                                       &vertexDesc,
@@ -364,7 +362,6 @@ public:
 private:
     COMPUTE_CONTROLLER _computeController;
     ComputeContext *_computeContext;
-    Far::KernelBatchVector _kernelBatches;
 };
 
 // ---------------------------------------------------------------------------
@@ -393,8 +390,6 @@ Topology(Far::PatchTables const * patchTables,
         TopologyBase(patchTables), _computeController(g_clContext, g_clQueue) {
 
     _computeContext = ComputeContext::Create(g_clContext, vertexStencils, varyingStencils);
-
-    _kernelBatches.push_back(Far::StencilTablesFactory::Create(*vertexStencils));
 
     _numVertices = vertexStencils->GetNumStencils() +
         vertexStencils->GetNumControlVertices();
@@ -594,7 +589,8 @@ createOsdMesh( const std::string &shapeStr, int level, Scheme scheme=kCatmark ) 
         }
 
         // create ptex index to coarse face index mapping
-        int numPtexFaces = refiner->GetNumPtexFaces();
+        Far::PtexIndices ptexIndices(*refiner);
+        int numPtexFaces = ptexIndices.GetNumFaces();
 
         // XXX: duped logic to simpleHbr
         std::vector<int> ptexIndexToFaceMapping(numPtexFaces);

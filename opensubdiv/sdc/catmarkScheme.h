@@ -145,8 +145,8 @@ Scheme<SCHEME_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) co
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask, float const edgeSharpness[]) const {
-
+Scheme<SCHEME_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask,
+                                                  int const creaseEnds[2]) const {
     typedef typename MASK::Weight Weight;
 
     int valence = vertex.GetNumEdges();
@@ -160,25 +160,11 @@ Scheme<SCHEME_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& ma
     Weight eWeight = 0.125f;
 
     mask.VertexWeight(0) = vWeight;
-
-    //
-    //  NOTE -- at some point the sharpness vector was optional, and topology would be used
-    //  to identify a boundary crease.  We are currently no longer passing a null sharpness
-    //  vector and may not support it in future, in which case this test can be removed:
-    //
-    if (edgeSharpness != 0) {
-        //  Use the sharpness values to identify the crease edges:
-        for (int i = 0; i < valence; ++i) {
-            mask.EdgeWeight(i) = (edgeSharpness[i] > 0.0f) ? eWeight : 0.0f;
-        }
-    } else {
-        //  Use the boundary edges (first and last) as the crease edges:
-        mask.EdgeWeight(0) = eWeight;
-        for (int i = 1; i < (valence - 1); ++i) {
-            mask.EdgeWeight(i) = 0.0f;
-        }
-        mask.EdgeWeight(valence-1) = eWeight;
+    for (int i = 0; i < valence; ++i) {
+        mask.EdgeWeight(i) = 0.0f;
     }
+    mask.EdgeWeight(creaseEnds[0]) = eWeight;
+    mask.EdgeWeight(creaseEnds[1]) = eWeight;
 }
 
 template <>
@@ -225,7 +211,21 @@ Scheme<SCHEME_CATMARK>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& ma
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_CATMARK>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_CATMARK>::assignCornerLimitMask(VERTEX const& /* vertex */, MASK& posMask) const {
+
+    posMask.SetNumVertexWeights(1);
+    posMask.SetNumEdgeWeights(0);
+    posMask.SetNumFaceWeights(0);
+    posMask.SetFaceWeightsForFaceCenters(false);
+
+    posMask.VertexWeight(0) = 1.0f;
+}
+
+template <>
+template <typename VERTEX, typename MASK>
+inline void
+Scheme<SCHEME_CATMARK>::assignCreaseLimitMask(VERTEX const& vertex, MASK& posMask,
+                                              int const creaseEnds[2]) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -240,17 +240,17 @@ Scheme<SCHEME_CATMARK>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posM
     Weight eWeight = 1.0f / 6.0f;
 
     posMask.VertexWeight(0) = vWeight;
-    posMask.EdgeWeight(0) = eWeight;
-    for (int i = 1; i < valence - 1; ++i) {
+    for (int i = 0; i < valence; ++i) {
         posMask.EdgeWeight(i) = 0.0f;
     }
-    posMask.EdgeWeight(valence - 1) = eWeight;
+    posMask.EdgeWeight(creaseEnds[0]) = eWeight;
+    posMask.EdgeWeight(creaseEnds[1]) = eWeight;
 }
 
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_CATMARK>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -262,11 +262,16 @@ Scheme<SCHEME_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posM
     posMask.SetNumFaceWeights(valence);
     posMask.SetFaceWeightsForFaceCenters(false);
 
-    //  Probably a good idea to test for and assign the regular case as a special case:
+    //  Specialize for the regular case:
+    Weight fWeight = 1.0f / 36.0f;
+    Weight eWeight = 1.0f /  9.0f;
+    Weight vWeight = 4.0f /  9.0f;
 
-    Weight fWeight = 1.0f / (Weight)(valence * (valence + 5.0f));
-    Weight eWeight = 4.0f * fWeight;
-    Weight vWeight = (Weight)(1.0f - valence * (eWeight + fWeight));
+    if (valence != 4) {
+        fWeight = 1.0f / (Weight)(valence * (valence + 5.0f));
+        eWeight = 4.0f * fWeight;
+        vWeight = (Weight)(1.0f - valence * (eWeight + fWeight));
+    }
 
     posMask.VertexWeight(0) = vWeight;
     for (int i = 0; i < valence; ++i) {
@@ -282,26 +287,91 @@ Scheme<SCHEME_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posM
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_CATMARK>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */,
+Scheme<SCHEME_CATMARK>::assignCornerLimitTangentMasks(VERTEX const& vertex,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
+    int valence = vertex.GetNumEdges();
+
     tan1Mask.SetNumVertexWeights(1);
-    tan1Mask.SetNumEdgeWeights(0);
+    tan1Mask.SetNumEdgeWeights(valence);
     tan1Mask.SetNumFaceWeights(0);
     tan1Mask.SetFaceWeightsForFaceCenters(false);
-    tan1Mask.VertexWeight(0) = 0.0f;
 
     tan2Mask.SetNumVertexWeights(1);
-    tan2Mask.SetNumEdgeWeights(0);
+    tan2Mask.SetNumEdgeWeights(valence);
     tan2Mask.SetNumFaceWeights(0);
     tan2Mask.SetFaceWeightsForFaceCenters(false);
-    tan2Mask.VertexWeight(0) = 0.0f;
+
+    //  Should be at least 2 edges -- be sure to clear weights for any more:
+    tan1Mask.VertexWeight(0) = -1.0f;
+    tan1Mask.EdgeWeight(0)   =  1.0f;
+    tan1Mask.EdgeWeight(1)   =  0.0f;
+
+    tan2Mask.VertexWeight(0) = -1.0f;
+    tan2Mask.EdgeWeight(0)   =  0.0f;
+    tan2Mask.EdgeWeight(1)   =  1.0f;
+
+    for (int i = 2; i < valence; ++i) {
+        tan1Mask.EdgeWeight(i) = 0.0f;
+        tan2Mask.EdgeWeight(i) = 0.0f;
+    }
 }
 
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_CATMARK>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
+Scheme<SCHEME_CATMARK>::assignCreaseLimitTangentMasks(VERTEX const& vertex,
+        MASK& tan1Mask, MASK& tan2Mask, int const creaseEnds[2]) const {
+
+    int valence = vertex.GetNumEdges();
+
+    tan1Mask.SetNumVertexWeights(1);
+    tan1Mask.SetNumEdgeWeights(valence);
+    tan1Mask.SetNumFaceWeights(0);
+    tan1Mask.SetFaceWeightsForFaceCenters(false);
+
+    tan2Mask.SetNumVertexWeights(1);
+    tan2Mask.SetNumEdgeWeights(valence);
+    tan2Mask.SetNumFaceWeights(0);
+    tan2Mask.SetFaceWeightsForFaceCenters(false);
+
+    //  Specialize for the regular (boundary) case:
+    bool isRegular = (vertex.GetNumEdges() == 3);
+    if (isRegular) {
+        tan1Mask.VertexWeight(0) = 0.0f;
+        tan1Mask.EdgeWeight(0) =  1.0f;
+        tan1Mask.EdgeWeight(1) =  0.0f;
+        tan1Mask.EdgeWeight(2) = -1.0f;
+
+        tan2Mask.VertexWeight(0) = -1.0f;
+        tan2Mask.EdgeWeight(0) =  0.0f;
+        tan2Mask.EdgeWeight(1) =  1.0f;
+        tan2Mask.EdgeWeight(2) =  0.0f;
+    } else {
+        //  First, the tangent along the crease:
+        tan1Mask.VertexWeight(0) = 0.0f;
+        for (int i = 0; i < valence; ++i) {
+            tan1Mask.EdgeWeight(i) = 0.0f;
+        }
+        tan1Mask.EdgeWeight(creaseEnds[0]) =  1.0f;
+        tan1Mask.EdgeWeight(creaseEnds[1]) = -1.0f;
+
+        //  Second, the tangent across the interior faces:
+        //      - just using an interior edge for now
+        //      - ultimately need regular and extra-ordinary cases here:
+        //
+        tan2Mask.VertexWeight(0) = -1.0f;
+        for (int i = 0; i < valence; ++i) {
+            tan2Mask.EdgeWeight(i) = 0.0f;
+        }
+        tan2Mask.EdgeWeight((creaseEnds[0] + creaseEnds[1]) >> 1) =  1.0f;
+    }
+}
+
+template <>
+template <typename VERTEX, typename MASK>
+inline void
+Scheme<SCHEME_CATMARK>::assignSmoothLimitTangentMasks(VERTEX const& vertex,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     typedef typename MASK::Weight Weight;

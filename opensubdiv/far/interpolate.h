@@ -233,9 +233,7 @@ InterpolateCornerPatch(Index const * cvs,
 /// \brief Interpolate the (s,t) parametric location of a Gregory bicubic
 ///        patch
 ///
-/// @param basisStencils  Stencil tables driving the 20 CV basis of the patches
-///
-/// @param stencilIndex   Index of the first CV stencil in the basis stencils tables
+/// @param cvs            Array of 20 control vertex indices
 ///
 /// @param s              Patch coordinate (in coarse face normalized space)
 ///
@@ -255,8 +253,7 @@ InterpolateCornerPatch(Index const * cvs,
 ///
 template <class T, class U>
 inline void
-InterpolateGregoryPatch(StencilTables const * basisStencils,
-    int stencilIndex, float s, float t,
+InterpolateGregoryPatch(Index const *cvs, float s, float t,
         float const * Q, float const *Qd1, float const *Qd2,
             T const & src, U & dst) {
 
@@ -281,76 +278,58 @@ InterpolateGregoryPatch(StencilTables const * basisStencils,
 
     //
     //  P3         e3-      e2+         P2
-    //     O--------O--------O--------O
+    //     15------17-------11--------10
     //     |        |        |        |
     //     |        |        |        |
     //     |        | f3-    | f2+    |
-    //     |        O        O        |
-    // e3+ O------O            O------O e2-
+    //     |       19       13        |
+    // e3+ 16-----18           14-----12 e2-
     //     |     f3+          f2-     |
     //     |                          |
     //     |                          |
     //     |      f0-         f1+     |
-    // e0- O------O            O------O e1+
-    //     |        O        O        |
+    // e0- 2------4            8------6 e1+
+    //     |        3        9        |
     //     |        | f0+    | f1-    |
     //     |        |        |        |
     //     |        |        |        |
-    //     O--------O--------O--------O
+    //     O--------1--------7--------5
     //  P0         e0+      e1-         P1
     //
-    // XXXX manuelk re-order stencils in factory and get rid of permutation ?
-    int const permute[16] =
-        { 0, 1, 7, 5, 2, -1, -1, 6, 16, -1, -1, 12, 15, 17, 11, 10 };
 
-    for (int i=0, fcount=0; i<16; ++i) {
+    // gregory-to-bezier map
+    static int const permute[16] =
+        { 0, 1, 7, 5, 2, -1, -2, 6, 16, -3, -4, 12, 15, 17, 11, 10 };
 
-        int index = permute[i],
-            offset = stencilIndex;
+    for (int k = 0; k < 16; ++k) {
 
-        if (index==-1) {
-
-            // 0-ring vertex: blend 2 extra basis CVs
-            int const fpermute[4][2] = { {3, 4}, {9, 8}, {19, 18}, {13, 14} };
-
-            assert(fcount < 4);
-            int v0 = fpermute[fcount][0],
-                v1 = fpermute[fcount][1];
-
-            Stencil s0 = basisStencils->GetStencil(offset + v0),
-                    s1 = basisStencils->GetStencil(offset + v1);
-
-            float w0=weights[fcount][0],
-                  w1=weights[fcount][1];
-
-            {
-                Index const * srcIndices = s0.GetVertexIndices();
-                float const * srcWeights = s0.GetWeights();
-                for (int j=0; j<s0.GetSize(); ++j) {
-                    dst.AddWithWeight(src[srcIndices[j]],
-                        Q[i]*w0*srcWeights[j], Qd1[i]*w0*srcWeights[j],
-                            Qd2[i]*w0*srcWeights[j]);
-                }
-            }
-            {
-                Index const * srcIndices = s1.GetVertexIndices();
-                float const * srcWeights = s1.GetWeights();
-                for (int j=0; j<s1.GetSize(); ++j) {
-                    dst.AddWithWeight(src[srcIndices[j]],
-                        Q[i]*w1*srcWeights[j], Qd1[i]*w1*srcWeights[j],
-                            Qd2[i]*w1*srcWeights[j]);
-                }
-            }
-            ++fcount;
-        } else {
-            Stencil stencil = basisStencils->GetStencil(offset + index);
-            Index const * srcIndices = stencil.GetVertexIndices();
-            float const * srcWeights = stencil.GetWeights();
-            for (int j=0; j<stencil.GetSize(); ++j) {
-                dst.AddWithWeight( src[srcIndices[j]],
-                    Q[i]*srcWeights[j], Qd1[i]*srcWeights[j],
-                         Qd2[i]*srcWeights[j]);
-            }
+        int index = permute[k];
+        if (index >=0) {
+            dst.AddWithWeight(src[cvs[index]], Q[k], Qd1[k], Qd2[k]);
+        } else if (index == -1) {
+            // 3, 4
+            float w0 = weights[0][0];
+            float w1 = weights[0][1];
+            dst.AddWithWeight(src[cvs[3]], w0*Q[k], w0*Qd1[k], w0*Qd2[k]);
+            dst.AddWithWeight(src[cvs[4]], w1*Q[k], w1*Qd1[k], w1*Qd2[k]);
+        } else if (index == -2) {
+            // 8, 9
+            float w0 = weights[1][0];
+            float w1 = weights[1][1];
+            dst.AddWithWeight(src[cvs[9]], w0*Q[k], w0*Qd1[k], w0*Qd2[k]);
+            dst.AddWithWeight(src[cvs[8]], w1*Q[k], w1*Qd1[k], w1*Qd2[k]);
+        } else if (index == -3) {
+            // 18, 19
+            float w0 = weights[2][0];
+            float w1 = weights[2][1];
+            dst.AddWithWeight(src[cvs[19]], w0*Q[k], w0*Qd1[k], w0*Qd2[k]);
+            dst.AddWithWeight(src[cvs[18]], w1*Q[k], w1*Qd1[k], w1*Qd2[k]);
+        } else if (index == -4) {
+            // 13, 14
+            float w0 = weights[3][0];
+            float w1 = weights[3][1];
+            dst.AddWithWeight(src[cvs[13]], w0*Q[k], w0*Qd1[k], w0*Qd2[k]);
+            dst.AddWithWeight(src[cvs[14]], w1*Q[k], w1*Qd1[k], w1*Qd2[k]);
         }
     }
 }

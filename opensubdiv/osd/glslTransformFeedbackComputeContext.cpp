@@ -82,17 +82,22 @@ class GLSLTransformFeedbackComputeContext::GLStencilTables {
 public:
 
     GLStencilTables(Far::StencilTables const & stencilTables) {
-        _sizes = createGLTextureBuffer(stencilTables.GetSizes(), GL_R8UI);
-        _offsets = createGLTextureBuffer(stencilTables.GetOffsets(), GL_R32I);
-        _indices = createGLTextureBuffer(stencilTables.GetControlIndices(), GL_R32I);
-        _weights = createGLTextureBuffer(stencilTables.GetWeights(), GL_R32F);
+        _numStencils = stencilTables.GetNumStencils();
+        if (_numStencils > 0) {
+            _sizes = createGLTextureBuffer(stencilTables.GetSizes(), GL_R8UI);
+            _offsets = createGLTextureBuffer(stencilTables.GetOffsets(), GL_R32I);
+            _indices = createGLTextureBuffer(stencilTables.GetControlIndices(), GL_R32I);
+            _weights = createGLTextureBuffer(stencilTables.GetWeights(), GL_R32F);
+        } else {
+            _sizes = _offsets = _indices = _weights = 0;
+        }
     }
 
     ~GLStencilTables() {
-        glDeleteTextures(1, &_sizes);
-        glDeleteTextures(1, &_offsets);
-        glDeleteTextures(1, &_weights);
-        glDeleteTextures(1, &_indices);
+        if (_sizes) glDeleteTextures(1, &_sizes);
+        if (_offsets) glDeleteTextures(1, &_offsets);
+        if (_weights) glDeleteTextures(1, &_weights);
+        if (_indices) glDeleteTextures(1, &_indices);
     }
 
     bool IsValid() const {
@@ -115,12 +120,18 @@ public:
         return _weights;
     }
 
+    int GetNumStencils() const {
+        return _numStencils;
+    }
+
 private:
 
     GLuint _sizes,
            _offsets,
            _indices,
            _weights;
+
+    int _numStencils;
 };
 
 // -----------------------------------------------------------------------------
@@ -164,8 +175,17 @@ GLSLTransformFeedbackComputeContext::HasVaryingStencilTables() const {
     return _varyingStencilTables ? _varyingStencilTables->IsValid() : false;
 }
 
-// ----------------------------------------------------------------------------
+int
+GLSLTransformFeedbackComputeContext::GetNumStencilsInVertexStencilTables() const {
+    return _vertexStencilTables ? _vertexStencilTables->GetNumStencils() : 0;
+}
 
+int
+GLSLTransformFeedbackComputeContext::GetNumStencilsInVaryingStencilTables() const {
+    return _varyingStencilTables ? _varyingStencilTables->GetNumStencils() : 0;
+}
+
+// ----------------------------------------------------------------------------
 GLuint
 GLSLTransformFeedbackComputeContext::GetVertexStencilTablesSizes() const {
     return _vertexStencilTables ? _vertexStencilTables->GetSizes() : 0;

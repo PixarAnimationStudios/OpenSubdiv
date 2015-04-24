@@ -42,7 +42,9 @@
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
 #include <opensubdiv/far/patchTablesFactory.h>
+#include <opensubdiv/far/endCapGregoryBasisPatchFactory.h>
 #include <opensubdiv/far/patchMap.h>
+#include <opensubdiv/far/ptexIndices.h>
 
 #include <cassert>
 #include <cstdio>
@@ -154,16 +156,20 @@ int main(int, char **) {
 
     // Generate a set of Far::PatchTables that we will use to evaluate the
     // surface limit
+    Far::EndCapGregoryBasisPatchFactory endcapFactory(*refiner);
     Far::PatchTables const * patchTables =
-        Far::PatchTablesFactory::Create(*refiner);
+        Far::PatchTablesFactoryT<Far::EndCapGregoryBasisPatchFactory>::Create(
+            *refiner, Far::PatchTablesFactory::Options(), &endcapFactory);
 
     // Create a Far::PatchMap to help locating patches in the table
     Far::PatchMap patchmap(*patchTables);
 
+    // Create a Far::PtexIndices to help find indices of ptex faces.
+    Far::PtexIndices ptexIndices(*refiner);
 
     // Generate random samples on each ptex face
     int nsamples = 200,
-        nfaces = refiner->GetNumPtexFaces();
+        nfaces = ptexIndices.GetNumFaces();
 
     std::vector<LimitFrame> samples(nsamples * nfaces);
 

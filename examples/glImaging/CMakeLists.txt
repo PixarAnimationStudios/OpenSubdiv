@@ -1,5 +1,5 @@
 #
-#   Copyright 2013 Pixar
+#   Copyright 2015 Pixar
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -22,23 +22,56 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-include_directories("${PROJECT_SOURCE_DIR}/opensubdiv")
+include_directories(
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${PROJECT_SOURCE_DIR}/regression"
+    "${GLFW_INCLUDE_DIR}"
+)
+
+set(SHADER_FILES
+     shader.glsl
+)
 
 set(SOURCE_FILES
-    vtr_regression.cpp
+    glImaging.cpp
+    ../common/patchColors.cpp
 )
 
 set(PLATFORM_LIBRARIES
     "${OSD_LINK_TARGET}"
+    "${OPENGL_LIBRARY}"
+    "${GLFW_LIBRARIES}"
 )
 
-_add_executable(vtr_regression
-    ${SOURCE_FILES}
-    $<TARGET_OBJECTS:sdc_obj>
-    $<TARGET_OBJECTS:vtr_obj>
-    $<TARGET_OBJECTS:far_obj>
+if ( GLEW_FOUND )
+    include_directories("${GLEW_INCLUDE_DIR}")
+    list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
+endif()
+
+if ( OPENCL_FOUND )
+    list(APPEND PLATFORM_LIBRARIES
+        "${OPENCL_LIBRARIES}"
+    )
+    include_directories( "${OPENCL_INCLUDE_DIRS}" )
+endif()
+
+_stringify("${SHADER_FILES}" INC_FILES)
+
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+
+_add_possibly_cuda_executable(glImaging
+    "${SOURCE_FILES}"
+    "${SHADER_FILES}"
+    "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
 )
 
-install(TARGETS vtr_regression DESTINATION "${CMAKE_BINDIR_BASE}")
+add_dependencies(glImaging blarg )
 
+target_link_libraries(glImaging
+    ${PLATFORM_LIBRARIES}
+)
+
+install(TARGETS glImaging DESTINATION "${CMAKE_BINDIR_BASE}")
+
+add_test(glImaging ${EXECUTABLE_OUTPUT_PATH}/glImaging -w test -l 3 -s 256 256 -a)

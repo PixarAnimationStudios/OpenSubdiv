@@ -155,11 +155,11 @@ public:
     }
 
     void ApplyStencilTableKernel(ID3D11DeviceContext *deviceContext,
-        Far::KernelBatch const &batch, int offset, int numCVs) {
+                                 int offset, int numCVs, int start, int end) {
 
         KernelUniformArgs args;
-        args.uniformStart = batch.start;
-        args.uniformEnd = batch.end;
+        args.uniformStart = start;
+        args.uniformEnd = end;
         args.uniformOffset = offset;
         args.uniformNumCVs = numCVs;
 
@@ -299,7 +299,7 @@ D3D11ComputeController::unbindBuffer() {
 
 void
 D3D11ComputeController::ApplyStencilTableKernel(
-    Far::KernelBatch const &batch, D3D11ComputeContext const *context) const {
+    D3D11ComputeContext const *context, int numStencils) const {
 
     assert(context);
 
@@ -307,8 +307,12 @@ D3D11ComputeController::ApplyStencilTableKernel(
     D3D11ComputeController::KernelBundle * bundle =
         const_cast<D3D11ComputeController::KernelBundle *>(_currentBindState.kernelBundle);
 
-    bundle->ApplyStencilTableKernel(_deviceContext,
-        batch, _currentBindState.desc.offset, context->GetNumControlVertices());
+    bundle->ApplyStencilTableKernel(
+        _deviceContext,
+        _currentBindState.desc.offset,
+        context->GetNumControlVertices(),
+        0,
+        numStencils);
 }
 
 

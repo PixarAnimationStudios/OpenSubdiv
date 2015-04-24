@@ -149,12 +149,18 @@ void main()
 layout(triangle_strip, max_vertices = EDGE_VERTS) out;
 in block {
     OutputVertex v;
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    float sharpness;
+#endif
     OSD_USER_VARYING_DECLARE
 } inpt[EDGE_VERTS];
 
 out block {
     OutputVertex v;
     noperspective out vec4 edgeDistance;
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    float sharpness;
+#endif
     OSD_USER_VARYING_DECLARE
 } outpt;
 
@@ -166,6 +172,10 @@ void emit(int index, vec3 normal)
     outpt.v.normal = inpt[index].v.normal;
 #else
     outpt.v.normal = normal;
+#endif
+
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    outpt.sharpness = inpt[index].sharpness;
 #endif
 
 #ifdef VARYING_COLOR
@@ -298,6 +308,9 @@ void main()
 in block {
     OutputVertex v;
     noperspective in vec4 edgeDistance;
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    float sharpness;
+#endif
     OSD_USER_VARYING_DECLARE
 } inpt;
 
@@ -374,6 +387,85 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
     return Cfill;
 }
 
+vec4
+getAdaptivePatchColor(int patchParam)
+{
+    const vec4 patchColors[7*6] = vec4[7*6](
+        vec4(1.0f,  1.0f,  1.0f,  1.0f),   // regular
+        vec4(0.0f,  1.0f,  1.0f,  1.0f),   // regular pattern 0
+        vec4(0.0f,  0.5f,  1.0f,  1.0f),   // regular pattern 1
+        vec4(0.0f,  0.5f,  0.5f,  1.0f),   // regular pattern 2
+        vec4(0.5f,  0.0f,  1.0f,  1.0f),   // regular pattern 3
+        vec4(1.0f,  0.5f,  1.0f,  1.0f),   // regular pattern 4
+
+        vec4(1.0f,  0.5f,  0.5f,  1.0f),   // single crease
+        vec4(1.0f,  0.70f,  0.6f,  1.0f),  // single crease pattern 0
+        vec4(1.0f,  0.65f,  0.6f,  1.0f),  // single crease pattern 1
+        vec4(1.0f,  0.60f,  0.6f,  1.0f),  // single crease pattern 2
+        vec4(1.0f,  0.55f,  0.6f,  1.0f),  // single crease pattern 3
+        vec4(1.0f,  0.50f,  0.6f,  1.0f),  // single crease pattern 4
+
+        vec4(0.8f,  0.0f,  0.0f,  1.0f),   // boundary
+        vec4(0.0f,  0.0f,  0.75f, 1.0f),   // boundary pattern 0
+        vec4(0.0f,  0.2f,  0.75f, 1.0f),   // boundary pattern 1
+        vec4(0.0f,  0.4f,  0.75f, 1.0f),   // boundary pattern 2
+        vec4(0.0f,  0.6f,  0.75f, 1.0f),   // boundary pattern 3
+        vec4(0.0f,  0.8f,  0.75f, 1.0f),   // boundary pattern 4
+
+        vec4(0.0f,  1.0f,  0.0f,  1.0f),   // corner
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 0
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 1
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 2
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 3
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 4
+
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f)    // gregory basis
+    );
+
+    int patchType = 0;
+#if defined OSD_PATCH_GREGORY
+    patchType = 4;
+#elif defined OSD_PATCH_GREGORY_BOUNDARY
+    patchType = 5;
+#elif defined OSD_PATCH_GREGORY_BASIS
+    patchType = 6;
+#endif
+
+    int edgeCount = bitCount((patchParam >> 4) & 0xf);
+    if (edgeCount == 1) {
+        patchType = 2; // BOUNDARY
+    }
+    if (edgeCount == 2) {
+        patchType = 3; // CORNER
+    }
+
+    int pattern = bitCount((patchParam >> 8) & 0xf);
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    if (inpt.sharpness > 0) pattern += 6;
+#endif
+
+    return patchColors[6*patchType + pattern];
+}
+
 #if defined(PRIM_QUAD) || defined(PRIM_TRI)
 void
 main()
@@ -387,7 +479,8 @@ main()
     vec4 color = vec4(inpt.color.rg,
                       int(floor(20*inpt.color.r)+floor(20*inpt.color.g))&1, 1);
 #else
-    vec4 color = diffuseColor;
+    //vec4 color = diffuseColor;
+    vec4 color = getAdaptivePatchColor(GetPatchParam());
 #endif
 
     vec4 Cf = lighting(color, inpt.v.position.xyz, N);

@@ -1033,7 +1033,7 @@ createOsdMesh(int level, int kernel) {
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
     bits.set(OpenSubdiv::Osd::MeshPtexData, true);
-    bits.set(OpenSubdiv::Osd::MeshUseGregoryBasis, true);
+    bits.set(OpenSubdiv::Osd::MeshEndCapGregoryBasis, true);
 
     int numVertexElements = g_adaptive ? 3 : 6;
     int numVaryingElements = 0;
@@ -1755,7 +1755,7 @@ drawCageEdges() {
     typedef OpenSubdiv::Far::PatchDescriptor FDesc;
 
     OpenSubdiv::Osd::DrawContext::PatchDescriptor desc(
-        FDesc(FDesc::LINES, FDesc::NON_TRANSITION, 0), 0, 0, 0);
+        FDesc(FDesc::LINES), 0, 0);
     EffectDrawRegistry::ConfigType *config = getInstance(effect, desc);
     glUseProgram(config->program);
 
