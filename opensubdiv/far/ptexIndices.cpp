@@ -49,15 +49,6 @@ PtexIndices::initializePtexIndices(TopologyRefiner const &refiner) {
     int regFaceSize = Sdc::SchemeTypeTraits::GetRegularFaceSize(
             refiner.GetSchemeType());
 
-    if (regFaceSize != 4) {
-        Far::Error(FAR_CODING_ERROR,
-            "Ptex Indices may only be built for quad subdivision schemes "
-            "(e.g., catmark).");
-        // last entry contains the number of ptex texture faces
-        _ptexIndices.push_back(0);
-        return;
-    }
-
     Vtr::Level const & coarseLevel = refiner.getLevel(0);
 
     int nfaces = coarseLevel.getNumFaces();
@@ -101,7 +92,13 @@ PtexIndices::GetAdjacency(
     int face, int quadrant,
     int adjFaces[4], int adjEdges[4]) const {
 
-    assert(Sdc::SchemeTypeTraits::GetRegularFaceSize(refiner.GetSchemeType()) == 4);
+    if (Sdc::SchemeTypeTraits::GetRegularFaceSize(
+            refiner.GetSchemeType()) != 4) {
+        Far::Error(FAR_CODING_ERROR,
+            "PtexIndices::GetAdjacency() is currently only implemented for "
+            "quad schemes.");
+        return;
+    }
 
     Vtr::Level const & level = refiner.getLevel(0);
 
