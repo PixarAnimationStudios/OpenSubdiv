@@ -119,9 +119,24 @@ public:
     ///      These presume that a vertex is suitably isolated for its limit to be well-defined
     ///  and, unlike the refinement masks, the subdivision Rule for the vertex (presumably at
     ///  its last level of refinement) is required rather than being optional.  In the
-    ///  presence of semi-sharp creasing that has not decayed to zero, the limit is unknown
-    ///  and it is up to the caller to provide the Rule for either a smooth or sharp limit in
-    ///  such cases.
+    ///  presence of semi-sharp creasing that has not decayed to zero, the limit is neither
+    ///  sharp nor smooth -- in such cases the Rule specified by the caller determines the
+    ///  result.
+    ///
+    ///  For tangent masks, the direction of the first tangent (T1) is oriented towards the
+    ///  leading edge of the vertex, i.e. the first incident edge of the vertex (beginning
+    ///  the set of incident edges in counter-clockwise order).  The second tangent (T2) lies
+    ///  within the tangent plane such that its normal can be computed as T1 x T2.  So for a
+    ///  boundary vertex, T1 will point along the boundary in the direction of the leading
+    ///  edge while T2 points inward across the limit surface.
+    ///
+    ///  As for magnitude, no assumptions should be made of the magnitudes of the resulting
+    ///  tanget vectors.  Common formulae often factor out scale factors that contribute to
+    ///  magnitude.  While some attempt has been made to make magnitudes more consistent
+    ///  between regular corners, boundaries and the interior, the same has not been done at
+    ///  irregular vertices -- at least not yet.  This may be addressed in future, as having
+    ///  consistent magnitudes returned here can aid in the construction of patches from
+    ///  limit positions and tangents.
     ///
     template <typename VERTEX, typename MASK>
     void ComputeVertexLimitMask(VERTEX const& vertexNeighborhood, MASK& positionMask,
