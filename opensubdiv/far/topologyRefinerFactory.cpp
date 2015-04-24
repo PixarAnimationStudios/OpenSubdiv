@@ -383,7 +383,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignFa
 
                 if (desc.isLeftHanded) {
                     dstFaceValues[0] = channelIndices[idx++];
-                    for (int vert=dstFaceValues.size()-1; vert >= 0; --vert) {
+                    for (int vert=dstFaceValues.size()-1; vert > 0; --vert) {
                         
                         dstFaceValues[vert] = channelIndices[idx++];
                     }
