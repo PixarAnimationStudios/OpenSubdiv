@@ -43,7 +43,7 @@ namespace OPENSUBDIV_VERSION {
 //  Forward declaration of friend classes:
 namespace Far {
     class TopologyRefiner;
-    class PatchTablesFactoryBase;
+    class PatchTablesFactory;
 }
 namespace Vtr {
     class Refinement;
@@ -90,7 +90,7 @@ protected:
     friend class Refinement;
     friend class FVarRefinement;
     friend class Far::TopologyRefiner;
-    friend class Far::PatchTablesFactoryBase;
+    friend class Far::PatchTablesFactory;
 
 protected:
     //

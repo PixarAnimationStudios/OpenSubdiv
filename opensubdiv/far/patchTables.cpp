@@ -33,7 +33,9 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 PatchTables::PatchTables(int maxvalence) :
-    _maxValence(maxvalence) {
+    _maxValence(maxvalence),
+    _vertexStencilTables(NULL),
+    _varyingStencilTables(NULL) {
 }
 
 // Copy constructor
@@ -46,12 +48,23 @@ PatchTables::PatchTables(PatchTables const & src) :
     _paramTable(src._paramTable),
     _quadOffsetsTable(src._quadOffsetsTable),
     _vertexValenceTable(src._vertexValenceTable),
+    _vertexStencilTables(NULL),
+    _varyingStencilTables(NULL),
     _fvarChannels(src._fvarChannels),
     _sharpnessIndices(src._sharpnessIndices),
     _sharpnessValues(src._sharpnessValues) {
+
+    if (src._vertexStencilTables) {
+        _vertexStencilTables = new StencilTables(*src._vertexStencilTables);
+    }
+    if (src._varyingStencilTables) {
+        _varyingStencilTables = new StencilTables(*src._varyingStencilTables);
+    }
 }
 
 PatchTables::~PatchTables() {
+    delete _vertexStencilTables;
+    delete _varyingStencilTables;
 }
 
 //
@@ -390,11 +403,9 @@ PatchTables::GetPatchQuadOffsets(PatchHandle const & handle) const {
 bool
 PatchTables::IsFeatureAdaptive() const {
 
-    // check for presence of tables only used by adaptive patches
-    if (not _vertexValenceTable.empty())
-        return true;
+    // XXX:
+    // revisit this function, since we'll add uniform cubic patches later.
 
-    // otherwise, we have to check each patch array
     for (int i=0; i<GetNumPatchArrays(); ++i) {
         PatchDescriptor const & desc = _patchArrays[i].desc;
         if (desc.GetType()>=PatchDescriptor::REGULAR and

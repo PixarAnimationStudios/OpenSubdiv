@@ -24,6 +24,7 @@
 
 #include "../far/stencilTablesFactory.h"
 #include "../far/endCapGregoryBasisPatchFactory.h"
+#include "../far/patchTables.h"
 #include "../far/patchTablesFactory.h"
 #include "../far/patchMap.h"
 #include "../far/protoStencil.h"
@@ -257,6 +258,147 @@ StencilTablesFactory::Create(int numTables, StencilTables const ** tables) {
 
 //------------------------------------------------------------------------------
 
+StencilTables const *
+StencilTablesFactory::AppendEndCapStencilTables(
+    TopologyRefiner const &refiner,
+    StencilTables const *baseStencilTables,
+    StencilTables const *endCapStencilTables,
+    bool factorize) {
+
+    // factorize and append.
+    if (baseStencilTables == NULL or
+        endCapStencilTables == NULL) return NULL;
+
+    // endcap stencils have indices that are relative to the level
+    // (maxlevel) of subdivision. These indices need to be offset to match
+    // the indices from the multi-level adaptive stencil tables.
+    // In addition: stencil tables can be built with singular stencils
+    // (single weight of 1.0f) as place-holders for coarse mesh vertices,
+    // which also needs to be accounted for.
+
+    int stencilsIndexOffset = 0;
+    int controlVertsIndexOffset = 0;
+    int nBaseStencils = baseStencilTables->GetNumStencils();
+    int nBaseStencilsElements = (int)baseStencilTables->_indices.size();
+    {
+        int maxlevel = refiner.GetMaxLevel();
+        int nverts = refiner.GetNumVerticesTotal();
+        if (nBaseStencils == nverts) {
+
+            // the table contain stencils for the control vertices
+            //
+            //  <-----------------  nverts ------------------>
+            //
+            //  +---------------+----------------------------+-----------------+
+            //  | control verts | refined verts   : (max lv) |  endcap points  |
+            //  +---------------+----------------------------+-----------------+
+            //  |          base stencil tables               | endcap stencils |
+            //  +--------------------------------------------+-----------------+
+            //                                    :    ^           /
+            //                                    :     \_________/
+            //  <-------------------------------->
+            //                          stencilsIndexOffset
+            //
+            //
+            stencilsIndexOffset = nverts - refiner.GetNumVertices(maxlevel);
+            controlVertsIndexOffset = stencilsIndexOffset;
+
+        } else if (nBaseStencils == (nverts -refiner.GetNumVertices(0))) {
+
+            // the table does not contain stencils for the control vertices
+            //
+            //  <-----------------  nverts ------------------>
+            //                  <------ nBaseStencils ------->
+            //  +---------------+----------------------------+-----------------+
+            //  | control verts | refined verts   : (max lv) |  endcap points  |
+            //  +---------------+----------------------------+-----------------+
+            //                  |     base stencil tables    | endcap stencils |
+            //                  +----------------------------+-----------------+
+            //                                    :    ^           /
+            //                                    :     \_________/
+            //                  <---------------->
+            //                          stencilsIndexOffset
+            //  <-------------------------------->
+            //                          controlVertsIndexOffset
+            //
+            stencilsIndexOffset = nBaseStencils - refiner.GetNumVertices(maxlevel);
+            controlVertsIndexOffset = nverts - refiner.GetNumVertices(maxlevel);
+
+        } else {
+            // these are not the stencils you are looking for.
+            assert(0);
+            return NULL;
+        }
+    }
+
+    // copy all endcap stencils to proto stencils, and factorize if needed.
+    int nEndCapStencils = endCapStencilTables->GetNumStencils();
+    int nEndCapStencilsElements = 0;
+
+    // we exclude zero weight stencils. the resulting number of
+    // stencils of endcap may be different from input.
+    StencilAllocator allocator(16);
+    allocator.Resize(nEndCapStencils);
+    for (int i = 0 ; i < nEndCapStencils; ++i) {
+        Stencil src = endCapStencilTables->GetStencil(i);
+        allocator[i].Clear();
+        for (int j = 0; j < src.GetSize(); ++j) {
+            Index index = src.GetVertexIndices()[j];
+            float weight = src.GetWeights()[j];
+            if (weight == 0.0) continue;
+
+            if (factorize) {
+                allocator[i].AddWithWeight(*baseStencilTables,
+                                           index + stencilsIndexOffset,
+                                           weight);
+            } else {
+                allocator.PushBackVertex(i,
+                                         index + controlVertsIndexOffset,
+                                         weight);
+            }
+        }
+        nEndCapStencilsElements += allocator.GetSize(i);
+    }
+
+    // create new stencil tables
+    StencilTables * result = new StencilTables;
+    result->_numControlVertices = refiner.GetNumVertices(0);
+    result->resize(nBaseStencils + nEndCapStencils,
+                   nBaseStencilsElements + nEndCapStencilsElements);
+
+    unsigned char * sizes = &result->_sizes[0];
+    Index * indices = &result->_indices[0];
+    float * weights = &result->_weights[0];
+
+    // put base stencils first
+    memcpy(sizes, &baseStencilTables->_sizes[0],
+           nBaseStencils*sizeof(unsigned char));
+    memcpy(indices, &baseStencilTables->_indices[0],
+           nBaseStencilsElements*sizeof(Index));
+    memcpy(weights, &baseStencilTables->_weights[0],
+           nBaseStencilsElements*sizeof(float));
+
+    sizes += nBaseStencils;
+    indices += nBaseStencilsElements;
+    weights += nBaseStencilsElements;
+
+    // endcap stencils second
+    for (int i = 0 ; i < nEndCapStencils; ++i) {
+        int size = allocator.GetSize(i);
+        for (int j = 0; j < size; ++j) {
+            *indices++ = allocator.GetIndices(i)[j];
+            *weights++ = allocator.GetWeights(i)[j];
+        }
+        *sizes++ = size;
+    }
+
+    // have to re-generate offsets from scratch
+    result->generateOffsets();
+
+    return result;
+}
+
+//------------------------------------------------------------------------------
 LimitStencilTables const *
 LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
     LocationArrayVec const & locationArrays, StencilTables const * cvStencils,
@@ -303,26 +445,28 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
 
     // If a stencil table was given, use it, otherwise, create a new one
     PatchTables const * patchtables = patchTables;
-    EndCapGregoryBasisPatchFactory * gregoryBasisFactory = NULL;
+
     if (not patchTables) {
         // XXXX (manuelk) If no patch-tables was passed, we should be able to
         // infer the patches fairly easily from the refiner. Once more tags
         // have been added to the refiner, maybe we can remove the need for the
         // patch tables.
 
-        PatchTablesFactoryBase::Options options;
+        PatchTablesFactory::Options options;
+        options.SetEndCapType(
+            Far::PatchTablesFactory::Options::ENDCAP_GREGORY_BASIS);
 
-        gregoryBasisFactory = new EndCapGregoryBasisPatchFactory(
-            refiner, /*shareBoundaryVertices=*/true);
-        patchtables = PatchTablesFactoryT<EndCapGregoryBasisPatchFactory>::Create(
-            refiner, options, gregoryBasisFactory);
+        patchtables = PatchTablesFactory::Create(refiner, options);
 
         if (not cvStencils) {
-            // if cvstencils is just created above
-            if (StencilTables const *stencilTablesWithGregoryBasis =
-                gregoryBasisFactory->CreateVertexStencilTables(cvstencils, true)) {
+            // if cvstencils is just created above, append endcap stencils
+            if (StencilTables const *endCapStencilTables =
+                patchtables->GetEndCapVertexStencilTables()) {
+                StencilTables const *tables =
+                    StencilTablesFactory::AppendEndCapStencilTables(
+                        refiner, cvstencils, endCapStencilTables);
                 delete cvstencils;
-                cvstencils = stencilTablesWithGregoryBasis;
+                cvstencils = tables;
             }
         }
     } else {
@@ -379,6 +523,10 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
 
     if (not cvStencils) {
         delete cvstencils;
+    }
+
+    if (not patchTables) {
+        delete patchtables;
     }
 
     //

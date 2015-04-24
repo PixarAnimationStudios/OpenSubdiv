@@ -142,7 +142,7 @@ enum DisplayStyle { kWire = 0,
                     kFaceVaryingColor };
 
 enum EndCap      { kEndCapNone = 0,
-                   kEndCapRegular,
+                   kEndCapBSplineBasis,
                    kEndCapGregoryBasis,
                    kEndCapLegacyGregory };
 
@@ -173,7 +173,7 @@ int   g_fullscreen = 0,
       g_freeze = 0,
       g_displayStyle = kWireShaded,
       g_adaptive = 1,
-      g_endCap = kEndCapRegular,
+      g_endCap = kEndCapBSplineBasis,
       g_singleCreasePatch = 1,
       g_drawCageEdges = 1,
       g_drawCageVertices = 0,
@@ -543,9 +543,9 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     bits.set(OpenSubdiv::Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
     bits.set(OpenSubdiv::Osd::MeshInterleaveVarying, interleaveVarying);
     bits.set(OpenSubdiv::Osd::MeshFVarData, g_displayStyle == kFaceVaryingColor);
-    bits.set(OpenSubdiv::Osd::MeshEndCapRegular, g_endCap == kEndCapRegular);
-    bits.set(OpenSubdiv::Osd::MeshEndCapLegacyGregory, g_endCap == kEndCapLegacyGregory);
+    bits.set(OpenSubdiv::Osd::MeshEndCapBSplineBasis, g_endCap == kEndCapBSplineBasis);
     bits.set(OpenSubdiv::Osd::MeshEndCapGregoryBasis, g_endCap == kEndCapGregoryBasis);
+    bits.set(OpenSubdiv::Osd::MeshEndCapLegacyGregory, g_endCap == kEndCapLegacyGregory);
 
     int numVertexElements = 3;
     int numVaryingElements =
@@ -1645,9 +1645,9 @@ initHUD() {
         g_hud.AddPullDownButton(endcap_pulldown,"None",
                                 kEndCapNone,
                                 g_endCap == kEndCapNone);
-        g_hud.AddPullDownButton(endcap_pulldown, "Regular",
-                                kEndCapRegular,
-                                g_endCap == kEndCapRegular);
+        g_hud.AddPullDownButton(endcap_pulldown, "BSpline",
+                                kEndCapBSplineBasis,
+                                g_endCap == kEndCapBSplineBasis);
         g_hud.AddPullDownButton(endcap_pulldown, "GregoryBasis",
                                 kEndCapGregoryBasis,
                                 g_endCap == kEndCapGregoryBasis);

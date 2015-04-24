@@ -26,9 +26,9 @@
 # source & headers
 set(SOURCE_FILES
     error.cpp
-    endCapLegacyGregoryPatchFactory.cpp
+    endCapBSplineBasisPatchFactory.cpp
     endCapGregoryBasisPatchFactory.cpp
-    endCapRegularPatchFactory.cpp
+    endCapLegacyGregoryPatchFactory.cpp
     gregoryBasis.cpp
     interpolate.cpp
     patchDescriptor.cpp
@@ -47,9 +47,9 @@ set(PRIVATE_HEADER_FILES
 
 set(PUBLIC_HEADER_FILES
     error.h
-    endCapLegacyGregoryPatchFactory.h
+    endCapBSplineBasisPatchFactory.h
     endCapGregoryBasisPatchFactory.h
-    endCapRegularPatchFactory.h
+    endCapLegacyGregoryPatchFactory.h
     gregoryBasis.h
     interpolate.h
     patchDescriptor.h

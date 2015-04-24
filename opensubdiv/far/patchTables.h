@@ -171,6 +171,18 @@ public:
         return _vertexValenceTable;
     }
 
+    /// \brief Returns the basis conversion stencil tables to get endcap patch points.
+    ///        This stencil is relative to the max level refined vertices.
+    StencilTables const *GetEndCapVertexStencilTables() const {
+        return _vertexStencilTables;
+    }
+
+    /// \brief Returns the varying stencil tables for the endcap patches
+    ///        which has same ordering as the endcap vertex stencil tables.
+    StencilTables const *GetEndCapVaryingStencilTables() const {
+        return _varyingStencilTables;
+    }
+
     //@}
 
 
@@ -330,8 +342,7 @@ public:
 
 protected:
 
-    template <class T> friend class PatchTablesFactoryT;
-    friend class PatchTablesFactoryBase;
+    friend class PatchTablesFactory;
     friend class EndCapLegacyGregoryPatchFactory;
 
     // Factory constructor
@@ -407,11 +418,15 @@ private:
     PatchParamTable      _paramTable;   // PatchParam bitfields (one per patch)
 
     //
-    // Extraordinary vertex closed-form evaluation
+    // Extraordinary vertex closed-form evaluation / endcap basis conversion
     //
-
+    // XXXtakahito: these data will probably be replaced with mask coefficient or something
+    //              SchemeWorker populates.
+    //
     QuadOffsetsTable     _quadOffsetsTable;   // Quad offsets (for Gregory patches)
     VertexValenceTable   _vertexValenceTable; // Vertex valence table (for Gregory patches)
+    StencilTables const * _vertexStencilTables;  // endcap basis conversion stencils
+    StencilTables const * _varyingStencilTables; // endcap varying stencils (for convenience)
 
     //
     // Face-varying data

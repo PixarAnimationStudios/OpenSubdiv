@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,11 +22,12 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_END_CAP_GREGORY_BASIS_PATCH_FACTORY_H
-#define FAR_END_CAP_GREGORY_BASIS_PATCH_FACTORY_H
+#ifndef FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H
+#define FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H
 
 #include "../far/patchTablesFactory.h"
 #include "../far/gregoryBasis.h"
+#include "../far/protoStencil.h"
 #include "../vtr/level.h"
 
 namespace OpenSubdiv {
@@ -36,45 +37,18 @@ namespace Far {
 
 class TopologyRefiner;
 
-/// \brief A specialized factory to gather Gregory basis control vertices
+/// \brief A BSpline endcap factory
 ///
 /// note: This is an internal use class in PatchTablesFactory, and
 ///       will be replaced with SdcSchemeWorker for mask coefficients
 ///       and Vtr::Level for topology traversal.
 ///
-class EndCapGregoryBasisPatchFactory {
+class EndCapBSplineBasisPatchFactory {
 
 public:
-
-    //
-    // Single patch GregoryBasis basis factory
-    //
-
-    /// \brief Instantiates a GregoryBasis from a TopologyRefiner that has been
-    ///        refined adaptively for a given face.
-    ///
-    /// @param refiner     The TopologyRefiner containing the topology
-    ///
-    /// @param faceIndex   The index of the face (level is assumed to be MaxLevel)
-    ///
-    /// @param fvarChannel Index of face-varying channel topology (default -1)
-    ///
-    static GregoryBasis const * Create(TopologyRefiner const & refiner,
-        Index faceIndex, int fvarChannel=-1);
-
-    /// \brief Returns the maximum valence of a vertex in the mesh that the
-    ///        Gregory patches can handle
-    static int GetMaxValence();
-
-public:
-
-    ///
-    /// Multi-patch Gregory stencils factory
-    ///
-
     // XXXX need to add support for face-varying channel stencils
 
-    /// \brief This factory accumulates vertex for Gregory basis patch
+    /// \brief This factory accumulates vertex for bspline basis end cap
     ///
     /// @param refiner                TopologyRefiner from which to generate patches
     ///
@@ -82,8 +56,7 @@ public:
     ///                               patches. It reduces the number of stencils
     ///                               to be used.
     ///
-    EndCapGregoryBasisPatchFactory(TopologyRefiner const & refiner,
-                                   bool shareBoundaryVertices=true);
+    EndCapBSplineBasisPatchFactory(TopologyRefiner const & refiner);
 
     /// \brief Returns end patch point indices for \a faceIndex of \a level.
     ///        Note that end patch points are not included in the vertices in
@@ -94,11 +67,8 @@ public:
     ///
     /// @param faceIndex        vtr faceIndex at the level
     ///
-    /// @param levelPatchTags   Array of patchTags for all faces in the level
-    ///
     ConstIndexArray GetPatchPoints(
-        Vtr::Level const * level, Index faceIndex,
-        PatchTablesFactory::PatchFaceTag const * levelPatchTags);
+        Vtr::Level const * level, Index faceIndex);
 
     /// \brief Create a StencilTables for end patch points, relative to the max
     ///        subdivision level.
@@ -116,19 +86,11 @@ public:
     }
 
 private:
-
-    /// Creates a basis for the vertices specified in mask on the face and
-    /// accumates it
-    bool addPatchBasis(Index faceIndex, bool newVerticesMask[4][5]);
-
+    TopologyRefiner const *_refiner;
     GregoryBasis::PointsVector _vertexStencils;
     GregoryBasis::PointsVector _varyingStencils;
-
-    TopologyRefiner const *_refiner;
-    bool _shareBoundaryVertices;
-    int _numGregoryBasisVertices;
-    int _numGregoryBasisPatches;
-    std::vector<Index> _faceIndices;
+    int _numVertices;
+    int _numPatches;
     std::vector<Index> _patchPoints;
 };
 
@@ -137,4 +99,4 @@ private:
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
 
-#endif  // FAR_END_CAP_GREGORY_BASIS_PATCH_FACTORY_H
+#endif  // FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H

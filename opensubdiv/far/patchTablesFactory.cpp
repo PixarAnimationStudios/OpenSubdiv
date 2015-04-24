@@ -27,6 +27,9 @@
 #include "../far/topologyRefiner.h"
 #include "../vtr/level.h"
 #include "../vtr/refinement.h"
+#include "../far/endCapBSplineBasisPatchFactory.h"
+#include "../far/endCapGregoryBasisPatchFactory.h"
+#include "../far/endCapLegacyGregoryPatchFactory.h"
 
 #include <algorithm>
 #include <cassert>
@@ -94,12 +97,12 @@ typedef PatchTypes<Far::Index **>     PatchFVarPointers;
 namespace Far {
 
 void
-PatchTablesFactoryBase::PatchFaceTag::clear() {
+PatchTablesFactory::PatchFaceTag::clear() {
     std::memset(this, 0, sizeof(*this));
 }
 
 void
-PatchTablesFactoryBase::PatchFaceTag::assignBoundaryPropertiesFromEdgeMask(int boundaryEdgeMask) {
+PatchTablesFactory::PatchFaceTag::assignBoundaryPropertiesFromEdgeMask(int boundaryEdgeMask) {
     //
     //  The number of rotations to apply for boundary or corner patches varies on both
     //  where the boundary/corner occurs and whether boundary or corner -- so using a
@@ -137,7 +140,7 @@ PatchTablesFactoryBase::PatchFaceTag::assignBoundaryPropertiesFromEdgeMask(int b
 }
 
 void
-PatchTablesFactoryBase::PatchFaceTag::assignBoundaryPropertiesFromVertexMask(int boundaryVertexMask) {
+PatchTablesFactory::PatchFaceTag::assignBoundaryPropertiesFromVertexMask(int boundaryVertexMask) {
     //
     //  This is strictly needed for the irregular case when a vertex is a boundary in
     //  the presence of no boundary edges -- an extra-ordinary face with only one corner
@@ -210,7 +213,7 @@ class FVarChannelCursor {
 public:
 
     FVarChannelCursor(TopologyRefiner const & refiner,
-                      PatchTablesFactoryBase::Options options) {
+                      PatchTablesFactory::Options options) {
         if (options.generateFVarTables) {
             // If client-code does not select specific channels, default to all
             // the channels in the refiner.
@@ -277,7 +280,7 @@ private:
 //
 // Note : struct members are not re-entrant nor are they intended to be !
 //
-struct PatchTablesFactoryBase::AdaptiveContext {
+struct PatchTablesFactory::AdaptiveContext {
 
 public:
     AdaptiveContext(TopologyRefiner const & refiner, Options options);
@@ -334,7 +337,7 @@ public:
 };
 
 // Constructor
-PatchTablesFactoryBase::AdaptiveContext::AdaptiveContext(
+PatchTablesFactory::AdaptiveContext::AdaptiveContext(
     TopologyRefiner const & ref, Options opts) :
     refiner(ref), options(opts), tables(0),
     fvarChannelCursor(ref, opts) {
@@ -343,7 +346,7 @@ PatchTablesFactoryBase::AdaptiveContext::AdaptiveContext(
 }
 
 void
-PatchTablesFactoryBase::AdaptiveContext::AllocateFVarPatchValues(int npatches) {
+PatchTablesFactory::AdaptiveContext::AllocateFVarPatchValues(int npatches) {
 
     FVarChannelCursor & fvc = fvarChannelCursor;
     for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
@@ -360,7 +363,7 @@ PatchTablesFactoryBase::AdaptiveContext::AllocateFVarPatchValues(int npatches) {
 }
 
 bool
-PatchTablesFactoryBase::AdaptiveContext::RequiresFVarPatches() const {
+PatchTablesFactory::AdaptiveContext::RequiresFVarPatches() const {
     return not fvarPatchValues.empty();
 }
 
@@ -368,7 +371,7 @@ PatchTablesFactoryBase::AdaptiveContext::RequiresFVarPatches() const {
 //  Reserves tables based on the contents of the PatchArrayVector in the PatchTables:
 //
 void
-PatchTablesFactoryBase::allocateVertexTables(PatchTables * tables, int /* nlevels */, bool hasSharpness) {
+PatchTablesFactory::allocateVertexTables(PatchTables * tables, int /* nlevels */, bool hasSharpness) {
 
     int ncvs = 0, npatches = 0;
     for (int i=0; i<tables->GetNumPatchArrays(); ++i) {
@@ -392,7 +395,7 @@ PatchTablesFactoryBase::allocateVertexTables(PatchTables * tables, int /* nlevel
 //  Allocate face-varying tables
 //
 void
-PatchTablesFactoryBase::allocateFVarChannels(TopologyRefiner const & refiner,
+PatchTablesFactory::allocateFVarChannels(TopologyRefiner const & refiner,
     Options options, int npatches, PatchTables * tables) {
 
     assert(options.generateFVarTables and
@@ -434,7 +437,7 @@ PatchTablesFactoryBase::allocateFVarChannels(TopologyRefiner const & refiner,
 
 // gather face-varying patch points
 int
-PatchTablesFactoryBase::gatherFVarData(AdaptiveContext & context, int level,
+PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
     Index faceIndex, Index levelFaceOffset, int rotation,
         Index const * levelFVarVertOffsets, Index fofss, Index ** fptrs) {
 
@@ -639,7 +642,7 @@ PatchTablesFactoryBase::gatherFVarData(AdaptiveContext & context, int level,
 //  a pointer to the next descriptor
 //
 PatchParam *
-PatchTablesFactoryBase::computePatchParam(
+PatchTablesFactory::computePatchParam(
     TopologyRefiner const & refiner, PtexIndices const &ptexIndices,
     int depth, Vtr::Index faceIndex, int rotation, int boundaryMask, 
     int transitionMask, PatchParam *coord) {
@@ -718,21 +721,23 @@ assignSharpnessIndex(float sharpness, std::vector<float> & sharpnessValues) {
     return (int)sharpnessValues.size()-1;
 }
 
+//
+//  We should be able to use a single Create() method for both the adaptive and uniform
+//  cases.  In the past, more additional arguments were passed to the uniform version,
+//  but that may no longer be necessary (see notes in the uniform version below)...
+//
 PatchTables *
-PatchTablesFactoryBase::Create(TopologyRefiner const & refiner, Options options) {
+PatchTablesFactory::Create(TopologyRefiner const & refiner, Options options) {
 
     if (refiner.IsUniform()) {
         return createUniform(refiner, options);
     } else {
-        Error(FAR_RUNTIME_ERROR,
-              "PatchTablesFactoryBase can't be used for adaptive patch generation.");
-        return NULL;
+        return createAdaptive(refiner, options);
     }
 }
 
-
 PatchTables *
-PatchTablesFactoryBase::createUniform(TopologyRefiner const & refiner, Options options) {
+PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options options) {
 
     assert(refiner.IsUniform());
 
@@ -881,27 +886,8 @@ PatchTablesFactoryBase::createUniform(TopologyRefiner const & refiner, Options o
     return tables;
 }
 
-//
-//  We should be able to use a single Create() method for both the adaptive and uniform
-//  cases.  In the past, more additional arguments were passed to the uniform version,
-//  but that may no longer be necessary (see notes in the uniform version below)...
-//
-template<typename ENDCAP_FACTORY>
 PatchTables *
-PatchTablesFactoryT<ENDCAP_FACTORY>::Create(TopologyRefiner const & refiner, Options options,
-                                            ENDCAP_FACTORY *endCapFactory) {
-
-    if (refiner.IsUniform()) {
-        return createUniform(refiner, options);
-    } else {
-        return createAdaptive(refiner, options, endCapFactory);
-    }
-}
-
-template<typename ENDCAP_FACTORY>
-PatchTables *
-PatchTablesFactoryT<ENDCAP_FACTORY>::createAdaptive(TopologyRefiner const & refiner, Options options,
-                                                    ENDCAP_FACTORY *endCapFactory) {
+PatchTablesFactory::createAdaptive(TopologyRefiner const & refiner, Options options) {
 
     assert(not refiner.IsUniform());
 
@@ -913,8 +899,7 @@ PatchTablesFactoryT<ENDCAP_FACTORY>::createAdaptive(TopologyRefiner const & refi
     //  First identify the patches -- accumulating the inventory patches for all of the
     //  different types and information about the patch for each face:
     //
-
-    identifyAdaptivePatches(context, endCapFactory);
+    identifyAdaptivePatches(context);
 
     //
     //  Create the instance of the tables and allocate and initialize its members based on
@@ -960,7 +945,7 @@ PatchTablesFactoryT<ENDCAP_FACTORY>::createAdaptive(TopologyRefiner const & refi
     //
     //  Now populate the patches:
     //
-    populateAdaptivePatches(context, ptexIndices, endCapFactory);
+    populateAdaptivePatches(context, ptexIndices);
 
     return context.tables;
 }
@@ -970,10 +955,8 @@ PatchTablesFactoryT<ENDCAP_FACTORY>::createAdaptive(TopologyRefiner const & refi
 //  for each type, and retaining enough information for the patch for each face to populate it
 //  later with no additional analysis.
 //
-template<typename ENDCAP_FACTORY>
 void
-PatchTablesFactoryT<ENDCAP_FACTORY>::identifyAdaptivePatches(
-    AdaptiveContext & context, ENDCAP_FACTORY *endCapFactory) {
+PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
 
     TopologyRefiner const & refiner = context.refiner;
 
@@ -1201,25 +1184,28 @@ PatchTablesFactoryT<ENDCAP_FACTORY>::identifyAdaptivePatches(
                     context.patchInventory.R++;
                 }
             } else {
-                // endcap process is delegated to the end cap factory
-                if (endCapFactory) {
-                    Far::PatchDescriptor::Type type =
-                        endCapFactory->GetPatchType(patchTag);
-                    switch(type) {
-                    case Far::PatchDescriptor::REGULAR:
-                        context.patchInventory.R++; break;
-                    case Far::PatchDescriptor::GREGORY:
-                        context.patchInventory.G++; break;
-                    case Far::PatchDescriptor::GREGORY_BOUNDARY:
-                        context.patchInventory.GB++; break;
-                    case Far::PatchDescriptor::GREGORY_BASIS:
-                        context.patchInventory.GP++; break;
-                    default:
-                        Error(FAR_RUNTIME_ERROR,
-                              "Unsupported endcap patch type %d, level %d, face %d",
-                              type, levelIndex, faceIndex);
-                        break;
+                // select endcap patchtype
+                switch(context.options.GetEndCapType()) {
+                case Options::ENDCAP_GREGORY_BASIS:
+                    context.patchInventory.GP++;
+                    break;
+                case Options::ENDCAP_BSPLINE_BASIS:
+                    context.patchInventory.R++;
+                    break;
+                case Options::ENDCAP_LEGACY_GREGORY:
+                    if (patchTag._boundaryCount == 0) {
+                        context.patchInventory.G++;
+                    } else {
+                        context.patchInventory.GB++;
                     }
+                    break;
+                case Options::ENDCAP_BILINEAR_BASIS:
+                    // not implemented yet
+                    assert(false);
+                    break;
+                default:
+                    // no endcap
+                    break;
                 }
             }
         }
@@ -1232,11 +1218,9 @@ PatchTablesFactoryT<ENDCAP_FACTORY>::identifyAdaptivePatches(
 //  We need the inventory (counts per patch type) and the patch tags per face that were previously
 //  idenified.
 //
-template<typename ENDCAP_FACTORY>
 void
-PatchTablesFactoryT<ENDCAP_FACTORY>::populateAdaptivePatches(
-    AdaptiveContext & context, PtexIndices const & ptexIndices,
-    ENDCAP_FACTORY *endCapFactory) {
+PatchTablesFactory::populateAdaptivePatches(
+    AdaptiveContext & context, PtexIndices const & ptexIndices) {
 
     TopologyRefiner const & refiner = context.refiner;
 
@@ -1301,6 +1285,27 @@ PatchTablesFactoryT<ENDCAP_FACTORY>::populateAdaptivePatches(
          int nchannels = refiner.GetNumFVarChannels();
          levelFVarVertOffsets = (int *)alloca(nchannels);
          memset(levelFVarVertOffsets, 0, nchannels*sizeof(int));
+    }
+
+    // endcap factories
+    // XXX
+    EndCapBSplineBasisPatchFactory *endCapBSpline = NULL;
+    EndCapGregoryBasisPatchFactory *endCapGregoryBasis = NULL;
+    EndCapLegacyGregoryPatchFactory *endCapLegacyGregory = NULL;
+
+    switch(context.options.GetEndCapType()) {
+    case Options::ENDCAP_GREGORY_BASIS:
+        endCapGregoryBasis = new EndCapGregoryBasisPatchFactory(
+            refiner, context.options.shareEndCapPatchPoints);
+        break;
+    case Options::ENDCAP_BSPLINE_BASIS:
+        endCapBSpline = new EndCapBSplineBasisPatchFactory(refiner);
+        break;
+    case Options::ENDCAP_LEGACY_GREGORY:
+        endCapLegacyGregory = new EndCapLegacyGregoryPatchFactory(refiner);
+        break;
+    default:
+        break;
     }
 
     for (int i = 0; i < refiner.GetNumLevels(); ++i) {
@@ -1408,43 +1413,45 @@ PatchTablesFactoryT<ENDCAP_FACTORY>::populateAdaptivePatches(
                 // emit end patch. end patch should be in the max level (until we implement DFAS)
                 assert(i==refiner.GetMaxLevel());
 
-                // end cap factory tells vertex indices. The indices are offsetted
-                // so that they can directly copied into patcharray.
-                if (endCapFactory) {
-                    Far::ConstIndexArray cvs =
-                        endCapFactory->GetTopology(*level, faceIndex,
-                                                   levelPatchTags,
-                                                   levelVertOffset);
+                // switch endcap patchtype by option
+                switch(context.options.GetEndCapType()) {
+                case Options::ENDCAP_GREGORY_BASIS:
+                {
+                    // note: this call will be moved into vtr::level.
+                    ConstIndexArray cvs = endCapGregoryBasis->GetPatchPoints(
+                        level, faceIndex, levelPatchTags);
 
-                    Far::PatchDescriptor::Type type =
-                        endCapFactory->GetPatchType(patchTag);
-                    switch(type) {
-                    case PatchDescriptor::REGULAR:
-                    {
-                        for (int j = 0; j < cvs.size(); ++j) iptrs.R[j] = cvs[j];
-                        iptrs.R += cvs.size();
-                        pptrs.R = computePatchParam(
-                            refiner, ptexIndices, i, faceIndex, 0, /*boundary*/0, /*transition*/0, pptrs.R);
-                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
-                        fofss.R += gatherFVarData(context,
-                                                   i, faceIndex, levelFaceOffset,
-                                                   0, levelFVarVertOffsets, fofss.R, fptrs.R);
-                        break;
-                    }
-                    case PatchDescriptor::GREGORY_BASIS:
-                    {
-                        for (int j = 0; j < cvs.size(); ++j) iptrs.GP[j] = cvs[j];
-                        iptrs.GP += cvs.size();
-                        pptrs.GP = computePatchParam(
-                            refiner, ptexIndices, i, faceIndex, 0, /*boundary*/0, /*transition*/0, pptrs.GP);
-                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
-                        fofss.GP += gatherFVarData(context,
-                                                   i, faceIndex, levelFaceOffset,
-                                                   0, levelFVarVertOffsets, fofss.GP, fptrs.GP);
-                        break;
-                    }
-                    case PatchDescriptor::GREGORY:
-                    {
+                    for (int j = 0; j < cvs.size(); ++j) iptrs.GP[j] = cvs[j];
+                    iptrs.GP += cvs.size();
+                    pptrs.GP = computePatchParam(
+                        refiner, ptexIndices, i, faceIndex, 0, /*boundary*/0, /*transition*/0, pptrs.GP);
+                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
+                    fofss.GP += gatherFVarData(context,
+                                               i, faceIndex, levelFaceOffset,
+                                               0, levelFVarVertOffsets, fofss.GP, fptrs.GP);
+                    break;
+                }
+                case Options::ENDCAP_BSPLINE_BASIS:
+                {
+                    ConstIndexArray cvs = endCapBSpline->GetPatchPoints(
+                        level, faceIndex);
+
+                    for (int j = 0; j < cvs.size(); ++j) iptrs.R[j] = cvs[j];
+                    iptrs.R += cvs.size();
+                    pptrs.R = computePatchParam(
+                        refiner, ptexIndices, i, faceIndex, 0, /*boundary*/0, /*transition*/0, pptrs.R);
+                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
+                    fofss.R += gatherFVarData(context,
+                                              i, faceIndex, levelFaceOffset,
+                                              0, levelFVarVertOffsets, fofss.R, fptrs.R);
+                    break;
+                }
+                case Options::ENDCAP_LEGACY_GREGORY:
+                {
+                    ConstIndexArray cvs = endCapLegacyGregory->GetPatchPoints(
+                        level, faceIndex, levelPatchTags, levelVertOffset);
+
+                    if (patchTag._boundaryCount == 0) {
                         for (int j = 0; j < cvs.size(); ++j) iptrs.G[j] = cvs[j];
                         iptrs.G += cvs.size();
                         pptrs.G = computePatchParam(
@@ -1453,10 +1460,7 @@ PatchTablesFactoryT<ENDCAP_FACTORY>::populateAdaptivePatches(
                         fofss.G += gatherFVarData(context,
                                                   i, faceIndex, levelFaceOffset,
                                                   0, levelFVarVertOffsets, fofss.G, fptrs.G);
-                        break;
-                    }
-                    case PatchDescriptor::GREGORY_BOUNDARY:
-                    {
+                    } else {
                         for (int j = 0; j < cvs.size(); ++j) iptrs.GB[j] = cvs[j];
                         iptrs.GB += cvs.size();
                         pptrs.GB = computePatchParam(
@@ -1465,17 +1469,16 @@ PatchTablesFactoryT<ENDCAP_FACTORY>::populateAdaptivePatches(
                         fofss.GB += gatherFVarData(context,
                                                    i, faceIndex, levelFaceOffset,
                                                    0, levelFVarVertOffsets, fofss.GB, fptrs.GB);
-                        break;
                     }
-                    default:
-                    {
-                        // unknown
-                        Error(FAR_RUNTIME_ERROR,
-                              "Unsupported endcap patch type %d, level %d, face %d",
-                              type, i, faceIndex);
-                        break;
-                    }
-                    }
+                    break;
+                }
+                case Options::ENDCAP_BILINEAR_BASIS:
+                    // not implemented yet
+                    assert(false);
+                    break;
+                default:
+                    // no endcap
+                    break;
                 }
             }
         }
@@ -1487,6 +1490,30 @@ PatchTablesFactoryT<ENDCAP_FACTORY>::populateAdaptivePatches(
                 levelFVarVertOffsets[channel] += level->getNumFVarValues(channel);
             }
         }
+    }
+
+    // finalize end patches
+    switch(context.options.GetEndCapType()) {
+    case Options::ENDCAP_GREGORY_BASIS:
+        tables->_vertexStencilTables =
+            endCapGregoryBasis->CreateVertexStencilTables();
+        tables->_varyingStencilTables =
+            endCapGregoryBasis->CreateVertexStencilTables();
+        delete endCapGregoryBasis;
+        break;
+    case Options::ENDCAP_BSPLINE_BASIS:
+        tables->_vertexStencilTables =
+            endCapBSpline->CreateVertexStencilTables();
+        tables->_varyingStencilTables =
+            endCapBSpline->CreateVertexStencilTables();
+        delete endCapBSpline;
+        break;
+    case Options::ENDCAP_LEGACY_GREGORY:
+        endCapLegacyGregory->Finalize(tables);
+        delete endCapLegacyGregory;
+        break;
+    default:
+        break;
     }
 
     if (context.RequiresFVarPatches()) {
@@ -1509,21 +1536,3 @@ PatchTablesFactoryT<ENDCAP_FACTORY>::populateAdaptivePatches(
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
 
-
-// explicit instantiations
-#include "../far/endCapGregoryBasisPatchFactory.h"
-#include "../far/endCapLegacyGregoryPatchFactory.h"
-#include "../far/endCapRegularPatchFactory.h"
-namespace OpenSubdiv
-{
-namespace OPENSUBDIV_VERSION
-{
-namespace Far
-{
-    template class PatchTablesFactoryT<EndCapGregoryBasisPatchFactory>;
-    template class PatchTablesFactoryT<EndCapLegacyGregoryPatchFactory>;
-    template class PatchTablesFactoryT<EndCapRegularPatchFactory>;
-    template class PatchTablesFactoryT<EndCapNoneFactory>;
-}
-}
-}
