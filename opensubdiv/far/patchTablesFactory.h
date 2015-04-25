@@ -167,7 +167,7 @@ private:
 
     static PatchParam * computePatchParam(TopologyRefiner const & refiner,
         PtexIndices const & ptexIndices,
-        int level, int face, int rotation,
+        int level, int face,
         int boundaryMask, int transitionMask, PatchParam * coord);
 
     static int gatherFVarData(AdaptiveContext & state,

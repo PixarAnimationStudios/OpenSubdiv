@@ -182,20 +182,32 @@ offsetAndPermuteIndices(Far::Index const indices[], int count,
                         Far::Index offset, int const permutation[],
                         Far::Index result[]) {
 
+    // The patch vertices for boundary and corner patches
+    // are assigned index values even though indices will
+    // be undefined along boundary and corner edges.
+    // When the resulting patch tables are going to be used
+    // as indices for drawing, it is convenient for invalid
+    // indices to be replaced with known good values, such
+    // as the first un-permuted index, which is the index
+    // of the first vertex of the patch face.
+    Far::Index knownGoodIndex = indices[0];
+
     if (permutation) {
         for (int i = 0; i < count; ++i) {
-            if (permutation[i] < 0) { // XXXdyu-patch-drawing
-                result[i] = offset + indices[0]; // XXXdyu-patch-drawing
-            } else {
-                result[i] = offset + indices[permutation[i]];
+            Far::Index index = indices[permutation[i]];
+            if (index == Vtr::INDEX_INVALID) {
+                index = knownGoodIndex;
             }
-        }
-    } else if (offset) {
-        for (int i = 0; i < count; ++i) {
-            result[i] = offset + indices[i];
+            result[i] = offset + index;
         }
     } else {
-        std::memcpy(result, indices, count * sizeof(Far::Index));
+        for (int i = 0; i < count; ++i) {
+            Far::Index index = indices[i];
+            if (index == Vtr::INDEX_INVALID) {
+                index = knownGoodIndex;
+            }
+            result[i] = offset + index;
+        }
     }
 }
 
@@ -644,7 +656,7 @@ PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
 PatchParam *
 PatchTablesFactory::computePatchParam(
     TopologyRefiner const & refiner, PtexIndices const &ptexIndices,
-    int depth, Vtr::Index faceIndex, int rotation, int boundaryMask, 
+    int depth, Vtr::Index faceIndex, int boundaryMask, 
     int transitionMask, PatchParam *coord) {
 
     if (coord == NULL) return NULL;
@@ -694,9 +706,6 @@ PatchTablesFactory::computePatchParam(
         ptexIndex+=childIndexInParent;
         --depth;
     }
-
-    boundaryMask = ((((boundaryMask << 4) | boundaryMask) >> rotation)) & 0xf;
-    transitionMask = ((((transitionMask << 4) | transitionMask) >> rotation)) & 0xf;
 
     coord->Set(ptexIndex, (short)u, (short)v, (unsigned char) depth, nonquad,
                (unsigned short) boundaryMask, (unsigned short) transitionMask);
@@ -841,7 +850,7 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
                     *iptr++ = levelVertOffset + fverts[vert];
                 }
 
-                pptr = computePatchParam(refiner, ptexIndices, level, face, /*rot*/0, /*boundary*/0, /*transition*/0, pptr);
+                pptr = computePatchParam(refiner, ptexIndices, level, face, /*boundary*/0, /*transition*/0, pptr);
 
                 if (generateFVarPatches) {
                     for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
@@ -1331,83 +1340,36 @@ PatchTablesFactory::populateAdaptivePatches(
                 int boundaryMask = patchTag._boundaryMask;
                 int transitionMask = patchTag._transitionMask;
 
-                if (!patchTag._isSingleCrease and patchTag._boundaryCount == 0) {
-                    int const permuteInterior[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
-
-                    level->gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, /*rotation*/0);
-                    offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteInterior, iptrs.R);
+                if (!patchTag._isSingleCrease) {
+                    int const permuteRegular[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
+                    level->gatherQuadRegularPatchPoints(faceIndex, patchVerts, boundaryMask);
+                    offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteRegular, iptrs.R);
 
                     iptrs.R += 16;
-                    pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, /*rotation*/0, /*boundary*/0, transitionMask, pptrs.R);
+                    pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, boundaryMask, transitionMask, pptrs.R);
                     // XXX: sharpness will be integrated into patch param soon.
                     if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
 
                     fofss.R += gatherFVarData(context,
                         i, faceIndex, levelFaceOffset, /*rotation*/0, levelFVarVertOffsets, fofss.R, fptrs.R);
                 } else {
-                    //  For the boundary and corner cases, the Hbr code makes some adjustments to the
-                    //  rotations here from the way they were defined earlier.  That raises questions
-                    //  as to the purpose of the earlier assignments and their naming.  I'd prefer to
-                    //  label the sets of rotations for their intended purpose, and to compute and
-                    //  assign them earlier for use here with no adjustment.
-                    //
-                    //  Non-transition case:
-                    //      rot = 0;  // outside switch
-                    //      f->_adaptiveFlags.brots = (f->_adaptiveFlags.rots + 1) % 4;
-                    //  Transition case:
-                    //      rot = f->_adaptiveFlags.brots;  //  is this now same as transition rots?
-                    //
-                    //  Both cases of "rot" above are now handled with the "transition rotation" -- still
-                    //  not clear what the purpose of the other is.  Need to look into usage of these
-                    //  adaptive-flag rotations in:
-                    //      getOneRing, computePatchParam, computeFVarData
-                    //  It may be that a separate "face rotation" flag is warranted if we need something
-                    //  else dependent on the boundary orientation.
-                    //
-                    if (patchTag._isSingleCrease and patchTag._boundaryCount==0) {
-                        int const permuteInterior[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
-                        level->gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, bIndex);
-                        offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteInterior, iptrs.R);
+                    int const permuteInterior[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
+                    level->gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, bIndex);
+                    offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteInterior, iptrs.R);
 
-                        int creaseEdge = (bIndex+2)%4;
-                        float sharpness = level->getEdgeSharpness((level->getFaceEdges(faceIndex)[creaseEdge]));
-                        sharpness = std::min(sharpness, (float)(context.options.maxIsolationLevel-i));
+                    int creaseEdge = (bIndex+2)%4;
+                    float sharpness = level->getEdgeSharpness((level->getFaceEdges(faceIndex)[creaseEdge]));
+                    sharpness = std::min(sharpness, (float)(context.options.maxIsolationLevel-i));
 
-                        iptrs.R += 16;
-                        pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, bIndex, /*boundary*/0, transitionMask, pptrs.R);
-                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(sharpness, tables->_sharpnessValues);
+                    // rotate transition mask to align with crease edge
+                    transitionMask = ((((transitionMask << 4) | transitionMask) >> bIndex)) & 0xf;
 
-                        fofss.R += gatherFVarData(context,
-                            i, faceIndex, levelFaceOffset, bIndex, levelFVarVertOffsets, fofss.R, fptrs.R);
-                    } else if (patchTag._boundaryCount == 1) {
-                        int const permuteBoundary[16] = { -1, 4, 5, 6, -1, 0, 1, 7, -1, 3, 2, 8, -1, 11, 10, 9 };
+                    iptrs.R += 16;
+                    pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, /*boundary*/0, transitionMask, pptrs.R);
+                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(sharpness, tables->_sharpnessValues);
 
-                        level->gatherQuadRegularBoundaryPatchPoints(faceIndex, patchVerts, bIndex);
-                        offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteBoundary, iptrs.R);
-
-                        bIndex = (bIndex+1)%4;
-
-                        iptrs.R += 16;
-                        pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, bIndex, boundaryMask, transitionMask, pptrs.R);
-
-                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
-
-                        fofss.R += gatherFVarData(context,
-                            i, faceIndex, levelFaceOffset, /*rotation*/0, levelFVarVertOffsets, fofss.R, fptrs.R);
-                    } else {
-                        int const permuteCorner[16] = { -1, -1, -1, -1, -1, 0, 1, 4, -1, 3, 2, 5, -1, 8, 7, 6 };
-
-                        level->gatherQuadRegularCornerPatchPoints(faceIndex, patchVerts, bIndex);
-                        offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteCorner, iptrs.R);
-
-                        iptrs.R += 16;
-                        pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, bIndex, boundaryMask, transitionMask, pptrs.R);
-
-                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
-
-                        fofss.R += gatherFVarData(context,
-                            i, faceIndex, levelFaceOffset, /*rotation*/0, levelFVarVertOffsets, fofss.R, fptrs.R);
-                    }
+                    fofss.R += gatherFVarData(context,
+                        i, faceIndex, levelFaceOffset, bIndex, levelFVarVertOffsets, fofss.R, fptrs.R);
                 }
             } else {
                 // emit end patch. end patch should be in the max level (until we implement DFAS)
@@ -1424,7 +1386,7 @@ PatchTablesFactory::populateAdaptivePatches(
                     for (int j = 0; j < cvs.size(); ++j) iptrs.GP[j] = cvs[j];
                     iptrs.GP += cvs.size();
                     pptrs.GP = computePatchParam(
-                        refiner, ptexIndices, i, faceIndex, 0, /*boundary*/0, /*transition*/0, pptrs.GP);
+                        refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.GP);
                     if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
                     fofss.GP += gatherFVarData(context,
                                                i, faceIndex, levelFaceOffset,
@@ -1439,7 +1401,7 @@ PatchTablesFactory::populateAdaptivePatches(
                     for (int j = 0; j < cvs.size(); ++j) iptrs.R[j] = cvs[j];
                     iptrs.R += cvs.size();
                     pptrs.R = computePatchParam(
-                        refiner, ptexIndices, i, faceIndex, 0, /*boundary*/0, /*transition*/0, pptrs.R);
+                        refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.R);
                     if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
                     fofss.R += gatherFVarData(context,
                                               i, faceIndex, levelFaceOffset,
@@ -1455,7 +1417,7 @@ PatchTablesFactory::populateAdaptivePatches(
                         for (int j = 0; j < cvs.size(); ++j) iptrs.G[j] = cvs[j];
                         iptrs.G += cvs.size();
                         pptrs.G = computePatchParam(
-                            refiner, ptexIndices, i, faceIndex, 0, /*boundary*/0, /*transition*/0, pptrs.G);
+                            refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.G);
                         if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
                         fofss.G += gatherFVarData(context,
                                                   i, faceIndex, levelFaceOffset,
@@ -1464,7 +1426,7 @@ PatchTablesFactory::populateAdaptivePatches(
                         for (int j = 0; j < cvs.size(); ++j) iptrs.GB[j] = cvs[j];
                         iptrs.GB += cvs.size();
                         pptrs.GB = computePatchParam(
-                            refiner, ptexIndices, i, faceIndex, 0, /*boundary*/0, /*transition*/0, pptrs.GB);
+                            refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.GB);
                         if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
                         fofss.GB += gatherFVarData(context,
                                                    i, faceIndex, levelFaceOffset,
