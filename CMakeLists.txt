@@ -360,7 +360,7 @@ endif()
 
 if (NOT NO_DOC)
     find_package(Doxygen 1.8.4)
-    find_package(Docutils 0.6)
+    find_package(Docutils 0.9)
 else()
     set(DOXYGEN_EXECUTABLE )
 endif()
