@@ -27,6 +27,7 @@
 #include "../vtr/level.h"
 #include "../vtr/refinement.h"
 #include "../vtr/fvarLevel.h"
+#include "../vtr/stackBuffer.h"
 
 #include <cassert>
 #include <cstdio>
@@ -287,7 +288,7 @@ Level::validateTopology(ValidationCallback callback, void const * clientData) co
     //  Verify that vert-faces and vert-edges are properly ordered and in sync:
     //      - currently this requires the relations exactly match those that we construct from
     //        the ordering method, i.e. we do not allow rotations for interior vertices.
-    Index * indexBuffer = (Index*) alloca(2 * _maxValence * sizeof(Index));
+    internal::StackBuffer<Index,64> indexBuffer(2 * _maxValence);
 
     for (int vIndex = 0; vIndex < getNumVertices(); ++vIndex) {
         if (_vertTags[vIndex]._incomplete || _vertTags[vIndex]._nonManifold) continue;
@@ -2007,8 +2008,10 @@ Level::orderVertexFacesAndEdges(Index vIndex) {
     IndexArray vFaces = this->getVertexFaces(vIndex);
     IndexArray vEdges = this->getVertexEdges(vIndex);
 
-    Index * vFacesOrdered = (Index *)alloca((vFaces.size() + vEdges.size()) * sizeof(Index));
-    Index * vEdgesOrdered = vFacesOrdered + vFaces.size();
+    internal::StackBuffer<Index,64> indexBuffer(vFaces.size() + vEdges.size());
+
+    Index * vFacesOrdered = indexBuffer;
+    Index * vEdgesOrdered = indexBuffer + vFaces.size();
 
     if (orderVertexFacesAndEdges(vIndex, vFacesOrdered, vEdgesOrdered)) {
         std::memcpy(&vFaces[0], vFacesOrdered, vFaces.size() * sizeof(Index));

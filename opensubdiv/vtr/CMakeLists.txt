@@ -45,6 +45,7 @@ set(PUBLIC_HEADER_FILES
      quadRefinement.h
      refinement.h
      sparseSelector.h
+     stackBuffer.h
      triRefinement.h
      types.h
 )

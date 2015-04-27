@@ -29,6 +29,7 @@
 #include "../sdc/types.h"
 #include "../sdc/crease.h"
 #include "../vtr/types.h"
+#include "../vtr/stackBuffer.h"
 
 #include <vector>
 
@@ -173,7 +174,7 @@ public:  //  Generic interface expected of <typename VERT>:
 
     float  GetChildSharpness(Sdc::Crease const&) const { return _child->getVertexSharpness(_cIndex); }
     float* GetChildSharpnessPerEdge(Sdc::Crease const& crease, float cSharpness[]) const {
-        float * pSharpness = (float *)alloca(_eCount*sizeof(float));
+        internal::StackBuffer<float> pSharpness(_eCount);
         GetSharpnessPerEdge(pSharpness);
         crease.SubdivideEdgeSharpnessesAroundVertex(_eCount, pSharpness, cSharpness);
         return cSharpness;

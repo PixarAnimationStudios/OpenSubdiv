@@ -30,6 +30,7 @@
 #include "../vtr/fvarLevel.h"
 #include "../vtr/fvarRefinement.h"
 #include "../vtr/maskInterfaces.h"
+#include "../vtr/stackBuffer.h"
 
 #include <cassert>
 #include <cstdio>
@@ -876,9 +877,9 @@ Refinement::subdivideEdgeSharpness() {
     //  non-trivial creasing method like Chaikin is used.  This is not being
     //  done now but is worth considering...
     //
-    float * pVertEdgeSharpness = 0;
+    internal::StackBuffer<float,8> pVertEdgeSharpness;
     if (!creasing.IsUniform()) {
-        pVertEdgeSharpness = (float *)alloca(_parent->getMaxValence() * sizeof(float));
+        pVertEdgeSharpness.Reserve(_parent->getMaxValence());
     }
 
     Index cEdge    = getFirstChildEdgeFromEdges();

@@ -24,6 +24,7 @@
 #include "../sdc/types.h"
 #include "../sdc/crease.h"
 #include "../vtr/array.h"
+#include "../vtr/stackBuffer.h"
 #include "../vtr/level.h"
 
 #include "../vtr/fvarLevel.h"
@@ -183,12 +184,10 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
     int const maxValence = _level.getMaxValence();
 
-    //  Curse MSVC again for no VLA's and the need to use alloca() -- review the use of
-    //  these further as some can be shared or potentially avoided entirely...
-    Index *     indexBuffer   = (Index *)alloca(maxValence*sizeof(Index));
-    int *       valueBuffer   = (int *)alloca(maxValence*sizeof(int));
-    Sibling *   siblingBuffer = (Sibling *)alloca(maxValence*sizeof(Sibling));
-    ValueSpan * spanBuffer    = (ValueSpan *)alloca(maxValence*sizeof(ValueSpan));
+    internal::StackBuffer<Index>     indexBuffer(maxValence);
+    internal::StackBuffer<int>       valueBuffer(maxValence);
+    internal::StackBuffer<Sibling>   siblingBuffer(maxValence);
+    internal::StackBuffer<ValueSpan> spanBuffer(maxValence);
 
     int *     uniqueValues   = valueBuffer;
     Sibling * vValueSiblings = siblingBuffer;
