@@ -60,9 +60,9 @@ public:
     ///
     /// @param deviceContext         The D3D device
     ///
-    static D3D11ComputeContext * Create(ID3D11DeviceContext *deviceContext,
-                                           Far::StencilTables const * vertexStencilTables,
-                                           Far::StencilTables const * varyingStencilTables=0);
+    static D3D11ComputeContext * Create(Far::StencilTables const * vertexStencilTables,
+                                        Far::StencilTables const * varyingStencilTables,
+                                        ID3D11DeviceContext *deviceContext);
 
     /// Destructor
     virtual ~D3D11ComputeContext();
@@ -104,9 +104,9 @@ public:
 
 protected:
 
-    explicit D3D11ComputeContext(ID3D11DeviceContext *deviceContext,
-                                    Far::StencilTables const * vertexStencilTables,
-                                    Far::StencilTables const * varyingStencilTables);
+    explicit D3D11ComputeContext(Far::StencilTables const * vertexStencilTables,
+                                 Far::StencilTables const * varyingStencilTables,
+                                 ID3D11DeviceContext *deviceContext);
 
 private:
 

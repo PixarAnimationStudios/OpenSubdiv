@@ -365,8 +365,8 @@ checkMeshCL( FarTopologyRefiner *refiner,
     Far::StencilTables const *vertexStencils;
     Far::StencilTables const *varyingStencils;
     buildStencilTables(*refiner, &vertexStencils, &varyingStencils);
-    Osd::CLComputeContext *context = Osd::CLComputeContext::Create(g_clContext, 
-        vertexStencils, varyingStencils);
+    Osd::CLComputeContext *context = Osd::CLComputeContext::Create(
+        vertexStencils, varyingStencils, g_clContext);
 
     Osd::CLGLVertexBuffer *vb = 
         Osd::CLGLVertexBuffer::Create(3, refiner->GetNumVerticesTotal(), 

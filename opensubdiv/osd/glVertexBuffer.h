@@ -28,6 +28,7 @@
 #include "../version.h"
 
 #include "../osd/opengl.h"
+#include <cstddef>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -44,14 +45,16 @@ namespace Osd {
 class GLVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static GLVertexBuffer * Create(int numElements, int numVertices);
+    static GLVertexBuffer * Create(int numElements, int numVertices,
+                                   void *deviceContext = NULL);
 
     /// Destructor.
     ~GLVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
-    void UpdateData(const float *src, int startVertex, int numVertices);
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    void *deviceContext = NULL);
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;
@@ -60,7 +63,7 @@ public:
     int GetNumVertices() const;
 
     /// Returns the GL buffer object.
-    GLuint BindVBO();
+    GLuint BindVBO(void *deviceContext = NULL);
 
 protected:
     /// Constructor.

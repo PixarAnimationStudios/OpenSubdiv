@@ -27,14 +27,11 @@
 
 #include "../version.h"
 
+#include <cstddef>
+
 #include "../far/patchTables.h"
 #include "../osd/drawContext.h"
-#include "../osd/drawRegistry.h"
-#include "../osd/vertex.h"
-
 #include "../osd/opengl.h"
-
-#include <map>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -47,8 +44,8 @@ namespace Osd {
 /// Some functionality may be disabled depending on compile and run-time driver
 /// support.
 ///
-/// Contexts interface the serialized topological data pertaining to the 
-/// geometric primitives with the capabilities of the selected discrete 
+/// Contexts interface the serialized topological data pertaining to the
+/// geometric primitives with the capabilities of the selected discrete
 /// compute device.
 ///
 class GLDrawContext : public DrawContext {
@@ -63,14 +60,17 @@ public:
     ///
     /// @param numVertexElements    the number of vertex elements
     ///
-    static GLDrawContext * Create(Far::PatchTables const * patchTables, int numVertexElements);
+    static GLDrawContext * Create(Far::PatchTables const * patchTables,
+                                  int numVertexElements,
+                                  void *deviceContext = NULL);
 
     /// Set vbo as a vertex texture (for gregory patch drawing)
     ///
     /// @param vbo  the vertex buffer object to update
     ///
     template<class VERTEX_BUFFER>
-    void UpdateVertexTexture(VERTEX_BUFFER *vbo) {
+    void UpdateVertexTexture(VERTEX_BUFFER *vbo, void *deviceContext = NULL) {
+        (void)(deviceContext); // unused parameter
         if (vbo)
             updateVertexTexture(vbo->BindVBO());
     }
@@ -119,13 +119,15 @@ public:
     ///
     /// @param fvarData         Vector containing the face-varying data
     ///
+    /// @param deviceContext    (not used)
+    ///
     /// @return                 True if the operation was successful
     ///
     bool SetFVarDataTexture(Far::PatchTables const & patchTables,
-                            int fvarWidth, FVarData const & fvarData);
+                            int fvarWidth, FVarData const & fvarData,
+                            void *deviceContext = NULL);
 
 protected:
-
     GLuint _patchIndexBuffer;
 
     GLuint _patchParamTextureBuffer;

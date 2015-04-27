@@ -63,11 +63,11 @@ D3D11DrawContext::~D3D11DrawContext()
 
 D3D11DrawContext *
 D3D11DrawContext::Create(Far::PatchTables const *patchTables,
-                            ID3D11DeviceContext *pd3d11DeviceContext,
-                            int numVertexElements)
+                         int numVertexElements,
+                         ID3D11DeviceContext *pd3d11DeviceContext)
 {
     D3D11DrawContext * result = new D3D11DrawContext();
-    if (result->create(*patchTables, pd3d11DeviceContext, numVertexElements))
+    if (result->create(*patchTables, numVertexElements, pd3d11DeviceContext))
         return result;
 
     delete result;
@@ -76,8 +76,8 @@ D3D11DrawContext::Create(Far::PatchTables const *patchTables,
 
 bool
 D3D11DrawContext::create(Far::PatchTables const &patchTables,
-                            ID3D11DeviceContext *pd3d11DeviceContext,
-                            int numVertexElements)
+                         int numVertexElements,
+                         ID3D11DeviceContext *pd3d11DeviceContext)
 {
     // adaptive patches
     _isAdaptive = patchTables.IsFeatureAdaptive();
@@ -234,8 +234,8 @@ D3D11DrawContext::create(Far::PatchTables const &patchTables,
 
 bool
 D3D11DrawContext::SetFVarDataTexture(Far::PatchTables const & patchTables,
-                                        ID3D11DeviceContext *pd3d11DeviceContext,
-                                        int fvarWidth, FVarData const & fvarData) {
+                                     int fvarWidth, FVarData const & fvarData,
+                                     ID3D11DeviceContext *pd3d11DeviceContext) {
 
     if (not fvarData.empty()) {
 

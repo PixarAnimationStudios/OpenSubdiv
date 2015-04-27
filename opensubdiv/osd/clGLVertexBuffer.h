@@ -47,16 +47,29 @@ namespace Osd {
 class CLGLVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static CLGLVertexBuffer * Create(int numElements, 
-                                        int numVertices, 
-                                        cl_context clContext);
+    static CLGLVertexBuffer * Create(int numElements,
+                                     int numVertices,
+                                     cl_context clContext);
+
+    template <typename DEVICE_CONTEXT>
+    static CLGLVertexBuffer * Create(int numElements, int numVertices,
+                                     DEVICE_CONTEXT context) {
+        return Create(numElements, numVertices, context->GetContext());
+    }
 
     /// Destructor.
     ~CLGLVertexBuffer();
 
-    /// This method is meant to be used in client code in order to provide coarse
-    /// vertices data to Osd.
-    void UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue clQueue);
+    /// This method is meant to be used in client code in order to provide
+    /// coarse vertices data to Osd.
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    cl_command_queue clQueue);
+
+    template<typename DEVICE_CONTEXT>
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    DEVICE_CONTEXT context) {
+        UpdateData(src, startVertex, numVertices, context->GetCommandQueue());
+    }
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;
@@ -70,7 +83,7 @@ public:
 
     /// Returns the GL buffer object. If the buffer is mapped to CL memory
     /// space, it will be unmapped back to GL.
-    GLuint BindVBO();
+    GLuint BindVBO(void *deviceContext = NULL);
 
 protected:
     /// Constructor.
@@ -94,7 +107,6 @@ private:
     cl_mem _clMemory;
 
     bool _clMapped;
-
 };
 
 }  // end namespace Osd

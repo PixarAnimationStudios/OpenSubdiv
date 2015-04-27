@@ -190,11 +190,11 @@ private:
 // ----------------------------------------------------------------------------
 
 D3D11ComputeContext::D3D11ComputeContext(
-    ID3D11DeviceContext *deviceContext,
-        Far::StencilTables const * vertexStencilTables,
-            Far::StencilTables const * varyingStencilTables) :
-                _vertexStencilTables(0), _varyingStencilTables(0),
-                    _numControlVertices(0) {
+    Far::StencilTables const * vertexStencilTables,
+    Far::StencilTables const * varyingStencilTables,
+    ID3D11DeviceContext *deviceContext) :
+    _vertexStencilTables(0), _varyingStencilTables(0),
+    _numControlVertices(0) {
 
     if (vertexStencilTables) {
         _vertexStencilTables =
@@ -267,12 +267,13 @@ D3D11ComputeContext::UnbindStencilTables(ID3D11DeviceContext *deviceContext) con
 // ----------------------------------------------------------------------------
 
 D3D11ComputeContext *
-D3D11ComputeContext::Create(ID3D11DeviceContext *deviceContext,
-    Far::StencilTables const * vertexStencilTables,
-        Far::StencilTables const * varyingStencilTables) {
+D3D11ComputeContext::Create(Far::StencilTables const * vertexStencilTables,
+                            Far::StencilTables const * varyingStencilTables,
+                            ID3D11DeviceContext *deviceContext) {
 
     D3D11ComputeContext *result =
-        new D3D11ComputeContext(deviceContext, vertexStencilTables, varyingStencilTables);
+        new D3D11ComputeContext(vertexStencilTables, varyingStencilTables,
+                                deviceContext);
 
     return result;
 }

@@ -39,7 +39,7 @@ namespace Osd {
 template <class T> void *
 createCudaBuffer(std::vector<T> const & src) {
 
-    void * devicePtr=0;
+    void * devicePtr = 0;
 
     size_t size = src.size()*sizeof(T);
 
@@ -61,8 +61,7 @@ createCudaBuffer(std::vector<T> const & src) {
 class CudaComputeContext::CudaStencilTables {
 
 public:
-
-    CudaStencilTables(Far::StencilTables const & stencilTables) {
+    explicit CudaStencilTables(Far::StencilTables const & stencilTables) {
         _numStencils = stencilTables.GetNumStencils();
         if (_numStencils > 0) {
             _sizes = createCudaBuffer(stencilTables.GetSizes());
@@ -130,7 +129,8 @@ CudaComputeContext::CudaComputeContext(
         _varyingStencilTables = new CudaStencilTables(*varyingStencilTables);
 
         if (_numControlVertices) {
-            assert(_numControlVertices==varyingStencilTables->GetNumControlVertices());
+            assert(_numControlVertices ==
+                   varyingStencilTables->GetNumControlVertices());
         } else {
             _numControlVertices = varyingStencilTables->GetNumControlVertices();
         }
@@ -212,7 +212,8 @@ CudaComputeContext::GetVaryingStencilTablesWeights() const {
 
 CudaComputeContext *
 CudaComputeContext::Create(Far::StencilTables const * vertexStencilTables,
-                              Far::StencilTables const * varyingStencilTables) {
+                           Far::StencilTables const * varyingStencilTables,
+                           void * /*deviceContext*/) {
 
     CudaComputeContext *result =
         new CudaComputeContext(vertexStencilTables, varyingStencilTables);

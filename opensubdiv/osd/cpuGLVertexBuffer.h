@@ -27,6 +27,7 @@
 
 #include "../version.h"
 
+#include <cstddef>
 #include "../osd/opengl.h"
 
 namespace OpenSubdiv {
@@ -37,7 +38,7 @@ namespace Osd {
 ///
 /// \brief Concrete vertex buffer class for cpu subvision and OpenGL drawing.
 ///
-/// CpuGLVertexBuffer implements CpuVertexBufferInterface and 
+/// CpuGLVertexBuffer implements CpuVertexBufferInterface and
 /// GLVertexBufferInterface.
 ///
 /// The buffer interop between Cpu and GL is handled automatically when a
@@ -46,14 +47,16 @@ namespace Osd {
 class CpuGLVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static CpuGLVertexBuffer * Create(int numElements, int numVertices);
+    static CpuGLVertexBuffer * Create(int numElements, int numVertices,
+                                      void *deviceContext = NULL);
 
     /// Destructor.
     ~CpuGLVertexBuffer();
 
-    /// This method is meant to be used in client code in order to provide coarse
-    /// vertices data to Osd.
-    void UpdateData(const float *src, int startVertex, int numVertices);
+    /// This method is meant to be used in client code in order to provide
+    /// coarse vertices data to Osd.
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    void *deviceContext = NULL);
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;
@@ -67,7 +70,7 @@ public:
 
     /// Returns the name of GL buffer object. If the buffer is mapped
     /// to cpu address, it will be unmapped back to GL.
-    GLuint BindVBO();
+    GLuint BindVBO(void *deviceContext = NULL);
 
 protected:
     /// Constructor.

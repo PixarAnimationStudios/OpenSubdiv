@@ -389,7 +389,7 @@ Topology(Far::PatchTables const * patchTables,
     Far::StencilTables const * vertexStencils, Far::StencilTables const * varyingStencils) :
         TopologyBase(patchTables), _computeController(g_clContext, g_clQueue) {
 
-    _computeContext = ComputeContext::Create(g_clContext, vertexStencils, varyingStencils);
+    _computeContext = ComputeContext::Create(vertexStencils, varyingStencils, g_clContext);
 
     _numVertices = vertexStencils->GetNumStencils() +
         vertexStencils->GetNumControlVertices();
