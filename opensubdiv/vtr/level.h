@@ -309,9 +309,6 @@ public:
     int gatherQuadLinearPatchPoints(Index fIndex, Index patchPoints[], int rotation = 0,
                                                                        int fvarChannel = -1) const;
 
-    int gatherQuadRegularPatchPoints(Index fIndex, Index patchPoints[], int boundaryMask = 0,
-                                                                        int rotation = 0,
-                                                                        int fvarChannel = -1) const;
     int gatherQuadRegularInteriorPatchPoints(Index fIndex, Index patchPoints[], int rotation = 0,
                                                                                 int fvarChannel = -1) const;
     int gatherQuadRegularBoundaryPatchPoints(Index fIndex, Index patchPoints[], int boundaryEdgeInFace,

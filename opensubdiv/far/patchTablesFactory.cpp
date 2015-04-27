@@ -194,20 +194,18 @@ offsetAndPermuteIndices(Far::Index const indices[], int count,
 
     if (permutation) {
         for (int i = 0; i < count; ++i) {
-            Far::Index index = indices[permutation[i]];
-            if (index == Vtr::INDEX_INVALID) {
-                index = knownGoodIndex;
+            if (permutation[i] < 0) {
+                result[i] = offset + knownGoodIndex;
+            } else {
+                result[i] = offset + indices[permutation[i]];
             }
-            result[i] = offset + index;
+        }
+    } else if (offset) {
+        for (int i = 0; i < count; ++i) {
+            result[i] = offset + indices[i];
         }
     } else {
-        for (int i = 0; i < count; ++i) {
-            Far::Index index = indices[i];
-            if (index == Vtr::INDEX_INVALID) {
-                index = knownGoodIndex;
-            }
-            result[i] = offset + index;
-        }
+        std::memcpy(result, indices, count * sizeof(Far::Index));
     }
 }
 
@@ -1341,9 +1339,35 @@ PatchTablesFactory::populateAdaptivePatches(
                 int transitionMask = patchTag._transitionMask;
 
                 if (!patchTag._isSingleCrease) {
-                    int const permuteRegular[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
-                    level->gatherQuadRegularPatchPoints(faceIndex, patchVerts, boundaryMask);
-                    offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteRegular, iptrs.R);
+                    int const * permutation = 0;
+
+                    if (patchTag._boundaryCount == 0) {
+                        static int const permuteRegular[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
+                        permutation = permuteRegular;
+                        level->gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, bIndex);
+                    } else if (patchTag._boundaryCount == 1) {
+                        // Expand boundary patch vertices and rotate to restore correct orientation.
+                        static int const permuteBoundary[4][16] = {
+                            { -1, -1, -1, -1, 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 },
+                            { 9, 10, 11, -1, 8, 2, 3, -1, 7, 1, 0, -1, 6, 5, 4, -1 },
+                            { 6, 7, 8, 9, 5, 1, 2, 10, 4, 0, 3, 11, -1, -1, -1, -1 },
+                            { -1, 4, 5, 6, -1, 0, 1, 7, -1, 3, 2, 8, -1, 11, 10, 9 } };
+                        permutation = permuteBoundary[bIndex];
+                        level->gatherQuadRegularBoundaryPatchPoints(faceIndex, patchVerts, bIndex);
+                    } else if (patchTag._boundaryCount == 2) {
+                        // Expand corner patch vertices and rotate to restore correct orientation.
+                        static int const permuteCorner[4][16] = {
+                            { -1, -1, -1, -1, -1, 0, 1, 4, -1, 3, 2, 5, -1, 8, 7, 6 },
+                            { -1, -1, -1, -1, 8, 3, 0, -1, 7, 2, 1, -1, 6, 5, 4, -1 },
+                            { 6, 7, 8, -1, 5, 2, 3, -1, 4, 1, 0, -1, -1, -1, -1, -1 },
+                            { -1, 4, 5, 6, -1, 1, 2, 7, -1, 0, 3, 8, -1, -1, -1, -1 } };
+                        permutation = permuteCorner[bIndex];
+                        level->gatherQuadRegularCornerPatchPoints(faceIndex, patchVerts, bIndex);
+                    } else {
+                        assert(patchTag._boundaryCount >=0 && patchTag._boundaryCount <= 2);
+                    }
+
+                    offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permutation, iptrs.R);
 
                     iptrs.R += 16;
                     pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, boundaryMask, transitionMask, pptrs.R);
