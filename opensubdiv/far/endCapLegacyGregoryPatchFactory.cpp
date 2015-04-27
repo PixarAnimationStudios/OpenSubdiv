@@ -106,21 +106,25 @@ EndCapLegacyGregoryPatchFactory::Finalize(PatchTables *patchTables)
 
     size_t numGregoryPatches = _gregoryFaceIndices.size();
     size_t numGregoryBoundaryPatches = _gregoryBoundaryFaceIndices.size();
+    size_t numTotalGregoryPatches = 
+        numGregoryPatches + numGregoryBoundaryPatches;
 
     Vtr::Level const &level = _refiner.getLevel(_refiner.GetMaxLevel());
 
-    patchTables->_quadOffsetsTable.resize(
-        (numGregoryPatches + numGregoryBoundaryPatches)*4);
+    patchTables->_quadOffsetsTable.resize(numTotalGregoryPatches*4);
 
-    PatchTables::QuadOffsetsTable::value_type *p = &patchTables->_quadOffsetsTable[0];
-    for (size_t i = 0; i < numGregoryPatches; ++i) {
-        getQuadOffsets(level, _gregoryFaceIndices[i], p);
-        p += 4;
-    }
-    for (size_t i = 0; i < numGregoryBoundaryPatches; ++i) {
-        getQuadOffsets(level, _gregoryBoundaryFaceIndices[i], p);
-        p += 4;
-    }
+	if (numTotalGregoryPatches > 0) {
+		PatchTables::QuadOffsetsTable::value_type *p = 
+            &patchTables->_quadOffsetsTable[0];
+		for (size_t i = 0; i < numGregoryPatches; ++i) {
+			getQuadOffsets(level, _gregoryFaceIndices[i], p);
+			p += 4;
+		}
+		for (size_t i = 0; i < numGregoryBoundaryPatches; ++i) {
+			getQuadOffsets(level, _gregoryBoundaryFaceIndices[i], p);
+			p += 4;
+		}
+	}
 
     // populate vertex valences
     //
