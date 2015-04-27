@@ -24,9 +24,9 @@
 
 #include "../osd/clGLVertexBuffer.h"
 
-#include "../osd/opengl.h"
-
 #include <cassert>
+
+#include "../osd/opengl.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -38,7 +38,6 @@ CLGLVertexBuffer::CLGLVertexBuffer(int numElements,
                                          cl_context /* clContext */)
     : _numElements(numElements), _numVertices(numVertices),
       _vbo(0), _clQueue(0), _clMemory(0), _clMapped(false) {
-
 }
 
 CLGLVertexBuffer::~CLGLVertexBuffer() {
@@ -59,7 +58,8 @@ CLGLVertexBuffer::Create(int numElements, int numVertices, cl_context clContext)
 }
 
 void
-CLGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue queue) {
+CLGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices,
+                             cl_command_queue queue) {
 
     size_t size = numVertices * _numElements * sizeof(float);
     size_t offset = startVertex * _numElements * sizeof(float);
@@ -88,7 +88,7 @@ CLGLVertexBuffer::BindCLBuffer(cl_command_queue queue) {
 }
 
 GLuint
-CLGLVertexBuffer::BindVBO() {
+CLGLVertexBuffer::BindVBO(void * /*deviceContext*/) {
 
     unmap();
     return _vbo;

@@ -27,10 +27,10 @@
 
 #include "../version.h"
 
+#include <cstddef>
+
 #include "../osd/nonCopyable.h"
 #include "../osd/opengl.h"
-
-#include <vector>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -59,8 +59,12 @@ public:
     /// @param varyingStencilTables  The Far::StencilTables used for varying
     ///                              interpolation
     ///
-    static GLSLComputeContext * Create(Far::StencilTables const * vertexStencilTables,
-                                          Far::StencilTables const * varyingStencilTables=0);
+    /// @param deviceContext         (not used)
+    ///
+    static GLSLComputeContext * Create(
+        Far::StencilTables const * vertexStencilTables,
+        Far::StencilTables const * varyingStencilTables,
+        void *deviceContext = NULL);
 
     /// Destructor
     virtual ~GLSLComputeContext();
@@ -98,12 +102,11 @@ public:
     void UnbindStencilTables() const;
 
 protected:
-
-    explicit GLSLComputeContext(Far::StencilTables const * vertexStencilTables,
-                                   Far::StencilTables const * varyingStencilTables);
+    explicit GLSLComputeContext(
+        Far::StencilTables const * vertexStencilTables,
+        Far::StencilTables const * varyingStencilTables);
 
 private:
-
     class GLSLStencilTables;
 
     GLSLStencilTables * _vertexStencilTables,

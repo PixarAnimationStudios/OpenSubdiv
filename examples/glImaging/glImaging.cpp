@@ -68,8 +68,13 @@
 
     #include "../common/clInit.h"
 
-    cl_context g_clContext;
-    cl_command_queue g_clQueue;
+    struct CLContext {
+        cl_context GetContext() const { return clContext; }
+        cl_command_queue GetCommandQueue() const { return clQueue; }
+        cl_context clContext;
+        cl_command_queue clQueue;
+    };
+    CLContext g_clContext;
     OpenSubdiv::Osd::CLComputeController *g_clComputeController = NULL;
 #endif
 
@@ -291,16 +296,18 @@ createOsdMesh(std::string const &kernel,
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == "CL") {
         if (not g_clComputeController) {
-            g_clComputeController = new Osd::CLComputeController(g_clContext, g_clQueue);
+            g_clComputeController = new Osd::CLComputeController(
+                g_clContext.clContext, g_clContext.clQueue);
         }
         return new Osd::Mesh<Osd::CLGLVertexBuffer,
             Osd::CLComputeController,
-            Osd::GLDrawContext>(
+            Osd::GLDrawContext,
+            CLContext>(
                 g_clComputeController,
                 refiner,
                 numVertexElements,
                 numVaryingElements,
-                level, bits, g_clContext, g_clQueue);
+                level, bits, &g_clContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if(kernel == "CUDA") {
@@ -719,7 +726,7 @@ int main(int argc, char ** argv) {
         // prep GPU kernel
 #ifdef OPENSUBDIV_HAS_OPENCL
         if (kernel == "CL") {
-            if (initCL(&g_clContext, &g_clQueue) == false) {
+            if (initCL(&g_clContext.clContext, &g_clContext.clQueue) == false) {
                 std::cout << "Error in initializing OpenCL\n";
                 exit(1);
             }
@@ -750,7 +757,7 @@ int main(int argc, char ** argv) {
 
 #ifdef OPENSUBDIV_HAS_OPENCL
         if (kernel == "CL") {
-            uninitCL(g_clContext, g_clQueue);
+            uninitCL(g_clContext.clContext, g_clContext.clQueue);
         }
 #endif
     }

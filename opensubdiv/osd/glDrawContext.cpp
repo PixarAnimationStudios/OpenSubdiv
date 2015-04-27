@@ -98,7 +98,8 @@ createTextureBuffer(T const &data, GLint format, int offset=0)
 }
 
 GLDrawContext *
-GLDrawContext::Create(Far::PatchTables const * patchTables, int numVertexElements) {
+GLDrawContext::Create(Far::PatchTables const * patchTables,
+                      int numVertexElements, void * /*deviceContext*/) {
 
     if (patchTables) {
 
@@ -191,7 +192,8 @@ GLDrawContext::create(Far::PatchTables const & patchTables, int numVertexElement
 #if defined(GL_ARB_texture_buffer_object) || defined(GL_VERSION_3_1)
 bool
 GLDrawContext::SetFVarDataTexture(
-    Far::PatchTables const & patchTables, int fvarWidth, FVarData const & fvarData) {
+    Far::PatchTables const & patchTables, int fvarWidth, FVarData const & fvarData,
+    void * /*deviceContext*/) {
 
     if (not fvarData.empty()) {
 
@@ -208,7 +210,8 @@ GLDrawContext::SetFVarDataTexture(
 #else
 bool
 GLDrawContext::SetFVarDataTexture(
-    Far::PatchTables const &, int, FVarData const &) {
+    Far::PatchTables const &, int, FVarData const &,
+    void * /*deviceContext*/) {
 
     return false;
 }

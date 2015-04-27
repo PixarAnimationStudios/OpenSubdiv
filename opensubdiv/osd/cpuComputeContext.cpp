@@ -65,7 +65,8 @@ CpuComputeContext::~CpuComputeContext() {
 CpuComputeContext *
 CpuComputeContext::Create(
     Far::StencilTables const * vertexStencilTables,
-        Far::StencilTables const * varyingStencilTables) {
+    Far::StencilTables const * varyingStencilTables,
+    void * /*deviceContext*/) {
 
     return new CpuComputeContext(vertexStencilTables, varyingStencilTables);
 }

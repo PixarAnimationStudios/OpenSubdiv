@@ -27,6 +27,8 @@
 
 #include "../version.h"
 
+#include <cstddef>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -40,13 +42,14 @@ namespace Osd {
 class CpuVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static CpuVertexBuffer * Create(int numElements, int numVertices);
+    static CpuVertexBuffer * Create(int numElements, int numVertices,
+                                    void *deviceContext = NULL);
 
     /// Destructor.
     ~CpuVertexBuffer();
 
-    /// This method is meant to be used in client code in order to provide coarse
-    /// vertices data to Osd.
+    /// This method is meant to be used in client code in order to provide
+    /// coarse vertices data to Osd.
     void UpdateData(const float *src, int startVertex, int numVertices);
 
     /// Returns how many elements defined in this vertex buffer.

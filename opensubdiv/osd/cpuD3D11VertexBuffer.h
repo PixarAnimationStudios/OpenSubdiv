@@ -26,6 +26,7 @@
 #define OSD_CPU_D3D11_VERTEX_BUFFER_H
 
 #include "../version.h"
+#include <cstddef>
 
 struct ID3D11Buffer;
 struct ID3D11Device;
@@ -47,16 +48,16 @@ namespace Osd {
 class CpuD3D11VertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static CpuD3D11VertexBuffer * Create(int numElements, 
-                                            int numVertices, 
-                                            ID3D11Device *device);
+    static CpuD3D11VertexBuffer * Create(int numElements, int numVertices,
+                                         ID3D11DeviceContext *deviceContext);
 
     /// Destructor.
     virtual ~CpuD3D11VertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
-    void UpdateData(const float *src, int startVertex, int numVertices, void *param);
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    void *deviceContext = NULL);
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;
@@ -70,11 +71,14 @@ public:
     /// Returns the D3D11 buffer object.
     ID3D11Buffer *BindD3D11Buffer(ID3D11DeviceContext *deviceContext);
 
+    /// Returns the D3D11 buffer object (for Osd::Mesh interface)
+    ID3D11Buffer *BindVBO(ID3D11DeviceContext *deviceContext) {
+        return BindD3D11Buffer(deviceContext);
+    }
+
 protected:
     /// Constructor.
-    CpuD3D11VertexBuffer(int numElements, 
-                            int numVertices,
-                            ID3D11Device *device);
+    CpuD3D11VertexBuffer(int numElements, int numVertices);
 
     bool allocate(ID3D11Device *device);
 

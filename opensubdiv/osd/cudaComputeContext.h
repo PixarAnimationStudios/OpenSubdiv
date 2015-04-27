@@ -27,15 +27,14 @@
 
 #include "../version.h"
 
-#include "../osd/nonCopyable.h"
+#include <cstddef>
 
-#include <stdlib.h>
-#include <vector>
+#include "../osd/nonCopyable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-namespace Far{ class StencilTables; }
+namespace Far { class StencilTables; }
 
 namespace Osd {
 
@@ -51,7 +50,6 @@ namespace Osd {
 class CudaComputeContext : public NonCopyable<CudaComputeContext> {
 
 public:
-
     /// Creates an CudaComputeContext instance
     ///
     /// @param vertexStencilTables   The Far::StencilTables used for vertex
@@ -60,8 +58,12 @@ public:
     /// @param varyingStencilTables  The Far::StencilTables used for varying
     ///                              interpolation
     ///
-    static CudaComputeContext * Create(Far::StencilTables const * vertexStencilTables,
-                                          Far::StencilTables const * varyingStencilTables=0);
+    /// @param deviceContext         (not used)
+    ///
+    static CudaComputeContext * Create(
+        Far::StencilTables const * vertexStencilTables,
+        Far::StencilTables const * varyingStencilTables,
+        void *deviceContext = NULL);
 
     /// Destructor
     virtual ~CudaComputeContext();
@@ -110,12 +112,10 @@ public:
 
 
 protected:
-
     explicit CudaComputeContext(Far::StencilTables const * vertexStencilTables,
-                                   Far::StencilTables const * varyingStencilTables);
+                                Far::StencilTables const * varyingStencilTables);
 
 private:
-
     class CudaStencilTables;
 
     CudaStencilTables * _vertexStencilTables,

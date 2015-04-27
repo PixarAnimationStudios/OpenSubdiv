@@ -53,8 +53,17 @@ OpenSubdiv::Osd::CpuComputeController * g_cpuComputeController = NULL;
 
     #include "../common/clInit.h"
 
-    cl_context g_clContext;
-    cl_command_queue g_clQueue;
+    struct CLContext {
+        cl_context GetContext() const { return clContext; }
+        cl_command_queue GetCommandQueue() const { return clQueue; }
+        ID3D11DeviceContext *GetDeviceContext() const { return pd3dDeviceContext;  }
+
+        cl_context clContext;
+        cl_command_queue clQueue;
+        ID3D11DeviceContext *pd3dDeviceContext;
+    };
+    CLContext g_clContext;
+
     OpenSubdiv::Osd::CLComputeController * g_clComputeController = NULL;
 #endif
 
@@ -323,6 +332,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
     bits.set(OpenSubdiv::Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
+    // gregory basis hasn't supported yet in D3D11Mesh
+    bits.set(OpenSubdiv::Osd::MeshEndCapLegacyGregory, true);
 
     int numVertexElements = 6;
     int numVaryingElements = 0;
@@ -333,7 +344,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuD3D11VertexBuffer,
                                          OpenSubdiv::Osd::CpuComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext>(
+                                         OpenSubdiv::Osd::D3D11DrawContext,
+                                         ID3D11DeviceContext>(
                                                 g_cpuComputeController,
                                                 refiner,
                                                 numVertexElements,
@@ -346,7 +358,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuD3D11VertexBuffer,
                                          OpenSubdiv::Osd::OmpComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext>(
+                                         OpenSubdiv::Osd::D3D11DrawContext,
+                                         ID3D11DeviceContext>(
                                                 g_ompComputeController,
                                                 refiner,
                                                 numVertexElements,
@@ -360,7 +373,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuD3D11VertexBuffer,
                                          OpenSubdiv::Osd::TbbComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext>(
+                                         OpenSubdiv::Osd::D3D11DrawContext,
+                                         ID3D11DeviceContext>(
                                                 g_tbbComputeController,
                                                 refiner,
                                                 numVertexElements,
@@ -370,16 +384,19 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == kCL) {
         if (not g_clComputeController) {
-            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(g_clContext, g_clQueue);
+            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(
+                g_clContext.clContext, g_clContext.clQueue);
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLD3D11VertexBuffer,
                                          OpenSubdiv::Osd::CLComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext>(
+                                         OpenSubdiv::Osd::D3D11DrawContext,
+                                         CLContext>(
                                                 g_clComputeController,
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
-                                                level, bits, g_clContext, g_clQueue, g_pd3dDeviceContext);
+                                                level, bits,
+                                                &g_clContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
@@ -388,7 +405,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaD3D11VertexBuffer,
                                          OpenSubdiv::Osd::CudaComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext>(
+                                         OpenSubdiv::Osd::D3D11DrawContext,
+                                         ID3D11DeviceContext>(
                                                 g_cudaComputeController,
                                                 refiner,
                                                 numVertexElements,
@@ -401,7 +419,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::D3D11VertexBuffer,
                                          OpenSubdiv::Osd::D3D11ComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext>(
+                                         OpenSubdiv::Osd::D3D11DrawContext,
+                                         ID3D11DeviceContext>(
                                                 g_d3d11ComputeController,
                                                 refiner,
                                                 numVertexElements,
@@ -1000,7 +1019,7 @@ quit() {
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     delete g_clComputeController;
-    uninitCL(g_clContext, g_clQueue);
+    uninitCL(g_clContext.clContext, g_clContext.clQueue);
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
@@ -1042,11 +1061,12 @@ callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (g_kernel == kCL and g_clContext == NULL) {
-        if (initCL(&g_clContext, &g_clQueue) == false) {
+    if (g_kernel == kCL and g_clContext.clContext == NULL) {
+        if (initCL(&g_clContext.clContext, &g_clContext.clQueue) == false) {
             printf("Error in initializing OpenCL\n");
             exit(1);
         }
+        g_clContext.pd3dDeviceContext = g_pd3dDeviceContext;
     }
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA

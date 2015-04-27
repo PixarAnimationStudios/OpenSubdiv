@@ -69,8 +69,14 @@ OpenSubdiv::Osd::CpuComputeController *g_cpuComputeController = NULL;
 
     #include "../common/clInit.h"
 
-    cl_context g_clContext;
-    cl_command_queue g_clQueue;
+    struct CLContext {
+        cl_context GetContext() const { return clContext; }
+        cl_command_queue GetCommandQueue() const { return clQueue; }
+        cl_context clContext;
+        cl_command_queue clQueue;
+    };
+    CLContext g_clContext;
+
     OpenSubdiv::Osd::CLComputeController *g_clComputeController = NULL;
 #endif
 
@@ -594,16 +600,18 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == kCL) {
         if (not g_clComputeController) {
-            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(g_clContext, g_clQueue);
+            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(
+                g_clContext.clContext, g_clContext.clQueue);
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLGLVertexBuffer,
                                          OpenSubdiv::Osd::CLComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
+                                         OpenSubdiv::Osd::GLDrawContext,
+                                         CLContext>(
                                                 g_clComputeController,
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
-                                                level, bits, g_clContext, g_clQueue);
+                                                level, bits, &g_clContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if(kernel == kCUDA) {
@@ -1398,7 +1406,7 @@ uninitGL() {
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     delete g_clComputeController;
-    uninitCL(g_clContext, g_clQueue);
+    uninitCL(g_clContext.clContext, g_clContext.clQueue);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     delete g_cudaComputeController;
@@ -1487,8 +1495,8 @@ callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (g_kernel == kCL and g_clContext == NULL) {
-        if (initCL(&g_clContext, &g_clQueue) == false) {
+    if (g_kernel == kCL and g_clContext.clContext == NULL) {
+        if (initCL(&g_clContext.clContext, &g_clContext.clQueue) == false) {
             printf("Error in initializing OpenCL\n");
             exit(1);
         }
