@@ -36,8 +36,6 @@ set(EXAMPLES_COMMON_SOURCE_FILES
 )
 
 set(EXAMPLES_COMMON_HEADER_FILES
-    clInit.h
-    cudaInit.h
     font_image.h
     hdr_reader.h
     hud.h
@@ -86,9 +84,26 @@ if(DXSDK_FOUND)
 
 endif()
 
-if( OPENCL_FOUND )
+if(OPENCL_FOUND)
     include_directories("${OPENCL_INCLUDE_DIRS}")
+
+    list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        clDeviceContext.cpp
+    )
+    list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        clDeviceContext.h
+    )
 endif()
+
+if(CUDA_FOUND)
+    list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        cudaDeviceContext.cpp
+    )
+    list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        cudaDeviceContext.h
+    )
+endif()
+
 
 include_directories(
     "${PROJECT_SOURCE_DIR}/opensubdiv"
@@ -106,6 +121,6 @@ add_library(examples_common_obj
     OBJECT
         ${EXAMPLES_COMMON_SOURCE_FILES}
         ${EXAMPLES_COMMON_HEADER_FILES}
-        ${INC_FILES}        
+        ${INC_FILES}
 )
 
