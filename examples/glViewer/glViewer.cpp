@@ -1731,18 +1731,23 @@ setGLCoreProfile() {
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
 
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
 #if not defined(__APPLE__)
+
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
+    if (GLEW_VERSION_4_3) {
+        glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
+    } else {
+        glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
+    }
 
 #else
+
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
+
 #endif
+    
     glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
