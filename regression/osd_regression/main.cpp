@@ -55,19 +55,6 @@ GLFWwindow* g_window=0;
 
 #include <far/stencilTablesFactory.h>
 
-#ifdef OPENSUBDIV_HAS_CUDA
-#endif
-
-#ifdef OPENSUBDIV_HAS_OPENCL
-    #include <osd/clComputeContext.h>
-    #include <osd/clComputeController.h>
-    #include <osd/clGLVertexBuffer.h>
-    static cl_context g_clContext;
-    static cl_command_queue g_clQueue;
-    #include "../../examples/common/clInit.h" // XXXX TODO move file out of examples
-#endif
-
-
 #include "../../regression/common/cmp_utils.h"
 #include "../../regression/common/hbr_utils.h"
 #include "../../regression/common/vtr_utils.h"
@@ -91,14 +78,12 @@ using namespace OpenSubdiv;
 enum BackendType {
     kBackendCPU   = 0, // raw CPU
     kBackendCPUGL = 1, // CPU with GL-backed buffer
-    kBackendCL    = 2, // OpenCL
     kBackendCount
 };
 
 static const char* g_BackendNames[kBackendCount] = {
     "CPU",
     "CPUGL",
-    "CL",
 };
 
 static int g_Backend = -1;
@@ -350,54 +335,6 @@ checkMeshCPUGL(FarTopologyRefiner *refiner,
     return result;
 }
 
-
-//------------------------------------------------------------------------------
-static int 
-checkMeshCL( FarTopologyRefiner *refiner,
-             const std::vector<xyzVV>& coarseverts,
-             xyzmesh * refmesh) {
-        
-#ifdef OPENSUBDIV_HAS_OPENCL
-
-    static Osd::CLComputeController *controller = 
-        new Osd::CLComputeController(g_clContext, g_clQueue);
-
-    Far::StencilTables const *vertexStencils;
-    Far::StencilTables const *varyingStencils;
-    buildStencilTables(*refiner, &vertexStencils, &varyingStencils);
-    Osd::CLComputeContext *context = Osd::CLComputeContext::Create(
-        vertexStencils, varyingStencils, g_clContext);
-
-    Osd::CLGLVertexBuffer *vb = 
-        Osd::CLGLVertexBuffer::Create(3, refiner->GetNumVerticesTotal(), 
-            g_clContext);
-    
-    vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size(),
-        g_clQueue );
-
-    controller->Compute( context, vb );
-
-    // read data back from CL buffer
-    size_t dataSize = vb->GetNumVertices() * vb->GetNumElements();
-    float* data = new float[dataSize];
-    
-    clEnqueueReadBuffer (g_clQueue, vb->BindCLBuffer(g_clQueue), CL_TRUE, 0, dataSize * sizeof(float), data, 0, NULL, NULL);
-    
-    int result = checkVertexBuffer(
-        *refiner, refmesh, data, vb->GetNumElements());
-    
-    delete[] data;
-    delete context;
-    delete vertexStencils;
-    delete varyingStencils;
-    delete vb;
-    
-    return result;
-#else
-    return 0;
-#endif
-}
-
 //------------------------------------------------------------------------------
 static int 
 checkMesh( char const * msg, std::string const & shape, int levels, Scheme scheme, int backend ) {
@@ -422,9 +359,6 @@ checkMesh( char const * msg, std::string const & shape, int levels, Scheme schem
         case kBackendCPUGL: 
             result = checkMeshCPUGL(refiner, vtrVertexData, refmesh); 
             break;
-        case kBackendCL: 
-            result = checkMeshCL(refiner, vtrVertexData, refmesh);
-            break;
     }
 
     delete refmesh;
@@ -437,18 +371,6 @@ checkMesh( char const * msg, std::string const & shape, int levels, Scheme schem
 int checkBackend(int backend, int levels) {
 
     printf("*** checking backend : %s\n", g_BackendNames[backend]);
-
-    if (backend == kBackendCL) {
-#ifdef OPENSUBDIV_HAS_OPENCL
-        if (initCL(&g_clContext, &g_clQueue) == false) {
-            printf("  Cannot initialize OpenCL, skipping...\n");
-            return 0;
-        }
-#else
-        printf("  No OpenCL available, skipping...\n");
-        return 0;
-#endif
-    }
 
     int total = 0;
 
@@ -651,13 +573,6 @@ int checkBackend(int backend, int levels) {
 #include "../shapes/bilinear_cube.h"
     total += checkMesh( "test_bilinear_cube", bilinear_cube, levels, kBilinear, backend );
 #endif
-
-
-    if (backend == kBackendCL) {
-#ifdef OPENSUBDIV_HAS_OPENCL
-        uninitCL(g_clContext, g_clQueue);
-#endif
-    }
 
     return total;
 }
