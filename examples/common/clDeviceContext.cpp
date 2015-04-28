@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,8 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_EXAMPLE_CL_INIT_H
-#define OSD_EXAMPLE_CL_INIT_H
+#include "clDeviceContext.h"
 
 #if defined(_WIN32)
     #include <windows.h>
@@ -33,33 +32,44 @@
     #include <GL/glx.h>
 #endif
 
-#include "osd/opencl.h"
-
 #include <cstdio>
+#include <cstring>
 #include <string>
 
-static inline bool HAS_CL_VERSION_1_1 () {
-#ifdef OPENSUBDIV_HAS_OPENCL
-     #ifdef OPENSUBDIV_HAS_CLEW
-        static bool clewInitialized = false;
-        static bool clewLoadSuccess;
-        if (not clewInitialized) {
-            clewInitialized = true;
-            clewLoadSuccess = clewInit() == CLEW_SUCCESS;
-            if (not clewLoadSuccess) {
-                fprintf(stderr, "Loading OpenCL failed.\n");
-            }
-        }
-        return clewLoadSuccess;
-    #endif
-    return true;
-#else
-    return false;
-#endif
+CLDeviceContext::CLDeviceContext() :
+    _clContext(NULL), _clCommandQueue(NULL) {
 }
 
-static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
-{
+CLDeviceContext::~CLDeviceContext() {
+
+    if (_clCommandQueue)
+        clReleaseCommandQueue(_clCommandQueue);
+    if (_clContext)
+        clReleaseContext(_clContext);
+}
+
+/*static*/
+bool
+CLDeviceContext::HAS_CL_VERSION_1_1 () {
+
+#ifdef OPENSUBDIV_HAS_CLEW
+    static bool clewInitialized = false;
+    static bool clewLoadSuccess;
+    if (not clewInitialized) {
+        clewInitialized = true;
+        clewLoadSuccess = clewInit() == CLEW_SUCCESS;
+        if (not clewLoadSuccess) {
+            fprintf(stderr, "Loading OpenCL failed.\n");
+        }
+    }
+    return clewLoadSuccess;
+#endif
+    return true;
+}
+
+bool
+CLDeviceContext::Initialize() {
+
 #ifdef OPENSUBDIV_HAS_CLEW
     if (!clGetPlatformIDs) {
         printf("Error clGetPlatformIDs function not bound.\n");
@@ -117,21 +127,21 @@ static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
     int clDeviceUsed = 0;
 
 #if defined(__APPLE__)
-    *clContext = clCreateContext(props, 0, NULL, clLogMessagesToStdoutAPPLE, NULL, &ciErrNum);
+    _clContext = clCreateContext(props, 0, NULL, clLogMessagesToStdoutAPPLE, NULL, &ciErrNum);
     if (ciErrNum != CL_SUCCESS) {
         printf("Error %d in clCreateContext\n", ciErrNum);
         return false;
     }
 
     size_t devicesSize = 0;
-    clGetGLContextInfoAPPLE(*clContext, kCGLContext, CL_CGL_DEVICES_FOR_SUPPORTED_VIRTUAL_SCREENS_APPLE, 0, NULL, &devicesSize);
+    clGetGLContextInfoAPPLE(_clContext, kCGLContext, CL_CGL_DEVICES_FOR_SUPPORTED_VIRTUAL_SCREENS_APPLE, 0, NULL, &devicesSize);
     int numDevices = int(devicesSize / sizeof(cl_device_id));
     if (numDevices == 0) {
         printf("No sharable devices.\n");
         return false;
     }
     cl_device_id *clDevices = new cl_device_id[numDevices];
-    clGetGLContextInfoAPPLE(*clContext, kCGLContext, CL_CGL_DEVICES_FOR_SUPPORTED_VIRTUAL_SCREENS_APPLE, numDevices * sizeof(cl_device_id), clDevices, NULL);
+    clGetGLContextInfoAPPLE(_clContext, kCGLContext, CL_CGL_DEVICES_FOR_SUPPORTED_VIRTUAL_SCREENS_APPLE, numDevices * sizeof(cl_device_id), clDevices, NULL);
 #else
 
     // get the number of GPU devices available to the platform
@@ -190,7 +200,8 @@ static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
         return false;
     }
 
-    *clContext = clCreateContext(props, 1, &clDevices[clDeviceUsed], NULL, NULL, &ciErrNum);
+    _clContext = clCreateContext(props, 1, &clDevices[clDeviceUsed],
+                                 NULL, NULL, &ciErrNum);
     if (ciErrNum != CL_SUCCESS) {
         printf("Error %d in clCreateContext\n", ciErrNum);
         delete[] clDevices;
@@ -198,7 +209,8 @@ static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
     }
 #endif
 
-    *clQueue = clCreateCommandQueue(*clContext, clDevices[clDeviceUsed], 0, &ciErrNum);
+    _clCommandQueue = clCreateCommandQueue(_clContext, clDevices[clDeviceUsed],
+                                    0, &ciErrNum);
     delete[] clDevices;
     if (ciErrNum != CL_SUCCESS) {
         printf("Error %d in clCreateCommandQueue\n", ciErrNum);
@@ -207,10 +219,3 @@ static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
     return true;
 }
 
-static void uninitCL(cl_context clContext, cl_command_queue clQueue)
-{
-    clReleaseCommandQueue(clQueue);
-    clReleaseContext(clContext);
-}
-
-#endif // OSD_EXAMPLE_CL_INIT_H

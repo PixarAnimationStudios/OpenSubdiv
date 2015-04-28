@@ -66,15 +66,9 @@
     #include <osd/clComputeContext.h>
     #include <osd/clComputeController.h>
 
-    #include "../common/clInit.h"
+    #include "../common/clDeviceContext.h"
 
-    struct CLContext {
-        cl_context GetContext() const { return clContext; }
-        cl_command_queue GetCommandQueue() const { return clQueue; }
-        cl_context clContext;
-        cl_command_queue clQueue;
-    };
-    CLContext g_clContext;
+    CLDeviceContext g_clDeviceContext;
     OpenSubdiv::Osd::CLComputeController *g_clComputeController = NULL;
 #endif
 
@@ -86,7 +80,8 @@
     #include <cuda_runtime_api.h>
     #include <cuda_gl_interop.h>
 
-    #include "../common/cudaInit.h"
+    #include "../common/cudaDeviceContext.h"
+    CudaDeviceContext g_cudaDeviceContext;
 
     OpenSubdiv::Osd::CudaComputeController *g_cudaComputeController = NULL;
 #endif
@@ -297,17 +292,18 @@ createOsdMesh(std::string const &kernel,
     } else if(kernel == "CL") {
         if (not g_clComputeController) {
             g_clComputeController = new Osd::CLComputeController(
-                g_clContext.clContext, g_clContext.clQueue);
+                g_clDeviceContext.GetContext(),
+                g_clDeviceContext.GetCommandQueue());
         }
         return new Osd::Mesh<Osd::CLGLVertexBuffer,
             Osd::CLComputeController,
             Osd::GLDrawContext,
-            CLContext>(
+            CLDeviceContext>(
                 g_clComputeController,
                 refiner,
                 numVertexElements,
                 numVaryingElements,
-                level, bits, &g_clContext);
+                level, bits, &g_clDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if(kernel == "CUDA") {
@@ -726,15 +722,22 @@ int main(int argc, char ** argv) {
         // prep GPU kernel
 #ifdef OPENSUBDIV_HAS_OPENCL
         if (kernel == "CL") {
-            if (initCL(&g_clContext.clContext, &g_clContext.clQueue) == false) {
-                std::cout << "Error in initializing OpenCL\n";
-                exit(1);
+            if (g_clDeviceContext.IsInitialized() == false) {
+                if (g_clDeviceContext.Initialize() == false) {
+                    std::cout << "Error in initializing OpenCL\n";
+                    exit(1);
+                }
             }
         }
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
         if (kernel == "CUDA") {
-            cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
+            if (g_cudaDeviceContext.IsInitialized() == false) {
+                if (g_cudaDeviceContext.Initialize() == false) {
+                    std::cout << "Error in initializing Cuda\n";
+                    exit(1);
+                }
+            }
         }
 #endif
         for (size_t i = 0; i < g_shapes.size(); ++i) {
@@ -754,12 +757,6 @@ int main(int argc, char ** argv) {
 
             glfwSwapBuffers(window);
         }
-
-#ifdef OPENSUBDIV_HAS_OPENCL
-        if (kernel == "CL") {
-            uninitCL(g_clContext.clContext, g_clContext.clQueue);
-        }
-#endif
     }
 
     return 0;

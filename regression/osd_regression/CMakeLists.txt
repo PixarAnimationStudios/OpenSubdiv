@@ -42,15 +42,7 @@ if ( GLEW_FOUND )
     list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
 endif()
 
-if ( OPENCL_FOUND )
-    list(APPEND PLATFORM_LIBRARIES
-        "${OPENCL_LIBRARIES}"
-    )
-    include_directories( "${OPENCL_INCLUDE_DIRS}" )
-endif()
-
-
-_add_possibly_cuda_executable(osd_regression
+_add_executable(osd_regression
     "${SOURCE_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
 )
