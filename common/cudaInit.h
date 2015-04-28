@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_CUDA_INIT_H
-#define OSD_CUDA_INIT_H
+#ifndef OSD_COMMON_CUDA_INIT_H
+#define OSD_COMMON_CUDA_INIT_H
 
 #include <algorithm>
 #include <cstdio>
@@ -108,4 +108,4 @@ inline int cutGetMaxGflopsDeviceId()
     return max_perf_device;
 }
 
-#endif //OSD_CUDA_INIT_H
+#endif  // OSD_COMMON_CUDA_INIT_H

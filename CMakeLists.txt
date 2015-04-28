@@ -688,6 +688,8 @@ endif()
 
 add_subdirectory(opensubdiv)
 
+add_subdirectory(common)
+
 if (NOT ANDROID AND NOT IOS) # XXXdyu
     add_subdirectory(regression)
 endif()

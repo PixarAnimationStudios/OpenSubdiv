@@ -59,6 +59,7 @@ _add_glfw_executable(glShareTopology
     glShareTopology.cpp
     "${SHADER_FILES}"
     "${INC_FILES}"
+    $<TARGET_OBJECTS:common_obj>
     $<TARGET_OBJECTS:regression_common_obj>
     $<TARGET_OBJECTS:examples_common_obj>
 )

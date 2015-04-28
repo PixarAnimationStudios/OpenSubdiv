@@ -36,8 +36,6 @@ set(EXAMPLES_COMMON_SOURCE_FILES
 )
 
 set(EXAMPLES_COMMON_HEADER_FILES
-    clInit.h
-    cudaInit.h
     font_image.h
     hdr_reader.h
     hud.h
@@ -84,10 +82,6 @@ if(DXSDK_FOUND)
 
     include_directories("${DXSDK_INCLUDE_DIR}")
 
-endif()
-
-if( OPENCL_FOUND )
-    include_directories("${OPENCL_INCLUDE_DIRS}")
 endif()
 
 include_directories(
