@@ -22,26 +22,22 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_D3D11MESH_H
-#define OSD_D3D11MESH_H
+#ifndef OSD_EXAMPLES_COMMON_CUDA_DEVICE_CONTEXT_H
+#define OSD_EXAMPLES_COMMON_CUDA_DEVICE_CONTEXT_H
 
-#include "../version.h"
+class CudaDeviceContext {
+public:
+    CudaDeviceContext();
+    ~CudaDeviceContext();
 
-#include "../osd/mesh.h"
-#include "../osd/d3d11DrawContext.h"
+    bool Initialize();
 
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
+    bool IsInitialized() const {
+        return _initialized;
+    }
 
-namespace Osd {
+private:
+    bool _initialized;
+};
 
-typedef MeshInterface<D3D11DrawContext> D3D11MeshInterface;
-
-} // end namespace Osd
-
-} // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
-}  // end namespace OpenSubdiv
-
-#endif  // OSD_D3D11MESH_H
+#endif  // OSD_EXAMPLES_COMMON_CUDA_DEVICE_CONTEXT_H

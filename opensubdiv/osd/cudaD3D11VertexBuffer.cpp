@@ -51,7 +51,7 @@ CudaD3D11VertexBuffer *
 CudaD3D11VertexBuffer::Create(int numElements, int numVertices,
                               ID3D11DeviceContext *deviceContext) {
     CudaD3D11VertexBuffer *instance =
-        new CudaD3D11VertexBuffer(numElements, numVertices, device);
+        new CudaD3D11VertexBuffer(numElements, numVertices);
 
     ID3D11Device *device;
     deviceContext->GetDevice(&device);

@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,26 +22,36 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_D3D11MESH_H
-#define OSD_D3D11MESH_H
+#ifndef OSD_EXAMPLES_COMMON_CL_DEVICE_CONTEXT_H
+#define OSD_EXAMPLES_COMMON_CL_DEVICE_CONTEXT_H
 
-#include "../version.h"
+#include "osd/opencl.h"
 
-#include "../osd/mesh.h"
-#include "../osd/d3d11DrawContext.h"
+class CLDeviceContext {
+public:
+    CLDeviceContext();
+    ~CLDeviceContext();
 
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
+    static bool HAS_CL_VERSION_1_1 ();
 
-namespace Osd {
+    bool Initialize();
 
-typedef MeshInterface<D3D11DrawContext> D3D11MeshInterface;
+    bool IsInitialized() const {
+        return (_clContext != NULL);
+    }
 
-} // end namespace Osd
+    cl_context GetContext() const {
+        return _clContext;
+    }
+    cl_command_queue GetCommandQueue() const {
+        return _clCommandQueue;
+    }
 
-} // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
+private:
+    cl_context _clContext;
+    cl_command_queue _clCommandQueue;
+};
 
-}  // end namespace OpenSubdiv
 
-#endif  // OSD_D3D11MESH_H
+
+#endif  // OSD_EXAMPLES_COMMON_CL_DEVICE_CONTEXT_H
