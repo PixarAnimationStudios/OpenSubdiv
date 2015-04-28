@@ -311,6 +311,8 @@ option(NO_OPENCL "Disable OpenCL backend" OFF)
 option(NO_CLEW "Disable CLEW wrapper library" OFF)
 option(NO_OPENGL "Disable OpenGL support")
 option(NO_DX "Disable DirectX support")
+option(NO_TESTS "Disable all tests")
+option(NO_GLTESTS "Disable GL tests")
 
 # Check for dependencies
 if(NOT NO_OMP)
@@ -682,7 +684,7 @@ endmacro()
 #-------------------------------------------------------------------------------
 # Build targets
 
-if (NOT NO_TEST)
+if (NOT NO_TESTS)
     enable_testing()
 endif()
 
