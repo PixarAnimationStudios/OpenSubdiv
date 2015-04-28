@@ -62,9 +62,8 @@ GLFWwindow* g_window=0;
     #include <osd/clComputeContext.h>
     #include <osd/clComputeController.h>
     #include <osd/clGLVertexBuffer.h>
-    static cl_context g_clContext;
-    static cl_command_queue g_clQueue;
-    #include "../../examples/common/clInit.h" // XXXX TODO move file out of examples
+    #include "../../common/clDeviceContext.h"
+    CLDeviceContext g_clDeviceContext;
 #endif
 
 
@@ -360,20 +359,21 @@ checkMeshCL( FarTopologyRefiner *refiner,
 #ifdef OPENSUBDIV_HAS_OPENCL
 
     static Osd::CLComputeController *controller = 
-        new Osd::CLComputeController(g_clContext, g_clQueue);
+        new Osd::CLComputeController(g_clDeviceContext.GetContext(),
+                                     g_clDeviceContext.GetCommandQueue());
 
     Far::StencilTables const *vertexStencils;
     Far::StencilTables const *varyingStencils;
     buildStencilTables(*refiner, &vertexStencils, &varyingStencils);
     Osd::CLComputeContext *context = Osd::CLComputeContext::Create(
-        vertexStencils, varyingStencils, g_clContext);
+        vertexStencils, varyingStencils, &g_clDeviceContext);
 
-    Osd::CLGLVertexBuffer *vb = 
-        Osd::CLGLVertexBuffer::Create(3, refiner->GetNumVerticesTotal(), 
-            g_clContext);
-    
-    vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size(),
-        g_clQueue );
+    Osd::CLGLVertexBuffer *vb =
+        Osd::CLGLVertexBuffer::Create(3, refiner->GetNumVerticesTotal(),
+                                      &g_clDeviceContext);
+
+    vb->UpdateData(coarseverts[0].GetPos(), 0, (int)coarseverts.size(),
+                   &g_clDeviceContext);
 
     controller->Compute( context, vb );
 
@@ -381,7 +381,10 @@ checkMeshCL( FarTopologyRefiner *refiner,
     size_t dataSize = vb->GetNumVertices() * vb->GetNumElements();
     float* data = new float[dataSize];
     
-    clEnqueueReadBuffer (g_clQueue, vb->BindCLBuffer(g_clQueue), CL_TRUE, 0, dataSize * sizeof(float), data, 0, NULL, NULL);
+    clEnqueueReadBuffer (g_clDeviceContext.GetCommandQueue(),
+                         vb->BindCLBuffer(g_clDeviceContext.GetCommandQueue()),
+                         CL_TRUE, 0,
+                         dataSize * sizeof(float), data, 0, NULL, NULL);
     
     int result = checkVertexBuffer(
         *refiner, refmesh, data, vb->GetNumElements());
@@ -440,7 +443,7 @@ int checkBackend(int backend, int levels) {
 
     if (backend == kBackendCL) {
 #ifdef OPENSUBDIV_HAS_OPENCL
-        if (initCL(&g_clContext, &g_clQueue) == false) {
+        if (g_clDeviceContext.Initialize() == false) {
             printf("  Cannot initialize OpenCL, skipping...\n");
             return 0;
         }
@@ -651,13 +654,6 @@ int checkBackend(int backend, int levels) {
 #include "../shapes/bilinear_cube.h"
     total += checkMesh( "test_bilinear_cube", bilinear_cube, levels, kBilinear, backend );
 #endif
-
-
-    if (backend == kBackendCL) {
-#ifdef OPENSUBDIV_HAS_OPENCL
-        uninitCL(g_clContext, g_clQueue);
-#endif
-    }
 
     return total;
 }

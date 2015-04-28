@@ -63,6 +63,7 @@ _add_possibly_cuda_executable(glImaging
     "${SOURCE_FILES}"
     "${SHADER_FILES}"
     "${INC_FILES}"
+    $<TARGET_OBJECTS:common_obj>
     $<TARGET_OBJECTS:regression_common_obj>
 )
 

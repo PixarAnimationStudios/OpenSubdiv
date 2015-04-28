@@ -1,5 +1,5 @@
 #
-#   Copyright 2013 Pixar
+#   Copyright 2015 Pixar
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -22,50 +22,32 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-# *** glViewer ***
+if (OPENCL_FOUND)
+    list (APPEND COMMON_SOURCE_FILES
+        clDeviceContext.cpp
+    )
 
-set(SHADER_FILES
-     shader.glsl
-     shader_gl3.glsl
-)
-
-include_directories(
-    "${PROJECT_SOURCE_DIR}/opensubdiv"
-    "${PROJECT_SOURCE_DIR}/regression"
-    "${GLFW_INCLUDE_DIR}"
-)
-
-list(APPEND PLATFORM_LIBRARIES
-    "${OSD_LINK_TARGET}"
-    "${OPENGL_LIBRARY}"
-    "${GLFW_LIBRARIES}"
-)
-
-if ( GLEW_FOUND )
-    include_directories("${GLEW_INCLUDE_DIR}")
-    list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
-endif()
-
-if( OPENCL_FOUND )
+    list (APPEND COMMON_HEADER_FILES
+        clDeviceContext.h
+    )
     include_directories("${OPENCL_INCLUDE_DIRS}")
 endif()
 
-_stringify("${SHADER_FILES}" INC_FILES)
+if (CUDA_FOUND)
+    list (APPEND COMMON_SOURCE_FILES
+    )
+    list (APPEND COMMON_HEADER_FILES
+        cudaInit.h
+    )
+endif()
 
-include_directories("${CMAKE_CURRENT_BINARY_DIR}")
-
-_add_glfw_executable(glViewer
-    glViewer.cpp
-    "${SHADER_FILES}"
-    "${INC_FILES}"
-    $<TARGET_OBJECTS:common_obj>
-    $<TARGET_OBJECTS:regression_common_obj>
-    $<TARGET_OBJECTS:regression_vtr_utils_obj>
-    $<TARGET_OBJECTS:examples_common_obj>
+include_directories(
+    "${PROJECT_SOURCE_DIR}/opensubdiv"
 )
 
-target_link_libraries(glViewer
-    ${PLATFORM_LIBRARIES}
+add_library(common_obj
+    OBJECT
+        ${COMMON_SOURCE_FILES}
+        ${COMMON_HEADER_FILES}
 )
 
-install(TARGETS glViewer DESTINATION "${CMAKE_BINDIR_BASE}")

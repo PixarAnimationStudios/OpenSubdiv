@@ -52,6 +52,7 @@ endif()
 
 _add_possibly_cuda_executable(osd_regression
     "${SOURCE_FILES}"
+    $<TARGET_OBJECTS:common_obj>
     $<TARGET_OBJECTS:regression_common_obj>
 )
 
