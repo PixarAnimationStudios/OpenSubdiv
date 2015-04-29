@@ -77,8 +77,6 @@ _add_glfw_executable(glImaging
     $<TARGET_OBJECTS:examples_common_obj>
 )
 
-add_dependencies(glImaging blarg )
-
 target_link_libraries(glImaging
     ${PLATFORM_LIBRARIES}
 )
