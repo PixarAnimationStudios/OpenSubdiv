@@ -345,6 +345,9 @@ if(NOT NO_PTEX)
    find_package(PTex 2.0)
 endif()
 if (OPENGL_FOUND AND NOT IOS)
+    add_definitions(
+        -DOPENSUBDIV_HAS_OPENGL
+    )
     if (APPLE)
         find_package(GLEW)
     else()
@@ -353,7 +356,12 @@ if (OPENGL_FOUND AND NOT IOS)
 endif()
 
 if (WIN32 AND NOT NO_DX)
-   find_package(DXSDK)
+    find_package(DXSDK)
+    if(DXSDK_FOUND)
+        add_definitions(
+            -DOPENSUBDIV_HAS_DX
+        )
+    endif()
 endif()
 
 if (NOT NO_MAYA)

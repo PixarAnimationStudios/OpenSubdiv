@@ -35,6 +35,51 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
+static clCreateFromD3D11BufferKHR_fn clCreateFromD3D11Buffer = NULL;
+static clEnqueueAcquireD3D11ObjectsKHR_fn clEnqueueAcquireD3D11Objects = NULL;
+static clEnqueueReleaseD3D11ObjectsKHR_fn clEnqueueReleaseD3D11Objects = NULL;
+
+// XXX: clGetExtensionFunctionAddress is marked as deprecated and
+//      clGetExtensionFunctionAddressForPlatform should be used,
+//      however it requires OpenCL 1.2.
+//      until we bump the requirement to 1.2, mute the deprecated warning.
+#if defined(_MSC_VER)
+#pragma warning(disable: 4996)
+#endif
+
+
+static void resolveInteropFunctions() {
+
+    if (not clCreateFromD3D11Buffer) {
+        clCreateFromD3D11Buffer =
+            (clCreateFromD3D11BufferKHR_fn)
+            clGetExtensionFunctionAddress("clCreateFromD3D11BufferKHR");
+    }
+    if (not clCreateFromD3D11Buffer) {
+        clCreateFromD3D11Buffer =
+            (clCreateFromD3D11BufferKHR_fn)
+            clGetExtensionFunctionAddress("clCreateFromD3D11BufferNV");
+    }
+
+    if (not clEnqueueAcquireD3D11Objects) {
+        clEnqueueAcquireD3D11Objects = (clEnqueueAcquireD3D11ObjectsKHR_fn)
+            clGetExtensionFunctionAddress("clEnqueueAcquireD3D11ObjectsKHR");
+    }
+    if (not clEnqueueAcquireD3D11Objects) {
+        clEnqueueAcquireD3D11Objects = (clEnqueueAcquireD3D11ObjectsKHR_fn)
+            clGetExtensionFunctionAddress("clEnqueueAcquireD3D11ObjectsNV");
+    }
+
+    if (not clEnqueueReleaseD3D11Objects) {
+        clEnqueueReleaseD3D11Objects = (clEnqueueReleaseD3D11ObjectsKHR_fn)
+            clGetExtensionFunctionAddress("clEnqueueReleaseD3D11ObjectsKHR");
+    }
+    if (not clEnqueueReleaseD3D11Objects) {
+        clEnqueueReleaseD3D11Objects = (clEnqueueReleaseD3D11ObjectsKHR_fn)
+            clGetExtensionFunctionAddress("clEnqueueReleaseD3D11ObjectsNV");
+    }
+}
+
 CLD3D11VertexBuffer::CLD3D11VertexBuffer(int numElements, int numVertices)
     : _numElements(numElements), _numVertices(numVertices),
       _d3d11Buffer(NULL), _clMemory(NULL), _clQueue(NULL), _clMapped(false) {
@@ -73,6 +118,18 @@ CLD3D11VertexBuffer::UpdateData(const float *src, int startVertex,
     clEnqueueWriteBuffer(queue, _clMemory, true, offset, size, src, 0, NULL, NULL);
 }
 
+int
+CLD3D11VertexBuffer::GetNumElements() const {
+
+    return _numElements;
+}
+
+int
+CLD3D11VertexBuffer::GetNumVertices() const {
+
+    return _numVertices;
+}
+
 cl_mem
 CLD3D11VertexBuffer::BindCLBuffer(cl_command_queue queue) {
 
@@ -105,9 +162,17 @@ CLD3D11VertexBuffer::allocate(cl_context clContext, ID3D11Device *device) {
         return false;
     }
 
+    if (not clCreateFromD3D11Buffer) {
+        resolveInteropFunctions();
+        if (not clCreateFromD3D11Buffer) {
+            return false;
+        }
+    }
+
     // register d3d11buffer as cl memory
     cl_int err;
-    _clMemory = clCreateFromD3D11BufferKHR(clContext, CL_MEM_READ_WRITE, _d3d11Buffer, &err);
+
+    _clMemory = clCreateFromD3D11Buffer(clContext, CL_MEM_READ_WRITE, _d3d11Buffer, &err);
 
     if (err != CL_SUCCESS) return false;
     return true;
@@ -118,15 +183,29 @@ CLD3D11VertexBuffer::map(cl_command_queue queue) {
 
     if (_clMapped) return;
     _clQueue = queue;
-    clEnqueueAcquireD3D11ObjectsKHR(queue, 1, &_clMemory, 0, 0, 0);
+
+    if (not clEnqueueAcquireD3D11Objects) {
+        resolveInteropFunctions();
+        if (not clEnqueueAcquireD3D11Objects) {
+            return;
+        }
+    }
+
+    clEnqueueAcquireD3D11Objects(queue, 1, &_clMemory, 0, 0, 0);
     _clMapped = true;
 }
 
 void
 CLD3D11VertexBuffer::unmap() {
-    
+
     if (not _clMapped) return;
-    clEnqueueReleaseD3D11ObjectsKHR(_clQueue, 1, &_clMemory, 0, 0, 0);
+    if (not clEnqueueReleaseD3D11Objects) {
+        resolveInteropFunctions();
+        if (not clEnqueueReleaseD3D11Objects) {
+            return;
+        }
+    }
+    clEnqueueReleaseD3D11Objects(_clQueue, 1, &_clMemory, 0, 0, 0);
     _clMapped = false;
 }
 
