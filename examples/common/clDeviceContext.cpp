@@ -216,6 +216,7 @@ CLDeviceContext::Initialize() {
     clGetGLContextInfoAPPLE(_clContext, kCGLContext,
                             CL_CGL_DEVICES_FOR_SUPPORTED_VIRTUAL_SCREENS_APPLE,
                             numDevices * sizeof(cl_device_id), clDevices, NULL);
+    int clDeviceUsed = 0;
 
 #else   // not __APPLE__
 
