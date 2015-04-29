@@ -184,10 +184,10 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
     int const maxValence = _level.getMaxValence();
 
-    internal::StackBuffer<Index>     indexBuffer(maxValence);
-    internal::StackBuffer<int>       valueBuffer(maxValence);
-    internal::StackBuffer<Sibling>   siblingBuffer(maxValence);
-    internal::StackBuffer<ValueSpan> spanBuffer(maxValence);
+    internal::StackBuffer<Index,16>     indexBuffer(maxValence);
+    internal::StackBuffer<int,16>       valueBuffer(maxValence);
+    internal::StackBuffer<Sibling,16>   siblingBuffer(maxValence);
+    internal::StackBuffer<ValueSpan,16> spanBuffer(maxValence);
 
     int *     uniqueValues   = valueBuffer;
     Sibling * vValueSiblings = siblingBuffer;

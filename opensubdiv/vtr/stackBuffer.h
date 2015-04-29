@@ -34,10 +34,10 @@ namespace internal {
 
 //
 //  The StackBuffer class is intented solely to take the place of VLA's (Variable
-//  Length Arrays) that all compilers other than MSVC support.  MSVC forces us to
-//  make use of either alloca() or some other mechanism to create small arrays on
-//  the stack that are typically based on the valence of a vertex -- small in
-//  general, but occassionally large.
+//  Length Arrays) which most compilers support, but are not strictly standard C++.
+//  Portability concerns forces us to make use of either alloca() or some other
+//  mechanism to create small arrays on the stack that are typically based on the
+//  valence of a vertex -- small in general, but occassionally large.
 //
 //  Note also that since the intent of this is to replace VLA's -- not general
 //  std::vectors -- support for std::vector functionality is intentionally limited
@@ -46,7 +46,7 @@ namespace internal {
 //  loop with a new size, but resizing in this case reinitializes all elements.
 //
 
-template <typename TYPE, unsigned int SIZE = 16>
+template <typename TYPE, unsigned int SIZE>
 class StackBuffer
 {
 public:
@@ -170,6 +170,7 @@ template <typename TYPE, unsigned int SIZE>
 inline
 StackBuffer<TYPE,SIZE>::~StackBuffer() {
 
+    destruct();
     deallocate();
 }
 

@@ -877,7 +877,7 @@ Refinement::subdivideEdgeSharpness() {
     //  non-trivial creasing method like Chaikin is used.  This is not being
     //  done now but is worth considering...
     //
-    internal::StackBuffer<float,8> pVertEdgeSharpness;
+    internal::StackBuffer<float,16> pVertEdgeSharpness;
     if (!creasing.IsUniform()) {
         pVertEdgeSharpness.Reserve(_parent->getMaxValence());
     }
